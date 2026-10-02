@@ -19,6 +19,9 @@ checksums="$repo_root/scripts/models.sha256"
 # Gemma 4 12B, 4 bits (QAT), publicado por Google (ADR-0002).
 SOURCES=(
   "gemma-4-12b-it-qat-q4_0.gguf https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/resolve/29d097773436b69ff9feafd636ab4cf873786537/gemma-4-12b-it-qat-q4_0.gguf"
+  # bge-m3 y bge-reranker-v2-m3 en FP16, conversiones GGUF de gpustack (ADR-0003, [F29] y [F30]).
+  "bge-m3-FP16.gguf https://huggingface.co/gpustack/bge-m3-GGUF/resolve/2d48f1737679ad900d5c26c5aad5410e9c70fdca/bge-m3-FP16.gguf"
+  "bge-reranker-v2-m3-FP16.gguf https://huggingface.co/gpustack/bge-reranker-v2-m3-GGUF/resolve/3093af03b1a635e67b084b1d8c03c5f5e020fd05/bge-reranker-v2-m3-FP16.gguf"
 )
 
 expected_hash() {

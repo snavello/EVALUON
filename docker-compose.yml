@@ -51,6 +51,108 @@ services:
       start_period: 120s
     restart: unless-stopped
 
+  embeddings:
+    # bge-m3, GGUF FP16 (ADR-0003). Misma imagen y compilación que generation.
+    # Vector denso (agrupación CLS), normalizado por el servidor. Lote físico igual al
+    # contexto: un texto entra entero en un solo paso, o se rechaza (ver entorno.md, T-003).
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda-b11347
+    command:
+      - --model
+      - /models/${EMBEDDINGS_MODEL_FILE:-bge-m3-FP16.gguf}
+      - --alias
+      - ${EMBEDDINGS_MODEL_ALIAS:-bge-m3}
+      - --embeddings
+      - --pooling
+      - cls
+      - --ctx-size
+      - "${EMBEDDINGS_CTX_SIZE:-8192}"
+      - --batch-size
+      - "${EMBEDDINGS_CTX_SIZE:-8192}"
+      - --ubatch-size
+      - "${EMBEDDINGS_CTX_SIZE:-8192}"
+      - --parallel
+      - "1"
+      - --n-gpu-layers
+      - all
+      - --fit
+      - "off"
+      - --no-context-shift
+      - --offline
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+    volumes:
+      - ./models:/models:ro
+    networks:
+      - internal
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  reranker:
+    # bge-reranker-v2-m3, GGUF FP16 (ADR-0003). Misma imagen y compilación que generation.
+    # El archivo no trae tokenizer.ggml.add_sep_token: sin forzarlo, el servidor arma el par
+    # como "<s> pregunta </s> pasaje </s>" en lugar de "<s> pregunta </s></s> pasaje </s>"
+    # (formato del modelo original) y los puntajes se apartan de los publicados
+    # (ver entorno.md, T-003). Lote físico igual al contexto, como en embeddings.
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda-b11347
+    command:
+      - --model
+      - /models/${RERANKER_MODEL_FILE:-bge-reranker-v2-m3-FP16.gguf}
+      - --alias
+      - ${RERANKER_MODEL_ALIAS:-bge-reranker-v2-m3}
+      - --rerank
+      - --override-kv
+      - tokenizer.ggml.add_sep_token=bool:true
+      - --ctx-size
+      - "${RERANKER_CTX_SIZE:-8192}"
+      - --batch-size
+      - "${RERANKER_CTX_SIZE:-8192}"
+      - --ubatch-size
+      - "${RERANKER_CTX_SIZE:-8192}"
+      - --parallel
+      - "1"
+      - --n-gpu-layers
+      - all
+      - --fit
+      - "off"
+      - --no-context-shift
+      - --offline
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+    volumes:
+      - ./models:/models:ro
+    networks:
+      - internal
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
 networks:
   internal:
     internal: true
