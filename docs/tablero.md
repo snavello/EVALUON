@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 52 tareas sin terminar.
-- ▶ T-001 · Comprobar la GPU dentro de un contenedor (en curso)
+- ◐ T-001 · Comprobar la GPU dentro de un contenedor (en verificación)
 - ○ T-002 · Levantar el motor de generación y medir su velocidad (pendiente)
 - ○ T-003 · Levantar embeddings y reranker y medir la memoria de video (pendiente)
 - ○ T-004 · Fijar Postgres con sus extensiones y búsqueda en español (pendiente)
@@ -119,7 +119,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  T001["▶ T-001 · Comprobar la GPU dentro de un contenedor"]:::active
+  T001["◐ T-001 · Comprobar la GPU dentro de un contenedor"]:::review
   T002["○ T-002 · Levantar el motor de generación y medir su…"]:::todo
   T003["○ T-003 · Levantar embeddings y reranker y medir la m…"]:::todo
   T004["○ T-004 · Fijar Postgres con sus extensiones y búsque…"]:::todo
