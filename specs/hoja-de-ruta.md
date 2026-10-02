@@ -1,6 +1,6 @@
 # Hoja de ruta de EVALUON
 
-Estado: propuesta · Fecha: 2026-10-02 · Aprobó: —
+Estado: aprobada · Fecha: 2026-10-02 · Aprobó: responsable del proyecto
 
 Las features del proyecto, en el orden en que se construyen. Cada una tiene su carpeta en `specs/` cuando se empieza a trabajar. El tablero (`docs/tablero.md`) lee esta tabla para mostrar el mapa del proyecto.
 

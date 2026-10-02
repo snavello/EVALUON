@@ -29,7 +29,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 1 de 7 · Spec | — | — |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 2 de 7 · Plan | — | — |
 | 002 · Revisión de pliegos | Observaciones a un pliego contra la normativa, antes de publicarlo | No iniciada | — | — |
 | 003 · Matriz de requisitos | Los requisitos del pliego ordenados en una matriz que la Comisión valida | No iniciada | — | — |
 | 004 · Evaluación de ofertas | Por cada requisito, una propuesta con su cita; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -40,11 +40,11 @@ flowchart LR
 
 ## 001 · Normativa consultable con cita
 
-**Etapa actual:** 1 de 7 · Spec (spec en borrador) · [carpeta](../specs/001-normativa)
+**Etapa actual:** 2 de 7 · Plan · [carpeta](../specs/001-normativa)
 
 ```mermaid
 flowchart LR
-  E0["▶ 1. Spec"]:::active --> E1["○ 2. Plan"]:::todo --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  E0["✓ 1. Spec"]:::done --> E1["▶ 2. Plan"]:::active --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -54,11 +54,11 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Aprobar la spec (compuerta del responsable).
+- **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
 
 ### Qué se hizo
 
-- Nada terminado todavía.
+- Etapas completas: Spec.
 
 ### Requisitos
 

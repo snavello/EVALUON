@@ -1,6 +1,6 @@
 # Spec 001 · Normativa consultable con cita
 
-Estado: borrador · Fecha: 2026-10-02 · Aprobó: —
+Estado: aprobada · Fecha: 2026-10-02 · Aprobó: responsable del proyecto
 
 ## Problema
 
@@ -136,3 +136,4 @@ No quedan preguntas abiertas.
 - **2026-10-02 · Tiempo de respuesta.** Hasta 30 segundos por consulta.
 - **2026-10-02 · Calidad.** Unas 30 preguntas de prueba; cita literal siempre, respuesta correcta en al menos 85 %, abstención en al menos 90 %. Son valores de partida para el piloto y se revisan con mediciones reales.
 - **2026-10-02 · Validación de las preguntas.** Las propone el Coordinador, las corrige el responsable y las aprueba un integrante de la Comisión.
+- **2026-10-02 · Peso de cada categoría.** Confirmado por el responsable: los dictámenes legales y las recomendaciones de auditoría acompañan a la norma y no la reemplazan; la otra normativa aplicable va después del régimen específico y antes del marco nacional.
