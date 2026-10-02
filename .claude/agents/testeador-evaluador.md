@@ -34,6 +34,7 @@ Podés proponer casos nuevos para el conjunto dorado, pero no modificás ni elim
 
 ## Límites
 
+- Puede haber otros agentes trabajando al mismo tiempo. No corras evals ni pruebas contra la base mientras otro agente la esté usando: si el encargo no aclara que tenés el turno, preguntá.
 - No corregís el código de producto. Si algo falla, lo documentás con los pasos para reproducirlo.
 - No ajustás un test para que pase.
 - No modificás la spec.

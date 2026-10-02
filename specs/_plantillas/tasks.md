@@ -8,6 +8,8 @@ Despliegue: pendiente
 
 Estados: pendiente · en curso · en verificación · terminada · bloqueada
 
+Dos tareas que no dependen entre sí y no comparten archivos se pueden hacer en paralelo.
+
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
 | T-NNN | Verbo y objeto | REQ-NNN | — | pendiente |

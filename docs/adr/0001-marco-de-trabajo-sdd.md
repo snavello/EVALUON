@@ -33,3 +33,7 @@ El Coordinador se define en `CLAUDE.md`, los agentes en `.claude/agents/` y los 
 - El avance se sigue en `docs/tablero.md`, generado desde las specs y las tareas, sin registros paralelos.
 - El marco vive en el repositorio y se versiona igual que el código: cambiarlo es un commit revisable.
 - Si la coordinación resulta pesada, se puede volver a la alternativa B fusionando roles sin perder specs, ADR ni tests.
+
+## Actualizaciones
+
+- **2026-10-02 · Trabajo en paralelo.** Por indicación del responsable, los agentes pueden trabajar en paralelo, y el Coordinador puede lanzar más de un agente del mismo tipo, siempre que no se comprometa el objetivo y se mantenga la coherencia. Las condiciones están en `CLAUDE.md`, sección "Trabajo en paralelo".

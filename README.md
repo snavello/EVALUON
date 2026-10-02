@@ -21,6 +21,8 @@ Se usa Claude Code en la raíz del repositorio. Al abrirlo, Claude actúa como *
 
 Flujo: spec → plan → tareas → desarrollo y verificación → auditoría → despliegue. El responsable aprueba la spec, el plan y el despliegue.
 
+El Coordinador puede lanzar varios agentes a la vez, incluso del mismo tipo, cuando las partes son independientes y se mantiene la coherencia.
+
 ## Cómo va el proyecto
 
 **[Tablero de avance](docs/tablero.md):** qué se hizo y qué falta, con diagramas. Se genera desde las specs y las tareas con `python tools/tablero.py`; no se edita a mano.
