@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 52 tareas sin terminar.
-- ○ T-001 · Comprobar la GPU dentro de un contenedor (pendiente)
+- ▶ T-001 · Comprobar la GPU dentro de un contenedor (en curso)
 - ○ T-002 · Levantar el motor de generación y medir su velocidad (pendiente)
 - ○ T-003 · Levantar embeddings y reranker y medir la memoria de video (pendiente)
 - ○ T-004 · Fijar Postgres con sus extensiones y búsqueda en español (pendiente)
@@ -119,7 +119,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  T001["○ T-001 · Comprobar la GPU dentro de un contenedor"]:::todo
+  T001["▶ T-001 · Comprobar la GPU dentro de un contenedor"]:::active
   T002["○ T-002 · Levantar el motor de generación y medir su…"]:::todo
   T003["○ T-003 · Levantar embeddings y reranker y medir la m…"]:::todo
   T004["○ T-004 · Fijar Postgres con sus extensiones y búsque…"]:::todo
@@ -266,7 +266,7 @@ flowchart TD
 | REQ-005 | Una norma debe quedar disponible para consultas solo después de que una persona valide su informe de lectura | T-009, T-015, T-017, T-027, T-032, T-035, T-043 | ○ pendiente |
 | REQ-006 | El sistema debe registrar las relaciones entre normas: cuál modifica, complementa, reglamenta o deroga a cuál. Cuando el cambio alcanza a unidades concretas, la relación se registra entre esas unidades | T-029, T-035, T-041, T-044 | ○ pendiente |
 | REQ-007 | El sistema debe mantener las versiones de cada norma y, para una fecha dada, indicar qué unidades estaban vigentes y qué normas las habían modificado o derogado, mostrando el texto literal de cada una | T-009, T-029, T-030, T-033, T-037, T-044 | ○ pendiente |
-| REQ-008 | El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la unidad que la sostiene, con su texto literal | T-001, T-002, T-003, T-004, T-011, T-017, T-018, T-019, T-020, T-031, T-032, T-034, T-039, T-040, T-042, T-046, T-047 | ○ pendiente |
+| REQ-008 | El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la unidad que la sostiene, con su texto literal | T-001, T-002, T-003, T-004, T-011, T-017, T-018, T-019, T-020, T-031, T-032, T-034, T-039, T-040, T-042, T-046, T-047 | ▶ en proceso |
 | REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | T-002, T-003, T-011, T-017, T-018, T-019, T-034, T-039, T-040, T-042, T-045, T-046 | ○ pendiente |
 | REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto, desde la pantalla de consulta. Una unidad derogada aparece en la búsqueda marcada como tal | T-004, T-009, T-035, T-041 | ○ pendiente |
 | REQ-011 | El sistema debe avisar cuando se intenta cargar una norma que ya está incorporada. Si es el mismo archivo, no lo incorpora; si es la misma norma en otro archivo o formato, pide confirmación expresa | T-008, T-026 | ○ pendiente |
