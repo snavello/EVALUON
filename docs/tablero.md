@@ -40,7 +40,7 @@ flowchart LR
 
 ## 001 · Normativa consultable con cita
 
-**Etapa actual:** 1 de 7 · Spec (spec en borrador, 2 dudas abiertas) · [carpeta](../specs/001-normativa)
+**Etapa actual:** 1 de 7 · Spec (spec en borrador) · [carpeta](../specs/001-normativa)
 
 ```mermaid
 flowchart LR
@@ -54,7 +54,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Resolver 2 dudas marcadas en la spec y aprobar la spec (compuerta del responsable).
+- **Próximo paso:** Aprobar la spec (compuerta del responsable).
 
 ### Qué se hizo
 

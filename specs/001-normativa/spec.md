@@ -87,10 +87,14 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
 
 ## Requisitos no funcionales
 
-- **Calidad de las respuestas.** Se mide con un conjunto de preguntas con respuesta conocida (`evals/`). [A ACLARAR: quién valida las respuestas esperadas y qué nivel de acierto se exige para aprobar]
+- **Calidad de las respuestas.** Se mide con un conjunto de unas 30 preguntas con respuesta conocida (`evals/`), que incluye preguntas que el marco regulatorio cargado no responde. Exigencias para aprobar:
+    - El texto citado coincide palabra por palabra con el documento: siempre, sin tolerancia.
+    - La respuesta es correcta y cita la unidad correcta: al menos 85 % de las preguntas con respuesta.
+    - El sistema se abstiene cuando no hay respuesta: al menos 90 % de las preguntas sin respuesta.
+- **Validación del conjunto de preguntas.** El Coordinador propone las preguntas y sus respuestas a partir de los documentos, el responsable del proyecto las corrige y un integrante de la Comisión Evaluadora les da el visto bueno. Sin ese visto bueno, una pregunta no entra al conjunto.
 - **Volumen.** Menos de 10 documentos por ahora, repartidos entre las cinco categorías del marco regulatorio.
 - **Formato de origen.** La mayoría de las normas está en PDF con texto; algunas están escaneadas o solo en páginas web (REQ-015).
-- **Tiempo de respuesta.** [A ACLARAR: tiempo aceptable para una consulta; propuesta inicial, hasta 30 segundos]
+- **Tiempo de respuesta.** Hasta 30 segundos por consulta, en el equipo donde corre el sistema.
 - **Funcionamiento sin conexión.** La consulta funciona sin acceso a internet, en el equipo donde corre el sistema.
 - **Identificación de quien consulta.** El registro de REQ-012 guarda el usuario que ingresó con su clave (REQ-016).
 - **Claves.** Las claves no se guardan en forma legible.
@@ -117,10 +121,7 @@ En operación quedan en la base interna del sistema y solo los ven los usuarios 
 
 ## Preguntas abiertas
 
-Cada punto corresponde a una marca del documento. Las responde el responsable del proyecto.
-
-1. Calidad: quién valida las respuestas esperadas y qué nivel de acierto se exige.
-2. Tiempo de respuesta aceptable.
+No quedan preguntas abiertas.
 
 ## Definiciones tomadas
 
@@ -132,3 +133,6 @@ Cada punto corresponde a una marca del documento. Las responde el responsable de
 - **2026-10-02 · Composición del marco regulatorio.** Disposición 297/03 y modificatorias, otra normativa aplicable, normativa nacional como marco, dictámenes legales y recomendaciones de auditoría. Se aplica el régimen específico; la normativa nacional es marco.
 - **2026-10-02 · Volumen.** Menos de 10 documentos por ahora.
 - **2026-10-02 · Carácter de los documentos.** Todos son públicos, también dictámenes y recomendaciones. En operación van a la base interna y los ven solo los usuarios, sin perder su carácter público.
+- **2026-10-02 · Tiempo de respuesta.** Hasta 30 segundos por consulta.
+- **2026-10-02 · Calidad.** Unas 30 preguntas de prueba; cita literal siempre, respuesta correcta en al menos 85 %, abstención en al menos 90 %. Son valores de partida para el piloto y se revisan con mediciones reales.
+- **2026-10-02 · Validación de las preguntas.** Las propone el Coordinador, las corrige el responsable y las aprueba un integrante de la Comisión.
