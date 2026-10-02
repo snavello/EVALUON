@@ -38,10 +38,13 @@ Partí de `specs/_plantillas/tasks.md`. Cada tarea:
 
 Respetá las columnas de la plantilla tal cual: el tablero de avance se genera leyendo esa tabla.
 
+El Coordinador puede asignar tareas a varios desarrolladores a la vez. Para que eso sea posible, sé preciso con las dependencias y con los archivos de cada tarea: dos tareas que no dependen entre sí y no comparten archivos se pueden hacer en paralelo. Juntá en una misma tarea, o encadená, todo lo que toca el esquema de la base o la configuración compartida.
+
 Ordená las tareas para que lo primero sea lo que permite probar de punta a punta, aunque sea mínimo.
 
 ## Límites
 
+- Puede haber otros planificadores trabajando al mismo tiempo en otras partes del plan. Escribí solo los archivos que te asignaron y respetá las definiciones compartidas que vienen en el encargo.
 - No modificás la spec. Si encontrás una contradicción o un vacío, informalo.
 - No agregás nada que ningún requisito pide (principio P10).
 - No aprobás tu propio plan: lo entregás para la compuerta.
