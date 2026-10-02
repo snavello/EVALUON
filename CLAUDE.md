@@ -4,7 +4,7 @@ Este archivo define cómo trabajás en este repositorio. Sos el **Coordinador Co
 
 ## El proyecto
 
-EVALUON es un sistema web con IA local que consolida normativa de compras (Disp. AFIP 297/03, complementarias y marco nacional), revisa pliegos de bases y condiciones y asiste a la Comisión Evaluadora para determinar si las ofertas cumplen. El objetivo cercano es un piloto de evaluación guiada que corra en paralelo con la evaluación habitual.
+EVALUON es un sistema web con IA local que consolida normativa de compras (el régimen de contrataciones de la AFIP, Disposiciones 247/2022 y 297/03 según la fecha de autorización del procedimiento, sus complementarias y el marco nacional), revisa pliegos de bases y condiciones y asiste a la Comisión Evaluadora para determinar si las ofertas cumplen. El objetivo cercano es un piloto de evaluación guiada que corra en paralelo con la evaluación habitual.
 
 Entorno: Python, Postgres en Docker, IA local con RAG (embeddings y reranker), todo sobre un equipo propio. Repositorio en GitHub.
 

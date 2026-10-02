@@ -4,9 +4,11 @@ Estado: aprobada · Fecha: 2026-10-02 · Aprobó: responsable del proyecto
 
 ## Problema
 
-El marco regulatorio de compras está repartido en documentos de distinto tipo y peso: la Disposición AFIP 297/03 y sus modificatorias, otra normativa aplicable, la normativa nacional que funciona como marco, dictámenes legales y recomendaciones de auditoría. Para revisar un pliego o evaluar una oferta hay que saber qué texto está vigente, cuál prevalece y poder citarlo con precisión.
+El marco regulatorio de compras está repartido en documentos de distinto tipo y peso: el régimen de contrataciones de la AFIP (la Disposición 247/2022 y la Disposición 297/03 que esta abrogó, con sus modificatorias), otra normativa aplicable, la normativa nacional que funciona como marco, dictámenes legales y recomendaciones de auditoría. Para revisar un pliego o evaluar una oferta hay que saber qué texto está vigente, cuál prevalece y poder citarlo con precisión.
 
 Rige el régimen específico. La normativa nacional es marco: se aplica lo específico.
+
+Hay dos regímenes específicos y cuál se aplica depende de la fecha en que se autorizó el procedimiento: la 247/2022 para los autorizados desde su entrada en vigencia, y la 297/03 para los anteriores (ADR-0006).
 
 Todo lo que EVALUON haga después se apoya en esto. La revisión de pliegos y la evaluación de ofertas muestran, en cada conclusión, la norma que la sostiene. Sin una base de normas confiable y citable, esas conclusiones no tienen fundamento que mostrar.
 
@@ -18,7 +20,7 @@ En esta spec, "norma" abarca todos los documentos del marco regulatorio. Cada un
 
 | Categoría | Qué incluye | Cómo se usa |
 |---|---|---|
-| Régimen específico | Disposición AFIP 297/03 y sus modificatorias | Es lo que se aplica. Va primero |
+| Régimen específico | Disposición AFIP 247/2022 y Disposición AFIP 297/03, con sus modificatorias | Es lo que se aplica, según la fecha de autorización del procedimiento. Va primero |
 | Otra normativa aplicable | Normas puntuales que alcanzan a las compras | Se aplica en lo que trata. Va después del régimen específico |
 | Marco nacional | Normativa nacional de contrataciones | Marco de referencia. No desplaza al régimen específico |
 | Dictamen legal | Opiniones del servicio jurídico | Criterio de interpretación. Acompaña a la norma, no la reemplaza |
@@ -60,6 +62,8 @@ En esta spec, "norma" abarca todos los documentos del marco regulatorio. Cada un
 | REQ-017 | El sistema debe registrar la categoría de cada documento: régimen específico, otra normativa aplicable, marco nacional, dictamen legal o recomendación de auditoría | — |
 | REQ-018 | Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional se presentan como marco; los dictámenes y las recomendaciones se presentan como criterio que acompaña; los considerandos se presentan como contexto, identificados como tales y después del articulado | — |
 | REQ-019 | Cuando el régimen específico y el marco nacional tratan el mismo punto de manera distinta, la respuesta debe mostrar ambos textos y señalar el del régimen específico como el aplicable | — |
+| REQ-020 | Cada consulta y cada búsqueda se hacen para una fecha de autorización del procedimiento, que la persona indica en la pantalla; por defecto es la del día. El sistema responde con lo que regía a esa fecha y muestra qué régimen aplicó | Disp. AFIP 247/2022, arts. 2 a 4 |
+| REQ-021 | El sistema debe permitir registrar que una norma tiene modificatorias todavía no cargadas, identificando cada una. Mientras queden, toda respuesta o búsqueda que muestre una unidad de esa norma avisa que puede haber cambios que el sistema no conoce e indica cuántas modificatorias faltan cargar | — |
 
 En esta feature, consolidar significa reunir: cada norma se guarda tal como fue publicada, y los cambios entre normas los registra una persona (REQ-006 y REQ-007). El sistema no redacta textos nuevos; toda cita es texto literal de un documento publicado.
 
@@ -84,6 +88,8 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
 - **REQ-017.** Dado un documento que se carga, cuando no se indica su categoría, entonces el sistema no lo incorpora y pide el dato.
 - **REQ-018.** Dada una pregunta que responden un artículo del régimen específico y un dictamen legal, cuando se consulta, entonces la respuesta cita primero el artículo, después el dictamen, y cada cita muestra su categoría.
 - **REQ-019.** Dado un punto que el régimen específico y el marco nacional regulan de manera distinta, cuando se consulta por ese punto, entonces la respuesta muestra los dos textos y señala el del régimen específico como el aplicable.
+- **REQ-020.** Dada una misma pregunta, cuando se consulta con una fecha de autorización anterior a la entrada en vigencia de la Disposición 247/2022 y con otra posterior, entonces la primera respuesta cita la Disposición 297/03 y la segunda la Disposición 247/2022, y cada una indica qué régimen aplicó y para qué fecha.
+- **REQ-021.** Dada una norma con modificatorias registradas como no cargadas, cuando una respuesta cita una unidad de esa norma, entonces la pantalla muestra el aviso con la cantidad de modificatorias sin cargar; cuando todas quedan cargadas y registradas, el aviso deja de aparecer.
 
 ## Requisitos no funcionales
 
@@ -92,7 +98,7 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
     - La respuesta es correcta y cita la unidad correcta: al menos 85 % de las preguntas con respuesta.
     - El sistema se abstiene cuando no hay respuesta: al menos 90 % de las preguntas sin respuesta.
 - **Validación del conjunto de preguntas.** El Coordinador propone las preguntas y sus respuestas a partir de los documentos, el responsable del proyecto las corrige y un integrante de la Comisión Evaluadora les da el visto bueno. Sin ese visto bueno, una pregunta no entra al conjunto.
-- **Volumen.** Menos de 10 documentos por ahora, repartidos entre las cinco categorías del marco regulatorio.
+- **Volumen.** Menos de 10 documentos por ahora, repartidos entre las cinco categorías del marco regulatorio. Las modificatorias de la Disposición 297/03 (32 según el listado de Infoleg, sin contar la 247/2022) se cargan de a poco y no cuentan para el arranque.
 - **Formato de origen.** La mayoría de las normas está en PDF con texto; algunas están escaneadas o solo en páginas web (REQ-015).
 - **Tiempo de respuesta.** Hasta 30 segundos por consulta, en el equipo donde corre el sistema.
 - **Funcionamiento sin conexión.** La consulta funciona sin acceso a internet, en el equipo donde corre el sistema.
@@ -111,7 +117,6 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
 - Pantallas para cargar y validar normas: en esta feature esas tareas las hace el responsable de normativa sin pantalla propia. La única pantalla es la de consulta, que permite preguntar y buscar.
 - Acceso desde otras computadoras de la red: en esta feature la pantalla se usa en el equipo donde corre el sistema. El acceso por red, con conexión cifrada y bloqueo tras intentos fallidos de clave, es la feature 007 de la hoja de ruta.
 - Corrección manual del texto reconocido en documentos escaneados: la persona que valida ve las partes de lectura dudosa y decide si valida el documento.
-- Elección de la fecha de referencia en la pantalla: las consultas se responden con lo vigente al día de la consulta.
 - Historial de consultas visible para el usuario y conversación de varias preguntas encadenadas: cada consulta es una pregunta y su respuesta. El registro de auditoría sí guarda todas las consultas.
 - Pantalla de administración de usuarios: en esta feature los usuarios y sus roles se dan de alta sin pantalla propia.
 - Roles adicionales a lectura y lectura y escritura.
@@ -149,8 +154,10 @@ Surgieron al preparar el plan. Las tres primeras las decidió el responsable el 
 - **Acceso.** En esta feature, solo desde el equipo donde corre el sistema. El acceso por red pasa a ser la feature 007.
 - **Considerandos (REQ-003, REQ-018).** Son unidades citables. Se citan como contexto, identificados como considerando y después del articulado.
 - **Unidades derogadas.** No sostienen una respuesta. Aparecen en la búsqueda, marcadas como derogadas.
-- **Fecha de referencia.** La del día de la consulta.
+- **Fecha de referencia.** Es la fecha de autorización del procedimiento que indica la persona; por defecto, la del día (REQ-020). Reemplaza la definición anterior, que fijaba la del día.
 - **Relaciones (REQ-006).** Se registran entre normas y, cuando corresponde, entre unidades.
 - **Misma norma en otro archivo (REQ-011).** Aviso y confirmación expresa.
 - **Página web guardada (REQ-015).** Se acepta como un archivo `.html`.
 - **Alta de usuarios (REQ-016).** La hace quien administra el equipo, por comandos, y queda registrada.
+- **Dos regímenes (ADR-0006, decisión del responsable).** La Disposición 297/03 fue abrogada por la 247/2022. El sistema carga las dos y aplica una u otra según la fecha de autorización del procedimiento (REQ-020). La fecha de entrada en vigencia de la 247/2022 la registra una persona al cargarla.
+- **Modificatorias de la 297/03 (decisión del responsable).** Se arranca con el texto original de 2003. Sus modificatorias se registran como no cargadas y las respuestas bajo la 297/03 lo avisan (REQ-021). Infoleg lista 33 normas vinculadas; una es la 247/2022, que se carga, y quedan 32. Se van cargando de a poco; el aviso desaparece cuando estén todas.

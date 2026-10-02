@@ -456,3 +456,6 @@ Hechos el 2026-10-02 al integrar el plan (`specs/001-normativa/plan.md`). La dec
 
 - **2026-10-02 · Django o FastAPI.** El responsable ya usa FastAPI con Jinja2, SQLModel y Alembic en otros proyectos, dato que este ADR no tenía al compararlos. Se volvió a evaluar con ese dato. A favor de FastAPI: un solo stack entre proyectos y código conocido. A favor de Django: el ingreso, las claves, las sesiones y la protección de formularios vienen hechos y mantenidos por un equipo de seguridad, mientras que con FastAPI serían código propio; el código lo escriben los agentes, de modo que la familiaridad previa pesa menos; y las features 002 a 004 son formularios con usuarios identificados. El responsable confirmó Django.
 
+## Actualización por ADR-0006
+
+- **2026-10-02.** La pantalla suma el campo de fecha de autorización del procedimiento y el aviso de modificatorias sin cargar (REQ-020, REQ-021). Los comandos suman `registrar_modificatorias` y las opciones para indicar la parte de una norma y el régimen general; la lista vigente está en el plan 001 actualizado.
