@@ -40,7 +40,7 @@ flowchart LR
 
 ## 001 · Normativa consultable con cita
 
-**Etapa actual:** 1 de 7 · Spec (spec en borrador, 7 dudas abiertas) · [carpeta](../specs/001-normativa)
+**Etapa actual:** 1 de 7 · Spec (spec en borrador, 6 dudas abiertas) · [carpeta](../specs/001-normativa)
 
 ```mermaid
 flowchart LR
@@ -54,7 +54,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Resolver 7 dudas marcadas en la spec y aprobar la spec (compuerta del responsable).
+- **Próximo paso:** Resolver 6 dudas marcadas en la spec y aprobar la spec (compuerta del responsable).
 
 ### Qué se hizo
 
@@ -70,7 +70,7 @@ flowchart LR
 | REQ-004 | El sistema debe entregar, por cada norma incorporada, un informe de lectura: cuántas unidades reconoció, cuáles páginas no pudo leer y qué no pudo ubicar | — | — |
 | REQ-005 | Una norma debe quedar disponible para consultas solo después de que una persona valide su informe de lectura | — | — |
 | REQ-006 | El sistema debe registrar las relaciones entre normas: cuál modifica, complementa, reglamenta o deroga a cuál | — | — |
-| REQ-007 | El sistema debe mantener las versiones de cada norma y poder indicar qué texto estaba vigente en una fecha dada | — | — |
+| REQ-007 | El sistema debe mantener las versiones de cada norma y, para una fecha dada, indicar qué unidades estaban vigentes y qué normas las habían modificado o derogado, mostrando el texto literal de cada una | — | — |
 | REQ-008 | El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la unidad que la sostiene, con su texto literal | — | — |
 | REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | — | — |
 | REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto | — | — |

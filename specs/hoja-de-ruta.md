@@ -17,6 +17,10 @@ Las features del proyecto, en el orden en que se construyen. Cada una tiene su c
 
 El piloto de evaluación guiada necesita de la 001 a la 004. La 005 y la 006 lo completan y pueden entrar después de la primera prueba en paralelo con la evaluación habitual.
 
+## Decisiones diferidas
+
+- **Texto ordenado de las normas.** La feature 001 reúne las normas tal como fueron publicadas y registra sus modificaciones. Queda por decidir si más adelante el sistema arma además el texto vigente con las modificaciones aplicadas, y si para eso se usa una IA externa (permitido, por ser normativa pública) con validación de una persona. Se construiría sobre lo que la 001 deja guardado, como una feature nueva.
+
 ## Cómo se modifica
 
 Agregar, quitar o reordenar features se hace en esta tabla, con aprobación del responsable. La numeración no se reutiliza.

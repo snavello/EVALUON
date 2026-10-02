@@ -33,14 +33,14 @@ Esta feature construye esa base: las normas cargadas, con sus versiones, partida
 | REQ-004 | El sistema debe entregar, por cada norma incorporada, un informe de lectura: cuántas unidades reconoció, cuáles páginas no pudo leer y qué no pudo ubicar | — |
 | REQ-005 | Una norma debe quedar disponible para consultas solo después de que una persona valide su informe de lectura | — |
 | REQ-006 | El sistema debe registrar las relaciones entre normas: cuál modifica, complementa, reglamenta o deroga a cuál | — |
-| REQ-007 | El sistema debe mantener las versiones de cada norma y poder indicar qué texto estaba vigente en una fecha dada | — |
+| REQ-007 | El sistema debe mantener las versiones de cada norma y, para una fecha dada, indicar qué unidades estaban vigentes y qué normas las habían modificado o derogado, mostrando el texto literal de cada una | — |
 | REQ-008 | El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la unidad que la sostiene, con su texto literal | — |
 | REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | — |
 | REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto | — |
 | REQ-011 | El sistema debe avisar cuando se intenta cargar una norma que ya está incorporada | — |
 | REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | — |
 
-El alcance de REQ-007 depende de una definición pendiente. [A ACLARAR: "consolidar la normativa" significa reunir las normas con sus modificaciones registradas, o además producir el texto ordenado vigente de cada norma]
+En esta feature, consolidar significa reunir: cada norma se guarda tal como fue publicada, y los cambios entre normas los registra una persona (REQ-006 y REQ-007). El sistema no redacta textos nuevos; toda cita es texto literal de un documento publicado.
 
 ## Criterios de aceptación
 
@@ -50,7 +50,7 @@ El alcance de REQ-007 depende de una definición pendiente. [A ACLARAR: "consoli
 - **REQ-004.** Dada una norma con una página ilegible, cuando se incorpora, entonces el informe de lectura señala esa página.
 - **REQ-005.** Dada una norma incorporada y todavía no validada, cuando se hace una consulta, entonces esa norma no aparece en las citas.
 - **REQ-006.** Dadas dos normas donde una modifica a la otra, cuando se registra la relación, entonces al ver cualquiera de las dos se muestra el vínculo.
-- **REQ-007.** Dada una norma con un artículo modificado en una fecha, cuando se consulta el texto vigente antes y después de esa fecha, entonces se obtiene el texto que correspondía a cada momento.
+- **REQ-007.** Dada una norma con un artículo modificado por otra norma en una fecha, cuando se consulta ese artículo antes y después de esa fecha, entonces antes se muestra solo el texto original, y después el original junto con el texto literal de la norma que lo modifica, señalando el cambio.
 - **REQ-008.** Dada una pregunta cuya respuesta está en un artículo cargado, cuando se consulta, entonces la respuesta cita ese artículo y el texto citado coincide palabra por palabra con el de la norma.
 - **REQ-009.** Dada una pregunta sobre un tema que ninguna norma cargada trata, cuando se consulta, entonces el resultado es "no determinado".
 - **REQ-010.** Dado un número de norma y de artículo, cuando se busca, entonces se obtiene esa unidad con su texto.
@@ -71,6 +71,7 @@ El alcance de REQ-007 depende de una definición pendiente. [A ACLARAR: "consoli
 - Evaluación de ofertas (feature 004).
 - Descarga automática de normas desde sitios oficiales: las normas se cargan a mano.
 - Detección automática de que una norma fue modificada: el cambio lo registra una persona.
+- Texto ordenado: armar el texto vigente de una norma con las modificaciones ya aplicadas. Es una decisión diferida (ver `specs/hoja-de-ruta.md`). Esta feature guarda lo que esa consolidación necesitaría: los originales, las relaciones entre normas y las versiones.
 - Interpretación jurídica: el sistema muestra lo que la norma dice y dónde lo dice.
 
 La forma de uso durante el piloto está pendiente. [A ACLARAR: esta feature incluye una pantalla de consulta para la Comisión, o alcanza con que funcione y se verifique por pruebas hasta que llegue la revisión de pliegos]
@@ -84,9 +85,12 @@ Normas de compras, todas públicas. Pueden estar en el repositorio (`corpus/norm
 Cada punto corresponde a una marca del documento. Las responde el responsable del proyecto.
 
 1. Rol de responsable de normativa: quién carga y valida las normas en el piloto.
-2. Significado de consolidar: reunir las normas con sus modificaciones, o además producir el texto ordenado vigente.
-3. Calidad: quién valida las respuestas esperadas y qué nivel de acierto se exige.
-4. Volumen: qué normas forman el conjunto inicial.
-5. Formato de origen de las normas.
-6. Tiempo de respuesta aceptable.
-7. Forma de uso en el piloto: con pantalla de consulta o sin ella.
+2. Calidad: quién valida las respuestas esperadas y qué nivel de acierto se exige.
+3. Volumen: qué normas forman el conjunto inicial.
+4. Formato de origen de las normas.
+5. Tiempo de respuesta aceptable.
+6. Forma de uso en el piloto: con pantalla de consulta o sin ella.
+
+## Definiciones tomadas
+
+- **2026-10-02 · Significado de consolidar.** En esta feature es reunir las normas con sus modificaciones registradas. Producir el texto ordenado queda para decidir más adelante, sin que esta feature lo impida.
