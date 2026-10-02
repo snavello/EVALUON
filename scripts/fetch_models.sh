@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Descarga los archivos de los modelos en models/ y verifica su huella SHA-256
+# contra scripts/models.sha256. Es el único paso del entorno que usa internet;
+# se corre una vez por equipo. Si un archivo ya está y su huella coincide, no se
+# vuelve a bajar. Para mudar el sistema también se puede copiar la carpeta models/.
+#
+# Variables de entorno opcionales:
+#   MODELS_DIR       carpeta de destino (por defecto: models/ en la raíz del repositorio)
+#   CURL_EXTRA_OPTS  opciones adicionales para curl (por ejemplo, --ssl-no-revoke en
+#                    Windows cuando no se puede consultar la revocación de certificados)
+
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+models_dir="${MODELS_DIR:-$repo_root/models}"
+checksums="$repo_root/scripts/models.sha256"
+
+# Origen de cada archivo: nombre local, URL fijada a una revisión del repositorio.
+# Gemma 4 12B, 4 bits (QAT), publicado por Google (ADR-0002).
+SOURCES=(
+  "gemma-4-12b-it-qat-q4_0.gguf https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/resolve/29d097773436b69ff9feafd636ab4cf873786537/gemma-4-12b-it-qat-q4_0.gguf"
+)
+
+expected_hash() {
+  awk -v f="$1" '$2 == f { print $1 }' "$checksums"
+}
+
+file_hash() {
+  sha256sum "$1" | awk '{ print $1 }'
+}
+
+mkdir -p "$models_dir"
+status=0
+
+for entry in "${SOURCES[@]}"; do
+  name="${entry%% *}"
+  url="${entry#* }"
+  target="$models_dir/$name"
+  expected="$(expected_hash "$name")"
+
+  if [ -z "$expected" ]; then
+    echo "ERROR: $name no figura en $checksums" >&2
+    status=1
+    continue
+  fi
+
+  if [ -f "$target" ] && [ "$(file_hash "$target")" = "$expected" ]; then
+    echo "OK (ya estaba): $name"
+    continue
+  fi
+
+  echo "Descargando $name ..."
+  # shellcheck disable=SC2086
+  curl --fail --location --retry 10 --retry-delay 5 --retry-all-errors --continue-at - \
+    ${CURL_EXTRA_OPTS:-} --output "$target.part" "$url"
+  mv "$target.part" "$target"
+
+  actual="$(file_hash "$target")"
+  if [ "$actual" = "$expected" ]; then
+    echo "OK: $name  sha256=$actual"
+  else
+    echo "ERROR: huella distinta para $name" >&2
+    echo "  esperada: $expected" >&2
+    echo "  obtenida: $actual" >&2
+    status=1
+  fi
+done
+
+exit "$status"

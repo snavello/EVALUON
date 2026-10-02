@@ -1,0 +1,56 @@
+# Entorno de EVALUON (plan 001, "Servicios").
+# Los servicios de IA están en una red interna sin salida a internet y sin puertos
+# publicados. Los archivos de los modelos se bajan con scripts/fetch_models.sh.
+
+name: evaluon
+
+services:
+  generation:
+    # Compilación de llama.cpp fijada en T-002 (ver specs/001-normativa/entorno.md).
+    # Imagen con CUDA 12.8.1, que soporta la serie RTX 50.
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda-b11347
+    command:
+      - --model
+      - /models/${GENERATION_MODEL_FILE:-gemma-4-12b-it-qat-q4_0.gguf}
+      - --alias
+      - ${GENERATION_MODEL_ALIAS:-gemma-4-12b-it-qat-q4_0}
+      - --ctx-size
+      - "${GENERATION_CTX_SIZE:-16384}"
+      - --parallel
+      - "1"
+      - --n-gpu-layers
+      - all
+      - --fit
+      - "off"
+      - --reasoning
+      - "off"
+      - --reasoning-budget
+      - "0"
+      - --no-context-shift
+      - --offline
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+    volumes:
+      - ./models:/models:ro
+    networks:
+      - internal
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+    restart: unless-stopped
+
+networks:
+  internal:
+    internal: true
