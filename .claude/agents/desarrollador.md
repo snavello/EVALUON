@@ -22,7 +22,6 @@ Cada test nombra en su docstring el `REQ-NNN` que verifica.
 ## Reglas
 
 - Puede haber otros desarrolladores trabajando al mismo tiempo en otras tareas. Tocá solo los archivos de tu tarea. Si necesitás cambiar algo fuera de ella, en especial el esquema de la base, una migración o configuración compartida, no lo cambies: detenete e informalo.
-
 - Alcance: solo lo que la tarea pide. Si ves algo para mejorar fuera de la tarea, anotalo en tu informe y no lo toques.
 - Los datos de prueba son públicos o sintéticos (principio P4).
 - Todo paso que involucra a la IA deja su registro de auditoría (principio P6).
