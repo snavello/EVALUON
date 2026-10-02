@@ -40,7 +40,7 @@ flowchart LR
 
 ## 001 · Normativa consultable con cita
 
-**Etapa actual:** 1 de 7 · Spec (spec en borrador, 3 dudas abiertas) · [carpeta](../specs/001-normativa)
+**Etapa actual:** 1 de 7 · Spec (spec en borrador, 4 dudas abiertas) · [carpeta](../specs/001-normativa)
 
 ```mermaid
 flowchart LR
@@ -54,7 +54,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Resolver 3 dudas marcadas en la spec y aprobar la spec (compuerta del responsable).
+- **Próximo paso:** Resolver 4 dudas marcadas en la spec y aprobar la spec (compuerta del responsable).
 
 ### Qué se hizo
 
@@ -66,7 +66,7 @@ flowchart LR
 |---|---|---|---|
 | REQ-001 | El sistema debe incorporar una norma a partir de su documento, registrando tipo, número, organismo emisor, título, fecha de publicación, fecha de vigencia y fuente de donde se obtuvo | — | — |
 | REQ-002 | El sistema debe conservar el documento original de cada norma y permitir verlo | — | — |
-| REQ-003 | El sistema debe dividir cada norma en unidades citables (artículo, inciso, anexo), cada una con su ubicación dentro de la norma | — | — |
+| REQ-003 | El sistema debe dividir cada documento en unidades citables, cada una con su ubicación: artículo, inciso o anexo en las normas; punto o párrafo en dictámenes y recomendaciones | — | — |
 | REQ-004 | El sistema debe entregar, por cada norma incorporada, un informe de lectura: cuántas unidades reconoció, cuáles páginas no pudo leer y qué no pudo ubicar | — | — |
 | REQ-005 | Una norma debe quedar disponible para consultas solo después de que una persona valide su informe de lectura | — | — |
 | REQ-006 | El sistema debe registrar las relaciones entre normas: cuál modifica, complementa, reglamenta o deroga a cuál | — | — |
@@ -80,3 +80,6 @@ flowchart LR
 | REQ-014 | La pantalla de consulta debe distinguir a simple vista una respuesta con fundamento de un resultado "no determinado" | — | — |
 | REQ-015 | El sistema debe incorporar normas en tres formatos: PDF con texto, PDF escaneado y página web guardada. Cuando el texto de una unidad se obtuvo por reconocimiento sobre una imagen, debe quedar indicado en la unidad y en el informe de lectura | — | — |
 | REQ-016 | El sistema debe exigir usuario y clave para ingresar. Cada usuario tiene un rol: lectura, que permite consultar y buscar; o lectura y escritura, que además permite cargar y validar normas y registrar relaciones y versiones | — | — |
+| REQ-017 | El sistema debe registrar la categoría de cada documento: régimen específico, otra normativa aplicable, marco nacional, dictamen legal o recomendación de auditoría | — | — |
+| REQ-018 | Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional se presentan como marco; los dictámenes y las recomendaciones se presentan como criterio que acompaña | — | — |
+| REQ-019 | Cuando el régimen específico y el marco nacional tratan el mismo punto de manera distinta, la respuesta debe mostrar ambos textos y señalar el del régimen específico como el aplicable | — | — |

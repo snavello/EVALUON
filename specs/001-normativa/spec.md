@@ -4,11 +4,25 @@ Estado: borrador · Fecha: 2026-10-02 · Aprobó: —
 
 ## Problema
 
-La normativa de compras aplicable está repartida en varios documentos: la Disposición AFIP 297/03, sus complementarias y el marco nacional. Para revisar un pliego o evaluar una oferta hay que saber qué texto está vigente y poder citarlo con precisión.
+El marco regulatorio de compras está repartido en documentos de distinto tipo y peso: la Disposición AFIP 297/03 y sus modificatorias, otra normativa aplicable, la normativa nacional que funciona como marco, dictámenes legales y recomendaciones de auditoría. Para revisar un pliego o evaluar una oferta hay que saber qué texto está vigente, cuál prevalece y poder citarlo con precisión.
+
+Rige el régimen específico. La normativa nacional es marco: se aplica lo específico.
 
 Todo lo que EVALUON haga después se apoya en esto. La revisión de pliegos y la evaluación de ofertas muestran, en cada conclusión, la norma que la sostiene. Sin una base de normas confiable y citable, esas conclusiones no tienen fundamento que mostrar.
 
 Esta feature construye esa base: las normas cargadas, con sus versiones, partidas en unidades que se pueden citar, y una pantalla de consulta que siempre devuelve la fuente. La pantalla es también la primera oportunidad de que la Comisión use el sistema y opine sobre él.
+
+## Documentos del marco regulatorio
+
+En esta spec, "norma" abarca todos los documentos del marco regulatorio. Cada uno pertenece a una categoría:
+
+| Categoría | Qué incluye | Cómo se usa |
+|---|---|---|
+| Régimen específico | Disposición AFIP 297/03 y sus modificatorias | Es lo que se aplica. Va primero |
+| Otra normativa aplicable | Normas puntuales que alcanzan a las compras | Se aplica en lo que trata. Va después del régimen específico |
+| Marco nacional | Normativa nacional de contrataciones | Marco de referencia. No desplaza al régimen específico |
+| Dictamen legal | Opiniones del servicio jurídico | Criterio de interpretación. Acompaña a la norma, no la reemplaza |
+| Recomendación de auditoría | Observaciones y recomendaciones de auditoría | Criterio de control. Acompaña a la norma, no la reemplaza |
 
 ## Usuarios y escenarios
 
@@ -29,7 +43,7 @@ Esta feature construye esa base: las normas cargadas, con sus versiones, partida
 |---|---|---|
 | REQ-001 | El sistema debe incorporar una norma a partir de su documento, registrando tipo, número, organismo emisor, título, fecha de publicación, fecha de vigencia y fuente de donde se obtuvo | — |
 | REQ-002 | El sistema debe conservar el documento original de cada norma y permitir verlo | — |
-| REQ-003 | El sistema debe dividir cada norma en unidades citables (artículo, inciso, anexo), cada una con su ubicación dentro de la norma | — |
+| REQ-003 | El sistema debe dividir cada documento en unidades citables, cada una con su ubicación: artículo, inciso o anexo en las normas; punto o párrafo en dictámenes y recomendaciones | — |
 | REQ-004 | El sistema debe entregar, por cada norma incorporada, un informe de lectura: cuántas unidades reconoció, cuáles páginas no pudo leer y qué no pudo ubicar | — |
 | REQ-005 | Una norma debe quedar disponible para consultas solo después de que una persona valide su informe de lectura | — |
 | REQ-006 | El sistema debe registrar las relaciones entre normas: cuál modifica, complementa, reglamenta o deroga a cuál | — |
@@ -43,6 +57,9 @@ Esta feature construye esa base: las normas cargadas, con sus versiones, partida
 | REQ-014 | La pantalla de consulta debe distinguir a simple vista una respuesta con fundamento de un resultado "no determinado" | — |
 | REQ-015 | El sistema debe incorporar normas en tres formatos: PDF con texto, PDF escaneado y página web guardada. Cuando el texto de una unidad se obtuvo por reconocimiento sobre una imagen, debe quedar indicado en la unidad y en el informe de lectura | — |
 | REQ-016 | El sistema debe exigir usuario y clave para ingresar. Cada usuario tiene un rol: lectura, que permite consultar y buscar; o lectura y escritura, que además permite cargar y validar normas y registrar relaciones y versiones | — |
+| REQ-017 | El sistema debe registrar la categoría de cada documento: régimen específico, otra normativa aplicable, marco nacional, dictamen legal o recomendación de auditoría | — |
+| REQ-018 | Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional se presentan como marco; los dictámenes y las recomendaciones se presentan como criterio que acompaña | — |
+| REQ-019 | Cuando el régimen específico y el marco nacional tratan el mismo punto de manera distinta, la respuesta debe mostrar ambos textos y señalar el del régimen específico como el aplicable | — |
 
 En esta feature, consolidar significa reunir: cada norma se guarda tal como fue publicada, y los cambios entre normas los registra una persona (REQ-006 y REQ-007). El sistema no redacta textos nuevos; toda cita es texto literal de un documento publicado.
 
@@ -64,11 +81,14 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
 - **REQ-014.** Dada la pantalla de consulta, cuando el resultado es "no determinado", entonces se muestra con un aviso propio, distinto del de una respuesta, y sin citas.
 - **REQ-015.** Dada una misma norma disponible como PDF con texto, como PDF escaneado y como página web guardada, cuando se incorpora cada versión, entonces en los tres casos sus artículos quedan como unidades citables, y en el caso escaneado el informe de lectura y cada unidad indican que el texto proviene de reconocimiento.
 - **REQ-016.** Dada una persona sin sesión iniciada, cuando intenta consultar, entonces el sistema le pide usuario y clave. Dado un usuario con rol de lectura, cuando intenta cargar o validar una norma, entonces el sistema lo rechaza y deja registro del intento.
+- **REQ-017.** Dado un documento que se carga, cuando no se indica su categoría, entonces el sistema no lo incorpora y pide el dato.
+- **REQ-018.** Dada una pregunta que responden un artículo del régimen específico y un dictamen legal, cuando se consulta, entonces la respuesta cita primero el artículo, después el dictamen, y cada cita muestra su categoría.
+- **REQ-019.** Dado un punto que el régimen específico y el marco nacional regulan de manera distinta, cuando se consulta por ese punto, entonces la respuesta muestra los dos textos y señala el del régimen específico como el aplicable.
 
 ## Requisitos no funcionales
 
 - **Calidad de las respuestas.** Se mide con un conjunto de preguntas con respuesta conocida (`evals/`). [A ACLARAR: quién valida las respuestas esperadas y qué nivel de acierto se exige para aprobar]
-- **Volumen.** [A ACLARAR: qué normas forman el conjunto inicial y cuántas son, aproximadamente]
+- **Volumen.** El conjunto inicial reúne las cinco categorías del marco regulatorio. [A ACLARAR: cantidad aproximada de documentos, en especial de dictámenes y recomendaciones]
 - **Formato de origen.** La mayoría de las normas está en PDF con texto; algunas están escaneadas o solo en páginas web (REQ-015).
 - **Tiempo de respuesta.** [A ACLARAR: tiempo aceptable para una consulta; propuesta inicial, hasta 30 segundos]
 - **Funcionamiento sin conexión.** La consulta funciona sin acceso a internet, en el equipo donde corre el sistema.
@@ -91,15 +111,18 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
 
 ## Datos involucrados
 
-Normas de compras, todas públicas. Pueden estar en el repositorio (`corpus/normativa/`) y usarse en pruebas y evals (principio P4).
+Las normas son públicas: pueden estar en el repositorio (`corpus/normativa/`) y usarse en pruebas y evals (principio P4).
+
+Los dictámenes legales y las recomendaciones de auditoría necesitan confirmación antes de subirse, porque el repositorio es público. [A ACLARAR: los dictámenes legales y las recomendaciones de auditoría son documentos públicos, o son internos del organismo]
 
 ## Preguntas abiertas
 
 Cada punto corresponde a una marca del documento. Las responde el responsable del proyecto.
 
 1. Calidad: quién valida las respuestas esperadas y qué nivel de acierto se exige.
-2. Volumen: qué normas forman el conjunto inicial.
+2. Volumen: cantidad aproximada de documentos.
 3. Tiempo de respuesta aceptable.
+4. Carácter público o interno de los dictámenes legales y las recomendaciones de auditoría.
 
 ## Definiciones tomadas
 
@@ -108,3 +131,4 @@ Cada punto corresponde a una marca del documento. Las responde el responsable de
 - **2026-10-02 · Formato de origen.** Mezcla de formatos: mayormente PDF con texto, más PDF escaneado y páginas web.
 - **2026-10-02 · Acceso.** Ingreso con usuario y clave. Dos roles en principio: lectura, y lectura y escritura. El registro de consultas guarda el usuario que ingresó.
 - **2026-10-02 · Responsable de normativa.** No es una persona fija: es quien tenga el rol de lectura y escritura.
+- **2026-10-02 · Composición del marco regulatorio.** Disposición 297/03 y modificatorias, otra normativa aplicable, normativa nacional como marco, dictámenes legales y recomendaciones de auditoría. Se aplica el régimen específico; la normativa nacional es marco.
