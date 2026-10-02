@@ -6,7 +6,7 @@ Casos públicos ya resueltos contra los que se mide cada versión del sistema (p
 
 Un caso tiene una pregunta o una tarea de evaluación, los documentos sobre los que se hace, la respuesta esperada y la cita que la sostiene. También hay casos sin respuesta posible, donde lo correcto es "no determinado".
 
-Formato sugerido, un archivo por caso en `evals/casos/`:
+El formato vigente de cada feature lo fija su plan (para la 001, `specs/001-normativa/plan.md`, sección "Evals"). Como punto de partida, un archivo por caso en `evals/casos/`:
 
 ```yaml
 id: EV-001

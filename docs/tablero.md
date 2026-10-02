@@ -57,7 +57,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
+- **Próximo paso:** Aprobar el plan (compuerta del responsable).
 
 ### Qué se hizo
 
