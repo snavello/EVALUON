@@ -76,3 +76,5 @@ flowchart LR
 | REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto | — | — |
 | REQ-011 | El sistema debe avisar cuando se intenta cargar una norma que ya está incorporada | — | — |
 | REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | — | — |
+| REQ-013 | El sistema debe ofrecer una pantalla de consulta donde una persona escribe su pregunta y ve la respuesta con sus citas; desde cada cita se ve el texto literal de la unidad y se puede abrir la norma original | — | — |
+| REQ-014 | La pantalla de consulta debe distinguir a simple vista una respuesta con fundamento de un resultado "no determinado" | — | — |
