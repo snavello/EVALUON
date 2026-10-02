@@ -15,7 +15,7 @@ Actualización del 2026-10-02 por el ADR-0006, REQ-020 y REQ-021: las tareas T-0
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
 | T-001 | Comprobar la GPU dentro de un contenedor | REQ-008 | — | terminada |
-| T-002 | Levantar el motor de generación y medir su velocidad | REQ-008, REQ-009 | T-001 | pendiente |
+| T-002 | Levantar el motor de generación y medir su velocidad | REQ-008, REQ-009 | T-001 | en curso |
 | T-003 | Levantar embeddings y reranker y medir la memoria de video | REQ-008, REQ-009 | T-002 | pendiente |
 | T-004 | Fijar Postgres con sus extensiones y búsqueda en español | REQ-008, REQ-010 | T-003 | pendiente |
 | T-005 | Armar el esqueleto de Django con sus librerías | REQ-013, REQ-016 | T-004 | pendiente |
