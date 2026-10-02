@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 48 tareas sin terminar.
-- ▶ T-005 · Armar el esqueleto de Django con sus librerías (en curso)
+- ◐ T-005 · Armar el esqueleto de Django con sus librerías (en verificación)
 - ○ T-006 · Crear usuarios con rol, ingreso y salida (pendiente)
 - ○ T-007 · Crear el registro de auditoría y el alta de usuarios (pendiente)
 - ○ T-008 · Crear las tablas de normas, lecturas, unidades y pasajes (pendiente)
@@ -123,7 +123,7 @@ flowchart TD
   T002["✓ T-002 · Levantar el motor de generación y medir su…"]:::done
   T003["✓ T-003 · Levantar embeddings y reranker y medir la m…"]:::done
   T004["✓ T-004 · Fijar Postgres con sus extensiones y búsque…"]:::done
-  T005["▶ T-005 · Armar el esqueleto de Django con sus librer…"]:::active
+  T005["◐ T-005 · Armar el esqueleto de Django con sus librer…"]:::review
   T006["○ T-006 · Crear usuarios con rol, ingreso y salida"]:::todo
   T007["○ T-007 · Crear el registro de auditoría y el alta de…"]:::todo
   T008["○ T-008 · Crear las tablas de normas, lecturas, unida…"]:::todo
