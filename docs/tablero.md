@@ -31,7 +31,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 3/52 | █░░░░░░░░░ 6% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 4/52 | █░░░░░░░░░ 8% |
 | 002 · Revisión de pliegos | Observaciones a un pliego contra la normativa, antes de publicarlo | No iniciada | — | — |
 | 003 · Matriz de requisitos | Los requisitos del pliego ordenados en una matriz que la Comisión valida | No iniciada | — | — |
 | 004 · Evaluación de ofertas | Por cada requisito, una propuesta con su cita; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -57,8 +57,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 49 tareas sin terminar.
-- ◐ T-004 · Fijar Postgres con sus extensiones y búsqueda en español (en verificación)
+- **Próximo paso:** Desarrollar: 48 tareas sin terminar.
 - ○ T-005 · Armar el esqueleto de Django con sus librerías (pendiente)
 - ○ T-006 · Crear usuarios con rol, ingreso y salida (pendiente)
 - ○ T-007 · Crear el registro de auditoría y el alta de usuarios (pendiente)
@@ -114,6 +113,7 @@ flowchart LR
 - ✓ T-001 · Comprobar la GPU dentro de un contenedor (`3b7a8a7` 2026-10-02)
 - ✓ T-002 · Levantar el motor de generación y medir su velocidad (`5fdf016` 2026-10-02)
 - ✓ T-003 · Levantar embeddings y reranker y medir la memoria de video (`d1eaa07` 2026-10-02)
+- ✓ T-004 · Fijar Postgres con sus extensiones y búsqueda en español (`1a9d113` 2026-10-02)
 
 ### Mapa de tareas
 
@@ -122,7 +122,7 @@ flowchart TD
   T001["✓ T-001 · Comprobar la GPU dentro de un contenedor"]:::done
   T002["✓ T-002 · Levantar el motor de generación y medir su…"]:::done
   T003["✓ T-003 · Levantar embeddings y reranker y medir la m…"]:::done
-  T004["◐ T-004 · Fijar Postgres con sus extensiones y búsque…"]:::review
+  T004["✓ T-004 · Fijar Postgres con sus extensiones y búsque…"]:::done
   T005["○ T-005 · Armar el esqueleto de Django con sus librer…"]:::todo
   T006["○ T-006 · Crear usuarios con rol, ingreso y salida"]:::todo
   T007["○ T-007 · Crear el registro de auditoría y el alta de…"]:::todo
