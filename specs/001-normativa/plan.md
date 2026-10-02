@@ -14,7 +14,7 @@ Qué cambió con la actualización está resumido al final, en "Actualización p
 
 Se construye un sistema que corre entero en la notebook del proyecto, sin mandar nada a internet, y que hace tres cosas.
 
-1. **Lee las normas y las separa en partes con nombre.** El responsable de normativa carga cada documento (PDF, PDF escaneado o página web guardada) escribiendo una orden en la terminal. Una norma puede venir en más de un archivo: la Disposición 247/2022 son dos, el cuerpo y el anexo, y quedan bajo la misma norma. El sistema parte cada documento en artículos, incisos, anexos y considerandos, y entrega un informe que dice qué reconoció, qué páginas no pudo leer y qué no supo ubicar. Hasta que una persona valida ese informe, la norma no se usa para responder.
+1. **Lee las normas y las separa en partes con nombre.** El responsable de normativa carga cada documento (PDF, PDF escaneado o página web guardada) escribiendo una orden en la terminal. Una norma puede venir en más de un archivo: la Disposición 247/2022 son dos, el cuerpo y el anexo, y quedan bajo la misma norma. El sistema parte cada documento en artículos, incisos, anexos y considerandos; el texto con título propio y sin número, como una cláusula transitoria, queda como una parte más, con el nombre que le da el documento. Después entrega un informe que dice qué reconoció, qué páginas no pudo leer y qué no supo ubicar. Hasta que una persona valida ese informe, la norma no se usa para responder.
 2. **Busca y responde con la cita, para una fecha.** Hay dos regímenes de contrataciones: la Disposición 247/2022 y la 297/03 que esta abrogó. Cuál se aplica depende de cuándo se autorizó el procedimiento. Por eso cada pregunta se hace para una fecha de autorización, y el sistema trabaja solo con lo que regía ese día. Busca los artículos que tratan el tema por tres caminos (por significado, por palabras y por número de artículo), les pone un puntaje de pertinencia y le pasa los mejores a un modelo de lenguaje que redacta la respuesta. El modelo no copia el texto de la norma: solo señala qué artículo sostiene cada afirmación, y el sistema pone el texto tal como está guardado. Así la cita no puede salir distinta del documento.
 3. **Dice "no determinado" cuando no hay sustento.** Si nada de lo cargado trata la pregunta, si el modelo no encuentra base suficiente o si para esa fecha no hay un régimen cargado, el resultado es "no determinado", con un aviso propio y sin citas.
 
@@ -28,7 +28,7 @@ Se construye un sistema que corre entero en la notebook del proyecto, sin mandar
 
 **Cómo se sabe si responde bien.** Con unas 30 preguntas de respuesta conocida, aprobadas por un integrante de la Comisión. Cada pregunta lleva su fecha de autorización: hay preguntas para cada uno de los dos regímenes y al menos una que se repite con dos fechas, para comprobar que la respuesta cambia de régimen. Se exige: cita literal siempre, respuesta correcta en al menos 85 % de las preguntas que tienen respuesta, "no determinado" en al menos 90 % de las que no la tienen, y hasta 30 segundos por consulta.
 
-**Qué falta comprobar.** Nada de esto se probó todavía en la notebook. Por eso la primera etapa no construye: comprueba que cada pieza funciona en este equipo y mide cuánta memoria usa. Para lo que podría fallar hay un plan B anotado. Los dos regímenes ya están en el repositorio (`corpus/normativa/`). Faltan tres cosas que dependen de personas: la fecha exacta en que entró en vigencia la Disposición 247/2022, que registra el responsable de normativa; las modificatorias de la 297/03, que se cargan de a poco; y los documentos de las otras categorías.
+**Qué falta comprobar.** Nada de esto se probó todavía en la notebook. Por eso la primera etapa no construye: comprueba que cada pieza funciona en este equipo y mide cuánta memoria usa. Para lo que podría fallar hay un plan B anotado. Los dos regímenes ya están en el repositorio (`corpus/normativa/`). Las fechas de entrada en vigencia ya no faltan: 1 de enero de 2023 para la Disposición 247/2022, informada por el responsable, y 14 de junio de 2003 para la 297/03. Las sigue escribiendo una persona al cargar cada norma; el sistema no las calcula. Faltan dos cosas que dependen de personas: las modificatorias de la 297/03, que se cargan de a poco; y los documentos de las otras categorías.
 
 ## Resumen del enfoque
 
@@ -146,7 +146,7 @@ Así nunca se migra una base con datos sin respaldo previo. Cada migración con 
 
 ## Modelo de datos
 
-Los nombres de tablas y campos van en inglés. Los valores que nombran un concepto jurídico (tipos de unidad, categorías, tipos de relación) van en español sin tildes, tal como los definió el ADR-0004; los estados propios del sistema van en inglés.
+Los nombres de tablas y campos van en inglés. Los valores que nombran un concepto jurídico (tipos de unidad, categorías, tipos de relación) van en español sin tildes, tal como los definió el ADR-0004; el tipo de unidad `clausula` lo suma este plan (ver "Texto normativo sin número de artículo"). Los estados propios del sistema van en inglés.
 
 Cuatro niveles: una **norma** tiene uno o más **documentos** (cada archivo cargado), cada documento tiene una o más **lecturas** (cada vez que se leyó y partió), y cada lectura tiene sus **unidades**. Cada documento es una parte de la norma: el cuerpo o un anexo (ver "Una norma en más de un archivo"). Las unidades y las lecturas no se modifican ni se borran: una relectura crea una lectura nueva. Por eso un registro de consulta puede apuntar a una unidad y encontrarla siempre igual (P6, P8).
 
@@ -197,7 +197,7 @@ Cuatro niveles: una **norma** tiene uno o más **documentos** (cada archivo carg
 |---|---|
 | `id`, `norm` | Identificación y norma a la que pertenece |
 | `part` | Qué parte de la norma es este archivo: `cuerpo` (valor por omisión) o la clave de un anexo (`anexo`, `anexo-i`, `anexo-ii`). Lo indica la persona al cargar |
-| `publication_date`, `effective_from`, `source` | Fecha de publicación, fecha de vigencia y fuente de donde se obtuvo (REQ-001). `effective_from` es desde cuándo rige el texto y lo escribe la persona: el sistema no lo calcula. Para la Disposición 247/2022 es la fecha de su entrada en vigencia (ADR-0006) |
+| `publication_date`, `effective_from`, `source` | Fecha de publicación, fecha de vigencia y fuente de donde se obtuvo (REQ-001). `effective_from` es desde cuándo rige el texto y lo escribe la persona: el sistema no lo calcula. Para la Disposición 247/2022 es su entrada en vigencia, el 2023-01-01, en sus dos documentos; para la 297/03, el 2003-06-14 (ADR-0006, "Datos registrados") |
 | `effective_to` | Hasta cuándo rigió este texto; vacío mientras rige. Se completa cuando se registra una versión posterior de la misma parte de la norma. Una derogación no lo completa: queda como relación |
 | `version_number` | Número de versión de esa parte de la norma; vacío hasta que el documento se registra como versión |
 | `in_use` | Si es el documento que se usa para consultar esa versión. A lo sumo uno por norma, parte y versión |
@@ -235,8 +235,8 @@ Va en tabla aparte para que listar documentos no arrastre los archivos.
 | `id` | Identificación interna. Es lo que guarda el registro de consultas |
 | `reading` | Lectura a la que pertenece |
 | `parent` | Unidad que la contiene; vacío si cuelga de la norma |
-| `unit_type` | `articulo`, `inciso`, `anexo`, `considerando`, `punto` o `parrafo` |
-| `number` | Número normalizado: `14`, `14 bis`, `b`, `I`. Por orden, si el documento no trae número |
+| `unit_type` | `articulo`, `inciso`, `anexo`, `considerando`, `clausula`, `punto` o `parrafo` |
+| `number` | Número normalizado: `14`, `14 bis`, `b`, `I`. Por orden, si el documento no trae número. Vacío en una unidad `clausula`: no se le inventa un número |
 | `label` | Etiqueta como figura en el documento: "ARTICULO 14.- GARANTIAS" |
 | `key` | Clave estable, única dentro de la lectura y, entre los documentos en uso, única dentro de la norma (ver "Identificación de unidades") |
 | `path` | Ruta legible: "Anexo › Título II › Capítulo V › Artículo 50 › Inciso a" |
@@ -274,7 +274,7 @@ Va en tabla aparte para que listar documentos no arrastre los archivos.
 
 Las relaciones guardan la clave de la unidad y no su identificación interna, porque valen para la norma y no para una lectura en particular: si el documento se vuelve a leer, siguen apuntando al mismo artículo. Al registrar una relación se comprueba que la clave exista en los documentos en uso de la norma, en cualquiera de sus partes; al validar una lectura nueva, el informe avisa si alguna relación quedó sin unidad.
 
-`effective_date` es la fecha desde la que rige el cambio y la escribe la persona. La abrogación de la Disposición 297/03 se registra así: tipo `deroga`, norma de origen la 247/2022 con `source_unit_key` `art-2`, norma alcanzada la 297/03 entera, y `effective_date` igual a la fecha de entrada en vigencia de la 247/2022.
+`effective_date` es la fecha desde la que rige el cambio y la escribe la persona. La abrogación de la Disposición 297/03 se registra así: tipo `deroga`, norma de origen la 247/2022 con `source_unit_key` `art-2`, norma alcanzada la 297/03 entera, y `effective_date` igual a la fecha de entrada en vigencia de la 247/2022, que es el 2023-01-01.
 
 **`norms_pending_amendment`**: modificatorias de una norma que todavía no están cargadas (REQ-021). Una fila por modificatoria.
 
@@ -329,7 +329,7 @@ En `norms/migrations/`, cada una con su reversa: extensiones `vector` y `unaccen
 | Identificador | Ejemplo | Para qué se usa |
 |---|---|---|
 | `id` | 4812 | Registro de consultas y respuesta guardada. No cambia nunca |
-| `key` | `art-1`, `anexo-i/art-1`, `anexo/art-50`, `anexo-i/art-14/inc-1/inc-a`, `considerando-3`, `punto-2.3`, `parrafo-12` | Relaciones, comandos y conjunto de preguntas. Se arma con la cadena de unidades que la contienen, en minúsculas y sin tildes. Los títulos y capítulos no entran, porque no son unidades |
+| `key` | `art-1`, `anexo-i/art-1`, `anexo/art-50`, `anexo-i/art-14/inc-1/inc-a`, `considerando-3`, `anexo/clausula-transitoria`, `punto-2.3`, `parrafo-12` | Relaciones, comandos y conjunto de preguntas. Se arma con la cadena de unidades que la contienen, en minúsculas y sin tildes. Los títulos y capítulos no entran, porque no son unidades |
 | `path` | "Anexo › Título II › Capítulo V › Artículo 50 › Inciso a" | Lo que se muestra en la cita y en la búsqueda, precedido por el nombre de la norma. Incluye títulos y capítulos |
 
 La búsqueda por norma y número de artículo (REQ-010) devuelve todas las unidades de tipo `articulo` con ese número en los documentos en uso de la norma, en todas sus partes, cada una con su `path`. Para "Disposición 297/03, artículo 1" son dos resultados, y para "Disposición 247/2022, artículo 1" también; la ruta dice cuál es cuál. No se elige uno en silencio.
@@ -347,11 +347,33 @@ La Disposición 247/2022 está publicada en dos archivos: el cuerpo, con el vist
 
 Se descartaron otras dos formas. Cargar el anexo como una norma aparte, vinculada con una relación, mostraría las citas del régimen bajo otro nombre de norma. Unir los dos archivos en uno antes de cargar dejaría guardado un original que nadie publicó (REQ-002).
 
+### Texto normativo sin número de artículo
+
+Una norma puede traer texto dispositivo con título propio y sin número. El anexo de la Disposición 247/2022 termina con una cláusula transitoria, después del artículo 99. Ese texto se guarda como unidad citable propia, con el nombre que le da el documento (REQ-003; decisión del responsable del 2026-10-02). No se le asigna un número, porque el documento no lo trae, y no se usa el tipo `parrafo`, que queda para dictámenes y recomendaciones.
+
+| Dato | Regla | En el anexo de la 247/2022 |
+|---|---|---|
+| `unit_type` | `clausula` | `clausula` |
+| Nombre | La forma reconocida en el encabezado, con mayúscula inicial. Lo que sigue en la misma línea es su epígrafe, como en un artículo | "Cláusula transitoria" |
+| `number` | Vacío | Vacío |
+| `label` | El encabezado completo, como figura en el documento | "CLÁUSULA TRANSITORIA REGISTRO DE PROVEEDORES" |
+| `key` | La clave de su contenedor y el nombre en minúsculas, sin tildes y con guiones en lugar de espacios. Si el mismo contenedor trae otra con el mismo nombre, desde la segunda se agrega su número de orden (`clausula-transitoria-2`) | `anexo/clausula-transitoria` |
+| `path` | El contenedor y el nombre. No lleva título ni capítulo: el encabezado cierra los que estaban abiertos | "Anexo › Cláusula transitoria" |
+| `order` | El del documento | Después de `anexo/art-99` |
+| `header` de sus pasajes | Norma y ruta, como en las demás unidades | "Disposición AFIP 247/2022, Anexo, Cláusula transitoria" |
+
+- **Cómo la reconoce la partición.** Por su encabezado: una línea propia, escrita en mayúsculas, que empieza con una de las formas de una lista de nombres de texto sin número. La lista arranca con la única forma que trae el corpus, `CLÁUSULA TRANSITORIA`, con o sin tilde y con o sin epígrafe a continuación. El encabezado cierra el artículo anterior y los títulos y capítulos abiertos. La unidad va desde su encabezado hasta el siguiente encabezado de unidad, de título o de anexo, o hasta el cierre y la firma, que no se le suman. No entra en el control de secuencia de los artículos: si después viene un artículo, sigue la numeración de su contenedor. Las mismas palabras en medio de un párrafo no abren una unidad.
+- **Otras normas.** El tipo, la clave, la etiqueta y la ruta valen para cualquier texto normativo con título propio y sin número, por ejemplo una disposición transitoria. Cada forma nueva se suma a la lista como una regla más, con su caso de prueba. Límite: un encabezado que no está en la lista no se reconoce, y su texto queda dentro del artículo anterior sin que el informe lo señale. Lo detecta la persona que valida el informe contra el documento (REQ-005); entonces se agrega la forma y se relee con `releer_norma`.
+- **Cómo se usa.** Es una unidad base: se indexa, se recupera y sostiene respuestas igual que un artículo, con la categoría de su norma y dentro del mismo cupo. Admite relaciones por su clave. Como no tiene número, la búsqueda por norma y número de artículo no la devuelve; se la encuentra por palabras.
+- **Cómo se muestra en la cita.** Con la norma y su ruta, "Disposición AFIP 247/2022" y "Anexo › Cláusula transitoria", y con el mismo papel que un artículo de su categoría. Al desplegarla se ve su texto literal, que empieza con el encabezado tal como figura en el documento.
+
+La tabla "Cómo se parte" del ADR-0004 no tiene esta fila ni su lista de tipos tiene `clausula`. Este plan no modifica ese ADR; se informa al Coordinador (ver "Actualización por ADR-0006").
+
 ### Unidades base, incisos y pasajes
 
 El ADR-0004 guarda el artículo con el texto completo de sus incisos y además cada inciso como unidad hija. Para que el mismo texto no aparezca dos veces:
 
-- **Unidad base** es toda unidad que no es `inciso`: `articulo`, `considerando`, `punto`, `parrafo` y `anexo`. Un `anexo` que contiene artículos tiene como texto propio solo su encabezado y lo que haya antes del primer artículo; un anexo sin artículos tiene todo su texto.
+- **Unidad base** es toda unidad que no es `inciso`: `articulo`, `considerando`, `clausula`, `punto`, `parrafo` y `anexo`. Un `anexo` que contiene artículos tiene como texto propio solo su encabezado y lo que haya antes del primer artículo; un anexo sin artículos tiene todo su texto.
 - **Se indexa para buscar** solo el texto de las unidades base, partido en pasajes. Una unidad corta es un único pasaje; una larga se parte en pasajes de hasta 800 tokens con solape (valor inicial), cortando en los límites de inciso cuando los hay. Los incisos no generan pasajes.
 - **Se cita en una respuesta** siempre la unidad base. El modelo recibe unidades base y solo puede señalar unidades base. Una misma unidad base entra una sola vez en una consulta.
 - **Los incisos sirven** para registrar relaciones con precisión ("modifica el inciso b del artículo 14") y para la búsqueda directa cuando se pide un inciso. Si una relación alcanza a un inciso, lo que acompaña en la respuesta es el artículo que lo contiene, con la aclaración de qué inciso cambió.
@@ -376,7 +398,7 @@ Para cada unidad devuelve además `repealed`: verdadero si hay una relación `de
 - La búsqueda directa usa todas, y muestra las derogadas a esa fecha marcadas, con la norma que las derogó y desde cuándo.
 - Las pruebas de REQ-007 y de REQ-020 llaman a estas funciones con distintas fechas.
 
-**Cómo quedan los dos regímenes.** Con los datos que registra el responsable de normativa (la fecha de vigencia de cada documento al cargarlo y la fecha de la relación `deroga`), y llamando V a la fecha de entrada en vigencia de la 247/2022:
+**Cómo quedan los dos regímenes.** Con los datos que registra el responsable de normativa (la fecha de vigencia de cada documento al cargarlo y la fecha de la relación `deroga`), y llamando V a la fecha de entrada en vigencia de la 247/2022, que es el 2023-01-01 (la 297/03 rige desde el 2003-06-14):
 
 | Fecha consultada | Disposición 297/03 | Disposición 247/2022 | `applicable_regimes` |
 |---|---|---|---|
@@ -723,7 +745,7 @@ Observación: el restablecimiento de una clave olvidada usa el comando `changepa
 - Al menos un par: la misma pregunta en dos casos, uno con fecha anterior y otro con fecha posterior, vinculados por `pareja`. Es el criterio de aceptación de REQ-020: el primero cita la 297/03, el segundo la 247/2022, y cada uno indica su régimen y su fecha.
 - Al menos un caso con `aviso_modificatorias` verdadero (una respuesta que cita la 297/03 mientras tenga modificatorias sin cargar) y al menos uno con falso (una respuesta que cita solo la 247/2022). Es el criterio de REQ-021.
 
-Cuántas preguntas van a cada régimen lo decide el responsable (ver "Qué tiene que decidir el responsable"). Para redactar los casos cercanos al cambio de régimen hace falta la fecha de entrada en vigencia de la 247/2022.
+Cuántas preguntas van a cada régimen lo decide el responsable (ver "Qué tiene que decidir el responsable"). Los casos cercanos al cambio de régimen se redactan con la fecha de entrada en vigencia de la 247/2022, el 2023-01-01: hasta el 2022-12-31 corresponde la 297/03.
 
 **Cómo se corre.** `correr_evals`, dentro de `app`, con los servicios reales y la normativa cargada y validada. Llama a la misma función que la pantalla, con el canal `eval` y la `fecha_autorizacion` del caso, una pregunta por vez. Las consultas quedan también en el registro de auditoría.
 
@@ -762,7 +784,7 @@ Cuando se carga una modificatoria de la 297/03 cambian el corpus y, tal vez, la 
 |---|---|---|
 | REQ-001 | `cargar_norma`; `norms_norm` y `norms_document` guardan tipo, número, organismo, título, fechas de publicación y de vigencia, y fuente; `listar_normas` | Test: tras cargar con sus datos, el listado muestra la norma con todos ellos |
 | REQ-002 | `norms_document_file`; vista con sesión que entrega el original de cada parte | Test: la huella de lo que entrega la vista es igual a la del archivo cargado, en PDF y en HTML |
-| REQ-003 | Partición con reglas (ADR-0004); `norms_unit` con `unit_type`, `key`, `path`, páginas y posición; parte del documento como unidad raíz cuando es un anexo | Test: tablas esperadas escritas a mano del anexo de la Disp. 247/2022 (`disp-afip-247-2022-anexo.pdf`), de su cuerpo (`disp-afip-247-2022-original.htm`) y de la Disp. 297/03 (`disp-afip-297-2003-original.htm`); `art-1` y `anexo/art-1`, y `art-1` y `anexo-i/art-1`, son unidades distintas; los índices no producen unidades; cada texto es igual a su recorte |
+| REQ-003 | Partición con reglas (ADR-0004), más la regla del texto normativo sin número, que da unidades `clausula`; `norms_unit` con `unit_type`, `key`, `path`, páginas y posición; parte del documento como unidad raíz cuando es un anexo | Test: tablas esperadas escritas a mano del anexo de la Disp. 247/2022 (`disp-afip-247-2022-anexo.pdf`), de su cuerpo (`disp-afip-247-2022-original.htm`) y de la Disp. 297/03 (`disp-afip-297-2003-original.htm`); `art-1` y `anexo/art-1`, y `art-1` y `anexo-i/art-1`, son unidades distintas; la cláusula transitoria del anexo de la 247/2022 es la unidad `anexo/clausula-transitoria`, después de `anexo/art-99`; los índices no producen unidades; cada texto es igual a su recorte |
 | REQ-004 | Informe de lectura en `norms_reading.report`; `ver_informe` | Test: un PDF con una página de ruido; el informe señala esa página y ninguna otra |
 | REQ-005 | Estado de la lectura; `consultable_units` como único camino | Test: una norma cargada y sin validar no aparece por ninguno de los tres caminos ni en la búsqueda directa |
 | REQ-006 | `norms_relation`, con claves de unidad cuando corresponde; `registrar_relacion`; vínculos en `listar_normas` y en la pantalla | Test: registrada la relación, al ver cualquiera de las dos normas aparece el vínculo; una relación entre unidades guarda sus claves |
@@ -814,7 +836,7 @@ ADR en los que se apoya este plan, los cinco aceptados. Los ADR 0002 a 0005 se a
 
 Esta actualización no necesita un ADR nuevo: ninguna de sus decisiones es difícil de revertir. Los campos y la tabla que suma entran en el esquema antes de que exista una base con datos, y para volver a un solo régimen alcanza con fijar la fecha y ocultar el campo, como dice el ADR-0006.
 
-Los ADR 0003, 0004 y 0005 tienen frases que quedaron atrás del ADR-0006 (la fecha del día fija, el corpus vacío, la tabla de comandos). Este plan no los modifica; el detalle está en "Actualización por ADR-0006".
+Los ADR 0003, 0004 y 0005 tienen frases que quedaron atrás del ADR-0006 (la fecha del día fija, el corpus vacío, la tabla de comandos), y al ADR-0004 le falta el tipo de unidad `clausula`. Este plan no los modifica; el detalle está en "Actualización por ADR-0006".
 
 Decisiones tomadas en este plan al integrar:
 
@@ -836,21 +858,20 @@ Decisiones tomadas en la actualización por el ADR-0006, pendientes de aprobaci�
 
 14. **Fecha de autorización:** campo en los dos formularios, con la del día por omisión; fecha futura rechazada; fecha sin régimen cargado da "no determinado" con motivo propio.
 15. **Régimen aplicado:** lo calcula el código con `applicable_regimes(fecha)`, a partir de la marca `general_regime` de la norma; se muestra como línea de texto fijo y se guarda.
-16. **Transición entre regímenes:** la fecha de entrada en vigencia de la 247/2022 la escribe una persona, en `effective_from` de sus dos documentos y en `effective_date` de la relación `deroga`. Derogada quiere decir derogada a la fecha consultada.
+16. **Transición entre regímenes:** la fecha de entrada en vigencia de la 247/2022, que es el 2023-01-01, la escribe una persona, en `effective_from` de sus dos documentos y en `effective_date` de la relación `deroga`. Derogada quiere decir derogada a la fecha consultada.
 17. **Norma en más de un archivo:** cada documento es una parte (`cuerpo` o un anexo); las unidades de un anexo cuelgan de una unidad raíz con la clave de la parte; un documento en uso por norma, parte y versión.
 18. **Modificatorias sin cargar:** tabla `norms_pending_amendment`, comando `registrar_modificatorias` con carga en lote, paso a cargada al registrar la relación, aviso de texto fijo con la cantidad.
 19. **Conteo de tokens:** `POST /tokenize` del servidor que tiene cargado cada modelo, como cuarta operación de los clientes de `evaluon/ai/`; margen de 512 tokens para la plantilla de conversación.
 20. **Hilo mínimo:** se hace con `disp-afip-247-2022-anexo.pdf`, que es un PDF con texto real y es el régimen que responde con la fecha del día.
+21. **Texto normativo sin número de artículo:** unidad de tipo `clausula`, sin número, con el nombre que le da el documento en la clave y en la ruta. La cláusula transitoria del anexo de la 247/2022 es `anexo/clausula-transitoria`. Que sea unidad propia, sin número y sin usar `parrafo`, lo decidió el responsable el 2026-10-02; el tipo, la clave y la regla de partición los define este plan.
 
 ## Orden de construcción
 
 Regla para asignar: los bloques marcados "en paralelo" no comparten archivos entre sí y se pueden dar a desarrolladores distintos. Todo lo que toca el esquema (`models.py`, `migrations/`) o la configuración compartida (`settings.py`, `urls.py` de la raíz, `pyproject.toml`, `Dockerfile`, `docker-compose.yml`, `.env.example`, `tests/conftest.py`) va de a uno, en una sola fila de tareas.
 
-Cuatro trabajos de personas corren desde el primer día, en paralelo con todo (Coordinador, responsable e integrante de la Comisión):
+Tres trabajos de personas corren desde el primer día, en paralelo con todo (Coordinador, responsable e integrante de la Comisión). Las fechas de entrada en vigencia, que eran el cuarto, ya están establecidas (2026-10-02): 2023-01-01 para la Disposición 247/2022, informada por el responsable, y 2003-06-14 para la 297/03. Se escriben al cargar cada documento y al registrar la derogación.
 
 - Completar `corpus/normativa/`. Ya están la Disposición 297/03 y la 247/2022 con su anexo; faltan las modificatorias de la 297/03 y los documentos de las otras categorías.
-- Establecer la fecha exacta de entrada en vigencia de la Disposición 247/2022 y la de la 297/03. Las escribe el responsable de normativa al cargar y al registrar la derogación.
-- Preparar `corpus/normativa/referencias/disp-afip-297-2003-modificatorias.csv` a partir del listado de Infoleg guardado en la misma carpeta.
 - Redactar y validar las preguntas del conjunto, cada una con su fecha de autorización.
 
 ### Etapa 0 · Comprobación del entorno
@@ -917,10 +938,10 @@ De a uno: cualquier cambio de esquema que aparezca durante estos bloques, y la u
 
 ### Etapa 4 · Corpus real, calibración y evals
 
-De a uno, con los servicios reales. Necesita el corpus en `corpus/normativa/`, las fechas de vigencia que escribe el responsable de normativa, el archivo de modificatorias y el conjunto de preguntas con visto bueno.
+De a uno, con los servicios reales. Necesita el corpus en `corpus/normativa/`, las fechas de vigencia informadas (2003-06-14 para la 297/03 y 2023-01-01 para la 247/2022), que escribe una persona al cargar, el archivo de modificatorias y el conjunto de preguntas con visto bueno.
 
 1. Cargar y validar el corpus: `disp-afip-297-2003-original.htm` como cuerpo de la 297/03; `disp-afip-247-2022-original.htm` como cuerpo y `disp-afip-247-2022-anexo.pdf` como anexo de la 247/2022; las dos normas, con la marca de régimen general. Ajustar las reglas de partición contra los documentos reales.
-2. Anotar las modificatorias sin cargar de la 297/03 con `registrar_modificatorias`; registrar la relación `deroga` de la 247/2022 sobre la 297/03 con su fecha, y las demás relaciones y versiones del corpus. Comprobar el cambio de régimen consultando el día anterior a la entrada en vigencia y ese mismo día.
+2. Anotar las modificatorias sin cargar de la 297/03 con `registrar_modificatorias`; registrar la relación `deroga` de la 247/2022 sobre la 297/03 con su fecha (2023-01-01), y las demás relaciones y versiones del corpus. Comprobar el cambio de régimen consultando el día anterior a la entrada en vigencia (2022-12-31) y ese mismo día (2023-01-01).
 3. Calibrar el umbral.
 4. Correr las evals, la comparación quitando piezas y la medición de tiempo y memoria.
 5. Si no se alcanzan las exigencias: seguir la escalera del ADR-0002 (8 bits, instrucciones, modelo de contraste) o el reemplazo del ADR-0003, con decisión del responsable.
@@ -993,7 +1014,7 @@ Nada de lo que sigue está comprobado. Cada grupo indica la prueba que lo cierra
 |---|---|
 | Estructura real de los tres archivos del corpus. Lo que vi al preparar esta actualización está debajo de la tabla; no leí los tres archivos completos | Las reglas y las tablas esperadas se escriben contra los archivos de `corpus/normativa/` |
 | Cuántos artículos tiene cada documento. Vi 99 en el índice del anexo de la 247/2022 y 5 en su cuerpo; de la 297/03, 5 en la disposición y un índice del Anexo I que llega al 64 | Las tablas esperadas escritas a mano y el control de secuencia del informe de lectura |
-| La cláusula transitoria del anexo de la 247/2022: texto normativo sin encabezado de artículo, después del artículo 99. Ninguna regla del ADR-0004 la prevé | El informe la muestra como no ubicada y no la suma al artículo 99. Qué unidad le corresponde lo decide el responsable (ver "Qué tiene que decidir el responsable") |
+| Qué unidad le corresponde a la cláusula transitoria del anexo de la 247/2022: resuelto el 2026-10-02, es una unidad `clausula` (ver "Texto normativo sin número de artículo"). Queda por comprobar que la regla la reconozca en el archivo real, con sus dos párrafos y sin la firma | La tabla esperada del anexo la incluye como `anexo/clausula-transitoria`, después de `anexo/art-99`; el informe de lectura la cuenta entre las unidades y no la da como no ubicada |
 | Que la página 45 del anexo, que solo tiene la firma digital, se lea como cierre y firma | Informe de lectura del documento real |
 | Documentos de las otras categorías (marco nacional, dictámenes, recomendaciones) | Todavía no están en el corpus; sus reglas se prueban con documentos sintéticos hasta que lleguen |
 | Calidad de Tesseract en español sobre escaneos de normas; umbrales de confianza (80 y 50) | Prueba de REQ-015: proporción de palabras del escaneado que coincide con el PDF con texto; los umbrales se ajustan con escaneos reales |
@@ -1003,15 +1024,15 @@ Lo que vi en los archivos del corpus, para quien escriba las reglas:
 
 - **`disp-afip-297-2003-original.htm`.** Página de Infoleg con párrafos `<P>` y bloques `<DIR>`, letras acentuadas escritas como entidades (`&oacute;`) y el signo de grado como carácter suelto; el manifiesto indica codificación windows-1252. La disposición tiene cinco artículos con la forma `ARTICULO 1° —`. Sigue "ANEXO I - DISPOSICION N° 297/03 (AFIP)", un índice con las formas `ARTICULO 1.- OBJETO`, `ARTICULO 20 -`, `ARTICULO 27.` y `ARTICULO 29-`, y después el articulado con `ARTICULO 2° —`, `ARTICULO 11. —`, `ARTICULO 12.—` y `ARTICULO 13 —`. Los títulos y capítulos van en líneas propias.
 - **`disp-afip-247-2022-original.htm`.** Página de Infoleg que declara ISO-8859-1, con el texto en un solo bloque separado por `<br>` y comillas como entidades numéricas. Trae visto, siete considerandos, cinco artículos con la forma `ARTÍCULO 1°.-`, la firma, la nota del Boletín Oficial sobre los anexos y una nota de Infoleg al pie. Tiene scripts de medición en el encabezado.
-- **`disp-afip-247-2022-anexo.pdf`.** 45 páginas con texto. Empieza con una carátula ("ANEXO", número de documento, referencia) y la línea "ANEXO (artículo 1°)". El índice ocupa de la página 1 a la 5 y escribe los artículos como `ARTÍCULO 1º.- OBJETO`; el articulado empieza en la página 5 y los escribe `ARTÍCULO 1°.- OBJETO.` con el texto a continuación, y `ARTÍCULO 10.-` sin signo. Títulos de I a VII, con capítulos. Incisos con letra y paréntesis. Después del artículo 99 hay una "CLÁUSULA TRANSITORIA REGISTRO DE PROVEEDORES" de dos párrafos. La página 45 trae solo la firma digital. No vi encabezados ni pies repetidos en las páginas que abrí (1 a 6, 44 y 45).
+- **`disp-afip-247-2022-anexo.pdf`.** 45 páginas con texto. Empieza con una carátula ("ANEXO", número de documento, referencia) y la línea "ANEXO (artículo 1°)". El índice ocupa de la página 1 a la 5 y escribe los artículos como `ARTÍCULO 1º.- OBJETO`; el articulado empieza en la página 5 y los escribe `ARTÍCULO 1°.- OBJETO.` con el texto a continuación, y `ARTÍCULO 10.-` sin signo. Títulos de I a VII, con capítulos. Incisos con letra y paréntesis. Después del artículo 99, en la página 44, hay una "CLÁUSULA TRANSITORIA REGISTRO DE PROVEEDORES" de dos párrafos; el encabezado va en una línea propia, en mayúsculas y en negrita, como los títulos, y el índice no la lista. La página 45 trae solo la firma digital. No vi encabezados ni pies repetidos en las páginas que abrí (1 a 6, 44 y 45).
 
 ### Dos regímenes y modificatorias (etapa 4)
 
 | Sin verificar | Prueba que lo cierra |
 |---|---|
-| Fecha exacta de entrada en vigencia de la Disposición 247/2022: veinte días hábiles administrativos desde su publicación del 30/11/2022. El sistema no la calcula y este plan tampoco | La establece el responsable de normativa y la escribe al cargar los dos documentos y al registrar la relación `deroga` |
-| Fecha de vigencia de la Disposición 297/03. Su artículo 3 dice que rige desde el día siguiente al de su publicación; el manifiesto indica que se publicó el 13/6/2003 | La escribe el responsable de normativa al cargarla |
-| Que las tres fechas de la 247/2022 queden iguales | Consulta en la pantalla con el día anterior a la entrada en vigencia y con ese día: en cada una, un régimen aplicado y solo uno |
+| Fecha de entrada en vigencia de la Disposición 247/2022: resuelto el 2026-10-02. Es el 2023-01-01, informada por el responsable (ADR-0006, "Datos registrados"). El sistema no la calcula y este plan tampoco | Se escribe al cargar los dos documentos y al registrar la relación `deroga` |
+| Fecha de vigencia de la Disposición 297/03: resuelto el 2026-10-02. Es el 2003-06-14, el día siguiente a su publicación del 13/6/2003, según su propio texto (ADR-0006, "Datos registrados") | Se escribe al cargarla |
+| Que las tres fechas de la 247/2022 queden iguales | Consulta en la pantalla con el día anterior a la entrada en vigencia (2022-12-31) y con ese día (2023-01-01): en cada una, un régimen aplicado y solo uno |
 | Contenido del archivo de modificatorias de la 297/03 | Lo preparan el Coordinador y el responsable a partir del listado de Infoleg guardado. El listado trae 33 normas; una es la propia 247/2022. El nombre de algunas dependencias aparece cortado en el listado y hay que completarlo |
 | Qué son las 33 normas del listado. Por sus descripciones, varias no modifican el régimen: aprueban una licitación, designan una comisión o delegan una competencia | Se sabe al cargar cada una. Mientras tanto cuentan todas en el aviso, como pide la spec |
 
@@ -1052,13 +1073,12 @@ Las decisiones del plan original ya están tomadas y figuran más abajo. Por la 
 2. **Fecha de autorización posterior al día.** Recomendado: rechazarla en el formulario. El sistema no puede saber qué normas van a regir, y responder sería afirmar sin sustento. Se pierde poder consultar para un procedimiento que se va a autorizar en los próximos días; para eso alcanza con usar la fecha del día.
 3. **Fecha sin régimen específico cargado** (por ejemplo, anterior a la 297/03). Recomendado: "no determinado", sin buscar. La alternativa es responder con lo que haya del marco nacional y avisar que falta el régimen; se descartó porque daría por aplicable un marco que no desplaza al régimen específico.
 4. **Reparto de las preguntas de las evals entre los dos regímenes.** Recomendado: la mayoría con fecha bajo la 247/2022, que es lo que la Comisión usa hoy, y no menos de ocho con fecha bajo la 297/03, incluido el par que repite una pregunta con dos fechas. Hay que tener presente que las respuestas bajo la 297/03 se miden contra el texto de 2003, sin sus modificatorias.
-5. **La cláusula transitoria del anexo de la 247/2022.** Es texto normativo sin encabezado de artículo, y las reglas del ADR-0004 no la prevén. Recomendado: guardarla como unidad de tipo `parrafo` dentro del anexo (`anexo/parrafo-1` y `anexo/parrafo-2`), con su título en la ruta. Usa un tipo de unidad que ya existe, pero extiende a una norma un tipo que la spec y el ADR-0004 reservan para dictámenes y recomendaciones, así que necesita su visto bueno. Mientras no se decida, el informe la muestra como no ubicada y el anexo se puede validar igual, sabiendo que esos dos párrafos no se van a poder citar.
-6. **Las modificatorias que no modifican.** El listado de Infoleg junta las normas que modifican la 297/03 con las que solo la complementan o la citan, como la aprobación de una licitación. Según la spec, el aviso desaparece cuando están cargadas las 33. Recomendado: dejarlo así por ahora y revisarlo cuando se decida con qué profundidad se cargan (ADR-0006). Sacar una norma del listado sin cargarla sería un requisito nuevo.
+5. **Las modificatorias que no modifican.** El listado de Infoleg junta las normas que modifican la 297/03 con las que solo la complementan o la citan, como la aprobación de una licitación. Según la spec, el aviso desaparece cuando están cargadas las 33. Recomendado: dejarlo así por ahora y revisarlo cuando se decida con qué profundidad se cargan (ADR-0006). Sacar una norma del listado sin cargarla sería un requisito nuevo.
+
+La cláusula transitoria del anexo de la 247/2022 y las fechas de entrada en vigencia, que figuraban en esta sección, quedaron resueltas el 2026-10-02 y pasaron a "Decisiones tomadas".
 
 No son decisiones, pero hacen falta:
 
-- La fecha exacta de entrada en vigencia de la Disposición 247/2022 y la de la 297/03. Hacen falta para la carga del corpus (etapa 4) y, antes, para redactar las preguntas de las evals con su fecha.
-- El archivo `corpus/normativa/referencias/disp-afip-297-2003-modificatorias.csv`, anotado en `corpus/manifiesto.csv`.
 - Los documentos de las otras categorías y las modificatorias de la 297/03, a medida que se decida cargarlas.
 
 ### Decisiones tomadas
@@ -1072,6 +1092,11 @@ El responsable aprobó el plan el 2026-10-02 con las cinco recomendaciones que t
 5. Equipo confirmado: Intel Core Ultra 9, 32 GB de RAM, RTX 5090 de notebook con 24 GB de memoria de video. La etapa 0 lo comprueba igual con `nvidia-smi`.
 
 El corpus inicial era la Disposición AFIP 297/03. El mismo día, por el ADR-0006, el responsable decidió trabajar con los dos regímenes: el corpus inicial pasa a ser la Disposición 297/03 con su texto de 2003 y la Disposición 247/2022 con su anexo. Las modificatorias de la 297/03 se anotan como no cargadas y se cargan de a poco.
+
+Resueltas el 2026-10-02, después de presentada la actualización por el ADR-0006:
+
+- **Fechas de entrada en vigencia.** Disposición 247/2022: 2023-01-01, informada por el responsable. Disposición 297/03: 2003-06-14, el día siguiente a su publicación del 13/6/2003. Las escribe una persona al cargar cada norma y al registrar la relación `deroga`; el sistema no las calcula.
+- **Cláusula transitoria del anexo de la 247/2022.** Es una unidad citable propia, con el nombre que le da el documento, ubicada después del artículo 99: tipo `clausula`, clave `anexo/clausula-transitoria`, ruta "Anexo › Cláusula transitoria". Sin número y sin usar el tipo `parrafo`. Vale para todo texto normativo con título propio y sin número (REQ-003).
 
 ## Actualización por ADR-0006
 
@@ -1111,18 +1136,20 @@ Fecha: 2026-10-02. Pendiente de aprobación del responsable. Esta sección lista
 | Evals | Campos `fecha_autorizacion`, `regimen`, `pareja` y `aviso_modificatorias`; composición por régimen; pares y aviso informados aparte; el régimen entra en "respuesta correcta" | REQ-020, REQ-021 |
 | Cobertura de requisitos | Filas de REQ-020 y REQ-021; ajustes en REQ-002, 003, 007, 010, 011, 012 y 015 | 21 requisitos |
 | Verificación contra la constitución | P1, P2, P3, P8, P10 y P11 | Constitución 1.1; texto desactualizado |
-| Decisiones | ADR-0006 en la tabla; los cinco ADR aceptados; decisiones 14 a 20 | ADR-0006; texto desactualizado |
+| Decisiones | ADR-0006 en la tabla; los cinco ADR aceptados; decisiones 14 a 21 | ADR-0006; texto desactualizado; REQ-003 |
 | Orden de construcción | Trabajos de personas; etapa 2 con el anexo de la 247/2022; bloques C, D, E, F, H, I y K ajustados y bloque L nuevo; etapa 4 con los tres archivos, las modificatorias y la derogación | Corpus real; REQ-020, REQ-021 |
 | Sin verificar y cómo se cierra | Conteo de tokens en la etapa 0; lo visto en los tres archivos; grupo nuevo de regímenes y modificatorias; campo de fecha en el navegador | Corpus real; ADR-0006 |
 | Riesgos | Corpus incompleto en lugar de ausente; fecha de vigencia mal registrada; texto de 2003 sin modificatorias; cierre del aviso; fecha mal elegida; margen del contexto | ADR-0006, REQ-020, REQ-021 |
-| Qué tiene que decidir el responsable | Seis decisiones de esta actualización y tres datos que hacen falta | Compuerta de la actualización |
+| Qué tiene que decidir el responsable | Cinco decisiones de esta actualización y dos datos que hacen falta; la cláusula transitoria y las fechas de vigencia pasaron a "Decisiones tomadas" | Compuerta de la actualización |
 
 **Hilo mínimo.** Antes se hacía con la Disposición 297/03 en un PDF que había que conseguir o generar. Ahora se hace con `disp-afip-247-2022-anexo.pdf`, que ya está en el corpus.
+
+**Ajustes del 2026-10-02 por dos definiciones del responsable.** Primero, las fechas de entrada en vigencia ya están informadas (247/2022: 2023-01-01; 297/03: 2003-06-14) y dejaron de figurar como faltantes en "En pocas palabras", "Modelo de datos", "Unidades consultables a una fecha", "Evals", "Orden de construcción", "Sin verificar y cómo se cierra" y "Qué tiene que decidir el responsable". Segundo, la cláusula transitoria del anexo de la 247/2022 es una unidad de tipo `clausula`, con clave `anexo/clausula-transitoria`: tipo nuevo en `norms_unit.unit_type`, sección nueva "Texto normativo sin número de artículo", fila de REQ-003 en "Cobertura de requisitos" y decisión 21.
 
 **Frases de otros documentos que quedaron atrás.** Este plan no los modifica; se informan al Coordinador:
 
 - ADR-0003, "Fecha de referencia en la pantalla": dice que es la del día y que la pantalla no permite elegirla.
-- ADR-0004: dice que `corpus/normativa/` está vacío, describe la estructura de la 297/03 a partir de una lectura incompleta de la página y prevé su tabla esperada con página de inicio; el archivo del corpus es una página web y no tiene páginas.
+- ADR-0004: dice que `corpus/normativa/` está vacío, describe la estructura de la 297/03 a partir de una lectura incompleta de la página y prevé su tabla esperada con página de inicio; el archivo del corpus es una página web y no tiene páginas. Además, su tabla "Cómo se parte" no tiene la fila del texto normativo sin número de artículo, la lista de `unit_type` de "Qué lleva cada unidad" no tiene `clausula`, y su cita de REQ-003 es la anterior al cambio de la spec.
 - ADR-0005: su tabla de comandos no tiene `registrar_modificatorias` ni las opciones `--parte` y `--regimen-general`.
 - Spec, "Volumen" y aclaración sobre modificatorias: hablan de 33 modificatorias sin cargar. El listado de Infoleg tiene 33 normas, pero una es la Disposición 247/2022, que se carga; quedan 32.
 - `evals/README.md`: su formato de partida no tiene la fecha de autorización. El formato vigente para esta feature es el de la sección "Evals" de este plan, como ese mismo archivo indica.

@@ -45,7 +45,7 @@ En esta spec, "norma" abarca todos los documentos del marco regulatorio. Cada un
 |---|---|---|
 | REQ-001 | El sistema debe incorporar una norma a partir de su documento, registrando tipo, número, organismo emisor, título, fecha de publicación, fecha de vigencia y fuente de donde se obtuvo | — |
 | REQ-002 | El sistema debe conservar el documento original de cada norma y permitir verlo | — |
-| REQ-003 | El sistema debe dividir cada documento en unidades citables, cada una con su ubicación: considerando, artículo, inciso o anexo en las normas; punto o párrafo en dictámenes y recomendaciones | — |
+| REQ-003 | El sistema debe dividir cada documento en unidades citables, cada una con su ubicación: considerando, artículo, inciso o anexo en las normas, y también el texto normativo que no lleva número de artículo, como una cláusula transitoria, con el nombre que le da el documento; punto o párrafo en dictámenes y recomendaciones | — |
 | REQ-004 | El sistema debe entregar, por cada norma incorporada, un informe de lectura: cuántas unidades reconoció, cuáles páginas no pudo leer y qué no pudo ubicar | — |
 | REQ-005 | Una norma debe quedar disponible para consultas solo después de que una persona valide su informe de lectura | — |
 | REQ-006 | El sistema debe registrar las relaciones entre normas: cuál modifica, complementa, reglamenta o deroga a cuál. Cuando el cambio alcanza a unidades concretas, la relación se registra entre esas unidades | — |
@@ -161,3 +161,6 @@ Surgieron al preparar el plan. Las tres primeras las decidió el responsable el 
 - **Alta de usuarios (REQ-016).** La hace quien administra el equipo, por comandos, y queda registrada.
 - **Dos regímenes (ADR-0006, decisión del responsable).** La Disposición 297/03 fue abrogada por la 247/2022. El sistema carga las dos y aplica una u otra según la fecha de autorización del procedimiento (REQ-020). La fecha de entrada en vigencia de la 247/2022 la registra una persona al cargarla.
 - **Modificatorias de la 297/03 (decisión del responsable).** Se arranca con el texto original de 2003. Sus modificatorias se registran como no cargadas y las respuestas bajo la 297/03 lo avisan (REQ-021). Infoleg lista 33 normas vinculadas; una es la 247/2022, que se carga, y quedan 32. Se van cargando de a poco; el aviso desaparece cuando estén todas.
+- **Cláusula transitoria (decisión del responsable).** El texto normativo sin número de artículo se guarda como unidad citable propia. La cláusula transitoria del anexo de la Disposición 247/2022 se guarda con ese nombre, "Cláusula transitoria", ubicada después del artículo 99. No se le asigna un número como "99 bis", porque el documento no lo trae y la cita debe coincidir con el texto.
+- **Fechas de entrada en vigencia.** Disposición 247/2022: 1/1/2023, informada por el responsable. Disposición 297/03: 14/6/2003, el día siguiente a su publicación del 13/6/2003, según su propio texto. Las registra una persona al cargar cada norma.
+
