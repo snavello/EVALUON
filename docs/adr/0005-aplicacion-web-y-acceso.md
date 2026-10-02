@@ -451,3 +451,8 @@ Hechos el 2026-10-02 al integrar el plan (`specs/001-normativa/plan.md`). La dec
 - **Acceso por red.** Es la feature 007. Los riesgos "Uso desde otras computadoras" e "Intentos repetidos de clave" quedan como antecedente para esa feature. Este ADR no la impide: la restricción a `127.0.0.1` está solo en la publicación del puerto, y las cookies seguras se activan por configuración.
 - **Formato `.mhtml`.** La spec acepta la página web guardada como un archivo `.html`; lo dicho sobre `.mhtml` no aplica en esta feature.
 - **Dudas y decisiones.** Se anotó cuáles quedaron resueltas.
+
+## Consulta del responsable
+
+- **2026-10-02 · Django o FastAPI.** El responsable ya usa FastAPI con Jinja2, SQLModel y Alembic en otros proyectos, dato que este ADR no tenía al compararlos. Se volvió a evaluar con ese dato. A favor de FastAPI: un solo stack entre proyectos y código conocido. A favor de Django: el ingreso, las claves, las sesiones y la protección de formularios vienen hechos y mantenidos por un equipo de seguridad, mientras que con FastAPI serían código propio; el código lo escriben los agentes, de modo que la familiaridad previa pesa menos; y las features 002 a 004 son formularios con usuarios identificados. El responsable confirmó Django.
+
