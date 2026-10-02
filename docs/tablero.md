@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 49 tareas sin terminar.
-- ○ T-004 · Fijar Postgres con sus extensiones y búsqueda en español (pendiente)
+- ▶ T-004 · Fijar Postgres con sus extensiones y búsqueda en español (en curso)
 - ○ T-005 · Armar el esqueleto de Django con sus librerías (pendiente)
 - ○ T-006 · Crear usuarios con rol, ingreso y salida (pendiente)
 - ○ T-007 · Crear el registro de auditoría y el alta de usuarios (pendiente)
@@ -122,7 +122,7 @@ flowchart TD
   T001["✓ T-001 · Comprobar la GPU dentro de un contenedor"]:::done
   T002["✓ T-002 · Levantar el motor de generación y medir su…"]:::done
   T003["✓ T-003 · Levantar embeddings y reranker y medir la m…"]:::done
-  T004["○ T-004 · Fijar Postgres con sus extensiones y búsque…"]:::todo
+  T004["▶ T-004 · Fijar Postgres con sus extensiones y búsque…"]:::active
   T005["○ T-005 · Armar el esqueleto de Django con sus librer…"]:::todo
   T006["○ T-006 · Crear usuarios con rol, ingreso y salida"]:::todo
   T007["○ T-007 · Crear el registro de auditoría y el alta de…"]:::todo
@@ -268,7 +268,7 @@ flowchart TD
 | REQ-007 | El sistema debe mantener las versiones de cada norma y, para una fecha dada, indicar qué unidades estaban vigentes y qué normas las habían modificado o derogado, mostrando el texto literal de cada una | T-009, T-029, T-030, T-033, T-037, T-044 | ○ pendiente |
 | REQ-008 | El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la unidad que la sostiene, con su texto literal | T-001, T-002, T-003, T-004, T-011, T-017, T-018, T-019, T-020, T-031, T-032, T-034, T-039, T-040, T-042, T-046, T-047 | ▶ en proceso |
 | REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | T-002, T-003, T-011, T-017, T-018, T-019, T-034, T-039, T-040, T-042, T-045, T-046 | ▶ en proceso |
-| REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto, desde la pantalla de consulta. Una unidad derogada aparece en la búsqueda marcada como tal | T-004, T-009, T-035, T-041 | ○ pendiente |
+| REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto, desde la pantalla de consulta. Una unidad derogada aparece en la búsqueda marcada como tal | T-004, T-009, T-035, T-041 | ▶ en proceso |
 | REQ-011 | El sistema debe avisar cuando se intenta cargar una norma que ya está incorporada. Si es el mismo archivo, no lo incorpora; si es la misma norma en otro archivo o formato, pide confirmación expresa | T-008, T-026 | ○ pendiente |
 | REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | T-007, T-008, T-010, T-014, T-015, T-019, T-020, T-026, T-038, T-040, T-041, T-048, T-049, T-051, T-052 | ○ pendiente |
 | REQ-013 | El sistema debe ofrecer una pantalla de consulta donde una persona escribe su pregunta y ve la respuesta con sus citas; desde cada cita se ve el texto literal de la unidad y se puede abrir la norma original | T-005, T-016, T-019, T-020, T-037, T-047 | ○ pendiente |
