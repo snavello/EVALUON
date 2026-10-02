@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 51 tareas sin terminar.
-- ▶ T-002 · Levantar el motor de generación y medir su velocidad (en curso)
+- ◐ T-002 · Levantar el motor de generación y medir su velocidad (en verificación)
 - ○ T-003 · Levantar embeddings y reranker y medir la memoria de video (pendiente)
 - ○ T-004 · Fijar Postgres con sus extensiones y búsqueda en español (pendiente)
 - ○ T-005 · Armar el esqueleto de Django con sus librerías (pendiente)
@@ -120,7 +120,7 @@ flowchart LR
 ```mermaid
 flowchart TD
   T001["✓ T-001 · Comprobar la GPU dentro de un contenedor"]:::done
-  T002["▶ T-002 · Levantar el motor de generación y medir su…"]:::active
+  T002["◐ T-002 · Levantar el motor de generación y medir su…"]:::review
   T003["○ T-003 · Levantar embeddings y reranker y medir la m…"]:::todo
   T004["○ T-004 · Fijar Postgres con sus extensiones y búsque…"]:::todo
   T005["○ T-005 · Armar el esqueleto de Django con sus librer…"]:::todo
