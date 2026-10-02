@@ -18,7 +18,7 @@ Actualización del 2026-10-02 por el ADR-0006, REQ-020 y REQ-021: las tareas T-0
 | T-002 | Levantar el motor de generación y medir su velocidad | REQ-008, REQ-009 | T-001 | terminada |
 | T-003 | Levantar embeddings y reranker y medir la memoria de video | REQ-008, REQ-009 | T-002 | terminada |
 | T-004 | Fijar Postgres con sus extensiones y búsqueda en español | REQ-008, REQ-010 | T-003 | terminada |
-| T-005 | Armar el esqueleto de Django con sus librerías | REQ-013, REQ-016 | T-004 | pendiente |
+| T-005 | Armar el esqueleto de Django con sus librerías | REQ-013, REQ-016 | T-004 | en curso |
 | T-006 | Crear usuarios con rol, ingreso y salida | REQ-016 | T-005 | pendiente |
 | T-007 | Crear el registro de auditoría y el alta de usuarios | REQ-012, REQ-016 | T-006 | pendiente |
 | T-008 | Crear las tablas de normas, lecturas, unidades y pasajes | REQ-001, REQ-003, REQ-011, REQ-012, REQ-017, REQ-020, REQ-021 | T-007 | pendiente |
