@@ -1,0 +1,25 @@
+# Secretos y configuración local
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Modelos y datos generados
+models/
+*.gguf
+*.safetensors
+pgdata/
+backups/
+
+# Claude Code: configuración personal
+.claude/settings.local.json
+.claude/agent-memory-local/
+
+# Sistema
+.DS_Store
+Thumbs.db
