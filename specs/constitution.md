@@ -1,12 +1,12 @@
 # Constitución de EVALUON
 
-Versión 1.0 · 2026-10-02 · Estado: aprobada por el responsable del proyecto.
+Versión 1.1 · 2026-10-02 · Estado: aprobada por el responsable del proyecto. La versión 1.1 ajusta el propósito según el ADR-0006.
 
 Este documento fija los principios que ninguna spec, plan o tarea puede contradecir. Todos los agentes lo leen antes de actuar. Se modifica solo mediante un ADR aprobado por el responsable.
 
 ## Propósito del sistema
 
-EVALUON consolida la normativa de compras (Disposición AFIP 297/03, complementarias y marco nacional), revisa pliegos de bases y condiciones contra esa normativa y asiste a la Comisión Evaluadora para determinar si las ofertas cumplen los requisitos del pliego.
+EVALUON consolida la normativa de compras (el régimen de contrataciones de la AFIP: Disposición 247/2022 y, para los procedimientos autorizados antes de su entrada en vigencia, Disposición 297/03; sus modificatorias y complementarias; y el marco nacional), revisa pliegos de bases y condiciones contra esa normativa y asiste a la Comisión Evaluadora para determinar si las ofertas cumplen los requisitos del pliego.
 
 ## Principios
 
