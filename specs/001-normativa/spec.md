@@ -63,6 +63,7 @@ En esta spec, "norma" abarca todos los documentos del marco regulatorio. Cada un
 | REQ-018 | Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional se presentan como marco; los dictámenes y las recomendaciones se presentan como criterio que acompaña; los considerandos se presentan como contexto, identificados como tales y después del articulado | — |
 | REQ-019 | Cuando el régimen específico y el marco nacional tratan el mismo punto de manera distinta, la respuesta debe mostrar ambos textos y señalar el del régimen específico como el aplicable | — |
 | REQ-020 | Cada consulta y cada búsqueda se hacen para una fecha de autorización del procedimiento, que la persona indica en la pantalla; por defecto es la del día. El sistema responde con lo que regía a esa fecha y muestra qué régimen aplicó | Disp. AFIP 247/2022, arts. 2 a 4 |
+| REQ-021 | El sistema debe permitir registrar que una norma tiene modificatorias todavía no cargadas, identificando cada una. Mientras queden, toda respuesta o búsqueda que muestre una unidad de esa norma avisa que puede haber cambios que el sistema no conoce e indica cuántas modificatorias faltan cargar | — |
 
 En esta feature, consolidar significa reunir: cada norma se guarda tal como fue publicada, y los cambios entre normas los registra una persona (REQ-006 y REQ-007). El sistema no redacta textos nuevos; toda cita es texto literal de un documento publicado.
 
@@ -88,6 +89,7 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
 - **REQ-018.** Dada una pregunta que responden un artículo del régimen específico y un dictamen legal, cuando se consulta, entonces la respuesta cita primero el artículo, después el dictamen, y cada cita muestra su categoría.
 - **REQ-019.** Dado un punto que el régimen específico y el marco nacional regulan de manera distinta, cuando se consulta por ese punto, entonces la respuesta muestra los dos textos y señala el del régimen específico como el aplicable.
 - **REQ-020.** Dada una misma pregunta, cuando se consulta con una fecha de autorización anterior a la entrada en vigencia de la Disposición 247/2022 y con otra posterior, entonces la primera respuesta cita la Disposición 297/03 y la segunda la Disposición 247/2022, y cada una indica qué régimen aplicó y para qué fecha.
+- **REQ-021.** Dada una norma con modificatorias registradas como no cargadas, cuando una respuesta cita una unidad de esa norma, entonces la pantalla muestra el aviso con la cantidad de modificatorias sin cargar; cuando todas quedan cargadas y registradas, el aviso deja de aparecer.
 
 ## Requisitos no funcionales
 
@@ -96,7 +98,7 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
     - La respuesta es correcta y cita la unidad correcta: al menos 85 % de las preguntas con respuesta.
     - El sistema se abstiene cuando no hay respuesta: al menos 90 % de las preguntas sin respuesta.
 - **Validación del conjunto de preguntas.** El Coordinador propone las preguntas y sus respuestas a partir de los documentos, el responsable del proyecto las corrige y un integrante de la Comisión Evaluadora les da el visto bueno. Sin ese visto bueno, una pregunta no entra al conjunto.
-- **Volumen.** Menos de 10 documentos por ahora, repartidos entre las cinco categorías del marco regulatorio.
+- **Volumen.** Menos de 10 documentos por ahora, repartidos entre las cinco categorías del marco regulatorio. Las 33 modificatorias de la Disposición 297/03 se cargan de a poco y no cuentan para el arranque.
 - **Formato de origen.** La mayoría de las normas está en PDF con texto; algunas están escaneadas o solo en páginas web (REQ-015).
 - **Tiempo de respuesta.** Hasta 30 segundos por consulta, en el equipo donde corre el sistema.
 - **Funcionamiento sin conexión.** La consulta funciona sin acceso a internet, en el equipo donde corre el sistema.
@@ -158,3 +160,4 @@ Surgieron al preparar el plan. Las tres primeras las decidió el responsable el 
 - **Página web guardada (REQ-015).** Se acepta como un archivo `.html`.
 - **Alta de usuarios (REQ-016).** La hace quien administra el equipo, por comandos, y queda registrada.
 - **Dos regímenes (ADR-0006, decisión del responsable).** La Disposición 297/03 fue abrogada por la 247/2022. El sistema carga las dos y aplica una u otra según la fecha de autorización del procedimiento (REQ-020). La fecha de entrada en vigencia de la 247/2022 la registra una persona al cargarla.
+- **Modificatorias de la 297/03 (decisión del responsable).** Se arranca con el texto original de 2003. Las 33 modificatorias se registran como no cargadas y las respuestas bajo la 297/03 lo avisan (REQ-021). Se van cargando de a poco; el aviso desaparece cuando estén todas.
