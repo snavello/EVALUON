@@ -88,7 +88,7 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
 ## Requisitos no funcionales
 
 - **Calidad de las respuestas.** Se mide con un conjunto de preguntas con respuesta conocida (`evals/`). [A ACLARAR: quién valida las respuestas esperadas y qué nivel de acierto se exige para aprobar]
-- **Volumen.** El conjunto inicial reúne las cinco categorías del marco regulatorio. [A ACLARAR: cantidad aproximada de documentos, en especial de dictámenes y recomendaciones]
+- **Volumen.** Menos de 10 documentos por ahora, repartidos entre las cinco categorías del marco regulatorio.
 - **Formato de origen.** La mayoría de las normas está en PDF con texto; algunas están escaneadas o solo en páginas web (REQ-015).
 - **Tiempo de respuesta.** [A ACLARAR: tiempo aceptable para una consulta; propuesta inicial, hasta 30 segundos]
 - **Funcionamiento sin conexión.** La consulta funciona sin acceso a internet, en el equipo donde corre el sistema.
@@ -111,18 +111,16 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
 
 ## Datos involucrados
 
-Las normas son públicas: pueden estar en el repositorio (`corpus/normativa/`) y usarse en pruebas y evals (principio P4).
+Todos los documentos del marco regulatorio, incluidos los dictámenes legales y las recomendaciones de auditoría, tienen carácter público. En esta etapa pueden estar en el repositorio (`corpus/normativa/`) y usarse en pruebas y evals (principio P4).
 
-Los dictámenes legales y las recomendaciones de auditoría necesitan confirmación antes de subirse, porque el repositorio es público. [A ACLARAR: los dictámenes legales y las recomendaciones de auditoría son documentos públicos, o son internos del organismo]
+En operación quedan en la base interna del sistema y solo los ven los usuarios con acceso (REQ-016). Eso es una decisión sobre quién usa el sistema; los documentos siguen siendo públicos.
 
 ## Preguntas abiertas
 
 Cada punto corresponde a una marca del documento. Las responde el responsable del proyecto.
 
 1. Calidad: quién valida las respuestas esperadas y qué nivel de acierto se exige.
-2. Volumen: cantidad aproximada de documentos.
-3. Tiempo de respuesta aceptable.
-4. Carácter público o interno de los dictámenes legales y las recomendaciones de auditoría.
+2. Tiempo de respuesta aceptable.
 
 ## Definiciones tomadas
 
@@ -132,3 +130,5 @@ Cada punto corresponde a una marca del documento. Las responde el responsable de
 - **2026-10-02 · Acceso.** Ingreso con usuario y clave. Dos roles en principio: lectura, y lectura y escritura. El registro de consultas guarda el usuario que ingresó.
 - **2026-10-02 · Responsable de normativa.** No es una persona fija: es quien tenga el rol de lectura y escritura.
 - **2026-10-02 · Composición del marco regulatorio.** Disposición 297/03 y modificatorias, otra normativa aplicable, normativa nacional como marco, dictámenes legales y recomendaciones de auditoría. Se aplica el régimen específico; la normativa nacional es marco.
+- **2026-10-02 · Volumen.** Menos de 10 documentos por ahora.
+- **2026-10-02 · Carácter de los documentos.** Todos son públicos, también dictámenes y recomendaciones. En operación van a la base interna y los ven solo los usuarios, sin perder su carácter público.
