@@ -31,7 +31,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 0/49 | ░░░░░░░░░░ 0% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 0/52 | ░░░░░░░░░░ 0% |
 | 002 · Revisión de pliegos | Observaciones a un pliego contra la normativa, antes de publicarlo | No iniciada | — | — |
 | 003 · Matriz de requisitos | Los requisitos del pliego ordenados en una matriz que la Comisión valida | No iniciada | — | — |
 | 004 · Evaluación de ofertas | Por cada requisito, una propuesta con su cita; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -57,7 +57,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 49 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 52 tareas sin terminar.
 - ○ T-001 · Comprobar la GPU dentro de un contenedor (pendiente)
 - ○ T-002 · Levantar el motor de generación y medir su velocidad (pendiente)
 - ○ T-003 · Levantar embeddings y reranker y medir la memoria de video (pendiente)
@@ -101,12 +101,15 @@ flowchart LR
 - ○ T-041 · Mostrar y registrar la búsqueda en la pantalla (pendiente)
 - ○ T-042 · Agregar calibración del umbral y comparación de corridas (pendiente)
 - ○ T-043 · Cargar y validar el corpus real y ajustar las reglas (pendiente)
-- ○ T-044 · Registrar las relaciones y versiones del corpus (pendiente)
+- ○ T-044 · Registrar relaciones, versiones y modificatorias del corpus (pendiente)
 - ○ T-045 · Calibrar el umbral con el conjunto de preguntas (pendiente)
 - ○ T-046 · Correr las evals y medir tiempo y memoria (pendiente)
 - ○ T-047 · Probar una consulta con la red desconectada (pendiente)
 - ○ T-048 · Probar el respaldo y la restauración de la base (pendiente)
 - ○ T-049 · Levantar todo desde cero y dejar datos para el runbook (pendiente)
+- ○ T-050 · Partir la 297/03 y el cuerpo de la 247/2022 desde la web (pendiente)
+- ○ T-051 · Registrar las modificatorias sin cargar de una norma (pendiente)
+- ○ T-052 · Avisar modificatorias sin cargar en respuesta y búsqueda (pendiente)
 
 ### Qué se hizo
 
@@ -159,12 +162,15 @@ flowchart TD
   T041["○ T-041 · Mostrar y registrar la búsqueda en la panta…"]:::todo
   T042["○ T-042 · Agregar calibración del umbral y comparació…"]:::todo
   T043["○ T-043 · Cargar y validar el corpus real y ajustar l…"]:::todo
-  T044["○ T-044 · Registrar las relaciones y versiones del co…"]:::todo
+  T044["○ T-044 · Registrar relaciones, versiones y modificat…"]:::todo
   T045["○ T-045 · Calibrar el umbral con el conjunto de pregu…"]:::todo
   T046["○ T-046 · Correr las evals y medir tiempo y memoria"]:::todo
   T047["○ T-047 · Probar una consulta con la red desconectada"]:::todo
   T048["○ T-048 · Probar el respaldo y la restauración de la…"]:::todo
   T049["○ T-049 · Levantar todo desde cero y dejar datos para…"]:::todo
+  T050["○ T-050 · Partir la 297/03 y el cuerpo de la 247/2022…"]:::todo
+  T051["○ T-051 · Registrar las modificatorias sin cargar de…"]:::todo
+  T052["○ T-052 · Avisar modificatorias sin cargar en respues…"]:::todo
   T001 --> T002
   T002 --> T003
   T003 --> T004
@@ -224,9 +230,12 @@ flowchart TD
   T028 --> T043
   T031 --> T043
   T041 --> T043
+  T050 --> T043
   T029 --> T044
   T030 --> T044
   T043 --> T044
+  T051 --> T044
+  T052 --> T044
   T042 --> T045
   T044 --> T045
   T045 --> T046
@@ -234,6 +243,11 @@ flowchart TD
   T046 --> T047
   T047 --> T048
   T048 --> T049
+  T022 --> T050
+  T025 --> T050
+  T029 --> T051
+  T041 --> T052
+  T051 --> T052
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -247,7 +261,7 @@ flowchart TD
 |---|---|---|---|
 | REQ-001 | El sistema debe incorporar una norma a partir de su documento, registrando tipo, número, organismo emisor, título, fecha de publicación, fecha de vigencia y fuente de donde se obtuvo | T-008, T-014 | ○ pendiente |
 | REQ-002 | El sistema debe conservar el documento original de cada norma y permitir verlo | T-014, T-036, T-048 | ○ pendiente |
-| REQ-003 | El sistema debe dividir cada documento en unidades citables, cada una con su ubicación: considerando, artículo, inciso o anexo en las normas; punto o párrafo en dictámenes y recomendaciones | T-008, T-013, T-023, T-024, T-031, T-043 | ○ pendiente |
+| REQ-003 | El sistema debe dividir cada documento en unidades citables, cada una con su ubicación: considerando, artículo, inciso o anexo en las normas; punto o párrafo en dictámenes y recomendaciones | T-008, T-013, T-023, T-024, T-031, T-043, T-050 | ○ pendiente |
 | REQ-004 | El sistema debe entregar, por cada norma incorporada, un informe de lectura: cuántas unidades reconoció, cuáles páginas no pudo leer y qué no pudo ubicar | T-012, T-013, T-014, T-021, T-025, T-027, T-028, T-043 | ○ pendiente |
 | REQ-005 | Una norma debe quedar disponible para consultas solo después de que una persona valide su informe de lectura | T-009, T-015, T-017, T-027, T-032, T-035, T-043 | ○ pendiente |
 | REQ-006 | El sistema debe registrar las relaciones entre normas: cuál modifica, complementa, reglamenta o deroga a cuál. Cuando el cambio alcanza a unidades concretas, la relación se registra entre esas unidades | T-029, T-035, T-041, T-044 | ○ pendiente |
@@ -256,7 +270,7 @@ flowchart TD
 | REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | T-002, T-003, T-011, T-017, T-018, T-019, T-034, T-039, T-040, T-042, T-045, T-046 | ○ pendiente |
 | REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto, desde la pantalla de consulta. Una unidad derogada aparece en la búsqueda marcada como tal | T-004, T-009, T-035, T-041 | ○ pendiente |
 | REQ-011 | El sistema debe avisar cuando se intenta cargar una norma que ya está incorporada. Si es el mismo archivo, no lo incorpora; si es la misma norma en otro archivo o formato, pide confirmación expresa | T-008, T-026 | ○ pendiente |
-| REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | T-007, T-008, T-010, T-014, T-015, T-019, T-020, T-026, T-038, T-040, T-041, T-048, T-049 | ○ pendiente |
+| REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | T-007, T-008, T-010, T-014, T-015, T-019, T-020, T-026, T-038, T-040, T-041, T-048, T-049, T-051, T-052 | ○ pendiente |
 | REQ-013 | El sistema debe ofrecer una pantalla de consulta donde una persona escribe su pregunta y ve la respuesta con sus citas; desde cada cita se ve el texto literal de la unidad y se puede abrir la norma original | T-005, T-016, T-019, T-020, T-037, T-047 | ○ pendiente |
 | REQ-014 | La pantalla de consulta debe distinguir a simple vista una respuesta con fundamento de un resultado "no determinado" | T-016, T-037 | ○ pendiente |
 | REQ-015 | El sistema debe incorporar normas en tres formatos: PDF con texto, PDF escaneado y página web guardada. Cuando el texto de una unidad se obtuvo por reconocimiento sobre una imagen, debe quedar indicado en la unidad y en el informe de lectura | T-012, T-021, T-022, T-025, T-028, T-037, T-043 | ○ pendiente |
@@ -264,5 +278,5 @@ flowchart TD
 | REQ-017 | El sistema debe registrar la categoría de cada documento: régimen específico, otra normativa aplicable, marco nacional, dictamen legal o recomendación de auditoría | T-008, T-014 | ○ pendiente |
 | REQ-018 | Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional se presentan como marco; los dictámenes y las recomendaciones se presentan como criterio que acompaña; los considerandos se presentan como contexto, identificados como tales y después del articulado | T-033, T-034, T-037, T-040, T-046 | ○ pendiente |
 | REQ-019 | Cuando el régimen específico y el marco nacional tratan el mismo punto de manera distinta, la respuesta debe mostrar ambos textos y señalar el del régimen específico como el aplicable | T-033, T-034, T-037, T-040, T-046 | ○ pendiente |
-| REQ-020 | Cada consulta y cada búsqueda se hacen para una fecha de autorización del procedimiento, que la persona indica en la pantalla; por defecto es la del día. El sistema responde con lo que regía a esa fecha y muestra qué régimen aplicó | — | sin tarea |
-| REQ-021 | El sistema debe permitir registrar que una norma tiene modificatorias todavía no cargadas, identificando cada una. Mientras queden, toda respuesta o búsqueda que muestre una unidad de esa norma avisa que puede haber cambios que el sistema no conoce e indica cuántas modificatorias faltan cargar | — | sin tarea |
+| REQ-020 | Cada consulta y cada búsqueda se hacen para una fecha de autorización del procedimiento, que la persona indica en la pantalla; por defecto es la del día. El sistema responde con lo que regía a esa fecha y muestra qué régimen aplicó | T-008, T-009, T-014, T-016, T-019, T-020, T-032, T-035, T-039, T-041, T-042, T-043, T-044, T-046 | ○ pendiente |
+| REQ-021 | El sistema debe permitir registrar que una norma tiene modificatorias todavía no cargadas, identificando cada una. Mientras queden, toda respuesta o búsqueda que muestre una unidad de esa norma avisa que puede haber cambios que el sistema no conoce e indica cuántas modificatorias faltan cargar | T-008, T-039, T-042, T-044, T-046, T-051, T-052 | ○ pendiente |

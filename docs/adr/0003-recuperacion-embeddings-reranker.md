@@ -364,3 +364,7 @@ Hechos el 2026-10-02 al integrar el plan (`specs/001-normativa/plan.md`). Los mo
 - **Abstención.** El plan deja una sola regla con tres motivos: nada supera el umbral, el modelo se abstiene, o la cita es inválida. El umbral de este ADR es el primero. Se calibra para no frenar preguntas con respuesta (a lo sumo 5 %, la meta que ya estaba en "Cómo se mide"), no para alcanzar por sí solo el 90 % de abstención.
 - **Dudas.** Las tres de "Dudas que este ADR no resuelve" quedaron resueltas por la spec; se anotó en cada una.
 - **Metas de recuperación.** El plan propone al responsable tratarlas como medidas de diagnóstico; las exigencias son las de la spec.
+
+## Actualización por ADR-0006
+
+- **2026-10-02.** La fecha de referencia ya no es siempre la del día: la indica la persona en la pantalla como fecha de autorización del procedimiento (REQ-020). Lo que este ADR dice sobre "la fecha del día" queda reemplazado por el plan 001 actualizado.

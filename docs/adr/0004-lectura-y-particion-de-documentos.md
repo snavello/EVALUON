@@ -326,3 +326,7 @@ Hechos el 2026-10-02 al integrar el plan (`specs/001-normativa/plan.md`). Las he
 - **Informe de lectura.** El texto del informe lista además las unidades con su `key`, porque es el dato que la persona necesita para registrar una relación entre unidades. Al validar una lectura nueva de un documento ya validado, el informe avisa si alguna relación registrada quedó sin unidad.
 - **Dudas resueltas.** Considerandos y formato de la página web guardada: resueltas en la spec; se anotó en cada una. Mostrar el original de una página web sin ejecutar scripts: lo define el ADR-0005. La cuestión de REQ-011 frente a la prueba de REQ-015 queda resuelta con la confirmación expresa y con la regla del plan de un solo documento en uso por versión de la norma.
 - **Cita literal.** El plan adopta la definición de "palabra por palabra" de este ADR como la única del proyecto, y la comprueba comparando el texto de cada cita con el recorte del texto canónico entre `char_start` y `char_end`.
+
+## Actualización por ADR-0006
+
+- **2026-10-02.** El corpus ya tiene documentos: la Disposición 297/03 como página web guardada y la 247/2022 como cuerpo en página web más anexo en PDF con texto. Una norma puede venir en más de un archivo (cuerpo y anexo); el plan 001 actualizado define cómo se cargan sus partes.

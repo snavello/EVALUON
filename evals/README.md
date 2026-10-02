@@ -13,6 +13,7 @@ id: EV-001
 tipo: normativa | pliego | oferta
 documentos: [ruta en corpus/]
 pregunta: "..."
+fecha_autorizacion: AAAA-MM-DD   # fecha de autorización del procedimiento (REQ-020)
 esperado: "..."            # o "no determinado"
 cita: {documento: "...", ubicacion: "artículo o página"}
 origen: "de dónde sale la respuesta esperada"

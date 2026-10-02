@@ -98,7 +98,7 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
     - La respuesta es correcta y cita la unidad correcta: al menos 85 % de las preguntas con respuesta.
     - El sistema se abstiene cuando no hay respuesta: al menos 90 % de las preguntas sin respuesta.
 - **Validación del conjunto de preguntas.** El Coordinador propone las preguntas y sus respuestas a partir de los documentos, el responsable del proyecto las corrige y un integrante de la Comisión Evaluadora les da el visto bueno. Sin ese visto bueno, una pregunta no entra al conjunto.
-- **Volumen.** Menos de 10 documentos por ahora, repartidos entre las cinco categorías del marco regulatorio. Las 33 modificatorias de la Disposición 297/03 se cargan de a poco y no cuentan para el arranque.
+- **Volumen.** Menos de 10 documentos por ahora, repartidos entre las cinco categorías del marco regulatorio. Las modificatorias de la Disposición 297/03 (32 según el listado de Infoleg, sin contar la 247/2022) se cargan de a poco y no cuentan para el arranque.
 - **Formato de origen.** La mayoría de las normas está en PDF con texto; algunas están escaneadas o solo en páginas web (REQ-015).
 - **Tiempo de respuesta.** Hasta 30 segundos por consulta, en el equipo donde corre el sistema.
 - **Funcionamiento sin conexión.** La consulta funciona sin acceso a internet, en el equipo donde corre el sistema.
@@ -160,4 +160,4 @@ Surgieron al preparar el plan. Las tres primeras las decidió el responsable el 
 - **Página web guardada (REQ-015).** Se acepta como un archivo `.html`.
 - **Alta de usuarios (REQ-016).** La hace quien administra el equipo, por comandos, y queda registrada.
 - **Dos regímenes (ADR-0006, decisión del responsable).** La Disposición 297/03 fue abrogada por la 247/2022. El sistema carga las dos y aplica una u otra según la fecha de autorización del procedimiento (REQ-020). La fecha de entrada en vigencia de la 247/2022 la registra una persona al cargarla.
-- **Modificatorias de la 297/03 (decisión del responsable).** Se arranca con el texto original de 2003. Las 33 modificatorias se registran como no cargadas y las respuestas bajo la 297/03 lo avisan (REQ-021). Se van cargando de a poco; el aviso desaparece cuando estén todas.
+- **Modificatorias de la 297/03 (decisión del responsable).** Se arranca con el texto original de 2003. Sus modificatorias se registran como no cargadas y las respuestas bajo la 297/03 lo avisan (REQ-021). Infoleg lista 33 normas vinculadas; una es la 247/2022, que se carga, y quedan 32. Se van cargando de a poco; el aviso desaparece cuando estén todas.
