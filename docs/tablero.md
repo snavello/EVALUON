@@ -31,7 +31,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 1/52 | ░░░░░░░░░░ 2% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 2/52 | ░░░░░░░░░░ 4% |
 | 002 · Revisión de pliegos | Observaciones a un pliego contra la normativa, antes de publicarlo | No iniciada | — | — |
 | 003 · Matriz de requisitos | Los requisitos del pliego ordenados en una matriz que la Comisión valida | No iniciada | — | — |
 | 004 · Evaluación de ofertas | Por cada requisito, una propuesta con su cita; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -57,8 +57,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 51 tareas sin terminar.
-- ◐ T-002 · Levantar el motor de generación y medir su velocidad (en verificación)
+- **Próximo paso:** Desarrollar: 50 tareas sin terminar.
 - ○ T-003 · Levantar embeddings y reranker y medir la memoria de video (pendiente)
 - ○ T-004 · Fijar Postgres con sus extensiones y búsqueda en español (pendiente)
 - ○ T-005 · Armar el esqueleto de Django con sus librerías (pendiente)
@@ -114,13 +113,14 @@ flowchart LR
 
 - Etapas completas: Spec, Plan, Tareas.
 - ✓ T-001 · Comprobar la GPU dentro de un contenedor (`3b7a8a7` 2026-10-02)
+- ✓ T-002 · Levantar el motor de generación y medir su velocidad (`5fdf016` 2026-10-02)
 
 ### Mapa de tareas
 
 ```mermaid
 flowchart TD
   T001["✓ T-001 · Comprobar la GPU dentro de un contenedor"]:::done
-  T002["◐ T-002 · Levantar el motor de generación y medir su…"]:::review
+  T002["✓ T-002 · Levantar el motor de generación y medir su…"]:::done
   T003["○ T-003 · Levantar embeddings y reranker y medir la m…"]:::todo
   T004["○ T-004 · Fijar Postgres con sus extensiones y búsque…"]:::todo
   T005["○ T-005 · Armar el esqueleto de Django con sus librer…"]:::todo
