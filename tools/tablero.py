@@ -297,6 +297,8 @@ def feature_section(f: dict, commits: dict) -> list[str]:
             covering = [t for t in f["tasks"] if req_id in t["reqs"]]
             if not covering:
                 status = "sin tarea" if f["tasks"] else "—"
+            elif any(t["state"] == "bloqueada" for t in covering):
+                status = "✕ bloqueado"
             elif all(t["state"] == "terminada" for t in covering):
                 status = "✓ cubierto"
             else:

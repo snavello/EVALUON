@@ -112,6 +112,14 @@ class TableroTest(unittest.TestCase):
         self.assertIn("| REQ-002 | Citar el artículo | T-003 | ○ pendiente |", doc)
         self.assertEqual(doc, tablero.build(self.root), "la salida debe ser estable")
 
+    def test_requisito_con_tarea_bloqueada(self):
+        make_repo(self.root)
+        tasks = self.root / "specs" / "001-ingesta-normativa" / "tasks.md"
+        tasks.write_text(TASKS.replace("| pendiente |", "| bloqueada |"), encoding="utf-8")
+        doc = tablero.build(self.root)
+        self.assertIn("| REQ-002 | Citar el artículo | T-003 | ✕ bloqueado |", doc)
+        self.assertIn("✕ T-003 · Citar artículos (bloqueada)", doc)
+
     def test_repo_sin_features(self):
         (self.root / "specs").mkdir()
         self.assertIn("Todavía no hay features", tablero.build(self.root))
