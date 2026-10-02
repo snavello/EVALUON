@@ -1,6 +1,6 @@
 # ADR-0004 · Lectura y partición de documentos
 
-Estado: propuesto · Fecha: 2026-10-02 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-02 · Decidió: responsable del proyecto
 
 ## Contexto
 

@@ -1,6 +1,6 @@
 # ADR-0002 · Motor de IA local y modelo de generación
 
-Estado: propuesto · Fecha: 2026-10-02 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-02 · Decidió: responsable del proyecto
 
 ## Contexto
 

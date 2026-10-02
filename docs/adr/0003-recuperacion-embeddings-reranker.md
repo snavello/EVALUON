@@ -1,6 +1,6 @@
 # ADR-0003 · Recuperación: embeddings, reranker y búsqueda combinada sobre Postgres
 
-Estado: propuesto · Fecha: 2026-10-02 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-02 · Decidió: responsable del proyecto
 
 ## Contexto
 

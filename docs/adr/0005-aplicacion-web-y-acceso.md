@@ -1,6 +1,6 @@
 # ADR-0005 · Aplicación web, pantalla de consulta, acceso y comandos
 
-Estado: propuesto · Fecha: 2026-10-02 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-02 · Decidió: responsable del proyecto
 
 ## Contexto
 

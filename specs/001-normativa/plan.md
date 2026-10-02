@@ -1,6 +1,6 @@
 # Plan 001 · Normativa consultable con cita
 
-Estado: borrador · Fecha: 2026-10-02 · Aprobó: —
+Estado: aprobado · Fecha: 2026-10-02 · Aprobó: responsable del proyecto
 
 Spec: `specs/001-normativa/spec.md`
 
@@ -824,3 +824,16 @@ Nada de lo que sigue está comprobado. Cada grupo indica la prueba que lo cierra
 5. **Confirmar los datos del equipo**, en especial los 24 GB de memoria de video, de los que depende el reparto.
 
 No es una decisión, pero hace falta desde ya: los archivos de las normas en `corpus/normativa/`, anotados en `corpus/manifiesto.csv`.
+
+### Decisiones tomadas
+
+El responsable aprobó el plan el 2026-10-02 con las cinco recomendaciones:
+
+1. Plan y ADR 0002 a 0005 aprobados. El modelo y el servidor de embeddings quedan sujetos a la etapa 0 y a las evals.
+2. Comandos en español.
+3. Evals: criterios automáticos en cada corrida y revisión del responsable en la corrida que se presenta para aprobar.
+4. Clave de 15 caracteres como mínimo; sesión de 8 horas y hasta cerrar el navegador; metas de recuperación como diagnóstico.
+5. Equipo confirmado: Intel Core Ultra 9, 32 GB de RAM, RTX 5090 de notebook con 24 GB de memoria de video. La etapa 0 lo comprueba igual con `nvidia-smi`.
+
+El corpus inicial es la Disposición AFIP 297/03.
+
