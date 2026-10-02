@@ -43,22 +43,22 @@ En esta spec, "norma" abarca todos los documentos del marco regulatorio. Cada un
 |---|---|---|
 | REQ-001 | El sistema debe incorporar una norma a partir de su documento, registrando tipo, número, organismo emisor, título, fecha de publicación, fecha de vigencia y fuente de donde se obtuvo | — |
 | REQ-002 | El sistema debe conservar el documento original de cada norma y permitir verlo | — |
-| REQ-003 | El sistema debe dividir cada documento en unidades citables, cada una con su ubicación: artículo, inciso o anexo en las normas; punto o párrafo en dictámenes y recomendaciones | — |
+| REQ-003 | El sistema debe dividir cada documento en unidades citables, cada una con su ubicación: considerando, artículo, inciso o anexo en las normas; punto o párrafo en dictámenes y recomendaciones | — |
 | REQ-004 | El sistema debe entregar, por cada norma incorporada, un informe de lectura: cuántas unidades reconoció, cuáles páginas no pudo leer y qué no pudo ubicar | — |
 | REQ-005 | Una norma debe quedar disponible para consultas solo después de que una persona valide su informe de lectura | — |
-| REQ-006 | El sistema debe registrar las relaciones entre normas: cuál modifica, complementa, reglamenta o deroga a cuál | — |
+| REQ-006 | El sistema debe registrar las relaciones entre normas: cuál modifica, complementa, reglamenta o deroga a cuál. Cuando el cambio alcanza a unidades concretas, la relación se registra entre esas unidades | — |
 | REQ-007 | El sistema debe mantener las versiones de cada norma y, para una fecha dada, indicar qué unidades estaban vigentes y qué normas las habían modificado o derogado, mostrando el texto literal de cada una | — |
 | REQ-008 | El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la unidad que la sostiene, con su texto literal | — |
 | REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | — |
-| REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto | — |
-| REQ-011 | El sistema debe avisar cuando se intenta cargar una norma que ya está incorporada | — |
+| REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto, desde la pantalla de consulta. Una unidad derogada aparece en la búsqueda marcada como tal | — |
+| REQ-011 | El sistema debe avisar cuando se intenta cargar una norma que ya está incorporada. Si es el mismo archivo, no lo incorpora; si es la misma norma en otro archivo o formato, pide confirmación expresa | — |
 | REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | — |
 | REQ-013 | El sistema debe ofrecer una pantalla de consulta donde una persona escribe su pregunta y ve la respuesta con sus citas; desde cada cita se ve el texto literal de la unidad y se puede abrir la norma original | — |
 | REQ-014 | La pantalla de consulta debe distinguir a simple vista una respuesta con fundamento de un resultado "no determinado" | — |
 | REQ-015 | El sistema debe incorporar normas en tres formatos: PDF con texto, PDF escaneado y página web guardada. Cuando el texto de una unidad se obtuvo por reconocimiento sobre una imagen, debe quedar indicado en la unidad y en el informe de lectura | — |
 | REQ-016 | El sistema debe exigir usuario y clave para ingresar. Cada usuario tiene un rol: lectura, que permite consultar y buscar; o lectura y escritura, que además permite cargar y validar normas y registrar relaciones y versiones | — |
 | REQ-017 | El sistema debe registrar la categoría de cada documento: régimen específico, otra normativa aplicable, marco nacional, dictamen legal o recomendación de auditoría | — |
-| REQ-018 | Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional se presentan como marco; los dictámenes y las recomendaciones se presentan como criterio que acompaña | — |
+| REQ-018 | Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional se presentan como marco; los dictámenes y las recomendaciones se presentan como criterio que acompaña; los considerandos se presentan como contexto, identificados como tales y después del articulado | — |
 | REQ-019 | Cuando el régimen específico y el marco nacional tratan el mismo punto de manera distinta, la respuesta debe mostrar ambos textos y señalar el del régimen específico como el aplicable | — |
 
 En esta feature, consolidar significa reunir: cada norma se guarda tal como fue publicada, y los cambios entre normas los registra una persona (REQ-006 y REQ-007). El sistema no redacta textos nuevos; toda cita es texto literal de un documento publicado.
@@ -74,8 +74,8 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
 - **REQ-007.** Dada una norma con un artículo modificado por otra norma en una fecha, cuando se consulta ese artículo antes y después de esa fecha, entonces antes se muestra solo el texto original, y después el original junto con el texto literal de la norma que lo modifica, señalando el cambio.
 - **REQ-008.** Dada una pregunta cuya respuesta está en un artículo cargado, cuando se consulta, entonces la respuesta cita ese artículo y el texto citado coincide palabra por palabra con el de la norma.
 - **REQ-009.** Dada una pregunta sobre un tema que ninguna norma cargada trata, cuando se consulta, entonces el resultado es "no determinado".
-- **REQ-010.** Dado un número de norma y de artículo, cuando se busca, entonces se obtiene esa unidad con su texto.
-- **REQ-011.** Dada una norma ya incorporada, cuando se intenta cargar el mismo documento, entonces el sistema avisa y no la duplica.
+- **REQ-010.** Dado un número de norma y de artículo, cuando una persona con rol de lectura lo busca en la pantalla de consulta, entonces obtiene esa unidad con su texto; si la unidad está derogada, se muestra marcada como derogada.
+- **REQ-011.** Dada una norma ya incorporada, cuando se intenta cargar el mismo archivo, entonces el sistema avisa y no la duplica; cuando se intenta cargar la misma norma desde otro archivo, entonces avisa y solo la incorpora con confirmación expresa.
 - **REQ-012.** Dada una consulta ya respondida, cuando se revisa su registro, entonces se ve la pregunta, las unidades recuperadas, la respuesta, la versión de la normativa, el usuario y la fecha.
 - **REQ-013.** Dada la pantalla de consulta, cuando una persona escribe una pregunta que la normativa responde, entonces ve la respuesta con sus citas, y al elegir una cita ve el texto literal del artículo y puede abrir el documento original.
 - **REQ-014.** Dada la pantalla de consulta, cuando el resultado es "no determinado", entonces se muestra con un aviso propio, distinto del de una respuesta, y sin citas.
@@ -108,7 +108,10 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
 - Detección automática de que una norma fue modificada: el cambio lo registra una persona.
 - Texto ordenado: armar el texto vigente de una norma con las modificaciones ya aplicadas. Es una decisión diferida (ver `specs/hoja-de-ruta.md`). Esta feature guarda lo que esa consolidación necesitaría: los originales, las relaciones entre normas y las versiones.
 - Interpretación jurídica: el sistema muestra lo que la norma dice y dónde lo dice.
-- Pantallas para cargar y validar normas: en esta feature esas tareas las hace el responsable de normativa sin pantalla propia. La única pantalla es la de consulta.
+- Pantallas para cargar y validar normas: en esta feature esas tareas las hace el responsable de normativa sin pantalla propia. La única pantalla es la de consulta, que permite preguntar y buscar.
+- Acceso desde otras computadoras de la red: en esta feature la pantalla se usa en el equipo donde corre el sistema. El acceso por red, con conexión cifrada y bloqueo tras intentos fallidos de clave, es la feature 007 de la hoja de ruta.
+- Corrección manual del texto reconocido en documentos escaneados: la persona que valida ve las partes de lectura dudosa y decide si valida el documento.
+- Elección de la fecha de referencia en la pantalla: las consultas se responden con lo vigente al día de la consulta.
 - Historial de consultas visible para el usuario y conversación de varias preguntas encadenadas: cada consulta es una pregunta y su respuesta. El registro de auditoría sí guarda todas las consultas.
 - Pantalla de administración de usuarios: en esta feature los usuarios y sus roles se dan de alta sin pantalla propia.
 - Roles adicionales a lectura y lectura y escritura.
@@ -137,3 +140,17 @@ No quedan preguntas abiertas.
 - **2026-10-02 · Calidad.** Unas 30 preguntas de prueba; cita literal siempre, respuesta correcta en al menos 85 %, abstención en al menos 90 %. Son valores de partida para el piloto y se revisan con mediciones reales.
 - **2026-10-02 · Validación de las preguntas.** Las propone el Coordinador, las corrige el responsable y las aprueba un integrante de la Comisión.
 - **2026-10-02 · Peso de cada categoría.** Confirmado por el responsable: los dictámenes legales y las recomendaciones de auditoría acompañan a la norma y no la reemplazan; la otra normativa aplicable va después del régimen específico y antes del marco nacional.
+
+## Aclaraciones posteriores a la aprobación
+
+Surgieron al preparar el plan. Las tres primeras las decidió el responsable el 2026-10-02; las demás las propone el Coordinador y quedan aprobadas junto con el plan.
+
+- **Búsqueda (REQ-010).** Se hace desde la misma pantalla de consulta.
+- **Acceso.** En esta feature, solo desde el equipo donde corre el sistema. El acceso por red pasa a ser la feature 007.
+- **Considerandos (REQ-003, REQ-018).** Son unidades citables. Se citan como contexto, identificados como considerando y después del articulado.
+- **Unidades derogadas.** No sostienen una respuesta. Aparecen en la búsqueda, marcadas como derogadas.
+- **Fecha de referencia.** La del día de la consulta.
+- **Relaciones (REQ-006).** Se registran entre normas y, cuando corresponde, entre unidades.
+- **Misma norma en otro archivo (REQ-011).** Aviso y confirmación expresa.
+- **Página web guardada (REQ-015).** Se acepta como un archivo `.html`.
+- **Alta de usuarios (REQ-016).** La hace quien administra el equipo, por comandos, y queda registrada.

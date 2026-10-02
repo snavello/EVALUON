@@ -12,10 +12,11 @@ Las features del proyecto, en el orden en que se construyen. Cada una tiene su c
 | 004 | Evaluación de ofertas | Por cada requisito, una propuesta con su cita; la Comisión confirma, corrige o rechaza | 003 |
 | 005 | Hojas de compliance | Carga de las validaciones hechas en sistemas no integrados, por oferta | 003 |
 | 006 | Salidas de la evaluación | Planilla por oferta, cuadro comparativo y borrador de acta | 004, 005 |
+| 007 | Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | 001 |
 
 ## Alcance del piloto
 
-El piloto de evaluación guiada necesita de la 001 a la 004. La 005 y la 006 lo completan y pueden entrar después de la primera prueba en paralelo con la evaluación habitual.
+El piloto de evaluación guiada necesita de la 001 a la 004, y la 007 para que la Comisión entre desde sus computadoras. La 005 y la 006 lo completan y pueden entrar después de la primera prueba en paralelo con la evaluación habitual.
 
 ## Decisiones diferidas
 
