@@ -330,3 +330,4 @@ Hechos el 2026-10-02 al integrar el plan (`specs/001-normativa/plan.md`). Las he
 ## Actualización por ADR-0006
 
 - **2026-10-02.** El corpus ya tiene documentos: la Disposición 297/03 como página web guardada y la 247/2022 como cuerpo en página web más anexo en PDF con texto. Una norma puede venir en más de un archivo (cuerpo y anexo); el plan 001 actualizado define cómo se cargan sus partes.
+- **2026-10-02 · Texto normativo sin número de artículo.** Por decisión del responsable y el cambio de REQ-003, se suma el tipo de unidad `clausula` para el texto normativo con título propio y sin número, como la cláusula transitoria del anexo de la 247/2022. La regla de reconocimiento, la clave y la ruta están en el plan 001, sección "Texto normativo sin número de artículo". La tabla "Cómo se parte" y la lista de tipos de este ADR se leen con ese agregado.
