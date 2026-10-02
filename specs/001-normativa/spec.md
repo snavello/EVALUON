@@ -12,8 +12,8 @@ Esta feature construye esa base: las normas cargadas, con sus versiones, partida
 
 ## Usuarios y escenarios
 
-- **Integrante de la Comisión Evaluadora:** consulta la normativa desde una pantalla.
-- **Responsable de normativa:** carga las normas y valida que quedaron bien. [A ACLARAR: quién cumple este rol durante el piloto]
+- **Integrante de la Comisión Evaluadora:** consulta la normativa desde una pantalla. Usuario con rol de lectura.
+- **Responsable de normativa:** carga las normas y valida que quedaron bien. Usuario con rol de lectura y escritura.
 
 **Escenario 1 · Incorporar una norma.** Como responsable de normativa, cuando se suma una norma al sistema, necesito cargar el documento con sus datos y revisar un informe de lo que el sistema leyó, para confirmar que quedó completa antes de que se use.
 
@@ -41,6 +41,8 @@ Esta feature construye esa base: las normas cargadas, con sus versiones, partida
 | REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | — |
 | REQ-013 | El sistema debe ofrecer una pantalla de consulta donde una persona escribe su pregunta y ve la respuesta con sus citas; desde cada cita se ve el texto literal de la unidad y se puede abrir la norma original | — |
 | REQ-014 | La pantalla de consulta debe distinguir a simple vista una respuesta con fundamento de un resultado "no determinado" | — |
+| REQ-015 | El sistema debe incorporar normas en tres formatos: PDF con texto, PDF escaneado y página web guardada. Cuando el texto de una unidad se obtuvo por reconocimiento sobre una imagen, debe quedar indicado en la unidad y en el informe de lectura | — |
+| REQ-016 | El sistema debe exigir usuario y clave para ingresar. Cada usuario tiene un rol: lectura, que permite consultar y buscar; o lectura y escritura, que además permite cargar y validar normas y registrar relaciones y versiones | — |
 
 En esta feature, consolidar significa reunir: cada norma se guarda tal como fue publicada, y los cambios entre normas los registra una persona (REQ-006 y REQ-007). El sistema no redacta textos nuevos; toda cita es texto literal de un documento publicado.
 
@@ -60,15 +62,18 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
 - **REQ-012.** Dada una consulta ya respondida, cuando se revisa su registro, entonces se ve la pregunta, las unidades recuperadas, la respuesta, la versión de la normativa, el usuario y la fecha.
 - **REQ-013.** Dada la pantalla de consulta, cuando una persona escribe una pregunta que la normativa responde, entonces ve la respuesta con sus citas, y al elegir una cita ve el texto literal del artículo y puede abrir el documento original.
 - **REQ-014.** Dada la pantalla de consulta, cuando el resultado es "no determinado", entonces se muestra con un aviso propio, distinto del de una respuesta, y sin citas.
+- **REQ-015.** Dada una misma norma disponible como PDF con texto, como PDF escaneado y como página web guardada, cuando se incorpora cada versión, entonces en los tres casos sus artículos quedan como unidades citables, y en el caso escaneado el informe de lectura y cada unidad indican que el texto proviene de reconocimiento.
+- **REQ-016.** Dada una persona sin sesión iniciada, cuando intenta consultar, entonces el sistema le pide usuario y clave. Dado un usuario con rol de lectura, cuando intenta cargar o validar una norma, entonces el sistema lo rechaza y deja registro del intento.
 
 ## Requisitos no funcionales
 
 - **Calidad de las respuestas.** Se mide con un conjunto de preguntas con respuesta conocida (`evals/`). [A ACLARAR: quién valida las respuestas esperadas y qué nivel de acierto se exige para aprobar]
 - **Volumen.** [A ACLARAR: qué normas forman el conjunto inicial y cuántas son, aproximadamente]
-- **Formato de origen.** [A ACLARAR: las normas están como PDF con texto, como PDF escaneado o solo en páginas web]
+- **Formato de origen.** La mayoría de las normas está en PDF con texto; algunas están escaneadas o solo en páginas web (REQ-015).
 - **Tiempo de respuesta.** [A ACLARAR: tiempo aceptable para una consulta; propuesta inicial, hasta 30 segundos]
 - **Funcionamiento sin conexión.** La consulta funciona sin acceso a internet, en el equipo donde corre el sistema.
-- **Identificación de quien consulta.** El registro de REQ-012 necesita saber quién hizo cada consulta. [A ACLARAR: cómo se identifica una persona en la pantalla durante el piloto: eligiendo su nombre de una lista, o con usuario y clave]
+- **Identificación de quien consulta.** El registro de REQ-012 guarda el usuario que ingresó con su clave (REQ-016).
+- **Claves.** Las claves no se guardan en forma legible.
 - **Lenguaje de la pantalla.** Textos en lenguaje llano, sin términos técnicos del sistema.
 
 ## Fuera de alcance
@@ -80,7 +85,9 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
 - Texto ordenado: armar el texto vigente de una norma con las modificaciones ya aplicadas. Es una decisión diferida (ver `specs/hoja-de-ruta.md`). Esta feature guarda lo que esa consolidación necesitaría: los originales, las relaciones entre normas y las versiones.
 - Interpretación jurídica: el sistema muestra lo que la norma dice y dónde lo dice.
 - Pantallas para cargar y validar normas: en esta feature esas tareas las hace el responsable de normativa sin pantalla propia. La única pantalla es la de consulta.
-- Historial de consultas y conversación de varias preguntas encadenadas: cada consulta es una pregunta y su respuesta.
+- Historial de consultas visible para el usuario y conversación de varias preguntas encadenadas: cada consulta es una pregunta y su respuesta. El registro de auditoría sí guarda todas las consultas.
+- Pantalla de administración de usuarios: en esta feature los usuarios y sus roles se dan de alta sin pantalla propia.
+- Roles adicionales a lectura y lectura y escritura.
 
 ## Datos involucrados
 
@@ -90,14 +97,14 @@ Normas de compras, todas públicas. Pueden estar en el repositorio (`corpus/norm
 
 Cada punto corresponde a una marca del documento. Las responde el responsable del proyecto.
 
-1. Rol de responsable de normativa: quién carga y valida las normas en el piloto.
-2. Calidad: quién valida las respuestas esperadas y qué nivel de acierto se exige.
-3. Volumen: qué normas forman el conjunto inicial.
-4. Formato de origen de las normas.
-5. Tiempo de respuesta aceptable.
-6. Identificación de quien consulta en la pantalla.
+1. Calidad: quién valida las respuestas esperadas y qué nivel de acierto se exige.
+2. Volumen: qué normas forman el conjunto inicial.
+3. Tiempo de respuesta aceptable.
 
 ## Definiciones tomadas
 
 - **2026-10-02 · Significado de consolidar.** En esta feature es reunir las normas con sus modificaciones registradas. Producir el texto ordenado queda para decidir más adelante, sin que esta feature lo impida.
 - **2026-10-02 · Forma de uso.** La feature incluye una pantalla simple de consulta, para involucrar a la Comisión desde la primera entrega.
+- **2026-10-02 · Formato de origen.** Mezcla de formatos: mayormente PDF con texto, más PDF escaneado y páginas web.
+- **2026-10-02 · Acceso.** Ingreso con usuario y clave. Dos roles en principio: lectura, y lectura y escritura. El registro de consultas guarda el usuario que ingresó.
+- **2026-10-02 · Responsable de normativa.** No es una persona fija: es quien tenga el rol de lectura y escritura.

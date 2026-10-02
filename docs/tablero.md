@@ -40,7 +40,7 @@ flowchart LR
 
 ## 001 · Normativa consultable con cita
 
-**Etapa actual:** 1 de 7 · Spec (spec en borrador, 6 dudas abiertas) · [carpeta](../specs/001-normativa)
+**Etapa actual:** 1 de 7 · Spec (spec en borrador, 3 dudas abiertas) · [carpeta](../specs/001-normativa)
 
 ```mermaid
 flowchart LR
@@ -54,7 +54,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Resolver 6 dudas marcadas en la spec y aprobar la spec (compuerta del responsable).
+- **Próximo paso:** Resolver 3 dudas marcadas en la spec y aprobar la spec (compuerta del responsable).
 
 ### Qué se hizo
 
@@ -78,3 +78,5 @@ flowchart LR
 | REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | — | — |
 | REQ-013 | El sistema debe ofrecer una pantalla de consulta donde una persona escribe su pregunta y ve la respuesta con sus citas; desde cada cita se ve el texto literal de la unidad y se puede abrir la norma original | — | — |
 | REQ-014 | La pantalla de consulta debe distinguir a simple vista una respuesta con fundamento de un resultado "no determinado" | — | — |
+| REQ-015 | El sistema debe incorporar normas en tres formatos: PDF con texto, PDF escaneado y página web guardada. Cuando el texto de una unidad se obtuvo por reconocimiento sobre una imagen, debe quedar indicado en la unidad y en el informe de lectura | — | — |
+| REQ-016 | El sistema debe exigir usuario y clave para ingresar. Cada usuario tiene un rol: lectura, que permite consultar y buscar; o lectura y escritura, que además permite cargar y validar normas y registrar relaciones y versiones | — | — |
