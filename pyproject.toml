@@ -1,0 +1,48 @@
+# Dependencias de EVALUON con versión fija (plan 001, "Estructura del código").
+# Las versiones y el motivo de cada una están en specs/001-normativa/entorno.md (T-005).
+# La imagen de la aplicación (Dockerfile) instala las dependencias y las de prueba:
+# la suite corre dentro del contenedor con `docker compose run --rm app pytest`.
+
+[build-system]
+requires = ["setuptools==84.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evaluon"
+version = "0.1.0"
+description = "Normativa de compras consultable con cita, con IA local"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # Aplicación web y base (ADR-0005)
+    "Django==6.1.1",
+    "psycopg[binary]==3.3.6",
+    "pgvector==0.5.0",
+    "argon2-cffi==25.1.0",
+    "gunicorn==26.2.0",
+    "whitenoise==6.12.0",
+    # Lectura de documentos (ADR-0004)
+    "pdfplumber==0.11.10",
+    "pypdfium2==5.13.0",
+    "pytesseract==0.3.13",
+    "beautifulsoup4==4.15.0",
+    "lxml==6.1.3",
+    # Casos de las evals en YAML (evals/casos/EV-NNN.yaml); la biblioteca estándar
+    # no lee YAML. Los clientes HTTP de evaluon/ai/ usan urllib de la biblioteca
+    # estándar, por eso no hay biblioteca de cliente HTTP.
+    "PyYAML==6.0.3",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest==9.1.1",
+    "pytest-django==4.14.0",
+]
+
+[tool.setuptools]
+# El código no se instala como paquete: corre desde /app dentro de la imagen.
+packages = []
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "evaluon.settings"
+testpaths = ["tests"]
+addopts = "--strict-markers"

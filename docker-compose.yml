@@ -1,9 +1,37 @@
-# Entorno de EVALUON (plan 001, "Servicios").
+# Entorno de EVALUON (plan 001, "Servicios"): los seis servicios.
 # Los servicios de IA y la base están en una red interna sin salida a internet y sin
 # puertos publicados. Los archivos de los modelos se bajan con scripts/fetch_models.sh.
 # Las credenciales de la base se leen de .env (copiar .env.example y completar).
 
 name: evaluon
+
+# Configuración común de `migrate` y `app` (T-005): la misma imagen propia (Dockerfile),
+# las mismas variables y el código montado en solo lectura, para que `docker compose run
+# --rm app pytest` pruebe siempre el código de la copia de trabajo y no el que quedó en la
+# imagen. Un cambio en pyproject.toml o en el Dockerfile sí necesita reconstruir la imagen
+# (docker compose build app).
+x-app: &app
+  build: .
+  image: evaluon-app:local
+  environment:
+    DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}
+    DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
+    DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+    POSTGRES_DB: ${POSTGRES_DB:-evaluon}
+    POSTGRES_USER: ${POSTGRES_USER:-evaluon}
+    POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD (copiar .env.example a .env y completarla)}"
+    POSTGRES_HOST: db
+    POSTGRES_PORT: "5432"
+  volumes:
+    - ./evaluon:/app/evaluon:ro
+    - ./tests:/app/tests:ro
+    - ./scripts:/app/scripts:ro
+    - ./manage.py:/app/manage.py:ro
+    - ./pyproject.toml:/app/pyproject.toml:ro
+    - ./corpus:/app/corpus:ro
+    - ./evals:/app/evals
+  networks:
+    - internal
 
 services:
   db:
@@ -176,9 +204,66 @@ services:
       start_period: 60s
     restart: unless-stopped
 
+  migrate:
+    # Aplica las migraciones si la base está vacía; si tiene datos solo comprueba
+    # (scripts/migrate_on_start.sh). Corre una vez y termina.
+    <<: *app
+    command: ["bash", "scripts/migrate_on_start.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    # Pantalla y comandos. Gunicorn con un proceso y cuatro hilos; espera de 120 s, porque
+    # la de 30 s por omisión coincide con el máximo de una consulta (ADR-0005). El puerto
+    # se publica solo en 127.0.0.1. La red `web` existe solo para publicar el puerto: una
+    # red interna no publica puertos. corpus/ en solo lectura; evals/ con escritura para
+    # guardar las corridas.
+    <<: *app
+    command:
+      - gunicorn
+      - evaluon.wsgi:application
+      - --bind
+      - 0.0.0.0:8000
+      - --workers
+      - "1"
+      - --threads
+      - "4"
+      - --timeout
+      - "120"
+      - --access-logfile
+      - "-"
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    networks:
+      - internal
+      - web
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      generation:
+        condition: service_healthy
+      embeddings:
+        condition: service_healthy
+      reranker:
+        condition: service_healthy
+    healthcheck:
+      # La hoja de estilos la sirve WhiteNoise dentro de la aplicación: si responde,
+      # Gunicorn y Django están arriba. La imagen no trae curl.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/static/css/evaluon.css', timeout=5)"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
 networks:
   internal:
     internal: true
+  web:
 
 volumes:
   pgdata:

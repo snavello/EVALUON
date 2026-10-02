@@ -1,0 +1,4 @@
+# Los scripts y el Dockerfile corren dentro de contenedores Linux: siempre con fin de
+# línea LF, aunque el equipo use core.autocrlf=true.
+*.sh text eol=lf
+Dockerfile text eol=lf

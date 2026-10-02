@@ -1103,3 +1103,234 @@ postgres-dev Up 7 hours (healthy)
 **Resultado.** Todo lo que crearon las pruebas (extensiones, esquema `t004`, configuración `spanish_unaccent_prueba`, tabla de pasajes) quedó dentro de `t004_prueba`, y esa base se borró. En `evaluon` no quedó ningún objeto que choque con las migraciones de T-008 (extensiones) ni de T-009 (`spanish_unaccent`). Al final se corrió `docker compose down -v`, que borró también el volumen `evaluon_pgdata`. Ese volumen solo tenía la base vacía, y además había quedado iniciado con la clave al azar de la prueba, que no se guardó. Como la clave solo se lee al crear el volumen, conservarlo habría dejado la base con una clave desconocida. La próxima vez que se levante, `docker compose up -d db` crea la base desde cero con la clave de `.env`. `postgres-dev` no se tocó.
 
 **Decisiones de esta tarea que el plan no fija:** fijar la imagen por etiqueta y huella, con la variante `bookworm` nombrada en la etiqueta; usuario y base `evaluon` por defecto; `POSTGRES_PASSWORD` obligatoria y sin valor por defecto; chequeo de salud con `pg_isready`; volumen `pgdata` (`evaluon_pgdata`).
+
+## T-005 · Esqueleto de Django con sus librerías
+
+Fecha: 2026-10-02. Requisitos: REQ-013 (habilita la pantalla) y REQ-016 (habilita el ingreso). Cierra "Django y sus librerías" de "Sin verificar y cómo se cierra" en lo que toca a la etapa 0: compatibilidad de WhiteNoise, pytest-django y `pgvector` con Django 6.1.
+
+Resumen: Django 6.1.1 con todas sus librerías funciona; **no hizo falta el plan B** (Django 6.0). Imagen propia sobre Python 3.12.15 (Debian 13), Tesseract 5.5.0 y `spa.traineddata` de `tessdata_best` con huella verificada; sin PyTorch. Los seis servicios levantan con `docker compose up -d`; el test de humo pasa con todo arriba y con solo `db`.
+
+### 1. Versiones fijadas
+
+**Imagen base.** `python:3.12.15-slim-trixie@sha256:29113dcae7aad06daa8e95260fa09f27d62be33b9687ea3774f771d601a02256` (índice de la etiqueta; imagen `linux/amd64` `sha256:6b1f85a08c199d29d5b6d71ab9c27bd5b3b393492e01216a15758ff69c4be8b8`, creada 2026-10-01T21:49:55Z). Python 3.12.15 sobre Debian 13.
+
+- Se fija por etiqueta con la versión completa de Python y por huella, como `db` en T-004. La etiqueta `3.12-slim-trixie` apunta hoy a la misma imagen `amd64` pero a otro índice (`sha256:dddfd7e0…`); por eso la huella anotada es la de la etiqueta que figura en el `Dockerfile`.
+- Se eligió Debian 13 (`trixie`) y no Debian 12 (`bookworm`) por la versión de Tesseract que trae cada una: 5.5.0 contra 5.3.0. El ADR-0004 habla de Tesseract 5.5.3; ninguna de las dos la trae, y la 5.5.0 es la más cercana.
+
+**Paquetes de Debian.** `tesseract-ocr` fijado en `5.5.0-1+b1`; quedan instalados `libtesseract5 5.5.0-1+b1`, `libleptonica6 1.84.1-4`, `tesseract-ocr-eng` y `tesseract-ocr-osd` `1:4.1.0-2` (dependencias del paquete; no se usan para español). No se instala `tesseract-ocr-spa`: el modelo de español es el de `tessdata_best` (punto 2). Si Debian publica una revisión nueva del paquete y retira la anterior, la construcción falla en lugar de cambiar de versión sin aviso; en ese caso se actualiza la línea del `Dockerfile` y esta sección.
+
+**Dependencias de Python** (`pyproject.toml`, versión fija; son las últimas publicadas al 2026-10-02 según `pip index versions`):
+
+| Biblioteca | Versión | Para qué |
+|---|---|---|
+| Django | 6.1.1 | Aplicación (ADR-0005) |
+| psycopg (con `psycopg-binary`) | 3.3.6 | Postgres; la variante binaria trae su propia `libpq` |
+| pgvector | 0.5.0 | Campo de vector y distancias para Django |
+| argon2-cffi | 25.1.0 | Claves con Argon2id (T-006) |
+| gunicorn | 26.2.0 | Servidor de la aplicación |
+| whitenoise | 6.12.0 | Archivos estáticos |
+| pdfplumber | 0.11.10 | PDF con texto (ADR-0004) |
+| pypdfium2 | 5.13.0 | Dibujar páginas para el reconocimiento de texto |
+| pytesseract | 0.3.13 | Llamar a Tesseract |
+| beautifulsoup4 | 4.15.0 | Página web guardada |
+| lxml | 6.1.3 | Analizador de HTML para BeautifulSoup |
+| PyYAML | 6.0.3 | Casos de las evals (`evals/casos/EV-NNN.yaml`); la biblioteca estándar no lee YAML |
+| pytest | 9.1.1 | Pruebas (dependencia opcional `test`, instalada en la imagen) |
+| pytest-django | 4.14.0 | Pruebas con Django |
+| setuptools | 84.0.0 | Solo para instalar las dependencias al construir la imagen |
+
+No se agregó biblioteca de cliente HTTP: los clientes de `evaluon/ai/` (T-011) pueden usar `urllib.request` de la biblioteca estándar, que alcanza para pedidos JSON con tiempo de espera. Si T-011 encuentra que no alcanza, se informa y se agrega en una tarea que liste `pyproject.toml`.
+
+**Dependencias indirectas** que resolvió `pip` al construir (no están fijadas en `pyproject.toml`; se anotan para poder reproducir la imagen): argon2-cffi-bindings 26.1.0, asgiref 3.12.1, cffi 2.1.1, charset-normalizer 3.5.2, cryptography 50.0.2, iniconfig 2.3.0, packaging 26.3, pdfminer.six 20260107 (fijada por pdfplumber), pillow 12.3.0, pluggy 1.6.0, pycparser 3.0, Pygments 2.21.0, soupsieve 2.10, sqlparse 0.6.0, typing_extensions 4.16.0. No hay `torch` ni `numpy` en la imagen.
+
+**Comandos.**
+
+```
+docker pull python:3.12.15-slim-trixie
+docker buildx imagetools inspect python:3.12.15-slim-trixie
+docker run --rm python:3.12-slim-<bookworm|trixie> sh -c 'apt-get update -qq; apt-cache policy tesseract-ocr'
+docker run --rm python:3.12-slim-trixie sh -c 'for p in django psycopg pgvector ...; do pip index versions $p | head -1; done'
+docker compose run --rm --no-deps app pip freeze
+```
+
+**Salida (extracto).**
+
+```
+Name:      docker.io/library/python:3.12.15-slim-trixie
+Digest:    sha256:29113dcae7aad06daa8e95260fa09f27d62be33b9687ea3774f771d601a02256
+  Name:        docker.io/library/python:3.12.15-slim-trixie@sha256:6b1f85a08c199d29d5b6d71ab9c27bd5b3b393492e01216a15758ff69c4be8b8
+  Platform:    linux/amd64
+== bookworm   tesseract-ocr  Candidate: 5.3.0-2
+== trixie     tesseract-ocr  Candidate: 5.5.0-1+b1
+django (6.1.1)  psycopg (3.3.6)  pgvector (0.5.0)  argon2-cffi (25.1.0)  gunicorn (26.2.0)
+whitenoise (6.12.0)  pytest (9.1.1)  pytest-django (4.14.0)  pdfplumber (0.11.10)  pypdfium2 (5.13.0)
+pytesseract (0.3.13)  beautifulsoup4 (4.15.0)  lxml (6.1.3)  pyyaml (6.0.3)
+Django==6.1.1 ... whitenoise==6.12.0   (pip freeze dentro de la imagen; la lista completa está arriba)
+```
+
+### 2. Tesseract y `spa.traineddata` de `tessdata_best`
+
+**Qué se probó.** Que la imagen traiga Tesseract, informe su versión y tenga el modelo de español de `tessdata_best` con la huella esperada.
+
+**Origen del modelo.** Repositorio `tesseract-ocr/tessdata_best`, etiqueta `4.1.0` (commit `e2aad9b983032bb1beff9133104a67cdbb87ca4d`, la última etiqueta publicada). El archivo `spa.traineddata` no cambió desde su incorporación al repositorio (2017-09-14). Se bajó desde dos direcciones (`raw.githubusercontent.com/.../e2aad9b9.../spa.traineddata` y `github.com/.../raw/e2aad9b9.../spa.traineddata`) y las dos dieron la misma huella. El `Dockerfile` lo incorpora con `ADD --checksum=sha256:...`: si la huella no coincide, la construcción falla. Queda en la carpeta de modelos por omisión de Tesseract, así que no hace falta `TESSDATA_PREFIX`.
+
+| Dato | Valor |
+|---|---|
+| Archivo | `/usr/share/tesseract-ocr/5/tessdata/spa.traineddata` |
+| Tamaño | 13.570.187 bytes |
+| Huella SHA-256 | `e2c1ffdad8b30f26c45d4017a9183d3a7f9aa69e59918be4f88b126fac99ab2c` |
+
+**Comandos.**
+
+```
+docker compose run --rm app tesseract --version
+docker compose run --rm app tesseract --list-langs
+docker compose run --rm --no-deps app sha256sum /usr/share/tesseract-ocr/5/tessdata/spa.traineddata
+```
+
+**Salida.**
+
+```
+tesseract 5.5.0
+ leptonica-1.84.1
+  libgif 5.2.2 : libjpeg 6b (libjpeg-turbo 2.1.5) : libpng 1.6.48 : libtiff 4.7.0 : zlib 1.3.1 : libwebp 1.5.0 : libopenjp2 2.5.3
+ Found AVX2
+ Found AVX
+ Found FMA
+ Found SSE4.1
+ Found OpenMP 201511
+ Found libarchive 3.7.4 zlib/1.3.1 liblzma/5.8.1 bz2lib/1.0.8 liblz4/1.10.0 libzstd/1.5.7
+ Found libcurl/8.14.1 OpenSSL/3.5.7 zlib/1.3.1 brotli/1.1.0 zstd/1.5.7 libidn2/2.3.8 libpsl/0.21.2 libssh2/1.11.1 nghttp2/1.64.0 nghttp3/1.8.0 librtmp/2.3 OpenLDAP/2.6.10
+
+List of available languages in "/usr/share/tesseract-ocr/5/tessdata/" (3):
+eng
+osd
+spa
+
+e2c1ffdad8b30f26c45d4017a9183d3a7f9aa69e59918be4f88b126fac99ab2c  /usr/share/tesseract-ocr/5/tessdata/spa.traineddata
+```
+
+**Resultado.** Cumple. La huella del modelo de español es la que el registro de auditoría de cada carga tiene que anotar (plan, "Registro de auditoría").
+
+### 3. Proyecto Django, servicios `migrate` y `app`
+
+**Qué se armó.** Proyecto vacío (`manage.py`, `evaluon/settings.py`, `urls.py` sin rutas, `wsgi.py`), sin aplicaciones propias ni modelos. En `INSTALLED_APPS` solo está `django.contrib.staticfiles`: `auth` y `sessions` los suma T-006 junto con el usuario propio, porque Django pide definir el modelo de usuario antes de la primera migración. Configuración por variables de entorno: `DJANGO_SECRET_KEY` (obligatoria, sin valor por defecto: sin ella Django no arranca y lo dice), `DJANGO_DEBUG` (falso por omisión), `DJANGO_ALLOWED_HOSTS`, `POSTGRES_*` (las mismas que `db`), `APP_PORT` y `DJANGO_STATIC_ROOT`; todas documentadas en `.env.example`. Idioma `es-ar` y hora de Buenos Aires.
+
+- **Imagen** (`Dockerfile`): la comparten `migrate` y `app` (`evaluon-app:local`). Corre con un usuario sin privilegios (`evaluon`, uid 1000). Al construir reúne los archivos estáticos con `collectstatic`, que sirve WhiteNoise. Tamaño: 609 MB.
+- **Código montado.** `evaluon/`, `tests/`, `scripts/`, `manage.py` y `pyproject.toml` se montan en solo lectura sobre la imagen, para que `docker compose run --rm app pytest` pruebe siempre el código de la copia de trabajo y no el que quedó en la imagen. Un cambio en `pyproject.toml`, en el `Dockerfile` o en los archivos estáticos que sirve Gunicorn necesita reconstruir: `docker compose build app` (o `docker compose up -d --build`).
+- **`migrate`** corre `scripts/migrate_on_start.sh` y termina. "Base vacía" quiere decir: ninguna tabla fuera de los esquemas del sistema, salvo `django_migrations` sin migraciones aplicadas.
+- **`app`**: Gunicorn 26.2.0, un proceso con cuatro hilos (`gthread`), espera de 120 s; puerto publicado solo en `127.0.0.1:${APP_PORT:-8000}`; `corpus/` en solo lectura y `evals/` con escritura; espera a `db` y a los tres servicios de IA en estado sano y a que `migrate` termine bien. Está en la red `internal` y además en una red `web`, que existe solo para publicar el puerto: una red interna de Docker no publica puertos (comprobado: un contenedor solo en una red `--internal`, con `-p 127.0.0.1:18765:8000`, no muestra puertos en `docker port` y no responde en ese puerto). Chequeo de salud: pide la hoja de estilos con `urllib` (la imagen no trae `curl`).
+- **`.gitattributes`** fija fin de línea LF para `*.sh` y el `Dockerfile` (el repositorio usa `core.autocrlf=true`). **`.dockerignore`** deja fuera de la imagen `.git`, `.env`, `models/`, `corpus/`, `evals/`, `backups/`, `docs/`, `specs/` y `tools/`.
+
+**Comandos.**
+
+```
+docker compose build
+docker compose up -d
+docker compose ps -a
+docker compose logs migrate app
+curl -s -o /dev/null -w "%{http_code} %{content_type}\n" http://127.0.0.1:8000/static/css/evaluon.css
+```
+
+**Salida.**
+
+```
+SERVICE      STATUS                        PORTS
+app          Up 7 seconds (healthy)        127.0.0.1:8000->8000/tcp
+db           Up About a minute (healthy)   5432/tcp
+embeddings   Up 49 seconds (healthy)
+generation   Up 48 seconds (healthy)
+migrate      Exited (0) 47 seconds ago
+reranker     Up 53 seconds (healthy)
+
+migrate-1  | migrate: la base está vacía; se aplican las migraciones.
+migrate-1  | Operations to perform:
+migrate-1  |   Apply all migrations: (none)
+migrate-1  | Running migrations:
+migrate-1  |   No migrations to apply.
+app-1      | [INFO] Starting gunicorn 26.2.0
+app-1      | [INFO] Listening at: http://0.0.0.0:8000 (1)
+app-1      | [INFO] Using worker: gthread
+app-1      | "GET /static/css/evaluon.css HTTP/1.1" 200 0 "-" "Python-urllib/3.12"
+
+200 text/css; charset="utf-8"
+```
+
+**Resultado.** Cumple: los seis servicios levantan con una orden; `migrate` es de una sola corrida y queda terminado con código 0, los otros cinco quedan arriba y sanos. Sin migraciones, `migrate` no crea ninguna tabla: la base `evaluon` sigue vacía (sin `django_migrations`), así que la primera migración de T-006 se aplica sola al levantar.
+
+### 4. Las tres ramas de `migrate_on_start.sh`
+
+**Qué se probó.** En una base aparte (`t005_prueba`), borrada al terminar: base vacía, base con datos sin migraciones pendientes, y base con datos con migraciones pendientes. Para la tercera se usó una configuración de prueba fuera del repositorio que solo suma `django.contrib.contenttypes` a `INSTALLED_APPS`, montada en el contenedor para esa corrida.
+
+**Comandos.**
+
+```
+docker exec -i evaluon-db-1 sh -c 'psql -U "$POSTGRES_USER" -d evaluon -c "CREATE DATABASE t005_prueba;"'
+docker compose run --rm --no-deps -e POSTGRES_DB=t005_prueba migrate
+docker exec -i evaluon-db-1 sh -c 'psql ... -d t005_prueba -c "CREATE TABLE datos (id int); INSERT INTO datos VALUES (1);"'
+docker compose run --rm --no-deps -e POSTGRES_DB=t005_prueba migrate
+docker compose run --rm --no-deps -e POSTGRES_DB=t005_prueba -e DJANGO_SETTINGS_MODULE=t005_settings \
+  -v <carpeta temporal>/t005_settings.py:/app/t005_settings.py:ro migrate
+docker exec -i evaluon-db-1 sh -c 'psql ... -d evaluon -c "DROP DATABASE t005_prueba;"'
+```
+
+**Salida.**
+
+```
+migrate: la base está vacía; se aplican las migraciones.
+...  No migrations to apply.                                         código 0
+
+migrate: la base tiene datos; solo se comprueba que no haya migraciones pendientes.
+migrate: no hay migraciones pendientes.                              código 0
+
+migrate: la base tiene datos; solo se comprueba que no haya migraciones pendientes.
+migrate: hay migraciones pendientes y la base tiene datos. No se migra sin respaldo previo,
+y la aplicación no arranca. Procedimiento:
+  1. Detener app:   docker compose stop app
+  2. Respaldar:     docker compose exec -T db sh -c 'pg_dump -Fc -U "$POSTGRES_USER" "$POSTGRES_DB"' > backups/evaluon-AAAA-MM-DD.dump
+  3. Aplicar:       docker compose run --rm --no-deps app python manage.py migrate
+  4. Levantar todo: docker compose up -d
+                                                                     código 1
+```
+
+**Resultado.** Cumple. El procedimiento que muestra difiere en dos detalles del texto del plan ("Migraciones y respaldo"), por motivos prácticos: el respaldo lleva `-T` y el usuario de la base (sin ellos `pg_dump` corre como `root` y la salida binaria pasa por una terminal), y el paso 3 lleva `--no-deps` (sin él, `docker compose run app` vuelve a correr `migrate`, que falla, y no llega a migrar). Se informa al Coordinador para el runbook.
+
+### 5. Test de humo y suite
+
+**Qué se probó.** `tests/test_skeleton.py`, con tres pruebas: el proyecto pasa `manage.py check` sin advertencias y la aplicación WSGI se carga; WhiteNoise sirve la hoja de estilos (`evaluon/static/css/evaluon.css`) reunida con `collectstatic`, con `DEBUG` apagado y el mismo contenido byte a byte; y la integración de `pgvector` para Django guarda un vector de tres dimensiones, lo lee igual y ordena por distancia `L2Distance`, con un modelo definido solo dentro de la prueba (`isolate_apps`). La extensión `vector` y la tabla de esa prueba se crean dentro de la transacción de la prueba, en la base que pytest-django crea y borra (`test_evaluon`). Antes de agregar la hoja de estilos y el middleware de WhiteNoise, las dos primeras pruebas fallaban (directorio de estáticos inexistente y respuesta 404); la de `pgvector` pasó desde la primera corrida.
+
+**Comandos.**
+
+```
+docker compose run --rm app pytest tests/test_skeleton.py -v       (los seis servicios arriba)
+docker compose run --rm app pytest                                 (los seis servicios arriba)
+docker compose down
+docker compose up -d db
+docker compose run --rm --no-deps app pytest -v                    (solo db arriba)
+```
+
+**Salida.**
+
+```
+tests/test_skeleton.py::test_pgvector_stores_and_reads_vector PASSED     [ 33%]
+tests/test_skeleton.py::test_project_starts PASSED                       [ 66%]
+tests/test_skeleton.py::test_whitenoise_serves_static_file PASSED        [100%]
+============================== 3 passed in 0.23s ===============================
+
+tests/test_skeleton.py ...                                               [100%]
+============================== 3 passed in 0.24s ===============================
+
+db Up 7 seconds (healthy)
+tests/test_skeleton.py::test_pgvector_stores_and_reads_vector PASSED     [ 33%]
+tests/test_skeleton.py::test_project_starts PASSED                       [ 66%]
+tests/test_skeleton.py::test_whitenoise_serves_static_file PASSED        [100%]
+============================== 3 passed in 0.25s ===============================
+```
+
+**Resultado.** Cumple. WhiteNoise 6.12.0, pytest-django 4.14.0 y `pgvector` 0.5.0 funcionan con Django 6.1.1, aunque los dos primeros no declaran todavía la 6.1 (ADR-0005, "Sin verificar"). No hace falta el plan B. Queda abierto lo que el plan asigna a la etapa 1: parámetros de Argon2, vencimiento de la sesión y espera de Gunicorn con hilos ante una consulta larga.
+
+### 6. Cierre
+
+Al terminar se corrió `docker compose down`, sin `-v`: el volumen `evaluon_pgdata` se conserva, con la base `evaluon` vacía. La clave de la base y la de Django de estas pruebas están solo en el `.env` local, que no se sube. `postgres-dev` y el volumen `entorno-dev_pgdata` no se tocaron.
+
+**Decisiones de esta tarea que el plan no fija:** Debian 13 en la imagen base, por la versión de Tesseract; `tesseract-ocr` fijado por versión de paquete; `spa.traineddata` de la etiqueta 4.1.0 de `tessdata_best`; `psycopg` en su variante binaria; PyYAML sí y biblioteca de cliente HTTP no; dependencias de prueba como opcionales `test`, instaladas en la imagen; solo `staticfiles` en `INSTALLED_APPS`; `DJANGO_SECRET_KEY` obligatoria; usuario sin privilegios en la imagen; código montado en solo lectura en `app` y `migrate`; red `web` para publicar el puerto; cuatro hilos de Gunicorn; chequeo de salud de `app`; definición de "base vacía"; `.gitattributes` y `.dockerignore`.

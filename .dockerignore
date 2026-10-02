@@ -1,0 +1,21 @@
+# Lo que no entra en la imagen de la aplicación. Los modelos, el corpus y las evals se
+# montan como volúmenes (docker-compose.yml); los secretos van por variables de entorno.
+.git
+.gitattributes
+.gitignore
+.dockerignore
+.env
+.env.*
+.claude
+models
+corpus
+evals
+backups
+staticfiles
+docs
+specs
+tools
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.venv

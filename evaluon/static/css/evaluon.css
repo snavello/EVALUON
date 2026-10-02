@@ -1,0 +1,15 @@
+/* Hoja de estilos de EVALUON. Tipografías del sistema y nada externo (plan 001,
+   "Pantalla, acceso y comandos"). Las pantallas la completan en las etapas siguientes. */
+
+:root {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+  color: #1a1a1a;
+  background: #ffffff;
+}
+
+body {
+  margin: 0 auto;
+  max-width: 60rem;
+  padding: 1rem;
+}
