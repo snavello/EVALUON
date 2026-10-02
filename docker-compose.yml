@@ -1,10 +1,33 @@
 # Entorno de EVALUON (plan 001, "Servicios").
-# Los servicios de IA están en una red interna sin salida a internet y sin puertos
-# publicados. Los archivos de los modelos se bajan con scripts/fetch_models.sh.
+# Los servicios de IA y la base están en una red interna sin salida a internet y sin
+# puertos publicados. Los archivos de los modelos se bajan con scripts/fetch_models.sh.
+# Las credenciales de la base se leen de .env (copiar .env.example y completar).
 
 name: evaluon
 
 services:
+  db:
+    # pgvector 0.8.7 sobre Postgres 17.11 (Debian 12), fijado en T-004 por etiqueta y huella:
+    # la etiqueta se vuelve a publicar con cada versión menor de Postgres, la huella no
+    # (ver specs/001-normativa/entorno.md, T-004). Trae vector, unaccent y la configuración
+    # de búsqueda spanish.
+    image: pgvector/pgvector:0.8.7-pg17-bookworm@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-evaluon}
+      POSTGRES_USER: ${POSTGRES_USER:-evaluon}
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD (copiar .env.example a .env y completarla)}"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
   generation:
     # Compilación de llama.cpp fijada en T-002 (ver specs/001-normativa/entorno.md).
     # Imagen con CUDA 12.8.1, que soporta la serie RTX 50.
@@ -156,3 +179,6 @@ services:
 networks:
   internal:
     internal: true
+
+volumes:
+  pgdata:

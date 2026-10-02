@@ -731,3 +731,375 @@ Los pares de la ficha dieron otra vez 5,279355525970459 y −8,180519104003906.
 **Resultado.** Cumple: los tres en estado sano con un solo comando. Después se borró el contenedor cliente `t003-client` y se corrió `docker compose down`. `postgres-dev` no se tocó.
 
 **Parámetros elegidos en esta tarea, que el plan no fija:** contexto 8192 en los dos servicios (el del modelo), `--batch-size` y `--ubatch-size` iguales al contexto, `--parallel 1`, `--pooling cls` explícito en `embeddings` (coincide con el del archivo) y `--override-kv tokenizer.ggml.add_sep_token=bool:true` en `reranker`.
+
+## T-004 · Postgres con sus extensiones y búsqueda en español
+
+Fecha: 2026-10-02. Requisitos: REQ-008 (vectores) y REQ-010 (búsqueda por palabras sin distinguir acentos).
+
+Resumen: la base `evaluon` que existía en el Postgres anterior del equipo (`postgres-dev`) está vacía: no hay nada que conservar. El servicio `db` queda fijado en `pgvector/pgvector:0.8.7-pg17-bookworm` con su huella: Postgres 17.11 y pgvector 0.8.7. La imagen trae `vector`, `unaccent` y la configuración `spanish`. Una configuración de prueba derivada de `spanish` con `unaccent` encuentra "licitación" buscando "licitacion". `ts_debug` trata "297/03" y "247/2022" como una sola palabra de tipo `file`, sin separar los números. No se disparó la condición de parada. Hay una observación para T-009 sobre el orden "quitar acentos y después reducir a la raíz" (sección 5).
+
+### 1. Postgres anterior del equipo y la base `evaluon`
+
+**Qué se probó.** El contenedor `postgres-dev` (`pgvector/pgvector:pg17`, Postgres 17.11, pgvector 0.8.7) es de otro entorno (`C:\Users\snave\Documents\dev\entorno`, volumen `entorno-dev_pgdata`, puerto `127.0.0.1:5432`). Se consultó, solo con lecturas y con la sesión en modo de solo lectura, si tiene una base `evaluon` y qué contiene. No se detuvo, borró ni modificó nada.
+
+**Comandos.**
+
+```
+docker exec postgres-dev psql -U dev -d desarrollo -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_database ORDER BY 1;"
+docker exec postgres-dev psql -U dev -d evaluon -c "SET default_transaction_read_only = on;" \
+  -c "SELECT nspname, nspowner::regrole FROM pg_namespace ORDER BY 1;" \
+  -c "SELECT n.nspname, c.relname, c.relkind, c.reltuples::bigint, s.n_live_tup FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace LEFT JOIN pg_stat_user_tables s ON s.relid=c.oid WHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') AND c.relkind IN ('r','p','v','m','S','f') ORDER BY 1,2;" \
+  -c "SELECT extname, extversion FROM pg_extension;" \
+  -c "SELECT cfgname FROM pg_ts_config WHERE cfgnamespace <> 'pg_catalog'::regnamespace;"
+# Objetos que no pertenecen a una extensión (tablas, secuencias, vistas; funciones; tipos),
+# contados con pg_depend (deptype 'e'), también en modo de solo lectura.
+```
+
+**Salida.**
+
+```
+  datname   | pg_size_pretty
+------------+----------------
+ desarrollo | 7478 kB
+ evaluon    | 7694 kB
+ mitrabajo  | 7321 kB
+ postgres   | 7478 kB
+ template0  | 7321 kB
+ template1  | 7550 kB
+
+Esquemas de evaluon: information_schema, pg_catalog, pg_toast, public (sin esquemas propios)
+Tablas, vistas, secuencias:          (0 rows)
+Extensiones:                         plpgsql 1.0, vector 0.8.7
+Configuraciones de búsqueda propias: (0 rows)
+objetos_fuera_de_extensiones: 0
+funciones_propias:            0
+tipos_propios:                0
+dueño de la base evaluon:     dev
+```
+
+**Resultado.** La base `evaluon` de `postgres-dev` existe pero está vacía: no tiene esquemas, tablas, filas, funciones ni tipos propios. Solo tiene instalada la extensión `vector`, cuyas funciones son las que se ven en `public`. No hay datos que conservar, así que se sigue con la tarea. El servicio `db` del proyecto es independiente: tiene su propio volumen y no publica puertos, por lo que no choca con el puerto 5432 de `postgres-dev`. `postgres-dev` sigue funcionando y en estado sano. Si se retira o no, lo decide el responsable.
+
+### 2. Imagen fijada y servicio `db`
+
+**Etiqueta.** En Docker Hub, para Postgres 17 y pgvector 0.8.x, la más reciente es `0.8.7-pg17`, publicada el 2026-10-01. Se publica en dos variantes de Debian: `bookworm` (12) y `trixie` (13). Hoy `0.8.7-pg17` y `pg17` apuntan a la misma huella que `0.8.7-pg17-bookworm`. Las etiquetas con versión **se vuelven a publicar**: por ejemplo, `0.8.0-pg17` tiene fecha de 2025-08-15, aunque pgvector 0.8.0 es de 2024. Esto pasa cada vez que sale una versión menor de Postgres. Por eso, en `docker-compose.yml` la imagen queda fijada por etiqueta y por huella:
+
+```
+pgvector/pgvector:0.8.7-pg17-bookworm@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
+```
+
+| Dato | Valor |
+|---|---|
+| Etiqueta | `0.8.7-pg17-bookworm` (se nombra la variante de Debian para que no cambie si la etiqueta sin variante pasa a `trixie`) |
+| Huella (índice de la imagen, `RepoDigests`) | `sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d` |
+| Creada | 2026-10-01T17:35:53Z |
+| Postgres | 17.11 (Debian 17.11-1.pgdg12+2), Debian 12.15 |
+| pgvector | 0.8.7 |
+| `unaccent` | 1.1 (contrib) |
+
+**Comandos.**
+
+```
+curl -s "https://hub.docker.com/v2/repositories/pgvector/pgvector/tags?page_size=100&name=pg17"
+docker pull pgvector/pgvector:0.8.7-pg17-bookworm
+docker image inspect pgvector/pgvector:0.8.7-pg17-bookworm --format '{{json .RepoDigests}} {{.Id}} {{.Created}}'
+docker run --rm --entrypoint sh pgvector/pgvector:0.8.7-pg17-bookworm -c 'echo $PG_VERSION; postgres --version; cat /etc/debian_version; ls /usr/share/postgresql/17/extension | grep -E "^(vector|unaccent)\.control"; ls /usr/share/postgresql/17/tsearch_data | grep -i spanish'
+```
+
+**Salida.**
+
+```
+0.8.7-pg17          2026-10-01T17:36:12Z sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
+0.8.7-pg17-bookworm 2026-10-01T17:36:15Z sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
+0.8.7-pg17-trixie   2026-10-01T17:46:55Z sha256:7a7e9f22015b67edb4bef5c59daeebcd7e74bfa570df6ce60ae01237c8648a84
+pg17                2026-10-01T17:36:06Z sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
+
+["pgvector/pgvector@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d"] sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d 2026-10-01T17:35:53.866963013Z
+17.11-1.pgdg12+2
+postgres (PostgreSQL) 17.11 (Debian 17.11-1.pgdg12+2)
+12.15
+unaccent.control
+vector.control
+spanish.stop
+```
+
+**Configuración** (`docker-compose.yml`, servicio `db`):
+
+- Red `internal`, la misma red sin salida a internet de los servicios de IA. No publica puertos.
+- Volumen con nombre `pgdata`, que Docker crea como `evaluon_pgdata` (proyecto `evaluon`), montado en `/var/lib/postgresql/data`.
+- Credenciales por variables de entorno (`.env.example`): `POSTGRES_DB` y `POSTGRES_USER`, las dos `evaluon` por defecto, y `POSTGRES_PASSWORD` **sin valor por defecto**. Si falta la clave, `docker compose` se detiene con el mensaje "Falta POSTGRES_PASSWORD (copiar .env.example a .env y completarla)". Docker Compose resuelve las variables de todo el archivo, así que desde esta tarea **cualquier** orden de `docker compose` necesita la clave, aunque se levanten solo los servicios de IA. Esto incluye las órdenes que figuran en las secciones de T-002 y T-003.
+- Chequeo de salud: `pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"`, cada 10 s, con 5 reintentos y 30 s de arranque. `restart: unless-stopped`, como los demás servicios.
+- La clave solo se lee al crear el volumen por primera vez. Si se cambia en `.env` después, la base sigue con la clave anterior.
+
+**Comandos.** La clave de la prueba se generó al azar en el shell y no se guardó en ningún archivo.
+
+```
+export POSTGRES_PASSWORD=$(py -3 -c "import secrets;print(secrets.token_urlsafe(32))")
+docker compose up -d db
+docker inspect -f '{{.State.Health.Status}}' evaluon-db-1
+docker compose ps --format '{{.Service}} {{.Status}} {{.Ports}}'
+docker inspect -f '{{.Config.Image}} {{.Image}}' evaluon-db-1
+echo "puertos=[$(docker port evaluon-db-1)]"
+docker network inspect -f '{{.Internal}}' evaluon_internal
+docker exec -i evaluon-db-1 psql -U evaluon -X -d evaluon -c "SELECT version();" -c "SHOW server_encoding;" -c "SHOW default_text_search_config;" -c "SELECT name, default_version FROM pg_available_extensions WHERE name IN ('vector','unaccent');"
+```
+
+**Salida.**
+
+```
+Container evaluon-db-1 Started
+estado=healthy
+db Up 7 seconds (healthy) 5432/tcp
+pgvector/pgvector:0.8.7-pg17-bookworm@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
+puertos=[]
+true
+ PostgreSQL 17.11 (Debian 17.11-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit
+ server_encoding: UTF8
+ default_text_search_config: pg_catalog.english
+ unaccent | 1.1
+ vector   | 0.8.7
+```
+
+La base `evaluon` se crea con codificación UTF8 y orden `en_US.utf8` (proveedor `libc`). La configuración de búsqueda por omisión del servidor es `english`. Esto no afecta al sistema si las consultas y la columna `tsv` nombran siempre la configuración, como indica el plan (`spanish_unaccent`).
+
+**Resultado.** Cumple: el servicio queda sano en unos 7 s, no publica puertos y está solo en la red interna.
+
+### 3. Pruebas 1 a 3: `vector`, `unaccent` y `\dF`
+
+Las pruebas se hicieron dentro del contenedor (`psql` por el socket local), en una base de prueba `t004_prueba` que se borró al terminar (sección 7).
+
+**Comandos.**
+
+```
+docker exec -i evaluon-db-1 psql -U evaluon -X -d evaluon -c "CREATE DATABASE t004_prueba;"
+docker exec -i evaluon-db-1 psql -U evaluon -X -d t004_prueba   # con estas órdenes por la entrada estándar:
+CREATE EXTENSION vector;
+SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';
+SELECT '[1,2,3]'::vector <=> '[1,2,4]'::vector AS distancia_coseno;
+CREATE EXTENSION unaccent;
+SELECT extname, extversion FROM pg_extension WHERE extname = 'unaccent';
+SELECT unaccent('licitación pública, adjudicación, órgano, cesión, pingüino, Ñandú');
+\dF
+\dF+ spanish
+```
+
+**Salida.**
+
+```
+CREATE EXTENSION
+ extname | extversion
+---------+------------
+ vector  | 0.8.7
+
+  distancia_coseno
+---------------------
+ 0.00853986601633272
+
+CREATE EXTENSION
+ extname  | extversion
+----------+------------
+ unaccent | 1.1
+
+                             unaccent
+-------------------------------------------------------------------
+ licitacion publica, adjudicacion, organo, cesion, pinguino, Nandu
+
+               List of text search configurations
+   Schema   |    Name    |              Description
+------------+------------+---------------------------------------
+ pg_catalog | arabic     | configuration for arabic language
+ ...        (se omiten las de otros idiomas)
+ pg_catalog | simple     | simple configuration
+ pg_catalog | spanish    | configuration for spanish language
+ ...
+(29 rows)
+
+Text search configuration "pg_catalog.spanish"
+Parser: "pg_catalog.default"
+      Token      | Dictionaries
+-----------------+--------------
+ asciihword      | spanish_stem
+ asciiword       | spanish_stem
+ email           | simple
+ file            | simple
+ float           | simple
+ host            | simple
+ hword           | spanish_stem
+ hword_asciipart | spanish_stem
+ hword_numpart   | simple
+ hword_part      | spanish_stem
+ int             | simple
+ numhword        | simple
+ numword         | simple
+ sfloat          | simple
+ uint            | simple
+ url             | simple
+ url_path        | simple
+ version         | simple
+ word            | spanish_stem
+```
+
+**Resultado.** Cumple. `SELECT extversion FROM pg_extension` da `vector` 0.8.7 y la distancia de coseno funciona. `CREATE EXTENSION unaccent` funciona (versión 1.1) y quita tildes, diéresis y la tilde de la ñ (`Ñandú` queda como `Nandu`). `\dF` muestra `pg_catalog.spanish`, con el diccionario `spanish_stem` (Snowball y su lista de palabras vacías `spanish.stop`).
+
+### 4. Prueba 4: configuración de prueba derivada de `spanish` con `unaccent`
+
+**Qué se probó.** Se creó una configuración de prueba, `t004.spanish_unaccent_prueba`, en un esquema de prueba dentro de la base de prueba. No es la configuración definitiva `spanish_unaccent`, que crea T-009. Es una copia de `spanish` que primero quita acentos y después reduce a la raíz, como pide el plan. Se probó contra tres pasajes sintéticos.
+
+**Comandos.**
+
+```
+CREATE SCHEMA t004;
+CREATE TEXT SEARCH CONFIGURATION t004.spanish_unaccent_prueba (COPY = pg_catalog.spanish);
+ALTER TEXT SEARCH CONFIGURATION t004.spanish_unaccent_prueba
+  ALTER MAPPING FOR hword, hword_part, word WITH unaccent, spanish_stem;
+CREATE TABLE t004.pasaje (id int, texto text);
+INSERT INTO t004.pasaje VALUES
+  (1, 'La licitación pública se adjudicará a la oferta más conveniente.'),
+  (2, 'Las licitaciones privadas se rigen por el artículo 25.'),
+  (3, 'La contratación directa procede por exclusividad.');
+SELECT id, texto FROM t004.pasaje
+ WHERE to_tsvector('t004.spanish_unaccent_prueba', texto)
+    @@ websearch_to_tsquery('t004.spanish_unaccent_prueba', 'licitacion');
+-- Comparación con spanish sin unaccent, búsqueda de "articulo" y palabras vacías con tilde.
+```
+
+**Salida.**
+
+```
+Búsqueda "licitacion" con la configuración de prueba:
+ id |                              texto
+----+------------------------------------------------------------------
+  1 | La licitación pública se adjudicará a la oferta más conveniente.
+(1 row)
+
+Misma búsqueda con spanish sin unaccent:
+(0 rows)
+
+Búsqueda "articulo" (sin tilde) con la configuración de prueba:  id 2
+
+       tsv_unaccent        |     tsv_spanish
+---------------------------+----------------------
+ 'licitacion':2 'public':3 | 'licit':2 'public':3
+
+Palabras vacías con tilde ("él está aquí"):  spanish 'aqu':3 | prueba 'aqui':3
+```
+
+**Resultado.** Cumple. Buscando "licitacion" se encuentra el pasaje con "licitación"; con `spanish` sola no se encuentra. "articulo" encuentra "artículo". Las palabras vacías con tilde ("él", "está") se siguen descartando después de quitar los acentos.
+
+### 5. Observación para T-009: quitar acentos antes de reducir a la raíz pierde la raíz de "-ación"
+
+Esta observación no es parte de las cuatro pruebas, pero apareció al hacerlas. El lematizador Snowball de español reconoce sufijos con tilde, como "-ación", "-ición" o "-ía". Si los acentos se quitan **antes**, como pide el plan para `spanish_unaccent`, el singular de esas palabras deja de reducirse a la raíz. El plural sí se reduce, porque "-aciones" no lleva tilde. Resultado: singular y plural dejan de coincidir.
+
+**Comando** (en la base de prueba).
+
+```
+SELECT w, to_tsvector('spanish', w), to_tsvector('t004.spanish_unaccent_prueba', w)
+FROM unnest(ARRAY['licitación','licitacion','licitaciones','licitar','adjudicación','adjudicaciones',
+  'contratación','contrataciones','garantía','garantías','artículo','artículos','órgano','pública','públicas']) AS w;
+```
+
+**Salida.**
+
+```
+    palabra     |    spanish     | unaccent_y_raiz
+----------------+----------------+------------------
+ licitación     | 'licit':1      | 'licitacion':1
+ licitacion     | 'licitacion':1 | 'licitacion':1
+ licitaciones   | 'licit':1      | 'licit':1
+ licitar        | 'licit':1      | 'licit':1
+ adjudicación   | 'adjud':1      | 'adjudicacion':1
+ adjudicaciones | 'adjud':1      | 'adjud':1
+ contratación   | 'contrat':1    | 'contratacion':1
+ contrataciones | 'contrat':1    | 'contrat':1
+ garantía       | 'garant':1     | 'garanti':1
+ garantías      | 'garant':1     | 'garanti':1
+ artículo       | 'articul':1    | 'articul':1
+ artículos      | 'articul':1    | 'articul':1
+ órgano         | 'organ':1      | 'organ':1
+ pública        | 'public':1     | 'public':1
+ públicas       | 'public':1     | 'public':1
+
+Búsqueda "licitacion" contra el pasaje 2 ("Las licitaciones privadas..."):
+ unaccent_licitacion = f   |   spanish con "licitación" = t
+```
+
+**Lectura.** Con la configuración del plan, buscar "licitacion" o "licitación" no encuentra un pasaje que solo dice "licitaciones", y viceversa. Lo mismo pasa con "adjudicación" y "adjudicaciones", y con "contratación" y "contrataciones". Con `spanish` sola, en cambio, singular y plural coinciden siempre que la búsqueda lleve la tilde. La prueba de REQ-010 ("licitacion" encuentra "licitación") pasa igual, y "garantía" y "garantías" siguen coincidiendo entre sí. Esta tarea no cambia nada al respecto: la configuración definitiva es de T-009 y su definición está en el plan. Se informa al Coordinador para que decida si la definición de `spanish_unaccent` se mantiene.
+
+### 6. Prueba 5: `ts_debug` sobre "297/03" y "247/2022"
+
+**Comandos.**
+
+```
+SELECT alias, token, dictionaries, lexemes FROM ts_debug('t004.spanish_unaccent_prueba', 'Disposición 297/03');
+SELECT alias, token, dictionaries, lexemes FROM ts_debug('t004.spanish_unaccent_prueba', 'Disposición 247/2022');
+SELECT alias, token, dictionaries, lexemes FROM ts_debug('spanish', 'Disposición 297/03 y 247/2022');
+SELECT to_tsvector('t004.spanish_unaccent_prueba', 'Disposición AFIP N° 297/03 y Disposición 247/2022');
+-- ¿Coincide la búsqueda por el número entero, por una parte o con el año en cuatro cifras?
+```
+
+**Salida.**
+
+```
+ alias |    token    |      dictionaries       |    lexemes
+-------+-------------+-------------------------+---------------
+ word  | Disposición | {unaccent,spanish_stem} | {Disposicion}
+ blank |             | {}                      |
+ file  | 297/03      | {simple}                | {297/03}
+
+ word  | Disposición | {unaccent,spanish_stem} | {Disposicion}
+ blank |             | {}                      |
+ file  | 247/2022    | {simple}                | {247/2022}
+
+   alias   |    token    |  dictionaries  |    lexemes
+-----------+-------------+----------------+---------------
+ word      | Disposición | {spanish_stem} | {disposicion}
+ file      | 297/03      | {simple}       | {297/03}
+ asciiword | y           | {spanish_stem} | {}
+ file      | 247/2022    | {simple}       | {247/2022}
+
+                           tsv
+----------------------------------------------------------
+ '247/2022':7 '297/03':4 'afip':2 'disposicion':1,6 'n':3
+
+ coincide_297_03 | coincide_297 | coincide_297_2003 | coincide_247_2022 | coincide_247
+-----------------+--------------+-------------------+-------------------+--------------
+ t               | f            | f                 | t                 | f
+
+websearch_to_tsquery('297/03') = '297/03'   websearch_to_tsquery('247/2022') = '247/2022'
+```
+
+**Resultado.** El analizador por omisión toma "297/03" y "247/2022" como un único elemento de tipo `file` (ruta de archivo). El diccionario `simple` lo guarda entero, con la barra, y no lo separa en números. Por eso:
+
+- buscar "297/03" encuentra "297/03", y buscar "247/2022" encuentra "247/2022";
+- buscar solo "297" o solo "247" **no** los encuentra;
+- buscar "297/2003" **no** encuentra "297/03": cada forma de escribir el año es un elemento distinto.
+
+Además, "N°" deja un elemento suelto `n`, y en `ts_debug` el lexema intermedio de `unaccent` conserva la mayúscula (`Disposicion`), aunque `to_tsvector` lo guarda en minúsculas (`disposicion`). Como dice el plan, las referencias exactas no dependen de esto. Para que la búsqueda por palabras encuentre una norma por número hace falta escribirlo tal como figura en el texto.
+
+### 7. Cómo quedó la base y cierre
+
+**Comandos.**
+
+```
+docker exec -i evaluon-db-1 psql -U evaluon -X -d evaluon -c "DROP DATABASE t004_prueba;" \
+  -c "SELECT datname FROM pg_database ORDER BY 1;" -c "SELECT extname, extversion FROM pg_extension;" \
+  -c "SELECT count(*) AS tablas FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema');" \
+  -c "SELECT count(*) AS configs_propias FROM pg_ts_config WHERE cfgnamespace <> 'pg_catalog'::regnamespace;"
+docker ps --format '{{.Names}} {{.Status}}'
+docker compose down -v
+```
+
+**Salida.**
+
+```
+DROP DATABASE
+ evaluon, postgres, template0, template1
+ extensiones en evaluon: plpgsql 1.0 (vector y unaccent no están instaladas en evaluon)
+ tablas: 0
+ configs_propias: 0
+evaluon-db-1 Up About a minute (healthy)
+postgres-dev Up 7 hours (healthy)
+```
+
+**Resultado.** Todo lo que crearon las pruebas (extensiones, esquema `t004`, configuración `spanish_unaccent_prueba`, tabla de pasajes) quedó dentro de `t004_prueba`, y esa base se borró. En `evaluon` no quedó ningún objeto que choque con las migraciones de T-008 (extensiones) ni de T-009 (`spanish_unaccent`). Al final se corrió `docker compose down -v`, que borró también el volumen `evaluon_pgdata`. Ese volumen solo tenía la base vacía, y además había quedado iniciado con la clave al azar de la prueba, que no se guardó. Como la clave solo se lee al crear el volumen, conservarlo habría dejado la base con una clave desconocida. La próxima vez que se levante, `docker compose up -d db` crea la base desde cero con la clave de `.env`. `postgres-dev` no se tocó.
+
+**Decisiones de esta tarea que el plan no fija:** fijar la imagen por etiqueta y huella, con la variante `bookworm` nombrada en la etiqueta; usuario y base `evaluon` por defecto; `POSTGRES_PASSWORD` obligatoria y sin valor por defecto; chequeo de salud con `pg_isready`; volumen `pgdata` (`evaluon_pgdata`).
