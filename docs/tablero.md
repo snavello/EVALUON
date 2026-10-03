@@ -58,8 +58,8 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 35 tareas sin terminar.
+- ▶ T-019 · Unir la consulta de punta a punta con su registro (en curso)
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
-- ○ T-019 · Unir la consulta de punta a punta con su registro (pendiente)
 - ○ T-020 · Probar el hilo mínimo con los servicios reales (pendiente)
 - ○ T-021 · Leer un PDF escaneado con reconocimiento de texto (pendiente)
 - ○ T-022 · Leer una página web guardada (pendiente)
@@ -116,7 +116,7 @@ flowchart LR
 - ✓ T-018 · Generar la respuesta con esquema e insertar las citas (`33f0f08` 2026-10-03, `9830fe5` 2026-10-03)
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 - ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
-- ✓ T-055 · Agregar el nombre de cita de la norma
+- ✓ T-055 · Agregar el nombre de cita de la norma (`ff230c8` 2026-10-03, `88796e6` 2026-10-03)
 
 ### Mapa de tareas
 
@@ -140,7 +140,7 @@ flowchart TD
   T016["✓ T-016 · Armar la pantalla de consulta con sus tres…"]:::done
   T017["✓ T-017 · Recuperar por significado y reordenar con e…"]:::done
   T018["✓ T-018 · Generar la respuesta con esquema e insertar…"]:::done
-  T019["○ T-019 · Unir la consulta de punta a punta con su re…"]:::todo
+  T019["▶ T-019 · Unir la consulta de punta a punta con su re…"]:::active
   T020["○ T-020 · Probar el hilo mínimo con los servicios rea…"]:::todo
   T021["○ T-021 · Leer un PDF escaneado con reconocimiento de…"]:::todo
   T022["○ T-022 · Leer una página web guardada"]:::todo
