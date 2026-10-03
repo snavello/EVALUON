@@ -472,6 +472,21 @@ def test_generic_rules_drop_scripts_and_styles_and_keep_unknown_text():
     ]
 
 
+@pytest.mark.parametrize(
+    "data",
+    [
+        b'<meta charset="utf-8"><p>N&nbsp;297</p>',
+        b"<p>N\xa0297</p>",
+    ],
+    ids=["entidad-nbsp", "byte-a0-windows-1252"],
+)
+def test_a_hard_space_is_kept(data):
+    """REQ-015: el espacio duro, escrito como entidad `&nbsp;` o como el byte 0xA0 de
+    windows-1252, se conserva en la línea: no es espacio en blanco de HTML. Lo pasa a
+    espacio común el texto canónico, no la lectura."""
+    assert kept(read_web(data)) == ["N\xa0297"]
+
+
 def test_a_page_without_text_is_not_read():
     """REQ-015, REQ-004: una página que no trae texto del documento (solo scripts) figura
     como no leída."""
