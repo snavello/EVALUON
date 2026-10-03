@@ -932,7 +932,9 @@ def test_real_annex_report_makes_sense(annex):
     """REQ-004: el informe del anexo de la 247/2022 dice lo que hay: 99 artículos y 1
     cláusula, los 99 que lista su índice; la página 45 (solo la firma digital) sin texto,
     no ilegible; ningún tramo sin ubicar; la cobertura completa. "Requiere atención"
-    trae la página 45 y los párrafos después del último inciso, y nada más."""
+    trae la página 45, los párrafos después del último inciso y, desde T-043, el punto
+    4 del inciso e del artículo 33, que termina en dos puntos y se llevó sus puntos 4.1
+    y 4.2, y nada más."""
     report = annex.report
 
     [container] = report["units"]["containers"]
@@ -950,7 +952,7 @@ def test_real_annex_report_makes_sense(annex):
         "without_text": [45],
         "blank": [],
     }
-    assert kinds(report) == ["pages_without_text", "after_last_inciso"]
+    assert kinds(report) == ["pages_without_text", "after_last_inciso", "presenting_inciso"]
     assert report["ocr"]["units"] == 0
     assert report["coverage"]["matches"] is True
     text = annex.report_text

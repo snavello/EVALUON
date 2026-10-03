@@ -128,11 +128,12 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.ScryptPasswordHasher",
 ]
 
-# 15 caracteres como mínimo, sin reglas de composición (OWASP).
+# 8 caracteres como mínimo, sin reglas de composición (decisión del responsable del
+# 2026-10-03; ADR-0005 proponía 15).
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-        "OPTIONS": {"min_length": 15},
+        "OPTIONS": {"min_length": 8},
     },
 ]
 

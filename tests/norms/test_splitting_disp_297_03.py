@@ -234,14 +234,15 @@ def test_incisos_of_the_annex(norm):
 # Últimos incisos seguidos de párrafos que el informe sigue señalando, revisados a mano
 # contra la página. Ninguno pierde texto: el párrafo queda en la unidad que contiene la
 # lista. Los cinco que están dentro de un `Inciso N)` quedaron donde corresponden (en ese
-# inciso); los de los artículos 11 y 12 son del artículo; en los artículos 14 (`f)
-# OTRAS OBLIGACIONES...:`), 23 y 56 el párrafo puede ser del último inciso, y lo decide
-# quien valida. De los 19 que señalaban las reglas anteriores, los demás se resolvieron
-# con las reglas de `Inciso N)`, de la lista presentada por un párrafo y de `c)Nombre`.
+# inciso); los de los artículos 11 y 12 son del artículo; en los artículos 23 y 56 el
+# párrafo puede ser del último inciso, y lo decide quien valida. De los 19 que señalaban
+# las reglas anteriores, los demás se resolvieron con las reglas de `Inciso N)`, de la
+# lista presentada por un párrafo y de `c)Nombre`. El del artículo 14 (`f) OTRAS
+# OBLIGACIONES DEL CO-CONTRATANTE:`) se resolvió en T-043 con la regla del último inciso
+# que termina en dos puntos (`test_the_last_inciso_of_article_14_keeps_what_it_presents`).
 REVIEWED_AFTER_LAST_INCISO = [
     ("anexo-i/art-11/inc-c", "anexo-i/art-11", 2),
     ("anexo-i/art-12/inc-i", "anexo-i/art-12", 1),
-    ("anexo-i/art-14/inc-f", "anexo-i/art-14", 1),
     ("anexo-i/art-23/inc-a", "anexo-i/art-23", 2),
     ("anexo-i/art-28/inc-2/inc-d", "anexo-i/art-28/inc-2", 1),
     ("anexo-i/art-55/inc-2/inc-g", "anexo-i/art-55/inc-2", 2),
@@ -260,6 +261,23 @@ def test_paragraphs_after_the_last_inciso_are_the_reviewed_ones(norm):
         (item["key"], item["inside"], item["paragraphs"]) for item in norm.report["after_last_inciso"]
     ]
     assert found == REVIEWED_AFTER_LAST_INCISO
+
+
+def test_the_last_inciso_of_article_14_keeps_what_it_presents(norm):
+    """REQ-003 (T-043): "f) OTRAS OBLIGACIONES DEL CO-CONTRATANTE:" termina en dos puntos
+    y presenta el párrafo de confidencialidad que le sigue, que es suyo y no del
+    artículo. El artículo, que lo contiene, no cambia. El informe lo señala para que
+    quien valida lo revise (REQ-004)."""
+    assert norm.report["presenting_inciso"] == [
+        {"key": "anexo-i/art-14/inc-f", "paragraphs": 1, "page": None}
+    ]
+    units = by_key(norm)
+    inciso = units["anexo-i/art-14/inc-f"]
+    assert inciso.text.startswith(
+        "f) OTRAS OBLIGACIONES DEL CO-CONTRATANTE:\nEl co-contratante deberá respetar la "
+        "confidencialidad de la información"
+    )
+    assert inciso.char_end == units["anexo-i/art-14"].char_end
 
 
 def test_texts_are_their_cut_and_coverage_adds_up(norm):

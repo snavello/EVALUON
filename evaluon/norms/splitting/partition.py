@@ -70,7 +70,9 @@ Reglas:
   el siguiente inciso de su nivel o de uno superior; el último de su lista no se lleva
   los párrafos que siguen, que son de la unidad que lo contiene. Como el PDF no
   distingue sangrías, esos párrafos pueden ser del inciso: el informe los señala con la
-  clave del inciso y cuántos párrafos quedaron en la unidad que lo contiene. Formas de
+  clave del inciso y cuántos párrafos quedaron en la unidad que lo contiene. Excepción
+  (T-043): un último inciso sin incisos propios cuyo texto termina en dos puntos
+  presenta lo que sigue y se lleva esos párrafos, sin señalarlo. Formas de
   la 297/03 (T-050):
   - `Inciso N)`, con la palabra, es siempre del primer nivel: cierra las listas abiertas
     y no se anida en un inciso de letra. Es una sección con epígrafe: el último de la
@@ -607,7 +609,7 @@ class IncisoNode:
     end: int = 0
 
 
-def find_incisos(paragraphs, block, key_taken=None, ocr_gaps=None):
+def find_incisos(paragraphs, block, key_taken=None, ocr_gaps=None, presenting=None):
     """Los incisos de un artículo, como árbol de dos niveles con el último párrafo de
     cada uno. Un inciso no se abre en un nivel donde ya hay otro con su número: la clave
     se repetiría y la base la rechaza. Esos encabezados se agregan a `key_taken`, si se
@@ -618,7 +620,12 @@ def find_incisos(paragraphs, block, key_taken=None, ocr_gaps=None):
     incisos que saltan letras de su lista y los párrafos que empiezan como un inciso mal
     leído (T-028): la clave de la unidad que contiene la lista, el último inciso de la
     lista (`after`), lo que se encontró (`found`), las letras que faltan (`missing`), la
-    página y las primeras palabras. No cambia los incisos que se devuelven."""
+    página y las primeras palabras. No cambia los incisos que se devuelven.
+
+    Los últimos incisos que terminan en dos puntos y se llevaron los párrafos que les
+    siguen (`_extend_presenting`, T-043) se agregan a `presenting`, si se pasa, con su
+    clave, cuántos párrafos se llevaron y la página del primero, para que quien valida
+    los revise."""
     roots, stack, introduced = [], [], []
     taken_list = key_taken if key_taken is not None else []
     gaps = ocr_gaps if ocr_gaps is not None else []
@@ -719,6 +726,17 @@ def find_incisos(paragraphs, block, key_taken=None, ocr_gaps=None):
             # El párrafo que presenta la lista nueva es del artículo: el inciso anterior
             # termina antes.
             roots[position - 1].end = node.index - 2
+    extended = []
+    _extend_presenting(roots, block.last, paragraphs, taken=extended)
+    if presenting is not None:
+        for path, count, first in extended:
+            presenting.append(
+                {
+                    "key": "/".join([block.key] + [f"inc-{n.heading.number}" for n in path]),
+                    "paragraphs": count,
+                    "page": paragraphs[first].page,
+                }
+            )
     if roots and roots[-1].heading.word:
         # El último `Inciso N)` lleva sus párrafos hasta el final del artículo.
         roots[-1].end = block.last
@@ -750,6 +768,32 @@ def after_last_inciso(nodes, end):
     if nodes and nodes[-1].end < end:
         found.append(([nodes[-1]], end - nodes[-1].end))
     return found
+
+
+def _extend_presenting(nodes, end, paragraphs, chain=(), taken=None):
+    """El último inciso de una lista, si no tiene incisos propios y su texto termina en
+    dos puntos, presenta lo que sigue: se lleva los párrafos que le siguen hasta el final
+    de la unidad que contiene la lista (que termina en el párrafo `end`). Así "f) OTRAS
+    OBLIGACIONES DEL CO-CONTRATANTE:" (297/03, Anexo I, art. 14) y el punto 4 que termina
+    en "...los siguientes medios:" y sigue con 4.1 y 4.2 (247/2022, anexo, art. 33 e)
+    quedan con su texto (T-043).
+
+    La lista de puntos del último inciso de una lista llega, para esta regla, hasta el
+    final de la unidad que contiene esa lista, como si el inciso no tuviera hermano
+    siguiente: si su último punto se lleva lo que sigue, el inciso llega hasta ahí.
+
+    Cada inciso que se llevó párrafos se agrega a `taken`, si se pasa, como (camino de
+    nodos hasta el inciso, cantidad de párrafos, índice del primero), para el informe."""
+    for position, node in enumerate(nodes):
+        is_last = position == len(nodes) - 1
+        path = list(chain) + [node]
+        if node.children:
+            _extend_presenting(node.children, end if is_last else node.end, paragraphs, path, taken)
+            node.end = max(node.end, node.children[-1].end)
+        elif is_last and node.end < end and paragraphs[node.end].text.rstrip().endswith(":"):
+            if taken is not None:
+                taken.append((path, end - node.end, node.end + 1))
+            node.end = end
 
 
 def _assign_ends(nodes):

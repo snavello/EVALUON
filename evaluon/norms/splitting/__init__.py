@@ -78,7 +78,21 @@ from evaluon.norms.splitting.report import build_report, report_text
 # un inciso mal leído (`ocr_inciso_gaps`). Los cortes no cambian: el texto canónico, las
 # unidades, sus claves y sus textos son los de la versión 6 en los tres formatos; cambia
 # el informe de las lecturas con reconocimiento, cuya huella firma la validación.
-RULES_VERSION = "7"
+# Corrección (T-043): el informe de toda lectura cambia con la versión 7, no solo el de
+# las lecturas con reconocimiento, porque lleva la versión de las reglas.
+# 8: T-043, ajuste contra el corpus real. Un último inciso sin incisos propios cuyo texto
+# termina en dos puntos se lleva los párrafos que le siguen hasta el final de la unidad
+# que contiene la lista, y el informe ya no lo señala para revisar: "f) OTRAS
+# OBLIGACIONES DEL CO-CONTRATANTE:" (297/03, Anexo I, art. 14) y el punto 4 del inciso e
+# del art. 33 del anexo de la 247/2022 con sus puntos 4.1 y 4.2. El texto canónico, las
+# claves y los textos de las unidades base no cambian; cambian el texto de esos dos
+# incisos y el informe.
+# 9: T-043, observaciones del testeador. El informe señala en "Requiere atención" cada
+# último inciso que se llevó párrafos por terminar en dos puntos (`presenting_inciso`).
+# Si el inciso que contiene la lista es el último del artículo, su último punto que
+# termina en dos puntos también se lleva lo que le sigue, hasta el final del artículo.
+# En el corpus no cambia ninguna unidad respecto de la versión 8; cambia el informe.
+RULES_VERSION = "9"
 
 # Reglas de partición y categorías que las eligen (REQ-017; `Norm.Category`).
 NORM_RULE = "normas"
@@ -177,6 +191,7 @@ def split_document(reading, part=BODY, category=None, document_info=None):
         result = rules.partition(paragraphs, root=root)
 
     units, spans, after_last_inciso, inciso_key_taken, ocr_inciso_gaps = [], [], [], [], []
+    presenting_inciso = []
     for item in result.items:
         start, end = _range(paragraphs, item.first, item.last, len(text))
         if isinstance(item, rules.Span):
@@ -186,7 +201,11 @@ def split_document(reading, part=BODY, category=None, document_info=None):
         units.append(unit)
         if item.unit_type == "articulo":
             nodes = rules.find_incisos(
-                paragraphs, item, key_taken=inciso_key_taken, ocr_gaps=ocr_inciso_gaps
+                paragraphs,
+                item,
+                key_taken=inciso_key_taken,
+                ocr_gaps=ocr_inciso_gaps,
+                presenting=presenting_inciso,
             )
             for node in nodes:
                 _add_incisos(units, canonical, reading, paragraphs, unit, node)
@@ -233,6 +252,7 @@ def split_document(reading, part=BODY, category=None, document_info=None):
         uppercase_in_units=result.uppercase_in_units,
         doubtful_headings=result.doubtful_headings,
         after_last_inciso=after_last_inciso,
+        presenting_inciso=presenting_inciso,
         inciso_key_taken=inciso_key_taken,
         ocr_inciso_gaps=ocr_inciso_gaps,
         canonical_sha256=canonical_sha256,

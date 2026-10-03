@@ -1,8 +1,8 @@
 """Guardado de claves (T-006, REQ-016 y requisito no funcional "Claves").
 
 La clave se guarda con Argon2id y parámetros iguales o superiores al mínimo de OWASP
-(19 MiB de memoria, 2 iteraciones, 1 hilo). Mínimo de 15 caracteres, sin reglas de
-composición.
+(19 MiB de memoria, 2 iteraciones, 1 hilo). Mínimo de 8 caracteres (decisión del responsable del
+2026-10-03), sin reglas de composición.
 """
 
 import argon2
@@ -46,16 +46,16 @@ def test_stored_password_is_argon2id_and_not_readable(read_user):
     assert not user.check_password(TEST_PASSWORD + "x")
 
 
-def test_password_of_14_characters_is_rejected():
-    """REQ-016: una clave de 14 caracteres se rechaza (mínimo de 15)."""
+def test_password_of_7_characters_is_rejected():
+    """REQ-016: una clave de 7 caracteres se rechaza (mínimo de 8)."""
     with pytest.raises(ValidationError):
-        validate_password("abcdefghijklmn")
+        validate_password("abcdefg")
 
 
 @pytest.mark.parametrize(
-    "password", ["abcdefghijklmno", "aaaaaaaaaaaaaaa", "123456789012345"]
+    "password", ["abcdefgh", "aaaaaaaa", "12345678"]
 )
-def test_password_of_15_characters_is_accepted_without_composition_rules(password):
-    """REQ-016: 15 caracteres alcanzan; no se exigen mayúsculas, números ni símbolos,
+def test_password_of_8_characters_is_accepted_without_composition_rules(password):
+    """REQ-016: 8 caracteres alcanzan; no se exigen mayúsculas, números ni símbolos,
     ni se rechazan claves solo numéricas."""
     validate_password(password)

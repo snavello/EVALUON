@@ -27,7 +27,9 @@ Las diez partes del ADR-0004, en este orden:
    como la página 45 del anexo de la 247/2022). `pages` (total y no leídas, de la
    lectura) se conserva como estaba: lo usan la carga y su registro.
 4. **Unidades reconocidas** (`units`, `sequence`, `doubtful_headings`,
-   `uppercase_in_units`, `after_last_inciso`, `inciso_key_taken`, `ocr_inciso_gaps`;
+   `uppercase_in_units`, `after_last_inciso`, `presenting_inciso` (T-043: últimos
+   incisos que terminan en dos puntos y se llevaron los párrafos que les siguen),
+   `inciso_key_taken`, `ocr_inciso_gaps`;
    este último, de T-028: incisos de una lectura de reconocimiento que saltan letras de
    su lista o que empiezan con una marca mal leída): cantidad por tipo y
    por contenedor (el visto se cuenta aparte en el texto, en `visto`), primer
@@ -201,6 +203,7 @@ def build_report(
     after_last_inciso=(),
     inciso_key_taken=(),
     ocr_inciso_gaps=(),
+    presenting_inciso=(),
     canonical_sha256=None,
     document_info=None,
 ):
@@ -288,6 +291,11 @@ def build_report(
         # distingue sangrías, así que pueden ser del inciso o de la unidad que lo
         # contiene, donde quedaron. Clave del inciso, unidad donde quedaron y cuántos.
         "after_last_inciso": list(after_last_inciso),
+        # Últimos incisos que terminan en dos puntos y se llevaron los párrafos que les
+        # siguen (T-043): clave, cuántos párrafos y página del primero. Se señalan para
+        # que quien valida compruebe que esos párrafos son del inciso y no de la unidad
+        # que contiene la lista.
+        "presenting_inciso": list(presenting_inciso),
         # Encabezados de inciso que no se abrieron en su nivel porque la clave ya existía
         # (T-050): la etiqueta, la clave tomada y la clave con que quedaron, vacía si no
         # abrieron una unidad.
@@ -631,6 +639,18 @@ def attention_items(report):
             + ".",
         )
 
+    presenting = report.get("presenting_inciso") or []
+    if presenting:
+        add(
+            "presenting_inciso",
+            f"{_plural(len(presenting), 'último inciso termina', 'últimos incisos terminan')} "
+            "en dos puntos y se "
+            f"{_verb(len(presenting), 'llevó', 'llevaron')} los párrafos que le siguen; "
+            "revise que sean del inciso y no de la unidad que contiene la lista: "
+            + _limited([located(_presenting_text(p), p["page"]) for p in presenting])
+            + ".",
+        )
+
     taken = report.get("inciso_key_taken") or []
     if taken:
         add(
@@ -970,6 +990,18 @@ def _units_text(report):
                 f"{item['paragraphs']} {stayed} en {item['inside']}"
             )
 
+    presenting = report.get("presenting_inciso") or []
+    if presenting:
+        lines.append(
+            "Últimos incisos que terminan en dos puntos y se llevaron los párrafos que les "
+            f"siguen, para revisar: {len(presenting)}."
+        )
+        for item in presenting:
+            lines.append(
+                f"  - {item['key']}, {_pages(item['page'], item['page'], web)}: "
+                f"se llevó {_plural(item['paragraphs'], 'párrafo', 'párrafos')}"
+            )
+
     taken = report.get("inciso_key_taken") or []
     if taken:
         lines.append(
@@ -991,6 +1023,13 @@ def _units_text(report):
                 f"{_ocr_gap_text(item)}"
             )
     return lines
+
+
+def _presenting_text(item):
+    """`anexo-i/art-14/inc-f se llevó 1 párrafo que sigue a su presentación`."""
+    count = item["paragraphs"]
+    follows = "que sigue" if count == 1 else "que siguen"
+    return f"{item['key']} se llevó {_plural(count, 'párrafo', 'párrafos')} {follows} a su presentación"
 
 
 def _ocr_gap_text(item):

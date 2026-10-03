@@ -459,3 +459,5 @@ Hechos el 2026-10-02 al integrar el plan (`specs/001-normativa/plan.md`). La dec
 ## Actualización por ADR-0006
 
 - **2026-10-02.** La pantalla suma el campo de fecha de autorización del procedimiento y el aviso de modificatorias sin cargar (REQ-020, REQ-021). Los comandos suman `registrar_modificatorias` y las opciones para indicar la parte de una norma y el régimen general; la lista vigente está en el plan 001 actualizado.
+
+- **2026-10-03 · Largo mínimo de clave:** 8 caracteres, decisión del responsable al crear su usuario (la propuesta de 15 le resultó demasiado larga). Se mantiene Argon2id y la ausencia de reglas de composición.
