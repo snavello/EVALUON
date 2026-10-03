@@ -1,0 +1,25 @@
+id: EV-039
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "¿Cuánto puede cobrar la AFIP por el pliego de una licitación?"
+fecha_autorizacion: 2020-02-17
+regimen: "Disposición AFIP 297/03"
+esperado: |
+  La AFIP puede fijar el valor de los pliegos en el acto de autorización del llamado, y ese valor no puede exceder el uno por mil (1 ‰) del monto presunto del contrato.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 28, inciso 1)"}
+origen: |
+  Inciso 1) Costos de los Pliegos. La AFIP podrá fijar el valor de los pliegos en el Acto de Autorización del llamado, el que no excederá del UNO POR MIL (1 ‰) del monto presunto del contrato.
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-28}
+datos_clave: [["1 por mil", "1 ‰"], "monto presunto"]
+difieren: false
+pareja: EV-038
+aviso_modificatorias: true
+etiquetas: ["dos fechas"]
+visto_bueno: "responsable del proyecto, 2026-10-03 (piloto, ADR-0015); pendiente de confirmación de la Comisión (feature 009)"
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  Par de REQ-020 con EV-038. Las dos variantes del tope salen del origen: "UNO POR MIL" queda "1 por mil" para el corrector, y "(1 ‰)". Aquí la cifra en palabras y la cifra en número coinciden. Texto de 2003 sin modificatorias cargadas.

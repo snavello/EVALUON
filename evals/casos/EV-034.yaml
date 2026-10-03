@@ -1,0 +1,28 @@
+id: EV-034
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Cuál es el plazo mínimo para que los interesados formulen observaciones al proyecto de pliego de bases y condiciones particulares?"
+fecha_autorizacion: 2023-01-03
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  Cuando la complejidad o el monto lo justifiquen y se abre la etapa previa para recibir observaciones al proyecto de pliego, el plazo para recibirlas es de diez (10) días corridos como mínimo, contados desde la última fecha de publicación del llamado en el Boletín Oficial, donde se publica por dos (2) días.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 30"}
+origen: |
+  ARTÍCULO 30.- OBSERVACIONES AL PROYECTO DE PLIEGO DE BASES Y CONDICIONES PARTICULARES. Cuando la complejidad o el monto de la contratación lo justifiquen, el titular de la unidad con capacidad de contratación podrá autorizar la apertura de una etapa previa a la convocatoria para recibir observaciones al proyecto de pliego de bases y condiciones particulares.
+  El llamado para la recepción de las observaciones se publicará por DOS (2) días en el Boletín Oficial de la República Argentina.
+  [...]
+  El plazo para recibir tales observaciones será de DIEZ (10) días corridos, como mínimo, contados desde la última fecha de publicación en el Boletín Oficial de la República Argentina.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-30}
+datos_clave: ["10 días corridos", "Boletín Oficial"]
+difieren: false
+pareja: EV-035
+aviso_modificatorias: false
+etiquetas: ["dos fechas"]
+visto_bueno: "responsable del proyecto, 2026-10-03 (piloto, ADR-0015); pendiente de confirmación de la Comisión (feature 009)"
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  Par de REQ-020 con EV-035: la misma pregunta bajo la 297/03, que da otro plazo (5 días). Fecha al día siguiente del primer día de la 247/2022.

@@ -1,0 +1,27 @@
+id: EV-048
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Cómo se integra la comisión de recepción?"
+fecha_autorizacion: 2024-07-01
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  En cada unidad con capacidad de contratación funciona una comisión de recepción. Su integración, sus condiciones de funcionamiento y los criterios de designación de sus miembros quedan sujetos a la reglamentación que se dicte: el anexo de la Disposición 247/2022 no fija la integración. Sus integrantes no pueden ser funcionarios que hubieran intervenido en el procedimiento de contratación respectivo.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 73"}
+origen: |
+  ARTÍCULO 73.- COMISIONES DE RECEPCIÓN. En cada unidad con capacidad de contratación funcionará una comisión de recepción cuya integración y condiciones de funcionamiento en general, así como los criterios de designación de sus miembros, quedarán sujetos a la reglamentación que se dicte.
+  Los integrantes de dicha comisión no podrán ser funcionarios que hubieran intervenido en el procedimiento de contratación respectivo.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-73}
+datos_clave: ["reglamentación"]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["remisión a norma no cargada"]
+visto_bueno: "responsable del proyecto, 2026-10-03 (piloto, ADR-0015); pendiente de confirmación de la Comisión (feature 009)"
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  Remisión a una norma no cargada (ADR-0015; plan, "Remisión a una norma no cargada"). Es la remisión que señaló el aviso de T-064 en tasks.md: la integración de la comisión de recepción queda "sujeta a la reglamentación que se dicte", que no está cargada. Una abstención es incorrecta. Una respuesta que dé una integración (por ejemplo, "tres miembros", como la comisión de recepción de la 297/03) es incorrecta aunque cumpla el dato clave: lo controla la revisión humana de los casos de remisión. No se pide que diga quiénes no pueden integrarla: está en el esperado, no en los datos clave.
+  No se armó par con la 297/03: su comisión de recepción está en un artículo que ya usa el lote de ajuste.

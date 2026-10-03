@@ -218,6 +218,136 @@ No se usó el ejemplo de referencia ("¿Qué plazo tiene la AFIP para pagar una 
 - Aprueba las dos preguntas de control nuevas, EV-032 (capacitación del área de compras, 297/03) y EV-033 (rotación de puestos, 247/2022), que esperan "no determinado".
 - Aprueba vincular EV-022 (297/03, 2008) y EV-028 (247/2022, 2024) como par de REQ-020: la misma pregunta, "¿Cómo se integra la Comisión Evaluadora?", con un régimen distinto en cada fecha. Los dos casos llevan `pareja` y la etiqueta "dos fechas".
 
+## Lote de aceptación (ADR-0014, T-061)
+
+**Propuesta de T-061, para el visto bueno del responsable en el pull request.** Casos EV-034 a EV-056, todos con `lote: aceptacion`. De este lote salen la respuesta correcta y la abstención que se exigen para aceptar (el 85 % y el 90 % de T-046). No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida (plan, "Evals", "Lote de aceptación").
+
+- **Redacción:** 2026-10-03, en nombre del Coordinador.
+- **Escrito sin correr el sistema.** Nadie hizo estas preguntas, ni otras parecidas, en la pantalla, con `ask` ni con `correr_evals`. No se abrió `evals/corridas/` ni las secciones de resultados de `specs/001-normativa/entorno.md`. Cada pregunta y su respuesta esperada salen solo del texto de las normas en `corpus/normativa/`, y cada `origen` lo transcribe.
+- **Visto bueno:** los 23 casos tienen el visto bueno del responsable del 2026-10-03 (ver "Visto bueno del responsable sobre el lote de aceptación"); hasta entonces llevaban "pendiente" y no se corrían. La revisión de la Comisión queda pendiente para antes de usar el sistema fuera del piloto.
+
+### Composición
+
+| Grupo | Casos | Cantidad |
+|---|---|---|
+| Con respuesta en la 247/2022 (fecha desde 2023-01-02) | EV-034, EV-036, EV-038, EV-040 a EV-045 | 9 |
+| Con respuesta en la 297/03 (fecha hasta 2023-01-01) | EV-035, EV-037, EV-039, EV-046, EV-047 | 5 |
+| Remisión a una norma no cargada, con respuesta (ADR-0015) | EV-048 y EV-049 (247/2022); EV-050 (297/03) | 3 |
+| Sin respuesta, ajena a la normativa | EV-051 y EV-053 (247/2022); EV-052 (297/03) | 3 |
+| Sin respuesta, tema cercano que la normativa no resuelve | EV-054 (247/2022); EV-055 y EV-056 (297/03) | 3 |
+| **Total** | | **23** |
+
+- Pares de REQ-020: EV-034 y EV-035; EV-036 y EV-037; EV-038 y EV-039; EV-049 y EV-050 (un par de remisión). En los dos primeros y en el tercero la respuesta cambia con el régimen; en el de remisión las dos normas remiten al régimen jurisdiccional, cada una con su cita.
+- `aviso_modificatorias` verdadero: los 6 casos con respuesta en la 297/03 (EV-035, EV-037, EV-039, EV-046, EV-047, EV-050). Falso: todos los demás, también los sin respuesta con fecha bajo la 297/03.
+- Medida: 17 preguntas con respuesta (14 sin remisión y 3 de remisión) y 6 sin respuesta. Con ese tamaño, 17 de 17 da un intervalo de Wilson al 95 % de 81,6 % a 100 %, y 6 de 6, de 61,0 % a 100 % (plan, "Margen de error").
+
+### Casos
+
+| Id | Pregunta (resumida) | Régimen | Fecha | Esperado (resumido) | Cita | Pareja | Tipo sin respuesta |
+|---|---|---|---|---|---|---|---|
+| EV-034 | Plazo mínimo para observar el proyecto de pliego | 247/2022 | 2023-01-03 | 10 días corridos desde la última publicación en el Boletín Oficial | Anexo, art. 30 | EV-035 | |
+| EV-035 | Plazo mínimo para observar el proyecto de pliego | 297/03 | 2023-01-01 | No inferior a 5 días | Anexo I, art. 27 | EV-034 | |
+| EV-036 | Qué se hace si dos ofertas empatan | 247/2022 | 2025-04-14 | Preferencias de la normativa vigente; mejora de precios; sorteo público | Anexo, art. 56 | EV-037 | |
+| EV-037 | Qué se hace si dos ofertas empatan | 297/03 | 2013-10-21 | Mejora de precios; sorteo público | Anexo I, art. 51 | EV-036 | |
+| EV-038 | Cuánto se puede cobrar por el pliego | 247/2022 | 2024-05-20 | Costo de reproducción; no se devuelve | Anexo, art. 27 b) 2 | EV-039 | |
+| EV-039 | Cuánto se puede cobrar por el pliego | 297/03 | 2020-02-17 | Hasta el uno por mil (1 ‰) del monto presunto | Anexo I, art. 28 inc. 1) | EV-038 | |
+| EV-040 | Cuándo ya no se puede penalizar a un proveedor | 247/2022 | 2024-08-05 | 5 años desde la causal (prescripción) | Anexo, art. 91 | | |
+| EV-041 | Cuándo se presume que se partió una compra | 247/2022 | 2023-06-20 | Desdoblamiento: otra convocatoria por lo mismo dentro de 3 meses | Anexo, art. 29 | | |
+| EV-042 | Plazo de responsabilidad por vicios ocultos | 247/2022 | 2026-01-19 | 1 año desde la conformidad definitiva (inmuebles, 3 años) | Anexo, art. 78 | | |
+| EV-043 | ¿Se puede rechazar la orden de compra? | 247/2022 | 2025-10-06 | Sí, dentro de 3 días, con pérdida de la garantía de oferta | Anexo, art. 60 | | |
+| EV-044 | Muestras que el oferente no retira | 247/2022 | 2024-02-26 | 60 días corridos; renuncia tácita a favor de la AFIP | Anexo, art. 28 | | |
+| EV-045 | ¿Garantía con pagaré? | 247/2022 | 2023-11-13 | Sí, pagaré a la vista si la garantía no supera M 260 | Anexo, art. 65 g) | | |
+| EV-046 | Duración de la suspensión como sanción | 297/03 | 2017-06-05 | Hasta 6 meses | Anexo I, art. 56 b) 2 | | |
+| EV-047 | ¿Se puede adjudicar al actual locador si no es el más barato? | 297/03 | 2006-09-11 | Sí, si no supera en más de 10 % a la menor y hay razones de funcionamiento | Anexo I, art. 61 inc. 2) | | |
+| EV-048 | Integración de la comisión de recepción | 247/2022 | 2024-07-01 | Remisión: sujeta a la reglamentación que se dicte (no cargada); sin integración | Anexo, art. 73 | | |
+| EV-049 | Monto máximo del trámite simplificado | 247/2022 | 2025-12-01 | Remisión: el del régimen jurisdiccional vigente (no cargado); sin cifra | Anexo, art. 22 | EV-050 | |
+| EV-050 | Monto máximo del trámite simplificado | 297/03 | 2011-03-14 | Remisión: el del Régimen Jurisdiccional vigente (no cargado); sin cifra | Anexo I, art. 22 | EV-049 | |
+| EV-051 | Monto del salario mínimo, vital y móvil | 247/2022 | 2024-10-15 | No determinado | — | | Ajena a la normativa |
+| EV-052 | Documentación para tramitar el pasaporte | 297/03 | 2009-07-06 | No determinado | — | | Ajena a la normativa |
+| EV-053 | Velocidad máxima en autopista | 247/2022 | 2026-03-09 | No determinado | — | | Ajena a la normativa |
+| EV-054 | Viáticos diarios de un agente de compras que viaja | 247/2022 | 2023-09-25 | No determinado | — | | Tema cercano que la normativa no resuelve |
+| EV-055 | Frecuencia de encuestas de satisfacción a las áreas requirentes | 297/03 | 2016-11-28 | No determinado | — | | Tema cercano que la normativa no resuelve |
+| EV-056 | Días de teletrabajo del personal de compras | 297/03 | 2020-08-10 | No determinado | — | | Tema cercano que la normativa no resuelve |
+
+### Artículos del lote de ajuste que se evitaron
+
+Se tomaron de `unidades`, `cita`, `origen` y `notas` de EV-001 a EV-033 y de este índice:
+
+- Anexo de la 247/2022: arts. 5, 7, 21, 24, 33, 38, 41, 43, 50, 55, 57, 59, 61, 64, 66, 77, 79, 88, 92 y 99. Cuerpo: arts. 2 a 4 (los cita REQ-020).
+- Disposición 297/03: art. 3 de la disposición; Anexo I, arts. 8, 21, 25, 39, 43, 48, 50, 53, 55, 58 y 64.
+
+Los casos nuevos usan otros: anexo de la 247/2022, arts. 22, 27, 28, 29, 30, 56, 60, 65, 73, 78 y 91; Anexo I de la 297/03, arts. 22, 27, 28, 51, 56 y 61. Por eso no se armaron pares con temas que en la 297/03 están en el art. 58 (comisión de recepción, vicios ocultos, plazo de entrega).
+
+### Remisiones
+
+Además de las del lote de ajuste (arts. 21 y 50 del anexo de la 247/2022 y art. 21 del Anexo I de la 297/03), el corpus tiene estas, y el lote usa tres:
+
+- **Anexo de la 247/2022, art. 73 (EV-048):** la integración de la comisión de recepción queda "sujeta a la reglamentación que se dicte". Es la remisión que señalaba el aviso de T-064.
+- **Art. 22 de las dos normas (EV-049 y EV-050):** el monto del trámite simplificado es el del régimen jurisdiccional vigente.
+- **No usadas:** art. 62 del anexo de la 247/2022 (autoridades competentes según el régimen jurisdiccional vigente; el art. 58 dice lo mismo para la adjudicación y un caso con una sola unidad sería ambiguo); art. 52, inciso 1) b) del Anexo I de la 297/03 (licitación privada con menos de 3 ofertas y monto del Régimen Jurisdiccional vigente); otras menciones de "la reglamentación" o "la normativa vigente" (preferencias, garantías, registro de sancionados) que acompañan una regla que sí está en el texto.
+
+En EV-036 (desempate bajo la 247/2022), las preferencias remiten a la normativa vigente, que no está cargada; el resto de la respuesta sí está en el artículo. Una respuesta que diga en qué consisten las preferencias es incorrecta y lo controla la revisión humana, como en los casos de remisión.
+
+### Preguntas sin respuesta: búsquedas
+
+Búsqueda por palabras, sin tildes ni mayúsculas, sobre el texto canónico de la lectura (2026-10-03) del anexo y el cuerpo de la 247/2022 y de la 297/03 con su Anexo I, considerandos incluidos. El detalle de cada búsqueda está en el `origen` del caso.
+
+| Caso | No aparecen | Aparecen con otro sentido |
+|---|---|---|
+| EV-051 | "salario", "minimo vital", "sueldo", "remuneraci", "ingreso minimo", "smvm", "consejo del salario" | — |
+| EV-052 | "pasaporte", "migraci", "documento nacional" | "identidad" (del personal del contratista y de los usuarios), "cedula" (medio de notificación) |
+| EV-053 | "velocidad", "autopista", "kilometr", "km/h", "ruta", "conducir" | "transito" (dentro de "transitorio"), "vehicul" (reparación de vehículos) |
+| EV-054 | "viatic", "pasaje", "alojamiento", "gastos de viaje", "movilidad" | "traslado" (de maquinarias o bienes rechazados), "gastos" (del contratista, caja chica, iniciativa privada), "inspecci" (facultad de inspeccionar al contratista) |
+| EV-055 | "encuesta", "sondeo", "areas requirentes", "evaluacion de desempe", "calidad de la gestion" | "satisfacci" ("a satisfacción de la AFIP"), "area requirente" (acuerdos marco), "opinion" (opinión técnica sobre ofertas y opiniones sobre el proyecto de pliego) |
+| EV-056 | "teletrabajo", "trabajo a distancia", "a distancia", "remoto", "home office", "presencial", "jornada" | "licencia" (contratos de licencias), "horario" (consulta del pliego), "oficina" (del contratista o de pagos) |
+
+Se descartaron por zona gris (la norma menciona el tema sin resolverlo): caja chica (excluida del régimen), preferencias a pymes (remite a la normativa vigente), conservación de expedientes (remite a la normativa vigente), sustentabilidad y género (art. 98 del anexo), anticipos financieros (solo la contragarantía), designación del titular de la unidad de compras, plantel mínimo de la unidad con capacidad de contratación.
+
+### Comprobado
+
+En un contenedor aparte (proyecto `evaluon-t061`), sin consultar al sistema, solo con la lectura de casos, el corrector y la lectura y partición de las normas:
+
+- `load_cases` sobre `evals/casos/`: los 33 casos del lote de ajuste corren; los 23 nuevos quedaban sin correr por visto bueno pendiente hasta el visto bueno del responsable; ninguno mal formado.
+- Con visto bueno provisorio en una copia temporal: `load_cases` lee los 56 casos sin ninguno mal formado; los 23 nuevos salen con `lot == "aceptacion"` y los 33 anteriores con `lot == "ajuste"`. El régimen de cada caso es el de su fecha, `aviso_modificatorias` es verdadero solo en los casos con respuesta de la 297/03, y cada par tiene la misma pregunta, `pareja` recíproca y normas distintas.
+- Cada clave de `unidades` de los casos nuevos existe en la partición de su norma, y ninguna figura en los casos del lote de ajuste (intersección vacía).
+- Con su propio `esperado` como única afirmación, los 17 casos con respuesta cumplen sus datos clave. Una respuesta contraria plausible (otro plazo, otro porcentaje, otra polaridad; en los de remisión, "El monto máximo no está establecido." o una integración inventada) no los cumple, y "no determinado" tampoco.
+- El `origen` de los 17 casos con respuesta aparece tal cual en el texto extraído de su norma (salvo espacios y saltos de línea).
+
+### Para el visto bueno del responsable
+
+Una fila por caso. Al aprobar, el caso pasa de `visto_bueno: "pendiente"` a "responsable del proyecto, AAAA-MM-DD (piloto, ADR-0015)".
+
+| Caso | Pregunta | Respuesta esperada (resumida) | Cita | ¿La aprobás? sí/no |
+|---|---|---|---|---|
+| EV-034 | ¿Cuál es el plazo mínimo para que los interesados formulen observaciones al proyecto de pliego de bases y condiciones particulares? (2023-01-03) | 10 días corridos como mínimo, desde la última publicación en el Boletín Oficial | 247/2022, anexo, art. 30 | |
+| EV-035 | La misma (2023-01-01) | No inferior a 5 días | 297/03, Anexo I, art. 27 | |
+| EV-036 | ¿Qué se hace cuando dos ofertas quedan empatadas? (2025) | Preferencias de la normativa vigente; si sigue, mejora de precios; si sigue, sorteo público | 247/2022, anexo, art. 56 | |
+| EV-037 | La misma (2013) | Mejora de precios; si sigue, sorteo público | 297/03, Anexo I, art. 51 | |
+| EV-038 | ¿Cuánto puede cobrar la AFIP por el pliego de una licitación? (2024) | Una suma equivalente al costo de reproducción, que no se devuelve | 247/2022, anexo, art. 27 b) 2 | |
+| EV-039 | La misma (2020) | Hasta el uno por mil (1 ‰) del monto presunto del contrato | 297/03, Anexo I, art. 28 inc. 1) | |
+| EV-040 | ¿Pasado cuánto tiempo la AFIP ya no puede aplicarle una penalidad a un proveedor? | 5 años desde la causal | 247/2022, anexo, art. 91 | |
+| EV-041 | ¿Cuándo se presume que una unidad partió la compra de manera indebida? | Si en 3 meses desde la autorización hace otra convocatoria por los mismos bienes sin justificación (desdoblamiento) | 247/2022, anexo, art. 29 | |
+| EV-042 | ¿Durante cuánto tiempo responde el contratista por los vicios ocultos? | 1 año desde la conformidad definitiva (el pliego puede fijar otro, no menor a 6 meses; inmuebles, 3 años) | 247/2022, anexo, art. 78 | |
+| EV-043 | ¿El adjudicatario puede rechazar la orden de compra después de que se la notifican? | Sí, dentro de 3 días, con pérdida de la garantía de mantenimiento de oferta | 247/2022, anexo, art. 60 | |
+| EV-044 | ¿Qué pasa con las muestras que un oferente nunca pasa a buscar? | A los 60 días corridos de notificado, renuncia tácita a favor de la AFIP | 247/2022, anexo, art. 28 | |
+| EV-045 | ¿Un oferente puede constituir la garantía con un pagaré? | Sí, pagaré a la vista, si la garantía no supera M 260; no combinable | 247/2022, anexo, art. 65 g) | |
+| EV-046 | ¿Por cuánto tiempo puede la AFIP suspender a un proveedor como sanción? | Hasta 6 meses | 297/03, Anexo I, art. 56 b) 2 | |
+| EV-047 | ¿Se puede adjudicar al actual locador aunque su oferta no sea la más baja? | Sí, si no supera en más de 10 % a la menor admisible y hay razones de funcionamiento fundadas | 297/03, Anexo I, art. 61 inc. 2) | |
+| EV-048 | ¿Cómo se integra la comisión de recepción? | Remisión: queda sujeta a la reglamentación que se dicte; no pueden integrarla quienes intervinieron en el procedimiento | 247/2022, anexo, art. 73 | |
+| EV-049 | ¿Hasta qué monto se puede usar el trámite simplificado? (2025) | Remisión: el que fije el régimen jurisdiccional vigente, sin cifra | 247/2022, anexo, art. 22 | |
+| EV-050 | La misma (2011) | Remisión: el que fije el Régimen Jurisdiccional vigente, sin cifra | 297/03, Anexo I, art. 22 | |
+| EV-051 | ¿Cuál es el monto del salario mínimo, vital y móvil? | No determinado (ajena) | — | |
+| EV-052 | ¿Qué documentación hay que presentar para tramitar el pasaporte? | No determinado (ajena) | — | |
+| EV-053 | ¿Cuál es la velocidad máxima permitida en una autopista? | No determinado (ajena) | — | |
+| EV-054 | ¿Qué monto diario de viáticos le corresponde a un agente de compras que viaja por una contratación? | No determinado (tema cercano) | — | |
+| EV-055 | ¿Cada cuánto tiene que hacer la unidad de compras una encuesta de satisfacción a las áreas requirentes? | No determinado (tema cercano) | — | |
+| EV-056 | ¿Cuántos días por semana pueden teletrabajar los agentes del área de compras? | No determinado (tema cercano) | — | |
+
+### Visto bueno del responsable sobre el lote de aceptación (2026-10-03)
+
+- El responsable aprobó los 23 casos (EV-034 a EV-056), en tres grupos: 14 con respuesta, 3 de remisión y 6 sin respuesta. Se le mostraron con la tabla pregunta / respuesta esperada / cita.
+- Todas las preguntas del conjunto (lote de ajuste y lote de aceptación) quedan acumuladas para que la Comisión Evaluadora las confirme en la feature 009 (ADR-0015, ADR-0016). Hasta entonces, el visto bueno es el del responsable para el piloto.
+
 ### EV-003: "término igual" (decisión del responsable, 2026-10-03)
 
 - En la corrida de T-063 (`2026-10-03T165105_d5b96d4_…`) el sistema respondió "puede ser prorrogado por un término igual". El responsable confirmó que "igual término", "período igual" y "término igual" dicen lo mismo, y se suma "término igual" como variante. La variante sale de una respuesta del sistema y se le mostró con la respuesta completa.

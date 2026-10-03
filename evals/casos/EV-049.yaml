@@ -1,0 +1,28 @@
+id: EV-049
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Hasta qué monto se puede usar el trámite simplificado?"
+fecha_autorizacion: 2025-12-01
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  El trámite simplificado puede usarse en las contrataciones directas y en las licitaciones privadas cuando el monto estimado no supere el establecido para este supuesto en el régimen jurisdiccional vigente, y el procedimiento es válido cuando el monto total a adjudicar no supera el máximo fijado para su encuadre según ese régimen. El anexo de la Disposición 247/2022 no fija el monto: remite al régimen jurisdiccional vigente.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 22"}
+origen: |
+  ARTÍCULO 22.- TRÁMITE SIMPLIFICADO. Podrá utilizarse este trámite en las contrataciones directas y en las licitaciones privadas cuando el monto estimado no supere el establecido para este supuesto en el régimen jurisdiccional vigente.
+  [...]
+  El procedimiento de selección será válido cuando el monto total a adjudicar no supere el máximo fijado para su encuadre según el régimen jurisdiccional vigente.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-22}
+datos_clave: ["régimen jurisdiccional"]
+difieren: false
+pareja: EV-050
+aviso_modificatorias: false
+etiquetas: ["remisión a norma no cargada", "dos fechas"]
+visto_bueno: "responsable del proyecto, 2026-10-03 (piloto, ADR-0015); pendiente de confirmación de la Comisión (feature 009)"
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  Remisión a una norma no cargada (ADR-0015). El monto está en el régimen jurisdiccional vigente, que no está cargado. Una abstención es incorrecta. Una respuesta que dé una cifra, en pesos o en módulos, es incorrecta aunque cumpla el dato clave: lo controla la revisión humana de los casos de remisión.
+  Par de REQ-020 con EV-050 (la misma pregunta bajo la 297/03, que también remite al Régimen Jurisdiccional vigente): las dos respuestas dicen lo mismo, pero cada una cita su norma.

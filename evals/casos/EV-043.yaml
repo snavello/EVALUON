@@ -1,0 +1,27 @@
+id: EV-043
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿El adjudicatario puede rechazar la orden de compra después de que se la notifican?"
+fecha_autorizacion: 2025-10-06
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  Sí. El contrato queda perfeccionado al notificarse la orden de compra, y el contratista puede rechazarla dentro de los tres (3) días de su perfeccionamiento, con la pérdida de la garantía de mantenimiento de oferta o monto equivalente y las sanciones que correspondan según la reglamentación. En ese caso la autoridad competente puede adjudicar al oferente que sigue en orden de mérito.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 60"}
+origen: |
+  ARTÍCULO 60.- PERFECCIONAMIENTO DEL CONTRATO. Los contratos quedarán perfeccionados al momento de notificarse la orden de compra o de venta al adjudicatario, o en oportunidad de suscribirse aquellos.
+  [...]
+  El contratista podrá rechazar la orden de compra o venta dentro de los TRES (3) días de su perfeccionamiento, sin perjuicio de la pérdida de la garantía de mantenimiento de oferta o monto equivalente y las sanciones que por tal motivo pudieran corresponder de acuerdo con lo que establezca la reglamentación. La autoridad competente, según el régimen jurisdiccional vigente, podrá adjudicar el contrato al oferente que siga en orden de mérito y así sucesivamente.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-60}
+datos_clave: [["sí", "puede rechazar", "podrá rechazar"], "3 días", ["pérdida de la garantía", "pierde la garantía"]]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: []
+visto_bueno: "responsable del proyecto, 2026-10-03 (piloto, ADR-0015); pendiente de confirmación de la Comisión (feature 009)"
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  Pregunta de "¿puede…?": el "sí" lleva variantes escritas ("puede rechazar" del esperado, "podrá rechazar" del origen), porque la respuesta puede no empezar con "Sí". "pierde la garantía" es una forma del mismo dato que la respuesta puede usar; la del origen es "pérdida de la garantía". El mismo plazo de tres días aparece entre las penalidades del anexo, pero el caso exige solo este artículo.

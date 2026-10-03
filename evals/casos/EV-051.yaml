@@ -1,0 +1,21 @@
+id: EV-051
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf, normativa/disp-afip-247-2022-original.htm, normativa/disp-afip-297-2003-original.htm]
+pregunta: "¿Cuál es el monto del salario mínimo, vital y móvil?"
+fecha_autorizacion: 2024-10-15
+regimen: "Disposición AFIP 247/2022"
+esperado: "no determinado"
+cita: []
+origen: |
+  Pregunta ajena a la normativa de compras: ninguna norma cargada trata el salario mínimo ni remite a otra norma sobre él. Búsqueda por palabras, sin tildes ni mayúsculas, sobre el texto canónico de la lectura de la Disposición AFIP 247/2022 (cuerpo y anexo) y de la Disposición AFIP 297/03 con su Anexo I (2026-10-03): "salario", "minimo vital", "sueldo", "remuneraci", "ingreso minimo", "smvm" y "consejo del salario" no aparecen.
+unidades: []
+datos_clave: []
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["ajena a la normativa"]
+visto_bueno: "responsable del proyecto, 2026-10-03 (piloto, ADR-0015); pendiente de confirmación de la Comisión (feature 009)"
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 sin correr el sistema. No se usa nunca para ajustar ni entra en la calibración del umbral, aunque lleve la etiqueta de ajena.
