@@ -352,3 +352,7 @@ Una fila por caso. Al aprobar, el caso pasa de `visto_bueno: "pendiente"` a "res
 
 - En la corrida de T-063 (`2026-10-03T165105_d5b96d4_…`) el sistema respondió "puede ser prorrogado por un término igual". El responsable confirmó que "igual término", "período igual" y "término igual" dicen lo mismo, y se suma "término igual" como variante. La variante sale de una respuesta del sistema y se le mostró con la respuesta completa.
 - La consecuencia de no integrar la garantía (rescisión y penalidad), que trae el `esperado`, no se exige como dato clave: la pregunta es por el plazo (decisión del responsable).
+
+### EV-004: "no será necesario" (decisión del responsable, 2026-10-03)
+
+- En las corridas 2 y 3 de T-046 el sistema respondió "No será necesario…" en lugar de "No es necesario…". El responsable confirmó que dicen lo mismo y se suma "no será necesario" como variante, para que el caso quede estable entre repeticiones. La variante sale de una respuesta del sistema y se le mostró con las dos redacciones.
