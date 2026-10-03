@@ -79,8 +79,8 @@ def test_case_with_another_question_or_date_is_not_rescorable(read_user, saved_r
     assert "pregunta" in not_rescorable["EV-872"].reason
     assert "fecha" in not_rescorable["EV-874"].reason
     assert {line["id"] for line in report.results} == {"EV-871", "EV-873"}
-    assert (report.measures["correct_answer"]["ok"],
-            report.measures["correct_answer"]["total"]) == (1, 1)
+    assert (report.adjustment_measures["correct_answer"]["ok"],
+            report.adjustment_measures["correct_answer"]["total"]) == (1, 1)
     rows = {row["id"]: row for row in results_of(report.folder)}
     assert rows["EV-872"]["skipped"] == evaluation.NOT_RESCORABLE
     summary = (report.folder / "resumen.md").read_text(encoding="utf-8")

@@ -21,7 +21,21 @@ datos_clave:               # lo que la respuesta tiene que contener; vacío si n
   - "30 días"                                  # un texto: el dato tiene una sola forma
   - ["acto de apertura", "fecha de apertura"]  # una lista: variantes del mismo dato
   - ["no", "sin posibilidad"]                  # un "no" y otra forma que el caso prevé
+lote: aceptacion           # optativo: ajuste o aceptacion; sin el campo, ajuste
 ```
+
+## Lote de aceptación
+
+ADR-0014, punto 1; detalle en el plan de la 001, sección "Evals", "Lote de aceptación".
+
+- Los casos se dividen en dos lotes con el campo `lote`: `ajuste` o `aceptacion` (sin tildes ni mayúsculas, se acepta también `Aceptación`). Un caso sin el campo es del lote de ajuste; cualquier otro valor deja el caso mal formado y no se corre.
+- **Lote de ajuste:** EV-001 a EV-031 y todo caso sin `lote` o con `lote: ajuste`. Se usa para ajustar el corrector, los datos clave, el umbral y las instrucciones, y para el diagnóstico.
+- **Lote de aceptación:** los casos con `lote: aceptacion`. De él salen la respuesta correcta y la abstención que se exigen para aceptar. Condiciones:
+  - al menos 10 preguntas con respuesta y 6 sin respuesta, con los dos tipos de pregunta sin respuesta ("ajena a la normativa" y "tema cercano que la normativa no resuelve");
+  - se escribe sin correr el sistema: nadie hace esas preguntas, ni otras parecidas, en la pantalla ni con un comando antes de su primera corrida;
+  - trata artículos que el lote de ajuste no usa;
+  - no se usa nunca para ajustar. Si se usa, pierde su condición: con decisión del responsable, sus casos pasan a `lote: ajuste` y se escribe un lote nuevo.
+- `resumen.md` informa los dos lotes por separado, cada medida con su margen de error (intervalo de Wilson al 95 %), y los casos fallados del lote de aceptación aparte.
 
 ## Datos clave
 

@@ -133,11 +133,14 @@ def test_four_synthetic_cases_give_the_expected_measures(
     assert measures["literal_citation"]["ok"] == 2
     assert measures["literal_citation"]["total"] == 2
     assert measures["literal_citation"]["meets"] is True
-    assert (measures["correct_answer"]["ok"], measures["correct_answer"]["total"]) == (1, 2)
-    assert measures["correct_answer"]["rate"] == 0.5
-    assert measures["correct_answer"]["meets"] is False
-    assert (measures["abstention"]["ok"], measures["abstention"]["total"]) == (1, 2)
-    assert measures["abstention"]["meets"] is False
+    # Los casos no traen `lote`: son del lote de ajuste, que se informa aparte (T-060).
+    adjustment = report.adjustment_measures
+    assert (adjustment["correct_answer"]["ok"],
+            adjustment["correct_answer"]["total"]) == (1, 2)
+    assert adjustment["correct_answer"]["rate"] == 0.5
+    assert adjustment["correct_answer"]["meets"] is False
+    assert (adjustment["abstention"]["ok"], adjustment["abstention"]["total"]) == (1, 2)
+    assert adjustment["abstention"]["meets"] is False
     assert measures["response_time"]["median"] == 2.5
     assert measures["response_time"]["max"] == 8
     assert measures["response_time"]["meets"] is True
@@ -158,7 +161,7 @@ def test_right_unit_with_the_wrong_regime_is_incorrect(
     assert line["measures"]["checks"]["units"] is True
     assert line["measures"]["checks"]["regime"] is False
     assert line["measures"]["correct"] is False
-    assert report.measures["correct_answer"]["ok"] == 0
+    assert report.adjustment_measures["correct_answer"]["ok"] == 0
 
 
 # --- Pares de REQ-020 ------------------------------------------------------------------
@@ -714,10 +717,10 @@ def test_refused_case_stays_in_the_measures(read_user, two_regimes, scripted, tm
     assert lines["EV-901"]["status"] == evaluation.REFUSED
     assert lines["EV-901"]["measures"]["correct"] is False
     assert lines["EV-903"]["measures"]["abstained"] is False
-    assert (report.measures["correct_answer"]["ok"],
-            report.measures["correct_answer"]["total"]) == (0, 1)
-    assert (report.measures["abstention"]["ok"],
-            report.measures["abstention"]["total"]) == (0, 1)
+    assert (report.adjustment_measures["correct_answer"]["ok"],
+            report.adjustment_measures["correct_answer"]["total"]) == (0, 1)
+    assert (report.adjustment_measures["abstention"]["ok"],
+            report.adjustment_measures["abstention"]["total"]) == (0, 1)
     assert report.skipped == []
     summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
     failed = summary.split("## Casos fallados")[1]

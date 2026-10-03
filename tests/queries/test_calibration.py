@@ -1,16 +1,19 @@
-"""Calibración del umbral del reranker (T-042; plan 001, "Abstención", pasos 1 y 2;
-decisión del Coordinador en la verificación de T-042).
+"""Calibración del umbral del reranker con la regla del hueco (T-060; ADR-0014, punto 2;
+plan 001, "Abstención", "Calibración del umbral").
 
-El umbral propuesto es el más alto que, dejando cada vez una pregunta afuera, frena por
-error a lo sumo el 5 % de las preguntas con respuesta: se elige la posición `k` más alta
-de los puntajes ordenados cuya estimación dejando una afuera no pasa del 5 %, y el
-umbral es el puntaje en esa posición del conjunto completo, redondeado hacia abajo. Se
-informa también la regla anterior (`k = piso(5 % de n)` sin dejar ninguna afuera). El
-valor es provisorio y no cambia `settings.py`; es uno solo para los dos regímenes y cada
-pregunta se corre con su fecha.
+Entran solo las preguntas del lote de ajuste: las con respuesta que llegaron a
+puntuarse y las sin respuesta con la etiqueta "ajena a la normativa" que llegaron a
+puntuarse; las de "tema cercano que la normativa no resuelve" no entran. `A` es la ajena
+más alta y `B` la pregunta con respuesta más baja; cada puntaje se acota entre 10⁻⁹ y
+1 − 10⁻⁹ y se pasa a `logit`. Hay hueco si `logit(B) > logit(A)`; el umbral es la
+sigmoide del punto medio, redondeada hacia abajo a tres decimales, y el margen es la
+mitad del hueco, con un mínimo de 0,5. El valor es provisorio y no cambia `settings.py`.
 
-Los puntajes son preparados a mano o salen de casos sintéticos (P4) respondidos con los
-dobles de los clientes de IA.
+Los puntajes de la corrida de T-045 están copiados a mano de
+`evals/corridas/2026-10-03T132016_8ad46e6_gemma-4-12b-it-qat-q4_0/` (los más altos de
+cada pregunta; los demás con respuesta, entre 0,984 y 1,000). Los otros puntajes son
+sintéticos, o salen de casos sintéticos (P4) respondidos con los dobles de los clientes
+de IA.
 """
 
 import pytest
@@ -21,139 +24,219 @@ from evaluon.queries import evaluation
 
 from tests.queries.test_evaluation import FIXTURES
 
-# Veinte preguntas con respuesta.
-ANSWERED_20 = [0.31, 0.42, 0.55, 0.61, 0.66, 0.70, 0.72, 0.75, 0.78, 0.80,
-               0.81, 0.83, 0.85, 0.87, 0.88, 0.90, 0.92, 0.94, 0.96, 0.98]
-UNANSWERED = [0.05, 0.20, 0.45, 0.60]
+FOREIGN = "ajena a la normativa"
+NEAR = "tema cercano que la normativa no resuelve"
 
-# Conjunto del testeador de la verificación de T-042 (`calib_manual.py`): 25 con
-# respuesta, 6 sin respuesta. Puntajes sintéticos.
-TESTER_ANSWERED = [0.9123, 0.2871, 0.5555, 0.4419, 0.7766, 0.3302, 0.8888, 0.6011, 0.9501,
-                   0.7012, 0.4419, 0.6634, 0.5021, 0.8150, 0.7300, 0.3998, 0.9900, 0.6200,
-                   0.5876, 0.8432, 0.7745, 0.6873, 0.4567, 0.9210, 0.5302]
-TESTER_UNANSWERED = [0.0512, 0.3300, 0.4419, 0.2009, 0.6500, 0.1234]
-
-
-def entries(answered, unanswered=()):
-    rows = [{"id": f"EV-{i:03d}", "has_answer": True, "max_score": score}
-            for i, score in enumerate(answered, start=1)]
-    rows += [{"id": f"EV-{i:03d}", "has_answer": False, "max_score": score}
-             for i, score in enumerate(unanswered, start=len(answered) + 1)]
-    return rows
+# Corrida de T-045: preguntas con respuesta (24) con su puntaje más alto.
+T045_ANSWERED = {
+    "EV-001": 0.9982, "EV-002": 0.9991, "EV-003": 0.9874, "EV-004": 0.508,
+    "EV-005": 0.9963, "EV-006": 0.9995, "EV-007": 0.748, "EV-008": 0.9840,
+    "EV-009": 0.9978, "EV-010": 1.0, "EV-011": 0.9952, "EV-012": 0.9989,
+    "EV-013": 0.9931, "EV-014": 0.9997, "EV-015": 0.9906, "EV-016": 0.9985,
+    "EV-017": 0.9944, "EV-018": 0.9971, "EV-019": 0.9999, "EV-020": 0.368022,
+    "EV-021": 0.9958, "EV-022": 0.9993, "EV-023": 0.9887, "EV-024": 0.9969,
+}
+T045_FOREIGN = {"EV-025": 0.1195, "EV-026": 0.0218, "EV-030": 0.0032}
+T045_NEAR = {"EV-027": 0.775, "EV-028": 0.988, "EV-029": 0.743}
 
 
-def test_tester_set_of_25_gives_the_lowest_score_with_a_4_percent_estimate():
-    """REQ-009: con las 25 preguntas del testeador, la posición más alta que cumple es
-    k = 0: dejando cada vez una afuera frena solo la de puntaje más bajo, 1 de 25 (4 %);
-    con k = 1 frenaría 2 de 25 (8 %). El umbral es 0,287 (0,2871 redondeado hacia
-    abajo). La regla anterior daba 0,330."""
-    calibration = evaluation.calibrate(entries(TESTER_ANSWERED, TESTER_UNANSWERED),
-                                       current=0.5)
+def entry(case_id, score, *, has_answer=True, labels=(), lot=None):
+    row = {"id": case_id, "has_answer": has_answer, "max_score": score,
+           "labels": list(labels)}
+    if lot is not None:
+        row["lot"] = lot
+    return row
 
-    assert calibration["position"] == 0
-    assert calibration["proposed"] == 0.287
-    assert calibration["meets"] is True
-    loo = calibration["leave_one_out"]
-    assert loo["blocked"] == ["EV-002"]
-    assert (loo["total"], loo["rate"]) == (25, 0.04)
+
+def t045_entries(near_label=NEAR):
+    rows = [entry(case_id, score) for case_id, score in T045_ANSWERED.items()]
+    rows += [entry(case_id, score, has_answer=False, labels=[FOREIGN])
+             for case_id, score in T045_FOREIGN.items()]
+    rows += [entry(case_id, score, has_answer=False, labels=[near_label])
+             for case_id, score in T045_NEAR.items()]
+    # EV-031: sin régimen a la fecha, no llega al reranker.
+    rows.append(entry("EV-031", None, has_answer=False, labels=[FOREIGN]))
+    return sorted(rows, key=lambda row: row["id"])
+
+
+def text_of(calibration, rows):
+    lines = [{"id": row["id"], "has_answer": row["has_answer"], "expected_regime": ""}
+             for row in rows]
+    return "\n".join(evaluation._calibration_section(calibration, lines))
+
+
+def test_t045_scores_give_0_219_with_a_margin_of_0_728():
+    """REQ-009: con los puntajes de T-045, `A` es EV-025 (logit −1,9972) y `B` EV-020
+    (logit −0,5407); el punto medio es −1,2689, el umbral propuesto 0,219 (la sigmoide,
+    0,2194, redondeada hacia abajo) y el margen 0,728, que cumple el mínimo. Frena las
+    tres ajenas y ninguna pregunta con respuesta; las tres de tema cercano quedan por
+    encima."""
+    calibration = evaluation.calibrate(t045_entries(), current=0.368)
+
+    assert calibration["proposed"] == 0.219
+    assert calibration["provisional"] is True
+    assert calibration["gap"] is True
+    high = calibration["high_foreign"]
+    low = calibration["low_answered"]
+    assert (high["id"], high["score"]) == ("EV-025", 0.1195)
+    assert high["logit"] == pytest.approx(-1.9972, abs=1e-4)
+    assert (low["id"], low["score"]) == ("EV-020", 0.368022)
+    assert low["logit"] == pytest.approx(-0.5407, abs=1e-4)
+    assert calibration["midpoint"] == pytest.approx(-1.2689, abs=1e-4)
+    assert round(calibration["margin"], 3) == 0.728
+    assert calibration["min_margin"] == 0.5
+    assert calibration["meets_margin"] is True
     assert calibration["blocked"] == []
-    assert calibration["previous_rule"] == {
-        "position": 1, "threshold": 0.33, "blocked": ["EV-002"],
-        "leave_one_out_rate": 0.08,
-    }
-    assert calibration["unanswered_stopped"] == ["EV-026", "EV-029", "EV-031"]
-    assert calibration["current"]["blocked"] == ["EV-002", "EV-004", "EV-006", "EV-011",
-                                                 "EV-016", "EV-023"]
+    assert calibration["unanswered_stopped"] == ["EV-025", "EV-026", "EV-030"]
+    assert calibration["near_above"] == ["EV-027", "EV-028", "EV-029"]
+    assert calibration["current"]["threshold"] == 0.368
+    assert calibration["current"]["blocked"] == []
+    assert calibration["current"]["unanswered_stopped"] == ["EV-025", "EV-026", "EV-030"]
+    assert calibration["answered"] == 24
+    assert calibration["without_score"] == []
 
 
-def test_with_40_questions_the_second_lowest_score_is_chosen():
-    """REQ-009: con 40 preguntas, k = 1 frena dejando una afuera 2 de 40 (5 %), dentro
-    del límite, y k = 2 frenaría 3 de 40 (7,5 %): el umbral es el segundo puntaje."""
-    answered = [round(0.01 * i, 2) for i in range(1, 41)]
+def test_t045_summary_reports_the_rule():
+    """REQ-009: el resumen y el comando dicen el umbral, `A` y `B` con su caso, el margen
+    y "cumple el margen mínimo: sí"; la sección agrega lo que frena cada umbral, las de
+    tema cercano por encima y la tabla de puntajes."""
+    rows = t045_entries()
+    calibration = evaluation.calibrate(rows, current=0.368)
 
-    calibration = evaluation.calibrate(entries(answered), current=0.5)
+    line = evaluation.threshold_line(calibration)
+    text = text_of(calibration, rows)
 
-    assert calibration["position"] == 1
-    assert calibration["proposed"] == 0.02
-    assert calibration["blocked"] == ["EV-001"]
-    assert (len(calibration["leave_one_out"]["blocked"]),
-            calibration["leave_one_out"]["rate"]) == (2, 0.05)
-    assert calibration["previous_rule"]["position"] == 2
-
-
-def test_twenty_questions_meet_with_the_lowest_score():
-    """REQ-009: con 20 preguntas, k = 0 frena dejando una afuera 1 de 20 (5 %) y cumple;
-    k = 1 frenaría 2 de 20. La regla anterior proponía 0,42."""
-    calibration = evaluation.calibrate(entries(ANSWERED_20, UNANSWERED), current=0.5)
-
-    assert calibration["proposed"] == 0.31
-    assert calibration["meets"] is True
-    assert calibration["leave_one_out"]["blocked"] == ["EV-001"]
-    assert calibration["leave_one_out"]["thresholds"]["EV-001"] == 0.42
-    assert calibration["leave_one_out"]["thresholds"]["EV-002"] == 0.31
-    assert calibration["previous_rule"]["threshold"] == 0.42
-    assert calibration["unanswered_stopped"] == ["EV-021", "EV-022"]
-    assert calibration["current"] == {"threshold": 0.5, "blocked": ["EV-001", "EV-002"]}
+    assert line.startswith("Umbral propuesto (provisorio): 0,219")
+    for piece in ("EV-025", "0,1195", "EV-020", "0,3680", "margen 0,728",
+                  "cumple el margen mínimo: sí"):
+        assert piece in line
+    assert line in text
+    assert "umbral actual: 0,368" in text
+    assert "no cambia el umbral configurado" in text
+    assert "−1,9972" in text and "−0,5407" in text and "−1,2689" in text
+    assert "EV-027, EV-028, EV-029" in text
+    assert "| EV-028 | tema cercano |" in text
+    assert "EV-031" not in text.split("| Caso |")[1]  # sin puntaje, fuera de la tabla
 
 
-def test_a_small_set_proposes_the_lowest_score_and_says_it_does_not_meet():
-    """REQ-009: con menos de veinte preguntas ninguna posición cumple (frenar una ya es
-    más del 5 %): se propone el puntaje más bajo y se informa que no cumple."""
-    calibration = evaluation.calibrate(entries([0.9, 0.8, 0.3], [0.2, 0.0]), current=0.5)
+def test_near_questions_labelled_as_foreign_leave_no_gap():
+    """REQ-009: las mismas preguntas con la etiqueta "ajena a la normativa" en lugar de
+    "tema cercano" dejan sin hueco: no hay umbral propuesto; EV-027, EV-028 y EV-029
+    son ajenas con puntaje mayor o igual que `B` y EV-020, EV-004 y EV-007 están entre
+    las preguntas con respuesta con puntaje menor o igual que `A`. Eso prueba que las de
+    tema cercano no entran en la regla."""
+    rows = t045_entries(near_label=FOREIGN)
+    calibration = evaluation.calibrate(rows, current=0.368)
 
-    assert calibration["proposed"] == 0.3
-    assert calibration["position"] == 0
-    assert calibration["meets"] is False
-    assert calibration["blocked"] == []
-    assert calibration["leave_one_out"]["blocked"] == ["EV-003"]
-    assert calibration["unanswered_stopped"] == ["EV-004", "EV-005"]
+    assert calibration["proposed"] is None
+    assert calibration["gap"] is False
+    assert calibration["high_foreign"]["id"] == "EV-028"
+    assert set(calibration["foreign_at_or_above_low"]) == {"EV-027", "EV-028", "EV-029"}
+    assert calibration["answered_at_or_below_high"][:3] == ["EV-020", "EV-004", "EV-007"]
+    assert calibration["meets_margin"] is None
+    assert calibration["near_above"] == []
+
+    line = evaluation.threshold_line(calibration)
+    text = text_of(calibration, rows)
+    assert "No hay hueco" in line
+    assert "decisión es del responsable" in line
+    assert "EV-027" in text and "EV-004" in text
 
 
-def test_threshold_is_rounded_down_to_three_decimals():
-    """REQ-009: el umbral propuesto se redondea hacia abajo a tres decimales, para que la
-    pregunta que lo fija siga pasando (puntaje igual o mayor)."""
-    calibration = evaluation.calibrate(entries([0.98765, 0.4267]), current=0.5)
+def test_insufficient_margin_is_reported_and_marked():
+    """REQ-009: con la ajena más alta en 0,30 y la pregunta con respuesta más baja en
+    0,368022 hay hueco, pero el margen es 0,153: "cumple el margen mínimo: no" y el
+    valor queda marcado como sin margen, sin fijarse sin decisión del responsable."""
+    rows = [entry("EV-001", 0.368022), entry("EV-002", 0.95),
+            entry("EV-003", 0.30, has_answer=False, labels=[FOREIGN])]
 
-    assert calibration["proposed"] == 0.426
-    assert calibration["blocked"] == []
+    calibration = evaluation.calibrate(rows, current=0.368)
+
+    assert calibration["gap"] is True
+    assert round(calibration["margin"], 3) == 0.153
+    assert calibration["meets_margin"] is False
+    assert calibration["proposed"] == 0.333
+    line = evaluation.threshold_line(calibration)
+    assert "margen 0,153" in line
+    assert "cumple el margen mínimo: no" in line
+    assert "sin margen" in line
+    assert "decisión del responsable" in text_of(calibration, rows)
+
+
+def test_without_foreign_scores_the_rule_cannot_be_applied():
+    """REQ-009: sin preguntas ajenas a la normativa con puntaje no hay umbral propuesto
+    y se dice por qué; lo mismo sin preguntas con respuesta con puntaje."""
+    rows = [entry("EV-001", 0.9), entry("EV-002", 0.4, has_answer=False, labels=[NEAR]),
+            entry("EV-003", None, has_answer=False, labels=[FOREIGN])]
+
+    calibration = evaluation.calibrate(rows, current=0.368)
+
+    assert calibration["proposed"] is None
+    assert calibration["gap"] is None
+    assert "ajenas a la normativa" in calibration["reason"]
+    assert "no se puede aplicar" in evaluation.threshold_line(calibration)
+    assert "ajenas a la normativa" in evaluation.threshold_line(calibration)
+
+    only_foreign = evaluation.calibrate(
+        [entry("EV-001", 0.2, has_answer=False, labels=[FOREIGN])], current=0.368)
+    assert only_foreign["proposed"] is None
+    assert "con respuesta" in only_foreign["reason"]
+
+
+def test_acceptance_lot_does_not_move_the_threshold():
+    """REQ-009 (ADR-0014, punto 1): un caso del lote de aceptación con puntaje menor que
+    el de EV-020, o una ajena de ese lote con puntaje mayor que el de EV-025, no cambia
+    el umbral, y no figura en la tabla de puntajes."""
+    rows = t045_entries() + [
+        entry("EV-040", 0.30, lot="aceptacion"),
+        entry("EV-041", 0.35, has_answer=False, labels=[FOREIGN], lot="aceptacion"),
+    ]
+
+    calibration = evaluation.calibrate(rows, current=0.368)
+
+    assert calibration["proposed"] == 0.219
+    assert calibration["high_foreign"]["id"] == "EV-025"
+    assert calibration["low_answered"]["id"] == "EV-020"
+    assert "EV-040" not in calibration["scores"]
+    assert "EV-041" not in calibration["scores"]
+    assert "EV-041" not in calibration["unanswered_stopped"]
+    assert calibration["answered"] == 24
+
+
+def test_saved_scores_of_zero_or_one_give_no_error():
+    """REQ-009: un puntaje guardado de 0,0 o de 1,0 se acota antes de pasar a `logit` y
+    no da error."""
+    rows = [entry("EV-001", 1.0), entry("EV-002", 0.0, has_answer=False, labels=[FOREIGN])]
+
+    calibration = evaluation.calibrate(rows, current=0.368)
+
+    assert calibration["proposed"] == 0.5
+    assert calibration["meets_margin"] is True
+    assert calibration["high_foreign"]["logit"] == pytest.approx(-20.723, abs=1e-3)
+    text_of(calibration, rows)
 
 
 def test_answered_questions_without_a_score_are_listed_apart():
     """REQ-009: una pregunta con respuesta sin puntaje (no llegó a puntuarse) no cambia
     con ningún umbral: se lista aparte y no entra en la cuenta."""
-    rows = entries([0.9, 0.7]) + [{"id": "EV-099", "has_answer": True, "max_score": None}]
+    rows = [entry("EV-001", 0.9), entry("EV-002", 0.7),
+            entry("EV-003", 0.1, has_answer=False, labels=[FOREIGN]),
+            entry("EV-099", None)]
 
     calibration = evaluation.calibrate(rows, current=0.5)
 
     assert calibration["without_score"] == ["EV-099"]
     assert calibration["answered"] == 2
-    assert calibration["proposed"] == 0.7
+    assert calibration["low_answered"]["id"] == "EV-002"
+    assert "EV-099" in text_of(calibration, rows)
 
 
-def test_without_answered_questions_there_is_no_proposal():
-    """REQ-009: sin preguntas con respuesta y puntaje no hay umbral para proponer."""
-    calibration = evaluation.calibrate(entries([], [0.2]), current=0.5)
-
-    assert calibration["proposed"] is None
-    assert calibration["position"] is None
-    assert calibration["leave_one_out"]["rate"] is None
-
-
-def test_summary_explains_the_choice_and_the_previous_rule():
-    """REQ-009: el resumen dice qué posición se eligió y por qué, la estimación dejando
-    una afuera y el valor de la regla anterior, en lenguaje llano y con coma decimal."""
-    calibration = evaluation.calibrate(entries(TESTER_ANSWERED, TESTER_UNANSWERED),
-                                       current=0.5)
-    lines = [{"id": row["id"], "has_answer": row["has_answer"], "expected_regime": ""}
-             for row in entries(TESTER_ANSWERED, TESTER_UNANSWERED)]
-
-    text = "\n".join(evaluation._calibration_section(calibration, lines))
-
-    assert "Umbral propuesto (provisorio): 0,287" in text
-    assert "puntaje número 1 de 25" in text
-    assert "frena 1 de 25 (4,0 %)" in text
-    assert "regla anterior" in text and "daría 0,330" in text
-    assert "se admite frenar" not in text
+def test_leave_one_out_rule_is_gone():
+    """REQ-009 (ADR-0014, punto 2): la regla de T-042 (dejar una afuera y frenar a lo
+    sumo el 5 %) ya no está."""
+    assert not hasattr(evaluation, "leave_one_out")
+    assert not hasattr(evaluation, "CALIBRATION_MAX_BLOCKED")
+    assert evaluation.CALIBRATION_MIN_MARGIN == 0.5
 
 
 @pytest.mark.django_db
@@ -162,7 +245,9 @@ def test_run_proposes_the_threshold_without_changing_settings(
 ):
     """REQ-009, REQ-020: la corrida calibra con el puntaje más alto de cada pregunta,
     corrida con su `fecha_autorizacion`; el umbral es uno solo para los dos regímenes,
-    se informa como provisorio en `resumen.md` y `settings.py` no cambia."""
+    se informa como provisorio en `resumen.md` y `settings.py` no cambia. Con 0,3 la
+    pregunta con respuesta más baja y 0,2 la ajena más alta (la otra puntúa 0), el
+    umbral es 0,246 y el margen, 0,270, no llega al mínimo."""
     marks = {
         "¿Cuál es el objeto del régimen sintético anterior?": 0.9,  # 297/03, 2021
         "¿Cuál es el objeto del régimen sintético?": 0.8,  # 247/2022, 2024
@@ -178,16 +263,21 @@ def test_run_proposes_the_threshold_without_changing_settings(
 
     calibration = report.calibration
     assert calibration["answered"] == 3  # dos de la 247/2022 y una de la 297/03
-    assert calibration["proposed"] == 0.3
+    assert calibration["high_foreign"]["id"] == "EV-803"
+    assert calibration["low_answered"]["id"] == "EV-805"
+    assert calibration["proposed"] == 0.246
+    assert calibration["meets_margin"] is False
     assert calibration["current"]["threshold"] == before
     assert settings.RERANK_THRESHOLD == before
     lines = {line["id"]: line for line in report.results}
     assert lines["EV-801"]["reference_date"] == "2021-03-15"
     assert lines["EV-801"]["diagnostics"]["max_score"] == pytest.approx(0.9)
+    assert lines["EV-804"]["diagnostics"]["max_score"] == 0.0
 
     summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
     text = summary.split("## Calibración del umbral (provisoria)\n", 1)[1].split("\n## ")[0]
-    assert "Umbral propuesto (provisorio): 0,300" in text
+    assert "Umbral propuesto (provisorio): 0,246" in text
+    assert "cumple el margen mínimo: no" in text
     assert f"umbral actual: {before:.3f}".replace(".", ",") in text
     assert "no cambia el umbral configurado" in text
-    assert "EV-801" in text and "0,900" in text
+    assert "EV-801" in text and "0,9000" in text

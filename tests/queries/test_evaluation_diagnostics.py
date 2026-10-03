@@ -239,11 +239,12 @@ def test_measures_are_separated_by_regime(read_user, two_regimes, scripted, tmp_
 
 
 def test_summary_has_every_section(read_user, two_regimes, scripted, tmp_path):
-    """REQ-008, REQ-009, REQ-020, REQ-021: `resumen.md` trae las medidas exigidas, las
-    medidas por régimen, la recuperación, las fallas de formato o de cita, los casos de
-    REQ-018 y REQ-019, los pares de REQ-020 y el aviso de REQ-021 en su propio apartado,
-    la calibración, la comparación quitando piezas, la comparación con la corrida
-    anterior, los casos fallados y los no corridos."""
+    """REQ-008, REQ-009, REQ-020, REQ-021: `resumen.md` trae las medidas exigidas, la
+    tabla del lote de ajuste (T-060), las medidas por régimen, la recuperación, las
+    fallas de formato o de cita, los casos de REQ-018 y REQ-019, los pares de REQ-020 y
+    el aviso de REQ-021 en su propio apartado, la calibración, la comparación quitando
+    piezas, la comparación con la corrida anterior, los casos fallados del lote de ajuste
+    y, aparte, los del lote de aceptación, y los no corridos."""
     diagnostic_marks(scripted)
 
     summary = summary_of(run(read_user, "t042-diagnostico", tmp_path))
@@ -251,6 +252,7 @@ def test_summary_has_every_section(read_user, two_regimes, scripted, tmp_path):
     headings = [line[3:] for line in summary.splitlines() if line.startswith("## ")]
     assert headings == [
         "Medidas exigidas",
+        "Lote de ajuste (diagnóstico)",
         "Medidas por régimen (diagnóstico)",
         "Pares de REQ-020",
         "Aviso de REQ-021",
@@ -261,6 +263,7 @@ def test_summary_has_every_section(read_user, two_regimes, scripted, tmp_path):
         "Comparación quitando piezas",
         "Comparación con la corrida anterior",
         "Casos fallados",
+        "Casos fallados del lote de aceptación",
         "Casos no corridos",
     ]
 
@@ -503,7 +506,7 @@ def test_command_runs_the_ablation_on_request(read_user, two_regimes, scripted, 
     [folder] = list(tmp_path.iterdir())
     summary = (folder / "resumen.md").read_text(encoding="utf-8")
     assert "combinada sin reranker" in section(summary, "Comparación quitando piezas")
-    assert "Umbral propuesto (provisorio): 0,300" in output
+    assert "Umbral propuesto (provisorio): 0,246" in output
     assert "Corrida anterior: ninguna" in output
     assert Query.objects.filter(event__channel=Channel.EVAL).count() == 5
     assert settings.RERANK_THRESHOLD == before
@@ -651,7 +654,7 @@ def test_each_drop_is_marked_and_asks_for_approval():
 
     comparison = evaluation.compare_runs(previous_run(old), new, {"commit": "x"})
 
-    assert comparison["drops"] == ["correct_answer"]
+    assert comparison["drops"] == [{"name": "correct_answer", "lot": "ajuste"}]
     text = "\n".join(evaluation._comparison_section(comparison))
     assert ("| Respuesta correcta que cita la unidad correcta | 100,0 % | 50,0 % | baja |"
             in text)
@@ -692,7 +695,7 @@ def test_time_over_the_limit_is_a_drop():
     aunque la mediana no cambie."""
     comparison, text = time_comparison((10.0, 10.0, 10.0), (10.0, 10.0, 31.0))
 
-    assert comparison["drops"] == ["response_time"]
+    assert comparison["drops"] == [{"name": "response_time", "lot": None}]
     assert ("| Tiempo de respuesta (máximo) | 10,00 s | 31,00 s | "
             "baja (supera el límite de 30 s) |") in text
     assert "| Tiempo de respuesta (mediana) | 10,00 s | 10,00 s | igual |" in text
@@ -704,7 +707,7 @@ def test_a_median_rise_over_25_percent_is_a_drop():
     el tiempo es baja, aunque el máximo siga debajo de 30 s."""
     comparison, text = time_comparison((8.0, 8.0), (11.0, 11.0))
 
-    assert comparison["drops"] == ["response_time_median"]
+    assert comparison["drops"] == [{"name": "response_time_median", "lot": None}]
     assert ("| Tiempo de respuesta (mediana) | 8,00 s | 11,00 s | "
             "baja (sube más del 25 %) |") in text
     assert "| Tiempo de respuesta (máximo) | 8,00 s | 11,00 s | más lento |" in text
@@ -731,7 +734,8 @@ def test_command_names_the_previous_run_by_date_and_warns_of_drops(
     assert "Corrida anterior: la del 01/01/2000 00:00" in lines
     assert "2000-01-01T000000" not in output
     assert ("Hay bajas respecto de la corrida anterior que requieren la aprobación del "
-            "responsable: respuesta correcta que cita la unidad correcta.") in lines
+            "responsable: respuesta correcta que cita la unidad correcta del lote de "
+            "ajuste.") in lines
 
 
 def test_command_says_when_there_are_no_drops(read_user, two_regimes, scripted, tmp_path,
