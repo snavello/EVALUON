@@ -12,7 +12,7 @@ origen: |
   El monto de la garantía de mantenimiento de la oferta se calculará aplicando el CINCO POR CIENTO (5%) sobre el importe que surja de la multiplicación entre el máximo de las unidades del bien o servicios requeridos en el pliego de bases y condiciones particulares y el precio unitario cotizado.
 unidades:
   - {norma: "Disposición AFIP 247/2022", key: anexo/art-24}
-datos_clave: ["5 %", "máximo de unidades por precio unitario"]
+datos_clave: ["5 %", "máximo", "unidades", "precio unitario"]
 difieren: false
 pareja: ""
 aviso_modificatorias: false

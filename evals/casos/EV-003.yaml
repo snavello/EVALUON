@@ -14,7 +14,7 @@ origen: |
   De no ser integrada, se procederá a rescindir el contrato con culpa del contratista, con la aplicación de una penalidad equivalente al importe de la garantía no constituida.
 unidades:
   - {norma: "Disposición AFIP 247/2022", key: anexo/art-61}
-datos_clave: ["10 días", "prorrogable por igual término"]
+datos_clave: ["10 días", "por igual término"]
 difieren: false
 pareja: EV-017
 aviso_modificatorias: false

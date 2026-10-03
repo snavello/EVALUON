@@ -12,7 +12,7 @@ origen: |
   Para el supuesto que no se previera expresamente se aplicará una multa por mora en el cumplimiento de las prestaciones del CERO COMA UNO POR CIENTO (0,1%) del valor de lo satisfecho fuera del término por cada día hábil de atraso. En ningún caso las multas podrán superar el CIEN POR CIENTO (100%) del valor del contrato.
 unidades:
   - {norma: "Disposición AFIP 247/2022", key: anexo/art-88}
-datos_clave: ["0,1 %", "por cada día hábil de atraso", "tope 100 %"]
+datos_clave: ["0,1 %", "por cada día hábil de atraso", "100 %"]
 difieren: false
 pareja: ""
 aviso_modificatorias: false

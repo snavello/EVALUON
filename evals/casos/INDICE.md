@@ -69,3 +69,39 @@ Fuentes: solo el anexo de la Disposición AFIP 247/2022 (`corpus/normativa/disp-
 10. **EV-012.** Solo exige el art. 55. El art. 38 remite al 55 para la oferta económica sin firma; si se quiere exigir también, hay que agregarlo a `unidades`.
 11. **EV-031.** Es la misma pregunta que el par EV-001 y EV-016, pero no tiene `pareja`: el plan exige que los dos casos de un par citen normas distintas, y este no cita ninguna. Lo mismo pasa con EV-022 y EV-028.
 12. **Las claves de `unidades`.** Están a nivel de artículo (`anexo/art-43`, `anexo-i/art-55`), y el inciso va en `cita.ubicacion`. Según el plan, cuando un caso nombra un inciso vale el artículo que lo contiene. No se usaron claves de inciso porque la forma de los puntos numerados dentro de incisos (por ejemplo, art. 33 a) 1.) no está fijada en el plan.
+
+## Reescritura de datos clave (2026-10-03)
+
+**Propuesta pendiente del visto bueno del responsable.** Solo cambia `datos_clave`; `pregunta`, `esperado`, `unidades`, `regimen`, `fecha_autorizacion` y `visto_bueno` quedan como estaban.
+
+Motivo: 21 datos clave de 16 casos no aparecían ni en su `esperado` ni en el texto de la norma (por ejemplo, "desde el acto de apertura" cuando la norma dice "contados a partir de la fecha del acto de apertura"), así que ninguna respuesta podía cumplirlos tal como los compara `key_data_missing` (`evaluon/queries/evaluation.py`). Cada dato nuevo es un fragmento corto que una respuesta correcta tiene que contener, que aparece en el `esperado` y que aparece o se deduce literalmente del `origen`. Los datos compuestos se partieron en varios. Los datos que ya se cumplían se dejaron igual.
+
+Comprobado en el contenedor: los 24 casos con respuesta cumplen sus datos clave contra su propio `esperado`, y una respuesta contraria plausible armada a mano para cada uno (otro plazo, otro porcentaje u otra polaridad) no los cumple.
+
+| Caso | Datos anteriores | Datos nuevos |
+|---|---|---|
+| EV-001 | "60 días corridos", "desde el acto de apertura", "prórroga automática", "5 días hábiles" | "60 días corridos", "acto de apertura", "se prorroga automáticamente", "5 días hábiles" |
+| EV-002 | "mantenimiento de la oferta 5 %", "cumplimiento del contrato 10 %", "contragarantía" | "5 %", "mantenimiento", "10 %", "cumplimiento", "contragarantía" |
+| EV-003 | "10 días", "prorrogable por igual término" | "10 días", "por igual término" |
+| EV-004 | "M 1.000", "no es necesaria" | "no", "M 1.000" |
+| EV-005 | "3 días", "1 día en contratación directa" | "3 días", "1 día", "contratación directa" |
+| EV-006 | "5 días", "revisión ante la máxima autoridad", "no suspensivo" | "5 días", "revisión", "máxima autoridad", "suspensivo" |
+| EV-007 | "0,1 %", "por cada día hábil de atraso", "tope 100 %" | "0,1 %", "por cada día hábil de atraso", "100 %" |
+| EV-010 | "5 %", "máximo de unidades por precio unitario" | "5 %", "máximo", "unidades", "precio unitario" |
+| EV-011 | "Boletín Oficial 2 días hábiles", "7 días corridos de antelación" | "Boletín Oficial", "2 días hábiles", "7 días corridos de antelación" |
+| EV-012 | "no", "desestimación sin subsanación" | "no", "sin posibilidad de subsanación" |
+| EV-013 | "régimen", "normas que se dicten en consecuencia", "pliego con circulares", "oferta", "muestras", "adjudicación", "orden de compra o contrato" | "régimen", "normas que se dicten en consecuencia", "pliego", "circulares", "oferta", "muestras", "adjudicación", "orden de compra" |
+| EV-015 | "20 %", "35 %", "conformidad previa por encima del 20 %" | "20 %", "35 %", "conformidad" |
+| EV-016 | "30 días", "desde el acto de apertura", "prórroga automática" | "30 días", "acto de apertura", "se prorroga automáticamente" |
+| EV-019 | "5 días", "depósito 0,5 ‰ del valor de la oferta" | "5 días", "5 por mil" |
+| EV-023 | "10 %", "máximo de unidades por precio unitario" | "10 %", "máximo de unidades", "precio unitario" |
+| EV-024 | "3 días", "2 días en licitaciones privadas y contrataciones directas" | "3 días", "2 días", "licitaciones privadas", "contrataciones directas" |
+
+Puntos para decidir al dar el visto bueno:
+
+1. **EV-006, "suspensivo".** Lo que el caso quiere medir es que la impugnación *no* suspende. El `esperado` dice "no tienen efecto suspensivo" y la norma "En ningún caso ... tendrá carácter suspensivo": no hay un fragmento negativo común y corto que una respuesta correcta deba traer. "suspensivo" solo comprueba que la respuesta trate el punto, no su sentido; una respuesta que diga "tiene efecto suspensivo" con los plazos correctos lo cumpliría. Si se quiere medir la polaridad, la alternativa es "no tienen efecto suspensivo", a costa de rechazar respuestas correctas redactadas de otra forma ("no suspende el trámite").
+2. **EV-001 y EV-016, "se prorroga automáticamente".** Aparece en el `esperado`; la norma dice "prorrogado automáticamente" (247/2022) y "prorrogada automáticamente" (297/03), así que se deduce pero no es literal. Una respuesta correcta que diga "prórroga automática" no lo cumple. La alternativa más tolerante es "automáticamente" solo.
+3. **EV-019, "5 por mil".** Se exige la cifra en palabras de la norma ("CINCO POR MIL"), no el "(0,5 ‰)", porque las dos no coinciden (ver el punto 1 de "Para mirar con atención"). Una respuesta que diga solo "0,5 ‰" no lo cumple. Se sacó "depósito" porque la norma y el `esperado` dicen "depositado" y "depositar".
+4. **EV-013, el orden.** Los datos clave comprueban que estén los siete documentos, no el orden de prelación; una respuesta con los siete en otro orden los cumple. "oferta", "pliego" y "régimen" son palabras comunes, pero son los nombres de los documentos y no hay forma más corta de exigirlos.
+5. **EV-010, "máximo" y "unidades" por separado.** El `esperado` dice "máximo de unidades" y la norma "máximo de las unidades": se partieron para que valgan las dos redacciones. En EV-023 la norma sí dice "máximo de unidades" y se dejó junto.
+6. **EV-015, "conformidad".** Comprueba que la respuesta trate la conformidad del contratista, no que la ubique por encima del 20 %; esa relación no se puede exigir con un fragmento corto común al `esperado` y a la norma.

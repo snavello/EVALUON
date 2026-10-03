@@ -18,7 +18,7 @@ origen: |
   4. Difusión:
 unidades:
   - {norma: "Disposición AFIP 247/2022", key: anexo/art-33}
-datos_clave: ["Boletín Oficial 2 días hábiles", "7 días corridos de antelación"]
+datos_clave: ["Boletín Oficial", "2 días hábiles", "7 días corridos de antelación"]
 difieren: false
 pareja: ""
 aviso_modificatorias: false

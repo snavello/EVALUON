@@ -12,7 +12,7 @@ origen: |
   b) Garantía. El monto de la garantía de adjudicación se calculará aplicando el DIEZ POR CIENTO (10%) sobre el importe que surja de la multiplicación entre el máximo de unidades del bien o servicio y el precio unitario cotizado. Al adjudicatario se le devolverá dicha garantía en forma proporcional al valor de cada solicitud de provisión recibida de conformidad
 unidades:
   - {norma: "Disposición AFIP 297/03", key: anexo-i/art-25}
-datos_clave: ["10 %", "máximo de unidades por precio unitario"]
+datos_clave: ["10 %", "máximo de unidades", "precio unitario"]
 difieren: false
 pareja: ""
 aviso_modificatorias: true
