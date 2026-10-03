@@ -14,7 +14,7 @@ origen: |
   No obstante lo dispuesto, todos los oferentes, adjudicatarios y contratistas quedan obligados a responder por el importe de la garantía no constituida, de acuerdo al orden de afectación de penalidades establecido en el presente régimen, a requerimiento de la AFIP sin que proceda reclamo alguno sino después de obtenido el cobro o de efectuado el pago.
 unidades:
   - {norma: "Disposición AFIP 247/2022", key: anexo/art-66}
-datos_clave: [["no", "no es necesario"], ["M 1.000", "1.000 módulos"]]
+datos_clave: [["no", "no es necesario", "no será necesario"], ["M 1.000", "1.000 módulos"]]
 difieren: false
 pareja: ""
 aviso_modificatorias: false
