@@ -44,6 +44,16 @@ Una carga rechazada por los datos, por el archivo, por duplicado o por otra carg
 simultánea también queda registrada como hecho `load` con resultado `rejected`, el motivo
 y el resultado de las comprobaciones hechas, sin nada incorporado. Los mensajes de los
 errores son para la persona que carga: en español llano.
+
+`reread_document` vuelve a leer y partir un documento ya cargado (T-027; plan 001,
+"Ingesta", punto 6), a partir del original guardado y sin pedir el archivo: lo lee, lo
+parte con su parte y con la categoría de su norma, y guarda una lectura nueva `pending`
+con el número siguiente, su informe y sus unidades, y el hecho `reread`. No crea versión
+de la normativa: la lectura anterior sigue consultable hasta que se valide la nueva, y al
+validarla pasa a `superseded` (`validation.py`). No repite las comprobaciones de
+duplicado, que son de la carga: el informe nuevo conserva los posibles duplicados de la
+lectura anterior. El informe en texto se arma con los datos en memoria, nunca desde el
+informe guardado, porque `jsonb` reordena sus claves y el texto no saldría igual.
 """
 
 import hashlib
@@ -198,6 +208,20 @@ class UnreadableFile(LoadRefused):
     reason = "unreadable_file"
 
 
+class RereadRefused(Exception):
+    """No se releyó el documento. El mensaje dice por qué, en lenguaje llano."""
+
+    reason = "refused"
+
+
+class DocumentNotFound(RereadRefused):
+    reason = "document_not_found"
+
+
+class StoredFileUnreadable(RereadRefused):
+    reason = "unreadable_file"
+
+
 @dataclass(frozen=True)
 class SameNormWarning:
     """El aviso de "misma norma" que se muestra antes de pedir la confirmación:
@@ -220,6 +244,19 @@ class LoadResult:
     notices: tuple = ()
     # El aviso de "misma norma" que se confirmó, si lo hubo.
     same_norm_warning: SameNormWarning | None = None
+
+
+@dataclass(frozen=True)
+class RereadResult:
+    document: Document
+    reading: Reading
+    units: int
+    # La lectura más nueva que tenía el documento antes de releerlo.
+    previous_reading: Reading
+    # La lectura validada del documento, que sigue vigente hasta validar la nueva; `None`
+    # si no tenía ninguna.
+    validated_reading: Reading | None
+    event: object
 
 
 def normalize_identity(value):
@@ -742,4 +779,122 @@ def load_norm(user, *, data, file_name, part=None, general_regime=False,
         event=event,
         notices=tuple(notices),
         same_norm_warning=warning,
+    )
+
+
+def _record_reread_refusal(user, channel, document_id, error):
+    detail = {"reason": error.reason, "message": str(error), "document": document_id}
+    if error.__cause__ is not None:
+        detail["error"] = f"{type(error.__cause__).__name__}: {error.__cause__}"
+    audit.record(EventType.REREAD, outcome=Outcome.REJECTED, channel=channel, user=user,
+                 detail=detail)
+
+
+def reread_document(user, document_id, *, channel=Channel.COMMAND):
+    """Vuelve a leer y partir el documento `document_id` desde su original guardado y
+    devuelve un `RereadResult` con la lectura nueva, `pending`.
+
+    Lanza `RoleRejected` si el usuario no tiene rol de lectura y escritura, y una
+    subclase de `RereadRefused` si no se releyó: documento inexistente u original que
+    ya no se puede leer. En esos casos no se guarda nada salvo el hecho que lo registra.
+    """
+    require_role(user, Role.READ_WRITE)
+    try:
+        try:
+            document = Document.objects.select_related("norm", "file").get(pk=document_id)
+        except Document.DoesNotExist:
+            raise DocumentNotFound(
+                f"No se releyó: no existe el documento {document_id}. Vea los números con "
+                "listar_normas."
+            ) from None
+        data = bytes(document.file.content)
+        try:
+            reading_data = read_document(data)
+        except _UNREADABLE_ERRORS as error:
+            raise StoredFileUnreadable(
+                f"No se releyó el documento {document.pk}: el original guardado no se "
+                "pudo leer. No se guardó nada."
+            ) from error
+    except RereadRefused as error:
+        _record_reread_refusal(user, channel, document_id, error)
+        raise
+
+    norm = document.norm
+    read_at = timezone.localtime().isoformat(timespec="seconds")
+    split = split_document(
+        reading_data,
+        part=document.part,
+        category=norm.category,
+        document_info={"file_name": document.file_name,
+                       "file_sha256": document.file_sha256, "read_at": read_at},
+    )
+    tool_versions = {**reading_data.tool_versions, "rules_version": RULES_VERSION}
+    file_detail = _file_detail(document.file_name, reading_data.file_format, data,
+                               document.file_sha256)
+
+    with transaction.atomic():
+        # El documento bloqueado ordena dos relecturas simultáneas: cada una toma el
+        # número siguiente.
+        Document.objects.select_for_update().get(pk=document.pk)
+        previous = document.readings.order_by("-sequence").first()
+        current = (
+            document.readings.filter(status=ReadingStatus.VALIDATED)
+            .order_by("-sequence")
+            .first()
+        )
+
+        # Los posibles duplicados son de la carga: se conservan los de la lectura
+        # anterior. El texto se arma con estos datos en memoria, no desde la base.
+        report = split.report
+        report["duplicates"] = (previous.report or {}).get("duplicates")
+        report["attention"] = attention_items(report)
+        text = report_text(report)
+
+        reading = Reading.objects.create(
+            document=document,
+            sequence=previous.sequence + 1,
+            status=ReadingStatus.PENDING,
+            pages=reading_data.as_json(),
+            canonical_text=split.canonical_text,
+            canonical_sha256=split.canonical_sha256,
+            tool_versions=tool_versions,
+            report=report,
+            report_text=text,
+            created_by=user,
+        )
+        units = _save_units(reading, split.units)
+        event = audit.record(
+            EventType.REREAD,
+            outcome=Outcome.OK,
+            channel=channel,
+            user=user,
+            detail={
+                "norm": norm.pk,
+                "document": document.pk,
+                "reading": reading.pk,
+                "sequence": reading.sequence,
+                "previous_reading": previous.pk,
+                "validated_reading": current.pk if current else None,
+                "data": {
+                    "category": norm.category,
+                    "part": document.part,
+                    "general_regime": norm.general_regime,
+                },
+                "file": file_detail,
+                "canonical_sha256": split.canonical_sha256,
+                "tool_versions": tool_versions,
+                "units": units,
+                "report": _report_summary(report),
+                "duplicates": report["duplicates"],
+                "same_norm_confirmation": document.same_norm_confirmation,
+            },
+        )
+
+    return RereadResult(
+        document=document,
+        reading=reading,
+        units=units,
+        previous_reading=previous,
+        validated_reading=current,
+        event=event,
     )

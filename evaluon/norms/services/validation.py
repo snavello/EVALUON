@@ -5,26 +5,37 @@ Una norma queda disponible para consultas solo después de que una persona valid
 informe de lectura. `validate_reading` hace, en este orden:
 
 1. Comprueba el rol de lectura y escritura.
-2. Comprueba que la lectura exista y esté `pending`, y que ninguna de sus claves exista
+2. Comprueba que la lectura exista, esté `pending` y sea la más nueva de su documento
+   (una relectura posterior la dejó atrás, T-027), y que ninguna de sus claves exista
    ya en otra parte en uso de la misma norma.
 3. Arma los pasajes y pide sus vectores al servicio `embeddings`, fuera de toda
    transacción: si el servicio no responde, no se escribió nada.
 4. En una sola transacción: bloquea la norma y la lectura, vuelve a comprobar el paso 2,
-   guarda los pasajes, pasa la lectura a `validated`, deja al primer documento validado
-   de su parte como versión 1 y en uso, y al final registra el hecho `validation`, que
-   crea la versión nueva de la normativa (`record(..., creates_corpus_version=True)`).
+   busca las relaciones que quedan apuntando a una clave que la lectura nueva no tiene,
+   guarda los pasajes, pasa la lectura a `validated` y la lectura validada anterior del
+   mismo documento, si la hay, a `superseded` (sus unidades no se tocan), deja al primer
+   documento validado de su parte como versión 1 y en uso, pasa a cargadas las
+   modificatorias que correspondan (T-051) y al final registra el hecho `validation`,
+   que crea la versión nueva de la normativa (`record(..., creates_corpus_version=True)`).
 
-Un rechazo por clave repetida y una falla del servicio `embeddings` también quedan
-registrados como hecho `validation`, con resultado `rejected` o `failed`, sin crear
-versión de la normativa. El rechazo por rol lo registra T-038.
+Un documento incorporado con confirmación de "misma norma" (`same_norm_confirmation`
+no vacío, T-026) nunca queda en uso al validarse: entra en las consultas solo con
+`registrar_version`. Tampoco cuenta entre los otros documentos validados de su parte al
+decidir cuál es el primero; sí cuenta si ya fue registrado como versión.
+
+Un rechazo por clave repetida o por lectura que no es la más nueva y una falla del
+servicio `embeddings` también quedan registrados como hecho `validation`, con resultado
+`rejected` o `failed`, sin crear versión de la normativa. El rechazo por rol lo registra
+T-038.
 
 Los mensajes de los errores son para la persona que valida: en español llano.
 """
 
 import hashlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from evaluon.accounts.models import Role
@@ -33,7 +44,7 @@ from evaluon.ai import AIServiceError, InputTooLongError
 from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType, Outcome
 from evaluon.norms import indexing
-from evaluon.norms.models import Document, Norm, Reading, ReadingStatus, Unit
+from evaluon.norms.models import Document, Norm, Reading, ReadingStatus, Relation, Unit
 from evaluon.norms.services import amendments
 
 # Primer número de versión de cada parte de una norma.
@@ -50,6 +61,14 @@ class ReadingNotFound(ValidationRefused):
 
 class ReadingNotPending(ValidationRefused):
     pass
+
+
+class ReadingNotLatest(ValidationRefused):
+    """El documento tiene una lectura más nueva que esta (una relectura)."""
+
+    def __init__(self, message, latest):
+        super().__init__(message)
+        self.latest = latest
 
 
 class KeyConflict(ValidationRefused):
@@ -76,6 +95,10 @@ class ValidationResult:
     version_number: int | None
     corpus_version: int
     event: object
+    # Lecturas validadas del mismo documento que esta reemplazó (`superseded`).
+    superseded_readings: list = field(default_factory=list)
+    # Relaciones que quedaron apuntando a una clave que la lectura nueva no tiene.
+    relations_without_unit: list = field(default_factory=list)
 
 
 def _get_reading(reading_id, *, lock=False):
@@ -93,6 +116,23 @@ def _require_pending(reading):
         raise ReadingNotPending(
             f"La lectura {reading.pk} no está pendiente de validación "
             f"(estado: {ReadingStatus(reading.status).label.lower()})."
+        )
+
+
+def _require_latest(reading):
+    """La lectura tiene que ser la más nueva de su documento: una lectura pendiente que
+    una relectura dejó atrás no se valida, para que no vuelva a las consultas."""
+    latest = (
+        Reading.objects.filter(document_id=reading.document_id, sequence__gt=reading.sequence)
+        .order_by("-sequence")
+        .values_list("pk", flat=True)
+        .first()
+    )
+    if latest is not None:
+        raise ReadingNotLatest(
+            f"No se validó la lectura {reading.pk}: el documento tiene una lectura más "
+            f"nueva, la lectura {latest}. Revise y valide esa.",
+            latest,
         )
 
 
@@ -127,18 +167,96 @@ def _check_keys(reading):
 
 
 def _is_first_of_its_part(document):
-    """Verdadero si ningún otro documento de la misma norma y parte fue validado ni
-    registrado como versión."""
+    """Verdadero si ningún otro documento de la misma norma y parte fue registrado como
+    versión, ni fue validado sin confirmación de "misma norma". Un documento confirmado
+    como misma norma y todavía sin versión no cuenta (T-026): solo entra en las
+    consultas con `registrar_version`, y entonces ya tiene número de versión."""
     others = Document.objects.filter(norm_id=document.norm_id, part=document.part).exclude(
         pk=document.pk
     )
     return not (
         others.filter(version_number__isnull=False).exists()
         or Reading.objects.filter(
-            document__in=others,
+            document__in=others.filter(same_norm_confirmation=""),
             status__in=(ReadingStatus.VALIDATED, ReadingStatus.SUPERSEDED),
         ).exists()
     )
+
+
+def _goes_in_use(document):
+    """Verdadero si al validar una lectura de `document` el documento pasa a estar en
+    uso como versión 1 de su parte. Un documento confirmado como misma norma nunca."""
+    return (
+        document.version_number is None
+        and not document.same_norm_confirmation
+        and _is_first_of_its_part(document)
+    )
+
+
+def _replaced_readings(reading):
+    """Lecturas validadas del mismo documento, que esta reemplaza al validarse."""
+    return list(
+        Reading.objects.filter(document_id=reading.document_id, status=ReadingStatus.VALIDATED)
+        .exclude(pk=reading.pk)
+        .order_by("sequence")
+        .values_list("pk", flat=True)
+    )
+
+
+def _relations_without_unit(reading):
+    """Relaciones de la norma que apuntan a una clave que tenía la lectura validada del
+    mismo documento y que la lectura nueva no tiene, si ningún otro documento en uso de
+    la norma la conserva. Cada una con un texto en lenguaje llano."""
+    document = reading.document
+    norm_id = document.norm_id
+    previous = set(
+        Unit.objects.filter(
+            reading__document_id=document.pk, reading__status=ReadingStatus.VALIDATED
+        )
+        .exclude(reading_id=reading.pk)
+        .values_list("key", flat=True)
+    )
+    lost = previous - set(reading.units.values_list("key", flat=True))
+    if not lost:
+        return []
+    kept_elsewhere = set(
+        Unit.objects.filter(
+            key__in=lost,
+            reading__status=ReadingStatus.VALIDATED,
+            reading__document__norm_id=norm_id,
+            reading__document__in_use=True,
+        )
+        .exclude(reading__document_id=document.pk)
+        .values_list("key", flat=True)
+    )
+    missing = lost - kept_elsewhere
+    relations = (
+        Relation.objects.select_related("source_norm", "target_norm")
+        .filter(
+            Q(source_norm_id=norm_id, source_unit_key__in=missing)
+            | Q(target_norm_id=norm_id, target_unit_key__in=missing)
+        )
+        .order_by("pk")
+    )
+    warnings = []
+    for relation in relations:
+        for role, key in (("source", relation.source_unit_key),
+                          ("target", relation.target_unit_key)):
+            norm = relation.source_norm if role == "source" else relation.target_norm
+            if norm.pk != norm_id or key not in missing:
+                continue
+            warnings.append({
+                "relation": relation.pk,
+                "relation_type": relation.relation_type,
+                "role": role,
+                "key": key,
+                "text": (
+                    f"La relación {relation.pk} ({relation.source_norm.citation} "
+                    f"{relation.relation_type} {relation.target_norm.citation}) apunta a "
+                    f"la unidad {key}, que la lectura nueva no tiene."
+                ),
+            })
+    return warnings
 
 
 def _base_detail(reading):
@@ -168,6 +286,7 @@ def reading_summary(user, reading_id):
     require_role(user, Role.READ_WRITE)
     reading = _get_reading(reading_id)
     _require_pending(reading)
+    _require_latest(reading)
     document = reading.document
     return {
         "reading": reading.pk,
@@ -178,6 +297,12 @@ def reading_summary(user, reading_id):
         "file_name": document.file_name,
         "units": reading.units.count(),
         "report_sha256": _report_sha256(reading),
+        # Qué pasa al validar: si el documento queda (o sigue) en uso, qué lecturas
+        # reemplaza y qué relaciones quedan sin su unidad.
+        "in_use": document.in_use or _goes_in_use(document),
+        "same_norm_confirmation": document.same_norm_confirmation,
+        "replaces": _replaced_readings(reading),
+        "relations_without_unit": _relations_without_unit(reading),
     }
 
 
@@ -198,10 +323,10 @@ def validate_reading(user, reading_id, *, channel=Channel.COMMAND):
     reading = _get_reading(reading_id)
     _require_pending(reading)
     try:
+        _require_latest(reading)
         _check_keys(reading)
-    except KeyConflict as error:
-        _record_refusal(user, reading, channel, Outcome.REJECTED,
-                        {"conflicting_keys": [key for key, _ in error.conflicts]})
+    except ValidationRefused as error:
+        _record_refusal(user, reading, channel, Outcome.REJECTED, _refusal_detail(error))
         raise
 
     # Trabajo largo, fuera de la transacción: si el servicio falla no hay nada escrito.
@@ -235,17 +360,26 @@ def validate_reading(user, reading_id, *, channel=Channel.COMMAND):
             Norm.objects.select_for_update().get(pk=reading.document.norm_id)
             reading = _get_reading(reading_id, lock=True)
             _require_pending(reading)
+            _require_latest(reading)
             _check_keys(reading)
+            # Antes de reemplazar la lectura anterior: compara sus claves con las nuevas.
+            relations_without_unit = _relations_without_unit(reading)
 
             indexing.save_passages(drafts, vectors)
 
+            now = timezone.now()
+            superseded = _replaced_readings(reading)
+            # La lectura anterior deja de ser consultable; sus unidades no se tocan.
+            Reading.objects.filter(pk__in=superseded).update(
+                status=ReadingStatus.SUPERSEDED, superseded_at=now
+            )
             reading.status = ReadingStatus.VALIDATED
-            reading.validated_at = timezone.now()
+            reading.validated_at = now
             reading.validated_by = user
             reading.save(update_fields=["status", "validated_at", "validated_by"])
 
             document = Document.objects.select_for_update().get(pk=reading.document_id)
-            if document.version_number is None and _is_first_of_its_part(document):
+            if _goes_in_use(document):
                 document.version_number = FIRST_VERSION
                 document.in_use = True
                 document.save(update_fields=["version_number", "in_use"])
@@ -271,15 +405,17 @@ def validate_reading(user, reading_id, *, channel=Channel.COMMAND):
                     "embedding_revision": revision,
                     "in_use": document.in_use,
                     "version_number": document.version_number,
+                    "same_norm_confirmation": document.same_norm_confirmation,
+                    "superseded_readings": superseded,
+                    "relations_without_unit": relations_without_unit,
                     "amendments_loaded": [
                         amendments.loaded_detail(entry) for entry in loaded_amendments
                     ],
                 },
                 creates_corpus_version=True,
             )
-    except KeyConflict as error:
-        _record_refusal(user, reading, channel, Outcome.REJECTED,
-                        {"conflicting_keys": [key for key, _ in error.conflicts]})
+    except (KeyConflict, ReadingNotLatest) as error:
+        _record_refusal(user, reading, channel, Outcome.REJECTED, _refusal_detail(error))
         raise
 
     return ValidationResult(
@@ -289,4 +425,15 @@ def validate_reading(user, reading_id, *, channel=Channel.COMMAND):
         version_number=document.version_number,
         corpus_version=event.corpus_version,
         event=event,
+        superseded_readings=superseded,
+        relations_without_unit=relations_without_unit,
     )
+
+
+def _refusal_detail(error):
+    """Datos del rechazo para el hecho `validation`."""
+    if isinstance(error, KeyConflict):
+        return {"conflicting_keys": [key for key, _ in error.conflicts]}
+    if isinstance(error, ReadingNotLatest):
+        return {"reason": "not_latest", "latest_reading": error.latest}
+    return {"reason": "refused", "message": str(error)}
