@@ -298,3 +298,17 @@ def test_two_regimes_before_both_returns_none(two_regimes):
 
     assert _keys(result, two_regimes.old_units) == {}
     assert _keys(result, two_regimes.new_units) == {}
+
+
+@pytest.mark.django_db
+def test_two_regimes_day_before_v_the_first_without_mark(two_regimes):
+    """REQ-020: el día anterior a V (2022-12-31) devuelve las unidades del primer
+    régimen sin la marca de derogada y ninguna del segundo."""
+    day_before = date(2022, 12, 31)
+    assert two_regimes.v == date(2023, 1, 1)
+    result = consultable(day_before)
+
+    old = _keys(result, two_regimes.old_units)
+    assert set(old) == set(two_regimes.old_units)
+    assert not any(old.values())
+    assert _keys(result, two_regimes.new_units) == {}

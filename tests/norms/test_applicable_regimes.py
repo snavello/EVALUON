@@ -70,3 +70,10 @@ def test_partly_repealed_regime_still_applies(
 
     assert regimes(date(2021, 1, 1)) == {regime.pk}
     assert regimes(date(2022, 1, 1)) == set()
+
+
+@pytest.mark.django_db
+def test_two_regimes_day_before_v_the_first(two_regimes):
+    """REQ-020: el día anterior a V (2022-12-31) el régimen aplicado es el primero."""
+    assert two_regimes.v == date(2023, 1, 1)
+    assert regimes(date(2022, 12, 31)) == {two_regimes.old.pk}

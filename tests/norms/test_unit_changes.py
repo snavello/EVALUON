@@ -74,8 +74,10 @@ def test_before_the_date_no_change_and_after_it_the_modifying_unit(modified_arti
 def test_change_reaches_the_target_and_not_its_incisos_or_siblings(
     modified_article,
 ):
-    """REQ-007: el cambio de `art-1` lo trae `art-1`; no lo traen su inciso, `art-10`
-    (aunque su clave empiece igual) ni `art-2`."""
+    """REQ-007: un cambio sobre `art-1` lo trae `art-1`; no lo traen su inciso (que está
+    contenido en la unidad alcanzada, no la contiene), `art-10` ni `art-2`. El caso en
+    que la clave alcanzada empieza con la de otra unidad (`art-10` frente a `art-1`) lo
+    cubre `test_change_to_art_10_is_not_reported_on_art_1`."""
     target, _, _, _ = modified_article
     result = changes(date(2021, 1, 1))
     reached = {row["unit_id"] for row in result}
@@ -83,6 +85,43 @@ def test_change_reaches_the_target_and_not_its_incisos_or_siblings(
     assert target["art-1"].pk in reached
     for key in ("art-1/inc-a", "art-10", "art-2"):
         assert target[key].pk not in reached
+
+
+@pytest.mark.django_db
+def test_change_to_art_10_is_not_reported_on_art_1(
+    make_norm, make_document, make_reading, make_relation
+):
+    """REQ-007: una modificación de `art-10` aparece en `art-10` y no en `art-1`, aunque
+    la clave alcanzada empiece con `art-1`: una unidad contenida se reconoce por su clave
+    seguida de `/`, no por cualquier prefijo."""
+    target = make_norm()
+    units = make_reading(make_document(target), [
+        ("art-1", "ARTICULO 1.- Texto."),
+        ("art-10", "ARTICULO 10.- Texto."),
+    ]).units_by_key
+    relation = make_relation(make_norm(), target, "modifica", target_unit_key="art-10",
+                             effective_date=date(2020, 1, 1))
+
+    assert changes_of(date(2020, 1, 1), units["art-1"]) == []
+    [row] = changes_of(date(2020, 1, 1), units["art-10"])
+    assert row["relation_id"] == relation.pk
+
+
+@pytest.mark.django_db
+def test_source_unit_is_taken_from_the_source_norm(two_regimes, make_relation):
+    """REQ-007, REQ-020: la unidad de origen es la de la norma de origen con esa clave,
+    no la de otra norma con la misma clave: un cambio desde `art-2` de la norma nueva
+    sobre `art-1` de la anterior trae el `art-2` de la nueva, no el de la anterior."""
+    relation = make_relation(
+        two_regimes.new, two_regimes.old, "modifica", source_unit_key="art-2",
+        target_unit_key="art-1", effective_date=two_regimes.v,
+    )
+
+    [row] = changes_of(two_regimes.after_v, two_regimes.old_units["art-1"])
+    assert row["relation_id"] == relation.pk
+    assert row["source_norm_id"] == two_regimes.new.pk
+    assert row["source_unit_id"] == two_regimes.new_units["art-2"].pk
+    assert row["source_unit_id"] != two_regimes.old_units["art-2"].pk
 
 
 @pytest.mark.django_db
