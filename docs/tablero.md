@@ -63,7 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 13 tareas sin terminar.
-- ○ T-027 · Releer un documento y reemplazar la lectura anterior (pendiente)
+- ▶ T-027 · Releer un documento y reemplazar la lectura anterior (en curso)
 - ○ T-028 · Integrar los tres formatos en la carga (pendiente)
 - ○ T-041 · Mostrar y registrar la búsqueda en la pantalla (pendiente)
 - ○ T-042 · Agregar calibración del umbral y comparación de corridas (pendiente)
@@ -104,8 +104,8 @@ flowchart LR
 - ✓ T-022 · Leer una página web guardada (`3d9224f` 2026-10-03, `c12d12c` 2026-10-03)
 - ✓ T-023 · Partir normas completas con incisos, anexos y considerandos (`07000e3` 2026-10-03, `9fcf7ba` 2026-10-03, `b3b20b9` 2026-10-03)
 - ✓ T-024 · Partir dictámenes y recomendaciones en puntos y párrafos (`eee73f3` 2026-10-03, `33bb89f` 2026-10-03)
-- ✓ T-025 · Completar el informe de lectura
-- ✓ T-026 · Avisar duplicados al cargar una norma
+- ✓ T-025 · Completar el informe de lectura (`8d488ab` 2026-10-03, `894c7a7` 2026-10-03, `3986cbf` 2026-10-03)
+- ✓ T-026 · Avisar duplicados al cargar una norma (`7ff80c5` 2026-10-03, `dd34b1a` 2026-10-03)
 - ✓ T-029 · Registrar relaciones entre normas y mostrar los vínculos (`eb8e443` 2026-10-03, `7748cf7` 2026-10-03)
 - ✓ T-030 · Registrar versiones de una norma (`2844775` 2026-10-03)
 - ✓ T-031 · Partir en pasajes las unidades largas (`282ab7f` 2026-10-03, `955ce90` 2026-10-03, `c1e2088` 2026-10-03)
@@ -153,7 +153,7 @@ flowchart TD
   T024["✓ T-024 · Partir dictámenes y recomendaciones en punt…"]:::done
   T025["✓ T-025 · Completar el informe de lectura"]:::done
   T026["✓ T-026 · Avisar duplicados al cargar una norma"]:::done
-  T027["○ T-027 · Releer un documento y reemplazar la lectura…"]:::todo
+  T027["▶ T-027 · Releer un documento y reemplazar la lectura…"]:::active
   T028["○ T-028 · Integrar los tres formatos en la carga"]:::todo
   T029["✓ T-029 · Registrar relaciones entre normas y mostrar…"]:::done
   T030["✓ T-030 · Registrar versiones de una norma"]:::done
