@@ -4,11 +4,13 @@ singular y plural"; ADR-0007, adenda "La eñe").
 Reemplaza `search_normalize` para que la "ñ" y la "Ñ" no pasen por `unaccent`, que las
 convertía en "n" ("año" y "ano" compartían lexema):
 
-1. cambia la "ñ" y la "Ñ" por dos caracteres de control (`\\x01` y `\\x02`) que
-   `unaccent` no toca;
-2. quita los acentos con `unaccent`, como antes;
-3. repone la "ñ" y la "Ñ";
-4. repone la tilde de "-acion" y "-ucion", con la misma expresión que 0003.
+1. cambia por espacios los caracteres de control `\\x01` y `\\x02` que traiga el texto,
+   que de todos modos separan palabras: así no se confunden con la eñe protegida en el
+   paso siguiente ni pegan dos palabras;
+2. cambia la "ñ" y la "Ñ" por `\\x01` y `\\x02`, que `unaccent` no toca;
+3. quita los acentos con `unaccent`, como antes;
+4. repone la "ñ" y la "Ñ";
+5. repone la tilde de "-acion" y "-ucion", con la misma expresión que 0003.
 
 La regla de la tilde corre sobre el texto ya repuesto, así no ve los caracteres de
 control. `search_document` y `search_query` no cambian: llaman a `search_normalize`.
@@ -37,7 +39,9 @@ AS $$
   SELECT pg_catalog.regexp_replace(
            pg_catalog.translate(
              public.unaccent('public.unaccent'::regdictionary,
-                             pg_catalog.translate(input, 'ñÑ', E'\x01\x02')),
+                             pg_catalog.translate(
+                               pg_catalog.translate(input, E'\x01\x02', '  '),
+                               'ñÑ', E'\x01\x02')),
              E'\x01\x02', 'ñÑ'),
            '([au])cion\M', '\1ción', 'gi')
 $$;

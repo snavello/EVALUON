@@ -1447,7 +1447,7 @@ artículo, artículos, articulo -> 'articul'   garantía, garantías, garantia -
 
 ## La eñe en la búsqueda por palabras (T-053)
 
-Fecha: 2026-10-02. `norms/0006_search_normalize_enye` (SQL propio, con reversa) reemplaza `search_normalize` (ADR-0007, adenda "La eñe"): cambia "ñ" y "Ñ" por `\x01` y `\x02`, quita los acentos con `unaccent`, repone "ñ" y "Ñ" y después repone la tilde de "-acion" y "-ucion" con la misma expresión de 0003. La regla de la tilde corre sobre el texto ya repuesto, así no ve los caracteres de control. `search_document` y `search_query` no cambian. La migración y su reversa recalculan `tsv` (`UPDATE public.norms_passage SET text = text;`) y reconstruyen el índice (`REINDEX INDEX public.norms_passage_tsv_gin;`). Con el montaje normal, `makemigrations --check --dry-run` dijo `No changes detected`.
+Fecha: 2026-10-02. `norms/0006_search_normalize_enye` (SQL propio, con reversa) reemplaza `search_normalize` (ADR-0007, adenda "La eñe"): cambia por espacios los `\x01` y `\x02` que traiga el texto, cambia "ñ" y "Ñ" por `\x01` y `\x02`, quita los acentos con `unaccent`, repone "ñ" y "Ñ" y después repone la tilde de "-acion" y "-ucion" con la misma expresión de 0003. La regla de la tilde corre sobre el texto ya repuesto, así no ve los caracteres de control. `search_document` y `search_query` no cambian. La migración y su reversa recalculan `tsv` (`UPDATE public.norms_passage SET text = text;`) y reconstruyen el índice (`REINDEX INDEX public.norms_passage_tsv_gin;`). Con el montaje normal, `makemigrations --check --dry-run` dijo `No changes detected`.
 
 **Lexemas en el Postgres fijado (17.11), antes y después.**
 
@@ -1485,4 +1485,6 @@ Con `enable_seqscan` apagado, la búsqueda de "año" usa `norms_passage_tsv_gin`
 
 **Respaldo y restauración.** `pg_dump -Fc` de esa base y `pg_restore` en una base aparte (`t053_b`, creada y borrada) terminaron sin error, con `tsv` igual al de la base de origen.
 
-**Qué se pierde.** Quien escribe sin eñe no encuentra la palabra con eñe ("compania" no encuentra "compañía"), y "año" y "años" no comparten lexema (ADR-0007, adenda). Si un texto trajera los caracteres de control `\x01` o `\x02`, saldrían como "ñ" o "Ñ" en la normalización; no aparecen en texto normativo.
+**Qué se pierde.** Quien escribe sin eñe no encuentra la palabra con eñe ("compania" no encuentra "compañía"), y "año" y "años" no comparten lexema (ADR-0007, adenda).
+
+**Caracteres de control y esquema explícito.** Los `\x01` y `\x02` que traiga el texto se cambian por espacios antes de proteger la eñe. Como el analizador ya los trataba como separadores, el lexema queda igual que antes de T-053: `E'plazo\x01de'` da `'plaz':1`, no `'plazoñd'` (`test_control_characters_used_to_protect_the_enye_are_separators`). Con `SET LOCAL search_path = ''`, `public.search_normalize`, `public.search_document` y `public.search_query` dan los lexemas esperados para "año" y "licitacion" (`test_search_functions_work_with_an_empty_search_path`). Si en la 0006 se llama a `unaccent(...)` sin esquema ni diccionario, ese test falla con `function unaccent(text) does not exist`. Con datos, en la base de `evaluon-t053`, se aplicó la 0006, se revirtió a 0005 y se volvió a aplicar: dio los mismos `tsv` y las mismas coincidencias de la tabla anterior, y `E'plazo\x01de'` dio `'plaz':1` en las tres definiciones.

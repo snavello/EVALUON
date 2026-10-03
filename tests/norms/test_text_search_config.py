@@ -261,3 +261,36 @@ def test_enye_migration_recalculates_tsv_of_existing_passages(
 
     _run(migration.FORWARD)
     assert _matching("ano", ids) == set()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("text", ["plazo\x01de", "plazo\x02de"])
+def test_control_characters_used_to_protect_the_enye_are_separators(text):
+    """REQ-010: los caracteres de control `\x01` y `\x02`, que `search_normalize` usa
+    para proteger la eñe, separan palabras como antes de T-053: no salen como "ñ" ni
+    "Ñ" ni pegan dos palabras ("plazo\x01de" da `plaz`, no `plazoñd`)."""
+    assert _scalar("SELECT search_normalize(%s)", [text]) == "plazo de"
+    assert _scalar("SELECT search_document(%s)::text", [text]) == "'plaz':1"
+    assert (
+        _scalar("SELECT search_normalize(%s)", ["AÑO Ñandú señalizacion licitacion"])
+        == "AÑO Ñandu señalización licitación"
+    )
+
+
+@pytest.mark.django_db
+def test_search_functions_work_with_an_empty_search_path():
+    """REQ-010: las tres funciones nombran todo con su esquema y dan los lexemas
+    esperados con `search_path` vacío, como en una restauración con `pg_restore`, que
+    recalcula `tsv` al insertar cada pasaje."""
+    with connection.cursor() as cursor:
+        cursor.execute("SET LOCAL search_path = ''")
+        cursor.execute(
+            "SELECT public.search_normalize(w), public.search_document(w)::text,"
+            " public.search_query(w)::text"
+            " FROM unnest(ARRAY['año', 'licitacion']) AS w"
+        )
+        rows = cursor.fetchall()
+    assert rows == [
+        ("año", "'año':1", "'año'"),
+        ("licitación", "'licit':1", "'licit'"),
+    ]
