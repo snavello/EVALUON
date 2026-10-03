@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 36 tareas sin terminar.
-- ▶ T-014 · Cargar una norma, listarla y ver su informe (en curso)
+- ◐ T-014 · Cargar una norma, listarla y ver su informe (en verificación)
 - ○ T-018 · Generar la respuesta con esquema e insertar las citas (pendiente)
 - ○ T-019 · Unir la consulta de punta a punta con su registro (pendiente)
 - ○ T-020 · Probar el hilo mínimo con los servicios reales (pendiente)
@@ -135,7 +135,7 @@ flowchart TD
   T011["✓ T-011 · Crear los clientes de IA, sus dobles y los…"]:::done
   T012["✓ T-012 · Leer un PDF con texto"]:::done
   T013["✓ T-013 · Partir en artículos y armar el informe míni…"]:::done
-  T014["▶ T-014 · Cargar una norma, listarla y ver su informe"]:::active
+  T014["◐ T-014 · Cargar una norma, listarla y ver su informe"]:::review
   T015["✓ T-015 · Validar una lectura y calcular pasajes y ve…"]:::done
   T016["✓ T-016 · Armar la pantalla de consulta con sus tres…"]:::done
   T017["✓ T-017 · Recuperar por significado y reordenar con e…"]:::done
