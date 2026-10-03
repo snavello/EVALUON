@@ -2417,3 +2417,42 @@ Está muy por debajo de 200 ms: no hace falta índice.
 - `pg_restore` crea las extensiones `vector` y `unaccent`. Con el usuario de `POSTGRES_USER` funciona porque es superusuario. Si en el despliegue se separa el usuario de la aplicación del dueño del esquema, la restauración se tiene que hacer con el dueño o con un superusuario.
 - Cuando hay una migración pendiente, `migrate --check` no dice cuál es. Para verla: `docker compose run --rm --no-deps app python manage.py showmigrations`.
 - El respaldo no incluye `models/` ni `corpus/`: los originales cargados ya están dentro de la base (plan, "Respaldo").
+
+## T-047 · Consulta con la red desconectada
+
+**Fecha:** 2026-10-03, en la MSI (Docker 29.8.1, Compose 5.5.1). Copia de trabajo en el commit `fa5b167`; imagen `evaluon-app:local` `sha256:0c6c044c3fb0…`. La prueba se divide en dos partes: lo que no necesita estar sin red se hizo con red; la prueba sin red la corre el responsable con un script que trabaja solo, porque el Coordinador trabaja por internet y se corta al desconectar el equipo.
+
+### Parte 1, con red
+
+**`docker-compose.yml` y contenedores en marcha** (`docker inspect` del proyecto `evaluon`):
+
+- `db`, `generation`, `embeddings`, `reranker` y `migrate` están solo en la red `evaluon_internal`, con `Internal: true`, y no publican puertos (`PortBindings` vacío).
+- `generation`, `embeddings` y `reranker` arrancan con `--offline` (está en el comando efectivo de los tres).
+- `app` publica solo `127.0.0.1:8000->8000/tcp`.
+- Comprobado desde adentro: `docker exec evaluon-generation-1 curl https://huggingface.co` falla con "Could not resolve host".
+- **Observación para el despliegue (P4):** `app` está además en la red `web`, que no es interna, y sí sale a internet: desde `evaluon-app-1`, `urllib` contra `https://huggingface.co` devuelve 200. La red `web` es una decisión de T-005, anotada en la sección de esa tarea: una red interna de Docker no publica puertos. Ni el plan ni la constitución prohíben esa salida en esta fase, y la aplicación no llama a nada externo. En la fase de operación, el camino de pliegos y ofertas pasa por `app`, así que conviene decidir en el despliegue si se corta esa salida, por ejemplo con una regla de firewall o con un proxy inverso en una red sin salida. No es un defecto de esta tarea y no se tocó `docker-compose.yml`.
+
+**`pytest tests/norms` en un contenedor sin red.** Casi todos los tests de `tests/norms` usan la base, así que con `--network none` puro no tienen a quién conectarse. Se levantó una base aparte en el proyecto `evaluon-t047` (red interna `evaluon-t047_internal`, sin salida) y se corrió la imagen de `app` conectada solo a esa red, con el código de la copia montado en solo lectura, igual que en el compose:
+
+```
+docker compose -p evaluon-t047 --env-file <coord.env> up -d --wait db
+docker run --rm --network evaluon-t047_internal --env-file <variables de la base y DJANGO_SECRET_KEY> \
+  -v <copia>/evaluon:/app/evaluon:ro -v <copia>/tests:/app/tests:ro -v <copia>/scripts:/app/scripts:ro \
+  -v <copia>/manage.py:/app/manage.py:ro -v <copia>/pyproject.toml:/app/pyproject.toml:ro \
+  -v <copia>/docker-compose.yml:/app/docker-compose.yml:ro -v <copia>/corpus:/app/corpus:ro \
+  evaluon-app:local pytest tests/norms -q -p no:cacheprovider
+docker compose -p evaluon-t047 --env-file <coord.env> down -v
+```
+
+- Dentro del contenedor, resolver `pypi.org` falla ("Temporary failure in name resolution").
+- Resultado: **821 passed** en 117 s. Entre ellos están los de lectura de los tres formatos (`test_three_formats.py`, `test_reading_pdf_text.py`, `test_reading_ocr.py`, `test_reading_web.py`).
+- Con `--network none` estricto, los siete archivos de lectura dan 160 passed y 10 errores. Los 10 errores son todos "failed to resolve host 'db'": son los tests que además guardan en la base. La lectura en sí no necesita red.
+- Al terminar, `down -v` borró solo el volumen y la red de `evaluon-t047`.
+
+**Recursos externos en las páginas.** No hay ninguna dirección `http(s)://` ni `//` en `evaluon/templates/` (`base.html`, `accounts/login.html`, `queries/*.html`) ni en `evaluon/static/` (`css/evaluon.css`, `js/consulta.js`). Las únicas referencias a recursos son la hoja de estilos y el script propios, servidos con `{% static %}`. Todas las páginas salen con `Content-Security-Policy: default-src 'self'`. Las dos páginas web guardadas (documentos 1 y 2) traen tres referencias externas cada una, propias de Infoleg, pero la vista del original las entrega con `default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; sandbox`, así que el navegador no las carga.
+
+### Prueba con el equipo desconectado
+
+La prueba con el equipo desconectado no se hace por decisión del responsable (2026-10-03); queda para el despliegue si se la pide.
+
+Antes de esa decisión se había escrito un script para correrla sin intervención y se lo probó una vez con red, en un modo que saltea el chequeo de internet (2026-10-03, 18:09 a 18:10). Esa corrida detuvo y volvió a levantar el proyecto `evaluon` (55 s hasta los cinco servicios sanos), ingresó como `desarrollo`, hizo la consulta 256 (pregunta de EV-001, fecha 2023-01-02, respuesta con fundamento y cita al artículo 43 del Anexo de la Disposición AFIP 247/2022) y una búsqueda por "mantenimiento de oferta" (12 textos), y abrió el original del documento 3. Dejó en la base real los hechos de auditoría de esa consulta, de esa búsqueda y de dos ingresos (uno del script y otro con `curl` para revisar las cabeceras de los originales web). El script y su archivo de resultado se borraron después de la decisión.
