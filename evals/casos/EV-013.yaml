@@ -1,0 +1,21 @@
+id: EV-013
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "Si hay discrepancias entre los documentos de la contratación, ¿qué orden de prelación se sigue?"
+fecha_autorizacion: 2024-01-22
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  a) el régimen; b) las normas que se dicten en consecuencia; c) el pliego de bases y condiciones particulares junto con las circulares; d) la oferta; e) las muestras que se hubieran acompañado; f) la adjudicación; g) la orden de compra, de venta o el contrato.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 7, segundo párrafo, incisos a) a g)"}
+origen: |
+  En caso de existir discrepancias se seguirá el siguiente orden de prelación: a) El presente régimen. b) Las normas que se dicten en consecuencia. c) El pliego de bases y condiciones particulares junto con las circulares. d) La oferta. e) Las muestras que se hubieran acompañado. f) La adjudicación. g) La orden de compra, de venta o el contrato, según corresponda.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-7}
+datos_clave: ["régimen", "normas que se dicten en consecuencia", "pliego con circulares", "oferta", "muestras", "adjudicación", "orden de compra o contrato"]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["referencia exacta"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido

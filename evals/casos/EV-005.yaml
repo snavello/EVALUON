@@ -1,0 +1,21 @@
+id: EV-005
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Cuál es el plazo para observar el dictamen de evaluación de las ofertas?"
+fecha_autorizacion: 2023-05-02
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  Tres (3) días desde su notificación; en una contratación directa del inciso d) del artículo 21 el plazo se reduce a un (1) día.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 57"}
+origen: |
+  Los oferentes podrán observar el dictamen de evaluación dentro de los TRES (3) días de su notificación, excepto que se tratare de una contratación directa del inciso d) del artículo 21 del presente régimen, en cuyo caso el plazo se reducirá a UN (1) día.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-57}
+datos_clave: ["3 días", "1 día en contratación directa"]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["referencia exacta"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido

@@ -1,6 +1,6 @@
 # ADR-0009 · Las respuestas de la Comisión como fundamento
 
-Estado: propuesto · Fecha: 2026-10-03 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-03 · Decidió: responsable del proyecto, 2026-10-03
 
 Enmienda de la constitución: P3, versión 1.1 → 1.2.
 
@@ -25,7 +25,7 @@ Toda respuesta trae un documento que la respalde, y el fundamento es ese documen
 
 ## Decisión
 
-Propuesta: B. P3 quedaría así:
+B, aprobada por el responsable el 2026-10-03. P3 queda así (constitución, versión 1.2):
 
 > **P3. El sistema recomienda, la Comisión decide.** Toda conclusión del sistema muestra su fundamento. El fundamento puede ser el fragmento del pliego o de la oferta y la cita normativa que la sostiene, o la respuesta de la Comisión a una pregunta del sistema, registrada con quién respondió y cuándo, y mostrada como tal. Si no hay fundamento recuperable, el resultado es "no determinado", nunca una afirmación. Una pregunta sin responder no es fundamento. La decisión final es siempre de una persona y queda registrada como tal.
 

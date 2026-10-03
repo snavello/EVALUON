@@ -1,0 +1,23 @@
+id: EV-016
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "¿Por cuánto tiempo debe un oferente mantener su oferta cuando el pliego no fija un plazo de mantenimiento?"
+fecha_autorizacion: 2022-12-31
+regimen: "Disposición AFIP 297/03"
+esperado: |
+  Treinta (30) días contados a partir de la fecha del acto de apertura. Si el oferente no manifiesta en forma fehaciente su voluntad de no renovarla con al menos cinco (5) días de antelación al vencimiento, se prorroga automáticamente por un lapso igual.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 39"}
+origen: |
+  Para el supuesto que no se fije plazo de mantenimiento de ofertas en el Pliego de Bases y Condiciones, los oferentes deberán mantenerlas por el término TREINTA (30) días, contados a partir de la fecha del acto de apertura. Si no manifestaran en forma fehaciente su voluntad de no renovar la oferta con una antelación mínima de CINCO (5) días al vencimiento del plazo, aquélla se considerará prorrogada automáticamente por un lapso igual al inicial y así sucesivamente.
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-39}
+datos_clave: ["30 días", "desde el acto de apertura", "prórroga automática"]
+difieren: false
+pareja: EV-001
+aviso_modificatorias: true
+etiquetas: ["referencia exacta", "dos fechas"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  Último día bajo la 297/03. El artículo no dice si los 30 días son corridos o hábiles; por el artículo 8 se computan en días hábiles administrativos salvo disposición en contrario. Texto de 2003 sin modificatorias: alguna de las 32 pendientes pudo cambiar este plazo.

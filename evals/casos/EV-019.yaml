@@ -1,0 +1,23 @@
+id: EV-019
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "¿Qué se necesita para impugnar el acto de adjudicación y en qué plazo?"
+fecha_autorizacion: 2003-06-14
+regimen: "Disposición AFIP 297/03"
+esperado: |
+  Los oferentes pueden impugnarlo dentro de los cinco (5) días de notificado y, como condición de admisibilidad, deben depositar en efectivo el cinco por mil (0,5 ‰) del valor de su oferta, que se devuelve si la impugnación prospera y se pierde si se desestima.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 53"}
+origen: |
+  Los oferentes podrán formular impugnaciones contra el acto de adjudicación, dentro de los cinco (5) días de notificado el mismo. Con cada escrito de impugnación y como condición de admisibilidad deberá haber depositado en efectivo el equivalente al CINCO POR MIL (0,5 ‰) del valor de la oferta presentada por el impugnante, el que le será devuelto al impugnante en caso que la impugnación fuera receptada favorablemente y se perderá esta suma en el caso que ella fuera desestimada.
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-53}
+datos_clave: ["5 días", "depósito 0,5 ‰ del valor de la oferta"]
+difieren: false
+pareja: ""
+aviso_modificatorias: true
+etiquetas: ["referencia exacta"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  Primer día de vigencia de la 297/03: prueba el borde inferior. Ojo: el texto dice "CINCO POR MIL (0,5 ‰)"; cinco por mil es 5 ‰ (0,5 %), no 0,5 ‰. La respuesta esperada repite el texto; conviene que la persona validadora decida qué dato exigir.
