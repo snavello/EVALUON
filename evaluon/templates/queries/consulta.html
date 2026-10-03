@@ -40,9 +40,12 @@
       {% if statement.regimes_differ %}<p class="regime-conflict" role="note">El régimen específico y el marco nacional tratan este punto de manera distinta. Se aplica el régimen específico.</p>{% endif %}
       <ul class="citations">
         {% for citation in statement.citations %}
-        <li class="citation-item"{% if citation.text %} id="{{ citation.anchor }}"{% endif %}>
+        {% if citation.unavailable %}
+        <li class="citation-item"><p class="citation-unavailable">Esta cita no está disponible.</p></li>
+        {% else %}
+        <li class="citation-item"{% if citation.first %} id="{{ citation.anchor }}"{% endif %}>
         <details class="citation" data-unit="{{ citation.id }}"{% if citation.open %} open{% endif %}>
-          <summary>{% if citation.role %}<span class="citation-role">{{ citation.role }}</span> · {% endif %}<span class="citation-source">{{ citation.norm }} · {{ citation.path }}</span>{% if citation.applicable %} <strong class="applicable">Texto aplicable</strong>{% endif %}{% if citation.changes %} <span class="change-mark">Tiene cambios</span>{% endif %}</summary>
+          <summary>{% if citation.role %}<span class="citation-role">{{ citation.role }}</span> · {% endif %}<span class="citation-source">{{ citation.norm }} · {{ citation.path }}</span>{% if citation.applicable %} <strong class="applicable">Texto aplicable</strong>{% endif %}{% if citation.changed %} <span class="change-mark">Tiene cambios</span>{% endif %}</summary>
           {% if citation.text %}
           {% include "queries/_unit_text.html" with text=citation.text missing="El texto de esta cita no está disponible." %}
           {% for change in citation.changes %}
@@ -64,6 +67,7 @@
           {% endif %}
         </details>
         </li>
+        {% endif %}
         {% endfor %}
       </ul>
     </li>

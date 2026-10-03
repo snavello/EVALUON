@@ -142,12 +142,15 @@ def anchor(unit_id):
 
 def role(category, unit_type):
     """Categoría con su papel en palabras, derivado de `category` y `unit_type`
-    (REQ-018). Un considerando es contexto; cualquier otra unidad, también una
-    `clausula`, lleva el papel de su categoría. Una categoría desconocida no se muestra."""
+    (REQ-018). Un considerando lleva la categoría de su documento y se presenta como
+    contexto ("Régimen específico · Considerando · contexto"); cualquier otra unidad,
+    también una `clausula`, lleva el papel de su categoría. Una categoría desconocida no
+    se muestra."""
+    label = Category(category).label if category in Category.values else ""
     if unit_type == UnitType.CONSIDERANDO:
-        return CONSIDERANDO_ROLE
-    if category in Category.values:
-        return f"{Category(category).label} · {answering.ROLES[category]}"
+        return f"{label} · {CONSIDERANDO_ROLE}" if label else CONSIDERANDO_ROLE
+    if label:
+        return f"{label} · {answering.ROLES[category]}"
     return ""
 
 
@@ -234,27 +237,44 @@ class _Page:
         }
 
     def citation(self, unit_id, regimes_differ):
+        """Una cita. La primera aparición de la unidad lleva el ancla y el texto; las
+        siguientes llevan a ella. Excepción (REQ-019): en una afirmación con
+        `regimes_differ`, el texto del régimen específico y el del marco nacional se
+        muestran siempre, desplegados, aunque ya hayan aparecido; el ancla sigue en la
+        primera aparición. Una cita que no está ni en `units` ni en la base se muestra
+        como no disponible."""
+        raw_id = unit_id
         unit_id = _int(unit_id)
+        record = self.records.get(str(unit_id)) or self.records.get(str(raw_id)) or {}
+        if not record and unit_id not in self.units:
+            return {"id": raw_id, "unavailable": True}
         described = self._describe(unit_id)
+        compared = (regimes_differ
+                    and described["unit_type"] != UnitType.CONSIDERANDO
+                    and described["category"] in (Category.REGIMEN_ESPECIFICO,
+                                                  Category.MARCO_NACIONAL))
+        first = unit_id not in self.shown
         citation = {
             "id": unit_id,
+            "unavailable": False,
             "norm": described["norm"],
             "path": described["path"],
             "role": role(described["category"], described["unit_type"]),
-            "applicable": (regimes_differ
-                           and described["category"] == Category.REGIMEN_ESPECIFICO
-                           and described["unit_type"] != UnitType.CONSIDERANDO),
-            "open": regimes_differ,
+            "open": compared,
+            "first": first,
             "anchor": anchor(unit_id),
+            "changed": bool(record.get("changes")),
             "text": None,
             "changes": [],
         }
-        if unit_id in self.shown:
-            return citation
-        citation["text"] = self._text(unit_id, described)
-        record = self.records.get(str(unit_id)) or {}
-        citation["changes"] = [self._change(unit_id, change)
-                               for change in record.get("changes") or ()]
+        if first or compared:
+            citation["text"] = self._text(unit_id, described)
+            citation["changes"] = [self._change(unit_id, change)
+                                   for change in record.get("changes") or ()]
+        # "Texto aplicable" solo sobre una cita que muestra su texto.
+        citation["applicable"] = (compared and citation["text"] is not None
+                                  and described["category"]
+                                  == Category.REGIMEN_ESPECIFICO)
         return citation
 
     def _change(self, unit_id, change):

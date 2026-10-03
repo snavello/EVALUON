@@ -39,7 +39,7 @@ ROLE_LABELS = {
     "dictamen_legal": "Dictamen legal · criterio que acompaña",
     "recomendacion_auditoria": "Recomendación de auditoría · criterio que acompaña",
 }
-CONSIDERANDO_LABEL = "Considerando · contexto"
+CONSIDERANDO_LABEL = "Régimen específico · Considerando · contexto"
 
 REFERENCE_DATE = date(2024, 5, 20)
 
@@ -344,8 +344,9 @@ def test_every_category_shows_its_role_in_words(client, read_user, corpus):
 
 
 def test_considerando_goes_last_labelled_as_context(client, read_user, corpus):
-    """REQ-018: un considerando se muestra como contexto, rotulado "Considerando ·
-    contexto", después del articulado, en el orden guardado."""
+    """REQ-018: un considerando muestra la categoría de su documento y se presenta
+    como contexto ("Régimen específico · Considerando · contexto"), después del
+    articulado, en el orden guardado."""
     art, considerando = corpus["re_art_1"], corpus["considerando"]
     body = page(client, read_user, grounded([
         statement("Garantía.", art, considerando),
@@ -606,3 +607,116 @@ def test_page_shows_no_internal_names(client, read_user, corpus):
                  "regimes_differ", "target_unit_key", "relation_type", "text_origin",
                  "pdf_text", "unit_type", "articulo", "None"):
         assert name not in body, name
+
+
+# --- Ajustes de verificación ------------------------------------------------------------
+
+
+def anchors(body):
+    return re.findall(r'id="(texto-\d+)"', body)
+
+
+@pytest.mark.parametrize("earlier", ["re_art_1", "mn"])
+def test_regimes_differ_shows_both_texts_even_if_already_shown(
+    client, read_user, corpus, earlier
+):
+    """REQ-019: en la afirmación con la marca, el texto del régimen específico y el del
+    marco nacional se muestran completos y desplegados aunque uno de ellos ya haya
+    aparecido antes en la página; "Texto aplicable" va sobre la cita del régimen
+    específico que muestra el texto, y el ancla de cada unidad no se repite."""
+    art, mn = corpus["re_art_1"], corpus["mn"]
+    body = page(client, read_user, grounded([
+        statement("Antes, sin marca.", corpus[earlier]),
+        statement("Difieren.", art, mn, differ=True),
+    ], [art, mn]))
+
+    block = statement_blocks(body)[1]
+    assert REGIMES_DIFFER_NOTICE in block
+    for unit in (art, mn):
+        details = re.search(rf'<details class="citation" data-unit="{unit.pk}"([^>]*)>',
+                            block)
+        assert " open" in details.group(1)
+        content = citation_of(block, unit)
+        assert literals(content) == [html.escape(canonical(unit))]
+        assert TEXT_SHOWN_ABOVE not in content
+    assert APPLICABLE_LABEL in summary(citation_of(block, art))
+    assert body.count(APPLICABLE_LABEL) == 1
+    assert sorted(anchors(body)) == sorted({f"texto-{art.pk}", f"texto-{mn.pk}"})
+    # La primera afirmación conserva el ancla de la unidad que citó.
+    assert f'id="texto-{corpus[earlier].pk}"' in statement_blocks(body)[0]
+
+
+def test_applicable_label_is_never_on_a_considerando(client, read_user, corpus):
+    """REQ-019 (REQ-018): con la marca, un considerando del régimen específico no lleva
+    "Texto aplicable"; solo el artículo."""
+    art, mn, considerando = corpus["re_art_1"], corpus["mn"], corpus["considerando"]
+    body = page(client, read_user, grounded(
+        [statement("Difieren.", art, mn, considerando, differ=True)],
+        [art, mn, considerando]))
+
+    assert APPLICABLE_LABEL not in summary(citation_of(body, considerando))
+    assert APPLICABLE_LABEL in summary(citation_of(body, art))
+    assert body.count(APPLICABLE_LABEL) == 1
+
+
+def test_change_mark_on_every_appearance_of_the_modified_unit(client, read_user, corpus):
+    """REQ-007: la unidad modificada lleva "Tiene cambios" en el resumen cada vez que se
+    cita, también cuando su texto se muestra más arriba."""
+    art, mod = corpus["re_art_2"], corpus["mod"]
+    body = page(client, read_user, grounded(
+        [statement("Uno.", art), statement("Dos.", art)], [],
+        extra_units=[(art, entry(art, [change(mod, art.key)])), (mod, entry(mod))]))
+
+    blocks = statement_blocks(body)
+    for block in blocks:
+        assert "Tiene cambios" in summary(citation_of(block, art))
+    assert TEXT_SHOWN_ABOVE in citation_of(blocks[1], art)
+
+
+def test_web_page_link_has_no_page_even_if_the_unit_has_one(client, read_user, corpus):
+    """REQ-013: el enlace al original de una página web guardada no lleva `#page`
+    aunque la unidad traiga un número de página; solo un PDF lo lleva."""
+    mn = corpus["mn"]
+    result = grounded([statement("Marco.", mn)], [mn])
+    result["units"][str(mn.pk)]["page_start"] = 4
+
+    body = page(client, read_user, result)
+
+    content = citation_of(body, mn)
+    assert ORIGINAL_LINK_TEXT in content
+    assert "#page=" not in content
+
+
+RAW_VALUES = ("ocr", "web", "pdf_text", "clausula", "articulo", "considerando")
+
+
+def test_raw_stored_values_do_not_appear_in_the_page(client, read_user, corpus):
+    """REQ-013, REQ-015, REQ-018: los valores guardados de origen del texto y de tipo de
+    unidad (`ocr`, `web`, `pdf_text`, `clausula`, `articulo`, `considerando`) no
+    aparecen en la página: ni como valor de un atributo ni como palabra suelta del texto
+    visible, en minúscula. "Considerando · contexto" va con mayúscula y no cuenta."""
+    units = [corpus[k] for k in ("re_art_1", "mn", "dl", "considerando", "clausula")]
+    body = page(client, read_user, grounded([statement("Varias.", *units)], units))
+
+    values = "|".join(RAW_VALUES)
+    assert not re.search(rf'=\s*"[^"]*\b({values})\b[^"]*"', body)
+    visible = re.sub(r"<[^>]+>", " ", body)
+    found = re.findall(rf"\b({values})\b", visible)
+    assert found == []
+    assert "Considerando · contexto" in visible
+
+
+def test_citation_unknown_everywhere_says_it_is_not_available(client, read_user, corpus):
+    """REQ-013: una cita cuyo id no está ni en `units` ni en la base se muestra con un
+    texto llano, "Esta cita no está disponible", y no con un resumen vacío."""
+    art = corpus["re_art_1"]
+    result = grounded([statement("Garantía.", art)], [art])
+    result["statements"][0]["citations"].append(987654)
+
+    body = page(client, read_user, result)
+
+    block = statement_blocks(body)[0]
+    assert "Esta cita no está disponible." in block
+    assert 'data-unit="987654"' not in block
+    assert "<summary> · </summary>" not in block
+    assert literals(citation_of(block, art)) == [html.escape(canonical(art))]
