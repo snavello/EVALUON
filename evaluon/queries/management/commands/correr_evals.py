@@ -85,8 +85,7 @@ class Command(BaseCommand):
                      f"{report.notices['total']} según lo esperado")
         lines.append(evaluation.threshold_line(report.calibration)
                      + " (no cambia la configuración del sistema)")
-        lines.append("Corrida anterior: " + (report.comparison["previous"]
-                                             if report.comparison else "ninguna"))
+        lines += evaluation.comparison_lines(report.comparison)
         failed = report.failed_ids()
         lines.append("Casos fallados: " + (", ".join(failed) if failed else "ninguno"))
         lines += [f"No corrido: {s.file}: {s.reason}" for s in report.skipped

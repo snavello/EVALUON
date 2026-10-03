@@ -118,6 +118,12 @@ CORRECT_THRESHOLD = 0.85
 ABSTENTION_THRESHOLD = 0.90
 MAX_SECONDS = 30.0
 
+# Comparación con la corrida anterior: filas de tiempo y suba de la mediana que cuenta
+# como baja (decisión del Coordinador, cierre de T-042).
+TIME_MEDIAN = "response_time_median"
+TIME_MAX = "response_time"
+MEDIAN_RISE_LIMIT = 0.25
+
 NO_ANSWER = "no determinado"
 PENDING_AMENDMENTS = "pending_amendments"
 
@@ -1099,8 +1105,9 @@ def compare_runs(previous, lines, parameters):
     - `equality`: entre los casos corridos en las dos, cuántos dan el mismo resultado
       (`same`: estado, motivo, citas y texto de las afirmaciones) y cuántos el mismo
       estado, el mismo motivo y las mismas citas (`same_status_reason_and_citations`);
-    - `drops`: las medidas que bajaron (el tiempo, si subió): cada una requiere
-      aprobación del responsable (P7);
+    - `drops`: las medidas que bajaron: cada una requiere aprobación del responsable
+      (P7). El tiempo cuenta como baja solo si el máximo supera 30 s (`response_time`)
+      o si la mediana sube más de un 25 % (`response_time_median`);
     - `conditions_changed`: qué cambió entre las dos (commit, modelos, instrucciones,
       normativa o parámetros de búsqueda). Vacío: es una repetición."""
     old_lines = previous["lines"]
@@ -1112,16 +1119,22 @@ def compare_runs(previous, lines, parameters):
     rows = [{"name": name, "previous": old_measures[name]["rate"],
              "current": new_measures[name]["rate"]}
             for name in ("literal_citation", "correct_answer", "abstention")]
-    rows.append({"name": "response_time", "previous": old_measures["response_time"]["max"],
-                 "current": new_measures["response_time"]["max"]})
     for row in rows:
         before, now = row["previous"], row["current"]
-        if before is None or now is None:
-            row["drop"] = False
-        elif row["name"] == "response_time":
-            row["drop"] = now > before
-        else:
-            row["drop"] = now < before
+        row["drop"] = before is not None and now is not None and now < before
+    # Tiempo (decisión del Coordinador): es baja solo si el máximo supera el límite de
+    # 30 s o si la mediana sube más de un 25 % respecto de la anterior. Cualquier otra
+    # variación se muestra sin marcarla.
+    median_before = old_measures["response_time"]["median"]
+    median_now = new_measures["response_time"]["median"]
+    max_now = new_measures["response_time"]["max"]
+    rows.append({"name": TIME_MEDIAN, "previous": median_before, "current": median_now,
+                 "drop": (median_before is not None and median_now is not None
+                          and median_before > 0
+                          and median_now > median_before * (1 + MEDIAN_RISE_LIMIT))})
+    rows.append({"name": TIME_MAX, "previous": old_measures["response_time"]["max"],
+                 "current": max_now,
+                 "drop": max_now is not None and max_now > MAX_SECONDS})
 
     regressions = [c for c in both if old[c]["passed"] and not new[c]["passed"]]
     improvements = [c for c in both if not old[c]["passed"] and new[c]["passed"]]
@@ -1505,13 +1518,40 @@ def _when(iso):
 _FOLDER_DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2})(\d{2})")
 
 
-def _run_name(folder_name):
-    """Una corrida por su fecha, con la carpeta para encontrarla."""
+def run_date(folder_name):
+    """Una corrida por su fecha ("la del 03/10/2026 08:21"), leída del nombre de su
+    carpeta; si el nombre no empieza con la fecha, `None`."""
     match = _FOLDER_DATE.match(folder_name)
     if not match:
-        return f"carpeta `{folder_name}`"
+        return None
     year, month, day, hour, minute = match.groups()
-    return f"la del {day}/{month}/{year} {hour}:{minute} (carpeta `{folder_name}`)"
+    return f"la del {day}/{month}/{year} {hour}:{minute}"
+
+
+def _run_name(folder_name):
+    """Una corrida por su fecha, con la carpeta para encontrarla."""
+    when = run_date(folder_name)
+    if when is None:
+        return f"carpeta `{folder_name}`"
+    return f"{when} (carpeta `{folder_name}`)"
+
+
+def comparison_lines(comparison):
+    """Las líneas del comando sobre la corrida anterior: cuál fue, por su fecha, y si
+    hay bajas que requieren aprobación (P7)."""
+    if comparison is None:
+        return ["Corrida anterior: ninguna"]
+    previous = run_date(comparison["previous"]) or comparison["previous"]
+    if comparison.get("error"):
+        return [f"Corrida anterior: {previous}: {comparison['error']}. No se comparó."]
+    drops = comparison["drops"]
+    if drops:
+        drop_line = ("Hay bajas respecto de la corrida anterior que requieren la aprobación "
+                     "del responsable: "
+                     + ", ".join(_MEASURE_TEXT[name].lower() for name in drops) + ".")
+    else:
+        drop_line = "Sin bajas respecto de la corrida anterior."
+    return [f"Corrida anterior: {previous}", drop_line]
 
 
 def _ratio_text(ratio, unit=""):
@@ -1551,6 +1591,7 @@ _MEASURE_TEXT = {
     "literal_citation": "Cita literal",
     "correct_answer": "Respuesta correcta que cita la unidad correcta",
     "abstention": "Abstención",
+    "response_time_median": "Tiempo de respuesta (mediana)",
     "response_time": "Tiempo de respuesta (máximo)",
 }
 
@@ -1585,7 +1626,7 @@ def _retrieval_section(measures):
     position = measures["position"]
     timing = measures["retrieval_time"]
     out += [
-        f"| Unidad correcta entre las seleccionadas (enviadas al modelo) | "
+        f"| Unidad correcta entre las enviadas al modelo | "
         f"{_ratio_text(measures['selected'])} |",
         f"| Posición de la unidad correcta en el orden del reranker | mediana "
         f"{_number(position['median'])} · peor {_number(position['max'])} |",
@@ -1719,17 +1760,26 @@ def _ablation_section(ablation):
 
 
 def _comparison_value(name, value):
-    if name == "response_time":
+    if name in (TIME_MEDIAN, TIME_MAX):
         return _seconds(value)
     return _percent(value)
 
 
 def _change_text(row):
+    before, now = row["previous"], row["current"]
+    if row["name"] == TIME_MAX and row["drop"]:
+        return f"baja (supera el límite de {_number(MAX_SECONDS)} s)"
+    if row["name"] == TIME_MEDIAN and row["drop"]:
+        return f"baja (sube más del {_number(MEDIAN_RISE_LIMIT * 100)} %)"
     if row["drop"]:
-        return "baja (más lento)" if row["name"] == "response_time" else "baja"
-    if row["previous"] is None or row["current"] is None:
+        return "baja"
+    if before is None or now is None:
         return "—"
-    return "igual" if row["previous"] == row["current"] else "mejora"
+    if before == now:
+        return "igual"
+    if row["name"] in (TIME_MEDIAN, TIME_MAX):
+        return "más lento" if now > before else "más rápido"
+    return "mejora"
 
 
 def _comparison_section(comparison):

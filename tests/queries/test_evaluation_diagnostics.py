@@ -11,6 +11,7 @@ Los casos son sintéticos (P4), en `tests/fixtures/evals/t042-diagnostico` y
 dobles de los clientes de IA. Las corridas se guardan en una carpeta temporal.
 """
 
+import itertools
 import json
 import re
 import shutil
@@ -645,17 +646,123 @@ def test_each_drop_is_marked_and_asks_for_approval():
     baja se marca como "baja" y el resumen recuerda que requiere aprobación."""
     old = [synthetic_line("EV-001"), synthetic_line("EV-002")]
     new = [synthetic_line("EV-001", passed=False), synthetic_line("EV-002")]
-    new[0]["time_seconds"] = 2.0
 
     comparison = evaluation.compare_runs(previous_run(old), new, {"commit": "x"})
 
-    assert comparison["drops"] == ["correct_answer", "response_time"]
+    assert comparison["drops"] == ["correct_answer"]
     text = "\n".join(evaluation._comparison_section(comparison))
     assert ("| Respuesta correcta que cita la unidad correcta | 100,0 % | 50,0 % | baja |"
             in text)
     assert "| Cita literal | 100,0 % | 100,0 % | igual |" in text
-    assert "| Tiempo de respuesta (máximo) | 1,00 s | 2,00 s | baja (más lento) |" in text
+    assert "| Tiempo de respuesta (mediana) | 1,00 s | 1,00 s | igual |" in text
     assert "requiere la aprobación explícita del responsable" in text
+
+
+def timed_lines(*seconds):
+    lines = [synthetic_line(f"EV-{i:03d}") for i in range(1, len(seconds) + 1)]
+    for line, value in zip(lines, seconds):
+        line["time_seconds"] = value
+    return lines
+
+
+def time_comparison(old_seconds, new_seconds):
+    comparison = evaluation.compare_runs(previous_run(timed_lines(*old_seconds)),
+                                         timed_lines(*new_seconds), {"commit": "x"})
+    return comparison, "\n".join(evaluation._comparison_section(comparison))
+
+
+def test_small_time_changes_are_shown_without_a_drop():
+    """REQ-008 (P7, decisión del Coordinador): si el máximo no supera 30 s y la mediana no
+    sube más de un 25 %, el cambio de tiempo se muestra sin marcarlo como baja; una suba
+    de exactamente el 25 % tampoco es baja."""
+    comparison, text = time_comparison((10.0, 10.0), (11.0, 12.0))
+
+    assert comparison["drops"] == []
+    assert "| Tiempo de respuesta (mediana) | 10,00 s | 11,50 s | más lento |" in text
+    assert "| Tiempo de respuesta (máximo) | 10,00 s | 12,00 s | más lento |" in text
+    assert "Hay bajas" not in text
+    assert time_comparison((8.0,), (10.0,))[0]["drops"] == []
+    assert time_comparison((40.0,), (29.0,))[0]["drops"] == []
+
+
+def test_time_over_the_limit_is_a_drop():
+    """REQ-008 (P7): si el máximo de esta corrida supera los 30 s, el tiempo es baja,
+    aunque la mediana no cambie."""
+    comparison, text = time_comparison((10.0, 10.0, 10.0), (10.0, 10.0, 31.0))
+
+    assert comparison["drops"] == ["response_time"]
+    assert ("| Tiempo de respuesta (máximo) | 10,00 s | 31,00 s | "
+            "baja (supera el límite de 30 s) |") in text
+    assert "| Tiempo de respuesta (mediana) | 10,00 s | 10,00 s | igual |" in text
+    assert "requiere la aprobación explícita del responsable" in text
+
+
+def test_a_median_rise_over_25_percent_is_a_drop():
+    """REQ-008 (P7): si la mediana sube más de un 25 % respecto de la corrida anterior,
+    el tiempo es baja, aunque el máximo siga debajo de 30 s."""
+    comparison, text = time_comparison((8.0, 8.0), (11.0, 11.0))
+
+    assert comparison["drops"] == ["response_time_median"]
+    assert ("| Tiempo de respuesta (mediana) | 8,00 s | 11,00 s | "
+            "baja (sube más del 25 %) |") in text
+    assert "| Tiempo de respuesta (máximo) | 8,00 s | 11,00 s | más lento |" in text
+
+
+def test_command_names_the_previous_run_by_date_and_warns_of_drops(
+    read_user, two_regimes, scripted, tmp_path, monkeypatch
+):
+    """REQ-008 (P7): la salida de `correr_evals` nombra la corrida anterior por su fecha,
+    no por la carpeta, y avisa en una línea si hay bajas que requieren aprobación."""
+    from tests.queries.test_evaluation import call
+
+    all_marks(scripted)
+    steady_clock(monkeypatch)
+    earlier(run(read_user, "t039-medidas", tmp_path))
+    del scripted.marks[Q1]  # EV-901 deja de pasar: baja la respuesta correcta
+
+    output = call("--usuario", read_user.username,
+                  "--casos", str(FIXTURES / "t039-medidas"),
+                  "--corridas", str(tmp_path), "--commit", "abc1234",
+                  monkeypatch=monkeypatch)
+
+    lines = output.splitlines()
+    assert "Corrida anterior: la del 01/01/2000 00:00" in lines
+    assert "2000-01-01T000000" not in output
+    assert ("Hay bajas respecto de la corrida anterior que requieren la aprobación del "
+            "responsable: respuesta correcta que cita la unidad correcta.") in lines
+
+
+def test_command_says_when_there_are_no_drops(read_user, two_regimes, scripted, tmp_path,
+                                             monkeypatch):
+    """REQ-008 (P7): sin bajas, la salida del comando lo dice."""
+    from tests.queries.test_evaluation import call
+
+    all_marks(scripted)
+    steady_clock(monkeypatch)
+    earlier(run(read_user, "t039-medidas", tmp_path))
+
+    output = call("--usuario", read_user.username,
+                  "--casos", str(FIXTURES / "t039-medidas"),
+                  "--corridas", str(tmp_path), "--commit", "abc1234",
+                  monkeypatch=monkeypatch)
+
+    assert "Sin bajas respecto de la corrida anterior." in output.splitlines()
+
+
+def test_retrieval_row_says_sent_to_the_model():
+    """REQ-008: en "Recuperación (diagnóstico)" el renglón de lo que llegó al modelo se
+    llama "entre las enviadas al modelo", sin "seleccionadas", para no confundirlo con la
+    medida de la comparación quitando piezas."""
+    found = {"semantic": True, "words": True, "reference": False, "union": True}
+    diagnostics = {"found": found, "selected": True, "position": 1,
+                   "stopped_by_threshold": False, "retrieval_seconds": 0.1}
+
+    rows = evaluation._retrieval_section(
+        evaluation.retrieval_measures([("EV-1", True, diagnostics)]))
+
+    assert any(r.startswith("| Unidad correcta entre las enviadas al modelo |")
+               for r in rows)
+    assert not any("seleccionadas" in r for r in rows)
 
 
 def test_a_case_with_several_units_needs_all_of_them(two_regimes):
@@ -684,3 +791,17 @@ def test_a_case_with_several_units_needs_all_of_them(two_regimes):
     assert both["found"]["semantic"] is False  # por significado entró solo una
     assert both["found"]["words"] is False
     assert (both["selected"], both["delivered"], both["position"]) == (True, True, 3)
+
+
+def steady_clock(monkeypatch):
+    """Que cada consulta de la corrida mida 1 s, también las que corre el comando: con el
+    reloj real, tiempos de milisegundos podrían variar más de un 25 % entre corridas y
+    marcar una baja de tiempo al azar."""
+    original = evaluation.run
+
+    def run_with_steady_clock(*args, **kwargs):
+        ticks = itertools.count()
+        kwargs.setdefault("clock", lambda: next(ticks))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(evaluation, "run", run_with_steady_clock)
