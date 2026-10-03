@@ -1445,6 +1445,19 @@ artículo, artículos, articulo -> 'articul'   garantía, garantías, garantia -
 
 **Al actualizar Postgres o la imagen fijada.** Las funciones de búsqueda se declaran inmutables aunque `unaccent` no lo es: la promesa se cumple mientras no cambien las reglas de `unaccent` ni el lematizador de español. Después de una actualización de versión mayor (o de la imagen) hay que recalcular `tsv` de todos los pasajes (por ejemplo `UPDATE norms_passage SET text = text;`, que vuelve a calcular la columna, como se comprobó en una base aparte `t009_c`, creada y borrada, y `REINDEX INDEX norms_passage_tsv_gin;`) y repetir `pytest tests/norms/test_text_search_config.py`. `pg_upgrade` copia los datos sin recalcular.
 
+## Migraciones de `queries` (T-010)
+
+Fecha: 2026-10-02. Dos migraciones:
+
+- `queries/0001_initial`: `queries_query` como en "Modelo de datos", generada con el override local (`makemigrations queries`). Restricciones: `status` en `grounded`, `undetermined` o `error`; `reason` vacío con `grounded`, uno de los cuatro motivos de "no determinado" con `undetermined` y uno de los cuatro de falla técnica con `error`; `max_score` vacío o entre 0 y 1; `event` único (una consulta por hecho), y claves hacia `audit_event` y `accounts_user` con `PROTECT`.
+- `queries/0002_insert_only` (SQL propio): trigger `queries_query_insert_only` (función `queries_query_reject_change`) que rechaza todo UPDATE y DELETE, como en `audit_event`.
+
+Con el montaje normal, `makemigrations --check --dry-run` dijo `No changes detected`.
+
+**Base `evaluon`, sin datos que conservar.** Se aplicó con `docker compose run --rm --no-deps app python manage.py migrate` (0001 y 0002 OK). Reversa: `migrate queries zero` quitó 0002 y 0001 (sin tabla `queries_query` ni función del trigger); otra vez `migrate` las aplicó sin error y el trigger quedó en la tabla.
+
+**Base vacía.** En una base aparte (`t010_prueba`), creada y borrada, `migrate_on_start.sh` aplicó todo (`queries` 0001 y 0002 incluidas) y en la segunda corrida informó que no hay migraciones pendientes.
+
 ## La eñe en la búsqueda por palabras (T-053)
 
 Fecha: 2026-10-02. `norms/0006_search_normalize_enye` (SQL propio, con reversa) reemplaza `search_normalize` (ADR-0007, adenda "La eñe"): cambia por espacios los `\x01` y `\x02` que traiga el texto, cambia "ñ" y "Ñ" por `\x01` y `\x02`, quita los acentos con `unaccent`, repone "ñ" y "Ñ" y después repone la tilde de "-acion" y "-ucion" con la misma expresión de 0003. La regla de la tilde corre sobre el texto ya repuesto, así no ve los caracteres de control. `search_document` y `search_query` no cambian. La migración y su reversa recalculan `tsv` (`UPDATE public.norms_passage SET text = text;`) y reconstruyen el índice (`REINDEX INDEX public.norms_passage_tsv_gin;`). Con el montaje normal, `makemigrations --check --dry-run` dijo `No changes detected`.
