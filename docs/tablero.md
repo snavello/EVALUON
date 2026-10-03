@@ -63,9 +63,9 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 32 tareas sin terminar.
+- ▶ T-023 · Partir normas completas con incisos, anexos y considerandos (en curso)
 - ○ T-021 · Leer un PDF escaneado con reconocimiento de texto (pendiente)
 - ○ T-022 · Leer una página web guardada (pendiente)
-- ○ T-023 · Partir normas completas con incisos, anexos y considerandos (pendiente)
 - ○ T-024 · Partir dictámenes y recomendaciones en puntos y párrafos (pendiente)
 - ○ T-025 · Completar el informe de lectura (pendiente)
 - ○ T-026 · Avisar duplicados al cargar una norma (pendiente)
@@ -149,7 +149,7 @@ flowchart TD
   T020["✓ T-020 · Probar el hilo mínimo con los servicios rea…"]:::done
   T021["○ T-021 · Leer un PDF escaneado con reconocimiento de…"]:::todo
   T022["○ T-022 · Leer una página web guardada"]:::todo
-  T023["○ T-023 · Partir normas completas con incisos, anexos…"]:::todo
+  T023["▶ T-023 · Partir normas completas con incisos, anexos…"]:::active
   T024["○ T-024 · Partir dictámenes y recomendaciones en punt…"]:::todo
   T025["○ T-025 · Completar el informe de lectura"]:::todo
   T026["○ T-026 · Avisar duplicados al cargar una norma"]:::todo
