@@ -8,8 +8,8 @@ Fuentes: solo el anexo de la Disposición AFIP 247/2022 (`corpus/normativa/disp-
 
 | Grupo | Casos | Cantidad |
 |---|---|---|
-| Con respuesta en la 247/2022 (fecha desde 2023-01-01) | EV-001 a EV-015 | 15 |
-| Con respuesta en la 297/03 (fecha entre 2003-06-14 y 2022-12-31) | EV-016 a EV-024 | 9 |
+| Con respuesta en la 247/2022 (fecha desde 2023-01-02) | EV-001 a EV-015 | 15 |
+| Con respuesta en la 297/03 (fecha entre 2003-06-14 y 2023-01-01) | EV-016 a EV-024 | 9 |
 | Sin respuesta, fecha bajo la 247/2022 | EV-025 a EV-028 | 4 |
 | Sin respuesta, fecha bajo la 297/03 | EV-029, EV-030 | 2 |
 | Sin respuesta, fecha sin régimen (anterior a 2003-06-14) | EV-031 | 1 |
@@ -23,7 +23,7 @@ Fuentes: solo el anexo de la Disposición AFIP 247/2022 (`corpus/normativa/disp-
 
 | Id | Pregunta (resumida) | Régimen | Fecha | Esperado (resumido) | Cita | Pareja |
 |---|---|---|---|---|---|---|
-| EV-001 | Plazo de mantenimiento de oferta si el pliego no lo fija | 247/2022 | 2023-01-01 | 60 días corridos desde la apertura; prórroga automática | Anexo, art. 43 | EV-016 |
+| EV-001 | Plazo de mantenimiento de oferta si el pliego no lo fija | 247/2022 | 2023-01-02 | 60 días corridos desde la apertura; prórroga automática | Anexo, art. 43 | EV-016 |
 | EV-002 | Clases de garantías y porcentajes | 247/2022 | 2024-04-08 | Mantenimiento 5 %, cumplimiento 10 %, contragarantía por el adelanto | Anexo, art. 64 a) b) c) | |
 | EV-003 | Plazo para integrar la garantía de cumplimiento | 247/2022 | 2024-03-15 | 10 días desde el perfeccionamiento, prorrogable | Anexo, art. 61 | EV-017 |
 | EV-004 | ¿Garantía de oferta si se cotiza poco? | 247/2022 | 2025-07-21 | No, si la oferta no supera M 1.000 | Anexo, art. 66 f) | |

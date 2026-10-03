@@ -2,7 +2,7 @@ id: EV-001
 tipo: normativa
 documentos: [normativa/disp-afip-247-2022-anexo.pdf]
 pregunta: "¿Por cuánto tiempo debe un oferente mantener su oferta cuando el pliego no fija un plazo de mantenimiento?"
-fecha_autorizacion: 2023-01-01
+fecha_autorizacion: 2023-01-02
 regimen: "Disposición AFIP 247/2022"
 esperado: |
   Sesenta (60) días corridos contados desde la fecha del acto de apertura, sin contar el día de la apertura. El plazo se prorroga automáticamente por un lapso igual, salvo que el oferente manifieste en forma fehaciente que no lo renueva con al menos cinco (5) días hábiles de antelación al vencimiento.
