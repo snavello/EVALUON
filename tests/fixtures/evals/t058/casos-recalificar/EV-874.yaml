@@ -1,0 +1,16 @@
+id: EV-874
+tipo: normativa
+documentos: []
+pregunta: "¿Cuántos días dura el plazo sintético?"
+fecha_autorizacion: 2022-06-01
+regimen: "Disposición AFIP 247/2022"
+esperado: "Treinta días."
+cita: []
+origen: "Caso sintético de la tarea T-058 (P4)."
+unidades: [{norma: "Disposición AFIP 247/2022", key: anexo/art-43}]
+datos_clave: ["30 días"]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["sintético"]
+visto_bueno: "Comisión sintética, 2026-10-03"
