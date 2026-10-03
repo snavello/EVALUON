@@ -87,7 +87,7 @@ Ajuste del 2026-10-03 por el ADR-0015 (decisión del responsable sobre la remisi
 | T-063 | Instrucciones para responder la remisión a una norma no cargada | REQ-008, REQ-009 | T-060, T-062, T-064 | terminada |
 | T-064 | Reescribir EV-027, EV-028 y EV-029 como preguntas con respuesta | REQ-008, REQ-009 | T-059 | terminada |
 | T-065 | Corregir la espera intermitente de `test_wait` y el borde de la calibración | REQ-008, REQ-009 | T-060 | terminada |
-| T-066 | Casos y corrida corta de REQ-019 | REQ-019 | T-046 | pendiente |
+| T-066 | Casos y corrida corta de REQ-019 | REQ-019 | T-046 | bloqueada |
 
 ## Detalle
 
@@ -758,6 +758,7 @@ De a una, en la MSI, con los servicios reales; T-058 y T-059 (ADR-0011), T-060, 
 - **Archivos:** `evals/casos/` (casos nuevos e `INDICE.md`), `evals/corridas/` (la carpeta de la corrida), `specs/001-normativa/entorno.md`.
 - **Verificación:** los casos cargan sin errores y cumplen sus datos clave con su `esperado`; la corrida existe con sus tres archivos; el resumen informa REQ-019 con la marca `regimes_differ` y las dos citas.
 - **No tocar:** código, instrucciones, `settings.py`, casos existentes.
+- **Bloqueada (decisión del responsable, 2026-10-03):** REQ-019 compara el régimen específico con el marco nacional, y el corpus no trae ninguna norma del marco nacional; las dos disposiciones son régimen específico y la derogación impide que una pregunta reciba las dos a la vez. REQ-018 y REQ-019 quedan probados con datos sintéticos y su medición con normas reales queda pendiente hasta que se cargue material de otras categorías (feature 009).
 - **Pendiente aparte:** REQ-018 no tiene casos porque el corpus no trae normas de otra categoría; se mide cuando se cargue una (feature 009).
 - **Entorno:** MSI con GPU
 
