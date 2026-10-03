@@ -21,14 +21,22 @@ capítulo, sección, cláusula, anexo) cierra el artículo abierto y lo que sigu
 próxima unidad queda sin ubicar; un párrafo en mayúsculas que no es un encabezado
 reconocido no corta: queda dentro del artículo y el informe lo señala.
 
+T-050 suma las reglas que piden las dos páginas web del corpus (la Disp. 297/03 y el
+cuerpo de la 247/2022), probadas acá sobre lecturas web sintéticas: el cierre después del
+artículo de forma ("Comuníquese..."), los datos de publicación del Boletín Oficial, el
+título con su nombre en otra línea, el índice con incisos y epígrafes partidos, y los
+incisos `Inciso N)` de la 297/03.
+
 Las lecturas son sintéticas y propias de cada prueba (P4).
 """
 
 import pytest
 
 from evaluon.norms.reading import (
+    FORMAT_HTML,
     FORMAT_PDF,
     ORIGIN_PDF_TEXT,
+    ORIGIN_WEB,
     PAGE_READ,
     DocumentReading,
     Line,
@@ -44,6 +52,7 @@ from evaluon.norms.splitting.headings import (
     FORMULA,
     INCISO,
     INDEX,
+    PUBLICATION,
     QUE,
     SIGNATURE,
     TEXT,
@@ -85,6 +94,13 @@ def glued(*lines):
     return DocumentReading(file_format=FORMAT_PDF, pages=[_page(1, page_lines)], tool_versions={})
 
 
+def web(*paragraphs):
+    """Una lectura de página web: cada argumento es un bloque, que es un párrafo propio."""
+    lines = [Line(text, None, None, None, None, ORIGIN_WEB) for text in paragraphs]
+    page = Page(number=None, width=None, height=None, status=PAGE_READ, lines=lines)
+    return DocumentReading(file_format=FORMAT_HTML, pages=[page], tool_versions={})
+
+
 def _line(text, top, x1=300.0):
     return Line(text=text, x0=70.0, top=top, x1=x1, bottom=top + HEIGHT, origin=ORIGIN_PDF_TEXT)
 
@@ -107,6 +123,10 @@ def check_invariants(result):
     de su padre y la cobertura completa, contando cada carácter una vez en su unidad
     base."""
     text = result.canonical_text
+    # Claves únicas dentro de la lectura: la base rechaza una clave repetida.
+    all_keys = [unit.key for unit in result.units]
+    repeated = sorted({key for key in all_keys if all_keys.count(key) > 1})
+    assert repeated == [], f"claves repetidas: {repeated}"
     seen = {}
     for unit in result.units:
         assert unit.text == text[unit.char_start : unit.char_end], unit.key
@@ -191,6 +211,40 @@ HEADING_TABLE = [
     ("Firmado digitalmente por: CASTAGNETO Carlos Daniel", SIGNATURE, "", ""),
     ("DE LAS GARANTÍAS EN GENERAL", UPPER, "", ""),
     ("Texto común de un párrafo.", TEXT, "", ""),
+    # T-050. Artículo: formas de las dos páginas web. Cuerpo de la 247/2022 y de la
+    # 297/03; articulado del Anexo I de la 297/03 (con raya, con punto y raya, sin punto);
+    # su índice (`ARTICULO 20 -`, `ARTICULO 27.`, `ARTICULO 29-`).
+    ("ARTÍCULO 1°.- Aprobar el “RÉGIMEN GENERAL", ARTICLE, "1", "ARTÍCULO 1°.-"),
+    ("ARTICULO 2° — AMBITO DE APLICACION. Las disposiciones", ARTICLE, "2", "ARTICULO 2° — AMBITO DE APLICACION"),
+    ("ARTICULO 11. — ANTICORRUPCION. Será causal", ARTICLE, "11", "ARTICULO 11. — ANTICORRUPCION"),
+    ("ARTICULO 12.— FORMALIDADES DE LAS ACTUACIONES. Las", ARTICLE, "12", "ARTICULO 12.— FORMALIDADES DE LAS ACTUACIONES"),
+    ("ARTICULO 13 — FACULTADES Y OBLIGACIONES DE LA AFIP. La", ARTICLE, "13", "ARTICULO 13 — FACULTADES Y OBLIGACIONES DE LA AFIP"),
+    ("ARTICULO 20 - PERSONAS NO HABILITADAS", ARTICLE, "20", "ARTICULO 20 - PERSONAS NO HABILITADAS"),
+    ("ARTICULO 27. OBSERVACIONES AL PROYECTO DE PLIEGO", ARTICLE, "27", "ARTICULO 27. OBSERVACIONES AL PROYECTO DE PLIEGO"),
+    ("ARTICULO 29- PUBLICIDAD Y DIFUSION", ARTICLE, "29", "ARTICULO 29- PUBLICIDAD Y DIFUSION"),
+    # T-050. Título y capítulo sin nombre en la misma línea (el nombre va en la siguiente).
+    ("TITULO I", TITLE, "I", "Título I"),
+    ("CAPITULO X", TITLE, "X", "Capítulo X"),
+    # T-050. Inciso: formas de la 297/03 sin espacio después del paréntesis o con un punto
+    # después; sin espacio solo si sigue una mayúscula.
+    ("Inciso 2)Muestras", INCISO, "2", "Inciso 2)"),
+    ("c)Nombre de los oferentes.", INCISO, "c", "c)"),
+    ("Inciso 1). Notificación. La adjudicación será notificada", INCISO, "1", "Inciso 1)."),
+    ("c)del artículo anterior.", TEXT, "", ""),
+    # T-050. Datos de publicación del Boletín Oficial: no son unidades.
+    (
+        "NOTA: El/los Anexo/s que integra/n este(a) Disposición se publican en la edición "
+        "web del BORA -www.boletinoficial.gob.ar-",
+        PUBLICATION,
+        "",
+        "",
+    ),
+    ("e. 30/11/2022 N° 97811/22 v. 30/11/2022", PUBLICATION, "", ""),
+    ("e. 13/6 N° 417.913 v. 13/6/2003", PUBLICATION, "", ""),
+    ("NOTA: el oferente acompañará la constancia.", TEXT, "", ""),
+    # Caso trampa (verificación de T-050): una nota común que nombra el Boletín Oficial
+    # no es la nota de publicación.
+    ("NOTA: la difusión en el Boletín Oficial es obligatoria.", TEXT, "", ""),
 ]
 
 
@@ -1413,4 +1467,571 @@ def test_an_ocr_number_whose_last_digit_is_not_a_sign_is_not_taken_as_the_next()
     assert result.report["doubtful_headings"] == []
     assert result.report["sequence"][0]["not_accepted"] == [
         {"number": "43", "page": 1, "inside": "art-3"}
+    ]
+
+
+# --- T-050: reglas de las dos páginas web del corpus (REQ-003) --------------------------
+
+
+def unlocated_words(result):
+    return [item["first_words"] for item in result.report["unlocated"]]
+
+
+def discarded_of(result, reason):
+    return [item["first_words"] for item in result.report["discarded"] if item["reason"] == reason]
+
+
+def test_what_follows_the_closing_article_is_not_added_to_it():
+    """REQ-003: el artículo de forma ("Comuníquese, ...") es el último del cuerpo: la
+    firma que lo sigue no se le suma y queda a la vista como no ubicada; la nota del
+    Boletín Oficial sobre los anexos y la línea de edición `e. dd/mm ...` se descartan
+    como datos de publicación. Como en el cuerpo de la Disp. 247/2022."""
+    result = split_document(
+        web(
+            "VISTO el expediente, y",
+            "CONSIDERANDO:",
+            "Que corresponde dictar la presente.",
+            "Por ello,",
+            "EL ADMINISTRADOR FEDERAL",
+            "DISPONE:",
+            "ARTÍCULO 1°.- Aprobar el régimen.",
+            "ARTÍCULO 2°.- Comuníquese, publíquese y archívese.",
+            "Juan Pérez",
+            "NOTA: Los anexos se publican en la edición web del BORA -www.boletinoficial.gob.ar-",
+            "e. 30/11/2022 N° 1/22 v. 30/11/2022",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == ["visto", "considerando-1", "art-1", "art-2"]
+    assert by_key(result)["art-2"].text == "ARTÍCULO 2°.- Comuníquese, publíquese y archívese."
+    assert unlocated_words(result) == ["Por ello, EL ADMINISTRADOR FEDERAL DISPONE:", "Juan Pérez"]
+    assert discarded_of(result, "publicacion") == [
+        "NOTA: Los anexos se publican en la edición"
+    ]
+    assert "Datos de publicación en el Boletín Oficial" in result.report_text
+    assert result.report["uppercase_in_units"] == []
+    check_invariants(result)
+
+
+def test_the_annex_title_between_the_closing_article_and_the_annex_is_unlocated():
+    """REQ-003: en la 297/03 el nombre del régimen va entre el artículo de forma del
+    cuerpo y el encabezado "ANEXO I": no se suma al artículo de forma (ni se señala como
+    mayúsculas dentro de él), queda no ubicado y el anexo se abre igual."""
+    result = split_document(
+        web(
+            "ARTICULO 1° — Aprobar el régimen que como ANEXO integra la presente.",
+            "ARTICULO 2° — Comuníquese, publíquese y archívese. — Dr. JUAN PEREZ.",
+            "REGIMEN GENERAL DE CONTRATACIONES",
+            "Régimen General para Contrataciones",
+            "ANEXO I - DISPOSICION N° 1/03 (AFIP)",
+            "ARTICULO 1° — OBJETO. Texto del objeto.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == ["art-1", "art-2", "anexo-i", "anexo-i/art-1"]
+    assert by_key(result)["art-2"].text == (
+        "ARTICULO 2° — Comuníquese, publíquese y archívese. — Dr. JUAN PEREZ."
+    )
+    assert unlocated_words(result) == [
+        "REGIMEN GENERAL DE CONTRATACIONES Régimen General para Contrataciones"
+    ]
+    assert result.report["uppercase_in_units"] == []
+    check_invariants(result)
+
+
+def test_a_closing_formula_that_is_not_at_the_start_of_the_article_does_not_close():
+    """REQ-003: caso trampa: un artículo que menciona "comuníquese" en su texto no es el
+    artículo de forma; los párrafos que le siguen siguen siendo suyos."""
+    result = split_document(
+        web(
+            "ARTÍCULO 1°.- La unidad lo comunicará. Comuníquese a los oferentes.",
+            "Segundo párrafo del artículo.",
+            "ARTÍCULO 2°.- Otro.",
+        ),
+        part="cuerpo",
+    )
+
+    assert by_key(result)["art-1"].text.endswith("\nSegundo párrafo del artículo.")
+    assert result.report["unlocated"] == []
+
+
+def test_the_publication_line_after_the_last_annex_article_is_discarded():
+    """REQ-003: la línea de edición del Boletín Oficial que sigue al último artículo del
+    Anexo I de la 297/03 no se suma a ese artículo."""
+    result = split_document(
+        web(
+            "ARTICULO 1° — Aprobar el anexo.",
+            "ANEXO I - DISPOSICION N° 1/03 (AFIP)",
+            "ARTICULO 1° — OBJETO. Texto.",
+            "ARTICULO 2° — VIGENCIA. Este Régimen entrará en vigencia.",
+            "e. 13/6 N° 417.913 v. 13/6/2003",
+        ),
+        part="cuerpo",
+    )
+
+    assert by_key(result)["anexo-i/art-2"].text == (
+        "ARTICULO 2° — VIGENCIA. Este Régimen entrará en vigencia."
+    )
+    assert discarded_of(result, "publicacion") == ["e. 13/6 N° 417.913 v. 13/6/2003"]
+    assert result.report["unlocated"] == []
+    check_invariants(result)
+
+
+def test_a_title_with_its_name_on_the_next_line_is_discarded_with_its_name():
+    """REQ-003: cuando el título o el capítulo y su nombre van en líneas separadas
+    (`TITULO II` y `DE LA FORMACION...`), el nombre se descarta con el título y no queda
+    no ubicado; la ruta lleva el título y el capítulo."""
+    result = split_document(
+        web(
+            "TITULO I",
+            "DISPOSICIONES GENERALES",
+            "ARTICULO 1° — OBJETO. Texto.",
+            "TITULO II",
+            "DE LA FORMACION DEL CONTRATO",
+            "CAPITULO I",
+            "MODALIDADES DE SELECCION",
+            "ARTICULO 2° — PROCEDIMIENTOS. Texto.",
+        ),
+        part="anexo-i",
+    )
+
+    assert by_key(result)["anexo-i/art-2"].path == "Anexo I › Título II › Capítulo I › Artículo 2"
+    assert by_key(result)["anexo-i/art-1"].text == "ARTICULO 1° — OBJETO. Texto."
+    assert result.report["unlocated"] == []
+    assert discarded_of(result, "titulo") == [
+        "TITULO I DISPOSICIONES GENERALES",
+        "TITULO II DE LA FORMACION DEL CONTRATO",
+        "CAPITULO I MODALIDADES DE SELECCION",
+    ]
+    check_invariants(result)
+
+
+def test_an_uppercase_paragraph_after_a_title_with_its_name_is_not_taken_as_the_name():
+    """REQ-003: caso trampa: si el título ya trae su nombre en la misma línea, el párrafo
+    en mayúsculas que le sigue no es su nombre y sigue la regla de siempre (no ubicado)."""
+    result = split_document(
+        web(
+            "TITULO I - DISPOSICIONES GENERALES",
+            "AVISO A LOS OFERENTES",
+            "ARTICULO 1° — OBJETO. Texto.",
+        ),
+        part="anexo-i",
+    )
+
+    assert discarded_of(result, "titulo") == ["TITULO I - DISPOSICIONES GENERALES"]
+    assert unlocated_words(result) == ["AVISO A LOS OFERENTES"]
+
+
+def test_an_index_with_incisos_and_split_epigraphs_produces_no_units():
+    """REQ-003: el índice del Anexo I de la 297/03 lista también los incisos (`Inciso
+    1) ...`, `Inciso 2)Muestras`, `Inciso 1). Notificación`) y parte en dos líneas los
+    epígrafes largos. Todo el índice se descarta, nada queda no ubicado y no produce
+    unidades; el nombre del régimen que va antes de "INDICE:" queda en el anexo."""
+    result = split_document(
+        web(
+            "ARTICULO 1° — Aprobar el régimen.",
+            "ANEXO I - DISPOSICION N° 1/03 (AFIP)",
+            "REGIMEN GENERAL DE CONTRATACIONES",
+            "INDICE:",
+            "TITULO I - DISPOSICIONES GENERALES",
+            "ARTICULO 1.- OBJETO",
+            "ARTICULO 2.- NORMATIVA APLICABLE",
+            "Inciso 1) Orden de prelación",
+            "ARTICULO 3. PLIEGOS DE BASES Y CONDICIONES PARTICULARES Y",
+            "ESPECIFICACIONES TECNICAS",
+            "Inciso 1) Costos de los Pliegos",
+            "Inciso 2)Muestras",
+            "ARTICULO 4. ADJUDICACION",
+            "Inciso 1). Notificación",
+            "TITULO I",
+            "DISPOSICIONES GENERALES",
+            "ARTICULO 1° — OBJETO. Texto.",
+            "ARTICULO 2° — NORMATIVA APLICABLE. Se rige por:",
+            "Inciso 1) Orden de prelación. Texto.",
+            "ARTICULO 3° — PLIEGOS. Texto.",
+            "ARTICULO 4° — ADJUDICACION. Texto.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == [
+        "art-1",
+        "anexo-i",
+        "anexo-i/art-1",
+        "anexo-i/art-2",
+        "anexo-i/art-2/inc-1",
+        "anexo-i/art-3",
+        "anexo-i/art-4",
+    ]
+    assert by_key(result)["anexo-i"].text == (
+        "ANEXO I - DISPOSICION N° 1/03 (AFIP)\nREGIMEN GENERAL DE CONTRATACIONES"
+    )
+    index = [item for item in result.report["discarded"] if item["reason"] == "indice"]
+    assert len(index) == 1
+    assert result.canonical_text[index[0]["char_start"] : index[0]["char_end"]].endswith(
+        "ARTICULO 4. ADJUDICACION\nInciso 1). Notificación"
+    )
+    assert result.report["unlocated"] == []
+    check_invariants(result)
+
+
+def test_an_inciso_with_the_word_inciso_is_always_of_the_first_level():
+    """REQ-003: en la 297/03 `Inciso N)` es siempre un inciso del artículo, aunque antes
+    haya una lista de letras (artículo 25) o una de letras con puntos adentro (artículo
+    47): no se anida en el último inciso abierto, y las letras que le siguen son suyas."""
+    result = split_document(
+        web(
+            "ARTICULO 1° — MODALIDADES. Son:",
+            "a) Primera.",
+            "b) Segunda.",
+            "Inciso 1) Criterios. Se tendrán en cuenta:",
+            "a) Uno.",
+            "b) Dos.",
+            "Inciso 2) Otro. Texto.",
+            "ARTICULO 2° — SOBRES. Contenido:",
+            "a) SOBRE A:",
+            "1. Carta.",
+            "2. Antecedentes.",
+            "b) SOBRE B:",
+            "1. Precio.",
+            "Inciso 1) Apertura. Texto.",
+            "Inciso 2) Acta. Contiene:",
+            "a) Número.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == [
+        "art-1",
+        "art-1/inc-a",
+        "art-1/inc-b",
+        "art-1/inc-1",
+        "art-1/inc-1/inc-a",
+        "art-1/inc-1/inc-b",
+        "art-1/inc-2",
+        "art-2",
+        "art-2/inc-a",
+        "art-2/inc-a/inc-1",
+        "art-2/inc-a/inc-2",
+        "art-2/inc-b",
+        "art-2/inc-b/inc-1",
+        "art-2/inc-1",
+        "art-2/inc-2",
+        "art-2/inc-2/inc-a",
+    ]
+    assert by_key(result)["art-1/inc-b"].text == "b) Segunda."
+    assert by_key(result)["art-2/inc-b"].text == "b) SOBRE B:\n1. Precio."
+    check_invariants(result)
+
+
+def test_an_introductory_paragraph_opens_a_new_list_when_both_levels_are_taken():
+    """REQ-003: en el artículo 21 de la 297/03, después de los incisos `Inciso N)` con
+    puntos adentro, un párrafo que presenta una lista ("... las siguientes pautas:") abre
+    una lista nueva de letras en el primer nivel, que no cabía en un tercero."""
+    result = split_document(
+        web(
+            "ARTICULO 1° — PROCEDIMIENTOS DE SELECCION.",
+            "Los procedimientos serán:",
+            "Inciso 1) LICITACION. Texto.",
+            "Inciso 2) CONTRATACION DIRECTA. Casos:",
+            "1. Primero.",
+            "2. Segundo.",
+            "Los procedimientos deberán seguir las siguientes pautas:",
+            "a) Licitación pública. Texto.",
+            "b) Subasta. Texto.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == [
+        "art-1",
+        "art-1/inc-1",
+        "art-1/inc-2",
+        "art-1/inc-2/inc-1",
+        "art-1/inc-2/inc-2",
+        "art-1/inc-a",
+        "art-1/inc-b",
+    ]
+    assert by_key(result)["art-1/inc-b"].text == "b) Subasta. Texto."
+    # El párrafo que presenta la lista nueva es del artículo, no del inciso anterior.
+    assert by_key(result)["art-1/inc-2"].text == "Inciso 2) CONTRATACION DIRECTA. Casos:\n1. Primero.\n2. Segundo."
+    assert result.report["after_last_inciso"] == []
+    check_invariants(result)
+
+
+def test_without_an_introductory_paragraph_a_third_level_is_still_not_a_unit():
+    """REQ-003: caso trampa: sin un párrafo que presente la lista, una letra que no cabe
+    en los dos niveles abiertos no abre una unidad (como antes de T-050)."""
+    result = split_document(
+        web(
+            "ARTICULO 1° — PROCEDIMIENTOS. Son:",
+            "Inciso 1) LICITACION. Casos:",
+            "1. Primero.",
+            "a) Una letra que no corresponde.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == ["art-1", "art-1/inc-1", "art-1/inc-1/inc-1"]
+
+
+def test_the_last_inciso_with_the_word_inciso_keeps_its_paragraphs():
+    """REQ-003, REQ-004: un `Inciso N)` de la 297/03 es una sección con epígrafe y sus
+    párrafos siguen hasta el próximo inciso; el último los lleva hasta el final del
+    artículo, como los demás, y el informe no lo señala para revisar. Con las letras se
+    sigue señalando (`test_paragraphs_after_the_last_inciso_are_reported`)."""
+    result = split_document(
+        web(
+            "ARTICULO 1° — SUBSANACION DE DEFICIENCIAS. Texto.",
+            "Inciso 1) Deficiencias subsanables. Texto del inciso.",
+            "La subsanación se posibilitará en toda cuestión.",
+            "Bajo ningún punto de vista se alterará la oferta.",
+            "ARTICULO 2° — Otro.",
+        ),
+        part="cuerpo",
+    )
+
+    assert by_key(result)["art-1/inc-1"].text == (
+        "Inciso 1) Deficiencias subsanables. Texto del inciso.\n"
+        "La subsanación se posibilitará en toda cuestión.\n"
+        "Bajo ningún punto de vista se alterará la oferta."
+    )
+    assert result.report["after_last_inciso"] == []
+    check_invariants(result)
+
+
+def test_inciso_forms_without_a_space_or_with_a_dot_continue_the_list():
+    """REQ-003: `c)Nombre` (sin espacio) e `Inciso 1). Notificación` (con punto) son
+    incisos: la lista del acta de apertura del artículo 41 de la 297/03 no se corta en
+    la `c` y el artículo 52 tiene su inciso 1."""
+    result = split_document(
+        web(
+            "ARTICULO 1° — ACTA DE APERTURA. Deberá contener:",
+            "a) Fecha.",
+            "b) Número.",
+            "c)Nombre de los oferentes.",
+            "d) Montos.",
+            "ARTICULO 2° — ADJUDICACION. Texto.",
+            "Inciso 1). Notificación. Texto.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == [
+        "art-1",
+        "art-1/inc-a",
+        "art-1/inc-b",
+        "art-1/inc-c",
+        "art-1/inc-d",
+        "art-2",
+        "art-2/inc-1",
+    ]
+    assert by_key(result)["art-1/inc-c"].label == "c)"
+    assert result.report["after_last_inciso"] == []
+    check_invariants(result)
+
+
+# --- T-050, ajustes de verificación (REQ-003) -------------------------------------------
+
+
+def test_an_inciso_word_whose_key_is_taken_nests_as_before_and_is_reported():
+    """REQ-003, REQ-004: caso trampa: `Inciso 1)` después de una lista `1)`, `2)` del
+    primer nivel no puede abrir otro `art-1/inc-1` (la base rechaza la clave repetida):
+    se anida en el inciso abierto, como antes de T-050, y el informe lo señala."""
+    result = split_document(
+        web(
+            "ARTÍCULO 1°.- Requisitos:",
+            "1) Primero.",
+            "2) Segundo.",
+            "Inciso 1) Excepción. Texto.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == ["art-1", "art-1/inc-1", "art-1/inc-2", "art-1/inc-2/inc-1"]
+    assert result.report["inciso_key_taken"] == [
+        {"label": "Inciso 1)", "taken": "art-1/inc-1", "placed": "art-1/inc-2/inc-1", "page": None}
+    ]
+    assert "inciso_key_taken" in [item["kind"] for item in result.report["attention"]]
+    assert "Inciso 1) repite la clave art-1/inc-1" in result.report_text
+    check_invariants(result)
+
+
+def test_inciso_words_after_a_dotted_list_of_the_first_level_do_not_repeat_keys():
+    """REQ-003, REQ-004: la variante con `1.`, `2.` y después `Inciso 1)` e `Inciso 2)`:
+    los dos se anidan en el `2.`, siguen su propia secuencia, y los dos se informan."""
+    result = split_document(
+        web(
+            "ARTÍCULO 1°.- Requisitos:",
+            "1. Primero.",
+            "2. Segundo.",
+            "Inciso 1) Excepción. Texto.",
+            "Inciso 2) Otra. Texto.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == [
+        "art-1",
+        "art-1/inc-1",
+        "art-1/inc-2",
+        "art-1/inc-2/inc-1",
+        "art-1/inc-2/inc-2",
+    ]
+    assert [(item["taken"], item["placed"]) for item in result.report["inciso_key_taken"]] == [
+        ("art-1/inc-1", "art-1/inc-2/inc-1"),
+        ("art-1/inc-2", "art-1/inc-2/inc-2"),
+    ]
+    check_invariants(result)
+
+
+def test_an_inciso_whose_key_is_taken_and_cannot_nest_stays_inside_and_is_reported():
+    """REQ-003, REQ-004: si la clave está tomada y los dos niveles están ocupados, el
+    `Inciso 1)` no abre ninguna unidad: su texto es un párrafo más (acá, después del
+    último inciso, queda en el artículo, y ese aviso también sale) y se informa."""
+    result = split_document(
+        web(
+            "ARTÍCULO 1°.- Requisitos:",
+            "1) Primero.",
+            "a) Letra.",
+            "Inciso 1) Excepción. Texto.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == ["art-1", "art-1/inc-1", "art-1/inc-1/inc-a"]
+    assert by_key(result)["art-1"].text.endswith("\nInciso 1) Excepción. Texto.")
+    assert result.report["inciso_key_taken"] == [
+        {"label": "Inciso 1)", "taken": "art-1/inc-1", "placed": None, "page": None}
+    ]
+    assert "Inciso 1) repite la clave art-1/inc-1 (no abrió una unidad" in result.report_text
+    check_invariants(result)
+
+
+def test_a_new_list_opened_by_an_introductory_paragraph_does_not_repeat_keys():
+    """REQ-003, REQ-004: la lista nueva que abre un párrafo de presentación tampoco
+    repite claves del primer nivel: un `1.` después de `Inciso 1)` e `Inciso 2)` con sus
+    letras no se abre (no cabe en un tercer nivel) y se informa."""
+    result = split_document(
+        web(
+            "ARTICULO 1° — PROCEDIMIENTOS.",
+            "Inciso 1) LICITACION. Casos:",
+            "a) Primero.",
+            "Inciso 2) DIRECTA. Casos:",
+            "a) Primero.",
+            "Las pautas son las siguientes:",
+            "1. Una pauta.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == ["art-1", "art-1/inc-1", "art-1/inc-1/inc-a", "art-1/inc-2", "art-1/inc-2/inc-a"]
+    assert result.report["inciso_key_taken"] == [
+        {"label": "1.", "taken": "art-1/inc-1", "placed": None, "page": None}
+    ]
+    check_invariants(result)
+
+
+def test_an_article_starting_with_publiquese_that_is_not_the_closing_one_keeps_its_text():
+    """REQ-003: caso trampa: "Publíquese la convocatoria..." no es la fórmula de cierre
+    (le falta "archívese" o la Dirección Nacional del Registro Oficial en la misma
+    oración): el párrafo que le sigue sigue siendo del artículo."""
+    result = split_document(
+        web(
+            "ARTÍCULO 1°.- Objeto.",
+            "ARTÍCULO 2°.- Publíquese la convocatoria en el Boletín Oficial durante dos días.",
+            "La publicación deberá hacerse con diez días de anticipación.",
+            "ARTÍCULO 3°.- Comuníquese, publíquese y archívese.",
+        ),
+        part="cuerpo",
+    )
+
+    assert by_key(result)["art-2"].text.endswith("\nLa publicación deberá hacerse con diez días de anticipación.")
+    assert result.report["unlocated"] == []
+    check_invariants(result)
+
+
+def test_an_article_starting_with_registrese_that_is_not_the_closing_one_keeps_its_incisos():
+    """REQ-003: caso trampa: "Regístrese ... a quienes cumplan:" no es la fórmula de
+    cierre: sus incisos siguen siendo suyos."""
+    result = split_document(
+        web(
+            "ARTÍCULO 1°.- Regístrese en el registro de proveedores a quienes cumplan:",
+            "a) requisito uno;",
+            "b) requisito dos.",
+            "ARTÍCULO 2°.- Otro.",
+        ),
+        part="anexo",
+    )
+
+    assert keys(result) == ["anexo", "anexo/art-1", "anexo/art-1/inc-a", "anexo/art-1/inc-b", "anexo/art-2"]
+    assert result.report["unlocated"] == []
+    check_invariants(result)
+
+
+@pytest.mark.parametrize(
+    "text, closing",
+    [
+        # Las dos formas del corpus.
+        ("ARTÍCULO 5°.- Comuníquese, dese a la Dirección Nacional del Registro Oficial para su "
+         "publicación en el Boletín Oficial y archívese.", True),
+        ("ARTICULO 5° — Comuníquese, publíquese, dése a la Dirección Nacional del Registro "
+         "Oficial y archívese. — Dr. ALBERTO R. ABAD, Administrador Federal.", True),
+        ("ARTÍCULO 3°.- Regístrese, comuníquese, publíquese y archívese.", True),
+        # Casos trampa.
+        ("ARTÍCULO 2°.- Publíquese la convocatoria en el Boletín Oficial durante dos días.", False),
+        ("ARTÍCULO 1°.- Regístrese en el registro de proveedores a quienes cumplan:", False),
+        ("ARTÍCULO 4°.- Comuníquese a los oferentes. Luego archívese el expediente.", False),
+    ],
+)
+def test_the_closing_formula_must_be_complete_in_one_sentence(text, closing):
+    """REQ-003: el artículo de forma empieza con "Comuníquese", "Regístrese" o
+    "Publíquese" y en la misma oración trae "archívese" o "Dirección Nacional del
+    Registro Oficial"."""
+    from evaluon.norms.splitting.headings import is_closing_article
+
+    assert is_closing_article(text) is closing
+
+
+def test_a_common_note_naming_the_boletin_oficial_stays_inside_the_article():
+    """REQ-003: caso trampa: una nota común dentro de un artículo que nombra el Boletín
+    Oficial no es la nota de publicación: no corta el artículo ni se descarta."""
+    result = split_document(
+        web(
+            "ARTÍCULO 1°.- Las convocatorias se difunden así:",
+            "NOTA: la difusión en el Boletín Oficial es obligatoria.",
+            "Segundo párrafo del artículo.",
+            "ARTÍCULO 2°.- Otro.",
+        ),
+        part="cuerpo",
+    )
+
+    assert by_key(result)["art-1"].text == (
+        "ARTÍCULO 1°.- Las convocatorias se difunden así:\n"
+        "NOTA: la difusión en el Boletín Oficial es obligatoria.\n"
+        "Segundo párrafo del artículo."
+    )
+    assert discarded_of(result, "publicacion") == []
+    check_invariants(result)
+
+
+def test_the_loose_inciso_forms_do_not_change_the_canonical_text_of_a_pdf():
+    """REQ-003: las formas tolerantes de inciso (`c)Nombre`) son solo para clasificar
+    párrafos: el texto canónico de un PDF sigue usando la forma estricta y un renglón
+    `c)Nombre` pegado al anterior no empieza un párrafo, así un PDF da el mismo texto
+    que antes de T-050."""
+    from evaluon.norms.splitting.headings import starts_inciso
+
+    assert starts_inciso("c) Nombre de los oferentes.") is True
+    assert starts_inciso("c)Nombre de los oferentes.") is False
+
+    canonical = build_canonical_text(
+        glued("ARTÍCULO 1°.- ACTA. Contiene:", "b) Número;", "c)Nombre de los oferentes.")
+    )
+    paragraphs = [canonical.text[start:end] for start, end in canonical.paragraphs]
+    assert paragraphs == [
+        "ARTÍCULO 1°.- ACTA. Contiene:",
+        "b) Número; c)Nombre de los oferentes.",
     ]
