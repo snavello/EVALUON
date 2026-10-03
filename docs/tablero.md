@@ -63,6 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 28 tareas sin terminar.
+- ▶ T-038 · Registrar ingresos, ingresos fallidos y rechazos por rol (en curso)
 - ○ T-023 · Partir normas completas con incisos, anexos y considerandos (pendiente)
 - ○ T-024 · Partir dictámenes y recomendaciones en puntos y párrafos (pendiente)
 - ○ T-025 · Completar el informe de lectura (pendiente)
@@ -76,7 +77,6 @@ flowchart LR
 - ○ T-034 · Completar instrucciones, marca de regímenes y orden (pendiente)
 - ○ T-035 · Buscar unidades por artículo y por palabras (pendiente)
 - ○ T-037 · Mostrar las citas con categoría, papel y cambios (pendiente)
-- ○ T-038 · Registrar ingresos, ingresos fallidos y rechazos por rol (pendiente)
 - ○ T-039 · Correr el conjunto de preguntas y medir las exigencias (pendiente)
 - ○ T-040 · Unir recuperación y generación completas con su registro (pendiente)
 - ○ T-041 · Mostrar y registrar la búsqueda en la pantalla (pendiente)
@@ -115,10 +115,10 @@ flowchart LR
 - ✓ T-018 · Generar la respuesta con esquema e insertar las citas (`33f0f08` 2026-10-03, `9830fe5` 2026-10-03)
 - ✓ T-019 · Unir la consulta de punta a punta con su registro (`2685761` 2026-10-03, `71fd67b` 2026-10-03)
 - ✓ T-020 · Probar el hilo mínimo con los servicios reales (`b520afe` 2026-10-03)
-- ✓ T-021 · Leer un PDF escaneado con reconocimiento de texto
-- ✓ T-022 · Leer una página web guardada
+- ✓ T-021 · Leer un PDF escaneado con reconocimiento de texto (`223295e` 2026-10-03, `197dada` 2026-10-03)
+- ✓ T-022 · Leer una página web guardada (`3d9224f` 2026-10-03, `c12d12c` 2026-10-03)
 - ✓ T-031 · Partir en pasajes las unidades largas (`282ab7f` 2026-10-03, `955ce90` 2026-10-03, `c1e2088` 2026-10-03)
-- ✓ T-036 · Entregar el documento original con sesión
+- ✓ T-036 · Entregar el documento original con sesión (`07ea00d` 2026-10-03)
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 - ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
 - ✓ T-055 · Agregar el nombre de cita de la norma (`ff230c8` 2026-10-03, `88796e6` 2026-10-03)
@@ -164,7 +164,7 @@ flowchart TD
   T035["○ T-035 · Buscar unidades por artículo y por palabras"]:::todo
   T036["✓ T-036 · Entregar el documento original con sesión"]:::done
   T037["○ T-037 · Mostrar las citas con categoría, papel y ca…"]:::todo
-  T038["○ T-038 · Registrar ingresos, ingresos fallidos y rec…"]:::todo
+  T038["▶ T-038 · Registrar ingresos, ingresos fallidos y rec…"]:::active
   T039["○ T-039 · Correr el conjunto de preguntas y medir las…"]:::todo
   T040["○ T-040 · Unir recuperación y generación completas co…"]:::todo
   T041["○ T-041 · Mostrar y registrar la búsqueda en la panta…"]:::todo
