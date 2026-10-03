@@ -273,11 +273,73 @@ class RereadResult:
     event: object
 
 
+def _plain_identity(value):
+    return " ".join(str(value).split()).lower().translate(_ACCENTS)
+
+
+# AFIP y ARCA son el mismo organismo (ADR-0010): sus siglas y sus nombres largos. El
+# primero da la forma normalizada del organismo, la que ya tienen las normas cargadas.
+ISSUER_NAMES = (
+    "AFIP",
+    "ARCA",
+    "Administración Federal de Ingresos Públicos",
+    "Agencia de Recaudación y Control Aduanero",
+)
+_SAME_ISSUER = frozenset(_plain_identity(name) for name in ISSUER_NAMES)
+
+
 def normalize_identity(value):
     """Forma normalizada de tipo, número y organismo emisor (plan 001, `norms_norm`):
     sin espacios de más, en minúsculas y sin tildes (la eñe se conserva).
-    "Disposición" → "disposicion"; "AFIP" → "afip"."""
-    return " ".join(str(value).split()).lower().translate(_ACCENTS)
+    "Disposición" → "disposicion"; "AFIP" → "afip".
+
+    AFIP y ARCA, con sigla o nombre largo, dan la misma forma, "afip" (ADR-0010): solo
+    cuando el valor entero es uno de esos nombres, así una dependencia ("AFIP - DGI") u
+    otro dato no cambian. Se normaliza el dato de identidad, no el nombre de cita: una
+    norma dictada como ARCA conserva su nombre de cita con "ARCA"."""
+    plain = _plain_identity(value)
+    return _plain_identity(ISSUER_NAMES[0]) if plain in _SAME_ISSUER else plain
+
+
+def _name_pattern(name):
+    """Expresión de un nombre de `ISSUER_NAMES` sin distinguir tildes ni espacios."""
+    vowels = {"a": "[aá]", "e": "[eé]", "i": "[ií]", "o": "[oó]", "u": "[uúü]"}
+    words = [
+        "".join(vowels.get(char, re.escape(char)) for char in _plain_identity(word))
+        for word in name.split()
+    ]
+    return r"\s+".join(words)
+
+
+# Una mención de AFIP o de ARCA en un texto libre, como palabra o frase entera. Los
+# nombres largos van primero, para que la alternativa más larga gane.
+_ISSUER_RE = re.compile(
+    r"(?<!\w)(?:"
+    + "|".join(_name_pattern(name)
+               for name in sorted(ISSUER_NAMES, key=len, reverse=True))
+    + r")(?!\w)",
+    re.IGNORECASE,
+)
+
+
+def mentions_issuer(text):
+    """Si el texto nombra a AFIP o a ARCA, con sigla o nombre largo (ADR-0010)."""
+    return bool(_ISSUER_RE.search(text or ""))
+
+
+def issuer_variants(text):
+    """El texto tal cual y, si nombra a AFIP o a ARCA, una variante por cada nombre de
+    `ISSUER_NAMES`, con todas las menciones cambiadas por ese nombre (ADR-0010). Para
+    ampliar una búsqueda: buscar cualquiera de las variantes es buscar el organismo con
+    cualquiera de sus nombres."""
+    variants = [text]
+    if not mentions_issuer(text):
+        return variants
+    for name in ISSUER_NAMES:
+        variant = _ISSUER_RE.sub(lambda match, name=name: name, text)
+        if variant not in variants:
+            variants.append(variant)
+    return variants
 
 
 def _blank(value):

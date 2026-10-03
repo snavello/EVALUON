@@ -16,7 +16,7 @@
   documento en uso cuya lectura está validada, y con al menos una relación registrada
   hacia la norma alcanzada. El organismo solo desempata: se exige que coincida cuando
   hay más de una norma candidata o más de una modificatoria anotada con esos tres
-  datos. Se llama al final de `register_amendments` y al final de
+  datos, con AFIP y ARCA como el mismo organismo (ADR-0010). Se llama al final de `register_amendments` y al final de
   `relations.register_relation`, dentro de su transacción y antes del registro del
   hecho. `mark_loaded_for_norm` lo aplica al validar una lectura
   (`validation.validate_reading`), para cada norma alcanzada que tiene anotada a la
@@ -126,6 +126,13 @@ def _same_identity(entry, norm):
     )
 
 
+def _same_issuer(entry, norm):
+    """Mismo organismo, con AFIP y ARCA como uno solo (ADR-0010). Se vuelve a normalizar
+    lo guardado, así coinciden también las filas guardadas antes de esa equivalencia
+    (por ejemplo, "arca" o el nombre largo de la AFIP)."""
+    return normalize_identity(entry.issuer) == normalize_identity(norm.issuer)
+
+
 def matching_entry(target_norm, norm):
     """La modificatoria anotada de `target_norm` que corresponde a `norm`, cargada o
     no, o `None` si `norm` no figura entre las anotadas. Coincide por tipo, número y
@@ -138,7 +145,7 @@ def matching_entry(target_norm, norm):
         ).order_by("pk")
     ]
     if len(entries) > 1:
-        entries = [entry for entry in entries if entry.issuer == norm.issuer]
+        entries = [entry for entry in entries if _same_issuer(entry, norm)]
     return entries[0] if len(entries) == 1 else None
 
 
@@ -176,7 +183,7 @@ def mark_loaded(target_norm):
                     if (other.norm_type, other.number, other.year)
                     == (entry.norm_type, entry.number, entry.year)]
         if len(matches) > 1 or len(siblings) > 1:
-            matches = [norm for norm in matches if norm.issuer == entry.issuer]
+            matches = [norm for norm in matches if _same_issuer(entry, norm)]
         if len(matches) != 1:
             continue
         entry.loaded_norm = matches[0]

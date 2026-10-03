@@ -12,13 +12,15 @@ caminos por palabras y por referencia exacta y la unión de los tres.
      más cercanos.
    - Por palabras (`words`): `tsv @@ search_query(...)` (ADR-0007) con las palabras de
      la pregunta unidas por "or"; los `RETRIEVAL_CANDIDATES_PER_PATH` de mejor
-     `ts_rank`. `tsv` es solo del texto del pasaje, sin el encabezado.
+     `ts_rank`. `tsv` es solo del texto del pasaje, sin el encabezado. Si la pregunta
+     nombra a AFIP o a ARCA, se suman los otros nombres del organismo (ADR-0010).
    - Por referencia exacta (`reference`): `find_references` detecta en la pregunta
      números de artículo ("artículo 23", "art. 5 inc. b", "14 bis") y normas por número
      y año ("Disposición 297/03", "297/2003", "Disposición 247/2022"). Trae todos los
      pasajes de las unidades `articulo` con esos números, de todas las partes de la
      norma; si la pregunta nombra normas, solo de esas (la norma se identifica por sus
-     campos `number` y `year`, no por palabras). Si nombra un inciso, entra el artículo
+     campos `number` y `year`, no por palabras ni por organismo: "Disposición ARCA
+     297/03" es la 297/03 cargada como AFIP, ADR-0010). Si nombra un inciso, entra el artículo
      que lo contiene. Una norma nombrada sin artículo no trae unidades.
 2. Unión sin repetir pasajes y sin fórmula de fusión: en el orden de los caminos
    (significado, palabras, referencia) y, dentro de cada uno, en su orden. Cada candidato
@@ -57,6 +59,7 @@ from django.db import connection
 from evaluon.ai import embeddings, generation, reranker
 from evaluon.norms import indexing
 from evaluon.norms.models import Passage, Unit, UnitType
+from evaluon.norms.services.loading import ISSUER_NAMES, mentions_issuer
 from evaluon.queries import answering
 
 # Caminos por los que entra un candidato, en el orden de la unión.
@@ -178,11 +181,17 @@ _WORD_RE = re.compile(r"\w+(?:/\w+)*")
 def _words_query(question):
     """Las palabras de la pregunta unidas por "or", para `search_query`. Solo letras,
     números y barras ("297/03"): comillas y guiones no se leen como frase ni exclusión.
-    Vacío si la pregunta no tiene palabras."""
+    Vacío si la pregunta no tiene palabras.
+
+    AFIP y ARCA valen lo mismo (ADR-0010): si la pregunta nombra a uno de los dos, con
+    sigla o nombre largo, se suman los otros nombres; los largos, entre comillas, como
+    frase."""
     words = []
     for word in _WORD_RE.findall(question):
         if word.lower() != "or" and word not in words:
             words.append(word)
+    if words and mentions_issuer(question):
+        words += [f'"{name}"' if " " in name else name for name in ISSUER_NAMES]
     return " or ".join(words)
 
 
