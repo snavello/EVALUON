@@ -31,7 +31,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 10/52 | ██░░░░░░░░ 19% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 11/52 | ██░░░░░░░░ 21% |
 | 002 · Revisión de pliegos | Observaciones a un pliego contra la normativa, antes de publicarlo | No iniciada | — | — |
 | 003 · Matriz de requisitos | Los requisitos del pliego ordenados en una matriz que la Comisión valida | No iniciada | — | — |
 | 004 · Evaluación de ofertas | Por cada requisito, una propuesta con su cita; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -57,8 +57,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 42 tareas sin terminar.
-- ○ T-010 · Crear la tabla del registro detallado de consultas (pendiente)
+- **Próximo paso:** Desarrollar: 41 tareas sin terminar.
 - ○ T-011 · Crear los clientes de IA, sus dobles y los parámetros (pendiente)
 - ○ T-013 · Partir en artículos y armar el informe mínimo (pendiente)
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
@@ -113,6 +112,7 @@ flowchart LR
 - ✓ T-007 · Crear el registro de auditoría y el alta de usuarios (`960121e` 2026-10-02, `04d537d` 2026-10-02)
 - ✓ T-008 · Crear las tablas de normas, lecturas, unidades y pasajes (`210e12f` 2026-10-02)
 - ✓ T-009 · Crear las funciones de unidades consultables a una fecha (`9f1886e` 2026-10-02, `b9ca5d3` 2026-10-02)
+- ✓ T-010 · Crear la tabla del registro detallado de consultas
 - ✓ T-012 · Leer un PDF con texto (`977f834` 2026-10-02, `ef7d903` 2026-10-02)
 
 ### Mapa de tareas
@@ -128,7 +128,7 @@ flowchart TD
   T007["✓ T-007 · Crear el registro de auditoría y el alta de…"]:::done
   T008["✓ T-008 · Crear las tablas de normas, lecturas, unida…"]:::done
   T009["✓ T-009 · Crear las funciones de unidades consultable…"]:::done
-  T010["○ T-010 · Crear la tabla del registro detallado de co…"]:::todo
+  T010["✓ T-010 · Crear la tabla del registro detallado de co…"]:::done
   T011["○ T-011 · Crear los clientes de IA, sus dobles y los…"]:::todo
   T012["✓ T-012 · Leer un PDF con texto"]:::done
   T013["○ T-013 · Partir en artículos y armar el informe míni…"]:::todo

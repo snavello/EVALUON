@@ -19,6 +19,7 @@ backups/
 # Claude Code: configuración personal
 .claude/settings.local.json
 .claude/agent-memory-local/
+.claude/worktrees/
 
 # Sistema
 .DS_Store
