@@ -6,15 +6,19 @@ REQ-009, REQ-020, REQ-021; plan 001, "Evals"). Versión de T-039.
 1. Comprueba el rol (lectura; el de lectura y escritura lo incluye).
 2. Lee los casos: un archivo `EV-NNN.yaml` por pregunta (`load_cases`). Un caso mal
    formado, o sin `fecha_autorizacion`, se informa y no se corre; un caso sin
-   `visto_bueno` tampoco se corre. Los demás archivos de la carpeta se ignoran.
+   `visto_bueno` (vacío, "pendiente" o "no") tampoco se corre. Los demás archivos de la
+   carpeta se ignoran.
 3. Corre cada caso con la misma función que la pantalla, `services.ask`, con el canal
    `eval` y la `fecha_autorizacion` del caso, una pregunta por vez. Nunca pasa una
    fecha vacía: la función de consulta usaría la del día. Cada consulta queda en el
-   registro de auditoría como cualquier otra (P6).
+   registro de auditoría como cualquier otra (P6). Un caso que la consulta rechaza (por
+   ejemplo, una fecha posterior al día) no sale de la medida: cuenta como incorrecto o
+   como no abstenido, y el resumen lo marca.
 4. Mide cada caso (`grade`) y la corrida entera (`measure`):
-   - cita literal: sobre todas las citas de todas las respuestas, el texto que se
-     muestra (`answering.citation_texts`) es igual a `canonical_text[char_start:char_end]`
-     de la lectura de la unidad, leído acá por separado. Umbral 100 %;
+   - cita literal: sobre todas las citas de todas las respuestas, `Unit.text` guardado y
+     el texto que entrega `answering.citation_texts` para mostrar son iguales a
+     `canonical_text[char_start:char_end]` de la lectura de la unidad, leído acá por
+     separado. Umbral 100 %;
    - respuesta correcta que cita la unidad correcta, sobre las preguntas con respuesta:
      `grounded`, régimen aplicado igual a `regimen`, cita todas las `unidades` (si el
      caso nombra un inciso, vale el artículo que lo contiene), contiene los
@@ -29,10 +33,14 @@ REQ-009, REQ-020, REQ-021; plan 001, "Evals"). Versión de T-039.
    `parametros.json`, `resultados.jsonl` (un renglón por caso, también los que no se
    corrieron) y `resumen.md`.
 
-Los datos clave se buscan en el texto de las afirmaciones sin distinguir mayúsculas,
-tildes ni espacios repetidos; fuera de eso, tienen que aparecer tal cual. En la corrida
-que se presenta para aprobar, el responsable revisa además las respuestas contra la
-esperada (plan, "Evals").
+Los datos clave (`key_data_missing`, reglas del Coordinador en la verificación de T-039)
+se buscan en el texto de las afirmaciones, normalizado igual que el dato: sin distinguir
+mayúsculas, tildes ni espacios repetidos; un número en letras seguido de su cifra entre
+paréntesis vale como la cifra; del uno al veinte en letras equivalen a su cifra; "5%" y
+"5 %" son lo mismo. El dato tiene que aparecer sin una letra, un dígito o un separador
+de número pegados. Un dato "sí" o "no" se cumple solo si la primera afirmación empieza
+con esa palabra. En la corrida que se presenta para aprobar, el responsable revisa
+además las respuestas contra la esperada (plan, "Evals").
 
 Las medidas de recuperación, por régimen, la comparación con la corrida anterior, la
 comparación quitando piezas y la calibración del umbral son de T-042.
@@ -74,6 +82,9 @@ PENDING_AMENDMENTS = "pending_amendments"
 MALFORMED = "malformed"
 NOT_APPROVED = "not_approved"
 REFUSED = "refused"
+
+# Valores de `visto_bueno` que no son visto bueno, ya normalizados.
+NOT_AN_APPROVAL = {"", "pendiente", "no"}
 
 CASE_GLOB = "EV-*.yaml"
 NO_COMMIT = "sin-commit"
@@ -241,6 +252,12 @@ def parse_case(path):
     )
 
 
+def is_approved(approval):
+    """Un visto bueno vacío, "pendiente" o "no" (sin distinguir mayúsculas ni tildes) no
+    es visto bueno."""
+    return normalize(approval or "") not in NOT_AN_APPROVAL
+
+
 def load_cases(directory):
     """Lee los `EV-*.yaml` de `directory`, en orden de nombre. Devuelve `(casos, no
     corridos)`: los casos bien formados y con visto bueno, y un `Skipped` por cada uno de
@@ -252,7 +269,7 @@ def load_cases(directory):
         except CaseError as error:
             skipped.append(Skipped(path.name, path.stem, MALFORMED, f"mal formado: {error}"))
             continue
-        if not case.approval:
+        if not is_approved(case.approval):
             skipped.append(Skipped(path.name, case.id, NOT_APPROVED,
                                    "sin visto bueno de la Comisión"))
             continue
@@ -264,11 +281,90 @@ def load_cases(directory):
 
 
 def normalize(text):
-    """Texto para buscar los datos clave: sin tildes, sin distinguir mayúsculas y con
-    los espacios repetidos reducidos a uno."""
+    """Texto sin tildes, sin distinguir mayúsculas y con los espacios repetidos
+    reducidos a uno."""
     decomposed = unicodedata.normalize("NFKD", text)
     plain = "".join(c for c in decomposed if not unicodedata.combining(c))
     return re.sub(r"\s+", " ", plain.casefold()).strip()
+
+
+# Palabras de un número escrito en letras, ya sin tildes ni mayúsculas.
+_NUMBER_WORD = (
+    r"(?:un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|"
+    r"catorce|quince|dieci[a-z]+|veinte|veinti[a-z]+|treinta|cuarenta|cincuenta|"
+    r"sesenta|setenta|ochenta|noventa|cien|ciento|[a-z]+cientos|quinientos|mil|"
+    r"millon|millones)"
+)
+# "sesenta (60)", "treinta y cinco (35)", "cinco por ciento (5%)": queda la cifra.
+_WORDS_WITH_FIGURE = re.compile(
+    rf"\b{_NUMBER_WORD}(?:\s+(?:y\s+)?{_NUMBER_WORD})*(?:\s+por\s+ciento)?\s*"
+    r"\(\s*(\d[\d.,]*(?:\s*%)?)\s*\)"
+)
+# Del uno al veinte, en letras, equivalen a su cifra.
+_SMALL_NUMBERS = {
+    "un": 1, "uno": 1, "una": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5,
+    "seis": 6, "siete": 7, "ocho": 8, "nueve": 9, "diez": 10, "once": 11, "doce": 12,
+    "trece": 13, "catorce": 14, "quince": 15, "dieciseis": 16, "diecisiete": 17,
+    "dieciocho": 18, "diecinueve": 19, "veinte": 20,
+}
+_SMALL_NUMBER_WORDS = re.compile(r"\b(" + "|".join(_SMALL_NUMBERS) + r")\b")
+
+# Datos clave que se responden con la primera palabra de la respuesta.
+_YES_NO = {"si", "no"}
+
+
+def normalize_for_search(text):
+    """Texto de la respuesta o del dato clave tal como se comparan (decisión del
+    Coordinador, verificación de T-039): además de `normalize`, un número en letras
+    seguido de su cifra entre paréntesis queda solo con la cifra ("sesenta (60) días"
+    pasa a "60 días"), del uno al veinte en letras pasan a su cifra ("dos vocales" a "2
+    vocales") y el signo de porcentaje va siempre separado por un espacio ("5%" a
+    "5 %")."""
+    text = normalize(text)
+    text = _WORDS_WITH_FIGURE.sub(lambda m: m.group(1), text)
+    text = _SMALL_NUMBER_WORDS.sub(lambda m: str(_SMALL_NUMBERS[m.group(1)]), text)
+    text = re.sub(r"(\d)\s*%", r"\1 %", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _contains(text, fragment):
+    """`fragment` aparece en `text` sin una letra, un dígito o un separador de número
+    pegados antes o después. Una coma o un punto cuentan como pegados solo si están
+    junto a un dígito ("0,1 %", "21.000"); el que cierra una frase no."""
+    if not fragment:
+        return True
+    pattern = (r"(?<!\w)(?<!\d[.,])" + re.escape(fragment) + r"(?!\w)(?![.,]\d)")
+    return re.search(pattern, text) is not None
+
+
+def _starts_with(text, word):
+    """La afirmación empieza con `word`, salteando signos de puntuación y espacios
+    iniciales."""
+    index = 0
+    while index < len(text) and (text[index].isspace()
+                                 or unicodedata.category(text[index]).startswith("P")):
+        index += 1
+    return re.match(re.escape(word) + r"(?!\w)", text[index:]) is not None
+
+
+def key_data_missing(key_data, statements):
+    """Los datos clave que no están en las afirmaciones `statements` (textos, en orden).
+
+    Un dato "sí" o "no" (regla del Coordinador) se cumple solo si la primera afirmación
+    empieza con esa palabra. Los demás se buscan en todas las afirmaciones con
+    `normalize_for_search` y límites de palabra y de número (`_contains`)."""
+    first = normalize(statements[0]) if statements else ""
+    text = normalize_for_search("\n".join(statements))
+    missing = []
+    for datum in key_data:
+        plain = normalize(datum)
+        if plain in _YES_NO:
+            found = _starts_with(first, plain)
+        else:
+            found = _contains(text, normalize_for_search(datum))
+        if not found:
+            missing.append(datum)
+    return missing
 
 
 def _statement_citations(result):
@@ -277,8 +373,15 @@ def _statement_citations(result):
 
 def cited_units(result):
     """Cada unidad citada en el resultado, una vez y en orden de aparición, con su norma
-    (nombre de cita), su clave, su tipo, su categoría y si el texto que se muestra es
-    igual a `canonical_text[char_start:char_end]` de su lectura."""
+    (nombre de cita), su clave, su tipo, su categoría y la comprobación de cita literal
+    contra `canonical_text[char_start:char_end]` de su lectura, en dos partes:
+
+    - `stored_text_ok`: `Unit.text` guardado es igual al recorte (datos que se apartan
+      del original);
+    - `shown_text_ok`: el texto que entrega `answering.citation_texts` para mostrar
+      también lo es.
+
+    `literal` es verdadero solo si se cumplen las dos."""
     ids = list(dict.fromkeys(_statement_citations(result)))
     units = Unit.objects.select_related("reading__document__norm").in_bulk(ids)
     try:
@@ -290,17 +393,22 @@ def cited_units(result):
         unit = units.get(unit_id)
         if unit is None:
             cited.append({"unit": unit_id, "norm": None, "key": None, "unit_type": None,
-                          "category": None, "literal": False})
+                          "category": None, "stored_text_ok": False,
+                          "shown_text_ok": False, "literal": False})
             continue
         norm = unit.reading.document.norm
         expected = unit.reading.canonical_text[unit.char_start:unit.char_end]
+        stored_ok = unit.text == expected
+        shown_ok = unit_id in shown and shown[unit_id] == expected
         cited.append({
             "unit": unit_id,
             "norm": norm.citation,
             "key": unit.key,
             "unit_type": unit.unit_type,
             "category": norm.category,
-            "literal": unit_id in shown and shown[unit_id] == expected,
+            "stored_text_ok": stored_ok,
+            "shown_text_ok": shown_ok,
+            "literal": stored_ok and shown_ok,
         })
     return cited
 
@@ -355,10 +463,10 @@ def grade(case, result, cited):
         measures["abstained"] = status == Status.UNDETERMINED
         return measures
 
-    text = normalize("\n".join(s["text"] for s in result.get("statements") or []))
     missing_units = [u for u in case.units
                      if not any(_unit_matches(u, unit) for unit in cited)]
-    missing_data = [d for d in case.key_data if normalize(d) not in text]
+    missing_data = key_data_missing(
+        case.key_data, [s["text"] for s in result.get("statements") or []])
     checks = {
         "status": status == Status.GROUNDED,
         "regime": regime == ([case.regime] if case.regime else []),
@@ -431,10 +539,12 @@ def _ratio(ok, total, threshold):
 
 
 def measure(lines):
-    """Las cuatro medidas exigidas sobre los renglones de los casos corridos."""
+    """Las cuatro medidas exigidas sobre los renglones de los casos medidos: los
+    corridos y los que la consulta rechazó, que cuentan como incorrectos o no abstenidos.
+    El tiempo se mide solo sobre las consultas hechas."""
     answered = [line for line in lines if line["has_answer"]]
     unanswerable = [line for line in lines if not line["has_answer"]]
-    times = [line["time_seconds"] for line in lines]
+    times = [line["time_seconds"] for line in lines if line["time_seconds"] is not None]
     longest = max(times) if times else None
     return {
         "literal_citation": _ratio(
@@ -461,8 +571,10 @@ class RunReport:
     """Lo que dejó una corrida.
 
     - `folder`: la carpeta de la corrida.
-    - `results`: un renglón por caso corrido, como en `resultados.jsonl`.
-    - `skipped`: los casos que no se corrieron, con su motivo.
+    - `results`: un renglón por caso medido, como en `resultados.jsonl`: los corridos
+      y los que la consulta rechazó (`status` `refused`, `ran` falso).
+    - `skipped`: los casos que no se corrieron ni se miden (mal formados o sin visto
+      bueno), con su motivo.
     - `measures`: las cuatro medidas exigidas (`measure`).
     - `pairs`: los pares de REQ-020 (`check_pairs`).
     - `notices`: la comprobación de REQ-021: `ok`, `total` y los casos `failed`.
@@ -478,24 +590,31 @@ class RunReport:
     parameters: dict
 
     def failed_ids(self):
-        """Casos corridos que fallaron alguna medida o comprobación, en orden."""
+        """Casos medidos que fallaron alguna medida o comprobación, en orden."""
         return [line["id"] for line in self.results if _failures(line)]
+
+    def ran(self):
+        """Renglones de los casos que se corrieron de verdad."""
+        return [line for line in self.results if line["ran"]]
 
 
 def _failures(line):
     measures = line["measures"]
     reasons = []
-    if line["has_answer"] and not measures["correct"]:
+    if line["status"] == REFUSED:
+        reasons.append(f"consulta rechazada ({line['reason']}), cuenta como "
+                       + ("incorrecta" if line["has_answer"] else "no abstenida"))
+    elif line["has_answer"] and not measures["correct"]:
         failed = [name for name, ok in measures["checks"].items() if not ok]
         reasons.append("respuesta incorrecta (" + ", ".join(_CHECK_TEXT[n] for n in failed) + ")")
-    if not line["has_answer"] and not measures["abstained"]:
+    elif not line["has_answer"] and not measures["abstained"]:
         reasons.append("no se abstuvo" if line["status"] != Status.ERROR
                        else "falla técnica en lugar de abstención")
     if measures["literal_citations"] != measures["citations"]:
         reasons.append("cita que no es literal")
     if not measures["notice_ok"]:
         reasons.append("aviso de modificatorias distinto del esperado")
-    if line["time_seconds"] > MAX_SECONDS:
+    if line["time_seconds"] is not None and line["time_seconds"] > MAX_SECONDS:
         reasons.append("superó los 30 segundos")
     return reasons
 
@@ -542,26 +661,43 @@ def run_parameters(started_at, commit, cases_dir):
         "commit": commit,
         "cases_dir": str(cases_dir),
         "corpus_version": current_corpus_version(),
-        "prompt_version": answering.PROMPT_VERSION,
+        "prompt_version": None,  # se completa con las de las consultas
         "search": services.parameters(),
     }
 
 
-def _case_line(case, query, elapsed):
-    result = query.result
+def prompt_versions(lines):
+    """Versiones de las instrucciones que usaron las consultas, en orden de aparición:
+    la única si fue una sola, la lista si hubo varias, o `None` si ninguna consulta
+    llamó al modelo."""
+    versions = list(dict.fromkeys(line["prompt_version"] for line in lines
+                                  if line.get("prompt_version")))
+    if not versions:
+        return None
+    return versions[0] if len(versions) == 1 else versions
+
+
+def _refused_result(error):
+    return {"status": REFUSED, "reason": str(error), "regime": [], "notices": [],
+            "statements": [], "units": {}}
+
+
+def _case_line(case, result, query=None, elapsed=None):
+    """Renglón de un caso medido. Sin `query`, la consulta se rechazó."""
     cited = cited_units(result)
     line = {
         "id": case.id,
         "file": case.file,
-        "ran": True,
+        "ran": query is not None,
         "question": case.question,
         "reference_date": case.reference_date.isoformat(),
         "expected_regime": case.regime,
         "has_answer": case.has_answer,
         "pair": case.pair,
         "expected_notice": case.notice,
-        "query_id": query.pk,
-        "corpus_version": query.corpus_version,
+        "query_id": query.pk if query else None,
+        "corpus_version": query.corpus_version if query else None,
+        "prompt_version": query.prompt_version if query else "",
         "status": result["status"],
         "reason": result["reason"],
         "regime": [r["name"] for r in result.get("regime") or []],
@@ -569,8 +705,8 @@ def _case_line(case, query, elapsed):
         "statements": result.get("statements") or [],
         "cited_units": cited,
         "measures": grade(case, result, cited),
-        "time_seconds": round(elapsed, 3),
-        "timings": query.timings,
+        "time_seconds": round(elapsed, 3) if query else None,
+        "timings": query.timings if query else {},
     }
     line["passed"] = _passed(line)
     return line
@@ -606,12 +742,12 @@ def run(user, cases_dir, runs_dir, *, commit=None, clock=time.monotonic):
                                  channel=Channel.EVAL)
         except services.QueryRefused as error:
             clock()
-            skipped.append(Skipped(case.file, case.id, REFUSED,
-                                   f"la consulta se rechazó: {error}"))
+            lines.append(_case_line(case, _refused_result(error)))
             continue
         elapsed = clock() - since
-        lines.append(_case_line(case, query, elapsed))
+        lines.append(_case_line(case, query.result, query, elapsed))
 
+    parameters["prompt_version"] = prompt_versions(lines)
     parameters["finished_at"] = timezone.localtime(timezone.now()).isoformat()
     notice_lines = [line for line in lines if not line["measures"]["notice_ok"]]
     report = RunReport(
@@ -659,11 +795,14 @@ def _meets(value):
 
 
 def counts(report):
-    """Cantidades de casos leídos, corridos y no corridos por motivo."""
+    """Cantidades de casos leídos, corridos, rechazados por la consulta (se miden igual)
+    y no corridos por motivo."""
     by_kind = {kind: sum(1 for s in report.skipped if s.kind == kind)
-               for kind in (NOT_APPROVED, MALFORMED, REFUSED)}
-    ran = len(report.results)
-    return {"read": ran + len(report.skipped), "ran": ran, **by_kind}
+               for kind in (NOT_APPROVED, MALFORMED)}
+    ran = len(report.ran())
+    refused = len(report.results) - ran
+    return {"read": len(report.results) + len(report.skipped), "ran": ran,
+            REFUSED: refused, **by_kind}
 
 
 def counts_line(report):
@@ -672,7 +811,8 @@ def counts_line(report):
     line = (f"Casos leídos: {c['read']} · corridos: {c['ran']} · "
             f"{c[NOT_APPROVED]} sin visto bueno · {c[MALFORMED]} mal formados")
     if c[REFUSED]:
-        line += f" · {c[REFUSED]} rechazados por la consulta"
+        line += (f" · {c[REFUSED]} rechazados por la consulta (cuentan como "
+                 "incorrectos o no abstenidos)")
     return line
 
 
@@ -705,6 +845,11 @@ def summary_markdown(report):
     """Contenido de `resumen.md`."""
     p = report.parameters
     search = p["search"]
+    versions = p["prompt_version"]
+    if versions is None:
+        versions = "ninguna (ninguna consulta llamó al modelo)"
+    elif isinstance(versions, list):
+        versions = "varias: " + ", ".join(versions)
     out = [
         f"# Corrida {report.folder.name}",
         "",
@@ -712,7 +857,7 @@ def summary_markdown(report):
         f"- Commit: {p['commit']}",
         f"- Modelo de generación: {search['generation']['model']} "
         f"(compilación {search['generation']['engine_build']})",
-        f"- Versión de las instrucciones: {p['prompt_version']}",
+        f"- Versión de las instrucciones: {versions}",
         f"- Versión de la normativa: {p['corpus_version'] if p['corpus_version'] is not None else 'ninguna'}",
         f"- Umbral del reranker: {search['rerank_threshold']}",
         f"- {counts_line(report)}",

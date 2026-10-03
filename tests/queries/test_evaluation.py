@@ -554,3 +554,288 @@ def test_command_with_a_wrong_password_runs_nothing(read_user, fake_ai, tmp_path
 
     assert list(tmp_path.iterdir()) == []
     assert Query.objects.count() == 0
+
+
+# --- Ajustes de la verificación ---------------------------------------------------------
+
+
+def test_literal_citation_fails_when_the_stored_unit_text_differs(
+    read_user, two_regimes, scripted, tmp_path
+):
+    """REQ-008: si `Unit.text` de la unidad citada no es igual a
+    `canonical_text[char_start:char_end]` (datos guardados que se apartan del original),
+    la cita no cuenta como literal y la medida no cumple."""
+    from evaluon.norms.models import Unit
+
+    scripted.marks[Q1] = {NEW_OBJECT: 0.9}
+    unit = two_regimes.new_units["anexo/art-1"]
+    Unit.objects.filter(pk=unit.pk).update(text="TEXTO ALTERADO QUE NO ESTA EN LA NORMA")
+
+    report = run(read_user, "t039-aviso", tmp_path)
+
+    line = by_id(report)["EV-951"]
+    [cited_unit] = line["cited_units"]
+    assert cited_unit["stored_text_ok"] is False
+    assert cited_unit["shown_text_ok"] is True
+    assert cited_unit["literal"] is False
+    assert (line["measures"]["literal_citations"], line["measures"]["citations"]) == (0, 1)
+    assert report.measures["literal_citation"]["meets"] is False
+    summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
+    assert "cita que no es literal" in summary.split("## Casos fallados")[1]
+
+
+def test_literal_citation_fails_when_the_shown_text_differs(
+    read_user, two_regimes, scripted, tmp_path, monkeypatch
+):
+    """REQ-008: si el texto que entrega `answering.citation_texts` para mostrar no es el
+    recorte canónico, la cita no cuenta como literal."""
+    from evaluon.queries import answering
+
+    scripted.marks[Q1] = {NEW_OBJECT: 0.9}
+    monkeypatch.setattr(answering, "citation_texts",
+                        lambda result: {int(u): "otro texto" for u in result["units"]})
+
+    report = run(read_user, "t039-aviso", tmp_path)
+
+    [cited_unit] = by_id(report)["EV-951"]["cited_units"]
+    assert cited_unit["stored_text_ok"] is True
+    assert cited_unit["shown_text_ok"] is False
+    assert report.measures["literal_citation"]["ok"] == 0
+
+
+def key_data_ok(key, answer):
+    case = make_case(units=((N247, "anexo/art-55"),), key_data=(key,))
+    unit = cited(1, "anexo/art-55")
+    measures = evaluation.grade(
+        case, grounded([{"text": answer, "citations": [1]}], [unit]), [unit])
+    return measures["checks"]["key_data"]
+
+
+@pytest.mark.parametrize("key, answer", [
+    ("no", "Sí, el pliego puede agregar causales propias, según la norma."),
+    ("sí", "No. El pliego no puede agregar causales de inadmisibilidad."),
+    ("1 %", "La multa es del 0,1 % por día."),
+    ("10 días", "El plazo es de 110 días."),
+    ("1.000", "El monto es de 21.000 pesos."),
+])
+def test_key_data_needs_word_and_number_boundaries(key, answer):
+    """REQ-008: un dato clave no se cumple si aparece pegado a una letra, un dígito o un
+    separador de número ("no" dentro de "norma", "si" dentro de "inadmisibilidad",
+    "1 %" dentro de "0,1 %")."""
+    assert key_data_ok(key, answer) is False
+
+
+def test_key_data_at_the_end_of_a_sentence_is_found():
+    """REQ-008: el punto o la coma que cierran una frase no cuentan como pegados al
+    dato: solo un separador seguido o precedido de dígito."""
+    assert key_data_ok("60 días corridos", "Son 60 días corridos.") is True
+    assert key_data_ok("5 %", "Es el 5 %, sobre el total.") is True
+
+
+@pytest.mark.parametrize("key, answer, ok", [
+    ("sí", "Sí, el pliego puede hacerlo.", True),
+    ("sí", "—¡Sí! Puede hacerlo.", True),
+    ("sí", "El pliego sí puede hacerlo.", False),
+    ("no", "No. El pliego no puede hacerlo.", True),
+    ("no", "«No», según el artículo.", True),
+    ("no", "El pliego no puede hacerlo.", False),
+    ("no", "Nunca puede hacerlo.", False),
+])
+def test_yes_or_no_key_data_is_how_the_first_statement_starts(key, answer, ok):
+    """REQ-008: un dato clave "sí" o "no" se cumple solo si la primera afirmación empieza
+    con esa palabra, salteando signos de puntuación iniciales."""
+    assert key_data_ok(key, answer) is ok
+
+
+def test_yes_or_no_looks_only_at_the_first_statement():
+    """REQ-008: "sí" o "no" se mira en la primera afirmación, no en las siguientes."""
+    case = make_case(units=((N247, "anexo/art-55"),), key_data=("no",))
+    unit = cited(1, "anexo/art-55")
+    statements = [{"text": "Sí, puede.", "citations": [1]},
+                  {"text": "No hace falta otra cosa.", "citations": [1]}]
+
+    measures = evaluation.grade(case, grounded(statements, [unit]), [unit])
+
+    assert measures["checks"]["key_data"] is False
+
+
+@pytest.mark.parametrize("key, answer", [
+    ("60 días corridos", "Sesenta (60) días corridos desde la apertura."),
+    ("60 días corridos", "SESENTA ( 60 ) DÍAS CORRIDOS."),
+    ("SESENTA (60) días", "Son 60 días."),
+    ("5 %", "El cinco por ciento (5%) del monto ofertado."),
+])
+def test_number_in_words_with_its_figure_counts_as_the_figure(key, answer):
+    """REQ-008: un número escrito en letras seguido de la cifra entre paréntesis vale
+    como la cifra, en la respuesta y en el dato clave."""
+    assert key_data_ok(key, answer) is True
+
+
+@pytest.mark.parametrize("key, answer", [
+    ("5 %", "El 5% del monto."),
+    ("5%", "El 5 % del monto."),
+])
+def test_percent_with_or_without_space_is_the_same(key, answer):
+    """REQ-008: "5%" y "5 %" son el mismo dato."""
+    assert key_data_ok(key, answer) is True
+
+
+@pytest.mark.parametrize("key, answer", [
+    ("presidente y 2 vocales", "Un presidente y dos vocales."),
+    ("3 días", "Dentro de los tres días."),
+    ("20 días", "En veinte días hábiles."),
+    ("dos vocales", "Con 2 vocales."),
+])
+def test_numbers_one_to_twenty_in_words_equal_their_figure(key, answer):
+    """REQ-008: los números del uno al veinte escritos en letras equivalen a su cifra."""
+    assert key_data_ok(key, answer) is True
+
+
+def test_case_accents_and_repeated_spaces_are_ignored():
+    """REQ-008: mayúsculas, tildes y espacios repetidos no cuentan."""
+    assert key_data_ok("60 días corridos", "Son 60 DIAS    Corridos.") is True
+    assert key_data_ok("prórroga automática", "Hay PRORROGA automatica.") is True
+
+
+def test_refused_case_stays_in_the_measures(read_user, two_regimes, scripted, tmp_path):
+    """REQ-009, REQ-008: un caso que la consulta rechaza (fecha posterior al día) no sale
+    de la medida: sin respuesta cuenta como no abstenido y con respuesta como incorrecto,
+    y el resumen lo marca."""
+    cases = tmp_path / "casos"
+    cases.mkdir()
+    for name in ("EV-901", "EV-903"):
+        text = (FIXTURES / "t039-medidas" / f"{name}.yaml").read_text(encoding="utf-8")
+        (cases / f"{name}.yaml").write_text(text.replace("2024-05-20", "2099-01-01"),
+                                            encoding="utf-8")
+
+    report = evaluation.run(read_user, cases, tmp_path / "corridas", commit="x")
+
+    lines = by_id(report)
+    assert lines["EV-901"]["status"] == evaluation.REFUSED
+    assert lines["EV-901"]["measures"]["correct"] is False
+    assert lines["EV-903"]["measures"]["abstained"] is False
+    assert (report.measures["correct_answer"]["ok"],
+            report.measures["correct_answer"]["total"]) == (0, 1)
+    assert (report.measures["abstention"]["ok"],
+            report.measures["abstention"]["total"]) == (0, 1)
+    assert report.skipped == []
+    summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
+    failed = summary.split("## Casos fallados")[1]
+    assert "EV-901: consulta rechazada" in failed
+    assert "EV-903: consulta rechazada" in failed
+
+
+@pytest.mark.parametrize("value, approved", [
+    ('""', False),
+    ('"pendiente"', False),
+    ('"Pendiente "', False),
+    ('"NO"', False),
+    ('"no"', False),
+    ("", False),
+    ('"Comisión sintética, 2026-10-03"', True),
+])
+def test_empty_pending_or_no_is_not_an_approval(tmp_path, value, approved):
+    """REQ-008: vacío, "pendiente" o "no" (sin distinguir mayúsculas) no son visto
+    bueno: el caso no se corre."""
+    text = (FIXTURES / "t039-filtro" / "EV-964.yaml").read_text(encoding="utf-8")
+    text = re.sub(r"(?m)^visto_bueno: .*$", f"visto_bueno: {value}", text)
+    (tmp_path / "EV-964.yaml").write_text(text, encoding="utf-8")
+
+    cases, skipped = evaluation.load_cases(tmp_path)
+
+    assert (len(cases) == 1) is approved
+    if not approved:
+        assert skipped[0].kind == evaluation.NOT_APPROVED
+
+
+def test_pair_with_different_questions_fails():
+    """REQ-020: un par cuyos casos tienen preguntas distintas falla, aunque cada uno pase
+    y citen normas distintas."""
+    lines = [
+        {"id": "EV-001", "question": "¿Pregunta uno?", "pair": "EV-016", "passed": True,
+         "cited_units": [{"norm": N247}]},
+        {"id": "EV-016", "question": "¿Pregunta dos?", "pair": "EV-001", "passed": True,
+         "cited_units": [{"norm": N297}]},
+    ]
+
+    assert evaluation.check_pairs(lines) == [
+        {"cases": ["EV-001", "EV-016"], "status": "falla",
+         "problems": ["las preguntas no son iguales"]}
+    ]
+
+
+def test_citing_an_inciso_does_not_count_for_the_article():
+    """REQ-008: si el caso espera el artículo y la respuesta cita solo uno de sus
+    incisos, no vale."""
+    case = make_case(units=((N247, "anexo/art-24"),))
+    inciso = cited(1, "anexo/art-24/inc-b", unit_type="inciso")
+    statement = [{"text": "Respuesta sintética.", "citations": [1]}]
+
+    measures = evaluation.grade(case, grounded(statement, [inciso]), [inciso])
+
+    assert measures["checks"]["units"] is False
+    assert measures["correct"] is False
+
+
+def test_case_over_thirty_seconds_does_not_meet_the_time(
+    read_user, two_regimes, scripted, tmp_path
+):
+    """REQ-008: una consulta de más de 30 segundos hace que la medida de tiempo no
+    cumpla y el caso figure entre los fallados."""
+    scripted.marks[QP] = {OLD_OBJECT: 0.9, NEW_OBJECT: 0.9}
+
+    report = run(read_user, "t039-par-bien", tmp_path, clock=fake_clock(0, 31, 40, 41))
+
+    assert report.measures["response_time"]["max"] == 31
+    assert report.measures["response_time"]["meets"] is False
+    assert report.failed_ids() == ["EV-931"]
+    summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
+    assert "EV-931: superó los 30 segundos" in summary
+
+
+def test_malformed_and_unapproved_cases_are_in_the_results_file(
+    read_user, two_regimes, scripted, tmp_path
+):
+    """REQ-008, REQ-020: `resultados.jsonl` trae un renglón por cada archivo de caso,
+    también los mal formados y los que no tienen visto bueno, con su motivo."""
+    scripted.marks[Q1] = {NEW_OBJECT: 0.9}
+
+    report = run(read_user, "t039-filtro", tmp_path)
+
+    rows = [json.loads(line) for line in
+            (report.folder / "resultados.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert [(r["id"], r["ran"], r.get("skipped")) for r in rows] == [
+        ("EV-961", False, evaluation.MALFORMED),
+        ("EV-962", False, evaluation.NOT_APPROVED),
+        ("EV-963", False, evaluation.MALFORMED),
+        ("EV-964", True, None),
+        ("EV-965", False, evaluation.MALFORMED),
+    ]
+    assert all(r["reason"] for r in rows if not r["ran"])
+
+
+def test_prompt_version_comes_from_the_queries_of_the_run(
+    read_user, two_regimes, scripted, tmp_path
+):
+    """REQ-008 (P6): `parametros.json` lleva la versión de las instrucciones que usaron
+    las consultas de la corrida."""
+    from evaluon.queries import answering
+
+    scripted.marks[Q1] = {NEW_OBJECT: 0.9}
+
+    report = run(read_user, "t039-aviso", tmp_path)
+
+    parameters = json.loads((report.folder / "parametros.json").read_text(encoding="utf-8"))
+    assert parameters["prompt_version"] == answering.PROMPT_VERSION
+    assert by_id(report)["EV-951"]["prompt_version"] == answering.PROMPT_VERSION
+
+
+def test_prompt_versions_are_all_listed_when_they_differ():
+    """REQ-008 (P6): si las consultas usaron versiones distintas, se listan todas; las
+    que no llamaron al modelo no aportan versión."""
+    lines = [{"prompt_version": "consulta-v1"}, {"prompt_version": ""},
+             {"prompt_version": "consulta-v2"}, {"prompt_version": "consulta-v1"}]
+
+    assert evaluation.prompt_versions(lines) == ["consulta-v1", "consulta-v2"]
+    assert evaluation.prompt_versions(lines[:2]) == "consulta-v1"
+    assert evaluation.prompt_versions([{"prompt_version": ""}]) is None
