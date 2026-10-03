@@ -97,13 +97,16 @@ _PARAGRAPH_END = (".", ":", ";")
 
 @dataclass
 class CanonicalLine:
-    """Una línea leída y su lugar en el texto canónico: `text[start:end]`."""
+    """Una línea leída y su lugar en el texto canónico: `text[start:end]`. Si vino de
+    reconocimiento, trae su confianza y la de cada palabra (`Word`), para la confianza de
+    las unidades y las palabras de menor confianza del informe (T-025)."""
 
     page: int | None
     start: int
     end: int
     origin: str
     confidence: float | None = None
+    words: list = field(default_factory=list)
 
 
 @dataclass
@@ -308,6 +311,7 @@ class _Builder:
                 end=self.length,
                 origin=line.origin,
                 confidence=line.confidence,
+                words=list(line.words),
             )
         )
 

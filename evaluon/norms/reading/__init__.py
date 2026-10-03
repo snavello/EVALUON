@@ -21,7 +21,11 @@ se obtuvo (P6). Se guarda en `norms_reading.pages` con `as_json()`.
   descartado no se borra de la lectura: queda marcado para el informe.
 - **Página.** `number` empieza en 1; una página web es una sola página sin número. Su
   estado (`status`) es uno de `PAGE_STATUSES`. Una página sin capa de texto se informa
-  como no leída (REQ-004).
+  como no leída (REQ-004). `origin` y `confidence` son opcionales (T-025): el origen del
+  texto de la página y, si vino de reconocimiento, la confianza promedio de todas sus
+  palabras. El reconocimiento los completa también en una página ilegible, que no aporta
+  líneas, para que el informe distinga una página ilegible de una casi sin texto. Vacíos
+  si el lector no los informa.
 
 Entrada única: `read_document(archivo)`. El formato se reconoce por el contenido, no por
 el nombre. En esta tarea (T-012) solo acepta PDF con texto; la lectura de PDF escaneados
@@ -96,6 +100,8 @@ class Page:
     height: float | None
     status: str
     lines: list[Line] = field(default_factory=list)
+    origin: str | None = None
+    confidence: float | None = None
 
 
 @dataclass
