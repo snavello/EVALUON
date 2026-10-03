@@ -63,7 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 7 tareas sin terminar.
-- ○ T-043 · Cargar y validar el corpus real y ajustar las reglas (pendiente)
+- ▶ T-043 · Cargar y validar el corpus real y ajustar las reglas (en curso)
 - ○ T-044 · Registrar relaciones, versiones y modificatorias del corpus (pendiente)
 - ○ T-045 · Calibrar el umbral con el conjunto de preguntas (pendiente)
 - ○ T-046 · Correr las evals y medir tiempo y memoria (pendiente)
@@ -118,7 +118,7 @@ flowchart LR
 - ✓ T-042 · Agregar calibración del umbral y comparación de corridas (`a7af689` 2026-10-03, `ef536b1` 2026-10-03, `32e5b9a` 2026-10-03)
 - ✓ T-050 · Partir la 297/03 y el cuerpo de la 247/2022 desde la web (`c27c9c4` 2026-10-03, `5941a37` 2026-10-03)
 - ✓ T-051 · Registrar las modificatorias sin cargar de una norma (`375ba21` 2026-10-03, `73a199a` 2026-10-03)
-- ✓ T-052 · Avisar modificatorias sin cargar en respuesta y búsqueda
+- ✓ T-052 · Avisar modificatorias sin cargar en respuesta y búsqueda (`5eb1059` 2026-10-03, `84ad9d4` 2026-10-03, `8b43218` 2026-10-03)
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 - ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
 - ✓ T-055 · Agregar el nombre de cita de la norma (`ff230c8` 2026-10-03, `88796e6` 2026-10-03)
@@ -169,7 +169,7 @@ flowchart TD
   T040["✓ T-040 · Unir recuperación y generación completas co…"]:::done
   T041["✓ T-041 · Mostrar y registrar la búsqueda en la panta…"]:::done
   T042["✓ T-042 · Agregar calibración del umbral y comparació…"]:::done
-  T043["○ T-043 · Cargar y validar el corpus real y ajustar l…"]:::todo
+  T043["▶ T-043 · Cargar y validar el corpus real y ajustar l…"]:::active
   T044["○ T-044 · Registrar relaciones, versiones y modificat…"]:::todo
   T045["○ T-045 · Calibrar el umbral con el conjunto de pregu…"]:::todo
   T046["○ T-046 · Correr las evals y medir tiempo y memoria"]:::todo

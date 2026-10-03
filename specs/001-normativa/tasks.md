@@ -58,7 +58,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-040 | Unir recuperación y generación completas con su registro | REQ-008, REQ-009, REQ-012, REQ-018, REQ-019 | T-033, T-034 | terminada |
 | T-041 | Mostrar y registrar la búsqueda en la pantalla | REQ-006, REQ-010, REQ-012, REQ-020 | T-035, T-037, T-040 | terminada |
 | T-042 | Agregar calibración del umbral y comparación de corridas | REQ-008, REQ-009, REQ-020, REQ-021 | T-039, T-040 | terminada |
-| T-043 | Cargar y validar el corpus real y ajustar las reglas | REQ-003, REQ-004, REQ-005, REQ-015, REQ-020 | T-020, T-028, T-031, T-041, T-050 | pendiente |
+| T-043 | Cargar y validar el corpus real y ajustar las reglas | REQ-003, REQ-004, REQ-005, REQ-015, REQ-020 | T-020, T-028, T-031, T-041, T-050 | en curso |
 | T-044 | Registrar relaciones, versiones y modificatorias del corpus | REQ-006, REQ-007, REQ-020, REQ-021 | T-029, T-030, T-043, T-051, T-052 | pendiente |
 | T-045 | Calibrar el umbral con el conjunto de preguntas | REQ-009 | T-042, T-044 | pendiente |
 | T-046 | Correr las evals y medir tiempo y memoria | REQ-008, REQ-009, REQ-018, REQ-019, REQ-020, REQ-021 | T-045 | pendiente |
