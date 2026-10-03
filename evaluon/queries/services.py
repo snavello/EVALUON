@@ -121,6 +121,16 @@ consulta, cuentan las normas de las unidades que se muestran: las devueltas y, d
 las que traen un cambio de una devuelta y cuyo texto se muestra (`source_unit_id`;
 decisión del Coordinador: manda REQ-021, "toda búsqueda que muestre una unidad de esa
 norma").
+
+Solo lo vigente (enmienda de REQ-010 del 2026-10-03; T-056). `queries/search.py` devuelve
+también las unidades derogadas a la fecha, marcadas; `search` muestra de entrada solo las
+vigentes. Con `include_repealed` (la casilla "Incluir textos derogados") suma las
+derogadas después de las vigentes, cada grupo en el orden de `queries/search.py`. Los
+avisos de modificatorias sin cargar se calculan sobre lo que se muestra: una norma cuyas
+unidades quedaron sin mostrar no lleva aviso. El hecho `search` registra si se pidieron
+los derogados (`include_repealed`) y cuántas unidades derogadas quedaron sin mostrar
+(`repealed_hidden`), que es lo que lleva a la pantalla a decir que el artículo está
+derogado.
 """
 
 import time
@@ -685,16 +695,20 @@ class SearchOutcome:
     results: list
     notices: list
     event: object
+    include_repealed: bool = False
+    repealed_hidden: int = 0
 
 
 def search(user, reference_date=None, *, norm_id=None, article="", words="",
-           channel=Channel.SCREEN):
+           include_repealed=False, channel=Channel.SCREEN):
     """Ejecuta una búsqueda directa y la registra. Ver el módulo.
 
     - `article`: número de artículo de la norma `norm_id` (obligatoria en ese caso).
     - `words`: palabras del texto, en todas las normas o solo en `norm_id`.
     - `reference_date`: fecha de autorización del procedimiento, o `None` para la del
       día. `channel`: `screen`, `command` o `eval`.
+    - `include_repealed`: si se suman, después de las vigentes, las unidades derogadas a
+      la fecha (T-056). Sin él, solo las vigentes.
 
     Lanza `RoleRejected` sin rol (con su hecho `rejected`), `FutureDate` con una fecha
     posterior al día y `QueryRefused` sin términos, con un número sin norma o con número
@@ -718,10 +732,11 @@ def search(user, reference_date=None, *, norm_id=None, article="", words="",
                      .first() if norm_id is not None else None)
         if article:
             kind = SEARCH_BY_ARTICLE
-            results = direct_search.by_article(norm_id, article, reference_date)
+            found = direct_search.by_article(norm_id, article, reference_date)
         else:
             kind = SEARCH_BY_WORDS
-            results = direct_search.by_words(words, reference_date, norm_id=norm_id)
+            found = direct_search.by_words(words, reference_date, norm_id=norm_id)
+        results, repealed_hidden = _in_force_first(found, include_repealed)
         shown = _search_shown_units(results)
         counts = {}
         for _, norm, _ in shown:
@@ -745,12 +760,27 @@ def search(user, reference_date=None, *, norm_id=None, article="", words="",
             "terms": terms,
             "reference_date": reference_date.isoformat(),
             "regime": regime,
+            "include_repealed": include_repealed,
             "units": [_search_unit_record(result) for result in results],
+            "repealed_hidden": repealed_hidden,
             "notices": notices,
         },
     )
     return SearchOutcome(kind=kind, terms=terms, reference_date=reference_date,
-                         regime=regime, results=results, notices=notices, event=event)
+                         regime=regime, results=results, notices=notices, event=event,
+                         include_repealed=include_repealed,
+                         repealed_hidden=repealed_hidden)
+
+
+def _in_force_first(found, include_repealed):
+    """Lo que muestra la búsqueda de lo que devolvió `queries/search.py`: las unidades
+    vigentes a la fecha y, si se pidieron, las derogadas después, cada grupo en el orden
+    recibido. Devuelve también cuántas derogadas quedaron sin mostrar."""
+    in_force = [result for result in found if not result.repealed]
+    repealed = [result for result in found if result.repealed]
+    if include_repealed:
+        return in_force + repealed, 0
+    return in_force, len(repealed)
 
 
 def _search_shown_units(results):
