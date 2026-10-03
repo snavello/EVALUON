@@ -63,7 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 15 tareas sin terminar.
-- ○ T-026 · Avisar duplicados al cargar una norma (pendiente)
+- ▶ T-026 · Avisar duplicados al cargar una norma (en curso)
 - ○ T-027 · Releer un documento y reemplazar la lectura anterior (pendiente)
 - ○ T-028 · Integrar los tres formatos en la carga (pendiente)
 - ○ T-040 · Unir recuperación y generación completas con su registro (pendiente)
@@ -152,7 +152,7 @@ flowchart TD
   T023["✓ T-023 · Partir normas completas con incisos, anexos…"]:::done
   T024["✓ T-024 · Partir dictámenes y recomendaciones en punt…"]:::done
   T025["✓ T-025 · Completar el informe de lectura"]:::done
-  T026["○ T-026 · Avisar duplicados al cargar una norma"]:::todo
+  T026["▶ T-026 · Avisar duplicados al cargar una norma"]:::active
   T027["○ T-027 · Releer un documento y reemplazar la lectura…"]:::todo
   T028["○ T-028 · Integrar los tres formatos en la carga"]:::todo
   T029["✓ T-029 · Registrar relaciones entre normas y mostrar…"]:::done
