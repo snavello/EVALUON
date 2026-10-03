@@ -63,7 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 31 tareas sin terminar.
-- ▶ T-029 · Registrar relaciones entre normas y mostrar los vínculos (en curso)
+- ◐ T-029 · Registrar relaciones entre normas y mostrar los vínculos (en verificación)
 - ○ T-021 · Leer un PDF escaneado con reconocimiento de texto (pendiente)
 - ○ T-022 · Leer una página web guardada (pendiente)
 - ○ T-023 · Partir normas completas con incisos, anexos y considerandos (pendiente)
@@ -155,7 +155,7 @@ flowchart TD
   T026["○ T-026 · Avisar duplicados al cargar una norma"]:::todo
   T027["○ T-027 · Releer un documento y reemplazar la lectura…"]:::todo
   T028["○ T-028 · Integrar los tres formatos en la carga"]:::todo
-  T029["▶ T-029 · Registrar relaciones entre normas y mostrar…"]:::active
+  T029["◐ T-029 · Registrar relaciones entre normas y mostrar…"]:::review
   T030["○ T-030 · Registrar versiones de una norma"]:::todo
   T031["○ T-031 · Partir en pasajes las unidades largas"]:::todo
   T032["○ T-032 · Recuperar por tres caminos y unir los candi…"]:::todo
