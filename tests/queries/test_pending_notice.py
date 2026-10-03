@@ -41,11 +41,12 @@ NOTICE_TAIL = ("que todavía no están cargadas en el sistema. Puede haber cambi
 
 
 def notice_text(name, pending):
-    """El texto fijo del aviso, como lo pide la tarea, en plural o en singular."""
+    """El texto fijo del aviso, sin artículo delante del nombre (decisión del
+    Coordinador), en plural o en singular."""
     if pending == 1:
-        return (f"La {name} tiene 1 modificatoria que todavía no está cargada en el "
+        return (f"{name} tiene 1 modificatoria que todavía no está cargada en el "
                 "sistema. Puede haber cambios en este texto que el sistema no conoce.")
-    return f"La {name} tiene {pending} modificatorias {NOTICE_TAIL}"
+    return f"{name} tiene {pending} modificatorias {NOTICE_TAIL}"
 
 
 def notice(norm, pending):
@@ -385,3 +386,30 @@ def test_search_screen_shows_the_notice(client, read_user, regime, load_amendmen
 
     load_amendment(norm, second)
     assert notice_boxes(search_page()) == []
+
+
+def test_notice_has_no_article_before_a_masculine_name(
+    client, read_user, make_norm, make_document, make_reading, make_pending_amendment
+):
+    """REQ-021: el aviso no lleva artículo delante del nombre de la norma (decisión del
+    Coordinador), así un nombre masculino como "Decreto 1023/2001" no queda "La Decreto
+    1023/2001"; con una sola modificatoria, en singular."""
+    decree = make_norm(category="marco_nacional", norm_type="decreto", number="1023",
+                       year=2001, citation="Decreto 1023/2001")
+    make_reading(make_document(decree), [
+        ("art-24", "ARTICULO 24.- Selección sintética del cocontratante."),
+    ])
+    make_pending_amendment(decree)
+    log_in(client)
+
+    response = client.post(reverse("queries:search"), {
+        "search-norm": decree.pk, "search-article": "24", "search-words": "",
+        "search-reference_date": DATE.isoformat(),
+    })
+    assert response.status_code == 200
+    body = response.content.decode()
+
+    assert notice_boxes(body) == [
+        "Decreto 1023/2001 tiene 1 modificatoria que todavía no está cargada en el "
+        "sistema. Puede haber cambios en este texto que el sistema no conoce."]
+    assert "La Decreto" not in body

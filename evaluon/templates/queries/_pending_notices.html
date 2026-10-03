@@ -5,5 +5,5 @@ vista con los avisos guardados. Un recuadro por norma. El texto es fijo; el nomb
 norma y la cantidad salen del aviso guardado. Cada frase va en una sola línea para que no
 queden saltos dentro del texto.
 {% endcomment %}{% for notice in notices %}
-<p class="pending-notice" role="note">{% if notice.count == 1 %}La {{ notice.name }} tiene 1 modificatoria que todavía no está cargada en el sistema.{% else %}La {{ notice.name }} tiene {{ notice.count }} modificatorias que todavía no están cargadas en el sistema.{% endif %} Puede haber cambios en este texto que el sistema no conoce.</p>
+<p class="pending-notice" role="note">{% if notice.count == 1 %}{{ notice.name }} tiene 1 modificatoria que todavía no está cargada en el sistema.{% else %}{{ notice.name }} tiene {{ notice.count }} modificatorias que todavía no están cargadas en el sistema.{% endif %} Puede haber cambios en este texto que el sistema no conoce.</p>
 {% endfor %}
