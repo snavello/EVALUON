@@ -63,6 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 31 tareas sin terminar.
+- ▶ T-029 · Registrar relaciones entre normas y mostrar los vínculos (en curso)
 - ○ T-021 · Leer un PDF escaneado con reconocimiento de texto (pendiente)
 - ○ T-022 · Leer una página web guardada (pendiente)
 - ○ T-023 · Partir normas completas con incisos, anexos y considerandos (pendiente)
@@ -71,7 +72,6 @@ flowchart LR
 - ○ T-026 · Avisar duplicados al cargar una norma (pendiente)
 - ○ T-027 · Releer un documento y reemplazar la lectura anterior (pendiente)
 - ○ T-028 · Integrar los tres formatos en la carga (pendiente)
-- ○ T-029 · Registrar relaciones entre normas y mostrar los vínculos (pendiente)
 - ○ T-030 · Registrar versiones de una norma (pendiente)
 - ○ T-031 · Partir en pasajes las unidades largas (pendiente)
 - ○ T-032 · Recuperar por tres caminos y unir los candidatos (pendiente)
@@ -155,7 +155,7 @@ flowchart TD
   T026["○ T-026 · Avisar duplicados al cargar una norma"]:::todo
   T027["○ T-027 · Releer un documento y reemplazar la lectura…"]:::todo
   T028["○ T-028 · Integrar los tres formatos en la carga"]:::todo
-  T029["○ T-029 · Registrar relaciones entre normas y mostrar…"]:::todo
+  T029["▶ T-029 · Registrar relaciones entre normas y mostrar…"]:::active
   T030["○ T-030 · Registrar versiones de una norma"]:::todo
   T031["○ T-031 · Partir en pasajes las unidades largas"]:::todo
   T032["○ T-032 · Recuperar por tres caminos y unir los candi…"]:::todo
@@ -280,7 +280,7 @@ flowchart TD
 | REQ-003 | El sistema debe dividir cada documento en unidades citables, cada una con su ubicación: considerando, artículo, inciso o anexo en las normas, y también el texto normativo que no lleva número de artículo, como una cláusula transitoria, con el nombre que le da el documento; punto o párrafo en dictámenes y recomendaciones | T-008, T-013, T-023, T-024, T-031, T-043, T-050 | ▶ en proceso |
 | REQ-004 | El sistema debe entregar, por cada norma incorporada, un informe de lectura: cuántas unidades reconoció, cuáles páginas no pudo leer y qué no pudo ubicar | T-012, T-013, T-014, T-021, T-025, T-027, T-028, T-043 | ▶ en proceso |
 | REQ-005 | Una norma debe quedar disponible para consultas solo después de que una persona valide su informe de lectura | T-009, T-015, T-017, T-027, T-032, T-035, T-043 | ▶ en proceso |
-| REQ-006 | El sistema debe registrar las relaciones entre normas: cuál modifica, complementa, reglamenta o deroga a cuál. Cuando el cambio alcanza a unidades concretas, la relación se registra entre esas unidades | T-029, T-035, T-041, T-044 | ○ pendiente |
+| REQ-006 | El sistema debe registrar las relaciones entre normas: cuál modifica, complementa, reglamenta o deroga a cuál. Cuando el cambio alcanza a unidades concretas, la relación se registra entre esas unidades | T-029, T-035, T-041, T-044 | ▶ en proceso |
 | REQ-007 | El sistema debe mantener las versiones de cada norma y, para una fecha dada, indicar qué unidades estaban vigentes y qué normas las habían modificado o derogado, mostrando el texto literal de cada una | T-009, T-029, T-030, T-033, T-037, T-044 | ▶ en proceso |
 | REQ-008 | El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la unidad que la sostiene, con su texto literal | T-001, T-002, T-003, T-004, T-011, T-017, T-018, T-019, T-020, T-031, T-032, T-034, T-039, T-040, T-042, T-046, T-047, T-054 | ▶ en proceso |
 | REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | T-002, T-003, T-011, T-017, T-018, T-019, T-034, T-039, T-040, T-042, T-045, T-046 | ▶ en proceso |
