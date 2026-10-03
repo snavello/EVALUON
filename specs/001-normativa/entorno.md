@@ -1458,6 +1458,50 @@ Con el montaje normal, `makemigrations --check --dry-run` dijo `No changes detec
 
 **Base vacía.** En una base aparte (`t010_prueba`), creada y borrada, `migrate_on_start.sh` aplicó todo (`queries` 0001 y 0002 incluidas) y en la segunda corrida informó que no hay migraciones pendientes.
 
+## La eñe en la búsqueda por palabras (T-053)
+
+Fecha: 2026-10-02. `norms/0006_search_normalize_enye` (SQL propio, con reversa) reemplaza `search_normalize` (ADR-0007, adenda "La eñe"): cambia por espacios los `\x01` y `\x02` que traiga el texto, cambia "ñ" y "Ñ" por `\x01` y `\x02`, quita los acentos con `unaccent`, repone "ñ" y "Ñ" y después repone la tilde de "-acion" y "-ucion" con la misma expresión de 0003. La regla de la tilde corre sobre el texto ya repuesto, así no ve los caracteres de control. `search_document` y `search_query` no cambian. La migración y su reversa recalculan `tsv` (`UPDATE public.norms_passage SET text = text;`) y reconstruyen el índice (`REINDEX INDEX public.norms_passage_tsv_gin;`). Con el montaje normal, `makemigrations --check --dry-run` dijo `No changes detected`.
+
+**Lexemas en el Postgres fijado (17.11), antes y después.**
+
+```
+palabra       antes (0005)   después (0006)
+año           'ano'          'año'
+ano           'ano'          'ano'
+años          'anos'         'años'
+AÑO           'ano'          'año'
+señal         'senal'        'señal'
+señales       'senal'        'señal'
+compañía      'compani'      'compañi'
+compañías     'compani'      'compañi'
+compania      'compani'      'compani'
+Ñandú         'nandu'        'ñandu'
+pingüino      'pinguin'      'pinguin'
+licitacion    'licit'        'licit'
+licitaciones  'licit'        'licit'
+297/03        '297/03'       '297/03'
+```
+
+Los demás lexemas de la tabla del ADR-0007 no cambian (`tests/norms/test_text_search_config.py`).
+
+**Recálculo con datos, en la base del proyecto `evaluon-t053`.** Con las migraciones aplicadas hasta `norms/0005`, se cargaron por `manage.py shell` dos pasajes sintéticos: "El plazo es de un año calendario." (1) y "La señal de la compañía AÑO Ñandú." (2). Después se aplicó 0006, se revirtió (`migrate norms 0005`) y se volvió a aplicar, sin tocar los pasajes:
+
+```
+                       tsv del pasaje 2                            "ano"   "año"   "compania"
+0005 (carga)           'ano':6 'compani':5 'nandu':7 'senal':2     {1,2}   {1,2}   {2}
+0006                   'año':6 'compañi':5 'señal':2 'ñandu':7     -       {1,2}   -
+reversa a 0005         'ano':6 'compani':5 'nandu':7 'senal':2     {1,2}   {1,2}   {2}
+0006 otra vez          'año':6 'compañi':5 'señal':2 'ñandu':7     -       {1,2}   -
+```
+
+Con `enable_seqscan` apagado, la búsqueda de "año" usa `norms_passage_tsv_gin` y encuentra los dos pasajes. La misma prueba corre en la suite (`test_enye_migration_recalculates_tsv_of_existing_passages`) con el SQL de la migración dentro de la transacción de la prueba.
+
+**Respaldo y restauración.** `pg_dump -Fc` de esa base y `pg_restore` en una base aparte (`t053_b`, creada y borrada) terminaron sin error, con `tsv` igual al de la base de origen.
+
+**Qué se pierde.** Quien escribe sin eñe no encuentra la palabra con eñe ("compania" no encuentra "compañía"), y "año" y "años" no comparten lexema (ADR-0007, adenda).
+
+**Caracteres de control y esquema explícito.** Los `\x01` y `\x02` que traiga el texto se cambian por espacios antes de proteger la eñe. Como el analizador ya los trataba como separadores, el lexema queda igual que antes de T-053: `E'plazo\x01de'` da `'plaz':1`, no `'plazoñd'` (`test_control_characters_used_to_protect_the_enye_are_separators`). Con `SET LOCAL search_path = ''`, `public.search_normalize`, `public.search_document` y `public.search_query` dan los lexemas esperados para "año" y "licitacion" (`test_search_functions_work_with_an_empty_search_path`). Si en la 0006 se llama a `unaccent(...)` sin esquema ni diccionario, ese test falla con `function unaccent(text) does not exist`. Con datos, en la base de `evaluon-t053`, se aplicó la 0006, se revirtió a 0005 y se volvió a aplicar: dio los mismos `tsv` y las mismas coincidencias de la tabla anterior, y `E'plazo\x01de'` dio `'plaz':1` en las tres definiciones.
+
 ## T-011 · Clientes de IA contra los servicios reales
 
 Fecha: 2026-10-02. Requisitos: REQ-008 y REQ-009. Además de la suite (que usa un servidor HTTP falso y los dobles), se llamó una vez a cada operación de los clientes de `evaluon/ai/` contra los servicios reales, desde el contenedor `app` y con los valores por defecto de `settings.py` (`http://generation:8080`, `http://embeddings:8080`, `http://reranker:8080`). Los textos son sintéticos o los de las fichas públicas de los modelos; el script quedó fuera del repositorio.
