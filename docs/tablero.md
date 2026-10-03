@@ -58,6 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 37 tareas sin terminar.
+- ▶ T-055 · Agregar el nombre de cita de la norma (en curso)
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
 - ○ T-018 · Generar la respuesta con esquema e insertar las citas (pendiente)
 - ○ T-019 · Unir la consulta de punta a punta con su registro (pendiente)
@@ -94,7 +95,6 @@ flowchart LR
 - ○ T-050 · Partir la 297/03 y el cuerpo de la 247/2022 desde la web (pendiente)
 - ○ T-051 · Registrar las modificatorias sin cargar de una norma (pendiente)
 - ○ T-052 · Avisar modificatorias sin cargar en respuesta y búsqueda (pendiente)
-- ○ T-055 · Agregar el nombre de cita de la norma (pendiente)
 
 ### Qué se hizo
 
@@ -176,7 +176,7 @@ flowchart TD
   T052["○ T-052 · Avisar modificatorias sin cargar en respues…"]:::todo
   T053["✓ T-053 · Conservar la eñe en la búsqueda por palabras"]:::done
   T054["✓ T-054 · Pasar a la aplicación las variables de los…"]:::done
-  T055["○ T-055 · Agregar el nombre de cita de la norma"]:::todo
+  T055["▶ T-055 · Agregar el nombre de cita de la norma"]:::active
   T001 --> T002
   T002 --> T003
   T003 --> T004

@@ -70,7 +70,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-052 | Avisar modificatorias sin cargar en respuesta y búsqueda | REQ-012, REQ-021 | T-041, T-051 | pendiente |
 | T-053 | Conservar la eñe en la búsqueda por palabras | REQ-010 | T-009 | terminada |
 | T-054 | Pasar a la aplicación las variables de los servicios de IA | REQ-008, REQ-012 | T-011 | terminada |
-| T-055 | Agregar el nombre de cita de la norma | REQ-001, REQ-013, REQ-020 | T-015 | pendiente |
+| T-055 | Agregar el nombre de cita de la norma | REQ-001, REQ-013, REQ-020 | T-015 | en curso |
 
 ## Detalle
 
