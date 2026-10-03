@@ -1,0 +1,25 @@
+id: EV-012
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "Si la oferta económica no está firmada por el oferente ni por su representante legal, ¿se puede pedir que la subsane?"
+fecha_autorizacion: 2025-11-24
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  No. Es una causal de desestimación sin posibilidad de subsanación.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 55, inciso j)"}
+origen: |
+  Serán desestimadas las ofertas, sin posibilidad de subsanación, en los siguientes supuestos:
+  [...]
+  j) Si la oferta económica no estuviera firmada por el oferente o su representante legal.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-55}
+datos_clave: ["no", "desestimación sin subsanación"]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["referencia exacta"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  El artículo 38 remite al 55 para este supuesto ("deberá estarse a lo dispuesto en el artículo 55"). Si la persona validadora quiere exigir también el 38, hay que agregarlo a unidades.

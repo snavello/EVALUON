@@ -1,0 +1,20 @@
+id: EV-029
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "¿Hasta qué monto se puede hacer una contratación directa por monto?"
+fecha_autorizacion: 2015-10-01
+regimen: "Disposición AFIP 297/03"
+esperado: "no determinado"
+cita: []
+origen: |
+  Tema de compras que la 297/03 no resuelve: el artículo 21, inciso 4), punto 9 remite al monto "establecido en el Régimen Jurisdiccional vigente", que no está cargado.
+unidades: []
+datos_clave: []
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["tema cercano que la normativa no resuelve"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  Igual que EV-027: el sistema podría citar el artículo 21 de la 297/03 para decir que el monto lo fija el régimen jurisdiccional.

@@ -1,0 +1,25 @@
+id: EV-020
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "Si se concede una prórroga del plazo de entrega, ¿qué multa corresponde?"
+fecha_autorizacion: 2012-09-10
+regimen: "Disposición AFIP 297/03"
+esperado: |
+  Toda prórroga concedida implica una multa por mora del uno por ciento (1 %) del valor de lo satisfecho fuera del término originario por cada siete (7) días corridos de atraso o fracción mayor de tres (3) días. El proveedor puede pedir la prórroga por única vez, antes del vencimiento.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 58, inciso 10)"}
+origen: |
+  El proveedor podrá solicitar por única vez la prórroga del plazo de cumplimiento de la prestación antes del vencimiento del mismo, exponiendo los motivos de la demora.
+  [...]
+  Las prórrogas concedidas según lo dispuesto precedentemente, determinarán en todos los casos la aplicación de una multa por mora en el cumplimiento del contrato. Dicha multa será del UNO POR CIENTO (1%) del valor de lo satisfecho fuera del término originario del contrato por cada SIETE (7) días corridos de atraso o fracción mayor de TRES (3) días.
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-58}
+datos_clave: ["1 %", "cada 7 días corridos", "fracción mayor de 3 días"]
+difieren: false
+pareja: ""
+aviso_modificatorias: true
+etiquetas: ["palabras distintas a las de la norma"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  Texto de 2003 sin modificatorias.

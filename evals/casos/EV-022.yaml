@@ -1,0 +1,23 @@
+id: EV-022
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "¿Cómo se integra la Comisión Evaluadora?"
+fecha_autorizacion: 2008-11-17
+regimen: "Disposición AFIP 297/03"
+esperado: |
+  Como mínimo por tres (3) miembros titulares: un presidente y dos vocales, que deben ser funcionarios de planta permanente graduados en ciencias económicas, derecho, ingeniería, sistemas o carreras afines, o con acreditada experiencia en la materia. Su funcionamiento lo reglamenta el Administrador Federal.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 48"}
+origen: |
+  En cada unidad con capacidad para contratar funcionará una Comisión Evaluadora integrada como mínimo por TRES (3) miembros titulares, UN (1) Presidente y DOS (2) vocales; los mismos deberán ser funcionarios de planta permanente, graduados en ciencias económicas, derecho, ingeniería, sistemas, carreras universitarias afines, o con acreditada experiencia en la materia. El funcionamiento de la Comisión Evaluadora será reglamentado por el Administrador Federal.
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-48}
+datos_clave: ["3 miembros", "presidente y 2 vocales", "planta permanente"]
+difieren: false
+pareja: ""
+aviso_modificatorias: true
+etiquetas: ["referencia exacta"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  La misma pregunta bajo la 247/2022 no tiene respuesta en la normativa cargada (EV-028). No se vinculó como par: el plan exige que los dos casos de un par citen normas distintas.
