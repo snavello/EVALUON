@@ -368,3 +368,29 @@ Hechos el 2026-10-02 al integrar el plan (`specs/001-normativa/plan.md`). Los mo
 ## Actualización por ADR-0006
 
 - **2026-10-02.** La fecha de referencia ya no es siempre la del día: la indica la persona en la pantalla como fecha de autorización del procedimiento (REQ-020). Lo que este ADR dice sobre "la fecha del día" queda reemplazado por el plan 001 actualizado.
+
+## Adenda 2026-10-02 · Separador de pares en el reranker (etapa 0, T-003)
+
+Decidió: responsable del proyecto, 2026-10-02. La decisión de este ADR no cambia: mismo modelo, mismo archivo, mismo servidor. Esta adenda fija un parámetro de arranque que la decisión original no preveía.
+
+**Qué se comprobó.** El archivo GGUF de `bge-reranker-v2-m3` (conversión de gpustack [F30], huella en `scripts/models.sha256`) no trae el dato `tokenizer.ggml.add_sep_token`. Sin él, `llama-server` arma cada par como `<s> pregunta </s> pasaje </s>`, con 3 tokens especiales, en lugar del formato del modelo original, `<s> pregunta </s></s> pasaje </s>`, con 4 (el `tokenizer.json` oficial de BAAI). Con los dos pares de la ficha [F6]:
+
+| Par de la ficha | Publicado | Archivo tal como viene | Con `add_sep_token=true` |
+|---|---|---|---|
+| `what is panda?` · `hi` | −8,19 | −7,49 | −8,18 |
+| `what is panda?` · pasaje del panda | 5,26 | 5,48 | 5,28 |
+
+Detalle, comandos y salidas: `specs/001-normativa/entorno.md`, T-003, secciones 1, 4 y 8.
+
+**Decisión.** Forzar el dato al cargar el modelo, con `--override-kv tokenizer.ggml.add_sep_token=bool:true` en el servicio `reranker`. Es configuración legítima del mismo modelo, que lo hace armar los pares como su original; no es el plan B (TEI), que sigue reservado para un modelo que no carga o no reproduce los valores publicados.
+
+**Consecuencias.**
+
+- El parámetro es obligatorio en el servicio `reranker`. Sin él, el servicio arranca y responde igual, pero con puntajes distintos: el error no se nota a simple vista.
+- El umbral de abstención (REQ-009) se calibra con el parámetro puesto. Quitarlo o cambiarlo exige recalibrar el umbral y correr el conjunto de preguntas (P7).
+- Cualquier cambio de compilación de `llama.cpp` o del archivo del reranker repite la prueba de los dos pares de la ficha antes de usarse. Una compilación nueva podría leer el dato de otra manera, y un archivo nuevo podría traerlo o no.
+- El parámetro ya está en `docker-compose.yml` (servicio `reranker`), con un comentario que explica el motivo. Para reconstruir una consulta (P6) alcanza con lo que ya se registra (nombre y huella del archivo del reranker, compilación del motor) y el `docker-compose.yml` de ese momento en el repositorio.
+
+## Adenda 2026-10-02 · Búsqueda por palabras sin tildes
+
+La fila "Búsqueda por palabras" de la decisión y la alternativa 3.A dicen que se quitan los acentos antes de reducir las palabras a su raíz. La etapa 0 (T-004, sección 5 de `entorno.md`) mostró que así "licitación" y "licitaciones" dejan de coincidir. La definición que la reemplaza está en el ADR-0007, aprobado por el responsable el 2026-10-02, que reemplaza en ese punto a este ADR.
