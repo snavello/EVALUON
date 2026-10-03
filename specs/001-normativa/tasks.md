@@ -51,7 +51,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-033 | Seleccionar por categoría, sumar cambios y ordenar | REQ-007, REQ-018, REQ-019 | T-032 | pendiente |
 | T-034 | Completar instrucciones, marca de regímenes y orden | REQ-008, REQ-009, REQ-018, REQ-019 | T-019 | pendiente |
 | T-035 | Buscar unidades por artículo y por palabras | REQ-005, REQ-006, REQ-010, REQ-020 | T-010 | pendiente |
-| T-036 | Entregar el documento original con sesión | REQ-002 | T-008 | en curso |
+| T-036 | Entregar el documento original con sesión | REQ-002 | T-008 | en verificación |
 | T-037 | Mostrar las citas con categoría, papel y cambios | REQ-007, REQ-013, REQ-014, REQ-015, REQ-018, REQ-019 | T-019, T-036 | pendiente |
 | T-038 | Registrar ingresos, ingresos fallidos y rechazos por rol | REQ-012, REQ-016 | T-014, T-015 | pendiente |
 | T-039 | Correr el conjunto de preguntas y medir las exigencias | REQ-008, REQ-009, REQ-020, REQ-021 | T-019 | pendiente |
