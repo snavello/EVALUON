@@ -19,8 +19,10 @@ from django.db import connection
 
 from evaluon.accounts import permissions
 from evaluon.accounts.permissions import RoleRejected
+from evaluon.audit import services as audit_services
 from evaluon.audit.models import AuditEvent
 from evaluon.audit.services import current_corpus_version
+from evaluon.norms import indexing
 from evaluon.norms.management.commands import validar_informe
 from evaluon.norms.models import CorpusVersion, Passage
 from evaluon.norms.services import validation
@@ -133,6 +135,95 @@ def test_embeddings_down_does_not_validate_nor_leave_anything(
     assert event.user == read_write_user
     assert event.detail["reading"] == reading.pk
     assert event.detail["reason"] == "service_unavailable"
+
+
+class SimulatedFailure(Exception):
+    """Falla provocada por la prueba en medio de la validación confirmada."""
+
+
+def _fail_record(monkeypatch):
+    """`record` falla solo cuando registra la validación que crea la versión de la
+    normativa; los demás hechos se registran normalmente."""
+    original = audit_services.record
+
+    def failing(*args, **kwargs):
+        if kwargs.get("creates_corpus_version"):
+            raise SimulatedFailure("falla simulada al registrar la validación")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(audit_services, "record", failing)
+
+
+def _fail_after_saving_passages(monkeypatch):
+    """Los pasajes se guardan y enseguida algo falla."""
+    original = indexing.save_passages
+
+    def failing(drafts, vectors):
+        original(drafts, vectors)
+        raise SimulatedFailure("falla simulada después de guardar los pasajes")
+
+    monkeypatch.setattr(indexing, "save_passages", failing)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("fail", [_fail_record, _fail_after_saving_passages],
+                         ids=["record", "save_passages"])
+def test_a_failure_inside_the_confirmation_leaves_nothing(
+    make_norm, load, read_write_user, fake_embeddings, monkeypatch, fail
+):
+    """REQ-005, REQ-012: si algo falla durante la validación confirmada (al guardar los
+    pasajes o al registrar el hecho), todo se deshace junto: la lectura sigue `pending`,
+    sin pasajes, el documento sin versión ni en uso, y no hay hecho `validation` correcto
+    ni versión nueva de la normativa (P6, P8)."""
+    reading = load(make_norm(), BODY_UNITS)
+    versions_before = CorpusVersion.objects.count()
+    fail(monkeypatch)
+
+    with pytest.raises(SimulatedFailure):
+        validation.validate_reading(read_write_user, reading.pk)
+
+    reading.refresh_from_db()
+    reading.document.refresh_from_db()
+    assert reading.status == "pending"
+    assert reading.validated_at is None
+    assert reading.validated_by is None
+    assert not Passage.objects.filter(unit__reading=reading).exists()
+    assert reading.document.in_use is False
+    assert reading.document.version_number is None
+    assert CorpusVersion.objects.count() == versions_before
+    assert not AuditEvent.objects.filter(event_type="validation", outcome="ok").exists()
+    assert unit_ids(reading).isdisjoint(consultable_ids())
+
+
+@pytest.mark.django_db
+def test_input_too_long_does_not_validate_and_says_why(
+    make_norm, load, read_write_user, fake_embeddings
+):
+    """REQ-005, REQ-012: si el servicio de embeddings rechaza un texto por demasiado
+    largo, no se valida, el mensaje lo dice con sus palabras, no queda nada guardado y
+    el intento queda registrado como `failed` con el motivo `input_too_long`."""
+    reading = load(make_norm(), BODY_UNITS)
+    versions_before = CorpusVersion.objects.count()
+    fake_embeddings.input_too_long()
+
+    with pytest.raises(validation.EmbeddingsFailed) as error:
+        validation.validate_reading(read_write_user, reading.pk)
+
+    message = str(error.value)
+    assert "No se validó" in message
+    assert "demasiado largo" in message
+    assert "no respondió" not in message
+    reading.refresh_from_db()
+    reading.document.refresh_from_db()
+    assert reading.status == "pending"
+    assert not Passage.objects.filter(unit__reading=reading).exists()
+    assert reading.document.in_use is False
+    assert reading.document.version_number is None
+    assert CorpusVersion.objects.count() == versions_before
+    event = AuditEvent.objects.get(event_type="validation")
+    assert event.outcome == "failed"
+    assert event.detail["reason"] == "input_too_long"
+    assert event.detail["reading"] == reading.pk
 
 
 @pytest.mark.django_db
