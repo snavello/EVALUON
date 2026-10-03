@@ -23,7 +23,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-005 | Armar el esqueleto de Django con sus librerías | REQ-013, REQ-016 | T-004 | terminada |
 | T-006 | Crear usuarios con rol, ingreso y salida | REQ-016 | T-005 | terminada |
 | T-007 | Crear el registro de auditoría y el alta de usuarios | REQ-012, REQ-016 | T-006 | terminada |
-| T-008 | Crear las tablas de normas, lecturas, unidades y pasajes | REQ-001, REQ-003, REQ-011, REQ-012, REQ-017, REQ-020, REQ-021 | T-007 | pendiente |
+| T-008 | Crear las tablas de normas, lecturas, unidades y pasajes | REQ-001, REQ-003, REQ-011, REQ-012, REQ-017, REQ-020, REQ-021 | T-007 | en curso |
 | T-009 | Crear las funciones de unidades consultables a una fecha | REQ-005, REQ-007, REQ-010, REQ-020 | T-008 | pendiente |
 | T-010 | Crear la tabla del registro detallado de consultas | REQ-012 | T-009 | pendiente |
 | T-011 | Crear los clientes de IA, sus dobles y los parámetros | REQ-008, REQ-009 | T-010 | pendiente |
@@ -573,7 +573,7 @@ De a una, en la MSI.
 ### T-049 · Levantar todo desde cero y dejar datos para el runbook
 
 - **Requisitos:** REQ-012, REQ-016. No implementa un requisito funcional: comprueba que el sistema se levanta con una orden en una base vacía (P5) y deja lo que el runbook necesita.
-- **Qué hay que hacer:** en una copia limpia del repositorio y sobre una base vacía aparte: `scripts/fetch_models.sh` (o copiar `models/`) con verificación de huellas, `docker compose up -d`, comprobar que `migrate` aplicó el esquema, crear un usuario, cargar y validar una norma y hacer una consulta. Anotar cada paso que no esté automatizado. Dejar en `entorno.md` la sección "Datos para el runbook": descarga de modelos, procedimiento de migración con respaldo previo, respaldo y restauración, limpieza de sesiones vencidas, restablecimiento de clave con `changepassword` (que no pasa por el registro) y fallas conocidas.
+- **Qué hay que hacer:** en una copia limpia del repositorio y sobre una base vacía aparte: `scripts/fetch_models.sh` (o copiar `models/`) con verificación de huellas, `docker compose up -d`, comprobar que `migrate` aplicó el esquema, crear un usuario, cargar y validar una norma y hacer una consulta. Anotar cada paso que no esté automatizado. Dejar en `entorno.md` la sección "Datos para el runbook": descarga de modelos, procedimiento de migración con respaldo previo, respaldo y restauración, limpieza de sesiones vencidas, restablecimiento de clave con `changepassword` (que no pasa por el registro) y fallas conocidas. Incluir como pendiente del despliegue la separación entre el usuario de la aplicación y el dueño del esquema en la base: el trigger de solo inserción de `audit_event` (T-007) no frena `TRUNCATE` ni que el dueño de la tabla lo desactive (decisión del responsable del 2026-10-02: se resuelve en el despliegue).
 - **Archivos:** `specs/001-normativa/entorno.md`; `scripts/fetch_models.sh` y `scripts/migrate_on_start.sh` solo si la prueba muestra un defecto.
 - **Verificación:** desde la copia limpia, siguiendo solo lo anotado, los seis servicios quedan arriba, el alta de usuario queda registrada, el ingreso funciona y una consulta devuelve su respuesta con cita; `entorno.md` trae la sección para el runbook.
 - **No tocar:** `docs/runbook.md` (lo escribe el implementador en el despliegue); la base `evaluon` cargada; `docker-compose.yml` y todo archivo de código.
