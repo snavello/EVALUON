@@ -1,0 +1,25 @@
+id: EV-006
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Cómo y en qué plazo se puede impugnar el acto que aprueba el procedimiento y adjudica? ¿La impugnación suspende el trámite?"
+fecha_autorizacion: 2024-09-30
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  Los oferentes pueden impugnarlo dentro de los cinco (5) días de notificado; la resuelve la autoridad que lo dictó y, si se desestima, se puede pedir revisión a la máxima autoridad del Organismo dentro de cinco (5) días. La impugnación y la revisión no tienen efecto suspensivo, aunque la AFIP puede suspender el procedimiento por decisión fundada.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 59"}
+origen: |
+  Los oferentes podrán formular impugnaciones contra el acto de aprobación del procedimiento dentro de los CINCO (5) días de notificado el mismo. La impugnación será resuelta por la autoridad que emitió el acto impugnado. En caso que fuera desestimada, se podrá solicitar la revisión de lo decidido a la máxima autoridad del Organismo dentro del plazo de CINCO (5) días de notificado el rechazo.
+  [...]
+  En ningún caso la interposición de la impugnación o la revisión tendrá carácter suspensivo
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-59}
+datos_clave: ["5 días", "revisión ante la máxima autoridad", "no suspensivo"]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["referencia exacta"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  La 247/2022 no exige depósito para impugnar; la 297/03 sí (ver EV-019). No se armó como par porque las preguntas no son iguales.

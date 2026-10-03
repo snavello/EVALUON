@@ -1,0 +1,27 @@
+id: EV-011
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Cómo se publica la convocatoria de una licitación pública y con cuánta antelación?"
+fecha_autorizacion: 2023-10-09
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  En el Boletín Oficial por dos (2) días hábiles, con al menos siete (7) días corridos de antelación a la apertura o al vencimiento del plazo de presentación (lo que ocurra primero), contados desde el día hábil siguiente a la última publicación; además, comunicaciones a asociaciones de proveedores, invitaciones a proveedores del rubro y difusión en el sitio web de la AFIP o el Portal de Compras, con los mismos plazos mínimos.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 33, inciso a), puntos 1 a 4"}
+origen: |
+  1. Boletín Oficial de la República Argentina: Por el término de DOS (2) días hábiles con, como mínimo, SIETE (7) días corridos de antelación a la fecha fijada para la apertura de las ofertas o a la fecha de vencimiento del plazo establecido para la presentación de las mismas, la que operare primero, computados a partir del día hábil siguiente a la última publicación.
+  [...]
+  2. Comunicaciones a asociaciones que nuclean proveedores:
+  [...]
+  3. Invitaciones a proveedores:
+  [...]
+  4. Difusión:
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-33}
+datos_clave: ["Boletín Oficial 2 días hábiles", "7 días corridos de antelación"]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["referencia exacta"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido

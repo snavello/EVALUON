@@ -1,0 +1,18 @@
+id: EV-026
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Cuál es la alícuota general del impuesto al valor agregado?"
+fecha_autorizacion: 2023-09-01
+regimen: "Disposición AFIP 247/2022"
+esperado: "no determinado"
+cita: []
+origen: |
+  Pregunta tributaria ajena al régimen. Trampa: el artículo 41 del anexo menciona el IVA ("A los efectos del impuesto al valor agregado, la AFIP se considerará como consumidor final") pero no fija ninguna alícuota.
+unidades: []
+datos_clave: []
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["ajena a la normativa"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
