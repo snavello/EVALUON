@@ -41,6 +41,7 @@ def make_norm(user, **overrides):
         "year": 2099,
         "issuer": "organismo de prueba",
         "title": "Norma sintética de prueba",
+        "citation": "Disposición 999/2099",
         "created_by": user,
     }
     values.update(overrides)
@@ -161,6 +162,34 @@ def test_norm_and_document_keep_the_req_001_data(read_write_user):
     assert stored_document.effective_to is None
     assert stored_document.source == "https://example.org/norma-sintetica"
     assert stored_document.norm_id == norm.pk
+
+
+@pytest.mark.django_db
+def test_norm_keeps_its_citation_as_written(read_write_user):
+    """REQ-001, REQ-013, REQ-020: la norma guarda el nombre con que se cita tal como
+    lo escribió la persona, con el año en la forma de la designación oficial."""
+    norm = make_norm(read_write_user, number="297", year=2003, issuer="afip",
+                     citation="Disposición AFIP 297/03")
+
+    assert Norm.objects.get(pk=norm.pk).citation == "Disposición AFIP 297/03"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("citation", ["", "   ", "\t\n"])
+def test_norm_without_citation_is_not_saved(read_write_user, citation):
+    """REQ-001: una norma sin nombre de cita, o con uno hecho solo de espacios, no se
+    guarda."""
+    with pytest.raises(IntegrityError), transaction.atomic():
+        make_norm(read_write_user, citation=citation)
+    assert not Norm.objects.exists()
+
+
+@pytest.mark.django_db
+def test_norm_with_null_citation_is_not_saved(read_write_user):
+    """REQ-001: una norma con el nombre de cita nulo no se guarda."""
+    with pytest.raises(IntegrityError), transaction.atomic():
+        make_norm(read_write_user, citation=None)
+    assert not Norm.objects.exists()
 
 
 @pytest.mark.django_db

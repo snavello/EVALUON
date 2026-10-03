@@ -35,29 +35,11 @@ PATH_SEPARATOR = " › "
 # Separador de los tramos en el encabezado de un pasaje.
 HEADER_SEPARATOR = ", "
 
-# Nombre con que se muestra cada tipo de norma, según el tipo normalizado que guarda la
-# carga. Un tipo que no figura se muestra con mayúscula inicial.
-NORM_TYPE_NAMES = {
-    "disposicion": "Disposición",
-    "resolucion": "Resolución",
-    "resolucion general": "Resolución General",
-    "decreto": "Decreto",
-    "ley": "Ley",
-    "dictamen": "Dictamen",
-    "recomendacion": "Recomendación",
-}
-
-
 def norm_name(norm):
-    """Nombre de la norma para el encabezado: tipo, organismo y número/año
-    ("Disposición AFIP 247/2022"). Un organismo de una sola palabra es una sigla y va en
-    mayúsculas; uno de varias palabras va como se guardó."""
-    norm_type = NORM_TYPE_NAMES.get(
-        norm.norm_type, norm.norm_type[:1].upper() + norm.norm_type[1:]
-    )
-    issuer = norm.issuer.upper() if " " not in norm.issuer.strip() else norm.issuer
-    parts = (norm_type, issuer, f"{norm.number}/{norm.year}")
-    return " ".join(part for part in parts if part)
+    """Nombre de la norma para el encabezado: su nombre de cita, tal como lo escribió la
+    persona al cargarla ("Disposición AFIP 297/03"). Sin reglas propias de tipo,
+    organismo ni año (T-055)."""
+    return norm.citation
 
 
 def passage_header(norm, unit):

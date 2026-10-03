@@ -14,7 +14,8 @@ from evaluon.norms.models import Passage
 
 
 def annex_norm(make_norm):
-    return make_norm(norm_type="disposicion", number="247", year=2022, issuer="afip")
+    return make_norm(norm_type="disposicion", number="247", year=2022, issuer="afip",
+                     citation="Disposición AFIP 247/2022")
 
 
 def test_passage_document_is_header_newline_text():
@@ -29,8 +30,8 @@ def test_passage_document_is_header_newline_text():
 
 @pytest.mark.django_db
 def test_header_is_norm_name_and_path(make_norm, make_document, make_reading):
-    """REQ-005: el encabezado de contexto de un pasaje es el nombre de la norma y la
-    ruta de la unidad, con sus tramos separados por comas."""
+    """REQ-005: el encabezado de contexto de un pasaje es el nombre de cita de la norma
+    y la ruta de la unidad, con sus tramos separados por comas."""
     norm = annex_norm(make_norm)
     reading = make_reading(make_document(norm, part="anexo"), [
         ("anexo", "ANEXO"),
@@ -48,6 +49,52 @@ def test_header_is_norm_name_and_path(make_norm, make_document, make_reading):
     assert indexing.passage_header(norm, units["anexo/clausula-transitoria"]) == (
         "Disposición AFIP 247/2022, Anexo, Cláusula transitoria"
     )
+
+
+@pytest.mark.django_db
+def test_norm_name_is_the_citation_as_written(make_norm, make_document, make_reading):
+    """REQ-001, REQ-013, REQ-020: el nombre de la norma es el nombre de cita que
+    escribió la persona, sin reglas propias de tipo, organismo ni año: la Disposición
+    AFIP 297/03 se nombra con el año en dos cifras, aunque su año sea 2003. El
+    encabezado de un pasaje empieza con ese nombre."""
+    norm = make_norm(norm_type="disposicion", number="297", year=2003, issuer="afip",
+                     citation="Disposición AFIP 297/03")
+    reading = make_reading(make_document(norm), [
+        ("anexo-i", "ANEXO I"),
+        {"key": "anexo-i/art-1", "text": "ARTICULO 1.- Objeto sintético.",
+         "path": "Anexo I › Artículo 1"},
+    ], status="pending", passages=False)
+
+    assert indexing.norm_name(norm) == "Disposición AFIP 297/03"
+    assert indexing.passage_header(norm, reading.units_by_key["anexo-i/art-1"]) == (
+        "Disposición AFIP 297/03, Anexo I, Artículo 1"
+    )
+
+
+@pytest.mark.django_db
+def test_norm_name_has_no_rules_of_its_own(make_norm):
+    """REQ-001: `norm_name` devuelve el nombre de cita tal cual, aunque no coincida con
+    el tipo, el organismo ni el número de la norma."""
+    norm = make_norm(norm_type="resolucion general", number="5", year=2099,
+                     issuer="organismo sintetico", citation="Nombre de cita sintético")
+
+    assert indexing.norm_name(norm) == "Nombre de cita sintético"
+
+
+@pytest.mark.django_db
+def test_test_passages_have_the_same_header_as_real_ones(two_regimes):
+    """REQ-005, REQ-020: los pasajes de los datos de prueba llevan el encabezado que
+    arma la validación, que empieza con el nombre de cita de cada régimen."""
+    old_unit = two_regimes.old_units["anexo-i/art-1"]
+    new_unit = two_regimes.new_units["anexo/art-1"]
+
+    old_header = old_unit.passages.get().header
+    new_header = new_unit.passages.get().header
+
+    assert old_header == indexing.passage_header(two_regimes.old, old_unit)
+    assert old_header.startswith("Disposición AFIP 297/03, ")
+    assert new_header == indexing.passage_header(two_regimes.new, new_unit)
+    assert new_header.startswith("Disposición AFIP 247/2022, ")
 
 
 @pytest.mark.django_db
