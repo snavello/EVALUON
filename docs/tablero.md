@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 37 tareas sin terminar.
-- ▶ T-055 · Agregar el nombre de cita de la norma (en curso)
+- ◐ T-055 · Agregar el nombre de cita de la norma (en verificación)
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
 - ○ T-018 · Generar la respuesta con esquema e insertar las citas (pendiente)
 - ○ T-019 · Unir la consulta de punta a punta con su registro (pendiente)
@@ -176,7 +176,7 @@ flowchart TD
   T052["○ T-052 · Avisar modificatorias sin cargar en respues…"]:::todo
   T053["✓ T-053 · Conservar la eñe en la búsqueda por palabras"]:::done
   T054["✓ T-054 · Pasar a la aplicación las variables de los…"]:::done
-  T055["▶ T-055 · Agregar el nombre de cita de la norma"]:::active
+  T055["◐ T-055 · Agregar el nombre de cita de la norma"]:::review
   T001 --> T002
   T002 --> T003
   T003 --> T004
