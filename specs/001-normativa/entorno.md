@@ -1574,3 +1574,113 @@ pedido model: gemma-prueba-t054 | respuesta model: gemma-prueba-t054 | stop
 Con la misma copia y el `docker-compose.yml` anterior (el de `main` antes de T-054), `docker compose config` da `--alias gemma-prueba-t054` en `generation` y `app` sin `GENERATION_MODEL_ALIAS`: es el desfase que corrige la tarea. Con el `.env` del equipo, `settings.GENERATION_MODEL` y `/v1/models` de `generation` dan los dos `gemma-4-12b-it-qat-q4_0`.
 
 **Suite.** `docker compose run --rm app pytest`, con los seis servicios arriba: 232 pasan, con el `.env` del equipo y con la copia de otro alias. `docker compose run --rm --no-deps app pytest` solo con `db`: 232 pasan.
+
+## T-020 · Hilo mínimo con los servicios reales
+
+Fecha: 2026-10-03. Requisitos: REQ-008, REQ-012, REQ-013 y REQ-020. Cierra la etapa 2 del plan: el anexo de la Disposición 247/2022 cargado y validado, y una pregunta real respondida en la pantalla con los servicios de IA reales.
+
+**Entorno de la prueba.** Una copia de trabajo aislada, con `models/` como enlace a la carpeta de modelos de la copia principal (borrado al terminar). Todo `docker compose` corrió como proyecto propio, `-p evaluon-t020`: su volumen `evaluon-t020_pgdata` es la base aparte de esta prueba, y la base `evaluon` (volumen `evaluon_pgdata`) no se tocó. La imagen se reconstruyó antes de probar la pantalla (`docker compose -p evaluon-t020 build app`), por los estáticos de T-016. GPU en 0 MiB antes de levantar los servicios.
+
+```
+docker compose -p evaluon-t020 up -d --wait          # 51 s; migrate aplicó el esquema a la base vacía
+```
+
+Con los tres modelos cargados, `nvidia-smi` da 10.172 MiB; después de las consultas, 10.320 MiB.
+
+**Modelo de la aplicación y del servidor (aviso de T-054).** Dentro de `app`, cada valor de `settings.py` contra `GET /v1/models` de su servicio:
+
+```
+generation settings: gemma-4-12b-it-qat-q4_0 | /v1/models: ['gemma-4-12b-it-qat-q4_0'] | igual: True
+embeddings settings: bge-m3 | /v1/models: ['bge-m3'] | igual: True
+reranker settings: bge-reranker-v2-m3 | /v1/models: ['bge-reranker-v2-m3'] | igual: True
+```
+
+**Usuarios de prueba.** `crear_usuario prueba-carga --rol lectura-escritura` y `crear_usuario prueba-consulta --rol lectura`, con claves al azar que no se guardaron en el repositorio. Los dos quedaron registrados como hechos `user_created`.
+
+**Carga.** Con los datos del aviso de T-014 (fecha de publicación del Boletín Oficial; vigencia informada por el responsable, ADR-0006):
+
+```
+docker compose -p evaluon-t020 exec -T app python manage.py cargar_norma corpus/normativa/disp-afip-247-2022-anexo.pdf \
+  --tipo Disposición --numero 247 --anio 2022 --organismo AFIP --nombre "Disposición AFIP 247/2022" \
+  --titulo "Régimen General para Contrataciones de Bienes, Servicios y Obras Públicas" \
+  --categoria regimen_especifico --parte anexo --regimen-general --fecha-publicacion 2022-11-30 \
+  --fecha-vigencia 2023-01-01 --fuente https://servicios.infoleg.gob.ar/infolegInternet/anexos/375000-379999/375829/disp247.pdf \
+  --usuario prueba-carga
+```
+
+```
+Se cargó el documento 1: parte anexo de la Disposición AFIP 247/2022 (norma nueva).
+Lectura 1, pendiente de validación: 100 unidades, 45 páginas, páginas no leídas: 45, 16 tramos no ubicados.
+```
+
+Tiempo: 3,5 s, medido desde fuera del contenedor (incluye el arranque del comando).
+
+**Informe** (`ver_informe 1 --usuario prueba-carga`), resumido:
+
+```
+Páginas: 45. Páginas no leídas: 45.
+Unidades reconocidas: 100 (1 anexo, 99 artículos).
+  Anexo: 99 artículos, del 1 al 99.
+No ubicado: 16 tramos.
+  - Página 5: TÍTULO I - DISPOSICIONES GENERALES
+  ... (títulos y capítulos de las páginas 12 a 44)
+  - Página 44: TÍTULO VII - MÓDULO
+  - Página 44: CLÁUSULA TRANSITORIA REGISTRO DE PROVEEDORES Las unidades con
+Descartado: 1 tramo.
+  - Índice, páginas 1 a 5: ÍNDICE: TÍTULO I - DISPOSICIONES GENERALES ARTÍCULO 1º.-
+Uniones de palabras cortadas: 0.
+Cobertura: 140925 caracteres: 134730 en unidades, 4801 descartados, 1278 no ubicados y 116 saltos de línea entre tramos; la suma coincide con el total.
+```
+
+Es lo esperado para la partición de esta etapa, que reconoce solo artículos: los 99 artículos del índice, de `anexo/art-1` a `anexo/art-99`, en orden. Quedan sin ubicar los títulos y capítulos (que con las reglas de T-023 pasan a la ruta) y la cláusula transitoria (que con T-023 pasa a ser la unidad `anexo/clausula-transitoria`). La página 45, que solo trae la firma digital, figura como no leída. Los incisos no aparecen como no ubicados: quedan dentro del texto de su artículo.
+
+**Validación con el tiempo del pedido de vectores (aviso de T-015).** `validar_informe 1 --usuario prueba-carga`, con un script fuera del repositorio que mide la llamada a `embeddings.embed`:
+
+```
+[medida] embeddings.embed: 100 textos en un pedido, 5.43 s; caracteres max 10807, total 139308
+[medida] tokens del texto mas largo (bge-m3 /tokenize): 2299; empieza: 'Disposición AFIP 247/2022, Anexo, Artículo 24\nARTÍCULO 24.- MODALIDADES. Los pro'
+Se validó la lectura 1, con 100 pasajes. Quedó en uso como versión 1 de su parte. Se creó la versión 1 de la normativa.
+[medida] validar_informe total: 5.65 s
+```
+
+Un solo pedido a `embeddings` con los 100 pasajes del anexo completo: 5,43 s. El pasaje más largo es el del artículo 24, con 2.299 tokens de `bge-m3` contando el encabezado, debajo del límite de 8.192 por texto (el aviso estimaba unos 3.000).
+
+**Pregunta real en la pantalla.** Sin navegador en esta sesión, la pregunta se envió por HTTP a Gunicorn en `127.0.0.1:8000`, como lo hace el formulario: ingreso con `prueba-consulta` en `/ingresar/`, envío de la pregunta a `/` con su token CSRF y la redirección a la consulta guardada. El script quedó fuera del repositorio. Pregunta: "¿Por cuántos días deben los oferentes mantener sus ofertas?", con el campo de fecha vacío (la fecha del día).
+
+```
+URL final: http://127.0.0.1:8000/consultas/1/ | HTTP 200 | 7.00 s
+✓ Respuesta con fundamento en la normativa
+Pregunta: ¿Por cuántos días deben los oferentes mantener sus ofertas?
+Procedimiento autorizado el 03/10/2026 · Régimen aplicado: Disposición AFIP 247/2022
+Los oferentes deben mantener sus ofertas por un plazo de sesenta días corridos a partir de la fecha del acto de apertura.
+Disposición AFIP 247/2022 · Anexo › Artículo 43
+ARTÍCULO 43.- PLAZO DE MANTENIMIENTO DE LA OFERTA. Los oferentes deberán mantener las ofertas por un plazo de SESENTA (60) días corridos, ...
+```
+
+La respuesta trae cinco afirmaciones, todas con la cita del artículo 43 (plazo; plazo distinto si lo fija el pliego; el día de apertura no se computa; prórroga automática; aviso de no renovación con cinco días hábiles). El texto citado es igual a `canonical_text[char_start:char_end]` de su lectura (comprobado en la base: `literal igual: True`).
+
+**Registro de la consulta** (`queries_query` 1, hecho `query` 5 en `audit_event`): usuario `prueba-consulta`; pregunta; `reference_date` 2026-10-03; régimen `[{"name": "Disposición AFIP 247/2022", "norm": 1}]`; versión de la normativa 1; estado `grounded`; 30 candidatos con camino, pasaje, distancia y puntaje; 3 unidades seleccionadas (artículo 43 con 0,9995, y otras dos con 0,549 y 0,514); puntaje más alto 0,9995; instrucciones `consulta-v1`; pedido con `model` `gemma-4-12b-it-qat-q4_0`; salida sin tocar (939 caracteres); parámetros con modelo, archivo, huella, compilación `b11347`, temperatura 0, semilla 42 y pensamiento apagado; sin anomalías.
+
+**Tiempos de la consulta** (columna `timings`, en segundos):
+
+| Consulta | Fecha | Resultado | Régimen | Recuperación | Generación | Total |
+|---|---|---|---|---|---|---|
+| Plazo de mantenimiento (primera después de levantar) | vacía (2026-10-03) | con fundamento, art. 43 | 0,002 | 2,417 | 4,490 | 6,91 |
+| La misma | 2023-01-01 | con fundamento, art. 43 | 0,001 | 0,679 | 3,796 | 4,48 |
+| La misma | 2021-06-15 | no determinado, `no_regime_at_date` | 0,004 | — | — | 0,004 |
+| La misma | 2022-12-31 | no determinado, `no_regime_at_date` | 0,001 | — | — | 0,002 |
+| "¿Qué modalidades pueden tener los procedimientos de selección?" | vacía | con fundamento, art. 24 | 0,002 | 0,711 | 7,091 | 7,80 |
+| "¿Qué porcentaje es la garantía de cumplimiento del contrato?" | vacía | con fundamento, art. 64 | 0,002 | 0,491 | 2,907 | 3,40 |
+| "¿Cuál es la alícuota general del impuesto al valor agregado?" | vacía | no determinado, `below_threshold` (0,019) | 0,001 | 1,511 | — | 1,51 |
+
+Todas debajo de los 30 segundos. Con la fecha de 2021 la página muestra "No determinado" con la línea "Para esa fecha no hay un régimen específico cargado en el sistema", sin buscar ni llamar al modelo; el 2022-12-31 da lo mismo y el 2023-01-01 ya aplica la 247/2022. Una fecha futura vuelve al formulario con "La fecha de autorización no puede ser posterior a hoy" y una inexistente (2021-02-30) con "Escriba una fecha válida, con día, mes y año", sin crear consulta. `GET /static/css/evaluon.css` y `/static/js/consulta.js` dan 200, y las páginas llevan `Content-Security-Policy: default-src 'self'`.
+
+**Diferencias entre los dobles y los servicios reales.** Ninguna que pida corregir `evaluon/ai/`. Se compararon las respuestas reales de `/v1/embeddings` (`data` con `index`, `object` y `embedding` de 1024; `usage`), `/v1/rerank` (`results` ordenados por puntaje, no por índice, con `index` y `relevance_score` sin escala; `usage`) y `/tokenize` (`tokens`) con las del servidor falso de `tests/queries/test_ai_clients.py`, y tienen los mismos campos; la generación respondió con la forma esperada en las cinco consultas que llegaron al modelo. Ninguna consulta dejó anomalías.
+
+**Prueba de espera con Gunicorn** (`tests/queries/test_wait.py`, plan 001, "Sin verificar": "Tiempo de espera de Gunicorn con hilos"). Levanta Gunicorn con el mismo `command` del servicio `app` de `docker-compose.yml` (solo cambia la dirección, a un puerto libre de 127.0.0.1), sobre la base de pruebas, con servidores HTTP falsos de los tres servicios de IA; el del motor tarda 35 s de verdad (el doble `fake_generation` lanza la espera agotada sin esperar y no llega a otro proceso). Ingresa y envía una pregunta como el navegador: la respuesta llega a los 35 s y algo más, redirige a la consulta guardada, y la consulta queda con fundamento, con su régimen y con `timings.generation` de 35 s o más. Otra prueba comprueba que la espera de `app` (120 s) supera los 30 s de una consulta y los 60 s de `AI_TIMEOUT_SECONDS`, con más de un hilo. Para ver que la prueba distingue, se corrió una copia fuera del repositorio con `--threads 1 --timeout 30`: Gunicorn cortó el pedido a los 30 s (`assert 500 == 302`).
+
+**Suite.** `docker compose -p evaluon-t020 run --rm app pytest`, con los seis servicios arriba: 459 pasan. `docker compose -p evaluon-t020 run --rm --no-deps app pytest` solo con `db`: 459 pasan.
+
+**Falta probar en un navegador real** (esta sesión no tuvo navegador): el control de fecha, el script de espera (también al volver con "Atrás"), que la política de contenido no bloquee nada en la consola, el formulario sin JavaScript y que los tres bloques se distingan a simple vista.
+
+**Cierre.** `docker compose -p evaluon-t020 down`, sin `-v`: la base de esta prueba queda cargada en `evaluon-t020_pgdata` para repetir la pregunta. GPU en 0 MiB.
