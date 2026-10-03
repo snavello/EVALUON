@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "evaluon.accounts",
     "evaluon.audit",
     "evaluon.norms",
+    "evaluon.queries",
 ]
 
 MIDDLEWARE = [
