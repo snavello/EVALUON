@@ -78,7 +78,16 @@ from evaluon.norms.splitting.report import build_report, report_text
 # un inciso mal leído (`ocr_inciso_gaps`). Los cortes no cambian: el texto canónico, las
 # unidades, sus claves y sus textos son los de la versión 6 en los tres formatos; cambia
 # el informe de las lecturas con reconocimiento, cuya huella firma la validación.
-RULES_VERSION = "7"
+# Corrección (T-043): el informe de toda lectura cambia con la versión 7, no solo el de
+# las lecturas con reconocimiento, porque lleva la versión de las reglas.
+# 8: T-043, ajuste contra el corpus real. Un último inciso sin incisos propios cuyo texto
+# termina en dos puntos se lleva los párrafos que le siguen hasta el final de la unidad
+# que contiene la lista, y el informe ya no lo señala para revisar: "f) OTRAS
+# OBLIGACIONES DEL CO-CONTRATANTE:" (297/03, Anexo I, art. 14) y el punto 4 del inciso e
+# del art. 33 del anexo de la 247/2022 con sus puntos 4.1 y 4.2. El texto canónico, las
+# claves y los textos de las unidades base no cambian; cambian el texto de esos dos
+# incisos y el informe.
+RULES_VERSION = "8"
 
 # Reglas de partición y categorías que las eligen (REQ-017; `Norm.Category`).
 NORM_RULE = "normas"

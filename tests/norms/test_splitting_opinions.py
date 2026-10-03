@@ -610,15 +610,20 @@ def test_categories_of_the_rule_are_those_of_the_model():
 
 # Con las reglas 3 de T-023, antes de T-024: 335 unidades, la huella del texto canónico
 # y la huella de la lista de unidades (clave, tipo, posición, página, etiqueta y ruta).
+# Con las reglas 8 de T-043 cambia solo el final del punto 4 del inciso e del artículo 33
+# (`anexo/art-33/inc-e/inc-4`, que ahora llega hasta el final del inciso e, con sus
+# puntos 4.1 y 4.2); el texto canónico y las demás unidades siguen iguales. Huella con
+# las reglas 3: 495f7b631d0112bcd8dc1f76c61928af1555d9cf76642386816b1ef8b48842ce.
 ANNEX_UNITS = 335
 ANNEX_CANONICAL_SHA256 = "e0c272ac7496021324244f552e5e0dfd7cda45cffe99be61263e4d2be6f7addb"
-ANNEX_UNITS_SHA256 = "495f7b631d0112bcd8dc1f76c61928af1555d9cf76642386816b1ef8b48842ce"
+ANNEX_UNITS_SHA256 = "fdfa8615ecddd71f5a939f57c931eb7375f7ad3fc5c9c260ec39d8104670f575"
 
 
 def test_real_annex_of_247_2022_is_split_as_before():
     """REQ-003: el anexo real de la Disp. AFIP 247/2022, como régimen específico, da las
     mismas 335 unidades, el mismo texto canónico y las mismas claves, posiciones,
-    páginas, etiquetas y rutas que con las reglas de T-023."""
+    páginas, etiquetas y rutas que con las reglas de T-023, salvo el final del punto 4
+    del inciso e del artículo 33, que ajustó T-043."""
     reading = read_document(ANNEX_247)
     for category in (None, "regimen_especifico"):
         result = split_document(reading, part="anexo", category=category)

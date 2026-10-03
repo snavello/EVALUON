@@ -1232,6 +1232,69 @@ def test_a_list_without_paragraphs_after_its_last_inciso_is_not_reported():
     assert "Párrafos después del último inciso" not in result.report_text
 
 
+def test_a_last_inciso_that_ends_with_a_colon_keeps_the_paragraphs_it_presents():
+    """REQ-003, REQ-004 (T-043): un último inciso sin incisos propios cuyo texto termina
+    en dos puntos presenta lo que sigue ("f) OTRAS OBLIGACIONES DEL CO-CONTRATANTE:" del
+    artículo 14 del Anexo I de la 297/03): se lleva los párrafos que le siguen hasta el
+    final del artículo, y el informe no lo señala para revisar. Un último inciso que no
+    termina en dos puntos sigue dejándolos en el artículo
+    (`test_paragraphs_after_the_last_inciso_are_reported`)."""
+    result = split_document(
+        web(
+            "ARTICULO 1° — OBLIGACIONES. Son las siguientes:",
+            "a) OBLIGACIONES LABORALES: cumplir la legislación.",
+            "b) OTRAS OBLIGACIONES:",
+            "Respetar la confidencialidad de la información.",
+            "No divulgar datos sin autorización.",
+            "ARTICULO 2° — Otro.",
+        ),
+        part="cuerpo",
+    )
+
+    units = by_key(result)
+    assert units["art-1/inc-b"].text == (
+        "b) OTRAS OBLIGACIONES:\n"
+        "Respetar la confidencialidad de la información.\n"
+        "No divulgar datos sin autorización."
+    )
+    assert units["art-1/inc-a"].text == "a) OBLIGACIONES LABORALES: cumplir la legislación."
+    assert units["art-1"].text.endswith("No divulgar datos sin autorización.")
+    assert result.report["after_last_inciso"] == []
+    check_invariants(result)
+
+
+def test_a_last_point_that_ends_with_a_colon_keeps_its_numbered_subpoints():
+    """REQ-003, REQ-004 (T-043): lo mismo en el segundo nivel. El punto 4 del inciso e
+    del artículo 33 del anexo de la 247/2022 termina en "...a través de los siguientes
+    medios:" y lo siguen sus puntos 4.1 y 4.2, que no son incisos (hay dos niveles): son
+    del punto 4, no del inciso que lo contiene, hasta el próximo inciso de letra."""
+    result = split_document(
+        synthetic(
+            [
+                "ARTÍCULO 1°.- UNO. Son:",
+                "a) Contrataciones directas, conforme las siguientes previsiones:",
+                "1. Primer supuesto.",
+                "2. Segundo supuesto, por los siguientes medios:",
+                "2.1. Invitaciones a por lo menos tres proveedores.",
+                "2.2. Difusión en el sitio del Organismo.",
+                "b) Otro inciso.",
+            ]
+        ),
+        part="cuerpo",
+    )
+
+    units = by_key(result)
+    assert units["art-1/inc-a/inc-2"].text == (
+        "2. Segundo supuesto, por los siguientes medios:\n"
+        "2.1. Invitaciones a por lo menos tres proveedores.\n"
+        "2.2. Difusión en el sitio del Organismo."
+    )
+    assert units["art-1/inc-a"].text.endswith("2.2. Difusión en el sitio del Organismo.")
+    assert units["art-1/inc-b"].text == "b) Otro inciso."
+    assert result.report["after_last_inciso"] == []
+    check_invariants(result)
+
+
 # --- Encabezados leídos por reconocimiento sobre imagen (REQ-003, REQ-015) --------------
 
 OCR_SUBSTITUTES = ["”", "*", "%", "'", '"', "?", "”%", "O", "", " "]

@@ -70,7 +70,9 @@ Reglas:
   el siguiente inciso de su nivel o de uno superior; el último de su lista no se lleva
   los párrafos que siguen, que son de la unidad que lo contiene. Como el PDF no
   distingue sangrías, esos párrafos pueden ser del inciso: el informe los señala con la
-  clave del inciso y cuántos párrafos quedaron en la unidad que lo contiene. Formas de
+  clave del inciso y cuántos párrafos quedaron en la unidad que lo contiene. Excepción
+  (T-043): un último inciso sin incisos propios cuyo texto termina en dos puntos
+  presenta lo que sigue y se lleva esos párrafos, sin señalarlo. Formas de
   la 297/03 (T-050):
   - `Inciso N)`, con la palabra, es siempre del primer nivel: cierra las listas abiertas
     y no se anida en un inciso de letra. Es una sección con epígrafe: el último de la
@@ -719,6 +721,7 @@ def find_incisos(paragraphs, block, key_taken=None, ocr_gaps=None):
             # El párrafo que presenta la lista nueva es del artículo: el inciso anterior
             # termina antes.
             roots[position - 1].end = node.index - 2
+    _extend_presenting(roots, block.last, paragraphs)
     if roots and roots[-1].heading.word:
         # El último `Inciso N)` lleva sus párrafos hasta el final del artículo.
         roots[-1].end = block.last
@@ -750,6 +753,21 @@ def after_last_inciso(nodes, end):
     if nodes and nodes[-1].end < end:
         found.append(([nodes[-1]], end - nodes[-1].end))
     return found
+
+
+def _extend_presenting(nodes, end, paragraphs):
+    """El último inciso de una lista, si no tiene incisos propios y su texto termina en
+    dos puntos, presenta lo que sigue: se lleva los párrafos que le siguen hasta el final
+    de la unidad que contiene la lista (que termina en el párrafo `end`). Así "f) OTRAS
+    OBLIGACIONES DEL CO-CONTRATANTE:" (297/03, Anexo I, art. 14) y el punto 4 que termina
+    en "...los siguientes medios:" y sigue con 4.1 y 4.2 (247/2022, anexo, art. 33 e)
+    quedan con su texto (T-043)."""
+    if nodes:
+        last = nodes[-1]
+        if not last.children and last.end < end and paragraphs[last.end].text.rstrip().endswith(":"):
+            last.end = end
+    for node in nodes:
+        _extend_presenting(node.children, node.end, paragraphs)
 
 
 def _assign_ends(nodes):
