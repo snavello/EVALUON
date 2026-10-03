@@ -4,8 +4,9 @@ plan 001, "Pantalla, acceso y comandos": `listar_normas` y `ver_informe`).
 - `list_norms`: las normas con sus datos, su nombre de cita y su marca de régimen
   general; sus documentos con la parte, las fechas, la fuente y el estado de
   validación de su última lectura; y sus vínculos con otras normas en los dos sentidos
-  (REQ-006): las relaciones en que es la norma de origen y las que la alcanzan. Las
-  modificatorias sin cargar se suman en T-051.
+  (REQ-006): las relaciones en que es la norma de origen y las que la alcanzan; y sus
+  modificatorias sin cargar (REQ-021): las filas de `norms_pending_amendment` de la
+  norma con `loaded_norm` vacío, las mismas que cuenta `amendments.pending_count`.
 - `reading_report`: el informe de lectura de una lectura, tal como está guardado. Su
   texto es exactamente `norms_reading.report_text`, el mismo cuya huella guarda la
   validación (T-015).
@@ -22,7 +23,14 @@ from django.db.models import Prefetch
 
 from evaluon.accounts.models import Role
 from evaluon.accounts.permissions import require_role
-from evaluon.norms.models import BODY_PART, Document, Norm, Reading, Relation
+from evaluon.norms.models import (
+    BODY_PART,
+    Document,
+    Norm,
+    PendingAmendment,
+    Reading,
+    Relation,
+)
 
 
 class ReadingNotFound(Exception):
@@ -63,6 +71,18 @@ class LinkItem:
 
 
 @dataclass(frozen=True)
+class PendingAmendmentItem:
+    """Modificatoria sin cargar de una norma (REQ-021), con los datos normalizados."""
+
+    id: int
+    norm_type: str
+    number: str
+    year: int
+    issuer: str
+    source_ref: str
+
+
+@dataclass(frozen=True)
 class NormItem:
     id: int
     citation: str
@@ -75,6 +95,9 @@ class NormItem:
     general_regime: bool
     documents: list[DocumentItem] = field(default_factory=list)
     links: list[LinkItem] = field(default_factory=list)
+    # Sus modificatorias sin cargar, en el orden en que se anotaron; su cantidad es la
+    # cuenta del aviso de REQ-021.
+    pending_amendments: list[PendingAmendmentItem] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -140,8 +163,8 @@ def _links(norm):
 
 
 def list_norms(user):
-    """Las normas cargadas, ordenadas por nombre de cita, con sus documentos y sus
-    vínculos."""
+    """Las normas cargadas, ordenadas por nombre de cita, con sus documentos, sus
+    vínculos y sus modificatorias sin cargar."""
     require_role(user, Role.READ)
     readings = Reading.objects.only("id", "document_id", "sequence", "status").order_by(
         "sequence"
@@ -153,6 +176,10 @@ def list_norms(user):
                  queryset=Relation.objects.select_related("target_norm")),
         Prefetch("relations_to",
                  queryset=Relation.objects.select_related("source_norm")),
+        Prefetch("pending_amendments",
+                 queryset=PendingAmendment.objects.filter(loaded_norm__isnull=True)
+                 .order_by("pk"),
+                 to_attr="unloaded_amendments"),
     )
     return [
         NormItem(
@@ -170,6 +197,17 @@ def list_norms(user):
                 for document in sorted(norm.documents.all(), key=_part_order)
             ],
             links=_links(norm),
+            pending_amendments=[
+                PendingAmendmentItem(
+                    id=entry.pk,
+                    norm_type=entry.norm_type,
+                    number=entry.number,
+                    year=entry.year,
+                    issuer=entry.issuer,
+                    source_ref=entry.source_ref,
+                )
+                for entry in norm.unloaded_amendments
+            ],
         )
         for norm in norms.order_by("citation", "pk")
     ]

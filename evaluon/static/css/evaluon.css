@@ -159,6 +159,59 @@ button {
   cursor: pointer;
 }
 
+/* Citas con categoría, papel y cambios (T-037). */
+
+.citations {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.25rem 0;
+}
+
+.citation-role {
+  font-weight: bold;
+}
+
+.applicable {
+  margin-left: 0.25rem;
+  padding: 0 0.4rem;
+  border: 1px solid #1b6e3a;
+  border-radius: 0.25rem;
+  color: #1b6e3a;
+}
+
+.change-mark {
+  margin-left: 0.25rem;
+  font-style: italic;
+  color: #8a5a00;
+}
+
+.regime-conflict {
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid #8a5a00;
+  background: #fff6e0;
+}
+
+.recognition-note {
+  margin-left: 1rem;
+  font-style: italic;
+  color: #6b4500;
+}
+
+.original-link,
+.text-ref {
+  margin-left: 1rem;
+}
+
+.change {
+  margin: 0.5rem 0 0.5rem 1rem;
+  padding-left: 0.75rem;
+  border-left: 3px dashed #8a5a00;
+}
+
+.change-note {
+  font-weight: bold;
+}
+
 .literal {
   margin: 0.5rem 0 0.5rem 1rem;
   padding: 0.5rem 0.75rem;
