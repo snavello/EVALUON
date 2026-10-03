@@ -277,7 +277,7 @@ Va en tabla aparte para que listar documentos no arrastre los archivos.
 | `effective_date` | Desde cuándo rige el cambio |
 | `registered_at`, `registered_by` | Quién la registró y cuándo |
 
-Las relaciones guardan la clave de la unidad y no su identificación interna, porque valen para la norma y no para una lectura en particular: si el documento se vuelve a leer, siguen apuntando al mismo artículo. Al registrar una relación se comprueba que la clave exista en los documentos en uso de la norma, en cualquiera de sus partes; al validar una lectura nueva, el informe avisa si alguna relación quedó sin unidad.
+Las relaciones guardan la clave de la unidad y no su identificación interna, porque valen para la norma y no para una lectura en particular: si el documento se vuelve a leer, siguen apuntando al mismo artículo. Al registrar una relación se comprueba que la clave exista en los documentos en uso de la norma, en cualquiera de sus partes; al validar una lectura nueva, la validación avisa (antes de confirmar y en el hecho `validation`, no en el informe guardado, cuya huella no cambia; aclaración al implementar T-027) si alguna relación quedó sin unidad.
 
 `effective_date` es la fecha desde la que rige el cambio y la escribe la persona. La abrogación de la Disposición 297/03 se registra así: tipo `deroga`, norma de origen la 247/2022 con `source_unit_key` `art-2`, norma alcanzada la 297/03 entera, y `effective_date` igual a la fecha de entrada en vigencia de la 247/2022, que es el 2023-01-01.
 
