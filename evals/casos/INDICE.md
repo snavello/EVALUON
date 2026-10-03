@@ -109,3 +109,37 @@ Puntos para decidir al dar el visto bueno:
 ## Visto bueno provisorio (2026-10-03)
 
 El responsable autorizó el 2026-10-03 un visto bueno provisorio para los 31 casos, para poder calibrar (T-045) y correr el conjunto (T-046). Los casos se revisan con la Comisión y se corrigen a medida que aparezcan errores. Decisiones del responsable sobre los datos clave dudosos: más tolerantes. EV-001 y EV-016 piden "automáticamente"; EV-006 queda con "suspensivo" (los plazos frenan las respuestas equivocadas); EV-019 queda con "5 por mil", porque "0,5 ‰" es otra cantidad (la duda sobre la cifra sigue marcada). EV-004 pasa de "no" a "no es necesario": la regla del sí y del no exige un signo después de la palabra y la respuesta esperada no lo tiene.
+
+## Reescritura por el ADR-0011 (2026-10-03)
+
+**Propuesta de T-059, para el visto bueno del responsable en el pull request.** Aplica el ADR-0011 y el plan ("Datos clave y corrector"): cada dato es una pieza corta, las frases compuestas se parten y un dato puede traer variantes, sostenidas en el `esperado` o en el `origen` del caso. Solo cambia `datos_clave`, en 11 casos; `pregunta`, `esperado`, `unidades`, `regimen`, `fecha_autorizacion`, `visto_bueno` y los demás campos quedan como estaban, y el visto bueno provisorio se mantiene. Una lista entre corchetes es un dato con sus variantes: se cumple con cualquiera.
+
+Sin cambios: EV-001, EV-002, EV-005, EV-006, EV-008, EV-009, EV-010, EV-013, EV-015, EV-017, EV-019, EV-023, EV-024 (ya cumplen las reglas) y los 7 casos sin respuesta. Se mantienen las decisiones del responsable del 2026-10-03 sobre EV-001 y EV-016 ("automáticamente"), EV-006 ("suspensivo") y EV-019 ("5 por mil"); la de EV-004 se propone cambiar (punto 2). EV-017 no se tocó: la respuesta de la corrida omite la pérdida de la garantía y eso es una respuesta incompleta, no una forma de decirlo.
+
+| Caso | Dato antes | Dato después | Motivo |
+|---|---|---|---|
+| EV-003 | "por igual término" | ["igual término", "período igual"] | Pieza más corta, sin "por" (esperado y origen). "período igual": **tomada de la corrida** (punto 1) |
+| EV-004 | "no es necesario" | ["no", "no es necesario"] | Un "no" con su variante escrita, la forma que da el ADR-0011. Cambia una decisión del responsable (punto 2) |
+| EV-004 | "M 1.000" | ["M 1.000", "1.000 módulos"] | El esperado dice "mil módulos" y el origen "UN MIL MÓDULOS" |
+| EV-007 | "por cada día hábil de atraso" | "día hábil" | Frase de la norma: queda la unidad |
+| EV-011 | "7 días corridos de antelación" | "7 días corridos", "antelación" | Frase compuesta, partida en dos datos |
+| EV-012 | "no" y "sin posibilidad de subsanación" (dos datos) | ["no", "sin posibilidad de subsanación"] (un dato) | El "no" con la forma que usan el esperado y el origen, como el ejemplo del plan (punto 3) |
+| EV-014 | "no" | ["no", "no pueden prever", "no se podrán prever", "no pueden incluir"] | "no pueden prever" del esperado, "no se podrán prever" del origen. "no pueden incluir": **tomada de la corrida** (punto 1) |
+| EV-016 | "acto de apertura" | ["acto de apertura", "fecha de apertura"] | "fecha de apertura": **tomada de la corrida** (la respuesta dice "fecha de apertura del acto"; es también el ejemplo del plan) (punto 1) |
+| EV-018 | "sí" | ["sí", "otras causales de inadmisibilidad"] | El "sí" con la forma que usan el esperado y el origen (punto 4) |
+| EV-018 | "expresa y fundadamente" | ["expresa y fundadamente", "expresarse y fundamentarse"] | "expresarse y fundamentarse": **tomada de la corrida** (punto 1) |
+| EV-020 | "cada 7 días corridos" | "7 días corridos" | Cifra con su unidad |
+| EV-020 | "fracción mayor de 3 días" | "fracción", "3 días" | Frase compuesta, partida en dos datos |
+| EV-021 | "no" | ["no", "no es necesario", "no será necesario"] | "no es necesario" del esperado, "no será necesario" del origen |
+| EV-022 | "presidente y 2 vocales" | "presidente", "2 vocales" | Frase compuesta, partida en dos datos |
+
+**Comprobado** en un contenedor aparte (proyecto `evaluon-t059`): `load_cases` lee los 31 casos y ninguno queda mal formado; los 24 casos con respuesta cumplen sus datos clave con su propio `esperado` como única afirmación; y para cada uno, una respuesta contraria plausible armada a mano (otro plazo, otro porcentaje u otra polaridad: por ejemplo "Sí. El pliego puede prever otras causales…" en EV-014, o "No. El pliego no puede agregar otras causales de inadmisibilidad" en EV-018) no los cumple.
+
+**Efecto en la corrida de T-045, recalificada** (`evals/corridas/2026-10-03T145904_30dc41e_gemma-4-12b-it-qat-q4_0_recalificada`): respuesta correcta 79,2 % (19 de 24), contra 45,8 % original y 50,0 % con el corrector nuevo y los datos anteriores. Sin las cuatro variantes tomadas de la corrida, 62,5 % (15 de 24). Siguen fallando EV-006, EV-009 y EV-017 (respuestas incompletas), EV-020 (frenada por el umbral) y EV-024 (artículo fuera de la selección); detalle en `specs/001-normativa/entorno.md`, sección T-059.
+
+### Para decidir
+
+1. **Cuatro formas de decirlo que salen de las respuestas del sistema, no del caso.** "período igual" en EV-003 (por "por igual término"), "no pueden incluir" en EV-014, "fecha de apertura" en EV-016 (por "acto de apertura") y "expresarse y fundamentarse" en EV-018 (por "expresa y fundadamente"). Si son formas correctas de decir el dato, quedan; si no, se sacan. Con las cuatro, la corrida recalificada da 79,2 %; sin ellas, 62,5 %. En EV-014 la respuesta dice que el pliego no puede incluir causales "que no estén expresamente enumeradas en la normativa", sin la palabra "no subsanables" del esperado.
+2. **EV-004: aceptar también una respuesta que empiece con "No."** El 2026-10-03 se eligió "no es necesario" porque el "no" solo exigía un signo después de la palabra. Ahora el caso puede llevar las dos formas y valer cualquiera. EV-021 se escribió de la misma manera, con las formas de su esperado y su origen.
+3. **EV-012: basta una de las dos formas.** Antes la respuesta tenía que traer el "No" y además "sin posibilidad de subsanación". Ahora basta con cualquiera de las dos: una respuesta que diga solo "No." pasa, y la que dice "serán desestimadas sin posibilidad de subsanación" también.
+4. **EV-018: el "sí" se acepta si la respuesta dice que el pliego puede prever "otras causales de inadmisibilidad".** Esa frase podría aparecer también en una respuesta que diga que no; lo que frena esa respuesta es el segundo dato, "expresa y fundadamente", que una respuesta negativa no trae.

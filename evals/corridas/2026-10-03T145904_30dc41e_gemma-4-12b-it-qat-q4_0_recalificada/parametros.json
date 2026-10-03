@@ -1,0 +1,54 @@
+{
+  "started_at": "2026-10-03T13:20:16.601994-03:00",
+  "commit": "8ad46e6",
+  "cases_dir": "/app/evals/casos",
+  "corpus_version": 5,
+  "prompt_version": "consulta-v2",
+  "search": {
+    "ai_timeout_seconds": 60,
+    "paths": [
+      "semantic",
+      "words",
+      "reference"
+    ],
+    "rerank": true,
+    "candidates_per_path": 30,
+    "rerank_threshold": 0.5,
+    "units_per_category": 3,
+    "considerandos": 2,
+    "context_tokens": 16384,
+    "max_output_tokens": 800,
+    "template_margin_tokens": 512,
+    "unit_by_passages_from_tokens": 1500,
+    "generation": {
+      "model": "gemma-4-12b-it-qat-q4_0",
+      "file": "gemma-4-12b-it-qat-q4_0.gguf",
+      "sha256": "93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b",
+      "engine_build": "b11347",
+      "context_tokens": 16384,
+      "temperature": 0,
+      "seed": 42,
+      "thinking": false,
+      "max_output_tokens": 800,
+      "max_statements": 6
+    },
+    "embeddings": {
+      "model": "bge-m3",
+      "file": "bge-m3-FP16.gguf",
+      "sha256": "daec91ffb5dd0c27411bd71f29932917c49cf529a641d0168496c3a501e3062c"
+    },
+    "reranker": {
+      "model": "bge-reranker-v2-m3",
+      "file": "bge-reranker-v2-m3-FP16.gguf",
+      "sha256": "5df93be121c09c43432102ad2b9569d369ccb85c209ca7583e8ccd28f0e41b88"
+    }
+  },
+  "finished_at": "2026-10-03T13:22:35.616736-03:00",
+  "rescore": {
+    "source": "2026-10-03T132016_8ad46e6_gemma-4-12b-it-qat-q4_0",
+    "note": "Recalificación: no se hicieron consultas ni se llamó a ningún servicio de IA. Las respuestas son las de la corrida de origen, medidas otra vez con los casos y el corrector vigentes.",
+    "commit": "30dc41e",
+    "cases_dir": "evals/casos",
+    "rescored_at": "2026-10-03T14:59:04.651845-03:00"
+  }
+}
