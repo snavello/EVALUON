@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 41 tareas sin terminar.
-- ▶ T-017 · Recuperar por significado y reordenar con el reranker (en curso)
+- ◐ T-017 · Recuperar por significado y reordenar con el reranker (en verificación)
 - ○ T-013 · Partir en artículos y armar el informe mínimo (pendiente)
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
 - ○ T-015 · Validar una lectura y calcular pasajes y vectores (pendiente)
@@ -137,7 +137,7 @@ flowchart TD
   T014["○ T-014 · Cargar una norma, listarla y ver su informe"]:::todo
   T015["○ T-015 · Validar una lectura y calcular pasajes y ve…"]:::todo
   T016["○ T-016 · Armar la pantalla de consulta con sus tres…"]:::todo
-  T017["▶ T-017 · Recuperar por significado y reordenar con e…"]:::active
+  T017["◐ T-017 · Recuperar por significado y reordenar con e…"]:::review
   T018["○ T-018 · Generar la respuesta con esquema e insertar…"]:::todo
   T019["○ T-019 · Unir la consulta de punta a punta con su re…"]:::todo
   T020["○ T-020 · Probar el hilo mínimo con los servicios rea…"]:::todo
