@@ -63,7 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 9 tareas sin terminar.
-- ○ T-028 · Integrar los tres formatos en la carga (pendiente)
+- ▶ T-028 · Integrar los tres formatos en la carga (en curso)
 - ○ T-043 · Cargar y validar el corpus real y ajustar las reglas (pendiente)
 - ○ T-044 · Registrar relaciones, versiones y modificatorias del corpus (pendiente)
 - ○ T-045 · Calibrar el umbral con el conjunto de preguntas (pendiente)
@@ -116,7 +116,7 @@ flowchart LR
 - ✓ T-039 · Correr el conjunto de preguntas y medir las exigencias (`df00322` 2026-10-03, `13ae5e6` 2026-10-03, `97c998c` 2026-10-03)
 - ✓ T-040 · Unir recuperación y generación completas con su registro (`218774c` 2026-10-03, `ec72483` 2026-10-03, `1479dcd` 2026-10-03)
 - ✓ T-041 · Mostrar y registrar la búsqueda en la pantalla (`ae7f271` 2026-10-03, `3e34bf9` 2026-10-03)
-- ✓ T-042 · Agregar calibración del umbral y comparación de corridas
+- ✓ T-042 · Agregar calibración del umbral y comparación de corridas (`a7af689` 2026-10-03, `ef536b1` 2026-10-03, `32e5b9a` 2026-10-03)
 - ✓ T-050 · Partir la 297/03 y el cuerpo de la 247/2022 desde la web (`c27c9c4` 2026-10-03, `5941a37` 2026-10-03)
 - ✓ T-051 · Registrar las modificatorias sin cargar de una norma (`375ba21` 2026-10-03, `73a199a` 2026-10-03)
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
@@ -154,7 +154,7 @@ flowchart TD
   T025["✓ T-025 · Completar el informe de lectura"]:::done
   T026["✓ T-026 · Avisar duplicados al cargar una norma"]:::done
   T027["✓ T-027 · Releer un documento y reemplazar la lectura…"]:::done
-  T028["○ T-028 · Integrar los tres formatos en la carga"]:::todo
+  T028["▶ T-028 · Integrar los tres formatos en la carga"]:::active
   T029["✓ T-029 · Registrar relaciones entre normas y mostrar…"]:::done
   T030["✓ T-030 · Registrar versiones de una norma"]:::done
   T031["✓ T-031 · Partir en pasajes las unidades largas"]:::done
