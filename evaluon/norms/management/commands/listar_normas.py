@@ -1,10 +1,16 @@
 """Comando `listar_normas`: lista las normas con sus datos, sus documentos por parte, el
-estado de validación y los vínculos con otras normas en los dos sentidos (REQ-001,
-REQ-006, REQ-017, REQ-020; plan 001, "Pantalla, acceso y comandos").
+estado de validación, los vínculos con otras normas en los dos sentidos y cuántas
+modificatorias tiene sin cargar y cuáles son (REQ-001, REQ-006, REQ-017, REQ-020,
+REQ-021; plan 001, "Pantalla, acceso y comandos").
+
+La vigencia de un documento se muestra hasta su último día: el día anterior a
+`effective_to`, que es exclusiva.
 
 Rol: los dos. Recibe `--usuario`; la clave se pide por teclado. Solo traduce y llama a
-`evaluon.norms.services.listing`. Las modificatorias sin cargar se suman en T-051.
+`evaluon.norms.services.listing`.
 """
+
+from datetime import timedelta
 
 from django.core.management.base import BaseCommand, CommandError
 
@@ -24,13 +30,20 @@ def _date(value):
     return value.strftime("%d/%m/%Y") if value else ""
 
 
+def _last_day(effective_to):
+    """Último día de vigencia: `effective_to` es exclusiva (T-009), así que el documento
+    rige hasta el día anterior, como lo informa `registrar_version`."""
+    return effective_to - timedelta(days=1)
+
+
 def _document_lines(document):
     lines = [
         f"  - Parte {document.part} · documento {document.id} · {document.file_name} "
         f"({document.file_format})",
         f"    Publicada el {_date(document.publication_date)} · Vigente desde "
         f"{_date(document.effective_from)}"
-        + (f" hasta {_date(document.effective_to)}" if document.effective_to else ""),
+        + (f" hasta {_date(_last_day(document.effective_to))}"
+           if document.effective_to else ""),
         f"    Fuente: {document.source}",
     ]
     if document.reading_id is None:
@@ -88,7 +101,19 @@ def norm_lines(norm):
         lines.extend(_link_line(link) for link in norm.links)
     else:
         lines.append("  Vínculos: ninguno")
+    if norm.pending_amendments:
+        lines.append(f"  Modificatorias sin cargar: {len(norm.pending_amendments)}")
+        lines.extend(_pending_line(entry) for entry in norm.pending_amendments)
+    else:
+        lines.append("  Modificatorias sin cargar: ninguna")
     return lines
+
+
+def _pending_line(entry):
+    return (
+        f"  - {entry.norm_type} {entry.number}/{entry.year} · organismo: {entry.issuer} · "
+        f"referencia: {entry.source_ref}"
+    )
 
 
 class Command(BaseCommand):
