@@ -165,3 +165,43 @@ def test_amendment_noted_as_afip_and_as_arca_is_noted_once(target, read_write_us
     assert result.added == []
     assert len(result.already) == 1
     assert amendments.pending_count(target) == 1
+
+
+@pytest.mark.django_db
+def test_noting_again_rows_stored_with_the_long_name_reports_them_as_already_noted(
+    target, read_write_user
+):
+    """REQ-021: si una modificatoria quedó guardada con el nombre largo de la AFIP tal
+    cual (anotada antes de la equivalencia), volver a anotarla, con ese nombre o con
+    "ARCA", la informa como ya anotada y no la duplica."""
+    note(read_write_user, target,
+         ("Disposición", "95", 2024, "AFIP", "https://example.org/larga"))
+    PendingAmendment.objects.update(
+        issuer="administracion federal de ingresos publicos")
+
+    for issuer in ("ADMINISTRACION FEDERAL DE INGRESOS PUBLICOS", "ARCA"):
+        result = note(read_write_user, target,
+                      ("Disposición", "95", 2024, issuer, "https://example.org/larga"))
+        assert result.added == []
+        assert len(result.already) == 1
+    assert PendingAmendment.objects.count() == 1
+    assert amendments.pending_count(target) == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("stored", ["arca", "administracion federal de ingresos publicos"])
+def test_norm_stored_with_arca_or_the_long_name_is_recognized_when_loading(
+    read_write_user, stored
+):
+    """REQ-001: una norma guardada con organismo "arca" o con el nombre largo (antes de
+    la equivalencia) se reconoce al cargarle otra parte como AFIP: no se da de alta otra
+    norma y conserva su nombre de cita."""
+    first = load(read_write_user)
+    Norm.objects.update(issuer=stored)
+
+    second = load(read_write_user, data=pages_five_and_six_pdf(),
+                  file_name="disp-247-2022-anexo-ii.pdf", part="anexo-ii", citation="")
+
+    assert second.document.norm_id == first.document.norm_id
+    assert Norm.objects.count() == 1
+    assert Norm.objects.get().citation == "Disposición AFIP 247/2022"

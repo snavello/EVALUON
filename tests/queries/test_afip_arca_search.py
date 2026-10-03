@@ -13,6 +13,7 @@ from datetime import date
 
 import pytest
 
+from evaluon.norms.services.loading import issuer_variants
 from evaluon.queries import retrieval, search
 
 pytestmark = pytest.mark.django_db
@@ -123,3 +124,48 @@ def test_reference_to_arca_norm_brings_the_afip_norm(make_norm, make_document,
     assert {c.unit_id for c in result.candidates} == {old_units["art-5"].pk}
     old.refresh_from_db()
     assert old.citation == "Disposición AFIP 297/03"
+
+
+@pytest.fixture
+def lookalike_norm(make_norm, make_document, make_reading):
+    """Una norma con palabras que contienen "arca" o "afip" sin serlo, y otra con AFIP."""
+    norm = make_norm(citation="Resolución sintética 58/24")
+    reading = make_reading(make_document(norm), [
+        ("art-1", "ARTÍCULO 1°.- La AFIP recibe el pedido marca-uno."),
+        ("art-2", "ARTÍCULO 2°.- Arcadia es un nombre sintético marca-dos."),
+        ("art-3", "ARTÍCULO 3°.- Las arcas del Estado reciben el pago marca-tres."),
+        ("art-4", "ARTÍCULO 4°.- Comarca sintética marca-cuatro."),
+    ])
+    return reading.units_by_key
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("Arcadia", ["art-2"]),
+    ("comarca", ["art-4"]),
+    ("arcas", ["art-3"]),
+])
+def test_words_search_does_not_widen_words_that_contain_arca(lookalike_norm, text,
+                                                              expected):
+    """REQ-010: "Arcadia", "comarca" o "arcas" no son ARCA: la búsqueda no se amplía y
+    no trae el texto que dice AFIP. Se comprueba también que el texto no da variantes:
+    sin los límites de palabra, la variante ("AFIPdia") no coincidiría con nada y el
+    resultado solo no lo mostraría."""
+    assert issuer_variants(text) == [text]
+    assert [r.key for r in search.by_words(text, REFERENCE_DATE)] == expected
+
+
+@pytest.mark.parametrize("question", [
+    "¿Qué es Arcadia?",
+    "¿Qué hay en la comarca?",
+    "¿Qué entra en las arcas?",
+])
+def test_words_path_does_not_widen_words_that_contain_arca(lookalike_norm, question,
+                                                           fake_embeddings,
+                                                           fake_reranker):
+    """REQ-008: una pregunta con "Arcadia", "comarca" o "arcas" no suma los nombres del
+    organismo al camino por palabras: no trae el texto que dice AFIP."""
+    result = retrieval.retrieve(question, REFERENCE_DATE, paths=(retrieval.WORDS,))
+
+    units = {candidate.unit_id for candidate in result.candidates}
+    assert lookalike_norm["art-1"].pk not in units
+    assert units

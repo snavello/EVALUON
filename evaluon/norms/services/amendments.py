@@ -355,10 +355,13 @@ def _register(user, target_norm, rows, first_line, file_info, channel):
         # La norma alcanzada bloqueada ordena este registro con los de relaciones y con
         # otros registros de modificatorias de la misma norma.
         target = _get_target(target_norm, lock=True)
-        existing = {
-            tuple(getattr(entry, name) for name in _IDENTITY): entry.pk
-            for entry in PendingAmendment.objects.filter(target_norm=target)
-        }
+        # El organismo guardado se vuelve a normalizar: las filas anotadas antes de la
+        # equivalencia de AFIP y ARCA (ADR-0010) pueden tener el nombre largo tal cual.
+        existing = {}
+        for entry in PendingAmendment.objects.filter(target_norm=target).order_by("pk"):
+            identity = (entry.norm_type, entry.number, entry.year,
+                        normalize_identity(entry.issuer))
+            existing.setdefault(identity, entry.pk)
         added, already, repeated = [], [], []
         # Primer renglón de la lista con cada modificatoria, y su referencia.
         seen = {}

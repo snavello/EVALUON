@@ -301,6 +301,20 @@ def normalize_identity(value):
     return _plain_identity(ISSUER_NAMES[0]) if plain in _SAME_ISSUER else plain
 
 
+def _existing_norm(identity):
+    """La norma ya registrada con esa identidad, o `None`. El organismo guardado se
+    vuelve a normalizar, así se reconoce también una norma guardada antes de la
+    equivalencia de AFIP y ARCA con "arca" o con el nombre largo (ADR-0010)."""
+    same = Norm.objects.filter(
+        norm_type=identity["norm_type"], number=identity["number"],
+        year=identity["year"],
+    ).order_by("pk")
+    for norm in same:
+        if normalize_identity(norm.issuer) == identity["issuer"]:
+            return norm
+    return None
+
+
 def _name_pattern(name):
     """Expresión de un nombre de `ISSUER_NAMES` sin distinguir tildes ni espacios."""
     vowels = {"a": "[aá]", "e": "[eé]", "i": "[ií]", "o": "[oó]", "u": "[uúü]"}
@@ -709,7 +723,7 @@ def load_norm(user, *, data, file_name, part=None, general_regime=False,
             checks["same_file"] = error.document
             raise
         identity = {name: values[name] for name in ("norm_type", "number", "year", "issuer")}
-        norm = Norm.objects.filter(**identity).first()
+        norm = _existing_norm(identity)
         if norm is None:
             if _blank(values["citation"]):
                 raise MissingData(
