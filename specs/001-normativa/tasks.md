@@ -72,6 +72,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-054 | Pasar a la aplicación las variables de los servicios de IA | REQ-008, REQ-012 | T-011 | terminada |
 | T-055 | Agregar el nombre de cita de la norma | REQ-001, REQ-013, REQ-020 | T-015 | terminada |
 | T-056 | Mostrar en la búsqueda solo lo vigente, con casilla para los derogados | REQ-010, REQ-012, REQ-020 | T-052 | terminada |
+| T-057 | Tratar AFIP y ARCA como el mismo organismo | REQ-001, REQ-008, REQ-010, REQ-021 | T-056 | pendiente |
 
 ## Detalle
 
@@ -561,6 +562,15 @@ Los bloques A a L del plan, partidos en tareas de una sesión. Entre paréntesis
 - **No tocar:** la función de consulta (`ask`), `search.py` salvo un defecto de integración, `answering.py`, `retrieval.py`, `evaluon/norms/`, `models.py`.
 - **Entorno:** Cualquier equipo con Docker
 
+### T-057 · Tratar AFIP y ARCA como el mismo organismo
+
+- **Requisitos:** REQ-001, REQ-008, REQ-010, REQ-021. Tarea nueva por el ADR-0010 (decisión del responsable del 2026-10-03).
+- **Qué hay que hacer:** que "AFIP" y "ARCA" valgan lo mismo donde el sistema compara o busca por organismo, sin cambiar el nombre de ninguna norma. (1) Identidad del organismo al normalizar (`normalize_identity`): una modificatoria anotada como ARCA se reconoce en una norma cargada como AFIP y al revés, también en el desempate por organismo. (2) Búsqueda por palabras y camino por palabras de la recuperación: una búsqueda o pregunta que diga "ARCA" encuentra los textos que dicen "AFIP", y al revés (por ejemplo, ampliando la consulta con el otro nombre; no tocar el índice guardado). (3) Detección de referencias a normas en la pregunta ("Disposición ARCA 247/2022" encuentra la 247/2022). La forma larga ("Agencia de Recaudación y Control Aduanero" / "Administración Federal de Ingresos Públicos") cuenta igual que la sigla.
+- **Archivos:** `evaluon/norms/services/loading.py` (solo `normalize_identity` o una función de equivalencia de organismos), `evaluon/norms/services/amendments.py` (solo la comparación de organismo), `evaluon/queries/search.py`, `evaluon/queries/retrieval.py` (solo el camino por palabras y `find_references`), tests nuevos `tests/norms/test_afip_arca.py` y `tests/queries/test_afip_arca_search.py`.
+- **Verificación:** con los dobles: una modificatoria anotada con organismo ARCA pasa a cargada al validar una norma AFIP con el mismo tipo, número y año; buscar "ARCA" por palabras devuelve las unidades que dicen "AFIP" y al revés; "Disposición ARCA 297/03" encuentra la 297/03 por referencia; ninguna norma cambia su nombre de cita. Sigue pasando la suite.
+- **No tocar:** nombres de cita de las normas; `models.py` y migraciones; `answering.py` y las instrucciones.
+- **Entorno:** Cualquier equipo con Docker
+
 ### T-042 · Agregar calibración del umbral y comparación de corridas
 
 - **Requisitos:** REQ-008, REQ-009, REQ-020, REQ-021. No implementa un requisito funcional: habilita calibrar la abstención de REQ-009, informar por régimen (REQ-020, REQ-021) y sostener la regla de P7.
@@ -687,16 +697,16 @@ Los grupos salen de dos reglas: ninguna tarea del grupo depende de otra del grup
 
 | Requisito | Tareas |
 |---|---|
-| REQ-001 | T-008, T-014 |
+| REQ-001 | T-008, T-014, T-057 |
 | REQ-002 | T-014, T-036, T-048 |
 | REQ-003 | T-008, T-013, T-023, T-024, T-031, T-043, T-050 |
 | REQ-004 | T-012, T-013, T-014, T-021, T-025, T-027, T-028, T-043 |
 | REQ-005 | T-009, T-015, T-017, T-027, T-032, T-035, T-043 |
 | REQ-006 | T-029, T-035, T-041, T-044 |
 | REQ-007 | T-009, T-029, T-030, T-033, T-037, T-044 |
-| REQ-008 | T-001, T-002, T-003, T-004, T-011, T-017, T-018, T-019, T-020, T-031, T-032, T-034, T-039, T-040, T-042, T-046, T-047 |
+| REQ-008 | T-001, T-002, T-003, T-004, T-011, T-017, T-018, T-019, T-020, T-031, T-032, T-034, T-039, T-040, T-042, T-046, T-047, T-057 |
 | REQ-009 | T-002, T-003, T-011, T-017, T-018, T-019, T-034, T-039, T-040, T-042, T-045, T-046 |
-| REQ-010 | T-004, T-009, T-035, T-041, T-056 |
+| REQ-010 | T-004, T-009, T-035, T-041, T-056, T-057 |
 | REQ-011 | T-008, T-026 |
 | REQ-012 | T-007, T-008, T-010, T-014, T-015, T-019, T-020, T-026, T-038, T-040, T-041, T-048, T-049, T-051, T-052, T-056 |
 | REQ-013 | T-005, T-016, T-019, T-020, T-037, T-047 |
@@ -707,6 +717,6 @@ Los grupos salen de dos reglas: ninguna tarea del grupo depende de otra del grup
 | REQ-018 | T-033, T-034, T-037, T-040, T-046 |
 | REQ-019 | T-033, T-034, T-037, T-040, T-046 |
 | REQ-020 | T-008, T-009, T-014, T-016, T-019, T-020, T-032, T-035, T-039, T-041, T-042, T-043, T-044, T-046, T-056 |
-| REQ-021 | T-008, T-039, T-042, T-044, T-046, T-051, T-052 |
+| REQ-021 | T-008, T-039, T-042, T-044, T-046, T-051, T-052, T-057 |
 
 Los requisitos no funcionales de la spec no tienen identificador. Los atienden: calidad y tiempo, T-039, T-042, T-045 y T-046; funcionamiento sin conexión, T-002, T-003, T-016 y T-047; claves no legibles, T-006; lenguaje llano, T-014, T-016, T-037, T-041 y T-052; registro del usuario que consulta, T-019.
