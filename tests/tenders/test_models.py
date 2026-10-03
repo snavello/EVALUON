@@ -621,6 +621,131 @@ def test_row_cannot_move_into_validated_version(
         m.Requirement.objects.filter(pk=moving.pk).update(version=draft)
 
 
+def discard(version, user):
+    m.MatrixVersion.objects.filter(pk=version.pk).update(
+        status="discarded", discarded_at=timezone.now(), discarded_by=user
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"status": "draft"},
+        {"status": "discarded"},
+        {"level": "media"},
+        {"validated_at": None, "validated_by": None, "status": "draft"},
+    ],
+    ids=["a-borrador", "a-descartada", "nivel", "sin-validacion"],
+)
+def test_validated_version_row_cannot_change(validated, draft, read_write_user, change):
+    """REQ-027: la fila de una versión validada no cambia: no vuelve a borrador, no se
+    descarta y no cambia ninguno de sus datos, aunque venga por SQL directo."""
+    with pytest.raises(DatabaseError) as rejected, transaction.atomic():
+        m.MatrixVersion.objects.filter(pk=draft.pk).update(**change)
+    assert "no cambia" in str(rejected.value)
+    draft.refresh_from_db()
+    assert draft.status == "validated"
+    assert draft.level == "alta"
+    with pytest.raises(DatabaseError), transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE tenders_matrix_version SET status = 'draft' WHERE id = %s",
+                [draft.pk],
+            )
+
+
+@pytest.mark.django_db
+def test_discarded_version_row_cannot_change(draft, read_write_user):
+    """REQ-027: una versión descartada tampoco cambia: no vuelve a borrador ni pasa a
+    validada."""
+    discard(draft, read_write_user)
+    for change in (
+        {"status": "draft", "discarded_at": None, "discarded_by": None},
+        {"status": "validated", "validated_at": timezone.now(),
+         "validated_by": read_write_user},
+    ):
+        with pytest.raises(DatabaseError), transaction.atomic():
+            m.MatrixVersion.objects.filter(pk=draft.pk).update(**change)
+    draft.refresh_from_db()
+    assert draft.status == "discarded"
+
+
+@pytest.mark.django_db
+def test_draft_version_can_be_validated_or_discarded(
+    procedure, draft, read_write_user
+):
+    """REQ-027: un borrador pasa a validada o a descartada, con quién y cuándo."""
+    validate(draft, read_write_user)
+    draft.refresh_from_db()
+    assert draft.status == "validated"
+    other = m.MatrixVersion.objects.create(
+        procedure=procedure, number=2, level="alta", based_on=draft,
+        created_by=read_write_user,
+    )
+    discard(other, read_write_user)
+    other.refresh_from_db()
+    assert other.status == "discarded"
+
+
+def _insert_new_row(table, version, requirement, segment, user):
+    """Inserta una fila nueva de `table` en `version` (o en `requirement`)."""
+    if table == "tenders_requirement":
+        return m.Requirement.objects.create(
+            version=version, number=77, category="tecnico", items=[1],
+            origin="agregado",
+        )
+    if table == "tenders_requirement_quote":
+        return add_quote(requirement, segment, order=9)
+    if table == "tenders_requirement_source":
+        return m.RequirementSource.objects.create(
+            requirement=requirement, effect="aclara", segment=segment,
+            char_start=segment.char_start, char_end=segment.char_end,
+            text=segment.text, issued_on=date(2025, 11, 21),
+        )
+    if table == "tenders_consequence":
+        return m.Consequence.objects.create(
+            requirement=requirement, consequence_type="intimacion_subsanar",
+            origin="persona",
+        )
+    return m.PendingItem.objects.create(
+        version=version, segment=segment, reason="no_ubicado"
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("table", TABLES)
+def test_insert_into_validated_version_rejected(
+    validated, draft, segments, read_write_user, table
+):
+    """REQ-027: no se agregan requisitos, citas, fuentes, consecuencias ni pendientes a
+    una versión validada."""
+    requirement = validated["tenders_requirement"][0]
+    before = connection.cursor()
+    before.execute(f"SELECT count(*) FROM {table}")
+    count = before.fetchone()[0]
+    with pytest.raises(DatabaseError) as rejected, transaction.atomic():
+        _insert_new_row(table, draft, requirement, segments[1], read_write_user)
+    assert "borrador" in str(rejected.value)
+    before.execute(f"SELECT count(*) FROM {table}")
+    assert before.fetchone()[0] == count
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("table", TABLES)
+def test_insert_into_discarded_version_rejected(
+    segments, draft, read_write_user, table
+):
+    """REQ-027: tampoco se agregan filas a una versión descartada."""
+    a, b = segments
+    requirement = add_requirement(draft, 1, "tecnico", items=[1])
+    add_quote(requirement, b, scope="propia")
+    discard(draft, read_write_user)
+    with pytest.raises(DatabaseError) as rejected, transaction.atomic():
+        _insert_new_row(table, draft, requirement, a, read_write_user)
+    assert "borrador" in str(rejected.value)
+
+
 # --- Solo inserción -------------------------------------------------------------------
 
 

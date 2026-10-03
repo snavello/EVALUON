@@ -573,9 +573,10 @@ class VersionStatus(models.TextChoices):
 
 
 class MatrixVersion(models.Model):
-    """Una versión de la matriz de cumplimiento (REQ-027). Una validada no cambia: un
-    trigger rechaza UPDATE y DELETE sobre sus requisitos, citas, fuentes, consecuencias
-    y pendientes."""
+    """Una versión de la matriz de cumplimiento (REQ-027). Una validada no cambia:
+    triggers rechazan UPDATE y DELETE sobre sus requisitos, citas, fuentes,
+    consecuencias y pendientes, y sobre su propia fila. Solo un borrador recibe filas
+    nuevas y cambia de estado (a validada o descartada)."""
 
     procedure = models.ForeignKey(
         Procedure,

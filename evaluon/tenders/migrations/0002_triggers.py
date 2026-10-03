@@ -8,7 +8,11 @@ T-067).
    venga el cambio del modelo, de `QuerySet.update()` o de SQL directo. En un UPDATE se
    mira la versión de antes y la de después, para que una fila tampoco pueda pasar a
    una versión validada. La versión de una fila sale de su `version_id` o, en las tablas
-   que cuelgan de un requisito, del `version_id` de su requisito.
+   que cuelgan de un requisito, del `version_id` de su requisito. Además:
+   - solo se insertan filas en esas cinco tablas si la versión es un borrador;
+   - la fila de una versión validada o descartada no se modifica ni se borra; un
+     borrador solo sale de ese estado hacia `validated` o `discarded` (quién y cuándo
+     los exigen las restricciones de la tabla).
 3. **Un formal o económico tiene exactamente una cita** (REQ-025). Una segunda cita, o
    pasar a formal o económico un requisito con más de una, se rechaza en el momento. Un
    formal o económico sin cita se rechaza al confirmar la transacción (trigger de
@@ -36,31 +40,39 @@ CREATE TRIGGER tenders_requirement_change_append_only
     FOR EACH ROW EXECUTE FUNCTION tenders_reject_change();
 
 
-CREATE FUNCTION tenders_in_validated_version(row_data jsonb, link text) RETURNS boolean
+CREATE FUNCTION tenders_row_version_status(row_data jsonb, link text) RETURNS text
 LANGUAGE sql STABLE AS $$
-    SELECT EXISTS (
-        SELECT 1
-        FROM tenders_matrix_version v
-        WHERE v.status = 'validated'
-          AND v.id = CASE
-              WHEN link = 'version_id' THEN (row_data->>'version_id')::bigint
-              ELSE (
-                  SELECT r.version_id FROM tenders_requirement r
-                  WHERE r.id = (row_data->>'requirement_id')::bigint
-              )
-          END
-    )
+    SELECT v.status
+    FROM tenders_matrix_version v
+    WHERE v.id = CASE
+        WHEN link = 'version_id' THEN (row_data->>'version_id')::bigint
+        ELSE (
+            SELECT r.version_id FROM tenders_requirement r
+            WHERE r.id = (row_data->>'requirement_id')::bigint
+        )
+    END
 $$;
 
 CREATE FUNCTION tenders_reject_validated_change() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
-    IF tenders_in_validated_version(to_jsonb(OLD), TG_ARGV[0])
-       OR (TG_OP = 'UPDATE' AND tenders_in_validated_version(to_jsonb(NEW), TG_ARGV[0])) THEN
+    IF tenders_row_version_status(to_jsonb(OLD), TG_ARGV[0]) = 'validated'
+       OR (TG_OP = 'UPDATE'
+           AND tenders_row_version_status(to_jsonb(NEW), TG_ARGV[0]) = 'validated') THEN
         RAISE EXCEPTION 'Una versión validada de la matriz no cambia (tabla %): para modificarla hay que abrir una versión nueva.', TG_TABLE_NAME;
     END IF;
     IF TG_OP = 'DELETE' THEN
         RETURN OLD;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE FUNCTION tenders_reject_insert_outside_draft() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF tenders_row_version_status(to_jsonb(NEW), TG_ARGV[0]) IS DISTINCT FROM 'draft' THEN
+        RAISE EXCEPTION 'Solo se agregan filas a un borrador de la matriz (tabla %): una versión validada o descartada no cambia.', TG_TABLE_NAME;
     END IF;
     RETURN NEW;
 END;
@@ -85,6 +97,47 @@ CREATE TRIGGER tenders_requirement_source_validated_fixed
 CREATE TRIGGER tenders_consequence_validated_fixed
     BEFORE UPDATE OR DELETE ON tenders_consequence
     FOR EACH ROW EXECUTE FUNCTION tenders_reject_validated_change('requirement_id');
+
+CREATE TRIGGER tenders_requirement_insert_in_draft
+    BEFORE INSERT ON tenders_requirement
+    FOR EACH ROW EXECUTE FUNCTION tenders_reject_insert_outside_draft('version_id');
+
+CREATE TRIGGER tenders_pending_item_insert_in_draft
+    BEFORE INSERT ON tenders_pending_item
+    FOR EACH ROW EXECUTE FUNCTION tenders_reject_insert_outside_draft('version_id');
+
+CREATE TRIGGER tenders_requirement_quote_insert_in_draft
+    BEFORE INSERT ON tenders_requirement_quote
+    FOR EACH ROW EXECUTE FUNCTION tenders_reject_insert_outside_draft('requirement_id');
+
+CREATE TRIGGER tenders_requirement_source_insert_in_draft
+    BEFORE INSERT ON tenders_requirement_source
+    FOR EACH ROW EXECUTE FUNCTION tenders_reject_insert_outside_draft('requirement_id');
+
+CREATE TRIGGER tenders_consequence_insert_in_draft
+    BEFORE INSERT ON tenders_consequence
+    FOR EACH ROW EXECUTE FUNCTION tenders_reject_insert_outside_draft('requirement_id');
+
+-- La fila de la versión: solo un borrador cambia, y un borrador solo sale de ese
+-- estado hacia validada o descartada (quién y cuándo los exigen las restricciones de
+-- la tabla). Una validada o descartada no se modifica ni se borra.
+CREATE FUNCTION tenders_matrix_version_fixed() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF OLD.status <> 'draft' THEN
+        RAISE EXCEPTION 'Una versión % de la matriz no cambia: para modificarla hay que abrir una versión nueva.',
+            CASE OLD.status WHEN 'validated' THEN 'validada' ELSE 'descartada' END;
+    END IF;
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER tenders_matrix_version_fixed
+    BEFORE UPDATE OR DELETE ON tenders_matrix_version
+    FOR EACH ROW EXECUTE FUNCTION tenders_matrix_version_fixed();
 
 
 CREATE FUNCTION tenders_quote_count(requirement bigint) RETURNS bigint
@@ -167,13 +220,23 @@ DROP FUNCTION tenders_reject_second_quote();
 DROP FUNCTION tenders_is_single_quote(bigint);
 DROP FUNCTION tenders_quote_count(bigint);
 
+DROP TRIGGER tenders_matrix_version_fixed ON tenders_matrix_version;
+DROP FUNCTION tenders_matrix_version_fixed();
+
+DROP TRIGGER tenders_consequence_insert_in_draft ON tenders_consequence;
+DROP TRIGGER tenders_requirement_source_insert_in_draft ON tenders_requirement_source;
+DROP TRIGGER tenders_requirement_quote_insert_in_draft ON tenders_requirement_quote;
+DROP TRIGGER tenders_pending_item_insert_in_draft ON tenders_pending_item;
+DROP TRIGGER tenders_requirement_insert_in_draft ON tenders_requirement;
+DROP FUNCTION tenders_reject_insert_outside_draft();
+
 DROP TRIGGER tenders_consequence_validated_fixed ON tenders_consequence;
 DROP TRIGGER tenders_requirement_source_validated_fixed ON tenders_requirement_source;
 DROP TRIGGER tenders_requirement_quote_validated_fixed ON tenders_requirement_quote;
 DROP TRIGGER tenders_pending_item_validated_fixed ON tenders_pending_item;
 DROP TRIGGER tenders_requirement_validated_fixed ON tenders_requirement;
 DROP FUNCTION tenders_reject_validated_change();
-DROP FUNCTION tenders_in_validated_version(jsonb, text);
+DROP FUNCTION tenders_row_version_status(jsonb, text);
 
 DROP TRIGGER tenders_requirement_change_append_only ON tenders_requirement_change;
 DROP TRIGGER tenders_run_step_append_only ON tenders_run_step;
