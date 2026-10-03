@@ -7,6 +7,8 @@
   cualquier estado. Son fábricas componibles: cada una recibe lo que arma la anterior y
   acepta cualquier campo del modelo para pisar los valores por omisión. `two_regimes`
   arma con ellas los dos regímenes de prueba de REQ-020.
+- Dobles de los tres clientes de IA (T-011): `fake_generation`, `fake_embeddings`,
+  `fake_reranker` y los tres juntos en `fake_ai`. Sin red ni GPU.
 
 Todos los textos son sintéticos (P4). Las fábricas no crean versiones de la normativa:
 si una prueba las necesita, usa `record(..., creates_corpus_version=True)`.
@@ -14,10 +16,20 @@ si una prueba las necesita, usa `record(..., creates_corpus_version=True)`.
 
 import hashlib
 import itertools
+import json
 from datetime import date
 from types import SimpleNamespace
 
 import pytest
+
+from evaluon.ai import (
+    InputTooLongError,
+    ServiceTimeoutError,
+    ServiceUnavailableError,
+)
+from evaluon.ai import embeddings as embeddings_client
+from evaluon.ai import generation as generation_client
+from evaluon.ai import reranker as reranker_client
 
 # Clave sintética de 15 caracteres o más, el mínimo de la feature (plan 001, ADR-0005).
 TEST_PASSWORD = "clave-sintetica-de-prueba"
@@ -375,4 +387,238 @@ def two_regimes(make_norm, make_document, make_reading, make_relation):
         before_all=date(2001, 1, 10),
         before_v=date(2021, 3, 15),
         after_v=date(2024, 5, 20),
+    )
+
+
+# --- Dobles de los clientes de IA (T-011) --------------------------------------------
+#
+# Reemplazan las funciones de `evaluon/ai/` durante la prueba (por eso el código llama
+# siempre `generation.generate(...)`, importando el módulo). Responden sin red ni GPU, con
+# la misma forma que los clientes reales, y guardan en `calls` lo que recibieron. Cada
+# uno tiene modos de falla que lanzan los errores propios de `evaluon.ai`. Los textos
+# son sintéticos (P4).
+
+
+def count_words(text):
+    """Cuenta fija de los dobles: una palabra, un token."""
+    return len(text.split())
+
+
+def _statement_properties(schema):
+    try:
+        return schema["properties"]["statements"]["items"]["properties"]
+    except (KeyError, TypeError):
+        return {}
+
+
+def _schema_aliases(schema):
+    """Alias que el esquema de la consulta permite citar, o `["U1"]` si no los trae."""
+    try:
+        aliases = _statement_properties(schema)["citations"]["items"]["enum"]
+    except (KeyError, TypeError):
+        return ["U1"]
+    return list(aliases) or ["U1"]
+
+
+class FakeGeneration:
+    """Doble del cliente de generación.
+
+    Por omisión responde `grounded` con una afirmación sintética que cita el primer alias
+    que permite el esquema (y `regimes_differ` falso si el esquema lo tiene). Modos:
+
+    - `answer(statements)`: `grounded` con esas afirmaciones, tal cual.
+    - `abstain()`: `undetermined` sin afirmaciones.
+    - `invalid_output(content=...)`: una salida cortada que no es JSON (`finish_reason`
+      `length`).
+    - `respond(content)`: cualquier texto como salida sin tocar.
+    - `timeout()`, `input_too_long()`, `unavailable()`: lanzan el error propio (la
+      demora agotada, el rechazo por entrada demasiado larga, el servicio caído).
+
+    `calls` guarda `(messages, schema)` de cada pedido. El resultado es un
+    `GenerationResult` con el mismo `request` que armaría el cliente real.
+    """
+
+    def __init__(self):
+        self.calls = []
+        self._mode = ("default", None)
+
+    def answer(self, statements):
+        output = {"status": "grounded", "statements": statements}
+        self._mode = ("content", json.dumps(output, ensure_ascii=False))
+
+    def abstain(self):
+        self._mode = ("content", json.dumps({"status": "undetermined", "statements": []}))
+
+    def invalid_output(self, content='{"status": "grounded", "statements": [{"text": "La'):
+        self._mode = ("cut", content)
+
+    def respond(self, content):
+        self._mode = ("content", content)
+
+    def timeout(self):
+        self._mode = ("raise", ServiceTimeoutError)
+
+    def input_too_long(self):
+        self._mode = ("raise", InputTooLongError)
+
+    def unavailable(self):
+        self._mode = ("raise", ServiceUnavailableError)
+
+    def generate(self, messages, schema):
+        self.calls.append((messages, schema))
+        kind, value = self._mode
+        if kind == "raise":
+            raise value("generation: falla simulada por el doble", service="generation")
+        finish_reason = "stop"
+        if kind == "default":
+            statement = {"text": "Afirmación sintética del doble.",
+                         "citations": _schema_aliases(schema)[:1]}
+            if "regimes_differ" in _statement_properties(schema):
+                statement["regimes_differ"] = False
+            content = json.dumps({"status": "grounded", "statements": [statement]},
+                                 ensure_ascii=False)
+        elif kind == "cut":
+            content, finish_reason = value, "length"
+        else:
+            content = value
+        request = generation_client.build_request(messages, schema)
+        prompt_tokens = sum(count_words(str(m.get("content", ""))) for m in messages)
+        completion_tokens = count_words(content)
+        response = {
+            "choices": [{"index": 0, "finish_reason": finish_reason,
+                         "message": {"role": "assistant", "content": content}}],
+            "model": request["model"],
+            "usage": {"prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,
+                      "total_tokens": prompt_tokens + completion_tokens},
+        }
+        return generation_client.GenerationResult(
+            content=content, finish_reason=finish_reason, prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens, request=request, response=response,
+        )
+
+    def count_tokens(self, text):
+        return count_words(text)
+
+
+class _FailureModes:
+    """Modos de falla comunes de los dobles de embeddings y reranker."""
+
+    service = ""
+
+    def timeout(self):
+        self._error = ServiceTimeoutError
+
+    def input_too_long(self):
+        self._error = InputTooLongError
+
+    def unavailable(self):
+        self._error = ServiceUnavailableError
+
+    def working(self):
+        self._error = None
+
+    def _fail_if_set(self):
+        if self._error:
+            raise self._error(f"{self.service}: falla simulada por el doble",
+                              service=self.service)
+
+
+class FakeEmbeddings(_FailureModes):
+    """Doble del cliente de embeddings.
+
+    Da vectores fijos de 1024 dimensiones: el de un texto anotado en `vectors[texto]`, o
+    si no, `unit_vector` en una posición que sale de la huella del texto (el mismo texto
+    da siempre el mismo vector). Modos de falla: `timeout()`, `input_too_long()`,
+    `unavailable()`; `working()` vuelve a responder. `calls` guarda la lista de textos de
+    cada pedido.
+    """
+
+    service = "embeddings"
+
+    def __init__(self):
+        self.calls = []
+        self.vectors = {}
+        self._error = None
+
+    def vector_for(self, text):
+        if text in self.vectors:
+            return list(self.vectors[text])
+        return unit_vector(int(sha256_hex(text)[:8], 16))
+
+    def embed(self, texts):
+        texts = list(texts)
+        if not texts:
+            return []
+        self.calls.append(texts)
+        self._fail_if_set()
+        return [self.vector_for(text) for text in texts]
+
+    def count_tokens(self, text):
+        return count_words(text)
+
+
+class FakeReranker(_FailureModes):
+    """Doble del cliente del reranker.
+
+    Puntajes configurables entre 0 y 1, en el orden de los textos: cada texto recibe el
+    mayor de `scores[marca]` entre las marcas que contiene, o `default` (0,0 de inicio) si
+    no contiene ninguna. Modos de falla: `timeout()`, `input_too_long()`,
+    `unavailable()`; `working()` vuelve a responder. `calls` guarda `(pregunta, textos)`.
+    """
+
+    service = "reranker"
+
+    def __init__(self):
+        self.calls = []
+        self.scores = {}
+        self.default = 0.0
+        self._error = None
+
+    def score_for(self, document):
+        matches = [score for mark, score in self.scores.items() if mark in document]
+        return max(matches) if matches else self.default
+
+    def rerank(self, query, documents):
+        documents = list(documents)
+        if not documents:
+            return []
+        self.calls.append((query, documents))
+        self._fail_if_set()
+        return [self.score_for(document) for document in documents]
+
+
+@pytest.fixture
+def fake_generation(monkeypatch):
+    """Doble del cliente de generación (`evaluon.ai.generation`): reemplaza `generate` y
+    `count_tokens`. Ver `FakeGeneration`."""
+    double = FakeGeneration()
+    monkeypatch.setattr(generation_client, "generate", double.generate)
+    monkeypatch.setattr(generation_client, "count_tokens", double.count_tokens)
+    return double
+
+
+@pytest.fixture
+def fake_embeddings(monkeypatch):
+    """Doble del cliente de embeddings (`evaluon.ai.embeddings`): reemplaza `embed` y
+    `count_tokens`. Ver `FakeEmbeddings`."""
+    double = FakeEmbeddings()
+    monkeypatch.setattr(embeddings_client, "embed", double.embed)
+    monkeypatch.setattr(embeddings_client, "count_tokens", double.count_tokens)
+    return double
+
+
+@pytest.fixture
+def fake_reranker(monkeypatch):
+    """Doble del cliente del reranker (`evaluon.ai.reranker`): reemplaza `rerank`. Ver
+    `FakeReranker`."""
+    double = FakeReranker()
+    monkeypatch.setattr(reranker_client, "rerank", double.rerank)
+    return double
+
+
+@pytest.fixture
+def fake_ai(fake_generation, fake_embeddings, fake_reranker):
+    """Los tres dobles a la vez, en `.generation`, `.embeddings` y `.reranker`."""
+    return SimpleNamespace(
+        generation=fake_generation, embeddings=fake_embeddings, reranker=fake_reranker
     )

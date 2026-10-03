@@ -34,6 +34,11 @@ def env_bool(name, default):
     raise ImproperlyConfigured(f"La variable de entorno {name} tiene que ser true o false.")
 
 
+def env_str(name, default):
+    """Valor de la variable de entorno, o `default` si falta o está vacía."""
+    return os.environ.get(name) or default
+
+
 def env_list(name, default):
     value = os.environ.get(name, default)
     return [item.strip() for item in value.split(",") if item.strip()]
@@ -157,3 +162,81 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "evaluon" / "static"]
 STATIC_ROOT = Path(os.environ.get("DJANGO_STATIC_ROOT", BASE_DIR / "staticfiles"))
+
+# --- Servicios de IA (T-011; plan 001, "Servicios"; ADR-0002 y ADR-0003) --------------
+# Los tres son `llama-server` en la red interna (docker-compose.yml), puerto 8080. Los
+# clientes de evaluon/ai/ leen estos valores en cada llamada. Los modelos se registran
+# con su nombre, su archivo y su huella (P6); las huellas son las de
+# scripts/models.sha256, que verifica scripts/fetch_models.sh. Las variables de entorno
+# de modelos son las mismas que usa docker-compose.yml para arrancar cada servidor; hoy
+# docker-compose.yml no se las pasa a `app`, que usa entonces los valores por defecto.
+
+GENERATION_URL = env_str("GENERATION_URL", "http://generation:8080")
+EMBEDDINGS_URL = env_str("EMBEDDINGS_URL", "http://embeddings:8080")
+RERANKER_URL = env_str("RERANKER_URL", "http://reranker:8080")
+
+# Espera máxima de cada pedido; agotada, la consulta es una falla técnica con motivo
+# `timeout` (plan 001, "Abstención").
+AI_TIMEOUT_SECONDS = 60
+
+# Compilación de llama.cpp de los tres servicios; tiene que coincidir con la etiqueta de
+# la imagen en docker-compose.yml (entorno.md, T-002, sección 1).
+GENERATION_ENGINE_BUILD = "b11347"
+
+GENERATION_MODEL = env_str("GENERATION_MODEL_ALIAS", "gemma-4-12b-it-qat-q4_0")
+GENERATION_MODEL_FILE = env_str("GENERATION_MODEL_FILE", "gemma-4-12b-it-qat-q4_0.gguf")
+GENERATION_MODEL_SHA256 = env_str(
+    "GENERATION_MODEL_SHA256",
+    "93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b",
+)
+
+EMBEDDINGS_MODEL = env_str("EMBEDDINGS_MODEL_ALIAS", "bge-m3")
+EMBEDDINGS_MODEL_FILE = env_str("EMBEDDINGS_MODEL_FILE", "bge-m3-FP16.gguf")
+EMBEDDINGS_MODEL_SHA256 = env_str(
+    "EMBEDDINGS_MODEL_SHA256",
+    "daec91ffb5dd0c27411bd71f29932917c49cf529a641d0168496c3a501e3062c",
+)
+# Dimensiones del vector de `bge-m3` (columna `embedding` de `norms_passage`).
+EMBEDDINGS_DIMENSIONS = 1024
+
+RERANKER_MODEL = env_str("RERANKER_MODEL_ALIAS", "bge-reranker-v2-m3")
+RERANKER_MODEL_FILE = env_str("RERANKER_MODEL_FILE", "bge-reranker-v2-m3-FP16.gguf")
+RERANKER_MODEL_SHA256 = env_str(
+    "RERANKER_MODEL_SHA256",
+    "5df93be121c09c43432102ad2b9569d369ccb85c209ca7583e8ccd28f0e41b88",
+)
+
+# --- Parámetros de generación (plan 001, "Generación" y "Conteo de tokens") ----------
+# Contexto del servidor `generation` (--ctx-size en docker-compose.yml).
+GENERATION_CONTEXT_TOKENS = int(env_str("GENERATION_CTX_SIZE", "16384"))
+GENERATION_TEMPERATURE = 0
+# Semilla fija; 42 es la usada en las pruebas de la etapa 0 (entorno.md, T-002).
+GENERATION_SEED = 42
+# Pensamiento apagado. El servidor ya arranca con --reasoning off; además cada pedido lo
+# pide a la plantilla de conversación. `enable_thinking` es la variable de la plantilla
+# de Gemma 4: es propia del modelo y cambia con él (ADR-0002, "Consecuencias").
+GENERATION_THINKING = False
+GENERATION_CHAT_TEMPLATE_KWARGS = {"enable_thinking": GENERATION_THINKING}
+# Máximo de tokens de salida: el del pedido largo con que se midió el tiempo en la etapa
+# 0 (entorno.md, T-002, sección 6). Se descuenta del espacio del contexto.
+GENERATION_MAX_OUTPUT_TOKENS = 800
+# Tope de afirmaciones del esquema de salida.
+GENERATION_MAX_STATEMENTS = 6
+
+# --- Parámetros de búsqueda (plan 001, "Recuperación", "Reordenamiento" y "Conteo de
+# tokens"). Valores iniciales; se copian en el registro de cada consulta y cambiarlos
+# exige correr las evals (P7).
+RETRIEVAL_CANDIDATES_PER_PATH = 30
+# Umbral de abstención sobre el puntaje del reranker, entre 0 y 1 (después de la
+# sigmoide). Provisorio hasta la calibración de T-045: 0,5 es el punto medio de la
+# sigmoide (valor sin escala 0).
+RERANK_THRESHOLD = 0.5
+SELECTION_UNITS_PER_CATEGORY = 3
+SELECTION_CONSIDERANDOS = 2
+# Largo máximo de un pasaje (encabezado más texto), contado con el cliente de embeddings.
+PASSAGE_MAX_TOKENS = 800
+# Una unidad más larga que esto se le muestra al modelo solo por sus pasajes que
+# superaron el umbral; contado con el cliente de generación.
+UNIT_BY_PASSAGES_FROM_TOKENS = 1500
+# Margen por lo que agrega la plantilla de conversación, que /tokenize no ve (medido: 18).
+PROMPT_TEMPLATE_MARGIN_TOKENS = 512
