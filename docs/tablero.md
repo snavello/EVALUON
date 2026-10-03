@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 45 tareas sin terminar.
-- ▶ T-008 · Crear las tablas de normas, lecturas, unidades y pasajes (en curso)
+- ◐ T-008 · Crear las tablas de normas, lecturas, unidades y pasajes (en verificación)
 - ○ T-009 · Crear las funciones de unidades consultables a una fecha (pendiente)
 - ○ T-010 · Crear la tabla del registro detallado de consultas (pendiente)
 - ○ T-011 · Crear los clientes de IA, sus dobles y los parámetros (pendiente)
@@ -126,7 +126,7 @@ flowchart TD
   T005["✓ T-005 · Armar el esqueleto de Django con sus librer…"]:::done
   T006["✓ T-006 · Crear usuarios con rol, ingreso y salida"]:::done
   T007["✓ T-007 · Crear el registro de auditoría y el alta de…"]:::done
-  T008["▶ T-008 · Crear las tablas de normas, lecturas, unida…"]:::active
+  T008["◐ T-008 · Crear las tablas de normas, lecturas, unida…"]:::review
   T009["○ T-009 · Crear las funciones de unidades consultable…"]:::todo
   T010["○ T-010 · Crear la tabla del registro detallado de co…"]:::todo
   T011["○ T-011 · Crear los clientes de IA, sus dobles y los…"]:::todo
