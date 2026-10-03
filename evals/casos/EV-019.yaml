@@ -12,7 +12,7 @@ origen: |
   Los oferentes podrán formular impugnaciones contra el acto de adjudicación, dentro de los cinco (5) días de notificado el mismo. Con cada escrito de impugnación y como condición de admisibilidad deberá haber depositado en efectivo el equivalente al CINCO POR MIL (0,5 ‰) del valor de la oferta presentada por el impugnante, el que le será devuelto al impugnante en caso que la impugnación fuera receptada favorablemente y se perderá esta suma en el caso que ella fuera desestimada.
 unidades:
   - {norma: "Disposición AFIP 297/03", key: anexo-i/art-53}
-datos_clave: ["5 días", "depósito 0,5 ‰ del valor de la oferta"]
+datos_clave: ["5 días", "5 por mil"]
 difieren: false
 pareja: ""
 aviso_modificatorias: true

@@ -14,7 +14,7 @@ origen: |
   j) Si la oferta económica no estuviera firmada por el oferente o su representante legal.
 unidades:
   - {norma: "Disposición AFIP 247/2022", key: anexo/art-55}
-datos_clave: ["no", "desestimación sin subsanación"]
+datos_clave: ["no", "sin posibilidad de subsanación"]
 difieren: false
 pareja: ""
 aviso_modificatorias: false

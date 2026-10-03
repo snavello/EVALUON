@@ -12,7 +12,7 @@ origen: |
   a) De mantenimiento de la oferta: por el CINCO POR CIENTO (5%) del valor total del monto ofertado. En el caso de cotizar con descuentos, alternativas o variantes, la garantía se calculará sobre el mayor monto propuesto. En licitaciones y concursos de etapa múltiple, la garantía de mantenimiento de la oferta será establecida en un monto fijo en el pliego de bases y condiciones particulares. b) De cumplimiento del contrato: por el DIEZ POR CIENTO (10%) del valor total de la orden de compra o de venta o el contrato. c) Contragarantía: por el equivalente de los montos que reciba el contratista como adelanto en aquellas contrataciones en que así se hubiese previsto en el pliego de bases y condiciones particulares.
 unidades:
   - {norma: "Disposición AFIP 247/2022", key: anexo/art-64}
-datos_clave: ["mantenimiento de la oferta 5 %", "cumplimiento del contrato 10 %", "contragarantía"]
+datos_clave: ["5 %", "mantenimiento", "10 %", "cumplimiento", "contragarantía"]
 difieren: false
 pareja: ""
 aviso_modificatorias: false
