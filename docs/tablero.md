@@ -9,19 +9,23 @@ Leyenda: ✓ hecho · ▶ en curso · ◐ en verificación · ○ pendiente · �
 ```mermaid
 flowchart LR
   F001["▶ 001 · Normativa consultable con cita"]:::active
-  F002["○ 002 · Revisión de pliegos"]:::todo
-  F003["○ 003 · Matriz de requisitos"]:::todo
-  F004["○ 004 · Evaluación de ofertas"]:::todo
+  F002["○ 002 · Análisis del pliego borrador"]:::todo
+  F003["○ 003 · Procedimiento, pliego final y…"]:::todo
+  F004["○ 004 · Evaluación asistida de ofertas"]:::todo
   F005["○ 005 · Hojas de compliance"]:::todo
   F006["○ 006 · Salidas de la evaluación"]:::todo
   F007["○ 007 · Acceso por red"]:::todo
+  F008["○ 008 · Ofertas y ficha por oferta"]:::todo
   F001 --> F002
-  F002 --> F003
+  F003 --> F002
+  F001 --> F003
   F003 --> F004
-  F003 --> F005
+  F008 --> F004
+  F005 --> F004
+  F008 --> F005
   F004 --> F006
-  F005 --> F006
   F001 --> F007
+  F003 --> F008
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -32,12 +36,13 @@ flowchart LR
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 23/55 | ████░░░░░░ 42% |
-| 002 · Revisión de pliegos | Observaciones a un pliego contra la normativa, antes de publicarlo | No iniciada | — | — |
-| 003 · Matriz de requisitos | Los requisitos del pliego ordenados en una matriz que la Comisión valida | No iniciada | — | — |
-| 004 · Evaluación de ofertas | Por cada requisito, una propuesta con su cita; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
-| 005 · Hojas de compliance | Carga de las validaciones hechas en sistemas no integrados, por oferta | No iniciada | — | — |
-| 006 · Salidas de la evaluación | Planilla por oferta, cuadro comparativo y borrador de acta | No iniciada | — | — |
+| 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
+| 003 · Procedimiento, pliego final y matriz de cumplimiento | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | No iniciada | — | — |
+| 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
+| 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
+| 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
 | 007 · Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | No iniciada | — | — |
+| 008 · Ofertas y ficha por oferta | La carga de cada oferta en varios documentos (PDF con texto o escaneado) y una ficha por oferta: síntesis de lo ofrecido frente a cada requisito de la matriz, con los documentos y fragmentos que lo respaldan | No iniciada | — | — |
 
 <a id="001"></a>
 

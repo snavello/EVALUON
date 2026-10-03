@@ -910,7 +910,7 @@ Regla para asignar: los bloques marcados "en paralelo" no comparten archivos ent
 
 Tres trabajos de personas corren desde el primer día, en paralelo con todo (Coordinador, responsable e integrante de la Comisión). Las fechas de entrada en vigencia, que eran el cuarto, ya están establecidas (2026-10-02): 2023-01-01 para la Disposición 247/2022, informada por el responsable, y 2003-06-14 para la 297/03. Se escriben al cargar cada documento y al registrar la derogación.
 
-- Completar `corpus/normativa/`. Ya están la Disposición 297/03 y la 247/2022 con su anexo; faltan las modificatorias de la 297/03 y los documentos de las otras categorías.
+- Corpus de la feature: decisión del responsable del 2026-10-03 (ADR-0008), solo la Disposición 297/03 y la 247/2022 con su anexo. Las modificatorias de la 297/03 se registran como sin cargar (REQ-021); los requisitos de categorías (REQ-018, REQ-019) y la partición de dictámenes y recomendaciones se prueban con documentos sintéticos.
 - Redactar y validar las preguntas del conjunto, cada una con su fecha de autorización.
 
 ### Etapa 0 · Comprobación del entorno
@@ -1089,7 +1089,7 @@ Lo que vi en los archivos del corpus, para quien escriba las reglas:
 
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
-| El corpus está incompleto: faltan las modificatorias de la 297/03 y los documentos de las otras categorías | Las reglas para dictámenes y recomendaciones y las preguntas de REQ-018 y REQ-019 no se pueden escribir contra documentos reales | Pedirlos ya. Las etapas 0 a 3 avanzan con los dos regímenes, que ya están en el corpus |
+| El corpus de la feature se limita a la 297/03 y la 247/2022 (decisión del 2026-10-03) | Las reglas para dictámenes y recomendaciones y las preguntas de REQ-018 y REQ-019 no se escriben contra documentos reales | Se prueban con documentos sintéticos; las evals de esos requisitos quedan con casos sintéticos hasta que se cargue material real |
 | La fecha de entrada en vigencia de la 247/2022 se registra mal, o distinta en alguno de sus tres lugares | Consultas respondidas con el régimen equivocado, o días sin régimen o con dos | La escribe el responsable de normativa, no el sistema. La pantalla muestra siempre qué régimen aplicó, y nombra los dos o ninguno si eso encuentra. La carga del corpus consulta el día anterior y el día de entrada en vigencia. Cada registro queda con su usuario |
 | Se responde con el texto de 2003 de la 297/03 un punto que una modificatoria sin cargar cambió | Respuesta desactualizada para procedimientos anteriores a la 247/2022 | Aviso con la cantidad de modificatorias sin cargar en toda respuesta o búsqueda que muestre la 297/03 (REQ-021). La profundidad con que se cargan la decide el responsable (ADR-0006) |
 | El aviso deja de contar una modificatoria cuando se registra su primera relación, aunque traiga más cambios | Por un rato el aviso muestra una menos de las que faltan registrar | La persona registra todas las relaciones de una modificatoria en la misma sesión; cada relación queda en el registro. Si se quiere un cierre expreso por modificatoria, es un requisito nuevo |
