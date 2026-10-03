@@ -82,6 +82,22 @@ def test_norm_name_has_no_rules_of_its_own(make_norm):
 
 
 @pytest.mark.django_db
+def test_test_passages_have_the_same_header_as_real_ones(two_regimes):
+    """REQ-005, REQ-020: los pasajes de los datos de prueba llevan el encabezado que
+    arma la validación, que empieza con el nombre de cita de cada régimen."""
+    old_unit = two_regimes.old_units["anexo-i/art-1"]
+    new_unit = two_regimes.new_units["anexo/art-1"]
+
+    old_header = old_unit.passages.get().header
+    new_header = new_unit.passages.get().header
+
+    assert old_header == indexing.passage_header(two_regimes.old, old_unit)
+    assert old_header.startswith("Disposición AFIP 297/03, ")
+    assert new_header == indexing.passage_header(two_regimes.new, new_unit)
+    assert new_header.startswith("Disposición AFIP 247/2022, ")
+
+
+@pytest.mark.django_db
 def test_one_passage_per_base_unit_and_none_for_incisos(
     make_norm, make_document, make_reading
 ):
