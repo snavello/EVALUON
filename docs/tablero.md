@@ -31,7 +31,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 14/54 | ███░░░░░░░ 26% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 15/54 | ███░░░░░░░ 28% |
 | 002 · Revisión de pliegos | Observaciones a un pliego contra la normativa, antes de publicarlo | No iniciada | — | — |
 | 003 · Matriz de requisitos | Los requisitos del pliego ordenados en una matriz que la Comisión valida | No iniciada | — | — |
 | 004 · Evaluación de ofertas | Por cada requisito, una propuesta con su cita; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -57,11 +57,10 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 40 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 39 tareas sin terminar.
 - ○ T-013 · Partir en artículos y armar el informe mínimo (pendiente)
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
 - ○ T-015 · Validar una lectura y calcular pasajes y vectores (pendiente)
-- ○ T-017 · Recuperar por significado y reordenar con el reranker (pendiente)
 - ○ T-018 · Generar la respuesta con esquema e insertar las citas (pendiente)
 - ○ T-019 · Unir la consulta de punta a punta con su registro (pendiente)
 - ○ T-020 · Probar el hilo mínimo con los servicios reales (pendiente)
@@ -115,6 +114,7 @@ flowchart LR
 - ✓ T-011 · Crear los clientes de IA, sus dobles y los parámetros (`fb2f640` 2026-10-02)
 - ✓ T-012 · Leer un PDF con texto (`977f834` 2026-10-02, `ef7d903` 2026-10-02)
 - ✓ T-016 · Armar la pantalla de consulta con sus tres bloques (`ceff61d` 2026-10-03, `bb49b8c` 2026-10-03)
+- ✓ T-017 · Recuperar por significado y reordenar con el reranker
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 
 ### Mapa de tareas
@@ -137,7 +137,7 @@ flowchart TD
   T014["○ T-014 · Cargar una norma, listarla y ver su informe"]:::todo
   T015["○ T-015 · Validar una lectura y calcular pasajes y ve…"]:::todo
   T016["✓ T-016 · Armar la pantalla de consulta con sus tres…"]:::done
-  T017["○ T-017 · Recuperar por significado y reordenar con e…"]:::todo
+  T017["✓ T-017 · Recuperar por significado y reordenar con e…"]:::done
   T018["○ T-018 · Generar la respuesta con esquema e insertar…"]:::todo
   T019["○ T-019 · Unir la consulta de punta a punta con su re…"]:::todo
   T020["○ T-020 · Probar el hilo mínimo con los servicios rea…"]:::todo
