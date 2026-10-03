@@ -168,7 +168,10 @@ def test_load_stores_pending_reading_with_canonical_text_and_report(read_write_u
 def test_load_as_annex_stores_units_under_the_annex_root(read_write_user):
     """REQ-020, REQ-004: cargado el extracto como parte `anexo`, las unidades cuelgan de
     la unidad raíz `anexo` y sus claves son `anexo/art-N`; cada una guarda el texto
-    literal de su tramo del texto canónico."""
+    literal de su tramo del texto canónico.
+
+    Ajuste de T-023: además de los artículos, que cuelgan de la raíz, ahora se guardan
+    los incisos, que cuelgan de su artículo o de su inciso (`anexo/art-3/inc-a`)."""
     expected = split_document(read_document(EXTRACT_BYTES), part="anexo")
 
     load(read_write_user)
@@ -178,10 +181,19 @@ def test_load_as_annex_stores_units_under_the_annex_root(read_write_user):
     assert [u.key for u in units] == [u.key for u in expected.units]
     root = units[0]
     assert (root.key, root.unit_type, root.parent) == ("anexo", "anexo", None)
-    articles = units[1:]
-    assert articles and all(u.key.startswith("anexo/art-") for u in articles)
-    assert all(u.parent == root for u in articles)
+    assert all(u.key.startswith("anexo/art-") for u in units[1:])
+    articles = [u for u in units if u.unit_type == "articulo"]
+    assert articles and all(u.parent == root for u in articles)
     assert "anexo/art-1" in {u.key for u in articles}
+    incisos = [u for u in units if u.unit_type == "inciso"]
+    assert incisos
+    assert {u.unit_type for u in units[1:]} == {"articulo", "inciso"}
+    for inciso in incisos:
+        assert inciso.parent is not None
+        assert inciso.parent.key == inciso.key.rsplit("/", 1)[0]
+        assert inciso.parent.unit_type in ("articulo", "inciso")
+        assert inciso.parent.char_start <= inciso.char_start <= inciso.char_end <= inciso.parent.char_end
+    assert {u.key: u for u in units}["anexo/art-3/inc-a"].parent.key == "anexo/art-3"
     for unit, draft in zip(units, expected.units, strict=True):
         assert unit.text == reading.canonical_text[unit.char_start:unit.char_end]
         assert (unit.unit_type, unit.number, unit.label, unit.path, unit.order,

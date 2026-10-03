@@ -530,6 +530,12 @@ Entrada: la pregunta y la fecha de autorización. Los tres caminos leen de `cons
 
 Se unen sin repetir (unos 65 pasajes como mucho). No hay fórmula de fusión: el orden lo pone el reranker.
 
+Aclaraciones al implementar T-032 (decisión del Coordinador, 2026-10-03):
+
+- Una norma nombrada sin artículo no trae unidades por este camino: traer la norma entera superaría el tope de unos 65 pasajes. La norma nombrada filtra los artículos nombrados (por número y año; el año de dos cifras se compara con los dos últimos dígitos; el tipo de norma no filtra). Si se nombran varias normas y varios artículos, se combinan todos con todos.
+- "Artículo N" sin norma trae el artículo N de todo lo consultable y no derogado a la fecha, no solo del régimen aplicado.
+- Sin reranker (configuración "combinada sin reranker" de la comparación quitando piezas) no hay puntajes ni umbral: todas las unidades de la unión pasan, en el orden de la unión. En esa configuración la medida "unidad correcta entre las seleccionadas" coincide con "entre los candidatos".
+
 ### Reordenamiento
 
 1. El reranker puntúa cada pasaje (encabezado más texto) contra la pregunta. `llama-server` devuelve un valor sin escala fija; la aplicación lo lleva a un número entre 0 y 1 con la función sigmoide, que es la conversión que describen los autores del modelo. Ese número es el que se compara con el umbral y el que se registra.
@@ -691,7 +697,7 @@ Lo que `queries/services.py` le entrega a la pantalla y guarda en `queries_query
       "document": 3,
       "page_start": null,
       "changes": [
-        {"relation_type": "modifica", "unit": 6033, "target_key": "anexo-i/art-14/inc-b", "effective_date": "2010-05-01"}
+        {"relation_type": "modifica", "unit": 6033, "target_unit_key": "anexo-i/art-14/inc-b", "effective_date": "2010-05-01"}
       ]
     }
   }
