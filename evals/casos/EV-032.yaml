@@ -7,7 +7,7 @@ regimen: "Disposición AFIP 297/03"
 esperado: "no determinado"
 cita: []
 origen: |
-  Tema de compras que ninguna norma cargada trata ni remite a otra norma: la capacitación del personal que gestiona las contrataciones. Búsqueda por palabras, sin tildes ni mayúsculas, sobre el texto cargado de la Disposición AFIP 297/03 con su Anexo I y de la Disposición AFIP 247/2022 con su anexo (texto canónico de la lectura, 2026-10-03): "capacit", "horas", "entrenamiento", "rota", "personal de compras", "area de compras", "unidad de compras" y "agentes del" no aparecen. "formacion" aparece solo como etapa del contrato ("de la formacion y perfeccionamiento del contrato") e "idone" solo como idoneidad del oferente o medio idóneo.
+  Tema de compras que ninguna norma cargada trata ni remite a otra norma: la capacitación del personal que gestiona las contrataciones. Búsqueda por palabras, sin tildes ni mayúsculas, sobre el texto cargado de la Disposición AFIP 297/03 con su Anexo I y de la Disposición AFIP 247/2022 con su anexo (texto canónico de la lectura, 2026-10-03): "capacit", "horas", "entrenamiento", "rota", "personal de compras", "area de compras", "unidad de compras" y "agentes del" no aparecen. "formacion" aparece solo como etapa del contrato ("de la formacion y perfeccionamiento del contrato") y en "formacion de las decisiones societarias" e "idone" solo como idoneidad del oferente o medio idóneo.
 unidades: []
 datos_clave: []
 difieren: false

@@ -17,7 +17,7 @@ Todos los casos son del lote de ajuste (ninguno lleva el campo `lote`).
 | Sin respuesta, fecha sin régimen (anterior a 2003-06-14) | EV-031 | 1 |
 | **Total** | | **33** |
 
-- Pares (REQ-020): EV-001 y EV-016; EV-003 y EV-017; EV-014 y EV-018.
+- Pares (REQ-020): EV-001 y EV-016; EV-003 y EV-017; EV-014 y EV-018; EV-022 y EV-028 (desde T-064).
 - `aviso_modificatorias` verdadero: los 10 casos con respuesta en la 297/03. Falso: todos los demás.
 - REQ-018 y REQ-019 (categorías y marco nacional): sin casos. No hay documentos de esas categorías en el corpus; quedan pendientes, a cubrir con casos sintéticos cuando se decida. `difieren` es falso en todos.
 
@@ -46,13 +46,13 @@ Todos los casos son del lote de ajuste (ninguno lleva el campo `lote`).
 | EV-019 | Requisitos y plazo para impugnar la adjudicación | 297/03 | 2003-06-14 | 5 días y depósito del "cinco por mil (0,5 ‰)" de la oferta | Anexo I, art. 53 | |
 | EV-020 | Multa por prórroga del plazo de entrega | 297/03 | 2012-09-10 | 1 % cada 7 días corridos o fracción mayor de 3 | Anexo I, art. 58 inc. 10) | |
 | EV-021 | ¿Garantía de oferta en contratación directa? | 297/03 | 2016-03-01 | No | Anexo I, art. 55 inc. 3) d) | |
-| EV-022 | Integración de la Comisión Evaluadora | 297/03 | 2008-11-17 | Mínimo 3 titulares: presidente y 2 vocales, de planta permanente | Anexo I, art. 48 | |
+| EV-022 | Integración de la Comisión Evaluadora | 297/03 | 2008-11-17 | Mínimo 3 titulares: presidente y 2 vocales, de planta permanente | Anexo I, art. 48 | EV-028 |
 | EV-023 | Garantía en orden de compra abierta | 297/03 | 2014-05-26 | Garantía de adjudicación del 10 % sobre máximo × precio unitario | Anexo I, art. 25 inc. 3) b) | |
 | EV-024 | Plazo para observar el acta de evaluación | 297/03 | 2021-07-05 | 3 días; 2 días en privadas y directas | Anexo I, arts. 50 y 21 f) | |
 | EV-025 | Licencia por maternidad de una agente | 247/2022 | 2024-05-02 | No determinado (ajena) | — | |
 | EV-026 | Alícuota general del IVA | 247/2022 | 2023-09-01 | No determinado (ajena) | — | |
 | EV-027 | Monto máximo de la licitación privada | 247/2022 | 2025-06-30 | Remisión: el monto es el que estipula el régimen jurisdiccional vigente (no cargado); sin cifra | Anexo, art. 21 c) | |
-| EV-028 | Integración de la Comisión Evaluadora | 247/2022 | 2024-11-11 | Remisión: integración sujeta a la normativa vigente (no cargada); los integrantes no pueden ser funcionarios con competencia para autorizar o aprobar | Anexo, art. 50 | |
+| EV-028 | Integración de la Comisión Evaluadora | 247/2022 | 2024-11-11 | Remisión: integración sujeta a la normativa vigente (no cargada); los integrantes no pueden ser funcionarios con competencia para autorizar o aprobar | Anexo, art. 50 | EV-022 |
 | EV-029 | Monto máximo de la contratación directa por monto | 297/03 | 2015-10-01 | Remisión: el monto es el que establece el Régimen Jurisdiccional vigente (no cargado); sin cifra | Anexo I, art. 21 inc. 4) punto 9 | |
 | EV-030 | Vencimiento de la DDJJ de ganancias | 297/03 | 2018-04-16 | No determinado (ajena) | — | |
 | EV-031 | Plazo de mantenimiento de oferta | sin régimen | 2003-06-13 | No determinado (`no_regime_at_date`) | — | |
@@ -71,7 +71,7 @@ Todos los casos son del lote de ajuste (ninguno lleva el campo `lote`).
 8. **EV-026, una trampa.** El art. 41 de la 247/2022 menciona el IVA (la AFIP es consumidor final), pero no fija ninguna alícuota. Una respuesta que cite el art. 41 para dar una alícuota es incorrecta.
 9. **EV-004, el valor del módulo.** El esperado se queda en "M 1.000". El valor en pesos del módulo lo fija la máxima autoridad (art. 99) y no está cargado.
 10. **EV-012.** Solo exige el art. 55. El art. 38 remite al 55 para la oferta económica sin firma; si se quiere exigir también, hay que agregarlo a `unidades`.
-11. **EV-031.** Es la misma pregunta que el par EV-001 y EV-016, pero no tiene `pareja`: el plan exige que los dos casos de un par citen normas distintas, y este no cita ninguna. Lo mismo pasaba con EV-022 y EV-028; desde T-064, EV-028 cita la 247/2022 y el par sería posible (ver "Para decidir" en "Remisión a una norma no cargada (ADR-0015)").
+11. **EV-031.** Es la misma pregunta que el par EV-001 y EV-016, pero no tiene `pareja`: el plan exige que los dos casos de un par citen normas distintas, y este no cita ninguna. Lo mismo pasaba con EV-022 y EV-028; desde T-064, EV-028 cita la 247/2022 y el responsable aprobó el par EV-022 / EV-028 (2026-10-03).
 12. **Las claves de `unidades`.** Están a nivel de artículo (`anexo/art-43`, `anexo-i/art-55`), y el inciso va en `cita.ubicacion`. Según el plan, cuando un caso nombra un inciso vale el artículo que lo contiene. No se usaron claves de inciso porque la forma de los puntos numerados dentro de incisos (por ejemplo, art. 33 a) 1.) no está fijada en el plan.
 
 ## Reescritura de datos clave (2026-10-03)
@@ -159,7 +159,7 @@ La medida que vale para aprobar la feature sale del lote de aceptación de T-061
 
 ## Remisión a una norma no cargada (ADR-0015)
 
-**Propuesta de T-064, para el visto bueno del responsable en el pull request.** Aplica el ADR-0015 y REQ-009 enmendado: cuando una norma cargada trata el tema y remite su contenido a otra norma que no está cargada, la respuesta dice lo que establece la norma cargada, con su cita, e indica a qué norma remite, sin dar el contenido de la norma no cargada. EV-027, EV-028 y EV-029 pasan a ser preguntas con respuesta del lote de ajuste. En los tres cambian solo `esperado`, `cita`, `origen`, `unidades`, `datos_clave`, `etiquetas`, `notas` y, en EV-029, `aviso_modificatorias`; `pregunta`, `fecha_autorizacion`, `regimen`, `visto_bueno` y los demás campos quedan como estaban. El `origen` transcribe el texto de la unidad que remite y se comprobó por programa contra el texto extraído de `corpus/normativa/`; coincide con lo que citaba el `origen` anterior.
+**Propuesta de T-064, para el visto bueno del responsable en el pull request.** Aplica el ADR-0015 y REQ-009 enmendado: cuando una norma cargada trata el tema y remite su contenido a otra norma que no está cargada, la respuesta dice lo que establece la norma cargada, con su cita, e indica a qué norma remite, sin dar el contenido de la norma no cargada. EV-027, EV-028 y EV-029 pasan a ser preguntas con respuesta del lote de ajuste. En los tres cambian solo `esperado`, `cita`, `origen`, `unidades`, `datos_clave`, `etiquetas`, `notas` y, en EV-029, `aviso_modificatorias`; `pregunta`, `fecha_autorizacion`, `regimen` y `visto_bueno` quedan como estaban; por el par aprobado, EV-028 y EV-022 suman además `pareja` y la etiqueta "dos fechas". El `origen` transcribe el texto de la unidad que remite y se comprobó por programa contra el texto extraído de `corpus/normativa/`; coincide con lo que citaba el `origen` anterior.
 
 | Caso | Campo | Antes | Después |
 |---|---|---|---|
@@ -200,7 +200,7 @@ No se usó el ejemplo de referencia ("¿Qué plazo tiene la AFIP para pagar una 
 
 ### Para decidir
 
-1. **¿Se vinculan EV-022 y EV-028 como par de REQ-020?** Tienen la misma pregunta, y desde T-064 cada una cita una norma distinta, que es lo que el plan pide para un par. Para vincularlas hay que cambiar el campo `pareja` de los dos casos, y T-064 no toca ese campo. Por eso queda como propuesta.
+1. **¿Se vinculan EV-022 y EV-028 como par de REQ-020?** Tienen la misma pregunta, y desde T-064 cada una cita una norma distinta, que es lo que el plan pide para un par. Para vincularlas hay que cambiar el campo `pareja` de los dos casos, y T-064 no toca ese campo. **Resuelto:** el responsable aprobó el par el 2026-10-03; los dos casos llevan `pareja` y la etiqueta "dos fechas".
 
 | Pregunta | Fecha | Respuesta del sistema (ejemplo) | ¿Sí o no? |
 |---|---|---|---|
