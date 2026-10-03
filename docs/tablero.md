@@ -58,10 +58,10 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 41 tareas sin terminar.
+- ▶ T-016 · Armar la pantalla de consulta con sus tres bloques (en curso)
 - ○ T-013 · Partir en artículos y armar el informe mínimo (pendiente)
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
 - ○ T-015 · Validar una lectura y calcular pasajes y vectores (pendiente)
-- ○ T-016 · Armar la pantalla de consulta con sus tres bloques (pendiente)
 - ○ T-017 · Recuperar por significado y reordenar con el reranker (pendiente)
 - ○ T-018 · Generar la respuesta con esquema e insertar las citas (pendiente)
 - ○ T-019 · Unir la consulta de punta a punta con su registro (pendiente)
@@ -114,8 +114,8 @@ flowchart LR
 - ✓ T-009 · Crear las funciones de unidades consultables a una fecha (`9f1886e` 2026-10-02, `b9ca5d3` 2026-10-02)
 - ✓ T-010 · Crear la tabla del registro detallado de consultas (`cc485fc` 2026-10-02)
 - ✓ T-011 · Crear los clientes de IA, sus dobles y los parámetros (`fb2f640` 2026-10-02)
-- ✓ T-012 · Leer un PDF con texto
-- ✓ T-053 · Conservar la eñe en la búsqueda por palabras
+- ✓ T-012 · Leer un PDF con texto (`977f834` 2026-10-02, `ef7d903` 2026-10-02)
+- ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 
 ### Mapa de tareas
 
@@ -136,7 +136,7 @@ flowchart TD
   T013["○ T-013 · Partir en artículos y armar el informe míni…"]:::todo
   T014["○ T-014 · Cargar una norma, listarla y ver su informe"]:::todo
   T015["○ T-015 · Validar una lectura y calcular pasajes y ve…"]:::todo
-  T016["○ T-016 · Armar la pantalla de consulta con sus tres…"]:::todo
+  T016["▶ T-016 · Armar la pantalla de consulta con sus tres…"]:::active
   T017["○ T-017 · Recuperar por significado y reordenar con e…"]:::todo
   T018["○ T-018 · Generar la respuesta con esquema e insertar…"]:::todo
   T019["○ T-019 · Unir la consulta de punta a punta con su re…"]:::todo
@@ -279,7 +279,7 @@ flowchart TD
 | REQ-011 | El sistema debe avisar cuando se intenta cargar una norma que ya está incorporada. Si es el mismo archivo, no lo incorpora; si es la misma norma en otro archivo o formato, pide confirmación expresa | T-008, T-026 | ▶ en proceso |
 | REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | T-007, T-008, T-010, T-014, T-015, T-019, T-020, T-026, T-038, T-040, T-041, T-048, T-049, T-051, T-052, T-054 | ▶ en proceso |
 | REQ-013 | El sistema debe ofrecer una pantalla de consulta donde una persona escribe su pregunta y ve la respuesta con sus citas; desde cada cita se ve el texto literal de la unidad y se puede abrir la norma original | T-005, T-016, T-019, T-020, T-037, T-047 | ▶ en proceso |
-| REQ-014 | La pantalla de consulta debe distinguir a simple vista una respuesta con fundamento de un resultado "no determinado" | T-016, T-037 | ○ pendiente |
+| REQ-014 | La pantalla de consulta debe distinguir a simple vista una respuesta con fundamento de un resultado "no determinado" | T-016, T-037 | ▶ en proceso |
 | REQ-015 | El sistema debe incorporar normas en tres formatos: PDF con texto, PDF escaneado y página web guardada. Cuando el texto de una unidad se obtuvo por reconocimiento sobre una imagen, debe quedar indicado en la unidad y en el informe de lectura | T-012, T-021, T-022, T-025, T-028, T-037, T-043 | ▶ en proceso |
 | REQ-016 | El sistema debe exigir usuario y clave para ingresar. Cada usuario tiene un rol: lectura, que permite consultar y buscar; o lectura y escritura, que además permite cargar y validar normas y registrar relaciones y versiones | T-005, T-006, T-007, T-038, T-049 | ▶ en proceso |
 | REQ-017 | El sistema debe registrar la categoría de cada documento: régimen específico, otra normativa aplicable, marco nacional, dictamen legal o recomendación de auditoría | T-008, T-014 | ▶ en proceso |
