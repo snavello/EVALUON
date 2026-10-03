@@ -471,7 +471,8 @@ def test_registrar_modificatorias_one_at_a_time(target, read_write_user, typed_p
               numero="12", anio="2004", organismo="AFIP",
               referencia="https://example.org/una", usuario=read_write_user.username)
 
-    assert "Se anotaron 1 modificatorias sin cargar" in out
+    assert "Se anotó 1 modificatoria sin cargar de la Disposición sintética 297/03." in out
+    assert "Queda 1 modificatoria sin cargar de la Disposición sintética 297/03." in out
     entry = PendingAmendment.objects.get()
     assert (entry.norm_type, entry.number, entry.year, entry.issuer) == (
         "disposicion", "12", 2004, "afip"
@@ -567,3 +568,221 @@ def test_listar_normas_shows_the_last_day_of_a_closed_version(
     assert "Vigente desde 01/01/2020 hasta 29/02/2024" in block
     assert "hasta 01/03/2024" not in block
     assert "Vigente desde 01/03/2024\n" in block + "\n"
+
+
+# --- Ajustes de verificación ---------------------------------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("in_use, status", [
+    (False, "validated"),  # lectura validada, documento fuera de uso
+    (True, "pending"),     # documento en uso, lectura sin validar
+])
+def test_validated_reading_and_document_in_use_are_both_needed(
+    target, read_write_user, make_norm, make_document, make_reading, in_use, status
+):
+    """REQ-021: una modificatoria pasa a cargada solo si su norma tiene un documento en
+    uso cuya lectura está validada: no alcanza con la lectura validada de un documento
+    fuera de uso, ni con un documento en uso con la lectura sin validar."""
+    register_file(read_write_user, target)
+    source = make_norm(norm_type="disposicion", number="9101", year=2005, issuer="afip")
+    document = make_document(source, in_use=in_use,
+                             version_number=1 if in_use else None)
+    make_reading(document, [("art-1", "ARTICULO 1.- Modificación sintética.")],
+                 status=status, passages=status == "validated")
+
+    result = relate(read_write_user, source, target)
+
+    assert result.loaded_amendments == []
+    assert amendments.pending_count(target) == 3
+
+
+@pytest.mark.django_db
+def test_load_then_relation_then_validation_leaves_it_loaded(
+    target, read_write_user, loaded_norm, fake_embeddings
+):
+    """REQ-021, REQ-012: en el orden carga, relación y validación, la modificatoria
+    queda cargada al validar la lectura de su norma: la cuenta baja en ese momento y el
+    hecho `validation` registra cuál quedó cargada y con qué norma."""
+    from evaluon.norms.models import Reading
+    from evaluon.norms.services import validation
+
+    register_file(read_write_user, target)
+    source = loaded_norm("disposicion", "9101", 2005, validated=False)
+    relate(read_write_user, source, target)
+    assert amendments.pending_count(target) == 3
+
+    reading = Reading.objects.get(document__norm=source)
+    validation.validate_reading(read_write_user, reading.pk)
+
+    assert amendments.pending_count(target) == 2
+    entry = PendingAmendment.objects.get(number="9101")
+    assert entry.loaded_norm == source
+    event = AuditEvent.objects.filter(event_type="validation").latest("pk")
+    assert (event.outcome, event.user) == ("ok", read_write_user)
+    assert event.detail["amendments_loaded"] == [{
+        "id": entry.pk, "norm_type": "disposicion", "number": "9101", "year": 2005,
+        "issuer": "afip", "loaded_norm": source.pk,
+    }]
+
+
+@pytest.mark.django_db
+def test_validation_of_a_norm_not_noted_loads_nothing(
+    target, read_write_user, loaded_norm, fake_embeddings
+):
+    """REQ-021: validar una norma que no figura entre las anotadas no cambia la cuenta y
+    el hecho `validation` lo registra vacío."""
+    from evaluon.norms.models import Reading
+    from evaluon.norms.services import validation
+
+    register_file(read_write_user, target)
+    other = loaded_norm("disposicion", "9999", 2005, validated=False)
+    relate(read_write_user, other, target)
+
+    validation.validate_reading(
+        read_write_user, Reading.objects.get(document__norm=other).pk
+    )
+
+    assert amendments.pending_count(target) == 3
+    event = AuditEvent.objects.filter(event_type="validation").latest("pk")
+    assert event.detail["amendments_loaded"] == []
+
+
+@pytest.mark.django_db
+def test_read_user_cannot_register_one_at_a_time(target, read_user):
+    """REQ-016, REQ-021: un usuario de lectura tampoco puede anotar una sola
+    modificatoria."""
+    with pytest.raises(RoleRejected):
+        amendments.register_amendments(read_user, target_norm=target.pk, amendments=[
+            {"norm_type": "Disposición", "number": "12", "year": 2004, "issuer": "AFIP",
+             "source_ref": "https://example.org/una"},
+        ])
+    assert PendingAmendment.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_row_repeated_in_the_same_file_is_reported_as_repeated(
+    target, read_write_user, tmp_path, typed_password
+):
+    """REQ-021: un renglón repetido dentro del mismo archivo se anota una sola vez y se
+    informa como repetido en el archivo, no como ya anotado; si trae otra referencia,
+    el mensaje lo dice."""
+    typed_password()
+    path = tmp_path / "repetidas.csv"
+    path.write_text(
+        "tipo,numero,anio,organismo,referencia\n"
+        "Disposición,8001,2011,AFIP,https://example.org/s-8001\n"
+        "Disposición,8002,2012,AFIP,https://example.org/s-8002\n"
+        "DISPOSICION,8001,2011,afip,https://example.org/s-8001-otra\n",
+        encoding="utf-8",
+    )
+
+    out = run("registrar_modificatorias", alcanzada=target.pk, archivo=str(path),
+              usuario=read_write_user.username)
+
+    assert PendingAmendment.objects.filter(target_norm=target).count() == 2
+    assert "Ya estaban anotadas: 0." in out
+    assert "Repetidas en el archivo: 1." in out
+    assert ("disposicion 8001/2011 · organismo: afip: repetida en el archivo (renglones "
+            "2 y 4), con otra referencia: https://example.org/s-8001-otra; se conserva "
+            "la del renglón 2") in out
+    event = AuditEvent.objects.get(event_type="pending_amendment")
+    assert event.detail["already"] == []
+    assert event.detail["repeated"] == [{
+        "norm_type": "disposicion", "number": "8001", "year": 2011, "issuer": "afip",
+        "source_ref": "https://example.org/s-8001-otra", "line": 4, "first_line": 2,
+        "different_ref": True,
+    }]
+
+
+@pytest.mark.django_db
+def test_semicolon_separated_file_is_accepted(target, read_write_user, tmp_path):
+    """REQ-021: un CSV separado por punto y coma, como lo guarda una planilla en
+    español, se lee igual que uno separado por comas."""
+    path = tmp_path / "punto-y-coma.csv"
+    path.write_text(
+        CSV_PATH.read_text(encoding="utf-8").replace(",", ";"), encoding="utf-8"
+    )
+
+    result = register_file(read_write_user, target, path)
+
+    assert len(result.added) == 3
+    assert PendingAmendment.objects.get(number="9102").issuer == (
+        "afip - subdireccion general sintetica"
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("year", ["99", "99999", "05"])
+def test_year_must_have_four_digits(target, read_write_user, year):
+    """REQ-021: el año se escribe con cuatro cifras, como pide el mensaje."""
+    with pytest.raises(amendments.InvalidAmendments, match="cuatro cifras"):
+        amendments.register_amendments(read_write_user, target_norm=target.pk, amendments=[
+            {"norm_type": "Disposición", "number": "12", "year": year, "issuer": "AFIP",
+             "source_ref": "https://example.org/una"},
+        ])
+    assert PendingAmendment.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_listing_no_longer_shows_a_loaded_amendment(
+    target, read_write_user, read_user, loaded_norm, typed_password
+):
+    """REQ-021: una modificatoria que quedó cargada deja de aparecer entre las sin
+    cargar del listado, y la cuenta baja."""
+    typed_password()
+    register_file(read_write_user, target)
+    relate(read_write_user, loaded_norm("disposicion", "9101", 2005), target)
+
+    (item,) = [n for n in listing.list_norms(read_user) if n.id == target.pk]
+    assert [p.number for p in item.pending_amendments] == ["9102", "9103"]
+    block = listed_block(read_user, "Disposición sintética 297/03")
+    assert "Modificatorias sin cargar: 2" in block
+    assert "disposicion 9101/2005 · organismo" not in block
+
+
+@pytest.mark.django_db
+def test_registrar_relacion_says_noted_but_not_loaded_and_already_loaded(
+    target, read_write_user, loaded_norm, typed_password
+):
+    """REQ-021: `registrar_relacion` dice cuándo la norma de origen figura entre las
+    anotadas pero no quedó cargada (su lectura no está validada y en uso) y cuándo ya
+    figuraba como cargada por una relación anterior."""
+    typed_password()
+    register_file(read_write_user, target)
+    pending = loaded_norm("disposicion", "9102", 2007, "afip",
+                          validated=False, citation="Disposición sintética 9102/07")
+    done = loaded_norm("disposicion", "9101", 2005, citation="Disposición sintética 9101/05")
+    base = {"alcanzada": target.pk, "fecha": "2023-01-01",
+            "usuario": read_write_user.username}
+
+    out = run("registrar_relacion", tipo="modifica", origen=pending.pk, **base)
+    assert ("La Disposición sintética 9102/07 figura entre las modificatorias sin "
+            "cargar de la Disposición sintética 297/03, pero no quedó cargada: hace "
+            "falta que su lectura esté validada y en uso.") in out
+
+    run("registrar_relacion", tipo="modifica", origen=done.pk, **base)
+    out = run("registrar_relacion", tipo="complementa", origen=done.pk, **base)
+    assert ("La Disposición sintética 9101/05 ya figuraba como modificatoria cargada de "
+            "la Disposición sintética 297/03.") in out
+    assert "Quedan 2 modificatorias sin cargar" in out
+
+
+@pytest.mark.django_db
+def test_a_run_without_changes_does_not_create_a_corpus_version(
+    target, read_write_user, typed_password
+):
+    """REQ-012, REQ-021: repetir la anotación sin cambios deja el hecho
+    `pending_amendment` con la versión vigente y no crea una nueva; el comando lo dice."""
+    typed_password()
+    register_file(read_write_user, target)
+    version = current_corpus_version()
+
+    out = run("registrar_modificatorias", alcanzada=target.pk, archivo=str(CSV_PATH),
+              usuario=read_write_user.username)
+
+    assert current_corpus_version() == version
+    event = AuditEvent.objects.filter(event_type="pending_amendment").latest("pk")
+    assert event.corpus_version == version
+    assert "new_corpus_version" not in event.detail
+    assert f"No cambió nada: la normativa sigue en la versión {version}." in out

@@ -18,7 +18,10 @@
   hay más de una norma candidata o más de una modificatoria anotada con esos tres
   datos. Se llama al final de `register_amendments` y al final de
   `relations.register_relation`, dentro de su transacción y antes del registro del
-  hecho; así el orden en que se hagan las cosas no importa.
+  hecho. `mark_loaded_for_norm` lo aplica al validar una lectura
+  (`validation.validate_reading`), para cada norma alcanzada que tiene anotada a la
+  norma validada; así el orden en que se hagan la carga, la validación, la relación y
+  la anotación no importa.
 - `pending_count` es la cuenta del aviso de REQ-021: cuántas filas de esa norma tienen
   `loaded_norm` vacío. No depende de la fecha consultada.
 
@@ -32,6 +35,7 @@ Los mensajes de los errores son para la persona que anota: en español llano.
 import csv
 import hashlib
 import io
+import re
 from dataclasses import dataclass
 
 from django.db import transaction
@@ -54,6 +58,8 @@ COLUMNS = {
 }
 _FIELDS = {field: column for column, field in COLUMNS.items()}
 _IDENTITY = ("norm_type", "number", "year", "issuer")
+# El año, con cuatro cifras.
+_YEAR = re.compile(r"[1-9][0-9]{3}")
 
 
 class AmendmentsRefused(Exception):
@@ -78,6 +84,10 @@ class AmendmentsResult:
     # Las que ya estaban anotadas, como diccionarios con los datos normalizados y
     # `existing`, el número de la fila que ya estaba.
     already: list
+    # Renglones que repiten una modificatoria de un renglón anterior de la misma lista:
+    # los datos normalizados, `line`, `first_line` y `different_ref` (si la referencia
+    # es otra). No se anotan; vale el primer renglón.
+    repeated: list
     # Filas que quedaron cargadas en el acto.
     loaded: list
     # Cuántas quedan sin cargar de la norma alcanzada.
@@ -175,6 +185,34 @@ def mark_loaded(target_norm):
     return loaded
 
 
+def mark_loaded_for_norm(norm):
+    """Al validar una lectura de `norm` (una norma o su número): busca las modificatorias
+    sin cargar con su mismo tipo, número y año, en cualquier norma alcanzada, y llama a
+    `mark_loaded` para cada norma alcanzada. Devuelve las filas que quedaron cargadas.
+
+    Se llama dentro de la transacción de la validación, con `norm` bloqueada, y antes
+    de `audit.record`. No bloquea las normas alcanzadas: el bloqueo de `norm` alcanza
+    para ordenar la validación con el registro de una relación desde `norm`, que
+    también la bloquea, y así no se invierte el orden de bloqueo de las normas.
+    """
+    if not isinstance(norm, Norm):
+        norm = Norm.objects.get(pk=norm)
+    targets = (
+        PendingAmendment.objects.filter(
+            norm_type=norm.norm_type, number=norm.number, year=norm.year,
+            loaded_norm__isnull=True,
+        )
+        .exclude(target_norm_id=norm.pk)
+        .values_list("target_norm_id", flat=True)
+        .distinct()
+        .order_by("target_norm_id")
+    )
+    loaded = []
+    for target_id in list(targets):
+        loaded.extend(mark_loaded(target_id))
+    return loaded
+
+
 def amendment_detail(entry):
     """Datos de una fila para el registro de auditoría."""
     return {
@@ -204,8 +242,9 @@ def _blank(value):
 
 
 def _clean(rows, first_line):
-    """Comprueba y normaliza la lista. `first_line` es el número de renglón del primer
-    elemento, para los mensajes (en un CSV, 2: el 1 es el encabezado)."""
+    """Comprueba y normaliza la lista. Devuelve pares (renglón, datos). `first_line` es
+    el número de renglón del primer elemento, para los mensajes (en un CSV, 2: el 1 es
+    el encabezado)."""
     if not rows:
         raise InvalidAmendments(
             "No se anotó ninguna modificatoria: la lista no trae ninguna."
@@ -217,23 +256,20 @@ def _clean(rows, first_line):
         if missing:
             problems.append(f"renglón {line}: falta {', '.join(missing)}")
             continue
-        try:
-            year = int(str(row["year"]).strip())
-        except ValueError:
-            year = 0
-        if year <= 0 or year > 9999:
+        year = str(row["year"]).strip()
+        if not _YEAR.fullmatch(year):
             problems.append(
-                f"renglón {line}: el anio ({str(row['year']).strip()}) no es un año "
-                "válido; escríbalo con cuatro cifras"
+                f"renglón {line}: el anio ({year}) no es válido; escríbalo con cuatro "
+                "cifras, por ejemplo 2005"
             )
             continue
-        cleaned.append({
+        cleaned.append((line, {
             "norm_type": normalize_identity(row["norm_type"]),
             "number": normalize_identity(row["number"]),
-            "year": year,
+            "year": int(year),
             "issuer": normalize_identity(row["issuer"]),
             "source_ref": str(row["source_ref"]).strip(),
-        })
+        }))
     if problems:
         raise InvalidAmendments(
             "No se anotó ninguna modificatoria, porque hay renglones incompletos o con "
@@ -253,7 +289,11 @@ def parse_csv(data):
             "No se anotó ninguna modificatoria: el archivo no está en UTF-8. Guárdelo "
             "como CSV UTF-8."
         ) from None
-    reader = csv.DictReader(io.StringIO(text))
+    first = text.split("\n", 1)[0]
+    # Una planilla en español guarda el CSV separado por punto y coma: el separador es
+    # el que aparece más en el encabezado.
+    delimiter = ";" if first.count(";") > first.count(",") else ","
+    reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
     header = [(name or "").strip().lower() for name in (reader.fieldnames or [])]
     missing = [column for column in COLUMNS if column not in header]
     if missing:
@@ -312,17 +352,23 @@ def _register(user, target_norm, rows, first_line, file_info, channel):
             tuple(getattr(entry, name) for name in _IDENTITY): entry.pk
             for entry in PendingAmendment.objects.filter(target_norm=target)
         }
-        added, already = [], []
-        for values in cleaned:
+        added, already, repeated = [], [], []
+        # Primer renglón de la lista con cada modificatoria, y su referencia.
+        seen = {}
+        for line, values in cleaned:
             identity = tuple(values[name] for name in _IDENTITY)
+            if identity in seen:
+                first_line, first_ref = seen[identity]
+                repeated.append({**values, "line": line, "first_line": first_line,
+                                 "different_ref": values["source_ref"] != first_ref})
+                continue
+            seen[identity] = (line, values["source_ref"])
             if identity in existing:
                 already.append({**values, "existing": existing[identity]})
                 continue
-            entry = PendingAmendment.objects.create(
+            added.append(PendingAmendment.objects.create(
                 target_norm=target, registered_by=user, **values
-            )
-            existing[identity] = entry.pk
-            added.append(entry)
+            ))
         loaded = mark_loaded(target)
         pending = pending_count(target)
         # Al final de la transacción: si crea la versión de la normativa, bloquea su
@@ -337,6 +383,7 @@ def _register(user, target_norm, rows, first_line, file_info, channel):
                 "target_citation": target.citation,
                 "added": [amendment_detail(entry) for entry in added],
                 "already": already,
+                "repeated": repeated,
                 "loaded": [loaded_detail(entry) for entry in loaded],
                 "file": file_info,
                 "pending": pending,
@@ -345,8 +392,8 @@ def _register(user, target_norm, rows, first_line, file_info, channel):
         )
 
     return AmendmentsResult(
-        target_norm=target, added=added, already=already, loaded=loaded,
-        pending=pending, corpus_version=event.corpus_version, event=event,
+        target_norm=target, added=added, already=already, repeated=repeated,
+        loaded=loaded, pending=pending, corpus_version=event.corpus_version, event=event,
     )
 
 

@@ -34,6 +34,7 @@ from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType, Outcome
 from evaluon.norms import indexing
 from evaluon.norms.models import Document, Norm, Reading, ReadingStatus, Unit
+from evaluon.norms.services import amendments
 
 # Primer número de versión de cada parte de una norma.
 FIRST_VERSION = 1
@@ -249,6 +250,10 @@ def validate_reading(user, reading_id, *, channel=Channel.COMMAND):
                 document.in_use = True
                 document.save(update_fields=["version_number", "in_use"])
 
+            # Paso a cargada de las modificatorias anotadas de esta norma (T-051,
+            # REQ-021), con la norma bloqueada y antes del registro del hecho.
+            loaded_amendments = amendments.mark_loaded_for_norm(reading.document.norm_id)
+
             model, revision = indexing.embedding_model()
             # Al final de la transacción: crea la versión de la normativa y bloquea su
             # tabla hasta que la transacción termina.
@@ -266,6 +271,9 @@ def validate_reading(user, reading_id, *, channel=Channel.COMMAND):
                     "embedding_revision": revision,
                     "in_use": document.in_use,
                     "version_number": document.version_number,
+                    "amendments_loaded": [
+                        amendments.loaded_detail(entry) for entry in loaded_amendments
+                    ],
                 },
                 creates_corpus_version=True,
             )

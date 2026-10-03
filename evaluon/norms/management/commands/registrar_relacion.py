@@ -136,7 +136,11 @@ def _amendments_text(result):
                 f"También quedó cargada la modificatoria {loaded.norm_type} "
                 f"{loaded.number}/{loaded.year} de la {target}."
             )
-    lines.append(
-        f"Quedan {result.pending_amendments} modificatorias sin cargar de la {target}."
-    )
+    if result.pending_amendments == 1:
+        lines.append(f"Queda 1 modificatoria sin cargar de la {target}.")
+    else:
+        lines.append(
+            f"Quedan {result.pending_amendments} modificatorias sin cargar de la "
+            f"{target}."
+        )
     return "\n".join(lines)

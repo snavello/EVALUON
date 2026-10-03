@@ -44,6 +44,27 @@ def _name(entry):
     )
 
 
+def _repeated_text(entry):
+    """Un renglón que repite otro anterior del mismo archivo."""
+    text = (
+        f"{_name(entry)}: repetida en el archivo (renglones {entry['first_line']} y "
+        f"{entry['line']})"
+    )
+    if entry["different_ref"]:
+        text += (
+            f", con otra referencia: {entry['source_ref']}; se conserva la del renglón "
+            f"{entry['first_line']}"
+        )
+    return text
+
+
+def pending_text(pending, citation):
+    """Cuántas quedan sin cargar, en singular o en plural."""
+    if pending == 1:
+        return f"Queda 1 modificatoria sin cargar de la {citation}."
+    return f"Quedan {pending} modificatorias sin cargar de la {citation}."
+
+
 class Command(BaseCommand):
     help = (
         "Anota las modificatorias de una norma que todavía no están cargadas, en lote "
@@ -110,15 +131,21 @@ class Command(BaseCommand):
             raise CommandError(str(error)) from None
 
         citation = result.target_norm.citation
-        lines = [f"Se anotaron {len(result.added)} modificatorias sin cargar de la "
-                 f"{citation}."]
+        added = len(result.added)
+        lines = [
+            f"Se anotó 1 modificatoria sin cargar de la {citation}." if added == 1
+            else f"Se anotaron {added} modificatorias sin cargar de la {citation}."
+        ]
         lines += [f"  - {_name(entry)}" for entry in result.added]
         lines.append(f"Ya estaban anotadas: {len(result.already)}.")
         lines += [f"  - {_name(entry)}: ya estaba anotada" for entry in result.already]
+        if result.repeated:
+            lines.append(f"Repetidas en el archivo: {len(result.repeated)}.")
+            lines += [f"  - {_repeated_text(entry)}" for entry in result.repeated]
         lines.append(f"Quedaron cargadas en el acto: {len(result.loaded)}.")
         lines += [f"  - {_name(entry)}: norma {entry.loaded_norm_id}"
                   for entry in result.loaded]
-        lines.append(f"Quedan {result.pending} modificatorias sin cargar de la {citation}.")
+        lines.append(pending_text(result.pending, citation))
         if result.added or result.loaded:
             lines.append(f"Se creó la versión {result.corpus_version} de la normativa.")
         else:
