@@ -423,3 +423,76 @@ def test_registrar_relacion_reports_refusals(two_norms, read_write_user, read_us
         run("registrar_relacion", **base, usuario=read_user.username)
 
     assert not Relation.objects.exists()
+
+
+# --- Duplicados y normalización (REQ-006) --------------------------------------------
+
+
+@pytest.mark.django_db
+def test_exact_duplicate_is_refused(two_norms, read_write_user):
+    """REQ-006: una relación igual a otra ya registrada (mismo tipo, mismas normas,
+    mismas claves normalizadas y misma fecha) se rechaza con el número de la existente;
+    el rechazo queda registrado con `reason` `duplicate` y no crea versión."""
+    source, target = two_norms["source"], two_norms["target"]
+    first = register(read_write_user, source, target, "modifica",
+                     source_unit_key="art-1", target_unit_key="art-1")
+    versions_before = CorpusVersion.objects.count()
+
+    with pytest.raises(relations.DuplicateRelation,
+                       match=f"relación {first.relation.pk}"):
+        register(read_write_user, source, target, " MODIFICA ",
+                 source_unit_key=" ART-1 ", target_unit_key="Art-1")
+
+    assert Relation.objects.count() == 1
+    assert CorpusVersion.objects.count() == versions_before
+    event = AuditEvent.objects.filter(event_type="relation").latest("id")
+    assert event.outcome == "rejected"
+    assert event.detail["reason"] == "duplicate"
+    assert event.detail["existing_relation"] == first.relation.pk
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("change", [
+    {"effective_date": date(2024, 1, 1)},
+    {"target_unit_key": "art-2"},
+    {"source_unit_key": "art-2"},
+    {"source_unit_key": ""},
+], ids=["otra-fecha", "otra-clave-alcanzada", "otra-clave-origen", "norma-entera"])
+def test_same_relation_with_another_date_or_key_is_accepted(two_norms, read_write_user,
+                                                            change):
+    """REQ-006: la misma relación con otra fecha o con otra clave no es un duplicado."""
+    source, target = two_norms["source"], two_norms["target"]
+    base = {"source_unit_key": "art-1", "target_unit_key": "art-1"}
+    register(read_write_user, source, target, "modifica", **base)
+
+    register(read_write_user, source, target, "modifica", **{**base, **change})
+
+    assert Relation.objects.count() == 2
+
+
+@pytest.mark.django_db
+def test_type_and_keys_are_saved_normalized(two_norms, read_write_user):
+    """REQ-006: el tipo y las claves escritos con mayúsculas y espacios se guardan
+    normalizados, en minúsculas y sin espacios alrededor."""
+    result = register(read_write_user, two_norms["source"], two_norms["target"],
+                      " MODIFICA ", source_unit_key=" ART-1 ",
+                      target_unit_key=" Art-1/Inc-A ")
+
+    relation = Relation.objects.get(pk=result.relation.pk)
+    assert relation.relation_type == "modifica"
+    assert (relation.source_unit_key, relation.target_unit_key) == ("art-1", "art-1/inc-a")
+
+
+@pytest.mark.django_db
+def test_registrar_relacion_normalizes_type_and_keys(two_norms, read_write_user,
+                                                     typed_password):
+    """REQ-006: `registrar_relacion --tipo MODIFICA --unidad-origen " ART-1 "` guarda
+    el tipo y la clave normalizados."""
+    typed_password()
+
+    run("registrar_relacion", tipo="MODIFICA", origen=two_norms["source"].pk,
+        unidad_origen=" ART-1 ", alcanzada=two_norms["target"].pk, fecha="2023-01-01",
+        usuario=read_write_user.username)
+
+    relation = Relation.objects.get()
+    assert (relation.relation_type, relation.source_unit_key) == ("modifica", "art-1")

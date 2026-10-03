@@ -13,10 +13,15 @@ otra, en este orden:
    decir la norma entera.
 4. En una sola transacción: bloquea las dos normas (en orden de identificación, el mismo
    primer paso que la validación, para no cruzarse con ella), vuelve a comprobar las
-   claves, guarda la relación y al final registra el hecho `relation`, que crea la
-   versión nueva de la normativa (`record(..., creates_corpus_version=True)`).
+   claves, rechaza la relación si ya hay una igual (mismo tipo, mismas normas, mismas
+   claves normalizadas y misma fecha), guarda la relación y al final registra el hecho
+   `relation`, que crea la versión nueva de la normativa
+   (`record(..., creates_corpus_version=True)`).
 
-Un rechazo por los datos, por una norma inexistente o por una clave inexistente queda
+El tipo y las claves se guardan normalizados: sin espacios alrededor y en minúsculas.
+
+Un rechazo por los datos, por una norma inexistente, por una clave inexistente o por
+duplicado queda
 registrado como hecho `relation` con resultado `rejected` y el motivo, sin nada guardado
 y sin versión nueva de la normativa.
 
@@ -62,6 +67,17 @@ class UnitKeyNotFound(RelationRefused):
     def __init__(self, message, missing):
         super().__init__(message)
         self.missing = missing
+
+
+class DuplicateRelation(RelationRefused):
+    """Ya hay una relación igual: mismo tipo, mismas normas, mismas claves y misma
+    fecha. `existing` es su número."""
+
+    reason = "duplicate"
+
+    def __init__(self, message, existing):
+        super().__init__(message)
+        self.existing = existing
 
 
 @dataclass(frozen=True)
@@ -149,10 +165,37 @@ def _check_keys(values, source, target):
         )
 
 
+def _check_not_duplicate(values):
+    """Rechaza una relación igual a otra ya registrada. Se llama con las dos normas
+    bloqueadas, así dos registros iguales al mismo tiempo no pasan los dos."""
+    existing = (
+        Relation.objects.filter(
+            relation_type=values["relation_type"],
+            source_norm_id=values["source_norm"],
+            target_norm_id=values["target_norm"],
+            source_unit_key=values["source_unit_key"],
+            target_unit_key=values["target_unit_key"],
+            effective_date=values["effective_date"],
+        )
+        .order_by("pk")
+        .values_list("pk", flat=True)
+        .first()
+    )
+    if existing is not None:
+        raise DuplicateRelation(
+            "No se registró la relación: ya está registrada como relación "
+            f"{existing}, con el mismo tipo, las mismas normas y unidades y la misma "
+            "fecha.",
+            existing,
+        )
+
+
 def _record_refusal(user, channel, values, error):
     detail = {"reason": error.reason, "message": str(error), **_data_detail(values)}
     if isinstance(error, UnitKeyNotFound):
         detail["missing_keys"] = [list(pair) for pair in error.missing]
+    if isinstance(error, DuplicateRelation):
+        detail["existing_relation"] = error.existing
     audit.record(EventType.RELATION, outcome=Outcome.REJECTED, channel=channel,
                  user=user, detail=detail)
 
@@ -194,6 +237,7 @@ def register_relation(user, *, relation_type, source_norm, target_norm, effectiv
             # nuevo con las normas bloqueadas.
             source, target = _get_norms(values, lock=True)
             _check_keys(values, source, target)
+            _check_not_duplicate(values)
             relation = Relation.objects.create(
                 relation_type=values["relation_type"],
                 source_norm=source,
