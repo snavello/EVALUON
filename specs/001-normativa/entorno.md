@@ -1900,3 +1900,68 @@ Si repite la pregunta con la fecha del día, la pantalla nombra los dos regímen
 - el visor abre `disp-afip-247-2022-anexo.pdf` en la página citada;
 - los originales de las dos páginas web no ejecutan scripts ni cargan recursos externos;
 - el campo de fecha se ve y se completa bien.
+
+## T-044 · Relaciones, versiones y modificatorias del corpus real (preparación)
+
+Fecha: 2026-10-03. Requisitos: REQ-006, REQ-007, REQ-020 y REQ-021. El registro lo hace el responsable de normativa con su usuario (`sandro`). El desarrollador comprobó que estuviera todo, preparó el script de registro y el de comprobación, y probó los dos en un proyecto aparte. **Esta sección no registra nada en la base real:** lo registrado se anota cuando el responsable corra el script.
+
+**Comprobación previa sobre la base real (solo lectura, usuario `desarrollo`).** Proyecto `evaluon`, levantado desde la copia principal:
+
+- `listar_normas`: norma 1 = Disposición AFIP 297/03 (documento 1, lectura 4 validada, en uso, versión 1, vigente desde 14/06/2003); norma 2 = Disposición AFIP 247/2022 (cuerpo, documento 2, lectura 5, y anexo, documento 3, lectura 6, las dos validadas, en uso, versión 1, vigentes desde 02/01/2023). "Vínculos: ninguno" y "Modificatorias sin cargar: ninguna" en las dos. No hay relaciones ni modificatorias anotadas.
+- `corpus/normativa/referencias/disp-afip-297-2003-modificatorias.csv` está en el corpus y la aplicación lo ve: 33 renglones, el último la Disposición 247/2022.
+- La lectura en uso del cuerpo de la 247/2022 tiene la unidad `art-2`: "ARTÍCULO 2°.- Abrogar las Disposiciones Nros. 297 (AFIP) del 11 de junio de 2003, 393 (AFIP) del 6 de julio de 2005, 65 (SDG ADF) del 22 de noviembre de 2005 y su modificatoria, 153 (AFIP) del 11 de abril de 2008 y su modificatoria y 231 (AFIP) del 22 de agosto de 2017. …".
+- Fecha: la tarea ya dice 2023-01-02, igual que la vigencia de los dos documentos de la 247/2022. No hubo que corregirla. El ejemplo del docstring de `registrar_relacion` (`evaluon/norms/management/commands/registrar_relacion.py`) todavía dice `--fecha 2023-01-01`: es texto de ayuda del código y no se tocó (queda como observación).
+
+**Tercer paso: lista de las demás relaciones y versiones.** Revisados los tres documentos cargados:
+
+- Relaciones entre normas cargadas: solo la derogación del paso 2. El art. 1 de la 247/2022 aprueba su propio anexo (misma norma, no es relación). Las demás normas que nombran los documentos (Decretos 1.399/01 y 618/97, y las Disposiciones 393/05, 65/05, 153/08 y 231/17 que deroga el art. 2) no están cargadas: no se puede registrar una relación hacia o desde ellas.
+- Versiones: ninguna. Cada documento tiene una sola versión (la 1, en uso) y no hay texto nuevo de ninguno.
+
+Por eso el tercer paso no corre ningún comando. REQ-007 con el corpus real (una norma que modifica un artículo de otra) **queda pendiente**: se comprueba cuando se cargue la primera modificatoria, en la tarea que abra el Coordinador para esa carga.
+
+**Script para el responsable.** `registrar_t044.ps1`, en el scratchpad de la tarea (fuera del repositorio). Se abre en una ventana propia de PowerShell (`Start-Process powershell -ArgumentList '-NoExit','-ExecutionPolicy','Bypass','-File','<ruta>'`), se posiciona en la copia principal y corre, con `docker compose exec app python manage.py … --usuario sandro`:
+
+1. `registrar_modificatorias --alcanzada 1 --archivo corpus/normativa/referencias/disp-afip-297-2003-modificatorias.csv`
+2. `registrar_relacion --tipo deroga --origen 2 --unidad-origen art-2 --alcanzada 1 --fecha 2023-01-02`
+3. (sin comando: muestra que no hay otras relaciones ni versiones)
+4. `listar_normas`
+
+Solo pide la clave en cada comando; ninguno pide confirmación. Si un paso falla, se detiene y pide avisar al Coordinador. Volver a correrlo es seguro hasta el paso 2: el paso 1 informa "Ya estaban anotadas" y no crea versión, y una segunda derogación igual se rechaza por repetida.
+
+**Prueba en un proyecto aparte.** Proyecto `evaluon-t044s` (con el archivo de variables del Coordinador y sin puerto publicado), con la base vacía: `migrate`, usuarios `desarrollo` y `sandro` con una clave de prueba, carga de los tres documentos con los mismos comandos de T-043 (normas 1 y 2 con los mismos números que en la base real) y validación de las tres lecturas con el doble de embeddings. El script, corrido entero sobre esa base, dio:
+
+```
+Se anotaron 33 modificatorias sin cargar de la Disposición AFIP 297/03.
+…
+Quedan 33 modificatorias sin cargar de la Disposición AFIP 297/03.
+Se creó la versión 4 de la normativa.
+Se registró la relación 1: la Disposición AFIP 247/2022 (art-2) deroga a la Disposición AFIP 297/03 (la norma entera), desde el 02/01/2023.
+Se creó la versión 5 de la normativa.
+La Disposición AFIP 247/2022 quedó cargada como modificatoria de la Disposición AFIP 297/03.
+Quedan 32 modificatorias sin cargar de la Disposición AFIP 297/03.
+```
+
+En `listar_normas`, la 247/2022 muestra "Deroga a Disposición AFIP 297/03 (norma 1) · origen: art-2 · alcanza: la norma entera · desde el 02/01/2023 · relación 1" y "Modificatorias sin cargar: ninguna"; la 297/03, "Derogada por Disposición AFIP 247/2022 (norma 2) · … · desde el 02/01/2023 · relación 1" y "Modificatorias sin cargar: 32". Con una clave equivocada el script se detiene en el paso 1 con "Usuario o clave incorrectos." y el aviso de no seguir.
+
+**Comprobación posterior.** `comprobar_t044.py`, en el mismo scratchpad, se corre después del registro, desde la copia principal:
+
+```
+docker compose exec -T app python manage.py shell < comprobar_t044.py
+```
+
+Con el usuario `desarrollo` (canal comando) comprueba lo que pide la Verificación de T-044 e imprime OK o FALLA por punto:
+
+1. La relación `deroga` de la 247/2022 (`art-2`) a la 297/03 entera desde el 2023-01-02, vista desde las dos normas, y ninguna otra relación.
+2. Modificatorias de la 297/03: las 33 del archivo anotadas, 32 sin cargar y la 247/2022 cargada.
+3. `ask` con la pregunta "¿Por cuántos días deben los oferentes mantener sus ofertas?": con 2023-01-01, con fundamento, un solo régimen (la 297/03), citas solo de la 297/03 y aviso de 32 modificatorias sin cargar; con 2023-01-02, un solo régimen (la 247/2022), citas solo de la 247/2022 y sin aviso.
+4. Búsqueda del art. 1 de la 297/03 con la fecha del día: sin la casilla de derogados no muestra ninguna unidad vigente y avisa las derogadas ocultas; con la casilla, cada unidad aparece marcada como derogada por la 247/2022 desde el 2023-01-02, con el aviso de modificatorias; el régimen del día es solo la 247/2022.
+5. Auditoría: los hechos `pending_amendment` y `relation` con resultado `ok` y usuario `sandro`.
+
+Las dos consultas y las dos búsquedas quedan en el registro de consultas y de auditoría, como cualquier consulta. En el proyecto aparte, con los dobles de los tres clientes de IA (variable `T044_DOBLES=1`, solo para esa prueba), dio 25 de 25 comprobaciones OK: la búsqueda devolvió `Artículo 1` y `Anexo I › Título I › Artículo 1`, las dos derogadas por la 247/2022 desde el 2023-01-02. Con los servicios reales, la respuesta y las citas dependen del modelo: lo esperado es el art. 39 del Anexo I de la 297/03 (TREINTA días) con 2023-01-01 y el art. 43 del anexo de la 247/2022 (SESENTA días) con 2023-01-02.
+
+**En la pantalla, después del registro.** La Verificación pide además la prueba en la pantalla: la misma pregunta con 01/01/2023 tiene que mostrar "Régimen aplicado: Disposición AFIP 297/03", citas solo de la 297/03 y el aviso de modificatorias sin cargar; con 02/01/2023, "Régimen aplicado: Disposición AFIP 247/2022", citas solo de la 247/2022 y sin aviso. En la búsqueda, el artículo 1 de la 297/03 con la fecha del día aparece solo marcando la casilla de derogados, y marcado como derogado por la 247/2022.
+
+**Observaciones.**
+
+- El art. 2 de la 247/2022 abroga también las Disposiciones 393/05, 153/08 y 231/17, que figuran en el listado como modificatorias de la 297/03 (la 231/17 como "Disposición E"). Mientras no se carguen siguen contando entre las 32 sin cargar, y el aviso las cuenta en las respuestas que citan la 297/03. Es lo que pide la Verificación ("las del archivo menos la 247/2022"); si el responsable prefiere otro criterio, es una decisión aparte.
+- Las anotaciones del CSV usan el organismo "ADMINISTRACION FEDERAL DE INGRESOS PUBLICOS" y la norma cargada, "AFIP". No afecta a la 247/2022: la coincidencia es por tipo, número y año, y el organismo solo desempata (T-057 trata la equivalencia de organismos).
