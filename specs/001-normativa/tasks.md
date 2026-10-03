@@ -27,7 +27,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-009 | Crear las funciones de unidades consultables a una fecha | REQ-005, REQ-007, REQ-010, REQ-020 | T-008 | terminada |
 | T-010 | Crear la tabla del registro detallado de consultas | REQ-012 | T-009 | pendiente |
 | T-011 | Crear los clientes de IA, sus dobles y los parámetros | REQ-008, REQ-009 | T-010 | pendiente |
-| T-012 | Leer un PDF con texto | REQ-004, REQ-015 | T-008 | en curso |
+| T-012 | Leer un PDF con texto | REQ-004, REQ-015 | T-008 | en verificación |
 | T-013 | Partir en artículos y armar el informe mínimo | REQ-003, REQ-004 | T-012 | pendiente |
 | T-014 | Cargar una norma, listarla y ver su informe | REQ-001, REQ-002, REQ-004, REQ-012, REQ-017, REQ-020 | T-013 | pendiente |
 | T-015 | Validar una lectura y calcular pasajes y vectores | REQ-005, REQ-012 | T-011 | pendiente |

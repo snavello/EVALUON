@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 43 tareas sin terminar.
-- ▶ T-012 · Leer un PDF con texto (en curso)
+- ◐ T-012 · Leer un PDF con texto (en verificación)
 - ○ T-010 · Crear la tabla del registro detallado de consultas (pendiente)
 - ○ T-011 · Crear los clientes de IA, sus dobles y los parámetros (pendiente)
 - ○ T-013 · Partir en artículos y armar el informe mínimo (pendiente)
@@ -130,7 +130,7 @@ flowchart TD
   T009["✓ T-009 · Crear las funciones de unidades consultable…"]:::done
   T010["○ T-010 · Crear la tabla del registro detallado de co…"]:::todo
   T011["○ T-011 · Crear los clientes de IA, sus dobles y los…"]:::todo
-  T012["▶ T-012 · Leer un PDF con texto"]:::active
+  T012["◐ T-012 · Leer un PDF con texto"]:::review
   T013["○ T-013 · Partir en artículos y armar el informe míni…"]:::todo
   T014["○ T-014 · Cargar una norma, listarla y ver su informe"]:::todo
   T015["○ T-015 · Validar una lectura y calcular pasajes y ve…"]:::todo
