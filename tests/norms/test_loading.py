@@ -320,6 +320,51 @@ def test_same_file_twice_is_rejected(read_write_user):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
+    "fields",
+    [{}, {"title": "Otro título", "general_regime": False}],
+    ids=["misma-parte", "misma-parte-otros-datos"],
+)
+def test_same_file_is_checked_first(read_write_user, fields):
+    """REQ-011, REQ-012: el mismo archivo se reconoce primero por su huella, antes que
+    la parte o los datos de la norma: con la misma parte, y también con otros datos, se
+    rechaza como archivo ya cargado y queda registrado con ese motivo."""
+    load(read_write_user)
+
+    with pytest.raises(loading.FileAlreadyLoaded, match="ese archivo ya está cargado"):
+        load(read_write_user, **fields)
+
+    assert Document.objects.count() == 1
+    event = AuditEvent.objects.get(event_type="load", outcome="rejected")
+    assert event.detail["reason"] == "file_already_loaded"
+    assert event.detail["file"]["sha256"] == sha256(EXTRACT_BYTES)
+
+
+@pytest.mark.django_db
+def test_atomic_failure_midway_leaves_nothing(read_write_user, monkeypatch):
+    """REQ-001, REQ-012: si el guardado falla a mitad de camino (en la tercera unidad),
+    no queda nada guardado: ni norma, ni documento, ni original, ni lectura, ni
+    unidades, ni un hecho `load` con resultado `ok`."""
+    calls = {"count": 0}
+    create = Unit.objects.create
+
+    def failing_create(**fields):
+        calls["count"] += 1
+        if calls["count"] == 3:
+            raise RuntimeError("falla simulada al guardar una unidad")
+        return create(**fields)
+
+    monkeypatch.setattr(Unit.objects, "create", failing_create)
+
+    with pytest.raises(RuntimeError, match="falla simulada"):
+        load(read_write_user)
+
+    assert calls["count"] == 3
+    assert nothing_stored()
+    assert not AuditEvent.objects.filter(event_type="load", outcome="ok").exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
     "data",
     [
         EXTRACT_BYTES[: len(EXTRACT_BYTES) // 2],

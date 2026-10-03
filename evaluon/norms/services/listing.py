@@ -106,7 +106,7 @@ def list_norms(user):
     readings = Reading.objects.only("id", "document_id", "sequence", "status").order_by(
         "sequence"
     )
-    documents =Document.objects.prefetch_related(Prefetch("readings", queryset=readings))
+    documents = Document.objects.prefetch_related(Prefetch("readings", queryset=readings))
     norms = Norm.objects.prefetch_related(Prefetch("documents", queryset=documents))
     return [
         NormItem(

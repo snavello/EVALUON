@@ -11,10 +11,11 @@
    con categoría `regimen_especifico` (REQ-020); y el nombre de cita, obligatorio al dar
    de alta una norma nueva (T-055). Tipo, número y organismo se normalizan con
    `normalize_identity`.
-3. Si la norma ya existe (mismos tipo, número, año y organismo), el documento se suma a
-   ella como otra parte, siempre que los datos de la norma indicados coincidan con los
-   registrados y que la norma todavía no tenga esa parte. El mismo archivo no se carga
-   dos veces. El aviso de "misma norma" con confirmación expresa y los mensajes
+3. El mismo archivo no se carga dos veces: se comprueba primero, por su huella (plan
+   001, "Ingesta", punto 2). Si la norma ya existe (mismos tipo, número, año y
+   organismo), el documento se suma a ella como otra parte, siempre que los datos de la
+   norma indicados coincidan con los registrados y que la norma todavía no tenga esa
+   parte. El aviso de "misma norma" con confirmación expresa y los mensajes
    informativos son de T-026.
 4. Lee el documento (`norms/reading/`) y lo parte (`norms/splitting/`) con su parte, en
    CPU y sin los servicios de IA.
@@ -369,7 +370,10 @@ def load_norm(user, *, data, file_name, part=None, general_regime=False,
 
     try:
         _check_data(values)
-        identity = {name: values[name] for name in ("norm_type", "number", "year", "issuer")}
+        # Primero el mismo archivo, por su huella (plan 001, "Ingesta", punto 2): se
+        # reconoce antes que la parte o los datos de la norma.
+        _check_file(sha256)
+        identity ={name: values[name] for name in ("norm_type", "number", "year", "issuer")}
         norm = Norm.objects.filter(**identity).first()
         if norm is None:
             if _blank(values["citation"]):
@@ -380,7 +384,6 @@ def load_norm(user, *, data, file_name, part=None, general_regime=False,
                 )
         else:
             _check_existing_norm(norm, values)
-        _check_file(sha256)
         reading_data = _read(data)
     except LoadRefused as error:
         _record_refusal(user, channel, values, file_detail, error)
