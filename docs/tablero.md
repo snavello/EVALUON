@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 37 tareas sin terminar.
-- ▶ T-018 · Generar la respuesta con esquema e insertar las citas (en curso)
+- ◐ T-018 · Generar la respuesta con esquema e insertar las citas (en verificación)
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
 - ○ T-019 · Unir la consulta de punta a punta con su registro (pendiente)
 - ○ T-020 · Probar el hilo mínimo con los servicios reales (pendiente)
@@ -139,7 +139,7 @@ flowchart TD
   T015["✓ T-015 · Validar una lectura y calcular pasajes y ve…"]:::done
   T016["✓ T-016 · Armar la pantalla de consulta con sus tres…"]:::done
   T017["✓ T-017 · Recuperar por significado y reordenar con e…"]:::done
-  T018["▶ T-018 · Generar la respuesta con esquema e insertar…"]:::active
+  T018["◐ T-018 · Generar la respuesta con esquema e insertar…"]:::review
   T019["○ T-019 · Unir la consulta de punta a punta con su re…"]:::todo
   T020["○ T-020 · Probar el hilo mínimo con los servicios rea…"]:::todo
   T021["○ T-021 · Leer un PDF escaneado con reconocimiento de…"]:::todo

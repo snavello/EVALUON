@@ -33,7 +33,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-015 | Validar una lectura y calcular pasajes y vectores | REQ-005, REQ-012 | T-011 | terminada |
 | T-016 | Armar la pantalla de consulta con sus tres bloques | REQ-013, REQ-014, REQ-020 | T-010 | terminada |
 | T-017 | Recuperar por significado y reordenar con el reranker | REQ-005, REQ-008, REQ-009 | T-011 | terminada |
-| T-018 | Generar la respuesta con esquema e insertar las citas | REQ-008, REQ-009 | T-017 | en curso |
+| T-018 | Generar la respuesta con esquema e insertar las citas | REQ-008, REQ-009 | T-017 | en verificación |
 | T-019 | Unir la consulta de punta a punta con su registro | REQ-008, REQ-009, REQ-012, REQ-013, REQ-020 | T-016, T-018 | pendiente |
 | T-020 | Probar el hilo mínimo con los servicios reales | REQ-008, REQ-012, REQ-013, REQ-020 | T-014, T-015, T-019, T-054 | pendiente |
 | T-021 | Leer un PDF escaneado con reconocimiento de texto | REQ-004, REQ-015 | T-012 | pendiente |
