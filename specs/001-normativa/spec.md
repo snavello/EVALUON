@@ -1,6 +1,6 @@
 # Spec 001 · Normativa consultable con cita
 
-Estado: aprobada · Fecha: 2026-10-02 · Aprobó: responsable del proyecto
+Estado: aprobada · Fecha: 2026-10-02 · Aprobó: responsable del proyecto · Enmienda: 2026-10-03, REQ-010 (la búsqueda muestra solo lo vigente), decisión del responsable
 
 ## Problema
 
@@ -52,7 +52,7 @@ En esta spec, "norma" abarca todos los documentos del marco regulatorio. Cada un
 | REQ-007 | El sistema debe mantener las versiones de cada norma y, para una fecha dada, indicar qué unidades estaban vigentes y qué normas las habían modificado o derogado, mostrando el texto literal de cada una | — |
 | REQ-008 | El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la unidad que la sostiene, con su texto literal | — |
 | REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | — |
-| REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto, desde la pantalla de consulta. Una unidad derogada aparece en la búsqueda marcada como tal | — |
+| REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto, desde la pantalla de consulta. La búsqueda muestra solo las unidades vigentes a la fecha de autorización; las derogadas aparecen solo si la persona lo pide expresamente, marcadas como tales | — |
 | REQ-011 | El sistema debe avisar cuando se intenta cargar una norma que ya está incorporada. Si es el mismo archivo, no lo incorpora; si es la misma norma en otro archivo o formato, pide confirmación expresa | — |
 | REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | — |
 | REQ-013 | El sistema debe ofrecer una pantalla de consulta donde una persona escribe su pregunta y ve la respuesta con sus citas; desde cada cita se ve el texto literal de la unidad y se puede abrir la norma original | — |
@@ -78,7 +78,7 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
 - **REQ-007.** Dada una norma con un artículo modificado por otra norma en una fecha, cuando se consulta ese artículo antes y después de esa fecha, entonces antes se muestra solo el texto original, y después el original junto con el texto literal de la norma que lo modifica, señalando el cambio.
 - **REQ-008.** Dada una pregunta cuya respuesta está en un artículo cargado, cuando se consulta, entonces la respuesta cita ese artículo y el texto citado coincide palabra por palabra con el de la norma.
 - **REQ-009.** Dada una pregunta sobre un tema que ninguna norma cargada trata, cuando se consulta, entonces el resultado es "no determinado".
-- **REQ-010.** Dado un número de norma y de artículo, cuando una persona con rol de lectura lo busca en la pantalla de consulta, entonces obtiene esa unidad con su texto; si la unidad está derogada, se muestra marcada como derogada.
+- **REQ-010.** Dado un número de norma y de artículo, cuando una persona con rol de lectura lo busca en la pantalla de consulta, entonces obtiene esa unidad con su texto si está vigente a esa fecha; si está derogada, no aparece, salvo que la persona pida incluir los textos derogados, y entonces se muestra marcada como derogada, después de los vigentes.
 - **REQ-011.** Dada una norma ya incorporada, cuando se intenta cargar el mismo archivo, entonces el sistema avisa y no la duplica; cuando se intenta cargar la misma norma desde otro archivo, entonces avisa y solo la incorpora con confirmación expresa.
 - **REQ-012.** Dada una consulta ya respondida, cuando se revisa su registro, entonces se ve la pregunta, las unidades recuperadas, la respuesta, la versión de la normativa, el usuario y la fecha.
 - **REQ-013.** Dada la pantalla de consulta, cuando una persona escribe una pregunta que la normativa responde, entonces ve la respuesta con sus citas, y al elegir una cita ve el texto literal del artículo y puede abrir el documento original.
@@ -153,7 +153,7 @@ Surgieron al preparar el plan. Las tres primeras las decidió el responsable el 
 - **Búsqueda (REQ-010).** Se hace desde la misma pantalla de consulta.
 - **Acceso.** En esta feature, solo desde el equipo donde corre el sistema. El acceso por red pasa a ser la feature 007.
 - **Considerandos (REQ-003, REQ-018).** Son unidades citables. Se citan como contexto, identificados como considerando y después del articulado.
-- **Unidades derogadas.** No sostienen una respuesta. Aparecen en la búsqueda, marcadas como derogadas.
+- **Unidades derogadas.** No sostienen una respuesta. En la búsqueda no aparecen, salvo que la persona lo pida expresamente; en ese caso salen después de las vigentes, marcadas como derogadas (enmienda del 2026-10-03: mostrar derogados por defecto confundía a quien busca).
 - **Fecha de referencia.** Es la fecha de autorización del procedimiento que indica la persona; por defecto, la del día (REQ-020). Reemplaza la definición anterior, que fijaba la del día.
 - **Relaciones (REQ-006).** Se registran entre normas y, cuando corresponde, entre unidades.
 - **Misma norma en otro archivo (REQ-011).** Aviso y confirmación expresa.

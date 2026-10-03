@@ -71,6 +71,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-053 | Conservar la eñe en la búsqueda por palabras | REQ-010 | T-009 | terminada |
 | T-054 | Pasar a la aplicación las variables de los servicios de IA | REQ-008, REQ-012 | T-011 | terminada |
 | T-055 | Agregar el nombre de cita de la norma | REQ-001, REQ-013, REQ-020 | T-015 | terminada |
+| T-056 | Mostrar en la búsqueda solo lo vigente, con casilla para los derogados | REQ-010, REQ-012, REQ-020 | T-052 | pendiente |
 
 ## Detalle
 
@@ -551,6 +552,15 @@ Los bloques A a L del plan, partidos en tareas de una sesión. Entre paréntesis
 - **No tocar:** `evaluon/norms/services/` y los comandos (T-014); `evaluon/queries/`.
 - **Entorno:** Cualquier equipo con Docker
 
+### T-056 · Mostrar en la búsqueda solo lo vigente, con casilla para los derogados
+
+- **Requisitos:** REQ-010, REQ-012, REQ-020. Tarea nueva por la enmienda de REQ-010 del 2026-10-03 (decisión del responsable): la búsqueda muestra solo lo vigente a la fecha; los derogados, solo si se piden.
+- **Qué hay que hacer:** sumar al formulario de búsqueda (`SearchForm`, `_search.html`) la casilla "Incluir textos derogados", apagada de entrada. Sin la casilla, `services.search` devuelve solo las unidades vigentes a la fecha (sin `repealed`), por artículo y por palabras; si una búsqueda por artículo no encuentra nada vigente pero sí derogado, la página lo dice en llano ("Ese artículo está derogado a esa fecha. Para verlo, marque «Incluir textos derogados»"). Con la casilla marcada, las derogadas salen después de las vigentes, con la marca y la nota de derogación de T-041. El hecho `search` registra si se pidieron los derogados. El aviso de modificatorias sin cargar (T-052) se calcula sobre lo que efectivamente se muestra. La casilla conserva su estado al mostrar los resultados.
+- **Archivos:** `evaluon/queries/services.py` (solo `search` y lo que la acompaña), `evaluon/queries/forms.py`, `evaluon/queries/views.py`, `evaluon/templates/queries/_search.html`, `tests/queries/test_search_screen.py`, `tests/queries/test_pending_notice.py` (solo los casos de búsqueda que dependan de mostrar derogados).
+- **Verificación:** `pytest tests/queries`. El artículo 1 de la 297/03 con la fecha del día no aparece sin la casilla y aparece marcado con ella; con una fecha de 2021 aparece sin marca y sin necesidad de la casilla; por palabras, sin la casilla no sale ninguna unidad derogada, y con ella salen después de las vigentes; el mensaje llano del artículo derogado; el hecho `search` registra la casilla; el aviso de modificatorias no aparece por una norma cuyas unidades no se muestran. Siguen pasando REQ-006 y REQ-021.
+- **No tocar:** la función de consulta (`ask`), `search.py` salvo un defecto de integración, `answering.py`, `retrieval.py`, `evaluon/norms/`, `models.py`.
+- **Entorno:** Cualquier equipo con Docker
+
 ### T-042 · Agregar calibración del umbral y comparación de corridas
 
 - **Requisitos:** REQ-008, REQ-009, REQ-020, REQ-021. No implementa un requisito funcional: habilita calibrar la abstención de REQ-009, informar por régimen (REQ-020, REQ-021) y sostener la regla de P7.
@@ -686,7 +696,7 @@ Los grupos salen de dos reglas: ninguna tarea del grupo depende de otra del grup
 | REQ-007 | T-009, T-029, T-030, T-033, T-037, T-044 |
 | REQ-008 | T-001, T-002, T-003, T-004, T-011, T-017, T-018, T-019, T-020, T-031, T-032, T-034, T-039, T-040, T-042, T-046, T-047 |
 | REQ-009 | T-002, T-003, T-011, T-017, T-018, T-019, T-034, T-039, T-040, T-042, T-045, T-046 |
-| REQ-010 | T-004, T-009, T-035, T-041 |
+| REQ-010 | T-004, T-009, T-035, T-041, T-056 |
 | REQ-011 | T-008, T-026 |
 | REQ-012 | T-007, T-008, T-010, T-014, T-015, T-019, T-020, T-026, T-038, T-040, T-041, T-048, T-049, T-051, T-052 |
 | REQ-013 | T-005, T-016, T-019, T-020, T-037, T-047 |
@@ -696,7 +706,7 @@ Los grupos salen de dos reglas: ninguna tarea del grupo depende de otra del grup
 | REQ-017 | T-008, T-014 |
 | REQ-018 | T-033, T-034, T-037, T-040, T-046 |
 | REQ-019 | T-033, T-034, T-037, T-040, T-046 |
-| REQ-020 | T-008, T-009, T-014, T-016, T-019, T-020, T-032, T-035, T-039, T-041, T-042, T-043, T-044, T-046 |
+| REQ-020 | T-008, T-009, T-014, T-016, T-019, T-020, T-032, T-035, T-039, T-041, T-042, T-043, T-044, T-046, T-056 |
 | REQ-021 | T-008, T-039, T-042, T-044, T-046, T-051, T-052 |
 
 Los requisitos no funcionales de la spec no tienen identificador. Los atienden: calidad y tiempo, T-039, T-042, T-045 y T-046; funcionamiento sin conexión, T-002, T-003, T-016 y T-047; claves no legibles, T-006; lenguaje llano, T-014, T-016, T-037, T-041 y T-052; registro del usuario que consulta, T-019.

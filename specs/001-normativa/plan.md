@@ -421,7 +421,7 @@ Para cada unidad devuelve además `repealed`: verdadero si hay una relación `de
 `applicable_regimes(fecha)` devuelve las normas con `general_regime` verdadero que tienen al menos una unidad en `consultable_units(fecha)` con `repealed` falso. Es el régimen que se aplica a esa fecha y lo que la pantalla muestra como "Régimen aplicado".
 
 - La consulta en lenguaje natural usa las unidades con `repealed` falso: una unidad derogada a la fecha consultada no sostiene una respuesta.
-- La búsqueda directa usa todas, y muestra las derogadas a esa fecha marcadas, con la norma que las derogó y desde cuándo.
+- La búsqueda directa muestra solo las vigentes a esa fecha. Con la casilla "Incluir textos derogados", apagada de entrada, suma las derogadas a esa fecha después de las vigentes, marcadas, con la norma que las derogó y desde cuándo (enmienda de REQ-010 del 2026-10-03, tarea T-056).
 - Las pruebas de REQ-007 y de REQ-020 llaman a estas funciones con distintas fechas.
 
 **Cómo quedan los dos regímenes.** Con los datos que registra el responsable de normativa (la fecha de vigencia de cada documento al cargarlo y la fecha de la relación `deroga`), y llamando V a la fecha de entrada en vigencia de la 247/2022, que es el 2023-01-01 (la 297/03 rige desde el 2003-06-14):
@@ -661,7 +661,7 @@ En la misma pantalla, sin modelos de IA, y siempre para la fecha de autorizació
 
 Arriba de los resultados va la línea de fecha y régimen aplicado, y debajo los avisos de modificatorias sin cargar que correspondan. Cada resultado muestra la categoría, el texto literal, el enlace al original, los cambios vigentes a la fecha y, si a esa fecha está derogada, la marca con la norma que la derogó y desde cuándo. También muestra los vínculos de su norma con otras, en los dos sentidos (REQ-006). Si no hay resultados para esa fecha, la pantalla lo dice.
 
-Ejemplo: buscar el artículo 1 de la Disposición 297/03 con la fecha del día devuelve sus dos unidades marcadas como derogadas por la 247/2022; con una fecha de 2021 las devuelve sin la marca.
+Ejemplo: buscar el artículo 1 de la Disposición 297/03 con la fecha del día no devuelve nada si no se marca "Incluir textos derogados", y con la casilla marcada devuelve sus dos unidades marcadas como derogadas por la 247/2022; con una fecha de 2021 las devuelve sin la marca.
 
 ### Aviso de modificatorias sin cargar (REQ-021)
 
