@@ -1,14 +1,23 @@
-"""Partición de documentos en unidades citables (ADR-0004; plan 001, "Ingesta"; T-013 y
-T-023).
+"""Partición de documentos en unidades citables (ADR-0004; plan 001, "Ingesta"; T-013,
+T-023 y T-024).
 
-Entrada única: `split_document(lectura, parte)`. Recibe la lectura de `norms/reading/`
-y la parte del documento (`cuerpo`, por omisión, o la clave de un anexo: `anexo`,
-`anexo-i`), y devuelve un `SplitResult` con:
+Entrada única: `split_document(lectura, parte, categoria)`. Recibe la lectura de
+`norms/reading/`, la parte del documento (`cuerpo`, por omisión, o la clave de un anexo:
+`anexo`, `anexo-i`) y la categoría de su norma (REQ-017), que elige la regla:
+
+- **Normas** (`NORM_RULE`): régimen específico, otra normativa aplicable y marco
+  nacional, y también la categoría omitida, que es como se partía antes de T-024.
+  Artículos, incisos, cláusulas, anexos, visto y considerandos (`partition.py`).
+- **Dictámenes y recomendaciones** (`OPINION_RULE`): dictamen legal y recomendación de
+  auditoría. Puntos numerados o, si no hay numeración, párrafos (`opinions.py`). Por
+  ahora solo como documento único (`cuerpo`).
+
+Devuelve un `SplitResult` con:
 
 - el texto canónico, su huella y la versión de las reglas (`canonical.py`);
 - las unidades, en el orden del documento (`Unit`): artículos con sus incisos, cláusulas
   (texto normativo sin número), anexos, visto y considerandos (`headings.py` y
-  `partition.py`). Con una parte que es un anexo, la primera es la unidad raíz de tipo
+  `partition.py`), o puntos y párrafos (`opinions.py`). Con una parte que es un anexo, la primera es la unidad raíz de tipo
   `anexo`, cuya clave es la parte, y las demás cuelgan de ella (`anexo/art-1`); con
   `cuerpo` no hay unidad raíz (`art-1`). Una unidad viene siempre después de la que la
   contiene. El texto de cada unidad es igual a `canonical_text[char_start:char_end]`;
@@ -23,6 +32,7 @@ import re
 from dataclasses import dataclass, field
 
 from evaluon.norms.reading import FORMAT_HTML, ORIGIN_OCR, ORIGIN_PDF_TEXT, ORIGIN_WEB
+from evaluon.norms.splitting import opinions
 from evaluon.norms.splitting import partition as rules
 from evaluon.norms.splitting.canonical import CanonicalText, build_canonical_text
 from evaluon.norms.splitting.report import build_report, report_text
@@ -33,7 +43,16 @@ from evaluon.norms.splitting.report import build_report, report_text
 # encabezados y pies, secuencia con margen, encabezados de reconocimiento).
 # 3: T-023, ajustes de verificación (el índice se confirma dentro de su contenedor; un
 # párrafo en prosa que empieza con "ANEXO I" no abre un anexo).
-RULES_VERSION = "3"
+# 4: T-024 (reglas de dictámenes y recomendaciones, en puntos y párrafos, elegidas por la
+# categoría; el informe dice qué regla se usó). Las reglas de normas no cambian: una
+# norma da las mismas unidades y el mismo texto canónico que con la versión 3.
+RULES_VERSION = "4"
+
+# Reglas de partición y categorías que las eligen (REQ-017; `Norm.Category`).
+NORM_RULE = "normas"
+OPINION_RULE = "dictamenes"
+NORM_RULE_CATEGORIES = ("regimen_especifico", "otra_normativa", "marco_nacional")
+OPINION_RULE_CATEGORIES = ("dictamen_legal", "recomendacion_auditoria")
 
 BODY = "cuerpo"
 # `cuerpo`, o la clave de un anexo: `anexo` o `anexo-` y su número o letra.
@@ -78,12 +97,33 @@ class SplitResult:
         return self.canonical.text
 
 
-def split_document(reading, part=BODY):
-    """Parte la lectura de un documento en unidades y arma su informe de lectura."""
+def rule_for(category):
+    """La regla de partición que corresponde a la categoría de la norma. Sin categoría,
+    la de normas."""
+    if category is None or category in NORM_RULE_CATEGORIES:
+        return NORM_RULE
+    if category in OPINION_RULE_CATEGORIES:
+        return OPINION_RULE
+    raise ValueError(
+        f"La categoría {category!r} no es válida: tiene que ser una de "
+        + ", ".join(NORM_RULE_CATEGORIES + OPINION_RULE_CATEGORIES)
+        + "."
+    )
+
+
+def split_document(reading, part=BODY, category=None):
+    """Parte la lectura de un documento en unidades y arma su informe de lectura, con la
+    regla que corresponde a la categoría de su norma."""
+    rule = rule_for(category)
     if not isinstance(part, str) or not _PART.fullmatch(part):
         raise ValueError(
             f"La parte {part!r} no es válida: tiene que ser 'cuerpo' o la clave de un "
             "anexo, como 'anexo' o 'anexo-i'."
+        )
+    if rule == OPINION_RULE and part != BODY:
+        raise ValueError(
+            f"La parte {part!r} no es válida para un dictamen o una recomendación: por "
+            "ahora se parten como documento único, con la parte 'cuerpo'."
         )
     canonical = build_canonical_text(reading)
     text = canonical.text
@@ -92,8 +132,11 @@ def split_document(reading, part=BODY):
         for start, end in canonical.paragraphs
     ]
     paragraphs = rules.classify(canonical.paragraphs, text, canonical, ocr_flags)
-    root = _annex_root(part) if part != BODY else None
-    result = rules.partition(paragraphs, root=root)
+    if rule == OPINION_RULE:
+        result = opinions.partition(paragraphs)
+    else:
+        root = _annex_root(part) if part != BODY else None
+        result = rules.partition(paragraphs, root=root)
 
     units, spans, after_last_inciso = [], [], []
     for item in result.items:
@@ -120,6 +163,18 @@ def split_document(reading, part=BODY):
     for order, unit in enumerate(units, start=1):
         unit.order = order
 
+    sequence = [
+        {"container": c.name, "key": c.key, "gaps": c.gaps, "not_accepted": c.not_accepted}
+        for c in result.containers
+    ]
+    if rule == OPINION_RULE:
+        # Un dictamen no tiene artículos por contenedor; su secuencia es la de los puntos.
+        containers = []
+        for item in sequence:
+            item["heading"] = "punto"
+    else:
+        containers = [{"name": c.name, "key": c.key} for c in result.containers]
+
     report = build_report(
         reading=reading,
         canonical=canonical,
@@ -127,11 +182,9 @@ def split_document(reading, part=BODY):
         segments=spans,
         part=part,
         rules_version=RULES_VERSION,
-        containers=[{"name": c.name, "key": c.key} for c in result.containers],
-        sequence=[
-            {"container": c.name, "key": c.key, "gaps": c.gaps, "not_accepted": c.not_accepted}
-            for c in result.containers
-        ],
+        rule=rule,
+        containers=containers,
+        sequence=sequence,
         uppercase_in_units=result.uppercase_in_units,
         doubtful_headings=result.doubtful_headings,
         after_last_inciso=after_last_inciso,
