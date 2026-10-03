@@ -67,7 +67,7 @@ Ajuste del 2026-10-03 por el ADR-0015 (decisión del responsable sobre la remisi
 | T-043 | Cargar y validar el corpus real y ajustar las reglas | REQ-003, REQ-004, REQ-005, REQ-015, REQ-020 | T-020, T-028, T-031, T-041, T-050 | terminada |
 | T-044 | Registrar relaciones, versiones y modificatorias del corpus | REQ-006, REQ-007, REQ-020, REQ-021 | T-029, T-030, T-043, T-051, T-052 | terminada |
 | T-045 | Calibrar el umbral con el conjunto de preguntas | REQ-009 | T-042, T-044 | terminada |
-| T-046 | Correr las evals y medir tiempo y memoria | REQ-008, REQ-009, REQ-018, REQ-019, REQ-020, REQ-021 | T-045, T-058, T-059, T-060, T-061, T-062, T-063, T-064 | pendiente |
+| T-046 | Correr las evals y medir tiempo y memoria | REQ-008, REQ-009, REQ-018, REQ-019, REQ-020, REQ-021 | T-045, T-058, T-059, T-060, T-061, T-062, T-063, T-064 | terminada |
 | T-047 | Probar una consulta con la red desconectada | REQ-008, REQ-013 | T-038, T-046 | pendiente |
 | T-048 | Probar el respaldo y la restauración de la base | REQ-002, REQ-012 | T-047 | pendiente |
 | T-049 | Levantar todo desde cero y dejar datos para el runbook | REQ-012, REQ-016 | T-048 | pendiente |
