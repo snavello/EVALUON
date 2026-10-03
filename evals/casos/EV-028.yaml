@@ -15,9 +15,9 @@ unidades:
   - {norma: "Disposición AFIP 247/2022", key: anexo/art-50}
 datos_clave: ["normativa vigente"]
 difieren: false
-pareja: ""
+pareja: EV-022
 aviso_modificatorias: false
-etiquetas: ["remisión a norma no cargada"]
+etiquetas: ["remisión a norma no cargada", "dos fechas"]
 visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |

@@ -14,9 +14,9 @@ unidades:
   - {norma: "Disposición AFIP 297/03", key: anexo-i/art-48}
 datos_clave: ["3 miembros", "presidente", "2 vocales", "planta permanente"]
 difieren: false
-pareja: ""
+pareja: EV-028
 aviso_modificatorias: true
-etiquetas: ["referencia exacta"]
+etiquetas: ["referencia exacta", "dos fechas"]
 visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |

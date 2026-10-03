@@ -29,7 +29,7 @@ lote: aceptacion           # optativo: ajuste o aceptacion; sin el campo, ajuste
 ADR-0014, punto 1; detalle en el plan de la 001, sección "Evals", "Lote de aceptación".
 
 - Los casos se dividen en dos lotes con el campo `lote`: `ajuste` o `aceptacion` (sin tildes ni mayúsculas, se acepta también `Aceptación`). Un caso sin el campo es del lote de ajuste; cualquier otro valor deja el caso mal formado y no se corre.
-- **Lote de ajuste:** EV-001 a EV-031 y todo caso sin `lote` o con `lote: ajuste`. Se usa para ajustar el corrector, los datos clave, el umbral y las instrucciones, y para el diagnóstico.
+- **Lote de ajuste:** EV-001 a EV-033 y todo caso sin `lote` o con `lote: ajuste`. Se usa para ajustar el corrector, los datos clave, el umbral y las instrucciones, y para el diagnóstico.
 - **Lote de aceptación:** los casos con `lote: aceptacion`. De él salen la respuesta correcta y la abstención que se exigen para aceptar. Condiciones:
   - al menos 10 preguntas con respuesta y 6 sin respuesta, con los dos tipos de pregunta sin respuesta ("ajena a la normativa" y "tema cercano que la normativa no resuelve");
   - se escribe sin correr el sistema: nadie hace esas preguntas, ni otras parecidas, en la pantalla ni con un comando antes de su primera corrida;

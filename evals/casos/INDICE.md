@@ -212,3 +212,8 @@ No se usó el ejemplo de referencia ("¿Qué plazo tiene la AFIP para pagar una 
 1. **Dos preguntas de control "fuera de tema" nuevas, una por régimen.** Son temas de compras que ninguna norma cargada trata ni remite a otra norma. Van al lote de ajuste, sin campo `lote`, con la respuesta esperada "no determinado", la etiqueta "tema cercano que la normativa no resuelve" y el visto bueno "provisorio, autorizado por el responsable el 2026-10-03 (ADR-0015)". Cada una tiene su `fecha_autorizacion`: una antes del 2023-01-02 (297/03) y otra después (247/2022). Llevan los números EV-032 y EV-033. El lote de aceptación de T-061 usa los números siguientes.
 2. **Una persona controla a mano, en cada corrida, que la respuesta de remisión no dé la cifra ni la integración no cargada.** No hay control automático. Está anotado en `notas` de EV-027, EV-028 y EV-029.
 3. **EV-028: alcanza con que la respuesta diga que la integración está sujeta a la normativa vigente, con la cita del art. 50.** Por ahora no se exige que diga quiénes no pueden integrarla. Está anotado en `notas` de EV-028.
+
+### Decisiones del responsable sobre T-064 (2026-10-03)
+
+- Aprueba las dos preguntas de control nuevas, EV-032 (capacitación del área de compras, 297/03) y EV-033 (rotación de puestos, 247/2022), que esperan "no determinado".
+- Aprueba vincular EV-022 (297/03, 2008) y EV-028 (247/2022, 2024) como par de REQ-020: la misma pregunta, "¿Cómo se integra la Comisión Evaluadora?", con un régimen distinto en cada fecha. Los dos casos llevan `pareja` y la etiqueta "dos fechas".
