@@ -86,6 +86,7 @@ Ajuste del 2026-10-03 por el ADR-0015 (decisión del responsable sobre la remisi
 | T-062 | Fijar el umbral con la regla nueva | REQ-009 | T-059, T-060 | pendiente |
 | T-063 | Instrucciones para responder la remisión a una norma no cargada | REQ-008, REQ-009 | T-060, T-062, T-064 | pendiente |
 | T-064 | Reescribir EV-027, EV-028 y EV-029 como preguntas con respuesta | REQ-008, REQ-009 | T-059 | pendiente |
+| T-065 | Corregir la espera intermitente de `test_wait` y el borde de la calibración | REQ-008, REQ-009 | T-060 | pendiente |
 
 ## Detalle
 
@@ -729,6 +730,15 @@ De a una, en la MSI, con los servicios reales; T-058 y T-059 (ADR-0011), T-060, 
 - **Verificación:** `pytest tests/queries/test_prompt_v3.py` y suite en verde, con los dobles. La carpeta de la corrida existe con sus tres archivos; `parametros.json` dice `consulta-v3` y el umbral de T-062; no hay casos del lote de aceptación en `resultados.jsonl`; `entorno.md` trae la sección con la revisión de los casos de remisión; la v3 cumple la condición de aceptación de arriba o el responsable aprobó la baja.
 - **No tocar:** `consulta-v1.txt` y `consulta-v2.txt`; el esquema y la validación de `answering.py`; `evaluon/queries/retrieval.py` y `evaluation.py`; `evaluon/settings.py`; `evals/casos/`.
 - **Entorno:** MSI con GPU (la corrida); las instrucciones y los tests, en cualquier equipo con Docker
+
+### T-065 · Corregir la espera intermitente de `test_wait` y el borde de la calibración
+
+- **Requisitos:** REQ-008, REQ-009. Tarea nueva por la verificación de T-060 (decisión del Coordinador, 2026-10-03): no cambia comportamiento del producto, corrige dos huecos de los tests.
+- **Qué hay que hacer:** (1) `tests/queries/test_wait.py::test_query_longer_than_30_seconds_is_not_cut` falla de forma intermitente, también en main: el fixture `gunicorn` sondea `urlopen(base + "/ingresar/", timeout=2)` y atrapa solo `URLError` y `ConnectionError`; cuando el worker tarda más de 2 s en contestar la primera vez, el `TimeoutError` de la lectura se escapa y el fixture falla en lugar de reintentar (en la verificación de T-060 falló 5 de 6 veces en main con el stack de IA cargado; la primera respuesta llegó a los 2,63 s). Que la sonda reintente también ante `TimeoutError` (y `socket.timeout`) dentro del plazo total que ya tiene el fixture, sin cambiar lo que el test comprueba. (2) Sumar en `tests/queries/test_calibration.py` el test del borde A = B (la ajena más alta con el mismo puntaje que la pregunta con respuesta más baja): la regla informa "sin hueco" y no propone umbral. Hoy el código lo hace bien, pero ningún test detecta cambiar `>` por `>=`.
+- **Archivos:** `tests/queries/test_wait.py` (solo el fixture `gunicorn`), `tests/queries/test_calibration.py`.
+- **Verificación:** `test_wait.py` pasa 10 de 10 veces seguidas con el stack de IA levantado; el test nuevo de calibración falla con `>=` en la condición de hueco y pasa sin la alteración; suite completa en verde (ADR-0012).
+- **No tocar:** código de producto; `evaluation.py`; `settings.py`.
+- **Entorno:** Cualquier equipo con Docker
 
 ### T-046 · Correr las evals y medir tiempo y memoria
 
