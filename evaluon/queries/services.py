@@ -92,6 +92,18 @@ normativa del hecho, y `asked_at` con el momento de la pregunta.
 
 Los avisos de modificatorias sin cargar (`notices`) son de T-052. Los clientes de IA se
 usan por su módulo (`generation.count_tokens`, y dentro de `retrieval` y `answering`).
+
+Búsqueda directa (REQ-010, REQ-012, REQ-020; plan 001, "Búsqueda directa (REQ-010)";
+T-041). `search(usuario, fecha, norm_id=..., article=..., words=..., channel=...)` es el
+único camino para ejecutar una búsqueda, sin modelos de IA: comprueba el rol (los dos
+roles buscan) con el canal recibido, fuera de toda transacción; valida la fecha igual que
+la consulta (`validate_reference_date`); dentro de la misma instantánea que la consulta
+toma la versión de la normativa, el régimen aplicado (`applicable_regimes`) y busca con
+`queries/search.py` para esa fecha (por norma y número de artículo, o por palabras, en
+todas las normas o en una). A diferencia de la consulta, busca aunque no haya régimen a
+la fecha. Deja el hecho `search` con el tipo de búsqueda, los términos, la fecha, el
+régimen y las unidades devueltas con su marca de derogada (no el resultado completo de
+cada una: la búsqueda por palabras no tiene límite). `notices` queda vacío hasta T-052.
 """
 
 import time
@@ -107,8 +119,9 @@ from evaluon.accounts.permissions import require_role
 from evaluon.ai import AIServiceError, generation
 from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType, Outcome
-from evaluon.norms.models import Unit
+from evaluon.norms.models import Norm, Unit
 from evaluon.queries import answering, retrieval
+from evaluon.queries import search as direct_search
 from evaluon.queries.models import Query, Reason, Status
 
 QUERY_TABLE = Query._meta.db_table
@@ -571,3 +584,97 @@ def _save(user, channel, question, reference_date, asked_at, result, record, tim
             timings=timings,
             **record,
         )
+
+
+# --- Búsqueda directa (T-041) -----------------------------------------------------------
+
+# Tipo de búsqueda, como queda en el hecho `search`.
+SEARCH_BY_ARTICLE = "article"
+SEARCH_BY_WORDS = "words"
+
+
+@dataclass
+class SearchOutcome:
+    """Una búsqueda ejecutada: tipo, términos, fecha, régimen aplicado, resultados de
+    `queries/search.py` (`SearchResult`) y el hecho `search` que la registró."""
+
+    kind: str
+    terms: dict
+    reference_date: object
+    regime: list
+    results: list
+    notices: list
+    event: object
+
+
+def search(user, reference_date=None, *, norm_id=None, article="", words="",
+           channel=Channel.SCREEN):
+    """Ejecuta una búsqueda directa y la registra. Ver el módulo.
+
+    - `article`: número de artículo de la norma `norm_id` (obligatoria en ese caso).
+    - `words`: palabras del texto, en todas las normas o solo en `norm_id`.
+    - `reference_date`: fecha de autorización del procedimiento, o `None` para la del
+      día. `channel`: `screen`, `command` o `eval`.
+
+    Lanza `RoleRejected` sin rol (con su hecho `rejected`), `FutureDate` con una fecha
+    posterior al día y `QueryRefused` sin términos, con un número sin norma o con número
+    y palabras a la vez; en esos casos no busca ni deja el hecho `search`."""
+    require_role(user, Role.READ, channel=channel)
+    article = (article or "").strip()
+    words = (words or "").strip()
+    if article and words:
+        raise QueryRefused(
+            "Busque por número de artículo o por palabras, no por los dos a la vez.")
+    if article and norm_id is None:
+        raise QueryRefused("Para buscar por número de artículo, elija la norma.")
+    if not article and not words:
+        raise QueryRefused("Escriba un número de artículo o palabras para buscar.")
+    reference_date = validate_reference_date(reference_date)
+
+    with _snapshot():
+        corpus_version = audit.current_corpus_version()
+        regime = applicable_regimes(reference_date)
+        norm_name = (Norm.objects.filter(pk=norm_id).values_list("citation", flat=True)
+                     .first() if norm_id is not None else None)
+        if article:
+            kind = SEARCH_BY_ARTICLE
+            results = direct_search.by_article(norm_id, article, reference_date)
+        else:
+            kind = SEARCH_BY_WORDS
+            results = direct_search.by_words(words, reference_date, norm_id=norm_id)
+
+    terms = {"norm": norm_id, "norm_name": norm_name, "article": article,
+             "words": words}
+    notices = []
+    event = audit.record(
+        EventType.SEARCH,
+        outcome=Outcome.OK,
+        channel=channel,
+        user=user,
+        corpus_version=corpus_version,
+        detail={
+            "kind": kind,
+            "terms": terms,
+            "reference_date": reference_date.isoformat(),
+            "regime": regime,
+            "units": [_search_unit_record(result) for result in results],
+            "notices": notices,
+        },
+    )
+    return SearchOutcome(kind=kind, terms=terms, reference_date=reference_date,
+                         regime=regime, results=results, notices=notices, event=event)
+
+
+def _search_unit_record(result):
+    """Una unidad devuelta, como queda en el hecho `search`: su `id` y su marca de
+    derogada, con la relación, la norma que la derogó y desde cuándo."""
+    repeal = result.repealed_by
+    return {
+        "unit": result.unit_id,
+        "repealed": result.repealed,
+        "repealed_by": None if repeal is None else {
+            "relation": repeal.relation_id,
+            "norm": repeal.norm_id,
+            "since": repeal.since.isoformat(),
+        },
+    }

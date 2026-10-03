@@ -1,0 +1,98 @@
+{% comment %}
+Búsqueda directa de la pantalla de consulta (REQ-006, REQ-010, REQ-020; T-041): el
+formulario, con su propio campo de fecha (prefijo `search`), y, si se buscó, los
+resultados con la línea de fecha y régimen aplicado. Cada resultado usa el marcado de las
+citas (T-037): `details.citation` con el texto en `blockquote.literal` y el ancla
+`texto-N` en el resultado. Textos fijos en lenguaje llano.
+{% endcomment %}<section class="search-form" id="search" aria-labelledby="search-form-title">
+  <h2 id="search-form-title">Buscar en la normativa</h2>
+  <p class="search-help">Elija una norma y escriba el número de artículo, o escriba palabras del texto.</p>
+  <form method="post" action="{% url 'queries:search' %}#search" id="search-form">
+    {% csrf_token %}
+    {% if search_form.non_field_errors %}
+    <p class="form-error" role="alert" id="search-form-error">{{ search_form.non_field_errors|join:" " }}</p>
+    {% endif %}
+    <p>
+      <label for="{{ search_form.norm.id_for_label }}">{{ search_form.norm.label }}</label>
+      {{ search_form.norm }}
+    </p>
+    {% if search_form.norm.errors %}
+    <p class="form-error" role="alert" id="{{ search_form.norm.auto_id }}_error">{{ search_form.norm.errors|join:" " }}</p>
+    {% endif %}
+    <p>
+      <label for="{{ search_form.article.id_for_label }}">{{ search_form.article.label }}</label>
+      {{ search_form.article }}
+    </p>
+    {% if search_form.article.errors %}
+    <p class="form-error" role="alert" id="{{ search_form.article.auto_id }}_error">{{ search_form.article.errors|join:" " }}</p>
+    {% endif %}
+    <p>
+      <label for="{{ search_form.words.id_for_label }}">{{ search_form.words.label }}</label>
+      {{ search_form.words }}
+      <span class="field-help" id="{{ search_form.words.auto_id }}_helptext">{{ search_form.words.help_text }}</span>
+    </p>
+    {% if search_form.words.errors %}
+    <p class="form-error" role="alert" id="{{ search_form.words.auto_id }}_error">{{ search_form.words.errors|join:" " }}</p>
+    {% endif %}
+    <p>
+      <label for="{{ search_form.reference_date.id_for_label }}">{{ search_form.reference_date.label }}</label>
+      {{ search_form.reference_date }}
+    </p>
+    {% if search_form.reference_date.errors %}
+    <p class="form-error" role="alert" id="{{ search_form.reference_date.auto_id }}_error">{{ search_form.reference_date.errors|join:" " }}</p>
+    {% endif %}
+    <button type="submit" id="search-submit">Buscar</button>
+  </form>
+</section>
+
+{% if search %}
+<section class="search-results" id="search-results" aria-labelledby="search-results-title">
+  <h2 id="search-results-title">Resultados de la búsqueda</h2>
+  <p class="search-terms">{% if search.kind == "article" %}Artículo {{ search.terms.article }} de {{ search.terms.norm_name }}{% else %}Palabras: «{{ search.terms.words }}»{% if search.terms.norm_name %} en {{ search.terms.norm_name }}{% endif %}{% endif %}</p>
+  {% include "queries/_regime_line.html" with reference_date=search.reference_date regime=search.regime %}
+  {% with count=search.items|length %}
+  {% if count %}
+  <p class="search-count">Se encontr{{ count|pluralize:"ó,aron" }} {{ count }} texto{{ count|pluralize }}.</p>
+  <ol class="search-list">
+    {% for item in search.items %}
+    <li class="search-result" id="{{ item.anchor }}">
+    <details class="citation" data-unit="{{ item.id }}" open>
+      <summary>{% if item.category %}<span class="citation-role">{{ item.category }}</span> · {% endif %}<span class="citation-source">{{ item.norm }} · {{ item.path }}</span>{% if item.repealed %} <strong class="repealed-mark">Texto derogado</strong>{% endif %}{% if item.changes %} <span class="change-mark">Tiene cambios</span>{% endif %}</summary>
+      {% if item.repealed %}<p class="repeal-note">Texto derogado{% if item.repeal.since %} desde el {{ item.repeal.since|date:"d/m/Y" }}{% endif %}{% if item.repeal.norm_name %} por {{ item.repeal.norm_name }}{% endif %}.</p>{% endif %}
+      {% include "queries/_unit_text.html" with text=item.text missing="El texto de este resultado no está disponible." %}
+      {% for change in item.changes %}
+      <div class="change">
+        <p class="change-note">{{ change.name }}{% if change.part %} de «{{ change.part }}»{% endif %}{% if change.date %} desde el {{ change.date|date:"d/m/Y" }}{% endif %}{% if change.source %}, por {{ change.source.norm }} · {{ change.source.path }}{% else %}, por {{ change.source_norm }}{% endif %}.</p>
+        {% if change.source.text %}
+        <div class="change-text" id="{{ change.source.anchor }}">
+          {% include "queries/_unit_text.html" with text=change.source.text missing="El texto que trae el cambio no está disponible." %}
+        </div>
+        {% elif change.source_in_results %}
+        <p class="text-ref">El texto que trae el cambio se muestra <a href="#{{ change.source.anchor }}">entre los resultados</a>.</p>
+        {% elif change.source_shown_above %}
+        <p class="text-ref">El texto que trae el cambio se muestra <a href="#{{ change.source.anchor }}">más arriba</a>.</p>
+        {% else %}
+        <p>El texto que trae el cambio no está disponible.</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% if item.links %}
+      <div class="links">
+        <p class="links-title">Vínculos de esta norma con otras:</p>
+        <ul>
+          {% for link in item.links %}
+          <li>{{ link.label }} {{ link.norm }}{% if link.date %}, desde el {{ link.date|date:"d/m/Y" }}{% endif %}.</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </details>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="result-message">No se encontró ningún texto con esa búsqueda para un procedimiento autorizado el {{ search.reference_date|date:"d/m/Y" }}.</p>
+  {% endif %}
+  {% endwith %}
+</section>
+{% endif %}
