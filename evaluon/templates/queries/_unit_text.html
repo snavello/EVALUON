@@ -1,0 +1,8 @@
+{% comment %}
+Texto de una unidad al desplegar una cita (REQ-013, REQ-015; T-037). Recibe `text`, con
+`literal` (leído de la base: canonical_text[char_start:char_end]; vacío si no está),
+`original_url` y `ocr`. El enlace abre el original en otra pestaña: la vista del original
+no se puede incrustar.
+{% endcomment %}{% if text.literal is not None %}<blockquote class="literal">{{ text.literal }}</blockquote>{% else %}<p>{{ missing }}</p>{% endif %}
+{% if text.ocr %}<p class="recognition-note">Este texto se obtuvo por reconocimiento sobre la imagen de un documento escaneado y puede tener errores de lectura. Compárelo con el documento original.</p>{% endif %}
+{% if text.original_url %}<p class="original-link"><a href="{{ text.original_url }}" target="_blank" rel="noopener">Abrir el documento original</a></p>{% endif %}
