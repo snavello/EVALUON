@@ -299,3 +299,10 @@ def test_grade_reports_variants_of_the_missing_datum():
 
     assert measures["correct"] is False
     assert measures["missing_key_data"] == [["no", "sin posibilidad"]]
+
+
+def test_no_in_a_later_statement_does_not_count_when_the_first_says_neither():
+    """REQ-008 (ADR-0011; plan, "Datos clave y corrector", regla 2): el "no" se mira solo
+    en la primera afirmación. Si la primera no dice ni sí ni no, que otra afirmación
+    empiece con "No," no cumple el dato."""
+    assert not ok("no", "El pliego lo regula.", "No, no puede.")
