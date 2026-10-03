@@ -58,6 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 41 tareas sin terminar.
+- ▶ T-054 · Pasar a la aplicación las variables de los servicios de IA (en curso)
 - ○ T-013 · Partir en artículos y armar el informe mínimo (pendiente)
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
 - ○ T-015 · Validar una lectura y calcular pasajes y vectores (pendiente)
@@ -98,7 +99,6 @@ flowchart LR
 - ○ T-050 · Partir la 297/03 y el cuerpo de la 247/2022 desde la web (pendiente)
 - ○ T-051 · Registrar las modificatorias sin cargar de una norma (pendiente)
 - ○ T-052 · Avisar modificatorias sin cargar en respuesta y búsqueda (pendiente)
-- ○ T-054 · Pasar a la aplicación las variables de los servicios de IA (pendiente)
 
 ### Qué se hizo
 
@@ -114,8 +114,8 @@ flowchart LR
 - ✓ T-009 · Crear las funciones de unidades consultables a una fecha (`9f1886e` 2026-10-02, `b9ca5d3` 2026-10-02)
 - ✓ T-010 · Crear la tabla del registro detallado de consultas (`cc485fc` 2026-10-02)
 - ✓ T-011 · Crear los clientes de IA, sus dobles y los parámetros (`fb2f640` 2026-10-02)
-- ✓ T-012 · Leer un PDF con texto
-- ✓ T-053 · Conservar la eñe en la búsqueda por palabras
+- ✓ T-012 · Leer un PDF con texto (`977f834` 2026-10-02, `ef7d903` 2026-10-02)
+- ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 
 ### Mapa de tareas
 
@@ -174,7 +174,7 @@ flowchart TD
   T051["○ T-051 · Registrar las modificatorias sin cargar de…"]:::todo
   T052["○ T-052 · Avisar modificatorias sin cargar en respues…"]:::todo
   T053["✓ T-053 · Conservar la eñe en la búsqueda por palabras"]:::done
-  T054["○ T-054 · Pasar a la aplicación las variables de los…"]:::todo
+  T054["▶ T-054 · Pasar a la aplicación las variables de los…"]:::active
   T001 --> T002
   T002 --> T003
   T003 --> T004
