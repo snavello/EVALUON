@@ -67,7 +67,7 @@ Ajuste del 2026-10-03 por el ADR-0015 (decisión del responsable sobre la remisi
 | T-043 | Cargar y validar el corpus real y ajustar las reglas | REQ-003, REQ-004, REQ-005, REQ-015, REQ-020 | T-020, T-028, T-031, T-041, T-050 | terminada |
 | T-044 | Registrar relaciones, versiones y modificatorias del corpus | REQ-006, REQ-007, REQ-020, REQ-021 | T-029, T-030, T-043, T-051, T-052 | terminada |
 | T-045 | Calibrar el umbral con el conjunto de preguntas | REQ-009 | T-042, T-044 | terminada |
-| T-046 | Correr las evals y medir tiempo y memoria | REQ-008, REQ-009, REQ-018, REQ-019, REQ-020, REQ-021 | T-045, T-058, T-059, T-060, T-061, T-062, T-063, T-064 | pendiente |
+| T-046 | Correr las evals y medir tiempo y memoria | REQ-008, REQ-009, REQ-018, REQ-019, REQ-020, REQ-021 | T-045, T-058, T-059, T-060, T-061, T-062, T-063, T-064 | terminada |
 | T-047 | Probar una consulta con la red desconectada | REQ-008, REQ-013 | T-038, T-046 | pendiente |
 | T-048 | Probar el respaldo y la restauración de la base | REQ-002, REQ-012 | T-047 | pendiente |
 | T-049 | Levantar todo desde cero y dejar datos para el runbook | REQ-012, REQ-016 | T-048 | pendiente |
@@ -87,6 +87,7 @@ Ajuste del 2026-10-03 por el ADR-0015 (decisión del responsable sobre la remisi
 | T-063 | Instrucciones para responder la remisión a una norma no cargada | REQ-008, REQ-009 | T-060, T-062, T-064 | terminada |
 | T-064 | Reescribir EV-027, EV-028 y EV-029 como preguntas con respuesta | REQ-008, REQ-009 | T-059 | terminada |
 | T-065 | Corregir la espera intermitente de `test_wait` y el borde de la calibración | REQ-008, REQ-009 | T-060 | terminada |
+| T-066 | Casos y corrida corta de REQ-019 | REQ-019 | T-046 | pendiente |
 
 ## Detalle
 
@@ -750,6 +751,16 @@ De a una, en la MSI, con los servicios reales; T-058 y T-059 (ADR-0011), T-060, 
 - **No tocar:** `evals/casos/`; `evaluon/settings.py`, `queries/prompts/` y todo archivo de código.
 - **Entorno:** MSI con GPU
 
+### T-066 · Casos y corrida corta de REQ-019
+
+- **Requisitos:** REQ-019. Tarea nueva por decisión del responsable sobre la corrida de T-046 (2026-10-03): el conjunto no tenía casos de REQ-019 y quedó sin medir.
+- **Qué hay que hacer:** el Coordinador prepara 2 o 3 casos nuevos de REQ-019 (`difieren: true`): preguntas cuya respuesta difiere entre la 297/03 y la 247/2022, para una fecha en la que corresponde marcar la diferencia según el plan, escritas solo desde el texto de las normas y con datos clave según el ADR-0011. Visto bueno del responsable mostrado con tabla de ejemplo; quedan además pendientes de la Comisión (feature 009). Después, una corrida corta en la MSI solo con esos casos (con calentamiento previo), revisión humana de la marca de diferencia y de las dos citas, y resumen en `entorno.md`. Si el corrector o `correr_evals` no permiten correr solo esos casos, se informa y lo decide el Coordinador. No se ajusta nada con el resultado: si falla, se informa.
+- **Archivos:** `evals/casos/` (casos nuevos e `INDICE.md`), `evals/corridas/` (la carpeta de la corrida), `specs/001-normativa/entorno.md`.
+- **Verificación:** los casos cargan sin errores y cumplen sus datos clave con su `esperado`; la corrida existe con sus tres archivos; el resumen informa REQ-019 con la marca `regimes_differ` y las dos citas.
+- **No tocar:** código, instrucciones, `settings.py`, casos existentes.
+- **Pendiente aparte:** REQ-018 no tiene casos porque el corpus no trae normas de otra categoría; se mide cuando se cargue una (feature 009).
+- **Entorno:** MSI con GPU
+
 ### Etapa 5 · Cierre
 
 De a una, en la MSI.
@@ -838,7 +849,7 @@ Los grupos salen de dos reglas: ninguna tarea del grupo depende de otra del grup
 | REQ-016 | T-005, T-006, T-007, T-038, T-049 |
 | REQ-017 | T-008, T-014 |
 | REQ-018 | T-033, T-034, T-037, T-040, T-046 |
-| REQ-019 | T-033, T-034, T-037, T-040, T-046 |
+| REQ-019 | T-033, T-034, T-037, T-040, T-046, T-066 |
 | REQ-020 | T-008, T-009, T-014, T-016, T-019, T-020, T-032, T-035, T-039, T-041, T-042, T-043, T-044, T-046, T-056, T-058, T-059, T-061 |
 | REQ-021 | T-008, T-039, T-042, T-044, T-046, T-051, T-052, T-057 |
 

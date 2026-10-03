@@ -2165,3 +2165,210 @@ Respuesta correcta del lote de ajuste: automática 81,5 % (22 de 27); corregida 
 **Afirmaciones por respuesta (aviso de T-040):** en las 27 respuestas con fundamento, mediana 2 y máximo 6. Cinco tienen 5 o más: EV-001 (5), EV-002 (5), EV-011 (6) y EV-019 (5), todas con una sola unidad citada, y EV-008 (6, con tres unidades). Sigue pasando lo de T-040. Ninguna respuesta cita un considerando.
 
 **Tests (con los dobles):** `tests/queries/test_prompt_v3.py`, nuevo. `docker compose -p evaluon-t063 --env-file <coord.env> run --rm --no-deps app pytest`: 1589 pasan.
+
+## T-046 · Corrida de las evals que se presenta para aprobar, tiempo y memoria
+
+**Corrida que se presenta:** `evals/corridas/2026-10-03T171739_14ef270_gemma-4-12b-it-qat-q4_0`.
+
+- Commit `14ef270`, instrucciones `consulta-v3`, umbral 0,219, normativa versión 5.
+- 56 casos, todos con visto bueno: 33 del lote de ajuste y 23 del lote de aceptación.
+- Comprobado antes de correr:
+  - `RERANK_THRESHOLD = 0.219` en `settings.py`;
+  - `PROMPT_VERSION_WITH_DATE = "consulta-v3"` en `answering.py`;
+  - EV-027, EV-028 y EV-029 con respuesta y con el dato clave de la remisión.
+
+**Dónde y cómo se corrió.** Tres corridas, de a una, con el turno exclusivo de la GPU y de la base:
+
+- servicios reales del proyecto `evaluon` y su base;
+- desde la copia principal, en main limpio: el contenedor `app` monta el código y `./evals` de esa copia.
+
+```
+docker compose -p evaluon exec -T app python manage.py shell < warmup.py                       # calentamiento, antes de cada corrida
+docker compose -p evaluon exec -T app python manage.py correr_evals --usuario desarrollo --commit 14ef270 < <archivo con la clave>
+docker compose -p evaluon exec -T app python manage.py correr_evals --usuario desarrollo --commit 14ef270 --quitando-piezas < <archivo con la clave>
+```
+
+| Corrida | Carpeta | Horario | Para qué |
+|---|---|---|---|
+| 1 | `2026-10-03T171739_14ef270_gemma-4-12b-it-qat-q4_0` | 17:17:39 a 17:21:21 | La que se presenta |
+| 2 | `2026-10-03T172157_14ef270_gemma-4-12b-it-qat-q4_0` | 17:21:57 a 17:25:33 | Repetición, para la igualdad |
+| 3 | `2026-10-03T172609_14ef270_gemma-4-12b-it-qat-q4_0` | 17:26:09 a 17:30:50 | Repetición con `--quitando-piezas` |
+
+Consultas registradas, todas con el usuario `desarrollo`:
+
+- 168 de las tres corridas, con canal `eval`;
+- 18 de calentamiento, con canal `command`.
+
+Las carpetas se movieron después a la rama `001-T-046`.
+
+**Calentamiento (decisión del responsable).** `correr_evals` no tiene una opción para calentar. Antes de cada corrida se hicieron 6 consultas:
+
+- con `services.ask`, desde `manage.py shell` en el mismo contenedor `app`;
+- canal `command`, usuario `desarrollo`;
+- no se cuentan en las medidas.
+
+Las preguntas no son del conjunto ni tratan sus artículos. Su fecha es la 2025-06-30, salvo la cuarta:
+
+1. "¿Qué es una licitación pública?"
+2. "¿Qué principios generales rigen las contrataciones?"
+3. "¿Quién autoriza la convocatoria de un procedimiento de selección?"
+4. "¿Qué es una contratación directa?" (2015-10-01)
+5. "¿Qué es el acto de apertura de las ofertas?"
+6. "¿Cuál es la capital de Francia?"
+
+| Calentamiento | 1.ª (en frío) | 2.ª | 3.ª | 4.ª | 5.ª | 6.ª (frenada por el umbral) |
+|---|---|---|---|---|---|---|
+| Antes de la corrida 1 | **7,65 s** | 6,91 s | 2,45 s | 8,71 s | 7,73 s | 0,47 s |
+| Antes de la corrida 2 | 5,40 s | 6,36 s | 1,94 s | 7,31 s | 7,10 s | 0,51 s |
+| Antes de la corrida 3 | 5,40 s | 6,13 s | 2,01 s | 7,38 s | 7,10 s | 0,40 s |
+
+**Tiempo en frío:** 7,65 s en la primera consulta: 6,63 s de generación y 0,90 s de recuperación. No pasa de 30 s, así que no corresponde abrir la tarea de precalentar.
+
+Límite de la medida:
+- Los servicios no se reiniciaron. Su último uso fue la corrida de T-063 (16:54), unos 23 minutos antes.
+- No es el arranque después de horas sin uso que dio 29,5 s en T-063: ese caso no se volvió a medir.
+- Desde la primera consulta los tiempos ya son los normales: esta vez no se vio un arranque en frío de varias consultas.
+
+**Medidas exigidas (corrida 1).** La respuesta correcta y la abstención se miden sobre el lote de aceptación; la cita literal y el tiempo, sobre toda la corrida.
+
+| Exigencia | Resultado | Umbral | Cumple |
+|---|---|---|---|
+| Cita literal | 100,0 % (113 de 113; IC 95 %: 96,7 % a 100 %) | 100 % | sí |
+| Respuesta correcta que cita la unidad correcta | 94,1 % (16 de 17; IC 95 %: 73,0 % a 99,0 %) | al menos 85 % | sí |
+| Abstención | 100,0 % (6 de 6; IC 95 %: 61,0 % a 100 %) | al menos 90 % | sí |
+| Tiempo por consulta, sin el calentamiento | mediana 4,03 s · máximo 8,22 s (EV-011) | máximo 30 s | sí |
+| Memoria de video total | 10.284 MiB usados + 326 MiB reservados por el controlador (10,4 GiB) | 20 GB | sí |
+
+- **Revisión humana:** no dio por incorrecta ninguna respuesta que el corrector aceptó. La medida corregida es igual a la automática.
+- **Margen:** con 17 y 6 casos, ni este resultado permite afirmar con 95 % de confianza que la tasa real supera el 85 % y el 90 %. Las cotas inferiores son 73,0 % y 61,0 %.
+
+**Abstención.** Las 6 preguntas sin respuesta del lote de aceptación las frenó el umbral, no el modelo:
+
+- motivo `below_threshold`, puntajes entre 0,0011 y 0,0074;
+- tres ajenas a la normativa: EV-051, EV-052 y EV-053;
+- tres de tema cercano: EV-054, EV-055 y EV-056.
+
+La regla 11 de la v3 (abstenerse solo si ninguna unidad trata el punto) sigue sin probarse con el modelo real en una pregunta sin respuesta.
+
+**Caso fallado del lote de aceptación:** EV-044, sobre las muestras no retiradas (art. 28 del anexo de la 247/2022). Este caso no se usa para ajustar.
+
+- Es una abstención indebida por el umbral. El art. 28 quedó 1.º en el orden del reranker, pero con 0,1169, debajo de 0,219.
+- 0,1169 está también debajo de la pregunta ajena más alta del lote de ajuste (EV-025, 0,1195). Con la regla del hueco, ningún umbral la deja pasar sin dejar pasar también a EV-025.
+- Es una pregunta con "palabras distintas a las de la norma": "nunca pasa a buscar" frente a "no retira las muestras".
+- Salió igual en las tres corridas, con el mismo puntaje.
+- No hubo contenido inventado: el sistema no afirmó nada (P3).
+
+**Lote de ajuste (diagnóstico):**
+
+- respuesta correcta: 85,2 % (23 de 27; IC 95 %: 67,5 % a 94,1 %);
+- abstención: 100 % (6 de 6).
+
+Fallan, con las causas de siempre:
+- EV-006: omite la revisión ante la máxima autoridad.
+- EV-009: faltan dos modalidades.
+- EV-017: omite la pérdida de la garantía de la oferta.
+- EV-024: el art. 21 del Anexo I no llega a la selección por el cupo de 3 unidades por categoría.
+
+**Medidas por régimen.** El resumen de la corrida las da para el lote de ajuste. Las del lote de aceptación se calcularon aparte, con la misma función de Wilson.
+
+| Régimen | Ajuste: respuesta correcta | Ajuste: abstención | Aceptación: respuesta correcta | Aceptación: abstención |
+|---|---|---|---|---|
+| 247/2022 | 88,2 % (15 de 17; IC 65,7 % a 96,7 %) | 100 % (3 de 3) | 90,9 % (10 de 11; IC 62,3 % a 98,4 %) | 100 % (3 de 3; IC 43,8 % a 100 %) |
+| 297/03 | 80,0 % (8 de 10; IC 49,0 % a 94,3 %) | 100 % (2 de 2) | 100 % (6 de 6; IC 61,0 % a 100 %) | 100 % (3 de 3; IC 43,8 % a 100 %) |
+| Sin régimen a la fecha | — | 100 % (1 de 1) | — | — |
+
+**REQ-018 y REQ-019.** El conjunto no tiene casos de ninguno de los dos y quedan sin medir con la IA:
+
+- ninguno con la etiqueta "dos categorías";
+- ninguno con `difieren: true`;
+- el resumen dice "ningún caso corrido";
+- las 113 citas son del régimen específico y ninguna afirmación trae `regimes_differ`.
+
+**Pares de REQ-020: 7 de 8 pasan.**
+
+- **El que falla:** EV-003 y EV-017, porque EV-017 no pasa por su cuenta. Omite la pérdida de la garantía de la oferta, como en T-045, T-059 y T-063.
+- **El régimen:** en los 8 pares, cada caso aplica y cita la norma de su fecha. El par de borde, EV-034 (2023-01-03) y EV-035 (2023-01-01), cita la 247/2022 y la 297/03.
+
+**Aviso de REQ-021:** 56 de 56 según lo esperado.
+
+**Igualdad entre corridas** (estado, motivo, citas y texto de las afirmaciones):
+
+| Comparación | Mismo estado, motivo y citas | Mismo texto | Medidas exigidas |
+|---|---|---|---|
+| Corrida 2 contra la 1 | 56 de 56 | 47 de 56 | iguales |
+| Corrida 3 contra la 2 | 56 de 56 | 56 de 56 | iguales |
+
+Qué cambia entre la 1 y la 2:
+- Son 9 textos distintos, todos del lote de ajuste y de las primeras 17 consultas: EV-001, 002, 003, 004, 009, 011, 013, 015 y 017.
+- Cambia la redacción, no el contenido.
+- El lote de aceptación salió idéntico en las tres corridas.
+
+El caso que cambia de resultado es EV-004:
+- La corrida 1 dice "No es necesario presentar la garantía…" y pasa.
+- La 2 y la 3 dicen "No será necesario…" y fallan.
+- El dato `["no", "no es necesario"]` no acepta "no será necesario", y la primera afirmación no empieza con "no".
+- La respuesta es correcta en las tres.
+
+Causa probable, no comprobada: la caché de prompt de `llama-server` (ver el aviso de la decisión del responsable sobre el calentamiento). La corrida 1 llegó con la caché que dejó T-063; la 2 y la 3, con la de una corrida completa de los mismos casos.
+
+**Comparación quitando piezas** (corrida 3, lote de ajuste, sin el modelo de generación):
+
+| Configuración | Unidad correcta entre los candidatos | Entre las enviadas al modelo | Posición (mediana · peor) | Frenadas con respuesta / sin respuesta | Tiempo de la recuperación |
+|---|---|---|---|---|---|
+| solo vectores | 27 de 27 | 26 de 27 | 1 · 4 | 0 de 27 / 5 de 5 | mediana 0,40 s · máx. 0,49 s |
+| solo palabras | 27 de 27 | 26 de 27 | 1 · 4 | 0 de 27 / 5 de 5 | mediana 0,42 s · máx. 0,50 s |
+| combinada sin reranker | 27 de 27 | 25 de 27 | 1 · 10 | no aplica | mediana 0,01 s · máx. 0,01 s |
+| completa | 27 de 27 | 26 de 27 | 1 · 4 | 0 de 27 / 5 de 5 | mediana 0,58 s · máx. 0,75 s |
+
+- **El reranker es la pieza que aporta.** Sin él, la unidad correcta cae hasta el 10.º lugar y se pierde una más al armar el pedido.
+- **Los caminos de búsqueda.** Con este lote, cualquiera de los dos caminos solo, por vectores o por palabras, trae la unidad correcta en los 27 casos.
+- **La referencia exacta** sigue en 0 de 27, porque ninguna pregunta nombra un artículo.
+
+**Memoria de video.** Se muestreó con `nvidia-smi --query-gpu=timestamp,memory.used -lms 500`:
+
+- desde el calentamiento de la corrida 1 hasta el final de la medición por vectores, de 17:16:55 a 17:31:11;
+- 1.686 lecturas, todas de 10.284 MiB, sin picos;
+- al final: `memory.reserved` 326 MiB y `memory.free` 13.854 MiB de 24.463.
+
+Coincide con T-003 (10.336 MiB con los tres modelos cargados después de puntuar 65 pasajes). En modo WDDM, `nvidia-smi` no da el uso por proceso: es la lectura de la placa entera, con la pantalla en la placa integrada.
+
+**Búsqueda exacta por vectores.** Se midió solo la consulta SQL del camino por significado: `retrieval._SEMANTIC_SQL`, con `LIMIT 30` y sin índice.
+
+- Corpus real: 223 pasajes con embedding.
+- 24 mediciones: 4 preguntas de calentamiento, para las dos fechas, con 6 repeticiones cada una.
+- Resultado: mediana 1,3 ms, máximo 3,8 ms (la primera ejecución) y mínimo 1,0 ms.
+- `EXPLAIN ANALYZE`: 0,46 ms de ejecución, con un ordenamiento top-N de 99 pasajes consultables a la fecha.
+
+Está muy por debajo de 200 ms: no hace falta índice.
+
+**Comparación con la corrida anterior** (T-063, `2026-10-03T165105_d5b96d4_…`), lote de ajuste:
+
+| Medida | T-063 | T-046 (corrida 1) |
+|---|---|---|
+| Cita literal | 100 % (74 de 74) | 100 % (74 de 74) |
+| Respuesta correcta | 81,5 % (22 de 27) | 85,2 % (23 de 27) |
+| Abstención | 100 % (6 de 6) | 100 % (6 de 6) |
+| 247/2022 / 297/03 | 82,4 % / 80,0 % | 88,2 % / 80,0 % |
+| Unidad correcta enviada al modelo | 26 de 27 | 26 de 27 |
+| Pares / aviso | 3 de 4 / 33 de 33 | 3 de 4 / 56 de 56 (con el lote de aceptación: 7 de 8) |
+| Tiempo (toda la corrida) | mediana 4,79 s · máx. 29,52 s | mediana 4,03 s · máx. 8,22 s |
+
+- **Contra T-063:** el comando informa "Sin bajas respecto de la corrida anterior".
+- **EV-003** pasa a pasar con las mismas afirmaciones que en T-063, por la variante "término igual" que aprobó el responsable. No es una mejora del sistema.
+- **El lote de aceptación** no tiene corrida anterior con la que compararse.
+- **Entre repeticiones con el mismo commit** hay una baja: en la corrida 2, el lote de ajuste baja a 81,5 % por EV-004, por redacción (ver "Igualdad entre corridas"). La informa el comando de la corrida 2.
+
+**Huellas** (`parametros.json`, iguales en las tres corridas y a las de T-063):
+
+| Modelo | Archivo | sha256 |
+|---|---|---|
+| Generación, `gemma-4-12b-it-qat-q4_0`, compilación `b11347`, temperatura 0, semilla 42 | `gemma-4-12b-it-qat-q4_0.gguf` | `93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b` |
+| Embeddings, `bge-m3` | `bge-m3-FP16.gguf` | `daec91ffb5dd0c27411bd71f29932917c49cf529a641d0168496c3a501e3062c` |
+| Reranker, `bge-reranker-v2-m3` | `bge-reranker-v2-m3-FP16.gguf` | `5df93be121c09c43432102ad2b9569d369ccb85c209ca7583e8ccd28f0e41b88` |
+
+**Decisiones del responsable sobre la corrida de T-046 (2026-10-03).**
+
+1. EV-004: "no será necesario" dice lo mismo que "no es necesario"; se sumó como variante (#87). Con eso la baja entre repeticiones queda resuelta.
+2. Par EV-003 / EV-017: el par cumple su objetivo (régimen y norma correctos en los dos casos). La respuesta incompleta de EV-017 (no dice que se pierde la garantía de la oferta), junto con EV-006 y EV-009, queda como mejora pendiente: es un ajuste de instrucciones, con su propia tarea y su medición.
+3. REQ-019: se redactan 2 o 3 casos nuevos con visto bueno del responsable y se miden en una corrida corta (T-066). REQ-018: queda pendiente hasta que se cargue una norma de otra categoría; lo puede habilitar la Comisión con la feature 009.
+4. EV-044 (lote de aceptación) falla por el umbral con otras palabras que la norma; queda registrado y no se ajusta nada con el lote de aceptación (ADR-0014).
