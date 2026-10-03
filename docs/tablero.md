@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 44 tareas sin terminar.
-- ▶ T-053 · Conservar la eñe en la búsqueda por palabras (en curso)
+- ◐ T-053 · Conservar la eñe en la búsqueda por palabras (en verificación)
 - ○ T-010 · Crear la tabla del registro detallado de consultas (pendiente)
 - ○ T-011 · Crear los clientes de IA, sus dobles y los parámetros (pendiente)
 - ○ T-012 · Leer un PDF con texto (pendiente)
@@ -172,7 +172,7 @@ flowchart TD
   T050["○ T-050 · Partir la 297/03 y el cuerpo de la 247/2022…"]:::todo
   T051["○ T-051 · Registrar las modificatorias sin cargar de…"]:::todo
   T052["○ T-052 · Avisar modificatorias sin cargar en respues…"]:::todo
-  T053["▶ T-053 · Conservar la eñe en la búsqueda por palabras"]:::active
+  T053["◐ T-053 · Conservar la eñe en la búsqueda por palabras"]:::review
   T001 --> T002
   T002 --> T003
   T003 --> T004

@@ -68,7 +68,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-050 | Partir la 297/03 y el cuerpo de la 247/2022 desde la web | REQ-003 | T-022, T-025 | pendiente |
 | T-051 | Registrar las modificatorias sin cargar de una norma | REQ-012, REQ-021 | T-029 | pendiente |
 | T-052 | Avisar modificatorias sin cargar en respuesta y búsqueda | REQ-012, REQ-021 | T-041, T-051 | pendiente |
-| T-053 | Conservar la eñe en la búsqueda por palabras | REQ-010 | T-009 | en curso |
+| T-053 | Conservar la eñe en la búsqueda por palabras | REQ-010 | T-009 | en verificación |
 
 ## Detalle
 
