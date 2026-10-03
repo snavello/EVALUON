@@ -904,7 +904,7 @@ def test_a_forward_jump_within_the_margin_is_accepted_and_reported():
     assert keys(result) == ["art-1", "art-2", "art-4", "art-5"]
     sequence = result.report["sequence"]
     assert sequence == [{"container": "Cuerpo", "key": "", "gaps": ["3"], "not_accepted": []}]
-    assert "faltan los números 3" in result.report_text
+    assert "falta el número 3" in result.report_text
     check_invariants(result)
 
 

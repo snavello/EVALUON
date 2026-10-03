@@ -77,13 +77,20 @@ def read_page_ocr(page, number: int) -> Page:
         output_type=pytesseract.Output.DICT,
     )
     lines = _lines(data)
-    status = page_status([word for line in lines for word in line.words])
+    words = [word for line in lines for word in line.words]
+    status = page_status(words)
+    # Origen y confianza promedio de la página (T-025), también en una página ilegible,
+    # que no aporta líneas: así el informe distingue la confianza baja de la página casi
+    # sin texto. Sin palabras no hay confianza.
+    confidence = _round(sum(word.confidence for word in words) / len(words)) if words else None
     return Page(
         number=number,
         width=_round(width),
         height=_round(height),
         status=status,
         lines=lines if status != PAGE_ILLEGIBLE else [],
+        origin=ORIGIN_OCR,
+        confidence=confidence,
     )
 
 
