@@ -1,7 +1,8 @@
 {% comment %}
 Búsqueda directa de la pantalla de consulta (REQ-006, REQ-010, REQ-020; T-041): el
 formulario, con su propio campo de fecha (prefijo `search`), y, si se buscó, los
-resultados con la línea de fecha y régimen aplicado. Cada resultado usa el marcado de las
+resultados con la línea de fecha y régimen aplicado y, debajo, los avisos de
+modificatorias sin cargar (REQ-021; T-052). Cada resultado usa el marcado de las
 citas (T-037): `details.citation` con el texto en `blockquote.literal` y el ancla
 `texto-N` en el resultado. Textos fijos en lenguaje llano.
 {% endcomment %}<section class="search-form" id="search" aria-labelledby="search-form-title">
@@ -50,6 +51,7 @@ citas (T-037): `details.citation` con el texto en `blockquote.literal` y el ancl
   <h2 id="search-results-title">Resultados de la búsqueda</h2>
   <p class="search-terms">{% if search.kind == "article" %}Artículo {{ search.terms.article }} de {{ search.terms.norm_name }}{% else %}Palabras: «{{ search.terms.words }}»{% if search.terms.norm_name %} en {{ search.terms.norm_name }}{% endif %}{% endif %}</p>
   {% include "queries/_regime_line.html" with reference_date=search.reference_date regime=search.regime %}
+  {% include "queries/_pending_notices.html" with notices=search.notices %}
   {% with count=search.items|length %}
   {% if count %}
   <p class="search-count">Se encontr{{ count|pluralize:"ó,aron" }} {{ count }} texto{{ count|pluralize }}.</p>

@@ -1,9 +1,10 @@
 """Consulta de punta a punta con su registro (REQ-008, REQ-009, REQ-012, REQ-013,
-REQ-018, REQ-019, REQ-020; plan 001, "Fecha de autorización y régimen aplicado",
-"Recuperación", "Reordenamiento", "Conteo de tokens", "Generación", "Cita",
-"Abstención", "Forma de la respuesta" y "Registro de auditoría"). T-019 dejó la versión
-mínima; T-040 une la recuperación de T-032 y T-033 y la generación de T-034 y completa el
-registro.
+REQ-018, REQ-019, REQ-020, REQ-021; plan 001, "Fecha de autorización y régimen
+aplicado", "Recuperación", "Reordenamiento", "Conteo de tokens", "Generación", "Cita",
+"Abstención", "Aviso de modificatorias sin cargar (REQ-021)", "Forma de la respuesta" y
+"Registro de auditoría"). T-019 dejó la versión mínima; T-040 une la recuperación de
+T-032 y T-033 y la generación de T-034 y completa el registro; T-052 agrega los avisos de
+modificatorias sin cargar.
 
 `ask(usuario, pregunta, fecha, channel=...)` es el único camino para ejecutar una
 consulta: la usan la pantalla, los comandos y las evals. Hace, en este orden:
@@ -37,13 +38,23 @@ consulta: la usan la pantalla, los comandos y las evals. Hace, en este orden:
      pregunta ya no dejan espacio (`prompt_exceeds_context`), porque ninguna entra o
      porque el control las sacó a todas: falla técnica `input_too_long`, sin llamar al
      modelo. No es un "no determinado" (decisión 2).
+   - Cuenta de modificatorias sin cargar (`amendments.pending_count`, T-051) de cada
+     norma de las unidades que muestra el pedido (las enviadas y las que entran por
+     relación): se lee acá, con la misma normativa que el régimen y el pedido, y no
+     entra en el pedido.
 4. Fuera de la instantánea, genera con `answering.answer(pregunta, request=pedido)`: envía
    el mismo pedido que se armó y controló adentro (instrucciones `consulta-v2`, decisión
    1), y valida la salida y arma el resultado con lo que trae ese pedido, sin volver a
    leer la base. Una relación registrada mientras tanto no cambia lo enviado ni lo
    registrado.
 5. Arma el resultado con la forma de "Forma de la respuesta" (`query_id`,
-   `reference_date`, `regime` y `notices` vacío en los tres estados) y guarda, en una
+   `reference_date`, `regime` y `notices` en los tres estados). Con fundamento, después
+   de validar la salida del modelo, `notices` lleva un aviso por cada norma de las
+   unidades que se muestran (las citadas y las que las modifican) que tiene
+   modificatorias sin cargar, en el orden en que aparecen sus unidades:
+   `{"type": "pending_amendments", "norm", "name", "pending"}`. Un "no determinado" y
+   una falla técnica no muestran unidades y llevan `notices` vacío. El modelo no recibe
+   ni redacta el aviso. Guarda, en una
    sola transacción, el hecho `query` de `audit_event` y la fila de `queries_query`,
    cada uno una sola vez y completo, con la versión de la normativa de la instantánea.
 
@@ -90,8 +101,8 @@ antes con `nextval` sobre la secuencia de `queries_query.id`, se inserta el hech
 resultado completo y después la fila con ese `id`, el usuario y la versión de la
 normativa del hecho, y `asked_at` con el momento de la pregunta.
 
-Los avisos de modificatorias sin cargar (`notices`) son de T-052. Los clientes de IA se
-usan por su módulo (`generation.count_tokens`, y dentro de `retrieval` y `answering`).
+Los clientes de IA se usan por su módulo (`generation.count_tokens`, y dentro de
+`retrieval` y `answering`).
 
 Búsqueda directa (REQ-010, REQ-012, REQ-020; plan 001, "Búsqueda directa (REQ-010)";
 T-041). `search(usuario, fecha, norm_id=..., article=..., words=..., channel=...)` es el
@@ -103,7 +114,13 @@ toma la versión de la normativa, el régimen aplicado (`applicable_regimes`) y 
 todas las normas o en una). A diferencia de la consulta, busca aunque no haya régimen a
 la fecha. Deja el hecho `search` con el tipo de búsqueda, los términos, la fecha, el
 régimen y las unidades devueltas con su marca de derogada (no el resultado completo de
-cada una: la búsqueda por palabras no tiene límite). `notices` queda vacío hasta T-052.
+cada una: la búsqueda por palabras no tiene límite). Los avisos de modificatorias sin
+cargar (T-052), con la misma forma que en la consulta y contados dentro de la misma
+instantánea, van en lo que devuelve y en el detalle del hecho (`notices`). Como en la
+consulta, cuentan las normas de las unidades que se muestran: las devueltas y, después,
+las que traen un cambio de una devuelta y cuyo texto se muestra (`source_unit_id`;
+decisión del Coordinador: manda REQ-021, "toda búsqueda que muestre una unidad de esa
+norma").
 """
 
 import time
@@ -120,6 +137,7 @@ from evaluon.ai import AIServiceError, generation
 from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType, Outcome
 from evaluon.norms.models import Norm, Unit
+from evaluon.norms.services import amendments
 from evaluon.queries import answering, retrieval
 from evaluon.queries import search as direct_search
 from evaluon.queries.models import Query, Reason, Status
@@ -132,6 +150,9 @@ SERVICE_ERROR = "service_error"
 # Motivo propio de la decisión de abstención cuando la recuperación no trajo ningún
 # candidato. En el resultado y en la columna `reason` queda `below_threshold`.
 NO_CANDIDATES = "no_candidates"
+
+# Tipo del aviso de modificatorias sin cargar en `notices` (REQ-021).
+PENDING_AMENDMENTS = "pending_amendments"
 
 # De dónde sale una unidad dejada afuera por espacio (`selected["left_out"][…]["check"]`).
 CHECK_SELECTION = "selection"
@@ -301,6 +322,9 @@ class _Ready:
 
     unit_ids: list
     request: object
+    # Norma y modificatorias sin cargar de cada unidad que muestra el pedido, leídas en
+    # la instantánea (`_pending_by_unit`).
+    pending: dict | None = None
 
 
 def ask(user, question, reference_date=None, *, channel=Channel.SCREEN):
@@ -329,9 +353,14 @@ def ask(user, question, reference_date=None, *, channel=Channel.SCREEN):
         regime = applicable_regimes(reference_date)
         clock.stage("regimes", since)
         prepared = _prepare(question, reference_date, regime, record, clock)
+        if isinstance(prepared, _Ready):
+            prepared.pending = _pending_by_unit(_shown_unit_ids(prepared.request))
 
+    notices = []
     if isinstance(prepared, _Ready):
         outcome = _generate(question, reference_date, prepared, record, clock)
+        if outcome["status"] == Status.GROUNDED:
+            notices = _notices(_result_unit_ids(outcome), prepared.pending)
     else:
         outcome = prepared
 
@@ -341,12 +370,63 @@ def ask(user, question, reference_date=None, *, channel=Channel.SCREEN):
         "reason": outcome["reason"],
         "reference_date": reference_date.isoformat(),
         "regime": regime,
-        "notices": [],
+        "notices": notices,
         "statements": outcome.get("statements", []),
         "units": outcome.get("units", {}),
     }
     return _save(user, channel, question, reference_date, asked_at, result, record,
                  clock.total(), corpus_version)
+
+
+def _shown_unit_ids(built):
+    """Las unidades que muestra el pedido: las enviadas y las que entran por
+    relación."""
+    return set(built.shown) | set((built.modifiers or {}).keys())
+
+
+def _pending_by_unit(unit_ids):
+    """`{id de unidad: (norma, nombre de cita, modificatorias sin cargar)}` para las
+    unidades `unit_ids`, con la cuenta de `amendments.pending_count` de cada norma. Se
+    llama dentro de la instantánea."""
+    rows = (Unit.objects.filter(pk__in=unit_ids)
+            .values_list("pk", "reading__document__norm_id",
+                         "reading__document__norm__citation"))
+    counts = {}
+    by_unit = {}
+    for unit_id, norm_id, name in rows:
+        if norm_id not in counts:
+            counts[norm_id] = amendments.pending_count(norm_id)
+        by_unit[unit_id] = (norm_id, name, counts[norm_id])
+    return by_unit
+
+
+def _result_unit_ids(outcome):
+    """Las unidades que muestra una respuesta con fundamento, en el orden en que
+    aparecen: las citas de cada afirmación y después las demás de `units` (las que
+    modifican a una citada)."""
+    ordered = [int(unit_id) for statement in outcome.get("statements") or []
+               for unit_id in statement.get("citations") or []]
+    ordered += [int(unit_id) for unit_id in outcome.get("units") or {}]
+    return list(dict.fromkeys(ordered))
+
+
+def _notices(unit_ids, pending):
+    """Un aviso de modificatorias sin cargar por cada norma de `unit_ids` que tiene
+    alguna, en el orden de sus unidades. `pending` tiene la forma de
+    `_pending_by_unit`."""
+    notices = []
+    seen = set()
+    for unit_id in unit_ids:
+        if unit_id not in pending:
+            continue
+        norm_id, name, count = pending[unit_id]
+        if norm_id in seen:
+            continue
+        seen.add(norm_id)
+        if count > 0:
+            notices.append({"type": PENDING_AMENDMENTS, "norm": norm_id, "name": name,
+                            "pending": count})
+    return notices
 
 
 def _abstain(record, reason, result_reason=None):
@@ -642,10 +722,18 @@ def search(user, reference_date=None, *, norm_id=None, article="", words="",
         else:
             kind = SEARCH_BY_WORDS
             results = direct_search.by_words(words, reference_date, norm_id=norm_id)
+        shown = _search_shown_units(results)
+        counts = {}
+        for _, norm, _ in shown:
+            if norm not in counts:
+                counts[norm] = amendments.pending_count(norm)
 
     terms = {"norm": norm_id, "norm_name": norm_name, "article": article,
              "words": words}
-    notices = []
+    pending = {}
+    for unit_id, norm, name in shown:
+        pending.setdefault(unit_id, (norm, name, counts[norm]))
+    notices = _notices([unit_id for unit_id, _, _ in shown], pending)
     event = audit.record(
         EventType.SEARCH,
         outcome=Outcome.OK,
@@ -663,6 +751,18 @@ def search(user, reference_date=None, *, norm_id=None, article="", words="",
     )
     return SearchOutcome(kind=kind, terms=terms, reference_date=reference_date,
                          regime=regime, results=results, notices=notices, event=event)
+
+
+def _search_shown_units(results):
+    """Las unidades que muestra una búsqueda, como `(unidad, norma, nombre)`, en el orden
+    en que aparecen para los avisos: las devueltas y después las que traen un cambio de
+    una devuelta con su texto (`source_unit_id`). Un cambio de una norma entera no
+    muestra ninguna unidad."""
+    shown = [(result.unit_id, result.norm_id, result.norm_name) for result in results]
+    shown += [(change.source_unit_id, change.source_norm_id, change.source_norm_name)
+              for result in results for change in result.changes
+              if change.source_unit_id is not None]
+    return shown
 
 
 def _search_unit_record(result):
