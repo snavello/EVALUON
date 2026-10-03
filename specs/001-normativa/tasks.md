@@ -86,7 +86,7 @@ Ajuste del 2026-10-03 por el ADR-0015 (decisión del responsable sobre la remisi
 | T-062 | Fijar el umbral con la regla nueva | REQ-009 | T-059, T-060 | terminada |
 | T-063 | Instrucciones para responder la remisión a una norma no cargada | REQ-008, REQ-009 | T-060, T-062, T-064 | pendiente |
 | T-064 | Reescribir EV-027, EV-028 y EV-029 como preguntas con respuesta | REQ-008, REQ-009 | T-059 | terminada |
-| T-065 | Corregir la espera intermitente de `test_wait` y el borde de la calibración | REQ-008, REQ-009 | T-060 | pendiente |
+| T-065 | Corregir la espera intermitente de `test_wait` y el borde de la calibración | REQ-008, REQ-009 | T-060 | terminada |
 
 ## Detalle
 
