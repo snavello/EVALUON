@@ -89,12 +89,19 @@ def request_messages(fake_generation, unit_ids, passages):
 def test_request_is_byte_identical_to_the_previous_format(fixed_case, fake_generation):
     """REQ-007, REQ-018, REQ-019: con el bloque de unidad y el de cambio como funciones
     públicas, el pedido de un caso fijo es igual, byte por byte, al que armaba el código
-    anterior (guardado en `tests/fixtures/t033-pedido-esperado.json`)."""
+    anterior (guardado en `tests/fixtures/t033-pedido-esperado.json`).
+
+    El pedido guardado se armó con `consulta-v2`. Desde T-063 el mensaje de sistema es la
+    versión activa (`consulta-v3`): ese mensaje se compara con sus instrucciones, y el
+    del usuario, que es el formato que esta prueba fija, sigue igual byte por byte."""
     unit_ids, passages = fixed_case
 
     messages = request_messages(fake_generation, unit_ids, passages)
 
     expected = json.loads(EXPECTED.read_text(encoding="utf-8"))
     assert [m["role"] for m in messages] == [m["role"] for m in expected]
+    assert expected[0]["content"] == answering.load_instructions("consulta-v2")
+    expected[0]["content"] = answering.load_instructions(
+        answering.PROMPT_VERSION_WITH_DATE)
     for got, want in zip(messages, expected):
         assert got["content"].encode("utf-8") == want["content"].encode("utf-8")

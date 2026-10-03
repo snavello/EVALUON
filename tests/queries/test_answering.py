@@ -158,7 +158,7 @@ def test_result_has_cited_units_without_literal_text(units, fake_generation):
 
 @pytest.mark.django_db
 def test_request_shows_each_unit_with_alias_and_base_text(units, fake_generation):
-    """REQ-008: el pedido lleva las instrucciones versionadas (`consulta-v2`), la
+    """REQ-008: el pedido lleva las instrucciones versionadas (`consulta-v3`), la
     pregunta y cada unidad seleccionada con su alias en el orden recibido (misma
     categoría), su categoría, su norma, su ruta, su tipo y su texto tomado de la base."""
     selected = ids(units, "art-3", "art-1")
@@ -166,9 +166,9 @@ def test_request_shows_each_unit_with_alias_and_base_text(units, fake_generation
     answer = ask(selected)
 
     [(messages, _)] = fake_generation.calls
-    assert answer.prompt_version == answering.PROMPT_VERSION_WITH_DATE == "consulta-v2"
+    assert answer.prompt_version == answering.PROMPT_VERSION_WITH_DATE == "consulta-v3"
     assert messages[0] == {"role": "system",
-                           "content": answering.load_instructions("consulta-v2")}
+                           "content": answering.load_instructions("consulta-v3")}
     content = user_message(fake_generation)
     assert QUESTION in content
     norm = units["art-1"].reading.document.norm

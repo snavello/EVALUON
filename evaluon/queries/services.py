@@ -27,7 +27,7 @@ consulta: la usan la pantalla, los comandos y las evals. Hace, en este orden:
      tabla admiten, y con el motivo propio (`no_candidates` o `below_threshold`) en la
      decisión de abstención del registro (decisión 4 del Coordinador para T-040).
    - Selección (`retrieval.select_units`) con los tokens de las instrucciones
-     `consulta-v2` y del comienzo del mensaje (`answering.request_head`), contados con
+     `consulta-v3` y del comienzo del mensaje (`answering.request_head`), contados con
      `generation.count_tokens`.
    - Control del pedido completo (`_check_request`): se arma el pedido con
      `answering.build_request`, el mismo camino que usa `answer`, y se cuentan sus
@@ -43,7 +43,7 @@ consulta: la usan la pantalla, los comandos y las evals. Hace, en este orden:
      relación): se lee acá, con la misma normativa que el régimen y el pedido, y no
      entra en el pedido.
 4. Fuera de la instantánea, genera con `answering.answer(pregunta, request=pedido)`: envía
-   el mismo pedido que se armó y controló adentro (instrucciones `consulta-v2`, decisión
+   el mismo pedido que se armó y controló adentro (instrucciones `consulta-v3`, decisión
    1), y valida la salida y arma el resultado con lo que trae ese pedido, sin volver a
    leer la base. Una relación registrada mientras tanto no cambia lo enviado ni lo
    registrado.
