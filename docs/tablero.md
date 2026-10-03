@@ -63,8 +63,8 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 32 tareas sin terminar.
+- ▶ T-022 · Leer una página web guardada (en curso)
 - ○ T-021 · Leer un PDF escaneado con reconocimiento de texto (pendiente)
-- ○ T-022 · Leer una página web guardada (pendiente)
 - ○ T-023 · Partir normas completas con incisos, anexos y considerandos (pendiente)
 - ○ T-024 · Partir dictámenes y recomendaciones en puntos y párrafos (pendiente)
 - ○ T-025 · Completar el informe de lectura (pendiente)
@@ -148,7 +148,7 @@ flowchart TD
   T019["✓ T-019 · Unir la consulta de punta a punta con su re…"]:::done
   T020["✓ T-020 · Probar el hilo mínimo con los servicios rea…"]:::done
   T021["○ T-021 · Leer un PDF escaneado con reconocimiento de…"]:::todo
-  T022["○ T-022 · Leer una página web guardada"]:::todo
+  T022["▶ T-022 · Leer una página web guardada"]:::active
   T023["○ T-023 · Partir normas completas con incisos, anexos…"]:::todo
   T024["○ T-024 · Partir dictámenes y recomendaciones en punt…"]:::todo
   T025["○ T-025 · Completar el informe de lectura"]:::todo
