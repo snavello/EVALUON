@@ -202,7 +202,7 @@ def test_semantic_path_takes_nearest_passages_by_cosine(settings, norm_with_unit
     result = retrieval.retrieve(QUESTION, REFERENCE_DATE)
 
     assert [c.unit_id for c in result.candidates] == [units["art-1"].pk, units["art-3"].pk]
-    assert [c.path for c in result.candidates] == ["semantic", "semantic"]
+    assert [c.path for c in result.candidates] == [("semantic",), ("semantic",)]
     assert result.candidates[0].distance == pytest.approx(0.0, abs=1e-6)
     assert result.candidates[1].distance == pytest.approx(1 - 1 / math.sqrt(2), abs=1e-6)
     assert all(c.score == pytest.approx(0.2) for c in result.candidates)
@@ -239,11 +239,32 @@ def test_candidate_record_is_serializable(norm_with_units, fake_embeddings, fake
     [candidate] = record["candidates"]
     assert candidate["unit"] == units["art-1"].pk
     assert candidate["passage"] == units["art-1"].passages.get().pk
-    assert candidate["path"] == "semantic"
+    assert candidate["path"] == ["semantic"]
     assert candidate["score"] == pytest.approx(0.8)
     assert record["reference_date"] == REFERENCE_DATE.isoformat()
     assert record["parameters"]["rerank_threshold"] == pytest.approx(0.5)
     assert record["parameters"]["candidates_per_path"] == 30
+    assert record["parameters"]["paths"] == ["semantic", "words", "reference"]
+    assert record["parameters"]["reranker"] is True
+
+
+@pytest.mark.django_db
+def test_reranker_document_comes_from_indexing(monkeypatch, norm_with_units,
+                                               fake_embeddings, fake_reranker):
+    """REQ-008: el texto que puntúa el reranker sale de la única
+    `indexing.passage_document`, la misma con que se calculó el vector del pasaje; la
+    recuperación no tiene una definición propia."""
+    from evaluon.norms import indexing
+
+    norm_with_units([unit_vector(0)])
+    monkeypatch.setattr(indexing, "passage_document",
+                        lambda header, text: f"DOC[{header}|{text}]")
+
+    retrieval.retrieve(QUESTION, REFERENCE_DATE)
+
+    [(_, documents)] = fake_reranker.calls
+    assert documents and all(d.startswith("DOC[") for d in documents)
+    assert not hasattr(retrieval, "passage_document")
 
 
 # --- Fecha de autorización -----------------------------------------------------------
