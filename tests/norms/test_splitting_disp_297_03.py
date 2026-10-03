@@ -165,6 +165,8 @@ def test_visto_and_considerandos_are_units_of_the_body(norm):
     assert considerandos[1].text.startswith("CONSIDERANDO:\nQue en el Artículo 3°, segunda parte")
     assert considerandos[-1].text.startswith("Que en ejercicio de las facultades conferidas")
     assert norm.units.index(considerandos[-1]) < norm.units.index(by_key(norm)["art-1"])
+    # El informe cuenta el visto aparte (decisión del Coordinador).
+    assert "  Cuerpo: visto, 8 considerandos y 5 artículos; artículos del 1 al 5." in norm.report_text
 
 
 def test_closing_and_publication_data_are_not_added_to_articles(norm):

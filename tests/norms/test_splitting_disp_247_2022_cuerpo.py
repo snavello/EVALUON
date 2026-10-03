@@ -125,6 +125,20 @@ def test_signature_and_notes_are_not_units(body):
     assert all("Castagneto" not in unit.text and "NOTA:" not in unit.text for unit in body.units)
 
 
+def test_the_report_counts_the_visto_apart_from_the_considerandos(body):
+    """REQ-003, REQ-004: decisión del Coordinador: el visto sigue siendo una unidad de
+    tipo `considerando` con clave `visto`, pero el informe lo cuenta aparte: "visto y 7
+    considerandos", como trae la página, y no "8 considerandos"."""
+    units = body.report["units"]
+
+    assert units["by_type"] == {"considerando": 8, "articulo": 5}
+    assert units["visto"] == 1
+    assert units["containers"][0]["visto"] == 1
+    assert "Unidades reconocidas: 13 (visto, 7 considerandos, 5 artículos)." in body.report_text
+    assert "  Cuerpo: visto, 7 considerandos y 5 artículos; artículos del 1 al 5." in body.report_text
+    assert "8 considerandos" not in body.report_text
+
+
 def test_texts_are_their_cut_and_coverage_adds_up(body):
     """REQ-003: el texto de cada unidad es igual a su recorte del texto canónico, viene de
     la página web, y la cobertura suma el total."""

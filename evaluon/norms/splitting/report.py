@@ -27,7 +27,8 @@ Las diez partes del ADR-0004, en este orden:
    como la página 45 del anexo de la 247/2022). `pages` (total y no leídas, de la
    lectura) se conserva como estaba: lo usan la carga y su registro.
 4. **Unidades reconocidas** (`units`, `sequence`, `doubtful_headings`,
-   `uppercase_in_units`, `after_last_inciso`): cantidad por tipo y por contenedor, primer
+   `uppercase_in_units`, `after_last_inciso`, `inciso_key_taken`): cantidad por tipo y
+   por contenedor (el visto se cuenta aparte en el texto, en `visto`), primer
    y último número, la cuenta esperada de artículos frente a la reconocida (según el
    índice, si el contenedor tiene uno, o según la numeración), saltos y repeticiones, y
    los avisos de la partición. Una cláusula se cuenta como un tipo más y no entra en el
@@ -196,6 +197,7 @@ def build_report(
     uppercase_in_units=(),
     doubtful_headings=(),
     after_last_inciso=(),
+    inciso_key_taken=(),
     canonical_sha256=None,
     document_info=None,
 ):
@@ -262,6 +264,9 @@ def build_report(
             "total": len(units),
             "with_text": sum(1 for unit in units if unit.char_end > unit.char_start),
             "by_type": by_type,
+            # Cuántas de las unidades `considerando` son el visto (decisión del
+            # Coordinador, T-050): el texto dice "visto y 7 considerandos".
+            "visto": sum(1 for unit in units if _is_visto(unit)),
             "by_container": by_container,
             "containers": [_container(container, units) for container in containers],
         },
@@ -280,6 +285,10 @@ def build_report(
         # distingue sangrías, así que pueden ser del inciso o de la unidad que lo
         # contiene, donde quedaron. Clave del inciso, unidad donde quedaron y cuántos.
         "after_last_inciso": list(after_last_inciso),
+        # Encabezados de inciso que no se abrieron en su nivel porque la clave ya existía
+        # (T-050): la etiqueta, la clave tomada y la clave con que quedaron, vacía si no
+        # abrieron una unidad.
+        "inciso_key_taken": list(inciso_key_taken),
         "unit_list": [
             {
                 "key": unit.key,
@@ -397,6 +406,7 @@ def _container(container, units):
         "container": container["name"],
         "key": container["key"],
         "by_type": by_type,
+        "visto": sum(1 for u in members if _is_visto(u)),
         "first": articles[0].number if articles else None,
         "last": articles[-1].number if articles else None,
         "expected": expected,
@@ -613,6 +623,19 @@ def attention_items(report):
             + ".",
         )
 
+    taken = report.get("inciso_key_taken") or []
+    if taken:
+        add(
+            "inciso_key_taken",
+            f"{_plural(len(taken), 'encabezado', 'encabezados')} de inciso "
+            f"{_verb(len(taken), 'repite', 'repiten')} la clave de otro inciso del mismo "
+            "nivel y no se "
+            f"{_verb(len(taken), 'abrió', 'abrieron')} en ese nivel; revise a qué inciso "
+            "pertenece su texto: "
+            + _limited([_key_taken_text(t) for t in taken])
+            + ".",
+        )
+
     lines = report["discarded_lines"]
     if lines:
         add(
@@ -697,6 +720,26 @@ def _page_attention(report, add):
 
 
 # --- Texto ------------------------------------------------------------------------------
+
+
+def _is_visto(unit):
+    """El visto: una unidad `considerando` cuya clave es `visto` (ADR-0004, "Visto y
+    considerandos")."""
+    return unit.unit_type == "considerando" and unit.key.rsplit("/", 1)[-1] == "visto"
+
+
+def _type_parts(by_type, visto):
+    """Cantidades por tipo en palabras, con el visto aparte de los considerandos
+    (decisión del Coordinador, T-050): "visto, 7 considerandos, 5 artículos"."""
+    parts = []
+    for unit_type, count in by_type.items():
+        if unit_type == "considerando" and visto:
+            parts.append("visto" if visto == 1 else f"{visto} vistos")
+            count -= visto
+            if not count:
+                continue
+        parts.append(_plural(count, *TYPE_NAMES.get(unit_type, (unit_type, unit_type))))
+    return parts
 
 
 def _plural(count, singular, plural):
@@ -860,10 +903,7 @@ def _pages_text(report):
 def _units_text(report):
     units = report["units"]
     web = _is_web(report)
-    kinds = ", ".join(
-        _plural(count, *TYPE_NAMES.get(unit_type, (unit_type, unit_type)))
-        for unit_type, count in units["by_type"].items()
-    )
+    kinds = ", ".join(_type_parts(units["by_type"], units.get("visto", 0)))
     lines = [f"Unidades reconocidas: {units['total']}" + (f" ({kinds})." if kinds else ".")]
     for container in units["containers"]:
         lines.extend(_container_text(container))
@@ -909,13 +949,32 @@ def _units_text(report):
                 f"  - {item['key']}, {_pages(item['page'], item['page'], web)}: "
                 f"{item['paragraphs']} {stayed} en {item['inside']}"
             )
+
+    taken = report.get("inciso_key_taken") or []
+    if taken:
+        lines.append(
+            "Encabezados de inciso que repiten la clave de otro inciso del mismo nivel y no "
+            f"se abrieron en ese nivel, para revisar: {len(taken)}."
+        )
+        for item in taken:
+            lines.append(f"  - {_key_taken_text(item)}, {_pages(item['page'], item['page'], web)}")
     return lines
+
+
+def _key_taken_text(item):
+    """`Inciso 1) repite la clave art-1/inc-1 (quedó como art-1/inc-2/inc-1)`."""
+    where = (
+        f"quedó como {item['placed']}"
+        if item["placed"]
+        else "no abrió una unidad; su texto es un párrafo más de la lista abierta"
+    )
+    return f"{item['label']} repite la clave {item['taken']} ({where})"
 
 
 def _container_text(container):
     name, by_type = container["container"], container["by_type"]
     articles = by_type.get("articulo", 0)
-    parts = [_plural(count, *TYPE_NAMES[unit_type]) for unit_type, count in by_type.items()]
+    parts = _type_parts(by_type, container.get("visto", 0))
     span = f"del {container['first']} al {container['last']}"
     if not parts:
         lines = [f"  {name}: ningún artículo."]

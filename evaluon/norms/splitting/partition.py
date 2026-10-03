@@ -50,8 +50,9 @@ Reglas:
   cierran todos. Un título solo (`TITULO II`) seguido de un párrafo en mayúsculas lleva
   ahí su nombre, que se descarta con él (297/03).
 - **Artículo de forma.** El artículo cuyo texto empieza con "Comuníquese", "Regístrese"
-  o "Publíquese" termina en su párrafo: lo que le sigue hasta el próximo encabezado (la
-  firma, el nombre de un anexo) queda no ubicado. Los datos de publicación del Boletín
+  o "Publíquese" y trae en la misma oración "archívese" o "Dirección Nacional del
+  Registro Oficial" termina en su párrafo: lo que le sigue hasta el próximo encabezado
+  (la firma, el nombre de un anexo) queda no ubicado. Los datos de publicación del Boletín
   Oficial (la nota sobre los anexos y la línea de edición) cierran la unidad abierta y se
   descartan.
 - **Anexos.** Con una parte que es un anexo, todas las unidades cuelgan de la unidad raíz
@@ -78,6 +79,10 @@ Reglas:
   - Con los dos niveles ocupados, un párrafo que no es inciso y termina en dos puntos
     ("... las siguientes pautas:") abre una lista nueva en el primer nivel; ese párrafo
     es del artículo y el inciso anterior termina antes.
+  - Un inciso no se abre en un nivel donde ya hay otro con su número, porque la clave
+    se repetiría (`Inciso 1)` después de `1)`, `2)`): se anida en el inciso abierto si
+    cabe, como antes de T-050; si no, no abre una unidad y es un párrafo más de la lista
+    abierta. El informe lo señala.
 """
 
 import re
@@ -588,40 +593,76 @@ class IncisoNode:
     end: int = 0
 
 
-def find_incisos(paragraphs, block):
+def find_incisos(paragraphs, block, key_taken=None):
     """Los incisos de un artículo, como árbol de dos niveles con el último párrafo de
-    cada uno."""
+    cada uno. Un inciso no se abre en un nivel donde ya hay otro con su número: la clave
+    se repetiría y la base la rechaza. Esos encabezados se agregan a `key_taken`, si se
+    pasa, con la clave tomada y la clave con que quedaron (vacía si no abrieron una
+    unidad y son un párrafo más de la lista abierta)."""
     roots, stack, introduced = [], [], []
+    taken_list = key_taken if key_taken is not None else []
+
+    def key(chain, number):
+        return "/".join([block.key] + [f"inc-{n.heading.number}" for n in chain] + [f"inc-{number}"])
+
+    def is_taken(siblings, number):
+        return any(node.heading.number == number for node in siblings)
+
+    def report(p, taken, placed):
+        taken_list.append({"label": p.heading.label, "taken": taken, "placed": placed, "page": p.page})
+
     for p in paragraphs[block.first + 1 : block.last + 1]:
         h = p.heading
         if h.kind != INCISO:
             continue
-        if h.word:
-            # `Inciso N)`: siempre del primer nivel; cierra las listas abiertas.
-            if stack and _same_form(stack[0].heading, h):
-                if not _is_next(stack[0].heading.number, h.number):
-                    continue
-            elif not _is_first(h.number):
-                continue
-            node = IncisoNode(h, p.index)
-            roots.append(node)
-            stack = [node]
-            continue
         level = next((i for i, node in enumerate(stack) if _same_form(node.heading, h)), None)
         if level is not None:
+            # Sigue una lista abierta de su misma forma.
             if not _is_next(stack[level].heading.number, h.number):
                 continue
-            node = IncisoNode(h, p.index)
             siblings = stack[level - 1].children if level else roots
+            if is_taken(siblings, h.number):
+                report(p, key(stack[:level], h.number), None)
+                continue
+            node = IncisoNode(h, p.index)
             siblings.append(node)
             stack = stack[:level] + [node]
-        elif _is_first(h.number) and len(stack) < INCISO_LEVELS:
+            if h.word and level and is_taken(roots, h.number):
+                # Una lista `Inciso N)` que ya venía anidada por una clave tomada.
+                report(p, key([], h.number), key(stack[:-1], h.number))
+            continue
+        if not _is_first(h.number):
+            continue
+        if h.word:
+            # `Inciso N)`: del primer nivel; cierra las listas abiertas.
+            if not is_taken(roots, h.number):
+                node = IncisoNode(h, p.index)
+                roots.append(node)
+                stack = [node]
+                continue
+            # Clave tomada en el primer nivel: se anida como cualquier inciso, si cabe.
+            if stack and len(stack) < INCISO_LEVELS and not is_taken(stack[-1].children, h.number):
+                node = IncisoNode(h, p.index)
+                stack[-1].children.append(node)
+                report(p, key([], h.number), key(stack, h.number))
+                stack.append(node)
+            else:
+                report(p, key([], h.number), None)
+            continue
+        if len(stack) < INCISO_LEVELS:
+            siblings = stack[-1].children if stack else roots
+            if is_taken(siblings, h.number):
+                report(p, key(stack, h.number), None)
+                continue
             node = IncisoNode(h, p.index)
-            (stack[-1].children if stack else roots).append(node)
+            siblings.append(node)
             stack.append(node)
-        elif _is_first(h.number) and _introduces_list(paragraphs, p.index, block.first):
+        elif _introduces_list(paragraphs, p.index, block.first):
             # Los dos niveles ocupados y un párrafo que presenta una lista nueva: la lista
-            # va en el primer nivel.
+            # va en el primer nivel, si su clave no está tomada.
+            if is_taken(roots, h.number):
+                report(p, key([], h.number), None)
+                continue
             node = IncisoNode(h, p.index)
             roots.append(node)
             stack = [node]

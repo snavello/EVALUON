@@ -123,6 +123,10 @@ def check_invariants(result):
     de su padre y la cobertura completa, contando cada carácter una vez en su unidad
     base."""
     text = result.canonical_text
+    # Claves únicas dentro de la lectura: la base rechaza una clave repetida.
+    all_keys = [unit.key for unit in result.units]
+    repeated = sorted({key for key in all_keys if all_keys.count(key) > 1})
+    assert repeated == [], f"claves repetidas: {repeated}"
     seen = {}
     for unit in result.units:
         assert unit.text == text[unit.char_start : unit.char_end], unit.key
@@ -238,6 +242,9 @@ HEADING_TABLE = [
     ("e. 30/11/2022 N° 97811/22 v. 30/11/2022", PUBLICATION, "", ""),
     ("e. 13/6 N° 417.913 v. 13/6/2003", PUBLICATION, "", ""),
     ("NOTA: el oferente acompañará la constancia.", TEXT, "", ""),
+    # Caso trampa (verificación de T-050): una nota común que nombra el Boletín Oficial
+    # no es la nota de publicación.
+    ("NOTA: la difusión en el Boletín Oficial es obligatoria.", TEXT, "", ""),
 ]
 
 
@@ -1824,3 +1831,207 @@ def test_inciso_forms_without_a_space_or_with_a_dot_continue_the_list():
     assert by_key(result)["art-1/inc-c"].label == "c)"
     assert result.report["after_last_inciso"] == []
     check_invariants(result)
+
+
+# --- T-050, ajustes de verificación (REQ-003) -------------------------------------------
+
+
+def test_an_inciso_word_whose_key_is_taken_nests_as_before_and_is_reported():
+    """REQ-003, REQ-004: caso trampa: `Inciso 1)` después de una lista `1)`, `2)` del
+    primer nivel no puede abrir otro `art-1/inc-1` (la base rechaza la clave repetida):
+    se anida en el inciso abierto, como antes de T-050, y el informe lo señala."""
+    result = split_document(
+        web(
+            "ARTÍCULO 1°.- Requisitos:",
+            "1) Primero.",
+            "2) Segundo.",
+            "Inciso 1) Excepción. Texto.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == ["art-1", "art-1/inc-1", "art-1/inc-2", "art-1/inc-2/inc-1"]
+    assert result.report["inciso_key_taken"] == [
+        {"label": "Inciso 1)", "taken": "art-1/inc-1", "placed": "art-1/inc-2/inc-1", "page": None}
+    ]
+    assert "inciso_key_taken" in [item["kind"] for item in result.report["attention"]]
+    assert "Inciso 1) repite la clave art-1/inc-1" in result.report_text
+    check_invariants(result)
+
+
+def test_inciso_words_after_a_dotted_list_of_the_first_level_do_not_repeat_keys():
+    """REQ-003, REQ-004: la variante con `1.`, `2.` y después `Inciso 1)` e `Inciso 2)`:
+    los dos se anidan en el `2.`, siguen su propia secuencia, y los dos se informan."""
+    result = split_document(
+        web(
+            "ARTÍCULO 1°.- Requisitos:",
+            "1. Primero.",
+            "2. Segundo.",
+            "Inciso 1) Excepción. Texto.",
+            "Inciso 2) Otra. Texto.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == [
+        "art-1",
+        "art-1/inc-1",
+        "art-1/inc-2",
+        "art-1/inc-2/inc-1",
+        "art-1/inc-2/inc-2",
+    ]
+    assert [(item["taken"], item["placed"]) for item in result.report["inciso_key_taken"]] == [
+        ("art-1/inc-1", "art-1/inc-2/inc-1"),
+        ("art-1/inc-2", "art-1/inc-2/inc-2"),
+    ]
+    check_invariants(result)
+
+
+def test_an_inciso_whose_key_is_taken_and_cannot_nest_stays_inside_and_is_reported():
+    """REQ-003, REQ-004: si la clave está tomada y los dos niveles están ocupados, el
+    `Inciso 1)` no abre ninguna unidad: su texto es un párrafo más (acá, después del
+    último inciso, queda en el artículo, y ese aviso también sale) y se informa."""
+    result = split_document(
+        web(
+            "ARTÍCULO 1°.- Requisitos:",
+            "1) Primero.",
+            "a) Letra.",
+            "Inciso 1) Excepción. Texto.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == ["art-1", "art-1/inc-1", "art-1/inc-1/inc-a"]
+    assert by_key(result)["art-1"].text.endswith("\nInciso 1) Excepción. Texto.")
+    assert result.report["inciso_key_taken"] == [
+        {"label": "Inciso 1)", "taken": "art-1/inc-1", "placed": None, "page": None}
+    ]
+    assert "Inciso 1) repite la clave art-1/inc-1 (no abrió una unidad" in result.report_text
+    check_invariants(result)
+
+
+def test_a_new_list_opened_by_an_introductory_paragraph_does_not_repeat_keys():
+    """REQ-003, REQ-004: la lista nueva que abre un párrafo de presentación tampoco
+    repite claves del primer nivel: un `1.` después de `Inciso 1)` e `Inciso 2)` con sus
+    letras no se abre (no cabe en un tercer nivel) y se informa."""
+    result = split_document(
+        web(
+            "ARTICULO 1° — PROCEDIMIENTOS.",
+            "Inciso 1) LICITACION. Casos:",
+            "a) Primero.",
+            "Inciso 2) DIRECTA. Casos:",
+            "a) Primero.",
+            "Las pautas son las siguientes:",
+            "1. Una pauta.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == ["art-1", "art-1/inc-1", "art-1/inc-1/inc-a", "art-1/inc-2", "art-1/inc-2/inc-a"]
+    assert result.report["inciso_key_taken"] == [
+        {"label": "1.", "taken": "art-1/inc-1", "placed": None, "page": None}
+    ]
+    check_invariants(result)
+
+
+def test_an_article_starting_with_publiquese_that_is_not_the_closing_one_keeps_its_text():
+    """REQ-003: caso trampa: "Publíquese la convocatoria..." no es la fórmula de cierre
+    (le falta "archívese" o la Dirección Nacional del Registro Oficial en la misma
+    oración): el párrafo que le sigue sigue siendo del artículo."""
+    result = split_document(
+        web(
+            "ARTÍCULO 1°.- Objeto.",
+            "ARTÍCULO 2°.- Publíquese la convocatoria en el Boletín Oficial durante dos días.",
+            "La publicación deberá hacerse con diez días de anticipación.",
+            "ARTÍCULO 3°.- Comuníquese, publíquese y archívese.",
+        ),
+        part="cuerpo",
+    )
+
+    assert by_key(result)["art-2"].text.endswith("\nLa publicación deberá hacerse con diez días de anticipación.")
+    assert result.report["unlocated"] == []
+    check_invariants(result)
+
+
+def test_an_article_starting_with_registrese_that_is_not_the_closing_one_keeps_its_incisos():
+    """REQ-003: caso trampa: "Regístrese ... a quienes cumplan:" no es la fórmula de
+    cierre: sus incisos siguen siendo suyos."""
+    result = split_document(
+        web(
+            "ARTÍCULO 1°.- Regístrese en el registro de proveedores a quienes cumplan:",
+            "a) requisito uno;",
+            "b) requisito dos.",
+            "ARTÍCULO 2°.- Otro.",
+        ),
+        part="anexo",
+    )
+
+    assert keys(result) == ["anexo", "anexo/art-1", "anexo/art-1/inc-a", "anexo/art-1/inc-b", "anexo/art-2"]
+    assert result.report["unlocated"] == []
+    check_invariants(result)
+
+
+@pytest.mark.parametrize(
+    "text, closing",
+    [
+        # Las dos formas del corpus.
+        ("ARTÍCULO 5°.- Comuníquese, dese a la Dirección Nacional del Registro Oficial para su "
+         "publicación en el Boletín Oficial y archívese.", True),
+        ("ARTICULO 5° — Comuníquese, publíquese, dése a la Dirección Nacional del Registro "
+         "Oficial y archívese. — Dr. ALBERTO R. ABAD, Administrador Federal.", True),
+        ("ARTÍCULO 3°.- Regístrese, comuníquese, publíquese y archívese.", True),
+        # Casos trampa.
+        ("ARTÍCULO 2°.- Publíquese la convocatoria en el Boletín Oficial durante dos días.", False),
+        ("ARTÍCULO 1°.- Regístrese en el registro de proveedores a quienes cumplan:", False),
+        ("ARTÍCULO 4°.- Comuníquese a los oferentes. Luego archívese el expediente.", False),
+    ],
+)
+def test_the_closing_formula_must_be_complete_in_one_sentence(text, closing):
+    """REQ-003: el artículo de forma empieza con "Comuníquese", "Regístrese" o
+    "Publíquese" y en la misma oración trae "archívese" o "Dirección Nacional del
+    Registro Oficial"."""
+    from evaluon.norms.splitting.headings import is_closing_article
+
+    assert is_closing_article(text) is closing
+
+
+def test_a_common_note_naming_the_boletin_oficial_stays_inside_the_article():
+    """REQ-003: caso trampa: una nota común dentro de un artículo que nombra el Boletín
+    Oficial no es la nota de publicación: no corta el artículo ni se descarta."""
+    result = split_document(
+        web(
+            "ARTÍCULO 1°.- Las convocatorias se difunden así:",
+            "NOTA: la difusión en el Boletín Oficial es obligatoria.",
+            "Segundo párrafo del artículo.",
+            "ARTÍCULO 2°.- Otro.",
+        ),
+        part="cuerpo",
+    )
+
+    assert by_key(result)["art-1"].text == (
+        "ARTÍCULO 1°.- Las convocatorias se difunden así:\n"
+        "NOTA: la difusión en el Boletín Oficial es obligatoria.\n"
+        "Segundo párrafo del artículo."
+    )
+    assert discarded_of(result, "publicacion") == []
+    check_invariants(result)
+
+
+def test_the_loose_inciso_forms_do_not_change_the_canonical_text_of_a_pdf():
+    """REQ-003: las formas tolerantes de inciso (`c)Nombre`) son solo para clasificar
+    párrafos: el texto canónico de un PDF sigue usando la forma estricta y un renglón
+    `c)Nombre` pegado al anterior no empieza un párrafo, así un PDF da el mismo texto
+    que antes de T-050."""
+    from evaluon.norms.splitting.headings import starts_inciso
+
+    assert starts_inciso("c) Nombre de los oferentes.") is True
+    assert starts_inciso("c)Nombre de los oferentes.") is False
+
+    canonical = build_canonical_text(
+        glued("ARTÍCULO 1°.- ACTA. Contiene:", "b) Número;", "c)Nombre de los oferentes.")
+    )
+    paragraphs = [canonical.text[start:end] for start, end in canonical.paragraphs]
+    assert paragraphs == [
+        "ARTÍCULO 1°.- ACTA. Contiene:",
+        "b) Número; c)Nombre de los oferentes.",
+    ]

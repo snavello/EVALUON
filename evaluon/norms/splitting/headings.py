@@ -16,8 +16,8 @@ contexto, si se acepta (control de secuencia, índice, zona del documento).
 | Visto y considerandos | `VISTO`, `CONSIDERANDO:`, párrafos que empiezan con `Que` |
 | Fórmula | `Por ello` |
 | Firma | `Digitally signed by`, `Firmado digitalmente por`, `Date: 2022.11.29` (firma digital GDE) |
-| Publicación | Datos del Boletín Oficial que trae la página web: la nota sobre los anexos (`NOTA: ... BORA ...`) y la línea de edición (`e. 30/11/2022 N° 97811/22 v. 30/11/2022`, `e. 13/6 N° 417.913 v. 13/6/2003`). No: un párrafo que empieza con "NOTA:" y no nombra el Boletín |
-| Artículo de forma | No es un encabezado: un artículo cuyo texto empieza con "Comuníquese", "Regístrese" o "Publíquese" (`is_closing_article`) es el de forma, y lo que le sigue no se le suma (`partition.py`) |
+| Publicación | Datos del Boletín Oficial que trae la página web: la nota sobre los anexos (`NOTA: ... se publican en la edición web del BORA ...`) y la línea de edición (`e. 30/11/2022 N° 97811/22 v. 30/11/2022`, `e. 13/6 N° 417.913 v. 13/6/2003`). No: otra nota, aunque nombre el Boletín Oficial ("NOTA: la difusión en el Boletín Oficial es obligatoria.") |
+| Artículo de forma | No es un encabezado: un artículo cuyo texto empieza con "Comuníquese", "Regístrese" o "Publíquese" y trae en la misma oración "archívese" o "Dirección Nacional del Registro Oficial" (`is_closing_article`) es el de forma, y lo que le sigue no se le suma (`partition.py`). No: "Publíquese la convocatoria ...", "Regístrese ... a quienes cumplan:" |
 | Índice | `ÍNDICE`, `ÍNDICE:` |
 | Mayúsculas | Un párrafo en mayúsculas que no tiene ninguna forma de la tabla: no corta (decisión del responsable del 2026-10-03) |
 """
@@ -72,12 +72,18 @@ _INCISO_WORD = re.compile(r"(?:Inciso|INCISO|inciso|Inc\.|inc\.)")
 
 # Datos de publicación del Boletín Oficial (T-050).
 PUBLICATION_FORMS = re.compile(
-    r"NOTA:.*(?:BORA|Bolet[ií]n Oficial|boletinoficial)"
+    r"NOTA:.*\bse publica(?:n)? en la edici[oó]n web del BORA\b"
     r"|e\.\s*\d{1,2}/\d{1,2}(?:/\d{2,4})?\s+N[°º]\s*[\d.]+(?:/\d+)?\s+v\.\s*\d{1,2}/\d{1,2}/\d{2,4}\s*$"
 )
 
-# Fórmula del artículo de forma, al comienzo de su texto (T-050).
-CLOSING_FORMULA = re.compile(r"\s*(?:Comun[ií]quese|Reg[ií]strese|Publ[ií]quese)\b")
+# Fórmula del artículo de forma (T-050): al comienzo de su texto, "Comuníquese",
+# "Regístrese" o "Publíquese", y en la misma oración (sin un punto en el medio)
+# "archívese" o "Dirección Nacional del Registro Oficial". "Publíquese la convocatoria..."
+# o "Regístrese ... a quienes cumplan:" no lo son.
+CLOSING_FORMULA = re.compile(
+    r"\s*(?:Comun[ií]quese|Reg[ií]strese|Publ[ií]quese)\b[^.]*?"
+    r"\b(?:arch[ií]vese|Direcci[oó]n Nacional del Registro Oficial)\b"
+)
 
 TITLE_HEADING = re.compile(
     r"(?P<kind>T[IÍ]TULO|CAP[IÍ]TULO|SECCI[OÓ]N)\s+(?P<number>[IVXLCDM]+|\d+[ªº°]?)(?=$|[\s\-—–.:])"

@@ -69,7 +69,10 @@ from evaluon.norms.splitting.report import build_report, report_text
 # una lista abre otra en el primer nivel; incisos `c)Nombre` e `Inciso 1).`. En los PDF
 # del corpus y de las pruebas el texto canónico y las unidades no cambian; se sube para
 # que una lectura guardada diga con qué reglas se partió y `releer_norma` sepa cuáles
-# releer.
+# releer. Ajustes de la verificación de T-050, dentro de la misma versión porque la 6
+# todavía no se integró: un inciso no repite la clave de otro de su nivel (se anida o
+# queda dentro, y se informa); el artículo de forma exige la fórmula completa; la nota
+# de publicación es solo la del BORA; el informe cuenta el visto aparte.
 RULES_VERSION = "6"
 
 # Reglas de partición y categorías que las eligen (REQ-017; `Norm.Category`).
@@ -168,7 +171,7 @@ def split_document(reading, part=BODY, category=None, document_info=None):
         root = _annex_root(part) if part != BODY else None
         result = rules.partition(paragraphs, root=root)
 
-    units, spans, after_last_inciso = [], [], []
+    units, spans, after_last_inciso, inciso_key_taken = [], [], [], []
     for item in result.items:
         start, end = _range(paragraphs, item.first, item.last, len(text))
         if isinstance(item, rules.Span):
@@ -177,7 +180,7 @@ def split_document(reading, part=BODY, category=None, document_info=None):
         unit = _unit(canonical, reading, item, start, end)
         units.append(unit)
         if item.unit_type == "articulo":
-            nodes = rules.find_incisos(paragraphs, item)
+            nodes = rules.find_incisos(paragraphs, item, key_taken=inciso_key_taken)
             for node in nodes:
                 _add_incisos(units, canonical, reading, paragraphs, unit, node)
             for path, count in rules.after_last_inciso(nodes, item.last):
@@ -223,6 +226,7 @@ def split_document(reading, part=BODY, category=None, document_info=None):
         uppercase_in_units=result.uppercase_in_units,
         doubtful_headings=result.doubtful_headings,
         after_last_inciso=after_last_inciso,
+        inciso_key_taken=inciso_key_taken,
         canonical_sha256=canonical_sha256,
         document_info=document_info,
     )
