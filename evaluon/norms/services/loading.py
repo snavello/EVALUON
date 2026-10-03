@@ -222,6 +222,17 @@ class StoredFileUnreadable(RereadRefused):
     reason = "unreadable_file"
 
 
+class StoredFileAltered(RereadRefused):
+    """El original guardado no coincide con la huella registrada al cargarlo."""
+
+    reason = "file_hash_mismatch"
+
+    def __init__(self, message, registered, computed):
+        super().__init__(message)
+        self.registered = registered
+        self.computed = computed
+
+
 @dataclass(frozen=True)
 class SameNormWarning:
     """El aviso de "misma norma" que se muestra antes de pedir la confirmación:
@@ -784,6 +795,9 @@ def load_norm(user, *, data, file_name, part=None, general_regime=False,
 
 def _record_reread_refusal(user, channel, document_id, error):
     detail = {"reason": error.reason, "message": str(error), "document": document_id}
+    if isinstance(error, StoredFileAltered):
+        detail["registered_sha256"] = error.registered
+        detail["computed_sha256"] = error.computed
     if error.__cause__ is not None:
         detail["error"] = f"{type(error.__cause__).__name__}: {error.__cause__}"
     audit.record(EventType.REREAD, outcome=Outcome.REJECTED, channel=channel, user=user,
@@ -795,8 +809,9 @@ def reread_document(user, document_id, *, channel=Channel.COMMAND):
     devuelve un `RereadResult` con la lectura nueva, `pending`.
 
     Lanza `RoleRejected` si el usuario no tiene rol de lectura y escritura, y una
-    subclase de `RereadRefused` si no se releyó: documento inexistente u original que
-    ya no se puede leer. En esos casos no se guarda nada salvo el hecho que lo registra.
+    subclase de `RereadRefused` si no se releyó: documento inexistente, original
+    guardado que no coincide con la huella registrada al cargarlo, u original que ya no
+    se puede leer. En esos casos no se guarda nada salvo el hecho que lo registra.
     """
     require_role(user, Role.READ_WRITE)
     try:
@@ -808,6 +823,17 @@ def reread_document(user, document_id, *, channel=Channel.COMMAND):
                 "listar_normas."
             ) from None
         data = bytes(document.file.content)
+        # El original tiene que ser el que se cargó: se compara su huella con la
+        # registrada (REQ-002, P6).
+        computed = hashlib.sha256(data).hexdigest()
+        if computed != document.file_sha256:
+            raise StoredFileAltered(
+                f"No se releyó el documento {document.pk}: el original guardado no es el "
+                "que se cargó, porque su huella no coincide con la registrada. No se "
+                "guardó nada.",
+                document.file_sha256,
+                computed,
+            )
         try:
             reading_data = read_document(data)
         except _UNREADABLE_ERRORS as error:
@@ -829,8 +855,9 @@ def reread_document(user, document_id, *, channel=Channel.COMMAND):
                        "file_sha256": document.file_sha256, "read_at": read_at},
     )
     tool_versions = {**reading_data.tool_versions, "rules_version": RULES_VERSION}
+    # La huella calculada sobre los bytes leídos, que coincide con la registrada.
     file_detail = _file_detail(document.file_name, reading_data.file_format, data,
-                               document.file_sha256)
+                               computed)
 
     with transaction.atomic():
         # El documento bloqueado ordena dos relecturas simultáneas: cada una toma el

@@ -39,7 +39,9 @@ class Command(BaseCommand):
         user = permissions.authenticate_command(options["usuario"])
         reading_id = options["lectura"]
         try:
-            summary = validation.reading_summary(user, reading_id)
+            summary = validation.reading_summary(
+                user, reading_id, channel=Channel.COMMAND
+            )
         except (RoleRejected, validation.ValidationRefused) as error:
             raise CommandError(str(error)) from None
 

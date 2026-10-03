@@ -280,13 +280,19 @@ def _record_refusal(user, reading, channel, outcome, extra):
     )
 
 
-def reading_summary(user, reading_id):
-    """Lo que se le muestra a la persona antes de pedirle confirmación. Comprueba el rol
-    y que la lectura esté pendiente."""
+def reading_summary(user, reading_id, *, channel=Channel.COMMAND):
+    """Lo que se le muestra a la persona antes de pedirle confirmación. Comprueba el rol,
+    que la lectura esté pendiente y que sea la más nueva de su documento; este último
+    rechazo queda registrado como hecho `validation` rechazado, igual que en
+    `validate_reading`."""
     require_role(user, Role.READ_WRITE)
     reading = _get_reading(reading_id)
     _require_pending(reading)
-    _require_latest(reading)
+    try:
+        _require_latest(reading)
+    except ReadingNotLatest as error:
+        _record_refusal(user, reading, channel, Outcome.REJECTED, _refusal_detail(error))
+        raise
     document = reading.document
     return {
         "reading": reading.pk,

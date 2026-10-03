@@ -17,6 +17,7 @@ Disposición AFIP 247/2022 (T-012), sus variantes armadas en memoria (T-026) y e
 dictamen sintético (T-024).
 """
 
+import hashlib
 from datetime import date
 from io import StringIO
 
@@ -31,7 +32,7 @@ from evaluon.audit.services import current_corpus_version
 from evaluon.norms.management.commands import validar_informe
 from evaluon.norms.models import Document, DocumentFile, Reading, Unit
 from evaluon.norms.services import amendments, loading, validation, versions
-from tests.conftest import TEST_PASSWORD, sha256_hex
+from tests.conftest import TEST_PASSWORD
 from tests.norms.test_duplicates import (
     DATA_247,
     DATA_OPINION,
@@ -207,6 +208,26 @@ def test_reread_of_a_missing_document_is_refused_and_recorded(read_write_user):
 
 
 @pytest.mark.django_db
+def test_reread_of_an_altered_original_is_refused_and_recorded(read_write_user):
+    """REQ-002, REQ-012: si el original guardado ya no tiene la huella registrada al
+    cargarlo, no se relee; se dice en llano y el rechazo queda registrado con las dos
+    huellas."""
+    first = load(read_write_user)
+    altered = EXTRACT_BYTES + b"\n% alterado\n"
+    DocumentFile.objects.filter(document=first.document).update(content=altered)
+
+    with pytest.raises(loading.StoredFileAltered, match="huella no coincide"):
+        loading.reread_document(read_write_user, first.document.pk)
+
+    assert Reading.objects.filter(document=first.document).count() == 1
+    event = AuditEvent.objects.get(event_type="reread")
+    assert event.outcome == "rejected"
+    assert event.detail["reason"] == "file_hash_mismatch"
+    assert event.detail["registered_sha256"] == first.document.file_sha256
+    assert event.detail["computed_sha256"] == hashlib.sha256(altered).hexdigest()
+
+
+@pytest.mark.django_db
 def test_read_user_cannot_reread(read_write_user, read_user):
     """REQ-016, REQ-004: un usuario de lectura no puede releer un documento."""
     first = load(read_write_user)
@@ -317,7 +338,7 @@ def stale_document(read_write_user, make_norm, make_document, make_reading, make
     norma: una a `anexo/art-999` y otra a `anexo/art-1`, que la relectura conserva."""
     norm = make_norm(citation="Norma sintética con relaciones")
     document = make_document(norm, part="anexo", file_name="extracto.pdf",
-                             file_sha256=sha256_hex("extracto guardado"))
+                             file_sha256=hashlib.sha256(EXTRACT_BYTES).hexdigest())
     DocumentFile.objects.create(document=document, content=EXTRACT_BYTES)
     reading = make_reading(document, [
         ("anexo", "ANEXO"),
@@ -360,6 +381,48 @@ def test_no_relation_warning_when_every_key_is_kept(read_write_user, fake_embedd
 
     outcome = validation.validate_reading(read_write_user, result.reading.pk)
 
+    assert outcome.relations_without_unit == []
+
+
+@pytest.mark.django_db
+def test_validation_warns_when_the_source_unit_of_a_relation_is_lost(
+    read_write_user, fake_embeddings, stale_document, make_norm, make_relation
+):
+    """REQ-005, REQ-006: también se avisa cuando la clave perdida es la unidad de origen
+    de una relación (la norma releída es la que modifica a otra)."""
+    document, old, lost, kept = stale_document
+    target = make_norm(citation="Norma sintética alcanzada")
+    outgoing = make_relation(document.norm, target, source_unit_key="anexo/art-999")
+    result = loading.reread_document(read_write_user, document.pk)
+
+    outcome = validation.validate_reading(read_write_user, result.reading.pk)
+
+    found = {(w["relation"], w["role"], w["key"]) for w in outcome.relations_without_unit}
+    assert (outgoing.pk, "source", "anexo/art-999") in found
+    assert (lost.pk, "target", "anexo/art-999") in found
+    assert len(found) == 2
+
+
+@pytest.mark.django_db
+def test_no_warning_when_another_document_in_use_keeps_the_key(
+    read_write_user, fake_embeddings, stale_document, make_document, make_reading
+):
+    """REQ-005, REQ-006: si la clave que pierde la relectura la sigue teniendo otro
+    documento en uso de la norma (aquí, la versión 2 de la misma parte), la relación no
+    queda sin unidad y no se avisa."""
+    document, old, lost, kept = stale_document
+    other = make_document(document.norm, part="anexo", version_number=2, in_use=True,
+                          effective_from=date(2010, 1, 1), file_name="version-2.pdf")
+    make_reading(other, [
+        ("anexo", "ANEXO"),
+        ("anexo/art-999", "ARTÍCULO 999.- Texto sintético de la versión 2."),
+    ])
+    result = loading.reread_document(read_write_user, document.pk)
+
+    summary = validation.reading_summary(read_write_user, result.reading.pk)
+    outcome = validation.validate_reading(read_write_user, result.reading.pk)
+
+    assert summary["relations_without_unit"] == []
     assert outcome.relations_without_unit == []
 
 
@@ -505,6 +568,26 @@ def test_command_reread_of_missing_document(read_write_user, typed):
 
     with pytest.raises(CommandError, match="no existe el documento 999"):
         run("releer_norma", 999, user=read_write_user)
+
+
+@pytest.mark.django_db
+def test_command_refuses_an_older_reading_and_records_it(read_write_user, typed):
+    """REQ-005, REQ-012: `validar_informe` sobre una lectura que una relectura dejó
+    atrás la rechaza antes de pedir confirmación, y el rechazo queda registrado como
+    hecho `validation` rechazado con el motivo, por comando."""
+    typed()
+    first = load(read_write_user)
+    result = loading.reread_document(read_write_user, first.document.pk)
+
+    with pytest.raises(CommandError, match=f"la lectura {result.reading.pk}"):
+        run("validar_informe", first.reading.pk, user=read_write_user)
+
+    event = AuditEvent.objects.get(event_type="validation")
+    assert (event.outcome, event.channel) == ("rejected", "command")
+    assert event.detail["reason"] == "not_latest"
+    assert event.detail["reading"] == first.reading.pk
+    assert event.detail["latest_reading"] == result.reading.pk
+    assert Reading.objects.get(pk=first.reading.pk).status == "pending"
 
 
 @pytest.mark.django_db
