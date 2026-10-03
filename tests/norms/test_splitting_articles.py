@@ -471,10 +471,10 @@ def test_report_points_out_the_page_that_could_not_be_read_and_no_other(extract_
     result = split_document(damaged, part="anexo")
 
     assert result.report["pages"] == {"total": 6, "not_read": [3]}
-    assert "Páginas no leídas: 3." in result.report_text
+    assert "Sin texto: 3." in result.report_text
     clean = split_document(extract_reading, part="anexo")
     assert clean.report["pages"] == {"total": 6, "not_read": []}
-    assert "Páginas no leídas: ninguna." in clean.report_text
+    assert "Sin texto: ninguna." in clean.report_text
     check_invariants(result)
 
 

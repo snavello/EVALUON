@@ -291,8 +291,11 @@ def test_a_web_page_without_text_is_shown_without_a_page_number():
 
     assert result.report["pages"]["not_read"] == [None]
     assert result.report["page_summary"]["without_text"] == [None]
-    assert "None" not in result.report_text
-    assert "Páginas no leídas: la página web, sin número." in result.report_text
+    text = result.report_text
+    assert "None" not in text
+    assert "La página web: sin texto, 0 caracteres." in text
+    assert "Sin texto: la página web." in text
+    assert "no leída" not in text.lower()
     assert "la página web" in attention_text(result)
 
 
@@ -423,7 +426,7 @@ def test_the_expected_count_from_the_index_is_compared_with_the_recognized_one()
     assert found["container"] == "Anexo"
     block = attention_text(result)
     assert "se esperaban 4 artículos según el índice y se reconocieron 3" in block
-    assert "falta el 4" in block
+    assert "falta el número 4" in block
 
 
 def test_without_an_index_the_expected_count_follows_the_numbering():
@@ -450,9 +453,13 @@ def test_without_an_index_the_expected_count_follows_the_numbering():
         3,
     )
     assert container["missing"] == ["3"]
-    assert "expected_count" in kinds(report)
-    assert "sequence_gaps" in kinds(report)
-    assert "se esperaban 4 artículos según la numeración y se reconocieron 3" in attention_text(result)
+    # El salto y la cuenta hablan del mismo número que falta: un solo aviso.
+    assert kinds(report) == ["expected_count"]
+    block = attention_text(result)
+    assert "se esperaban 4 artículos según la numeración y se reconocieron 3" in block
+    assert "falta el número 3" in block
+    assert "Cuerpo: falta el número 3." in result.report_text
+    assert "faltan los números 3" not in result.report_text
 
 
 def test_a_repeated_heading_goes_to_attention():
@@ -840,8 +847,14 @@ def test_the_document_part_has_format_pages_versions_and_hashes():
     assert "Archivo: norma.pdf." in text
     assert f"Huella del archivo: {'ab' * 32}." in text
     assert "Formato: PDF. Cantidad de páginas: 1." in text
-    assert "Herramientas: pdfplumber 0.11.10, pypdfium2 5.13.0." in text
-    assert f"Huella del texto canónico: {result.canonical_sha256}." in text
+    assert "    - Lectura de PDF con texto (pdfplumber): versión 0.11.10." in text
+    assert "    - Dibujo de páginas de PDF (pypdfium2): versión 5.13.0." in text
+    assert (
+        f"Reglas para dividir el texto: versión {result.rules_version} (normas). "
+        "Parte del documento: cuerpo." in text
+    )
+    assert f"Huella del texto extraído: {result.canonical_sha256}." in text
+    assert "canónico" not in text and "partición:" not in text
     assert bare.report["document"]["file_name"] is None
     assert "Archivo:" not in bare.report_text
 
@@ -944,3 +957,190 @@ def test_real_annex_report_makes_sense(annex):
     assert "Anexo: 99 artículos y 1 cláusula; artículos del 1 al 99." in text
     assert "Según el índice se esperaban 99 artículos; se reconocieron 99." in text
     assert "ilegible" not in attention_text(annex)
+    assert "no leída" not in text.lower()
+
+
+# --- Ajustes de verificación (REQ-004, REQ-015) -----------------------------------------
+
+
+def test_a_page_without_text_is_never_called_not_read_or_illegible():
+    """REQ-004: el texto no llama "no leída" ni "ilegible" a una página `sin_texto` (como
+    la 45 del anexo de la 247/2022): quien valida entendería que no se pudo leer. Los datos
+    siguen trayendo `pages.not_read`."""
+    result = split_document(
+        pdf(
+            page(1, "ARTÍCULO 1°.- UNO. Texto."),
+            Page(number=2, width=612.0, height=792.0, status=PAGE_NOT_READ, lines=[]),
+        ),
+        part="cuerpo",
+    )
+    text = result.report_text
+
+    assert result.report["pages"]["not_read"] == [2]
+    assert "no leída" not in text.lower()
+    assert "Páginas: 2.\n" in text
+    page_lines = [line for line in text.splitlines() if "página 2" in line.lower()]
+    assert page_lines
+    for text_line in page_lines:
+        assert "ilegible" not in text_line.lower()
+    assert "Sin texto: 2." in text
+
+
+def test_tools_are_named_in_words():
+    """REQ-004: las herramientas se nombran en palabras; la huella del modelo de español
+    del reconocimiento no aparece con el nombre crudo de su clave."""
+    reading = pdf(ocr_page(1, ("ARTÍCULO 1°.- UNO. Texto.", [95, 95, 95, 95])))
+    reading.tool_versions = {"tesseract": "5.5.0", "tesseract_spa_sha256": "e2c1"}
+
+    result = split_document(reading, part="cuerpo")
+    text = result.report_text
+
+    assert result.report["document"]["tool_versions"] == {
+        "tesseract": "5.5.0",
+        "tesseract_spa_sha256": "e2c1",
+    }
+    assert "    - Reconocimiento de texto sobre imagen (Tesseract): versión 5.5.0." in text
+    assert "    - Huella del idioma español del reconocimiento: e2c1." in text
+    assert "tesseract_spa_sha256" not in text
+
+
+def web(*texts):
+    return DocumentReading(
+        file_format=FORMAT_HTML,
+        pages=[
+            Page(
+                number=None,
+                width=None,
+                height=None,
+                status=PAGE_READ,
+                lines=[Line(text, None, None, None, None, ORIGIN_WEB) for text in texts],
+            )
+        ],
+        tool_versions={"beautifulsoup4": "4.15.0", "lxml": "6.1.3"},
+    )
+
+
+def test_a_web_page_is_always_named_the_same_way():
+    """REQ-004, REQ-015: en un documento web la página se nombra siempre "la página web":
+    en la lista de páginas (sin repetir "página web"), en no ubicado, en la secuencia y en
+    la lista de unidades. Nunca "sin página"."""
+    result = split_document(
+        web(
+            "Texto suelto previo.",
+            "ARTÍCULO 1°.- UNO. Texto.",
+            "ARTÍCULO 2°.- DOS. Texto.",
+            "ARTÍCULO 2°.- DOS. Repetido.",
+            "ARTÍCULO 3°.- TRES. Texto.",
+        ),
+        part="cuerpo",
+    )
+    text = result.report_text
+
+    assert "sin página" not in text
+    assert "La página web: página web" not in text
+    assert "La página web: legible," in text
+    assert "  - La página web: Texto suelto previo." in text
+    assert "encabezado del artículo 2 fuera de secuencia, la página web, quedó dentro de art-2." in text
+    assert "  art-1 · Artículo 1 · ARTÍCULO 1°.- UNO · la página web" in text
+    assert "    - Lectura de páginas web (Beautiful Soup): versión 4.15.0." in text
+
+
+def test_a_long_discarded_line_without_spaces_is_shortened():
+    """REQ-004: el ejemplo de una línea descartada se acorta también por caracteres: un
+    script de una sola "palabra" larga no llena el informe."""
+    long_line = "x" * 300
+    pages = []
+    for number in (1, 2):
+        p = page(number, f"ARTÍCULO {number}°.- TEXTO. Contenido.")
+        p.lines.insert(0, line(long_line, 20.0))
+        pages.append(p)
+
+    result = split_document(pdf(*pages), part="cuerpo")
+    [form] = result.report["discarded_line_forms"]
+
+    assert form["count"] == 2
+    assert form["example"] == "x" * 120 + "…"
+    assert form["form"] == "x" * 120 + "…"
+    assert "x" * 121 not in result.report_text
+    assert "x" * 120 + "…" in result.report_text
+
+
+def test_ocr_index_and_cover_words_are_not_among_the_lowest():
+    """REQ-015: en un documento reconocido sobre imagen, las palabras de la carátula y del
+    índice, que se descartan y no se citan, no aparecen entre las de menor confianza
+    aunque su confianza sea la más baja."""
+    result = split_document(
+        pdf(
+            ocr_page(
+                1,
+                ('Administración Federal 2022 - "Año de prueba"', [12, 13, 14, 15, 16, 17, 18]),
+                ("ÍNDICE:", [20]),
+                ("ARTÍCULO 1º.- OBJETO", [21, 22, 23]),
+                ("ARTÍCULO 2º.- ÁMBITO", [24, 25, 26]),
+                ("ARTÍCULO 1°.- OBJETO. Texto claro.", [90, 91, 92, 93, 94]),
+                ("ARTÍCULO 2°.- ÁMBITO. Texto claro.", [95, 96, 97, 98, 99]),
+            )
+        ),
+        part="anexo",
+    )
+    report = result.report
+
+    assert {item["reason"] for item in report["discarded"]} >= {"caratula", "indice"}
+    lowest = report["ocr"]["lowest_words"]
+    assert len(lowest) == 10
+    assert min(word["confidence"] for word in lowest) == 90.0
+    assert "Federal" not in [word["word"] for word in lowest]
+
+
+def test_the_report_names_a_hyphen_join():
+    """REQ-004: el texto lista cada unión de palabras cortadas con su página."""
+    first = line("ARTÍCULO 1°.- UNO. Régimen de contra-", 100.0)
+    second = line("tación pública.", 113.5)
+    reading = pdf(Page(number=1, width=612.0, height=792.0, status=PAGE_READ, lines=[first, second]))
+
+    result = split_document(reading, part="cuerpo")
+
+    assert result.report["hyphen_joins"] == [{"page": 1, "word": "contratación"}]
+    assert "Uniones de palabras cortadas: 1.\n  - página 1: contratación\n" in result.report_text
+
+
+SCANNED = REPO / "tests" / "fixtures" / "disp-247-2022-anexo-extracto-escaneado.pdf"
+NOISE = REPO / "tests" / "fixtures" / "pagina-ruido.pdf"
+
+
+@pytest.fixture(scope="module")
+def scanned_with_noise():
+    """El extracto escaneado de T-021 con la página de ruido al final (página 7), leído
+    con el reconocimiento real."""
+    import pypdfium2 as pdfium
+
+    from evaluon.norms.reading import ocr
+
+    pages = [
+        ocr.read_page_ocr(pdf_page, number)
+        for number, pdf_page in enumerate(pdfium.PdfDocument(SCANNED), start=1)
+    ]
+    pages.append(ocr.read_page_ocr(pdfium.PdfDocument(NOISE)[0], 7))
+    reading = DocumentReading(file_format=FORMAT_PDF, pages=pages, tool_versions={})
+    return split_document(reading, part="anexo", category="regimen_especifico")
+
+
+def test_real_scanned_extract_report(scanned_with_noise):
+    """REQ-004, REQ-015: el informe del extracto escaneado real con una página de ruido:
+    la página de ruido es la única ilegible; las 19 unidades salen de reconocimiento
+    sobre imagen y el informe lo dice; la cuenta esperada sale del índice (99) frente a
+    los 7 artículos del extracto."""
+    result = scanned_with_noise
+    report = result.report
+
+    assert report["page_summary"]["illegible"] == [7]
+    assert report["page_summary"]["almost_empty"] == []
+    assert report["units"]["total"] == 19
+    assert report["ocr"]["units"] == 19
+    assert {unit.text_origin for unit in result.units} == {ORIGIN_OCR}
+    block = attention_text(result)
+    assert "se esperaban 99 artículos según el índice y se reconocieron 7" in block
+    assert "faltan los números 8 a 99" in block
+    assert "página 7" in block
+    assert "19 unidades tienen texto reconocido sobre imagen" in block
+    assert "Reconocimiento sobre imagen: 19 unidades de 19" in result.report_text

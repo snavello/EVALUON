@@ -68,8 +68,11 @@ from evaluon.norms.reading import (
 from evaluon.norms.reading.ocr import DOUBTFUL_FROM, MIN_WORDS
 
 FIRST_WORDS = 8
-# Palabras con que se muestra el ejemplo de una línea descartada.
+# Palabras y caracteres con que se muestra el ejemplo de una línea descartada: un script
+# puede ser una sola "palabra" de miles de caracteres.
 EXAMPLE_WORDS = 12
+EXAMPLE_CHARS = 120
+ELLIPSIS = "…"
 # Cuántas palabras de menor confianza se listan.
 LOWEST_WORDS = 20
 # Cuántas formas de línea descartada se muestran por motivo en el texto (los datos las
@@ -109,6 +112,19 @@ BODY_CONTAINER = "Cuerpo"
 RULE_NAMES = {"normas": "normas", "dictamenes": "dictámenes y recomendaciones"}
 
 FORMAT_NAMES = {FORMAT_PDF: "PDF", FORMAT_HTML: "página web"}
+# Nombre en palabras de cada herramienta de `tool_versions` (las claves de los datos no
+# cambian). Una clave que termina en `_sha256` es una huella, no una versión.
+TOOL_NAMES = {
+    "pdfplumber": "Lectura de PDF con texto (pdfplumber)",
+    "pdfminer.six": "Base de la lectura de PDF (pdfminer.six)",
+    "pypdfium2": "Dibujo de páginas de PDF (pypdfium2)",
+    "tesseract": "Reconocimiento de texto sobre imagen (Tesseract)",
+    "pytesseract": "Conexión con el reconocimiento (pytesseract)",
+    "tesseract_spa_sha256": "Huella del idioma español del reconocimiento",
+    "beautifulsoup4": "Lectura de páginas web (Beautiful Soup)",
+    "lxml": "Análisis de páginas web (lxml)",
+}
+WEB_PAGE = "la página web"
 ORIGIN_NAMES = {
     ORIGIN_PDF_TEXT: "texto del PDF",
     ORIGIN_OCR: "reconocimiento sobre imagen",
@@ -151,6 +167,15 @@ _DIGITS = re.compile(r"\d+")
 def first_words(text, count=FIRST_WORDS):
     """Las primeras palabras de un tramo, en una sola línea."""
     return " ".join(text.split()[:count])
+
+
+def shorten(text):
+    """El ejemplo de una línea descartada: sus primeras `EXAMPLE_WORDS` palabras y, si
+    aun así pasa de `EXAMPLE_CHARS` caracteres, cortado ahí con "…"."""
+    words = first_words(text, EXAMPLE_WORDS)
+    if len(words) > EXAMPLE_CHARS:
+        return words[:EXAMPLE_CHARS] + ELLIPSIS
+    return words
 
 
 # --- Datos --------------------------------------------------------------------------------
@@ -390,10 +415,10 @@ def _discarded_forms(lines):
         if key not in forms:
             forms[key] = {
                 "reason": line.reason,
-                "form": first_words(key[1], EXAMPLE_WORDS),
+                "form": shorten(key[1]),
                 "count": 0,
                 "page": line.page,
-                "example": first_words(line.text, EXAMPLE_WORDS),
+                "example": shorten(line.text),
             }
         forms[key]["count"] += 1
     return list(forms.values())
@@ -491,30 +516,43 @@ def attention_items(report):
 
     _page_attention(report, add)
 
+    # En una página web toda ubicación es la misma página: no se repite en cada caso.
+    web = _is_web(report)
+
+    def located(text, page):
+        return text if web else f"{text} ({_page_name(page)})"
+
+    # La cuenta esperada y los saltos de la secuencia hablan de los mismos números que
+    # faltan: un solo aviso por contenedor (los saltos son parte de lo que falta).
+    counted = set()
     for container in report["units"]["containers"]:
         if not container["missing"]:
             continue
+        counted.add(container["key"])
         source = "el índice" if container["expected_from"] == "indice" else "la numeración"
+        missing = container["missing"]
         add(
             "expected_count",
             f"{container['container']}: se {_verb(container['expected'], 'esperaba', 'esperaban')} "
             f"{_plural(container['expected'], 'artículo', 'artículos')} según {source} y se "
             f"{_verb(container['recognized'], 'reconoció', 'reconocieron')} "
-            f"{container['recognized']}; {_missing(container['missing'])}.",
+            f"{container['recognized']}; {_missing(missing)}. Compare con el original si "
+            f"{_verb(len(missing), 'falta', 'faltan')} en el documento o si no se "
+            f"{_verb(len(missing), 'reconoció', 'reconocieron')}.",
             container=container["container"],
-            missing=list(container["missing"]),
+            missing=list(missing),
         )
 
     gaps, not_accepted = [], []
     for item in report["sequence"]:
         noun = item.get("heading", "artículo")
-        if item["gaps"]:
+        if item["gaps"] and item["key"] not in counted:
             gaps.append(f"{item['container']}: {_missing(item['gaps'], noun)}")
         for heading in item["not_accepted"]:
             inside = f", quedó dentro de {heading['inside']}" if heading["inside"] else ""
-            not_accepted.append(
-                f"{noun} {heading['number']} ({_page_name(heading['page'])}{inside})"
-            )
+            where = "" if web else _page_name(heading["page"])
+            detail = f"{where}{inside}".lstrip(", ")
+            not_accepted.append(f"{noun} {heading['number']}" + (f" ({detail})" if detail else ""))
     if gaps:
         add(
             "sequence_gaps",
@@ -535,17 +573,21 @@ def attention_items(report):
             "doubtful_headings",
             "Encabezados leídos por reconocimiento sobre imagen con el número dudoso y "
             "aceptados por la secuencia: "
-            + _limited([f"{d['key']} ({_page_name(d['page'])}): {d['label']}" for d in doubtful])
+            + _limited([f"{located(d['key'], d['page'])}: {d['label']}" for d in doubtful])
             + ". Compárelos con el original.",
         )
 
     unlocated = report["unlocated"]
     if unlocated:
+        cases = [
+            u["first_words"] if web else f"{_page_name(u['page'])}: {u['first_words']}"
+            for u in unlocated
+        ]
         add(
             "unlocated",
             f"{_plural(len(unlocated), 'tramo de texto', 'tramos de texto')} no "
             f"{_verb(len(unlocated), 'quedó', 'quedaron')} en ninguna unidad: "
-            + _limited([f"{_page_name(u['page'])}: {u['first_words']}" for u in unlocated], separator="; ")
+            + _limited(cases, separator="; ")
             + ". Revise que no sea texto que deba citarse.",
         )
 
@@ -555,7 +597,7 @@ def attention_items(report):
             "uppercase_in_units",
             "Párrafos en mayúsculas que quedaron dentro de una unidad y pueden ser un "
             "encabezado que la partición no reconoce: "
-            + _limited([f"{u['key']} ({_page_name(u['page'])})" for u in upper])
+            + _limited([located(u["key"], u["page"]) for u in upper])
             + ".",
         )
 
@@ -566,7 +608,7 @@ def attention_items(report):
             f"{_plural(len(after), 'lista', 'listas')} de incisos "
             f"{_verb(len(after), 'tiene', 'tienen')} párrafos después del último inciso, "
             "que quedaron en la unidad que contiene la lista y pueden ser del último inciso: "
-            + _limited([f"{a['key']} ({_page_name(a['page'])})" for a in after])
+            + _limited([located(a["key"], a["page"]) for a in after])
             + ".",
         )
 
@@ -701,21 +743,27 @@ def _ranges(values):
 
 
 def _missing(values, noun=None):
-    """`falta el 4` o `faltan los números 8 a 99`; con el nombre de la unidad, si se da:
-    `falta el punto 3`, `faltan los artículos 3, 5`."""
+    """`falta el número 4` o `faltan los números 8 a 99`; con el nombre de la unidad, si
+    se da: `falta el punto 3`, `faltan los artículos 3, 5`."""
     if len(values) == 1:
-        return f"falta el {noun + ' ' if noun else ''}{values[0]}"
+        return f"falta el {noun or 'número'} {values[0]}"
     return f"faltan los {noun + 's' if noun else 'números'} {_ranges(values)}"
+
+
+def _is_web(report):
+    return report["document"]["file_format"] == FORMAT_HTML
 
 
 def _page_name(number):
     """`página 3`; la página web, que no tiene número, por su nombre."""
-    return "la página web" if number is None else f"página {number}"
+    return WEB_PAGE if number is None else f"página {number}"
 
 
-def _pages(start, end):
+def _pages(start, end, web=False):
+    """`página 3`, `páginas 3 a 5`; sin página, "la página web" en un documento web y
+    "sin página" en un tramo vacío de un PDF."""
     if start is None:
-        return "sin página"
+        return WEB_PAGE if web else "sin página"
     if start == end:
         return f"página {start}"
     return f"páginas {start} a {end}"
@@ -763,29 +811,34 @@ def _document_text(report):
         lines.append(f"  Fecha de lectura: {document['read_at']}.")
     file_format = FORMAT_NAMES.get(document["file_format"], document["file_format"])
     lines.append(f"  Formato: {file_format}. Cantidad de páginas: {document['pages']}.")
-    tools = ", ".join(f"{tool} {version}" for tool, version in document["tool_versions"].items())
-    lines.append(f"  Herramientas: {tools or 'sin datos'}.")
+    tools = document["tool_versions"]
+    lines.append("  Herramientas:" if tools else "  Herramientas: sin datos.")
+    for tool, version in tools.items():
+        name = TOOL_NAMES.get(tool, tool)
+        if tool.endswith("_sha256"):
+            lines.append(f"    - {name}: {version}.")
+        else:
+            lines.append(f"    - {name}: versión {version}.")
     rule = RULE_NAMES.get(report["rule"], report["rule"])
     lines.append(
-        f"  Reglas de partición: versión {report['rules_version']}, de {rule}. "
-        f"Parte: {report['part']}."
+        f"  Reglas para dividir el texto: versión {report['rules_version']} ({rule}). "
+        f"Parte del documento: {report['part']}."
     )
     if document["canonical_sha256"]:
-        lines.append(f"  Huella del texto canónico: {document['canonical_sha256']}.")
+        lines.append(f"  Huella del texto extraído: {document['canonical_sha256']}.")
     return lines
 
 
 def _pages_text(report):
-    pages = report["pages"]
-    not_read = ", ".join(
-        "la página web, sin número" if number is None else str(number)
-        for number in pages["not_read"]
-    )
-    lines = [f"Páginas: {pages['total']}. Páginas no leídas: {not_read or 'ninguna'}."]
+    # Sin "páginas no leídas": junta las ilegibles con las que no tienen texto, y quien
+    # valida entendería que estas tampoco se pudieron leer. Las cinco listas de estados
+    # de abajo dan el dato separado (`pages.not_read` sigue en los datos).
+    lines = [f"Páginas: {report['pages']['total']}."]
     for page in report["page_list"]:
         name = "La página web" if page["number"] is None else f"Página {page['number']}"
         parts = []
-        if page["origin"]:
+        # La página web no repite su origen: "La página web: legible".
+        if page["origin"] and not (page["number"] is None and page["origin"] == ORIGIN_WEB):
             parts.append(ORIGIN_NAMES.get(page["origin"], page["origin"]))
         parts.append(STATE_NAMES.get(page["state"], page["state"]))
         parts.append(_plural(page["chars"], "carácter", "caracteres"))
@@ -796,7 +849,7 @@ def _pages_text(report):
     lists = []
     for name, _, title in PAGE_LISTS:
         numbers = [
-            "la página web" if number is None else str(number) for number in summary[name]
+            WEB_PAGE if number is None else str(number) for number in summary[name]
         ]
         lists.append(f"{title}: {', '.join(numbers) or 'ninguna'}.")
     lines.append("  " + " ".join(lists))
@@ -805,6 +858,7 @@ def _pages_text(report):
 
 def _units_text(report):
     units = report["units"]
+    web = _is_web(report)
     kinds = ", ".join(
         _plural(count, *TYPE_NAMES.get(unit_type, (unit_type, unit_type)))
         for unit_type, count in units["by_type"].items()
@@ -814,10 +868,10 @@ def _units_text(report):
         lines.extend(_container_text(container))
     for item in report["sequence"]:
         if item["gaps"]:
-            lines.append(f"  {item['container']}: faltan los números {', '.join(item['gaps'])}.")
+            lines.append(f"  {item['container']}: {_missing(item['gaps'])}.")
         for heading in item["not_accepted"]:
             inside = f", quedó dentro de {heading['inside']}" if heading["inside"] else ""
-            where = _pages(heading["page"], heading["page"])
+            where = _pages(heading["page"], heading["page"], web)
             lines.append(
                 f"  {item['container']}: encabezado del {item.get('heading', 'artículo')} "
                 f"{heading['number']} fuera de secuencia, {where}{inside}."
@@ -830,14 +884,14 @@ def _units_text(report):
             f"secuencia: {len(doubtful)}."
         )
         for item in doubtful:
-            lines.append(f"  - {item['key']}, {_pages(item['page'], item['page'])}: {item['label']}")
+            lines.append(f"  - {item['key']}, {_pages(item['page'], item['page'], web)}: {item['label']}")
 
     upper = report["uppercase_in_units"]
     if upper:
         lines.append(f"Párrafos en mayúsculas dentro de una unidad, para revisar: {len(upper)}.")
         for item in upper:
             lines.append(
-                f"  - {item['key']}, {_pages(item['page'], item['page'])}: {item['first_words']}"
+                f"  - {item['key']}, {_pages(item['page'], item['page'], web)}: {item['first_words']}"
             )
 
     after = report["after_last_inciso"]
@@ -849,7 +903,7 @@ def _units_text(report):
         for item in after:
             stayed = "párrafo quedó" if item["paragraphs"] == 1 else "párrafos quedaron"
             lines.append(
-                f"  - {item['key']}, {_pages(item['page'], item['page'])}: "
+                f"  - {item['key']}, {_pages(item['page'], item['page'], web)}: "
                 f"{item['paragraphs']} {stayed} en {item['inside']}"
             )
     return lines
@@ -887,7 +941,7 @@ def _unlocated_text(report):
     unlocated = report["unlocated"]
     lines = [f"No ubicado: {_plural(len(unlocated), 'tramo', 'tramos')}."]
     for item in unlocated:
-        where = _pages(item["page"], item["page"]).capitalize()
+        where = _pages(item["page"], item["page"], _is_web(report)).capitalize()
         lines.append(f"  - {where}: {item['first_words']}")
     return lines
 
@@ -898,7 +952,8 @@ def _discarded_text(report):
     for item in discarded:
         reason = DISCARD_REASONS.get(item["reason"], item["reason"])
         lines.append(
-            f"  - {reason}, {_pages(item['page_start'], item['page_end'])}: {item['first_words']}"
+            f"  - {reason}, {_pages(item['page_start'], item['page_end'], _is_web(report))}: "
+            f"{item['first_words']}"
         )
     lines.append(f"Líneas descartadas en la lectura: {report['discarded_lines']}.")
     by_reason = {}
@@ -907,7 +962,7 @@ def _discarded_text(report):
     for reason, forms in by_reason.items():
         name = _discarded_line_reason(reason)
         for form in forms[:FORMS_PER_REASON]:
-            where = "la página web" if form["page"] is None else f"la página {form['page']}"
+            where = WEB_PAGE if form["page"] is None else f"la página {form['page']}"
             lines.append(
                 f"  - {name}, {_plural(form['count'], 'línea', 'líneas')}, por ejemplo en "
                 f"{where}: {form['example']}"
@@ -922,7 +977,7 @@ def _joins_text(report):
     joins = report["hyphen_joins"]
     lines = [f"Uniones de palabras cortadas: {len(joins)}."]
     for join in joins:
-        lines.append(f"  - {_pages(join['page'], join['page'])}: {join['word']}")
+        lines.append(f"  - {_pages(join['page'], join['page'], _is_web(report))}: {join['word']}")
     return lines
 
 
@@ -971,10 +1026,11 @@ def _duplicates_text(report):
 
 
 def _unit_list_text(report):
+    web = _is_web(report)
     lines = ["Unidades:"]
     for item in report["unit_list"]:
         lines.append(
             f"  {item['key']} · {item['path']} · {item['label']} · "
-            f"{_pages(item['page_start'], item['page_end'])}"
+            f"{_pages(item['page_start'], item['page_end'], web)}"
         )
     return lines
