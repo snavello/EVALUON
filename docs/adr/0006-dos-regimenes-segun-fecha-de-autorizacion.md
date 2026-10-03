@@ -47,3 +47,9 @@ Se adopta la alternativa C.
 - Infoleg, ficha de la Disposición 297/2003: https://servicios.infoleg.gob.ar/infolegInternet/verNorma.do?id=86154
 - Infoleg, Disposición 247/2022: https://servicios.infoleg.gob.ar/infolegInternet/anexos/375000-379999/375829/norma.htm
 - Copias en `corpus/normativa/` y `corpus/normativa/referencias/`, con su huella en `corpus/manifiesto.csv`.
+
+## Datos registrados
+
+- **2026-10-02 · Entrada en vigencia de la Disposición 247/2022:** 1 de enero de 2023, informada por el responsable del proyecto. Los procedimientos autorizados desde esa fecha se rigen por la 247/2022; los anteriores, por la 297/03.
+- **2026-10-02 · Entrada en vigencia de la Disposición 297/03:** 14 de junio de 2003, el día siguiente a su publicación en el Boletín Oficial del 13/6/2003, según su propio texto.
+
