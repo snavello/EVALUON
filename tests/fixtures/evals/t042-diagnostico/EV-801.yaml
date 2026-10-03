@@ -1,0 +1,16 @@
+id: EV-801
+tipo: normativa
+documentos: []
+pregunta: "¿Cuál es el objeto del régimen sintético anterior?"
+fecha_autorizacion: 2021-03-15
+regimen: "Disposición AFIP 297/03"
+esperado: "El objeto del régimen sintético anterior."
+cita: []
+origen: "Caso sintético de la tarea T-042 (P4)."
+unidades: [{norma: "Disposición AFIP 297/03", key: anexo-i/art-1}]
+datos_clave: []
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["palabras distintas a las de la norma"]
+visto_bueno: "Comisión sintética, 2026-10-03"
