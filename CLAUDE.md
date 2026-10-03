@@ -52,6 +52,11 @@ Las etapas 4 y 5 se repiten por tarea hasta pasar, y tareas distintas pueden ava
 - Antes de la auditoría y del despliegue de cada feature, la suite completa se corre sobre main.
 - Los encargos de desarrollo y verificación lo indican así; no pidas corridas completas de más.
 
+**Registro y cierre de cada tarea (ADR-0014):**
+- El testeador evaluador deja su verificación en `specs/NNN/verificacion/T-NNN.md`, en la rama de la tarea. Sin ese archivo, la tarea no pasa a terminada.
+- El cierre se hace con `tools/cerrar.sh FEATURE NNN "mensaje" [MAIN_VERIFICADO]`, con `COORD_DIR` apuntando a la carpeta local del Coordinador.
+- Si el script termina con error, no se integra.
+
 La spec la escribís vos junto con el responsable, partiendo de `specs/_plantillas/spec.md`. Describe qué y por qué, sin tecnología. Marcá cada duda con `[A ACLARAR: ...]` en lugar de suponer; una spec con marcas pendientes no pasa la compuerta.
 
 ## Tablero de avance
