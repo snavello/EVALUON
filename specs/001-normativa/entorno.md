@@ -1444,3 +1444,45 @@ artículo, artículos, articulo -> 'articul'   garantía, garantías, garantia -
 **Respaldo y restauración.** En dos bases aparte (`t009_a` y `t009_b`), creadas y borradas: con un pasaje cargado, `pg_dump -Fc` y `pg_restore` sobre una base vacía terminaron sin error, la columna `tsv` restaurada quedó igual (`'licit':2 'public':3`) y `consultable_units` respondió. `pg_restore` corre con `search_path` vacío y recalcula `tsv` al insertar; por eso las funciones nombran todo con su esquema.
 
 **Al actualizar Postgres o la imagen fijada.** Las funciones de búsqueda se declaran inmutables aunque `unaccent` no lo es: la promesa se cumple mientras no cambien las reglas de `unaccent` ni el lematizador de español. Después de una actualización de versión mayor (o de la imagen) hay que recalcular `tsv` de todos los pasajes (por ejemplo `UPDATE norms_passage SET text = text;`, que vuelve a calcular la columna, como se comprobó en una base aparte `t009_c`, creada y borrada, y `REINDEX INDEX norms_passage_tsv_gin;`) y repetir `pytest tests/norms/test_text_search_config.py`. `pg_upgrade` copia los datos sin recalcular.
+
+## La eñe en la búsqueda por palabras (T-053)
+
+Fecha: 2026-10-02. `norms/0006_search_normalize_enye` (SQL propio, con reversa) reemplaza `search_normalize` (ADR-0007, adenda "La eñe"): cambia "ñ" y "Ñ" por `\x01` y `\x02`, quita los acentos con `unaccent`, repone "ñ" y "Ñ" y después repone la tilde de "-acion" y "-ucion" con la misma expresión de 0003. La regla de la tilde corre sobre el texto ya repuesto, así no ve los caracteres de control. `search_document` y `search_query` no cambian. La migración y su reversa recalculan `tsv` (`UPDATE public.norms_passage SET text = text;`) y reconstruyen el índice (`REINDEX INDEX public.norms_passage_tsv_gin;`). Con el montaje normal, `makemigrations --check --dry-run` dijo `No changes detected`.
+
+**Lexemas en el Postgres fijado (17.11), antes y después.**
+
+```
+palabra       antes (0005)   después (0006)
+año           'ano'          'año'
+ano           'ano'          'ano'
+años          'anos'         'años'
+AÑO           'ano'          'año'
+señal         'senal'        'señal'
+señales       'senal'        'señal'
+compañía      'compani'      'compañi'
+compañías     'compani'      'compañi'
+compania      'compani'      'compani'
+Ñandú         'nandu'        'ñandu'
+pingüino      'pinguin'      'pinguin'
+licitacion    'licit'        'licit'
+licitaciones  'licit'        'licit'
+297/03        '297/03'       '297/03'
+```
+
+Los demás lexemas de la tabla del ADR-0007 no cambian (`tests/norms/test_text_search_config.py`).
+
+**Recálculo con datos, en la base del proyecto `evaluon-t053`.** Con las migraciones aplicadas hasta `norms/0005`, se cargaron por `manage.py shell` dos pasajes sintéticos: "El plazo es de un año calendario." (1) y "La señal de la compañía AÑO Ñandú." (2). Después se aplicó 0006, se revirtió (`migrate norms 0005`) y se volvió a aplicar, sin tocar los pasajes:
+
+```
+                       tsv del pasaje 2                            "ano"   "año"   "compania"
+0005 (carga)           'ano':6 'compani':5 'nandu':7 'senal':2     {1,2}   {1,2}   {2}
+0006                   'año':6 'compañi':5 'señal':2 'ñandu':7     -       {1,2}   -
+reversa a 0005         'ano':6 'compani':5 'nandu':7 'senal':2     {1,2}   {1,2}   {2}
+0006 otra vez          'año':6 'compañi':5 'señal':2 'ñandu':7     -       {1,2}   -
+```
+
+Con `enable_seqscan` apagado, la búsqueda de "año" usa `norms_passage_tsv_gin` y encuentra los dos pasajes. La misma prueba corre en la suite (`test_enye_migration_recalculates_tsv_of_existing_passages`) con el SQL de la migración dentro de la transacción de la prueba.
+
+**Respaldo y restauración.** `pg_dump -Fc` de esa base y `pg_restore` en una base aparte (`t053_b`, creada y borrada) terminaron sin error, con `tsv` igual al de la base de origen.
+
+**Qué se pierde.** Quien escribe sin eñe no encuentra la palabra con eñe ("compania" no encuentra "compañía"), y "año" y "años" no comparten lexema (ADR-0007, adenda). Si un texto trajera los caracteres de control `\x01` o `\x02`, saldrían como "ñ" o "Ñ" en la normalización; no aparecen en texto normativo.

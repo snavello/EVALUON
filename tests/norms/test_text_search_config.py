@@ -3,8 +3,11 @@ palabras: tildes, singular y plural"; ADR-0007).
 
 Comprueba en la base real las funciones `search_normalize`, `search_document` y
 `search_query`, la columna `tsv` de `norms_passage` y la tabla "Resultado esperado" del
-ADR-0007. Los textos son sintéticos.
+ADR-0007. Desde T-053, también la eñe (ADR-0007, adenda "La eñe") y el recálculo de
+`tsv` de los pasajes ya guardados. Los textos son sintéticos.
 """
+
+import importlib
 
 import pytest
 from django.db import connection
@@ -166,3 +169,95 @@ def test_norm_numbers_find_the_passage_that_contains_them(
     all_ids = set(ids.values())
     assert _matching("297/03", all_ids) == {ids["art-1"]}
     assert _matching("247/2022", all_ids) == {ids["art-2"]}
+
+
+# --- La eñe (T-053; ADR-0007, adenda "La eñe") ---------------------------------------
+
+# Palabra, salida de `search_normalize` y lexema de `search_document`. La "ñ" y la "Ñ" se
+# conservan; las demás letras con acento o diéresis siguen perdiéndolo.
+ENYE_EXPECTED = [
+    ("año", "año", "año"),
+    ("ano", "ano", "ano"),
+    ("años", "años", "años"),
+    ("AÑO", "AÑO", "año"),
+    ("señal", "señal", "señal"),
+    ("señales", "señales", "señal"),
+    ("compañía", "compañia", "compañi"),
+    ("compañías", "compañias", "compañi"),
+    ("compania", "compania", "compani"),
+    ("Ñandú", "Ñandu", "ñandu"),
+    ("pingüino", "pinguino", "pinguin"),
+]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("word,normalized,lexeme", ENYE_EXPECTED)
+def test_enye_is_kept_by_search_normalize(word, normalized, lexeme):
+    """REQ-010: `search_normalize` conserva la "ñ" y la "Ñ" (ADR-0007, adenda "La
+    eñe") y sigue quitando tildes y diéresis; `search_document` da el lexema esperado."""
+    assert _scalar("SELECT search_normalize(%s)", [word]) == normalized
+    assert _scalar("SELECT search_document(%s)::text", [word]) == f"'{lexeme}':1"
+
+
+@pytest.mark.django_db
+def test_enye_keeps_the_tilde_rule_of_acion():
+    """REQ-010: la reposición de la tilde en "-acion" y "-ucion" sigue igual cuando la
+    palabra lleva eñe, y `search_query` normaliza igual que `search_document`."""
+    assert _scalar("SELECT search_normalize(%s)", ["señalizacion"]) == "señalización"
+    assert _scalar("SELECT search_query(%s)::text", ["AÑO"]) == "'año'"
+    assert _scalar("SELECT search_query(%s)::text", ["señales"]) == "'señal'"
+
+
+@pytest.mark.django_db
+def test_enye_words_find_only_their_own_family(make_norm, make_document, make_reading):
+    """REQ-010: "año" y "ano" no se encuentran entre sí; "AÑO" encuentra "año";
+    "señal" y "señales" se encuentran entre sí, igual que "compañía" y "compañías";
+    "compania", escrita sin eñe, no encuentra "compañía" (ADR-0007, adenda)."""
+    words = ["año", "ano", "señal", "señales", "compañía", "compañías", "compania"]
+    passage_of = _passages_with_words(make_norm, make_document, make_reading, words)
+    all_ids = set(passage_of.values())
+
+    assert _matching("año", all_ids) == {passage_of["año"]}
+    assert _matching("AÑO", all_ids) == {passage_of["año"]}
+    assert _matching("ano", all_ids) == {passage_of["ano"]}
+    assert _matching("señal", all_ids) == {passage_of["señal"], passage_of["señales"]}
+    assert _matching("señales", all_ids) == {passage_of["señal"], passage_of["señales"]}
+    assert _matching("compañía", all_ids) == {passage_of["compañía"], passage_of["compañías"]}
+    assert _matching("compania", all_ids) == {passage_of["compania"]}
+
+
+def _enye_migration():
+    return importlib.import_module("evaluon.norms.migrations.0006_search_normalize_enye")
+
+
+def _run(sql):
+    with connection.cursor() as cursor:
+        cursor.execute(sql)
+
+
+@pytest.mark.django_db
+def test_enye_migration_recalculates_tsv_of_existing_passages(
+    make_norm, make_document, make_reading
+):
+    """REQ-010: un pasaje guardado con la definición anterior de `search_normalize`
+    ("año" guardado como `ano`) deja de coincidir con "ano" después de la migración de
+    la eñe, sin volver a cargarlo, porque la migración recalcula `tsv`. Su reversa
+    vuelve a la definición anterior y también recalcula. Se corre el SQL de la
+    migración dentro de la transacción de la prueba, que se deshace al terminar."""
+    migration = _enye_migration()
+
+    _run(migration.REVERSE)
+    assert _scalar("SELECT search_normalize(%s)", ["año"]) == "ano"
+    passage_of = _passages_with_words(make_norm, make_document, make_reading, ["año"])
+    ids = set(passage_of.values())
+    assert _matching("ano", ids) == ids
+
+    _run(migration.FORWARD)
+    assert _matching("ano", ids) == set()
+    assert _matching("año", ids) == ids
+
+    _run(migration.REVERSE)
+    assert _matching("ano", ids) == ids
+
+    _run(migration.FORWARD)
+    assert _matching("ano", ids) == set()
