@@ -12,7 +12,7 @@ origen: |
   En los pliegos de bases y condiciones particulares no se podrán prever otras causales de desestimación no subsanables de ofertas.
 unidades:
   - {norma: "Disposición AFIP 247/2022", key: anexo/art-55}
-datos_clave: ["no"]
+datos_clave: [["no", "no pueden prever", "no se podrán prever", "no pueden incluir"]]
 difieren: false
 pareja: EV-018
 aviso_modificatorias: false
