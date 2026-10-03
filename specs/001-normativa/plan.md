@@ -2,7 +2,7 @@
 
 Estado: aprobado · Fecha: 2026-10-02 · Aprobó: responsable del proyecto
 
-Actualización: 2026-10-02, por ADR-0006 y REQ-020 y REQ-021; pendiente de aprobación del responsable.
+Actualización: 2026-10-02, por ADR-0006 y REQ-020 y REQ-021; aprobada por el responsable el 2026-10-02 (pull request 5).
 
 Ajustes por la etapa 0: 2026-10-02. El parámetro del reranker lo decidió el responsable (ADR-0003, adenda). La nueva definición de la búsqueda por palabras (ADR-0007) la aprobó el responsable el 2026-10-02. Resumen en "Ajustes por la etapa 0", al final.
 
@@ -828,7 +828,7 @@ Los requisitos no funcionales de la spec no tienen identificador `REQ-NNN`. Se a
 | P8 Normativa versionada | sí | Fuente y fecha de vigencia por documento, versiones por parte de cada norma, relaciones con fecha y `norms_corpus_version` en cada consulta. Las unidades no se modifican. La 297/03 abrogada se conserva y se sigue pudiendo consultar para las fechas en que regía |
 | P9 Hojas de compliance | sí | No aplica en esta feature: no hay ofertas ni validaciones externas. Nada del plan las infiere |
 | P10 Simplicidad | sí | Una imagen para los tres servicios de IA; sin índice aproximado, cola, caché ni servidor intermedio; sin pantallas fuera de la de consulta; sin corrección manual de texto. Los dos regímenes se resuelven con la función de fecha que ya existía, un campo en la norma y uno en el documento; las modificatorias sin cargar, con una tabla y un comando; los tokens los cuenta el mismo servidor de IA |
-| P11 Compuertas humanas | sí | El plan está aprobado y los ADR 0002 a 0006 están aceptados. La actualización por el ADR-0006 queda pendiente de aprobación del responsable; sus decisiones están en la sección "Qué tiene que decidir el responsable" |
+| P11 Compuertas humanas | sí | El plan está aprobado y los ADR 0002 a 0007 están aceptados. La actualización por el ADR-0006 la aprobó el responsable el 2026-10-02 (pull request 5), y los ajustes por la etapa 0 también, el mismo día |
 
 ## Decisiones
 
