@@ -13,3 +13,53 @@ body {
   max-width: 60rem;
   padding: 1rem;
 }
+
+/* Encabezado: nombre del sistema, usuario que ingresó y "Salir" (T-006). */
+
+.site-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #c8c8c8;
+}
+
+.site-name {
+  font-weight: bold;
+  margin-right: auto;
+}
+
+.logout-form {
+  margin: 0;
+}
+
+/* Ingreso (T-006). */
+
+.login {
+  max-width: 24rem;
+}
+
+.login label {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.login input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.4rem;
+  font: inherit;
+}
+
+button {
+  font: inherit;
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+}
+
+.form-error {
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid #b00020;
+  background: #fdecee;
+  color: #6b0013;
+}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Ingresar · EVALUON{% endblock %}
+
+{% block content %}
+<section class="login">
+  <h1>Ingresar</h1>
+  <form method="post" action="{% url 'accounts:login' %}">
+    {% csrf_token %}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    {% if form.non_field_errors %}
+    <p class="form-error" role="alert">{{ form.non_field_errors.0 }}</p>
+    {% endif %}
+    <p>
+      <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+      {{ form.username }}
+    </p>
+    <p>
+      <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+      {{ form.password }}
+    </p>
+    <button type="submit">Ingresar</button>
+  </form>
+</section>
+{% endblock %}

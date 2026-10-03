@@ -1334,3 +1334,48 @@ tests/test_skeleton.py::test_whitenoise_serves_static_file PASSED        [100%]
 Al terminar se corrió `docker compose down`, sin `-v`: el volumen `evaluon_pgdata` se conserva, con la base `evaluon` vacía. La clave de la base y la de Django de estas pruebas están solo en el `.env` local, que no se sube. `postgres-dev` y el volumen `entorno-dev_pgdata` no se tocaron.
 
 **Decisiones de esta tarea que el plan no fija:** Debian 13 en la imagen base, por la versión de Tesseract; `tesseract-ocr` fijado por versión de paquete; `spa.traineddata` de la etiqueta 4.1.0 de `tessdata_best`; `psycopg` en su variante binaria; PyYAML sí y biblioteca de cliente HTTP no; dependencias de prueba como opcionales `test`, instaladas en la imagen; solo `staticfiles` en `INSTALLED_APPS`; `DJANGO_SECRET_KEY` obligatoria; usuario sin privilegios en la imagen; código montado en solo lectura en `app` y `migrate`; red `web` para publicar el puerto; cuatro hilos de Gunicorn; chequeo de salud de `app`; definición de "base vacía"; `.gitattributes` y `.dockerignore`.
+
+## Procedimiento de migraciones (T-006)
+
+Fecha: 2026-10-02. Para el runbook.
+
+**Por qué hace falta.** En `app` y `migrate` el código está montado en solo lectura (T-005, punto 3), así que `makemigrations` no puede escribir el archivo de migración dentro del contenedor. Para generarlas se usa un override local, fuera del repositorio, que monta solo `evaluon/` con escritura: `../evaluon-local/compose.migraciones.yml`. No forma parte de la configuración compartida: el montaje en solo lectura sigue siendo la regla para correr la aplicación y la suite.
+
+**Generar una migración** (desde la raíz del repositorio, con `db` arriba):
+
+```
+docker compose -f docker-compose.yml -f ../evaluon-local/compose.migraciones.yml --project-directory . run --rm --no-deps app python manage.py makemigrations <aplicación>
+docker compose run --rm --no-deps app python manage.py makemigrations --check --dry-run
+```
+
+La segunda orden, ya con el montaje normal, tiene que decir `No changes detected`.
+
+**Aplicarla.** Al levantar, el servicio `migrate` corre `scripts/migrate_on_start.sh`: sobre una base vacía aplica todo; sobre una base con datos solo comprueba, y si hay migraciones pendientes se detiene y muestra el procedimiento de respaldo (T-005, punto 4).
+
+**Primera migración del proyecto.** `accounts/0001_initial` crea `accounts_user`, el usuario propio (`AUTH_USER_MODEL = "accounts.User"`), antes que cualquier otra tabla que lo referencie. Se comprobó sobre la base `evaluon`, que no tenía ninguna tabla:
+
+```
+docker compose up -d db migrate
+docker compose logs --no-log-prefix migrate
+docker compose run --rm --no-deps migrate
+```
+
+```
+migrate: la base está vacía; se aplican las migraciones.
+Operations to perform:
+  Apply all migrations: accounts, auth, contenttypes, sessions
+Running migrations:
+  Applying accounts.0001_initial... OK
+  Applying contenttypes.0001_initial... OK
+  ...
+  Applying auth.0012_alter_user_first_name_max_length... OK
+  Applying sessions.0001_initial... OK
+migrate Exited (0)
+
+migrate: la base tiene datos; solo se comprueba que no haya migraciones pendientes.
+migrate: no hay migraciones pendientes.                              código 0
+```
+
+Tablas resultantes: `accounts_user`, `auth_group`, `auth_group_permissions`, `auth_permission`, `django_content_type`, `django_migrations`, `django_session`. Las de grupos y permisos las crea `django.contrib.auth`, que se instala por el ingreso y por `changepassword`; no se usan (ADR-0005).
+
+**Consecuencia.** Desde ahora la base `evaluon` del volumen `evaluon_pgdata` tiene tablas y cuenta como "con datos". La próxima tarea que agregue una migración no la verá aplicada sola al levantar: `migrate` se detiene y hay que seguir el procedimiento (respaldar y aplicar a mano), o bien, mientras la base no tenga datos que conservar, vaciarla a propósito.
