@@ -13,10 +13,12 @@ y el tope de 8 horas desde el ingreso se renovaría con el uso.
 
 from datetime import date
 
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_http_methods
 
+from evaluon.audit.models import Channel
 from evaluon.norms.models import Unit
+from evaluon.queries import services
 from evaluon.queries.forms import QueryForm, today
 from evaluon.queries.models import Query, Status
 
@@ -26,12 +28,27 @@ TEMPLATE = "queries/consulta.html"
 @require_http_methods(["GET", "POST"])
 def screen(request):
     """Página sin consulta: el formulario con la fecha del día. Al enviarlo, el
-    formulario se valida; uno rechazado vuelve marcado y no se consulta."""
+    formulario se valida; uno rechazado vuelve marcado y no se consulta. Una pregunta
+    válida va a la función de consulta con la fecha del formulario (vacía, la del día) y
+    la página redirige al resultado guardado, de modo que recargar no vuelve a consultar
+    (T-019)."""
     if request.method == "POST":
         form = QueryForm(request.POST)
-        # El envío de una pregunta válida a la función de consulta lo conecta T-019;
-        # hasta entonces, la página vuelve con lo escrito y sin consultar.
-        form.is_valid()
+        if form.is_valid():
+            try:
+                query = services.ask(
+                    request.user,
+                    form.cleaned_data["question"],
+                    form.cleaned_data["reference_date"],
+                    channel=Channel.SCREEN,
+                )
+            except services.FutureDate as error:
+                # El día cambió entre el formulario y la consulta.
+                form.add_error("reference_date", str(error))
+            except services.QueryRefused as error:
+                form.add_error("question", str(error))
+            else:
+                return redirect("queries:query", pk=query.pk)
     else:
         form = QueryForm(initial={"reference_date": today()})
     return render(request, TEMPLATE, {"form": form})
