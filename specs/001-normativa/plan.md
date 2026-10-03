@@ -634,6 +634,8 @@ Calibración con el conjunto de preguntas:
 4. Si la abstención no llega al 90 %, se ajustan primero las instrucciones (la segunda barrera). Subir el umbral cuesta respuestas correctas y es la última opción.
 5. Cualquier cambio de umbral, instrucciones, reranker o corpus obliga a correr todo otra vez (P7).
 
+**Valores iniciales provisorios** (confirmados por el responsable el 2026-10-03, a evaluar con T-045 y T-046): umbral del reranker 0,5 sobre la escala de la sigmoide, que equivale a un valor 0 antes de convertirlo; máximo de salida del modelo de generación 800 tokens, que en la etapa 0 alcanzó para 6 afirmaciones de 60 a 110 tokens cada una. Los dos son parámetros de `settings.py` (T-011) y entran en el registro de cada consulta.
+
 Una falla técnica (un servicio que no responde, una espera agotada a los 60 segundos, una salida inválida, un pedido que no entra en el contexto) no es un "no determinado": la pantalla muestra "No se pudo completar la consulta".
 
 ### Búsqueda directa (REQ-010)
