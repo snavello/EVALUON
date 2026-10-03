@@ -137,6 +137,33 @@ def test_embeddings_down_does_not_validate_nor_leave_anything(
     assert event.detail["reason"] == "service_unavailable"
 
 
+@pytest.mark.django_db
+def test_embeddings_down_while_counting_tokens_is_recorded(
+    make_norm, load, read_write_user, fake_embeddings
+):
+    """REQ-005, REQ-012: la partición en pasajes cuenta tokens con el servicio de
+    embeddings (T-031). Si el servicio está caído, la falla ocurre al contar, antes de
+    pedir ningún vector, y termina igual que una falla al calcular vectores: no se
+    valida, la lectura sigue `pending`, sin pasajes, y queda el hecho `failed`."""
+    reading = load(make_norm(), BODY_UNITS)
+    fake_embeddings.unavailable()
+
+    with pytest.raises(validation.EmbeddingsFailed) as error:
+        validation.validate_reading(read_write_user, reading.pk)
+
+    assert fake_embeddings.calls == [], "la falla tenía que ocurrir al contar tokens"
+    assert "No se validó" in str(error.value)
+    reading.refresh_from_db()
+    assert reading.status == "pending"
+    assert not Passage.objects.filter(unit__reading=reading).exists()
+    event = AuditEvent.objects.get(event_type="validation")
+    assert event.outcome == "failed"
+    assert event.user == read_write_user
+    assert event.detail["reading"] == reading.pk
+    assert event.detail["reason"] == "service_unavailable"
+    assert event.detail["service"] == "embeddings"
+
+
 class SimulatedFailure(Exception):
     """Falla provocada por la prueba en medio de la validación confirmada."""
 
