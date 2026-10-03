@@ -1,5 +1,6 @@
 """Rutas de la consulta: la pantalla, en la raíz del sitio, y la página de una consulta
-guardada (T-016). El envío de la pregunta lo conecta T-019."""
+guardada (T-016). La pregunta se envía a la pantalla, que consulta y redirige a la página
+de la consulta guardada (T-019)."""
 
 from django.urls import path
 

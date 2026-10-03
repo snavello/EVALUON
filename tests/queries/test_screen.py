@@ -2,9 +2,10 @@
 comandos", "Forma de la respuesta" y "Fecha de autorización y régimen aplicado").
 
 Una sola página en la raíz del sitio: el formulario de la pregunta con su fecha de
-autorización y, para una consulta guardada, uno de tres bloques. Las consultas se guardan
-a mano, sin la función de consulta (T-019), en los tres estados. Los datos son
-sintéticos (P4).
+autorización y, para una consulta guardada, uno de tres bloques. Para probar los bloques,
+las consultas se guardan a mano, sin la función de consulta, en los tres estados. Al
+final, el envío de la pregunta de punta a punta (T-019), con la función de consulta y los
+dobles de los clientes de IA. Los datos son sintéticos (P4).
 """
 
 import html
@@ -32,9 +33,6 @@ UNDETERMINED_TEXT = "La normativa cargada no permite responder esta pregunta"
 ERROR_TITLE = "No se pudo completar la consulta"
 NO_REGIME_TEXT = "Para esa fecha no hay un régimen específico cargado en el sistema"
 WAITING_TEXT = "Buscando en la normativa. Puede tardar hasta medio minuto."
-
-OLD_REGIME = {"name": "Disposición AFIP 297/03"}
-NEW_REGIME = {"name": "Disposición AFIP 247/2022"}
 
 STATIC_DIR = Path(settings.BASE_DIR) / "evaluon" / "static"
 EXTERNAL_IN_HTML = re.compile(r"""(src|href|action)\s*=\s*["']?(https?:)?//""", re.I)
@@ -72,8 +70,10 @@ def save_query(user, result, question="¿Qué garantía se exige al ofertar?", s
     )
 
 
-def regime_entry(norm, name):
-    return {"norm": norm.pk, "name": name}
+def regime_entry(norm):
+    """Régimen aplicado como lo guarda la función de consulta: el nombre sale de
+    `norms_norm.citation` (T-055)."""
+    return {"norm": norm.pk, "name": norm.citation}
 
 
 def unit_entry(unit, name):
@@ -93,13 +93,13 @@ def grounded_result(two_regimes):
     """Respuesta con dos afirmaciones que citan dos artículos del régimen anterior."""
     art = two_regimes.old_units["anexo-i/art-1"]
     body_art = two_regimes.old_units["art-1"]
-    name = OLD_REGIME["name"]
+    name = two_regimes.old.citation
     return {
         "query_id": None,
         "status": "grounded",
         "reason": None,
         "reference_date": two_regimes.before_v.isoformat(),
-        "regime": [regime_entry(two_regimes.old, name)],
+        "regime": [regime_entry(two_regimes.old)],
         "notices": [],
         "statements": [
             {"text": "El objeto del régimen es el sintético anterior.",
@@ -305,7 +305,7 @@ def test_grounded_query_shows_answer_with_citations_and_literal_text(
             block, re.S,
         )
         assert citation, f"falta la cita de {key}"
-        assert "Disposición AFIP 297/03" in citation.group(1)
+        assert two_regimes.old.citation in citation.group(1)
         assert html.escape(unit.path) in citation.group(1)
         literal = re.search(
             r'<blockquote class="literal">(.*?)</blockquote>', citation.group(1), re.S
@@ -356,7 +356,7 @@ def test_error_query_shows_failure_block(client, read_user, two_regimes):
     """REQ-014: una falla técnica no se muestra como "no determinado" ni como
     respuesta: tiene su propio bloque, sin citas."""
     log_in(client)
-    regime = [regime_entry(two_regimes.old, OLD_REGIME["name"])]
+    regime = [regime_entry(two_regimes.old)]
     query = save_query(read_user, error_result(two_regimes.before_v, regime))
 
     body = query_page(client, query)
@@ -400,7 +400,7 @@ def test_unknown_status_is_shown_as_failure(client, read_user, two_regimes):
     determinado". La base solo admite los tres estados en la columna `status`; el estado
     que lee la pantalla es el de `result`, que no tiene esa restricción."""
     log_in(client)
-    regime = [regime_entry(two_regimes.old, OLD_REGIME["name"])]
+    regime = [regime_entry(two_regimes.old)]
     result = error_result(two_regimes.before_v, regime)
     result["status"] = "estado-desconocido"
     query = save_query(read_user, result, status=Status.ERROR)
@@ -423,7 +423,7 @@ def test_failure_block_hides_internal_reason(client, read_user, two_regimes, rea
     """REQ-014: el bloque de falla técnica no muestra el motivo interno ni su nombre en
     el registro."""
     log_in(client)
-    regime = [regime_entry(two_regimes.old, OLD_REGIME["name"])]
+    regime = [regime_entry(two_regimes.old)]
     query = save_query(read_user, error_result(two_regimes.before_v, regime, reason))
 
     body = query_page(client, query)
@@ -460,7 +460,7 @@ def test_three_blocks_differ_in_title_icon_and_colour(client, read_user, two_reg
     """REQ-014: los tres bloques se distinguen a simple vista: cada uno tiene su título,
     su ícono y su clase, que la hoja de estilos pinta con un color propio."""
     log_in(client)
-    regime = [regime_entry(two_regimes.old, OLD_REGIME["name"])]
+    regime = [regime_entry(two_regimes.old)]
     pages = {
         "answer": query_page(client, save_query(read_user, grounded_result(two_regimes))),
         "no-answer": query_page(
@@ -498,7 +498,7 @@ def test_every_block_shows_date_and_applied_regime(client, read_user, two_regime
     """REQ-020: los tres bloques llevan la línea de fecha de autorización, en
     día/mes/año, y del régimen aplicado, armada con lo guardado."""
     log_in(client)
-    regime = [regime_entry(two_regimes.old, OLD_REGIME["name"])]
+    regime = [regime_entry(two_regimes.old)]
     result = {
         "grounded": grounded_result(two_regimes),
         "undetermined": undetermined_result(two_regimes.before_v, regime),
@@ -509,7 +509,7 @@ def test_every_block_shows_date_and_applied_regime(client, read_user, two_regime
 
     assert (
         "Procedimiento autorizado el 15/03/2021 · "
-        "Régimen aplicado: Disposición AFIP 297/03"
+        f"Régimen aplicado: {two_regimes.old.citation}"
     ) in block
 
 
@@ -531,8 +531,8 @@ def test_line_names_every_regime_when_there_are_several(client, read_user, two_r
     """REQ-020: si lo guardado trae más de un régimen, la línea los nombra a todos."""
     log_in(client)
     regime = [
-        regime_entry(two_regimes.old, OLD_REGIME["name"]),
-        regime_entry(two_regimes.new, NEW_REGIME["name"]),
+        regime_entry(two_regimes.old),
+        regime_entry(two_regimes.new),
     ]
     query = save_query(read_user, undetermined_result(two_regimes.after_v, regime))
 
@@ -540,7 +540,7 @@ def test_line_names_every_regime_when_there_are_several(client, read_user, two_r
 
     assert (
         "Procedimiento autorizado el 20/05/2024 · Regímenes aplicados: "
-        "Disposición AFIP 297/03 y Disposición AFIP 247/2022"
+        f"{two_regimes.old.citation} y {two_regimes.new.citation}"
     ) in block
 
 
@@ -592,7 +592,7 @@ def test_pages_and_static_files_have_no_external_references(
     referencia direcciones externas, no hay scripts ni estilos en línea, y la cabecera
     de política de contenido está presente y solo admite el propio servidor."""
     log_in(client)
-    regime = [regime_entry(two_regimes.old, OLD_REGIME["name"])]
+    regime = [regime_entry(two_regimes.old)]
     queries = [
         save_query(read_user, grounded_result(two_regimes)),
         save_query(read_user, undetermined_result(two_regimes.before_v, regime)),
@@ -636,3 +636,132 @@ def test_waiting_script_is_an_own_file_and_form_works_without_it(client, read_us
     script = (STATIC_DIR / "js" / "consulta.js").read_text(encoding="utf-8")
     assert "query-submit" in script and "query-waiting" in script
     assert "disabled" in script
+
+
+# --- Envío de la pregunta de punta a punta (T-019) -------------------------------------
+
+
+def ask_on_screen(client, question, reference_date):
+    """Envía la pregunta desde la pantalla y devuelve la respuesta sin seguir la
+    redirección."""
+    return client.post("/", {"question": question, "reference_date": reference_date})
+
+
+def test_person_writes_question_and_sees_answer_with_citations(
+    client, read_user, two_regimes, fake_ai
+):
+    """REQ-013: una persona escribe la pregunta en la pantalla, la función de consulta
+    responde y la página del resultado guardado muestra la respuesta con su cita y el
+    texto literal de la unidad."""
+    article = two_regimes.new_units["anexo/art-1"]
+    fake_ai.reranker.scores = {"OBJETO. Régimen sintético vigente": 0.9}
+    log_in(client)
+    question = "¿Cuál es el objeto del régimen?"
+
+    response = ask_on_screen(client, question, two_regimes.after_v.isoformat())
+
+    query = Query.objects.get()
+    assert response.status_code == 302
+    assert response["Location"] == reverse("queries:query", args=[query.pk])
+    assert query.user == read_user
+    assert query.question == question
+    body = client.get(response["Location"]).content.decode()
+    block = result_block(body)
+    assert GROUNDED_TITLE in block
+    citation = re.search(
+        rf'<details class="citation" data-unit="{article.pk}">(.*?)</details>',
+        block, re.S,
+    )
+    assert citation
+    assert two_regimes.new.citation in citation.group(1)
+    canonical = article.reading.canonical_text[article.char_start:article.char_end]
+    assert f'<blockquote class="literal">{html.escape(canonical)}</blockquote>' in \
+        citation.group(1)
+    assert (
+        "Procedimiento autorizado el 20/05/2024 · "
+        f"Régimen aplicado: {two_regimes.new.citation}"
+    ) in block
+
+
+def test_reloading_the_result_does_not_query_again(client, read_user, two_regimes,
+                                                   fake_ai):
+    """REQ-013: después de enviar la pregunta, la página del resultado se puede recargar
+    sin volver a consultar ni crear otra consulta."""
+    fake_ai.reranker.default = 0.9
+    log_in(client)
+
+    response = ask_on_screen(client, "¿Algo?", two_regimes.after_v.isoformat())
+    client.get(response["Location"])
+    client.get(response["Location"])
+
+    assert Query.objects.count() == 1
+    assert AuditEvent.objects.filter(event_type=EventType.QUERY).count() == 1
+    assert len(fake_ai.generation.calls) == 1
+
+
+def test_screen_sends_the_form_date_and_shows_each_regime(
+    client, read_user, two_regimes, fake_ai
+):
+    """REQ-020: la pantalla pasa la fecha del formulario a la consulta; la misma pregunta
+    con una fecha anterior a V muestra el primer régimen y con una posterior, el
+    segundo."""
+    fake_ai.reranker.default = 0.9
+    log_in(client)
+
+    pages = {}
+    for when in (two_regimes.before_v, two_regimes.after_v):
+        response = ask_on_screen(client, "¿Cuál es el objeto?", when.isoformat())
+        pages[when] = result_block(client.get(response["Location"]).content.decode())
+
+    assert (
+        "Procedimiento autorizado el 15/03/2021 · "
+        f"Régimen aplicado: {two_regimes.old.citation}"
+    ) in pages[two_regimes.before_v]
+    assert (
+        "Procedimiento autorizado el 20/05/2024 · "
+        f"Régimen aplicado: {two_regimes.new.citation}"
+    ) in pages[two_regimes.after_v]
+    assert sorted(q.reference_date for q in Query.objects.all()) == [
+        two_regimes.before_v, two_regimes.after_v]
+
+
+def test_empty_date_field_queries_with_today(client, read_user, two_regimes, fake_ai,
+                                             monkeypatch):
+    """REQ-020: con el campo de fecha vacío, la consulta se hace con la fecha del día en
+    hora de Buenos Aires, y la página del resultado la trae en el campo."""
+    instant = datetime(2026, 10, 4, 2, 30, tzinfo=dt_timezone.utc)
+    monkeypatch.setattr(timezone, "now", lambda: instant)
+    fake_ai.reranker.default = 0.9
+    log_in(client)
+
+    response = ask_on_screen(client, "¿Algo?", "")
+
+    query = Query.objects.get()
+    assert query.reference_date == date(2026, 10, 3)
+    body = client.get(response["Location"]).content.decode()
+    assert date_field_value(body) == "2026-10-03"
+
+
+def test_sending_a_question_does_not_write_the_session(client, read_user, two_regimes,
+                                                       fake_ai):
+    """REQ-013, REQ-016: enviar una pregunta válida tampoco guarda nada en la sesión."""
+    log_in(client)
+    before = dict(client.session.items())
+
+    ask_on_screen(client, "¿Algo?", two_regimes.after_v.isoformat())
+
+    assert Query.objects.count() == 1
+    assert dict(client.session.items()) == before
+
+
+def test_question_sent_from_the_screen_is_recorded_with_screen_channel(
+    client, read_user, two_regimes, fake_ai
+):
+    """REQ-012, REQ-013: la consulta enviada desde la pantalla queda registrada con el
+    canal `screen`."""
+    log_in(client)
+
+    ask_on_screen(client, "¿Algo?", two_regimes.after_v.isoformat())
+
+    query = Query.objects.get()
+    assert AuditEvent.objects.get(pk=query.event_id).channel == Channel.SCREEN

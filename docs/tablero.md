@@ -31,7 +31,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 21/55 | ████░░░░░░ 38% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 22/55 | ████░░░░░░ 40% |
 | 002 · Revisión de pliegos | Observaciones a un pliego contra la normativa, antes de publicarlo | No iniciada | — | — |
 | 003 · Matriz de requisitos | Los requisitos del pliego ordenados en una matriz que la Comisión valida | No iniciada | — | — |
 | 004 · Evaluación de ofertas | Por cada requisito, una propuesta con su cita; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -57,8 +57,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 34 tareas sin terminar.
-- ○ T-019 · Unir la consulta de punta a punta con su registro (pendiente)
+- **Próximo paso:** Desarrollar: 33 tareas sin terminar.
 - ○ T-020 · Probar el hilo mínimo con los servicios reales (pendiente)
 - ○ T-021 · Leer un PDF escaneado con reconocimiento de texto (pendiente)
 - ○ T-022 · Leer una página web guardada (pendiente)
@@ -109,11 +108,12 @@ flowchart LR
 - ✓ T-011 · Crear los clientes de IA, sus dobles y los parámetros (`fb2f640` 2026-10-02)
 - ✓ T-012 · Leer un PDF con texto (`977f834` 2026-10-02, `ef7d903` 2026-10-02)
 - ✓ T-013 · Partir en artículos y armar el informe mínimo (`a4e0391` 2026-10-03)
-- ✓ T-014 · Cargar una norma, listarla y ver su informe (`e53cc24` 2026-10-03, `d115ccf` 2026-10-03)
+- ✓ T-014 · Cargar una norma, listarla y ver su informe
 - ✓ T-015 · Validar una lectura y calcular pasajes y vectores (`420eae6` 2026-10-03, `845bdae` 2026-10-03)
 - ✓ T-016 · Armar la pantalla de consulta con sus tres bloques (`ceff61d` 2026-10-03, `bb49b8c` 2026-10-03)
 - ✓ T-017 · Recuperar por significado y reordenar con el reranker (`f31dab6` 2026-10-03)
-- ✓ T-018 · Generar la respuesta con esquema e insertar las citas
+- ✓ T-018 · Generar la respuesta con esquema e insertar las citas (`33f0f08` 2026-10-03, `9830fe5` 2026-10-03)
+- ✓ T-019 · Unir la consulta de punta a punta con su registro (`2685761` 2026-10-03, `71fd67b` 2026-10-03)
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 - ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
 - ✓ T-055 · Agregar el nombre de cita de la norma (`ff230c8` 2026-10-03, `88796e6` 2026-10-03)
@@ -140,7 +140,7 @@ flowchart TD
   T016["✓ T-016 · Armar la pantalla de consulta con sus tres…"]:::done
   T017["✓ T-017 · Recuperar por significado y reordenar con e…"]:::done
   T018["✓ T-018 · Generar la respuesta con esquema e insertar…"]:::done
-  T019["○ T-019 · Unir la consulta de punta a punta con su re…"]:::todo
+  T019["✓ T-019 · Unir la consulta de punta a punta con su re…"]:::done
   T020["○ T-020 · Probar el hilo mínimo con los servicios rea…"]:::todo
   T021["○ T-021 · Leer un PDF escaneado con reconocimiento de…"]:::todo
   T022["○ T-022 · Leer una página web guardada"]:::todo
