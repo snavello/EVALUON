@@ -143,6 +143,29 @@ def test_near_questions_labelled_as_foreign_leave_no_gap():
     assert "EV-027" in text and "EV-004" in text
 
 
+def test_equal_scores_leave_no_gap():
+    """REQ-009: en el borde A = B (la ajena más alta con el mismo puntaje que la pregunta
+    con respuesta más baja) no hay hueco: la regla lo informa y no propone umbral; la
+    ajena figura entre las de puntaje mayor o igual que `B` y la pregunta, entre las de
+    puntaje menor o igual que `A`."""
+    rows = [entry("EV-001", 0.4), entry("EV-002", 0.95),
+            entry("EV-003", 0.4, has_answer=False, labels=[FOREIGN])]
+
+    calibration = evaluation.calibrate(rows, current=0.368)
+
+    assert calibration["high_foreign"]["logit"] == calibration["low_answered"]["logit"]
+    assert calibration["gap"] is False
+    assert calibration["proposed"] is None
+    assert calibration["meets_margin"] is None
+    assert calibration["foreign_at_or_above_low"] == ["EV-003"]
+    assert calibration["answered_at_or_below_high"] == ["EV-001"]
+    line = evaluation.threshold_line(calibration)
+    assert line.startswith("Umbral propuesto (provisorio): ninguno")
+    assert "No hay hueco" in line
+    assert "decisión es del responsable" in line
+    text_of(calibration, rows)
+
+
 def test_insufficient_margin_is_reported_and_marked():
     """REQ-009: con la ajena más alta en 0,30 y la pregunta con respuesta más baja en
     0,368022 hay hueco, pero el margen es 0,153: "cumple el margen mínimo: no" y el
