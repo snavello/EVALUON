@@ -148,6 +148,8 @@ No quedan preguntas abiertas.
 
 ## Aclaraciones posteriores a la aprobación
 
+- **AFIP y ARCA (2026-10-03, decisión del responsable, ADR-0010).** La Administración Federal de Ingresos Públicos (AFIP) pasó a denominarse Agencia de Recaudación y Control Aduanero (ARCA): es el mismo organismo, con el mismo CUIT. Las normas no cambian: conservan su nombre de cita oficial. En las comparaciones y búsquedas por organismo, "AFIP" y "ARCA" valen lo mismo.
+
 Surgieron al preparar el plan. Las tres primeras las decidió el responsable el 2026-10-02; las demás las propone el Coordinador y quedan aprobadas junto con el plan.
 
 - **Búsqueda (REQ-010).** Se hace desde la misma pantalla de consulta.
