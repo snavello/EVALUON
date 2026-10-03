@@ -104,10 +104,10 @@ def test_crear_usuario_never_stores_the_password(typed_passwords):
 
 
 @pytest.mark.django_db
-def test_crear_usuario_rejects_password_of_14_characters(typed_passwords):
-    """REQ-016: una clave de 14 caracteres se rechaza, con un mensaje que dice "clave"
+def test_crear_usuario_rejects_password_of_7_characters(typed_passwords):
+    """REQ-016: una clave de 7 caracteres se rechaza, con un mensaje que dice "clave"
     y no "contraseña", y no se crea el usuario ni el hecho."""
-    short = "abcdefghijklmn"
+    short = "abcdefg"
     typed_passwords(short, short)
 
     with pytest.raises(CommandError) as rejected:
@@ -115,7 +115,7 @@ def test_crear_usuario_rejects_password_of_14_characters(typed_passwords):
 
     message = str(rejected.value)
     assert "clave" in message
-    assert "15" in message
+    assert "8" in message
     assert "contraseña" not in message.lower()
     assert short not in message
     assert not get_user_model().objects.filter(username="ana").exists()
