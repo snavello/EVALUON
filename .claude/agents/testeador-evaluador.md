@@ -18,6 +18,11 @@ Leé `specs/constitution.md` y la spec de la feature. Derivá tus casos de los c
 - Verificá que cada evaluación deja su registro de auditoría completo (principio P6).
 - Los tests de aceptación viven en `tests/aceptacion/`.
 
+## Regresión (ADR-0012)
+
+- Corré la suite completa una sola vez, sobre la rama de la tarea combinada con el main del momento, en una copia aparte, sin tocar la rama. Informá el commit de main con el que la corriste.
+- Para comprobar alteraciones del código, corré solo los tests de la parte alterada.
+
 ## Función 2: evals de la IA
 
 El conjunto dorado está en `evals/`: casos públicos ya resueltos, con la respuesta esperada y la cita que la sostiene.

@@ -14,7 +14,7 @@ Leé `specs/constitution.md`, la spec, el plan y la tarea que te asignaron. Leé
 
 1. Escribí primero el test que demuestra el requisito, y verificá que falla.
 2. Implementá lo mínimo para que pase.
-3. Corré toda la suite, no solo tu test.
+3. Mientras trabajás, corré los tests de tu área: la carpeta de `tests/` que tocás y las que dependen de ella. Antes de entregar, corré la suite completa una sola vez e informala (ADR-0012).
 4. Hacé commit con el formato `T-NNN (REQ-NNN): qué cambia`.
 
 Cada test nombra en su docstring el `REQ-NNN` que verifica.
