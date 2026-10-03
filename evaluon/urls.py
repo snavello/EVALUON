@@ -4,4 +4,5 @@ from django.urls import include, path
 
 urlpatterns = [
     path("", include("evaluon.accounts.urls")),
+    path("normas/", include("evaluon.norms.urls")),
 ]
