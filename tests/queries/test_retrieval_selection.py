@@ -56,7 +56,38 @@ def select(prompt_tokens=PROMPT_TOKENS, reference_date=DATE, **options):
 
 
 def tokens_of(unit, spans=None):
+    """Tokens del texto de la unidad que ve el modelo (sin encabezado)."""
     return count_words(answering.prompt_text(unit, spans))
+
+
+def block_tokens(unit, spans=None):
+    """Tokens del bloque de la unidad en el pedido: encabezado más texto. Con el doble,
+    que cuenta palabras, el ancho del alias no cambia la cuenta."""
+    return count_words(answering.unit_block("[U9]", unit, spans))
+
+
+def base_tokens(reference_date=DATE):
+    """Lo que cuenta quien llama (T-040): instrucciones y comienzo del mensaje."""
+    return (count_words(answering.load_instructions())
+            + count_words(answering.request_head(QUESTION, reference_date)))
+
+
+def request_tokens(selection, reference_date=DATE):
+    """Tokens del pedido real que arma `answer` con la selección, contados por el doble
+    (como `prompt_tokens` del motor doble)."""
+    answer = answering.answer(QUESTION, selection.unit_ids, reference_date,
+                              passages=selection.passages)
+    assert answer.error is None
+    return sum(count_words(m["content"]) for m in answer.request["messages"])
+
+
+def assert_counts_the_request(selection, reference_date=DATE):
+    """La cuenta de la selección cubre el pedido real: `prompt_tokens` + `used_tokens`
+    no es menor que lo que arma `answer`. Con el doble, que cuenta palabras y es aditivo,
+    además es igual: no se cuenta lo que no se muestra."""
+    real = request_tokens(selection, reference_date)
+    assert selection.prompt_tokens + selection.used_tokens >= real
+    assert selection.prompt_tokens + selection.used_tokens == real
 
 
 # --- Cupos por categoría ---------------------------------------------------------------
@@ -222,141 +253,6 @@ def modified_article(norm_units, make_relation):
     return target["art-3"], source["art-1"]
 
 
-@pytest.mark.django_db
-def test_modified_article_comes_with_its_modifier_after_the_date(
-        modified_article, fake_embeddings, fake_reranker):
-    """REQ-007: un artículo modificado a la fecha llega acompañado por la unidad que lo
-    modifica, sumada por relación y no por parecido (no alcanzó el umbral); antes de la
-    fecha del cambio llega solo. La unidad que modifica cuenta en el espacio."""
-    article, modifier = modified_article
-    scored(fake_reranker, a3=0.9)
-
-    after = select(reference_date=date(2024, 5, 20))
-    before = select(reference_date=date(2022, 5, 20))
-
-    assert after.unit_ids == [article.pk]
-    assert after.added == [{"unit": modifier.pk, "modifies": [article.pk]}]
-    assert set(after.tokens) == {article.pk, modifier.pk}
-    assert after.used_tokens == tokens_of(article) + tokens_of(modifier)
-    assert before.unit_ids == [article.pk]
-    assert before.added == []
-    assert set(before.tokens) == {article.pk}
-
-
-@pytest.mark.django_db
-def test_selected_modifier_is_not_added_twice(modified_article, fake_embeddings,
-                                              fake_reranker):
-    """REQ-007: si la unidad que modifica ya está entre las seleccionadas, no se agrega
-    otra vez ni se cuenta dos veces."""
-    article, modifier = modified_article
-    scored(fake_reranker, a3=0.9)
-    fake_reranker.scores["Sustitúyese"] = 0.8
-
-    selection = select()
-
-    assert selection.unit_ids == [article.pk, modifier.pk]
-    assert selection.added == []
-    assert selection.used_tokens == tokens_of(article) + tokens_of(modifier)
-
-
-# --- Espacio del contexto ----------------------------------------------------------------
-
-
-def space_for(settings, words):
-    """Deja `words` tokens de espacio para unidades con `PROMPT_TOKENS` de instrucciones y
-    pregunta, sin máximo de salida ni margen."""
-    settings.GENERATION_MAX_OUTPUT_TOKENS = 0
-    settings.PROMPT_TEMPLATE_MARGIN_TOKENS = 0
-    settings.GENERATION_CONTEXT_TOKENS = PROMPT_TOKENS + words
-
-
-TEN_WORDS = "ARTICULO {n}.- uno dos tres cuatro cinco seis siete [{mark}]."
-
-
-@pytest.mark.django_db
-def test_space_is_the_context_minus_prompt_output_and_margin(settings, norm_units,
-                                                             fake_embeddings,
-                                                             fake_reranker):
-    """REQ-018: el espacio para unidades es el contexto menos los tokens de las
-    instrucciones con la pregunta (los recibe la selección), menos el máximo de salida,
-    menos el margen de la plantilla; los tres salen de `settings.py`."""
-    settings.GENERATION_CONTEXT_TOKENS = 16384
-    settings.GENERATION_MAX_OUTPUT_TOKENS = 800
-    settings.PROMPT_TEMPLATE_MARGIN_TOKENS = 512
-    norm_units("regimen_especifico", [("art-1", TEN_WORDS.format(n=1, mark="a1"))])
-    scored(fake_reranker, a1=0.9)
-
-    selection = select(prompt_tokens=1234)
-
-    assert selection.available_tokens == 16384 - 1234 - 800 - 512
-    assert selection.used_tokens == 10
-
-
-@pytest.mark.django_db
-def test_without_space_best_of_each_category_first(settings, norm_units, fake_embeddings,
-                                                   fake_reranker):
-    """REQ-018, REQ-019: si el total no entra, entra primero la mejor unidad de cada
-    categoría y después la segunda: con lugar para tres unidades de diez tokens, entran
-    la mejor del régimen específico, la del marco nacional y la del dictamen, y la
-    segunda del régimen específico queda afuera, anotada con sus tokens."""
-    space_for(settings, 30)
-    specific = norm_units("regimen_especifico", [
-        ("art-1", TEN_WORDS.format(n=1, mark="e1")),
-        ("art-2", TEN_WORDS.format(n=2, mark="e2")),
-    ])
-    framework = norm_units("marco_nacional", [("art-1", TEN_WORDS.format(n=1, mark="n1"))])
-    opinion = norm_units("dictamen_legal", [("punto-1", TEN_WORDS.format(n=1, mark="d1"))])
-    scored(fake_reranker, e1=0.95, e2=0.94, n1=0.6, d1=0.55)
-
-    selection = select()
-
-    assert selection.unit_ids == [specific["art-1"].pk, framework["art-1"].pk,
-                                  opinion["punto-1"].pk]
-    assert selection.left_out == [{"unit": specific["art-2"].pk, "tokens": 10}]
-    assert selection.used_tokens == 30
-
-
-@pytest.mark.django_db
-def test_without_space_considerando_does_not_displace_an_article(
-        settings, norm_units, fake_embeddings, fake_reranker):
-    """REQ-018: sin espacio para todo, un considerando entra después de los artículos
-    aunque tenga mejor puntaje: un fundamento no desplaza a un artículo."""
-    space_for(settings, 20)
-    units = norm_units("regimen_especifico", [
-        ("considerando-1", TEN_WORDS.format(n=1, mark="c1")),
-        ("art-1", TEN_WORDS.format(n=1, mark="a1")),
-        ("art-2", TEN_WORDS.format(n=2, mark="a2")),
-    ])
-    scored(fake_reranker, c1=0.99, a1=0.7, a2=0.6)
-
-    selection = select()
-
-    assert selection.unit_ids == [units["art-1"].pk, units["art-2"].pk]
-    assert selection.left_out == [{"unit": units["considerando-1"].pk, "tokens": 10}]
-
-
-@pytest.mark.django_db
-def test_without_space_a_unit_enters_with_its_modifier(settings, modified_article,
-                                                       norm_units, fake_embeddings,
-                                                       fake_reranker):
-    """REQ-007: una unidad modificada entra al espacio junto con la que la modifica, o no
-    entra: con lugar solo para la unidad, queda afuera con el costo de las dos, y entra
-    en su lugar otra que sí cabe."""
-    article, modifier = modified_article
-    package = tokens_of(article) + tokens_of(modifier)
-    other = norm_units("marco_nacional", [("art-1", "ARTICULO 1.- Corta [n1].")])
-    space_for(settings, package - 1)
-    scored(fake_reranker, a3=0.9, n1=0.6)
-
-    selection = select()
-
-    assert selection.unit_ids == [other["art-1"].pk]
-    assert selection.added == []
-    assert selection.left_out == [{"unit": article.pk, "tokens": package}]
-
-
-# --- Unidades largas ---------------------------------------------------------------------
-
 LONG = ("ARTICULO 7.- Primera parte sobre la garantía [p1]. "
         "Segunda parte sobre plazos sintéticos [p2]. "
         "Tercera parte sobre otra cosa [p3].")
@@ -377,12 +273,390 @@ def split_passages(make_passage, unit):
 
 
 @pytest.mark.django_db
+def test_modified_article_comes_with_its_modifier_after_the_date(
+        modified_article, fake_embeddings, fake_reranker):
+    """REQ-007: un artículo modificado a la fecha llega acompañado por la unidad que lo
+    modifica, sumada por relación y no por parecido (no alcanzó el umbral); antes de la
+    fecha del cambio llega solo. La unidad que modifica y la línea del cambio cuentan en
+    el espacio, igual que en el pedido."""
+    article, modifier = modified_article
+    scored(fake_reranker, a3=0.9)
+    after_date, before_date = date(2024, 5, 20), date(2022, 5, 20)
+
+    after = select(prompt_tokens=base_tokens(after_date), reference_date=after_date)
+    before = select(prompt_tokens=base_tokens(before_date), reference_date=before_date)
+
+    assert after.unit_ids == [article.pk]
+    assert after.added == [{"unit": modifier.pk, "modifies": [article.pk]}]
+    assert set(after.tokens) == {article.pk, modifier.pk}
+    assert after.tokens[modifier.pk] > block_tokens(modifier)
+    assert_counts_the_request(after, after_date)
+    assert before.unit_ids == [article.pk]
+    assert before.added == []
+    assert set(before.tokens) == {article.pk}
+    assert_counts_the_request(before, before_date)
+
+
+@pytest.mark.django_db
+def test_selected_modifier_is_not_added_twice(modified_article, fake_embeddings,
+                                              fake_reranker):
+    """REQ-007: si la unidad que modifica ya está entre las seleccionadas, no se agrega
+    otra vez ni se cuenta dos veces: va una vez, anidada como cambio."""
+    article, modifier = modified_article
+    scored(fake_reranker, a3=0.9)
+    fake_reranker.scores["Sustitúyese"] = 0.8
+
+    selection = select(prompt_tokens=base_tokens())
+
+    assert selection.unit_ids == [article.pk, modifier.pk]
+    assert selection.added == []
+    assert set(selection.tokens) == {article.pk, modifier.pk}
+    assert_counts_the_request(selection)
+
+
+@pytest.mark.django_db
+def test_change_from_a_whole_norm_is_counted_and_adds_nothing(
+        norm_units, make_relation, fake_embeddings, fake_reranker):
+    """REQ-007: un cambio registrado desde una norma entera no trae una unidad
+    (`source_unit_id` vacío): no se agrega nada, y la línea "Cambio: …" que el pedido
+    muestra igual se cuenta."""
+    target = norm_units("regimen_especifico", [("art-3", "ARTICULO 3.- Garantía [a3].")])
+    source = norm_units("otra_normativa", [("art-1", "ARTICULO 1.- Cambio entero.")])
+    make_relation(source["art-1"].reading.document.norm,
+                  target["art-3"].reading.document.norm, "modifica",
+                  effective_date=date(2023, 1, 1), target_unit_key="art-3")
+    scored(fake_reranker, a3=0.9)
+
+    selection = select(prompt_tokens=base_tokens())
+
+    assert selection.unit_ids == [target["art-3"].pk]
+    assert selection.added == [] and selection.passages == {}
+    assert set(selection.tokens) == {target["art-3"].pk}
+    assert selection.used_tokens > block_tokens(target["art-3"])
+    assert_counts_the_request(selection)
+
+
+@pytest.mark.django_db
+def test_self_reference_is_counted_once(norm_units, make_relation, fake_embeddings,
+                                        fake_reranker):
+    """REQ-007: una relación registrada de una unidad sobre sí misma no la agrega otra
+    vez ni la cuenta dos veces; se cuenta la línea "Su texto está más arriba" que muestra
+    el pedido."""
+    units = norm_units("regimen_especifico", [("art-3", "ARTICULO 3.- Garantía [a3].")])
+    norm = units["art-3"].reading.document.norm
+    make_relation(norm, norm, "modifica", effective_date=date(2023, 1, 1),
+                  source_unit_key="art-3", target_unit_key="art-3")
+    scored(fake_reranker, a3=0.9)
+
+    selection = select(prompt_tokens=base_tokens())
+
+    assert selection.unit_ids == [units["art-3"].pk]
+    assert selection.added == []
+    assert selection.tokens == {units["art-3"].pk: block_tokens(units["art-3"])}
+    assert_counts_the_request(selection)
+
+
+# --- Cadenas: los cambios se siguen a un solo nivel --------------------------------------
+
+
+@pytest.fixture
+def make_chain(norm_units, make_passage, make_relation):
+    """`make_chain(categoría de A, categoría de B)`: cadena C → B → A desde el
+    2023-01-01: `B` modifica a `A` y `C` (otra normativa, larga, en tres pasajes)
+    modifica a `B`. Devuelve `(A, B, C, tramos de C)`."""
+
+    def _make(a_category, b_category):
+        a = norm_units(a_category, [("art-1", "ARTICULO 1.- Garantía A [a1].")])
+        b = norm_units(b_category, [("art-2", "ARTICULO 2.- Cambia A [b2].")])
+        c = norm_units("otra_normativa", [("art-7", LONG)], passages=False)
+        spans = split_passages(make_passage, c["art-7"])
+        for source, target, source_key, target_key in ((b, a, "art-2", "art-1"),
+                                                       (c, b, "art-7", "art-2")):
+            make_relation(next(iter(source.values())).reading.document.norm,
+                          next(iter(target.values())).reading.document.norm,
+                          "modifica", effective_date=date(2023, 1, 1),
+                          source_unit_key=source_key, target_unit_key=target_key)
+        return a["art-1"], b["art-2"], c["art-7"], spans
+
+    return _make
+
+
+@pytest.fixture
+def chain(make_chain):
+    """Cadena C → B → A con A del régimen específico y B del marco nacional."""
+    return make_chain("regimen_especifico", "marco_nacional")
+
+
+@pytest.mark.django_db
+def test_chain_nested_modifier_ordered_first_is_not_shown_on_its_own(
+        make_chain, fake_embeddings, fake_reranker):
+    """REQ-007 (ajuste B2): en la cadena C → B → A, B es del régimen específico y A del
+    marco nacional, así que B va antes en el orden. Igual que en `answering`, B se
+    muestra anidada bajo A y no por su cuenta, y por eso C no se muestra ni se cuenta."""
+    a, b, c, _ = make_chain("marco_nacional", "regimen_especifico")
+    scored(fake_reranker, a1=0.8, b2=0.9)
+
+    selection = select(prompt_tokens=base_tokens())
+
+    assert selection.unit_ids == [b.pk, a.pk]
+    assert selection.added == []
+    assert set(selection.tokens) == {a.pk, b.pk}
+    assert_counts_the_request(selection)
+
+
+@pytest.mark.django_db
+def test_chain_follows_changes_one_level(chain, fake_embeddings, fake_reranker):
+    """REQ-007 (ajuste B2): con A y B seleccionadas y B mostrada anidada como la que
+    modifica a A, la que modifica a B (C) no se muestra: no se cuenta, no se agrega y no
+    tiene tramos. El pedido llega a `answer` sin error y la cuenta coincide con él."""
+    a, b, c, _ = chain
+    scored(fake_reranker, a1=0.9, b2=0.8)
+
+    selection = select(prompt_tokens=base_tokens())
+
+    assert selection.unit_ids == [a.pk, b.pk]
+    assert selection.added == []
+    assert set(selection.tokens) == {a.pk, b.pk}
+    assert c.pk not in selection.passages
+    assert_counts_the_request(selection)
+    answer = answering.answer(QUESTION, selection.unit_ids, DATE,
+                              passages=selection.passages)
+    assert set(answer.aliases.values()) == {a.pk, b.pk}
+
+
+@pytest.mark.django_db
+def test_chain_with_long_over_quota_modifier_has_no_spans_for_it(
+        settings, chain, norm_units, fake_embeddings, fake_reranker):
+    """REQ-007 (ajuste B2): en la cadena C → B → A, C es larga, uno de sus pasajes supera
+    el umbral y queda afuera de su cupo. Como B va anidada bajo A, C no se muestra:
+    `passages` no la trae (antes `answer` fallaba con "Hay tramos para unidades que no se
+    muestran"), y `added` y `tokens` coinciden con lo que se muestra."""
+    settings.UNIT_BY_PASSAGES_FROM_TOKENS = 10
+    settings.SELECTION_UNITS_PER_CATEGORY = 1
+    a, b, c, _ = chain
+    other = norm_units("otra_normativa", [("art-9", "ARTICULO 9.- Otra [o9].")])
+    scored(fake_reranker, a1=0.9, b2=0.85, o9=0.95, p2=0.8)
+
+    selection = select(prompt_tokens=base_tokens())
+
+    assert selection.over_quota == [c.pk]
+    assert selection.unit_ids == [a.pk, other["art-9"].pk, b.pk]
+    assert selection.passages == {}
+    assert selection.added == []
+    assert set(selection.tokens) == {a.pk, b.pk, other["art-9"].pk}
+    assert_counts_the_request(selection)
+
+
+@pytest.mark.django_db
+def test_chain_head_not_selected_shows_the_next_level(chain, fake_embeddings,
+                                                      fake_reranker):
+    """REQ-007: si solo B está seleccionada, B no va anidada y se muestra con la que la
+    modifica (C), que entra por relación y se cuenta entera."""
+    _, b, c, _ = chain
+    scored(fake_reranker, b2=0.8)
+
+    selection = select(prompt_tokens=base_tokens())
+
+    assert selection.unit_ids == [b.pk]
+    assert selection.added == [{"unit": c.pk, "modifies": [b.pk]}]
+    assert_counts_the_request(selection)
+
+
+# --- Espacio del contexto ----------------------------------------------------------------
+
+
+def space_for(settings, words, prompt_tokens=PROMPT_TOKENS):
+    """Deja `words` tokens de espacio para unidades con `prompt_tokens` de instrucciones
+    y pregunta, sin máximo de salida ni margen."""
+    settings.GENERATION_MAX_OUTPUT_TOKENS = 0
+    settings.PROMPT_TEMPLATE_MARGIN_TOKENS = 0
+    settings.GENERATION_CONTEXT_TOKENS = prompt_tokens + words
+
+
+TEN_WORDS = "ARTICULO {n}.- uno dos tres cuatro cinco seis siete [{mark}]."
+
+
+@pytest.mark.django_db
+def test_space_is_the_context_minus_prompt_output_and_margin(settings, norm_units,
+                                                             fake_embeddings,
+                                                             fake_reranker):
+    """REQ-018: el espacio para unidades es el contexto menos los tokens de las
+    instrucciones con la pregunta (los recibe la selección), menos el máximo de salida,
+    menos el margen de la plantilla; los tres salen de `settings.py`. Lo usado es el
+    bloque de la unidad, con su encabezado."""
+    settings.GENERATION_CONTEXT_TOKENS = 16384
+    settings.GENERATION_MAX_OUTPUT_TOKENS = 800
+    settings.PROMPT_TEMPLATE_MARGIN_TOKENS = 512
+    units = norm_units("regimen_especifico", [("art-1", TEN_WORDS.format(n=1, mark="a1"))])
+    scored(fake_reranker, a1=0.9)
+
+    selection = select(prompt_tokens=1234)
+
+    assert selection.available_tokens == 16384 - 1234 - 800 - 512
+    assert selection.used_tokens == block_tokens(units["art-1"])
+    assert selection.used_tokens > tokens_of(units["art-1"])
+    assert selection.anomalies == []
+
+
+@pytest.mark.django_db
+def test_prompt_longer_than_the_context_leaves_no_space(settings, norm_units,
+                                                        fake_embeddings, fake_reranker):
+    """REQ-018: si las instrucciones con la pregunta ya no entran en el contexto, el
+    espacio queda en 0, no negativo, con la anomalía `prompt_exceeds_context` y cuántos
+    tokens faltan; ninguna unidad entra."""
+    settings.GENERATION_CONTEXT_TOKENS = 1000
+    settings.GENERATION_MAX_OUTPUT_TOKENS = 100
+    settings.PROMPT_TEMPLATE_MARGIN_TOKENS = 50
+    units = norm_units("regimen_especifico", [("art-1", TEN_WORDS.format(n=1, mark="a1"))])
+    scored(fake_reranker, a1=0.9)
+
+    selection = select(prompt_tokens=1200)
+
+    assert selection.available_tokens == 0
+    assert selection.anomalies == [{"type": "prompt_exceeds_context",
+                                    "prompt_tokens": 1200, "missing_tokens": 350}]
+    assert selection.unit_ids == []
+    assert selection.left_out == [{"unit": units["art-1"].pk,
+                                   "tokens": block_tokens(units["art-1"])}]
+    assert selection.as_record()["anomalies"] == selection.anomalies
+
+
+@pytest.mark.django_db
+def test_no_unit_fits_gives_empty_unit_ids(settings, norm_units, fake_embeddings,
+                                           fake_reranker):
+    """REQ-018: si ninguna unidad cabe en el espacio, `unit_ids` queda vacío y todas
+    quedan anotadas en `left_out`; no hay tramos ni tokens usados."""
+    space_for(settings, 5)
+    units = norm_units("regimen_especifico", [
+        ("art-1", TEN_WORDS.format(n=1, mark="a1")),
+        ("art-2", TEN_WORDS.format(n=2, mark="a2")),
+    ])
+    scored(fake_reranker, a1=0.9, a2=0.8)
+
+    selection = select()
+
+    assert selection.unit_ids == [] and selection.passages == {}
+    assert [entry["unit"] for entry in selection.left_out] == [units["art-1"].pk,
+                                                                units["art-2"].pk]
+    assert selection.used_tokens == 0 and selection.tokens == {}
+
+
+@pytest.mark.django_db
+def test_without_space_best_of_each_category_first(settings, norm_units, fake_embeddings,
+                                                   fake_reranker):
+    """REQ-018, REQ-019: si el total no entra, entra primero la mejor unidad de cada
+    categoría y después la segunda: con lugar justo para tres bloques, entran la mejor
+    del régimen específico, la del marco nacional y la del dictamen, y la segunda del
+    régimen específico queda afuera, anotada con sus tokens."""
+    specific = norm_units("regimen_especifico", [
+        ("art-1", TEN_WORDS.format(n=1, mark="e1")),
+        ("art-2", TEN_WORDS.format(n=2, mark="e2")),
+    ])
+    framework = norm_units("marco_nacional", [("art-1", TEN_WORDS.format(n=1, mark="n1"))])
+    opinion = norm_units("dictamen_legal", [("punto-1", TEN_WORDS.format(n=1, mark="d1"))])
+    fits = [specific["art-1"], framework["art-1"], opinion["punto-1"]]
+    space_for(settings, sum(block_tokens(unit) for unit in fits))
+    scored(fake_reranker, e1=0.95, e2=0.94, n1=0.6, d1=0.55)
+
+    selection = select()
+
+    assert selection.unit_ids == [unit.pk for unit in fits]
+    assert selection.left_out == [{"unit": specific["art-2"].pk,
+                                   "tokens": block_tokens(specific["art-2"])}]
+    assert selection.used_tokens == selection.available_tokens
+
+
+@pytest.mark.django_db
+def test_without_space_considerando_does_not_displace_an_article(
+        settings, norm_units, fake_embeddings, fake_reranker):
+    """REQ-018: sin espacio para todo, un considerando entra después de los artículos
+    aunque tenga mejor puntaje: un fundamento no desplaza a un artículo. Su costo incluye
+    el rótulo del bloque de considerandos."""
+    units = norm_units("regimen_especifico", [
+        ("considerando-1", TEN_WORDS.format(n=1, mark="c1")),
+        ("art-1", TEN_WORDS.format(n=1, mark="a1")),
+        ("art-2", TEN_WORDS.format(n=2, mark="a2")),
+    ])
+    space_for(settings, block_tokens(units["art-1"]) + block_tokens(units["art-2"]))
+    scored(fake_reranker, c1=0.99, a1=0.7, a2=0.6)
+
+    selection = select()
+
+    assert selection.unit_ids == [units["art-1"].pk, units["art-2"].pk]
+    heading = count_words(answering.CONSIDERANDOS_HEADING)
+    assert selection.left_out == [{"unit": units["considerando-1"].pk,
+                                   "tokens": block_tokens(units["considerando-1"])
+                                   + heading}]
+
+
+@pytest.mark.django_db
+def test_without_space_a_unit_enters_with_its_modifier(settings, modified_article,
+                                                       norm_units, fake_embeddings,
+                                                       fake_reranker):
+    """REQ-007: una unidad modificada entra al espacio junto con la que la modifica, o no
+    entra: con lugar para todo menos un token, queda afuera con el costo de las dos, y
+    entra en su lugar otra que sí cabe."""
+    article, _ = modified_article
+    scored(fake_reranker, a3=0.9)
+    package = select().used_tokens
+    other = norm_units("marco_nacional", [("art-1", "ARTICULO 1.- Corta [n1].")])
+    space_for(settings, package - 1)
+    scored(fake_reranker, n1=0.6)
+
+    selection = select()
+
+    assert package > block_tokens(article)
+    assert selection.unit_ids == [other["art-1"].pk]
+    assert selection.added == []
+    assert selection.left_out == [{"unit": article.pk, "tokens": package}]
+
+
+@pytest.mark.django_db
+def test_count_covers_the_request_with_fifteen_units_and_two_changes(
+        norm_units, make_relation, fake_embeddings, fake_reranker):
+    """REQ-007, REQ-018, REQ-019 (ajuste B1): con 15 unidades seleccionadas (tres por
+    categoría) y dos cambios, `prompt_tokens` + `used_tokens` no es menor que los tokens
+    del pedido real que arma `answer`, contados con el mismo doble: se cuentan los
+    encabezados de cada unidad, los bloques y líneas de los cambios y los separadores."""
+    scores = {}
+    by_category = {}
+    for position, category in enumerate(answering.CATEGORY_ORDER):
+        units = norm_units(category, [
+            (f"art-{n}", f"ARTICULO {n}.- Texto sintético {category} [k{position}{n}].")
+            for n in range(1, 4)
+        ])
+        by_category[category] = units
+        scores.update({f"k{position}{n}": 0.9 - 0.01 * n for n in range(1, 4)})
+    amending = norm_units("otra_normativa", [
+        ("art-1", "ARTICULO 1.- Sustitúyese un artículo sintético."),
+        ("art-2", "ARTICULO 2.- Sustitúyese otro artículo sintético."),
+    ])
+    for source_key, category in (("art-1", "regimen_especifico"),
+                                 ("art-2", "marco_nacional")):
+        make_relation(amending["art-1"].reading.document.norm,
+                      by_category[category]["art-1"].reading.document.norm, "modifica",
+                      effective_date=date(2023, 1, 1), source_unit_key=source_key,
+                      target_unit_key="art-1")
+    scored(fake_reranker, **scores)
+
+    selection = select(prompt_tokens=base_tokens())
+
+    assert len(selection.unit_ids) == 15
+    assert [a["unit"] for a in selection.added] == [amending["art-1"].pk,
+                                                    amending["art-2"].pk]
+    assert_counts_the_request(selection)
+
+
+# --- Unidades largas ---------------------------------------------------------------------
+
+
+@pytest.mark.django_db
 def test_long_unit_shows_only_passages_over_threshold(settings, norm_units, make_passage,
                                                       fake_embeddings, fake_reranker,
                                                       fake_generation):
     """REQ-007, REQ-018: de una unidad más larga que `UNIT_BY_PASSAGES_FROM_TOKENS` se
-    le muestran al modelo solo los pasajes que superaron el umbral; sus tokens se cuentan
-    sobre `prompt_text` con esos tramos. La unidad corta va entera."""
+    le muestran al modelo solo los pasajes que superaron el umbral; su bloque se cuenta
+    con esos tramos. La unidad corta va entera."""
     settings.UNIT_BY_PASSAGES_FROM_TOKENS = 10
     units = norm_units("regimen_especifico", [
         ("art-7", LONG), ("art-8", "ARTICULO 8.- Corta [a8]."),
@@ -392,14 +666,15 @@ def test_long_unit_shows_only_passages_over_threshold(settings, norm_units, make
     make_passage(units["art-8"])
     scored(fake_reranker, p1=0.9, p3=0.7, a8=0.8)
 
-    selection = select()
+    selection = select(prompt_tokens=base_tokens())
 
     assert selection.passages == {long_unit.pk: [spans[0], spans[2]]}
-    assert selection.tokens[long_unit.pk] == tokens_of(long_unit, [spans[0], spans[2]])
-    assert selection.tokens[long_unit.pk] < tokens_of(long_unit)
-    assert selection.tokens[units["art-8"].pk] == tokens_of(units["art-8"])
+    assert selection.tokens[long_unit.pk] == block_tokens(long_unit,
+                                                          [spans[0], spans[2]])
+    assert selection.tokens[long_unit.pk] < block_tokens(long_unit)
+    assert selection.tokens[units["art-8"].pk] == block_tokens(units["art-8"])
+    assert_counts_the_request(selection)
 
-    answering.answer(QUESTION, selection.unit_ids, DATE, passages=selection.passages)
     user = next(m["content"] for m in fake_generation.calls[-1][0] if m["role"] == "user")
     assert "Primera parte" in user and "Tercera parte" in user
     assert "Segunda parte" not in user
@@ -409,8 +684,8 @@ def test_long_unit_shows_only_passages_over_threshold(settings, norm_units, make
 @pytest.mark.django_db
 def test_unit_at_the_limit_goes_whole(settings, norm_units, make_passage,
                                       fake_embeddings, fake_reranker):
-    """REQ-007: una unidad que no supera `UNIT_BY_PASSAGES_FROM_TOKENS` se muestra entera
-    aunque solo uno de sus pasajes haya superado el umbral."""
+    """REQ-007: una unidad que no supera `UNIT_BY_PASSAGES_FROM_TOKENS` (contados sobre
+    su texto) se muestra entera aunque solo uno de sus pasajes haya superado el umbral."""
     units = norm_units("regimen_especifico", [("art-7", LONG)], passages=False)
     settings.UNIT_BY_PASSAGES_FROM_TOKENS = tokens_of(units["art-7"])
     split_passages(make_passage, units["art-7"])
@@ -419,7 +694,7 @@ def test_unit_at_the_limit_goes_whole(settings, norm_units, make_passage,
     selection = select()
 
     assert selection.passages == {}
-    assert selection.tokens[units["art-7"].pk] == tokens_of(units["art-7"])
+    assert selection.tokens[units["art-7"].pk] == block_tokens(units["art-7"])
 
 
 @pytest.mark.django_db
@@ -435,6 +710,29 @@ def test_long_unit_without_reranker_shows_its_retrieved_passages(
     selection = retrieval.select_units(result, PROMPT_TOKENS)
 
     assert selection.passages == {units["art-7"].pk: [spans[1]]}
+
+
+@pytest.mark.django_db
+def test_without_semantic_path_and_with_reranker(norm_units, fake_embeddings,
+                                                 fake_reranker):
+    """REQ-018: con el camino por significado apagado y el reranker prendido, la
+    selección trabaja con los puntajes del reranker sobre lo que trajeron las palabras y
+    la referencia, aunque ningún candidato tenga distancia."""
+    units = norm_units("regimen_especifico", [
+        ("art-1", "ARTICULO 1.- La garantía sintética [a1]."),
+        ("art-2", "ARTICULO 2.- Otra garantía sintética [a2]."),
+        ("art-3", "ARTICULO 3.- Sin relación [a3]."),
+    ])
+    scored(fake_reranker, a1=0.6, a2=0.9, a3=0.95)
+
+    result = retrieval.retrieve(QUESTION, DATE, paths=(retrieval.WORDS,
+                                                       retrieval.REFERENCE))
+    selection = retrieval.select_units(result, base_tokens())
+
+    assert fake_embeddings.calls == []
+    assert all(c.distance is None for c in result.candidates)
+    assert selection.unit_ids == [units["art-2"].pk, units["art-1"].pk]
+    assert_counts_the_request(selection)
 
 
 @pytest.fixture
@@ -469,13 +767,13 @@ def test_long_modifier_shows_its_passages_over_threshold(settings, long_modifier
     other = norm_units("otra_normativa", [("art-9", "ARTICULO 9.- Otra [o9].")])
     scored(fake_reranker, a3=0.9, o9=0.95, p2=0.8)
 
-    selection = select()
+    selection = select(prompt_tokens=base_tokens())
 
     assert selection.unit_ids == [article.pk, other["art-9"].pk]
     assert selection.over_quota == [modifier.pk]
     assert selection.added == [{"unit": modifier.pk, "modifies": [article.pk]}]
     assert selection.passages == {modifier.pk: [spans[1]]}
-    assert selection.tokens[modifier.pk] == tokens_of(modifier, [spans[1]])
+    assert_counts_the_request(selection)
     answer = answering.answer(QUESTION, selection.unit_ids, DATE,
                               passages=selection.passages)
     assert set(answer.aliases.values()) == {article.pk, other["art-9"].pk, modifier.pk}
@@ -492,11 +790,12 @@ def test_long_modifier_without_passages_over_threshold_goes_whole(
     article, modifier, _ = long_modifier
     scored(fake_reranker, a3=0.9)
 
-    selection = select()
+    selection = select(prompt_tokens=base_tokens())
 
     assert selection.added == [{"unit": modifier.pk, "modifies": [article.pk]}]
     assert selection.passages == {}
-    assert selection.tokens[modifier.pk] == tokens_of(modifier)
+    assert selection.tokens[modifier.pk] > block_tokens(modifier)
+    assert_counts_the_request(selection)
 
 
 # --- Registro ----------------------------------------------------------------------------
@@ -506,12 +805,13 @@ def test_long_modifier_without_passages_over_threshold_goes_whole(
 def test_record_is_json_with_parameters(settings, norm_units, fake_embeddings,
                                         fake_reranker):
     """REQ-018 (P6): la selección se guarda como JSON en el registro, con lo enviado, lo
-    agregado, lo dejado afuera por cupo y por espacio, los tokens y los parámetros."""
-    space_for(settings, 10)
-    norm_units("regimen_especifico", [
+    agregado, lo dejado afuera por cupo y por espacio, los tokens, las anomalías y los
+    parámetros."""
+    units = norm_units("regimen_especifico", [
         ("art-1", TEN_WORDS.format(n=1, mark="e1")),
         ("art-2", TEN_WORDS.format(n=2, mark="e2")),
     ])
+    space_for(settings, block_tokens(units["art-1"]))
     scored(fake_reranker, e1=0.9, e2=0.8)
 
     record = select().as_record()
@@ -519,10 +819,11 @@ def test_record_is_json_with_parameters(settings, norm_units, fake_embeddings,
     assert json.loads(json.dumps(record)) == record
     assert set(record) == {"units", "passages", "added", "over_quota", "left_out",
                            "tokens", "prompt_tokens", "available_tokens", "used_tokens",
-                           "parameters"}
+                           "anomalies", "parameters"}
     assert len(record["units"]) == 1 and len(record["left_out"]) == 1
     assert record["parameters"] == {
-        "units_per_category": 3, "considerandos": 2, "context_tokens": PROMPT_TOKENS + 10,
+        "units_per_category": 3, "considerandos": 2,
+        "context_tokens": PROMPT_TOKENS + block_tokens(units["art-1"]),
         "max_output_tokens": 0, "template_margin_tokens": 0,
         "unit_by_passages_from_tokens": settings.UNIT_BY_PASSAGES_FROM_TOKENS,
     }
