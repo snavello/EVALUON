@@ -29,24 +29,66 @@ REQ-009, REQ-020, REQ-021; plan 001, "Evals"). Versión de T-039.
    - tiempo de cada consulta: mediana y máximo. Máximo de 30 segundos.
    Aparte, y se espera cero fallas: los pares de REQ-020 (`check_pairs`) y el aviso de
    REQ-021 (`notice_ok`).
-5. Guarda la corrida en `carpeta_de_corridas/<fecha>T<hora>_<commit>_<modelo>/`:
+5. Diagnóstico (T-042; plan, "Evals", y ADR-0003, "Cómo se mide"), que no son
+   exigencias de la spec:
+   - recuperación de cada caso (`case_diagnostics`), leída del registro de su consulta:
+     unidad correcta entre los candidatos, por camino y en la unión; entre las
+     enviadas al modelo; su posición en el orden del reranker; puntaje más alto; si el
+     umbral la frenó; tiempo de la recuperación. Y de la corrida
+     (`retrieval_measures`), con las preguntas con y sin respuesta frenadas por el
+     umbral;
+   - salidas con falla de formato (`invalid_output`) o de cita (`invalid_citation`),
+     contadas por el `type` de las anomalías: una falla de servicio no cuenta;
+   - los casos de REQ-018 (etiqueta "dos categorías") y de REQ-019 (`difieren`), aparte;
+   - respuesta correcta y abstención por régimen (`regimen` del caso);
+   - calibración del umbral (`calibrate`), con el puntaje más alto de cada pregunta;
+   - comparación con la corrida anterior de la misma carpeta, con la igualdad al
+     repetir (`compare_runs`);
+   - a pedido (`ablation=True`), la comparación quitando piezas (`run_ablation`).
+6. Guarda la corrida en `carpeta_de_corridas/<fecha>T<hora>_<commit>_<modelo>/`:
    `parametros.json`, `resultados.jsonl` (un renglón por caso, también los que no se
    corrieron) y `resumen.md`.
 
 Los datos clave (`key_data_missing`, reglas del Coordinador en la verificación de T-039)
 se buscan en el texto de las afirmaciones, normalizado igual que el dato: sin distinguir
 mayúsculas, tildes ni espacios repetidos; un número en letras seguido de su cifra entre
-paréntesis vale como la cifra; del uno al veinte en letras equivalen a su cifra; "5%" y
-"5 %" son lo mismo. El dato tiene que aparecer sin una letra, un dígito o un separador
-de número pegados. Un dato "sí" o "no" se cumple solo si la primera afirmación empieza
-con esa palabra. En la corrida que se presenta para aprobar, el responsable revisa
-además las respuestas contra la esperada (plan, "Evals").
+paréntesis vale como la cifra; del uno al veinte en letras equivalen a su cifra; "5%",
+"5 %" y "5 por ciento" son lo mismo. El dato tiene que aparecer sin una letra, un dígito
+o un separador de número pegados. Un dato "sí" o "no" se cumple solo si la primera
+afirmación empieza con esa palabra seguida de un signo de puntuación o del final ("No
+obstante, …" no es un "no"). En la corrida que se presenta para aprobar, el responsable
+revisa además las respuestas contra la esperada (plan, "Evals").
 
-Las medidas de recuperación, por régimen, la comparación con la corrida anterior, la
-comparación quitando piezas y la calibración del umbral son de T-042.
+Calibración (plan, "Abstención", pasos 1 y 2; decisión del Coordinador en la
+verificación de T-042). El umbral propuesto es el más alto que, dejando cada vez una
+pregunta afuera, frena por error a lo sumo el 5 % de las preguntas con respuesta. Con
+los `n` puntajes de las preguntas con respuesta que llegaron a puntuarse, ordenados de
+menor a mayor, y una posición `k`: para cada pregunta se calcula el umbral con las
+demás (el puntaje en la posición `k` de las otras `n - 1`) y se mira si frena a la que
+quedó afuera; la proporción de frenadas es la estimación de `k`. Se elige la `k` más
+alta cuya estimación no pasa del 5 %, y el umbral es el puntaje en la posición `k` del
+conjunto completo, redondeado hacia abajo a tres decimales (la selección pasa con
+puntaje igual o mayor). Si ninguna `k` cumple (con menos de 20 preguntas, frenar una ya
+es más del 5 %), se propone el puntaje más bajo y se informa que no cumple. Se informa
+también, para comparar, la regla anterior: `k = piso(5 % de n)` sobre el conjunto
+completo. El valor es uno solo para los dos regímenes, se informa como provisorio y no
+cambia `settings.py`: lo fija T-045.
+
+Comparación quitando piezas (ADR-0003). Cada caso se corre con cuatro configuraciones
+de `retrieval.retrieve(..., paths=, rerank=)` seguido de `retrieval.select_units`, sin
+pasar por la consulta ni por el modelo de generación: solo vectores (camino por
+significado, con reranker), solo palabras (camino por palabras, con reranker), combinada
+sin reranker (los tres caminos, sin umbral) y completa. Para una fecha sin régimen
+cargado no se busca, igual que en la consulta. "Entre las seleccionadas" es lo que
+selecciona la recuperación (`retrieve(...).selected`: sin reranker, toda la unión, así
+que coincide con "entre los candidatos", aclaración de T-032); "entre las enviadas al
+modelo" es lo que deja `select_units` con los cupos y el espacio. Estas recuperaciones no crean consultas
+ni hechos del registro de auditoría: lo que recuperó cada configuración queda en
+`resultados.jsonl` de la corrida.
 """
 
 import json
+import math
 import re
 import statistics
 import subprocess
@@ -63,17 +105,24 @@ from django.utils import timezone
 
 from evaluon.accounts.models import Role
 from evaluon.accounts.permissions import require_role
+from evaluon.ai import AIServiceError, generation
 from evaluon.audit.models import Channel
 from evaluon.audit.services import current_corpus_version
 from evaluon.norms.models import Category, Unit, UnitType
-from evaluon.queries import answering, services
-from evaluon.queries.models import Status
+from evaluon.queries import answering, retrieval, services
+from evaluon.queries.models import Reason, Status
 
 # Umbrales de las exigencias de la spec (plan 001, "Cómo se mide cada exigencia").
 LITERAL_THRESHOLD = 1.0
 CORRECT_THRESHOLD = 0.85
 ABSTENTION_THRESHOLD = 0.90
 MAX_SECONDS = 30.0
+
+# Comparación con la corrida anterior: filas de tiempo y suba de la mediana que cuenta
+# como baja (decisión del Coordinador, cierre de T-042).
+TIME_MEDIAN = "response_time_median"
+TIME_MAX = "response_time"
+MEDIAN_RISE_LIMIT = 0.25
 
 NO_ANSWER = "no determinado"
 PENDING_AMENDMENTS = "pending_amendments"
@@ -93,6 +142,29 @@ NO_COMMIT = "sin-commit"
 PAIR_PASSES = "pasa"
 PAIR_FAILS = "falla"
 PAIR_INCOMPLETE = "incompleto"
+
+# Calibración: proporción de preguntas con respuesta que el umbral puede frenar por
+# error (plan, "Abstención", paso 2) y decimales del umbral propuesto.
+CALIBRATION_MAX_BLOCKED = 0.05
+CALIBRATION_DECIMALS = 3
+
+# Etiqueta de los casos de REQ-018 (plan, "Evals", `etiquetas`), ya normalizada.
+TWO_CATEGORIES = "dos categorias"
+
+# Lo que se mide de la recuperación: los caminos y la unión.
+UNION = "union"
+
+# Tipos de anomalía que son salidas con falla de formato o de cita (aviso de T-019).
+FORMAT_FAILURE = Reason.INVALID_OUTPUT.value
+CITATION_FAILURE = Reason.INVALID_CITATION.value
+
+# Comparación quitando piezas (ADR-0003): nombre, caminos y reranker.
+ABLATION_CONFIGS = (
+    ("solo vectores", (retrieval.SEMANTIC,), True),
+    ("solo palabras", (retrieval.WORDS,), True),
+    ("combinada sin reranker", retrieval.ALL_PATHS, False),
+    ("completa", retrieval.ALL_PATHS, True),
+)
 
 REQUIRED_FIELDS = (
     "id", "pregunta", "esperado", "fecha_autorizacion", "regimen", "unidades",
@@ -121,6 +193,7 @@ class Case:
     pair: str
     notice: bool
     approval: str
+    labels: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -223,7 +296,7 @@ def parse_case(path):
     units = _units(data)
     differ = _flag(data, "difieren")
     pair = _text(data, "pareja")
-    _texts(data, "etiquetas")
+    labels = _texts(data, "etiquetas")
 
     if has_answer and not units:
         raise CaseError("una pregunta con respuesta necesita `unidades`")
@@ -249,6 +322,7 @@ def parse_case(path):
         pair=pair,
         notice=_flag(data, "aviso_modificatorias"),
         approval=_approval(data),
+        labels=labels,
     )
 
 
@@ -318,11 +392,13 @@ def normalize_for_search(text):
     Coordinador, verificación de T-039): además de `normalize`, un número en letras
     seguido de su cifra entre paréntesis queda solo con la cifra ("sesenta (60) días"
     pasa a "60 días"), del uno al veinte en letras pasan a su cifra ("dos vocales" a "2
-    vocales") y el signo de porcentaje va siempre separado por un espacio ("5%" a
-    "5 %")."""
+    vocales"), "por ciento" después de una cifra es el signo de porcentaje ("uno por
+    ciento" y "1 por ciento" pasan a "1 %", aviso de T-039) y el signo va siempre
+    separado por un espacio ("5%" a "5 %")."""
     text = normalize(text)
     text = _WORDS_WITH_FIGURE.sub(lambda m: m.group(1), text)
     text = _SMALL_NUMBER_WORDS.sub(lambda m: str(_SMALL_NUMBERS[m.group(1)]), text)
+    text = re.sub(r"(\d)\s+por\s+ciento\b", r"\1 %", text)
     text = re.sub(r"(\d)\s*%", r"\1 %", text)
     return re.sub(r"\s+", " ", text).strip()
 
@@ -337,21 +413,29 @@ def _contains(text, fragment):
     return re.search(pattern, text) is not None
 
 
+def _is_punctuation(char):
+    return unicodedata.category(char).startswith("P")
+
+
 def _starts_with(text, word):
     """La afirmación empieza con `word`, salteando signos de puntuación y espacios
-    iniciales."""
+    iniciales, y a la palabra le sigue un signo de puntuación o el final (aviso de
+    T-039): "No, …", "¡Sí!" y "«No»" cuentan; "No obstante, …" y "No hace falta" no."""
     index = 0
-    while index < len(text) and (text[index].isspace()
-                                 or unicodedata.category(text[index]).startswith("P")):
+    while index < len(text) and (text[index].isspace() or _is_punctuation(text[index])):
         index += 1
-    return re.match(re.escape(word) + r"(?!\w)", text[index:]) is not None
+    rest = text[index:]
+    if not rest.startswith(word):
+        return False
+    after = rest[len(word):]
+    return not after or _is_punctuation(after[0])
 
 
 def key_data_missing(key_data, statements):
     """Los datos clave que no están en las afirmaciones `statements` (textos, en orden).
 
     Un dato "sí" o "no" (regla del Coordinador) se cumple solo si la primera afirmación
-    empieza con esa palabra. Los demás se buscan en todas las afirmaciones con
+    empieza con esa palabra seguida de un signo de puntuación o del final. Los demás se buscan en todas las afirmaciones con
     `normalize_for_search` y límites de palabra y de número (`_contains`)."""
     first = normalize(statements[0]) if statements else ""
     text = normalize_for_search("\n".join(statements))
@@ -566,6 +650,536 @@ def measure(lines):
     }
 
 
+# --- Diagnóstico de la recuperación (T-042; ADR-0003, "Cómo se mide") --------------------
+
+
+def _unit_info(ids):
+    """`{id: {"norm", "key", "unit_type"}}` de las unidades `ids`, para compararlas con
+    las `unidades` de un caso como en la respuesta correcta (`_unit_matches`)."""
+    units = Unit.objects.select_related("reading__document__norm").in_bulk(set(ids))
+    return {pk: {"norm": unit.reading.document.norm.citation, "key": unit.key,
+                 "unit_type": unit.unit_type} for pk, unit in units.items()}
+
+
+def _all_found(expected, ids, info):
+    return all(any(_unit_matches(unit, info[pk]) for pk in ids if pk in info)
+               for unit in expected)
+
+
+def _worst_position(expected, ranked, info):
+    positions = []
+    for unit in expected:
+        position = next((i for i, pk in enumerate(ranked, start=1)
+                         if pk in info and _unit_matches(unit, info[pk])), None)
+        if position is None:
+            return None
+        positions.append(position)
+    return max(positions) if positions else None
+
+
+def unit_hits(expected, candidates, selected, ranked, paths, delivered=None):
+    """Dónde quedaron las unidades esperadas `expected` (pares norma y clave) de un caso.
+    Con varias unidades esperadas, cada medida exige todas:
+
+    - `found`: por cada camino de `paths` y en la unión (`union`), si todas estaban entre
+      los candidatos que entraron por ahí. Los candidatos son pasajes de unidades base:
+      un inciso esperado vale con el artículo que lo contiene, como en la respuesta
+      correcta.
+    - `selected`: si todas estaban entre `selected`.
+    - `position`: la posición, desde 1, de la peor ubicada en `ranked` (el orden del
+      reranker; sin reranker, el de la unión), o `None` si alguna no estaba.
+    - `delivered` (solo si se pasa): si todas estaban entre las unidades enviadas al
+      modelo, después de los cupos y del espacio.
+
+    `candidates` son `{"unit", "path"}`, como los registra la consulta."""
+    info = _unit_info([c["unit"] for c in candidates] + list(selected) + list(ranked)
+                      + list(delivered or []))
+    found = {path: _all_found(expected, [c["unit"] for c in candidates if path in c["path"]],
+                              info)
+             for path in paths}
+    found[UNION] = _all_found(expected, [c["unit"] for c in candidates], info)
+    hits = {"found": found, "selected": _all_found(expected, selected, info),
+            "position": _worst_position(expected, ranked, info)}
+    if delivered is not None:
+        hits["delivered"] = _all_found(expected, delivered, info)
+    return hits
+
+
+def _anomalies_of(anomalies, kind):
+    """Cuántas anomalías son del tipo `kind`. `anomalies` mezcla fallas de formato o de
+    cita con las de los servicios (`service_error`): se filtra por `type` (aviso de
+    T-019)."""
+    return sum(1 for a in anomalies or [] if isinstance(a, dict) and a.get("type") == kind)
+
+
+def case_diagnostics(case, query):
+    """Diagnóstico de un caso corrido, leído del registro de su consulta (P6): puntaje
+    más alto, motivo de la abstención, si la frenó el umbral, tiempo de la recuperación,
+    fallas de formato y de cita y, si el caso tiene respuesta, `unit_hits`."""
+    selected = query.selected or {}
+    reason = (selected.get("abstention") or {}).get("reason")
+    diagnostics = {
+        "max_score": query.max_score,
+        "abstention_reason": reason,
+        "stopped_by_threshold": reason == Reason.BELOW_THRESHOLD.value,
+        "retrieval_seconds": (query.timings or {}).get("retrieval"),
+        "format_failures": _anomalies_of(query.anomalies, FORMAT_FAILURE),
+        "citation_failures": _anomalies_of(query.anomalies, CITATION_FAILURE),
+        "found": None,
+        "selected": None,
+        "position": None,
+    }
+    if case.has_answer:
+        paths = (query.parameters or {}).get("paths") or list(retrieval.ALL_PATHS)
+        ranked = [u["unit"] for u in (selected.get("retrieval") or {}).get("units") or []]
+        sent = [u["unit"] for u in selected.get("sent") or []]
+        diagnostics.update(unit_hits(case.units, query.candidates or [], sent, ranked,
+                                     paths))
+    return diagnostics
+
+
+def _count(values):
+    values = [v for v in values if v is not None]
+    ok = sum(1 for v in values if v)
+    return {"ok": ok, "total": len(values), "rate": ok / len(values) if values else None}
+
+
+def _spread(values):
+    values = [v for v in values if v is not None]
+    return {"median": statistics.median(values) if values else None,
+            "max": max(values) if values else None}
+
+
+def retrieval_measures(items, paths=retrieval.ALL_PATHS, thresholded=True):
+    """Medidas de recuperación de la corrida (ADR-0003). `items` son `(id, con
+    respuesta, diagnóstico)`; un diagnóstico vacío (caso no corrido o no buscado) no
+    cuenta. Con `thresholded` falso (sin reranker) no hay frenadas por el umbral."""
+    items = [(case_id, has_answer, d) for case_id, has_answer, d in items if d]
+    answered = [(case_id, d) for case_id, has_answer, d in items if has_answer]
+    unanswered = [d for _, has_answer, d in items if not has_answer]
+    return {
+        "found": {key: _count(d["found"].get(key) for _, d in answered)
+                  for key in [*paths, UNION]},
+        "selected": _count(d["selected"] for _, d in answered),
+        "not_selected": [case_id for case_id, d in answered if not d["selected"]],
+        "delivered": _count(d.get("delivered") for _, d in answered),
+        "position": _spread(d["position"] for _, d in answered),
+        "answered_stopped": (_count(d["stopped_by_threshold"] for _, d in answered)
+                             if thresholded else None),
+        "answered_stopped_ids": ([case_id for case_id, d in answered
+                                  if d["stopped_by_threshold"]] if thresholded else []),
+        "unanswered_stopped": (_count(d["stopped_by_threshold"] for d in unanswered)
+                               if thresholded else None),
+        "retrieval_time": _spread(d["retrieval_seconds"] for _, _, d in items),
+    }
+
+
+def measures_by_regime(lines):
+    """Respuesta correcta y abstención separadas por el régimen del caso (`regimen`),
+    como diagnóstico (plan, "Evals"). La clave vacía es la de los casos sin régimen."""
+    groups = {}
+    for line in lines:
+        groups.setdefault(line["expected_regime"], []).append(line)
+    measures = {}
+    for regime in sorted(groups, key=lambda name: (name == "", name)):
+        group = groups[regime]
+        answered = [line for line in group if line["has_answer"]]
+        unanswerable = [line for line in group if not line["has_answer"]]
+        measures[regime] = {
+            "correct_answer": _ratio(sum(1 for line in answered
+                                         if line["measures"]["correct"]),
+                                     len(answered), CORRECT_THRESHOLD),
+            "abstention": _ratio(sum(1 for line in unanswerable
+                                     if line["measures"]["abstained"]),
+                                 len(unanswerable), ABSTENTION_THRESHOLD),
+        }
+    return measures
+
+
+def output_failures(lines):
+    """Casos cuya salida tuvo una falla de formato o de cita (ADR-0002). Se espera
+    ninguno."""
+    with_diagnostics = [line for line in lines if line.get("diagnostics")]
+    return {
+        "format": [line["id"] for line in with_diagnostics
+                   if line["diagnostics"]["format_failures"]],
+        "citation": [line["id"] for line in with_diagnostics
+                     if line["diagnostics"]["citation_failures"]],
+    }
+
+
+def special_cases(lines):
+    """Los casos de REQ-018 (etiqueta "dos categorías") y de REQ-019 (`difieren`), con
+    si pasan, para informarlos aparte."""
+    return {
+        "REQ-018": [{"id": line["id"], "passed": line["passed"]} for line in lines
+                    if TWO_CATEGORIES in {normalize(label) for label in line["labels"]}],
+        "REQ-019": [{"id": line["id"], "passed": line["passed"]} for line in lines
+                    if line["differ"]],
+    }
+
+
+# --- Calibración del umbral (plan, "Abstención") ----------------------------------------
+
+
+def _floor(value):
+    factor = 10 ** CALIBRATION_DECIMALS
+    return math.floor(round(value * factor, 6)) / factor
+
+
+def threshold_at(scores, position):
+    """El puntaje que ocupa `position` (desde 0) en `scores` ordenados de menor a mayor,
+    redondeado hacia abajo a tres decimales: el umbral más alto que frena (puntaje
+    menor que el umbral) a lo sumo `position` de esos puntajes. `None` si no hay tantos
+    puntajes."""
+    if position >= len(scores):
+        return None
+    return _floor(sorted(scores)[position])
+
+
+def leave_one_out(answered, position):
+    """Estimación dejando cada vez una afuera para la posición `position`: por cada
+    pregunta con respuesta `(id, puntaje)`, el umbral se calcula con las demás
+    (`threshold_at(demás, position)`) y se mira si frena a la que quedó afuera."""
+    thresholds = {}
+    for index, (case_id, _) in enumerate(answered):
+        others = [score for i, (_, score) in enumerate(answered) if i != index]
+        threshold = threshold_at(others, position)
+        if threshold is not None:
+            thresholds[case_id] = threshold
+    blocked = [case_id for case_id, score in answered
+               if case_id in thresholds and score < thresholds[case_id]]
+    rate = len(blocked) / len(thresholds) if thresholds else None
+    return {
+        "position": position,
+        "blocked": blocked,
+        "total": len(thresholds),
+        "rate": rate,
+        "thresholds": thresholds,
+        "min": min(thresholds.values()) if thresholds else None,
+        "max": max(thresholds.values()) if thresholds else None,
+    }
+
+
+def _within(rate, max_rate):
+    return None if rate is None else rate <= max_rate + 1e-9
+
+
+def calibrate(entries, current, max_rate=CALIBRATION_MAX_BLOCKED):
+    """Calibración del umbral con el puntaje más alto de cada pregunta (decisión del
+    Coordinador en la verificación de T-042). Ver el módulo.
+
+    `entries` son `{"id", "has_answer", "max_score"}`; `current` es el umbral con que se
+    corrió. Con los `n` puntajes de las preguntas con respuesta ordenados de menor a
+    mayor, se elige la posición `k` más alta cuya estimación dejando cada vez una afuera
+    (`leave_one_out`) frena por error a lo sumo `max_rate`; el umbral propuesto es el
+    puntaje en la posición `k` del conjunto completo, redondeado hacia abajo a tres
+    decimales. Si ninguna posición cumple (pasa con menos de 20 preguntas), se propone
+    el puntaje más bajo (`k = 0`) y `meets` queda falso. Devuelve:
+
+    - `proposed`: el umbral propuesto, o `None` sin preguntas con respuesta y puntaje;
+      `provisional`: siempre verdadero; `position`: la `k` elegida; `meets`: si su
+      estimación cumple (`None` si no se pudo estimar, con una sola pregunta).
+    - `answered`: preguntas con respuesta y puntaje; `blocked`: las que frena el
+      propuesto.
+    - `leave_one_out`: la estimación de la posición elegida (`leave_one_out`).
+    - `previous_rule`: para comparar, la regla anterior (frenar a lo sumo `piso(5 % de
+      n)` del conjunto completo, sin dejar ninguna afuera): su posición, su umbral, las
+      que frena y su estimación dejando una afuera.
+    - `unanswered` y `unanswered_stopped`: preguntas sin respuesta con puntaje y las que
+      el propuesto frena (cuánto de la abstención resolvería el umbral solo).
+    - `without_score`: preguntas con respuesta que no llegaron a puntuarse (sin régimen,
+      sin candidatos o consulta rechazada); ningún umbral las cambia y no entran en la
+      cuenta.
+    - `current`: el umbral actual y las preguntas con respuesta que frena.
+    - `scores`: el puntaje más alto de cada pregunta que lo tiene.
+    """
+    answered = [(e["id"], e["max_score"]) for e in entries
+                if e["has_answer"] and e["max_score"] is not None]
+    unanswered = [(e["id"], e["max_score"]) for e in entries
+                  if not e["has_answer"] and e["max_score"] is not None]
+    scores = [score for _, score in answered]
+
+    def below(rows, threshold):
+        if threshold is None:
+            return []
+        return [case_id for case_id, score in rows if score < threshold]
+
+    # Posiciones que se pueden estimar dejando una afuera: hasta n - 2.
+    estimates = [leave_one_out(answered, k) for k in range(max(len(answered) - 1, 0))]
+    passing = [e for e in estimates if _within(e["rate"], max_rate)]
+    if passing:
+        chosen = passing[-1]
+    elif estimates:
+        chosen = estimates[0]
+    else:
+        chosen = leave_one_out(answered, 0)
+    position = chosen["position"]
+    proposed = threshold_at(scores, position)
+
+    old_position = math.floor(max_rate * len(answered) + 1e-9)
+    old_threshold = threshold_at(scores, old_position)
+    old_estimate = leave_one_out(answered, old_position)
+
+    return {
+        "proposed": proposed,
+        "provisional": True,
+        "max_rate": max_rate,
+        "position": position if proposed is not None else None,
+        "meets": _within(chosen["rate"], max_rate),
+        "answered": len(answered),
+        "blocked": below(answered, proposed),
+        "leave_one_out": chosen,
+        "previous_rule": {
+            "position": old_position if old_threshold is not None else None,
+            "threshold": old_threshold,
+            "blocked": below(answered, old_threshold),
+            "leave_one_out_rate": old_estimate["rate"],
+        },
+        "unanswered": len(unanswered),
+        "unanswered_stopped": below(unanswered, proposed),
+        "without_score": [e["id"] for e in entries
+                          if e["has_answer"] and e["max_score"] is None],
+        "current": {"threshold": current, "blocked": below(answered, current)},
+        "scores": {e["id"]: e["max_score"] for e in entries if e["max_score"] is not None},
+    }
+
+
+def calibration_entries(lines):
+    return [{"id": line["id"], "has_answer": line["has_answer"],
+             "max_score": (line["diagnostics"] or {}).get("max_score")
+             if line.get("diagnostics") else None}
+            for line in lines]
+
+
+# --- Comparación quitando piezas (ADR-0003) ---------------------------------------------
+
+
+def _ablation_entry(case, name, paths, rerank, prompt_tokens, clock):
+    """Una configuración de la comparación para un caso: recupera con `paths` y
+    `rerank`, selecciona con `select_units` y mide. Devuelve la entrada y los tokens de
+    instrucciones y pregunta, contados la primera vez como en la consulta."""
+    entry = {"name": name, "paths": list(paths), "rerank": rerank, "skipped": None,
+             "error": None}
+    since = clock()
+    try:
+        found = retrieval.retrieve(case.question, case.reference_date, paths=paths,
+                                   rerank=rerank)
+        seconds = clock() - since
+        if prompt_tokens is None:
+            prompt_tokens = (generation.count_tokens(answering.load_instructions())
+                             + generation.count_tokens(
+                                 answering.request_head(case.question,
+                                                        case.reference_date)))
+        selection = retrieval.select_units(found, prompt_tokens)
+    except AIServiceError as error:
+        entry["error"] = error.reason
+        return entry, prompt_tokens
+    candidates = [c.as_record() for c in found.candidates]
+    entry.update(
+        max_score=found.max_score,
+        stopped_by_threshold=(bool(found.candidates) and not found.selected) if rerank
+        else None,
+        retrieval_seconds=round(seconds, 3),
+        candidates=candidates,
+        units=[u.as_record() for u in found.units],
+        selected_units=[u.unit_id for u in found.selected],
+        sent=list(selection.unit_ids),
+        found=None, selected=None, position=None, delivered=None,
+    )
+    if case.has_answer:
+        # "Entre las seleccionadas" es lo que selecciona la recuperación (sin reranker,
+        # toda la unión: coincide con "entre los candidatos", aclaración de T-032); "entre
+        # las enviadas al modelo" es lo que deja `select_units` con cupos y espacio.
+        entry.update(unit_hits(case.units, candidates, entry["selected_units"],
+                               [u.unit_id for u in found.units], paths,
+                               delivered=selection.unit_ids))
+    return entry, prompt_tokens
+
+
+def run_ablation(cases, clock=time.monotonic):
+    """La comparación quitando piezas: `{id del caso: [entrada por configuración]}`, en
+    el orden de `ABLATION_CONFIGS`. Ver el módulo."""
+    ablated = {}
+    for case in cases:
+        if not services.applicable_regimes(case.reference_date):
+            ablated[case.id] = [
+                {"name": name, "paths": list(paths), "rerank": rerank,
+                 "skipped": Reason.NO_REGIME_AT_DATE.value, "error": None}
+                for name, paths, rerank in ABLATION_CONFIGS]
+            continue
+        entries, prompt_tokens = [], None
+        for name, paths, rerank in ABLATION_CONFIGS:
+            entry, prompt_tokens = _ablation_entry(case, name, paths, rerank,
+                                                   prompt_tokens, clock)
+            entries.append(entry)
+        ablated[case.id] = entries
+    return ablated
+
+
+def ablation_measures(cases, ablated):
+    """Medidas de recuperación de cada configuración, sobre los casos que se buscaron."""
+    measures = []
+    for index, (name, paths, rerank) in enumerate(ABLATION_CONFIGS):
+        items = []
+        errors = []
+        for case in cases:
+            entry = ablated[case.id][index]
+            if entry["error"]:
+                errors.append(case.id)
+            usable = not entry["skipped"] and not entry["error"]
+            items.append((case.id, case.has_answer, entry if usable else None))
+        measures.append({"name": name, "paths": list(paths), "rerank": rerank,
+                         "threshold": settings.RERANK_THRESHOLD if rerank else None,
+                         "errors": errors,
+                         **retrieval_measures(items, paths, thresholded=rerank)})
+    return measures
+
+
+# --- Comparación con la corrida anterior -------------------------------------------------
+
+
+def find_previous_run(runs_dir, current_name):
+    """La carpeta de la corrida anterior a `current_name` en `runs_dir`: la de nombre
+    más alto entre las anteriores (el nombre empieza con la fecha y la hora) que tiene
+    `resultados.jsonl`. `None` si no hay."""
+    runs_dir = Path(runs_dir)
+    if not runs_dir.is_dir():
+        return None
+    names = sorted(p.name for p in runs_dir.iterdir()
+                   if p.is_dir() and p.name < current_name
+                   and (p / "resultados.jsonl").is_file())
+    return runs_dir / names[-1] if names else None
+
+
+def load_run(folder):
+    """Parámetros y renglones de los casos medidos de una corrida guardada."""
+    folder = Path(folder)
+    rows = [json.loads(row) for row in
+            (folder / "resultados.jsonl").read_text(encoding="utf-8").splitlines()
+            if row.strip()]
+    parameters_file = folder / "parametros.json"
+    parameters = (json.loads(parameters_file.read_text(encoding="utf-8"))
+                  if parameters_file.is_file() else {})
+    return {"folder": folder, "parameters": parameters,
+            "lines": [row for row in rows if "measures" in row]}
+
+
+_MODEL_KEYS = ("generation", "embeddings", "reranker")
+
+
+def _conditions(parameters):
+    search = dict(parameters.get("search") or {})
+    models = {key: search.pop(key, None) for key in _MODEL_KEYS}
+    return {
+        "commit": parameters.get("commit"),
+        "models": models,
+        "prompt_version": parameters.get("prompt_version"),
+        "corpus_version": parameters.get("corpus_version"),
+        "search": search,
+    }
+
+
+def _cited_keys(line):
+    return [(u["norm"], u["key"]) for u in line.get("cited_units") or []]
+
+
+def _result_signature(line, with_text):
+    keys = {u["unit"]: (u["norm"], u["key"]) for u in line.get("cited_units") or []}
+    signature = [line["status"], line["reason"], _cited_keys(line)]
+    if with_text:
+        signature.append([(s.get("text"), bool(s.get("regimes_differ")),
+                           [keys.get(u) for u in s.get("citations") or []])
+                          for s in line.get("statements") or []])
+    return json.dumps(signature, ensure_ascii=False, cls=DjangoJSONEncoder)
+
+
+def compare_runs(previous, lines, parameters):
+    """Comparación con la corrida anterior (plan, "Evals", y ADR-0002):
+
+    - `measures`: cada medida exigida, en la anterior y en esta (`rate`; el tiempo, el
+      máximo);
+    - `regressions` y `improvements`: casos que pasaban y ahora fallan, y al revés;
+    - `changed`: casos que cambiaron de estado, de motivo o de citas sin cambiar si
+      pasan; `only_previous` y `only_current`: casos medidos en una sola;
+    - `equality`: entre los casos corridos en las dos, cuántos dan el mismo resultado
+      (`same`: estado, motivo, citas y texto de las afirmaciones) y cuántos el mismo
+      estado, el mismo motivo y las mismas citas (`same_status_reason_and_citations`);
+    - `drops`: las medidas que bajaron: cada una requiere aprobación del responsable
+      (P7). El tiempo cuenta como baja solo si el máximo supera 30 s (`response_time`)
+      o si la mediana sube más de un 25 % (`response_time_median`);
+    - `conditions_changed`: qué cambió entre las dos (commit, modelos, instrucciones,
+      normativa o parámetros de búsqueda). Vacío: es una repetición."""
+    old_lines = previous["lines"]
+    old = {line["id"]: line for line in old_lines}
+    new = {line["id"]: line for line in lines}
+    both = [case_id for case_id in new if case_id in old]
+
+    old_measures, new_measures = measure(old_lines), measure(lines)
+    rows = [{"name": name, "previous": old_measures[name]["rate"],
+             "current": new_measures[name]["rate"]}
+            for name in ("literal_citation", "correct_answer", "abstention")]
+    for row in rows:
+        before, now = row["previous"], row["current"]
+        row["drop"] = before is not None and now is not None and now < before
+    # Tiempo (decisión del Coordinador): es baja solo si el máximo supera el límite de
+    # 30 s o si la mediana sube más de un 25 % respecto de la anterior. Cualquier otra
+    # variación se muestra sin marcarla.
+    median_before = old_measures["response_time"]["median"]
+    median_now = new_measures["response_time"]["median"]
+    max_now = new_measures["response_time"]["max"]
+    rows.append({"name": TIME_MEDIAN, "previous": median_before, "current": median_now,
+                 "drop": (median_before is not None and median_now is not None
+                          and median_before > 0
+                          and median_now > median_before * (1 + MEDIAN_RISE_LIMIT))})
+    rows.append({"name": TIME_MAX, "previous": old_measures["response_time"]["max"],
+                 "current": max_now,
+                 "drop": max_now is not None and max_now > MAX_SECONDS})
+
+    regressions = [c for c in both if old[c]["passed"] and not new[c]["passed"]]
+    improvements = [c for c in both if not old[c]["passed"] and new[c]["passed"]]
+    changed = [c for c in both if c not in regressions and c not in improvements
+               and _result_signature(old[c], False) != _result_signature(new[c], False)]
+
+    ran = [c for c in both if old[c].get("ran") and new[c].get("ran")]
+    current = json.loads(_dumps(parameters))
+    old_conditions = _conditions(previous["parameters"])
+    new_conditions = _conditions(current)
+    return {
+        "previous": previous["folder"].name,
+        "measures": rows,
+        "drops": [row["name"] for row in rows if row["drop"]],
+        "regressions": regressions,
+        "improvements": improvements,
+        "changed": changed,
+        "only_previous": [c for c in old if c not in new],
+        "only_current": [c for c in new if c not in old],
+        "equality": {
+            "same": sum(1 for c in ran if _result_signature(old[c], True)
+                        == _result_signature(new[c], True)),
+            "same_status_reason_and_citations": sum(1 for c in ran
+                                             if _result_signature(old[c], False)
+                                             == _result_signature(new[c], False)),
+            "total": len(ran),
+        },
+        "conditions_changed": [key for key in new_conditions
+                               if old_conditions.get(key) != new_conditions[key]],
+    }
+
+
+def _comparison(previous, lines, parameters):
+    """`compare_runs` con la corrida anterior, si hay. Si no se puede leer, se informa y
+    la corrida actual se guarda igual."""
+    if previous is None:
+        return None
+    try:
+        loaded = load_run(previous)
+        return compare_runs(loaded, lines, parameters)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        return {"previous": previous.name,
+                "error": f"no se pudo leer ({error.__class__.__name__}: {error})"}
+
+
 @dataclass
 class RunReport:
     """Lo que dejó una corrida.
@@ -579,6 +1193,18 @@ class RunReport:
     - `pairs`: los pares de REQ-020 (`check_pairs`).
     - `notices`: la comprobación de REQ-021: `ok`, `total` y los casos `failed`.
     - `parameters`: lo que se guardó en `parametros.json`.
+
+    Diagnóstico (T-042):
+
+    - `by_regime`: respuesta correcta y abstención por régimen (`measures_by_regime`).
+    - `retrieval`: medidas de recuperación de la corrida (`retrieval_measures`).
+    - `output_failures`: casos con falla de formato o de cita (`output_failures`).
+    - `special`: los casos de REQ-018 y REQ-019 (`special_cases`).
+    - `calibration`: la calibración del umbral (`calibrate`).
+    - `ablation`: medidas de cada configuración de la comparación quitando piezas
+      (`ablation_measures`), o `None` si no se pidió.
+    - `comparison`: la comparación con la corrida anterior (`compare_runs`), o `None` si
+      no hay una.
     """
 
     folder: Path
@@ -588,6 +1214,13 @@ class RunReport:
     pairs: list
     notices: dict
     parameters: dict
+    by_regime: dict = None
+    retrieval: dict = None
+    output_failures: dict = None
+    special: dict = None
+    calibration: dict = None
+    ablation: list = None
+    comparison: dict = None
 
     def failed_ids(self):
         """Casos medidos que fallaron alguna medida o comprobación, en orden."""
@@ -695,6 +1328,8 @@ def _case_line(case, result, query=None, elapsed=None):
         "has_answer": case.has_answer,
         "pair": case.pair,
         "expected_notice": case.notice,
+        "labels": list(case.labels),
+        "differ": case.differ,
         "query_id": query.pk if query else None,
         "corpus_version": query.corpus_version if query else None,
         "prompt_version": query.prompt_version if query else "",
@@ -707,6 +1342,7 @@ def _case_line(case, result, query=None, elapsed=None):
         "measures": grade(case, result, cited),
         "time_seconds": round(elapsed, 3) if query else None,
         "timings": query.timings if query else {},
+        "diagnostics": case_diagnostics(case, query) if query else None,
     }
     line["passed"] = _passed(line)
     return line
@@ -717,13 +1353,15 @@ def _skipped_line(skipped):
             "skipped": skipped.kind, "reason": skipped.reason}
 
 
-def run(user, cases_dir, runs_dir, *, commit=None, clock=time.monotonic):
+def run(user, cases_dir, runs_dir, *, commit=None, clock=time.monotonic, ablation=False):
     """Corre los casos de `cases_dir` y guarda la corrida en una carpeta nueva dentro de
     `runs_dir`. Ver el módulo. Lanza `RoleRejected` sin rol, antes de leer nada; el
     rechazo queda registrado con el canal `eval` y esta función como operación (T-038).
 
     - `commit`: el commit del código; si no se indica, `detect_commit()`.
-    - `clock`: reloj en segundos para medir cada consulta (las pruebas lo reemplazan).
+    - `clock`: reloj en segundos para medir cada consulta y cada recuperación de la
+      comparación quitando piezas (las pruebas lo reemplazan).
+    - `ablation`: si es verdadero, corre además la comparación quitando piezas.
     """
     require_role(user, Role.READ, channel=Channel.EVAL)
     cases_dir = Path(cases_dir)
@@ -747,11 +1385,17 @@ def run(user, cases_dir, runs_dir, *, commit=None, clock=time.monotonic):
         elapsed = clock() - since
         lines.append(_case_line(case, query.result, query, elapsed))
 
+    ablated = run_ablation(cases, clock) if ablation else None
+    for line in lines:
+        line["ablation"] = ablated.get(line["id"]) if ablated else None
+
     parameters["prompt_version"] = prompt_versions(lines)
     parameters["finished_at"] = timezone.localtime(timezone.now()).isoformat()
     notice_lines = [line for line in lines if not line["measures"]["notice_ok"]]
+    folder = Path(runs_dir) / run_folder_name(started_at, commit, settings.GENERATION_MODEL)
+    previous = find_previous_run(runs_dir, folder.name)
     report = RunReport(
-        folder=Path(runs_dir) / run_folder_name(started_at, commit, settings.GENERATION_MODEL),
+        folder=folder,
         results=lines,
         skipped=skipped,
         measures=measure(lines),
@@ -759,6 +1403,15 @@ def run(user, cases_dir, runs_dir, *, commit=None, clock=time.monotonic):
         notices={"ok": len(lines) - len(notice_lines), "total": len(lines),
                  "failed": [line["id"] for line in notice_lines]},
         parameters=parameters,
+        by_regime=measures_by_regime(lines),
+        retrieval=retrieval_measures(
+            [(line["id"], line["has_answer"], line["diagnostics"]) for line in lines]),
+        output_failures=output_failures(lines),
+        special=special_cases(lines),
+        calibration=calibrate(calibration_entries(lines),
+                              parameters["search"]["rerank_threshold"]),
+        ablation=ablation_measures(cases, ablated) if ablated is not None else None,
+        comparison=_comparison(previous, lines, parameters),
     )
     _write(report)
     return report
@@ -841,6 +1494,339 @@ def measure_rows(measures):
     ]
 
 
+def _score(value):
+    return "—" if value is None else f"{value:.3f}".replace(".", ",")
+
+
+def _number(value):
+    """Un número para leer: entero sin decimales; si no, con un decimal y coma."""
+    if value is None:
+        return "—"
+    if float(value).is_integer():
+        return str(int(value))
+    return f"{value:.1f}".replace(".", ",")
+
+
+def _when(iso):
+    """Fecha y hora ISO como día/mes/año y hora:minuto ("03/10/2026 08:21")."""
+    try:
+        return datetime.fromisoformat(iso).strftime("%d/%m/%Y %H:%M")
+    except (TypeError, ValueError):
+        return "—"
+
+
+_FOLDER_DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2})(\d{2})")
+
+
+def run_date(folder_name):
+    """Una corrida por su fecha ("la del 03/10/2026 08:21"), leída del nombre de su
+    carpeta; si el nombre no empieza con la fecha, `None`."""
+    match = _FOLDER_DATE.match(folder_name)
+    if not match:
+        return None
+    year, month, day, hour, minute = match.groups()
+    return f"la del {day}/{month}/{year} {hour}:{minute}"
+
+
+def _run_name(folder_name):
+    """Una corrida por su fecha, con la carpeta para encontrarla."""
+    when = run_date(folder_name)
+    if when is None:
+        return f"carpeta `{folder_name}`"
+    return f"{when} (carpeta `{folder_name}`)"
+
+
+def comparison_lines(comparison):
+    """Las líneas del comando sobre la corrida anterior: cuál fue, por su fecha, y si
+    hay bajas que requieren aprobación (P7)."""
+    if comparison is None:
+        return ["Corrida anterior: ninguna"]
+    previous = run_date(comparison["previous"]) or comparison["previous"]
+    if comparison.get("error"):
+        return [f"Corrida anterior: {previous}: {comparison['error']}. No se comparó."]
+    drops = comparison["drops"]
+    if drops:
+        drop_line = ("Hay bajas respecto de la corrida anterior que requieren la aprobación "
+                     "del responsable: "
+                     + ", ".join(_MEASURE_TEXT[name].lower() for name in drops) + ".")
+    else:
+        drop_line = "Sin bajas respecto de la corrida anterior."
+    return [f"Corrida anterior: {previous}", drop_line]
+
+
+def _ratio_text(ratio, unit=""):
+    if ratio is None:
+        return "no aplica"
+    return f"{_percent(ratio['rate'])} ({ratio['ok']} de {ratio['total']}{unit})"
+
+
+def _ids(ids, none="ninguno"):
+    return ", ".join(ids) if ids else none
+
+
+def threshold_line(calibration):
+    """La línea del umbral propuesto, igual en `resumen.md` y en el comando."""
+    if calibration["proposed"] is None:
+        return ("Umbral propuesto (provisorio): sin valor (no hay preguntas con respuesta "
+                "que hayan llegado a puntuarse)")
+    return f"Umbral propuesto (provisorio): {_score(calibration['proposed'])}"
+
+
+_PATH_TEXT = {
+    retrieval.SEMANTIC: "por significado",
+    retrieval.WORDS: "por palabras",
+    retrieval.REFERENCE: "por referencia exacta",
+    UNION: "en la unión",
+}
+
+_CONDITION_TEXT = {
+    "commit": "commit",
+    "models": "modelos",
+    "prompt_version": "instrucciones",
+    "corpus_version": "normativa",
+    "search": "parámetros de búsqueda",
+}
+
+_MEASURE_TEXT = {
+    "literal_citation": "Cita literal",
+    "correct_answer": "Respuesta correcta que cita la unidad correcta",
+    "abstention": "Abstención",
+    "response_time_median": "Tiempo de respuesta (mediana)",
+    "response_time": "Tiempo de respuesta (máximo)",
+}
+
+SMALL_SET_NOTE = ("Con unas 30 preguntas, cada una pesa entre 3 y 5 puntos: una diferencia "
+                  "de una pregunta no demuestra nada.")
+
+
+def _by_regime_section(by_regime):
+    out = ["## Medidas por régimen (diagnóstico)", "",
+           "Separadas según el régimen esperado de cada caso. Son de diagnóstico: las exigencias "
+           "de la spec se miden sobre el conjunto entero, y con pocos casos por régimen "
+           "sirven solo para orientar.", ""]
+    if not by_regime:
+        return out + ["Ningún caso medido.", ""]
+    out += ["| Régimen | Respuesta correcta | Abstención |", "|---|---|---|"]
+    for regime, measures in by_regime.items():
+        out.append(f"| {regime or 'Sin régimen cargado a la fecha'} | "
+                   f"{_ratio_text(measures['correct_answer'])} | "
+                   f"{_ratio_text(measures['abstention'])} |")
+    return out + [""]
+
+
+def _retrieval_section(measures):
+    out = ["## Recuperación (diagnóstico)", "",
+           "Leído del registro de cada consulta. La unidad correcta cuenta si están "
+           "todas las unidades esperadas del caso (un inciso vale con su artículo); se "
+           "mide sobre las preguntas con respuesta (ADR-0003).", "",
+           "| Medida | Resultado |", "|---|---|"]
+    for key, ratio in measures["found"].items():
+        out.append(f"| Unidad correcta entre los candidatos {_PATH_TEXT[key]} | "
+                   f"{_ratio_text(ratio)} |")
+    position = measures["position"]
+    timing = measures["retrieval_time"]
+    out += [
+        f"| Unidad correcta entre las enviadas al modelo | "
+        f"{_ratio_text(measures['selected'])} |",
+        f"| Posición de la unidad correcta en el orden del reranker | mediana "
+        f"{_number(position['median'])} · peor {_number(position['max'])} |",
+        f"| Preguntas con respuesta frenadas por el umbral | "
+        f"{_ratio_text(measures['answered_stopped'])} |",
+        f"| Preguntas sin respuesta frenadas por el umbral | "
+        f"{_ratio_text(measures['unanswered_stopped'])} |",
+        f"| Tiempo de la recuperación | mediana {_seconds(timing['median'])} · máximo "
+        f"{_seconds(timing['max'])} |",
+        "",
+        f"Preguntas con respuesta frenadas por el umbral: "
+        f"{_ids(measures['answered_stopped_ids'], 'ninguna')}.",
+        f"Preguntas con respuesta cuya unidad correcta no llegó al modelo: "
+        f"{_ids(measures['not_selected'], 'ninguna')}.",
+        "",
+    ]
+    return out
+
+
+def _output_failures_section(failures):
+    return ["## Salidas con falla de formato o de cita", "",
+            "Se cuentan por el tipo de anomalía; una falla de un servicio no cuenta. Se "
+            "espera ninguna.", "",
+            f"- Falla de formato (la salida no cumple el esquema): {len(failures['format'])}"
+            f" ({_ids(failures['format'])}).",
+            f"- Falla de cita (cita una unidad que no se mostró o una afirmación sin cita): "
+            f"{len(failures['citation'])} ({_ids(failures['citation'])}).",
+            ""]
+
+
+def _special_section(special):
+    def describe(entries):
+        if not entries:
+            return "ningún caso corrido"
+        return ", ".join(f"{e['id']} {'pasa' if e['passed'] else 'falla'}" for e in entries)
+
+    return ["## Casos de REQ-018 y REQ-019", "",
+            f"- REQ-018 (etiqueta \"dos categorías\"): {describe(special['REQ-018'])}.",
+            "- REQ-019 (casos con la marca de regímenes distintos: el régimen específico "
+            f"y el marco nacional difieren): {describe(special['REQ-019'])}.",
+            ""]
+
+
+def _calibration_section(calibration, lines):
+    loo = calibration["leave_one_out"]
+    current = calibration["current"]
+    previous = calibration["previous_rule"]
+    limit = _percent(calibration["max_rate"])
+    n = calibration["answered"]
+    if calibration["proposed"] is None:
+        choice = "No hay preguntas con respuesta con puntaje: no se puede elegir."
+    elif calibration["meets"]:
+        choice = (f"Se eligió el puntaje número {calibration['position'] + 1} de {n}, "
+                  "contados de menor a mayor: es el más alto que, dejando cada vez una "
+                  f"pregunta afuera, frena por error a lo sumo el {limit}.")
+    elif calibration["meets"] is False:
+        choice = (f"Ninguna posición frena por error a lo sumo el {limit} dejando cada vez "
+                  f"una pregunta afuera (con {n} preguntas, frenar una ya es más): se "
+                  "propone el puntaje más bajo, que no frena ninguna del conjunto.")
+    else:
+        choice = ("Con una sola pregunta no se puede medir dejando una afuera: se propone "
+                  "su puntaje.")
+    out = ["## Calibración del umbral (provisoria)", "",
+           f"{threshold_line(calibration)} · umbral actual: {_score(current['threshold'])}. "
+           "La calibración no cambia el umbral configurado del sistema: el valor lo fija "
+           "T-045 con los servicios reales y el conjunto con visto bueno.", "",
+           f"- Preguntas con respuesta que llegaron a puntuarse: {n}. {choice}",
+           f"- Dejando cada vez una afuera: frena {len(loo['blocked'])} de {loo['total']} "
+           f"({_percent(loo['rate'])}); el umbral calculado va de {_score(loo['min'])} a "
+           f"{_score(loo['max'])}; cumple el {limit}: {_meets(calibration['meets'])}. "
+           f"Frenadas: {_ids(loo['blocked'], 'ninguna')}.",
+           "- Con el umbral propuesto, frena por error en el conjunto completo: "
+           f"{_ids(calibration['blocked'], 'ninguna')}.",
+           f"- Para comparar, la regla anterior (frenar a lo sumo el {limit} del conjunto "
+           f"completo, sin dejar ninguna afuera) daría {_score(previous['threshold'])}, que "
+           f"frena {_ids(previous['blocked'], 'ninguna')}; dejando cada vez una afuera "
+           f"frenaría el {_percent(previous['leave_one_out_rate'])}.",
+           "- Con el umbral actual, frena por error: "
+           f"{_ids(current['blocked'], 'ninguna')}.",
+           f"- Preguntas sin respuesta que el umbral propuesto frena: "
+           f"{len(calibration['unanswered_stopped'])} de {calibration['unanswered']}.",
+           f"- Preguntas con respuesta sin puntaje (ningún umbral las cambia): "
+           f"{_ids(calibration['without_score'], 'ninguna')}.",
+           ""]
+    scores = calibration["scores"]
+    if scores:
+        out += ["| Caso | Con respuesta | Régimen | Puntaje más alto |", "|---|---|---|---|"]
+        for line in lines:
+            if line["id"] in scores:
+                out.append(f"| {line['id']} | {'sí' if line['has_answer'] else 'no'} | "
+                           f"{line['expected_regime'] or '—'} | "
+                           f"{_score(scores[line['id']])} |")
+        out.append("")
+    return out
+
+
+def _ablation_section(ablation):
+    out = ["## Comparación quitando piezas", ""]
+    if ablation is None:
+        return out + ["No se corrió en esta corrida. Se corre una vez, con "
+                      "`correr_evals --quitando-piezas` (ADR-0003).", ""]
+    out += ["Cada caso se recupera y se selecciona con cada configuración, sin el modelo "
+            "de generación.", "",
+            "\"Entre las seleccionadas\" son las que la recuperación deja pasar por el "
+            "umbral; sin reranker no hay umbral y pasan todas las de la unión, así que "
+            "coincide con \"entre los candidatos\". \"Entre las enviadas al modelo\" son "
+            "las que quedan después de los cupos por categoría y del espacio del pedido.",
+            "",
+            "| Configuración | Umbral | Entre los candidatos | Entre las seleccionadas | "
+            "Entre las enviadas al modelo | "
+            "Posición (mediana · peor) | Con respuesta frenadas por el umbral | "
+            "Sin respuesta frenadas por el umbral | Tiempo de la recuperación |",
+            "|---|---|---|---|---|---|---|---|---|"]
+    for config in ablation:
+        position = config["position"]
+        timing = config["retrieval_time"]
+        threshold = (_score(config["threshold"]) if config["threshold"] is not None
+                     else "sin umbral")
+        out.append(
+            f"| {config['name']} | {threshold} | {_ratio_text(config['found'][UNION])} | "
+            f"{_ratio_text(config['selected'])} | {_ratio_text(config['delivered'])} | "
+            f"{_number(position['median'])} · {_number(position['max'])} | "
+            f"{_ratio_text(config['answered_stopped'])} | "
+            f"{_ratio_text(config['unanswered_stopped'])} | "
+            f"mediana {_seconds(timing['median'])} · máximo {_seconds(timing['max'])} |")
+    errors = [f"{config['name']}: {', '.join(config['errors'])}"
+              for config in ablation if config["errors"]]
+    out += ["", "Fallas técnicas: " + ("; ".join(errors) if errors else "ninguna") + ".",
+            SMALL_SET_NOTE, ""]
+    return out
+
+
+def _comparison_value(name, value):
+    if name in (TIME_MEDIAN, TIME_MAX):
+        return _seconds(value)
+    return _percent(value)
+
+
+def _change_text(row):
+    before, now = row["previous"], row["current"]
+    if row["name"] == TIME_MAX and row["drop"]:
+        return f"baja (supera el límite de {_number(MAX_SECONDS)} s)"
+    if row["name"] == TIME_MEDIAN and row["drop"]:
+        return f"baja (sube más del {_number(MEDIAN_RISE_LIMIT * 100)} %)"
+    if row["drop"]:
+        return "baja"
+    if before is None or now is None:
+        return "—"
+    if before == now:
+        return "igual"
+    if row["name"] in (TIME_MEDIAN, TIME_MAX):
+        return "más lento" if now > before else "más rápido"
+    return "mejora"
+
+
+def _comparison_section(comparison):
+    out = ["## Comparación con la corrida anterior", ""]
+    if comparison is None:
+        return out + ["No hay una corrida anterior en la carpeta de corridas.", ""]
+    if comparison.get("error"):
+        return out + [f"Corrida anterior: {_run_name(comparison['previous'])}: "
+                      f"{comparison['error']}. No se comparó.", ""]
+    changed = comparison["conditions_changed"]
+    if changed:
+        conditions = ("Cambió: " + ", ".join(_CONDITION_TEXT[c] for c in changed)
+                      + ". No es una repetición: las diferencias pueden venir de ese cambio.")
+    else:
+        conditions = ("Las dos corridas tienen las mismas condiciones (commit, modelos, "
+                      "instrucciones, normativa y parámetros de búsqueda): cuenta como "
+                      "repetición.")
+    out += [f"Corrida anterior: {_run_name(comparison['previous'])}.", "", conditions, "",
+            "| Medida | Anterior | Actual | Cambio |", "|---|---|---|---|"]
+    out += [f"| {_MEASURE_TEXT[row['name']]} | "
+            f"{_comparison_value(row['name'], row['previous'])} | "
+            f"{_comparison_value(row['name'], row['current'])} | "
+            f"{_change_text(row)} |"
+            for row in comparison["measures"]]
+    equality = comparison["equality"]
+    if comparison["drops"]:
+        out += ["", "**Hay bajas respecto de la corrida anterior ("
+                + ", ".join(_MEASURE_TEXT[name].lower() for name in comparison["drops"])
+                + "): cada una requiere la aprobación explícita del responsable (P7).**"]
+    out += ["",
+            f"- Pasaban y ahora fallan: {_ids(comparison['regressions'])}.",
+            f"- Fallaban y ahora pasan: {_ids(comparison['improvements'])}.",
+            f"- Cambiaron de resultado o de citas sin cambiar si pasan: "
+            f"{_ids(comparison['changed'])}.",
+            f"- Solo en la anterior: {_ids(comparison['only_previous'])}. Solo en esta: "
+            f"{_ids(comparison['only_current'])}.",
+            "",
+            f"Igualdad al repetir: {equality['same']} de {equality['total']} casos corridos "
+            "en las dos dan el mismo resultado (estado, motivo, citas y texto de las "
+            f"afirmaciones); {equality['same_status_reason_and_citations']} de "
+            f"{equality['total']} con el mismo estado, el mismo motivo y las mismas citas. "
+            "Con temperatura 0 y semilla fija, la primera consulta después de levantar el "
+            "motor puede redactar distinto sin cambiar estado, motivo ni citas (T-018).",
+            "", SMALL_SET_NOTE, ""]
+    return out
+
+
 def summary_markdown(report):
     """Contenido de `resumen.md`."""
     p = report.parameters
@@ -851,15 +1837,17 @@ def summary_markdown(report):
     elif isinstance(versions, list):
         versions = "varias: " + ", ".join(versions)
     out = [
-        f"# Corrida {report.folder.name}",
+        f"# Corrida del {_when(p['started_at'])}",
         "",
-        f"- Comienzo: {p['started_at']} · fin: {p['finished_at']}",
-        f"- Commit: {p['commit']}",
-        f"- Modelo de generación: {search['generation']['model']} "
-        f"(compilación {search['generation']['engine_build']})",
+        f"- Carpeta: `{report.folder.name}`",
+        f"- Comienzo: {_when(p['started_at'])} · fin: {_when(p['finished_at'])}",
+        f"- Commit: `{p['commit']}`",
+        f"- Modelo de generación: `{search['generation']['model']}` "
+        f"(compilación `{search['generation']['engine_build']}`)",
         f"- Versión de las instrucciones: {versions}",
         f"- Versión de la normativa: {p['corpus_version'] if p['corpus_version'] is not None else 'ninguna'}",
-        f"- Umbral del reranker: {search['rerank_threshold']}",
+        "- Umbral del modelo que reordena los resultados (reranker): "
+        f"{_score(search['rerank_threshold'])}",
         f"- {counts_line(report)}",
         "",
     ]
@@ -871,6 +1859,8 @@ def summary_markdown(report):
     out += [f"| {a} | {b} | {c} | {d} |" for a, b, c, d in measure_rows(report.measures)]
     out += ["", "Una falla técnica no cuenta como abstención. El responsable revisa además "
             "las respuestas contra la esperada.", ""]
+
+    out += _by_regime_section(report.by_regime)
 
     out += ["## Pares de REQ-020", ""]
     if report.pairs:
@@ -887,6 +1877,13 @@ def summary_markdown(report):
             "modificatorias sin cargar según lo esperado.", ""]
     if notices["failed"]:
         out += ["Fallan: " + ", ".join(notices["failed"]) + ".", ""]
+
+    out += _retrieval_section(report.retrieval)
+    out += _output_failures_section(report.output_failures)
+    out += _special_section(report.special)
+    out += _calibration_section(report.calibration, report.results)
+    out += _ablation_section(report.ablation)
+    out += _comparison_section(report.comparison)
 
     out += ["## Casos fallados", ""]
     failed = [(line["id"], _failures(line)) for line in report.results if _failures(line)]
