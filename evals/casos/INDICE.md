@@ -224,7 +224,7 @@ No se usó el ejemplo de referencia ("¿Qué plazo tiene la AFIP para pagar una 
 
 - **Redacción:** 2026-10-03, en nombre del Coordinador.
 - **Escrito sin correr el sistema.** Nadie hizo estas preguntas, ni otras parecidas, en la pantalla, con `ask` ni con `correr_evals`. No se abrió `evals/corridas/` ni las secciones de resultados de `specs/001-normativa/entorno.md`. Cada pregunta y su respuesta esperada salen solo del texto de las normas en `corpus/normativa/`, y cada `origen` lo transcribe.
-- **Visto bueno:** los 23 casos llevan `visto_bueno: "pendiente"`, y un caso pendiente no se corre. Al aprobar cada caso, el campo pasa a "responsable del proyecto, AAAA-MM-DD (piloto, ADR-0015)". La revisión de la Comisión queda pendiente para antes de usar el sistema fuera del piloto.
+- **Visto bueno:** los 23 casos tienen el visto bueno del responsable del 2026-10-03 (ver "Visto bueno del responsable sobre el lote de aceptación"); hasta entonces llevaban "pendiente" y no se corrían. La revisión de la Comisión queda pendiente para antes de usar el sistema fuera del piloto.
 
 ### Composición
 
@@ -307,7 +307,7 @@ Se descartaron por zona gris (la norma menciona el tema sin resolverlo): caja ch
 
 En un contenedor aparte (proyecto `evaluon-t061`), sin consultar al sistema, solo con la lectura de casos, el corrector y la lectura y partición de las normas:
 
-- `load_cases` sobre `evals/casos/`: los 33 casos del lote de ajuste corren; los 23 nuevos quedan sin correr por visto bueno pendiente; ninguno mal formado.
+- `load_cases` sobre `evals/casos/`: los 33 casos del lote de ajuste corren; los 23 nuevos quedaban sin correr por visto bueno pendiente hasta el visto bueno del responsable; ninguno mal formado.
 - Con visto bueno provisorio en una copia temporal: `load_cases` lee los 56 casos sin ninguno mal formado; los 23 nuevos salen con `lot == "aceptacion"` y los 33 anteriores con `lot == "ajuste"`. El régimen de cada caso es el de su fecha, `aviso_modificatorias` es verdadero solo en los casos con respuesta de la 297/03, y cada par tiene la misma pregunta, `pareja` recíproca y normas distintas.
 - Cada clave de `unidades` de los casos nuevos existe en la partición de su norma, y ninguna figura en los casos del lote de ajuste (intersección vacía).
 - Con su propio `esperado` como única afirmación, los 17 casos con respuesta cumplen sus datos clave. Una respuesta contraria plausible (otro plazo, otro porcentaje, otra polaridad; en los de remisión, "El monto máximo no está establecido." o una integración inventada) no los cumple, y "no determinado" tampoco.
