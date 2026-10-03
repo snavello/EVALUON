@@ -63,7 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 31 tareas sin terminar.
-- ▶ T-035 · Buscar unidades por artículo y por palabras (en curso)
+- ◐ T-035 · Buscar unidades por artículo y por palabras (en verificación)
 - ○ T-021 · Leer un PDF escaneado con reconocimiento de texto (pendiente)
 - ○ T-022 · Leer una página web guardada (pendiente)
 - ○ T-023 · Partir normas completas con incisos, anexos y considerandos (pendiente)
@@ -161,7 +161,7 @@ flowchart TD
   T032["○ T-032 · Recuperar por tres caminos y unir los candi…"]:::todo
   T033["○ T-033 · Seleccionar por categoría, sumar cambios y…"]:::todo
   T034["○ T-034 · Completar instrucciones, marca de regímenes…"]:::todo
-  T035["▶ T-035 · Buscar unidades por artículo y por palabras"]:::active
+  T035["◐ T-035 · Buscar unidades por artículo y por palabras"]:::review
   T036["✓ T-036 · Entregar el documento original con sesión"]:::done
   T037["○ T-037 · Mostrar las citas con categoría, papel y ca…"]:::todo
   T038["○ T-038 · Registrar ingresos, ingresos fallidos y rec…"]:::todo
