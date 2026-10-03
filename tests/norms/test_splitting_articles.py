@@ -107,21 +107,29 @@ def test_each_article_of_the_extract_is_a_unit_under_the_annex(as_annex):
 
 def test_the_annex_root_unit(as_annex):
     """REQ-003: con la parte `anexo` hay una sola unidad raíz de tipo `anexo`, cuya clave
-    es la parte; su texto propio es la carátula, antes del índice y del primer artículo.
-    Los encabezados "ANEXO" de la carátula no abren otro contenedor."""
+    es la parte; su texto propio es lo que está antes del índice y del primer artículo,
+    sin la carátula GDE. Los encabezados "ANEXO" de la carátula no abren otro
+    contenedor.
+
+    Ajuste de T-023: el membrete y los datos GDE ("ANEXO", "Número:", "Referencia:")
+    pasan a descartarse como carátula (aviso de T-013 a T-023); la raíz empieza en
+    "ANEXO (artículo 1°)", que es su etiqueta."""
     roots = [unit for unit in as_annex.units if unit.unit_type == "anexo"]
 
     assert len(roots) == 1
     root = roots[0]
     assert as_annex.units[0] is root
     assert (root.key, root.number, root.path, root.parent_key) == ("anexo", "", "Anexo", None)
-    assert root.label == "ANEXO"
-    assert root.char_start == 0
+    assert root.label == "ANEXO (artículo 1°)"
+    assert root.text.startswith("ANEXO (artículo 1°)\n")
+    cover = as_annex.report["discarded"][0]
+    assert (cover["reason"], cover["char_start"]) == ("caratula", 0)
     # El membrete ocupa dos renglones pegados: es un solo párrafo.
-    assert root.text.startswith(
+    assert as_annex.canonical_text[: cover["char_end"]].startswith(
         'Administración Federal de Ingresos Públicos 2022 - "Las Malvinas son argentinas"\n'
-        "ANEXO\n"
+        "ANEXO\nNúmero:\nReferencia:"
     )
+    assert root.char_start == cover["char_end"] + 1
     assert root.text.endswith(
         "RÉGIMEN GENERAL PARA CONTRATACIONES DE BIENES, SERVICIOS Y OBRAS PÚBLICAS DE LA "
         "ADMINISTRACIÓN FEDERAL DE INGRESOS PÚBLICOS"
@@ -132,12 +140,13 @@ def test_the_annex_root_unit(as_annex):
 
 def test_article_location_matches_the_document(as_annex):
     """REQ-003: la ubicación de cada artículo coincide con la del documento: etiqueta
-    como figura, ruta, páginas y texto desde su encabezado hasta el siguiente."""
+    como figura, ruta, páginas y texto desde su encabezado hasta el siguiente. Ajuste
+    de T-023: la ruta lleva el título que contiene al artículo."""
     units = by_key(as_annex)
     first, third, fourth = units["anexo/art-1"], units["anexo/art-3"], units["anexo/art-4"]
 
     assert first.label == "ARTÍCULO 1°.- OBJETO"
-    assert first.path == "Anexo › Artículo 1"
+    assert first.path == "Anexo › Título I › Artículo 1"
     assert (first.page_start, first.page_end) == (5, 5)
     assert first.text == (
         "ARTÍCULO 1°.- OBJETO. El presente régimen tendrá por objeto establecer los "
@@ -167,14 +176,15 @@ def test_article_location_matches_the_document(as_annex):
 def test_the_index_produces_no_units(as_annex):
     """REQ-003: el índice de las páginas 1 a 5, que repite los encabezados con otra
     grafía (`ARTÍCULO 1º.- OBJETO`) y sin texto, no produce unidades: se descarta y se
-    informa. Ningún artículo empieza antes de la página 5."""
+    informa. Ningún artículo empieza antes de la página 5. Ajuste de T-023: lo descartado
+    trae además la carátula y los títulos que pasan a la ruta; el índice sigue siendo un
+    solo tramo."""
     assert all(unit.page_start == 5 or unit.page_start == 6 for unit in articles(as_annex))
     assert not any("º.-" in unit.label for unit in articles(as_annex))
 
-    discarded = as_annex.report["discarded"]
+    discarded = [item for item in as_annex.report["discarded"] if item["reason"] == "indice"]
     assert len(discarded) == 1
     index = discarded[0]
-    assert index["reason"] == "indice"
     assert (index["page_start"], index["page_end"]) == (1, 5)
     text = as_annex.canonical_text[index["char_start"] : index["char_end"]]
     assert text.startswith("ÍNDICE:\nTÍTULO I - DISPOSICIONES GENERALES\nARTÍCULO 1º.- OBJETO\n")
@@ -183,14 +193,18 @@ def test_the_index_produces_no_units(as_annex):
 
 def test_the_same_text_as_body_gives_keys_without_the_annex(as_body):
     """REQ-003: el mismo texto partido como `cuerpo` no tiene unidad raíz: los artículos
-    tienen claves `art-N`, sin contenedor, y la ruta empieza en el artículo."""
+    tienen claves `art-N`, sin contenedor, y la ruta empieza en el artículo. Ajuste de
+    T-023: la ruta empieza en el título; además de los artículos solo hay incisos, que
+    cuelgan de ellos."""
     units = articles(as_body)
 
     assert [unit.key for unit in units] == [f"art-{n}" for n in range(1, 8)]
     assert all(unit.parent_key is None for unit in units)
-    assert units[0].path == "Artículo 1"
+    assert units[0].path == "Título I › Artículo 1"
     assert not [unit for unit in as_body.units if unit.unit_type == "anexo"]
-    assert len(as_body.units) == 7
+    others = [unit for unit in as_body.units if unit.unit_type != "articulo"]
+    assert {unit.unit_type for unit in others} == {"inciso"}
+    assert all(unit.key.startswith("art-") for unit in others)
 
 
 def test_annex_and_body_cut_the_articles_at_the_same_places(as_annex, as_body):
@@ -255,7 +269,9 @@ def test_article_heading_forms_of_the_annex():
     """REQ-003: las formas de encabezado del anexo de la 247/2022: con signo de grado o
     con ordinal, sin signo desde el 10, con epígrafe seguido de texto, y con epígrafe
     solo, terminado en punto, cuando el texto sigue en otro párrafo (artículos 27 y 67).
-    La etiqueta es el encabezado con su epígrafe, sin el punto ni el texto."""
+    La etiqueta es el encabezado con su epígrafe, sin el punto ni el texto. Ajuste de
+    T-023: el `a)` es además un inciso del artículo 4, por eso se miran solo los
+    artículos."""
     result = split_document(
         synthetic(
             [
@@ -270,14 +286,14 @@ def test_article_heading_forms_of_the_annex():
         part="cuerpo",
     )
 
-    assert [(unit.number, unit.label) for unit in result.units] == [
+    assert [(unit.number, unit.label) for unit in articles(result)] == [
         ("1", "ARTÍCULO 1°.- OBJETO"),
         ("2", "ARTÍCULO 2º.- ÁMBITO"),
         ("3", "ARTÍCULO 3.- SIN SIGNO"),
         ("4", "ARTÍCULO 4°.- PLIEGOS DE BASES Y CONDICIONES"),
         ("5", "ARTÍCULO 5°.-"),
     ]
-    assert result.units[3].text == (
+    assert articles(result)[3].text == (
         "ARTÍCULO 4°.- PLIEGOS DE BASES Y CONDICIONES.\n"
         "a) Los pliegos que rigen la contratación serán:"
     )
@@ -303,16 +319,24 @@ def test_a_citation_in_the_middle_of_a_paragraph_is_not_a_heading():
 
 
 def test_an_uppercase_heading_closes_the_article_and_is_reported_as_unlocated():
-    """REQ-003, REQ-004: un párrafo propio escrito en mayúsculas que no es un artículo
-    (un título, un capítulo, una cláusula transitoria) cierra el artículo abierto: su
-    texto no se suma al artículo. Lo que sigue hasta el próximo artículo queda como no
-    ubicado, con su página y sus primeras ocho palabras."""
+    """REQ-003, REQ-004: un párrafo propio que es un encabezado reconocido (un título, un
+    capítulo, una cláusula transitoria) cierra el artículo abierto: su texto no se suma
+    al artículo. Lo que sigue hasta la próxima unidad queda como no ubicado, con su
+    página y sus primeras ocho palabras.
+
+    Ajuste de T-023 (decisión del responsable del 2026-10-03): el corte se limita a los
+    encabezados reconocidos. El título y el capítulo pasan a la ruta y se descartan con
+    su motivo, y la cláusula transitoria es una unidad propia, en lugar de quedar como no
+    ubicados; un párrafo suelto después del capítulo sigue quedando sin ubicar. Una frase
+    en mayúsculas que no es un encabezado reconocido no corta (lo prueba
+    `test_splitting_rules.py`)."""
     result = split_document(
         synthetic(
             [
                 "ARTÍCULO 1°.- OBJETO. Texto del uno.",
                 "TÍTULO II - DE LA FORMACIÓN DEL CONTRATO",
                 "CAPÍTULO I - PROCEDIMIENTOS",
+                "Texto suelto que no es de ningún artículo, después del capítulo.",
                 "ARTÍCULO 2°.- REGLA. Texto del dos.",
             ],
             [
@@ -326,13 +350,14 @@ def test_an_uppercase_heading_closes_the_article_and_is_reported_as_unlocated():
     units = by_key(result)
     assert units["anexo/art-1"].text == "ARTÍCULO 1°.- OBJETO. Texto del uno."
     assert units["anexo/art-2"].text == "ARTÍCULO 2°.- REGLA. Texto del dos."
+    assert units["anexo/art-2"].path == "Anexo › Título II › Capítulo I › Artículo 2"
     unlocated = result.report["unlocated"]
     assert [(item["page"], item["first_words"]) for item in unlocated] == [
-        (1, "TÍTULO II - DE LA FORMACIÓN DEL CONTRATO"),
-        (2, "CLÁUSULA TRANSITORIA REGISTRO DE PROVEEDORES Las unidades en"),
+        (1, "Texto suelto que no es de ningún artículo,"),
     ]
-    text = result.canonical_text
-    assert text[unlocated[1]["char_start"] : unlocated[1]["char_end"]] == (
+    titles = [item["first_words"] for item in result.report["discarded"] if item["reason"] == "titulo"]
+    assert titles == ["TÍTULO II - DE LA FORMACIÓN DEL CONTRATO", "CAPÍTULO I - PROCEDIMIENTOS"]
+    assert units["anexo/clausula-transitoria"].text == (
         "CLÁUSULA TRANSITORIA REGISTRO DE PROVEEDORES\n"
         "Las unidades en las que aún no se hubiere implementado el registro."
     )
@@ -341,14 +366,17 @@ def test_an_uppercase_heading_closes_the_article_and_is_reported_as_unlocated():
 
 def test_body_text_before_the_first_article_is_unlocated():
     """REQ-003, REQ-004: con la parte `cuerpo` no hay unidad raíz: lo que está antes del
-    primer artículo queda como no ubicado (visto y considerandos son de T-023)."""
+    primer artículo y no tiene una forma reconocida queda como no ubicado.
+
+    Ajuste de T-023: el visto y los considerandos ya son unidades (los prueba
+    `test_splitting_rules.py`); este caso usa un texto previo sin forma reconocida."""
     result = split_document(
-        synthetic(["VISTO el expediente.", "CONSIDERANDO:", "ARTÍCULO 1°.- Apruébase."]),
+        synthetic(["Texto previo sin forma.", "Otro párrafo previo.", "ARTÍCULO 1°.- Apruébase."]),
         part="cuerpo",
     )
 
     assert [unit.key for unit in result.units] == ["art-1"]
-    assert result.report["unlocated"][0]["first_words"] == "VISTO el expediente. CONSIDERANDO:"
+    assert result.report["unlocated"][0]["first_words"] == "Texto previo sin forma. Otro párrafo previo."
     check_invariants(result)
 
 
@@ -385,11 +413,12 @@ def test_same_reading_gives_the_same_partition(extract_reading, as_annex):
 
 def test_report_counts_units_by_type_and_container(as_annex):
     """REQ-004: el informe dice cuántas unidades reconoció, por tipo y por contenedor,
-    con el primer y el último número."""
+    con el primer y el último número. Ajuste de T-023: suma los incisos de los artículos 3
+    (a a h), 5 (a a d) y 7 (a)."""
     units = as_annex.report["units"]
 
-    assert units["total"] == 8
-    assert units["by_type"] == {"anexo": 1, "articulo": 7}
+    assert units["total"] == 21
+    assert units["by_type"] == {"anexo": 1, "articulo": 7, "inciso": 13}
     assert units["by_container"] == [
         {"container": "Anexo", "key": "anexo", "articulo": 7, "first": "1", "last": "7"}
     ]
@@ -397,7 +426,8 @@ def test_report_counts_units_by_type_and_container(as_annex):
 
 def test_report_lists_every_unit_with_its_key(as_annex):
     """REQ-004: el informe lista las unidades con su clave, su tipo, su etiqueta y sus
-    páginas, en el orden del documento; el texto legible las muestra con su clave."""
+    páginas, en el orden del documento; el texto legible las muestra con su clave. Ajuste
+    de T-023: la ruta lleva el título."""
     listed = as_annex.report["unit_list"]
 
     assert [item["key"] for item in listed] == [unit.key for unit in as_annex.units]
@@ -405,7 +435,7 @@ def test_report_lists_every_unit_with_its_key(as_annex):
         "key": "anexo/art-1",
         "unit_type": "articulo",
         "label": "ARTÍCULO 1°.- OBJETO",
-        "path": "Anexo › Artículo 1",
+        "path": "Anexo › Título I › Artículo 1",
         "page_start": 5,
         "page_end": 5,
     }
@@ -415,14 +445,18 @@ def test_report_lists_every_unit_with_its_key(as_annex):
 
 def test_report_shows_what_could_not_be_located(as_annex):
     """REQ-004: el informe señala cada tramo que no entró en ninguna unidad, con su página
-    y sus primeras palabras: en el extracto, el título I que precede al artículo 1."""
-    assert as_annex.report["unlocated"] == [
-        {
-            "char_start": as_annex.report["unlocated"][0]["char_start"],
-            "char_end": as_annex.report["unlocated"][0]["char_end"],
-            "page": 5,
-            "first_words": "TÍTULO I - DISPOSICIONES GENERALES",
-        }
+    y sus primeras palabras.
+
+    Ajuste de T-023: en el extracto el título I que precede al artículo 1 ya no queda sin
+    ubicar (decisión del responsable del 2026-10-03): pasa a la ruta y se informa como
+    descartado, con su página. Nada queda sin ubicar en el extracto; el señalamiento de
+    lo no ubicado lo prueban `test_body_text_before_the_first_article_is_unlocated` y
+    `test_splitting_rules.py`."""
+    assert as_annex.report["unlocated"] == []
+    assert "No ubicado: 0 tramos." in as_annex.report_text
+    titles = [item for item in as_annex.report["discarded"] if item["reason"] == "titulo"]
+    assert [(item["page_start"], item["first_words"]) for item in titles] == [
+        (5, "TÍTULO I - DISPOSICIONES GENERALES")
     ]
     assert "TÍTULO I - DISPOSICIONES GENERALES" in as_annex.report_text
 
@@ -447,13 +481,15 @@ def test_report_points_out_the_page_that_could_not_be_read_and_no_other(extract_
 def test_report_text_has_the_minimum_parts(as_annex):
     """REQ-004: el informe en texto trae las partes mínimas: páginas, unidades por tipo y
     contenedor, no ubicado, descartado, uniones de palabras cortadas, cobertura y la lista
-    de unidades."""
+    de unidades. Ajuste de T-023: suma los incisos; lo descartado trae la carátula, el
+    índice y el título I; nada queda sin ubicar."""
     text = as_annex.report_text
 
-    assert "Unidades reconocidas: 8 (1 anexo, 7 artículos)." in text
+    assert "Unidades reconocidas: 21 (1 anexo, 7 artículos, 13 incisos)." in text
     assert "Anexo: 7 artículos, del 1 al 7." in text
-    assert "No ubicado: 1 tramo." in text
-    assert "Descartado: 1 tramo." in text
+    assert "No ubicado: 0 tramos." in text
+    assert "Descartado: 3 tramos." in text
+    assert "Carátula (membrete y datos GDE), página 1" in text
     assert "Índice, páginas 1 a 5" in text
     assert "Uniones de palabras cortadas: 0." in text
     total = as_annex.report["coverage"]["total"]
