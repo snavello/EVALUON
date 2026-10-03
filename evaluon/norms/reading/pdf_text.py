@@ -29,6 +29,14 @@ from evaluon.norms.reading import (
 X_TOLERANCE = 3
 Y_TOLERANCE = 3
 
+# Los caracteres de cada línea se toman en el orden en que el PDF los escribe, no
+# reordenados por su posición horizontal. Hay PDF que dibujan el espacio entre dos
+# palabras en una posición que cae dentro de una de ellas: ordenados por posición, ese
+# espacio parte la palabra ("d e lpresente" en lugar de "del presente", anexo de la
+# Disp. AFIP 247/2022, artículos 21, 24, 76 y 95). Las líneas siguen agrupadas y
+# ordenadas de arriba hacia abajo.
+USE_TEXT_FLOW = True
+
 # Decimales con que se guardan las posiciones.
 POSITION_DECIMALS = 2
 
@@ -59,7 +67,11 @@ def _read_page(page):
             origin=ORIGIN_PDF_TEXT,
         )
         for line in page.extract_text_lines(
-            x_tolerance=X_TOLERANCE, y_tolerance=Y_TOLERANCE, strip=True, return_chars=False
+            x_tolerance=X_TOLERANCE,
+            y_tolerance=Y_TOLERANCE,
+            use_text_flow=USE_TEXT_FLOW,
+            strip=True,
+            return_chars=False,
         )
         if line["text"].strip()
     ]

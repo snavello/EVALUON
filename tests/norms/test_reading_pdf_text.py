@@ -142,6 +142,50 @@ def test_extract_is_the_same_as_the_first_six_pages_of_the_original(extract):
     assert original.pages[:6] == extract.pages
 
 
+# --- El anexo completo, palabra por palabra (REQ-015, REQ-004) ------------------------
+
+
+@pytest.fixture(scope="module")
+def original():
+    return read_document(ORIGINAL)
+
+
+def test_every_page_of_the_original_has_the_same_words_as_pdfium(original):
+    """REQ-015, REQ-004: en las 45 páginas del anexo real, la secuencia de palabras de
+    las líneas leídas es la misma que da una extracción independiente con pypdfium2
+    (`get_text_range().split()`). Detecta espacios mal ubicados dentro de una palabra y
+    líneas perdidas en el medio de una página."""
+    pdf = pdfium.PdfDocument(ORIGINAL)
+    assert len(original.pages) == len(pdf) == 45
+
+    for page, pdfium_page in zip(original.pages, pdf):
+        expected = pdfium_page.get_textpage().get_text_range().split()
+        words = " ".join(texts(page)).split()
+        assert words == expected, f"la página {page.number} no coincide con pypdfium2"
+        tops = [line.top for line in page.lines]
+        assert tops == sorted(tops), f"la página {page.number} no va de arriba abajo"
+
+
+@pytest.mark.parametrize(
+    ("page_number", "line"),
+    [
+        (14, "y 9. del presente"),
+        (18, "la necesidad del área"),
+        (39, "a efectos de conformar la"),
+        (44, "un banco, repartición"),
+    ],
+)
+def test_spaces_drawn_inside_a_word_do_not_split_it(original, page_number, line):
+    """REQ-015, REQ-004: el PDF dibuja algunos espacios en posiciones que caen dentro de
+    una palabra (artículos 21, 24, 76 y 95). La lectura sigue el orden en que el PDF
+    escribe los caracteres y no los reordena por posición, así que esas palabras quedan
+    enteras, como en el documento."""
+    page = original.pages[page_number - 1]
+    assert any(line in text for text in texts(page)), (
+        f"la página {page_number} no trae {line!r}"
+    )
+
+
 # --- Página sin capa de texto (REQ-004) -----------------------------------------------
 
 
