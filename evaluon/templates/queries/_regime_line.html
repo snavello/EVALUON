@@ -1,0 +1,6 @@
+{% comment %}
+Línea de fecha de autorización y régimen aplicado (REQ-020; plan 001, "Fecha de
+autorización y régimen aplicado"). Recibe `reference_date` (fecha) y `regime` (lista de
+`{"norm", "name"}` guardada en el resultado). El texto es fijo; los nombres salen de lo
+guardado. Va en una sola línea para que no queden saltos dentro de la frase.
+{% endcomment %}<p class="regime-line">Procedimiento autorizado el {{ reference_date|date:"d/m/Y" }} · {% if not regime %}Para esa fecha no hay un régimen específico cargado en el sistema{% elif regime|length == 1 %}Régimen aplicado: {{ regime.0.name }}{% else %}Regímenes aplicados: {% for item in regime %}{% if not forloop.first %}{% if forloop.last %} y {% else %}, {% endif %}{% endif %}{{ item.name }}{% endfor %}{% endif %}</p>

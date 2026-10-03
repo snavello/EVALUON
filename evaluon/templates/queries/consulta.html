@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Consulta · EVALUON{% endblock %}
+
+{% block content %}
+<section class="query-form">
+  <h1>Consultar la normativa</h1>
+  <form method="post" action="{% url 'queries:screen' %}" id="query-form">
+    {% csrf_token %}
+    <p>
+      <label for="{{ form.question.id_for_label }}">{{ form.question.label }}</label>
+      {{ form.question }}
+    </p>
+    {% if form.question.errors %}
+    <p class="form-error" role="alert" id="{{ form.question.auto_id }}_error">{{ form.question.errors|join:" " }}</p>
+    {% endif %}
+    <p>
+      <label for="{{ form.reference_date.id_for_label }}">{{ form.reference_date.label }}</label>
+      {{ form.reference_date }}
+    </p>
+    {% if form.reference_date.errors %}
+    <p class="form-error" role="alert" id="{{ form.reference_date.auto_id }}_error">{{ form.reference_date.errors|join:" " }}</p>
+    {% endif %}
+    <button type="submit" id="query-submit">Consultar</button>
+    <p class="waiting" id="query-waiting" hidden>Buscando en la normativa. Puede tardar hasta medio minuto.</p>
+  </form>
+</section>
+
+{% if query %}
+{% if status == "grounded" %}
+<section class="result result-answer" aria-labelledby="result-title">
+  <h2 id="result-title"><span class="result-icon" aria-hidden="true">✓</span> Respuesta con fundamento en la normativa</h2>
+  <p class="result-question">Pregunta: {{ query.question }}</p>
+  {% include "queries/_regime_line.html" %}
+  <ol class="statements">
+    {% for statement in statements %}
+    <li class="statement">
+      <p>{{ statement.text }}</p>
+      {% for citation in statement.citations %}
+      <details class="citation" data-unit="{{ citation.id }}">
+        <summary>{{ citation.norm }} · {{ citation.path }}</summary>
+        {% if citation.text is not None %}<blockquote class="literal">{{ citation.text }}</blockquote>{% else %}<p>El texto de esta unidad no está disponible.</p>{% endif %}
+      </details>
+      {% endfor %}
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+{% elif status == "undetermined" %}
+<section class="result result-no-answer" aria-labelledby="result-title">
+  <h2 id="result-title"><span class="result-icon" aria-hidden="true">?</span> No determinado</h2>
+  <p class="result-question">Pregunta: {{ query.question }}</p>
+  {% include "queries/_regime_line.html" %}
+  <p class="result-message">La normativa cargada no permite responder esta pregunta.</p>
+</section>
+{% else %}
+<section class="result result-failure" aria-labelledby="result-title">
+  <h2 id="result-title"><span class="result-icon" aria-hidden="true">!</span> No se pudo completar la consulta</h2>
+  <p class="result-question">Pregunta: {{ query.question }}</p>
+  {% include "queries/_regime_line.html" %}
+  <p class="result-message">Hubo una falla técnica y no hay respuesta. Puede volver a hacer la pregunta.</p>
+</section>
+{% endif %}
+{% endif %}
+
+<script src="{% static 'js/consulta.js' %}" defer></script>
+{% endblock %}
