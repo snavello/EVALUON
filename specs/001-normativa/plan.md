@@ -536,6 +536,12 @@ Aclaraciones al implementar T-032 (decisión del Coordinador, 2026-10-03):
 - "Artículo N" sin norma trae el artículo N de todo lo consultable y no derogado a la fecha, no solo del régimen aplicado.
 - Sin reranker (configuración "combinada sin reranker" de la comparación quitando piezas) no hay puntajes ni umbral: todas las unidades de la unión pasan, en el orden de la unión. En esa configuración la medida "unidad correcta entre las seleccionadas" coincide con "entre los candidatos".
 
+Aclaraciones al implementar T-033 (decisión del Coordinador, 2026-10-03):
+
+- Si una unidad no entra en el espacio, se anota como fuera por espacio y se prueba con la siguiente en el orden de prioridad, que puede ser más chica: no se corta en la primera que no entra.
+- El espacio se cuenta sobre el bloque de cada unidad tal como lo arma `answering` (encabezado, texto o tramos, y líneas de cambio), con el alias del ancho máximo. El margen de la plantilla cubre solo la plantilla de conversación.
+- Los cambios se siguen a un solo nivel: si una unidad se muestra anidada como modificatoria de otra, no se muestran sus propias modificatorias. Límite conocido: el modelo puede ver el texto de una modificatoria sin el aviso de que a su vez fue modificada.
+
 ### Reordenamiento
 
 1. El reranker puntúa cada pasaje (encabezado más texto) contra la pregunta. `llama-server` devuelve un valor sin escala fija; la aplicación lo lleva a un número entre 0 y 1 con la función sigmoide, que es la conversión que describen los autores del modelo. Ese número es el que se compara con el umbral y el que se registra.

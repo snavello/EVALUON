@@ -290,9 +290,12 @@ def _role(unit):
 # --- Pedido ----------------------------------------------------------------------------
 
 
-def _unit_lines(alias_line, unit, with_role, passages):
-    """Bloque de una unidad en el pedido; su texto es `prompt_text` con los tramos que
-    tenga en `passages`."""
+def unit_block(alias_line, unit, spans=None, *, with_role=True):
+    """Bloque de una unidad tal como va en el pedido: `alias_line` (el alias entre
+    corchetes, como `[U1]`, o la línea de un cambio), categoría, papel (si `with_role`),
+    norma, ruta, tipo y el texto de `prompt_text(unit, spans)`. Es la única definición del
+    formato: la usan el armado del pedido y la cuenta de tokens de la recuperación
+    (T-033)."""
     norm = unit.reading.document.norm
     lines = [alias_line, f"Categoría: {Category(norm.category).label}"]
     if with_role:
@@ -302,7 +305,7 @@ def _unit_lines(alias_line, unit, with_role, passages):
         f"Ruta: {unit.path}",
         f"Tipo: {UnitType(unit.unit_type).label}",
         "Texto:",
-        prompt_text(unit, passages.get(unit.pk)),
+        prompt_text(unit, spans),
     ]
     return "\n".join(lines)
 
@@ -311,9 +314,53 @@ def _date(value):
     return value.strftime("%d/%m/%Y")
 
 
+def change_block(change, unit, alias, *, target_path=None, source_alias=None,
+                 source=None, source_norm=None, spans=None):
+    """Texto que va en el pedido, a continuación de `unit` (mostrada como `alias`), por
+    un cambio (`Change`). Es la única definición del formato: la usan el armado del
+    pedido y la cuenta de tokens de la recuperación (T-033). Tres formas:
+
+    - Sin `source_alias` (la unidad que trae el cambio no se muestra): la línea
+      "Cambio: <norma de origen> modifica a [U1] desde el …. El texto que trae el cambio
+      no está entre las unidades."; necesita `source_norm`.
+    - Con `source_alias` y sin `source` (la unidad que lo trae ya se mostró): la línea
+      "[U3] modifica a [U1] desde el …. Su texto está más arriba."
+    - Con `source_alias` y `source`: el bloque de `source` (`unit_block`, con sus
+      `spans`) encabezado por la línea "[U3] modifica a [U1] desde el …".
+
+    Si el cambio alcanza una parte de la unidad, el destino es "la parte «ruta» de
+    [U1]", con `target_path` o, si falta, la clave alcanzada."""
+    if change.target_unit_key == unit.key:
+        target = f"[{alias}]"
+        verb = "modifica a" if change.relation_type == "modifica" else "deroga"
+    else:
+        path = target_path or change.target_unit_key
+        target = f"la parte «{path}» de [{alias}]"
+        verb = "modifica" if change.relation_type == "modifica" else "deroga"
+    since = f"desde el {_date(change.effective_date)}"
+    if source_alias is None:
+        return (f"Cambio: {norm_name(source_norm)} {verb} {target} {since}. El texto "
+                "que trae el cambio no está entre las unidades.")
+    line = f"[{source_alias}] {verb} {target} {since}"
+    if source is None:
+        return f"{line}. Su texto está más arriba."
+    return unit_block(line, source, spans)
+
+
+def request_head(question, reference_date):
+    """Comienzo del mensaje del usuario de `consulta-v2`, antes de las unidades: la
+    fecha, la pregunta y el rótulo "Unidades:", separados por una línea en blanco. Quien
+    llama a la recuperación (T-040) cuenta sus tokens junto con las instrucciones."""
+    return "\n\n".join([
+        f"Fecha de autorización del procedimiento: {_date(reference_date)}",
+        f"Pregunta: {question}",
+        "Unidades:",
+    ])
+
+
 def _messages_without_date(question, units_by_alias, passages):
     """Pedido de `consulta-v1` (T-018): pregunta y unidades en el orden recibido."""
-    blocks = [_unit_lines(f"[{alias}]", unit, with_role=False, passages=passages)
+    blocks = [unit_block(f"[{alias}]", unit, passages.get(unit.pk), with_role=False)
               for alias, unit in units_by_alias.items()]
     content = f"Pregunta: {question}\n\nUnidades:\n\n" + "\n\n".join(blocks)
     return [
@@ -358,42 +405,28 @@ class _Layout:
     def _show(self, unit):
         blocks = self.considerandos if _is_considerando(unit) else self.articulado
         alias = self._assign(unit)
-        blocks.append(_unit_lines(f"[{alias}]", unit, with_role=True,
-                                  passages=self._passages))
+        blocks.append(unit_block(f"[{alias}]", unit, self._passages.get(unit.pk)))
         for change in self._changes.get(unit.pk, ()):
             blocks.append(self._change_block(change, alias, unit))
 
     def _change_block(self, change, alias, unit):
-        if change.target_unit_key == unit.key:
-            target = f"[{alias}]"
-            verb = "modifica a" if change.relation_type == "modifica" else "deroga"
-        else:
-            path = self._target_paths.get((unit.reading_id, change.target_unit_key),
-                                          change.target_unit_key)
-            target = f"la parte «{path}» de [{alias}]"
-            verb = "modifica" if change.relation_type == "modifica" else "deroga"
-        since = f"desde el {_date(change.effective_date)}"
+        target_path = self._target_paths.get((unit.reading_id, change.target_unit_key))
         source = self._modifiers.get(change.source_unit_id)
         if source is None:
-            norm = self._source_norms[change.source_norm_id]
-            return (f"Cambio: {norm_name(norm)} {verb} {target} {since}. El texto que "
-                    "trae el cambio no está entre las unidades.")
+            return change_block(change, unit, alias, target_path=target_path,
+                                source_norm=self._source_norms[change.source_norm_id])
         if source.pk in self._alias_of:
-            return (f"[{self._alias_of[source.pk]}] {verb} {target} {since}. Su texto "
-                    "está más arriba.")
+            return change_block(change, unit, alias, target_path=target_path,
+                                source_alias=self._alias_of[source.pk])
         source_alias = self._assign(source)
-        return _unit_lines(f"[{source_alias}] {verb} {target} {since}", source,
-                           with_role=True, passages=self._passages)
+        return change_block(change, unit, alias, target_path=target_path,
+                            source_alias=source_alias, source=source,
+                            spans=self._passages.get(source.pk))
 
 
 def _messages(question, reference_date, layout):
     """Pedido de `consulta-v2`: fecha, pregunta, articulado y considerandos aparte."""
-    parts = [
-        f"Fecha de autorización del procedimiento: {_date(reference_date)}",
-        f"Pregunta: {question}",
-        "Unidades:",
-        *layout.articulado,
-    ]
+    parts = [request_head(question, reference_date), *layout.articulado]
     if layout.considerandos:
         parts += [CONSIDERANDOS_HEADING, *layout.considerandos]
     return [
@@ -425,9 +458,12 @@ def _changes(reference_date, unit_ids):
     return by_unit
 
 
-def _context(reference_date, units):
-    """Cambios de las unidades seleccionadas y lo necesario para mostrarlos: las unidades
-    que los traen, la ruta de la parte alcanzada y la norma de origen."""
+def load_changes(reference_date, units):
+    """Cambios a la fecha de `units` y lo necesario para mostrarlos: `(changes,
+    modifiers, target_paths, source_norms)`, con los cambios por `id` de unidad (también
+    los de las unidades que modifican, para el resultado), las unidades que los traen por
+    `id`, la ruta de cada parte alcanzada por `(lectura, clave)` y las normas de origen
+    por `id`. La usan `answer` y la cuenta de tokens de la recuperación (T-033)."""
     changes = _changes(reference_date, [unit.pk for unit in units])
     source_ids = {c.source_unit_id for rows in changes.values() for c in rows
                   if c.source_unit_id}
@@ -612,7 +648,8 @@ def answer(question, unit_ids, reference_date=None, passages=None):
         changes, modifiers = None, {}
     else:
         version = PROMPT_VERSION_WITH_DATE
-        changes, modifiers, target_paths, source_norms = _context(reference_date, units)
+        changes, modifiers, target_paths, source_norms = load_changes(reference_date,
+                                                                      units)
         layout = _Layout(units, changes, modifiers, target_paths, source_norms, passages)
         units_by_alias = layout.units_by_alias
         messages = _messages(question, reference_date, layout)
