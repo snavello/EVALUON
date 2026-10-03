@@ -1222,3 +1222,6 @@ Fecha: 2026-10-02. Lo medido en `entorno.md` (T-001 a T-005) que cambia el dise�
 | Sin verificar | Cierre de embeddings y reranker; la prueba de búsqueda sin tilde pasa a T-009 | Anotación |
 | Decisiones; Qué tiene que decidir el responsable | Decisiones 22 y 23; decisión 6 | — |
 
+
+
+**Ajuste del 2026-10-03 (decisión del responsable).** Las operaciones de datos que este plan asigna al "responsable de normativa" (validar lecturas, registrar relaciones, versiones y modificatorias) las hace el Coordinador con un usuario operador de lectura y escritura (`desarrollo`), después de la verificación del testeador evaluador. Al responsable se le consultan solo las decisiones de fondo y las compuertas de la constitución (P11: spec, plan y despliegue). La carga y validación inicial del corpus (T-043) y el registro de T-044 los hizo el responsable con su usuario.
