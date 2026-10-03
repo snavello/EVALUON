@@ -80,6 +80,27 @@ def test_grounded_answer_cites_unit_by_id_and_text_comes_from_base(units,
 
 
 @pytest.mark.django_db
+def test_literal_text_is_the_canonical_slice_not_unit_text(units, fake_generation):
+    """REQ-008: el texto literal de una cita es siempre
+    `canonical_text[char_start:char_end]` de su lectura. Si la columna `text` de la
+    unidad difiere de ese tramo, ni el pedido al modelo ni el texto de la cita la usan."""
+    from evaluon.norms.models import Unit
+
+    Unit.objects.filter(pk=units["art-2"].pk).update(text="texto distinto de la columna")
+    art_2 = Unit.objects.select_related("reading").get(pk=units["art-2"].pk)
+    assert art_2.text != canonical(art_2)
+    fake_generation.answer([{"text": "Afirmación.", "citations": ["U1"]}])
+
+    answer = answering.answer(QUESTION, [art_2.pk])
+
+    assert answering.unit_text(art_2) == TEXTS["art-2"]
+    assert answering.citation_texts(answer.result) == {art_2.pk: TEXTS["art-2"]}
+    content = user_message(fake_generation)
+    assert TEXTS["art-2"] in content
+    assert "texto distinto de la columna" not in content
+
+
+@pytest.mark.django_db
 def test_result_has_cited_units_without_literal_text(units, fake_generation):
     """REQ-008: el resultado trae una vez cada unidad citada con norma, categoría, tipo,
     ruta, origen del texto, documento y página, con la forma de "Forma de la respuesta",
@@ -160,6 +181,7 @@ def test_schema_enumerates_only_the_aliases_shown(units, fake_generation):
     item = statements["items"]
     assert item["required"] == ["text", "citations"]
     assert item["additionalProperties"] is False
+    assert item["properties"]["text"] == {"type": "string", "minLength": 1}
     citations = item["properties"]["citations"]
     assert citations["minItems"] == 1
     assert citations["items"]["enum"] == ["U1", "U2"]
@@ -270,6 +292,7 @@ def test_cut_output_is_an_error_not_undetermined(units, fake_generation):
     json.dumps({"status": "grounded",
                 "statements": [{"text": "x", "citations": ["U1"], "extra": True}]}),
     json.dumps({"status": "grounded", "statements": [{"text": 3, "citations": ["U1"]}]}),
+    json.dumps({"status": "grounded", "statements": [{"text": "", "citations": ["U1"]}]}),
     json.dumps({"status": "grounded", "statements": [{"text": "x", "citations": "U1"}]}),
     json.dumps({"status": "grounded", "statements": [{"text": "x", "citations": [1]}]}),
     json.dumps({"status": "grounded",
@@ -277,7 +300,7 @@ def test_cut_output_is_an_error_not_undetermined(units, fake_generation):
                 * (settings.GENERATION_MAX_STATEMENTS + 1)}),
 ], ids=["not-json", "not-object", "missing-statements", "unknown-status", "extra-key",
         "statements-not-list", "missing-citations", "statement-extra-key",
-        "text-not-string", "citations-not-list", "citation-not-string",
+        "text-not-string", "empty-text", "citations-not-list", "citation-not-string",
         "too-many-statements"])
 def test_output_that_does_not_match_schema_is_invalid_output(units, fake_generation,
                                                             content):

@@ -11,7 +11,7 @@ mínima de T-018.
    del usuario. El texto de cada unidad es `canonical_text[char_start:char_end]` de su
    lectura.
 3. Arma el esquema de la consulta (`build_schema`), que enumera solo esos alias, exige al
-   menos una cita por afirmación y limita las afirmaciones a
+   menos una cita y un texto no vacío por afirmación, y limita las afirmaciones a
    `GENERATION_MAX_STATEMENTS`. El motor obliga a cumplirlo.
 4. Hace un solo pedido al motor (`generation.generate`).
 5. Valida la salida (plan, "Cita"):
@@ -103,7 +103,7 @@ def unit_text(unit):
 
 def build_schema(aliases):
     """Esquema de la salida para una consulta: solo los alias mostrados, al menos una
-    cita por afirmación y hasta `GENERATION_MAX_STATEMENTS` afirmaciones."""
+    cita y un texto no vacío por afirmación, y hasta `GENERATION_MAX_STATEMENTS` afirmaciones."""
     return {
         "type": "object",
         "properties": {
@@ -114,7 +114,7 @@ def build_schema(aliases):
                 "items": {
                     "type": "object",
                     "properties": {
-                        "text": {"type": "string"},
+                        "text": {"type": "string", "minLength": 1},
                         "citations": {
                             "type": "array",
                             "minItems": 1,
@@ -184,8 +184,8 @@ def _parse(content):
         if not isinstance(statement, dict) or set(statement) != {"text", "citations"}:
             raise InvalidOutput(f"afirmación {position}: no es un objeto con text y "
                                 "citations")
-        if not isinstance(statement["text"], str):
-            raise InvalidOutput(f"afirmación {position}: text no es texto")
+        if not isinstance(statement["text"], str) or not statement["text"]:
+            raise InvalidOutput(f"afirmación {position}: text no es texto o está vacío")
         citations = statement["citations"]
         if not isinstance(citations, list) or not all(isinstance(c, str)
                                                       for c in citations):
