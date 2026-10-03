@@ -61,7 +61,16 @@ from evaluon.norms.splitting.report import build_report, report_text
 # `ocr`, que antes quedaba vacía. Se sube para que una lectura guardada diga con qué
 # versión se armaron su informe y sus unidades, y para que `releer_norma` sepa cuáles
 # conviene releer.
-RULES_VERSION = "5"
+# 6: T-050 (reglas para las páginas web de la 297/03 y del cuerpo de la 247/2022). Cambian
+# las unidades de esas páginas: el artículo de forma no se lleva lo que le sigue; los
+# datos de publicación del Boletín Oficial se descartan; un título solo se descarta con
+# su nombre de la línea siguiente; el índice admite incisos y epígrafes partidos;
+# `Inciso N)` es del primer nivel y su último lleva sus párrafos; un párrafo que presenta
+# una lista abre otra en el primer nivel; incisos `c)Nombre` e `Inciso 1).`. En los PDF
+# del corpus y de las pruebas el texto canónico y las unidades no cambian; se sube para
+# que una lectura guardada diga con qué reglas se partió y `releer_norma` sepa cuáles
+# releer.
+RULES_VERSION = "6"
 
 # Reglas de partición y categorías que las eligen (REQ-017; `Norm.Category`).
 NORM_RULE = "normas"

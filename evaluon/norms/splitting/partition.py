@@ -9,10 +9,11 @@ el total (control de cobertura):
 - **Una unidad base.** Artículo, cláusula (texto normativo sin número), anexo (su texto
   propio), visto y considerandos. Cada una va desde su encabezado hasta el párrafo
   anterior al siguiente encabezado que la cierra.
-- **Descartado.** La carátula (membrete y datos GDE), el índice y los encabezados de
-  título, capítulo y sección, que no son unidades y pasan a la ruta.
+- **Descartado.** La carátula (membrete y datos GDE), el índice, los encabezados de
+  título, capítulo y sección, que no son unidades y pasan a la ruta, y los datos de
+  publicación del Boletín Oficial de una página web.
 - **No ubicado.** Todo lo demás: lo que sigue a un encabezado reconocido hasta la próxima
-  unidad, la fórmula "Por ello" y la firma.
+  unidad, la fórmula "Por ello", lo que sigue al artículo de forma y la firma.
 
 Los incisos son unidades hijas del artículo, cuyo texto es un recorte del artículo; no
 cuentan en la cobertura.
@@ -40,10 +41,19 @@ Reglas:
   siguiente encabezado "ANEXO", que vuelve a numerar; con una parte que es un anexo, en
   todo el documento, porque sus encabezados "ANEXO" no abren otro contenedor. Así dos
   artículos "DEROGADO" seguidos no se toman por un índice, aunque un anexo posterior
-  repita sus números.
+  repita sus números. La serie empieza con "ÍNDICE", un título o un encabezado de
+  artículo, y admite también incisos y párrafos en mayúsculas (el índice de la 297/03
+  lista los incisos y parte en dos líneas los epígrafes largos); termina en su último
+  encabezado de artículo y los incisos que lo siguen.
 - **Títulos.** Un título cierra el capítulo y la sección abiertos; un capítulo, la
   sección. Pasan a la ruta de las unidades que siguen. Una cláusula y un anexo los
-  cierran todos.
+  cierran todos. Un título solo (`TITULO II`) seguido de un párrafo en mayúsculas lleva
+  ahí su nombre, que se descarta con él (297/03).
+- **Artículo de forma.** El artículo cuyo texto empieza con "Comuníquese", "Regístrese"
+  o "Publíquese" termina en su párrafo: lo que le sigue hasta el próximo encabezado (la
+  firma, el nombre de un anexo) queda no ubicado. Los datos de publicación del Boletín
+  Oficial (la nota sobre los anexos y la línea de edición) cierran la unidad abierta y se
+  descartan.
 - **Anexos.** Con una parte que es un anexo, todas las unidades cuelgan de la unidad raíz
   y los encabezados "ANEXO" de su carátula no abren otro contenedor. En un cuerpo, un
   encabezado "ANEXO" después del primer artículo abre una unidad `anexo` que vuelve a
@@ -59,7 +69,15 @@ Reglas:
   el siguiente inciso de su nivel o de uno superior; el último de su lista no se lleva
   los párrafos que siguen, que son de la unidad que lo contiene. Como el PDF no
   distingue sangrías, esos párrafos pueden ser del inciso: el informe los señala con la
-  clave del inciso y cuántos párrafos quedaron en la unidad que lo contiene.
+  clave del inciso y cuántos párrafos quedaron en la unidad que lo contiene. Formas de
+  la 297/03 (T-050):
+  - `Inciso N)`, con la palabra, es siempre del primer nivel: cierra las listas abiertas
+    y no se anida en un inciso de letra. Es una sección con epígrafe: el último de la
+    lista lleva sus párrafos hasta el final del artículo, como los demás hasta el
+    siguiente, y no se señala.
+  - Con los dos niveles ocupados, un párrafo que no es inciso y termina en dos puntos
+    ("... las siguientes pautas:") abre una lista nueva en el primer nivel; ese párrafo
+    es del artículo y el inciso anterior termina antes.
 """
 
 import re
@@ -74,6 +92,7 @@ from evaluon.norms.splitting.headings import (
     FORMULA,
     INCISO,
     INDEX,
+    PUBLICATION,
     QUE,
     SIGNATURE,
     TITLE,
@@ -81,6 +100,7 @@ from evaluon.norms.splitting.headings import (
     VISTO,
     Heading,
     classify_heading,
+    is_closing_article,
 )
 
 # Cuántos números puede saltar hacia adelante un encabezado de artículo y aceptarse.
@@ -212,6 +232,8 @@ class _Walk:
         self.considerandos = 0
         self.annex_keys = {}
         self.doubtful = False
+        self.closing_key = None  # clave del artículo de forma
+        self.bare_title = None  # párrafo de un título solo, a la espera de su nombre
         if root:
             self.container = Container(name=root["path"], key=root["key"], path=root["path"])
         else:
@@ -246,12 +268,17 @@ class _Walk:
         if self.held is not None and not (h.kind == QUE and eligible_considerando):
             self.flush_held()
 
+        bare_title, self.bare_title = self.bare_title, None
         if k in in_index:
             self.close()
             self.span(DISCARDED, k, reason="indice", group=in_index[k])
             return
+        if bare_title is not None and h.kind == UPPER and self.open is None:
+            # El nombre de un título que vino solo en el párrafo anterior.
+            self.span(DISCARDED, k, reason="titulo", group=bare_title)
+            return
         body_annex = h.kind == ANNEX and not self.root
-        if self.root_open and h.kind not in (ARTICLE, TITLE, CLAUSE, SIGNATURE) and not body_annex:
+        if self.root_open and h.kind not in (ARTICLE, TITLE, CLAUSE, SIGNATURE, PUBLICATION) and not body_annex:
             self.extend(p, record_upper=False)
             if self.root and h.kind == ANNEX and self.open.label == self.root["path"]:
                 self.open.label = p.text
@@ -272,6 +299,8 @@ class _Walk:
             for lower in range(level + 1, len(self.titles)):
                 self.titles[lower] = None
             self.span(DISCARDED, k, reason="titulo", group=k)
+            if h.heading_only:
+                self.bare_title = k
             return
         elif h.kind == CLAUSE:
             self.close()
@@ -287,6 +316,10 @@ class _Walk:
         elif h.kind == SIGNATURE:
             self.close()
             self.span(UNLOCATED, k)
+            return
+        elif h.kind == PUBLICATION:
+            self.close()
+            self.span(DISCARDED, k, reason="publicacion")
             return
         elif h.kind == VISTO and eligible_considerando:
             self.close()
@@ -310,6 +343,10 @@ class _Walk:
             self.span(UNLOCATED, k)
             return
 
+        if self.open is not None and self.open.key == self.closing_key:
+            # Lo que sigue al artículo de forma (la firma, el nombre de un anexo) no se
+            # le suma.
+            self.close()
         if self.open is not None:
             self.extend(p, record_upper=h.kind == UPPER)
         else:
@@ -419,6 +456,8 @@ class _Walk:
         path = c.child_path(*titles, f"Artículo {number}")
         self.open = Block("articulo", number, p.heading.label, key, path, c.key or None,
                           p.index, p.index)
+        if is_closing_article(p.text, ocr=p.ocr):
+            self.closing_key = key
         if self.doubtful:
             self.result.doubtful_headings.append(
                 {"key": key, "label": p.heading.label, "page": p.page}
@@ -496,6 +535,9 @@ def _index_blocks(paragraphs, same_container=True):
     in_index = {}
     i = 0
     while i < len(paragraphs):
+        if not _index_start(paragraphs[i]):
+            i += 1
+            continue
         j = i
         while j < len(paragraphs) and _index_member(paragraphs[j]):
             j += 1
@@ -510,6 +552,9 @@ def _index_blocks(paragraphs, same_container=True):
                     later.add(p.heading.article_number)
             repeated = sum(1 for p in headings if p.heading.article_number in later)
             if repeated >= INDEX_MIN_HEADINGS:
+                # Los incisos que lista el índice después de su último artículo.
+                while last + 1 < j and paragraphs[last + 1].heading.kind == INCISO:
+                    last += 1
                 for k in range(i, last + 1):
                     in_index[k] = i
                 i = last + 1
@@ -518,11 +563,18 @@ def _index_blocks(paragraphs, same_container=True):
     return in_index
 
 
-def _index_member(paragraph):
+def _index_start(paragraph):
+    """Un índice empieza con "ÍNDICE", un título o un encabezado de artículo sin texto;
+    no con un inciso ni con un párrafo en mayúsculas (como el nombre del régimen que va
+    antes del índice)."""
     kind = paragraph.heading.kind
-    if kind == ARTICLE:
-        return paragraph.heading.heading_only
-    return kind in (INDEX, TITLE)
+    return kind in (INDEX, TITLE) or (kind == ARTICLE and paragraph.heading.heading_only)
+
+
+def _index_member(paragraph):
+    """Lo que puede ir en un índice: además de lo que lo empieza, los incisos y los
+    párrafos en mayúsculas, como la segunda línea de un epígrafe largo (297/03)."""
+    return _index_start(paragraph) or paragraph.heading.kind in (INCISO, UPPER)
 
 
 # --- Incisos ----------------------------------------------------------------------------
@@ -539,12 +591,23 @@ class IncisoNode:
 def find_incisos(paragraphs, block):
     """Los incisos de un artículo, como árbol de dos niveles con el último párrafo de
     cada uno."""
-    roots, stack = [], []
+    roots, stack, introduced = [], [], []
     for p in paragraphs[block.first + 1 : block.last + 1]:
         h = p.heading
         if h.kind != INCISO:
             continue
-        level = next((i for i, node in enumerate(stack) if node.heading.style == h.style), None)
+        if h.word:
+            # `Inciso N)`: siempre del primer nivel; cierra las listas abiertas.
+            if stack and _same_form(stack[0].heading, h):
+                if not _is_next(stack[0].heading.number, h.number):
+                    continue
+            elif not _is_first(h.number):
+                continue
+            node = IncisoNode(h, p.index)
+            roots.append(node)
+            stack = [node]
+            continue
+        level = next((i for i, node in enumerate(stack) if _same_form(node.heading, h)), None)
         if level is not None:
             if not _is_next(stack[level].heading.number, h.number):
                 continue
@@ -556,8 +619,36 @@ def find_incisos(paragraphs, block):
             node = IncisoNode(h, p.index)
             (stack[-1].children if stack else roots).append(node)
             stack.append(node)
+        elif _is_first(h.number) and _introduces_list(paragraphs, p.index, block.first):
+            # Los dos niveles ocupados y un párrafo que presenta una lista nueva: la lista
+            # va en el primer nivel.
+            node = IncisoNode(h, p.index)
+            roots.append(node)
+            stack = [node]
+            introduced.append(node)
     _assign_ends(roots)
+    for position, node in enumerate(roots):
+        if node in introduced and position:
+            # El párrafo que presenta la lista nueva es del artículo: el inciso anterior
+            # termina antes.
+            roots[position - 1].end = node.index - 2
+    if roots and roots[-1].heading.word:
+        # El último `Inciso N)` lleva sus párrafos hasta el final del artículo.
+        roots[-1].end = block.last
     return roots
+
+
+def _same_form(a, b):
+    """Si dos encabezados de inciso son de la misma forma: el mismo estilo y los dos con
+    la palabra "Inciso" o los dos sin ella."""
+    return a.style == b.style and a.word == b.word
+
+
+def _introduces_list(paragraphs, k, first):
+    """Si el párrafo anterior al `k`, dentro del artículo, presenta una lista: no es un
+    inciso y termina en dos puntos."""
+    previous = paragraphs[k - 1]
+    return k - 1 > first and previous.heading.kind != INCISO and previous.text.rstrip().endswith(":")
 
 
 def after_last_inciso(nodes, end):

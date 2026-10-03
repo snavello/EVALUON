@@ -9,13 +9,15 @@ contexto, si se acepta (control de secuencia, índice, zona del documento).
 |---|---|
 | Artículo | `ARTÍCULO 1°.-`, `ARTÍCULO 1º.-`, `ARTÍCULO 10.-`, `ARTICULO 1° —`, `ARTICULO 1.- OBJETO`, `ARTICULO 12.—`, `ARTICULO 11. —`, `ARTICULO 13 —`, `ARTICULO 27.`, `Art. 2º.-`, `Artículo 14 bis.-`; con o sin tilde, con `°`, `º`, `o` o sin signo. Siempre con un separador después del número, para no tomar "Artículo 2° de la Ley ...". Entre comillas no es un encabezado (artículo transcripto) |
 | Artículo leído por reconocimiento | Solo en párrafos de origen `ocr`: en lugar de `°` o `º`, hasta tres de `* % ” " ' ? o O` (por ejemplo `9”%`) o nada, un espacio antes del `.-`, y un número que puede traer signos mal leídos (`$0`) |
-| Inciso | `a)`, `ñ)`, `1)`, `1.`, `Inciso 1)`, `inc. a)`. No: `1.1.`, `1.000` |
-| Título, capítulo, sección | `TÍTULO II`, `CAPÍTULO VIII`, `SECCIÓN 1ª`, en un párrafo en mayúsculas |
+| Inciso | `a)`, `ñ)`, `1)`, `1.`, `Inciso 1)`, `inc. a)`; también `c)Nombre` y `Inciso 2)Muestras` (sin espacio, si sigue una mayúscula) e `Inciso 1). Notificación` (con punto), de la 297/03. Con la palabra "Inciso" (`word`), es siempre del primer nivel (`partition.py`). No: `1.1.`, `1.000`, `c)del` |
+| Título, capítulo, sección | `TÍTULO II`, `CAPÍTULO VIII`, `SECCIÓN 1ª`, en un párrafo en mayúsculas; también solo, como `TITULO II`, con el nombre en el párrafo siguiente (297/03) |
 | Cláusula (texto sin número) | Lista `CLAUSE_FORMS`: `CLÁUSULA TRANSITORIA`, con o sin tilde y con o sin epígrafe, en un párrafo en mayúsculas |
 | Anexo | `ANEXO`, `ANEXO I`, `ANEXO A`, `ANEXO (artículo 1°)`, con o sin título a continuación, en un párrafo en mayúsculas o que es solo el encabezado (con su referencia entre paréntesis, si la tiene). No: "ANEXO I forma parte integrante de la presente", que es prosa |
 | Visto y considerandos | `VISTO`, `CONSIDERANDO:`, párrafos que empiezan con `Que` |
 | Fórmula | `Por ello` |
 | Firma | `Digitally signed by`, `Firmado digitalmente por`, `Date: 2022.11.29` (firma digital GDE) |
+| Publicación | Datos del Boletín Oficial que trae la página web: la nota sobre los anexos (`NOTA: ... BORA ...`) y la línea de edición (`e. 30/11/2022 N° 97811/22 v. 30/11/2022`, `e. 13/6 N° 417.913 v. 13/6/2003`). No: un párrafo que empieza con "NOTA:" y no nombra el Boletín |
+| Artículo de forma | No es un encabezado: un artículo cuyo texto empieza con "Comuníquese", "Regístrese" o "Publíquese" (`is_closing_article`) es el de forma, y lo que le sigue no se le suma (`partition.py`) |
 | Índice | `ÍNDICE`, `ÍNDICE:` |
 | Mayúsculas | Un párrafo en mayúsculas que no tiene ninguna forma de la tabla: no corta (decisión del responsable del 2026-10-03) |
 """
@@ -34,6 +36,7 @@ QUE = "que"
 FORMULA = "formula"
 SIGNATURE = "signature"
 INDEX = "index"
+PUBLICATION = "publication"
 UPPER = "upper"
 TEXT = "text"
 
@@ -57,6 +60,24 @@ INCISO_HEADING = re.compile(
     r"(?P<marker>(?:(?:Inciso|INCISO|inciso|Inc\.|inc\.)\s*)?"
     r"(?:(?P<letter>[a-zñ])\)|(?P<paren>\d{1,2})\)|(?P<dot>\d{1,2})\.))(?=\s)"
 )
+# Las formas de inciso de la 297/03 que la de arriba no toma (T-050): sin espacio
+# después del paréntesis si sigue una mayúscula (`c)Nombre`, `Inciso 2)Muestras`) o con
+# un punto después (`Inciso 1). Notificación`). Solo para clasificar párrafos: el texto
+# canónico sigue usando la forma estricta (`starts_inciso`), así un PDF da el mismo texto.
+INCISO_HEADING_LOOSE = re.compile(
+    r"(?P<marker>(?:(?:Inciso|INCISO|inciso|Inc\.|inc\.)\s*)?"
+    r"(?:(?P<letter>[a-zñ])|(?P<paren>\d{1,2}))\)(?:\.(?=\s)|(?=[A-ZÁÉÍÓÚÑ])))"
+)
+_INCISO_WORD = re.compile(r"(?:Inciso|INCISO|inciso|Inc\.|inc\.)")
+
+# Datos de publicación del Boletín Oficial (T-050).
+PUBLICATION_FORMS = re.compile(
+    r"NOTA:.*(?:BORA|Bolet[ií]n Oficial|boletinoficial)"
+    r"|e\.\s*\d{1,2}/\d{1,2}(?:/\d{2,4})?\s+N[°º]\s*[\d.]+(?:/\d+)?\s+v\.\s*\d{1,2}/\d{1,2}/\d{2,4}\s*$"
+)
+
+# Fórmula del artículo de forma, al comienzo de su texto (T-050).
+CLOSING_FORMULA = re.compile(r"\s*(?:Comun[ií]quese|Reg[ií]strese|Publ[ií]quese)\b")
 
 TITLE_HEADING = re.compile(
     r"(?P<kind>T[IÍ]TULO|CAP[IÍ]TULO|SECCI[OÓ]N)\s+(?P<number>[IVXLCDM]+|\d+[ªº°]?)(?=$|[\s\-—–.:])"
@@ -101,8 +122,10 @@ class Heading:
     - `label`: etiqueta como figura en el documento (artículo e inciso).
     - `name`: nombre en la ruta (título, cláusula, anexo).
     - `style`: forma de un inciso (`letter`, `paren` o `dot`), para su secuencia.
-    - `heading_only`: un artículo sin texto propio después del encabezado.
+    - `heading_only`: un artículo sin texto propio después del encabezado; un título sin
+      su nombre en el mismo párrafo (`TITULO II`).
     - `tolerant`: un artículo reconocido con la forma tolerante de reconocimiento.
+    - `word`: un inciso que empieza con la palabra "Inciso" (o "inc.").
     """
 
     kind: str
@@ -116,6 +139,7 @@ class Heading:
     heading_only: bool = False
     tolerant: bool = False
     raw: str = ""
+    word: bool = False
 
 
 def is_uppercase(text):
@@ -146,7 +170,8 @@ def classify_heading(text, ocr=False):
         if title:
             level, name = TITLE_LEVELS[title.group("kind")[0]]
             number = title.group("number")
-            return Heading(TITLE, number=number, name=f"{name} {number}", level=level)
+            bare = not text[title.end() :].strip()
+            return Heading(TITLE, number=number, name=f"{name} {number}", level=level, heading_only=bare)
         for form in CLAUSE_FORMS:
             clause = form.match(text)
             if clause:
@@ -161,11 +186,20 @@ def classify_heading(text, ocr=False):
         return Heading(FORMULA)
     if SIGNATURE_FORMS.match(text):
         return Heading(SIGNATURE)
-    inciso = INCISO_HEADING.match(text)
+    if PUBLICATION_FORMS.match(text):
+        return Heading(PUBLICATION)
+    inciso = INCISO_HEADING.match(text) or INCISO_HEADING_LOOSE.match(text)
     if inciso:
+        marker = inciso.group("marker")
         for style in ("letter", "paren", "dot"):
             if inciso.group(style):
-                return Heading(INCISO, number=inciso.group(style), label=inciso.group("marker"), style=style)
+                return Heading(
+                    INCISO,
+                    number=inciso.group(style),
+                    label=marker,
+                    style=style,
+                    word=bool(_INCISO_WORD.match(marker)),
+                )
     if uppercase and _LETTER.match(text):
         return Heading(UPPER)
     return Heading(TEXT)
@@ -203,6 +237,13 @@ def _article_label(text, end):
         # Epígrafe solo, sin punto final (las entradas del índice).
         end = len(text)
     return text[:end].rstrip()
+
+
+def is_closing_article(text, ocr=False):
+    """Si un párrafo que empieza con un encabezado de artículo es el artículo de forma: su
+    texto empieza con "Comuníquese", "Regístrese" o "Publíquese"."""
+    heading = ARTICLE_HEADING.match(text) or (ocr and OCR_ARTICLE_HEADING.match(text))
+    return bool(heading and CLOSING_FORMULA.match(text, heading.end()))
 
 
 def starts_article(text, ocr=False):

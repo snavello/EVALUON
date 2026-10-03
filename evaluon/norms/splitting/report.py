@@ -98,6 +98,7 @@ DISCARD_REASONS = {
     "indice": "Índice",
     "titulo": "Título o capítulo, que pasa a la ruta",
     "caratula": "Carátula (membrete y datos GDE)",
+    "publicacion": "Datos de publicación en el Boletín Oficial (nota sobre los anexos y línea de edición)",
 }
 # Motivos de las líneas descartadas al armar el texto canónico (`canonical.py`); los de
 # la lectura de páginas web ya vienen en español (`web.py`).
