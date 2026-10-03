@@ -39,7 +39,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-021 | Leer un PDF escaneado con reconocimiento de texto | REQ-004, REQ-015 | T-012 | terminada |
 | T-022 | Leer una página web guardada | REQ-015 | T-012 | terminada |
 | T-023 | Partir normas completas con incisos, anexos y considerandos | REQ-003 | T-013 | terminada |
-| T-024 | Partir dictámenes y recomendaciones en puntos y párrafos | REQ-003 | T-023 | pendiente |
+| T-024 | Partir dictámenes y recomendaciones en puntos y párrafos | REQ-003 | T-023 | en curso |
 | T-025 | Completar el informe de lectura | REQ-004, REQ-015 | T-024 | pendiente |
 | T-026 | Avisar duplicados al cargar una norma | REQ-011, REQ-012 | T-014, T-025 | pendiente |
 | T-027 | Releer un documento y reemplazar la lectura anterior | REQ-004, REQ-005 | T-015, T-026 | pendiente |

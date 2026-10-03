@@ -63,7 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 23 tareas sin terminar.
-- ○ T-024 · Partir dictámenes y recomendaciones en puntos y párrafos (pendiente)
+- ▶ T-024 · Partir dictámenes y recomendaciones en puntos y párrafos (en curso)
 - ○ T-025 · Completar el informe de lectura (pendiente)
 - ○ T-026 · Avisar duplicados al cargar una norma (pendiente)
 - ○ T-027 · Releer un documento y reemplazar la lectura anterior (pendiente)
@@ -110,15 +110,15 @@ flowchart LR
 - ✓ T-018 · Generar la respuesta con esquema e insertar las citas (`33f0f08` 2026-10-03, `9830fe5` 2026-10-03)
 - ✓ T-019 · Unir la consulta de punta a punta con su registro (`2685761` 2026-10-03, `71fd67b` 2026-10-03)
 - ✓ T-020 · Probar el hilo mínimo con los servicios reales (`b520afe` 2026-10-03)
-- ✓ T-021 · Leer un PDF escaneado con reconocimiento de texto
-- ✓ T-022 · Leer una página web guardada
+- ✓ T-021 · Leer un PDF escaneado con reconocimiento de texto (`223295e` 2026-10-03, `197dada` 2026-10-03)
+- ✓ T-022 · Leer una página web guardada (`3d9224f` 2026-10-03, `c12d12c` 2026-10-03)
 - ✓ T-023 · Partir normas completas con incisos, anexos y considerandos (`07000e3` 2026-10-03, `9fcf7ba` 2026-10-03, `b3b20b9` 2026-10-03)
-- ✓ T-029 · Registrar relaciones entre normas y mostrar los vínculos
-- ✓ T-030 · Registrar versiones de una norma
-- ✓ T-031 · Partir en pasajes las unidades largas
-- ✓ T-034 · Completar instrucciones, marca de regímenes y orden
-- ✓ T-035 · Buscar unidades por artículo y por palabras
-- ✓ T-036 · Entregar el documento original con sesión
+- ✓ T-029 · Registrar relaciones entre normas y mostrar los vínculos (`eb8e443` 2026-10-03, `7748cf7` 2026-10-03)
+- ✓ T-030 · Registrar versiones de una norma (`2844775` 2026-10-03)
+- ✓ T-031 · Partir en pasajes las unidades largas (`282ab7f` 2026-10-03, `955ce90` 2026-10-03, `c1e2088` 2026-10-03)
+- ✓ T-034 · Completar instrucciones, marca de regímenes y orden (`c7ad4bc` 2026-10-03, `fc426a7` 2026-10-03)
+- ✓ T-035 · Buscar unidades por artículo y por palabras (`5cf1cbc` 2026-10-03, `92ec485` 2026-10-03)
+- ✓ T-036 · Entregar el documento original con sesión (`07ea00d` 2026-10-03)
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 - ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
 - ✓ T-055 · Agregar el nombre de cita de la norma (`ff230c8` 2026-10-03, `88796e6` 2026-10-03)
@@ -150,7 +150,7 @@ flowchart TD
   T021["✓ T-021 · Leer un PDF escaneado con reconocimiento de…"]:::done
   T022["✓ T-022 · Leer una página web guardada"]:::done
   T023["✓ T-023 · Partir normas completas con incisos, anexos…"]:::done
-  T024["○ T-024 · Partir dictámenes y recomendaciones en punt…"]:::todo
+  T024["▶ T-024 · Partir dictámenes y recomendaciones en punt…"]:::active
   T025["○ T-025 · Completar el informe de lectura"]:::todo
   T026["○ T-026 · Avisar duplicados al cargar una norma"]:::todo
   T027["○ T-027 · Releer un documento y reemplazar la lectura…"]:::todo
