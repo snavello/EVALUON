@@ -1,0 +1,23 @@
+id: EV-003
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿En qué plazo debe integrarse la garantía de cumplimiento del contrato?"
+fecha_autorizacion: 2024-03-15
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  Dentro de los diez (10) días de perfeccionada la orden de compra, de venta o el contrato; el plazo puede prorrogarse por igual término desde la intimación. Si no se integra, se rescinde el contrato con culpa del contratista y se aplica una penalidad equivalente al importe de la garantía no constituida.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 61"}
+origen: |
+  El contratista deberá integrar la garantía de cumplimiento del contrato dentro del término de DIEZ (10) días de perfeccionados la orden de compra, de venta o el contrato. Este plazo podrá ser prorrogado por igual término contado desde la intimación que se curse a tal fin.
+  [...]
+  De no ser integrada, se procederá a rescindir el contrato con culpa del contratista, con la aplicación de una penalidad equivalente al importe de la garantía no constituida.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-61}
+datos_clave: ["10 días", "prorrogable por igual término"]
+difieren: false
+pareja: EV-017
+aviso_modificatorias: false
+etiquetas: ["referencia exacta", "dos fechas"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido

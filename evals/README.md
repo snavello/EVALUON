@@ -23,6 +23,7 @@ origen: "de dónde sale la respuesta esperada"
 
 - Solo material público.
 - La respuesta esperada la valida una persona que conoce la materia, no un modelo.
+- Un caso sin `visto_bueno` (quién de la Comisión lo aprobó y cuándo) no se corre. Los borradores asistidos llevan `redactado_por: borrador asistido` hasta que una persona los valida.
 - Los casos existentes no se modifican ni se eliminan sin aprobación del responsable. Se pueden agregar.
 - Cada corrida guarda sus resultados en `evals/corridas/` con fecha, commit y modelo, para poder comparar.
 

@@ -1,0 +1,18 @@
+id: EV-025
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Cuántos días de licencia por maternidad le corresponden a una agente de la AFIP?"
+fecha_autorizacion: 2024-05-02
+regimen: "Disposición AFIP 247/2022"
+esperado: "no determinado"
+cita: []
+origen: |
+  Pregunta ajena a las compras. Además el artículo 5, inciso a) del anexo excluye del régimen los contratos de empleo público.
+unidades: []
+datos_clave: []
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["ajena a la normativa"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
