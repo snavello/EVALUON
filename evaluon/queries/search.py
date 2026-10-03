@@ -18,7 +18,7 @@ búsqueda devuelve también las unidades derogadas a la fecha, marcadas.
   `tsv @@ search_query(texto)` (ADR-0007): sin distinguir acentos ni singular y plural,
   con comillas para frase exacta. Agrupada por unidad base (los pasajes son solo de
   unidades base). El número de la norma no se busca por palabras: la norma se filtra con
-  `norm_id`.
+  `norm_id`. AFIP y ARCA, con sigla o nombre largo, valen lo mismo (ADR-0010, T-057).
 
 Cada resultado (`SearchResult`) trae la categoría de su norma, el texto literal de la
 unidad (el tramo `canonical_text[char_start:char_end]` de su lectura, no la copia de
@@ -39,6 +39,8 @@ from dataclasses import asdict, dataclass
 from datetime import date
 
 from django.db import connection
+
+from evaluon.norms.services.loading import issuer_variants
 
 # Sentido de un vínculo visto desde la norma del resultado.
 OUTGOING = "outgoing"  # la norma del resultado es la de origen
@@ -67,11 +69,13 @@ WHERE cu.norm_id = %(norm)s
   AND starts_with(i.key, a.key || '/')
 """
 
+# `{query}`: `search_query(...)` de cada variante del texto, unidas por `||` (ver
+# `by_words`).
 _WORDS_SQL = """
 SELECT DISTINCT p.unit_id
 FROM norms_passage p
 JOIN consultable_units(%(date)s) cu ON cu.unit_id = p.unit_id
-WHERE p.tsv @@ search_query(%(text)s)
+WHERE p.tsv @@ ({query})
   AND (%(norm)s::bigint IS NULL OR cu.norm_id = %(norm)s::bigint)
 """
 
@@ -231,13 +235,20 @@ def by_article(norm_id, number, reference_date, *, subsection=""):
 def by_words(text, reference_date, *, norm_id=None):
     """Unidades base consultables en `reference_date` con algún pasaje que coincide con
     `text` según `search_query`, de cualquier norma o solo de `norm_id`. Ver el
-    módulo."""
+    módulo.
+
+    AFIP y ARCA valen lo mismo (ADR-0010): si el texto nombra a uno de los dos, con
+    sigla o nombre largo, se busca también cada variante con el otro nombre
+    (`loading.issuer_variants`), unidas por "o". El índice guardado no cambia."""
     _require_date(reference_date)
     if not (text or "").strip():
         return []
+    variants = issuer_variants(text)
+    params = {"date": reference_date, "norm": norm_id}
+    params.update({f"text{n}": variant for n, variant in enumerate(variants)})
+    query = " || ".join(f"search_query(%(text{n})s)" for n in range(len(variants)))
     with connection.cursor() as cursor:
-        cursor.execute(_WORDS_SQL,
-                       {"date": reference_date, "text": text, "norm": norm_id})
+        cursor.execute(_WORDS_SQL.format(query=query), params)
         unit_ids = [unit_id for (unit_id,) in cursor.fetchall()]
     return _results(unit_ids, reference_date)
 

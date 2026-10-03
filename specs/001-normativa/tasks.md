@@ -72,7 +72,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-054 | Pasar a la aplicación las variables de los servicios de IA | REQ-008, REQ-012 | T-011 | terminada |
 | T-055 | Agregar el nombre de cita de la norma | REQ-001, REQ-013, REQ-020 | T-015 | terminada |
 | T-056 | Mostrar en la búsqueda solo lo vigente, con casilla para los derogados | REQ-010, REQ-012, REQ-020 | T-052 | terminada |
-| T-057 | Tratar AFIP y ARCA como el mismo organismo | REQ-001, REQ-008, REQ-010, REQ-021 | T-056 | pendiente |
+| T-057 | Tratar AFIP y ARCA como el mismo organismo | REQ-001, REQ-008, REQ-010, REQ-021 | T-056 | terminada |
 
 ## Detalle
 
