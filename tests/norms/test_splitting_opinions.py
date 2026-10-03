@@ -434,6 +434,65 @@ def test_out_of_sequence_point_stays_inside_and_is_reported():
     check_invariants(result)
 
 
+def test_arabic_jump_beyond_the_margin_does_not_open_a_point():
+    """REQ-003: un salto arábigo mayor que el margen ("10." después de "2.") no abre un
+    punto: queda dentro del punto abierto y se informa; el "3." que sigue se acepta."""
+    result = split_document(
+        synthetic(["1. Uno.", "2. Dos.", "10. Diez, fuera de secuencia.", "3. Tres."]),
+        category=DICTAMEN,
+    )
+
+    units = by_key(result)
+    assert list(units) == ["punto-1", "punto-2", "punto-3"]
+    assert units["punto-2"].text == "2. Dos.\n10. Diez, fuera de secuencia."
+    [sequence] = result.report["sequence"]
+    assert sequence["gaps"] == []
+    assert [(item["number"], item["inside"]) for item in sequence["not_accepted"]] == [
+        ("10", "punto-2")
+    ]
+    check_invariants(result)
+
+
+# Carátula GDE sintética: membrete, "Número:" y "Referencia:" (`partition._cover_end`).
+GDE_COVER = [
+    "Organismo Sintético de Prueba",
+    "Número: IF-2026-00000001-APN-SINTETICO",
+    "Referencia: Documento sintético de prueba",
+]
+
+
+def test_numbered_opinion_with_gde_cover_discards_the_cover():
+    """REQ-003: en un dictamen numerado, la carátula GDE se descarta, como en las
+    normas, y no queda como no ubicada."""
+    result = split_document(synthetic(GDE_COVER + ["1. Uno.", "2. Dos."]), category=DICTAMEN)
+
+    assert [u.key for u in result.units] == ["punto-1", "punto-2"]
+    assert result.report["unlocated"] == []
+    assert [(item["reason"], item["first_words"]) for item in result.report["discarded"]] == [
+        ("caratula", "Organismo Sintético de Prueba Número: IF-2026-00000001-APN-SINTETICO Referencia: Documento")
+    ]
+    check_invariants(result)
+
+
+@pytest.mark.parametrize("category", [DICTAMEN, RECOMENDACION])
+def test_unnumbered_document_with_gde_cover_starts_at_paragraph_one(category):
+    """REQ-003: en un documento sin numeración con carátula GDE, la carátula se descarta
+    y la numeración de los párrafos empieza en `parrafo-1` con el primer párrafo que la
+    sigue."""
+    result = split_document(
+        synthetic(GDE_COVER + ["Primer párrafo sintético.", "Segundo párrafo sintético."]),
+        category=category,
+    )
+
+    assert [(u.key, u.text) for u in result.units] == [
+        ("parrafo-1", "Primer párrafo sintético."),
+        ("parrafo-2", "Segundo párrafo sintético."),
+    ]
+    assert result.report["unlocated"] == []
+    assert [item["reason"] for item in result.report["discarded"]] == ["caratula"]
+    check_invariants(result)
+
+
 # --- Documentos sin numeración ----------------------------------------------------------
 
 
