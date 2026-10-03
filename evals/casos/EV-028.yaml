@@ -4,17 +4,24 @@ documentos: [normativa/disp-afip-247-2022-anexo.pdf]
 pregunta: "¿Cómo se integra la Comisión Evaluadora?"
 fecha_autorizacion: 2024-11-11
 regimen: "Disposición AFIP 247/2022"
-esperado: "no determinado"
-cita: []
+esperado: |
+  En cada unidad con capacidad de contratación funciona una comisión evaluadora. Su integración, sus condiciones de funcionamiento y los criterios de designación de sus miembros quedan sujetos a la normativa vigente: el anexo de la Disposición 247/2022 no fija la integración. Sus integrantes no pueden ser funcionarios con competencia para autorizar la convocatoria o aprobar el procedimiento de selección.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 50"}
 origen: |
-  Tema de compras que la 247/2022 no resuelve: el artículo 50 del anexo deja la integración "sujetos a la normativa vigente" y solo dice quiénes no pueden integrarla. La normativa que fija la integración no está cargada.
-unidades: []
-datos_clave: []
+  ARTÍCULO 50.- COMISIONES EVALUADORAS. En cada unidad con capacidad de contratación funcionará una comisión evaluadora cuya integración y condiciones de funcionamiento en general, así como los criterios de designación de sus miembros, quedarán sujetos a la normativa vigente.
+  Los integrantes de dicha comisión no podrán ser funcionarios con competencia para autorizar la convocatoria o aprobar el procedimiento de selección.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-50}
+datos_clave: ["normativa vigente"]
 difieren: false
-pareja: ""
+pareja: EV-022
 aviso_modificatorias: false
-etiquetas: ["tema cercano que la normativa no resuelve"]
+etiquetas: ["remisión a norma no cargada", "dos fechas"]
 visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |
-  Caso dudoso: el artículo 50 sí dice algo (los integrantes no pueden ser funcionarios con competencia para autorizar la convocatoria o aprobar el procedimiento). Una respuesta que cite solo eso podría considerarse parcial y correcta. Si la persona validadora prefiere, se reformula a "¿Cuántos miembros...?". Es la misma pregunta que EV-022 bajo la 297/03.
+  Remisión a una norma no cargada (ADR-0015; REQ-009 enmendado; T-064). El art. 50 trata la Comisión Evaluadora y deja su integración sujeta a la normativa vigente, que no está cargada. La respuesta de la corrida de T-045 (lo que dice el art. 50, con su cita) es la que el responsable aprobó como válida; una abstención es incorrecta.
+  Por decisión del responsable del 2026-10-03, por ahora alcanza con que la respuesta diga que la integración está sujeta a la normativa vigente, con la cita del art. 50: no se exige que diga quiénes no pueden integrarla (los funcionarios con competencia para autorizar la convocatoria o aprobar el procedimiento). Por eso el impedimento está en el `esperado` y no en `datos_clave`.
+  Una respuesta que dé una integración (por ejemplo, los "tres miembros titulares" de la 297/03, EV-022) es incorrecta aunque cumpla el dato clave: el corrector solo comprueba que la remisión esté, no que falte la integración. Por decisión del responsable del 2026-10-03, ese control lo hace una persona a mano en cada corrida, leyendo las afirmaciones contra el texto de la unidad citada; no hay control automático.
+  Es la misma pregunta que EV-022 bajo la 297/03.

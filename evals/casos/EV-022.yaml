@@ -14,10 +14,10 @@ unidades:
   - {norma: "Disposición AFIP 297/03", key: anexo-i/art-48}
 datos_clave: ["3 miembros", "presidente", "2 vocales", "planta permanente"]
 difieren: false
-pareja: ""
+pareja: EV-028
 aviso_modificatorias: true
-etiquetas: ["referencia exacta"]
+etiquetas: ["referencia exacta", "dos fechas"]
 visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |
-  La misma pregunta bajo la 247/2022 no tiene respuesta en la normativa cargada (EV-028). No se vinculó como par: el plan exige que los dos casos de un par citen normas distintas.
+  Par de REQ-020 con EV-028 (aprobado por el responsable el 2026-10-03): la misma pregunta bajo la 247/2022 se responde con la remisión del art. 50 del anexo a la normativa vigente (ADR-0015).
