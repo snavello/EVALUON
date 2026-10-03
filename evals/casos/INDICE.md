@@ -8,8 +8,8 @@ Fuentes: solo el anexo de la Disposición AFIP 247/2022 (`corpus/normativa/disp-
 
 | Grupo | Casos | Cantidad |
 |---|---|---|
-| Con respuesta en la 247/2022 (fecha desde 2023-01-01) | EV-001 a EV-015 | 15 |
-| Con respuesta en la 297/03 (fecha entre 2003-06-14 y 2022-12-31) | EV-016 a EV-024 | 9 |
+| Con respuesta en la 247/2022 (fecha desde 2023-01-02) | EV-001 a EV-015 | 15 |
+| Con respuesta en la 297/03 (fecha entre 2003-06-14 y 2023-01-01) | EV-016 a EV-024 | 9 |
 | Sin respuesta, fecha bajo la 247/2022 | EV-025 a EV-028 | 4 |
 | Sin respuesta, fecha bajo la 297/03 | EV-029, EV-030 | 2 |
 | Sin respuesta, fecha sin régimen (anterior a 2003-06-14) | EV-031 | 1 |
@@ -23,7 +23,7 @@ Fuentes: solo el anexo de la Disposición AFIP 247/2022 (`corpus/normativa/disp-
 
 | Id | Pregunta (resumida) | Régimen | Fecha | Esperado (resumido) | Cita | Pareja |
 |---|---|---|---|---|---|---|
-| EV-001 | Plazo de mantenimiento de oferta si el pliego no lo fija | 247/2022 | 2023-01-01 | 60 días corridos desde la apertura; prórroga automática | Anexo, art. 43 | EV-016 |
+| EV-001 | Plazo de mantenimiento de oferta si el pliego no lo fija | 247/2022 | 2023-01-02 | 60 días corridos desde la apertura; prórroga automática | Anexo, art. 43 | EV-016 |
 | EV-002 | Clases de garantías y porcentajes | 247/2022 | 2024-04-08 | Mantenimiento 5 %, cumplimiento 10 %, contragarantía por el adelanto | Anexo, art. 64 a) b) c) | |
 | EV-003 | Plazo para integrar la garantía de cumplimiento | 247/2022 | 2024-03-15 | 10 días desde el perfeccionamiento, prorrogable | Anexo, art. 61 | EV-017 |
 | EV-004 | ¿Garantía de oferta si se cotiza poco? | 247/2022 | 2025-07-21 | No, si la oferta no supera M 1.000 | Anexo, art. 66 f) | |
@@ -105,3 +105,7 @@ Puntos para decidir al dar el visto bueno:
 4. **EV-013, el orden.** Los datos clave comprueban que estén los siete documentos, no el orden de prelación; una respuesta con los siete en otro orden los cumple. "oferta", "pliego" y "régimen" son palabras comunes, pero son los nombres de los documentos y no hay forma más corta de exigirlos.
 5. **EV-010, "máximo" y "unidades" por separado.** El `esperado` dice "máximo de unidades" y la norma "máximo de las unidades": se partieron para que valgan las dos redacciones. En EV-023 la norma sí dice "máximo de unidades" y se dejó junto.
 6. **EV-015, "conformidad".** Comprueba que la respuesta trate la conformidad del contratista, no que la ubique por encima del 20 %; esa relación no se puede exigir con un fragmento corto común al `esperado` y a la norma.
+
+## Visto bueno provisorio (2026-10-03)
+
+El responsable autorizó el 2026-10-03 un visto bueno provisorio para los 31 casos, para poder calibrar (T-045) y correr el conjunto (T-046). Los casos se revisan con la Comisión y se corrigen a medida que aparezcan errores. Decisiones del responsable sobre los datos clave dudosos: más tolerantes. EV-001 y EV-016 piden "automáticamente"; EV-006 queda con "suspensivo" (los plazos frenan las respuestas equivocadas); EV-019 queda con "5 por mil", porque "0,5 ‰" es otra cantidad (la duda sobre la cifra sigue marcada). EV-004 pasa de "no" a "no es necesario": la regla del sí y del no exige un signo después de la palabra y la respuesta esperada no lo tiene.

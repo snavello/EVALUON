@@ -30,7 +30,7 @@ Se construye un sistema que corre entero en la notebook del proyecto, sin mandar
 
 **Cómo se sabe si responde bien.** Con unas 30 preguntas de respuesta conocida, aprobadas por un integrante de la Comisión. Cada pregunta lleva su fecha de autorización: hay preguntas para cada uno de los dos regímenes y al menos una que se repite con dos fechas, para comprobar que la respuesta cambia de régimen. Se exige: cita literal siempre, respuesta correcta en al menos 85 % de las preguntas que tienen respuesta, "no determinado" en al menos 90 % de las que no la tienen, y hasta 30 segundos por consulta.
 
-**Qué falta comprobar.** Nada de esto se probó todavía en la notebook. Por eso la primera etapa no construye: comprueba que cada pieza funciona en este equipo y mide cuánta memoria usa. Para lo que podría fallar hay un plan B anotado. Los dos regímenes ya están en el repositorio (`corpus/normativa/`). Las fechas de entrada en vigencia ya no faltan: 1 de enero de 2023 para la Disposición 247/2022, informada por el responsable, y 14 de junio de 2003 para la 297/03. Las sigue escribiendo una persona al cargar cada norma; el sistema no las calcula. Faltan dos cosas que dependen de personas: las modificatorias de la 297/03, que se cargan de a poco; y los documentos de las otras categorías.
+**Qué falta comprobar.** Nada de esto se probó todavía en la notebook. Por eso la primera etapa no construye: comprueba que cada pieza funciona en este equipo y mide cuánta memoria usa. Para lo que podría fallar hay un plan B anotado. Los dos regímenes ya están en el repositorio (`corpus/normativa/`). Las fechas de entrada en vigencia ya no faltan: 2 de enero de 2023 para la Disposición 247/2022, informada por el responsable, y 14 de junio de 2003 para la 297/03. Las sigue escribiendo una persona al cargar cada norma; el sistema no las calcula. Faltan dos cosas que dependen de personas: las modificatorias de la 297/03, que se cargan de a poco; y los documentos de las otras categorías.
 
 ## Resumen del enfoque
 
@@ -202,7 +202,7 @@ Cuatro niveles: una **norma** tiene uno o más **documentos** (cada archivo carg
 |---|---|
 | `id`, `norm` | Identificación y norma a la que pertenece |
 | `part` | Qué parte de la norma es este archivo: `cuerpo` (valor por omisión) o la clave de un anexo (`anexo`, `anexo-i`, `anexo-ii`). Lo indica la persona al cargar |
-| `publication_date`, `effective_from`, `source` | Fecha de publicación, fecha de vigencia y fuente de donde se obtuvo (REQ-001). `effective_from` es desde cuándo rige el texto y lo escribe la persona: el sistema no lo calcula. Para la Disposición 247/2022 es su entrada en vigencia, el 2023-01-01, en sus dos documentos; para la 297/03, el 2003-06-14 (ADR-0006, "Datos registrados") |
+| `publication_date`, `effective_from`, `source` | Fecha de publicación, fecha de vigencia y fuente de donde se obtuvo (REQ-001). `effective_from` es desde cuándo rige el texto y lo escribe la persona: el sistema no lo calcula. Para la Disposición 247/2022 es su entrada en vigencia, el 2023-01-02, en sus dos documentos; para la 297/03, el 2003-06-14 (ADR-0006, "Datos registrados") |
 | `effective_to` | Hasta cuándo rigió este texto; vacío mientras rige. Se completa cuando se registra una versión posterior de la misma parte de la norma. Una derogación no lo completa: queda como relación |
 | `version_number` | Número de versión de esa parte de la norma; vacío hasta que el documento se registra como versión |
 | `in_use` | Si es el documento que se usa para consultar esa versión. A lo sumo uno por norma, parte y versión |
@@ -279,7 +279,7 @@ Va en tabla aparte para que listar documentos no arrastre los archivos.
 
 Las relaciones guardan la clave de la unidad y no su identificación interna, porque valen para la norma y no para una lectura en particular: si el documento se vuelve a leer, siguen apuntando al mismo artículo. Al registrar una relación se comprueba que la clave exista en los documentos en uso de la norma, en cualquiera de sus partes; al validar una lectura nueva, la validación avisa (antes de confirmar y en el hecho `validation`, no en el informe guardado, cuya huella no cambia; aclaración al implementar T-027) si alguna relación quedó sin unidad.
 
-`effective_date` es la fecha desde la que rige el cambio y la escribe la persona. La abrogación de la Disposición 297/03 se registra así: tipo `deroga`, norma de origen la 247/2022 con `source_unit_key` `art-2`, norma alcanzada la 297/03 entera, y `effective_date` igual a la fecha de entrada en vigencia de la 247/2022, que es el 2023-01-01.
+`effective_date` es la fecha desde la que rige el cambio y la escribe la persona. La abrogación de la Disposición 297/03 se registra así: tipo `deroga`, norma de origen la 247/2022 con `source_unit_key` `art-2`, norma alcanzada la 297/03 entera, y `effective_date` igual a la fecha de entrada en vigencia de la 247/2022, que es el 2023-01-02.
 
 **`norms_pending_amendment`**: modificatorias de una norma que todavía no están cargadas (REQ-021). Una fila por modificatoria.
 
@@ -421,10 +421,10 @@ Para cada unidad devuelve además `repealed`: verdadero si hay una relación `de
 `applicable_regimes(fecha)` devuelve las normas con `general_regime` verdadero que tienen al menos una unidad en `consultable_units(fecha)` con `repealed` falso. Es el régimen que se aplica a esa fecha y lo que la pantalla muestra como "Régimen aplicado".
 
 - La consulta en lenguaje natural usa las unidades con `repealed` falso: una unidad derogada a la fecha consultada no sostiene una respuesta.
-- La búsqueda directa usa todas, y muestra las derogadas a esa fecha marcadas, con la norma que las derogó y desde cuándo.
+- La búsqueda directa muestra solo las vigentes a esa fecha. Con la casilla "Incluir textos derogados", apagada de entrada, suma las derogadas a esa fecha después de las vigentes, marcadas, con la norma que las derogó y desde cuándo (enmienda de REQ-010 del 2026-10-03, tarea T-056).
 - Las pruebas de REQ-007 y de REQ-020 llaman a estas funciones con distintas fechas.
 
-**Cómo quedan los dos regímenes.** Con los datos que registra el responsable de normativa (la fecha de vigencia de cada documento al cargarlo y la fecha de la relación `deroga`), y llamando V a la fecha de entrada en vigencia de la 247/2022, que es el 2023-01-01 (la 297/03 rige desde el 2003-06-14):
+**Cómo quedan los dos regímenes.** Con los datos que registra el responsable de normativa (la fecha de vigencia de cada documento al cargarlo y la fecha de la relación `deroga`), y llamando V a la fecha de entrada en vigencia de la 247/2022, que es el 2023-01-02 (la 297/03 rige desde el 2003-06-14):
 
 | Fecha consultada | Disposición 297/03 | Disposición 247/2022 | `applicable_regimes` |
 |---|---|---|---|
@@ -661,7 +661,7 @@ En la misma pantalla, sin modelos de IA, y siempre para la fecha de autorizació
 
 Arriba de los resultados va la línea de fecha y régimen aplicado, y debajo los avisos de modificatorias sin cargar que correspondan. Cada resultado muestra la categoría, el texto literal, el enlace al original, los cambios vigentes a la fecha y, si a esa fecha está derogada, la marca con la norma que la derogó y desde cuándo. También muestra los vínculos de su norma con otras, en los dos sentidos (REQ-006). Si no hay resultados para esa fecha, la pantalla lo dice.
 
-Ejemplo: buscar el artículo 1 de la Disposición 297/03 con la fecha del día devuelve sus dos unidades marcadas como derogadas por la 247/2022; con una fecha de 2021 las devuelve sin la marca.
+Ejemplo: buscar el artículo 1 de la Disposición 297/03 con la fecha del día no devuelve nada si no se marca "Incluir textos derogados", y con la casilla marcada devuelve sus dos unidades marcadas como derogadas por la 247/2022; con una fecha de 2021 las devuelve sin la marca.
 
 ### Aviso de modificatorias sin cargar (REQ-021)
 
@@ -791,7 +791,7 @@ Observación: el restablecimiento de una clave olvidada usa el comando `changepa
 - Al menos un par: la misma pregunta en dos casos, uno con fecha anterior y otro con fecha posterior, vinculados por `pareja`. Es el criterio de aceptación de REQ-020: el primero cita la 297/03, el segundo la 247/2022, y cada uno indica su régimen y su fecha.
 - Al menos un caso con `aviso_modificatorias` verdadero (una respuesta que cita la 297/03 mientras tenga modificatorias sin cargar) y al menos uno con falso (una respuesta que cita solo la 247/2022). Es el criterio de REQ-021.
 
-Cuántas preguntas van a cada régimen lo decide el responsable (ver "Qué tiene que decidir el responsable"). Los casos cercanos al cambio de régimen se redactan con la fecha de entrada en vigencia de la 247/2022, el 2023-01-01: hasta el 2022-12-31 corresponde la 297/03.
+Cuántas preguntas van a cada régimen lo decide el responsable (ver "Qué tiene que decidir el responsable"). Los casos cercanos al cambio de régimen se redactan con la fecha de entrada en vigencia de la 247/2022, el 2023-01-02: hasta el 2023-01-01 corresponde la 297/03.
 
 **Cómo se corre.** `correr_evals`, dentro de `app`, con los servicios reales y la normativa cargada y validada. Llama a la misma función que la pantalla, con el canal `eval` y la `fecha_autorizacion` del caso, una pregunta por vez. Las consultas quedan también en el registro de auditoría.
 
@@ -905,7 +905,7 @@ Decisiones tomadas en la actualización por el ADR-0006, pendientes de aprobaci�
 
 14. **Fecha de autorización:** campo en los dos formularios, con la del día por omisión; fecha futura rechazada; fecha sin régimen cargado da "no determinado" con motivo propio.
 15. **Régimen aplicado:** lo calcula el código con `applicable_regimes(fecha)`, a partir de la marca `general_regime` de la norma; se muestra como línea de texto fijo y se guarda.
-16. **Transición entre regímenes:** la fecha de entrada en vigencia de la 247/2022, que es el 2023-01-01, la escribe una persona, en `effective_from` de sus dos documentos y en `effective_date` de la relación `deroga`. Derogada quiere decir derogada a la fecha consultada.
+16. **Transición entre regímenes:** la fecha de entrada en vigencia de la 247/2022, que es el 2023-01-02, la escribe una persona, en `effective_from` de sus dos documentos y en `effective_date` de la relación `deroga`. Derogada quiere decir derogada a la fecha consultada.
 17. **Norma en más de un archivo:** cada documento es una parte (`cuerpo` o un anexo); las unidades de un anexo cuelgan de una unidad raíz con la clave de la parte; un documento en uso por norma, parte y versión.
 18. **Modificatorias sin cargar:** tabla `norms_pending_amendment`, comando `registrar_modificatorias` con carga en lote, paso a cargada al registrar la relación, aviso de texto fijo con la cantidad.
 19. **Conteo de tokens:** `POST /tokenize` del servidor que tiene cargado cada modelo, como cuarta operación de los clientes de `evaluon/ai/`; margen de 512 tokens para la plantilla de conversación.
@@ -921,7 +921,7 @@ Ajustes por la etapa 0:
 
 Regla para asignar: los bloques marcados "en paralelo" no comparten archivos entre sí y se pueden dar a desarrolladores distintos. Todo lo que toca el esquema (`models.py`, `migrations/`) o la configuración compartida (`settings.py`, `urls.py` de la raíz, `pyproject.toml`, `Dockerfile`, `docker-compose.yml`, `.env.example`, `tests/conftest.py`) va de a uno, en una sola fila de tareas.
 
-Tres trabajos de personas corren desde el primer día, en paralelo con todo (Coordinador, responsable e integrante de la Comisión). Las fechas de entrada en vigencia, que eran el cuarto, ya están establecidas (2026-10-02): 2023-01-01 para la Disposición 247/2022, informada por el responsable, y 2003-06-14 para la 297/03. Se escriben al cargar cada documento y al registrar la derogación.
+Tres trabajos de personas corren desde el primer día, en paralelo con todo (Coordinador, responsable e integrante de la Comisión). Las fechas de entrada en vigencia, que eran el cuarto, ya están establecidas (2026-10-02): 2023-01-02 para la Disposición 247/2022, informada por el responsable, y 2003-06-14 para la 297/03. Se escriben al cargar cada documento y al registrar la derogación.
 
 - Corpus de la feature: decisión del responsable del 2026-10-03 (ADR-0008), solo la Disposición 297/03 y la 247/2022 con su anexo. Las modificatorias de la 297/03 se registran como sin cargar (REQ-021); los requisitos de categorías (REQ-018, REQ-019) y la partición de dictámenes y recomendaciones se prueban con documentos sintéticos.
 - Redactar y validar las preguntas del conjunto, cada una con su fecha de autorización.
@@ -990,10 +990,10 @@ De a uno: cualquier cambio de esquema que aparezca durante estos bloques, y la u
 
 ### Etapa 4 · Corpus real, calibración y evals
 
-De a uno, con los servicios reales. Necesita el corpus en `corpus/normativa/`, las fechas de vigencia informadas (2003-06-14 para la 297/03 y 2023-01-01 para la 247/2022), que escribe una persona al cargar, el archivo de modificatorias y el conjunto de preguntas con visto bueno.
+De a uno, con los servicios reales. Necesita el corpus en `corpus/normativa/`, las fechas de vigencia informadas (2003-06-14 para la 297/03 y 2023-01-02 para la 247/2022), que escribe una persona al cargar, el archivo de modificatorias y el conjunto de preguntas con visto bueno.
 
 1. Cargar y validar el corpus: `disp-afip-297-2003-original.htm` como cuerpo de la 297/03; `disp-afip-247-2022-original.htm` como cuerpo y `disp-afip-247-2022-anexo.pdf` como anexo de la 247/2022; las dos normas, con la marca de régimen general. Ajustar las reglas de partición contra los documentos reales.
-2. Anotar las modificatorias sin cargar de la 297/03 con `registrar_modificatorias`; registrar la relación `deroga` de la 247/2022 sobre la 297/03 con su fecha (2023-01-01), y las demás relaciones y versiones del corpus. Comprobar el cambio de régimen consultando el día anterior a la entrada en vigencia (2022-12-31) y ese mismo día (2023-01-01).
+2. Anotar las modificatorias sin cargar de la 297/03 con `registrar_modificatorias`; registrar la relación `deroga` de la 247/2022 sobre la 297/03 con su fecha (2023-01-02), y las demás relaciones y versiones del corpus. Comprobar el cambio de régimen consultando el día anterior a la entrada en vigencia (2023-01-01) y ese mismo día (2023-01-02).
 3. Calibrar el umbral.
 4. Correr las evals, la comparación quitando piezas y la medición de tiempo y memoria.
 5. Si no se alcanzan las exigencias: seguir la escalera del ADR-0002 (8 bits, instrucciones, modelo de contraste) o el reemplazo del ADR-0003, con decisión del responsable.
@@ -1084,9 +1084,9 @@ Lo que vi en los archivos del corpus, para quien escriba las reglas:
 
 | Sin verificar | Prueba que lo cierra |
 |---|---|
-| Fecha de entrada en vigencia de la Disposición 247/2022: resuelto el 2026-10-02. Es el 2023-01-01, informada por el responsable (ADR-0006, "Datos registrados"). El sistema no la calcula y este plan tampoco | Se escribe al cargar los dos documentos y al registrar la relación `deroga` |
+| Fecha de entrada en vigencia de la Disposición 247/2022: resuelto el 2026-10-02. Es el 2023-01-02, informada por el responsable (ADR-0006, "Datos registrados"). El sistema no la calcula y este plan tampoco | Se escribe al cargar los dos documentos y al registrar la relación `deroga` |
 | Fecha de vigencia de la Disposición 297/03: resuelto el 2026-10-02. Es el 2003-06-14, el día siguiente a su publicación del 13/6/2003, según su propio texto (ADR-0006, "Datos registrados") | Se escribe al cargarla |
-| Que las tres fechas de la 247/2022 queden iguales | Consulta en la pantalla con el día anterior a la entrada en vigencia (2022-12-31) y con ese día (2023-01-01): en cada una, un régimen aplicado y solo uno |
+| Que las tres fechas de la 247/2022 queden iguales | Consulta en la pantalla con el día anterior a la entrada en vigencia (2023-01-01) y con ese día (2023-01-02): en cada una, un régimen aplicado y solo uno |
 | Contenido del archivo de modificatorias de la 297/03 | Lo preparan el Coordinador y el responsable a partir del listado de Infoleg guardado. El listado trae 33 normas; una es la propia 247/2022. El nombre de algunas dependencias aparece cortado en el listado y hay que completarlo |
 | Qué son las 33 normas del listado. Por sus descripciones, varias no modifican el régimen: aprueban una licitación, designan una comisión o delegan una competencia | Se sabe al cargar cada una. Mientras tanto cuentan todas en el aviso, como pide la spec |
 
@@ -1150,7 +1150,7 @@ El corpus inicial era la Disposición AFIP 297/03. El mismo día, por el ADR-000
 
 Resueltas el 2026-10-02, después de presentada la actualización por el ADR-0006:
 
-- **Fechas de entrada en vigencia.** Disposición 247/2022: 2023-01-01, informada por el responsable. Disposición 297/03: 2003-06-14, el día siguiente a su publicación del 13/6/2003. Las escribe una persona al cargar cada norma y al registrar la relación `deroga`; el sistema no las calcula.
+- **Fechas de entrada en vigencia.** Disposición 247/2022: 2023-01-02, informada por el responsable. Disposición 297/03: 2003-06-14, el día siguiente a su publicación del 13/6/2003. Las escribe una persona al cargar cada norma y al registrar la relación `deroga`; el sistema no las calcula.
 - **Cláusula transitoria del anexo de la 247/2022.** Es una unidad citable propia, con el nombre que le da el documento, ubicada después del artículo 99: tipo `clausula`, clave `anexo/clausula-transitoria`, ruta "Anexo › Cláusula transitoria". Sin número y sin usar el tipo `parrafo`. Vale para todo texto normativo con título propio y sin número (REQ-003).
 
 ## Actualización por ADR-0006
@@ -1199,7 +1199,7 @@ Fecha: 2026-10-02. Aprobada por el responsable el 2026-10-02. Esta sección list
 
 **Hilo mínimo.** Antes se hacía con la Disposición 297/03 en un PDF que había que conseguir o generar. Ahora se hace con `disp-afip-247-2022-anexo.pdf`, que ya está en el corpus.
 
-**Ajustes del 2026-10-02 por dos definiciones del responsable.** Primero, las fechas de entrada en vigencia ya están informadas (247/2022: 2023-01-01; 297/03: 2003-06-14) y dejaron de figurar como faltantes en "En pocas palabras", "Modelo de datos", "Unidades consultables a una fecha", "Evals", "Orden de construcción", "Sin verificar y cómo se cierra" y "Qué tiene que decidir el responsable". Segundo, la cláusula transitoria del anexo de la 247/2022 es una unidad de tipo `clausula`, con clave `anexo/clausula-transitoria`: tipo nuevo en `norms_unit.unit_type`, sección nueva "Texto normativo sin número de artículo", fila de REQ-003 en "Cobertura de requisitos" y decisión 21.
+**Ajustes del 2026-10-02 por dos definiciones del responsable.** Primero, las fechas de entrada en vigencia ya están informadas (247/2022: 2023-01-02; 297/03: 2003-06-14) y dejaron de figurar como faltantes en "En pocas palabras", "Modelo de datos", "Unidades consultables a una fecha", "Evals", "Orden de construcción", "Sin verificar y cómo se cierra" y "Qué tiene que decidir el responsable". Segundo, la cláusula transitoria del anexo de la 247/2022 es una unidad de tipo `clausula`, con clave `anexo/clausula-transitoria`: tipo nuevo en `norms_unit.unit_type`, sección nueva "Texto normativo sin número de artículo", fila de REQ-003 en "Cobertura de requisitos" y decisión 21.
 
 **Frases de otros documentos que quedaron atrás.** Este plan no los modifica; se informan al Coordinador:
 

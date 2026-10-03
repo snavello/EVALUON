@@ -14,7 +14,7 @@ difieren: false
 pareja: ""
 aviso_modificatorias: false
 etiquetas: ["tema cercano que la normativa no resuelve"]
-visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |
   Igual que EV-027: el sistema podría citar el artículo 21 de la 297/03 para decir que el monto lo fija el régimen jurisdiccional.

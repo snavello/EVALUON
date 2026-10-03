@@ -31,7 +31,7 @@ difieren: false
 pareja: ""
 aviso_modificatorias: false
 etiquetas: ["referencia exacta"]
-visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |
   El origen junta el encabezado del artículo y el comienzo de cada inciso; el texto completo de cada modalidad es largo.

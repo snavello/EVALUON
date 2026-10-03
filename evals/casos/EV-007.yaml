@@ -17,5 +17,5 @@ difieren: false
 pareja: ""
 aviso_modificatorias: false
 etiquetas: ["palabras distintas a las de la norma"]
-visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido

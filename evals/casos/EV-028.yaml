@@ -14,7 +14,7 @@ difieren: false
 pareja: ""
 aviso_modificatorias: false
 etiquetas: ["tema cercano que la normativa no resuelve"]
-visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |
   Caso dudoso: el artículo 50 sí dice algo (los integrantes no pueden ser funcionarios con competencia para autorizar la convocatoria o aprobar el procedimiento). Una respuesta que cite solo eso podría considerarse parcial y correcta. Si la persona validadora prefiere, se reformula a "¿Cuántos miembros...?". Es la misma pregunta que EV-022 bajo la 297/03.

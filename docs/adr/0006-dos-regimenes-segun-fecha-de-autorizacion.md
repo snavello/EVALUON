@@ -53,3 +53,5 @@ Se adopta la alternativa C.
 - **2026-10-02 · Entrada en vigencia de la Disposición 247/2022:** 1 de enero de 2023, informada por el responsable del proyecto. Los procedimientos autorizados desde esa fecha se rigen por la 247/2022; los anteriores, por la 297/03.
 - **2026-10-02 · Entrada en vigencia de la Disposición 297/03:** 14 de junio de 2003, el día siguiente a su publicación en el Boletín Oficial del 13/6/2003, según su propio texto.
 
+
+- **2026-10-03 · Corrección de la entrada en vigencia de la Disposición 247/2022:** 2 de enero de 2023. El art. 3 la fija en VEINTE (20) días hábiles administrativos desde su publicación en el Boletín Oficial (30/11/2022); descontando como inhábiles el 8/12, el 9/12 (feriado puente) y el 20/12/2022, el día 20 es el lunes 2 de enero de 2023. Decisión del responsable. Los procedimientos autorizados hasta el 1 de enero de 2023 se rigen por la 297/03.
