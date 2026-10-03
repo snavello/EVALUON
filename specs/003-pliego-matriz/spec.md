@@ -1,6 +1,6 @@
 # Spec 003 · Procedimiento, pliego final y matriz de cumplimiento
 
-Estado: borrador · Fecha: 2026-10-03 · Aprobó: —
+Estado: aprobada · Fecha: 2026-10-03 · Aprobó: responsable del proyecto
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
 > Cada duda se marca `[A ACLARAR: pregunta concreta]`. Una spec con marcas pendientes no pasa la compuerta.
