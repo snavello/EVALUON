@@ -19,20 +19,48 @@ línea (`\\n`) y las líneas de un mismo párrafo se unen. Dentro de una página
 empieza un párrafo si la separa de la anterior un espacio vertical mayor que la mitad del
 alto de la línea (en el anexo de la Disp. 247/2022: 1,5 puntos entre líneas de un
 párrafo y 13,5 entre párrafos, con líneas de 12 puntos), o si empieza con un encabezado
-de artículo. Entre páginas, el párrafo sigue solo si la última línea de la página llega
-al margen derecho y no termina en punto, dos puntos o punto y coma; ante la duda empieza
-otro párrafo, porque un salto de más no cambia ninguna palabra y una unión de más podría
-esconder un encabezado. Una línea sin posición (página web) es un párrafo propio.
+de artículo (en una línea de reconocimiento, también con la forma tolerante de
+`headings.py`), de título o de cláusula en mayúsculas, o con un encabezado de inciso
+después de una línea que cierra con punto, dos puntos o punto y coma (así un "inciso\\nb)
+del presente artículo" partido por el renglón no se toma por un inciso). Entre páginas,
+el párrafo sigue solo si la última línea de la página llega al margen derecho y no
+termina en punto, dos puntos o punto y coma; ante la duda empieza otro párrafo, porque un
+salto de más no cambia ninguna palabra y una unión de más podría esconder un encabezado.
+Una línea sin posición (página web) es un párrafo propio.
 
 Las líneas que la lectura marcó como descartadas (`Line.discarded`) no entran en el
-texto canónico: se cuentan para el informe.
+texto canónico: se cuentan para el informe. Tampoco entran los encabezados y pies de
+página de un PDF (ADR-0004, "Encabezados y pies que se descartan"): las líneas de la
+franja superior o inferior que se repiten en la mayoría de las páginas, ignorando los
+números, y las formas conocidas (número de página, dirección web que agrega el
+navegador, fecha de impresión, número de documento GDE). Se descartan antes de armar el
+texto para que un artículo que cruza la página quede entero.
 """
 
 import re
 import unicodedata
 from dataclasses import dataclass, field
 
-from evaluon.norms.splitting.articles import ARTICLE_HEADING
+from evaluon.norms.reading import ORIGIN_OCR
+from evaluon.norms.splitting.headings import (
+    is_uppercase,
+    starts_article,
+    starts_inciso,
+    starts_structural_heading,
+)
+
+# Franja superior e inferior de la página, en proporción a su alto.
+PAGE_BAND_RATIO = 0.1
+# Formas conocidas de encabezado y pie de página, dentro de la franja.
+PAGE_FURNITURE_FORMS = re.compile(
+    r"P[áa]gina \d+ de \d+$"  # número de página
+    r"|-?\s*\d{1,3}\s*-?$"  # número de página solo
+    r"|https?://\S+$"  # dirección que agrega el navegador al imprimir
+    r"|\d{1,2}/\d{1,2}/\d{2,4},?\s+\d{1,2}:\d{2}"  # fecha y hora de impresión
+    r"|IF-\d{4}-\d+-APN-"  # número de documento GDE al pie
+)
+_DIGITS = re.compile(r"\d+")
+_INCISO_BEFORE = (".", ":", ";")
 
 # Operación 2. Ligaduras del bloque de formas de presentación alfabéticas (U+FB00 a
 # U+FB06), espacios duros y guion opcional.
@@ -55,10 +83,6 @@ _FIRST_WORD = re.compile(r"\w+")
 
 # Operación 5.
 _REPEATED_SPACES = re.compile(r" {2,}")
-
-# Un renglón que empieza con un encabezado de artículo empieza un párrafo. Es la misma
-# forma que reconoce la partición.
-_ARTICLE_HEADING_START = ARTICLE_HEADING
 
 # Separación vertical entre líneas, en proporción al alto de la línea, a partir de la
 # cual empieza otro párrafo.
@@ -92,6 +116,15 @@ class HyphenJoin:
 
 
 @dataclass
+class DiscardedLine:
+    """Una línea que no entra en el texto canónico, con su motivo."""
+
+    page: int | None
+    reason: str
+    text: str
+
+
+@dataclass
 class CanonicalText:
     """El texto canónico de una lectura y cómo se armó."""
 
@@ -100,6 +133,7 @@ class CanonicalText:
     paragraphs: list[tuple[int, int]] = field(default_factory=list)
     hyphen_joins: list[HyphenJoin] = field(default_factory=list)
     discarded_lines: int = 0
+    discarded: list[DiscardedLine] = field(default_factory=list)
 
     def lines_in(self, start, end):
         """Las líneas que tienen texto dentro de `text[start:end]`."""
@@ -127,25 +161,74 @@ def normalize_line(text):
 def build_canonical_text(reading):
     """Arma el texto canónico de una lectura (`evaluon.norms.reading.DocumentReading`)."""
     builder = _Builder()
-    previous = None  # (página, línea) de la última línea agregada
-    for page in reading.pages:
-        for line in page.lines:
-            if line.discarded:
+    furniture = page_furniture(reading)
+    previous = None  # (página, línea, texto) de la última línea agregada
+    in_heading = False  # el párrafo abierto es un encabezado de título o de cláusula
+    for page_index, page in enumerate(reading.pages):
+        for line_index, line in enumerate(page.lines):
+            reason = line.discarded or furniture.get((page_index, line_index), "")
+            if reason:
                 builder.discarded_lines += 1
+                builder.discarded.append(
+                    DiscardedLine(page=page.number, reason=reason, text=normalize_line(line.text))
+                )
                 continue
             text = normalize_line(line.text)
             if not text.strip():
                 continue
-            if previous is None or _starts_paragraph(previous, page, line, text):
+            # Un encabezado de título o de cláusula es un párrafo propio: puede seguir
+            # en otro renglón en mayúsculas, pero un renglón con minúsculas empieza otro.
+            after_heading = in_heading and not is_uppercase(text)
+            if previous is None or after_heading or _starts_paragraph(previous, page, line, text):
                 builder.new_paragraph()
+                in_heading = starts_structural_heading(text.lstrip())
+            elif in_heading:
+                in_heading = is_uppercase(text)
             builder.add_line(page.number, line, text)
-            previous = (page, line)
+            previous = (page, line, text)
     return builder.result()
 
 
+def page_furniture(reading):
+    """Encabezados y pies de página de un PDF: `{(página, línea): motivo}` con las
+    líneas de la franja superior o inferior que se repiten en la mayoría de las páginas
+    (ignorando los números) o que tienen una forma conocida."""
+    in_band = {}
+    pages_with_text = 0
+    for page_index, page in enumerate(reading.pages):
+        if not page.lines:
+            continue
+        pages_with_text += 1
+        if not page.height:
+            continue
+        for line_index, line in enumerate(page.lines):
+            if line.top is None or line.bottom is None or line.discarded:
+                continue
+            top_band = line.top < page.height * PAGE_BAND_RATIO
+            bottom_band = line.bottom > page.height * (1 - PAGE_BAND_RATIO)
+            if top_band or bottom_band:
+                in_band[(page_index, line_index)] = normalize_line(line.text).strip()
+
+    pages_by_form = {}
+    for (page_index, _), text in in_band.items():
+        pages_by_form.setdefault(_DIGITS.sub("#", text), set()).add(page_index)
+
+    furniture = {}
+    for position, text in in_band.items():
+        repeated = len(pages_by_form[_DIGITS.sub("#", text)])
+        if repeated >= 2 and repeated * 2 > pages_with_text:
+            furniture[position] = "encabezado_o_pie"
+        elif PAGE_FURNITURE_FORMS.match(text):
+            furniture[position] = "forma_conocida"
+    return furniture
+
+
 def _starts_paragraph(previous, page, line, text):
-    previous_page, previous_line = previous
-    if _ARTICLE_HEADING_START.match(text.lstrip()):
+    previous_page, previous_line, previous_text = previous
+    start = text.lstrip()
+    if starts_article(start, ocr=line.origin == ORIGIN_OCR) or starts_structural_heading(start):
+        return True
+    if starts_inciso(start) and previous_text.rstrip().endswith(_INCISO_BEFORE):
         return True
     if None in (line.top, line.bottom, previous_line.top, previous_line.bottom):
         return True
@@ -170,6 +253,7 @@ class _Builder:
         self.paragraphs = []
         self.hyphen_joins = []
         self.discarded_lines = 0
+        self.discarded = []
         self.paragraph_start = None
 
     def _append(self, text):
@@ -235,4 +319,5 @@ class _Builder:
             paragraphs=self.paragraphs,
             hyphen_joins=self.hyphen_joins,
             discarded_lines=self.discarded_lines,
+            discarded=self.discarded,
         )

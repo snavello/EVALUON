@@ -1,18 +1,21 @@
-"""Partición de documentos en unidades citables (ADR-0004; plan 001, "Ingesta"; T-013).
+"""Partición de documentos en unidades citables (ADR-0004; plan 001, "Ingesta"; T-013 y
+T-023).
 
 Entrada única: `split_document(lectura, parte)`. Recibe la lectura de `norms/reading/`
 y la parte del documento (`cuerpo`, por omisión, o la clave de un anexo: `anexo`,
 `anexo-i`), y devuelve un `SplitResult` con:
 
 - el texto canónico, su huella y la versión de las reglas (`canonical.py`);
-- las unidades, en el orden del documento (`Unit`). Con una parte que es un anexo, la
-  primera es la unidad raíz de tipo `anexo`, cuya clave es la parte, y las demás cuelgan
-  de ella (`anexo/art-1`); con `cuerpo` no hay unidad raíz (`art-1`). El texto de cada
-  unidad es igual a `canonical_text[char_start:char_end]`;
+- las unidades, en el orden del documento (`Unit`): artículos con sus incisos, cláusulas
+  (texto normativo sin número), anexos, visto y considerandos (`headings.py` y
+  `partition.py`). Con una parte que es un anexo, la primera es la unidad raíz de tipo
+  `anexo`, cuya clave es la parte, y las demás cuelgan de ella (`anexo/art-1`); con
+  `cuerpo` no hay unidad raíz (`art-1`). Una unidad viene siempre después de la que la
+  contiene. El texto de cada unidad es igual a `canonical_text[char_start:char_end]`;
 - el informe de lectura, en datos y en texto (`report.py`).
 
-En esta etapa la partición reconoce solo artículos (`articles.py`). Todo corre en CPU,
-sin los servicios de IA, y la misma lectura da siempre el mismo resultado.
+Todo corre en CPU, sin los servicios de IA, y la misma lectura da siempre el mismo
+resultado.
 """
 
 import hashlib
@@ -20,19 +23,23 @@ import re
 from dataclasses import dataclass, field
 
 from evaluon.norms.reading import FORMAT_HTML, ORIGIN_OCR, ORIGIN_PDF_TEXT, ORIGIN_WEB
-from evaluon.norms.splitting import articles
+from evaluon.norms.splitting import partition as rules
 from evaluon.norms.splitting.canonical import CanonicalText, build_canonical_text
-from evaluon.norms.splitting.report import BODY_CONTAINER, build_report, report_text
+from evaluon.norms.splitting.report import build_report, report_text
 
 # Versión de las reglas de partición; se guarda con la lectura (`tool_versions`) y en el
 # informe. Cambia cada vez que cambia una regla, para saber con qué reglas se partió.
-RULES_VERSION = "1"
+# 2: T-023 (incisos, títulos en la ruta, cláusulas, anexos, considerandos, carátula,
+# encabezados y pies, secuencia con margen, encabezados de reconocimiento).
+# 3: T-023, ajustes de verificación (el índice se confirma dentro de su contenedor; un
+# párrafo en prosa que empieza con "ANEXO I" no abre un anexo).
+RULES_VERSION = "3"
 
 BODY = "cuerpo"
 # `cuerpo`, o la clave de un anexo: `anexo` o `anexo-` y su número o letra.
 _PART = re.compile(r"cuerpo|anexo(?:-[a-z0-9]+)?")
 
-PATH_SEPARATOR = " › "
+PATH_SEPARATOR = rules.PATH_SEPARATOR
 
 
 @dataclass
@@ -80,38 +87,54 @@ def split_document(reading, part=BODY):
         )
     canonical = build_canonical_text(reading)
     text = canonical.text
-    paragraphs = [
-        articles.classify(text[start:end], start, end, index)
-        for index, (start, end) in enumerate(canonical.paragraphs)
+    ocr_flags = [
+        any(line.origin == ORIGIN_OCR for line in canonical.lines_in(start, end))
+        for start, end in canonical.paragraphs
     ]
-    with_root = part != BODY
-    segments = articles.partition(paragraphs, with_root=with_root)
+    paragraphs = rules.classify(canonical.paragraphs, text, canonical, ocr_flags)
+    root = _annex_root(part) if part != BODY else None
+    result = rules.partition(paragraphs, root=root)
 
-    root = _annex_root(part) if with_root else None
-    units, others = [], []
-    for segment in segments:
-        if segment.first > segment.last:
-            start = end = 0  # unidad raíz sin texto propio
-        else:
-            start, end = paragraphs[segment.first].start, paragraphs[segment.last].end
-        if segment.kind == "root":
-            units.append(_root_unit(root, canonical, reading, paragraphs, segment, start, end))
-        elif segment.kind == "article":
-            units.append(_article_unit(root, canonical, reading, start, end, segment.number))
-        else:
-            others.append((segment.kind, start, end, segment.reason))
+    units, spans, after_last_inciso = [], [], []
+    for item in result.items:
+        start, end = _range(paragraphs, item.first, item.last, len(text))
+        if isinstance(item, rules.Span):
+            spans.append((item.kind, start, end, item.reason))
+            continue
+        unit = _unit(canonical, reading, item, start, end)
+        units.append(unit)
+        if item.unit_type == "articulo":
+            nodes = rules.find_incisos(paragraphs, item)
+            for node in nodes:
+                _add_incisos(units, canonical, reading, paragraphs, unit, node)
+            for path, count in rules.after_last_inciso(nodes, item.last):
+                keys = [unit.key] + [f"inc-{node.heading.number}" for node in path]
+                after_last_inciso.append(
+                    {
+                        "key": "/".join(keys),
+                        "inside": "/".join(keys[:-1]),
+                        "paragraphs": count,
+                        "page": paragraphs[path[-1].end + 1].page,
+                    }
+                )
     for order, unit in enumerate(units, start=1):
         unit.order = order
 
-    container = {"name": root["path"], "key": part} if root else {"name": BODY_CONTAINER, "key": ""}
     report = build_report(
         reading=reading,
         canonical=canonical,
         units=units,
-        segments=others,
+        segments=spans,
         part=part,
         rules_version=RULES_VERSION,
-        container=container,
+        containers=[{"name": c.name, "key": c.key} for c in result.containers],
+        sequence=[
+            {"container": c.name, "key": c.key, "gaps": c.gaps, "not_accepted": c.not_accepted}
+            for c in result.containers
+        ],
+        uppercase_in_units=result.uppercase_in_units,
+        doubtful_headings=result.doubtful_headings,
+        after_last_inciso=after_last_inciso,
     )
     return SplitResult(
         canonical=canonical,
@@ -130,19 +153,23 @@ def _annex_root(part):
     return {"key": part, "number": number, "path": "Anexo" + (f" {number}" if number else "")}
 
 
-def _root_unit(root, canonical, reading, paragraphs, segment, start, end):
-    label = root["path"]
-    for paragraph in paragraphs[segment.first : segment.last + 1]:
-        if articles.ANNEX_HEADING.match(paragraph.text):
-            label = paragraph.text
-            break
+def _range(paragraphs, first, last, length):
+    """Posición en el texto canónico de los párrafos `first` a `last`. Un tramo vacío
+    queda en el comienzo del párrafo que le seguiría."""
+    if first > last:
+        start = paragraphs[first].start if first < len(paragraphs) else length
+        return start, start
+    return paragraphs[first].start, paragraphs[last].end
+
+
+def _unit(canonical, reading, block, start, end):
     page_start, page_end = canonical.pages_at(start, end)
     return Unit(
-        unit_type="anexo",
-        number=root["number"],
-        label=label,
-        key=root["key"],
-        path=root["path"],
+        unit_type=block.unit_type,
+        number=block.number,
+        label=block.label,
+        key=block.key,
+        path=block.path,
         order=0,
         page_start=page_start,
         page_end=page_end,
@@ -150,32 +177,28 @@ def _root_unit(root, canonical, reading, paragraphs, segment, start, end):
         char_end=end,
         text=canonical.text[start:end],
         text_origin=_origin(canonical, reading, start, end),
+        parent_key=block.parent_key,
     )
 
 
-def _article_unit(root, canonical, reading, start, end, number):
-    text = canonical.text[start:end]
-    page_start, page_end = canonical.pages_at(start, end)
-    key = f"art-{number}"
-    path = f"Artículo {number}"
-    if root:
-        key = f"{root['key']}/{key}"
-        path = root["path"] + PATH_SEPARATOR + path
-    return Unit(
-        unit_type="articulo",
-        number=str(number),
-        label=articles.article_label(text),
-        key=key,
-        path=path,
-        order=0,
-        page_start=page_start,
-        page_end=page_end,
-        char_start=start,
-        char_end=end,
-        text=text,
-        text_origin=_origin(canonical, reading, start, end),
-        parent_key=root["key"] if root else None,
+def _add_incisos(units, canonical, reading, paragraphs, parent, node):
+    """Suma el inciso `node` y los suyos, en el orden del documento."""
+    start, end = paragraphs[node.index].start, paragraphs[node.end].end
+    number = node.heading.number
+    block = rules.Block(
+        unit_type="inciso",
+        number=number,
+        label=node.heading.label,
+        key=f"{parent.key}/inc-{number}",
+        path=f"{parent.path}{PATH_SEPARATOR}Inciso {number}",
+        parent_key=parent.key,
+        first=node.index,
+        last=node.end,
     )
+    unit = _unit(canonical, reading, block, start, end)
+    units.append(unit)
+    for child in node.children:
+        _add_incisos(units, canonical, reading, paragraphs, unit, child)
 
 
 def _origin(canonical, reading, start, end):
