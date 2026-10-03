@@ -2372,3 +2372,48 @@ Está muy por debajo de 200 ms: no hace falta índice.
 2. Par EV-003 / EV-017: el par cumple su objetivo (régimen y norma correctos en los dos casos). La respuesta incompleta de EV-017 (no dice que se pierde la garantía de la oferta), junto con EV-006 y EV-009, queda como mejora pendiente: es un ajuste de instrucciones, con su propia tarea y su medición.
 3. REQ-019: se redactan 2 o 3 casos nuevos con visto bueno del responsable y se miden en una corrida corta (T-066). REQ-018: queda pendiente hasta que se cargue una norma de otra categoría; lo puede habilitar la Comisión con la feature 009.
 4. EV-044 (lote de aceptación) falla por el umbral con otras palabras que la norma; queda registrado y no se ajusta nada con el lote de aceptación (ADR-0014).
+
+## T-048 · Respaldo y restauración de la base
+
+**Fecha:** 2026-10-03, en la MSI. Proyecto Docker `evaluon` levantado desde la copia principal (commit `ac0c8e9`), con la base `evaluon` cargada: 3 documentos, 298 hechos de auditoría y 255 consultas. La base `evaluon` solo se leyó: las consultas de comparación corrieron con `SET default_transaction_read_only = on`. La restauración se hizo en una base aparte, `evaluon_restore`, en el mismo servidor `db`, y al final se borró solo esa base.
+
+**Comandos y tiempos** (Git Bash, desde la raíz de la copia principal; los tiempos son los de `time`):
+
+| Paso | Comando | Tiempo |
+|---|---|---|
+| 1. Detener `app` | `docker compose stop app` | 1,3 s |
+| 2. Respaldar | `docker compose exec -T db sh -c 'pg_dump -Fc -U "$POSTGRES_USER" "$POSTGRES_DB"' > backups/evaluon-2026-10-03.dump` | 0,8 s |
+| 3. Revisar el respaldo | `docker compose exec -T db pg_restore -l < backups/evaluon-2026-10-03.dump` (175 entradas, Postgres 17.11, formato custom con gzip) | menos de 1 s |
+| 4. Crear la base aparte | `docker compose exec -T db sh -c 'createdb -U "$POSTGRES_USER" evaluon_restore'` | 0,6 s |
+| 5. Restaurar | `docker compose exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d evaluon_restore --exit-on-error' < backups/evaluon-2026-10-03.dump` (salida 0, sin avisos) | 1,0 s |
+| 6. `migrate` sobre la base restaurada | `docker compose run --rm --no-deps -T -e POSTGRES_DB=evaluon_restore migrate` | 2,2 s |
+| 7. `migrate` sobre la base cargada | `docker compose run --rm --no-deps -T -e POSTGRES_DB=evaluon migrate` | 2,2 s |
+| 8. Levantar todo | `docker compose up -d` (antes, `--dry-run`: no recrea ningún contenedor; `migrate` corre de nuevo y `app` arranca) | 2,8 s; `app` sana a los 10 s |
+| 9. Borrar la base aparte | `docker compose exec -T db sh -c 'dropdb -U "$POSTGRES_USER" evaluon_restore'` | 0,5 s |
+
+`app` estuvo detenida de 17:57:06 a 17:59:08 (2 minutos), porque se la dejó detenida mientras se comparaba. Lo imprescindible (detener, respaldar y levantar) suma unos 15 s.
+
+**Tamaños.** Base `evaluon`: 19 MB (`pg_database_size`). Respaldo: 4.031.919 bytes (3,8 MiB), sha256 `951eb114df222eed2b66f14374333eb984119da9af45e5b22df8440aaa240a0f`. Base restaurada: 20 MB. La diferencia de 1 MB es de espacio libre en las páginas de la base de origen, no de datos (las cantidades y las huellas por tabla coinciden).
+
+**`backups/`.** Está en `.gitignore` (línea 17: `git check-ignore -v backups/evaluon-2026-10-03.dump` lo confirma) y `git status` sigue limpio con el respaldo adentro. El respaldo queda en `backups/` de la copia principal: es material de la base real y no se sube (P4).
+
+**Comparación de la base restaurada con la de origen.** El mismo archivo SQL se corrió en las dos bases y las salidas son iguales línea por línea, salvo el nombre de la base:
+
+- Cantidad de filas de las 14 tablas con datos, iguales. Entre ellas: `audit_event` 298, `queries_query` 255, `norms_document` 3, `norms_document_file` 3, `norms_unit` 1502, `norms_passage` 223, `norms_reading` 6, `django_migrations` 27. Último hecho de auditoría: id 298, 2026-10-03 20:29:42 UTC, en las dos.
+- Huella de los originales: en la base restaurada, `sha256(content)` de `norms_document_file` es igual a `norms_document.file_sha256`, la registrada en la carga, en los tres documentos, y el tamaño en bytes es igual a `file_size`. Son también las huellas de los archivos de `corpus/normativa/`.
+- Huella del contenido por tabla (md5 de todas las filas, ordenadas por id), igual en las dos: `audit_event` `f535172478e9bec937eca7a724196b87`, `queries_query` `8c1647df178441052028ce4fd55c4bbf`, `norms_unit` `c062fc2d8a6df30cfadfe790720d4402`, `norms_passage` `d671352f6246ce1b5bccb56a77306ed9`, `norms_reading` `d16ef4ec3f6aef79ceca0d8bbd5fdbbe`, `django_migrations` `8b4f0b345b101a6152d1b20bc4184bc6`.
+- En la base restaurada están las extensiones `vector` 0.8.7, `unaccent` 1.1 y `plpgsql`, y los triggers `audit_event_append_only` y `queries_query_insert_only`. Los triggers de solo inserción no frenan la restauración, porque `pg_restore` solo inserta.
+
+**La consulta guardada en la pantalla.** Se mostró cada una de las 255 consultas guardadas con la misma vista de la pantalla (`evaluon.queries.views.query_detail`) en las dos bases. Se usó un contenedor de una sola vez, con el código de la copia principal: `(echo "PICK = 246"; cat render.py) | docker compose run --rm --no-deps -T -e POSTGRES_DB=<base> app python manage.py shell`. El script pone la conexión en solo lectura y arma cada pedido con `RequestFactory`, con el usuario dueño de la consulta. No pasa por el ingreso, así que no crea sesiones ni hechos de auditoría. Llama a la vista y guarda el código de respuesta y el sha256 del HTML. Antes de calcular la huella reemplaza el valor del campo `csrfmiddlewaretoken`, que cambia en cada pedido. Resultado: 255 de 255 con código 200 (200 con fundamento y 55 no determinadas), y las 255 huellas son iguales entre las dos bases. Para la consulta 246 se guardó y se leyó el HTML completo: "En una licitación para alquilar un inmueble, ¿se puede adjudicar al actual locador…", con fecha 11/09/2006, régimen 297/03, aviso de 32 modificatorias sin cargar y tres afirmaciones citadas (art. 61, dos veces, y art. 45 del anexo I) con su texto. La huella es `a177e59b20f726d84a71c572df78edd8079800b2563ae133befdeee94c4b724b` en las dos bases.
+
+**`migrate` sobre una base con datos.** En las dos bases imprime "la base tiene datos; solo se comprueba que no haya migraciones pendientes" y "no hay migraciones pendientes", y termina con 0. `django_migrations` queda igual antes y después (27 filas, mismo md5). Para probar el otro caso se borró, solo en `evaluon_restore`, la fila de `sessions.0001_initial` de `django_migrations`, y quedó una migración pendiente. `migrate` terminó con 1, mostró el procedimiento de cuatro pasos y no aplicó nada: `django_migrations` siguió con 26 filas. Con `migrate` fallado, `app` no arranca por `depends_on: service_completed_successfully`. Esto no se probó levantando `app` contra esa base. No se encontró ningún defecto en `scripts/migrate_on_start.sh`.
+
+**La base cargada, al terminar.** Se volvió a correr la comparación en `evaluon` después de todo y la salida es igual a la del principio: 298 hechos y 255 consultas, sin hechos nuevos. Quedaron arriba y sanos los cinco servicios permanentes (`app`, `db`, `generation`, `embeddings` y `reranker`), y `migrate` terminó con 0. `http://127.0.0.1:8000/` responde 302 al ingreso.
+
+**Para el runbook (T-049).**
+
+- Usar el comando de respaldo de `scripts/migrate_on_start.sh`, no el literal del plan (`docker compose exec db pg_dump -Fc evaluon`). Sin `-T`, `exec` abre una terminal y en Git Bash puede alterar la salida binaria. Sin `-U`, `pg_dump` se conecta como `root`, un rol que no existe en la base.
+- Restaurar siempre en una base nueva (`createdb` y después `pg_restore`). Restaurar sobre `evaluon` exige borrarla antes: es destructivo y pide confirmación con el detalle de lo que se pierde.
+- `pg_restore` crea las extensiones `vector` y `unaccent`. Con el usuario de `POSTGRES_USER` funciona porque es superusuario. Si en el despliegue se separa el usuario de la aplicación del dueño del esquema, la restauración se tiene que hacer con el dueño o con un superusuario.
+- Cuando hay una migración pendiente, `migrate --check` no dice cuál es. Para verla: `docker compose run --rm --no-deps app python manage.py showmigrations`.
+- El respaldo no incluye `models/` ni `corpus/`: los originales cargados ya están dentro de la base (plan, "Respaldo").
