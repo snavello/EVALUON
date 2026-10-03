@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "evaluon.accounts",
     "evaluon.audit",
+    "evaluon.norms",
 ]
 
 MIDDLEWARE = [

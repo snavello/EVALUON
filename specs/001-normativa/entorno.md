@@ -1401,3 +1401,19 @@ docker exec -i evaluon-db-1 sh -c 'psql -U "$POSTGRES_USER" -d evaluon -c "DROP 
 ```
 
 **Solo inserciones, por trigger (`audit/0002_append_only`).** El registro de auditoría solo admite inserciones: el trigger `audit_event_append_only` (`BEFORE UPDATE OR DELETE ... FOR EACH ROW`, función `audit_event_reject_change`) rechaza cualquier modificación o borrado, venga de Django o de SQL directo. Para limpiar datos de prueba hay que recrear la base (`docker compose down -v`, o borrar y crear la base); los tests no se ven afectados porque cada uno deshace su transacción. Borrar un usuario con hechos registrados tampoco llega a `audit_event`: Django lo impide (`PROTECT`) y la clave foránea no tiene borrado en cascada. Se aplicó con `docker compose run --rm --no-deps app python manage.py migrate`; la reversa (`migrate audit 0001`, que quita trigger y función, y otra vez `migrate`) corrió sin error.
+
+## Migraciones de `norms` (T-008)
+
+Fecha: 2026-10-02. `norms/0001_extensions` crea con SQL propio las extensiones `vector` y `unaccent` (`CREATE EXTENSION IF NOT EXISTS`; reversa `DROP EXTENSION IF EXISTS`). `norms/0002_tables` crea las nueve tablas de "Modelo de datos" con sus restricciones, sin la columna `tsv` ni las funciones SQL (T-009). La segunda se generó con el override local (`makemigrations norms --name tables`); la primera se escribió a mano. Con el montaje normal, `makemigrations --check --dry-run` dijo `No changes detected`.
+
+**Base `evaluon`, sin datos que conservar.** `migrate` se detuvo y mostró el procedimiento, como corresponde; se aplicó el paso 3 y después `migrate` no encontró nada pendiente. Reversa: `migrate norms zero` dejó la base sin tablas `norms_*` y solo con `plpgsql`; otra vez `migrate` las recreó, con `unaccent` 1.1 y `vector` 0.8.7.
+
+```
+docker compose run --rm --no-deps app python manage.py migrate              Applying norms.0001_extensions... OK / norms.0002_tables... OK
+docker compose run --rm --no-deps app python manage.py migrate norms zero   Unapplying norms.0002_tables... OK / norms.0001_extensions... OK
+docker compose run --rm --no-deps app python manage.py migrate              Applying norms.0001_extensions... OK / norms.0002_tables... OK
+```
+
+**Base vacía.** En una base aparte (`t008_prueba`), creada y borrada para la prueba como en T-005 y T-007, `migrate_on_start.sh` aplicó todo (`accounts`, `audit` 0001 y 0002, `contenttypes`, `auth`, `norms` 0001 y 0002, `sessions`) y en la segunda corrida informó que no hay migraciones pendientes.
+
+**Versión de la normativa frente al trigger de solo inserción.** `audit_event` no admite UPDATE (T-007), así que un hecho no puede recibir su número de versión después de insertado. `evaluon.audit.services.record(..., creates_corpus_version=True)`, dentro de la transacción de quien hace el cambio: (1) bloquea `norms_corpus_version` en modo `SHARE ROW EXCLUSIVE`, que serializa la creación de versiones sin impedir leerla; (2) reserva el número con `nextval(pg_get_serial_sequence('norms_corpus_version', 'id'))`; (3) inserta el hecho con ese número en `corpus_version` y en `detail.new_corpus_version`; (4) inserta la versión con ese `id`, apuntando al hecho. Solo se admite con resultado `ok`. Los demás hechos llevan la versión vigente, `max(id)` de `norms_corpus_version`, o vacío si no hay ninguna (`current_corpus_version()`). El bloqueo hace que los números se confirmen en el orden en que se reservan: nadie registra como vigente una versión cuyo cambio todavía no se confirmó. Una transacción deshecha deja un hueco en la numeración, que sigue creciente.
