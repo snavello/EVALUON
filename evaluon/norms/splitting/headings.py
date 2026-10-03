@@ -12,7 +12,7 @@ contexto, si se acepta (control de secuencia, índice, zona del documento).
 | Inciso | `a)`, `ñ)`, `1)`, `1.`, `Inciso 1)`, `inc. a)`. No: `1.1.`, `1.000` |
 | Título, capítulo, sección | `TÍTULO II`, `CAPÍTULO VIII`, `SECCIÓN 1ª`, en un párrafo en mayúsculas |
 | Cláusula (texto sin número) | Lista `CLAUSE_FORMS`: `CLÁUSULA TRANSITORIA`, con o sin tilde y con o sin epígrafe, en un párrafo en mayúsculas |
-| Anexo | `ANEXO`, `ANEXO I`, `ANEXO A`, con o sin título a continuación |
+| Anexo | `ANEXO`, `ANEXO I`, `ANEXO A`, `ANEXO (artículo 1°)`, con o sin título a continuación, en un párrafo en mayúsculas o que es solo el encabezado (con su referencia entre paréntesis, si la tiene). No: "ANEXO I forma parte integrante de la presente", que es prosa |
 | Visto y considerandos | `VISTO`, `CONSIDERANDO:`, párrafos que empiezan con `Que` |
 | Fórmula | `Por ello` |
 | Firma | `Digitally signed by`, `Firmado digitalmente por`, `Date: 2022.11.29` (firma digital GDE) |
@@ -71,6 +71,9 @@ CLAUSE_FORMS = [re.compile(r"CL[AÁ]USULA TRANSITORIA(?=$|\s)")]
 ANNEX_HEADING = re.compile(
     r"ANEXO(?:\s+(?P<designator>[IVXLCDM]+|\d+|[A-Z]))?(?=$|[\s\-—–:.(])"
 )
+# Lo que puede seguir al encabezado de anexo en un párrafo que no está en mayúsculas:
+# nada, o una referencia entre paréntesis ("ANEXO (artículo 1°)").
+_ANNEX_ONLY_REST = re.compile(r"\s*(?:\([^()]*\)\s*)?")
 
 VISTO_HEADING = re.compile(r"VISTO\b")
 CONSIDERANDO = re.compile(r"(?:Y\s+)?CONSIDERANDO\s*:?\s*")
@@ -131,11 +134,13 @@ def classify_heading(text, ocr=False):
             return article
     if INDEX_MARKER.fullmatch(text):
         return Heading(INDEX)
+    uppercase = is_uppercase(text)
     annex = ANNEX_HEADING.match(text)
-    if annex:
+    # Como el título y la cláusula: un párrafo en mayúsculas, o que es solo el
+    # encabezado; un párrafo en prosa que empieza con "ANEXO I" no abre un anexo.
+    if annex and (uppercase or _ANNEX_ONLY_REST.fullmatch(text, annex.end())):
         designator = annex.group("designator") or ""
         return Heading(ANNEX, number=designator, name="Anexo" + (f" {designator}" if designator else ""))
-    uppercase = is_uppercase(text)
     if uppercase:
         title = TITLE_HEADING.match(text)
         if title:

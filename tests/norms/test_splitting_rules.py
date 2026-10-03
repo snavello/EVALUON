@@ -177,6 +177,9 @@ HEADING_TABLE = [
     ("ANEXO I - DISPOSICION N° 297/03 (AFIP)", ANNEX, "I", "Anexo I"),
     ("ANEXO (artículo 1°)", ANNEX, "", "Anexo"),
     ("ANEXOS DE LA PRESENTE", UPPER, "", ""),
+    # Caso trampa: prosa que empieza con "ANEXO I" no es un encabezado.
+    ("ANEXO I forma parte integrante de la presente disposición.", TEXT, "", ""),
+    ("ANEXO II de la Resolución General citada.", TEXT, "", ""),
     # Visto, considerandos y fórmula.
     ("VISTO el Expediente Electrónico N° 1, y", VISTO, "", ""),
     ("CONSIDERANDO:", CONSIDERANDO_HEADING, "", ""),
@@ -583,6 +586,59 @@ def test_the_annex_line_of_the_cover_names_an_article_without_being_one():
     check_invariants(result)
 
 
+@pytest.mark.parametrize(
+    "part, expected",
+    [("cuerpo", ["art-1", "art-2"]), ("anexo", ["anexo", "anexo/art-1", "anexo/art-2"])],
+)
+def test_a_paragraph_that_starts_with_annex_in_prose_does_not_open_an_annex(part, expected):
+    """REQ-003 (caso trampa): un párrafo en prosa que empieza con "ANEXO I" ("ANEXO I
+    forma parte integrante...") no es un encabezado de anexo, igual que las palabras de
+    un título o de una cláusula fuera de un párrafo en mayúsculas: queda dentro del
+    artículo, no abre un anexo ni queda sin ubicar, como cuerpo y como anexo."""
+    result = split_document(
+        synthetic(
+            [
+                "ARTÍCULO 1°.- Apruébase el régimen que se detalla a continuación:",
+                "ANEXO I forma parte integrante de la presente disposición.",
+                "ARTÍCULO 2°.- Comuníquese.",
+            ]
+        ),
+        part=part,
+    )
+
+    assert keys(result) == expected
+    first = by_key(result)[expected[-2]]
+    assert first.text.endswith("\nANEXO I forma parte integrante de la presente disposición.")
+    assert result.report["unlocated"] == []
+    containers = [c["container"] for c in result.report["units"]["by_container"]]
+    assert containers == (["Cuerpo"] if part == "cuerpo" else ["Anexo"])
+    check_invariants(result)
+
+
+def test_considerandos_are_only_of_the_body():
+    """REQ-003: el visto y los considerandos son solo del cuerpo, antes del primer
+    artículo. En un documento cargado como anexo, un párrafo que empieza con "Que"
+    después de un artículo es texto del artículo, no un considerando."""
+    result = split_document(
+        synthetic(
+            [
+                "ANEXO (artículo 1°)",
+                "ARTÍCULO 1°.- REQUISITOS. Serán requisitos de la oferta:",
+                "Que el oferente esté inscripto en el registro.",
+                "ARTÍCULO 2°.- DOS. Texto.",
+            ]
+        ),
+        part="anexo",
+    )
+
+    assert keys(result) == ["anexo", "anexo/art-1", "anexo/art-2"]
+    assert by_key(result)["anexo/art-1"].text.endswith(
+        "\nQue el oferente esté inscripto en el registro."
+    )
+    assert "considerando" not in result.report["units"]["by_type"]
+    check_invariants(result)
+
+
 # --- Carátula, encabezados y pies de página (REQ-003, REQ-004) --------------------------
 
 
@@ -669,6 +725,57 @@ def test_a_line_in_the_band_that_does_not_repeat_is_kept():
     )
 
     assert keys(split_document(reading, part="cuerpo")) == ["art-1", "art-2"]
+
+
+def _three_pages(extra):
+    """Tres páginas con un artículo cada una, más los renglones `extra(número)`: pares
+    (texto, altura del renglón)."""
+    pages = []
+    for number, name in enumerate(("UNO", "DOS", "TRES"), start=1):
+        lines = [_line(f"ARTÍCULO {number}°.- {name}. Texto del artículo.", 100.0)]
+        lines += [_line(text, top) for text, top in extra(number)]
+        lines.sort(key=lambda line: line.top)
+        pages.append(_page(number, lines))
+    return DocumentReading(file_format=FORMAT_PDF, pages=pages, tool_versions={})
+
+
+def test_repeated_lines_in_the_band_without_a_known_form_are_discarded():
+    """REQ-003, REQ-004: un renglón de la franja superior o inferior que se repite en la
+    mayoría de las páginas (ignorando los números) se descarta aunque no tenga una forma
+    conocida: un membrete arriba, el nombre de la norma con su número de hoja al pie. Se
+    informa con su motivo."""
+    reading = _three_pages(
+        lambda number: [
+            ("Administración Federal de Ingresos Públicos", 20.0),
+            (f"Disposición de prueba - hoja {number}", 770.0),
+        ]
+    )
+
+    canonical = build_canonical_text(reading)
+    result = split_document(reading, part="cuerpo")
+
+    assert "Administración Federal" not in canonical.text
+    assert "hoja" not in canonical.text
+    assert by_key(result)["art-2"].text == "ARTÍCULO 2°.- DOS. Texto del artículo."
+    reasons = [(line["reason"], line["page"]) for line in result.report["discarded_line_list"]]
+    assert sorted(reasons) == [("encabezado_o_pie", n) for n in (1, 1, 2, 2, 3, 3)]
+    check_invariants(result)
+
+
+def test_a_repeated_line_outside_the_band_is_kept():
+    """REQ-003: un renglón que se repite en todas las páginas pero está fuera de la
+    franja superior e inferior es texto del documento y se conserva."""
+    reading = _three_pages(lambda number: [("Sin modificaciones en este punto.", 400.0)])
+
+    canonical = build_canonical_text(reading)
+    result = split_document(reading, part="cuerpo")
+
+    assert canonical.text.count("Sin modificaciones en este punto.") == 3
+    assert by_key(result)["art-2"].text == (
+        "ARTÍCULO 2°.- DOS. Texto del artículo.\nSin modificaciones en este punto."
+    )
+    assert canonical.discarded_lines == 0
+    check_invariants(result)
 
 
 # --- Forzar párrafo en los encabezados (REQ-003) ----------------------------------------
@@ -942,6 +1049,135 @@ def test_derogated_articles_in_a_row_are_not_an_index():
     check_invariants(result)
 
 
+def test_derogated_articles_are_not_an_index_because_an_annex_renumbers():
+    """REQ-003 (caso trampa): la repetición de números que delata un índice tiene que
+    darse dentro del mismo contenedor. Dos artículos "DEROGADO" seguidos en el cuerpo no
+    son un índice porque un anexo que viene después vuelva a numerar desde 1."""
+    result = split_document(
+        synthetic(
+            [
+                "ARTÍCULO 1°.- Apruébase el régimen.",
+                "ARTÍCULO 2°.- DEROGADO.",
+                "ARTÍCULO 3°.- DEROGADO.",
+                "ARTÍCULO 4°.- Comuníquese.",
+                "ANEXO I",
+                "ARTÍCULO 1°.- OBJETO. Texto.",
+                "ARTÍCULO 2°.- ÁMBITO. Texto.",
+                "ARTÍCULO 3°.- PLAZOS. Texto.",
+            ]
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == [
+        "art-1",
+        "art-2",
+        "art-3",
+        "art-4",
+        "anexo-i",
+        "anexo-i/art-1",
+        "anexo-i/art-2",
+        "anexo-i/art-3",
+    ]
+    assert by_key(result)["art-2"].text == "ARTÍCULO 2°.- DEROGADO."
+    assert result.report["discarded"] == []
+    assert result.report["unlocated"] == []
+    check_invariants(result)
+
+
+def test_an_index_inside_an_annex_of_the_body_is_still_an_index():
+    """REQ-003: el índice de un anexo dentro del cuerpo se reconoce, porque sus números
+    se repiten dentro del mismo anexo."""
+    result = split_document(
+        synthetic(
+            [
+                "ARTÍCULO 1°.- Apruébase el régimen.",
+                "ARTÍCULO 2°.- Comuníquese.",
+                "ANEXO I",
+                "ÍNDICE:",
+                "ARTÍCULO 1°.- OBJETO",
+                "ARTÍCULO 2°.- ÁMBITO",
+                "ARTÍCULO 1°.- OBJETO. Texto.",
+                "ARTÍCULO 2°.- ÁMBITO. Texto.",
+            ]
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == ["art-1", "art-2", "anexo-i", "anexo-i/art-1", "anexo-i/art-2"]
+    assert [item["reason"] for item in result.report["discarded"]] == ["indice"]
+    check_invariants(result)
+
+
+# --- Párrafos después del último inciso (REQ-003, REQ-004) ------------------------------
+
+
+def test_paragraphs_after_the_last_inciso_are_reported():
+    """REQ-003, REQ-004: el PDF no distingue sangrías, así que los párrafos sin
+    encabezado que siguen al último inciso de una lista pueden ser del inciso o del
+    artículo. Quedan en el artículo, y el informe señala el inciso y cuántos párrafos
+    quedaron en el artículo, para que lo revise quien valida."""
+    result = split_document(
+        synthetic(
+            [
+                "ARTÍCULO 1°.- UNO. Son:",
+                "a) Primero.",
+                "b) Segundo.",
+                "Primer párrafo que sigue.",
+                "Segundo párrafo que sigue.",
+                "ARTÍCULO 2°.- DOS. Son:",
+                "a) Primero.",
+                "b) Segundo.",
+            ]
+        ),
+        part="cuerpo",
+    )
+
+    assert by_key(result)["art-1/inc-b"].text == "b) Segundo."
+    assert by_key(result)["art-1"].text.endswith("\nSegundo párrafo que sigue.")
+    assert result.report["after_last_inciso"] == [
+        {"key": "art-1/inc-b", "inside": "art-1", "paragraphs": 2, "page": 1}
+    ]
+    assert "Párrafos después del último inciso de una lista" in result.report_text
+    assert "art-1/inc-b, página 1: 2 párrafos quedaron en art-1" in result.report_text
+    check_invariants(result)
+
+
+def test_paragraphs_after_the_last_point_of_an_inciso_are_reported_inside_the_inciso():
+    """REQ-003, REQ-004: lo mismo en el segundo nivel: los párrafos que siguen al último
+    punto de un inciso quedan en el inciso, y el informe los señala con la clave del
+    punto."""
+    result = split_document(
+        synthetic(
+            [
+                "ARTÍCULO 1°.- UNO. Son:",
+                "a) Primero, según:",
+                "1. Punto uno.",
+                "2. Punto dos.",
+                "Párrafo que sigue al punto dos.",
+                "b) Segundo.",
+            ]
+        ),
+        part="cuerpo",
+    )
+
+    assert result.report["after_last_inciso"] == [
+        {"key": "art-1/inc-a/inc-2", "inside": "art-1/inc-a", "paragraphs": 1, "page": 1}
+    ]
+    assert "art-1/inc-a/inc-2, página 1: 1 párrafo quedó en art-1/inc-a" in result.report_text
+
+
+def test_a_list_without_paragraphs_after_its_last_inciso_is_not_reported():
+    """REQ-004: si el último inciso no tiene párrafos después, no hay nada que revisar."""
+    result = split_document(
+        synthetic(["ARTÍCULO 1°.- UNO. Son:", "a) Primero.", "b) Segundo.", "ARTÍCULO 2°.- DOS."]),
+        part="cuerpo",
+    )
+
+    assert result.report["after_last_inciso"] == []
+    assert "Párrafos después del último inciso" not in result.report_text
+
+
 # --- Encabezados leídos por reconocimiento sobre imagen (REQ-003, REQ-015) --------------
 
 OCR_SUBSTITUTES = ["”", "*", "%", "'", '"', "?", "”%", "O", "", " "]
@@ -1014,16 +1250,18 @@ def test_an_ocr_heading_with_a_misread_number_is_accepted_by_sequence_and_marked
     check_invariants(result)
 
 
-def test_the_same_misread_text_from_pdf_text_has_no_tolerance():
-    """REQ-003: el mismo texto con origen `pdf_text` no se tolera: los encabezados con
-    signos sustitutos no abren unidades y nada queda marcado como dudoso."""
+@pytest.mark.parametrize("origin", ["pdf_text", "web"])
+def test_the_same_misread_text_from_pdf_text_has_no_tolerance(origin):
+    """REQ-003: el mismo texto con origen `pdf_text` o `web` no se tolera: los
+    encabezados con signos sustitutos no son encabezados (tampoco fuera de secuencia),
+    no abren unidades y nada queda marcado como dudoso."""
     result = split_document(
         ocr_synthetic(
             "ARTÍCULO 1°.- UNO. Texto.",
             "ARTÍCULO 2°.- DOS. Texto.",
             "ARTÍCULO $”.- TRES. Texto.",
             "ARTÍCULO 9%.- CUATRO. Texto.",
-            origin="pdf_text",
+            origin=origin,
         ),
         part="cuerpo",
     )
@@ -1031,6 +1269,7 @@ def test_the_same_misread_text_from_pdf_text_has_no_tolerance():
     assert keys(result) == ["art-1", "art-2"]
     assert by_key(result)["art-2"].text.endswith("ARTÍCULO 9%.- CUATRO. Texto.")
     assert result.report["doubtful_headings"] == []
+    assert result.report["sequence"][0]["not_accepted"] == []
 
 
 def test_an_ocr_heading_out_of_place_is_not_accepted():
@@ -1149,4 +1388,29 @@ def test_the_sign_read_as_a_digit_is_not_tolerated_in_pdf_text():
     assert result.report["doubtful_headings"] == []
     assert result.report["sequence"][0]["not_accepted"] == [
         {"number": "47", "page": 1, "inside": "art-3"}
+    ]
+
+
+def test_an_ocr_number_whose_last_digit_is_not_a_sign_is_not_taken_as_the_next():
+    """REQ-003: el signo `°` leído como cifra es un 7 o un 9. `ARTÍCULO 43.-` donde se
+    espera el 4 no es el 4 si la secuencia no lo justifica (los encabezados que le siguen
+    no continúan desde el 4): queda dentro del artículo abierto y se informa fuera de
+    secuencia; nada se marca como dudoso."""
+    result = split_document(
+        ocr_synthetic(
+            "ARTÍCULO 1.- UNO. Texto.",
+            "ARTÍCULO 2.- DOS. Texto.",
+            "ARTÍCULO 3.- TRES. Texto.",
+            "ARTÍCULO 43.- CITADO. Texto.",
+            "ARTÍCULO 6.- SEIS. Texto.",
+            "ARTÍCULO 7.- SIETE. Texto.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == ["art-1", "art-2", "art-3", "art-6", "art-7"]
+    assert by_key(result)["art-3"].text.endswith("\nARTÍCULO 43.- CITADO. Texto.")
+    assert result.report["doubtful_headings"] == []
+    assert result.report["sequence"][0]["not_accepted"] == [
+        {"number": "43", "page": 1, "inside": "art-3"}
     ]

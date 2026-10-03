@@ -31,7 +31,9 @@ from evaluon.norms.splitting.report import build_report, report_text
 # informe. Cambia cada vez que cambia una regla, para saber con qué reglas se partió.
 # 2: T-023 (incisos, títulos en la ruta, cláusulas, anexos, considerandos, carátula,
 # encabezados y pies, secuencia con margen, encabezados de reconocimiento).
-RULES_VERSION = "2"
+# 3: T-023, ajustes de verificación (el índice se confirma dentro de su contenedor; un
+# párrafo en prosa que empieza con "ANEXO I" no abre un anexo).
+RULES_VERSION = "3"
 
 BODY = "cuerpo"
 # `cuerpo`, o la clave de un anexo: `anexo` o `anexo-` y su número o letra.
@@ -93,7 +95,7 @@ def split_document(reading, part=BODY):
     root = _annex_root(part) if part != BODY else None
     result = rules.partition(paragraphs, root=root)
 
-    units, spans = [], []
+    units, spans, after_last_inciso = [], [], []
     for item in result.items:
         start, end = _range(paragraphs, item.first, item.last, len(text))
         if isinstance(item, rules.Span):
@@ -102,8 +104,19 @@ def split_document(reading, part=BODY):
         unit = _unit(canonical, reading, item, start, end)
         units.append(unit)
         if item.unit_type == "articulo":
-            for node in rules.find_incisos(paragraphs, item):
+            nodes = rules.find_incisos(paragraphs, item)
+            for node in nodes:
                 _add_incisos(units, canonical, reading, paragraphs, unit, node)
+            for path, count in rules.after_last_inciso(nodes, item.last):
+                keys = [unit.key] + [f"inc-{node.heading.number}" for node in path]
+                after_last_inciso.append(
+                    {
+                        "key": "/".join(keys),
+                        "inside": "/".join(keys[:-1]),
+                        "paragraphs": count,
+                        "page": paragraphs[path[-1].end + 1].page,
+                    }
+                )
     for order, unit in enumerate(units, start=1):
         unit.order = order
 
@@ -121,6 +134,7 @@ def split_document(reading, part=BODY):
         ],
         uppercase_in_units=result.uppercase_in_units,
         doubtful_headings=result.doubtful_headings,
+        after_last_inciso=after_last_inciso,
     )
     return SplitResult(
         canonical=canonical,

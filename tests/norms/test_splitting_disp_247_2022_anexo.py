@@ -235,6 +235,24 @@ def test_incisos_match_the_pdf(annex):
     assert units["anexo/art-88/inc-d/inc-3"].page_start == 42
 
 
+def test_paragraphs_after_the_last_inciso_are_reported(annex):
+    """REQ-004: el informe señala las listas cuyo último inciso tiene párrafos después,
+    que quedaron en el artículo o en el inciso que la contiene: veinte en el anexo, entre
+    ellos el inciso h del artículo 24 y el punto 4 del inciso e del artículo 33. Ninguno
+    cambia el texto de las unidades: es un aviso para quien valida."""
+    after = annex.report["after_last_inciso"]
+    found = {item["key"]: item for item in after}
+
+    assert len(after) == 20
+    assert found["anexo/art-24/inc-h"]["inside"] == "anexo/art-24"
+    assert found["anexo/art-33/inc-e/inc-4"]["inside"] == "anexo/art-33/inc-e"
+    assert found["anexo/art-3/inc-h"]["paragraphs"] == 1
+    assert all(item["paragraphs"] >= 1 for item in after)
+    units = by_key(annex)
+    starts = [units[item["key"]].char_start for item in after]
+    assert starts == sorted(starts)
+
+
 def test_every_inciso_is_a_slice_of_its_article(annex):
     """REQ-003: el texto de cada inciso es un recorte del texto de su artículo; la
     unidad que lo contiene viene antes en la lista."""

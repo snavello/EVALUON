@@ -6,7 +6,7 @@ páginas no leídas, unidades por tipo y por contenedor, tramos no ubicados, tra
 descartados (carátula, índice, títulos que pasan a la ruta), líneas descartadas
 (encabezados y pies de página), control de secuencia (saltos, encabezados no aceptados y
 encabezados dudosos de reconocimiento), párrafos en mayúsculas que quedaron dentro de una
-unidad (T-023), uniones de palabras cortadas, control de cobertura y la lista de
+unidad y párrafos que siguen al último inciso de una lista (T-023), uniones de palabras cortadas, control de cobertura y la lista de
 unidades con su clave. El informe completo, con las diez partes del ADR-0004, es de
 T-025.
 """
@@ -50,6 +50,7 @@ def build_report(
     sequence=(),
     uppercase_in_units=(),
     doubtful_headings=(),
+    after_last_inciso=(),
 ):
     """Arma el informe en datos. `segments` son los tramos no unitarios: pares
     (`"discarded"` o `"unlocated"`, inicio, fin, motivo)."""
@@ -114,6 +115,10 @@ def build_report(
         # Encabezados de artículo leídos por reconocimiento con el número mal leído o
         # fuera de secuencia, aceptados por la secuencia: requieren atención.
         "doubtful_headings": list(doubtful_headings),
+        # Párrafos sin encabezado que siguen al último inciso de una lista: el PDF no
+        # distingue sangrías, así que pueden ser del inciso o de la unidad que lo
+        # contiene, donde quedaron. Clave del inciso, unidad donde quedaron y cuántos.
+        "after_last_inciso": list(after_last_inciso),
         "unit_list": [
             {
                 "key": unit.key,
@@ -226,6 +231,19 @@ def report_text(report):
         for item in upper:
             lines.append(
                 f"  - {item['key']}, {_pages(item['page'], item['page'])}: {item['first_words']}"
+            )
+
+    after = report["after_last_inciso"]
+    if after:
+        lines.append(
+            "Párrafos después del último inciso de una lista, que pueden ser del inciso y "
+            f"quedaron en la unidad que lo contiene, para revisar: {len(after)}."
+        )
+        for item in after:
+            stayed = "párrafo quedó" if item["paragraphs"] == 1 else "párrafos quedaron"
+            lines.append(
+                f"  - {item['key']}, {_pages(item['page'], item['page'])}: "
+                f"{item['paragraphs']} {stayed} en {item['inside']}"
             )
 
     unlocated = report["unlocated"]

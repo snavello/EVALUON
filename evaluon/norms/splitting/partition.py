@@ -36,15 +36,19 @@ Reglas:
   en web la regla queda estricta.
 - **Índice.** Una serie de encabezados de artículo sin texto, con títulos intercalados,
   es un índice si al menos `INDEX_MIN_HEADINGS` de sus números vuelven a aparecer
-  después como encabezados de artículo. Así dos artículos "DEROGADO" seguidos no se
-  toman por un índice.
+  después como encabezados de artículo en el mismo contenedor: en un cuerpo, antes del
+  siguiente encabezado "ANEXO", que vuelve a numerar; con una parte que es un anexo, en
+  todo el documento, porque sus encabezados "ANEXO" no abren otro contenedor. Así dos
+  artículos "DEROGADO" seguidos no se toman por un índice, aunque un anexo posterior
+  repita sus números.
 - **Títulos.** Un título cierra el capítulo y la sección abiertos; un capítulo, la
   sección. Pasan a la ruta de las unidades que siguen. Una cláusula y un anexo los
   cierran todos.
 - **Anexos.** Con una parte que es un anexo, todas las unidades cuelgan de la unidad raíz
   y los encabezados "ANEXO" de su carátula no abren otro contenedor. En un cuerpo, un
   encabezado "ANEXO" después del primer artículo abre una unidad `anexo` que vuelve a
-  numerar. El texto propio de un anexo es su encabezado y lo que hay antes de su primer
+  numerar; un párrafo en prosa que empieza con "ANEXO I" no es un encabezado
+  (`headings.py`). El texto propio de un anexo es su encabezado y lo que hay antes de su primer
   artículo, título o cláusula; un anexo sin artículos tiene todo su texto.
 - **Visto y considerandos.** Solo en el cuerpo, antes del primer artículo: el visto es la
   unidad `visto`; cada párrafo que empieza con "Que" es un considerando, y los párrafos
@@ -53,7 +57,9 @@ Reglas:
 - **Incisos.** Dos niveles. Un inciso se acepta si continúa la secuencia de su forma
   (`a)`, `b)`...; `1.`, `2.`...) o si abre una forma nueva por su primer valor. Va hasta
   el siguiente inciso de su nivel o de uno superior; el último de su lista no se lleva
-  los párrafos que siguen, que son de la unidad que lo contiene.
+  los párrafos que siguen, que son de la unidad que lo contiene. Como el PDF no
+  distingue sangrías, esos párrafos pueden ser del inciso: el informe los señala con la
+  clave del inciso y cuántos párrafos quedaron en la unidad que lo contiene.
 """
 
 import re
@@ -216,7 +222,7 @@ class _Walk:
 
     def run(self):
         paragraphs = self.paragraphs
-        in_index = _index_blocks(paragraphs)
+        in_index = _index_blocks(paragraphs, same_container=self.root is None)
         start = _cover_end(paragraphs) + 1
         if start > 0:
             self.result.items.append(Span(DISCARDED, 0, start - 1, reason="caratula"))
@@ -480,11 +486,13 @@ def _cover_end(paragraphs):
     return -1
 
 
-def _index_blocks(paragraphs):
+def _index_blocks(paragraphs, same_container=True):
     """Índices: `{párrafo: primer párrafo del índice}`. Una serie de párrafos que son
     la palabra "ÍNDICE", títulos o encabezados de artículo sin texto, con al menos
     `INDEX_MIN_HEADINGS` encabezados, que termina en su último encabezado de artículo,
-    y de cuyos números al menos `INDEX_MIN_HEADINGS` vuelven a aparecer después."""
+    y de cuyos números al menos `INDEX_MIN_HEADINGS` vuelven a aparecer después. Con
+    `same_container` (un cuerpo), la repetición se busca solo hasta el siguiente
+    encabezado "ANEXO", que abre otro contenedor y vuelve a numerar."""
     in_index = {}
     i = 0
     while i < len(paragraphs):
@@ -494,11 +502,12 @@ def _index_blocks(paragraphs):
         headings = [p for p in paragraphs[i:j] if p.heading.kind == ARTICLE]
         if len(headings) >= INDEX_MIN_HEADINGS:
             last = headings[-1].index
-            later = {
-                p.heading.article_number
-                for p in paragraphs[last + 1 :]
-                if p.heading.kind == ARTICLE
-            }
+            later = set()
+            for p in paragraphs[last + 1 :]:
+                if same_container and p.heading.kind == ANNEX:
+                    break
+                if p.heading.kind == ARTICLE:
+                    later.add(p.heading.article_number)
             repeated = sum(1 for p in headings if p.heading.article_number in later)
             if repeated >= INDEX_MIN_HEADINGS:
                 for k in range(i, last + 1):
@@ -549,6 +558,20 @@ def find_incisos(paragraphs, block):
             stack.append(node)
     _assign_ends(roots)
     return roots
+
+
+def after_last_inciso(nodes, end):
+    """Listas de incisos cuyo último inciso tiene párrafos después, dentro de la unidad
+    que contiene la lista (que termina en el párrafo `end`): pares (camino de nodos
+    hasta ese inciso, cantidad de párrafos que quedaron en la unidad que lo contiene),
+    en el orden del documento."""
+    found = []
+    for node in nodes:
+        for path, count in after_last_inciso(node.children, node.end):
+            found.append(([node] + path, count))
+    if nodes and nodes[-1].end < end:
+        found.append(([nodes[-1]], end - nodes[-1].end))
+    return found
 
 
 def _assign_ends(nodes):
