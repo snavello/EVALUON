@@ -27,7 +27,9 @@ Las diez partes del ADR-0004, en este orden:
    como la página 45 del anexo de la 247/2022). `pages` (total y no leídas, de la
    lectura) se conserva como estaba: lo usan la carga y su registro.
 4. **Unidades reconocidas** (`units`, `sequence`, `doubtful_headings`,
-   `uppercase_in_units`, `after_last_inciso`, `inciso_key_taken`): cantidad por tipo y
+   `uppercase_in_units`, `after_last_inciso`, `inciso_key_taken`, `ocr_inciso_gaps`;
+   este último, de T-028: incisos de una lectura de reconocimiento que saltan letras de
+   su lista o que empiezan con una marca mal leída): cantidad por tipo y
    por contenedor (el visto se cuenta aparte en el texto, en `visto`), primer
    y último número, la cuenta esperada de artículos frente a la reconocida (según el
    índice, si el contenedor tiene uno, o según la numeración), saltos y repeticiones, y
@@ -198,6 +200,7 @@ def build_report(
     doubtful_headings=(),
     after_last_inciso=(),
     inciso_key_taken=(),
+    ocr_inciso_gaps=(),
     canonical_sha256=None,
     document_info=None,
 ):
@@ -289,6 +292,11 @@ def build_report(
         # (T-050): la etiqueta, la clave tomada y la clave con que quedaron, vacía si no
         # abrieron una unidad.
         "inciso_key_taken": list(inciso_key_taken),
+        # Listas de incisos leídas por reconocimiento sobre imagen que saltan letras o que
+        # tienen un párrafo que empieza como un inciso mal leído (T-028): la unidad que
+        # contiene la lista, el último inciso, lo encontrado, lo que falta, la página y las
+        # primeras palabras. Sin tolerancia de letra: no cambian las unidades.
+        "ocr_inciso_gaps": list(ocr_inciso_gaps),
         "unit_list": [
             {
                 "key": unit.key,
@@ -636,6 +644,18 @@ def attention_items(report):
             + ".",
         )
 
+    gaps = report.get("ocr_inciso_gaps") or []
+    if gaps:
+        add(
+            "ocr_inciso_gaps",
+            "Listas de incisos leídas por reconocimiento sobre imagen que saltan letras o "
+            "tienen un inciso con la marca mal leída: pueden ser incisos que no se "
+            "crearon, cuyo texto quedó en la unidad que contiene la lista: "
+            + _limited([located(g["key"], g["page"]) + ": " + _ocr_gap_text(g) for g in gaps],
+                       separator="; ")
+            + ". Compárelas con el original.",
+        )
+
     lines = report["discarded_lines"]
     if lines:
         add(
@@ -958,7 +978,28 @@ def _units_text(report):
         )
         for item in taken:
             lines.append(f"  - {_key_taken_text(item)}, {_pages(item['page'], item['page'], web)}")
+
+    gaps = report.get("ocr_inciso_gaps") or []
+    if gaps:
+        lines.append(
+            "Listas de incisos leídas por reconocimiento sobre imagen con letras salteadas o "
+            f"marcas mal leídas, para comparar con el original: {len(gaps)}."
+        )
+        for item in gaps:
+            lines.append(
+                f"  - {item['key']}, {_pages(item['page'], item['page'], web)}: "
+                f"{_ocr_gap_text(item)}"
+            )
     return lines
+
+
+def _ocr_gap_text(item):
+    """`después de f) sigue h), faltan g)` o `después de f) sigue "£) Responsabilidad…"`."""
+    if item["missing"]:
+        missing = ", ".join(f"{value})" for value in item["missing"])
+        verb = "falta" if len(item["missing"]) == 1 else "faltan"
+        return f"después de {item['after']}) sigue {item['found']}, {verb} {missing}"
+    return f"después de {item['after']}) sigue \"{item['first_words']}…\""
 
 
 def _key_taken_text(item):

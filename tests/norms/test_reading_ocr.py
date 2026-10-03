@@ -36,6 +36,7 @@ from evaluon.norms.reading import (
     read_document,
 )
 from evaluon.norms.reading import ocr
+from evaluon.norms.reading.pdf_text import read_pdf_text
 
 REPO = Path(__file__).resolve().parents[2]
 FIXTURES = REPO / "tests" / "fixtures"
@@ -80,14 +81,15 @@ def coincidence(expected, recognized):
 def test_scanned_fixture_is_the_extract_without_text_layer():
     """REQ-015: el extracto escaneado tiene las seis páginas del extracto, del mismo
     tamaño, y ninguna capa de texto: leído como PDF con texto, todas sus páginas quedan
-    no leídas. Lo que se lea de él sale del reconocimiento sobre la imagen."""
+    no leídas. Lo que se lea de él sale del reconocimiento sobre la imagen. (Desde T-028
+    la entrada única lo reconoce; acá se lee con el lector de PDF con texto.)"""
     pdf = pdfium.PdfDocument(SCANNED)
     assert len(pdf) == 6
     for page in pdf:
         assert page.get_size() == (612, 792)
         assert page.get_textpage().get_text_range().strip() == ""
 
-    as_text = read_document(SCANNED)
+    as_text = read_pdf_text(SCANNED.read_bytes())
     assert [page.status for page in as_text.pages] == [PAGE_NOT_READ] * 6
 
 
