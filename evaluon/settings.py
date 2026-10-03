@@ -240,6 +240,10 @@ SELECTION_UNITS_PER_CATEGORY = 3
 SELECTION_CONSIDERANDOS = 2
 # Largo máximo de un pasaje (encabezado más texto), contado con el cliente de embeddings.
 PASSAGE_MAX_TOKENS = 800
+# Solape entre pasajes seguidos de una misma unidad: tramos completos del pasaje anterior
+# que suman hasta esto, contados con el cliente de embeddings. Valor inicial provisorio,
+# se calibra con las evals (T-045).
+PASSAGE_OVERLAP_TOKENS = 100
 # Una unidad más larga que esto se le muestra al modelo solo por sus pasajes que
 # superaron el umbral; contado con el cliente de generación.
 UNIT_BY_PASSAGES_FROM_TOKENS = 1500

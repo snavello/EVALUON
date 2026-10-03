@@ -204,8 +204,9 @@ def validate_reading(user, reading_id, *, channel=Channel.COMMAND):
         raise
 
     # Trabajo largo, fuera de la transacción: si el servicio falla no hay nada escrito.
-    drafts = indexing.build_passages(reading)
+    # La partición en pasajes ya usa el servicio (cuenta tokens, T-031).
     try:
+        drafts = indexing.build_passages(reading)
         vectors = indexing.embed_passages(drafts)
     except AIServiceError as error:
         _record_refusal(user, reading, channel, Outcome.FAILED, {
