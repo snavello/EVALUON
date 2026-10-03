@@ -2080,3 +2080,88 @@ El umbral es el punto medio redondeado hacia abajo a tres decimales: 0,219. Marg
 **Tests que suponían el umbral por omisión (ampliación de la tarea, decisión del Coordinador, 2026-10-03).** Con 0,219 fallaron 7 tests que usan puntajes sintéticos entre 0,219 y 0,368 (0,3 y 0,25) y esperaban que el umbral por omisión los frenara sin fijarlo: tres de `tests/queries/test_acceptance_lot.py`, tres de `tests/queries/test_evaluation_diagnostics.py` y uno de `tests/queries/test_retrieval_selection.py`. Cada uno fija ahora con el fixture `settings` el umbral que supone (0,368), como `test_retrieval.py`; los puntajes sintéticos no cambiaron. Así no dependen del valor calibrado.
 
 **Efecto del cambio.** El paso de 0,368 a 0,219 no se midió con respuestas nuevas: lo mide la corrida de T-046 (P7). Por su nombre, esta carpeta pasa a ser la corrida anterior con la que se compara T-046, en lugar de la de T-059.
+
+## T-063 · Instrucciones `consulta-v3` (remisión a una norma no cargada)
+
+**Carpeta de la corrida:** `evals/corridas/2026-10-03T165105_d5b96d4_gemma-4-12b-it-qat-q4_0` (commit `d5b96d4`, instrucciones `consulta-v3`, umbral 0,219 de T-062, normativa versión 5, casos EV-001 a EV-033 de T-064; ningún caso del lote de aceptación). Una sola corrida, con los servicios reales del proyecto `evaluon` y su base, desde la copia principal, con el código y las evals de la rama montados encima del contenedor `app`:
+
+```
+docker compose -p evaluon run --rm --no-deps -T -v <rama>/evaluon:/app/evaluon:ro -v <rama>/evals:/app/evals app python manage.py correr_evals --usuario desarrollo --commit d5b96d4 --casos evals/casos --corridas evals/corridas < <archivo con la clave>
+```
+
+Duró de 16:51:05 a 16:54:13. Dejó 33 consultas (canal `eval`) y sus hechos `query` con el usuario `desarrollo`, más su ingreso por comando. No se tocaron contenedores ni volúmenes del proyecto `evaluon`.
+
+**Qué cambia la v3 respecto de la v2.**
+
+- Regla 10, nueva: si una unidad trata el punto pero remite su contenido a otra norma que no está entre las unidades, responder lo que dice la unidad y a qué norma remite, con sus palabras, y citarla; no dar el contenido de la norma remitida aunque se crea conocerlo; esa respuesta es `grounded`.
+- Regla 11, la de abstención reescrita: `undetermined` solo si ninguna unidad trata el punto, ni siquiera para remitirlo.
+- La descripción de `status` en el formato, alineada con la regla 11.
+- Un ejemplo de la forma con una remisión ilustrativa ("plazo que fije la reglamentación").
+
+Las reglas 1 a 9, el esquema y la validación son los de la v2. No se sumó la línea opcional de "responder solo lo que se pregunta".
+
+**Medidas contra la anterior** (`evals/corridas/2026-10-03T162823_1728ccc_gemma-4-12b-it-qat-q4_0_recalificada`: v2, umbral de la corrida 0,5, casos de T-062). La corrida mide juntos la v3, el umbral 0,219 y los casos de T-064 (EV-027 a EV-029 pasan a tener respuesta; EV-032 y EV-033 son nuevos).
+
+| Medida (lote de ajuste) | Anterior | T-063 |
+|---|---|---|
+| Cita literal | 100,0 % (72 de 72; IC 95 %: 94,9 % a 100 %) | 100,0 % (74 de 74; IC 95 %: 95,1 % a 100 %) |
+| Respuesta correcta | 79,2 % (19 de 24; IC 95 %: 59,5 % a 90,8 %) | 81,5 % (22 de 27; IC 95 %: 63,3 % a 91,8 %) |
+| Respuesta correcta, solo los 24 casos comunes | 19 de 24 | 19 de 24 |
+| Abstención | 85,7 % (6 de 7; IC 95 %: 48,7 % a 97,4 %) | 100,0 % (6 de 6; IC 95 %: 61,0 % a 100 %) |
+| Abstención, solo los 4 casos comunes (EV-025, 026, 030, 031) | 4 de 4 | 4 de 4 |
+| Respuesta correcta, 247/2022 (diagnóstico) | 86,7 % (13 de 15; IC 95 %: 62,1 % a 96,3 %) | 82,4 % (14 de 17; IC 95 %: 59,0 % a 93,8 %) |
+| Respuesta correcta, 297/03 (diagnóstico) | 66,7 % (6 de 9; IC 95 %: 35,4 % a 87,9 %) | 80,0 % (8 de 10; IC 95 %: 49,0 % a 94,3 %) |
+| Unidad correcta entre las enviadas al modelo | 91,7 % (22 de 24) | 96,3 % (26 de 27) |
+| Preguntas con respuesta frenadas por el umbral | 1 de 24 (EV-020) | 0 de 27 |
+| Pares de REQ-020 | 2 de 3 | 3 de 4 |
+| Aviso de REQ-021 | 30 de 31 | 33 de 33 |
+| Fallas de formato o de cita | 0 | 0 |
+| Tiempo de respuesta | mediana 4,54 s · máximo 9,62 s | mediana 4,79 s · máximo 29,52 s |
+| Tiempo de la recuperación | mediana 0,62 s · máximo 1,40 s | mediana 0,60 s · máximo 3,50 s |
+
+Caso por caso, en lo que cambió:
+
+| Caso | Anterior | T-063 | Causa |
+|---|---|---|---|
+| EV-003 | pasa | falla | Redacción: dice "prorrogado por un término igual"; el dato pide "igual término" o "período igual" y el corrector no acepta el orden cambiado (regla 5). El contenido es correcto y las citas son las mismas (arts. 61 y 66 del anexo) |
+| EV-020 | falla (frenada por el umbral 0,5 con 0,368) | pasa | Umbral 0,219: llega al modelo y responde el 1 % por cada 7 días corridos o fracción mayor de 3 días, con el art. 58 del Anexo I |
+| EV-027 | abstención (`model_abstained`; entonces sin respuesta) | pasa | v3: responde la remisión al régimen jurisdiccional vigente |
+| EV-028 | responde (entonces contaba como falla) | pasa | Ya respondía la remisión con la v2; ahora es una pregunta con respuesta |
+| EV-029 | abstención (`model_abstained`; entonces sin respuesta) | pasa | v3: responde la remisión al Régimen Jurisdiccional vigente, con el aviso de modificatorias |
+| EV-002 | 6 afirmaciones (arts. 64 y 66) | 5 (art. 64) | Omite la de las excepciones del art. 66; sigue pasando |
+| EV-007 | 3 afirmaciones (arts. 88 y 81) | 2 (art. 88) | Omite la multa doble del art. 81; sigue pasando |
+| EV-010 | 1 afirmación (art. 24) | 2 (arts. 24 y 64) | Suma la regla general del 5 % del art. 64; sigue pasando |
+| EV-004, EV-012 | — | — | Mismas citas en otro orden o una afirmación más; siguen pasando |
+| EV-032, EV-033 | no existían | abstención | Frenadas por el umbral (0,0011 y 0,0234), no por el modelo |
+
+Siguen fallando, con la misma causa que en T-059: EV-006 (omite la revisión ante la máxima autoridad), EV-009 (faltan dos modalidades), EV-017 (omite la pérdida de la garantía de la oferta) y EV-024 (el art. 21 del Anexo I no llega a la selección por el límite de 3 unidades por categoría).
+
+**Bajas (P7).** Ninguna medida exigida baja, y el comando informa "Sin bajas respecto de la corrida anterior". Bajan, sin ser exigencias:
+
+1. **EV-003 pasa a fallar.** Por la redacción ("un término igual"), no por la cita ni por el contenido. En los 24 casos comunes la respuesta correcta queda igual (19), porque EV-020 pasa a pasar.
+2. **Respuesta correcta de la 247/2022 (diagnóstico):** de 86,7 % a 82,4 %, por EV-003; los casos nuevos de esa norma (EV-027 y EV-028) pasan.
+3. **Tiempo máximo:** de 9,62 s a 29,52 s, a 0,48 s del límite de 30 s. Es EV-001, la primera consulta de la corrida: 25,2 s de generación y 3,5 s de recuperación (también el máximo de la recuperación). Las cuatro siguientes tardaron entre 8 y 10 s, y desde EV-006 los tiempos vuelven a los de la anterior. Parece el arranque en frío del motor después de horas sin uso (aviso de T-018), no la v3, que agrega 109 palabras a las instrucciones (de 698 a 807); no se comprobó. Por la regla de T-042 no es una baja (el máximo no supera 30 s y la mediana sube 5,5 %), pero queda sin margen.
+
+Si el responsable no aprueba las bajas 1 y 2, la v3 no se integra activa. La 1 se resolvería con una variante "término igual" en EV-003, que es un cambio de caso y no de esta tarea.
+
+**Pares de REQ-020:** pasan EV-001 y EV-016, EV-014 y EV-018, y EV-022 y EV-028; falla EV-003 y EV-017, por los dos casos (EV-003 por la redacción, EV-017 por la pérdida de la garantía de la oferta). En la anterior fallaba solo por EV-017. En EV-028 la v3 dice "normativa vigente" y no agrega los "tres miembros titulares" del art. 48 de la 297/03, que sí da EV-022 con su fecha.
+
+**Aviso de modificatorias:** 33 de 33 según lo esperado. EV-029 lo trae (297/03, 32 modificatorias sin cargar); EV-020, que antes fallaba por no tener respuesta, también.
+
+**EV-032 y EV-033 (tema cercano).** Se abstienen, pero las frena el umbral (`below_threshold`, puntajes 0,0011 y 0,0234), no el modelo. En esta corrida ninguna pregunta sin respuesta llega al modelo: la regla de abstención reescrita de la v3 no quedó probada con el modelo real en una pregunta de tema cercano. Lo mide el lote de aceptación en T-046.
+
+**Revisión de los casos de remisión** (afirmaciones contra el texto literal de la unidad citada, leído de la base):
+
+| Caso | Respuesta de la v3 | Unidad citada | Revisión |
+|---|---|---|---|
+| EV-027 (2025-06-30, 247/2022) | "La licitación privada es aplicable cuando el monto estimado no supere el máximo estipulado en el régimen jurisdiccional vigente." "El procedimiento de selección es válido siempre que el monto total a adjudicar no supere el máximo fijado para su encuadre en el régimen jurisdiccional vigente." | Art. 21 del anexo (las dos) y art. 22 (la segunda) | Sin cifra ni monto: todo está en el inc. c) del art. 21; la segunda frase también está en el art. 22. Correcta |
+| EV-028 (2024-11-11, 247/2022) | "La integración, las condiciones de funcionamiento y los criterios de designación de los miembros de la comisión evaluadora están sujetos a la normativa vigente." "Los miembros de la comisión evaluadora no pueden ser funcionarios que tengan la competencia para autorizar la convocatoria o aprobar el procedimiento de selección." | Art. 50 del anexo | Sin integración: dice "normativa vigente" y no agrega los "tres miembros titulares" de la 297/03. Correcta |
+| EV-029 (2015-10-01, 297/03) | "La contratación directa por monto puede realizarse cuando el monto del contrato no supere el establecido en el Régimen Jurisdiccional vigente para este tipo de contrataciones." | Art. 21 del Anexo I (inc. 4, punto 9) | Sin cifra ni monto; trae el aviso de modificatorias. Correcta |
+
+Respuesta correcta del lote de ajuste: automática 81,5 % (22 de 27); corregida por la revisión, igual, porque la revisión no marcó ningún caso. La revisión la hizo el desarrollador; falta la del testeador evaluador.
+
+**Polaridad (aviso de T-059):** EV-006 ("no tiene carácter suspensivo"), EV-012 ("desestimada sin posibilidad de subsanación"), EV-014 ("no pueden incluir"), EV-018 ("puede prever otras causales", 297/03) y EV-021 ("no es necesario") tienen la polaridad correcta. EV-004 empieza con la regla general y en la segunda afirmación dice que no hace falta hasta M 1.000: es correcta, pero no empieza con "no".
+
+**Afirmaciones por respuesta (aviso de T-040):** en las 27 respuestas con fundamento, mediana 2 y máximo 6. Cinco tienen 5 o más: EV-001 (5), EV-002 (5), EV-011 (6) y EV-019 (5), todas con una sola unidad citada, y EV-008 (6, con tres unidades). Sigue pasando lo de T-040. Ninguna respuesta cita un considerando.
+
+**Tests (con los dobles):** `tests/queries/test_prompt_v3.py`, nuevo. `docker compose -p evaluon-t063 --env-file <coord.env> run --rm --no-deps app pytest`: 1589 pasan.

@@ -230,7 +230,7 @@ def test_selection_receives_the_tokens_of_instructions_and_question(
                              seen["selection"].passages)
     assert seen["answer"] == (QUESTION, (), {"request": seen["built"]})
     assert query.request["messages"] == seen["built"].messages
-    assert query.prompt_version == answering.PROMPT_VERSION_WITH_DATE == "consulta-v2"
+    assert query.prompt_version == answering.PROMPT_VERSION_WITH_DATE == "consulta-v3"
     assert query.status == "grounded"
 
 
@@ -350,7 +350,7 @@ def test_record_has_everything_of_the_query_row(read_user, regime, fake_ai,
     assert search["unit_by_passages_from_tokens"] == \
         settings.UNIT_BY_PASSAGES_FROM_TOKENS
 
-    assert query.prompt_version == "consulta-v2"
+    assert query.prompt_version == "consulta-v3"
     assert query.request["messages"][0]["content"] == answering.load_instructions()
     assert QUESTION in query.request["messages"][1]["content"]
     assert query.raw_output.startswith('{"status": "grounded"')
@@ -630,7 +630,7 @@ def test_build_request_is_what_answer_sends_without_calling_the_model(
     built = answering.build_request(QUESTION, [national.pk, article.pk], DATE)
 
     assert fake_ai.generation.calls == []
-    assert built.prompt_version == "consulta-v2"
+    assert built.prompt_version == "consulta-v3"
     assert built.aliases == {"U1": article.pk, "U2": national.pk}
     assert built.shown == {article.pk, national.pk}
     answering.answer(QUESTION, [national.pk, article.pk], DATE)

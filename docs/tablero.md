@@ -37,7 +37,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 60/65 | █████████░ 92% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 61/65 | █████████░ 94% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
 | 003 · Procedimiento, pliego final y matriz de cumplimiento | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | No iniciada | — | — |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -65,12 +65,11 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 5 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 4 tareas sin terminar.
 - ○ T-046 · Correr las evals y medir tiempo y memoria (pendiente)
 - ○ T-047 · Probar una consulta con la red desconectada (pendiente)
 - ○ T-048 · Probar el respaldo y la restauración de la base (pendiente)
 - ○ T-049 · Levantar todo desde cero y dejar datos para el runbook (pendiente)
-- ○ T-063 · Instrucciones para responder la remisión a una norma no cargada (pendiente)
 
 ### Qué se hizo
 
@@ -133,6 +132,7 @@ flowchart LR
 - ✓ T-060 · Calibración por hueco, lote de aceptación y margen de error en las evals (`9025f48` 2026-10-03)
 - ✓ T-061 · Redactar el lote de aceptación
 - ✓ T-062 · Fijar el umbral con la regla nueva (`faff0cc` 2026-10-03, `7c321bd` 2026-10-03)
+- ✓ T-063 · Instrucciones para responder la remisión a una norma no cargada (`0b6cbae` 2026-10-03, `d5b96d4` 2026-10-03)
 - ✓ T-064 · Reescribir EV-027, EV-028 y EV-029 como preguntas con respuesta
 - ✓ T-065 · Corregir la espera intermitente de `test_wait` y el borde de la calibración (`4ff607b` 2026-10-03)
 
@@ -202,7 +202,7 @@ flowchart TD
   T060["✓ T-060 · Calibración por hueco, lote de aceptación y…"]:::done
   T061["✓ T-061 · Redactar el lote de aceptación"]:::done
   T062["✓ T-062 · Fijar el umbral con la regla nueva"]:::done
-  T063["○ T-063 · Instrucciones para responder la remisión a…"]:::todo
+  T063["✓ T-063 · Instrucciones para responder la remisión a…"]:::done
   T064["✓ T-064 · Reescribir EV-027, EV-028 y EV-029 como pre…"]:::done
   T065["✓ T-065 · Corregir la espera intermitente de test_wai…"]:::done
   T001 --> T002
