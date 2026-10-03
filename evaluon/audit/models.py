@@ -24,6 +24,18 @@ class EventType(models.TextChoices):
     LOGIN_FAILED = "login_failed", "Ingreso fallido"
     REJECTED = "rejected", "Operación rechazada por rol"
     USER_CREATED = "user_created", "Alta de usuario"
+    # Feature 003 (plan 003, "Registro de auditoría").
+    PROCEDURE = "procedure", "Alta de procedimiento"
+    TENDER_LOAD = "tender_load", "Carga de documento del pliego"
+    TENDER_READ = "tender_read", "Lectura de documento del pliego"
+    MATRIX_REQUEST = "matrix_request", "Pedido de matriz"
+    MATRIX_PROPOSAL = "matrix_proposal", "Propuesta de matriz"
+    REQUIREMENT_CHANGE = "requirement_change", "Cambio de requisito"
+    CONSEQUENCE_CHOICE = "consequence_choice", "Elección de consecuencia"
+    SEGMENT_REVIEW = "segment_review", "Revisión de tramo pendiente"
+    MATRIX_VALIDATION = "matrix_validation", "Validación de matriz"
+    MATRIX_VERSION = "matrix_version", "Versión de matriz"
+    MATRIX_EXPORT = "matrix_export", "Exportación de matriz"
 
 
 class Outcome(models.TextChoices):

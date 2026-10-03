@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "evaluon.audit",
     "evaluon.norms",
     "evaluon.queries",
+    "evaluon.tenders",
 ]
 
 MIDDLEWARE = [
@@ -256,3 +257,39 @@ PASSAGE_OVERLAP_TOKENS = 100
 UNIT_BY_PASSAGES_FROM_TOKENS = 1500
 # Margen por lo que agrega la plantilla de conversación, que /tokenize no ve (medido: 18).
 PROMPT_TEMPLATE_MARGIN_TOKENS = 512
+
+# --- Matriz de cumplimiento (plan 003, "Parámetros"; ADR-0018 y ADR-0019) -------------
+# Valores iniciales. Se copian en cada propuesta de matriz (`tenders_matrix_run`);
+# cambiarlos exige volver a medir (P7).
+
+# Niveles de revisión que existen (REQ-030) y el que se usa si no se elige.
+MATRIX_LEVELS = ["media", "alta", "exigente"]
+MATRIX_DEFAULT_LEVEL = "alta"
+# Niveles que se ofrecen en la pantalla: los tres hasta la medición del caso-00; después,
+# los que decida el responsable (T-085).
+MATRIX_LEVELS_OFFERED = ["media", "alta", "exigente"]
+# Tokens de entrada de los tramos de un lote de extracción.
+MATRIX_BATCH_INPUT_TOKENS = 1500
+# Máximo de tokens de salida de cada pedido de la matriz.
+MATRIX_MAX_OUTPUT_TOKENS = 4096
+# Largo de un tramo, en caracteres, a partir del cual se parte en límites de oración.
+SEGMENT_MAX_CHARS = 4000
+# Requisitos por pedido de consecuencias.
+MATRIX_CONSEQUENCES_PER_REQUEST = 25
+# Citas candidatas que el reranker suma para cada tramo de una circular o respuesta.
+MATRIX_CIRCULAR_CANDIDATES = 8
+# Versión de cada instrucción de la matriz: archivo `evaluon/tenders/prompts/<versión>.md`.
+MATRIX_PROMPT_VERSIONS = {
+    "extraccion": "matriz-extraccion-v1",
+    "completitud": "matriz-completitud-v1",
+    "consecuencias": "matriz-consecuencias-v1",
+    "circulares": "matriz-circulares-v1",
+}
+
+# Motor de generación de los pedidos del `worker` (ADR-0018). Apuntarlo a
+# `GENERATION_URL` vuelve a un solo motor sin cambiar código.
+GENERATION_BATCH_URL = env_str("GENERATION_BATCH_URL", "http://generation_batch:8080")
+# Espera máxima de cada pedido del `worker` al modelo.
+GENERATION_BATCH_TIMEOUT_SECONDS = 180
+# Segundos entre consultas a la cola de pedidos cuando está vacía.
+WORKER_POLL_SECONDS = 5
