@@ -1,0 +1,30 @@
+id: EV-046
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "¿Por cuánto tiempo puede la AFIP suspender a un proveedor como sanción?"
+fecha_autorizacion: 2017-06-05
+regimen: "Disposición AFIP 297/03"
+esperado: |
+  La suspensión para ser contratista de la AFIP se aplica por un término de hasta seis (6) meses. Es una de las sanciones previstas, junto con el apercibimiento y la inhabilitación, que pueden aplicarse además de las penalidades ante el incumplimiento de las obligaciones.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 56, inciso b), apartado 2"}
+origen: |
+  ARTICULO 56. — PENALIDADES Y SANCIONES. Los oferentes o co-contratantes podrán ser pasibles de las siguientes penalidades y sanciones, sobre las siguientes bases y de acuerdo a lo que establezca la reglamentación específica:
+  [...]
+  b) SANCIONES. Sin perjuicio de las correspondientes penalidades los oferentes o co-contratantes podrán ser pasibles de las siguientes sanciones, en los supuestos de incumplimiento de sus obligaciones:
+  1. Apercibimiento.
+  2. Suspensión para ser contratista de la AFIP por un término de hasta seis (6) meses.
+  3. Inhabilitación para ser contratista de la AFIP.
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-56}
+datos_clave: ["6 meses"]
+difieren: false
+pareja: ""
+aviso_modificatorias: true
+etiquetas: []
+visto_bueno: "responsable del proyecto, 2026-10-03 (piloto, ADR-0015); pendiente de confirmación de la Comisión (feature 009)"
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  No se armó par con la 247/2022: su anexo enumera la suspensión entre las sanciones pero no fija su duración (queda en lo que establezca la reglamentación), y esa sería una pregunta de zona gris. Texto de 2003 sin modificatorias cargadas: una modificatoria pudo cambiar el plazo.

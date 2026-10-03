@@ -1,0 +1,25 @@
+id: EV-047
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "En una licitación para alquilar un inmueble, ¿se puede adjudicar al actual locador de la AFIP aunque su oferta no sea la más baja?"
+fecha_autorizacion: 2006-09-11
+regimen: "Disposición AFIP 297/03"
+esperado: |
+  Sí. Si se presenta el actual locador de la AFIP y su oferta no supera en más de un diez por ciento (10 %) a la menor propuesta admisible, se puede adjudicar a su favor cuando hay razones de funcionamiento que tornan inconveniente y gravoso el desplazamiento de los bienes y servicios. Esas razones tienen que ser invocadas y debidamente fundadas por autoridad competente.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 61, inciso 2)"}
+origen: |
+  Inciso 2) Evaluación de Ofertas de Locación. En las licitaciones de locaciones de inmuebles, si se presentara el actual locador de AFIP y su oferta no resultara superior en más de un DIEZ (10%) a la menor propuesta admisible, se podrá decidir la adjudicación a su favor cuando existan razones de funcionamiento que tornen inconveniente y gravoso el desplazamiento de los bienes y servicios, las que deberán ser invocadas y debidamente fundadas por autoridad competente.
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-61}
+datos_clave: [["sí", "se puede adjudicar", "se podrá decidir la adjudicación a su favor"], "10 %"]
+difieren: false
+pareja: ""
+aviso_modificatorias: true
+etiquetas: ["palabras distintas a las de la norma"]
+visto_bueno: "responsable del proyecto, 2026-10-03 (piloto, ADR-0015); pendiente de confirmación de la Comisión (feature 009)"
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  Pregunta de "¿puede…?": el "sí" lleva variantes del esperado ("se puede adjudicar") y del origen ("se podrá decidir la adjudicación a su favor"). La pregunta dice "alquilar" donde la norma dice "locaciones de inmuebles". El anexo de la 247/2022 no tiene esta regla, por eso no hay par. Texto de 2003 sin modificatorias cargadas.

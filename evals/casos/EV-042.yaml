@@ -1,0 +1,27 @@
+id: EV-042
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Durante cuánto tiempo responde el contratista por los vicios ocultos de lo que entregó?"
+fecha_autorizacion: 2026-01-19
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  Durante un (1) año, computado a partir de la conformidad definitiva, salvo que el pliego de bases y condiciones particulares fije por razones fundadas otro plazo, que no puede ser inferior a seis (6) meses. En los contratos sobre inmuebles el plazo es de tres (3) años, salvo que el pliego estipule uno mayor. El contratista hace a su costo las reposiciones o reparaciones.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 78"}
+origen: |
+  ARTÍCULO 78.- VICIOS REDHIBITORIOS U OCULTOS. La conformidad definitiva no libera al contratista de las responsabilidades emergentes de vicios redhibitorios u ocultos que se advirtieran durante el plazo de UN (1) año, computado a partir de la conformidad definitiva, salvo que, por la índole de la prestación, en el pliego de bases y condiciones particulares se fijara un plazo distinto por razones fundadas, que no podrá ser inferior a SEIS (6) meses.
+  En el caso de contratos sobre inmuebles, el plazo referido será de TRES (3) años, salvo que en el pliego de bases y condiciones particulares se estipule uno mayor.
+  El contratista quedará obligado a efectuar a su costo las reposiciones o reparaciones correspondientes en el plazo y lugar que indique el Organismo.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-78}
+datos_clave: ["1 año"]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: []
+visto_bueno: "responsable del proyecto, 2026-10-03 (piloto, ADR-0015); pendiente de confirmación de la Comisión (feature 009)"
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  La pregunta es general: el dato clave es el plazo general. Los tres años de los inmuebles y el mínimo de seis meses están en el esperado, no en los datos clave.
