@@ -112,7 +112,8 @@ def _unit_defaults_from_key(key):
 def make_norm(read_write_user):
     """Fábrica de normas. `make_norm(**campos)`; por omisión, una disposición de
     régimen específico, sin marca de régimen general, con número propio de cada
-    llamada."""
+    llamada. Sin `citation`, el nombre de cita es "Norma sintética número/año", con el
+    número y el año que queden (T-055)."""
     from evaluon.norms.models import Norm
 
     def _make(**fields):
@@ -128,6 +129,7 @@ def make_norm(read_write_user):
             "created_by": read_write_user,
         }
         values.update(fields)
+        values.setdefault("citation", f"Norma sintética {values['number']}/{values['year']}")
         return Norm.objects.create(**values)
 
     return _make
@@ -170,8 +172,10 @@ def make_document(read_write_user):
 @pytest.fixture
 def make_passage():
     """Fábrica de pasajes. `make_passage(unidad, **campos)`; por omisión, un pasaje que
-    cubre todo el texto de la unidad, con su encabezado y un vector fijo. La base
-    calcula la columna `tsv`."""
+    cubre todo el texto de la unidad, con su encabezado y un vector fijo. El encabezado
+    se arma con `indexing.passage_header`, como en la validación. La base calcula la
+    columna `tsv`."""
+    from evaluon.norms import indexing
     from evaluon.norms.models import Passage
 
     def _make(unit, **fields):
@@ -183,7 +187,7 @@ def make_passage():
             "order": order,
             "char_start": 0,
             "char_end": len(unit.text),
-            "header": f"{norm.norm_type.title()} {norm.number}/{norm.year}, {unit.path}",
+            "header": indexing.passage_header(norm, unit),
             "text": unit.text,
             "embedding": unit_vector(unit.pk),
             "embedding_model": "bge-m3-doble",
@@ -325,11 +329,11 @@ def make_pending_amendment(read_write_user):
 def two_regimes(make_norm, make_document, make_reading, make_relation):
     """Los dos regímenes de prueba de REQ-020 (ADR-0006), con textos sintéticos.
 
-    - `old`: como la Disposición 297/03 (`disposicion` 297/2003, organismo `afip`).
-      Régimen general, un solo documento (cuerpo) vigente desde `old_from`, con `art-1`,
+    - `old`: como la Disposición 297/03 (`disposicion` 297/2003, organismo `afip`,
+      nombre de cita "Disposición AFIP 297/03"). Régimen general, un solo documento (cuerpo) vigente desde `old_from`, con `art-1`,
       `art-2`, `anexo-i` y, dentro del anexo, `anexo-i/art-1` y `anexo-i/art-1/inc-a`.
-    - `new`: como la Disposición 247/2022 (`disposicion` 247/2022, `afip`). Régimen
-      general en dos partes vigentes desde `v`: el cuerpo (`art-1`, `art-2`) y el anexo
+    - `new`: como la Disposición 247/2022 (`disposicion` 247/2022, `afip`, nombre de
+      cita "Disposición AFIP 247/2022"). Régimen general en dos partes vigentes desde `v`: el cuerpo (`art-1`, `art-2`) y el anexo
       (`anexo`, `anexo/art-1`, `anexo/art-2`).
     - `repeal`: relación `deroga` desde `new` (`art-2`) sobre `old` entera, con fecha `v`.
 
@@ -342,6 +346,7 @@ def two_regimes(make_norm, make_document, make_reading, make_relation):
 
     old = make_norm(
         norm_type="disposicion", number="297", year=2003, issuer="afip",
+        citation="Disposición AFIP 297/03",
         title="Régimen de contrataciones sintético anterior", general_regime=True,
     )
     old_body = make_document(old, part="cuerpo", effective_from=old_from,
@@ -356,6 +361,7 @@ def two_regimes(make_norm, make_document, make_reading, make_relation):
 
     new = make_norm(
         norm_type="disposicion", number="247", year=2022, issuer="afip",
+        citation="Disposición AFIP 247/2022",
         title="Régimen de contrataciones sintético vigente", general_regime=True,
     )
     new_body = make_document(new, part="cuerpo", effective_from=v,

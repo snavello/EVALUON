@@ -118,6 +118,9 @@ class Norm(models.Model):
     year = models.PositiveSmallIntegerField("año")
     issuer = models.CharField("organismo emisor", max_length=200)
     title = models.TextField("título")
+    # Nombre con que se cita la norma, tal como lo escribe la persona al cargarla
+    # ("Disposición AFIP 297/03"). Obligatorio y no vacío (T-055).
+    citation = models.TextField("nombre de cita")
     # Verdadero en la norma que aprueba un régimen general de contrataciones (REQ-020).
     general_regime = models.BooleanField("régimen general", default=False)
     created_at = models.DateTimeField("alta", default=timezone.now)
@@ -131,6 +134,10 @@ class Norm(models.Model):
             models.CheckConstraint(
                 condition=Q(category__in=Category.values),
                 name="norms_norm_category_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(citation__regex=r"\S"),
+                name="norms_norm_citation_not_blank",
             ),
             models.UniqueConstraint(
                 fields=["norm_type", "number", "year", "issuer"],

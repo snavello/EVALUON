@@ -31,7 +31,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 18/55 | ███░░░░░░░ 33% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 20/55 | ████░░░░░░ 36% |
 | 002 · Revisión de pliegos | Observaciones a un pliego contra la normativa, antes de publicarlo | No iniciada | — | — |
 | 003 · Matriz de requisitos | Los requisitos del pliego ordenados en una matriz que la Comisión valida | No iniciada | — | — |
 | 004 · Evaluación de ofertas | Por cada requisito, una propuesta con su cita; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -57,8 +57,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 37 tareas sin terminar.
-- ◐ T-018 · Generar la respuesta con esquema e insertar las citas (en verificación)
+- **Próximo paso:** Desarrollar: 35 tareas sin terminar.
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
 - ○ T-019 · Unir la consulta de punta a punta con su registro (pendiente)
 - ○ T-020 · Probar el hilo mínimo con los servicios reales (pendiente)
@@ -94,7 +93,6 @@ flowchart LR
 - ○ T-050 · Partir la 297/03 y el cuerpo de la 247/2022 desde la web (pendiente)
 - ○ T-051 · Registrar las modificatorias sin cargar de una norma (pendiente)
 - ○ T-052 · Avisar modificatorias sin cargar en respuesta y búsqueda (pendiente)
-- ○ T-055 · Agregar el nombre de cita de la norma (pendiente)
 
 ### Qué se hizo
 
@@ -115,8 +113,10 @@ flowchart LR
 - ✓ T-015 · Validar una lectura y calcular pasajes y vectores (`420eae6` 2026-10-03, `845bdae` 2026-10-03)
 - ✓ T-016 · Armar la pantalla de consulta con sus tres bloques (`ceff61d` 2026-10-03, `bb49b8c` 2026-10-03)
 - ✓ T-017 · Recuperar por significado y reordenar con el reranker (`f31dab6` 2026-10-03)
+- ✓ T-018 · Generar la respuesta con esquema e insertar las citas (`33f0f08` 2026-10-03, `9830fe5` 2026-10-03)
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 - ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
+- ✓ T-055 · Agregar el nombre de cita de la norma
 
 ### Mapa de tareas
 
@@ -139,7 +139,7 @@ flowchart TD
   T015["✓ T-015 · Validar una lectura y calcular pasajes y ve…"]:::done
   T016["✓ T-016 · Armar la pantalla de consulta con sus tres…"]:::done
   T017["✓ T-017 · Recuperar por significado y reordenar con e…"]:::done
-  T018["◐ T-018 · Generar la respuesta con esquema e insertar…"]:::review
+  T018["✓ T-018 · Generar la respuesta con esquema e insertar…"]:::done
   T019["○ T-019 · Unir la consulta de punta a punta con su re…"]:::todo
   T020["○ T-020 · Probar el hilo mínimo con los servicios rea…"]:::todo
   T021["○ T-021 · Leer un PDF escaneado con reconocimiento de…"]:::todo
@@ -176,7 +176,7 @@ flowchart TD
   T052["○ T-052 · Avisar modificatorias sin cargar en respues…"]:::todo
   T053["✓ T-053 · Conservar la eñe en la búsqueda por palabras"]:::done
   T054["✓ T-054 · Pasar a la aplicación las variables de los…"]:::done
-  T055["○ T-055 · Agregar el nombre de cita de la norma"]:::todo
+  T055["✓ T-055 · Agregar el nombre de cita de la norma"]:::done
   T001 --> T002
   T002 --> T003
   T003 --> T004
