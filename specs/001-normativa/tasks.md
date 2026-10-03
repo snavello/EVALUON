@@ -47,7 +47,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-029 | Registrar relaciones entre normas y mostrar los vínculos | REQ-006, REQ-007 | T-009, T-014 | pendiente |
 | T-030 | Registrar versiones de una norma | REQ-007 | T-015 | pendiente |
 | T-031 | Partir en pasajes las unidades largas | REQ-003, REQ-008 | T-015 | terminada |
-| T-032 | Recuperar por tres caminos y unir los candidatos | REQ-005, REQ-008, REQ-020 | T-019 | pendiente |
+| T-032 | Recuperar por tres caminos y unir los candidatos | REQ-005, REQ-008, REQ-020 | T-019 | en curso |
 | T-033 | Seleccionar por categoría, sumar cambios y ordenar | REQ-007, REQ-018, REQ-019 | T-032 | pendiente |
 | T-034 | Completar instrucciones, marca de regímenes y orden | REQ-008, REQ-009, REQ-018, REQ-019 | T-019 | pendiente |
 | T-035 | Buscar unidades por artículo y por palabras | REQ-005, REQ-006, REQ-010, REQ-020 | T-010 | pendiente |
