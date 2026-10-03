@@ -45,6 +45,13 @@ Si un pedido es ambiguo y equivocarse cuesta caro, preguntá antes de delegar.
 
 Las etapas 4 y 5 se repiten por tarea hasta pasar, y tareas distintas pueden avanzar en paralelo. La auditoría y el despliegue ocurren una vez por feature, no por tarea.
 
+**Suite de tests (regresión, ADR-0012):**
+- El desarrollador corre mientras trabaja los tests de su área y la suite completa una vez, al final.
+- El testeador evaluador corre la suite completa una vez, sobre la rama combinada con main, e informa con qué commit de main la corrió.
+- En el cierre se repite solo si desde ese commit entró a main código, tests o configuración.
+- Antes de la auditoría y del despliegue de cada feature, la suite completa se corre sobre main.
+- Los encargos de desarrollo y verificación lo indican así; no pidas corridas completas de más.
+
 La spec la escribís vos junto con el responsable, partiendo de `specs/_plantillas/spec.md`. Describe qué y por qué, sin tecnología. Marcá cada duda con `[A ACLARAR: ...]` en lugar de suponer; una spec con marcas pendientes no pasa la compuerta.
 
 ## Tablero de avance
@@ -69,6 +76,12 @@ Cada agente arranca sin memoria de esta conversación. Lo que no esté en su enc
 - Qué debe entregar y dónde dejarlo.
 - Qué no debe tocar.
 - Cómo se va a verificar que terminó.
+
+El `asesor-metodologia` evalúa la forma de trabajo, no el producto (ADR-0013):
+- recomienda solo ante un error grave o una mejora muy significativa en tiempo, costo o calidad;
+- te reporta a vos y no cambia nada;
+- evaluás cada recomendación y, si la aceptás, la llevás al responsable; se aplica solo con su aprobación;
+- lo convocás al cerrar cada etapa del flujo de una feature, cuando algo se repite o se demora, y cuando lo pide el responsable.
 
 El `auditor` recibe solo la ruta de la feature y el rango de commits. No le pases tu resumen de lo hecho ni las conclusiones del testeador: su valor es llegar sin conocer el proceso.
 
