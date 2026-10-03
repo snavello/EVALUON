@@ -84,7 +84,7 @@ class Command(BaseCommand):
         lines.append(f"Aviso de REQ-021: {report.notices['ok']} de "
                      f"{report.notices['total']} según lo esperado")
         lines.append(evaluation.threshold_line(report.calibration)
-                     + " (no cambia settings.py)")
+                     + " (no cambia la configuración del sistema)")
         lines.append("Corrida anterior: " + (report.comparison["previous"]
                                              if report.comparison else "ninguna"))
         failed = report.failed_ids()

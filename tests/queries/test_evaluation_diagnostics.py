@@ -12,6 +12,9 @@ dobles de los clientes de IA. Las corridas se guardan en una carpeta temporal.
 """
 
 import json
+import re
+import shutil
+from pathlib import Path
 
 import pytest
 from django.conf import settings
@@ -366,8 +369,8 @@ def test_repeating_the_run_reports_equality(read_user, two_regimes, scripted, tm
     report = run(read_user, "t039-medidas", tmp_path)
 
     equality = report.comparison["equality"]
-    assert (equality["same"], equality["same_status_and_citations"], equality["total"]) \
-        == (4, 4, 4)
+    assert (equality["same"], equality["same_status_reason_and_citations"],
+            equality["total"]) == (4, 4, 4)
     assert report.comparison["conditions_changed"] == []
     text = section(summary_of(report), "Comparación con la corrida anterior")
     assert "4 de 4" in text
@@ -438,19 +441,37 @@ def test_ablation_produces_the_four_configurations(read_user, two_regimes, scrip
     assert names == ["solo vectores", "solo palabras", "combinada sin reranker",
                      "completa"]
     by_name = {config["name"]: config for config in report.ablation}
-    # Sin reranker no hay umbral: la pregunta que la completa frena llega al modelo.
-    assert by_name["combinada sin reranker"]["answered_stopped"] is None
-    assert by_name["combinada sin reranker"]["selected"]["total"] == 3
-    assert by_name["completa"]["selected"]["ok"] == 2
-    assert by_name["completa"]["answered_stopped"]["ok"] == 1
+    combined = by_name["combinada sin reranker"]
+    full = by_name["completa"]
+    # Sin reranker no hay umbral: "entre las seleccionadas" es toda la unión y coincide
+    # con "entre los candidatos" (aclaración de T-032).
+    assert combined["answered_stopped"] is None
+    assert combined["threshold"] is None
+    assert (combined["found"]["union"]["ok"], combined["found"]["union"]["total"]) == (3, 3)
+    assert (combined["selected"]["ok"], combined["selected"]["total"]) == (3, 3)
+    # Con los dobles, sin reranker la unidad esperada queda en el puesto 4 o 5 del orden
+    # de la unión, y el cupo de 3 unidades por categoría la deja afuera de lo que se
+    # envía al modelo en los tres casos con respuesta.
+    assert (combined["position"]["median"], combined["position"]["max"]) == (4, 5)
+    assert (combined["delivered"]["ok"], combined["delivered"]["total"]) == (0, 3)
+    # Con reranker, EV-805 queda bajo el umbral (0,3): ni seleccionada ni enviada.
+    assert (full["selected"]["ok"], full["delivered"]["ok"]) == (2, 2)
+    assert full["answered_stopped"]["ok"] == 1
+    assert full["threshold"] == settings.RERANK_THRESHOLD
     assert set(by_name["solo vectores"]["found"]) == {"semantic", "union"}
 
     line = by_id(report)["EV-805"]
     assert [entry["name"] for entry in line["ablation"]] == names
+    combined_805 = line["ablation"][2]
+    assert (combined_805["selected"], combined_805["delivered"]) == (True, False)
 
     text = section(summary_of(report), "Comparación quitando piezas")
     for name in names:
         assert name in text
+    assert "Entre las enviadas al modelo" in text
+    assert "coincide con \"entre los candidatos\"" in text
+    row = next(r for r in text.splitlines() if r.startswith("| combinada sin reranker"))
+    assert "| sin umbral | 100,0 % (3 de 3) | 100,0 % (3 de 3) | 0,0 % (0 de 3) |" in row
 
 
 def test_ablation_is_not_run_unless_asked(read_user, two_regimes, scripted, tmp_path):
@@ -506,3 +527,160 @@ def test_ablation_skips_dates_without_regime(read_user, two_regimes, scripted, t
     assert [entry["skipped"] for entry in by_id(report)["EV-803"]["ablation"]] == [
         "no_regime_at_date"] * 4
     assert services.applicable_regimes(two_regimes.before_all) == []
+
+
+# --- Ajustes de la verificación de T-042 --------------------------------------------------
+
+
+def _without_code(text):
+    """El texto del resumen sin lo que va entre comillas invertidas (nombres de carpeta,
+    commit, modelo), que son identificadores y no números para leer."""
+    return re.sub(r"`[^`]*`", "", text)
+
+
+def test_summary_uses_decimal_commas_and_plain_times(read_user, two_regimes, scripted,
+                                                      tmp_path):
+    """REQ-008, REQ-009 (B2): en todo `resumen.md` los números llevan coma decimal (el
+    umbral del encabezado, los de cada configuración, las medianas) y las horas van como
+    "03/10/2026 08:21": ningún número con punto decimal ni fecha u hora en formato ISO."""
+    diagnostic_marks(scripted)
+    earlier(run(read_user, "t042-diagnostico", tmp_path))
+
+    summary = summary_of(run(read_user, "t042-diagnostico", tmp_path, ablation=True))
+
+    plain = _without_code(summary)
+    assert re.findall(r"\d\.\d", plain) == []
+    assert re.findall(r"\d{4}-\d{2}-\d{2}", plain) == []
+    assert re.findall(r"\d{2}:\d{2}:\d{2}", plain) == []
+    assert re.search(r"^# Corrida del \d{2}/\d{2}/\d{4} \d{2}:\d{2}$", summary, re.M)
+    assert re.search(r"Comienzo: \d{2}/\d{2}/\d{4} \d{2}:\d{2} · fin: "
+                     r"\d{2}/\d{2}/\d{4} \d{2}:\d{2}", summary)
+    assert ("Umbral del modelo que reordena los resultados (reranker): 0,500"
+            in summary)
+    assert "la del 01/01/2000 00:00" in summary
+    assert "| completa | 0,500 |" in summary
+
+
+def test_a_median_position_between_two_is_written_with_a_comma():
+    """REQ-008 (B2): una mediana de posición que no es entera se escribe con coma."""
+    found = {"semantic": True, "words": True, "reference": False, "union": True}
+
+    def diagnostics(position):
+        return {"found": found, "selected": True, "position": position,
+                "stopped_by_threshold": False, "retrieval_seconds": 0.1}
+
+    measures = evaluation.retrieval_measures([("EV-1", True, diagnostics(1)),
+                                              ("EV-2", True, diagnostics(2))])
+    [row] = [r for r in evaluation._retrieval_section(measures) if "Posición" in r]
+
+    assert "mediana 1,5 · peor 2" in row
+
+
+def test_previous_run_is_the_latest_one_before_the_current(read_user, two_regimes,
+                                                           scripted, tmp_path):
+    """REQ-008 (P7, B3): con varias corridas en la carpeta, la anterior es la más
+    reciente de las que tienen nombre anterior al de la actual y tienen resultados: no
+    la más vieja, no una de nombre posterior y no una carpeta sin resultados."""
+    all_marks(scripted)
+    first = run(read_user, "t039-medidas", tmp_path)
+    for name in ("2000-01-01T000000_vieja_modelo", "2001-01-01T000000_media_modelo",
+                 "2999-01-01T000000_futura_modelo"):
+        shutil.copytree(first.folder, tmp_path / name)
+    (tmp_path / "2002-01-01T000000_vacia_modelo").mkdir()
+    shutil.rmtree(first.folder)
+
+    report = run(read_user, "t039-medidas", tmp_path)
+
+    assert report.comparison["previous"] == "2001-01-01T000000_media_modelo"
+    text = section(summary_of(report), "Comparación con la corrida anterior")
+    assert "la del 01/01/2001 00:00" in text
+
+
+def synthetic_line(case_id, *, status="grounded", reason=None, keys=("anexo/art-1",),
+                   text="Afirmación sintética.", passed=True):
+    cited = [{"unit": index, "norm": N247, "key": key}
+             for index, key in enumerate(keys, start=1)]
+    return {
+        "id": case_id, "ran": True, "has_answer": True, "passed": passed,
+        "status": status, "reason": reason, "cited_units": cited,
+        "statements": [{"text": text, "regimes_differ": False,
+                        "citations": [u["unit"] for u in cited]}],
+        "measures": {"literal_citations": len(cited), "citations": len(cited),
+                     "correct": passed, "abstained": None},
+        "time_seconds": 1.0,
+    }
+
+
+def previous_run(lines, commit="x"):
+    return {"folder": Path("2000-01-01T000000_x_modelo"), "parameters": {"commit": commit},
+            "lines": lines}
+
+
+def test_equality_tells_text_status_reason_and_citations_apart():
+    """REQ-008 (ADR-0002, B4): al repetir, un caso que cambia solo el texto no cuenta
+    como mismo resultado pero sí como mismo estado, motivo y citas; uno que cambia solo
+    el estado, solo el motivo o solo las citas no cuenta en ninguna de las dos."""
+    ids = ["EV-TEXTO", "EV-ESTADO", "EV-MOTIVO", "EV-CITAS", "EV-IGUAL"]
+    old = [synthetic_line(case_id) for case_id in ids]
+    new = [
+        synthetic_line("EV-TEXTO", text="Otra redacción de la afirmación."),
+        synthetic_line("EV-ESTADO", status="undetermined"),
+        synthetic_line("EV-MOTIVO", reason="model_abstained"),
+        synthetic_line("EV-CITAS", keys=("anexo/art-2",)),
+        synthetic_line("EV-IGUAL"),
+    ]
+
+    comparison = evaluation.compare_runs(previous_run(old), new, {"commit": "x"})
+
+    assert comparison["equality"] == {"same": 1, "same_status_reason_and_citations": 2,
+                                      "total": 5}
+    assert comparison["changed"] == ["EV-ESTADO", "EV-MOTIVO", "EV-CITAS"]
+    text = "\n".join(evaluation._comparison_section(comparison))
+    assert "1 de 5 casos corridos" in text
+    assert "2 de 5 con el mismo estado, el mismo motivo y las mismas citas" in text
+
+
+def test_each_drop_is_marked_and_asks_for_approval():
+    """REQ-008, REQ-009 (P7): en la comparación con la corrida anterior, cada medida que
+    baja se marca como "baja" y el resumen recuerda que requiere aprobación."""
+    old = [synthetic_line("EV-001"), synthetic_line("EV-002")]
+    new = [synthetic_line("EV-001", passed=False), synthetic_line("EV-002")]
+    new[0]["time_seconds"] = 2.0
+
+    comparison = evaluation.compare_runs(previous_run(old), new, {"commit": "x"})
+
+    assert comparison["drops"] == ["correct_answer", "response_time"]
+    text = "\n".join(evaluation._comparison_section(comparison))
+    assert ("| Respuesta correcta que cita la unidad correcta | 100,0 % | 50,0 % | baja |"
+            in text)
+    assert "| Cita literal | 100,0 % | 100,0 % | igual |" in text
+    assert "| Tiempo de respuesta (máximo) | 1,00 s | 2,00 s | baja (más lento) |" in text
+    assert "requiere la aprobación explícita del responsable" in text
+
+
+def test_a_case_with_several_units_needs_all_of_them(two_regimes):
+    """REQ-008 (A11): con varias unidades esperadas, la unidad correcta cuenta entre los
+    candidatos, entre las seleccionadas y entre las enviadas solo si están todas, y la
+    posición es la de la peor ubicada."""
+    first = two_regimes.new_units["anexo/art-1"].pk
+    second = two_regimes.new_units["anexo/art-2"].pk
+    other = two_regimes.new_units["art-1"].pk
+    expected = ((N247, "anexo/art-1"), (N247, "anexo/art-2"))
+
+    only_one = evaluation.unit_hits(expected, [{"unit": first, "path": ["semantic"]}],
+                                    [first], [first], retrieval.ALL_PATHS,
+                                    delivered=[first])
+    both = evaluation.unit_hits(
+        expected,
+        [{"unit": first, "path": ["semantic"]}, {"unit": second, "path": ["words"]},
+         {"unit": other, "path": ["semantic", "words"]}],
+        [first, second], [second, other, first], retrieval.ALL_PATHS,
+        delivered=[second, first])
+
+    assert only_one["found"]["union"] is False
+    assert (only_one["selected"], only_one["delivered"], only_one["position"]) == (
+        False, False, None)
+    assert both["found"]["union"] is True
+    assert both["found"]["semantic"] is False  # por significado entró solo una
+    assert both["found"]["words"] is False
+    assert (both["selected"], both["delivered"], both["position"]) == (True, True, 3)

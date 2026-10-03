@@ -59,21 +59,30 @@ afirmación empieza con esa palabra seguida de un signo de puntuación o del fin
 obstante, …" no es un "no"). En la corrida que se presenta para aprobar, el responsable
 revisa además las respuestas contra la esperada (plan, "Evals").
 
-Calibración (plan, "Abstención", pasos 1 y 2). Con las preguntas con respuesta que
-llegaron a puntuarse, `n`, se admite frenar por error `k = piso(5 % de n)`; el umbral
-propuesto es el puntaje más alto que deja pasar a todas salvo a lo sumo `k`: el
-`k+1`-ésimo puntaje más bajo, redondeado hacia abajo a tres decimales (la selección pasa
-con puntaje igual o mayor). Dejando cada vez una pregunta afuera, se calcula el umbral
-con las demás y se mira si frena a la que quedó afuera: la proporción de frenadas es la
-estimación de lo que frenaría con preguntas nuevas. El valor es uno solo para los dos
-regímenes, se informa como provisorio y no cambia `settings.py`: lo fija T-045.
+Calibración (plan, "Abstención", pasos 1 y 2; decisión del Coordinador en la
+verificación de T-042). El umbral propuesto es el más alto que, dejando cada vez una
+pregunta afuera, frena por error a lo sumo el 5 % de las preguntas con respuesta. Con
+los `n` puntajes de las preguntas con respuesta que llegaron a puntuarse, ordenados de
+menor a mayor, y una posición `k`: para cada pregunta se calcula el umbral con las
+demás (el puntaje en la posición `k` de las otras `n - 1`) y se mira si frena a la que
+quedó afuera; la proporción de frenadas es la estimación de `k`. Se elige la `k` más
+alta cuya estimación no pasa del 5 %, y el umbral es el puntaje en la posición `k` del
+conjunto completo, redondeado hacia abajo a tres decimales (la selección pasa con
+puntaje igual o mayor). Si ninguna `k` cumple (con menos de 20 preguntas, frenar una ya
+es más del 5 %), se propone el puntaje más bajo y se informa que no cumple. Se informa
+también, para comparar, la regla anterior: `k = piso(5 % de n)` sobre el conjunto
+completo. El valor es uno solo para los dos regímenes, se informa como provisorio y no
+cambia `settings.py`: lo fija T-045.
 
 Comparación quitando piezas (ADR-0003). Cada caso se corre con cuatro configuraciones
 de `retrieval.retrieve(..., paths=, rerank=)` seguido de `retrieval.select_units`, sin
 pasar por la consulta ni por el modelo de generación: solo vectores (camino por
 significado, con reranker), solo palabras (camino por palabras, con reranker), combinada
 sin reranker (los tres caminos, sin umbral) y completa. Para una fecha sin régimen
-cargado no se busca, igual que en la consulta. Estas recuperaciones no crean consultas
+cargado no se busca, igual que en la consulta. "Entre las seleccionadas" es lo que
+selecciona la recuperación (`retrieve(...).selected`: sin reranker, toda la unión, así
+que coincide con "entre los candidatos", aclaración de T-032); "entre las enviadas al
+modelo" es lo que deja `select_units` con los cupos y el espacio. Estas recuperaciones no crean consultas
 ni hechos del registro de auditoría: lo que recuperó cada configuración queda en
 `resultados.jsonl` de la corrida.
 """
@@ -662,25 +671,32 @@ def _worst_position(expected, ranked, info):
     return max(positions) if positions else None
 
 
-def unit_hits(expected, candidates, sent, ranked, paths):
-    """Dónde quedaron las unidades esperadas `expected` (pares norma y clave) de un caso:
+def unit_hits(expected, candidates, selected, ranked, paths, delivered=None):
+    """Dónde quedaron las unidades esperadas `expected` (pares norma y clave) de un caso.
+    Con varias unidades esperadas, cada medida exige todas:
 
     - `found`: por cada camino de `paths` y en la unión (`union`), si todas estaban entre
       los candidatos que entraron por ahí. Los candidatos son pasajes de unidades base:
       un inciso esperado vale con el artículo que lo contiene, como en la respuesta
       correcta.
-    - `selected`: si todas estaban entre las unidades enviadas al modelo (`sent`).
+    - `selected`: si todas estaban entre `selected`.
     - `position`: la posición, desde 1, de la peor ubicada en `ranked` (el orden del
       reranker; sin reranker, el de la unión), o `None` si alguna no estaba.
+    - `delivered` (solo si se pasa): si todas estaban entre las unidades enviadas al
+      modelo, después de los cupos y del espacio.
 
     `candidates` son `{"unit", "path"}`, como los registra la consulta."""
-    info = _unit_info([c["unit"] for c in candidates] + list(sent) + list(ranked))
+    info = _unit_info([c["unit"] for c in candidates] + list(selected) + list(ranked)
+                      + list(delivered or []))
     found = {path: _all_found(expected, [c["unit"] for c in candidates if path in c["path"]],
                               info)
              for path in paths}
     found[UNION] = _all_found(expected, [c["unit"] for c in candidates], info)
-    return {"found": found, "selected": _all_found(expected, sent, info),
+    hits = {"found": found, "selected": _all_found(expected, selected, info),
             "position": _worst_position(expected, ranked, info)}
+    if delivered is not None:
+        hits["delivered"] = _all_found(expected, delivered, info)
+    return hits
 
 
 def _anomalies_of(anomalies, kind):
@@ -740,6 +756,7 @@ def retrieval_measures(items, paths=retrieval.ALL_PATHS, thresholded=True):
                   for key in [*paths, UNION]},
         "selected": _count(d["selected"] for _, d in answered),
         "not_selected": [case_id for case_id, d in answered if not d["selected"]],
+        "delivered": _count(d.get("delivered") for _, d in answered),
         "position": _spread(d["position"] for _, d in answered),
         "answered_stopped": (_count(d["stopped_by_threshold"] for _, d in answered)
                              if thresholded else None),
@@ -804,80 +821,120 @@ def _floor(value):
     return math.floor(round(value * factor, 6)) / factor
 
 
-def highest_threshold(scores, max_rate=CALIBRATION_MAX_BLOCKED):
-    """El umbral más alto que frena (puntaje menor que el umbral) a lo sumo
-    `piso(max_rate × n)` de los `n` puntajes: el `k+1`-ésimo más bajo, sin redondear.
-    `None` sin puntajes."""
-    if not scores:
+def threshold_at(scores, position):
+    """El puntaje que ocupa `position` (desde 0) en `scores` ordenados de menor a mayor,
+    redondeado hacia abajo a tres decimales: el umbral más alto que frena (puntaje
+    menor que el umbral) a lo sumo `position` de esos puntajes. `None` si no hay tantos
+    puntajes."""
+    if position >= len(scores):
         return None
-    ordered = sorted(scores)
-    return ordered[math.floor(max_rate * len(ordered) + 1e-9)]
+    return _floor(sorted(scores)[position])
+
+
+def leave_one_out(answered, position):
+    """Estimación dejando cada vez una afuera para la posición `position`: por cada
+    pregunta con respuesta `(id, puntaje)`, el umbral se calcula con las demás
+    (`threshold_at(demás, position)`) y se mira si frena a la que quedó afuera."""
+    thresholds = {}
+    for index, (case_id, _) in enumerate(answered):
+        others = [score for i, (_, score) in enumerate(answered) if i != index]
+        threshold = threshold_at(others, position)
+        if threshold is not None:
+            thresholds[case_id] = threshold
+    blocked = [case_id for case_id, score in answered
+               if case_id in thresholds and score < thresholds[case_id]]
+    rate = len(blocked) / len(thresholds) if thresholds else None
+    return {
+        "position": position,
+        "blocked": blocked,
+        "total": len(thresholds),
+        "rate": rate,
+        "thresholds": thresholds,
+        "min": min(thresholds.values()) if thresholds else None,
+        "max": max(thresholds.values()) if thresholds else None,
+    }
+
+
+def _within(rate, max_rate):
+    return None if rate is None else rate <= max_rate + 1e-9
 
 
 def calibrate(entries, current, max_rate=CALIBRATION_MAX_BLOCKED):
-    """Calibración del umbral con el puntaje más alto de cada pregunta. Ver el módulo.
+    """Calibración del umbral con el puntaje más alto de cada pregunta (decisión del
+    Coordinador en la verificación de T-042). Ver el módulo.
 
     `entries` son `{"id", "has_answer", "max_score"}`; `current` es el umbral con que se
-    corrió. Devuelve:
+    corrió. Con los `n` puntajes de las preguntas con respuesta ordenados de menor a
+    mayor, se elige la posición `k` más alta cuya estimación dejando cada vez una afuera
+    (`leave_one_out`) frena por error a lo sumo `max_rate`; el umbral propuesto es el
+    puntaje en la posición `k` del conjunto completo, redondeado hacia abajo a tres
+    decimales. Si ninguna posición cumple (pasa con menos de 20 preguntas), se propone
+    el puntaje más bajo (`k = 0`) y `meets` queda falso. Devuelve:
 
-    - `proposed`: el umbral propuesto, redondeado hacia abajo a tres decimales, o `None`
-      sin preguntas con respuesta y puntaje; `provisional`: siempre verdadero.
-    - `answered`: preguntas con respuesta y puntaje; `allowed_blocked`: cuántas se
-      admite frenar por error; `blocked`: las que frena el propuesto.
+    - `proposed`: el umbral propuesto, o `None` sin preguntas con respuesta y puntaje;
+      `provisional`: siempre verdadero; `position`: la `k` elegida; `meets`: si su
+      estimación cumple (`None` si no se pudo estimar, con una sola pregunta).
+    - `answered`: preguntas con respuesta y puntaje; `blocked`: las que frena el
+      propuesto.
+    - `leave_one_out`: la estimación de la posición elegida (`leave_one_out`).
+    - `previous_rule`: para comparar, la regla anterior (frenar a lo sumo `piso(5 % de
+      n)` del conjunto completo, sin dejar ninguna afuera): su posición, su umbral, las
+      que frena y su estimación dejando una afuera.
     - `unanswered` y `unanswered_stopped`: preguntas sin respuesta con puntaje y las que
       el propuesto frena (cuánto de la abstención resolvería el umbral solo).
     - `without_score`: preguntas con respuesta que no llegaron a puntuarse (sin régimen,
       sin candidatos o consulta rechazada); ningún umbral las cambia y no entran en la
       cuenta.
     - `current`: el umbral actual y las preguntas con respuesta que frena.
-    - `leave_one_out`: por cada pregunta con respuesta, el umbral calculado con las demás
-      (`thresholds`) y si la frena (`blocked`); `rate` es la proporción de frenadas y
-      `meets` si no pasa de `max_rate`.
     - `scores`: el puntaje más alto de cada pregunta que lo tiene.
     """
     answered = [(e["id"], e["max_score"]) for e in entries
                 if e["has_answer"] and e["max_score"] is not None]
     unanswered = [(e["id"], e["max_score"]) for e in entries
                   if not e["has_answer"] and e["max_score"] is not None]
-    raw = highest_threshold([score for _, score in answered], max_rate)
-    proposed = None if raw is None else _floor(raw)
+    scores = [score for _, score in answered]
 
     def below(rows, threshold):
         if threshold is None:
             return []
         return [case_id for case_id, score in rows if score < threshold]
 
-    thresholds = {}
-    for index, (case_id, _) in enumerate(answered):
-        others = [score for i, (_, score) in enumerate(answered) if i != index]
-        threshold = highest_threshold(others, max_rate)
-        if threshold is not None:
-            thresholds[case_id] = _floor(threshold)
-    loo_blocked = [case_id for case_id, score in answered
-                   if case_id in thresholds and score < thresholds[case_id]]
-    loo_rate = len(loo_blocked) / len(thresholds) if thresholds else None
+    # Posiciones que se pueden estimar dejando una afuera: hasta n - 2.
+    estimates = [leave_one_out(answered, k) for k in range(max(len(answered) - 1, 0))]
+    passing = [e for e in estimates if _within(e["rate"], max_rate)]
+    if passing:
+        chosen = passing[-1]
+    elif estimates:
+        chosen = estimates[0]
+    else:
+        chosen = leave_one_out(answered, 0)
+    position = chosen["position"]
+    proposed = threshold_at(scores, position)
+
+    old_position = math.floor(max_rate * len(answered) + 1e-9)
+    old_threshold = threshold_at(scores, old_position)
+    old_estimate = leave_one_out(answered, old_position)
 
     return {
         "proposed": proposed,
         "provisional": True,
         "max_rate": max_rate,
+        "position": position if proposed is not None else None,
+        "meets": _within(chosen["rate"], max_rate),
         "answered": len(answered),
-        "allowed_blocked": math.floor(max_rate * len(answered) + 1e-9),
         "blocked": below(answered, proposed),
+        "leave_one_out": chosen,
+        "previous_rule": {
+            "position": old_position if old_threshold is not None else None,
+            "threshold": old_threshold,
+            "blocked": below(answered, old_threshold),
+            "leave_one_out_rate": old_estimate["rate"],
+        },
         "unanswered": len(unanswered),
         "unanswered_stopped": below(unanswered, proposed),
         "without_score": [e["id"] for e in entries
                           if e["has_answer"] and e["max_score"] is None],
         "current": {"threshold": current, "blocked": below(answered, current)},
-        "leave_one_out": {
-            "blocked": loo_blocked,
-            "total": len(thresholds),
-            "rate": loo_rate,
-            "meets": None if loo_rate is None else loo_rate <= max_rate + 1e-9,
-            "thresholds": thresholds,
-            "min": min(thresholds.values()) if thresholds else None,
-            "max": max(thresholds.values()) if thresholds else None,
-        },
         "scores": {e["id"]: e["max_score"] for e in entries if e["max_score"] is not None},
     }
 
@@ -920,12 +977,17 @@ def _ablation_entry(case, name, paths, rerank, prompt_tokens, clock):
         retrieval_seconds=round(seconds, 3),
         candidates=candidates,
         units=[u.as_record() for u in found.units],
+        selected_units=[u.unit_id for u in found.selected],
         sent=list(selection.unit_ids),
-        found=None, selected=None, position=None,
+        found=None, selected=None, position=None, delivered=None,
     )
     if case.has_answer:
-        entry.update(unit_hits(case.units, candidates, selection.unit_ids,
-                               [u.unit_id for u in found.units], paths))
+        # "Entre las seleccionadas" es lo que selecciona la recuperación (sin reranker,
+        # toda la unión: coincide con "entre los candidatos", aclaración de T-032); "entre
+        # las enviadas al modelo" es lo que deja `select_units` con cupos y espacio.
+        entry.update(unit_hits(case.units, candidates, entry["selected_units"],
+                               [u.unit_id for u in found.units], paths,
+                               delivered=selection.unit_ids))
     return entry, prompt_tokens
 
 
@@ -962,6 +1024,7 @@ def ablation_measures(cases, ablated):
             usable = not entry["skipped"] and not entry["error"]
             items.append((case.id, case.has_answer, entry if usable else None))
         measures.append({"name": name, "paths": list(paths), "rerank": rerank,
+                         "threshold": settings.RERANK_THRESHOLD if rerank else None,
                          "errors": errors,
                          **retrieval_measures(items, paths, thresholded=rerank)})
     return measures
@@ -1035,7 +1098,9 @@ def compare_runs(previous, lines, parameters):
       pasan; `only_previous` y `only_current`: casos medidos en una sola;
     - `equality`: entre los casos corridos en las dos, cuántos dan el mismo resultado
       (`same`: estado, motivo, citas y texto de las afirmaciones) y cuántos el mismo
-      estado y las mismas citas (`same_status_and_citations`);
+      estado, el mismo motivo y las mismas citas (`same_status_reason_and_citations`);
+    - `drops`: las medidas que bajaron (el tiempo, si subió): cada una requiere
+      aprobación del responsable (P7);
     - `conditions_changed`: qué cambió entre las dos (commit, modelos, instrucciones,
       normativa o parámetros de búsqueda). Vacío: es una repetición."""
     old_lines = previous["lines"]
@@ -1049,6 +1114,14 @@ def compare_runs(previous, lines, parameters):
             for name in ("literal_citation", "correct_answer", "abstention")]
     rows.append({"name": "response_time", "previous": old_measures["response_time"]["max"],
                  "current": new_measures["response_time"]["max"]})
+    for row in rows:
+        before, now = row["previous"], row["current"]
+        if before is None or now is None:
+            row["drop"] = False
+        elif row["name"] == "response_time":
+            row["drop"] = now > before
+        else:
+            row["drop"] = now < before
 
     regressions = [c for c in both if old[c]["passed"] and not new[c]["passed"]]
     improvements = [c for c in both if not old[c]["passed"] and new[c]["passed"]]
@@ -1062,6 +1135,7 @@ def compare_runs(previous, lines, parameters):
     return {
         "previous": previous["folder"].name,
         "measures": rows,
+        "drops": [row["name"] for row in rows if row["drop"]],
         "regressions": regressions,
         "improvements": improvements,
         "changed": changed,
@@ -1070,7 +1144,7 @@ def compare_runs(previous, lines, parameters):
         "equality": {
             "same": sum(1 for c in ran if _result_signature(old[c], True)
                         == _result_signature(new[c], True)),
-            "same_status_and_citations": sum(1 for c in ran
+            "same_status_reason_and_citations": sum(1 for c in ran
                                              if _result_signature(old[c], False)
                                              == _result_signature(new[c], False)),
             "total": len(ran),
@@ -1411,6 +1485,35 @@ def _score(value):
     return "—" if value is None else f"{value:.3f}".replace(".", ",")
 
 
+def _number(value):
+    """Un número para leer: entero sin decimales; si no, con un decimal y coma."""
+    if value is None:
+        return "—"
+    if float(value).is_integer():
+        return str(int(value))
+    return f"{value:.1f}".replace(".", ",")
+
+
+def _when(iso):
+    """Fecha y hora ISO como día/mes/año y hora:minuto ("03/10/2026 08:21")."""
+    try:
+        return datetime.fromisoformat(iso).strftime("%d/%m/%Y %H:%M")
+    except (TypeError, ValueError):
+        return "—"
+
+
+_FOLDER_DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2})(\d{2})")
+
+
+def _run_name(folder_name):
+    """Una corrida por su fecha, con la carpeta para encontrarla."""
+    match = _FOLDER_DATE.match(folder_name)
+    if not match:
+        return f"carpeta `{folder_name}`"
+    year, month, day, hour, minute = match.groups()
+    return f"la del {day}/{month}/{year} {hour}:{minute} (carpeta `{folder_name}`)"
+
+
 def _ratio_text(ratio, unit=""):
     if ratio is None:
         return "no aplica"
@@ -1457,7 +1560,7 @@ SMALL_SET_NOTE = ("Con unas 30 preguntas, cada una pesa entre 3 y 5 puntos: una 
 
 def _by_regime_section(by_regime):
     out = ["## Medidas por régimen (diagnóstico)", "",
-           "Separadas según el `regimen` de cada caso. Son de diagnóstico: las exigencias "
+           "Separadas según el régimen esperado de cada caso. Son de diagnóstico: las exigencias "
            "de la spec se miden sobre el conjunto entero, y con pocos casos por régimen "
            "sirven solo para orientar.", ""]
     if not by_regime:
@@ -1473,8 +1576,8 @@ def _by_regime_section(by_regime):
 def _retrieval_section(measures):
     out = ["## Recuperación (diagnóstico)", "",
            "Leído del registro de cada consulta. La unidad correcta cuenta si están "
-           "todas las `unidades` del caso (un inciso vale con su artículo); se mide "
-           "sobre las preguntas con respuesta (ADR-0003).", "",
+           "todas las unidades esperadas del caso (un inciso vale con su artículo); se "
+           "mide sobre las preguntas con respuesta (ADR-0003).", "",
            "| Medida | Resultado |", "|---|---|"]
     for key, ratio in measures["found"].items():
         out.append(f"| Unidad correcta entre los candidatos {_PATH_TEXT[key]} | "
@@ -1485,8 +1588,7 @@ def _retrieval_section(measures):
         f"| Unidad correcta entre las seleccionadas (enviadas al modelo) | "
         f"{_ratio_text(measures['selected'])} |",
         f"| Posición de la unidad correcta en el orden del reranker | mediana "
-        f"{position['median'] if position['median'] is not None else '—'} · peor "
-        f"{position['max'] if position['max'] is not None else '—'} |",
+        f"{_number(position['median'])} · peor {_number(position['max'])} |",
         f"| Preguntas con respuesta frenadas por el umbral | "
         f"{_ratio_text(measures['answered_stopped'])} |",
         f"| Preguntas sin respuesta frenadas por el umbral | "
@@ -1522,28 +1624,47 @@ def _special_section(special):
 
     return ["## Casos de REQ-018 y REQ-019", "",
             f"- REQ-018 (etiqueta \"dos categorías\"): {describe(special['REQ-018'])}.",
-            f"- REQ-019 (`difieren`): {describe(special['REQ-019'])}.",
+            "- REQ-019 (casos con la marca de regímenes distintos: el régimen específico "
+            f"y el marco nacional difieren): {describe(special['REQ-019'])}.",
             ""]
 
 
 def _calibration_section(calibration, lines):
     loo = calibration["leave_one_out"]
     current = calibration["current"]
+    previous = calibration["previous_rule"]
+    limit = _percent(calibration["max_rate"])
+    n = calibration["answered"]
+    if calibration["proposed"] is None:
+        choice = "No hay preguntas con respuesta con puntaje: no se puede elegir."
+    elif calibration["meets"]:
+        choice = (f"Se eligió el puntaje número {calibration['position'] + 1} de {n}, "
+                  "contados de menor a mayor: es el más alto que, dejando cada vez una "
+                  f"pregunta afuera, frena por error a lo sumo el {limit}.")
+    elif calibration["meets"] is False:
+        choice = (f"Ninguna posición frena por error a lo sumo el {limit} dejando cada vez "
+                  f"una pregunta afuera (con {n} preguntas, frenar una ya es más): se "
+                  "propone el puntaje más bajo, que no frena ninguna del conjunto.")
+    else:
+        choice = ("Con una sola pregunta no se puede medir dejando una afuera: se propone "
+                  "su puntaje.")
     out = ["## Calibración del umbral (provisoria)", "",
            f"{threshold_line(calibration)} · umbral actual: {_score(current['threshold'])}. "
-           "La calibración no cambia `settings.py`: el valor lo fija T-045 con los "
-           "servicios reales y el conjunto con visto bueno.", "",
-           f"- Preguntas con respuesta que llegaron a puntuarse: {calibration['answered']}; "
-           f"se admite frenar por error {calibration['allowed_blocked']} "
-           f"({_percent(calibration['max_rate'])}).",
-           "- Con el umbral propuesto, frena por error: "
-           f"{_ids(calibration['blocked'], 'ninguna')}.",
-           "- Con el umbral actual, frena por error: "
-           f"{_ids(current['blocked'], 'ninguna')}.",
+           "La calibración no cambia el umbral configurado del sistema: el valor lo fija "
+           "T-045 con los servicios reales y el conjunto con visto bueno.", "",
+           f"- Preguntas con respuesta que llegaron a puntuarse: {n}. {choice}",
            f"- Dejando cada vez una afuera: frena {len(loo['blocked'])} de {loo['total']} "
            f"({_percent(loo['rate'])}); el umbral calculado va de {_score(loo['min'])} a "
-           f"{_score(loo['max'])}; cumple el {_percent(calibration['max_rate'])}: "
-           f"{_meets(loo['meets'])}. Frenadas: {_ids(loo['blocked'], 'ninguna')}.",
+           f"{_score(loo['max'])}; cumple el {limit}: {_meets(calibration['meets'])}. "
+           f"Frenadas: {_ids(loo['blocked'], 'ninguna')}.",
+           "- Con el umbral propuesto, frena por error en el conjunto completo: "
+           f"{_ids(calibration['blocked'], 'ninguna')}.",
+           f"- Para comparar, la regla anterior (frenar a lo sumo el {limit} del conjunto "
+           f"completo, sin dejar ninguna afuera) daría {_score(previous['threshold'])}, que "
+           f"frena {_ids(previous['blocked'], 'ninguna')}; dejando cada vez una afuera "
+           f"frenaría el {_percent(previous['leave_one_out_rate'])}.",
+           "- Con el umbral actual, frena por error: "
+           f"{_ids(current['blocked'], 'ninguna')}.",
            f"- Preguntas sin respuesta que el umbral propuesto frena: "
            f"{len(calibration['unanswered_stopped'])} de {calibration['unanswered']}.",
            f"- Preguntas con respuesta sin puntaje (ningún umbral las cambia): "
@@ -1567,20 +1688,26 @@ def _ablation_section(ablation):
         return out + ["No se corrió en esta corrida. Se corre una vez, con "
                       "`correr_evals --quitando-piezas` (ADR-0003).", ""]
     out += ["Cada caso se recupera y se selecciona con cada configuración, sin el modelo "
-            "de generación. Sin reranker no hay umbral: pasan todas las unidades de la "
-            "unión, hasta los cupos.", "",
-            "| Configuración | Entre los candidatos | Entre las seleccionadas | "
+            "de generación.", "",
+            "\"Entre las seleccionadas\" son las que la recuperación deja pasar por el "
+            "umbral; sin reranker no hay umbral y pasan todas las de la unión, así que "
+            "coincide con \"entre los candidatos\". \"Entre las enviadas al modelo\" son "
+            "las que quedan después de los cupos por categoría y del espacio del pedido.",
+            "",
+            "| Configuración | Umbral | Entre los candidatos | Entre las seleccionadas | "
+            "Entre las enviadas al modelo | "
             "Posición (mediana · peor) | Con respuesta frenadas por el umbral | "
             "Sin respuesta frenadas por el umbral | Tiempo de la recuperación |",
-            "|---|---|---|---|---|---|---|"]
+            "|---|---|---|---|---|---|---|---|---|"]
     for config in ablation:
         position = config["position"]
         timing = config["retrieval_time"]
+        threshold = (_score(config["threshold"]) if config["threshold"] is not None
+                     else "sin umbral")
         out.append(
-            f"| {config['name']} | {_ratio_text(config['found'][UNION])} | "
-            f"{_ratio_text(config['selected'])} | "
-            f"{position['median'] if position['median'] is not None else '—'} · "
-            f"{position['max'] if position['max'] is not None else '—'} | "
+            f"| {config['name']} | {threshold} | {_ratio_text(config['found'][UNION])} | "
+            f"{_ratio_text(config['selected'])} | {_ratio_text(config['delivered'])} | "
+            f"{_number(position['median'])} · {_number(position['max'])} | "
             f"{_ratio_text(config['answered_stopped'])} | "
             f"{_ratio_text(config['unanswered_stopped'])} | "
             f"mediana {_seconds(timing['median'])} · máximo {_seconds(timing['max'])} |")
@@ -1597,12 +1724,20 @@ def _comparison_value(name, value):
     return _percent(value)
 
 
+def _change_text(row):
+    if row["drop"]:
+        return "baja (más lento)" if row["name"] == "response_time" else "baja"
+    if row["previous"] is None or row["current"] is None:
+        return "—"
+    return "igual" if row["previous"] == row["current"] else "mejora"
+
+
 def _comparison_section(comparison):
     out = ["## Comparación con la corrida anterior", ""]
     if comparison is None:
         return out + ["No hay una corrida anterior en la carpeta de corridas.", ""]
     if comparison.get("error"):
-        return out + [f"Corrida anterior: {comparison['previous']}: "
+        return out + [f"Corrida anterior: {_run_name(comparison['previous'])}: "
                       f"{comparison['error']}. No se comparó.", ""]
     changed = comparison["conditions_changed"]
     if changed:
@@ -1612,13 +1747,18 @@ def _comparison_section(comparison):
         conditions = ("Las dos corridas tienen las mismas condiciones (commit, modelos, "
                       "instrucciones, normativa y parámetros de búsqueda): cuenta como "
                       "repetición.")
-    out += [f"Corrida anterior: {comparison['previous']}.", "", conditions, "",
-            "| Medida | Anterior | Actual |", "|---|---|---|"]
+    out += [f"Corrida anterior: {_run_name(comparison['previous'])}.", "", conditions, "",
+            "| Medida | Anterior | Actual | Cambio |", "|---|---|---|---|"]
     out += [f"| {_MEASURE_TEXT[row['name']]} | "
             f"{_comparison_value(row['name'], row['previous'])} | "
-            f"{_comparison_value(row['name'], row['current'])} |"
+            f"{_comparison_value(row['name'], row['current'])} | "
+            f"{_change_text(row)} |"
             for row in comparison["measures"]]
     equality = comparison["equality"]
+    if comparison["drops"]:
+        out += ["", "**Hay bajas respecto de la corrida anterior ("
+                + ", ".join(_MEASURE_TEXT[name].lower() for name in comparison["drops"])
+                + "): cada una requiere la aprobación explícita del responsable (P7).**"]
     out += ["",
             f"- Pasaban y ahora fallan: {_ids(comparison['regressions'])}.",
             f"- Fallaban y ahora pasan: {_ids(comparison['improvements'])}.",
@@ -1629,10 +1769,10 @@ def _comparison_section(comparison):
             "",
             f"Igualdad al repetir: {equality['same']} de {equality['total']} casos corridos "
             "en las dos dan el mismo resultado (estado, motivo, citas y texto de las "
-            f"afirmaciones); {equality['same_status_and_citations']} de "
-            f"{equality['total']} con el mismo estado y las mismas citas. Con temperatura 0 "
-            "y semilla fija, la primera consulta después de levantar el motor puede "
-            "redactar distinto sin cambiar estado ni citas (T-018).",
+            f"afirmaciones); {equality['same_status_reason_and_citations']} de "
+            f"{equality['total']} con el mismo estado, el mismo motivo y las mismas citas. "
+            "Con temperatura 0 y semilla fija, la primera consulta después de levantar el "
+            "motor puede redactar distinto sin cambiar estado, motivo ni citas (T-018).",
             "", SMALL_SET_NOTE, ""]
     return out
 
@@ -1647,15 +1787,17 @@ def summary_markdown(report):
     elif isinstance(versions, list):
         versions = "varias: " + ", ".join(versions)
     out = [
-        f"# Corrida {report.folder.name}",
+        f"# Corrida del {_when(p['started_at'])}",
         "",
-        f"- Comienzo: {p['started_at']} · fin: {p['finished_at']}",
-        f"- Commit: {p['commit']}",
-        f"- Modelo de generación: {search['generation']['model']} "
-        f"(compilación {search['generation']['engine_build']})",
+        f"- Carpeta: `{report.folder.name}`",
+        f"- Comienzo: {_when(p['started_at'])} · fin: {_when(p['finished_at'])}",
+        f"- Commit: `{p['commit']}`",
+        f"- Modelo de generación: `{search['generation']['model']}` "
+        f"(compilación `{search['generation']['engine_build']}`)",
         f"- Versión de las instrucciones: {versions}",
         f"- Versión de la normativa: {p['corpus_version'] if p['corpus_version'] is not None else 'ninguna'}",
-        f"- Umbral del reranker: {search['rerank_threshold']}",
+        "- Umbral del modelo que reordena los resultados (reranker): "
+        f"{_score(search['rerank_threshold'])}",
         f"- {counts_line(report)}",
         "",
     ]
