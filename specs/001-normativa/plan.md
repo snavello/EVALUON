@@ -4,7 +4,7 @@ Estado: aprobado · Fecha: 2026-10-02 · Aprobó: responsable del proyecto
 
 Actualización: 2026-10-02, por ADR-0006 y REQ-020 y REQ-021; pendiente de aprobación del responsable.
 
-Ajustes por la etapa 0: 2026-10-02. El parámetro del reranker lo decidió el responsable (ADR-0003, adenda). La nueva definición de la búsqueda por palabras (ADR-0007, propuesto) está pendiente de su aprobación. Resumen en "Ajustes por la etapa 0", al final.
+Ajustes por la etapa 0: 2026-10-02. El parámetro del reranker lo decidió el responsable (ADR-0003, adenda). La nueva definición de la búsqueda por palabras (ADR-0007) la aprobó el responsable el 2026-10-02. Resumen en "Ajustes por la etapa 0", al final.
 
 Spec: `specs/001-normativa/spec.md`
 
@@ -328,7 +328,7 @@ En `norms/migrations/`, cada una con su reversa: extensiones `vector` y `unaccen
 
 ### Búsqueda por palabras: tildes, singular y plural
 
-Pendiente de aprobación del responsable (ADR-0007, propuesto). Reemplaza la configuración `spanish_unaccent` del plan aprobado, que quitaba los acentos antes de reducir las palabras a su raíz.
+Aprobada por el responsable el 2026-10-02 (ADR-0007). Reemplaza la configuración `spanish_unaccent` del plan aprobado, que quitaba los acentos antes de reducir las palabras a su raíz.
 
 **Por qué cambia.** La etapa 0 midió que, quitando los acentos primero, "licitación" queda como `licitacion` y "licitaciones" como `licit`: buscar "licitacion" o "licitación" no encuentra un pasaje que solo dice "licitaciones". Pasa con todas las palabras terminadas en "-ación" y "-ución" (adjudicación, contratación, resolución). El lematizador de español de Postgres 17 reconoce "-ación" con tilde y no sin ella (`entorno.md`, T-004, sección 5; ADR-0007).
 
@@ -841,7 +841,7 @@ ADR en los que se apoya este plan, los cinco aceptados. Los ADR 0002 a 0005 se a
 | ADR-0004 | pdfplumber, Tesseract, BeautifulSoup y partición con reglas |
 | ADR-0005 | Django, páginas armadas en el servidor, Argon2id, sesiones en la base y comandos |
 | ADR-0006 | Dos regímenes específicos, la Disposición 247/2022 y la 297/03, aplicados según la fecha de autorización del procedimiento |
-| ADR-0007 (propuesto) | Búsqueda por palabras: normalizar texto y consulta (quitar acentos y reponer la tilde de "-ación" y "-ución") y reducir a la raíz con `spanish` |
+| ADR-0007 | Búsqueda por palabras: normalizar texto y consulta (quitar acentos y reponer la tilde de "-ación" y "-ución") y reducir a la raíz con `spanish` |
 
 Esta actualización no necesita un ADR nuevo: ninguna de sus decisiones es difícil de revertir. Los campos y la tabla que suma entran en el esquema antes de que exista una base con datos, y para volver a un solo régimen alcanza con fijar la fecha y ocultar el campo, como dice el ADR-0006.
 
@@ -876,7 +876,7 @@ Decisiones tomadas en la actualización por el ADR-0006, pendientes de aprobaci�
 Ajustes por la etapa 0:
 
 21. **Separador de pares del reranker:** `--override-kv tokenizer.ggml.add_sep_token=bool:true`, obligatorio. Decidido por el responsable el 2026-10-02 (ADR-0003, adenda).
-22. **Búsqueda por palabras:** `search_normalize`, `search_document` y `search_query` en lugar de la configuración `spanish_unaccent`. Pendiente de aprobación (ADR-0007).
+22. **Búsqueda por palabras:** `search_normalize`, `search_document` y `search_query` en lugar de la configuración `spanish_unaccent`. Aprobada (ADR-0007).
 
 ## Orden de construcción
 
@@ -1092,7 +1092,7 @@ Las decisiones del plan original ya están tomadas y figuran más abajo. Por la 
 4. **Reparto de las preguntas de las evals entre los dos regímenes.** Recomendado: la mayoría con fecha bajo la 247/2022, que es lo que la Comisión usa hoy, y no menos de ocho con fecha bajo la 297/03, incluido el par que repite una pregunta con dos fechas. Hay que tener presente que las respuestas bajo la 297/03 se miden contra el texto de 2003, sin sus modificatorias.
 5. **La cláusula transitoria del anexo de la 247/2022.** Es texto normativo sin encabezado de artículo, y las reglas del ADR-0004 no la prevén. Recomendado: guardarla como unidad de tipo `parrafo` dentro del anexo (`anexo/parrafo-1` y `anexo/parrafo-2`), con su título en la ruta. Usa un tipo de unidad que ya existe, pero extiende a una norma un tipo que la spec y el ADR-0004 reservan para dictámenes y recomendaciones, así que necesita su visto bueno. Mientras no se decida, el informe la muestra como no ubicada y el anexo se puede validar igual, sabiendo que esos dos párrafos no se van a poder citar.
 6. **Las modificatorias que no modifican.** El listado de Infoleg junta las normas que modifican la 297/03 con las que solo la complementan o la citan, como la aprobación de una licitación. Según la spec, el aviso desaparece cuando están cargadas las 33. Recomendado: dejarlo así por ahora y revisarlo cuando se decida con qué profundidad se cargan (ADR-0006). Sacar una norma del listado sin cargarla sería un requisito nuevo.
-7. **Búsqueda por palabras (ADR-0007).** Recomendado: aprobar la alternativa D, normalizar texto y consulta quitando acentos y reponiendo la tilde de "-ación" y "-ución", y reducir a la raíz con `spanish`. Se pierde: una regla propia de dos terminaciones que mantener, y recalcular `tsv` al cambiar de versión mayor de Postgres. Mantener la definición anterior deja sin coincidir "licitación" y "licitaciones". Hace falta antes de que empiece T-009.
+7. **Búsqueda por palabras (ADR-0007).** Decidido: el responsable aprobó la alternativa D el 2026-10-02. Recomendado: aprobar la alternativa D, normalizar texto y consulta quitando acentos y reponiendo la tilde de "-ación" y "-ución", y reducir a la raíz con `spanish`. Se pierde: una regla propia de dos terminaciones que mantener, y recalcular `tsv` al cambiar de versión mayor de Postgres. Mantener la definición anterior deja sin coincidir "licitación" y "licitaciones". Hace falta antes de que empiece T-009.
 
 No son decisiones, pero hacen falta:
 
@@ -1114,7 +1114,7 @@ El corpus inicial era la Disposición AFIP 297/03. El mismo día, por el ADR-000
 
 ## Actualización por ADR-0006
 
-Fecha: 2026-10-02. Pendiente de aprobación del responsable. Esta sección lista qué cambió en el plan aprobado y por qué, para poder revisar solo el cambio.
+Fecha: 2026-10-02. Aprobada por el responsable el 2026-10-02. Esta sección lista qué cambió en el plan aprobado y por qué, para poder revisar solo el cambio.
 
 **Motivo.** Al cargar el corpus se comprobó que la Disposición 247/2022 abrogó la 297/03. El responsable decidió trabajar con los dos regímenes según la fecha de autorización del procedimiento (ADR-0006). La spec sumó REQ-020 y REQ-021, y la fecha de referencia dejó de ser siempre la del día.
 
@@ -1173,8 +1173,8 @@ Fecha: 2026-10-02. Lo medido en `entorno.md` (T-001 a T-005) que cambia el dise�
 | Sección | Qué cambió | Estado |
 |---|---|---|
 | Servicios (tabla y plan B) | El reranker arranca con `--override-kv tokenizer.ggml.add_sep_token=bool:true`; no fue el plan B | Decidido por el responsable (ADR-0003, adenda) |
-| Modelo de datos (`tsv`, migraciones) y sección nueva "Búsqueda por palabras: tildes, singular y plural" | `spanish_unaccent` reemplazada por `search_normalize`, `search_document` y `search_query` | Pendiente de aprobación (ADR-0007) |
-| Recuperación; Búsqueda directa; Etapa 1 | Usan `search_query` | Pendiente, con el ADR-0007 |
+| Modelo de datos (`tsv`, migraciones) y sección nueva "Búsqueda por palabras: tildes, singular y plural" | `spanish_unaccent` reemplazada por `search_normalize`, `search_document` y `search_query` | Aprobado (ADR-0007) |
+| Recuperación; Búsqueda directa; Etapa 1 | Usan `search_query` | Aprobado (ADR-0007) |
 | Conteo de tokens | Plantilla medida en 18 tokens; el margen sigue en 512. Rechazo de entrada larga con HTTP 500 en `embeddings` y `reranker`, a reconocer por el mensaje en T-011 | Anotación |
 | Sin verificar | Cierre de embeddings y reranker; la prueba de búsqueda sin tilde pasa a T-009 | Anotación |
 | Decisiones; Qué tiene que decidir el responsable | Decisiones 21 y 22; decisión 7 | — |

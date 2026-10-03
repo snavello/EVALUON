@@ -393,4 +393,4 @@ Detalle, comandos y salidas: `specs/001-normativa/entorno.md`, T-003, secciones 
 
 ## Adenda 2026-10-02 · Búsqueda por palabras sin tildes
 
-La fila "Búsqueda por palabras" de la decisión y la alternativa 3.A dicen que se quitan los acentos antes de reducir las palabras a su raíz. La etapa 0 (T-004, sección 5 de `entorno.md`) mostró que así "licitación" y "licitaciones" dejan de coincidir. La definición que la reemplaza está propuesta en el ADR-0007, pendiente de aprobación del responsable. Hasta que se apruebe, este ADR no cambia.
+La fila "Búsqueda por palabras" de la decisión y la alternativa 3.A dicen que se quitan los acentos antes de reducir las palabras a su raíz. La etapa 0 (T-004, sección 5 de `entorno.md`) mostró que así "licitación" y "licitaciones" dejan de coincidir. La definición que la reemplaza está en el ADR-0007, aprobado por el responsable el 2026-10-02, que reemplaza en ese punto a este ADR.
