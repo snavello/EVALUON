@@ -37,12 +37,35 @@
     {% for statement in statements %}
     <li class="statement">
       <p>{{ statement.text }}</p>
-      {% for citation in statement.citations %}
-      <details class="citation" data-unit="{{ citation.id }}">
-        <summary>{{ citation.norm }} · {{ citation.path }}</summary>
-        {% if citation.text is not None %}<blockquote class="literal">{{ citation.text }}</blockquote>{% else %}<p>El texto de esta cita no está disponible.</p>{% endif %}
-      </details>
-      {% endfor %}
+      {% if statement.regimes_differ %}<p class="regime-conflict" role="note">El régimen específico y el marco nacional tratan este punto de manera distinta. Se aplica el régimen específico.</p>{% endif %}
+      <ul class="citations">
+        {% for citation in statement.citations %}
+        <li class="citation-item"{% if citation.text %} id="{{ citation.anchor }}"{% endif %}>
+        <details class="citation" data-unit="{{ citation.id }}"{% if citation.open %} open{% endif %}>
+          <summary>{% if citation.role %}<span class="citation-role">{{ citation.role }}</span> · {% endif %}<span class="citation-source">{{ citation.norm }} · {{ citation.path }}</span>{% if citation.applicable %} <strong class="applicable">Texto aplicable</strong>{% endif %}{% if citation.changes %} <span class="change-mark">Tiene cambios</span>{% endif %}</summary>
+          {% if citation.text %}
+          {% include "queries/_unit_text.html" with text=citation.text missing="El texto de esta cita no está disponible." %}
+          {% for change in citation.changes %}
+          <div class="change">
+            <p class="change-note">{{ change.name }}{% if change.part %} de «{{ change.part }}»{% endif %}{% if change.date %} desde el {{ change.date|date:"d/m/Y" }}{% endif %}{% if change.source %}, por {{ change.source.norm }} · {{ change.source.path }}{% endif %}.</p>
+            {% if change.source.text %}
+            <div class="change-text" id="{{ change.source.anchor }}">
+              {% include "queries/_unit_text.html" with text=change.source.text missing="El texto que trae el cambio no está disponible." %}
+            </div>
+            {% elif change.source_shown_above %}
+            <p class="text-ref">El texto que trae el cambio se muestra <a href="#{{ change.source.anchor }}">más arriba</a>.</p>
+            {% else %}
+            <p>El texto que trae el cambio no está disponible.</p>
+            {% endif %}
+          </div>
+          {% endfor %}
+          {% else %}
+          <p class="text-ref">El texto de esta cita se muestra <a href="#{{ citation.anchor }}">más arriba</a>.</p>
+          {% endif %}
+        </details>
+        </li>
+        {% endfor %}
+      </ul>
     </li>
     {% endfor %}
   </ol>
