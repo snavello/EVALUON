@@ -1542,3 +1542,35 @@ reranker detenido: ServiceUnavailableError service_unavailable reranker: no resp
 - Con el servicio detenido, el cliente da `ServiceUnavailableError` (motivo `service_unavailable`).
 
 **Pensamiento apagado por pedido.** Cada pedido de generación lleva `chat_template_kwargs: {"enable_thinking": false}` además del `--reasoning off` del servidor. Se comprobó con `POST /apply-template` que esa es la variable que lee la plantilla de Gemma 4: sin ella y con `false`, la plantilla termina en `<|turn>model\n<|channel>thought\n<channel|>` (canal de pensamiento vacío, como en T-002, sección 5); con `true` agrega `<|think|>` en un turno de sistema y no cierra el canal. Así el pedido registrado dice por sí mismo que el pensamiento estaba apagado.
+
+## T-054 · Variables de los servicios de IA en la aplicación
+
+Fecha: 2026-10-03. Requisitos: REQ-008 y REQ-012. Al verificar T-011 se vio que `x-app` en `docker-compose.yml` solo pasaba a `app` y `migrate` las variables `DJANGO_*` y `POSTGRES_*`: si `.env` cambiaba el modelo, el servidor arrancaba con el valor nuevo y la aplicación seguía con el valor por omisión de `settings.py`, y el registro de una consulta nombraría otro modelo que el que respondió (P6).
+
+**Cambio.**
+
+- `x-app` pasa a `app` y `migrate` `GENERATION_URL`, `EMBEDDINGS_URL`, `RERANKER_URL`, `GENERATION_MODEL_ALIAS`, `GENERATION_MODEL_FILE`, `GENERATION_MODEL_SHA256`, `GENERATION_CTX_SIZE`, `EMBEDDINGS_MODEL_ALIAS`, `EMBEDDINGS_MODEL_FILE`, `EMBEDDINGS_MODEL_SHA256`, `RERANKER_MODEL_ALIAS`, `RERANKER_MODEL_FILE` y `RERANKER_MODEL_SHA256`. Las de modelo se escriben igual que en el `command` de cada servicio (`${NOMBRE:-valor}`), con el mismo valor por omisión: servidor y aplicación leen `.env` y, si falta la variable, caen en el mismo valor. Los servicios de IA y `db` no cambiaron.
+- `docker-compose.yml` se monta en solo lectura en `/app/docker-compose.yml` para que la suite lo lea.
+- `tests/test_compose_env.py` comprueba, leyendo el compose: que `app` y `migrate` reciben cada variable de modelo con el mismo valor por omisión que el servicio; que, con el entorno que recibió la aplicación, el alias, el archivo y el contexto de `settings.py` son los que resuelve el `command` de cada servicio; que los valores por omisión de `settings.py` son los del compose; y que `GENERATION_ENGINE_BUILD` es la compilación de la etiqueta de la imagen de los tres servicios (`server-cuda-b11347`).
+- La dimensión del vector se define una sola vez, en `settings.EMBEDDINGS_DIMENSIONS`; `norms.models.EMBEDDING_DIMENSIONS` y la constante de `tests/conftest.py` la toman de ahí. El esquema no cambia: `makemigrations --check` da `No changes detected`.
+- `tests/queries/test_ai_clients.py` suma la espera agotada al conectar, que T-011 no cubría (solo la espera agotada con la conexión ya abierta): `socket.create_connection` lanza `TimeoutError: timed out` y los cuatro pedidos dan `ServiceTimeoutError` (`timeout`), no `ServiceUnavailableError`, con la espera de `AI_TIMEOUT_SECONDS`.
+
+**Prueba con otro alias en `.env`.** Copia temporal de `.env` con `GENERATION_MODEL_ALIAS=gemma-prueba-t054` (el `.env` del equipo no se tocó), servicios reales levantados con ella y el script de comprobación fuera del repositorio:
+
+```
+docker compose --env-file <copia> up -d --wait generation embeddings reranker
+docker compose --env-file <copia> run --rm --no-deps -T -e DJANGO_SETTINGS_MODULE=evaluon.settings app python -c "..." < <script>
+```
+
+```
+settings.GENERATION_MODEL: gemma-prueba-t054
+generation /v1/models id: ['gemma-prueba-t054'] | build: b11347-5fc4f3c8c | n_ctx: 16384 | model_path: /models/gemma-4-12b-it-qat-q4_0.gguf
+embeddings /v1/models id: ['bge-m3'] | build: b11347-5fc4f3c8c | n_ctx: 8192 | model_path: /models/bge-m3-FP16.gguf
+reranker /v1/models id: ['bge-reranker-v2-m3'] | build: b11347-5fc4f3c8c | n_ctx: 8192 | model_path: /models/bge-reranker-v2-m3-FP16.gguf
+settings: bge-m3 bge-reranker-v2-m3 gemma-4-12b-it-qat-q4_0.gguf bge-m3-FP16.gguf bge-reranker-v2-m3-FP16.gguf 16384 b11347
+pedido model: gemma-prueba-t054 | respuesta model: gemma-prueba-t054 | stop
+```
+
+Con la misma copia y el `docker-compose.yml` anterior (el de `main` antes de T-054), `docker compose config` da `--alias gemma-prueba-t054` en `generation` y `app` sin `GENERATION_MODEL_ALIAS`: es el desfase que corrige la tarea. Con el `.env` del equipo, `settings.GENERATION_MODEL` y `/v1/models` de `generation` dan los dos `gemma-4-12b-it-qat-q4_0`.
+
+**Suite.** `docker compose run --rm app pytest`, con los seis servicios arriba: 232 pasan, con el `.env` del equipo y con la copia de otro alias. `docker compose run --rm --no-deps app pytest` solo con `db`: 232 pasan.

@@ -31,7 +31,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 15/54 | ███░░░░░░░ 28% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 16/54 | ███░░░░░░░ 30% |
 | 002 · Revisión de pliegos | Observaciones a un pliego contra la normativa, antes de publicarlo | No iniciada | — | — |
 | 003 · Matriz de requisitos | Los requisitos del pliego ordenados en una matriz que la Comisión valida | No iniciada | — | — |
 | 004 · Evaluación de ofertas | Por cada requisito, una propuesta con su cita; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -57,7 +57,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 39 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 38 tareas sin terminar.
 - ○ T-013 · Partir en artículos y armar el informe mínimo (pendiente)
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
 - ○ T-015 · Validar una lectura y calcular pasajes y vectores (pendiente)
@@ -96,7 +96,6 @@ flowchart LR
 - ○ T-050 · Partir la 297/03 y el cuerpo de la 247/2022 desde la web (pendiente)
 - ○ T-051 · Registrar las modificatorias sin cargar de una norma (pendiente)
 - ○ T-052 · Avisar modificatorias sin cargar en respuesta y búsqueda (pendiente)
-- ○ T-054 · Pasar a la aplicación las variables de los servicios de IA (pendiente)
 
 ### Qué se hizo
 
@@ -113,9 +112,10 @@ flowchart LR
 - ✓ T-010 · Crear la tabla del registro detallado de consultas (`cc485fc` 2026-10-02)
 - ✓ T-011 · Crear los clientes de IA, sus dobles y los parámetros (`fb2f640` 2026-10-02)
 - ✓ T-012 · Leer un PDF con texto (`977f834` 2026-10-02, `ef7d903` 2026-10-02)
-- ✓ T-016 · Armar la pantalla de consulta con sus tres bloques (`ceff61d` 2026-10-03, `bb49b8c` 2026-10-03)
+- ✓ T-016 · Armar la pantalla de consulta con sus tres bloques
 - ✓ T-017 · Recuperar por significado y reordenar con el reranker
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
+- ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
 
 ### Mapa de tareas
 
@@ -174,7 +174,7 @@ flowchart TD
   T051["○ T-051 · Registrar las modificatorias sin cargar de…"]:::todo
   T052["○ T-052 · Avisar modificatorias sin cargar en respues…"]:::todo
   T053["✓ T-053 · Conservar la eñe en la búsqueda por palabras"]:::done
-  T054["○ T-054 · Pasar a la aplicación las variables de los…"]:::todo
+  T054["✓ T-054 · Pasar a la aplicación las variables de los…"]:::done
   T001 --> T002
   T002 --> T003
   T003 --> T004
