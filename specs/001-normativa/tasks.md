@@ -71,7 +71,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-053 | Conservar la eñe en la búsqueda por palabras | REQ-010 | T-009 | terminada |
 | T-054 | Pasar a la aplicación las variables de los servicios de IA | REQ-008, REQ-012 | T-011 | terminada |
 | T-055 | Agregar el nombre de cita de la norma | REQ-001, REQ-013, REQ-020 | T-015 | terminada |
-| T-056 | Mostrar en la búsqueda solo lo vigente, con casilla para los derogados | REQ-010, REQ-012, REQ-020 | T-052 | pendiente |
+| T-056 | Mostrar en la búsqueda solo lo vigente, con casilla para los derogados | REQ-010, REQ-012, REQ-020 | T-052 | en curso |
 
 ## Detalle
 
@@ -698,7 +698,7 @@ Los grupos salen de dos reglas: ninguna tarea del grupo depende de otra del grup
 | REQ-009 | T-002, T-003, T-011, T-017, T-018, T-019, T-034, T-039, T-040, T-042, T-045, T-046 |
 | REQ-010 | T-004, T-009, T-035, T-041, T-056 |
 | REQ-011 | T-008, T-026 |
-| REQ-012 | T-007, T-008, T-010, T-014, T-015, T-019, T-020, T-026, T-038, T-040, T-041, T-048, T-049, T-051, T-052 |
+| REQ-012 | T-007, T-008, T-010, T-014, T-015, T-019, T-020, T-026, T-038, T-040, T-041, T-048, T-049, T-051, T-052, T-056 |
 | REQ-013 | T-005, T-016, T-019, T-020, T-037, T-047 |
 | REQ-014 | T-016, T-037 |
 | REQ-015 | T-012, T-021, T-022, T-025, T-028, T-037, T-043 |

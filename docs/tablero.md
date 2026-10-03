@@ -63,6 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 8 tareas sin terminar.
+- ▶ T-056 · Mostrar en la búsqueda solo lo vigente, con casilla para los derogados (en curso)
 - ○ T-043 · Cargar y validar el corpus real y ajustar las reglas (pendiente)
 - ○ T-044 · Registrar relaciones, versiones y modificatorias del corpus (pendiente)
 - ○ T-045 · Calibrar el umbral con el conjunto de preguntas (pendiente)
@@ -70,7 +71,6 @@ flowchart LR
 - ○ T-047 · Probar una consulta con la red desconectada (pendiente)
 - ○ T-048 · Probar el respaldo y la restauración de la base (pendiente)
 - ○ T-049 · Levantar todo desde cero y dejar datos para el runbook (pendiente)
-- ○ T-056 · Mostrar en la búsqueda solo lo vigente, con casilla para los derogados (pendiente)
 
 ### Qué se hizo
 
@@ -183,7 +183,7 @@ flowchart TD
   T053["✓ T-053 · Conservar la eñe en la búsqueda por palabras"]:::done
   T054["✓ T-054 · Pasar a la aplicación las variables de los…"]:::done
   T055["✓ T-055 · Agregar el nombre de cita de la norma"]:::done
-  T056["○ T-056 · Mostrar en la búsqueda solo lo vigente, con…"]:::todo
+  T056["▶ T-056 · Mostrar en la búsqueda solo lo vigente, con…"]:::active
   T001 --> T002
   T002 --> T003
   T003 --> T004
