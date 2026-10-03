@@ -33,6 +33,7 @@
   <h2 id="result-title"><span class="result-icon" aria-hidden="true">✓</span> Respuesta con fundamento en la normativa</h2>
   <p class="result-question">Pregunta: {{ query.question }}</p>
   {% include "queries/_regime_line.html" %}
+  {% include "queries/_pending_notices.html" %}
   <ol class="statements">
     {% for statement in statements %}
     <li class="statement">

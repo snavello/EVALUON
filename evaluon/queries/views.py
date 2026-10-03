@@ -1,5 +1,6 @@
-"""Pantalla de consulta (REQ-007, REQ-013, REQ-014, REQ-015, REQ-018, REQ-019, REQ-020;
-plan 001, "Pantalla, acceso y comandos", "Forma de la respuesta" y "Cita"; ADR-0005).
+"""Pantalla de consulta (REQ-007, REQ-013, REQ-014, REQ-015, REQ-018, REQ-019, REQ-020,
+REQ-021; plan 001, "Pantalla, acceso y comandos", "Forma de la respuesta", "Cita" y
+"Aviso de modificatorias sin cargar (REQ-021)"; ADR-0005).
 
 Una sola página armada en el servidor, en la raíz del sitio: el formulario de la
 pregunta y, para una consulta guardada, uno de tres bloques (con fundamento, no
@@ -26,6 +27,12 @@ cuándo, el texto literal con el enlace al original, los cambios vigentes a la f
 texto que los trae y los vínculos de su norma con otras. Un texto se muestra una sola vez
 en la página, con el ancla `texto-N`: un cambio cuyo texto es otro resultado, o ya se
 mostró, lleva a él.
+
+Avisos de modificatorias sin cargar (REQ-021; T-052). Una respuesta con fundamento y
+los resultados de una búsqueda llevan, debajo de la línea de régimen y arriba de las
+afirmaciones o de los resultados, un recuadro por cada aviso guardado (`notices`), con
+texto fijo de la plantilla (`_pending_notices.html`): solo el nombre de la norma y la
+cantidad salen del aviso. Una consulta guardada muestra los avisos con que se respondió.
 
 Las vistas no guardan nada en la sesión: si lo hicieran, la sesión se volvería a grabar
 y el tope de 8 horas desde el ingreso se renovaría con el uso.
@@ -107,6 +114,7 @@ def query_detail(request, pk):
         "reference_date": reference_date,
         "regime": result.get("regime") or [],
         "statements": _statements(result) if status == Status.GROUNDED else [],
+        "notices": _notices(result) if status == Status.GROUNDED else [],
     }
     return render(request, TEMPLATE, context)
 
@@ -150,6 +158,7 @@ def search(request):
                 "terms": outcome.terms,
                 "reference_date": outcome.reference_date,
                 "regime": outcome.regime,
+                "notices": _notices({"notices": outcome.notices}),
                 "items": _search_items(outcome.results),
             }
     context.update(
@@ -157,6 +166,25 @@ def search(request):
         search_form=search_form,
     )
     return render(request, TEMPLATE, context)
+
+
+# --- Avisos de modificatorias sin cargar -------------------------------------------------
+
+
+def _notices(result):
+    """Los avisos de modificatorias sin cargar guardados en `result["notices"]`, como los
+    muestra `_pending_notices.html`: nombre de la norma y cantidad. Se descartan los de
+    otro tipo y los que no traen nombre o una cantidad mayor que cero."""
+    notices = []
+    for notice in result.get("notices") or []:
+        if (not isinstance(notice, dict)
+                or notice.get("type") != services.PENDING_AMENDMENTS):
+            continue
+        count = _int(notice.get("pending"))
+        name = notice.get("name") or ""
+        if count and count > 0 and name:
+            notices.append({"name": name, "count": count})
+    return notices
 
 
 # --- Resultados de la búsqueda ------------------------------------------------------------
