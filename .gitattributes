@@ -2,3 +2,7 @@
 # línea LF, aunque el equipo use core.autocrlf=true.
 *.sh text eol=lf
 Dockerfile text eol=lf
+
+# El corpus se guarda byte por byte: su huella tiene que coincidir con corpus/manifiesto.csv
+# en cualquier equipo, sin conversión de fin de línea.
+corpus/** -text
