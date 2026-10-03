@@ -12,7 +12,7 @@ origen: |
   Los oferentes deberán mantener las ofertas por un plazo de SESENTA (60) días corridos, salvo que en el pliego de bases y condiciones particulares se establezca uno distinto, contados a partir de la fecha del acto de apertura. El día de la apertura quedará excluido del cómputo del plazo. El plazo de mantenimiento se considerará prorrogado automáticamente por un lapso igual al inicial y así sucesivamente. Si el oferente quisiera manifestar su voluntad de no renovar el mantenimiento de la oferta, deberá hacerlo en forma fehaciente con una antelación mínima de CINCO (5) días hábiles anteriores al vencimiento del plazo respectivo.
 unidades:
   - {norma: "Disposición AFIP 247/2022", key: anexo/art-43}
-datos_clave: ["60 días corridos", "desde el acto de apertura", "prórroga automática", "5 días hábiles"]
+datos_clave: ["60 días corridos", "acto de apertura", "se prorroga automáticamente", "5 días hábiles"]
 difieren: false
 pareja: EV-016
 aviso_modificatorias: false

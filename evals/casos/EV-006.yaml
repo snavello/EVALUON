@@ -14,7 +14,7 @@ origen: |
   En ningún caso la interposición de la impugnación o la revisión tendrá carácter suspensivo
 unidades:
   - {norma: "Disposición AFIP 247/2022", key: anexo/art-59}
-datos_clave: ["5 días", "revisión ante la máxima autoridad", "no suspensivo"]
+datos_clave: ["5 días", "revisión", "máxima autoridad", "suspensivo"]
 difieren: false
 pareja: ""
 aviso_modificatorias: false

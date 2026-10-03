@@ -14,7 +14,7 @@ origen: |
   En ningún caso los aumentos o disminuciones de las prestaciones podrán exceder el TREINTA Y CINCO POR CIENTO (35%) del monto total del contrato u orden de compra, aún con consentimiento del contratista.
 unidades:
   - {norma: "Disposición AFIP 247/2022", key: anexo/art-79}
-datos_clave: ["20 %", "35 %", "conformidad previa por encima del 20 %"]
+datos_clave: ["20 %", "35 %", "conformidad"]
 difieren: false
 pareja: ""
 aviso_modificatorias: false

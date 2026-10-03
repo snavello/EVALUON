@@ -12,7 +12,7 @@ origen: |
   Los oferentes podrán observar el dictamen de evaluación dentro de los TRES (3) días de su notificación, excepto que se tratare de una contratación directa del inciso d) del artículo 21 del presente régimen, en cuyo caso el plazo se reducirá a UN (1) día.
 unidades:
   - {norma: "Disposición AFIP 247/2022", key: anexo/art-57}
-datos_clave: ["3 días", "1 día en contratación directa"]
+datos_clave: ["3 días", "1 día", "contratación directa"]
 difieren: false
 pareja: ""
 aviso_modificatorias: false
