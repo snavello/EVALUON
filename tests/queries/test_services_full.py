@@ -604,3 +604,93 @@ def test_no_candidates_is_recorded_apart_from_below_threshold(read_user, corpus,
         "no_candidates"
     assert fake_ai.reranker.calls == []
     assert fake_ai.generation.calls == []
+
+
+# --- Armado público del pedido -----------------------------------------------------------
+
+
+def test_build_request_is_what_answer_sends_without_calling_the_model(
+    read_user, regime, marco, fake_ai
+):
+    """REQ-008, REQ-012: `answering.build_request` arma los mensajes y el esquema del
+    pedido sin llamar al modelo, y son exactamente los que `answer` envía al motor."""
+    _, article = regime
+    _, national = marco
+
+    built = answering.build_request(QUESTION, [national.pk, article.pk], DATE)
+
+    assert fake_ai.generation.calls == []
+    assert built.prompt_version == "consulta-v2"
+    assert built.aliases == {"U1": article.pk, "U2": national.pk}
+    assert built.shown == {article.pk, national.pk}
+    answering.answer(QUESTION, [national.pk, article.pk], DATE)
+    [(messages, schema)] = fake_ai.generation.calls
+    assert built.messages == messages
+    assert built.schema == schema
+
+
+def test_final_check_counts_the_public_request(read_user, regime, fake_ai, monkeypatch):
+    """REQ-012: el control final del pedido cuenta lo que arma
+    `answering.build_request`, el mismo camino que usa `answer`."""
+    fake_ai.reranker.scores = {ARTICLE: 0.9}
+    calls = []
+    original = answering.build_request
+
+    def spy(*args, **kwargs):
+        calls.append(args)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(answering, "build_request", spy)
+
+    query = ask(read_user)
+
+    assert query.status == "grounded"
+    # Una vez en el control final y otra dentro de `answer`.
+    assert len(calls) == 2
+    assert query.selected["request_check"]["tokens"] == sum(
+        count_words(m["content"]) for m in query.request["messages"])
+
+
+def test_priority_order_is_public(regime, marco, dictamen):
+    """REQ-018, REQ-019: la prioridad del espacio es pública en `retrieval`: la mejor
+    de cada categoría en el orden de las categorías."""
+    _, article = regime
+    _, national = marco
+    _, point = dictamen
+
+    order = retrieval.priority_order([point, national, article])
+
+    assert [unit.pk for unit in order] == [article.pk, national.pk, point.pk]
+
+
+def test_final_check_drops_a_unit_shown_by_passages(
+    read_user, regime, make_norm, make_document, make_reading, make_passage, fake_ai,
+    settings, monkeypatch
+):
+    """REQ-012 (decisión 3 del Coordinador): si el control final saca una unidad larga
+    que se mostraba por pasajes, sus tramos dejan de pedirse y la consulta sigue con lo
+    que entra."""
+    _, article = regime
+    head = f"ARTICULO 78.- {MARCO} La garantía sintética es del diez por ciento."
+    tail = " ".join(["relleno"] * (settings.UNIT_BY_PASSAGES_FROM_TOKENS + 100))
+    text = f"{head}\n{tail}"
+    reading = make_reading(make_document(make_norm(category="marco_nacional")),
+                           [("art-78", text)], passages=False)
+    long_unit = reading.units_by_key["art-78"]
+    make_passage(long_unit, char_start=0, char_end=len(head), text=head)
+    make_passage(long_unit, char_start=len(head) + 1, char_end=len(text), text=tail)
+    fake_ai.reranker.scores = {ARTICLE: 0.9, MARCO: 0.95}
+    settings.GENERATION_CONTEXT_TOKENS = (
+        base_tokens() + block_tokens(article) + settings.GENERATION_MAX_OUTPUT_TOKENS
+        + settings.PROMPT_TEMPLATE_MARGIN_TOKENS)
+    original_select = retrieval.select_units
+    monkeypatch.setattr(retrieval, "select_units",
+                        lambda result, prompt_tokens: original_select(result, 0))
+
+    query = ask(read_user)
+
+    assert query.selected["selection"]["passages"] == {
+        str(long_unit.pk): [[0, len(head)]]}
+    assert query.selected["request_check"]["removed"] == [long_unit.pk]
+    assert query.status == "grounded"
+    assert [u["unit"] for u in query.selected["sent"]] == [article.pk]

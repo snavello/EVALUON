@@ -504,10 +504,12 @@ def _apply_quotas(units):
     return chosen, over_quota
 
 
-def _priority(units):
+def priority_order(units):
     """Orden en que se reparte el espacio: la mejor de cada categoría (en el orden de las
     categorías), después la segunda de cada una, y así; los considerandos después de todo
-    el articulado, para que un fundamento no desplace a un artículo."""
+    el articulado, para que un fundamento no desplace a un artículo. `units` llega en
+    orden de puntaje. Pública para el control del pedido completo de `services.py`
+    (T-040), que saca unidades desde el final de este orden."""
     groups = {category: [] for category in answering.CATEGORY_ORDER}
     considerandos = []
     for unit in units:
@@ -650,7 +652,7 @@ def select_units(result, prompt_tokens):
     4. Espacio: `GENERATION_CONTEXT_TOKENS` menos `prompt_tokens`, menos
        `GENERATION_MAX_OUTPUT_TOKENS`, menos `PROMPT_TEMPLATE_MARGIN_TOKENS` (solo la
        plantilla de conversación); si da negativo, 0 con la anomalía
-       `prompt_exceeds_context`. Se reparte por rondas (`_priority`): la mejor de cada
+       `prompt_exceeds_context`. Se reparte por rondas (`priority_order`): la mejor de cada
        categoría, después la segunda, y así; los considerandos al final. Una unidad entra
        si el pedido con ella (su bloque, sus cambios y las que la modifican) cabe; si no,
        se anota en `left_out` y se sigue con la próxima, que puede caber.
@@ -686,7 +688,7 @@ def select_units(result, prompt_tokens):
     included = []
     layout = _Layout()
     left_out = []
-    for unit in _priority(chosen):
+    for unit in priority_order(chosen):
         attempt = counter.layout([*included, unit])
         if attempt.total <= available:
             included.append(unit)

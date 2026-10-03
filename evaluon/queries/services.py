@@ -28,10 +28,11 @@ consulta: la usan la pantalla, los comandos y las evals. Hace, en este orden:
    - Selección (`retrieval.select_units`) con los tokens de las instrucciones
      `consulta-v2` y del comienzo del mensaje (`answering.request_head`), contados con
      `generation.count_tokens`.
-   - Control del pedido completo (`_check_request`): se arma el pedido como lo arma
-     `answering.answer` y se cuentan sus mensajes; si no entra en el contexto (menos el
-     máximo de salida y el margen de la plantilla), se sacan unidades desde el final de
-     la prioridad de la selección y se registran como fuera por espacio (decisión 3).
+   - Control del pedido completo (`_check_request`): se arma el pedido con
+     `answering.build_request`, el mismo camino que usa `answer`, y se cuentan sus
+     mensajes; si no entra en el contexto (menos el máximo de salida y el margen de la
+     plantilla), se sacan unidades desde el final de `retrieval.priority_order` y se
+     registran como fuera por espacio (decisión 3).
    - Si no queda ninguna unidad para mostrar, sea porque las instrucciones con la
      pregunta ya no dejan espacio (`prompt_exceeds_context`), porque ninguna entra o
      porque el control las sacó a todas: falla técnica `input_too_long`, sin llamar al
@@ -417,27 +418,31 @@ def _candidate_records(candidates):
             for c in candidates]
 
 
-def _request_messages(question, reference_date, unit_ids, passages):
-    """El pedido que arma `answering.answer` con esas unidades y tramos, sin llamar al
-    modelo, y los `id` de las unidades que muestra (las seleccionadas y las que entran
-    por relación). Usa las mismas piezas que `answer`."""
-    units = answering._load_units(unit_ids)
-    changes, modifiers, target_paths, source_norms = answering.load_changes(
-        reference_date, units)
-    layout = answering._Layout(units, changes, modifiers, target_paths, source_norms,
-                               passages)
-    shown = {unit.pk for unit in layout.units_by_alias.values()}
-    return answering._messages(question, reference_date, layout), shown
+def _build_request(question, reference_date, unit_ids, passages):
+    """`answering.build_request` con los tramos de la selección que corresponden a
+    unidades mostradas. Después de sacar una unidad, sus tramos (o los de la que la
+    modificaba) sobran y `build_request` los rechaza. Las unidades mostradas no dependen
+    de los tramos: si alguna que entra por relación tiene tramos, se arma otra vez con
+    ellos."""
+    own = {pk: spans for pk, spans in passages.items() if pk in unit_ids}
+    built = answering.build_request(question, unit_ids, reference_date, own)
+    extra = {pk: spans for pk, spans in passages.items()
+             if pk in built.shown and pk not in own}
+    if extra:
+        built = answering.build_request(question, unit_ids, reference_date,
+                                        {**own, **extra})
+    return built
 
 
 def _check_request(question, reference_date, found, selection):
     """Control final del pedido completo (decisión 3 del Coordinador para T-040).
 
-    Cuenta con `generation.count_tokens` cada mensaje del pedido que va a armar
-    `answer`. Si el total supera el contexto menos el máximo de salida y el margen de la
-    plantilla de conversación, saca la última unidad en la prioridad de la selección
-    (`retrieval._priority`: la mejor de cada categoría, después la segunda, y así; los
-    considerandos al final) y vuelve a contar, hasta que entre o no quede ninguna.
+    Cuenta con `generation.count_tokens` cada mensaje del pedido que arma
+    `answering.build_request`, el mismo que usa `answer`. Si el total supera el contexto
+    menos el máximo de salida y el margen de la plantilla de conversación, saca la última
+    unidad en la prioridad de la selección (`retrieval.priority_order`: la mejor de cada
+    categoría, después la segunda, y así; los considerandos al final) y vuelve a contar,
+    hasta que entre o no quede ninguna.
 
     Devuelve `(unit_ids, passages, check)`: las unidades y los tramos que se muestran, y
     `{"tokens", "limit", "removed"}`; `check` es `None` si no había unidades."""
@@ -448,7 +453,7 @@ def _check_request(question, reference_date, found, selection):
              - settings.PROMPT_TEMPLATE_MARGIN_TOKENS)
     units = Unit.objects.select_related("reading__document__norm").in_bulk(unit_ids)
     by_score = [units[u.unit_id] for u in found.selected if u.unit_id in units]
-    priority = [unit.pk for unit in retrieval._priority(by_score)]
+    priority = [unit.pk for unit in retrieval.priority_order(by_score)]
 
     counted = {}
 
@@ -461,9 +466,9 @@ def _check_request(question, reference_date, found, selection):
     shown = set()
     tokens = None
     while unit_ids:
-        messages, shown = _request_messages(question, reference_date, unit_ids,
-                                            selection.passages)
-        tokens = sum(count(message["content"]) for message in messages)
+        built = _build_request(question, reference_date, unit_ids, selection.passages)
+        shown = built.shown
+        tokens = sum(count(message["content"]) for message in built.messages)
         if tokens <= limit:
             break
         drop = next(pk for pk in reversed(priority) if pk in unit_ids)
