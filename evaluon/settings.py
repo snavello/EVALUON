@@ -234,9 +234,11 @@ GENERATION_MAX_STATEMENTS = 6
 # exige correr las evals (P7).
 RETRIEVAL_CANDIDATES_PER_PATH = 30
 # Umbral de abstención sobre el puntaje del reranker, entre 0 y 1 (después de la
-# sigmoide). Provisorio hasta la calibración de T-045: 0,5 es el punto medio de la
-# sigmoide (valor sin escala 0).
-RERANK_THRESHOLD = 0.5
+# sigmoide). Provisorio, calibrado en T-045 el 2026-10-03 con la corrida
+# `evals/corridas/2026-10-03T132016_8ad46e6_gemma-4-12b-it-qat-q4_0` (24 preguntas con
+# respuesta y 6 sin respuesta con puntaje; k = 0, el puntaje más alto de EV-020
+# redondeado hacia abajo). Se recalibra cuando el conjunto de preguntas crezca.
+RERANK_THRESHOLD = 0.368
 SELECTION_UNITS_PER_CATEGORY = 3
 SELECTION_CONSIDERANDOS = 2
 # Largo máximo de un pasaje (encabezado más texto), contado con el cliente de embeddings.

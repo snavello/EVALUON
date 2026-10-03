@@ -223,7 +223,8 @@ def test_reranker_scores_header_and_text_against_question(norm_with_units,
 
 
 @pytest.mark.django_db
-def test_candidate_record_is_serializable(norm_with_units, fake_embeddings, fake_reranker):
+def test_candidate_record_is_serializable(settings, norm_with_units, fake_embeddings,
+                                         fake_reranker):
     """REQ-008: cada candidato se entrega como registro con pasaje, unidad, camino,
     distancia y puntaje, listo para guardar en el registro de la consulta (P6), junto con
     los parámetros usados."""
@@ -242,7 +243,7 @@ def test_candidate_record_is_serializable(norm_with_units, fake_embeddings, fake
     assert candidate["path"] == ["semantic"]
     assert candidate["score"] == pytest.approx(0.8)
     assert record["reference_date"] == REFERENCE_DATE.isoformat()
-    assert record["parameters"]["rerank_threshold"] == pytest.approx(0.5)
+    assert record["parameters"]["rerank_threshold"] == pytest.approx(settings.RERANK_THRESHOLD)
     assert record["parameters"]["candidates_per_path"] == 30
     assert record["parameters"]["paths"] == ["semantic", "words", "reference"]
     assert record["parameters"]["reranker"] is True
