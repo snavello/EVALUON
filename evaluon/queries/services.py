@@ -37,8 +37,11 @@ consulta: la usan la pantalla, los comandos y las evals. Hace, en este orden:
      pregunta ya no dejan espacio (`prompt_exceeds_context`), porque ninguna entra o
      porque el control las sacó a todas: falla técnica `input_too_long`, sin llamar al
      modelo. No es un "no determinado" (decisión 2).
-4. Fuera de la instantánea, genera (`answering.answer`) con la fecha, las unidades y sus
-   tramos. Con fecha, `answer` usa las instrucciones `consulta-v2` (decisión 1).
+4. Fuera de la instantánea, genera con `answering.answer(pregunta, request=pedido)`: envía
+   el mismo pedido que se armó y controló adentro (instrucciones `consulta-v2`, decisión
+   1), y valida la salida y arma el resultado con lo que trae ese pedido, sin volver a
+   leer la base. Una relación registrada mientras tanto no cambia lo enviado ni lo
+   registrado.
 5. Arma el resultado con la forma de "Forma de la respuesta" (`query_id`,
    `reference_date`, `regime` y `notices` vacío en los tres estados) y guarda, en una
    sola transacción, el hecho `query` de `audit_event` y la fila de `queries_query`,
@@ -57,7 +60,8 @@ Registro (fila "Consulta" de "Registro de auditoría"). Las columnas de
 - `selected`:
   - `sent`: las unidades enviadas al modelo, en el orden de entrega, con su puntaje y
     sus pasajes;
-  - `added`: las agregadas por relación (`{"unit", "modifies"}`);
+  - `added`: las agregadas por relación (`{"unit", "modifies"}`), tomadas del pedido
+    enviado;
   - `left_out`: las dejadas afuera por espacio, con `check` igual a `selection` (las
     dejó afuera la selección) o `request` (las sacó el control del pedido completo);
   - `over_quota`: las que alcanzaron el umbral y no entraron por el cupo;
@@ -92,7 +96,7 @@ usan por su módulo (`generation.count_tokens`, y dentro de `retrieval` y `answe
 
 import time
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from django.conf import settings
 from django.db import connection, transaction
@@ -279,11 +283,11 @@ def _empty_record():
 
 @dataclass
 class _Ready:
-    """Lo que se le muestra al modelo después de la selección y del control del
-    pedido."""
+    """El pedido armado y controlado dentro de la instantánea (`answering.Request`), con
+    las unidades seleccionadas que muestra. La generación lo envía tal cual."""
 
     unit_ids: list
-    passages: dict = field(default_factory=dict)
+    request: object
 
 
 def ask(user, question, reference_date=None, *, channel=Channel.SCREEN):
@@ -380,8 +384,8 @@ def _prepare(question, reference_date, regime, record, clock):
         selection = retrieval.select_units(found, prompt_tokens)
         search.update(selection.parameters)
         record["anomalies"].extend(selection.anomalies)
-        unit_ids, passages, check = _check_request(question, reference_date, found,
-                                                   selection)
+        unit_ids, built, check = _check_request(question, reference_date, found,
+                                                selection)
     except AIServiceError as error:
         clock.stage("selection", since)
         record["anomalies"].append(_service_error(error))
@@ -393,10 +397,7 @@ def _prepare(question, reference_date, regime, record, clock):
     selected = record["selected"]
     selected.update(
         sent=[scores[unit_id].as_record() for unit_id in unit_ids],
-        added=[{"unit": a["unit"],
-                "modifies": [pk for pk in a["modifies"] if pk in unit_ids]}
-               for a in selection.added
-               if any(pk in unit_ids for pk in a["modifies"])],
+        added=_added(built, unit_ids),
         left_out=([{**entry, "check": CHECK_SELECTION} for entry in selection.left_out]
                   + [{"unit": pk, "tokens": selection.tokens.get(pk),
                       "check": CHECK_REQUEST} for pk in removed]),
@@ -407,7 +408,25 @@ def _prepare(question, reference_date, regime, record, clock):
         selected["request_check"] = check
     if not unit_ids:
         return _error(Reason.INPUT_TOO_LONG.value)
-    return _Ready(unit_ids=unit_ids, passages=passages)
+    return _Ready(unit_ids=unit_ids, request=built)
+
+
+def _added(built, unit_ids):
+    """Unidades que el pedido enviado muestra por relación y que no están entre las
+    seleccionadas, con las seleccionadas que modifican, en el orden en que se muestran.
+    Salen del pedido armado, así lo registrado es lo enviado."""
+    if built is None:
+        return []
+    added = []
+    for pk in built.aliases.values():
+        if pk in unit_ids:
+            continue
+        modifies = [unit_id for unit_id in unit_ids
+                    if any(change.source_unit_id == pk
+                           for change in (built.changes or {}).get(unit_id, ()))]
+        if modifies:
+            added.append({"unit": pk, "modifies": modifies})
+    return added
 
 
 def _candidate_records(candidates):
@@ -444,11 +463,13 @@ def _check_request(question, reference_date, found, selection):
     categoría, después la segunda, y así; los considerandos al final) y vuelve a contar,
     hasta que entre o no quede ninguna.
 
-    Devuelve `(unit_ids, passages, check)`: las unidades y los tramos que se muestran, y
-    `{"tokens", "limit", "removed"}`; `check` es `None` si no había unidades."""
+    Devuelve `(unit_ids, request, check)`: las unidades seleccionadas que quedan, el
+    `answering.Request` que entra (el que se va a enviar; `None` si no quedó ninguna) y
+    `{"tokens", "limit", "removed"}`, con `tokens` contados sobre ese mismo pedido;
+    `check` es `None` si no había unidades."""
     unit_ids = list(selection.unit_ids)
     if not unit_ids:
-        return [], {}, None
+        return [], None, None
     limit = (settings.GENERATION_CONTEXT_TOKENS - settings.GENERATION_MAX_OUTPUT_TOKENS
              - settings.PROMPT_TEMPLATE_MARGIN_TOKENS)
     units = Unit.objects.select_related("reading__document__norm").in_bulk(unit_ids)
@@ -463,28 +484,26 @@ def _check_request(question, reference_date, found, selection):
         return counted[text]
 
     removed = []
-    shown = set()
+    fitting = None
     tokens = None
     while unit_ids:
         built = _build_request(question, reference_date, unit_ids, selection.passages)
-        shown = built.shown
         tokens = sum(count(message["content"]) for message in built.messages)
         if tokens <= limit:
+            fitting = built
             break
         drop = next(pk for pk in reversed(priority) if pk in unit_ids)
         unit_ids.remove(drop)
         removed.append(drop)
-        shown = set()
-    passages = {pk: spans for pk, spans in selection.passages.items() if pk in shown}
-    return unit_ids, passages, {"tokens": tokens, "limit": limit, "removed": removed}
+    return unit_ids, fitting, {"tokens": tokens, "limit": limit, "removed": removed}
 
 
 def _generate(question, reference_date, ready, record, clock):
-    """Genera fuera de la instantánea y devuelve la parte del resultado que arma
-    `answering`. Completa `record`."""
+    """Genera fuera de la instantánea con el pedido armado y controlado adentro
+    (`answer(..., request=...)`, que no vuelve a leer la base) y devuelve la parte del
+    resultado que arma `answering`. Completa `record`."""
     since = time.monotonic()
-    generated = answering.answer(question, ready.unit_ids, reference_date,
-                                 passages=ready.passages)
+    generated = answering.answer(question, request=ready.request)
     clock.stage("generation", since)
     record.update(
         prompt_version=generated.prompt_version,

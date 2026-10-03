@@ -196,11 +196,13 @@ def test_selection_receives_the_tokens_of_instructions_and_question(
     read_user, regime, fake_ai, monkeypatch
 ):
     """REQ-008: la selección recibe los tokens de las instrucciones con el comienzo del
-    mensaje (fecha y pregunta), contados con `generation.count_tokens`, y la generación
-    recibe la fecha de autorización y los tramos de la selección."""
+    mensaje (fecha y pregunta), contados con `generation.count_tokens`; el pedido se
+    arma con la fecha de autorización, las unidades y los tramos de la selección, y la
+    generación recibe ese mismo pedido armado."""
     fake_ai.reranker.scores = {ARTICLE: 0.9}
     seen = {}
     original_select = retrieval.select_units
+    original_build = answering.build_request
     original_answer = answering.answer
 
     def select_spy(result, prompt_tokens):
@@ -208,18 +210,26 @@ def test_selection_receives_the_tokens_of_instructions_and_question(
         seen["selection"] = original_select(result, prompt_tokens)
         return seen["selection"]
 
-    def answer_spy(question, unit_ids, reference_date=None, passages=None):
-        seen["answer"] = (question, list(unit_ids), reference_date, passages)
-        return original_answer(question, unit_ids, reference_date, passages=passages)
+    def build_spy(question, unit_ids, reference_date=None, passages=None):
+        seen["build"] = (question, list(unit_ids), reference_date, passages)
+        seen["built"] = original_build(question, unit_ids, reference_date, passages)
+        return seen["built"]
+
+    def answer_spy(question, *args, **kwargs):
+        seen["answer"] = (question, args, kwargs)
+        return original_answer(question, *args, **kwargs)
 
     monkeypatch.setattr(retrieval, "select_units", select_spy)
+    monkeypatch.setattr(answering, "build_request", build_spy)
     monkeypatch.setattr(answering, "answer", answer_spy)
 
     query = ask(read_user)
 
     assert seen["prompt_tokens"] == base_tokens()
-    assert seen["answer"] == (QUESTION, seen["selection"].unit_ids, DATE,
-                              seen["selection"].passages)
+    assert seen["build"] == (QUESTION, seen["selection"].unit_ids, DATE,
+                             seen["selection"].passages)
+    assert seen["answer"] == (QUESTION, (), {"request": seen["built"]})
+    assert query.request["messages"] == seen["built"].messages
     assert query.prompt_version == answering.PROMPT_VERSION_WITH_DATE == "consulta-v2"
     assert query.status == "grounded"
 
@@ -631,7 +641,8 @@ def test_build_request_is_what_answer_sends_without_calling_the_model(
 
 def test_final_check_counts_the_public_request(read_user, regime, fake_ai, monkeypatch):
     """REQ-012: el control final del pedido cuenta lo que arma
-    `answering.build_request`, el mismo camino que usa `answer`."""
+    `answering.build_request`, y la generación envía ese mismo pedido sin volver a
+    armarlo."""
     fake_ai.reranker.scores = {ARTICLE: 0.9}
     calls = []
     original = answering.build_request
@@ -645,8 +656,8 @@ def test_final_check_counts_the_public_request(read_user, regime, fake_ai, monke
     query = ask(read_user)
 
     assert query.status == "grounded"
-    # Una vez en el control final y otra dentro de `answer`.
-    assert len(calls) == 2
+    # Una sola vez, en el control final: `answer` usa el pedido ya armado.
+    assert len(calls) == 1
     assert query.selected["request_check"]["tokens"] == sum(
         count_words(m["content"]) for m in query.request["messages"])
 
@@ -694,3 +705,128 @@ def test_final_check_drops_a_unit_shown_by_passages(
     assert query.selected["request_check"]["removed"] == [long_unit.pk]
     assert query.status == "grounded"
     assert [u["unit"] for u in query.selected["sent"]] == [article.pk]
+
+
+# --- Generación con el pedido controlado -------------------------------------------------
+
+
+def test_relation_registered_between_selection_and_generation_does_not_change_the_request(
+    read_user, regime, corpus, make_relation, fake_ai, monkeypatch
+):
+    """REQ-008, REQ-012: la generación envía el pedido armado y controlado dentro de la
+    instantánea. Una relación `modifica` registrada entre la selección y la generación
+    no cambia el pedido enviado ni el resultado, `selected.added` coincide con lo
+    enviado y `request_check.tokens` es la cuenta del pedido enviado. (Reproducción del
+    testeador de T-040.)"""
+    regime_norm, article = regime
+    modifier_norm, units = corpus("regimen_especifico", [
+        ("art-1", f"ARTICULO 1.- {MODIFIER} Sustitúyese el texto sintético "
+                  + "x " * 50),
+    ])
+    fake_ai.reranker.scores = {ARTICLE: 0.9, MODIFIER: 0.1}
+    original = answering.answer
+
+    def answer_after_relation(*args, **kwargs):
+        make_relation(modifier_norm, regime_norm, "modifica", source_unit_key="art-1",
+                      target_unit_key="art-5", effective_date=date(2020, 1, 1))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(answering, "answer", answer_after_relation)
+
+    query = ask(read_user)
+
+    assert query.status == "grounded"
+    sent = query.request["messages"]
+    assert MODIFIER not in sent[1]["content"]
+    assert query.selected["added"] == []
+    assert sorted(query.result["units"]) == [str(article.pk)]
+    assert query.result["units"][str(article.pk)]["changes"] == []
+    assert query.selected["request_check"]["tokens"] == sum(
+        count_words(m["content"]) for m in sent)
+
+
+def test_answer_with_a_built_request_does_not_read_the_database(
+    read_user, regime, marco, fake_ai, django_assert_num_queries
+):
+    """REQ-008: `answer(pregunta, request=pedido)` genera con el pedido ya armado y
+    arma el resultado con lo que trae el pedido, sin leer la base."""
+    _, article = regime
+    _, national = marco
+    built = answering.build_request(QUESTION, [article.pk, national.pk], DATE)
+    fake_ai.generation.answer([{"text": "Difieren.", "citations": ["U2", "U1"],
+                                "regimes_differ": True}])
+
+    with django_assert_num_queries(0):
+        generated = answering.answer(QUESTION, request=built)
+
+    [(messages, schema)] = fake_ai.generation.calls
+    assert (messages, schema) == (built.messages, built.schema)
+    assert generated.result["statements"][0]["citations"] == [article.pk, national.pk]
+    assert set(generated.result["units"]) == {str(article.pk), str(national.pk)}
+
+
+def test_answer_rejects_a_built_request_mixed_with_units(read_user, regime, fake_ai):
+    """REQ-008: un pedido armado no se combina con unidades o tramos sueltos: sería
+    ambiguo qué se envía."""
+    _, article = regime
+    built = answering.build_request(QUESTION, [article.pk], DATE)
+
+    with pytest.raises(ValueError):
+        answering.answer(QUESTION, [article.pk], request=built)
+    assert fake_ai.generation.calls == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_corpus_version_is_read_inside_the_snapshot(
+    read_user, read_write_user, regime, make_norm, make_document, make_reading, fake_ai,
+    monkeypatch
+):
+    """REQ-012 (P6, P8; A13): la versión de la normativa se lee dentro de la misma
+    instantánea que la recuperación. Si, justo después de leerla, otra conexión valida
+    una lectura y crea una versión nueva, la recuperación no ve lo validado y la
+    consulta registra la versión que leyó: lo registrado corresponde a lo buscado."""
+    import threading
+
+    from django.db import connection as main_connection
+    from django.db import transaction
+
+    from evaluon.norms.models import Reading
+
+    fake_ai.reranker.scores = {ARTICLE: 0.9, "[validada-en-medio]": 0.95}
+    searched_with = _new_corpus_version(read_write_user)
+    pending = make_reading(
+        make_document(make_norm(category="regimen_especifico")),
+        [("art-9", "ARTICULO 9.- [validada-en-medio] La garantía sintética nueva.")],
+        status="pending",
+    )
+    new_unit = pending.units_by_key["art-9"]
+    created = []
+    original = audit_services.current_corpus_version
+
+    def validate_elsewhere():
+        from django.db import connection
+        try:
+            with transaction.atomic():
+                Reading.objects.filter(pk=pending.pk).update(status="validated")
+                created.append(_new_corpus_version(read_write_user))
+        finally:
+            connection.close()
+
+    def read_then_validate_elsewhere():
+        version = original()
+        if not created:
+            worker = threading.Thread(target=validate_elsewhere)
+            worker.start()
+            worker.join()
+        return version
+
+    monkeypatch.setattr(audit_services, "current_corpus_version",
+                        read_then_validate_elsewhere)
+
+    query = ask(read_user)
+
+    assert created and created[0] > searched_with
+    assert main_connection.in_atomic_block is False
+    assert new_unit.pk not in [c["unit"] for c in query.candidates]
+    assert query.corpus_version == searched_with
+    assert event_of(query).corpus_version == searched_with
