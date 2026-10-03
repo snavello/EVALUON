@@ -36,12 +36,15 @@ Comparación quitando piezas (ADR-0003, evals): `paths` dice qué caminos se cor
 el orden de la unión, todas pasan y no hay barrera de umbral (`max_score` vacío).
 
 La fecha es siempre la de autorización del procedimiento que recibe quien llama: esta
-función no usa la fecha del día y, sin fecha, no busca. Los cupos, los cambios por
-relación y el espacio del contexto son de T-033.
+función no usa la fecha del día y, sin fecha, no busca.
 
-Los clientes se usan por su módulo (`embeddings.embed`, `reranker.rerank`) para que los
-dobles de las pruebas los reemplacen. Sus errores propios (`evaluon.ai`) no se atrapan
-acá: son fallas técnicas que resuelve quien llama.
+`select_units(resultado, prompt_tokens)` (T-033) toma las unidades que pasaron y arma lo
+que se le muestra al modelo (plan, "Reordenamiento", pasos 4 a 7): cupos por categoría,
+cambios por relación, espacio del contexto y orden de entrega. Ver su docstring.
+
+Los clientes se usan por su módulo (`embeddings.embed`, `reranker.rerank`,
+`generation.count_tokens`) para que los dobles de las pruebas los reemplacen. Sus errores
+propios (`evaluon.ai`) no se atrapan acá: son fallas técnicas que resuelve quien llama.
 """
 
 import re
@@ -51,8 +54,10 @@ from dataclasses import dataclass, field
 from django.conf import settings
 from django.db import connection
 
-from evaluon.ai import embeddings, reranker
+from evaluon.ai import embeddings, generation, reranker
 from evaluon.norms import indexing
+from evaluon.norms.models import Passage, Unit, UnitType
+from evaluon.queries import answering
 
 # Caminos por los que entra un candidato, en el orden de la unión.
 SEMANTIC = "semantic"
@@ -391,3 +396,240 @@ def _group_by_unit(candidates, ranked):
     if ranked:
         units.sort(key=lambda unit: (-unit.score, unit.unit_id))
     return units
+
+
+# --- Selección (T-033) -----------------------------------------------------------------
+
+# Unidades que traen un cambio a la fecha (plan, "Reordenamiento", paso 5). Sin unidad de
+# origen (relación desde la norma entera, o unidad no consultable) no hay nada que sumar.
+_CHANGE_SOURCES_SQL = """
+SELECT unit_id, source_unit_id
+FROM unit_changes(%s)
+WHERE unit_id = ANY(%s) AND source_unit_id IS NOT NULL AND source_unit_id <> unit_id
+ORDER BY unit_id, effective_date, relation_id
+"""
+
+# Grupo de cupo y de espacio de los considerandos, aparte de las categorías.
+_CONSIDERANDOS = "considerandos"
+
+
+@dataclass(frozen=True)
+class Selection:
+    """Lo que se le muestra al modelo, listo para `answering.answer` (T-040):
+
+        answering.answer(pregunta, sel.unit_ids, fecha, passages=sel.passages)
+
+    - `unit_ids`: las unidades seleccionadas que entraron, en el orden de entrega
+      (régimen específico, otra normativa aplicable, marco nacional, dictamen legal,
+      recomendación de auditoría; dentro de cada una, por puntaje, o en el orden de la
+      unión sin reranker; los considerandos al final). No incluye las agregadas por
+      relación: `answer` las busca sola con `unit_changes` y las muestra a continuación
+      de la que modifican.
+    - `passages`: `{id de unidad: [(char_start, char_end), …]}`, tramos relativos al
+      texto de la unidad, en orden de texto, solo para las unidades más largas que
+      `UNIT_BY_PASSAGES_FROM_TOKENS` que se muestran por pasajes. Puede traer unidades
+      agregadas por relación.
+    - `added`: unidades que entraron por relación y no por parecido y no están en
+      `unit_ids`: `[{"unit": id, "modifies": [ids de unit_ids]}]`.
+    - `over_quota`: ids de las unidades que alcanzaron el umbral y quedaron afuera por
+      el cupo de su categoría o el de considerandos, en el orden en que llegaron.
+    - `left_out`: unidades seleccionadas que quedaron afuera por espacio, en el orden en
+      que se intentaron: `[{"unit": id, "tokens": n}]`, con `n` lo que costaba la unidad
+      junto con las que la modifican y todavía no habían entrado.
+    - `tokens`: `{id: tokens}` de cada unidad contada (las que pasaron el cupo y las que
+      las modifican), sobre `answering.prompt_text(unidad, tramos)`.
+    - `prompt_tokens`: los tokens de las instrucciones con la pregunta que informó quien
+      llama; `available_tokens`: el espacio para unidades; `used_tokens`: lo que ocupan
+      las que entraron, contando las agregadas por relación.
+    - `parameters`: los parámetros de `settings.py` usados.
+
+    `unit_ids` vacío con `left_out` no vacío quiere decir que ninguna unidad entró en el
+    espacio: no es un "no determinado" por umbral; lo resuelve quien llama.
+    """
+
+    unit_ids: list = field(default_factory=list)
+    passages: dict = field(default_factory=dict)
+    added: list = field(default_factory=list)
+    over_quota: list = field(default_factory=list)
+    left_out: list = field(default_factory=list)
+    tokens: dict = field(default_factory=dict)
+    prompt_tokens: int = 0
+    available_tokens: int = 0
+    used_tokens: int = 0
+    parameters: dict = field(default_factory=dict)
+
+    def as_record(self):
+        """La selección en datos que se pueden guardar como JSON en el registro (P6)."""
+        return {
+            "units": list(self.unit_ids),
+            "passages": {str(unit_id): [list(span) for span in spans]
+                         for unit_id, spans in self.passages.items()},
+            "added": [{"unit": a["unit"], "modifies": list(a["modifies"])}
+                      for a in self.added],
+            "over_quota": list(self.over_quota),
+            "left_out": [dict(entry) for entry in self.left_out],
+            "tokens": {str(unit_id): n for unit_id, n in self.tokens.items()},
+            "prompt_tokens": self.prompt_tokens,
+            "available_tokens": self.available_tokens,
+            "used_tokens": self.used_tokens,
+            "parameters": dict(self.parameters),
+        }
+
+
+def _group(unit):
+    """Grupo de cupo y de espacio: la categoría de su norma, o los considerandos."""
+    if unit.unit_type == UnitType.CONSIDERANDO:
+        return _CONSIDERANDOS
+    return unit.reading.document.norm.category
+
+
+def _apply_quotas(units):
+    """Hasta `SELECTION_UNITS_PER_CATEGORY` por categoría y `SELECTION_CONSIDERANDOS`
+    considerandos en total, en el orden recibido. Devuelve las que entran y los ids de
+    las que no."""
+    chosen, over_quota, counts = [], [], {}
+    for unit in units:
+        group = _group(unit)
+        limit = (settings.SELECTION_CONSIDERANDOS if group == _CONSIDERANDOS
+                 else settings.SELECTION_UNITS_PER_CATEGORY)
+        if counts.get(group, 0) < limit:
+            counts[group] = counts.get(group, 0) + 1
+            chosen.append(unit)
+        else:
+            over_quota.append(unit.pk)
+    return chosen, over_quota
+
+
+def _priority(units):
+    """Orden en que se reparte el espacio: la mejor de cada categoría (en el orden de las
+    categorías), después la segunda de cada una, y así; los considerandos después de todo
+    el articulado, para que un fundamento no desplace a un artículo."""
+    groups = {category: [] for category in answering.CATEGORY_ORDER}
+    considerandos = []
+    for unit in units:
+        group = _group(unit)
+        (considerandos if group == _CONSIDERANDOS else groups[group]).append(unit)
+    rounds = max((len(g) for g in groups.values()), default=0)
+    articulado = [g[i] for i in range(rounds) for g in groups.values() if i < len(g)]
+    return articulado + considerandos
+
+
+def _modifiers(reference_date, unit_ids):
+    """`{id de unidad: [ids de las unidades que la modifican o derogan en parte]}` a la
+    fecha, por relación (`unit_changes`), sin repetir."""
+    if not unit_ids:
+        return {}
+    by_unit = {}
+    rows = _fetch(_CHANGE_SOURCES_SQL, [reference_date, list(unit_ids)])
+    for unit_id, source_id in rows:
+        sources = by_unit.setdefault(unit_id, [])
+        if source_id not in sources:
+            sources.append(source_id)
+    return by_unit
+
+
+def _passing_spans(result):
+    """`{id de unidad: [(char_start, char_end), …]}` de los pasajes candidatos que
+    alcanzaron el umbral (sin reranker, todos los candidatos), en orden de texto."""
+    threshold = result.parameters.get("rerank_threshold", settings.RERANK_THRESHOLD)
+    passing = [c.passage_id for c in result.candidates
+               if c.score is None or c.score >= threshold]
+    spans = {}
+    rows = Passage.objects.filter(pk__in=passing).values_list("unit_id", "char_start",
+                                                              "char_end")
+    for unit_id, start, end in rows:
+        spans.setdefault(unit_id, []).append((start, end))
+    return {unit_id: sorted(found) for unit_id, found in spans.items()}
+
+
+def select_units(result, prompt_tokens):
+    """Selección de las unidades que se le muestran al modelo, a partir de un
+    `RetrievalResult` (plan 001, "Reordenamiento", pasos 4 a 7, y "Conteo de tokens").
+    `prompt_tokens` son los tokens de las instrucciones con la pregunta, contados por
+    quien llama con `generation.count_tokens`. Devuelve una `Selection`.
+
+    1. Cupos: de `result.selected` (las que alcanzaron el umbral, de mayor a menor
+       puntaje; sin reranker, todas en el orden de la unión), hasta
+       `SELECTION_UNITS_PER_CATEGORY` por categoría y hasta `SELECTION_CONSIDERANDOS`
+       considerandos, que no ocupan el cupo de su categoría (REQ-018, REQ-019).
+    2. Cambios: a cada una se le suman, por relación y no por parecido, las unidades
+       que la modifican a la fecha (`unit_changes(result.reference_date)`, REQ-007).
+    3. Tokens: cada unidad se cuenta con `generation.count_tokens` sobre
+       `answering.prompt_text`, el texto que ve el modelo. Una unidad más larga que
+       `UNIT_BY_PASSAGES_FROM_TOKENS` se muestra solo por sus pasajes candidatos que
+       alcanzaron el umbral (sin reranker, los que entraron a la unión) y se cuenta así;
+       si no tiene ninguno (una unidad que entró solo por relación), va entera.
+    4. Espacio: `GENERATION_CONTEXT_TOKENS` menos `prompt_tokens`, menos
+       `GENERATION_MAX_OUTPUT_TOKENS`, menos `PROMPT_TEMPLATE_MARGIN_TOKENS`. Se reparte
+       por rondas (`_priority`): la mejor de cada categoría, después la segunda, y así;
+       los considerandos al final. Cada unidad entra junto con las que la modifican y
+       todavía no entraron, o no entra; si no entra, se anota en `left_out` y se sigue
+       con la próxima, que puede caber.
+    5. Orden de entrega: `answering.order_key`, estable sobre el orden de puntaje.
+    """
+    parameters = {
+        "units_per_category": settings.SELECTION_UNITS_PER_CATEGORY,
+        "considerandos": settings.SELECTION_CONSIDERANDOS,
+        "context_tokens": settings.GENERATION_CONTEXT_TOKENS,
+        "max_output_tokens": settings.GENERATION_MAX_OUTPUT_TOKENS,
+        "template_margin_tokens": settings.PROMPT_TEMPLATE_MARGIN_TOKENS,
+        "unit_by_passages_from_tokens": settings.UNIT_BY_PASSAGES_FROM_TOKENS,
+    }
+    available = (settings.GENERATION_CONTEXT_TOKENS - prompt_tokens
+                 - settings.GENERATION_MAX_OUTPUT_TOKENS
+                 - settings.PROMPT_TEMPLATE_MARGIN_TOKENS)
+    common = {"prompt_tokens": prompt_tokens, "available_tokens": available,
+              "parameters": parameters}
+    if not result.selected:
+        return Selection(**common)
+
+    found = Unit.objects.select_related("reading__document__norm").in_bulk(
+        [unit.unit_id for unit in result.selected])
+    chosen, over_quota = _apply_quotas([found[u.unit_id] for u in result.selected])
+
+    modifiers = _modifiers(result.reference_date, [unit.pk for unit in chosen])
+    by_id = {unit.pk: unit for unit in chosen}
+    missing = {pk for sources in modifiers.values() for pk in sources} - set(by_id)
+    by_id.update(Unit.objects.select_related("reading").in_bulk(list(missing)))
+
+    spans = _passing_spans(result)
+    tokens, passages = {}, {}
+    for unit_id, unit in by_id.items():
+        count = generation.count_tokens(answering.prompt_text(unit))
+        if count > settings.UNIT_BY_PASSAGES_FROM_TOKENS and spans.get(unit_id):
+            passages[unit_id] = spans[unit_id]
+            count = generation.count_tokens(answering.prompt_text(unit, spans[unit_id]))
+        tokens[unit_id] = count
+
+    included = set()
+    left_out = []
+    remaining = available
+    for unit in _priority(chosen):
+        package = [pk for pk in dict.fromkeys([unit.pk, *modifiers.get(unit.pk, ())])
+                   if pk not in included]
+        cost = sum(tokens[pk] for pk in package)
+        if cost <= remaining:
+            included.update(package)
+            remaining -= cost
+        else:
+            left_out.append({"unit": unit.pk, "tokens": cost})
+
+    unit_ids = [unit.pk for unit in sorted((u for u in chosen if u.pk in included),
+                                           key=answering.order_key)]
+    added = {}
+    for unit_id in unit_ids:
+        for source_id in modifiers.get(unit_id, ()):
+            if source_id not in unit_ids:
+                added.setdefault(source_id, []).append(unit_id)
+
+    return Selection(
+        unit_ids=unit_ids,
+        passages={pk: found_spans for pk, found_spans in passages.items()
+                  if pk in included},
+        added=[{"unit": pk, "modifies": targets} for pk, targets in added.items()],
+        over_quota=over_quota,
+        left_out=[entry for entry in left_out if entry["unit"] not in included],
+        tokens=tokens,
+        used_tokens=available - remaining,
+        **common,
+    )

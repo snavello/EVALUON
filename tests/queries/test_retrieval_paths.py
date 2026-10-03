@@ -153,6 +153,27 @@ def test_words_path_takes_up_to_the_limit(settings, word_norm, fake_embeddings,
 
 
 @pytest.mark.django_db
+def test_words_over_the_limit_keep_the_best_ts_rank(settings, make_norm, make_document,
+                                                    make_reading, fake_embeddings,
+                                                    fake_reranker):
+    """REQ-008: con más coincidencias por palabras que `RETRIEVAL_CANDIDATES_PER_PATH`,
+    se quedan las de mejor `ts_rank`, no las primeras que se cargaron: la que más repite
+    la palabra entra aunque sea la última."""
+    settings.RETRIEVAL_CANDIDATES_PER_PATH = 2
+    reading = make_reading(make_document(make_norm()), [
+        ("art-1", "ARTICULO 1.- La garantía se presenta."),
+        ("art-2", "ARTICULO 2.- Una garantía y otra garantía distinta."),
+        ("art-3", "ARTICULO 3.- Garantía, garantía y garantía: tres garantías."),
+    ])
+    units = reading.units_by_key
+
+    result = retrieval.retrieve("garantía", REFERENCE_DATE, paths=ONLY_WORDS)
+
+    assert [c.unit_id for c in result.candidates] == [units["art-3"].pk,
+                                                       units["art-2"].pk]
+
+
+@pytest.mark.django_db
 def test_words_do_not_search_the_header(make_norm, make_document, make_reading,
                                         fake_embeddings, fake_reranker):
     """REQ-008 (aviso de T-009): la búsqueda por palabras mira el texto del pasaje y no su
@@ -210,6 +231,45 @@ def test_reference_with_inciso_brings_the_article(reference_norm, fake_embedding
     assert candidate_units(result) == pks(reference_norm, "art-5")
     assert result.candidates[0].path == (retrieval.REFERENCE,)
     assert fake_embeddings.calls == []
+
+
+@pytest.mark.django_db
+def test_reference_with_numeric_inciso_brings_only_the_article(
+        make_norm, make_document, make_reading, fake_embeddings, fake_reranker):
+    """REQ-008: "art. 14 inc. 1" trae el artículo 14, que contiene el inciso 1; el número
+    del inciso no se toma por un artículo, así que el artículo 1 no entra."""
+    reading = make_reading(make_document(make_norm()), [
+        ("art-1", "ARTICULO 1.- Uno."),
+        ("art-14", "ARTICULO 14.- Catorce: 1) primero; 2) segundo."),
+        ("art-14/inc-1", "1) primero;"),
+        ("art-14/inc-2", "2) segundo."),
+    ])
+    units = reading.units_by_key
+    question = "¿Qué dice el art. 14 inc. 1?"
+
+    result = retrieval.retrieve(question, REFERENCE_DATE, paths=ONLY_REFERENCE)
+
+    assert retrieval.find_references(question).articles == frozenset({"14"})
+    assert candidate_units(result) == pks(units, "art-14")
+
+
+@pytest.mark.django_db
+def test_reference_brings_only_articles(make_norm, make_document, make_reading,
+                                        fake_embeddings, fake_reranker):
+    """REQ-008: "artículo 3" trae el artículo 3 y no un considerando ni un anexo que lleven
+    el mismo número: la referencia exacta es a artículos."""
+    reading = make_reading(make_document(make_norm()), [
+        ("considerando-3", "Que el tercer considerando sintético."),
+        ("art-3", "ARTICULO 3.- Tercero."),
+        ("anexo-3", "ANEXO 3 sintético."),
+    ])
+    units = reading.units_by_key
+    assert {units[k].number for k in units} == {"3"}
+
+    result = retrieval.retrieve("¿Qué dice el artículo 3?", REFERENCE_DATE,
+                                paths=ONLY_REFERENCE)
+
+    assert candidate_units(result) == pks(units, "art-3")
 
 
 @pytest.mark.django_db
@@ -373,6 +433,26 @@ def test_repealed_unit_absent_from_every_path(paths, two_regimes, fake_embedding
 
     assert target.pk in candidate_units(before)
     assert candidate_units(after).isdisjoint(base_units(two_regimes.old_units))
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("paths", [
+    pytest.param(ONLY_SEMANTIC, id="semantic"),
+    pytest.param(ONLY_WORDS, id="words"),
+])
+def test_new_regime_absent_before_v(paths, two_regimes, fake_embeddings, fake_reranker):
+    """REQ-020: con una fecha anterior a V, la Disposición 247/2022 no aparece por
+    significado ni por palabras, aunque la pregunta coincida con su artículo por vector y
+    por palabras ("garantías"); desde V, sí aparece."""
+    question = "garantías sintéticas"
+    target = two_regimes.new_units["anexo/art-2"]
+    fake_embeddings.vectors[question] = list(target.passages.get().embedding)
+
+    before = retrieval.retrieve(question, two_regimes.before_v, paths=paths)
+    after = retrieval.retrieve(question, two_regimes.after_v, paths=paths)
+
+    assert candidate_units(before).isdisjoint(base_units(two_regimes.new_units))
+    assert target.pk in candidate_units(after)
 
 
 # --- Unión de los caminos ----------------------------------------------------------------
