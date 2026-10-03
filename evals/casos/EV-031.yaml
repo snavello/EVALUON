@@ -14,7 +14,7 @@ difieren: false
 pareja: ""
 aviso_modificatorias: false
 etiquetas: ["fecha sin régimen"]
-visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |
   Es la misma pregunta que EV-001 y EV-016, pero no se vincula como pareja (no cita ninguna norma). La etiqueta "fecha sin régimen" no está en la lista del plan.

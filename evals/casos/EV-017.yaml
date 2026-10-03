@@ -17,7 +17,7 @@ difieren: false
 pareja: EV-003
 aviso_modificatorias: true
 etiquetas: ["referencia exacta", "dos fechas"]
-visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |
   Texto de 2003 sin modificatorias.

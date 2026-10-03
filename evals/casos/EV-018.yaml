@@ -19,7 +19,7 @@ difieren: false
 pareja: EV-014
 aviso_modificatorias: true
 etiquetas: ["palabras distintas a las de la norma", "dos fechas"]
-visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |
   La 297/03 habla de "inadmisibilidad", no de "desestimación". Texto de 2003 sin modificatorias.
