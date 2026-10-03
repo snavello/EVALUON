@@ -40,7 +40,7 @@
       {% for citation in statement.citations %}
       <details class="citation" data-unit="{{ citation.id }}">
         <summary>{{ citation.norm }} · {{ citation.path }}</summary>
-        {% if citation.text is not None %}<blockquote class="literal">{{ citation.text }}</blockquote>{% else %}<p>El texto de esta unidad no está disponible.</p>{% endif %}
+        {% if citation.text is not None %}<blockquote class="literal">{{ citation.text }}</blockquote>{% else %}<p>El texto de esta cita no está disponible.</p>{% endif %}
       </details>
       {% endfor %}
     </li>

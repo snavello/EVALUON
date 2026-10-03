@@ -48,9 +48,10 @@ def log_in(client, username="lectura"):
     assert client.login(username=username, password=TEST_PASSWORD)
 
 
-def save_query(user, result, question="¿Qué garantía se exige al ofertar?"):
-    """Guarda una consulta terminada con su hecho `query`, como lo hará T-019."""
-    status = result["status"]
+def save_query(user, result, question="¿Qué garantía se exige al ofertar?", status=None):
+    """Guarda una consulta terminada con su hecho `query`, como lo hará T-019. `status`
+    pisa el estado de la columna, que por omisión es el de `result`."""
+    status = status or result["status"]
     reason = result["reason"] or ""
     event = audit_services.record(
         EventType.QUERY,
@@ -366,6 +367,93 @@ def test_error_query_shows_failure_block(client, read_user, two_regimes):
     assert UNDETERMINED_TEXT not in body
     assert GROUNDED_TITLE not in body
     assert "<details" not in body
+
+
+def test_undetermined_ignores_leftover_statements_and_citations(
+    client, read_user, two_regimes
+):
+    """REQ-014 (P3): un "no determinado" no muestra afirmaciones ni citas aunque el
+    resultado guardado las traiga de sobra (por ejemplo, las que se descartaron por una
+    cita inválida)."""
+    log_in(client)
+    leftover = grounded_result(two_regimes)
+    leftover.update(status="undetermined", reason="invalid_citation")
+    query = save_query(read_user, leftover)
+
+    body = query_page(client, query)
+
+    assert UNDETERMINED_TEXT in result_block(body)
+    assert "<details" not in body
+    assert 'class="citation"' not in body
+    assert '<blockquote class="literal">' not in body
+    for statement in leftover["statements"]:
+        assert statement["text"] not in body
+    for key in ("anexo-i/art-1", "art-1"):
+        unit = two_regimes.old_units[key]
+        assert html.escape(unit.text) not in body
+        assert html.escape(unit.path) not in body
+
+
+def test_unknown_status_is_shown_as_failure(client, read_user, two_regimes):
+    """REQ-014 (P3): un resultado guardado con un estado que la pantalla no reconoce se
+    muestra con el bloque de falla técnica, nunca como respuesta ni como "no
+    determinado". La base solo admite los tres estados en la columna `status`; el estado
+    que lee la pantalla es el de `result`, que no tiene esa restricción."""
+    log_in(client)
+    regime = [regime_entry(two_regimes.old, OLD_REGIME["name"])]
+    result = error_result(two_regimes.before_v, regime)
+    result["status"] = "estado-desconocido"
+    query = save_query(read_user, result, status=Status.ERROR)
+
+    body = query_page(client, query)
+    block = result_block(body)
+
+    assert 'class="result result-failure"' in block
+    assert ERROR_TITLE in block
+    assert UNDETERMINED_TITLE not in body
+    assert UNDETERMINED_TEXT not in body
+    assert GROUNDED_TITLE not in body
+    assert "estado-desconocido" not in body
+
+
+@pytest.mark.parametrize(
+    "reason", ["timeout", "service_unavailable", "invalid_output", "input_too_long"]
+)
+def test_failure_block_hides_internal_reason(client, read_user, two_regimes, reason):
+    """REQ-014: el bloque de falla técnica no muestra el motivo interno ni su nombre en
+    el registro."""
+    log_in(client)
+    regime = [regime_entry(two_regimes.old, OLD_REGIME["name"])]
+    query = save_query(read_user, error_result(two_regimes.before_v, regime, reason))
+
+    body = query_page(client, query)
+
+    assert ERROR_TITLE in result_block(body)
+    assert reason not in body
+    assert Reason(reason).label not in body
+
+
+def test_citation_without_text_says_so_in_plain_language(
+    client, read_user, two_regimes
+):
+    """REQ-013: si el texto de una cita no se puede leer, la pantalla lo dice en
+    lenguaje llano, sin términos internos."""
+    log_in(client)
+    result = grounded_result(two_regimes)
+    missing_id = 999999
+    result["statements"][0]["citations"] = [missing_id]
+    result["units"][str(missing_id)] = result["units"].popitem()[1]
+    query = save_query(read_user, result)
+
+    body = query_page(client, query)
+
+    citation = re.search(
+        rf'<details class="citation" data-unit="{missing_id}">(.*?)</details>',
+        body, re.S,
+    )
+    assert citation
+    assert "El texto de esta cita no está disponible." in citation.group(1)
+    assert "unidad" not in citation.group(1).lower()
 
 
 def test_three_blocks_differ_in_title_icon_and_colour(client, read_user, two_regimes):
