@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 41 tareas sin terminar.
-- ▶ T-015 · Validar una lectura y calcular pasajes y vectores (en curso)
+- ◐ T-015 · Validar una lectura y calcular pasajes y vectores (en verificación)
 - ○ T-013 · Partir en artículos y armar el informe mínimo (pendiente)
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
 - ○ T-016 · Armar la pantalla de consulta con sus tres bloques (pendiente)
@@ -135,7 +135,7 @@ flowchart TD
   T012["✓ T-012 · Leer un PDF con texto"]:::done
   T013["○ T-013 · Partir en artículos y armar el informe míni…"]:::todo
   T014["○ T-014 · Cargar una norma, listarla y ver su informe"]:::todo
-  T015["▶ T-015 · Validar una lectura y calcular pasajes y ve…"]:::active
+  T015["◐ T-015 · Validar una lectura y calcular pasajes y ve…"]:::review
   T016["○ T-016 · Armar la pantalla de consulta con sus tres…"]:::todo
   T017["○ T-017 · Recuperar por significado y reordenar con e…"]:::todo
   T018["○ T-018 · Generar la respuesta con esquema e insertar…"]:::todo
