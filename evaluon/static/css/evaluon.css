@@ -219,3 +219,79 @@ button {
   background: #ffffff;
   white-space: pre-wrap;
 }
+
+/* Búsqueda directa (T-041). */
+
+.search-form {
+  margin-top: 2rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #c8c8c8;
+}
+
+.search-form h2 {
+  font-size: 1.25rem;
+}
+
+.search-form label {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.search-form select,
+.search-form input {
+  box-sizing: border-box;
+  padding: 0.4rem;
+  font: inherit;
+}
+
+.search-form input[type="text"] {
+  width: 100%;
+}
+
+.field-help {
+  display: block;
+  font-size: 0.9rem;
+  color: #444444;
+}
+
+.search-results {
+  margin-top: 1.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #1f4e79;
+  border-left-width: 6px;
+}
+
+.search-results h2 {
+  margin-top: 0;
+  font-size: 1.25rem;
+}
+
+.search-list {
+  padding-left: 1.25rem;
+}
+
+.search-result {
+  margin-bottom: 1rem;
+}
+
+.repealed-mark {
+  margin-left: 0.25rem;
+  padding: 0 0.4rem;
+  border: 1px solid #b00020;
+  border-radius: 0.25rem;
+  color: #b00020;
+}
+
+.repeal-note {
+  margin-left: 1rem;
+  font-weight: bold;
+  color: #b00020;
+}
+
+.links {
+  margin: 0.5rem 0 0.5rem 1rem;
+}
+
+.links-title {
+  margin-bottom: 0.25rem;
+}
