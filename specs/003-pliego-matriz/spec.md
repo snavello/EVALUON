@@ -1,0 +1,95 @@
+# Spec 003 · Procedimiento, pliego final y matriz de cumplimiento
+
+Estado: aprobada · Fecha: 2026-10-03 · Aprobó: responsable del proyecto
+
+> La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
+> Cada duda se marca `[A ACLARAR: pregunta concreta]`. Una spec con marcas pendientes no pasa la compuerta.
+
+## Problema
+
+Para evaluar ofertas, la Comisión Evaluadora tiene que saber primero qué exige el pliego. Hoy esos requisitos se buscan a mano, leyendo el pliego de bases y condiciones particulares, sus anexos y las especificaciones técnicas. La lista que arma cada integrante depende de su lectura, y es fácil que falte un requisito o que se confunda una exigencia con una recomendación.
+
+Todo lo que el sistema haga después (la ficha por oferta, la evaluación cumple o no cumple) se apoya en esa lista. Si la lista está incompleta o mal citada, la evaluación también lo está.
+
+Esta feature construye esa lista, la **matriz de cumplimiento**. A partir del pliego final publicado de un procedimiento, el sistema propone los requisitos que debe cumplir una oferta, cada uno con la cita exacta del pliego que lo exige. La Comisión los revisa y los valida. Además, el procedimiento registra su fecha de autorización, que define qué régimen de la AFIP se le aplica (feature 001, ADR-0006).
+
+## Usuarios y escenarios
+
+Roles (decisión del responsable, 2026-10-03):
+
+- **Operador** (personal de apoyo de la Comisión): registra el procedimiento, carga el pliego y propone correcciones a la matriz (corregir, quitar o agregar requisitos).
+- **Evaluador** (integrante de la Comisión Evaluadora): puede hacer todo lo que hace el operador y, además, confirma la consecuencia de cada requisito y valida la matriz. Lo que cuenta como decisión queda siempre en manos de un evaluador (P3).
+
+**Escenario 1 · Registrar un procedimiento.** Como integrante de la Comisión, cuando empieza la evaluación de un procedimiento, necesito registrarlo con su número, su objeto y su fecha de autorización, para que el sistema sepa qué régimen se le aplica.
+
+**Escenario 2 · Cargar el pliego final.** Como integrante de la Comisión, cuando tengo el pliego final publicado, necesito cargarlo con todos sus documentos (pliego particular, anexos, especificaciones técnicas), para que el sistema los lea.
+
+**Escenario 3 · Revisar la matriz propuesta.** Como integrante de la Comisión, cuando el sistema terminó de leer el pliego, necesito ver la lista de requisitos que propone, cada uno con el texto del pliego que lo exige, para confirmar, corregir, quitar o agregar requisitos.
+
+**Escenario 4 · Matriz validada.** Como integrante de la Comisión, cuando terminé la revisión, necesito dejar la matriz validada y registrada, para que la ficha por oferta y la evaluación (features 008 y 004) usen esa lista y no otra.
+
+## Requisitos funcionales
+
+| ID | Requisito | Origen normativo |
+|---|---|---|
+| REQ-022 | El sistema debe registrar un procedimiento con su número, tipo, objeto y fecha de autorización, y mostrar el régimen de la AFIP que le corresponde según esa fecha | ADR-0006 |
+| REQ-023 | El sistema debe permitir cargar el pliego final de un procedimiento como uno o más documentos, conservando cada original sin cambios | — |
+| REQ-024 | El sistema debe proponer, a partir del pliego cargado, la lista de requisitos que debe cumplir una oferta, cada uno clasificado como formal, económico o técnico | — |
+| REQ-025 | Cada requisito propuesto debe citar el texto literal del pliego que lo exige, con el documento y la ubicación (página y cláusula, si la hay) | P3 |
+| REQ-026 | La Comisión debe poder confirmar, corregir, quitar o agregar requisitos; cada cambio queda registrado con quién lo hizo y cuándo | P6 |
+| REQ-027 | Una matriz validada queda fija: cambiarla después genera una versión nueva, sin perder la anterior | — |
+| REQ-028 | Cuando el sistema no puede ubicar con certeza un tramo del pliego (texto ilegible, tabla mal leída), debe señalarlo para revisión en lugar de omitirlo | P3 |
+| REQ-029 | Para cada requisito, el sistema debe proponer las consecuencias posibles de no cumplirlo (por ejemplo, desestimación de la oferta o intimación a subsanar), cada una con su fundamento en el pliego o en la norma aplicable; un integrante de la Comisión confirma una. Si el sistema no encuentra fundamento, la consecuencia queda "no determinada" | P3; régimen aplicable según REQ-022 |
+| REQ-030 | Al pedir la matriz, se debe poder elegir el nivel de revisión (media, alta o exigente; por omisión, alta), y el nivel usado queda registrado con la matriz | — |
+| REQ-031 | El pliego final incluye las circulares modificatorias y aclaratorias y las preguntas de los oferentes con sus respuestas, si las hay, cada una con su fecha. Cuando una de ellas cambia o precisa un requisito, la matriz aplica el cambio, muestra los dos textos y cita el documento que lo produjo | — |
+
+**Qué es un requisito (decisión del responsable, 2026-10-03).** Un requisito es una condición que se puede verificar por separado: una fila por condición. Ejemplo: "notebook con procesador de 8 núcleos, 16 GB de RAM y garantía de 3 años" son tres requisitos del ítem 1. Así, un "no cumple" puede señalar la condición exacta que falla. Cada requisito indica a qué ítem pertenece, si corresponde.
+
+**Consecuencia del incumplimiento (decisión del responsable, 2026-10-03).** El sistema no decide si un requisito es subsanable: detecta qué consecuencias tiene su falta, sugiere las posibles con su fundamento, y un integrante de la Comisión confirma una. La misma forma de trabajo (el sistema propone opciones fundadas, la persona elige) se aplica a todas las propuestas de esta feature (P3).
+
+## Criterios de aceptación
+
+- **REQ-022.** Dado un procedimiento autorizado el 2022-12-15, cuando se registra, entonces el sistema muestra como régimen aplicable la Disposición 297/03; con fecha 2023-01-02 o posterior, la 247/2022.
+- **REQ-023.** Dado un pliego compuesto por varios documentos, cuando se cargan, entonces cada original se conserva y se puede abrir tal como se cargó.
+- **REQ-024.** Dado el pliego del caso público de referencia, cuando el sistema propone la matriz, entonces la lista contiene **todos** los requisitos que la Comisión identificó en ese caso, cada uno con su clasificación. Ante la duda, el sistema propone de más: un requisito que no corresponde lo quita el evaluador, pero uno que falta no lo evalúa nadie (decisión del responsable, 2026-10-03).
+- **REQ-025.** Dado un requisito propuesto, cuando se lo muestra, entonces el texto citado coincide palabra por palabra con el del pliego, en el documento y la ubicación indicados.
+- **REQ-026.** Dado un requisito propuesto, cuando la Comisión lo corrige, entonces el cambio queda registrado con el usuario y el momento, y el texto original propuesto se puede consultar.
+- **REQ-027.** Dada una matriz validada, cuando se modifica un requisito, entonces existe una versión nueva y la anterior sigue disponible.
+- **REQ-028.** Dada una página del pliego que no se pudo leer, cuando se muestra la matriz propuesta, entonces esa página figura como pendiente de revisión.
+- **REQ-029.** Dado un requisito cuya falta el pliego sanciona con la desestimación, cuando se muestra la matriz propuesta, entonces el sistema sugiere "desestimación" con la cita de esa cláusula, y la consecuencia queda confirmada solo cuando un integrante de la Comisión la elige; la elección queda registrada con quién y cuándo.
+- **REQ-030.** Dado un pliego cargado, cuando se pide la matriz sin elegir nivel, entonces se usa "alta" y la matriz propuesta registra el nivel; con "media" o "exigente", la matriz registra el nivel elegido.
+- **REQ-031.** Dado un pliego que exige "16 GB de RAM" y una circular modificatoria posterior que dice "32 GB", cuando se propone la matriz, entonces el requisito exige 32 GB, muestra los dos textos y cita la circular; una respuesta a una pregunta de un oferente que precisa un requisito figura junto a ese requisito con su cita.
+
+## Requisitos no funcionales
+
+- **Medición:** la propuesta de matriz se mide con salida estructurada: cada requisito esperado está o no está en la lista, con la clasificación y la cita correctas (ADR-0014, punto 7). No se mide la redacción.
+  - Requisitos encontrados: **100 %** de los requisitos reales del pliego. Cada requisito que falte se informa con su causa y bloquea la aceptación.
+  - Requisitos sobrantes: no tienen límite; se informan, porque cuestan tiempo de revisión al evaluador.
+  - Cita literal: 100 %.
+- **Tiempo y nivel de revisión (decisión del responsable, 2026-10-03):** al pedir la matriz se elige un nivel de revisión, y por omisión es "alta". Para un pliego de unas 50 páginas con anexos, los tiempos máximos son:
+
+  | Nivel | Tiempo máximo |
+  |---|---|
+  | Media | 15 minutos |
+  | Alta (por omisión) | 30 minutos |
+  | Exigente | 60 minutos |
+
+  Mientras tanto se puede seguir trabajando, y el sistema avisa cuando termina. Cada nivel existe solo si se demuestra con la medición que mejora la matriz respecto del anterior (más requisitos encontrados, o menos sobrantes con los mismos encontrados). Si un nivel no mejora, no se ofrece.
+- **Funcionamiento sin conexión:** como en la 001, todo corre en el equipo propio.
+
+## Fuera de alcance
+
+- La revisión del pliego borrador contra la normativa (feature 002).
+- La carga de ofertas y su comparación con la matriz (features 008 y 004).
+- Redactar o modificar el pliego.
+
+## Datos involucrados
+
+- Pliegos, ofertas y evaluaciones de procedimientos ya publicados: material público (P4), que igual queda solo en el equipo propio porque trae datos personales.
+- **El caso de referencia `corpus/casos/caso-00/`, aportado por el responsable.** Es un procedimiento ya adjudicado, por lo tanto público. Es sencillo: el pliego PLIEG-2025-04092776-ARCA-DVGDCO en un solo documento, sin circulares ni preguntas de oferentes, tres ofertas con varios documentos cada una y la evaluación EX-2025-03389993. Con él se arma el conjunto para medir la matriz: la lista de requisitos esperada la prepara el Coordinador desde el pliego, sin correr el sistema, la contrasta con lo que la evaluación verificó y la aprueba el responsable con tabla de ejemplos; después la confirma la Comisión (feature 009).
+- **Ningún documento del caso se sube al repositorio,** que es público: las ofertas traen datos personales de los oferentes (copia de DNI, pagarés, pólizas) y el pliego, la nómina de funcionarios con su DNI. Todo el caso queda en el equipo propio, donde corre el sistema (decisión del responsable, 2026-10-03; P4). Las listas esperadas para medir la matriz tampoco transcriben datos personales.
+- **Un solo caso alcanza para empezar,** pero no para dar por medida la feature con un único pliego. Por ahora no hay otro pliego disponible: se arranca con el caso-00 y, más adelante, la Comisión aporta otros pliegos (decisión del responsable, 2026-10-03). Hasta entonces, la medición de REQ-024 con un solo pliego se informa como provisoria y se repite cuando haya más casos.
+
+## Preguntas abiertas
+
+Ninguna. Las decisiones del responsable del 2026-10-03 están anotadas en cada sección.

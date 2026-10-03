@@ -24,3 +24,8 @@ backups/
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Casos de compra (pliegos, ofertas, evaluaciones): quedan solo en el equipo propio, donde corre el sistema.
+# No se suben al repositorio, que es público: traen datos personales (DNI, pagarés, pólizas, nóminas de funcionarios).
+# Decisión del responsable, 2026-10-03 (P4).
+corpus/casos/
