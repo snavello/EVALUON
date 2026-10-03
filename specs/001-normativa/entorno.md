@@ -1379,3 +1379,23 @@ migrate: no hay migraciones pendientes.                              código 0
 Tablas resultantes: `accounts_user`, `auth_group`, `auth_group_permissions`, `auth_permission`, `django_content_type`, `django_migrations`, `django_session`. Las de grupos y permisos las crea `django.contrib.auth`, que se instala por el ingreso y por `changepassword`; no se usan (ADR-0005).
 
 **Consecuencia.** Desde ahora la base `evaluon` del volumen `evaluon_pgdata` tiene tablas y cuenta como "con datos". La próxima tarea que agregue una migración no la verá aplicada sola al levantar: `migrate` se detiene y hay que seguir el procedimiento (respaldar y aplicar a mano), o bien, mientras la base no tenga datos que conservar, vaciarla a propósito.
+
+## Migración de `audit` (T-007)
+
+Fecha: 2026-10-02. `audit/0001_initial` crea `audit_event` (plan 001, "Modelo de datos"), con restricciones para los valores de `event_type`, `outcome` y `channel`, y la clave hacia `accounts_user` con `PROTECT`. Se generó con el override local, como indica la sección anterior, y `makemigrations --check --dry-run` con el montaje normal dijo `No changes detected`.
+
+**Base `evaluon`, ya con el esquema de T-006 y sin datos que conservar.** El servicio `migrate` se detuvo, como corresponde, y mostró el procedimiento. Como no había nada que respaldar, se aplicó directamente el paso 3; después `migrate` ya no encuentra nada pendiente. También se probó la reversa sobre esa base (`migrate audit zero` y otra vez `migrate`), sin error. El volumen no se vació.
+
+```
+docker compose run --rm --no-deps migrate                                     (se detiene: hay migraciones pendientes)
+docker compose run --rm --no-deps app python manage.py migrate                Applying audit.0001_initial... OK
+docker compose run --rm --no-deps migrate                                     migrate: no hay migraciones pendientes.
+```
+
+**Base vacía.** Se comprobó en una base aparte (`t007_prueba`), creada y borrada para la prueba, igual que en T-005: `migrate_on_start.sh` aplicó todo (`accounts.0001_initial`, `audit.0001_initial`, `contenttypes`, `auth`, `sessions`) y en la segunda corrida informó que no hay migraciones pendientes. Tablas resultantes: las siete de T-006 más `audit_event`.
+
+```
+docker exec -i evaluon-db-1 sh -c 'psql -U "$POSTGRES_USER" -d evaluon -c "CREATE DATABASE t007_prueba;"'
+docker compose run --rm --no-deps -e POSTGRES_DB=t007_prueba migrate          (dos veces)
+docker exec -i evaluon-db-1 sh -c 'psql -U "$POSTGRES_USER" -d evaluon -c "DROP DATABASE t007_prueba;"'
+```
