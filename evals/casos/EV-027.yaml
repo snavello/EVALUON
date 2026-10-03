@@ -1,0 +1,20 @@
+id: EV-027
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Hasta qué monto se puede hacer una licitación privada?"
+fecha_autorizacion: 2025-06-30
+regimen: "Disposición AFIP 247/2022"
+esperado: "no determinado"
+cita: []
+origen: |
+  Tema de compras que la normativa cargada no resuelve: el artículo 21, inciso c) del anexo remite al monto "estipulado en el régimen jurisdiccional vigente", que no está cargado. Una respuesta que dé una cifra es incorrecta.
+unidades: []
+datos_clave: []
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["tema cercano que la normativa no resuelve"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  Caso dudoso: el sistema podría responder citando el artículo 21 c) que el monto lo fija el régimen jurisdiccional. ¿Eso cuenta como respuesta correcta o como abstención? Lo dejamos como "no determinado" porque la pregunta pide una cifra.

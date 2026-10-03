@@ -562,6 +562,7 @@ class FakeEmbeddings(_FailureModes):
         return [self.vector_for(text) for text in texts]
 
     def count_tokens(self, text):
+        self._fail_if_set()
         return count_words(text)
 
 

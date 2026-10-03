@@ -1,0 +1,25 @@
+id: EV-021
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "En una contratación directa, ¿hay que presentar garantía de mantenimiento de oferta?"
+fecha_autorizacion: 2016-03-01
+regimen: "Disposición AFIP 297/03"
+esperado: |
+  No. En las contrataciones directas no es necesario presentar la garantía de oferta.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 55, inciso 3), apartado d)"}
+origen: |
+  Inciso 3) Excepciones a la obligación de presentar garantías. No será necesario presentar garantías en los siguientes casos:
+  [...]
+  d) En las contrataciones directas, la garantía de oferta.
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-55}
+datos_clave: ["no"]
+difieren: false
+pareja: ""
+aviso_modificatorias: true
+etiquetas: ["referencia exacta"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  Bajo la 247/2022 la respuesta sería distinta: solo exceptúa las directas del punto 8 (art. 66 g). Texto de 2003 sin modificatorias.

@@ -6,3 +6,11 @@ Dockerfile text eol=lf
 # El corpus se guarda byte por byte: su huella tiene que coincidir con corpus/manifiesto.csv
 # en cualquier equipo, sin conversión de fin de línea.
 corpus/** -text
+
+# Los archivos de prueba se guardan byte por byte: algunos son copias exactas de
+# documentos del corpus y tienen que seguir siéndolo en cualquier equipo.
+tests/fixtures/** -text
+
+# Las instrucciones al modelo tienen una huella fija (P7): los mismos bytes en
+# cualquier equipo, con fin de línea LF.
+evaluon/queries/prompts/** text eol=lf

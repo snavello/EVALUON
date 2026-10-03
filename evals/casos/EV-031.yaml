@@ -1,0 +1,20 @@
+id: EV-031
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm, normativa/disp-afip-247-2022-anexo.pdf, normativa/disp-afip-247-2022-original.htm]
+pregunta: "¿Por cuánto tiempo debe un oferente mantener su oferta cuando el pliego no fija un plazo de mantenimiento?"
+fecha_autorizacion: 2003-06-13
+regimen: ""   # sin régimen cargado a esa fecha
+esperado: "no determinado"
+cita: []
+origen: |
+  Fecha sin régimen cargado: la 297/03 rige desde el 2003-06-14 (su artículo 64 y el artículo 3 de la disposición: desde el día siguiente a su publicación del 13/6/2003). Antes regía la Disposición 74/2002, que no está cargada. Lo correcto es "no determinado" con `no_regime_at_date`, sin buscar.
+unidades: []
+datos_clave: []
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["fecha sin régimen"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  Es la misma pregunta que EV-001 y EV-016, pero no se vincula como pareja (no cita ninguna norma). La etiqueta "fecha sin régimen" no está en la lista del plan.

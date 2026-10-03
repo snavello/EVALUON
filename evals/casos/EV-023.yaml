@@ -1,0 +1,23 @@
+id: EV-023
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "En una orden de compra abierta, ¿cómo se calcula la garantía?"
+fecha_autorizacion: 2014-05-26
+regimen: "Disposición AFIP 297/03"
+esperado: |
+  La garantía de adjudicación se calcula aplicando el diez por ciento (10 %) sobre el importe que resulta de multiplicar el máximo de unidades del bien o servicio por el precio unitario cotizado; se devuelve en proporción a cada solicitud de provisión recibida de conformidad.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 25, inciso 3), apartado b)"}
+origen: |
+  b) Garantía. El monto de la garantía de adjudicación se calculará aplicando el DIEZ POR CIENTO (10%) sobre el importe que surja de la multiplicación entre el máximo de unidades del bien o servicio y el precio unitario cotizado. Al adjudicatario se le devolverá dicha garantía en forma proporcional al valor de cada solicitud de provisión recibida de conformidad
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-25}
+datos_clave: ["10 %", "máximo de unidades por precio unitario"]
+difieren: false
+pareja: ""
+aviso_modificatorias: true
+etiquetas: ["referencia exacta"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  Parecida pero no igual a EV-010 (la 247/2022 habla de garantía de mantenimiento de la oferta del 5 %). Texto de 2003 sin modificatorias.

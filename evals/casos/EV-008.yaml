@@ -1,0 +1,23 @@
+id: EV-008
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Qué sanciones se pueden aplicar a un oferente, adjudicatario o contratista que incumple sus obligaciones?"
+fecha_autorizacion: 2023-08-14
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  Apercibimiento, suspensión para ser contratista de la AFIP e inhabilitación para ser contratista de la AFIP, sin perjuicio de las penalidades que correspondan.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 92"}
+origen: |
+  Sin perjuicio de las correspondientes penalidades, los oferentes, adjudicatarios o contratistas podrán ser pasibles de las siguientes sanciones en los supuestos de incumplimiento de sus obligaciones, de acuerdo con lo que establezca la reglamentación: a) Apercibimiento. b) Suspensión para ser contratista de la AFIP. c) Inhabilitación para ser contratista de la AFIP.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-92}
+datos_clave: ["apercibimiento", "suspensión", "inhabilitación"]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["referencia exacta"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  La 247/2022 no fija la duración de la suspensión (la deja a la reglamentación). Si la respuesta da un plazo, es incorrecta.
