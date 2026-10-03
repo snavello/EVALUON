@@ -1,0 +1,28 @@
+id: EV-036
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Qué se hace cuando dos ofertas quedan empatadas?"
+fecha_autorizacion: 2025-04-14
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  Primero se aplican las normas sobre preferencias que establezca la normativa vigente. Si el empate se mantiene, se pide a los oferentes empatados que formulen una mejora de precios en un plazo común; el silencio del oferente invitado a mejorar se entiende como ratificación de su oferta. Si el empate subsiste, se hace un sorteo público de esas ofertas, con día, hora y lugar comunicados a los oferentes, y se labra un acta; el sorteo puede sustituirse por un sistema informático que garantice los principios del régimen.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 56"}
+origen: |
+  ARTÍCULO 56.- DESEMPATE DE OFERTAS. En caso de empate entre las ofertas se aplicarán, en primer término, las normas sobre preferencias que establezca la normativa vigente.
+  De mantenerse el mismo, se solicitará a los respectivos oferentes que formulen una mejora de precios en el plazo común que se les fije al efecto, indicando el día, la hora y el lugar. Todo ello deberá ser comunicado a los oferentes llamados a desempatar, dejándose constancia en el expediente.
+  Vencido el plazo, el silencio por parte del oferente invitado a mejorar, se entenderá como ratificación de su oferta.
+  De subsistir el empate se procederá al sorteo público de las ofertas en cuestión, para lo cual se fijará el día, la hora y el lugar, que serán comunicados a los oferentes que las formularon. El sorteo se realizará en presencia de los interesados -si asistieran- y se labrará el acta correspondiente. Este mecanismo podrá ser sustituido por un sistema informático que garantice el cumplimiento de los principios contenidos en este régimen.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-56}
+datos_clave: ["preferencias", "mejora de precio", "sorteo"]
+difieren: false
+pareja: EV-037
+aviso_modificatorias: false
+etiquetas: ["palabras distintas a las de la norma", "dos fechas"]
+visto_bueno: "pendiente"   # pendiente del responsable; al aprobarlo: "responsable del proyecto, AAAA-MM-DD (piloto, ADR-0015)". Un caso pendiente no se corre.
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  Par de REQ-020 con EV-037; la 297/03 no tiene el paso de las preferencias. La pregunta dice "empatadas"; la 297/03 habla de "igualdad de ofertas". Las preferencias quedan en lo que establezca la normativa vigente, que no está cargada: una respuesta que diga en qué consisten (por ejemplo, un porcentaje de preferencia) da contenido no cargado y es incorrecta aunque cumpla los datos clave. "mejora de precio" vale también "mejora de precios" (singular y plural).

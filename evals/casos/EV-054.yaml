@@ -1,0 +1,21 @@
+id: EV-054
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf, normativa/disp-afip-247-2022-original.htm, normativa/disp-afip-297-2003-original.htm]
+pregunta: "¿Qué monto diario de viáticos le corresponde a un agente del área de compras que viaja a otra provincia por una contratación?"
+fecha_autorizacion: 2023-09-25
+regimen: "Disposición AFIP 247/2022"
+esperado: "no determinado"
+cita: []
+origen: |
+  Tema de compras que ninguna norma cargada trata ni remite a otra norma: los viáticos del personal que gestiona las contrataciones. Búsqueda por palabras, sin tildes ni mayúsculas, sobre el texto canónico de la lectura de la Disposición AFIP 247/2022 (cuerpo y anexo) y de la Disposición AFIP 297/03 con su Anexo I (2026-10-03): "viatic", "pasaje", "alojamiento", "gastos de viaje" y "movilidad" no aparecen. "traslado" aparece solo como traslado de maquinarias o de bienes rechazados; "gastos", como gastos del contratista, de caja chica, de la iniciativa privada o de liquidación de garantías; "inspecci", como facultad de inspeccionar al contratista. Ninguna de esas menciones trata los gastos de viaje de los agentes.
+unidades: []
+datos_clave: []
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["tema cercano que la normativa no resuelve"]
+visto_bueno: "pendiente"   # pendiente del responsable; al aprobarlo: "responsable del proyecto, AAAA-MM-DD (piloto, ADR-0015)". Un caso pendiente no se corre.
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 sin correr el sistema. No se usa nunca para ajustar ni entra en la calibración del umbral. Una respuesta que cite los gastos por cuenta del contratista o la facultad de inspección para dar un monto de viáticos es incorrecta.

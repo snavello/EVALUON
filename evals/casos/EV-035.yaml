@@ -1,0 +1,26 @@
+id: EV-035
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "¿Cuál es el plazo mínimo para que los interesados formulen observaciones al proyecto de pliego de bases y condiciones particulares?"
+fecha_autorizacion: 2023-01-01
+regimen: "Disposición AFIP 297/03"
+esperado: |
+  Cuando la complejidad o el monto de la contratación lo justifiquen, el llamado prevé un plazo previo a la publicación de la convocatoria para que los interesados formulen observaciones al proyecto de pliego. Ese plazo se fija según la complejidad de la contratación y no puede ser inferior a cinco (5) días.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 27"}
+origen: |
+  ARTICULO 27. — OBSERVACIONES AL PROYECTO DE PLIEGO. Cuando la complejidad o el monto de la contratación lo justifique, a juicio del responsable de la unidad de contratación, el llamado deberá prever un plazo previo a la publicación de la convocatoria, para que los interesados formulen observaciones al proyecto de pliego de bases y condiciones particulares.
+  La convocatoria a formular observaciones al proyecto de pliego se publicará de acuerdo con lo dispuesto por el artículo 29 del presente. El plazo para plantearlas se fijará teniendo en cuenta la complejidad de la contratación y no podrá ser inferior a CINCO (5) días.
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-27}
+datos_clave: ["5 días"]
+difieren: false
+pareja: EV-034
+aviso_modificatorias: true
+etiquetas: ["dos fechas"]
+visto_bueno: "pendiente"   # pendiente del responsable; al aprobarlo: "responsable del proyecto, AAAA-MM-DD (piloto, ADR-0015)". Un caso pendiente no se corre.
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  Par de REQ-020 con EV-034. Fecha en el último día de la 297/03 (2023-01-01). Texto de 2003 sin modificatorias cargadas.

@@ -1,0 +1,21 @@
+id: EV-056
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm, normativa/disp-afip-247-2022-anexo.pdf, normativa/disp-afip-247-2022-original.htm]
+pregunta: "¿Cuántos días por semana pueden teletrabajar los agentes del área de compras?"
+fecha_autorizacion: 2020-08-10
+regimen: "Disposición AFIP 297/03"
+esperado: "no determinado"
+cita: []
+origen: |
+  Tema de compras que ninguna norma cargada trata ni remite a otra norma: el teletrabajo del personal que gestiona las contrataciones. Búsqueda por palabras, sin tildes ni mayúsculas, sobre el texto canónico de la lectura de la Disposición AFIP 297/03 con su Anexo I y de la Disposición AFIP 247/2022 (cuerpo y anexo) (2026-10-03): "teletrabajo", "trabajo a distancia", "a distancia", "remoto", "home office", "presencial", "jornada" y "vacacion" no aparecen. "licencia" aparece solo como contrato de licencias o entidad certificante licenciada; "horario", solo en el horario de consulta del pliego en la convocatoria; "oficina", como oficinas del contratista o de pago de facturas.
+unidades: []
+datos_clave: []
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["tema cercano que la normativa no resuelve"]
+visto_bueno: "pendiente"   # pendiente del responsable; al aprobarlo: "responsable del proyecto, AAAA-MM-DD (piloto, ADR-0015)". Un caso pendiente no se corre.
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 sin correr el sistema. No se usa nunca para ajustar ni entra en la calibración del umbral. Una respuesta "no determinado" no muestra unidades de la 297/03, por eso `aviso_modificatorias` es falso.

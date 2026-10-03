@@ -1,0 +1,26 @@
+id: EV-041
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "Si una unidad hace varias convocatorias seguidas para comprar los mismos bienes, ¿cuándo se presume que partió la compra de manera indebida?"
+fecha_autorizacion: 2023-06-20
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  Se presume que existe desdoblamiento cuando, en un lapso de tres (3) meses contados desde la suscripción del acto administrativo de autorización de la convocatoria, se realiza otra o varias convocatorias en el ámbito de la misma unidad con capacidad de contratación para adquirir los mismos bienes o servicios, sin que esté justificado. Son responsables los funcionarios que autorizaron y aprobaron esos procedimientos. No se puede fraccionar un procedimiento para eludir los montos máximos de encuadre o las competencias para autorizarlo o aprobarlo.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 29"}
+origen: |
+  ARTÍCULO 29.- PROHIBICIÓN DE DESDOBLAMIENTO. No se podrá fraccionar un procedimiento de selección con la finalidad de eludir la aplicación de los montos máximos fijados para su encuadre o las competencias para su autorización o aprobación, en ambos casos de acuerdo con lo que establezca el régimen jurisdiccional vigente.
+  Se presume que existe desdoblamiento, del que serán responsables los funcionarios que hubieran autorizado y aprobado los respectivos procedimientos de selección, cuando en un lapso de TRES (3) meses contados a partir de la suscripción del acto administrativo de autorización de la convocatoria, se realice otra o varias convocatorias, en el ámbito de la misma unidad con capacidad de contratación, para adquirir los mismos bienes o servicios, sin que se encuentre justificado.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-29}
+datos_clave: ["3 meses", ["desdoblamiento", "fraccionar"]]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["palabras distintas a las de la norma"]
+visto_bueno: "pendiente"   # pendiente del responsable; al aprobarlo: "responsable del proyecto, AAAA-MM-DD (piloto, ADR-0015)". Un caso pendiente no se corre.
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  La pregunta no usa las palabras de la norma ("desdoblamiento", "fraccionar"). El primer párrafo remite los montos y las competencias al régimen jurisdiccional vigente, que no está cargado; la pregunta pide la presunción, que sí está en el artículo. Una respuesta que dé montos de encuadre da contenido no cargado y es incorrecta.

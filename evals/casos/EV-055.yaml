@@ -1,0 +1,21 @@
+id: EV-055
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm, normativa/disp-afip-247-2022-anexo.pdf, normativa/disp-afip-247-2022-original.htm]
+pregunta: "¿Cada cuánto tiempo tiene que hacer la unidad de compras una encuesta de satisfacción a las áreas que le piden las compras?"
+fecha_autorizacion: 2016-11-28
+regimen: "Disposición AFIP 297/03"
+esperado: "no determinado"
+cita: []
+origen: |
+  Tema de compras que ninguna norma cargada trata ni remite a otra norma: las encuestas de satisfacción de las áreas requirentes. Búsqueda por palabras, sin tildes ni mayúsculas, sobre el texto canónico de la lectura de la Disposición AFIP 297/03 con su Anexo I y de la Disposición AFIP 247/2022 (cuerpo y anexo) (2026-10-03): "encuesta", "sondeo", "areas requirentes", "evaluacion de desempe" y "calidad de la gestion" no aparecen. "satisfacci" aparece solo en "a satisfacción" de la AFIP o del demandante y en la satisfacción de la prestación fuera de término; "area requirente" y "unidad requirente", en los acuerdos marco y en la opinión técnica sobre las ofertas del trámite simplificado; "opinion", en esa opinión técnica y en las opiniones de los interesados sobre el proyecto de pliego. Ninguna trata encuestas a las áreas.
+unidades: []
+datos_clave: []
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["tema cercano que la normativa no resuelve"]
+visto_bueno: "pendiente"   # pendiente del responsable; al aprobarlo: "responsable del proyecto, AAAA-MM-DD (piloto, ADR-0015)". Un caso pendiente no se corre.
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 sin correr el sistema. No se usa nunca para ajustar ni entra en la calibración del umbral. Una respuesta "no determinado" no muestra unidades de la 297/03, por eso `aviso_modificatorias` es falso.

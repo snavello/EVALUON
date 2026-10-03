@@ -1,0 +1,28 @@
+id: EV-050
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "¿Hasta qué monto se puede usar el trámite simplificado?"
+fecha_autorizacion: 2011-03-14
+regimen: "Disposición AFIP 297/03"
+esperado: |
+  El trámite simplificado puede usarse en las contrataciones directas o licitaciones privadas cuando su monto estimado no supere el establecido para este supuesto en el Régimen Jurisdiccional vigente. Las ofertas cuyo monto supere el previsto para este trámite no pueden ser seleccionadas. El Anexo I de la Disposición 297/03 no fija el monto: remite al Régimen Jurisdiccional vigente.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 22"}
+origen: |
+  ARTICULO 22. — TRAMITE SIMPLIFICADO. Podrá utilizarse este trámite en las contrataciones directas o licitaciones privadas, cuando su monto estimado no supere el establecido en el Régimen Jurisdiccional vigente, para este supuesto.
+  [...]
+  Las ofertas cuyo monto supere el previsto para este trámite no podrán ser seleccionadas.
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-22}
+datos_clave: ["régimen jurisdiccional"]
+difieren: false
+pareja: EV-049
+aviso_modificatorias: true
+etiquetas: ["remisión a norma no cargada", "dos fechas"]
+visto_bueno: "pendiente"   # pendiente del responsable; al aprobarlo: "responsable del proyecto, AAAA-MM-DD (piloto, ADR-0015)". Un caso pendiente no se corre.
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  Remisión a una norma no cargada (ADR-0015). El monto está en el Régimen Jurisdiccional vigente, que no está cargado. Una abstención es incorrecta. Una respuesta que dé una cifra es incorrecta aunque cumpla el dato clave: lo controla la revisión humana de los casos de remisión.
+  Par de REQ-020 con EV-049. Texto de 2003 sin modificatorias cargadas.

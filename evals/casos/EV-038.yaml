@@ -1,0 +1,25 @@
+id: EV-038
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Cuánto puede cobrar la AFIP por el pliego de una licitación?"
+fecha_autorizacion: 2024-05-20
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  Cuando la unidad con capacidad de contratación entrega copias del pliego de bases y condiciones particulares, puede cobrar una suma equivalente al costo de reproducción del pliego, que se establece en la convocatoria. Esa suma no se devuelve bajo ningún concepto.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 27, inciso b), punto 2"}
+origen: |
+  2. Costo del pliego: En aquellos casos en que las unidades con capacidad de contratación entreguen copias del pliego de bases y condiciones particulares, podrán establecer para su entrega el pago de una suma equivalente al costo de reproducción del mismo, la que deberá ser establecida en la convocatoria. La suma abonada en ese sentido no será devuelta bajo ningún concepto.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-27}
+datos_clave: ["costo de reproducción"]
+difieren: false
+pareja: EV-039
+aviso_modificatorias: false
+etiquetas: ["dos fechas"]
+visto_bueno: "pendiente"   # pendiente del responsable; al aprobarlo: "responsable del proyecto, AAAA-MM-DD (piloto, ADR-0015)". Un caso pendiente no se corre.
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  Par de REQ-020 con EV-039: bajo la 297/03 la respuesta es otra (un tope del uno por mil del monto presunto del contrato). Una respuesta que dé ese tope bajo la 247/2022 no cumple el dato clave.

@@ -1,0 +1,26 @@
+id: EV-040
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Pasado cuánto tiempo la AFIP ya no puede aplicarle una penalidad a un proveedor por un incumplimiento?"
+fecha_autorizacion: 2024-08-05
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  No pueden imponerse penalidades después de transcurridos cinco (5) años desde la fecha de la causal que da lugar a su aplicación. Si la penalidad necesita el resultado de una causa judicial pendiente, el plazo de prescripción empieza a correr cuando esa causa termina o se suspende mientras dure.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 91"}
+origen: |
+  ARTÍCULO 91.- PRESCRIPCIÓN. No podrán imponerse penalidades después de transcurrido el plazo de CINCO (5) años contado desde la fecha de la causal que diere lugar a la aplicación de aquellas.
+  Cuando para la aplicación de una penalidad sea necesario el resultado de una causa judicial pendiente, el plazo de prescripción comenzará a correr una vez finalizada la misma o, en su caso, se suspenderá por el término que dure aquella.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-91}
+datos_clave: ["5 años"]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["palabras distintas a las de la norma"]
+visto_bueno: "pendiente"   # pendiente del responsable; al aprobarlo: "responsable del proyecto, AAAA-MM-DD (piloto, ADR-0015)". Un caso pendiente no se corre.
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  La pregunta no usa la palabra de la norma ("prescripción").

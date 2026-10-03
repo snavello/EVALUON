@@ -1,0 +1,27 @@
+id: EV-045
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Un oferente puede constituir la garantía con un pagaré?"
+fecha_autorizacion: 2023-11-13
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  Sí, con pagarés a la vista suscriptos por quienes tengan el uso de la firma social o actúen con poderes suficientes, siempre que el monto de la garantía no supere la cantidad que representan doscientos sesenta módulos (M 260). Esta forma de garantía no se puede combinar con las demás formas del artículo.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 65, inciso g)"}
+origen: |
+  ARTÍCULO 65.- FORMAS DE LA GARANTÍA. Las garantías podrán constituirse de las siguientes formas o combinaciones de ellas:
+  [...]
+  g) Con pagarés a la vista suscriptos por quienes tengan el uso de la firma social o actuaren con poderes suficientes, cuando el monto de la garantía no supere la cantidad que representan DOSCIENTOS SESENTA MÓDULOS (M 260). Esta forma de garantía no será combinable con las restantes enumeradas en el presente artículo.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-65}
+datos_clave: [["sí", "pagarés a la vista"], ["M 260", "260 módulos"]]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: []
+visto_bueno: "pendiente"   # pendiente del responsable; al aprobarlo: "responsable del proyecto, AAAA-MM-DD (piloto, ADR-0015)". Un caso pendiente no se corre.
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  Pregunta de "¿puede…?": el "sí" lleva la variante "pagarés a la vista", del esperado y del origen. El valor en pesos del módulo no está cargado; la respuesta correcta se queda en M 260. Una respuesta que dé un monto en pesos da contenido no cargado y es incorrecta.

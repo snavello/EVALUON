@@ -1,0 +1,27 @@
+id: EV-037
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "¿Qué se hace cuando dos ofertas quedan empatadas?"
+fecha_autorizacion: 2013-10-21
+regimen: "Disposición AFIP 297/03"
+esperado: |
+  En caso de igualdad de precios y calidad, se pide a los oferentes que, por escrito y dentro de un plazo común, formulen una mejora de precios; el silencio del oferente invitado a mejorar se entiende como ratificación de su oferta. Si la igualdad subsiste, se hace un sorteo público de las ofertas, con día, hora y lugar notificados a los oferentes llamados a desempatar, en presencia de los interesados si asisten, y se labra un acta.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 51"}
+origen: |
+  ARTICULO 51. IGUALDAD DE OFERTAS. En caso de igualdad de precios y calidad, se solicitará a los respectivos oferentes que por escrito y dentro del término del plazo común que se les fije, formulen una mejora de precios.
+  El silencio por parte del oferente invitado a mejorar, se entenderá como ratificación de su oferta.
+  De subsistir la igualdad, se procederá al sorteo público de las ofertas en cuestión. Para ello se deberá fijar día, hora y lugar del sorteo público y notificarse por fax con aviso de recibo o por correo electrónico a los oferentes llamados a desempatar. El sorteo se realizará en presencia de los interesados, si asistieran, y se labrará el acta correspondiente.
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-51}
+datos_clave: ["mejora de precio", "sorteo"]
+difieren: false
+pareja: EV-036
+aviso_modificatorias: true
+etiquetas: ["palabras distintas a las de la norma", "dos fechas"]
+visto_bueno: "pendiente"   # pendiente del responsable; al aprobarlo: "responsable del proyecto, AAAA-MM-DD (piloto, ADR-0015)". Un caso pendiente no se corre.
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 solo a partir del texto de la norma, sin correr el sistema ni mirar sus respuestas. No se usa nunca para ajustar: sus datos clave y variantes quedan fijos antes de su primera corrida.
+  Par de REQ-020 con EV-036. La norma dice "igualdad de ofertas" y la pregunta "empatadas". Texto de 2003 sin modificatorias cargadas.

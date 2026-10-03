@@ -1,0 +1,21 @@
+id: EV-052
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm, normativa/disp-afip-247-2022-anexo.pdf, normativa/disp-afip-247-2022-original.htm]
+pregunta: "¿Qué documentación hay que presentar para tramitar el pasaporte?"
+fecha_autorizacion: 2009-07-06
+regimen: "Disposición AFIP 297/03"
+esperado: "no determinado"
+cita: []
+origen: |
+  Pregunta ajena a la normativa de compras: ninguna norma cargada trata el pasaporte ni remite a otra norma sobre él. Búsqueda por palabras, sin tildes ni mayúsculas, sobre el texto canónico de la lectura de la Disposición AFIP 297/03 con su Anexo I y de la Disposición AFIP 247/2022 (cuerpo y anexo) (2026-10-03): "pasaporte", "migraci" y "documento nacional" no aparecen. "identidad" aparece solo como identidad del personal del contratista y de los usuarios de las contrataciones electrónicas, y "cedula" solo como medio de notificación.
+unidades: []
+datos_clave: []
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["ajena a la normativa"]
+visto_bueno: "pendiente"   # pendiente del responsable; al aprobarlo: "responsable del proyecto, AAAA-MM-DD (piloto, ADR-0015)". Un caso pendiente no se corre.
+redactado_por: borrador asistido
+lote: aceptacion
+notas: |
+  Lote de aceptación (ADR-0014, punto 1; T-061). Redactado el 2026-10-03 sin correr el sistema. No se usa nunca para ajustar ni entra en la calibración del umbral, aunque lleve la etiqueta de ajena. Una respuesta "no determinado" no muestra unidades de la 297/03, por eso `aviso_modificatorias` es falso.
