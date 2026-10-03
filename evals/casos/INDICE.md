@@ -217,3 +217,8 @@ No se usó el ejemplo de referencia ("¿Qué plazo tiene la AFIP para pagar una 
 
 - Aprueba las dos preguntas de control nuevas, EV-032 (capacitación del área de compras, 297/03) y EV-033 (rotación de puestos, 247/2022), que esperan "no determinado".
 - Aprueba vincular EV-022 (297/03, 2008) y EV-028 (247/2022, 2024) como par de REQ-020: la misma pregunta, "¿Cómo se integra la Comisión Evaluadora?", con un régimen distinto en cada fecha. Los dos casos llevan `pareja` y la etiqueta "dos fechas".
+
+### EV-003: "término igual" (decisión del responsable, 2026-10-03)
+
+- En la corrida de T-063 (`2026-10-03T165105_d5b96d4_…`) el sistema respondió "puede ser prorrogado por un término igual". El responsable confirmó que "igual término", "período igual" y "término igual" dicen lo mismo, y se suma "término igual" como variante. La variante sale de una respuesta del sistema y se le mostró con la respuesta completa.
+- La consecuencia de no integrar la garantía (rescisión y penalidad), que trae el `esperado`, no se exige como dato clave: la pregunta es por el plazo (decisión del responsable).
