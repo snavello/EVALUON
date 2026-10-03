@@ -2365,3 +2365,10 @@ Está muy por debajo de 200 ms: no hace falta índice.
 | Generación, `gemma-4-12b-it-qat-q4_0`, compilación `b11347`, temperatura 0, semilla 42 | `gemma-4-12b-it-qat-q4_0.gguf` | `93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b` |
 | Embeddings, `bge-m3` | `bge-m3-FP16.gguf` | `daec91ffb5dd0c27411bd71f29932917c49cf529a641d0168496c3a501e3062c` |
 | Reranker, `bge-reranker-v2-m3` | `bge-reranker-v2-m3-FP16.gguf` | `5df93be121c09c43432102ad2b9569d369ccb85c209ca7583e8ccd28f0e41b88` |
+
+**Decisiones del responsable sobre la corrida de T-046 (2026-10-03).**
+
+1. EV-004: "no será necesario" dice lo mismo que "no es necesario"; se sumó como variante (#87). Con eso la baja entre repeticiones queda resuelta.
+2. Par EV-003 / EV-017: el par cumple su objetivo (régimen y norma correctos en los dos casos). La respuesta incompleta de EV-017 (no dice que se pierde la garantía de la oferta), junto con EV-006 y EV-009, queda como mejora pendiente: es un ajuste de instrucciones, con su propia tarea y su medición.
+3. REQ-019: se redactan 2 o 3 casos nuevos con visto bueno del responsable y se miden en una corrida corta (T-066). REQ-018: queda pendiente hasta que se cargue una norma de otra categoría; lo puede habilitar la Comisión con la feature 009.
+4. EV-044 (lote de aceptación) falla por el umbral con otras palabras que la norma; queda registrado y no se ajusta nada con el lote de aceptación (ADR-0014).

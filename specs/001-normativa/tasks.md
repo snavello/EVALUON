@@ -87,6 +87,7 @@ Ajuste del 2026-10-03 por el ADR-0015 (decisión del responsable sobre la remisi
 | T-063 | Instrucciones para responder la remisión a una norma no cargada | REQ-008, REQ-009 | T-060, T-062, T-064 | terminada |
 | T-064 | Reescribir EV-027, EV-028 y EV-029 como preguntas con respuesta | REQ-008, REQ-009 | T-059 | terminada |
 | T-065 | Corregir la espera intermitente de `test_wait` y el borde de la calibración | REQ-008, REQ-009 | T-060 | terminada |
+| T-066 | Casos y corrida corta de REQ-019 | REQ-019 | T-046 | pendiente |
 
 ## Detalle
 
@@ -748,6 +749,16 @@ De a una, en la MSI, con los servicios reales; T-058 y T-059 (ADR-0011), T-060, 
 - **Archivos:** `evals/corridas/` (las carpetas de las corridas), `specs/001-normativa/entorno.md`.
 - **Verificación:** el `resumen.md` de la corrida, con el umbral de T-062, muestra: cita literal 100 % en toda la corrida; respuesta correcta que cita la unidad correcta en al menos 85 % de las preguntas con respuesta del lote de aceptación; abstención en al menos 90 % de las preguntas sin respuesta del lote de aceptación; las tres medidas con su intervalo al 95 %; máximo de 30 segundos por consulta; y, aparte, las medidas del lote de ajuste, los casos de REQ-018 y REQ-019, las medidas por régimen, los pares de REQ-020 (la misma pregunta con dos fechas cita la 297/03 en una y la 247/2022 en la otra) y el aviso de REQ-021, sin fallas en estos dos últimos. La memoria total queda dentro de 20 GB.
 - **No tocar:** `evals/casos/`; `evaluon/settings.py`, `queries/prompts/` y todo archivo de código.
+- **Entorno:** MSI con GPU
+
+### T-066 · Casos y corrida corta de REQ-019
+
+- **Requisitos:** REQ-019. Tarea nueva por decisión del responsable sobre la corrida de T-046 (2026-10-03): el conjunto no tenía casos de REQ-019 y quedó sin medir.
+- **Qué hay que hacer:** el Coordinador prepara 2 o 3 casos nuevos de REQ-019 (`difieren: true`): preguntas cuya respuesta difiere entre la 297/03 y la 247/2022, para una fecha en la que corresponde marcar la diferencia según el plan, escritas solo desde el texto de las normas y con datos clave según el ADR-0011. Visto bueno del responsable mostrado con tabla de ejemplo; quedan además pendientes de la Comisión (feature 009). Después, una corrida corta en la MSI solo con esos casos (con calentamiento previo), revisión humana de la marca de diferencia y de las dos citas, y resumen en `entorno.md`. Si el corrector o `correr_evals` no permiten correr solo esos casos, se informa y lo decide el Coordinador. No se ajusta nada con el resultado: si falla, se informa.
+- **Archivos:** `evals/casos/` (casos nuevos e `INDICE.md`), `evals/corridas/` (la carpeta de la corrida), `specs/001-normativa/entorno.md`.
+- **Verificación:** los casos cargan sin errores y cumplen sus datos clave con su `esperado`; la corrida existe con sus tres archivos; el resumen informa REQ-019 con la marca `regimes_differ` y las dos citas.
+- **No tocar:** código, instrucciones, `settings.py`, casos existentes.
+- **Pendiente aparte:** REQ-018 no tiene casos porque el corpus no trae normas de otra categoría; se mide cuando se cargue una (feature 009).
 - **Entorno:** MSI con GPU
 
 ### Etapa 5 · Cierre
