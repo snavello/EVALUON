@@ -24,7 +24,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-006 | Crear usuarios con rol, ingreso y salida | REQ-016 | T-005 | terminada |
 | T-007 | Crear el registro de auditoría y el alta de usuarios | REQ-012, REQ-016 | T-006 | terminada |
 | T-008 | Crear las tablas de normas, lecturas, unidades y pasajes | REQ-001, REQ-003, REQ-011, REQ-012, REQ-017, REQ-020, REQ-021 | T-007 | terminada |
-| T-009 | Crear las funciones de unidades consultables a una fecha | REQ-005, REQ-007, REQ-010, REQ-020 | T-008 | pendiente |
+| T-009 | Crear las funciones de unidades consultables a una fecha | REQ-005, REQ-007, REQ-010, REQ-020 | T-008 | en curso |
 | T-010 | Crear la tabla del registro detallado de consultas | REQ-012 | T-009 | pendiente |
 | T-011 | Crear los clientes de IA, sus dobles y los parámetros | REQ-008, REQ-009 | T-010 | pendiente |
 | T-012 | Leer un PDF con texto | REQ-004, REQ-015 | T-008 | pendiente |
