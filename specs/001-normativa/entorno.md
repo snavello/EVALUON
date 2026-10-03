@@ -1694,3 +1694,185 @@ Todas debajo de los 30 segundos. Con la fecha de 2021 la página muestra "No det
   - La consola no muestra violaciones de la política de contenido.
   - El control de fecha muestra día/mes/año y rechaza una fecha futura. El script de espera desactiva el botón y muestra el aviso. Esto ya estaba probado en T-016.
   - Queda sin probar que el botón vuelva a habilitarse al volver con "Atrás": se anotó en T-037.
+
+## T-043 · Carga del corpus real (parte del desarrollador)
+
+Fecha: 2026-10-03. Requisitos: REQ-003, REQ-004, REQ-005, REQ-015 y REQ-020. Primera carga en la base real `evaluon` (volumen `evaluon_pgdata`). El desarrollador cargó, revisó los informes, ajustó las reglas y releyó; **no validó ninguna lectura**: la validación la hace el responsable de normativa con su usuario, con los pasos de más abajo.
+
+**Entorno.** Proyecto `evaluon` levantado desde la copia de trabajo de T-043, con los modelos de la copia principal montados por un archivo de sobreescritura fuera del repositorio. GPU en 0 MiB antes de levantar; 10.172 MiB con los tres modelos cargados.
+
+```
+docker compose -p evaluon --env-file <.env de la copia principal> -f docker-compose.yml -f <sobreescritura de models> up -d --wait
+```
+
+- Antes de escribir se comprobó que la base estaba vacía: 0 normas, 0 documentos, 0 lecturas, 0 unidades, 0 hechos y 0 usuarios.
+- `migrate` no arrancó porque la base tenía el esquema creado pero le faltaba `norms.0007_norm_citation` (T-055). Se siguió el procedimiento de `scripts/migrate_on_start.sh`: `stop app`, respaldo con `pg_dump` (guardado fuera del repositorio) y `run --rm --no-deps app python manage.py migrate`, que aplicó solo esa migración. No se escribió ninguna migración nueva.
+- Usuario de carga: `crear_usuario desarrollo --rol lectura-escritura`, con una clave al azar que no está en el repositorio. El usuario del responsable no se creó: lo crea él.
+
+**Carga.** Con los datos del manifiesto, el nombre de cita de cada norma, la fecha de publicación del Boletín Oficial (la de la 297/03, de su ficha de Infoleg en `corpus/normativa/referencias/`) y la fecha de vigencia informada por el responsable (ADR-0006):
+
+```
+cargar_norma corpus/normativa/disp-afip-297-2003-original.htm --tipo Disposición --numero 297 --anio 2003 \
+  --organismo AFIP --nombre "Disposición AFIP 297/03" \
+  --titulo "Régimen General para Contrataciones de Bienes, Servicios y Obras Públicas de la AFIP" \
+  --categoria regimen_especifico --parte cuerpo --regimen-general --fecha-publicacion 2003-06-13 \
+  --fecha-vigencia 2003-06-14 --fuente https://servicios.infoleg.gob.ar/infolegInternet/anexos/85000-89999/86154/norma.htm \
+  --usuario desarrollo
+cargar_norma corpus/normativa/disp-afip-247-2022-original.htm --tipo Disposición --numero 247 --anio 2022 \
+  --organismo AFIP --nombre "Disposición AFIP 247/2022" \
+  --titulo "Régimen General para Contrataciones de Bienes, Servicios y Obras Públicas" \
+  --categoria regimen_especifico --parte cuerpo --regimen-general --fecha-publicacion 2022-11-30 \
+  --fecha-vigencia 2023-01-01 --fuente https://servicios.infoleg.gob.ar/infolegInternet/anexos/375000-379999/375829/norma.htm \
+  --usuario desarrollo
+cargar_norma corpus/normativa/disp-afip-247-2022-anexo.pdf --tipo Disposición --numero 247 --anio 2022 \
+  --organismo AFIP --nombre "Disposición AFIP 247/2022" \
+  --titulo "Régimen General para Contrataciones de Bienes, Servicios y Obras Públicas" \
+  --categoria regimen_especifico --parte anexo --regimen-general --fecha-publicacion 2022-11-30 \
+  --fecha-vigencia 2023-01-01 --fuente https://servicios.infoleg.gob.ar/infolegInternet/anexos/375000-379999/375829/disp247.pdf \
+  --usuario desarrollo
+```
+
+(cada uno con `docker compose -p evaluon --env-file <.env> exec -T app python manage.py` adelante). El título de la 297/03 se escribió como lo trae el manifiesto: la página de Infoleg dice "Régimen Geeneral", con la errata. El anexo se sumó a la norma 2 como otra parte, sin pedir confirmación ("Se suma como parte anexo de la Disposición AFIP 247/2022, que ya tiene cargado el cuerpo").
+
+**Revisión de los informes y ajuste de reglas.** Con las reglas 7 la carga dio las lecturas 1 (297/03, 403 unidades, 3 tramos no ubicados), 2 (cuerpo de la 247/2022, 13 unidades, 3 tramos no ubicados) y 3 (anexo, 335 unidades, 0 no ubicados). Las tres coinciden con las tablas esperadas de T-023 y T-050, que la suite comprueba contra los mismos archivos. Lo que mostraba "Requiere atención" y lo que se hizo:
+
+- **Tramos no ubicados (297/03 y cuerpo de la 247/2022).** Ninguno es texto normativo, así que no se cambiaron las reglas. En la 297/03: el encabezado (ministerio, organismo, número, título, "Bs. As., 11/6/2003"), la fórmula "Por ello EL ADMINISTRADOR FEDERAL… DISPONE:" y el nombre del régimen que precede al "ANEXO I" ("REGIMEN GENERAL DE CONTRATACIONES / Régimen General para Contrataciones de Bienes, Servicios y Obras Públicas"). En el cuerpo de la 247/2022: el encabezado ("ADMINISTRACIÓN FEDERAL DE INGRESOS PÚBLICOS / Disposición 247/2022 / DI-2022-247-E-AFIP-AFIP / Ciudad de Buenos Aires, 28/11/2022"), la fórmula "Por ello, … DISPONE:" y la firma "Carlos Daniel Castagneto". Mostrarlos aparte como encabezado y fórmulas, en lugar de "no ubicado", es un cambio del informe que no hizo falta para cumplir la tarea y queda como propuesta.
+- **Firma dentro del art. 5 de la 297/03.** El texto de `art-5` termina en "… y archívese. — Dr. ALBERTO R. ABAD, Administrador Federal.": la página trae la firma en el mismo párrafo que el artículo. El ADR-0004 admite que el cierre y la firma queden dentro del último artículo. No se cambió.
+- **Últimos incisos seguidos de párrafos.** Se revisaron uno por uno contra el documento los 10 de la 297/03 y los 20 del anexo. Dos tenían una marca clara: el último inciso termina en dos puntos y presenta lo que sigue. Son "f) OTRAS OBLIGACIONES DEL CO-CONTRATANTE:" (297/03, Anexo I, art. 14) y el punto 4 del inciso e del art. 33 del anexo ("…a través de los siguientes medios:"), seguido de 4.1 y 4.2. Se resolvieron con la regla nueva de las reglas 8 (abajo). El resto queda para que lo decida quien valida. El texto del artículo, que es lo que se cita, está completo en todos los casos:
+  - **24.h del anexo (página 18).** Los cuatro párrafos que siguen ("La unidad con capacidad de contratación… elaborará un proyecto de acuerdo…", el de la firma, el de la normativa supletoria y el de la difusión) son del inciso h (acuerdo interadministrativo), por paralelo con el inciso g. El PDF no tiene sangrías (todas las líneas empiezan en x0 = 70) ni otra marca que permita una regla razonable: quedan en `anexo/art-24`.
+  - **Discutibles.** 27.a.2 (cinco párrafos sobre las especificaciones del pliego) y 27.b del anexo; 23.a (permuta) y 56.b (graduación de sanciones) de la 297/03.
+  - **Los demás.** Son párrafos de cierre del artículo y están bien ubicados.
+- **Página 45 del anexo.** "Sin texto": trae solo los campos de la firma digital (clasificación `solo_campos`). Es lo esperado.
+- **Líneas descartadas.** En las páginas web son los dos scripts de medición de Infoleg, el encabezado HTML y, en la 247/2022, la nota de Infoleg sobre los anexos. Ninguna es texto de la norma.
+- **Etiquetas de los arts. 24 y 26 del Anexo I de la 297/03.** Salen como "ARTICULO 24. —" sin epígrafe, porque la página no pone punto después del epígrafe ("CONTRATACIONES EN SOPORTE DIGITAL Las contrataciones…"). El texto está completo y la ruta es "Artículo 24". No se cambió.
+- **Avisos 24.h y 33.e.4 de T-023.** 33.e.4 quedó resuelto; 24.h queda como está explicado arriba.
+- **Cláusula transitoria.** `anexo/clausula-transitoria`, de tipo `clausula`, con la etiqueta "CLÁUSULA TRANSITORIA REGISTRO DE PROVEEDORES", página 44, después de `anexo/art-99`. Trae sus dos párrafos y nada de la firma.
+- **Espaciado (avisos de T-012 y T-013).** El texto canónico del anexo trae "banco, repartición" dos veces y "del presente" 26 veces; ninguna forma pegada ("delpresente"), ningún doble espacio y ninguna unión de palabras cortadas.
+- **Umbrales de clasificación de páginas (aviso de T-028).** Ninguna página del anexo se acerca a un umbral. La imagen más grande cubre el 1,2 % de su página (el logo de la página 1), contra el 85 % de `FULL_PAGE_IMAGE`. La proporción de caracteres sin letra es 0 en todas, contra el 10 % de `UNUSABLE_TEXT_SHARE`. 44 páginas salen `con_texto` y la 45, `solo_campos`. El corpus no trae escaneos reales, así que los umbrales de clasificación y de reconocimiento no se pudieron calibrar y quedan como estaban.
+- **Dictámenes y recomendaciones (aviso de T-024).** El corpus todavía no tiene ninguno: las reglas de puntos y párrafos siguen probadas solo con documentos sintéticos.
+
+**Reglas 8 (commit `T-043 (REQ-003, REQ-004)`).** Un último inciso sin incisos propios cuyo texto termina en dos puntos se lleva los párrafos que le siguen hasta el final de la unidad que contiene la lista. Comparadas con las unidades guardadas con las reglas 7, cambian dos unidades y ninguna otra:
+
+- `anexo-i/art-14/inc-f` de la 297/03: caracteres 23239–23280 pasan a 23239–23813.
+- `anexo/art-33/inc-e/inc-4` del anexo: 72842–73037 pasan a 72842–73686.
+
+El texto canónico, las claves y las unidades base no cambian. "Párrafos después del último inciso" baja de 10 a 9 en la 297/03 y de 20 a 19 en el anexo.
+
+**Relectura.** `releer_norma 1` y `releer_norma 3` con las reglas 8: lecturas 4 (297/03, 403 unidades) y 5 (anexo, 335 unidades). El cuerpo de la 247/2022 no se releyó: con las reglas 8 da las mismas unidades y el mismo texto, y su lectura 2 queda con las reglas 7.
+
+**Estado de la base al terminar.** 2 normas, 3 documentos, 5 lecturas, todas pendientes de validación, y ninguna versión de la normativa. Las lecturas que hay que validar son las más nuevas de cada documento:
+
+| Documento | Norma y parte | Lectura a validar | Lectura anterior (no se valida) |
+|---|---|---|---|
+| 1 | Disposición AFIP 297/03, cuerpo (con su Anexo I) | 4 | 1 |
+| 2 | Disposición AFIP 247/2022, cuerpo | 2 | — |
+| 3 | Disposición AFIP 247/2022, anexo | 5 | 3 |
+
+Las lecturas 1 y 3 no se pueden validar porque su documento tiene una más nueva (`not_latest`).
+
+### Pasos para el responsable de normativa
+
+Todos los comandos van en PowerShell, desde la copia principal, con el proyecto `evaluon` ya levantado:
+
+```
+cd C:\Users\snave\Documents\dev\EVALUON
+```
+
+Los que piden la clave o una confirmación necesitan una terminal interactiva. En Git Bash hay que anteponer `winpty` (por ejemplo, `winpty docker compose exec app python manage.py listar_normas --usuario SU_USUARIO`). En PowerShell funcionan tal cual. En todos, `SU_USUARIO` es el nombre que elija en el paso 2. No use `docker compose up`, `down` ni `build` hasta que T-043 esté integrada: con `exec` se trabaja sobre los contenedores que ya están corriendo.
+
+**1. Comprobar que el sistema está arriba.**
+
+```
+docker compose ps
+```
+
+Tiene que ver `app`, `db`, `embeddings`, `generation` y `reranker` en estado `running`, con `(healthy)`.
+
+**2. Crear su usuario, con rol de lectura y escritura.**
+
+```
+docker compose exec app python manage.py crear_usuario SU_USUARIO --rol lectura-escritura
+```
+
+Pide la clave dos veces y no la muestra. Tiene que ver "Se dio de alta el usuario SU_USUARIO con rol de lectura y escritura."
+
+**3. Ver qué hay cargado.**
+
+```
+docker compose exec app python manage.py listar_normas --usuario SU_USUARIO
+```
+
+Pide su clave. Tiene que ver dos normas, las dos con "Categoría: Régimen específico · Régimen general: sí":
+
+- la Disposición AFIP 247/2022, con la parte cuerpo (documento 2, "Lectura 2: pendiente de validación") y la parte anexo (documento 3, "Lectura 5: pendiente de validación"), las dos con "Publicada el 30/11/2022 · Vigente desde 01/01/2023";
+- la Disposición AFIP 297/03, con la parte cuerpo (documento 1, "Lectura 4: pendiente de validación"), con "Publicada el 13/06/2003 · Vigente desde 14/06/2003".
+
+**4. Mirar cada informe.**
+
+```
+docker compose exec app python manage.py ver_informe 4 --usuario SU_USUARIO
+docker compose exec app python manage.py ver_informe 2 --usuario SU_USUARIO
+docker compose exec app python manage.py ver_informe 5 --usuario SU_USUARIO
+```
+
+Al final de cada informe está la lista de unidades con su clave. Compárela con el original, que puede abrir en `corpus\normativa\`. Qué tiene que ver en cada uno:
+
+- **Lectura 4 (297/03).**
+  - "Reglas para dividir el texto: versión 8".
+  - "Unidades reconocidas: 403 (visto, 8 considerandos, 69 artículos, 1 anexo, 324 incisos)", con "Cuerpo: … 5 artículos" y "Anexo I: 64 artículos, del 1 al 64", los dos con lo esperado igual a lo reconocido.
+  - En "Requiere atención":
+    - 3 tramos no ubicados (el encabezado, "Por ello … DISPONE:" y el nombre del régimen antes del Anexo I): ninguno es texto que deba citarse.
+    - 9 últimos incisos con párrafos después: los de 23.a y 56.b son los discutibles; los demás son párrafos del artículo.
+    - 3 líneas descartadas, que son scripts y el encabezado de la página.
+  - Revise también que `art-5` incluye la firma del Administrador Federal.
+- **Lectura 2 (cuerpo de la 247/2022).**
+  - "Unidades reconocidas: 13 (visto, 7 considerandos, 5 artículos)".
+  - En "Requiere atención": 3 tramos no ubicados (el encabezado, "Por ello, … DISPONE:" y la firma "Carlos Daniel Castagneto") y 4 líneas descartadas (scripts, título de la página y la nota de Infoleg).
+- **Lectura 5 (anexo de la 247/2022).**
+  - "Reglas para dividir el texto: versión 8".
+  - "Unidades reconocidas: 335 (1 anexo, 99 artículos, 234 incisos, 1 cláusula)", con "Según el índice se esperaban 99 artículos; se reconocieron 99".
+  - "No ubicado: 0 tramos".
+  - En "Requiere atención":
+    - la página 45 sin texto, que es la de la firma digital;
+    - 19 últimos incisos con párrafos después. El de 24.h (página 18) deja en el artículo cuatro párrafos que son del inciso; 27.a.2 y 27.b son discutibles; los demás son párrafos del artículo.
+  - Entre las unidades está `anexo/clausula-transitoria`, después de `anexo/art-99`.
+
+Si algo no coincide, no valide esa lectura y avise al Coordinador.
+
+**5. Validar cada lectura.**
+
+```
+docker compose exec app python manage.py validar_informe 4 --usuario SU_USUARIO
+docker compose exec app python manage.py validar_informe 2 --usuario SU_USUARIO
+docker compose exec app python manage.py validar_informe 5 --usuario SU_USUARIO
+```
+
+Cada uno pide su clave y muestra el resumen de la lectura: norma, parte, archivo, unidades y huella del informe. La huella es la misma que da `ver_informe`. Después muestra "Al validar, la norma queda disponible para consultas." y pregunta "¿Confirma la validación? Escriba si para confirmar:". Escriba `si`. Tiene que ver "Se validó la lectura N, con … pasajes. Quedó en uso como versión 1 de su parte." Cada validación pide los vectores al servicio de embeddings y tarda unos segundos. Las lecturas 1 y 3 no se validan: son las anteriores a la relectura.
+
+**6. Comprobar el listado.**
+
+```
+docker compose exec app python manage.py listar_normas --usuario SU_USUARIO
+```
+
+Cada documento tiene que decir "validada · en uso, versión 1": documento 1 con la lectura 4, documento 2 con la lectura 2 y documento 3 con la lectura 5. "Vínculos: ninguno" y "Modificatorias sin cargar: ninguna" son lo esperado hasta T-044.
+
+**7. Consulta en la pantalla con fecha 31/12/2022.**
+
+1. Abra http://127.0.0.1:8000 en el navegador e ingrese con su usuario.
+2. Escriba la pregunta "¿Por cuántos días deben los oferentes mantener sus ofertas?".
+3. En la fecha de autorización ponga 31/12/2022 (día, mes y año) y envíe.
+
+Tiene que ver:
+
+- la respuesta con fundamento, con la línea "Procedimiento autorizado el 31/12/2022 · Régimen aplicado: Disposición AFIP 297/03";
+- citas solo de la Disposición AFIP 297/03. La esperada es la del Anexo I, artículo 39 ("PLAZO DE MANTENIMIENTO DE LA OFERTA"), que fija TREINTA (30) días;
+- ninguna cita de la 247/2022.
+
+Si repite la pregunta con la fecha del día, la pantalla nombra los dos regímenes y la respuesta puede citar cualquiera de los dos; la 247/2022 da SESENTA (60) días en el artículo 43 del anexo. Es lo esperado hasta que T-044 registre la derogación.
+
+**Falta, fuera de esta parte.** La prueba en el navegador que pide T-043 la hace el Coordinador o el responsable con el corpus validado:
+
+- el visor abre `disp-afip-247-2022-anexo.pdf` en la página citada;
+- los originales de las dos páginas web no ejecutan scripts ni cargan recursos externos;
+- el campo de fecha se ve y se completa bien.
