@@ -336,7 +336,7 @@ Aprobada por el responsable el 2026-10-02 (ADR-0007). Reemplaza la configuració
 
 | Función | Qué hace |
 |---|---|
-| `search_normalize(texto)` | Quita los acentos con `unaccent` y vuelve a poner la tilde en las palabras terminadas en "acion" o "ucion", sin distinguir mayúsculas. En español esas terminaciones siempre llevan tilde |
+| `search_normalize(texto)` | Quita los acentos con `unaccent`, salvo la "ñ", que se conserva (ADR-0007, adenda "La eñe"), y vuelve a poner la tilde en las palabras terminadas en "acion" o "ucion", sin distinguir mayúsculas. En español esas terminaciones siempre llevan tilde |
 | `search_document(texto)` | `to_tsvector('spanish', search_normalize(texto))`. Calcula `tsv` |
 | `search_query(texto)` | `websearch_to_tsquery('spanish', search_normalize(texto))`. La usan el camino por palabras y la búsqueda directa |
 
