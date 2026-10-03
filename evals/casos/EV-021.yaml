@@ -14,7 +14,7 @@ origen: |
   d) En las contrataciones directas, la garantía de oferta.
 unidades:
   - {norma: "Disposición AFIP 297/03", key: anexo-i/art-55}
-datos_clave: ["no"]
+datos_clave: [["no", "no es necesario", "no será necesario"]]
 difieren: false
 pareja: ""
 aviso_modificatorias: true

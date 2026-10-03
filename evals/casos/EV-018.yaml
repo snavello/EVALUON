@@ -14,7 +14,7 @@ origen: |
   i) Si incurriera en otras causales de inadmisibilidad que expresa y fundadamente el Pliego de Bases y Condiciones Particulares y Especificaciones Técnicas hubiere previsto como tales.
 unidades:
   - {norma: "Disposición AFIP 297/03", key: anexo-i/art-43}
-datos_clave: ["sí", "expresa y fundadamente"]
+datos_clave: [["sí", "otras causales de inadmisibilidad"], ["expresa y fundadamente", "expresarse y fundamentarse"]]
 difieren: false
 pareja: EV-014
 aviso_modificatorias: true

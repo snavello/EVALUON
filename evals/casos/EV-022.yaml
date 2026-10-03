@@ -12,7 +12,7 @@ origen: |
   En cada unidad con capacidad para contratar funcionará una Comisión Evaluadora integrada como mínimo por TRES (3) miembros titulares, UN (1) Presidente y DOS (2) vocales; los mismos deberán ser funcionarios de planta permanente, graduados en ciencias económicas, derecho, ingeniería, sistemas, carreras universitarias afines, o con acreditada experiencia en la materia. El funcionamiento de la Comisión Evaluadora será reglamentado por el Administrador Federal.
 unidades:
   - {norma: "Disposición AFIP 297/03", key: anexo-i/art-48}
-datos_clave: ["3 miembros", "presidente y 2 vocales", "planta permanente"]
+datos_clave: ["3 miembros", "presidente", "2 vocales", "planta permanente"]
 difieren: false
 pareja: ""
 aviso_modificatorias: true
