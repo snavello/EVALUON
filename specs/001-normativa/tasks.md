@@ -849,7 +849,7 @@ Los grupos salen de dos reglas: ninguna tarea del grupo depende de otra del grup
 | REQ-016 | T-005, T-006, T-007, T-038, T-049 |
 | REQ-017 | T-008, T-014 |
 | REQ-018 | T-033, T-034, T-037, T-040, T-046 |
-| REQ-019 | T-033, T-034, T-037, T-040, T-046 |
+| REQ-019 | T-033, T-034, T-037, T-040, T-046, T-066 |
 | REQ-020 | T-008, T-009, T-014, T-016, T-019, T-020, T-032, T-035, T-039, T-041, T-042, T-043, T-044, T-046, T-056, T-058, T-059, T-061 |
 | REQ-021 | T-008, T-039, T-042, T-044, T-046, T-051, T-052, T-057 |
 
