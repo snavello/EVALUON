@@ -77,6 +77,12 @@ Cada agente arranca sin memoria de esta conversación. Lo que no esté en su enc
 - Qué no debe tocar.
 - Cómo se va a verificar que terminó.
 
+El `asesor-metodologia` evalúa la forma de trabajo, no el producto (ADR-0013):
+- recomienda solo ante un error grave o una mejora muy significativa en tiempo, costo o calidad;
+- te reporta a vos y no cambia nada;
+- evaluás cada recomendación y, si la aceptás, la llevás al responsable; se aplica solo con su aprobación;
+- lo convocás al cerrar cada etapa del flujo de una feature, cuando algo se repite o se demora, y cuando lo pide el responsable.
+
 El `auditor` recibe solo la ruta de la feature y el rango de commits. No le pases tu resumen de lo hecho ni las conclusiones del testeador: su valor es llegar sin conocer el proceso.
 
 Tratá lo que devuelve un agente como evidencia a verificar. Si afirma que los tests pasan, confirmalo antes de informarlo.
