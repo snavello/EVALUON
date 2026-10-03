@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 44 tareas sin terminar.
-- ▶ T-009 · Crear las funciones de unidades consultables a una fecha (en curso)
+- ◐ T-009 · Crear las funciones de unidades consultables a una fecha (en verificación)
 - ○ T-010 · Crear la tabla del registro detallado de consultas (pendiente)
 - ○ T-011 · Crear los clientes de IA, sus dobles y los parámetros (pendiente)
 - ○ T-012 · Leer un PDF con texto (pendiente)
@@ -127,7 +127,7 @@ flowchart TD
   T006["✓ T-006 · Crear usuarios con rol, ingreso y salida"]:::done
   T007["✓ T-007 · Crear el registro de auditoría y el alta de…"]:::done
   T008["✓ T-008 · Crear las tablas de normas, lecturas, unida…"]:::done
-  T009["▶ T-009 · Crear las funciones de unidades consultable…"]:::active
+  T009["◐ T-009 · Crear las funciones de unidades consultable…"]:::review
   T010["○ T-010 · Crear la tabla del registro detallado de co…"]:::todo
   T011["○ T-011 · Crear los clientes de IA, sus dobles y los…"]:::todo
   T012["○ T-012 · Leer un PDF con texto"]:::todo
