@@ -1,0 +1,16 @@
+{
+  "started_at": "2026-10-03T12:00:00-03:00",
+  "commit": "abc1234",
+  "cases_dir": "/app/evals/casos",
+  "corpus_version": 3,
+  "prompt_version": "consulta-sintetica",
+  "search": {
+    "paths": ["semantic", "words", "reference"],
+    "rerank": true,
+    "rerank_threshold": 0.5,
+    "generation": {"model": "modelo-sintetico", "file": "modelo-sintetico.gguf", "sha256": "0000", "engine_build": "b0"},
+    "embeddings": {"model": "embeddings-sintetico", "file": "e.gguf", "sha256": "1111"},
+    "reranker": {"model": "reranker-sintetico", "file": "r.gguf", "sha256": "2222"}
+  },
+  "finished_at": "2026-10-03T12:01:00-03:00"
+}

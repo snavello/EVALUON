@@ -464,7 +464,7 @@ def test_answer_must_contain_the_key_data():
 
     assert complete["correct"] is True
     assert missing["correct"] is False
-    assert missing["missing_key_data"] == ["5 días hábiles"]
+    assert missing["missing_key_data"] == [["5 días hábiles"]]
 
 
 def test_differ_requires_the_flag_and_both_citations():

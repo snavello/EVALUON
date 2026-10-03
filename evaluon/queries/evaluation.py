@@ -1,5 +1,6 @@
 """Corrida del conjunto de preguntas y medida de las exigencias de la spec (P7; REQ-008,
-REQ-009, REQ-020, REQ-021; plan 001, "Evals"). Versión de T-039.
+REQ-009, REQ-020, REQ-021; plan 001, "Evals"). Versión de T-039, con el diagnóstico de
+T-042 y el corrector y la recalificación de T-058.
 
 `run(usuario, carpeta_de_casos, carpeta_de_corridas)`:
 
@@ -49,15 +50,23 @@ REQ-009, REQ-020, REQ-021; plan 001, "Evals"). Versión de T-039.
    `parametros.json`, `resultados.jsonl` (un renglón por caso, también los que no se
    corrieron) y `resumen.md`.
 
-Los datos clave (`key_data_missing`, reglas del Coordinador en la verificación de T-039)
-se buscan en el texto de las afirmaciones, normalizado igual que el dato: sin distinguir
-mayúsculas, tildes ni espacios repetidos; un número en letras seguido de su cifra entre
-paréntesis vale como la cifra; del uno al veinte en letras equivalen a su cifra; "5%",
-"5 %" y "5 por ciento" son lo mismo. El dato tiene que aparecer sin una letra, un dígito
-o un separador de número pegados. Un dato "sí" o "no" se cumple solo si la primera
-afirmación empieza con esa palabra seguida de un signo de puntuación o del final ("No
-obstante, …" no es un "no"). En la corrida que se presenta para aprobar, el responsable
-revisa además las respuestas contra la esperada (plan, "Evals").
+Datos clave y corrector (`key_data_missing`; ADR-0011; plan, "Evals", "Datos clave y
+corrector"; T-058). Cada elemento de `datos_clave` es un dato: un texto (una sola forma)
+o una lista de variantes; lista vacía, texto vacío, lista dentro de la lista o valor que
+no sea texto dejan el caso mal formado. Un dato se cumple si aparece cualquiera de sus
+variantes; si falta, se informa con todas (lista en `resultados.jsonl`, " / " en
+`resumen.md`). Una variante "sí" o "no" se cumple solo si la primera afirmación empieza
+con esa palabra seguida de un signo de puntuación o del final ("No obstante, …" no es un
+"no"); las demás se buscan en todas las afirmaciones. La respuesta y la variante se
+normalizan igual (`normalize_for_search`): sin tildes, mayúsculas ni espacios repetidos;
+un número en letras de cualquier tamaño pasa a su cifra, también seguido de su cifra
+entre paréntesis; la cifra pierde el punto de miles; "5%", "5 %" y "cinco por ciento"
+son "5 %" ("por mil" no se convierte). Cada palabra de la variante vale en singular o
+plural (diferencia final de "s", de "es", o de "z" por "ces"); las palabras van
+seguidas, en el mismo orden, sin una letra, un dígito o un separador de número pegados
+antes o después. No hay sinónimos: otra forma correcta entra como variante del caso. En
+la corrida que se presenta para aprobar, el responsable revisa además las respuestas
+contra la esperada (plan, "Evals").
 
 Calibración (plan, "Abstención", pasos 1 y 2; decisión del Coordinador en la
 verificación de T-042). El umbral propuesto es el más alto que, dejando cada vez una
@@ -131,6 +140,13 @@ PENDING_AMENDMENTS = "pending_amendments"
 MALFORMED = "malformed"
 NOT_APPROVED = "not_approved"
 REFUSED = "refused"
+NOT_RESCORABLE = "not_rescorable"
+
+# Sufijo de la carpeta de una recalificación y aviso que va en su `parametros.json`.
+RESCORED_SUFFIX = "_recalificada"
+RESCORE_NOTE = ("Recalificación: no se hicieron consultas ni se llamó a ningún servicio "
+                "de IA. Las respuestas son las de la corrida de origen, medidas otra vez "
+                "con los casos y el corrector vigentes.")
 
 # Valores de `visto_bueno` que no son visto bueno, ya normalizados.
 NOT_AN_APPROVAL = {"", "pendiente", "no"}
@@ -188,7 +204,7 @@ class Case:
     regime: str
     has_answer: bool
     units: tuple  # pares (norma, key)
-    key_data: tuple
+    key_data: tuple  # cada dato, una tupla de variantes
     differ: bool
     pair: str
     notice: bool
@@ -232,6 +248,38 @@ def _texts(data, name):
     if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
         raise CaseError(f"`{name}` tiene que ser una lista de textos")
     return tuple(v.strip() for v in value)
+
+
+def _key_data(data):
+    """`datos_clave` como una tupla de datos, cada uno una tupla de variantes (plan,
+    "Datos clave y corrector"): un texto solo es un dato de una variante; una lista son
+    las variantes del dato."""
+    value = data.get("datos_clave")
+    if not isinstance(value, list):
+        raise CaseError("`datos_clave` tiene que ser una lista")
+    key_data = []
+    for item in value:
+        if isinstance(item, str):
+            if not item.strip():
+                raise CaseError("`datos_clave` tiene un dato vacío")
+            key_data.append((item.strip(),))
+            continue
+        if not isinstance(item, list):
+            raise CaseError("cada dato de `datos_clave` tiene que ser un texto entre "
+                            "comillas o una lista de textos entre comillas")
+        if not item:
+            raise CaseError("`datos_clave` tiene una lista de variantes vacía")
+        for variant in item:
+            if isinstance(variant, list):
+                raise CaseError("`datos_clave` tiene una lista dentro de la lista de "
+                                "variantes de un dato")
+            if not isinstance(variant, str):
+                raise CaseError("cada variante de `datos_clave` tiene que ser un texto "
+                                "entre comillas")
+            if not variant.strip():
+                raise CaseError("`datos_clave` tiene una variante vacía")
+        key_data.append(tuple(variant.strip() for variant in item))
+    return tuple(key_data)
 
 
 def _reference_date(data):
@@ -317,7 +365,7 @@ def parse_case(path):
         regime=regime,
         has_answer=has_answer,
         units=units,
-        key_data=_texts(data, "datos_clave"),
+        key_data=_key_data(data),
         differ=differ,
         pair=pair,
         notice=_flag(data, "aviso_modificatorias"),
@@ -366,51 +414,177 @@ def normalize(text):
 _NUMBER_WORD = (
     r"(?:un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|"
     r"catorce|quince|dieci[a-z]+|veinte|veinti[a-z]+|treinta|cuarenta|cincuenta|"
-    r"sesenta|setenta|ochenta|noventa|cien|ciento|[a-z]+cientos|quinientos|mil|"
-    r"millon|millones)"
+    r"sesenta|setenta|ochenta|noventa|cien|ciento|[a-z]+cientos|[a-z]+cientas|"
+    r"quinientos|quinientas|mil|millon|millones)"
 )
 # "sesenta (60)", "treinta y cinco (35)", "cinco por ciento (5%)": queda la cifra.
 _WORDS_WITH_FIGURE = re.compile(
     rf"\b{_NUMBER_WORD}(?:\s+(?:y\s+)?{_NUMBER_WORD})*(?:\s+por\s+ciento)?\s*"
     r"\(\s*(\d[\d.,]*(?:\s*%)?)\s*\)"
 )
-# Del uno al veinte, en letras, equivalen a su cifra.
-_SMALL_NUMBERS = {
-    "un": 1, "uno": 1, "una": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5,
-    "seis": 6, "siete": 7, "ocho": 8, "nueve": 9, "diez": 10, "once": 11, "doce": 12,
-    "trece": 13, "catorce": 14, "quince": 15, "dieciseis": 16, "diecisiete": 17,
-    "dieciocho": 18, "diecinueve": 19, "veinte": 20,
+
+# Valores de las palabras de un número, por clase (ver `_number_at`).
+_UNITS = {"un": 1, "uno": 1, "una": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5,
+          "seis": 6, "siete": 7, "ocho": 8, "nueve": 9}
+_TENS_TO_TWENTIES = {
+    "diez": 10, "once": 11, "doce": 12, "trece": 13, "catorce": 14, "quince": 15,
+    "dieciseis": 16, "diecisiete": 17, "dieciocho": 18, "diecinueve": 19, "veinte": 20,
+    "veintiun": 21, "veintiuno": 21, "veintiuna": 21, "veintidos": 22, "veintitres": 23,
+    "veinticuatro": 24, "veinticinco": 25, "veintiseis": 26, "veintisiete": 27,
+    "veintiocho": 28, "veintinueve": 29,
 }
-_SMALL_NUMBER_WORDS = re.compile(r"\b(" + "|".join(_SMALL_NUMBERS) + r")\b")
+_TENS = {"treinta": 30, "cuarenta": 40, "cincuenta": 50, "sesenta": 60, "setenta": 70,
+         "ochenta": 80, "noventa": 90}
+_HUNDREDS = {"cien": 100, "ciento": 100}
+for _name, _value in (("dos", 2), ("tres", 3), ("cuatro", 4), ("seis", 6), ("sete", 7),
+                      ("ocho", 8), ("nove", 9)):
+    _HUNDREDS[f"{_name}cientos"] = _HUNDREDS[f"{_name}cientas"] = _value * 100
+_HUNDREDS["quinientos"] = _HUNDREDS["quinientas"] = 500
+_THOUSAND = "mil"
+_MILLION = {"millon", "millones"}
+# Después de "por", "ciento", "cien" y "mil" no son números: "cinco por ciento" es un
+# porcentaje y "cinco por mil" queda "5 por mil" (plan, "Datos clave y corrector").
+_NOT_AFTER_POR = {"ciento", "cien", _THOUSAND}
+
+# Una palabra: letras, sin dígitos ni guion bajo.
+_WORD = re.compile(r"[^\W\d_]+")
+# Una cifra con punto de miles: "1.000", "2.500.000".
+_THOUSANDS_POINT = re.compile(r"(?<![\d.,])\d{1,3}(?:\.\d{3})+(?!\d)")
 
 # Datos clave que se responden con la primera palabra de la respuesta.
 _YES_NO = {"si", "no"}
 
 
+def _number_at(text, words, start):
+    """El número en letras que empieza en la palabra `words[start]`: `(valor, índice de
+    la palabra siguiente, fin en el texto)`, o `None` si ahí no empieza un número.
+
+    Toma la sucesión más larga de palabras de número separadas por un espacio que forma
+    un número bien escrito: centenas, decenas, "y" y unidades en ese orden dentro de
+    cada grupo de tres cifras, y "mil" y "millón" o "millones" como multiplicadores. Lo
+    que no encaja corta el número: "dos tres" son dos números."""
+    first = words[start].group()
+    if start and first in _NOT_AFTER_POR and words[start - 1].group() == "por" \
+            and text[words[start - 1].end():words[start].start()] == " ":
+        return None
+    total = group = 0
+    # Qué admite el grupo actual: 3 vacío, 2 después de una centena, 1 después de una
+    # decena que admite "y" y unidad, 0 cerrado.
+    level = 3
+    thousands = millions = False
+    index, end = start, None
+    while index < len(words):
+        word = words[index].group()
+        if index > start and text[words[index - 1].end():words[index].start()] != " ":
+            break
+        if word == "y":
+            following = words[index + 1] if index + 1 < len(words) else None
+            if (level == 1 and following is not None and following.group() in _UNITS
+                    and text[words[index].end():following.start()] == " "):
+                group += _UNITS[following.group()]
+                level, end, index = 0, following.end(), index + 2
+                continue
+            break
+        if word in _HUNDREDS and level == 3:
+            group += _HUNDREDS[word]
+            level = 0 if word == "cien" else 2
+        elif word in _TENS and level >= 2:
+            group += _TENS[word]
+            level = 1
+        elif word in _TENS_TO_TWENTIES and level >= 2:
+            group += _TENS_TO_TWENTIES[word]
+            level = 0
+        elif word in _UNITS and level >= 2:
+            group += _UNITS[word]
+            level = 0
+        elif word == _THOUSAND and not thousands:
+            total += (group or 1) * 1000
+            group, level, thousands = 0, 3, True
+        elif word in _MILLION and not (millions or thousands):
+            total += (group or 1) * 1_000_000
+            group, level, millions = 0, 3, True
+        else:
+            break
+        end, index = words[index].end(), index + 1
+    if end is None:
+        return None
+    return total + group, index, end
+
+
+def _numbers_to_figures(text):
+    """Cada número escrito en letras, de cualquier tamaño, pasa a su cifra: "treinta" a
+    "30", "treinta y cinco" a "35", "ciento veinte" a "120", "dos mil quinientos" a
+    "2500". `text` ya está normalizado (`normalize`)."""
+    words = list(_WORD.finditer(text))
+    pieces, position, index = [], 0, 0
+    while index < len(words):
+        found = _number_at(text, words, index)
+        if found is None:
+            index += 1
+            continue
+        value, index_after, end = found
+        pieces += [text[position:words[index].start()], str(value)]
+        position, index = end, index_after
+    pieces.append(text[position:])
+    return "".join(pieces)
+
+
 def normalize_for_search(text):
-    """Texto de la respuesta o del dato clave tal como se comparan (decisión del
-    Coordinador, verificación de T-039): además de `normalize`, un número en letras
-    seguido de su cifra entre paréntesis queda solo con la cifra ("sesenta (60) días"
-    pasa a "60 días"), del uno al veinte en letras pasan a su cifra ("dos vocales" a "2
-    vocales"), "por ciento" después de una cifra es el signo de porcentaje ("uno por
-    ciento" y "1 por ciento" pasan a "1 %", aviso de T-039) y el signo va siempre
-    separado por un espacio ("5%" a "5 %")."""
+    """Texto de la respuesta o de una variante de un dato clave tal como se comparan
+    (ADR-0011; plan, "Datos clave y corrector", regla 3): además de `normalize`, un
+    número en letras seguido de su cifra entre paréntesis queda solo con la cifra
+    ("sesenta (60) días" pasa a "60 días"); un número en letras de cualquier tamaño
+    pasa a su cifra ("ciento veinte" a "120"; "un", "una" y "uno" a "1"); una cifra con
+    punto de miles lo pierde ("1.000" a "1000") y la coma decimal se mantiene; "por
+    ciento" después de una cifra es el signo de porcentaje ("uno por ciento" pasa a "1
+    %") y el signo va siempre separado por un espacio ("5%" a "5 %"). "Por mil" no se
+    convierte ("cinco por mil" es "5 por mil")."""
     text = normalize(text)
     text = _WORDS_WITH_FIGURE.sub(lambda m: m.group(1), text)
-    text = _SMALL_NUMBER_WORDS.sub(lambda m: str(_SMALL_NUMBERS[m.group(1)]), text)
+    text = _numbers_to_figures(text)
+    text = _THOUSANDS_POINT.sub(lambda m: m.group().replace(".", ""), text)
     text = re.sub(r"(\d)\s+por\s+ciento\b", r"\1 %", text)
     text = re.sub(r"(\d)\s*%", r"\1 %", text)
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _word_forms(word):
+    """Las formas de `word` que valen en la respuesta (regla 4): igual, o con una
+    diferencia final de "s", de "es", o de "z" por "ces", en los dos sentidos."""
+    forms = {word, word + "s", word + "es"}
+    if word.endswith("z"):
+        forms.add(word[:-1] + "ces")
+    if word.endswith("ces"):
+        forms.add(word[:-3] + "z")
+    if word.endswith("es"):
+        forms.add(word[:-2])
+    if word.endswith("s"):
+        forms.add(word[:-1])
+    forms.discard("")
+    return sorted(forms, key=lambda form: (-len(form), form))
+
+
+def _variant_pattern(variant):
+    """Expresión que busca la variante ya normalizada (`normalize_for_search`) con
+    singular y plural por palabra, las palabras seguidas y en el mismo orden, y los
+    límites de `_contains`."""
+    body, position = [], 0
+    for word in _WORD.finditer(variant):
+        body.append(re.escape(variant[position:word.start()]))
+        body.append("(?:" + "|".join(re.escape(f) for f in _word_forms(word.group())) + ")")
+        position = word.end()
+    body.append(re.escape(variant[position:]))
+    return r"(?<!\w)(?<!\d[.,])" + "".join(body) + r"(?!\w)(?![.,]\d)"
+
+
 def _contains(text, fragment):
-    """`fragment` aparece en `text` sin una letra, un dígito o un separador de número
-    pegados antes o después. Una coma o un punto cuentan como pegados solo si están
-    junto a un dígito ("0,1 %", "21.000"); el que cierra una frase no."""
+    """`fragment` aparece en `text`, cada palabra igual o en singular o plural
+    (`_word_forms`), sin una letra, un dígito o un separador de número pegados antes o
+    después. Una coma o un punto cuentan como pegados solo si están junto a un dígito
+    ("0,1 %", "21.000"); el que cierra una frase no."""
     if not fragment:
         return True
-    pattern = (r"(?<!\w)(?<!\d[.,])" + re.escape(fragment) + r"(?!\w)(?![.,]\d)")
-    return re.search(pattern, text) is not None
+    return re.search(_variant_pattern(fragment), text) is not None
 
 
 def _is_punctuation(char):
@@ -431,24 +605,42 @@ def _starts_with(text, word):
     return not after or _is_punctuation(after[0])
 
 
-def key_data_missing(key_data, statements):
-    """Los datos clave que no están en las afirmaciones `statements` (textos, en orden).
+def _variants(datum):
+    """Las variantes de un dato: un texto solo es una variante."""
+    return [datum] if isinstance(datum, str) else list(datum)
 
-    Un dato "sí" o "no" (regla del Coordinador) se cumple solo si la primera afirmación
-    empieza con esa palabra seguida de un signo de puntuación o del final. Los demás se buscan en todas las afirmaciones con
-    `normalize_for_search` y límites de palabra y de número (`_contains`)."""
+
+def key_data_missing(key_data, statements):
+    """Los datos clave que no están en las afirmaciones `statements` (textos, en orden),
+    cada uno como la lista de todas sus variantes (ADR-0011; plan, "Datos clave y
+    corrector").
+
+    Cada dato es un texto o una lista de variantes, y se cumple si aparece cualquiera.
+    Una variante "sí" o "no" se cumple solo si la primera afirmación empieza con esa
+    palabra seguida de un signo de puntuación o del final. Las demás se buscan en todas
+    las afirmaciones con `normalize_for_search` y `_contains`."""
     first = normalize(statements[0]) if statements else ""
     text = normalize_for_search("\n".join(statements))
     missing = []
     for datum in key_data:
-        plain = normalize(datum)
-        if plain in _YES_NO:
-            found = _starts_with(first, plain)
-        else:
-            found = _contains(text, normalize_for_search(datum))
-        if not found:
-            missing.append(datum)
+        variants = _variants(datum)
+        if not any(_variant_found(variant, first, text) for variant in variants):
+            missing.append(variants)
     return missing
+
+
+def _variant_found(variant, first, text):
+    plain = normalize(variant)
+    if plain in _YES_NO:
+        return _starts_with(first, plain)
+    return _contains(text, normalize_for_search(variant))
+
+
+def key_data_text(missing):
+    """Los datos faltantes para leer: las variantes de cada uno separadas por " / ", y
+    los datos entre comillas y separados por coma. Acepta también la forma anterior a
+    T-058, un texto por dato."""
+    return ", ".join(f"\"{' / '.join(_variants(datum))}\"" for datum in missing)
 
 
 def _statement_citations(result):
@@ -1239,7 +1431,10 @@ def _failures(line):
                        + ("incorrecta" if line["has_answer"] else "no abstenida"))
     elif line["has_answer"] and not measures["correct"]:
         failed = [name for name, ok in measures["checks"].items() if not ok]
-        reasons.append("respuesta incorrecta (" + ", ".join(_CHECK_TEXT[n] for n in failed) + ")")
+        texts = [_CHECK_TEXT[n] if n != "key_data" or not measures["missing_key_data"]
+                 else f"{_CHECK_TEXT[n]}: {key_data_text(measures['missing_key_data'])}"
+                 for n in failed]
+        reasons.append("respuesta incorrecta (" + ", ".join(texts) + ")")
     elif not line["has_answer"] and not measures["abstained"]:
         reasons.append("no se abstuvo" if line["status"] != Status.ERROR
                        else "falla técnica en lugar de abstención")
@@ -1417,6 +1612,120 @@ def run(user, cases_dir, runs_dir, *, commit=None, clock=time.monotonic, ablatio
     return report
 
 
+# --- Recalificar una corrida guardada (T-058; plan, "Recalificar una corrida guardada") --
+
+
+def _rescore_mismatch(case, row):
+    """Por qué el renglón guardado no corresponde al caso vigente, o `None` si
+    corresponde."""
+    problems = []
+    if (row.get("question") or "").strip() != case.question:
+        problems.append("la pregunta")
+    if row.get("reference_date") != case.reference_date.isoformat():
+        problems.append("la fecha de autorización")
+    if row.get("has_answer") is not case.has_answer:
+        problems.append("si tiene respuesta")
+    if not problems:
+        return None
+    return "no recalificable: no coincide con la corrida en " + " ni en ".join(problems)
+
+
+def _rescored_line(case, row):
+    """El renglón guardado, medido otra vez con el caso vigente: las respuestas, las
+    citas con su comprobación de cita literal, los tiempos y el diagnóstico quedan como
+    se guardaron."""
+    result = {"status": row["status"], "reason": row.get("reason"),
+              "regime": [{"name": name} for name in row.get("regime") or []],
+              "notices": row.get("notices") or [],
+              "statements": row.get("statements") or []}
+    line = dict(row)
+    line.update(
+        file=case.file,
+        expected_regime=case.regime,
+        pair=case.pair,
+        expected_notice=case.notice,
+        labels=list(case.labels),
+        differ=case.differ,
+        measures=grade(case, result, row.get("cited_units") or []),
+    )
+    line["passed"] = _passed(line)
+    return line
+
+
+def rescore(user, source, cases_dir, runs_dir, *, commit=None):
+    """Vuelve a medir la corrida guardada en `source` con los casos de `cases_dir` y el
+    corrector vigente, y guarda una carpeta nueva en `runs_dir` (plan, "Recalificar una
+    corrida guardada"). No consulta ni llama a ningún servicio de IA: no crea consultas
+    ni hechos del registro de auditoría. Lanza `RoleRejected` sin rol, antes de leer
+    nada, como `run`.
+
+    - Mide otra vez solo los casos cuya `pregunta`, `fecha_autorizacion` y presencia de
+      respuesta coinciden con las del renglón guardado; los demás quedan como no
+      recalificables (`NOT_RESCORABLE`) y fuera de la medida.
+    - La carpeta nueva lleva la fecha y el commit del momento, el modelo de la corrida
+      original y termina en `_recalificada`. `parametros.json` copia los de la original
+      y suma `rescore` (origen, aviso, commit, casos y fecha); `resumen.md` dice que es
+      una recalificación y se compara con la original, que no se modifica.
+    - `commit`: el commit del código; si no se indica, `detect_commit()`."""
+    require_role(user, Role.READ, channel=Channel.EVAL)
+    source = Path(source)
+    if not (source / "resultados.jsonl").is_file():
+        raise FileNotFoundError(f"No hay una corrida guardada en {source}: falta "
+                                "resultados.jsonl.")
+    cases_dir = Path(cases_dir)
+    if not cases_dir.is_dir():
+        raise FileNotFoundError(f"No existe la carpeta de casos {cases_dir}.")
+    original = load_run(source)
+    rows = {row["id"]: row for row in original["lines"]}
+    cases, skipped = load_cases(cases_dir)
+    started_at = timezone.now()
+    commit = commit or detect_commit()
+
+    lines = []
+    for case in cases:
+        row = rows.get(case.id)
+        reason = (_rescore_mismatch(case, row) if row is not None
+                  else "no recalificable: el caso no está en la corrida")
+        if reason:
+            skipped.append(Skipped(case.file, case.id, NOT_RESCORABLE, reason))
+            continue
+        lines.append(_rescored_line(case, row))
+
+    parameters = json.loads(_dumps(original["parameters"]))
+    parameters["rescore"] = {
+        "source": source.name,
+        "note": RESCORE_NOTE,
+        "commit": commit,
+        "cases_dir": str(cases_dir),
+        "rescored_at": timezone.localtime(started_at).isoformat(),
+    }
+    search = parameters.get("search") or {}
+    model = (search.get("generation") or {}).get("model") or "sin-modelo"
+    folder = Path(runs_dir) / (run_folder_name(started_at, commit, model) + RESCORED_SUFFIX)
+    notice_lines = [line for line in lines if not line["measures"]["notice_ok"]]
+    comparison = compare_runs(original, lines, parameters)
+    comparison["rescore"] = True
+    report = RunReport(
+        folder=folder,
+        results=lines,
+        skipped=skipped,
+        measures=measure(lines),
+        pairs=check_pairs(lines),
+        notices={"ok": len(lines) - len(notice_lines), "total": len(lines),
+                 "failed": [line["id"] for line in notice_lines]},
+        parameters=parameters,
+        by_regime=measures_by_regime(lines),
+        retrieval=retrieval_measures(
+            [(line["id"], line["has_answer"], line.get("diagnostics")) for line in lines]),
+        output_failures=output_failures(lines),
+        special=special_cases(lines),
+        calibration=calibrate(calibration_entries(lines), search.get("rerank_threshold")),
+        comparison=comparison,
+    )
+    _write(report)
+    return report
+
+
 # --- Archivos de la corrida ------------------------------------------------------------
 
 
@@ -1451,7 +1760,7 @@ def counts(report):
     """Cantidades de casos leídos, corridos, rechazados por la consulta (se miden igual)
     y no corridos por motivo."""
     by_kind = {kind: sum(1 for s in report.skipped if s.kind == kind)
-               for kind in (NOT_APPROVED, MALFORMED)}
+               for kind in (NOT_APPROVED, MALFORMED, NOT_RESCORABLE)}
     ran = len(report.ran())
     refused = len(report.results) - ran
     return {"read": len(report.results) + len(report.skipped), "ran": ran,
@@ -1466,6 +1775,8 @@ def counts_line(report):
     if c[REFUSED]:
         line += (f" · {c[REFUSED]} rechazados por la consulta (cuentan como "
                  "incorrectos o no abstenidos)")
+    if c[NOT_RESCORABLE]:
+        line += f" · {c[NOT_RESCORABLE]} no recalificables (quedan fuera de la medida)"
     return line
 
 
@@ -1790,7 +2101,11 @@ def _comparison_section(comparison):
         return out + [f"Corrida anterior: {_run_name(comparison['previous'])}: "
                       f"{comparison['error']}. No se comparó.", ""]
     changed = comparison["conditions_changed"]
-    if changed:
+    if comparison.get("rescore"):
+        conditions = ("Esta carpeta es una recalificación de esa corrida: las respuestas "
+                      "son las mismas y solo cambian los casos o el corrector. Una "
+                      "recalificación no es una corrida nueva a los efectos de P7.")
+    elif changed:
         conditions = ("Cambió: " + ", ".join(_CONDITION_TEXT[c] for c in changed)
                       + ". No es una repetición: las diferencias pueden venir de ese cambio.")
     else:
@@ -1816,8 +2131,10 @@ def _comparison_section(comparison):
             f"{_ids(comparison['changed'])}.",
             f"- Solo en la anterior: {_ids(comparison['only_previous'])}. Solo en esta: "
             f"{_ids(comparison['only_current'])}.",
-            "",
-            f"Igualdad al repetir: {equality['same']} de {equality['total']} casos corridos "
+            ""]
+    if comparison.get("rescore"):
+        return out + [SMALL_SET_NOTE, ""]
+    out += [f"Igualdad al repetir: {equality['same']} de {equality['total']} casos corridos "
             "en las dos dan el mismo resultado (estado, motivo, citas y texto de las "
             f"afirmaciones); {equality['same_status_reason_and_citations']} de "
             f"{equality['total']} con el mismo estado, el mismo motivo y las mismas citas. "
@@ -1836,9 +2153,21 @@ def summary_markdown(report):
         versions = "ninguna (ninguna consulta llamó al modelo)"
     elif isinstance(versions, list):
         versions = "varias: " + ", ".join(versions)
-    out = [
-        f"# Corrida del {_when(p['started_at'])}",
-        "",
+    rescored = p.get("rescore")
+    if rescored:
+        out = [
+            f"# Recalificación de la corrida del {_when(p['started_at'])}",
+            "",
+            f"Recalificación de la carpeta `{rescored['source']}`, hecha el "
+            f"{_when(rescored['rescored_at'])} con el commit `{rescored['commit']}` y los "
+            f"casos de `{rescored['cases_dir']}`. {RESCORE_NOTE} Se compara con esa "
+            "corrida al final. Salvo la carpeta y las cantidades de casos, los datos que "
+            "siguen son los de la corrida de origen.",
+            "",
+        ]
+    else:
+        out = [f"# Corrida del {_when(p['started_at'])}", ""]
+    out += [
         f"- Carpeta: `{report.folder.name}`",
         f"- Comienzo: {_when(p['started_at'])} · fin: {_when(p['finished_at'])}",
         f"- Commit: `{p['commit']}`",

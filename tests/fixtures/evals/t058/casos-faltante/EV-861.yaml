@@ -1,0 +1,16 @@
+id: EV-861
+tipo: normativa
+documentos: []
+pregunta: "¿Desde cuándo corre el plazo sintético de mantenimiento?"
+fecha_autorizacion: 2024-05-20
+regimen: "Disposición AFIP 247/2022"
+esperado: "Treinta días desde la fecha de apertura."
+cita: []
+origen: "Caso sintético de la tarea T-058 (P4)."
+unidades: [{norma: "Disposición AFIP 247/2022", key: anexo/art-1}]
+datos_clave: ["30 días", ["acto de apertura", "fecha de apertura"]]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["sintético"]
+visto_bueno: "Comisión sintética, 2026-10-03"
