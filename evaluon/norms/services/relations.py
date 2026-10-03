@@ -14,9 +14,12 @@ otra, en este orden:
 4. En una sola transacción: bloquea las dos normas (en orden de identificación, el mismo
    primer paso que la validación, para no cruzarse con ella), vuelve a comprobar las
    claves, rechaza la relación si ya hay una igual (mismo tipo, mismas normas, mismas
-   claves normalizadas y misma fecha), guarda la relación y al final registra el hecho
-   `relation`, que crea la versión nueva de la normativa
-   (`record(..., creates_corpus_version=True)`).
+   claves normalizadas y misma fecha), guarda la relación, pasa a cargadas las
+   modificatorias sin cargar de la norma alcanzada que correspondan
+   (`amendments.mark_loaded`, T-051) y al final registra el hecho `relation`, que crea
+   la versión nueva de la normativa (`record(..., creates_corpus_version=True)`). El
+   hecho y el resultado dicen qué modificatoria quedó cargada, si la norma de origen
+   figuraba entre las anotadas y cuántas quedan sin cargar.
 
 El tipo y las claves se guardan normalizados: sin espacios alrededor y en minúsculas.
 
@@ -32,7 +35,7 @@ vínculo de la norma (`listing.py`) y, si es `deroga`, en `repealed` de
 Los mensajes de los errores son para la persona que registra: en español llano.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
 from django.db import transaction
@@ -42,6 +45,7 @@ from evaluon.accounts.permissions import require_role
 from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType, Outcome
 from evaluon.norms.models import Norm, ReadingStatus, Relation, RelationType, Unit
+from evaluon.norms.services import amendments
 
 
 class RelationRefused(Exception):
@@ -85,6 +89,16 @@ class RelationResult:
     relation: Relation
     corpus_version: int
     event: object
+    # Modificatorias sin cargar de la norma alcanzada que la relación dejó cargadas
+    # (T-051, REQ-021), la fila anotada que corresponde a la norma de origen (cargada o
+    # no; `None` si no figura) y cuántas quedan sin cargar.
+    loaded_amendments: list = field(default_factory=list)
+    source_amendment: object = None
+    pending_amendments: int = 0
+
+    @property
+    def source_in_pending_amendments(self):
+        return self.source_amendment is not None
 
 
 def _clean_key(value):
@@ -247,6 +261,11 @@ def register_relation(user, *, relation_type, source_norm, target_norm, effectiv
                 effective_date=values["effective_date"],
                 registered_by=user,
             )
+            # Paso a cargada de las modificatorias sin cargar de la norma alcanzada
+            # (T-051, REQ-021), con la norma bloqueada y antes del registro del hecho.
+            loaded = amendments.mark_loaded(target)
+            source_amendment = amendments.matching_entry(target, source)
+            pending = amendments.pending_count(target)
             # Al final de la transacción: crea la versión de la normativa y bloquea su
             # tabla hasta que la transacción termina.
             event = audit.record(
@@ -259,6 +278,11 @@ def register_relation(user, *, relation_type, source_norm, target_norm, effectiv
                     **_data_detail(values),
                     "source_citation": source.citation,
                     "target_citation": target.citation,
+                    "amendments_loaded": [
+                        amendments.loaded_detail(entry) for entry in loaded
+                    ],
+                    "source_in_pending_amendments": source_amendment is not None,
+                    "pending_amendments": pending,
                 },
                 creates_corpus_version=True,
             )
@@ -267,4 +291,6 @@ def register_relation(user, *, relation_type, source_norm, target_norm, effectiv
         raise
 
     return RelationResult(relation=relation, corpus_version=event.corpus_version,
-                          event=event)
+                          event=event, loaded_amendments=loaded,
+                          source_amendment=source_amendment,
+                          pending_amendments=pending)
