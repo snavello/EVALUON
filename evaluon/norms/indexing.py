@@ -200,7 +200,15 @@ def _split(text, header, inciso_starts):
 def build_passages(reading):
     """Pasajes de las unidades base de `reading`, en el orden del documento. Una unidad
     base sin texto propio no da pasaje; una larga da varios (ver la partición arriba).
-    Cuenta tokens con el servicio `embeddings` y propaga sus errores (`evaluon.ai`)."""
+    Cuenta tokens con el servicio `embeddings` y propaga sus errores (`evaluon.ai`).
+
+    Caso límite: una sola palabra (una secuencia sin espacios) que con el encabezado
+    supera `PASSAGE_MAX_TOKENS` no se corta, porque nunca se corta una palabra: queda en
+    un pasaje propio, más largo que el límite. Si además supera el contexto del modelo,
+    el servicio lo rechaza al calcular el vector (`InputTooLongError`) y la validación
+    no se hace y lo dice. Esta función no tiene dónde registrar la anomalía: devuelve
+    solo los pasajes. En el corpus de la feature 001 no ocurre (pasaje más largo del
+    anexo de la 247/2022: 796 tokens)."""
     norm = reading.document.norm
     units = list(reading.units.order_by("order"))
     base_units = [u for u in units if u.unit_type != UnitType.INCISO]

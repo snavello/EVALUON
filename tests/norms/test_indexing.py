@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 from django.conf import settings
 
+from evaluon.ai import embeddings
 from evaluon.norms import indexing
 from evaluon.norms.models import Passage
 from evaluon.norms.reading import read_document
@@ -471,3 +472,96 @@ def test_real_article_24_of_annex_247_is_split_in_passages(
     assert_covers(unit.text, drafts)
     for draft in drafts:
         assert draft.char_end == len(text) or text[draft.char_end] == "\n"
+
+
+@pytest.mark.django_db
+def test_tokens_are_counted_on_the_assembled_passage(
+    make_norm, make_document, make_reading, fake_embeddings, settings, monkeypatch
+):
+    """REQ-003, REQ-008: los tokens se cuentan sobre el pasaje tal como se manda
+    (encabezado, salto de línea y texto), no sumando cuentas sueltas. Con un contador
+    que no es aditivo (una palabra o un salto de línea, un token), ningún pasaje supera
+    el límite según ese mismo contador."""
+    def count(text):
+        return count_words(text) + text.count("\n")
+
+    monkeypatch.setattr(embeddings, "count_tokens", count)
+    settings.PASSAGE_OVERLAP_TOKENS = 0
+    norm = annex_norm(make_norm)
+    text = "\n".join(sentence(f"q{k}", 5) for k in range(1, 5))
+    reading = make_reading(make_document(norm), [("art-6", text)],
+                           status="pending", passages=False)
+    unit = reading.units_by_key["art-6"]
+    header_tokens = count(indexing.passage_header(norm, unit))
+    # Dos párrafos juntos cuestan encabezado + 1 (salto tras el encabezado) + 10 + 1
+    # (salto entre párrafos): uno más que el límite. Sumando cuentas sueltas se pierde el
+    # salto tras el encabezado y entrarían.
+    settings.PASSAGE_MAX_TOKENS = header_tokens + 11
+
+    drafts = indexing.build_passages(reading)
+
+    assert len(drafts) == 4
+    for draft in drafts:
+        assert count(indexing.passage_document(draft.header, draft.text)) <= (
+            settings.PASSAGE_MAX_TOKENS
+        )
+    assert_covers(unit.text, drafts)
+
+
+@pytest.mark.django_db
+def test_overlap_that_does_not_fit_is_dropped(
+    make_norm, make_document, make_reading, fake_embeddings, settings
+):
+    """REQ-003, REQ-008: si el solape no entra junto con el tramo siguiente, se repite
+    menos; si ni el tramo más chico entra, el pasaje va sin solape. Ningún pasaje supera
+    el límite."""
+    norm = annex_norm(make_norm)
+    first = " ".join(sentence(f"r{k}", 7) for k in range(1, 4))  # 21 palabras
+    second = " ".join(sentence(f"s{k}", 7) for k in range(1, 4))  # 21 palabras
+    text = f"{first}\n{second}"
+    reading = make_reading(make_document(norm, part="anexo-iii"), [("anexo-iii", text)],
+                           status="pending", passages=False)
+    unit = reading.units_by_key["anexo-iii"]
+    header_tokens = count_words(indexing.passage_header(norm, unit))
+    # El solape posible es la última oración del primer párrafo (7 palabras, hasta 10);
+    # con el segundo párrafo suma 28 y el límite deja 27 para el texto.
+    settings.PASSAGE_MAX_TOKENS = header_tokens + 27
+    settings.PASSAGE_OVERLAP_TOKENS = 10
+
+    drafts = indexing.build_passages(reading)
+
+    assert [(d.char_start, d.char_end) for d in drafts] == [
+        (0, len(first)), (len(first) + 1, len(text)),
+    ]
+    assert_well_formed(unit, drafts, settings.PASSAGE_MAX_TOKENS)
+
+
+@pytest.mark.django_db
+def test_abbreviations_do_not_end_a_sentence(
+    make_norm, make_document, make_reading, fake_embeddings, settings
+):
+    """REQ-003, REQ-008: al partir un párrafo largo por oraciones, "art. 4", "inc. b" y
+    "N° 5" no son fin de oración: ningún pasaje termina en la abreviatura ni empieza con
+    el número o la letra que la sigue."""
+    norm = annex_norm(make_norm)
+    sentences = [
+        "ARTICULO 9.- Primera oración sintética de seis palabras.",  # 8
+        "Según el art. 4 corresponde aplicar el régimen sintético.",  # 9
+        "Tercera oración sintética de seis palabras.",  # 6
+        "Por el inc. b corresponde aplicar el régimen sintético.",  # 9
+        "Quinta oración sintética de seis palabras.",  # 6
+        "Según el N° 5 corresponde aplicar el régimen sintético.",  # 9
+    ]
+    text = " ".join(sentences)
+    reading = make_reading(make_document(norm), [("art-9", text)],
+                           status="pending", passages=False)
+    unit = reading.units_by_key["art-9"]
+    # Cada oración entra sola y dos no: cada pasaje es una oración. Si la abreviatura
+    # cortara, la primera oración se llevaría "Según el art." y el pasaje terminaría ahí.
+    settings.PASSAGE_MAX_TOKENS = count_words(indexing.passage_header(norm, unit)) + 12
+    settings.PASSAGE_OVERLAP_TOKENS = 0
+
+    drafts = indexing.build_passages(reading)
+
+    assert [d.text for d in drafts] == sentences
+    assert_well_formed(unit, drafts, settings.PASSAGE_MAX_TOKENS)
