@@ -191,6 +191,14 @@ button {
   background: #fff6e0;
 }
 
+/* Aviso de modificatorias sin cargar (REQ-021): recuadro propio, uno por norma. */
+.pending-notice {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #8a5a00;
+  border-left-width: 4px;
+  background: #fff6e0;
+}
+
 .recognition-note {
   margin-left: 1rem;
   font-style: italic;

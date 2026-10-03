@@ -1,0 +1,9 @@
+{% comment %}
+Avisos de modificatorias sin cargar (REQ-021; plan 001, "Aviso de modificatorias sin
+cargar (REQ-021)"; T-052). Recibe `notices`: lista de `{"name", "count"}` armada por la
+vista con los avisos guardados. Un recuadro por norma. El texto es fijo; el nombre de la
+norma y la cantidad salen del aviso guardado. Cada frase va en una sola línea para que no
+queden saltos dentro del texto.
+{% endcomment %}{% for notice in notices %}
+<p class="pending-notice" role="note">{% if notice.count == 1 %}{{ notice.name }} tiene 1 modificatoria que todavía no está cargada en el sistema.{% else %}{{ notice.name }} tiene {{ notice.count }} modificatorias que todavía no están cargadas en el sistema.{% endif %} Puede haber cambios en este texto que el sistema no conoce.</p>
+{% endfor %}
