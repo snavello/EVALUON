@@ -7,7 +7,8 @@ Un hecho registrado guarda momento, usuario, canal, resultado y detalle (plan 00
 from datetime import timedelta
 
 import pytest
-from django.db import IntegrityError, connection, transaction
+from django.db import DatabaseError, IntegrityError, connection, transaction
+from django.db.models import ProtectedError
 from django.utils import timezone
 
 from evaluon.audit import services
@@ -105,3 +106,103 @@ def test_recorded_event_cannot_be_changed_or_deleted(read_user):
 
     stored = AuditEvent.objects.get(pk=event.pk)
     assert stored.outcome == "ok"
+
+
+# --- Solo inserciones, garantizado por la base ------------------------------------
+
+
+def stored_row(pk):
+    return AuditEvent.objects.filter(pk=pk).values().get()
+
+
+@pytest.fixture
+def recorded_event(read_user):
+    return services.record(
+        "login", outcome="ok", channel="screen", user=read_user, detail={"a": 1}
+    )
+
+
+@pytest.mark.django_db
+def test_queryset_update_is_rejected_by_the_database(recorded_event):
+    """REQ-012: la base no admite modificar un hecho registrado con
+    `QuerySet.update()`, que no pasa por `save()`; la fila queda igual."""
+    before = stored_row(recorded_event.pk)
+
+    with pytest.raises(DatabaseError) as rejected, transaction.atomic():
+        AuditEvent.objects.filter(pk=recorded_event.pk).update(outcome="failed")
+
+    assert "registro de auditoría" in str(rejected.value)
+    assert stored_row(recorded_event.pk) == before
+
+
+@pytest.mark.django_db
+def test_bulk_update_is_rejected_by_the_database(recorded_event):
+    """REQ-012: `bulk_update` tampoco modifica un hecho registrado."""
+    before = stored_row(recorded_event.pk)
+    recorded_event.outcome = "failed"
+
+    with pytest.raises(DatabaseError), transaction.atomic():
+        AuditEvent.objects.bulk_update([recorded_event], ["outcome"])
+
+    assert stored_row(recorded_event.pk) == before
+
+
+@pytest.mark.django_db
+def test_queryset_delete_is_rejected_by_the_database(recorded_event):
+    """REQ-012: la base no admite borrar un hecho registrado con `QuerySet.delete()`,
+    que no pasa por `delete()` del modelo; la fila queda igual."""
+    before = stored_row(recorded_event.pk)
+
+    with pytest.raises(DatabaseError), transaction.atomic():
+        AuditEvent.objects.filter(pk=recorded_event.pk).delete()
+
+    assert stored_row(recorded_event.pk) == before
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "UPDATE audit_event SET outcome = 'failed', detail = '{}' WHERE id = %s",
+        "DELETE FROM audit_event WHERE id = %s",
+    ],
+)
+def test_direct_sql_cannot_change_or_delete_an_event(recorded_event, sql):
+    """REQ-012: ni un UPDATE ni un DELETE por SQL directo cambian o borran un hecho
+    registrado; la fila queda igual."""
+    before = stored_row(recorded_event.pk)
+
+    with pytest.raises(DatabaseError), transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute(sql, [recorded_event.pk])
+
+    assert stored_row(recorded_event.pk) == before
+
+
+@pytest.mark.django_db
+def test_insert_is_still_allowed_after_rejections(recorded_event):
+    """REQ-012: el bloqueo es solo para modificar y borrar; agregar hechos sigue
+    funcionando."""
+    services.record("login_failed", outcome="failed", channel="screen", username="x")
+    assert AuditEvent.objects.count() == 2
+
+
+@pytest.mark.django_db
+def test_deleting_a_user_with_events_does_not_reach_the_events(recorded_event):
+    """REQ-012: borrar un usuario con hechos registrados no los borra en cascada: Django
+    lo impide (PROTECT) y, por SQL directo, la clave foránea también; los hechos y el
+    usuario quedan igual."""
+    user = recorded_event.user
+    before = stored_row(recorded_event.pk)
+
+    with pytest.raises(ProtectedError), transaction.atomic():
+        user.delete()
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute("DELETE FROM accounts_user WHERE id = %s", [user.pk])
+            # La clave foránea es diferida: se comprueba al cerrar la transacción.
+            cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+
+    assert stored_row(recorded_event.pk) == before
+    assert type(user).objects.filter(pk=user.pk).exists()

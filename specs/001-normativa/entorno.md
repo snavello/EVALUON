@@ -1399,3 +1399,5 @@ docker exec -i evaluon-db-1 sh -c 'psql -U "$POSTGRES_USER" -d evaluon -c "CREAT
 docker compose run --rm --no-deps -e POSTGRES_DB=t007_prueba migrate          (dos veces)
 docker exec -i evaluon-db-1 sh -c 'psql -U "$POSTGRES_USER" -d evaluon -c "DROP DATABASE t007_prueba;"'
 ```
+
+**Solo inserciones, por trigger (`audit/0002_append_only`).** El registro de auditoría solo admite inserciones: el trigger `audit_event_append_only` (`BEFORE UPDATE OR DELETE ... FOR EACH ROW`, función `audit_event_reject_change`) rechaza cualquier modificación o borrado, venga de Django o de SQL directo. Para limpiar datos de prueba hay que recrear la base (`docker compose down -v`, o borrar y crear la base); los tests no se ven afectados porque cada uno deshace su transacción. Borrar un usuario con hechos registrados tampoco llega a `audit_event`: Django lo impide (`PROTECT`) y la clave foránea no tiene borrado en cascada. Se aplicó con `docker compose run --rm --no-deps app python manage.py migrate`; la reversa (`migrate audit 0001`, que quita trigger y función, y otra vez `migrate`) corrió sin error.
