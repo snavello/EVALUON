@@ -88,7 +88,7 @@ Roles (decisión del responsable, 2026-10-03):
 
 - Pliegos de procedimientos públicos ya publicados: material público (P4).
 - **El caso de referencia `corpus/casos/caso-00/`, aportado por el responsable.** Es un procedimiento ya adjudicado, por lo tanto público. Es sencillo: el pliego PLIEG-2025-04092776-ARCA-DVGDCO en un solo documento, sin circulares ni preguntas de oferentes, tres ofertas con varios documentos cada una y la evaluación EX-2025-03389993. Con él se arma el conjunto para medir la matriz: la lista de requisitos esperada se construye desde el pliego y se contrasta con lo que la evaluación verificó.
-- **Las ofertas del caso no se suben al repositorio,** que es público: traen datos personales de los oferentes (copia de DNI, pagarés, pólizas). Quedan en el equipo propio, donde corre el sistema (decisión del responsable, 2026-10-03; P4). Al repositorio suben solo el pliego y la evaluación.
+- **Ningún documento del caso se sube al repositorio,** que es público: las ofertas traen datos personales de los oferentes (copia de DNI, pagarés, pólizas) y el pliego, la nómina de funcionarios con su DNI. Todo el caso queda en el equipo propio, donde corre el sistema (decisión del responsable, 2026-10-03; P4). Las listas esperadas para medir la matriz tampoco transcriben datos personales.
 - **Un solo caso alcanza para empezar,** pero no para dar por medida la feature con un único pliego. [A ACLARAR: ¿se pueden sumar uno o dos pliegos públicos más (no hacen falta sus ofertas) para medir la matriz con más de un caso?]
 
 ## Preguntas abiertas

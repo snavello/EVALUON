@@ -25,8 +25,7 @@ backups/
 .DS_Store
 Thumbs.db
 
-# Ofertas de los casos: traen datos personales de los oferentes (DNI, pagarés, pólizas).
-# Se usan desde el equipo propio y no se suben (P4; decisión del responsable, 2026-10-03).
-corpus/casos/*/ofertas/
-# Pendiente de decisión del responsable: el pliego del caso-00 trae la nómina de funcionarios con su DNI.
+# Casos de compra (pliegos, ofertas, evaluaciones): quedan solo en el equipo propio, donde corre el sistema.
+# No se suben al repositorio, que es público: traen datos personales (DNI, pagarés, pólizas, nóminas de funcionarios).
+# Decisión del responsable, 2026-10-03 (P4).
 corpus/casos/

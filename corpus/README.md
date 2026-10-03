@@ -6,17 +6,17 @@ Documentos públicos usados durante la construcción: normas, pliegos, ofertas y
 
 Solo material público (principio P4). Ante la duda sobre un documento, no se sube.
 
-Las ofertas de los casos (`corpus/casos/*/ofertas/`) no se suben aunque el procedimiento esté adjudicado: traen datos personales de los oferentes (copias de DNI, pagarés, pólizas). Quedan en el equipo propio, que es donde corre el sistema, y `.gitignore` las excluye (decisión del responsable, 2026-10-03). Tampoco se anotan en el manifiesto, porque los nombres de los archivos ya identifican a personas.
+Los casos de compra (`corpus/casos/`) no se suben al repositorio, que es público: los pliegos, las ofertas y las evaluaciones traen datos personales (copias de DNI, pagarés, pólizas, nóminas de funcionarios con su DNI), aunque el procedimiento esté adjudicado. Quedan solo en el equipo propio, donde corre el sistema, y `.gitignore` los excluye. Tampoco se anotan en el manifiesto del repositorio (decisión del responsable, 2026-10-03).
 
 ## Organización
 
 ```
 corpus/normativa/      Normas, con su fecha de vigencia
 corpus/normativa/referencias/  Fichas y listados de la fuente; no son normas y no se cargan
-corpus/casos/<caso>/   Un procedimiento de compra por carpeta:
+corpus/casos/<caso>/   Un procedimiento de compra por carpeta (solo en el equipo propio, ver "Regla"):
     pliego/            Pliego final, anexos y especificaciones técnicas
     circulares/        Circulares, aclaratorias y preguntas de oferentes (puede estar vacía)
-    ofertas/<oferente>/  Documentos de cada oferta (NO se suben: datos personales, ver abajo)
+    ofertas/<oferente>/  Documentos de cada oferta
     evaluacion/        Dictamen, acta y adjudicación
     otros/             Otros insumos (compliance, notas)
 corpus/manifiesto.csv  Un renglón por documento
