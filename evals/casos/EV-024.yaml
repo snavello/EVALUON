@@ -1,0 +1,27 @@
+id: EV-024
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "¿Cuál es el plazo para observar el acta de evaluación de las ofertas?"
+fecha_autorizacion: 2021-07-05
+regimen: "Disposición AFIP 297/03"
+esperado: |
+  Tres (3) días desde la notificación de su puesta a disposición. En las licitaciones privadas y contrataciones directas el plazo para impugnarla es de dos (2) días desde el día siguiente a la notificación.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 50"}
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 21, pauta f)"}
+origen: |
+  Cada unidad con competencia para contratar (UCC) notificará la puesta a disposición del Acta de Evaluación a todos los oferentes, los que podrán observarla dentro de los TRES (3) días de notificada.
+  [...]
+  f) Plazo abreviado para impugnar. En las licitaciones privadas o contrataciones directas el plazo para impugnar el Acta de Evaluación de las Ofertas será de DOS (2) días computados a partir del día siguiente de la notificación, a todos los oferentes.
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-50}
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-21}
+datos_clave: ["3 días", "2 días en licitaciones privadas y contrataciones directas"]
+difieren: false
+pareja: ""
+aviso_modificatorias: true
+etiquetas: ["referencia exacta"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  Caso dudoso: la pauta g) del artículo 21 dice además que en las contrataciones directas el acta de evaluación puede no notificarse y "no será impugnable". Texto de 2003 sin modificatorias.

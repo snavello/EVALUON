@@ -1,0 +1,37 @@
+id: EV-009
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Qué modalidades pueden tener los procedimientos de selección?"
+fecha_autorizacion: 2026-02-03
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  Iniciativa privada, orden de compra abierta, consolidada, llave en mano, precio máximo, acuerdo marco, acuerdo marco interadministrativo y acuerdo interadministrativo por imperio normativo, o combinaciones entre ellas.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 24, incisos a) a h)"}
+origen: |
+  Los procedimientos de selección comprendidos en este régimen podrán realizarse de acuerdo con cualquiera de las siguientes modalidades o combinaciones entre ellas: a) Por iniciativa privada.
+  [...]
+  b) Orden de compra abierta.
+  [...]
+  c) Consolidada.
+  [...]
+  d) Llave en mano.
+  [...]
+  e) Precio máximo.
+  [...]
+  f) Acuerdo marco.
+  [...]
+  g) Acuerdo marco interadministrativo.
+  [...]
+  h) Acuerdo interadministrativo por imperio normativo.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-24}
+datos_clave: ["iniciativa privada", "orden de compra abierta", "consolidada", "llave en mano", "precio máximo", "acuerdo marco", "acuerdo marco interadministrativo", "acuerdo interadministrativo por imperio normativo"]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["referencia exacta"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  El origen junta el encabezado del artículo y el comienzo de cada inciso; el texto completo de cada modalidad es largo.

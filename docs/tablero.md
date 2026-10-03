@@ -35,7 +35,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 23/55 | ████░░░░░░ 42% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 25/55 | █████░░░░░ 45% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
 | 003 · Procedimiento, pliego final y matriz de cumplimiento | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | No iniciada | — | — |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -62,8 +62,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 32 tareas sin terminar.
-- ◐ T-022 · Leer una página web guardada (en verificación)
+- **Próximo paso:** Desarrollar: 30 tareas sin terminar.
 - ○ T-021 · Leer un PDF escaneado con reconocimiento de texto (pendiente)
 - ○ T-023 · Partir normas completas con incisos, anexos y considerandos (pendiente)
 - ○ T-024 · Partir dictámenes y recomendaciones en puntos y párrafos (pendiente)
@@ -78,7 +77,6 @@ flowchart LR
 - ○ T-033 · Seleccionar por categoría, sumar cambios y ordenar (pendiente)
 - ○ T-034 · Completar instrucciones, marca de regímenes y orden (pendiente)
 - ○ T-035 · Buscar unidades por artículo y por palabras (pendiente)
-- ○ T-036 · Entregar el documento original con sesión (pendiente)
 - ○ T-037 · Mostrar las citas con categoría, papel y cambios (pendiente)
 - ○ T-038 · Registrar ingresos, ingresos fallidos y rechazos por rol (pendiente)
 - ○ T-039 · Correr el conjunto de preguntas y medir las exigencias (pendiente)
@@ -119,6 +117,8 @@ flowchart LR
 - ✓ T-018 · Generar la respuesta con esquema e insertar las citas (`33f0f08` 2026-10-03, `9830fe5` 2026-10-03)
 - ✓ T-019 · Unir la consulta de punta a punta con su registro (`2685761` 2026-10-03, `71fd67b` 2026-10-03)
 - ✓ T-020 · Probar el hilo mínimo con los servicios reales (`b520afe` 2026-10-03)
+- ✓ T-022 · Leer una página web guardada (`3d9224f` 2026-10-03, `c12d12c` 2026-10-03)
+- ✓ T-036 · Entregar el documento original con sesión
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 - ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
 - ✓ T-055 · Agregar el nombre de cita de la norma (`ff230c8` 2026-10-03, `88796e6` 2026-10-03)
@@ -148,7 +148,7 @@ flowchart TD
   T019["✓ T-019 · Unir la consulta de punta a punta con su re…"]:::done
   T020["✓ T-020 · Probar el hilo mínimo con los servicios rea…"]:::done
   T021["○ T-021 · Leer un PDF escaneado con reconocimiento de…"]:::todo
-  T022["◐ T-022 · Leer una página web guardada"]:::review
+  T022["✓ T-022 · Leer una página web guardada"]:::done
   T023["○ T-023 · Partir normas completas con incisos, anexos…"]:::todo
   T024["○ T-024 · Partir dictámenes y recomendaciones en punt…"]:::todo
   T025["○ T-025 · Completar el informe de lectura"]:::todo
@@ -162,7 +162,7 @@ flowchart TD
   T033["○ T-033 · Seleccionar por categoría, sumar cambios y…"]:::todo
   T034["○ T-034 · Completar instrucciones, marca de regímenes…"]:::todo
   T035["○ T-035 · Buscar unidades por artículo y por palabras"]:::todo
-  T036["○ T-036 · Entregar el documento original con sesión"]:::todo
+  T036["✓ T-036 · Entregar el documento original con sesión"]:::done
   T037["○ T-037 · Mostrar las citas con categoría, papel y ca…"]:::todo
   T038["○ T-038 · Registrar ingresos, ingresos fallidos y rec…"]:::todo
   T039["○ T-039 · Correr el conjunto de preguntas y medir las…"]:::todo

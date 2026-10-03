@@ -1,0 +1,25 @@
+id: EV-018
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "¿Puede el pliego de bases y condiciones particulares agregar causales propias para desestimar ofertas?"
+fecha_autorizacion: 2010-04-05
+regimen: "Disposición AFIP 297/03"
+esperado: |
+  Sí. La oferta se declara inadmisible si incurre en otras causales de inadmisibilidad que el pliego de bases y condiciones particulares haya previsto expresa y fundadamente.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 43, inciso i)"}
+origen: |
+  ARTICULO 43. — CAUSALES DE INADMISIBILIDAD. Será declarada inadmisible la oferta en los siguientes supuestos:
+  [...]
+  i) Si incurriera en otras causales de inadmisibilidad que expresa y fundadamente el Pliego de Bases y Condiciones Particulares y Especificaciones Técnicas hubiere previsto como tales.
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-43}
+datos_clave: ["sí", "expresa y fundadamente"]
+difieren: false
+pareja: EV-014
+aviso_modificatorias: true
+etiquetas: ["palabras distintas a las de la norma", "dos fechas"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  La 297/03 habla de "inadmisibilidad", no de "desestimación". Texto de 2003 sin modificatorias.

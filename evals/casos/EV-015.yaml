@@ -1,0 +1,25 @@
+id: EV-015
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Hasta qué porcentaje se puede aumentar o disminuir un contrato y cuándo hace falta la conformidad del contratista?"
+fecha_autorizacion: 2026-05-04
+regimen: "Disposición AFIP 247/2022"
+esperado: |
+  Hasta un veinte por ciento (20 %) en más o en menos del monto total sin conformidad previa del contratista; por encima de ese porcentaje la conformidad debe requerirse antes. En ningún caso puede exceder el treinta y cinco por ciento (35 %), ni aun con consentimiento del contratista.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 79"}
+origen: |
+  La modificación podrá ser hasta un VEINTE POR CIENTO (20%) en más o en menos del monto total del contrato u orden de compra, sin requerirse la previa conformidad del contratista. Si fuera superior a dicho porcentaje, la conformidad deberá ser requerida en forma previa.
+  [...]
+  En ningún caso los aumentos o disminuciones de las prestaciones podrán exceder el TREINTA Y CINCO POR CIENTO (35%) del monto total del contrato u orden de compra, aún con consentimiento del contratista.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-79}
+datos_clave: ["20 %", "35 %", "conformidad previa por encima del 20 %"]
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["referencia exacta"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  La frase final del origen cruza un salto de página en el PDF ("aún con consentimiento del / contratista").

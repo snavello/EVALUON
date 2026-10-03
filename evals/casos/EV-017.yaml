@@ -1,0 +1,23 @@
+id: EV-017
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "¿En qué plazo debe integrarse la garantía de cumplimiento del contrato?"
+fecha_autorizacion: 2019-08-20
+regimen: "Disposición AFIP 297/03"
+esperado: |
+  Dentro de los ocho (8) días de recibida la orden de compra o de suscripto el contrato. Vencido ese plazo, se rescinde el contrato con pérdida de la garantía de la oferta.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 55, inciso 6)"}
+origen: |
+  Inciso 6) Garantía de cumplimiento del contrato. El adjudicatario deberá integrar la garantía de cumplimiento del contrato dentro del término de OCHO (8) días de recibida la orden de compra y/o de suscripto el contrato. Vencido dicho plazo se rescindirá el contrato con la pérdida de la garantía de la oferta.
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-55}
+datos_clave: ["8 días", "pérdida de la garantía de la oferta"]
+difieren: false
+pareja: EV-003
+aviso_modificatorias: true
+etiquetas: ["referencia exacta", "dos fechas"]
+visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+redactado_por: borrador asistido
+notas: |
+  Texto de 2003 sin modificatorias.
