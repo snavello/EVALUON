@@ -63,6 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 11 tareas sin terminar.
+- ▶ T-052 · Avisar modificatorias sin cargar en respuesta y búsqueda (en curso)
 - ○ T-027 · Releer un documento y reemplazar la lectura anterior (pendiente)
 - ○ T-028 · Integrar los tres formatos en la carga (pendiente)
 - ○ T-042 · Agregar calibración del umbral y comparación de corridas (pendiente)
@@ -73,7 +74,6 @@ flowchart LR
 - ○ T-047 · Probar una consulta con la red desconectada (pendiente)
 - ○ T-048 · Probar el respaldo y la restauración de la base (pendiente)
 - ○ T-049 · Levantar todo desde cero y dejar datos para el runbook (pendiente)
-- ○ T-052 · Avisar modificatorias sin cargar en respuesta y búsqueda (pendiente)
 
 ### Qué se hizo
 
@@ -178,7 +178,7 @@ flowchart TD
   T049["○ T-049 · Levantar todo desde cero y dejar datos para…"]:::todo
   T050["✓ T-050 · Partir la 297/03 y el cuerpo de la 247/2022…"]:::done
   T051["✓ T-051 · Registrar las modificatorias sin cargar de…"]:::done
-  T052["○ T-052 · Avisar modificatorias sin cargar en respues…"]:::todo
+  T052["▶ T-052 · Avisar modificatorias sin cargar en respues…"]:::active
   T053["✓ T-053 · Conservar la eñe en la búsqueda por palabras"]:::done
   T054["✓ T-054 · Pasar a la aplicación las variables de los…"]:::done
   T055["✓ T-055 · Agregar el nombre de cita de la norma"]:::done
