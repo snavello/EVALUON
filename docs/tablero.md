@@ -63,6 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 31 tareas sin terminar.
+- ▶ T-034 · Completar instrucciones, marca de regímenes y orden (en curso)
 - ○ T-021 · Leer un PDF escaneado con reconocimiento de texto (pendiente)
 - ○ T-022 · Leer una página web guardada (pendiente)
 - ○ T-023 · Partir normas completas con incisos, anexos y considerandos (pendiente)
@@ -76,7 +77,6 @@ flowchart LR
 - ○ T-031 · Partir en pasajes las unidades largas (pendiente)
 - ○ T-032 · Recuperar por tres caminos y unir los candidatos (pendiente)
 - ○ T-033 · Seleccionar por categoría, sumar cambios y ordenar (pendiente)
-- ○ T-034 · Completar instrucciones, marca de regímenes y orden (pendiente)
 - ○ T-035 · Buscar unidades por artículo y por palabras (pendiente)
 - ○ T-037 · Mostrar las citas con categoría, papel y cambios (pendiente)
 - ○ T-038 · Registrar ingresos, ingresos fallidos y rechazos por rol (pendiente)
@@ -160,7 +160,7 @@ flowchart TD
   T031["○ T-031 · Partir en pasajes las unidades largas"]:::todo
   T032["○ T-032 · Recuperar por tres caminos y unir los candi…"]:::todo
   T033["○ T-033 · Seleccionar por categoría, sumar cambios y…"]:::todo
-  T034["○ T-034 · Completar instrucciones, marca de regímenes…"]:::todo
+  T034["▶ T-034 · Completar instrucciones, marca de regímenes…"]:::active
   T035["○ T-035 · Buscar unidades por artículo y por palabras"]:::todo
   T036["✓ T-036 · Entregar el documento original con sesión"]:::done
   T037["○ T-037 · Mostrar las citas con categoría, papel y ca…"]:::todo
@@ -292,7 +292,7 @@ flowchart TD
 | REQ-015 | El sistema debe incorporar normas en tres formatos: PDF con texto, PDF escaneado y página web guardada. Cuando el texto de una unidad se obtuvo por reconocimiento sobre una imagen, debe quedar indicado en la unidad y en el informe de lectura | T-012, T-021, T-022, T-025, T-028, T-037, T-043 | ▶ en proceso |
 | REQ-016 | El sistema debe exigir usuario y clave para ingresar. Cada usuario tiene un rol: lectura, que permite consultar y buscar; o lectura y escritura, que además permite cargar y validar normas y registrar relaciones y versiones | T-005, T-006, T-007, T-038, T-049 | ▶ en proceso |
 | REQ-017 | El sistema debe registrar la categoría de cada documento: régimen específico, otra normativa aplicable, marco nacional, dictamen legal o recomendación de auditoría | T-008, T-014 | ✓ cubierto |
-| REQ-018 | Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional se presentan como marco; los dictámenes y las recomendaciones se presentan como criterio que acompaña; los considerandos se presentan como contexto, identificados como tales y después del articulado | T-033, T-034, T-037, T-040, T-046 | ○ pendiente |
-| REQ-019 | Cuando el régimen específico y el marco nacional tratan el mismo punto de manera distinta, la respuesta debe mostrar ambos textos y señalar el del régimen específico como el aplicable | T-033, T-034, T-037, T-040, T-046 | ○ pendiente |
+| REQ-018 | Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional se presentan como marco; los dictámenes y las recomendaciones se presentan como criterio que acompaña; los considerandos se presentan como contexto, identificados como tales y después del articulado | T-033, T-034, T-037, T-040, T-046 | ▶ en proceso |
+| REQ-019 | Cuando el régimen específico y el marco nacional tratan el mismo punto de manera distinta, la respuesta debe mostrar ambos textos y señalar el del régimen específico como el aplicable | T-033, T-034, T-037, T-040, T-046 | ▶ en proceso |
 | REQ-020 | Cada consulta y cada búsqueda se hacen para una fecha de autorización del procedimiento, que la persona indica en la pantalla; por defecto es la del día. El sistema responde con lo que regía a esa fecha y muestra qué régimen aplicó | T-008, T-009, T-014, T-016, T-019, T-020, T-032, T-035, T-039, T-041, T-042, T-043, T-044, T-046, T-055 | ▶ en proceso |
 | REQ-021 | El sistema debe permitir registrar que una norma tiene modificatorias todavía no cargadas, identificando cada una. Mientras queden, toda respuesta o búsqueda que muestre una unidad de esa norma avisa que puede haber cambios que el sistema no conoce e indica cuántas modificatorias faltan cargar | T-008, T-039, T-042, T-044, T-046, T-051, T-052 | ▶ en proceso |
