@@ -35,7 +35,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 40/55 | ███████░░░ 73% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 43/55 | ████████░░ 78% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
 | 003 · Procedimiento, pliego final y matriz de cumplimiento | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | No iniciada | — | — |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -62,12 +62,9 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 15 tareas sin terminar.
-- ▶ T-050 · Partir la 297/03 y el cuerpo de la 247/2022 desde la web (en curso)
-- ○ T-026 · Avisar duplicados al cargar una norma (pendiente)
+- **Próximo paso:** Desarrollar: 12 tareas sin terminar.
 - ○ T-027 · Releer un documento y reemplazar la lectura anterior (pendiente)
 - ○ T-028 · Integrar los tres formatos en la carga (pendiente)
-- ○ T-040 · Unir recuperación y generación completas con su registro (pendiente)
 - ○ T-041 · Mostrar y registrar la búsqueda en la pantalla (pendiente)
 - ○ T-042 · Agregar calibración del umbral y comparación de corridas (pendiente)
 - ○ T-043 · Cargar y validar el corpus real y ajustar las reglas (pendiente)
@@ -107,6 +104,7 @@ flowchart LR
 - ✓ T-023 · Partir normas completas con incisos, anexos y considerandos (`07000e3` 2026-10-03, `9fcf7ba` 2026-10-03, `b3b20b9` 2026-10-03)
 - ✓ T-024 · Partir dictámenes y recomendaciones en puntos y párrafos (`eee73f3` 2026-10-03, `33bb89f` 2026-10-03)
 - ✓ T-025 · Completar el informe de lectura (`8d488ab` 2026-10-03, `894c7a7` 2026-10-03, `3986cbf` 2026-10-03)
+- ✓ T-026 · Avisar duplicados al cargar una norma
 - ✓ T-029 · Registrar relaciones entre normas y mostrar los vínculos (`eb8e443` 2026-10-03, `7748cf7` 2026-10-03)
 - ✓ T-030 · Registrar versiones de una norma (`2844775` 2026-10-03)
 - ✓ T-031 · Partir en pasajes las unidades largas (`282ab7f` 2026-10-03, `955ce90` 2026-10-03, `c1e2088` 2026-10-03)
@@ -118,6 +116,8 @@ flowchart LR
 - ✓ T-037 · Mostrar las citas con categoría, papel y cambios (`aa4b436` 2026-10-03, `2ca66e6` 2026-10-03)
 - ✓ T-038 · Registrar ingresos, ingresos fallidos y rechazos por rol (`2ef5e3b` 2026-10-03)
 - ✓ T-039 · Correr el conjunto de preguntas y medir las exigencias (`df00322` 2026-10-03, `13ae5e6` 2026-10-03, `97c998c` 2026-10-03)
+- ✓ T-040 · Unir recuperación y generación completas con su registro
+- ✓ T-050 · Partir la 297/03 y el cuerpo de la 247/2022 desde la web (`c27c9c4` 2026-10-03, `5941a37` 2026-10-03)
 - ✓ T-051 · Registrar las modificatorias sin cargar de una norma (`375ba21` 2026-10-03, `73a199a` 2026-10-03)
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 - ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
@@ -152,7 +152,7 @@ flowchart TD
   T023["✓ T-023 · Partir normas completas con incisos, anexos…"]:::done
   T024["✓ T-024 · Partir dictámenes y recomendaciones en punt…"]:::done
   T025["✓ T-025 · Completar el informe de lectura"]:::done
-  T026["○ T-026 · Avisar duplicados al cargar una norma"]:::todo
+  T026["✓ T-026 · Avisar duplicados al cargar una norma"]:::done
   T027["○ T-027 · Releer un documento y reemplazar la lectura…"]:::todo
   T028["○ T-028 · Integrar los tres formatos en la carga"]:::todo
   T029["✓ T-029 · Registrar relaciones entre normas y mostrar…"]:::done
@@ -166,7 +166,7 @@ flowchart TD
   T037["✓ T-037 · Mostrar las citas con categoría, papel y ca…"]:::done
   T038["✓ T-038 · Registrar ingresos, ingresos fallidos y rec…"]:::done
   T039["✓ T-039 · Correr el conjunto de preguntas y medir las…"]:::done
-  T040["○ T-040 · Unir recuperación y generación completas co…"]:::todo
+  T040["✓ T-040 · Unir recuperación y generación completas co…"]:::done
   T041["○ T-041 · Mostrar y registrar la búsqueda en la panta…"]:::todo
   T042["○ T-042 · Agregar calibración del umbral y comparació…"]:::todo
   T043["○ T-043 · Cargar y validar el corpus real y ajustar l…"]:::todo
@@ -176,7 +176,7 @@ flowchart TD
   T047["○ T-047 · Probar una consulta con la red desconectada"]:::todo
   T048["○ T-048 · Probar el respaldo y la restauración de la…"]:::todo
   T049["○ T-049 · Levantar todo desde cero y dejar datos para…"]:::todo
-  T050["▶ T-050 · Partir la 297/03 y el cuerpo de la 247/2022…"]:::active
+  T050["✓ T-050 · Partir la 297/03 y el cuerpo de la 247/2022…"]:::done
   T051["✓ T-051 · Registrar las modificatorias sin cargar de…"]:::done
   T052["○ T-052 · Avisar modificatorias sin cargar en respues…"]:::todo
   T053["✓ T-053 · Conservar la eñe en la búsqueda por palabras"]:::done
@@ -285,7 +285,7 @@ flowchart TD
 | REQ-008 | El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la unidad que la sostiene, con su texto literal | T-001, T-002, T-003, T-004, T-011, T-017, T-018, T-019, T-020, T-031, T-032, T-034, T-039, T-040, T-042, T-046, T-047, T-054 | ▶ en proceso |
 | REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | T-002, T-003, T-011, T-017, T-018, T-019, T-034, T-039, T-040, T-042, T-045, T-046 | ▶ en proceso |
 | REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto, desde la pantalla de consulta. Una unidad derogada aparece en la búsqueda marcada como tal | T-004, T-009, T-035, T-041, T-053 | ▶ en proceso |
-| REQ-011 | El sistema debe avisar cuando se intenta cargar una norma que ya está incorporada. Si es el mismo archivo, no lo incorpora; si es la misma norma en otro archivo o formato, pide confirmación expresa | T-008, T-026 | ▶ en proceso |
+| REQ-011 | El sistema debe avisar cuando se intenta cargar una norma que ya está incorporada. Si es el mismo archivo, no lo incorpora; si es la misma norma en otro archivo o formato, pide confirmación expresa | T-008, T-026 | ✓ cubierto |
 | REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | T-007, T-008, T-010, T-014, T-015, T-019, T-020, T-026, T-038, T-040, T-041, T-048, T-049, T-051, T-052, T-054 | ▶ en proceso |
 | REQ-013 | El sistema debe ofrecer una pantalla de consulta donde una persona escribe su pregunta y ve la respuesta con sus citas; desde cada cita se ve el texto literal de la unidad y se puede abrir la norma original | T-005, T-016, T-019, T-020, T-037, T-047, T-055 | ▶ en proceso |
 | REQ-014 | La pantalla de consulta debe distinguir a simple vista una respuesta con fundamento de un resultado "no determinado" | T-016, T-037 | ✓ cubierto |

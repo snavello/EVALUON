@@ -44,8 +44,12 @@ ADR-0002). Versión mínima de T-018, completada en T-034.
    no viaja en el resultado: se inserta desde la base al mostrarlo (`citation_texts`).
    `query_id`, `reference_date`, `regime` y `notices` los agrega `services.py`.
 
-Sin fecha (`reference_date=None`), que es como llama hoy `services.py` hasta que T-040 le
-pase la fecha, se conserva el camino de T-018: instrucciones `consulta-v1`, que no se
+Los pasos 1 a 4 los hace `build_request`, que arma el pedido sin llamar al modelo; `answer`
+la usa por dentro. `services.py` (T-040) arma el pedido con ella dentro de su instantánea,
+lo cuenta y genera con `answer(pregunta, request=pedido)`, que no vuelve a leer la base.
+
+Sin fecha (`reference_date=None`; `services.py` siempre pasa la fecha desde T-040), se
+conserva el camino de T-018: instrucciones `consulta-v1`, que no se
 modifican, su esquema sin `regimes_differ`, las unidades en el orden recibido y sin
 cambios. El orden de la respuesta se aplica igual, y la marca queda apagada. Nunca se
 toma la fecha del día.
@@ -75,9 +79,9 @@ from evaluon.queries.models import Reason, Status
 #
 # - `PROMPT_VERSION_WITH_DATE`: instrucciones completas de T-034, con fecha.
 # - `PROMPT_VERSION_WITHOUT_DATE`: las de T-018, para `answer` sin fecha.
-# - `PROMPT_VERSION`: la que usa `answer` cuando no recibe fecha, que es como llama hoy
-#   `services.py`. Cuando T-040 le pase la fecha, la consulta registra
-#   `PROMPT_VERSION_WITH_DATE`.
+# - `PROMPT_VERSION`: la que usa `answer` cuando no recibe fecha (camino de T-018). La
+#   consulta (`services.ask`, T-040) siempre pasa la fecha, así que la pantalla y
+#   `correr_evals` usan y registran `PROMPT_VERSION_WITH_DATE`.
 PROMPT_VERSION_WITH_DATE = "consulta-v2"
 PROMPT_VERSION_WITHOUT_DATE = "consulta-v1"
 PROMPT_VERSION = PROMPT_VERSION_WITHOUT_DATE
@@ -622,19 +626,39 @@ def _grounded_result(statements, units_by_alias, changes, modifiers):
     return result, anomalies
 
 
-def answer(question, unit_ids, reference_date=None, passages=None):
-    """Genera la respuesta a `question` con las unidades `unit_ids` (las seleccionadas
-    por la recuperación) para la fecha de autorización `reference_date`. Ver el módulo.
-    Sin unidades no llama al modelo: esa abstención (`below_threshold`) la resuelve quien
-    llama.
+@dataclass(frozen=True)
+class Request:
+    """Pedido armado para el motor, sin enviar (`build_request`).
 
-    `passages` (opcional): `{id de unidad: [(char_start, char_end), …]}`, tramos relativos
-    al texto de la unidad. De una unidad con tramos el pedido muestra solo esos tramos
-    (`prompt_text`); de las demás, la unidad entera. Es lo que decide la recuperación para
-    una unidad de más de 1.500 tokens (plan, "Recuperación", paso 6). Las citas, `units`,
-    `aliases` y el texto que se inserta siguen siendo de la unidad entera. Tramos para una
-    unidad que no se muestra, o fuera de su texto, son `ValueError` y no se llama al
-    modelo."""
+    - `prompt_version`: versión de las instrucciones.
+    - `messages`: los mensajes tal como se envían (sistema y usuario).
+    - `schema`: el esquema de la salida, con los alias mostrados.
+    - `units_by_alias`: alias → unidad (`Unit`), en el orden en que se muestran.
+    - `aliases`: alias → `id` de la unidad.
+    - `shown`: `id` de todas las unidades mostradas: las recibidas y las que entran por
+      relación.
+    - `changes` y `modifiers`: los cambios a la fecha por `id` de unidad y las unidades
+      que los traen (`load_changes`); `None` y vacío en el camino sin fecha.
+    """
+
+    prompt_version: str
+    messages: list
+    schema: dict
+    units_by_alias: dict
+    aliases: dict
+    shown: frozenset
+    changes: dict | None = None
+    modifiers: dict = field(default_factory=dict)
+
+
+def build_request(question, unit_ids, reference_date=None, passages=None):
+    """Arma el pedido para `question` con las unidades `unit_ids` y la fecha de
+    autorización `reference_date`, sin llamar al modelo (pasos 1 a 4 del módulo).
+    Devuelve un `Request`. Es el único camino del armado: lo usan `answer` y el control
+    del pedido completo de `services.py` (T-040), que cuenta sus mensajes.
+
+    Sin unidades, con unidades inexistentes, con tramos para una unidad que no se
+    muestra o fuera de su texto, lanza `ValueError`. Ver `answer` para `passages`."""
     passages = passages or {}
     units = _load_units(unit_ids)
     if not units:
@@ -658,7 +682,50 @@ def answer(question, unit_ids, reference_date=None, passages=None):
     not_shown = sorted(set(passages) - set(aliases.values()))
     if not_shown:
         raise ValueError(f"Hay tramos para unidades que no se muestran: {not_shown}.")
-    schema = build_schema(list(units_by_alias), version=version)
+    return Request(
+        prompt_version=version,
+        messages=messages,
+        schema=build_schema(list(units_by_alias), version=version),
+        units_by_alias=units_by_alias,
+        aliases=aliases,
+        shown=frozenset(aliases.values()),
+        changes=changes,
+        modifiers=modifiers,
+    )
+
+
+def answer(question, unit_ids=None, reference_date=None, passages=None, *,
+           request=None):
+    """Genera la respuesta a `question` con las unidades `unit_ids` (las seleccionadas
+    por la recuperación) para la fecha de autorización `reference_date`. Ver el módulo.
+    Sin unidades no llama al modelo: esa abstención (`below_threshold`) la resuelve quien
+    llama. El pedido lo arma `build_request`.
+
+    `passages` (opcional): `{id de unidad: [(char_start, char_end), …]}`, tramos relativos
+    al texto de la unidad. De una unidad con tramos el pedido muestra solo esos tramos
+    (`prompt_text`); de las demás, la unidad entera. Es lo que decide la recuperación para
+    una unidad de más de 1.500 tokens (plan, "Recuperación", paso 6). Las citas, `units`,
+    `aliases` y el texto que se inserta siguen siendo de la unidad entera. Tramos para una
+    unidad que no se muestra, o fuera de su texto, son `ValueError` y no se llama al
+    modelo.
+
+    `request` (opcional): un `Request` ya armado con `build_request`. Se envía tal cual,
+    y la salida se valida y el resultado se arma con lo que trae (alias, unidades,
+    cambios y unidades que los traen), sin volver a leer la base. Así la consulta
+    (`services.py`, T-040) genera con el mismo pedido que armó y controló dentro de su
+    instantánea. Con `request` no se pasan `unit_ids`, `reference_date` ni `passages`
+    (`ValueError`): ya están en el pedido."""
+    if request is None:
+        built = build_request(question, unit_ids, reference_date, passages)
+    elif unit_ids is not None or reference_date is not None or passages is not None:
+        raise ValueError("Con un pedido ya armado no se pasan unidades, fecha ni tramos: "
+                         "ya están en el pedido.")
+    else:
+        built = request
+    version = built.prompt_version
+    messages, schema = built.messages, built.schema
+    units_by_alias, aliases = built.units_by_alias, built.aliases
+    changes, modifiers = built.changes, built.modifiers
     common = {"prompt_version": version, "aliases": aliases}
 
     try:

@@ -78,6 +78,10 @@ def _refuse_secrets(value):
             _refuse_secrets(item)
 
 
+# Valor por omisión de `corpus_version` en `record`: la versión vigente al registrar.
+_CURRENT = object()
+
+
 def record(
     event_type,
     *,
@@ -87,6 +91,7 @@ def record(
     username="",
     detail=None,
     creates_corpus_version=False,
+    corpus_version=_CURRENT,
 ):
     """Registra un hecho y lo devuelve.
 
@@ -100,21 +105,34 @@ def record(
       `detail["new_corpus_version"]`, y la versión apunta al hecho. Quien llama hace su
       cambio y este registro dentro del mismo `transaction.atomic()`.
 
-    Sin `creates_corpus_version`, el hecho lleva la versión vigente.
+    - `corpus_version` (opcional): número de versión con que se hizo lo que se
+      registra, cuando quien llama lo tomó antes, en la misma instantánea que su
+      lectura (por ejemplo, la consulta: plan 001, `audit_event.corpus_version`, decisión
+      del responsable del 2026-10-03). `None` es "todavía no había ninguna". No se
+      combina con `creates_corpus_version`.
+
+    Sin `creates_corpus_version` ni `corpus_version`, el hecho lleva la versión vigente.
     """
     if user is not None and not username:
         username = user.get_username()
     detail = dict(detail) if detail is not None else {}
     _refuse_secrets(detail)
+    if creates_corpus_version and corpus_version is not _CURRENT:
+        raise ValueError(
+            "Un hecho que crea una versión de la normativa lleva el número nuevo: no "
+            "recibe 'corpus_version'."
+        )
 
     if not creates_corpus_version:
+        if corpus_version is _CURRENT:
+            corpus_version = current_corpus_version()
         return AuditEvent.objects.create(
             event_type=event_type,
             outcome=outcome,
             channel=channel,
             user=user,
             username=username,
-            corpus_version=current_corpus_version(),
+            corpus_version=corpus_version,
             detail=detail,
         )
 

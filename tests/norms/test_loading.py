@@ -32,6 +32,7 @@ from evaluon.norms.models import (
 from evaluon.norms.reading import read_document
 from evaluon.norms.services import loading
 from evaluon.norms.splitting import RULES_VERSION, split_document
+from evaluon.norms.splitting.report import attention_items, report_text
 from tests.conftest import TEST_PASSWORD
 
 REPO = Path(__file__).resolve().parents[2]
@@ -143,10 +144,22 @@ def test_load_keeps_the_original_byte_by_byte(read_write_user):
 def test_load_stores_pending_reading_with_canonical_text_and_report(read_write_user):
     """REQ-004: la lectura queda `pending`, con el texto canónico y su huella, las
     versiones de las herramientas y de las reglas, y el informe en datos y en texto,
-    iguales a los de la partición."""
-    expected = split_document(read_document(EXTRACT_BYTES), part="anexo")
+    iguales a los de la partición.
 
+    Ajuste de T-026: la carga pasa a la partición la categoría y los datos del archivo
+    (nombre, huella y fecha de lectura) y completa los posibles duplicados (ninguno),
+    con "Requiere atención" y el texto armados de nuevo."""
     result = load(read_write_user)
+
+    stored = result.reading.report["document"]
+    expected = split_document(
+        read_document(EXTRACT_BYTES), part="anexo", category="regimen_especifico",
+        document_info={"file_name": "disp-247-2022-anexo-extracto.pdf",
+                       "file_sha256": sha256(EXTRACT_BYTES), "read_at": stored["read_at"]},
+    )
+    expected.report["duplicates"] = []
+    expected.report["attention"] = attention_items(expected.report)
+    expected.report_text = report_text(expected.report)
 
     reading = Reading.objects.get()
     assert result.reading == reading
@@ -309,11 +322,15 @@ def test_a_second_part_with_different_norm_data_is_rejected(read_write_user):
 
 @pytest.mark.django_db
 def test_same_part_already_loaded_is_rejected(read_write_user):
-    """REQ-001: otro archivo de una parte que la norma ya tiene no se incorpora en
-    esta versión (la confirmación expresa de "misma norma" es de REQ-011)."""
+    """REQ-001, REQ-011: otro archivo de una parte que la norma ya tiene no se
+    incorpora sin la confirmación expresa de "misma norma".
+
+    Ajuste de T-026: antes se rechazaba siempre con `PartAlreadyLoaded`; ahora es el
+    aviso de misma norma, que con confirmación lo incorpora (tests/norms/
+    test_duplicates.py)."""
     load(read_write_user)
 
-    with pytest.raises(loading.LoadRefused, match="parte anexo"):
+    with pytest.raises(loading.SameNormNotConfirmed, match="parte anexo"):
         load(read_write_user, data=pages_five_and_six_pdf())
 
     assert Document.objects.count() == 1

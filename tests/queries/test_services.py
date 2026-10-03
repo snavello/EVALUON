@@ -195,7 +195,8 @@ def test_model_abstained_is_undetermined(read_user, two_regimes, relevant):
 def test_invalid_citation_is_undetermined(read_user, two_regimes, relevant):
     """REQ-009: una afirmación que cita un alias no mostrado da "no determinado" con
     `invalid_citation`, sin afirmaciones; la falla queda en las anomalías."""
-    relevant.generation.answer([{"text": "Afirmación sintética.", "citations": ["U9"]}])
+    relevant.generation.answer([{"text": "Afirmación sintética.", "citations": ["U9"],
+                                 "regimes_differ": False}])
 
     query = ask(read_user, two_regimes.after_v)
 
@@ -336,12 +337,13 @@ def test_record_shows_everything_needed_to_rebuild_the_query(
     assert all({"passage", "unit", "path", "score"} <= set(c) for c in query.candidates)
     assert [u["unit"] for u in query.selected["sent"]] == [article.pk]
     assert query.max_score == 0.9
-    assert query.prompt_version == answering.PROMPT_VERSION
+    assert query.prompt_version == answering.PROMPT_VERSION_WITH_DATE
     assert query.request["messages"]
     assert query.raw_output
     assert query.parameters["rerank_threshold"] == 0.5
     assert query.parameters["generation"]["model"]
-    assert {"regimes", "retrieval", "generation", "total"} <= set(query.timings)
+    assert {"regimes", "retrieval", "selection", "generation", "total"} <= \
+        set(query.timings)
     # Su hecho: el mismo usuario y la misma versión, y el detalle completo.
     assert event.event_type == EventType.QUERY
     assert event.outcome == Outcome.OK
