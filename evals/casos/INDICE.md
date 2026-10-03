@@ -143,3 +143,12 @@ Sin cambios: EV-001, EV-002, EV-005, EV-006, EV-008, EV-009, EV-010, EV-013, EV-
 2. **EV-004: aceptar también una respuesta que empiece con "No."** El 2026-10-03 se eligió "no es necesario" porque el "no" solo exigía un signo después de la palabra. Ahora el caso puede llevar las dos formas y valer cualquiera. EV-021 se escribió de la misma manera, con las formas de su esperado y su origen.
 3. **EV-012: basta una de las dos formas.** Antes la respuesta tenía que traer el "No" y además "sin posibilidad de subsanación". Ahora basta con cualquiera de las dos: una respuesta que diga solo "No." pasa, y la que dice "serán desestimadas sin posibilidad de subsanación" también.
 4. **EV-018: el "sí" se acepta si la respuesta dice que el pliego puede prever "otras causales de inadmisibilidad".** Esa frase podría aparecer también en una respuesta que diga que no; lo que frena esa respuesta es el segundo dato, "expresa y fundadamente", que una respuesta negativa no trae.
+
+### Decisiones del responsable (2026-10-03)
+
+1. Las cuatro formas que salieron de las respuestas del sistema **quedan**: el responsable las reconoce como formas correctas de decir el dato. Son "período igual" (EV-003), "fecha de apertura" (EV-016), "expresarse y fundamentarse" (EV-018) y "no pueden incluir" (EV-014). Se le mostraron con la tabla norma / respuesta del sistema. Criterio general del responsable: una forma que dice lo mismo que la norma se acepta. Igual se le consulta cada vez, con ejemplos (ADR-0011).
+2. EV-004 acepta "no" o "no es necesario": aceptado.
+3. EV-012 se cumple con cualquiera de las dos formas: aceptado.
+4. EV-018 acepta el "sí" con "otras causales de inadmisibilidad": aceptado.
+
+La medida que vale para aprobar la feature sale del lote de aceptación de T-061, que no se usa para ajustar (ADR-0014).
