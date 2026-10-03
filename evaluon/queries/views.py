@@ -28,6 +28,11 @@ texto que los trae y los vínculos de su norma con otras. Un texto se muestra un
 en la página, con el ancla `texto-N`: un cambio cuyo texto es otro resultado, o ya se
 mostró, lleva a él.
 
+Solo lo vigente (enmienda de REQ-010; T-056). El formulario tiene la casilla "Incluir
+textos derogados", apagada de entrada, que se pasa a la función de búsqueda y conserva su
+estado en la página de resultados. Si una búsqueda por artículo no muestra nada porque lo
+que encontró está derogado a la fecha, la página lo dice en llano y explica cómo verlo.
+
 Avisos de modificatorias sin cargar (REQ-021; T-052). Una respuesta con fundamento y
 los resultados de una búsqueda llevan, debajo de la línea de régimen y arriba de las
 afirmaciones o de los resultados, un recuadro por cada aviso guardado (`notices`), con
@@ -140,6 +145,7 @@ def search(request):
                 norm_id=norm.pk if norm is not None else None,
                 article=data["article"],
                 words=data["words"],
+                include_repealed=data["include_repealed"],
                 channel=Channel.SCREEN,
             )
         except services.FutureDate as error:
@@ -152,6 +158,7 @@ def search(request):
             search_form = SearchForm(initial={
                 "norm": norm, "article": data["article"], "words": data["words"],
                 "reference_date": outcome.reference_date,
+                "include_repealed": outcome.include_repealed,
             })
             context["search"] = {
                 "kind": outcome.kind,
@@ -160,6 +167,7 @@ def search(request):
                 "regime": outcome.regime,
                 "notices": _notices({"notices": outcome.notices}),
                 "items": _search_items(outcome.results),
+                "repealed_hidden": outcome.repealed_hidden,
             }
     context.update(
         form=QueryForm(initial={"reference_date": query_date}),

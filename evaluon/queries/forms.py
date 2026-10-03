@@ -10,6 +10,9 @@ fecha en hora de Buenos Aires (`TIME_ZONE`), calculada en cada pedido.
 El formulario de búsqueda tiene su propio campo de fecha. Se usa con el prefijo
 `SEARCH_PREFIX`, para que sus campos no repitan el nombre ni el `id` de los de la
 pregunta (`search-reference_date`, `id_search-reference_date`).
+
+La casilla "Incluir textos derogados" (`search-include_repealed`, T-056) viene apagada:
+sin marcarla, la búsqueda muestra solo lo vigente a la fecha.
 """
 
 from django import forms
@@ -29,6 +32,7 @@ SEARCH_PREFIX = "search"
 SEARCH_EMPTY_ERROR = "Elija una norma y escriba un número de artículo, o escriba palabras para buscar."
 SEARCH_NORM_MISSING_ERROR = "Para buscar por número de artículo, elija la norma."
 SEARCH_BOTH_ERROR = "Busque por número de artículo o por palabras, no por los dos a la vez."
+REPEALED_LABEL = "Incluir textos derogados"
 
 
 def today():
@@ -100,6 +104,9 @@ class SearchForm(forms.Form):
         help_text="Para buscar una frase exacta, escríbala entre comillas.",
     )
     reference_date = reference_date_field()
+    # Apagada de entrada: la búsqueda muestra solo lo vigente a la fecha (enmienda de
+    # REQ-010 del 2026-10-03; T-056).
+    include_repealed = forms.BooleanField(label=REPEALED_LABEL, required=False)
 
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("prefix", SEARCH_PREFIX)
