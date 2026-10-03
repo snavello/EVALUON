@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 42 tareas sin terminar.
-- ▶ T-011 · Crear los clientes de IA, sus dobles y los parámetros (en curso)
+- ◐ T-011 · Crear los clientes de IA, sus dobles y los parámetros (en verificación)
 - ○ T-012 · Leer un PDF con texto (pendiente)
 - ○ T-013 · Partir en artículos y armar el informe mínimo (pendiente)
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
@@ -129,7 +129,7 @@ flowchart TD
   T008["✓ T-008 · Crear las tablas de normas, lecturas, unida…"]:::done
   T009["✓ T-009 · Crear las funciones de unidades consultable…"]:::done
   T010["✓ T-010 · Crear la tabla del registro detallado de co…"]:::done
-  T011["▶ T-011 · Crear los clientes de IA, sus dobles y los…"]:::active
+  T011["◐ T-011 · Crear los clientes de IA, sus dobles y los…"]:::review
   T012["○ T-012 · Leer un PDF con texto"]:::todo
   T013["○ T-013 · Partir en artículos y armar el informe míni…"]:::todo
   T014["○ T-014 · Cargar una norma, listarla y ver su informe"]:::todo
