@@ -2,7 +2,7 @@
 REQ-019; plan 001, "Generación", "Cita", "Abstención" y "Forma de la respuesta";
 ADR-0002). Versión mínima de T-018, completada en T-034.
 
-`answer(pregunta, unit_ids, reference_date=fecha)`:
+`answer(pregunta, unit_ids, reference_date=fecha, passages=None)`:
 
 1. Lee de la base las unidades seleccionadas por la recuperación (`unit_ids`) y, con
    `unit_changes(fecha)`, los cambios de cada una a la fecha de autorización del
@@ -17,7 +17,8 @@ ADR-0002). Versión mínima de T-018, completada en T-034.
 3. Arma el pedido: las instrucciones versionadas de `prompts/` (`consulta-v2`) como
    mensaje de sistema; la fecha, la pregunta y las unidades (alias, categoría con su
    papel, norma, ruta, tipo y texto) como mensaje del usuario. El texto de cada unidad es
-   `canonical_text[char_start:char_end]` de su lectura.
+   `canonical_text[char_start:char_end]` de su lectura, o solo los tramos que indique
+   `passages` para esa unidad (`prompt_text`).
 4. Arma el esquema de la consulta (`build_schema`): solo esos alias, al menos una cita, un
    texto no vacío y la marca `regimes_differ` por afirmación, y hasta
    `GENERATION_MAX_STATEMENTS` (6) afirmaciones. El motor obliga a cumplirlo.
@@ -32,7 +33,9 @@ ADR-0002). Versión mínima de T-018, completada en T-034.
      descarta la respuesta entera;
    - `regimes_differ` verdadero sin una cita del régimen específico y otra del marco
      nacional (un considerando no cuenta): se apaga la marca, la afirmación queda con sus
-     citas y se anota la anomalía `regimes_flag_dropped`.
+     citas y se anota la anomalía `regimes_flag_dropped`. Su campo `statement` es la
+     posición de la afirmación en la salida del modelo (`raw_output`), contando desde 0,
+     no en la respuesta ordenada del paso 7: así se la encuentra en la salida guardada.
 7. Traduce cada alias al `id` de su unidad, ordena las citas de cada afirmación por
    categoría con los considerandos al final, y las afirmaciones por la categoría de su
    primera cita (REQ-018). Arma la parte del resultado que le toca, con la forma de
@@ -112,6 +115,9 @@ ROLES = {
 }
 CONSIDERANDO_ROLE = "contexto; no establece obligaciones"
 
+# Marca que reemplaza, en el pedido, el texto omitido de una unidad mostrada por tramos.
+OMITTED_MARK = "[… texto omitido …]"
+
 _CHANGES_SQL = """
 SELECT unit_id, relation_id, relation_type, target_unit_key, effective_date,
        source_norm_id, source_unit_id
@@ -180,6 +186,49 @@ def unit_text(unit):
     return unit.reading.canonical_text[unit.char_start:unit.char_end]
 
 
+def _merged_spans(spans, length):
+    """Tramos validados, en orden de texto, con los que se solapan o se tocan unidos."""
+    merged = []
+    for start, end in sorted(spans):
+        if not 0 <= start < end <= length:
+            raise ValueError(f"Tramo ({start}, {end}) fuera del texto de la unidad "
+                             f"(largo {length}) o vacío.")
+        if merged and start <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    return merged
+
+
+def prompt_text(unit, spans=None):
+    """Texto de una unidad tal como se le muestra al modelo (plan, "Recuperación", paso
+    6). Es el que va en el pedido: la recuperación (T-033) cuenta sus tokens sobre este
+    mismo texto.
+
+    - Sin tramos (`None` o lista vacía): la unidad entera, `unit_text(unit)`.
+    - Con tramos `(char_start, char_end)`, relativos al texto de la unidad: solo esos
+      tramos, en orden de texto, unidos cuando se solapan o se tocan, cada uno en su línea
+      y separados por `OMITTED_MARK` donde se omitió texto (también al principio o al
+      final si la unidad no empieza o no termina con un tramo). Un tramo vacío, invertido
+      o fuera del texto es `ValueError`.
+
+    La cita sigue siendo de la unidad entera: los tramos solo cambian lo que lee el
+    modelo."""
+    text = unit_text(unit)
+    if not spans:
+        return text
+    pieces = []
+    position = 0
+    for start, end in _merged_spans(spans, len(text)):
+        if start > position:
+            pieces.append(OMITTED_MARK)
+        pieces.append(text[start:end])
+        position = end
+    if position < len(text):
+        pieces.append(OMITTED_MARK)
+    return "\n".join(pieces)
+
+
 def build_schema(aliases, version=PROMPT_VERSION_WITH_DATE):
     """Esquema de la salida para una consulta: solo los alias mostrados, al menos una
     cita y un texto no vacío por afirmación, y hasta `GENERATION_MAX_STATEMENTS`
@@ -241,7 +290,9 @@ def _role(unit):
 # --- Pedido ----------------------------------------------------------------------------
 
 
-def _unit_lines(alias_line, unit, with_role):
+def _unit_lines(alias_line, unit, with_role, passages):
+    """Bloque de una unidad en el pedido; su texto es `prompt_text` con los tramos que
+    tenga en `passages`."""
     norm = unit.reading.document.norm
     lines = [alias_line, f"Categoría: {Category(norm.category).label}"]
     if with_role:
@@ -251,7 +302,7 @@ def _unit_lines(alias_line, unit, with_role):
         f"Ruta: {unit.path}",
         f"Tipo: {UnitType(unit.unit_type).label}",
         "Texto:",
-        unit_text(unit),
+        prompt_text(unit, passages.get(unit.pk)),
     ]
     return "\n".join(lines)
 
@@ -260,9 +311,9 @@ def _date(value):
     return value.strftime("%d/%m/%Y")
 
 
-def _messages_without_date(question, units_by_alias):
+def _messages_without_date(question, units_by_alias, passages):
     """Pedido de `consulta-v1` (T-018): pregunta y unidades en el orden recibido."""
-    blocks = [_unit_lines(f"[{alias}]", unit, with_role=False)
+    blocks = [_unit_lines(f"[{alias}]", unit, with_role=False, passages=passages)
               for alias, unit in units_by_alias.items()]
     content = f"Pregunta: {question}\n\nUnidades:\n\n" + "\n\n".join(blocks)
     return [
@@ -275,8 +326,9 @@ class _Layout:
     """Unidades a mostrar con su alias, en el orden fijado por el código, y los bloques de
     texto del pedido (articulado y considerandos)."""
 
-    def __init__(self, units, changes, modifiers, target_paths, source_norms):
+    def __init__(self, units, changes, modifiers, target_paths, source_norms, passages):
         self.units_by_alias = {}
+        self._passages = passages
         self._alias_of = {}
         self._changes = changes
         self._modifiers = modifiers
@@ -306,7 +358,8 @@ class _Layout:
     def _show(self, unit):
         blocks = self.considerandos if _is_considerando(unit) else self.articulado
         alias = self._assign(unit)
-        blocks.append(_unit_lines(f"[{alias}]", unit, with_role=True))
+        blocks.append(_unit_lines(f"[{alias}]", unit, with_role=True,
+                                  passages=self._passages))
         for change in self._changes.get(unit.pk, ()):
             blocks.append(self._change_block(change, alias, unit))
 
@@ -330,7 +383,7 @@ class _Layout:
                     "está más arriba.")
         source_alias = self._assign(source)
         return _unit_lines(f"[{source_alias}] {verb} {target} {since}", source,
-                           with_role=True)
+                           with_role=True, passages=self._passages)
 
 
 def _messages(question, reference_date, layout):
@@ -487,7 +540,11 @@ def _unit_record(unit, changes):
 
 def _grounded_result(statements, units_by_alias, changes, modifiers):
     """Resultado con fundamento, en el orden fijado por el código, y las anomalías de la
-    marca de regímenes. `changes` es `None` en el camino sin fecha."""
+    marca de regímenes. `changes` es `None` en el camino sin fecha.
+
+    Cada anomalía `regimes_flag_dropped` lleva en `statement` la posición de la
+    afirmación en la salida del modelo (contando desde 0), no la que ocupa en
+    `result["statements"]` después de ordenar."""
     anomalies = []
     ordered = []
     cited = {}
@@ -499,6 +556,8 @@ def _grounded_result(statements, units_by_alias, changes, modifiers):
                 units.append(unit)
         units.sort(key=order_key)
         differ = statement.get("regimes_differ", False)
+        # `statement` en la anomalía es `position`: la posición de la afirmación en la
+        # salida del modelo (`raw_output`), no en la respuesta ordenada por el código.
         if differ and not _regimes_cited(units):
             differ = False
             anomalies.append({"type": REGIMES_FLAG_DROPPED, "statement": position,
@@ -527,11 +586,20 @@ def _grounded_result(statements, units_by_alias, changes, modifiers):
     return result, anomalies
 
 
-def answer(question, unit_ids, reference_date=None):
+def answer(question, unit_ids, reference_date=None, passages=None):
     """Genera la respuesta a `question` con las unidades `unit_ids` (las seleccionadas
     por la recuperación) para la fecha de autorización `reference_date`. Ver el módulo.
     Sin unidades no llama al modelo: esa abstención (`below_threshold`) la resuelve quien
-    llama."""
+    llama.
+
+    `passages` (opcional): `{id de unidad: [(char_start, char_end), …]}`, tramos relativos
+    al texto de la unidad. De una unidad con tramos el pedido muestra solo esos tramos
+    (`prompt_text`); de las demás, la unidad entera. Es lo que decide la recuperación para
+    una unidad de más de 1.500 tokens (plan, "Recuperación", paso 6). Las citas, `units`,
+    `aliases` y el texto que se inserta siguen siendo de la unidad entera. Tramos para una
+    unidad que no se muestra, o fuera de su texto, son `ValueError` y no se llama al
+    modelo."""
+    passages = passages or {}
     units = _load_units(unit_ids)
     if not units:
         raise ValueError("La generación necesita al menos una unidad seleccionada.")
@@ -540,16 +608,19 @@ def answer(question, unit_ids, reference_date=None):
         version = PROMPT_VERSION_WITHOUT_DATE
         units_by_alias = {f"{ALIAS_PREFIX}{n}": unit
                           for n, unit in enumerate(units, start=1)}
-        messages = _messages_without_date(question, units_by_alias)
+        messages = _messages_without_date(question, units_by_alias, passages)
         changes, modifiers = None, {}
     else:
         version = PROMPT_VERSION_WITH_DATE
         changes, modifiers, target_paths, source_norms = _context(reference_date, units)
-        layout = _Layout(units, changes, modifiers, target_paths, source_norms)
+        layout = _Layout(units, changes, modifiers, target_paths, source_norms, passages)
         units_by_alias = layout.units_by_alias
         messages = _messages(question, reference_date, layout)
 
     aliases = {alias: unit.pk for alias, unit in units_by_alias.items()}
+    not_shown = sorted(set(passages) - set(aliases.values()))
+    if not_shown:
+        raise ValueError(f"Hay tramos para unidades que no se muestran: {not_shown}.")
     schema = build_schema(list(units_by_alias), version=version)
     common = {"prompt_version": version, "aliases": aliases}
 

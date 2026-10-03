@@ -392,3 +392,62 @@ def test_stored_result_is_json_serializable(modified, fake_generation):
     answer = ask([modified["art-1"].pk])
 
     assert json.loads(json.dumps(answer.result)) == answer.result
+
+
+@pytest.mark.django_db
+def test_unit_that_modifies_two_selected_units_is_shown_once(make_norm, make_document,
+                                                             make_reading, make_relation,
+                                                             fake_generation):
+    """REQ-008: si una misma unidad modifica a dos unidades seleccionadas, se muestra una
+    sola vez, a continuación de la primera; la segunda la nombra por su alias con "Su
+    texto está más arriba", y el resultado la trae una sola vez."""
+    target = make_norm(category="regimen_especifico")
+    target_units = make_reading(make_document(target), [
+        ("art-1", "ARTICULO 1.- Plazo sintético de diez días."),
+        ("art-2", "ARTICULO 2.- Garantía sintética del diez por ciento."),
+    ]).units_by_key
+    source = make_norm(category="regimen_especifico",
+                       citation="Modificatoria sintética 3/2022")
+    art_9 = make_reading(make_document(source), [
+        ("art-9", "ARTICULO 9.- Sustitúyense los artículos 1 y 2 por textos sintéticos."),
+    ]).units_by_key["art-9"]
+    for key in ("art-1", "art-2"):
+        make_relation(source, target, "modifica", source_unit_key="art-9",
+                      target_unit_key=key, effective_date=date(2022, 3, 1))
+    art_1, art_2 = target_units["art-1"], target_units["art-2"]
+    fake_generation.answer([st("Afirmación.", "U1", "U3")])
+
+    answer = ask([art_1.pk, art_2.pk])
+
+    assert answer.aliases == {"U1": art_1.pk, "U2": art_9.pk, "U3": art_2.pk}
+    content = user_message(fake_generation)
+    assert content.count(answering.unit_text(art_9)) == 1
+    after_u1 = content.split("[U1]", 1)[1].split("\n\n[U3]", 1)[0]
+    assert "[U2] modifica a [U1] desde el 01/03/2022" in after_u1
+    assert answering.unit_text(art_9) in after_u1
+    after_u3 = content.split("\n\n[U3]", 1)[1]
+    assert ("[U2] modifica a [U3] desde el 01/03/2022. Su texto está más arriba."
+            in after_u3)
+    units = answer.result["units"]
+    assert set(units) == {str(art_1.pk), str(art_2.pk), str(art_9.pk)}
+    assert [c["unit"] for c in units[str(art_1.pk)]["changes"]] == [art_9.pk]
+    assert [c["unit"] for c in units[str(art_2.pk)]["changes"]] == [art_9.pk]
+
+
+@pytest.mark.django_db
+def test_dropped_flag_names_the_position_in_the_model_output(corpus, fake_generation):
+    """REQ-019: `statement` de la anomalía `regimes_flag_dropped` es la posición de la
+    afirmación en la salida del modelo, no en la respuesta ordenada por el código."""
+    # Alias en el orden mostrado: U1 régimen, U2 marco, U3 dictamen.
+    fake_generation.answer([
+        st("Criterio.", "U3"),
+        st("Régimen marcado.", "U1", differ=True),
+    ])
+
+    answer = ask(pks(corpus, "regimen", "marco", "dictamen"))
+
+    assert [s["text"] for s in answer.result["statements"]] == ["Régimen marcado.",
+                                                               "Criterio."]
+    assert answer.result["statements"][0]["regimes_differ"] is False
+    assert [a["statement"] for a in answer.anomalies] == [1]
+    assert answer.anomalies[0]["type"] == answering.REGIMES_FLAG_DROPPED

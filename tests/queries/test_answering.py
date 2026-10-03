@@ -15,6 +15,7 @@ El orden por categoría, la marca de regímenes, los cambios y el contenido del 
 la v2 están en `test_answering_order.py`.
 """
 
+import hashlib
 import json
 from datetime import date
 
@@ -403,3 +404,26 @@ def test_without_date_regimes_differ_is_not_accepted(units, fake_generation):
     answer = answering.answer(QUESTION, ids(units, "art-2"))
 
     assert answer.result["reason"] == "invalid_output"
+
+
+# Huella SHA-256 de `consulta-v1.txt` con finales de línea LF, tal como está guardado en
+# el repositorio (`git show :evaluon/queries/prompts/consulta-v1.txt | sha256sum`).
+CONSULTA_V1_SHA256 = "ba732859c34958d2c95bdecbb9554c9b8c8e4b53b6149f05464b58a94df35131"
+
+
+def test_published_consulta_v1_does_not_change():
+    """REQ-008: una versión publicada de las instrucciones no se modifica; un cambio es un
+    archivo nuevo (P7). La huella de `consulta-v1.txt` queda fija.
+
+    Finales de línea: el repositorio guarda el archivo con LF, pero `.gitattributes` no
+    lo fija y con `core.autocrlf=true` la copia de trabajo de Windows lo tiene con CRLF
+    (y así llega al contenedor si se monta esa copia). Para que la huella sea la misma en
+    Linux y en Windows se calcula sobre los bytes con `\r\n` normalizado a `\n`, que es
+    también lo que lee `load_instructions` (modo texto). Cualquier otro cambio de bytes,
+    incluido un `\r` suelto, cambia la huella."""
+    raw = (answering.PROMPTS_DIR / "consulta-v1.txt").read_bytes()
+
+    normalized = raw.replace(b"\r\n", b"\n")
+
+    assert hashlib.sha256(normalized).hexdigest() == CONSULTA_V1_SHA256
+    assert answering.load_instructions("consulta-v1").encode("utf-8") == normalized
