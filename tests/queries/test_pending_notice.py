@@ -413,3 +413,175 @@ def test_notice_has_no_article_before_a_masculine_name(
         "Decreto 1023/2001 tiene 1 modificatoria que todavía no está cargada en el "
         "sistema. Puede haber cambios en este texto que el sistema no conoce."]
     assert "La Decreto" not in body
+
+
+# --- Ajustes de verificación ------------------------------------------------------------
+
+
+def test_answer_citing_two_units_of_the_same_norm_has_one_notice(
+    read_user, make_norm, make_document, make_reading, make_pending_amendment, fake_ai
+):
+    """REQ-021: dos afirmaciones que citan dos unidades de la misma norma llevan un solo
+    aviso de esa norma, en el resultado y en el hecho."""
+    norm = make_norm(citation="Disposición sintética 10/2020", general_regime=True)
+    make_reading(make_document(norm), [
+        ("art-1", "ARTICULO 1.- [m1] Garantía sintética uno."),
+        ("art-2", "ARTICULO 2.- [m2] Garantía sintética dos."),
+    ])
+    make_pending_amendment(norm)
+    fake_ai.reranker.scores = {"[m1]": 0.9, "[m2]": 0.8}
+    fake_ai.generation.answer([
+        {"text": "Uno.", "citations": ["U1"], "regimes_differ": False},
+        {"text": "Dos.", "citations": ["U2", "U1"], "regimes_differ": False},
+    ])
+
+    query = ask(read_user)
+
+    assert query.result["status"] == "grounded"
+    assert len({c for s in query.result["statements"] for c in s["citations"]}) == 2
+    assert query.result["notices"] == [notice(norm, 1)]
+    assert event_of(query).detail["notices"] == [notice(norm, 1)]
+
+
+def test_search_returning_several_units_of_the_same_norm_has_one_notice(
+    read_user, make_norm, make_document, make_reading, make_pending_amendment
+):
+    """REQ-021, REQ-012: una búsqueda que devuelve varias unidades de la misma norma
+    lleva un solo aviso de esa norma, en lo que devuelve y en el hecho `search`."""
+    norm = make_norm(citation="Disposición sintética 9/2020")
+    make_reading(make_document(norm), [
+        ("art-1", "ARTICULO 1.- Garantía zorzal uno."),
+        ("art-2", "ARTICULO 2.- Garantía zorzal dos."),
+        ("art-3", "ARTICULO 3.- Garantía zorzal tres."),
+    ])
+    for _ in range(3):
+        make_pending_amendment(norm)
+
+    outcome = services.search(read_user, DATE, words="zorzal")
+
+    assert len(outcome.results) == 3
+    assert outcome.notices == [notice(norm, 3)]
+    [event] = search_events()
+    assert event.detail["notices"] == [notice(norm, 3)]
+
+
+def test_search_warns_for_the_norm_of_a_change_it_shows(
+    client, read_user, make_norm, make_document, make_reading, make_relation,
+    make_pending_amendment
+):
+    """REQ-021 (decisión del Coordinador: "toda búsqueda que muestre una unidad de esa
+    norma"): la búsqueda muestra el texto de la unidad que modifica a una devuelta; si la
+    norma de esa unidad tiene modificatorias sin cargar, lleva su aviso, después del de
+    la norma devuelta, igual que la consulta."""
+    target = make_norm(citation="Disposición sintética 20/2020", general_regime=True)
+    make_reading(make_document(target),
+                 [("art-1", "ARTICULO 1.- Garantía calandria.")])
+    modifier = make_norm(citation="Disposición sintética 21/2021")
+    make_reading(make_document(modifier),
+                 [("art-1", "ARTICULO 1.- Sustitúyese el texto sintético.")])
+    make_relation(modifier, target, "modifica", source_unit_key="art-1",
+                  target_unit_key="art-1", effective_date=date(2021, 1, 1))
+    make_pending_amendment(modifier)
+
+    outcome = services.search(read_user, DATE, words="calandria")
+
+    [result] = outcome.results
+    assert [change.source_norm_id for change in result.changes] == [modifier.pk]
+    assert outcome.notices == [notice(modifier, 1)]
+    [event] = search_events()
+    assert event.detail["notices"] == [notice(modifier, 1)]
+
+    make_pending_amendment(target)
+    log_in(client)
+    response = client.post(reverse("queries:search"), {
+        "search-norm": "", "search-article": "", "search-words": "calandria",
+        "search-reference_date": DATE.isoformat(),
+    })
+    assert notice_boxes(response.content.decode()) == [
+        notice_text("Disposición sintética 20/2020", 1),
+        notice_text("Disposición sintética 21/2021", 1),
+    ]
+
+
+def _annotate_elsewhere(norm, user):
+    """Anota una modificatoria sin cargar de `norm` desde otra conexión, en un hilo, y
+    la confirma: queda a la vista de toda transacción que empiece después."""
+    import threading
+
+    from django.db import connection
+
+    from evaluon.norms.models import PendingAmendment
+
+    def annotate():
+        try:
+            PendingAmendment.objects.create(
+                target_norm_id=norm.pk, norm_type="disposicion", number="8999",
+                year=2015, issuer="organismo sintetico",
+                source_ref="https://example.org/modificatoria-en-medio",
+                registered_by=user)
+        finally:
+            connection.close()
+
+    worker = threading.Thread(target=annotate)
+    worker.start()
+    worker.join()
+
+
+def _annotate_after_regime(monkeypatch, norm, user):
+    """Reemplaza `services.applicable_regimes` para que, justo después de leer el régimen
+    dentro de la instantánea, otra conexión anote una modificatoria de `norm`."""
+    original = services.applicable_regimes
+    annotated = []
+
+    def read_then_annotate(reference_date):
+        regime = original(reference_date)
+        if not annotated:
+            _annotate_elsewhere(norm, user)
+            annotated.append(True)
+        return regime
+
+    monkeypatch.setattr(services, "applicable_regimes", read_then_annotate)
+    return annotated
+
+
+@pytest.mark.django_db(transaction=True)
+def test_answer_count_is_read_inside_the_snapshot(read_user, read_write_user, regime,
+                                                   fake_ai, monkeypatch):
+    """REQ-021, REQ-012 (P6): la cuenta del aviso de una consulta se lee dentro de la
+    misma instantánea que el régimen. Si otra conexión anota una modificatoria justo
+    después de leer el régimen, el aviso lleva la cuenta de la instantánea (2), no la
+    de después (3)."""
+    from django.db import connection
+
+    norm, _, _ = regime
+    fake_ai.reranker.scores = {ARTICLE: 0.9}
+    annotated = _annotate_after_regime(monkeypatch, norm, read_write_user)
+
+    query = ask(read_user)
+
+    assert annotated
+    assert connection.in_atomic_block is False
+    assert amendments.pending_count(norm) == 3
+    assert query.result["notices"] == [notice(norm, 2)]
+    assert event_of(query).detail["notices"] == [notice(norm, 2)]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_search_count_is_read_inside_the_snapshot(read_user, read_write_user, regime,
+                                                   monkeypatch):
+    """REQ-021, REQ-012 (P6): la cuenta del aviso de una búsqueda se lee dentro de la
+    misma instantánea que el régimen y los resultados. Si otra conexión anota una
+    modificatoria justo después de leer el régimen, el aviso lleva 2, no 3."""
+    from django.db import connection
+
+    norm, _, _ = regime
+    annotated = _annotate_after_regime(monkeypatch, norm, read_write_user)
+
+    outcome = services.search(read_user, DATE, norm_id=norm.pk, article="5")
+
+    assert annotated
+    assert connection.in_atomic_block is False
+    assert amendments.pending_count(norm) == 3
+    assert outcome.notices == [notice(norm, 2)]
+    [event] = search_events()
+    assert event.detail["notices"] == [notice(norm, 2)]

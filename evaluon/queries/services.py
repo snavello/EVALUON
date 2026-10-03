@@ -115,9 +115,12 @@ todas las normas o en una). A diferencia de la consulta, busca aunque no haya r�
 la fecha. Deja el hecho `search` con el tipo de búsqueda, los términos, la fecha, el
 régimen y las unidades devueltas con su marca de derogada (no el resultado completo de
 cada una: la búsqueda por palabras no tiene límite). Los avisos de modificatorias sin
-cargar de las normas de las unidades devueltas (T-052), con la misma forma que en la
-consulta y contados dentro de la misma instantánea, van en lo que devuelve y en el
-detalle del hecho (`notices`).
+cargar (T-052), con la misma forma que en la consulta y contados dentro de la misma
+instantánea, van en lo que devuelve y en el detalle del hecho (`notices`). Como en la
+consulta, cuentan las normas de las unidades que se muestran: las devueltas y, después,
+las que traen un cambio de una devuelta y cuyo texto se muestra (`source_unit_id`;
+decisión del Coordinador: manda REQ-021, "toda búsqueda que muestre una unidad de esa
+norma").
 """
 
 import time
@@ -719,18 +722,18 @@ def search(user, reference_date=None, *, norm_id=None, article="", words="",
         else:
             kind = SEARCH_BY_WORDS
             results = direct_search.by_words(words, reference_date, norm_id=norm_id)
+        shown = _search_shown_units(results)
         counts = {}
-        for result in results:
-            if result.norm_id not in counts:
-                counts[result.norm_id] = amendments.pending_count(result.norm_id)
+        for _, norm, _ in shown:
+            if norm not in counts:
+                counts[norm] = amendments.pending_count(norm)
 
     terms = {"norm": norm_id, "norm_name": norm_name, "article": article,
              "words": words}
-    notices = _notices(
-        [result.unit_id for result in results],
-        {result.unit_id: (result.norm_id, result.norm_name, counts[result.norm_id])
-         for result in results},
-    )
+    pending = {}
+    for unit_id, norm, name in shown:
+        pending.setdefault(unit_id, (norm, name, counts[norm]))
+    notices = _notices([unit_id for unit_id, _, _ in shown], pending)
     event = audit.record(
         EventType.SEARCH,
         outcome=Outcome.OK,
@@ -748,6 +751,18 @@ def search(user, reference_date=None, *, norm_id=None, article="", words="",
     )
     return SearchOutcome(kind=kind, terms=terms, reference_date=reference_date,
                          regime=regime, results=results, notices=notices, event=event)
+
+
+def _search_shown_units(results):
+    """Las unidades que muestra una búsqueda, como `(unidad, norma, nombre)`, en el orden
+    en que aparecen para los avisos: las devueltas y después las que traen un cambio de
+    una devuelta con su texto (`source_unit_id`). Un cambio de una norma entera no
+    muestra ninguna unidad."""
+    shown = [(result.unit_id, result.norm_id, result.norm_name) for result in results]
+    shown += [(change.source_unit_id, change.source_norm_id, change.source_norm_name)
+              for result in results for change in result.changes
+              if change.source_unit_id is not None]
+    return shown
 
 
 def _search_unit_record(result):
