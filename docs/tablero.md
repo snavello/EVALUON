@@ -63,6 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 32 tareas sin terminar.
+- ▶ T-031 · Partir en pasajes las unidades largas (en curso)
 - ○ T-021 · Leer un PDF escaneado con reconocimiento de texto (pendiente)
 - ○ T-022 · Leer una página web guardada (pendiente)
 - ○ T-023 · Partir normas completas con incisos, anexos y considerandos (pendiente)
@@ -73,7 +74,6 @@ flowchart LR
 - ○ T-028 · Integrar los tres formatos en la carga (pendiente)
 - ○ T-029 · Registrar relaciones entre normas y mostrar los vínculos (pendiente)
 - ○ T-030 · Registrar versiones de una norma (pendiente)
-- ○ T-031 · Partir en pasajes las unidades largas (pendiente)
 - ○ T-032 · Recuperar por tres caminos y unir los candidatos (pendiente)
 - ○ T-033 · Seleccionar por categoría, sumar cambios y ordenar (pendiente)
 - ○ T-034 · Completar instrucciones, marca de regímenes y orden (pendiente)
@@ -157,7 +157,7 @@ flowchart TD
   T028["○ T-028 · Integrar los tres formatos en la carga"]:::todo
   T029["○ T-029 · Registrar relaciones entre normas y mostrar…"]:::todo
   T030["○ T-030 · Registrar versiones de una norma"]:::todo
-  T031["○ T-031 · Partir en pasajes las unidades largas"]:::todo
+  T031["▶ T-031 · Partir en pasajes las unidades largas"]:::active
   T032["○ T-032 · Recuperar por tres caminos y unir los candi…"]:::todo
   T033["○ T-033 · Seleccionar por categoría, sumar cambios y…"]:::todo
   T034["○ T-034 · Completar instrucciones, marca de regímenes…"]:::todo
