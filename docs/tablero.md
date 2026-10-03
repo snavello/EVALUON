@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 46 tareas sin terminar.
-- ○ T-007 · Crear el registro de auditoría y el alta de usuarios (pendiente)
+- ▶ T-007 · Crear el registro de auditoría y el alta de usuarios (en curso)
 - ○ T-008 · Crear las tablas de normas, lecturas, unidades y pasajes (pendiente)
 - ○ T-009 · Crear las funciones de unidades consultables a una fecha (pendiente)
 - ○ T-010 · Crear la tabla del registro detallado de consultas (pendiente)
@@ -125,7 +125,7 @@ flowchart TD
   T004["✓ T-004 · Fijar Postgres con sus extensiones y búsque…"]:::done
   T005["✓ T-005 · Armar el esqueleto de Django con sus librer…"]:::done
   T006["✓ T-006 · Crear usuarios con rol, ingreso y salida"]:::done
-  T007["○ T-007 · Crear el registro de auditoría y el alta de…"]:::todo
+  T007["▶ T-007 · Crear el registro de auditoría y el alta de…"]:::active
   T008["○ T-008 · Crear las tablas de normas, lecturas, unida…"]:::todo
   T009["○ T-009 · Crear las funciones de unidades consultable…"]:::todo
   T010["○ T-010 · Crear la tabla del registro detallado de co…"]:::todo
@@ -270,7 +270,7 @@ flowchart TD
 | REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | T-002, T-003, T-011, T-017, T-018, T-019, T-034, T-039, T-040, T-042, T-045, T-046 | ▶ en proceso |
 | REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto, desde la pantalla de consulta. Una unidad derogada aparece en la búsqueda marcada como tal | T-004, T-009, T-035, T-041 | ▶ en proceso |
 | REQ-011 | El sistema debe avisar cuando se intenta cargar una norma que ya está incorporada. Si es el mismo archivo, no lo incorpora; si es la misma norma en otro archivo o formato, pide confirmación expresa | T-008, T-026 | ○ pendiente |
-| REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | T-007, T-008, T-010, T-014, T-015, T-019, T-020, T-026, T-038, T-040, T-041, T-048, T-049, T-051, T-052 | ○ pendiente |
+| REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | T-007, T-008, T-010, T-014, T-015, T-019, T-020, T-026, T-038, T-040, T-041, T-048, T-049, T-051, T-052 | ▶ en proceso |
 | REQ-013 | El sistema debe ofrecer una pantalla de consulta donde una persona escribe su pregunta y ve la respuesta con sus citas; desde cada cita se ve el texto literal de la unidad y se puede abrir la norma original | T-005, T-016, T-019, T-020, T-037, T-047 | ▶ en proceso |
 | REQ-014 | La pantalla de consulta debe distinguir a simple vista una respuesta con fundamento de un resultado "no determinado" | T-016, T-037 | ○ pendiente |
 | REQ-015 | El sistema debe incorporar normas en tres formatos: PDF con texto, PDF escaneado y página web guardada. Cuando el texto de una unidad se obtuvo por reconocimiento sobre una imagen, debe quedar indicado en la unidad y en el informe de lectura | T-012, T-021, T-022, T-025, T-028, T-037, T-043 | ○ pendiente |
