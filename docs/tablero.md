@@ -17,6 +17,7 @@ flowchart LR
   F007["○ 007 · Acceso por red"]:::todo
   F008["○ 008 · Ofertas y ficha por oferta"]:::todo
   F009["○ 009 · Validación continua con la Co…"]:::todo
+  F010["○ 010 · Asistente técnico"]:::todo
   F001 --> F002
   F003 --> F002
   F001 --> F003
@@ -28,6 +29,8 @@ flowchart LR
   F001 --> F007
   F003 --> F008
   F001 --> F009
+  F003 --> F010
+  F008 --> F010
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -39,13 +42,14 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 2 de 7 · Plan | 0/19 | ░░░░░░░░░░ 0% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 0/20 | ░░░░░░░░░░ 0% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
 | 007 · Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | No iniciada | — | — |
 | 008 · Ofertas y ficha por oferta | La carga de cada oferta en varios documentos (PDF con texto o escaneado) y una ficha por oferta: síntesis de lo ofrecido frente a cada requisito de la matriz, con los documentos y fragmentos que lo respaldan | No iniciada | — | — |
 | 009 · Validación continua con la Comisión | Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus respuestas. Cada cuestión resuelta puede quedar como fundamento (ADR-0009), como caso para medir al sistema o como pedido de cargar una norma o un documento. Lo que queda sin validar se ve como pendiente. Uso intensivo al principio, y después ante cuestiones que no se saben resolver | No iniciada | — | — |
+| 010 · Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | No iniciada | — | — |
 
 <a id="001"></a>
 
@@ -350,11 +354,11 @@ flowchart TD
 
 ## 003 · Procedimiento, pliego final y matriz de cumplimiento
 
-**Etapa actual:** 2 de 7 · Plan (1 dudas abiertas) · [carpeta](../specs/003-pliego-matriz)
+**Etapa actual:** 4 de 7 · Desarrollo (1 dudas abiertas) · [carpeta](../specs/003-pliego-matriz)
 
 ```mermaid
 flowchart LR
-  E0["✓ 1. Spec"]:::done --> E1["▶ 2. Plan"]:::active --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  E0["✓ 1. Spec"]:::done --> E1["✓ 2. Plan"]:::done --> E2["✓ 3. Tareas"]:::done --> E3["▶ 4. Desarrollo"]:::active --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -364,30 +368,31 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Aprobar el plan (compuerta del responsable).
+- **Próximo paso:** Desarrollar: 20 tareas sin terminar.
 - ○ T-067 · Crear las tablas, los tipos de hecho y los parámetros de la 003 (pendiente)
 - ○ T-068 · Sumar el rol de la Comisión a los usuarios (pendiente)
 - ○ T-069 · Registrar un procedimiento y mostrar su régimen (pendiente)
-- ○ T-070 · Partir un pliego en tramos con control de cobertura (pendiente)
+- ○ T-070 · Partir un pliego en tramos con renglones, clase por sección y control de cobertura (pendiente)
 - ○ T-071 · Ejecutar pedidos en segundo plano con su propio motor (pendiente)
 - ○ T-072 · Cargar los documentos del pliego y leerlos en segundo plano (pendiente)
-- ○ T-073 · Proponer la matriz en nivel media (pendiente)
-- ○ T-074 · Mostrar la matriz propuesta, la cobertura y el aviso de fin (pendiente)
+- ○ T-073 · Proponer la matriz en nivel media, con filas técnicas por renglón (pendiente)
+- ○ T-074 · Mostrar la matriz propuesta con la leyenda de borrador, la cobertura y el aviso de fin (pendiente)
 - ○ T-075 · Probar el hilo mínimo con el caso-00 y los servicios reales (pendiente)
 - ○ T-076 · Preparar la lista esperada del caso-00 (pendiente)
 - ○ T-077 · Medir una propuesta contra una lista esperada (pendiente)
 - ○ T-078 · Completar los niveles alta y exigente (pendiente)
 - ○ T-079 · Revisar la matriz: confirmar, corregir, quitar y agregar (pendiente)
 - ○ T-080 · Sugerir consecuencias con fundamento (pendiente)
-- ○ T-081 · Elegir la consecuencia en la pantalla (pendiente)
+- ○ T-081 · Elegir la consecuencia en la pantalla, con su motivo (pendiente)
 - ○ T-082 · Validar la matriz y abrir versiones nuevas (pendiente)
 - ○ T-083 · Incorporar circulares y respuestas a consultas (pendiente)
 - ○ T-084 · Correr la medición del caso-00 (pendiente)
 - ○ T-085 · Ofrecer solo los niveles que mejoran (pendiente)
+- ○ T-086 · Imprimir y exportar la matriz a PDF con la leyenda de borrador (pendiente)
 
 ### Qué se hizo
 
-- Etapas completas: Spec.
+- Etapas completas: Spec, Plan, Tareas.
 
 ### Mapa de tareas
 
@@ -396,22 +401,23 @@ flowchart TD
   T067["○ T-067 · Crear las tablas, los tipos de hecho y los…"]:::todo
   T068["○ T-068 · Sumar el rol de la Comisión a los usuarios"]:::todo
   T069["○ T-069 · Registrar un procedimiento y mostrar su rég…"]:::todo
-  T070["○ T-070 · Partir un pliego en tramos con control de c…"]:::todo
+  T070["○ T-070 · Partir un pliego en tramos con renglones, c…"]:::todo
   T071["○ T-071 · Ejecutar pedidos en segundo plano con su pr…"]:::todo
   T072["○ T-072 · Cargar los documentos del pliego y leerlos…"]:::todo
-  T073["○ T-073 · Proponer la matriz en nivel media"]:::todo
-  T074["○ T-074 · Mostrar la matriz propuesta, la cobertura y…"]:::todo
+  T073["○ T-073 · Proponer la matriz en nivel media, con fila…"]:::todo
+  T074["○ T-074 · Mostrar la matriz propuesta con la leyenda…"]:::todo
   T075["○ T-075 · Probar el hilo mínimo con el caso-00 y los…"]:::todo
   T076["○ T-076 · Preparar la lista esperada del caso-00"]:::todo
   T077["○ T-077 · Medir una propuesta contra una lista espera…"]:::todo
   T078["○ T-078 · Completar los niveles alta y exigente"]:::todo
   T079["○ T-079 · Revisar la matriz: confirmar, corregir, qui…"]:::todo
   T080["○ T-080 · Sugerir consecuencias con fundamento"]:::todo
-  T081["○ T-081 · Elegir la consecuencia en la pantalla"]:::todo
+  T081["○ T-081 · Elegir la consecuencia en la pantalla, con…"]:::todo
   T082["○ T-082 · Validar la matriz y abrir versiones nuevas"]:::todo
   T083["○ T-083 · Incorporar circulares y respuestas a consul…"]:::todo
   T084["○ T-084 · Correr la medición del caso-00"]:::todo
   T085["○ T-085 · Ofrecer solo los niveles que mejoran"]:::todo
+  T086["○ T-086 · Imprimir y exportar la matriz a PDF con la…"]:::todo
   T067 --> T068
   T068 --> T069
   T067 --> T070
@@ -436,6 +442,7 @@ flowchart TD
   T077 --> T084
   T080 --> T084
   T084 --> T085
+  T082 --> T086
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -457,3 +464,4 @@ flowchart TD
 | REQ-029 | Para cada requisito, el sistema debe proponer las consecuencias posibles de no cumplirlo (por ejemplo, desestimación de la oferta o intimación a subsanar), cada una con su fundamento en el pliego o en la norma aplicable; un integrante de la Comisión confirma una. Si el sistema no encuentra fundamento, la consecuencia queda "no determinada" | T-067, T-068, T-080, T-081, T-084 | ○ pendiente |
 | REQ-030 | Al pedir la matriz, se debe poder elegir el nivel de revisión (media, alta o exigente; por omisión, alta), y el nivel usado queda registrado con la matriz | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085 | ○ pendiente |
 | REQ-031 | El pliego final incluye las circulares modificatorias y aclaratorias y las preguntas de los oferentes con sus respuestas, si las hay, cada una con su fecha. Cuando una de ellas cambia o precisa un requisito, la matriz aplica el cambio, muestra los dos textos y cita el documento que lo produjo | T-067, T-072, T-074, T-083 | ○ pendiente |
+| REQ-032 | Una matriz que todavía no está validada se puede ver en pantalla, imprimir y exportar a PDF, siempre con la leyenda "BORRADOR INCOMPLETO" bien visible en cada página. Una matriz validada sale sin esa leyenda, con su versión y la fecha y el evaluador que la validó | T-067, T-074, T-082, T-086 | ○ pendiente |

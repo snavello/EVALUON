@@ -1,6 +1,6 @@
 # ADR-0018 · Pedidos largos en segundo plano y motor de generación para lotes
 
-Estado: propuesto · Fecha: 2026-10-03 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-03 · Decidió: responsable del proyecto
 
 ## Contexto
 

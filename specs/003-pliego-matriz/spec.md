@@ -1,6 +1,6 @@
 # Spec 003 · Procedimiento, pliego final y matriz de cumplimiento
 
-Estado: aprobada · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-03, requisitos técnicos por renglón, criterio de requisito y de clase, y tipos de consecuencia (al aprobar el plan), decisión del responsable
+Estado: aprobada · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-03, requisitos técnicos por renglón, criterio de requisito y de clase, y tipos de consecuencia (al aprobar el plan); REQ-032, matriz sin validar como "BORRADOR INCOMPLETO", decisión del responsable
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
 > Cada duda se marca `[A ACLARAR: pregunta concreta]`. Una spec con marcas pendientes no pasa la compuerta.
@@ -42,6 +42,7 @@ Roles (decisión del responsable, 2026-10-03):
 | REQ-029 | Para cada requisito, el sistema debe proponer las consecuencias posibles de no cumplirlo (por ejemplo, desestimación de la oferta o intimación a subsanar), cada una con su fundamento en el pliego o en la norma aplicable; un integrante de la Comisión confirma una. Si el sistema no encuentra fundamento, la consecuencia queda "no determinada" | P3; régimen aplicable según REQ-022 |
 | REQ-030 | Al pedir la matriz, se debe poder elegir el nivel de revisión (media, alta o exigente; por omisión, alta), y el nivel usado queda registrado con la matriz | — |
 | REQ-031 | El pliego final incluye las circulares modificatorias y aclaratorias y las preguntas de los oferentes con sus respuestas, si las hay, cada una con su fecha. Cuando una de ellas cambia o precisa un requisito, la matriz aplica el cambio, muestra los dos textos y cita el documento que lo produjo | — |
+| REQ-032 | Una matriz que todavía no está validada se puede ver en pantalla, imprimir y exportar a PDF, siempre con la leyenda "BORRADOR INCOMPLETO" bien visible en cada página. Una matriz validada sale sin esa leyenda, con su versión y la fecha y el evaluador que la validó | — |
 
 **Qué es un requisito (decisión del responsable, 2026-10-03; enmendada al aprobar el plan).**
 - Es requisito de la oferta lo que la oferta tiene que presentar, ofrecer o comprometer, y toda condición del pliego que la oferta pueda contradecir o condicionar, aunque la cumpla el organismo: por ejemplo, la moneda y la forma y el plazo de pago (el pliego dice pago a 90 días y el oferente pide pago a los 3 días de la entrega). No son requisitos de la oferta la ejecución y el control del contrato, como las multas por atraso.
@@ -75,6 +76,7 @@ Roles (decisión del responsable, 2026-10-03):
 - **REQ-029.** Dado un requisito cuya falta el pliego sanciona con la desestimación, cuando se muestra la matriz propuesta, entonces el sistema sugiere "desestimación" con la cita de esa cláusula, y la consecuencia queda confirmada solo cuando un integrante de la Comisión la elige; la elección queda registrada con quién y cuándo.
 - **REQ-030.** Dado un pliego cargado, cuando se pide la matriz sin elegir nivel, entonces se usa "alta" y la matriz propuesta registra el nivel; con "media" o "exigente", la matriz registra el nivel elegido.
 - **REQ-031.** Dado un pliego que exige "16 GB de RAM" y una circular modificatoria posterior que dice "32 GB", cuando se propone la matriz, entonces el requisito exige 32 GB, muestra los dos textos y cita la circular; una respuesta a una pregunta de un oferente que precisa un requisito figura junto a ese requisito con su cita.
+- **REQ-032.** Dada una matriz propuesta sin validar, cuando se la ve, se la imprime o se la exporta a PDF, entonces cada página muestra la leyenda "BORRADOR INCOMPLETO"; dada una matriz validada, la salida no lleva la leyenda y muestra su versión, la fecha y quién la validó.
 
 ## Requisitos no funcionales
 
