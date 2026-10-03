@@ -32,6 +32,9 @@ DISCARD_REASONS = {
 
 BODY_CONTAINER = "Cuerpo"
 
+# Nombre de cada regla de partición en el texto del informe (T-024).
+RULE_NAMES = {"normas": "normas", "dictamenes": "dictámenes y recomendaciones"}
+
 
 def first_words(text, count=FIRST_WORDS):
     """Las primeras palabras de un tramo, en una sola línea."""
@@ -47,6 +50,7 @@ def build_report(
     part,
     rules_version,
     containers,
+    rule="normas",
     sequence=(),
     uppercase_in_units=(),
     doubtful_headings=(),
@@ -98,6 +102,8 @@ def build_report(
 
     return {
         "rules_version": rules_version,
+        # Regla elegida por la categoría: `normas` o `dictamenes` (T-024).
+        "rule": rule,
         "part": part,
         "pages": {"total": len(reading.pages), "not_read": list(reading.pages_not_read)},
         "units": {
@@ -107,7 +113,8 @@ def build_report(
         },
         # Control de secuencia por contenedor: números que faltan (saltos aceptados
         # dentro del margen) y encabezados que no se aceptaron (repeticiones,
-        # transcripciones, saltos grandes), con la unidad en la que quedaron.
+        # transcripciones, saltos grandes), con la unidad en la que quedaron. En un
+        # dictamen, `heading` es "punto"; si falta, son artículos.
         "sequence": [dict(item) for item in sequence],
         # Párrafos en mayúsculas sin forma reconocida que quedaron dentro de una unidad
         # (decisión del responsable del 2026-10-03): para que los revise quien valida.
@@ -185,7 +192,10 @@ def _pages(start, end):
 def report_text(report):
     """El informe en texto legible, en español llano."""
     lines = ["Informe de lectura"]
-    lines.append(f"Reglas de partición: versión {report['rules_version']}. Parte: {report['part']}.")
+    rule = RULE_NAMES.get(report["rule"], report["rule"])
+    lines.append(
+        f"Reglas de partición: versión {report['rules_version']}, de {rule}. Parte: {report['part']}."
+    )
 
     pages = report["pages"]
     not_read = ", ".join(str(number) for number in pages["not_read"]) or "ninguna"
@@ -211,8 +221,8 @@ def report_text(report):
             inside = f", quedó dentro de {heading['inside']}" if heading["inside"] else ""
             where = _pages(heading["page"], heading["page"])
             lines.append(
-                f"  {item['container']}: encabezado del artículo {heading['number']} fuera de "
-                f"secuencia, {where}{inside}."
+                f"  {item['container']}: encabezado del {item.get('heading', 'artículo')} "
+                f"{heading['number']} fuera de secuencia, {where}{inside}."
             )
 
     doubtful = report["doubtful_headings"]
