@@ -1684,3 +1684,13 @@ Todas debajo de los 30 segundos. Con la fecha de 2021 la página muestra "No det
 **Falta probar en un navegador real** (esta sesión no tuvo navegador): el control de fecha, el script de espera (también al volver con "Atrás"), que la política de contenido no bloquee nada en la consola, el formulario sin JavaScript y que los tres bloques se distingan a simple vista.
 
 **Cierre.** `docker compose -p evaluon-t020 down`, sin `-v`: la base de esta prueba queda cargada en `evaluon-t020_pgdata` para repetir la pregunta. GPU en 0 MiB.
+
+### Cierre de T-020 (Coordinador, 2026-10-03)
+
+- **Qué evita el corte de una consulta larga.** Con `--threads 4`, Gunicorn usa hilos (gthread), y en ese modo `--timeout` no limita cuánto dura un pedido. Lo que impide que una consulta de más de 30 s se corte es que el proceso tenga hilos. La espera de 120 s no es la protección. Lo comprobó la verificación: con `--timeout 30` y 4 hilos, una consulta de 35 s no se corta. Con `--threads 1` sí se corta. `tests/queries/test_wait.py` controla las dos cosas: que haya más de un hilo y que la espera supere 30 s.
+- **Navegador real.** El Coordinador probó la pantalla en el navegador integrado de la aplicación de escritorio, sobre esta misma base y con los servicios reales. Ingresó con `prueba-consulta` y preguntó "¿Qué porcentaje de garantía de mantenimiento de oferta se exige?" con la fecha del día. Resultado:
+  - La respuesta vino con fundamento y citas del art. 64 de la Disposición AFIP 247/2022: "cinco por ciento (5%)".
+  - Cada cita despliega el texto literal.
+  - La consola no muestra violaciones de la política de contenido.
+  - El control de fecha muestra día/mes/año y rechaza una fecha futura. El script de espera desactiva el botón y muestra el aviso. Esto ya estaba probado en T-016.
+  - Queda sin probar que el botón vuelva a habilitarse al volver con "Atrás": se anotó en T-037.
