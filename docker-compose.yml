@@ -22,12 +22,34 @@ x-app: &app
     POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD (copiar .env.example a .env y completarla)}"
     POSTGRES_HOST: db
     POSTGRES_PORT: "5432"
+    # Servicios de IA (T-054). Las variables de modelo son las mismas que arman el
+    # `command` de generation, embeddings y reranker, con el mismo valor por omisión: así
+    # el servidor y la aplicación leen una sola fuente (.env) y el registro de cada
+    # consulta nombra el modelo que respondió (P6). tests/test_compose_env.py comprueba
+    # que coincidan; al cambiar un valor por omisión, cambiarlo en los dos lugares y en
+    # evaluon/settings.py.
+    GENERATION_URL: ${GENERATION_URL:-http://generation:8080}
+    EMBEDDINGS_URL: ${EMBEDDINGS_URL:-http://embeddings:8080}
+    RERANKER_URL: ${RERANKER_URL:-http://reranker:8080}
+    GENERATION_MODEL_ALIAS: ${GENERATION_MODEL_ALIAS:-gemma-4-12b-it-qat-q4_0}
+    GENERATION_MODEL_FILE: ${GENERATION_MODEL_FILE:-gemma-4-12b-it-qat-q4_0.gguf}
+    GENERATION_MODEL_SHA256: ${GENERATION_MODEL_SHA256:-93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b}
+    GENERATION_CTX_SIZE: "${GENERATION_CTX_SIZE:-16384}"
+    EMBEDDINGS_MODEL_ALIAS: ${EMBEDDINGS_MODEL_ALIAS:-bge-m3}
+    EMBEDDINGS_MODEL_FILE: ${EMBEDDINGS_MODEL_FILE:-bge-m3-FP16.gguf}
+    EMBEDDINGS_MODEL_SHA256: ${EMBEDDINGS_MODEL_SHA256:-daec91ffb5dd0c27411bd71f29932917c49cf529a641d0168496c3a501e3062c}
+    RERANKER_MODEL_ALIAS: ${RERANKER_MODEL_ALIAS:-bge-reranker-v2-m3}
+    RERANKER_MODEL_FILE: ${RERANKER_MODEL_FILE:-bge-reranker-v2-m3-FP16.gguf}
+    RERANKER_MODEL_SHA256: ${RERANKER_MODEL_SHA256:-5df93be121c09c43432102ad2b9569d369ccb85c209ca7583e8ccd28f0e41b88}
   volumes:
     - ./evaluon:/app/evaluon:ro
     - ./tests:/app/tests:ro
     - ./scripts:/app/scripts:ro
     - ./manage.py:/app/manage.py:ro
     - ./pyproject.toml:/app/pyproject.toml:ro
+    # Solo para tests/test_compose_env.py, que compara lo que ve la aplicación con lo que
+    # usan los servicios de IA.
+    - ./docker-compose.yml:/app/docker-compose.yml:ro
     - ./corpus:/app/corpus:ro
     - ./evals:/app/evals
   networks:
