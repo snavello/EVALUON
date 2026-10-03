@@ -200,7 +200,9 @@ def gunicorn(ai_services, tmp_path):
             try:
                 urllib.request.urlopen(base + "/ingresar/", timeout=2).close()
                 break
-            except (urllib.error.URLError, ConnectionError):
+            except (urllib.error.URLError, ConnectionError, TimeoutError, socket.timeout):
+                # El primer pedido puede tardar más que la espera de la sonda (por
+                # ejemplo, con el equipo cargado): se reintenta dentro del plazo total.
                 if process.poll() is not None or time.monotonic() > deadline:
                     log.flush()
                     pytest.fail("Gunicorn no arrancó:\n"
