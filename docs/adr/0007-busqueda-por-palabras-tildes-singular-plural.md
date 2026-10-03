@@ -138,3 +138,11 @@ Consultadas el 2026-10-02.
 - [F3] Snowball, notas de versión: 3.0.0 (2025-05-08), "Handle -acion like -ación and -ucion like -ución": https://raw.githubusercontent.com/snowballstem/snowball/master/NEWS
 - [F4] PostgreSQL, sincronización de Snowball en la rama principal del 2025-02-19 (sin la versión 3.0.0, que es posterior): https://www.postgresql.org/message-id/E1tkZbJ-0003lu-1z%40gemulon.postgresql.org
 - Mediciones propias: `specs/001-normativa/entorno.md`, T-004, secciones 4 a 6.
+
+## Adenda 2026-10-02 · La eñe
+
+**Decisión del responsable:** la "ñ" se conserva en la búsqueda por palabras, porque es una letra del español y no una vocal con acento. `unaccent` la convertía en "n", así que "año" y "ano", o "daño" y "dano", compartían lexema. `search_normalize` protege la "ñ" y la "Ñ" antes de quitar los acentos y las repone después; lo demás no cambia (tarea T-053).
+
+Comprobado por el Coordinador en un Postgres descartable con la imagen fijada en T-004: "año" da `año` y "ano" da `ano`; "señal" y "señales" dan `señal`; "compañía" y "compañías" dan `compañi`; "AÑO" da `año`; "Ñandú" da `ñandu`; "licitacion", "pingüino" y "297/03" dan lo mismo que antes.
+
+**Qué se pierde:** quien escriba sin eñe no encuentra la palabra con eñe ("compania" no encuentra "compañía"). Es la consecuencia directa de tratarla como letra propia; el camino por significado cubre esos casos. "año" y "años" no comparten raíz (`año` y `años`): es una limitación del lematizador, como la de "régimen".

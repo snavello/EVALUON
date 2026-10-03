@@ -68,6 +68,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-050 | Partir la 297/03 y el cuerpo de la 247/2022 desde la web | REQ-003 | T-022, T-025 | pendiente |
 | T-051 | Registrar las modificatorias sin cargar de una norma | REQ-012, REQ-021 | T-029 | pendiente |
 | T-052 | Avisar modificatorias sin cargar en respuesta y búsqueda | REQ-012, REQ-021 | T-041, T-051 | pendiente |
+| T-053 | Conservar la eñe en la búsqueda por palabras | REQ-010 | T-009 | terminada |
 
 ## Detalle
 
@@ -507,6 +508,15 @@ Los bloques A a L del plan, partidos en tareas de una sesión. Entre paréntesis
 - **Archivos:** `evaluon/queries/services.py`, `evaluon/queries/views.py`, `evaluon/templates/` (consulta), `evaluon/static/`, `tests/queries/test_pending_notice.py`.
 - **Verificación:** `pytest tests/queries/test_pending_notice.py`, con los dobles. Cubre el criterio de REQ-021: dada una norma con dos modificatorias anotadas como no cargadas, una respuesta que cita una unidad suya muestra en la pantalla el aviso con la cantidad 2; una búsqueda que devuelve una unidad suya, también; cargada, validada y relacionada una de las dos, una consulta nueva muestra 1; con las dos, el aviso deja de aparecer. Además: una respuesta que solo cita otra norma no lleva aviso; un "no determinado" no lleva aviso; la consulta hecha antes sigue mostrando su aviso con 2; el aviso queda en `queries_query.result` y en el detalle del hecho `search` (REQ-012); el pedido enviado al motor no contiene el texto del aviso.
 - **No tocar:** `evaluon/norms/` (la cuenta se llama, no se modifica); `evaluon/queries/retrieval.py`, `answering.py`, `search.py` y `prompts/`; `evaluon/queries/models.py`; `evaluon/queries/evaluation.py` (T-042); la plantilla de ingreso.
+- **Entorno:** Cualquier equipo con Docker
+
+### T-053 · Conservar la eñe en la búsqueda por palabras
+
+- **Requisitos:** REQ-010
+- **Qué hay que hacer:** (pedido del responsable del 2026-10-02, ADR-0007, adenda "La eñe") migración nueva en `norms` con SQL propio y su reversa que reemplaza `search_normalize` para que la "ñ" y la "Ñ" no pasen por `unaccent`: se protegen antes de quitar los acentos y se reponen después, con funciones nombradas con esquema, sin cambiar la reposición de la tilde de "-acion" y "-ucion" ni las funciones `search_document` y `search_query`. Como `tsv` es una columna calculada con una función inmutable, la migración recalcula `tsv` de los pasajes existentes y su índice; la reversa vuelve a la definición anterior y también recalcula. Actualizar `tests/norms/test_text_search_config.py`: los lexemas del ADR-0007 siguen iguales y se agregan los de la eñe.
+- **Archivos:** `evaluon/norms/migrations/` (migración nueva), `tests/norms/test_text_search_config.py`, `specs/001-normativa/entorno.md` (sección T-053).
+- **Verificación:** `pytest tests/norms` y reversa de la migración sin error. "año" y "ano" no comparten lexema; "señal" y "señales" sí; "AÑO" da el mismo lexema que "año"; "compañía" y "compañías" comparten lexema; "Ñandú" conserva la eñe; siguen iguales todos los lexemas y coincidencias de la tabla del ADR-0007, "pingüino" y "297/03". Un pasaje cargado antes de la migración con "año" deja de coincidir con "ano" después de aplicarla, sin volver a cargarlo.
+- **No tocar:** las migraciones ya aplicadas; `evaluon/norms/models.py`; `tests/conftest.py`; `evaluon/queries/`.
 - **Entorno:** Cualquier equipo con Docker
 
 ### T-042 · Agregar calibración del umbral y comparación de corridas
