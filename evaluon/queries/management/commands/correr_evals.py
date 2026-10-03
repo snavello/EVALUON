@@ -20,8 +20,12 @@ Opciones:
   `--corridas` (T-058; plan, "Recalificar una corrida guardada"). La carpeta original no
   se modifica. No se combina con `--quitando-piezas`.
 
-La corrida se compara sola con la anterior de la carpeta de corridas y propone el umbral
-del reranker (provisorio): el comando lo muestra, pero no cambia `settings.py`. Una
+El comando muestra las medidas exigidas con su margen de error: la cita literal y el
+tiempo de toda la corrida, la respuesta correcta y la abstención del lote de aceptación,
+y avisa si la corrida no tiene casos de ese lote (T-060; ADR-0014, punto 1). La corrida
+se compara sola con la anterior de la carpeta de corridas, lote por lote, y propone el
+umbral del reranker (provisorio) con la regla del hueco (ADR-0014, punto 2): el comando
+muestra la misma línea que `resumen.md`, pero no cambia `settings.py`. Una
 recalificación se compara con la corrida que recalifica.
 
 Si ningún caso está bien formado y con visto bueno, no se corre ninguno, se dice así y
@@ -105,6 +109,8 @@ class Command(BaseCommand):
         lines += [f"{name}: {value} (umbral: {threshold}; cumple: {meets})"
                   for name, value, threshold, meets
                   in evaluation.measure_rows(report.measures)]
+        if not report.measures["acceptance_cases"]:
+            lines.append(evaluation.ACCEPTANCE_MISSING)
         pairs = report.pairs
         failing_pairs = [p for p in pairs if p["status"] != evaluation.PAIR_PASSES]
         lines.append(f"Pares de REQ-020: {len(pairs) - len(failing_pairs)} de "

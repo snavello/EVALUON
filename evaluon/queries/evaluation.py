@@ -1,6 +1,7 @@
 """Corrida del conjunto de preguntas y medida de las exigencias de la spec (P7; REQ-008,
 REQ-009, REQ-020, REQ-021; plan 001, "Evals"). Versión de T-039, con el diagnóstico de
-T-042 y el corrector y la recalificación de T-058.
+T-042, el corrector y la recalificación de T-058, y los lotes, el margen de error y la
+calibración por hueco de T-060 (ADR-0014, puntos 1 y 2).
 
 `run(usuario, carpeta_de_casos, carpeta_de_corridas)`:
 
@@ -8,47 +9,74 @@ T-042 y el corrector y la recalificación de T-058.
 2. Lee los casos: un archivo `EV-NNN.yaml` por pregunta (`load_cases`). Un caso mal
    formado, o sin `fecha_autorizacion`, se informa y no se corre; un caso sin
    `visto_bueno` (vacío, "pendiente" o "no") tampoco se corre. Los demás archivos de la
-   carpeta se ignoran.
+   carpeta se ignoran. El campo optativo `lote` dice a qué lote pertenece el caso (ver
+   "Lotes", más abajo).
 3. Corre cada caso con la misma función que la pantalla, `services.ask`, con el canal
    `eval` y la `fecha_autorizacion` del caso, una pregunta por vez. Nunca pasa una
    fecha vacía: la función de consulta usaría la del día. Cada consulta queda en el
    registro de auditoría como cualquier otra (P6). Un caso que la consulta rechaza (por
    ejemplo, una fecha posterior al día) no sale de la medida: cuenta como incorrecto o
    como no abstenido, y el resumen lo marca.
-4. Mide cada caso (`grade`) y la corrida entera (`measure`):
-   - cita literal: sobre todas las citas de todas las respuestas, `Unit.text` guardado y
-     el texto que entrega `answering.citation_texts` para mostrar son iguales a
-     `canonical_text[char_start:char_end]` de la lectura de la unidad, leído acá por
-     separado. Umbral 100 %;
-   - respuesta correcta que cita la unidad correcta, sobre las preguntas con respuesta:
-     `grounded`, régimen aplicado igual a `regimen`, cita todas las `unidades` (si el
-     caso nombra un inciso, vale el artículo que lo contiene), contiene los
-     `datos_clave` y, con `difieren`, trae la marca `regimes_differ` en una afirmación
-     que cita al régimen específico y al marco nacional. Al menos 85 %;
-   - abstención, sobre las preguntas sin respuesta (`esperado: no determinado`): cuenta
-     si el resultado es `undetermined`; una falla técnica no cuenta. Al menos 90 %;
-   - tiempo de cada consulta: mediana y máximo. Máximo de 30 segundos.
-   Aparte, y se espera cero fallas: los pares de REQ-020 (`check_pairs`) y el aviso de
+4. Mide cada caso (`grade`) y la corrida (`required_measures`, con `measure`):
+   - cita literal, sobre toda la corrida: sobre todas las citas de todas las
+     respuestas, `Unit.text` guardado y el texto que entrega `answering.citation_texts`
+     para mostrar son iguales a `canonical_text[char_start:char_end]` de la lectura de
+     la unidad, leído acá por separado. Umbral 100 %;
+   - respuesta correcta que cita la unidad correcta, sobre las preguntas con respuesta
+     del lote de aceptación: `grounded`, régimen aplicado igual a `regimen`, cita todas
+     las `unidades` (si el caso nombra un inciso, vale el artículo que lo contiene),
+     contiene los `datos_clave` y, con `difieren`, trae la marca `regimes_differ` en una
+     afirmación que cita al régimen específico y al marco nacional. Al menos 85 %;
+   - abstención, sobre las preguntas sin respuesta (`esperado: no determinado`) del lote
+     de aceptación: cuenta si el resultado es `undetermined`; una falla técnica no
+     cuenta. Al menos 90 %;
+   - tiempo de cada consulta, sobre toda la corrida: mediana y máximo. Máximo de 30
+     segundos.
+   Sin casos del lote de aceptación, el resumen y el comando dicen que las exigencias de
+   respuesta correcta y abstención no se pueden dar por cumplidas con la corrida. Las
+   mismas medidas del lote de ajuste van aparte, como diagnóstico. Aparte, con toda la
+   corrida, y se espera cero fallas: los pares de REQ-020 (`check_pairs`) y el aviso de
    REQ-021 (`notice_ok`).
 5. Diagnóstico (T-042; plan, "Evals", y ADR-0003, "Cómo se mide"), que no son
    exigencias de la spec:
    - recuperación de cada caso (`case_diagnostics`), leída del registro de su consulta:
      unidad correcta entre los candidatos, por camino y en la unión; entre las
      enviadas al modelo; su posición en el orden del reranker; puntaje más alto; si el
-     umbral la frenó; tiempo de la recuperación. Y de la corrida
+     umbral la frenó; tiempo de la recuperación. Y la del lote de ajuste
      (`retrieval_measures`), con las preguntas con y sin respuesta frenadas por el
      umbral;
    - salidas con falla de formato (`invalid_output`) o de cita (`invalid_citation`),
-     contadas por el `type` de las anomalías: una falla de servicio no cuenta;
-   - los casos de REQ-018 (etiqueta "dos categorías") y de REQ-019 (`difieren`), aparte;
-   - respuesta correcta y abstención por régimen (`regimen` del caso);
-   - calibración del umbral (`calibrate`), con el puntaje más alto de cada pregunta;
-   - comparación con la corrida anterior de la misma carpeta, con la igualdad al
-     repetir (`compare_runs`);
-   - a pedido (`ablation=True`), la comparación quitando piezas (`run_ablation`).
+     contadas por el `type` de las anomalías en toda la corrida: una falla de servicio
+     no cuenta;
+   - los casos de REQ-018 (etiqueta "dos categorías") y de REQ-019 (`difieren`), aparte,
+     de toda la corrida;
+   - respuesta correcta y abstención por régimen (`regimen` del caso), del lote de
+     ajuste;
+   - calibración del umbral (`calibrate`), con el puntaje más alto de cada pregunta del
+     lote de ajuste;
+   - comparación con la corrida anterior de la misma carpeta, lote por lote, con la
+     igualdad al repetir (`compare_runs`);
+   - a pedido (`ablation=True`), la comparación quitando piezas (`run_ablation`), con
+     el lote de ajuste.
 6. Guarda la corrida en `carpeta_de_corridas/<fecha>T<hora>_<commit>_<modelo>/`:
-   `parametros.json`, `resultados.jsonl` (un renglón por caso, también los que no se
-   corrieron) y `resumen.md`.
+   `parametros.json`, `resultados.jsonl` (un renglón por caso, con su lote, también los
+   que no se corrieron) y `resumen.md`. Los casos fallados del lote de aceptación van en
+   su propia sección, con el aviso de que no se usan para ajustar.
+
+Lotes (ADR-0014, punto 1; plan, "Evals", "Lote de aceptación"). `lote` vale `ajuste` o
+`aceptacion`, comparado sin tildes ni mayúsculas; sin el campo, el caso es de ajuste, y
+cualquier otro valor lo deja mal formado. El lote de ajuste (EV-001 a EV-031 y todo caso
+sin `lote` o con `lote: ajuste`) es el que se usa para ajustar el corrector, los datos
+clave, el umbral y las instrucciones, y para el diagnóstico. Del lote de aceptación salen
+la respuesta correcta y la abstención exigidas; no se usa nunca para ajustar. Un renglón
+guardado sin lote (corridas anteriores a T-060) es del lote de ajuste (`line_lot`); la
+recalificación toma el lote del caso vigente.
+
+Margen de error (plan, "Evals", "Margen de error"). Cada medida que es una proporción
+(cita literal, respuesta correcta y abstención, en la tabla de las exigencias, en la del
+lote de ajuste y en las medidas por régimen) se informa con su intervalo de confianza al
+95 % por el método de Wilson (`wilson_interval`, `z = 1,96`): "90,0 % (9 de 10; IC
+95 %: 59,6 % a 98,2 %)"; sin casos, "—". El tiempo no lleva intervalo.
 
 Datos clave y corrector (`key_data_missing`; ADR-0011; plan, "Evals", "Datos clave y
 corrector"; T-058). Cada elemento de `datos_clave` es un dato: un texto (una sola forma)
@@ -68,32 +96,37 @@ antes o después. No hay sinónimos: otra forma correcta entra como variante del
 la corrida que se presenta para aprobar, el responsable revisa además las respuestas
 contra la esperada (plan, "Evals").
 
-Calibración (plan, "Abstención", pasos 1 y 2; decisión del Coordinador en la
-verificación de T-042). El umbral propuesto es el más alto que, dejando cada vez una
-pregunta afuera, frena por error a lo sumo el 5 % de las preguntas con respuesta. Con
-los `n` puntajes de las preguntas con respuesta que llegaron a puntuarse, ordenados de
-menor a mayor, y una posición `k`: para cada pregunta se calcula el umbral con las
-demás (el puntaje en la posición `k` de las otras `n - 1`) y se mira si frena a la que
-quedó afuera; la proporción de frenadas es la estimación de `k`. Se elige la `k` más
-alta cuya estimación no pasa del 5 %, y el umbral es el puntaje en la posición `k` del
-conjunto completo, redondeado hacia abajo a tres decimales (la selección pasa con
-puntaje igual o mayor). Si ninguna `k` cumple (con menos de 20 preguntas, frenar una ya
-es más del 5 %), se propone el puntaje más bajo y se informa que no cumple. Se informa
-también, para comparar, la regla anterior: `k = piso(5 % de n)` sobre el conjunto
-completo. El valor es uno solo para los dos regímenes, se informa como provisorio y no
-cambia `settings.py`: lo fija T-045.
+Calibración por la regla del hueco (ADR-0014, punto 2; plan, "Abstención", "Calibración
+del umbral"). Reemplaza la regla de T-042 (dejar una afuera y frenar a lo sumo el 5 %).
+Entran solo casos del lote de ajuste, cada uno con su puntaje más alto: las preguntas
+con respuesta con puntaje y las sin respuesta con la etiqueta "ajena a la normativa" con
+puntaje; las de "tema cercano que la normativa no resuelve" no entran, porque las tiene
+que frenar el modelo. `A` es la ajena más alta y `B` la pregunta con respuesta más baja.
+Cada puntaje se acota entre 10⁻⁹ y 1 − 10⁻⁹ y se pasa a la escala anterior a la
+sigmoide, `logit(p) = ln(p / (1 − p))`. Hay hueco si `logit(B) > logit(A)`: el umbral
+propuesto es `sigmoid((logit(A) + logit(B)) / 2)`, redondeado hacia abajo a tres
+decimales (la selección pasa con puntaje igual o mayor), y el margen es
+`(logit(B) − logit(A)) / 2`, con un mínimo de 0,5 (`CALIBRATION_MIN_MARGIN`). Sin margen
+suficiente, el valor se informa marcado: no se fija sin decisión del responsable. Sin
+hueco, no hay umbral propuesto: se listan las ajenas con puntaje mayor o igual que `B` y
+las preguntas con respuesta con puntaje menor o igual que `A`, y decide el responsable.
+Sin ajenas o sin preguntas con respuesta con puntaje, la regla no se aplica y se dice
+por qué. Se informan además las preguntas sin respuesta que frenan el umbral propuesto y
+el actual, las de tema cercano por encima del propuesto, las preguntas con respuesta sin
+puntaje y la tabla de puntajes del lote de ajuste. El valor es uno solo para los dos
+regímenes, se informa como provisorio y no cambia `settings.py`.
 
-Comparación quitando piezas (ADR-0003). Cada caso se corre con cuatro configuraciones
-de `retrieval.retrieve(..., paths=, rerank=)` seguido de `retrieval.select_units`, sin
-pasar por la consulta ni por el modelo de generación: solo vectores (camino por
-significado, con reranker), solo palabras (camino por palabras, con reranker), combinada
-sin reranker (los tres caminos, sin umbral) y completa. Para una fecha sin régimen
-cargado no se busca, igual que en la consulta. "Entre las seleccionadas" es lo que
-selecciona la recuperación (`retrieve(...).selected`: sin reranker, toda la unión, así
-que coincide con "entre los candidatos", aclaración de T-032); "entre las enviadas al
-modelo" es lo que deja `select_units` con los cupos y el espacio. Estas recuperaciones no crean consultas
-ni hechos del registro de auditoría: lo que recuperó cada configuración queda en
-`resultados.jsonl` de la corrida.
+Comparación quitando piezas (ADR-0003). Cada caso del lote de ajuste se corre con cuatro
+configuraciones de `retrieval.retrieve(..., paths=, rerank=)` seguido de
+`retrieval.select_units`, sin pasar por la consulta ni por el modelo de generación: solo
+vectores (camino por significado, con reranker), solo palabras (camino por palabras, con
+reranker), combinada sin reranker (los tres caminos, sin umbral) y completa. Para una
+fecha sin régimen cargado no se busca, igual que en la consulta. "Entre las
+seleccionadas" es lo que selecciona la recuperación (`retrieve(...).selected`: sin
+reranker, toda la unión, así que coincide con "entre los candidatos", aclaración de
+T-032); "entre las enviadas al modelo" es lo que deja `select_units` con los cupos y el
+espacio. Estas recuperaciones no crean consultas ni hechos del registro de auditoría: lo
+que recuperó cada configuración queda en `resultados.jsonl` de la corrida.
 """
 
 import json
@@ -133,6 +166,9 @@ TIME_MEDIAN = "response_time_median"
 TIME_MAX = "response_time"
 MEDIAN_RISE_LIMIT = 0.25
 
+# Medidas que son proporciones: llevan margen de error y se comparan lote por lote.
+PROPORTIONS = ("literal_citation", "correct_answer", "abstention")
+
 NO_ANSWER = "no determinado"
 PENDING_AMENDMENTS = "pending_amendments"
 
@@ -159,10 +195,26 @@ PAIR_PASSES = "pasa"
 PAIR_FAILS = "falla"
 PAIR_INCOMPLETE = "incompleto"
 
-# Calibración: proporción de preguntas con respuesta que el umbral puede frenar por
-# error (plan, "Abstención", paso 2) y decimales del umbral propuesto.
-CALIBRATION_MAX_BLOCKED = 0.05
+# Calibración por la regla del hueco (ADR-0014, punto 2; plan, "Abstención"): margen
+# mínimo en la escala anterior a la sigmoide, decimales del umbral propuesto y cota de
+# los puntajes antes de pasarlos a `logit`, para que un 0 o un 1 no den infinito.
+CALIBRATION_MIN_MARGIN = 0.5
 CALIBRATION_DECIMALS = 3
+SCORE_BOUND = 1e-9
+
+# Etiquetas de las preguntas sin respuesta (plan, "Evals", `etiquetas`), ya normalizadas.
+FOREIGN = "ajena a la normativa"
+NEAR = "tema cercano que la normativa no resuelve"
+
+# Lotes (ADR-0014, punto 1; plan, "Evals", "Lote de aceptación"). Sin `lote`, el caso
+# es del lote de ajuste.
+ADJUSTMENT = "ajuste"
+ACCEPTANCE = "aceptacion"
+LOTS = (ACCEPTANCE, ADJUSTMENT)
+LOT_TEXT = {ACCEPTANCE: "aceptación", ADJUSTMENT: "ajuste"}
+
+# Margen de error: intervalo de Wilson al 95 % (plan, "Evals", "Margen de error").
+WILSON_Z = 1.96
 
 # Etiqueta de los casos de REQ-018 (plan, "Evals", `etiquetas`), ya normalizada.
 TWO_CATEGORIES = "dos categorias"
@@ -210,6 +262,7 @@ class Case:
     notice: bool
     approval: str
     labels: tuple = ()
+    lot: str = ADJUSTMENT
 
 
 @dataclass(frozen=True)
@@ -321,6 +374,30 @@ def _approval(data):
     raise CaseError("`visto_bueno` tiene que ser un texto")
 
 
+def _lot(data):
+    """`lote`: `ajuste` o `aceptacion`, sin distinguir tildes ni mayúsculas; sin el
+    campo, `ajuste` (plan, "Evals", `lote`)."""
+    value = data.get("lote")
+    if value is None:
+        return ADJUSTMENT
+    lot = normalize(value) if isinstance(value, str) else None
+    if lot not in LOTS:
+        raise CaseError(f"`lote` tiene que ser `{ADJUSTMENT}` o `{ACCEPTANCE}` (dice "
+                        f"{json.dumps(value, ensure_ascii=False, default=str)})")
+    return lot
+
+
+def line_lot(line):
+    """El lote de un renglón de una corrida. Un renglón guardado sin lote (corridas
+    anteriores a T-060) es del lote de ajuste."""
+    return line.get("lot") or ADJUSTMENT
+
+
+def lot_lines(lines, lot):
+    """Los renglones de `lines` del lote `lot`."""
+    return [line for line in lines if line_lot(line) == lot]
+
+
 def parse_case(path):
     """Lee y valida un caso. Devuelve un `Case` o lanza `CaseError`."""
     try:
@@ -371,6 +448,7 @@ def parse_case(path):
         notice=_flag(data, "aviso_modificatorias"),
         approval=_approval(data),
         labels=labels,
+        lot=_lot(data),
     )
 
 
@@ -808,16 +886,37 @@ def check_pairs(lines):
 # --- Medidas de la corrida -------------------------------------------------------------
 
 
+def wilson_interval(ok, total, z=WILSON_Z):
+    """Intervalo de confianza de la proporción `ok / total` por el método de Wilson,
+    como `(inferior, superior)` entre 0 y 1, o `None` sin casos (plan, "Evals", "Margen
+    de error"):
+
+        centro = (p + z²/(2n)) / (1 + z²/n)
+        radio  = z / (1 + z²/n) · √( p(1 − p)/n + z²/(4n²) )
+    """
+    if not total:
+        return None
+    p = ok / total
+    z2 = z * z
+    denominator = 1 + z2 / total
+    center = (p + z2 / (2 * total)) / denominator
+    radius = z / denominator * math.sqrt(p * (1 - p) / total + z2 / (4 * total * total))
+    return max(0.0, center - radius), min(1.0, center + radius)
+
+
 def _ratio(ok, total, threshold):
     rate = ok / total if total else None
-    return {"ok": ok, "total": total, "rate": rate, "threshold": threshold,
+    low, high = wilson_interval(ok, total) or (None, None)
+    return {"ok": ok, "total": total, "rate": rate, "low": low, "high": high,
+            "threshold": threshold,
             "meets": None if rate is None else rate >= threshold}
 
 
 def measure(lines):
-    """Las cuatro medidas exigidas sobre los renglones de los casos medidos: los
-    corridos y los que la consulta rechazó, que cuentan como incorrectos o no abstenidos.
-    El tiempo se mide solo sobre las consultas hechas."""
+    """Las cuatro medidas sobre los renglones de los casos medidos: los corridos y los
+    que la consulta rechazó, que cuentan como incorrectos o no abstenidos. El tiempo se
+    mide solo sobre las consultas hechas. Cada proporción trae su intervalo de Wilson
+    (`low` y `high`)."""
     answered = [line for line in lines if line["has_answer"]]
     unanswerable = [line for line in lines if not line["has_answer"]]
     times = [line["time_seconds"] for line in lines if line["time_seconds"] is not None]
@@ -839,6 +938,23 @@ def measure(lines):
             "threshold": MAX_SECONDS,
             "meets": None if longest is None else longest <= MAX_SECONDS,
         },
+    }
+
+
+def required_measures(lines):
+    """Las medidas exigidas (ADR-0014; plan, "Qué usa cada lote"): la cita literal y el
+    tiempo sobre toda la corrida; la respuesta correcta y la abstención sobre el lote de
+    aceptación. `acceptance_cases` es la cantidad de casos medidos de ese lote: sin
+    ninguno, las exigencias no se pueden dar por cumplidas con la corrida."""
+    whole = measure(lines)
+    acceptance = lot_lines(lines, ACCEPTANCE)
+    accepted = measure(acceptance)
+    return {
+        "literal_citation": whole["literal_citation"],
+        "correct_answer": accepted["correct_answer"],
+        "abstention": accepted["abstention"],
+        "response_time": whole["response_time"],
+        "acceptance_cases": len(acceptance),
     }
 
 
@@ -1011,7 +1127,7 @@ def special_cases(lines):
     }
 
 
-# --- Calibración del umbral (plan, "Abstención") ----------------------------------------
+# --- Calibración del umbral (ADR-0014, punto 2; plan, "Abstención") ---------------------
 
 
 def _floor(value):
@@ -1019,128 +1135,137 @@ def _floor(value):
     return math.floor(round(value * factor, 6)) / factor
 
 
-def threshold_at(scores, position):
-    """El puntaje que ocupa `position` (desde 0) en `scores` ordenados de menor a mayor,
-    redondeado hacia abajo a tres decimales: el umbral más alto que frena (puntaje
-    menor que el umbral) a lo sumo `position` de esos puntajes. `None` si no hay tantos
-    puntajes."""
-    if position >= len(scores):
-        return None
-    return _floor(sorted(scores)[position])
+def logit(score):
+    """El puntaje en la escala anterior a la sigmoide, `ln(p / (1 − p))`, con el puntaje
+    acotado entre 10⁻⁹ y 1 − 10⁻⁹ para que un 0 o un 1 redondeados no den infinito."""
+    p = min(max(score, SCORE_BOUND), 1 - SCORE_BOUND)
+    return math.log(p / (1 - p))
 
 
-def leave_one_out(answered, position):
-    """Estimación dejando cada vez una afuera para la posición `position`: por cada
-    pregunta con respuesta `(id, puntaje)`, el umbral se calcula con las demás
-    (`threshold_at(demás, position)`) y se mira si frena a la que quedó afuera."""
-    thresholds = {}
-    for index, (case_id, _) in enumerate(answered):
-        others = [score for i, (_, score) in enumerate(answered) if i != index]
-        threshold = threshold_at(others, position)
-        if threshold is not None:
-            thresholds[case_id] = threshold
-    blocked = [case_id for case_id, score in answered
-               if case_id in thresholds and score < thresholds[case_id]]
-    rate = len(blocked) / len(thresholds) if thresholds else None
-    return {
-        "position": position,
-        "blocked": blocked,
-        "total": len(thresholds),
-        "rate": rate,
-        "thresholds": thresholds,
-        "min": min(thresholds.values()) if thresholds else None,
-        "max": max(thresholds.values()) if thresholds else None,
-    }
+def sigmoid(value):
+    """La escala de 0 a 1 del valor `value` de la escala anterior a la sigmoide."""
+    return 1 / (1 + math.exp(-value))
 
 
-def _within(rate, max_rate):
-    return None if rate is None else rate <= max_rate + 1e-9
+def _group(entry):
+    """`answered`, `foreign`, `near` u `other` (sin respuesta sin ninguna de las dos
+    etiquetas). Una pregunta con las dos etiquetas cuenta como ajena."""
+    if entry["has_answer"]:
+        return "answered"
+    labels = {normalize(label) for label in entry.get("labels") or []}
+    if FOREIGN in labels:
+        return "foreign"
+    if NEAR in labels:
+        return "near"
+    return "other"
 
 
-def calibrate(entries, current, max_rate=CALIBRATION_MAX_BLOCKED):
-    """Calibración del umbral con el puntaje más alto de cada pregunta (decisión del
-    Coordinador en la verificación de T-042). Ver el módulo.
+def _point(entry):
+    return {"id": entry["id"], "score": entry["max_score"],
+            "logit": logit(entry["max_score"])}
 
-    `entries` son `{"id", "has_answer", "max_score"}`; `current` es el umbral con que se
-    corrió. Con los `n` puntajes de las preguntas con respuesta ordenados de menor a
-    mayor, se elige la posición `k` más alta cuya estimación dejando cada vez una afuera
-    (`leave_one_out`) frena por error a lo sumo `max_rate`; el umbral propuesto es el
-    puntaje en la posición `k` del conjunto completo, redondeado hacia abajo a tres
-    decimales. Si ninguna posición cumple (pasa con menos de 20 preguntas), se propone
-    el puntaje más bajo (`k = 0`) y `meets` queda falso. Devuelve:
 
-    - `proposed`: el umbral propuesto, o `None` sin preguntas con respuesta y puntaje;
-      `provisional`: siempre verdadero; `position`: la `k` elegida; `meets`: si su
-      estimación cumple (`None` si no se pudo estimar, con una sola pregunta).
-    - `answered`: preguntas con respuesta y puntaje; `blocked`: las que frena el
-      propuesto.
-    - `leave_one_out`: la estimación de la posición elegida (`leave_one_out`).
-    - `previous_rule`: para comparar, la regla anterior (frenar a lo sumo `piso(5 % de
-      n)` del conjunto completo, sin dejar ninguna afuera): su posición, su umbral, las
-      que frena y su estimación dejando una afuera.
-    - `unanswered` y `unanswered_stopped`: preguntas sin respuesta con puntaje y las que
-      el propuesto frena (cuánto de la abstención resolvería el umbral solo).
-    - `without_score`: preguntas con respuesta que no llegaron a puntuarse (sin régimen,
-      sin candidatos o consulta rechazada); ningún umbral las cambia y no entran en la
-      cuenta.
-    - `current`: el umbral actual y las preguntas con respuesta que frena.
-    - `scores`: el puntaje más alto de cada pregunta que lo tiene.
+def calibrate(entries, current):
+    """Calibración del umbral con la regla del hueco (ADR-0014, punto 2; plan,
+    "Abstención", "Calibración del umbral"). Ver el módulo.
+
+    `entries` son `{"id", "has_answer", "max_score", "labels", "lot"}` (sin `lot`, de
+    ajuste); `current` es el umbral con que se corrió. Entran solo las del lote de
+    ajuste. `A` es la ajena a la normativa con el puntaje más alto y `B` la pregunta con
+    respuesta con el puntaje más bajo; las de tema cercano no entran. Hay hueco si
+    `logit(B) > logit(A)`; el umbral propuesto es `sigmoid` del punto medio, redondeado
+    hacia abajo a tres decimales, y el margen, la mitad del hueco. Devuelve:
+
+    - `proposed`: el umbral propuesto, o `None` (sin hueco o sin datos, con `reason`);
+      `provisional`: siempre verdadero; `gap`: si hay hueco (`None` si la regla no se
+      pudo aplicar).
+    - `high_foreign` (`A`) y `low_answered` (`B`): `{"id", "score", "logit"}` o `None`;
+      `midpoint`: el punto medio en la escala anterior a la sigmoide.
+    - `margin`, `min_margin` y `meets_margin` (`None` sin hueco).
+    - Sin hueco: `foreign_at_or_above_low`, las ajenas con puntaje mayor o igual que
+      `B`, de mayor a menor; `answered_at_or_below_high`, las preguntas con respuesta
+      con puntaje menor o igual que `A`, de menor a mayor.
+    - `answered`: cuántas preguntas con respuesta tienen puntaje; `blocked`: las que
+      frena el propuesto; `unanswered`: cuántas sin respuesta tienen puntaje;
+      `unanswered_stopped`: las que frena el propuesto; `near_above`: las de tema
+      cercano que quedan por encima del propuesto (las tiene que frenar el modelo).
+    - `current`: el umbral actual, las preguntas con respuesta y las sin respuesta que
+      frena.
+    - `without_score`: preguntas con respuesta que no llegaron a puntuarse; ningún
+      umbral las cambia.
+    - `scores` y `table`: los puntajes del lote de ajuste (`table`, en el orden de
+      `entries`, con el grupo y el valor en la escala anterior a la sigmoide).
     """
-    answered = [(e["id"], e["max_score"]) for e in entries
-                if e["has_answer"] and e["max_score"] is not None]
-    unanswered = [(e["id"], e["max_score"]) for e in entries
-                  if not e["has_answer"] and e["max_score"] is not None]
-    scores = [score for _, score in answered]
+    adjustment = [e for e in entries if (e.get("lot") or ADJUSTMENT) == ADJUSTMENT]
+    scored = [e for e in adjustment if e["max_score"] is not None]
+    answered = [e for e in scored if _group(e) == "answered"]
+    foreign = [e for e in scored if _group(e) == "foreign"]
+    near = [e for e in scored if _group(e) == "near"]
+    unanswered = [e for e in scored if not e["has_answer"]]
 
     def below(rows, threshold):
         if threshold is None:
             return []
-        return [case_id for case_id, score in rows if score < threshold]
+        return [e["id"] for e in rows if e["max_score"] < threshold]
 
-    # Posiciones que se pueden estimar dejando una afuera: hasta n - 2.
-    estimates = [leave_one_out(answered, k) for k in range(max(len(answered) - 1, 0))]
-    passing = [e for e in estimates if _within(e["rate"], max_rate)]
-    if passing:
-        chosen = passing[-1]
-    elif estimates:
-        chosen = estimates[0]
-    else:
-        chosen = leave_one_out(answered, 0)
-    position = chosen["position"]
-    proposed = threshold_at(scores, position)
-
-    old_position = math.floor(max_rate * len(answered) + 1e-9)
-    old_threshold = threshold_at(scores, old_position)
-    old_estimate = leave_one_out(answered, old_position)
-
-    return {
-        "proposed": proposed,
-        "provisional": True,
-        "max_rate": max_rate,
-        "position": position if proposed is not None else None,
-        "meets": _within(chosen["rate"], max_rate),
-        "answered": len(answered),
-        "blocked": below(answered, proposed),
-        "leave_one_out": chosen,
-        "previous_rule": {
-            "position": old_position if old_threshold is not None else None,
-            "threshold": old_threshold,
-            "blocked": below(answered, old_threshold),
-            "leave_one_out_rate": old_estimate["rate"],
-        },
-        "unanswered": len(unanswered),
-        "unanswered_stopped": below(unanswered, proposed),
-        "without_score": [e["id"] for e in entries
-                          if e["has_answer"] and e["max_score"] is None],
-        "current": {"threshold": current, "blocked": below(answered, current)},
-        "scores": {e["id"]: e["max_score"] for e in entries if e["max_score"] is not None},
+    high = _point(max(foreign, key=lambda e: e["max_score"])) if foreign else None
+    low = _point(min(answered, key=lambda e: e["max_score"])) if answered else None
+    result = {
+        "proposed": None, "provisional": True, "reason": None, "gap": None,
+        "high_foreign": high, "low_answered": low, "midpoint": None,
+        "margin": None, "min_margin": CALIBRATION_MIN_MARGIN, "meets_margin": None,
+        "foreign_at_or_above_low": [], "answered_at_or_below_high": [],
     }
+    if high is None or low is None:
+        missing = []
+        if low is None:
+            missing.append("preguntas con respuesta")
+        if high is None:
+            missing.append("preguntas ajenas a la normativa")
+        result["reason"] = ("no hay " + " ni ".join(missing)
+                            + " con puntaje en el lote de ajuste")
+    elif low["logit"] > high["logit"]:
+        midpoint = (high["logit"] + low["logit"]) / 2
+        margin = (low["logit"] - high["logit"]) / 2
+        result.update(gap=True, midpoint=midpoint, margin=margin,
+                      proposed=_floor(sigmoid(midpoint)),
+                      meets_margin=margin >= CALIBRATION_MIN_MARGIN)
+    else:
+        result.update(
+            gap=False,
+            foreign_at_or_above_low=[
+                e["id"] for e in sorted(foreign, key=lambda e: -e["max_score"])
+                if e["max_score"] >= low["score"]],
+            answered_at_or_below_high=[
+                e["id"] for e in sorted(answered, key=lambda e: e["max_score"])
+                if e["max_score"] <= high["score"]],
+        )
+
+    proposed = result["proposed"]
+    result.update(
+        answered=len(answered),
+        blocked=below(answered, proposed),
+        unanswered=len(unanswered),
+        unanswered_stopped=below(unanswered, proposed),
+        near_above=([e["id"] for e in near if e["max_score"] >= proposed]
+                    if proposed is not None else []),
+        current={"threshold": current, "blocked": below(answered, current),
+                 "unanswered_stopped": below(unanswered, current)},
+        without_score=[e["id"] for e in adjustment
+                       if e["has_answer"] and e["max_score"] is None],
+        scores={e["id"]: e["max_score"] for e in scored},
+        table=[{"id": e["id"], "group": _group(e), "score": e["max_score"],
+                "logit": logit(e["max_score"])} for e in scored],
+    )
+    return result
 
 
 def calibration_entries(lines):
     return [{"id": line["id"], "has_answer": line["has_answer"],
              "max_score": (line["diagnostics"] or {}).get("max_score")
-             if line.get("diagnostics") else None}
+             if line.get("diagnostics") else None,
+             "labels": line.get("labels") or [],
+             "lot": line_lot(line)}
             for line in lines]
 
 
@@ -1289,17 +1414,19 @@ def _result_signature(line, with_text):
 def compare_runs(previous, lines, parameters):
     """Comparación con la corrida anterior (plan, "Evals", y ADR-0002):
 
-    - `measures`: cada medida exigida, en la anterior y en esta (`rate`; el tiempo, el
-      máximo);
+    - `measures`: cada proporción (cita literal, respuesta correcta y abstención) lote
+      por lote (`lot`), cada lote con el mismo lote de la anterior; un renglón guardado
+      sin lote es del lote de ajuste (`line_lot`). Y el tiempo de toda la corrida
+      (`lot` `None`; la mediana y el máximo). En la anterior y en esta (`rate`);
     - `regressions` y `improvements`: casos que pasaban y ahora fallan, y al revés;
     - `changed`: casos que cambiaron de estado, de motivo o de citas sin cambiar si
       pasan; `only_previous` y `only_current`: casos medidos en una sola;
     - `equality`: entre los casos corridos en las dos, cuántos dan el mismo resultado
       (`same`: estado, motivo, citas y texto de las afirmaciones) y cuántos el mismo
       estado, el mismo motivo y las mismas citas (`same_status_reason_and_citations`);
-    - `drops`: las medidas que bajaron: cada una requiere aprobación del responsable
-      (P7). El tiempo cuenta como baja solo si el máximo supera 30 s (`response_time`)
-      o si la mediana sube más de un 25 % (`response_time_median`);
+    - `drops`: las medidas que bajaron, `{"name", "lot"}`: cada una requiere aprobación
+      del responsable (P7). El tiempo cuenta como baja solo si el máximo supera 30 s
+      (`response_time`) o si la mediana sube más de un 25 % (`response_time_median`);
     - `conditions_changed`: qué cambió entre las dos (commit, modelos, instrucciones,
       normativa o parámetros de búsqueda). Vacío: es una repetición."""
     old_lines = previous["lines"]
@@ -1307,24 +1434,28 @@ def compare_runs(previous, lines, parameters):
     new = {line["id"]: line for line in lines}
     both = [case_id for case_id in new if case_id in old]
 
+    rows = []
+    for lot in LOTS:
+        old_lot = measure(lot_lines(old_lines, lot))
+        new_lot = measure(lot_lines(lines, lot))
+        for name in PROPORTIONS:
+            before, now = old_lot[name]["rate"], new_lot[name]["rate"]
+            rows.append({"name": name, "lot": lot, "previous": before, "current": now,
+                         "drop": before is not None and now is not None and now < before})
     old_measures, new_measures = measure(old_lines), measure(lines)
-    rows = [{"name": name, "previous": old_measures[name]["rate"],
-             "current": new_measures[name]["rate"]}
-            for name in ("literal_citation", "correct_answer", "abstention")]
-    for row in rows:
-        before, now = row["previous"], row["current"]
-        row["drop"] = before is not None and now is not None and now < before
     # Tiempo (decisión del Coordinador): es baja solo si el máximo supera el límite de
     # 30 s o si la mediana sube más de un 25 % respecto de la anterior. Cualquier otra
     # variación se muestra sin marcarla.
     median_before = old_measures["response_time"]["median"]
     median_now = new_measures["response_time"]["median"]
     max_now = new_measures["response_time"]["max"]
-    rows.append({"name": TIME_MEDIAN, "previous": median_before, "current": median_now,
+    rows.append({"name": TIME_MEDIAN, "lot": None, "previous": median_before,
+                 "current": median_now,
                  "drop": (median_before is not None and median_now is not None
                           and median_before > 0
                           and median_now > median_before * (1 + MEDIAN_RISE_LIMIT))})
-    rows.append({"name": TIME_MAX, "previous": old_measures["response_time"]["max"],
+    rows.append({"name": TIME_MAX, "lot": None,
+                 "previous": old_measures["response_time"]["max"],
                  "current": max_now,
                  "drop": max_now is not None and max_now > MAX_SECONDS})
 
@@ -1340,7 +1471,9 @@ def compare_runs(previous, lines, parameters):
     return {
         "previous": previous["folder"].name,
         "measures": rows,
-        "drops": [row["name"] for row in rows if row["drop"]],
+        "drops": [{"name": row["name"], "lot": row["lot"]} for row in rows if row["drop"]],
+        "lots": {lot: {"previous": len(lot_lines(old_lines, lot)),
+                       "current": len(lot_lines(lines, lot))} for lot in LOTS},
         "regressions": regressions,
         "improvements": improvements,
         "changed": changed,
@@ -1381,17 +1514,21 @@ class RunReport:
       y los que la consulta rechazó (`status` `refused`, `ran` falso).
     - `skipped`: los casos que no se corrieron ni se miden (mal formados o sin visto
       bueno), con su motivo.
-    - `measures`: las cuatro medidas exigidas (`measure`).
+    - `measures`: las cuatro medidas exigidas (`required_measures`): cita literal y
+      tiempo de toda la corrida; respuesta correcta y abstención del lote de aceptación.
+    - `adjustment_measures`: las medidas del lote de ajuste (`measure`), aparte, como
+      diagnóstico.
     - `pairs`: los pares de REQ-020 (`check_pairs`).
     - `notices`: la comprobación de REQ-021: `ok`, `total` y los casos `failed`.
     - `parameters`: lo que se guardó en `parametros.json`.
 
-    Diagnóstico (T-042):
+    Diagnóstico (T-042), con el lote de ajuste salvo donde se dice (T-060):
 
     - `by_regime`: respuesta correcta y abstención por régimen (`measures_by_regime`).
-    - `retrieval`: medidas de recuperación de la corrida (`retrieval_measures`).
-    - `output_failures`: casos con falla de formato o de cita (`output_failures`).
-    - `special`: los casos de REQ-018 y REQ-019 (`special_cases`).
+    - `retrieval`: medidas de recuperación (`retrieval_measures`).
+    - `output_failures`: casos con falla de formato o de cita (`output_failures`), de
+      toda la corrida.
+    - `special`: los casos de REQ-018 y REQ-019 (`special_cases`), de toda la corrida.
     - `calibration`: la calibración del umbral (`calibrate`).
     - `ablation`: medidas de cada configuración de la comparación quitando piezas
       (`ablation_measures`), o `None` si no se pidió.
@@ -1406,6 +1543,7 @@ class RunReport:
     pairs: list
     notices: dict
     parameters: dict
+    adjustment_measures: dict = None
     by_regime: dict = None
     retrieval: dict = None
     output_failures: dict = None
@@ -1525,6 +1663,7 @@ def _case_line(case, result, query=None, elapsed=None):
         "expected_notice": case.notice,
         "labels": list(case.labels),
         "differ": case.differ,
+        "lot": case.lot,
         "query_id": query.pk if query else None,
         "corpus_version": query.corpus_version if query else None,
         "prompt_version": query.prompt_version if query else "",
@@ -1580,36 +1719,54 @@ def run(user, cases_dir, runs_dir, *, commit=None, clock=time.monotonic, ablatio
         elapsed = clock() - since
         lines.append(_case_line(case, query.result, query, elapsed))
 
-    ablated = run_ablation(cases, clock) if ablation else None
+    # La comparación quitando piezas es diagnóstico: solo con el lote de ajuste.
+    adjustment_cases = [case for case in cases if case.lot == ADJUSTMENT]
+    ablated = run_ablation(adjustment_cases, clock) if ablation else None
     for line in lines:
         line["ablation"] = ablated.get(line["id"]) if ablated else None
 
     parameters["prompt_version"] = prompt_versions(lines)
     parameters["finished_at"] = timezone.localtime(timezone.now()).isoformat()
-    notice_lines = [line for line in lines if not line["measures"]["notice_ok"]]
     folder = Path(runs_dir) / run_folder_name(started_at, commit, settings.GENERATION_MODEL)
     previous = find_previous_run(runs_dir, folder.name)
-    report = RunReport(
-        folder=folder,
-        results=lines,
-        skipped=skipped,
-        measures=measure(lines),
-        pairs=check_pairs(lines),
-        notices={"ok": len(lines) - len(notice_lines), "total": len(lines),
-                 "failed": [line["id"] for line in notice_lines]},
-        parameters=parameters,
-        by_regime=measures_by_regime(lines),
-        retrieval=retrieval_measures(
-            [(line["id"], line["has_answer"], line["diagnostics"]) for line in lines]),
-        output_failures=output_failures(lines),
-        special=special_cases(lines),
-        calibration=calibrate(calibration_entries(lines),
-                              parameters["search"]["rerank_threshold"]),
-        ablation=ablation_measures(cases, ablated) if ablated is not None else None,
+    report = _report(
+        folder, lines, skipped, parameters, parameters["search"]["rerank_threshold"],
+        ablation=(ablation_measures(adjustment_cases, ablated)
+                  if ablated is not None else None),
         comparison=_comparison(previous, lines, parameters),
     )
     _write(report)
     return report
+
+
+def _report(folder, lines, skipped, parameters, threshold, *, ablation, comparison):
+    """El `RunReport` de una corrida o de una recalificación, con cada parte medida
+    sobre los casos que le corresponden (plan, "Qué usa cada lote"): las medidas
+    exigidas según `required_measures`; el lote de ajuste aparte; la recuperación, las
+    medidas por régimen y la calibración solo con el lote de ajuste; los pares, el aviso,
+    las salidas con falla y los casos de REQ-018 y REQ-019 con toda la corrida."""
+    adjustment = lot_lines(lines, ADJUSTMENT)
+    notice_lines = [line for line in lines if not line["measures"]["notice_ok"]]
+    return RunReport(
+        folder=folder,
+        results=lines,
+        skipped=skipped,
+        measures=required_measures(lines),
+        adjustment_measures=measure(adjustment),
+        pairs=check_pairs(lines),
+        notices={"ok": len(lines) - len(notice_lines), "total": len(lines),
+                 "failed": [line["id"] for line in notice_lines]},
+        parameters=parameters,
+        by_regime=measures_by_regime(adjustment),
+        retrieval=retrieval_measures(
+            [(line["id"], line["has_answer"], line.get("diagnostics"))
+             for line in adjustment]),
+        output_failures=output_failures(lines),
+        special=special_cases(lines),
+        calibration=calibrate(calibration_entries(lines), threshold),
+        ablation=ablation,
+        comparison=comparison,
+    )
 
 
 # --- Recalificar una corrida guardada (T-058; plan, "Recalificar una corrida guardada") --
@@ -1646,6 +1803,7 @@ def _rescored_line(case, row):
         expected_notice=case.notice,
         labels=list(case.labels),
         differ=case.differ,
+        lot=case.lot,
         measures=grade(case, result, row.get("cited_units") or []),
     )
     line["passed"] = _passed(line)
@@ -1662,6 +1820,8 @@ def rescore(user, source, cases_dir, runs_dir, *, commit=None):
     - Mide otra vez solo los casos cuya `pregunta`, `fecha_autorizacion` y presencia de
       respuesta coinciden con las del renglón guardado; los demás quedan como no
       recalificables (`NOT_RESCORABLE`) y fuera de la medida.
+    - El lote de cada caso es el del caso vigente (T-060), aunque el renglón guardado no
+      lo traiga.
     - La carpeta nueva lleva la fecha y el commit del momento, el modelo de la corrida
       original y termina en `_recalificada`. `parametros.json` copia los de la original
       y suma `rescore` (origen, aviso, commit, casos y fecha); `resumen.md` dice que es
@@ -1702,26 +1862,10 @@ def rescore(user, source, cases_dir, runs_dir, *, commit=None):
     search = parameters.get("search") or {}
     model = (search.get("generation") or {}).get("model") or "sin-modelo"
     folder = Path(runs_dir) / (run_folder_name(started_at, commit, model) + RESCORED_SUFFIX)
-    notice_lines = [line for line in lines if not line["measures"]["notice_ok"]]
     comparison = compare_runs(original, lines, parameters)
     comparison["rescore"] = True
-    report = RunReport(
-        folder=folder,
-        results=lines,
-        skipped=skipped,
-        measures=measure(lines),
-        pairs=check_pairs(lines),
-        notices={"ok": len(lines) - len(notice_lines), "total": len(lines),
-                 "failed": [line["id"] for line in notice_lines]},
-        parameters=parameters,
-        by_regime=measures_by_regime(lines),
-        retrieval=retrieval_measures(
-            [(line["id"], line["has_answer"], line.get("diagnostics")) for line in lines]),
-        output_failures=output_failures(lines),
-        special=special_cases(lines),
-        calibration=calibrate(calibration_entries(lines), search.get("rerank_threshold")),
-        comparison=comparison,
-    )
+    report = _report(folder, lines, skipped, parameters, search.get("rerank_threshold"),
+                     ablation=None, comparison=comparison)
     _write(report)
     return report
 
@@ -1784,25 +1928,60 @@ NOTHING_RAN = ("No se corrió ningún caso: ninguno está bien formado y con vis
                "de la Comisión. Las medidas quedan sin valor.")
 
 
+def _bound(value):
+    """Un extremo del intervalo: con un decimal y coma; 0 y 100 sin decimales."""
+    text = f"{value * 100:.1f}"
+    if text in ("0.0", "100.0"):
+        return f"{text[:-2]} %"
+    return f"{text.replace('.', ',')} %"
+
+
+def proportion_text(ratio):
+    """Una proporción con su margen de error (plan, "Margen de error"): "90,0 % (9 de
+    10; IC 95 %: 59,6 % a 98,2 %)"; sin casos, "—"."""
+    if not ratio or not ratio.get("total"):
+        return "—"
+    low, high = wilson_interval(ratio["ok"], ratio["total"])
+    return (f"{_percent(ratio['ok'] / ratio['total'])} ({ratio['ok']} de {ratio['total']}; "
+            f"IC 95 %: {_bound(low)} a {_bound(high)})")
+
+
+ACCEPTANCE_MISSING = ("La corrida no tiene casos del lote de aceptación: las exigencias de "
+                      "respuesta correcta y abstención no se pueden dar por cumplidas con "
+                      "ella.")
+
+ACCEPTANCE_FAILED_NOTE = ("Estos casos no se usan para ajustar (plan, \"Lote de "
+                          "aceptación\"): cambiar instrucciones, umbral, parámetros de "
+                          "búsqueda, reglas de partición, o datos clave o variantes a "
+                          "partir de ellos le quita al lote su condición.")
+
+INTERVAL_NOTE = ("IC 95 %: intervalo de confianza al 95 % por el método de Wilson (plan, "
+                 "\"Margen de error\"). La exigencia se compara con el valor medido; el "
+                 "intervalo dice cuánto se le puede creer.")
+
+
 def measure_rows(measures):
-    """Renglones de la tabla de medidas exigidas: exigencia, resultado, umbral, cumple."""
-    literal = measures["literal_citation"]
-    correct = measures["correct_answer"]
-    abstention = measures["abstention"]
+    """Renglones de la tabla de medidas exigidas: exigencia, resultado, umbral, cumple.
+    La cita literal y el tiempo son de toda la corrida; la respuesta correcta y la
+    abstención, del lote de aceptación (`required_measures`)."""
     timing = measures["response_time"]
     return [
-        ("Cita literal", f"{_percent(literal['rate'])} ({literal['ok']} de {literal['total']} citas)",
-         "100 %", _meets(literal["meets"])),
-        ("Respuesta correcta que cita la unidad correcta",
-         f"{_percent(correct['rate'])} ({correct['ok']} de {correct['total']} preguntas con respuesta)",
-         "al menos 85 %", _meets(correct["meets"])),
-        ("Abstención",
-         f"{_percent(abstention['rate'])} ({abstention['ok']} de {abstention['total']} preguntas sin respuesta)",
-         "al menos 90 %", _meets(abstention["meets"])),
-        ("Tiempo de respuesta",
+        ("Cita literal (toda la corrida)", proportion_text(measures["literal_citation"]),
+         "100 %", _meets(measures["literal_citation"]["meets"])),
+        ("Respuesta correcta que cita la unidad correcta (lote de aceptación)",
+         proportion_text(measures["correct_answer"]),
+         "al menos 85 %", _meets(measures["correct_answer"]["meets"])),
+        ("Abstención (lote de aceptación)", proportion_text(measures["abstention"]),
+         "al menos 90 %", _meets(measures["abstention"]["meets"])),
+        ("Tiempo de respuesta (toda la corrida)",
          f"mediana {_seconds(timing['median'])} · máximo {_seconds(timing['max'])}",
          "máximo de 30 s", _meets(timing["meets"])),
     ]
+
+
+def adjustment_rows(measures):
+    """Renglones de la tabla del lote de ajuste (diagnóstico): medida y resultado."""
+    return [(_MEASURE_TEXT[name], proportion_text(measures[name])) for name in PROPORTIONS]
 
 
 def _score(value):
@@ -1847,6 +2026,14 @@ def _run_name(folder_name):
     return f"{when} (carpeta `{folder_name}`)"
 
 
+def drop_text(drop):
+    """Una baja para leer: la medida y, si es de un lote, cuál."""
+    text = _MEASURE_TEXT[drop["name"]].lower()
+    if drop["lot"]:
+        text += f" del lote de {LOT_TEXT[drop['lot']]}"
+    return text
+
+
 def comparison_lines(comparison):
     """Las líneas del comando sobre la corrida anterior: cuál fue, por su fecha, y si
     hay bajas que requieren aprobación (P7)."""
@@ -1858,8 +2045,7 @@ def comparison_lines(comparison):
     drops = comparison["drops"]
     if drops:
         drop_line = ("Hay bajas respecto de la corrida anterior que requieren la aprobación "
-                     "del responsable: "
-                     + ", ".join(_MEASURE_TEXT[name].lower() for name in drops) + ".")
+                     "del responsable: " + ", ".join(drop_text(d) for d in drops) + ".")
     else:
         drop_line = "Sin bajas respecto de la corrida anterior."
     return [f"Corrida anterior: {previous}", drop_line]
@@ -1875,12 +2061,38 @@ def _ids(ids, none="ninguno"):
     return ", ".join(ids) if ids else none
 
 
+def _precise(value):
+    """Un puntaje o un valor de la escala anterior a la sigmoide, con cuatro decimales,
+    coma decimal y signo menos."""
+    return "—" if value is None else f"{value:.4f}".replace(".", ",").replace("-", "−")
+
+
+def _margin(value):
+    return "—" if value is None else f"{value:.3f}".replace(".", ",")
+
+
+def _sides(calibration):
+    high, low = calibration["high_foreign"], calibration["low_answered"]
+    return (f"A (ajena a la normativa más alta): {high['id']}, {_precise(high['score'])}"
+            f" · B (con respuesta más baja): {low['id']}, {_precise(low['score'])}")
+
+
 def threshold_line(calibration):
-    """La línea del umbral propuesto, igual en `resumen.md` y en el comando."""
-    if calibration["proposed"] is None:
-        return ("Umbral propuesto (provisorio): sin valor (no hay preguntas con respuesta "
-                "que hayan llegado a puntuarse)")
-    return f"Umbral propuesto (provisorio): {_score(calibration['proposed'])}"
+    """La línea del umbral propuesto, igual en `resumen.md` y en el comando (plan,
+    "Abstención", "Qué se informa")."""
+    head = "Umbral propuesto (provisorio): "
+    if calibration["gap"] is None:
+        return head + f"ninguno · la regla no se puede aplicar: {calibration['reason']}"
+    if not calibration["gap"]:
+        return (head + f"ninguno · No hay hueco: {_sides(calibration)}; A es mayor o igual "
+                "que B. La decisión es del responsable")
+    line = (head + f"{_score(calibration['proposed'])} · {_sides(calibration)} · margen "
+            f"{_margin(calibration['margin'])} (mínimo "
+            f"{_number(calibration['min_margin'])}) · cumple el margen mínimo: "
+            f"{_meets(calibration['meets_margin'])}")
+    if not calibration["meets_margin"]:
+        line += " · sin margen: el valor no se fija sin decisión del responsable"
+    return line
 
 
 _PATH_TEXT = {
@@ -1912,22 +2124,33 @@ SMALL_SET_NOTE = ("Con unas 30 preguntas, cada una pesa entre 3 y 5 puntos: una 
 
 def _by_regime_section(by_regime):
     out = ["## Medidas por régimen (diagnóstico)", "",
-           "Separadas según el régimen esperado de cada caso. Son de diagnóstico: las exigencias "
-           "de la spec se miden sobre el conjunto entero, y con pocos casos por régimen "
-           "sirven solo para orientar.", ""]
+           "Casos del lote de ajuste, separados según el régimen esperado de cada caso. Son "
+           "de diagnóstico: las exigencias de la spec se miden con el lote de aceptación, "
+           "y con pocos casos por régimen sirven solo para orientar.", ""]
     if not by_regime:
         return out + ["Ningún caso medido.", ""]
     out += ["| Régimen | Respuesta correcta | Abstención |", "|---|---|---|"]
     for regime, measures in by_regime.items():
         out.append(f"| {regime or 'Sin régimen cargado a la fecha'} | "
-                   f"{_ratio_text(measures['correct_answer'])} | "
-                   f"{_ratio_text(measures['abstention'])} |")
+                   f"{proportion_text(measures['correct_answer'])} | "
+                   f"{proportion_text(measures['abstention'])} |")
+    return out + [""]
+
+
+def _adjustment_section(measures):
+    out = ["## Lote de ajuste (diagnóstico)", "",
+           "Casos sin `lote` o con `lote: ajuste` (ADR-0014): son los que se usan para "
+           "ajustar el corrector, los datos clave, el umbral y las instrucciones. Se "
+           "informan como diagnóstico; no sirven para dar por cumplidas las exigencias.", "",
+           "| Medida | Resultado |", "|---|---|"]
+    out += [f"| {name} | {result} |" for name, result in adjustment_rows(measures)]
     return out + [""]
 
 
 def _retrieval_section(measures):
     out = ["## Recuperación (diagnóstico)", "",
-           "Leído del registro de cada consulta. La unidad correcta cuenta si están "
+           "Casos del lote de ajuste, leído del registro de cada consulta. La unidad "
+           "correcta cuenta si están "
            "todas las unidades esperadas del caso (un inciso vale con su artículo); se "
            "mide sobre las preguntas con respuesta (ADR-0003).", "",
            "| Medida | Resultado |", "|---|---|"]
@@ -1981,55 +2204,91 @@ def _special_section(special):
             ""]
 
 
+_GROUP_TEXT = {
+    "answered": "con respuesta",
+    "foreign": "ajena a la normativa",
+    "near": "tema cercano",
+    "other": "sin respuesta (otra)",
+}
+
+
+def _scored_ids(ids, scores):
+    if not ids:
+        return "ninguna"
+    return ", ".join(f"{case_id} ({_precise(scores[case_id])})" for case_id in ids)
+
+
 def _calibration_section(calibration, lines):
-    loo = calibration["leave_one_out"]
     current = calibration["current"]
-    previous = calibration["previous_rule"]
-    limit = _percent(calibration["max_rate"])
-    n = calibration["answered"]
-    if calibration["proposed"] is None:
-        choice = "No hay preguntas con respuesta con puntaje: no se puede elegir."
-    elif calibration["meets"]:
-        choice = (f"Se eligió el puntaje número {calibration['position'] + 1} de {n}, "
-                  "contados de menor a mayor: es el más alto que, dejando cada vez una "
-                  f"pregunta afuera, frena por error a lo sumo el {limit}.")
-    elif calibration["meets"] is False:
-        choice = (f"Ninguna posición frena por error a lo sumo el {limit} dejando cada vez "
-                  f"una pregunta afuera (con {n} preguntas, frenar una ya es más): se "
-                  "propone el puntaje más bajo, que no frena ninguna del conjunto.")
-    else:
-        choice = ("Con una sola pregunta no se puede medir dejando una afuera: se propone "
-                  "su puntaje.")
-    out = ["## Calibración del umbral (provisoria)", "",
-           f"{threshold_line(calibration)} · umbral actual: {_score(current['threshold'])}. "
-           "La calibración no cambia el umbral configurado del sistema: el valor lo fija "
-           "T-045 con los servicios reales y el conjunto con visto bueno.", "",
-           f"- Preguntas con respuesta que llegaron a puntuarse: {n}. {choice}",
-           f"- Dejando cada vez una afuera: frena {len(loo['blocked'])} de {loo['total']} "
-           f"({_percent(loo['rate'])}); el umbral calculado va de {_score(loo['min'])} a "
-           f"{_score(loo['max'])}; cumple el {limit}: {_meets(calibration['meets'])}. "
-           f"Frenadas: {_ids(loo['blocked'], 'ninguna')}.",
-           "- Con el umbral propuesto, frena por error en el conjunto completo: "
-           f"{_ids(calibration['blocked'], 'ninguna')}.",
-           f"- Para comparar, la regla anterior (frenar a lo sumo el {limit} del conjunto "
-           f"completo, sin dejar ninguna afuera) daría {_score(previous['threshold'])}, que "
-           f"frena {_ids(previous['blocked'], 'ninguna')}; dejando cada vez una afuera "
-           f"frenaría el {_percent(previous['leave_one_out_rate'])}.",
-           "- Con el umbral actual, frena por error: "
-           f"{_ids(current['blocked'], 'ninguna')}.",
-           f"- Preguntas sin respuesta que el umbral propuesto frena: "
-           f"{len(calibration['unanswered_stopped'])} de {calibration['unanswered']}.",
-           f"- Preguntas con respuesta sin puntaje (ningún umbral las cambia): "
-           f"{_ids(calibration['without_score'], 'ninguna')}.",
-           ""]
+    proposed = calibration["proposed"]
     scores = calibration["scores"]
-    if scores:
-        out += ["| Caso | Con respuesta | Régimen | Puntaje más alto |", "|---|---|---|---|"]
-        for line in lines:
-            if line["id"] in scores:
-                out.append(f"| {line['id']} | {'sí' if line['has_answer'] else 'no'} | "
-                           f"{line['expected_regime'] or '—'} | "
-                           f"{_score(scores[line['id']])} |")
+    out = ["## Calibración del umbral (provisoria)", "",
+           f"{threshold_line(calibration)} · umbral actual: {_score(current['threshold'])}.",
+           "",
+           "Regla del hueco (ADR-0014, punto 2; plan, \"Abstención\"): con las preguntas "
+           "del lote de ajuste, el umbral va en el punto medio, en la escala anterior a la "
+           "sigmoide, entre la pregunta ajena a la normativa con el puntaje más alto (A) y "
+           "la pregunta con respuesta con el puntaje más bajo (B), redondeado hacia abajo "
+           "a tres decimales; el margen es la mitad del hueco y el mínimo, "
+           f"{_number(calibration['min_margin'])}. Las preguntas de tema cercano no entran: "
+           "las tiene que frenar el modelo. La calibración no cambia el umbral configurado "
+           "del sistema: el valor es provisorio y fijarlo es una decisión aparte.", ""]
+    if calibration["gap"] is None:
+        out += [f"La regla no se puede aplicar: {calibration['reason']}.", ""]
+    else:
+        high, low = calibration["high_foreign"], calibration["low_answered"]
+        out += ["| Dato | Caso | Puntaje | Escala anterior a la sigmoide |",
+                "|---|---|---|---|",
+                f"| A: ajena a la normativa más alta | {high['id']} | "
+                f"{_precise(high['score'])} | {_precise(high['logit'])} |",
+                f"| B: con respuesta más baja | {low['id']} | {_precise(low['score'])} | "
+                f"{_precise(low['logit'])} |"]
+        if calibration["gap"]:
+            midpoint = calibration["midpoint"]
+            out += [f"| Punto medio | — | {_precise(sigmoid(midpoint))} | "
+                    f"{_precise(midpoint)} |", "",
+                    f"- Margen: {_margin(calibration['margin'])} (mínimo "
+                    f"{_number(calibration['min_margin'])}); cumple el margen mínimo: "
+                    f"{_meets(calibration['meets_margin'])}."]
+            if not calibration["meets_margin"]:
+                out += ["", "**El margen no llega al mínimo: el umbral propuesto queda "
+                        "marcado como sin margen y no se fija sin decisión del "
+                        "responsable.**"]
+            out.append("")
+        else:
+            out += ["", "**No hay hueco: A es mayor o igual que B. La decisión es del "
+                    "responsable.**", "",
+                    "- Ajenas a la normativa con puntaje mayor o igual que B: "
+                    f"{_scored_ids(calibration['foreign_at_or_above_low'], scores)}.",
+                    "- Preguntas con respuesta con puntaje menor o igual que A: "
+                    f"{_scored_ids(calibration['answered_at_or_below_high'], scores)}.",
+                    ""]
+    without = "sin umbral propuesto"
+    out += [
+        "- Preguntas sin respuesta que frena el umbral propuesto: "
+        + (_ids(calibration["unanswered_stopped"], "ninguna") if proposed is not None
+           else without)
+        + f" (de {calibration['unanswered']} con puntaje); las que frena el actual: "
+        f"{_ids(current['unanswered_stopped'], 'ninguna')}.",
+        "- Preguntas con respuesta que frena el umbral propuesto: "
+        + (_ids(calibration["blocked"], "ninguna") if proposed is not None else without)
+        + f" (de {calibration['answered']} con puntaje); las que frena el actual: "
+        f"{_ids(current['blocked'], 'ninguna')}.",
+        "- Preguntas de tema cercano que quedan por encima del umbral propuesto (las "
+        "tiene que frenar el modelo): "
+        + (_ids(calibration["near_above"], "ninguna") if proposed is not None
+           else without) + ".",
+        "- Preguntas con respuesta sin puntaje (ningún umbral las cambia): "
+        f"{_ids(calibration['without_score'], 'ninguna')}.",
+        ""]
+    if calibration["table"]:
+        regimes = {line["id"]: line.get("expected_regime") for line in lines}
+        out += ["Puntajes del lote de ajuste:", "",
+                "| Caso | Grupo | Régimen | Puntaje más alto | Escala anterior a la "
+                "sigmoide |", "|---|---|---|---|---|"]
+        out += [f"| {row['id']} | {_GROUP_TEXT[row['group']]} | "
+                f"{regimes.get(row['id']) or '—'} | {_precise(row['score'])} | "
+                f"{_precise(row['logit'])} |" for row in calibration["table"]]
         out.append("")
     return out
 
@@ -2039,8 +2298,8 @@ def _ablation_section(ablation):
     if ablation is None:
         return out + ["No se corrió en esta corrida. Se corre una vez, con "
                       "`correr_evals --quitando-piezas` (ADR-0003).", ""]
-    out += ["Cada caso se recupera y se selecciona con cada configuración, sin el modelo "
-            "de generación.", "",
+    out += ["Cada caso del lote de ajuste se recupera y se selecciona con cada "
+            "configuración, sin el modelo de generación.", "",
             "\"Entre las seleccionadas\" son las que la recuperación deja pasar por el "
             "umbral; sin reranker no hay umbral y pasan todas las de la unión, así que "
             "coincide con \"entre los candidatos\". \"Entre las enviadas al modelo\" son "
@@ -2113,16 +2372,31 @@ def _comparison_section(comparison):
                       "instrucciones, normativa y parámetros de búsqueda): cuenta como "
                       "repetición.")
     out += [f"Corrida anterior: {_run_name(comparison['previous'])}.", "", conditions, "",
-            "| Medida | Anterior | Actual | Cambio |", "|---|---|---|---|"]
-    out += [f"| {_MEASURE_TEXT[row['name']]} | "
-            f"{_comparison_value(row['name'], row['previous'])} | "
-            f"{_comparison_value(row['name'], row['current'])} | "
-            f"{_change_text(row)} |"
-            for row in comparison["measures"]]
+            "Cada lote se compara con el mismo lote de la anterior; en una corrida sin el "
+            "campo `lote`, todos los casos son del lote de ajuste. El tiempo es de toda la "
+            "corrida.", ""]
+    header = ["| Medida | Anterior | Actual | Cambio |", "|---|---|---|---|"]
+
+    def table(rows):
+        return header + [f"| {_MEASURE_TEXT[row['name']]} | "
+                         f"{_comparison_value(row['name'], row['previous'])} | "
+                         f"{_comparison_value(row['name'], row['current'])} | "
+                         f"{_change_text(row)} |" for row in rows]
+
+    lots = comparison.get("lots") or {}
+    for lot in LOTS:
+        out += [f"### Lote de {LOT_TEXT[lot]}", ""]
+        counted = lots.get(lot, {})
+        if not counted.get("previous") and not counted.get("current"):
+            out += ["Ninguna de las dos corridas tiene casos de este lote.", ""]
+            continue
+        out += table([row for row in comparison["measures"] if row["lot"] == lot]) + [""]
+    out += ["### Tiempo de toda la corrida", ""]
+    out += table([row for row in comparison["measures"] if row["lot"] is None])
     equality = comparison["equality"]
     if comparison["drops"]:
         out += ["", "**Hay bajas respecto de la corrida anterior ("
-                + ", ".join(_MEASURE_TEXT[name].lower() for name in comparison["drops"])
+                + ", ".join(drop_text(drop) for drop in comparison["drops"])
                 + "): cada una requiere la aprobación explícita del responsable (P7).**"]
     out += ["",
             f"- Pasaban y ahora fallan: {_ids(comparison['regressions'])}.",
@@ -2184,11 +2458,18 @@ def summary_markdown(report):
         out += [f"**{NOTHING_RAN}**", ""]
 
     out += ["## Medidas exigidas", "",
+            "La cita literal y el tiempo se miden sobre toda la corrida; la respuesta "
+            "correcta y la abstención, sobre el lote de aceptación (ADR-0014; plan, "
+            "\"Lote de aceptación\").", "",
             "| Exigencia | Resultado | Umbral | Cumple |", "|---|---|---|---|"]
     out += [f"| {a} | {b} | {c} | {d} |" for a, b, c, d in measure_rows(report.measures)]
-    out += ["", "Una falla técnica no cuenta como abstención. El responsable revisa además "
-            "las respuestas contra la esperada.", ""]
+    out.append("")
+    if not report.measures["acceptance_cases"]:
+        out += [f"**{ACCEPTANCE_MISSING}**", ""]
+    out += [INTERVAL_NOTE + " Una falla técnica no cuenta como abstención. El responsable "
+            "revisa además las respuestas contra la esperada.", ""]
 
+    out += _adjustment_section(report.adjustment_measures)
     out += _by_regime_section(report.by_regime)
 
     out += ["## Pares de REQ-020", ""]
@@ -2214,13 +2495,20 @@ def summary_markdown(report):
     out += _ablation_section(report.ablation)
     out += _comparison_section(report.comparison)
 
-    out += ["## Casos fallados", ""]
-    failed = [(line["id"], _failures(line)) for line in report.results if _failures(line)]
-    if failed:
-        out += [f"- {case_id}: {'; '.join(reasons)}." for case_id, reasons in failed]
+    def failed_cases(lines):
+        failed = [(line["id"], _failures(line)) for line in lines if _failures(line)]
+        if not failed:
+            return ["Ninguno."]
+        return [f"- {case_id}: {'; '.join(reasons)}." for case_id, reasons in failed]
+
+    out += ["## Casos fallados", "", "Casos del lote de ajuste.", ""]
+    out += failed_cases(lot_lines(report.results, ADJUSTMENT)) + [""]
+    out += ["## Casos fallados del lote de aceptación", ""]
+    acceptance = lot_lines(report.results, ACCEPTANCE)
+    if acceptance:
+        out += [ACCEPTANCE_FAILED_NOTE, ""] + failed_cases(acceptance) + [""]
     else:
-        out.append("Ninguno.")
-    out.append("")
+        out += ["La corrida no tiene casos del lote de aceptación.", ""]
 
     out += ["## Casos no corridos", ""]
     if report.skipped:
