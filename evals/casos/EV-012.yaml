@@ -19,7 +19,7 @@ difieren: false
 pareja: ""
 aviso_modificatorias: false
 etiquetas: ["referencia exacta"]
-visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |
   El artículo 38 remite al 55 para este supuesto ("deberá estarse a lo dispuesto en el artículo 55"). Si la persona validadora quiere exigir también el 38, hay que agregarlo a unidades.

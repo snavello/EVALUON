@@ -105,3 +105,7 @@ Puntos para decidir al dar el visto bueno:
 4. **EV-013, el orden.** Los datos clave comprueban que estén los siete documentos, no el orden de prelación; una respuesta con los siete en otro orden los cumple. "oferta", "pliego" y "régimen" son palabras comunes, pero son los nombres de los documentos y no hay forma más corta de exigirlos.
 5. **EV-010, "máximo" y "unidades" por separado.** El `esperado` dice "máximo de unidades" y la norma "máximo de las unidades": se partieron para que valgan las dos redacciones. En EV-023 la norma sí dice "máximo de unidades" y se dejó junto.
 6. **EV-015, "conformidad".** Comprueba que la respuesta trate la conformidad del contratista, no que la ubique por encima del 20 %; esa relación no se puede exigir con un fragmento corto común al `esperado` y a la norma.
+
+## Visto bueno provisorio (2026-10-03)
+
+El responsable autorizó el 2026-10-03 un visto bueno provisorio para los 31 casos, para poder calibrar (T-045) y correr el conjunto (T-046). Los casos se revisan con la Comisión y se corrigen a medida que aparezcan errores. Decisiones del responsable sobre los datos clave dudosos: más tolerantes. EV-001 y EV-016 piden "automáticamente"; EV-006 queda con "suspensivo" (los plazos frenan las respuestas equivocadas); EV-019 queda con "5 por mil", porque "0,5 ‰" es otra cantidad (la duda sobre la cifra sigue marcada). EV-004 pasa de "no" a "no es necesario": la regla del sí y del no exige un signo después de la palabra y la respuesta esperada no lo tiene.

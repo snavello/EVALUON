@@ -14,12 +14,12 @@ origen: |
   No obstante lo dispuesto, todos los oferentes, adjudicatarios y contratistas quedan obligados a responder por el importe de la garantía no constituida, de acuerdo al orden de afectación de penalidades establecido en el presente régimen, a requerimiento de la AFIP sin que proceda reclamo alguno sino después de obtenido el cobro o de efectuado el pago.
 unidades:
   - {norma: "Disposición AFIP 247/2022", key: anexo/art-66}
-datos_clave: ["no", "M 1.000"]
+datos_clave: ["no es necesario", "M 1.000"]
 difieren: false
 pareja: ""
 aviso_modificatorias: false
 etiquetas: ["palabras distintas a las de la norma"]
-visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |
   La pregunta no usa las palabras de la norma ("importe chico", "garantía de oferta"). El valor en pesos del módulo no está en la normativa cargada (art. 99: lo fija la máxima autoridad); la respuesta correcta se queda en M 1.000.

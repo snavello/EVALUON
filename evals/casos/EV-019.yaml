@@ -17,7 +17,7 @@ difieren: false
 pareja: ""
 aviso_modificatorias: true
 etiquetas: ["referencia exacta"]
-visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |
   Primer día de vigencia de la 297/03: prueba el borde inferior. Ojo: el texto dice "CINCO POR MIL (0,5 ‰)"; cinco por mil es 5 ‰ (0,5 %), no 0,5 ‰. La respuesta esperada repite el texto; conviene que la persona validadora decida qué dato exigir.

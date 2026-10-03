@@ -17,7 +17,7 @@ difieren: false
 pareja: EV-018
 aviso_modificatorias: false
 etiquetas: ["dos fechas"]
-visto_bueno: ""   # lo completa la Comisión; sin visto bueno el caso no se corre
+visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |
   La prohibición habla de causales "no subsanables". La respuesta bajo la 297/03 es la contraria (EV-018).
