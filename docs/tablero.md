@@ -112,10 +112,10 @@ flowchart LR
 - ✓ T-011 · Crear los clientes de IA, sus dobles y los parámetros (`fb2f640` 2026-10-02)
 - ✓ T-012 · Leer un PDF con texto (`977f834` 2026-10-02, `ef7d903` 2026-10-02)
 - ✓ T-013 · Partir en artículos y armar el informe mínimo (`a4e0391` 2026-10-03)
-- ✓ T-016 · Armar la pantalla de consulta con sus tres bloques
-- ✓ T-017 · Recuperar por significado y reordenar con el reranker
+- ✓ T-016 · Armar la pantalla de consulta con sus tres bloques (`ceff61d` 2026-10-03, `bb49b8c` 2026-10-03)
+- ✓ T-017 · Recuperar por significado y reordenar con el reranker (`f31dab6` 2026-10-03)
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
-- ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA
+- ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
 
 ### Mapa de tareas
 
