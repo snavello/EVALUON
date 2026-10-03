@@ -697,7 +697,7 @@ Lo que `queries/services.py` le entrega a la pantalla y guarda en `queries_query
       "document": 3,
       "page_start": null,
       "changes": [
-        {"relation_type": "modifica", "unit": 6033, "target_key": "anexo-i/art-14/inc-b", "effective_date": "2010-05-01"}
+        {"relation_type": "modifica", "unit": 6033, "target_unit_key": "anexo-i/art-14/inc-b", "effective_date": "2010-05-01"}
       ]
     }
   }

@@ -3,7 +3,10 @@ T-013).
 
 En datos (`norms_reading.report`) y en texto legible (`norms_reading.report_text`):
 páginas no leídas, unidades por tipo y por contenedor, tramos no ubicados, tramos
-descartados (el índice), uniones de palabras cortadas, control de cobertura y la lista de
+descartados (carátula, índice, títulos que pasan a la ruta), líneas descartadas
+(encabezados y pies de página), control de secuencia (saltos, encabezados no aceptados y
+encabezados dudosos de reconocimiento), párrafos en mayúsculas que quedaron dentro de una
+unidad y párrafos que siguen al último inciso de una lista (T-023), uniones de palabras cortadas, control de cobertura y la lista de
 unidades con su clave. El informe completo, con las diez partes del ADR-0004, es de
 T-025.
 """
@@ -21,7 +24,11 @@ TYPE_NAMES = {
     "parrafo": ("párrafo", "párrafos"),
 }
 
-DISCARD_REASONS = {"indice": "Índice"}
+DISCARD_REASONS = {
+    "indice": "Índice",
+    "titulo": "Título o capítulo, que pasa a la ruta",
+    "caratula": "Carátula (membrete y datos GDE)",
+}
 
 BODY_CONTAINER = "Cuerpo"
 
@@ -31,7 +38,20 @@ def first_words(text, count=FIRST_WORDS):
     return " ".join(text.split()[:count])
 
 
-def build_report(*, reading, canonical, units, segments, part, rules_version, container):
+def build_report(
+    *,
+    reading,
+    canonical,
+    units,
+    segments,
+    part,
+    rules_version,
+    containers,
+    sequence=(),
+    uppercase_in_units=(),
+    doubtful_headings=(),
+    after_last_inciso=(),
+):
     """Arma el informe en datos. `segments` son los tramos no unitarios: pares
     (`"discarded"` o `"unlocated"`, inicio, fin, motivo)."""
     text = canonical.text
@@ -62,7 +82,19 @@ def build_report(*, reading, canonical, units, segments, part, rules_version, co
     by_type = {}
     for unit in units:
         by_type[unit.unit_type] = by_type.get(unit.unit_type, 0) + 1
-    articles = [unit for unit in units if unit.unit_type == "articulo"]
+    by_container = []
+    for container in containers:
+        parent = container["key"] or None
+        articles = [u for u in units if u.unit_type == "articulo" and u.parent_key == parent]
+        by_container.append(
+            {
+                "container": container["name"],
+                "key": container["key"],
+                "articulo": len(articles),
+                "first": articles[0].number if articles else None,
+                "last": articles[-1].number if articles else None,
+            }
+        )
 
     return {
         "rules_version": rules_version,
@@ -71,16 +103,22 @@ def build_report(*, reading, canonical, units, segments, part, rules_version, co
         "units": {
             "total": len(units),
             "by_type": by_type,
-            "by_container": [
-                {
-                    "container": container["name"],
-                    "key": container["key"],
-                    "articulo": len(articles),
-                    "first": articles[0].number if articles else None,
-                    "last": articles[-1].number if articles else None,
-                }
-            ],
+            "by_container": by_container,
         },
+        # Control de secuencia por contenedor: números que faltan (saltos aceptados
+        # dentro del margen) y encabezados que no se aceptaron (repeticiones,
+        # transcripciones, saltos grandes), con la unidad en la que quedaron.
+        "sequence": [dict(item) for item in sequence],
+        # Párrafos en mayúsculas sin forma reconocida que quedaron dentro de una unidad
+        # (decisión del responsable del 2026-10-03): para que los revise quien valida.
+        "uppercase_in_units": list(uppercase_in_units),
+        # Encabezados de artículo leídos por reconocimiento con el número mal leído o
+        # fuera de secuencia, aceptados por la secuencia: requieren atención.
+        "doubtful_headings": list(doubtful_headings),
+        # Párrafos sin encabezado que siguen al último inciso de una lista: el PDF no
+        # distingue sangrías, así que pueden ser del inciso o de la unidad que lo
+        # contiene, donde quedaron. Clave del inciso, unidad donde quedaron y cuántos.
+        "after_last_inciso": list(after_last_inciso),
         "unit_list": [
             {
                 "key": unit.key,
@@ -95,6 +133,10 @@ def build_report(*, reading, canonical, units, segments, part, rules_version, co
         "unlocated": unlocated,
         "discarded": discarded,
         "discarded_lines": canonical.discarded_lines,
+        "discarded_line_list": [
+            {"page": line.page, "reason": line.reason, "text": line.text}
+            for line in canonical.discarded
+        ],
         "hyphen_joins": [{"page": join.page, "word": join.word} for join in canonical.hyphen_joins],
         "coverage": coverage(text, units, segments),
     }
@@ -104,7 +146,8 @@ def coverage(text, units, segments):
     """Control de cobertura: cada carácter del texto canónico está en una unidad base, en
     un tramo descartado, en un tramo no ubicado o es el salto de línea que separa dos
     tramos. La suma tiene que dar el total, sin solapamientos ni huecos."""
-    ranges = [("units", unit.char_start, unit.char_end) for unit in units]
+    # Los incisos son recortes de su artículo: cada carácter se cuenta en su unidad base.
+    ranges = [("units", u.char_start, u.char_end) for u in units if u.unit_type != "inciso"]
     ranges += [(kind, start, end) for kind, start, end, _ in segments]
     ranges = sorted((r for r in ranges if r[2] > r[1]), key=lambda r: r[1])
 
@@ -161,6 +204,47 @@ def report_text(report):
             lines.append(f"  {container['container']}: {_plural(count, 'artículo', 'artículos')}, {span}.")
         else:
             lines.append(f"  {container['container']}: ningún artículo.")
+    for item in report["sequence"]:
+        if item["gaps"]:
+            lines.append(f"  {item['container']}: faltan los números {', '.join(item['gaps'])}.")
+        for heading in item["not_accepted"]:
+            inside = f", quedó dentro de {heading['inside']}" if heading["inside"] else ""
+            where = _pages(heading["page"], heading["page"])
+            lines.append(
+                f"  {item['container']}: encabezado del artículo {heading['number']} fuera de "
+                f"secuencia, {where}{inside}."
+            )
+
+    doubtful = report["doubtful_headings"]
+    if doubtful:
+        lines.append(
+            "Requiere atención: "
+            + _plural(len(doubtful), "encabezado dudoso leído", "encabezados dudosos leídos")
+            + " por reconocimiento sobre imagen y aceptado por la secuencia."
+        )
+        for item in doubtful:
+            lines.append(f"  - {item['key']}, {_pages(item['page'], item['page'])}: {item['label']}")
+
+    upper = report["uppercase_in_units"]
+    if upper:
+        lines.append(f"Párrafos en mayúsculas dentro de una unidad, para revisar: {len(upper)}.")
+        for item in upper:
+            lines.append(
+                f"  - {item['key']}, {_pages(item['page'], item['page'])}: {item['first_words']}"
+            )
+
+    after = report["after_last_inciso"]
+    if after:
+        lines.append(
+            "Párrafos después del último inciso de una lista, que pueden ser del inciso y "
+            f"quedaron en la unidad que lo contiene, para revisar: {len(after)}."
+        )
+        for item in after:
+            stayed = "párrafo quedó" if item["paragraphs"] == 1 else "párrafos quedaron"
+            lines.append(
+                f"  - {item['key']}, {_pages(item['page'], item['page'])}: "
+                f"{item['paragraphs']} {stayed} en {item['inside']}"
+            )
 
     unlocated = report["unlocated"]
     lines.append(f"No ubicado: {_plural(len(unlocated), 'tramo', 'tramos')}.")
