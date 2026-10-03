@@ -143,14 +143,16 @@ def rerank(body):
 
 
 def chat_completion(body):
-    """`/v1/chat/completions`: una afirmación que cita el primer alias del esquema."""
+    """`/v1/chat/completions`: una afirmación que cita el primer alias del esquema, con
+    la marca `regimes_differ` apagada si el esquema la pide (`consulta-v2`, T-040)."""
     schema = body["response_format"]["json_schema"]["schema"]
     statement = schema["properties"]["statements"]["items"]["properties"]
     alias = statement["citations"]["items"]["enum"][0]
-    content = json.dumps({
-        "status": "grounded",
-        "statements": [{"text": "Se exigen garantías sintéticas.", "citations": [alias]}],
-    }, ensure_ascii=False)
+    answer = {"text": "Se exigen garantías sintéticas.", "citations": [alias]}
+    if "regimes_differ" in statement:
+        answer["regimes_differ"] = False
+    content = json.dumps({"status": "grounded", "statements": [answer]},
+                         ensure_ascii=False)
     return {
         "choices": [{"finish_reason": "stop", "index": 0,
                      "message": {"role": "assistant", "content": content}}],

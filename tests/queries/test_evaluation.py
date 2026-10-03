@@ -826,8 +826,9 @@ def test_prompt_version_comes_from_the_queries_of_the_run(
     report = run(read_user, "t039-aviso", tmp_path)
 
     parameters = json.loads((report.folder / "parametros.json").read_text(encoding="utf-8"))
-    assert parameters["prompt_version"] == answering.PROMPT_VERSION
-    assert by_id(report)["EV-951"]["prompt_version"] == answering.PROMPT_VERSION
+    # La consulta pasa la fecha del caso a la generación: instrucciones con fecha (T-040).
+    assert parameters["prompt_version"] == answering.PROMPT_VERSION_WITH_DATE
+    assert by_id(report)["EV-951"]["prompt_version"] == answering.PROMPT_VERSION_WITH_DATE
 
 
 def test_prompt_versions_are_all_listed_when_they_differ():
