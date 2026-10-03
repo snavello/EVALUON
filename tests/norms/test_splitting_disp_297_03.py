@@ -266,7 +266,11 @@ def test_paragraphs_after_the_last_inciso_are_the_reviewed_ones(norm):
 def test_the_last_inciso_of_article_14_keeps_what_it_presents(norm):
     """REQ-003 (T-043): "f) OTRAS OBLIGACIONES DEL CO-CONTRATANTE:" termina en dos puntos
     y presenta el párrafo de confidencialidad que le sigue, que es suyo y no del
-    artículo. El artículo, que lo contiene, no cambia."""
+    artículo. El artículo, que lo contiene, no cambia. El informe lo señala para que
+    quien valida lo revise (REQ-004)."""
+    assert norm.report["presenting_inciso"] == [
+        {"key": "anexo-i/art-14/inc-f", "paragraphs": 1, "page": None}
+    ]
     units = by_key(norm)
     inciso = units["anexo-i/art-14/inc-f"]
     assert inciso.text.startswith(

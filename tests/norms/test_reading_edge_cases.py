@@ -133,7 +133,7 @@ def test_a_page_with_an_unusable_text_layer_is_recognized_through_read_document(
     recognized = " ".join(line.text for line in page.lines)
     assert "ARTICULO 1. OBJETO." in recognized
     assert "contrataciones" in recognized
-    assert "" not in recognized
+    assert "\ue041" not in recognized
     assert reading.tool_versions["tesseract_spa_sha256"]
 
     result = split_document(reading, part="cuerpo")

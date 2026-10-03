@@ -259,7 +259,11 @@ def test_point_4_of_article_33_e_keeps_its_subpoints(annex):
     """REQ-003 (T-043): el punto 4 del inciso e del artículo 33 (página 24) termina en
     "...a través de los siguientes medios:" y lo siguen 4.1 (invitaciones) y 4.2
     (difusión), que son suyos: quedan en el punto 4 y no en el inciso e. El punto 4 llega
-    hasta el final del inciso e, que no cambia."""
+    hasta el final del inciso e, que no cambia; termina en la página 25. El informe lo
+    señala para que quien valida lo revise (REQ-004)."""
+    assert annex.report["presenting_inciso"] == [
+        {"key": "anexo/art-33/inc-e/inc-4", "paragraphs": 2, "page": 24}
+    ]
     units = by_key(annex)
     point = units["anexo/art-33/inc-e/inc-4"]
     paragraphs = point.text.split("\n")
@@ -268,7 +272,7 @@ def test_point_4_of_article_33_e_keeps_its_subpoints(annex):
     assert paragraphs[2].startswith("4.2. Difusión: Se difundirán en el sitio")
     assert len(paragraphs) == 3
     assert point.char_end == units["anexo/art-33/inc-e"].char_end
-    assert point.page_start == 24
+    assert (point.page_start, point.page_end) == (24, 25)
 
 
 def test_every_inciso_is_a_slice_of_its_article(annex):

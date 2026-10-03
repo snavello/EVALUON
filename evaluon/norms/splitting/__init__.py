@@ -87,7 +87,12 @@ from evaluon.norms.splitting.report import build_report, report_text
 # del art. 33 del anexo de la 247/2022 con sus puntos 4.1 y 4.2. El texto canónico, las
 # claves y los textos de las unidades base no cambian; cambian el texto de esos dos
 # incisos y el informe.
-RULES_VERSION = "8"
+# 9: T-043, observaciones del testeador. El informe señala en "Requiere atención" cada
+# último inciso que se llevó párrafos por terminar en dos puntos (`presenting_inciso`).
+# Si el inciso que contiene la lista es el último del artículo, su último punto que
+# termina en dos puntos también se lleva lo que le sigue, hasta el final del artículo.
+# En el corpus no cambia ninguna unidad respecto de la versión 8; cambia el informe.
+RULES_VERSION = "9"
 
 # Reglas de partición y categorías que las eligen (REQ-017; `Norm.Category`).
 NORM_RULE = "normas"
@@ -186,6 +191,7 @@ def split_document(reading, part=BODY, category=None, document_info=None):
         result = rules.partition(paragraphs, root=root)
 
     units, spans, after_last_inciso, inciso_key_taken, ocr_inciso_gaps = [], [], [], [], []
+    presenting_inciso = []
     for item in result.items:
         start, end = _range(paragraphs, item.first, item.last, len(text))
         if isinstance(item, rules.Span):
@@ -195,7 +201,11 @@ def split_document(reading, part=BODY, category=None, document_info=None):
         units.append(unit)
         if item.unit_type == "articulo":
             nodes = rules.find_incisos(
-                paragraphs, item, key_taken=inciso_key_taken, ocr_gaps=ocr_inciso_gaps
+                paragraphs,
+                item,
+                key_taken=inciso_key_taken,
+                ocr_gaps=ocr_inciso_gaps,
+                presenting=presenting_inciso,
             )
             for node in nodes:
                 _add_incisos(units, canonical, reading, paragraphs, unit, node)
@@ -242,6 +252,7 @@ def split_document(reading, part=BODY, category=None, document_info=None):
         uppercase_in_units=result.uppercase_in_units,
         doubtful_headings=result.doubtful_headings,
         after_last_inciso=after_last_inciso,
+        presenting_inciso=presenting_inciso,
         inciso_key_taken=inciso_key_taken,
         ocr_inciso_gaps=ocr_inciso_gaps,
         canonical_sha256=canonical_sha256,

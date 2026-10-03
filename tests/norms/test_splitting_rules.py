@@ -1295,6 +1295,94 @@ def test_a_last_point_that_ends_with_a_colon_keeps_its_numbered_subpoints():
     check_invariants(result)
 
 
+def test_the_paragraphs_taken_by_a_presenting_inciso_are_reported_for_review():
+    """REQ-004 (T-043, observación del testeador): cuando un último inciso que termina en
+    dos puntos se lleva los párrafos que le siguen, el informe lo muestra en "Requiere
+    atención" y en las unidades, con la clave, cuántos párrafos y la página del primero,
+    para que quien valida lo revise. Las unidades no cambian por el aviso."""
+    result = split_document(
+        synthetic(
+            ["ARTÍCULO 1°.- UNO. Son:", "a) Primero.", "b) Presentar los siguientes documentos:"],
+            ["Primer párrafo que sigue.", "Segundo párrafo que sigue.", "ARTÍCULO 2°.- DOS."],
+        ),
+        part="cuerpo",
+    )
+
+    assert by_key(result)["art-1/inc-b"].text.endswith("\nSegundo párrafo que sigue.")
+    assert result.report["presenting_inciso"] == [{"key": "art-1/inc-b", "paragraphs": 2, "page": 2}]
+    attention = [item for item in result.report["attention"] if item["kind"] == "presenting_inciso"]
+    assert len(attention) == 1
+    assert "art-1/inc-b se llevó 2 párrafos que siguen a su presentación (página 2)" in (
+        attention[0]["text"]
+    )
+    assert "art-1/inc-b, página 2: se llevó 2 párrafos" in result.report_text
+    check_invariants(result)
+
+
+def test_a_point_that_ends_with_a_colon_in_the_last_inciso_keeps_what_follows():
+    """REQ-003 (T-043, observación del testeador): si el inciso que contiene la lista es el
+    último del artículo, su último punto que termina en dos puntos se lleva lo que le
+    sigue hasta el final del artículo, igual que cuando el inciso tiene un hermano
+    siguiente; el inciso que lo contiene llega hasta ahí."""
+    result = split_document(
+        synthetic(
+            [
+                "ARTÍCULO 1°.- UNO. Son:",
+                "a) Contrataciones directas, conforme las siguientes previsiones:",
+                "1. Primer supuesto.",
+                "2. Segundo supuesto, por los siguientes medios:",
+                "2.1. Invitaciones a por lo menos tres proveedores.",
+                "2.2. Difusión en el sitio del Organismo.",
+                "ARTÍCULO 2°.- DOS. Otro.",
+            ]
+        ),
+        part="cuerpo",
+    )
+
+    units = by_key(result)
+    assert units["art-1/inc-a/inc-2"].text == (
+        "2. Segundo supuesto, por los siguientes medios:\n"
+        "2.1. Invitaciones a por lo menos tres proveedores.\n"
+        "2.2. Difusión en el sitio del Organismo."
+    )
+    assert units["art-1/inc-a"].char_end == units["art-1/inc-a/inc-2"].char_end
+    assert units["art-1/inc-a"].char_end == units["art-1"].char_end
+    assert result.report["after_last_inciso"] == []
+    assert result.report["presenting_inciso"] == [
+        {"key": "art-1/inc-a/inc-2", "paragraphs": 2, "page": 1}
+    ]
+    check_invariants(result)
+
+
+def test_a_last_inciso_with_its_own_points_does_not_take_what_follows_its_list():
+    """REQ-003 (T-043): la regla de los dos puntos es solo para un último inciso sin
+    incisos propios. "b) Segundo, según:" presenta su lista de puntos, no lo que viene
+    después de ella: el párrafo que sigue al último punto queda en el artículo y se
+    señala como siempre."""
+    result = split_document(
+        synthetic(
+            [
+                "ARTÍCULO 1°.- UNO. Son:",
+                "a) Primero.",
+                "b) Segundo, según:",
+                "1. Punto uno.",
+                "2. Punto dos.",
+                "Párrafo de cierre del artículo.",
+                "ARTÍCULO 2°.- DOS.",
+            ]
+        ),
+        part="cuerpo",
+    )
+
+    units = by_key(result)
+    assert units["art-1/inc-b"].text == "b) Segundo, según:\n1. Punto uno.\n2. Punto dos."
+    assert units["art-1/inc-b/inc-2"].text == "2. Punto dos."
+    assert units["art-1"].text.endswith("\nPárrafo de cierre del artículo.")
+    assert result.report["presenting_inciso"] == []
+    assert [item["key"] for item in result.report["after_last_inciso"]] == ["art-1/inc-b"]
+    check_invariants(result)
+
+
 # --- Encabezados leídos por reconocimiento sobre imagen (REQ-003, REQ-015) --------------
 
 OCR_SUBSTITUTES = ["”", "*", "%", "'", '"', "?", "”%", "O", "", " "]
