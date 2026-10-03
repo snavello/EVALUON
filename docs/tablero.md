@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 36 tareas sin terminar.
-- ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
+- ▶ T-014 · Cargar una norma, listarla y ver su informe (en curso)
 - ○ T-018 · Generar la respuesta con esquema e insertar las citas (pendiente)
 - ○ T-019 · Unir la consulta de punta a punta con su registro (pendiente)
 - ○ T-020 · Probar el hilo mínimo con los servicios reales (pendiente)
@@ -135,7 +135,7 @@ flowchart TD
   T011["✓ T-011 · Crear los clientes de IA, sus dobles y los…"]:::done
   T012["✓ T-012 · Leer un PDF con texto"]:::done
   T013["✓ T-013 · Partir en artículos y armar el informe míni…"]:::done
-  T014["○ T-014 · Cargar una norma, listarla y ver su informe"]:::todo
+  T014["▶ T-014 · Cargar una norma, listarla y ver su informe"]:::active
   T015["✓ T-015 · Validar una lectura y calcular pasajes y ve…"]:::done
   T016["✓ T-016 · Armar la pantalla de consulta con sus tres…"]:::done
   T017["✓ T-017 · Recuperar por significado y reordenar con e…"]:::done
@@ -271,7 +271,7 @@ flowchart TD
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
 | REQ-001 | El sistema debe incorporar una norma a partir de su documento, registrando tipo, número, organismo emisor, título, fecha de publicación, fecha de vigencia y fuente de donde se obtuvo | T-008, T-014, T-055 | ▶ en proceso |
-| REQ-002 | El sistema debe conservar el documento original de cada norma y permitir verlo | T-014, T-036, T-048 | ○ pendiente |
+| REQ-002 | El sistema debe conservar el documento original de cada norma y permitir verlo | T-014, T-036, T-048 | ▶ en proceso |
 | REQ-003 | El sistema debe dividir cada documento en unidades citables, cada una con su ubicación: considerando, artículo, inciso o anexo en las normas, y también el texto normativo que no lleva número de artículo, como una cláusula transitoria, con el nombre que le da el documento; punto o párrafo en dictámenes y recomendaciones | T-008, T-013, T-023, T-024, T-031, T-043, T-050 | ▶ en proceso |
 | REQ-004 | El sistema debe entregar, por cada norma incorporada, un informe de lectura: cuántas unidades reconoció, cuáles páginas no pudo leer y qué no pudo ubicar | T-012, T-013, T-014, T-021, T-025, T-027, T-028, T-043 | ▶ en proceso |
 | REQ-005 | Una norma debe quedar disponible para consultas solo después de que una persona valide su informe de lectura | T-009, T-015, T-017, T-027, T-032, T-035, T-043 | ▶ en proceso |
