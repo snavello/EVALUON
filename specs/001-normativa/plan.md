@@ -1143,7 +1143,7 @@ El responsable aprobó el plan el 2026-10-02 con las cinco recomendaciones que t
 1. Plan y ADR 0002 a 0005 aprobados. El modelo y el servidor de embeddings quedan sujetos a la etapa 0 y a las evals.
 2. Comandos en español.
 3. Evals: criterios automáticos en cada corrida y revisión del responsable en la corrida que se presenta para aprobar.
-4. Clave de 15 caracteres como mínimo; sesión de 8 horas y hasta cerrar el navegador; metas de recuperación como diagnóstico.
+4. Clave de 8 caracteres como mínimo (el 2026-10-03 el responsable bajó la propuesta de 15 a 8); sesión de 8 horas y hasta cerrar el navegador; metas de recuperación como diagnóstico.
 5. Equipo confirmado: Intel Core Ultra 9, 32 GB de RAM, RTX 5090 de notebook con 24 GB de memoria de video. La etapa 0 lo comprueba igual con `nvidia-smi`.
 
 El corpus inicial era la Disposición AFIP 297/03. El mismo día, por el ADR-0006, el responsable decidió trabajar con los dos regímenes: el corpus inicial pasa a ser la Disposición 297/03 con su texto de 2003 y la Disposición 247/2022 con su anexo. Las modificatorias de la 297/03 se anotan como no cargadas y se cargan de a poco.
