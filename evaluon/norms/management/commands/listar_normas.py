@@ -1,17 +1,16 @@
-"""Comando `listar_normas`: lista las normas con sus datos, sus documentos por parte y
-el estado de validación (REQ-001, REQ-017, REQ-020; plan 001, "Pantalla, acceso y
-comandos").
+"""Comando `listar_normas`: lista las normas con sus datos, sus documentos por parte, el
+estado de validación y los vínculos con otras normas en los dos sentidos (REQ-001,
+REQ-006, REQ-017, REQ-020; plan 001, "Pantalla, acceso y comandos").
 
 Rol: los dos. Recibe `--usuario`; la clave se pide por teclado. Solo traduce y llama a
-`evaluon.norms.services.listing`. Los vínculos entre normas se suman en T-029 y las
-modificatorias sin cargar en T-051.
+`evaluon.norms.services.listing`. Las modificatorias sin cargar se suman en T-051.
 """
 
 from django.core.management.base import BaseCommand, CommandError
 
 from evaluon.accounts import permissions
 from evaluon.accounts.permissions import RoleRejected
-from evaluon.norms.models import Category, ReadingStatus
+from evaluon.norms.models import Category, ReadingStatus, RelationType
 from evaluon.norms.services import listing
 
 STATUS_TEXT = {
@@ -49,6 +48,29 @@ def _document_lines(document):
     return lines
 
 
+# Cómo se lee cada tipo de relación desde la norma de origen y desde la alcanzada.
+LINK_TEXT = {
+    RelationType.MODIFICA: ("Modifica a", "Modificada por"),
+    RelationType.COMPLEMENTA: ("Complementa a", "Complementada por"),
+    RelationType.REGLAMENTA: ("Reglamenta a", "Reglamentada por"),
+    RelationType.DEROGA: ("Deroga a", "Derogada por"),
+}
+
+WHOLE_NORM = "la norma entera"
+
+
+def _link_line(link):
+    outgoing, incoming = LINK_TEXT.get(link.relation_type,
+                                       (link.relation_type, link.relation_type))
+    verb = outgoing if link.direction == "outgoing" else incoming
+    return (
+        f"  - {verb} {link.other_citation} (norma {link.other_norm_id}) · "
+        f"origen: {link.source_unit_key or WHOLE_NORM} · "
+        f"alcanza: {link.target_unit_key or WHOLE_NORM} · "
+        f"desde el {_date(link.effective_date)} · relación {link.relation_id}"
+    )
+
+
 def norm_lines(norm):
     lines = [
         f"{norm.citation} · norma {norm.id}",
@@ -61,6 +83,11 @@ def norm_lines(norm):
     ]
     for document in norm.documents:
         lines.extend(_document_lines(document))
+    if norm.links:
+        lines.append("  Vínculos:")
+        lines.extend(_link_line(link) for link in norm.links)
+    else:
+        lines.append("  Vínculos: ninguno")
     return lines
 
 
