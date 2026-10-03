@@ -63,13 +63,13 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 7 tareas sin terminar.
+- ▶ T-057 · Tratar AFIP y ARCA como el mismo organismo (en curso)
 - ○ T-044 · Registrar relaciones, versiones y modificatorias del corpus (pendiente)
 - ○ T-045 · Calibrar el umbral con el conjunto de preguntas (pendiente)
 - ○ T-046 · Correr las evals y medir tiempo y memoria (pendiente)
 - ○ T-047 · Probar una consulta con la red desconectada (pendiente)
 - ○ T-048 · Probar el respaldo y la restauración de la base (pendiente)
 - ○ T-049 · Levantar todo desde cero y dejar datos para el runbook (pendiente)
-- ○ T-057 · Tratar AFIP y ARCA como el mismo organismo (pendiente)
 
 ### Qué se hizo
 
@@ -185,7 +185,7 @@ flowchart TD
   T054["✓ T-054 · Pasar a la aplicación las variables de los…"]:::done
   T055["✓ T-055 · Agregar el nombre de cita de la norma"]:::done
   T056["✓ T-056 · Mostrar en la búsqueda solo lo vigente, con…"]:::done
-  T057["○ T-057 · Tratar AFIP y ARCA como el mismo organismo"]:::todo
+  T057["▶ T-057 · Tratar AFIP y ARCA como el mismo organismo"]:::active
   T001 --> T002
   T002 --> T003
   T003 --> T004
