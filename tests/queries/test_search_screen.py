@@ -21,7 +21,9 @@ from django.urls import reverse
 from django.utils import timezone
 
 from evaluon.accounts.permissions import RoleRejected
+from evaluon.audit import services as audit_services
 from evaluon.audit.models import AuditEvent, Channel, EventType, Outcome
+from evaluon.queries import search as direct_search
 from evaluon.queries import services
 from evaluon.queries.forms import FUTURE_DATE_ERROR
 from tests.conftest import TEST_PASSWORD
@@ -32,7 +34,8 @@ NO_REGIME_TEXT = "Para esa fecha no hay un régimen específico cargado en el si
 NO_RESULTS_TEXT = "No se encontró ningún texto"
 REPEALED_MARK = "Texto derogado"
 INTERNAL_NAMES = ("regimen_especifico", "articulo", "outgoing", "incoming", "repealed",
-                  "pdf_text", "consultable_units", "by_article", "by_words")
+                  "pdf_text", "consultable_units", "by_article", "by_words", "article",
+                  "words")
 
 
 # --- Ayudas -----------------------------------------------------------------------------
@@ -116,6 +119,10 @@ def test_screen_has_search_form_with_its_own_date_field(client, read_user, two_r
     assert body.count("Fecha de autorización del procedimiento") == 2
     ids = re.findall(r'\sid="([^"]+)"', body)
     assert len(ids) == len(set(ids)), "hay identificadores repetidos en la página"
+    described_by = re.findall(r'aria-describedby="([^"]+)"', body)
+    assert "id_search-words_helptext" in described_by
+    for target in described_by:
+        assert target in ids, f"aria-describedby apunta a {target}, que no existe"
 
 
 def test_norm_list_shows_only_norms_that_can_be_searched(client, read_user, two_regimes,
@@ -163,6 +170,24 @@ def test_reader_searches_norm_and_article_and_gets_unit_with_text(client, read_u
     assert f'href="{original}' in item
     assert "Abrir el documento original" in item
     assert REPEALED_MARK not in item
+
+
+def test_literal_text_is_the_canonical_slice_not_the_unit_copy(client, read_user,
+                                                               two_regimes):
+    """REQ-010: el texto que muestra un resultado es el tramo del texto canónico
+    (`canonical_text[char_start:char_end]`), no la copia de `norms_unit.text`, aunque
+    difieran."""
+    unit = two_regimes.old_units["art-2"]
+    unit.text = "COPIA SINTÉTICA ALTERADA QUE NO ES EL TEXTO LITERAL"
+    unit.save(update_fields=["text"])
+    log_in(client)
+
+    body = search_on_screen(client, norm=two_regimes.old, article="2",
+                            reference_date=two_regimes.before_v)
+
+    item = result_items(results_block(body))[unit.pk]
+    assert f'<blockquote class="literal">{literal(unit)}</blockquote>' in item
+    assert "COPIA SINTÉTICA ALTERADA" not in body
 
 
 def test_article_1_in_body_and_annex_shows_both_with_their_path(client, read_user,
@@ -460,7 +485,9 @@ def test_search_is_recorded_with_terms_date_regime_and_results(client, read_user
                                                                two_regimes):
     """REQ-012: la búsqueda queda en el registro con el usuario, el canal, el tipo, sus
     términos, su fecha de autorización, su régimen y sus resultados con la marca de
-    derogada, y la versión de la normativa."""
+    derogada. La versión de la normativa del hecho la comprueban
+    `test_search_event_has_the_corpus_version` y
+    `test_search_event_keeps_the_snapshot_version`."""
     log_in(client)
 
     search_on_screen(client, norm=two_regimes.old, article="1",
@@ -503,6 +530,49 @@ def test_words_search_is_recorded_with_its_words(client, read_user, two_regimes)
          "repealed_by": None}]
 
 
+def new_corpus_version(user):
+    """Crea una versión nueva de la normativa, como lo hace una validación, y devuelve
+    su número."""
+    return audit_services.record(
+        EventType.VALIDATION, outcome=Outcome.OK, channel=Channel.COMMAND, user=user,
+        creates_corpus_version=True,
+    ).corpus_version
+
+
+def test_search_event_has_the_corpus_version(read_user, read_write_user, two_regimes):
+    """REQ-012: el hecho `search` lleva la versión de la normativa con que se buscó."""
+    version = new_corpus_version(read_write_user)
+
+    outcome = services.search(read_user, two_regimes.after_v,
+                              norm_id=two_regimes.old.pk, article="1")
+
+    assert version is not None
+    assert outcome.event.corpus_version == version
+
+
+def test_search_event_keeps_the_snapshot_version(read_user, read_write_user, two_regimes,
+                                                 monkeypatch):
+    """REQ-012 (P6, P8): el hecho `search` lleva la versión de la normativa de la
+    instantánea en que se buscó, aunque se cree otra versión apenas termina la
+    búsqueda y antes de registrarla."""
+    searched_with = new_corpus_version(read_write_user)
+    original = direct_search.by_article
+    created = []
+
+    def by_article_then_new_version(*args, **kwargs):
+        results = original(*args, **kwargs)
+        created.append(new_corpus_version(read_write_user))
+        return results
+
+    monkeypatch.setattr(direct_search, "by_article", by_article_then_new_version)
+
+    outcome = services.search(read_user, two_regimes.after_v,
+                              norm_id=two_regimes.old.pk, article="1")
+
+    assert created and created[0] > searched_with
+    assert outcome.event.corpus_version == searched_with
+
+
 # --- Función de búsqueda -----------------------------------------------------------------
 
 
@@ -531,6 +601,17 @@ def test_service_rejects_without_role_and_records_rejection(two_regimes):
 
     assert search_events() == []
     assert AuditEvent.objects.filter(event_type=EventType.REJECTED).count() == 1
+
+
+def test_service_rejection_keeps_the_channel_received(two_regimes):
+    """REQ-016, REQ-012: un rechazo por rol queda registrado con el canal que recibió la
+    función (aquí, el de las evals), no con uno deducido."""
+    with pytest.raises(RoleRejected):
+        services.search(AnonymousUser(), two_regimes.after_v, words="sintético",
+                        channel=Channel.EVAL)
+
+    [event] = AuditEvent.objects.filter(event_type=EventType.REJECTED)
+    assert event.channel == Channel.EVAL
 
 
 def test_service_validates_date_and_terms(read_user, two_regimes, monkeypatch):
@@ -572,3 +653,16 @@ def test_search_page_has_no_internal_names_or_external_references(client, read_u
     assert not re.search(r"<script(?![^>]*\bsrc=)[^>]*>", body)
     assert "<style" not in body
     assert not re.search(r"\sstyle\s*=", body)
+
+
+def test_result_page_has_no_repeated_ids(client, read_user, two_regimes):
+    """REQ-010: la página con resultados no repite identificadores: los del formulario
+    de búsqueda, los de la sección de resultados y las anclas `texto-N` son únicos."""
+    log_in(client)
+
+    body = search_on_screen(client, norm=two_regimes.new, article="1",
+                            reference_date=two_regimes.after_v)
+
+    assert result_items(results_block(body))
+    ids = re.findall(r'\sid="([^"]+)"', body)
+    assert len(ids) == len(set(ids)), "hay identificadores repetidos en la página"

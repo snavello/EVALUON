@@ -29,7 +29,7 @@ citas (T-037): `details.citation` con el texto en `blockquote.literal` y el ancl
     <p>
       <label for="{{ search_form.words.id_for_label }}">{{ search_form.words.label }}</label>
       {{ search_form.words }}
-      <span class="field-help">{{ search_form.words.help_text }}</span>
+      <span class="field-help" id="{{ search_form.words.auto_id }}_helptext">{{ search_form.words.help_text }}</span>
     </p>
     {% if search_form.words.errors %}
     <p class="form-error" role="alert" id="{{ search_form.words.auto_id }}_error">{{ search_form.words.errors|join:" " }}</p>

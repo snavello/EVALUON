@@ -408,12 +408,8 @@ class _Page:
 
     def _original_url(self, described):
         document_id = described["document"]
-        if document_id is None:
-            return None
-        url = reverse("norms:original", args=[document_id])
-        if self.formats.get(document_id) == FileFormat.PDF and described["page"]:
-            url += f"#page={described['page']}"
-        return url
+        return original_url(document_id, self.formats.get(document_id),
+                            described["page"])
 
     def _text(self, unit_id, described):
         """Texto de una unidad con lo que lo acompaña, y queda marcada como mostrada.
