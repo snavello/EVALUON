@@ -2,7 +2,8 @@
 categoría y su parte (REQ-001, REQ-002, REQ-004, REQ-011, REQ-012, REQ-017, REQ-020;
 plan 001, "Pantalla, acceso y comandos" e "Ingesta").
 
-Rol: lectura y escritura. Recibe la ruta del archivo, los datos de la norma, `--parte`
+Rol: lectura y escritura. Recibe la ruta del archivo (PDF con texto, PDF escaneado o
+página web guardada, reconocido por su contenido; T-028), los datos de la norma, `--parte`
 (por omisión, `cuerpo`), `--regimen-general` y `--usuario`; la clave se pide por
 teclado. Solo traduce y llama a `evaluon.norms.services.loading`.
 
@@ -34,6 +35,7 @@ from evaluon.accounts import permissions
 from evaluon.accounts.permissions import RoleRejected
 from evaluon.audit.models import Channel
 from evaluon.norms.models import Category, SameNormConfirmation
+from evaluon.norms.reading import FORMAT_HTML, ORIGIN_OCR
 from evaluon.norms.services import loading
 from evaluon.norms.splitting.report import PAGE_LISTS, WEB_PAGE
 
@@ -73,6 +75,31 @@ def _page_lists(report):
     return " ".join(lists)
 
 
+def _format_name(file_format, report):
+    """El formato reconocido en palabras: "página web", "PDF con texto", "PDF escaneado"
+    o "PDF con texto y páginas escaneadas", según el origen de sus páginas."""
+    if file_format == FORMAT_HTML:
+        return "página web"
+    origins = {page["origin"] for page in report["page_list"] if page["origin"]}
+    if origins == {ORIGIN_OCR}:
+        return "PDF escaneado"
+    if ORIGIN_OCR in origins:
+        return "PDF con texto y páginas escaneadas"
+    return "PDF con texto"
+
+
+def _recognition_line(report):
+    """Aviso de las unidades con texto reconocido sobre imagen (REQ-015), o nada."""
+    count = report["ocr"]["units"]
+    if not count:
+        return ""
+    noun = "unidad tiene" if count == 1 else "unidades tienen"
+    return (
+        f"{count} {noun} texto reconocido sobre imagen: compare con el original las "
+        "palabras de menor confianza del informe.\n"
+    )
+
+
 def _date(value, option):
     if value is None:
         return None
@@ -105,7 +132,11 @@ class Command(BaseCommand):
     )
 
     def add_arguments(self, parser):
-        parser.add_argument("archivo", help="Ruta del archivo de la norma (PDF).")
+        parser.add_argument(
+            "archivo",
+            help="Ruta del archivo de la norma: PDF con texto, PDF escaneado o página web "
+            "guardada (.html). El formato se reconoce por el contenido, no por el nombre.",
+        )
         parser.add_argument(
             "--categoria",
             help=f"Categoría del documento: {', '.join(Category.values)}. Obligatoria.",
@@ -213,11 +244,13 @@ class Command(BaseCommand):
         self.stdout.write(
             f"Se cargó el documento {result.document.pk}: parte {result.document.part} de "
             f"la {result.norm.citation} ({new}).\n"
+            f"Formato reconocido: {_format_name(result.document.file_format, report)}.\n"
             f"Lectura {reading.pk}, pendiente de validación: {result.units} unidades, "
             f"{report['pages']['total']} páginas, {len(report['unlocated'])} tramos no "
             f"ubicados.\n"
             f"Páginas: {_page_lists(report)}\n"
-            f"Revise el informe con: ver_informe {reading.pk} --usuario "
+            + _recognition_line(report)
+            + f"Revise el informe con: ver_informe {reading.pk} --usuario "
             f"{user.get_username()}\n"
             f"Para que la norma se pueda consultar, valídelo con: validar_informe "
             f"{reading.pk} --usuario {user.get_username()}"

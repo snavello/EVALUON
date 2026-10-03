@@ -73,7 +73,12 @@ from evaluon.norms.splitting.report import build_report, report_text
 # todavía no se integró: un inciso no repite la clave de otro de su nivel (se anida o
 # queda dentro, y se informa); el artículo de forma exige la fórmula completa; la nota
 # de publicación es solo la del BORA; el informe cuenta el visto aparte.
-RULES_VERSION = "6"
+# 7: T-028 (decisión del Coordinador). En una lectura de reconocimiento sobre imagen, el
+# informe avisa los incisos que saltan letras de su lista y los párrafos que empiezan como
+# un inciso mal leído (`ocr_inciso_gaps`). Los cortes no cambian: el texto canónico, las
+# unidades, sus claves y sus textos son los de la versión 6 en los tres formatos; cambia
+# el informe de las lecturas con reconocimiento, cuya huella firma la validación.
+RULES_VERSION = "7"
 
 # Reglas de partición y categorías que las eligen (REQ-017; `Norm.Category`).
 NORM_RULE = "normas"
@@ -171,7 +176,7 @@ def split_document(reading, part=BODY, category=None, document_info=None):
         root = _annex_root(part) if part != BODY else None
         result = rules.partition(paragraphs, root=root)
 
-    units, spans, after_last_inciso, inciso_key_taken = [], [], [], []
+    units, spans, after_last_inciso, inciso_key_taken, ocr_inciso_gaps = [], [], [], [], []
     for item in result.items:
         start, end = _range(paragraphs, item.first, item.last, len(text))
         if isinstance(item, rules.Span):
@@ -180,7 +185,9 @@ def split_document(reading, part=BODY, category=None, document_info=None):
         unit = _unit(canonical, reading, item, start, end)
         units.append(unit)
         if item.unit_type == "articulo":
-            nodes = rules.find_incisos(paragraphs, item, key_taken=inciso_key_taken)
+            nodes = rules.find_incisos(
+                paragraphs, item, key_taken=inciso_key_taken, ocr_gaps=ocr_inciso_gaps
+            )
             for node in nodes:
                 _add_incisos(units, canonical, reading, paragraphs, unit, node)
             for path, count in rules.after_last_inciso(nodes, item.last):
@@ -227,6 +234,7 @@ def split_document(reading, part=BODY, category=None, document_info=None):
         doubtful_headings=result.doubtful_headings,
         after_last_inciso=after_last_inciso,
         inciso_key_taken=inciso_key_taken,
+        ocr_inciso_gaps=ocr_inciso_gaps,
         canonical_sha256=canonical_sha256,
         document_info=document_info,
     )

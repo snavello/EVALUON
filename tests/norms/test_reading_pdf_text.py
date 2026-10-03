@@ -23,6 +23,7 @@ from evaluon.norms.reading import (
     UnsupportedFormatError,
     read_document,
 )
+from evaluon.norms.reading.pdf_text import read_pdf_text
 
 REPO = Path(__file__).resolve().parents[2]
 EXTRACT = REPO / "tests" / "fixtures" / "disp-247-2022-anexo-extracto.pdf"
@@ -190,9 +191,12 @@ def test_spaces_drawn_inside_a_word_do_not_split_it(original, page_number, line)
 
 
 def test_pages_without_text_layer_are_reported_as_not_read():
-    """REQ-004: una página sin capa de texto (en blanco, o que es solo una imagen) figura
-    como no leída, sin líneas, con su número; las demás se leen y conservan el suyo."""
-    reading = read_document(with_pages_without_text())
+    """REQ-004: para la lectura de PDF con texto, una página sin capa de texto (en
+    blanco, o que es solo una imagen) figura como no leída, sin líneas, con su número;
+    las demás se leen y conservan el suyo. (Desde T-028 la entrada única clasifica esas
+    páginas antes de leerlas: la en blanco queda en blanco y la imagen se reconoce; ver
+    `test_three_formats.py`.)"""
+    reading = read_pdf_text(with_pages_without_text())
 
     assert [page.number for page in reading.pages] == [1, 2, 3, 4, 5, 6, 7, 8]
     assert reading.pages_not_read == [2, 5]
@@ -254,13 +258,19 @@ def test_as_json_keeps_pages_lines_and_versions(extract):
 
 
 def test_a_file_that_is_not_a_pdf_is_rejected(tmp_path):
-    """REQ-015: en esta etapa la lectura solo acepta PDF; el formato se reconoce por el
-    contenido y no por el nombre. Una página web, aunque se llame `.pdf`, se rechaza."""
+    """REQ-015: el formato se reconoce por el contenido y no por el nombre. Una página
+    web, aunque se llame `.pdf`, no se lee como PDF (desde T-028 se lee como página web);
+    un archivo que no es PDF ni página web, aunque se llame `.pdf`, se rechaza."""
     html = b"<!DOCTYPE html><html><body><p>ARTICULO 1.- Texto.</p></body></html>"
     disguised = tmp_path / "pagina-sintetica.pdf"
     disguised.write_bytes(html)
+    text = b"ARTICULO 1.- Texto suelto, sin formato."
+    other = tmp_path / "texto-sintetico.pdf"
+    other.write_bytes(text)
 
+    assert read_document(disguised).file_format == "html"
+    assert read_document(html).file_format == "html"
     with pytest.raises(UnsupportedFormatError):
-        read_document(disguised)
+        read_document(other)
     with pytest.raises(UnsupportedFormatError):
-        read_document(html)
+        read_document(text)

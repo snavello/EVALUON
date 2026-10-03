@@ -35,7 +35,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 47/55 | █████████░ 85% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 48/55 | █████████░ 87% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
 | 003 · Procedimiento, pliego final y matriz de cumplimiento | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | No iniciada | — | — |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -62,8 +62,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 8 tareas sin terminar.
-- ○ T-028 · Integrar los tres formatos en la carga (pendiente)
+- **Próximo paso:** Desarrollar: 7 tareas sin terminar.
 - ○ T-043 · Cargar y validar el corpus real y ajustar las reglas (pendiente)
 - ○ T-044 · Registrar relaciones, versiones y modificatorias del corpus (pendiente)
 - ○ T-045 · Calibrar el umbral con el conjunto de preguntas (pendiente)
@@ -101,7 +100,8 @@ flowchart LR
 - ✓ T-024 · Partir dictámenes y recomendaciones en puntos y párrafos (`eee73f3` 2026-10-03, `33bb89f` 2026-10-03)
 - ✓ T-025 · Completar el informe de lectura (`8d488ab` 2026-10-03, `894c7a7` 2026-10-03, `3986cbf` 2026-10-03)
 - ✓ T-026 · Avisar duplicados al cargar una norma (`7ff80c5` 2026-10-03, `dd34b1a` 2026-10-03)
-- ✓ T-027 · Releer un documento y reemplazar la lectura anterior
+- ✓ T-027 · Releer un documento y reemplazar la lectura anterior (`025253b` 2026-10-03, `154e309` 2026-10-03)
+- ✓ T-028 · Integrar los tres formatos en la carga (`0eae60c` 2026-10-03)
 - ✓ T-029 · Registrar relaciones entre normas y mostrar los vínculos (`eb8e443` 2026-10-03, `7748cf7` 2026-10-03)
 - ✓ T-030 · Registrar versiones de una norma (`2844775` 2026-10-03)
 - ✓ T-031 · Partir en pasajes las unidades largas (`282ab7f` 2026-10-03, `955ce90` 2026-10-03, `c1e2088` 2026-10-03)
@@ -118,7 +118,7 @@ flowchart LR
 - ✓ T-042 · Agregar calibración del umbral y comparación de corridas (`a7af689` 2026-10-03, `ef536b1` 2026-10-03, `32e5b9a` 2026-10-03)
 - ✓ T-050 · Partir la 297/03 y el cuerpo de la 247/2022 desde la web (`c27c9c4` 2026-10-03, `5941a37` 2026-10-03)
 - ✓ T-051 · Registrar las modificatorias sin cargar de una norma (`375ba21` 2026-10-03, `73a199a` 2026-10-03)
-- ✓ T-052 · Avisar modificatorias sin cargar en respuesta y búsqueda (`5eb1059` 2026-10-03, `84ad9d4` 2026-10-03, `8b43218` 2026-10-03)
+- ✓ T-052 · Avisar modificatorias sin cargar en respuesta y búsqueda
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 - ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
 - ✓ T-055 · Agregar el nombre de cita de la norma (`ff230c8` 2026-10-03, `88796e6` 2026-10-03)
@@ -154,7 +154,7 @@ flowchart TD
   T025["✓ T-025 · Completar el informe de lectura"]:::done
   T026["✓ T-026 · Avisar duplicados al cargar una norma"]:::done
   T027["✓ T-027 · Releer un documento y reemplazar la lectura…"]:::done
-  T028["○ T-028 · Integrar los tres formatos en la carga"]:::todo
+  T028["✓ T-028 · Integrar los tres formatos en la carga"]:::done
   T029["✓ T-029 · Registrar relaciones entre normas y mostrar…"]:::done
   T030["✓ T-030 · Registrar versiones de una norma"]:::done
   T031["✓ T-031 · Partir en pasajes las unidades largas"]:::done

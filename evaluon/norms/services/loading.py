@@ -17,8 +17,9 @@ original" y "Registro de auditoría").
      confirmación.
    - Si la norma ya existe (mismos tipo, número, año y organismo), los datos de la
      norma indicados tienen que coincidir con los registrados (`NormDataMismatch`).
-   - Lee el documento (`norms/reading/`) y lo parte (`norms/splitting/`) con su parte y
-     su categoría, en CPU y sin los servicios de IA.
+   - Lee el documento (`norms/reading/`: PDF con texto, PDF escaneado o página web, con
+     el formato reconocido por su contenido, T-028) y lo parte (`norms/splitting/`) con
+     su parte y su categoría, en CPU y sin los servicios de IA.
    - Mismo texto canónico que otro documento (de cualquier norma y parte), o misma norma
      y misma parte que un documento ya cargado: "misma norma". Solo se incorpora con
      confirmación expresa, en la que la persona indica si es otro archivo de lo mismo o
@@ -46,8 +47,9 @@ y el resultado de las comprobaciones hechas, sin nada incorporado. Los mensajes 
 errores son para la persona que carga: en español llano.
 
 `reread_document` vuelve a leer y partir un documento ya cargado (T-027; plan 001,
-"Ingesta", punto 6), a partir del original guardado y sin pedir el archivo: lo lee, lo
-parte con su parte y con la categoría de su norma, y guarda una lectura nueva `pending`
+"Ingesta", punto 6), a partir del original guardado y sin pedir el archivo: comprueba su
+huella, lo lee con la misma entrada única de la carga (en cualquiera de los tres
+formatos, T-028), lo parte con su parte y con la categoría de su norma, y guarda una lectura nueva `pending`
 con el número siguiente, su informe y sus unidades, y el hecho `reread`. No crea versión
 de la normativa: la lectura anterior sigue consultable hasta que se valide la nueva, y al
 validarla pasa a `superseded` (`validation.py`). No repite las comprobaciones de
@@ -143,9 +145,10 @@ _PART = re.compile(rf"{re.escape(BODY_PART)}|{ANNEX_PART_REGEX.strip('^$')}")
 # búsqueda por palabras (ADR-0007, adenda "La eñe").
 _ACCENTS = str.maketrans("áéíóúàèìòùäëïöü", "aeiouaeiouaeiou")
 
-# Errores de lectura de un archivo que no se puede leer: no es un PDF, o es un PDF
-# truncado o dañado (pdfplumber los entrega como `PdfminerException`; pdfminer puede
-# lanzar los suyos al leer una página).
+# Errores de lectura de un archivo que no se puede leer: no es un PDF ni una página web,
+# o es un PDF truncado o dañado. La lectura los entrega como `UnsupportedFormatError`
+# (T-028); se conservan los de pdfplumber y pdfminer por si alguno pasa al leer una
+# página.
 _UNREADABLE_ERRORS = (UnsupportedFormatError, PdfminerException, PSException)
 
 
@@ -400,8 +403,8 @@ def _read(data):
         return read_document(data)
     except _UNREADABLE_ERRORS as error:
         raise UnreadableFile(
-            "No se pudo leer el archivo: no es un PDF o está dañado o incompleto. "
-            "No se incorporó nada."
+            "No se pudo leer el archivo: no es un PDF ni una página web guardada (.html), "
+            "o está dañado o incompleto. No se incorporó nada."
         ) from error
 
 
@@ -527,8 +530,13 @@ def _data_detail(data):
     return {name: data.get(name) for name in (*FIELDS, "part", "general_regime")}
 
 
-def _file_detail(file_name, file_format, data, sha256):
-    return {"name": file_name, "format": file_format, "size": len(data), "sha256": sha256}
+def _file_detail(file_name, file_format, data, sha256, encoding=None):
+    """Datos del archivo para el registro: nombre, formato detectado, tamaño, huella y,
+    en una página web, la codificación detectada (T-028)."""
+    detail = {"name": file_name, "format": file_format, "size": len(data), "sha256": sha256}
+    if encoding:
+        detail["encoding"] = encoding
+    return detail
 
 
 def _record_refusal(user, channel, data, file_detail, error, checks, confirmation):
@@ -651,6 +659,8 @@ def load_norm(user, *, data, file_name, part=None, general_regime=False,
             _check_existing_norm(norm, values)
         reading_data = _read(data)
         file_detail["format"] = reading_data.file_format
+        if reading_data.encoding:
+            file_detail["encoding"] = reading_data.encoding
         read_at = timezone.localtime().isoformat(timespec="seconds")
         split = split_document(
             reading_data,
@@ -857,7 +867,7 @@ def reread_document(user, document_id, *, channel=Channel.COMMAND):
     tool_versions = {**reading_data.tool_versions, "rules_version": RULES_VERSION}
     # La huella calculada sobre los bytes leídos, que coincide con la registrada.
     file_detail = _file_detail(document.file_name, reading_data.file_format, data,
-                               computed)
+                               computed, reading_data.encoding)
 
     with transaction.atomic():
         # El documento bloqueado ordena dos relecturas simultáneas: cada una toma el

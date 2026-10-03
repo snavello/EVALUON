@@ -83,6 +83,12 @@ Reglas:
     se repetiría (`Inciso 1)` después de `1)`, `2)`): se anida en el inciso abierto si
     cabe, como antes de T-050; si no, no abre una unidad y es un párrafo más de la lista
     abierta. El informe lo señala.
+  - En párrafos de reconocimiento sobre imagen (T-028, decisión del Coordinador) no hay
+    tolerancia de letra de inciso: un inciso con la letra mal leída ("£)" por "g)") no
+    abre una unidad. Para que quien valida lo vea, se señalan sin cambiar ninguna unidad:
+    un inciso que salta letras de su lista (de f) a h): falta g)) y un párrafo que empieza
+    como un inciso con una marca que no es letra ni número ("£) Responsabilidad...")
+    mientras hay una lista abierta. En PDF con texto y en web no se señala nada.
 """
 
 import re
@@ -115,6 +121,14 @@ SEQUENCE_MARGIN = 3
 INDEX_MIN_HEADINGS = 2
 # Cuántos niveles de incisos se reconocen.
 INCISO_LEVELS = 2
+
+# Párrafo de reconocimiento sobre imagen que empieza como un inciso con una marca de uno
+# o dos caracteres seguida de paréntesis (T-028): si la marca no es una letra ni un
+# número de inciso ("£)" por "g)"), puede ser un inciso mal leído. Cuántas palabras de
+# ese párrafo se muestran en el informe.
+_MISREAD_INCISO = re.compile(r"(?P<mark>\S{1,2})\)(?=\s)")
+_VALID_INCISO_MARK = re.compile(r"[a-zñ]|\d{1,2}")
+OCR_GAP_WORDS = 8
 
 # Carátula de un documento GDE: membrete con la leyenda del año, "Número:" y
 # "Referencia:".
@@ -593,17 +607,28 @@ class IncisoNode:
     end: int = 0
 
 
-def find_incisos(paragraphs, block, key_taken=None):
+def find_incisos(paragraphs, block, key_taken=None, ocr_gaps=None):
     """Los incisos de un artículo, como árbol de dos niveles con el último párrafo de
     cada uno. Un inciso no se abre en un nivel donde ya hay otro con su número: la clave
     se repetiría y la base la rechaza. Esos encabezados se agregan a `key_taken`, si se
     pasa, con la clave tomada y la clave con que quedaron (vacía si no abrieron una
-    unidad y son un párrafo más de la lista abierta)."""
+    unidad y son un párrafo más de la lista abierta).
+
+    En párrafos de reconocimiento sobre imagen se agregan a `ocr_gaps`, si se pasa, los
+    incisos que saltan letras de su lista y los párrafos que empiezan como un inciso mal
+    leído (T-028): la clave de la unidad que contiene la lista, el último inciso de la
+    lista (`after`), lo que se encontró (`found`), las letras que faltan (`missing`), la
+    página y las primeras palabras. No cambia los incisos que se devuelven."""
     roots, stack, introduced = [], [], []
     taken_list = key_taken if key_taken is not None else []
+    gaps = ocr_gaps if ocr_gaps is not None else []
+    skipped_lists = []
 
     def key(chain, number):
         return "/".join([block.key] + [f"inc-{n.heading.number}" for n in chain] + [f"inc-{number}"])
+
+    def owner(chain):
+        return "/".join([block.key] + [f"inc-{n.heading.number}" for n in chain])
 
     def is_taken(siblings, number):
         return any(node.heading.number == number for node in siblings)
@@ -611,14 +636,35 @@ def find_incisos(paragraphs, block, key_taken=None):
     def report(p, taken, placed):
         taken_list.append({"label": p.heading.label, "taken": taken, "placed": placed, "page": p.page})
 
+    def gap(p, chain, after, found, missing):
+        gaps.append(
+            {
+                "key": owner(chain),
+                "after": after,
+                "found": found,
+                "missing": missing,
+                "page": p.page,
+                "first_words": " ".join(p.text.split()[:OCR_GAP_WORDS]),
+            }
+        )
+
     for p in paragraphs[block.first + 1 : block.last + 1]:
         h = p.heading
         if h.kind != INCISO:
+            misread = _MISREAD_INCISO.match(p.text) if p.ocr and stack else None
+            if misread and not _VALID_INCISO_MARK.fullmatch(misread.group("mark")):
+                gap(p, stack[:-1], stack[-1].heading.number, misread.group(0), [])
             continue
         level = next((i for i, node in enumerate(stack) if _same_form(node.heading, h)), None)
         if level is not None:
             # Sigue una lista abierta de su misma forma.
             if not _is_next(stack[level].heading.number, h.number):
+                previous = stack[level]
+                missing = _skipped(previous.heading.number, h.number)
+                if p.ocr and missing and not any(node is previous for node in skipped_lists):
+                    # Se señala una vez por lista: el primer salto.
+                    skipped_lists.append(previous)
+                    gap(p, stack[:level], previous.heading.number, h.label or f"{h.number})", missing)
                 continue
             siblings = stack[level - 1].children if level else roots
             if is_taken(siblings, h.number):
@@ -716,6 +762,18 @@ def _assign_ends(nodes):
 
 
 _LETTERS = "abcdefghijklmnñopqrstuvwxyz"
+
+
+def _skipped(previous, value):
+    """Los números o letras que faltan entre el último inciso de una lista y uno que la
+    sigue más adelante; vacío si no está más adelante. La eñe puede no usarse: no cuenta
+    como faltante."""
+    if previous.isdigit() and value.isdigit():
+        return [str(n) for n in range(int(previous) + 1, int(value))]
+    if previous in _LETTERS and value in _LETTERS:
+        start, end = _LETTERS.index(previous), _LETTERS.index(value)
+        return [letter for letter in _LETTERS[start + 1 : end] if letter != "ñ"]
+    return []
 
 
 def _is_first(value):
