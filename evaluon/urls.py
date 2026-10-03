@@ -1,3 +1,7 @@
-"""Rutas de EVALUON. Por ahora vacías: las agregan las aplicaciones de la etapa 1."""
+"""Rutas de EVALUON. La raíz la ocupa la pantalla de consulta (T-016)."""
 
-urlpatterns = []
+from django.urls import include, path
+
+urlpatterns = [
+    path("", include("evaluon.accounts.urls")),
+]
