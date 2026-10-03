@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 47 tareas sin terminar.
-- ○ T-006 · Crear usuarios con rol, ingreso y salida (pendiente)
+- ▶ T-006 · Crear usuarios con rol, ingreso y salida (en curso)
 - ○ T-007 · Crear el registro de auditoría y el alta de usuarios (pendiente)
 - ○ T-008 · Crear las tablas de normas, lecturas, unidades y pasajes (pendiente)
 - ○ T-009 · Crear las funciones de unidades consultables a una fecha (pendiente)
@@ -124,7 +124,7 @@ flowchart TD
   T003["✓ T-003 · Levantar embeddings y reranker y medir la m…"]:::done
   T004["✓ T-004 · Fijar Postgres con sus extensiones y búsque…"]:::done
   T005["✓ T-005 · Armar el esqueleto de Django con sus librer…"]:::done
-  T006["○ T-006 · Crear usuarios con rol, ingreso y salida"]:::todo
+  T006["▶ T-006 · Crear usuarios con rol, ingreso y salida"]:::active
   T007["○ T-007 · Crear el registro de auditoría y el alta de…"]:::todo
   T008["○ T-008 · Crear las tablas de normas, lecturas, unida…"]:::todo
   T009["○ T-009 · Crear las funciones de unidades consultable…"]:::todo
