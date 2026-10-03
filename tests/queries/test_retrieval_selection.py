@@ -140,9 +140,10 @@ def test_considerandos_have_their_own_quota(norm_units, fake_embeddings, fake_re
 
 @pytest.mark.django_db
 def test_below_threshold_units_are_not_selected(norm_units, fake_embeddings,
-                                                fake_reranker):
+                                                fake_reranker, settings):
     """REQ-018: la selección parte de las unidades que alcanzaron el umbral; las que no lo
     alcanzan no entran aunque sobre cupo."""
+    settings.RERANK_THRESHOLD = 0.368  # el umbral que supone el test, no el calibrado
     units = norm_units("regimen_especifico", [
         ("art-1", "ARTICULO 1.- Garantía [a1]."),
         ("art-2", "ARTICULO 2.- Garantía [a2]."),

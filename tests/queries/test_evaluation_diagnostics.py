@@ -160,10 +160,11 @@ def test_percent_in_words_without_the_figure_is_recognized(key, answer, ok):
 
 
 def test_each_case_carries_its_retrieval_diagnostics(read_user, two_regimes, scripted,
-                                                      tmp_path):
+                                                      tmp_path, settings):
     """REQ-008, REQ-009 (ADR-0003): cada caso trae si la unidad correcta estuvo entre los
     candidatos (por camino y en la unión) y entre las seleccionadas, su posición, el
     puntaje más alto, si el umbral lo frenó y el tiempo de la recuperación."""
+    settings.RERANK_THRESHOLD = 0.368  # el umbral que supone el test, no el calibrado
     diagnostic_marks(scripted)
 
     report = run(read_user, "t042-diagnostico", tmp_path)
@@ -193,11 +194,13 @@ def test_each_case_carries_its_retrieval_diagnostics(read_user, two_regimes, scr
     assert unanswerable["stopped_by_threshold"] is True
 
 
-def test_run_retrieval_measures_are_aggregated(read_user, two_regimes, scripted, tmp_path):
+def test_run_retrieval_measures_are_aggregated(read_user, two_regimes, scripted, tmp_path,
+                                               settings):
     """REQ-008, REQ-009 (ADR-0003): la corrida informa la unidad correcta entre los
     candidatos por camino y en la unión, entre las seleccionadas, su posición, las
     preguntas con respuesta y sin respuesta frenadas por el umbral y el tiempo de la
     recuperación."""
+    settings.RERANK_THRESHOLD = 0.368  # el umbral que supone el test, no el calibrado
     diagnostic_marks(scripted)
 
     report = run(read_user, "t042-diagnostico", tmp_path)
@@ -414,11 +417,12 @@ def test_changed_conditions_are_named(read_user, two_regimes, scripted, tmp_path
 
 
 def test_ablation_produces_the_four_configurations(read_user, two_regimes, scripted,
-                                                   tmp_path, monkeypatch):
+                                                   tmp_path, monkeypatch, settings):
     """REQ-008, REQ-009 (ADR-0003): la comparación quitando piezas corre cada caso con
     las cuatro configuraciones (solo vectores, solo palabras, combinada sin reranker,
     completa) con los parámetros públicos de la recuperación, sin pasar por la función
     de consulta, y la informa en `resumen.md`."""
+    settings.RERANK_THRESHOLD = 0.368  # el umbral que supone el test, no el calibrado
     diagnostic_marks(scripted)
     calls = []
     original = retrieval.retrieve
