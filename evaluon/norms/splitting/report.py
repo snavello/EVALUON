@@ -503,7 +503,7 @@ def attention_items(report):
         add(
             "coverage",
             "El control de cobertura no cierra: unidades, descartado, no ubicado y "
-            f"separadores no suman el total leído{where}. Es una falla de la partición: "
+            f"separadores no suman el total leído{where}. Es una falla al dividir el texto: "
             "no valide este informe.",
         )
 
@@ -596,7 +596,7 @@ def attention_items(report):
         add(
             "uppercase_in_units",
             "Párrafos en mayúsculas que quedaron dentro de una unidad y pueden ser un "
-            "encabezado que la partición no reconoce: "
+            "encabezado que la división del texto no reconoce: "
             + _limited([located(u["key"], u["page"]) for u in upper])
             + ".",
         )
@@ -872,6 +872,8 @@ def _units_text(report):
         for heading in item["not_accepted"]:
             inside = f", quedó dentro de {heading['inside']}" if heading["inside"] else ""
             where = _pages(heading["page"], heading["page"], web)
+            if heading["page"] is None and web:
+                where = "en " + where
             lines.append(
                 f"  {item['container']}: encabezado del {item.get('heading', 'artículo')} "
                 f"{heading['number']} fuera de secuencia, {where}{inside}."
@@ -1017,7 +1019,7 @@ def _coverage_text(report):
 def _duplicates_text(report):
     duplicates = report.get("duplicates")
     if duplicates is None:
-        return ["Posibles duplicados: sin comprobar en la partición; los comprueba la carga del documento."]
+        return ["Posibles duplicados: se comprueban al cargar el documento."]
     if not duplicates:
         return ["Posibles duplicados: ninguno."]
     return [f"Posibles duplicados: {len(duplicates)}."] + [

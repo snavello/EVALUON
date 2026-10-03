@@ -867,7 +867,7 @@ def test_duplicates_are_left_for_the_load_to_fill():
     report = json.loads(json.dumps(result.report))
 
     assert report["duplicates"] is None
-    assert "Posibles duplicados: sin comprobar" in result.report_text
+    assert "Posibles duplicados: se comprueban al cargar el documento." in result.report_text
 
     report["duplicates"] = [{"check": "same_norm", "detail": "Misma norma que el documento 3."}]
     report["attention"] = attention_items(report)
@@ -1040,7 +1040,7 @@ def test_a_web_page_is_always_named_the_same_way():
     assert "La página web: página web" not in text
     assert "La página web: legible," in text
     assert "  - La página web: Texto suelto previo." in text
-    assert "encabezado del artículo 2 fuera de secuencia, la página web, quedó dentro de art-2." in text
+    assert "encabezado del artículo 2 fuera de secuencia, en la página web, quedó dentro de art-2." in text
     assert "  art-1 · Artículo 1 · ARTÍCULO 1°.- UNO · la página web" in text
     assert "    - Lectura de páginas web (Beautiful Soup): versión 4.15.0." in text
 
@@ -1144,3 +1144,33 @@ def test_real_scanned_extract_report(scanned_with_noise):
     assert "página 7" in block
     assert "19 unidades tienen texto reconocido sobre imagen" in block
     assert "Reconocimiento sobre imagen: 19 unidades de 19" in result.report_text
+
+
+def test_a_gap_in_an_opinion_goes_to_attention():
+    """REQ-004: en un dictamen no hay cuenta esperada de artículos, así que un salto en
+    la numeración de sus puntos tiene su propio aviso en "Requiere atención": con los
+    puntos 1, 2 y 4, falta el punto 3."""
+    result = split_document(
+        pdf(page(1, "Encabezado sin numerar.", "1. Uno.", "2. Dos.", "4. Cuatro.")),
+        part="cuerpo",
+        category="dictamen_legal",
+    )
+
+    assert "sequence_gaps" in kinds(result.report)
+    assert "falta el punto 3" in attention_text(result)
+
+
+def test_the_reader_never_sees_the_word_partition():
+    """REQ-004: el texto que lee quien valida no usa la palabra técnica "partición": ni
+    en el aviso de párrafos en mayúsculas, ni en la cobertura, ni en los duplicados."""
+    result = split_document(
+        pdf(page(1, "ARTÍCULO 1°.- UNO. Texto.", "DE LAS GARANTÍAS EN GENERAL", "Más texto.")),
+        part="cuerpo",
+    )
+    report = json.loads(json.dumps(result.report))
+    report["coverage"] = coverage("x" * 20, [unit(0, 8)], [("unlocated", 12, 20, "")])
+    report["attention"] = attention_items(report)
+
+    assert "uppercase_in_units" in kinds(report)
+    assert "partición" not in report_text(report)
+    assert "que la división del texto no reconoce" in report_text(report)
