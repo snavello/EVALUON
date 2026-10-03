@@ -108,7 +108,7 @@ flowchart LR
 - ✓ T-011 · Crear los clientes de IA, sus dobles y los parámetros (`fb2f640` 2026-10-02)
 - ✓ T-012 · Leer un PDF con texto (`977f834` 2026-10-02, `ef7d903` 2026-10-02)
 - ✓ T-013 · Partir en artículos y armar el informe mínimo (`a4e0391` 2026-10-03)
-- ✓ T-014 · Cargar una norma, listarla y ver su informe
+- ✓ T-014 · Cargar una norma, listarla y ver su informe (`e53cc24` 2026-10-03, `d115ccf` 2026-10-03)
 - ✓ T-015 · Validar una lectura y calcular pasajes y vectores (`420eae6` 2026-10-03, `845bdae` 2026-10-03)
 - ✓ T-016 · Armar la pantalla de consulta con sus tres bloques (`ceff61d` 2026-10-03, `bb49b8c` 2026-10-03)
 - ✓ T-017 · Recuperar por significado y reordenar con el reranker (`f31dab6` 2026-10-03)

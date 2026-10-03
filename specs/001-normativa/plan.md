@@ -179,7 +179,7 @@ Cuatro niveles: una **norma** tiene uno o más **documentos** (cada archivo carg
 | `channel` | `screen`, `command` o `eval` |
 | `user` | Usuario que actuó; vacío en un ingreso fallido o en un alta hecha por quien administra el equipo |
 | `username` | Nombre tal como se escribió; sirve cuando no hay usuario |
-| `corpus_version` | Número de versión de la normativa vigente en ese momento |
+| `corpus_version` | Número de versión de la normativa vigente en ese momento. En el hecho `query`, la versión con que se hizo la búsqueda, tomada en el mismo momento que la recuperación, aunque se cree otra versión mientras la consulta sigue (decisión del responsable del 2026-10-03, P6 y P8) |
 | `detail` | Datos propios del hecho, en JSON (ver "Registro de auditoría") |
 
 ### norms
@@ -311,7 +311,7 @@ Se crea una versión nueva cada vez que cambia lo que se puede consultar o lo qu
 |---|---|
 | `id`, `event` | Identificación y fila correspondiente en `audit_event` |
 | `user`, `asked_at` | Quién y cuándo |
-| `question`, `reference_date`, `corpus_version` | Pregunta, fecha de autorización del procedimiento para la que se consultó (REQ-020) y versión de la normativa |
+| `question`, `reference_date`, `corpus_version` | Pregunta, fecha de autorización del procedimiento para la que se consultó (REQ-020) y versión de la normativa con que se hizo la búsqueda, igual a la de su hecho |
 | `status`, `reason` | Resultado: `grounded`, `undetermined` o `error`, y su motivo |
 | `parameters` | Copia de todos los parámetros usados (JSON) |
 | `candidates` | Cada candidato con su camino de entrada y su puntaje (JSON) |
