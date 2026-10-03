@@ -325,6 +325,30 @@ def test_real_cases_are_well_formed():
 # --- Registro y carpeta de la corrida --------------------------------------------------
 
 
+def test_user_without_read_role_is_rejected_with_the_eval_channel(
+    read_user, two_regimes, scripted, tmp_path
+):
+    """REQ-008 (REQ-016, REQ-012): un usuario sin rol de lectura (desactivado) que corre
+    la corrida es rechazado; queda el hecho `rejected` con el canal `eval` y la
+    operación de la corrida, y no se corre ningún caso ni se guarda la carpeta."""
+    from evaluon.accounts.permissions import RoleRejected
+
+    scripted.marks[Q1] = {NEW_OBJECT: 0.9}
+    read_user.is_active = False
+    read_user.save()
+
+    with pytest.raises(RoleRejected):
+        run(read_user, "t039-aviso", tmp_path)
+
+    [event] = AuditEvent.objects.filter(event_type=EventType.REJECTED)
+    assert event.channel == Channel.EVAL
+    assert event.user_id == read_user.pk
+    assert event.detail["operation"] == "evaluon.queries.evaluation.run"
+    assert Query.objects.count() == 0
+    assert not AuditEvent.objects.filter(event_type=EventType.QUERY).exists()
+    assert list(tmp_path.iterdir()) == []
+
+
 def test_each_query_of_the_run_is_logged_with_the_eval_channel(
     read_user, two_regimes, scripted, tmp_path
 ):

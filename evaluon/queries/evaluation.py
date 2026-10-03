@@ -583,12 +583,13 @@ def _skipped_line(skipped):
 
 def run(user, cases_dir, runs_dir, *, commit=None, clock=time.monotonic):
     """Corre los casos de `cases_dir` y guarda la corrida en una carpeta nueva dentro de
-    `runs_dir`. Ver el módulo. Lanza `RoleRejected` sin rol, antes de leer nada.
+    `runs_dir`. Ver el módulo. Lanza `RoleRejected` sin rol, antes de leer nada; el
+    rechazo queda registrado con el canal `eval` y esta función como operación (T-038).
 
     - `commit`: el commit del código; si no se indica, `detect_commit()`.
     - `clock`: reloj en segundos para medir cada consulta (las pruebas lo reemplazan).
     """
-    require_role(user, Role.READ)
+    require_role(user, Role.READ, channel=Channel.EVAL)
     cases_dir = Path(cases_dir)
     if not cases_dir.is_dir():
         raise FileNotFoundError(f"No existe la carpeta de casos {cases_dir}.")
