@@ -8,7 +8,7 @@ contexto, si se acepta (control de secuencia, índice, zona del documento).
 | Tipo | Formas |
 |---|---|
 | Artículo | `ARTÍCULO 1°.-`, `ARTÍCULO 1º.-`, `ARTÍCULO 10.-`, `ARTICULO 1° —`, `ARTICULO 1.- OBJETO`, `ARTICULO 12.—`, `ARTICULO 11. —`, `ARTICULO 13 —`, `ARTICULO 27.`, `Art. 2º.-`, `Artículo 14 bis.-`; con o sin tilde, con `°`, `º`, `o` o sin signo. Siempre con un separador después del número, para no tomar "Artículo 2° de la Ley ...". Entre comillas no es un encabezado (artículo transcripto) |
-| Artículo leído por reconocimiento | Solo en párrafos de origen `ocr`: en lugar de `°` o `º`, cualquiera de `* % ” " ' o O` o nada, un espacio antes del `.-`, y un número que puede traer signos mal leídos (`$0`) |
+| Artículo leído por reconocimiento | Solo en párrafos de origen `ocr`: en lugar de `°` o `º`, hasta tres de `* % ” " ' ? o O` (por ejemplo `9”%`) o nada, un espacio antes del `.-`, y un número que puede traer signos mal leídos (`$0`) |
 | Inciso | `a)`, `ñ)`, `1)`, `1.`, `Inciso 1)`, `inc. a)`. No: `1.1.`, `1.000` |
 | Título, capítulo, sección | `TÍTULO II`, `CAPÍTULO VIII`, `SECCIÓN 1ª`, en un párrafo en mayúsculas |
 | Cláusula (texto sin número) | Lista `CLAUSE_FORMS`: `CLÁUSULA TRANSITORIA`, con o sin tilde y con o sin epígrafe, en un párrafo en mayúsculas |
@@ -48,7 +48,7 @@ ARTICLE_HEADING = re.compile(
 # Artículo leído por reconocimiento sobre imagen (Tesseract no reconoce `°` ni `º` y a
 # veces lee el 8 como `$`). Solo se aplica a párrafos de origen `ocr`.
 OCR_ARTICLE_HEADING = re.compile(
-    r"(?:ART[IÍ]CULO|Art[ií]culo)\s*(?P<number>[0-9$§]{1,4})\s*[°º*%”\"'oO]?"
+    r"(?:ART[IÍ]CULO|Art[ií]culo)\s*(?P<number>[0-9$§]{1,4})\s*[°º*%”\"'oO?]{0,3}"
     r"(?:\s*(?P<suffix>bis|BIS)\b)?"
     r"\s*\.\s?-"
 )
@@ -112,6 +112,7 @@ class Heading:
     level: int = 0
     heading_only: bool = False
     tolerant: bool = False
+    raw: str = ""
 
 
 def is_uppercase(text):
@@ -181,6 +182,7 @@ def _article(text, pattern, tolerant=False):
         label=_article_label(text, heading.end()),
         heading_only=not _LOWERCASE.search(rest),
         tolerant=tolerant,
+        raw=raw,
     )
 
 

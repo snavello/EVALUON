@@ -29,8 +29,11 @@ Reglas:
   o salta hacia adelante hasta `SEQUENCE_MARGIN` números; el salto se informa. `14 bis`
   se acepta después del 14. Un encabezado que no se acepta queda dentro de la unidad
   abierta y se informa. En párrafos de reconocimiento sobre imagen, un encabezado con el
-  número mal leído se acepta como el siguiente si está donde corresponde por la secuencia
-  (los encabezados que le siguen continúan la numeración), y se informa como dudoso.
+  número mal leído se acepta como el siguiente esperado N, y se informa como dudoso, si
+  puede ser N (`$` por 8; N seguido de un 7 o un 9, que es el signo `°` leído como cifra:
+  `47` por `4°`) y el encabezado que le sigue no es N, o si está donde corresponde por la
+  secuencia (los encabezados que le siguen continúan la numeración). En PDF con texto y
+  en web la regla queda estricta.
 - **Índice.** Una serie de encabezados de artículo sin texto, con títulos intercalados,
   es un índice si al menos `INDEX_MIN_HEADINGS` de sus números vuelven a aparecer
   después como encabezados de artículo. Así dos artículos "DEROGADO" seguidos no se
@@ -359,12 +362,28 @@ class _Walk:
             c.gaps.extend(str(missing) for missing in range(c.expected, n))
             self.advance(n)
             return str(n)
-        if p.ocr and self.fits_sequence(p.index):
+        if p.ocr and (_could_be(h.raw, c.expected) or self.fits_sequence(p.index)):
+            # Leído por reconocimiento: el número está mal leído (`$6` por 86, `47` por
+            # 4° con el signo leído como cifra) o es imposible para la secuencia y el
+            # encabezado está donde corresponde. Se acepta como el siguiente, dudoso.
+            if _could_be(h.raw, c.expected) and self.next_could_be(p.index, c.expected):
+                return None  # el siguiente encabezado es el que corresponde
             n = c.expected
             self.advance(n)
             self.doubtful = True
             return str(n)
         return None
+
+    def next_could_be(self, k, number):
+        following = self.following_headings(k)[:1]
+        return bool(following) and _could_be(following[0].raw, number)
+
+    def following_headings(self, k):
+        return [
+            p.heading
+            for p in self.paragraphs[k + 1 :]
+            if p.heading.kind == ARTICLE and not p.heading.suffix
+        ]
 
     def advance(self, n):
         c = self.container
@@ -377,15 +396,11 @@ class _Walk:
         secuencia: alguno de los dos encabezados de artículo que le siguen continúa la
         numeración (o no se pudo leer), o no le sigue ninguno."""
         expected = self.container.expected
-        following = [
-            p.heading
-            for p in self.paragraphs[k + 1 :]
-            if p.heading.kind == ARTICLE and not p.heading.suffix
-        ][:2]
+        following = self.following_headings(k)[:2]
         if not following:
             return True
         for distance, heading in enumerate(following, start=1):
-            if heading.article_number is None or heading.article_number == expected + distance:
+            if heading.article_number is None or _could_be(heading.raw, expected + distance):
                 return True
         return False
 
@@ -427,6 +442,17 @@ class _Walk:
         self.result.containers.append(self.container)
         self.open = Block("anexo", designator, p.text, key, p.heading.name, None, p.index, p.index)
         self.root_open = True
+
+
+def _could_be(raw, number):
+    """Si un número leído por reconocimiento puede ser `number`: igual, con `$` o `§`
+    en lugar de un 8, o seguido de una cifra que es el signo `°` leído como 7 o 9
+    (`47` por `4°`)."""
+    if not raw:
+        return False
+    read = raw.replace("$", "8").replace("§", "8")
+    target = str(number)
+    return read == target or (len(read) == len(target) + 1 and read.startswith(target) and read[-1] in "79")
 
 
 def _slug(name):

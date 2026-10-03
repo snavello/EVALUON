@@ -944,7 +944,7 @@ def test_derogated_articles_in_a_row_are_not_an_index():
 
 # --- Encabezados leídos por reconocimiento sobre imagen (REQ-003, REQ-015) --------------
 
-OCR_SUBSTITUTES = ["”", "*", "%", "'", '"', "O", "", " "]
+OCR_SUBSTITUTES = ["”", "*", "%", "'", '"', "?", "”%", "O", "", " "]
 
 
 def ocr_synthetic(*paragraphs, origin="ocr"):
@@ -1049,3 +1049,104 @@ def test_an_ocr_heading_out_of_place_is_not_accepted():
 
     assert keys(result) == ["art-1", "art-2", "art-3"]
     assert result.report["doubtful_headings"] == []
+
+
+def test_an_ocr_sign_read_as_a_digit_is_resolved_by_the_sequence():
+    """REQ-003, REQ-015: en un escaneo real del anexo, Tesseract lee el signo `°` como
+    cifra (`4°` → `47`, `7°` → `77`), el 8 como `$` (`8°` → `$”`) y el signo como
+    `9”%`. Donde se espera el 4, `ARTÍCULO 47.-` se acepta como el 4; donde se espera
+    el 7, `ARTÍCULO 77.-` como el 7; `$”` como el 8 y `99”%` como el 9. Cada uno queda
+    marcado como encabezado dudoso en el informe, y no se informan saltos."""
+    result = split_document(
+        ocr_synthetic(
+            "ARTÍCULO 1%.- UNO. Texto.",
+            "ARTÍCULO 2?.- DOS. Texto.",
+            "ARTÍCULO 3.- TRES. Texto.",
+            "ARTÍCULO 47.- CUATRO. Texto.",
+            "ARTÍCULO 5”.- CINCO. Texto.",
+            "ARTÍCULO 6*.- SEIS. Texto.",
+            "ARTÍCULO 77.- SIETE. Texto.",
+            "ARTÍCULO $”.- OCHO. Texto.",
+            "ARTÍCULO 99”%.- NUEVE. Texto.",
+            "ARTÍCULO 10.- DIEZ. Texto.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == [f"art-{n}" for n in range(1, 11)]
+    units = by_key(result)
+    assert units["art-4"].text == "ARTÍCULO 47.- CUATRO. Texto."
+    assert units["art-7"].label == "ARTÍCULO 77.- SIETE"
+    assert [item["key"] for item in result.report["doubtful_headings"]] == [
+        "art-4",
+        "art-7",
+        "art-8",
+        "art-9",
+    ]
+    assert result.report["sequence"][0]["gaps"] == []
+    assert result.report["sequence"][0]["not_accepted"] == []
+    check_invariants(result)
+
+
+def test_an_ocr_sign_read_as_a_digit_as_the_last_article_is_accepted():
+    """REQ-003, REQ-015: el número imposible para la secuencia se resuelve también sin
+    encabezados después: `ARTÍCULO 47.-` donde se espera el 4, como último artículo, es
+    el 4, dudoso; `$6` se lee como 86 (sin signo `°`)."""
+    result = split_document(
+        ocr_synthetic(
+            "ARTÍCULO 1.- UNO. Texto.",
+            "ARTÍCULO 2.- DOS. Texto.",
+            "ARTÍCULO 3.- TRES. Texto.",
+            "ARTÍCULO 47.- CUATRO. Texto.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == ["art-1", "art-2", "art-3", "art-4"]
+    assert result.report["doubtful_headings"] == [
+        {"key": "art-4", "label": "ARTÍCULO 47.- CUATRO", "page": 1}
+    ]
+    heading = classify_heading("ARTÍCULO $6.- PLAZO. Texto.", ocr=True)
+    assert (heading.kind, heading.raw, heading.article_number) == (ARTICLE, "$6", None)
+
+
+def test_an_ocr_47_followed_by_the_real_4_is_not_taken_as_the_4():
+    """REQ-003: si después de un `ARTÍCULO 47.-` leído por reconocimiento viene el
+    encabezado del 4, el 47 no es el 4 (por ejemplo, una cita al comienzo de un
+    párrafo): queda dentro del artículo abierto y el 4 se acepta."""
+    result = split_document(
+        ocr_synthetic(
+            "ARTÍCULO 1.- UNO. Texto.",
+            "ARTÍCULO 2.- DOS. Texto.",
+            "ARTÍCULO 3.- TRES. Texto.",
+            "ARTÍCULO 47.- CITADO. Texto.",
+            "ARTÍCULO 4.- CUATRO. Texto.",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == ["art-1", "art-2", "art-3", "art-4"]
+    assert by_key(result)["art-3"].text.endswith("\nARTÍCULO 47.- CITADO. Texto.")
+    assert result.report["doubtful_headings"] == []
+
+
+def test_the_sign_read_as_a_digit_is_not_tolerated_in_pdf_text():
+    """REQ-003: con origen `pdf_text` la regla queda estricta: `ARTÍCULO 47.-` donde se
+    espera el 4 no se acepta como el 4, queda dentro del artículo 3 y se informa como
+    encabezado fuera de secuencia; nada se marca como dudoso."""
+    result = split_document(
+        ocr_synthetic(
+            "ARTÍCULO 1°.- UNO. Texto.",
+            "ARTÍCULO 2°.- DOS. Texto.",
+            "ARTÍCULO 3°.- TRES. Texto.",
+            "ARTÍCULO 47.- CUATRO. Texto.",
+            origin="pdf_text",
+        ),
+        part="cuerpo",
+    )
+
+    assert keys(result) == ["art-1", "art-2", "art-3"]
+    assert result.report["doubtful_headings"] == []
+    assert result.report["sequence"][0]["not_accepted"] == [
+        {"number": "47", "page": 1, "inside": "art-3"}
+    ]
