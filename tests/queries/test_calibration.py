@@ -188,6 +188,6 @@ def test_run_proposes_the_threshold_without_changing_settings(
     summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
     text = summary.split("## Calibración del umbral (provisoria)\n", 1)[1].split("\n## ")[0]
     assert "Umbral propuesto (provisorio): 0,300" in text
-    assert "umbral actual: 0,500" in text
+    assert f"umbral actual: {before:.3f}".replace(".", ",") in text
     assert "no cambia el umbral configurado" in text
     assert "EV-801" in text and "0,900" in text

@@ -493,6 +493,7 @@ def test_command_runs_the_ablation_on_request(read_user, two_regimes, scripted, 
     from tests.queries.test_evaluation import call
 
     diagnostic_marks(scripted)
+    before = settings.RERANK_THRESHOLD
 
     output = call("--usuario", read_user.username,
                   "--casos", str(FIXTURES / "t042-diagnostico"),
@@ -505,7 +506,7 @@ def test_command_runs_the_ablation_on_request(read_user, two_regimes, scripted, 
     assert "Umbral propuesto (provisorio): 0,300" in output
     assert "Corrida anterior: ninguna" in output
     assert Query.objects.filter(event__channel=Channel.EVAL).count() == 5
-    assert settings.RERANK_THRESHOLD == 0.5
+    assert settings.RERANK_THRESHOLD == before
 
 
 def test_ablation_skips_dates_without_regime(read_user, two_regimes, scripted, tmp_path,
@@ -556,10 +557,11 @@ def test_summary_uses_decimal_commas_and_plain_times(read_user, two_regimes, scr
     assert re.search(r"^# Corrida del \d{2}/\d{2}/\d{4} \d{2}:\d{2}$", summary, re.M)
     assert re.search(r"Comienzo: \d{2}/\d{2}/\d{4} \d{2}:\d{2} · fin: "
                      r"\d{2}/\d{2}/\d{4} \d{2}:\d{2}", summary)
-    assert ("Umbral del modelo que reordena los resultados (reranker): 0,500"
+    threshold = f"{settings.RERANK_THRESHOLD:.3f}".replace(".", ",")
+    assert (f"Umbral del modelo que reordena los resultados (reranker): {threshold}"
             in summary)
     assert "la del 01/01/2000 00:00" in summary
-    assert "| completa | 0,500 |" in summary
+    assert f"| completa | {threshold} |" in summary
 
 
 def test_a_median_position_between_two_is_written_with_a_comma():

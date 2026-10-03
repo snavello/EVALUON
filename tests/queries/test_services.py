@@ -312,7 +312,7 @@ def test_retrieval_failure_keeps_status_and_detail(
 
 
 def test_record_shows_everything_needed_to_rebuild_the_query(
-    read_user, two_regimes, relevant
+    read_user, two_regimes, relevant, settings
 ):
     """REQ-012: el registro de una consulta respondida muestra la pregunta, la fecha de
     autorización, el régimen aplicado, las unidades recuperadas, la respuesta, la versión
@@ -340,7 +340,7 @@ def test_record_shows_everything_needed_to_rebuild_the_query(
     assert query.prompt_version == answering.PROMPT_VERSION_WITH_DATE
     assert query.request["messages"]
     assert query.raw_output
-    assert query.parameters["rerank_threshold"] == 0.5
+    assert query.parameters["rerank_threshold"] == settings.RERANK_THRESHOLD
     assert query.parameters["generation"]["model"]
     assert {"regimes", "retrieval", "selection", "generation", "total"} <= \
         set(query.timings)
