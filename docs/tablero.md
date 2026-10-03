@@ -16,6 +16,7 @@ flowchart LR
   F006["○ 006 · Salidas de la evaluación"]:::todo
   F007["○ 007 · Acceso por red"]:::todo
   F008["○ 008 · Ofertas y ficha por oferta"]:::todo
+  F009["○ 009 · Validación continua con la Co…"]:::todo
   F001 --> F002
   F003 --> F002
   F001 --> F003
@@ -26,6 +27,7 @@ flowchart LR
   F004 --> F006
   F001 --> F007
   F003 --> F008
+  F001 --> F009
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -35,7 +37,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 55/62 | █████████░ 89% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 55/64 | █████████░ 86% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
 | 003 · Procedimiento, pliego final y matriz de cumplimiento | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | No iniciada | — | — |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -43,6 +45,7 @@ flowchart LR
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
 | 007 · Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | No iniciada | — | — |
 | 008 · Ofertas y ficha por oferta | La carga de cada oferta en varios documentos (PDF con texto o escaneado) y una ficha por oferta: síntesis de lo ofrecido frente a cada requisito de la matriz, con los documentos y fragmentos que lo respaldan | No iniciada | — | — |
+| 009 · Validación continua con la Comisión | Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus respuestas. Cada cuestión resuelta puede quedar como fundamento (ADR-0009), como caso para medir al sistema o como pedido de cargar una norma o un documento. Lo que queda sin validar se ve como pendiente. Uso intensivo al principio, y después ante cuestiones que no se saben resolver | No iniciada | — | — |
 
 <a id="001"></a>
 
@@ -62,7 +65,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 7 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 9 tareas sin terminar.
 - ○ T-046 · Correr las evals y medir tiempo y memoria (pendiente)
 - ○ T-047 · Probar una consulta con la red desconectada (pendiente)
 - ○ T-048 · Probar el respaldo y la restauración de la base (pendiente)
@@ -70,6 +73,8 @@ flowchart LR
 - ○ T-060 · Calibración por hueco, lote de aceptación y margen de error en las evals (pendiente)
 - ○ T-061 · Redactar el lote de aceptación (pendiente)
 - ○ T-062 · Fijar el umbral con la regla nueva (pendiente)
+- ○ T-063 · Instrucciones para responder la remisión a una norma no cargada (pendiente)
+- ○ T-064 · Reescribir EV-027, EV-028 y EV-029 como preguntas con respuesta (pendiente)
 
 ### Qué se hizo
 
@@ -196,6 +201,8 @@ flowchart TD
   T060["○ T-060 · Calibración por hueco, lote de aceptación y…"]:::todo
   T061["○ T-061 · Redactar el lote de aceptación"]:::todo
   T062["○ T-062 · Fijar el umbral con la regla nueva"]:::todo
+  T063["○ T-063 · Instrucciones para responder la remisión a…"]:::todo
+  T064["○ T-064 · Reescribir EV-027, EV-028 y EV-029 como pre…"]:::todo
   T001 --> T002
   T002 --> T003
   T003 --> T004
@@ -271,6 +278,8 @@ flowchart TD
   T060 --> T046
   T061 --> T046
   T062 --> T046
+  T063 --> T046
+  T064 --> T046
   T038 --> T047
   T046 --> T047
   T047 --> T048
@@ -291,8 +300,13 @@ flowchart TD
   T058 --> T060
   T059 --> T061
   T060 --> T061
+  T064 --> T061
   T059 --> T062
   T060 --> T062
+  T060 --> T063
+  T062 --> T063
+  T064 --> T063
+  T059 --> T064
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -311,8 +325,8 @@ flowchart TD
 | REQ-005 | Una norma debe quedar disponible para consultas solo después de que una persona valide su informe de lectura | T-009, T-015, T-017, T-027, T-032, T-035, T-043 | ✓ cubierto |
 | REQ-006 | El sistema debe registrar las relaciones entre normas: cuál modifica, complementa, reglamenta o deroga a cuál. Cuando el cambio alcanza a unidades concretas, la relación se registra entre esas unidades | T-029, T-035, T-041, T-044 | ✓ cubierto |
 | REQ-007 | El sistema debe mantener las versiones de cada norma y, para una fecha dada, indicar qué unidades estaban vigentes y qué normas las habían modificado o derogado, mostrando el texto literal de cada una | T-009, T-029, T-030, T-033, T-037, T-044 | ✓ cubierto |
-| REQ-008 | El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la unidad que la sostiene, con su texto literal | T-001, T-002, T-003, T-004, T-011, T-017, T-018, T-019, T-020, T-031, T-032, T-034, T-039, T-040, T-042, T-046, T-047, T-054, T-057, T-058, T-059, T-060, T-061 | ▶ en proceso |
-| REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | T-002, T-003, T-011, T-017, T-018, T-019, T-034, T-039, T-040, T-042, T-045, T-046, T-060, T-061, T-062 | ▶ en proceso |
+| REQ-008 | El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la unidad que la sostiene, con su texto literal | T-001, T-002, T-003, T-004, T-011, T-017, T-018, T-019, T-020, T-031, T-032, T-034, T-039, T-040, T-042, T-046, T-047, T-054, T-057, T-058, T-059, T-060, T-061, T-063, T-064 | ▶ en proceso |
+| REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | T-002, T-003, T-011, T-017, T-018, T-019, T-034, T-039, T-040, T-042, T-045, T-046, T-060, T-061, T-062, T-063, T-064 | ▶ en proceso |
 | REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto, desde la pantalla de consulta. La búsqueda muestra solo las unidades vigentes a la fecha de autorización; las derogadas aparecen solo si la persona lo pide expresamente, marcadas como tales | T-004, T-009, T-035, T-041, T-053, T-056, T-057 | ✓ cubierto |
 | REQ-011 | El sistema debe avisar cuando se intenta cargar una norma que ya está incorporada. Si es el mismo archivo, no lo incorpora; si es la misma norma en otro archivo o formato, pide confirmación expresa | T-008, T-026 | ✓ cubierto |
 | REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | T-007, T-008, T-010, T-014, T-015, T-019, T-020, T-026, T-038, T-040, T-041, T-048, T-049, T-051, T-052, T-054, T-056 | ▶ en proceso |
