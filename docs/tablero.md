@@ -35,7 +35,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 32/55 | ██████░░░░ 58% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 33/55 | ██████░░░░ 60% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
 | 003 · Procedimiento, pliego final y matriz de cumplimiento | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | No iniciada | — | — |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -62,13 +62,12 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 23 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 22 tareas sin terminar.
 - ○ T-024 · Partir dictámenes y recomendaciones en puntos y párrafos (pendiente)
 - ○ T-025 · Completar el informe de lectura (pendiente)
 - ○ T-026 · Avisar duplicados al cargar una norma (pendiente)
 - ○ T-027 · Releer un documento y reemplazar la lectura anterior (pendiente)
 - ○ T-028 · Integrar los tres formatos en la carga (pendiente)
-- ○ T-032 · Recuperar por tres caminos y unir los candidatos (pendiente)
 - ○ T-033 · Seleccionar por categoría, sumar cambios y ordenar (pendiente)
 - ○ T-037 · Mostrar las citas con categoría, papel y cambios (pendiente)
 - ○ T-038 · Registrar ingresos, ingresos fallidos y rechazos por rol (pendiente)
@@ -110,15 +109,16 @@ flowchart LR
 - ✓ T-018 · Generar la respuesta con esquema e insertar las citas (`33f0f08` 2026-10-03, `9830fe5` 2026-10-03)
 - ✓ T-019 · Unir la consulta de punta a punta con su registro (`2685761` 2026-10-03, `71fd67b` 2026-10-03)
 - ✓ T-020 · Probar el hilo mínimo con los servicios reales (`b520afe` 2026-10-03)
-- ✓ T-021 · Leer un PDF escaneado con reconocimiento de texto
-- ✓ T-022 · Leer una página web guardada
-- ✓ T-023 · Partir normas completas con incisos, anexos y considerandos (`07000e3` 2026-10-03, `9fcf7ba` 2026-10-03, `b3b20b9` 2026-10-03)
+- ✓ T-021 · Leer un PDF escaneado con reconocimiento de texto (`223295e` 2026-10-03, `197dada` 2026-10-03)
+- ✓ T-022 · Leer una página web guardada (`3d9224f` 2026-10-03, `c12d12c` 2026-10-03)
+- ✓ T-023 · Partir normas completas con incisos, anexos y considerandos
 - ✓ T-029 · Registrar relaciones entre normas y mostrar los vínculos
 - ✓ T-030 · Registrar versiones de una norma
-- ✓ T-031 · Partir en pasajes las unidades largas
+- ✓ T-031 · Partir en pasajes las unidades largas (`282ab7f` 2026-10-03, `955ce90` 2026-10-03, `c1e2088` 2026-10-03)
+- ✓ T-032 · Recuperar por tres caminos y unir los candidatos (`fde3aef` 2026-10-03)
 - ✓ T-034 · Completar instrucciones, marca de regímenes y orden
 - ✓ T-035 · Buscar unidades por artículo y por palabras
-- ✓ T-036 · Entregar el documento original con sesión
+- ✓ T-036 · Entregar el documento original con sesión (`07ea00d` 2026-10-03)
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 - ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
 - ✓ T-055 · Agregar el nombre de cita de la norma (`ff230c8` 2026-10-03, `88796e6` 2026-10-03)
@@ -158,7 +158,7 @@ flowchart TD
   T029["✓ T-029 · Registrar relaciones entre normas y mostrar…"]:::done
   T030["✓ T-030 · Registrar versiones de una norma"]:::done
   T031["✓ T-031 · Partir en pasajes las unidades largas"]:::done
-  T032["○ T-032 · Recuperar por tres caminos y unir los candi…"]:::todo
+  T032["✓ T-032 · Recuperar por tres caminos y unir los candi…"]:::done
   T033["○ T-033 · Seleccionar por categoría, sumar cambios y…"]:::todo
   T034["✓ T-034 · Completar instrucciones, marca de regímenes…"]:::done
   T035["✓ T-035 · Buscar unidades por artículo y por palabras"]:::done
