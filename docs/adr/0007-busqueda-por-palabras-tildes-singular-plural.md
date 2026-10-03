@@ -117,6 +117,7 @@ Corrí el script en una base temporal del servicio `db` (Postgres 17.11, imagen 
 - **Coincidencias cruzadas** entre las familias licitación, adjudicación, contratación, artículo, garantía y los números 297/03 y 247/2022, con `to_tsvector('spanish', search_normalize(...)) @@ plainto_tsquery('spanish', search_normalize(...))`: 54 de 54 pares de la misma familia coinciden, y ningún par de familias distintas.
 - **Otras terminaciones.** resolución / resoluciones / resolucion dan `resolu`. Las familias en "-ición", "-pción", "-sión" y "-ón" ya coinciden con `spanish` y la regla no las cambia: disposición, condición, sanción, excepción, opción, admisión, comisión y razón, con su plural y sin tilde.
 - **Limitación que la regla no resuelve, y que tampoco resuelve la definición del plan ni `spanish` sola:** el singular y el plural de las palabras en "-men" no comparten raíz. "régimen" da `regim` y "regímenes" o "regimenes" dan `regimen`; "dictamen" da `dictam` y "dictámenes" da `dictamen`. Buscar "régimen" no encuentra "regímenes". Si importa, se puede extender la regla de `search_normalize`. Hasta entonces, el camino por significado cubre estos casos.
+- **La eñe.** `unaccent` convierte "ñ" en "n", así que "año" y "ano" comparten lexema; pasaba igual con la definición anterior del plan. Lo aceptó el responsable el 2026-10-02: es un caso raro en la normativa de compras y el camino por significado lo compensa (T-009).
 
 ## Consecuencias
 
