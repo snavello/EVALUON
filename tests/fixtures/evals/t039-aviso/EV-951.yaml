@@ -1,0 +1,16 @@
+id: EV-951
+tipo: normativa
+documentos: []
+pregunta: "¿Cuál es el objeto del régimen sintético?"
+fecha_autorizacion: 2024-05-20
+regimen: "Disposición AFIP 247/2022"
+esperado: "El objeto del régimen sintético vigente."
+cita: []
+origen: "Caso sintético de la tarea T-039 (P4)."
+unidades: [{norma: "Disposición AFIP 247/2022", key: anexo/art-1}]
+datos_clave: []
+difieren: false
+pareja: ""
+aviso_modificatorias: true
+etiquetas: ["sintético"]
+visto_bueno: "Comisión sintética, 2026-10-03"
