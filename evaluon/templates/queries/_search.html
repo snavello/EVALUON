@@ -5,6 +5,9 @@ resultados con la línea de fecha y régimen aplicado y, debajo, los avisos de
 modificatorias sin cargar (REQ-021; T-052). Cada resultado usa el marcado de las
 citas (T-037): `details.citation` con el texto en `blockquote.literal` y el ancla
 `texto-N` en el resultado. Textos fijos en lenguaje llano.
+Solo lo vigente (enmienda de REQ-010; T-056): la casilla "Incluir textos derogados",
+apagada de entrada; sin ella, una búsqueda por artículo que solo encontró textos
+derogados a la fecha lo dice y explica cómo verlos.
 {% endcomment %}<section class="search-form" id="search" aria-labelledby="search-form-title">
   <h2 id="search-form-title">Buscar en la normativa</h2>
   <p class="search-help">Elija una norma y escriba el número de artículo, o escriba palabras del texto.</p>
@@ -42,6 +45,9 @@ citas (T-037): `details.citation` con el texto en `blockquote.literal` y el ancl
     {% if search_form.reference_date.errors %}
     <p class="form-error" role="alert" id="{{ search_form.reference_date.auto_id }}_error">{{ search_form.reference_date.errors|join:" " }}</p>
     {% endif %}
+    <p class="search-option">
+      <label for="{{ search_form.include_repealed.id_for_label }}">{{ search_form.include_repealed }} {{ search_form.include_repealed.label }}</label>
+    </p>
     <button type="submit" id="search-submit">Buscar</button>
   </form>
 </section>
@@ -92,6 +98,8 @@ citas (T-037): `details.citation` con el texto en `blockquote.literal` y el ancl
     </li>
     {% endfor %}
   </ol>
+  {% elif search.kind == "article" and search.repealed_hidden %}
+  <p class="result-message">Ese artículo está derogado a esa fecha. Para verlo, marque «Incluir textos derogados».</p>
   {% else %}
   <p class="result-message">No se encontró ningún texto con esa búsqueda para un procedimiento autorizado el {{ search.reference_date|date:"d/m/Y" }}.</p>
   {% endif %}

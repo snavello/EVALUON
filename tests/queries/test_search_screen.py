@@ -45,8 +45,11 @@ def log_in(client, username="lectura"):
     assert client.login(username=username, password=TEST_PASSWORD)
 
 
-def search_on_screen(client, *, norm=None, article="", words="", reference_date=""):
-    """Envía el formulario de búsqueda desde la pantalla y devuelve la página."""
+def search_on_screen(client, *, norm=None, article="", words="", reference_date="",
+                     include_repealed=False):
+    """Envía el formulario de búsqueda desde la pantalla y devuelve la página. Con
+    `include_repealed`, marca la casilla "Incluir textos derogados" (T-056); sin ella,
+    la casilla no se envía, como hace el navegador con una casilla sin marcar."""
     data = {
         "search-norm": norm.pk if norm is not None else "",
         "search-article": article,
@@ -55,6 +58,8 @@ def search_on_screen(client, *, norm=None, article="", words="", reference_date=
                                   if isinstance(reference_date, date)
                                   else reference_date),
     }
+    if include_repealed:
+        data["search-include_repealed"] = "on"
     response = client.post(reverse("queries:search"), data)
     assert response.status_code == 200
     return response.content.decode()
@@ -93,6 +98,17 @@ def date_value(body, name):
 
 def search_events():
     return list(AuditEvent.objects.filter(event_type=EventType.SEARCH).order_by("pk"))
+
+
+def repealed_box(body):
+    """La casilla "Incluir textos derogados" del formulario de búsqueda."""
+    match = re.search(r'<input type="checkbox" name="search-include_repealed"[^>]*>', body)
+    assert match, "la página no tiene la casilla de los textos derogados"
+    return match.group(0)
+
+
+def is_checked(box):
+    return re.search(r"\schecked(\s|>|=)", box) is not None
 
 
 # --- La pantalla con el formulario de búsqueda -------------------------------------------
@@ -238,12 +254,13 @@ def test_repealed_article_is_marked_after_repeal_and_not_before(client, read_use
                                                                 two_regimes):
     """REQ-010, REQ-020: el artículo 1 de un régimen derogado se muestra marcado como
     derogado, con la norma que lo derogó y desde cuándo, con una fecha posterior a la
-    derogación, y sin la marca con una anterior; en los dos casos la página indica la
-    fecha y el régimen aplicado."""
+    derogación (pidiendo los textos derogados, T-056), y sin la marca con una anterior;
+    en los dos casos la página indica la fecha y el régimen aplicado."""
     log_in(client)
 
     after = results_block(search_on_screen(client, norm=two_regimes.old, article="1",
-                                           reference_date=two_regimes.after_v))
+                                           reference_date=two_regimes.after_v,
+                                           include_repealed=True))
     before = results_block(search_on_screen(client, norm=two_regimes.old, article="1",
                                             reference_date=two_regimes.before_v))
 
@@ -365,11 +382,13 @@ def test_words_without_accents_find_text_with_accents(client, read_user, two_reg
 
 def test_link_is_shown_from_either_norm(client, read_user, two_regimes):
     """REQ-006: al ver una unidad de cualquiera de las dos normas vinculadas se muestra
-    el vínculo, en el sentido que corresponde y con su fecha."""
+    el vínculo, en el sentido que corresponde y con su fecha. La unidad de la norma
+    derogada se ve pidiendo los textos derogados (T-056)."""
     log_in(client)
 
     old_item = result_items(results_block(search_on_screen(
-        client, norm=two_regimes.old, article="2", reference_date=two_regimes.after_v)))
+        client, norm=two_regimes.old, article="2", reference_date=two_regimes.after_v,
+        include_repealed=True)))
     new_item = result_items(results_block(search_on_screen(
         client, norm=two_regimes.new, article="2", reference_date=two_regimes.after_v)))
 
@@ -485,13 +504,13 @@ def test_search_is_recorded_with_terms_date_regime_and_results(client, read_user
                                                                two_regimes):
     """REQ-012: la búsqueda queda en el registro con el usuario, el canal, el tipo, sus
     términos, su fecha de autorización, su régimen y sus resultados con la marca de
-    derogada. La versión de la normativa del hecho la comprueban
-    `test_search_event_has_the_corpus_version` y
+    derogada (pedidas con la casilla, T-056). La versión de la normativa del hecho la
+    comprueban `test_search_event_has_the_corpus_version` y
     `test_search_event_keeps_the_snapshot_version`."""
     log_in(client)
 
     search_on_screen(client, norm=two_regimes.old, article="1",
-                     reference_date=two_regimes.after_v)
+                     reference_date=two_regimes.after_v, include_repealed=True)
 
     [event] = search_events()
     assert event.user == read_user
@@ -505,6 +524,7 @@ def test_search_is_recorded_with_terms_date_regime_and_results(client, read_user
     assert detail["reference_date"] == "2024-05-20"
     assert detail["regime"] == [{"norm": two_regimes.new.pk,
                                  "name": two_regimes.new.citation}]
+    assert detail["include_repealed"] is True
     assert detail["units"] == [
         {"unit": two_regimes.old_units[key].pk, "repealed": True,
          "repealed_by": {"relation": two_regimes.repeal.pk,
@@ -637,14 +657,17 @@ def test_search_page_has_no_internal_names_or_external_references(client, read_u
                                                                   two_regimes):
     """REQ-010: la página de resultados no muestra nombres internos y funciona sin
     conexión: sin direcciones externas ni scripts o estilos en línea, con la política de
-    contenido propia."""
+    contenido propia. Con la casilla de los textos derogados marcada (T-056), para que
+    la página traiga la marca y la nota de derogación."""
     log_in(client)
 
     response = client.post(reverse("queries:search"), {
         "search-norm": two_regimes.old.pk, "search-article": "1",
-        "search-reference_date": two_regimes.after_v.isoformat()})
+        "search-reference_date": two_regimes.after_v.isoformat(),
+        "search-include_repealed": "on"})
 
     body = response.content.decode()
+    assert REPEALED_MARK in body
     assert response["Content-Security-Policy"] == "default-src 'self'"
     text = re.sub(r"<[^>]+>", " ", body)
     for name in INTERNAL_NAMES:
@@ -666,3 +689,245 @@ def test_result_page_has_no_repeated_ids(client, read_user, two_regimes):
     assert result_items(results_block(body))
     ids = re.findall(r'\sid="([^"]+)"', body)
     assert len(ids) == len(set(ids)), "hay identificadores repetidos en la página"
+
+
+# --- Solo lo vigente, con casilla para los derogados (T-056) ------------------------------
+#
+# Enmienda de REQ-010 del 2026-10-03: la búsqueda muestra solo las unidades vigentes a la
+# fecha de autorización; las derogadas a esa fecha salen solo si se marca "Incluir textos
+# derogados", después de las vigentes y marcadas.
+
+REPEALED_BOX_LABEL = "Incluir textos derogados"
+REPEALED_ARTICLE_TEXT = ("Ese artículo está derogado a esa fecha. Para verlo, marque "
+                         "«Incluir textos derogados».")
+
+
+def test_repealed_box_is_off_by_default_and_has_its_label(client, read_user, two_regimes):
+    """REQ-010: el formulario de búsqueda tiene la casilla "Incluir textos derogados",
+    apagada de entrada, dentro de su etiqueta (asociada por `for`, en la misma línea que
+    el texto) y sin repetir identificadores."""
+    log_in(client)
+
+    body = client.get("/").content.decode()
+
+    box = repealed_box(body)
+    assert not is_checked(box)
+    assert 'id="id_search-include_repealed"' in box
+    assert (f'<label for="id_search-include_repealed">{box} {REPEALED_BOX_LABEL}</label>'
+            in body)
+    ids = re.findall(r'\sid="([^"]+)"', body)
+    assert len(ids) == len(set(ids)), "hay identificadores repetidos en la página"
+
+
+def test_article_repealed_today_is_hidden_without_box_and_marked_with_it(
+    client, read_user, two_regimes, monkeypatch
+):
+    """REQ-010, REQ-020: el artículo 1 del régimen derogado, buscado con la fecha del
+    día, no aparece sin la casilla y la página dice en llano que está derogado y cómo
+    verlo; con la casilla aparece marcado como derogado, con la norma que lo derogó y
+    desde cuándo."""
+    instant = datetime(2026, 10, 4, 2, 30, tzinfo=dt_timezone.utc)
+    monkeypatch.setattr(timezone, "now", lambda: instant)
+    log_in(client)
+
+    without = results_block(search_on_screen(client, norm=two_regimes.old, article="1"))
+    with_box = results_block(search_on_screen(client, norm=two_regimes.old, article="1",
+                                              include_repealed=True))
+
+    assert result_items(without) == {}
+    assert REPEALED_ARTICLE_TEXT in without
+    assert NO_RESULTS_TEXT not in without
+    assert "Procedimiento autorizado el 03/10/2026" in without
+    visible = re.sub(r"<[^>]+>", " ", without)
+    for name in INTERNAL_NAMES:
+        assert name not in visible, name
+    items = result_items(with_box)
+    assert list(items) == [two_regimes.old_units["art-1"].pk,
+                           two_regimes.old_units["anexo-i/art-1"].pk]
+    for item in items.values():
+        assert REPEALED_MARK in summary(item)
+        assert (f"Texto derogado desde el 01/01/2023 por {two_regimes.new.citation}."
+                in item)
+    assert REPEALED_ARTICLE_TEXT not in with_box
+
+
+def test_article_before_repeal_is_shown_without_box_and_without_mark(client, read_user,
+                                                                     two_regimes):
+    """REQ-010, REQ-020: con una fecha anterior a la derogación (2021) el artículo 1 del
+    régimen anterior aparece sin la casilla y sin la marca de derogado."""
+    log_in(client)
+
+    block = results_block(search_on_screen(client, norm=two_regimes.old, article="1",
+                                           reference_date=two_regimes.before_v))
+
+    items = result_items(block)
+    assert list(items) == [two_regimes.old_units["art-1"].pk,
+                           two_regimes.old_units["anexo-i/art-1"].pk]
+    for item in items.values():
+        assert REPEALED_MARK not in item
+    assert REPEALED_ARTICLE_TEXT not in block
+
+
+def test_article_not_found_at_all_keeps_the_generic_message(client, read_user,
+                                                            two_regimes):
+    """REQ-010: si el artículo no existe ni vigente ni derogado a esa fecha, la página
+    da el mensaje de que no se encontró nada, no el del artículo derogado."""
+    log_in(client)
+
+    block = results_block(search_on_screen(client, norm=two_regimes.old, article="99",
+                                           reference_date=two_regimes.after_v))
+
+    assert result_items(block) == {}
+    assert NO_RESULTS_TEXT in block
+    assert REPEALED_ARTICLE_TEXT not in block
+
+
+def test_words_without_box_show_no_repealed_unit_and_with_box_after_in_force(
+    client, read_user, two_regimes
+):
+    """REQ-010: por palabras, sin la casilla no sale ninguna unidad derogada a la fecha;
+    con ella, las derogadas salen después de las vigentes y marcadas, aunque su norma
+    venga antes en el orden por norma."""
+    log_in(client)
+    in_force = [two_regimes.new_units[key].pk for key in ("art-1", "art-2", "anexo/art-1")]
+    repealed = [two_regimes.old_units[key].pk for key in ("art-1", "anexo-i/art-1")]
+
+    without = results_block(search_on_screen(client, words="regimen sintetico",
+                                             reference_date=two_regimes.after_v))
+    with_box = results_block(search_on_screen(client, words="regimen sintetico",
+                                              reference_date=two_regimes.after_v,
+                                              include_repealed=True))
+
+    without_items = result_items(without)
+    assert list(without_items) == in_force
+    assert REPEALED_MARK not in without
+    assert REPEALED_ARTICLE_TEXT not in without
+    with_items = result_items(with_box)
+    assert list(with_items) == in_force + repealed
+    for unit_id in in_force:
+        assert REPEALED_MARK not in with_items[unit_id]
+    for unit_id in repealed:
+        assert REPEALED_MARK in summary(with_items[unit_id])
+
+
+def test_words_matching_only_repealed_units_without_box_find_nothing(client, read_user,
+                                                                     two_regimes):
+    """REQ-010: una búsqueda por palabras que solo coincide con textos derogados a la
+    fecha no muestra nada sin la casilla y da el mensaje de que no se encontró nada."""
+    log_in(client)
+
+    block = results_block(search_on_screen(client, words="licitaciones",
+                                           reference_date=two_regimes.after_v))
+
+    assert result_items(block) == {}
+    assert NO_RESULTS_TEXT in block
+
+
+def test_service_returns_only_in_force_unless_repealed_are_asked(read_user, two_regimes):
+    """REQ-010: la función de búsqueda, sin pedir los derogados, devuelve solo las
+    unidades vigentes a la fecha, por artículo y por palabras; pidiéndolos, suma las
+    derogadas después de las vigentes."""
+    old, new = two_regimes.old_units, two_regimes.new_units
+
+    by_article = services.search(read_user, two_regimes.after_v,
+                                 norm_id=two_regimes.old.pk, article="1")
+    by_article_all = services.search(read_user, two_regimes.after_v,
+                                     norm_id=two_regimes.old.pk, article="1",
+                                     include_repealed=True)
+    by_words = services.search(read_user, two_regimes.after_v,
+                               words="regimen sintetico")
+    by_words_all = services.search(read_user, two_regimes.after_v,
+                                   words="regimen sintetico", include_repealed=True)
+
+    assert by_article.results == []
+    assert [r.unit_id for r in by_article_all.results] == [old["art-1"].pk,
+                                                            old["anexo-i/art-1"].pk]
+    assert all(r.repealed for r in by_article_all.results)
+    assert not any(r.repealed for r in by_words.results)
+    assert [r.unit_id for r in by_words.results] == [
+        new["art-1"].pk, new["art-2"].pk, new["anexo/art-1"].pk]
+    assert [r.unit_id for r in by_words_all.results] == [
+        new["art-1"].pk, new["art-2"].pk, new["anexo/art-1"].pk,
+        old["art-1"].pk, old["anexo-i/art-1"].pk]
+
+
+def test_search_event_records_whether_repealed_were_asked(read_user, two_regimes):
+    """REQ-012: el hecho `search` registra si se pidieron los textos derogados, las
+    unidades mostradas con su marca y cuántas derogadas quedaron sin mostrar."""
+    services.search(read_user, two_regimes.after_v, norm_id=two_regimes.old.pk,
+                    article="1")
+    services.search(read_user, two_regimes.after_v, norm_id=two_regimes.old.pk,
+                    article="1", include_repealed=True)
+
+    without, with_box = search_events()
+    assert without.detail["include_repealed"] is False
+    assert without.detail["units"] == []
+    assert without.detail["repealed_hidden"] == 2
+    assert with_box.detail["include_repealed"] is True
+    assert [unit["unit"] for unit in with_box.detail["units"]] == [
+        two_regimes.old_units["art-1"].pk, two_regimes.old_units["anexo-i/art-1"].pk]
+    assert all(unit["repealed"] for unit in with_box.detail["units"])
+    assert with_box.detail["repealed_hidden"] == 0
+
+
+def test_screen_search_records_the_box(client, read_user, two_regimes):
+    """REQ-012: la búsqueda enviada desde la pantalla registra el estado de la
+    casilla."""
+    log_in(client)
+
+    search_on_screen(client, words="sintetico", reference_date=two_regimes.after_v)
+    search_on_screen(client, words="sintetico", reference_date=two_regimes.after_v,
+                     include_repealed=True)
+
+    assert [event.detail["include_repealed"] for event in search_events()] == [False,
+                                                                                True]
+
+
+def test_box_keeps_its_state_on_the_results_page(client, read_user, two_regimes):
+    """REQ-010: la casilla conserva su estado al mostrar los resultados, y también
+    cuando el formulario vuelve marcado con un error."""
+    log_in(client)
+
+    checked = search_on_screen(client, norm=two_regimes.old, article="1",
+                               reference_date=two_regimes.after_v, include_repealed=True)
+    unchecked = search_on_screen(client, norm=two_regimes.old, article="1",
+                                 reference_date=two_regimes.after_v)
+    rejected = search_on_screen(client, article="1", reference_date=two_regimes.after_v,
+                                include_repealed=True)
+
+    assert is_checked(repealed_box(checked))
+    assert not is_checked(repealed_box(unchecked))
+    assert 'class="form-error"' in rejected
+    assert is_checked(repealed_box(rejected))
+
+
+def test_pending_notice_only_for_norms_whose_units_are_shown(client, read_user,
+                                                             two_regimes,
+                                                             make_pending_amendment):
+    """REQ-021, REQ-010: el aviso de modificatorias sin cargar se calcula sobre lo que
+    efectivamente se muestra: una norma derogada a la fecha cuyas unidades no se
+    muestran, por no haber marcado la casilla, no lleva aviso; con la casilla, sí."""
+    make_pending_amendment(two_regimes.old)
+    make_pending_amendment(two_regimes.old)
+    notice = {"type": "pending_amendments", "norm": two_regimes.old.pk,
+              "name": two_regimes.old.citation, "pending": 2}
+
+    without = services.search(read_user, two_regimes.after_v, words="regimen sintetico")
+    by_article = services.search(read_user, two_regimes.after_v,
+                                 norm_id=two_regimes.old.pk, article="1")
+    with_box = services.search(read_user, two_regimes.after_v, words="regimen sintetico",
+                               include_repealed=True)
+
+    assert without.notices == []
+    assert by_article.notices == []
+    assert with_box.notices == [notice]
+    events = search_events()
+    assert [event.detail["notices"] for event in events] == [[], [], [notice]]
+
+    log_in(client)
+    page = search_on_screen(client, words="regimen sintetico",
+                            reference_date=two_regimes.after_v)
+    assert 'class="pending-notice"' not in page
+    page = search_on_screen(client, words="regimen sintetico",
+                            reference_date=two_regimes.after_v, include_repealed=True)
+    assert 'class="pending-notice"' in page
