@@ -31,7 +31,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 0/52 | ░░░░░░░░░░ 0% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 5/52 | █░░░░░░░░░ 10% |
 | 002 · Revisión de pliegos | Observaciones a un pliego contra la normativa, antes de publicarlo | No iniciada | — | — |
 | 003 · Matriz de requisitos | Los requisitos del pliego ordenados en una matriz que la Comisión valida | No iniciada | — | — |
 | 004 · Evaluación de ofertas | Por cada requisito, una propuesta con su cita; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -57,12 +57,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 52 tareas sin terminar.
-- ○ T-001 · Comprobar la GPU dentro de un contenedor (pendiente)
-- ○ T-002 · Levantar el motor de generación y medir su velocidad (pendiente)
-- ○ T-003 · Levantar embeddings y reranker y medir la memoria de video (pendiente)
-- ○ T-004 · Fijar Postgres con sus extensiones y búsqueda en español (pendiente)
-- ○ T-005 · Armar el esqueleto de Django con sus librerías (pendiente)
+- **Próximo paso:** Desarrollar: 47 tareas sin terminar.
 - ○ T-006 · Crear usuarios con rol, ingreso y salida (pendiente)
 - ○ T-007 · Crear el registro de auditoría y el alta de usuarios (pendiente)
 - ○ T-008 · Crear las tablas de normas, lecturas, unidades y pasajes (pendiente)
@@ -114,16 +109,21 @@ flowchart LR
 ### Qué se hizo
 
 - Etapas completas: Spec, Plan, Tareas.
+- ✓ T-001 · Comprobar la GPU dentro de un contenedor (`3b7a8a7` 2026-10-02)
+- ✓ T-002 · Levantar el motor de generación y medir su velocidad (`5fdf016` 2026-10-02)
+- ✓ T-003 · Levantar embeddings y reranker y medir la memoria de video (`d1eaa07` 2026-10-02)
+- ✓ T-004 · Fijar Postgres con sus extensiones y búsqueda en español (`1a9d113` 2026-10-02)
+- ✓ T-005 · Armar el esqueleto de Django con sus librerías (`d771da6` 2026-10-02)
 
 ### Mapa de tareas
 
 ```mermaid
 flowchart TD
-  T001["○ T-001 · Comprobar la GPU dentro de un contenedor"]:::todo
-  T002["○ T-002 · Levantar el motor de generación y medir su…"]:::todo
-  T003["○ T-003 · Levantar embeddings y reranker y medir la m…"]:::todo
-  T004["○ T-004 · Fijar Postgres con sus extensiones y búsque…"]:::todo
-  T005["○ T-005 · Armar el esqueleto de Django con sus librer…"]:::todo
+  T001["✓ T-001 · Comprobar la GPU dentro de un contenedor"]:::done
+  T002["✓ T-002 · Levantar el motor de generación y medir su…"]:::done
+  T003["✓ T-003 · Levantar embeddings y reranker y medir la m…"]:::done
+  T004["✓ T-004 · Fijar Postgres con sus extensiones y búsque…"]:::done
+  T005["✓ T-005 · Armar el esqueleto de Django con sus librer…"]:::done
   T006["○ T-006 · Crear usuarios con rol, ingreso y salida"]:::todo
   T007["○ T-007 · Crear el registro de auditoría y el alta de…"]:::todo
   T008["○ T-008 · Crear las tablas de normas, lecturas, unida…"]:::todo
@@ -266,15 +266,15 @@ flowchart TD
 | REQ-005 | Una norma debe quedar disponible para consultas solo después de que una persona valide su informe de lectura | T-009, T-015, T-017, T-027, T-032, T-035, T-043 | ○ pendiente |
 | REQ-006 | El sistema debe registrar las relaciones entre normas: cuál modifica, complementa, reglamenta o deroga a cuál. Cuando el cambio alcanza a unidades concretas, la relación se registra entre esas unidades | T-029, T-035, T-041, T-044 | ○ pendiente |
 | REQ-007 | El sistema debe mantener las versiones de cada norma y, para una fecha dada, indicar qué unidades estaban vigentes y qué normas las habían modificado o derogado, mostrando el texto literal de cada una | T-009, T-029, T-030, T-033, T-037, T-044 | ○ pendiente |
-| REQ-008 | El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la unidad que la sostiene, con su texto literal | T-001, T-002, T-003, T-004, T-011, T-017, T-018, T-019, T-020, T-031, T-032, T-034, T-039, T-040, T-042, T-046, T-047 | ○ pendiente |
-| REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | T-002, T-003, T-011, T-017, T-018, T-019, T-034, T-039, T-040, T-042, T-045, T-046 | ○ pendiente |
-| REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto, desde la pantalla de consulta. Una unidad derogada aparece en la búsqueda marcada como tal | T-004, T-009, T-035, T-041 | ○ pendiente |
+| REQ-008 | El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la unidad que la sostiene, con su texto literal | T-001, T-002, T-003, T-004, T-011, T-017, T-018, T-019, T-020, T-031, T-032, T-034, T-039, T-040, T-042, T-046, T-047 | ▶ en proceso |
+| REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | T-002, T-003, T-011, T-017, T-018, T-019, T-034, T-039, T-040, T-042, T-045, T-046 | ▶ en proceso |
+| REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto, desde la pantalla de consulta. Una unidad derogada aparece en la búsqueda marcada como tal | T-004, T-009, T-035, T-041 | ▶ en proceso |
 | REQ-011 | El sistema debe avisar cuando se intenta cargar una norma que ya está incorporada. Si es el mismo archivo, no lo incorpora; si es la misma norma en otro archivo o formato, pide confirmación expresa | T-008, T-026 | ○ pendiente |
 | REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | T-007, T-008, T-010, T-014, T-015, T-019, T-020, T-026, T-038, T-040, T-041, T-048, T-049, T-051, T-052 | ○ pendiente |
-| REQ-013 | El sistema debe ofrecer una pantalla de consulta donde una persona escribe su pregunta y ve la respuesta con sus citas; desde cada cita se ve el texto literal de la unidad y se puede abrir la norma original | T-005, T-016, T-019, T-020, T-037, T-047 | ○ pendiente |
+| REQ-013 | El sistema debe ofrecer una pantalla de consulta donde una persona escribe su pregunta y ve la respuesta con sus citas; desde cada cita se ve el texto literal de la unidad y se puede abrir la norma original | T-005, T-016, T-019, T-020, T-037, T-047 | ▶ en proceso |
 | REQ-014 | La pantalla de consulta debe distinguir a simple vista una respuesta con fundamento de un resultado "no determinado" | T-016, T-037 | ○ pendiente |
 | REQ-015 | El sistema debe incorporar normas en tres formatos: PDF con texto, PDF escaneado y página web guardada. Cuando el texto de una unidad se obtuvo por reconocimiento sobre una imagen, debe quedar indicado en la unidad y en el informe de lectura | T-012, T-021, T-022, T-025, T-028, T-037, T-043 | ○ pendiente |
-| REQ-016 | El sistema debe exigir usuario y clave para ingresar. Cada usuario tiene un rol: lectura, que permite consultar y buscar; o lectura y escritura, que además permite cargar y validar normas y registrar relaciones y versiones | T-005, T-006, T-007, T-038, T-049 | ○ pendiente |
+| REQ-016 | El sistema debe exigir usuario y clave para ingresar. Cada usuario tiene un rol: lectura, que permite consultar y buscar; o lectura y escritura, que además permite cargar y validar normas y registrar relaciones y versiones | T-005, T-006, T-007, T-038, T-049 | ▶ en proceso |
 | REQ-017 | El sistema debe registrar la categoría de cada documento: régimen específico, otra normativa aplicable, marco nacional, dictamen legal o recomendación de auditoría | T-008, T-014 | ○ pendiente |
 | REQ-018 | Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional se presentan como marco; los dictámenes y las recomendaciones se presentan como criterio que acompaña; los considerandos se presentan como contexto, identificados como tales y después del articulado | T-033, T-034, T-037, T-040, T-046 | ○ pendiente |
 | REQ-019 | Cuando el régimen específico y el marco nacional tratan el mismo punto de manera distinta, la respuesta debe mostrar ambos textos y señalar el del régimen específico como el aplicable | T-033, T-034, T-037, T-040, T-046 | ○ pendiente |
