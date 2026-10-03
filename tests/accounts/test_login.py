@@ -73,8 +73,8 @@ def test_login_page_is_public_and_only_uses_own_resources(client):
     response = client.get(login_url())
 
     assert response.status_code == 200
-    csp = response["Content-Security-Policy"]
-    assert "default-src 'self'" in csp
+    # Valor exacto: cualquier fuente o directiva de más ampliaría la política.
+    assert response["Content-Security-Policy"] == "default-src 'self'"
     body = response.content.decode()
     assert not re.search(r"""(src|href|action)\s*=\s*["']?(https?:)?//""", body)
     assert "csrfmiddlewaretoken" in body
