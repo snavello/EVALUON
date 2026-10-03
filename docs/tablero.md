@@ -31,7 +31,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 13/54 | ██░░░░░░░░ 24% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 14/54 | ███░░░░░░░ 26% |
 | 002 · Revisión de pliegos | Observaciones a un pliego contra la normativa, antes de publicarlo | No iniciada | — | — |
 | 003 · Matriz de requisitos | Los requisitos del pliego ordenados en una matriz que la Comisión valida | No iniciada | — | — |
 | 004 · Evaluación de ofertas | Por cada requisito, una propuesta con su cita; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -57,8 +57,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 41 tareas sin terminar.
-- ◐ T-013 · Partir en artículos y armar el informe mínimo (en verificación)
+- **Próximo paso:** Desarrollar: 40 tareas sin terminar.
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
 - ○ T-015 · Validar una lectura y calcular pasajes y vectores (pendiente)
 - ○ T-016 · Armar la pantalla de consulta con sus tres bloques (pendiente)
@@ -115,6 +114,7 @@ flowchart LR
 - ✓ T-010 · Crear la tabla del registro detallado de consultas (`cc485fc` 2026-10-02)
 - ✓ T-011 · Crear los clientes de IA, sus dobles y los parámetros (`fb2f640` 2026-10-02)
 - ✓ T-012 · Leer un PDF con texto (`977f834` 2026-10-02, `ef7d903` 2026-10-02)
+- ✓ T-013 · Partir en artículos y armar el informe mínimo (`a4e0391` 2026-10-03)
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 
 ### Mapa de tareas
@@ -133,7 +133,7 @@ flowchart TD
   T010["✓ T-010 · Crear la tabla del registro detallado de co…"]:::done
   T011["✓ T-011 · Crear los clientes de IA, sus dobles y los…"]:::done
   T012["✓ T-012 · Leer un PDF con texto"]:::done
-  T013["◐ T-013 · Partir en artículos y armar el informe míni…"]:::review
+  T013["✓ T-013 · Partir en artículos y armar el informe míni…"]:::done
   T014["○ T-014 · Cargar una norma, listarla y ver su informe"]:::todo
   T015["○ T-015 · Validar una lectura y calcular pasajes y ve…"]:::todo
   T016["○ T-016 · Armar la pantalla de consulta con sus tres…"]:::todo
