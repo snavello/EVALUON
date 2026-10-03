@@ -5,7 +5,7 @@ La función de consulta de `queries/services.py` con los dobles de los tres clie
 IA y los dos regímenes de prueba de `two_regimes` (T-009). Los datos son sintéticos (P4).
 """
 
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime, timedelta, timezone as dt_timezone
 
 import pytest
 from django.contrib.auth.models import AnonymousUser
@@ -403,6 +403,46 @@ def test_asked_at_is_the_moment_of_the_question(read_user, two_regimes, relevant
 
     assert Query.objects.get(pk=query.pk).asked_at == instant
     assert query_event(query).occurred_at != instant
+
+
+def test_asked_at_is_before_retrieval_with_a_moving_clock(
+    read_user, two_regimes, relevant, monkeypatch
+):
+    """REQ-012: con un reloj que avanza en cada lectura, `asked_at` es anterior al
+    momento de la recuperación: es el de la pregunta, no el del guardado."""
+    from evaluon.queries import retrieval
+
+    base = datetime(2026, 1, 2, 15, 0, tzinfo=dt_timezone.utc)
+    ticks = iter(range(10_000))
+    monkeypatch.setattr(timezone, "now", lambda: base + timedelta(minutes=next(ticks)))
+    seen = []
+    original = retrieval.retrieve
+
+    def spy(question, reference_date):
+        seen.append(timezone.now())
+        return original(question, reference_date)
+
+    monkeypatch.setattr(retrieval, "retrieve", spy)
+
+    query = ask(read_user, two_regimes.after_v)
+
+    assert Query.objects.get(pk=query.pk).asked_at < seen[0]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_event_and_row_are_saved_together(read_user, two_regimes, relevant, monkeypatch):
+    """REQ-012: el hecho `query` y la fila de `queries_query` se guardan juntos: si la
+    fila no se puede insertar, no queda ningún hecho `query` huérfano."""
+    def fail(*args, **kwargs):
+        raise RuntimeError("falla simulada al insertar la consulta")
+
+    monkeypatch.setattr(Query.objects, "create", fail)
+
+    with pytest.raises(RuntimeError):
+        ask(read_user, two_regimes.after_v)
+
+    assert AuditEvent.objects.filter(event_type=EventType.QUERY).count() == 0
+    assert Query.objects.count() == 0
 
 
 def test_channel_is_recorded(read_user, two_regimes, relevant):

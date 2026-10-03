@@ -752,3 +752,16 @@ def test_sending_a_question_does_not_write_the_session(client, read_user, two_re
 
     assert Query.objects.count() == 1
     assert dict(client.session.items()) == before
+
+
+def test_question_sent_from_the_screen_is_recorded_with_screen_channel(
+    client, read_user, two_regimes, fake_ai
+):
+    """REQ-012, REQ-013: la consulta enviada desde la pantalla queda registrada con el
+    canal `screen`."""
+    log_in(client)
+
+    ask_on_screen(client, "¿Algo?", two_regimes.after_v.isoformat())
+
+    query = Query.objects.get()
+    assert AuditEvent.objects.get(pk=query.event_id).channel == Channel.SCREEN
