@@ -1,9 +1,11 @@
 """Partición de documentos en unidades citables (ADR-0004; plan 001, "Ingesta"; T-013,
 T-023 y T-024).
 
-Entrada única: `split_document(lectura, parte, categoria)`. Recibe la lectura de
-`norms/reading/`, la parte del documento (`cuerpo`, por omisión, o la clave de un anexo:
-`anexo`, `anexo-i`) y la categoría de su norma (REQ-017), que elige la regla:
+Entrada única: `split_document(lectura, parte, categoria, document_info)`. Recibe la
+lectura de `norms/reading/`, la parte del documento (`cuerpo`, por omisión, o la clave de
+un anexo: `anexo`, `anexo-i`), la categoría de su norma (REQ-017), que elige la regla, y,
+si la carga los pasa, el nombre, la huella y la fecha de lectura del archivo, que van a
+la parte "Documento" del informe:
 
 - **Normas** (`NORM_RULE`): régimen específico, otra normativa aplicable y marco
   nacional, y también la categoría omitida, que es como se partía antes de T-024.
@@ -21,7 +23,12 @@ Devuelve un `SplitResult` con:
   `anexo`, cuya clave es la parte, y las demás cuelgan de ella (`anexo/art-1`); con
   `cuerpo` no hay unidad raíz (`art-1`). Una unidad viene siempre después de la que la
   contiene. El texto de cada unidad es igual a `canonical_text[char_start:char_end]`;
-- el informe de lectura, en datos y en texto (`report.py`).
+- el informe de lectura completo, con las diez partes del ADR-0004, en datos y en texto
+  (`report.py`, T-025).
+
+Cada unidad lleva su origen (`text_origin`) y, si alguna de sus líneas vino de
+reconocimiento sobre imagen, la confianza mínima y promedio de las palabras de esas
+líneas (REQ-015).
 
 Todo corre en CPU, sin los servicios de IA, y la misma lectura da siempre el mismo
 resultado.
@@ -35,6 +42,7 @@ from evaluon.norms.reading import FORMAT_HTML, ORIGIN_OCR, ORIGIN_PDF_TEXT, ORIG
 from evaluon.norms.splitting import opinions
 from evaluon.norms.splitting import partition as rules
 from evaluon.norms.splitting.canonical import CanonicalText, build_canonical_text
+from evaluon.norms.splitting.headings import ARTICLE
 from evaluon.norms.splitting.report import build_report, report_text
 
 # Versión de las reglas de partición; se guarda con la lectura (`tool_versions`) y en el
@@ -46,7 +54,14 @@ from evaluon.norms.splitting.report import build_report, report_text
 # 4: T-024 (reglas de dictámenes y recomendaciones, en puntos y párrafos, elegidas por la
 # categoría; el informe dice qué regla se usó). Las reglas de normas no cambian: una
 # norma da las mismas unidades y el mismo texto canónico que con la versión 3.
-RULES_VERSION = "4"
+# 5: T-025 (informe de lectura completo y confianza mínima y promedio de las unidades
+# reconocidas sobre imagen). Las reglas de corte no cambian: el texto canónico, las
+# unidades, sus claves y sus textos son los de la versión 4. Cambia lo que se guarda con
+# la lectura: el informe (cuya huella firma la validación) y la confianza de las unidades
+# `ocr`, que antes quedaba vacía. Se sube para que una lectura guardada diga con qué
+# versión se armaron su informe y sus unidades, y para que `releer_norma` sepa cuáles
+# conviene releer.
+RULES_VERSION = "5"
 
 # Reglas de partición y categorías que las eligen (REQ-017; `Norm.Category`).
 NORM_RULE = "normas"
@@ -59,6 +74,9 @@ BODY = "cuerpo"
 _PART = re.compile(r"cuerpo|anexo(?:-[a-z0-9]+)?")
 
 PATH_SEPARATOR = rules.PATH_SEPARATOR
+
+# Decimales de la confianza de una unidad, como los de la lectura.
+CONFIDENCE_DECIMALS = 2
 
 
 @dataclass
@@ -111,9 +129,12 @@ def rule_for(category):
     )
 
 
-def split_document(reading, part=BODY, category=None):
+def split_document(reading, part=BODY, category=None, document_info=None):
     """Parte la lectura de un documento en unidades y arma su informe de lectura, con la
-    regla que corresponde a la categoría de su norma."""
+    regla que corresponde a la categoría de su norma. `document_info` trae, si la carga
+    los conoce, `file_name`, `file_sha256` y `read_at` (texto), para la parte "Documento"
+    del informe; la partición no los calcula, para que la misma lectura dé siempre el
+    mismo informe."""
     rule = rule_for(category)
     if not isinstance(part, str) or not _PART.fullmatch(part):
         raise ValueError(
@@ -173,8 +194,13 @@ def split_document(reading, part=BODY, category=None):
         for item in sequence:
             item["heading"] = "punto"
     else:
-        containers = [{"name": c.name, "key": c.key} for c in result.containers]
+        index_numbers = _index_numbers(result, paragraphs)
+        containers = [
+            {"name": c.name, "key": c.key, "index_numbers": index_numbers[c.key]}
+            for c in result.containers
+        ]
 
+    canonical_sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()
     report = build_report(
         reading=reading,
         canonical=canonical,
@@ -188,15 +214,38 @@ def split_document(reading, part=BODY, category=None):
         uppercase_in_units=result.uppercase_in_units,
         doubtful_headings=result.doubtful_headings,
         after_last_inciso=after_last_inciso,
+        canonical_sha256=canonical_sha256,
+        document_info=document_info,
     )
     return SplitResult(
         canonical=canonical,
-        canonical_sha256=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        canonical_sha256=canonical_sha256,
         rules_version=RULES_VERSION,
         units=units,
         report=report,
         report_text=report_text(report),
     )
+
+
+def _index_numbers(result, paragraphs):
+    """Números de artículo que lista el índice de cada contenedor, por su clave: la
+    cuenta esperada del informe (T-025). Un índice pertenece al contenedor en el que
+    aparece: el cuerpo, la unidad raíz de un anexo o el último anexo abierto en el
+    cuerpo."""
+    numbers = {container.key: set() for container in result.containers}
+    current = result.containers[0].key
+    for item in result.items:
+        if isinstance(item, rules.Block):
+            if item.unit_type == "anexo" and item.parent_key is None and item.key in numbers:
+                current = item.key
+            continue
+        if item.kind != rules.DISCARDED or item.reason != "indice":
+            continue
+        for paragraph in paragraphs[item.first : item.last + 1]:
+            heading = paragraph.heading
+            if heading.kind == ARTICLE and heading.article_number is not None and not heading.suffix:
+                numbers[current].add(heading.article_number)
+    return {key: sorted(values) for key, values in numbers.items()}
 
 
 def _annex_root(part):
@@ -217,6 +266,10 @@ def _range(paragraphs, first, last, length):
 
 def _unit(canonical, reading, block, start, end):
     page_start, page_end = canonical.pages_at(start, end)
+    text_origin = _origin(canonical, reading, start, end)
+    confidence_min, confidence_avg = (
+        _confidence(canonical, start, end) if text_origin == ORIGIN_OCR else (None, None)
+    )
     return Unit(
         unit_type=block.unit_type,
         number=block.number,
@@ -229,9 +282,28 @@ def _unit(canonical, reading, block, start, end):
         char_start=start,
         char_end=end,
         text=canonical.text[start:end],
-        text_origin=_origin(canonical, reading, start, end),
+        text_origin=text_origin,
         parent_key=block.parent_key,
+        ocr_confidence_min=confidence_min,
+        ocr_confidence_avg=confidence_avg,
     )
+
+
+def _confidence(canonical, start, end):
+    """Confianza mínima y promedio de una unidad reconocida sobre imagen (REQ-015): sobre
+    las palabras de sus líneas de reconocimiento; una línea sin palabras cuenta con su
+    propia confianza. Vacías si ninguna línea trae confianza."""
+    values = []
+    for line in canonical.lines_in(start, end):
+        if line.origin != ORIGIN_OCR:
+            continue
+        if line.words:
+            values.extend(word.confidence for word in line.words)
+        elif line.confidence is not None:
+            values.append(line.confidence)
+    if not values:
+        return None, None
+    return round(min(values), CONFIDENCE_DECIMALS), round(sum(values) / len(values), CONFIDENCE_DECIMALS)
 
 
 def _add_incisos(units, canonical, reading, paragraphs, parent, node):

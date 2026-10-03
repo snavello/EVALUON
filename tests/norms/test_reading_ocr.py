@@ -325,6 +325,88 @@ def test_word_with_confidence_minus_one_counts_as_zero(monkeypatch):
     assert page.status == PAGE_DOUBTFUL
 
 
+# --- Origen y confianza de la página (REQ-004, REQ-015; T-025) -------------------------
+
+
+def test_a_recognized_page_keeps_its_origin_and_average_confidence(monkeypatch):
+    """REQ-015, REQ-004: una página reconocida lleva su origen `ocr` y su confianza, que
+    es el promedio de todas sus palabras, para que el informe la muestre."""
+    fake_tesseract(
+        monkeypatch,
+        [
+            (1, 1, 300, 1000, 500, 50, 70, "ARTÍCULO"),
+            (1, 1, 850, 1000, 100, 50, 50, "1°.-"),
+            (2, 1, 300, 1250, 250, 50, 61.5, "segunda"),
+            (2, 1, 600, 1250, 200, 50, 58.5, "línea."),
+        ],
+    )
+    page = ocr.read_page_ocr(pdfium.PdfDocument(NOISE)[0], 1)
+
+    assert page.status == PAGE_DOUBTFUL
+    assert page.origin == ORIGIN_OCR
+    assert page.confidence == 60.0
+
+
+def test_an_illegible_page_keeps_its_origin_and_confidence(monkeypatch):
+    """REQ-004, REQ-015: una página ilegible no aporta líneas, pero conserva su origen y su
+    confianza: el informe la puede mostrar como ilegible por confianza baja."""
+    fake_tesseract(
+        monkeypatch,
+        [
+            (1, 1, 300, 1000, 100, 50, 30, "Ea"),
+            (1, 1, 450, 1000, 100, 50, 20, "rn"),
+            (1, 2, 300, 1100, 100, 50, 45, "lli"),
+            (1, 2, 450, 1100, 100, 50, 10, "2"),
+        ],
+    )
+    page = ocr.read_page_ocr(pdfium.PdfDocument(NOISE)[0], 3)
+
+    assert page.status == PAGE_ILLEGIBLE
+    assert page.lines == []
+    assert page.origin == ORIGIN_OCR
+    assert page.confidence == 26.25
+
+
+def test_an_almost_empty_page_keeps_its_high_confidence(monkeypatch):
+    """REQ-004: una página que dice solo "ANEXO" sale ilegible por tener casi ninguna
+    palabra, aunque se lea bien; su confianza alta queda en la página, y así el informe
+    la distingue ("casi sin texto") de una página ilegible."""
+    fake_tesseract(monkeypatch, [(1, 1, 300, 1000, 300, 50, 96, "ANEXO")])
+    page = ocr.read_page_ocr(pdfium.PdfDocument(NOISE)[0], 1)
+
+    assert page.status == PAGE_ILLEGIBLE
+    assert page.lines == []
+    assert page.origin == ORIGIN_OCR
+    assert page.confidence == 96.0
+
+
+def test_a_page_without_words_has_origin_and_no_confidence(monkeypatch):
+    """REQ-004: si el reconocimiento no encuentra ninguna palabra, la página es `ocr` y no
+    tiene confianza (no hay de qué promediar)."""
+    fake_tesseract(monkeypatch, [])
+    page = ocr.read_page_ocr(pdfium.PdfDocument(NOISE)[0], 1)
+
+    assert page.status == PAGE_ILLEGIBLE
+    assert page.origin == ORIGIN_OCR
+    assert page.confidence is None
+
+
+def test_the_noise_page_keeps_its_origin():
+    """REQ-004, REQ-015: la página de ruido real queda ilegible, con origen `ocr`."""
+    [page] = read_pages(NOISE)
+
+    assert page.status == PAGE_ILLEGIBLE
+    assert page.origin == ORIGIN_OCR
+
+
+def test_origin_and_confidence_are_optional_in_a_page():
+    """REQ-015: `origin` y `confidence` son opcionales: las páginas de los otros lectores
+    los dejan vacíos y siguen siendo válidas."""
+    page = Page(number=1, width=612.0, height=792.0, status=PAGE_NOT_READ)
+
+    assert (page.origin, page.confidence) == (None, None)
+
+
 # --- Versiones (P6) --------------------------------------------------------------------
 
 
