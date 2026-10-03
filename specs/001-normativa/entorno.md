@@ -1444,3 +1444,16 @@ artículo, artículos, articulo -> 'articul'   garantía, garantías, garantia -
 **Respaldo y restauración.** En dos bases aparte (`t009_a` y `t009_b`), creadas y borradas: con un pasaje cargado, `pg_dump -Fc` y `pg_restore` sobre una base vacía terminaron sin error, la columna `tsv` restaurada quedó igual (`'licit':2 'public':3`) y `consultable_units` respondió. `pg_restore` corre con `search_path` vacío y recalcula `tsv` al insertar; por eso las funciones nombran todo con su esquema.
 
 **Al actualizar Postgres o la imagen fijada.** Las funciones de búsqueda se declaran inmutables aunque `unaccent` no lo es: la promesa se cumple mientras no cambien las reglas de `unaccent` ni el lematizador de español. Después de una actualización de versión mayor (o de la imagen) hay que recalcular `tsv` de todos los pasajes (por ejemplo `UPDATE norms_passage SET text = text;`, que vuelve a calcular la columna, como se comprobó en una base aparte `t009_c`, creada y borrada, y `REINDEX INDEX norms_passage_tsv_gin;`) y repetir `pytest tests/norms/test_text_search_config.py`. `pg_upgrade` copia los datos sin recalcular.
+
+## Migraciones de `queries` (T-010)
+
+Fecha: 2026-10-02. Dos migraciones:
+
+- `queries/0001_initial`: `queries_query` como en "Modelo de datos", generada con el override local (`makemigrations queries`). Restricciones: `status` en `grounded`, `undetermined` o `error`; `reason` vacío con `grounded`, uno de los cuatro motivos de "no determinado" con `undetermined` y uno de los cuatro de falla técnica con `error`; `max_score` vacío o entre 0 y 1; `event` único (una consulta por hecho), y claves hacia `audit_event` y `accounts_user` con `PROTECT`.
+- `queries/0002_insert_only` (SQL propio): trigger `queries_query_insert_only` (función `queries_query_reject_change`) que rechaza todo UPDATE y DELETE, como en `audit_event`.
+
+Con el montaje normal, `makemigrations --check --dry-run` dijo `No changes detected`.
+
+**Base `evaluon`, sin datos que conservar.** Se aplicó con `docker compose run --rm --no-deps app python manage.py migrate` (0001 y 0002 OK). Reversa: `migrate queries zero` quitó 0002 y 0001 (sin tabla `queries_query` ni función del trigger); otra vez `migrate` las aplicó sin error y el trigger quedó en la tabla.
+
+**Base vacía.** En una base aparte (`t010_prueba`), creada y borrada, `migrate_on_start.sh` aplicó todo (`queries` 0001 y 0002 incluidas) y en la segunda corrida informó que no hay migraciones pendientes.
