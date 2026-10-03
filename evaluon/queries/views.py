@@ -15,6 +15,18 @@ que lo dice. Una unidad modificada a la fecha lleva el aviso del cambio y el tex
 unidad que la modifica. El texto de cada unidad se muestra una sola vez en la página: las
 demás citas de esa unidad llevan a él.
 
+Búsqueda directa (REQ-006, REQ-010, REQ-012, REQ-020; T-041). La página tiene también el
+formulario de búsqueda, con su propio campo de fecha. Se envía a `buscar/`, que llama a
+la función de búsqueda (`services.search`, que comprueba el rol y deja el hecho
+`search`) y muestra la pantalla con los resultados, sin redirigir: la búsqueda no guarda
+un resultado que se pueda volver a mostrar, y cada envío es una búsqueda registrada.
+Arriba de los resultados va la línea de fecha y régimen aplicado. Cada resultado muestra
+su categoría, norma y ruta, la marca de derogado con la norma que lo derogó y desde
+cuándo, el texto literal con el enlace al original, los cambios vigentes a la fecha con el
+texto que los trae y los vínculos de su norma con otras. Un texto se muestra una sola vez
+en la página, con el ancla `texto-N`: un cambio cuyo texto es otro resultado, o ya se
+mostró, lleva a él.
+
 Las vistas no guardan nada en la sesión: si lo hicieran, la sesión se volvería a grabar
 y el tope de 8 horas desde el ingreso se renovaría con el uso.
 """
@@ -29,7 +41,7 @@ from evaluon.audit.models import Channel
 from evaluon.norms.indexing import norm_name
 from evaluon.norms.models import Category, Document, FileFormat, TextOrigin, Unit, UnitType
 from evaluon.queries import answering, services
-from evaluon.queries.forms import QueryForm, today
+from evaluon.queries.forms import QueryForm, SearchForm, today
 from evaluon.queries.models import Query, Status
 
 TEMPLATE = "queries/consulta.html"
@@ -68,7 +80,10 @@ def screen(request):
                 return redirect("queries:query", pk=query.pk)
     else:
         form = QueryForm(initial={"reference_date": today()})
-    return render(request, TEMPLATE, {"form": form})
+    return render(request, TEMPLATE, {
+        "form": form,
+        "search_form": SearchForm(initial={"reference_date": today()}),
+    })
 
 
 @require_GET
@@ -86,6 +101,7 @@ def query_detail(request, pk):
 
     context = {
         "form": QueryForm(initial={"reference_date": reference_date}),
+        "search_form": SearchForm(initial={"reference_date": reference_date}),
         "query": query,
         "status": status,
         "reference_date": reference_date,
@@ -93,6 +109,181 @@ def query_detail(request, pk):
         "statements": _statements(result) if status == Status.GROUNDED else [],
     }
     return render(request, TEMPLATE, context)
+
+
+@require_http_methods(["GET", "POST"])
+def search(request):
+    """Búsqueda directa enviada desde la pantalla. Un formulario rechazado vuelve
+    marcado y no se busca. Uno válido va a la función de búsqueda con la fecha del
+    formulario (vacía, la del día) y la página muestra los resultados, con esa fecha en
+    los dos formularios. Sin envío, lleva a la pantalla."""
+    if request.method == "GET":
+        return redirect("queries:screen")
+    search_form = SearchForm(request.POST)
+    query_date = today()
+    context = {}
+    if search_form.is_valid():
+        data = search_form.cleaned_data
+        norm = data["norm"]
+        try:
+            outcome = services.search(
+                request.user,
+                data["reference_date"],
+                norm_id=norm.pk if norm is not None else None,
+                article=data["article"],
+                words=data["words"],
+                channel=Channel.SCREEN,
+            )
+        except services.FutureDate as error:
+            # El día cambió entre el formulario y la búsqueda.
+            search_form.add_error("reference_date", str(error))
+        except services.QueryRefused as error:
+            search_form.add_error(None, str(error))
+        else:
+            query_date = outcome.reference_date
+            search_form = SearchForm(initial={
+                "norm": norm, "article": data["article"], "words": data["words"],
+                "reference_date": outcome.reference_date,
+            })
+            context["search"] = {
+                "kind": outcome.kind,
+                "terms": outcome.terms,
+                "reference_date": outcome.reference_date,
+                "regime": outcome.regime,
+                "items": _search_items(outcome.results),
+            }
+    context.update(
+        form=QueryForm(initial={"reference_date": query_date}),
+        search_form=search_form,
+    )
+    return render(request, TEMPLATE, context)
+
+
+# --- Resultados de la búsqueda ------------------------------------------------------------
+
+# Cómo se nombra un vínculo de la norma del resultado con otra (REQ-006): con la norma del
+# resultado como origen ("Deroga …") o como alcanzada ("Es derogada por …").
+LINK_OUTGOING = {"modifica": "Modifica", "complementa": "Complementa",
+                 "reglamenta": "Reglamenta", "deroga": "Deroga"}
+LINK_INCOMING = {"modifica": "Es modificada por", "complementa": "Es complementada por",
+                 "reglamenta": "Es reglamentada por", "deroga": "Es derogada por"}
+LINK_DEFAULT = "Tiene un vínculo con"
+
+
+def original_url(document_id, file_format, page):
+    """Enlace al documento original; en un PDF, a la página indicada."""
+    if document_id is None:
+        return None
+    url = reverse("norms:original", args=[document_id])
+    if file_format == FileFormat.PDF and page:
+        url += f"#page={page}"
+    return url
+
+
+def _category_label(category):
+    return Category(category).label if category in Category.values else ""
+
+
+def _search_items(results):
+    """Los resultados de `queries/search.py` como los muestra la página, en el orden
+    recibido. El texto de cada resultado se muestra en el resultado; el de una unidad
+    que trae un cambio, la primera vez que aparece, salvo que sea otro resultado."""
+    result_ids = {result.unit_id for result in results}
+    source_ids = {change.source_unit_id for result in results
+                  for change in result.changes if change.source_unit_id is not None}
+    units = Unit.objects.select_related("reading__document").in_bulk(
+        result_ids | source_ids)
+    target_paths = _search_target_paths(results, units)
+    shown = set(result_ids)
+    items = []
+    for result in results:
+        unit = units.get(result.unit_id)
+        items.append({
+            "id": result.unit_id,
+            "anchor": anchor(result.unit_id),
+            "norm": result.norm_name,
+            "path": result.path,
+            "category": _category_label(result.category),
+            "repealed": result.repealed,
+            "repeal": result.repealed_by,
+            "text": _search_text(unit, result.document_id, result.text_origin,
+                                 fallback=result.text),
+            "changes": [_search_change(result, change, units, target_paths, shown,
+                                       result_ids)
+                        for change in result.changes],
+            "links": [
+                {"label": (LINK_OUTGOING if link.direction == "outgoing"
+                           else LINK_INCOMING).get(link.relation_type, LINK_DEFAULT),
+                 "norm": link.other_norm_name,
+                 "date": link.effective_date}
+                for link in result.links
+            ],
+        })
+    return items
+
+
+def _search_text(unit, document_id, text_origin, fallback=None):
+    """Texto literal de una unidad con su enlace al original y la leyenda de
+    reconocimiento, como lo recibe `_unit_text.html`."""
+    if unit is not None:
+        document = unit.reading.document
+        literal = answering.unit_text(unit)
+        url = original_url(document.pk, document.file_format, unit.page_start)
+    else:
+        literal = fallback
+        url = original_url(document_id, None, None)
+    return {"literal": literal, "original_url": url,
+            "ocr": text_origin == TextOrigin.OCR}
+
+
+def _search_target_paths(results, units):
+    """Ruta de la parte alcanzada por cada cambio, buscada en la lectura del resultado:
+    `{(id de lectura, clave): ruta}`."""
+    wanted = set()
+    for result in results:
+        unit = units.get(result.unit_id)
+        for change in result.changes:
+            if unit is not None and change.target_unit_key \
+                    and change.target_unit_key != unit.key:
+                wanted.add((unit.reading_id, change.target_unit_key))
+    if not wanted:
+        return {}
+    rows = Unit.objects.filter(
+        reading_id__in={reading for reading, _ in wanted},
+        key__in={key for _, key in wanted},
+    ).values_list("reading_id", "key", "path")
+    return {(reading, key): path for reading, key, path in rows
+            if (reading, key) in wanted}
+
+
+def _search_change(result, change, units, target_paths, shown, result_ids):
+    """Un cambio de un resultado: qué es, a qué parte alcanza, desde cuándo y la unidad
+    que lo trae, con su texto si es la primera vez que aparece en la página."""
+    unit = units.get(result.unit_id)
+    key = change.target_unit_key or ""
+    part = ""
+    if unit is not None and key and key != unit.key:
+        part = target_paths.get((unit.reading_id, key), "")
+    source = None
+    source_id = change.source_unit_id
+    if source_id is not None:
+        source_unit = units.get(source_id)
+        source = {"norm": change.source_norm_name, "path": change.source_unit_path or "",
+                  "anchor": anchor(source_id), "text": None}
+        if source_id not in shown and source_unit is not None:
+            shown.add(source_id)
+            source["text"] = _search_text(source_unit, None, source_unit.text_origin)
+    return {
+        "name": CHANGE_NAMES.get(change.relation_type, CHANGE_NAME_DEFAULT),
+        "part": part,
+        "date": change.effective_date,
+        "source_norm": change.source_norm_name,
+        "source": source,
+        "source_in_results": source_id in result_ids,
+        "source_shown_above": (source is not None and source["text"] is None
+                               and source_id in shown
+                               and source_id not in result_ids),
+    }
 
 
 # --- Afirmaciones y citas ---------------------------------------------------------------
@@ -217,12 +408,8 @@ class _Page:
 
     def _original_url(self, described):
         document_id = described["document"]
-        if document_id is None:
-            return None
-        url = reverse("norms:original", args=[document_id])
-        if self.formats.get(document_id) == FileFormat.PDF and described["page"]:
-            url += f"#page={described['page']}"
-        return url
+        return original_url(document_id, self.formats.get(document_id),
+                            described["page"])
 
     def _text(self, unit_id, described):
         """Texto de una unidad con lo que lo acompaña, y queda marcada como mostrada.
