@@ -31,7 +31,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 18/55 | ███░░░░░░░ 33% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 19/55 | ███░░░░░░░ 35% |
 | 002 · Revisión de pliegos | Observaciones a un pliego contra la normativa, antes de publicarlo | No iniciada | — | — |
 | 003 · Matriz de requisitos | Los requisitos del pliego ordenados en una matriz que la Comisión valida | No iniciada | — | — |
 | 004 · Evaluación de ofertas | Por cada requisito, una propuesta con su cita; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -57,8 +57,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 37 tareas sin terminar.
-- ◐ T-055 · Agregar el nombre de cita de la norma (en verificación)
+- **Próximo paso:** Desarrollar: 36 tareas sin terminar.
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
 - ○ T-018 · Generar la respuesta con esquema e insertar las citas (pendiente)
 - ○ T-019 · Unir la consulta de punta a punta con su registro (pendiente)
@@ -117,6 +116,7 @@ flowchart LR
 - ✓ T-017 · Recuperar por significado y reordenar con el reranker (`f31dab6` 2026-10-03)
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 - ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
+- ✓ T-055 · Agregar el nombre de cita de la norma (`ff230c8` 2026-10-03, `88796e6` 2026-10-03)
 
 ### Mapa de tareas
 
@@ -176,7 +176,7 @@ flowchart TD
   T052["○ T-052 · Avisar modificatorias sin cargar en respues…"]:::todo
   T053["✓ T-053 · Conservar la eñe en la búsqueda por palabras"]:::done
   T054["✓ T-054 · Pasar a la aplicación las variables de los…"]:::done
-  T055["◐ T-055 · Agregar el nombre de cita de la norma"]:::review
+  T055["✓ T-055 · Agregar el nombre de cita de la norma"]:::done
   T001 --> T002
   T002 --> T003
   T003 --> T004
