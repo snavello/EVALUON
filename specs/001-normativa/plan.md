@@ -4,6 +4,8 @@ Estado: aprobado · Fecha: 2026-10-02 · Aprobó: responsable del proyecto
 
 Actualización: 2026-10-02, por ADR-0006 y REQ-020 y REQ-021; pendiente de aprobación del responsable.
 
+Ajustes por la etapa 0: 2026-10-02. El parámetro del reranker lo decidió el responsable (ADR-0003, adenda). La nueva definición de la búsqueda por palabras (ADR-0007, propuesto) está pendiente de su aprobación. Resumen en "Ajustes por la etapa 0", al final.
+
 Spec: `specs/001-normativa/spec.md`
 
 ADR en los que se apoya (los cinco aceptados): `docs/adr/0002-motor-ia-local-y-modelo.md`, `0003-recuperacion-embeddings-reranker.md`, `0004-lectura-y-particion-de-documentos.md`, `0005-aplicacion-web-y-acceso.md`, `0006-dos-regimenes-segun-fecha-de-autorizacion.md`.
@@ -120,7 +122,7 @@ Seis servicios de Docker Compose. Los nombres van en inglés, como el resto de l
 | `db` | `pgvector/pgvector`, Postgres 17, etiqueta exacta a fijar en la etapa 0 | Base `evaluon` | No usa |
 | `generation` | `ghcr.io/ggml-org/llama.cpp:server-cuda-b<compilación>`, compilación a fijar en la etapa 0 | Sirve Gemma 4 12B (archivo de 4 bits de Google), contexto de 16.384 tokens, pensamiento apagado. `/v1/chat/completions` | Tope 16 GB. Estimado: hasta 8,6 GB (medición publicada con contexto de 32.000 en una RTX 5090 de escritorio; con 16.384 no está medido) |
 | `embeddings` | La misma imagen y compilación | Sirve `bge-m3` (archivo GGUF FP16 de 1,16 GB). `/v1/embeddings` | Tope conjunto con `reranker`: 4 GB. Estimado: entre 1,2 y 2 GB |
-| `reranker` | La misma imagen y compilación | Sirve `bge-reranker-v2-m3` (archivo GGUF FP16 de 1,16 GB). `/v1/rerank` | Estimado: entre 1,2 y 2 GB |
+| `reranker` | La misma imagen y compilación | Sirve `bge-reranker-v2-m3` (archivo GGUF FP16 de 1,16 GB). `/v1/rerank`. Arranca obligatoriamente con `--override-kv tokenizer.ggml.add_sep_token=bool:true`, que el archivo no trae (ADR-0003, adenda del 2026-10-02) | Estimado: entre 1,2 y 2 GB |
 | `migrate` | Imagen propia de la aplicación | Corre `scripts/migrate_on_start.sh` y termina | No usa |
 | `app` | Imagen propia de la aplicación | Pantalla (Gunicorn, un proceso con hilos, espera de 120 s) y comandos. Lectura de documentos y Tesseract en CPU | No usa |
 
@@ -134,6 +136,8 @@ Detalles comunes:
 - No hay servidor web intermedio, cola de tareas ni caché (P10).
 
 **Plan B para embeddings y reranker.** Si la etapa 0 muestra que `bge-m3` o `bge-reranker-v2-m3` no cargan en `llama-server` o no reproducen los valores publicados por sus autores, los servicios `embeddings` y `reranker` pasan a usar Text Embeddings Inference (imagen `120-1.9` para la serie RTX 50, que su documentación marca como experimental). Los nombres de los servicios y el resto del sistema no cambian: solo la imagen y los dos clientes de `evaluon/ai/`. Si tampoco funcionara, queda el contenedor propio con `sentence-transformers` que describe el ADR-0003.
+
+La etapa 0 no necesitó el plan B (`entorno.md`, T-003). El reranker reprodujo los valores de su ficha (5,28 y −8,18 frente a 5,26 y −8,19) solo después de forzar `tokenizer.ggml.add_sep_token`, un dato que el archivo GGUF no trae y sin el cual los pares se arman con un separador de menos. El responsable decidió que es configuración del mismo modelo, no el plan B. Consecuencias, en la adenda del ADR-0003: el parámetro es obligatorio; el umbral de abstención se calibra con él y quitarlo exige recalibrar; un cambio de compilación o de archivo del reranker repite la prueba de los pares de la ficha.
 
 **Migraciones y respaldo.** El servicio `migrate` aplica las migraciones solo cuando la base está vacía; ahí no hay nada que respaldar y un equipo limpio llega al sistema funcionando con una orden (P5). Si la base ya tiene datos, `migrate` solo comprueba (`manage.py migrate --check`): si hay cambios de esquema pendientes termina con error, muestra el procedimiento y `app` no arranca. El procedimiento para una base con datos, que va al runbook, es:
 
@@ -255,7 +259,7 @@ Va en tabla aparte para que listar documentos no arrastre los archivos.
 | `char_start`, `char_end` | Tramo del texto de la unidad que cubre |
 | `header` | Encabezado de contexto: norma y ruta ("Disposición AFIP 247/2022, Anexo, artículo 50") |
 | `text` | Texto del tramo |
-| `tsv` | Columna para la búsqueda por palabras, con la configuración `spanish_unaccent`; índice GIN |
+| `tsv` | Columna para la búsqueda por palabras, calculada por la base con `search_document` (ver "Búsqueda por palabras: tildes, singular y plural"); índice GIN |
 | `embedding` | Vector de 1024 dimensiones de `header` más `text`; sin índice aproximado |
 | `embedding_model`, `embedding_revision` | Nombre del modelo y huella del archivo que calculó el vector |
 
@@ -320,7 +324,27 @@ Se crea una versión nueva cada vez que cambia lo que se puede consultar o lo qu
 
 ### Migraciones con SQL propio
 
-En `norms/migrations/`, cada una con su reversa: extensiones `vector` y `unaccent`; configuración de búsqueda de texto `spanish_unaccent` (derivada de `spanish`, quitando acentos antes de reducir las palabras a su raíz); columna `tsv` con su índice GIN; y las funciones `consultable_units`, `unit_changes` y `applicable_regimes`.
+En `norms/migrations/`, cada una con su reversa: extensiones `vector` y `unaccent`; funciones de búsqueda por palabras `search_normalize`, `search_document` y `search_query` (ver la sección siguiente); columna `tsv` con su índice GIN; y las funciones `consultable_units`, `unit_changes` y `applicable_regimes`.
+
+### Búsqueda por palabras: tildes, singular y plural
+
+Pendiente de aprobación del responsable (ADR-0007, propuesto). Reemplaza la configuración `spanish_unaccent` del plan aprobado, que quitaba los acentos antes de reducir las palabras a su raíz.
+
+**Por qué cambia.** La etapa 0 midió que, quitando los acentos primero, "licitación" queda como `licitacion` y "licitaciones" como `licit`: buscar "licitacion" o "licitación" no encuentra un pasaje que solo dice "licitaciones". Pasa con todas las palabras terminadas en "-ación" y "-ución" (adjudicación, contratación, resolución). El lematizador de español de Postgres 17 reconoce "-ación" con tilde y no sin ella (`entorno.md`, T-004, sección 5; ADR-0007).
+
+**Definición.** El texto del pasaje y el de la consulta pasan por la misma normalización y después por la configuración `spanish` de Postgres. Tres funciones SQL, en la migración de T-009:
+
+| Función | Qué hace |
+|---|---|
+| `search_normalize(texto)` | Quita los acentos con `unaccent` y vuelve a poner la tilde en las palabras terminadas en "acion" o "ucion", sin distinguir mayúsculas. En español esas terminaciones siempre llevan tilde |
+| `search_document(texto)` | `to_tsvector('spanish', search_normalize(texto))`. Calcula `tsv` |
+| `search_query(texto)` | `websearch_to_tsquery('spanish', search_normalize(texto))`. La usan el camino por palabras y la búsqueda directa |
+
+Se declaran inmutables, con `unaccent` llamado con su diccionario nombrado con esquema, para que `tsv` pueda ser una columna calculada por la base. Nada fuera de ellas arma `tsv` ni una consulta de texto.
+
+**Qué se espera.** Con o sin tilde y en mayúsculas o minúsculas, "licitación", "licitacion", "LICITACIÓN" y "licitaciones" quedan como `licit`; "adjudicación" y "adjudicaciones", como `adjud`; "contratación" y "contrataciones", como `contrat`; "artículo", "artículos" y "articulo", como `articul`; "garantía", "garantías" y "garantia", como `garanti`. "297/03" y "247/2022" quedan enteros, como en T-004. Es una deducción de lo medido en T-004, no una medición: la comprueba T-009.
+
+**Qué se pierde.** Una regla propia de dos terminaciones que mantener; las palabras que solo se distinguen por la tilde se confunden ("público" y "publico"), igual que con la definición anterior. Al actualizar Postgres de versión mayor hay que recalcular `tsv` y repetir la prueba, porque el lematizador puede cambiar. Alternativas y costos: ADR-0007.
 
 ### Identificación de unidades
 
@@ -478,7 +502,7 @@ Entrada: la pregunta y la fecha de autorización. Los tres caminos leen de `cons
 | Camino | Qué hace | Cuántos |
 |---|---|---|
 | Por significado | Vector de la pregunta contra los vectores de los pasajes, distancia coseno, búsqueda exacta | 30 pasajes |
-| Por palabras | Búsqueda de texto de Postgres con `spanish_unaccent`, palabras unidas por "o" | 30 pasajes |
+| Por palabras | Búsqueda de texto de Postgres: `tsv` contra `search_query`, palabras unidas por "o" | 30 pasajes |
 | Por referencia exacta | Si la pregunta nombra una norma o un artículo ("art. 5 inc. b", "Disposición 297/03", "Disposición 247/2022"), trae esas unidades por sus datos, siempre dentro de lo consultable a la fecha. Si nombra un inciso, entra el artículo que lo contiene | Las que coincidan |
 
 Se unen sin repetir (unos 65 pasajes como mucho). No hay fórmula de fusión: el orden lo pone el reranker.
@@ -512,6 +536,12 @@ El plan mide en tokens tres cosas: el largo de un pasaje (800), el largo a parti
 La alternativa de estimar por cantidad de caracteres se descartó: puede dejar un pasaje por encima del límite, y una entrada demasiado larga se rechaza. La de cargar los tokenizadores dentro de la aplicación se descartó por sumar una librería y dos archivos que fijar y mantener iguales a los de los modelos (P10).
 
 `llama-server` tiene además un punto de acceso que cuenta los tokens de un pedido de conversación completo, con la plantilla incluida (`POST /v1/chat/completions/input_tokens`). Su documentación aclara que no es parte de la interfaz oficial de OpenAI; no se usa para no depender de él. Si la etapa 0 muestra que el margen de 512 no alcanza o sobra, se ajusta el parámetro.
+
+**Medido en la etapa 0** (`entorno.md`, T-002, sección 8, y T-003, secciones 5 y 6):
+
+- La plantilla de conversación agregó 18 tokens en todos los pedidos de dos mensajes medidos, sin importar el largo. El margen queda en 512: lo que sobra son unos 490 tokens de 16.384 (3 %), y cubre formas de pedido que no se midieron, como un cambio de las instrucciones o de la compilación. Se revisa si la medición de tiempo o de espacio de la etapa 4 lo pide.
+- `/tokenize` no cuenta los tokens especiales que agrega el modelo: en `embeddings` son 2 por texto y en `reranker` 4 por par (pregunta más pasaje). Con pasajes de hasta 800 tokens, el límite de 8.192 no se alcanza.
+- Una entrada más larga que el contexto se rechaza sin recortar en los tres servicios, pero con códigos distintos: `generation` responde HTTP 400 con `type` `exceed_context_size_error`; `embeddings` y `reranker` responden **HTTP 500** con `type` `server_error` y un mensaje que contiene `is too large to process`. Los clientes de T-011 reconocen el rechazo por ese mensaje para informarlo como `input_too_long` y no como servicio caído. En el reranker, un solo pasaje demasiado largo hace fallar el pedido entero.
 
 Fuentes, consultadas el 2026-10-02: documentación de `llama-server` (https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md), para `/tokenize`, `/apply-template`, el campo `usage` y el conteo de un pedido completo; reporte en su repositorio de que un pedido que excede el contexto se rechaza con error 400 (https://github.com/ggml-org/llama.cpp/issues/17284). Queda por comprobar en el equipo, en la etapa 0, lo que figura en "Sin verificar".
 
@@ -589,7 +619,7 @@ Una falla técnica (un servicio que no responde, una espera agotada a los 60 seg
 En la misma pantalla, sin modelos de IA, y siempre para la fecha de autorización indicada en el formulario de búsqueda:
 
 - **Por norma y número de artículo:** se elige la norma y se escribe el número. Devuelve las unidades con ese número que eran consultables a la fecha, en todas las partes de la norma, cada una con su ruta y su texto.
-- **Por palabras:** búsqueda de texto de Postgres sobre los pasajes, sin distinguir acentos, con comillas para frase exacta. Los resultados se agrupan por unidad base.
+- **Por palabras:** búsqueda de texto de Postgres sobre los pasajes (`tsv` contra `search_query`), sin distinguir acentos ni singular y plural, con comillas para frase exacta. Los resultados se agrupan por unidad base.
 
 Arriba de los resultados va la línea de fecha y régimen aplicado, y debajo los avisos de modificatorias sin cargar que correspondan. Cada resultado muestra la categoría, el texto literal, el enlace al original, los cambios vigentes a la fecha y, si a esa fecha está derogada, la marca con la norma que la derogó y desde cuándo. También muestra los vínculos de su norma con otras, en los dos sentidos (REQ-006). Si no hay resultados para esa fecha, la pantalla lo dice.
 
@@ -811,6 +841,7 @@ ADR en los que se apoya este plan, los cinco aceptados. Los ADR 0002 a 0005 se a
 | ADR-0004 | pdfplumber, Tesseract, BeautifulSoup y partición con reglas |
 | ADR-0005 | Django, páginas armadas en el servidor, Argon2id, sesiones en la base y comandos |
 | ADR-0006 | Dos regímenes específicos, la Disposición 247/2022 y la 297/03, aplicados según la fecha de autorización del procedimiento |
+| ADR-0007 (propuesto) | Búsqueda por palabras: normalizar texto y consulta (quitar acentos y reponer la tilde de "-ación" y "-ución") y reducir a la raíz con `spanish` |
 
 Esta actualización no necesita un ADR nuevo: ninguna de sus decisiones es difícil de revertir. Los campos y la tabla que suma entran en el esquema antes de que exista una base con datos, y para volver a un solo régimen alcanza con fijar la fecha y ocultar el campo, como dice el ADR-0006.
 
@@ -842,6 +873,11 @@ Decisiones tomadas en la actualización por el ADR-0006, pendientes de aprobaci�
 19. **Conteo de tokens:** `POST /tokenize` del servidor que tiene cargado cada modelo, como cuarta operación de los clientes de `evaluon/ai/`; margen de 512 tokens para la plantilla de conversación.
 20. **Hilo mínimo:** se hace con `disp-afip-247-2022-anexo.pdf`, que es un PDF con texto real y es el régimen que responde con la fecha del día.
 
+Ajustes por la etapa 0:
+
+21. **Separador de pares del reranker:** `--override-kv tokenizer.ggml.add_sep_token=bool:true`, obligatorio. Decidido por el responsable el 2026-10-02 (ADR-0003, adenda).
+22. **Búsqueda por palabras:** `search_normalize`, `search_document` y `search_query` en lugar de la configuración `spanish_unaccent`. Pendiente de aprobación (ADR-0007).
+
 ## Orden de construcción
 
 Regla para asignar: los bloques marcados "en paralelo" no comparten archivos entre sí y se pueden dar a desarrolladores distintos. Todo lo que toca el esquema (`models.py`, `migrations/`) o la configuración compartida (`settings.py`, `urls.py` de la raíz, `pyproject.toml`, `Dockerfile`, `docker-compose.yml`, `.env.example`, `tests/conftest.py`) va de a uno, en una sola fila de tareas.
@@ -870,7 +906,7 @@ Si el punto 3 falla, se pasa al plan B y se actualizan este plan y el ADR-0003 a
 De a uno: es esquema y configuración compartida.
 
 1. Esqueleto de Django, usuario propio con rol, ingreso y salida, Argon2id, sesiones, `permissions.py`, `audit_event` y su función de registro, `crear_usuario` (REQ-016, REQ-012).
-2. Esquema completo de `norms` y `queries` como está en "Modelo de datos", incluidos `general_regime`, `part` y `norms_pending_amendment`, con las migraciones de SQL propio (`consultable_units`, `unit_changes`, `applicable_regimes`, `spanish_unaccent`) y sus reversas (REQ-005, REQ-007, REQ-012, REQ-020, REQ-021).
+2. Esquema completo de `norms` y `queries` como está en "Modelo de datos", incluidos `general_regime`, `part` y `norms_pending_amendment`, con las migraciones de SQL propio (`consultable_units`, `unit_changes`, `applicable_regimes`, y `search_normalize`, `search_document` y `search_query` para la búsqueda por palabras) y sus reversas (REQ-005, REQ-007, REQ-012, REQ-020, REQ-021).
 3. Clientes de `evaluon/ai/`, con el conteo de tokens, y sus dobles en `tests/conftest.py`.
 
 ### Etapa 2 · Hilo mínimo de punta a punta
@@ -968,13 +1004,15 @@ Nada de lo que sigue está comprobado. Cada grupo indica la prueba que lo cierra
 | Tiempo del reranker con 65 pasajes y de la recuperación completa | Se mide; la meta del ADR-0003 es 3 segundos |
 | Plan B: imagen experimental de Text Embeddings Inference para la serie RTX 50, con estos modelos, bajo WSL2 | Solo si hace falta: las mismas pruebas sobre esa imagen |
 
+Cerrado en la etapa 0 (`entorno.md`, T-003), sin plan B: los dos modelos cargan; `bge-m3` reproduce la ficha a menos de 0,0011; el reranker la reproduce con el parámetro de la adenda del ADR-0003; el reranker devuelve el valor sin escala; entrada larga rechazada con HTTP 500 (ver "Conteo de tokens"); `/tokenize` da listas idénticas en los dos; 10.344 MiB con los tres modelos cargados; 1,1 s para 65 pasajes (3,45 s el primer pedido después de arrancar).
+
 ### Postgres (etapa 0)
 
 | Sin verificar | Prueba que lo cierra |
 |---|---|
 | Versión exacta de pgvector y etiqueta de imagen | `SELECT extversion FROM pg_extension`; se fija la etiqueta en `docker-compose.yml` |
 | Que la imagen traiga `unaccent` y la configuración `spanish` | `CREATE EXTENSION unaccent` y `\dF` |
-| Que la configuración propia encuentre palabras sin tilde | Una consulta por "licitacion" encuentra un texto con "licitación" |
+| Que la configuración propia encuentre palabras sin tilde | Cerrado en T-004 para la definición anterior, que además rompía singular y plural en "-ación" y "-ución". La definición del ADR-0007 la comprueba T-009: cada forma de "licitación", "adjudicación", "contratación", "artículo" y "garantía", con y sin tilde, en mayúsculas y en plural, encuentra las demás de su familia, y "297/03" y "247/2022" se encuentran a sí mismos |
 | Cómo se tratan los números con barra ("297/03", "247/2022") | Se observa con `ts_debug`; las referencias exactas no dependen de esto |
 | Tiempo de la búsqueda exacta por vectores | Se mide en la etapa 4 con el corpus real; se agrega índice solo si supera 200 ms |
 
@@ -1054,6 +1092,7 @@ Las decisiones del plan original ya están tomadas y figuran más abajo. Por la 
 4. **Reparto de las preguntas de las evals entre los dos regímenes.** Recomendado: la mayoría con fecha bajo la 247/2022, que es lo que la Comisión usa hoy, y no menos de ocho con fecha bajo la 297/03, incluido el par que repite una pregunta con dos fechas. Hay que tener presente que las respuestas bajo la 297/03 se miden contra el texto de 2003, sin sus modificatorias.
 5. **La cláusula transitoria del anexo de la 247/2022.** Es texto normativo sin encabezado de artículo, y las reglas del ADR-0004 no la prevén. Recomendado: guardarla como unidad de tipo `parrafo` dentro del anexo (`anexo/parrafo-1` y `anexo/parrafo-2`), con su título en la ruta. Usa un tipo de unidad que ya existe, pero extiende a una norma un tipo que la spec y el ADR-0004 reservan para dictámenes y recomendaciones, así que necesita su visto bueno. Mientras no se decida, el informe la muestra como no ubicada y el anexo se puede validar igual, sabiendo que esos dos párrafos no se van a poder citar.
 6. **Las modificatorias que no modifican.** El listado de Infoleg junta las normas que modifican la 297/03 con las que solo la complementan o la citan, como la aprobación de una licitación. Según la spec, el aviso desaparece cuando están cargadas las 33. Recomendado: dejarlo así por ahora y revisarlo cuando se decida con qué profundidad se cargan (ADR-0006). Sacar una norma del listado sin cargarla sería un requisito nuevo.
+7. **Búsqueda por palabras (ADR-0007).** Recomendado: aprobar la alternativa D, normalizar texto y consulta quitando acentos y reponiendo la tilde de "-ación" y "-ución", y reducir a la raíz con `spanish`. Se pierde: una regla propia de dos terminaciones que mantener, y recalcular `tsv` al cambiar de versión mayor de Postgres. Mantener la definición anterior deja sin coincidir "licitación" y "licitaciones". Hace falta antes de que empiece T-009.
 
 No son decisiones, pero hacen falta:
 
@@ -1126,4 +1165,17 @@ Fecha: 2026-10-02. Pendiente de aprobación del responsable. Esta sección lista
 - ADR-0005: su tabla de comandos no tiene `registrar_modificatorias` ni las opciones `--parte` y `--regimen-general`.
 - Spec, "Volumen" y aclaración sobre modificatorias: hablan de 33 modificatorias sin cargar. El listado de Infoleg tiene 33 normas, pero una es la Disposición 247/2022, que se carga; quedan 32.
 - `evals/README.md`: su formato de partida no tiene la fecha de autorización. El formato vigente para esta feature es el de la sección "Evals" de este plan, como ese mismo archivo indica.
+
+## Ajustes por la etapa 0
+
+Fecha: 2026-10-02. Lo medido en `entorno.md` (T-001 a T-005) que cambia el diseño. Lo que solo afecta al runbook no figura acá.
+
+| Sección | Qué cambió | Estado |
+|---|---|---|
+| Servicios (tabla y plan B) | El reranker arranca con `--override-kv tokenizer.ggml.add_sep_token=bool:true`; no fue el plan B | Decidido por el responsable (ADR-0003, adenda) |
+| Modelo de datos (`tsv`, migraciones) y sección nueva "Búsqueda por palabras: tildes, singular y plural" | `spanish_unaccent` reemplazada por `search_normalize`, `search_document` y `search_query` | Pendiente de aprobación (ADR-0007) |
+| Recuperación; Búsqueda directa; Etapa 1 | Usan `search_query` | Pendiente, con el ADR-0007 |
+| Conteo de tokens | Plantilla medida en 18 tokens; el margen sigue en 512. Rechazo de entrada larga con HTTP 500 en `embeddings` y `reranker`, a reconocer por el mensaje en T-011 | Anotación |
+| Sin verificar | Cierre de embeddings y reranker; la prueba de búsqueda sin tilde pasa a T-009 | Anotación |
+| Decisiones; Qué tiene que decidir el responsable | Decisiones 21 y 22; decisión 7 | — |
 
