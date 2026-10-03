@@ -55,7 +55,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-037 | Mostrar las citas con categoría, papel y cambios | REQ-007, REQ-013, REQ-014, REQ-015, REQ-018, REQ-019 | T-019, T-036 | terminada |
 | T-038 | Registrar ingresos, ingresos fallidos y rechazos por rol | REQ-012, REQ-016 | T-014, T-015 | terminada |
 | T-039 | Correr el conjunto de preguntas y medir las exigencias | REQ-008, REQ-009, REQ-020, REQ-021 | T-019 | terminada |
-| T-040 | Unir recuperación y generación completas con su registro | REQ-008, REQ-009, REQ-012, REQ-018, REQ-019 | T-033, T-034 | pendiente |
+| T-040 | Unir recuperación y generación completas con su registro | REQ-008, REQ-009, REQ-012, REQ-018, REQ-019 | T-033, T-034 | en curso |
 | T-041 | Mostrar y registrar la búsqueda en la pantalla | REQ-006, REQ-010, REQ-012, REQ-020 | T-035, T-037, T-040 | pendiente |
 | T-042 | Agregar calibración del umbral y comparación de corridas | REQ-008, REQ-009, REQ-020, REQ-021 | T-039, T-040 | pendiente |
 | T-043 | Cargar y validar el corpus real y ajustar las reglas | REQ-003, REQ-004, REQ-005, REQ-015, REQ-020 | T-020, T-028, T-031, T-041, T-050 | pendiente |

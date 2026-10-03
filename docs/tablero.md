@@ -63,11 +63,11 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 16 tareas sin terminar.
+- ▶ T-040 · Unir recuperación y generación completas con su registro (en curso)
 - ○ T-025 · Completar el informe de lectura (pendiente)
 - ○ T-026 · Avisar duplicados al cargar una norma (pendiente)
 - ○ T-027 · Releer un documento y reemplazar la lectura anterior (pendiente)
 - ○ T-028 · Integrar los tres formatos en la carga (pendiente)
-- ○ T-040 · Unir recuperación y generación completas con su registro (pendiente)
 - ○ T-041 · Mostrar y registrar la búsqueda en la pantalla (pendiente)
 - ○ T-042 · Agregar calibración del umbral y comparación de corridas (pendiente)
 - ○ T-043 · Cargar y validar el corpus real y ajustar las reglas (pendiente)
@@ -115,10 +115,10 @@ flowchart LR
 - ✓ T-034 · Completar instrucciones, marca de regímenes y orden (`c7ad4bc` 2026-10-03, `fc426a7` 2026-10-03)
 - ✓ T-035 · Buscar unidades por artículo y por palabras (`5cf1cbc` 2026-10-03, `92ec485` 2026-10-03)
 - ✓ T-036 · Entregar el documento original con sesión (`07ea00d` 2026-10-03)
-- ✓ T-037 · Mostrar las citas con categoría, papel y cambios
+- ✓ T-037 · Mostrar las citas con categoría, papel y cambios (`aa4b436` 2026-10-03, `2ca66e6` 2026-10-03)
 - ✓ T-038 · Registrar ingresos, ingresos fallidos y rechazos por rol (`2ef5e3b` 2026-10-03)
-- ✓ T-039 · Correr el conjunto de preguntas y medir las exigencias
-- ✓ T-051 · Registrar las modificatorias sin cargar de una norma
+- ✓ T-039 · Correr el conjunto de preguntas y medir las exigencias (`df00322` 2026-10-03, `13ae5e6` 2026-10-03, `97c998c` 2026-10-03)
+- ✓ T-051 · Registrar las modificatorias sin cargar de una norma (`375ba21` 2026-10-03, `73a199a` 2026-10-03)
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 - ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
 - ✓ T-055 · Agregar el nombre de cita de la norma (`ff230c8` 2026-10-03, `88796e6` 2026-10-03)
@@ -166,7 +166,7 @@ flowchart TD
   T037["✓ T-037 · Mostrar las citas con categoría, papel y ca…"]:::done
   T038["✓ T-038 · Registrar ingresos, ingresos fallidos y rec…"]:::done
   T039["✓ T-039 · Correr el conjunto de preguntas y medir las…"]:::done
-  T040["○ T-040 · Unir recuperación y generación completas co…"]:::todo
+  T040["▶ T-040 · Unir recuperación y generación completas co…"]:::active
   T041["○ T-041 · Mostrar y registrar la búsqueda en la panta…"]:::todo
   T042["○ T-042 · Agregar calibración del umbral y comparació…"]:::todo
   T043["○ T-043 · Cargar y validar el corpus real y ajustar l…"]:::todo
