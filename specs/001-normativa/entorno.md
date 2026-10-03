@@ -1501,3 +1501,44 @@ Con `enable_seqscan` apagado, la búsqueda de "año" usa `norms_passage_tsv_gin`
 **Qué se pierde.** Quien escribe sin eñe no encuentra la palabra con eñe ("compania" no encuentra "compañía"), y "año" y "años" no comparten lexema (ADR-0007, adenda).
 
 **Caracteres de control y esquema explícito.** Los `\x01` y `\x02` que traiga el texto se cambian por espacios antes de proteger la eñe. Como el analizador ya los trataba como separadores, el lexema queda igual que antes de T-053: `E'plazo\x01de'` da `'plaz':1`, no `'plazoñd'` (`test_control_characters_used_to_protect_the_enye_are_separators`). Con `SET LOCAL search_path = ''`, `public.search_normalize`, `public.search_document` y `public.search_query` dan los lexemas esperados para "año" y "licitacion" (`test_search_functions_work_with_an_empty_search_path`). Si en la 0006 se llama a `unaccent(...)` sin esquema ni diccionario, ese test falla con `function unaccent(text) does not exist`. Con datos, en la base de `evaluon-t053`, se aplicó la 0006, se revirtió a 0005 y se volvió a aplicar: dio los mismos `tsv` y las mismas coincidencias de la tabla anterior, y `E'plazo\x01de'` dio `'plaz':1` en las tres definiciones.
+
+## T-011 · Clientes de IA contra los servicios reales
+
+Fecha: 2026-10-02. Requisitos: REQ-008 y REQ-009. Además de la suite (que usa un servidor HTTP falso y los dobles), se llamó una vez a cada operación de los clientes de `evaluon/ai/` contra los servicios reales, desde el contenedor `app` y con los valores por defecto de `settings.py` (`http://generation:8080`, `http://embeddings:8080`, `http://reranker:8080`). Los textos son sintéticos o los de las fichas públicas de los modelos; el script quedó fuera del repositorio.
+
+**Comandos.**
+
+```
+docker compose up -d generation embeddings reranker
+docker compose run --rm --no-deps -T -e DJANGO_SETTINGS_MODULE=evaluon.settings app python - < <script>
+docker compose stop reranker      # para la prueba de servicio caído
+docker compose stop generation embeddings && docker compose rm -f generation embeddings reranker
+```
+
+**Salida.**
+
+```
+rerank [0.00028, 0.99493] logit [-8.1805, 5.2794] 0.21s
+embed dims [1024, 1024, 1024, 1024] sims [0.6257, 0.3471, 0.3489, 0.6785]
+count_tokens embeddings 38 /tokenize 38
+count_tokens generation 38 /tokenize 38
+count_tokens embeddings 26 /tokenize 26
+count_tokens generation 31 /tokenize 31
+generate stop 130 81 1.45s
+content {"status": "grounded", "statements": [{"text": "El oferente deberá integrar la garantía de mantenimiento de oferta por el cinco por ciento (5 %) del monto total de la oferta.", "citations": ["U1"]}]}
+reasoning_content en la respuesta: False
+generation InputTooLongError input_too_long 400 ... request (30014 tokens) exceeds the available context size (16384 tokens) ...
+embeddings InputTooLongError input_too_long 500 ... input (21002 tokens) is too large to process ...
+reranker InputTooLongError input_too_long 500 ... input (21005 tokens) is too large to process ...
+reranker detenido: ServiceUnavailableError service_unavailable reranker: no responde (http://reranker:8080/v1/rerank: [Errno -3] Temporary failure in name resolution)
+```
+
+**Resultado.** Cumple:
+
+- Las cuatro operaciones responden: `generate` (salida con esquema, `finish_reason` `stop`, sin `reasoning_content`), `embed` (cuatro vectores de 1024, similitudes de la ficha de `bge-m3` iguales a las de T-003), `rerank` y `count_tokens` en los dos clientes.
+- Pares de la ficha del reranker, ya con sigmoide: 0,99493 y 0,00028 (valor sin escala 5,2794 y −8,1805, los mismos de T-003).
+- `count_tokens` coincide con el largo de la lista de `/tokenize` de cada servidor. Con un segundo texto las cuentas de los dos modelos difieren (26 en `bge-m3`, 31 en Gemma 4): cada cliente cuenta con su propio servidor.
+- Una entrada demasiado larga da `InputTooLongError` (motivo `input_too_long`) en los tres servicios, aunque `generation` responde HTTP 400 y `embeddings` y `reranker` HTTP 500.
+- Con el servicio detenido, el cliente da `ServiceUnavailableError` (motivo `service_unavailable`).
+
+**Pensamiento apagado por pedido.** Cada pedido de generación lleva `chat_template_kwargs: {"enable_thinking": false}` además del `--reasoning off` del servidor. Se comprobó con `POST /apply-template` que esa es la variable que lee la plantilla de Gemma 4: sin ella y con `false`, la plantilla termina en `<|turn>model\n<|channel>thought\n<channel|>` (canal de pensamiento vacío, como en T-002, sección 5); con `true` agrega `<|think|>` en un turno de sistema y no cierra el canal. Así el pedido registrado dice por sí mismo que el pensamiento estaba apagado.
