@@ -1965,3 +1965,33 @@ Las dos consultas y las dos búsquedas quedan en el registro de consultas y de a
 
 - El art. 2 de la 247/2022 abroga también las Disposiciones 393/05, 153/08 y 231/17, que figuran en el listado como modificatorias de la 297/03 (la 231/17 como "Disposición E"). Mientras no se carguen siguen contando entre las 32 sin cargar, y el aviso las cuenta en las respuestas que citan la 297/03. Es lo que pide la Verificación ("las del archivo menos la 247/2022"); si el responsable prefiere otro criterio, es una decisión aparte.
 - Las anotaciones del CSV usan el organismo "ADMINISTRACION FEDERAL DE INGRESOS PUBLICOS" y la norma cargada, "AFIP". No afecta a la 247/2022: la coincidencia es por tipo, número y año, y el organismo solo desempata (T-057 trata la equivalencia de organismos).
+
+## T-045 · Calibración del umbral de abstención
+
+**Valor:** `RERANK_THRESHOLD = 0.368` (provisorio), fijado el 2026-10-03 en `evaluon/settings.py`. Reemplaza al 0,5 inicial (punto medio de la sigmoide).
+
+**Corrida de la que sale:** `evals/corridas/2026-10-03T132016_8ad46e6_gemma-4-12b-it-qat-q4_0` (commit `8ad46e6`, normativa versión 5, instrucciones `consulta-v2`, umbral configurado durante la corrida 0,5). Se corrió una sola vez, con los servicios reales del proyecto `evaluon` y el corpus validado:
+
+```
+docker compose -p evaluon exec app python manage.py correr_evals --usuario desarrollo
+```
+
+Duró de 13:20:16 a 13:22:35. Dejó 31 consultas en el registro (canal `eval`) y 31 hechos `query` de auditoría con el usuario `desarrollo`, más su ingreso por comando.
+
+**Preguntas que entraron.** 31 casos leídos y corridos, todos con visto bueno. En la calibración entraron 24 preguntas con respuesta (todas con puntaje) y 6 sin respuesta con puntaje; EV-031 (sin régimen cargado a la fecha) no llega al reranker y no tiene puntaje.
+
+**Cómo se obtuvo.** Puntajes más altos de las preguntas con respuesta, de menor a mayor: 0,368 (EV-020), 0,508 (EV-004), 0,748 (EV-007) y el resto entre 0,984 y 1,000. Dejando cada vez una afuera, la k más alta que no pasa del 5 % es k = 0 (frena 1 de 24, 4,2 %; el umbral calculado va de 0,368 a 0,507). El umbral es el puntaje de EV-020 redondeado hacia abajo. La regla sin dejar ninguna afuera daría 0,507, que frena EV-020 y, dejando cada vez una afuera, frenaría el 8,3 %. Hay 24 preguntas con respuesta, así que no se aplica el caso de menos de 20.
+
+**Preguntas con respuesta que frena el umbral.** Con 0,368: ninguna en el conjunto completo (la comparación es puntaje igual o mayor). Con el 0,5 de la corrida frenó una: EV-020 (multa con prórroga del plazo de entrega, 297/03, art. 58 del Anexo I, puntaje 0,368). El margen es nulo: EV-020 pasa justo en el umbral, y una variación mínima del puntaje la vuelve a frenar.
+
+**Preguntas sin respuesta por debajo del umbral.** 3 de 6: EV-025 (0,120), EV-026 (0,022) y EV-030 (0,003). Quedan por encima EV-027 (0,775), EV-028 (0,988) y EV-029 (0,743); de esas, el modelo se abstuvo en EV-027 y EV-029 y respondió en EV-028 (art. 50 del anexo de la 247/2022). Ningún umbral que no frene preguntas con respuesta separa a EV-027, 028 y 029: su abstención depende del modelo, no del umbral.
+
+**Resultado de la corrida (con el umbral 0,5, para T-046).** Cita literal 100 % (72 de 72); respuesta correcta 45,8 % (11 de 24); abstención 85,7 % (6 de 7); tiempo mediana 4,54 s y máximo 9,62 s. Las fallas de respuesta correcta son casi todas por datos clave faltantes (aviso de T-039: los datos clave de 16 casos son frases compuestas o parafraseadas). Aviso de REQ-021: falla solo EV-020, porque fue frenada y no hubo respuesta que citara la 297/03. Los tres pares de REQ-020 fallan porque alguno de sus casos no pasa por su cuenta (por datos clave), no por el régimen. La corrida no midió con el umbral nuevo: eso queda para T-046.
+
+**Observaciones de los avisos.**
+
+- (T-031) Los 30 candidatos por significado no se llenan con pocas unidades largas, pero en la 297/03 una unidad larga ocupa varios lugares. Por cada 30 pasajes llegan 25 a 30 unidades distintas en las preguntas con respuesta de la 247/2022, 19 a 27 en las de la 297/03 y 22 a 29 en las sin respuesta. El art. 58 del Anexo I de la 297/03 (17.298 caracteres, 7 pasajes) ocupa los 7 lugares en EV-020 y EV-023, y entre 3 y 6 en otras seis; los arts. 55, 25, 21 y 29 del Anexo I, de 3 a 4 cada uno. En la 247/2022, el máximo es 4 pasajes de una unidad (arts. 24 y 33 del anexo). La unión fue de 37 a 49 pasajes (27 a 44 unidades) y la recuperación tardó mediana 0,62 s y máximo 1,40 s. EV-020 es justamente la del art. 58: su unidad quedó primera, pero con 0,368, muy por debajo de las demás preguntas con respuesta. Puede que el pasaje que contiene la multa por prórroga no sea el que mejor puntúa con el solapamiento de `PASSAGE_OVERLAP_TOKENS = 100`; no se probó otro valor (cambiarlo exige reindexar y correr las evals, P7).
+- (T-040) Afirmaciones y citas por respuesta, en las 23 preguntas con respuesta que respondieron: 1 afirmación en 7, 2 en 4, 3 en 5, 4 en 2, 5 en 1 y 6 (el máximo permitido) en 4 (EV-002, EV-008, EV-011, EV-019). Se repite lo de T-040: EV-001 (plazo de mantenimiento de oferta) da 5 afirmaciones con la misma cita (art. 43 del anexo); EV-011 y EV-019 dan 6 con una sola unidad citada. Las respuestas cortas (EV-012, 014, 018, 021, "¿puede…?") dan 1 afirmación y no incluyen el "no" o "sí" que piden sus datos clave. Las 72 citas son literales y ninguna salida tuvo falla de formato ni de cita.
+- (T-032) Ninguna pregunta del conjunto nombra un artículo: el camino por referencia exacta no trajo la unidad correcta en ninguna (0 de 24), así que el caso de un artículo nombrado fuera de la selección no se pudo observar. Sí quedó fuera de la selección una unidad esperada por el límite de 3 por categoría: en EV-024 (plazo para observar el acta de evaluación, 297/03) el art. 21 del Anexo I quedó 4.º con 0,894 detrás de los arts. 50 (0,995), 47 (0,958) y 17 (0,924), y la respuesta citó el art. 50. Con el umbral nuevo no cambia: es `SELECTION_UNITS_PER_CATEGORY = 3`.
+
+**Pendiente.** El valor es provisorio y sale de 24 preguntas con respuesta: con k = 0 el umbral es el mínimo observado y no deja margen. Se recalibra cuando el conjunto crezca o cambien los datos clave, el corpus, el reranker o el armado de pasajes.
