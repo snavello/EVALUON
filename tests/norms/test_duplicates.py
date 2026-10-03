@@ -137,7 +137,7 @@ def test_same_norm_and_part_in_other_file_is_not_incorporated_without_confirmati
     assert "parte anexo" in message and "disp-247-2022-anexo-extracto.pdf" in message
     assert Document.objects.count() == 1
     assert [m["document"] for m in raised.value.matches] == [first.document.pk]
-    assert raised.value.matches[0]["kind"] == "same_norm_part"
+    assert raised.value.matches[0]["kinds"] == ["same_norm_part"]
 
 
 @pytest.mark.django_db
@@ -220,7 +220,7 @@ def test_same_text_in_other_file_and_other_part_still_warns_same_norm(read_write
         load(read_write_user, data=resaved_extract(), file_name="copia.pdf",
              part="anexo-i")
 
-    assert raised.value.matches[0]["kind"] == "same_text"
+    assert raised.value.matches[0]["kinds"] == ["same_text"]
     assert raised.value.matches[0]["document"] == first.document.pk
     assert "mismo texto" in str(raised.value)
     assert Document.objects.count() == 1
@@ -351,22 +351,160 @@ def test_added_part_records_checks_and_notices(read_write_user):
 
 
 @pytest.mark.django_db
-def test_concurrent_load_gives_a_plain_message(read_write_user, monkeypatch):
-    """REQ-011, REQ-012: si otra carga guarda el mismo archivo o la misma norma al mismo
-    tiempo, la base lo impide y la persona recibe un mensaje llano; el intento queda
-    registrado."""
-
-    def collide(**fields):
-        raise IntegrityError("duplicate key value violates unique constraint")
-
-    monkeypatch.setattr(Document.objects, "create", collide)
+def test_concurrent_load_of_the_same_file_gives_a_plain_message(
+    read_write_user, monkeypatch
+):
+    """REQ-011, REQ-012: si otra carga guarda el mismo archivo al mismo tiempo (se
+    simula salteando la comprobación previa de la huella, como pasa cuando las dos
+    cargas la hacen antes de guardar), la base lo impide por la huella única y la
+    persona recibe un mensaje llano; el intento queda registrado."""
+    load(read_write_user)
+    monkeypatch.setattr(loading, "_check_file", lambda sha256: None)
 
     with pytest.raises(loading.ConcurrentLoad, match="al mismo tiempo"):
+        load(read_write_user, same_norm_confirmation="other_file")
+
+    assert Document.objects.count() == 1
+    event = AuditEvent.objects.get(event_type="load", outcome="rejected")
+    assert event.detail["reason"] == "concurrent_load"
+    assert "norms_document_file_sha256_key" in event.detail["error"]
+
+
+@pytest.mark.django_db
+def test_concurrent_load_of_the_same_new_norm_gives_a_plain_message(
+    read_write_user, monkeypatch
+):
+    """REQ-011, REQ-012: si otra carga da de alta la misma norma al mismo tiempo (se
+    simula haciendo que la búsqueda previa de la norma no la encuentre), la base lo
+    impide por la identidad única de la norma y la persona recibe un mensaje llano."""
+    load(read_write_user)
+    nothing = Norm.objects.none()
+    monkeypatch.setattr(Norm.objects, "filter", lambda **identity: nothing)
+
+    with pytest.raises(loading.ConcurrentLoad, match="al mismo tiempo"):
+        load(read_write_user, data=pages_five_and_six_pdf(), file_name="cuerpo.pdf",
+             part="cuerpo")
+
+    assert Norm.objects.count() == 1 and Document.objects.count() == 1
+    event = AuditEvent.objects.get(event_type="load", outcome="rejected")
+    assert event.detail["reason"] == "concurrent_load"
+    assert "norms_norm_identity_unique" in event.detail["error"]
+
+
+@pytest.mark.django_db
+def test_other_integrity_errors_are_not_taken_as_concurrent_load(
+    read_write_user, monkeypatch
+):
+    """REQ-012: solo las violaciones de la huella del archivo y de la identidad de la
+    norma son una carga simultánea; cualquier otro error de integridad de la base sigue
+    como error y no se registra como rechazo."""
+
+    def other_violation(**fields):
+        raise IntegrityError("new row violates check constraint")
+
+    monkeypatch.setattr(Document.objects, "create", other_violation)
+
+    with pytest.raises(IntegrityError, match="check constraint") as raised:
         load(read_write_user)
 
+    assert not isinstance(raised.value, loading.ConcurrentLoad)
     assert not Norm.objects.exists()
-    event = AuditEvent.objects.get(event_type="load")
-    assert (event.outcome, event.detail["reason"]) == ("rejected", "concurrent_load")
+    assert not AuditEvent.objects.filter(event_type="load").exists()
+
+
+# --- Ajustes de verificación ---------------------------------------------------------
+
+
+def blank_pdf(width, height):
+    """Un PDF de una página en blanco; el tamaño cambia los bytes, no el texto."""
+    document = pypdfium2.PdfDocument.new()
+    document.new_page(width, height)
+    buffer = io.BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
+
+
+@pytest.mark.django_db
+def test_empty_text_is_not_compared_against_other_documents(read_write_user):
+    """REQ-011: dos documentos sin texto (PDF en blanco) de normas distintas no son
+    "misma norma": un texto canónico vacío no se compara contra otros documentos."""
+    first = load(read_write_user, data=blank_pdf(595, 842), file_name="blanco-1.pdf",
+                 part="cuerpo")
+    assert first.reading.canonical_text.strip() == ""
+
+    second = load(read_write_user, data=blank_pdf(612, 792), file_name="blanco-2.pdf",
+                  part="cuerpo", number="999", citation="Disposición AFIP 999/2022")
+
+    assert second.reading.canonical_sha256 == first.reading.canonical_sha256
+    assert second.created_norm and Norm.objects.count() == 2
+    assert second.event.detail["duplicate_checks"]["same_text"] == []
+    assert second.reading.report["duplicates"] == []
+    assert second.same_norm_warning is None
+
+
+@pytest.mark.django_db
+def test_same_norm_match_is_not_reported_as_an_added_part(read_write_user):
+    """REQ-011, REQ-012: si hubo "misma norma" (aquí, el mismo texto cargado como otra
+    parte), el documento confirmado no se informa con "Se suma como parte…" ni se
+    registra como parte nueva de la norma."""
+    first = load(read_write_user)
+
+    second = load(read_write_user, data=resaved_extract(), file_name="copia.pdf",
+                  part="anexo-i", same_norm_confirmation="other_file")
+
+    assert not [n for n in second.notices if n.startswith("Se suma")]
+    checks = second.event.detail["duplicate_checks"]
+    assert checks["new_part_of_norm"] is None
+    assert checks["same_text"] == [first.document.pk]
+    assert checks["existing_parts"] == ["anexo"]
+
+
+@pytest.mark.django_db
+def test_document_matching_by_text_and_part_is_listed_once(read_write_user):
+    """REQ-011, REQ-004: un documento que coincide por el texto y por la parte cuenta y
+    se lista una sola vez en el aviso y en el informe, con los dos motivos."""
+    first = load(read_write_user)
+
+    second = load(read_write_user, data=resaved_extract(), file_name="copia.pdf",
+                  same_norm_confirmation="new_version")
+
+    assert len(second.same_norm_warning.matches) == 1
+    duplicates = second.reading.report["duplicates"]
+    assert len(duplicates) == 1
+    assert duplicates[0]["document"] == first.document.pk
+    assert duplicates[0]["kinds"] == ["same_text", "same_norm_part"]
+    assert "mismo texto" in duplicates[0]["detail"]
+    assert "misma parte" in duplicates[0]["detail"]
+    text = second.reading.report_text
+    assert "Posibles duplicados: 1." in text
+    assert text.count(f"documento {first.document.pk} (") == 1
+    assert "1 posible duplicado" in " ".join(
+        item["text"] for item in second.reading.report["attention"]
+    )
+
+
+@pytest.mark.django_db
+def test_unused_confirmation_is_not_stored(read_write_user):
+    """REQ-011, REQ-012: una confirmación indicada sin aviso de "misma norma" no se
+    guarda: el documento queda sin confirmación y el registro no la trae."""
+    result = load(read_write_user, same_norm_confirmation="new_version")
+
+    assert result.same_norm_warning is None
+    assert Document.objects.get().same_norm_confirmation == ""
+    assert result.event.detail["same_norm_confirmation"] is None
+
+
+@pytest.mark.django_db
+def test_effective_date_is_compared_only_against_parts_in_use(read_write_user):
+    """REQ-011: la fecha de vigencia se compara solo contra las partes en uso: con el
+    cuerpo cargado y todavía sin validar, una fecha distinta en el anexo no da aviso."""
+    load(read_write_user, data=pages_five_and_six_pdf(), file_name="cuerpo.pdf",
+         part="cuerpo")
+
+    annex = load(read_write_user, effective_from=date(2023, 1, 2))
+
+    assert not [n for n in annex.notices if "fecha de vigencia" in n]
+    assert annex.event.detail["effective_from_differs"] == []
 
 
 # --- Informe: documento y categoría (avisos de T-024 y T-025) -------------------------

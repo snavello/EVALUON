@@ -118,6 +118,15 @@ CONFIRMATION_NAMES = {
     SameNormConfirmation.NEW_VERSION: "versión nueva",
 }
 
+# Restricciones de unicidad que puede violar una carga simultánea: la huella del archivo
+# (`file_sha256`, `unique=True`; Postgres la nombra así) y la identidad de la norma.
+CONCURRENT_LOAD_CONSTRAINTS = frozenset(
+    {"norms_document_file_sha256_key", "norms_norm_identity_unique"}
+)
+
+# Código de Postgres de una violación de unicidad.
+_UNIQUE_VIOLATION = "23505"
+
 _PART = re.compile(rf"{re.escape(BODY_PART)}|{ANNEX_PART_REGEX.strip('^$')}")
 
 # Vocales con tilde o diéresis y su forma sin marca. La eñe se conserva, como en la
@@ -348,19 +357,20 @@ def _read(data):
         ) from error
 
 
-def _match(kind, document):
-    if kind == SAME_TEXT:
-        text = (
-            f"El texto extraído es el mismo texto del documento {document.pk} "
-            f"({document.file_name}), parte {document.part} de la {document.norm.citation}."
-        )
+def _match(kinds, document):
+    """Una coincidencia con un documento ya cargado, con sus motivos (`kinds`)."""
+    name = (
+        f"el documento {document.pk} ({document.file_name}), parte {document.part} de la "
+        f"{document.norm.citation}"
+    )
+    if kinds == [SAME_TEXT, SAME_NORM_PART]:
+        text = f"Misma norma y misma parte, y con el mismo texto extraído, que {name}."
+    elif kinds == [SAME_TEXT]:
+        text = f"Tiene el mismo texto extraído que {name}."
     else:
-        text = (
-            f"La {document.norm.citation} ya tiene cargado un documento como parte "
-            f"{document.part}: el documento {document.pk} ({document.file_name})."
-        )
+        text = f"Misma norma y misma parte que {name}."
     return {
-        "kind": kind,
+        "kinds": list(kinds),
         "document": document.pk,
         "file_name": document.file_name,
         "part": document.part,
@@ -369,23 +379,31 @@ def _match(kind, document):
     }
 
 
-def _same_norm_matches(norm, part, canonical_sha256):
-    """Coincidencias de "misma norma": documentos con el mismo texto canónico (de
-    cualquier norma y parte; en cualquiera de sus lecturas) y documentos de la misma
-    norma y la misma parte."""
-    same_text = list(
-        Document.objects.select_related("norm")
-        .filter(readings__canonical_sha256=canonical_sha256)
-        .distinct()
-        .order_by("pk")
-    )
+def _same_norm_matches(norm, part, canonical_text, canonical_sha256):
+    """Coincidencias de "misma norma", una por documento con todos sus motivos:
+    documentos con el mismo texto canónico (de cualquier norma y parte; en cualquiera de
+    sus lecturas) y documentos de la misma norma y la misma parte.
+
+    Un texto canónico vacío o solo de espacios (un PDF en blanco, un escaneado ilegible)
+    no se compara: dos documentos así no son la misma norma por eso."""
+    same_text = []
+    if canonical_text.strip():
+        same_text = list(
+            Document.objects.select_related("norm")
+            .filter(readings__canonical_sha256=canonical_sha256)
+            .distinct()
+            .order_by("pk")
+        )
     same_part = (
         list(norm.documents.select_related("norm").filter(part=part).order_by("pk"))
         if norm is not None
         else []
     )
-    matches = [_match(SAME_TEXT, d) for d in same_text]
-    matches += [_match(SAME_NORM_PART, d) for d in same_part]
+    kinds = {}
+    for kind, documents in ((SAME_TEXT, same_text), (SAME_NORM_PART, same_part)):
+        for document in documents:
+            kinds.setdefault(document.pk, (document, []))[1].append(kind)
+    matches = [_match(kinds_of, document) for document, kinds_of in kinds.values()]
     return matches, same_text, same_part
 
 
@@ -415,11 +433,12 @@ def _existing_parts(norm):
     return sorted(parts, key=lambda part: (part != BODY_PART, part))
 
 
-def _notices(norm, data, existing_parts):
+def _notices(norm, data, existing_parts, new_part):
     """Mensajes informativos al sumar una parte a una norma ya cargada (plan 001, "Una
-    norma en más de un archivo")."""
+    norma en más de un archivo") y aviso por fecha de vigencia distinta de la de otra
+    parte en uso."""
     notices = []
-    if existing_parts and data["part"] not in existing_parts:
+    if new_part:
         loaded = "cargados" if len(existing_parts) > 1 else "cargado"
         notices.append(
             f"Se suma como parte {data['part']} de la {norm.citation}, que ya tiene "
@@ -481,6 +500,15 @@ def _record_refusal(user, channel, data, file_detail, error, checks, confirmatio
         detail["error"] = f"{type(error.__cause__).__name__}: {error.__cause__}"
     audit.record(EventType.LOAD, outcome=Outcome.REJECTED, channel=channel, user=user,
                  detail=detail)
+
+
+def _violated_constraint(error):
+    """Nombre de la restricción de unicidad que violó `error`, según Postgres; vacío si
+    no es una violación de unicidad o no trae el nombre."""
+    cause = error.__cause__
+    if getattr(cause, "sqlstate", None) != _UNIQUE_VIOLATION:
+        return ""
+    return getattr(getattr(cause, "diag", None), "constraint_name", None) or ""
 
 
 def _save_units(reading, drafts):
@@ -585,7 +613,7 @@ def load_norm(user, *, data, file_name, part=None, general_regime=False,
         )
 
         matches, same_text, same_part = _same_norm_matches(
-            norm, values["part"], split.canonical_sha256
+            norm, values["part"], split.canonical_text, split.canonical_sha256
         )
         checks["same_text"] = [d.pk for d in same_text]
         checks["same_norm_part"] = [d.pk for d in same_part]
@@ -606,10 +634,13 @@ def load_norm(user, *, data, file_name, part=None, general_regime=False,
         else:
             confirmation = None
         existing_parts = _existing_parts(norm) if norm is not None else []
-        if existing_parts and not same_part:
+        # Sumar una parte solo cuando no hubo "misma norma": un documento confirmado
+        # como misma norma no se informa ni se registra como parte nueva.
+        new_part = bool(existing_parts) and not matches
+        if new_part:
             checks["new_part_of_norm"] = norm.pk
         checks["existing_parts"] = existing_parts
-        notices, differing_dates = _notices(norm, values, existing_parts)
+        notices, differing_dates = _notices(norm, values, existing_parts, new_part)
     except LoadRefused as error:
         _record_refusal(user, channel, values, file_detail, error, checks, confirmation)
         raise
@@ -690,6 +721,9 @@ def load_norm(user, *, data, file_name, part=None, general_regime=False,
     except IntegrityError as error:
         # Dos cargas simultáneas del mismo archivo o de la misma norma nueva: la base
         # deja pasar una sola (huella única; tipo, número, año y organismo únicos).
+        # Cualquier otra violación de la base sigue como error.
+        if _violated_constraint(error) not in CONCURRENT_LOAD_CONSTRAINTS:
+            raise
         refusal = ConcurrentLoad(
             "No se incorporó el documento: otra carga guardó al mismo tiempo el mismo "
             "archivo o la misma norma. Vuelva a intentarlo: el sistema le dirá si ya está "
