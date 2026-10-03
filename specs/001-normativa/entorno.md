@@ -2035,3 +2035,48 @@ Pasan ahora y antes no: EV-003, EV-005 (por el corrector), EV-011, EV-012, EV-01
 Ningún caso con respuesta falla ya por una forma de decirlo que el caso no prevé, siempre que el responsable acepte las cuatro variantes tomadas de la corrida; si las rechaza, vuelven a fallar por eso EV-003, EV-014, EV-016 y EV-018. Fuera de esta medida, EV-028 (sin respuesta) sigue sin abstenerse: responde con el art. 50 del anexo de la 247/2022.
 
 **Para T-046:** la corrida anterior para comparar es esta carpeta recalificada. El 85 % no se tocó.
+
+## T-062 · Umbral de abstención con la regla del hueco
+
+**Valor:** `RERANK_THRESHOLD = 0.219` (provisorio), fijado el 2026-10-03 en `evaluon/settings.py` con la regla del ADR-0014, punto 2. Reemplaza al 0,368 de T-045, que queda como dato histórico en la sección de T-045.
+
+**Comprobación previa.** Desde la corrida de T-045 (commit `8ad46e6`) no cambió nada que mueva los puntajes del reranker:
+
+- Modelo, compilación y parámetro del reranker: `docker-compose.yml` sin cambios (`bge-reranker-v2-m3-FP16.gguf`, misma huella, compilación `b11347`, `add_sep_token` forzado).
+- Recuperación y armado de pasajes: `evaluon/queries/retrieval.py` y `evaluon/norms/indexing.py` sin commits; en `settings.py` el único cambio es `RERANK_THRESHOLD` (T-045), que no interviene en los puntajes guardados.
+- Corpus: versión de la normativa 5, sin cargas, validaciones ni registros nuevos (lo confirmó el Coordinador).
+- Casos del lote de ajuste: en `evals/casos/` solo cambiaron los `datos_clave` (T-059); la pregunta y la fecha de los 31 casos son las mismas.
+
+**Carpeta de la recalificación:** `evals/corridas/2026-10-03T162823_1728ccc_gemma-4-12b-it-qat-q4_0_recalificada`, de la corrida `evals/corridas/2026-10-03T132016_8ad46e6_gemma-4-12b-it-qat-q4_0`, con el código de T-060 (commit `1728ccc`). No se hicieron consultas ni se usó la GPU. Se corrió en un proyecto Docker aparte, con una base de prueba vacía y un usuario sintético de lectura creado para esto (deja sus hechos `user_created` y `login` en esa base, que se borró al terminar); no se usó la base `evaluon`:
+
+```
+docker compose -p evaluon-t062 --env-file <coord.env> up -d db
+docker compose -p evaluon-t062 --env-file <coord.env> run --rm --no-deps app python manage.py migrate
+docker compose -p evaluon-t062 --env-file <coord.env> run --rm --no-deps app python manage.py crear_usuario <usuario sintético> --rol lectura
+docker compose -p evaluon-t062 --env-file <coord.env> run --rm --no-deps app python manage.py correr_evals --usuario <usuario sintético> --commit 1728ccc --recalificar evals/corridas/2026-10-03T132016_8ad46e6_gemma-4-12b-it-qat-q4_0 --casos evals/casos --corridas evals/corridas
+docker compose -p evaluon-t062 down -v
+```
+
+La corrida de T-045 no tiene lote en sus renglones: sus 31 casos cuentan como de ajuste. El lote de aceptación no está en esa corrida y no se recalifica.
+
+**Cómo se obtuvo:**
+
+| Dato | Caso | Puntaje | Escala anterior a la sigmoide |
+|---|---|---|---|
+| A: ajena a la normativa más alta | EV-025 | 0,1195 | −1,9967 |
+| B: con respuesta más baja | EV-020 | 0,3680 | −0,5407 |
+| Punto medio | — | 0,2195 | −1,2687 |
+
+El umbral es el punto medio redondeado hacia abajo a tres decimales: 0,219. Margen 0,728 (la mitad del hueco en la escala anterior a la sigmoide; mínimo 0,5): cumple el margen mínimo. El logit de A es −1,9967 con el puntaje completo; el −1,9972 del plan sale del 0,1195 redondeado.
+
+**Preguntas sin respuesta que frena:** EV-025 (0,1195), EV-026 (0,0218) y EV-030 (0,0032), las tres ajenas a la normativa. Las mismas que frenaban 0,5 y 0,368.
+
+**Preguntas con respuesta que frena:** ninguna de 24. EV-020 queda por encima con margen, no justo en el umbral como con 0,368.
+
+**Preguntas de tema cercano por encima del umbral:** EV-027 (0,7751), EV-028 (0,9881) y EV-029 (0,7430). Por la regla, las tiene que frenar el modelo, no el umbral. En la corrida de T-045 el modelo se abstuvo en EV-027 y EV-029 y respondió en EV-028.
+
+**Aviso del ADR-0015.** T-064 no estaba integrada al recalificar: EV-027, EV-028 y EV-029 siguen siendo de tema cercano. Cuando T-064 se integre pasan a tener respuesta, quedan como no recalificables en una recalificación de esta corrida (cambió la presencia de respuesta) y el resumen deja de listarlas como tema cercano por encima del umbral. El umbral no cambia: sus puntajes (0,743 a 0,988) están por encima del de EV-020, así que A sigue siendo EV-025 y B, EV-020.
+
+**Tests que suponían el umbral por omisión (ampliación de la tarea, decisión del Coordinador, 2026-10-03).** Con 0,219 fallaron 7 tests que usan puntajes sintéticos entre 0,219 y 0,368 (0,3 y 0,25) y esperaban que el umbral por omisión los frenara sin fijarlo: tres de `tests/queries/test_acceptance_lot.py`, tres de `tests/queries/test_evaluation_diagnostics.py` y uno de `tests/queries/test_retrieval_selection.py`. Cada uno fija ahora con el fixture `settings` el umbral que supone (0,368), como `test_retrieval.py`; los puntajes sintéticos no cambiaron. Así no dependen del valor calibrado.
+
+**Efecto del cambio.** El paso de 0,368 a 0,219 no se midió con respuestas nuevas: lo mide la corrida de T-046 (P7). Por su nombre, esta carpeta pasa a ser la corrida anterior con la que se compara T-046, en lugar de la de T-059.

@@ -121,10 +121,11 @@ def test_the_lot_is_saved_in_each_line(read_user, two_regimes, scripted, tmp_pat
 
 
 def test_required_measures_use_the_acceptance_lot(read_user, two_regimes, scripted,
-                                                  tmp_path):
+                                                  tmp_path, settings):
     """REQ-008, REQ-009 (ADR-0014): la respuesta correcta y la abstención exigidas se
     miden solo con el lote de aceptación; la cita literal y el tiempo, con toda la
     corrida. El lote de ajuste va aparte."""
+    settings.RERANK_THRESHOLD = 0.368  # el umbral que supone el test, no el calibrado
     marks(scripted)
 
     report = evaluation.run(read_user, CASES, tmp_path, commit="abc1234")
@@ -197,10 +198,11 @@ def test_pairs_notices_and_failures_use_the_whole_run(read_user, two_regimes, sc
 
 
 def test_failed_cases_of_the_acceptance_lot_are_listed_apart(
-    read_user, two_regimes, scripted, tmp_path
+    read_user, two_regimes, scripted, tmp_path, settings
 ):
     """REQ-008, REQ-009 (plan, "Lote de aceptación"): los casos fallados del lote de
     aceptación van aparte, con el aviso de que no se usan para ajustar."""
+    settings.RERANK_THRESHOLD = 0.368  # el umbral que supone el test, no el calibrado
     marks(scripted)
 
     report = evaluation.run(read_user, CASES, tmp_path, commit="abc1234")
@@ -255,12 +257,13 @@ def runs_with_saved(tmp_path):
 
 
 def test_previous_run_without_lots_is_compared_as_the_adjustment_lot(
-    read_user, two_regimes, scripted, runs_with_saved
+    read_user, two_regimes, scripted, runs_with_saved, settings
 ):
     """REQ-008 (P7; plan, "Qué usa cada lote"): la comparación va lote por lote; una
     corrida anterior sin el campo cuenta toda como lote de ajuste. EV-881 deja de
     acertar: baja la respuesta correcta del lote de ajuste (de 2 de 2 a 0 de 1); el
     lote de aceptación no tiene con qué compararse."""
+    settings.RERANK_THRESHOLD = 0.368  # el umbral que supone el test, no el calibrado
     marks(scripted)
     del scripted.marks[Q881]
 
