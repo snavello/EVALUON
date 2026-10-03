@@ -746,6 +746,104 @@ def test_insert_into_discarded_version_rejected(
     assert "borrador" in str(rejected.value)
 
 
+@pytest.fixture
+def discarded(validated, procedure, segments, read_write_user):
+    """Una versión descartada (la 2, abierta sobre la validada) con un requisito, su
+    cita, una fuente, una consecuencia elegida y un pendiente resuelto."""
+    a, b = segments
+    old = validated["tenders_requirement"][0].version
+    version = m.MatrixVersion.objects.create(
+        procedure=procedure, number=2, level="alta", based_on=old,
+        created_by=read_write_user,
+    )
+    requirement = add_requirement(version, 1, "formal")
+    quote = add_quote(requirement, a)
+    source = m.RequirementSource.objects.create(
+        requirement=requirement, quote=quote, effect="aclara", segment=b,
+        char_start=b.char_start, char_end=b.char_end, text=b.text,
+        issued_on=date(2025, 11, 20),
+    )
+    consequence = m.Consequence.objects.create(
+        requirement=requirement, consequence_type="desestimacion", origin="sistema",
+        chosen=True, chosen_by=read_write_user, chosen_at=timezone.now(),
+    )
+    pending = m.PendingItem.objects.create(
+        version=version, segment=b, reason="tabla", resolution="sin_requisitos",
+        resolved_by=read_write_user, resolved_at=timezone.now(),
+    )
+    check_deferred()
+    discard(version, read_write_user)
+    return {
+        "version": version,
+        "tenders_requirement": (requirement, "state", "'quitado'"),
+        "tenders_requirement_quote": (quote, "text", "'otro texto'"),
+        "tenders_requirement_source": (source, "effect", "'modifica'"),
+        "tenders_consequence": (consequence, "chosen_note", "'otro motivo'"),
+        "tenders_pending_item": (pending, "reason", "'no_ubicado'"),
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("table", TABLES)
+def test_update_on_discarded_version_rejected_by_database(discarded, table):
+    """REQ-027: una versión descartada queda tan fija como una validada: la base
+    rechaza un UPDATE sobre su contenido."""
+    row, column, value = discarded[table]
+    with pytest.raises(DatabaseError) as rejected, transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"UPDATE {table} SET {column} = {value} WHERE id = %s", [row.pk]
+            )
+    assert "no cambia" in str(rejected.value)
+    row.refresh_from_db()
+    assert getattr(row, column) != value.strip("'")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("table", TABLES)
+def test_delete_on_discarded_version_rejected_by_database(discarded, table):
+    """REQ-027: la base rechaza un DELETE sobre el contenido de una versión
+    descartada."""
+    row, _, _ = discarded[table]
+    with pytest.raises(DatabaseError) as rejected, transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute(f"DELETE FROM {table} WHERE id = %s", [row.pk])
+    assert "no cambia" in str(rejected.value)
+    assert type(row).objects.filter(pk=row.pk).exists()
+
+
+@pytest.mark.django_db
+def test_row_cannot_move_into_discarded_version(
+    discarded, procedure, segments, read_write_user
+):
+    """REQ-027: un requisito o un pendiente de un borrador no puede pasar a una versión
+    descartada."""
+    a, b = segments
+    new_draft = m.MatrixVersion.objects.create(
+        procedure=procedure, number=3, level="alta", created_by=read_write_user
+    )
+    # Técnico: la fixture dejó los controles diferidos en inmediato, y un formal sin
+    # su cita todavía se rechazaría al insertarlo.
+    moving = add_requirement(new_draft, 5, "tecnico", items=[1])
+    add_quote(moving, a, scope="propia")
+    pending = m.PendingItem.objects.create(
+        version=new_draft, segment=b, reason="no_ubicado"
+    )
+    target = discarded["version"]
+    with pytest.raises(DatabaseError), transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE tenders_requirement SET version_id = %s WHERE id = %s",
+                [target.pk, moving.pk],
+            )
+    with pytest.raises(DatabaseError), transaction.atomic():
+        m.PendingItem.objects.filter(pk=pending.pk).update(version=target)
+    moving.refresh_from_db()
+    pending.refresh_from_db()
+    assert moving.version_id == new_draft.pk
+    assert pending.version_id == new_draft.pk
+
+
 # --- Solo inserción -------------------------------------------------------------------
 
 
