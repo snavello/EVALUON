@@ -1,6 +1,6 @@
 # Spec 003 · Procedimiento, pliego final y matriz de cumplimiento
 
-Estado: aprobada · Fecha: 2026-10-03 · Aprobó: responsable del proyecto
+Estado: aprobada · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-03, requisitos técnicos por renglón, criterio de requisito y de clase, y tipos de consecuencia (al aprobar el plan); REQ-032, matriz sin validar como "BORRADOR INCOMPLETO", decisión del responsable
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
 > Cada duda se marca `[A ACLARAR: pregunta concreta]`. Una spec con marcas pendientes no pasa la compuerta.
@@ -42,10 +42,27 @@ Roles (decisión del responsable, 2026-10-03):
 | REQ-029 | Para cada requisito, el sistema debe proponer las consecuencias posibles de no cumplirlo (por ejemplo, desestimación de la oferta o intimación a subsanar), cada una con su fundamento en el pliego o en la norma aplicable; un integrante de la Comisión confirma una. Si el sistema no encuentra fundamento, la consecuencia queda "no determinada" | P3; régimen aplicable según REQ-022 |
 | REQ-030 | Al pedir la matriz, se debe poder elegir el nivel de revisión (media, alta o exigente; por omisión, alta), y el nivel usado queda registrado con la matriz | — |
 | REQ-031 | El pliego final incluye las circulares modificatorias y aclaratorias y las preguntas de los oferentes con sus respuestas, si las hay, cada una con su fecha. Cuando una de ellas cambia o precisa un requisito, la matriz aplica el cambio, muestra los dos textos y cita el documento que lo produjo | — |
+| REQ-032 | Una matriz que todavía no está validada se puede ver en pantalla, imprimir y exportar a PDF, siempre con la leyenda "BORRADOR INCOMPLETO" bien visible en cada página. Una matriz validada sale sin esa leyenda, con su versión y la fecha y el evaluador que la validó | — |
 
-**Qué es un requisito (decisión del responsable, 2026-10-03).** Un requisito es una condición que se puede verificar por separado: una fila por condición. Ejemplo: "notebook con procesador de 8 núcleos, 16 GB de RAM y garantía de 3 años" son tres requisitos del ítem 1. Así, un "no cumple" puede señalar la condición exacta que falla. Cada requisito indica a qué ítem pertenece, si corresponde.
+**Qué es un requisito (decisión del responsable, 2026-10-03; enmendada al aprobar el plan).**
+- Es requisito de la oferta lo que la oferta tiene que presentar, ofrecer o comprometer, y toda condición del pliego que la oferta pueda contradecir o condicionar, aunque la cumpla el organismo: por ejemplo, la moneda y la forma y el plazo de pago (el pliego dice pago a 90 días y el oferente pide pago a los 3 días de la entrega). No son requisitos de la oferta la ejecución y el control del contrato, como las multas por atraso.
+- Los requisitos formales y económicos van en una fila por condición que se pueda verificar por separado, para que un "no cumple" señale la condición exacta.
+- Los requisitos técnicos van en una fila por renglón del pliego, con la cita a sus especificaciones técnicas, porque una oferta puede cotizar solo algunos renglones o cumplir solo algunos. La Comisión no evalúa el detalle técnico: se apoya en el informe técnico del área requirente, que es el fundamento de esos renglones en la evaluación (feature 004).
+- La clase sigue la sección del pliego cuando el pliego ordena sus requisitos por secciones. Si no, se clasifica por naturaleza: la garantía, el precio, la moneda y el pago son económicos; los documentos y compromisos de la presentación, formales; el bien y su entrega, técnicos.
 
 **Consecuencia del incumplimiento (decisión del responsable, 2026-10-03).** El sistema no decide si un requisito es subsanable: detecta qué consecuencias tiene su falta, sugiere las posibles con su fundamento, y un integrante de la Comisión confirma una. La misma forma de trabajo (el sistema propone opciones fundadas, la persona elige) se aplica a todas las propuestas de esta feature (P3).
+
+  | Tipo de consecuencia | Cuándo |
+  |---|---|
+  | Desestimación sin posibilidad de subsanar | el pliego o la norma lo establecen |
+  | Intimación a subsanar; si no se subsana, desestimación | el pliego o la norma lo permiten |
+  | Consultar al oferente | si el pliego lo permite, con la cita |
+  | Aprobación condicionada | a criterio del evaluador, con la condición escrita |
+  | Aprobar de todas maneras | a criterio del evaluador, con su motivo escrito |
+  | Otra consecuencia prevista en el pliego | con su cita |
+  | No determinada | el sistema no encontró fundamento |
+
+  El "cumple o no cumple" y la consecuencia los decide siempre el evaluador, con su nombre y su motivo registrados.
 
 ## Criterios de aceptación
 
@@ -59,6 +76,7 @@ Roles (decisión del responsable, 2026-10-03):
 - **REQ-029.** Dado un requisito cuya falta el pliego sanciona con la desestimación, cuando se muestra la matriz propuesta, entonces el sistema sugiere "desestimación" con la cita de esa cláusula, y la consecuencia queda confirmada solo cuando un integrante de la Comisión la elige; la elección queda registrada con quién y cuándo.
 - **REQ-030.** Dado un pliego cargado, cuando se pide la matriz sin elegir nivel, entonces se usa "alta" y la matriz propuesta registra el nivel; con "media" o "exigente", la matriz registra el nivel elegido.
 - **REQ-031.** Dado un pliego que exige "16 GB de RAM" y una circular modificatoria posterior que dice "32 GB", cuando se propone la matriz, entonces el requisito exige 32 GB, muestra los dos textos y cita la circular; una respuesta a una pregunta de un oferente que precisa un requisito figura junto a ese requisito con su cita.
+- **REQ-032.** Dada una matriz propuesta sin validar, cuando se la ve, se la imprime o se la exporta a PDF, entonces cada página muestra la leyenda "BORRADOR INCOMPLETO"; dada una matriz validada, la salida no lleva la leyenda y muestra su versión, la fecha y quién la validó.
 
 ## Requisitos no funcionales
 

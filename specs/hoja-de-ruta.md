@@ -1,6 +1,6 @@
 # Hoja de ruta de EVALUON
 
-Estado: aprobada · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Versión 2, reformulada según el ADR-0008 · Ajuste: 2026-10-03, feature 009 (ADR-0016), decisión del responsable · Reordenada: 2026-10-03, el núcleo (003, 008, 004) antes que la 005 y la 009 (ADR-0017), decisión del responsable
+Estado: aprobada · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Versión 2, reformulada según el ADR-0008 · Ajuste: 2026-10-03, feature 009 (ADR-0016), decisión del responsable · Reordenada: 2026-10-03, el núcleo (003, 008, 004) antes que la 005 y la 009 (ADR-0017), decisión del responsable · 2026-10-03: feature 010, asistente técnico, como mejora futura, decisión del responsable
 
 Las features del proyecto, en el orden en que se construyen. Cada una tiene su carpeta en `specs/` cuando se empieza a trabajar. El tablero (`docs/tablero.md`) lee esta tabla para mostrar el mapa del proyecto.
 
@@ -17,6 +17,7 @@ El eje es el **procedimiento de compra**: su fecha de autorización (que fija el
 | 002 | Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | 001, 003 |
 | 006 | Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | 004 |
 | 007 | Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | 001 |
+| 010 | Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | 003, 008 |
 
 Los números 002 a 007 se conservan con el sentido más cercano al que tenían; la 008 es nueva. Ninguna de ellas había empezado.
 
