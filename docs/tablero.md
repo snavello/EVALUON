@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 41 tareas sin terminar.
-- ▶ T-054 · Pasar a la aplicación las variables de los servicios de IA (en curso)
+- ◐ T-054 · Pasar a la aplicación las variables de los servicios de IA (en verificación)
 - ○ T-013 · Partir en artículos y armar el informe mínimo (pendiente)
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
 - ○ T-015 · Validar una lectura y calcular pasajes y vectores (pendiente)
@@ -174,7 +174,7 @@ flowchart TD
   T051["○ T-051 · Registrar las modificatorias sin cargar de…"]:::todo
   T052["○ T-052 · Avisar modificatorias sin cargar en respues…"]:::todo
   T053["✓ T-053 · Conservar la eñe en la búsqueda por palabras"]:::done
-  T054["▶ T-054 · Pasar a la aplicación las variables de los…"]:::active
+  T054["◐ T-054 · Pasar a la aplicación las variables de los…"]:::review
   T001 --> T002
   T002 --> T003
   T003 --> T004
