@@ -16,6 +16,7 @@ flowchart LR
   F006["○ 006 · Salidas de la evaluación"]:::todo
   F007["○ 007 · Acceso por red"]:::todo
   F008["○ 008 · Ofertas y ficha por oferta"]:::todo
+  F009["○ 009 · Validación continua con la Co…"]:::todo
   F001 --> F002
   F003 --> F002
   F001 --> F003
@@ -26,6 +27,7 @@ flowchart LR
   F004 --> F006
   F001 --> F007
   F003 --> F008
+  F001 --> F009
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -43,6 +45,7 @@ flowchart LR
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
 | 007 · Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | No iniciada | — | — |
 | 008 · Ofertas y ficha por oferta | La carga de cada oferta en varios documentos (PDF con texto o escaneado) y una ficha por oferta: síntesis de lo ofrecido frente a cada requisito de la matriz, con los documentos y fragmentos que lo respaldan | No iniciada | — | — |
+| 009 · Validación continua con la Comisión | Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus respuestas. Cada cuestión resuelta puede quedar como fundamento (ADR-0009), como caso para medir al sistema o como pedido de cargar una norma o un documento. Lo que queda sin validar se ve como pendiente. Uso intensivo al principio, y después ante cuestiones que no se saben resolver | No iniciada | — | — |
 
 <a id="001"></a>
 
