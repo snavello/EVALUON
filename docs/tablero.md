@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 33 tareas sin terminar.
-- ▶ T-020 · Probar el hilo mínimo con los servicios reales (en curso)
+- ◐ T-020 · Probar el hilo mínimo con los servicios reales (en verificación)
 - ○ T-021 · Leer un PDF escaneado con reconocimiento de texto (pendiente)
 - ○ T-022 · Leer una página web guardada (pendiente)
 - ○ T-023 · Partir normas completas con incisos, anexos y considerandos (pendiente)
@@ -141,7 +141,7 @@ flowchart TD
   T017["✓ T-017 · Recuperar por significado y reordenar con e…"]:::done
   T018["✓ T-018 · Generar la respuesta con esquema e insertar…"]:::done
   T019["✓ T-019 · Unir la consulta de punta a punta con su re…"]:::done
-  T020["▶ T-020 · Probar el hilo mínimo con los servicios rea…"]:::active
+  T020["◐ T-020 · Probar el hilo mínimo con los servicios rea…"]:::review
   T021["○ T-021 · Leer un PDF escaneado con reconocimiento de…"]:::todo
   T022["○ T-022 · Leer una página web guardada"]:::todo
   T023["○ T-023 · Partir normas completas con incisos, anexos…"]:::todo
