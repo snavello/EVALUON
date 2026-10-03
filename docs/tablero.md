@@ -63,6 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 25 tareas sin terminar.
+- ▶ T-039 · Correr el conjunto de preguntas y medir las exigencias (en curso)
 - ○ T-023 · Partir normas completas con incisos, anexos y considerandos (pendiente)
 - ○ T-024 · Partir dictámenes y recomendaciones en puntos y párrafos (pendiente)
 - ○ T-025 · Completar el informe de lectura (pendiente)
@@ -74,7 +75,6 @@ flowchart LR
 - ○ T-034 · Completar instrucciones, marca de regímenes y orden (pendiente)
 - ○ T-037 · Mostrar las citas con categoría, papel y cambios (pendiente)
 - ○ T-038 · Registrar ingresos, ingresos fallidos y rechazos por rol (pendiente)
-- ○ T-039 · Correr el conjunto de preguntas y medir las exigencias (pendiente)
 - ○ T-040 · Unir recuperación y generación completas con su registro (pendiente)
 - ○ T-041 · Mostrar y registrar la búsqueda en la pantalla (pendiente)
 - ○ T-042 · Agregar calibración del umbral y comparación de corridas (pendiente)
@@ -114,10 +114,10 @@ flowchart LR
 - ✓ T-020 · Probar el hilo mínimo con los servicios reales (`b520afe` 2026-10-03)
 - ✓ T-021 · Leer un PDF escaneado con reconocimiento de texto (`223295e` 2026-10-03, `197dada` 2026-10-03)
 - ✓ T-022 · Leer una página web guardada (`3d9224f` 2026-10-03, `c12d12c` 2026-10-03)
-- ✓ T-029 · Registrar relaciones entre normas y mostrar los vínculos
+- ✓ T-029 · Registrar relaciones entre normas y mostrar los vínculos (`eb8e443` 2026-10-03, `7748cf7` 2026-10-03)
 - ✓ T-030 · Registrar versiones de una norma (`2844775` 2026-10-03)
 - ✓ T-031 · Partir en pasajes las unidades largas (`282ab7f` 2026-10-03, `955ce90` 2026-10-03, `c1e2088` 2026-10-03)
-- ✓ T-035 · Buscar unidades por artículo y por palabras
+- ✓ T-035 · Buscar unidades por artículo y por palabras (`5cf1cbc` 2026-10-03, `92ec485` 2026-10-03)
 - ✓ T-036 · Entregar el documento original con sesión (`07ea00d` 2026-10-03)
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 - ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
@@ -165,7 +165,7 @@ flowchart TD
   T036["✓ T-036 · Entregar el documento original con sesión"]:::done
   T037["○ T-037 · Mostrar las citas con categoría, papel y ca…"]:::todo
   T038["○ T-038 · Registrar ingresos, ingresos fallidos y rec…"]:::todo
-  T039["○ T-039 · Correr el conjunto de preguntas y medir las…"]:::todo
+  T039["▶ T-039 · Correr el conjunto de preguntas y medir las…"]:::active
   T040["○ T-040 · Unir recuperación y generación completas co…"]:::todo
   T041["○ T-041 · Mostrar y registrar la búsqueda en la panta…"]:::todo
   T042["○ T-042 · Agregar calibración del umbral y comparació…"]:::todo
