@@ -11,6 +11,11 @@ Opciones:
 - `--commit`: commit del código con que se corre. Dentro del contenedor no hay `.git`,
   así que conviene pasarlo desde el equipo (`git rev-parse --short HEAD`); si falta y
   no se puede averiguar, la carpeta lleva `sin-commit`.
+- `--quitando-piezas`: corre además la comparación quitando piezas (ADR-0003: solo
+  vectores, solo palabras, combinada sin reranker, completa). Se corre una vez.
+
+La corrida se compara sola con la anterior de la carpeta de corridas y propone el umbral
+del reranker (provisorio): el comando lo muestra, pero no cambia `settings.py`.
 
 Si ningún caso está bien formado y con visto bueno, no se corre ninguno, se dice así y
 la corrida queda guardada igual, con las medidas sin valor.
@@ -47,12 +52,20 @@ class Command(BaseCommand):
             help="Commit del código con que se corre (por ejemplo, la salida de "
                  "`git rev-parse --short HEAD`).",
         )
+        parser.add_argument(
+            "--quitando-piezas",
+            action="store_true",
+            dest="quitando_piezas",
+            help="Corre además la comparación quitando piezas (solo vectores, solo "
+                 "palabras, combinada sin reranker, completa).",
+        )
 
     def handle(self, *args, **options):
         user = permissions.authenticate_command(options["usuario"])
         try:
             report = evaluation.run(user, options["casos"], options["corridas"],
-                                    commit=options["commit"])
+                                    commit=options["commit"],
+                                    ablation=options["quitando_piezas"])
         except RoleRejected as error:
             raise CommandError(str(error)) from None
         except (FileNotFoundError, FileExistsError) as error:
@@ -70,6 +83,9 @@ class Command(BaseCommand):
                      f"{len(pairs)} pasan")
         lines.append(f"Aviso de REQ-021: {report.notices['ok']} de "
                      f"{report.notices['total']} según lo esperado")
+        lines.append(evaluation.threshold_line(report.calibration)
+                     + " (no cambia la configuración del sistema)")
+        lines += evaluation.comparison_lines(report.comparison)
         failed = report.failed_ids()
         lines.append("Casos fallados: " + (", ".join(failed) if failed else "ninguno"))
         lines += [f"No corrido: {s.file}: {s.reason}" for s in report.skipped
