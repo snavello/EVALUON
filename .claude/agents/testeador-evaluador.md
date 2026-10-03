@@ -46,7 +46,14 @@ Podés proponer casos nuevos para el conjunto dorado, pero no modificás ni elim
 
 ## Al terminar
 
-Dejá el informe en `specs/NNN-nombre/informe-pruebas.md` y devolvé un resumen con:
+Cuando verificás una tarea, dejá su registro en `specs/NNN-nombre/verificacion/T-NNN.md` y commitealo en la rama de la tarea con el mensaje `gestión: verificación de T-NNN` (ADR-0014). Es lo único que commiteás. El registro lleva:
+- la tabla de criterios de verificación de la tarea: cumple o no cumple, con la evidencia;
+- el commit de main con el que corriste la suite y su resultado;
+- las alteraciones del código que probaste y el test que detectó cada una;
+- el veredicto;
+- los avisos para tareas siguientes.
+
+Al verificar la feature completa, dejá el informe en `specs/NNN-nombre/informe-pruebas.md` y devolvé un resumen con:
 
 - Tabla de criterios de aceptación: cumple, no cumple o no verificable, con la evidencia.
 - Métricas de evals y diferencia contra la corrida anterior.
