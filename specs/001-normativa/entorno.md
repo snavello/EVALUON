@@ -1722,13 +1722,13 @@ cargar_norma corpus/normativa/disp-afip-247-2022-original.htm --tipo Disposició
   --organismo AFIP --nombre "Disposición AFIP 247/2022" \
   --titulo "Régimen General para Contrataciones de Bienes, Servicios y Obras Públicas" \
   --categoria regimen_especifico --parte cuerpo --regimen-general --fecha-publicacion 2022-11-30 \
-  --fecha-vigencia 2023-01-01 --fuente https://servicios.infoleg.gob.ar/infolegInternet/anexos/375000-379999/375829/norma.htm \
+  --fecha-vigencia 2023-01-02 --fuente https://servicios.infoleg.gob.ar/infolegInternet/anexos/375000-379999/375829/norma.htm \
   --usuario desarrollo
 cargar_norma corpus/normativa/disp-afip-247-2022-anexo.pdf --tipo Disposición --numero 247 --anio 2022 \
   --organismo AFIP --nombre "Disposición AFIP 247/2022" \
   --titulo "Régimen General para Contrataciones de Bienes, Servicios y Obras Públicas" \
   --categoria regimen_especifico --parte anexo --regimen-general --fecha-publicacion 2022-11-30 \
-  --fecha-vigencia 2023-01-01 --fuente https://servicios.infoleg.gob.ar/infolegInternet/anexos/375000-379999/375829/disp247.pdf \
+  --fecha-vigencia 2023-01-02 --fuente https://servicios.infoleg.gob.ar/infolegInternet/anexos/375000-379999/375829/disp247.pdf \
   --usuario desarrollo
 ```
 
@@ -1758,17 +1758,24 @@ cargar_norma corpus/normativa/disp-afip-247-2022-anexo.pdf --tipo Disposición -
 
 El texto canónico, las claves y las unidades base no cambian. "Párrafos después del último inciso" baja de 10 a 9 en la 297/03 y de 20 a 19 en el anexo.
 
-**Relectura.** `releer_norma 1` y `releer_norma 3` con las reglas 8: lecturas 4 (297/03, 403 unidades) y 5 (anexo, 335 unidades). El cuerpo de la 247/2022 no se releyó: con las reglas 8 da las mismas unidades y el mismo texto, y su lectura 2 queda con las reglas 7.
+**Relectura.** `releer_norma 1` y `releer_norma 3` con las reglas 8 dieron las lecturas 4 (297/03, 403 unidades) y 5 (anexo, 335 unidades). El cuerpo de la 247/2022 no se releyó: con las reglas 8 da las mismas unidades y el mismo texto.
 
-**Estado de la base al terminar.** 2 normas, 3 documentos, 5 lecturas, todas pendientes de validación, y ninguna versión de la normativa. Las lecturas que hay que validar son las más nuevas de cada documento:
+**Recarga con la vigencia 2023-01-02 (decisión del responsable, 2026-10-03).** La vigencia de la Disposición 247/2022 es el 2023-01-02, no el 2023-01-01. Sale de su art. 3: 20 días hábiles administrativos desde la publicación del 30/11/2022, descontando como inhábiles el 8/12, el 9/12 y el 20/12/2022. No había nada validado y no existe comando para corregir fechas, así que se rehizo la carga:
 
-| Documento | Norma y parte | Lectura a validar | Lectura anterior (no se valida) |
-|---|---|---|---|
-| 1 | Disposición AFIP 297/03, cuerpo (con su Anexo I) | 4 | 1 |
-| 2 | Disposición AFIP 247/2022, cuerpo | 2 | — |
-| 3 | Disposición AFIP 247/2022, anexo | 5 | 3 |
+1. Respaldo con `pg_dump`, fuera del repositorio.
+2. `down -v` del proyecto `evaluon` y `up -d --wait`: `migrate` aplicó todas las migraciones sobre la base vacía (0 normas, 0 hechos, 0 usuarios, ninguna migración pendiente).
+3. Alta de nuevo de `desarrollo` (lectura y escritura, misma clave al azar fuera del repositorio).
+4. Carga de los tres documentos con las reglas 8 y los mismos comandos de arriba, con `--fecha-vigencia 2023-01-02` en el cuerpo y en el anexo de la 247/2022. La 297/03 sigue con 2003-06-14.
 
-Las lecturas 1 y 3 no se pueden validar porque su documento tiene una más nueva (`not_latest`).
+**Comprobación.** Las unidades de las lecturas nuevas son las mismas que las de las lecturas 4, 2 y 5 de la carga anterior: misma clave y misma posición en las 403, 13 y 335 unidades. Los informes son iguales línea por línea, salvo el número de lectura, la fecha de lectura y la huella del informe. En el cuerpo de la 247/2022 cambia además "versión 7" por "versión 8" de las reglas.
+
+**Estado de la base al terminar.** 2 normas, 3 documentos, 3 lecturas, todas pendientes de validación, sin relecturas, y ninguna versión de la normativa. `listar_normas` da "Vigente desde 02/01/2023" en el cuerpo y en el anexo de la 247/2022, y "Vigente desde 14/06/2003" en la 297/03.
+
+| Documento | Norma y parte | Lectura a validar |
+|---|---|---|
+| 1 | Disposición AFIP 297/03, cuerpo (con su Anexo I) | 1 |
+| 2 | Disposición AFIP 247/2022, cuerpo | 2 |
+| 3 | Disposición AFIP 247/2022, anexo | 3 |
 
 ### Pasos para el responsable de normativa
 
@@ -1804,20 +1811,20 @@ docker compose exec app python manage.py listar_normas --usuario SU_USUARIO
 
 Pide su clave. Tiene que ver dos normas, las dos con "Categoría: Régimen específico · Régimen general: sí":
 
-- la Disposición AFIP 247/2022, con la parte cuerpo (documento 2, "Lectura 2: pendiente de validación") y la parte anexo (documento 3, "Lectura 5: pendiente de validación"), las dos con "Publicada el 30/11/2022 · Vigente desde 01/01/2023";
-- la Disposición AFIP 297/03, con la parte cuerpo (documento 1, "Lectura 4: pendiente de validación"), con "Publicada el 13/06/2003 · Vigente desde 14/06/2003".
+- la Disposición AFIP 247/2022, con la parte cuerpo (documento 2, "Lectura 2: pendiente de validación") y la parte anexo (documento 3, "Lectura 3: pendiente de validación"), las dos con "Publicada el 30/11/2022 · Vigente desde 02/01/2023";
+- la Disposición AFIP 297/03, con la parte cuerpo (documento 1, "Lectura 1: pendiente de validación"), con "Publicada el 13/06/2003 · Vigente desde 14/06/2003".
 
 **4. Mirar cada informe.**
 
 ```
-docker compose exec app python manage.py ver_informe 4 --usuario SU_USUARIO
+docker compose exec app python manage.py ver_informe 1 --usuario SU_USUARIO
 docker compose exec app python manage.py ver_informe 2 --usuario SU_USUARIO
-docker compose exec app python manage.py ver_informe 5 --usuario SU_USUARIO
+docker compose exec app python manage.py ver_informe 3 --usuario SU_USUARIO
 ```
 
 Al final de cada informe está la lista de unidades con su clave. Compárela con el original, que puede abrir en `corpus\normativa\`. Qué tiene que ver en cada uno:
 
-- **Lectura 4 (297/03).**
+- **Lectura 1 (297/03).**
   - "Reglas para dividir el texto: versión 8".
   - "Unidades reconocidas: 403 (visto, 8 considerandos, 69 artículos, 1 anexo, 324 incisos)", con "Cuerpo: … 5 artículos" y "Anexo I: 64 artículos, del 1 al 64", los dos con lo esperado igual a lo reconocido.
   - En "Requiere atención":
@@ -1828,7 +1835,7 @@ Al final de cada informe está la lista de unidades con su clave. Compárela con
 - **Lectura 2 (cuerpo de la 247/2022).**
   - "Unidades reconocidas: 13 (visto, 7 considerandos, 5 artículos)".
   - En "Requiere atención": 3 tramos no ubicados (el encabezado, "Por ello, … DISPONE:" y la firma "Carlos Daniel Castagneto") y 4 líneas descartadas (scripts, título de la página y la nota de Infoleg).
-- **Lectura 5 (anexo de la 247/2022).**
+- **Lectura 3 (anexo de la 247/2022).**
   - "Reglas para dividir el texto: versión 8".
   - "Unidades reconocidas: 335 (1 anexo, 99 artículos, 234 incisos, 1 cláusula)", con "Según el índice se esperaban 99 artículos; se reconocieron 99".
   - "No ubicado: 0 tramos".
@@ -1842,12 +1849,12 @@ Si algo no coincide, no valide esa lectura y avise al Coordinador.
 **5. Validar cada lectura.**
 
 ```
-docker compose exec app python manage.py validar_informe 4 --usuario SU_USUARIO
+docker compose exec app python manage.py validar_informe 1 --usuario SU_USUARIO
 docker compose exec app python manage.py validar_informe 2 --usuario SU_USUARIO
-docker compose exec app python manage.py validar_informe 5 --usuario SU_USUARIO
+docker compose exec app python manage.py validar_informe 3 --usuario SU_USUARIO
 ```
 
-Cada uno pide su clave y muestra el resumen de la lectura: norma, parte, archivo, unidades y huella del informe. La huella es la misma que da `ver_informe`. Después muestra "Al validar, la norma queda disponible para consultas." y pregunta "¿Confirma la validación? Escriba si para confirmar:". Escriba `si`. Tiene que ver "Se validó la lectura N, con … pasajes. Quedó en uso como versión 1 de su parte." Cada validación pide los vectores al servicio de embeddings y tarda unos segundos. Las lecturas 1 y 3 no se validan: son las anteriores a la relectura.
+Cada uno pide su clave y muestra el resumen de la lectura: norma, parte, archivo, unidades y huella del informe. La huella es la misma que da `ver_informe`. Después muestra "Al validar, la norma queda disponible para consultas." y pregunta "¿Confirma la validación? Escriba si para confirmar:". Escriba `si`. Tiene que ver "Se validó la lectura N, con … pasajes. Quedó en uso como versión 1 de su parte." Cada validación pide los vectores al servicio de embeddings y tarda unos segundos.
 
 **6. Comprobar el listado.**
 
@@ -1855,7 +1862,7 @@ Cada uno pide su clave y muestra el resumen de la lectura: norma, parte, archivo
 docker compose exec app python manage.py listar_normas --usuario SU_USUARIO
 ```
 
-Cada documento tiene que decir "validada · en uso, versión 1": documento 1 con la lectura 4, documento 2 con la lectura 2 y documento 3 con la lectura 5. "Vínculos: ninguno" y "Modificatorias sin cargar: ninguna" son lo esperado hasta T-044.
+Cada documento tiene que decir "validada · en uso, versión 1": documento 1 con la lectura 1, documento 2 con la lectura 2 y documento 3 con la lectura 3. "Vínculos: ninguno" y "Modificatorias sin cargar: ninguna" son lo esperado hasta T-044.
 
 **7. Consulta en la pantalla con fecha 31/12/2022.**
 
@@ -1868,6 +1875,8 @@ Tiene que ver:
 - la respuesta con fundamento, con la línea "Procedimiento autorizado el 31/12/2022 · Régimen aplicado: Disposición AFIP 297/03";
 - citas solo de la Disposición AFIP 297/03. La esperada es la del Anexo I, artículo 39 ("PLAZO DE MANTENIMIENTO DE LA OFERTA"), que fija TREINTA (30) días;
 - ninguna cita de la 247/2022.
+
+**8. La misma consulta con fecha 01/01/2023.** Repita la pregunta con la fecha 01/01/2023. Tiene que ver lo mismo que en el paso 7: "Procedimiento autorizado el 01/01/2023 · Régimen aplicado: Disposición AFIP 297/03", y citas solo de la 297/03. El 01/01/2023 la 247/2022 todavía no rige: rige desde el 02/01/2023.
 
 Si repite la pregunta con la fecha del día, la pantalla nombra los dos regímenes y la respuesta puede citar cualquiera de los dos; la 247/2022 da SESENTA (60) días en el artículo 43 del anexo. Es lo esperado hasta que T-044 registre la derogación.
 
