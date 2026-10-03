@@ -65,7 +65,7 @@ Ajuste del 2026-10-02 por dos definiciones del responsable (fechas de entrada en
 | T-047 | Probar una consulta con la red desconectada | REQ-008, REQ-013 | T-038, T-046 | pendiente |
 | T-048 | Probar el respaldo y la restauración de la base | REQ-002, REQ-012 | T-047 | pendiente |
 | T-049 | Levantar todo desde cero y dejar datos para el runbook | REQ-012, REQ-016 | T-048 | pendiente |
-| T-050 | Partir la 297/03 y el cuerpo de la 247/2022 desde la web | REQ-003 | T-022, T-025 | pendiente |
+| T-050 | Partir la 297/03 y el cuerpo de la 247/2022 desde la web | REQ-003 | T-022, T-025 | en curso |
 | T-051 | Registrar las modificatorias sin cargar de una norma | REQ-012, REQ-021 | T-029 | terminada |
 | T-052 | Avisar modificatorias sin cargar en respuesta y búsqueda | REQ-012, REQ-021 | T-041, T-051 | pendiente |
 | T-053 | Conservar la eñe en la búsqueda por palabras | REQ-010 | T-009 | terminada |

@@ -63,6 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 15 tareas sin terminar.
+- ▶ T-050 · Partir la 297/03 y el cuerpo de la 247/2022 desde la web (en curso)
 - ○ T-026 · Avisar duplicados al cargar una norma (pendiente)
 - ○ T-027 · Releer un documento y reemplazar la lectura anterior (pendiente)
 - ○ T-028 · Integrar los tres formatos en la carga (pendiente)
@@ -76,7 +77,6 @@ flowchart LR
 - ○ T-047 · Probar una consulta con la red desconectada (pendiente)
 - ○ T-048 · Probar el respaldo y la restauración de la base (pendiente)
 - ○ T-049 · Levantar todo desde cero y dejar datos para el runbook (pendiente)
-- ○ T-050 · Partir la 297/03 y el cuerpo de la 247/2022 desde la web (pendiente)
 - ○ T-052 · Avisar modificatorias sin cargar en respuesta y búsqueda (pendiente)
 
 ### Qué se hizo
@@ -176,7 +176,7 @@ flowchart TD
   T047["○ T-047 · Probar una consulta con la red desconectada"]:::todo
   T048["○ T-048 · Probar el respaldo y la restauración de la…"]:::todo
   T049["○ T-049 · Levantar todo desde cero y dejar datos para…"]:::todo
-  T050["○ T-050 · Partir la 297/03 y el cuerpo de la 247/2022…"]:::todo
+  T050["▶ T-050 · Partir la 297/03 y el cuerpo de la 247/2022…"]:::active
   T051["✓ T-051 · Registrar las modificatorias sin cargar de…"]:::done
   T052["○ T-052 · Avisar modificatorias sin cargar en respues…"]:::todo
   T053["✓ T-053 · Conservar la eñe en la búsqueda por palabras"]:::done
