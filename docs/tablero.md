@@ -63,7 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 28 tareas sin terminar.
-- ▶ T-030 · Registrar versiones de una norma (en curso)
+- ◐ T-030 · Registrar versiones de una norma (en verificación)
 - ○ T-023 · Partir normas completas con incisos, anexos y considerandos (pendiente)
 - ○ T-024 · Partir dictámenes y recomendaciones en puntos y párrafos (pendiente)
 - ○ T-025 · Completar el informe de lectura (pendiente)
@@ -156,7 +156,7 @@ flowchart TD
   T027["○ T-027 · Releer un documento y reemplazar la lectura…"]:::todo
   T028["○ T-028 · Integrar los tres formatos en la carga"]:::todo
   T029["○ T-029 · Registrar relaciones entre normas y mostrar…"]:::todo
-  T030["▶ T-030 · Registrar versiones de una norma"]:::active
+  T030["◐ T-030 · Registrar versiones de una norma"]:::review
   T031["✓ T-031 · Partir en pasajes las unidades largas"]:::done
   T032["○ T-032 · Recuperar por tres caminos y unir los candi…"]:::todo
   T033["○ T-033 · Seleccionar por categoría, sumar cambios y…"]:::todo
