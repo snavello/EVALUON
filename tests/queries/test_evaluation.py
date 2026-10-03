@@ -818,17 +818,17 @@ def test_prompt_version_comes_from_the_queries_of_the_run(
     read_user, two_regimes, scripted, tmp_path
 ):
     """REQ-008 (P6): `parametros.json` lleva la versión de las instrucciones que usaron
-    las consultas de la corrida."""
-    from evaluon.queries import answering
-
+    las consultas de la corrida, tal como quedó registrada en cada consulta, sea cual
+    sea la versión vigente (aviso de T-039: el test no depende de la constante)."""
     scripted.marks[Q1] = {NEW_OBJECT: 0.9}
 
     report = run(read_user, "t039-aviso", tmp_path)
 
+    registered = Query.objects.get().prompt_version
+    assert registered
     parameters = json.loads((report.folder / "parametros.json").read_text(encoding="utf-8"))
-    # La consulta pasa la fecha del caso a la generación: instrucciones con fecha (T-040).
-    assert parameters["prompt_version"] == answering.PROMPT_VERSION_WITH_DATE
-    assert by_id(report)["EV-951"]["prompt_version"] == answering.PROMPT_VERSION_WITH_DATE
+    assert parameters["prompt_version"] == registered
+    assert by_id(report)["EV-951"]["prompt_version"] == registered
 
 
 def test_prompt_versions_are_all_listed_when_they_differ():

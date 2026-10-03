@@ -1,0 +1,16 @@
+id: EV-805
+tipo: normativa
+documentos: []
+pregunta: "¿Qué garantías sintéticas se piden?"
+fecha_autorizacion: 2024-05-20
+regimen: "Disposición AFIP 247/2022"
+esperado: "Las garantías sintéticas."
+cita: []
+origen: "Caso sintético de la tarea T-042 (P4)."
+unidades: [{norma: "Disposición AFIP 247/2022", key: anexo/art-2}]
+datos_clave: []
+difieren: true
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["palabras distintas a las de la norma"]
+visto_bueno: "Comisión sintética, 2026-10-03"
