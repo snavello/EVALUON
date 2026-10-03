@@ -31,7 +31,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 6/52 | █░░░░░░░░░ 12% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 7/52 | █░░░░░░░░░ 13% |
 | 002 · Revisión de pliegos | Observaciones a un pliego contra la normativa, antes de publicarlo | No iniciada | — | — |
 | 003 · Matriz de requisitos | Los requisitos del pliego ordenados en una matriz que la Comisión valida | No iniciada | — | — |
 | 004 · Evaluación de ofertas | Por cada requisito, una propuesta con su cita; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -57,8 +57,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 46 tareas sin terminar.
-- ◐ T-007 · Crear el registro de auditoría y el alta de usuarios (en verificación)
+- **Próximo paso:** Desarrollar: 45 tareas sin terminar.
 - ○ T-008 · Crear las tablas de normas, lecturas, unidades y pasajes (pendiente)
 - ○ T-009 · Crear las funciones de unidades consultables a una fecha (pendiente)
 - ○ T-010 · Crear la tabla del registro detallado de consultas (pendiente)
@@ -114,6 +113,7 @@ flowchart LR
 - ✓ T-004 · Fijar Postgres con sus extensiones y búsqueda en español (`1a9d113` 2026-10-02)
 - ✓ T-005 · Armar el esqueleto de Django con sus librerías (`d771da6` 2026-10-02)
 - ✓ T-006 · Crear usuarios con rol, ingreso y salida (`4ceae34` 2026-10-02, `f76f0a2` 2026-10-02)
+- ✓ T-007 · Crear el registro de auditoría y el alta de usuarios (`960121e` 2026-10-02, `04d537d` 2026-10-02)
 
 ### Mapa de tareas
 
@@ -125,7 +125,7 @@ flowchart TD
   T004["✓ T-004 · Fijar Postgres con sus extensiones y búsque…"]:::done
   T005["✓ T-005 · Armar el esqueleto de Django con sus librer…"]:::done
   T006["✓ T-006 · Crear usuarios con rol, ingreso y salida"]:::done
-  T007["◐ T-007 · Crear el registro de auditoría y el alta de…"]:::review
+  T007["✓ T-007 · Crear el registro de auditoría y el alta de…"]:::done
   T008["○ T-008 · Crear las tablas de normas, lecturas, unida…"]:::todo
   T009["○ T-009 · Crear las funciones de unidades consultable…"]:::todo
   T010["○ T-010 · Crear la tabla del registro detallado de co…"]:::todo
