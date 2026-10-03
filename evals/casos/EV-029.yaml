@@ -4,17 +4,23 @@ documentos: [normativa/disp-afip-297-2003-original.htm]
 pregunta: "¿Hasta qué monto se puede hacer una contratación directa por monto?"
 fecha_autorizacion: 2015-10-01
 regimen: "Disposición AFIP 297/03"
-esperado: "no determinado"
-cita: []
+esperado: |
+  La contratación directa por monto procede cuando el monto del contrato no supere el establecido en el Régimen Jurisdiccional vigente para este tipo de contrataciones. El Anexo I de la Disposición 297/03 no fija el monto: remite al Régimen Jurisdiccional vigente.
+cita:
+  - {documento: "Disposición AFIP 297/03, Anexo I", ubicacion: "artículo 21, inciso 4), punto 9"}
 origen: |
-  Tema de compras que la 297/03 no resuelve: el artículo 21, inciso 4), punto 9 remite al monto "establecido en el Régimen Jurisdiccional vigente", que no está cargado.
-unidades: []
-datos_clave: []
+  Inciso 4) CONTRATACION DIRECTA. Este procedimiento se utilizará en los siguientes casos:
+  [...]
+  9. Cuando el monto del contrato no supere el establecido en el Régimen Jurisdiccional vigente para este tipo de contrataciones.
+unidades:
+  - {norma: "Disposición AFIP 297/03", key: anexo-i/art-21}
+datos_clave: ["régimen jurisdiccional"]
 difieren: false
 pareja: ""
-aviso_modificatorias: false
-etiquetas: ["tema cercano que la normativa no resuelve"]
+aviso_modificatorias: true
+etiquetas: ["remisión a norma no cargada"]
 visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |
-  Igual que EV-027: el sistema podría citar el artículo 21 de la 297/03 para decir que el monto lo fija el régimen jurisdiccional.
+  Remisión a una norma no cargada (ADR-0015; REQ-009 enmendado; T-064). La norma cargada trata el tema y remite el monto al Régimen Jurisdiccional vigente, que no está cargado. La respuesta correcta dice lo que establece el punto 9 del inciso 4) del art. 21 y a qué norma remite, con su cita; una abstención es incorrecta. `aviso_modificatorias` pasa a verdadero porque la respuesta cita la 297/03.
+  Una respuesta que dé una cifra (un monto en pesos o en módulos) es incorrecta aunque cumpla el dato clave: el corrector solo comprueba que la remisión esté, no que falte la cifra. Por decisión del responsable del 2026-10-03, ese control lo hace una persona a mano en cada corrida, leyendo las afirmaciones contra el texto de la unidad citada; no hay control automático.

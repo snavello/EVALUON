@@ -2,21 +2,23 @@
 
 Borrador para validar. Ningún caso tiene visto bueno: todos llevan `validado_por: pendiente` y `redactado_por: borrador asistido`. La respuesta esperada la valida una persona que conoce la materia (`evals/README.md`).
 
-Fuentes: solo el anexo de la Disposición AFIP 247/2022 (`corpus/normativa/disp-afip-247-2022-anexo.pdf`), su cuerpo (`disp-afip-247-2022-original.htm`) y la Disposición AFIP 297/03 con su Anexo I (`disp-afip-297-2003-original.htm`). Cada `origen` transcribe el texto de la norma y se comprobó por programa que aparece tal cual en el texto extraído (salvo espacios y saltos de línea). En los casos sin respuesta, `origen` explica por qué no hay respuesta.
+Fuentes: solo el anexo de la Disposición AFIP 247/2022 (`corpus/normativa/disp-afip-247-2022-anexo.pdf`), su cuerpo (`disp-afip-247-2022-original.htm`) y la Disposición AFIP 297/03 con su Anexo I (`disp-afip-297-2003-original.htm`). Cada `origen` transcribe el texto de la norma y se comprobó por programa que aparece tal cual en el texto extraído (salvo espacios y saltos de línea). En los casos sin respuesta, `origen` explica por qué no hay respuesta; en los de tema cercano EV-032 y EV-033, además, anota la búsqueda por palabras que comprueba que ninguna norma cargada trata el tema.
 
 ## Composición
 
+Todos los casos son del lote de ajuste (ninguno lleva el campo `lote`).
+
 | Grupo | Casos | Cantidad |
 |---|---|---|
-| Con respuesta en la 247/2022 (fecha desde 2023-01-02) | EV-001 a EV-015 | 15 |
-| Con respuesta en la 297/03 (fecha entre 2003-06-14 y 2023-01-01) | EV-016 a EV-024 | 9 |
-| Sin respuesta, fecha bajo la 247/2022 | EV-025 a EV-028 | 4 |
-| Sin respuesta, fecha bajo la 297/03 | EV-029, EV-030 | 2 |
+| Con respuesta en la 247/2022 (fecha desde 2023-01-02) | EV-001 a EV-015; EV-027 y EV-028 (remisión a norma no cargada) | 17 |
+| Con respuesta en la 297/03 (fecha entre 2003-06-14 y 2023-01-01) | EV-016 a EV-024; EV-029 (remisión a norma no cargada) | 10 |
+| Sin respuesta, fecha bajo la 247/2022 | EV-025, EV-026 (ajenas); EV-033 (tema cercano) | 3 |
+| Sin respuesta, fecha bajo la 297/03 | EV-030 (ajena); EV-032 (tema cercano) | 2 |
 | Sin respuesta, fecha sin régimen (anterior a 2003-06-14) | EV-031 | 1 |
-| **Total** | | **31** |
+| **Total** | | **33** |
 
 - Pares (REQ-020): EV-001 y EV-016; EV-003 y EV-017; EV-014 y EV-018.
-- `aviso_modificatorias` verdadero: los 9 casos con respuesta en la 297/03. Falso: todos los demás.
+- `aviso_modificatorias` verdadero: los 10 casos con respuesta en la 297/03. Falso: todos los demás.
 - REQ-018 y REQ-019 (categorías y marco nacional): sin casos. No hay documentos de esas categorías en el corpus; quedan pendientes, a cubrir con casos sintéticos cuando se decida. `difieren` es falso en todos.
 
 ## Casos
@@ -49,25 +51,27 @@ Fuentes: solo el anexo de la Disposición AFIP 247/2022 (`corpus/normativa/disp-
 | EV-024 | Plazo para observar el acta de evaluación | 297/03 | 2021-07-05 | 3 días; 2 días en privadas y directas | Anexo I, arts. 50 y 21 f) | |
 | EV-025 | Licencia por maternidad de una agente | 247/2022 | 2024-05-02 | No determinado (ajena) | — | |
 | EV-026 | Alícuota general del IVA | 247/2022 | 2023-09-01 | No determinado (ajena) | — | |
-| EV-027 | Monto máximo de la licitación privada | 247/2022 | 2025-06-30 | No determinado (remite al régimen jurisdiccional, no cargado) | — | |
-| EV-028 | Integración de la Comisión Evaluadora | 247/2022 | 2024-11-11 | No determinado (remite a la normativa vigente, no cargada) | — | |
-| EV-029 | Monto máximo de la contratación directa por monto | 297/03 | 2015-10-01 | No determinado (remite al régimen jurisdiccional, no cargado) | — | |
+| EV-027 | Monto máximo de la licitación privada | 247/2022 | 2025-06-30 | Remisión: el monto es el que estipula el régimen jurisdiccional vigente (no cargado); sin cifra | Anexo, art. 21 c) | |
+| EV-028 | Integración de la Comisión Evaluadora | 247/2022 | 2024-11-11 | Remisión: integración sujeta a la normativa vigente (no cargada); los integrantes no pueden ser funcionarios con competencia para autorizar o aprobar | Anexo, art. 50 | |
+| EV-029 | Monto máximo de la contratación directa por monto | 297/03 | 2015-10-01 | Remisión: el monto es el que establece el Régimen Jurisdiccional vigente (no cargado); sin cifra | Anexo I, art. 21 inc. 4) punto 9 | |
 | EV-030 | Vencimiento de la DDJJ de ganancias | 297/03 | 2018-04-16 | No determinado (ajena) | — | |
 | EV-031 | Plazo de mantenimiento de oferta | sin régimen | 2003-06-13 | No determinado (`no_regime_at_date`) | — | |
+| EV-032 | Horas anuales de capacitación del personal de compras | 297/03 | 2011-05-16 | No determinado (tema cercano que ninguna norma cargada trata ni remite) | — | |
+| EV-033 | Cada cuánto rota el personal de compras | 247/2022 | 2025-09-15 | No determinado (tema cercano que ninguna norma cargada trata ni remite) | — | |
 
 ## Para mirar con atención
 
 1. **EV-019, el depósito para impugnar.** La 297/03 dice "CINCO POR MIL (0,5 ‰)". Cinco por mil es 5 ‰ (0,5 %), así que la cifra en palabras y la cifra en número no coinciden. El esperado repite el texto. Hay que decidir qué dato exigir en `datos_clave`; quizás alguna de las modificatorias sin cargar lo corrigió.
 2. **EV-024, el plazo para observar el acta de evaluación bajo la 297/03.** El art. 50 da 3 días, la pauta f) del art. 21 da 2 días en licitaciones privadas y contrataciones directas, y la pauta g) dice que en las contrataciones directas el acta puede no notificarse y "no será impugnable". El esperado toma el art. 50 y la pauta f). Conviene acotar la pregunta a la licitación pública, o aceptar la respuesta con los dos plazos.
-3. **EV-027, EV-028 y EV-029: preguntas cercanas sin respuesta.** La norma no da la cifra ni la integración, pero sí remite a otra normativa (el régimen jurisdiccional o la "normativa vigente"). Un sistema que responda "lo fija el régimen jurisdiccional vigente" citando el artículo no inventa nada. Hay que decidir si eso cuenta como abstención correcta o como respuesta correcta. Se marcaron "no determinado" porque la pregunta pide una cifra o una integración que el corpus no tiene. En EV-028 el art. 50 sí dice quiénes no pueden integrar la Comisión; si se quiere un caso sin ambigüedad, se puede cambiar la pregunta a "¿Cuántos miembros tiene...?".
+3. **Resuelto por el ADR-0015 (2026-10-03): EV-027, EV-028 y EV-029 pasaron a ser preguntas con respuesta de remisión a una norma no cargada (T-064; ver "Remisión a una norma no cargada (ADR-0015)", más abajo).** Texto original del punto: **EV-027, EV-028 y EV-029: preguntas cercanas sin respuesta.** La norma no da la cifra ni la integración, pero sí remite a otra normativa (el régimen jurisdiccional o la "normativa vigente"). Un sistema que responda "lo fija el régimen jurisdiccional vigente" citando el artículo no inventa nada. Hay que decidir si eso cuenta como abstención correcta o como respuesta correcta. Se marcaron "no determinado" porque la pregunta pide una cifra o una integración que el corpus no tiene. En EV-028 el art. 50 sí dice quiénes no pueden integrar la Comisión; si se quiere un caso sin ambigüedad, se puede cambiar la pregunta a "¿Cuántos miembros tiene...?".
 4. **EV-014 y EV-018, el par con respuestas opuestas.** La 247/2022 prohíbe agregar causales "no subsanables"; no dice nada de causales subsanables. La 297/03 habla de "inadmisibilidad", no de "desestimación". La pregunta usa "desestimar" en los dos casos para que sea la misma; verificar que la equivalencia sea aceptable.
 5. **EV-016, el cómputo de los 30 días.** El art. 39 de la 297/03 no dice si los días son corridos o hábiles. Por su art. 8, los plazos se computan en días hábiles administrativos salvo disposición en contrario. El esperado dice "30 días" sin calificarlos; si se exige "hábiles", habría que sumar el art. 8 a `unidades`.
 6. **Todos los casos de la 297/03 (EV-016 a EV-024).** Se responden con el texto original de 2003. Infoleg registra 32 modificatorias sin cargar; cualquiera puede haber cambiado un plazo o un porcentaje. Para la medición está bien, porque el sistema solo conoce ese texto; y el aviso de modificatorias existe por eso mismo. Lo que sí hay que revisar es cada caso cuando se cargue una modificatoria.
-7. **`aviso_modificatorias` en los casos sin respuesta con fecha bajo la 297/03 (EV-029, EV-030).** Se marcó falso, porque una respuesta "no determinado" no muestra unidades de la 297/03 y la spec pide el aviso solo cuando se muestra una unidad. Confirmar que la pantalla no muestra unidades recuperadas cuando se abstiene.
+7. **`aviso_modificatorias` en los casos sin respuesta con fecha bajo la 297/03 (EV-030, EV-032; hasta T-064 también EV-029, que ahora cita la 297/03 y lleva el aviso en verdadero).** Se marcó falso, porque una respuesta "no determinado" no muestra unidades de la 297/03 y la spec pide el aviso solo cuando se muestra una unidad. Confirmar que la pantalla no muestra unidades recuperadas cuando se abstiene.
 8. **EV-026, una trampa.** El art. 41 de la 247/2022 menciona el IVA (la AFIP es consumidor final), pero no fija ninguna alícuota. Una respuesta que cite el art. 41 para dar una alícuota es incorrecta.
 9. **EV-004, el valor del módulo.** El esperado se queda en "M 1.000". El valor en pesos del módulo lo fija la máxima autoridad (art. 99) y no está cargado.
 10. **EV-012.** Solo exige el art. 55. El art. 38 remite al 55 para la oferta económica sin firma; si se quiere exigir también, hay que agregarlo a `unidades`.
-11. **EV-031.** Es la misma pregunta que el par EV-001 y EV-016, pero no tiene `pareja`: el plan exige que los dos casos de un par citen normas distintas, y este no cita ninguna. Lo mismo pasa con EV-022 y EV-028.
+11. **EV-031.** Es la misma pregunta que el par EV-001 y EV-016, pero no tiene `pareja`: el plan exige que los dos casos de un par citen normas distintas, y este no cita ninguna. Lo mismo pasaba con EV-022 y EV-028; desde T-064, EV-028 cita la 247/2022 y el par sería posible (ver "Para decidir" en "Remisión a una norma no cargada (ADR-0015)").
 12. **Las claves de `unidades`.** Están a nivel de artículo (`anexo/art-43`, `anexo-i/art-55`), y el inciso va en `cita.ubicacion`. Según el plan, cuando un caso nombra un inciso vale el artículo que lo contiene. No se usaron claves de inciso porque la forma de los puntos numerados dentro de incisos (por ejemplo, art. 33 a) 1.) no está fijada en el plan.
 
 ## Reescritura de datos clave (2026-10-03)
@@ -152,3 +156,59 @@ Sin cambios: EV-001, EV-002, EV-005, EV-006, EV-008, EV-009, EV-010, EV-013, EV-
 4. EV-018 acepta el "sí" con "otras causales de inadmisibilidad": aceptado.
 
 La medida que vale para aprobar la feature sale del lote de aceptación de T-061, que no se usa para ajustar (ADR-0014).
+
+## Remisión a una norma no cargada (ADR-0015)
+
+**Propuesta de T-064, para el visto bueno del responsable en el pull request.** Aplica el ADR-0015 y REQ-009 enmendado: cuando una norma cargada trata el tema y remite su contenido a otra norma que no está cargada, la respuesta dice lo que establece la norma cargada, con su cita, e indica a qué norma remite, sin dar el contenido de la norma no cargada. EV-027, EV-028 y EV-029 pasan a ser preguntas con respuesta del lote de ajuste. En los tres cambian solo `esperado`, `cita`, `origen`, `unidades`, `datos_clave`, `etiquetas`, `notas` y, en EV-029, `aviso_modificatorias`; `pregunta`, `fecha_autorizacion`, `regimen`, `visto_bueno` y los demás campos quedan como estaban. El `origen` transcribe el texto de la unidad que remite y se comprobó por programa contra el texto extraído de `corpus/normativa/`; coincide con lo que citaba el `origen` anterior.
+
+| Caso | Campo | Antes | Después |
+|---|---|---|---|
+| EV-027 | `esperado` | "no determinado" | La licitación privada es aplicable cuando el monto estimado no supere el estipulado en el régimen jurisdiccional vigente, y es válida cuando el monto a adjudicar no supere el máximo fijado en ese régimen; el anexo no fija el monto: remite al régimen jurisdiccional vigente |
+| EV-027 | `cita` / `unidades` | vacías | Anexo de la 247/2022, art. 21, inciso c) / `anexo/art-21` |
+| EV-027 | `origen` | Explicación de por qué no había respuesta | Texto del inciso c) del art. 21 del anexo |
+| EV-027 | `datos_clave` | vacío | "régimen jurisdiccional" |
+| EV-027 | `etiquetas` | "tema cercano que la normativa no resuelve" | "remisión a norma no cargada" |
+| EV-027 | `aviso_modificatorias` | falso | falso (sin cambio: cita la 247/2022) |
+| EV-028 | `esperado` | "no determinado" | En cada unidad con capacidad de contratación funciona una comisión evaluadora; su integración, funcionamiento y criterios de designación quedan sujetos a la normativa vigente; sus integrantes no pueden ser funcionarios con competencia para autorizar la convocatoria o aprobar el procedimiento |
+| EV-028 | `cita` / `unidades` | vacías | Anexo de la 247/2022, art. 50 / `anexo/art-50` |
+| EV-028 | `origen` | Explicación de por qué no había respuesta | Texto del art. 50 del anexo |
+| EV-028 | `datos_clave` | vacío | "normativa vigente" |
+| EV-028 | `etiquetas` | "tema cercano que la normativa no resuelve" | "remisión a norma no cargada" |
+| EV-028 | `aviso_modificatorias` | falso | falso (sin cambio: cita la 247/2022) |
+| EV-029 | `esperado` | "no determinado" | La contratación directa por monto procede cuando el monto del contrato no supere el establecido en el Régimen Jurisdiccional vigente; el Anexo I no fija el monto: remite al Régimen Jurisdiccional vigente |
+| EV-029 | `cita` / `unidades` | vacías | Anexo I de la 297/03, art. 21, inciso 4), punto 9 / `anexo-i/art-21` |
+| EV-029 | `origen` | Explicación de por qué no había respuesta | Encabezado del inciso 4) y texto del punto 9 del art. 21 del Anexo I |
+| EV-029 | `datos_clave` | vacío | "régimen jurisdiccional" |
+| EV-029 | `etiquetas` | "tema cercano que la normativa no resuelve" | "remisión a norma no cargada" |
+| EV-029 | `aviso_modificatorias` | falso | verdadero (la respuesta cita la 297/03) |
+
+En los tres casos, `notas` reemplaza la duda por la decisión del ADR-0015 y por las decisiones del responsable de más abajo.
+
+Cada caso lleva un solo dato clave, el de la remisión, con las palabras de la norma. No lleva variantes: la norma nombra la remisión de una sola forma en cada unidad. En EV-028 no se exige el impedimento ("competencia para autorizar"): está en el `esperado`, pero no en `datos_clave` (decisión 3, más abajo).
+
+**Casos nuevos de tema cercano: EV-032 y EV-033.** Dos preguntas de control "fuera de tema", una por régimen, del lote de ajuste y sin campo `lote` (decisión 1, más abajo). Son temas de compras que ninguna norma cargada trata ni remite a otra norma: la capacitación (EV-032, 297/03, 2011-05-16) y la rotación (EV-033, 247/2022, 2025-09-15) del personal que gestiona las compras. Se comprobó con una búsqueda por palabras, sin tildes ni mayúsculas, sobre el texto canónico de las dos disposiciones y sus anexos ("capacit", "horas", "entrenamiento", "rota", "personal de compras", "area de compras", "unidad de compras", "agentes del"): ninguna aparece. El detalle está en el `origen` de cada caso.
+
+No se usó el ejemplo de referencia ("¿Qué plazo tiene la AFIP para pagar una factura de servicios públicos?"): las dos normas cargadas fijan el plazo de pago de las facturas en 30 días corridos (anexo de la 247/2022, art. 77; Anexo I de la 297/03, art. 58, inciso 7). El sistema podría responder ese plazo con su cita, así que la pregunta no es de un tema que ninguna norma trata.
+
+**Comprobado** en un contenedor aparte (proyecto `evaluon-t064`), sin consultar al sistema:
+
+- `load_cases` lee los 33 casos y ninguno queda mal formado ni sin visto bueno: 27 con respuesta y 6 sin respuesta, todos del lote de ajuste. EV-032 y EV-033 salen sin respuesta y con `lot == "ajuste"`.
+- El `origen` de EV-027, EV-028 y EV-029 aparece tal cual en el texto extraído (salvo espacios y saltos de línea).
+- Con su propio `esperado` como única afirmación, cada uno de los tres cumple su dato clave. Los 27 casos con respuesta también cumplen los suyos.
+- Una respuesta "no determinado" no los cumple, y una que no nombra la norma a la que remite ("El monto máximo no está establecido.") tampoco.
+- Límite del corrector: una respuesta con la remisión y una cifra inventada sí los cumple (por ejemplo, "… el régimen jurisdiccional vigente, que lo fija en 1.300 módulos"; cifra inventada para la prueba). El corrector solo comprueba que algo esté, no que algo falte. Ese caso lo controla la revisión humana de la decisión 2.
+
+### Para decidir
+
+1. **¿Se vinculan EV-022 y EV-028 como par de REQ-020?** Tienen la misma pregunta, y desde T-064 cada una cita una norma distinta, que es lo que el plan pide para un par. Para vincularlas hay que cambiar el campo `pareja` de los dos casos, y T-064 no toca ese campo. Por eso queda como propuesta.
+
+| Pregunta | Fecha | Respuesta del sistema (ejemplo) | ¿Sí o no? |
+|---|---|---|---|
+| ¿Cómo se integra la Comisión Evaluadora? | 2008-11-17 (297/03, EV-022) | "Como mínimo por tres miembros titulares, un presidente y dos vocales, funcionarios de planta permanente…" (Anexo I, art. 48) | ¿Se vinculan las dos respuestas como un par de la misma pregunta con distinto régimen? |
+| ¿Cómo se integra la Comisión Evaluadora? | 2024-11-11 (247/2022, EV-028) | "La integración … está sujeta a la normativa vigente. Los miembros no pueden ser funcionarios que tengan competencia para autorizar la convocatoria o aprobar el procedimiento" (anexo, art. 50; respuesta de la corrida de T-045) | |
+
+## Decisiones del responsable sobre la remisión (2026-10-03)
+
+1. **Dos preguntas de control "fuera de tema" nuevas, una por régimen.** Son temas de compras que ninguna norma cargada trata ni remite a otra norma. Van al lote de ajuste, sin campo `lote`, con la respuesta esperada "no determinado", la etiqueta "tema cercano que la normativa no resuelve" y el visto bueno "provisorio, autorizado por el responsable el 2026-10-03 (ADR-0015)". Cada una tiene su `fecha_autorizacion`: una antes del 2023-01-02 (297/03) y otra después (247/2022). Llevan los números EV-032 y EV-033. El lote de aceptación de T-061 usa los números siguientes.
+2. **Una persona controla a mano, en cada corrida, que la respuesta de remisión no dé la cifra ni la integración no cargada.** No hay control automático. Está anotado en `notas` de EV-027, EV-028 y EV-029.
+3. **EV-028: alcanza con que la respuesta diga que la integración está sujeta a la normativa vigente, con la cita del art. 50.** Por ahora no se exige que diga quiénes no pueden integrarla. Está anotado en `notas` de EV-028.

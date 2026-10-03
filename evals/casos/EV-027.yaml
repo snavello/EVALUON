@@ -4,17 +4,23 @@ documentos: [normativa/disp-afip-247-2022-anexo.pdf]
 pregunta: "¿Hasta qué monto se puede hacer una licitación privada?"
 fecha_autorizacion: 2025-06-30
 regimen: "Disposición AFIP 247/2022"
-esperado: "no determinado"
-cita: []
+esperado: |
+  La licitación o concurso privado es aplicable cuando el monto estimado no supere el estipulado en el régimen jurisdiccional vigente para este tipo de contrataciones, y el procedimiento es válido cuando el monto total a adjudicar no supere el máximo fijado para su encuadre en ese régimen. El anexo de la Disposición 247/2022 no fija el monto: remite al régimen jurisdiccional vigente.
+cita:
+  - {documento: "Disposición AFIP 247/2022, Anexo (IF-2022-02210546-AFIP-SGDADVCOAD#SDGCTI)", ubicacion: "artículo 21, inciso c)"}
 origen: |
-  Tema de compras que la normativa cargada no resuelve: el artículo 21, inciso c) del anexo remite al monto "estipulado en el régimen jurisdiccional vigente", que no está cargado. Una respuesta que dé una cifra es incorrecta.
-unidades: []
-datos_clave: []
+  c) Licitación o Concurso Privado: La licitación o el concurso será privado cuando el llamado a participar esté dirigido exclusivamente a proveedores que se hallaren incorporados en el Registro de Proveedores que diseñe, implemente y administre el órgano rector y será aplicable cuando el monto estimado no supere el estipulado en el régimen jurisdiccional vigente para este tipo de contrataciones.
+  En estos procedimientos también serán consideradas las ofertas de quienes no hubiesen sido expresamente invitados a participar.
+  El procedimiento de selección elegido será válido cuando el monto total a adjudicar no supere el máximo fijado para su encuadre en el régimen jurisdiccional vigente.
+unidades:
+  - {norma: "Disposición AFIP 247/2022", key: anexo/art-21}
+datos_clave: ["régimen jurisdiccional"]
 difieren: false
 pareja: ""
 aviso_modificatorias: false
-etiquetas: ["tema cercano que la normativa no resuelve"]
+etiquetas: ["remisión a norma no cargada"]
 visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03"   # se revisa con la Comisión
 redactado_por: borrador asistido
 notas: |
-  Caso dudoso: el sistema podría responder citando el artículo 21 c) que el monto lo fija el régimen jurisdiccional. ¿Eso cuenta como respuesta correcta o como abstención? Lo dejamos como "no determinado" porque la pregunta pide una cifra.
+  Remisión a una norma no cargada (ADR-0015; REQ-009 enmendado; T-064). La norma cargada trata el tema y remite el monto al régimen jurisdiccional vigente, que no está cargado. La respuesta correcta dice lo que establece el inciso c) del art. 21 y a qué norma remite, con su cita; una abstención es incorrecta.
+  Una respuesta que dé una cifra (un monto en pesos o en módulos) es incorrecta aunque cumpla el dato clave: el corrector solo comprueba que la remisión esté, no que falte la cifra. Por decisión del responsable del 2026-10-03, ese control lo hace una persona a mano en cada corrida, leyendo las afirmaciones contra el texto de la unidad citada; no hay control automático.

@@ -1,0 +1,20 @@
+id: EV-033
+tipo: normativa
+documentos: [normativa/disp-afip-247-2022-anexo.pdf]
+pregunta: "¿Cada cuánto tiempo tienen que rotar de puesto los agentes que trabajan en el área de compras?"
+fecha_autorizacion: 2025-09-15
+regimen: "Disposición AFIP 247/2022"
+esperado: "no determinado"
+cita: []
+origen: |
+  Tema de compras que ninguna norma cargada trata ni remite a otra norma: la rotación del personal que gestiona las contrataciones. Búsqueda por palabras, sin tildes ni mayúsculas, sobre el texto cargado de la Disposición AFIP 247/2022 con su anexo y de la Disposición AFIP 297/03 con su Anexo I (texto canónico de la lectura, 2026-10-03): "rota" (rotar, rotación), "capacit", "horas", "personal de compras", "area de compras", "unidad de compras" y "agentes del" no aparecen.
+unidades: []
+datos_clave: []
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["tema cercano que la normativa no resuelve"]
+visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03 (ADR-0015)"   # se revisa con la Comisión
+redactado_por: borrador asistido
+notas: |
+  Pregunta de control de tema cercano del lote de ajuste (decisión del responsable del 2026-10-03, ADR-0015; T-064), sin campo `lote`. El art. 50 del anexo dice quiénes no pueden integrar la Comisión Evaluadora, no cada cuánto rota el personal: una respuesta que lo cite para dar un plazo de rotación es incorrecta.
