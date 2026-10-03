@@ -1,6 +1,6 @@
 # Spec 001 · Normativa consultable con cita
 
-Estado: aprobada · Fecha: 2026-10-02 · Aprobó: responsable del proyecto · Enmienda: 2026-10-03, REQ-010 (la búsqueda muestra solo lo vigente), decisión del responsable
+Estado: aprobada · Fecha: 2026-10-02 · Aprobó: responsable del proyecto · Enmiendas: 2026-10-03, REQ-010 (la búsqueda muestra solo lo vigente), decisión del responsable; 2026-10-03, REQ-009 (remisión a una norma no cargada) y validación del conjunto en el piloto (ADR-0015), decisión del responsable
 
 ## Problema
 
@@ -77,7 +77,7 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
 - **REQ-006.** Dadas dos normas donde una modifica a la otra, cuando se registra la relación, entonces al ver cualquiera de las dos se muestra el vínculo.
 - **REQ-007.** Dada una norma con un artículo modificado por otra norma en una fecha, cuando se consulta ese artículo antes y después de esa fecha, entonces antes se muestra solo el texto original, y después el original junto con el texto literal de la norma que lo modifica, señalando el cambio.
 - **REQ-008.** Dada una pregunta cuya respuesta está en un artículo cargado, cuando se consulta, entonces la respuesta cita ese artículo y el texto citado coincide palabra por palabra con el de la norma.
-- **REQ-009.** Dada una pregunta sobre un tema que ninguna norma cargada trata, cuando se consulta, entonces el resultado es "no determinado".
+- **REQ-009.** Dada una pregunta sobre un tema que ninguna norma cargada trata, cuando se consulta, entonces el resultado es "no determinado". Dada una pregunta sobre un tema que una norma cargada trata pero cuyo contenido remite a otra norma no cargada (por ejemplo, un monto "establecido en el Régimen Jurisdiccional vigente"), cuando se consulta, entonces la respuesta dice lo que establece la norma cargada, con su cita, e indica a qué norma remite, sin afirmar el contenido de la norma no cargada (enmienda del 2026-10-03, ADR-0015).
 - **REQ-010.** Dado un número de norma y de artículo, cuando una persona con rol de lectura lo busca en la pantalla de consulta, entonces obtiene esa unidad con su texto si está vigente a esa fecha; si está derogada, no aparece, salvo que la persona pida incluir los textos derogados, y entonces se muestra marcada como derogada, después de los vigentes.
 - **REQ-011.** Dada una norma ya incorporada, cuando se intenta cargar el mismo archivo, entonces el sistema avisa y no la duplica; cuando se intenta cargar la misma norma desde otro archivo, entonces avisa y solo la incorpora con confirmación expresa.
 - **REQ-012.** Dada una consulta ya respondida, cuando se revisa su registro, entonces se ve la pregunta, las unidades recuperadas, la respuesta, la versión de la normativa, el usuario y la fecha.
@@ -97,7 +97,7 @@ En esta feature, consolidar significa reunir: cada norma se guarda tal como fue 
     - El texto citado coincide palabra por palabra con el documento: siempre, sin tolerancia.
     - La respuesta es correcta y cita la unidad correcta: al menos 85 % de las preguntas con respuesta.
     - El sistema se abstiene cuando no hay respuesta: al menos 90 % de las preguntas sin respuesta.
-- **Validación del conjunto de preguntas.** El Coordinador propone las preguntas y sus respuestas a partir de los documentos, el responsable del proyecto las corrige y un integrante de la Comisión Evaluadora les da el visto bueno. Sin ese visto bueno, una pregunta no entra al conjunto.
+- **Validación del conjunto de preguntas.** El Coordinador propone las preguntas y sus respuestas a partir de los documentos, el responsable del proyecto las corrige y un integrante de la Comisión Evaluadora les da el visto bueno. Sin ese visto bueno, una pregunta no entra al conjunto. Para el piloto alcanza el visto bueno del responsable del proyecto; la revisión de la Comisión queda pendiente y se hace antes de usar el sistema fuera del piloto (enmienda del 2026-10-03, ADR-0015).
 - **Volumen.** Menos de 10 documentos por ahora, repartidos entre las cinco categorías del marco regulatorio. Las modificatorias de la Disposición 297/03 (32 según el listado de Infoleg, sin contar la 247/2022) se cargan de a poco y no cuentan para el arranque.
 - **Formato de origen.** La mayoría de las normas está en PDF con texto; algunas están escaneadas o solo en páginas web (REQ-015).
 - **Tiempo de respuesta.** Hasta 30 segundos por consulta, en el equipo donde corre el sistema.
