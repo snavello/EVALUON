@@ -2,7 +2,8 @@
 
 Solo inserta filas en `audit_event`: un trigger de la base rechaza cualquier UPDATE o
 DELETE (T-007). Quien llama arma el detalle propio de cada hecho y nunca pone en él
-claves ni identificadores de sesión.
+claves ni identificadores de sesión; `record` rechaza un detalle con un dato de esos
+nombres (`FORBIDDEN_DETAIL_KEYS`, T-038).
 
 Versión de la normativa (P8; plan 001, `norms_corpus_version`). Todo hecho lleva en
 `corpus_version` el número de la versión vigente al registrarlo: la última de
@@ -53,6 +54,30 @@ def _reserve_corpus_version():
         return cursor.fetchone()[0]
 
 
+# Nombres de dato que el detalle de un hecho nunca lleva: claves e identificadores de
+# sesión (plan 001, "Registro de auditoría"; T-038). Se comparan en minúsculas.
+FORBIDDEN_DETAIL_KEYS = frozenset({
+    "password", "passwd", "clave", "contraseña",
+    "sessionid", "session_id", "session_key", "csrfmiddlewaretoken",
+})
+
+
+def _refuse_secrets(value):
+    """Lanza `ValueError` si `value` tiene, en cualquier nivel, un dato con nombre de
+    clave o de identificador de sesión."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if str(key).lower() in FORBIDDEN_DETAIL_KEYS:
+                raise ValueError(
+                    f"El detalle de un hecho no puede llevar el dato {key!r}: el "
+                    "registro no guarda claves ni identificadores de sesión."
+                )
+            _refuse_secrets(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            _refuse_secrets(item)
+
+
 def record(
     event_type,
     *,
@@ -80,6 +105,7 @@ def record(
     if user is not None and not username:
         username = user.get_username()
     detail = dict(detail) if detail is not None else {}
+    _refuse_secrets(detail)
 
     if not creates_corpus_version:
         return AuditEvent.objects.create(
