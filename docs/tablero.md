@@ -58,9 +58,9 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 41 tareas sin terminar.
+- ▶ T-015 · Validar una lectura y calcular pasajes y vectores (en curso)
 - ○ T-013 · Partir en artículos y armar el informe mínimo (pendiente)
 - ○ T-014 · Cargar una norma, listarla y ver su informe (pendiente)
-- ○ T-015 · Validar una lectura y calcular pasajes y vectores (pendiente)
 - ○ T-016 · Armar la pantalla de consulta con sus tres bloques (pendiente)
 - ○ T-017 · Recuperar por significado y reordenar con el reranker (pendiente)
 - ○ T-018 · Generar la respuesta con esquema e insertar las citas (pendiente)
@@ -114,8 +114,8 @@ flowchart LR
 - ✓ T-009 · Crear las funciones de unidades consultables a una fecha (`9f1886e` 2026-10-02, `b9ca5d3` 2026-10-02)
 - ✓ T-010 · Crear la tabla del registro detallado de consultas (`cc485fc` 2026-10-02)
 - ✓ T-011 · Crear los clientes de IA, sus dobles y los parámetros (`fb2f640` 2026-10-02)
-- ✓ T-012 · Leer un PDF con texto
-- ✓ T-053 · Conservar la eñe en la búsqueda por palabras
+- ✓ T-012 · Leer un PDF con texto (`977f834` 2026-10-02, `ef7d903` 2026-10-02)
+- ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 
 ### Mapa de tareas
 
@@ -135,7 +135,7 @@ flowchart TD
   T012["✓ T-012 · Leer un PDF con texto"]:::done
   T013["○ T-013 · Partir en artículos y armar el informe míni…"]:::todo
   T014["○ T-014 · Cargar una norma, listarla y ver su informe"]:::todo
-  T015["○ T-015 · Validar una lectura y calcular pasajes y ve…"]:::todo
+  T015["▶ T-015 · Validar una lectura y calcular pasajes y ve…"]:::active
   T016["○ T-016 · Armar la pantalla de consulta con sus tres…"]:::todo
   T017["○ T-017 · Recuperar por significado y reordenar con e…"]:::todo
   T018["○ T-018 · Generar la respuesta con esquema e insertar…"]:::todo
