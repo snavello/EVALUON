@@ -28,7 +28,7 @@ Se construye un sistema que corre entero en la notebook del proyecto, sin mandar
 
 **Qué queda registrado.** Cada carga, validación, consulta, búsqueda e ingreso, con quién lo hizo, cuándo, para qué fecha de autorización, qué régimen se aplicó, sobre qué versión de la normativa, qué se encontró, qué se respondió y qué aviso se mostró. Con ese registro se puede explicar después por qué el sistema dijo lo que dijo.
 
-**Cómo se sabe si responde bien.** Con unas 30 preguntas de respuesta conocida, aprobadas por un integrante de la Comisión. Cada pregunta lleva su fecha de autorización: hay preguntas para cada uno de los dos regímenes y al menos una que se repite con dos fechas, para comprobar que la respuesta cambia de régimen. Se exige: cita literal siempre, respuesta correcta en al menos 85 % de las preguntas que tienen respuesta, "no determinado" en al menos 90 % de las que no la tienen, y hasta 30 segundos por consulta.
+**Cómo se sabe si responde bien.** Con unas 30 preguntas de respuesta conocida, aprobadas por un integrante de la Comisión. Cada pregunta lleva su fecha de autorización: hay preguntas para cada uno de los dos regímenes y al menos una que se repite con dos fechas, para comprobar que la respuesta cambia de régimen. Se exige: cita literal siempre, respuesta correcta en al menos 85 % de las preguntas que tienen respuesta, "no determinado" en al menos 90 % de las que no la tienen, y hasta 30 segundos por consulta. Desde el ADR-0014, el 85 % y el 90 % se miden con un lote aparte de preguntas que se escriben sin correr el sistema y no se usan nunca para ajustar, y cada medida se informa con su margen de error.
 
 **Qué falta comprobar.** Nada de esto se probó todavía en la notebook. Por eso la primera etapa no construye: comprueba que cada pieza funciona en este equipo y mide cuánta memoria usa. Para lo que podría fallar hay un plan B anotado. Los dos regímenes ya están en el repositorio (`corpus/normativa/`). Las fechas de entrada en vigencia ya no faltan: 2 de enero de 2023 para la Disposición 247/2022, informada por el responsable, y 14 de junio de 2003 para la 297/03. Las sigue escribiendo una persona al cargar cada norma; el sistema no las calcula. Faltan dos cosas que dependen de personas: las modificatorias de la 297/03, que se cargan de a poco; y los documentos de las otras categorías.
 
@@ -640,15 +640,59 @@ En los cuatro casos la pantalla muestra lo mismo: el aviso de "no determinado", 
 
 Las dos barreras de pertinencia cumplen papeles distintos. El umbral frena las preguntas ajenas a la normativa, es barato y siempre da lo mismo. El modelo frena las preguntas sobre un tema que la normativa menciona pero no resuelve, que el puntaje no distingue. Por eso el umbral se calibra para no frenar preguntas que sí tienen respuesta, y no para alcanzar por sí solo el 90 %.
 
-Calibración con el conjunto de preguntas:
+**Calibración del umbral (ADR-0014, punto 2).** Reemplaza la regla de T-042 ("el umbral más alto que frena por error a lo sumo el 5 % de las preguntas con respuesta, dejando cada vez una afuera"), que con unas 24 preguntas con respuesta elige siempre el puntaje más bajo observado y deja el umbral pegado a esa pregunta, sin margen (T-045: 0,368, igual al puntaje de EV-020).
 
-1. Se corre la recuperación sobre todas las preguntas y se anota el puntaje más alto de cada una.
-2. Se elige el umbral más alto que frena por error a lo sumo el 5 % de las preguntas con respuesta. Como son unas 30 preguntas, se calcula dejando cada vez una afuera y midiendo sobre ella, y el valor se informa como provisorio.
-3. Con ese umbral se corre el sistema completo y se miden las exigencias de la spec.
-4. Si la abstención no llega al 90 %, se ajustan primero las instrucciones (la segunda barrera). Subir el umbral cuesta respuestas correctas y es la última opción.
-5. Cualquier cambio de umbral, instrucciones, reranker o corpus obliga a correr todo otra vez (P7).
+Qué preguntas entran. Solo las del lote de ajuste (ver "Evals", "Lote de aceptación"): el lote de aceptación no se usa nunca para calibrar. De ese lote, dos grupos, cada pregunta con el puntaje más alto que obtuvo:
 
-**Valores iniciales provisorios** (confirmados por el responsable el 2026-10-03, a evaluar con T-045 y T-046): umbral del reranker 0,5 sobre la escala de la sigmoide, que equivale a un valor 0 antes de convertirlo; máximo de salida del modelo de generación 800 tokens, que en la etapa 0 alcanzó para 6 afirmaciones de 60 a 110 tokens cada una. Los dos son parámetros de `settings.py` (T-011) y entran en el registro de cada consulta.
+- **Con respuesta:** todas las que llegaron a puntuarse.
+- **Ajenas a la normativa:** las sin respuesta con la etiqueta "ajena a la normativa" que llegaron a puntuarse.
+
+Las preguntas con la etiqueta "tema cercano que la normativa no resuelve" no entran: las tiene que frenar el modelo, no el umbral. Una pregunta sin régimen a la fecha no llega al reranker y no tiene puntaje.
+
+Regla:
+
+1. Se corre la recuperación y se anota el puntaje más alto de cada pregunta, como hasta ahora.
+2. `A` es el puntaje más alto de las ajenas a la normativa; `B`, el más bajo de las preguntas con respuesta.
+3. Los dos se llevan a la escala anterior a la sigmoide, la del valor que devuelve el reranker: `logit(p) = ln(p / (1 − p))`. Antes de convertir, el puntaje guardado se acota entre 10⁻⁹ y 1 − 10⁻⁹, para que un 0 o un 1 redondeados no den infinito.
+4. **Hueco:** hay hueco si `logit(B) > logit(A)`. El umbral es el punto medio llevado otra vez a la escala de 0 a 1, `sigmoide((logit(A) + logit(B)) / 2)`, redondeado hacia abajo a tres decimales (la selección pasa con puntaje igual o mayor).
+5. **Margen:** `(logit(B) − logit(A)) / 2`, la distancia del umbral a la pregunta más cercana de cada lado, en la escala anterior a la sigmoide. El margen mínimo es **0,5**.
+6. Con el umbral fijado se corre el sistema completo y se miden las exigencias de la spec (T-046).
+7. Si la abstención no llega al 90 %, se ajustan primero las instrucciones (la segunda barrera). Subir el umbral por encima de la regla cuesta respuestas correctas y es la última opción, con decisión del responsable.
+8. Cualquier cambio de umbral, instrucciones, reranker, armado de pasajes o corpus obliga a correr todo otra vez (P7) y a recalcular la regla.
+
+Por qué el punto medio en la escala anterior a la sigmoide. Es la escala en la que el reranker produce el valor; la sigmoide la comprime cerca de 0 y de 1, y un punto medio calculado sobre la escala de 0 a 1 quedaría más cerca de la ajena que de la pregunta con respuesta cuando la ajena está muy abajo. En esa escala, una misma distancia significa lo mismo de los dos lados del umbral.
+
+Por qué 0,5 de margen mínimo. Es un valor de partida, de criterio, porque no hay una medición de cuánto se mueve el puntaje de una pregunta cuando cambia su redacción o el armado de los pasajes:
+
+- Supera con holgura el error de reproducción medido del reranker: en la etapa 0 dio 5,28 y −8,18 contra 5,26 y −8,19 de su ficha, unas 0,02 en esta escala (T-003). Con la misma entrada el puntaje se repite; lo que mueve el puntaje es un cambio en la pregunta o en los pasajes, y 0,5 es 25 veces aquel error.
+- En la escala de 0 a 1, alrededor del umbral que da la regla con los datos de T-045 (0,219), 0,5 equivale a unas 7 centésimas hacia abajo y 10 hacia arriba. Para cruzar el umbral, una pregunta tendría que cambiar la razón de sus probabilidades en un 65 % (e^0,5 ≈ 1,65).
+- Es exigible con los datos que hay. Un margen de 1 pediría un hueco de 2 entre la ajena más alta y la pregunta con respuesta más baja; el de T-045 es de 1,46 y la regla no daría umbral por una sola pregunta, EV-020. El valor se revisa con la corrida de T-046 y cuando el conjunto crezca; cambiarlo es decisión del responsable.
+
+Qué se informa en `resumen.md`, en la sección de calibración:
+
+| Situación | Qué dice | Umbral propuesto |
+|---|---|---|
+| Hay hueco y el margen llega a 0,5 | El umbral; `A` y `B` con su caso; el margen; "cumple el margen mínimo: sí" | El valor |
+| Hay hueco y el margen no llega a 0,5 | Lo mismo, con "cumple el margen mínimo: no" y el aviso de que el valor no se fija sin decisión del responsable | El valor, marcado como sin margen |
+| No hay hueco (`A` mayor o igual que `B`) | "No hay hueco": las ajenas con puntaje mayor o igual que `B` y las preguntas con respuesta con puntaje menor o igual que `A`. La decisión es del responsable | Ninguno |
+| No hay ajenas con puntaje, o no hay preguntas con respuesta con puntaje | Que la regla no se puede aplicar y por qué | Ninguno |
+
+En todos los casos se informa además: las preguntas sin respuesta que frena el umbral propuesto y las que frena el actual; las de "tema cercano" que quedan por encima del umbral propuesto, que tiene que frenar el modelo; las preguntas con respuesta sin puntaje, que ningún umbral cambia; y la tabla de puntajes del lote de ajuste. El valor se informa como provisorio y la calibración no cambia `settings.py`.
+
+**Con los puntajes de T-045** (`evals/corridas/2026-10-03T132016_8ad46e6_gemma-4-12b-it-qat-q4_0/`):
+
+| Dato | Caso | Puntaje | Escala anterior a la sigmoide |
+|---|---|---|---|
+| `A`: ajena más alta | EV-025 | 0,1195 | −1,9972 |
+| Las otras ajenas | EV-026, EV-030 | 0,0218 y 0,0032 | No intervienen |
+| `B`: con respuesta más baja | EV-020 | 0,368022 | −0,5407 |
+| Punto medio | — | 0,2194 | −1,2689 |
+
+Umbral 0,219; margen 0,728, mayor que 0,5. Frena las tres ajenas (EV-025, EV-026, EV-030) y ninguna pregunta con respuesta; las tres de tema cercano (EV-027, 0,775; EV-028, 0,988; EV-029, 0,743) quedan por encima y las tiene que frenar el modelo. Bajar el umbral de 0,368 a 0,219 puede sumar a la selección unidades con puntaje entre los dos valores, dentro del cupo por categoría: cambia lo que recibe el modelo y por eso se mide con una corrida nueva (P7).
+
+**"Lo regula otra norma": decisión pendiente del responsable, antes de T-046** (ADR-0014, punto 1; punto 3 de "Para mirar con atención" en `evals/casos/INDICE.md`). En EV-027, EV-028 y EV-029 la norma no da la cifra ni la integración que se pregunta, pero remite a otra normativa que no está cargada (el régimen jurisdiccional, la "normativa vigente"). Hay que decidir si una respuesta que dice que el punto lo regula otra norma, citando el artículo que remite, cuenta como respuesta o como abstención. Hoy los tres casos esperan "no determinado". De la decisión dependen el `esperado`, `unidades` y `datos_clave` de esos tres casos, los casos de tema cercano del lote de aceptación que remitan a otra norma (T-061) y la medida de abstención de T-046. Este plan no la resuelve.
+
+**Valores iniciales provisorios** (confirmados por el responsable el 2026-10-03, a evaluar con T-045 y T-046): umbral del reranker 0,5 sobre la escala de la sigmoide, que equivale a un valor 0 antes de convertirlo; máximo de salida del modelo de generación 800 tokens, que en la etapa 0 alcanzó para 6 afirmaciones de 60 a 110 tokens cada una. Los dos son parámetros de `settings.py` (T-011) y entran en el registro de cada consulta. T-045 fijó el umbral en 0,368 con la regla anterior; T-062 lo reemplaza por el de la regla nueva antes de T-046.
 
 Una falla técnica (un servicio que no responde, una espera agotada a los 60 segundos, una salida inválida, un pedido que no entra en el contexto) no es un "no determinado": la pantalla muestra "No se pudo completar la consulta".
 
@@ -784,6 +828,7 @@ Observación: el restablecimiento de una clave olvidada usa el comando `changepa
 - `aviso_modificatorias`: verdadero si la respuesta tiene que llevar el aviso de modificatorias sin cargar; falso si no tiene que llevarlo.
 - `etiquetas`: referencia exacta, palabras distintas a las de la norma, dos categorías, ajena a la normativa, tema cercano que la normativa no resuelve, dos fechas.
 - `visto_bueno`: quién de la Comisión lo aprobó y cuándo. Un caso sin visto bueno no se corre.
+- `lote`: `ajuste` o `aceptacion` (ADR-0014; ver "Lote de aceptación", más abajo). Es optativo: un caso sin `lote` es del lote de ajuste, así que los casos escritos antes siguen valiendo sin cambios. Se compara sin distinguir tildes ni mayúsculas; cualquier otro valor deja el caso mal formado: se informa y no se corre.
 
 **Composición del conjunto por la fecha (REQ-020 y REQ-021).** El conjunto de unas 30 preguntas tiene que incluir:
 
@@ -799,15 +844,17 @@ Cuántas preguntas van a cada régimen lo decide el responsable (ver "Qué tiene
 
 - `parametros.json`: modelos con sus huellas, compilación del motor, versión de las instrucciones, parámetros de búsqueda, umbral y versión de la normativa.
 - `resultados.jsonl`: un renglón por caso, con el resultado, las unidades citadas, las medidas y los tiempos.
-- `resumen.md`: las medidas de la tabla, la comparación con la corrida anterior y la lista de casos fallados.
+- `resumen.md`: las medidas de la tabla, cada una con su margen de error, el lote de aceptación y el de ajuste por separado, la comparación con la corrida anterior y la lista de casos fallados (ver "Lote de aceptación" y "Margen de error").
 
 **Cómo se mide cada exigencia.**
+
+La respuesta correcta y la abstención que se exigen para aceptar se miden sobre el lote de aceptación; la cita literal y el tiempo, sobre toda la corrida (ADR-0014; ver "Lote de aceptación").
 
 | Exigencia de la spec | Cómo se mide | Umbral |
 |---|---|---|
 | Cita literal | Sobre todas las citas de todas las respuestas: el texto mostrado es igual a `canonical_text[char_start:char_end]` | 100 % |
-| Respuesta correcta que cita la unidad correcta | Sobre las preguntas con respuesta. Un caso cuenta si el resultado es `grounded`, el régimen aplicado es el de `regimen`, cita todas las unidades de `unidades` (si el caso nombra un inciso, vale el artículo que lo contiene), contiene los `datos_clave` según las reglas de "Datos clave y corrector" y, si `difieren` es verdadero, trae la marca `regimes_differ` con las dos citas. En la corrida que se presenta para aprobar, el responsable revisa además las respuestas contra la esperada y puede dar por incorrecta cualquiera | Al menos 85 % |
-| Abstención | Sobre las preguntas sin respuesta. Cuenta si el resultado es `undetermined`. Una falla técnica no cuenta como abstención | Al menos 90 % |
+| Respuesta correcta que cita la unidad correcta | Sobre las preguntas con respuesta del lote de aceptación. Un caso cuenta si el resultado es `grounded`, el régimen aplicado es el de `regimen`, cita todas las unidades de `unidades` (si el caso nombra un inciso, vale el artículo que lo contiene), contiene los `datos_clave` según las reglas de "Datos clave y corrector" y, si `difieren` es verdadero, trae la marca `regimes_differ` con las dos citas. En la corrida que se presenta para aprobar, el responsable revisa además las respuestas contra la esperada y puede dar por incorrecta cualquiera | Al menos 85 % |
+| Abstención | Sobre las preguntas sin respuesta del lote de aceptación. Cuenta si el resultado es `undetermined`. Una falla técnica no cuenta como abstención | Al menos 90 % |
 | Tiempo de respuesta | Tiempo total de cada consulta, medido en el equipo, con los servicios ya cargados. Se informan la mediana y el máximo | Máximo de 30 segundos |
 
 Se informan además, sin ser exigencias de la spec: las medidas de recuperación del ADR-0003 (unidad correcta entre los candidatos y entre las seleccionadas, preguntas con respuesta frenadas por el umbral, tiempo de la recuperación), las del ADR-0002 (salidas con falla de formato o de cita, memoria de video ocupada, igualdad al repetir la corrida) y, aparte, los casos de REQ-018 y REQ-019. La comparación quitando piezas del ADR-0003 se corre una vez.
@@ -818,7 +865,52 @@ También se informan aparte, y se espera que no falle ninguno:
 - **Aviso de REQ-021.** En cada caso, que la respuesta lleve o no lleve el aviso según `aviso_modificatorias`. Como el aviso lo pone el código, una diferencia acá es un defecto o un caso desactualizado, no una baja de calidad del modelo.
 - **Medidas por régimen.** Respuesta correcta y abstención, separadas para los casos de la 297/03 y los de la 247/2022. Son de diagnóstico: las exigencias de la spec se miden sobre el conjunto entero.
 
-Con unas 30 preguntas, cada una pesa entre 3 y 5 puntos: una diferencia de una pregunta entre dos corridas no demuestra nada. Repartidas entre dos regímenes, las medidas por régimen salen de menos casos todavía y sirven solo para orientar.
+Con unas 30 preguntas, cada una pesa entre 3 y 5 puntos: una diferencia de una pregunta entre dos corridas no demuestra nada. Repartidas entre dos regímenes, las medidas por régimen salen de menos casos todavía y sirven solo para orientar. El margen de error de cada medida lo hace visible (ver "Margen de error").
+
+**Lote de aceptación (ADR-0014, punto 1).** El conjunto se divide en dos lotes:
+
+- **Lote de ajuste:** los casos EV-001 a EV-031 y todo caso sin `lote` o con `lote: ajuste`. Es el que se usó y se sigue usando para ajustar el corrector, los datos clave, el umbral y las instrucciones, y para el diagnóstico.
+- **Lote de aceptación:** los casos con `lote: aceptacion`, desde EV-032 (T-061). De él salen las medidas de respuesta correcta y de abstención que se exigen para aceptar (el 85 % y el 90 % de T-046).
+
+Condiciones del lote de aceptación:
+
+- Al menos 10 preguntas con respuesta y 6 sin respuesta. Las sin respuesta incluyen de los dos tipos: "ajena a la normativa" y "tema cercano que la normativa no resuelve".
+- Se escribe sin correr el sistema: nadie hace esas preguntas, ni otras parecidas, en la pantalla ni con un comando antes de la corrida de T-046.
+- Trata artículos que el lote de ajuste no usa (ni en `unidades`, ni en `cita`, ni en las notas de los casos o de `INDICE.md`).
+- No se usa nunca para ajustar. Ajustar es cambiar instrucciones, umbral, parámetros de búsqueda, reglas de partición, o datos clave o variantes de cualquier caso, a partir de un resultado del lote de aceptación. Los datos clave y las variantes de sus casos quedan fijos antes de la primera corrida que los incluye. La revisión del responsable en la corrida que se presenta para aprobar solo puede dar un caso por incorrecto (ADR-0011).
+- Si se usa para ajustar, pierde su condición: con decisión del responsable, sus casos pasan a `lote: ajuste` y se escribe un lote de aceptación nuevo.
+
+Por qué un campo y no una etiqueta. Las etiquetas describen la clase de pregunta y alimentan el diagnóstico ("dos categorías", "ajena a la normativa"); un caso puede tener varias. El lote es uno solo por caso y tiene dos valores posibles: con un campo de valores cerrados, un error de escritura deja el caso mal formado y a la vista, mientras que una etiqueta mal escrita pasaría el caso al lote de ajuste sin aviso. Y como el campo es optativo, los 31 casos actuales no se tocan.
+
+Qué usa cada lote en la corrida:
+
+| Parte de `resumen.md` | Sobre qué casos |
+|---|---|
+| Medidas exigidas: cita literal y tiempo | Toda la corrida, los dos lotes |
+| Medidas exigidas: respuesta correcta y abstención | Lote de aceptación. Si la corrida no tiene casos de ese lote, lo dice: las exigencias no se pueden dar por cumplidas con ella |
+| Respuesta correcta y abstención del lote de ajuste | Lote de ajuste, en una tabla aparte, como diagnóstico |
+| Pares de REQ-020, aviso de REQ-021, salidas con falla de formato o de cita, casos de REQ-018 y REQ-019 | Toda la corrida |
+| Recuperación, medidas por régimen, calibración, comparación quitando piezas | Lote de ajuste |
+| Comparación con la corrida anterior (P7) | Cada lote con el mismo lote de la anterior. En una corrida anterior sin el campo, todos sus casos son del lote de ajuste |
+| Casos fallados | Los del lote de ajuste, y aparte los del lote de aceptación, con el aviso de que no se usan para ajustar |
+
+**Margen de error (ADR-0014, punto 1).** Cada medida que es una proporción se informa con su intervalo de confianza al 95 % por el método de Wilson: cita literal, respuesta correcta y abstención, en la tabla de las exigencias y en la del lote de ajuste, y en las medidas por régimen. Formato: "90,0 % (9 de 10; IC 95 %: 59,6 % a 98,2 %)"; sin casos, "—". El tiempo no lleva intervalo: la exigencia es un máximo, no una proporción.
+
+Con `x` aciertos en `n` casos, `p = x / n` y `z = 1,96`:
+
+```
+centro = (p + z²/(2n)) / (1 + z²/n)
+radio  = z / (1 + z²/n) · √( p(1 − p)/n + z²/(4n²) )
+intervalo = [centro − radio, centro + radio]
+```
+
+Por qué Wilson:
+
+- **Frente al intervalo habitual (Wald, `p ± z·√(p(1−p)/n)`):** con pocos casos y proporciones cerca del 100 % falla justo donde importa. Con 10 de 10 da un intervalo de ancho cero, como si no hubiera incertidumbre, y con 9 de 10 se pasa del 100 %.
+- **Frente al exacto (Clopper-Pearson):** el exacto garantiza la cobertura pero da intervalos más anchos que lo necesario, y necesita los cuantiles de la distribución beta, que la biblioteca estándar de Python no trae: sumaría una dependencia (P10).
+- **Wilson:** se mantiene entre 0 y 100 %, tiene buena cobertura con pocos casos y es una fórmula cerrada que se calcula con `math`. Es el que recomiendan Brown, Cai y DasGupta para muestras chicas ("Interval Estimation for a Binomial Proportion", *Statistical Science*, 16(2), 2001, págs. 101-133).
+
+Qué muestra con el lote mínimo. 10 de 10 da de 72,2 % a 100 %; 9 de 10, de 59,6 % a 98,2 %; 6 de 6, de 61,0 % a 100 %. Con el tamaño mínimo del ADR-0014, ni un resultado perfecto permite afirmar con 95 % de confianza que la tasa real supera el 85 % o el 90 %: para eso, aun acertando todas, harían falta 22 preguntas con respuesta y 35 sin respuesta. La exigencia de la spec sigue siendo el valor medido; el intervalo dice cuánto se le puede creer.
 
 Cuando se carga una modificatoria de la 297/03 cambian el corpus y, tal vez, la cantidad del aviso: como con cualquier cambio del corpus, se corre todo otra vez y se revisan los casos que esa modificatoria alcanza.
 
@@ -884,8 +976,8 @@ Límite conocido: la tolerancia de singular y plural puede aceptar una palabra c
 | REQ-005 | Estado de la lectura; `consultable_units` como único camino | Test: una norma cargada y sin validar no aparece por ninguno de los tres caminos ni en la búsqueda directa |
 | REQ-006 | `norms_relation`, con claves de unidad cuando corresponde; `registrar_relacion`; vínculos en `listar_normas` y en la pantalla | Test: registrada la relación, al ver cualquiera de las dos normas aparece el vínculo; una relación entre unidades guarda sus claves |
 | REQ-007 | `effective_date` de las relaciones, versiones de documento con su vigencia, `consultable_units(fecha)` y `unit_changes(fecha)`; `registrar_version` | Test: un artículo modificado en una fecha; antes, solo el original; después, el original con el texto literal de la que lo modifica, señalando el cambio. Test: dos versiones de una norma; cada fecha devuelve la suya. Test: una norma derogada en una fecha; antes sostiene respuestas, después no |
-| REQ-008 | Recuperación, generación con esquema e inserción del texto desde la base | Test con doble del motor: la respuesta cita el artículo y el texto es el de la base. Evals: cita literal 100 %, respuesta correcta al menos 85 % |
-| REQ-009 | Regla única de abstención | Tests con dobles: bajo el umbral no se llama al modelo; el modelo se abstiene; cita inválida; en los tres el resultado es `undetermined`. Evals: abstención al menos 90 % |
+| REQ-008 | Recuperación, generación con esquema e inserción del texto desde la base | Test con doble del motor: la respuesta cita el artículo y el texto es el de la base. Evals: cita literal 100 %, respuesta correcta al menos 85 % en el lote de aceptación, con su margen de error |
+| REQ-009 | Regla única de abstención; umbral calibrado por el hueco entre ajenas y preguntas con respuesta (ADR-0014) | Tests con dobles: bajo el umbral no se llama al modelo; el modelo se abstiene; cita inválida; en los tres el resultado es `undetermined`. Evals: abstención al menos 90 % en el lote de aceptación, con su margen de error |
 | REQ-010 | `queries/search.py` y formulario en la pantalla de consulta, con su fecha de autorización | Test: un usuario de lectura busca norma y artículo y obtiene la unidad con su texto; "artículo 1" de la 297/03 devuelve las dos unidades con su ruta; busca por palabras sin tildes; una unidad derogada a la fecha consultada aparece marcada, y con una fecha anterior a la derogación aparece sin la marca |
 | REQ-011 | Huella del archivo, huella del texto canónico y datos de la norma con su parte; confirmación expresa en `cargar_norma` | Test: el mismo archivo dos veces da un aviso y un solo documento; la misma norma y la misma parte en otro archivo avisa y solo se incorpora con confirmación; el anexo de una norma que ya tiene su cuerpo se incorpora como otra parte, con aviso informativo y sin duplicar la norma |
 | REQ-012 | `audit_event`, `queries_query` y `norms_corpus_version` | Test: tras una consulta, su registro muestra pregunta, fecha de autorización, régimen aplicado, unidades recuperadas, respuesta, avisos, versión de la normativa, usuario y fecha. Tests equivalentes para carga, validación, búsqueda y modificatorias sin cargar |
@@ -930,6 +1022,7 @@ ADR en los que se apoya este plan, los cinco aceptados. Los ADR 0002 a 0005 se a
 | ADR-0006 | Dos regímenes específicos, la Disposición 247/2022 y la 297/03, aplicados según la fecha de autorización del procedimiento |
 | ADR-0007 | Búsqueda por palabras: normalizar texto y consulta (quitar acentos y reponer la tilde de "-ación" y "-ución") y reducir a la raíz con `spanish` |
 | ADR-0011 | Medida de respuesta correcta: datos clave cortos con variantes y un corrector tolerante en cada corrida; revisión humana solo en la corrida que se presenta para aprobar |
+| ADR-0014 | Medidas de aceptación con un lote de casos que no se usa para ajustar, informadas con su margen de error; umbral en el medio del hueco entre ajenas y preguntas con respuesta, en la escala anterior a la sigmoide, con margen mínimo |
 
 Esta actualización no necesita un ADR nuevo: ninguna de sus decisiones es difícil de revertir. Los campos y la tabla que suma entran en el esquema antes de que exista una base con datos, y para volver a un solo régimen alcanza con fijar la fecha y ocultar el campo, como dice el ADR-0006.
 
@@ -1044,8 +1137,8 @@ De a uno, con los servicios reales. Necesita el corpus en `corpus/normativa/`, l
 
 1. Cargar y validar el corpus: `disp-afip-297-2003-original.htm` como cuerpo de la 297/03; `disp-afip-247-2022-original.htm` como cuerpo y `disp-afip-247-2022-anexo.pdf` como anexo de la 247/2022; las dos normas, con la marca de régimen general. Ajustar las reglas de partición contra los documentos reales.
 2. Anotar las modificatorias sin cargar de la 297/03 con `registrar_modificatorias`; registrar la relación `deroga` de la 247/2022 sobre la 297/03 con su fecha (2023-01-02), y las demás relaciones y versiones del corpus. Comprobar el cambio de régimen consultando el día anterior a la entrada en vigencia (2023-01-01) y ese mismo día (2023-01-02).
-3. Calibrar el umbral.
-4. Correr las evals, la comparación quitando piezas y la medición de tiempo y memoria.
+3. Calibrar el umbral. Desde el ADR-0014, con la regla del hueco (ver "Abstención") y solo con el lote de ajuste; el lote de aceptación se escribe aparte, sin correr el sistema.
+4. Correr las evals, la comparación quitando piezas y la medición de tiempo y memoria. Las exigencias de respuesta correcta y abstención se toman del lote de aceptación.
 5. Si no se alcanzan las exigencias: seguir la escalera del ADR-0002 (8 bits, instrucciones, modelo de contraste) o el reemplazo del ADR-0003, con decisión del responsable.
 
 ### Etapa 5 · Cierre
@@ -1164,7 +1257,10 @@ Lo que vi en los archivos del corpus, para quien escriba las reglas:
 | La memoria de video real supera el reparto | Los servicios no cargan o se vuelven lentos | Se mide en la etapa 0, antes de construir |
 | Las reglas de partición no reconocen un documento, en especial dictámenes y recomendaciones | Ese documento queda sin validar | Se ve en el informe; se agrega una regla y se relee con `releer_norma`. Condición para la alternativa L del ADR-0004 |
 | Un escaneo se lee mal | Texto citado distinto del impreso | Marca de reconocimiento en la unidad y en la cita; palabras dudosas en el informe; la persona decide si valida |
-| Umbral calibrado con pocas preguntas, repartidas además entre dos regímenes | Abstención peor que la medida; un régimen puede quedar medido con muy pocos casos | Calibración dejando una afuera; un solo umbral para los dos regímenes; valor provisorio; medidas por régimen como diagnóstico; recalibrar si cambia el corpus |
+| Umbral calibrado con pocas preguntas, repartidas además entre dos regímenes | Abstención peor que la medida; un régimen puede quedar medido con muy pocos casos | Regla del hueco con margen mínimo (ADR-0014), que no deja el umbral pegado a una pregunta; un solo umbral para los dos regímenes; valor provisorio; medidas por régimen como diagnóstico; recalibrar si cambia el corpus, el reranker o el armado de pasajes |
+| La regla del hueco depende de la ajena más alta y de la pregunta con respuesta más baja | Una sola pregunta nueva puede cerrar el hueco o achicar el margen | Se informa sin proponer valor y decide el responsable; las preguntas cercanas las frena el modelo, no el umbral |
+| El lote de aceptación se usa, sin querer, para ajustar | La medida de aceptación deja de ser independiente y vuelve a sobrestimar la calidad | Campo `lote` validado; el lote no entra en la calibración ni en el diagnóstico; sus fallas se listan aparte con el aviso; si se usa para ajustar, pasa a ajuste y se escribe otro |
+| Lote de aceptación chico | Con 10 y 6 preguntas, el intervalo al 95 % es ancho: aun sin fallas no demuestra el 85 % ni el 90 % | Se informa el margen de error de cada medida; la exigencia sigue siendo el valor medido; ampliar el lote es decisión del responsable |
 | "Respuesta correcta" medida solo de forma automática | Una afirmación errónea junto a la cita correcta pasaría | Revisión del responsable en la corrida que se presenta para aprobar |
 | Una relación o una versión mal registrada | Respuestas con un cambio que no corresponde | Las operaciones quedan registradas con su usuario. No hay comando para anularlas porque ningún requisito lo pide; si ocurre, se corrige con una tarea |
 | Quien administra el equipo puede entrar a la base | El registro no protege contra esa persona | Límite conocido (ADR-0005); el control de acceso al equipo queda fuera del sistema |
@@ -1179,6 +1275,11 @@ Las decisiones del plan original ya están tomadas y figuran más abajo. Por la 
 4. **Reparto de las preguntas de las evals entre los dos regímenes.** Recomendado: la mayoría con fecha bajo la 247/2022, que es lo que la Comisión usa hoy, y no menos de ocho con fecha bajo la 297/03, incluido el par que repite una pregunta con dos fechas. Hay que tener presente que las respuestas bajo la 297/03 se miden contra el texto de 2003, sin sus modificatorias.
 5. **Las modificatorias que no modifican.** El listado de Infoleg junta las normas que modifican la 297/03 con las que solo la complementan o la citan, como la aprobación de una licitación. Según la spec, el aviso desaparece cuando están cargadas las 33. Recomendado: dejarlo así por ahora y revisarlo cuando se decida con qué profundidad se cargan (ADR-0006). Sacar una norma del listado sin cargarla sería un requisito nuevo.
 6. **Búsqueda por palabras (ADR-0007).** Decidido: el responsable aprobó la alternativa D el 2026-10-02: normalizar texto y consulta quitando acentos y reponiendo la tilde de "-ación" y "-ución", y reducir a la raíz con `spanish`. Se pierde: una regla propia de dos terminaciones que mantener, y recalcular `tsv` al cambiar de versión mayor de Postgres.
+
+Pendientes por el ADR-0014. La 7 se decide antes de T-046; la 8, antes de presentar su corrida para aprobar:
+
+7. **"Lo regula otra norma".** Si una respuesta que dice que el punto lo regula otra norma, citando el artículo que remite, cuenta como respuesta o como abstención (punto 3 de "Para mirar con atención" en `evals/casos/INDICE.md`; detalle en "Abstención"). Afecta a EV-027, EV-028 y EV-029, a los casos de tema cercano del lote de aceptación y a la medida de abstención. Sin recomendación en este plan.
+8. **Visto bueno de la Comisión.** La spec pide que un integrante de la Comisión dé el visto bueno a cada pregunta; hoy los casos tienen visto bueno provisorio del responsable. El ADR-0014 deja al responsable decidir entre conseguir ese visto bueno o enmendar la spec para el piloto. Alcanza a los dos lotes.
 
 La cláusula transitoria del anexo de la 247/2022 y las fechas de entrada en vigencia, que figuraban en esta sección, quedaron resueltas el 2026-10-02 y pasaron a "Decisiones tomadas".
 
@@ -1287,3 +1388,21 @@ Fecha: 2026-10-02. Lo medido en `entorno.md` (T-001 a T-005) que cambia el dise�
 | Decisiones | Fila del ADR-0011 | ADR-0011 |
 
 Tareas nuevas: T-058 (corrector y recalificación) y T-059 (reescritura de los datos clave del conjunto dorado). T-046 pasa a depender de las dos.
+
+**Ajuste del 2026-10-03 por el ADR-0014 (decisión del responsable).** El asesor de metodología observó que el 85 % de T-046 se iba a medir con los mismos casos usados para ajustar, sin margen de error, y que la regla de calibración de T-042 deja el umbral pegado a la pregunta con respuesta de puntaje más bajo. El responsable aprobó el ADR-0014 el 2026-10-03; este ajuste aplica sus puntos 1 y 2. Los puntos 3 y 5 cambian la forma de trabajo y no el plan; los puntos 6 y 7 rigen desde la próxima feature. Las exigencias de la spec (100 %, 85 %, 90 % y 30 segundos) no cambian.
+
+| Sección | Qué cambió | Por qué |
+|---|---|---|
+| En pocas palabras | El 85 % y el 90 % se miden con un lote aparte, con margen de error | ADR-0014, punto 1 |
+| Flujo de IA · Abstención | Regla nueva de calibración: punto medio, en la escala anterior a la sigmoide, del hueco entre la ajena a la normativa más alta y la pregunta con respuesta más baja, con margen mínimo de 0,5; qué se informa sin hueco o sin margen; cálculo con los datos de T-045 (0,219, margen 0,728); decisión pendiente sobre "lo regula otra norma" | ADR-0014, puntos 1 y 2 |
+| Evals · Casos | Campo optativo `lote` (`ajuste` o `aceptacion`) | ADR-0014, punto 1 |
+| Evals · Dónde se guarda; Cómo se mide cada exigencia | `resumen.md` informa los lotes por separado y el margen de error; respuesta correcta y abstención exigidas sobre el lote de aceptación | ADR-0014, punto 1 |
+| Evals · Lote de aceptación (nueva) | Qué es, condiciones, qué cuenta como ajustar, por qué un campo, qué usa cada lote | ADR-0014, punto 1 |
+| Evals · Margen de error (nueva) | Intervalo de Wilson al 95 %, por qué ese método y qué muestra con el lote mínimo | ADR-0014, punto 1 |
+| Cobertura de requisitos | REQ-008 y REQ-009 se verifican con el lote de aceptación | ADR-0014, punto 1 |
+| Decisiones | Fila del ADR-0014 | ADR-0014 |
+| Orden de construcción · Etapa 4 | Calibración con la regla nueva y el lote de ajuste; exigencias con el lote de aceptación | ADR-0014 |
+| Riesgos | Fila del umbral actualizada; filas nuevas: hueco que depende de dos preguntas, lote de aceptación usado para ajustar, lote chico | ADR-0014 |
+| Qué tiene que decidir el responsable | Decisiones 7 ("lo regula otra norma"), antes de T-046, y 8 (visto bueno de la Comisión) | ADR-0014, punto 1 |
+
+Tareas nuevas: T-060 (calibración por hueco, lote de aceptación y margen de error en las evals), T-061 (redacción del lote de aceptación) y T-062 (fijar el umbral con la regla nueva). T-046 pasa a depender de las tres. La regla anterior de T-042 deja de usarse; el umbral 0,368 de T-045 queda como dato histórico en `entorno.md`.
