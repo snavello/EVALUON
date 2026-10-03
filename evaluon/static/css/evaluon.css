@@ -63,3 +63,106 @@ button {
   background: #fdecee;
   color: #6b0013;
 }
+
+/* Pantalla de consulta (T-016). */
+
+.query-form textarea,
+.query-form input[type="date"] {
+  box-sizing: border-box;
+  padding: 0.4rem;
+  font: inherit;
+}
+
+.query-form textarea {
+  width: 100%;
+}
+
+.query-form label {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.waiting {
+  font-style: italic;
+}
+
+/* Los tres bloques del resultado se distinguen por título, ícono y color (REQ-014). */
+
+.result {
+  margin-top: 1.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid;
+  border-left-width: 6px;
+}
+
+.result h2 {
+  margin-top: 0;
+  font-size: 1.25rem;
+}
+
+.result-icon {
+  display: inline-block;
+  width: 1.6em;
+  height: 1.6em;
+  line-height: 1.6em;
+  margin-right: 0.4rem;
+  border-radius: 50%;
+  text-align: center;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.result-answer {
+  border-color: #1b6e3a;
+  background: #eef7f1;
+}
+
+.result-answer .result-icon {
+  background: #1b6e3a;
+}
+
+.result-no-answer {
+  border-color: #8a5a00;
+  background: #fff6e0;
+}
+
+.result-no-answer .result-icon {
+  background: #8a5a00;
+}
+
+.result-failure {
+  border-color: #b00020;
+  background: #fdecee;
+}
+
+.result-failure .result-icon {
+  background: #b00020;
+}
+
+.regime-line {
+  font-weight: bold;
+}
+
+.result-question {
+  color: #444444;
+}
+
+.statement {
+  margin-bottom: 1rem;
+}
+
+.citation {
+  margin: 0.25rem 0;
+}
+
+.citation summary {
+  cursor: pointer;
+}
+
+.literal {
+  margin: 0.5rem 0 0.5rem 1rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid #c8c8c8;
+  background: #ffffff;
+  white-space: pre-wrap;
+}

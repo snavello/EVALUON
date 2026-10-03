@@ -413,6 +413,49 @@ def test_timeout_and_service_down_are_distinct_errors(server, path, call):
     assert isinstance(unavailable.value, AIServiceError)
 
 
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda: generation.generate(MESSAGES, SCHEMA),
+        lambda: embeddings.embed(["texto"]),
+        lambda: reranker.rerank("pregunta", ["pasaje"]),
+        lambda: embeddings.count_tokens("texto"),
+    ],
+    ids=["generation", "embeddings", "reranker", "tokenize"],
+)
+def test_timeout_while_connecting_is_a_timeout(monkeypatch, call):
+    """REQ-008, REQ-009: si la conexión con el servicio no se establece dentro de la
+    espera máxima (el servidor no contesta ni rechaza), el cliente da el error de espera
+    agotada, con motivo `timeout`, y no el de servicio caído. La conexión se pide con la
+    espera de `AI_TIMEOUT_SECONDS`.
+
+    El servidor que no contesta se simula en `socket.create_connection`, que es donde
+    `http.client` abre la conexión: espera la mitad del plazo y lanza el mismo error que
+    lanza el sistema cuando se agota (`TimeoutError: timed out`)."""
+    attempts = []
+
+    def silent_server(address, timeout=None, *args, **kwargs):
+        attempts.append((address, timeout))
+        time.sleep(timeout / 2)
+        raise TimeoutError("timed out")
+
+    monkeypatch.setattr(socket, "create_connection", silent_server)
+    with override_settings(
+        AI_TIMEOUT_SECONDS=0.2,
+        GENERATION_URL="http://generation:8080",
+        EMBEDDINGS_URL="http://embeddings:8080",
+        RERANKER_URL="http://reranker:8080",
+    ):
+        with pytest.raises(ServiceTimeoutError) as caught:
+            call()
+
+    assert caught.value.reason == "timeout"
+    assert not isinstance(caught.value, ServiceUnavailableError)
+    [(address, timeout)] = attempts
+    assert address[1] == 8080
+    assert timeout == 0.2
+
+
 def test_unexpected_response_is_a_service_error(server):
     """REQ-009: una respuesta que no tiene la forma esperada es una falla del servicio."""
     server.route("/v1/chat/completions", {"sin": "choices"})
@@ -462,6 +505,20 @@ def test_model_hashes_match_the_downloaded_files():
     assert listed[settings.EMBEDDINGS_MODEL_FILE] == settings.EMBEDDINGS_MODEL_SHA256
     assert listed[settings.RERANKER_MODEL_FILE] == settings.RERANKER_MODEL_SHA256
     assert settings.GENERATION_ENGINE_BUILD == "b11347"
+
+
+def test_embedding_dimension_has_a_single_source():
+    """REQ-008: la dimensión del vector de `bge-m3` se define una sola vez, en
+    `settings.EMBEDDINGS_DIMENSIONS`: la columna `embedding` de `norms_passage`, la
+    constante de `norms.models` y la de los dobles de prueba la toman de ahí (son el mismo
+    objeto, no un número repetido)."""
+    import tests.conftest as test_fixtures
+    from evaluon.norms import models as norms_models
+
+    assert norms_models.EMBEDDING_DIMENSIONS is settings.EMBEDDINGS_DIMENSIONS
+    assert test_fixtures.EMBEDDING_DIMENSIONS is settings.EMBEDDINGS_DIMENSIONS
+    field = norms_models.Passage._meta.get_field("embedding")
+    assert field.dimensions == settings.EMBEDDINGS_DIMENSIONS
 
 
 # --- Dobles de conftest.py -----------------------------------------------------------
