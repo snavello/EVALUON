@@ -12,7 +12,7 @@ origen: |
   Para el supuesto que no se fije plazo de mantenimiento de ofertas en el Pliego de Bases y Condiciones, los oferentes deberán mantenerlas por el término TREINTA (30) días, contados a partir de la fecha del acto de apertura. Si no manifestaran en forma fehaciente su voluntad de no renovar la oferta con una antelación mínima de CINCO (5) días al vencimiento del plazo, aquélla se considerará prorrogada automáticamente por un lapso igual al inicial y así sucesivamente.
 unidades:
   - {norma: "Disposición AFIP 297/03", key: anexo-i/art-39}
-datos_clave: ["30 días", "desde el acto de apertura", "prórroga automática"]
+datos_clave: ["30 días", "acto de apertura", "se prorroga automáticamente"]
 difieren: false
 pareja: EV-001
 aviso_modificatorias: true

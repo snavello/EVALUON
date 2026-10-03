@@ -9,6 +9,10 @@ entera. La fecha la escribe la persona: el sistema no la calcula. Recibe `--usua
 la clave se pide por teclado. Solo traduce y llama a
 `evaluon.norms.services.relations`.
 
+Al terminar informa, además, si la relación dejó cargada una modificatoria sin cargar de
+la norma alcanzada, o que la norma de origen no figura entre las anotadas, y cuántas
+quedan sin cargar (REQ-021, T-051).
+
 Ejemplo, la derogación de la Disposición AFIP 297/03 por el artículo 2 de la
 Disposición AFIP 247/2022, desde su entrada en vigencia (si `listar_normas` muestra la
 247/2022 como norma 2 y la 297/03 como norma 1):
@@ -102,3 +106,41 @@ class Command(BaseCommand):
             f"{relation.effective_date.strftime('%d/%m/%Y')}.\n"
             f"Se creó la versión {result.corpus_version} de la normativa."
         )
+        self.stdout.write(_amendments_text(result))
+
+
+def _amendments_text(result):
+    """Qué cambió en las modificatorias sin cargar de la norma alcanzada (REQ-021)."""
+    source = result.relation.source_norm.citation
+    target = result.relation.target_norm.citation
+    lines = []
+    entry = result.source_amendment
+    loaded_now = {loaded.pk for loaded in result.loaded_amendments}
+    if entry is not None and entry.pk in loaded_now:
+        lines.append(f"La {source} quedó cargada como modificatoria de la {target}.")
+    elif entry is not None and entry.loaded_norm_id is not None:
+        lines.append(f"La {source} ya figuraba como modificatoria cargada de la {target}.")
+    elif entry is not None:
+        lines.append(
+            f"La {source} figura entre las modificatorias sin cargar de la {target}, "
+            "pero no quedó cargada: hace falta que su lectura esté validada y en uso."
+        )
+    else:
+        lines.append(
+            f"La {source} no figura entre las modificatorias sin cargar anotadas de la "
+            f"{target}."
+        )
+    for loaded in result.loaded_amendments:
+        if entry is None or loaded.pk != entry.pk:
+            lines.append(
+                f"También quedó cargada la modificatoria {loaded.norm_type} "
+                f"{loaded.number}/{loaded.year} de la {target}."
+            )
+    if result.pending_amendments == 1:
+        lines.append(f"Queda 1 modificatoria sin cargar de la {target}.")
+    else:
+        lines.append(
+            f"Quedan {result.pending_amendments} modificatorias sin cargar de la "
+            f"{target}."
+        )
+    return "\n".join(lines)
