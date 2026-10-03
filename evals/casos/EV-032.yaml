@@ -1,0 +1,20 @@
+id: EV-032
+tipo: normativa
+documentos: [normativa/disp-afip-297-2003-original.htm]
+pregunta: "¿Cuántas horas de capacitación por año tienen que cumplir los agentes que trabajan en el área de compras?"
+fecha_autorizacion: 2011-05-16
+regimen: "Disposición AFIP 297/03"
+esperado: "no determinado"
+cita: []
+origen: |
+  Tema de compras que ninguna norma cargada trata ni remite a otra norma: la capacitación del personal que gestiona las contrataciones. Búsqueda por palabras, sin tildes ni mayúsculas, sobre el texto cargado de la Disposición AFIP 297/03 con su Anexo I y de la Disposición AFIP 247/2022 con su anexo (texto canónico de la lectura, 2026-10-03): "capacit", "horas", "entrenamiento", "rota", "personal de compras", "area de compras", "unidad de compras" y "agentes del" no aparecen. "formacion" aparece solo como etapa del contrato ("de la formacion y perfeccionamiento del contrato") y en "formacion de las decisiones societarias" e "idone" solo como idoneidad del oferente o medio idóneo.
+unidades: []
+datos_clave: []
+difieren: false
+pareja: ""
+aviso_modificatorias: false
+etiquetas: ["tema cercano que la normativa no resuelve"]
+visto_bueno: "provisorio, autorizado por el responsable el 2026-10-03 (ADR-0015)"   # se revisa con la Comisión
+redactado_por: borrador asistido
+notas: |
+  Pregunta de control de tema cercano del lote de ajuste (decisión del responsable del 2026-10-03, ADR-0015; T-064), sin campo `lote`. El art. 48 del Anexo I trata quiénes integran la Comisión Evaluadora (graduados o con acreditada experiencia), no la capacitación de nadie: una respuesta que lo cite para dar horas de capacitación es incorrecta.

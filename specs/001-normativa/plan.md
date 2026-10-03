@@ -893,7 +893,7 @@ Con unas 30 preguntas, cada una pesa entre 3 y 5 puntos: una diferencia de una p
 
 **Lote de aceptación (ADR-0014, punto 1).** El conjunto se divide en dos lotes:
 
-- **Lote de ajuste:** los casos EV-001 a EV-031 y todo caso sin `lote` o con `lote: ajuste`. Es el que se usó y se sigue usando para ajustar el corrector, los datos clave, el umbral y las instrucciones, y para el diagnóstico.
+- **Lote de ajuste:** los casos EV-001 a EV-033 y todo caso sin `lote` o con `lote: ajuste`. Es el que se usó y se sigue usando para ajustar el corrector, los datos clave, el umbral y las instrucciones, y para el diagnóstico.
 - **Lote de aceptación:** los casos con `lote: aceptacion`, que escribe T-061 a continuación del último caso del conjunto. Lo que define el lote es el campo, no el número: si T-064 suma casos de ajuste (ver "Qué tiene que decidir el responsable", 9), toman los números siguientes a EV-031 y el lote de aceptación empieza después. De él salen las medidas de respuesta correcta y de abstención que se exigen para aceptar (el 85 % y el 90 % de T-046).
 
 Condiciones del lote de aceptación:
