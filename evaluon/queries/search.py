@@ -21,11 +21,14 @@ búsqueda devuelve también las unidades derogadas a la fecha, marcadas.
   `norm_id`.
 
 Cada resultado (`SearchResult`) trae la categoría de su norma, el texto literal de la
-unidad, el documento, la marca de derogada a la fecha con la relación, la norma que la
-derogó y desde cuándo (de `consultable_units`), los cambios vigentes a la fecha (de
-`unit_changes`, que no incluye las relaciones sobre la norma entera: esas se ven como
-vínculo y, si son `deroga`, en la marca) y los vínculos de su norma con otras, en los dos
-sentidos, vigentes a la fecha. Orden: por norma, primero el cuerpo y después los anexos,
+unidad (el tramo `canonical_text[char_start:char_end]` de su lectura, no la copia de
+`norms_unit.text`), el documento, la marca de derogada a la fecha con la relación, la
+norma que la derogó y desde cuándo (de `consultable_units`), los cambios vigentes a la
+fecha (de `unit_changes`, que no incluye las relaciones sobre la norma entera: esas se ven
+como vínculo y, si son `deroga`, en la marca; el texto de la unidad de origen es también
+su tramo del texto canónico) y los vínculos de su norma con otras, en los dos sentidos:
+todos los registrados, sin filtro de fecha (REQ-006), cada uno con la fecha desde la que
+rige. Orden: por norma, primero el cuerpo y después los anexos,
 y dentro de cada parte en el orden del documento.
 
 La pantalla, la línea de régimen y el registro de la búsqueda son de T-041; los avisos de
@@ -73,12 +76,15 @@ WHERE p.tsv @@ search_query(%(text)s)
 """
 
 _UNITS_SQL = """
-SELECT u.id, u.key, u.path, u.unit_type, u.number, u.text, u.text_origin,
+SELECT u.id, u.key, u.path, u.unit_type, u.number,
+       substr(r.canonical_text, u.char_start + 1, u.char_end - u.char_start),
+       u.text_origin,
        cu.norm_id, n.citation, n.category, cu.document_id, d.part,
        cu.repealed, cu.repealed_by_relation_id, cu.repealed_by_norm_id, rn.citation,
        cu.repealed_since
 FROM consultable_units(%(date)s) cu
 JOIN norms_unit u ON u.id = cu.unit_id
+JOIN norms_reading r ON r.id = cu.reading_id
 JOIN norms_document d ON d.id = cu.document_id
 JOIN norms_norm n ON n.id = cu.norm_id
 LEFT JOIN norms_norm rn ON rn.id = cu.repealed_by_norm_id
@@ -89,10 +95,12 @@ ORDER BY cu.norm_id, d.part <> 'cuerpo', d.part, u."order", u.id
 _CHANGES_SQL = """
 SELECT uc.unit_id, uc.relation_id, uc.relation_type, uc.target_unit_key,
        uc.effective_date, uc.source_norm_id, sn.citation, uc.source_unit_key,
-       uc.source_unit_id, su.path, su.text
+       uc.source_unit_id, su.path,
+       substr(sr.canonical_text, su.char_start + 1, su.char_end - su.char_start)
 FROM unit_changes(%(date)s) uc
 JOIN norms_norm sn ON sn.id = uc.source_norm_id
 LEFT JOIN norms_unit su ON su.id = uc.source_unit_id
+LEFT JOIN norms_reading sr ON sr.id = su.reading_id
 WHERE uc.unit_id = ANY(%(units)s)
 ORDER BY uc.unit_id, uc.effective_date, uc.relation_id
 """
@@ -104,8 +112,7 @@ SELECT rel.id, rel.relation_type, rel.source_norm_id, sn.citation,
 FROM norms_relation rel
 JOIN norms_norm sn ON sn.id = rel.source_norm_id
 JOIN norms_norm tn ON tn.id = rel.target_norm_id
-WHERE (rel.source_norm_id = ANY(%(norms)s) OR rel.target_norm_id = ANY(%(norms)s))
-  AND rel.effective_date <= %(date)s
+WHERE rel.source_norm_id = ANY(%(norms)s) OR rel.target_norm_id = ANY(%(norms)s)
 ORDER BY rel.effective_date, rel.id
 """
 
@@ -141,7 +148,8 @@ class Change:
 
 @dataclass(frozen=True)
 class Link:
-    """Una relación de la norma del resultado con otra, vigente a la fecha."""
+    """Una relación registrada de la norma del resultado con otra, rija o no a la fecha
+    de la búsqueda (REQ-006); `effective_date` dice desde cuándo rige."""
 
     relation_id: int
     relation_type: str
@@ -236,7 +244,7 @@ def by_words(text, reference_date, *, norm_id=None):
 
 def _results(unit_ids, reference_date):
     """Arma los resultados de las unidades `unit_ids` con su marca de derogada, sus
-    cambios y los vínculos de su norma, todo a `reference_date`."""
+    cambios a `reference_date` y todos los vínculos registrados de su norma."""
     if not unit_ids:
         return []
     params = {"date": reference_date, "units": list(unit_ids)}
@@ -246,7 +254,7 @@ def _results(unit_ids, reference_date):
         cursor.execute(_CHANGES_SQL, params)
         change_rows = cursor.fetchall()
         norms = sorted({row[7] for row in units})
-        cursor.execute(_LINKS_SQL, {"date": reference_date, "norms": norms})
+        cursor.execute(_LINKS_SQL, {"norms": norms})
         link_rows = cursor.fetchall()
 
     changes = {}

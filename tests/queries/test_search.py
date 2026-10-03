@@ -335,9 +335,76 @@ def test_links_of_the_norm_in_both_directions(two_regimes, amended_old):
     assert new_link.other_norm_id == two_regimes.old.pk
     assert new_link.other_norm_name == "Disposición AFIP 297/03"
 
-    # Antes de la derogación, el vínculo todavía no regía.
+    # El vínculo registrado se muestra también con una fecha anterior a la que rige,
+    # con su fecha para que la pantalla diga desde cuándo.
     [before, _] = search.by_article(two_regimes.old.pk, "1", two_regimes.before_v)
-    assert {link.relation_id for link in before.links} == {change.pk, complement.pk}
+    before_links = {link.relation_id: link for link in before.links}
+    assert set(before_links) == {two_regimes.repeal.pk, change.pk, complement.pk}
+    assert before_links[two_regimes.repeal.pk].effective_date == two_regimes.v
+    assert before.repealed is False
+
+
+def test_subsection_belongs_to_the_requested_article(make_norm, make_document,
+                                                     make_reading):
+    """REQ-010: el mismo inciso en dos artículos; pedir el inciso a del artículo 1
+    devuelve solo el suyo."""
+    norm = make_norm()
+    units = make_reading(make_document(norm), [
+        ("art-1", "ARTICULO 1.- Primero."),
+        ("art-1/inc-a", "a) inciso del primero."),
+        ("art-2", "ARTICULO 2.- Segundo."),
+        ("art-2/inc-a", "a) inciso del segundo."),
+    ]).units_by_key
+
+    results = search.by_article(norm.pk, "1", date(2024, 1, 1), subsection="a")
+
+    assert [result.unit_id for result in results] == [units["art-1/inc-a"].pk]
+
+
+# --- Texto literal ------------------------------------------------------------------
+
+
+@pytest.fixture
+def drifted_text(two_regimes, make_norm, make_document, make_reading, make_relation):
+    """`old` `art-1` y la unidad de origen de un cambio sobre él con `text` alterado en
+    la base, distinto de su tramo del texto canónico. Los pasajes conservan el texto
+    original."""
+    from evaluon.norms.models import Unit
+
+    amending = make_norm(citation="Disposición sintética 11/10")
+    amending_units = make_reading(
+        make_document(amending, effective_from=date(2010, 5, 1)),
+        [("art-4", "ARTICULO 4.- Sustitúyese el artículo 1 sintético.")],
+    ).units_by_key
+    make_relation(amending, two_regimes.old, "modifica", source_unit_key="art-4",
+                  target_unit_key="art-1", effective_date=date(2010, 5, 1))
+    target = two_regimes.old_units["art-1"]
+    source = amending_units["art-4"]
+    Unit.objects.filter(pk__in=[target.pk, source.pk]).update(text="TEXTO ALTERADO")
+    return target, source
+
+
+def canonical_slice(unit):
+    return unit.reading.canonical_text[unit.char_start:unit.char_end]
+
+
+def test_text_is_the_canonical_slice(two_regimes, drifted_text):
+    """REQ-010: el texto mostrado es el tramo `canonical_text[char_start:char_end]` de
+    su lectura, por artículo, por palabras y en el texto de origen de un cambio."""
+    target, source = drifted_text
+    expected = canonical_slice(target)
+    assert expected != "TEXTO ALTERADO"
+
+    by_number = by_key(search.by_article(two_regimes.old.pk, "1", date(2015, 1, 1)))
+    assert by_number["art-1"].text == expected
+
+    by_text = by_key(search.by_words("licitaciones", date(2015, 1, 1)))
+    assert by_text["art-1"].text == expected
+
+    [change] = by_number["art-1"].changes
+    assert change.source_unit_id == source.pk
+    assert change.source_unit_text == canonical_slice(source)
+    assert change.source_unit_text != "TEXTO ALTERADO"
 
 
 def test_result_as_record_is_json(two_regimes, amended_old):
