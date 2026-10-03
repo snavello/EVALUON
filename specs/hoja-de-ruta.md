@@ -1,6 +1,6 @@
 # Hoja de ruta de EVALUON
 
-Estado: aprobada · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Versión 2, reformulada según el ADR-0008 · Ajuste: 2026-10-03, feature 009 (ADR-0016), decisión del responsable
+Estado: aprobada · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Versión 2, reformulada según el ADR-0008 · Ajuste: 2026-10-03, feature 009 (ADR-0016), decisión del responsable · Reordenada: 2026-10-03, el núcleo (003, 008, 004) antes que la 005 y la 009 (ADR-0017), decisión del responsable
 
 Las features del proyecto, en el orden en que se construyen. Cada una tiene su carpeta en `specs/` cuando se empieza a trabajar. El tablero (`docs/tablero.md`) lee esta tabla para mostrar el mapa del proyecto.
 
@@ -9,11 +9,11 @@ El eje es el **procedimiento de compra**: su fecha de autorización (que fija el
 | N.º | Feature | Qué entrega | Depende de |
 |---|---|---|---|
 | 001 | Normativa consultable con cita | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | — |
-| 009 | Validación continua con la Comisión | Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus respuestas. Cada cuestión resuelta puede quedar como fundamento (ADR-0009), como caso para medir al sistema o como pedido de cargar una norma o un documento. Lo que queda sin validar se ve como pendiente. Uso intensivo al principio, y después ante cuestiones que no se saben resolver | 001 |
 | 003 | Procedimiento, pliego final y matriz de cumplimiento | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 001 |
 | 008 | Ofertas y ficha por oferta | La carga de cada oferta en varios documentos (PDF con texto o escaneado) y una ficha por oferta: síntesis de lo ofrecido frente a cada requisito de la matriz, con los documentos y fragmentos que lo respaldan | 003 |
+| 004 | Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 003, 008 (la 005 suma el compliance como fundamento cuando esté) |
 | 005 | Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | 008 |
-| 004 | Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 003, 008, 005 |
+| 009 | Validación continua con la Comisión | Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus respuestas. Cada cuestión resuelta puede quedar como fundamento (ADR-0009), como caso para medir al sistema o como pedido de cargar una norma o un documento. Lo que queda sin validar se ve como pendiente. Uso intensivo al principio, y después ante cuestiones que no se saben resolver | 001 |
 | 002 | Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | 001, 003 |
 | 006 | Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | 004 |
 | 007 | Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | 001 |
@@ -26,7 +26,7 @@ El análisis del pliego y la evaluación pueden hacerle preguntas a la Comisión
 
 ## Alcance del piloto
 
-El piloto de evaluación guiada necesita la 001, la 009, la 003, la 008, la 005 y la 004, y la 007 para que la Comisión entre desde sus computadoras. La 002 y la 006 lo completan y pueden entrar después de la primera prueba en paralelo con la evaluación habitual.
+El piloto de evaluación guiada necesita la 001, la 003, la 008 y la 004, y la 007 para que la Comisión entre desde sus computadoras; la 005 y la 009 lo completan (ADR-0017). Si la 004 necesita registrar respuestas de la Comisión como fundamento (ADR-0009) antes de la 009, se hace una versión mínima de ese registro dentro de la 004. La 002 y la 006 lo completan y pueden entrar después de la primera prueba en paralelo con la evaluación habitual.
 
 Material de referencia para construir: un caso público completo (pliego, ofertas y evaluación terminada) que aporta el responsable, y un acta de evaluación como ejemplo del resultado final del proceso.
 
