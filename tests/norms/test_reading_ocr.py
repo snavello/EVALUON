@@ -303,6 +303,28 @@ def test_page_illegible_by_confidence_gives_no_text(monkeypatch):
     assert page.lines == []
 
 
+def test_word_with_confidence_minus_one_counts_as_zero(monkeypatch):
+    """REQ-004, REQ-015: Tesseract marca con -1 lo que no reconoce como palabra. Si una
+    palabra con texto trae -1, se guarda con confianza 0 y así cuenta para el promedio de
+    la línea y de la página: no sube la confianza ni se pierde su texto."""
+    fake_tesseract(
+        monkeypatch,
+        [
+            (1, 1, 300, 1000, 200, 50, -1, "Texto"),
+            (1, 1, 550, 1000, 100, 50, 90, "con"),
+            (1, 1, 700, 1000, 300, 50, 90, "confianza"),
+            (1, 1, 1050, 1000, 150, 50, 90, "alta."),
+        ],
+    )
+    page = ocr.read_page_ocr(pdfium.PdfDocument(NOISE)[0], 1)
+
+    [line] = page.lines
+    assert line.words[0] == Word("Texto", 0.0)
+    assert line.text == "Texto con confianza alta."
+    assert line.confidence == 67.5
+    assert page.status == PAGE_DOUBTFUL
+
+
 # --- Versiones (P6) --------------------------------------------------------------------
 
 
