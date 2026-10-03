@@ -1995,3 +1995,43 @@ Duró de 13:20:16 a 13:22:35. Dejó 31 consultas en el registro (canal `eval`) y
 - (T-032) Ninguna pregunta del conjunto nombra un artículo: el camino por referencia exacta no trajo la unidad correcta en ninguna (0 de 24), así que el caso de un artículo nombrado fuera de la selección no se pudo observar. Sí quedó fuera de la selección una unidad esperada por el límite de 3 por categoría: en EV-024 (plazo para observar el acta de evaluación, 297/03) el art. 21 del Anexo I quedó 4.º con 0,894 detrás de los arts. 50 (0,995), 47 (0,958) y 17 (0,924), y la respuesta citó el art. 50. Con el umbral nuevo no cambia: es `SELECTION_UNITS_PER_CATEGORY = 3`.
 
 **Pendiente.** El valor es provisorio y sale de 24 preguntas con respuesta: con k = 0 el umbral es el mínimo observado y no deja margen. Se recalibra cuando el conjunto crezca o cambien los datos clave, el corpus, el reranker o el armado de pasajes.
+
+## T-059 · Datos clave reescritos y corrida de T-045 recalificada
+
+**Carpeta:** `evals/corridas/2026-10-03T145904_30dc41e_gemma-4-12b-it-qat-q4_0_recalificada`, recalificación de `evals/corridas/2026-10-03T132016_8ad46e6_gemma-4-12b-it-qat-q4_0` con los casos del commit `30dc41e` (datos clave reescritos, sección "Reescritura por el ADR-0011 (2026-10-03)" de `evals/casos/INDICE.md`) y el corrector de T-058. No se hicieron consultas ni se usó la GPU; la carpeta original no cambió. Una recalificación no es una corrida nueva para P7.
+
+Se corrió en un proyecto Docker aparte, con una base de prueba vacía y un usuario sintético de lectura creado para esto; no se usó la base `evaluon`:
+
+```
+docker compose -p evaluon-t059 --env-file <coord.env> up -d db
+docker compose -p evaluon-t059 --env-file <coord.env> run --rm --no-deps app python manage.py migrate
+docker compose -p evaluon-t059 --env-file <coord.env> run --rm --no-deps app python manage.py correr_evals --usuario <usuario sintético> --commit 30dc41e --recalificar evals/corridas/2026-10-03T132016_8ad46e6_gemma-4-12b-it-qat-q4_0 --casos evals/casos --corridas evals/corridas
+docker compose -p evaluon-t059 down -v
+```
+
+Dentro del contenedor no hay `.git`: sin `--commit` la carpeta sale con `sin-commit` en el nombre.
+
+**Respuesta correcta que cita la unidad correcta (24 preguntas con respuesta):**
+
+| Medida | Resultado |
+|---|---|
+| Corrida original (T-045), datos y corrector anteriores | 45,8 % (11 de 24) |
+| Recalificada con el corrector de T-058 y los datos anteriores | 50,0 % (12 de 24) |
+| Recalificada con el corrector de T-058 y los datos de T-059 | 79,2 % (19 de 24) |
+| Lo mismo, sin las cuatro variantes tomadas de la corrida (punto 1 de `INDICE.md`) | 62,5 % (15 de 24) |
+
+Pasan ahora y antes no: EV-003, EV-005 (por el corrector), EV-011, EV-012, EV-014, EV-016, EV-018 y EV-021. Ningún caso que pasaba dejó de pasar. Pares de REQ-020: pasan EV-001 y EV-016 y EV-014 y EV-018; EV-003 y EV-017 falla por EV-017. Las demás medidas no cambian: cita literal 100 %, abstención 85,7 % (6 de 7), tiempo mediana 4,54 s y máximo 9,62 s, aviso de REQ-021 30 de 31 (falla EV-020).
+
+**Casos que siguen fallando y su causa:**
+
+| Caso | Causa | Detalle |
+|---|---|---|
+| EV-006 | Respuesta incompleta | Da los 5 días y que no suspende, pero omite la revisión ante la máxima autoridad |
+| EV-009 | Respuesta incompleta | Nombra 6 de las 8 modalidades: faltan el acuerdo marco interadministrativo y el acuerdo interadministrativo por imperio normativo |
+| EV-017 | Respuesta incompleta | Da los 8 días, pero omite que vencido el plazo se rescinde con pérdida de la garantía de la oferta |
+| EV-020 | Abstención indebida | El umbral de la corrida (0,5) la frenó con 0,368 y no hubo respuesta; con el umbral provisorio 0,368 pasaría justo, pero eso lo mide la corrida nueva de T-046 |
+| EV-024 | Artículo que no llega a la selección | El art. 21 del Anexo I quedó 4.º por el límite de 3 unidades por categoría; la respuesta solo da los 3 días del art. 50 |
+
+Ningún caso con respuesta falla ya por una forma de decirlo que el caso no prevé, siempre que el responsable acepte las cuatro variantes tomadas de la corrida; si las rechaza, vuelven a fallar por eso EV-003, EV-014, EV-016 y EV-018. Fuera de esta medida, EV-028 (sin respuesta) sigue sin abstenerse: responde con el art. 50 del anexo de la 247/2022.
+
+**Para T-046:** la corrida anterior para comparar es esta carpeta recalificada. El 85 % no se tocó.
