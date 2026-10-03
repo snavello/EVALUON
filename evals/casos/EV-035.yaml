@@ -18,7 +18,7 @@ difieren: false
 pareja: EV-034
 aviso_modificatorias: true
 etiquetas: ["dos fechas"]
-visto_bueno: "pendiente"   # pendiente del responsable; al aprobarlo: "responsable del proyecto, AAAA-MM-DD (piloto, ADR-0015)". Un caso pendiente no se corre.
+visto_bueno: "responsable del proyecto, 2026-10-03 (piloto, ADR-0015); pendiente de confirmación de la Comisión (feature 009)"
 redactado_por: borrador asistido
 lote: aceptacion
 notas: |

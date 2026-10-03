@@ -342,3 +342,8 @@ Una fila por caso. Al aprobar, el caso pasa de `visto_bueno: "pendiente"` a "res
 | EV-054 | ¿Qué monto diario de viáticos le corresponde a un agente de compras que viaja por una contratación? | No determinado (tema cercano) | — | |
 | EV-055 | ¿Cada cuánto tiene que hacer la unidad de compras una encuesta de satisfacción a las áreas requirentes? | No determinado (tema cercano) | — | |
 | EV-056 | ¿Cuántos días por semana pueden teletrabajar los agentes del área de compras? | No determinado (tema cercano) | — | |
+
+### Visto bueno del responsable sobre el lote de aceptación (2026-10-03)
+
+- El responsable aprobó los 23 casos (EV-034 a EV-056), en tres grupos: 14 con respuesta, 3 de remisión y 6 sin respuesta. Se le mostraron con la tabla pregunta / respuesta esperada / cita.
+- Todas las preguntas del conjunto (lote de ajuste y lote de aceptación) quedan acumuladas para que la Comisión Evaluadora las confirme en la feature 009 (ADR-0015, ADR-0016). Hasta entonces, el visto bueno es el del responsable para el piloto.
