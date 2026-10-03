@@ -112,7 +112,8 @@ def _unit_defaults_from_key(key):
 def make_norm(read_write_user):
     """Fábrica de normas. `make_norm(**campos)`; por omisión, una disposición de
     régimen específico, sin marca de régimen general, con número propio de cada
-    llamada."""
+    llamada. Sin `citation`, el nombre de cita es "Norma sintética número/año", con el
+    número y el año que queden (T-055)."""
     from evaluon.norms.models import Norm
 
     def _make(**fields):
@@ -128,6 +129,7 @@ def make_norm(read_write_user):
             "created_by": read_write_user,
         }
         values.update(fields)
+        values.setdefault("citation", f"Norma sintética {values['number']}/{values['year']}")
         return Norm.objects.create(**values)
 
     return _make
