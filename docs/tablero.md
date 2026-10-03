@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 33 tareas sin terminar.
-- ○ T-020 · Probar el hilo mínimo con los servicios reales (pendiente)
+- ▶ T-020 · Probar el hilo mínimo con los servicios reales (en curso)
 - ○ T-021 · Leer un PDF escaneado con reconocimiento de texto (pendiente)
 - ○ T-022 · Leer una página web guardada (pendiente)
 - ○ T-023 · Partir normas completas con incisos, anexos y considerandos (pendiente)
@@ -108,7 +108,7 @@ flowchart LR
 - ✓ T-011 · Crear los clientes de IA, sus dobles y los parámetros (`fb2f640` 2026-10-02)
 - ✓ T-012 · Leer un PDF con texto (`977f834` 2026-10-02, `ef7d903` 2026-10-02)
 - ✓ T-013 · Partir en artículos y armar el informe mínimo (`a4e0391` 2026-10-03)
-- ✓ T-014 · Cargar una norma, listarla y ver su informe
+- ✓ T-014 · Cargar una norma, listarla y ver su informe (`e53cc24` 2026-10-03, `d115ccf` 2026-10-03)
 - ✓ T-015 · Validar una lectura y calcular pasajes y vectores (`420eae6` 2026-10-03, `845bdae` 2026-10-03)
 - ✓ T-016 · Armar la pantalla de consulta con sus tres bloques (`ceff61d` 2026-10-03, `bb49b8c` 2026-10-03)
 - ✓ T-017 · Recuperar por significado y reordenar con el reranker (`f31dab6` 2026-10-03)
@@ -141,7 +141,7 @@ flowchart TD
   T017["✓ T-017 · Recuperar por significado y reordenar con e…"]:::done
   T018["✓ T-018 · Generar la respuesta con esquema e insertar…"]:::done
   T019["✓ T-019 · Unir la consulta de punta a punta con su re…"]:::done
-  T020["○ T-020 · Probar el hilo mínimo con los servicios rea…"]:::todo
+  T020["▶ T-020 · Probar el hilo mínimo con los servicios rea…"]:::active
   T021["○ T-021 · Leer un PDF escaneado con reconocimiento de…"]:::todo
   T022["○ T-022 · Leer una página web guardada"]:::todo
   T023["○ T-023 · Partir normas completas con incisos, anexos…"]:::todo
