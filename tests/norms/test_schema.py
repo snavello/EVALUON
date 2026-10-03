@@ -99,9 +99,9 @@ def make_unit(reading, **overrides):
 
 
 @pytest.mark.django_db
-def test_tables_have_plan_names_and_passage_has_no_tsv_yet():
-    """REQ-001, REQ-003: las tablas se llaman como en el plan; `norms_passage` todavía
-    no tiene la columna `tsv`, que agrega T-009."""
+def test_tables_have_plan_names_and_passage_columns():
+    """REQ-001, REQ-003: las tablas se llaman como en el plan; `norms_passage` tiene
+    sus columnas, incluida `tsv`, que agrega T-009."""
     expected = {
         Norm: "norms_norm",
         Document: "norms_document",
@@ -125,8 +125,7 @@ def test_tables_have_plan_names_and_passage_has_no_tsv_yet():
                 cursor, "norms_passage"
             )
         }
-    assert "tsv" not in columns
-    assert {"unit_id", "order", "char_start", "char_end", "header", "text",
+    assert {"unit_id", "order", "char_start", "char_end", "header", "text", "tsv",
             "embedding", "embedding_model", "embedding_revision"} <= columns
 
 

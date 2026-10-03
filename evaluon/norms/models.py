@@ -85,6 +85,16 @@ class RelationType(models.TextChoices):
     DEROGA = "deroga", "Deroga"
 
 
+class TsvectorField(models.Field):
+    """Columna `tsvector` de Postgres. Solo declara el tipo: el valor lo calcula la base
+    (ver `Passage.tsv`). Así no hace falta instalar `django.contrib.postgres`."""
+
+    description = "Vector de búsqueda de texto de Postgres"
+
+    def db_type(self, connection):
+        return "tsvector"
+
+
 def _user_fk(verbose_name, related_name, null=False):
     return models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -332,7 +342,7 @@ class Unit(models.Model):
 
 class Passage(models.Model):
     """Pasaje de búsqueda de una unidad base. Solo sirve para buscar; nunca se muestra
-    ni se cita. La columna `tsv` la agrega T-009."""
+    ni se cita. La columna `tsv` la calcula la base (T-009)."""
 
     unit = models.ForeignKey(
         Unit, verbose_name="unidad", on_delete=models.PROTECT, related_name="passages"
@@ -342,6 +352,18 @@ class Passage(models.Model):
     char_end = models.PositiveIntegerField("fin en el texto de la unidad")
     header = models.TextField("encabezado de contexto")
     text = models.TextField("texto")
+    # Búsqueda por palabras (REQ-010; ADR-0007): la calcula la base con la función SQL
+    # `search_document` sobre el texto del pasaje (sin el encabezado). Nada fuera de
+    # esa función arma `tsv`. Se consulta con `tsv @@ search_query(...)`. Su índice
+    # GIN, `norms_passage_tsv_gin`, lo crea la migración 0004 con SQL propio.
+    tsv = models.GeneratedField(
+        expression=models.Func(
+            models.F("text"), function="search_document", output_field=TsvectorField()
+        ),
+        output_field=TsvectorField(),
+        db_persist=True,
+        verbose_name="vector de búsqueda por palabras",
+    )
     # Vector de header más text; sin índice aproximado (búsqueda exacta).
     embedding = VectorField("vector", dimensions=EMBEDDING_DIMENSIONS)
     embedding_model = models.CharField("modelo de embeddings", max_length=200)

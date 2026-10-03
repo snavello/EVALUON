@@ -1417,3 +1417,30 @@ docker compose run --rm --no-deps app python manage.py migrate              Appl
 **Base vacía.** En una base aparte (`t008_prueba`), creada y borrada para la prueba como en T-005 y T-007, `migrate_on_start.sh` aplicó todo (`accounts`, `audit` 0001 y 0002, `contenttypes`, `auth`, `norms` 0001 y 0002, `sessions`) y en la segunda corrida informó que no hay migraciones pendientes.
 
 **Versión de la normativa frente al trigger de solo inserción.** `audit_event` no admite UPDATE (T-007), así que un hecho no puede recibir su número de versión después de insertado. `evaluon.audit.services.record(..., creates_corpus_version=True)`, dentro de la transacción de quien hace el cambio: (1) bloquea `norms_corpus_version` en modo `SHARE ROW EXCLUSIVE`, que serializa la creación de versiones sin impedir leerla; (2) reserva el número con `nextval(pg_get_serial_sequence('norms_corpus_version', 'id'))`; (3) inserta el hecho con ese número en `corpus_version` y en `detail.new_corpus_version`; (4) inserta la versión con ese `id`, apuntando al hecho. Solo se admite con resultado `ok`. Los demás hechos llevan la versión vigente, `max(id)` de `norms_corpus_version`, o vacío si no hay ninguna (`current_corpus_version()`). El bloqueo hace que los números se confirmen en el orden en que se reservan: nadie registra como vigente una versión cuyo cambio todavía no se confirmó. Una transacción deshecha deja un hueco en la numeración, que sigue creciente.
+
+## Migraciones de `norms` (T-009)
+
+Fecha: 2026-10-02. Tres migraciones con su reversa:
+
+- `norms/0003_search_functions` (SQL propio): `search_normalize`, `search_document` y `search_query` (ADR-0007), inmutables. Llaman a `public.unaccent('public.unaccent'::regdictionary, ...)` y nombran todo con su esquema. No se crea `spanish_unaccent`.
+- `norms/0004_passage_tsv`: columna `tsv` de `norms_passage`, `GENERATED ALWAYS AS (search_document(text)) STORED`, generada con el override local (`makemigrations norms --name passage_tsv`), más el índice GIN `norms_passage_tsv_gin` con SQL propio (`GinIndex` exige `django.contrib.postgres`, que no está instalada). El campo del modelo usa un tipo `tsvector` propio por el mismo motivo.
+- `norms/0005_date_functions` (SQL propio): `consultable_units`, `unit_changes` y `applicable_regimes`, estables.
+
+Con el montaje normal, `makemigrations --check --dry-run` dijo `No changes detected`.
+
+**Lexemas en el Postgres fijado (17.11).** Coinciden todos con la tabla "Resultado esperado" del ADR-0007:
+
+```
+licitación, licitaciones, licitacion, LICITACIÓN -> 'licit'   (LICITACIÓN se normaliza como LICITAción)
+adjudicación, adjudicaciones -> 'adjud'      contratación, contrataciones -> 'contrat'
+artículo, artículos, articulo -> 'articul'   garantía, garantías, garantia -> 'garanti'
+297/03 -> '297/03'                           247/2022 -> '247/2022'
+```
+
+**Base `evaluon`, sin datos que conservar.** Se aplicó con `docker compose run --rm --no-deps app python manage.py migrate` (0003, 0004 y 0005 OK). Reversa: `migrate norms 0002` quitó 0005, 0004 y 0003; quedaron 0 funciones, sin columna `tsv` y sin índice; otra vez `migrate` las aplicó sin error.
+
+**Base vacía.** En una base aparte (`t009_prueba`), creada y borrada, `migrate_on_start.sh` aplicó todo (`norms` 0001 a 0005 incluidas) y en la segunda corrida informó que no hay migraciones pendientes.
+
+**Respaldo y restauración.** En dos bases aparte (`t009_a` y `t009_b`), creadas y borradas: con un pasaje cargado, `pg_dump -Fc` y `pg_restore` sobre una base vacía terminaron sin error, la columna `tsv` restaurada quedó igual (`'licit':2 'public':3`) y `consultable_units` respondió. `pg_restore` corre con `search_path` vacío y recalcula `tsv` al insertar; por eso las funciones nombran todo con su esquema.
+
+**Al actualizar Postgres o la imagen fijada.** Las funciones de búsqueda se declaran inmutables aunque `unaccent` no lo es: la promesa se cumple mientras no cambien las reglas de `unaccent` ni el lematizador de español. Después de una actualización de versión mayor (o de la imagen) hay que recalcular `tsv` de todos los pasajes (por ejemplo `UPDATE norms_passage SET text = text;`, que vuelve a calcular la columna, como se comprobó en una base aparte `t009_c`, creada y borrada, y `REINDEX INDEX norms_passage_tsv_gin;`) y repetir `pytest tests/norms/test_text_search_config.py`. `pg_upgrade` copia los datos sin recalcular.
