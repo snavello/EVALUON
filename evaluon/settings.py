@@ -168,8 +168,10 @@ STATIC_ROOT = Path(os.environ.get("DJANGO_STATIC_ROOT", BASE_DIR / "staticfiles"
 # clientes de evaluon/ai/ leen estos valores en cada llamada. Los modelos se registran
 # con su nombre, su archivo y su huella (P6); las huellas son las de
 # scripts/models.sha256, que verifica scripts/fetch_models.sh. Las variables de entorno
-# de modelos son las mismas que usa docker-compose.yml para arrancar cada servidor; hoy
-# docker-compose.yml no se las pasa a `app`, que usa entonces los valores por defecto.
+# de modelos son las mismas que usa docker-compose.yml para arrancar cada servidor, y
+# docker-compose.yml se las pasa también a `app` y `migrate` (T-054): servidor y
+# aplicación leen una sola fuente. Los valores por defecto de aquí son los del compose
+# (tests/test_compose_env.py lo comprueba).
 
 GENERATION_URL = env_str("GENERATION_URL", "http://generation:8080")
 EMBEDDINGS_URL = env_str("EMBEDDINGS_URL", "http://embeddings:8080")
@@ -180,7 +182,8 @@ RERANKER_URL = env_str("RERANKER_URL", "http://reranker:8080")
 AI_TIMEOUT_SECONDS = 60
 
 # Compilación de llama.cpp de los tres servicios; tiene que coincidir con la etiqueta de
-# la imagen en docker-compose.yml (entorno.md, T-002, sección 1).
+# la imagen en docker-compose.yml (entorno.md, T-002, sección 1); tests/test_compose_env.py
+# compara las dos.
 GENERATION_ENGINE_BUILD = "b11347"
 
 GENERATION_MODEL = env_str("GENERATION_MODEL_ALIAS", "gemma-4-12b-it-qat-q4_0")
@@ -196,7 +199,9 @@ EMBEDDINGS_MODEL_SHA256 = env_str(
     "EMBEDDINGS_MODEL_SHA256",
     "daec91ffb5dd0c27411bd71f29932917c49cf529a641d0168496c3a501e3062c",
 )
-# Dimensiones del vector de `bge-m3` (columna `embedding` de `norms_passage`).
+# Dimensiones del vector de `bge-m3`. Única definición (T-054): la toman la columna
+# `embedding` de `norms_passage` (norms.models.EMBEDDING_DIMENSIONS) y los dobles de
+# prueba. Cambiarla cambia el esquema y exige una migración.
 EMBEDDINGS_DIMENSIONS = 1024
 
 RERANKER_MODEL = env_str("RERANKER_MODEL_ALIAS", "bge-reranker-v2-m3")

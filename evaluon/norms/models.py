@@ -19,8 +19,9 @@ from django.db.models import Q
 from django.utils import timezone
 from pgvector.django import VectorField
 
-# Dimensiones del vector de `bge-m3` (plan 001, "Servicios").
-EMBEDDING_DIMENSIONS = 1024
+# Dimensiones del vector de `bge-m3` (plan 001, "Servicios"). Se definen una sola vez, en
+# settings.EMBEDDINGS_DIMENSIONS (T-054).
+EMBEDDING_DIMENSIONS = settings.EMBEDDINGS_DIMENSIONS
 
 # Parte de una norma: `cuerpo` o la clave de un anexo (`anexo`, `anexo-i`, `anexo-ii`).
 BODY_PART = "cuerpo"

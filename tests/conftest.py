@@ -21,6 +21,7 @@ from datetime import date
 from types import SimpleNamespace
 
 import pytest
+from django.conf import settings
 
 from evaluon.ai import (
     InputTooLongError,
@@ -34,8 +35,9 @@ from evaluon.ai import reranker as reranker_client
 # Clave sintética de 15 caracteres o más, el mínimo de la feature (plan 001, ADR-0005).
 TEST_PASSWORD = "clave-sintetica-de-prueba"
 
-# Dimensiones del vector de `bge-m3` (plan 001, "Servicios").
-EMBEDDING_DIMENSIONS = 1024
+# Dimensiones del vector de `bge-m3` (plan 001, "Servicios"): la única definición, la de
+# settings.py (T-054).
+EMBEDDING_DIMENSIONS = settings.EMBEDDINGS_DIMENSIONS
 
 
 @pytest.fixture
