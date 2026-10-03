@@ -58,7 +58,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 46 tareas sin terminar.
-- ▶ T-007 · Crear el registro de auditoría y el alta de usuarios (en curso)
+- ◐ T-007 · Crear el registro de auditoría y el alta de usuarios (en verificación)
 - ○ T-008 · Crear las tablas de normas, lecturas, unidades y pasajes (pendiente)
 - ○ T-009 · Crear las funciones de unidades consultables a una fecha (pendiente)
 - ○ T-010 · Crear la tabla del registro detallado de consultas (pendiente)
@@ -125,7 +125,7 @@ flowchart TD
   T004["✓ T-004 · Fijar Postgres con sus extensiones y búsque…"]:::done
   T005["✓ T-005 · Armar el esqueleto de Django con sus librer…"]:::done
   T006["✓ T-006 · Crear usuarios con rol, ingreso y salida"]:::done
-  T007["▶ T-007 · Crear el registro de auditoría y el alta de…"]:::active
+  T007["◐ T-007 · Crear el registro de auditoría y el alta de…"]:::review
   T008["○ T-008 · Crear las tablas de normas, lecturas, unida…"]:::todo
   T009["○ T-009 · Crear las funciones de unidades consultable…"]:::todo
   T010["○ T-010 · Crear la tabla del registro detallado de co…"]:::todo
