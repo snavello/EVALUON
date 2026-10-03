@@ -35,7 +35,7 @@ flowchart LR
 
 | Feature | Qué entrega | Etapa | Tareas | Avance |
 |---|---|---|---|---|
-| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 27/55 | █████░░░░░ 49% |
+| [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 34/55 | ██████░░░░ 62% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
 | 003 · Procedimiento, pliego final y matriz de cumplimiento | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | No iniciada | — | — |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
@@ -62,20 +62,13 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 28 tareas sin terminar.
-- ▶ T-038 · Registrar ingresos, ingresos fallidos y rechazos por rol (en curso)
-- ○ T-023 · Partir normas completas con incisos, anexos y considerandos (pendiente)
+- **Próximo paso:** Desarrollar: 21 tareas sin terminar.
 - ○ T-024 · Partir dictámenes y recomendaciones en puntos y párrafos (pendiente)
 - ○ T-025 · Completar el informe de lectura (pendiente)
 - ○ T-026 · Avisar duplicados al cargar una norma (pendiente)
 - ○ T-027 · Releer un documento y reemplazar la lectura anterior (pendiente)
 - ○ T-028 · Integrar los tres formatos en la carga (pendiente)
-- ○ T-029 · Registrar relaciones entre normas y mostrar los vínculos (pendiente)
-- ○ T-030 · Registrar versiones de una norma (pendiente)
-- ○ T-032 · Recuperar por tres caminos y unir los candidatos (pendiente)
 - ○ T-033 · Seleccionar por categoría, sumar cambios y ordenar (pendiente)
-- ○ T-034 · Completar instrucciones, marca de regímenes y orden (pendiente)
-- ○ T-035 · Buscar unidades por artículo y por palabras (pendiente)
 - ○ T-037 · Mostrar las citas con categoría, papel y cambios (pendiente)
 - ○ T-039 · Correr el conjunto de preguntas y medir las exigencias (pendiente)
 - ○ T-040 · Unir recuperación y generación completas con su registro (pendiente)
@@ -117,8 +110,15 @@ flowchart LR
 - ✓ T-020 · Probar el hilo mínimo con los servicios reales (`b520afe` 2026-10-03)
 - ✓ T-021 · Leer un PDF escaneado con reconocimiento de texto (`223295e` 2026-10-03, `197dada` 2026-10-03)
 - ✓ T-022 · Leer una página web guardada (`3d9224f` 2026-10-03, `c12d12c` 2026-10-03)
+- ✓ T-023 · Partir normas completas con incisos, anexos y considerandos
+- ✓ T-029 · Registrar relaciones entre normas y mostrar los vínculos
+- ✓ T-030 · Registrar versiones de una norma
 - ✓ T-031 · Partir en pasajes las unidades largas (`282ab7f` 2026-10-03, `955ce90` 2026-10-03, `c1e2088` 2026-10-03)
+- ✓ T-032 · Recuperar por tres caminos y unir los candidatos
+- ✓ T-034 · Completar instrucciones, marca de regímenes y orden
+- ✓ T-035 · Buscar unidades por artículo y por palabras
 - ✓ T-036 · Entregar el documento original con sesión (`07ea00d` 2026-10-03)
+- ✓ T-038 · Registrar ingresos, ingresos fallidos y rechazos por rol (`2ef5e3b` 2026-10-03)
 - ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
 - ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
 - ✓ T-055 · Agregar el nombre de cita de la norma (`ff230c8` 2026-10-03, `88796e6` 2026-10-03)
@@ -149,22 +149,22 @@ flowchart TD
   T020["✓ T-020 · Probar el hilo mínimo con los servicios rea…"]:::done
   T021["✓ T-021 · Leer un PDF escaneado con reconocimiento de…"]:::done
   T022["✓ T-022 · Leer una página web guardada"]:::done
-  T023["○ T-023 · Partir normas completas con incisos, anexos…"]:::todo
+  T023["✓ T-023 · Partir normas completas con incisos, anexos…"]:::done
   T024["○ T-024 · Partir dictámenes y recomendaciones en punt…"]:::todo
   T025["○ T-025 · Completar el informe de lectura"]:::todo
   T026["○ T-026 · Avisar duplicados al cargar una norma"]:::todo
   T027["○ T-027 · Releer un documento y reemplazar la lectura…"]:::todo
   T028["○ T-028 · Integrar los tres formatos en la carga"]:::todo
-  T029["○ T-029 · Registrar relaciones entre normas y mostrar…"]:::todo
-  T030["○ T-030 · Registrar versiones de una norma"]:::todo
+  T029["✓ T-029 · Registrar relaciones entre normas y mostrar…"]:::done
+  T030["✓ T-030 · Registrar versiones de una norma"]:::done
   T031["✓ T-031 · Partir en pasajes las unidades largas"]:::done
-  T032["○ T-032 · Recuperar por tres caminos y unir los candi…"]:::todo
+  T032["✓ T-032 · Recuperar por tres caminos y unir los candi…"]:::done
   T033["○ T-033 · Seleccionar por categoría, sumar cambios y…"]:::todo
-  T034["○ T-034 · Completar instrucciones, marca de regímenes…"]:::todo
-  T035["○ T-035 · Buscar unidades por artículo y por palabras"]:::todo
+  T034["✓ T-034 · Completar instrucciones, marca de regímenes…"]:::done
+  T035["✓ T-035 · Buscar unidades por artículo y por palabras"]:::done
   T036["✓ T-036 · Entregar el documento original con sesión"]:::done
   T037["○ T-037 · Mostrar las citas con categoría, papel y ca…"]:::todo
-  T038["▶ T-038 · Registrar ingresos, ingresos fallidos y rec…"]:::active
+  T038["✓ T-038 · Registrar ingresos, ingresos fallidos y rec…"]:::done
   T039["○ T-039 · Correr el conjunto de preguntas y medir las…"]:::todo
   T040["○ T-040 · Unir recuperación y generación completas co…"]:::todo
   T041["○ T-041 · Mostrar y registrar la búsqueda en la panta…"]:::todo
@@ -280,7 +280,7 @@ flowchart TD
 | REQ-003 | El sistema debe dividir cada documento en unidades citables, cada una con su ubicación: considerando, artículo, inciso o anexo en las normas, y también el texto normativo que no lleva número de artículo, como una cláusula transitoria, con el nombre que le da el documento; punto o párrafo en dictámenes y recomendaciones | T-008, T-013, T-023, T-024, T-031, T-043, T-050 | ▶ en proceso |
 | REQ-004 | El sistema debe entregar, por cada norma incorporada, un informe de lectura: cuántas unidades reconoció, cuáles páginas no pudo leer y qué no pudo ubicar | T-012, T-013, T-014, T-021, T-025, T-027, T-028, T-043 | ▶ en proceso |
 | REQ-005 | Una norma debe quedar disponible para consultas solo después de que una persona valide su informe de lectura | T-009, T-015, T-017, T-027, T-032, T-035, T-043 | ▶ en proceso |
-| REQ-006 | El sistema debe registrar las relaciones entre normas: cuál modifica, complementa, reglamenta o deroga a cuál. Cuando el cambio alcanza a unidades concretas, la relación se registra entre esas unidades | T-029, T-035, T-041, T-044 | ○ pendiente |
+| REQ-006 | El sistema debe registrar las relaciones entre normas: cuál modifica, complementa, reglamenta o deroga a cuál. Cuando el cambio alcanza a unidades concretas, la relación se registra entre esas unidades | T-029, T-035, T-041, T-044 | ▶ en proceso |
 | REQ-007 | El sistema debe mantener las versiones de cada norma y, para una fecha dada, indicar qué unidades estaban vigentes y qué normas las habían modificado o derogado, mostrando el texto literal de cada una | T-009, T-029, T-030, T-033, T-037, T-044 | ▶ en proceso |
 | REQ-008 | El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la unidad que la sostiene, con su texto literal | T-001, T-002, T-003, T-004, T-011, T-017, T-018, T-019, T-020, T-031, T-032, T-034, T-039, T-040, T-042, T-046, T-047, T-054 | ▶ en proceso |
 | REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | T-002, T-003, T-011, T-017, T-018, T-019, T-034, T-039, T-040, T-042, T-045, T-046 | ▶ en proceso |
@@ -292,7 +292,7 @@ flowchart TD
 | REQ-015 | El sistema debe incorporar normas en tres formatos: PDF con texto, PDF escaneado y página web guardada. Cuando el texto de una unidad se obtuvo por reconocimiento sobre una imagen, debe quedar indicado en la unidad y en el informe de lectura | T-012, T-021, T-022, T-025, T-028, T-037, T-043 | ▶ en proceso |
 | REQ-016 | El sistema debe exigir usuario y clave para ingresar. Cada usuario tiene un rol: lectura, que permite consultar y buscar; o lectura y escritura, que además permite cargar y validar normas y registrar relaciones y versiones | T-005, T-006, T-007, T-038, T-049 | ▶ en proceso |
 | REQ-017 | El sistema debe registrar la categoría de cada documento: régimen específico, otra normativa aplicable, marco nacional, dictamen legal o recomendación de auditoría | T-008, T-014 | ✓ cubierto |
-| REQ-018 | Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional se presentan como marco; los dictámenes y las recomendaciones se presentan como criterio que acompaña; los considerandos se presentan como contexto, identificados como tales y después del articulado | T-033, T-034, T-037, T-040, T-046 | ○ pendiente |
-| REQ-019 | Cuando el régimen específico y el marco nacional tratan el mismo punto de manera distinta, la respuesta debe mostrar ambos textos y señalar el del régimen específico como el aplicable | T-033, T-034, T-037, T-040, T-046 | ○ pendiente |
+| REQ-018 | Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional se presentan como marco; los dictámenes y las recomendaciones se presentan como criterio que acompaña; los considerandos se presentan como contexto, identificados como tales y después del articulado | T-033, T-034, T-037, T-040, T-046 | ▶ en proceso |
+| REQ-019 | Cuando el régimen específico y el marco nacional tratan el mismo punto de manera distinta, la respuesta debe mostrar ambos textos y señalar el del régimen específico como el aplicable | T-033, T-034, T-037, T-040, T-046 | ▶ en proceso |
 | REQ-020 | Cada consulta y cada búsqueda se hacen para una fecha de autorización del procedimiento, que la persona indica en la pantalla; por defecto es la del día. El sistema responde con lo que regía a esa fecha y muestra qué régimen aplicó | T-008, T-009, T-014, T-016, T-019, T-020, T-032, T-035, T-039, T-041, T-042, T-043, T-044, T-046, T-055 | ▶ en proceso |
 | REQ-021 | El sistema debe permitir registrar que una norma tiene modificatorias todavía no cargadas, identificando cada una. Mientras queden, toda respuesta o búsqueda que muestre una unidad de esa norma avisa que puede haber cambios que el sistema no conoce e indica cuántas modificatorias faltan cargar | T-008, T-039, T-042, T-044, T-046, T-051, T-052 | ▶ en proceso |

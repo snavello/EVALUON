@@ -1,10 +1,11 @@
-"""Listado de normas e informe de lectura (REQ-001, REQ-004, REQ-017, REQ-020; plan 001,
-"Pantalla, acceso y comandos": `listar_normas` y `ver_informe`).
+"""Listado de normas e informe de lectura (REQ-001, REQ-004, REQ-006, REQ-017, REQ-020;
+plan 001, "Pantalla, acceso y comandos": `listar_normas` y `ver_informe`).
 
 - `list_norms`: las normas con sus datos, su nombre de cita y su marca de régimen
-  general, y sus documentos con la parte, las fechas, la fuente y el estado de
-  validación de su última lectura. Los vínculos entre normas se suman en T-029 y las
-  modificatorias sin cargar en T-051.
+  general; sus documentos con la parte, las fechas, la fuente y el estado de
+  validación de su última lectura; y sus vínculos con otras normas en los dos sentidos
+  (REQ-006): las relaciones en que es la norma de origen y las que la alcanzan. Las
+  modificatorias sin cargar se suman en T-051.
 - `reading_report`: el informe de lectura de una lectura, tal como está guardado. Su
   texto es exactamente `norms_reading.report_text`, el mismo cuya huella guarda la
   validación (T-015).
@@ -21,7 +22,7 @@ from django.db.models import Prefetch
 
 from evaluon.accounts.models import Role
 from evaluon.accounts.permissions import require_role
-from evaluon.norms.models import BODY_PART, Document, Norm, Reading
+from evaluon.norms.models import BODY_PART, Document, Norm, Reading, Relation
 
 
 class ReadingNotFound(Exception):
@@ -46,6 +47,22 @@ class DocumentItem:
 
 
 @dataclass(frozen=True)
+class LinkItem:
+    """Vínculo de una norma con otra (REQ-006). `direction` es `outgoing` si la norma
+    listada es la de origen y `incoming` si es la alcanzada; `other_*` es la otra norma.
+    Una clave de unidad vacía quiere decir la norma entera."""
+
+    relation_id: int
+    direction: str
+    relation_type: str
+    other_norm_id: int
+    other_citation: str
+    source_unit_key: str
+    target_unit_key: str
+    effective_date: date
+
+
+@dataclass(frozen=True)
 class NormItem:
     id: int
     citation: str
@@ -57,6 +74,7 @@ class NormItem:
     title: str
     general_regime: bool
     documents: list[DocumentItem] = field(default_factory=list)
+    links: list[LinkItem] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -100,14 +118,42 @@ def _document_item(document):
     )
 
 
+def _link_item(relation, direction):
+    other = relation.target_norm if direction == "outgoing" else relation.source_norm
+    return LinkItem(
+        relation_id=relation.pk,
+        direction=direction,
+        relation_type=relation.relation_type,
+        other_norm_id=other.pk,
+        other_citation=other.citation,
+        source_unit_key=relation.source_unit_key,
+        target_unit_key=relation.target_unit_key,
+        effective_date=relation.effective_date,
+    )
+
+
+def _links(norm):
+    """Los vínculos de la norma en los dos sentidos, por fecha y orden de registro."""
+    links = [_link_item(r, "outgoing") for r in norm.relations_from.all()]
+    links += [_link_item(r, "incoming") for r in norm.relations_to.all()]
+    return sorted(links, key=lambda link: (link.effective_date, link.relation_id))
+
+
 def list_norms(user):
-    """Las normas cargadas, ordenadas por nombre de cita, con sus documentos."""
+    """Las normas cargadas, ordenadas por nombre de cita, con sus documentos y sus
+    vínculos."""
     require_role(user, Role.READ)
     readings = Reading.objects.only("id", "document_id", "sequence", "status").order_by(
         "sequence"
     )
     documents = Document.objects.prefetch_related(Prefetch("readings", queryset=readings))
-    norms = Norm.objects.prefetch_related(Prefetch("documents", queryset=documents))
+    norms = Norm.objects.prefetch_related(
+        Prefetch("documents", queryset=documents),
+        Prefetch("relations_from",
+                 queryset=Relation.objects.select_related("target_norm")),
+        Prefetch("relations_to",
+                 queryset=Relation.objects.select_related("source_norm")),
+    )
     return [
         NormItem(
             id=norm.pk,
@@ -123,6 +169,7 @@ def list_norms(user):
                 _document_item(document)
                 for document in sorted(norm.documents.all(), key=_part_order)
             ],
+            links=_links(norm),
         )
         for norm in norms.order_by("citation", "pk")
     ]
