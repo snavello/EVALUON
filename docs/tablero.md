@@ -63,7 +63,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 7 tareas sin terminar.
-- ○ T-044 · Registrar relaciones, versiones y modificatorias del corpus (pendiente)
+- ▶ T-044 · Registrar relaciones, versiones y modificatorias del corpus (en curso)
 - ○ T-045 · Calibrar el umbral con el conjunto de preguntas (pendiente)
 - ○ T-046 · Correr las evals y medir tiempo y memoria (pendiente)
 - ○ T-047 · Probar una consulta con la red desconectada (pendiente)
@@ -172,7 +172,7 @@ flowchart TD
   T041["✓ T-041 · Mostrar y registrar la búsqueda en la panta…"]:::done
   T042["✓ T-042 · Agregar calibración del umbral y comparació…"]:::done
   T043["✓ T-043 · Cargar y validar el corpus real y ajustar l…"]:::done
-  T044["○ T-044 · Registrar relaciones, versiones y modificat…"]:::todo
+  T044["▶ T-044 · Registrar relaciones, versiones y modificat…"]:::active
   T045["○ T-045 · Calibrar el umbral con el conjunto de pregu…"]:::todo
   T046["○ T-046 · Correr las evals y medir tiempo y memoria"]:::todo
   T047["○ T-047 · Probar una consulta con la red desconectada"]:::todo
