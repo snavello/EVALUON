@@ -778,7 +778,7 @@ Observación: el restablecimiento de una clave olvidada usa el comando `changepa
 - `fecha_autorizacion`: la fecha de autorización del procedimiento para la que se pregunta. Obligatoria en todos los casos, también en los que no tienen respuesta. No tiene valor por omisión: si fuera la del día, el mismo caso daría otro resultado con el paso del tiempo.
 - `regimen`: la norma que tiene que figurar como régimen aplicado a esa fecha ("Disposición AFIP 297/03" o "Disposición AFIP 247/2022"). Vacío solo en un caso que pregunte para una fecha sin régimen cargado.
 - `unidades`: las unidades que sostienen la respuesta, por norma y `key`. Vacío en las preguntas sin respuesta.
-- `datos_clave`: los datos que la respuesta tiene que contener (un plazo, un porcentaje, un sí o un no), cuando los hay.
+- `datos_clave`: los datos que la respuesta tiene que contener, cuando los hay. Cada uno es una pieza corta (ADR-0011): un número con su unidad ("30 días"), un porcentaje, un término que no puede faltar, o "sí" o "no"; no una frase de la norma ni un resumen. Un dato puede traer variantes. Formato y reglas de comparación en "Datos clave y corrector", más abajo.
 - `difieren`: verdadero en las preguntas de REQ-019.
 - `pareja`: en los casos que repiten una pregunta con otra fecha, el identificador del otro caso del par. Vacío en los demás.
 - `aviso_modificatorias`: verdadero si la respuesta tiene que llevar el aviso de modificatorias sin cargar; falso si no tiene que llevarlo.
@@ -806,7 +806,7 @@ Cuántas preguntas van a cada régimen lo decide el responsable (ver "Qué tiene
 | Exigencia de la spec | Cómo se mide | Umbral |
 |---|---|---|
 | Cita literal | Sobre todas las citas de todas las respuestas: el texto mostrado es igual a `canonical_text[char_start:char_end]` | 100 % |
-| Respuesta correcta que cita la unidad correcta | Sobre las preguntas con respuesta. Un caso cuenta si el resultado es `grounded`, el régimen aplicado es el de `regimen`, cita todas las unidades de `unidades` (si el caso nombra un inciso, vale el artículo que lo contiene), contiene los `datos_clave` y, si `difieren` es verdadero, trae la marca `regimes_differ` con las dos citas. En la corrida que se presenta para aprobar, el responsable revisa además las respuestas contra la esperada y puede dar por incorrecta cualquiera | Al menos 85 % |
+| Respuesta correcta que cita la unidad correcta | Sobre las preguntas con respuesta. Un caso cuenta si el resultado es `grounded`, el régimen aplicado es el de `regimen`, cita todas las unidades de `unidades` (si el caso nombra un inciso, vale el artículo que lo contiene), contiene los `datos_clave` según las reglas de "Datos clave y corrector" y, si `difieren` es verdadero, trae la marca `regimes_differ` con las dos citas. En la corrida que se presenta para aprobar, el responsable revisa además las respuestas contra la esperada y puede dar por incorrecta cualquiera | Al menos 85 % |
 | Abstención | Sobre las preguntas sin respuesta. Cuenta si el resultado es `undetermined`. Una falla técnica no cuenta como abstención | Al menos 90 % |
 | Tiempo de respuesta | Tiempo total de cada consulta, medido en el equipo, con los servicios ya cargados. Se informan la mediana y el máximo | Máximo de 30 segundos |
 
@@ -821,6 +821,55 @@ También se informan aparte, y se espera que no falle ninguno:
 Con unas 30 preguntas, cada una pesa entre 3 y 5 puntos: una diferencia de una pregunta entre dos corridas no demuestra nada. Repartidas entre dos regímenes, las medidas por régimen salen de menos casos todavía y sirven solo para orientar.
 
 Cuando se carga una modificatoria de la 297/03 cambian el corpus y, tal vez, la cantidad del aviso: como con cualquier cambio del corpus, se corre todo otra vez y se revisan los casos que esa modificatoria alcanza.
+
+**Datos clave y corrector (ADR-0011).** La medida automática de cada corrida es la del ADR-0011, alternativa A: datos clave cortos y un corrector tolerante. La revisión humana (alternativa C) queda solo para la corrida que se presenta para aprobar, como ya decía la tabla.
+
+Formato de `datos_clave`. Es una lista, vacía en las preguntas sin respuesta. Cada elemento es un dato y puede escribirse de dos maneras:
+
+```yaml
+datos_clave:
+  - "30 días"                                  # un texto: el dato tiene una sola forma
+  - ["acto de apertura", "fecha de apertura"]  # una lista: variantes del mismo dato
+  - ["no", "sin posibilidad"]                  # un "no" y otra forma que el caso prevé
+```
+
+La forma en una línea también vale: `datos_clave: ["8 días", ["no", "sin posibilidad"]]`.
+
+- Un texto solo equivale a una lista de una variante. Los casos escritos antes de este ajuste, que tienen solo textos, siguen siendo válidos sin cambios.
+- Una lista de variantes tiene al menos un texto. Una lista vacía, un texto vacío, una lista dentro de la lista de variantes o un valor que no sea texto dejan el caso mal formado: se informa y no se corre, como hoy.
+- Las variantes las escribe el caso, con el visto bueno del caso. Se suman cuando hay más de una forma correcta de decir el dato, nunca para hacer pasar una corrida (ADR-0011, "Consecuencias").
+
+Reglas de comparación del corrector (`key_data_missing`). Comparan cada variante con el texto de todas las afirmaciones de la respuesta.
+
+1. **Un dato se cumple si aparece cualquiera de sus variantes.** Si no aparece ninguna, el dato figura entre los faltantes con todas sus variantes: en `resultados.jsonl` como la lista, y en `resumen.md` con las variantes separadas por " / ".
+2. **"Sí" y "no".** Una variante que, normalizada, es exactamente "si" o "no" se cumple solo si la primera afirmación empieza con esa palabra seguida de un signo de puntuación o del final, como hoy ("No obstante, …" no es un "no"). Las demás variantes, incluidas las que dicen que sí o que no con otras palabras ("sin posibilidad"), se buscan en todas las afirmaciones. El corrector no deduce variantes: si el caso no prevé otra forma, solo vale la palabra.
+3. **Normalización, igual para la respuesta y para la variante:**
+    - sin tildes, sin distinguir mayúsculas y con los espacios repetidos reducidos a uno, como hoy;
+    - un número escrito en letras, de cualquier tamaño, pasa a su cifra: "treinta" a "30", "treinta y cinco" a "35", "ciento veinte" a "120", "dos mil quinientos" a "2500". Un número en letras seguido de su cifra entre paréntesis queda solo con la cifra, como hoy ("sesenta (60) días" a "60 días"). "Un", "una" y "uno" pasan a "1", como hoy, también cuando son artículo: la variante pasa por la misma regla, así que "un período" en la variante sigue valiendo "un período" en la respuesta;
+    - una cifra con punto de miles lo pierde ("1.000" a "1000"); la coma decimal se mantiene ("0,1");
+    - "por ciento" después de una cifra es el signo de porcentaje, y el signo va separado por un espacio, como hoy ("5%", "5 %" y "cinco por ciento" son "5 %"). "Por mil" no se convierte: "cinco por mil" es "5 por mil".
+4. **Singular y plural.** Cada palabra de la variante (no las cifras) vale en la respuesta igual o con una diferencia final de "s", de "es", o de "z" por "ces": "contratación directa" vale "contrataciones directas", "día" vale "días", "mes" vale "meses" y "vez" vale "veces". Las palabras de la variante tienen que estar seguidas y en el mismo orden, y el conjunto no puede tener una letra, un dígito o un separador de número pegados antes o después, como hoy.
+5. **Nada más.** No hay sinónimos, ni cambio de orden, ni palabras intercaladas: "acto de apertura" no vale "apertura del acto" y "por igual término" no vale "por un período igual". Esas formas, si son correctas, entran como variantes del caso.
+
+Ejemplos de la corrida de calibración de T-045, citados en el ADR-0011:
+
+| Dato del caso | Lo que dice la respuesta | Resultado |
+|---|---|---|
+| "30 días" | "treinta días a partir de la fecha de apertura del acto" | Se cumple (regla 3) |
+| "contratación directa" | "contrataciones directas" | Se cumple (regla 4) |
+| `["no", "sin posibilidad"]` | "serán desestimadas sin posibilidad de subsanación" | Se cumple por la segunda variante |
+| "no" | "serán desestimadas sin posibilidad de subsanación" | No se cumple: el caso no prevé otra forma |
+| "por igual término" | "por un período igual" | No se cumple: es un sinónimo; hace falta la variante |
+
+Límite conocido: la tolerancia de singular y plural puede aceptar una palabra corta que no es el plural de la otra; por eso cada dato lleva su unidad o su término completo y no una palabra suelta de dos o tres letras. Para volver a la comparación textual alcanza con quitar las reglas 3 (números de cualquier tamaño y punto de miles) y 4; los casos con datos cortos siguen siendo válidos con ella (ADR-0011).
+
+**Recalificar una corrida guardada.** `correr_evals --recalificar <carpeta de corrida>` vuelve a medir una corrida ya guardada con los casos y el corrector vigentes, sin llamar a la consulta ni a ningún servicio de IA. Sirve para separar el efecto de un cambio en los casos o en el corrector del efecto de un cambio en el sistema: las respuestas son las mismas, y el modelo, que no repite siempre la misma redacción (aviso de T-018), queda fuera de la comparación. Tampoco ocupa la GPU.
+
+- Lee `resultados.jsonl` de la corrida: estado, régimen, avisos, afirmaciones, unidades citadas con su comprobación de cita literal y diagnóstico de cada caso. Lee los casos de `--casos`.
+- Vuelve a medir solo los casos cuya `pregunta`, `fecha_autorizacion` y presencia de respuesta coinciden con las del renglón guardado. Los demás se informan como no recalificables y quedan fuera de la medida: su respuesta corresponde a otra pregunta.
+- Guarda una carpeta nueva en `--corridas`, con la fecha y el commit del momento y el modelo de la corrida original, terminada en `_recalificada`, con los mismos tres archivos. `parametros.json` copia los de la original y suma la carpeta de origen y el aviso de que no se hicieron consultas. `resumen.md` empieza diciendo que es una recalificación de esa carpeta y se compara con ella. La carpeta original no se modifica.
+- No crea consultas ni hechos del registro de auditoría, porque no consulta: queda solo el control del rol, igual que en una corrida.
+- Una recalificación no es una corrida nueva a los efectos de P7: no sirve para aceptar un cambio en recuperación, instrucciones, modelo o umbral. Sí cuenta como corrida anterior en la comparación de la próxima corrida, porque sus medidas son las de los casos vigentes.
 
 **Regla de P7.** Todo cambio en recuperación, instrucciones, modelo o umbral se acepta solo con una corrida nueva. Una baja respecto de la anterior requiere aprobación del responsable.
 
@@ -880,6 +929,7 @@ ADR en los que se apoya este plan, los cinco aceptados. Los ADR 0002 a 0005 se a
 | ADR-0005 | Django, páginas armadas en el servidor, Argon2id, sesiones en la base y comandos |
 | ADR-0006 | Dos regímenes específicos, la Disposición 247/2022 y la 297/03, aplicados según la fecha de autorización del procedimiento |
 | ADR-0007 | Búsqueda por palabras: normalizar texto y consulta (quitar acentos y reponer la tilde de "-ación" y "-ución") y reducir a la raíz con `spanish` |
+| ADR-0011 | Medida de respuesta correcta: datos clave cortos con variantes y un corrector tolerante en cada corrida; revisión humana solo en la corrida que se presenta para aprobar |
 
 Esta actualización no necesita un ADR nuevo: ninguna de sus decisiones es difícil de revertir. Los campos y la tabla que suma entran en el esquema antes de que exista una base con datos, y para volver a un solo régimen alcanza con fijar la fecha y ocultar el campo, como dice el ADR-0006.
 
@@ -1225,3 +1275,15 @@ Fecha: 2026-10-02. Lo medido en `entorno.md` (T-001 a T-005) que cambia el dise�
 
 
 **Ajuste del 2026-10-03 (decisión del responsable).** Las operaciones de datos que este plan asigna al "responsable de normativa" (validar lecturas, registrar relaciones, versiones y modificatorias) las hace el Coordinador con un usuario operador de lectura y escritura (`desarrollo`), después de la verificación del testeador evaluador. Al responsable se le consultan solo las decisiones de fondo y las compuertas de la constitución (P11: spec, plan y despliegue). La carga y validación inicial del corpus (T-043) y el registro de T-044 los hizo el responsable con su usuario.
+
+**Ajuste del 2026-10-03 por el ADR-0011 (decisión del responsable).** La corrida de calibración de T-045 dio 45,8 % de respuesta correcta, y la mayoría de las fallas venían de buscar cada dato clave como frase textual. El responsable aceptó el 2026-10-03 el ADR-0011: datos clave cortos, con variantes, y un corrector tolerante para la medida automática de cada corrida; la revisión de las respuestas contra la esperada queda para la corrida que se presenta para aprobar. El 85 % de la spec no cambia.
+
+| Sección | Qué cambió | Por qué |
+|---|---|---|
+| Evals · Casos | `datos_clave` son piezas cortas y pueden traer variantes | ADR-0011 |
+| Evals · Cómo se mide cada exigencia | Los datos clave se comparan según "Datos clave y corrector" | ADR-0011 |
+| Evals · Datos clave y corrector (nueva) | Formato con variantes, compatible con los casos actuales; reglas de comparación: variantes, "sí" y "no", números en letras de cualquier tamaño, punto de miles, singular y plural, sin sinónimos | ADR-0011 |
+| Evals · Recalificar una corrida guardada (nueva) | `correr_evals --recalificar`: vuelve a medir una corrida guardada con los casos y el corrector vigentes, sin consultar | Medir el efecto de la reescritura de los casos sin la variación del modelo ni la GPU |
+| Decisiones | Fila del ADR-0011 | ADR-0011 |
+
+Tareas nuevas: T-058 (corrector y recalificación) y T-059 (reescritura de los datos clave del conjunto dorado). T-046 pasa a depender de las dos.
