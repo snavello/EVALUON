@@ -153,3 +153,38 @@
 .requirement.discarded.returned {
   opacity: 0.75;
 }
+
+.matrix-suggestions .suggestion {
+  border-left: 4px solid #c79a00;
+}
+
+.suggestions-note,
+.doubt-reason,
+.no-support,
+.passed-note {
+  margin: 0.25rem 0;
+}
+
+.no-support {
+  font-style: italic;
+}
+
+.support-mark {
+  background: #e6f4ea;
+  border: 1px solid #2e7d32;
+}
+
+.norm-support {
+  border-left: 3px solid #2e7d32;
+  padding-left: 0.5rem;
+}
+
+.suggestion-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.suggestion-buttons form {
+  margin: 0;
+}

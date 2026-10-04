@@ -1,0 +1,11 @@
+{% comment %}Una sugerencia de condición para imprimir y para el PDF: cita, ubicación, motivo y respaldo, sin botones ni enlaces (REQ-032, REQ-035). Recibe `row`.{% endcomment %}<article class="requirement suggestion">
+  <h3>Requisito {{ row.requirement.number }} <span class="class-mark">{{ row.requirement.get_category_display }}</span> <span class="state-mark">Sugerencia sin decidir</span>{% if row.supports %} <span class="state-mark">La norma aplicable la exige</span>{% endif %}</h3>
+  {% for quote in row.quotes %}
+  {% if quote.scope == "repetida" %}<p class="repeated-label">También en:</p>{% endif %}
+  <blockquote class="literal">{{ quote.text }}</blockquote>
+  <p class="quote-place">{% include "tenders/_place_print.html" with place=quote.place %}</p>
+  {% endfor %}
+  <p class="doubt-reason"><strong>Motivo de la duda:</strong> {{ row.doubt_phrase }}</p>
+  {% if row.evidence %}<p class="source-label">Indicio en el pliego:</p><blockquote class="literal">{{ row.evidence }}</blockquote>{% endif %}
+  {% include "tenders/_support.html" with row=row print=True %}
+</article>
