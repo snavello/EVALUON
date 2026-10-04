@@ -1835,3 +1835,34 @@ def test_public_summary_failing_row_line_has_no_text(circular_case):
                  *(q.text for q in m.RequirementQuote.objects.filter(
                      requirement__version=c.version))):
         assert text not in public
+
+
+# --- Memoria de la medición (T-121) ---------------------------------------------------------
+
+
+def test_the_rows_share_one_reading_instead_of_loading_one_per_quote(
+        case, operator_user, tmp_path):
+    """REQ-024: la medición no carga la lectura (texto canónico y páginas, de varios MB en un
+    pliego real) una vez por cita: con ~300 filas y ~1.600 citas el contenedor pasaba de 14 GB
+    y el kernel lo mató. Todas las citas de una misma lectura comparten una sola instancia, y
+    las consultas de lecturas no crecen con las filas."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    procedure, _, path, _ = case
+    report = run_measure(operator_user, procedure, path, tmp_path)
+    version = m.MatrixRun.objects.get(pk=report.results[0]["run"]).version
+
+    with CaptureQueriesContext(connection) as queries:
+        rows = ev._proposed(version) + ev._suggestions(version)
+
+    quotes = [q for row in rows for q in row.quotes]
+    assert len(quotes) >= 2
+    readings = {}
+    for quote in quotes:
+        readings.setdefault(quote.segment.reading_id, set()).add(id(quote.segment.reading))
+    assert all(len(ids) == 1 for ids in readings.values())
+    for row in rows:
+        assert row.reading is row.quotes[0].segment.reading
+    reading_queries = [q for q in queries.captured_queries if 'FROM "tenders_reading"' in q["sql"]]
+    assert len(reading_queries) <= 2
