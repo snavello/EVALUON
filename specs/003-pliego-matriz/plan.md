@@ -1,8 +1,8 @@
 # Plan 003 · Procedimiento, pliego final y matriz de cumplimiento
 
-Estado: aprobado · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-04, tope de sobrantes, REQ-033, REQ-034 y proceso único sin niveles (sección "Enmienda del 2026-10-04"), aprobada por el responsable el 2026-10-04
+Estado: aprobado · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-04, tope de sobrantes, REQ-033, REQ-034 y proceso único sin niveles (sección "Enmienda del 2026-10-04"), aprobada por el responsable el 2026-10-04 · Enmienda de sugerencias: 2026-10-04, REQ-035 y REQ-036 (subsección "Sugerencias de condición y respaldo normativo"), pendiente de aprobación
 
-Spec: `specs/003-pliego-matriz/spec.md` (aprobada el 2026-10-03, enmendada el mismo día: requisitos técnicos por renglón, criterio de requisito y de clase, tipos de consecuencia y REQ-032; enmendada el 2026-10-04: requisitos en tramos pendientes, tope de sobrantes, REQ-033 y REQ-034).
+Spec: `specs/003-pliego-matriz/spec.md` (aprobada el 2026-10-03, enmendada el mismo día: requisitos técnicos por renglón, criterio de requisito y de clase, tipos de consecuencia y REQ-032; enmendada el 2026-10-04: requisitos en tramos pendientes, tope de sobrantes, REQ-033 y REQ-034; enmendada otra vez el 2026-10-04: sugerencias de condición y respaldo normativo, REQ-035 y REQ-036).
 
 ADR de este plan:
 
@@ -10,7 +10,8 @@ ADR de este plan:
 - `docs/adr/0019-matriz-por-tramos-con-disposicion-obligatoria.md`, **aceptado**: la matriz se propone recorriendo el pliego por tramos, cada tramo con su disposición obligatoria; los requisitos formales y económicos con un fragmento literal verificado y los técnicos en una fila por renglón.
 - `docs/adr/0020-pdf-de-la-matriz-en-el-equipo.md`, **propuesto**: el PDF de la matriz se genera en el equipo con WeasyPrint (REQ-032, agregado después de aprobadas las decisiones de este plan).
 
-- `docs/adr/0021-filtro-de-precision-de-la-matriz.md`, **propuesto**: el filtro de sobrantes como pasada separada, con dos preguntas distintas, descarte visible y recuperable, y unificación por regla (REQ-033; enmienda del 2026-10-04).
+- `docs/adr/0021-filtro-de-precision-de-la-matriz.md`, **aceptado**: el filtro de sobrantes como pasada separada, con dos preguntas distintas, descarte visible y recuperable, y unificación por regla (REQ-033; enmienda del 2026-10-04).
+- `docs/adr/0022-sugerencias-de-condicion-y-respaldo-normativo.md`, **propuesto**: el filtro tiene un tercer destino, la sugerencia con motivo de duda, guardada como un estado del requisito; la norma solo confirma y no promueve sola (REQ-035 y REQ-036; enmienda de sugerencias).
 
 ADR en los que se apoya: 0002 (motor y modelo), 0003 (recuperación), 0004 (lectura y cita literal), 0005 (aplicación web), 0006 (dos regímenes), 0009 (respuestas de la Comisión), 0011 (medición), 0012 (suite), 0014 (puntos 6 y 7), 0015, 0017.
 
@@ -584,7 +585,7 @@ La segunda extracción (la que sumaba "exigente") no forma parte del proceso: T-
 1. **Clasificación.** Por fila: `mantener` o `descartar`; si descarta, un motivo de una lista cerrada (la del ADR-0019: título, definición o dato del procedimiento, norma aplicable, obligación del organismo que la oferta no puede contradecir ni condicionar, obligación de la ejecución del contrato, formulario a completar; más `consecuencia_o_sancion` y `derecho_posterior`) y un `indicio`: un fragmento literal del tramo que sostiene el motivo.
 2. **Pregunta inversa.** Por fila: si la oferta puede presentar, ofrecer, comprometer, contradecir o condicionar lo que dice el fragmento: `si`, `no` o `duda`. No ve la respuesta de la primera.
 
-**Cuándo se descarta.** Solo si se cumplen las cuatro condiciones: (1) la clasificación dice `descartar`; (2) el motivo está en la lista; (3) el indicio se encuentra, palabra por palabra, en el tramo (`quotes.py`); (4) la pregunta inversa dice `no`. Cualquier otra cosa mantiene la fila: salida inválida o cortada, alias faltante, motivo fuera de la lista, indicio que no está, `duda`, pedidos que fallan. Un lote que se corta por el máximo de salida se parte en dos, como en la extracción. Una fila nunca se pierde por una falla técnica.
+**Cuándo se descarta.** *(Enmendado por REQ-035: donde dice "mantiene la fila", la fila pasa a ser firme o sugerencia según la tabla de destinos de "Sugerencias de condición y respaldo normativo", y nunca se pierde.)* Solo si se cumplen las cuatro condiciones: (1) la clasificación dice `descartar`; (2) el motivo está en la lista; (3) el indicio se encuentra, palabra por palabra, en el tramo (`quotes.py`); (4) la pregunta inversa dice `no`. Cualquier otra cosa mantiene la fila: salida inválida o cortada, alias faltante, motivo fuera de la lista, indicio que no está, `duda`, pedidos que fallan. Un lote que se corta por el máximo de salida se parte en dos, como en la extracción. Una fila nunca se pierde por una falla técnica.
 
 **Cuidado con los requisitos reales.**
 
@@ -640,7 +641,7 @@ Una migración nueva en `evaluon/tenders/migrations/`, a cargo de una sola tarea
 
 Se aplican a `evaluation.py` y al comando; la lista esperada y la regla de emparejamiento por cita no cambian.
 
-1. **Matriz propuesta = lo que ve la Comisión**: las filas formales, económicas y técnicas de la versión, sin las descartadas por el sistema.
+1. **Matriz propuesta = lo que ve la Comisión**: las filas formales, económicas y técnicas de la versión, sin las descartadas por el sistema *(enmienda de sugerencias: ni las sugerencias de condición, que no entran en el tope; ver "Sugerencias de condición y respaldo normativo")*.
 2. **Sobrantes** = filas de esa matriz sin pareja. **Proporción de sobrantes** = sobrantes ÷ filas de la matriz propuesta (formales, económicas y técnicas), con su intervalo de Wilson al 95 %. Se informa también la proporción solo sobre formales y económicos.
 3. **Tope.** Se evalúa sobre el proceso único: cumple si la proporción es de hasta 20 % (`MATRIX_SOBRANTES_LIMIT`) y los encontrados son el 100 % (contando "a revisión obligatoria", T-095). El intervalo se informa y no decide.
 4. **Esperados descartados.** Un esperado sin pareja entre las filas de la matriz que sí tiene pareja (misma regla de cobertura de la mitad del ancla) entre las filas descartadas pasa a faltante con causa propia `descartado_por_el_sistema`, con el motivo y la clave de la descartada. Bloquea la aceptación y se informa con su motivo.
@@ -707,6 +708,137 @@ Estimación, por lo medido en T-093 (caso-00, 20 páginas): alta 412 s, media 33
 6. **Las filas devueltas no tienen sugerencias de consecuencia.**
 7. **T-094** (medición de aceptación con 01 y 02) se hizo antes del filtro y con niveles: la matriz cambia con T-102 y el producto con T-100, por lo que T-108 repite la aceptación completa, solo con el proceso único.
 8. **REQ-030 y los niveles.** El texto de REQ-030 de la spec enmendada ya no pide nivel; el resto del plan aprobado y las tareas T-073, T-078, T-084 y T-085 los mencionan como historia. Este plan no los reescribe: T-100 deja el producto y la medición sin niveles.
+
+### Sugerencias de condición y respaldo normativo (REQ-035, REQ-036; enmienda de sugerencias del 2026-10-04)
+
+La spec se enmendó otra vez el 2026-10-04: lo plausible pero dudoso no debe ir ni a la matriz firme (infla los sobrantes) ni a la lista de descartadas (arriesga el 100 %): va a una sección aparte, con su cita y el motivo de la duda, que la Comisión decide. Para esas filas el sistema busca además si la norma aplicable exige la condición. El responsable marcó REQ-036 como importante. ADR propuesto: `docs/adr/0022-sugerencias-de-condicion-y-respaldo-normativo.md`. No cambia la extracción, la completitud, las instrucciones del filtro ni las filas técnicas: cambia qué hace el sistema con las respuestas que hoy "mantienen la fila".
+
+#### Tres destinos en vez de dos
+
+El filtro ya hace las dos preguntas (A: mantener o descartar con motivo e indicio; B: si la oferta puede presentarlo, condicionarlo o contradecirlo: `si`, `no`, `duda`). No hay pedidos nuevos: la regla de destino se aplica, en código, a las dos respuestas validadas.
+
+| Primera (A) | Segunda (B) | Destino | Motivo de la duda (`doubt_reason`) |
+|---|---|---|---|
+| mantener | `si` | **Firme** (requisito propuesto) | — |
+| mantener | `no` | **Sugerencia** | `no_coinciden` |
+| mantener | `duda` | **Sugerencia** | `duda` |
+| descartar con motivo de la lista e indicio hallado | `no` | **Descartada** (sin cambios, ADR-0021) | — |
+| descartar con motivo de la lista e indicio hallado | `si` | **Sugerencia** | `no_coinciden` |
+| descartar con motivo de la lista e indicio hallado | `duda` | **Sugerencia** | `duda` |
+| descartar con motivo fuera de la lista o indicio que no está | cualquiera | **Sugerencia** | `descarte_sin_sustento` |
+| una sola respuesta válida (la otra con salida inválida, alias faltante o pedido fallido) y es `descartar`, `no` o `duda` | — | **Sugerencia** | `opinion_incompleta` |
+| una sola respuesta válida y es `mantener` o `si`; o ninguna válida | — | **Firme**, con la anomalía registrada | — |
+
+Regla en una frase: *se descarta solo con las cuatro condiciones de ADR-0021; es firme solo con (mantener, `si`), con una única opinión válida que mantiene, o cuando no hay ninguna opinión válida; todo lo demás es sugerencia.* Una falla técnica nunca fabrica una duda: sin ninguna opinión válida la fila queda firme, como hasta ahora ("de más"). El alcance del filtro no cambia: las filas técnicas, las de circular, las de tabla, las de cita amplia y las de una sección titulada como formal o económica no pasan por el filtro y quedan firmes. La sugerencia nace **solo** del filtro: ninguna otra pasada la produce.
+
+El motivo de la duda es de una lista cerrada (`DOUBT_MOTIVES`), no texto del modelo (P3): la pantalla lo muestra con una frase fija por motivo, más el indicio literal del tramo cuando lo hay (el de la primera pregunta) y las dos respuestas. Con `SUGGESTIONS_ENABLED` en falso, el filtro vuelve a dos destinos (lo que "mantiene" queda firme), como en ADR-0021.
+
+#### Cómo se guarda: un estado más del requisito, no una tabla
+
+La sugerencia es una fila de `tenders_requirement` con `state` `sugerido`. Se prefirió eso a una tabla aparte porque conserva todo lo que ya existe para un requisito (cita principal y repetidas, renglones, `proposed`, historial, grupos de REQ-034, copia entre versiones, consecuencias) y deja la migración de T-099 con unos pocos campos más. Cambios al esquema (los hace T-099, que no empezó):
+
+- **`tenders_requirement.state`** suma `sugerido`.
+- **`tenders_requirement.doubt_reason`** (texto, `''` por omisión): `no_coinciden`, `duda`, `descarte_sin_sustento` u `opinion_incompleta`; se conserva si la sugerencia pasa a requisito (queda su origen). Restricción: un requisito en `sugerido` tiene `doubt_reason` y no es técnico.
+- **`tenders_requirement.doubt`** (JSON): las dos respuestas validadas, el indicio literal con su ubicación, y los pedidos de `tenders_run_step` (`step_a`, `step_b`) que las produjeron.
+- **`tenders_requirement_change.action`** suma `aceptar_sugerencia` (pasar a requisito). Quitar una sugerencia usa `quitar`.
+- **`tenders_norm_support`** (nueva, solo inserción, trigger como `tenders_run_step`): el respaldo normativo de una sugerencia. `requirement`, `unit` (id de `norms_unit`), `unit_label` (norma y ruta tal como las muestra la 001), `char_start`, `char_end`, `text` (la cita literal dentro de la unidad), `score` (puntaje del reranker), `regime`, `corpus_version`, `step`, `created_at`. Se copia a la versión nueva junto con el requisito, como las consecuencias.
+- **`tenders_run_step.pass_name`** suma `respaldo_normativo`.
+- **Parámetros** (`settings.py`, copiados en cada propuesta): `SUGGESTIONS_ENABLED` (verdadero), `DOUBT_MOTIVES`, `NORM_SUPPORT_ENABLED` (verdadero), `NORM_SUPPORT_MIN_SCORE` (valor inicial: el umbral del reranker de la 001, hoy 0,219), `NORM_SUPPORT_MAX_UNITS` (4), `NORM_SUPPORT_QUERY_MAX_CHARS` (800) y la versión de `respaldo` en `MATRIX_PROMPT_VERSIONS`.
+- **`tenders_matrix_run.counts`** suma: sugerencias por motivo y por pasada, sugerencias con respaldo, consultas sin régimen o fallidas.
+- **Disposición del tramo.** Un tramo cuyas filas son todas sugerencias queda `requisitos` (tiene filas propuestas); la cobertura muestra el estado de cada fila.
+
+Orden de las pasadas (suma una a las de la enmienda anterior): extracción y completitud → unificación → filtro (reparte en firmes, sugerencias y descartadas) → **respaldo normativo** (solo sobre las sugerencias) → reglas de tablas → filas técnicas → circulares → consecuencias. Las consecuencias se piden para las filas firmes **y para las sugerencias**, para que una sugerencia que la Comisión pasa a requisito ya tenga sugerencias de consecuencia (si no las tuviera, el evaluador las elegiría sin ayuda, como en una fila devuelta); una sugerencia no necesita consecuencia elegida mientras siga siéndolo. Las circulares ven las sugerencias como cualquier otra fila no quitada.
+
+#### Qué hace la Comisión con una sugerencia y cómo se bloquea la validación
+
+- **Pasar a requisito** (operador o evaluador): la fila pasa a `propuesto`, con `aceptar_sugerencia` en el historial (quién, cuándo, el motivo de la duda y el respaldo, como estaban). Después la confirma un evaluador como cualquier requisito propuesto. Se eligió que pasar a requisito sea una acción de operador o evaluador, como agregar y quitar (REQ-026), y que confirmar siga siendo del evaluador.
+- **Quitar** (operador o evaluador): la fila pasa a `quitado`, visible y con su historia. Restituirla la deja como `propuesto`: restituir es decidir que es un requisito.
+- **Por grupo (REQ-034).** Mismo grupo (cláusula o tramo, misma regla de la clave de tramo). `accept_suggestions_group` y `remove_group` actúan solo sobre las filas en `sugerido` del grupo (cada una con su fila de historial y `via_grupo`), con la misma página de confirmación previa. `confirm_group` solo toca las `propuesto`: no confirma sugerencias.
+- **Confirmar una sugerencia sin haberla pasado a requisito se rechaza**: decidir si es un requisito y confirmarlo son dos actos.
+- **Validación (`validate`).** Se suma una condición a las de REQ-027: ningún requisito en `sugerido`. Se rechaza diciendo cuántas quedan y en qué grupos. Las condiciones anteriores no cambian. Una versión validada no tiene sugerencias; el hecho `matrix_validation` suma las cuentas de sugerencias aceptadas y quitadas. Descartar un borrador con sugerencias sin decidir está permitido.
+
+#### Consulta normativa (REQ-036) (`proposal/norm_support.py`)
+
+- **A qué filas.** Las sugerencias. Es la lectura de "fila dudosa" del plan: toda fila sobre la que el filtro duda es una sugerencia, así que el conjunto es el mismo (ver "Puntos de interpretación"). No se consulta para las firmes, las técnicas ni las descartadas.
+- **Contra qué.** Las normas del corpus de la 001 vigentes a la fecha de autorización del procedimiento (el régimen que da `applicable_regimes(fecha)`, REQ-022, y el marco nacional, ADR-0006), con `retrieve` de la 001: caminos semántico, por palabras y por referencia, y reranker. AFIP y ARCA valen lo mismo (ADR-0010): la búsqueda de la 001 ya lo resuelve. Solo cuentan las unidades de normas (artículos y equivalentes): no los considerandos, los dictámenes ni las respuestas de la Comisión, que fundamentan o interpretan pero no exigen. Sin régimen a esa fecha, no se consulta: la sugerencia sigue, con la anomalía `sin_regimen`.
+- **Qué se pregunta.** Una pregunta fija, armada por el sistema: "El pliego de un procedimiento de contratación dice: «{fragmento}». ¿Qué artículo del régimen de contrataciones exige esta condición a las ofertas?". El fragmento es la cita de la sugerencia, recortada en un límite de oración si pasa de `NORM_SUPPORT_QUERY_MAX_CHARS`. La pregunta y el resultado de la recuperación se registran en `tenders_run_step` (`respaldo_normativo`): unidades, puntajes, versión de la normativa (P6, P8).
+- **Qué se le pide al modelo.** Con `select_units` de la 001 se arma el pedido (hasta `NORM_SUPPORT_MAX_UNITS` unidades de norma con alias `N1…`, con sus cambios vigentes a la fecha). Las instrucciones `prompts/matriz-respaldo-v1.md` piden, por cada unidad: `exige` (`si` solo si la unidad impone a las ofertas o a los oferentes **esa misma condición**, no una parecida ni una regla general sobre otra cosa; si no, `no`) y la `cita`, un fragmento literal de la unidad que la impone. Salida estructurada con una propiedad por alias; temperatura 0. Los ejemplos de las instrucciones son sintéticos.
+- **Umbral para mostrar respaldo.** Una unidad es respaldo solo si se cumplen las tres: (1) su puntaje del reranker es de al menos `NORM_SUPPORT_MIN_SCORE`; (2) el modelo dijo `exige` = `si`; (3) su `cita` se halla, palabra por palabra, en el texto de la unidad en la base (`quotes.py`). Un alias inexistente o una cita que no está invalidan esa unidad. Se guardan hasta dos respaldos por sugerencia, los de mayor puntaje. El umbral inicial es el de la 001; se revisa en T-106 con lo medido, sin bajarlo para que aparezcan respaldos.
+- **Cómo se cita.** Como cualquier fundamento de norma de la 001 y de las consecuencias: norma y ruta de la unidad, su vigencia a la fecha, el texto literal de la cita y el enlace a la unidad. Se muestra "La norma aplicable exige esta condición a las ofertas" solo cuando hay respaldo.
+- **La norma solo confirma, nunca descarta.** El paso solo inserta filas de respaldo: no tiene ningún camino que cambie el estado de una fila. Sin respaldo (nada alcanzó el umbral, el modelo dijo `no`, la cita no estaba, la recuperación falló), la sugerencia queda como estaba y la pantalla dice "Sin respaldo normativo encontrado: no es motivo para quitarla" (que no figure en la norma cargada no prueba que no se exija, y el pliego puede agregar exigencias propias). Un test lo comprueba: ningún resultado de la consulta cambia el estado de una sugerencia.
+- **Sin servicios externos (P4).** La consulta usa la base, los embeddings, el reranker y `generation_batch` del equipo; no sale ni el fragmento del pliego ni la pregunta.
+- **Costo.** Una recuperación y un pedido corto por sugerencia: unos 4 a 6 segundos cada una (estimación, se mide en T-106), usando el reranker y los embeddings del equipo; en el caso-00, minutos. El tiempo se informa y no bloquea. La consulta de la 001 conserva su límite de 30 segundos porque el reranker y los embeddings atienden ambos pedidos y el pedido al modelo va a `generation_batch` (ADR-0018).
+
+#### ¿Puede el respaldo promover una sugerencia a requisito firme?
+
+No por sí solo. El respaldo la **propone como requisito**: la sugerencia con respaldo va primero en su sección, marcada "la norma aplicable la exige", y la Comisión la pasa con un clic o por grupo. Razones: REQ-035 pone la decisión de cada sugerencia en la Comisión (P3); un respaldo es una opinión del modelo comprobada con una cita literal, no una decisión; y una promoción automática haría depender el tope de la calidad de la consulta normativa. Una promoción automática, con las tres condiciones de arriba, sería posible más adelante si la medición muestra que todas las sugerencias con respaldo de los tres casos eran requisitos esperados; sería una decisión del responsable y una enmienda, no un ajuste (alternativa descartada en el ADR-0022; decisión 1 de abajo).
+
+#### Cambios en `medir_matriz`
+
+Se suman a los de "Cambios en la medición" (T-103 y T-111):
+
+1. **Firmes.** El tope se mide sobre las filas firmes: `propuesto` o `confirmado`, formales, económicas y técnicas, sin descartadas ni sugerencias. Sobrantes y proporción, como antes, sobre ese conjunto. Las sugerencias no entran en el tope.
+2. **Orden de emparejamiento.** Primero las filas firmes (con sus citas `repetida`), después las sugerencias, después las descartadas. Un esperado se empareja con la primera clase que lo cubre.
+3. **"A revisión obligatoria", segunda causa.** Un esperado sin pareja firme que tiene pareja en una sugerencia cuenta como "a revisión obligatoria" con causa `sugerencia` (misma forma que `tramo_pendiente`, T-095): entra en el numerador de la aceptación y se informa aparte, con su cantidad y sus claves `M-NNN`. Un esperado emparejado con una descartada y con ninguna sugerencia sigue siendo faltante `descartado_por_el_sistema`.
+4. **Informe de sugerencias** (para que la sección no sea un depósito):
+   - cuántas sugerencias hay, por motivo de duda y por tramo;
+   - **qué proporción eran requisitos esperados** (sugerencias con pareja ÷ sugerencias, con intervalo de Wilson) y qué proporción de los esperados quedó como sugerencia;
+   - **cuántas tuvieron respaldo normativo** y **cuántas de esas eran esperados** (con la misma proporción);
+   - los sobrantes que habría si las sugerencias fueran firmes (informativo, para ver cuánto del tope sostienen las sugerencias);
+   - una muestra de sugerencias con cita, motivo y respaldo en `resumen.md` (con texto, fuera del repositorio); `resumen-publico.md` solo lleva cuentas, claves y motivos, sin texto del pliego ni de la norma.
+5. **Tiempos.** `timing_summary` suma la pasada `respaldo_normativo`.
+6. **Corridas anteriores.** `--regenerar-resumen` sigue sirviendo con propuestas sin sugerencias.
+
+| Medida | Meta |
+|---|---|
+| Sobrantes | Hasta 20 % de las filas firmes (sin descartadas ni sugerencias) |
+| Esperados | 100 % entre firmes, unificados y "a revisión obligatoria" (pendientes o sugerencias) |
+| Sugerencias | Se informan: cantidad, proporción de esperados, con respaldo y esperados con respaldo. No bloquean |
+
+**Qué no acota la spec.** Ningún límite cuenta cuántos esperados pueden quedar como sugerencia: un filtro que mandara todo a sugerencias daría 0 % de sobrantes y 100 % de encontrados. Lo cubre el informe (proporción de esperados entre las sugerencias, sobrantes "si fueran firmes") y T-107 lo mira con el responsable; la mitigación de fondo está en que la sugerencia nace solo de la duda de las dos preguntas y no de las fallas.
+
+#### Pantalla e impresión
+
+- **Matriz.** Una sección "Sugerencias de condición", después de "Pendiente de revisión" y antes de los requisitos firmes, con la leyenda "El sistema duda de estas condiciones: decidí cada una; no se puede validar con sugerencias sin decidir". Cada sugerencia: cita literal, documento, página, cláusula y enlace al original; el motivo de la duda con su frase fija y, si hay, el indicio; el respaldo normativo (norma, artículo, vigencia, cita literal, enlace) o "Sin respaldo normativo encontrado: no es motivo para quitarla"; botones "Pasar a requisito" y "Quitar". Primero las que tienen respaldo ("la norma aplicable la exige"), después el resto, en el orden del pliego. Encabezados por cláusula y tramo con "Pasar a requisito las N" y "Quitar las N", con página de confirmación previa. El resumen de la matriz suma "sugerencias sin decidir".
+- **Cobertura.** Cada fila muestra su estado; las sugerencias figuran como tales.
+- **Impresión y PDF (REQ-032).** La plantilla suma la sección "Sugerencias de condición sin decidir" (cita, ubicación, motivo, respaldo con su cita) justo antes de los requisitos, para que el papel no oculte lo dudoso; la leyenda "BORRADOR INCOMPLETO" no cambia. Una versión validada no tiene la sección.
+- **Requisito que viene de una sugerencia.** Muestra "Pasó de sugerencia el DD/MM/AAAA por <persona>" y su respaldo, si lo tiene.
+
+#### Registro de auditoría (P6)
+
+Sin tipos de hecho nuevos. Cada decisión sobre una sugerencia es un `requirement_change` (acción `aceptar_sugerencia` o `quitar`) con el motivo de la duda y el respaldo tal como estaban, quién y cuándo, y `via_grupo` si fue por grupo. La consulta normativa deja un pedido en `tenders_run_step` por sugerencia (pregunta, unidades, puntajes, respuesta del modelo, versión de la normativa). `matrix_proposal` suma las cuentas de sugerencias y de respaldos; `matrix_validation`, las de sugerencias aceptadas y quitadas.
+
+#### Riesgos
+
+| Riesgo | Impacto | Mitigación |
+|---|---|---|
+| La sección de sugerencias se vuelve un depósito (cientos de filas dudosas) | Trabajo de la Comisión como antes, con otro nombre | La sugerencia nace solo de la duda de las dos preguntas, no de las fallas; el informe mide la proporción de esperados entre las sugerencias; los grupos de REQ-034; T-107 mira los números antes de la aceptación |
+| El filtro manda esperados a sugerencias para esquivar el tope | El 100 % de encontrados se logra por "a revisión obligatoria" | Se informan aparte; el tope informativo "con sugerencias como firmes"; el responsable decide con T-107 |
+| El respaldo es un falso positivo (la unidad no exige esa condición) | La Comisión pasa a requisito una condición ajena | Tres condiciones (puntaje, `exige`, cita literal verificada); no promueve sola; se muestra la cita para que la Comisión la lea; un respaldo no cambia ningún estado |
+| La consulta no encuentra la norma aunque exista | Una sugerencia queda sin respaldo | Es el caso previsto: sigue siendo sugerencia y no se descarta; se informa la cuenta de respaldos y esperados con respaldo |
+| La búsqueda de la 001 se diseñó para preguntas, no para fragmentos de pliego | Menos recuperación | Pregunta fija con el fragmento, tres caminos y reranker; se mide en T-106 y se ajustan las instrucciones o el umbral, no el estado |
+| Más trabajo de consecuencias por las sugerencias | Más tiempo | Se informa; el tiempo no bloquea |
+
+#### Cobertura de REQ-035 y REQ-036
+
+| Requisito | Cómo se resuelve | Cómo se verifica |
+|---|---|---|
+| REQ-035 | Tabla de tres destinos aplicada a las respuestas del filtro (`filter.py`); estado `sugerido` con `doubt_reason` y `doubt` (T-099); decidir por fila y por grupo y condición de validación (`services/suggestions.py`, `review.py`, `validation.py`); sección de sugerencias en pantalla e impresión; tope sobre firmes y "a revisión obligatoria" (`evaluation.py`) | Tests con el doble: una fila con (mantener, `duda`) queda como sugerencia con su cita y su motivo; con (mantener, `si`) queda firme; (descartar válido, `no`) se descarta; una falla técnica de las dos opiniones deja la fila firme; validar con una sugerencia sin decidir se rechaza y, decididas, se valida; pasar a requisito o quitar deja quién y cuándo; por grupo, cada fila con su historial; confirmar una sugerencia sin pasarla se rechaza. Medición: las sugerencias no cuentan como sobrantes; un esperado en una sugerencia es "a revisión obligatoria" |
+| REQ-036 | Consulta normativa con `retrieve` y `select_units` de la 001 a la fecha de autorización, pedido con cita verificada, tabla de respaldos, pantalla con la cita; sin efecto sobre el estado | Tests con las normas de prueba de la 001: una sugerencia que una norma vigente exige (por ejemplo, la garantía de mantenimiento) lleva su cita literal con norma, ruta y vigencia; la regla de la fecha elige la norma que regía; una sugerencia sin norma sigue como sugerencia; una cita que no está en la unidad invalida el respaldo; sin régimen a la fecha no hay consulta; el respaldo nunca cambia el estado. Medición: cuántas con respaldo y cuántas de esas eran esperados |
+
+#### Decisiones que necesita el responsable
+
+1. **Aprobar esta subsección y el ADR-0022** (compuerta). Dentro del ADR hay una decisión con peso: **el respaldo normativo propone, no promueve** (recomendado). La alternativa, promover sola una sugerencia con respaldo completo, ahorra un clic por fila pero saca la decisión de la Comisión y hace depender el tope de la consulta; no se recomienda mientras no haya mediciones de los tres casos.
+2. **¿Se consulta la norma también para las filas descartadas por el sistema?** La spec pide la consulta solo para sugerencias y filas dudosas. Hacerlo para las descartadas sería una red de seguridad del 100 % (una descartada que la norma exige se vería en la lista con su respaldo), pero la spec no lo pide y suma una consulta por descartada. El plan **no lo incluye**; si el responsable lo quiere, es una tarea más después de T-109.
+3. Nada más antes de medir: si el filtro manda demasiados esperados a sugerencias, lo decide el responsable con T-107.
+
+#### Puntos de interpretación, para el Coordinador
+
+1. **"Fila dudosa" = sugerencia.** Con tres destinos, toda fila sobre la que el filtro duda es una sugerencia; el plan no inventa una tercera categoría de duda dentro de las firmes. Si la spec quiso otra cosa (por ejemplo, firmes con una marca), hay que decirlo.
+2. **Quién decide una sugerencia.** El plan da pasar a requisito y quitar a operador y evaluador, como agregar y quitar (REQ-026); confirmar sigue siendo del evaluador. La spec dice "la Comisión decide".
+3. **Qué entra en el tope.** Las firmes, con técnicas; las sugerencias no.
+4. **Consecuencias para las sugerencias.** Se piden desde la propuesta, aunque no se elijan hasta que pasen a requisito; es costo de tiempo, no un requisito de la spec, y se justifica con el trabajo de la Comisión (P10: si la medición muestra que no ayuda, se saca).
+5. **Fallas técnicas.** Sin ninguna opinión válida la fila queda firme y no sugerencia, para que las fallas no llenen la sección; con una sola opinión válida que dude, es sugerencia (`opinion_incompleta`).
 
 ## Qué no se hace en esta feature
 
