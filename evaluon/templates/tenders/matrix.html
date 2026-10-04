@@ -12,6 +12,16 @@
 {% block content %}
 <p><a href="{% url 'tenders:procedure' page.procedure.pk %}">Procedimiento {{ page.procedure.number }}</a></p>
 <h1>Matriz de cumplimiento · versión {{ page.version.number }}</h1>
+{% if page.version.status == "validated" %}<p class="validated-mark">Matriz validada · versión {{ page.version.number }} · validada el {{ page.version.validated_at|date:"d/m/Y" }} por {{ page.version.validated_by.username }}</p>{% endif %}
+{% if page.can_validate %}
+<div class="validation-actions">
+  <form method="post" action="{% url 'tenders:validate' page.version.pk %}">{% csrf_token %}<button type="submit">Validar</button></form>
+  <form method="post" action="{% url 'tenders:discard' page.version.pk %}">{% csrf_token %}<button type="submit">Descartar el borrador</button></form>
+</div>
+{% endif %}
+{% if page.can_open_new %}
+<form method="post" action="{% url 'tenders:open_new_version' page.procedure.pk %}" class="validation-actions">{% csrf_token %}<button type="submit">Abrir una versión nueva</button></form>
+{% endif %}
 {% if review_error %}<p class="review-error" role="alert">{{ review_error }}</p>{% endif %}
 
 <section class="matrix-header" aria-labelledby="header-title">
@@ -36,6 +46,7 @@
     <li>Económicos: {{ page.counts.economico }}</li>
     <li>Técnicos (filas por renglón): {{ page.counts.tecnico }}</li>
     <li>Pendientes de revisión: {{ page.pending_open }}</li>
+    <li>Consecuencias sin elegir: {{ page.counts.sin_consecuencia }}</li>
   </ul>
 </section>
 

@@ -16,6 +16,13 @@
   <p>Hay un borrador abierto: revíselo antes de pedir otra propuesta.</p>
   {% endif %}
 
+  {% if panel.can_open_new %}
+  <form method="post" action="{% url 'tenders:open_new_version' procedure.pk %}" class="matrix-form">
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+    <button type="submit">Abrir una versión nueva sobre la última validada</button>
+  </form>
+  {% endif %}
+
   {% if matrix_error %}
   <p class="form-error" role="alert">{{ matrix_error }}</p>
   {% endif %}
