@@ -16,7 +16,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 |---|---|---|---|---|
 | T-067 | Crear las tablas, los tipos de hecho y los parámetros de la 003 | REQ-022, REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-029, REQ-030, REQ-031, REQ-032 | — | terminada |
 | T-068 | Sumar el rol de la Comisión a los usuarios | REQ-026, REQ-027, REQ-029 | T-067 | terminada |
-| T-069 | Registrar un procedimiento y mostrar su régimen | REQ-022 | T-068 | pendiente |
+| T-069 | Registrar un procedimiento y mostrar su régimen | REQ-022 | T-068 | terminada |
 | T-070 | Partir un pliego en tramos con renglones, clase por sección y control de cobertura | REQ-024, REQ-025, REQ-028 | T-067 | pendiente |
 | T-071 | Ejecutar pedidos en segundo plano con su propio motor | REQ-024, REQ-030 | T-067 | terminada |
 | T-072 | Cargar los documentos del pliego y leerlos en segundo plano | REQ-023, REQ-028, REQ-031 | T-069, T-070, T-071 | pendiente |

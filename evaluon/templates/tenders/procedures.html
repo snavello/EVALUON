@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Procedimientos · EVALUON{% endblock %}
+
+{% block content %}
+<h1>Procedimientos</h1>
+
+{% if registered %}
+<section class="registered" aria-labelledby="registered-title">
+  <h2 id="registered-title">Procedimiento registrado: {{ registered.procedure.number }}</h2>
+  {% include "queries/_regime_line.html" with reference_date=registered.procedure.authorization_date regime=registered.regime %}
+</section>
+{% endif %}
+
+<section class="procedure-list" aria-labelledby="list-title">
+  <h2 id="list-title">Procedimientos registrados</h2>
+  {% if rows %}
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Número</th>
+        <th scope="col">Objeto</th>
+        <th scope="col">Fecha de autorización</th>
+        <th scope="col">Régimen</th>
+        <th scope="col">Matriz</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.procedure.number }}</td>
+        <td>{{ row.procedure.subject }}</td>
+        <td>{{ row.procedure.authorization_date|date:"d/m/Y" }}</td>
+        <td>{% if row.regime %}{% for item in row.regime %}{% if not forloop.first %}{% if forloop.last %} y {% else %}, {% endif %}{% endif %}{{ item.name }}{% endfor %}{% else %}Sin régimen específico cargado{% endif %}</td>
+        <td>{% if row.matrix %}Versión {{ row.matrix.number }} · {{ row.matrix.get_status_display }}{% else %}Sin matriz{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>Todavía no hay procedimientos registrados.</p>
+  {% endif %}
+</section>
+
+<section class="procedure-form" aria-labelledby="form-title">
+  <h2 id="form-title">Registrar un procedimiento</h2>
+  <form method="post" action="{% url 'tenders:procedures' %}">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <p class="form-error" role="alert">{{ form.non_field_errors|join:" " }}</p>
+    {% endif %}
+    {% for field in form %}
+    <p>
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+    </p>
+    {% if field.errors %}
+    <p class="form-error" role="alert" id="{{ field.auto_id }}_error">{{ field.errors|join:" " }}</p>
+    {% endif %}
+    {% endfor %}
+    <button type="submit">Registrar</button>
+  </form>
+</section>
+{% endblock %}

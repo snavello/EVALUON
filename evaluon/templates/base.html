@@ -10,6 +10,12 @@
   <header class="site-header">
     <span class="site-name">EVALUON</span>
     {% if user.is_authenticated %}
+    {% if user.commission_role %}
+    <nav class="site-nav" aria-label="Secciones">
+      <a href="{% url 'queries:screen' %}">Consulta</a>
+      <a href="{% url 'tenders:procedures' %}">Procedimientos</a>
+    </nav>
+    {% endif %}
     <span class="site-user">{{ user.username }}</span>
     <form method="post" action="{% url 'accounts:logout' %}" class="logout-form">
       {% csrf_token %}
