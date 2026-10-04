@@ -23,3 +23,14 @@ def consequence_panel(context, requirement):
         "error": (context.get("review_error")
                   if context.get("review_error_requirement") == requirement.pk else ""),
     }
+
+
+@register.inclusion_tag("tenders/_consequences_print.html")
+def consequence_print(requirement):
+    """Las consecuencias para la impresión y el PDF, de solo lectura (REQ-032, T-086): la
+    elegida sola, con su motivo, quién y cuándo; si no hay elegida, las sugeridas con su
+    fundamento resumido por su ubicación."""
+    options = consequences.options(requirement)
+    chosen = [o for o in options if o.chosen]
+    return {"chosen": chosen[0] if chosen else None,
+            "suggested": [] if chosen else options}

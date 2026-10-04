@@ -311,3 +311,79 @@ def test_a_missing_version_answers_404(client, operator_user):
 
     assert client.get(reverse("tenders:pdf", args=[999999])).status_code == 404
     assert client.get(reverse("tenders:print", args=[999999])).status_code == 404
+
+
+# --- Consecuencias en la impresión y el PDF (REQ-032, plan 003 "Salidas") ------------------------
+
+
+def _suggest(requirement, kind):
+    from evaluon.tenders import models as m
+    quote = requirement.quotes.first()
+    ground = {"source": "pliego", "reading": quote.segment.reading_id,
+              "segment": quote.segment_id, "key": quote.segment.key,
+              "char_start": quote.char_start, "char_end": quote.char_end}
+    return m.Consequence.objects.create(requirement=requirement, consequence_type=kind,
+                                        grounds=[ground], origin="sistema")
+
+
+def _first_requirement(case):
+    return case.requirements.filter(category="economico").order_by("number").first()
+
+
+def _print_text(client, user, version):
+    log_in(client, user)
+    return html.unescape(
+        client.get(reverse("tenders:print", args=[version.pk])).content.decode())
+
+
+def test_print_without_a_chosen_consequence_shows_the_suggested_ones_with_their_place(
+        client, operator_user, case):
+    """REQ-032: sin consecuencia elegida, la impresión muestra las sugeridas con su
+    fundamento resumido por la ubicación, sin el texto completo ni formularios."""
+    requirement = _first_requirement(case)
+    _suggest(requirement, "desestimacion")
+    _suggest(requirement, "consultar_oferente")
+
+    page = _print_text(client, operator_user, case)
+
+    assert "Desestimación sin posibilidad de subsanar" in page
+    assert "Consultar al oferente" in page
+    assert "Sugerida por el sistema · Sin elegir" in page
+    assert "Fundamento en el pliego" in page
+    assert page.count('<span class="place">Pliego sintético · Página 1') >= 2
+    assert "Aceptar esta sugerencia" not in page and "Elegir la consecuencia" not in page
+
+
+def test_print_with_a_chosen_consequence_shows_only_that_one_with_who_when_and_why(
+        client, operator_user, evaluator_user, case):
+    """REQ-032: con consecuencia elegida, solo esa, con su motivo, quién y cuándo."""
+    requirement = _first_requirement(case)
+    _suggest(requirement, "desestimacion")
+    _suggest(requirement, "consultar_oferente")
+    consequences.choose(evaluator_user, requirement.pk, consequence_type="aprobar_igual",
+                        note="Motivo elegido de prueba")
+
+    page = _print_text(client, operator_user, case)
+    block = page.split(f"Requisito {requirement.number} ")[1].split("<article")[0]
+
+    assert "Aprobar de todas maneras" in block
+    assert f"Elegida por {evaluator_user.username} el" in block
+    assert "Motivo: Motivo elegido de prueba" in block
+    assert "Desestimación sin posibilidad" not in block
+    assert "Consultar al oferente" not in block
+
+
+def test_the_screen_still_shows_all_the_options_and_the_choice_form(
+        client, evaluator_user, case):
+    """La pantalla de la matriz no cambia: todas las opciones y el formulario de elección."""
+    requirement = _first_requirement(case)
+    _suggest(requirement, "desestimacion")
+    _suggest(requirement, "consultar_oferente")
+    log_in(client, evaluator_user)
+
+    page = html.unescape(
+        client.get(reverse("tenders:matrix", args=[case.pk])).content.decode())
+
+    assert "Desestimación sin posibilidad de subsanar" in page
+    assert "Consultar al oferente" in page
+    assert "Aceptar esta sugerencia" in page and "Elegir la consecuencia" in page

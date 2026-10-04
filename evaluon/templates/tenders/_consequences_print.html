@@ -1,0 +1,18 @@
+{% comment %}Consecuencias de un requisito para imprimir: solo la elegida, o las sugeridas si no hay elegida. Sin formularios ni textos completos de los fundamentos.{% endcomment %}<section class="consequences" aria-label="Consecuencias del incumplimiento">
+  <h5>Consecuencia de no cumplir</h5>
+  {% if chosen %}
+  <p class="consequence chosen"><strong>{{ chosen.label }}</strong> · Elegida por {{ chosen.consequence.chosen_by.username }} el {{ chosen.consequence.chosen_at|date:"d/m/Y H:i" }}</p>
+  {% if chosen.consequence.chosen_note %}<p class="chosen-note">{% if chosen.consequence.consequence_type == "aprobacion_condicionada" %}Condición{% else %}Motivo{% endif %}: {{ chosen.consequence.chosen_note }}</p>{% endif %}
+  {% for ground in chosen.grounds %}<p class="quote-place">{% include "tenders/_ground_print.html" %}</p>{% endfor %}
+  {% else %}
+  {% if not suggested %}<p>Todavía no hay consecuencias sugeridas para este requisito.</p>{% endif %}
+  <ul>
+    {% for option in suggested %}
+    <li class="consequence">
+      {% if option.undetermined %}<strong>No determinada</strong> · Sin fundamento{% else %}<strong>{{ option.label }}</strong> · {% if option.from_system %}Sugerida por el sistema{% else %}Propuesta por una persona{% endif %} · Sin elegir{% endif %}
+      {% for ground in option.grounds %}<br>{% include "tenders/_ground_print.html" %}{% endfor %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>

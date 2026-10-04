@@ -100,7 +100,7 @@ una versión abierta sobre otra no tiene propuesta propia.
     <blockquote class="literal">{{ note.text }}</blockquote>
     <p class="quote-place">{% include "tenders/_place_print.html" with place=note.place %}</p>
     {% endfor %}
-    {% consequence_panel row.requirement %}
+    {% consequence_print row.requirement %}
   </article>
   {% endfor %}
   {% empty %}
@@ -120,7 +120,7 @@ una versión abierta sobre otra no tiene propuesta propia.
       <li>{% include "tenders/_place_print.html" with place=quote.place %}{% if quote.scope_label %} · {{ quote.scope_label }}{% endif %}{% if quote.wide %} <span class="wide-mark">Cita amplia, revisar</span>{% endif %}</li>
       {% endfor %}
     </ul>
-    {% consequence_panel row.requirement %}
+    {% consequence_print row.requirement %}
   </article>
   {% empty %}
   <p>La propuesta no tiene filas técnicas.</p>
