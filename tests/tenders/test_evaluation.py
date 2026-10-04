@@ -55,15 +55,15 @@ def write(path, text):
     path.write_text(text, encoding="utf-8")
 
 
-def by_id(report, level="media"):
-    result = next(r for r in report.results if r["level"] == level)
+def by_id(report):
+    result = report.results[0]
     return {line["id"]: line for line in result["measures"]["lines"]
             if line["tipo"] == "esperado"}
 
 
-def run_measure(user, procedure, path, tmp_path, levels=("media",)):
+def run_measure(user, procedure, path, tmp_path):
     expected = ev.load_expected(path)
-    return ev.measure(user, procedure, expected, list(levels), tmp_path / "corridas",
+    return ev.measure(user, procedure, expected, tmp_path / "corridas",
                       commit="abc1234")
 
 
@@ -274,22 +274,22 @@ def test_timings_are_per_pass_per_page_and_extrapolated(case, operator_user, tmp
 # --- Corrida -----------------------------------------------------------------------------------
 
 
-def test_run_uses_eval_channel_and_discards_its_versions(case, operator_user, tmp_path):
-    """REQ-024: cada nivel corre con el canal `eval`; las versiones quedan descartadas, con
-    su hecho de registro, y se puede medir otra vez."""
+def test_run_uses_eval_channel_and_discards_its_version(case, operator_user, tmp_path):
+    """REQ-024: la medición corre el proceso único con el canal `eval`; la versión queda
+    descartada, con su hecho de registro, y se puede medir otra vez."""
     procedure, _, path, _ = case
 
-    report = run_measure(operator_user, procedure, path, tmp_path, levels=("media", "alta"))
+    report = run_measure(operator_user, procedure, path, tmp_path)
 
     runs = list(m.MatrixRun.objects.order_by("id"))
-    assert [(r.level, r.channel, r.job_id) for r in runs] == [
-        ("media", "eval", None), ("alta", "eval", None)]
+    assert [(r.process, r.level, r.channel, r.job_id) for r in runs] == [
+        ("completo", "", "eval", None)]
     versions = m.MatrixVersion.objects.filter(procedure=procedure)
-    assert versions.count() == 2
+    assert versions.count() == 1 and versions.get().process == "completo"
     assert set(versions.values_list("status", flat=True)) == {"discarded"}
     assert all(v.discarded_by_id == operator_user.pk for v in versions)
-    assert [row["verdict"] for row in report.comparison] == ["base", "no mejora"]
-    assert report.comparison[1]["against"] == "media"
+    assert [r["process"] for r in report.results] == ["completo"]
+    assert not hasattr(report, "comparison")
     again = run_measure(operator_user, procedure, path, tmp_path)
     assert again.folder != report.folder
 
@@ -297,7 +297,7 @@ def test_run_uses_eval_channel_and_discards_its_versions(case, operator_user, tm
 def test_open_draft_refuses_the_measurement(case, operator_user, tmp_path):
     """REQ-024: con un borrador abierto no se mide (la base admite uno por procedimiento)."""
     procedure, _, path, _ = case
-    m.MatrixVersion.objects.create(procedure=procedure, number=1, level="media",
+    m.MatrixVersion.objects.create(procedure=procedure, number=1, process="completo",
                                    created_by=operator_user)
 
     with pytest.raises(ev.MeasurementRefused, match="borrador"):
@@ -315,7 +315,9 @@ def test_run_folder_has_the_four_files(case, operator_user, tmp_path):
     assert names == ["parametros.json", "resultados.jsonl", "resumen-publico.md",
                      "resumen.md"]
     parameters = json.loads((report.folder / "parametros.json").read_text(encoding="utf-8"))
-    assert parameters["niveles"] == ["media"] and parameters["commit"] == "abc1234"
+    assert parameters["proceso"] == "completo" and parameters["commit"] == "abc1234"
+    assert "niveles" not in parameters
+    assert [p["process"] for p in parameters["propuestas"]] == ["completo"]
     rows = [json.loads(line) for line in
             (report.folder / "resultados.jsonl").read_text(encoding="utf-8").splitlines()]
     assert {row["tipo"] for row in rows} >= {"esperado", "propuesto"}
@@ -372,10 +374,10 @@ def test_command_measures_and_prints_the_counts(case, operator_user, monkeypatch
                         lambda username: operator_user)
 
     call_command("medir_matriz", usuario="operador", procedimiento=procedure.number,
-                 esperada=str(path), niveles="media")
+                 esperada=str(path))
 
     out = capsys.readouterr().out
-    assert "Corrida guardada en" in out and "media: encontrados" in out
+    assert "Corrida guardada en" in out and "completo: encontrados" in out
     assert (path.parent.parent / "corridas").is_dir()
 
 
@@ -448,7 +450,49 @@ def test_role_is_checked_before_measuring(case, operator_user, evaluator_user,
     with pytest.raises(RoleRejected):
         run_measure(no_commission_user, procedure, path, tmp_path)
     assert not m.MatrixRun.objects.exists()
-    assert run_measure(evaluator_user, procedure, path, tmp_path).results[0]["level"] == "media"
+    assert run_measure(evaluator_user, procedure, path, tmp_path).results[0]["process"] == "completo"
+
+
+def test_technical_row_citing_two_documents_is_measured_against_each_own_reading(
+        case, operator_user, tmp_path, monkeypatch):
+    """REQ-025: una fila técnica que cita tramos de dos documentos mide cada cita contra la
+    lectura de su propio tramo, no contra la de la primera cita de la fila."""
+    from tests.tenders.pdfs import para, tender_pdf
+
+    procedure, _, path, _ = case
+    report = run_measure(operator_user, procedure, path, tmp_path)
+    run = m.MatrixRun.objects.get(pk=report.results[0]["run"])
+    base = report.results[0]["measures"]["literal"]
+    annex = load_and_read(
+        operator_user, procedure,
+        tender_pdf([[para("ANEXO SINTÉTICO", "1. Los planos se entregan en papel.",
+                          "2. La señalética es de chapa.")]], header=None),
+        kind=m.DocumentKind.ANEXO, title="Anexo sintético")
+    segment = annex.readings.get().segments.order_by("order").first()
+    # La versión medida ya está descartada y no se modifica: la cita del anexo se agrega en
+    # memoria, como primera cita de la fila técnica.
+    foreign = m.RequirementQuote(
+        order=0, segment=segment, char_start=segment.char_start, char_end=segment.char_end,
+        text=segment.reading.canonical_text[segment.char_start:segment.char_end],
+        scope=m.QuoteScope.PROPIA)
+    original = ev._proposed
+
+    def with_annex_quote(version):
+        rows = original(version)
+        technical = next(r for r in rows if r.category == ev.TECHNICAL)
+        technical.quotes.insert(0, foreign)
+        technical.reading, technical.segment = segment.reading, segment
+        return rows
+
+    monkeypatch.setattr(ev, "_proposed", with_annex_quote)
+
+    expected = ev.load_expected(path)
+    verification = ev.verify_expected(expected, procedure)
+    measures = ev.measure_version(run, expected, verification)
+
+    assert measures["literal"]["total"] == base["total"] + 1
+    assert measures["literal"]["ok"] == measures["literal"]["total"]
+    assert not [line for line in measures["lines"] if line["tipo"] == "cita"]
 
 
 def test_wide_quotes_are_counted_apart_from_the_literal_quote_measure(
@@ -499,91 +543,6 @@ def test_extrapolation_counts_the_real_pages_of_the_reading(case, operator_user,
     assert timings["pages"] == 20
     assert timings["seconds_per_page"] == 5.0
     assert timings["extrapolated_50_pages_seconds"] == 250.0
-
-
-# --- Comparar niveles medidos en corridas separadas (T-091) ----------------------------------
-
-
-def _fake_run(folder, expected, procedure, level, found, leftovers):
-    """Una corrida guardada sintética: solo `parametros.json` y `resultados.jsonl`."""
-    folder.mkdir(parents=True)
-    (folder / "parametros.json").write_text(json.dumps(
-        {"procedimiento": procedure.number, "lista": {"sha256": expected.sha256}}),
-        encoding="utf-8")
-    rows = [{"nivel": level, "tipo": "esperado", "id": f"M-{n}", "estado": "encontrado"}
-            for n in range(found)]
-    rows += [{"nivel": level, "tipo": "propuesto", "numero": n, "estado": "sobrante"}
-             for n in range(leftovers)]
-    (folder / "resultados.jsonl").write_text(
-        "\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
-
-
-def test_levels_measured_in_separate_runs_are_compared(case, operator_user, tmp_path):
-    """REQ-030: media, alta y exigente en carpetas separadas: el resumen compara con la última
-    corrida de cada nivel y aplica la regla (mejora si encuentra más, o lo mismo con menos
-    sobrantes); no lleva texto del pliego."""
-    procedure, _, path, _ = case
-    expected = ev.load_expected(path)
-    runs = tmp_path / "corridas"
-    _fake_run(runs / "20260101-000000-aaa", expected, procedure, "media", 1, 3)
-    _fake_run(runs / "20260102-000000-bbb", expected, procedure, "media", 2, 3)  # más reciente
-    _fake_run(tmp_path / "otra" / "20260103-000000-ccc", expected, procedure,
-              "exigente", 2, 1)
-
-    report = ev.measure(operator_user, procedure, expected, ["alta"], runs, commit="abc1234",
-                        compare_with=[tmp_path / "otra"])
-
-    row = report.comparison[0]
-    found = report.results[0]["measures"]["found"]["ok"]
-    leftovers = report.results[0]["measures"]["leftovers"]
-    assert row["against"] == "media" and row["against_run"] == "20260102-000000-bbb"
-    expected_verdict = "mejora" if (found, -leftovers) > (2, -3) else "no mejora"
-    assert row["verdict"] == expected_verdict
-    public = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
-    assert "respecto de media (corrida 20260102-000000-bbb)" in public
-    quotes = m.RequirementQuote.objects.filter(requirement__version__procedure=procedure)
-    for quote in quotes:
-        assert quote.text[:25] not in public
-
-
-def test_comparison_rule_with_earlier_runs():
-    """REQ-030: un nivel se ofrece solo si mejora al anterior; el anterior puede venir de una
-    corrida guardada; sin corridas previas el nivel es la base."""
-    def result(level, found, leftovers):
-        return {"level": level, "measures": {"found": {"ok": found}, "leftovers": leftovers}}
-
-    order = ["media", "alta", "exigente"]
-    earlier = {"media": {"found": 40, "leftovers": 5, "run": "r1"},
-               "alta": {"found": 45, "leftovers": 6, "run": "r2"}}
-
-    exigente = ev.compare_levels([result("exigente", 45, 6)], earlier, order)[0]
-    assert (exigente["verdict"], exigente["against"]) == ("no mejora", "alta")
-    exigente = ev.compare_levels([result("exigente", 45, 4)], earlier, order)[0]
-    assert exigente["verdict"] == "mejora" and exigente["against_run"] == "r2"
-    alta = ev.compare_levels([result("alta", 46, 9)], earlier, order)[0]
-    assert (alta["verdict"], alta["against"]) == ("mejora", "media")
-    assert ev.compare_levels([result("alta", 46, 9)], {}, order)[0]["verdict"] == "base"
-
-
-def test_runs_of_another_list_or_procedure_are_not_used(case, operator_user, tmp_path):
-    """REQ-030: no se compara contra corridas de otra lista (otra huella) ni con una corrida
-    que falló."""
-    procedure, _, path, _ = case
-    expected = ev.load_expected(path)
-    runs = tmp_path / "corridas"
-    _fake_run(runs / "20260101-000000-aaa", expected, procedure, "media", 2, 0)
-    other = runs / "20260102-000000-bbb"
-    _fake_run(other, expected, procedure, "media", 2, 0)
-    (other / "parametros.json").write_text(json.dumps(
-        {"procedimiento": procedure.number, "lista": {"sha256": "otra"}}), encoding="utf-8")
-    failed = runs / "20260103-000000-ccc"
-    _fake_run(failed, expected, procedure, "media", 0, 0)
-    (failed / "resultados.jsonl").write_text(
-        json.dumps({"nivel": "media", "tipo": "error", "error": "x"}) + "\n", encoding="utf-8")
-
-    earlier = ev.previous_levels([runs], expected, procedure.number)
-
-    assert earlier["media"]["run"] == "20260101-000000-aaa"
 
 
 # --- A revisión obligatoria (T-095) -------------------------------------------------------------
@@ -649,24 +608,6 @@ def test_expected_in_a_segment_with_requirements_stays_missing_not_review(
     assert measures["review"]["count"] == 0
     assert measures["found"] == measures["found_without_review"]
     assert all(row["estado"] != ev.MANDATORY_REVIEW for row in by_id(report).values())
-
-
-def test_previous_levels_count_mandatory_review_as_found(case, tmp_path):
-    """REQ-024: al comparar con corridas guardadas, un esperado "a revisión obligatoria"
-    cuenta como encontrado, igual que en la aceptación."""
-    procedure, _, path, _ = case
-    expected = ev.load_expected(path)
-    folder = tmp_path / "corridas" / "20260101-000000-aaa"
-    _fake_run(folder, expected, procedure, "alta", 2, 1)
-    with (folder / "resultados.jsonl").open("a", encoding="utf-8") as out:
-        out.write(json.dumps({"nivel": "alta", "tipo": "esperado", "id": "M-9",
-                              "estado": ev.MANDATORY_REVIEW}) + "\n")
-        out.write(json.dumps({"nivel": "alta", "tipo": "esperado", "id": "M-10",
-                              "estado": "faltante"}) + "\n")
-
-    earlier = ev.previous_levels([tmp_path / "corridas"], expected, procedure.number)
-
-    assert earlier["alta"] == {"found": 3, "leftovers": 1, "run": "20260101-000000-aaa"}
 
 
 # --- Cobertura con circulares y resumen que no se pierde (T-096) -------------------------------
@@ -754,3 +695,43 @@ def test_summaries_are_regenerated_from_a_finished_run_without_the_model(
         assert (folder / name).read_text(encoding="utf-8") == text
     assert m.MatrixRun.objects.count() == runs_before
     assert len(script.calls) == calls_before
+
+
+def test_command_no_longer_accepts_levels_or_comparison(case, operator_user, monkeypatch):
+    """REQ-030: `medir_matriz` mide el proceso único: `--niveles` y `--comparar-con` ya no
+    existen, y no se corre nada."""
+    from django.core.management.base import CommandError
+
+    procedure, _, path, _ = case
+    monkeypatch.setattr("evaluon.accounts.permissions.authenticate_command",
+                        lambda username: operator_user)
+
+    for option in ("--niveles", "--comparar-con"):
+        with pytest.raises(CommandError):
+            call_command("medir_matriz", "--usuario", "operador", "--procedimiento",
+                         procedure.number, "--esperada", str(path), option, "alta")
+    assert not m.MatrixRun.objects.exists()
+
+
+def test_a_run_folder_made_with_levels_is_still_regenerated(
+        case, operator_user, tmp_path, monkeypatch):
+    """REQ-030: una carpeta de corrida hecha antes del proceso único (claves `niveles`,
+    `level` y `nivel`, con la propuesta guardada con su nivel) se sigue leyendo y sus
+    resúmenes se reescriben, con el nivel mostrado como el proceso de la propuesta."""
+    procedure, _, path, _ = case
+    report = run_measure(operator_user, procedure, path, tmp_path)
+    folder = report.folder
+    parameters = json.loads((folder / "parametros.json").read_text(encoding="utf-8"))
+    parameters.pop("proceso")
+    parameters["niveles"] = ["media"]
+    for entry in parameters["propuestas"]:
+        entry["level"] = entry.pop("process")
+    (folder / "parametros.json").write_text(json.dumps(parameters), encoding="utf-8")
+    m.MatrixRun.objects.update(process="", level="media")
+    expected = ev.load_expected(path)
+
+    again = ev.regenerate_summaries(procedure, expected, folder)
+
+    assert [r["process"] for r in again.results] == ["media"]
+    summary = (folder / "resumen.md").read_text(encoding="utf-8")
+    assert "## Proceso " in summary

@@ -262,13 +262,6 @@ PROMPT_TEMPLATE_MARGIN_TOKENS = 512
 # Valores iniciales. Se copian en cada propuesta de matriz (`tenders_matrix_run`);
 # cambiarlos exige volver a medir (P7).
 
-# Niveles de revisión que existen (REQ-030) y el que se usa si no se elige.
-MATRIX_LEVELS = ["media", "alta", "exigente"]
-MATRIX_DEFAULT_LEVEL = "alta"
-# Niveles que se ofrecen (T-085). Decisión del responsable del 2026-10-04, con el informe de
-# T-084: se ofrecen media y alta (alta, por omisión); exigente no se ofrece. Sigue existiendo
-# en MATRIX_LEVELS, así `medir_matriz` puede medirlo si se lo pide.
-MATRIX_LEVELS_OFFERED = ("media", "alta")
 # Tokens de entrada de los tramos de un lote de extracción.
 MATRIX_BATCH_INPUT_TOKENS = 1500
 # Máximo de tokens de salida de cada pedido de la matriz.
@@ -284,8 +277,45 @@ MATRIX_PROMPT_VERSIONS = {
     "extraccion": "matriz-extraccion-v2",
     "completitud": "matriz-completitud-v2",
     "consecuencias": "matriz-consecuencias-v1",
-    "circulares": "matriz-circulares-v1",
+    "circulares": "matriz-circulares-v2",
+    "unificacion": "matriz-unificacion-v1",
+    "filtro": "matriz-filtro-v1",
+    "respaldo": "matriz-respaldo-v1",
 }
+
+# Proceso único de la propuesta (REQ-030 enmendado): el más completo, sin niveles. Se
+# registra en cada propuesta y en su versión de matriz.
+MATRIX_PROCESS = "completo"
+
+# --- Filtro de sobrantes, unificación y descartadas (ADR-0021, REQ-033) ----------------
+FILTER_ENABLED = True
+# Filas formales o económicas por pedido del filtro.
+FILTER_BATCH_ROWS = 15
+# Motivos de descarte: lista cerrada (los del ADR-0019 más dos del ADR-0021).
+FILTER_MOTIVES = [
+    "titulo", "dato_procedimiento", "norma_aplicable", "obligacion_organismo",
+    "ejecucion_contrato", "formulario", "indice_caratula", "consecuencia_sancion",
+    "derecho_posterior",
+]
+# Similitud de palabras desde la que dos filas se unifican como repetidas.
+DEDUP_MIN_SIMILARITY = 0.9
+# Muestra de descartadas que se revisa en la medición: una de cada tres, mínimo 20.
+MATRIX_SAMPLE_DISCARDED = {"every": 3, "minimum": 20}
+# Tope de sobrantes sobre las filas firmes (REQ-024).
+MATRIX_SOBRANTES_LIMIT = 0.20
+
+# --- Sugerencias y respaldo normativo (ADR-0022, REQ-035 y REQ-036) --------------------
+SUGGESTIONS_ENABLED = True
+DOUBT_MOTIVES = [
+    "no_coinciden", "duda", "descarte_sin_sustento", "opinion_incompleta",
+]
+NORM_SUPPORT_ENABLED = True
+# Valor inicial: el umbral del reranker de la 001; se revisa con lo medido (T-106).
+NORM_SUPPORT_MIN_SCORE = RERANK_THRESHOLD
+# Unidades de norma que se le muestran al modelo por sugerencia.
+NORM_SUPPORT_MAX_UNITS = 4
+# Largo máximo del fragmento del pliego en la pregunta, en caracteres.
+NORM_SUPPORT_QUERY_MAX_CHARS = 800
 
 # Motor de generación de los pedidos del `worker` (ADR-0018). Apuntarlo a
 # `GENERATION_URL` vuelve a un solo motor sin cambiar código.

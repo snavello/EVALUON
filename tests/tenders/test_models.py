@@ -141,7 +141,7 @@ def test_tables_have_plan_names():
         "tenders_run_step", "tenders_disposition", "tenders_matrix_version",
         "tenders_requirement", "tenders_requirement_quote",
         "tenders_requirement_source", "tenders_consequence", "tenders_pending_item",
-        "tenders_requirement_change",
+        "tenders_requirement_change", "tenders_discarded_row", "tenders_norm_support",
     }
     assert expected <= set(connection.introspection.table_names())
 
@@ -934,10 +934,6 @@ def test_unknown_event_type_still_rejected():
 def test_matrix_parameters_in_settings():
     """REQ-030, REQ-024: los parámetros de la 003 están en la configuración con los
     valores iniciales del plan."""
-    assert settings.MATRIX_LEVELS == ["media", "alta", "exigente"]
-    assert settings.MATRIX_DEFAULT_LEVEL == "alta"
-    assert settings.MATRIX_LEVELS_OFFERED == ("media", "alta")
-    assert set(settings.MATRIX_LEVELS) == set(m.Level.values)
     assert settings.MATRIX_BATCH_INPUT_TOKENS == 1500
     assert settings.MATRIX_MAX_OUTPUT_TOKENS == 4096
     assert settings.SEGMENT_MAX_CHARS == 4000
@@ -948,6 +944,28 @@ def test_matrix_parameters_in_settings():
     assert settings.WORKER_POLL_SECONDS == 5
 
 
+def test_enmienda_parameters_in_settings():
+    """REQ-030, REQ-033, REQ-035, REQ-036: los parámetros de la enmienda del 2026-10-04
+    están en la configuración con los valores del plan, y las listas cerradas coinciden
+    con los valores que acepta la base."""
+    assert settings.FILTER_ENABLED is True
+    assert settings.FILTER_BATCH_ROWS == 15
+    assert set(settings.FILTER_MOTIVES) == set(m.FilterMotive.values)
+    assert settings.DEDUP_MIN_SIMILARITY == 0.9
+    assert settings.MATRIX_SAMPLE_DISCARDED == {"every": 3, "minimum": 20}
+    assert settings.MATRIX_SOBRANTES_LIMIT == 0.20
+    assert settings.MATRIX_PROCESS == "completo"
+    assert settings.MATRIX_PROCESS in m.Process.values
+    assert settings.SUGGESTIONS_ENABLED is True
+    assert set(settings.DOUBT_MOTIVES) == set(m.DoubtReason.values)
+    assert settings.NORM_SUPPORT_ENABLED is True
+    assert settings.NORM_SUPPORT_MIN_SCORE == settings.RERANK_THRESHOLD == 0.219
+    assert settings.NORM_SUPPORT_MAX_UNITS == 4
+    assert settings.NORM_SUPPORT_QUERY_MAX_CHARS == 800
+    for name in ("filtro", "unificacion", "respaldo"):
+        assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v1"
+
+
 def test_generation_batch_url_default(monkeypatch):
     """REQ-024 (ADR-0018): sin variable de entorno, el motor del `worker` es
     `generation_batch`."""
@@ -956,3 +974,387 @@ def test_generation_batch_url_default(monkeypatch):
     monkeypatch.delenv("GENERATION_BATCH_URL", raising=False)
     values = runpy.run_path(str(settings.BASE_DIR / "evaluon" / "settings.py"))
     assert values["GENERATION_BATCH_URL"] == "http://generation_batch:8080"
+
+
+# --- Enmienda del 2026-10-04 (T-099) --------------------------------------------------
+
+
+@pytest.fixture
+def new_run(procedure):
+    """Una propuesta del proceso único: sin nivel, con `process`."""
+    return m.MatrixRun.objects.create(
+        procedure=procedure, process="completo", channel="screen",
+        authorization_date=procedure.authorization_date,
+    )
+
+
+@pytest.fixture
+def new_step(new_run):
+    return m.RunStep.objects.create(
+        run=new_run, pass_name="filtro", batch=1, request={"messages": []}
+    )
+
+
+def add_discarded(run, version, segment, step, order=1, **fields):
+    values = {
+        "run": run, "version": version, "order": order, "segment": segment,
+        "char_start": segment.char_start, "char_end": segment.char_end,
+        "text": segment.text, "category": "formal", "items": [],
+        "reason": "titulo", "evidence_segment": segment,
+        "evidence_start": segment.char_start, "evidence_end": segment.char_end,
+        "evidence_text": segment.text, "vote_a": {"decision": "descartar"},
+        "vote_b": {"puede_ofertar": "no"}, "step_a": step, "step_b": step,
+        "source_pass": "extraccion",
+    }
+    values.update(fields)
+    return m.DiscardedRow.objects.create(**values)
+
+
+@pytest.fixture
+def discarded_row(new_run, new_step, segments, draft):
+    return add_discarded(new_run, draft, segments[0], new_step)
+
+
+@pytest.fixture
+def norm_unit(make_norm, make_document, make_reading):
+    reading = make_reading(
+        make_document(make_norm()), [("art-1", "Artículo 1. Texto sintético de la norma.")]
+    )
+    return reading.units_by_key["art-1"]
+
+
+@pytest.fixture
+def norm_support(segments, draft, new_step, norm_unit):
+    requirement = add_requirement(draft, 1, "formal")
+    add_quote(requirement, segments[0])
+    return m.NormSupport.objects.create(
+        requirement=requirement, unit=norm_unit, unit_label="Norma sintética, art. 1",
+        char_start=0, char_end=10, text="Artículo 1.", score=0.5,
+        regime="Régimen sintético", corpus_version=1, step=new_step,
+    )
+
+
+@pytest.mark.django_db
+def test_discarded_row_is_append_only(discarded_row):
+    """REQ-033 (P6): `tenders_discarded_row` rechaza UPDATE y DELETE, por el ORM y por
+    SQL directo."""
+    with pytest.raises(DatabaseError) as rejected, transaction.atomic():
+        m.DiscardedRow.objects.filter(pk=discarded_row.pk).update(reason="formulario")
+    assert "solo admite agregar" in str(rejected.value)
+    with pytest.raises(DatabaseError), transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM tenders_discarded_row WHERE id = %s", [discarded_row.pk]
+            )
+    discarded_row.refresh_from_db()
+    assert discarded_row.reason == "titulo"
+
+
+@pytest.mark.django_db
+def test_norm_support_is_append_only(norm_support):
+    """REQ-036 (P6): `tenders_norm_support` rechaza UPDATE y DELETE."""
+    with pytest.raises(DatabaseError) as rejected, transaction.atomic():
+        m.NormSupport.objects.filter(pk=norm_support.pk).update(score=0.9)
+    assert "solo admite agregar" in str(rejected.value)
+    with pytest.raises(DatabaseError), transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM tenders_norm_support WHERE id = %s", [norm_support.pk]
+            )
+    norm_support.refresh_from_db()
+    assert norm_support.score == 0.5
+
+
+@pytest.mark.django_db
+def test_discarded_row_values_checked(new_run, new_step, segments, draft):
+    """REQ-033: la base rechaza un motivo fuera de la lista, una clase técnica, un
+    rango invertido y una pasada inventada en una fila descartada."""
+    a, _ = segments
+    for fields in (
+        {"reason": "aburrida"}, {"category": "tecnico"},
+        {"char_start": 9, "char_end": 1}, {"source_pass": "otra"},
+    ):
+        with pytest.raises(IntegrityError), transaction.atomic():
+            add_discarded(new_run, draft, a, new_step, **fields)
+    assert m.DiscardedRow.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_formal_with_main_quote_and_two_repeated_accepted(segments, draft):
+    """REQ-025, REQ-033: un formal con una cita principal y dos `repetida` se acepta."""
+    a, b = segments
+    requirement = add_requirement(draft, 1, "formal")
+    add_quote(requirement, a)
+    add_quote(requirement, b, order=2, scope="repetida")
+    add_quote(requirement, b, order=3, scope="repetida")
+    check_deferred()
+    assert requirement.quotes.count() == 3
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("category", ["formal", "economico"])
+def test_two_main_quotes_still_rejected_with_repeated(segments, draft, category):
+    """REQ-025: con una `repetida` de por medio, dos citas principales se rechazan."""
+    a, b = segments
+    requirement = add_requirement(draft, 1, category)
+    add_quote(requirement, a)
+    add_quote(requirement, b, order=2, scope="repetida")
+    with pytest.raises(DatabaseError) as rejected, transaction.atomic():
+        add_quote(requirement, b, order=3)
+    assert "una sola cita" in str(rejected.value)
+
+
+@pytest.mark.django_db
+def test_formal_with_only_repeated_quotes_rejected_at_commit(segments, draft):
+    """REQ-025: una `repetida` no reemplaza a la cita principal: sin ella, el formal se
+    rechaza al confirmar."""
+    with pytest.raises(DatabaseError) as rejected, transaction.atomic():
+        requirement = add_requirement(draft, 1, "formal")
+        add_quote(requirement, segments[0], scope="repetida")
+        check_deferred()
+    assert "exactamente una cita" in str(rejected.value)
+
+
+@pytest.mark.django_db
+def test_removing_main_quote_leaving_repeated_rejected_at_commit(segments, draft):
+    """REQ-025: quitar la cita principal de un formal que conserva `repetida` se
+    rechaza al confirmar."""
+    a, b = segments
+    requirement = add_requirement(draft, 1, "formal")
+    main = add_quote(requirement, a)
+    add_quote(requirement, b, order=2, scope="repetida")
+    check_deferred()
+    with pytest.raises(DatabaseError), transaction.atomic():
+        m.RequirementQuote.objects.filter(pk=main.pk).delete()
+        check_deferred()
+
+
+@pytest.mark.django_db
+def test_technical_quotes_unchanged_by_repeated_scope(segments, draft):
+    """REQ-025: un técnico sigue citando varios tramos, propios y generales."""
+    a, b = segments
+    requirement = add_requirement(draft, 1, "tecnico", items=[1])
+    add_quote(requirement, b, order=1, scope="propia")
+    add_quote(requirement, a, order=2, scope="general")
+    add_quote(requirement, a, order=3, scope="general")
+    check_deferred()
+    assert requirement.quotes.count() == 3
+
+
+@pytest.mark.django_db
+def test_restored_from_unique_in_version(discarded_row, segments, draft):
+    """REQ-033: dos requisitos de una misma versión no vuelven de la misma descartada;
+    los que no tienen `restored_from` no cuentan."""
+    a, _ = segments
+    first = m.Requirement.objects.create(
+        version=draft, number=1, category="formal", origin="devuelto",
+        restored_from=discarded_row,
+    )
+    add_quote(first, a)
+    for number in (3, 4):
+        add_quote(add_requirement(draft, number, "formal"), a)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        m.Requirement.objects.create(
+            version=draft, number=2, category="formal", origin="devuelto",
+            restored_from=discarded_row,
+        )
+    check_deferred()
+    assert draft.requirements.filter(restored_from=discarded_row).count() == 1
+
+
+@pytest.mark.django_db
+def test_restored_from_can_repeat_across_versions(
+    discarded_row, segments, draft, procedure, read_write_user
+):
+    """REQ-033: la misma descartada se puede devolver en otra versión."""
+    a, _ = segments
+    first = m.Requirement.objects.create(
+        version=draft, number=1, category="formal", origin="devuelto",
+        restored_from=discarded_row,
+    )
+    add_quote(first, a)
+    validate(draft, read_write_user)
+    second_version = m.MatrixVersion.objects.create(
+        procedure=procedure, number=2, process="completo", based_on=draft,
+        created_by=read_write_user,
+    )
+    second = m.Requirement.objects.create(
+        version=second_version, number=1, category="formal", origin="devuelto",
+        restored_from=discarded_row, previous=first,
+    )
+    add_quote(second, a)
+    check_deferred()
+    assert discarded_row.restored_requirements.count() == 2
+
+
+@pytest.mark.django_db
+def test_suggestion_with_valid_reason_accepted(segments, draft):
+    """REQ-035: un requisito `sugerido` con motivo válido y de clase formal o económica
+    se acepta, con su `doubt`."""
+    a, _ = segments
+    for number, (reason, category) in enumerate(
+        [("no_coinciden", "formal"), ("duda", "economico"),
+         ("descarte_sin_sustento", "formal"), ("opinion_incompleta", "formal")],
+        start=1,
+    ):
+        requirement = m.Requirement.objects.create(
+            version=draft, number=number, category=category, origin="propuesto",
+            state="sugerido", doubt_reason=reason,
+            doubt={"vote_a": {}, "vote_b": {}, "evidence": "x", "step_a": 1, "step_b": 2},
+        )
+        add_quote(requirement, a)
+    check_deferred()
+    assert draft.requirements.filter(state="sugerido").count() == 4
+
+
+@pytest.mark.django_db
+def test_suggestion_without_reason_rejected(draft):
+    """REQ-035: un requisito `sugerido` sin `doubt_reason` se rechaza."""
+    with pytest.raises(IntegrityError), transaction.atomic():
+        m.Requirement.objects.create(
+            version=draft, number=1, category="formal", origin="propuesto",
+            state="sugerido",
+        )
+
+
+@pytest.mark.django_db
+def test_technical_suggestion_rejected(draft):
+    """REQ-035: un requisito técnico no puede ser `sugerido`."""
+    with pytest.raises(IntegrityError), transaction.atomic():
+        m.Requirement.objects.create(
+            version=draft, number=1, category="tecnico", items=[1],
+            origin="propuesto", state="sugerido", doubt_reason="duda",
+        )
+
+
+@pytest.mark.django_db
+def test_invalid_doubt_reason_rejected(draft):
+    """REQ-035: un motivo de duda inventado se rechaza, también en un no sugerido."""
+    with pytest.raises(IntegrityError), transaction.atomic():
+        m.Requirement.objects.create(
+            version=draft, number=1, category="formal", origin="propuesto",
+            doubt_reason="sospecha",
+        )
+
+
+@pytest.mark.django_db
+def test_suggestion_keeps_reason_after_becoming_requirement(segments, draft):
+    """REQ-035: al pasar a requisito, la fila conserva el motivo de la duda."""
+    requirement = m.Requirement.objects.create(
+        version=draft, number=1, category="formal", origin="propuesto",
+        state="sugerido", doubt_reason="duda",
+    )
+    add_quote(requirement, segments[0])
+    m.Requirement.objects.filter(pk=requirement.pk).update(state="propuesto")
+    check_deferred()
+    requirement.refresh_from_db()
+    assert (requirement.state, requirement.doubt_reason) == ("propuesto", "duda")
+
+
+@pytest.mark.django_db
+def test_new_enum_values_accepted_and_invented_rejected(
+    new_run, new_step, segments, draft, read_write_user
+):
+    """REQ-033, REQ-035, REQ-036: los valores nuevos de `origin`, `action`,
+    `pass_name`, `source` y `scope` se aceptan y uno inventado, no."""
+    a, _ = segments
+    for number, pass_name in enumerate(
+        ["unificacion", "filtro", "filtro_2", "respaldo_normativo"], start=1
+    ):
+        m.RunStep.objects.create(
+            run=new_run, pass_name=pass_name, batch=number, request={}
+        )
+    m.Disposition.objects.create(
+        run=new_run, segment=a, outcome="requisitos", source="filtro"
+    )
+    devuelto = m.Requirement.objects.create(
+        version=draft, number=1, category="formal", origin="devuelto"
+    )
+    add_quote(devuelto, a)
+
+    def change(action):
+        return m.RequirementChange.objects.create(
+            requirement=devuelto, action=action, user=read_write_user,
+            event=audit.record(
+                "requirement_change", outcome="ok", channel="screen",
+                user=read_write_user,
+            ),
+        )
+
+    change("devolver")
+    change("aceptar_sugerencia")
+    check_deferred()
+    invented = [
+        lambda: m.RunStep.objects.create(
+            run=new_run, pass_name="respaldo", batch=9, request={}
+        ),
+        lambda: m.Disposition.objects.create(
+            run=new_run, segment=a, outcome="requisitos", source="filtros"
+        ),
+        lambda: m.Requirement.objects.create(
+            version=draft, number=2, category="formal", origin="restituido"
+        ),
+        lambda: m.Requirement.objects.create(
+            version=draft, number=3, category="formal", origin="propuesto",
+            state="dudoso", doubt_reason="duda",
+        ),
+        lambda: change("rechazar_sugerencia"),
+        lambda: add_quote(add_requirement(draft, 4, "tecnico"), a, scope="repetidas"),
+    ]
+    accepted = []
+    for index, insert in enumerate(invented):
+        try:
+            with transaction.atomic():
+                insert()
+        except IntegrityError:
+            continue
+        accepted.append(index)
+    assert accepted == []
+
+
+@pytest.mark.django_db
+def test_old_proposal_with_level_and_no_process_still_valid(procedure, read_write_user):
+    """REQ-030: los datos de una propuesta anterior (con `level` y sin `process`) siguen
+    siendo válidos, y una nueva puede tener `process` y `level` vacío."""
+    old_run = m.MatrixRun.objects.create(
+        procedure=procedure, level="media", channel="screen",
+        authorization_date=procedure.authorization_date,
+    )
+    old_version = m.MatrixVersion.objects.create(
+        procedure=procedure, number=1, level="exigente", status="discarded",
+        created_by=read_write_user, discarded_at=timezone.now(),
+        discarded_by=read_write_user, run=old_run,
+    )
+    new_run = m.MatrixRun.objects.create(
+        procedure=procedure, process="completo", channel="screen",
+        authorization_date=procedure.authorization_date,
+    )
+    new_version = m.MatrixVersion.objects.create(
+        procedure=procedure, number=2, process="completo", created_by=read_write_user,
+        run=new_run,
+    )
+    assert (old_run.level, old_run.process) == ("media", "")
+    assert (old_version.level, old_version.process) == ("exigente", "")
+    assert (new_run.level, new_version.level) == ("", "")
+    assert (new_run.process, new_version.process) == ("completo", "completo")
+
+
+@pytest.mark.django_db
+def test_invalid_process_or_level_rejected(procedure, read_write_user):
+    """REQ-030: un `process` inventado se rechaza en la propuesta y en la versión, y un
+    `level` inventado sigue rechazado."""
+    for insert in (
+        lambda: m.MatrixRun.objects.create(
+            procedure=procedure, process="rapido", channel="screen",
+            authorization_date=procedure.authorization_date,
+        ),
+        lambda: m.MatrixRun.objects.create(
+            procedure=procedure, level="baja", channel="screen",
+            authorization_date=procedure.authorization_date,
+        ),
+        lambda: m.MatrixVersion.objects.create(
+            procedure=procedure, number=1, process="rapido", created_by=read_write_user
+        ),
+    ):
+        with pytest.raises(IntegrityError), transaction.atomic():
+            insert()

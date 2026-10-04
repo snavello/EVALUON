@@ -380,6 +380,12 @@ class Level(models.TextChoices):
     EXIGENTE = "exigente", "Exigente"
 
 
+class Process(models.TextChoices):
+    """Proceso de una propuesta de matriz (REQ-030 enmendado: uno solo)."""
+
+    COMPLETO = "completo", "Completo"
+
+
 class RunChannel(models.TextChoices):
     SCREEN = "screen", "Pantalla"
     EVAL = "eval", "Evaluación"
@@ -404,7 +410,12 @@ class MatrixRun(models.Model):
         blank=True,
         related_name="matrix_runs",
     )
-    level = models.CharField("nivel", max_length=10, choices=Level.choices)
+    # Dato histórico: las propuestas nuevas lo dejan vacío (REQ-030 enmendado).
+    level = models.CharField("nivel", max_length=10, choices=Level.choices, blank=True)
+    # Vacío en las propuestas hechas antes del proceso único.
+    process = models.CharField(
+        "proceso", max_length=10, choices=Process.choices, blank=True
+    )
     channel = models.CharField("canal", max_length=10, choices=RunChannel.choices)
     # Cada documento usado con su lectura y su huella.
     documents = models.JSONField("documentos", default=list)
@@ -437,7 +448,8 @@ class MatrixRun(models.Model):
         verbose_name = "propuesta de matriz"
         verbose_name_plural = "propuestas de matriz"
         constraints = [
-            _valid("level", Level, "tenders_matrix_run_level_valid"),
+            _valid("level", Level, "tenders_matrix_run_level_valid", blank=True),
+            _valid("process", Process, "tenders_matrix_run_process_valid", blank=True),
             _valid("channel", RunChannel, "tenders_matrix_run_channel_valid"),
         ]
 
@@ -448,6 +460,10 @@ class PassName(models.TextChoices):
     COMPLETITUD = "completitud", "Completitud"
     CONSECUENCIAS = "consecuencias", "Consecuencias"
     CIRCULARES = "circulares", "Circulares"
+    UNIFICACION = "unificacion", "Unificación de repetidas"
+    FILTRO = "filtro", "Filtro de sobrantes"
+    FILTRO_2 = "filtro_2", "Filtro de sobrantes, segunda opinión"
+    RESPALDO_NORMATIVO = "respaldo_normativo", "Respaldo normativo"
 
 
 class RunStep(models.Model):
@@ -508,6 +524,7 @@ class DiscardReason(models.TextChoices):
 class DispositionSource(models.TextChoices):
     MODELO = "modelo", "Modelo"
     REGLA = "regla", "Regla"
+    FILTRO = "filtro", "Filtro"
 
 
 class Disposition(models.Model):
@@ -590,7 +607,10 @@ class MatrixVersion(models.Model):
     )
     # El de la propuesta de la que sale; una versión abierta sobre otra conserva el de
     # su origen (REQ-030).
-    level = models.CharField("nivel", max_length=10, choices=Level.choices)
+    level = models.CharField("nivel", max_length=10, choices=Level.choices, blank=True)
+    process = models.CharField(
+        "proceso", max_length=10, choices=Process.choices, blank=True
+    )
     run = models.ForeignKey(
         MatrixRun,
         verbose_name="propuesta",
@@ -620,7 +640,10 @@ class MatrixVersion(models.Model):
         verbose_name_plural = "versiones de la matriz"
         constraints = [
             _valid("status", VersionStatus, "tenders_matrix_version_status_valid"),
-            _valid("level", Level, "tenders_matrix_version_level_valid"),
+            _valid("level", Level, "tenders_matrix_version_level_valid", blank=True),
+            _valid(
+                "process", Process, "tenders_matrix_version_process_valid", blank=True
+            ),
             models.UniqueConstraint(
                 fields=["procedure", "number"],
                 name="tenders_matrix_version_number_unique",
@@ -651,12 +674,38 @@ class RequirementOrigin(models.TextChoices):
     PROPUESTO = "propuesto", "Propuesto por el sistema"
     AGREGADO = "agregado", "Agregado por una persona"
     CIRCULAR = "circular", "Agregado por una circular"
+    DEVUELTO = "devuelto", "Devuelto de las descartadas"
 
 
 class RequirementState(models.TextChoices):
     PROPUESTO = "propuesto", "Propuesto"
     CONFIRMADO = "confirmado", "Confirmado"
     QUITADO = "quitado", "Quitado"
+    SUGERIDO = "sugerido", "Sugerido"
+
+
+class DoubtReason(models.TextChoices):
+    """Por qué una fila es una sugerencia y no un requisito firme (REQ-035)."""
+
+    NO_COINCIDEN = "no_coinciden", "Las dos respuestas no coinciden"
+    DUDA = "duda", "El modelo dudó"
+    DESCARTE_SIN_SUSTENTO = "descarte_sin_sustento", "Descarte sin indicio verificable"
+    OPINION_INCOMPLETA = "opinion_incompleta", "Opinión incompleta"
+
+
+class FilterMotive(models.TextChoices):
+    """Motivos de descarte de una fila: la lista cerrada del ADR-0021 (los del ADR-0019
+    más consecuencia o sanción y derecho posterior a la oferta)."""
+
+    TITULO = "titulo", "Título"
+    DATO_PROCEDIMIENTO = "dato_procedimiento", "Definición o dato del procedimiento"
+    NORMA_APLICABLE = "norma_aplicable", "Norma aplicable"
+    OBLIGACION_ORGANISMO = "obligacion_organismo", "Obligación del organismo"
+    EJECUCION_CONTRATO = "ejecucion_contrato", "Obligación de la ejecución del contrato"
+    FORMULARIO = "formulario", "Formulario a completar"
+    INDICE_CARATULA = "indice_caratula", "Índice o carátula"
+    CONSECUENCIA_SANCION = "consecuencia_sancion", "Consecuencia o sanción"
+    DERECHO_POSTERIOR = "derecho_posterior", "Derecho posterior a la oferta"
 
 
 class Requirement(models.Model):
@@ -698,6 +747,22 @@ class Requirement(models.Model):
         related_name="requirements",
     )
     passes = models.JSONField("pasadas", default=list)
+    # Solo en un requisito sugerido (REQ-035); se conserva si pasa a requisito.
+    doubt_reason = models.CharField(
+        "motivo de la duda", max_length=30, choices=DoubtReason.choices, blank=True
+    )
+    # Las dos respuestas validadas, el indicio literal con su ubicación y los pedidos
+    # (`step_a`, `step_b`) que las produjeron.
+    doubt = models.JSONField("duda", default=dict)
+    # La fila descartada de la que sale un requisito devuelto (REQ-033).
+    restored_from = models.ForeignKey(
+        "DiscardedRow",
+        verbose_name="devuelto de",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="restored_requirements",
+    )
 
     class Meta:
         db_table = "tenders_requirement"
@@ -708,6 +773,22 @@ class Requirement(models.Model):
             _valid("origin", RequirementOrigin, "tenders_requirement_origin_valid"),
             _valid("state", RequirementState, "tenders_requirement_state_valid"),
             _is_json_array("items", "tenders_requirement_items_is_list"),
+            _valid(
+                "doubt_reason", DoubtReason, "tenders_requirement_doubt_reason_valid",
+                blank=True,
+            ),
+            # Un sugerido tiene motivo de duda y no es técnico (REQ-035).
+            models.CheckConstraint(
+                condition=~Q(state=RequirementState.SUGERIDO)
+                | (~Q(doubt_reason="") & ~Q(category=RequirementClass.TECNICO)),
+                name="tenders_requirement_suggestion_has_reason",
+            ),
+            # Una descartada se devuelve una sola vez por versión.
+            models.UniqueConstraint(
+                fields=["version", "restored_from"],
+                condition=Q(restored_from__isnull=False),
+                name="tenders_requirement_restored_from_unique_in_version",
+            ),
             # Un técnico es la fila de un renglón: uno como máximo.
             models.CheckConstraint(
                 condition=~Q(category=RequirementClass.TECNICO)
@@ -738,6 +819,7 @@ class QuoteScope(models.TextChoices):
 
     PROPIA = "propia", "Del renglón"
     GENERAL = "general", "Común a todos los renglones"
+    REPETIDA = "repetida", "Cita adicional de la misma condición"
 
 
 class QuoteFlag(models.TextChoices):
@@ -761,7 +843,8 @@ class RequirementQuote(models.Model):
     char_start = models.PositiveIntegerField("inicio en el texto canónico")
     char_end = models.PositiveIntegerField("fin en el texto canónico")
     text = models.TextField("texto literal")
-    # Vacío en un formal o económico.
+    # Vacío en un formal o económico, salvo `repetida` (cita adicional de la misma
+    # condición, que no cuenta como la cita principal).
     scope = models.CharField(
         "alcance", max_length=10, choices=QuoteScope.choices, blank=True
     )
@@ -1013,6 +1096,8 @@ class ChangeAction(models.TextChoices):
     RESTITUIR = "restituir", "Restituir"
     AGREGAR = "agregar", "Agregar"
     ELEGIR_CONSECUENCIA = "elegir_consecuencia", "Elegir la consecuencia"
+    DEVOLVER = "devolver", "Devolver de las descartadas"
+    ACEPTAR_SUGERENCIA = "aceptar_sugerencia", "Pasar una sugerencia a requisito"
 
 
 class RequirementChange(models.Model):
@@ -1042,4 +1127,120 @@ class RequirementChange(models.Model):
         verbose_name_plural = "cambios de requisitos"
         constraints = [
             _valid("action", ChangeAction, "tenders_requirement_change_action_valid"),
+        ]
+
+
+class DiscardedRow(models.Model):
+    """Una fila descartada por el sistema (REQ-033, ADR-0021). Solo se insertan filas:
+    devolverla no la modifica, crea un requisito con `restored_from`."""
+
+    run = models.ForeignKey(
+        MatrixRun,
+        verbose_name="propuesta",
+        on_delete=models.PROTECT,
+        related_name="discarded_rows",
+    )
+    version = models.ForeignKey(
+        MatrixVersion,
+        verbose_name="versión",
+        on_delete=models.PROTECT,
+        related_name="discarded_rows",
+    )
+    order = models.PositiveIntegerField("orden en el pliego")
+    segment = models.ForeignKey(
+        Segment,
+        verbose_name="tramo",
+        on_delete=models.PROTECT,
+        related_name="discarded_rows",
+    )
+    char_start = models.PositiveIntegerField("inicio en el texto canónico")
+    char_end = models.PositiveIntegerField("fin en el texto canónico")
+    text = models.TextField("texto literal")
+    # Citas de las repetidas unificadas: lista de tramo, posiciones y texto.
+    extra_quotes = models.JSONField("citas adicionales", default=list)
+    category = models.CharField("clase", max_length=20, choices=RequirementClass.choices)
+    items = models.JSONField("renglones", default=list)
+    reason = models.CharField("motivo", max_length=30, choices=FilterMotive.choices)
+    evidence_segment = models.ForeignKey(
+        Segment,
+        verbose_name="tramo del indicio",
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    evidence_start = models.PositiveIntegerField("inicio del indicio")
+    evidence_end = models.PositiveIntegerField("fin del indicio")
+    evidence_text = models.TextField("indicio literal")
+    vote_a = models.JSONField("respuesta A")
+    vote_b = models.JSONField("respuesta B")
+    step_a = models.ForeignKey(
+        RunStep, verbose_name="pedido A", on_delete=models.PROTECT, related_name="+"
+    )
+    step_b = models.ForeignKey(
+        RunStep, verbose_name="pedido B", on_delete=models.PROTECT, related_name="+"
+    )
+    source_pass = models.CharField("pasada que la propuso", max_length=20)
+    passes = models.JSONField("pasadas que la encontraron", default=list)
+    created_at = models.DateTimeField("momento", default=timezone.now)
+
+    class Meta:
+        db_table = "tenders_discarded_row"
+        verbose_name = "fila descartada por el sistema"
+        verbose_name_plural = "filas descartadas por el sistema"
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(
+                    category__in=[RequirementClass.FORMAL, RequirementClass.ECONOMICO]
+                ),
+                name="tenders_discarded_row_category_valid",
+            ),
+            _valid("reason", FilterMotive, "tenders_discarded_row_reason_valid"),
+            _valid("source_pass", PassName, "tenders_discarded_row_source_pass_valid"),
+            _is_json_array("items", "tenders_discarded_row_items_is_list"),
+            _is_json_array("extra_quotes", "tenders_discarded_row_extra_quotes_is_list"),
+            _is_json_array("passes", "tenders_discarded_row_passes_is_list"),
+            _char_range("tenders_discarded_row"),
+            models.CheckConstraint(
+                condition=Q(evidence_end__gte=F("evidence_start")),
+                name="tenders_discarded_row_evidence_range_valid",
+            ),
+        ]
+
+
+class NormSupport(models.Model):
+    """El respaldo normativo de una sugerencia (REQ-036, ADR-0022). Solo se insertan
+    filas; nunca cambia el estado de la sugerencia."""
+
+    requirement = models.ForeignKey(
+        Requirement,
+        verbose_name="requisito",
+        on_delete=models.PROTECT,
+        related_name="norm_supports",
+    )
+    unit = models.ForeignKey(
+        "norms.Unit",
+        verbose_name="unidad de la norma",
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    unit_label = models.CharField("norma y ruta", max_length=500)
+    char_start = models.PositiveIntegerField("inicio en la unidad")
+    char_end = models.PositiveIntegerField("fin en la unidad")
+    text = models.TextField("cita literal")
+    score = models.FloatField("puntaje del reranker")
+    regime = models.CharField("régimen", max_length=200)
+    corpus_version = models.PositiveIntegerField("versión de la normativa")
+    step = models.ForeignKey(
+        RunStep,
+        verbose_name="pedido al modelo",
+        on_delete=models.PROTECT,
+        related_name="norm_supports",
+    )
+    created_at = models.DateTimeField("momento", default=timezone.now)
+
+    class Meta:
+        db_table = "tenders_norm_support"
+        verbose_name = "respaldo normativo"
+        verbose_name_plural = "respaldos normativos"
+        constraints = [
+            _char_range("tenders_norm_support"),
         ]

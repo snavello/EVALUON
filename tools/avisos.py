@@ -30,7 +30,7 @@ for i, line in enumerate(lines):
         done.add(cur)
         continue
     out.append(line)
-    if (cur in avisos and cur not in done and line.startswith("- **Qué hay que hacer:**")
+    if (cur in avisos and cur not in done and line.startswith(("- **Qué hay que hacer:**", "- **Qué hacer:**"))
             and not lines[i + 1].startswith("- **Aviso")):
         out.append("- **Aviso de tareas anteriores:** " + avisos[cur])
         done.add(cur)

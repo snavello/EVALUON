@@ -42,7 +42,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 29/30 | ██████████ 97% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 34/54 | ██████░░░░ 63% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -368,8 +368,27 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 1 tarea sin terminar.
+- **Próximo paso:** Desarrollar: 20 tareas sin terminar.
+- ▶ T-113 · Pasada de circulares, entrega 1: unidades de cambio aplicadas por clave, sin modelo (en curso)
 - ○ T-094 · Medir la aceptación con los casos 01 y 02 (pendiente)
+- ○ T-101 · Unificar las filas que repiten la misma condición (pendiente)
+- ○ T-102 · Filtrar con dos preguntas y repartir cada fila en firme, sugerencia o descartada (pendiente)
+- ○ T-103 · Medir los sobrantes sobre las filas firmes, con tope e informe de descartadas (pendiente)
+- ○ T-105 · Mostrar las descartadas, las citas repetidas y la revisión por grupos (pendiente)
+- ○ T-106 · Medir el filtro, las sugerencias y el respaldo normativo con el caso-00 y ajustarlos (pendiente)
+- ○ T-107 · Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00 (pendiente)
+- ○ T-108 · Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04 (pendiente)
+- ○ T-109 · Buscar el respaldo normativo de cada sugerencia, sin que nunca la descarte (pendiente)
+- ○ T-110 · Decidir las sugerencias: pasar a requisito o quitar, una por una o por grupo, y bloquear la validación (pendiente)
+- ○ T-111 · Medir las sugerencias y el respaldo normativo: a revisión obligatoria e informe (pendiente)
+- ○ T-112 · Mostrar la sección de sugerencias con su respaldo en la pantalla y en la impresión (pendiente)
+- ○ T-114 · Crear el campo de original en un anexo, el pedido de extracción de cambios y los parámetros de circulares (pendiente)
+- ○ T-115 · Pasada de circulares, entrega 2: el modelo extrae la lista de cambios donde no hay clave (pendiente)
+- ○ T-116 · Mostrar y imprimir el original en el anexo, el cambio agrupado y el requisito agregado por una circular (pendiente)
+- ○ T-117 · Medir REQ-031 por fila en `medir_matriz`: documento, fecha, texto original y vigente (pendiente)
+- ○ T-118 · Cargar los casos 05 y 06 y preparar sus listas esperadas de circulares (pendiente)
+- ○ T-119 · Actualizar la lista esperada del caso-01 con las filas que las circulares afectan (pendiente)
+- ○ T-120 · Medir y ajustar la pasada de circulares con los casos 01, 05 y 06, con estabilidad (pendiente)
 
 ### Qué se hizo
 
@@ -403,6 +422,11 @@ flowchart LR
 - ✓ T-093 · Ajustar las instrucciones con el caso-00 (enumeraciones, tablas, condiciones como efecto) (`86b2e76` 2026-10-04)
 - ✓ T-095 · Contar como "a revisión obligatoria" los requisitos en tramos pendientes (`e532652` 2026-10-04, `4480d62` 2026-10-04, `3509e0c` 2026-10-04)
 - ✓ T-096 · Corregir la cobertura de tramos de `medir_matriz` cuando hay circulares (`56892b0` 2026-10-04)
+- ✓ T-097 · Corregir la cita literal de las filas técnicas con varios documentos en `medir_matriz` (`8e2f6f2` 2026-10-04)
+- ✓ T-098 · Corregir la pasada de circulares (fuentes, tramos descartados y no ubicados) (`91dfa17` 2026-10-04, `ade33cd` 2026-10-04)
+- ✓ T-099 · Crear la tabla de filas descartadas, el estado de sugerencia, el respaldo normativo, las citas repetidas y los parámetros del filtro (`60b3e30` 2026-10-04)
+- ✓ T-100 · Quitar el nivel "media" y dejar un solo proceso registrado (`4b49bad` 2026-10-04, `b271132` 2026-10-04)
+- ✓ T-104 · Listar y devolver las filas descartadas, y revisar por grupos (`db7c8e2` 2026-10-04)
 
 ### Mapa de tareas
 
@@ -438,6 +462,30 @@ flowchart TD
   T094["○ T-094 · Medir la aceptación con los casos 01 y 02"]:::todo
   T095["✓ T-095 · Contar como 'a revisión obligatoria' los re…"]:::done
   T096["✓ T-096 · Corregir la cobertura de tramos de medir_ma…"]:::done
+  T097["✓ T-097 · Corregir la cita literal de las filas técni…"]:::done
+  T098["✓ T-098 · Corregir la pasada de circulares (fuentes,…"]:::done
+  T099["✓ T-099 · Crear la tabla de filas descartadas, el est…"]:::done
+  T100["✓ T-100 · Quitar el nivel 'media' y dejar un solo pro…"]:::done
+  T101["○ T-101 · Unificar las filas que repiten la misma con…"]:::todo
+  T102["○ T-102 · Filtrar con dos preguntas y repartir cada f…"]:::todo
+  T103["○ T-103 · Medir los sobrantes sobre las filas firmes,…"]:::todo
+  T104["✓ T-104 · Listar y devolver las filas descartadas, y…"]:::done
+  T105["○ T-105 · Mostrar las descartadas, las citas repetida…"]:::todo
+  T106["○ T-106 · Medir el filtro, las sugerencias y el respa…"]:::todo
+  T107["○ T-107 · Decidir con el responsable el tope, la list…"]:::todo
+  T108["○ T-108 · Medir la aceptación del proceso con filtro…"]:::todo
+  T109["○ T-109 · Buscar el respaldo normativo de cada sugere…"]:::todo
+  T110["○ T-110 · Decidir las sugerencias: pasar a requisito…"]:::todo
+  T111["○ T-111 · Medir las sugerencias y el respaldo normati…"]:::todo
+  T112["○ T-112 · Mostrar la sección de sugerencias con su re…"]:::todo
+  T113["▶ T-113 · Pasada de circulares, entrega 1: unidades d…"]:::active
+  T114["○ T-114 · Crear el campo de original en un anexo, el…"]:::todo
+  T115["○ T-115 · Pasada de circulares, entrega 2: el modelo…"]:::todo
+  T116["○ T-116 · Mostrar y imprimir el original en el anexo,…"]:::todo
+  T117["○ T-117 · Medir REQ-031 por fila en medir_matriz: doc…"]:::todo
+  T118["○ T-118 · Cargar los casos 05 y 06 y preparar sus lis…"]:::todo
+  T119["○ T-119 · Actualizar la lista esperada del caso-01 co…"]:::todo
+  T120["○ T-120 · Medir y ajustar la pasada de circulares con…"]:::todo
   T067 --> T068
   T068 --> T069
   T067 --> T070
@@ -473,6 +521,56 @@ flowchart TD
   T095 --> T094
   T093 --> T095
   T095 --> T096
+  T096 --> T097
+  T094 --> T098
+  T096 --> T099
+  T099 --> T100
+  T097 --> T100
+  T098 --> T100
+  T100 --> T101
+  T101 --> T102
+  T099 --> T103
+  T100 --> T103
+  T099 --> T104
+  T100 --> T105
+  T104 --> T105
+  T102 --> T106
+  T103 --> T106
+  T109 --> T106
+  T111 --> T106
+  T106 --> T107
+  T094 --> T108
+  T105 --> T108
+  T112 --> T108
+  T107 --> T108
+  T116 --> T108
+  T120 --> T108
+  T099 --> T109
+  T102 --> T109
+  T099 --> T110
+  T104 --> T110
+  T099 --> T111
+  T103 --> T111
+  T105 --> T112
+  T110 --> T112
+  T098 --> T113
+  T099 --> T114
+  T100 --> T114
+  T113 --> T115
+  T114 --> T115
+  T113 --> T116
+  T114 --> T116
+  T105 --> T116
+  T112 --> T116
+  T103 --> T117
+  T111 --> T117
+  T117 --> T118
+  T117 --> T119
+  T113 --> T120
+  T115 --> T120
+  T117 --> T120
+  T118 --> T120
+  T119 --> T120
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -486,12 +584,16 @@ flowchart TD
 |---|---|---|---|
 | REQ-022 | El sistema debe registrar un procedimiento con su número, tipo, objeto y fecha de autorización, y mostrar el régimen de la AFIP que le corresponde según esa fecha | T-067, T-069, T-075 | ✓ cubierto |
 | REQ-023 | El sistema debe permitir cargar el pliego final de un procedimiento como uno o más documentos, conservando cada original sin cambios | T-067, T-072, T-075 | ✓ cubierto |
-| REQ-024 | El sistema debe proponer, a partir del pliego cargado, la lista de requisitos que debe cumplir una oferta, cada uno clasificado como formal, económico o técnico | T-067, T-070, T-071, T-073, T-074, T-075, T-076, T-077, T-078, T-084, T-090, T-092, T-093, T-094, T-095 | ▶ en proceso |
-| REQ-025 | Cada requisito propuesto debe citar el texto literal del pliego que lo exige, con el documento y la ubicación (página y cláusula, si la hay) | T-067, T-070, T-073, T-074, T-075, T-076, T-077, T-084, T-094 | ▶ en proceso |
-| REQ-026 | La Comisión debe poder confirmar, corregir, quitar o agregar requisitos; cada cambio queda registrado con quién lo hizo y cuándo | T-067, T-068, T-079, T-082, T-088 | ✓ cubierto |
+| REQ-024 | El sistema debe proponer, a partir del pliego cargado, la lista de requisitos que debe cumplir una oferta, cada uno clasificado como formal, económico o técnico | T-067, T-070, T-071, T-073, T-074, T-075, T-076, T-077, T-078, T-084, T-090, T-092, T-093, T-094, T-095, T-102, T-103, T-106, T-108, T-111 | ▶ en proceso |
+| REQ-025 | Cada requisito propuesto debe citar el texto literal del pliego que lo exige, con el documento y la ubicación (página y cláusula, si la hay) | T-067, T-070, T-073, T-074, T-075, T-076, T-077, T-084, T-094, T-097, T-101, T-108 | ▶ en proceso |
+| REQ-026 | La Comisión debe poder confirmar, corregir, quitar o agregar requisitos; cada cambio queda registrado con quién lo hizo y cuándo | T-067, T-068, T-079, T-082, T-088, T-104, T-110 | ▶ en proceso |
 | REQ-027 | Una matriz validada queda fija: cambiarla después genera una versión nueva, sin perder la anterior | T-067, T-068, T-082 | ✓ cubierto |
-| REQ-028 | Cuando el sistema no puede ubicar con certeza un tramo del pliego (texto ilegible, tabla mal leída), debe señalarlo para revisión en lugar de omitirlo | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082 | ✓ cubierto |
+| REQ-028 | Cuando el sistema no puede ubicar con certeza un tramo del pliego (texto ilegible, tabla mal leída), debe señalarlo para revisión en lugar de omitirlo | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082, T-098, T-113 | ▶ en proceso |
 | REQ-029 | Para cada requisito, el sistema debe proponer las consecuencias posibles de no cumplirlo (por ejemplo, desestimación de la oferta o intimación a subsanar), cada una con su fundamento en el pliego o en la norma aplicable; un integrante de la Comisión confirma una. Si el sistema no encuentra fundamento, la consecuencia queda "no determinada" | T-067, T-068, T-080, T-081, T-084 | ✓ cubierto |
-| REQ-030 | Al pedir la matriz, se debe poder elegir el nivel de revisión (media, alta o exigente; por omisión, alta), y el nivel usado queda registrado con la matriz | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085, T-089, T-090, T-091, T-094, T-096 | ▶ en proceso |
-| REQ-031 | El pliego final incluye las circulares modificatorias y aclaratorias y las preguntas de los oferentes con sus respuestas, si las hay, cada una con su fecha. Cuando una de ellas cambia o precisa un requisito, la matriz aplica el cambio, muestra los dos textos y cita el documento que lo produjo | T-067, T-072, T-074, T-083, T-094 | ▶ en proceso |
-| REQ-032 | Una matriz que todavía no está validada se puede ver en pantalla, imprimir y exportar a PDF, siempre con la leyenda "BORRADOR INCOMPLETO" bien visible en cada página. Una matriz validada sale sin esa leyenda, con su versión y la fecha y el evaluador que la validó | T-067, T-074, T-082, T-086 | ✓ cubierto |
+| REQ-030 | La matriz se propone siempre con un único proceso de revisión, el más completo disponible, y queda registrado con la matriz qué proceso y qué versión de instrucciones se usaron | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085, T-089, T-090, T-091, T-094, T-096, T-097, T-099, T-100, T-103, T-108 | ▶ en proceso |
+| REQ-031 | El pliego final incluye las circulares modificatorias y aclaratorias y las preguntas de los oferentes con sus respuestas, si las hay, cada una con su fecha. Cuando una de ellas cambia o precisa un requisito, la matriz aplica el cambio, muestra los dos textos y cita el documento que lo produjo | T-067, T-072, T-074, T-083, T-094, T-098, T-108, T-113, T-114, T-115, T-116, T-117, T-118, T-119, T-120 | ▶ en proceso |
+| REQ-033 | Antes de mostrar la matriz propuesta, el sistema debe descartar las filas que no son requisitos de la oferta y unificar las que repiten la misma condición. Lo descartado no desaparece: queda en una lista aparte, cada fila con su cita y el motivo, que la Comisión puede abrir y devolver a la matriz | T-099, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108 | ▶ en proceso |
+| REQ-034 | La Comisión debe poder confirmar o quitar de una vez un grupo de requisitos propuestos de un mismo tramo o cláusula; cada fila del grupo queda registrada como si se hubiera revisado por separado, con quién y cuándo | T-104, T-105, T-110, T-112 | ▶ en proceso |
+| REQ-035 | La matriz propuesta debe separar los requisitos que el sistema da por firmes de las **sugerencias de condición**: condiciones plausibles sobre las que el sistema duda. Las sugerencias van en una sección aparte, cada una con su cita y el motivo de la duda; la Comisión decide cada una (o por grupo, REQ-034) si pasa a requisito o se quita, y la matriz no se puede validar mientras quede una sugerencia sin decidir | T-099, T-102, T-103, T-106, T-107, T-108, T-110, T-111, T-112 | ▶ en proceso |
+| REQ-036 | Para cada sugerencia de condición y cada fila dudosa, el sistema debe buscar en la normativa aplicable (según REQ-022) si el régimen exige esa condición a las ofertas; si la encuentra, la muestra con la cita de la norma como respaldo y puede proponerla como requisito. La normativa solo sirve para confirmar: que una condición no figure en la norma nunca es motivo para descartarla, porque el pliego puede agregar exigencias propias | T-099, T-106, T-108, T-109, T-111, T-112 | ▶ en proceso |
+| REQ-032 | Una matriz que todavía no está validada se puede ver en pantalla, imprimir y exportar a PDF, siempre con la leyenda "BORRADOR INCOMPLETO" bien visible en cada página. Una matriz validada sale sin esa leyenda, con su versión y la fecha y el evaluador que la validó | T-067, T-074, T-082, T-086, T-105, T-112, T-116 | ▶ en proceso |

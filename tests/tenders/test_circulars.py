@@ -34,6 +34,8 @@ MONITOR = "El monitor tendrá 24 pulgadas."
 
 _CITES = re.compile(r"\[(Q\d+)\]\n(.*?)\n\[/\1\]", re.DOTALL)
 _TRAMO = re.compile(r"Tramo de la circular:\n\n(.*?)\n\nDevolvé", re.DOTALL)
+_CONTEXT = re.compile(r"Contexto de la circular[^\n]*:\n\n(.*?)\n\nTramo de la circular:",
+                      re.DOTALL)
 
 
 def tender():
@@ -84,8 +86,9 @@ class CircularScript(Script):
         user = messages[-1]["content"]
         cites = {alias: body for alias, body in _CITES.findall(user)}
         tramo = _TRAMO.search(user).group(1).partition("\nTexto:\n")[2]
+        context = _CONTEXT.search(user)
         self.requests.append({"messages": messages, "schema": schema, "cites": cites,
-                              "tramo": tramo})
+                              "tramo": tramo, "context": context.group(1) if context else ""})
         for needle, outputs in self.raw_rules:
             if needle in tramo and outputs:
                 self.fake.respond(outputs.pop(0))
@@ -126,8 +129,8 @@ def add_circular(user, procedure, title, issued_on, *lines, kind="circular_modif
                          issued_on=issued_on)
 
 
-def run_proposal(user, procedure, level="media"):
-    requested, job = propose(user, procedure, level=level)
+def run_proposal(user, procedure):
+    requested, job = propose(user, procedure)
     assert job.status == "done", job.error
     return requested.run.version, requested.run
 
@@ -472,7 +475,7 @@ def test_the_proposal_records_the_circulars_and_the_instructions_used(operator_u
 
     version, run = run_proposal(operator_user, case)
 
-    assert run.prompt_versions["circulares"] == "matriz-circulares-v1"
+    assert run.prompt_versions["circulares"] == "matriz-circulares-v2"
     assert "circulares" in run.parameters["passes"]
     used = run.counts["circulars"]["documents"]
     assert [d["document"] for d in used] == [document.pk]
@@ -560,14 +563,15 @@ def test_a_later_circular_that_modifies_a_suppressed_requirement_makes_it_curren
 # --- Controles que solo detectaban las sondas (M6, M8, M13, M18) ------------------------------------------
 
 
-def test_unlocated_and_page_segments_of_a_circular_are_pending_not_discarded():
-    """REQ-031 / ADR-0019 (M6): un tramo sin ubicar o una página de una circular queda
-    pendiente por regla; un título, descartado."""
+def test_page_segments_of_a_circular_are_pending_and_titles_discarded_by_rule():
+    """REQ-031 / ADR-0019 (M6): una página de una circular queda pendiente por regla; un
+    título, descartado. Un tramo no ubicado ya no se resuelve por regla (T-098): lo ve el
+    modelo y sigue pendiente de revisión por la lectura (REQ-028)."""
     from types import SimpleNamespace
 
-    for kind in ("no_ubicado", "pagina"):
-        verdict = circulars.Processor._rule(SimpleNamespace(segment_type=kind))
-        assert verdict.outcome == "pendiente" and verdict.discard_reason == ""
+    assert circulars.Processor._rule(SimpleNamespace(segment_type="no_ubicado")) is None
+    verdict = circulars.Processor._rule(SimpleNamespace(segment_type="pagina"))
+    assert verdict.outcome == "pendiente" and verdict.discard_reason == ""
     title = circulars.Processor._rule(SimpleNamespace(segment_type="titulo"))
     assert (title.outcome, title.discard_reason) == ("descartado", "titulo")
     assert circulars.Processor._rule(SimpleNamespace(segment_type="clausula")) is None
@@ -658,3 +662,174 @@ def test_a_general_technical_citation_reaches_every_item_row(operator_user, scri
     assert rows[0].sources.get().char_start == rows[1].sources.get().char_start
     request = next(r for r in script.requests if "por doce meses" in r["tramo"])
     assert sum("vencimiento mayor" in body for body in request["cites"].values()) == 1
+
+
+# --- Pasada de circulares: causas generales de T-094 (T-098) ------------------------------------------------
+
+ANEXO = "los oferentes deberán completar y adjuntar la planilla del anexo"
+ANEXO_CLAUSE = f"1.1. ANEXO VI - PLANILLA SINTÉTICA: {ANEXO}."
+FECHAS = ("Los interesados deberán asistir en la fecha indicada en el Anexo “FECHA DE VISITA” "
+          "del portal")
+
+
+def narrative_circular(*paragraphs):
+    """Una circular de párrafos sueltos, cada uno un tramo (como una circular sin cláusulas)."""
+    return tender_pdf([[para(line) for line in paragraphs]], header=None)
+
+
+def economy_tender(operator_user, script, clause=ANEXO_CLAUSE, quote=ANEXO):
+    pdf = tender_pdf([[para("SECCIÓN I - CONDICIONES PARTICULARES"),
+                       para("1. ECONOMÍA", clause),
+                       para("2. PAGO", f"2.1. {PAGO}")]])
+    procedure = make_procedure(operator_user)
+    load_and_read(operator_user, procedure, pdf)
+    script.when(quote, item([(quote, "formal")]))
+    script.when(PAGO, item([(PAGO, "economico")]))
+    return procedure
+
+
+def test_a_tramo_that_names_an_annex_reaches_the_clause_that_defines_it(
+        operator_user, script, fake_reranker, settings):
+    """REQ-031 (T-094, M-029): un tramo que nombra "Anexo VI" alcanza la cita del requisito
+    cuya cláusula lo define aunque el reranker no la ponga entre las mejores y la cita
+    (un recorte de la cláusula) no repita el nombre del anexo."""
+    settings.MATRIX_CIRCULAR_CANDIDATES = 0
+    procedure = economy_tender(operator_user, script)
+    add_circular(operator_user, procedure, "Circular N.º 1", date(2025, 12, 1),
+                 "1. La información del Anexo VI no será considerada como un requisito.")
+    script.c_when("no será considerada", efectos=[(ANEXO, "suprime", "no será considerada")])
+
+    version, _ = run_proposal(operator_user, procedure)
+
+    request = next(r for r in script.requests if "no será considerada" in r["tramo"])
+    assert any(ANEXO in body for body in request["cites"].values())
+    assert PAGO not in " ".join(request["cites"].values())
+    requirement = requirement_with(version, ANEXO)
+    assert requirement.state == "quitado"
+    assert requirement.sources.get().effect == "suprime"
+
+
+def test_a_tramo_that_repeats_the_quoted_title_of_an_annex_reaches_the_citation(
+        operator_user, script, fake_reranker, settings):
+    """REQ-031 (T-094, M-044): un tramo que repite el título entre comillas de un anexo que
+    la cita menciona ("Anexo “FECHA DE VISITA”") alcanza esa cita."""
+    settings.MATRIX_CIRCULAR_CANDIDATES = 0
+    procedure = economy_tender(operator_user, script, clause=f"1.1. {FECHAS}.", quote=FECHAS)
+    load_and_read(operator_user, procedure,
+                  narrative_circular("II. SE FIJAN NUEVAS FECHAS",
+                                     "FECHA DE VISITA: 21 de julio"),
+                  kind="circular_modificatoria", title="Circular N.º 1",
+                  issued_on=date(2025, 12, 1))
+    script.c_when("21 de julio", efectos=[(FECHAS, "modifica", "21 de julio")])
+
+    version, _ = run_proposal(operator_user, procedure)
+
+    request = next(r for r in script.requests if r["tramo"].startswith("FECHA DE VISITA"))
+    assert any(FECHAS in body for body in request["cites"].values())
+    assert PAGO not in " ".join(request["cites"].values())
+    assert requirement_with(version, FECHAS).sources.get().effect == "modifica"
+
+
+def test_a_numbered_heading_inside_the_tramo_names_that_clause():
+    """REQ-031 (T-094, M-015): un "Debe decir" que reproduce la cláusula con su número
+    ("7.5.5 CONFLICTO…") nombra esa cláusula, aunque no diga "cláusula"; el número con que
+    empieza la circular misma ("1.1. Reemplázase…") no cuenta."""
+    clauses, _ = circulars.named_in("DEBE DECIR:\n7.5.5 CONFLICTO DE INTERESES: texto")
+    assert clauses == {"7.5.5"}
+    clauses, _ = circulars.named_in("1.1. Reemplázase el plazo por diez días.")
+    assert clauses == set()
+
+
+def test_named_annexes_are_found_by_number_in_any_form():
+    """REQ-031: "Anexo VI", "ANEXO N° 2" y "Anexo 3" nombran anexos; la palabra suelta no."""
+    assert circulars.named_annexes("el Anexo VI y el ANEXO N° 2, también el anexo 3") == {
+        "vi", "2", "3"}
+    assert circulars.named_annexes("el anexo al presente pliego") == set()
+
+
+def test_unlocated_segments_of_a_circular_reach_the_model_and_stay_pending(
+        operator_user, case, script):
+    """REQ-031 / REQ-028 (T-094, M-015): un tramo `no_ubicado` de una circular (como un
+    "Debe decir" bajo el título de una sección) lo analiza el modelo y, además, sigue en
+    "Pendiente de revisión" por la lectura."""
+    pdf = tender_pdf([[para("CIRCULAR SINTÉTICA"),
+                       para("SECCIÓN I - CONDICIONES PARTICULARES"),
+                       para("DEBE DECIR:", "2.1. El pago se hará a sesenta días.")]],
+                     header=None)
+    document = load_and_read(operator_user, case, pdf, kind="circular_modificatoria",
+                             title="Circular N.º 1", issued_on=date(2025, 12, 1))
+    unlocated = m.Segment.objects.get(reading__document=document,
+                                      segment_type="no_ubicado", text__contains="sesenta")
+    script.c_when("sesenta días", efectos=[(PAGO, "modifica", "a sesenta días")])
+
+    version, run = run_proposal(operator_user, case)
+
+    assert any("sesenta" in r["tramo"] for r in script.requests)
+    assert m.Disposition.objects.get(run=run, segment=unlocated).outcome == "requisitos"
+    assert version.pending_items.filter(segment=unlocated, reason="no_ubicado").exists()
+    assert requirement_with(version, PAGO).sources.get().effect == "modifica"
+
+
+def test_a_loose_paragraph_is_shown_with_its_heading_and_the_previous_lines(
+        operator_user, case, script):
+    """REQ-031 (T-094, M-044): un párrafo suelto de una circular se muestra con el encabezado
+    de su apartado ("II. …") y las dos líneas anteriores, aparte del tramo."""
+    load_and_read(operator_user, case,
+                  narrative_circular("I. OTRO APARTADO", "II. SE FIJAN NUEVAS FECHAS",
+                                     "SEDE UNO", "HORA: 10hs", "PUNTO DE ENCUENTRO: puerta"),
+                  kind="circular_modificatoria", title="Circular N.º 1",
+                  issued_on=date(2025, 12, 1))
+
+    run_proposal(operator_user, case)
+
+    request = next(r for r in script.requests if r["tramo"].startswith("PUNTO DE ENCUENTRO"))
+    context = request["context"]
+    assert "II. SE FIJAN NUEVAS FECHAS" in context
+    assert "SEDE UNO" in context and "HORA: 10hs" in context
+    assert "I. OTRO APARTADO" not in context and "PUNTO DE ENCUENTRO" not in context
+
+
+def test_a_numbered_clause_is_shown_without_context(operator_user, case, script):
+    """REQ-031: una cláusula numerada de la circular se entiende sola: no lleva contexto."""
+    add_circular(operator_user, case, "Circular N.º 1", date(2025, 12, 1),
+                 "1. Reemplázase en la cláusula 2.1 el plazo de pago por 60 días corridos.")
+
+    run_proposal(operator_user, case)
+
+    request = next(r for r in script.requests if "plazo de pago" in r["tramo"])
+    assert request["context"] == ""
+
+
+def test_the_reranker_sees_the_clause_that_holds_the_citation_and_the_heading(
+        operator_user, script, fake_reranker, settings):
+    """REQ-031 (T-094, M-029): el reranker puntúa la cláusula completa con su ruta (la cita
+    puede ser un recorte sin el nombre del anexo) contra el tramo con su encabezado."""
+    settings.MATRIX_CIRCULAR_CANDIDATES = 1
+    procedure = economy_tender(operator_user, script)
+    load_and_read(operator_user, procedure,
+                  narrative_circular("II. SE AJUSTA LA PLANILLA", "Se cambia el formato."),
+                  kind="circular_modificatoria", title="Circular N.º 1",
+                  issued_on=date(2025, 12, 1))
+
+    run_proposal(operator_user, procedure)
+
+    query, documents = fake_reranker.calls[-1][:2]
+    assert query.startswith("II. SE AJUSTA LA PLANILLA") and "Se cambia el formato" in query
+    assert any("ANEXO VI - PLANILLA SINTÉTICA" in d for d in documents)
+
+
+def test_the_active_circular_instructions_are_v2_and_v1_is_kept(settings):
+    """REQ-031 (T-098): la versión activa es la v2 y la v1 sigue en su archivo; la v2 agrega
+    "Donde dice / Debe decir", el bloque de contexto y no elegir una cita ajena, con ejemplos
+    inventados (sin texto del caso de medición)."""
+    from evaluon.tenders.proposal import extraction
+
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares"] == "matriz-circulares-v2"
+    v2 = extraction.load_prompt("circulares")
+    assert "Donde dice" in v2 and "Debe decir" in v2
+    assert "Contexto de la circular" in v2
+    assert "nunca se elige una cita ajena" in v2
+    assert v2.count("{") >= 8      # los ejemplos siguen con la forma de la salida
+    assert "ARCA" not in v2 and "señalética" not in v2.lower()
+    v1 = (extraction.PROMPTS_DIR / "matriz-circulares-v1.md").read_text(encoding="utf-8")
+    assert "Debe decir" not in v1

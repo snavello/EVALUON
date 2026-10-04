@@ -6,7 +6,8 @@
   requisitos que seguían propuestos quedan confirmados por la validación, cada uno con su
   fila de historial y su hecho `requirement_change`; esas actualizaciones van antes de pasar
   la versión a `validated`, en la misma transacción, porque después la base rechaza todo
-  cambio sobre ella. Deja el hecho `matrix_validation`.
+  cambio sobre ella. Deja el hecho `matrix_validation`, con las cuentas de filas
+  descartadas por el sistema y de devueltas (REQ-033).
 - `discard`: solo el evaluador. El borrador queda `discarded`, visible y fijo, y deja el hecho
   `matrix_version`.
 - `open_new_version`: el operador o el evaluador. Sobre la última versión validada abre un
@@ -41,7 +42,7 @@ from evaluon.tenders.models import (
     RequirementState,
     VersionStatus,
 )
-from evaluon.tenders.services import review
+from evaluon.tenders.services import discarded, review
 
 VALIDATE_OPERATION = "evaluon.tenders.services.validation.validate"
 DISCARD_OPERATION = "evaluon.tenders.services.validation.discard"
@@ -121,6 +122,7 @@ def validate(user, version_id, *, channel=Channel.SCREEN):
         for requirement in requirements:
             by_state[requirement.state] = by_state.get(requirement.state, 0) + 1
             by_class[requirement.category] = by_class.get(requirement.category, 0) + 1
+        discarded_total, restored = discarded.counts(version)
         version.status = VersionStatus.VALIDATED
         version.validated_at = timezone.now()
         version.validated_by = user
@@ -129,7 +131,8 @@ def validate(user, version_id, *, channel=Channel.SCREEN):
             EventType.MATRIX_VALIDATION, outcome=Outcome.OK, channel=channel, user=user,
             detail={"procedure": version.procedure_id, "version": version.pk,
                     "version_number": version.number, "by_state": by_state,
-                    "by_class": by_class, "confirmed_by_validation": confirmed})
+                    "by_class": by_class, "confirmed_by_validation": confirmed,
+                    "discarded": discarded_total, "restored": restored})
         return version
 
     return _run(user, CommissionRole.EVALUATOR, VALIDATE_OPERATION,
@@ -175,7 +178,8 @@ def _copy(source, new):
         copy = Requirement.objects.create(
             version=new, number=old.number, category=old.category, items=old.items,
             origin=old.origin, state=old.state, proposed=old.proposed, previous=old,
-            step=old.step, passes=old.passes)
+            step=old.step, passes=old.passes, restored_from=old.restored_from,
+            doubt_reason=old.doubt_reason, doubt=old.doubt)
         count["requirements"] += 1
         for quote in old.quotes.order_by("order"):
             quote_map[quote.pk] = RequirementQuote.objects.create(
