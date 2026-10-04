@@ -55,12 +55,19 @@ COMMON_WORDS = frozenset((
 _BULLET = re.compile(r"^\s*\(?[a-z0-9]{1,3}\)\s+")
 
 
+_SIGN = re.compile(r"(?<!\w)([-+±−])(?=\d)")
+_SIGN_WORDS = {"-": "menos_", "−": "menos_", "+": "mas_", "±": "masmenos_"}
+
+
 def normalize(text):
     """Minúsculas, sin tildes, sin viñeta inicial ("a)"), con los signos de puntuación (y el
     punto final) y los espacios colapsados a un espacio."""
     decomposed = unicodedata.normalize("NFD", (text or "").lower())
     plain = "".join(c for c in decomposed if not unicodedata.combining(c))
     plain = _BULLET.sub("", plain)
+    # El signo pegado a un dígito cambia la cifra ("-5" no es "5"): se conserva como parte
+    # de la palabra. Un guion entre cifras ("10-20", fechas) sigue siendo puntuación.
+    plain = _SIGN.sub(lambda m: _SIGN_WORDS[m.group(1)], plain)
     return " ".join(re.sub(r"[^\w%]+", " ", plain).split())
 
 

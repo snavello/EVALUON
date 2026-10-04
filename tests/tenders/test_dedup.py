@@ -404,3 +404,31 @@ def test_by_default_a_contained_row_is_not_merged_in_the_process(operator_user, 
     assert len(rows) == 2
     assert [q.scope for q in rows[0].quotes.order_by("order")] == ["", "repetida"]
     assert run.counts["unification"]["min_similarity"] == 1.0
+
+
+def test_a_sign_stuck_to_a_digit_keeps_rows_apart():
+    """REQ-033: "-5" no es "5": la normalización conserva el signo pegado a una cifra, así
+    que "temperatura de -5 grados" y "temperatura de 5 grados" no se unen, ni por omisión ni
+    con la similitud encendida, en ambos órdenes."""
+    minus = "La temperatura de conservación será de -5 grados centígrados"
+    plus = "La temperatura de conservación será de 5 grados centígrados"
+    assert dedup.normalize(minus) != dedup.normalize(plus)
+    for options in ({}, {"threshold": 0.9, "containment": True}):
+        assert len(dedup.unify([row("a", minus), row("b", plus)], **options).body) == 2
+        assert len(dedup.unify([row("a", plus), row("b", minus)], **options).body) == 2
+    # Un guion entre cifras sigue siendo puntuación.
+    assert dedup.normalize("plazo de 10-20 días") == dedup.normalize("plazo de 10 20 días")
+
+
+def test_the_signature_has_the_figures():
+    """REQ-033: con la similitud encendida (sin contención), dos frases largas que solo
+    cambian una cifra quedan separadas: la firma lleva las cifras."""
+    text = ("El oferente deberá mantener la oferta durante {} días corridos contados desde la "
+            "fecha del acto de apertura de sobres, en las condiciones establecidas en el "
+            "pliego de bases y condiciones particulares de la contratación")
+    one, two = text.format(60), text.format(90)
+    assert dedup.signature(dedup.normalize(one)) != dedup.signature(dedup.normalize(two))
+    assert len(dedup.unify([row("a", one), row("b", two)], 0.9,
+                           containment=False).body) == 2
+    assert len(dedup.unify([row("a", one), row("b", one)], 0.9,
+                           containment=False).body) == 1
