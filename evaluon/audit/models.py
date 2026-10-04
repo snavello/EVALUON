@@ -36,6 +36,8 @@ class EventType(models.TextChoices):
     MATRIX_VALIDATION = "matrix_validation", "Validación de matriz"
     MATRIX_VERSION = "matrix_version", "Versión de matriz"
     MATRIX_EXPORT = "matrix_export", "Exportación de matriz"
+    # T-088: cambio del rol de la Comisión de un usuario existente.
+    USER_ROLE_CHANGED = "user_role_changed", "Cambio de rol de la Comisión"
 
 
 class Outcome(models.TextChoices):
