@@ -1,4 +1,5 @@
-# Entorno de EVALUON (plan 001, "Servicios"): los seis servicios.
+# Entorno de EVALUON (plan 001, "Servicios"; plan 003, "Componentes"): los seis servicios
+# de la 001 más `generation_batch` y `worker` (ADR-0018).
 # Los servicios de IA y la base están en una red interna sin salida a internet y sin
 # puertos publicados. Los archivos de los modelos se bajan con scripts/fetch_models.sh.
 # Las credenciales de la base se leen de .env (copiar .env.example y completar).
@@ -29,6 +30,9 @@ x-app: &app
     # que coincidan; al cambiar un valor por omisión, cambiarlo en los dos lugares y en
     # evaluon/settings.py.
     GENERATION_URL: ${GENERATION_URL:-http://generation:8080}
+    # Motor de los pedidos del `worker` y del comando de medición (ADR-0018). Apuntarlo a
+    # http://generation:8080 vuelve a un solo motor sin cambiar código.
+    GENERATION_BATCH_URL: ${GENERATION_BATCH_URL:-http://generation_batch:8080}
     EMBEDDINGS_URL: ${EMBEDDINGS_URL:-http://embeddings:8080}
     RERANKER_URL: ${RERANKER_URL:-http://reranker:8080}
     GENERATION_MODEL_ALIAS: ${GENERATION_MODEL_ALIAS:-gemma-4-12b-it-qat-q4_0}
@@ -81,6 +85,56 @@ services:
   generation:
     # Compilación de llama.cpp fijada en T-002 (ver specs/001-normativa/entorno.md).
     # Imagen con CUDA 12.8.1, que soporta la serie RTX 50.
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda-b11347
+    command:
+      - --model
+      - /models/${GENERATION_MODEL_FILE:-gemma-4-12b-it-qat-q4_0.gguf}
+      - --alias
+      - ${GENERATION_MODEL_ALIAS:-gemma-4-12b-it-qat-q4_0}
+      - --ctx-size
+      - "${GENERATION_CTX_SIZE:-16384}"
+      - --parallel
+      - "1"
+      - --n-gpu-layers
+      - all
+      - --fit
+      - "off"
+      - --reasoning
+      - "off"
+      - --reasoning-budget
+      - "0"
+      - --no-context-shift
+      - --offline
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+    volumes:
+      - ./models:/models:ro
+    networks:
+      - internal
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+    restart: unless-stopped
+
+  generation_batch:
+    # Segunda instancia del motor, solo para los pedidos del `worker` y el comando de
+    # medición (ADR-0018): misma imagen, compilación, modelo, contexto y argumentos que
+    # generation, así la consulta de normativa no queda en fila detrás de una matriz y
+    # generation sigue como se midió en la 001. Unos 7,8 GB más de memoria de video.
+    # tests/tenders/test_generation_batch.py comprueba que el command sea igual al de
+    # generation: al cambiar uno, cambiar los dos.
     image: ghcr.io/ggml-org/llama.cpp:server-cuda-b11347
     command:
       - --model
@@ -241,8 +295,20 @@ services:
     # la de 30 s por omisión coincide con el máximo de una consulta (ADR-0005). El puerto
     # se publica solo en 127.0.0.1. La red `web` existe solo para publicar el puerto: una
     # red interna no publica puertos. corpus/ en solo lectura; evals/ con escritura para
-    # guardar las corridas.
+    # guardar las corridas, y corpus/casos/ con escritura para las corridas de medición
+    # de la matriz (`medir_matriz`, plan 003, "Medición"). La lista repite la de x-app
+    # (una lista de YAML no se puede extender) y le suma ese montaje.
     <<: *app
+    volumes:
+      - ./evaluon:/app/evaluon:ro
+      - ./tests:/app/tests:ro
+      - ./scripts:/app/scripts:ro
+      - ./manage.py:/app/manage.py:ro
+      - ./pyproject.toml:/app/pyproject.toml:ro
+      - ./docker-compose.yml:/app/docker-compose.yml:ro
+      - ./corpus:/app/corpus:ro
+      - ./corpus/casos:/app/corpus/casos
+      - ./evals:/app/evals
     command:
       - gunicorn
       - evaluon.wsgi:application
@@ -280,6 +346,27 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    restart: unless-stopped
+
+  worker:
+    # Pedidos en segundo plano (ADR-0018): leer documentos y proponer matrices, de a uno.
+    # Misma imagen y variables que app, solo en la red interna y sin puertos. Al arrancar
+    # pasa a fallidos los pedidos que quedaron a medias. Sin healthcheck: un pedido puede
+    # durar una hora y no hay una respuesta que consultar mientras tanto; si el proceso
+    # termina, Docker lo reinicia.
+    <<: *app
+    command: ["python", "manage.py", "procesar_pedidos"]
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      generation_batch:
+        condition: service_healthy
+      embeddings:
+        condition: service_healthy
+      reranker:
+        condition: service_healthy
     restart: unless-stopped
 
 networks:
