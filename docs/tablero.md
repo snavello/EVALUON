@@ -42,7 +42,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 35/54 | ██████░░░░ 65% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 36/54 | ███████░░░ 67% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -368,7 +368,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 19 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 18 tareas sin terminar.
 - ▶ T-113 · Pasada de circulares, entrega 1: unidades de cambio aplicadas por clave, sin modelo (en curso)
 - ○ T-101 · Unificar las filas que repiten la misma condición (pendiente)
 - ○ T-102 · Filtrar con dos preguntas y repartir cada fila en firme, sugerencia o descartada (pendiente)
@@ -381,7 +381,6 @@ flowchart LR
 - ○ T-110 · Decidir las sugerencias: pasar a requisito o quitar, una por una o por grupo, y bloquear la validación (pendiente)
 - ○ T-111 · Medir las sugerencias y el respaldo normativo: a revisión obligatoria e informe (pendiente)
 - ○ T-112 · Mostrar la sección de sugerencias con su respaldo en la pantalla y en la impresión (pendiente)
-- ○ T-114 · Crear el campo de original en un anexo, el pedido de extracción de cambios y los parámetros de circulares (pendiente)
 - ○ T-115 · Pasada de circulares, entrega 2: el modelo extrae la lista de cambios donde no hay clave (pendiente)
 - ○ T-116 · Mostrar y imprimir el original en el anexo, el cambio agrupado y el requisito agregado por una circular (pendiente)
 - ○ T-117 · Medir REQ-031 por fila en `medir_matriz`: documento, fecha, texto original y vigente (pendiente)
@@ -427,6 +426,7 @@ flowchart LR
 - ✓ T-099 · Crear la tabla de filas descartadas, el estado de sugerencia, el respaldo normativo, las citas repetidas y los parámetros del filtro (`60b3e30` 2026-10-04)
 - ✓ T-100 · Quitar el nivel "media" y dejar un solo proceso registrado (`4b49bad` 2026-10-04, `b271132` 2026-10-04)
 - ✓ T-104 · Listar y devolver las filas descartadas, y revisar por grupos (`db7c8e2` 2026-10-04)
+- ✓ T-114 · Crear el campo de original en un anexo, el pedido de extracción de cambios y los parámetros de circulares (`8b858d6` 2026-10-04)
 
 ### Mapa de tareas
 
@@ -479,7 +479,7 @@ flowchart TD
   T111["○ T-111 · Medir las sugerencias y el respaldo normati…"]:::todo
   T112["○ T-112 · Mostrar la sección de sugerencias con su re…"]:::todo
   T113["▶ T-113 · Pasada de circulares, entrega 1: unidades d…"]:::active
-  T114["○ T-114 · Crear el campo de original en un anexo, el…"]:::todo
+  T114["✓ T-114 · Crear el campo de original en un anexo, el…"]:::done
   T115["○ T-115 · Pasada de circulares, entrega 2: el modelo…"]:::todo
   T116["○ T-116 · Mostrar y imprimir el original en el anexo,…"]:::todo
   T117["○ T-117 · Medir REQ-031 por fila en medir_matriz: doc…"]:::todo
