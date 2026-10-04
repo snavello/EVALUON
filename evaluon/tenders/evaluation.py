@@ -488,7 +488,8 @@ def _overlap(a, b):
 
 
 def _quote_state(reading, segment, quote):
-    """Si la cita es igual al recorte del texto canónico, cae en su tramo y el tramo tiene
+    """Si la cita es igual al recorte del texto canónico de `reading` (la lectura de su propio
+    tramo, no la de la primera cita de la fila), cae en su tramo y el tramo tiene
     página."""
     return (
         reading.canonical_text[quote.char_start:quote.char_end] == quote.text
@@ -683,7 +684,7 @@ def measure_version(run, expected, verification):
     quote_total = quote_ok = wide = wide_ok = 0
     for row in proposed:
         for quote in row.quotes:
-            state = _quote_state(row.reading, quote.segment, quote)
+            state = _quote_state(quote.segment.reading, quote.segment, quote)
             if quote.quote_flag == m.QuoteFlag.CITA_AMPLIA:
                 wide += 1
                 wide_ok += state

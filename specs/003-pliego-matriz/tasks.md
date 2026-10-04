@@ -44,6 +44,8 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-094 | Medir la aceptación con los casos 01 y 02 | REQ-024, REQ-025, REQ-030, REQ-031 | T-085, T-093, T-095 | pendiente |
 | T-095 | Contar como "a revisión obligatoria" los requisitos en tramos pendientes | REQ-024 | T-093 | terminada |
 | T-096 | Corregir la cobertura de tramos de `medir_matriz` cuando hay circulares | REQ-030 | T-095 | terminada |
+| T-097 | Corregir la cita literal de las filas técnicas con varios documentos en `medir_matriz` | REQ-025, REQ-030 | T-096 | terminada |
+| T-098 | Corregir la pasada de circulares (fuentes, tramos descartados y no ubicados) | REQ-028, REQ-031 | T-094 | en curso |
 | T-099 | Crear la tabla de filas descartadas, las citas repetidas y los parámetros del filtro | REQ-030, REQ-033 | T-096 | pendiente |
 | T-100 | Quitar el nivel "media" y dejar un solo proceso registrado | REQ-030 | T-099, T-097, T-098 | pendiente |
 | T-101 | Unificar las filas que repiten la misma condición | REQ-025, REQ-033 | T-100 | pendiente |
@@ -290,6 +292,22 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 - **No tocar:** la propuesta, las instrucciones, la lista esperada.
 - **Entorno:** cualquier equipo con Docker.
 
+### T-097 · Corregir la cita literal de las filas técnicas con varios documentos en `medir_matriz`
+
+- **Qué hacer:** en la medición del caso-01 (T-094) la cita literal dio 57,4 % (media) y 54,8 % (alta); todas las citas no literales eran de filas técnicas. Diagnóstico con la base real, en solo lectura: las 10.874 y 10.984 citas de las dos versiones son literales contra la lectura de su propio tramo (texto igual al recorte, dentro del tramo, con página). El defecto es del medidor: `measure_version` comparaba cada cita de una fila contra la lectura de la primera cita de la fila, y una fila técnica cita tramos del pliego y del manual. Medir cada cita contra la lectura de su propio tramo. Regenerar después los resúmenes del caso-01 con `medir_matriz --regenerar-resumen`.
+- **Archivos:** `evaluon/tenders/evaluation.py`, `tests/tenders/test_evaluation.py`.
+- **Verificación:** test: una fila técnica que cita tramos de dos documentos mide el 100 % de sus citas literales (falla sin el arreglo); suite completa en verde.
+- **No tocar:** la propuesta, las instrucciones, la lista esperada.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-098 · Corregir la pasada de circulares (fuentes, tramos descartados y no ubicados)
+
+- **Qué hacer:** decisión del responsable del 2026-10-04. En la medición del caso-01 (T-094), REQ-031 no se cumple: M-029 y M-044 sin fuente de circular (tramos de la Circular 1 descartados por título o como líneas de fechas), M-015 sin fila (los tramos de la Circular 2 quedan `no_ubicado`), y fuentes de la Circular 1 pegadas a filas técnicas ajenas. Diagnosticar en la base real en solo lectura y corregir causas generales, no a la medida del texto del caso-01; sin cambiar instrucciones con ejemplos del caso-01.
+- **Archivos:** `evaluon/tenders/` (pasada de circulares), tests de `tests/tenders/`.
+- **Verificación:** tests con textos inventados que reproducen cada fallo y fallan sin el arreglo; suite completa.
+- **No tocar:** `medir_matriz` y `evaluation.py`, la lista esperada, `plan.md`.
+- **Entorno:** cualquier equipo con Docker; diagnóstico con la base real en solo lectura.
+
 ### Enmienda del 2026-10-04: proceso único, filtro de sobrantes, descartadas y grupos (T-099 a T-108)
 
 Plan: sección "Enmienda del 2026-10-04" de `plan.md`; ADR-0021 (propuesto). Estas tareas esperan la aprobación de la enmienda del plan. Cadenas: esquema y configuración compartida, solo T-099 y, después, T-100 (`settings.py`); `proposal/run.py`: T-098 → T-100 → T-101 → T-102; `evaluation.py` y `medir_matriz`: T-097 → T-100 → T-103; servicios y vistas de revisión: T-104 → T-105.
@@ -397,13 +415,13 @@ Plan: sección "Enmienda del 2026-10-04" de `plan.md`; ADR-0021 (propuesto). Est
 | REQ-022 | T-067, T-069, T-075 |
 | REQ-023 | T-067, T-072, T-075 |
 | REQ-024 | T-067, T-070, T-071, T-073, T-074, T-075, T-076, T-077, T-078, T-084, T-102, T-103, T-106, T-108 |
-| REQ-025 | T-067, T-070, T-073, T-074, T-075, T-076, T-077, T-084, T-101, T-108 |
+| REQ-025 | T-067, T-070, T-073, T-074, T-075, T-076, T-077, T-084, T-097, T-101, T-108 |
 | REQ-026 | T-067, T-068, T-079, T-082, T-104 |
 | REQ-027 | T-067, T-068, T-082 |
-| REQ-028 | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082 |
+| REQ-028 | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082, T-098 |
 | REQ-029 | T-067, T-068, T-080, T-081, T-084 |
-| REQ-030 | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085, T-096, T-099, T-100, T-103, T-108 |
-| REQ-031 | T-067, T-072, T-074, T-083, T-108 |
+| REQ-030 | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085, T-096, T-097, T-099, T-100, T-103, T-108 |
+| REQ-031 | T-067, T-072, T-074, T-083, T-098, T-108 |
 | REQ-032 | T-067, T-074, T-082, T-086, T-105 |
 | REQ-033 | T-099, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108 |
 | REQ-034 | T-104, T-105 |
