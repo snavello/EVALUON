@@ -26,6 +26,7 @@ from evaluon.norms.reading import DocumentReading, Line, Page, Word
 from evaluon.norms.splitting.canonical import build_canonical_text
 from evaluon.tenders import jobs
 from evaluon.tenders.models import (
+    Consequence,
     DispositionOutcome,
     JobKind,
     JobStatus,
@@ -182,6 +183,8 @@ class MatrixPage:
     can_edit: bool = False  # borrador y rol de la Comisión: corregir, quitar, agregar
     can_confirm: bool = False  # borrador y evaluador: confirmar y resolver pendientes
     segment_options: list = field(default_factory=list)  # (id, descripción) para elegir un tramo
+    can_validate: bool = False  # borrador y evaluador: validar y descartar
+    can_open_new: bool = False  # validada, la última, sin borrador abierto: versión nueva
 
 
 def _require(user, operation, channel):
@@ -226,10 +229,10 @@ def _quote_rows(requirement, pages):
 
 def _segment_options(version):
     """Los tramos del pliego de la versión, para elegir uno al agregar o corregir."""
-    if version.run_id is not None:
-        reading_ids = [d["reading"] for d in version.run.documents]
-    else:
-        reading_ids = []
+    origin = version
+    while origin.run_id is None and origin.based_on_id is not None:
+        origin = origin.based_on  # una versión abierta sobre otra usa la propuesta de su origen
+    reading_ids = [d["reading"] for d in origin.run.documents] if origin.run_id else []
     segments = (Segment.objects.filter(reading_id__in=reading_ids)
                 .select_related("reading__document")
                 .order_by("reading__document_id", "order"))
@@ -276,6 +279,14 @@ def matrix_page(user, version_id, *, channel=Channel.SCREEN):
     ]
 
     editable = version.status == VersionStatus.DRAFT
+    chosen = set(Consequence.objects.filter(
+        requirement__in=requirements, chosen=True).values_list("requirement_id", flat=True))
+    siblings = version.procedure.matrix_versions
+    can_open_new = (
+        version.status == VersionStatus.VALIDATED
+        and not siblings.filter(number__gt=version.number,
+                                status=VersionStatus.VALIDATED).exists()
+        and not siblings.filter(status=VersionStatus.DRAFT).exists())
     authorization_date = (run.authorization_date if run
                           else version.procedure.authorization_date)
     return MatrixPage(
@@ -288,7 +299,8 @@ def matrix_page(user, version_id, *, channel=Channel.SCREEN):
         counts={"formal": counts[RequirementClass.FORMAL],
                 "economico": counts[RequirementClass.ECONOMICO],
                 "tecnico": counts[RequirementClass.TECNICO],
-                "total": len(requirements)},
+                "total": len(requirements),
+                "sin_consecuencia": sum(1 for r in requirements if r.pk not in chosen)},
         pending=pending,
         pending_open=sum(1 for p in pending if p.item.resolved_at is None),
         groups=groups,
@@ -296,6 +308,8 @@ def matrix_page(user, version_id, *, channel=Channel.SCREEN):
         removed=removed,
         can_edit=editable,
         can_confirm=editable and user.commission_role == CommissionRole.EVALUATOR,
+        can_validate=editable and user.commission_role == CommissionRole.EVALUATOR,
+        can_open_new=can_open_new,
         segment_options=_segment_options(version) if editable else [],
     )
 
@@ -371,6 +385,7 @@ class Panel:
     active_job: object
     can_request: bool
     draft_open: bool
+    can_open_new: bool = False  # hay una validada y ningún borrador ni pedido en curso
 
 
 def panel(user, procedure, *, channel=Channel.SCREEN):
@@ -383,7 +398,9 @@ def panel(user, procedure, *, channel=Channel.SCREEN):
     ).order_by("-id").first()
     draft_open = any(v.status == VersionStatus.DRAFT for v in versions)
     return Panel(versions=versions, active_job=active,
-                 can_request=active is None and not draft_open, draft_open=draft_open)
+                 can_request=active is None and not draft_open, draft_open=draft_open,
+                 can_open_new=(active is None and not draft_open and any(
+                     v.status == VersionStatus.VALIDATED for v in versions)))
 
 
 # --- Aviso de fin ------------------------------------------------------------------------------

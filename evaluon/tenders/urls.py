@@ -5,7 +5,14 @@ original (T-072)."""
 
 from django.urls import path
 
-from evaluon.tenders.views import consequences, documents, matrix, procedures, review
+from evaluon.tenders.views import (
+    consequences,
+    documents,
+    matrix,
+    procedures,
+    review,
+    validation,
+)
 
 app_name = "tenders"
 
@@ -22,6 +29,10 @@ urlpatterns = [
          name="review_add_technical"),
     path("matrices/<int:version_id>/sumar-tramo/", review.join_segment,
          name="review_join_segment"),
+    path("matrices/<int:version_id>/validar/", validation.validate, name="validate"),
+    path("matrices/<int:version_id>/descartar/", validation.discard, name="discard"),
+    path("<int:procedure_id>/matriz/nueva-version/", validation.open_new,
+         name="open_new_version"),
     path("requisitos/<int:requirement_id>/corregir/", review.correct,
          name="review_correct"),
     path("requisitos/<int:requirement_id>/quitar/", review.remove, name="review_remove"),
