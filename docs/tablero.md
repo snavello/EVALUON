@@ -414,7 +414,7 @@ flowchart LR
 - ✓ T-093 · Ajustar las instrucciones con el caso-00 (enumeraciones, tablas, condiciones como efecto) (`86b2e76` 2026-10-04)
 - ✓ T-095 · Contar como "a revisión obligatoria" los requisitos en tramos pendientes (`e532652` 2026-10-04, `4480d62` 2026-10-04, `3509e0c` 2026-10-04)
 - ✓ T-096 · Corregir la cobertura de tramos de `medir_matriz` cuando hay circulares (`56892b0` 2026-10-04)
-- ✓ T-097 · Corregir la cita literal de las filas técnicas con varios documentos en `medir_matriz`
+- ✓ T-097 · Corregir la cita literal de las filas técnicas con varios documentos en `medir_matriz` (`8e2f6f2` 2026-10-04)
 
 ### Mapa de tareas
 

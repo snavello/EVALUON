@@ -1,6 +1,6 @@
 # Plan 003 · Procedimiento, pliego final y matriz de cumplimiento
 
-Estado: aprobado · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-04, tope de sobrantes, REQ-033, REQ-034 y proceso único sin niveles (sección "Enmienda del 2026-10-04"), pendiente de aprobación del responsable
+Estado: aprobado · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-04, tope de sobrantes, REQ-033, REQ-034 y proceso único sin niveles (sección "Enmienda del 2026-10-04"), aprobada por el responsable el 2026-10-04
 
 Spec: `specs/003-pliego-matriz/spec.md` (aprobada el 2026-10-03, enmendada el mismo día: requisitos técnicos por renglón, criterio de requisito y de clase, tipos de consecuencia y REQ-032; enmendada el 2026-10-04: requisitos en tramos pendientes, tope de sobrantes, REQ-033 y REQ-034).
 

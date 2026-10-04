@@ -1,6 +1,6 @@
 # ADR-0021 · Filtro de precisión de la matriz: una pasada separada, con descarte visible y recuperable
 
-Estado: propuesto · Fecha: 2026-10-04 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-04 · Decidió: responsable del proyecto (al aprobar la enmienda del plan 003)
 
 ## Contexto
 
