@@ -1,0 +1,67 @@
+"""Ubicar un fragmento literal dentro de un tramo (REQ-025; plan 003, "Extracción: qué
+recibe y qué devuelve el modelo" y "Cita"; T-073).
+
+Textos inventados (P4). Son pruebas de la función sola, sin base de datos.
+"""
+
+from types import SimpleNamespace
+
+import pytest
+
+from evaluon.tenders.proposal import quotes
+
+TEXT = ("1.1. La oferta deberá presentarse en pesos. La oferta deberá presentarse con "
+        "firma.\nSegunda línea del tramo.")
+
+
+def test_locate_returns_the_exact_positions():
+    """REQ-025: el fragmento se busca exacto y se devuelve su lugar dentro del tramo."""
+    quote = "La oferta deberá presentarse en pesos."
+    span = quotes.locate(TEXT, quote)
+
+    assert span == (5, 5 + len(quote))
+    assert TEXT[span[0]:span[1]] == quote
+
+
+def test_locate_ignores_only_the_spaces_at_the_ends():
+    """REQ-025: los espacios de los extremos no cuentan; el resto se compara tal cual."""
+    span = quotes.locate(TEXT, "  La oferta deberá presentarse en pesos.  \n")
+
+    assert TEXT[span[0]:span[1]] == "La oferta deberá presentarse en pesos."
+
+
+@pytest.mark.parametrize("quote", [
+    "la oferta deberá presentarse en pesos.",      # otra mayúscula
+    "La oferta deberá  presentarse en pesos.",     # un espacio de más
+    "Segunda línea del tramo. Y más",              # sobra texto que el tramo no tiene
+    "La oferta deberá presentarse\nen pesos.",     # el salto de línea no es un espacio
+])
+def test_locate_is_exact(quote):
+    """REQ-025: la copia tiene que ser letra por letra; si no, no se ubica."""
+    assert quotes.locate(TEXT, quote) is None
+
+
+@pytest.mark.parametrize("quote", ["", "   ", "\n", None])
+def test_empty_quote_is_not_located(quote):
+    """REQ-025: una cita vacía no se ubica."""
+    assert quotes.locate(TEXT, quote) is None
+
+
+def test_first_occurrence_not_used_is_taken():
+    """REQ-025: si el fragmento aparece más de una vez, se toma la primera aparición
+    cuyas posiciones todavía no se usaron."""
+    quote = "La oferta deberá presentarse"
+    first = quotes.locate(TEXT, quote)
+    second = quotes.locate(TEXT, quote, used={first})
+
+    assert first[0] < second[0]
+    assert TEXT[second[0]:second[1]] == quote
+    assert quotes.locate(TEXT, quote, used={first, second}) is None
+
+
+def test_absolute_moves_the_span_to_the_canonical_text():
+    """REQ-025: las posiciones del tramo se llevan al texto canónico de la lectura."""
+    segment = SimpleNamespace(char_start=1000, char_end=1000 + len(TEXT))
+
+    assert quotes.absolute(segment, (6, 10)) == (1006, 1010)
+    assert quotes.whole(segment) == (1000, 1000 + len(TEXT))
