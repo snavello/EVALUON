@@ -96,27 +96,22 @@ una versión abierta sobre otra no tiene propuesta propia.
   <h3>{{ group.title }}</h3>
   {% for row in group.rows %}
   <article class="requirement">
-    <h4>Requisito {{ row.requirement.number }} <span class="class-mark">{{ row.requirement.get_category_display }}</span>{% if row.requirement.state == "confirmado" %} <span class="state-mark">Confirmado</span>{% endif %}{% if row.requirement.origin == "agregado" %} <span class="state-mark">Agregado por una persona</span>{% endif %}</h4>
+    <h4>Requisito {{ row.requirement.number }} <span class="class-mark">{{ row.requirement.get_category_display }}</span>{% if row.requirement.state == "confirmado" %} <span class="state-mark">Confirmado</span>{% endif %}{% if row.requirement.origin == "agregado" %} <span class="state-mark">Agregado por una persona</span>{% endif %}{% if row.added_by %} <span class="state-mark">Agregado por {{ row.added_by.document_title }}{% if row.added_by.issued_on %} del {{ row.added_by.issued_on|date:"d/m/Y" }}{% endif %}</span>{% endif %}</h4>
     {% for quote in row.quotes %}
     {% if quote.current %}
-    <p class="current-label">Texto vigente, según la circular del {{ quote.current.issued_on|date:"d/m/Y" }}:</p>
-    <blockquote class="literal">{{ quote.current.text }}</blockquote>
-    <p class="quote-place">{% include "tenders/_place_print.html" with place=quote.current.place %}</p>
-    <p class="original-label">Texto original del pliego:</p>
+    {% include "tenders/_change.html" with change=quote.current current=True print=True %}
+    {% if not quote.current.original %}<p class="original-label">Texto original del pliego:</p>{% else %}<p class="original-label">Cita del requisito:</p>{% endif %}
     {% endif %}
     {% if quote.scope == "repetida" %}<p class="repeated-label">También en:</p>{% endif %}
     <blockquote class="literal">{{ quote.text }}</blockquote>
     <p class="quote-place">{% include "tenders/_place_print.html" with place=quote.place %}{% if quote.wide %} <span class="wide-mark">Cita amplia, revisar</span>{% endif %}</p>
+    {% if quote.covered %}<p class="repeated-label">Alcanzada por el cambio mostrado arriba.</p>{% endif %}
     {% for note in quote.notes %}
-    <p class="source-label">{{ note.effect_label }} ({{ note.issued_on|date:"d/m/Y" }}):</p>
-    <blockquote class="literal">{{ note.text }}</blockquote>
-    <p class="quote-place">{% include "tenders/_place_print.html" with place=note.place %}</p>
+    {% include "tenders/_change.html" with change=note current=False print=True %}
     {% endfor %}
     {% endfor %}
     {% for note in row.sources %}
-    <p class="source-label">{{ note.effect_label }} ({{ note.issued_on|date:"d/m/Y" }}):</p>
-    <blockquote class="literal">{{ note.text }}</blockquote>
-    <p class="quote-place">{% include "tenders/_place_print.html" with place=note.place %}</p>
+    {% include "tenders/_change.html" with change=note current=False print=True %}
     {% endfor %}
     {% if row.passed %}<p class="passed-note">Pasó de sugerencia el {{ row.passed.at|date:"d/m/Y" }} por {{ row.passed.username }}.</p>{% endif %}
     {% include "tenders/_support.html" with row=row print=True %}
@@ -137,7 +132,10 @@ una versión abierta sobre otra no tiene propuesta propia.
     <p>Tramos citados: {{ row.quotes|length }}</p>
     <ul>
       {% for quote in row.quotes %}
-      <li>{% include "tenders/_place_print.html" with place=quote.place %}{% if quote.scope_label %} · {{ quote.scope_label }}{% endif %}{% if quote.wide %} <span class="wide-mark">Cita amplia, revisar</span>{% endif %}</li>
+      <li>{% include "tenders/_place_print.html" with place=quote.place %}{% if quote.scope_label %} · {{ quote.scope_label }}{% endif %}{% if quote.wide %} <span class="wide-mark">Cita amplia, revisar</span>{% endif %}
+        {% if quote.current %}{% include "tenders/_change.html" with change=quote.current current=True print=True %}<p class="original-label">{% if quote.current.original %}Cita del requisito:{% else %}Texto original del pliego:{% endif %}</p><blockquote class="literal">{{ quote.text }}</blockquote>{% endif %}
+        {% if quote.covered %}<p class="repeated-label">Alcanzada por el cambio mostrado arriba.</p>{% endif %}
+        {% for note in quote.notes %}{% include "tenders/_change.html" with change=note current=False print=True %}{% endfor %}</li>
       {% endfor %}
     </ul>
     {% consequence_print row.requirement %}

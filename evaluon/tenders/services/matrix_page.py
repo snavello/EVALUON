@@ -26,6 +26,7 @@ from evaluon.norms.reading import DocumentReading, Line, Page, Word
 from evaluon.norms.splitting.canonical import build_canonical_text
 from evaluon.tenders import jobs
 from evaluon.tenders.models import (
+    DATED_DOCUMENT_KINDS,
     ChangeAction,
     Consequence,
     DispositionOutcome,
@@ -38,6 +39,7 @@ from evaluon.tenders.models import (
     Requirement,
     RequirementChange,
     RequirementClass,
+    RequirementOrigin,
     RequirementQuote,
     RequirementState,
     Segment,
@@ -138,12 +140,23 @@ def place(pages, segment, start=None, end=None):
 
 
 @dataclass
+class OriginalRow:
+    """El texto que una circular reemplaza cuando está en un anexo sin requisitos: el recorte
+    del tramo del anexo, con su lugar (REQ-031, T-116)."""
+
+    place: Place
+    text: str
+
+
+@dataclass
 class SourceRow:
     effect: str
     effect_label: str
     place: Place
     text: str
     issued_on: object
+    original: OriginalRow | None = None
+    reach: int = 1  # cuántas citas del requisito alcanza el mismo cambio (se muestra una vez)
 
 
 @dataclass
@@ -157,6 +170,7 @@ class QuoteRow:
     notes: list = field(default_factory=list)  # aclaraciones y supresiones
     quote_id: int | None = None
     segment_id: int | None = None
+    covered: bool = False  # un cambio ya mostrado en una cita anterior también la alcanza
 
 
 @dataclass
@@ -194,6 +208,14 @@ class OriginNote:
 
 
 @dataclass
+class AddedBy:
+    """"Agregado por <documento> del <fecha>", del tramo de su cita (REQ-031)."""
+
+    document_title: str
+    issued_on: object
+
+
+@dataclass
 class RequirementRow:
     requirement: Requirement
     quotes: list
@@ -202,6 +224,7 @@ class RequirementRow:
     doubt_phrase: str = ""  # la frase fija del motivo de la duda, si es o fue sugerencia
     evidence: str = ""  # el indicio literal del tramo, si lo hay
     passed: OriginNote | None = None  # quién la pasó a requisito y cuándo
+    added_by: "AddedBy | None" = None  # la circular que lo agregó (origen `circular`)
 
 
 @dataclass
@@ -245,25 +268,63 @@ def _require(user, operation, channel):
                             channel=channel)
 
 
+def _original_row(pages, source, procedure_id):
+    """El original de la fuente, si es válido: la base no garantiza que el tramo sea de un
+    documento del pliego de este procedimiento (y no de la circular), ni que el rango sea un
+    recorte de su lectura; si no lo es, no se muestra (T-114)."""
+    segment = source.original_segment
+    if segment is None:
+        return None
+    reading = segment.reading
+    document = reading.document
+    start, end = source.original_char_start, source.original_char_end
+    if (reading.pk == source.segment.reading_id
+            or document.procedure_id != procedure_id
+            or document.kind in DATED_DOCUMENT_KINDS
+            or start is None or end is None
+            or not segment.char_start <= start < end <= len(reading.canonical_text)
+            or start >= segment.char_end):
+        return None
+    return OriginalRow(place=place(pages, segment, start, end),
+                       text=reading.canonical_text[start:end])
+
+
 def quote_rows(requirement, pages):
-    by_quote, loose = {}, []
-    for source in requirement.sources.select_related(
-            "segment__reading__document").order_by("issued_on", "id"):
+    """Las citas del requisito con lo que las cambia. Una circular que cambia varias citas
+    del mismo requisito deja una fuente por cita; el cambio se muestra una vez, en la primera
+    cita que alcanza, y las demás lo indican (`covered`)."""
+    procedure_id = requirement.version.procedure_id
+    quotes = list(requirement.quotes.select_related(
+        "segment__reading__document").order_by("order"))
+    order_of = {quote.pk: index for index, quote in enumerate(quotes)}
+    sources = sorted(
+        requirement.sources.select_related(
+            "segment__reading__document", "original_segment__reading__document"),
+        key=lambda s: (s.issued_on, order_of.get(s.quote_id, -1), s.pk))
+    shown, by_quote, loose, covered = {}, {}, [], set()
+    for source in sources:
+        key = (source.effect, source.segment_id, source.char_start, source.char_end,
+               source.original_segment_id, source.original_char_start)
+        if source.quote_id is not None and key in shown:
+            shown[key].reach += 1
+            covered.add(source.quote_id)
+            continue
         row = SourceRow(
             effect=source.effect,
             effect_label=SourceEffect(source.effect).label,
             place=place(pages, source.segment, source.char_start, source.char_end),
             text=source.text,
             issued_on=source.issued_on,
+            original=_original_row(pages, source, procedure_id),
         )
         if source.quote_id is None:
             loose.append(row)
         else:
+            shown[key] = row
             by_quote.setdefault(source.quote_id, []).append(row)
 
     rows = []
-    for quote in requirement.quotes.select_related(
-            "segment__reading__document").order_by("order"):
+    for quote in quotes:
         mine = by_quote.get(quote.pk, [])
         modifying = [s for s in mine if s.effect == SourceEffect.MODIFICA]
         rows.append(QuoteRow(
@@ -276,6 +337,7 @@ def quote_rows(requirement, pages):
             scope_label=quote.get_scope_display() if quote.scope else "",
             current=modifying[-1] if modifying else None,
             notes=[s for s in mine if s.effect != SourceEffect.MODIFICA],
+            covered=quote.pk in covered and not mine,
         ))
     return rows, loose
 
@@ -322,6 +384,10 @@ def requirement_row(requirement, pages):
     el respaldo normativo (REQ-035, REQ-036)."""
     quotes, loose = quote_rows(requirement, pages)
     row = RequirementRow(requirement=requirement, quotes=quotes, sources=loose)
+    if requirement.origin == RequirementOrigin.CIRCULAR and quotes:
+        document = requirement.quotes.select_related("segment__reading__document").order_by(
+            "order").first().segment.reading.document
+        row.added_by = AddedBy(document_title=document.title, issued_on=document.issued_on)
     if requirement.doubt_reason:
         row.doubt_phrase = DOUBT_PHRASES.get(requirement.doubt_reason, "")
         row.evidence = _evidence(requirement.doubt)

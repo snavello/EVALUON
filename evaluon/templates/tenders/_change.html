@@ -1,0 +1,13 @@
+{% comment %}Lo que una circular cambia en una cita (REQ-031, T-116). Recibe `change` (una fuente), `print` (verdadero en la impresión y el PDF, sin enlaces) y `current` (verdadero si es el texto vigente; si no, una aclaración o supresión). Si la fuente trae su original en un anexo, lo muestra desde ese tramo; el cambio se muestra una sola vez por requisito.{% endcomment %}{% if current %}
+<p class="current-label">Texto vigente, según la circular del {{ change.issued_on|date:"d/m/Y" }}:</p>
+{% else %}
+<p class="source-label">{{ change.effect_label }} ({{ change.issued_on|date:"d/m/Y" }}):</p>
+{% endif %}
+<blockquote class="literal">{{ change.text }}</blockquote>
+<p class="quote-place">{% if print %}{% include "tenders/_place_print.html" with place=change.place %}{% else %}{% include "tenders/_place.html" with place=change.place %}{% endif %}</p>
+{% if change.reach > 1 %}<p class="repeated-label">Alcanza a {{ change.reach }} citas de este requisito.</p>{% endif %}
+{% if change.original %}
+<p class="original-label">Texto original, en el anexo:</p>
+<blockquote class="literal">{{ change.original.text }}</blockquote>
+<p class="quote-place">{% if print %}{% include "tenders/_place_print.html" with place=change.original.place %}{% else %}{% include "tenders/_place.html" with place=change.original.place %}{% endif %}</p>
+{% endif %}
