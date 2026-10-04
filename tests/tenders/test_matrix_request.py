@@ -218,7 +218,7 @@ def test_proposal_records_models_parameters_prompts_regime_and_corpus_version(
     assert run.authorization_date == date(2022, 12, 15)
     assert run.regime == [{"norm": two_regimes.old.pk, "name": "Disposición AFIP 297/03"}]
     assert run.corpus_version == version_event.corpus_version
-    assert run.prompt_versions == {"extraccion": "matriz-extraccion-v1",
+    assert run.prompt_versions == {"extraccion": "matriz-extraccion-v2",
                                     "consecuencias": "matriz-consecuencias-v1"}
     assert set(run.models) == {"generation_batch", "embeddings", "reranker"}
     for model in run.models.values():
