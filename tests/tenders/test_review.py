@@ -256,9 +256,11 @@ def test_a_second_technical_row_for_the_same_item_is_rejected(operator_user, cas
 
 def test_a_technical_row_is_added_for_an_item_that_has_none(operator_user, case):
     segment = segment_with(case, "multa del 1 %")
-    done = review.add_technical_row(operator_user, case.pk, item=9, segments=[segment.pk])
+    tech(case, 3).quotes.all().delete()  # el renglón 3 queda sin fila: se arma de nuevo
+    tech(case, 3).delete()
+    done = review.add_technical_row(operator_user, case.pk, item=3, segments=[segment.pk])
     row = done.requirements[0]
-    assert row.category == "tecnico" and row.items == [9] and row.origin == "agregado"
+    assert row.category == "tecnico" and row.items == [3] and row.origin == "agregado"
     assert row.quotes.get().segment_id == segment.pk
     assert row.changes.get().action == "agregar"
     check_deferred()
@@ -554,3 +556,15 @@ def test_get_on_an_action_is_not_allowed(client, operator_user, case):
     log_in(client, operator_user)
     assert client.get(reverse("tenders:review_remove", args=[requirement.pk])
                       ).status_code == 405
+
+
+def test_a_technical_row_for_an_item_not_in_the_tender_is_rejected(operator_user, case):
+    """Un renglón que la lectura del pliego no reconoce se rechaza, con su hecho."""
+    segment = segment_with(case, "multa del 1 %")
+    before = counts()
+    with pytest.raises(review.ReviewRefused) as error:
+        review.add_technical_row(operator_user, case.pk, item=9, segments=[segment.pk])
+    assert error.value.reason == "item_unknown"
+    assert counts() == before
+    assert rejected("item_unknown").count() == 1
+    assert not m.Requirement.objects.filter(version=case, items=[9]).exists()

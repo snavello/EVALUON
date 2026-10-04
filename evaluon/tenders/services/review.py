@@ -560,6 +560,13 @@ def add_technical_row(user, version_id, *, item, segments, channel=Channel.SCREE
         if not items:
             raise ReviewRefused("Indique el renglón de la fila técnica.", "invalid_items",
                                 "item")
+        known = set()
+        for reading_items in m_reading_items(version):
+            known.update(i.get("number") for i in reading_items)
+        if items[0] not in known:
+            raise ReviewRefused(
+                f"El renglón {items[0]} no figura en el pliego de esta matriz.",
+                "item_unknown", "item")
         existing = _technical_row(version, items)
         if existing is not None:
             raise ReviewRefused(
@@ -645,3 +652,11 @@ def history(user, requirement_id, *, channel=Channel.SCREEN):
     return HistoryPage(requirement=requirement, version=requirement.version,
                        proposed=requirement.proposed, current=_snapshot(requirement),
                        changes=changes)
+
+
+def m_reading_items(version):
+    """Los renglones reconocidos en cada lectura del pliego de la versión."""
+    from evaluon.tenders.models import Reading
+
+    return list(Reading.objects.filter(pk__in=_version_reading_ids(version)).values_list(
+        "items", flat=True))
