@@ -34,7 +34,8 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-084 | Correr la medición del caso-00 | REQ-024, REQ-025, REQ-029, REQ-030 | T-075, T-076, T-077, T-080 | pendiente |
 | T-085 | Ofrecer solo los niveles que mejoran | REQ-030 | T-084 | pendiente |
 | T-086 | Imprimir y exportar la matriz a PDF con la leyenda de borrador | REQ-032 | T-082 | pendiente |
-| T-087 | Comparar en la misma zona horaria la fecha de lectura del informe | REQ-004 | — | terminada |
+| T-087 | Comparar en la misma zona horaria la fecha de lectura del informe | REQ-004 | — | terminada |
+| T-088 | Cambiar el rol de la Comisión de un usuario existente, con registro | REQ-026 | — | pendiente |
 
 ## Para todas las tareas
 
@@ -205,6 +206,14 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 - **Archivos:** `pyproject.toml`, `Dockerfile`, `evaluon/tenders/export.py`, `evaluon/tenders/views/export.py`, `evaluon/tenders/urls.py`, `evaluon/templates/tenders/matrix_print.html`, `evaluon/templates/tenders/matrix.html`, `evaluon/static/tenders/print.css`, `tests/tenders/test_export.py`; informe en `specs/003-pliego-matriz/verificacion/T-086.md`.
 - **Verificación:** tests con una matriz sintética de varias páginas, leyendo el PDF con pdfplumber: cada página de un borrador tiene "BORRADOR INCOMPLETO"; ninguna página de la versión validada la tiene, y todas muestran versión, fecha y evaluador; una versión descartada lleva la leyenda; la vista de impresión de un borrador tiene la leyenda; una plantilla con una dirección externa hace fallar la generación en lugar de buscarla; la exportación queda registrada con la huella del archivo entregado. En la imagen: `docker compose build app` y la suite completa en verde; el informe anota las versiones instaladas, el aumento de tamaño de la imagen, el tiempo de generación de una matriz de 40 filas y la comprobación a mano de que la impresión del navegador repite la leyenda en cada hoja.
 - **No tocar:** `docker-compose.yml`; `proposal/`; los servicios de revisión, consecuencias y validación.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro
+
+- **Qué hacer:** hoy `crear_usuario --rol-comision` solo sirve para usuarios nuevos. El 2026-10-04 el Coordinador le dio rol de evaluador al usuario `sandro` en la base real con una actualización directa del campo `commission_role` (pedido del responsable), sin hecho de auditoría porque no hay tipo de hecho ni comando para eso. Agregar un comando `rol_comision <usuario> {operador,evaluador,ninguno}` que cambie el rol y deje un hecho (un tipo nuevo `user_role_changed`, con su migración de `audit`, o el que corresponda), y anotar en el registro el cambio manual del 2026-10-04 corriendo el comando sobre `sandro` con el mismo valor o registrando el hecho de regularización.
+- **Archivos:** `evaluon/accounts/management/commands/rol_comision.py`, `evaluon/audit/models.py` y su migración, `tests/accounts/test_commission_role_change.py`.
+- **Verificación:** tests: el cambio deja el hecho con quién, antes y después; un usuario inexistente o un valor inválido se rechazan sin cambiar nada.
+- **No tocar:** `crear_usuario` salvo para compartir validaciones; `evaluon/tenders/`.
 - **Entorno:** cualquier equipo con Docker.
 
 ### T-087 · Comparar en la misma zona horaria la fecha de lectura del informe
