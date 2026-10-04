@@ -13,6 +13,7 @@ from evaluon.tenders.views import (
     matrix,
     procedures,
     review,
+    suggestions,
     validation,
 )
 
@@ -37,6 +38,8 @@ urlpatterns = [
     path("matrices/<int:version_id>/descartadas/devolver/", discarded.restore,
          name="discarded_restore"),
     path("matrices/<int:version_id>/grupo/", review.group, name="group_review"),
+    path("matrices/<int:version_id>/grupo-sugerencias/", suggestions.group,
+         name="suggestion_group"),
     path("matrices/<int:version_id>/validar/", validation.validate, name="validate"),
     path("matrices/<int:version_id>/descartar/", validation.discard, name="discard"),
     path("<int:procedure_id>/matriz/nueva-version/", validation.open_new,
@@ -44,6 +47,8 @@ urlpatterns = [
     path("requisitos/<int:requirement_id>/corregir/", review.correct,
          name="review_correct"),
     path("requisitos/<int:requirement_id>/quitar/", review.remove, name="review_remove"),
+    path("requisitos/<int:requirement_id>/pasar-a-requisito/", suggestions.accept,
+         name="suggestion_accept"),
     path("requisitos/<int:requirement_id>/restituir/", review.restore,
          name="review_restore"),
     path("requisitos/<int:requirement_id>/historial/", review.history, name="history"),

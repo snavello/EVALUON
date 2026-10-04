@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}{{ verb }} las {{ count }} propuestas · versión {{ version.number }} · {{ procedure.number }} · EVALUON{% endblock %}
+{% block title %}{{ verb }} las {{ count }} {{ noun|default:"propuestas" }} · versión {{ version.number }} · {{ procedure.number }} · EVALUON{% endblock %}
 
 {% block head %}<link rel="stylesheet" href="{% static 'tenders/matrix.css' %}">{% endblock %}
 
@@ -9,10 +9,10 @@
 
 {% block content %}
 <p><a href="{% url 'tenders:matrix' version.pk %}">Matriz · versión {{ version.number }}</a></p>
-<h1>{{ verb }} las {{ count }} propuestas</h1>
-<p>Grupo <strong>{{ group }}</strong> · versión {{ version.number }}. Estas son las filas que se van a {% if action == "confirmar" %}confirmar{% else %}quitar{% endif %}; hasta que acepte, no cambia nada.</p>
+<h1>{{ verb }} las {{ count }} {{ noun|default:"propuestas" }}</h1>
+<p>Grupo <strong>{{ group }}</strong> · versión {{ version.number }}. Estas son las filas que se van a {% if action == "confirmar" %}confirmar{% elif action == "pasar" %}pasar a requisito{% else %}quitar{% endif %}; hasta que acepte, no cambia nada.</p>
 {% if corrected_count %}<p class="review-error" role="note">{{ corrected_count }} de estas filas {{ corrected_count|pluralize:"fue,fueron" }} corregida{{ corrected_count|pluralize }} por una persona: revíselas antes de {% if action == "confirmar" %}confirmar{% else %}quitar{% endif %}.</p>{% endif %}
-<form method="post" action="{% url 'tenders:group_review' version.pk %}" class="group-actions">{% csrf_token %}
+<form method="post" action="{% if post_url %}{{ post_url }}{% else %}{% url 'tenders:group_review' version.pk %}{% endif %}" class="group-actions">{% csrf_token %}
   <input type="hidden" name="group" value="{{ group }}">
   <input type="hidden" name="action" value="{{ action }}">
   <button type="submit">Aceptar</button>
@@ -27,6 +27,7 @@
     <blockquote class="literal">{{ quote.text }}</blockquote>
     <p class="quote-place">{% include "tenders/_place.html" with place=quote.place %}</p>
     {% endfor %}
+    {% if item.phrase %}<p class="doubt-reason"><strong>Motivo de la duda:</strong> {{ item.phrase }}{% if item.supported %} · La norma aplicable la exige{% endif %}</p>{% endif %}
   </article>
   {% endfor %}
 </section>

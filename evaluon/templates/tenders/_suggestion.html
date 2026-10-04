@@ -1,0 +1,18 @@
+{% comment %}Una sugerencia de condición en la pantalla de la matriz (REQ-035, REQ-036): cita literal con su ubicación, motivo de la duda con su indicio, respaldo normativo y los botones para decidirla. Recibe `row` y `page`.{% endcomment %}<article class="requirement suggestion" id="requisito-{{ row.requirement.number }}">
+  <h3>Requisito {{ row.requirement.number }} <span class="class-mark class-{{ row.requirement.category }}">{{ row.requirement.get_category_display }}</span> <span class="state-mark">Sugerencia sin decidir</span>{% if row.supports %} <span class="state-mark support-mark">La norma aplicable la exige</span>{% endif %}</h3>
+  {% for quote in row.quotes %}
+  {% if quote.scope == "repetida" %}<p class="repeated-label">También en:</p>{% endif %}
+  <blockquote class="literal">{{ quote.text }}</blockquote>
+  <p class="quote-place">{% include "tenders/_place.html" with place=quote.place %}{% if quote.wide %} <span class="wide-mark">Cita amplia, revisar</span>{% endif %}</p>
+  {% endfor %}
+  <p class="doubt-reason"><strong>Motivo de la duda:</strong> {{ row.doubt_phrase }}</p>
+  {% if row.evidence %}<p class="source-label">Indicio en el pliego:</p><blockquote class="literal">{{ row.evidence }}</blockquote>{% endif %}
+  {% include "tenders/_support.html" with row=row print=False %}
+  <p class="review-links"><a href="{% url 'tenders:history' row.requirement.pk %}">Historial</a></p>
+  {% if page.can_edit %}
+  <div class="suggestion-buttons">
+    <form method="post" action="{% url 'tenders:suggestion_accept' row.requirement.pk %}">{% csrf_token %}<button type="submit">Pasar a requisito</button></form>
+    <form method="post" action="{% url 'tenders:review_remove' row.requirement.pk %}">{% csrf_token %}<button type="submit">Quitar</button></form>
+  </div>
+  {% endif %}
+</article>
