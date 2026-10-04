@@ -110,12 +110,12 @@ def test_the_proposal_runs_the_passes_of_the_single_process(operator_user, scrip
     assert job.status == "done", job.error
     assert requested.run.parameters["process"] == "completo"
     assert requested.run.parameters["passes"] == [
-        "reglas", "extraccion", "completitud", "unificacion", "filas_tecnicas",
+        "reglas", "extraccion", "completitud", "unificacion", "filtro", "filas_tecnicas",
         "consecuencias"]
     steps = list(dict.fromkeys(
         m.RunStep.objects.filter(run=requested.run).order_by("id")
         .values_list("pass_name", flat=True)))
-    assert steps == ["extraccion", "completitud", "unificacion", "consecuencias"]
+    assert steps == ["extraccion", "completitud", "unificacion", "filtro", "filtro_2", "consecuencias"]
     assert "nivel_sin_pasadas_propias" not in [a["type"] for a in requested.run.anomalies]
 
 
@@ -127,7 +127,8 @@ def test_the_proposal_records_the_version_of_every_instruction(operator_user, re
     assert job.status == "done", job.error
     versions = settings.MATRIX_PROMPT_VERSIONS
     assert requested.run.prompt_versions == {
-        name: versions[name] for name in ("extraccion", "completitud", "consecuencias")}
+        name: versions[name]
+        for name in ("extraccion", "completitud", "filtro", "consecuencias")}
 
 
 def test_the_settings_have_no_levels_and_name_the_process(settings):
@@ -210,6 +211,7 @@ def test_proposal_records_models_parameters_prompts_regime_and_corpus_version(
     assert run.corpus_version == version_event.corpus_version
     assert run.prompt_versions == {"extraccion": "matriz-extraccion-v2",
                                     "completitud": "matriz-completitud-v2",
+                                    "filtro": "matriz-filtro-v1",
                                     "consecuencias": "matriz-consecuencias-v1"}
     assert set(run.models) == {"generation_batch", "embeddings", "reranker"}
     for model in run.models.values():
@@ -259,8 +261,9 @@ def test_timings_and_counts_are_saved(operator_user, read_case):
     assert run.counts["requirements"] == 5
     assert run.counts["segments_by_type"]["clausula"] >= 4
     assert run.counts["model_requests_by_pass"] == {"extraccion": 1, "completitud": 1,
+                                                    "filtro": 1, "filtro_2": 1,
                                                     "consecuencias": 1}
-    assert run.counts["model_requests"] == 3
+    assert run.counts["model_requests"] == 5
 
 
 # --- Rechazos del pedido (REQ-024) ----------------------------------------------------------------

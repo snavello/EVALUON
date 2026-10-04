@@ -23,6 +23,11 @@ Pasadas, en orden:
 4. **Unificación** (`dedup.py`; solo formales y económicos): por regla, junta las filas
    que repiten la misma condición; queda la primera en el orden del pliego, con las citas
    de las otras como citas `repetida`.
+4 bis. **Filtro de precisión** (`filter.py`; REQ-033, REQ-035; `FILTER_ENABLED`): dos
+   preguntas al modelo por cada fila formal o económica que propuso; cada fila queda firme
+   (requisito `propuesto`), sugerencia (requisito `sugerido` con su motivo de duda) o
+   descartada (`tenders_discarded_row`), según la tabla de destinos del plan. Ante la duda
+   o una falla, la fila se queda.
 5. **Filas técnicas** (`technical.py`): una por renglón, por regla, después de la
    completitud. Los tramos de secciones técnicas no pasan por el modelo y no llegan a la
    completitud.
@@ -81,6 +86,7 @@ from evaluon.audit.models import Channel, EventType, Outcome
 from evaluon.tenders.models import (
     Consequence,
     ConsequenceOrigin,
+    DiscardedRow,
     Disposition,
     DispositionOutcome,
     DispositionSource,
@@ -108,11 +114,12 @@ from evaluon.tenders.proposal import (
     quotes,
     technical,
 )
+from evaluon.tenders.proposal import filter as row_filter
 from evaluon.tenders.segmenting import RULES_VERSION
 from evaluon.tenders.services.procedures import _snapshot, regime_for
 
 # Pasadas del proceso único, en orden (plan 003, "Pasadas"; REQ-030 enmendado).
-PASSES = ("reglas", "extraccion", "completitud", "unificacion", "filas_tecnicas",
+PASSES = ("reglas", "extraccion", "completitud", "unificacion", "filtro", "filas_tecnicas",
           "consecuencias")
 
 # Marcadores de obligación (plan 003, "Pasadas"); se comparan sin tildes ni mayúsculas.
@@ -271,7 +278,7 @@ def _models():
 
 
 def _parameters(run, with_circulars=False):
-    passes = list(PASSES)
+    passes = [name for name in PASSES if name != "filtro" or settings.FILTER_ENABLED]
     if with_circulars:
         passes.insert(passes.index("consecuencias"), "circulares")
     return {
@@ -291,6 +298,12 @@ def _parameters(run, with_circulars=False):
         "dedup_min_similarity": dedup.MIN_SIMILARITY,
         "dedup_containment": dedup.USE_CONTAINMENT,
         "dedup_rule_version": dedup.RULE_VERSION,
+        "filter_enabled": settings.FILTER_ENABLED,
+        "filter_batch_rows": settings.FILTER_BATCH_ROWS,
+        "filter_motives": list(settings.FILTER_MOTIVES),
+        "filter_rule_version": row_filter.RULE_VERSION,
+        "suggestions_enabled": settings.SUGGESTIONS_ENABLED,
+        "doubt_motives": list(settings.DOUBT_MOTIVES),
     }
 
 
@@ -305,6 +318,7 @@ def _begin(run, with_circulars=False):
     run.parameters = _parameters(run, with_circulars)
     run.process = settings.MATRIX_PROCESS
     names = (["extraccion", "completitud"]
+             + (["filtro"] if settings.FILTER_ENABLED else [])
              + (["circulares"] if with_circulars else []) + ["consecuencias"])
     run.prompt_versions = {name: settings.MATRIX_PROMPT_VERSIONS[name] for name in names}
     run.save(update_fields=["process", "authorization_date", "corpus_version", "regime",
@@ -409,6 +423,18 @@ def propose(run, *, user, channel=Channel.COMMAND):
         workers.append(unification)
         timings["unificacion"] = round(time.monotonic() - started, 3)
 
+        # 3 quater. Filtro de precisión: firme, sugerencia o descartada.
+        filtered = None
+        if settings.FILTER_ENABLED:
+            started = time.monotonic()
+            row_pass = row_filter.Filter(run)
+            workers.append(row_pass)
+            filtered = filter_decisions(row_pass, loaded, decisions, unification)
+            anomalies.extend(filtered.anomalies)
+            requests[PassName.FILTRO.value] = row_pass.stats["requests_a"]
+            requests[PassName.FILTRO_2.value] = row_pass.stats["requests_b"]
+            timings["filtro"] = round(time.monotonic() - started, 3)
+
         # 4. Filas técnicas.
         started = time.monotonic()
         contributions = []
@@ -474,7 +500,7 @@ def propose(run, *, user, channel=Channel.COMMAND):
         with transaction.atomic():
             version = _save(run, loaded, decisions, rows, stats, requests, completion_stats,
                             anomalies, timings, clock, user, channel, started, suggestions,
-                            dated, circular_result, unification)
+                            dated, circular_result, unification, filtered)
     except Exception as error:
         _record_failure(run, user, channel, error, workers, timings, clock)
         raise
@@ -510,6 +536,40 @@ def unify_decisions(run, loaded, decisions):
         if any(id(found) in gone for found in decision.found):
             decision.found = [f for f in decision.found if id(f) not in gone]
     result.steps = [dedup.record(run, result)]
+    return result
+
+
+# Los motivos del filtro que la disposición de un tramo no tiene (su lista es la del
+# ADR-0019): se registran con el más cercano. El motivo exacto queda en la fila descartada.
+_DISPOSITION_REASON = {"consecuencia_sancion": "obligacion_organismo",
+                       "derecho_posterior": "obligacion_organismo"}
+
+
+def filter_decisions(row_pass, loaded, decisions, unification):
+    """Pasa por el filtro las filas formales y económicas (`filter.py`), quita de la
+    disposición de su tramo las descartadas y deja la disposición `descartado` (origen
+    `filtro`) en el tramo cuyas filas se descartaron todas. Devuelve el `filter.Result`."""
+    rows = row_filter.candidates(
+        _body(loaded, decisions), unification.repeated if unification is not None else {})
+    result = row_pass.filter_rows(rows)
+    gone = {id(v.row.found): v for v in result.of(row_filter.DESCARTADA)}
+    for unit in loaded.units:
+        decision = decisions[unit.segment.pk]
+        mine = [v for f in decision.found if (v := gone.get(id(f))) is not None]
+        if not mine:
+            continue
+        decision.found = [f for f in decision.found if id(f) not in gone]
+        if decision.found:
+            continue
+        if decision.marks:
+            # Sigue citado por una fila técnica: la disposición es la de ese camino.
+            decision.outcome = DispositionOutcome.TECNICO.value
+            continue
+        reason = mine[0].reason
+        decisions[unit.segment.pk] = Decision(
+            DispositionOutcome.DESCARTADO.value,
+            discard_reason=_DISPOSITION_REASON.get(reason, reason),
+            source=DispositionSource.FILTRO.value, step=mine[0].step_a)
     return result
 
 
@@ -615,7 +675,9 @@ def _save_circulars(version, dated, result, created, quote_of, by_class):
                     and target.category != RequirementClass.TECNICO.value
                     and requirement.state == RequirementState.QUITADO):
                 # Una circular posterior que lo modifica lo vuelve a poner vigente.
-                requirement.state = RequirementState.PROPUESTO
+                # Una sugerencia quitada por una circular vuelve como sugerencia.
+                requirement.state = (RequirementState.SUGERIDO if requirement.doubt_reason
+                                     else RequirementState.PROPUESTO)
                 requirement.save(update_fields=["state"])
     for new in result.new_requirements:
         reading = dated.reading_of[new.segment.pk]
@@ -637,9 +699,49 @@ def _save_circulars(version, dated, result, created, quote_of, by_class):
         by_class[new.category] += 1
 
 
+def _repeated_quotes(loaded, segment, start, end, repeated):
+    """Las citas de las filas que repiten una condición, `[(tramo, inicio, fin, texto)]`,
+    cada una comprobada contra el texto canónico y sin la que coincide con la principal."""
+    extra = []
+    for other_unit, other in repeated:
+        other_start, other_end = _wide_or_span(other_unit.segment, other)
+        other_text = _found_text(other_unit.segment, other)
+        _check_quote(loaded.reading_of[other_unit.segment.pk], other_start, other_end,
+                     other_text)
+        if (other_unit.segment.pk, other_start, other_end) != (segment.pk, start, end):
+            extra.append((other_unit.segment, other_start, other_end, other_text))
+    return extra
+
+
+def _save_discarded(run, version, loaded, repeated, filtered):
+    """Guarda las filas que el filtro descartó (`tenders_discarded_row`) con su cita, sus
+    citas adicionales, el motivo, el indicio y las dos respuestas."""
+    for verdict in filtered.of(row_filter.DESCARTADA):
+        row = verdict.row
+        segment = row.segment
+        start, end = _wide_or_span(segment, row.found)
+        _check_quote(loaded.reading_of[segment.pk], start, end, row.text)
+        evidence = verdict.evidence
+        # El indicio está dentro del tramo: se comprueba como toda cita.
+        _check_quote(loaded.reading_of[segment.pk], evidence["char_start"],
+                     evidence["char_end"], evidence["text"])
+        extra = _repeated_quotes(loaded, segment, start, end, row.repeated)
+        DiscardedRow.objects.create(
+            run=run, version=version, order=row.order, segment=segment, char_start=start,
+            char_end=end, text=row.text,
+            extra_quotes=[{"segment": s.pk, "char_start": a, "char_end": b, "text": t}
+                          for s, a, b, t in extra],
+            category=row.found.category, items=list(segment.items), reason=verdict.reason,
+            evidence_segment=segment, evidence_start=evidence["char_start"],
+            evidence_end=evidence["char_end"], evidence_text=evidence["text"],
+            vote_a=verdict.vote_a, vote_b=verdict.vote_b, step_a=verdict.step_a,
+            step_b=verdict.step_b, source_pass=row.passes[0], passes=row.passes,
+        )
+
+
 def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anomalies,
           timings, clock, user, channel, started, suggestions, dated=None,
-          circular_result=None, unification=None):
+          circular_result=None, unification=None, filtered=None):
     """Crea la versión borrador y todo lo que cuelga de ella, y deja el hecho
     `matrix_proposal`. Corre dentro de una transacción."""
     procedure = run.procedure
@@ -671,6 +773,8 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
     # Requisitos formales y económicos, en el orden del pliego.
     body = _body(loaded, decisions)
     repeated = unification.repeated if unification is not None else {}
+    suggested = ({id(v.row.found): v for v in filtered.of(row_filter.SUGERENCIA)}
+                 if filtered is not None else {})
     created, quote_of = {}, {}
     counter = 0
     by_class = Counter()
@@ -683,18 +787,16 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
         _check_quote(reading, start, end, text)
         record = _quote_record(segment, start, end, text, flag=found.flag)
         # Citas adicionales de las filas que repiten esta condición (REQ-025, REQ-033).
-        extra = []
-        for other_unit, other in repeated.get(id(found), ()):
-            other_start, other_end = _wide_or_span(other_unit.segment, other)
-            other_text = _found_text(other_unit.segment, other)
-            _check_quote(loaded.reading_of[other_unit.segment.pk], other_start, other_end,
-                         other_text)
-            if (other_unit.segment.pk, other_start, other_end) != (segment.pk, start, end):
-                extra.append((other_unit.segment, other_start, other_end, other_text))
+        extra = _repeated_quotes(loaded, segment, start, end, repeated.get(id(found), ()))
+        # Una sugerencia (REQ-035) es un requisito en estado `sugerido` con su duda.
+        suggestion = suggested.get(id(found))
         requirement = created[counter] = Requirement.objects.create(
             version=version, number=counter, category=found.category,
             items=list(segment.items), origin=RequirementOrigin.PROPUESTO,
-            state=RequirementState.PROPUESTO,
+            state=(RequirementState.SUGERIDO if suggestion is not None
+                   else RequirementState.PROPUESTO),
+            doubt_reason=suggestion.doubt_reason if suggestion is not None else "",
+            doubt=suggestion.doubt if suggestion is not None else {},
             proposed={"category": found.category, "items": list(segment.items),
                       "quotes": [record] + [
                           _quote_record(s, a, b, t, scope="repetida")
@@ -711,6 +813,10 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
                 char_end=b, text=t, scope="repetida", quote_flag="",
             )
         by_class[found.category] += 1
+
+    # Filas descartadas por el filtro: solo se guardan, no son requisitos (REQ-033).
+    if filtered is not None:
+        _save_discarded(run, version, loaded, repeated, filtered)
 
     # Filas técnicas, una por renglón.
     technical_rows = []
@@ -822,6 +928,12 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
             "merged": len(unification.pairs),
             "groups": len(unification.merged),
         }
+    if filtered is not None:
+        counts["filter"] = {key: filtered.stats[key] for key in (
+            "rows", "firm", "suggestions", "discarded", "discarded_by_reason",
+            "discarded_by_pass", "suggestions_by_reason", "suggestions_by_pass",
+            "firm_by_failure", "requests_a", "requests_b", "split_batches",
+            "failed_requests")}
     if circular_result is not None:
         counts["circulars"] = {
             "documents": circulars.circular_record(dated),
