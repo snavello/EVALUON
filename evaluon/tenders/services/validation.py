@@ -30,6 +30,8 @@ from evaluon.audit.models import Channel, EventType, Outcome
 from evaluon.tenders.models import (
     ChangeAction,
     Consequence,
+    JobKind,
+    JobStatus,
     MatrixVersion,
     PendingItem,
     Procedure,
@@ -85,6 +87,10 @@ def validate(user, version_id, *, channel=Channel.SCREEN):
         version = review._lock_draft(version_id)
         requirements = list(version.requirements.select_for_update().order_by("number"))
         active = [r for r in requirements if r.state != RequirementState.QUITADO]
+        if not active:
+            raise ValidationRefused(
+                "No se puede validar: la matriz no tiene ningún requisito vigente.",
+                "empty_matrix", "requirements")
 
         open_pending = version.pending_items.filter(resolved_at__isnull=True).count()
         if open_pending:
@@ -219,6 +225,12 @@ def open_new_version(user, procedure_id, *, channel=Channel.SCREEN):
             raise ValidationRefused(
                 "Ya hay un borrador abierto: termínelo o descártelo antes de abrir otra "
                 "versión.", "draft_open")
+        if procedure.jobs.filter(
+            kind=JobKind.PROPOSE_MATRIX, status__in=(JobStatus.QUEUED, JobStatus.RUNNING)
+        ).exists():
+            raise ValidationRefused(
+                "Ya hay una propuesta de la matriz en espera o en curso para este "
+                "procedimiento: espere a que termine.", "request_in_progress")
         number = procedure.matrix_versions.aggregate(last=Max("number"))["last"] + 1
         new = MatrixVersion.objects.create(
             procedure=procedure, number=number, status=VersionStatus.DRAFT,

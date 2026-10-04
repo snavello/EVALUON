@@ -489,3 +489,153 @@ def test_opening_and_discarding_from_the_screen(client, operator_user, evaluator
     assert response.status_code == 302
     new.refresh_from_db()
     assert new.status == "discarded"
+
+
+# --- Ajustes de la verificación (O1 a O4) -----------------------------------------------------
+
+
+def test_a_request_in_progress_blocks_opening_a_new_version(
+        operator_user, evaluator_user, ready):
+    """O3: con una propuesta en espera o en curso no se abre una versión nueva; queda
+    registrado como rechazado, igual que `request_matrix`."""
+    from evaluon.tenders.services import matrix
+
+    validated = service.validate(evaluator_user, ready.pk)
+    matrix.request_matrix(operator_user, validated.procedure, level="media")
+
+    with pytest.raises(service.ValidationRefused) as error:
+        service.open_new_version(operator_user, validated.procedure_id)
+
+    assert error.value.reason == "request_in_progress"
+    assert rejected("request_in_progress", EventType.MATRIX_VERSION).count() == 1
+    assert validated.procedure.matrix_versions.count() == 1
+
+
+def test_a_matrix_with_no_current_requirement_is_not_validated(evaluator_user, case):
+    """O4: con todos los requisitos quitados no se valida (`empty_matrix`)."""
+    for requirement in case.requirements.all():
+        review.remove(evaluator_user, requirement.pk)
+    finish_review(evaluator_user, case)
+
+    with pytest.raises(service.ValidationRefused) as error:
+        service.validate(evaluator_user, case.pk)
+
+    assert error.value.reason == "empty_matrix"
+    assert "ningún requisito" in str(error.value)
+    assert rejected("empty_matrix").count() == 1
+    case.refresh_from_db()
+    assert case.status == "draft"
+
+
+def test_the_validated_page_says_when_and_by_whom_as_another_user_sees_it(
+        client, operator_user, evaluator_user, ready):
+    """O1, REQ-032: la página de la validada dice «validada el DD/MM/AAAA por <usuario>»,
+    también para quien no la validó."""
+    version = service.validate(evaluator_user, ready.pk)
+    version.refresh_from_db()
+    day = version.validated_at.strftime("%d/%m/%Y")
+    expected = (f"versión {version.number} · validada el {day} por "
+                f"{evaluator_user.username}")
+    log_in(client, operator_user)
+
+    text = page_text(client.get(reverse("tenders:matrix", args=[version.pk])))
+
+    assert expected in text
+    header = text.split("Encabezado")[1].split("Resumen")[0]
+    assert f"el {day} por {evaluator_user.username}" in header
+
+
+def test_the_new_version_copies_the_removed_requirements_too(
+        operator_user, evaluator_user, case):
+    """A13: la copia conserva los requisitos quitados, con su estado."""
+    pago = requirement_with(case, PAGO)
+    review.remove(evaluator_user, pago.pk)
+    finish_review(evaluator_user, case)
+    validated = service.validate(evaluator_user, case.pk)
+
+    new = service.open_new_version(operator_user, validated.procedure_id)
+
+    copy = new.requirements.get(number=pago.number)
+    assert copy.state == "quitado" and copy.previous.pk == pago.pk
+    assert new.requirements.count() == validated.requirements.count()
+
+
+def test_the_new_version_opens_over_the_last_of_several_validated_ones(
+        operator_user, evaluator_user, ready):
+    """A16: con dos validadas, la versión nueva sale de la segunda."""
+    first = service.validate(evaluator_user, ready.pk)
+    second = service.open_new_version(operator_user, first.procedure_id)
+    second = service.validate(evaluator_user, second.pk)
+
+    third = service.open_new_version(operator_user, first.procedure_id)
+
+    assert third.based_on == second and third.number == 3
+    assert third.requirements.first().previous.version_id == second.pk
+
+
+def test_the_new_version_inherits_a_level_other_than_the_default(
+        operator_user, evaluator_user, ready):
+    """A17: el nivel de la versión nueva es el de su origen."""
+    m.MatrixVersion.objects.filter(pk=ready.pk).update(level="exigente")
+    validated = service.validate(evaluator_user, ready.pk)
+
+    new = service.open_new_version(operator_user, validated.procedure_id)
+
+    assert validated.level == "exigente" and new.level == "exigente"
+
+
+def test_a_failure_in_the_middle_of_validating_leaves_nothing_changed(
+        evaluator_user, ready, monkeypatch):
+    """A21: validar es atómico: si falla a la mitad, ningún requisito queda confirmado,
+    no hay historial y la versión sigue en borrador."""
+    original = review._record
+    calls = []
+
+    def failing(*args, **kwargs):
+        if calls:
+            raise RuntimeError("falla de prueba")
+        calls.append(1)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(review, "_record", failing)
+
+    with pytest.raises(RuntimeError):
+        service.validate(evaluator_user, ready.pk)
+
+    assert calls
+    ready.refresh_from_db()
+    assert ready.status == "draft" and ready.validated_by is None
+    assert not ready.requirements.exclude(state="propuesto").exists()
+    assert not m.RequirementChange.objects.filter(action="confirmar").exists()
+    assert not AuditEvent.objects.filter(event_type=EventType.MATRIX_VALIDATION,
+                                         outcome=Outcome.OK).exists()
+
+
+def test_the_new_version_offers_the_tender_segments_to_choose(
+        operator_user, evaluator_user, ready):
+    """A27: el borrador abierto sobre otro ofrece los mismos tramos que el original."""
+    options = matrix_page.matrix_page(evaluator_user, ready.pk).segment_options
+    assert options
+    validated = service.validate(evaluator_user, ready.pk)
+    new = service.open_new_version(operator_user, validated.procedure_id)
+
+    assert matrix_page.matrix_page(operator_user, new.pk).segment_options == options
+    second = service.validate(evaluator_user, new.pk)
+    newer = service.open_new_version(operator_user, second.procedure_id)
+    assert matrix_page.matrix_page(operator_user, newer.pk).segment_options == options
+
+
+def test_the_new_version_button_is_only_on_the_last_validated(
+        client, operator_user, evaluator_user, ready):
+    """A29: el botón de versión nueva aparece solo en la última validada y sin borrador."""
+    first = service.validate(evaluator_user, ready.pk)
+    second = service.open_new_version(operator_user, first.procedure_id)
+    url = reverse("tenders:open_new_version", args=[first.procedure_id])
+    log_in(client, operator_user)
+    assert url not in page_text(client.get(reverse("tenders:matrix", args=[first.pk])))
+    assert not matrix_page.matrix_page(operator_user, first.pk).can_open_new
+
+    second = service.validate(evaluator_user, second.pk)
+
+    assert url not in page_text(client.get(reverse("tenders:matrix", args=[first.pk])))
+    assert url in page_text(client.get(reverse("tenders:matrix", args=[second.pk])))
