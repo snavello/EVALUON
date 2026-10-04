@@ -42,7 +42,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 11/21 | █████░░░░░ 52% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 12/21 | ██████░░░░ 57% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -368,8 +368,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 10 tareas sin terminar.
-- ○ T-075 · Probar el hilo mínimo con el caso-00 y los servicios reales (pendiente)
+- **Próximo paso:** Desarrollar: 9 tareas sin terminar.
 - ○ T-078 · Completar los niveles alta y exigente (pendiente)
 - ○ T-079 · Revisar la matriz: confirmar, corregir, quitar y agregar (pendiente)
 - ○ T-080 · Sugerir consecuencias con fundamento (pendiente)
@@ -391,6 +390,7 @@ flowchart LR
 - ✓ T-072 · Cargar los documentos del pliego y leerlos en segundo plano (`ce61ba4` 2026-10-03, `7dd8e36` 2026-10-03, `a8e4455` 2026-10-03)
 - ✓ T-073 · Proponer la matriz en nivel media, con filas técnicas por renglón (`4ead4b6` 2026-10-03, `b1fc420` 2026-10-03)
 - ✓ T-074 · Mostrar la matriz propuesta con la leyenda de borrador, la cobertura y el aviso de fin (`14bdf45` 2026-10-03)
+- ✓ T-075 · Probar el hilo mínimo con el caso-00 y los servicios reales
 - ✓ T-076 · Preparar la lista esperada del caso-00
 - ✓ T-077 · Medir una propuesta contra una lista esperada (`7f38de6` 2026-10-03, `89be409` 2026-10-03)
 - ✓ T-087 · Comparar en la misma zona horaria la fecha de lectura del informe (`5a07f91` 2026-10-03)
@@ -407,7 +407,7 @@ flowchart TD
   T072["✓ T-072 · Cargar los documentos del pliego y leerlos…"]:::done
   T073["✓ T-073 · Proponer la matriz en nivel media, con fila…"]:::done
   T074["✓ T-074 · Mostrar la matriz propuesta con la leyenda…"]:::done
-  T075["○ T-075 · Probar el hilo mínimo con el caso-00 y los…"]:::todo
+  T075["✓ T-075 · Probar el hilo mínimo con el caso-00 y los…"]:::done
   T076["✓ T-076 · Preparar la lista esperada del caso-00"]:::done
   T077["✓ T-077 · Medir una propuesta contra una lista espera…"]:::done
   T078["○ T-078 · Completar los niveles alta y exigente"]:::todo
@@ -456,8 +456,8 @@ flowchart TD
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-022 | El sistema debe registrar un procedimiento con su número, tipo, objeto y fecha de autorización, y mostrar el régimen de la AFIP que le corresponde según esa fecha | T-067, T-069, T-075 | ▶ en proceso |
-| REQ-023 | El sistema debe permitir cargar el pliego final de un procedimiento como uno o más documentos, conservando cada original sin cambios | T-067, T-072, T-075 | ▶ en proceso |
+| REQ-022 | El sistema debe registrar un procedimiento con su número, tipo, objeto y fecha de autorización, y mostrar el régimen de la AFIP que le corresponde según esa fecha | T-067, T-069, T-075 | ✓ cubierto |
+| REQ-023 | El sistema debe permitir cargar el pliego final de un procedimiento como uno o más documentos, conservando cada original sin cambios | T-067, T-072, T-075 | ✓ cubierto |
 | REQ-024 | El sistema debe proponer, a partir del pliego cargado, la lista de requisitos que debe cumplir una oferta, cada uno clasificado como formal, económico o técnico | T-067, T-070, T-071, T-073, T-074, T-075, T-076, T-077, T-078, T-084 | ▶ en proceso |
 | REQ-025 | Cada requisito propuesto debe citar el texto literal del pliego que lo exige, con el documento y la ubicación (página y cláusula, si la hay) | T-067, T-070, T-073, T-074, T-075, T-076, T-077, T-084 | ▶ en proceso |
 | REQ-026 | La Comisión debe poder confirmar, corregir, quitar o agregar requisitos; cada cambio queda registrado con quién lo hizo y cuándo | T-067, T-068, T-079, T-082 | ▶ en proceso |
