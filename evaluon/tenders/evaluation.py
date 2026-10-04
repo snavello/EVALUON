@@ -788,10 +788,12 @@ def cap_verdict(leftover_ratio, found):
 
 
 def _repeated_in(entry, fe_rows, paired_rows):
-    """La fila ya emparejada cuya cita `repetida` cubre el ancla de `entry`, o `None`."""
+    """La fila ya emparejada con citas `repetida` que cubre el ancla de `entry` con
+    cualquiera de sus citas (la principal incluida), o `None`. Una fila sin repetidas no
+    cuenta para dos esperados."""
     for index in sorted(paired_rows):
         row = fe_rows[index]
-        if _covers(entry, [span for span in row.spans if span[3]]):
+        if any(span[3] for span in row.spans) and _covers(entry, row.spans):
             return row
     return None
 

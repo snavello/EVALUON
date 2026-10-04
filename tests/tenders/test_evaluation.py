@@ -1063,3 +1063,39 @@ def test_verify_warns_of_two_expected_with_the_same_normalized_anchor(case):
     assert verification.ok, verification.problems
     assert any("S-001" in n and "S-007" in n and "mismo ancla" in n
                for n in verification.notes)
+
+
+def test_row_with_repeated_quotes_covers_the_expected_of_its_main_quote_too(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-033: una fila con citas `repetida` cubre como unificado a cada esperado que cubra
+    cualquiera de sus citas, la principal incluida, aunque el emparejamiento uno a uno haya
+    dado la fila al otro; una fila sin repetidas no cuenta para dos esperados."""
+    procedure, _, path, _ = case
+
+    def hook(version):
+        # Sin la fila de la garantía del doble: la fila nueva es la única que las cubre.
+        version.requirements.filter(quotes__text__contains="garantía del 5 %").update(
+            state="quitado")
+        # Principal en el pago (S-002, ancla más corta); repetida en la garantía (S-001).
+        add_requirement(version, "sec-i/2.1", category="economico",
+                        repeated=[("sec-i/1.1", "garantía del 5 % del monto")])
+
+    after_propose(monkeypatch, hook)
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    lines = by_id(report)
+    assert lines["S-001"]["estado"] == "encontrado"
+    assert lines["S-002"]["estado"] == "encontrado"
+    assert measures_of(report)["unified"]["count"] == 1
+
+
+def test_row_without_repeated_quotes_does_not_count_for_two_expected(
+        case, operator_user, tmp_path):
+    """REQ-033: sin citas `repetida`, una fila sigue contando para un solo esperado (la otra
+    condición queda `agrupado`)."""
+    procedure, _, path, _ = case
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    assert ev.GROUPED in measures_of(report)["causes"]
+    assert measures_of(report)["unified"]["count"] == 0
