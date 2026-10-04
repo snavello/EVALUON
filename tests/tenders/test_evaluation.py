@@ -1229,7 +1229,7 @@ def test_suggestion_report_counts_the_suggestions_the_expected_and_the_support(
     assert info["expected"] == {"ok": 2, "total": 3, "rate": 2 / 3}
     assert info["with_support"] == 1
     assert info["with_support_expected"] == {"ok": 1, "total": 1, "rate": 1.0}
-    assert info["expected_as_suggestion"]["ok"] == 3  # S-002, S-003 y S-004
+    assert info["expected_as_suggestion"]["ok"] == 2  # S-002 y uno de S-003, S-004
     leftovers = measures_of(report)["leftovers"]
     assert info["leftovers_if_firm"] == leftovers + 1
     summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
@@ -1358,3 +1358,55 @@ def test_the_measurement_never_changes_the_state_of_a_suggestion(
     run_id = report.results[0]["run"]
     assert m.Requirement.objects.filter(version__run_id=run_id, state="sugerido").count() == 3
     assert m.NormSupport.objects.filter(requirement__version__run_id=run_id).count() == 1
+
+
+def test_a_suggestion_counts_for_one_expected_only(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-035: el emparejamiento de sugerencias es uno a uno: una sugerencia que cubre dos
+    esperados da uno "a revisión obligatoria" y el otro queda faltante."""
+    procedure, _, path, _ = case
+
+    def hook(version):
+        version.requirements.filter(quotes__text__contains="multa del 1 %").update(
+            state="quitado")
+        add_suggestion(version, "sec-i/4.1")
+
+    after_propose(monkeypatch, hook)
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    lines = by_id(report)
+    states = sorted(lines[i]["estado"] for i in ("S-003", "S-004"))
+    assert states == ["a_revision_obligatoria", "faltante"]
+    measures = measures_of(report)
+    assert measures["suggestion_review"]["count"] == 1
+    assert measures["suggestions"]["expected_as_suggestion"]["ok"] == 1
+
+
+def test_a_suggestion_over_an_expected_already_matched_by_a_firm_row_is_not_an_expected_one(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-035: la proporción de sugerencias esperadas no cuenta los esperados que ya
+    empareja una fila firme."""
+    procedure, _, path, _ = case
+    after_propose(monkeypatch, lambda v: add_suggestion(v, "sec-i/1.1"))  # S-001 es firme
+
+    info = measures_of(run_measure(operator_user, procedure, path, tmp_path))["suggestions"]
+
+    assert info["count"] == 1
+    assert info["expected"] == {"ok": 0, "total": 1, "rate": 0.0}
+
+
+def test_a_suggestion_must_cover_half_of_the_anchor_to_match(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-035: como para una fila firme, la cita de la sugerencia debe cubrir al menos la
+    mitad del ancla; con menos, el esperado no queda a revisión."""
+    procedure, _, path, _ = case
+    after_propose(monkeypatch, lambda v: add_suggestion(
+        v, "sec-ii/1.1", repeated=[("sec-i/2.1", "a los")]))  # 5 de 22 caracteres
+    short = by_id(run_measure(operator_user, procedure, path, tmp_path / "a"))["S-002"]
+
+    after_propose(monkeypatch, lambda v: add_suggestion(
+        v, "sec-ii/1.1", repeated=[("sec-i/2.1", "a los 90 días")]))  # 13 de 22
+    long = by_id(run_measure(operator_user, procedure, path, tmp_path / "b"))["S-002"]
+
+    assert short["estado"] == "faltante"
+    assert long["estado"] == ev.MANDATORY_REVIEW

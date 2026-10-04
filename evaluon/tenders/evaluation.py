@@ -632,6 +632,14 @@ def measure_version(run, expected, verification):
     pairs = _pairs(located, fe_rows)
     paired_rows = set(pairs.values())
     discarded = _discarded_rows(run)
+    # Esperados sin pareja firme, ni por una fila técnica ni por unificación: se emparejan uno a
+    # uno con las sugerencias, con la misma regla (T-111).
+    candidates = [
+        i for i, entry in enumerate(located)
+        if i not in pairs and _technical_citing(entry, tech_rows.values()) is None
+        and _repeated_in(entry, fe_rows, paired_rows) is None]
+    suggestion_pairs = _pairs([located[i] for i in candidates], suggestions)
+    suggested_for = {candidates[c]: suggestions[p] for c, p in suggestion_pairs.items()}
     lines, found_count, class_ok = [], 0, 0
     causes, wrong_class = Counter(), 0
     review, unified, suggestion_review = [], [], []
@@ -663,7 +671,7 @@ def measure_version(run, expected, verification):
             unified.append(item.id)
             line.update(estado="encontrado", detalle="unificado", propuesto=host.number)
             matched_pk[item.id] = host.requirement_id
-        elif (suggested := _suggestion_covering(entry, suggestions)) is not None:
+        elif (suggested := suggested_for.get(e_index)) is not None:
             # Segundo destino de "a revisión obligatoria" (T-111): la pareja es una
             # sugerencia; la Comisión la decide antes de validar.
             suggestion_review.append(entry)
@@ -772,7 +780,8 @@ def measure_version(run, expected, verification):
     found = ratio(found_count + len(unified) + reviewed, measured_total)
     leftover_ratio = ratio(leftovers, firm_total)
     suggestions_report = _suggestions_report(
-        suggestions, located, suggestion_review, leftovers, firm_total, found, measured_total)
+        suggestions, [located[i] for i in candidates], len(suggestion_pairs),
+        len(suggestion_review), leftovers, firm_total, found, measured_total)
     lines += suggestions_report.pop("lines")
     return {
         "lines": lines,
@@ -840,19 +849,10 @@ def _suggestions(version):
     return rows
 
 
-def _suggestion_covering(entry, suggestions):
-    """La primera sugerencia que cubre el ancla de `entry` con alguna de sus citas, o
-    `None`."""
-    for row in suggestions:
-        if _covers(entry, row.spans):
-            return row
-    return None
-
-
-def _suggestions_report(suggestions, located, reviewed, leftovers, firm_total, found,
-                        measured_total):
+def _suggestions_report(suggestions, located, matched, reviewed, leftovers, firm_total,
+                        found, measured_total):
     """Informe de sugerencias (T-111; REQ-035, REQ-036): cantidad, por motivo y por tramo,
-    cuántas eran esperadas, cuántas tienen respaldo y cuántas de esas eran esperadas, los
+    cuántas eran esperadas (entre los esperados que ninguna fila firme empareja), cuántas tienen respaldo y cuántas de esas eran esperadas, los
     sobrantes y el tope informativos "si las sugerencias fueran firmes" y la muestra con
     texto."""
     by_reason, by_segment = Counter(), Counter()
@@ -870,10 +870,8 @@ def _suggestions_report(suggestions, located, reviewed, leftovers, firm_total, f
                       "clase": row.category, "motivo": row.doubt_reason,
                       "respaldos": [label for label, _ in row.supports],
                       "estado": "con_pareja" if paired else "sin_pareja"})
-    # Si fueran firmes, cada una empareja uno a uno con los esperados que hoy están en
-    # revisión por una sugerencia.
-    matched_if_firm = len(_pairs(list(reviewed), suggestions)) if suggestions else 0
-    if_firm = leftovers + len(suggestions) - matched_if_firm
+    # Si fueran firmes, las que tienen pareja (uno a uno) dejarían de ser sobrantes.
+    if_firm = leftovers + len(suggestions) - matched
     sample = [{"number": suggestions[i].number,
                "tramo": suggestions[i].segment.key if suggestions[i].segment else "",
                "reason": suggestions[i].doubt_reason,
@@ -883,7 +881,7 @@ def _suggestions_report(suggestions, located, reviewed, leftovers, firm_total, f
     return {
         "count": len(suggestions), "by_reason": dict(by_reason), "by_segment": dict(by_segment),
         "expected": ratio(with_pair, len(suggestions)),
-        "expected_as_suggestion": ratio(len(reviewed), measured_total),
+        "expected_as_suggestion": ratio(reviewed, measured_total),
         "with_support": with_support,
         "with_support_expected": ratio(support_pair, with_support),
         "leftovers_if_firm": if_firm,
