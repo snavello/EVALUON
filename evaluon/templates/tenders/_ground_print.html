@@ -1,0 +1,1 @@
+{% comment %}Fundamento resumido por su ubicación. Recibe `ground`.{% endcomment %}{% if ground.source == "norma" %}Fundamento en la norma · {{ ground.citation }}{% else %}Fundamento en el pliego{% if ground.place %} · {% include "tenders/_place_print.html" with place=ground.place %}{% endif %}{% endif %}

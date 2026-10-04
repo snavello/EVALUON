@@ -11,6 +11,9 @@ Opciones:
 - `--niveles`: niveles a medir, separados por comas; por omisión `media,alta,exigente`.
 - `--corridas`: carpeta donde se guarda la corrida; por omisión, `corridas/` junto a la
   carpeta `esperado/` de la lista.
+- `--comparar-con`: carpeta con corridas anteriores (puede repetirse). La comparación entre
+  niveles usa el último resultado de cada nivel en esas carpetas y en `--corridas`, siempre que
+  sea del mismo procedimiento y de la misma lista.
 - `--commit`: commit del código con que se corre (dentro del contenedor no hay `.git`).
 - `--verificar-esperada`: no corre el modelo. Comprueba la huella de cada archivo, que cada
   ancla esté en su tramo y que cada tramo técnico exista, e informa las cuentas.
@@ -47,6 +50,9 @@ class Command(BaseCommand):
         parser.add_argument("--corridas", default=None,
                             help="Carpeta donde se guarda la corrida (por omisión, "
                                  "corridas/ junto a esperado/).")
+        parser.add_argument("--comparar-con", action="append", default=[], dest="comparar_con",
+                            help="Carpeta con corridas anteriores para comparar los niveles "
+                                 "(puede repetirse; la carpeta de --corridas ya se usa).")
         parser.add_argument("--commit", default=None,
                             help="Commit del código con que se corre.")
         parser.add_argument("--verificar-esperada", action="store_true",
@@ -79,7 +85,8 @@ class Command(BaseCommand):
                                               / "corridas")
         try:
             report = evaluation.measure(user, procedure, expected, levels, runs_dir,
-                                        commit=options["commit"])
+                                        commit=options["commit"],
+                                        compare_with=options["comparar_con"])
         except (RoleRejected, evaluation.MeasurementRefused, evaluation.ExpectedError,
                 MatrixRefused) as error:
             raise CommandError(str(error)) from None
