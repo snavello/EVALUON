@@ -35,7 +35,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-085 | Ofrecer solo los niveles que mejoran | REQ-030 | T-084 | pendiente |
 | T-086 | Imprimir y exportar la matriz a PDF con la leyenda de borrador | REQ-032 | T-082 | pendiente |
 | T-087 | Comparar en la misma zona horaria la fecha de lectura del informe | REQ-004 | — | terminada |
-| T-088 | Cambiar el rol de la Comisión de un usuario existente, con registro | REQ-026 | — | pendiente |
+| T-088 | Cambiar el rol de la Comisión de un usuario existente, con registro | REQ-026 | — | terminada |
 
 ## Para todas las tareas
 
