@@ -129,8 +129,8 @@ def add_circular(user, procedure, title, issued_on, *lines, kind="circular_modif
                          issued_on=issued_on)
 
 
-def run_proposal(user, procedure, level="media"):
-    requested, job = propose(user, procedure, level=level)
+def run_proposal(user, procedure):
+    requested, job = propose(user, procedure)
     assert job.status == "done", job.error
     return requested.run.version, requested.run
 

@@ -1,13 +1,12 @@
 """Pedir una propuesta de la matriz de cumplimiento (REQ-024, REQ-030; plan 003,
 "Propuesta de la matriz", "Roles" y "Registro de auditoría"; T-073).
 
-- `request_matrix`: pide la propuesta de la matriz de un procedimiento con el nivel de
-  revisión elegido (`media`, `alta` o `exigente`; por omisión `MATRIX_DEFAULT_LEVEL`, alta).
-  Lo hacen el operador y el evaluador. Encola el pedido `propose_matrix`, deja la
-  propuesta (`tenders_matrix_run`) con su nivel, su canal y los documentos base con su
-  lectura, y el hecho `matrix_request`, todo en una transacción. Se rechaza, sin encolar
-  nada y con el hecho `matrix_request` en resultado `rejected` y su motivo:
-  - con un nivel que no existe (`invalid_level`) o que no se ofrece (`level_not_offered`);
+- `request_matrix`: pide la propuesta de la matriz de un procedimiento. Hay un solo proceso
+  (`MATRIX_PROCESS`, el más completo; REQ-030 enmendado): no se elige nivel. Lo hacen el
+  operador y el evaluador. Encola el pedido `propose_matrix`, deja la propuesta
+  (`tenders_matrix_run`) con su proceso, su canal y los documentos base con su lectura, y el
+  hecho `matrix_request`, todo en una transacción. Se rechaza, sin encolar nada y con el
+  hecho `matrix_request` en resultado `rejected` y su motivo:
   - sin ningún documento base (pliego, anexo o especificaciones) (`no_documents`);
   - si algún documento base está en lectura, o en espera de ella (`reading_in_progress`);
   - si la lectura de algún documento base falló (`reading_failed`): no se propone sin ese
@@ -124,18 +123,6 @@ def _documents_snapshot(procedure):
     ]
 
 
-def _check_level(level):
-    if level not in settings.MATRIX_LEVELS:
-        raise MatrixRefused(
-            "Elija el nivel de revisión: media, alta o exigente.", "invalid_level",
-            "level",
-        )
-    if level not in settings.MATRIX_LEVELS_OFFERED:
-        raise MatrixRefused(
-            f"El nivel «{level}» no se ofrece por ahora.", "level_not_offered", "level"
-        )
-
-
 def _check_open_work(procedure):
     if procedure.matrix_versions.filter(status=VersionStatus.DRAFT).exists():
         raise MatrixRefused(
@@ -153,7 +140,7 @@ def _check_open_work(procedure):
         )
 
 
-def request_matrix(user, procedure, *, level=None, run_channel=RunChannel.SCREEN,
+def request_matrix(user, procedure, *, run_channel=RunChannel.SCREEN,
                    channel=Channel.SCREEN):
     """Pide la propuesta de la matriz de `procedure` y devuelve `Requested`. Ver el
     módulo.
@@ -162,10 +149,8 @@ def request_matrix(user, procedure, *, level=None, run_channel=RunChannel.SCREEN
     `MatrixRefused` en los casos del módulo (con su hecho `matrix_request` rechazado)."""
     require_commission_role(user, CommissionRole.OPERATOR, operation=REQUEST_OPERATION,
                             channel=channel)
-    level = (level or settings.MATRIX_DEFAULT_LEVEL).strip()
-    detail = {"procedure": procedure.pk, "level": level}
+    detail = {"procedure": procedure.pk, "process": settings.MATRIX_PROCESS}
     try:
-        _check_level(level)
         with transaction.atomic():
             # El procedimiento bloqueado ordena dos pedidos a la vez.
             Procedure.objects.select_for_update().get(pk=procedure.pk)
@@ -176,14 +161,14 @@ def request_matrix(user, procedure, *, level=None, run_channel=RunChannel.SCREEN
             run = MatrixRun.objects.create(
                 procedure=procedure,
                 job=job,
-                level=level,
+                process=settings.MATRIX_PROCESS,
                 channel=run_channel,
                 documents=documents,
                 authorization_date=procedure.authorization_date,
             )
             event = audit.record(
                 EventType.MATRIX_REQUEST, outcome=Outcome.OK, channel=channel, user=user,
-                detail={**detail, "default_level": level == settings.MATRIX_DEFAULT_LEVEL,
+                detail={**detail,
                         "run": run.pk, "job": job.pk, "documents": documents},
             )
     except MatrixRefused as error:

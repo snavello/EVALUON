@@ -27,12 +27,6 @@ from tests.tenders.scripted import (
 pytestmark = pytest.mark.django_db
 
 
-@pytest.fixture(autouse=True)
-def offer_every_level(settings):
-    """Estas pruebas recorren las pasadas de los tres niveles, también la de exigente, que
-    existe pero no se ofrece (T-085)."""
-    settings.MATRIX_LEVELS_OFFERED = ("media", "alta", "exigente")
-
 
 @pytest.fixture
 def three(operator_user, script):
@@ -222,9 +216,9 @@ def test_item_without_specifications_keeps_its_row_and_a_pending(operator_user, 
 
     requested, _ = propose(operator_user, procedure)
 
-    # La garantía descartada por el modelo tiene marcadores de obligación: es otro pendiente.
-    assert pending_of(requested.run) == {"sec-i/1.1": "marcadores",
-                                         "sec-iii/3": "renglon_sin_especificaciones"}
+    # La garantía descartada por el modelo tiene marcadores de obligación: la completitud la
+    # revisa y, sin encontrar nada, queda descartada (no pendiente).
+    assert pending_of(requested.run) == {"sec-iii/3": "renglon_sin_especificaciones"}
     assert 3 in rows_of(requested.run)
     assert [key for key, scope in rows_of(requested.run)[3] if scope == "general"] == [
         "sec-i/3.1", "sec-ii/1.1"]
@@ -345,25 +339,21 @@ def test_tender_without_technical_segments_has_no_technical_row(operator_user, s
                    for a in requested.run.anomalies)
 
 
-# --- Igual en los tres niveles (REQ-030) -----------------------------------------------------
+# --- Proceso único (REQ-030) ------------------------------------------------------------------
 
 
-def test_technical_rows_are_the_same_in_every_level(operator_user, script):
-    """REQ-030: las filas técnicas las arma una regla: son las mismas en los tres niveles
-    para el mismo pliego."""
+def test_technical_rows_are_built_by_the_rule_in_the_single_process(operator_user, script):
+    """REQ-030: las filas técnicas las arma una regla en el proceso único: una por renglón,
+    sin pedirle nada al modelo para armarlas."""
     script.when(ENTREGA, item(technical=[ALL_ITEMS]))
-    results = {}
-    for level in ("media", "alta", "exigente"):
-        procedure = make_procedure(operator_user)
-        load_and_read(operator_user, procedure, three_items_pdf())
-        requested, job = propose(operator_user, procedure, level=level)
-        assert job.status == "done", job.error
-        results[level] = (rows_of(requested.run), pending_of(requested.run))
+    procedure = make_procedure(operator_user)
+    load_and_read(operator_user, procedure, three_items_pdf())
+    requested, job = propose(operator_user, procedure)
+    assert job.status == "done", job.error
+    assert len(rows_of(requested.run)) == 3
+    assert requested.run.process == "completo" and requested.run.version.process == "completo"
 
-    assert results["media"] == results["alta"] == results["exigente"]
-    assert len(results["media"][0]) == 3
-
-
+# --- La regla sola ---------------------------------------------------------------------------
 # --- La regla sola ---------------------------------------------------------------------------
 
 

@@ -47,7 +47,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-097 | Corregir la cita literal de las filas técnicas con varios documentos en `medir_matriz` | REQ-025, REQ-030 | T-096 | terminada |
 | T-098 | Corregir la pasada de circulares (fuentes, tramos descartados y no ubicados) | REQ-028, REQ-031 | T-094 | terminada |
 | T-099 | Crear la tabla de filas descartadas, el estado de sugerencia, el respaldo normativo, las citas repetidas y los parámetros del filtro | REQ-030, REQ-033, REQ-035, REQ-036 | T-096 | terminada |
-| T-100 | Quitar el nivel "media" y dejar un solo proceso registrado | REQ-030 | T-099, T-097, T-098 | pendiente |
+| T-100 | Quitar el nivel "media" y dejar un solo proceso registrado | REQ-030 | T-099, T-097, T-098 | terminada |
 | T-101 | Unificar las filas que repiten la misma condición | REQ-025, REQ-033 | T-100 | pendiente |
 | T-102 | Filtrar con dos preguntas y repartir cada fila en firme, sugerencia o descartada | REQ-024, REQ-033, REQ-035 | T-101 | pendiente |
 | T-103 | Medir los sobrantes sobre las filas firmes, con tope e informe de descartadas | REQ-024, REQ-030, REQ-033, REQ-035 | T-099, T-100 | pendiente |
