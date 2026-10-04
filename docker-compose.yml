@@ -103,6 +103,11 @@ services:
       - "off"
       - --reasoning-budget
       - "0"
+      # Tope del caché de pedidos en la memoria del equipo (T-090). Por omisión es 8192 MiB
+      # por servidor: dos servidores de generación lo llenan y el núcleo de WSL2 (15,3 GiB)
+      # mata uno por falta de memoria, sin dejar error en el registro.
+      - --cache-ram
+      - "${GENERATION_CACHE_RAM:-2048}"
       - --no-context-shift
       - --offline
       - --host
@@ -153,6 +158,11 @@ services:
       - "off"
       - --reasoning-budget
       - "0"
+      # Tope del caché de pedidos en la memoria del equipo (T-090). Por omisión es 8192 MiB
+      # por servidor: dos servidores de generación lo llenan y el núcleo de WSL2 (15,3 GiB)
+      # mata uno por falta de memoria, sin dejar error en el registro.
+      - --cache-ram
+      - "${GENERATION_CACHE_RAM:-2048}"
       - --no-context-shift
       - --offline
       - --host
