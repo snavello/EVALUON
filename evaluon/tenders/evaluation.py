@@ -64,11 +64,13 @@ import time
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
+from difflib import SequenceMatcher
 from pathlib import Path
 
 import yaml
 from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db.models import Prefetch
 from django.utils import timezone
 
 from evaluon.accounts.models import CommissionRole
@@ -109,6 +111,11 @@ SEGMENT_TECHNICAL = "tramo_tecnico"
 NO_DISPOSITION = "sin_disposicion"
 ITEM_WITHOUT_ROW = "renglon_sin_fila"
 CIRCULAR_UNMEASURED = "circular_sin_medir"
+SCOPE_CIRCULARS = "circulares"
+CIRCULAR_EFFECTS = ("modifica", "suprime", "aclara", "precisa", "agrega")
+# Los efectos de la lista que la base guarda con otro nombre: `precisa` (una respuesta que
+# precisa un requisito) se guarda como `aclara`.
+SOURCE_EFFECT = {"precisa": "aclara"}
 
 
 class ExpectedError(ValueError):
@@ -149,6 +156,61 @@ class Ref:
 
 
 @dataclass
+class CircularBlock:
+    """Un bloque `circulares:` de una fila esperada (REQ-031, T-117): qué hizo una circular con
+    la fila. Se lee tal como lo escriben las listas reales: `documento`, `fecha`, `efecto`,
+    `tramo`, `pagina`, `ancla`, `texto_original` (texto o `{documento, pagina, cita}`),
+    `texto_vigente` o `texto`; también se aceptan los nombres del plan (`ancla_original`,
+    `ancla_vigente`)."""
+
+    document: str
+    date: str
+    effect: str
+    key: str = ""
+    anchor: str = ""
+    original_document: str = ""
+    original_anchor: str = ""
+    current_anchor: str = ""
+
+    @property
+    def source_effect(self):
+        return SOURCE_EFFECT.get(self.effect, self.effect)
+
+    @property
+    def adds(self):
+        return self.effect == "agrega"
+
+
+def _block(entry, where):
+    if not isinstance(entry, dict):
+        raise ExpectedError(f"{where}: un bloque `circulares` no tiene la forma esperada")
+    document = _text(entry, "documento", where + ", circulares")
+    date = str(entry.get("fecha") or "").strip()
+    try:
+        datetime.strptime(date, "%Y-%m-%d")
+    except ValueError:
+        raise ExpectedError(f"{where}, circulares: `fecha` debe ser AAAA-MM-DD") from None
+    effect = str(entry.get("efecto") or "").strip()
+    if effect not in CIRCULAR_EFFECTS:
+        raise ExpectedError(f"{where}, circulares: `efecto` debe ser uno de "
+                            f"{', '.join(CIRCULAR_EFFECTS)}")
+    original = entry.get("texto_original")
+    original_document = ""
+    if isinstance(original, dict):
+        original_document = str(original.get("documento") or "").strip()
+        original = original.get("cita")
+    original = str(entry.get("ancla_original") or original or "").strip()
+    current = ""
+    if effect != "suprime":
+        current = str(entry.get("ancla_vigente") or entry.get("texto_vigente")
+                      or entry.get("texto") or "").strip()
+    return CircularBlock(
+        document=document, date=date, effect=effect, key=str(entry.get("tramo") or "").strip(),
+        anchor=str(entry.get("ancla") or "").strip(), original_document=original_document,
+        original_anchor=original, current_anchor=current)
+
+
+@dataclass
 class Item:
     """Un requisito esperado."""
 
@@ -164,6 +226,7 @@ class Item:
     annexes: list = field(default_factory=list)
     origin: str = ""
     circulars: list = field(default_factory=list)
+    blocks: list = field(default_factory=list)  # `CircularBlock` ya validados (T-117)
     consequence: str = ""
     in_report: str = ""
 
@@ -187,6 +250,11 @@ class Expected:
     general: list
     annexes: list
     items: list
+    scope: str = ""
+
+    @property
+    def circulars_only(self):
+        return self.scope == SCOPE_CIRCULARS
 
     @property
     def default_document(self):
@@ -277,15 +345,19 @@ def load_expected(path, *, require_approval=True):
             item.occurrence = occurrence
             page = entry.get("pagina")
             item.page = page if isinstance(page, int) else None
+        item.blocks = [_block(c, where) for c in item.circulars]
         items.append(item)
 
+    scope = str(data.get("alcance") or "").strip()
+    if scope not in ("", SCOPE_CIRCULARS):
+        raise ExpectedError("`alcance` solo puede ser `circulares`")
     return Expected(
         case=str(data.get("caso") or ""), path=path,
         sha256=hashlib.sha256(raw).hexdigest(), documents=documents, approval=approval,
         use=str(data.get("uso") or ""),
         general=_refs(data.get("tecnico_general"), default, "tecnico_general"),
         annexes=_refs(data.get("tramos_anexos"), default, "tramos_anexos"),
-        items=items,
+        items=items, scope=scope,
     )
 
 
@@ -374,8 +446,8 @@ def verify_expected(expected, procedure, readings=None):
             _verify_technical(expected, item, result)
         else:
             _verify_anchor(item, result)
-        for circular in item.circulars:
-            _verify_circular(expected, item, circular, result)
+        for block in item.blocks:
+            _verify_circular(expected, item, block, result, documents)
     for ref in expected.general + expected.annexes:
         _verify_ref(ref, "tramos generales", result, blocking=True)
     # Dos esperados con el mismo ancla normalizado se unificarían (REQ-033).
@@ -457,24 +529,54 @@ def _verify_technical(expected, item, result):
         _verify_ref(ref, f"renglón {item.renglon}", result, blocking, item.id)
 
 
-def _verify_circular(expected, item, circular, result):
-    """Las claves de las circulares son tentativas: se informan, no bloquean."""
-    if not isinstance(circular, dict):
-        return
-    name = str(circular.get("documento") or "")
-    key = str(circular.get("tramo") or "")
-    anchor = str(circular.get("ancla") or "")
+def _verify_circular(expected, item, block, result, documents):
+    """Comprueba un bloque `circulares` contra la lectura (T-117). Un documento que no figura
+    en la lista, o que figura y no está cargado sin que la lista lo declare (`cargado: false`),
+    bloquea; el declarado sin cargar solo se informa. Si está cargada, bloquea
+    que el tramo o el ancla no existan, que la fecha no sea la del documento, que el texto
+    original no esté en el documento que lo contiene o que el texto vigente no esté en la
+    circular."""
+    name = block.document
+    label = f"{item.id}: la circular {_doc_label(expected, name)}"
     result.counts["circular_anchors"] += 1
+    listed = {d["archivo"]: d for d in expected.documents}
+    if name not in listed:
+        result.problems.append(f"{item.id}: el documento del bloque de circular no figura en "
+                               "los documentos de la lista (¿nombre mal escrito?)")
+        return
     segments = result.segments.get(name)
     if segments is None:
-        result.notes.append(f"{item.id}: la circular {_doc_label(expected, name)} "
-                            "no está cargada")
+        # Solo se informa si la lista declara que esa circular no se carga (`cargado: false`).
+        text = f"{label} no está cargada"
+        if listed[name].get("cargado") is False:
+            result.notes.append(text)
+        else:
+            result.problems.append(text + " (si es a propósito, la lista lo declara con "
+                                   "`cargado: false`)")
         return
-    segment = segments.get(key)
-    if segment is None:
-        result.notes.append(f"{item.id}: el tramo {key} de la circular no existe")
-    elif anchor and quotes.locate(segment.text, anchor) is None:
-        result.notes.append(f"{item.id}: el ancla de la circular no está en {key}")
+    problems = []
+    document = documents.get(name)
+    if (document is not None and document.issued_on is not None
+            and document.issued_on.isoformat() != block.date):
+        problems.append(f"{label}: la fecha de la lista no es la del documento cargado")
+    segment = segments.get(block.key) if block.key else None
+    if block.key and segment is None:
+        problems.append(f"{label}: el tramo {block.key} no existe")
+    elif segment is not None and block.anchor and quotes.locate(
+            segment.text, block.anchor) is None:
+        problems.append(f"{label}: el ancla no está en {block.key}")
+    reading = result.readings[name]
+    if block.current_anchor and quotes.locate(
+            reading.canonical_text, block.current_anchor) is None:
+        problems.append(f"{label}: el texto vigente no está en la circular")
+    original_name = block.original_document or item.document
+    original_reading = result.readings.get(original_name)
+    if block.original_anchor and original_reading is not None and quotes.locate(
+            original_reading.canonical_text, block.original_anchor) is None:
+        problems.append(f"{label}: el texto original no está en "
+                        f"{_doc_label(expected, original_name)}")
+    if problems:
+        result.problems.extend(problems)
     else:
         result.counts["circular_anchors_ok"] += 1
 
@@ -488,7 +590,8 @@ def verification_lines(verification):
         f"Páginas distintas de la lista (informativo): {c['page_differs']}",
     ]
     if c["circular_anchors"]:
-        lines.append(f"Anclas de circulares encontradas (tentativas): "
+        lines.append(f"Bloques de circulares comprobados (los de una circular no cargada "
+                     f"solo se informan): "
                      f"{c['circular_anchors_ok']} de {c['circular_anchors']}")
     lines += [f"BLOQUEA: {p}" for p in verification.problems]
     lines += [f"Aviso: {n}" for n in verification.notes]
@@ -622,9 +725,11 @@ def measure_version(run, expected, verification):
     fe_rows = [p for p in proposed if p.category != TECHNICAL]
     tech_rows = {(p.items[0] if p.items else None): p for p in proposed
                  if p.category == TECHNICAL}
+    if expected.circulars_only:
+        return _measure_circulars_only(run, expected, verification, fe_rows, tech_rows)
 
     measured = [i for i in expected.items if not i.from_circular]
-    circular_items = [i for i in expected.items if i.from_circular]
+    circular_items = [i for i in expected.items if i.from_circular and not i.blocks]
     fe_items = [i for i in measured if not i.technical]
     tech_items = [i for i in measured if i.technical]
 
@@ -783,7 +888,11 @@ def measure_version(run, expected, verification):
         suggestions, [located[i] for i in candidates], len(suggestion_pairs),
         len(suggestion_review), leftovers, firm_total, found, measured_total)
     lines += suggestions_report.pop("lines")
+    circulars = measure_circulars(version, expected, verification, matched_pk)
+    if circulars:
+        lines += circulars.pop("lines")
     return {
+        "circulars": circulars,
         "lines": lines,
         "found": found,
         "found_without_review": ratio(found_count + len(unified), measured_total),
@@ -812,6 +921,167 @@ def measure_version(run, expected, verification):
         "coverage": _coverage(run, dispositions),
         "proposed_total": firm_total,
     }
+
+
+# --- REQ-031 por fila (T-117) --------------------------------------------------------------
+
+
+POINTS = ("effect", "original", "current", "document_date")
+POINT_NAMES = {"effect": "efecto", "original": "texto original", "current": "texto vigente",
+               "document_date": "documento y fecha"}
+
+
+def _norm(text):
+    return " ".join((text or "").casefold().split())
+
+
+def covers_text(shown, anchor):
+    """Si el texto mostrado contiene el ancla, con la regla de cobertura de la mitad: vale si
+    el ancla está entera o si el tramo más largo que comparten cubre al menos la mitad del
+    ancla. Un ancla vacía no se exige."""
+    needle = _norm(anchor)
+    if not needle:
+        return True
+    hay = _norm(shown)
+    if needle in hay:
+        return True
+    if not hay:
+        return False
+    match = SequenceMatcher(None, hay, needle, autojunk=False).find_longest_match(
+        0, len(hay), 0, len(needle))
+    return match.size >= REQUIRED_OVERLAP * len(needle)
+
+
+def _original_text(source):
+    """El texto original que la pantalla muestra junto a la fuente: el del anexo, si la
+    fuente lo referencia; si no, la cita alcanzada."""
+    if source.original_segment_id:
+        reading = source.original_segment.reading
+        return reading.canonical_text[source.original_char_start:source.original_char_end]
+    return source.quote.text if source.quote_id else ""
+
+
+def _source_points(item, block, source):
+    document = source.segment.reading.document
+    return (
+        source.effect == block.source_effect,
+        covers_text(_original_text(source), block.original_anchor or item.anchor),
+        block.effect == "suprime" or covers_text(source.text, block.current_anchor),
+        document.file_name == block.document and source.issued_on.isoformat() == block.date,
+    )
+
+
+def _added_points(item, block, rows, claimed):
+    """`agrega`: la fila de origen `circular` con una cita en el documento esperado que
+    contiene el ancla de la lista. Devuelve `(fila, puntos)`."""
+    best, best_points = None, None
+    for row in rows:
+        if row.origin != ORIGIN_CIRCULAR or row.pk in claimed:
+            continue
+        for quote in row.quotes.all():
+            document = quote.segment.reading.document
+            if document.file_name != block.document or not covers_text(quote.text, item.anchor):
+                continue
+            points = (True, True, covers_text(quote.text, block.current_anchor),
+                      document.issued_on is not None
+                      and document.issued_on.isoformat() == block.date)
+            if best is None or sum(points) > sum(best_points):
+                best, best_points = row, points
+    return best, best_points or (False, False, False, False)
+
+
+def measure_circulars(version, expected, verification, matched_pk):
+    """REQ-031 por fila (plan 003, "Cambios en `medir_matriz` (T-117)"): cada bloque
+    `circulares` de la lista se mide en cuatro puntos, por separado: (1) una fuente con el
+    efecto esperado; (2) el original mostrado contiene el ancla original; (3) el vigente
+    contiene el ancla vigente; (4) documento y fecha de la fuente son los esperados. Una fila
+    cumple si una misma fuente cumple los cuatro. Para `agrega` vale la fila de origen
+    `circular` con cita en el documento esperado. Ruido: fuentes en filas sin esperado de
+    circular, por documento y por fila, y filas de origen `circular` sin esperado.
+    `matched_pk` es `{id esperado: requisito}`. Sin bloques, devuelve `None`."""
+    entries = [(i, b) for i in expected.items for b in i.blocks]
+    if not entries:
+        return None
+    sources = Prefetch("sources", queryset=m.RequirementSource.objects.select_related(
+        "segment__reading__document", "quote", "original_segment__reading"))
+    rows = list(version.requirements.filter(state__in=FIRM_STATES).prefetch_related(
+        sources, "quotes__segment__reading__document").order_by("number"))
+    by_pk = {r.pk: r for r in rows}
+    claimed, lines, unmeasured = set(), [], []
+    points, met, failing = Counter(), 0, []
+    by_document, measured = {}, 0
+    for item, block in entries:
+        line = {"tipo": "circular", "id": item.id, "documento": block.document,
+                "fecha": block.date, "efecto": block.effect}
+        if block.document not in verification.readings:
+            unmeasured.append(item.id)
+            lines.append({**line, "estado": "sin_medir", "causa": "circular_no_cargada"})
+            continue
+        measured += 1
+        if block.adds:
+            row, flags = _added_points(item, block, rows, claimed)
+        else:
+            row = by_pk.get(matched_pk.get(item.id))
+            flags = (False,) * 4
+            for source in (row.sources.all() if row else []):
+                candidate = _source_points(item, block, source)
+                if sum(candidate) > sum(flags):
+                    flags = candidate
+        if row is not None:
+            claimed.add(row.pk)
+        for name, flag in zip(POINTS, flags):
+            points[name] += bool(flag)
+        ok = all(flags)
+        met += ok
+        entry = by_document.setdefault(block.document, {"expected": 0, "met": 0})
+        entry["expected"] += 1
+        entry["met"] += ok
+        if not ok:
+            failing.append({"id": item.id, "documento": block.document,
+                            "puntos": [i for i, flag in enumerate(flags, start=1) if not flag]})
+        lines.append({**line, "estado": "cumple" if ok else "no_cumple",
+                      "fila": row.number if row else None,
+                      **{name: bool(flag) for name, flag in zip(POINTS, flags)}})
+    noise_by_document, noise_by_row = Counter(), Counter()
+    for row in rows:
+        if row.pk in claimed:
+            continue
+        for source in row.sources.all():
+            noise_by_document[source.segment.reading.document.file_name] += 1
+            noise_by_row[row.number] += 1
+    unexpected = [r.number for r in rows if r.origin == ORIGIN_CIRCULAR and r.pk not in claimed]
+    return {
+        "expected": measured, "unmeasured": unmeasured,
+        "met": ratio(met, measured),
+        "points": {name: ratio(points[name], measured) for name in POINTS},
+        "by_document": by_document, "failing": failing,
+        "noise": {"sources": sum(noise_by_row.values()), "rows": len(noise_by_row),
+                  "by_document": dict(noise_by_document),
+                  "by_row": {str(k): v for k, v in sorted(noise_by_row.items())},
+                  "unexpected_requirements": unexpected},
+        "lines": lines,
+    }
+
+
+def _measure_circulars_only(run, expected, verification, fe_rows, tech_rows):
+    """Lista con `alcance: circulares` (casos de ajuste sin la lista completa del pliego): solo
+    mide REQ-031. No calcula encontrados, sobrantes ni tope del resto. Las filas de los
+    esperados se emparejan con la misma regla, solo para los que llevan bloque."""
+    items = [i for i in expected.items if i.blocks and not i.from_circular]
+    flat = [i for i in items if not i.technical]
+    located = [verification.located[i.id] for i in flat if i.id in verification.located]
+    pairs = _pairs(located, fe_rows)
+    matched = {}
+    for index, entry in enumerate(located):
+        if index in pairs:
+            matched[entry.item.id] = fe_rows[pairs[index]].requirement_id
+    for item in items:
+        row = tech_rows.get(item.renglon) if item.technical else None
+        if row is not None:
+            matched[item.id] = row.requirement_id
+    circulars = measure_circulars(run.version, expected, verification, matched)
+    lines = circulars.pop("lines") if circulars else []
+    return {"scope": SCOPE_CIRCULARS, "circulars": circulars, "lines": lines}
 
 
 def cap_verdict(leftover_ratio, found):
@@ -1048,6 +1318,13 @@ class Report:
                 reasons.append(f"{result['process']}: la propuesta falló")
                 continue
             measures = result["measures"]
+            circulars = measures.get("circulars")
+            if circulars and circulars["met"]["ok"] < circulars["met"]["total"]:
+                reasons.append(f"{result['process']}: REQ-031: "
+                               f"{circulars['met']['total'] - circulars['met']['ok']} filas de "
+                               "circular no cumplen los cuatro puntos")
+            if measures.get("scope") == SCOPE_CIRCULARS:
+                continue
             for name in ("found", "literal"):
                 if measures[name]["ok"] < measures[name]["total"]:
                     reasons.append(f"{result['process']}: {name} no llega al 100 %")
@@ -1206,6 +1483,7 @@ def _write(report, procedure, started_at, commit):
     expected = report.expected
     parameters = {
         "caso": expected.case, "procedimiento": procedure.number, "uso": expected.use,
+        "alcance": expected.scope,
         "iniciada": started_at, "commit": commit or "sin-commit",
         "proceso": settings.MATRIX_PROCESS,
         "lista": {"sha256": expected.sha256,
@@ -1303,6 +1581,13 @@ def _summary(report, *, public):
             out += ["", f"La propuesta falló: {shown}", ""]
             continue
         measures = result["measures"]
+        if measures.get("scope") == SCOPE_CIRCULARS:
+            out += ["", "- Alcance de la lista: solo circulares (REQ-031); no se calculan "
+                    "encontrados, sobrantes ni tope del resto",
+                    *_circular_lines(measures["circulars"], report.expected)]
+            out += _timing_lines(result["timings"])
+            out.append("")
+            continue
         coverage = measures["coverage"]
         out += [
             "",
@@ -1340,6 +1625,7 @@ def _summary(report, *, public):
             *_suggestion_lines(measures["suggestions"]),
             f"- Faltantes por causa: {_counter_text(measures['causes'])}",
             f"- Filas de circulares sin medir (T-083): {measures['circular_unmeasured']}",
+            *_circular_lines(measures.get("circulars"), report.expected),
         ]
         if measures["consequences"]:
             out.append(f"- Consecuencias (informativo): "
@@ -1352,6 +1638,46 @@ def _summary(report, *, public):
     out += [f"- {reason}" for reason in blocking] or ["- ninguno"]
     out.append("")
     return "\n".join(out)
+
+
+def _circular_lines(info, expected):
+    """REQ-031 por fila, sin texto: cuentas, claves `M-NNN`, títulos de documentos y números de
+    fila."""
+    if not info:
+        return ["- REQ-031 por fila: la lista no tiene bloques de circulares"]
+
+    def label(name):
+        return f"{_doc_label(expected, name)} ({name})"
+
+    lines = [
+        f"- REQ-031, filas de circular esperadas: {info['expected']}"
+        + (f"; sin medir porque la circular no está cargada: {', '.join(info['unmeasured'])}"
+           if info["unmeasured"] else ""),
+        f"- REQ-031, cumplen los cuatro puntos: {proportion_text(info['met'])}",
+        *[f"- REQ-031, punto {number} ({POINT_NAMES[name]}): "
+          f"{proportion_text(info['points'][name])}"
+          for number, name in enumerate(POINTS, start=1)],
+    ]
+    for name, entry in sorted(info["by_document"].items()):
+        lines.append(f"- REQ-031, circular {label(name)}: cumplen {entry['met']} de "
+                     f"{entry['expected']}")
+    for failure in info["failing"]:
+        lines.append(f"- REQ-031, no cumple {failure['id']} ({label(failure['documento'])}): "
+                     f"puntos {', '.join(str(n) for n in failure['puntos'])}")
+    noise = info["noise"]
+    lines.append(f"- REQ-031, ruido (fuentes en filas sin esperado de circular): "
+                 f"{noise['sources']} en {noise['rows']} filas")
+    if noise["sources"]:
+        lines.append("- REQ-031, ruido por documento: "
+                     + ", ".join(f"{label(k)}: {v}" for k, v in sorted(
+                         noise["by_document"].items())))
+        lines.append("- REQ-031, ruido por fila: "
+                     + ", ".join(f"#{k}: {v}" for k, v in noise["by_row"].items()))
+    lines.append(f"- REQ-031, requisitos de origen circular sin esperado: "
+                 f"{len(noise['unexpected_requirements'])}"
+                 + (" (filas " + ", ".join(f"#{n}" for n in noise["unexpected_requirements"])
+                    + ")" if noise["unexpected_requirements"] else ""))
+    return lines
 
 
 def _review_summary(measures):
@@ -1452,6 +1778,8 @@ def _detail_lines(result, report, public):
     lines = ["", "Faltantes:"]
     by_id = {i.id: i for i in report.expected.items}
     rows = result["measures"]["lines"]
+    if result["measures"].get("scope") == SCOPE_CIRCULARS:
+        return []
     missing = [r for r in rows if r["tipo"] == "esperado" and r["estado"] == "faltante"]
     for row in missing:
         extra = f" ({row['detalle']})" if row.get("detalle") else ""
