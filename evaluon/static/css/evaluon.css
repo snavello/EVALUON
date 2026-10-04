@@ -303,3 +303,41 @@ button {
 .links-title {
   margin-bottom: 0.25rem;
 }
+
+/* Navegación entre secciones del encabezado (T-069, estilo en T-074): queda junto al
+   nombre del sistema y deja el usuario y "Salir" a la derecha. */
+
+.site-nav {
+  display: flex;
+  gap: 1rem;
+  margin-right: auto;
+}
+
+.site-nav a {
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.site-nav a:hover,
+.site-nav a:focus {
+  text-decoration: underline;
+}
+
+/* Aviso de pedidos terminados (T-074): va en todas las páginas. */
+
+.finished-notice .notice {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid #1b6e3a;
+  background: #eef7f1;
+}
+
+.finished-notice .notice-failed {
+  border-left-color: #b00020;
+  background: #fdecee;
+}
+
+/* Con navegación, es ella la que empuja el usuario a la derecha. */
+.site-name:has(+ .site-nav) {
+  margin-right: 0;
+}

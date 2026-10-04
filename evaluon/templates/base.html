@@ -1,12 +1,14 @@
-{% load static %}<!doctype html>
+{% load static tenders_tags %}<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}EVALUON{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/evaluon.css' %}">
+  {% block head %}{% endblock %}
 </head>
 <body>
+  {% block banner %}{% endblock %}
   <header class="site-header">
     <span class="site-name">EVALUON</span>
     {% if user.is_authenticated %}
@@ -24,6 +26,7 @@
     {% endif %}
   </header>
   <main>
+    {% finished_notice %}
     {% block content %}{% endblock %}
   </main>
 </body>
