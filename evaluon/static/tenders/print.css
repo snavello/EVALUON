@@ -1,0 +1,89 @@
+/* Hoja de estilos de impresión de la matriz (T-086, REQ-032, ADR-0020).
+   La usan la vista de impresión del navegador y el PDF de WeasyPrint. Nada externo. */
+
+@page {
+  size: A4;
+  margin: 2.8cm 1.8cm 2.4cm 1.8cm;
+
+  /* Cajas de margen: se repiten en cada página del PDF. Su contenido son los elementos
+     "corrientes" (running) de la plantilla: la leyenda de borrador, o la versión, la fecha
+     y el evaluador de la validada. */
+  @top-center {
+    content: element(top-mark);
+  }
+  @bottom-left {
+    content: element(bottom-mark);
+    width: 72%;
+    vertical-align: middle;
+  }
+  @bottom-right {
+    content: "Página " counter(page) " de " counter(pages);
+    font-size: 9pt;
+    vertical-align: middle;
+  }
+}
+
+html {
+  font-family: "DejaVu Sans", sans-serif;
+  font-size: 9.5pt;
+  line-height: 1.35;
+  color: #000000;
+}
+
+body { margin: 0; }
+
+/* PDF: elementos que WeasyPrint saca del flujo y pone en las cajas de margen. */
+.top-mark { position: running(top-mark); text-align: center; }
+.bottom-mark { position: running(bottom-mark); font-size: 9pt; }
+.top-mark.draft { font-size: 20pt; font-weight: bold; letter-spacing: 0.1em; color: #b00020; }
+.bottom-mark.draft { font-size: 13pt; font-weight: bold; color: #b00020; }
+.top-mark.validated { font-size: 10pt; font-weight: bold; }
+
+/* Navegador: elemento fijo arriba; el navegador lo repite en cada hoja impresa. */
+.fixed-mark {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 0.4rem 1rem;
+  text-align: center;
+  font-weight: bold;
+  background: #ffffff;
+}
+.fixed-mark.draft {
+  font-size: 18pt;
+  letter-spacing: 0.1em;
+  color: #ffffff;
+  background: #b00020;
+}
+.fixed-mark.validated { border-bottom: 1px solid #000000; }
+.with-fixed-mark { padding-top: 3rem; }
+
+.toolbar { margin: 0 0 1rem 0; }
+.toolbar a, .toolbar button { margin-right: 1rem; }
+
+h1 { font-size: 15pt; margin: 0 0 0.5rem 0; }
+h2 { font-size: 12pt; margin: 1rem 0 0.4rem 0; border-bottom: 1px solid #8a8a8a; }
+h3 { font-size: 10.5pt; margin: 0.8rem 0 0.3rem 0; }
+h4, h5 { font-size: 9.5pt; margin: 0.3rem 0; }
+dl { margin: 0; }
+dt { font-weight: bold; float: left; clear: left; width: 9rem; }
+dd { margin: 0 0 0.15rem 9rem; }
+ul { margin: 0.2rem 0; padding-left: 1.2rem; }
+
+.requirement { margin: 0 0 0.7rem 0; page-break-inside: avoid; }
+.literal {
+  margin: 0.3rem 0 0.2rem 0;
+  padding: 0.3rem 0.5rem;
+  border-left: 3px solid #8a8a8a;
+  background: #f2f2f2;
+  white-space: pre-wrap;
+}
+.quote-place, .source-label, .current-label, .original-label { margin: 0.1rem 0; font-size: 8.5pt; }
+.state-mark, .class-mark, .wide-mark { font-size: 8.5pt; font-weight: normal; }
+.consequences { margin-top: 0.3rem; }
+.consequence { margin-bottom: 0.3rem; }
+
+@media print {
+  .toolbar { display: none; }
+}

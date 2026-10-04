@@ -8,6 +8,7 @@ from django.urls import path
 from evaluon.tenders.views import (
     consequences,
     documents,
+    export,
     matrix,
     procedures,
     review,
@@ -23,6 +24,8 @@ urlpatterns = [
          name="request_matrix"),
     path("matrices/<int:version_id>/", matrix.matrix, name="matrix"),
     path("matrices/<int:version_id>/cobertura/", matrix.coverage, name="coverage"),
+    path("matrices/<int:version_id>/imprimir/", export.print_view, name="print"),
+    path("matrices/<int:version_id>/pdf/", export.pdf, name="pdf"),
     path("matrices/<int:version_id>/confirmar/", review.confirm, name="review_confirm"),
     path("matrices/<int:version_id>/agregar/", review.add, name="review_add"),
     path("matrices/<int:version_id>/agregar-tecnico/", review.add_technical,

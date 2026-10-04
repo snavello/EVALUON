@@ -1,0 +1,1 @@
+{% comment %}Dónde está un texto en el pliego, sin enlaces (impresión y PDF). Recibe `place`.{% endcomment %}<span class="place">{{ place.document_title }}{% if place.page %} · Página {{ place.page }}{% if place.page_end %} a {{ place.page_end }}{% endif %}{% endif %}{% if place.path %} · Cláusula: {{ place.path }}{% endif %}</span>

@@ -12,8 +12,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Tesseract 5.5 del repositorio de Debian. Sin los paquetes recomendados: el modelo de
 # español no es el del paquete tesseract-ocr-spa (tessdata_fast) sino el de abajo.
+# Pango, HarfBuzz y una tipografía para el PDF de la matriz con WeasyPrint (ADR-0020, T-086);
+# la imagen slim no trae ninguna fuente. Versiones de Debian 13 fijadas.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tesseract-ocr=5.5.0-1+b1 \
+    && apt-get install -y --no-install-recommends \
+        tesseract-ocr=5.5.0-1+b1 \
+        libpango-1.0-0=1.56.3-1 \
+        libpangoft2-1.0-0=1.56.3-1 \
+        libharfbuzz-subset0=10.2.0-1+deb13u1 \
+        fonts-dejavu-core=2.37-8 \
     && rm -rf /var/lib/apt/lists/*
 
 # spa.traineddata de tessdata_best, versión 4.1.0 (commit e2aad9b9), verificado por huella

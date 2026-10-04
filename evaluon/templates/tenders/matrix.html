@@ -19,6 +19,7 @@
   <form method="post" action="{% url 'tenders:discard' page.version.pk %}">{% csrf_token %}<button type="submit">Descartar el borrador</button></form>
 </div>
 {% endif %}
+<p class="print-actions"><a href="{% url 'tenders:print' page.version.pk %}">Vista de impresión</a> · <a href="{% url 'tenders:pdf' page.version.pk %}">Exportar PDF</a></p>
 {% if page.can_open_new %}
 <form method="post" action="{% url 'tenders:open_new_version' page.procedure.pk %}" class="validation-actions">{% csrf_token %}<button type="submit">Abrir una versión nueva</button></form>
 {% endif %}
