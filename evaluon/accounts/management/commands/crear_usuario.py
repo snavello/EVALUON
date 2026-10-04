@@ -4,6 +4,9 @@
 Lo corre quien administra el equipo, sin rol de EVALUON. La clave se pide por teclado
 dos veces, sin mostrarla; no se pasa como argumento ni se guarda en forma legible. El
 alta queda registrada como hecho `user_created`, sin usuario actuante.
+
+`--rol-comision` (T-068; plan 003, "Roles") da además el rol de la Comisión, operador o
+evaluador; el hecho `user_created` lo registra.
 """
 
 from django.contrib.auth import get_user_model
@@ -13,7 +16,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from evaluon.accounts import permissions
-from evaluon.accounts.models import Role
+from evaluon.accounts.models import CommissionRole, Role
 from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType, Outcome
 
@@ -21,6 +24,12 @@ from evaluon.audit.models import Channel, EventType, Outcome
 ROLES = {
     "lectura": Role.READ,
     "lectura-escritura": Role.READ_WRITE,
+}
+
+# Rol de la Comisión (plan 003, "Roles"), aparte del rol de la normativa.
+COMMISSION_ROLES = {
+    "operador": CommissionRole.OPERATOR,
+    "evaluador": CommissionRole.EVALUATOR,
 }
 
 
@@ -59,10 +68,31 @@ class Command(BaseCommand):
                 "normas y registra relaciones y versiones."
             ),
         )
+        parser.add_argument(
+            "--rol-comision",
+            choices=sorted(COMMISSION_ROLES),
+            help=(
+                "Rol en la Comisión Evaluadora, aparte del rol de la normativa. "
+                "operador: registra procedimientos, carga pliegos y propone "
+                "correcciones a la matriz. evaluador: además confirma requisitos, "
+                "elige la consecuencia y valida la matriz. Sin esta opción, el usuario "
+                "no tiene rol de la Comisión."
+            ),
+        )
 
     def handle(self, *args, **options):
         username = options["usuario"]
         role = ROLES[options["rol"]]
+        rol_comision = options.get("rol_comision")
+        if rol_comision and rol_comision not in COMMISSION_ROLES:
+            # `call_command` no controla las opciones que no son obligatorias.
+            raise CommandError(
+                "El rol de la Comisión tiene que ser "
+                f"{' o '.join(sorted(COMMISSION_ROLES))}. No se dio de alta el usuario."
+            )
+        commission_role = (
+            COMMISSION_ROLES[rol_comision] if rol_comision else CommissionRole.NONE
+        )
         User = get_user_model()
 
         username = User.normalize_username(username)
@@ -88,7 +118,10 @@ class Command(BaseCommand):
 
         with transaction.atomic():
             user = User.objects.create_user(
-                username=username, password=password, role=role
+                username=username,
+                password=password,
+                role=role,
+                commission_role=commission_role,
             )
             audit.record(
                 EventType.USER_CREATED,
@@ -98,10 +131,16 @@ class Command(BaseCommand):
                     "created_user": user.username,
                     "created_user_id": user.pk,
                     "role": user.role,
+                    "commission_role": user.commission_role,
                 },
             )
 
+        commission = (
+            f" y rol de {CommissionRole(commission_role).label.lower()} en la Comisión"
+            if commission_role
+            else ""
+        )
         self.stdout.write(
             f"Se dio de alta el usuario {user.username} con rol de "
-            f"{Role(role).label.lower()}."
+            f"{Role(role).label.lower()}{commission}."
         )

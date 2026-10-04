@@ -42,7 +42,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 2/20 | █░░░░░░░░░ 10% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 3/21 | █░░░░░░░░░ 14% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -369,7 +369,6 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 18 tareas sin terminar.
-- ○ T-068 · Sumar el rol de la Comisión a los usuarios (pendiente)
 - ○ T-069 · Registrar un procedimiento y mostrar su régimen (pendiente)
 - ○ T-070 · Partir un pliego en tramos con renglones, clase por sección y control de cobertura (pendiente)
 - ○ T-071 · Ejecutar pedidos en segundo plano con su propio motor (pendiente)
@@ -387,11 +386,13 @@ flowchart LR
 - ○ T-084 · Correr la medición del caso-00 (pendiente)
 - ○ T-085 · Ofrecer solo los niveles que mejoran (pendiente)
 - ○ T-086 · Imprimir y exportar la matriz a PDF con la leyenda de borrador (pendiente)
+- ○ T-087 · Comparar en la misma zona horaria la fecha de lectura del informe (pendiente)
 
 ### Qué se hizo
 
 - Etapas completas: Spec, Plan, Tareas.
 - ✓ T-067 · Crear las tablas, los tipos de hecho y los parámetros de la 003 (`bdf0c75` 2026-10-03, `503e52f` 2026-10-03, `c4eec91` 2026-10-03)
+- ✓ T-068 · Sumar el rol de la Comisión a los usuarios (`25dca05` 2026-10-03)
 - ✓ T-076 · Preparar la lista esperada del caso-00
 
 ### Mapa de tareas
@@ -399,7 +400,7 @@ flowchart LR
 ```mermaid
 flowchart TD
   T067["✓ T-067 · Crear las tablas, los tipos de hecho y los…"]:::done
-  T068["○ T-068 · Sumar el rol de la Comisión a los usuarios"]:::todo
+  T068["✓ T-068 · Sumar el rol de la Comisión a los usuarios"]:::done
   T069["○ T-069 · Registrar un procedimiento y mostrar su rég…"]:::todo
   T070["○ T-070 · Partir un pliego en tramos con renglones, c…"]:::todo
   T071["○ T-071 · Ejecutar pedidos en segundo plano con su pr…"]:::todo
@@ -418,6 +419,7 @@ flowchart TD
   T084["○ T-084 · Correr la medición del caso-00"]:::todo
   T085["○ T-085 · Ofrecer solo los niveles que mejoran"]:::todo
   T086["○ T-086 · Imprimir y exportar la matriz a PDF con la…"]:::todo
+  T087["○ T-087 · Comparar en la misma zona horaria la fecha…"]:::todo
   T067 --> T068
   T068 --> T069
   T067 --> T070
