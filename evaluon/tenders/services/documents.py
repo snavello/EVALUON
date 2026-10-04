@@ -13,6 +13,8 @@
   con aviso. Toda carga rechazada (dato que falta, formato, archivo repetido) deja el
   hecho `tender_load` con resultado `rejected`, su motivo y lo que se intentó cargar, sin
   nada incorporado.
+- `refuse_invalid_date`: registra igual el rechazo de una fecha que la pantalla no pudo
+  convertir (motivo `invalid_date`), para que ningún rechazo de carga quede sin hecho.
 - `run_read_document`: el manejador del pedido `read_document` (lo registra
   `jobs.HANDLERS`). Comprueba la huella del original guardado, lo lee con la lectura de
   la 001 (`read_document`: PDF con texto o escaneado, página por página, o página web),
@@ -72,6 +74,8 @@ ORIGINAL_OPERATION = "evaluon.tenders.services.documents.original_file"
 
 # Restricción de la base que hace única la huella dentro del procedimiento.
 _UNIQUE_FILE_CONSTRAINT = "tenders_document_sha256_unique_in_procedure"
+
+INVALID_DATE_MESSAGE = "La fecha del documento no es una fecha válida: no se cargó."
 
 # Estado de la lectura de un documento, para la pantalla.
 STATE_QUEUED = "en_espera"
@@ -196,6 +200,33 @@ def _record_refusal(user, channel, procedure, detail, error):
                  user=user, detail=detail)
 
 
+def _attempt_detail(procedure, kind, title, issued_on, file_name, data):
+    """Lo que se intentó cargar, para el hecho `tender_load`. `issued_on` va como
+    texto: la fecha en ISO, o tal como se escribió si no es una fecha válida."""
+    return {
+        "procedure": procedure.pk,
+        "kind": kind,
+        "title": title,
+        "issued_on": issued_on,
+        "file": _file_detail(file_name, None, data, hashlib.sha256(data).hexdigest()),
+    }
+
+
+def refuse_invalid_date(user, procedure, *, data, file_name, kind, title, issued_on_text,
+                        channel=Channel.SCREEN):
+    """Rechaza una carga cuya fecha no es una fecha válida (por ejemplo, "31/02/2025"):
+    la pantalla no la puede convertir y no llega a `load_document`. Comprueba el rol,
+    deja el hecho `tender_load` rechazado con motivo `invalid_date` y lo intentado, y
+    devuelve el `DocumentRefused` para mostrarlo; no guarda nada más."""
+    require_commission_role(user, CommissionRole.OPERATOR, operation=LOAD_OPERATION,
+                            channel=channel)
+    data = bytes(data or b"")
+    detail = _attempt_detail(procedure, kind, title, issued_on_text, file_name, data)
+    refusal = DocumentRefused(INVALID_DATE_MESSAGE, "issued_on", "invalid_date")
+    _record_refusal(user, channel, procedure, detail, refusal)
+    return refusal
+
+
 def load_document(user, procedure, *, data, file_name, kind, title, issued_on=None,
                   channel=Channel.SCREEN):
     """Carga el archivo `data` (sus bytes, con su nombre `file_name`) como documento del
@@ -209,13 +240,8 @@ def load_document(user, procedure, *, data, file_name, kind, title, issued_on=No
                             channel=channel)
     data = bytes(data or b"")
     sha256 = hashlib.sha256(data).hexdigest()
-    detail = {
-        "procedure": procedure.pk,
-        "kind": kind,
-        "title": title,
-        "issued_on": issued_on.isoformat() if issued_on else None,
-        "file": _file_detail(file_name, None, data, sha256),
-    }
+    detail = _attempt_detail(procedure, kind, title,
+                             issued_on.isoformat() if issued_on else None, file_name, data)
     try:
         title, file_format = _check(kind, title, issued_on, file_name, data)
         detail["title"] = title

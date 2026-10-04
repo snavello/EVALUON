@@ -38,11 +38,15 @@ LOADED_PARAM = "cargado"
 
 
 class DocumentForm(forms.Form):
-    """El formulario de carga. Título y fecha los comprueba la función de carga, para
-    que todo rechazo quede registrado."""
+    """El formulario de carga. Archivo, tipo, título y fecha obligatoria los comprueba
+    la función de carga, para que todo rechazo quede registrado (`tender_load`). Lo
+    único que el formulario rechaza por su cuenta es una fecha que no se puede
+    convertir; ese rechazo lo registra `services.refuse_invalid_date`."""
 
-    file = forms.FileField(label="Archivo (PDF o página web guardada)")
-    kind = forms.ChoiceField(label="Tipo", choices=DocumentKind.choices)
+    file = forms.FileField(label="Archivo (PDF o página web guardada)", required=False,
+                           allow_empty_file=True)
+    kind = forms.CharField(label="Tipo", required=False,
+                           widget=forms.Select(choices=DocumentKind.choices))
     title = forms.CharField(label="Título", required=False)
     issued_on = forms.DateField(
         label="Fecha del documento (obligatoria en circulares y respuestas)",
@@ -70,15 +74,29 @@ def procedure(request, procedure_id):
 
     if request.method == "POST":
         form = DocumentForm(request.POST, request.FILES)
-        if form.is_valid():
+        upload = request.FILES.get("file")
+        content = upload.read() if upload is not None else b""
+        file_name = upload.name if upload is not None else ""
+        if not form.is_valid():
+            # Solo una fecha que no se puede convertir llega aquí: se registra igual.
+            services.refuse_invalid_date(
+                request.user,
+                page.procedure,
+                data=content,
+                file_name=file_name,
+                kind=request.POST.get("kind", ""),
+                title=request.POST.get("title", ""),
+                issued_on_text=request.POST.get("issued_on", ""),
+                channel=Channel.SCREEN,
+            )
+        else:
             data = form.cleaned_data
-            upload = data["file"]
             try:
                 loaded = services.load_document(
                     request.user,
                     page.procedure,
-                    data=upload.read(),
-                    file_name=upload.name,
+                    data=content,
+                    file_name=file_name,
                     kind=data["kind"],
                     title=data["title"],
                     issued_on=data["issued_on"],
