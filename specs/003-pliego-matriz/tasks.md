@@ -38,7 +38,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-088 | Cambiar el rol de la Comisión de un usuario existente, con registro | REQ-026 | — | terminada |
 | T-089 | Contar bien las páginas en la extrapolación de tiempos | REQ-030 | T-084 | pendiente |
 | T-090 | Investigar y corregir los reinicios de los servidores de generación | REQ-024, REQ-030 | T-084 | pendiente |
-| T-091 | Comparar niveles medidos en corridas separadas | REQ-030 | T-084 | pendiente |
+| T-091 | Comparar niveles medidos en corridas separadas | REQ-030 | T-084 | terminada |
 
 ## Para todas las tareas
 
