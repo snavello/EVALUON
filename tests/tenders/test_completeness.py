@@ -635,10 +635,10 @@ def test_each_level_records_its_own_passes(operator_user, script):
     las versiones de las instrucciones; sin la anomalía de "nivel sin pasadas propias"."""
     standard(script)
     expected = {
-        "media": (["extraccion"], ["extraccion"]),
-        "alta": (["extraccion", "completitud"], ["extraccion", "completitud"]),
-        "exigente": (["extraccion", "extraccion_2", "completitud"],
-                     ["extraccion", "extraccion_2", "completitud"]),
+        "media": (["extraccion", "consecuencias"], []),
+        "alta": (["extraccion", "completitud", "consecuencias"], []),
+        "exigente": (["extraccion", "extraccion_2", "completitud", "consecuencias"],
+                     []),
     }
     for level, (steps, _) in expected.items():
         run = run_level(operator_user, level)
@@ -646,10 +646,11 @@ def test_each_level_records_its_own_passes(operator_user, script):
         assert "nivel_sin_pasadas_propias" not in [a["type"] for a in run.anomalies]
         assert run.level == level and run.version.level == level
         prompts = list(run.prompt_versions)
-        assert prompts == (["extraccion", "completitud"] if level != "media"
-                           else ["extraccion"])
+        assert prompts == (["extraccion", "completitud", "consecuencias"] if level != "media"
+                           else ["extraccion", "consecuencias"])
     assert run.parameters["passes"] == [
-        "reglas", "extraccion", "extraccion_2", "union", "completitud", "filas_tecnicas"]
+        "reglas", "extraccion", "extraccion_2", "union", "completitud", "filas_tecnicas",
+        "consecuencias"]
 
 
 # --- Citas sobre tramos con saltos de línea y espacios distintos (O1 de T-073) -----------------------

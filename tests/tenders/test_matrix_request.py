@@ -97,9 +97,9 @@ def test_chosen_level_is_recorded(operator_user, read_case, level):
     assert requested.run.level == level
     assert requested.run.version.level == level
     assert requested.run.parameters["passes"] == {
-        "media": ["reglas", "extraccion", "marcadores", "filas_tecnicas"],
+        "media": ["reglas", "extraccion", "marcadores", "filas_tecnicas", "consecuencias"],
         "exigente": ["reglas", "extraccion", "extraccion_2", "union", "completitud",
-                     "filas_tecnicas"],
+                     "filas_tecnicas", "consecuencias"],
     }[level]
     detail = request_events().get().detail
     assert detail["level"] == level and detail["default_level"] is False
@@ -119,10 +119,10 @@ def test_each_level_records_its_own_passes_and_no_level_lacks_them(operator_user
         results[level] = requested
 
     assert [results[level].run.parameters["passes"] for level in results] == [
-        ["reglas", "extraccion", "marcadores", "filas_tecnicas"],
-        ["reglas", "extraccion", "completitud", "filas_tecnicas"],
+        ["reglas", "extraccion", "marcadores", "filas_tecnicas", "consecuencias"],
+        ["reglas", "extraccion", "completitud", "filas_tecnicas", "consecuencias"],
         ["reglas", "extraccion", "extraccion_2", "union", "completitud",
-         "filas_tecnicas"],
+         "filas_tecnicas", "consecuencias"],
     ]
     assert signature(results["media"].run.version) == signature(
         results["alta"].run.version) == signature(results["exigente"].run.version)
@@ -200,7 +200,7 @@ def test_request_queues_the_job_and_saves_the_run_and_the_event(operator_user, r
 
 
 def test_proposal_records_models_parameters_prompts_regime_and_corpus_version(
-        operator_user, read_write_user, read_case, two_regimes, script):
+        operator_user, read_write_user, read_case, two_regimes, script, fake_ai):
     """REQ-030 (P6, P8): la propuesta registra los modelos con su huella, los parámetros, las
     versiones de instrucciones, el régimen a la fecha de autorización y la versión de la
     normativa."""
@@ -218,7 +218,8 @@ def test_proposal_records_models_parameters_prompts_regime_and_corpus_version(
     assert run.authorization_date == date(2022, 12, 15)
     assert run.regime == [{"norm": two_regimes.old.pk, "name": "Disposición AFIP 297/03"}]
     assert run.corpus_version == version_event.corpus_version
-    assert run.prompt_versions == {"extraccion": "matriz-extraccion-v1"}
+    assert run.prompt_versions == {"extraccion": "matriz-extraccion-v1",
+                                    "consecuencias": "matriz-consecuencias-v1"}
     assert set(run.models) == {"generation_batch", "embeddings", "reranker"}
     for model in run.models.values():
         assert len(model["sha256"]) == 64 and model["model"] and model["file"]
@@ -266,7 +267,8 @@ def test_timings_and_counts_are_saved(operator_user, read_case):
     assert run.counts["requirements_by_class"] == {"economico": 2, "tecnico": 3}
     assert run.counts["requirements"] == 5
     assert run.counts["segments_by_type"]["clausula"] >= 4
-    assert run.counts["model_requests"] == 1
+    assert run.counts["model_requests_by_pass"] == {"extraccion": 1, "consecuencias": 1}
+    assert run.counts["model_requests"] == 2
 
 
 # --- Rechazos del pedido (REQ-024) ----------------------------------------------------------------

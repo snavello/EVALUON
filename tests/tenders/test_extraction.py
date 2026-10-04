@@ -61,7 +61,10 @@ def dispositions(run):
 
 
 def steps(run):
-    return list(m.RunStep.objects.filter(run=run).order_by("id"))
+    """Los pedidos de extracción de la propuesta; los de consecuencias (T-080) tienen sus
+    propias pruebas."""
+    return list(m.RunStep.objects.filter(run=run).exclude(pass_name="consecuencias")
+                .order_by("id"))
 
 
 def requirement_for(version, key):
@@ -215,7 +218,7 @@ def test_request_goes_to_the_batch_engine_with_one_property_per_segment(operator
 
     requested, _ = propose(operator_user, procedure)
 
-    assert len(fake_generation.calls) == 1
+    assert len([c for c in fake_generation.calls if list(c[1]["properties"])[0] == "T1"]) == 1
     option = fake_generation.options[0]
     assert option["base_url"] == settings.GENERATION_BATCH_URL
     assert option["max_tokens"] == settings.MATRIX_MAX_OUTPUT_TOKENS == 4096
@@ -648,7 +651,9 @@ def test_failure_after_the_model_leaves_no_half_matrix_but_keeps_the_steps(
     assert len(steps(requested.run)) == 1
     event = AuditEvent.objects.get(event_type=EventType.MATRIX_PROPOSAL)
     assert event.outcome == Outcome.FAILED
-    assert event.detail["model_requests_saved"] == 1
+    # Los pedidos de consecuencias (T-080) también quedan guardados.
+    assert event.detail["model_requests_saved"] == m.RunStep.objects.filter(
+        run=requested.run).count() > 1
     assert not AuditEvent.objects.filter(event_type=EventType.MATRIX_PROPOSAL,
                                          outcome=Outcome.OK).exists()
 
