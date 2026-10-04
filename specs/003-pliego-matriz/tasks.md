@@ -55,11 +55,19 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-105 | Mostrar las descartadas, las citas repetidas y la revisión por grupos | REQ-032, REQ-033, REQ-034 | T-100, T-104 | pendiente |
 | T-106 | Medir el filtro, las sugerencias y el respaldo normativo con el caso-00 y ajustarlos | REQ-024, REQ-033, REQ-035, REQ-036 | T-102, T-103, T-109, T-111 | pendiente |
 | T-107 | Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00 | REQ-033, REQ-035 | T-106 | pendiente |
-| T-108 | Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02 | REQ-024, REQ-025, REQ-030, REQ-031, REQ-033, REQ-035, REQ-036 | T-094, T-105, T-112, T-107 | pendiente |
+| T-108 | Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04 | REQ-024, REQ-025, REQ-030, REQ-031, REQ-033, REQ-035, REQ-036 | T-094, T-105, T-112, T-107, T-116, T-120 | pendiente |
 | T-109 | Buscar el respaldo normativo de cada sugerencia, sin que nunca la descarte | REQ-036 | T-099, T-102 | pendiente |
 | T-110 | Decidir las sugerencias: pasar a requisito o quitar, una por una o por grupo, y bloquear la validación | REQ-035, REQ-034, REQ-026 | T-099, T-104 | pendiente |
 | T-111 | Medir las sugerencias y el respaldo normativo: a revisión obligatoria e informe | REQ-035, REQ-036, REQ-024 | T-099, T-103 | pendiente |
 | T-112 | Mostrar la sección de sugerencias con su respaldo en la pantalla y en la impresión | REQ-035, REQ-036, REQ-034, REQ-032 | T-105, T-110 | pendiente |
+| T-113 | Pasada de circulares, entrega 1: unidades de cambio aplicadas por clave, sin modelo | REQ-028, REQ-031 | T-098 | en curso |
+| T-114 | Crear el campo de original en un anexo, el pedido de extracción de cambios y los parámetros de circulares | REQ-031 | T-099, T-100 | pendiente |
+| T-115 | Pasada de circulares, entrega 2: el modelo extrae la lista de cambios donde no hay clave | REQ-031 | T-113, T-114 | pendiente |
+| T-116 | Mostrar y imprimir el original en el anexo, el cambio agrupado y el requisito agregado por una circular | REQ-031, REQ-032 | T-113, T-114, T-105, T-112 | pendiente |
+| T-117 | Medir REQ-031 por fila en `medir_matriz`: documento, fecha, texto original y vigente | REQ-031 | T-103, T-111 | pendiente |
+| T-118 | Cargar los casos 05 y 06 y preparar sus listas esperadas de circulares | REQ-031 | T-117 | pendiente |
+| T-119 | Actualizar la lista esperada del caso-01 con las filas que las circulares afectan | REQ-031 | T-117 | pendiente |
+| T-120 | Medir y ajustar la pasada de circulares con los casos 01, 05 y 06, con estabilidad | REQ-031 | T-113, T-115, T-117, T-118, T-119 | pendiente |
 
 ## Para todas las tareas
 
@@ -392,12 +400,13 @@ Plan: sección "Enmienda del 2026-10-04" de `plan.md` y su subsección "Sugerenc
 - **No tocar:** el sistema y las instrucciones.
 - **Entorno:** datos.
 
-### T-108 · Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02
+### T-108 · Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04
 
-- **Qué hacer:** con las instrucciones fijas después de T-106 y la decisión de T-107, medir los casos 01 y 02 solo con el proceso único (la medición de T-094 se hizo antes del filtro y con niveles; esta es la medida de aceptación): `medir_matriz --verificar-esperada` y la corrida de cada caso. Medidas: 100 % de encontrados (con "a revisión obligatoria": tramos pendientes y sugerencias, informados aparte), esperados descartados por el sistema (0), sobrantes hasta el tope sobre las filas firmes, cita literal 100 %, REQ-031 con las circulares del caso-01, las filas descartadas con la muestra revisada de sus motivos, **las sugerencias (cuántas, proporción que eran esperados, cuántas con respaldo normativo y cuántas de esas eran esperados; REQ-035 y REQ-036)**, tiempos por pliego y por página (el caso-01 tiene 52 páginas; se informan, sin máximo) y memoria de video. Informe sin texto del pliego; un faltante o un tope no cumplido bloquea la aceptación y se informa con su causa, sin ajustar nada.
+- **Qué hacer:** con las instrucciones fijas después de T-106 y T-120 y la decisión de T-107, medir los casos 01 y 02 solo con el proceso único (la medición de T-094 se hizo antes del filtro y con niveles; esta es la medida de aceptación): `medir_matriz --verificar-esperada` y la corrida de cada caso. Medidas: 100 % de encontrados (con "a revisión obligatoria": tramos pendientes y sugerencias, informados aparte), esperados descartados por el sistema (0), sobrantes hasta el tope sobre las filas firmes, cita literal 100 %, las filas descartadas con la muestra revisada de sus motivos, **las sugerencias (cuántas, proporción que eran esperados, cuántas con respaldo normativo y cuántas de esas eran esperados; REQ-035 y REQ-036)**, tiempos por pliego y por página (el caso-01 tiene 52 páginas; se informan, sin máximo) y memoria de video. Informe sin texto del pliego; un faltante o un tope no cumplido bloquea la aceptación y se informa con su causa, sin ajustar nada.
 - **Archivos:** corridas en `corpus/casos/caso-0N/corridas/` (fuera del repositorio); `specs/003-pliego-matriz/verificacion/T-108.md`.
 - **Verificación:** el informe con todas las medidas, su intervalo y el resultado de aceptación; ningún texto del pliego en el repositorio.
-- **No tocar:** instrucciones, parámetros, listas esperadas (salvo lo decidido en T-107).
+- **REQ-031 (decisión del 2026-10-04):** la aceptación de REQ-031 se mide a ciegas, una sola vez, con los casos 03 y 04 (el caso-01 pasó a ajuste y no cuenta para la aceptación de REQ-031), con la medición automática por fila de T-117: filas de circular esperadas, cumplimiento de los cuatro puntos (efecto, texto original, texto vigente, documento y fecha), fuentes ajenas y tiempos. Sus listas, ya preparadas solo desde el texto, necesitan el bloque `circular`: si no lo tienen, el Coordinador lo agrega solo desde el texto antes de correr, sin mirar ninguna salida del sistema. Un fallo bloquea y se informa con su causa, sin ajustar.
+- **No tocar:** instrucciones, parámetros, listas esperadas (salvo lo decidido en T-107 y el bloque `circular` de 03 y 04).
 - **Entorno:** MSI con GPU, sin otra carga.
 
 ### T-109 · Buscar el respaldo normativo de cada sugerencia, sin que nunca la descarte
@@ -433,6 +442,84 @@ Plan: sección "Enmienda del 2026-10-04" de `plan.md` y su subsección "Sugerenc
 - **No tocar:** los servicios de T-104 y T-110; `export.py`; `proposal/`.
 - **Entorno:** cualquier equipo con Docker.
 
+### Enmienda del 2026-10-04: rediseño de la pasada de circulares (T-113 a T-120)
+
+Plan: sección "Rediseño de la pasada de circulares (2026-10-04)" de `plan.md`; ADR-0023 (aceptado); diagnóstico en `verificacion/T-113-diagnostico.md`. Orden: T-113 (entrega 1) y T-114 (esquema) pueden ir a la vez; T-115 (entrega 2) y T-116 (pantalla) después de las dos; T-117 (medición por fila) en paralelo con ellas; los datos T-118 y T-119 después de T-117; T-120 al final, con la GPU.
+
+**Conflictos de archivo con tareas en curso o pendientes** (el Coordinador integra en secuencia y corre la suite después de cada integración):
+
+- `proposal/run.py` (T-101 → T-102 → T-109): T-113 toca solo `_save_circulars` (persistir la referencia al original). T-115 no lo toca salvo que el cambio de entrada de `Processor.process` lo obligue. Integrar T-113 antes o después de T-101, no a medias; el conflicto es textual y acotado.
+- `evaluation.py` y `medir_matriz.py` (T-103 → T-111): T-117 va después de T-111.
+- `services/validation.py` y `tests/tenders/test_validation.py` (T-110): T-114 toca solo `_copy` (copiar los tres campos nuevos de la fuente). Preferible integrar T-114 antes que T-110; si T-110 ya está en curso, aviso por `avisos/T-110.md`.
+- Vistas y plantillas (`matrix.html`, `matrix_print.html`, `coverage.html`, `matrix.css`) (T-105 → T-112): T-116 va después de las dos.
+- `proposal/circulars.py`: T-113 → T-115 (cadena). T-098 ya está integrada.
+- `models.py`, `migrations/`, `settings.py`: solo T-114 (un solo agente de esquema).
+- GPU: T-120 corre de a una con T-106 y T-108.
+
+### T-113 · Pasada de circulares, entrega 1: unidades de cambio aplicadas por clave, sin modelo
+
+- **Qué hacer:** plan, "Entrega 1, sin modelo". `proposal/circular_units.py`: partir cada circular en unidades de cambio (cláusula numerada con sus tramos, apartado bajo un encabezado romano, par "Donde dice / Debe decir" con los tramos no ubicados que caen entre sus rótulos, tramo suelto); detectar el tipo por la lista de verbos; resolver el objetivo por clave (cláusula con número normalizado y límite de nivel, anexo por número o título con las cláusulas que lo piden, renglón, texto anterior) y aplicar el efecto a **todas** las citas afectadas, una fuente por cita; unidad de datos del trámite (líneas cortas rótulo y valor, sin marcadores de obligación): tramos `descartado` con motivo `dato_procedimiento` y, si reemplaza un anexo sin requisitos que el pliego menciona, una fuente `modifica` por cita que lo menciona con el bloque entero como vigente; clave inexistente con verbo de agregar: requisito nuevo de origen `circular`; todo lo demás, al flujo actual como respaldo, restringido a esos cambios. Corregir `named_annexes` para que "Anexo N de la/del … Disposición/Resolución/Decreto/Ley/Circular/Nota/Acuerdo" no sea un anexo del pliego. Cada unidad deja un pedido en `tenders_run_step` (`circulares`) sin llamada al modelo, con sus tramos, tipo, objetivo, citas resueltas y fuentes. `Source` suma el original opcional (tramo del anexo y posiciones). **Al final**, con T-114 integrada, `_save_circulars` persiste esa referencia; si T-114 no llegó, se entrega todo lo demás y la referencia queda pendiente, informándolo.
+- **Archivos:** `evaluon/tenders/proposal/circular_units.py`, `evaluon/tenders/proposal/circulars.py`, `evaluon/tenders/proposal/run.py` (solo `_save_circulars`), `tests/tenders/test_circular_units.py`, `tests/tenders/test_circulars.py`.
+- **Verificación:** tests con textos inventados que reproducen cada forma y fallan sin el arreglo: una cláusula con dos citas reemplazada da una fuente en cada una; "el Anexo X no es requisito" da `suprime` en las citas del anexo y en la cláusula que lo pide (y no en una cláusula que lo menciona de pasada); un apartado de líneas de fecha, hora y lugar no crea requisitos, descarta sus tramos con `dato_procedimiento` y, si reemplaza un anexo sin requisitos, da una sola fuente `modifica` por cada cita que lo menciona (con el bloque entero como vigente, no el de la última línea); "Donde dice" y "Debe decir" en tramos separados dan un solo `modifica`, el texto viejo no produce efecto y ningún tramo del par queda `no_ubicado`; "Anexo IV de la Disposición N° …" no agrega citas aludidas; una cita común a varios renglones no recibe efecto si la unidad no nombra la cláusula ni el renglón; el ejemplo de la spec (16 GB a 32 GB) por renglón y por texto anterior; una clave inexistente o un texto anterior ambiguo van al respaldo y no se pierden; todo tramo de circular queda con disposición; una circular sin encabezados se comporta como hoy; una prueba busca las anclas de los casos 00, 01 y 02 en tests y fixtures y falla si aparece alguna de 5 palabras; suite en verde.
+- **No tocar:** `medir_matriz` y `evaluation.py`; la lista esperada; `plan.md`; modelos y migraciones (T-114); las instrucciones `matriz-circulares-v2.md`; el resto de `run.py`.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-114 · Crear el campo de original en un anexo, el pedido de extracción de cambios y los parámetros de circulares
+
+- **Qué hacer:** plan, "Campo nuevo y migración". Una migración: `tenders_requirement_source` suma `original_segment` (clave al tramo), `original_char_start` y `original_char_end`, opcionales, los tres juntos o ninguno (restricción), y el trigger de inmutabilidad de una versión validada los cubre (adaptar el trigger de T-067 sin perder sus pruebas); `tenders_run_step.pass_name` suma `circulares_cambios`. `settings.py`: `CIRCULAR_EXTRACTION_ENABLED` (verdadero), `CIRCULAR_EXTRACTION_REPEATS` (1) y la versión de instrucciones `circulares_cambios` en `MATRIX_PROMPT_VERSIONS`. `services/validation.py::_copy` copia los tres campos nuevos de la fuente. Una sola tarea de esquema: ninguna otra la toca.
+- **Archivos:** `evaluon/tenders/models.py`, `evaluon/tenders/migrations/` (una nueva), `evaluon/settings.py`, `evaluon/tenders/services/validation.py` (solo `_copy`), `tests/tenders/test_models.py`, `tests/tenders/test_validation.py`.
+- **Verificación:** `migrate` sobre base vacía y `migrate --check`; tests: una fuente sin los campos nuevos sigue válida (datos de T-083 y T-098); una con solo uno o dos de los tres se rechaza; una con los tres y posiciones coherentes se acepta; UPDATE sobre los campos de una fuente de una versión validada rechazado por la base; `pass_name` `circulares_cambios` se acepta y uno inventado no; una versión nueva copia la referencia al original; los parámetros existen con sus valores por omisión; suite en verde.
+- **No tocar:** `proposal/`, vistas, `evaluation.py`; el resto de `validation.py`.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-115 · Pasada de circulares, entrega 2: el modelo extrae la lista de cambios donde no hay clave
+
+- **Qué hacer:** plan, "Entrega 2, con modelo". `proposal/circular_changes.py`: pedido por unidad sin citas del pliego, con salida estructurada obligada (`cambios` con `tipo`, `objetivo`, `referencia`, `texto_anterior`, `texto_nuevo`), citas literales de la unidad verificadas con reintento único y registro en `tenders_run_step` (`circulares_cambios`); lo que tiene objetivo resoluble pasa por la aplicación por clave de T-113; lo demás, al flujo actual restringido a esos cambios; repetición según `CIRCULAR_EXTRACTION_REPEATS` con comparación: los cambios iguales se aceptan, los distintos quedan no estables, no se aplican en firme y van al respaldo con la anomalía; `CIRCULAR_EXTRACTION_ENABLED` en falso deja la entrega 1; instrucciones `prompts/matriz-circulares-v3.md` con ejemplos sintéticos de otro objeto y otras cifras.
+- **Archivos:** `evaluon/tenders/proposal/circular_changes.py`, `evaluon/tenders/proposal/circulars.py`, `evaluon/tenders/prompts/matriz-circulares-v3.md`, `tests/tenders/test_circular_changes.py`.
+- **Verificación:** tests con el doble del motor: una salida con un cambio de objetivo cláusula se aplica a todas sus citas; un cambio sin objetivo va al respaldo; una cita literal que no está en la unidad se reintenta y, si sigue sin estar, el cambio no se aplica y queda registrado; dos repeticiones iguales se aceptan y dos distintas dejan el cambio sin aplicar con la anomalía; con la extracción apagada, el resultado es el de T-113; el pedido registra modelo, parámetros, versión de instrucciones y la unidad; una prueba busca las anclas de los casos 00, 01 y 02 en las instrucciones y los ejemplos y falla si aparece alguna de 5 palabras; suite en verde.
+- **No tocar:** `circular_units.py` salvo importar sus funciones (si hace falta cambiarlas, aviso por `avisos/`); `run.py` salvo lo imprescindible; modelos y migraciones; las instrucciones de las demás pasadas.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-116 · Mostrar y imprimir el original en el anexo, el cambio agrupado y el requisito agregado por una circular
+
+- **Qué hacer:** plan, "Pantalla e impresión (T-116)". En la matriz y en la vista de impresión (y el PDF): una fuente con `original_segment` muestra como "Texto original" el tramo del anexo, con documento, página y enlace al original en la página, y como vigente el texto de la circular con documento y fecha; el cambio de una circular sobre varias citas del mismo requisito se muestra una vez; un requisito de origen `circular` muestra "Agregado por <documento> del <fecha>", tomados del tramo de su cita; el historial "modificada por …" no se repite por línea. Sin migración. La leyenda de borrador no cambia.
+- **Archivos:** `evaluon/tenders/views/matrix.py`, `evaluon/templates/tenders/matrix.html`, `evaluon/templates/tenders/matrix_print.html`, `evaluon/templates/tenders/coverage.html` (solo si hace falta), `evaluon/static/tenders/matrix.css`, `tests/tenders/test_circular_screen.py`.
+- **Verificación:** tests con el cliente de pruebas y datos sintéticos: una fuente con el original en un anexo muestra los dos textos iguales a su recorte, con su documento y fecha; dos fuentes del mismo cambio sobre un requisito se muestran una vez; un requisito `circular` muestra documento y fecha de su cita; la vista de impresión y el PDF de un borrador con esos casos llevan la información y la leyenda "BORRADOR INCOMPLETO" en cada página; una versión de antes de esta tarea (sin los campos nuevos) se sigue viendo igual; ninguna página referencia direcciones externas; suite en verde.
+- **No tocar:** `proposal/`, servicios, el esquema (T-114), `export.py`.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-117 · Medir REQ-031 por fila en `medir_matriz`: documento, fecha, texto original y vigente
+
+- **Qué hacer:** plan, "Cambios en `medir_matriz` (T-117)". En `evaluation.py` y el comando: bloque opcional `circular` en la lista esperada (`documento`, `fecha`, `efecto`, `ancla_original`, `ancla_vigente`) comprobado por `--verificar-esperada`; una lista con `alcance: circulares` mide solo REQ-031 (sin las demás medidas) para los casos de ajuste que no tienen la lista completa; medida por fila de los cuatro puntos (fuente con el efecto esperado; el original mostrado contiene el ancla original; el vigente contiene el ancla vigente; documento y fecha esperados), con la regla de cobertura de la mitad del ancla; `agrega`: fila de origen `circular` con cita en el documento y fecha esperados; ruido de circulares (fuentes en filas sin esperado de circular, por documento y por fila; requisitos `circular` sin esperado); informe en `resumen.md` y `resumen-publico.md` (solo cuentas, claves `M-NNN` y títulos de documentos; sin texto); las corridas sin bloque `circular` dan las medidas de siempre; `--regenerar-resumen` sigue funcionando.
+- **Archivos:** `evaluon/tenders/evaluation.py`, `evaluon/tenders/management/commands/medir_matriz.py`, `tests/tenders/test_evaluation.py`, `tests/tenders/fixtures/` (listas y propuestas sintéticas con circulares).
+- **Verificación:** tests con datos sintéticos en la base: una fila de circular con los cuatro puntos cumple; con el texto original equivocado falla solo el punto 2; con fecha distinta falla solo el punto 4; una fila sin fuente falla el punto 1; una fuente en una fila sin esperado cuenta como ruido, por documento; una lista con `alcance: circulares` no calcula encontrados ni sobrantes del resto; `--verificar-esperada` rechaza un bloque cuyo ancla no está en la lectura; `resumen-publico.md` no contiene el texto de ninguna ancla ni cita (se comprueba buscando cada una); una lista sin bloques da las medidas de antes; suite en verde.
+- **No tocar:** la propuesta (`proposal/`); la regla de emparejamiento; las listas esperadas existentes. Espera a T-111 (mismo archivo).
+- **Entorno:** cualquier equipo con Docker.
+
+### T-118 · Cargar los casos 05 y 06 y preparar sus listas esperadas de circulares
+
+- **Qué hacer:** el Coordinador (datos, sin código), con el usuario `desarrollo`: carga los documentos de los casos 05 (A0KJ000000-0008-LPU24, precintos, circulares con respuestas a consultas) y 06 (A0PC000000-0007-LPU26, bases online, circular aclaratoria) en `corpus/casos/caso-05/` y `caso-06/` (fuera del repositorio, material público), con su fecha y tipo de documento; escribe `matriz-esperada.yaml` de cada uno con `alcance: circulares` y `uso: ajuste`, leyendo solo el texto, con una entrada por fila que una circular o respuesta cambia, aclara, suprime o agrega y su bloque `circular`. Los casos 03 y 04 no se tocan ni se miran.
+- **Archivos:** `corpus/casos/caso-05/` y `corpus/casos/caso-06/` (fuera del repositorio); en el repositorio, solo la fila de esta tabla y `specs/003-pliego-matriz/verificacion/T-118.md` con cuentas, sin texto.
+- **Verificación:** los archivos se leen como YAML; `medir_matriz --verificar-esperada` los acepta (anclas y documentos existen en la lectura); la verificación anota cuántos documentos, circulares y filas esperadas hay por caso, sin texto del pliego.
+- **No tocar:** el sistema; los casos 03 y 04.
+- **Entorno:** datos.
+
+### T-119 · Actualizar la lista esperada del caso-01 con las filas que las circulares afectan
+
+- **Qué hacer:** el Coordinador (datos, sin código): actualiza `corpus/casos/caso-01/esperado/matriz-esperada.yaml` (fuera del repositorio) con el bloque `circular` de cada fila afectada por las dos circulares, leyendo solo el texto (no una salida del sistema nueva); las filas de un anexo que una circular suprime (las del Anexo VI) cuentan como afectadas y esperadas junto con la que exige presentarlo (decisión 5 del 2026-10-04); suma la fila de la visita con su cita en el anexo original y las del par "Donde dice / Debe decir" y la fila que agrega la circular 2. Nueva huella y registro del cambio.
+- **Archivos:** `corpus/casos/caso-01/esperado/matriz-esperada.yaml` (fuera del repositorio); `specs/003-pliego-matriz/verificacion/T-119.md` con cuentas y claves, sin texto.
+- **Verificación:** `medir_matriz --verificar-esperada` acepta la lista; la verificación informa cuántas filas de circular se esperaban por circular y la huella nueva; sin texto del pliego en el repositorio.
+- **No tocar:** el sistema; lo que no sea el bloque `circular` y las filas afectadas por una circular.
+- **Entorno:** datos.
+
+### T-120 · Medir y ajustar la pasada de circulares con los casos 01, 05 y 06, con estabilidad
+
+- **Qué hacer:** con T-113, T-115, T-117, T-118 y T-119 integradas, corridas reales, de a una, con el modelo, sobre los casos 01, 05 y 06 (`uso: ajuste`; los casos 03 y 04 no se miran). Primero solo la entrega 1 (`CIRCULAR_EXTRACTION_ENABLED` en falso) y después con la entrega 2. Informe con la medición por fila de T-117 (cuatro puntos, por circular y por caso), fuentes ajenas (la meta es 0 en las filas técnicas), requisitos `circular` de más, tramos de circular con disposición, cuántos cambios se resolvieron por clave, cuántos por el modelo y cuántos fueron al respaldo, pedidos, tiempo y tokens de la pasada de circulares frente a los 432 s y 836.000 medidos. **Estabilidad:** la extracción con el modelo se repite 3 veces sobre el caso-01 y se informa si los cambios y las fuentes resultantes son los mismos. Hasta dos rondas de ajuste, solo de las instrucciones `matriz-circulares-v3.md` (v4 y v5) y de las constantes de `circular_units.py` (línea corta de las listas, verbos), con una frase general por ronda que no nombre cláusulas, midiendo cada una.
+- **Archivos:** `evaluon/tenders/prompts/matriz-circulares-v4.md` y `v5.md` (solo si hay ajuste), `evaluon/tenders/proposal/circular_units.py` (solo constantes y listas de verbos), `evaluon/settings.py` (versión activa en `MATRIX_PROMPT_VERSIONS`), tests de la versión en `tests/tenders/`; corridas en `corpus/casos/caso-0N/corridas/` (fuera del repositorio); `specs/003-pliego-matriz/verificacion/T-120.md` sin texto del pliego ni de las circulares.
+- **Verificación:** el informe con todas las medidas; REQ-031 cumplido en el caso-01 (todas sus filas de circular en los cuatro puntos) y las cuentas de 05 y 06; estabilidad de las 3 repeticiones; cuántas rondas se hicieron y qué movió cada una; ningún texto del pliego en el repositorio; suite en verde si hubo cambios de código. Si no se cumple, se informa con la causa y se pasa al Coordinador; no se ajusta más.
+- **No tocar:** las listas esperadas; la regla de emparejamiento; los casos 03 y 04; las instrucciones de las demás pasadas.
+- **Entorno:** MSI con GPU, sin otra carga.
+
 ### T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro
 
 - **Qué hacer:** hoy `crear_usuario --rol-comision` solo sirve para usuarios nuevos. El 2026-10-04 el Coordinador le dio rol de evaluador al usuario `sandro` en la base real con una actualización directa del campo `commission_role` (pedido del responsable), sin hecho de auditoría porque no hay tipo de hecho ni comando para eso. Agregar un comando `rol_comision <usuario> {operador,evaluador,ninguno}` que cambie el rol y deje un hecho (un tipo nuevo `user_role_changed`, con su migración de `audit`, o el que corresponda), y anotar en el registro el cambio manual del 2026-10-04 corriendo el comando sobre `sandro` con el mismo valor o registrando el hecho de regularización.
@@ -459,11 +546,11 @@ Plan: sección "Enmienda del 2026-10-04" de `plan.md` y su subsección "Sugerenc
 | REQ-025 | T-067, T-070, T-073, T-074, T-075, T-076, T-077, T-084, T-097, T-101, T-108 |
 | REQ-026 | T-067, T-068, T-079, T-082, T-104, T-110 |
 | REQ-027 | T-067, T-068, T-082 |
-| REQ-028 | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082, T-098 |
+| REQ-028 | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082, T-098, T-113 |
 | REQ-029 | T-067, T-068, T-080, T-081, T-084 |
 | REQ-030 | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085, T-096, T-097, T-099, T-100, T-103, T-108 |
-| REQ-031 | T-067, T-072, T-074, T-083, T-098, T-108 |
-| REQ-032 | T-067, T-074, T-082, T-086, T-105, T-112 |
+| REQ-031 | T-067, T-072, T-074, T-083, T-098, T-108, T-113, T-114, T-115, T-116, T-117, T-118, T-119, T-120 |
+| REQ-032 | T-067, T-074, T-082, T-086, T-105, T-112, T-116 |
 | REQ-033 | T-099, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108 |
 | REQ-034 | T-104, T-105, T-110, T-112 |
 | REQ-035 | T-099, T-102, T-103, T-106, T-107, T-108, T-110, T-111, T-112 |
@@ -502,6 +589,18 @@ Cadenas que se respetan por compartir archivos:
 | Terminadas T-102, T-103, T-109 y T-111 | T-106 (GPU) | La GPU, de a una |
 | Terminada T-106 | T-107 (datos) | Es del Coordinador y el responsable |
 | Terminadas T-094, T-105, T-112 y T-107 | T-108 (GPU) | La GPU, de a una |
+
+**Enmienda del 2026-10-04: circulares (T-113 a T-120).**
+
+| Momento | Pueden ir a la vez | Por qué no chocan |
+|---|---|---|
+| Ahora (T-098 integrada) | T-113 (`proposal/circular_units.py`, `circulars.py`, `_save_circulars` en `run.py`), T-114 (esquema, `settings.py`, `_copy` de `validation.py`) y T-117 una vez que T-111 esté integrada (`evaluation.py`) | Código de circulares frente a esquema y configuración frente a medición. La referencia al original de T-113 espera a T-114 |
+| Terminadas T-113 y T-114 | T-115 (`circular_changes.py`, instrucciones v3) y T-116 (vistas y plantillas, además de T-105 y T-112) | Proposal frente a vistas; T-115 no toca plantillas ni T-116 `proposal/` |
+| Terminada T-117 | T-118 y T-119 (datos), en paralelo con T-115 y T-116 | Son del Coordinador, fuera del repositorio |
+| Terminadas T-113, T-115, T-117, T-118 y T-119 | T-120 (GPU), de a una con T-106 y T-108 | La GPU |
+| Terminadas T-116 y T-120 (más lo anterior de T-108) | T-108 | La aceptación final: REQ-031 con 03 y 04 |
+
+Cadenas nuevas: `proposal/circulars.py`: T-098 → T-113 → T-115. `evaluation.py` y `medir_matriz`: T-097 → T-100 → T-103 → T-111 → T-117. Vistas y plantillas: T-105 → T-112 → T-116. Esquema: solo T-114.
 
 T-094 sigue como estaba pensada, antes del filtro, y no se rehace: la aceptación final es T-108. El Coordinador decide si T-094 se cierra con lo ya medido o se retira.
 
