@@ -19,6 +19,8 @@ Opciones:
 
 Mide el proceso único (REQ-030 enmendado: ya no hay niveles ni comparación entre ellos):
 corre la propuesta con el canal `eval`; la versión que crea queda descartada.
+Las sugerencias de condición no entran en el tope; se informan aparte (T-111), con la
+plantilla local `muestra-sugerencias.md` para el verificador.
 Se corre de a una, sin otra carga en la GPU.
 """
 
@@ -104,7 +106,9 @@ class Command(BaseCommand):
                 f"{evaluation.proportion_text(measures['found'])}; cita literal "
                 f"{evaluation.proportion_text(measures['literal'])}; sobrantes "
                 f"{evaluation.proportion_text(measures['leftover_ratio'])}; descartadas "
-                f"{measures['discarded']['count']}; tope de sobrantes "
+                f"{measures['discarded']['count']}; sugerencias "
+                f"{measures['suggestions']['count']} (a revisión obligatoria: "
+                f"{measures['suggestion_review']['count']}); tope de sobrantes "
                 f"{'cumple' if measures['cap']['met'] else 'no cumple'}")
         blocking = report.blocking
         lines.append("Bloquea la aceptación: " + ("; ".join(blocking) if blocking

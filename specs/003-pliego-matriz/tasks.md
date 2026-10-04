@@ -58,7 +58,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-108 | Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04 | REQ-024, REQ-025, REQ-030, REQ-031, REQ-033, REQ-035, REQ-036 | T-094, T-105, T-112, T-107, T-116, T-120 | pendiente |
 | T-109 | Buscar el respaldo normativo de cada sugerencia, sin que nunca la descarte | REQ-036 | T-099, T-102 | pendiente |
 | T-110 | Decidir las sugerencias: pasar a requisito o quitar, una por una o por grupo, y bloquear la validación | REQ-035, REQ-034, REQ-026 | T-099, T-104 | terminada |
-| T-111 | Medir las sugerencias y el respaldo normativo: a revisión obligatoria e informe | REQ-035, REQ-036, REQ-024 | T-099, T-103 | pendiente |
+| T-111 | Medir las sugerencias y el respaldo normativo: a revisión obligatoria e informe | REQ-035, REQ-036, REQ-024 | T-099, T-103 | terminada |
 | T-112 | Mostrar la sección de sugerencias con su respaldo en la pantalla y en la impresión | REQ-035, REQ-036, REQ-034, REQ-032 | T-105, T-110 | pendiente |
 | T-113 | Pasada de circulares, entrega 1: unidades de cambio aplicadas por clave, sin modelo | REQ-028, REQ-031 | T-098 | terminada |
 | T-114 | Crear el campo de original en un anexo, el pedido de extracción de cambios y los parámetros de circulares | REQ-031 | T-099, T-100 | terminada |
