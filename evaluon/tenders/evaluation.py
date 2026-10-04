@@ -755,11 +755,20 @@ def _coverage(run, dispositions):
 # --- Tiempos -------------------------------------------------------------------------------
 
 
+def _page_count(reading):
+    """Cantidad real de páginas de la lectura: `Reading.pages` es un diccionario con la lista
+    `pages` (más `encoding`, `file_format`, etc.); no se cuentan sus claves."""
+    data = reading.pages
+    if isinstance(data, dict):
+        data = data.get("pages", [])
+    return len(data or [])
+
+
 def timing_summary(run):
     """Tiempo por pasada, por página y por tramo, y la extrapolación a 50 páginas (provisoria
     mientras no haya un pliego de ese tamaño)."""
     readings = m.Reading.objects.filter(pk__in=[d["reading"] for d in run.documents])
-    pages = sum(len(r.pages) for r in readings)
+    pages = sum(_page_count(r) for r in readings)
     segments = m.Segment.objects.filter(reading__in=readings).count()
     total = run.timings.get("total")
     summary = {"passes": dict(run.timings), "pages": pages, "segments": segments}

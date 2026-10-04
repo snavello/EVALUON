@@ -479,3 +479,22 @@ def test_two_technical_entries_for_one_item_are_a_list_error(case):
     assert not verification.ok
     assert any("renglón 1" in problem and "S-T1" in problem and "S-T4" in problem
                for problem in verification.problems)
+
+
+def test_extrapolation_counts_the_real_pages_of_the_reading(case, operator_user, tmp_path):
+    """REQ-030 (T-089): con una lectura de 20 páginas y 100 s en total, el tiempo por página es
+    5 s y la extrapolación a 50 páginas es el tiempo × 2,5; no se cuentan las claves del
+    diccionario de la lectura."""
+    procedure, _, path, _ = case
+    report = run_measure(operator_user, procedure, path, tmp_path)
+    run = m.MatrixRun.objects.get(pk=report.results[0]["run"])
+    reading = m.Reading.objects.get(pk=run.documents[0]["reading"])
+    reading.pages = {**reading.pages, "pages": [{"number": n} for n in range(1, 21)]}
+    reading.save(update_fields=["pages"])
+    run.timings = {"extraccion": 90.0, "total": 100.0}
+
+    timings = ev.timing_summary(run)
+
+    assert timings["pages"] == 20
+    assert timings["seconds_per_page"] == 5.0
+    assert timings["extrapolated_50_pages_seconds"] == 250.0
