@@ -1754,3 +1754,84 @@ def test_old_list_without_blocks_gives_the_usual_measures(case, operator_user, t
         encoding="utf-8")
     again = ev.regenerate_summaries(procedure, expected, report.folder)
     assert again.results[0]["measures"]["circulars"] is None
+
+
+# --- Correcciones de la verificación de T-117 --------------------------------------------------
+
+
+def test_block_document_not_in_the_list_blocks(circular_case):
+    """REQ-031: un bloque cuyo `documento` no figura en los documentos de la lista bloquea (un
+    nombre mal escrito no puede quedar "sin medir")."""
+    c = circular_case
+    c.write_list(document="Circular mal escrita.pdf")
+
+    check = ev.verify_expected(ev.load_expected(c.path), c.procedure)
+
+    assert not check.ok and any("S-001" in p and "lista" in p for p in check.problems)
+
+
+def test_block_document_not_loaded_blocks_unless_declared_so(case):
+    """REQ-031: un bloque cuya circular está en la lista pero no cargada bloquea; solo se
+    informa (sin medir) si la lista declara `cargado: false` para ese documento."""
+    procedure, _, path, text = case
+    assert "    cargado: false\n" in text
+    declared = ev.verify_expected(ev.load_expected(path), procedure)
+    assert declared.ok and any("no está cargada" in n for n in declared.notes)
+
+    write(path, text.replace("    cargado: false\n", ""))
+    undeclared = ev.verify_expected(ev.load_expected(path), procedure)
+
+    assert not undeclared.ok
+    assert any("S-001" in p and "no está cargada" in p for p in undeclared.problems)
+
+
+def test_unmeasured_declared_circular_is_reported_in_the_summary(case, operator_user, tmp_path):
+    """REQ-031: la circular declarada sin cargar queda "sin medir" y el resumen público lo
+    informa con la clave de la fila."""
+    procedure, _, path, _ = case
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    assert report.results[0]["measures"]["circulars"]["unmeasured"] == ["S-001"]
+    public = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "sin medir porque la circular no está cargada: S-001" in public
+
+
+def test_the_four_points_must_be_met_by_one_same_source(circular_case):
+    """REQ-031: los cuatro puntos los cumple una misma fuente; puntos repartidos entre dos
+    fuentes de la fila no cuentan."""
+    from datetime import date
+
+    c = circular_case
+    c.write_list()
+    row = c.row_with("garantía del 5 %")
+    c.add_source(row, effect="modifica", issued=date(2025, 12, 2))  # falla el punto 4
+    c.add_source(row, effect="aclara", issued=date(2025, 12, 1))  # falla el punto 1
+
+    info = c.measure()[2]["circulars"]
+
+    assert info["met"]["ok"] == 0
+    assert info["failing"] and len(info["failing"][0]["puntos"]) == 1
+    # los puntos sueltos no se suman entre fuentes
+    assert sum(info["points"][name]["ok"] for name in ev.POINTS) == 3
+
+
+def test_public_summary_failing_row_line_has_no_text(circular_case):
+    """P4, REQ-031: con una fila que no cumple, la línea "no cumple" del resumen público lleva
+    la clave, el documento y los puntos, y ningún texto de ancla ni de cita."""
+    c = circular_case
+    expected = c.write_list(original="multa del 1 % diario")
+    c.add_source(c.row_with("garantía del 5 %"))
+    _, check, _ = c.measure()
+    result = ev._result_of_run(c.run, c.version, c.procedure, expected, check.readings)
+    report = ev.Report(c.path.parent, expected, check, [result])
+
+    public = ev._summary(report, public=True)
+
+    line = next(row for row in public.splitlines() if "no cumple S-001" in row)
+    assert "puntos 2" in line and CIRCULAR_FILE in line
+    block = next(i for i in expected.items if i.id == "S-001").blocks[0]
+    for text in (block.anchor, block.original_anchor, block.current_anchor,
+                 *(q.text for q in m.RequirementQuote.objects.filter(
+                     requirement__version=c.version))):
+        assert text not in public

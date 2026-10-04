@@ -530,17 +530,29 @@ def _verify_technical(expected, item, result):
 
 
 def _verify_circular(expected, item, block, result, documents):
-    """Comprueba un bloque `circulares` contra la lectura (T-117). Si la circular no está
-    cargada, solo se informa (se usa cuando la propuesta la lee). Si está cargada, bloquea
+    """Comprueba un bloque `circulares` contra la lectura (T-117). Un documento que no figura
+    en la lista, o que figura y no está cargado sin que la lista lo declare (`cargado: false`),
+    bloquea; el declarado sin cargar solo se informa. Si está cargada, bloquea
     que el tramo o el ancla no existan, que la fecha no sea la del documento, que el texto
     original no esté en el documento que lo contiene o que el texto vigente no esté en la
     circular."""
     name = block.document
     label = f"{item.id}: la circular {_doc_label(expected, name)}"
     result.counts["circular_anchors"] += 1
+    listed = {d["archivo"]: d for d in expected.documents}
+    if name not in listed:
+        result.problems.append(f"{item.id}: el documento del bloque de circular no figura en "
+                               "los documentos de la lista (¿nombre mal escrito?)")
+        return
     segments = result.segments.get(name)
     if segments is None:
-        result.notes.append(f"{label} no está cargada")
+        # Solo se informa si la lista declara que esa circular no se carga (`cargado: false`).
+        text = f"{label} no está cargada"
+        if listed[name].get("cargado") is False:
+            result.notes.append(text)
+        else:
+            result.problems.append(text + " (si es a propósito, la lista lo declara con "
+                                   "`cargado: false`)")
         return
     problems = []
     document = documents.get(name)

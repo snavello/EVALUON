@@ -110,7 +110,8 @@ class Command(BaseCommand):
                 lines.append(
                     f"{result['process']}: REQ-031, filas de circular que cumplen los cuatro "
                     f"puntos {evaluation.proportion_text(circulars['met'])}; fuentes ajenas "
-                    f"{circulars['noise']['sources']}")
+                    f"{circulars['noise']['sources']}; sin medir (circular declarada sin "
+                    f"cargar) {len(circulars['unmeasured'])}")
             if measures.get("scope") == evaluation.SCOPE_CIRCULARS:
                 continue
             lines.append(
