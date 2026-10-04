@@ -36,7 +36,7 @@ def case(operator_user, script):
                                  "economico")]))
     script.when(PAGO, item([(PAGO, "economico")]))
     script.when("Bolsa de diez kilogramos", item(technical=["2"]))
-    requested, job = propose(operator_user, procedure, level="alta")
+    requested, job = propose(operator_user, procedure)
     assert job.status == "done", job.error
     return requested.run.version
 
