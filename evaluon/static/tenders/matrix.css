@@ -85,3 +85,27 @@
   list-style: none;
   padding-left: 0;
 }
+
+/* Revisión de la matriz (T-079). */
+.review-error {
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid #b00020;
+  background: #fdecea;
+}
+
+.review-actions form {
+  margin: 0.5rem 0;
+}
+
+.review-actions label {
+  display: block;
+  margin: 0.25rem 0;
+}
+
+.review-actions textarea {
+  width: 100%;
+}
+
+.requirement.removed {
+  opacity: 0.75;
+}

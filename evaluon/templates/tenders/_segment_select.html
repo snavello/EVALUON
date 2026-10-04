@@ -1,0 +1,1 @@
+{% comment %}Lista de tramos del pliego para elegir uno. Recibe `page`, `name` y `label`.{% endcomment %}<label>{{ label }} <select name="{{ name }}" required><option value="">Elija un tramo</option>{% for id, text in page.segment_options %}<option value="{{ id }}">{{ text }}</option>{% endfor %}</select></label>

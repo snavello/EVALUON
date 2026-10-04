@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Historial · requisito {{ page.requirement.number }} · EVALUON{% endblock %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'tenders/matrix.css' %}">{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'tenders:matrix' page.version.pk %}#requisito-{{ page.requirement.number }}">Matriz · versión {{ page.version.number }}</a></p>
+<h1>Historial del requisito {{ page.requirement.number }}</h1>
+
+<section aria-labelledby="current-title">
+  <h2 id="current-title">Como está ahora</h2>
+  <p>{{ page.requirement.get_category_display }} · {{ page.requirement.get_state_display }} · {{ page.requirement.get_origin_display }}{% if page.requirement.items %} · renglones {{ page.requirement.items|join:", " }}{% endif %}</p>
+  {% for quote in page.current.quotes %}<blockquote class="literal">{{ quote.text }}</blockquote>{% endfor %}
+</section>
+
+<section aria-labelledby="proposed-title">
+  <h2 id="proposed-title">Propuesto originalmente</h2>
+  {% if page.proposed %}
+  <p>{{ page.proposed.category }}{% if page.proposed.items %} · renglones {{ page.proposed.items|join:", " }}{% endif %}</p>
+  {% for quote in page.proposed.quotes %}<blockquote class="literal">{{ quote.text }}</blockquote>{% endfor %}
+  {% else %}
+  <p>No lo propuso el sistema: lo agregó una persona.</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="changes-title">
+  <h2 id="changes-title">Cambios</h2>
+  {% for change in page.changes %}
+  <article class="change">
+    <h3>{{ change.get_action_display }} · {{ change.user.username }} · {{ change.at|date:"d/m/Y H:i" }}</h3>
+    {% if change.before %}
+    <p>Antes: {{ change.before.category }}{% if change.before.items %} · renglones {{ change.before.items|join:", " }}{% endif %}{% if change.before.state %} · {{ change.before.state }}{% endif %}</p>
+    {% for quote in change.before.quotes %}<blockquote class="literal">{{ quote.text }}</blockquote>{% endfor %}
+    {% endif %}
+    {% if change.after %}
+    <p>Después: {{ change.after.category }}{% if change.after.items %} · renglones {{ change.after.items|join:", " }}{% endif %}{% if change.after.state %} · {{ change.after.state }}{% endif %}</p>
+    {% for quote in change.after.quotes %}<blockquote class="literal">{{ quote.text }}</blockquote>{% endfor %}
+    {% endif %}
+  </article>
+  {% empty %}
+  <p>Todavía no tiene cambios.</p>
+  {% endfor %}
+</section>
+{% endblock %}
