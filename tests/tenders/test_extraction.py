@@ -65,9 +65,10 @@ def dispositions(run):
 
 
 def steps(run):
-    """Los pedidos de extracción de la propuesta; los de consecuencias (T-080) tienen sus
-    propias pruebas."""
-    return list(m.RunStep.objects.filter(run=run).exclude(pass_name="consecuencias")
+    """Los pedidos de extracción de la propuesta; los de consecuencias (T-080) y de
+    unificación (T-101) tienen sus propias pruebas."""
+    return list(m.RunStep.objects.filter(run=run)
+                .exclude(pass_name__in=("consecuencias", "unificacion"))
                 .order_by("id"))
 
 

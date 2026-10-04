@@ -42,7 +42,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 38/54 | ███████░░░ 70% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 41/54 | ████████░░ 76% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -368,15 +368,12 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 16 tareas sin terminar.
-- ○ T-101 · Unificar las filas que repiten la misma condición (pendiente)
+- **Próximo paso:** Desarrollar: 13 tareas sin terminar.
 - ○ T-102 · Filtrar con dos preguntas y repartir cada fila en firme, sugerencia o descartada (pendiente)
-- ○ T-105 · Mostrar las descartadas, las citas repetidas y la revisión por grupos (pendiente)
 - ○ T-106 · Medir el filtro, las sugerencias y el respaldo normativo con el caso-00 y ajustarlos (pendiente)
 - ○ T-107 · Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00 (pendiente)
 - ○ T-108 · Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04 (pendiente)
 - ○ T-109 · Buscar el respaldo normativo de cada sugerencia, sin que nunca la descarte (pendiente)
-- ○ T-110 · Decidir las sugerencias: pasar a requisito o quitar, una por una o por grupo, y bloquear la validación (pendiente)
 - ○ T-111 · Medir las sugerencias y el respaldo normativo: a revisión obligatoria e informe (pendiente)
 - ○ T-112 · Mostrar la sección de sugerencias con su respaldo en la pantalla y en la impresión (pendiente)
 - ○ T-115 · Pasada de circulares, entrega 2: el modelo extrae la lista de cambios donde no hay clave (pendiente)
@@ -423,8 +420,11 @@ flowchart LR
 - ✓ T-098 · Corregir la pasada de circulares (fuentes, tramos descartados y no ubicados) (`91dfa17` 2026-10-04, `ade33cd` 2026-10-04)
 - ✓ T-099 · Crear la tabla de filas descartadas, el estado de sugerencia, el respaldo normativo, las citas repetidas y los parámetros del filtro (`60b3e30` 2026-10-04)
 - ✓ T-100 · Quitar el nivel "media" y dejar un solo proceso registrado (`4b49bad` 2026-10-04, `b271132` 2026-10-04)
+- ✓ T-101 · Unificar las filas que repiten la misma condición (`cdae731` 2026-10-04, `c0fb425` 2026-10-04, `432b167` 2026-10-04, `faedb67` 2026-10-04)
 - ✓ T-103 · Medir los sobrantes sobre las filas firmes, con tope e informe de descartadas (`c631202` 2026-10-04, `73b947a` 2026-10-04)
 - ✓ T-104 · Listar y devolver las filas descartadas, y revisar por grupos (`db7c8e2` 2026-10-04)
+- ✓ T-105 · Mostrar las descartadas, las citas repetidas y la revisión por grupos (`aeb4cc5` 2026-10-04)
+- ✓ T-110 · Decidir las sugerencias: pasar a requisito o quitar, una por una o por grupo, y bloquear la validación (`19b59ad` 2026-10-04)
 - ✓ T-113 · Pasada de circulares, entrega 1: unidades de cambio aplicadas por clave, sin modelo (`cb8072c` 2026-10-04)
 - ✓ T-114 · Crear el campo de original en un anexo, el pedido de extracción de cambios y los parámetros de circulares (`8b858d6` 2026-10-04)
 
@@ -466,16 +466,16 @@ flowchart TD
   T098["✓ T-098 · Corregir la pasada de circulares (fuentes,…"]:::done
   T099["✓ T-099 · Crear la tabla de filas descartadas, el est…"]:::done
   T100["✓ T-100 · Quitar el nivel 'media' y dejar un solo pro…"]:::done
-  T101["○ T-101 · Unificar las filas que repiten la misma con…"]:::todo
+  T101["✓ T-101 · Unificar las filas que repiten la misma con…"]:::done
   T102["○ T-102 · Filtrar con dos preguntas y repartir cada f…"]:::todo
   T103["✓ T-103 · Medir los sobrantes sobre las filas firmes,…"]:::done
   T104["✓ T-104 · Listar y devolver las filas descartadas, y…"]:::done
-  T105["○ T-105 · Mostrar las descartadas, las citas repetida…"]:::todo
+  T105["✓ T-105 · Mostrar las descartadas, las citas repetida…"]:::done
   T106["○ T-106 · Medir el filtro, las sugerencias y el respa…"]:::todo
   T107["○ T-107 · Decidir con el responsable el tope, la list…"]:::todo
   T108["○ T-108 · Medir la aceptación del proceso con filtro…"]:::todo
   T109["○ T-109 · Buscar el respaldo normativo de cada sugere…"]:::todo
-  T110["○ T-110 · Decidir las sugerencias: pasar a requisito…"]:::todo
+  T110["✓ T-110 · Decidir las sugerencias: pasar a requisito…"]:::done
   T111["○ T-111 · Medir las sugerencias y el respaldo normati…"]:::todo
   T112["○ T-112 · Mostrar la sección de sugerencias con su re…"]:::todo
   T113["✓ T-113 · Pasada de circulares, entrega 1: unidades d…"]:::done
@@ -586,7 +586,7 @@ flowchart TD
 | REQ-023 | El sistema debe permitir cargar el pliego final de un procedimiento como uno o más documentos, conservando cada original sin cambios | T-067, T-072, T-075 | ✓ cubierto |
 | REQ-024 | El sistema debe proponer, a partir del pliego cargado, la lista de requisitos que debe cumplir una oferta, cada uno clasificado como formal, económico o técnico | T-067, T-070, T-071, T-073, T-074, T-075, T-076, T-077, T-078, T-084, T-090, T-092, T-093, T-094, T-095, T-102, T-103, T-106, T-108, T-111 | ▶ en proceso |
 | REQ-025 | Cada requisito propuesto debe citar el texto literal del pliego que lo exige, con el documento y la ubicación (página y cláusula, si la hay) | T-067, T-070, T-073, T-074, T-075, T-076, T-077, T-084, T-094, T-097, T-101, T-108 | ▶ en proceso |
-| REQ-026 | La Comisión debe poder confirmar, corregir, quitar o agregar requisitos; cada cambio queda registrado con quién lo hizo y cuándo | T-067, T-068, T-079, T-082, T-088, T-104, T-110 | ▶ en proceso |
+| REQ-026 | La Comisión debe poder confirmar, corregir, quitar o agregar requisitos; cada cambio queda registrado con quién lo hizo y cuándo | T-067, T-068, T-079, T-082, T-088, T-104, T-110 | ✓ cubierto |
 | REQ-027 | Una matriz validada queda fija: cambiarla después genera una versión nueva, sin perder la anterior | T-067, T-068, T-082 | ✓ cubierto |
 | REQ-028 | Cuando el sistema no puede ubicar con certeza un tramo del pliego (texto ilegible, tabla mal leída), debe señalarlo para revisión en lugar de omitirlo | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082, T-098, T-113 | ✓ cubierto |
 | REQ-029 | Para cada requisito, el sistema debe proponer las consecuencias posibles de no cumplirlo (por ejemplo, desestimación de la oferta o intimación a subsanar), cada una con su fundamento en el pliego o en la norma aplicable; un integrante de la Comisión confirma una. Si el sistema no encuentra fundamento, la consecuencia queda "no determinada" | T-067, T-068, T-080, T-081, T-084 | ✓ cubierto |

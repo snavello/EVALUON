@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Descartadas por el sistema · versión {{ version.number }} · {{ procedure.number }} · EVALUON{% endblock %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'tenders/matrix.css' %}">{% endblock %}
+
+{% block banner %}{% if version.status != "validated" %}
+<div class="draft-banner" role="note">BORRADOR INCOMPLETO</div>
+{% endif %}{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'tenders:matrix' version.pk %}">Matriz · versión {{ version.number }}</a></p>
+<h1>Descartadas por el sistema · {{ procedure.number }}</h1>
+<p>Filas que el sistema consideró que no son requisitos que una oferta deba cumplir, con el texto del pliego, el motivo y el indicio que lo sostiene. Si alguna es un requisito, devuélvala a la matriz: la confirma después un evaluador.</p>
+{% if review_error %}<p class="review-error" role="alert">{{ review_error }}</p>{% endif %}
+
+{% if items %}
+{% if can_restore %}<form id="restore-form" method="post" action="{% url 'tenders:discarded_restore' version.pk %}">{% csrf_token %}
+  <button type="submit">Devolver a la matriz</button>
+</form>{% endif %}
+<section class="discarded-list" aria-labelledby="discarded-title">
+  <h2 id="discarded-title">{{ items|length }} fila{{ items|length|pluralize }}</h2>
+  {% for item in items %}
+  <article class="requirement discarded{% if item.view.state == 'devuelta' %} returned{% endif %}" id="descartada-{{ item.view.row.pk }}">
+    <h3>Fila descartada {{ forloop.counter }} <span class="class-mark class-{{ item.view.row.category }}">{{ item.category_label }}</span> <span class="state-mark">{% if item.view.state == "devuelta" %}Devuelta a la matriz{% else %}Descartada{% endif %}</span></h3>
+    {% if can_restore and item.can_pick %}<label class="confirm-box"><input type="checkbox" name="row" value="{{ item.view.row.pk }}" form="restore-form"> Devolver</label>{% endif %}
+    {% if item.view.state == "devuelta" and item.view.requirement %}<p><a href="{% url 'tenders:matrix' version.pk %}#requisito-{{ item.view.requirement.number }}">Ver el requisito {{ item.view.requirement.number }} en la matriz</a></p>{% endif %}
+    <blockquote class="literal">{{ item.view.row.text }}</blockquote>
+    <p class="quote-place">{% include "tenders/_place.html" with place=item.place %}</p>
+    {% for extra in item.extras %}
+    <p class="source-label">También en:</p>
+    <blockquote class="literal">{{ extra.text }}</blockquote>
+    <p class="quote-place">{% include "tenders/_place.html" with place=extra.place %}</p>
+    {% endfor %}
+    {% if item.view.row.items %}<p>Renglones: {{ item.view.row.items|join:", " }}</p>{% endif %}
+    <p><strong>Motivo:</strong> {{ item.reason_label }}</p>
+    <p class="source-label">Indicio:</p>
+    <blockquote class="literal">{{ item.view.row.evidence_text }}</blockquote>
+    <p class="quote-place">{% include "tenders/_place.html" with place=item.evidence_place %}</p>
+  </article>
+  {% endfor %}
+</section>
+{% else %}
+<p>El sistema no descartó ninguna fila en esta matriz.</p>
+{% endif %}
+{% endblock %}

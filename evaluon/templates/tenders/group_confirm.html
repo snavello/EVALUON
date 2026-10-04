@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ verb }} las {{ count }} propuestas · versión {{ version.number }} · {{ procedure.number }} · EVALUON{% endblock %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'tenders/matrix.css' %}">{% endblock %}
+
+{% block banner %}<div class="draft-banner" role="note">BORRADOR INCOMPLETO</div>{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'tenders:matrix' version.pk %}">Matriz · versión {{ version.number }}</a></p>
+<h1>{{ verb }} las {{ count }} propuestas</h1>
+<p>Grupo <strong>{{ group }}</strong> · versión {{ version.number }}. Estas son las filas que se van a {% if action == "confirmar" %}confirmar{% else %}quitar{% endif %}; hasta que acepte, no cambia nada.</p>
+{% if corrected_count %}<p class="review-error" role="note">{{ corrected_count }} de estas filas {{ corrected_count|pluralize:"fue,fueron" }} corregida{{ corrected_count|pluralize }} por una persona: revíselas antes de {% if action == "confirmar" %}confirmar{% else %}quitar{% endif %}.</p>{% endif %}
+<form method="post" action="{% url 'tenders:group_review' version.pk %}" class="group-actions">{% csrf_token %}
+  <input type="hidden" name="group" value="{{ group }}">
+  <input type="hidden" name="action" value="{{ action }}">
+  <button type="submit">Aceptar</button>
+  <a href="{% url 'tenders:matrix' version.pk %}">Cancelar</a>
+</form>
+<section class="group-rows" aria-labelledby="group-rows-title">
+  <h2 id="group-rows-title">Filas del grupo</h2>
+  {% for item in items %}
+  <article class="requirement group-row" id="fila-{{ item.requirement.number }}">
+    <h3>Requisito {{ item.requirement.number }} <span class="class-mark class-{{ item.requirement.category }}">{{ item.requirement.get_category_display }}</span>{% if item.corrected %} <span class="state-mark corrected-mark">Corregida por una persona</span>{% endif %}</h3>
+    {% for quote in item.quotes %}
+    <blockquote class="literal">{{ quote.text }}</blockquote>
+    <p class="quote-place">{% include "tenders/_place.html" with place=quote.place %}</p>
+    {% endfor %}
+  </article>
+  {% endfor %}
+</section>
+{% endblock %}
