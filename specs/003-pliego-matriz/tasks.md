@@ -30,7 +30,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-080 | Sugerir consecuencias con fundamento | REQ-029 | T-078 | terminada |
 | T-081 | Elegir la consecuencia en la pantalla, con su motivo | REQ-029 | T-079, T-080 | terminada |
 | T-082 | Validar la matriz y abrir versiones nuevas | REQ-026, REQ-027, REQ-028, REQ-032 | T-081 | pendiente |
-| T-083 | Incorporar circulares y respuestas a consultas | REQ-031 | T-080 | pendiente |
+| T-083 | Incorporar circulares y respuestas a consultas | REQ-031 | T-080 | terminada |
 | T-084 | Correr la medición del caso-00 | REQ-024, REQ-025, REQ-029, REQ-030 | T-075, T-076, T-077, T-080 | pendiente |
 | T-085 | Ofrecer solo los niveles que mejoran | REQ-030 | T-084 | pendiente |
 | T-086 | Imprimir y exportar la matriz a PDF con la leyenda de borrador | REQ-032 | T-082 | pendiente |

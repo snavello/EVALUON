@@ -138,6 +138,8 @@ class Subject:
     text: str = ""
     unit: object = None
     own: list = field(default_factory=list)
+    # Citas que una circular cambió: `(texto original, texto vigente)` (REQ-031).
+    changes: list = field(default_factory=list)
 
 
 def build_subjects(loaded, body, rows):
@@ -174,7 +176,12 @@ def render_subject(alias, subject):
         lines.append(f"Documento: {subject.unit.document_title}")
         segment = subject.unit.segment
         lines.append(f"Ruta: {segment.path or segment.label or segment.key}")
-    if subject.category != RequirementClass.TECNICO.value:
+    if subject.changes:
+        # Una circular cambió el requisito: se evalúa sobre lo que se exige hoy.
+        for original, current in subject.changes:
+            lines += ["Texto vigente (según una circular):", current,
+                      "Texto original del pliego:", original]
+    elif subject.category != RequirementClass.TECNICO.value:
         lines += ["Texto:", subject.text]
     lines.append(f"[/{alias}]")
     return "\n".join(lines)
