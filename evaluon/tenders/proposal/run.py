@@ -28,6 +28,10 @@ Pasadas, en orden:
    (requisito `propuesto`), sugerencia (requisito `sugerido` con su motivo de duda) o
    descartada (`tenders_discarded_row`), según la tabla de destinos del plan. Ante la duda
    o una falla, la fila se queda.
+4 ter. **Respaldo normativo** (`norm_support.py`; REQ-036; `NORM_SUPPORT_ENABLED`): para cada
+   sugerencia, busca en la normativa de la fecha de autorización si el régimen exige esa
+   condición; la cita queda como respaldo (`tenders_norm_support`). Solo inserta respaldos: no
+   cambia el estado de ninguna fila, y sin respaldo la sugerencia queda igual.
 5. **Filas técnicas** (`technical.py`): una por renglón, por regla, después de la
    completitud. Los tramos de secciones técnicas no pasan por el modelo y no llegan a la
    completitud.
@@ -91,6 +95,7 @@ from evaluon.tenders.models import (
     DispositionOutcome,
     DispositionSource,
     MatrixVersion,
+    NormSupport,
     PassName,
     PendingItem,
     PendingReason,
@@ -111,6 +116,7 @@ from evaluon.tenders.proposal import (
     consequences,
     dedup,
     extraction,
+    norm_support,
     quotes,
     technical,
 )
@@ -304,6 +310,10 @@ def _parameters(run, with_circulars=False):
         "filter_rule_version": row_filter.RULE_VERSION,
         "suggestions_enabled": settings.SUGGESTIONS_ENABLED,
         "doubt_motives": list(settings.DOUBT_MOTIVES),
+        "norm_support_enabled": settings.NORM_SUPPORT_ENABLED,
+        "norm_support_min_score": settings.NORM_SUPPORT_MIN_SCORE,
+        "norm_support_max_units": settings.NORM_SUPPORT_MAX_UNITS,
+        "norm_support_query_max_chars": settings.NORM_SUPPORT_QUERY_MAX_CHARS,
     }
 
 
@@ -435,6 +445,20 @@ def propose(run, *, user, channel=Channel.COMMAND):
             requests[PassName.FILTRO_2.value] = row_pass.stats["requests_b"]
             timings["filtro"] = round(time.monotonic() - started, 3)
 
+        # 3 quinquies. Respaldo normativo de cada sugerencia (solo inserta respaldos).
+        supported = None
+        if filtered is not None and settings.NORM_SUPPORT_ENABLED:
+            suggestions_found = filtered.of(row_filter.SUGERENCIA)
+            if suggestions_found:
+                started = time.monotonic()
+                supporter = norm_support.Supporter(run)
+                workers.append(supporter)
+                supported = supporter.support(suggestions_found)
+                anomalies.extend(supported.anomalies)
+                requests[PassName.RESPALDO_NORMATIVO.value] = supporter.stats["requests"]
+                timings["respaldo_normativo"] = round(time.monotonic() - started, 3)
+                _record_support_pass(run)
+
         # 4. Filas técnicas.
         started = time.monotonic()
         contributions = []
@@ -500,11 +524,23 @@ def propose(run, *, user, channel=Channel.COMMAND):
         with transaction.atomic():
             version = _save(run, loaded, decisions, rows, stats, requests, completion_stats,
                             anomalies, timings, clock, user, channel, started, suggestions,
-                            dated, circular_result, unification, filtered)
+                            dated, circular_result, unification, filtered, supported)
     except Exception as error:
         _record_failure(run, user, channel, error, workers, timings, clock)
         raise
     return version
+
+
+def _record_support_pass(run):
+    """Anota en la propuesta que corrió el respaldo normativo y con qué instrucciones (P6).
+    Solo si corrió: sin sugerencias no hay consulta y no hay nada que registrar."""
+    passes = list(run.parameters["passes"])
+    if "respaldo_normativo" not in passes:
+        passes.insert(passes.index("filtro") + 1, "respaldo_normativo")
+    run.parameters = {**run.parameters, "passes": passes}
+    run.prompt_versions = {**run.prompt_versions,
+                           "respaldo": settings.MATRIX_PROMPT_VERSIONS["respaldo"]}
+    run.save(update_fields=["parameters", "prompt_versions"])
 
 
 def completeness_candidates(loaded, decisions):
@@ -741,7 +777,7 @@ def _save_discarded(run, version, loaded, repeated, filtered):
 
 def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anomalies,
           timings, clock, user, channel, started, suggestions, dated=None,
-          circular_result=None, unification=None, filtered=None):
+          circular_result=None, unification=None, filtered=None, supported=None):
     """Crea la versión borrador y todo lo que cuelga de ella, y deja el hecho
     `matrix_proposal`. Corre dentro de una transacción."""
     procedure = run.procedure
@@ -812,6 +848,12 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
                 requirement=requirement, order=order, segment=s, char_start=a,
                 char_end=b, text=t, scope="repetida", quote_flag="",
             )
+        for support in (supported.supports.get(id(found), ()) if supported else ()):
+            NormSupport.objects.create(
+                requirement=requirement, unit=support.unit, unit_label=support.unit_label,
+                char_start=support.char_start, char_end=support.char_end, text=support.text,
+                score=support.score, regime=_regime_label(run), step=support.step,
+                corpus_version=run.corpus_version)
         by_class[found.category] += 1
 
     # Filas descartadas por el filtro: solo se guardan, no son requisitos (REQ-033).
@@ -934,6 +976,10 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
             "discarded_by_pass", "suggestions_by_reason", "suggestions_by_pass",
             "firm_by_failure", "requests_a", "requests_b", "split_batches",
             "failed_requests")}
+    if supported is not None:
+        counts["norm_support"] = {key: supported.stats[key] for key in (
+            "suggestions", "consulted", "with_support", "supports", "no_regime",
+            "failed_retrieval", "failed_requests", "requests", "invalid", "no_units")}
     if circular_result is not None:
         counts["circulars"] = {
             "documents": circulars.circular_record(dated),
@@ -977,6 +1023,12 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
         },
     )
     return version
+
+
+def _regime_label(run):
+    """El régimen de la propuesta como texto: los nombres de las normas, separados por punto
+    y coma."""
+    return "; ".join(entry["name"] for entry in run.regime)[:200]
 
 
 def _record_failure(run, user, channel, error, workers, timings, clock):
