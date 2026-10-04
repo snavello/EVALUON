@@ -284,7 +284,7 @@ MATRIX_PROMPT_VERSIONS = {
     "extraccion": "matriz-extraccion-v2",
     "completitud": "matriz-completitud-v2",
     "consecuencias": "matriz-consecuencias-v1",
-    "circulares": "matriz-circulares-v1",
+    "circulares": "matriz-circulares-v2",
 }
 
 # Motor de generación de los pedidos del `worker` (ADR-0018). Apuntarlo a
