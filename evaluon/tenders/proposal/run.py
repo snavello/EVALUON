@@ -465,8 +465,8 @@ def propose(run, *, user, channel=Channel.COMMAND):
             started = time.monotonic()
             processor = circulars.Processor(run)
             workers.append(processor)
-            circular_result = processor.process(
-                dated, circulars.build_candidates(loaded, body, rows))
+            candidates = circulars.build_candidates(loaded, body, rows)
+            circular_result = processor.process(dated, candidates)
             anomalies.extend(circular_result.anomalies)
             requests[PassName.CIRCULARES.value] = circular_result.stats["requests"]
             timings["circulares"] = round(time.monotonic() - started, 3)
@@ -475,6 +475,7 @@ def propose(run, *, user, channel=Channel.COMMAND):
         started = time.monotonic()
         subjects = consequences.build_subjects(loaded, body, rows)
         if circular_result is not None:
+            circulars.apply_to_subjects(subjects, candidates)
             subjects += circular_result.subjects(
                 len(subjects) + 1, {u.segment.pk: u for d in dated.documents
                                     for u in d.units})

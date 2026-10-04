@@ -494,3 +494,33 @@ def test_without_circulars_nothing_changes(operator_user, case, script):
     assert "circulars" not in run.counts
     assert not m.RequirementSource.objects.exists()
     assert script.requests == []
+
+
+# --- Consecuencias sobre el texto vigente ----------------------------------------------------------------
+
+
+def test_consequences_are_asked_on_the_current_text_with_the_original(operator_user, case,
+                                                                      script):
+    """REQ-031 / REQ-029: la consecuencia de un requisito que una circular cambió se pide
+    sobre el texto vigente (el de la circular), mostrando además el original; lo que no
+    cambió se pide como siempre."""
+    add_circular(operator_user, case, "Circular N.º 1", date(2025, 12, 1),
+                 "1. Reemplázase en la cláusula 2.1 el plazo de 90 días por 60 días corridos.",
+                 "2. Reemplázase en el Renglón N° 1 la memoria de 16 GB de RAM por 32 GB "
+                 "de RAM.")
+    script.c_when("por 60 días", efectos=[("90 días", "modifica", "60 días corridos")])
+    script.c_when("por 32 GB", efectos=[("16 GB de RAM", "modifica", "32 GB de RAM")])
+
+    run_proposal(operator_user, case)
+
+    blocks = {}
+    for messages in script.consequence_calls:
+        blocks.update({a: b for a, b in re.findall(
+            r"\[(R\d+)\]\n(.*?)\n\[/\1\]", messages[-1]["content"], re.DOTALL)})
+    pago = next(b for b in blocks.values() if "Clase: económico" in b)
+    assert "Texto vigente (según una circular):\n60 días corridos" in pago
+    assert "Texto original del pliego:\n" in pago and PAGO in pago
+    visita = next(b for b in blocks.values() if VISITA_QUOTE in b)
+    assert "Texto:\n" + VISITA_QUOTE in visita and "vigente" not in visita
+    ram = next(b for b in blocks.values() if "Renglón 1, especificaciones" in b)
+    assert "Texto vigente (según una circular):\n32 GB de RAM" in ram and "16 GB" in ram

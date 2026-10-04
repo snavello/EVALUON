@@ -739,6 +739,21 @@ class Processor:
             self.stats["new_requirements"] += 1
 
 
+def apply_to_subjects(subjects, candidates):
+    """Pone en los `consequences.Subject` el texto vigente de las citas que una circular
+    modificó, con el original: la consecuencia se evalúa sobre lo que se exige hoy."""
+    by_number = {s.number: s for s in subjects}
+    for candidate in candidates:
+        if candidate.suppressed or candidate.current == candidate.text:
+            continue
+        for target in candidate.targets:
+            subject = by_number.get(target.number)
+            if subject is not None:
+                subject.changes.append((candidate.text, candidate.current))
+                if subject.category != RequirementClass.TECNICO.value:
+                    subject.text = candidate.current
+
+
 def circular_record(circulars):
     """Los documentos usados, para dejarlos en las cuentas y en el hecho de auditoría."""
     return [{"document": d.document.pk, "title": d.document.title,
