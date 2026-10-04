@@ -500,3 +500,24 @@ def test_the_active_extraction_instructions_are_v3_with_synthetic_examples(setti
                  "Donde dice", "Debe decir", "No ves el pliego"):
         assert word in prompt
     assert prompt.count('{"cambios"') >= 8
+
+
+def test_a_source_reached_by_the_key_and_by_the_fallback_is_saved_once(operator_user, case,
+                                                                        script):
+    """REQ-031 (D1): una circular de un solo tramo con dos cambios, uno resuelto por el texto
+    anterior y otro sin objetivo, manda el tramo también al respaldo; si este elige la misma
+    cita con el mismo fragmento, la fuente (requisito, efecto, tramo y posiciones) queda una
+    sola vez."""
+    add_circular(operator_user, case, "Circular N.º 6", date(2025, 12, 2),
+                 "1. La memoria pasa de 16 GB de RAM a 32 GB de RAM y la pantalla pasa a ser "
+                 "de otra medida.")
+    script.x_when("pasa de", [
+        change("reemplaza", "ninguno", "", "16 GB de RAM", "32 GB de RAM"),
+        change("reemplaza", "ninguno", "", "", "otra medida")])
+    script.c_when("pasa de", efectos=[("16 GB de RAM", "modifica", "32 GB de RAM")])
+
+    version, _ = run_proposal(operator_user, case)
+
+    assert fallback_asked(script, "pasa de")          # el respaldo corrió
+    sources = list(row_of_item(version, 1).sources.all())
+    assert len(sources) == 1 and sources[0].text == "32 GB de RAM"

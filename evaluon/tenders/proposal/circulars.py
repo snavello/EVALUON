@@ -843,6 +843,25 @@ class Processor:
                     continue
                 self._apply_unit(change, resolution, step, issued_on, label, verdicts,
                                  sources, new_requirements)
+        # Un tramo puede llegar a la misma fuente por dos caminos (la extracción por clave y
+        # el respaldo): una fuente igual no se guarda dos veces.
+        seen = set()
+        unique = []
+        for source in sources:
+            key = (source.candidate.key, source.effect, source.segment.pk, source.start,
+                   source.end)
+            if key not in seen:
+                seen.add(key)
+                unique.append(source)
+        sources[:] = unique
+        seen_new = set()
+        unique_new = []
+        for new in new_requirements:
+            key = (new.category, new.segment.pk, new.start, new.end)
+            if key not in seen_new:
+                seen_new.add(key)
+                unique_new.append(new)
+        new_requirements[:] = unique_new
         step_anomalies = [a for step in self.steps for a in step.anomalies]
         self.stats["steps"] = len(self.steps)
         return Result(verdicts=verdicts, sources=sources, new_requirements=new_requirements,
