@@ -1,4 +1,4 @@
-"""Pedir la propuesta de la matriz: nivel, rechazos, registro y manejador (REQ-024, REQ-030;
+"""Pedir la propuesta de la matriz: proceso único, rechazos, registro y manejador (REQ-024, REQ-030;
 plan 003, "Propuesta de la matriz", "Roles" y "Registro de auditoría"; T-073).
 
 Pliegos sintéticos y el doble del modelo con guion (`tests/tenders/scripted.py`); sin datos
@@ -34,11 +34,6 @@ from tests.tenders.scripted import (
 pytestmark = pytest.mark.django_db
 
 
-@pytest.fixture(autouse=True)
-def offer_every_level(settings):
-    """Estas pruebas recorren las pasadas de los tres niveles, también la de exigente, que
-    existe pero no se ofrece (T-085)."""
-    settings.MATRIX_LEVELS_OFFERED = ("media", "alta", "exigente")
 
 
 @pytest.fixture
@@ -78,117 +73,104 @@ def signature(version):
     ]
 
 
-# --- Nivel (REQ-030) -------------------------------------------------------------------------
+# --- Proceso único (REQ-030) -----------------------------------------------------------------
 
 
-def test_without_choosing_the_level_is_alta_and_the_matrix_records_it(operator_user,
-                                                                      read_case):
-    """REQ-030: al pedir la matriz sin elegir nivel se usa "alta", y la propuesta, el
-    borrador y los hechos registran el nivel."""
+def test_the_request_takes_no_level():
+    """REQ-030: el pedido de una matriz no recibe nivel: hay un solo proceso."""
+    import inspect
+
+    assert "level" not in inspect.signature(matrix.request_matrix).parameters
+
+
+def test_the_proposal_records_the_single_process_and_no_level(operator_user, read_case):
+    """REQ-030: la propuesta, el borrador y los hechos registran el proceso `completo` y
+    ningún nivel."""
     requested, job = propose(operator_user, read_case)
 
     assert job.status == "done", job.error
-    assert requested.run.level == "alta"
-    assert requested.run.version.level == "alta"
-    assert request_events().get().detail["level"] == "alta"
-    assert request_events().get().detail["default_level"] is True
-    assert proposal_events().get().detail["level"] == "alta"
+    assert requested.run.process == "completo" and requested.run.level == ""
+    assert requested.run.version.process == "completo" and requested.run.version.level == ""
+    assert request_events().get().detail["process"] == "completo"
+    assert "level" not in request_events().get().detail
+    assert proposal_events().get().detail["process"] == "completo"
+    assert "level" not in proposal_events().get().detail
 
 
-@pytest.mark.parametrize("level", ["media", "exigente"])
-def test_chosen_level_is_recorded(operator_user, read_case, level):
-    """REQ-030: con "media" o "exigente", la propuesta registra el nivel elegido."""
-    requested, job = propose(operator_user, read_case, level=level)
+def test_the_proposal_runs_the_passes_of_the_single_process(operator_user, script):
+    """REQ-030: la propuesta corre las pasadas del proceso único (las de "alta" de T-093,
+    sin marcadores ni segunda extracción) y lo registra en los parámetros y en los pedidos
+    al modelo; no queda la anomalía de "nivel sin pasadas propias"."""
+    script.when(PAGO, item([(PAGO, "economico")]))
+    procedure = make_procedure(operator_user)
+    load_and_read(operator_user, procedure, three_items_pdf())
+
+    requested, job = propose(operator_user, procedure)
 
     assert job.status == "done", job.error
-    assert requested.run.level == level
-    assert requested.run.version.level == level
-    assert requested.run.parameters["passes"] == {
-        "media": ["reglas", "extraccion", "marcadores", "filas_tecnicas", "consecuencias"],
-        "exigente": ["reglas", "extraccion", "extraccion_2", "union", "completitud",
-                     "filas_tecnicas", "consecuencias"],
-    }[level]
-    detail = request_events().get().detail
-    assert detail["level"] == level and detail["default_level"] is False
+    assert requested.run.parameters["process"] == "completo"
+    assert requested.run.parameters["passes"] == [
+        "reglas", "extraccion", "completitud", "filas_tecnicas", "consecuencias"]
+    steps = list(dict.fromkeys(
+        m.RunStep.objects.filter(run=requested.run).order_by("id")
+        .values_list("pass_name", flat=True)))
+    assert steps == ["extraccion", "completitud", "consecuencias"]
+    assert "nivel_sin_pasadas_propias" not in [a["type"] for a in requested.run.anomalies]
 
 
-def test_each_level_records_its_own_passes_and_no_level_lacks_them(operator_user, script):
-    """REQ-030: cada nivel corre y registra sus pasadas (T-078); ya no queda la anomalía de
-    "nivel sin pasadas propias". Si la completitud no agrega nada, los tres niveles dan la
-    misma matriz para este pliego."""
-    script.when(PAGO, item([(PAGO, "economico")]))
-    results = {}
-    for level in ("media", "alta", "exigente"):
-        procedure = make_procedure(operator_user)
-        load_and_read(operator_user, procedure, three_items_pdf())
-        requested, job = propose(operator_user, procedure, level=level)
-        assert job.status == "done", job.error
-        results[level] = requested
+def test_the_proposal_records_the_version_of_every_instruction(operator_user, read_case,
+                                                                settings):
+    """REQ-030: la propuesta registra la versión de cada instrucción que usó."""
+    requested, job = propose(operator_user, read_case)
 
-    assert [results[level].run.parameters["passes"] for level in results] == [
-        ["reglas", "extraccion", "marcadores", "filas_tecnicas", "consecuencias"],
-        ["reglas", "extraccion", "completitud", "filas_tecnicas", "consecuencias"],
-        ["reglas", "extraccion", "extraccion_2", "union", "completitud",
-         "filas_tecnicas", "consecuencias"],
-    ]
-    assert signature(results["media"].run.version) == signature(
-        results["alta"].run.version) == signature(results["exigente"].run.version)
-    for requested in results.values():
-        assert "nivel_sin_pasadas_propias" not in [a["type"] for a in requested.run.anomalies]
-    assert [r.run.level for r in results.values()] == ["media", "alta", "exigente"]
+    assert job.status == "done", job.error
+    versions = settings.MATRIX_PROMPT_VERSIONS
+    assert requested.run.prompt_versions == {
+        name: versions[name] for name in ("extraccion", "completitud", "consecuencias")}
 
 
-def test_unknown_level_is_refused_and_recorded(operator_user, read_case):
-    """REQ-030: un nivel que no existe se rechaza, sin encolar nada, y queda registrado."""
-    with pytest.raises(matrix.MatrixRefused) as error:
-        matrix.request_matrix(operator_user, read_case, level="maxima")
-
-    assert error.value.reason == "invalid_level" and error.value.field == "level"
-    assert nothing_was_queued()
-    event = request_events(Outcome.REJECTED).get()
-    assert event.user == operator_user and event.channel == Channel.SCREEN
-    assert event.detail["reason"] == "invalid_level"
-    assert event.detail["level"] == "maxima" and event.detail["procedure"] == read_case.pk
+def test_the_settings_have_no_levels_and_name_the_process(settings):
+    """REQ-030: la configuración ya no tiene niveles; tiene el proceso único."""
+    for name in ("MATRIX_LEVELS", "MATRIX_LEVELS_OFFERED", "MATRIX_DEFAULT_LEVEL"):
+        assert not hasattr(settings, name), name
+    assert settings.MATRIX_PROCESS == "completo"
 
 
-def test_level_that_is_not_offered_is_refused(operator_user, read_case, settings):
-    """REQ-030: un nivel que existe pero no se ofrece se rechaza."""
-    settings.MATRIX_LEVELS_OFFERED = ["media"]
+def test_no_live_reference_to_the_levels_or_the_second_extraction():
+    """REQ-030: el código no conserva referencias vivas a los niveles ni a la segunda
+    extracción (los modelos guardan `level` solo como dato histórico)."""
+    from pathlib import Path
 
-    with pytest.raises(matrix.MatrixRefused) as error:
-        matrix.request_matrix(operator_user, read_case, level="exigente")
+    root = Path(__file__).resolve().parents[2] / "evaluon"
+    forbidden = ("MATRIX_LEVELS", "MATRIX_DEFAULT_LEVEL", "second_extraction",
+                 "PassName.EXTRACCION_2", "--niveles", "_check_level")
+    found = []
+    for path in root.rglob("*"):
+        if path.suffix not in (".py", ".html") or "migrations" in path.parts:
+            continue
+        text = path.read_text(encoding="utf-8")
+        found += [(path.name, word) for word in forbidden if word in text]
 
-    assert error.value.reason == "level_not_offered"
-    assert nothing_was_queued()
-    assert request_events(Outcome.REJECTED).get().detail["reason"] == "level_not_offered"
-
-
-def test_default_level_can_be_changed_by_setting(operator_user, read_case, settings):
-    """REQ-030: el nivel por omisión es el de la configuración."""
-    settings.MATRIX_DEFAULT_LEVEL = "media"
-
-    requested = matrix.request_matrix(operator_user, read_case)
-
-    assert requested.run.level == "media"
+    assert found == []
 
 
 # --- Pedido: lo que se registra (REQ-024, REQ-030) ----------------------------------------------
 
 
 def test_request_queues_the_job_and_saves_the_run_and_the_event(operator_user, read_case):
-    """REQ-030: el pedido encola `propose_matrix`, deja la propuesta con su nivel, su canal
+    """REQ-030: el pedido encola `propose_matrix`, deja la propuesta con su proceso, su canal
     y los documentos con su lectura, y el hecho `matrix_request`."""
     document = read_case.documents.get()
     reading = document.readings.get()
 
-    requested = matrix.request_matrix(operator_user, read_case, level="media")
+    requested = matrix.request_matrix(operator_user, read_case)
 
     job = requested.job
     assert (job.kind, job.status, job.requested_by) == ("propose_matrix", "queued",
                                                          operator_user)
     assert job.procedure == read_case and job.document is None
     run = requested.run
-    assert (run.job, run.level, run.channel, run.version) == (job, "media", "screen", None)
+    assert (run.job, run.process, run.channel, run.version) == (job, "completo", "screen", None)
     assert run.authorization_date == read_case.authorization_date
     expected = [{
         "document": document.pk, "title": "Pliego sintético", "kind": "pliego",
@@ -201,7 +183,7 @@ def test_request_queues_the_job_and_saves_the_run_and_the_event(operator_user, r
     assert (event.outcome, event.channel, event.user) == (Outcome.OK, Channel.SCREEN,
                                                           operator_user)
     assert event.detail == {
-        "procedure": read_case.pk, "level": "media", "default_level": False,
+        "procedure": read_case.pk, "process": "completo",
         "run": run.pk, "job": job.pk, "documents": expected,
     }
 
@@ -218,7 +200,7 @@ def test_proposal_records_models_parameters_prompts_regime_and_corpus_version(
     read_case.authorization_date = date(2022, 12, 15)
     read_case.save()
 
-    requested, job = propose(operator_user, read_case, level="media")
+    requested, job = propose(operator_user, read_case)
 
     assert job.status == "done", job.error
     run = requested.run
@@ -226,6 +208,7 @@ def test_proposal_records_models_parameters_prompts_regime_and_corpus_version(
     assert run.regime == [{"norm": two_regimes.old.pk, "name": "Disposición AFIP 297/03"}]
     assert run.corpus_version == version_event.corpus_version
     assert run.prompt_versions == {"extraccion": "matriz-extraccion-v2",
+                                    "completitud": "matriz-completitud-v2",
                                     "consecuencias": "matriz-consecuencias-v1"}
     assert set(run.models) == {"generation_batch", "embeddings", "reranker"}
     for model in run.models.values():
@@ -244,7 +227,7 @@ def test_proposal_records_models_parameters_prompts_regime_and_corpus_version(
     assert event.corpus_version == version_event.corpus_version
     detail = event.detail
     for key in ("regime", "models", "parameters", "prompt_versions", "counts", "timings",
-                "corpus_version", "authorization_date", "level", "documents"):
+                "corpus_version", "authorization_date", "process", "documents"):
         assert key in detail, key
     assert detail["regime"] == run.regime
     assert detail["version"] == run.version.pk and detail["version_number"] == 1
@@ -258,7 +241,7 @@ def test_regime_follows_the_authorization_date(operator_user, read_case, two_reg
     read_case.authorization_date = date(2024, 5, 20)
     read_case.save()
 
-    requested, _ = propose(operator_user, read_case, level="media")
+    requested, _ = propose(operator_user, read_case)
 
     assert requested.run.regime == [
         {"norm": two_regimes.new.pk, "name": "Disposición AFIP 247/2022"}]
@@ -266,16 +249,17 @@ def test_regime_follows_the_authorization_date(operator_user, read_case, two_reg
 
 def test_timings_and_counts_are_saved(operator_user, read_case):
     """REQ-024: la propuesta guarda los tiempos por pasada y total, y las cuentas."""
-    requested, _ = propose(operator_user, read_case, level="media")
+    requested, _ = propose(operator_user, read_case)
 
     run = requested.run
-    assert set(run.timings) >= {"reglas", "extraccion", "marcadores", "filas_tecnicas",
+    assert set(run.timings) >= {"reglas", "extraccion", "completitud", "filas_tecnicas",
                                 "guardado", "total"}
     assert run.counts["requirements_by_class"] == {"economico": 2, "tecnico": 3}
     assert run.counts["requirements"] == 5
     assert run.counts["segments_by_type"]["clausula"] >= 4
-    assert run.counts["model_requests_by_pass"] == {"extraccion": 1, "consecuencias": 1}
-    assert run.counts["model_requests"] == 2
+    assert run.counts["model_requests_by_pass"] == {"extraccion": 1, "completitud": 1,
+                                                    "consecuencias": 1}
+    assert run.counts["model_requests"] == 3
 
 
 # --- Rechazos del pedido (REQ-024) ----------------------------------------------------------------
@@ -327,7 +311,7 @@ def test_request_with_a_failed_reading_is_refused(operator_user):
 
 def test_request_with_a_draft_open_is_refused(operator_user, read_case):
     """REQ-024: con un borrador abierto no se pide otra propuesta."""
-    _, job = propose(operator_user, read_case, level="media")
+    _, job = propose(operator_user, read_case)
     assert job.status == "done", job.error
 
     with pytest.raises(matrix.MatrixRefused) as error:
@@ -354,7 +338,7 @@ def test_discarded_draft_allows_a_new_proposal_with_the_next_number(operator_use
                                                                     read_case):
     """REQ-024: con el borrador descartado se puede pedir otra propuesta, que crea la versión
     siguiente sin tocar la anterior."""
-    first, _ = propose(operator_user, read_case, level="media")
+    first, _ = propose(operator_user, read_case)
     before = signature(first.run.version)
     version = first.run.version
     version.status = m.VersionStatus.DISCARDED
@@ -363,7 +347,7 @@ def test_discarded_draft_allows_a_new_proposal_with_the_next_number(operator_use
     version.discarded_at = timezone.now()
     version.save()
 
-    second, job = propose(operator_user, read_case, level="media")
+    second, job = propose(operator_user, read_case)
 
     assert job.status == "done", job.error
     assert second.run.version.number == 2
@@ -374,11 +358,11 @@ def test_discarded_draft_allows_a_new_proposal_with_the_next_number(operator_use
 def test_failed_proposal_does_not_block_a_new_request(operator_user, read_case, script):
     """ADR-0018: un pedido fallido no deja borrador; se puede volver a pedir."""
     script.fail("unavailable")
-    first, job = propose(operator_user, read_case, level="media")
+    first, job = propose(operator_user, read_case)
     assert job.status == "failed"
 
     script.recover()
-    second, job = propose(operator_user, read_case, level="media")
+    second, job = propose(operator_user, read_case)
 
     assert job.status == "done", job.error
     assert second.run.version.number == 1
@@ -403,7 +387,7 @@ def test_circulars_do_not_block_the_request_and_are_processed(operator_user, rea
         issued_on=date(2025, 12, 1),
     )
 
-    requested, job = propose(operator_user, read_case, level="media")
+    requested, job = propose(operator_user, read_case)
 
     assert job.status == "done", job.error
     assert [d["title"] for d in requested.run.documents] == ["Pliego sintético"]
@@ -432,7 +416,7 @@ def test_user_without_commission_role_cannot_request(no_commission_user, read_ca
 
 def test_operator_and_evaluator_can_request(operator_user, evaluator_user, read_case):
     """REQ-024: el operador y el evaluador piden la matriz."""
-    requested = matrix.request_matrix(evaluator_user, read_case, level="media")
+    requested = matrix.request_matrix(evaluator_user, read_case)
     assert requested.job.requested_by == evaluator_user
     run_jobs()
     assert m.MatrixVersion.objects.get().created_by == evaluator_user
@@ -453,7 +437,7 @@ def test_worker_command_proposes_the_matrix_and_the_notice_waits(operator_user,
                                                                  read_case):
     """ADR-0018: `procesar_pedidos` atiende el pedido; queda hecho y con el aviso de fin
     para quien lo pidió, y no para otro."""
-    requested = matrix.request_matrix(operator_user, read_case, level="media")
+    requested = matrix.request_matrix(operator_user, read_case)
 
     call_command("procesar_pedidos", "--hasta-vaciar")
 
@@ -469,7 +453,7 @@ def test_worker_command_proposes_the_matrix_and_the_notice_waits(operator_user,
 def test_draft_comes_complete_with_its_rows(operator_user, read_case):
     """ADR-0018: la versión borrador sale con sus requisitos, citas, pendientes y
     disposiciones; todas las citas formales y económicas se comprueban al confirmar."""
-    requested, job = propose(operator_user, read_case, level="media")
+    requested, job = propose(operator_user, read_case)
 
     assert job.status == "done", job.error
     version = requested.run.version

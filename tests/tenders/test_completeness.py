@@ -1,4 +1,4 @@
-"""Niveles alta y exigente: completitud, segunda extracción y unión (REQ-024, REQ-025,
+"""Proceso único: completitud y sin segunda extracción (REQ-024, REQ-025,
 REQ-030; plan 003, "Pasadas"; ADR-0019, decisión 5; T-078).
 
 El modelo es el doble de `tests/conftest.py` con el guion de `tests/tenders/scripted.py`,
@@ -15,7 +15,7 @@ import pytest
 from evaluon.tenders import models as m
 from evaluon.tenders.proposal import completeness, extraction
 from evaluon.tenders.proposal import run as proposal
-from evaluon.tenders.proposal.extraction import ALL_ITEMS, Found, Outcome
+from evaluon.tenders.proposal.extraction import ALL_ITEMS, Found
 from evaluon.tenders.proposal.quotes import WIDE
 from tests.tenders.pdfs import para, table, tender_pdf
 from tests.tenders.scripted import (
@@ -31,11 +31,6 @@ from tests.tenders.scripted import (
 pytestmark = pytest.mark.django_db
 
 
-@pytest.fixture(autouse=True)
-def offer_every_level(settings):
-    """Estas pruebas recorren las pasadas de los tres niveles, también la de exigente, que
-    existe pero no se ofrece (T-085)."""
-    settings.MATRIX_LEVELS_OFFERED = ("media", "alta", "exigente")
 
 DOCS = ("La oferta deberá incluir la declaración jurada de habilidad para contratar y la "
         "constancia de inscripción en el registro de proveedores.")
@@ -164,10 +159,10 @@ def standard(script):
     script.when(MANT, item([(MANT_QUOTE, "formal")]))
 
 
-def run_level(user, level, pdf=None):
+def run_level(user, pdf=None):
     procedure = make_procedure(user)
     load_and_read(user, procedure, pdf or completeness_pdf())
-    requested, job = propose(user, procedure, level=level)
+    requested, job = propose(user, procedure)
     assert job.status == "done", job.error
     return requested.run
 
@@ -207,17 +202,17 @@ def step_passes(run):
     return [step.pass_name for step in m.RunStep.objects.filter(run=run).order_by("id")]
 
 
-# --- Alta: completitud ---------------------------------------------------------------------
+# --- Completitud ---------------------------------------------------------------------------
 
 
 def test_alta_adds_the_missing_requirement_with_a_verified_quote(operator_user, script):
-    """REQ-024, REQ-025, REQ-030: en alta, un faltante que la completitud devuelve se suma al
+    """REQ-024, REQ-025, REQ-030: un faltante que la completitud devuelve se suma al
     tramo con su cita ubicada en el texto del pliego; el tramo se mandó con lo ya encontrado."""
     standard(script)
     script.when(DOCS, item([(DJ, "formal")]))
     script.complete_when("constancia", fix(missing=[(CONSTANCIA, "formal")]))
 
-    run = run_level(operator_user, "alta")
+    run = run_level(operator_user)
 
     assert body(run)["sec-i/1.1"] == [
         (DJ, ["extraccion"], "formal"),
@@ -241,7 +236,7 @@ def test_alta_splits_a_requirement_that_joins_two_conditions(operator_user, scri
     script.complete_when("constancia", fix(splits=[
         (DOCS, [(DJ_FULL, "formal"), (CONSTANCIA, "formal")])]))
 
-    run = run_level(operator_user, "alta")
+    run = run_level(operator_user)
 
     assert body(run)["sec-i/1.1"] == [
         (DJ_FULL, ["completitud"], "formal"),
@@ -255,25 +250,22 @@ def test_alta_discarded_with_markers_goes_to_completeness_and_is_not_pending(
         operator_user, script):
     """REQ-024: un tramo que el modelo descartó teniendo marcadores de obligación pasa por la
     completitud; si ésta encuentra un requisito, lo suma; si no, queda descartado y no
-    pendiente (en media, el mismo tramo queda pendiente)."""
+    pendiente."""
     standard(script)
     script.when(DOCS, item([(DJ, "formal"), (CONSTANCIA, "formal")]))
     script.complete_when("alternativas", fix(missing=[(NOALT, "economico")]))
 
-    run = run_level(operator_user, "alta")
+    run = run_level(operator_user)
 
     assert body(run)["sec-i/2.1"] == [(NOALT, ["completitud"], "economico")]
     assert disposition(run, "sec-i/2.1").outcome == "requisitos"
     assert "sec-i/2.1" not in pending(run)
 
     script.complete_rules.clear()
-    run = run_level(operator_user, "alta")
+    run = run_level(operator_user)
     assert disposition(run, "sec-i/2.1").outcome == "descartado"
     assert disposition(run, "sec-i/2.1").discard_reason == "dato_procedimiento"
     assert "sec-i/2.1" not in pending(run)
-
-    run = run_level(operator_user, "media")
-    assert pending(run)["sec-i/2.1"] == "marcadores"
 
 
 def test_completeness_sends_only_model_segments_with_requirements_or_markers(
@@ -283,23 +275,21 @@ def test_completeness_sends_only_model_segments_with_requirements_or_markers(
     (aunque tengan "deberá"), ni los descartados sin marcadores."""
     standard(script)
 
-    for level in ("alta", "exigente"):
-        script.completeness_calls.clear()
-        run = run_level(operator_user, level)
-        sent = [text.split(" ", 1)[1] for text in script.sent_to_completeness()]
-        assert sorted(sent) == sorted([DOCS, MANT, NOALT]), level
-        assert disposition(run, "sec-ii/1.1").outcome == "tecnico"
+    run = run_level(operator_user)
+    sent = [text.split(" ", 1)[1] for text in script.sent_to_completeness()]
+    assert sorted(sent) == sorted([DOCS, MANT, NOALT])
+    assert disposition(run, "sec-ii/1.1").outcome == "tecnico"
 
 
 def test_an_invalid_completeness_answer_is_asked_again_once_and_then_leaves_it_pending(
         operator_user, script):
     """REQ-024, REQ-028: una salida de la completitud con la forma rota se vuelve a pedir una
-    vez, solo ese tramo; si sigue rota, el descartado con marcadores queda pendiente (como en
-    media) y lo ya encontrado no cambia."""
+    vez, solo ese tramo; si sigue rota, el descartado con marcadores queda pendiente y lo ya
+    encontrado no cambia."""
     standard(script)
     script.complete_when("alternativas", INVALID)
 
-    run = run_level(operator_user, "alta")
+    run = run_level(operator_user)
 
     asked = [b for call in script.completeness_calls for b in call.values()
              if b["text"].endswith(NOALT)]
@@ -371,39 +361,6 @@ def test_a_split_with_a_part_outside_the_segment_leaves_the_requirement_as_it_wa
     assert [a["type"] for a in anomalies] == ["completitud_division_no_aplicada"]
 
 
-def test_union_keeps_a_wide_quote_and_a_fragment_of_the_same_class():
-    """REQ-024: una cita amplia (el tramo entero) nunca se reemplaza por un fragmento: quedan
-    las dos y lo que sobre lo quita el evaluador. Vale en los dos sentidos."""
-    unit = unit_of("Los oferentes deberán mantener la oferta durante 60 días corridos.")
-    wide = Found("formal", (0, len(unit.segment.text)), flag=WIDE)
-    fragment = Found("formal", (22, 64))
-
-    merged = completeness.union(Outcome(unit=unit, valid=True, found=[wide]),
-                                Outcome(unit=unit, valid=True, found=[fragment]))
-    assert merged.found == [wide, fragment]
-
-    wide = Found("formal", (0, len(unit.segment.text)), flag=WIDE)
-    fragment = Found("formal", (22, 64))
-    merged = completeness.union(Outcome(unit=unit, valid=True, found=[fragment]),
-                                Outcome(unit=unit, valid=True, found=[wide]))
-    assert merged.found == [fragment, wide]
-
-
-def test_union_merges_two_wide_quotes_of_the_same_class_only():
-    """REQ-024: dos citas amplias de la misma clase son la misma; de clases distintas, no."""
-    unit = unit_of("Los oferentes deberán mantener la oferta durante 60 días corridos.")
-    end = len(unit.segment.text)
-
-    same = completeness.union(
-        Outcome(unit=unit, valid=True, found=[Found("formal", (0, end), flag=WIDE)]),
-        Outcome(unit=unit, valid=True, found=[Found("formal", (0, end), flag=WIDE)]))
-    other = completeness.union(
-        Outcome(unit=unit, valid=True, found=[Found("formal", (0, end), flag=WIDE)]),
-        Outcome(unit=unit, valid=True, found=[Found("economico", (0, end), flag=WIDE)]))
-
-    assert len(same.found) == 1 and len(other.found) == 2
-
-
 def test_a_missing_requirement_is_added_next_to_a_wide_quote_of_its_class():
     """REQ-024: un faltante bien ubicado se suma aunque el tramo ya tenga una cita amplia de
     su clase."""
@@ -414,64 +371,6 @@ def test_a_missing_requirement_is_added_next_to_a_wide_quote_of_its_class():
         unit, [wide], [("mantener la oferta durante 60 días corridos", "formal")], [], [])
 
     assert added == 1 and [f.flag for f in final] == [WIDE, ""]
-
-
-def contained_pair(second_start):
-    """Una primera cita (0, 40) y una segunda (`second_start`, 200) de un tramo de 200
-    caracteres, de la misma clase."""
-    unit = unit_of("x" * 200)
-    return completeness.union(
-        Outcome(unit=unit, valid=True, found=[Found("formal", (0, 40))]),
-        Outcome(unit=unit, valid=True, found=[Found("formal", (second_start, 200))]))
-
-
-def test_union_keeps_both_quotes_when_each_has_enough_text_of_its_own():
-    """REQ-024: dos citas que se superponen no son la misma si ninguna queda contenida en la
-    otra en al menos el 90 % de sus caracteres: quedan las dos. Con 75 % (10 a 40 sobre 40)
-    y con 80 % también."""
-    assert [f.span for f in contained_pair(10).found] == [(0, 40), (10, 200)]
-    assert [f.span for f in contained_pair(8).found] == [(0, 40), (8, 200)]
-
-
-def test_union_drops_the_contained_quote_from_90_percent_and_keeps_the_longer():
-    """REQ-024: la cita contenida en la otra en al menos el 90 % de sus caracteres es la
-    misma requisito: queda la más larga, con las pasadas de las dos."""
-    merged = contained_pair(4)
-
-    assert [f.span for f in merged.found] == [(4, 200)]
-    assert completeness.passes_of(merged.found[0]) == ["extraccion", "extraccion_2"]
-
-
-def test_union_keeps_the_class_of_the_first_and_records_the_disagreement():
-    """REQ-024: el mismo fragmento con distinta clase en las dos extracciones queda una vez,
-    con la clase de la primera, y la anomalía `clase_en_desacuerdo` dice las dos clases."""
-    unit = unit_of("Se cotiza en pesos con impuestos incluidos.")
-    anomalies = []
-
-    merged = completeness.union(
-        Outcome(unit=unit, valid=True, found=[Found("economico", (0, 30))]),
-        Outcome(unit=unit, valid=True, found=[Found("formal", (0, 30))]), anomalies)
-
-    assert [(f.category, f.span) for f in merged.found] == [("economico", (0, 30))]
-    assert anomalies == [{"type": "clase_en_desacuerdo", "segment": 1, "key": "sec-i/1.1",
-                          "clases": ["economico", "formal"]}]
-
-
-def test_union_takes_the_valid_extraction_when_the_other_is_invalid():
-    """REQ-024: si una extracción dejó el tramo sin disposición, vale la otra, en los dos
-    sentidos; si las dos, queda sin disposición."""
-    unit = unit_of("Los oferentes deberán mantener la oferta durante 60 días corridos.")
-    invalid = Outcome(unit=unit)
-
-    a = completeness.union(invalid, Outcome(unit=unit, valid=True,
-                                            found=[Found("formal", (22, 64))]))
-    b = completeness.union(Outcome(unit=unit, valid=True, found=[Found("formal", (22, 64))]),
-                           Outcome(unit=unit))
-    c = completeness.union(Outcome(unit=unit), Outcome(unit=unit))
-
-    assert a.valid and [f.span for f in a.found] == [(22, 64)]
-    assert b.valid and [f.span for f in b.found] == [(22, 64)]
-    assert not c.valid
 
 
 def test_a_valid_split_is_applied_when_the_parts_cover_the_original():
@@ -554,110 +453,51 @@ def test_the_class_of_every_requirement_is_validated_in_the_answer():
             {"original": "x", "partes": [good, bad]}]})
 
 
-# --- Exigente: segunda extracción y unión --------------------------------------------------------
+# --- Proceso único: pasadas y filas técnicas ---------------------------------------------------
 
 
-def test_exigente_union_does_not_duplicate_overlapping_requirements(operator_user, script):
-    """REQ-024: en exigente, un requisito que las dos extracciones encuentran, con citas que
-    se superponen, queda una vez (con las dos pasadas); el que solo encuentra la segunda
-    se suma."""
-    standard(script)
-    longer = "La oferta deberá incluir " + DJ
-    script.when_pass("extraccion", DOCS, item([(DJ, "formal")]))
-    script.when_pass("extraccion_2", DOCS, item([(longer, "formal"), (CONSTANCIA, "formal")]))
-
-    run = run_level(operator_user, "exigente")
-
-    assert body(run)["sec-i/1.1"] == [
-        (longer, ["extraccion", "extraccion_2"], "formal"),
-        (CONSTANCIA, ["extraccion_2"], "formal"),
-    ]
-    check_quotes_are_canonical(run)
-
-
-def test_exigente_keeps_what_only_one_extraction_found_in_a_discarded_segment(
-        operator_user, script):
-    """REQ-024: un tramo descartado en una extracción y con requisitos en la otra queda con
-    lo encontrado, sin importar cuál lo encontró."""
-    script.when_pass("extraccion", MANT, item(discard="dato_procedimiento"))
-    script.when_pass("extraccion_2", MANT, item([(MANT_QUOTE, "formal")]))
-    script.when_pass("extraccion", NOALT, item([(NOALT, "economico")]))
-    script.when_pass("extraccion_2", NOALT, item(discard="dato_procedimiento"))
-
-    run = run_level(operator_user, "exigente")
-
-    found = body(run)
-    assert found["sec-i/1.2"] == [(MANT_QUOTE, ["extraccion_2"], "formal")]
-    assert found["sec-i/2.1"] == [(NOALT, ["extraccion"], "economico")]
-    assert disposition(run, "sec-i/1.2").outcome == "requisitos"
-    assert disposition(run, "sec-i/2.1").outcome == "requisitos"
-    assert "sec-i/1.2" not in pending(run) and "sec-i/2.1" not in pending(run)
-
-
-def test_second_extraction_shifts_the_batches_by_half_a_batch(operator_user, script):
-    """REQ-024: la segunda extracción pide los mismos tramos con los lotes desplazados: su
-    primer pedido lleva la mitad de los tramos del primer lote de la primera, y los dos
-    juntos cubren todos los tramos que pasan por el modelo."""
+def test_the_single_process_has_no_second_extraction(operator_user, script):
+    """REQ-030: el proceso único no hace segunda extracción ni unión: las pasadas registradas
+    son extracción, completitud y consecuencias, y los parámetros nombran las del proceso."""
     standard(script)
 
-    run = run_level(operator_user, "exigente")
+    run = run_level(operator_user)
 
-    steps = m.RunStep.objects.filter(run=run, retry_of=None).order_by("id")
-    first = [s for s in steps if s.pass_name == "extraccion"]
-    second = [s for s in steps if s.pass_name == "extraccion_2"]
-    assert len(first) == 1 and len(second) == 2
-    keys = first[0].segment_keys
-    assert second[0].segment_keys == keys[:len(keys) // 2]
-    assert second[0].segment_keys + second[1].segment_keys == keys
-    assert run.counts["model_requests_by_pass"]["extraccion_2"] == 2
-
-
-def test_technical_rows_are_the_same_in_the_three_levels(operator_user, script):
-    """REQ-024, REQ-030: las filas técnicas son las mismas en media, alta y exigente para el
-    mismo pliego, también cuando solo una de las dos extracciones marca el tramo como
-    técnico."""
-    rows = {}
-    for level in ("media", "alta", "exigente"):
-        script.reset()
-        if level == "exigente":
-            script.when_pass("extraccion", ENTREGA, item(discard="dato_procedimiento"))
-            script.when_pass("extraccion_2", ENTREGA, item(technical=[ALL_ITEMS]))
-        else:
-            script.when(ENTREGA, item(technical=[ALL_ITEMS]))
-        run = run_level(operator_user, level, three_items_pdf())
-        rows[level] = [
-            (r.items, [(q.segment.key, q.scope) for q in
-                       r.quotes.order_by("order").select_related("segment")])
-            for r in m.Requirement.objects.filter(version=run.version, category="tecnico")
-            .order_by("number")
-        ]
-
-    assert len(rows["media"]) == 3
-    assert rows["media"] == rows["alta"] == rows["exigente"]
-    assert ("sec-i/3.1", "general") in rows["exigente"][0][1]
-
-
-def test_each_level_records_its_own_passes(operator_user, script):
-    """REQ-030: cada nivel registra sus pasadas en la propuesta, en los pedidos al modelo y en
-    las versiones de las instrucciones; sin la anomalía de "nivel sin pasadas propias"."""
-    standard(script)
-    expected = {
-        "media": (["extraccion", "consecuencias"], []),
-        "alta": (["extraccion", "completitud", "consecuencias"], []),
-        "exigente": (["extraccion", "extraccion_2", "completitud", "consecuencias"],
-                     []),
-    }
-    for level, (steps, _) in expected.items():
-        run = run_level(operator_user, level)
-        assert list(dict.fromkeys(step_passes(run))) == steps, level
-        assert "nivel_sin_pasadas_propias" not in [a["type"] for a in run.anomalies]
-        assert run.level == level and run.version.level == level
-        prompts = list(run.prompt_versions)
-        assert prompts == (["extraccion", "completitud", "consecuencias"] if level != "media"
-                           else ["extraccion", "consecuencias"])
+    assert list(dict.fromkeys(step_passes(run))) == ["extraccion", "completitud",
+                                                      "consecuencias"]
     assert run.parameters["passes"] == [
-        "reglas", "extraccion", "extraccion_2", "union", "completitud", "filas_tecnicas",
-        "consecuencias"]
+        "reglas", "extraccion", "completitud", "filas_tecnicas", "consecuencias"]
+    assert "extraccion_2" not in run.counts["model_requests_by_pass"]
+    assert not hasattr(completeness, "second_extraction")
+    assert not hasattr(completeness, "union")
+
+
+def test_the_process_records_its_process_and_the_instructions_it_used(operator_user, script):
+    """REQ-030: la propuesta registra el proceso en la propuesta y en la versión, y las
+    versiones de las instrucciones de extracción, completitud y consecuencias."""
+    standard(script)
+
+    run = run_level(operator_user)
+
+    assert run.process == "completo" and run.version.process == "completo"
+    assert list(run.prompt_versions) == ["extraccion", "completitud", "consecuencias"]
+
+
+def test_technical_rows_come_from_the_rule_and_a_marked_segment_joins_them(
+        operator_user, script):
+    """REQ-024, REQ-030: las filas técnicas son una por renglón y un tramo marcado como
+    técnico para todos los renglones entra en las tres."""
+    script.when(ENTREGA, item(technical=[ALL_ITEMS]))
+    run = run_level(operator_user, three_items_pdf())
+    rows = [
+        (r.items, [(q.segment.key, q.scope) for q in
+                   r.quotes.order_by("order").select_related("segment")])
+        for r in m.Requirement.objects.filter(version=run.version, category="tecnico")
+        .order_by("number")
+    ]
+
+    assert len(rows) == 3
+    assert ("sec-i/3.1", "general") in rows[0][1]
 
 
 # --- Citas sobre tramos con saltos de línea y espacios distintos (O1 de T-073) -----------------------
@@ -681,15 +521,14 @@ def table_requirement(run):
     return requirement, requirement.quotes.get()
 
 
-@pytest.mark.parametrize("level", ["media", "alta", "exigente"])
-def test_extraction_quote_across_line_breaks_and_double_spaces(operator_user, script, level):
+def test_extraction_quote_across_line_breaks_and_double_spaces(operator_user, script):
     """REQ-025: la cita que el modelo copia de un tramo de tabla, con espacios dobles y un
     espacio donde el tramo tiene un salto de línea, se ubica y se guarda como el recorte
     literal del tramo (con su salto de línea)."""
     script.when("CONCEPTO", item([("deberá  mantener la oferta  durante: 60 días corridos",
                                    "formal")]))
 
-    run = run_level(operator_user, level, table_pdf())
+    run = run_level(operator_user, table_pdf())
 
     _, quote = table_requirement(run)
     assert "\n" in quote.text
@@ -704,7 +543,7 @@ def test_completeness_quote_across_line_breaks_and_double_spaces(operator_user, 
     script.complete_when("CONCEPTO", fix(missing=[
         ("deberá   mantener la oferta durante:  60 días corridos", "formal")]))
 
-    run = run_level(operator_user, "alta", table_pdf())
+    run = run_level(operator_user, table_pdf())
 
     requirement, quote = table_requirement(run)
     assert requirement.passes == ["completitud"]
@@ -723,7 +562,7 @@ def test_completeness_split_across_line_breaks(operator_user, script):
         [("deberá mantener la oferta", "formal"), ("durante: 60  días corridos", "formal")],
     )]))
 
-    run = run_level(operator_user, "alta", table_pdf())
+    run = run_level(operator_user, table_pdf())
 
     texts = [q.text for q in m.RequirementQuote.objects.filter(
         requirement__version=run.version).order_by("char_start")]
@@ -991,7 +830,7 @@ def test_extraction_gives_one_row_per_condition_of_an_enumeration(operator_user,
     queda en tres requisitos, cada uno con su cita literal."""
     script.when(ENUM, item(ENUM_PARTS))
 
-    run = run_level(operator_user, "media", enumeration_pdf())
+    run = run_level(operator_user, enumeration_pdf())
 
     rows = body(run)["sec-i/1.1"]
     assert [text for text, _, _ in rows] == [quote for quote, _ in ENUM_PARTS]
@@ -1004,7 +843,7 @@ def test_completeness_splits_an_enumeration_found_as_one_row(operator_user, scri
     script.when(ENUM, item([(ENUM, "economico")]))
     script.complete_when(ENUM, fix(splits=[(ENUM, ENUM_PARTS)]))
 
-    run = run_level(operator_user, "alta", enumeration_pdf())
+    run = run_level(operator_user, enumeration_pdf())
 
     rows = body(run)["sec-i/1.1"]
     assert [text for text, _, _ in rows] == [quote for quote, _ in ENUM_PARTS]
@@ -1014,16 +853,13 @@ def test_completeness_splits_an_enumeration_found_as_one_row(operator_user, scri
 def test_effect_condition_is_a_candidate_and_is_added_by_completeness(operator_user, script):
     """REQ-028, REQ-024: un tramo que el modelo descartó y dice la condición como efecto
     ("quedarán…") llega a la completitud por el marcador, y el requisito que ésta agrega
-    queda en la matriz. En media, el mismo tramo queda pendiente por marcadores."""
+    queda en la matriz."""
     script.complete_when(EFECTO, fix(missing=[(EFECTO, "formal")]))
 
-    alta = run_level(operator_user, "alta", enumeration_pdf())
-    media = run_level(operator_user, "media", enumeration_pdf())
+    run = run_level(operator_user, enumeration_pdf())
 
     assert any(EFECTO in text for text in script.sent_to_completeness())
-    assert [text for text, _, _ in body(alta)["sec-i/2.1"]] == [EFECTO]
-    assert disposition(media, "sec-i/2.1").outcome == "pendiente"
-    assert pending(media)["sec-i/2.1"] == "marcadores"
+    assert [text for text, _, _ in body(run)["sec-i/2.1"]] == [EFECTO]
 
 
 def plain_table_pdf():
@@ -1035,12 +871,11 @@ def plain_table_pdf():
     ]])
 
 
-@pytest.mark.parametrize("level", ["media", "alta", "exigente"])
 @pytest.mark.parametrize("pdf", [table_pdf, plain_table_pdf], ids=["con_marcadores", "sin_marcadores"])
-def test_a_table_is_never_discarded(operator_user, script, level, pdf):
+def test_a_table_is_never_discarded(operator_user, script, pdf):
     """REQ-028: si el modelo descarta un tramo de tabla (con o sin marcadores de obligación),
-    el tramo queda pendiente con el motivo `tabla`, no descartado, en todos los niveles."""
-    run = run_level(operator_user, level, pdf())
+    el tramo queda pendiente con el motivo `tabla`, no descartado."""
+    run = run_level(operator_user, pdf())
 
     tables = m.Segment.objects.filter(
         reading__document__procedure=run.procedure, segment_type="tabla")
@@ -1060,7 +895,7 @@ def test_a_table_with_rows_proposed_by_completeness_stays_a_requirement(operator
     script.complete_when("CONCEPTO", fix(missing=[
         ("deberá mantener la oferta durante: 60 días corridos", "formal")]))
 
-    run = run_level(operator_user, "alta", table_pdf())
+    run = run_level(operator_user, table_pdf())
 
     key = m.Segment.objects.get(
         reading__document__procedure=run.procedure, segment_type="tabla").key

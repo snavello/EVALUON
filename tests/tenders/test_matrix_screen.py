@@ -59,7 +59,7 @@ def case(operator_user, script):
                                  "economico")]))
     script.when(PAGO, item([(PAGO, "economico")]))
     script.when("Bolsa de diez kilogramos", item(technical=["2"]))
-    requested, job = propose(operator_user, procedure, level="media")
+    requested, job = propose(operator_user, procedure)
     assert job.status == "done", job.error
     return procedure, document, requested.run.version, requested.run
 
@@ -78,7 +78,7 @@ def recorte(quote):
 
 def test_draft_shows_the_banner_and_the_header(client, operator_user, case):
     """REQ-032: un borrador muestra "BORRADOR INCOMPLETO", fija arriba; el encabezado dice
-    versión, estado, nivel y régimen."""
+    versión, estado, proceso y régimen."""
     procedure, _, version, _ = case
     log_in(client, operator_user)
     response = client.get(matrix_url(version))
@@ -89,7 +89,8 @@ def test_draft_shows_the_banner_and_the_header(client, operator_user, case):
     assert 'class="draft-banner"' in page
     assert page.index(BANNER) < page.index("<header")
     assert "Versión</dt><dd>1" in page
-    assert "Borrador" in page and "Nivel de revisión</dt><dd>Media" in page
+    assert "Borrador" in page and "Proceso</dt><dd>Completo" in page
+    assert "Nivel de revisión" not in page
     assert "Procedimiento autorizado el 14/11/2025" in page
     assert procedure.number in page
     css = open("evaluon/static/tenders/matrix.css", encoding="utf8").read()
@@ -142,7 +143,7 @@ def test_formal_and_economic_are_shown_with_their_class(client, operator_user, s
     script.when(PAGO, item([(PAGO, "economico")]))
     procedure = make_procedure(operator_user)
     load_and_read(operator_user, procedure, three_items_pdf())
-    requested, _ = propose(operator_user, procedure, level="media")
+    requested, _ = propose(operator_user, procedure)
     log_in(client, operator_user)
     page = text_of(client.get(matrix_url(requested.run.version)))
 
@@ -157,7 +158,7 @@ def test_wide_quote_is_marked_for_review(client, operator_user, script):
     script.when(GARANTIA, item([("un texto que el pliego no tiene", "formal")]))
     procedure = make_procedure(operator_user)
     load_and_read(operator_user, procedure, three_items_pdf())
-    requested, job = propose(operator_user, procedure, level="media")
+    requested, job = propose(operator_user, procedure)
     assert job.status == "done", job.error
     quote = m.RequirementQuote.objects.get(requirement__version=requested.run.version,
                                            requirement__category="formal")
@@ -306,43 +307,39 @@ def request_url(procedure):
     return reverse("tenders:request_matrix", args=[procedure.pk])
 
 
-def test_procedure_page_offers_the_levels_with_alta_by_default(client, operator_user,
-                                                                read_only):
-    """REQ-030: la página del procedimiento ofrece el formulario con los niveles y "alta"
-    elegido por omisión."""
+def test_procedure_page_offers_the_button_without_a_level(client, operator_user, read_only):
+    """REQ-030: la página del procedimiento ofrece "Proponer matriz" sin elegir nivel."""
     log_in(client, operator_user)
     page = text_of(client.get(reverse("tenders:procedure", args=[read_only.pk])))
 
     assert "Proponer matriz" in page
-    for level in ("Media", "Alta"):
-        assert f">{level}</option>" in page
-    assert ">Exigente</option>" not in page
-    assert '<option value="alta" selected>' in page
+    assert "Nivel de revisión" not in page
+    assert "name=\"level\"" not in page and "matrix-level" not in page
     assert "Todavía no hay una propuesta de la matriz" in page
 
 
-@pytest.mark.parametrize("level", ["media", "alta"])
-def test_posting_the_form_queues_the_request_with_the_chosen_level(
-        client, operator_user, read_only, level):
-    """REQ-030: el formulario pide la propuesta con el nivel elegido y la página muestra
-    el pedido en espera."""
+def test_posting_the_form_queues_the_request_of_the_single_process(
+        client, operator_user, read_only):
+    """REQ-030: el formulario pide la propuesta del proceso único y la página muestra el
+    pedido en espera."""
     log_in(client, operator_user)
-    response = client.post(request_url(read_only), {"level": level})
+    response = client.post(request_url(read_only), {})
 
     assert response.status_code == 302
     run = m.MatrixRun.objects.get(procedure=read_only)
-    assert run.level == level and run.channel == "screen"
+    assert run.process == "completo" and run.level == "" and run.channel == "screen"
     page = text_of(client.get(response["Location"]))
     assert "Hay una propuesta de la matriz en espera" in page
     assert "Proponer matriz</button>" not in page
 
 
-def test_posting_without_a_level_uses_alta(client, operator_user, read_only):
-    """REQ-030: sin elegir nivel se usa "alta"."""
+def test_a_level_in_the_form_is_ignored(client, operator_user, read_only):
+    """REQ-030: un nivel que llegue en el pedido se ignora: no hay niveles."""
     log_in(client, operator_user)
-    client.post(request_url(read_only), {})
+    client.post(request_url(read_only), {"level": "exigente"})
 
-    assert m.MatrixRun.objects.get(procedure=read_only).level == "alta"
+    run = m.MatrixRun.objects.get(procedure=read_only)
+    assert (run.process, run.level) == ("completo", "")
 
 
 def test_a_refused_request_shows_the_reason_and_queues_nothing(client, operator_user,
@@ -350,7 +347,7 @@ def test_a_refused_request_shows_the_reason_and_queues_nothing(client, operator_
     """REQ-030: un pedido rechazado (sin documentos) vuelve a la página con el motivo."""
     procedure = make_procedure(operator_user)
     log_in(client, operator_user)
-    response = client.post(request_url(procedure), {"level": "media"})
+    response = client.post(request_url(procedure), {})
 
     assert response.status_code == 200
     assert "no tiene ningún documento del pliego" in text_of(response)
@@ -359,8 +356,37 @@ def test_a_refused_request_shows_the_reason_and_queues_nothing(client, operator_
                                      outcome=Outcome.REJECTED).count() == 1
 
 
+def test_an_old_version_with_a_level_is_still_readable_as_history(client, operator_user,
+                                                                   case):
+    """REQ-030: una versión guardada antes del proceso único (con nivel y sin proceso) se
+    sigue viendo, en la matriz, en la impresión y en la lista del procedimiento, con su
+    nivel como dato anterior."""
+    procedure, _, version, _ = case
+    m.MatrixVersion.objects.filter(pk=version.pk).update(level="media", process="")
+    log_in(client, operator_user)
+
+    page = text_of(client.get(matrix_url(version)))
+    assert "Nivel de revisión (anterior)</dt><dd>Media" in page
+    assert "Proceso</dt>" not in page
+    printed = text_of(client.get(reverse("tenders:print", args=[version.pk])))
+    assert "Nivel de revisión (anterior)</dt><dd>Media" in printed
+    listing = text_of(client.get(reverse("tenders:procedure", args=[procedure.pk])))
+    assert "nivel media (anterior)" in listing
+
+
+def test_the_print_page_shows_the_process_and_no_level(client, operator_user, case):
+    """REQ-030: la impresión muestra el proceso y no un nivel."""
+    _, _, version, _ = case
+    log_in(client, operator_user)
+
+    printed = text_of(client.get(reverse("tenders:print", args=[version.pk])))
+
+    assert "Proceso</dt><dd>Completo" in printed
+    assert "Nivel de revisión" not in printed
+
+
 def test_procedure_page_links_the_versions(client, operator_user, case):
-    """La página del procedimiento lista las versiones con su estado, su nivel y la
+    """La página del procedimiento lista las versiones con su estado, su proceso y la
     cobertura."""
     procedure, _, version, _ = case
     log_in(client, operator_user)
@@ -369,6 +395,7 @@ def test_procedure_page_links_the_versions(client, operator_user, case):
     assert f'href="{matrix_url(version)}"' in page
     assert reverse("tenders:coverage", args=[version.pk]) in page
     assert "Hay un borrador abierto" in page
+    assert "proceso completo" in page and "nivel" not in page.lower().replace("nivel de", "")
 
 
 def test_user_without_commission_role_is_refused(client, no_commission_user, case):
@@ -378,7 +405,7 @@ def test_user_without_commission_role_is_refused(client, no_commission_user, cas
 
     assert client.get(matrix_url(version)).status_code == 403
     assert client.get(reverse("tenders:coverage", args=[version.pk])).status_code == 403
-    assert client.post(request_url(procedure), {"level": "media"}).status_code == 403
+    assert client.post(request_url(procedure), {}).status_code == 403
 
 
 # --- Aviso de fin -----------------------------------------------------------------------------------
@@ -390,7 +417,7 @@ def test_finished_notice_shows_once_and_goes_away_when_seen(client, operator_use
     procedure = make_procedure(operator_user)
     load_and_read(operator_user, procedure, three_items_pdf())
     log_in(client, operator_user)
-    client.post(request_url(procedure), {"level": "media"})
+    client.post(request_url(procedure), {})
     run_jobs()
     version = m.MatrixRun.objects.get(procedure=procedure).version
 
@@ -426,7 +453,7 @@ def test_failed_job_notice_says_it_failed_and_why(client, operator_user, script)
     jobs.mark_seen(operator_user, [j.pk for j in m.Job.objects.all()])
     script.fail("timeout")
     log_in(client, operator_user)
-    client.post(request_url(procedure), {"level": "media"})
+    client.post(request_url(procedure), {})
     run_jobs()
     job = m.Job.objects.get(kind="propose_matrix")
     assert job.status == "failed"

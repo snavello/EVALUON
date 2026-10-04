@@ -30,12 +30,6 @@ from tests.tenders.scripted import (
 pytestmark = pytest.mark.django_db
 
 
-@pytest.fixture(autouse=True)
-def offer_every_level(settings):
-    """Estas pruebas recorren las pasadas de los tres niveles, también la de exigente, que
-    existe pero no se ofrece (T-085)."""
-    settings.MATRIX_LEVELS_OFFERED = ("media", "alta", "exigente")
-
 GARANTIA = ("La garantía de mantenimiento de la oferta deberá ser individualizada en "
             "ocasión de presentarse la oferta.")
 GARANTIA_QUOTE = "deberá ser individualizada"
@@ -155,10 +149,10 @@ def script(fake_ai, monkeypatch):
     return double
 
 
-def run_level(user, level="media", authorization_date=date(2025, 11, 14)):
+def run_level(user, authorization_date=date(2025, 11, 14)):
     procedure = make_procedure(user, authorization_date)
     load_and_read(user, procedure, consequence_pdf())
-    requested, job = propose(user, procedure, level=level)
+    requested, job = propose(user, procedure)
     assert job.status == "done", job.error
     return requested.run
 
@@ -389,7 +383,7 @@ def test_service_failure_keeps_the_step_and_fails_the_request(operator_user, scr
     procedure = make_procedure(operator_user)
     load_and_read(operator_user, procedure, consequence_pdf())
 
-    requested, job = propose(operator_user, procedure, level="media")
+    requested, job = propose(operator_user, procedure)
 
     assert job.status == "failed"
     step = m.RunStep.objects.get(run=requested.run, pass_name="consecuencias")
@@ -398,24 +392,22 @@ def test_service_failure_keeps_the_step_and_fails_the_request(operator_user, scr
     assert not m.Consequence.objects.exists()
 
 
-# --- Pasada en todos los niveles --------------------------------------------------------------
+# --- Pasada del proceso único -----------------------------------------------------------------
 
 
-def test_every_level_has_the_consequence_pass_last():
-    """REQ-029: la pasada de consecuencias está en los tres niveles, después de las filas
+def test_the_process_has_the_consequence_pass_last():
+    """REQ-029: la pasada de consecuencias es la última del proceso, después de las filas
     técnicas."""
-    for level, passes in proposal.PASSES.items():
-        assert passes[-2:] == ("filas_tecnicas", "consecuencias"), level
+    assert proposal.PASSES[-2:] == ("filas_tecnicas", "consecuencias")
 
 
-@pytest.mark.parametrize("level", ["media", "alta", "exigente"])
-def test_every_level_proposes_consequences_with_the_same_instructions(
-        operator_user, script, level):
-    """REQ-029: en cualquier nivel la propuesta pide las consecuencias y copia la versión de
-    las instrucciones."""
+def test_the_proposal_asks_for_consequences_and_copies_the_instructions_version(
+        operator_user, script):
+    """REQ-029: la propuesta pide las consecuencias y copia la versión de las
+    instrucciones."""
     script.c_when(GARANTIA_QUOTE, [("desestimacion", ["causal de desestimación"])])
 
-    run = run_level(operator_user, level)
+    run = run_level(operator_user)
 
     run.refresh_from_db()
     assert run.prompt_versions["consecuencias"] == "matriz-consecuencias-v1"

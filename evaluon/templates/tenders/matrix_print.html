@@ -48,7 +48,7 @@ una versión abierta sobre otra no tiene propuesta propia.
     <dt>Procedimiento</dt><dd>{{ page.procedure.number }} · {{ page.procedure.subject }}</dd>
     <dt>Versión</dt><dd>{{ page.version.number }}</dd>
     <dt>Estado</dt><dd>{{ page.version.get_status_display }}</dd>
-    <dt>Nivel de revisión</dt><dd>{{ page.version.get_level_display }}</dd>
+    {% if page.version.level %}<dt>Nivel de revisión (anterior)</dt><dd>{{ page.version.get_level_display }}</dd>{% else %}<dt>Proceso</dt><dd>{{ page.version.get_process_display|default:"Completo" }}</dd>{% endif %}
     {% if not legend %}<dt>Validada</dt><dd>el {{ page.version.validated_at|date:"d/m/Y" }} por {{ page.version.validated_by.username }}</dd>{% endif %}
   </dl>
   {% include "queries/_regime_line.html" with reference_date=page.authorization_date regime=page.regime %}

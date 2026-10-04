@@ -934,10 +934,6 @@ def test_unknown_event_type_still_rejected():
 def test_matrix_parameters_in_settings():
     """REQ-030, REQ-024: los parámetros de la 003 están en la configuración con los
     valores iniciales del plan."""
-    assert settings.MATRIX_LEVELS == ["media", "alta", "exigente"]
-    assert settings.MATRIX_DEFAULT_LEVEL == "alta"
-    assert settings.MATRIX_LEVELS_OFFERED == ("media", "alta")
-    assert set(settings.MATRIX_LEVELS) == set(m.Level.values)
     assert settings.MATRIX_BATCH_INPUT_TOKENS == 1500
     assert settings.MATRIX_MAX_OUTPUT_TOKENS == 4096
     assert settings.SEGMENT_MAX_CHARS == 4000
@@ -968,8 +964,6 @@ def test_enmienda_parameters_in_settings():
     assert settings.NORM_SUPPORT_QUERY_MAX_CHARS == 800
     for name in ("filtro", "unificacion", "respaldo"):
         assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v1"
-    # T-100 retira los niveles: esta tarea no los toca.
-    assert settings.MATRIX_LEVELS == ["media", "alta", "exigente"]
 
 
 def test_generation_batch_url_default(monkeypatch):

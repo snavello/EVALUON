@@ -262,13 +262,6 @@ PROMPT_TEMPLATE_MARGIN_TOKENS = 512
 # Valores iniciales. Se copian en cada propuesta de matriz (`tenders_matrix_run`);
 # cambiarlos exige volver a medir (P7).
 
-# Niveles de revisión que existen (REQ-030) y el que se usa si no se elige.
-MATRIX_LEVELS = ["media", "alta", "exigente"]
-MATRIX_DEFAULT_LEVEL = "alta"
-# Niveles que se ofrecen (T-085). Decisión del responsable del 2026-10-04, con el informe de
-# T-084: se ofrecen media y alta (alta, por omisión); exigente no se ofrece. Sigue existiendo
-# en MATRIX_LEVELS, así `medir_matriz` puede medirlo si se lo pide.
-MATRIX_LEVELS_OFFERED = ("media", "alta")
 # Tokens de entrada de los tramos de un lote de extracción.
 MATRIX_BATCH_INPUT_TOKENS = 1500
 # Máximo de tokens de salida de cada pedido de la matriz.
@@ -290,7 +283,8 @@ MATRIX_PROMPT_VERSIONS = {
     "respaldo": "matriz-respaldo-v1",
 }
 
-# Proceso único de la propuesta (REQ-030 enmendado, T-100 retira los niveles).
+# Proceso único de la propuesta (REQ-030 enmendado): el más completo, sin niveles. Se
+# registra en cada propuesta y en su versión de matriz.
 MATRIX_PROCESS = "completo"
 
 # --- Filtro de sobrantes, unificación y descartadas (ADR-0021, REQ-033) ----------------

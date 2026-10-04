@@ -40,7 +40,7 @@ def case(operator_user, script):
                                  "economico")]))
     script.when(PAGO, item([(PAGO, "economico")]))
     script.when("Bolsa de diez kilogramos", item(technical=["2"]))
-    requested, job = propose(operator_user, procedure, level="alta")
+    requested, job = propose(operator_user, procedure)
     assert job.status == "done", job.error
     return requested.run.version
 
@@ -501,7 +501,7 @@ def test_a_request_in_progress_blocks_opening_a_new_version(
     from evaluon.tenders.services import matrix
 
     validated = service.validate(evaluator_user, ready.pk)
-    matrix.request_matrix(operator_user, validated.procedure, level="media")
+    matrix.request_matrix(operator_user, validated.procedure)
 
     with pytest.raises(service.ValidationRefused) as error:
         service.open_new_version(operator_user, validated.procedure_id)

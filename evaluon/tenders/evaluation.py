@@ -10,8 +10,8 @@ Qué hace:
   lectura) y que cada tramo técnico exista. Lo que falla en el pliego bloquea; lo que falla
   en una circular se informa y no bloquea (sus claves son tentativas, y las circulares se
   usan recién con T-083).
-- `measure`: corre la propuesta con el canal `eval` por cada nivel pedido, mide cada una,
-  descarta las versiones que creó y guarda la carpeta de la corrida (`parametros.json`,
+- `measure`: corre la propuesta del proceso único con el canal `eval`, la mide,
+  descarta la versión que creó y guarda la carpeta de la corrida (`parametros.json`,
   `resultados.jsonl`, `resumen.md` y `resumen-publico.md`).
 
 Cómo se cuenta (ver el plan):
@@ -58,6 +58,7 @@ from datetime import datetime
 from pathlib import Path
 
 import yaml
+from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from django.utils import timezone
 
@@ -800,103 +801,6 @@ def timing_summary(run):
     return summary
 
 
-# --- Comparación entre niveles -------------------------------------------------------------
-
-
-def previous_levels(folders, expected, procedure_number):
-    """Último resultado de cada nivel entre las corridas guardadas en `folders` (T-091).
-
-    Cada carpeta puede ser una corrida (tiene `parametros.json`) o una carpeta que contiene
-    corridas. Solo cuentan las corridas del mismo procedimiento y de la misma lista (huella);
-    comparar contra otra lista engañaría. De cada nivel queda la corrida más reciente (por el
-    nombre, que empieza con la fecha y la hora). Se lee solo `parametros.json` y
-    `resultados.jsonl`: cuentas, nunca texto del pliego. Devuelve
-    `{nivel: {"found", "leftovers", "run"}}`.
-    """
-    candidates = []
-    for folder in folders:
-        folder = Path(folder)
-        if (folder / "parametros.json").is_file():
-            candidates.append(folder)
-        elif folder.is_dir():
-            candidates += [p for p in folder.iterdir()
-                           if (p / "parametros.json").is_file()]
-    found = {}
-    for run_folder in sorted(candidates, key=lambda p: p.name):
-        try:
-            parameters = json.loads((run_folder / "parametros.json").read_text(
-                encoding="utf-8"))
-            if (parameters.get("procedimiento") != procedure_number
-                    or parameters.get("lista", {}).get("sha256") != expected.sha256):
-                continue
-            counts = {}
-            for raw in (run_folder / "resultados.jsonl").read_text(
-                    encoding="utf-8").splitlines():
-                line = json.loads(raw)
-                level = line.get("nivel")
-                if line.get("tipo") == "error":
-                    counts.pop(level, None)
-                    counts[level] = None
-                    continue
-                entry = counts.setdefault(level, {"found": 0, "leftovers": 0})
-                if entry is None:
-                    continue
-                if line.get("tipo") == "esperado" and line.get("estado") in (
-                        "encontrado", MANDATORY_REVIEW):
-                    entry["found"] += 1
-                elif line.get("tipo") == "propuesto" and line.get("estado") == "sobrante":
-                    entry["leftovers"] += 1
-        except (OSError, ValueError, AttributeError):
-            continue
-        for level, entry in counts.items():
-            if entry is not None:
-                found[level] = {**entry, "run": run_folder.name}
-    return found
-
-
-def compare_levels(results, earlier=None, order=None):
-    """Cada nivel contra el anterior: mejora si encuentra más, o si encuentra lo mismo con
-    menos sobrantes (spec 003, REQ-030).
-
-    `earlier` (T-091): resultados de corridas guardadas (ver `previous_levels`) para los
-    niveles que esta corrida no midió; el nivel anterior puede salir de ahí. `order` es el
-    orden de los niveles (por omisión, el de esta corrida). Una fila se informa solo para los
-    niveles de esta corrida; `against_run` dice de qué corrida sale el anterior, si no es esta.
-    """
-    earlier = earlier or {}
-    current = {r["level"]: r for r in results}
-    if order is None:
-        order = [r["level"] for r in results]
-    sequence = [level for level in order if level in current or level in earlier]
-    sequence += [level for level in current if level not in sequence]
-    rows, previous = {}, None
-    for level in sequence:
-        if level in current:
-            result = current[level]
-            if result.get("error"):
-                rows[level] = {"level": level, "verdict": "falló"}
-                continue
-            found = result["measures"]["found"]["ok"]
-            leftovers = result["measures"]["leftovers"]
-            origin = None
-        else:
-            found, leftovers = earlier[level]["found"], earlier[level]["leftovers"]
-            origin = earlier[level]["run"]
-        if level in current:
-            if previous is None:
-                verdict = "base"
-            elif found > previous[0] or (found == previous[0] and leftovers < previous[1]):
-                verdict = "mejora"
-            else:
-                verdict = "no mejora"
-            rows[level] = {"level": level, "found": found, "leftovers": leftovers,
-                           "verdict": verdict,
-                           "against": previous[2] if previous else None,
-                           "against_run": previous[3] if previous else None}
-        previous = (found, leftovers, level, origin)
-    return [rows[r["level"]] for r in results]
-
-
 # --- La corrida ----------------------------------------------------------------------------
 
 
@@ -905,9 +809,7 @@ class Report:
     folder: Path
     expected: Expected
     verification: Verification
-    levels: list
     results: list
-    comparison: list
 
     @property
     def blocking(self):
@@ -915,15 +817,15 @@ class Report:
         reasons = []
         for result in self.results:
             if result.get("error"):
-                reasons.append(f"{result['level']}: la propuesta falló")
+                reasons.append(f"{result['process']}: la propuesta falló")
                 continue
             measures = result["measures"]
             for name in ("found", "literal"):
                 if measures[name]["ok"] < measures[name]["total"]:
-                    reasons.append(f"{result['level']}: {name} no llega al 100 %")
+                    reasons.append(f"{result['process']}: {name} no llega al 100 %")
             coverage = measures["coverage"]
             if coverage["with_disposition"] < coverage["segments"]:
-                reasons.append(f"{result['level']}: hay tramos sin disposición")
+                reasons.append(f"{result['process']}: hay tramos sin disposición")
         return reasons
 
 
@@ -940,11 +842,13 @@ def _discard(version, user, run):
     )
 
 
-def measure_level(user, procedure, expected, level, clock=time.monotonic):
-    """Corre la propuesta de `level` con el canal `eval`, la mide y descarta la versión."""
+def measure_process(user, procedure, expected, clock=time.monotonic):
+    """Corre la propuesta del proceso único con el canal `eval`, la mide y descarta la
+    versión."""
     snapshot = matrix_service._documents_snapshot(procedure)
     run = m.MatrixRun.objects.create(
-        procedure=procedure, job=None, level=level, channel=m.RunChannel.EVAL,
+        procedure=procedure, job=None, process=settings.MATRIX_PROCESS,
+        channel=m.RunChannel.EVAL,
         documents=snapshot, authorization_date=procedure.authorization_date)
     readings = {}
     for entry in snapshot:
@@ -954,7 +858,7 @@ def measure_level(user, procedure, expected, level, clock=time.monotonic):
     try:
         version = proposal.propose(run, user=user, channel=Channel.COMMAND)
     except Exception as error:
-        return {"level": level, "run": run.pk,
+        return {"process": settings.MATRIX_PROCESS, "run": run.pk,
                 "error": f"{type(error).__name__}: {error}",
                 "error_class": type(error).__name__,
                 "seconds": round(clock() - started, 1)}
@@ -972,7 +876,7 @@ def _result_of_run(run, version, procedure, expected, readings):
     check = verify_expected(expected, procedure, readings)
     measures = measure_version(run, expected, check)
     return {
-        "level": run.level, "run": run.pk, "version": version.number,
+        "process": run.process or run.level, "run": run.pk, "version": version.number,
         "measures": measures, "timings": timing_summary(run),
         "counts": run.counts,
         "anomalies": dict(Counter(a["type"] for a in run.anomalies)),
@@ -981,13 +885,14 @@ def _result_of_run(run, version, procedure, expected, readings):
     }
 
 
-def regenerate_summaries(procedure, expected, folder, *, compare_with=()):
+def regenerate_summaries(procedure, expected, folder):
     """Reescribe `resumen.md` y `resumen-publico.md` de una corrida ya hecha, sin el modelo
     (T-096): vuelve a medir las propuestas que `parametros.json` nombra, que siguen en la
     base aunque sus versiones estén descartadas. No toca `parametros.json` ni
     `resultados.jsonl`. Lanza `MeasurementRefused` si la carpeta no es una corrida de esta
-    lista y este procedimiento, o si falta una propuesta en la base."""
-    from django.conf import settings
+    lista y este procedimiento, o si falta una propuesta en la base. Las corridas hechas
+    con niveles (claves `niveles`, `level` y `nivel`) siguen siendo legibles: el nivel se
+    muestra como el proceso de la propuesta."""
 
     folder = Path(folder)
     try:
@@ -996,7 +901,7 @@ def regenerate_summaries(procedure, expected, folder, *, compare_with=()):
         for raw in (folder / "resultados.jsonl").read_text(encoding="utf-8").splitlines():
             line = json.loads(raw)
             if line.get("tipo") == "error":
-                errors[line["nivel"]] = line["error"]
+                errors[line.get("proceso") or line["nivel"]] = line["error"]
     except (OSError, ValueError):
         raise MeasurementRefused("La carpeta no tiene una corrida legible.") from None
     if (parameters.get("procedimiento") != procedure.number
@@ -1005,10 +910,10 @@ def regenerate_summaries(procedure, expected, folder, *, compare_with=()):
     verification = verify_expected(expected, procedure)
     results = []
     for entry in parameters["propuestas"]:
-        level = entry["level"]
-        if level in errors:
-            results.append({"level": level, "run": entry.get("run"), "error": errors[level],
-                            "error_class": errors[level].split(":", 1)[0]})
+        label = entry.get("process") or entry["level"]
+        if label in errors:
+            results.append({"process": label, "run": entry.get("run"), "error": errors[label],
+                            "error_class": errors[label].split(":", 1)[0]})
             continue
         try:
             run = m.MatrixRun.objects.get(pk=entry["run"])
@@ -1021,29 +926,19 @@ def regenerate_summaries(procedure, expected, folder, *, compare_with=()):
             reading = m.Reading.objects.select_related("document").get(pk=document["reading"])
             readings[reading.document.file_name] = reading
         results.append(_result_of_run(run, version, procedure, expected, readings))
-    earlier = previous_levels(list(compare_with), expected, procedure.number)
-    comparison = compare_levels(results, earlier, list(settings.MATRIX_LEVELS))
-    report = Report(folder, expected, verification, parameters["niveles"], results, comparison)
+    report = Report(folder, expected, verification, results)
     (folder / "resumen.md").write_text(_summary(report, public=False), encoding="utf-8")
     (folder / "resumen-publico.md").write_text(_summary(report, public=True),
                                                encoding="utf-8")
     return report
 
 
-def measure(user, procedure, expected, levels, runs_dir, *, commit=None, compare_with=(),
-            clock=time.monotonic):
-    """Comprueba la lista, corre cada nivel de `levels` y guarda la carpeta de la corrida
-    en `runs_dir`. Devuelve el `Report`. Lanza `MeasurementRefused` si la lista no se puede
-    usar, si hay un borrador abierto o si un nivel no existe. La comparación entre niveles usa
-    también el último resultado de cada nivel en las corridas de `runs_dir` y de `compare_with`
-    (T-091)."""
+def measure(user, procedure, expected, runs_dir, *, commit=None, clock=time.monotonic):
+    """Comprueba la lista, corre el proceso único y guarda la carpeta de la corrida en
+    `runs_dir`. Devuelve el `Report`. Lanza `MeasurementRefused` si la lista no se puede
+    usar o si hay un borrador abierto. Ya no hay niveles ni comparación entre ellos (T-100)."""
     require_commission_role(user, CommissionRole.OPERATOR, operation=OPERATION,
                             channel=Channel.COMMAND)
-    from django.conf import settings
-
-    unknown = [level for level in levels if level not in settings.MATRIX_LEVELS]
-    if unknown or not levels:
-        raise MeasurementRefused("Niveles posibles: " + ", ".join(settings.MATRIX_LEVELS))
     if not expected.approval:
         raise ExpectedNotApproved("la lista no tiene visto bueno: no se usa")
     verification = verify_expected(expected, procedure)
@@ -1053,10 +948,7 @@ def measure(user, procedure, expected, levels, runs_dir, *, commit=None, compare
     if procedure.matrix_versions.filter(status=m.VersionStatus.DRAFT).exists():
         raise MeasurementRefused("El procedimiento tiene un borrador abierto: la base admite "
                                  "uno solo. Descártelo o mida en otra base.")
-    results = [measure_level(user, procedure, expected, level, clock)
-               for level in levels]
-    earlier = previous_levels([runs_dir, *compare_with], expected, procedure.number)
-    comparison = compare_levels(results, earlier, list(settings.MATRIX_LEVELS))
+    results = [measure_process(user, procedure, expected, clock)]
     started_at = timezone.now()
     base = f"{started_at:%Y%m%d-%H%M%S}-{commit or 'sin-commit'}"
     folder = Path(runs_dir) / base
@@ -1064,7 +956,7 @@ def measure(user, procedure, expected, levels, runs_dir, *, commit=None, compare
     while folder.exists():
         suffix += 1
         folder = Path(runs_dir) / f"{base}-{suffix}"
-    report = Report(folder, expected, verification, list(levels), results, comparison)
+    report = Report(folder, expected, verification, results)
     _write(report, procedure, started_at, commit)
     return report
 
@@ -1082,12 +974,13 @@ def _write(report, procedure, started_at, commit):
     parameters = {
         "caso": expected.case, "procedimiento": procedure.number, "uso": expected.use,
         "iniciada": started_at, "commit": commit or "sin-commit",
-        "niveles": report.levels, "lista": {"sha256": expected.sha256,
-                                            "visto_bueno": expected.approval,
-                                            "requisitos": len(expected.items)},
+        "proceso": settings.MATRIX_PROCESS,
+        "lista": {"sha256": expected.sha256,
+                  "visto_bueno": expected.approval,
+                  "requisitos": len(expected.items)},
         "comprobacion": dict(report.verification.counts),
         "propuestas": [
-            {k: r.get(k) for k in ("level", "run", "version", "parameters",
+            {k: r.get(k) for k in ("process", "run", "version", "parameters",
                                     "prompt_versions", "models", "corpus_version", "error")}
             for r in report.results
         ],
@@ -1097,11 +990,11 @@ def _write(report, procedure, started_at, commit):
     with (report.folder / "resultados.jsonl").open("w", encoding="utf-8") as handle:
         for result in report.results:
             if result.get("error"):
-                handle.write(_dumps({"nivel": result["level"], "tipo": "error",
+                handle.write(_dumps({"proceso": result["process"], "tipo": "error",
                                      "error": result["error"]}) + "\n")
                 continue
             for line in result["measures"]["lines"]:
-                handle.write(_dumps({"nivel": result["level"], **line}) + "\n")
+                handle.write(_dumps({"proceso": result["process"], **line}) + "\n")
     (report.folder / "resumen.md").write_text(_summary(report, public=False),
                                               encoding="utf-8")
     (report.folder / "resumen-publico.md").write_text(_summary(report, public=True),
@@ -1122,7 +1015,7 @@ def _summary(report, *, public):
             "independientes entre sí (plan 003, \"Por qué la medida es provisoria\").",
             f"Uso de la lista: {expected.use or 'sin indicar'}.", ""]
     for result in report.results:
-        out.append(f"## Nivel {result['level']}")
+        out.append(f"## Proceso {result['process']}")
         if result.get("error"):
             shown = result["error_class"] if public else result["error"]
             out += ["", f"La propuesta falló: {shown}", ""]
@@ -1161,16 +1054,6 @@ def _summary(report, *, public):
         out += _timing_lines(result["timings"])
         out += _detail_lines(result, report, public)
         out.append("")
-    out += ["## Comparación entre niveles", ""]
-    for row in report.comparison:
-        if row["verdict"] == "falló":
-            out.append(f"- {row['level']}: falló")
-        else:
-            against = f" respecto de {row['against']}" if row.get("against") else ""
-            if row.get("against_run"):
-                against += f" (corrida {row['against_run']})"
-            out.append(f"- {row['level']}: {row['verdict']}{against} "
-                       f"(encontrados {row['found']}, sobrantes {row['leftovers']})")
     blocking = report.blocking
     out += ["", "## Bloqueos de la aceptación", ""]
     out += [f"- {reason}" for reason in blocking] or ["- ninguno"]

@@ -1,32 +1,24 @@
-"""Segunda extracción, unión y pasada de completitud de los niveles alta y exigente
-(REQ-024, REQ-030; plan 003, "Pasadas"; ADR-0019, decisión 5).
+"""Pasada de completitud del proceso único (REQ-024, REQ-030; plan 003, "Pasadas";
+ADR-0019, decisión 5).
 
-Estas pasadas solo cambian cómo se buscan los requisitos formales y económicos; lo técnico
-es igual en los tres niveles. Solo trabajan con tramos que pasan por el modelo: los de una
-sección técnica se disponen por regla y no llegan acá.
+Esta pasada solo cambia cómo se buscan los requisitos formales y económicos; lo técnico lo
+arma una regla. Solo trabaja con tramos que pasan por el modelo: los de una sección técnica
+se disponen por regla y no llegan acá. La segunda extracción y la unión de las dos
+extracciones (nivel "exigente") dejaron de ser parte del proceso (T-100).
 
-**Segunda extracción** (exigente). `second_extraction` repite la extracción sobre los mismos
-tramos con los lotes desplazados medio lote: el primer lote se corta a la mitad, así que los
-límites caen en otros tramos. Usa su propio `Extractor` con `PassName.EXTRACCION_2`.
+Un requisito de la completitud es el mismo que uno ya encontrado en el tramo solo si una de
+las dos citas queda contenida en la otra en al menos el 90 % de sus propios caracteres
+(`_same_requirement`); una cita amplia (tramo entero) nunca se reemplaza por un fragmento ni
+al revés: solo es la misma que otra cita amplia de su clase. Cada requisito lleva en
+`passes` las pasadas que lo encontraron.
 
-**Unión** (`union`). Regla que manda (REQ-024): un nivel más alto nunca pierde un requisito que
-encontraba el anterior; ante la duda, de más. Por tramo, un requisito de la segunda extracción
-es el mismo que uno de la primera solo si una de las dos citas queda contenida en la otra en
-al menos el 90 % de sus propios caracteres; entonces queda la más larga (con la clase de la
-primera, y la anomalía `clase_en_desacuerdo` si las clases difieren). Si cada una tiene
-bastante texto propio, quedan las dos. Una cita amplia (tramo entero) nunca se reemplaza por
-un fragmento ni al revés: solo es la misma que otra cita amplia de su clase. Un tramo descartado en una extracción y con requisitos o marca técnica en la otra
-queda con lo encontrado; la marca técnica es la unión de las dos. Si una sola extracción
-dejó el tramo sin disposición, vale la otra. Cada requisito lleva en `passes` las pasadas
-que lo encontraron.
-
-**Completitud** (alta y exigente). `Completer.complete` recibe, solo para tramos formales y
+**Completitud.** `Completer.complete` recibe, solo para tramos formales y
 económicos, cada tramo con sus requisitos ya encontrados (o ninguno, si el modelo lo
 descartó y tiene marcadores de obligación) y devuelve los que faltan y las divisiones de los
 que juntan dos condiciones (`prompts/matriz-completitud-v1.md`). El sistema ubica cada cita
 con `quotes.locate`, que tolera espacios y saltos de línea distintos y devuelve posiciones
 relativas al tramo; un faltante que es el mismo que un requisito ya encontrado (misma regla de
-la unión) no se suma; una cita que no se ubica queda con el tramo entero como cita
+`_same_requirement`) no se suma; una cita que no se ubica queda con el tramo entero como cita
 (`cita_amplia`), porque un requisito nunca se pierde por una cita mal copiada; una división
 solo se acepta si cada parte se ubica dentro del original (ubicado en el tramo, sin la etiqueta
 de clase que el modelo a veces copia; reemplaza a las filas del tramo que contiene o que se
@@ -65,7 +57,6 @@ ANOMALY_SERVICE = "servicio"
 MORE_THAN_HALF = 0.5
 CONTAINED = 0.9  # fracción de una cita que tiene que estar dentro de la otra para ser la misma
 CONNECTORS = frozenset({"y", "e"})
-ANOMALY_CLASS_DISAGREEMENT = "clase_en_desacuerdo"
 
 
 class InvalidItem(ValueError):
@@ -85,19 +76,8 @@ def containment(inner, outer):
 
 
 def passes_of(found):
-    """Las pasadas que encontraron el requisito; sin marca, solo la extracción."""
     return list(getattr(found, "passes", None) or [PassName.EXTRACCION.value])
 
-
-_PASS_ORDER = (PassName.EXTRACCION.value, PassName.EXTRACCION_2.value,
-               PassName.COMPLETITUD.value)
-
-
-def tag(found, *names):
-    """Suma `names` a las pasadas del requisito y lo devuelve."""
-    have = {*(getattr(found, "passes", None) or []), *names}
-    found.passes = [name for name in _PASS_ORDER if name in have]
-    return found
 
 
 def _same_requirement(new, old):
@@ -108,67 +88,6 @@ def _same_requirement(new, old):
         return new.flag == old.flag and new.category == old.category
     return max(containment(new.span, old.span),
                containment(old.span, new.span)) >= CONTAINED
-
-
-# --- Segunda extracción y unión --------------------------------------------------------------
-
-
-def second_extraction(extractor, units):
-    """Repite la extracción de `units` con los lotes desplazados medio lote. `extractor` es
-    el `Extractor` de la segunda extracción. Devuelve una `extraction.Extraction`."""
-    lots = extraction.batches(units)
-    shift = len(lots[0]) // 2 if lots else 0
-    outcomes = {}
-    result = None
-    for part in (units[:shift], units[shift:]):
-        if part:
-            result = extractor.extract(part)
-            outcomes.update(result.outcomes)
-    if result is None:
-        return extraction.Extraction(outcomes={}, steps=extractor.steps, anomalies=[],
-                                     stats=extractor.stats)
-    # Las anomalías y las cuentas del extractor son acumuladas: valen las de la última.
-    return extraction.Extraction(outcomes=outcomes, steps=extractor.steps,
-                                 anomalies=result.anomalies, stats=result.stats)
-
-
-def union(first, second, anomalies=None):
-    """El `extraction.Outcome` que une el de la primera y el de la segunda extracción del
-    mismo tramo. Ver el módulo. Las anomalías se suman a `anomalies`, si se la pasa."""
-    for found in first.found:
-        tag(found, PassName.EXTRACCION.value)
-    for found in second.found:
-        tag(found, PassName.EXTRACCION_2.value)
-    if not first.valid:
-        return second if second.valid else first
-    if not second.valid:
-        return first
-
-    merged = list(first.found)
-    for new in second.found:
-        for index, old in enumerate(merged):
-            if _same_requirement(new, old):
-                if new.category != old.category and anomalies is not None:
-                    anomalies.append({
-                        "type": ANOMALY_CLASS_DISAGREEMENT, "segment": first.unit.segment.pk,
-                        "key": first.unit.segment.key,
-                        "clases": [old.category, new.category]})
-                tag(old, PassName.EXTRACCION_2.value)
-                if new.span[1] - new.span[0] > old.span[1] - old.span[0]:
-                    new.category = old.category
-                    tag(new, *passes_of(old))
-                    merged[index] = new
-                break
-        else:
-            merged.append(new)
-    technical = extraction._union(first.technical, second.technical)
-    discard = "" if merged or technical else (first.discard or second.discard)
-    return extraction.Outcome(
-        unit=first.unit, valid=True, found=merged, technical=technical, discard=discard,
-        step=first.step if (first.found or first.technical or not second.found)
-        else second.step,
-        retried=first.retried or second.retried, item=first.item,
-    )
 
 
 # --- Completitud -----------------------------------------------------------------------------

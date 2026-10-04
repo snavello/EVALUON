@@ -21,7 +21,7 @@ from tests.tenders.scripted import (
     item,
     load_and_read,
     make_procedure,
-    propose as propose_at_level,
+    propose,
     script,  # noqa: F401  (fixture)
     three_items_pdf,
 )
@@ -30,10 +30,14 @@ from tests.tenders.pdfs import para, synthetic_tender_pdf, tender_pdf
 pytestmark = pytest.mark.django_db
 
 
-def propose(user, procedure, *, level="media"):
-    """Estas pruebas son de la extracción, que es la de media: alta y exigente suman pasadas
-    propias (`test_completeness.py`) y cambiarían la cuenta de pedidos."""
-    return propose_at_level(user, procedure, level=level)
+@pytest.fixture(autouse=True)
+def only_the_extraction(monkeypatch):
+    """Estas pruebas son de la extracción: la completitud no recibe ningún tramo, así que no
+    suma pedidos ni cambia disposiciones. La completitud se prueba en `test_completeness.py`,
+    también con los tramos descartados con marcadores de obligación."""
+    monkeypatch.setattr(proposal, "completeness_candidates", lambda loaded, decisions: [])
+
+
 
 GARANTIA_QUOTE = "constituir una garantía del 5 % del monto"
 
@@ -505,27 +509,6 @@ def test_obligation_markers_are_found_without_accents_or_case(text):
 def test_text_without_markers_is_not_marked(text):
     """REQ-028: un texto sin marcadores no se marca."""
     assert not proposal.has_obligation_markers(text)
-
-
-def test_discarded_segment_with_markers_stays_pending(operator_user, case, script):
-    """REQ-028: un tramo que el modelo descartó y tiene marcadores de obligación queda
-    pendiente de revisión (en media no hay pasada de completitud); sin marcadores, queda
-    descartado con su motivo."""
-    procedure, _ = case
-    script.when(GARANTIA, item(discard="obligacion_organismo"))
-
-    requested, _ = propose(operator_user, procedure)
-
-    by_key = dispositions(requested.run)
-    assert by_key["sec-i/1.1"].outcome == "pendiente"
-    assert by_key["sec-i/1.1"].discard_reason == ""
-    assert by_key["sec-i/1.1"].source == "modelo"
-    pending = m.PendingItem.objects.get(version=requested.run.version,
-                                        segment__key="sec-i/1.1")
-    assert pending.reason == "marcadores"
-    assert by_key["sec-i/4.1"].outcome == "descartado"
-    assert requested.run.counts["pending_by_reason"] == {
-        "marcadores": 1, "renglon_sin_especificaciones": 1}
 
 
 # --- Pendientes de la lectura (REQ-028) ----------------------------------------------------

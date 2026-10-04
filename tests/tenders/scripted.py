@@ -110,6 +110,7 @@ class Script:
         self.rules = []
         self.calls = []
         self.consequence_calls = []
+        self.completeness_default_calls = []
         self.fallback = DEFAULT_DISCARD
         self._override = None
         self._failing = False
@@ -150,6 +151,14 @@ class Script:
             if not self._failing:
                 self.fake.respond(json.dumps(
                     {alias: {"opciones": []} for alias in schema["properties"]}))
+            return self.fake.generate(messages, schema, **options)
+        if "faltantes" in first:
+            # Pedido de completitud (T-078): el guion no encuentra faltantes ni divisiones.
+            self.completeness_default_calls.append(messages)
+            if not self._failing:
+                self.fake.respond(json.dumps(
+                    {alias: {"faltantes": [], "divisiones": []}
+                     for alias in schema["properties"]}))
             return self.fake.generate(messages, schema, **options)
         blocks = parse_blocks(messages[-1]["content"])
         number = len(self.calls)
@@ -200,9 +209,9 @@ def load_and_read(user, procedure, data, *, kind=m.DocumentKind.PLIEGO,
     return loaded.document
 
 
-def propose(user, procedure, *, level=None):
+def propose(user, procedure):
     """Pide la propuesta y la corre. Devuelve `(Requested, job ya ejecutado)`."""
-    requested = matrix.request_matrix(user, procedure, level=level)
+    requested = matrix.request_matrix(user, procedure)
     run_jobs()
     requested.job.refresh_from_db()
     requested.run.refresh_from_db()
