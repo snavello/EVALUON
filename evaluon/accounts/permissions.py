@@ -27,15 +27,24 @@ from django.contrib.auth import authenticate
 from django.core.exceptions import PermissionDenied
 from django.core.management import CommandError
 
-from evaluon.accounts.models import Role
+from evaluon.accounts.models import CommissionRole, Role
 
 # El mismo mensaje único que la pantalla de ingreso (T-006).
 LOGIN_FAILED_MESSAGE = "Usuario o clave incorrectos."
+
+_REJECTED_MESSAGE = "Su usuario no tiene permiso para hacer esta operación."
 
 # Qué roles alcanzan para cada nivel exigido: lectura y escritura incluye lectura.
 _ALLOWED = {
     Role.READ: {Role.READ, Role.READ_WRITE},
     Role.READ_WRITE: {Role.READ_WRITE},
+}
+
+# Lo mismo para el rol de la Comisión (plan 003, "Roles"): el evaluador puede hacer todo
+# lo que hace el operador. Sin rol de la Comisión (`''`) no se pasa nunca.
+_COMMISSION_ALLOWED = {
+    CommissionRole.OPERATOR: {CommissionRole.OPERATOR, CommissionRole.EVALUATOR},
+    CommissionRole.EVALUATOR: {CommissionRole.EVALUATOR},
 }
 
 # Atributos que `authenticate_command` deja en el usuario que devuelve: solo existen en
@@ -68,17 +77,42 @@ def _calling_operation(frame):
 def record_rejection(user, required, *, operation, channel=None):
     """Deja el hecho `rejected`: usuario (si está identificado), operación intentada,
     rol exigido, rol del usuario, canal y, por comando, el nombre del comando."""
+    identified = _is_identified(user)
+    _record_rejected(
+        user,
+        {
+            "operation": operation,
+            "required_role": str(Role(required)),
+            "user_role": getattr(user, "role", None) if identified else None,
+        },
+        channel=channel,
+    )
+
+
+def record_commission_rejection(user, required, *, operation, channel=None):
+    """Como `record_rejection`, para el rol de la Comisión: el hecho `rejected` lleva
+    el rol de la Comisión exigido y el del usuario."""
+    identified = _is_identified(user)
+    _record_rejected(
+        user,
+        {
+            "operation": operation,
+            "required_commission_role": str(CommissionRole(required)),
+            "user_commission_role": (
+                getattr(user, "commission_role", None) if identified else None
+            ),
+        },
+        channel=channel,
+    )
+
+
+def _record_rejected(user, detail, *, channel):
     from evaluon.audit import services as audit
     from evaluon.audit.models import Channel, EventType, Outcome
 
     identified = _is_identified(user)
     if channel is None:
         channel = getattr(user, _CHANNEL_ATTR, None) or Channel.SCREEN
-    detail = {
-        "operation": operation,
-        "required_role": str(Role(required)),
-        "user_role": getattr(user, "role", None) if identified else None,
-    }
     command = getattr(user, _COMMAND_ATTR, None)
     if command:
         detail["command"] = command
@@ -107,7 +141,27 @@ def require_role(user, required, *, operation=None, channel=None):
         if operation is None:
             operation = _calling_operation(sys._getframe(1))
         record_rejection(user, required, operation=operation, channel=channel)
-        raise RoleRejected("Su usuario no tiene permiso para hacer esta operación.")
+        raise RoleRejected(_REJECTED_MESSAGE)
+
+
+def require_commission_role(user, required, *, operation=None, channel=None):
+    """Deja pasar si `user` es un usuario activo con el rol de la Comisión `required`
+    o uno que lo incluye (el evaluador incluye al operador); si no, registra el hecho
+    `rejected` y lanza `RoleRejected`, como `require_role`. El rol de la normativa no
+    cuenta: un usuario sin rol de la Comisión se rechaza siempre."""
+    allowed = _COMMISSION_ALLOWED[CommissionRole(required)]
+    if (
+        user is None
+        or not getattr(user, "is_authenticated", False)
+        or not user.is_active
+        or user.commission_role not in allowed
+    ):
+        if operation is None:
+            operation = _calling_operation(sys._getframe(1))
+        record_commission_rejection(
+            user, required, operation=operation, channel=channel
+        )
+        raise RoleRejected(_REJECTED_MESSAGE)
 
 
 def read_password(prompt):
