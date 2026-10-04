@@ -391,3 +391,118 @@ def test_a_refused_post_shows_the_reason_and_changes_nothing(
     assert response.status_code == 400
     assert "Escriba el motivo de la elección" in page_text(response)
     assert not m.Consequence.objects.filter(requirement=requirement, chosen=True).exists()
+
+
+# --- Cierre de la verificación (F1, O1, O2, O3, A24) -------------------------------------------
+
+
+def test_option_and_a_different_type_together_are_rejected(evaluator_user, garantia):
+    """REQ-029, P3: una opción y un tipo distintos juntos se rechazan; no se descarta uno
+    en silencio."""
+    requirement, desest, _, _ = garantia
+
+    with pytest.raises(service.ChoiceRefused) as error:
+        service.choose(evaluator_user, requirement.pk, option=desest.pk,
+                       consequence_type="aprobar_igual", note="Otro motivo.")
+
+    assert error.value.reason == "ambiguous_choice"
+    assert rejected("ambiguous_choice").count() == 1
+    assert not m.Consequence.objects.filter(requirement=requirement, chosen=True).exists()
+
+
+def _forms_of(requirement, text):
+    marker = f"/requisitos/{requirement.pk}/consecuencia/"
+    return [chunk for chunk in text.split("<form")[1:] if marker in chunk.split(">")[0]]
+
+
+def test_after_a_choice_the_form_can_pick_another_type_with_its_note(
+        client, evaluator_user, case, garantia):
+    """REQ-029, P3: con el POST de los formularios reales, después de una elección, elegir
+    otro tipo con motivo deja elegido el tipo nuevo con ese motivo."""
+    requirement, desest, _, _ = garantia
+    log_in(client, evaluator_user)
+    url = reverse("tenders:consequence_choose", args=[requirement.pk])
+    client.post(url, {"option": desest.pk})
+
+    text = page_text(client.get(reverse("tenders:matrix", args=[case.pk])))
+    forms = _forms_of(requirement, text)
+    assert forms
+    for form in forms:  # ningún formulario junta las dos vías
+        assert not ('name="option"' in form and 'name="consequence_type"' in form)
+    other = next(f for f in forms if 'name="consequence_type"' in f)
+    assert 'name="option"' not in other
+    response = client.post(url, {"consequence_type": "aprobar_igual",
+                                 "note": "No afecta la comparación."})
+
+    assert response.status_code == 302
+    chosen = m.Consequence.objects.get(requirement=requirement, chosen=True)
+    assert chosen.consequence_type == "aprobar_igual"
+    assert chosen.chosen_note == "No afecta la comparación."
+    desest.refresh_from_db()
+    assert not desest.chosen and desest.chosen_note == ""
+
+
+def test_a_ground_from_another_clause_shows_its_exact_partial_cut(
+        client, evaluator_user, case, garantia):
+    """REQ-029, P3: un fundamento de otra cláusula, con recorte parcial, se muestra con el
+    texto literal exacto."""
+    requirement = garantia[0]
+    segment = segment_with(case, PAGO)
+    start, end = segment.char_start + 3, segment.char_end - 4
+    suggest(requirement, "otra_pliego", [{**pliego_ground(segment), "char_start": start,
+                                          "char_end": end}])
+    cut = segment.reading.canonical_text[start:end]
+    log_in(client, evaluator_user)
+
+    text = page_text(client.get(reverse("tenders:matrix", args=[case.pk])))
+
+    assert f'<blockquote class="literal">{cut}</blockquote>' in text
+
+
+@pytest.mark.parametrize("status", ["discarded", "validated"])
+def test_a_version_that_is_not_a_draft_cannot_be_chosen_on(
+        evaluator_user, case, garantia, status):
+    """REQ-029, REQ-027: en una versión descartada o validada no se elige."""
+    from django.utils import timezone
+
+    requirement, desest, _, _ = garantia
+    when = {"discarded": ("discarded_at", "discarded_by"),
+            "validated": ("validated_at", "validated_by")}[status]
+    m.MatrixVersion.objects.filter(pk=case.pk).update(
+        status=status, **{when[0]: timezone.now(), when[1]: evaluator_user})
+
+    with pytest.raises(service.ChoiceRefused) as error:
+        service.choose(evaluator_user, requirement.pk, option=desest.pk)
+
+    assert error.value.reason == "version_not_draft"
+    assert rejected("version_not_draft").count() == 1
+    desest.refresh_from_db()
+    assert not desest.chosen
+
+
+def test_a_removed_requirement_cannot_be_chosen_on(evaluator_user, garantia):
+    """REQ-029: un requisito quitado no se elige."""
+    from evaluon.tenders.services import review
+
+    requirement, desest, _, _ = garantia
+    review.remove(evaluator_user, requirement.pk)
+
+    with pytest.raises(service.ChoiceRefused) as error:
+        service.choose(evaluator_user, requirement.pk, option=desest.pk)
+
+    assert error.value.reason == "requirement_removed"
+
+
+@pytest.mark.parametrize("kind", ["consultar_oferente", "otra_pliego"])
+def test_a_system_option_without_grounds_asks_for_the_quote(evaluator_user, case, kind):
+    """REQ-029: defensa en profundidad: una sugerencia del sistema que exige la cita del
+    pliego y no la trae se rechaza."""
+    requirement = requirement_with(case, PAGO)
+    bare = suggest(requirement, kind, [])
+
+    with pytest.raises(service.ChoiceRefused) as error:
+        service.choose(evaluator_user, requirement.pk, option=bare.pk)
+
+    assert error.value.reason == "pliego_ground_required"
+    bare.refresh_from_db()
+    assert not bare.chosen

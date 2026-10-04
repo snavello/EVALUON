@@ -163,6 +163,11 @@ def choose(user, requirement_id, *, option=None, consequence_type=None, note="",
             if picked is None:
                 raise ChoiceRefused("Esa opción no es de este requisito.",
                                     "option_not_found", "option")
+            if consequence_type not in (None, "") and \
+                    consequence_type != picked.consequence_type:
+                raise ChoiceRefused(
+                    "Llegaron una opción y un tipo distintos: elija una sola cosa.",
+                    "ambiguous_choice", "consequence_type")
         elif consequence_type not in (None, ""):
             if consequence_type == ConsequenceType.NO_DETERMINADA.value:
                 raise ChoiceRefused(
@@ -187,6 +192,11 @@ def choose(user, requirement_id, *, option=None, consequence_type=None, note="",
 
         suggested = picked is not None and picked.origin == ConsequenceOrigin.SISTEMA
         if suggested:
+            if picked.consequence_type in NEED_PLIEGO_QUOTE and not picked.grounds:
+                # Defensa en profundidad: T-080 no deja que exista.
+                raise ChoiceRefused(
+                    "Esa sugerencia no trae la cita del pliego que la sostiene: indique "
+                    "el tramo y el fragmento.", "pliego_ground_required", "segment")
             final_note = note  # el fundamento de la sugerencia es el motivo
             grounds = None
         else:

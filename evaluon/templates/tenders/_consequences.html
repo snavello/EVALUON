@@ -19,7 +19,7 @@
       {% endfor %}
       {% if option.chosen and option.consequence.chosen_note %}<p class="chosen-note">{% if option.consequence.consequence_type == "aprobacion_condicionada" %}Condición{% else %}Motivo{% endif %}: {{ option.consequence.chosen_note }}</p>{% endif %}
       {% if can_choose and not option.undetermined %}
-      <label class="consequence-pick"><input type="radio" name="option" value="{{ option.consequence.pk }}" form="choose-{{ requirement.pk }}"{% if option.chosen %} checked{% endif %}> Elegir esta</label>
+      {% if not option.chosen %}<form class="consequence-pick" method="post" action="{% url 'tenders:consequence_choose' requirement.pk %}">{% csrf_token %}<input type="hidden" name="option" value="{{ option.consequence.pk }}"><button type="submit">Aceptar esta sugerencia</button></form>{% endif %}
       {% endif %}
     </li>
     {% endfor %}
@@ -27,8 +27,8 @@
   {% if can_choose %}
   <details class="review-actions"{% if error %} open{% endif %}><summary>Elegir la consecuencia</summary>
     <form id="choose-{{ requirement.pk }}" method="post" action="{% url 'tenders:consequence_choose' requirement.pk %}">{% csrf_token %}
-      <p>Si elige una sugerida del sistema (arriba), su fundamento es el motivo y no hace falta escribir nada.</p>
-      <label>O elija otro tipo <select name="consequence_type"><option value="">(ninguno: usar la opción marcada)</option>{% for value, label in other_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+      <p>Para elegir otra consecuencia (no una de las de arriba), escriba su motivo:</p>
+      <label>O elija otro tipo <select name="consequence_type" required><option value="">Elija el tipo</option>{% for value, label in other_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
       <label>Motivo (obligatorio si elige otra; en una aprobación condicionada, la condición) <textarea name="note" rows="2"></textarea></label>
       <p>Para consultar al oferente u otra consecuencia del pliego sin sugerencia, indique el tramo que la sostiene:</p>
       <label>Tramo <select name="segment"><option value="">(solo si hace falta)</option>{% for id, text in page.segment_options %}<option value="{{ id }}">{{ text }}</option>{% endfor %}</select></label>
