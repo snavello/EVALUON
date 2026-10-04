@@ -1,0 +1,92 @@
+# Lista esperada SINTÉTICA para las pruebas de la medición (T-077). Todo el texto es
+# inventado (P4). Tiene todos los campos de las listas reales, incluidos los extra:
+# anexos con tramo "*", bloques `circulares:`, `origen: circular`, `rol` y `nota`.
+# __SHA256__ se reemplaza en la prueba por la huella del PDF sintético.
+caso: caso-sintetico
+documentos:
+  - archivo: Pliego sintético.pdf
+    sha256: "__SHA256__"
+    rol: pliego
+  - archivo: Circular sintética.pdf
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+    rol: circular
+criterios: "criterios sintéticos"
+preparo: "Pruebas, 2026-10-03"
+visto_bueno: "responsable sintético, 2026-10-03"
+confirmacion_comision: pendiente
+uso: primera_corrida
+
+tecnico_general:
+  - {documento: Pliego sintético.pdf, tramo: sec-ii/1.1}
+  - {documento: Pliego sintético.pdf, tramo: sec-i/3.1}
+
+tramos_anexos:
+  - {documento: Pliego sintético.pdf, tramo: "sec-iii/*"}
+
+requisitos:
+  - id: S-001
+    documento: Pliego sintético.pdf
+    tramo: sec-i/1.1
+    pagina: 1
+    ancla: "garantía del 5 % del monto"
+    clase: economico
+    renglones: []
+    nota: "se propone como formal: clase equivocada"
+    circulares:
+      - documento: Circular sintética.pdf
+        fecha: 2099-01-10
+        efecto: modifica
+        tramo: circ/1
+        pagina: 1
+        ancla: "garantía del 3 %"
+        texto_original: "garantía del 5 %"
+        texto_vigente: "garantía del 3 %"
+  - id: S-002
+    documento: Pliego sintético.pdf
+    tramo: sec-i/2.1
+    pagina: 1
+    ancla: "a los 90 días corridos"
+    clase: economico
+    renglones: []
+  - id: S-003
+    documento: Pliego sintético.pdf
+    tramo: sec-i/4.1
+    pagina: 1
+    ancla: "En caso de atraso"
+    clase: economico
+    renglones: []
+    consecuencia: multa
+  - id: S-004
+    documento: Pliego sintético.pdf
+    tramo: sec-i/4.1
+    pagina: 1
+    ancla: "multa del 1 % diario"
+    clase: economico
+    renglones: []
+  - id: S-005
+    documento: Pliego sintético.pdf
+    tramo: sec-i/3.1
+    pagina: 1
+    ancla: "dentro de los 15 días hábiles"
+    clase: formal
+    renglones: []
+  - id: S-006
+    documento: Circular sintética.pdf
+    tramo: circ/2
+    pagina: 1
+    ancla: "plazo de entrega de 10 días"
+    clase: formal
+    origen: circular
+    renglones: []
+  - id: S-T1
+    clase: tecnico
+    renglon: 1
+    tramos: [sec-iii/1, sec-iii/1.1]
+  - id: S-T2
+    clase: tecnico
+    renglon: 2
+    tramos: [sec-iii/2, sec-iii/2.1, sec-iii/2.2, sec-iii/3]
+  - id: S-T4
+    clase: tecnico
+    renglon: 4
+    tramos: [sec-iii/3]

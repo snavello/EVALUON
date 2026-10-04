@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Matriz · versión {{ page.version.number }} · {{ page.procedure.number }} · EVALUON{% endblock %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'tenders/matrix.css' %}">{% endblock %}
+
+{% block banner %}{% if page.draft %}
+<div class="draft-banner" role="note">BORRADOR INCOMPLETO</div>
+{% endif %}{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'tenders:procedure' page.procedure.pk %}">Procedimiento {{ page.procedure.number }}</a></p>
+<h1>Matriz de cumplimiento · versión {{ page.version.number }}</h1>
+
+<section class="matrix-header" aria-labelledby="header-title">
+  <h2 id="header-title">Encabezado</h2>
+  <dl>
+    <dt>Procedimiento</dt><dd>{{ page.procedure.number }} · {{ page.procedure.subject }}</dd>
+    <dt>Versión</dt><dd>{{ page.version.number }}</dd>
+    <dt>Estado</dt><dd>{{ page.version.get_status_display }}</dd>
+    <dt>Nivel de revisión</dt><dd>{{ page.version.get_level_display }}</dd>
+    {% if not page.draft %}
+    <dt>Validada</dt><dd>el {{ page.version.validated_at|date:"d/m/Y" }} por {{ page.version.validated_by.username }}</dd>
+    {% endif %}
+  </dl>
+  {% include "queries/_regime_line.html" with reference_date=page.authorization_date regime=page.regime %}
+  {% if page.run %}<p><a href="{% url 'tenders:coverage' page.version.pk %}">Ver la cobertura de la propuesta</a></p>{% endif %}
+</section>
+
+<section class="matrix-summary" aria-labelledby="summary-title">
+  <h2 id="summary-title">Resumen</h2>
+  <ul>
+    <li>Formales: {{ page.counts.formal }}</li>
+    <li>Económicos: {{ page.counts.economico }}</li>
+    <li>Técnicos (filas por renglón): {{ page.counts.tecnico }}</li>
+    <li>Pendientes de revisión: {{ page.pending_open }}</li>
+  </ul>
+</section>
+
+<section class="matrix-pending" aria-labelledby="pending-title">
+  <h2 id="pending-title">Pendiente de revisión</h2>
+  {% if page.pending %}
+  <ul>
+    {% for row in page.pending %}
+    <li class="pending-item">
+      <strong>{{ row.reason }}</strong>{% if row.item.resolved_at %} · resuelto{% endif %} · {% include "tenders/_place.html" with place=row.place %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No hay tramos pendientes de revisión.</p>
+  {% endif %}
+</section>
+
+<section class="matrix-requirements" aria-labelledby="requirements-title">
+  <h2 id="requirements-title">Requisitos formales y económicos</h2>
+  {% for group in page.groups %}
+  <h3>{{ group.title }}</h3>
+  {% for row in group.rows %}
+  <article class="requirement" id="requisito-{{ row.requirement.number }}">
+    <h4>Requisito {{ row.requirement.number }} <span class="class-mark class-{{ row.requirement.category }}">{{ row.requirement.get_category_display }}</span>{% if row.requirement.state == "confirmado" %} <span class="state-mark">Confirmado</span>{% endif %}</h4>
+    {% for quote in row.quotes %}
+    {% if quote.current %}
+    <p class="current-label">Texto vigente, según la circular del {{ quote.current.issued_on|date:"d/m/Y" }}:</p>
+    <blockquote class="literal">{{ quote.current.text }}</blockquote>
+    <p class="quote-place">{% include "tenders/_place.html" with place=quote.current.place %}</p>
+    <p class="original-label">Texto original del pliego:</p>
+    {% endif %}
+    <blockquote class="literal">{{ quote.text }}</blockquote>
+    <p class="quote-place">{% include "tenders/_place.html" with place=quote.place %}{% if quote.wide %} <span class="wide-mark">Cita amplia, revisar</span>{% endif %}</p>
+    {% for note in quote.notes %}
+    <p class="source-label">{{ note.effect_label }} ({{ note.issued_on|date:"d/m/Y" }}):</p>
+    <blockquote class="literal">{{ note.text }}</blockquote>
+    <p class="quote-place">{% include "tenders/_place.html" with place=note.place %}</p>
+    {% endfor %}
+    {% endfor %}
+    {% for note in row.sources %}
+    <p class="source-label">{{ note.effect_label }} ({{ note.issued_on|date:"d/m/Y" }}):</p>
+    <blockquote class="literal">{{ note.text }}</blockquote>
+    <p class="quote-place">{% include "tenders/_place.html" with place=note.place %}</p>
+    {% endfor %}
+  </article>
+  {% endfor %}
+  {% empty %}
+  <p>La propuesta no tiene requisitos formales ni económicos.</p>
+  {% endfor %}
+</section>
+
+<section class="matrix-technical" aria-labelledby="technical-title">
+  <h2 id="technical-title">Requisitos técnicos por renglón</h2>
+  {% for row in page.technical %}
+  <article class="requirement technical" id="requisito-{{ row.requirement.number }}">
+    <h3>{% if row.requirement.items %}Renglón {{ row.requirement.items|join:", " }}{% else %}Técnico sin renglón{% endif %} · Técnico · se evalúa con el informe técnico del área requirente</h3>
+    <p>Tramos citados: {{ row.quotes|length }}</p>
+    <ul class="technical-quotes">
+      {% for quote in row.quotes %}
+      <li>
+        <details>
+          <summary>{% include "tenders/_place.html" with place=quote.place %}{% if quote.scope_label %} · {{ quote.scope_label }}{% endif %}{% if quote.wide %} <span class="wide-mark">Cita amplia, revisar</span>{% endif %}</summary>
+          <blockquote class="literal">{{ quote.text }}</blockquote>
+        </details>
+      </li>
+      {% endfor %}
+    </ul>
+  </article>
+  {% empty %}
+  <p>La propuesta no tiene filas técnicas.</p>
+  {% endfor %}
+</section>
+{% endblock %}

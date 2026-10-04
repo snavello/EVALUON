@@ -21,10 +21,10 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-071 | Ejecutar pedidos en segundo plano con su propio motor | REQ-024, REQ-030 | T-067 | terminada |
 | T-072 | Cargar los documentos del pliego y leerlos en segundo plano | REQ-023, REQ-028, REQ-031 | T-069, T-070, T-071 | terminada |
 | T-073 | Proponer la matriz en nivel media, con filas técnicas por renglón | REQ-024, REQ-025, REQ-028, REQ-030 | T-072 | terminada |
-| T-074 | Mostrar la matriz propuesta con la leyenda de borrador, la cobertura y el aviso de fin | REQ-024, REQ-025, REQ-028, REQ-030, REQ-031, REQ-032 | T-073 | pendiente |
-| T-075 | Probar el hilo mínimo con el caso-00 y los servicios reales | REQ-022, REQ-023, REQ-024, REQ-025, REQ-028 | T-074, T-076 | pendiente |
+| T-074 | Mostrar la matriz propuesta con la leyenda de borrador, la cobertura y el aviso de fin | REQ-024, REQ-025, REQ-028, REQ-030, REQ-031, REQ-032 | T-073 | terminada |
+| T-075 | Probar el hilo mínimo con el caso-00 y los servicios reales | REQ-022, REQ-023, REQ-024, REQ-025, REQ-028 | T-074, T-076 | terminada |
 | T-076 | Preparar la lista esperada del caso-00 | REQ-024, REQ-025 | — | terminada |
-| T-077 | Medir una propuesta contra una lista esperada | REQ-024, REQ-025, REQ-028, REQ-030 | T-073 | pendiente |
+| T-077 | Medir una propuesta contra una lista esperada | REQ-024, REQ-025, REQ-028, REQ-030 | T-073 | terminada |
 | T-078 | Completar los niveles alta y exigente | REQ-024, REQ-030 | T-073 | pendiente |
 | T-079 | Revisar la matriz: confirmar, corregir, quitar y agregar | REQ-026, REQ-028 | T-074 | pendiente |
 | T-080 | Sugerir consecuencias con fundamento | REQ-029 | T-078 | pendiente |
