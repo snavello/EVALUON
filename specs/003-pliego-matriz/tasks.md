@@ -14,7 +14,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
-| T-067 | Crear las tablas, los tipos de hecho y los parámetros de la 003 | REQ-022, REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-029, REQ-030, REQ-031, REQ-032 | — | pendiente |
+| T-067 | Crear las tablas, los tipos de hecho y los parámetros de la 003 | REQ-022, REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-029, REQ-030, REQ-031, REQ-032 | — | terminada |
 | T-068 | Sumar el rol de la Comisión a los usuarios | REQ-026, REQ-027, REQ-029 | T-067 | pendiente |
 | T-069 | Registrar un procedimiento y mostrar su régimen | REQ-022 | T-068 | pendiente |
 | T-070 | Partir un pliego en tramos con renglones, clase por sección y control de cobertura | REQ-024, REQ-025, REQ-028 | T-067 | pendiente |
