@@ -23,9 +23,10 @@ Cómo se cuenta (ver el plan):
   (propios, generales y de anexos) no están entre sus citas. No bloquea.
 - Un esperado formal o económico sin pareja cuyo ancla cae dentro de un tramo citado por
   una fila técnica cuenta como encontrado con clase equivocada.
-- Faltante con causa: `agrupado`, `tramo_descartado`, `tramo_pendiente`,
-  `tramo_con_requisitos_sin_este`, `tramo_tecnico`, `sin_disposicion` y, en técnicos,
-  `renglon_sin_fila`.
+- Faltante con causa: `agrupado`, `tramo_descartado`, `tramo_con_requisitos_sin_este`,
+  `tramo_tecnico`, `sin_disposicion` y, en técnicos, `renglon_sin_fila`.
+- A revisión obligatoria: un esperado sin pareja en un tramo pendiente (`tramo_pendiente`)
+  no es faltante; suma a los encontrados y se informa aparte (decisión del 2026-10-04).
 - Sobrante: propuesto sin pareja. Se informa; no tiene límite.
 
 Campos de las listas reales que se leen (aviso del Coordinador, 2026-10-03):
@@ -86,6 +87,7 @@ EXTRAPOLATED_PAGES = 50
 GROUPED = "agrupado"
 DISCARDED = "tramo_descartado"
 PENDING = "tramo_pendiente"
+MANDATORY_REVIEW = "a_revision_obligatoria"
 SEGMENT_WITH_OTHERS = "tramo_con_requisitos_sin_este"
 SEGMENT_TECHNICAL = "tramo_tecnico"
 NO_DISPOSITION = "sin_disposicion"
@@ -588,6 +590,7 @@ def measure_version(run, expected, verification):
     pairs = _pairs(located, fe_rows)
     lines, found_count, class_ok = [], 0, 0
     causes, wrong_class = Counter(), 0
+    review = []
     matched_pk = {}
 
     for e_index, entry in enumerate(located):
@@ -612,8 +615,14 @@ def measure_version(run, expected, verification):
             matched_pk[item.id] = cited.requirement_id
         else:
             cause, detail = _cause(entry, fe_rows, dispositions, pending)
-            causes[cause] += 1
-            line.update(estado="faltante", causa=cause, detalle=detail)
+            if cause == PENDING:
+                # Decisión del 2026-10-04: no es un faltante; la matriz no se valida sin
+                # que el evaluador resuelva el pendiente.
+                review.append({"id": item.id, "tramo": item.key})
+                line.update(estado=MANDATORY_REVIEW, causa=cause, detalle=detail)
+            else:
+                causes[cause] += 1
+                line.update(estado="faltante", causa=cause, detalle=detail)
         lines.append(line)
 
     # Técnicos.
@@ -698,7 +707,10 @@ def measure_version(run, expected, verification):
     measured_total = len(measured)
     return {
         "lines": lines,
-        "found": ratio(found_count, measured_total),
+        "found": ratio(found_count + len(review), measured_total),
+        "found_without_review": ratio(found_count, measured_total),
+        "review": {"count": len(review), "ids": [r["id"] for r in review],
+                   "keys": sorted({r["tramo"] for r in review})},
         "class": ratio(class_ok, found_count),
         "class_wrong_found": wrong_class,
         "causes": dict(causes),
@@ -821,7 +833,8 @@ def previous_levels(folders, expected, procedure_number):
                 entry = counts.setdefault(level, {"found": 0, "leftovers": 0})
                 if entry is None:
                     continue
-                if line.get("tipo") == "esperado" and line.get("estado") == "encontrado":
+                if line.get("tipo") == "esperado" and line.get("estado") in (
+                        "encontrado", MANDATORY_REVIEW):
                     entry["found"] += 1
                 elif line.get("tipo") == "propuesto" and line.get("estado") == "sobrante":
                     entry["leftovers"] += 1
@@ -1070,6 +1083,7 @@ def _summary(report, *, public):
             f"- Pendientes por motivo: {_counter_text(coverage['pending_by_reason'])}",
             f"- Tramos técnicos citados por renglón: "
             f"{proportion_text(measures['technical_tramos'])} (se informa; no bloquea)",
+            *_review_summary(measures),
             f"- Sobrantes: {measures['leftovers']} "
             f"(por clase: {_counter_text(measures['leftovers_by_class'])})",
             f"- Sobrantes por tramo: {_counter_text(measures['leftovers_by_segment'])}",
@@ -1097,6 +1111,16 @@ def _summary(report, *, public):
     out += [f"- {reason}" for reason in blocking] or ["- ninguno"]
     out.append("")
     return "\n".join(out)
+
+
+def _review_summary(measures):
+    review = measures.get("review") or {"count": 0, "ids": [], "keys": []}
+    if not review["count"]:
+        return ["- A revisión obligatoria (tramos pendientes): 0"]
+    return [f"- A revisión obligatoria (tramos pendientes): {review['count']}, ya sumados "
+            f"a los encontrados; sin ellos: {proportion_text(measures['found_without_review'])}",
+            f"- A revisión obligatoria, requisitos: {', '.join(review['ids'])}; "
+            f"tramos: {', '.join(review['keys'])}"]
 
 
 def _counter_text(values):

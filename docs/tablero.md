@@ -42,7 +42,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 27/29 | █████████░ 93% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 28/29 | ██████████ 97% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -368,9 +368,8 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 2 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 1 tarea sin terminar.
 - ○ T-094 · Medir la aceptación con los casos 01 y 02 (pendiente)
-- ○ T-095 · Contar como "a revisión obligatoria" los requisitos en tramos pendientes (pendiente)
 
 ### Qué se hizo
 
@@ -402,6 +401,7 @@ flowchart LR
 - ✓ T-091 · Comparar niveles medidos en corridas separadas (`2bacc1c` 2026-10-04)
 - ✓ T-092 · Aceptar las divisiones de la completitud aunque el original no coincida letra por letra (`96533e1` 2026-10-04, `580cc6b` 2026-10-04)
 - ✓ T-093 · Ajustar las instrucciones con el caso-00 (enumeraciones, tablas, condiciones como efecto) (`86b2e76` 2026-10-04)
+- ✓ T-095 · Contar como "a revisión obligatoria" los requisitos en tramos pendientes (`e532652` 2026-10-04, `4480d62` 2026-10-04, `3509e0c` 2026-10-04)
 
 ### Mapa de tareas
 
@@ -435,7 +435,7 @@ flowchart TD
   T092["✓ T-092 · Aceptar las divisiones de la completitud au…"]:::done
   T093["✓ T-093 · Ajustar las instrucciones con el caso-00 (e…"]:::done
   T094["○ T-094 · Medir la aceptación con los casos 01 y 02"]:::todo
-  T095["○ T-095 · Contar como 'a revisión obligatoria' los re…"]:::todo
+  T095["✓ T-095 · Contar como 'a revisión obligatoria' los re…"]:::done
   T067 --> T068
   T068 --> T069
   T067 --> T070

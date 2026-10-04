@@ -42,7 +42,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-092 | Aceptar las divisiones de la completitud aunque el original no coincida letra por letra | REQ-024 | T-084 | terminada |
 | T-093 | Ajustar las instrucciones con el caso-00 (enumeraciones, tablas, condiciones como efecto) | REQ-024 | T-092 | terminada |
 | T-094 | Medir la aceptación con los casos 01 y 02 | REQ-024, REQ-025, REQ-030, REQ-031 | T-085, T-093, T-095 | pendiente |
-| T-095 | Contar como "a revisión obligatoria" los requisitos en tramos pendientes | REQ-024 | T-093 | pendiente |
+| T-095 | Contar como "a revisión obligatoria" los requisitos en tramos pendientes | REQ-024 | T-093 | terminada |
 
 ## Para todas las tareas
 
