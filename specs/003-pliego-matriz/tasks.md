@@ -40,6 +40,8 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-090 | Investigar y corregir los reinicios de los servidores de generación | REQ-024, REQ-030 | T-084 | terminada |
 | T-091 | Comparar niveles medidos en corridas separadas | REQ-030 | T-084 | terminada |
 | T-092 | Aceptar las divisiones de la completitud aunque el original no coincida letra por letra | REQ-024 | T-084 | terminada |
+| T-093 | Ajustar las instrucciones con el caso-00 (enumeraciones, tablas, condiciones como efecto) | REQ-024 | T-092 | pendiente |
+| T-094 | Medir la aceptación con los casos 01 y 02 | REQ-024, REQ-025, REQ-030, REQ-031 | T-085, T-093 | pendiente |
 
 ## Para todas las tareas
 
@@ -243,6 +245,22 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 - **Verificación:** tests con el doble: un original con "(formal)" pegado, uno con espacios o recorte distinto, y uno que no corresponde a ninguna fila (se ignora con anomalía); ninguna división acepta partes que no cubran el original; sin duplicados. Suite en verde.
 - **No tocar:** instrucciones, `run.py` salvo lo imprescindible, la lista esperada.
 - **Entorno:** cualquier equipo con Docker.
+
+### T-093 · Ajustar las instrucciones con el caso-00 (enumeraciones, tablas, condiciones como efecto)
+
+- **Qué hacer:** decisión del responsable del 2026-10-04 sobre la medición provisoria de T-084 (alta 88,5 %): ajustar con el caso-00, que pasa a uso `ajuste` (decisión 7 del plan). (1) Instrucciones de extracción y de completitud (versiones v2, sin modificar las v1): dividir enumeraciones con comas o "y" en una fila por condición, con ejemplos sintéticos; reconocer como requisito una condición dicha como efecto ("se considerará…", "se entenderá…", "quedará…") y sumar esos marcadores a los de obligación. (2) Regla del sistema: un tramo `tabla` nunca queda `descartado`; o el modelo propone filas o queda pendiente con motivo `tabla`. (3) "Agrupado" sigue contando como faltante (decisión del responsable): no se toca la medición. Volver a medir el caso-00 en los niveles que se ofrecen (media y alta, T-085) y comparar con T-084. No usar los casos 01 y 02.
+- **Archivos:** `evaluon/tenders/prompts/matriz-extraccion-v2.md`, `evaluon/tenders/prompts/matriz-completitud-v2.md`, `evaluon/tenders/proposal/` (solo la versión de instrucciones activa, los marcadores y la regla de tablas), `evaluon/settings.py` (`MATRIX_PROMPT_VERSIONS`), tests de `tests/tenders/`; informe en `specs/003-pliego-matriz/verificacion/T-093.md` sin texto del pliego.
+- **Verificación:** tests con el doble (división de enumeraciones, tabla nunca descartada, marcadores nuevos); corrida del caso-00 con el modelo real en media y alta, informe comparado con T-084; suite en verde.
+- **No tocar:** la lista esperada; la regla de emparejamiento; los casos 01 y 02.
+- **Entorno:** MSI con GPU.
+
+### T-094 · Medir la aceptación con los casos 01 y 02
+
+- **Qué hacer:** con las instrucciones fijas después de T-093 y los niveles de T-085, `medir_matriz --verificar-esperada` y la medición de los casos 01 y 02 (reservados, nunca usados para ajustar) en los niveles que se ofrecen. Es la medida de aceptación de la feature: 100 % de encontrados, 100 % de cita literal, REQ-031 con las circulares reales del caso-01, tiempos (el caso-01 tiene 52 páginas) y memoria. Informe sin texto del pliego; un faltante bloquea y se informa con su causa, sin ajustar nada.
+- **Archivos:** corridas en `corpus/casos/caso-0N/corridas/` (fuera del repositorio); `specs/003-pliego-matriz/verificacion/T-094.md`.
+- **Verificación:** el informe con todas las medidas, su intervalo y el resultado de aceptación; ningún texto del pliego en el repositorio.
+- **No tocar:** instrucciones, parámetros, listas esperadas.
+- **Entorno:** MSI con GPU.
 
 ### T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro
 
