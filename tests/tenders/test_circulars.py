@@ -475,7 +475,7 @@ def test_the_proposal_records_the_circulars_and_the_instructions_used(operator_u
 
     version, run = run_proposal(operator_user, case)
 
-    assert run.prompt_versions["circulares"] == "matriz-circulares-v1"
+    assert run.prompt_versions["circulares"] == "matriz-circulares-v2"
     assert "circulares" in run.parameters["passes"]
     used = run.counts["circulars"]["documents"]
     assert [d["document"] for d in used] == [document.pk]
@@ -816,3 +816,20 @@ def test_the_reranker_sees_the_clause_that_holds_the_citation_and_the_heading(
     query, documents = fake_reranker.calls[-1][:2]
     assert query.startswith("II. SE AJUSTA LA PLANILLA") and "Se cambia el formato" in query
     assert any("ANEXO VI - PLANILLA SINTÉTICA" in d for d in documents)
+
+
+def test_the_active_circular_instructions_are_v2_and_v1_is_kept(settings):
+    """REQ-031 (T-098): la versión activa es la v2 y la v1 sigue en su archivo; la v2 agrega
+    "Donde dice / Debe decir", el bloque de contexto y no elegir una cita ajena, con ejemplos
+    inventados (sin texto del caso de medición)."""
+    from evaluon.tenders.proposal import extraction
+
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares"] == "matriz-circulares-v2"
+    v2 = extraction.load_prompt("circulares")
+    assert "Donde dice" in v2 and "Debe decir" in v2
+    assert "Contexto de la circular" in v2
+    assert "nunca se elige una cita ajena" in v2
+    assert v2.count("{") >= 8      # los ejemplos siguen con la forma de la salida
+    assert "ARCA" not in v2 and "señalética" not in v2.lower()
+    v1 = (extraction.PROMPTS_DIR / "matriz-circulares-v1.md").read_text(encoding="utf-8")
+    assert "Debe decir" not in v1

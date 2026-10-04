@@ -18,7 +18,7 @@ tramo común a todos los renglones alcanza la fila de cada uno. Si no entran en 
 se descartan las de menor puntaje; las que el tramo nombra no se descartan salvo que ellas
 solas no quepan.
 
-**Qué devuelve el modelo** (instrucciones `prompts/matriz-circulares-v1.md`): `efectos`
+**Qué devuelve el modelo** (instrucciones `prompts/matriz-circulares-v2.md`): `efectos`
 (`modifica`, `aclara` o `suprime` sobre una candidata, con el fragmento de la circular que lo
 produce), `nuevos` (requisitos formales o económicos que la circular agrega, con su
 fragmento) o un motivo de `sin_efecto` (la lista cerrada de descartes del ADR-0019).
