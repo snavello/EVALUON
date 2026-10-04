@@ -442,12 +442,16 @@ class FakeGeneration:
     - `timeout()`, `input_too_long()`, `unavailable()`: lanzan el error propio (la
       demora agotada, el rechazo por entrada demasiado larga, el servicio caído).
 
-    `calls` guarda `(messages, schema)` de cada pedido. El resultado es un
-    `GenerationResult` con el mismo `request` que armaría el cliente real.
+    `calls` guarda `(messages, schema)` de cada pedido y `options`, en el mismo orden, el
+    máximo de salida, la dirección y la espera con que se lo pidió (`None` si no se
+    indicaron; T-071). El resultado es un `GenerationResult` con el mismo `request` que
+    armaría el cliente real, con el máximo de salida pedido. `generate_batch` del
+    cliente llama a `generate`, así que también pasa por el doble.
     """
 
     def __init__(self):
         self.calls = []
+        self.options = []
         self._mode = ("default", None)
 
     def answer(self, statements):
@@ -472,8 +476,10 @@ class FakeGeneration:
     def unavailable(self):
         self._mode = ("raise", ServiceUnavailableError)
 
-    def generate(self, messages, schema):
+    def generate(self, messages, schema, *, max_tokens=None, base_url=None, timeout=None):
         self.calls.append((messages, schema))
+        self.options.append({"max_tokens": max_tokens, "base_url": base_url,
+                             "timeout": timeout})
         kind, value = self._mode
         if kind == "raise":
             raise value("generation: falla simulada por el doble", service="generation")
@@ -489,7 +495,7 @@ class FakeGeneration:
             content, finish_reason = value, "length"
         else:
             content = value
-        request = generation_client.build_request(messages, schema)
+        request = generation_client.build_request(messages, schema, max_tokens)
         prompt_tokens = sum(count_words(str(m.get("content", ""))) for m in messages)
         completion_tokens = count_words(content)
         response = {

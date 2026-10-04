@@ -98,11 +98,12 @@ def _rejection(service, status, raw):
     )
 
 
-def post_json(service, base_url, path, body):
+def post_json(service, base_url, path, body, *, timeout=None):
     """Envía `body` como JSON a `base_url + path` y devuelve la respuesta decodificada.
 
-    Traduce toda falla a un error propio: entrada demasiado larga, espera agotada o
-    servicio no disponible. No reintenta.
+    Espera hasta `timeout` segundos; sin indicarla, `AI_TIMEOUT_SECONDS`. Traduce toda
+    falla a un error propio: entrada demasiado larga, espera agotada o servicio no
+    disponible. No reintenta.
     """
     url = base_url.rstrip("/") + path
     request = urllib.request.Request(
@@ -111,7 +112,8 @@ def post_json(service, base_url, path, body):
         headers={"Content-Type": "application/json", "Accept": "application/json"},
         method="POST",
     )
-    timeout = settings.AI_TIMEOUT_SECONDS
+    if timeout is None:
+        timeout = settings.AI_TIMEOUT_SECONDS
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             raw = response.read()
