@@ -23,9 +23,10 @@ Cómo se cuenta (ver el plan):
   (propios, generales y de anexos) no están entre sus citas. No bloquea.
 - Un esperado formal o económico sin pareja cuyo ancla cae dentro de un tramo citado por
   una fila técnica cuenta como encontrado con clase equivocada.
-- Faltante con causa: `agrupado`, `tramo_descartado`, `tramo_pendiente`,
-  `tramo_con_requisitos_sin_este`, `tramo_tecnico`, `sin_disposicion` y, en técnicos,
-  `renglon_sin_fila`.
+- Faltante con causa: `agrupado`, `tramo_descartado`, `tramo_con_requisitos_sin_este`,
+  `tramo_tecnico`, `sin_disposicion` y, en técnicos, `renglon_sin_fila`.
+- A revisión obligatoria: un esperado sin pareja en un tramo pendiente (`tramo_pendiente`)
+  no es faltante; suma a los encontrados y se informa aparte (decisión del 2026-10-04).
 - Sobrante: propuesto sin pareja. Se informa; no tiene límite.
 
 Campos de las listas reales que se leen (aviso del Coordinador, 2026-10-03):
