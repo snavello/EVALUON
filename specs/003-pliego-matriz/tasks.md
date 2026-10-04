@@ -62,7 +62,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-112 | Mostrar la sección de sugerencias con su respaldo en la pantalla y en la impresión | REQ-035, REQ-036, REQ-034, REQ-032 | T-105, T-110 | pendiente |
 | T-113 | Pasada de circulares, entrega 1: unidades de cambio aplicadas por clave, sin modelo | REQ-028, REQ-031 | T-098 | terminada |
 | T-114 | Crear el campo de original en un anexo, el pedido de extracción de cambios y los parámetros de circulares | REQ-031 | T-099, T-100 | terminada |
-| T-115 | Pasada de circulares, entrega 2: el modelo extrae la lista de cambios donde no hay clave | REQ-031 | T-113, T-114 | pendiente |
+| T-115 | Pasada de circulares, entrega 2: el modelo extrae la lista de cambios donde no hay clave | REQ-031 | T-113, T-114 | terminada |
 | T-116 | Mostrar y imprimir el original en el anexo, el cambio agrupado y el requisito agregado por una circular | REQ-031, REQ-032 | T-113, T-114, T-105, T-112 | pendiente |
 | T-117 | Medir REQ-031 por fila en `medir_matriz`: documento, fecha, texto original y vigente | REQ-031 | T-103, T-111 | pendiente |
 | T-118 | Cargar los casos 05 y 06 y preparar sus listas esperadas de circulares | REQ-031 | T-117 | pendiente |
