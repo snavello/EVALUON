@@ -17,6 +17,9 @@ Opciones:
 - `--commit`: commit del código con que se corre (dentro del contenedor no hay `.git`).
 - `--verificar-esperada`: no corre el modelo. Comprueba la huella de cada archivo, que cada
   ancla esté en su tramo y que cada tramo técnico exista, e informa las cuentas.
+- `--regenerar-resumen`: carpeta de una corrida ya hecha. No corre el modelo: vuelve a medir las
+  propuestas que nombra `parametros.json` (siguen en la base) y reescribe `resumen.md` y
+  `resumen-publico.md` (T-096).
 
 Cada nivel corre la propuesta con el canal `eval`; las versiones que crea quedan descartadas.
 Se corre de a una, sin otra carga en la GPU.
@@ -55,6 +58,9 @@ class Command(BaseCommand):
                                  "(puede repetirse; la carpeta de --corridas ya se usa).")
         parser.add_argument("--commit", default=None,
                             help="Commit del código con que se corre.")
+        parser.add_argument("--regenerar-resumen", default=None, dest="regenerar_resumen",
+                            help="Carpeta de una corrida ya hecha: reescribe sus resúmenes "
+                                 "sin usar el modelo.")
         parser.add_argument("--verificar-esperada", action="store_true",
                             dest="verificar_esperada",
                             help="Solo comprueba la lista contra la lectura; no usa el "
@@ -78,6 +84,16 @@ class Command(BaseCommand):
             self.stdout.write("\n".join(evaluation.verification_lines(verification)))
             if not verification.ok:
                 raise CommandError("La comprobación de la lista encontró fallas.")
+            return
+
+        if options["regenerar_resumen"]:
+            try:
+                report = evaluation.regenerate_summaries(
+                    procedure, expected, options["regenerar_resumen"],
+                    compare_with=options["comparar_con"])
+            except evaluation.MeasurementRefused as error:
+                raise CommandError(str(error)) from None
+            self.stdout.write(f"Resúmenes reescritos en {report.folder}")
             return
 
         levels = [n.strip() for n in options["niveles"].split(",") if n.strip()]

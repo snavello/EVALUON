@@ -667,3 +667,90 @@ def test_previous_levels_count_mandatory_review_as_found(case, tmp_path):
     earlier = ev.previous_levels([tmp_path / "corridas"], expected, procedure.number)
 
     assert earlier["alta"] == {"found": 3, "leftovers": 1, "run": "20260101-000000-aaa"}
+
+
+# --- Cobertura con circulares y resumen que no se pierde (T-096) -------------------------------
+
+
+def _with_circular_dispositions(user, procedure, run):
+    """Agrega al procedimiento una circular (no es documento base) y le da a sus tramos una
+    disposición en `run`, como hace la propuesta."""
+    from datetime import date
+
+    from tests.tenders.pdfs import para, tender_pdf
+
+    pdf = tender_pdf([[para("CIRCULAR SINTÉTICA", "1. Prorrógase la apertura.",
+                            "2. Aclárase el lugar de entrega.")]], header=None)
+    document = load_and_read(user, procedure, pdf, kind=m.DocumentKind.CIRCULAR_MODIFICATORIA,
+                             title="Circular sintética", issued_on=date(2025, 12, 1))
+    segments = list(document.readings.get().segments.all())
+    assert segments
+    for segment in segments:
+        m.Disposition.objects.create(
+            run=run, segment=segment, outcome=m.DispositionOutcome.DESCARTADO,
+            discard_reason=m.DiscardReason.DATO_PROCEDIMIENTO, source=m.DispositionSource.REGLA)
+    return len(segments)
+
+
+def test_coverage_counts_the_same_set_when_there_are_circulars(case, operator_user, tmp_path):
+    """REQ-030: los tramos de circulares reciben disposición pero no son tramos de los
+    documentos de la corrida: la cobertura se mide sobre los mismos tramos (nunca pasa del
+    100 %) y los de circulares se informan aparte."""
+    procedure, _, path, _ = case
+    report = run_measure(operator_user, procedure, path, tmp_path)
+    run = m.MatrixRun.objects.get(pk=report.results[0]["run"])
+    base = report.results[0]["measures"]["coverage"]
+    extra = _with_circular_dispositions(operator_user, procedure, run)
+
+    dispositions = {d.segment_id: d for d in m.Disposition.objects.filter(run=run)}
+    coverage = ev._coverage(run, dispositions)
+
+    assert coverage["segments"] == base["segments"]
+    assert coverage["with_disposition"] == base["with_disposition"] <= coverage["segments"]
+    assert coverage["circular_with_disposition"] == extra
+    assert sum(coverage["by_source"].values()) == base["with_disposition"] + extra
+
+
+def test_summary_is_written_even_if_a_proportion_is_out_of_range(case, operator_user, tmp_path,
+                                                                 monkeypatch):
+    """REQ-030: si una cuenta queda fuera de 0 a 100 %, el resumen se escribe e informa la
+    anomalía en vez de perderse."""
+    procedure, _, path, _ = case
+    real = ev._coverage
+
+    def broken(run, dispositions):
+        data = real(run, dispositions)
+        return {**data, "with_disposition": data["segments"] + 5}
+
+    monkeypatch.setattr(ev, "_coverage", broken)
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
+    assert "anomalía" in summary
+
+
+def test_summaries_are_regenerated_from_a_finished_run_without_the_model(
+        case, operator_user, tmp_path, script, monkeypatch):
+    """REQ-030: `--regenerar-resumen` reescribe los dos resúmenes de una corrida hecha, con
+    las mismas cuentas, sin llamar al modelo ni tocar parametros.json ni resultados.jsonl."""
+    procedure, _, path, _ = case
+    report = run_measure(operator_user, procedure, path, tmp_path)
+    folder = report.folder
+    before = {n: (folder / n).read_text(encoding="utf-8")
+              for n in ("resumen.md", "resumen-publico.md", "parametros.json",
+                        "resultados.jsonl")}
+    (folder / "resumen.md").unlink()
+    (folder / "resumen-publico.md").unlink()
+    runs_before = m.MatrixRun.objects.count()
+    monkeypatch.setattr("evaluon.accounts.permissions.authenticate_command",
+                        lambda username: operator_user)
+    calls_before = len(script.calls)
+
+    call_command("medir_matriz", usuario="operador", procedimiento=procedure.number,
+                 esperada=str(path), regenerar_resumen=str(folder))
+
+    for name, text in before.items():
+        assert (folder / name).read_text(encoding="utf-8") == text
+    assert m.MatrixRun.objects.count() == runs_before
+    assert len(script.calls) == calls_before
