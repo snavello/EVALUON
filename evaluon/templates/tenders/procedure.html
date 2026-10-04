@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load tenders_tags %}
 
 {% block title %}Procedimiento {{ page.procedure.number }} · EVALUON{% endblock %}
 
@@ -14,6 +15,10 @@
   </dl>
   {% include "queries/_regime_line.html" with reference_date=page.procedure.authorization_date regime=page.regime %}
 </section>
+
+{% if request.GET.pedido %}
+<p class="loaded" role="status">Se pidió la propuesta de la matriz. Queda en espera hasta que el servicio la tome.</p>
+{% endif %}
 
 {% if loaded %}
 <p class="loaded" role="status">Documento cargado: {{ loaded.title }}. Su lectura quedó en espera.</p>
@@ -66,6 +71,8 @@
   <p>Todavía no hay documentos cargados.</p>
   {% endif %}
 </section>
+
+{% matrix_panel page.procedure %}
 
 <section class="document-form" aria-labelledby="form-title">
   <h2 id="form-title">Cargar un documento</h2>

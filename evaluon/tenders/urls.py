@@ -5,13 +5,17 @@ original (T-072)."""
 
 from django.urls import path
 
-from evaluon.tenders.views import documents, procedures
+from evaluon.tenders.views import documents, matrix, procedures
 
 app_name = "tenders"
 
 urlpatterns = [
     path("", procedures.procedures, name="procedures"),
     path("<int:procedure_id>/", documents.procedure, name="procedure"),
+    path("<int:procedure_id>/matriz/proponer/", matrix.request_proposal,
+         name="request_matrix"),
+    path("matrices/<int:version_id>/", matrix.matrix, name="matrix"),
+    path("matrices/<int:version_id>/cobertura/", matrix.coverage, name="coverage"),
     path(
         "documentos/<int:document_id>/original/",
         documents.document_original,

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Cobertura · versión {{ page.version.number }} · {{ page.procedure.number }} · EVALUON{% endblock %}
+
+{% block head %}<link rel="stylesheet" href="{% static 'tenders/matrix.css' %}">{% endblock %}
+
+{% block banner %}{% if page.version.status != "validated" %}
+<div class="draft-banner" role="note">BORRADOR INCOMPLETO</div>
+{% endif %}{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'tenders:matrix' page.version.pk %}">Matriz · versión {{ page.version.number }}</a></p>
+<h1>Cobertura de la propuesta · {{ page.procedure.number }}</h1>
+
+{% if page.run %}
+<section class="coverage-summary" aria-labelledby="coverage-summary-title">
+  <h2 id="coverage-summary-title">Resumen</h2>
+  <p>Tramos del pliego: {{ page.rows|length }}</p>
+  <ul>
+    {% for label, count in page.counts %}<li>{{ label }}: {{ count }}</li>{% endfor %}
+  </ul>
+  {% if page.anomalies %}
+  <h3>Anomalías</h3>
+  <ul>
+    {% for anomaly in page.anomalies %}<li>{{ anomaly.type|default:anomaly }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
+<section class="coverage-list" aria-labelledby="coverage-title">
+  <h2 id="coverage-title">Disposición de cada tramo</h2>
+  <table class="coverage-table">
+    <thead>
+      <tr>
+        <th scope="col">Tramo</th>
+        <th scope="col">Disposición</th>
+        <th scope="col">Origen</th>
+        <th scope="col">Motivo</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in page.rows %}
+      <tr class="coverage-{{ row.outcome|default:'sin' }}">
+        <td>{% include "tenders/_place.html" with place=row.place %}{% if not row.place.path and row.place.label %} · {{ row.place.label }}{% endif %}</td>
+        <td>{{ row.outcome_label }}</td>
+        <td>{{ row.source_label|default:"—" }}</td>
+        <td>{{ row.reason|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% else %}
+<p>Esta versión no sale de una propuesta del sistema: no tiene cobertura.</p>
+{% endif %}
+{% endblock %}
