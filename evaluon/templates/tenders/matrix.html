@@ -12,6 +12,7 @@
 {% block content %}
 <p><a href="{% url 'tenders:procedure' page.procedure.pk %}">Procedimiento {{ page.procedure.number }}</a></p>
 <h1>Matriz de cumplimiento · versión {{ page.version.number }}</h1>
+{% if review_error %}<p class="review-error" role="alert">{{ review_error }}</p>{% endif %}
 
 <section class="matrix-header" aria-labelledby="header-title">
   <h2 id="header-title">Encabezado</h2>
@@ -45,6 +46,21 @@
     {% for row in page.pending %}
     <li class="pending-item">
       <strong>{{ row.reason }}</strong>{% if row.item.resolved_at %} · resuelto{% endif %} · {% include "tenders/_place.html" with place=row.place %}
+      {% if page.can_edit and not row.item.resolved_at %}
+      <details class="review-actions"><summary>Resolver</summary>
+        {% if page.can_confirm %}
+        <form method="post" action="{% url 'tenders:review_resolve' row.item.pk %}">{% csrf_token %}<button type="submit">Revisado, sin requisitos</button></form>
+        {% endif %}
+        <form method="post" action="{% url 'tenders:review_add' page.version.pk %}">{% csrf_token %}
+          <input type="hidden" name="segment" value="{{ row.item.segment_id }}">
+          <input type="hidden" name="pending" value="{{ row.item.pk }}">
+          {% include "tenders/_class_select.html" with current="formal" technical=False %}
+          <label>Fragmento literal del tramo <textarea name="quote" rows="2" required></textarea></label>
+          <label>Renglones (opcional) <input type="text" name="items"></label>
+          <button type="submit">Agregar un requisito desde este tramo</button>
+        </form>
+      </details>
+      {% endif %}
     </li>
     {% endfor %}
   </ul>
@@ -53,13 +69,20 @@
   {% endif %}
 </section>
 
+{% if page.can_confirm %}
+<form id="confirm-form" method="post" action="{% url 'tenders:review_confirm' page.version.pk %}" class="confirm-form">{% csrf_token %}
+  <button type="submit">Confirmar los requisitos marcados</button>
+</form>
+{% endif %}
+
 <section class="matrix-requirements" aria-labelledby="requirements-title">
   <h2 id="requirements-title">Requisitos formales y económicos</h2>
   {% for group in page.groups %}
   <h3>{{ group.title }}</h3>
   {% for row in group.rows %}
   <article class="requirement" id="requisito-{{ row.requirement.number }}">
-    <h4>Requisito {{ row.requirement.number }} <span class="class-mark class-{{ row.requirement.category }}">{{ row.requirement.get_category_display }}</span>{% if row.requirement.state == "confirmado" %} <span class="state-mark">Confirmado</span>{% endif %}</h4>
+    <h4>Requisito {{ row.requirement.number }} <span class="class-mark class-{{ row.requirement.category }}">{{ row.requirement.get_category_display }}</span>{% if row.requirement.state == "confirmado" %} <span class="state-mark">Confirmado</span>{% endif %}{% if row.requirement.origin == "agregado" %} <span class="state-mark">Agregado por una persona</span>{% endif %}</h4>
+    {% if page.can_confirm and row.requirement.state == "propuesto" %}<label class="confirm-box"><input type="checkbox" name="requirement" value="{{ row.requirement.pk }}" form="confirm-form"> Confirmar</label>{% endif %}
     {% for quote in row.quotes %}
     {% if quote.current %}
     <p class="current-label">Texto vigente, según la circular del {{ quote.current.issued_on|date:"d/m/Y" }}:</p>
@@ -80,6 +103,21 @@
     <blockquote class="literal">{{ note.text }}</blockquote>
     <p class="quote-place">{% include "tenders/_place.html" with place=note.place %}</p>
     {% endfor %}
+    <p class="review-links"><a href="{% url 'tenders:history' row.requirement.pk %}">Historial</a></p>
+    {% if page.can_edit %}
+    <details class="review-actions"><summary>Corregir o quitar</summary>
+      <form method="post" action="{% url 'tenders:review_correct' row.requirement.pk %}">{% csrf_token %}
+        {% include "tenders/_class_select.html" with current=row.requirement.category technical=True %}
+        <label>Renglones <input type="text" name="items" value="{{ row.requirement.items|join:', ' }}"></label>
+        {% with quote=row.quotes.0 %}{% if quote %}
+        <input type="hidden" name="segment" value="{{ quote.segment_id }}">
+        <label>Fragmento literal (de la cláusula citada) <textarea name="quote" rows="3">{{ quote.text }}</textarea></label>
+        {% endif %}{% endwith %}
+        <button type="submit">Guardar la corrección</button>
+      </form>
+      <form method="post" action="{% url 'tenders:review_remove' row.requirement.pk %}">{% csrf_token %}<button type="submit">Quitar el requisito</button></form>
+    </details>
+    {% endif %}
   </article>
   {% endfor %}
   {% empty %}
@@ -92,6 +130,8 @@
   {% for row in page.technical %}
   <article class="requirement technical" id="requisito-{{ row.requirement.number }}">
     <h3>{% if row.requirement.items %}Renglón {{ row.requirement.items|join:", " }}{% else %}Técnico sin renglón{% endif %} · Técnico · se evalúa con el informe técnico del área requirente</h3>
+    {% if page.can_confirm and row.requirement.state == "propuesto" %}<label class="confirm-box"><input type="checkbox" name="requirement" value="{{ row.requirement.pk }}" form="confirm-form"> Confirmar</label>{% endif %}
+    {% if row.requirement.state == "confirmado" %}<span class="state-mark">Confirmado</span>{% endif %}
     <p>Tramos citados: {{ row.quotes|length }}</p>
     <ul class="technical-quotes">
       {% for quote in row.quotes %}
@@ -99,13 +139,67 @@
         <details>
           <summary>{% include "tenders/_place.html" with place=quote.place %}{% if quote.scope_label %} · {{ quote.scope_label }}{% endif %}{% if quote.wide %} <span class="wide-mark">Cita amplia, revisar</span>{% endif %}</summary>
           <blockquote class="literal">{{ quote.text }}</blockquote>
+          {% if page.can_edit %}
+          <form method="post" action="{% url 'tenders:review_correct' row.requirement.pk %}">{% csrf_token %}<input type="hidden" name="remove_quote" value="{{ quote.quote_id }}"><button type="submit">Quitar este tramo de la fila</button></form>
+          {% endif %}
         </details>
       </li>
       {% endfor %}
     </ul>
+    <p class="review-links"><a href="{% url 'tenders:history' row.requirement.pk %}">Historial</a></p>
+    {% if page.can_edit %}
+    <form method="post" action="{% url 'tenders:review_remove' row.requirement.pk %}">{% csrf_token %}<button type="submit">Quitar la fila</button></form>
+    {% endif %}
   </article>
   {% empty %}
   <p>La propuesta no tiene filas técnicas.</p>
   {% endfor %}
 </section>
+
+{% if page.removed %}
+<section class="matrix-removed" aria-labelledby="removed-title">
+  <h2 id="removed-title">Requisitos quitados</h2>
+  {% for row in page.removed %}
+  <article class="requirement removed" id="requisito-{{ row.requirement.number }}">
+    <h3>Requisito {{ row.requirement.number }} · {{ row.requirement.get_category_display }} · quitado</h3>
+    {% for quote in row.quotes %}<blockquote class="literal">{{ quote.text }}</blockquote>{% endfor %}
+    <p class="review-links"><a href="{% url 'tenders:history' row.requirement.pk %}">Historial</a></p>
+    {% if page.can_edit %}
+    <form method="post" action="{% url 'tenders:review_restore' row.requirement.pk %}">{% csrf_token %}<button type="submit">Restituir</button></form>
+    {% endif %}
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if page.can_edit %}
+<section class="matrix-add" aria-labelledby="add-title">
+  <h2 id="add-title">Agregar</h2>
+  <details class="review-actions"><summary>Agregar un requisito formal o económico</summary>
+    <form method="post" action="{% url 'tenders:review_add' page.version.pk %}">{% csrf_token %}
+      {% include "tenders/_segment_select.html" with name="segment" label="Tramo" %}
+      {% include "tenders/_class_select.html" with current="formal" technical=False %}
+      <label>Fragmento literal del tramo <textarea name="quote" rows="3" required></textarea></label>
+      <label>Renglones (opcional) <input type="text" name="items"></label>
+      <button type="submit">Agregar el requisito</button>
+    </form>
+  </details>
+  <details class="review-actions"><summary>Agregar la fila técnica de un renglón</summary>
+    <form method="post" action="{% url 'tenders:review_add_technical' page.version.pk %}">{% csrf_token %}
+      <label>Renglón <input type="number" min="1" name="item" required></label>
+      {% include "tenders/_segment_select.html" with name="segment" label="Primer tramo" %}
+      <button type="submit">Agregar la fila técnica</button>
+    </form>
+  </details>
+  {% if page.technical %}
+  <details class="review-actions"><summary>Sumar un tramo a una fila técnica</summary>
+    <form method="post" action="{% url 'tenders:review_join_segment' page.version.pk %}">{% csrf_token %}
+      <label>Fila <select name="row" required>{% for row in page.technical %}<option value="{{ row.requirement.pk }}">{% if row.requirement.items %}Renglón {{ row.requirement.items|join:", " }}{% else %}Técnico sin renglón{% endif %}</option>{% endfor %}</select></label>
+      {% include "tenders/_segment_select.html" with name="segment" label="Tramo" %}
+      <button type="submit">Sumar el tramo</button>
+    </form>
+  </details>
+  {% endif %}
+</section>
+{% endif %}
 {% endblock %}

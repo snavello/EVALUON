@@ -5,7 +5,7 @@ original (T-072)."""
 
 from django.urls import path
 
-from evaluon.tenders.views import documents, matrix, procedures
+from evaluon.tenders.views import documents, matrix, procedures, review
 
 app_name = "tenders"
 
@@ -16,6 +16,19 @@ urlpatterns = [
          name="request_matrix"),
     path("matrices/<int:version_id>/", matrix.matrix, name="matrix"),
     path("matrices/<int:version_id>/cobertura/", matrix.coverage, name="coverage"),
+    path("matrices/<int:version_id>/confirmar/", review.confirm, name="review_confirm"),
+    path("matrices/<int:version_id>/agregar/", review.add, name="review_add"),
+    path("matrices/<int:version_id>/agregar-tecnico/", review.add_technical,
+         name="review_add_technical"),
+    path("matrices/<int:version_id>/sumar-tramo/", review.join_segment,
+         name="review_join_segment"),
+    path("requisitos/<int:requirement_id>/corregir/", review.correct,
+         name="review_correct"),
+    path("requisitos/<int:requirement_id>/quitar/", review.remove, name="review_remove"),
+    path("requisitos/<int:requirement_id>/restituir/", review.restore,
+         name="review_restore"),
+    path("requisitos/<int:requirement_id>/historial/", review.history, name="history"),
+    path("pendientes/<int:pending_id>/resolver/", review.resolve, name="review_resolve"),
     path(
         "documentos/<int:document_id>/original/",
         documents.document_original,

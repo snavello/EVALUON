@@ -17,6 +17,8 @@ escriben nada, salvo la marca de aviso visto.
 
 from dataclasses import dataclass, field
 
+from django.db.models import F
+
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
@@ -139,6 +141,8 @@ class QuoteRow:
     scope_label: str
     current: SourceRow | None = None  # la fuente que modifica el texto, si hay
     notes: list = field(default_factory=list)  # aclaraciones y supresiones
+    quote_id: int | None = None
+    segment_id: int | None = None
 
 
 @dataclass
@@ -174,6 +178,10 @@ class MatrixPage:
     pending_open: int
     groups: list
     technical: list
+    removed: list = field(default_factory=list)  # quitados, visibles y con su historia
+    can_edit: bool = False  # borrador y rol de la Comisión: corregir, quitar, agregar
+    can_confirm: bool = False  # borrador y evaluador: confirmar y resolver pendientes
+    segment_options: list = field(default_factory=list)  # (id, descripción) para elegir un tramo
 
 
 def _require(user, operation, channel):
@@ -204,6 +212,8 @@ def _quote_rows(requirement, pages):
         modifying = [s for s in mine if s.effect == SourceEffect.MODIFICA]
         rows.append(QuoteRow(
             place=_place(pages, quote.segment, quote.char_start, quote.char_end),
+            quote_id=quote.pk,
+            segment_id=quote.segment_id,
             text=quote.text,
             wide=bool(quote.quote_flag),
             scope=quote.scope,
@@ -214,6 +224,19 @@ def _quote_rows(requirement, pages):
     return rows, loose
 
 
+def _segment_options(version):
+    """Los tramos del pliego de la versión, para elegir uno al agregar o corregir."""
+    if version.run_id is not None:
+        reading_ids = [d["reading"] for d in version.run.documents]
+    else:
+        reading_ids = []
+    segments = (Segment.objects.filter(reading_id__in=reading_ids)
+                .select_related("reading__document")
+                .order_by("reading__document_id", "order"))
+    return [(s.pk, f"{s.reading.document.title} · {s.path or s.label or s.key}: "
+                   + " ".join(s.text.split())[:70]) for s in segments]
+
+
 def matrix_page(user, version_id, *, channel=Channel.SCREEN):
     """La página de una versión de la matriz. Lanza `RoleRejected` sin rol de la Comisión
     y `MatrixVersion.DoesNotExist` si no existe."""
@@ -222,9 +245,10 @@ def matrix_page(user, version_id, *, channel=Channel.SCREEN):
         "procedure", "run", "validated_by").get(pk=version_id)
     run = version.run
     pages = _Pages()
-    requirements = list(
-        version.requirements.exclude(state=RequirementState.QUITADO).order_by("number")
-    )
+    every = list(version.requirements.order_by("number"))
+    requirements = [r for r in every if r.state != RequirementState.QUITADO]
+    removed = [RequirementRow(requirement=r, quotes=_quote_rows(r, pages)[0])
+               for r in every if r.state == RequirementState.QUITADO]
 
     groups, technical, by_document = [], [], {}
     counts = {RequirementClass.FORMAL: 0, RequirementClass.ECONOMICO: 0,
@@ -247,9 +271,11 @@ def matrix_page(user, version_id, *, channel=Channel.SCREEN):
                    place=_place(pages, item.segment))
         for item in version.pending_items.select_related(
             "segment__reading__document").order_by(
-            "resolved_at", "segment__reading__document_id", "segment__order")
+            F("resolved_at").asc(nulls_first=True), "segment__reading__document_id",
+            "segment__order")
     ]
 
+    editable = version.status == VersionStatus.DRAFT
     authorization_date = (run.authorization_date if run
                           else version.procedure.authorization_date)
     return MatrixPage(
@@ -267,6 +293,10 @@ def matrix_page(user, version_id, *, channel=Channel.SCREEN):
         pending_open=sum(1 for p in pending if p.item.resolved_at is None),
         groups=groups,
         technical=technical,
+        removed=removed,
+        can_edit=editable,
+        can_confirm=editable and user.commission_role == CommissionRole.EVALUATOR,
+        segment_options=_segment_options(version) if editable else [],
     )
 
 
