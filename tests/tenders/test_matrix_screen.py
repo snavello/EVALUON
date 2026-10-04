@@ -314,13 +314,14 @@ def test_procedure_page_offers_the_levels_with_alta_by_default(client, operator_
     page = text_of(client.get(reverse("tenders:procedure", args=[read_only.pk])))
 
     assert "Proponer matriz" in page
-    for level in ("Media", "Alta", "Exigente"):
+    for level in ("Media", "Alta"):
         assert f">{level}</option>" in page
+    assert ">Exigente</option>" not in page
     assert '<option value="alta" selected>' in page
     assert "Todavía no hay una propuesta de la matriz" in page
 
 
-@pytest.mark.parametrize("level", ["media", "exigente"])
+@pytest.mark.parametrize("level", ["media", "alta"])
 def test_posting_the_form_queues_the_request_with_the_chosen_level(
         client, operator_user, read_only, level):
     """REQ-030: el formulario pide la propuesta con el nivel elegido y la página muestra
