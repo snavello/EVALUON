@@ -39,25 +39,26 @@ body { margin: 0; }
 .bottom-mark.draft { font-size: 13pt; font-weight: bold; color: #b00020; }
 .top-mark.validated { font-size: 10pt; font-weight: bold; }
 
-/* Navegador: elemento fijo arriba; el navegador lo repite en cada hoja impresa. */
-.fixed-mark {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+/* Navegador: la marca va en el thead de la tabla que envuelve la matriz. El navegador
+   repite el thead en cada hoja impresa y reserva su lugar: no tapa el contenido. */
+table.sheet { width: 100%; border-collapse: collapse; }
+table.sheet > thead { display: table-header-group; }
+table.sheet > thead > tr > td, table.sheet > tbody > tr > td { padding: 0; vertical-align: top; }
+.page-mark {
   padding: 0.4rem 1rem;
+  margin-bottom: 0.6rem;
   text-align: center;
   font-weight: bold;
-  background: #ffffff;
 }
-.fixed-mark.draft {
+.page-mark.draft {
   font-size: 18pt;
   letter-spacing: 0.1em;
   color: #ffffff;
   background: #b00020;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
-.fixed-mark.validated { border-bottom: 1px solid #000000; }
-.with-fixed-mark { padding-top: 3rem; }
+.page-mark.validated { border-bottom: 1px solid #000000; }
 
 .toolbar { margin: 0 0 1rem 0; }
 .toolbar a, .toolbar button { margin-right: 1rem; }

@@ -147,7 +147,7 @@ def test_a_version_opened_over_another_exports_without_a_run(
 
 def test_print_view_of_a_draft_has_the_fixed_legend_and_the_print_button(
         client, operator_user, case):
-    """REQ-032: la vista de impresión de un borrador tiene la leyenda fija y el botón
+    """REQ-032: la vista de impresión de un borrador tiene la leyenda en el encabezado repetido y el botón
     "Imprimir"; sin formularios de edición."""
     log_in(client, operator_user)
 
@@ -155,7 +155,7 @@ def test_print_view_of_a_draft_has_the_fixed_legend_and_the_print_button(
 
     page = html.unescape(response.content.decode())
     assert response.status_code == 200
-    assert 'class="fixed-mark draft"' in page and LEGEND in page
+    assert 'class="page-mark draft"' in page and LEGEND in page
     assert 'id="print-button"' in page and "Imprimir" in page
     assert reverse("tenders:pdf", args=[case.pk]) in page
     assert "<form" not in page and "<script>" not in page

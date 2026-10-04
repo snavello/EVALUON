@@ -13,7 +13,7 @@ una versión abierta sobre otra no tiene propuesta propia.
   <link rel="stylesheet" href="{{ css_href }}">
   {% if not pdf %}<script src="{% static 'tenders/print.js' %}" defer></script>{% endif %}
 </head>
-<body{% if not pdf %} class="with-fixed-mark"{% endif %}>
+<body>
 {% if pdf %}
   {% if legend %}
   <div class="top-mark draft">BORRADOR INCOMPLETO</div>
@@ -23,16 +23,21 @@ una versión abierta sobre otra no tiene propuesta propia.
   <div class="bottom-mark validated">Procedimiento {{ page.procedure.number }} · versión {{ page.version.number }}</div>
   {% endif %}
 {% else %}
-  {% if legend %}
-  <div class="fixed-mark draft" role="note">BORRADOR INCOMPLETO</div>
-  {% else %}
-  <div class="fixed-mark validated" role="note">Matriz validada · versión {{ page.version.number }} · validada el {{ page.version.validated_at|date:"d/m/Y" }} por {{ page.version.validated_by.username }}</div>
-  {% endif %}
   <div class="toolbar">
     <button type="button" id="print-button">Imprimir</button>
     <a href="{% url 'tenders:pdf' page.version.pk %}">Exportar PDF</a>
     <a href="{% url 'tenders:matrix' page.version.pk %}">Volver a la matriz</a>
   </div>
+  {% comment %}La marca va en el encabezado (thead) de una tabla que envuelve la matriz: el navegador lo repite en cada hoja impresa y le reserva su lugar, así no tapa el contenido.{% endcomment %}
+  <table class="sheet">
+    <thead><tr><td>
+      {% if legend %}
+      <div class="page-mark draft" role="note">BORRADOR INCOMPLETO</div>
+      {% else %}
+      <div class="page-mark validated" role="note">Matriz validada · versión {{ page.version.number }} · validada el {{ page.version.validated_at|date:"d/m/Y" }} por {{ page.version.validated_by.username }}</div>
+      {% endif %}
+    </td></tr></thead>
+    <tbody><tr><td>
 {% endif %}
 
 <h1>Matriz de cumplimiento · versión {{ page.version.number }}</h1>
@@ -126,5 +131,9 @@ una versión abierta sobre otra no tiene propuesta propia.
   <p>La propuesta no tiene filas técnicas.</p>
   {% endfor %}
 </section>
+{% if not pdf %}
+    </td></tr></tbody>
+  </table>
+{% endif %}
 </body>
 </html>
