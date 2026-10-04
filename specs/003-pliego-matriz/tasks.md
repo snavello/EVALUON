@@ -26,7 +26,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-076 | Preparar la lista esperada del caso-00 | REQ-024, REQ-025 | — | terminada |
 | T-077 | Medir una propuesta contra una lista esperada | REQ-024, REQ-025, REQ-028, REQ-030 | T-073 | terminada |
 | T-078 | Completar los niveles alta y exigente | REQ-024, REQ-030 | T-073 | terminada |
-| T-079 | Revisar la matriz: confirmar, corregir, quitar y agregar | REQ-026, REQ-028 | T-074 | pendiente |
+| T-079 | Revisar la matriz: confirmar, corregir, quitar y agregar | REQ-026, REQ-028 | T-074 | terminada |
 | T-080 | Sugerir consecuencias con fundamento | REQ-029 | T-078 | pendiente |
 | T-081 | Elegir la consecuencia en la pantalla, con su motivo | REQ-029 | T-079, T-080 | pendiente |
 | T-082 | Validar la matriz y abrir versiones nuevas | REQ-026, REQ-027, REQ-028, REQ-032 | T-081 | pendiente |
