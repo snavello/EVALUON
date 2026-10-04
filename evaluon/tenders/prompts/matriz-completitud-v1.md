@@ -24,7 +24,7 @@ Cada requisito es una sola condición que se pueda verificar por separado, para 
 QUÉ DEVOLVER POR CADA TRAMO
 
 1. "faltantes": los requisitos que el tramo exige a la oferta y que NO están entre los ya encontrados. Cada uno con su "cita" y su "clase". No repitas un requisito que ya está en la lista, ni con otras palabras.
-2. "divisiones": por cada requisito ya encontrado que junta dos o más condiciones distintas, un objeto con "original" (el fragmento del requisito ya encontrado, copiado tal cual de la lista) y "partes" (dos o más requisitos, cada uno con su "cita" y su "clase", una condición cada uno). Las partes tienen que cubrir todas las condiciones del original.
+2. "divisiones": por cada requisito ya encontrado que junta dos o más condiciones distintas, un objeto con "original" (el fragmento del requisito ya encontrado, copiado tal cual de la lista) y "partes" (dos o más requisitos, cada uno con su "cita" y su "clase", una condición cada uno). Cada parte se copia de dentro del fragmento original, y las partes juntas tienen que cubrir todo el original (solo pueden quedar afuera los espacios, la puntuación y conectores como "y"). Si el original empieza con palabras que valen para todas las condiciones (por ejemplo "La oferta deberá incluir"), incluilas en la primera parte. Si no podés dividirlo así, no lo dividas.
 
 Si el tramo está bien, devolvé las dos listas vacías. Ante la duda, proponé de más: un requisito que sobra lo quita la persona que revisa, uno que falta no lo evalúa nadie.
 
@@ -44,9 +44,9 @@ EJEMPLOS
 
 Los textos son inventados y sirven solo para mostrar la forma.
 
-Tramo: "La oferta deberá acompañarse de una declaración jurada de habilidad para contratar y de la constancia de inscripción en el registro de proveedores."
-Requisitos ya encontrados: 1. "La oferta deberá acompañarse de una declaración jurada de habilidad para contratar y de la constancia de inscripción en el registro de proveedores." (formal)
-{"faltantes": [], "divisiones": [{"original": "La oferta deberá acompañarse de una declaración jurada de habilidad para contratar y de la constancia de inscripción en el registro de proveedores.", "partes": [{"cita": "una declaración jurada de habilidad para contratar", "clase": "formal"}, {"cita": "la constancia de inscripción en el registro de proveedores", "clase": "formal"}]}]}
+Tramo: "La oferta deberá acompañarse de una declaración jurada de habilidad para contratar y la constancia de inscripción en el registro de proveedores."
+Requisitos ya encontrados: 1. "La oferta deberá acompañarse de una declaración jurada de habilidad para contratar y la constancia de inscripción en el registro de proveedores." (formal)
+{"faltantes": [], "divisiones": [{"original": "La oferta deberá acompañarse de una declaración jurada de habilidad para contratar y la constancia de inscripción en el registro de proveedores.", "partes": [{"cita": "La oferta deberá acompañarse de una declaración jurada de habilidad para contratar", "clase": "formal"}, {"cita": "la constancia de inscripción en el registro de proveedores", "clase": "formal"}]}]}
 
 Tramo: "Los oferentes deberán mantener la oferta durante 60 días corridos. Las ofertas se cotizan en pesos."
 Requisitos ya encontrados: 1. "mantener la oferta durante 60 días corridos" (formal)

@@ -14,6 +14,7 @@ import pytest
 
 from evaluon.tenders import models as m
 from evaluon.tenders.proposal import completeness, extraction
+from evaluon.tenders.proposal import run as proposal
 from evaluon.tenders.proposal.extraction import ALL_ITEMS, Found, Outcome
 from evaluon.tenders.proposal.quotes import WIDE
 from tests.tenders.pdfs import para, table, tender_pdf
@@ -32,6 +33,7 @@ pytestmark = pytest.mark.django_db
 DOCS = ("La oferta deberá incluir la declaración jurada de habilidad para contratar y la "
         "constancia de inscripción en el registro de proveedores.")
 DJ = "la declaración jurada de habilidad para contratar"
+DJ_FULL = "La oferta deberá incluir " + DJ
 CONSTANCIA = "la constancia de inscripción en el registro de proveedores"
 MANT = "Los oferentes deberán mantener la oferta durante 60 días corridos."
 MANT_QUOTE = "mantener la oferta durante 60 días corridos"
@@ -230,12 +232,12 @@ def test_alta_splits_a_requirement_that_joins_two_conditions(operator_user, scri
     standard(script)
     script.when(DOCS, item([(DOCS, "formal")]))
     script.complete_when("constancia", fix(splits=[
-        (DOCS, [(DJ, "formal"), (CONSTANCIA, "formal")])]))
+        (DOCS, [(DJ_FULL, "formal"), (CONSTANCIA, "formal")])]))
 
     run = run_level(operator_user, "alta")
 
     assert body(run)["sec-i/1.1"] == [
-        (DJ, ["completitud"], "formal"),
+        (DJ_FULL, ["completitud"], "formal"),
         (CONSTANCIA, ["completitud"], "formal"),
     ]
     check_quotes_are_canonical(run)
@@ -309,12 +311,12 @@ def unit_of(text, section_class=""):
     return SimpleNamespace(segment=segment)
 
 
-def test_overlap_is_a_fraction_of_the_shorter_quote():
-    """REQ-024: la superposición de dos citas se mide sobre la más corta."""
-    assert completeness.overlap((0, 10), (0, 10)) == 1
-    assert completeness.overlap((0, 10), (5, 40)) == 0.5
-    assert completeness.overlap((0, 10), (2, 100)) == 0.8
-    assert completeness.overlap((0, 10), (10, 20)) == 0
+def test_containment_is_the_fraction_of_the_inner_quote_inside_the_outer():
+    """REQ-024: cuánto de una cita está dentro de otra se mide sobre sus propios caracteres."""
+    assert completeness.containment((0, 10), (0, 10)) == 1
+    assert completeness.containment((0, 10), (5, 40)) == 0.5
+    assert completeness.containment((5, 40), (0, 10)) == pytest.approx(5 / 35)
+    assert completeness.containment((0, 10), (10, 20)) == 0
 
 
 def test_a_missing_requirement_that_repeats_a_found_one_is_not_added():
@@ -362,19 +364,187 @@ def test_a_split_with_a_part_outside_the_segment_leaves_the_requirement_as_it_wa
     assert [a["type"] for a in anomalies] == ["completitud_division_no_aplicada"]
 
 
-def test_union_keeps_the_fragment_over_a_wide_quote_of_the_same_class():
-    """REQ-025: si una extracción dejó el tramo entero como cita y la otra un fragmento de la
-    misma clase, queda el fragmento, con las pasadas de las dos."""
+def test_union_keeps_a_wide_quote_and_a_fragment_of_the_same_class():
+    """REQ-024: una cita amplia (el tramo entero) nunca se reemplaza por un fragmento: quedan
+    las dos y lo que sobre lo quita el evaluador. Vale en los dos sentidos."""
     unit = unit_of("Los oferentes deberán mantener la oferta durante 60 días corridos.")
     wide = Found("formal", (0, len(unit.segment.text)), flag=WIDE)
     fragment = Found("formal", (22, 64))
-    first = Outcome(unit=unit, valid=True, found=[wide])
-    second = Outcome(unit=unit, valid=True, found=[fragment])
 
-    merged = completeness.union(first, second)
+    merged = completeness.union(Outcome(unit=unit, valid=True, found=[wide]),
+                                Outcome(unit=unit, valid=True, found=[fragment]))
+    assert merged.found == [wide, fragment]
 
-    assert merged.found == [fragment]
-    assert completeness.passes_of(fragment) == ["extraccion_2", "extraccion"]
+    wide = Found("formal", (0, len(unit.segment.text)), flag=WIDE)
+    fragment = Found("formal", (22, 64))
+    merged = completeness.union(Outcome(unit=unit, valid=True, found=[fragment]),
+                                Outcome(unit=unit, valid=True, found=[wide]))
+    assert merged.found == [fragment, wide]
+
+
+def test_union_merges_two_wide_quotes_of_the_same_class_only():
+    """REQ-024: dos citas amplias de la misma clase son la misma; de clases distintas, no."""
+    unit = unit_of("Los oferentes deberán mantener la oferta durante 60 días corridos.")
+    end = len(unit.segment.text)
+
+    same = completeness.union(
+        Outcome(unit=unit, valid=True, found=[Found("formal", (0, end), flag=WIDE)]),
+        Outcome(unit=unit, valid=True, found=[Found("formal", (0, end), flag=WIDE)]))
+    other = completeness.union(
+        Outcome(unit=unit, valid=True, found=[Found("formal", (0, end), flag=WIDE)]),
+        Outcome(unit=unit, valid=True, found=[Found("economico", (0, end), flag=WIDE)]))
+
+    assert len(same.found) == 1 and len(other.found) == 2
+
+
+def test_a_missing_requirement_is_added_next_to_a_wide_quote_of_its_class():
+    """REQ-024: un faltante bien ubicado se suma aunque el tramo ya tenga una cita amplia de
+    su clase."""
+    unit = unit_of("Los oferentes deberán mantener la oferta durante 60 días corridos.")
+    wide = Found("formal", (0, len(unit.segment.text)), flag=WIDE)
+
+    final, added, _ = completeness.apply(
+        unit, [wide], [("mantener la oferta durante 60 días corridos", "formal")], [], [])
+
+    assert added == 1 and [f.flag for f in final] == [WIDE, ""]
+
+
+def contained_pair(second_start):
+    """Una primera cita (0, 40) y una segunda (`second_start`, 200) de un tramo de 200
+    caracteres, de la misma clase."""
+    unit = unit_of("x" * 200)
+    return completeness.union(
+        Outcome(unit=unit, valid=True, found=[Found("formal", (0, 40))]),
+        Outcome(unit=unit, valid=True, found=[Found("formal", (second_start, 200))]))
+
+
+def test_union_keeps_both_quotes_when_each_has_enough_text_of_its_own():
+    """REQ-024: dos citas que se superponen no son la misma si ninguna queda contenida en la
+    otra en al menos el 90 % de sus caracteres: quedan las dos. Con 75 % (10 a 40 sobre 40)
+    y con 80 % también."""
+    assert [f.span for f in contained_pair(10).found] == [(0, 40), (10, 200)]
+    assert [f.span for f in contained_pair(8).found] == [(0, 40), (8, 200)]
+
+
+def test_union_drops_the_contained_quote_from_90_percent_and_keeps_the_longer():
+    """REQ-024: la cita contenida en la otra en al menos el 90 % de sus caracteres es la
+    misma requisito: queda la más larga, con las pasadas de las dos."""
+    merged = contained_pair(4)
+
+    assert [f.span for f in merged.found] == [(4, 200)]
+    assert completeness.passes_of(merged.found[0]) == ["extraccion", "extraccion_2"]
+
+
+def test_union_keeps_the_class_of_the_first_and_records_the_disagreement():
+    """REQ-024: el mismo fragmento con distinta clase en las dos extracciones queda una vez,
+    con la clase de la primera, y la anomalía `clase_en_desacuerdo` dice las dos clases."""
+    unit = unit_of("Se cotiza en pesos con impuestos incluidos.")
+    anomalies = []
+
+    merged = completeness.union(
+        Outcome(unit=unit, valid=True, found=[Found("economico", (0, 30))]),
+        Outcome(unit=unit, valid=True, found=[Found("formal", (0, 30))]), anomalies)
+
+    assert [(f.category, f.span) for f in merged.found] == [("economico", (0, 30))]
+    assert anomalies == [{"type": "clase_en_desacuerdo", "segment": 1, "key": "sec-i/1.1",
+                          "clases": ["economico", "formal"]}]
+
+
+def test_union_takes_the_valid_extraction_when_the_other_is_invalid():
+    """REQ-024: si una extracción dejó el tramo sin disposición, vale la otra, en los dos
+    sentidos; si las dos, queda sin disposición."""
+    unit = unit_of("Los oferentes deberán mantener la oferta durante 60 días corridos.")
+    invalid = Outcome(unit=unit)
+
+    a = completeness.union(invalid, Outcome(unit=unit, valid=True,
+                                            found=[Found("formal", (22, 64))]))
+    b = completeness.union(Outcome(unit=unit, valid=True, found=[Found("formal", (22, 64))]),
+                           Outcome(unit=unit))
+    c = completeness.union(Outcome(unit=unit), Outcome(unit=unit))
+
+    assert a.valid and [f.span for f in a.found] == [(22, 64)]
+    assert b.valid and [f.span for f in b.found] == [(22, 64)]
+    assert not c.valid
+
+
+def test_a_valid_split_is_applied_when_the_parts_cover_the_original():
+    """REQ-024: una división cuyas partes están dentro del original y lo cubren (salvo
+    espacios, puntuación y "y") reemplaza al requisito."""
+    text = "Presentar la declaración jurada y la constancia de inscripción."
+    unit = unit_of(text)
+    found = [Found("formal", (0, len(text)))]
+
+    final, _, divided = completeness.apply(
+        unit, found, [], [(text, [("Presentar la declaración jurada", "formal"),
+                                  ("la constancia de inscripción", "formal")])], [])
+
+    assert divided == 1
+    assert [text[f.span[0]:f.span[1]] for f in final] == [
+        "Presentar la declaración jurada", "la constancia de inscripción"]
+
+
+def test_a_split_that_does_not_cover_the_original_leaves_it_as_it_was():
+    """REQ-024: si las partes no cubren el original (queda sin fila una condición), el
+    requisito queda como estaba y la anomalía lo dice (F1)."""
+    text = "Presentar la declaración jurada y la constancia de inscripción."
+    unit = unit_of(text)
+    found = [Found("formal", (0, len(text)))]
+    anomalies = []
+
+    final, _, divided = completeness.apply(
+        unit, found, [], [(text, [("la declaración jurada", "formal"),
+                                  ("Presentar", "formal")])], anomalies)
+
+    assert final == found and divided == 0
+    assert [a["type"] for a in anomalies] == ["completitud_division_no_aplicada"]
+
+
+def test_a_split_with_parts_outside_the_original_leaves_it_as_it_was():
+    """REQ-024: las partes se buscan dentro del recorte del original, no en todo el tramo:
+    si están en otro requisito, el original queda como estaba (F2)."""
+    text = ("Presentar la declaración jurada. Mantener la oferta durante sesenta días. "
+            "Cotizar en pesos.")
+    unit = unit_of(text)
+    first_end = text.index(".") + 1
+    second = text.index("Mantener")
+    found = [Found("formal", (0, first_end)),
+             Found("formal", (second, text.index("días.") + 5))]
+    anomalies = []
+
+    final, _, divided = completeness.apply(
+        unit, found, [], [(text[:first_end], [("Cotizar", "economico"),
+                                              ("en pesos", "economico")])], anomalies)
+
+    assert final == found and divided == 0
+    assert [a["type"] for a in anomalies] == ["completitud_division_no_aplicada"]
+
+
+def test_only_model_dispositions_reach_the_completeness():
+    """REQ-024: a la completitud solo llegan tramos que pasaron por el modelo. Un título
+    descartado por regla con una palabra de obligación no llega."""
+    title = unit_of("DOCUMENTACIÓN QUE DEBERÁ PRESENTARSE")
+    loaded = SimpleNamespace(units=[title])
+
+    by_rule = {1: proposal.Decision("descartado", discard_reason="titulo")}
+    by_model = {1: proposal.Decision("descartado", discard_reason="dato_procedimiento",
+                                     source="modelo")}
+
+    assert proposal.completeness_candidates(loaded, by_rule) == []
+    assert [c.unit for c in proposal.completeness_candidates(loaded, by_model)] == [title]
+
+
+def test_the_class_of_every_requirement_is_validated_in_the_answer():
+    """REQ-028: una clase fuera de formal y económico (por ejemplo, técnico) invalida la salida
+    de la completitud, en los faltantes y en las partes de una división."""
+    good = {"cita": "x", "clase": "formal"}
+    bad = {"cita": "x", "clase": "tecnico"}
+
+    assert completeness.shape_item({"faltantes": [good], "divisiones": []})
+    with pytest.raises(completeness.InvalidItem):
+        completeness.shape_item({"faltantes": [bad], "divisiones": []})
+    with pytest.raises(completeness.InvalidItem):
+        completeness.shape_item({"faltantes": [], "divisiones": [
+            {"original": "x", "partes": [good, bad]}]})
 
 
 # --- Exigente: segunda extracción y unión --------------------------------------------------------
@@ -392,7 +562,7 @@ def test_exigente_union_does_not_duplicate_overlapping_requirements(operator_use
     run = run_level(operator_user, "exigente")
 
     assert body(run)["sec-i/1.1"] == [
-        (DJ, ["extraccion", "extraccion_2"], "formal"),
+        (longer, ["extraccion", "extraccion_2"], "formal"),
         (CONSTANCIA, ["extraccion_2"], "formal"),
     ]
     check_quotes_are_canonical(run)

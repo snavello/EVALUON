@@ -373,7 +373,7 @@ def propose(run, *, user, channel=Channel.COMMAND):
             requests[PassName.EXTRACCION_2.value] = second.stats["requests"]
             stats.append(second.stats)
             started = time.monotonic()
-            outcomes = {pk: completeness.union(outcomes[pk], second.outcomes[pk])
+            outcomes = {pk: completeness.union(outcomes[pk], second.outcomes[pk], anomalies)
                         for pk in outcomes}
             timings["union"] = round(time.monotonic() - started, 3)
 

@@ -9,10 +9,13 @@ sección técnica se disponen por regla y no llegan acá.
 tramos con los lotes desplazados medio lote: el primer lote se corta a la mitad, así que los
 límites caen en otros tramos. Usa su propio `Extractor` con `PassName.EXTRACCION_2`.
 
-**Unión** (`union`). Por tramo: un requisito de la segunda extracción entra si su cita no se
-superpone en más de la mitad con la de otro del mismo tramo; si se superpone, es el mismo y
-queda el primero (si el primero era una cita amplia y el segundo un fragmento, queda el
-fragmento). Un tramo descartado en una extracción y con requisitos o marca técnica en la otra
+**Unión** (`union`). Regla que manda (REQ-024): un nivel más alto nunca pierde un requisito que
+encontraba el anterior; ante la duda, de más. Por tramo, un requisito de la segunda extracción
+es el mismo que uno de la primera solo si una de las dos citas queda contenida en la otra en
+al menos el 90 % de sus propios caracteres; entonces queda la más larga (con la clase de la
+primera, y la anomalía `clase_en_desacuerdo` si las clases difieren). Si cada una tiene
+bastante texto propio, quedan las dos. Una cita amplia (tramo entero) nunca se reemplaza por
+un fragmento ni al revés: solo es la misma que otra cita amplia de su clase. Un tramo descartado en una extracción y con requisitos o marca técnica en la otra
 queda con lo encontrado; la marca técnica es la unión de las dos. Si una sola extracción
 dejó el tramo sin disposición, vale la otra. Cada requisito lleva en `passes` las pasadas
 que lo encontraron.
@@ -22,15 +25,18 @@ económicos, cada tramo con sus requisitos ya encontrados (o ninguno, si el mode
 descartó y tiene marcadores de obligación) y devuelve los que faltan y las divisiones de los
 que juntan dos condiciones (`prompts/matriz-completitud-v1.md`). El sistema ubica cada cita
 con `quotes.locate`, que tolera espacios y saltos de línea distintos y devuelve posiciones
-relativas al tramo; un faltante que se superpone en más de la mitad con un requisito ya
-encontrado no se suma; una cita que no se ubica queda con el tramo entero como cita
+relativas al tramo; un faltante que es el mismo que un requisito ya encontrado (misma regla de
+la unión) no se suma; una cita que no se ubica queda con el tramo entero como cita
 (`cita_amplia`), porque un requisito nunca se pierde por una cita mal copiada; una división
-cuyas partes no se ubican todas deja el requisito como estaba. Un tramo cuya salida es
+solo se acepta si cada parte se ubica dentro del recorte del original y las partes juntas lo
+cubren, salvo espacios, puntuación y conectores ("y", "e"); si no, el requisito queda como
+estaba, con la anomalía `completitud_division_no_aplicada`. Un tramo cuya salida es
 inválida se vuelve a pedir una vez, solo; si sigue inválido no cambia y quien llama decide
 (un descartado con marcadores queda pendiente).
 """
 
 import json
+import re
 import time
 from dataclasses import dataclass
 
@@ -53,6 +59,9 @@ ANOMALY_NO_RESULT = "completitud_sin_resultado"
 ANOMALY_SERVICE = "servicio"
 
 MORE_THAN_HALF = 0.5
+CONTAINED = 0.9  # fracción de una cita que tiene que estar dentro de la otra para ser la misma
+CONNECTORS = frozenset({"y", "e"})
+ANOMALY_CLASS_DISAGREEMENT = "clase_en_desacuerdo"
 
 
 class InvalidItem(ValueError):
@@ -62,13 +71,13 @@ class InvalidItem(ValueError):
 # --- Superposición y pasadas de un requisito -------------------------------------------------
 
 
-def overlap(a, b):
-    """Cuánto se superponen dos posiciones `(inicio, fin)`, como fracción de la más corta."""
-    shared = min(a[1], b[1]) - max(a[0], b[0])
-    shortest = min(a[1] - a[0], b[1] - b[0])
-    if shared <= 0 or shortest <= 0:
+def containment(inner, outer):
+    """Qué fracción de los caracteres de `inner` (inicio, fin) está dentro de `outer`."""
+    shared = min(inner[1], outer[1]) - max(inner[0], outer[0])
+    length = inner[1] - inner[0]
+    if shared <= 0 or length <= 0:
         return 0.0
-    return shared / shortest
+    return shared / length
 
 
 def passes_of(found):
@@ -76,19 +85,25 @@ def passes_of(found):
     return list(getattr(found, "passes", None) or [PassName.EXTRACCION.value])
 
 
+_PASS_ORDER = (PassName.EXTRACCION.value, PassName.EXTRACCION_2.value,
+               PassName.COMPLETITUD.value)
+
+
 def tag(found, *names):
     """Suma `names` a las pasadas del requisito y lo devuelve."""
-    found.passes = list(dict.fromkeys([*(getattr(found, "passes", None) or []), *names]))
+    have = {*(getattr(found, "passes", None) or []), *names}
+    found.passes = [name for name in _PASS_ORDER if name in have]
     return found
 
 
 def _same_requirement(new, old):
-    """Si `new` es el mismo requisito que `old` del mismo tramo: se superponen en más de la
-    mitad. Una cita amplia cubre todo el tramo, así que solo se compara con la de su
-    clase."""
-    if (new.flag == quotes.WIDE or old.flag == quotes.WIDE) and new.category != old.category:
-        return False
-    return overlap(new.span, old.span) > MORE_THAN_HALF
+    """Si `new` es el mismo requisito que `old` del mismo tramo: una de las dos citas queda
+    contenida en la otra en al menos el 90 % de sus propios caracteres. Una cita amplia
+    (el tramo entero) solo es la misma que otra cita amplia de su clase."""
+    if new.flag == quotes.WIDE or old.flag == quotes.WIDE:
+        return new.flag == old.flag and new.category == old.category
+    return max(containment(new.span, old.span),
+               containment(old.span, new.span)) >= CONTAINED
 
 
 # --- Segunda extracción y unión --------------------------------------------------------------
@@ -113,9 +128,9 @@ def second_extraction(extractor, units):
                                  anomalies=result.anomalies, stats=result.stats)
 
 
-def union(first, second):
+def union(first, second, anomalies=None):
     """El `extraction.Outcome` que une el de la primera y el de la segunda extracción del
-    mismo tramo. Ver el módulo."""
+    mismo tramo. Ver el módulo. Las anomalías se suman a `anomalies`, si se la pasa."""
     for found in first.found:
         tag(found, PassName.EXTRACCION.value)
     for found in second.found:
@@ -129,11 +144,16 @@ def union(first, second):
     for new in second.found:
         for index, old in enumerate(merged):
             if _same_requirement(new, old):
-                if old.flag == quotes.WIDE and new.flag != quotes.WIDE:
+                if new.category != old.category and anomalies is not None:
+                    anomalies.append({
+                        "type": ANOMALY_CLASS_DISAGREEMENT, "segment": first.unit.segment.pk,
+                        "key": first.unit.segment.key,
+                        "clases": [old.category, new.category]})
+                tag(old, PassName.EXTRACCION_2.value)
+                if new.span[1] - new.span[0] > old.span[1] - old.span[0]:
+                    new.category = old.category
                     tag(new, *passes_of(old))
                     merged[index] = new
-                else:
-                    tag(old, PassName.EXTRACCION_2.value)
                 break
         else:
             merged.append(new)
@@ -317,6 +337,23 @@ def _split_target(final, span):
     return target
 
 
+_LEADING_NUMBER = re.compile(r"^\s*(?:[•−–-]\s*|[A-Za-z]\)\s*)?(?:\d+\.)*\s*")
+
+
+def covers(text, base, spans):
+    """Si `spans` cubren `text[base[0]:base[1]]`, salvo espacios, puntuación, conectores
+    ("y", "e") y, al comienzo del tramo, el número de la cláusula."""
+    inner = text[base[0]:base[1]]
+    covered = [False] * len(inner)
+    for start, end in spans:
+        for index in range(max(start - base[0], 0), min(end - base[0], len(inner))):
+            covered[index] = True
+    rest = "".join(" " if covered[i] else inner[i] for i in range(len(inner)))
+    if base[0] == 0:
+        rest = _LEADING_NUMBER.sub("", rest, count=1)
+    return all(word.lower() in CONNECTORS for word in re.findall(r"\w+", rest))
+
+
 def apply(unit, found_list, missing, splits, anomalies):
     """Aplica la salida validada de un tramo a sus requisitos ya encontrados. Devuelve
     `(requisitos finales, agregados, divididos)`. No modifica `found_list`."""
@@ -338,16 +375,25 @@ def apply(unit, found_list, missing, splits, anomalies):
         if target is None:
             refuse("el original no coincide con un requisito")
             continue
-        used = {f.span for f in final if f is not target}
+        base = target.span
+        inner = text[base[0]:base[1]]
         located = []
         for quote, kind in parts:
-            part_span = quotes.locate(text, quote, used | {s for s, _ in located})
-            if part_span is None:
+            taken = {(s - base[0], e - base[0]) for (s, e), _ in located}
+            relative = quotes.locate(inner, quote, taken)
+            if relative is None:
                 located = None
                 break
-            located.append((part_span, _category(unit, kind)))
-        if located is None or len(located) < 2:
-            refuse("las partes no se ubican todas en el tramo")
+            located.append(((base[0] + relative[0], base[0] + relative[1]),
+                            _category(unit, kind)))
+        if located is None:
+            refuse("las partes no se ubican todas dentro del original")
+            continue
+        if len({part_span for part_span, _ in located}) < 2:
+            refuse("la división no tiene dos partes distintas")
+            continue
+        if not covers(text, base, [part_span for part_span, _ in located]):
+            refuse("las partes no cubren el original")
             continue
         pieces = []
         for part_span, category in located:
