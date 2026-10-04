@@ -3,7 +3,7 @@ su clase"; ADR-0019, decisión 1).
 
 Los pliegos son sintéticos (`pdfs.py`, P4) e imitan la forma del caso de referencia:
 carátula, índice con puntos guía, secciones que vuelven a numerar, cláusulas de hasta
-tres niveles con y sin espacio después del número, renglones, viñetas, incisos, una
+cuatro niveles con y sin espacio después del número, renglones, viñetas, incisos, una
 tabla, un anexo, una página sin texto y el encabezado repetido. La tabla de claves
 esperadas está escrita a mano, sin correr la partición.
 """
@@ -14,7 +14,7 @@ import re
 import pytest
 
 from evaluon.norms.reading import PAGE_DOUBTFUL, read_document
-from evaluon.tenders.segmenting import RULES_VERSION, split_tender
+from evaluon.tenders.segmenting import RULES_VERSION, check_coverage, split_tender
 from evaluon.tenders.tables import table_zones
 from tests.tenders.pdfs import para, synthetic_tender_pdf, table, tender_pdf
 
@@ -70,6 +70,8 @@ EXPECTED = [
     ("sec-i/7.5", "clausula", "", []),
     ("sec-i/7.5.1", "clausula", "", []),
     ("sec-i/7.5.2", "clausula", "", []),
+    ("sec-i/7.5.2.1", "clausula", "", []),
+    ("sec-i/7.5.2.2", "clausula", "", []),
     ("sec-i/7.5.3", "clausula", "", []),
     ("sec-i/7.5.3/inc-a", "vineta", "", []),
     ("sec-i/7.5.3/inc-b", "vineta", "", []),
@@ -168,6 +170,18 @@ def test_clause_without_space_after_its_number_cuts(result):
         "10.2.1.Una vez entregados los bienes, se emite la conformidad provisoria."
     )
     assert segments["sec-i/10.2.2"].text.startswith("10.2.2.La conformidad")
+
+
+def test_four_levels_with_and_without_space(result):
+    """REQ-024: la numeración llega a cuatro niveles, con espacio ("7.5.2.1. Firmada")
+    y sin espacio ("7.5.2.2.Con"), y después vuelve a un nivel superior (7.5.3)."""
+    segments = by_key(result)
+    assert segments["sec-i/7.5.2.1"].text == (
+        "7.5.2.1. Firmada por el representante legal sintético."
+    )
+    assert segments["sec-i/7.5.2.2"].text == "7.5.2.2.Con la fecha de la presentación."
+    assert segments["sec-i/7.5.2.2"].path.endswith("› 7.5 › 7.5.2 › 7.5.2.2")
+    assert segments["sec-i/7.5.3"].text.startswith("7.5.3. Las ofertas")
 
 
 def test_title_without_text_is_a_title(result):
@@ -329,10 +343,10 @@ def test_report_lists_the_pending_segments(result):
     tramos por tipo, las páginas por estado y la versión de las reglas."""
     report = result.report
     assert report["pending"] == [
-        {"key": "sec-i/3/tabla-1", "reason": "tabla"},
-        {"key": "pagina-7", "reason": "pagina_ilegible"},
+        {"key": "sec-i/3/tabla-1", "reason": "tabla", "detail": ""},
+        {"key": "pagina-7", "reason": "pagina_ilegible", "detail": ""},
     ]
-    assert report["segments_by_type"]["clausula"] == 24
+    assert report["segments_by_type"]["clausula"] == 26
     assert report["segments_by_type"]["pagina"] == 1
     assert report["pages_by_status"] == {"legible": 7, "no_leida": 1}
     assert report["rules_version"] == RULES_VERSION
@@ -478,3 +492,128 @@ def test_table_in_an_annex_hangs_from_the_annex():
     segments = by_key(result)
     assert segments["anexo-ii/tabla-1"].review_reason == "tabla"
     assert segments["anexo-ii/p-1"].text == "Firma: ______________"
+
+
+# --- Saltos de numeración (verificación de T-070, F1) ----------------------------------
+
+
+def jumped_numbering():
+    """Pliego de la reproducción de F1: la numeración salta de la 1 a la 3."""
+    return split_pdf(
+        [
+            [
+                para("SECCIÓN III - ESPECIFICACIONES TÉCNICAS PARTICULARES"),
+                para("1. RENGLÓN N° 1 - PRODUCTO UNO", "1.1. Envase de un kilogramo."),
+                para("3. RENGLÓN N° 3 - PRODUCTO TRES", "3.1. Envase de tres kilogramos."),
+                para("4. RENGLÓN N° 4 - PRODUCTO CUATRO", "4.1. Envase de cuatro kilogramos."),
+            ]
+        ],
+        max_chars=4000,
+    )
+
+
+def test_rejected_heading_opens_a_pending_unlocated_segment():
+    """REQ-028: un encabezado que el control de secuencia rechaza no queda en silencio
+    dentro de la cláusula anterior: abre un tramo `no_ubicado`, pendiente de revisión por
+    numeración inesperada, que llega hasta el próximo encabezado aceptado."""
+    result = jumped_numbering()
+    segments = by_key(result)
+    assert segments["sec-iii/1.1"].text == "1.1. Envase de un kilogramo."
+    first = segments["sec-iii/no-ubicado-1"]
+    assert first.segment_type == "no_ubicado"
+    assert first.review_reason == "no_ubicado"
+    assert first.review_detail == "numeracion_inesperada"
+    assert first.text == "3. RENGLÓN N° 3 - PRODUCTO TRES 3.1. Envase de tres kilogramos."
+    assert first.label == "3. RENGLÓN N° 3 - PRODUCTO TRES"
+    assert segments["sec-iii/no-ubicado-2"].text.startswith("4. RENGLÓN N° 4")
+    assert result.report["pending"] == [
+        {"key": "sec-iii/no-ubicado-1", "reason": "no_ubicado", "detail": "numeracion_inesperada"},
+        {"key": "sec-iii/no-ubicado-2", "reason": "no_ubicado", "detail": "numeracion_inesperada"},
+    ]
+    assert result.coverage["matches"] is True
+
+
+def test_items_are_found_even_with_broken_numbering():
+    """REQ-024: los renglones se reconocen por su encabezado aunque la numeración de
+    cláusulas esté rota: entran en la lista de la lectura con la clave de su tramo
+    `no_ubicado`, y sus especificaciones no quedan con el renglón anterior."""
+    result = jumped_numbering()
+    segments = by_key(result)
+    assert segments["sec-iii/1.1"].items == [1]
+    assert segments["sec-iii/no-ubicado-1"].items == [3]
+    assert segments["sec-iii/no-ubicado-2"].items == [4]
+    assert result.items == [
+        {"number": 1, "key": "sec-iii/1"},
+        {"number": 3, "key": "sec-iii/no-ubicado-1"},
+        {"number": 4, "key": "sec-iii/no-ubicado-2"},
+    ]
+    assert {s.section_class for s in result.segments} == {"tecnico"}
+
+
+def test_numbering_resumes_after_an_unlocated_segment():
+    """REQ-028: el tramo `no_ubicado` termina en el próximo encabezado que continúa la
+    numeración, que vuelve a ser una cláusula."""
+    result = split_pdf(
+        [
+            [
+                para("1. TEMA", "1.1. Texto uno."),
+                para("1.3. Texto con un número que salta."),
+                para("1.4. Otro texto rechazado."),
+                para("2. OTRO TEMA", "2.1. Texto dos."),
+            ]
+        ]
+    )
+    assert [s.key for s in result.segments] == ["1", "1.1", "no-ubicado-1", "2", "2.1"]
+    assert by_key(result)["no-ubicado-1"].text == (
+        "1.3. Texto con un número que salta.\n1.4. Otro texto rechazado."
+    )
+
+
+# --- Controles sin test en la verificación (M9, M10, M13) ------------------------------
+
+
+def test_coverage_reports_holes_and_overlaps(result):
+    """REQ-028: el control de cobertura informa un hueco (un tramo que falta) y un
+    solapamiento (un tramo repetido), y entonces no cierra."""
+    segments = list(result.segments)
+    missing = segments[:10] + segments[11:]
+    holed = check_coverage(result.canonical, missing, result.discarded)
+    assert holed["matches"] is False
+    assert [p["kind"] for p in holed["problems"]] == ["hole"]
+    assert holed["problems"][0]["char_start"] <= segments[10].char_start
+
+    doubled = check_coverage(result.canonical, segments + [segments[10]], result.discarded)
+    assert doubled["matches"] is False
+    assert [p["kind"] for p in doubled["problems"]] == ["overlap"]
+
+
+def test_inciso_mark_in_the_middle_of_a_sentence_does_not_cut():
+    """REQ-024: una línea que empieza con "a)" sin que el texto anterior cierre con
+    punto, dos puntos o punto y coma no es un inciso: sigue en su cláusula."""
+    result = split_pdf(
+        [[para("1. TEMA", "1.1. Rige lo previsto en el inciso", "a) del régimen sintético.")]]
+    )
+    assert [s.key for s in result.segments] == ["1", "1.1"]
+    assert by_key(result)["1.1"].text.endswith("inciso a) del régimen sintético.")
+
+
+def test_two_lists_in_one_clause_get_unique_keys():
+    """REQ-024: dos listas de incisos en una misma cláusula repiten `inc-a`: la segunda
+    suma `~2`, y todas las claves de la lectura son únicas."""
+    result = split_pdf(
+        [
+            [
+                para(
+                    "1. TEMA",
+                    "1.1. Primera lista:",
+                    "a) uno;",
+                    "b) dos.",
+                    "Segunda lista:",
+                    "a) tres.",
+                )
+            ]
+        ]
+    )
+    keys = [s.key for s in result.segments]
+    assert keys == ["1", "1.1", "1.1/inc-a", "1.1/inc-b", "1.1/inc-a~2"]
+    assert len(set(keys)) == len(keys)

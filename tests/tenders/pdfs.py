@@ -241,6 +241,8 @@ SYNTHETIC_TENDER = [
             "7.5. Documentación a presentar con la oferta:",
             "7.5.1. Constancia sintética de inscripción.",
             "7.5.2. Presentar la declaración jurada de habilidad para contratar.",
+            "7.5.2.1. Firmada por el representante legal sintético.",
+            "7.5.2.2.Con la fecha de la presentación.",
             "7.5.3. Las ofertas que no cumplan serán desestimadas, cuando:",
             "a) falte la firma del oferente;",
             "b) falte la garantía.",
@@ -303,7 +305,7 @@ SYNTHETIC_TENDER = [
 
 def synthetic_tender_pdf():
     """El pliego sintético con la forma del caso de referencia: carátula, índice, cuatro
-    secciones (dos técnicas por el título), numeración de hasta tres niveles con y sin
+    secciones (dos técnicas por el título), numeración de hasta cuatro niveles con y sin
     espacio, renglones (uno solo y un rango), viñetas, incisos, una tabla, un anexo y
     una página sin texto (la 7)."""
     return tender_pdf(SYNTHETIC_TENDER)

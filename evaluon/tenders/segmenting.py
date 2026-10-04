@@ -21,14 +21,22 @@ lugar de cada línea leída dentro del texto canónico (`CanonicalText.lines`).
 | Carátula | Antes de la primera sección (o cláusula, si no hay secciones) | Un tramo `parrafo` por párrafo, `pre/p-1` |
 | Página sin texto legible | Página ilegible o no leída | Tramo `pagina` `pagina-7`, sin texto, pendiente de revisión |
 | Ninguna regla | Lo que queda entre el título de una sección y su primera cláusula | Tramo `no_ubicado`, `sec-ii/no-ubicado-1`, pendiente de revisión |
+| Numeración inesperada | Un encabezado que la secuencia rechaza | Tramo `no_ubicado`, pendiente (detalle `numeracion_inesperada`), hasta el próximo encabezado aceptado |
 | Tramo largo | Más de `SEGMENT_MAX_CHARS` caracteres | Se parte en límites de oración: `sec-iii/1.1`, `sec-iii/1.1#2` |
 
 - **Secuencia.** Una cláusula se acepta si continúa la numeración de su sección: el
   hermano siguiente, el primer hijo o la vuelta a un nivel superior. La primera de una
-  sección puede tener cualquier número de un nivel. Así "3.972 kcal" o "1.300 mg" al
-  comienzo de una línea no cortan: quedan dentro de la cláusula abierta y el informe los
-  lista (`rejected_headings`). Un número de un solo nivel necesita su punto ("7."); uno
-  de varios niveles, no ("7.5.2 Texto").
+  sección puede tener cualquier número de un nivel. Un número de un solo nivel necesita
+  su punto ("7."); uno de varios niveles, no ("7.5.2 Texto"). Todo número rechazado va
+  al informe (`rejected_headings`).
+  - Si tiene forma de encabezado (con su punto al comienzo de un párrafo o después de
+    un texto que cierra, o seguido de un título en mayúsculas o de un renglón), no se
+    absorbe en silencio (decisión del Coordinador, verificación de T-070): abre un tramo
+    `no_ubicado` pendiente hasta el próximo encabezado aceptado. Si nombra un renglón,
+    abre su propio tramo y el renglón entra en la lista de la lectura con esa clave,
+    aunque la numeración esté rota.
+  - Si no la tiene, como "3.972 kcal" o "1.300 mg" en medio de una oración, no corta:
+    queda dentro del tramo abierto.
 - **Incisos.** Una línea que empieza con `a)` es un inciso solo si el texto anterior
   termina en punto, dos puntos o punto y coma, como en el texto canónico de la 001.
 - **Claves.** Un pliego sin secciones usa las claves sin prefijo (`7.5.2`). Una clave
@@ -86,6 +94,10 @@ REVIEW_ILLEGIBLE_PAGE = "pagina_ilegible"
 REVIEW_DOUBTFUL_PAGE = "pagina_dudosa"
 REVIEW_TABLE = "tabla"
 REVIEW_UNLOCATED = "no_ubicado"
+# Detalle de un tramo `no_ubicado` que abre un encabezado rechazado por la secuencia. El
+# motivo de revisión sigue siendo `no_ubicado`, el valor que admite la tabla; el detalle
+# va en el informe.
+DETAIL_UNEXPECTED_NUMBERING = "numeracion_inesperada"
 
 # Motivo de lo que se descarta del texto canónico.
 DISCARDED_INDEX = "indice"
@@ -156,6 +168,9 @@ class TenderSegment:
     ocr_confidence_min: float | None = None
     ocr_confidence_avg: float | None = None
     review_reason: str = ""
+    # Por qué quedó pendiente, más allá del motivo (`numeracion_inesperada`); va en el
+    # informe, no en la tabla.
+    review_detail: str = ""
 
 
 @dataclass
@@ -187,6 +202,7 @@ class _Opening:
     levels: tuple = ()
     parent: str = ""
     zone: int | None = None
+    detail: str = ""
 
 
 @dataclass
@@ -230,7 +246,7 @@ def split_tender(reading, tables=(), max_chars=None):
         segment.order = order
 
     discarded = _index_spans(lines, index_lines)
-    coverage = _coverage(canonical, segments, discarded)
+    coverage = check_coverage(canonical, segments, discarded)
     result = TenderSplit(
         canonical=canonical,
         segments=segments,
@@ -391,6 +407,8 @@ class _Walker:
         self.section = None
         self.annex = None
         self.stack = []  # cláusulas abiertas de la sección
+        # Tramo `no_ubicado` abierto por un encabezado rechazado: (clave, ruta, renglones).
+        self.unlocated = None
         self.last_levels = None  # última cláusula aceptada de la sección
         self.counters = Counter()
         self.pre = _Container("pre", "Carátula", "")
@@ -422,6 +440,8 @@ class _Walker:
 
     def _parent(self):
         """Clave y ruta de lo que contiene a un tramo hijo (tabla, párrafo, viñeta)."""
+        if self.unlocated:
+            return self.unlocated[0], self.unlocated[1]
         if self.stack and not self.annex:
             return self.stack[-1].key, self.stack[-1].path
         container = self._container()
@@ -503,6 +523,13 @@ class _Walker:
         if self._try_clause(number, line, text):
             return
 
+        if self.unlocated:
+            # Hasta el próximo encabezado aceptado, todo sigue en el tramo no ubicado;
+            # después de una tabla, en otro.
+            if after_gap or after_table:
+                self._unlocated_opening(number, self.unlocated[2])
+            return
+
         if self.stack:
             if self._try_bullet(number, line, text):
                 return
@@ -537,6 +564,7 @@ class _Walker:
         )
         self.annex = None
         self.stack = []
+        self.unlocated = None
         self.last_levels = None
         self._open(
             number,
@@ -560,6 +588,7 @@ class _Walker:
         section_path = self.section.path if self.section else ""
         self.annex = _Container(key, _join(section_path, name), self._section_class())
         self.stack = []
+        self.unlocated = None
         self._open(
             number,
             key=key,
@@ -577,17 +606,21 @@ class _Walker:
         levels = tuple(int(part) for part in raw.split("."))
         if len(levels) == 1 and not match.group("dot"):
             return False
+        rest = text[match.end() :].strip()
+        clause_items = _clause_items(rest)
+        title = rest if rest and is_uppercase(rest) else ""
         if not self._continues(levels):
-            self.rejected.append(
-                {"number": raw, "page": line.page, "char_start": line.start}
-            )
+            rejected = {"number": raw, "page": line.page, "char_start": line.start, "key": ""}
+            self.rejected.append(rejected)
+            in_clauses = self.section is not None or self.last_levels is not None
+            if in_clauses and self._looks_like_heading(number, line, match, title, clause_items):
+                rejected["key"] = self._open_unlocated(number, text, match, title, clause_items)
+                return True
             return False
 
         while self.stack and not _is_ancestor(self.stack[-1].levels, levels):
             self.stack.pop()
-        rest = text[match.end() :].strip()
-        clause_items = _clause_items(rest)
-        title = rest if rest and is_uppercase(rest) else ""
+        self.unlocated = None
         label = text if title else text[: match.end()]
         name = raw + (f". {_sentence_case(title)}" if title else "")
         if self.stack:
@@ -609,6 +642,58 @@ class _Walker:
             levels=levels,
         )
         return True
+
+    def _looks_like_heading(self, number, line, match, title, clause_items):
+        """Si un número rechazado por la secuencia tiene forma de encabezado: con su
+        punto, un título en mayúsculas o un renglón, y al comienzo de un párrafo, después
+        de un texto que cierra o seguido de ese título o renglón. "3.972 kcal" en medio
+        de una oración no lo es."""
+        if not (match.group("dot") or title or clause_items):
+            return False
+        if title or clause_items:
+            return True
+        return line.paragraph_start or self._previous_text_closes(number)
+
+    def _open_unlocated(self, number, text, match, title, clause_items):
+        """Un encabezado rechazado abre un tramo `no_ubicado`, pendiente por numeración
+        inesperada, hasta el próximo encabezado aceptado. Otro encabezado rechazado lo
+        continúa, salvo que nombre un renglón: entonces abre otro, para que cada renglón
+        tenga su tramo y su clave. Sin renglón propio, el tramo lleva los renglones de lo
+        que estaba abierto (ante la duda, de más)."""
+        current = self._current()
+        if self.unlocated and not clause_items and current.key == self.unlocated[0]:
+            return self.unlocated[0]
+        if clause_items:
+            items = clause_items
+        elif self.unlocated:
+            items = self.unlocated[2]
+        else:
+            items = self._items()
+        label = text if title else text[: match.end()]
+        key, _ = self._unlocated_opening(number, items, label)
+        for item in clause_items:
+            self.item_headings.append((item, key, len(clause_items) == 1))
+        return key
+
+    def _unlocated_opening(self, number, items, label="", detail=DETAIL_UNEXPECTED_NUMBERING):
+        container = self._container()
+        self.counters[(container.key, "no-ubicado")] += 1
+        count = self.counters[(container.key, "no-ubicado")]
+        suffix = f"no-ubicado-{count}"
+        key = f"{container.key}/{suffix}" if container.key else suffix
+        path = _join(container.path, f"no ubicado {count}")
+        self._open(
+            number,
+            key=key,
+            segment_type=NO_UBICADO,
+            label=label,
+            path=path,
+            items=list(items),
+            detail=detail,
+        )
+        if detail == DETAIL_UNEXPECTED_NUMBERING:
+            self.unlocated = (key, path, list(items))
+        return key, path
 
     def _continues(self, levels):
         """Si el número continúa la numeración de la sección (o del pliego, sin
@@ -766,6 +851,7 @@ def _segment(reading, canonical, opening, segment_type, part, start, end, doubtf
         ocr_confidence_min=confidence[0],
         ocr_confidence_avg=confidence[1],
         review_reason=review,
+        review_detail=opening.detail,
     )
 
 
@@ -861,7 +947,7 @@ def _unique_keys(segments):
 # --- Cobertura e informe ------------------------------------------------------------------
 
 
-def _coverage(canonical, segments, discarded):
+def check_coverage(canonical, segments, discarded):
     """Control de cobertura: cada carácter del texto canónico está en un tramo, en lo
     descartado o es un separador (espacio o salto de línea) entre dos de ellos. La suma
     tiene que dar el total, sin huecos ni solapamientos; si no, `problems` dice dónde."""
@@ -912,7 +998,11 @@ def _report(reading, result, rejected):
         "segments": len(result.segments),
         "coverage": result.coverage,
         "pending": [
-            {"key": segment.key, "reason": segment.review_reason}
+            {
+                "key": segment.key,
+                "reason": segment.review_reason,
+                "detail": segment.review_detail,
+            }
             for segment in result.segments
             if segment.review_reason
         ],
