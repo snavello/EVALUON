@@ -278,6 +278,7 @@ MATRIX_PROMPT_VERSIONS = {
     "completitud": "matriz-completitud-v2",
     "consecuencias": "matriz-consecuencias-v1",
     "circulares": "matriz-circulares-v2",
+    "circulares_cambios": "matriz-circulares-v3",
     "unificacion": "matriz-unificacion-v1",
     "filtro": "matriz-filtro-v1",
     "respaldo": "matriz-respaldo-v1",
@@ -286,6 +287,12 @@ MATRIX_PROMPT_VERSIONS = {
 # Proceso único de la propuesta (REQ-030 enmendado): el más completo, sin niveles. Se
 # registra en cada propuesta y en su versión de matriz.
 MATRIX_PROCESS = "completo"
+
+# Extracción de cambios de circulares con el modelo (ADR-0023, REQ-031): enciende o
+# apaga la entrega 2 y fija cuántas veces se repite cada unidad (1; 3 en la medición de
+# estabilidad).
+CIRCULAR_EXTRACTION_ENABLED = True
+CIRCULAR_EXTRACTION_REPEATS = 1
 
 # --- Filtro de sobrantes, unificación y descartadas (ADR-0021, REQ-033) ----------------
 FILTER_ENABLED = True
