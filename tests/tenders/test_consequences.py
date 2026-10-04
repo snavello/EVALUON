@@ -13,6 +13,8 @@ from datetime import date
 
 import pytest
 
+from evaluon.audit import services as audit_services
+from evaluon.audit.models import Channel, EventType, Outcome
 from evaluon.tenders import models as m
 from evaluon.tenders.proposal import consequences, extraction
 from evaluon.tenders.proposal import run as proposal
@@ -128,7 +130,7 @@ class ConsequenceScript(Script):
 
     @staticmethod
     def _alias(ground, blocks):
-        if _ALIAS.match(ground):
+        if _ALIAS.match(ground) or ground.startswith("["):
             return ground
         for kind in ("P", "N"):
             for alias, body in blocks[kind].items():
@@ -488,10 +490,15 @@ def test_norm_grounds_use_the_regime_at_the_authorization_date(
 
 
 def test_norm_ground_is_cited_by_unit_and_the_request_records_units_scores_and_version(
-        operator_user, script, regimes, marks):
+        operator_user, read_write_user, script, regimes, marks):
     """REQ-029, P6: una opción puede fundarse en un artículo de la norma (guarda su `id`) y
     el pedido registra las unidades mostradas con su puntaje, la selección y la versión de la
     normativa."""
+    version = audit_services.record(
+        EventType.VALIDATION, outcome=Outcome.OK, channel=Channel.COMMAND,
+        user=read_write_user, creates_corpus_version=True,
+    ).corpus_version
+    assert version is not None
     script.c_when(GARANTIA_QUOTE, [("intimacion_subsanar", ["Garantías sintéticas"])])
 
     run = run_level(operator_user, authorization_date=date(2023, 1, 2))
@@ -501,7 +508,7 @@ def test_norm_ground_is_cited_by_unit_and_the_request_records_units_scores_and_v
     assert suggested.grounds == [{"source": "norma", "unit": unit.pk}]
     step = suggested.step
     context = step.parsed["normativa"]
-    assert context["corpus_version"] == run.corpus_version
+    assert context["corpus_version"] == run.corpus_version == version
     assert context["regime"] == run.regime
     assert context["questions"] == list(consequences.NORM_QUESTIONS)
     shown = {entry["unit"]: entry for entry in context["shown"]}
@@ -578,3 +585,84 @@ def test_pliego_grounds_over_the_space_are_chosen_by_the_reranker(
     assert "individualizada" in pliego and "constancia de inscripción" in pliego
     assert "solicitar aclaraciones" in pliego
     assert "causal de desestimación" not in pliego
+
+
+# --- Anomalías y límites de la validación ---------------------------------------------------------
+
+
+def test_normative_change_during_the_proposal_is_noted(
+        operator_user, script, regimes, marks, monkeypatch):
+    """REQ-029, P6: si la versión de la normativa cambia entre el inicio de la propuesta y la
+    búsqueda en la norma, se anota `consecuencias_normativa_cambio` con ambas versiones."""
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(consequences, "audit",
+                        SimpleNamespace(current_corpus_version=lambda: 999999))
+
+    run = run_level(operator_user, authorization_date=date(2023, 1, 2))
+
+    [note] = [a for a in run.anomalies if a["type"] == consequences.ANOMALY_CORPUS_CHANGED]
+    assert note["now"] == 999999 and note["begin"] == run.corpus_version
+
+
+def test_requirement_that_does_not_fit_the_context_is_undetermined_and_noted(
+        operator_user, script, settings):
+    """REQ-029: un requisito que no entra solo en el contexto queda "no determinada" con la
+    anomalía `consecuencias_requisito_no_entra`, sin pedir nada al modelo."""
+    from evaluon.ai import generation
+
+    settings.GENERATION_CONTEXT_TOKENS = (
+        settings.MATRIX_MAX_OUTPUT_TOKENS + settings.PROMPT_TEMPLATE_MARGIN_TOKENS
+        + generation.count_tokens(extraction.load_prompt("consecuencias")) + 10)
+
+    run = run_level(operator_user)
+
+    assert script.requests == []
+    notes = [a for a in run.anomalies if a["type"] == consequences.ANOMALY_NO_FIT]
+    assert sorted(a["requirement"] for a in notes) == [1, 2, 3, 4]
+    for found in m.Requirement.objects.filter(version=run.version):
+        assert [o.consequence_type for o in consequences_of(found)] == ["no_determinada"]
+
+
+def test_aliases_with_brackets_are_accepted(operator_user, script):
+    """REQ-029: un alias escrito entre corchetes ("[P1]") vale como "P1"."""
+    script.c_when(GARANTIA_QUOTE, [("desestimacion", ["[P1]"])])
+
+    run = run_level(operator_user)
+
+    [suggested] = consequences_of(requirement(run, GARANTIA_QUOTE))
+    assert suggested.consequence_type == "desestimacion"
+    assert [g["source"] for g in suggested.grounds] == ["pliego"]
+
+
+def test_repeated_type_keeps_the_first_option_only(operator_user, script):
+    """REQ-029: dos opciones del mismo tipo dejan una sola, la primera, y se anota."""
+    script.c_when(GARANTIA_QUOTE, [("desestimacion", ["causal de desestimación"]),
+                                   ("desestimacion", ["solicitar aclaraciones"])])
+
+    run = run_level(operator_user)
+
+    [suggested] = consequences_of(requirement(run, GARANTIA_QUOTE))
+    assert "causal de desestimación" in ground_text(suggested.grounds[0])
+    assert any("tipo repetido" in a["detail"] for step in
+               m.RunStep.objects.filter(run=run) for a in step.anomalies
+               if a["type"] == consequences.ANOMALY_OPTION_DROPPED)
+
+
+def test_at_most_three_options_are_kept(operator_user, script):
+    """REQ-029: de cuatro opciones válidas quedan las tres primeras y se anota la cuarta."""
+    script.c_when(GARANTIA_QUOTE, [
+        ("desestimacion", ["causal de desestimación"]),
+        ("intimacion_subsanar", ["causal de desestimación"]),
+        ("consultar_oferente", ["solicitar aclaraciones"]),
+        ("otra_pliego", ["causal de desestimación"]),
+    ])
+
+    run = run_level(operator_user)
+
+    assert [o.consequence_type for o in
+            consequences_of(requirement(run, GARANTIA_QUOTE))] == [
+        "desestimacion", "intimacion_subsanar", "consultar_oferente"]
+    assert any("más de tres" in a["detail"] for step in
+               m.RunStep.objects.filter(run=run) for a in step.anomalies
+               if a["type"] == consequences.ANOMALY_OPTION_DROPPED)
