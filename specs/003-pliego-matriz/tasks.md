@@ -41,7 +41,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-091 | Comparar niveles medidos en corridas separadas | REQ-030 | T-084 | terminada |
 | T-092 | Aceptar las divisiones de la completitud aunque el original no coincida letra por letra | REQ-024 | T-084 | terminada |
 | T-093 | Ajustar las instrucciones con el caso-00 (enumeraciones, tablas, condiciones como efecto) | REQ-024 | T-092 | terminada |
-| T-094 | Medir la aceptación con los casos 01 y 02 | REQ-024, REQ-025, REQ-030, REQ-031 | T-085, T-093, T-095 | pendiente |
+| T-094 | Medir la aceptación con los casos 01 y 02 | REQ-024, REQ-025, REQ-030, REQ-031 | T-085, T-093, T-095 | terminada |
 | T-095 | Contar como "a revisión obligatoria" los requisitos en tramos pendientes | REQ-024 | T-093 | terminada |
 | T-096 | Corregir la cobertura de tramos de `medir_matriz` cuando hay circulares | REQ-030 | T-095 | terminada |
 | T-097 | Corregir la cita literal de las filas técnicas con varios documentos en `medir_matriz` | REQ-025, REQ-030 | T-096 | terminada |
