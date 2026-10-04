@@ -578,6 +578,12 @@ def _save_circulars(version, dated, result, created, quote_of, by_class):
                     and target.category != RequirementClass.TECNICO.value):
                 requirement.state = RequirementState.QUITADO
                 requirement.save(update_fields=["state"])
+            elif (source.effect == SourceEffect.MODIFICA.value
+                    and target.category != RequirementClass.TECNICO.value
+                    and requirement.state == RequirementState.QUITADO):
+                # Una circular posterior que lo modifica lo vuelve a poner vigente.
+                requirement.state = RequirementState.PROPUESTO
+                requirement.save(update_fields=["state"])
     for new in result.new_requirements:
         reading = dated.reading_of[new.segment.pk]
         _check_quote(reading, new.start, new.end, new.text)

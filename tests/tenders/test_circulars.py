@@ -524,3 +524,137 @@ def test_consequences_are_asked_on_the_current_text_with_the_original(operator_u
     assert "Texto:\n" + VISITA_QUOTE in visita and "vigente" not in visita
     ram = next(b for b in blocks.values() if "Renglón 1, especificaciones" in b)
     assert "Texto vigente (según una circular):\n32 GB de RAM" in ram and "16 GB" in ram
+
+
+# --- Suprimido y vuelto a modificar (O1) ----------------------------------------------------------------
+
+
+def test_a_later_circular_that_modifies_a_suppressed_requirement_makes_it_current_again(
+        operator_user, case, script):
+    """REQ-031: si una circular suprime un requisito y otra posterior lo modifica, vuelve a
+    estar vigente (`propuesto`) con el texto de la última, y las dos fuentes quedan."""
+    add_circular(operator_user, case, "Circular N.º 2", date(2025, 12, 5),
+                 "1. Restablécese la exigencia de constancia de visita, que deberá "
+                 "presentarse en la sede.")
+    add_circular(operator_user, case, "Circular N.º 1", date(2025, 12, 1),
+                 "1. Déjase sin efecto la exigencia de la constancia de visita.")
+    script.c_when("sin efecto", efectos=[("constancia de visita", "suprime",
+                                          "Déjase sin efecto la exigencia")])
+    script.c_when("Restablécese", efectos=[("constancia de visita", "modifica",
+                                            "constancia de visita, que deberá presentarse "
+                                            "en la sede")])
+
+    version, _ = run_proposal(operator_user, case)
+
+    requirement = requirement_with(version, VISITA_QUOTE)
+    assert requirement.state == "propuesto"
+    sources = list(requirement.sources.order_by("issued_on", "id"))
+    assert [s.effect for s in sources] == ["suprime", "modifica"]
+    page = matrix_page.matrix_page(operator_user, version.pk)
+    row = next(r for g in page.groups for r in g.rows if r.requirement == requirement)
+    assert "en la sede" in row.quotes[0].current.text
+    assert [n.effect for n in row.quotes[0].notes] == ["suprime"]
+    assert not [r for r in page.removed if r.requirement == requirement]
+
+
+# --- Controles que solo detectaban las sondas (M6, M8, M13, M18) ------------------------------------------
+
+
+def test_unlocated_and_page_segments_of_a_circular_are_pending_not_discarded():
+    """REQ-031 / ADR-0019 (M6): un tramo sin ubicar o una página de una circular queda
+    pendiente por regla; un título, descartado."""
+    from types import SimpleNamespace
+
+    for kind in ("no_ubicado", "pagina"):
+        verdict = circulars.Processor._rule(SimpleNamespace(segment_type=kind))
+        assert verdict.outcome == "pendiente" and verdict.discard_reason == ""
+    title = circulars.Processor._rule(SimpleNamespace(segment_type="titulo"))
+    assert (title.outcome, title.discard_reason) == ("descartado", "titulo")
+    assert circulars.Processor._rule(SimpleNamespace(segment_type="clausula")) is None
+
+
+def test_a_clarification_does_not_change_the_current_text(operator_user, case, script):
+    """REQ-031 (M8): `aclara` deja la fuente junto a la cita pero no cambia el texto vigente,
+    que sigue siendo el original (la pantalla no lo muestra como modificado) y las
+    consecuencias se piden sobre el original."""
+    add_circular(operator_user, case, "Respuesta a la consulta 1", date(2025, 12, 3),
+                 "1. Respuesta: la constancia de visita puede emitirla el correo.",
+                 kind="respuesta_consulta")
+    script.c_when("Respuesta:", efectos=[("constancia de visita", "aclara",
+                                          "la constancia de visita puede emitirla el correo")])
+
+    version, _ = run_proposal(operator_user, case)
+
+    requirement = requirement_with(version, VISITA_QUOTE)
+    page = matrix_page.matrix_page(operator_user, version.pk)
+    row = next(r for g in page.groups for r in g.rows if r.requirement == requirement)
+    assert row.quotes[0].current is None and row.quotes[0].text == VISITA_QUOTE
+    block = next(body for messages in script.consequence_calls
+                 for _, body in re.findall(r"\[(R\d+)\]\n(.*?)\n\[/\1\]",
+                                           messages[-1]["content"], re.DOTALL)
+                 if VISITA_QUOTE in body)
+    assert "vigente" not in block and "Texto:\n" + VISITA_QUOTE in block
+
+
+def test_disposition_with_effects_and_a_reason_at_once_is_rejected():
+    """REQ-031 / ADR-0019 (M13): una salida con efectos (o nuevos) y también un motivo de
+    sin efecto no tiene disposición; tampoco la que no trae ninguna cosa."""
+    both = circulars.shape({"efectos": [{"cita": "Q1", "efecto": "modifica", "texto": "x"}],
+                            "nuevos": [], "sin_efecto": "dato_procedimiento"})
+    new_and_reason = circulars.shape({"efectos": [], "sin_efecto": "titulo",
+                                      "nuevos": [{"cita": "x", "clase": "formal"}]})
+    neither = circulars.shape({"efectos": [], "nuevos": [], "sin_efecto": ""})
+    ok = circulars.shape({"efectos": [], "nuevos": [], "sin_efecto": "titulo"})
+    assert not both.has_disposition and not new_and_reason.has_disposition
+    assert not neither.has_disposition and ok.has_disposition
+
+
+def test_both_at_once_output_is_retried_and_then_left_pending(operator_user, case, script):
+    """REQ-031 (M13): la salida con efectos y motivo a la vez no se acepta: se repite una
+    vez y, si sigue igual, el tramo queda pendiente sin crear fuentes."""
+    document = add_circular(operator_user, case, "Circular N.º 1", date(2025, 12, 1),
+                            "1. Reemplázase en el Renglón N° 1 la memoria por 32 GB de RAM.")
+    both = json.dumps({"efectos": [{"cita": "Q1", "efecto": "modifica",
+                                    "texto": "32 GB de RAM"}],
+                       "nuevos": [], "sin_efecto": "dato_procedimiento"})
+    script.raw("por 32 GB", [both, both])
+
+    version, run = run_proposal(operator_user, case)
+
+    assert len(steps_for("por 32 GB")) == 2
+    segment = document.readings.get().segments.get(text__contains="por 32 GB")
+    assert m.Disposition.objects.get(run=run, segment=segment).outcome == "pendiente"
+    assert not m.RequirementSource.objects.filter(requirement__version=version).exists()
+
+
+def test_a_general_technical_citation_reaches_every_item_row(operator_user, script):
+    """REQ-031 (M18): una cita técnica común a todos los renglones es una sola candidata; si
+    una circular la modifica, el efecto alcanza la fila de cada renglón."""
+    general = "Los bienes tienen vencimiento mayor a once meses."
+    pdf = tender_pdf([
+        [
+            para("SECCIÓN I - ESPECIFICACIONES TÉCNICAS GENERALES"),
+            para("1. CLÁUSULAS GENERALES", f"1.1. {general}"),
+        ],
+        [
+            para("SECCIÓN II - ESPECIFICACIONES TÉCNICAS PARTICULARES"),
+            para("1. RENGLÓN N° 1 - PRODUCTO SINTÉTICO A", "1.1. Bolsa de veinte kilos."),
+            para("2. RENGLÓN N° 2 - PRODUCTO SINTÉTICO B", "2.1. Bolsa de diez kilos."),
+        ],
+    ])
+    procedure = make_procedure(operator_user)
+    load_and_read(operator_user, procedure, pdf)
+    add_circular(operator_user, procedure, "Circular N.º 1", date(2025, 12, 1),
+                 "1. Reemplázase el vencimiento mayor a once meses por doce meses.")
+    script.c_when("por doce meses", efectos=[("vencimiento mayor", "modifica",
+                                              "doce meses")])
+
+    version, _ = run_proposal(operator_user, procedure)
+
+    rows = [row_of_item(version, 1), row_of_item(version, 2)]
+    for row in rows:
+        assert row.sources.get().quote == row.quotes.get(scope="general")
+    assert rows[0].sources.get().quote != rows[1].sources.get().quote
+    assert rows[0].sources.get().char_start == rows[1].sources.get().char_start
+    request = next(r for r in script.requests if "por doce meses" in r["tramo"])
+    assert sum("vencimiento mayor" in body for body in request["cites"].values()) == 1
