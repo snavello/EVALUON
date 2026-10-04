@@ -1099,3 +1099,314 @@ def test_row_without_repeated_quotes_does_not_count_for_two_expected(
 
     assert ev.GROUPED in measures_of(report)["causes"]
     assert measures_of(report)["unified"]["count"] == 0
+
+
+# --- Sugerencias y respaldo normativo (T-111; REQ-035, REQ-036, REQ-024) ------------------------
+#
+# Las sugerencias y sus respaldos se insertan a mano después de la propuesta del doble: de
+# producirlos se ocupan el filtro y la consulta normativa (T-102, T-109).
+
+
+@pytest.fixture
+def norm_unit(make_norm, make_document, make_reading):
+    reading = make_reading(
+        make_document(make_norm()), [("art-1", "Artículo 1. Texto sintético de la norma.")])
+    return reading.units_by_key["art-1"]
+
+
+def add_suggestion(version, key, *, doubt="duda", category="formal", repeated=()):
+    return add_requirement(version, key, state="sugerido", category=category,
+                           repeated=repeated, doubt=doubt)
+
+
+def add_support(row, norm_unit, *, label="Norma sintética, art. 1"):
+    step = m.RunStep.objects.create(run=row.version.run, pass_name="respaldo_normativo",
+                                    batch=row.number, request={"messages": []})
+    return m.NormSupport.objects.create(
+        requirement=row, unit=norm_unit, unit_label=label, char_start=0, char_end=11,
+        text="Artículo 1.", score=0.5, regime="Régimen sintético", corpus_version=1, step=step)
+
+
+def test_expected_in_a_suggestion_is_mandatory_review_and_counts_in_the_acceptance(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-035: un esperado cuya cita está en una sugerencia cuenta "a revisión obligatoria"
+    con causa `sugerencia`: suma a los encontrados, se informa aparte con su clave y no es
+    sobrante ni faltante; la sugerencia no entra en el tope."""
+    procedure, _, path, _ = case
+    base = measures_of(run_measure(operator_user, procedure, path, tmp_path / "base"))
+    after_propose(monkeypatch, lambda v: add_suggestion(v, "sec-i/2.1"))
+
+    report = run_measure(operator_user, procedure, path, tmp_path / "x")
+
+    line = by_id(report)["S-002"]
+    assert line["estado"] == ev.MANDATORY_REVIEW and line["causa"] == "sugerencia"
+    measures = measures_of(report)
+    assert measures["suggestion_review"] == {"count": 1, "ids": ["S-002"]}
+    assert measures["review"]["count"] == 0
+    assert measures["found"]["ok"] == base["found"]["ok"] + 1
+    assert measures["found_without_review"]["ok"] == base["found"]["ok"]
+    assert "sugerencia" not in measures["causes"]
+    assert measures["leftovers"] == base["leftovers"]
+    assert measures["leftover_ratio"] == base["leftover_ratio"]
+    assert measures["proposed_total"] == base["proposed_total"]
+    summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
+    assert "A revisión obligatoria (sugerencias): 1" in summary and "S-002" in summary
+    public = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "S-002" in public
+
+
+def test_expected_with_a_firm_match_and_a_suggestion_matches_the_firm_row(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-035: el orden de emparejamiento es firmes, sugerencias, descartadas: un esperado
+    con pareja firme y otra en una sugerencia empareja con la firme."""
+    procedure, _, path, _ = case
+    after_propose(monkeypatch, lambda v: add_suggestion(v, "sec-i/1.1"))
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    line = by_id(report)["S-001"]
+    assert line["estado"] == "encontrado" and "causa" not in line
+    assert measures_of(report)["suggestion_review"]["count"] == 0
+
+
+def test_expected_in_a_discarded_row_and_a_suggestion_goes_to_the_suggestion(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-035: un esperado con pareja en una descartada y en una sugerencia es "a revisión
+    obligatoria"."""
+    procedure, _, path, _ = case
+
+    def hook(version):
+        add_discarded(version, "sec-i/2.1", reason="formulario")
+        add_suggestion(version, "sec-i/2.1")
+
+    after_propose(monkeypatch, hook)
+    lines = by_id(run_measure(operator_user, procedure, path, tmp_path))
+
+    assert lines["S-002"]["estado"] == ev.MANDATORY_REVIEW
+    assert lines["S-002"]["causa"] == "sugerencia"
+
+
+def test_expected_only_in_a_discarded_row_stays_missing_with_a_suggestion_elsewhere(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-035, REQ-033: la sugerencia de otro tramo no toca al faltante descartado."""
+    procedure, _, path, _ = case
+
+    def hook(version):
+        add_discarded(version, "sec-i/2.1", reason="formulario")
+        add_suggestion(version, "sec-ii/1.1")
+
+    after_propose(monkeypatch, hook)
+    line = by_id(run_measure(operator_user, procedure, path, tmp_path))["S-002"]
+
+    assert line["estado"] == "faltante" and line["causa"] == ev.DISCARDED_BY_SYSTEM
+
+
+def three_suggestions(version, norm_unit):
+    """A (sec-i/2.1, con respaldo), B (sin esperado) y C (sec-i/4.1, sin la fila firme de la
+    multa); dos de las tres cubren esperados."""
+    version.requirements.filter(quotes__text__contains="multa del 1 %").update(
+        state="quitado")
+    a = add_suggestion(version, "sec-i/2.1", doubt="no_coinciden")
+    add_suggestion(version, "sec-ii/1.1", doubt="duda")
+    add_suggestion(version, "sec-i/4.1", doubt="duda")
+    add_support(a, norm_unit)
+
+
+def test_suggestion_report_counts_the_suggestions_the_expected_and_the_support(
+        case, operator_user, monkeypatch, tmp_path, norm_unit):
+    """REQ-035, REQ-036: con 3 sugerencias, 2 con pareja esperada, 1 con respaldo y esa
+    esperada, el informe da 3, 2 de 3, 1 con respaldo y 1 de 1; por motivo y por tramo; los
+    sobrantes "si fueran firmes" suman las sugerencias sin pareja."""
+    procedure, _, path, _ = case
+    after_propose(monkeypatch, lambda v: three_suggestions(v, norm_unit))
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    info = measures_of(report)["suggestions"]
+    assert info["count"] == 3
+    assert info["by_reason"] == {"no_coinciden": 1, "duda": 2}
+    assert info["by_segment"] == {"sec-i/2.1": 1, "sec-ii/1.1": 1, "sec-i/4.1": 1}
+    assert info["expected"] == {"ok": 2, "total": 3, "rate": 2 / 3}
+    assert info["with_support"] == 1
+    assert info["with_support_expected"] == {"ok": 1, "total": 1, "rate": 1.0}
+    assert info["expected_as_suggestion"]["ok"] == 2  # S-002 y uno de S-003, S-004
+    leftovers = measures_of(report)["leftovers"]
+    assert info["leftovers_if_firm"] == leftovers + 1
+    summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
+    assert "Sugerencias de condición: 3" in summary
+    assert "con respaldo normativo: 1" in summary
+    assert "si las sugerencias fueran firmes" in summary
+
+
+def test_suggestions_do_not_count_in_the_cap_but_the_informative_cap_adds_them(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-024, REQ-035: ocho sugerencias sin pareja no mueven el tope firme; el informativo
+    "con sugerencias como firmes" sí las suma."""
+    procedure, _, path, _ = case
+    base = measures_of(run_measure(operator_user, procedure, path, tmp_path / "base"))
+
+    def hook(version):
+        for _ in range(8):
+            add_suggestion(version, "sec-ii/1.1")
+
+    after_propose(monkeypatch, hook)
+    measures = measures_of(run_measure(operator_user, procedure, path, tmp_path / "x"))
+
+    assert measures["leftover_ratio"] == base["leftover_ratio"]
+    assert measures["cap"] == base["cap"]
+    info = measures["suggestions"]
+    assert info["leftovers_if_firm"] == base["leftovers"] + 8
+    assert info["cap_if_firm"]["leftovers_ok"] is False
+    assert info["cap_if_firm"]["limit"] == 0.20
+
+
+def test_public_summary_has_no_text_of_the_suggestions_nor_of_the_norm(
+        case, operator_user, monkeypatch, tmp_path, norm_unit):
+    """REQ-035, REQ-036 (P4): `resumen-publico.md` lleva cuentas, claves, motivos y la
+    identificación de la norma, sin el texto de ninguna cita ni de la norma; el resumen
+    local y `muestra-sugerencias.md` sí llevan el texto, con una columna para el
+    verificador."""
+    procedure, _, path, _ = case
+    after_propose(monkeypatch, lambda v: three_suggestions(v, norm_unit))
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    rows = list(m.Requirement.objects.filter(
+        version__run_id=report.results[0]["run"], state="sugerido").order_by("number"))
+    assert len(rows) == 3
+    private = (report.folder / "resumen.md").read_text(encoding="utf-8")
+    template = (report.folder / "muestra-sugerencias.md").read_text(encoding="utf-8")
+    public = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "Muestra de sugerencias (3 de 3)" in private
+    assert "¿Sugerencia y respaldo correctos?" in template
+    for row in rows:
+        text = row.quotes.get().text
+        assert text[:30] in private and text[:30] in template
+        assert text[:30] not in public
+    assert "Texto sintético de la norma" not in public
+    assert "Artículo 1." not in public
+    assert "Artículo 1." in private and "Artículo 1." in template
+    assert "no_coinciden" in public and "sec-i/2.1" in public
+    assert "Norma sintética, art. 1" in public
+    assert template.index(rows[0].quotes.get().text[:30]) < template.index(
+        rows[1].quotes.get().text[:30])
+
+
+def test_run_without_suggestions_gives_the_usual_measures(case, operator_user, tmp_path):
+    """REQ-035: una corrida sin sugerencias da las medidas de siempre y no escribe la
+    muestra de sugerencias."""
+    procedure, _, path, _ = case
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    measures = measures_of(report)
+    assert measures["suggestions"]["count"] == 0
+    assert measures["suggestions"]["sample"] == []
+    assert measures["suggestion_review"] == {"count": 0, "ids": []}
+    assert measures["leftovers"] == 1 and measures["proposed_total"] == 5
+    assert not (report.folder / "muestra-sugerencias.md").exists()
+    summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
+    assert "Sugerencias de condición: 0" in summary
+
+
+def test_timings_add_the_normative_support_pass(case, operator_user, tmp_path):
+    """REQ-036: `timing_summary` suma la pasada `respaldo_normativo` y el resumen la
+    informa."""
+    procedure, _, path, _ = case
+    report = run_measure(operator_user, procedure, path, tmp_path)
+    run = m.MatrixRun.objects.get(pk=report.results[0]["run"])
+    run.timings = {**run.timings, "respaldo_normativo": 4.5}
+
+    timings = ev.timing_summary(run)
+
+    assert timings["support_seconds"] == 4.5
+    assert "Respaldo normativo: 4,5 s" in "\n".join(ev._timing_lines(timings))
+
+
+def test_regenerating_keeps_the_suggestions_sample_of_the_verifier(
+        case, operator_user, monkeypatch, tmp_path, norm_unit):
+    """REQ-035: `--regenerar-resumen` reescribe los resúmenes con sugerencias iguales y no
+    pisa la muestra de sugerencias ya completada."""
+    procedure, _, path, _ = case
+    after_propose(monkeypatch, lambda v: three_suggestions(v, norm_unit))
+    report = run_measure(operator_user, procedure, path, tmp_path)
+    folder = report.folder
+    before = {n: (folder / n).read_text(encoding="utf-8")
+              for n in ("resumen.md", "resumen-publico.md")}
+    (folder / "muestra-sugerencias.md").write_text("completada", encoding="utf-8")
+    (folder / "resumen.md").unlink()
+    (folder / "resumen-publico.md").unlink()
+    monkeypatch.setattr("evaluon.accounts.permissions.authenticate_command",
+                        lambda username: operator_user)
+
+    call_command("medir_matriz", usuario="operador", procedimiento=procedure.number,
+                 esperada=str(path), regenerar_resumen=str(folder))
+
+    for name, text in before.items():
+        assert (folder / name).read_text(encoding="utf-8") == text
+    assert (folder / "muestra-sugerencias.md").read_text(encoding="utf-8") == "completada"
+
+
+def test_the_measurement_never_changes_the_state_of_a_suggestion(
+        case, operator_user, monkeypatch, tmp_path, norm_unit):
+    """REQ-036: medir no cambia el estado de las sugerencias ni agrega respaldos."""
+    procedure, _, path, _ = case
+    after_propose(monkeypatch, lambda v: three_suggestions(v, norm_unit))
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    run_id = report.results[0]["run"]
+    assert m.Requirement.objects.filter(version__run_id=run_id, state="sugerido").count() == 3
+    assert m.NormSupport.objects.filter(requirement__version__run_id=run_id).count() == 1
+
+
+def test_a_suggestion_counts_for_one_expected_only(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-035: el emparejamiento de sugerencias es uno a uno: una sugerencia que cubre dos
+    esperados da uno "a revisión obligatoria" y el otro queda faltante."""
+    procedure, _, path, _ = case
+
+    def hook(version):
+        version.requirements.filter(quotes__text__contains="multa del 1 %").update(
+            state="quitado")
+        add_suggestion(version, "sec-i/4.1")
+
+    after_propose(monkeypatch, hook)
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    lines = by_id(report)
+    states = sorted(lines[i]["estado"] for i in ("S-003", "S-004"))
+    assert states == ["a_revision_obligatoria", "faltante"]
+    measures = measures_of(report)
+    assert measures["suggestion_review"]["count"] == 1
+    assert measures["suggestions"]["expected_as_suggestion"]["ok"] == 1
+
+
+def test_a_suggestion_over_an_expected_already_matched_by_a_firm_row_is_not_an_expected_one(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-035: la proporción de sugerencias esperadas no cuenta los esperados que ya
+    empareja una fila firme."""
+    procedure, _, path, _ = case
+    after_propose(monkeypatch, lambda v: add_suggestion(v, "sec-i/1.1"))  # S-001 es firme
+
+    info = measures_of(run_measure(operator_user, procedure, path, tmp_path))["suggestions"]
+
+    assert info["count"] == 1
+    assert info["expected"] == {"ok": 0, "total": 1, "rate": 0.0}
+
+
+def test_a_suggestion_must_cover_half_of_the_anchor_to_match(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-035: como para una fila firme, la cita de la sugerencia debe cubrir al menos la
+    mitad del ancla; con menos, el esperado no queda a revisión."""
+    procedure, _, path, _ = case
+    after_propose(monkeypatch, lambda v: add_suggestion(
+        v, "sec-ii/1.1", repeated=[("sec-i/2.1", "a los")]))  # 5 de 22 caracteres
+    short = by_id(run_measure(operator_user, procedure, path, tmp_path / "a"))["S-002"]
+
+    after_propose(monkeypatch, lambda v: add_suggestion(
+        v, "sec-ii/1.1", repeated=[("sec-i/2.1", "a los 90 días")]))  # 13 de 22
+    long = by_id(run_measure(operator_user, procedure, path, tmp_path / "b"))["S-002"]
+
+    assert short["estado"] == "faltante"
+    assert long["estado"] == ev.MANDATORY_REVIEW

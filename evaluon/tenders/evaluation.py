@@ -32,6 +32,11 @@ Cómo se cuenta (ver el plan):
   de encontrados (T-103; REQ-024, REQ-033). Una fila empareja por cualquiera de sus citas; un
   esperado en una cita `repetida` de una fila ya emparejada es "unificado"; un esperado
   cuya cita está en una descartada es faltante `descartado_por_el_sistema`.
+- Sugerencias de condición (T-111; REQ-035, REQ-036): no entran en el tope. Orden de
+  emparejamiento: firmes, sugerencias, descartadas. Un esperado sin pareja firme con pareja en
+  una sugerencia es "a revisión obligatoria" con causa `sugerencia`: suma a los encontrados y se
+  informa aparte. El informe de sugerencias da cantidad, motivos, tramos, cuántas eran
+  esperadas, cuántas tienen respaldo normativo y cuántas de esas eran esperadas.
 
 Campos de las listas reales que se leen (aviso del Coordinador, 2026-10-03):
 
@@ -87,7 +92,9 @@ ORIGIN_CIRCULAR = "circular"
 WILDCARD = "*"
 REQUIRED_OVERLAP = 0.5
 FIRM_STATES = (m.RequirementState.PROPUESTO.value, m.RequirementState.CONFIRMADO.value)
+SUGGESTION = m.RequirementState.SUGERIDO.value
 SAMPLE_FILE = "muestra-descartadas.md"
+SUGGESTIONS_SAMPLE_FILE = "muestra-sugerencias.md"
 EXTRAPOLATED_PAGES = 50
 
 # Causas de un faltante.
@@ -96,6 +103,7 @@ DISCARDED = "tramo_descartado"
 DISCARDED_BY_SYSTEM = "descartado_por_el_sistema"
 PENDING = "tramo_pendiente"
 MANDATORY_REVIEW = "a_revision_obligatoria"
+SUGGESTION_CAUSE = "sugerencia"
 SEGMENT_WITH_OTHERS = "tramo_con_requisitos_sin_este"
 SEGMENT_TECHNICAL = "tramo_tecnico"
 NO_DISPOSITION = "sin_disposicion"
@@ -526,6 +534,8 @@ class Proposed:
     requirement_id: int
     state: str = ""
     matched: str = ""
+    doubt_reason: str = ""
+    supports: list = field(default_factory=list)
 
     @property
     def spans(self):
@@ -535,10 +545,15 @@ class Proposed:
 
 
 def _proposed(version):
-    """Las filas firmes de la versión: lo que ve la Comisión, sin las sugerencias ni las
+    """Las filas firmes de la versión: lo que ve la Comisión."""
+    return _rows(version, FIRM_STATES)
+
+
+def _rows(version, states):
+    """Las filas de la versión en los estados `states`: las firmes no incluyen sugerencias ni
     quitadas; las descartadas por el sistema están en otra tabla."""
     rows = []
-    for requirement in version.requirements.filter(state__in=FIRM_STATES).order_by(
+    for requirement in version.requirements.filter(state__in=states).order_by(
             "number").prefetch_related("quotes__segment__reading"):
         quote_list = list(requirement.quotes.order_by("order"))
         first = quote_list[0].segment if quote_list else None
@@ -600,6 +615,7 @@ def measure_version(run, expected, verification):
     con las cuentas y las líneas de `resultados.jsonl`."""
     version = run.version
     proposed = _proposed(version)
+    suggestions = _suggestions(version)
     file_of = {reading.pk: name for name, reading in verification.readings.items()}
     dispositions = {d.segment_id: d for d in m.Disposition.objects.filter(run=run)}
     pending = {p.segment_id: p.reason for p in m.PendingItem.objects.filter(version=version)}
@@ -616,9 +632,17 @@ def measure_version(run, expected, verification):
     pairs = _pairs(located, fe_rows)
     paired_rows = set(pairs.values())
     discarded = _discarded_rows(run)
+    # Esperados sin pareja firme, ni por una fila técnica ni por unificación: se emparejan uno a
+    # uno con las sugerencias, con la misma regla (T-111).
+    candidates = [
+        i for i, entry in enumerate(located)
+        if i not in pairs and _technical_citing(entry, tech_rows.values()) is None
+        and _repeated_in(entry, fe_rows, paired_rows) is None]
+    suggestion_pairs = _pairs([located[i] for i in candidates], suggestions)
+    suggested_for = {candidates[c]: suggestions[p] for c, p in suggestion_pairs.items()}
     lines, found_count, class_ok = [], 0, 0
     causes, wrong_class = Counter(), 0
-    review, unified = [], []
+    review, unified, suggestion_review = [], [], []
     matched_pk = {}
 
     for e_index, entry in enumerate(located):
@@ -647,6 +671,12 @@ def measure_version(run, expected, verification):
             unified.append(item.id)
             line.update(estado="encontrado", detalle="unificado", propuesto=host.number)
             matched_pk[item.id] = host.requirement_id
+        elif (suggested := suggested_for.get(e_index)) is not None:
+            # Segundo destino de "a revisión obligatoria" (T-111): la pareja es una
+            # sugerencia; la Comisión la decide antes de validar.
+            suggestion_review.append(entry)
+            line.update(estado=MANDATORY_REVIEW, causa=SUGGESTION_CAUSE,
+                        detalle=f"motivo de la duda: {suggested.doubt_reason}")
         else:
             cause, detail = _cause(entry, fe_rows, dispositions, pending, discarded)
             if cause == PENDING:
@@ -746,14 +776,21 @@ def measure_version(run, expected, verification):
     lines += discarded_report.pop("lines")
 
     measured_total = len(measured)
-    found = ratio(found_count + len(unified) + len(review), measured_total)
+    reviewed = len(review) + len(suggestion_review)
+    found = ratio(found_count + len(unified) + reviewed, measured_total)
     leftover_ratio = ratio(leftovers, firm_total)
+    suggestions_report = _suggestions_report(
+        suggestions, [located[i] for i in candidates], len(suggestion_pairs),
+        len(suggestion_review), leftovers, firm_total, found, measured_total)
+    lines += suggestions_report.pop("lines")
     return {
         "lines": lines,
         "found": found,
         "found_without_review": ratio(found_count + len(unified), measured_total),
         "review": {"count": len(review), "ids": [r["id"] for r in review],
                    "keys": sorted({r["tramo"] for r in review})},
+        "suggestion_review": {"count": len(suggestion_review),
+                              "ids": [e.item.id for e in suggestion_review]},
         "unified": {"count": len(unified), "ids": unified},
         "class": ratio(class_ok, found_count),
         "class_wrong_found": wrong_class,
@@ -763,6 +800,7 @@ def measure_version(run, expected, verification):
         "leftover_ratio_formal_economic": ratio(leftovers_fe, firm_fe),
         "cap": cap_verdict(leftover_ratio, found),
         "discarded": discarded_report,
+        "suggestions": suggestions_report,
         "leftovers_by_class": dict(leftover_class),
         "leftovers_by_segment": dict(leftover_segment),
         "literal": ratio(quote_ok, quote_total),
@@ -796,6 +834,60 @@ def _repeated_in(entry, fe_rows, paired_rows):
         if any(span[3] for span in row.spans) and _covers(entry, row.spans):
             return row
     return None
+
+
+def _suggestions(version):
+    """Las sugerencias de condición de la versión (REQ-035), con su motivo de duda y los
+    respaldos normativos que tienen (REQ-036). No entran en el tope."""
+    rows = _rows(version, (SUGGESTION,))
+    by_number = {r.number: r for r in version.requirements.filter(state=SUGGESTION)
+                 .prefetch_related("norm_supports")}
+    for row in rows:
+        source = by_number[row.number]
+        row.doubt_reason = source.doubt_reason
+        row.supports = [(s.unit_label, s.text) for s in source.norm_supports.order_by("id")]
+    return rows
+
+
+def _suggestions_report(suggestions, located, matched, reviewed, leftovers, firm_total,
+                        found, measured_total):
+    """Informe de sugerencias (T-111; REQ-035, REQ-036): cantidad, por motivo y por tramo,
+    cuántas eran esperadas (entre los esperados que ninguna fila firme empareja), cuántas tienen respaldo y cuántas de esas eran esperadas, los
+    sobrantes y el tope informativos "si las sugerencias fueran firmes" y la muestra con
+    texto."""
+    by_reason, by_segment = Counter(), Counter()
+    lines, with_pair, with_support, support_pair = [], 0, 0, 0
+    for row in suggestions:
+        key = row.segment.key if row.segment else ""
+        by_reason[row.doubt_reason] += 1
+        by_segment[key] += 1
+        paired = any(_covers(entry, row.spans) for entry in located)
+        with_pair += paired
+        if row.supports:
+            with_support += 1
+            support_pair += paired
+        lines.append({"tipo": "sugerencia", "numero": row.number, "tramo": key,
+                      "clase": row.category, "motivo": row.doubt_reason,
+                      "respaldos": [label for label, _ in row.supports],
+                      "estado": "con_pareja" if paired else "sin_pareja"})
+    # Si fueran firmes, las que tienen pareja (uno a uno) dejarían de ser sobrantes.
+    if_firm = leftovers + len(suggestions) - matched
+    sample = [{"number": suggestions[i].number,
+               "tramo": suggestions[i].segment.key if suggestions[i].segment else "",
+               "reason": suggestions[i].doubt_reason,
+               "text": suggestions[i].quotes[0].text if suggestions[i].quotes else "",
+               "supports": suggestions[i].supports}
+              for i in sample_indexes(len(suggestions), settings.MATRIX_SAMPLE_DISCARDED)]
+    return {
+        "count": len(suggestions), "by_reason": dict(by_reason), "by_segment": dict(by_segment),
+        "expected": ratio(with_pair, len(suggestions)),
+        "expected_as_suggestion": ratio(reviewed, measured_total),
+        "with_support": with_support,
+        "with_support_expected": ratio(support_pair, with_support),
+        "leftovers_if_firm": if_firm,
+        "cap_if_firm": cap_verdict(ratio(if_firm, firm_total + len(suggestions)), found),
+        "sample": sample, "lines": lines,
+    }
 
 
 @dataclass
@@ -932,6 +1024,8 @@ def timing_summary(run):
     if "unificacion" in run.timings or "filtro" in run.timings:
         summary["filter_seconds"] = round(
             run.timings.get("unificacion", 0) + run.timings.get("filtro", 0), 3)
+    if "respaldo_normativo" in run.timings:
+        summary["support_seconds"] = round(run.timings["respaldo_normativo"], 3)
     return summary
 
 
@@ -1068,6 +1162,7 @@ def regenerate_summaries(procedure, expected, folder):
     (folder / "resumen-publico.md").write_text(_summary(report, public=True),
                                                encoding="utf-8")
     _write_sample(report, overwrite=False)  # la que ya completó el verificador no se pisa
+    _write_suggestions_sample(report, overwrite=False)
     return report
 
 
@@ -1138,6 +1233,7 @@ def _write(report, procedure, started_at, commit):
     (report.folder / "resumen-publico.md").write_text(_summary(report, public=True),
                                                       encoding="utf-8")
     _write_sample(report, overwrite=True)
+    _write_suggestions_sample(report, overwrite=True)
 
 
 def _cell(text):
@@ -1161,6 +1257,30 @@ def _write_sample(report, *, overwrite):
         out += [f"| {r['order']} | {r['tramo']} | {r['reason']} | {_cell(r['text'])} | "
                 f"{_cell(r['evidence'])} | |" for r in sample]
         target.write_text("\n".join(out) + "\n", encoding="utf-8")
+
+
+def _write_suggestions_sample(report, *, overwrite):
+    """La plantilla local `muestra-sugerencias.md`, con texto del pliego y de la norma (no va
+    al repositorio): una fila por sugerencia de la muestra y una columna para que quien
+    verifica diga si la sugerencia y su respaldo eran correctos."""
+    for result in report.results:
+        sample = [] if result.get("error") else result["measures"]["suggestions"]["sample"]
+        target = report.folder / SUGGESTIONS_SAMPLE_FILE
+        if not sample or (target.exists() and not overwrite):
+            continue
+        out = ["# Muestra de sugerencias de condición", "",
+               "Texto del pliego y de la norma: no se copia al repositorio. Completar la "
+               "última columna con sí o no.", "",
+               "| N.º | Tramo | Motivo | Cita | Respaldo normativo | "
+               "¿Sugerencia y respaldo correctos? |",
+               "|---|---|---|---|---|---|"]
+        out += [f"| {r['number']} | {r['tramo']} | {r['reason']} | {_cell(r['text'])} | "
+                f"{_cell(_support_text(r['supports']))} | |" for r in sample]
+        target.write_text("\n".join(out) + "\n", encoding="utf-8")
+
+
+def _support_text(supports):
+    return "; ".join(f"{label}: «{text}»" for label, text in supports) or "sin respaldo"
 
 
 def _seconds(value):
@@ -1204,6 +1324,7 @@ def _summary(report, *, public):
             f"- Tramos técnicos citados por renglón: "
             f"{proportion_text(measures['technical_tramos'])} (se informa; no bloquea)",
             *_review_summary(measures),
+            *_suggestion_review_summary(measures),
             f"- Unificados (encontrados por una cita repetida): "
             f"{measures['unified']['count']}"
             + (f" ({', '.join(measures['unified']['ids'])})" if measures["unified"]["ids"]
@@ -1216,6 +1337,7 @@ def _summary(report, *, public):
             *_cap_lines(measures),
             f"- Sobrantes por tramo: {_counter_text(measures['leftovers_by_segment'])}",
             *_discarded_lines(measures["discarded"], measures["leftovers"]),
+            *_suggestion_lines(measures["suggestions"]),
             f"- Faltantes por causa: {_counter_text(measures['causes'])}",
             f"- Filas de circulares sin medir (T-083): {measures['circular_unmeasured']}",
         ]
@@ -1240,6 +1362,35 @@ def _review_summary(measures):
             f"a los encontrados; sin ellos: {proportion_text(measures['found_without_review'])}",
             f"- A revisión obligatoria, requisitos: {', '.join(review['ids'])}; "
             f"tramos: {', '.join(review['keys'])}"]
+
+
+def _suggestion_review_summary(measures):
+    review = measures["suggestion_review"]
+    if not review["count"]:
+        return ["- A revisión obligatoria (sugerencias): 0"]
+    return [f"- A revisión obligatoria (sugerencias): {review['count']}, ya sumados a los "
+            f"encontrados; sin ellos ni los pendientes: "
+            f"{proportion_text(measures['found_without_review'])}",
+            f"- A revisión obligatoria, sugerencias, requisitos: {', '.join(review['ids'])}"]
+
+
+def _suggestion_lines(info):
+    lines = [f"- Sugerencias de condición: {info['count']} (no entran en el tope)"]
+    if not info["count"]:
+        return lines
+    lines += [
+        f"- Sugerencias por motivo: {_counter_text(info['by_reason'])}",
+        f"- Sugerencias por tramo: {_counter_text(info['by_segment'])}",
+        f"- Sugerencias que eran requisitos esperados: {proportion_text(info['expected'])}",
+        f"- Esperados que quedaron como sugerencia: "
+        f"{proportion_text(info['expected_as_suggestion'])}",
+        f"- Sugerencias con respaldo normativo: {info['with_support']}; de esas, eran "
+        f"esperadas: {proportion_text(info['with_support_expected'])}",
+        f"- Sobrantes si las sugerencias fueran firmes (informativo): "
+        f"{info['leftovers_if_firm']}; tope con ellas como firmes: "
+        f"{'cumpliría' if info['cap_if_firm']['met'] else 'no cumpliría'}",
+    ]
+    return lines
 
 
 def _yes(value):
@@ -1285,6 +1436,8 @@ def _timing_lines(timings):
         lines.append(f"- Unificación y filtro: {_seconds(timings['filter_seconds'])} "
                      f"(unificacion {_seconds(passes.get('unificacion'))}, "
                      f"filtro {_seconds(passes.get('filtro'))})")
+    if "support_seconds" in timings:
+        lines.append(f"- Respaldo normativo: {_seconds(timings['support_seconds'])}")
     if "seconds_per_page" in timings:
         lines.append(
             f"- Por página: {_seconds(timings['seconds_per_page'])}; por tramo: "
@@ -1319,6 +1472,12 @@ def _detail_lines(result, report, public):
     if wrong:
         lines += ["", "Encontrados con clase equivocada: "
                   + ", ".join(r["id"] for r in wrong)]
+    suggestions = result["measures"]["suggestions"]
+    if suggestions["count"]:
+        lines += ["", "Sugerencias (clave, motivo, respaldo):"]
+        lines += [f"- #{r['numero']} {r['tramo']} [{r['motivo']}] ({r['estado']}): "
+                  + (", ".join(r["respaldos"]) if r["respaldos"] else "sin respaldo")
+                  for r in rows if r["tipo"] == "sugerencia"]
     if not public:
         texts = _proposed_texts(result)
         leftovers = [r for r in rows if r["tipo"] == "propuesto" and r["estado"] == "sobrante"
@@ -1327,6 +1486,12 @@ def _detail_lines(result, report, public):
             lines += ["", "Sobrantes (primeros 80 caracteres de la cita):"]
             lines += [f"- #{r['numero']} {r['tramo']}: «{texts.get(r['numero'], '')[:80]}»"
                       for r in leftovers]
+        sample = suggestions["sample"]
+        if sample:
+            lines += ["", f"Muestra de sugerencias ({len(sample)} de {suggestions['count']}):"]
+            lines += [f"- #{r['number']} {r['tramo']} [{r['reason']}]: "
+                      f"«{_cell(r['text'])[:200]}»; respaldo: "
+                      f"{_cell(_support_text(r['supports']))[:300]}" for r in sample]
         sample = result["measures"]["discarded"]["sample"]
         if sample:
             lines += ["", f"Muestra de descartadas ({len(sample)} de "
