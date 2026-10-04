@@ -754,12 +754,19 @@ def _cause(entry, fe_rows, dispositions, pending):
 
 
 def _coverage(run, dispositions):
-    total = m.Segment.objects.filter(reading_id__in=[d["reading"] for d in run.documents]).count()
+    """Cobertura sobre un solo conjunto: los tramos de los documentos de la corrida. Los tramos
+    de circulares (que no son documentos base) también reciben disposición; se cuentan aparte,
+    fuera de la proporción (T-096)."""
+    readings = [d["reading"] for d in run.documents]
+    total = m.Segment.objects.filter(reading_id__in=readings).count()
+    in_base = m.Segment.objects.filter(
+        pk__in=list(dispositions), reading_id__in=readings).count()
     by_source = Counter(d.source for d in dispositions.values())
     by_outcome = Counter(d.outcome for d in dispositions.values())
     pending = Counter(
         m.PendingItem.objects.filter(version=run.version).values_list("reason", flat=True))
-    return {"segments": total, "with_disposition": len(dispositions),
+    return {"segments": total, "with_disposition": in_base,
+            "circular_with_disposition": len(dispositions) - in_base,
             "by_source": dict(by_source), "by_outcome": dict(by_outcome),
             "pending_by_reason": dict(pending)}
 
@@ -952,20 +959,74 @@ def measure_level(user, procedure, expected, level, clock=time.monotonic):
                 "seconds": round(clock() - started, 1)}
     run.refresh_from_db()
     try:
-        # La comprobación usa las lecturas de esta propuesta.
-        check = verify_expected(expected, procedure, readings)
-        measures = measure_version(run, expected, check)
-        result = {
-            "level": level, "run": run.pk, "version": version.number,
-            "measures": measures, "timings": timing_summary(run),
-            "counts": run.counts,
-            "anomalies": dict(Counter(a["type"] for a in run.anomalies)),
-            "parameters": run.parameters, "prompt_versions": run.prompt_versions,
-            "models": run.models, "corpus_version": run.corpus_version,
-        }
+        result = _result_of_run(run, version, procedure, expected, readings)
     finally:
         _discard(version, user, run)
     return result
+
+
+def _result_of_run(run, version, procedure, expected, readings):
+    """Las medidas de una propuesta ya hecha, sin usar el modelo."""
+    # La comprobación usa las lecturas de esta propuesta.
+    check = verify_expected(expected, procedure, readings)
+    measures = measure_version(run, expected, check)
+    return {
+        "level": run.level, "run": run.pk, "version": version.number,
+        "measures": measures, "timings": timing_summary(run),
+        "counts": run.counts,
+        "anomalies": dict(Counter(a["type"] for a in run.anomalies)),
+        "parameters": run.parameters, "prompt_versions": run.prompt_versions,
+        "models": run.models, "corpus_version": run.corpus_version,
+    }
+
+
+def regenerate_summaries(procedure, expected, folder, *, compare_with=()):
+    """Reescribe `resumen.md` y `resumen-publico.md` de una corrida ya hecha, sin el modelo
+    (T-096): vuelve a medir las propuestas que `parametros.json` nombra, que siguen en la
+    base aunque sus versiones estén descartadas. No toca `parametros.json` ni
+    `resultados.jsonl`. Lanza `MeasurementRefused` si la carpeta no es una corrida de esta
+    lista y este procedimiento, o si falta una propuesta en la base."""
+    from django.conf import settings
+
+    folder = Path(folder)
+    try:
+        parameters = json.loads((folder / "parametros.json").read_text(encoding="utf-8"))
+        errors = {}
+        for raw in (folder / "resultados.jsonl").read_text(encoding="utf-8").splitlines():
+            line = json.loads(raw)
+            if line.get("tipo") == "error":
+                errors[line["nivel"]] = line["error"]
+    except (OSError, ValueError):
+        raise MeasurementRefused("La carpeta no tiene una corrida legible.") from None
+    if (parameters.get("procedimiento") != procedure.number
+            or parameters.get("lista", {}).get("sha256") != expected.sha256):
+        raise MeasurementRefused("La corrida es de otro procedimiento u otra lista.")
+    verification = verify_expected(expected, procedure)
+    results = []
+    for entry in parameters["propuestas"]:
+        level = entry["level"]
+        if level in errors:
+            results.append({"level": level, "run": entry.get("run"), "error": errors[level],
+                            "error_class": errors[level].split(":", 1)[0]})
+            continue
+        try:
+            run = m.MatrixRun.objects.get(pk=entry["run"])
+            version = run.version
+        except (m.MatrixRun.DoesNotExist, m.MatrixVersion.DoesNotExist):
+            raise MeasurementRefused(
+                f"La propuesta {entry['run']} ya no está en la base.") from None
+        readings = {}
+        for document in run.documents:
+            reading = m.Reading.objects.select_related("document").get(pk=document["reading"])
+            readings[reading.document.file_name] = reading
+        results.append(_result_of_run(run, version, procedure, expected, readings))
+    earlier = previous_levels(list(compare_with), expected, procedure.number)
+    comparison = compare_levels(results, earlier, list(settings.MATRIX_LEVELS))
+    report = Report(folder, expected, verification, parameters["niveles"], results, comparison)
+    (folder / "resumen.md").write_text(_summary(report, public=False), encoding="utf-8")
+    (folder / "resumen-publico.md").write_text(_summary(report, public=True),
+                                               encoding="utf-8")
+    return report
 
 
 def measure(user, procedure, expected, levels, runs_dir, *, commit=None, compare_with=(),
@@ -1079,7 +1140,10 @@ def _summary(report, *, public):
             f"- Tramos con disposición: "
             f"{proportion_text(ratio(coverage['with_disposition'], coverage['segments']))} "
             "(meta: 100 %)",
-            f"- Disposición por origen: {_counter_text(coverage['by_source'])}",
+            f"- Tramos de circulares con disposición (aparte): "
+            f"{coverage.get('circular_with_disposition', 0)}",
+            f"- Disposición por origen (incluye circulares): "
+            f"{_counter_text(coverage['by_source'])}",
             f"- Pendientes por motivo: {_counter_text(coverage['pending_by_reason'])}",
             f"- Tramos técnicos citados por renglón: "
             f"{proportion_text(measures['technical_tramos'])} (se informa; no bloquea)",

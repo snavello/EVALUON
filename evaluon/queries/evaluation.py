@@ -894,7 +894,7 @@ def wilson_interval(ok, total, z=WILSON_Z):
         centro = (p + z²/(2n)) / (1 + z²/n)
         radio  = z / (1 + z²/n) · √( p(1 − p)/n + z²/(4n²) )
     """
-    if not total:
+    if not total or not 0 <= ok <= total:
         return None
     p = ok / total
     z2 = z * z
@@ -1941,7 +1941,11 @@ def proportion_text(ratio):
     10; IC 95 %: 59,6 % a 98,2 %)"; sin casos, "—"."""
     if not ratio or not ratio.get("total"):
         return "—"
-    low, high = wilson_interval(ratio["ok"], ratio["total"])
+    interval = wilson_interval(ratio["ok"], ratio["total"])
+    if interval is None:
+        return (f"{ratio['ok']} de {ratio['total']} (anomalía: la cuenta está fuera de "
+                "0 a 100 %; no se calcula el margen de error)")
+    low, high = interval
     return (f"{_percent(ratio['ok'] / ratio['total'])} ({ratio['ok']} de {ratio['total']}; "
             f"IC 95 %: {_bound(low)} a {_bound(high)})")
 

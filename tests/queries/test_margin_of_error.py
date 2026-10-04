@@ -120,3 +120,12 @@ def test_by_regime_section_shows_the_interval_and_a_dash_without_cases():
 
     assert ("| Disposición AFIP 247/2022 | 90,0 % (9 de 10; IC 95 %: 59,6 % a 98,2 %) | — |"
             in text)
+
+
+def test_a_count_out_of_range_is_reported_not_raised():
+    """REQ-030 (T-096): una cuenta fuera de 0 a `total` no rompe el resumen: no hay
+    intervalo y el texto informa la anomalía con las cuentas."""
+    assert evaluation.wilson_interval(11, 10) is None
+    assert evaluation.wilson_interval(-1, 10) is None
+    text = evaluation.proportion_text({"ok": 1732, "total": 1632, "rate": 1.06})
+    assert "1732 de 1632" in text and "anomalía" in text

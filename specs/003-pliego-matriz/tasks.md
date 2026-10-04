@@ -43,6 +43,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-093 | Ajustar las instrucciones con el caso-00 (enumeraciones, tablas, condiciones como efecto) | REQ-024 | T-092 | terminada |
 | T-094 | Medir la aceptación con los casos 01 y 02 | REQ-024, REQ-025, REQ-030, REQ-031 | T-085, T-093, T-095 | pendiente |
 | T-095 | Contar como "a revisión obligatoria" los requisitos en tramos pendientes | REQ-024 | T-093 | terminada |
+| T-096 | Corregir la cobertura de tramos de `medir_matriz` cuando hay circulares | REQ-030 | T-095 | terminada |
 
 ## Para todas las tareas
 
@@ -271,6 +272,14 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 - **No tocar:** la propuesta; la lista esperada.
 - **Entorno:** cualquier equipo con Docker.
 
+### T-096 · Corregir la cobertura de tramos de `medir_matriz` cuando hay circulares
+
+- **Qué hacer:** en la medición del caso-01 (T-094, 16 documentos y 2 circulares), `resumen.md` falló con `ValueError: math domain error`: la cobertura dividía los tramos con disposición de la propuesta (1.732, que incluyen los de las circulares) por los tramos de los documentos base (1.632). Medir la cobertura sobre un solo conjunto (tramos de los documentos de la corrida) e informar aparte los tramos de circulares con disposición. Que una proporción fuera de 0 a 100 % no pierda el resumen: `wilson_interval` devuelve `None` y el texto informa la anomalía. Agregar `medir_matriz --regenerar-resumen CARPETA`, que reescribe los dos resúmenes de una corrida hecha, sin el modelo, midiendo de nuevo las propuestas que nombra `parametros.json` (siguen en la base aunque estén descartadas).
+- **Archivos:** `evaluon/tenders/evaluation.py`, `evaluon/queries/evaluation.py`, `evaluon/tenders/management/commands/medir_matriz.py`, `tests/tenders/test_evaluation.py`, `tests/queries/test_margin_of_error.py`.
+- **Verificación:** tests: con una circular cargada, la cobertura cuenta el mismo conjunto y los tramos de la circular van aparte; una proporción fuera de rango se informa sin romper el resumen; el comando regenera los resúmenes sin llamar al modelo.
+- **No tocar:** la propuesta, las instrucciones, la lista esperada.
+- **Entorno:** cualquier equipo con Docker.
+
 ### T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro
 
 - **Qué hacer:** hoy `crear_usuario --rol-comision` solo sirve para usuarios nuevos. El 2026-10-04 el Coordinador le dio rol de evaluador al usuario `sandro` en la base real con una actualización directa del campo `commission_role` (pedido del responsable), sin hecho de auditoría porque no hay tipo de hecho ni comando para eso. Agregar un comando `rol_comision <usuario> {operador,evaluador,ninguno}` que cambie el rol y deje un hecho (un tipo nuevo `user_role_changed`, con su migración de `audit`, o el que corresponda), y anotar en el registro el cambio manual del 2026-10-04 corriendo el comando sobre `sandro` con el mismo valor o registrando el hecho de regularización.
@@ -299,7 +308,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | REQ-027 | T-067, T-068, T-082 |
 | REQ-028 | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082 |
 | REQ-029 | T-067, T-068, T-080, T-081, T-084 |
-| REQ-030 | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085 |
+| REQ-030 | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085, T-096 |
 | REQ-031 | T-067, T-072, T-074, T-083 |
 | REQ-032 | T-067, T-074, T-082, T-086 |
 
