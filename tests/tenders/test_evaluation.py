@@ -431,7 +431,7 @@ def test_quote_must_cover_half_of_the_anchor_to_match():
     entry = NS(span=(100, 120), reading=reading)  # ancla de 20 caracteres
 
     def pairs(start, end):
-        return ev._pairs([entry], [NS(span=(start, end), reading=reading, quotes=[NS(
+        return ev._pairs([entry], [NS(spans=[(reading.pk, start, end, False)], quotes=[NS(
             char_start=start, char_end=end)])])
 
     assert pairs(110, 130) == {0: 0}    # 10 de 20
@@ -735,3 +735,331 @@ def test_a_run_folder_made_with_levels_is_still_regenerated(
     assert [r["process"] for r in again.results] == ["media"]
     summary = (folder / "resumen.md").read_text(encoding="utf-8")
     assert "## Proceso " in summary
+
+
+# --- Sobrantes sobre las filas firmes, con tope e informe de descartadas (T-103) ----------------
+#
+# Las descartadas y las sugerencias se insertan a mano después de la propuesta del doble: de
+# producirlas se ocupan el filtro y las sugerencias (T-102, T-109).
+
+
+def after_propose(monkeypatch, hook):
+    """Llama a `hook(version)` apenas termina la propuesta, antes de medirla."""
+    real = ev.proposal.propose
+
+    def wrapped(run, **kwargs):
+        version = real(run, **kwargs)
+        hook(version)
+        return version
+
+    monkeypatch.setattr(ev.proposal, "propose", wrapped)
+
+
+def seg_of(version, key):
+    from tests.tenders.test_discarded import segment
+    return segment(version, key)
+
+
+def add_requirement(version, key, *, state="propuesto", category="formal", repeated=(),
+                    doubt=""):
+    """Una fila con su cita principal en el tramo `key` y citas `repetida` en `repeated`
+    (pares tramo, frase)."""
+    number = max([r.number for r in version.requirements.all()] or [0]) + 1
+    row = m.Requirement.objects.create(
+        version=version, number=number, category=category, items=[],
+        origin=m.RequirementOrigin.PROPUESTO, state=state, proposed={},
+        doubt_reason=doubt)
+    for order, (where, phrase, scope) in enumerate(
+            [(key, None, "")] + [(k, p, "repetida") for k, p in repeated], start=1):
+        seg = seg_of(version, where)
+        span = ev.find_anchor(seg, phrase, 1) if phrase else (seg.char_start, seg.char_end)
+        m.RequirementQuote.objects.create(
+            requirement=row, order=order, segment=seg, char_start=span[0], char_end=span[1],
+            text=seg.reading.canonical_text[span[0]:span[1]], scope=scope)
+    return row
+
+
+def add_discarded(version, key, **fields):
+    from tests.tenders.test_discarded import add_row
+    order = version.discarded_rows.count() + 1
+    return add_row(version, key, order=order, **fields)
+
+
+def measures_of(report):
+    return report.results[0]["measures"]
+
+
+def test_discarded_rows_and_suggestions_are_not_leftovers_nor_in_the_denominator(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-033: las descartadas por el sistema y las filas `sugerido` no cuentan como
+    sobrantes ni en el denominador del tope; una firme sin pareja sí."""
+    procedure, _, path, _ = case
+    base = measures_of(run_measure(operator_user, procedure, path, tmp_path / "base"))
+
+    def hook(version):
+        add_discarded(version, "sec-ii/1.1")
+        add_requirement(version, "sec-ii/1.1", state="sugerido", doubt="duda")
+
+    after_propose(monkeypatch, hook)
+    with_extras = measures_of(run_measure(operator_user, procedure, path, tmp_path / "x"))
+
+    assert with_extras["leftovers"] == base["leftovers"] == 1  # el renglón 3, sin esperado
+    assert with_extras["leftover_ratio"] == base["leftover_ratio"]
+    assert with_extras["leftover_ratio"]["total"] == base["proposed_total"] == 5
+
+    def one_more(version):
+        hook(version)
+        add_requirement(version, "sec-ii/1.1")
+
+    after_propose(monkeypatch, one_more)
+    firm = measures_of(run_measure(operator_user, procedure, path, tmp_path / "y"))
+    assert firm["leftovers"] == 2
+    assert firm["leftover_ratio"] == {"ok": 2, "total": 6, "rate": 2 / 6}
+    assert firm["leftover_ratio_formal_economic"] == {"ok": 1, "total": 3, "rate": 1 / 3}
+
+
+def test_expected_inside_a_discarded_row_is_a_missing_with_its_own_cause(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-033: un esperado cuya cita está en una descartada es faltante con la causa
+    `descartado_por_el_sistema`, el motivo y la clave del tramo."""
+    procedure, _, path, _ = case
+    after_propose(monkeypatch, lambda v: add_discarded(v, "sec-i/2.1", reason="formulario"))
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    line = by_id(report)["S-002"]
+    assert line["estado"] == "faltante"
+    assert line["causa"] == ev.DISCARDED_BY_SYSTEM == "descartado_por_el_sistema"
+    assert "formulario" in line["detalle"] and "sec-i/2.1" in line["detalle"]
+    measures = measures_of(report)
+    assert measures["causes"][ev.DISCARDED_BY_SYSTEM] == 1
+    assert any("found" in reason for reason in report.blocking)
+    public = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "S-002" in public and "descartado_por_el_sistema" in public
+    assert "formulario" in public
+
+
+def test_expected_in_a_repeated_quote_counts_as_unified_not_missing(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-033: un esperado cuya ancla está en una cita `repetida` de una fila ya emparejada
+    es encontrado "unificado", informado aparte; no es faltante."""
+    procedure, _, path, _ = case
+    base = measures_of(run_measure(operator_user, procedure, path, tmp_path / "base"))
+
+    def hook(version):
+        row = version.requirements.get(quotes__text__contains="garantía del 5 %")
+        seg = seg_of(version, "sec-i/2.1")
+        span = ev.find_anchor(seg, "a los 90 días corridos", 1)
+        m.RequirementQuote.objects.create(
+            requirement=row, order=row.quotes.count() + 1, segment=seg, char_start=span[0],
+            char_end=span[1], text=seg.reading.canonical_text[span[0]:span[1]],
+            scope="repetida")
+
+    after_propose(monkeypatch, hook)
+    report = run_measure(operator_user, procedure, path, tmp_path / "x")
+
+    line = by_id(report)["S-002"]
+    assert line["estado"] == "encontrado" and "unificado" in line["detalle"]
+    measures = measures_of(report)
+    assert measures["unified"] == {"count": 1, "ids": ["S-002"]}
+    assert measures["found"]["ok"] == base["found"]["ok"] + 1
+    assert ev.DISCARDED not in measures["causes"]
+    assert measures["leftovers"] == 1
+    summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
+    assert "Unificados" in summary and "S-002" in summary
+
+
+def test_a_row_matches_an_expected_through_any_of_its_quotes(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-033: una fila empareja con un esperado si cualquiera de sus citas cubre la mitad
+    del ancla; esa fila deja de ser sobrante."""
+    procedure, _, path, _ = case
+    holder = {}
+
+    def hook(version):
+        holder["row"] = add_requirement(
+            version, "sec-ii/1.1", category="economico",
+            repeated=[("sec-i/2.1", "a los 90 días corridos")])
+
+    after_propose(monkeypatch, hook)
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    line = by_id(report)["S-002"]
+    assert line["estado"] == "encontrado" and line.get("detalle", "") == ""
+    assert line["propuesto"] == holder["row"].number
+    assert measures_of(report)["leftovers"] == 1
+    assert measures_of(report)["unified"]["count"] == 0
+
+
+@pytest.mark.parametrize("leftovers,total,meets", [(8, 40, True), (9, 40, False),
+                                                   (0, 3, True), (1, 4, False)])
+def test_cap_is_twenty_percent_of_the_firm_rows(leftovers, total, meets):
+    """REQ-024, REQ-033: con 8 sobrantes sobre 40 filas (20 %) el tope cumple y con 9 no."""
+    verdict = ev.cap_verdict(ev.ratio(leftovers, total), ev.ratio(10, 10))
+
+    assert verdict["leftovers_ok"] is meets
+    assert verdict["met"] is meets
+    assert verdict["limit"] == 0.20
+
+
+def test_cap_fails_with_a_missing_even_if_the_proportion_meets_it(
+        case, operator_user, tmp_path):
+    """REQ-024: con un faltante el tope no cumple aunque la proporción de sobrantes sí."""
+    procedure, _, path, _ = case
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    cap = measures_of(report)["cap"]
+    assert measures_of(report)["leftovers"] == 1
+    assert cap["leftovers_ok"] is True and cap["found_ok"] is False and cap["met"] is False
+    summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
+    assert "Tope de sobrantes" in summary and "no cumple" in summary
+
+
+def test_cap_over_the_limit_blocks_the_acceptance(case, operator_user, monkeypatch, tmp_path):
+    """REQ-024: una proporción de sobrantes mayor que el tope se informa entre los bloqueos."""
+    procedure, _, path, _ = case
+    after_propose(monkeypatch, lambda v: add_requirement(v, "sec-ii/1.1"))
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    assert any("sobrantes" in reason and "tope" in reason for reason in report.blocking)
+    assert not measures_of(report)["cap"]["leftovers_ok"]
+
+
+def test_discarded_report_counts_by_reason_segment_and_pass_and_the_leftovers_without_filter(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-033: el informe de descartadas da la cantidad, el reparto por motivo, tramo y
+    pasada, y los sobrantes que habría sin el filtro (sobrantes más descartadas sin
+    pareja en la lista)."""
+    procedure, _, path, _ = case
+
+    def hook(version):
+        add_requirement(version, "sec-ii/1.1")
+        add_discarded(version, "sec-ii/1.1", reason="titulo", source_pass="extraccion")
+        add_discarded(version, "sec-i/3.1", reason="titulo", source_pass="completitud")
+        add_discarded(version, "sec-i/2.1", reason="formulario", source_pass="extraccion")
+
+    after_propose(monkeypatch, hook)
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    info = measures_of(report)["discarded"]
+    assert info["count"] == 3
+    assert info["by_reason"] == {"titulo": 2, "formulario": 1}
+    assert info["by_segment"] == {"sec-ii/1.1": 1, "sec-i/3.1": 1, "sec-i/2.1": 1}
+    assert info["by_pass"] == {"extraccion": 2, "completitud": 1}
+    assert info["with_pair"] == 2  # las de sec-i/3.1 y sec-i/2.1 cubren anclas esperadas
+    assert info["leftovers_without_filter"] == measures_of(report)["leftovers"] + 1 == 3
+    summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
+    assert "Descartadas por el sistema: 3" in summary
+    assert "Sobrantes que habría sin el filtro: 3" in summary
+
+
+def test_sample_of_discarded_has_the_planned_size_and_order():
+    """REQ-033: una de cada tres, con un mínimo de 20, en el orden de la corrida; con menos
+    del mínimo, todas."""
+    def sample(n):
+        return ev.sample_indexes(n, {"every": 3, "minimum": 20})
+
+    assert sample(90) == list(range(0, 90, 3))
+    assert len(sample(30)) == 20 and sample(30) == sorted(set(sample(30)))
+    assert sample(12) == list(range(12))
+    assert sample(0) == []
+    assert len(sample(100)) == 34 and sample(100) == sorted(set(sample(100)))
+
+
+def test_sample_is_written_with_text_and_a_template_for_the_verifier(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-033: la muestra sale en `resumen.md` y en la plantilla local
+    `muestra-descartadas.md` con una columna para el verificador; `resumen-publico.md` no
+    lleva texto de ninguna cita ni indicio."""
+    procedure, _, path, _ = case
+    after_propose(monkeypatch, lambda v: (add_discarded(v, "sec-ii/1.1", reason="titulo"),
+                                          add_discarded(v, "sec-i/3.1", reason="formulario")))
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    rows = list(m.DiscardedRow.objects.filter(run_id=report.results[0]["run"]).order_by("order"))
+    assert len(rows) == 2
+    private = (report.folder / "resumen.md").read_text(encoding="utf-8")
+    template = (report.folder / "muestra-descartadas.md").read_text(encoding="utf-8")
+    public = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "Muestra de descartadas (2 de 2)" in private
+    assert "¿Descarte correcto?" in template
+    for row in rows:
+        assert row.text[:30] in private and row.text[:30] in template
+        assert row.evidence_text in private
+        assert row.text[:30] not in public and row.evidence_text not in public
+    assert "titulo" in public and "sec-ii/1.1" in public
+    assert template.index(rows[0].text[:30]) < template.index(rows[1].text[:30])
+
+
+def test_run_without_discarded_gives_the_usual_measures(case, operator_user, tmp_path):
+    """REQ-033: una corrida sin descartadas da las medidas de siempre y lo dice."""
+    procedure, _, path, _ = case
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    measures = measures_of(report)
+    assert measures["discarded"]["count"] == 0 and measures["discarded"]["sample"] == []
+    assert measures["leftovers"] == 1 and measures["proposed_total"] == 5
+    assert not (report.folder / "muestra-descartadas.md").exists()
+    summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
+    assert "Descartadas por el sistema: 0" in summary
+
+
+def test_regenerating_keeps_the_verifiers_sample(case, operator_user, monkeypatch, tmp_path):
+    """REQ-033: `--regenerar-resumen` con descartadas reescribe los resúmenes iguales y no
+    pisa la muestra que el verificador ya completó."""
+    procedure, _, path, _ = case
+    after_propose(monkeypatch, lambda v: add_discarded(v, "sec-ii/1.1"))
+    report = run_measure(operator_user, procedure, path, tmp_path)
+    folder = report.folder
+    before = {n: (folder / n).read_text(encoding="utf-8")
+              for n in ("resumen.md", "resumen-publico.md")}
+    (folder / "muestra-descartadas.md").write_text("completada por el verificador",
+                                                   encoding="utf-8")
+    (folder / "resumen.md").unlink()
+    (folder / "resumen-publico.md").unlink()
+    monkeypatch.setattr("evaluon.accounts.permissions.authenticate_command",
+                        lambda username: operator_user)
+
+    call_command("medir_matriz", usuario="operador", procedimiento=procedure.number,
+                 esperada=str(path), regenerar_resumen=str(folder))
+
+    for name, text in before.items():
+        assert (folder / name).read_text(encoding="utf-8") == text
+    assert (folder / "muestra-descartadas.md").read_text(
+        encoding="utf-8") == "completada por el verificador"
+
+
+def test_timings_add_the_unification_and_filter_passes(case, operator_user, tmp_path):
+    """REQ-033: `timing_summary` suma las pasadas `unificacion` y `filtro` y el resumen las
+    informa."""
+    procedure, _, path, _ = case
+    report = run_measure(operator_user, procedure, path, tmp_path)
+    run = m.MatrixRun.objects.get(pk=report.results[0]["run"])
+    run.timings = {**run.timings, "unificacion": 1.5, "filtro": 2.25}
+
+    timings = ev.timing_summary(run)
+
+    assert timings["filter_seconds"] == 3.75
+    shown = "\n".join(ev._timing_lines(timings))
+    assert "Unificación y filtro" in shown and "unificacion 1,5 s" in shown
+
+
+def test_verify_warns_of_two_expected_with_the_same_normalized_anchor(case):
+    """REQ-033: `--verificar-esperada` avisa de dos esperados con el mismo ancla normalizado
+    (se unificarían); no bloquea."""
+    procedure, _, path, text = case
+    write(path, text.replace(
+        "  - id: S-T1",
+        '  - id: S-007\n    documento: Pliego sintético.pdf\n    tramo: sec-i/1.1\n'
+        '    ancla: "garantía  del 5 % del  monto"\n    clase: formal\n    renglones: []\n'
+        "  - id: S-T1"))
+
+    verification = ev.verify_expected(ev.load_expected(path), procedure)
+
+    assert verification.ok, verification.problems
+    assert any("S-001" in n and "S-007" in n and "mismo ancla" in n
+               for n in verification.notes)
