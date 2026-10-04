@@ -1,6 +1,6 @@
 # Spec 003 · Procedimiento, pliego final y matriz de cumplimiento
 
-Estado: aprobada · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-03, requisitos técnicos por renglón, criterio de requisito y de clase, y tipos de consecuencia (al aprobar el plan); REQ-032, matriz sin validar como "BORRADOR INCOMPLETO", decisión del responsable; 2026-10-04, requisitos en tramos pendientes cuentan como "a revisión obligatoria", decisión del responsable; 2026-10-04, tope de sobrantes, filas descartadas por el sistema a la vista y revisión por grupos (REQ-033 y REQ-034), decisión del responsable [EN REVISIÓN]
+Estado: aprobada · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-03, requisitos técnicos por renglón, criterio de requisito y de clase, y tipos de consecuencia (al aprobar el plan); REQ-032, matriz sin validar como "BORRADOR INCOMPLETO", decisión del responsable; 2026-10-04, requisitos en tramos pendientes cuentan como "a revisión obligatoria", decisión del responsable; 2026-10-04, tope de sobrantes, filas descartadas por el sistema a la vista y revisión por grupos (REQ-033 y REQ-034), decisión y aprobación del responsable
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
 > Cada duda se marca `[A ACLARAR: pregunta concreta]`. Una spec con marcas pendientes no pasa la compuerta.
