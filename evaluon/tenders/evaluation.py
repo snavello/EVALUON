@@ -783,27 +783,97 @@ def timing_summary(run):
 # --- Comparación entre niveles -------------------------------------------------------------
 
 
-def compare_levels(results):
-    """Cada nivel contra el anterior: mejora si encuentra más, o si encuentra lo mismo con
-    menos sobrantes (spec 003, REQ-030)."""
-    rows, previous = [], None
-    for result in results:
-        if result.get("error"):
-            rows.append({"level": result["level"], "verdict": "falló"})
+def previous_levels(folders, expected, procedure_number):
+    """Último resultado de cada nivel entre las corridas guardadas en `folders` (T-091).
+
+    Cada carpeta puede ser una corrida (tiene `parametros.json`) o una carpeta que contiene
+    corridas. Solo cuentan las corridas del mismo procedimiento y de la misma lista (huella);
+    comparar contra otra lista engañaría. De cada nivel queda la corrida más reciente (por el
+    nombre, que empieza con la fecha y la hora). Se lee solo `parametros.json` y
+    `resultados.jsonl`: cuentas, nunca texto del pliego. Devuelve
+    `{nivel: {"found", "leftovers", "run"}}`.
+    """
+    candidates = []
+    for folder in folders:
+        folder = Path(folder)
+        if (folder / "parametros.json").is_file():
+            candidates.append(folder)
+        elif folder.is_dir():
+            candidates += [p for p in folder.iterdir()
+                           if (p / "parametros.json").is_file()]
+    found = {}
+    for run_folder in sorted(candidates, key=lambda p: p.name):
+        try:
+            parameters = json.loads((run_folder / "parametros.json").read_text(
+                encoding="utf-8"))
+            if (parameters.get("procedimiento") != procedure_number
+                    or parameters.get("lista", {}).get("sha256") != expected.sha256):
+                continue
+            counts = {}
+            for raw in (run_folder / "resultados.jsonl").read_text(
+                    encoding="utf-8").splitlines():
+                line = json.loads(raw)
+                level = line.get("nivel")
+                if line.get("tipo") == "error":
+                    counts.pop(level, None)
+                    counts[level] = None
+                    continue
+                entry = counts.setdefault(level, {"found": 0, "leftovers": 0})
+                if entry is None:
+                    continue
+                if line.get("tipo") == "esperado" and line.get("estado") == "encontrado":
+                    entry["found"] += 1
+                elif line.get("tipo") == "propuesto" and line.get("estado") == "sobrante":
+                    entry["leftovers"] += 1
+        except (OSError, ValueError, AttributeError):
             continue
-        found = result["measures"]["found"]["ok"]
-        leftovers = result["measures"]["leftovers"]
-        if previous is None:
-            verdict = "base"
-        elif found > previous[0] or (found == previous[0] and leftovers < previous[1]):
-            verdict = "mejora"
+        for level, entry in counts.items():
+            if entry is not None:
+                found[level] = {**entry, "run": run_folder.name}
+    return found
+
+
+def compare_levels(results, earlier=None, order=None):
+    """Cada nivel contra el anterior: mejora si encuentra más, o si encuentra lo mismo con
+    menos sobrantes (spec 003, REQ-030).
+
+    `earlier` (T-091): resultados de corridas guardadas (ver `previous_levels`) para los
+    niveles que esta corrida no midió; el nivel anterior puede salir de ahí. `order` es el
+    orden de los niveles (por omisión, el de esta corrida). Una fila se informa solo para los
+    niveles de esta corrida; `against_run` dice de qué corrida sale el anterior, si no es esta.
+    """
+    earlier = earlier or {}
+    current = {r["level"]: r for r in results}
+    if order is None:
+        order = [r["level"] for r in results]
+    sequence = [level for level in order if level in current or level in earlier]
+    sequence += [level for level in current if level not in sequence]
+    rows, previous = {}, None
+    for level in sequence:
+        if level in current:
+            result = current[level]
+            if result.get("error"):
+                rows[level] = {"level": level, "verdict": "falló"}
+                continue
+            found = result["measures"]["found"]["ok"]
+            leftovers = result["measures"]["leftovers"]
+            origin = None
         else:
-            verdict = "no mejora"
-        rows.append({"level": result["level"], "found": found, "leftovers": leftovers,
-                     "verdict": verdict,
-                     "against": previous[2] if previous else None})
-        previous = (found, leftovers, result["level"])
-    return rows
+            found, leftovers = earlier[level]["found"], earlier[level]["leftovers"]
+            origin = earlier[level]["run"]
+        if level in current:
+            if previous is None:
+                verdict = "base"
+            elif found > previous[0] or (found == previous[0] and leftovers < previous[1]):
+                verdict = "mejora"
+            else:
+                verdict = "no mejora"
+            rows[level] = {"level": level, "found": found, "leftovers": leftovers,
+                           "verdict": verdict,
+                           "against": previous[2] if previous else None,
+                           "against_run": previous[3] if previous else None}
+        previous = (found, leftovers, level, origin)
+    return [rows[r["level"]] for r in results]
 
 
 # --- La corrida ----------------------------------------------------------------------------
@@ -885,10 +955,13 @@ def measure_level(user, procedure, expected, level, clock=time.monotonic):
     return result
 
 
-def measure(user, procedure, expected, levels, runs_dir, *, commit=None, clock=time.monotonic):
+def measure(user, procedure, expected, levels, runs_dir, *, commit=None, compare_with=(),
+            clock=time.monotonic):
     """Comprueba la lista, corre cada nivel de `levels` y guarda la carpeta de la corrida
     en `runs_dir`. Devuelve el `Report`. Lanza `MeasurementRefused` si la lista no se puede
-    usar, si hay un borrador abierto o si un nivel no existe."""
+    usar, si hay un borrador abierto o si un nivel no existe. La comparación entre niveles usa
+    también el último resultado de cada nivel en las corridas de `runs_dir` y de `compare_with`
+    (T-091)."""
     require_commission_role(user, CommissionRole.OPERATOR, operation=OPERATION,
                             channel=Channel.COMMAND)
     from django.conf import settings
@@ -907,7 +980,8 @@ def measure(user, procedure, expected, levels, runs_dir, *, commit=None, clock=t
                                  "uno solo. Descártelo o mida en otra base.")
     results = [measure_level(user, procedure, expected, level, clock)
                for level in levels]
-    comparison = compare_levels(results)
+    earlier = previous_levels([runs_dir, *compare_with], expected, procedure.number)
+    comparison = compare_levels(results, earlier, list(settings.MATRIX_LEVELS))
     started_at = timezone.now()
     base = f"{started_at:%Y%m%d-%H%M%S}-{commit or 'sin-commit'}"
     folder = Path(runs_dir) / base
@@ -1014,6 +1088,8 @@ def _summary(report, *, public):
             out.append(f"- {row['level']}: falló")
         else:
             against = f" respecto de {row['against']}" if row.get("against") else ""
+            if row.get("against_run"):
+                against += f" (corrida {row['against_run']})"
             out.append(f"- {row['level']}: {row['verdict']}{against} "
                        f"(encontrados {row['found']}, sobrantes {row['leftovers']})")
     blocking = report.blocking
