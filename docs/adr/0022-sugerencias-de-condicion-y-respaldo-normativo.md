@@ -1,6 +1,6 @@
 # ADR-0022 · Sugerencias de condición y respaldo normativo: un tercer destino del filtro, y la norma solo confirma
 
-Estado: propuesto · Fecha: 2026-10-04 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-04 · Decidió: responsable del proyecto (al aprobar la enmienda de sugerencias del plan 003)
 
 ## Contexto
 

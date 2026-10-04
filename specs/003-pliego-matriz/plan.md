@@ -1,6 +1,6 @@
 # Plan 003 · Procedimiento, pliego final y matriz de cumplimiento
 
-Estado: aprobado · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-04, tope de sobrantes, REQ-033, REQ-034 y proceso único sin niveles (sección "Enmienda del 2026-10-04"), aprobada por el responsable el 2026-10-04 · Enmienda de sugerencias: 2026-10-04, REQ-035 y REQ-036 (subsección "Sugerencias de condición y respaldo normativo"), pendiente de aprobación
+Estado: aprobado · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-04, tope de sobrantes, REQ-033, REQ-034 y proceso único sin niveles (sección "Enmienda del 2026-10-04"), aprobada por el responsable el 2026-10-04 · Enmienda de sugerencias: 2026-10-04, REQ-035 y REQ-036 (subsección "Sugerencias de condición y respaldo normativo"), aprobada por el responsable el 2026-10-04
 
 Spec: `specs/003-pliego-matriz/spec.md` (aprobada el 2026-10-03, enmendada el mismo día: requisitos técnicos por renglón, criterio de requisito y de clase, tipos de consecuencia y REQ-032; enmendada el 2026-10-04: requisitos en tramos pendientes, tope de sobrantes, REQ-033 y REQ-034; enmendada otra vez el 2026-10-04: sugerencias de condición y respaldo normativo, REQ-035 y REQ-036).
 
@@ -11,7 +11,7 @@ ADR de este plan:
 - `docs/adr/0020-pdf-de-la-matriz-en-el-equipo.md`, **propuesto**: el PDF de la matriz se genera en el equipo con WeasyPrint (REQ-032, agregado después de aprobadas las decisiones de este plan).
 
 - `docs/adr/0021-filtro-de-precision-de-la-matriz.md`, **aceptado**: el filtro de sobrantes como pasada separada, con dos preguntas distintas, descarte visible y recuperable, y unificación por regla (REQ-033; enmienda del 2026-10-04).
-- `docs/adr/0022-sugerencias-de-condicion-y-respaldo-normativo.md`, **propuesto**: el filtro tiene un tercer destino, la sugerencia con motivo de duda, guardada como un estado del requisito; la norma solo confirma y no promueve sola (REQ-035 y REQ-036; enmienda de sugerencias).
+- `docs/adr/0022-sugerencias-de-condicion-y-respaldo-normativo.md`, **aceptado**: el filtro tiene un tercer destino, la sugerencia con motivo de duda, guardada como un estado del requisito; la norma solo confirma y no promueve sola (REQ-035 y REQ-036; enmienda de sugerencias).
 
 ADR en los que se apoya: 0002 (motor y modelo), 0003 (recuperación), 0004 (lectura y cita literal), 0005 (aplicación web), 0006 (dos regímenes), 0009 (respuestas de la Comisión), 0011 (medición), 0012 (suite), 0014 (puntos 6 y 7), 0015, 0017.
 
