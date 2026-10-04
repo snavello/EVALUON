@@ -345,6 +345,12 @@ def verify_expected(expected, procedure, readings=None):
         result.notes.append(f"el documento {_doc_label(expected, name)} no está cargado "
                             "(se usa en circulares)")
 
+    seen_items = Counter(i.renglon for i in expected.items if i.technical)
+    for number, times in sorted(seen_items.items()):
+        if times > 1:
+            ids = ", ".join(i.id for i in expected.items if i.technical and i.renglon == number)
+            result.problems.append(f"la lista trae {times} entradas técnicas del renglón "
+                                   f"{number} ({ids}): la regla es una fila por renglón")
     for item in expected.items:
         if item.technical:
             _verify_technical(expected, item, result)
@@ -850,6 +856,7 @@ def measure_level(user, procedure, expected, level, clock=time.monotonic):
     except Exception as error:
         return {"level": level, "run": run.pk,
                 "error": f"{type(error).__name__}: {error}",
+                "error_class": type(error).__name__,
                 "seconds": round(clock() - started, 1)}
     run.refresh_from_db()
     try:
@@ -959,7 +966,8 @@ def _summary(report, *, public):
     for result in report.results:
         out.append(f"## Nivel {result['level']}")
         if result.get("error"):
-            out += ["", f"La propuesta falló: {result['error']}", ""]
+            shown = result["error_class"] if public else result["error"]
+            out += ["", f"La propuesta falló: {shown}", ""]
             continue
         measures = result["measures"]
         coverage = measures["coverage"]

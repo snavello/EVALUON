@@ -376,3 +376,106 @@ def test_command_measures_and_prints_the_counts(case, operator_user, monkeypatch
     out = capsys.readouterr().out
     assert "Corrida guardada en" in out and "media: encontrados" in out
     assert (path.parent.parent / "corridas").is_dir()
+
+
+# --- Errores, umbral, rol, citas amplias, un renglón una fila (verificación de T-077) ---------
+
+
+def test_failed_proposal_does_not_put_its_message_in_the_public_summary(
+        case, operator_user, tmp_path, monkeypatch):
+    """P4: si la propuesta falla, el resumen público trae solo la clase de la excepción;
+    el mensaje, que puede traer texto del pliego, queda en `resumen.md`."""
+    procedure, _, path, _ = case
+
+    def boom(run, **kwargs):
+        raise ValueError("salida inválida: " + GARANTIA)
+
+    monkeypatch.setattr(ev.proposal, "propose", boom)
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    public = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    full = (report.folder / "resumen.md").read_text(encoding="utf-8")
+    assert GARANTIA not in public and "salida inválida" not in public
+    assert "ValueError" in public
+    assert GARANTIA in full
+    assert any("falló" in reason for reason in report.blocking)
+
+
+def test_found_line_carries_the_wilson_interval_of_the_first_feature(case, operator_user,
+                                                                    tmp_path):
+    """REQ-024: la línea de requisitos encontrados trae el intervalo de Wilson de la 001."""
+    from evaluon.queries.evaluation import wilson_interval
+
+    procedure, _, path, _ = case
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    found = report.results[0]["measures"]["found"]
+    low, high = wilson_interval(found["ok"], found["total"])
+    line = next(row for row in (report.folder / "resumen.md").read_text(
+        encoding="utf-8").splitlines() if row.startswith("- Requisitos encontrados"))
+    assert f"{found['ok']} de {found['total']}" in line
+    assert f"{low * 100:.1f}".replace(".", ",") in line
+    assert f"{high * 100:.1f}".replace(".", ",") in line
+
+
+def test_quote_must_cover_half_of_the_anchor_to_match():
+    """REQ-024: la cita tiene que cubrir al menos la mitad del ancla; 5 % no alcanza."""
+    from types import SimpleNamespace as NS
+
+    reading = NS(pk=1)
+    entry = NS(span=(100, 120), reading=reading)  # ancla de 20 caracteres
+
+    def pairs(start, end):
+        return ev._pairs([entry], [NS(span=(start, end), reading=reading, quotes=[NS(
+            char_start=start, char_end=end)])])
+
+    assert pairs(110, 130) == {0: 0}    # 10 de 20
+    assert pairs(111, 131) == {}        # 9 de 20
+    assert pairs(119, 139) == {}        # 1 de 20 (5 %)
+
+
+def test_role_is_checked_before_measuring(case, operator_user, evaluator_user,
+                                          no_commission_user, tmp_path):
+    """Roles: sin rol de la Comisión se rechaza y no queda ninguna propuesta; el evaluador
+    también mide."""
+    from evaluon.accounts.permissions import RoleRejected
+
+    procedure, _, path, _ = case
+
+    with pytest.raises(RoleRejected):
+        run_measure(no_commission_user, procedure, path, tmp_path)
+    assert not m.MatrixRun.objects.exists()
+    assert run_measure(evaluator_user, procedure, path, tmp_path).results[0]["level"] == "media"
+
+
+def test_wide_quotes_are_counted_apart_from_the_literal_quote_measure(
+        case, operator_user, tmp_path, script):
+    """REQ-025: una cita amplia (el modelo copió algo que no está en el tramo) se cuenta
+    aparte y no entra en el denominador de la cita literal."""
+    from tests.tenders.scripted import PAGO
+
+    procedure, _, path, _ = case
+    script.when(PAGO, item(requirements=[("texto que no está en el tramo", "formal")]))
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    measures = report.results[0]["measures"]
+    all_quotes = m.RequirementQuote.objects.filter(requirement__version__procedure=procedure)
+    wide = all_quotes.filter(quote_flag="cita_amplia").count()
+    assert wide == 1 and measures["wide"]["total"] == 1
+    assert measures["literal"]["total"] == all_quotes.count() - wide
+
+
+def test_two_technical_entries_for_one_item_are_a_list_error(case):
+    """REQ-024: la regla es una fila por renglón: dos entradas técnicas del mismo renglón
+    son un error de la lista y la comprobación lo informa."""
+    procedure, _, path, text = case
+    write(path, text.replace("    renglon: 4\n", "    renglon: 1\n"))
+
+    verification = ev.verify_expected(ev.load_expected(path), procedure)
+
+    assert not verification.ok
+    assert any("renglón 1" in problem and "S-T1" in problem and "S-T4" in problem
+               for problem in verification.problems)
