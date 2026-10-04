@@ -66,7 +66,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-116 | Mostrar y imprimir el original en el anexo, el cambio agrupado y el requisito agregado por una circular | REQ-031, REQ-032 | T-113, T-114, T-105, T-112 | pendiente |
 | T-117 | Medir REQ-031 por fila en `medir_matriz`: documento, fecha, texto original y vigente | REQ-031 | T-103, T-111 | terminada |
 | T-118 | Cargar los casos 05 y 06 y preparar sus listas esperadas de circulares | REQ-031 | T-117 | terminada |
-| T-119 | Actualizar la lista esperada del caso-01 con las filas que las circulares afectan | REQ-031 | T-117 | pendiente |
+| T-119 | Actualizar la lista esperada del caso-01 con las filas que las circulares afectan | REQ-031 | T-117 | terminada |
 | T-120 | Medir y ajustar la pasada de circulares con los casos 01, 05 y 06, con estabilidad | REQ-031 | T-113, T-115, T-117, T-118, T-119 | pendiente |
 
 ## Para todas las tareas
