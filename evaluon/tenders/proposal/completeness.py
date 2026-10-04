@@ -28,7 +28,10 @@ con `quotes.locate`, que tolera espacios y saltos de línea distintos y devuelve
 relativas al tramo; un faltante que es el mismo que un requisito ya encontrado (misma regla de
 la unión) no se suma; una cita que no se ubica queda con el tramo entero como cita
 (`cita_amplia`), porque un requisito nunca se pierde por una cita mal copiada; una división
-solo se acepta si cada parte se ubica dentro del recorte del original y las partes juntas lo
+solo se acepta si cada parte se ubica dentro del original (ubicado en el tramo, sin la etiqueta
+de clase que el modelo a veces copia; reemplaza a las filas del tramo que contiene o que se
+superponen en más de la mitad; si no aparece, se lo reconoce por parecido con una fila) y las
+partes juntas lo
 cubren, salvo espacios, puntuación y conectores ("y", "e"); si no, el requisito queda como
 estaba, con la anomalía `completitud_division_no_aplicada`. Un tramo cuya salida es
 inválida se vuelve a pedir una vez, solo; si sigue inválido no cambia y quien llama decide
@@ -39,6 +42,7 @@ import json
 import re
 import time
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 
 from django.conf import settings
 
@@ -322,19 +326,52 @@ def batches(candidates):
     return result
 
 
-def _split_target(final, span):
-    """El requisito de `final` que `span` (el original de una división) reemplaza: el que
-    más se le parece entre los que cubre en más de la mitad."""
-    target, best = None, 0.0
+_CLASS_LABEL = re.compile(r"\(\s*(?:formal|econ[oó]mic[oa]|t[eé]cnic[oa])\s*\)", re.IGNORECASE)
+SAME_TEXT = 0.8  # fracción del más corto de dos textos que tiene que coincidir en un bloque
+
+
+def _clean(quote):
+    """La cita del modelo sin la etiqueta de clase que a veces copia, "(formal)"."""
+    return " ".join(_CLASS_LABEL.sub(" ", quote or "").split())
+
+
+def _by_likeness(text, original, final):
+    """Último recurso, cuando el original no aparece en el tramo: la fila de `final` cuyo
+    texto más se le parece (un bloque común de al menos `SAME_TEXT` del más corto y la
+    mitad del más largo), o None."""
+    wanted = _clean(original).lower()
+    best, best_score = None, 0.0
     for candidate in final:
-        shared = min(span[1], candidate.span[1]) - max(span[0], candidate.span[0])
-        length = candidate.span[1] - candidate.span[0]
-        if shared <= 0 or length <= 0 or shared / length < MORE_THAN_HALF:
+        if candidate.flag == quotes.WIDE:
             continue
-        score = shared / (max(span[1], candidate.span[1]) - min(span[0], candidate.span[0]))
-        if score > best:
-            target, best = candidate, score
-    return target
+        shown = " ".join(text[candidate.span[0]:candidate.span[1]].split()).lower()
+        if not shown or not wanted:
+            continue
+        block = SequenceMatcher(None, shown, wanted, autojunk=False).find_longest_match(
+            0, len(shown), 0, len(wanted))
+        score = block.size / min(len(shown), len(wanted))
+        if (score >= SAME_TEXT and block.size / max(len(shown), len(wanted)) >= MORE_THAN_HALF
+                and score > best_score):
+            best, best_score = candidate, score
+    return best
+
+
+def _resolve_original(text, original, final):
+    """El original de una división: `(tramo (inicio, fin), filas que reemplaza, detalle)`.
+    Se ubica en el tramo, sin la etiqueta de clase y tolerando espacios. Reemplaza a las filas
+    del tramo cuya cita queda contenida en él o se superpone en más de la mitad de su largo.
+    Si no se ubica, se busca por parecido con una fila. Sin filas, `filas` es vacío."""
+    span = quotes.locate(text, _clean(original)) or quotes.locate(text, original)
+    if span is None:
+        row = _by_likeness(text, original, final)
+        if row is None:
+            return None, [], "el original no está en el tramo"
+        return row.span, [row], ""
+    rows = [f for f in final
+            if f.flag != quotes.WIDE and containment(f.span, span) > MORE_THAN_HALF]
+    if not rows:
+        return span, [], "el original no coincide con un requisito"
+    return span, rows, ""
 
 
 _LEADING_NUMBER = re.compile(r"^\s*(?:[•−–-]\s*|[A-Za-z]\)\s*)?(?:\d+\.)*\s*")
@@ -367,20 +404,20 @@ def apply(unit, found_list, missing, splits, anomalies):
                           "key": segment.key, "detail": detail})
 
     for original, parts in splits:
-        span = quotes.locate(text, original)
-        if span is None:
-            refuse("el original no está en el tramo")
+        base, targets, detail = _resolve_original(text, original, final)
+        if not targets:
+            refuse(detail)
             continue
-        target = _split_target(final, span)
-        if target is None:
-            refuse("el original no coincide con un requisito")
-            continue
-        base = target.span
+        # El recorte a cubrir: el original y las filas que reemplaza (si el modelo recortó
+        # el original más corto que la fila, la fila no se pierde).
+        base = (min([base[0]] + [t.span[0] for t in targets]),
+                max([base[1]] + [t.span[1] for t in targets]))
         inner = text[base[0]:base[1]]
         located = []
         for quote, kind in parts:
             taken = {(s - base[0], e - base[0]) for (s, e), _ in located}
-            relative = quotes.locate(inner, quote, taken)
+            relative = (quotes.locate(inner, _clean(quote), taken)
+                        or quotes.locate(inner, quote, taken))
             if relative is None:
                 located = None
                 break
@@ -396,12 +433,18 @@ def apply(unit, found_list, missing, splits, anomalies):
             refuse("las partes no cubren el original")
             continue
         pieces = []
+        gone = {id(t) for t in targets}
+        others = [f for f in final if id(f) not in gone]
         for part_span, category in located:
             piece = Found(category=category, span=part_span)
             piece.passes = [PassName.COMPLETITUD.value]
+            # Una parte que ya es otra fila del tramo no se repite: esa fila la cubre.
+            if any(_same_requirement(piece, old) for old in others + pieces):
+                continue
             pieces.append(piece)
-        at = final.index(target)
-        final[at:at + 1] = pieces
+        at = min(i for i, f in enumerate(final) if id(f) in gone)
+        final = others
+        final[at:at] = pieces
         divided += 1
 
     unlocated = []
