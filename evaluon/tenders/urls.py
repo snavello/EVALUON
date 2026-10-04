@@ -7,6 +7,7 @@ from django.urls import path
 
 from evaluon.tenders.views import (
     consequences,
+    discarded,
     documents,
     export,
     matrix,
@@ -32,6 +33,10 @@ urlpatterns = [
          name="review_add_technical"),
     path("matrices/<int:version_id>/sumar-tramo/", review.join_segment,
          name="review_join_segment"),
+    path("matrices/<int:version_id>/descartadas/", discarded.listing, name="discarded"),
+    path("matrices/<int:version_id>/descartadas/devolver/", discarded.restore,
+         name="discarded_restore"),
+    path("matrices/<int:version_id>/grupo/", review.group, name="group_review"),
     path("matrices/<int:version_id>/validar/", validation.validate, name="validate"),
     path("matrices/<int:version_id>/descartar/", validation.discard, name="discard"),
     path("<int:procedure_id>/matriz/nueva-version/", validation.open_new,
