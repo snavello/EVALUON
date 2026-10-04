@@ -110,11 +110,12 @@ def test_the_proposal_runs_the_passes_of_the_single_process(operator_user, scrip
     assert job.status == "done", job.error
     assert requested.run.parameters["process"] == "completo"
     assert requested.run.parameters["passes"] == [
-        "reglas", "extraccion", "completitud", "filas_tecnicas", "consecuencias"]
+        "reglas", "extraccion", "completitud", "unificacion", "filas_tecnicas",
+        "consecuencias"]
     steps = list(dict.fromkeys(
         m.RunStep.objects.filter(run=requested.run).order_by("id")
         .values_list("pass_name", flat=True)))
-    assert steps == ["extraccion", "completitud", "consecuencias"]
+    assert steps == ["extraccion", "completitud", "unificacion", "consecuencias"]
     assert "nivel_sin_pasadas_propias" not in [a["type"] for a in requested.run.anomalies]
 
 

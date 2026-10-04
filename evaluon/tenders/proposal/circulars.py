@@ -98,6 +98,12 @@ _ITEM = re.compile(
 # Un anexo por su número ("Anexo VI", "ANEXO N° 2"), sobre texto sin tildes ni mayúsculas.
 _ANNEX = re.compile(r"\banexos?\s*(?:n[°º]\s*|num(?:ero)?s?\.?\s*|nros?\.?\s*)?"
                     r"([ivxlc]+|\d+)\b")
+# Lo que sigue a un anexo de una norma externa ("… de la Disposición N° 12/20"), sobre texto
+# sin tildes ni mayúsculas.
+_EXTERNAL_NORM = re.compile(
+    r"\s*(?:,\s*)?(?:de|del)\s+(?:la\s+|el\s+|las\s+|los\s+)?"
+    r"(?:disposicion(?:es)?|resolucion(?:es)?|decretos?|leyes|ley|circulares|circular|"
+    r"notas?|acuerdos?)\b")
 # Un número de cláusula con varios niveles al comienzo de una línea ("7.5.5 CONFLICTO…").
 _LEADING_CLAUSE = re.compile(r"^[ \t]*(\d+(?:\.\d+)+)\.?[ \t]+\S", re.MULTILINE)
 # El título entre comillas de un anexo o documento ("Anexo “FECHA DE VISITA”").
@@ -317,8 +323,11 @@ def named_in(text):
 
 
 def named_annexes(text):
-    """Los anexos que `text` nombra por su número, en minúsculas ("vi", "2")."""
-    return set(_ANNEX.findall(fold(text)))
+    """Los anexos que `text` nombra por su número, en minúsculas ("vi", "2"). "Anexo IV de la
+    Disposición N° …" es el anexo de una norma externa, no uno del pliego (T-113)."""
+    folded = fold(text)
+    return {m.group(1) for m in _ANNEX.finditer(folded)
+            if not _EXTERNAL_NORM.match(folded, m.end())}
 
 
 def is_named(candidate, clauses, items):
@@ -341,7 +350,7 @@ def is_referred(candidate, annexes, haystack):
         segment = candidate.segment
         if any(f"anexo-{a}" in segment.key.lower() for a in annexes):
             return True
-        if annexes & set(_ANNEX.findall(candidate.folded)):
+        if annexes & named_annexes(candidate.folded):
             return True
     if haystack:
         for title in _QUOTED_TITLE.findall(candidate.text):
@@ -533,6 +542,9 @@ class Source:
     issued_on: object
     step: object
     wide: bool = False
+    # Dónde está el texto que reemplaza cuando no es la cita alcanzada (T-113): un
+    # `circular_units.Original` (tramo del anexo y posiciones), o `None`.
+    original: object = None
 
 
 @dataclass
@@ -602,7 +614,8 @@ class Processor:
         self.anomalies = []
         self.stats = {"requests": 0, "segments": 0, "retried": 0, "effects": 0,
                       "new_requirements": 0, "no_effect": 0, "pending": 0,
-                      "wide_quotes": 0, "dropped_effects": 0}
+                      "wide_quotes": 0, "dropped_effects": 0, "units": 0, "units_applied": 0,
+                      "units_data": 0, "units_fallback": 0}
         self._batch = 0
 
     # -- Pedidos -----------------------------------------------------------------------------
@@ -782,37 +795,134 @@ class Processor:
             return second
         return first if first.valid else second
 
-    def process(self, circulars, candidates):
+
+    def process(self, circulars, candidates, pliego=None):
         """Procesa los documentos de `circulars` por fecha sobre las `candidates`
-        (`build_candidates`). Devuelve el `Result`."""
+        (`build_candidates`). Cada circular se parte en unidades de cambio
+        (`circular_units`); las que se resuelven por clave se aplican sin modelo y las demás
+        van al flujo de respaldo, tramo por tramo. Devuelve el `Result`. `pliego` son los
+        tramos del pliego (`circular_units.Pliego`); si falta, se leen de la propuesta."""
+        from evaluon.tenders.proposal import circular_units as units
+
+        if pliego is None:
+            pliego = units.load_pliego(self.run)
         verdicts, sources, new_requirements = {}, [], []
         for document in circulars.documents:
             issued_on = document.document.issued_on
             label = (f"{document.document.title} ({issued_on.strftime('%d/%m/%Y')})")
-            for unit in document.units:
-                verdict = self._rule(unit.segment)
-                if verdict is not None:
-                    verdicts[unit.segment.pk] = verdict
+            for change in units.partition(document.units):
+                resolution = units.resolve(change, document, candidates, pliego)
+                step = self._record_unit(change, resolution) if resolution.record else None
+                if resolution.outcome == units.OUTCOME_FALLBACK:
+                    self.stats["units_fallback"] += 1
+                    for unit in change.members:
+                        self._fallback(document, unit, candidates, issued_on, label,
+                                       verdicts, sources, new_requirements)
                     continue
-                self.stats["segments"] += 1
-                outcome = self._tramo(document, unit, candidates)
-                verdicts[unit.segment.pk] = self._verdict(outcome)
-                if not outcome.valid:
-                    self.stats["pending"] += 1
-                    self.anomalies.append({"type": ANOMALY_NO_DISPOSITION,
-                                           "segment": unit.segment.pk,
-                                           "key": unit.segment.key,
-                                           "detail": "sin disposición después del reintento"})
-                    continue
-                if outcome.shaped.discard:
-                    self.stats["no_effect"] += 1
-                    continue
-                self._apply(unit, outcome, issued_on, label, sources, new_requirements)
+                self._apply_unit(change, resolution, step, issued_on, label, verdicts,
+                                 sources, new_requirements)
         step_anomalies = [a for step in self.steps for a in step.anomalies]
         self.stats["steps"] = len(self.steps)
         return Result(verdicts=verdicts, sources=sources, new_requirements=new_requirements,
                       steps=self.steps, anomalies=self.anomalies + step_anomalies,
                       stats=self.stats)
+
+    def _fallback(self, document, unit, candidates, issued_on, label, verdicts, sources,
+                  new_requirements):
+        """El flujo de respaldo de un tramo: el modelo elige entre las candidatas."""
+        verdict = self._rule(unit.segment)
+        if verdict is not None:
+            verdicts[unit.segment.pk] = verdict
+            return
+        self.stats["segments"] += 1
+        outcome = self._tramo(document, unit, candidates)
+        verdicts[unit.segment.pk] = self._verdict(outcome)
+        if not outcome.valid:
+            self.stats["pending"] += 1
+            self.anomalies.append({"type": ANOMALY_NO_DISPOSITION,
+                                   "segment": unit.segment.pk, "key": unit.segment.key,
+                                   "detail": "sin disposición después del reintento"})
+            return
+        if outcome.shaped.discard:
+            self.stats["no_effect"] += 1
+            return
+        self._apply(unit, outcome, issued_on, label, sources, new_requirements)
+
+    def _record_unit(self, change, resolution):
+        """El pedido de una unidad, sin llamada al modelo (P6): sus tramos, el tipo y el
+        objetivo detectados, las citas resueltas, las fuentes y el motivo del respaldo."""
+        self._batch += 1
+        parsed = {
+            "unidad": change.kind, "tramos": change.keys, "cambio": resolution.change,
+            "objetivo": resolution.target, "resultado": resolution.outcome,
+            "motivo": resolution.reason,
+            "citas": [{"segmento": e.candidate.segment.pk, "clave": e.candidate.segment.key,
+                       "inicio": e.candidate.start, "fin": e.candidate.end,
+                       "requisitos": [t.number for t in e.candidate.targets]}
+                      for e in resolution.effects],
+            "fuentes": [{"efecto": e.effect, "segmento": e.segment.pk, "inicio": e.start,
+                         "fin": e.end,
+                         "original": ({"segmento": e.original.segment.pk,
+                                       "inicio": e.original.start, "fin": e.original.end}
+                                      if e.original else None)}
+                        for e in resolution.effects],
+            "nuevos": [{"clase": a.category, "segmento": a.segment.pk, "inicio": a.start,
+                        "fin": a.end} for a in resolution.additions],
+        }
+        step = RunStep.objects.create(
+            run=self.run, pass_name=self.pass_name, batch=self._batch,
+            segment_keys=change.keys,
+            request={"sin_modelo": True,
+                     "unidad": {"tipo": change.kind, "tramos": change.keys}},
+            raw_output="", parsed=parsed, anomalies=[], retry_of=None,
+            timings={"seconds": 0.0, "prompt_tokens": None, "completion_tokens": None},
+        )
+        self.steps.append(step)
+        self.stats["units"] += 1
+        return step
+
+    def _apply_unit(self, change, resolution, step, issued_on, label, verdicts, sources,
+                    new_requirements):
+        """Aplica una unidad resuelta por clave: la disposición de sus tramos (con origen
+        `regla`) y las fuentes y requisitos nuevos. Los tramos de página y de título
+        conservan la disposición de su regla."""
+        from evaluon.tenders.proposal import circular_units as units
+
+        if resolution.outcome == units.OUTCOME_DATA:
+            base = Verdict(DispositionOutcome.DESCARTADO.value,
+                           discard_reason=DiscardReason.DATO_PROCEDIMIENTO.value, step=step)
+            self.stats["units_data"] += 1
+        else:
+            base = Verdict(DispositionOutcome.REQUISITOS.value, step=step)
+            self.stats["units_applied"] += 1
+        for member in change.members:
+            verdict = self._rule(member.segment)
+            verdicts[member.segment.pk] = verdict if verdict is not None else base
+            if verdict is None and base.outcome == DispositionOutcome.DESCARTADO.value:
+                self.stats["no_effect"] += 1
+        for effect in resolution.effects:
+            sources.append(Source(effect.effect, effect.candidate, effect.segment, effect.start,
+                                  effect.end, effect.text, issued_on, step, False,
+                                  effect.original))
+            self.stats["effects"] += 1
+            self._note(effect.candidate, effect.effect, effect.text, label)
+        for addition in resolution.additions:
+            new_requirements.append(NewRequirement(
+                addition.category, addition.segment, addition.start, addition.end,
+                addition.text, issued_on, step))
+            self.stats["new_requirements"] += 1
+
+    @staticmethod
+    def _note(candidate, effect, text, label):
+        """Deja al día el texto vigente de la cita para las circulares que siguen."""
+        if effect == SourceEffect.MODIFICA.value:
+            candidate.current = text
+            candidate.suppressed = False
+            candidate.history.append(f"modificada por {label}")
+        elif effect == SourceEffect.SUPRIME.value:
+            candidate.suppressed = True
+            candidate.history.append(f"suprimida por {label}")
+
 
     @staticmethod
     def _rule(segment):
@@ -859,13 +969,7 @@ class Processor:
             sources.append(Source(effect, candidate, segment, start, end, text, issued_on,
                                   outcome.step, wide))
             self.stats["effects"] += 1
-            if effect == SourceEffect.MODIFICA.value:
-                candidate.current = text
-                candidate.suppressed = False
-                candidate.history.append(f"modificada por {label}")
-            elif effect == SourceEffect.SUPRIME.value:
-                candidate.suppressed = True
-                candidate.history.append(f"suprimida por {label}")
+            self._note(candidate, effect, text, label)
         for kind, span, fragment in outcome.new:
             start, end, text, wide = place(span, fragment)
             new_requirements.append(NewRequirement(kind, segment, start, end, text,
