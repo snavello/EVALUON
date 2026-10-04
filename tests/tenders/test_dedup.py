@@ -53,7 +53,7 @@ def test_equal_text_in_other_segments_is_merged_keeping_the_first():
     """REQ-033: dos filas con el mismo fragmento en tramos distintos dan una fila; queda la
     primera en el orden del pliego y la otra pasa a ser su cita repetida."""
     first, second = row("a/1", MANT_QUOTE), row("b/1", MANT_QUOTE.upper())
-    result = dedup.unify([first, second], 0.9)
+    result = dedup.unify([first, second], 0.9, containment=True)
     assert result.body == [first]
     assert result.repeated == {id(first[1]): [second]}
     assert merged_keys(result) == [("a/1", "b/1", "igual")]
@@ -64,7 +64,7 @@ def test_normalization_ignores_accents_case_spaces_and_punctuation():
     colapsados."""
     assert dedup.normalize("  El  PLAZO,  de pagó: 30 días. ") == "el plazo de pago 30 dias"
     result = dedup.unify([row("a", "Plazo de pago: 30 días."),
-                          row("b", "plazo  de pago 30 dias")], 0.9)
+                          row("b", "plazo  de pago 30 dias")])
     assert len(result.body) == 1
 
 
@@ -73,7 +73,7 @@ def test_a_row_contained_in_another_is_merged():
     condición (solo una palabra suelta), se une a ella."""
     first = row("a", "garantía de mantenimiento de oferta del 5 % del monto")
     second = row("b", "la garantía de mantenimiento de oferta del 5 % del monto total")
-    result = dedup.unify([first, second], 0.9)
+    result = dedup.unify([first, second], 0.9, containment=True)
     assert result.body == [first]
     assert merged_keys(result) == [("a", "b", "contenida")]
 
@@ -81,7 +81,7 @@ def test_a_row_contained_in_another_is_merged():
 def test_a_very_short_fragment_is_not_merged_by_containment():
     """REQ-033: un fragmento de una o dos palabras está en cualquier fila y no se une."""
     result = dedup.unify([row("a", "garantía"), row("b", "garantía del cinco por ciento")],
-                         0.9)
+                         0.9, containment=True)
     assert len(result.body) == 2
 
 
@@ -91,13 +91,13 @@ def test_similar_words_merge_only_from_the_threshold():
                  "registro de proveedores del organismo contratante")
     b = row("b", "El oferente deberá presentar constancia de inscripción vigente en el "
                  "registro de proveedores del organismo contratante hoy")
-    assert len(dedup.unify([a, b], 0.7).body) == 1
-    assert len(dedup.unify([a, b], 0.99).body) == 2
+    assert len(dedup.unify([a, b], 0.7, containment=True).body) == 1
+    assert len(dedup.unify([a, b], 0.99, containment=True).body) == 2
 
 
 def test_distinct_conditions_do_not_merge():
     """REQ-033: dos condiciones distintas no se unen."""
-    assert len(dedup.unify([row("a", GAR_QUOTE), row("b", PAGO_QUOTE)], 0.9).body) == 2
+    assert len(dedup.unify([row("a", GAR_QUOTE), row("b", PAGO_QUOTE)], 0.9, containment=True).body) == 2
 
 
 def test_two_rows_of_one_segment_with_disjoint_quotes_are_not_merged():
@@ -106,15 +106,15 @@ def test_two_rows_of_one_segment_with_disjoint_quotes_are_not_merged():
     text = "Se acepta moneda nacional. Se acepta moneda nacional."
     unit = SimpleNamespace(segment=SimpleNamespace(pk=7, key="a", text=text))
     one, two = (unit, Found("economico", (0, 25))), (unit, Found("economico", (26, 51)))
-    assert len(dedup.unify([one, two], 0.9).body) == 2
+    assert len(dedup.unify([one, two], 0.9, containment=True).body) == 2
 
 
 def test_wide_quotes_are_neither_merged_nor_absorb_others():
     """REQ-033: una cita amplia (el tramo entero) no se junta con otra fila, entre primera o
     segunda."""
     wide, other = row("a", MANT_QUOTE, flag=WIDE), row("b", MANT_QUOTE)
-    assert len(dedup.unify([wide, other], 0.9).body) == 2
-    assert len(dedup.unify([other, row("c", MANT_QUOTE, flag=WIDE)], 0.9).body) == 2
+    assert len(dedup.unify([wide, other], 0.9, containment=True).body) == 2
+    assert len(dedup.unify([other, row("c", MANT_QUOTE, flag=WIDE)], 0.9, containment=True).body) == 2
 
 
 LONG = ("Los oferentes {} subcontratar parcialmente la prestación objeto de la contratación "
@@ -153,28 +153,113 @@ def test_conditions_that_differ_in_figures_negations_modals_or_order_stay_apart(
     """REQ-033: la unificación es conservadora; ante la duda no une. Dos condiciones que se
     distinguen por una cifra, una negación, un modal, un calificador o el orden de las
     palabras quedan como filas separadas, en cualquier orden de entrada."""
-    assert len(dedup.unify([row("a", one), row("b", two)], 0.9).body) == 2
-    assert len(dedup.unify([row("a", two), row("b", one)], 0.9).body) == 2
+    for options in ({}, {"threshold": 0.9, "containment": True}):
+        assert len(dedup.unify([row("a", one), row("b", two)], **options).body) == 2
+        assert len(dedup.unify([row("a", two), row("b", one)], **options).body) == 2
 
 
 def test_a_long_phrase_equal_but_for_punctuation_still_merges():
     """REQ-033: la cautela no impide unir lo realmente igual."""
     text = LONG.format("podrán", "durante la ejecución")
-    assert len(dedup.unify([row("a", text), row("b", text.upper() + ".")], 0.9).body) == 1
+    assert len(dedup.unify([row("a", text), row("b", text.upper() + ".")]).body) == 1
 
 
-def test_threshold_one_merges_only_equal_texts():
-    """REQ-033: con el umbral en 1,0 solo se unen las filas de texto igual."""
-    equal = dedup.unify([row("a", MANT_QUOTE), row("b", MANT_QUOTE)], 1.0)
-    contained = dedup.unify([row("a", GAR_QUOTE), row("b", GAR_TOTAL)], 1.0)
+def test_by_default_only_identical_normalized_texts_are_merged():
+    """REQ-033: por omisión (similitud y contención apagadas) solo se unen los textos
+    idénticos una vez normalizados; la contención y la similitud no."""
+    assert dedup.MIN_SIMILARITY == 1.0 and dedup.USE_CONTAINMENT is False
+    equal = dedup.unify([row("a", MANT_QUOTE), row("b", MANT_QUOTE)])
+    contained = dedup.unify([row("a", GAR_QUOTE), row("b", GAR_TOTAL)])
     assert len(equal.body) == 1
     assert len(contained.body) == 2
+    near = ("El oferente deberá presentar la constancia de inscripción vigente en el registro "
+            "de proveedores del organismo contratante")
+    assert len(dedup.unify([row("a", near), row("b", near + " hoy")]).body) == 2
+
+
+@pytest.mark.parametrize("variant", [
+    "  LOS OFERENTES   DEBERÁN mantener la oferta; durante 60 días corridos.",
+    "a) Los oferentes deberán mantener la oferta durante 60 días corridos",
+    "(b)  Los oferentes deberán mantener la oferta, durante 60 dias corridos.",
+])
+def test_by_default_identical_texts_merge_whatever_the_form(variant):
+    """REQ-033: mayúsculas, tildes, puntuación, espacios, viñeta ("a)") y punto final no
+    cuentan: lo idéntico normalizado se une por omisión."""
+    result = dedup.unify([row("a", MANT), row("b", variant)])
+    assert len(result.body) == 1
+    assert merged_keys(result) == [("a", "b", "igual")]
+
+
+UNITS = [
+    ("horas contra días", "48 horas hábiles", "48 días hábiles"),
+    ("kg contra g", "5 kg por bulto", "5 g por bulto"),
+    ("mm contra cm", "5 mm de espesor", "5 cm de espesor"),
+    ("pesos contra dólares", "5000 pesos", "5000 dólares"),
+    ("y contra o", "acreditar experiencia y antecedentes",
+     "acreditar experiencia o antecedentes"),
+    ("ni contra y", "no presentar deudas ni sanciones", "no presentar deudas y sanciones"),
+]
+
+
+@pytest.mark.parametrize("label,one,two", UNITS, ids=[u[0] for u in UNITS])
+def test_a_different_unit_or_conjunction_keeps_rows_apart(label, one, two):
+    """REQ-033: la unidad que sigue a una cifra y las conjunciones ("y", "o", "ni") forman
+    parte de la firma: con la similitud y la contención encendidas, en una frase larga, las
+    filas quedan separadas."""
+    frame = ("El oferente deberá entregar los bienes en el depósito central del organismo "
+             "contratante dentro del plazo de {} contados desde la recepción de la orden de "
+             "compra emitida por el área requirente")
+    for first, second in ((one, two), (two, one)):
+        for options in ({}, {"threshold": 0.9, "containment": True}):
+            result = dedup.unify([row("a", frame.format(first)),
+                                  row("b", frame.format(second))], **options)
+            assert len(result.body) == 2
+
+
+def test_the_subject_changing_is_not_merged_by_default():
+    """REQ-033: "organismo" contra "ministerio" en un párrafo largo no se une por omisión."""
+    text = ("El {} contratante notificará la adjudicación a todos los oferentes dentro del "
+            "plazo establecido en el pliego de bases y condiciones particulares")
+    assert len(dedup.unify([row("a", text.format("organismo")),
+                            row("b", text.format("ministerio"))]).body) == 2
+
+
+def test_the_floor_of_three_words_applies_to_containment():
+    """REQ-033: con la contención encendida, un fragmento de menos de 3 palabras contenido
+    en otra fila no la une, aunque sobre una sola palabra."""
+    options = {"threshold": 1.0, "containment": True}
+    assert len(dedup.unify([row("a", "plazo entrega"), row("b", "plazo entrega inmediata")],
+                           **options).body) == 2
+    assert len(dedup.unify([row("a", "plazo de entrega"),
+                            row("b", "plazo de entrega inmediata")], **options).body) == 1
+
+
+def test_containment_allows_at_most_one_extra_content_word():
+    """REQ-033: con la contención encendida, la fila más larga no puede sumar más de una
+    palabra con contenido (`MAX_EXTRA_WORDS`)."""
+    options = {"threshold": 1.0, "containment": True}
+    base = "garantía de mantenimiento de oferta del 5 % del monto"
+    assert len(dedup.unify([row("a", base), row("b", base + " total")], **options).body) == 1
+    assert len(dedup.unify([row("a", base), row("b", base + " total adjudicado")],
+                           **options).body) == 2
+
+
+def test_similar_rows_of_one_segment_with_disjoint_quotes_stay_apart():
+    """REQ-033: con la similitud encendida, dos filas muy parecidas de un mismo tramo, con
+    citas que no se superponen, son condiciones distintas y no se unen."""
+    text = "Se acepta moneda nacional del país. Se acepta moneda nacional del pais"
+    unit = SimpleNamespace(segment=SimpleNamespace(pk=9, key="a", text=text))
+    one, two = (unit, Found("economico", (0, 34))), (unit, Found("economico", (36, 70)))
+    assert len(dedup.unify([one, two], 0.9, containment=True).body) == 2
+    other = SimpleNamespace(segment=SimpleNamespace(pk=10, key="b", text=text))
+    moved = (other, Found("economico", (36, 70)))
+    assert len(dedup.unify([one, moved], 0.9, containment=True).body) == 1
 
 
 def test_a_third_repetition_joins_the_same_group():
     """REQ-033: una tercera fila con la misma condición suma otra cita a la misma fila."""
     rows = [row("a", MANT_QUOTE), row("b", MANT_QUOTE), row("c", MANT_QUOTE)]
-    result = dedup.unify(rows, 0.9)
+    result = dedup.unify(rows, 0.9, containment=True)
     assert result.body == [rows[0]]
     assert result.repeated[id(rows[0][1])] == rows[1:]
 
@@ -240,8 +325,16 @@ def test_the_same_fragment_in_two_segments_gives_one_row_with_two_quotes(
     assert run.counts["unification"]["rows_after"] == 2
 
 
-def test_a_row_contained_in_another_is_merged_in_the_process(operator_user, script):
-    """REQ-033: una fila contenida en otra se une; queda la primera del pliego."""
+@pytest.fixture
+def loose(monkeypatch):
+    """Enciende la similitud y la contención, apagadas por omisión."""
+    monkeypatch.setattr(dedup, "MIN_SIMILARITY", 0.9)
+    monkeypatch.setattr(dedup, "USE_CONTAINMENT", True)
+
+
+def test_a_row_contained_in_another_is_merged_in_the_process(operator_user, script, loose):
+    """REQ-033: con la contención encendida, una fila contenida en otra se une; queda la
+    primera del pliego."""
     script.when(GAR, item([(GAR_QUOTE, "economico")]))
     script.when("monto total", item([(GAR_TOTAL, "economico")]))
 
@@ -287,20 +380,20 @@ def test_the_step_lists_the_pairs_and_the_threshold(operator_user, script):
 
     step = m.RunStep.objects.get(run=run, pass_name="unificacion")
     assert step.request["rule"] == dedup.RULE_VERSION
-    assert step.request["min_similarity"] == 0.9
+    assert step.request["min_similarity"] == 1.0
+    assert step.request["containment"] is False
     assert step.parsed["merged"] == 1
     pair = step.parsed["pairs"][0]
     assert pair["queda"]["segment"] == "sec-i/1.1"
     assert pair["repetida"]["segment"] == "sec-i/3.1"
     assert pair["repetida"]["text"] == MANT_QUOTE
-    assert run.parameters["dedup_min_similarity"] == 0.9
+    assert run.parameters["dedup_min_similarity"] == 1.0
+    assert run.parameters["dedup_containment"] is False
     assert "unificacion" in run.parameters["passes"]
 
 
-def test_threshold_one_in_the_process_merges_only_equal_texts(
-        operator_user, script, settings):
-    """REQ-033: con `DEDUP_MIN_SIMILARITY` en 1,0 la fila contenida no se une; la igual sí."""
-    settings.DEDUP_MIN_SIMILARITY = 1.0
+def test_by_default_a_contained_row_is_not_merged_in_the_process(operator_user, script):
+    """REQ-033: por omisión la fila contenida no se une; la idéntica sí."""
     script.when(GAR, item([(GAR_QUOTE, "economico")]))
     script.when("monto total", item([(GAR_TOTAL, "economico")]))
 

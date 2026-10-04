@@ -288,7 +288,8 @@ def _parameters(run, with_circulars=False):
         "generation_batch_timeout_seconds": settings.GENERATION_BATCH_TIMEOUT_SECONDS,
         "rules_version": RULES_VERSION,
         "obligation_markers": list(OBLIGATION_MARKERS),
-        "dedup_min_similarity": settings.DEDUP_MIN_SIMILARITY,
+        "dedup_min_similarity": dedup.MIN_SIMILARITY,
+        "dedup_containment": dedup.USE_CONTAINMENT,
         "dedup_rule_version": dedup.RULE_VERSION,
     }
 
@@ -501,7 +502,7 @@ def unify_decisions(run, loaded, decisions):
     """Junta las filas formales y económicas que repiten la misma condición (`dedup.py`):
     quita de la disposición de su tramo las filas unidas y deja el pedido de la pasada en
     `tenders_run_step`. Devuelve el `dedup.Result`."""
-    result = dedup.unify(_body(loaded, decisions), settings.DEDUP_MIN_SIMILARITY)
+    result = dedup.unify(_body(loaded, decisions))
     gone = {id(found) for group in result.merged for found in
             (row.found for row in group.repeated)}
     for unit in loaded.units:
@@ -793,6 +794,7 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
     if unification is not None:
         counts["unification"] = {
             "min_similarity": unification.threshold,
+            "containment": unification.containment,
             "rows_before": len(unification.groups)
             + sum(len(g.repeated) for g in unification.groups),
             "rows_after": len(unification.groups),
