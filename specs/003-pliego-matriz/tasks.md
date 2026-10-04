@@ -45,7 +45,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-095 | Contar como "a revisión obligatoria" los requisitos en tramos pendientes | REQ-024 | T-093 | terminada |
 | T-096 | Corregir la cobertura de tramos de `medir_matriz` cuando hay circulares | REQ-030 | T-095 | terminada |
 | T-097 | Corregir la cita literal de las filas técnicas con varios documentos en `medir_matriz` | REQ-025, REQ-030 | T-096 | terminada |
-| T-098 | Corregir la pasada de circulares (fuentes, tramos descartados y no ubicados) | REQ-028, REQ-031 | T-094 | en curso |
+| T-098 | Corregir la pasada de circulares (fuentes, tramos descartados y no ubicados) | REQ-028, REQ-031 | T-094 | terminada |
 | T-099 | Crear la tabla de filas descartadas, el estado de sugerencia, el respaldo normativo, las citas repetidas y los parámetros del filtro | REQ-030, REQ-033, REQ-035, REQ-036 | T-096 | pendiente |
 | T-100 | Quitar el nivel "media" y dejar un solo proceso registrado | REQ-030 | T-099, T-097, T-098 | pendiente |
 | T-101 | Unificar las filas que repiten la misma condición | REQ-025, REQ-033 | T-100 | pendiente |
