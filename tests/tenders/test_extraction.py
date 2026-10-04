@@ -31,11 +31,12 @@ pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture(autouse=True)
-def only_the_extraction(monkeypatch):
+def only_the_extraction(monkeypatch, settings):
     """Estas pruebas son de la extracción: la completitud no recibe ningún tramo, así que no
     suma pedidos ni cambia disposiciones. La completitud se prueba en `test_completeness.py`,
     también con los tramos descartados con marcadores de obligación."""
     monkeypatch.setattr(proposal, "completeness_candidates", lambda loaded, decisions: [])
+    settings.FILTER_ENABLED = False  # el filtro tiene sus pruebas en test_filter.py
 
 
 

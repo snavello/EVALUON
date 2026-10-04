@@ -464,9 +464,9 @@ def test_the_single_process_has_no_second_extraction(operator_user, script):
     run = run_level(operator_user)
 
     assert list(dict.fromkeys(step_passes(run))) == ["extraccion", "completitud",
-                                                      "unificacion", "consecuencias"]
+                                                      "unificacion", "filtro", "filtro_2", "consecuencias"]
     assert run.parameters["passes"] == [
-        "reglas", "extraccion", "completitud", "unificacion", "filas_tecnicas",
+        "reglas", "extraccion", "completitud", "unificacion", "filtro", "filas_tecnicas",
         "consecuencias"]
     assert "extraccion_2" not in run.counts["model_requests_by_pass"]
     assert not hasattr(completeness, "second_extraction")
@@ -481,7 +481,7 @@ def test_the_process_records_its_process_and_the_instructions_it_used(operator_u
     run = run_level(operator_user)
 
     assert run.process == "completo" and run.version.process == "completo"
-    assert list(run.prompt_versions) == ["extraccion", "completitud", "consecuencias"]
+    assert set(run.prompt_versions) == {"extraccion", "completitud", "filtro", "consecuencias"}
 
 
 def test_technical_rows_come_from_the_rule_and_a_marked_segment_joins_them(

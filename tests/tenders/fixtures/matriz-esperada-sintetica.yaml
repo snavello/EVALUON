@@ -10,6 +10,7 @@ documentos:
   - archivo: Circular sintética.pdf
     sha256: "0000000000000000000000000000000000000000000000000000000000000000"
     rol: circular
+    cargado: false
 criterios: "criterios sintéticos"
 preparo: "Pruebas, 2026-10-03"
 visto_bueno: "responsable sintético, 2026-10-03"
