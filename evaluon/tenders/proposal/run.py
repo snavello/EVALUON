@@ -133,6 +133,10 @@ OBLIGATION_MARKERS = (
     "no se aceptarán",
     "bajo apercibimiento",
     "desestim",
+    # Condiciones dichas como efecto (T-093); sin tildes también valen los plurales.
+    "se considerará",
+    "se entenderá",
+    "quedará",
 )
 
 ANOMALY_DISCARDED_IN_ITEM = "descartado_en_renglon"
@@ -426,6 +430,8 @@ def propose(run, *, user, channel=Channel.COMMAND):
             requests[PassName.COMPLETITUD.value] = completer.stats["requests"]
             timings["completitud"] = round(time.monotonic() - started, 3)
 
+        keep_tables_pending(loaded, decisions)
+
         # 4. Filas técnicas.
         started = time.monotonic()
         contributions = []
@@ -513,6 +519,20 @@ def completeness_candidates(loaded, decisions):
               and has_obligation_markers(unit.segment.text)):
             candidates.append(completeness.Candidate(unit, []))
     return candidates
+
+
+def keep_tables_pending(loaded, decisions):
+    """Un tramo `tabla` nunca queda descartado (T-093): si el modelo no propuso filas ni
+    marca técnica, queda pendiente de revisión con el motivo `tabla`. Se aplica después
+    de la completitud, que todavía puede encontrarle filas."""
+    for unit in loaded.units:
+        decision = decisions[unit.segment.pk]
+        if (unit.segment.segment_type == SegmentType.TABLA
+                and decision.outcome == DispositionOutcome.DESCARTADO.value):
+            decisions[unit.segment.pk] = Decision(
+                DispositionOutcome.PENDIENTE.value,
+                pending_reason=PendingReason.TABLA.value,
+                source=decision.source, step=decision.step)
 
 
 def apply_completeness(decisions, completion):
