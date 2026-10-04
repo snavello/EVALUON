@@ -1,14 +1,16 @@
 # Plan 003 · Procedimiento, pliego final y matriz de cumplimiento
 
-Estado: aprobado · Fecha: 2026-10-03 · Aprobó: responsable del proyecto
+Estado: aprobado · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-04, tope de sobrantes, REQ-033, REQ-034 y proceso único sin niveles (sección "Enmienda del 2026-10-04"), aprobada por el responsable el 2026-10-04
 
-Spec: `specs/003-pliego-matriz/spec.md` (aprobada el 2026-10-03, enmendada el mismo día: requisitos técnicos por renglón, criterio de requisito y de clase, tipos de consecuencia y REQ-032).
+Spec: `specs/003-pliego-matriz/spec.md` (aprobada el 2026-10-03, enmendada el mismo día: requisitos técnicos por renglón, criterio de requisito y de clase, tipos de consecuencia y REQ-032; enmendada el 2026-10-04: requisitos en tramos pendientes, tope de sobrantes, REQ-033 y REQ-034).
 
 ADR de este plan:
 
 - `docs/adr/0018-pedidos-largos-en-segundo-plano.md`, **aceptado**: pedidos largos en una tabla de la base con un servicio `worker`, y una segunda instancia del motor de generación para esos pedidos.
 - `docs/adr/0019-matriz-por-tramos-con-disposicion-obligatoria.md`, **aceptado**: la matriz se propone recorriendo el pliego por tramos, cada tramo con su disposición obligatoria; los requisitos formales y económicos con un fragmento literal verificado y los técnicos en una fila por renglón.
 - `docs/adr/0020-pdf-de-la-matriz-en-el-equipo.md`, **propuesto**: el PDF de la matriz se genera en el equipo con WeasyPrint (REQ-032, agregado después de aprobadas las decisiones de este plan).
+
+- `docs/adr/0021-filtro-de-precision-de-la-matriz.md`, **propuesto**: el filtro de sobrantes como pasada separada, con dos preguntas distintas, descarte visible y recuperable, y unificación por regla (REQ-033; enmienda del 2026-10-04).
 
 ADR en los que se apoya: 0002 (motor y modelo), 0003 (recuperación), 0004 (lectura y cita literal), 0005 (aplicación web), 0006 (dos regímenes), 0009 (respuestas de la Comisión), 0011 (medición), 0012 (suite), 0014 (puntos 6 y 7), 0015, 0017.
 
@@ -472,7 +474,7 @@ requisitos:
 2. **Formales y económicos: emparejamiento por cita, no por redacción.** Un requisito propuesto formal o económico empareja con uno esperado si están en el mismo documento y la cita propuesta cubre al menos la mitad de los caracteres del ancla. El emparejamiento es uno a uno: se ordenan los pares por superposición y se asignan de mayor a menor. Una fila que junta dos condiciones empareja con una sola: la otra cuenta como faltante, con causa "agrupado".
 3. **Técnicos: emparejamiento por renglón.** Un esperado técnico empareja con la fila técnica propuesta del mismo renglón. Además se informa, por renglón, qué tramos esperados (propios y generales) no están entre sus citas.
 4. **Encontrado**: requisito esperado emparejado. Un formal o económico esperado que ninguna fila formal o económica empareja, pero cuya ancla está dentro de un tramo citado por una fila técnica, cuenta como encontrado con clase equivocada. **Faltante**: no emparejado, con su causa: tramo descartado (y el motivo), tramo pendiente, agrupado con otro requisito, tramo con requisitos pero no este, renglón sin fila, ancla no encontrada.
-5. **Sobrante**: requisito propuesto sin emparejar. Se informan la cantidad y su reparto por tramo y por clase; no tienen límite.
+5. **Sobrante**: requisito propuesto sin emparejar. Se informan la cantidad y su reparto por tramo y por clase. *Enmendado el 2026-10-04: tienen un tope, y se miden sobre la matriz sin las filas descartadas por el sistema; ver "Enmienda del 2026-10-04".*
 6. **Clase**: entre los encontrados, los que tienen la clase esperada. La clase equivocada se informa y no bloquea (decisión del responsable).
 7. **Cita literal**: sobre todas las citas propuestas, el texto es igual al recorte del texto canónico, cae dentro de su tramo y la página informada es la del recorte. Las citas amplias se cuentan aparte.
 8. **Cobertura**: tramos con disposición sobre el total, por origen (modelo o regla), y pendientes por motivo. Se espera 100 % con disposición.
@@ -483,7 +485,7 @@ requisitos:
 | Requisitos encontrados | 100 %. Cada faltante se informa con su causa y bloquea la aceptación |
 | Cita literal | 100 % |
 | Tramos con disposición | 100 % |
-| Sobrantes | Sin límite; se informan |
+| Sobrantes | Hasta el 20 % de la matriz propuesta en el nivel por omisión, con el 100 % de encontrados (enmienda del 2026-10-04); ver "Enmienda del 2026-10-04" |
 | Clase correcta | Se informa; no bloquea |
 | Tramos técnicos citados por renglón | Se informa cada tramo que falta; no bloquea (la fila del renglón existe y el detalle lo evalúa el área requirente) |
 | Tiempo por nivel | El de la spec, para unas 50 páginas (ver "Tiempos") |
@@ -524,6 +526,187 @@ Antes, con 200 a 250 filas, media era la que quedaba más cerca de su límite; a
 | Total estimado | unos 18.162 de 24.137 libres |
 
 T-071 mide la memoria con los cuatro modelos cargados. T-084 mide además una consulta de normativa sola y durante una propuesta de matriz; la exigencia de la 001 es de hasta 30 segundos. El PDF no usa la GPU.
+
+## Enmienda del 2026-10-04: tope de sobrantes, filas descartadas y revisión por grupos (REQ-033, REQ-034)
+
+La spec se enmendó el 2026-10-04 (decisión del responsable): descartar a mano cientos de filas empeora el trabajo de la Comisión. Esta sección agrega al plan un filtro de precisión, una lista de filas descartadas por el sistema, la revisión por grupos y los cambios de la medición. No cambia nada de lo aprobado antes: la extracción, la completitud y las filas técnicas siguen proponiendo como hasta ahora. ADR propuesto: `docs/adr/0021-filtro-de-precision-de-la-matriz.md`.
+
+### Lo que dicen los números
+
+Medidas de T-093 y T-094; la muestra del caso-00 es de 30 de 95 sobrantes y la clasificó quien verificó (`corpus/casos/caso-00/corridas/analisis-sobrantes.md`, local).
+
+| Caso (proceso completo, el de "alta") | Esperados | Sobrantes | Sobrantes sobre la matriz propuesta |
+|---|---|---|---|
+| caso-00 | 52 | 95 | 65 % (95 de 146 filas; el 100 % de encontrados no se alcanza todavía: 51 de 52) |
+| caso-01 | 85 | 327 | 79 % |
+| caso-02 | 108 | 133 | 55 % |
+
+| Muestra de 30 sobrantes del caso-00 | Filas | Qué haría el filtro |
+|---|---|---|
+| No son requisitos de la oferta (ejecución del contrato, obligaciones del organismo, texto de normas o de formularios, datos) | 18 | Descartar |
+| Repetidas | 2 | Unificar |
+| Plausibles: condiciones que la oferta puede condicionar y la lista esperada no tiene | 9 | **Mantener** (ante la duda) |
+| División legítima de una oración | 1 | Mantener |
+
+**El tope probablemente no se alcanza con el filtro solo.** Si el filtro quita todo lo que no es requisito y lo repetido (unos dos tercios de los sobrantes en la muestra, con un intervalo amplio por ser 30 filas), en el caso-00 quedarían unos 30 sobrantes sobre unas 80 filas: alrededor del 38 %, no el 20 %. Quedan sobre todo las condiciones plausibles, que son compromisos que la oferta puede condicionar ("la mera presentación implica…", la confidencialidad, el código de ética). El filtro no las descarta para ajustarse a la lista: llevarse una fila real es un faltante que bloquea la aceptación. Si la medición del caso-00 lo confirma, la salida es una decisión del responsable (T-106), no un ajuste del filtro. Ver "Riesgos de la enmienda" y "Decisiones que necesita el responsable".
+
+### Orden de las pasadas
+
+**Un solo proceso (spec enmendada el 2026-10-04, REQ-030).** El responsable eliminó el nivel "media" y, con él, la elección de nivel: la matriz se propone siempre con un único proceso, el más completo, que es el que hoy se llama "alta" (extracción, completitud, filas técnicas, circulares, consecuencias). Se le suman pasadas cuando la medición muestra que mejoran la matriz. El tiempo se mide y se informa por pliego y por página, sin máximo y sin bloquear la aceptación. Donde este plan y las tareas ya terminadas hablan de niveles (media, alta, exigente; `MATRIX_LEVELS`, `MATRIX_LEVELS_OFFERED`, T-078 y T-085), rige lo de esta sección; la tarea T-100 saca la elección de nivel del producto. El proceso queda registrado con la matriz con un nombre fijo (`completo`) y la versión de cada instrucción (`matrix_run.process`, `prompt_versions`).
+
+Se suman dos pasadas al proceso, después de las que buscan requisitos y antes de lo que depende de ellos:
+
+| Pasada | Qué hace |
+|---|---|
+| Disposición por regla, extracción, completitud | Sin cambios. Proponen de más, como pide REQ-024 |
+| **Unificación** (`pass_name` `unificacion`) | Regla, sin modelo: junta las filas formales y económicas que repiten la misma condición |
+| **Filtro de precisión** (`filtro` y `filtro_2`) | Dos preguntas distintas por fila al modelo; descarta solo si coinciden |
+| Reglas de tablas (T-093), filas técnicas, circulares | Sin cambios. Las circulares se aplican después del filtro y a lo que quedó |
+| Consecuencias | Solo para las filas que quedaron en la matriz: menos pedidos |
+
+La segunda extracción (la que sumaba "exigente") no forma parte del proceso: T-100 deja de llamarla. Si la medición demuestra que una pasada así mejora la matriz, se vuelve a sumar con una tarea nueva.
+
+### Unificación de repetidas (`proposal/dedup.py`)
+
+- **Qué junta.** Dos filas formales o económicas, de cualquier tramo, cuyo fragmento normalizado (sin tildes, en minúsculas, espacios y signos de puntuación colapsados) es igual, o uno contiene al otro, o cuya similitud de palabras (conjunto de palabras sin las de uso común) es de al menos `DEDUP_MIN_SIMILARITY` (valor inicial 0,9). No usa el modelo: la coincidencia del texto es objetiva (en la muestra, 2 de 30 sobrantes eran el mismo texto en otro tramo o en el otro anexo).
+- **Cómo queda.** Una fila: la primera en el orden del pliego, con su cita como cita principal. Las citas de las otras filas quedan como citas adicionales de esa fila (`scope` `repetida`), cada una con su texto literal y su ubicación. La matriz muestra una fila con "también en: …" y las citas de cada una.
+- **No junta** filas técnicas, filas de circulares ni filas con `cita_amplia`; tampoco dos filas de un mismo tramo con citas distintas que no se superponen (son condiciones distintas, aunque se parezcan).
+- Se registra en `tenders_run_step` (`unificacion`, con la versión de la regla, el umbral y los pares unidos). Si dos filas distintas que debían quedar separadas se unieron, la Comisión lo ve en la fila y puede agregar la otra (REQ-026).
+
+### Filtro de precisión (`proposal/filter.py`)
+
+**Qué filas.** Las formales y económicas que propuso el modelo (después de la unificación). No pasan por el filtro, y quedan siempre en la matriz: las filas técnicas (las arma una regla), las que agrega una circular, las de tramos `tabla` (ya quedan pendientes de revisión) y las de cita amplia. Tampoco las filas de un tramo cuya sección el pliego titula como de clase formal o económica (`section_class`): por la sección, son requisitos.
+
+**Qué recibe el modelo.** Las instrucciones `prompts/matriz-filtro-v1.md`, con la definición de requisito de la spec y ejemplos sintéticos de otro objeto y otras cifras que el caso-00 (incluidos los que se mantienen aunque cumpla el organismo, como la forma y el plazo de pago, y los compromisos que la oferta asume al presentarse). Después, un lote de hasta `FILTER_BATCH_ROWS` filas (15), cada una con un alias (`F1`, `F2`, …), la ruta del tramo, el texto del tramo con el fragmento marcado y el título de su sección.
+
+**Dos preguntas distintas, cada una en su pedido** (`filtro` y `filtro_2`, temperatura 0, salida estructurada con una propiedad obligatoria por alias):
+
+1. **Clasificación.** Por fila: `mantener` o `descartar`; si descarta, un motivo de una lista cerrada (la del ADR-0019: título, definición o dato del procedimiento, norma aplicable, obligación del organismo que la oferta no puede contradecir ni condicionar, obligación de la ejecución del contrato, formulario a completar; más `consecuencia_o_sancion` y `derecho_posterior`) y un `indicio`: un fragmento literal del tramo que sostiene el motivo.
+2. **Pregunta inversa.** Por fila: si la oferta puede presentar, ofrecer, comprometer, contradecir o condicionar lo que dice el fragmento: `si`, `no` o `duda`. No ve la respuesta de la primera.
+
+**Cuándo se descarta.** Solo si se cumplen las cuatro condiciones: (1) la clasificación dice `descartar`; (2) el motivo está en la lista; (3) el indicio se encuentra, palabra por palabra, en el tramo (`quotes.py`); (4) la pregunta inversa dice `no`. Cualquier otra cosa mantiene la fila: salida inválida o cortada, alias faltante, motivo fuera de la lista, indicio que no está, `duda`, pedidos que fallan. Un lote que se corta por el máximo de salida se parte en dos, como en la extracción. Una fila nunca se pierde por una falla técnica.
+
+**Cuidado con los requisitos reales.**
+
+- Ante la duda, se mantiene. La asimetría es a propósito: un sobrante cuesta una fila a la Comisión; un faltante bloquea la aceptación.
+- Dos preguntas distintas, indicio verificable y coincidencia obligatoria, para que un error del modelo no alcance para perder una fila.
+- Lo descartado no desaparece: la lista de descartadas muestra cada fila con su cita, motivo e indicio, y se puede devolver (ver abajo).
+- La medición cuenta como **faltante, con causa propia**, a todo esperado que el filtro descartó; ese faltante bloquea la aceptación.
+- La disposición del tramo cuyas filas se descartaron todas queda `descartado` con origen `filtro` y el motivo, visible en la cobertura. Un tramo con alguna fila mantenida sigue `requisitos`.
+
+### Modelo de datos y migración
+
+Una migración nueva en `evaluon/tenders/migrations/`, a cargo de una sola tarea (T-099), que cambia varias cosas de la 003 y agrega una tabla:
+
+- **`tenders_discarded_row`** (nueva, solo inserción, trigger como `tenders_run_step`): una fila descartada por el sistema.
+
+| Campo | Contenido |
+|---|---|
+| `id`, `run`, `version`, `order` | Identificación; la propuesta, la versión que creó y el orden del pliego |
+| `segment`, `char_start`, `char_end`, `text` | La cita literal de la fila descartada y su ubicación, igual al recorte del texto canónico (P3) |
+| `extra_quotes` | Citas adicionales, si la fila había unificado repetidas (lista de tramo, posiciones y texto) |
+| `category`, `items` | Clase (`formal` o `economico`) y renglones que había propuesto el modelo |
+| `reason` | Motivo de la lista cerrada |
+| `evidence_segment`, `evidence_start`, `evidence_end`, `evidence_text` | El indicio, literal |
+| `vote_a`, `vote_b`, `step_a`, `step_b` | Las dos respuestas validadas y los pedidos de `tenders_run_step` que las produjeron |
+| `source_pass`, `passes` | Pasada que propuso la fila (`extraccion`, `extraccion_2`, `completitud`) y pasadas que la encontraron |
+| `created_at` | Momento |
+
+- **`tenders_requirement_quote.scope`** suma `repetida` (una cita adicional de la misma condición). La restricción de T-067 pasa a ser: un formal o económico tiene exactamente una cita con `scope` vacío y puede tener las `repetida` que haga falta; un técnico no cambia.
+- **`tenders_requirement.origin`** suma `devuelto` (devuelta desde la lista de descartadas) y la tabla suma `restored_from` (la descartada de la que sale; única por versión). Una fila devuelta nace `propuesto`.
+- **`tenders_requirement_change.action`** suma `devolver`.
+- **`tenders_matrix_run.process`** (texto, `completo`) y `tenders_matrix_version.process` para registrar el proceso único (REQ-030 enmendado). `level` queda como dato histórico de las propuestas ya hechas: acepta vacío y las propuestas nuevas lo dejan vacío.
+- **`tenders_run_step.pass_name`** suma `unificacion`, `filtro` y `filtro_2`; **`tenders_disposition.source`** suma `filtro`.
+- **Inmutabilidad.** `tenders_discarded_row` es de solo inserción. "Devolver" no la modifica: crea un requisito con `restored_from`. El estado de una descartada (descartada o devuelta) se deriva de la existencia de ese requisito en la versión que se mira. Las versiones que se abren sobre una validada muestran las descartadas de la propuesta original (por la cadena `based_on`) y copian, como el resto, los requisitos devueltos con su `restored_from`.
+- **Parámetros** (`settings.py`, copiados en cada propuesta): `FILTER_ENABLED` (verdadero), `FILTER_BATCH_ROWS` (15), `FILTER_MOTIVES` (la lista cerrada), `DEDUP_MIN_SIMILARITY` (0,9), `MATRIX_SAMPLE_DISCARDED` (uno de cada tres, mínimo 20), `MATRIX_SOBRANTES_LIMIT` (0,20) y la versión de las instrucciones del filtro en `MATRIX_PROMPT_VERSIONS`. `FILTER_ENABLED` en falso devuelve la propuesta de T-093 sin la pasada (ADR-0021, "Para revertir").
+- **`tenders_matrix_run.counts`** suma: filas unificadas, filas descartadas por motivo y por pasada, filas mantenidas por duda (la clasificación pidió descartar y no se cumplió alguna de las otras tres condiciones).
+
+### La lista de descartadas y cómo se devuelve (REQ-033)
+
+- **Servicio** `services/discarded.py`: listar las descartadas de una versión (con su estado derivado) y `restore(user, version, [descartada])`. Roles: operador o evaluador, porque devolver equivale a agregar un requisito (REQ-026). En una versión validada se rechaza; la lista se puede ver.
+- **Qué hace devolver.** Crea el requisito con la clase, los renglones y las citas de la descartada (la principal y las adicionales), `origin` `devuelto`, `restored_from`, `proposed` con copia de lo propuesto, estado `propuesto`; lo confirma después un evaluador, como cualquier otro. Deja una fila de `tenders_requirement_change` con acción `devolver`, quién, cuándo, y el motivo y el indicio del descarte, y el hecho `requirement_change`. Una devuelta que se quita después queda `quitado` con su historia.
+- **Sin sugerencias de consecuencia.** Una fila devuelta no pasa por la pasada de consecuencias: llega sin sugerencias y el evaluador elige el tipo y escribe su motivo, como con cualquier fila sin sugerencia (REQ-029). Se informa en pantalla.
+- **Pantalla.** Página "Descartadas por el sistema" de la versión: cada fila con su cita literal, el documento, la página y la cláusula, el enlace al original, la clase propuesta, el motivo y el indicio; casillas y botón "Devolver a la matriz" (una o varias); las ya devueltas figuran como tales. En la página de la matriz, una línea "El sistema descartó N filas y unificó M repetidas: ver" con el enlace, y en la cobertura, el origen `filtro`.
+- **Impresión y PDF (REQ-032).** La plantilla de impresión suma una línea con la cantidad de filas descartadas por el sistema y su reparto por motivo, para que quien lee el papel sepa que existe esa lista; el detalle se ve en pantalla.
+
+### Revisión por grupos (REQ-034)
+
+- **Qué es un grupo.** Las filas `propuesto` de la versión cuyo tramo cuelga de una misma cláusula o es un mismo tramo. El grupo se nombra por una clave de tramo: una cláusula (`sec-i/11`, `sec-i/11.3`) o un tramo (`sec-i/11.3/v-1`). Una fila es del grupo si la clave de su tramo es igual a la del grupo o la continúa con un separador de nivel (`/`, `.` o `#`), de modo que `sec-i/1` no alcanza a `sec-i/11`.
+- **Servicios** (`services/review.py`): `confirm_group(user, version, clave)` (solo evaluador) y `remove_group(user, version, clave)` (operador o evaluador). Actúan solo sobre las filas `propuesto` del grupo, dentro de una transacción, y para cada una llaman a la misma función que la revisión fila por fila. Cada fila deja su propia fila de `tenders_requirement_change` y su hecho `requirement_change`, con quién y cuándo, y una marca `via_grupo` con la clave. Una fila ya confirmada, corregida o quitada no se toca. Un grupo vacío no hace nada y lo dice.
+- **Pantalla.** En la matriz, encabezados por cláusula de primer nivel y, dentro de cada una, por tramo con dos o más filas propuestas, con los botones "Confirmar las N propuestas" y "Quitar las N propuestas". Primero se muestra una página de confirmación con las N filas que se van a tocar y su texto literal; solo con "Aceptar" se aplica. Las casillas de confirmar varias (T-079) siguen.
+- Los grupos no cambian lo que cuenta como decisión: confirmar sigue siendo del evaluador y queda registrado fila por fila. La validación sigue confirmando lo que haya quedado `propuesto`.
+
+### Cambios en la medición (`medir_matriz`)
+
+Se aplican a `evaluation.py` y al comando; la lista esperada y la regla de emparejamiento por cita no cambian.
+
+1. **Matriz propuesta = lo que ve la Comisión**: las filas formales, económicas y técnicas de la versión, sin las descartadas por el sistema.
+2. **Sobrantes** = filas de esa matriz sin pareja. **Proporción de sobrantes** = sobrantes ÷ filas de la matriz propuesta (formales, económicas y técnicas), con su intervalo de Wilson al 95 %. Se informa también la proporción solo sobre formales y económicos.
+3. **Tope.** Se evalúa sobre el proceso único: cumple si la proporción es de hasta 20 % (`MATRIX_SOBRANTES_LIMIT`) y los encontrados son el 100 % (contando "a revisión obligatoria", T-095). El intervalo se informa y no decide.
+4. **Esperados descartados.** Un esperado sin pareja entre las filas de la matriz que sí tiene pareja (misma regla de cobertura de la mitad del ancla) entre las filas descartadas pasa a faltante con causa propia `descartado_por_el_sistema`, con el motivo y la clave de la descartada. Bloquea la aceptación y se informa con su motivo.
+5. **Unificadas.** Un esperado cuyo ancla está en una cita `repetida` de una fila ya emparejada cuenta como encontrado "unificado", informado aparte. Así la unificación no crea faltantes. `--verificar-esperada` avisa además si dos esperados tienen un ancla con el mismo texto normalizado (se unificarían).
+6. **Pareja con varias citas.** Una fila empareja con un esperado si cualquiera de sus citas (la principal o una adicional) cubre al menos la mitad del ancla.
+7. **Informe de descartadas.** Cantidad, reparto por motivo, por tramo y por pasada; sobrantes que habría sin el filtro (sobrantes más descartadas sin pareja, para ver cuánto quita); y una **muestra** de `MATRIX_SAMPLE_DISCARDED` filas, en orden de la corrida, con su cita, motivo e indicio, en `resumen.md` (con texto, fuera del repositorio) y en una plantilla local `muestra-descartadas.md` con una columna para que quien verifica diga si el descarte era correcto. `resumen-publico.md` solo lleva cuentas, claves de tramo y motivos, sin texto del pliego.
+8. **Corridas anteriores.** `--regenerar-resumen` sigue funcionando con propuestas sin descartadas (sin filtro, todas las medidas anteriores).
+9. **Tiempos.** `timing_summary` suma las pasadas `unificacion` y `filtro`.
+
+| Medida | Meta |
+|---|---|
+| Requisitos encontrados | 100 % (sin cambios); un esperado descartado por el sistema es un faltante |
+| Sobrantes | Hasta 20 % de la matriz propuesta sin descartadas |
+| Filas descartadas | Se informan, por motivo, con una muestra revisada de sus motivos |
+| Esperados descartados por el sistema | 0 |
+
+### Cómo se evita el sobreajuste
+
+El caso-00 es de ajuste (`uso: ajuste`, decisión del 2026-10-04); los casos 01 y 02 son de aceptación y no se miran antes.
+
+1. **Qué se ajusta y cuánto.** Solo las instrucciones del filtro (`matriz-filtro-v1.md`) y los parámetros del filtro y de la unificación, con el caso-00, en a lo sumo **tres rondas** (v1, v2, v3). Cada ronda se mide en el caso-00 y se anota en `verificacion/T-106.md`: qué cambió, con una frase general que no nombra cláusulas del pliego, y qué movió (esperados descartados, sobrantes, descartadas).
+2. **Qué no se toca.** La lista esperada, el emparejamiento, las instrucciones de extracción y de completitud, los motivos de la lista cerrada ni los criterios de requisito de la spec. No se descarta ninguna fila para que coincida con la lista: una fila plausible que la lista no tiene sigue siendo un sobrante legítimo; el camino para esos casos es decidir sobre la lista o el tope con el responsable (T-107).
+3. **Independencia de lo que se escribe.** Las instrucciones nuevas usan ejemplos de otro objeto y otras cifras; una prueba busca las anclas de la lista del caso-00 (frases de 3 a 5 palabras) y falla si aparecen en las instrucciones, los tests o los ejemplos, como se hizo en T-093.
+4. **La parte a ciegas.** Los casos 01 y 02 no se corren con el filtro hasta T-108, con las instrucciones fijas. Lo que se vio de ellos en T-094 (cantidades) no se usa para ajustar. T-108 no ajusta nada: informa, y un faltante o un tope no cumplido se informan con su causa.
+5. **Sin ajustar en la aceptación.** Si en T-108 el filtro se lleva un esperado de 01 o 02 o no cumple el tope, no se corrige ahí: se informa al responsable y, si decide ajustar, el caso afectado pasa a ser de ajuste, como ya prevé este plan.
+
+### Tiempos de la enmienda
+
+Estimación, por lo medido en T-093 (caso-00, 20 páginas): alta 412 s, media 333 s; el filtro lee unos 147 tramos de contexto y escribe unos 30 tokens por fila en la clasificación y 5 en la pregunta inversa. Sumaría en el caso-00 alrededor de 1 a 2 minutos; las consecuencias, que se piden por fila (126 s en alta), correrían sobre menos filas y recuperan una parte. Para 50 páginas (×2,5), alta pasaría de unos 17 minutos a unos 20: la spec ya no fija un máximo, y el tiempo se mide e informa por pliego y por página (T-106 y T-108) sin bloquear. El responsable indicó que en la matriz manda la calidad y el tiempo es secundario.
+
+### Riesgos de la enmienda
+
+| Riesgo | Impacto | Mitigación |
+|---|---|---|
+| El filtro descarta un requisito real | Faltante: bloquea la aceptación | Ante la duda se mantiene; dos preguntas distintas, indicio literal y coincidencia obligatoria; la lista de descartadas permite devolverla; la medición lo cuenta como faltante con causa propia |
+| **El tope del 20 % no se alcanza aunque el filtro funcione** (quedan condiciones plausibles que la lista no tiene) | La aceptación no se cumple por la lista, no por el sistema | T-106 lo mide en el caso-00 y T-107 lleva los números al responsable antes de la aceptación; no se descartan filas plausibles para llegar al tope |
+| Sobreajuste del filtro al caso-00 | Buen resultado en el caso-00 y malo en 01 y 02 | Ver "Cómo se evita el sobreajuste": tres rondas como máximo, ajustes generales, ejemplos independientes, 01 y 02 a ciegas |
+| La unificación junta dos condiciones distintas | Una condición real queda dentro de otra fila | Umbral alto, citas adicionales visibles en la fila, el evaluador puede agregar la otra; mide como "unificado" |
+| Una descartada devuelta no tiene sugerencias de consecuencia | Más trabajo del evaluador en esas filas | Son pocas (las que la Comisión cree que el sistema descartó mal); el evaluador elige el tipo, como con cualquier fila sin sugerencia |
+| Quitar el nivel "media" deja referencias sueltas (pantalla, `MATRIX_LEVELS`, `--niveles`, tests, corridas guardadas) | Un pedido o una medición que todavía nombra un nivel | T-100 lo quita en una sola tarea, con búsqueda de todas las referencias; las propuestas ya guardadas conservan su nivel como dato histórico |
+| La medición provisoria con un solo pliego de ajuste | El filtro puede no generalizar | T-108 mide con 01 y 02 sin ajustar; cada pliego nuevo se mide primero sin ajustes |
+
+### Cobertura de REQ-033 y REQ-034
+
+| Requisito | Cómo se resuelve | Cómo se verifica |
+|---|---|---|
+| REQ-033 | Unificación por regla (`dedup.py`); pasada de filtro con dos preguntas, motivo e indicio (`filter.py`); `tenders_discarded_row` y la lista de descartadas; devolver con registro; tope y causa propia en la medición | Tests con el doble: una fila de ejecución del contrato se descarta con cita y motivo y figura en la lista; una duda, un indicio ausente o una respuesta distinta mantienen la fila; dos filas con la misma condición dan una con las dos citas; devolver crea el requisito y deja el registro. Medición del caso-00 (ajuste) y de 01 y 02 (aceptación): sobrantes hasta 20 %, esperados descartados 0 |
+| REQ-030 (enmendado) | Sin elección de nivel; proceso único `completo` registrado con la matriz junto con la versión de instrucciones (T-099 y T-100) | Tests: el pedido no ofrece niveles; la propuesta registra proceso y versiones; la medición no tiene `--niveles` |
+| REQ-034 | `confirm_group` y `remove_group`; pantalla de grupos con confirmación previa | Tests: cinco filas propuestas de una cláusula se confirman como grupo y cada una tiene su fila de historial con quién y cuándo; `sec-i/1` no alcanza a `sec-i/11`; un operador no puede confirmar el grupo y queda `rejected` |
+
+### Decisiones que necesita el responsable
+
+1. **Aprobar esta enmienda del plan y el ADR-0021** (compuerta).
+2. **El tope y la lista, después de T-106.** Si el caso-00 confirma que quedan unas decenas de sobrantes plausibles y la proporción no baja del 20 %, hay que elegir entre: (a) revisar con la Comisión si esas condiciones son requisitos y ampliar las listas esperadas de los tres casos; (b) subir el tope; (c) otra forma de contar las filas que son un solo requisito. El sistema no debe descartar esas filas para llegar al tope.
+3. Nada más por el tiempo: la spec ya no lo limita.
+
+### Puntos de interpretación, para el Coordinador
+
+1. **Denominador del tope.** El plan toma como "matriz propuesta" todas las filas (formales, económicas y técnicas, sin descartadas); informa también la proporción solo sobre formales y económicos. Las técnicas suman unas 6 filas por pliego y favorecen levemente el tope.
+2. **El tope se evalúa con el valor observado**, no con el límite superior del intervalo; el intervalo se informa.
+3. **Grupo de revisión.** "Misma cláusula" se resuelve por la clave del tramo (cláusula de cualquier nivel o tramo). La spec no dice si el grupo es solo de primer nivel.
+4. **Quitar por grupo** puede hacerlo un operador, como quitar una fila (REQ-026); confirmar, solo un evaluador.
+5. **Devolver** lo hace un operador o un evaluador, como agregar; la fila nace `propuesto`.
+6. **Las filas devueltas no tienen sugerencias de consecuencia.**
+7. **T-094** (medición de aceptación con 01 y 02) se hizo antes del filtro y con niveles: la matriz cambia con T-102 y el producto con T-100, por lo que T-108 repite la aceptación completa, solo con el proceso único.
+8. **REQ-030 y los niveles.** El texto de REQ-030 de la spec enmendada ya no pide nivel; el resto del plan aprobado y las tareas T-073, T-078, T-084 y T-085 los mencionan como historia. Este plan no los reescribe: T-100 deja el producto y la medición sin niveles.
 
 ## Qué no se hace en esta feature
 

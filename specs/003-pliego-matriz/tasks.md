@@ -45,6 +45,17 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-095 | Contar como "a revisión obligatoria" los requisitos en tramos pendientes | REQ-024 | T-093 | terminada |
 | T-096 | Corregir la cobertura de tramos de `medir_matriz` cuando hay circulares | REQ-030 | T-095 | terminada |
 | T-097 | Corregir la cita literal de las filas técnicas con varios documentos en `medir_matriz` | REQ-025, REQ-030 | T-096 | terminada |
+| T-098 | Corregir la pasada de circulares (fuentes, tramos descartados y no ubicados) | REQ-028, REQ-031 | T-094 | en curso |
+| T-099 | Crear la tabla de filas descartadas, las citas repetidas y los parámetros del filtro | REQ-030, REQ-033 | T-096 | pendiente |
+| T-100 | Quitar el nivel "media" y dejar un solo proceso registrado | REQ-030 | T-099, T-097, T-098 | pendiente |
+| T-101 | Unificar las filas que repiten la misma condición | REQ-025, REQ-033 | T-100 | pendiente |
+| T-102 | Filtrar con dos preguntas las filas que no son requisitos de la oferta | REQ-024, REQ-033 | T-101 | pendiente |
+| T-103 | Medir los sobrantes sobre la matriz sin descartadas, con tope e informe de descartadas | REQ-024, REQ-030, REQ-033 | T-099, T-100 | pendiente |
+| T-104 | Listar y devolver las filas descartadas, y revisar por grupos | REQ-026, REQ-033, REQ-034 | T-099 | pendiente |
+| T-105 | Mostrar las descartadas, las citas repetidas y la revisión por grupos | REQ-032, REQ-033, REQ-034 | T-100, T-104 | pendiente |
+| T-106 | Medir el filtro con el caso-00 y ajustarlo | REQ-024, REQ-033 | T-102, T-103 | pendiente |
+| T-107 | Decidir con el responsable el tope y la lista con lo medido en el caso-00 | REQ-033 | T-106 | pendiente |
+| T-108 | Medir la aceptación del proceso con filtro con los casos 01 y 02 | REQ-024, REQ-025, REQ-030, REQ-031, REQ-033 | T-094, T-105, T-107 | pendiente |
 
 ## Para todas las tareas
 
@@ -289,6 +300,98 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 - **No tocar:** la propuesta, las instrucciones, la lista esperada.
 - **Entorno:** cualquier equipo con Docker.
 
+### T-098 · Corregir la pasada de circulares (fuentes, tramos descartados y no ubicados)
+
+- **Qué hacer:** decisión del responsable del 2026-10-04. En la medición del caso-01 (T-094), REQ-031 no se cumple: M-029 y M-044 sin fuente de circular (tramos de la Circular 1 descartados por título o como líneas de fechas), M-015 sin fila (los tramos de la Circular 2 quedan `no_ubicado`), y fuentes de la Circular 1 pegadas a filas técnicas ajenas. Diagnosticar en la base real en solo lectura y corregir causas generales, no a la medida del texto del caso-01; sin cambiar instrucciones con ejemplos del caso-01.
+- **Archivos:** `evaluon/tenders/` (pasada de circulares), tests de `tests/tenders/`.
+- **Verificación:** tests con textos inventados que reproducen cada fallo y fallan sin el arreglo; suite completa.
+- **No tocar:** `medir_matriz` y `evaluation.py`, la lista esperada, `plan.md`.
+- **Entorno:** cualquier equipo con Docker; diagnóstico con la base real en solo lectura.
+
+### Enmienda del 2026-10-04: proceso único, filtro de sobrantes, descartadas y grupos (T-099 a T-108)
+
+Plan: sección "Enmienda del 2026-10-04" de `plan.md`; ADR-0021 (propuesto). Estas tareas esperan la aprobación de la enmienda del plan. Cadenas: esquema y configuración compartida, solo T-099 y, después, T-100 (`settings.py`); `proposal/run.py`: T-098 → T-100 → T-101 → T-102; `evaluation.py` y `medir_matriz`: T-097 → T-100 → T-103; servicios y vistas de revisión: T-104 → T-105.
+
+### T-099 · Crear la tabla de filas descartadas, las citas repetidas y los parámetros del filtro
+
+- **Qué hacer:** una migración y los parámetros del plan ("Modelo de datos y migración" de la enmienda): tabla `tenders_discarded_row` de solo inserción (con trigger y su reversa); `tenders_requirement_quote.scope` suma `repetida` y la restricción pasa a "una cita con `scope` vacío más las `repetida` que haga falta" en formales y económicos (adaptar la restricción o el trigger de T-067 sin perder las pruebas); `tenders_requirement.origin` suma `devuelto` y el campo `restored_from` (único por versión); `tenders_requirement_change.action` suma `devolver`; `tenders_run_step.pass_name` suma `unificacion`, `filtro` y `filtro_2`; `tenders_disposition.source` suma `filtro`; `process` en `tenders_matrix_run` y `tenders_matrix_version`, y `level` admite vacío (los datos viejos conservan el suyo). `settings.py`: `FILTER_ENABLED`, `FILTER_BATCH_ROWS`, `FILTER_MOTIVES`, `DEDUP_MIN_SIMILARITY`, `MATRIX_SAMPLE_DISCARDED`, `MATRIX_SOBRANTES_LIMIT`, `MATRIX_PROCESS` (`completo`) y las versiones de instrucciones `filtro` y `unificacion` en `MATRIX_PROMPT_VERSIONS`. No quita ni cambia `MATRIX_LEVELS` (es de T-100).
+- **Archivos:** `evaluon/tenders/models.py`, `evaluon/tenders/migrations/` (una nueva), `evaluon/settings.py`, `tests/tenders/test_models.py`.
+- **Verificación:** `migrate` sobre base vacía y `migrate --check`; tests: UPDATE y DELETE sobre `tenders_discarded_row` rechazados por la base; un formal con una cita principal y dos `repetida` se acepta, con dos principales se rechaza, y un técnico no cambia; dos requisitos de una versión con el mismo `restored_from` se rechazan; los valores nuevos de `origin`, `action`, `pass_name` y `source` se aceptan y uno inventado, no; los datos de una propuesta anterior (con `level` y sin `process`) siguen siendo válidos; suite en verde.
+- **No tocar:** `proposal/`, servicios, vistas, `evaluation.py`; las instrucciones.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-100 · Quitar el nivel "media" y dejar un solo proceso registrado
+
+- **Qué hacer:** decisión del responsable del 2026-10-04 (REQ-030 enmendado). El proceso único es el de "alta": extracción, completitud, filas técnicas, circulares y consecuencias. Quitar del producto la elección de nivel y los otros dos niveles: el formulario "Proponer matriz" de la pantalla, `MATRIX_LEVELS`, `MATRIX_LEVELS_OFFERED` y el nivel por omisión (en su lugar, `MATRIX_PROCESS`), la validación del nivel en `services/matrix.py`, la rama de media (marcadores que dejan pendiente) y la segunda extracción de exigente en `run.py` y `completeness.py`, la columna "nivel" de la matriz y de la impresión, y `medir_matriz --niveles` (se mide el proceso único; la comparación entre niveles de T-091 y la regla "un nivel se ofrece solo si mejora" dejan de aplicar). La propuesta registra `process` y la versión de cada instrucción en `tenders_matrix_run` y en la versión de matriz. Buscar todas las referencias (`level`, `nivel`, `MATRIX_LEVELS`, `media`, `exigente`) y dejar las propuestas ya guardadas legibles con su nivel como dato histórico. Retirar los tests que solo probaban niveles o la segunda extracción; mantener los de completitud y los demás.
+- **Archivos:** `evaluon/settings.py`, `evaluon/tenders/services/matrix.py`, `evaluon/tenders/proposal/run.py`, `evaluon/tenders/proposal/completeness.py`, `evaluon/tenders/evaluation.py`, `evaluon/tenders/management/commands/medir_matriz.py`, `evaluon/tenders/views/` (solo lo que lea el nivel), `evaluon/templates/tenders/procedure.html`, `evaluon/templates/tenders/matrix.html`, `evaluon/templates/tenders/matrix_print.html`, y los tests de `tests/tenders/` que nombran niveles (`test_levels_offered.py`, `test_matrix_request.py`, `test_completeness.py`, `test_evaluation.py`, `test_models.py` y los que la búsqueda encuentre).
+- **Verificación:** tests: el pedido de una matriz no recibe nivel y el formulario no lo ofrece; la propuesta registra `process` `completo` y las versiones de instrucciones; la propuesta hace lo mismo que "alta" en T-093 con el doble (mismas pasadas, mismas filas); `medir_matriz` ya no acepta `--niveles`; la matriz y la impresión muestran el proceso y no un nivel; una propuesta vieja con `level` `media` se sigue viendo; búsqueda sin referencias vivas a `MATRIX_LEVELS_OFFERED` o a la segunda extracción; suite completa en verde.
+- **No tocar:** las instrucciones; la regla de emparejamiento y la lista esperada; `proposal/circulars.py` (T-098); el esquema (T-099). Esta tarea espera la integración de T-098 (`proposal/`) y de T-097 (`evaluation.py`).
+- **Entorno:** cualquier equipo con Docker.
+
+### T-101 · Unificar las filas que repiten la misma condición
+
+- **Qué hacer:** `proposal/dedup.py` (plan, "Unificación de repetidas"): normalización del fragmento, igualdad, contención y similitud de palabras con `DEDUP_MIN_SIMILARITY`; la fila que queda es la primera en el orden del pliego y conserva las citas de las otras como citas `repetida` literales; no junta filas técnicas, de circulares ni de cita amplia, ni dos filas de un mismo tramo con citas sin superposición; registro en `tenders_run_step` (`unificacion`); cuentas en `counts`; la pasada en `run.py` después de la completitud y antes de las filas técnicas.
+- **Archivos:** `evaluon/tenders/proposal/dedup.py`, `evaluon/tenders/proposal/run.py`, `tests/tenders/test_dedup.py`.
+- **Verificación:** tests con el doble: dos filas con el mismo fragmento en tramos distintos dan una con dos citas, cada una igual a su recorte; una fila contenida en otra se une; dos condiciones distintas de un mismo tramo no se unen; las técnicas y las de circulares quedan como están; el registro lista los pares unidos y el umbral; con `DEDUP_MIN_SIMILARITY` en 1,0 solo se unen las iguales; suite en verde.
+- **No tocar:** `extraction.py`, `completeness.py` (salvo importar sus funciones), `circulars.py`; el esquema.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-102 · Filtrar con dos preguntas las filas que no son requisitos de la oferta
+
+- **Qué hacer:** `proposal/filter.py` y las instrucciones `prompts/matriz-filtro-v1.md` (plan, "Filtro de precisión"): alcance (formales y económicos propuestos por el modelo, sin técnicos, circulares, tablas, cita amplia ni secciones con clase formal o económica); lotes de `FILTER_BATCH_ROWS`; clasificación con motivo de la lista e indicio, y pregunta inversa, cada una con salida estructurada obligada; descarte solo con las cuatro condiciones, y cualquier otra cosa mantiene la fila; partición de un lote cortado; registro de cada pedido en `tenders_run_step` (`filtro`, `filtro_2`); filas descartadas en `tenders_discarded_row` (con las citas adicionales y los dos votos); disposición `descartado` con origen `filtro` para un tramo cuyas filas se descartaron todas; cuentas por motivo, por pasada y mantenidas por duda; la pasada en `run.py` después de la unificación y antes de las reglas de tablas, las filas técnicas, las circulares y las consecuencias; `FILTER_ENABLED` en falso saltea la pasada. Instrucciones con ejemplos sintéticos de otro objeto y otras cifras que el caso-00.
+- **Archivos:** `evaluon/tenders/proposal/filter.py`, `evaluon/tenders/proposal/run.py`, `evaluon/tenders/prompts/matriz-filtro-v1.md`, `tests/tenders/test_filter.py`.
+- **Verificación:** tests con el doble: una fila de ejecución del contrato con motivo e indicio literal y pregunta inversa `no` se descarta y queda en la tabla con su cita, motivo, indicio y los dos votos; con pregunta inversa `si` o `duda`, indicio que no está en el tramo, motivo fuera de la lista, salida inválida, alias faltante o pedido fallido, la fila se mantiene; una fila técnica, de circular, de tabla o de cita amplia no se manda al modelo; el tramo con todas las filas descartadas queda `descartado` con origen `filtro`; un lote cortado se parte; con `FILTER_ENABLED` en falso la matriz es la de antes; una prueba busca las anclas de la lista del caso-00 en las instrucciones, los tests y los ejemplos y falla si aparece alguna de 5 palabras; las consecuencias se piden solo para las filas mantenidas; suite en verde.
+- **No tocar:** `extraction.py`, `completeness.py`, `circulars.py`, las instrucciones de extracción y de completitud; la lista esperada.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-103 · Medir los sobrantes sobre la matriz sin descartadas, con tope e informe de descartadas
+
+- **Qué hacer:** cambios de "Cambios en la medición" del plan: la matriz propuesta es lo que ve la Comisión (sin descartadas); sobrantes, proporción de sobrantes sobre las filas de la matriz (formales, económicas y técnicas) con su intervalo de Wilson y la proporción solo sobre formales y económicos; veredicto del tope con `MATRIX_SOBRANTES_LIMIT` y el 100 % de encontrados (con "a revisión obligatoria"); esperado descartado por el sistema como faltante con causa `descartado_por_el_sistema`, motivo y clave; esperado en una cita `repetida` como encontrado "unificado"; pareja con cualquiera de las citas de la fila; informe de descartadas por motivo, tramo y pasada, con los sobrantes que habría sin el filtro y la muestra de `MATRIX_SAMPLE_DISCARDED` filas en `resumen.md` y en la plantilla local `muestra-descartadas.md`; `resumen-publico.md` solo con cuentas, claves y motivos; tiempos de `unificacion` y `filtro`; `--verificar-esperada` avisa de dos esperados con el mismo ancla normalizado; `--regenerar-resumen` sigue funcionando con propuestas sin descartadas.
+- **Archivos:** `evaluon/tenders/evaluation.py`, `evaluon/tenders/management/commands/medir_matriz.py`, `tests/tenders/test_evaluation.py`, `tests/tenders/fixtures/` (listas y propuestas sintéticas).
+- **Verificación:** tests con datos sintéticos insertados en la base: las descartadas no cuentan como sobrantes; un esperado cuya cita está en una descartada es faltante con la causa propia y el motivo; uno en una cita `repetida` cuenta como unificado y no como faltante; con 8 sobrantes sobre 40 filas (20 %) el tope cumple y con 9 sobre 40 no; con un faltante el tope no cumple aunque la proporción sí; la muestra sale con el tamaño y el orden previstos; `resumen-publico.md` no contiene texto de ninguna cita ni indicio (se comprueba buscando cada texto); una corrida sin descartadas da las medidas de siempre; suite en verde.
+- **No tocar:** la propuesta (`proposal/`); la regla de emparejamiento salvo las citas adicionales; la lista esperada. Espera a T-100 (que ya quitó `--niveles` en el mismo archivo).
+- **Entorno:** cualquier equipo con Docker.
+
+### T-104 · Listar y devolver las filas descartadas, y revisar por grupos
+
+- **Qué hacer:** `services/discarded.py` (listar las descartadas de una versión con su estado derivado, por la cadena `based_on`; `restore`, operador o evaluador, que crea el requisito con `origin` `devuelto`, `restored_from`, `proposed`, citas principal y adicionales, estado `propuesto`, fila `devolver` en `tenders_requirement_change` con el motivo y el indicio del descarte, y hecho `requirement_change`; rechazo en una versión validada); en `services/review.py`, `confirm_group` (solo evaluador) y `remove_group` (operador o evaluador) según el plan ("Revisión por grupos"): la clave del grupo se continúa solo en un separador de nivel, actúa solo sobre las filas `propuesto`, en una transacción, llamando a la función de cada fila, con una fila de historial por requisito marcada `via_grupo`; `services/validation.py` suma al hecho `matrix_validation` las cuentas de descartadas totales y devueltas; copiar los requisitos devueltos con su `restored_from` en una versión nueva.
+- **Archivos:** `evaluon/tenders/services/discarded.py`, `evaluon/tenders/services/review.py`, `evaluon/tenders/services/validation.py`, `tests/tenders/test_discarded.py`, `tests/tenders/test_review_group.py`.
+- **Verificación:** tests: cinco filas propuestas de una cláusula confirmadas como grupo quedan `confirmado` con una fila de historial cada una, con quién y cuándo, igual a una confirmación individual; `sec-i/1` no alcanza a `sec-i/11` y `sec-i/11.3/v-1` es del grupo `sec-i/11.3`; una fila ya confirmada o corregida no se toca; quitar por grupo funciona para un operador y confirmar por grupo lo rechaza (`rejected`); devolver una descartada crea el requisito con sus citas literales y el registro, una segunda devolución en la misma versión se rechaza, y en una versión validada también; la versión nueva copia lo devuelto; el hecho de validación trae las cuentas; suite en verde.
+- **No tocar:** `proposal/`, `evaluation.py`, el esquema (T-099), las vistas (T-105).
+- **Entorno:** cualquier equipo con Docker.
+
+### T-105 · Mostrar las descartadas, las citas repetidas y la revisión por grupos
+
+- **Qué hacer:** plan, "Pantalla": página "Descartadas por el sistema" de la versión (cita literal, documento, página, cláusula, enlace al original, clase, motivo, indicio, estado; casillas y botón "Devolver a la matriz"); línea en la matriz con las cantidades y el enlace; las citas `repetida` ("también en: …") en cada fila; encabezados por cláusula de primer nivel y por tramo con dos o más propuestas, con "Confirmar las N propuestas" y "Quitar las N propuestas", y la página de confirmación previa con las filas y su texto; el origen `filtro` en la cobertura; en la vista de impresión y el PDF, la línea con la cantidad de descartadas y su reparto por motivo (la leyenda de borrador no cambia); aviso "sin sugerencias de consecuencia" en las filas devueltas.
+- **Archivos:** `evaluon/tenders/views/discarded.py`, `evaluon/tenders/views/review.py`, `evaluon/tenders/urls.py`, `evaluon/templates/tenders/discarded.html`, `evaluon/templates/tenders/group_confirm.html`, `evaluon/templates/tenders/matrix.html`, `evaluon/templates/tenders/matrix_print.html`, `evaluon/templates/tenders/coverage.html`, `evaluon/static/tenders/matrix.css`, `tests/tenders/test_discarded_screen.py`, `tests/tenders/test_group_screen.py`.
+- **Verificación:** tests con el cliente de pruebas: la lista muestra cada descartada con su texto igual al recorte, motivo e indicio; devolver una cambia su estado y la fila aparece en la matriz; el botón del grupo muestra primero la página con las N filas y recién "Aceptar" aplica; un operador no ve "Confirmar" del grupo; una fila con citas repetidas muestra todas; el PDF y la impresión de un borrador con descartadas llevan la línea y la leyenda "BORRADOR INCOMPLETO" en cada página; ninguna página referencia direcciones externas; suite en verde.
+- **No tocar:** los servicios de T-104; `export.py`; `proposal/`.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-106 · Medir el filtro con el caso-00 y ajustarlo
+
+- **Qué hacer:** con T-102 y T-103 integradas, corrida real del caso-00 (`uso: ajuste`; el Coordinador pasa la lista de `primera_corrida` a `ajuste` antes, si todavía no lo hizo) con el proceso único y el filtro; informe: encontrados (con causas, y en especial esperados descartados por el sistema, que deben ser 0), sobrantes y su proporción con IC, descartadas por motivo y por tramo, unificadas, sobrantes que habría sin el filtro, muestra revisada de las descartadas (el verificador completa `muestra-descartadas.md` fuera del repositorio y el informe trae solo cuentas: correctos e incorrectos), cita literal, tiempos por pasada y por página, extrapolación a 50 páginas (se informa, sin máximo). Si hace falta, **hasta dos rondas de ajuste** (v2 y v3 de `matriz-filtro`), solo de las instrucciones del filtro y de sus parámetros, con una frase general por ronda que no nombre cláusulas, midiendo cada una; ninguna fila plausible se descarta para ajustarse a la lista.
+- **Archivos:** `evaluon/tenders/prompts/matriz-filtro-v2.md` y `matriz-filtro-v3.md` (solo si hay ajuste), `evaluon/settings.py` (versión activa en `MATRIX_PROMPT_VERSIONS`, parámetros del filtro), tests de la versión de instrucciones en `tests/tenders/`; corridas en `corpus/casos/caso-00/corridas/` (fuera del repositorio); informe `specs/003-pliego-matriz/verificacion/T-106.md` sin texto del pliego.
+- **Verificación:** el informe con todas las medidas y el estado del tope; esperados descartados por el sistema: 0, o cada uno con su motivo; cuántas rondas se hicieron y qué movió cada una; ningún texto del pliego en el repositorio; suite en verde si hubo cambios de código. Si el tope no se cumple, se informa con la composición de los sobrantes que quedan (a la vista de la muestra) y se pasa a T-107; no se ajusta más.
+- **No tocar:** la lista esperada; la regla de emparejamiento; las instrucciones de extracción y de completitud; los casos 01 y 02.
+- **Entorno:** MSI con GPU.
+
+### T-107 · Decidir con el responsable el tope y la lista con lo medido en el caso-00
+
+- **Qué hacer:** el Coordinador lleva al responsable el informe de T-106 (si el tope se cumplió o cuántos sobrantes plausibles quedan y de qué clase, con tabla de ejemplos reales) y registra su decisión: seguir con las listas y el tope como están; revisar con la Comisión si las condiciones plausibles son requisitos y ampliar las listas esperadas de los tres casos (antes de correr 01 y 02, y sin mirar sus sobrantes: la ampliación de 01 y 02 se hace solo desde el texto, como la original); o cambiar el tope. Anota la decisión en `specs/003-pliego-matriz/verificacion/T-107.md` y, si cambia la spec, la enmienda se hace por el camino de la spec, no acá.
+- **Archivos:** `specs/003-pliego-matriz/verificacion/T-107.md`; las listas esperadas (fuera del repositorio) solo si el responsable decide ampliarlas.
+- **Verificación:** la decisión del responsable anotada con fecha; si se amplían listas, la huella nueva y su visto bueno; sin texto del pliego en el repositorio.
+- **No tocar:** el sistema y las instrucciones.
+- **Entorno:** datos.
+
+### T-108 · Medir la aceptación del proceso con filtro con los casos 01 y 02
+
+- **Qué hacer:** con las instrucciones fijas después de T-106 y la decisión de T-107, medir los casos 01 y 02 solo con el proceso único (la medición de T-094 se hizo antes del filtro y con niveles; esta es la medida de aceptación): `medir_matriz --verificar-esperada` y la corrida de cada caso. Medidas: 100 % de encontrados (con "a revisión obligatoria"), esperados descartados por el sistema (0), sobrantes hasta el tope sobre la matriz propuesta, cita literal 100 %, REQ-031 con las circulares del caso-01, las filas descartadas con la muestra revisada de sus motivos, tiempos por pliego y por página (el caso-01 tiene 52 páginas; se informan, sin máximo) y memoria de video. Informe sin texto del pliego; un faltante o un tope no cumplido bloquea la aceptación y se informa con su causa, sin ajustar nada.
+- **Archivos:** corridas en `corpus/casos/caso-0N/corridas/` (fuera del repositorio); `specs/003-pliego-matriz/verificacion/T-108.md`.
+- **Verificación:** el informe con todas las medidas, su intervalo y el resultado de aceptación; ningún texto del pliego en el repositorio.
+- **No tocar:** instrucciones, parámetros, listas esperadas (salvo lo decidido en T-107).
+- **Entorno:** MSI con GPU, sin otra carga.
+
 ### T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro
 
 - **Qué hacer:** hoy `crear_usuario --rol-comision` solo sirve para usuarios nuevos. El 2026-10-04 el Coordinador le dio rol de evaluador al usuario `sandro` en la base real con una actualización directa del campo `commission_role` (pedido del responsable), sin hecho de auditoría porque no hay tipo de hecho ni comando para eso. Agregar un comando `rol_comision <usuario> {operador,evaluador,ninguno}` que cambie el rol y deje un hecho (un tipo nuevo `user_role_changed`, con su migración de `audit`, o el que corresponda), y anotar en el registro el cambio manual del 2026-10-04 corriendo el comando sobre `sandro` con el mismo valor o registrando el hecho de regularización.
@@ -311,15 +414,17 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 |---|---|
 | REQ-022 | T-067, T-069, T-075 |
 | REQ-023 | T-067, T-072, T-075 |
-| REQ-024 | T-067, T-070, T-071, T-073, T-074, T-075, T-076, T-077, T-078, T-084 |
-| REQ-025 | T-067, T-070, T-073, T-074, T-075, T-076, T-077, T-084, T-097 |
-| REQ-026 | T-067, T-068, T-079, T-082 |
+| REQ-024 | T-067, T-070, T-071, T-073, T-074, T-075, T-076, T-077, T-078, T-084, T-102, T-103, T-106, T-108 |
+| REQ-025 | T-067, T-070, T-073, T-074, T-075, T-076, T-077, T-084, T-097, T-101, T-108 |
+| REQ-026 | T-067, T-068, T-079, T-082, T-104 |
 | REQ-027 | T-067, T-068, T-082 |
-| REQ-028 | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082 |
+| REQ-028 | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082, T-098 |
 | REQ-029 | T-067, T-068, T-080, T-081, T-084 |
-| REQ-030 | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085, T-096, T-097 |
-| REQ-031 | T-067, T-072, T-074, T-083 |
-| REQ-032 | T-067, T-074, T-082, T-086 |
+| REQ-030 | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085, T-096, T-097, T-099, T-100, T-103, T-108 |
+| REQ-031 | T-067, T-072, T-074, T-083, T-098, T-108 |
+| REQ-032 | T-067, T-074, T-082, T-086, T-105 |
+| REQ-033 | T-099, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108 |
+| REQ-034 | T-104, T-105 |
 
 ## Paralelismo
 
@@ -341,6 +446,19 @@ Cadenas que se respetan por compartir archivos:
 - **`proposal/run.py`:** T-073 → T-078 → T-080 → T-083.
 - **`jobs.py`:** T-071 → T-072 → T-073.
 - **`base.html`:** T-069 → T-074.
+
+**Enmienda del 2026-10-04 (T-099 a T-108).**
+
+| Momento | Pueden ir a la vez | Por qué no chocan |
+|---|---|---|
+| Terminada T-096 | T-099 (esquema y `settings.py`), sola en esquema | Nadie más toca modelos ni migraciones |
+| Terminada T-099 e integradas T-097 y T-098 | T-100, en paralelo con T-104 | `run.py`, `matrix.py`, `evaluation.py` y plantillas del nivel frente a `services/discarded.py`, `review.py` y `validation.py` |
+| Terminada T-100 | T-101 → T-102 (cadena en `run.py`), en paralelo con T-103 (`evaluation.py`) y con T-105 (vistas, tras T-104) | `proposal/` frente a `evaluation.py` frente a vistas y plantillas |
+| Terminadas T-102 y T-103 | T-106 (GPU) | La GPU, de a una |
+| Terminada T-106 | T-107 (datos) | Es del Coordinador y el responsable |
+| Terminadas T-094, T-105 y T-107 | T-108 (GPU) | La GPU, de a una |
+
+T-094 sigue como estaba pensada, antes del filtro, y no se rehace: la aceptación final es T-108. El Coordinador decide si T-094 se cierra con lo ya medido o se retira.
 
 Recursos que no se comparten: la GPU (T-071 en su medición, T-075 y T-084, de a una) y la base de pruebas.
 
