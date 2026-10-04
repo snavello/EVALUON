@@ -42,7 +42,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 25/28 | █████████░ 89% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 26/29 | █████████░ 90% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -369,9 +369,9 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 3 tareas sin terminar.
-- ○ T-085 · Ofrecer solo los niveles que mejoran (pendiente)
 - ○ T-093 · Ajustar las instrucciones con el caso-00 (enumeraciones, tablas, condiciones como efecto) (pendiente)
 - ○ T-094 · Medir la aceptación con los casos 01 y 02 (pendiente)
+- ○ T-095 · Contar como "a revisión obligatoria" los requisitos en tramos pendientes (pendiente)
 
 ### Qué se hizo
 
@@ -394,6 +394,7 @@ flowchart LR
 - ✓ T-082 · Validar la matriz y abrir versiones nuevas (`6075ebf` 2026-10-04, `7aca471` 2026-10-04)
 - ✓ T-083 · Incorporar circulares y respuestas a consultas (`0169b78` 2026-10-04, `89ecc70` 2026-10-04, `5b5dcc2` 2026-10-04)
 - ✓ T-084 · Correr la medición del caso-00
+- ✓ T-085 · Ofrecer solo los niveles que mejoran (`94b2968` 2026-10-04, `83288a8` 2026-10-04)
 - ✓ T-086 · Imprimir y exportar la matriz a PDF con la leyenda de borrador (`6eae612` 2026-10-04, `28da1a5` 2026-10-04, `edc112f` 2026-10-04)
 - ✓ T-087 · Comparar en la misma zona horaria la fecha de lectura del informe (`5a07f91` 2026-10-03)
 - ✓ T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro (`94ab0d5` 2026-10-04)
@@ -424,7 +425,7 @@ flowchart TD
   T082["✓ T-082 · Validar la matriz y abrir versiones nuevas"]:::done
   T083["✓ T-083 · Incorporar circulares y respuestas a consul…"]:::done
   T084["✓ T-084 · Correr la medición del caso-00"]:::done
-  T085["○ T-085 · Ofrecer solo los niveles que mejoran"]:::todo
+  T085["✓ T-085 · Ofrecer solo los niveles que mejoran"]:::done
   T086["✓ T-086 · Imprimir y exportar la matriz a PDF con la…"]:::done
   T087["✓ T-087 · Comparar en la misma zona horaria la fecha…"]:::done
   T088["✓ T-088 · Cambiar el rol de la Comisión de un usuario…"]:::done
@@ -434,6 +435,7 @@ flowchart TD
   T092["✓ T-092 · Aceptar las divisiones de la completitud au…"]:::done
   T093["○ T-093 · Ajustar las instrucciones con el caso-00 (e…"]:::todo
   T094["○ T-094 · Medir la aceptación con los casos 01 y 02"]:::todo
+  T095["○ T-095 · Contar como 'a revisión obligatoria' los re…"]:::todo
   T067 --> T068
   T068 --> T069
   T067 --> T070
@@ -466,6 +468,8 @@ flowchart TD
   T092 --> T093
   T085 --> T094
   T093 --> T094
+  T095 --> T094
+  T093 --> T095
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -479,7 +483,7 @@ flowchart TD
 |---|---|---|---|
 | REQ-022 | El sistema debe registrar un procedimiento con su número, tipo, objeto y fecha de autorización, y mostrar el régimen de la AFIP que le corresponde según esa fecha | T-067, T-069, T-075 | ✓ cubierto |
 | REQ-023 | El sistema debe permitir cargar el pliego final de un procedimiento como uno o más documentos, conservando cada original sin cambios | T-067, T-072, T-075 | ✓ cubierto |
-| REQ-024 | El sistema debe proponer, a partir del pliego cargado, la lista de requisitos que debe cumplir una oferta, cada uno clasificado como formal, económico o técnico | T-067, T-070, T-071, T-073, T-074, T-075, T-076, T-077, T-078, T-084, T-090, T-092, T-093, T-094 | ▶ en proceso |
+| REQ-024 | El sistema debe proponer, a partir del pliego cargado, la lista de requisitos que debe cumplir una oferta, cada uno clasificado como formal, económico o técnico | T-067, T-070, T-071, T-073, T-074, T-075, T-076, T-077, T-078, T-084, T-090, T-092, T-093, T-094, T-095 | ▶ en proceso |
 | REQ-025 | Cada requisito propuesto debe citar el texto literal del pliego que lo exige, con el documento y la ubicación (página y cláusula, si la hay) | T-067, T-070, T-073, T-074, T-075, T-076, T-077, T-084, T-094 | ▶ en proceso |
 | REQ-026 | La Comisión debe poder confirmar, corregir, quitar o agregar requisitos; cada cambio queda registrado con quién lo hizo y cuándo | T-067, T-068, T-079, T-082, T-088 | ✓ cubierto |
 | REQ-027 | Una matriz validada queda fija: cambiarla después genera una versión nueva, sin perder la anterior | T-067, T-068, T-082 | ✓ cubierto |

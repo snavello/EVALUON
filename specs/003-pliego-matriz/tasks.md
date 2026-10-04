@@ -32,7 +32,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-082 | Validar la matriz y abrir versiones nuevas | REQ-026, REQ-027, REQ-028, REQ-032 | T-081 | terminada |
 | T-083 | Incorporar circulares y respuestas a consultas | REQ-031 | T-080 | terminada |
 | T-084 | Correr la medición del caso-00 | REQ-024, REQ-025, REQ-029, REQ-030 | T-075, T-076, T-077, T-080 | terminada |
-| T-085 | Ofrecer solo los niveles que mejoran | REQ-030 | T-084 | pendiente |
+| T-085 | Ofrecer solo los niveles que mejoran | REQ-030 | T-084 | terminada |
 | T-086 | Imprimir y exportar la matriz a PDF con la leyenda de borrador | REQ-032 | T-082 | terminada |
 | T-087 | Comparar en la misma zona horaria la fecha de lectura del informe | REQ-004 | — | terminada |
 | T-088 | Cambiar el rol de la Comisión de un usuario existente, con registro | REQ-026 | — | terminada |
@@ -41,7 +41,8 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-091 | Comparar niveles medidos en corridas separadas | REQ-030 | T-084 | terminada |
 | T-092 | Aceptar las divisiones de la completitud aunque el original no coincida letra por letra | REQ-024 | T-084 | terminada |
 | T-093 | Ajustar las instrucciones con el caso-00 (enumeraciones, tablas, condiciones como efecto) | REQ-024 | T-092 | pendiente |
-| T-094 | Medir la aceptación con los casos 01 y 02 | REQ-024, REQ-025, REQ-030, REQ-031 | T-085, T-093 | pendiente |
+| T-094 | Medir la aceptación con los casos 01 y 02 | REQ-024, REQ-025, REQ-030, REQ-031 | T-085, T-093, T-095 | pendiente |
+| T-095 | Contar como "a revisión obligatoria" los requisitos en tramos pendientes | REQ-024 | T-093 | pendiente |
 
 ## Para todas las tareas
 
@@ -261,6 +262,14 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 - **Verificación:** el informe con todas las medidas, su intervalo y el resultado de aceptación; ningún texto del pliego en el repositorio.
 - **No tocar:** instrucciones, parámetros, listas esperadas.
 - **Entorno:** MSI con GPU.
+
+### T-095 · Contar como "a revisión obligatoria" los requisitos en tramos pendientes
+
+- **Qué hacer:** decisión del responsable del 2026-10-04 (enmienda de la spec, medición): en `medir_matriz`, un esperado sin pareja cuyo tramo quedó pendiente de revisión (causa `tramo_pendiente`) cuenta como "a revisión obligatoria": entra en el numerador de la aceptación y se informa aparte con su cantidad y claves, en `resumen.md` y `resumen-publico.md` (sin texto del pliego). Los demás faltantes no cambian. Recalcular la corrida de T-093 del caso-00 sin el modelo, si el comando lo permite, o dejar el recálculo para la próxima corrida.
+- **Archivos:** `evaluon/tenders/evaluation.py`, `tests/tenders/test_evaluation.py`.
+- **Verificación:** test: un esperado en un tramo pendiente cuenta como "a revisión obligatoria" y la aceptación lo suma; un esperado en un tramo descartado o con requisitos sigue siendo faltante; el resumen público no lleva texto.
+- **No tocar:** la propuesta; la lista esperada.
+- **Entorno:** cualquier equipo con Docker.
 
 ### T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro
 

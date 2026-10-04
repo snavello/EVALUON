@@ -29,6 +29,13 @@ from tests.tenders.scripted import (
 
 pytestmark = pytest.mark.django_db
 
+
+@pytest.fixture(autouse=True)
+def offer_every_level(settings):
+    """Estas pruebas recorren las pasadas de los tres niveles, también la de exigente, que
+    existe pero no se ofrece (T-085)."""
+    settings.MATRIX_LEVELS_OFFERED = ("media", "alta", "exigente")
+
 GARANTIA = ("La garantía de mantenimiento de la oferta deberá ser individualizada en "
             "ocasión de presentarse la oferta.")
 GARANTIA_QUOTE = "deberá ser individualizada"

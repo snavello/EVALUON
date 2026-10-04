@@ -936,7 +936,7 @@ def test_matrix_parameters_in_settings():
     valores iniciales del plan."""
     assert settings.MATRIX_LEVELS == ["media", "alta", "exigente"]
     assert settings.MATRIX_DEFAULT_LEVEL == "alta"
-    assert settings.MATRIX_LEVELS_OFFERED == ["media", "alta", "exigente"]
+    assert settings.MATRIX_LEVELS_OFFERED == ("media", "alta")
     assert set(settings.MATRIX_LEVELS) == set(m.Level.values)
     assert settings.MATRIX_BATCH_INPUT_TOKENS == 1500
     assert settings.MATRIX_MAX_OUTPUT_TOKENS == 4096

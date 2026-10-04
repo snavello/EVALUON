@@ -1,6 +1,6 @@
 # Spec 003 · Procedimiento, pliego final y matriz de cumplimiento
 
-Estado: aprobada · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-03, requisitos técnicos por renglón, criterio de requisito y de clase, y tipos de consecuencia (al aprobar el plan); REQ-032, matriz sin validar como "BORRADOR INCOMPLETO", decisión del responsable
+Estado: aprobada · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-03, requisitos técnicos por renglón, criterio de requisito y de clase, y tipos de consecuencia (al aprobar el plan); REQ-032, matriz sin validar como "BORRADOR INCOMPLETO", decisión del responsable; 2026-10-04, requisitos en tramos pendientes cuentan como "a revisión obligatoria", decisión del responsable
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
 > Cada duda se marca `[A ACLARAR: pregunta concreta]`. Una spec con marcas pendientes no pasa la compuerta.
@@ -82,6 +82,7 @@ Roles (decisión del responsable, 2026-10-03):
 
 - **Medición:** la propuesta de matriz se mide con salida estructurada: cada requisito esperado está o no está en la lista, con la clasificación y la cita correctas (ADR-0014, punto 7). No se mide la redacción.
   - Requisitos encontrados: **100 %** de los requisitos reales del pliego. Cada requisito que falte se informa con su causa y bloquea la aceptación.
+  - Un requisito esperado que cae en un tramo que el sistema dejó **pendiente de revisión** (por ejemplo, una tabla) cuenta como **"a revisión obligatoria"**, no como perdido: la matriz no se puede validar sin que el evaluador resuelva cada pendiente. Se informa aparte, con su cantidad (decisión del responsable, 2026-10-04).
   - Requisitos sobrantes: no tienen límite; se informan, porque cuestan tiempo de revisión al evaluador.
   - Cita literal: 100 %.
 - **Tiempo y nivel de revisión (decisión del responsable, 2026-10-03):** al pedir la matriz se elige un nivel de revisión, y por omisión es "alta". Para un pliego de unas 50 páginas con anexos, los tiempos máximos son:
