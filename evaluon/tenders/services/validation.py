@@ -191,7 +191,10 @@ def _copy(source, new):
             RequirementSource.objects.create(
                 requirement=copy, quote=quote_map.get(src.quote_id), effect=src.effect,
                 segment=src.segment, char_start=src.char_start, char_end=src.char_end,
-                text=src.text, issued_on=src.issued_on, step=src.step)
+                text=src.text, issued_on=src.issued_on, step=src.step,
+                original_segment=src.original_segment,
+                original_char_start=src.original_char_start,
+                original_char_end=src.original_char_end)
             count["sources"] += 1
         for cons in old.consequences.filter(chosen=True):
             Consequence.objects.create(
