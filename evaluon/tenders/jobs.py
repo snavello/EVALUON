@@ -39,6 +39,7 @@ INTERRUPTED = "interrumpido"
 # Tipo de pedido → manejador (función o su ruta). Ver el docstring del módulo.
 HANDLERS = {
     JobKind.READ_DOCUMENT: "evaluon.tenders.services.documents.run_read_document",
+    JobKind.PROPOSE_MATRIX: "evaluon.tenders.services.matrix.run_propose_matrix",
 }
 
 FINISHED = (JobStatus.DONE, JobStatus.FAILED)

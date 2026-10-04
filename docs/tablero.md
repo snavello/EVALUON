@@ -42,7 +42,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 8/21 | ████░░░░░░ 38% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 9/21 | ████░░░░░░ 43% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -368,8 +368,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 13 tareas sin terminar.
-- ○ T-073 · Proponer la matriz en nivel media, con filas técnicas por renglón (pendiente)
+- **Próximo paso:** Desarrollar: 12 tareas sin terminar.
 - ○ T-074 · Mostrar la matriz propuesta con la leyenda de borrador, la cobertura y el aviso de fin (pendiente)
 - ○ T-075 · Probar el hilo mínimo con el caso-00 y los servicios reales (pendiente)
 - ○ T-077 · Medir una propuesta contra una lista esperada (pendiente)
@@ -392,6 +391,7 @@ flowchart LR
 - ✓ T-070 · Partir un pliego en tramos con renglones, clase por sección y control de cobertura (`0eb72dc` 2026-10-03, `27c48dc` 2026-10-03)
 - ✓ T-071 · Ejecutar pedidos en segundo plano con su propio motor (`126bcf7` 2026-10-03, `d7c2a28` 2026-10-03)
 - ✓ T-072 · Cargar los documentos del pliego y leerlos en segundo plano (`ce61ba4` 2026-10-03, `7dd8e36` 2026-10-03, `a8e4455` 2026-10-03)
+- ✓ T-073 · Proponer la matriz en nivel media, con filas técnicas por renglón (`4ead4b6` 2026-10-03, `b1fc420` 2026-10-03)
 - ✓ T-076 · Preparar la lista esperada del caso-00
 - ✓ T-087 · Comparar en la misma zona horaria la fecha de lectura del informe (`5a07f91` 2026-10-03)
 
@@ -405,7 +405,7 @@ flowchart TD
   T070["✓ T-070 · Partir un pliego en tramos con renglones, c…"]:::done
   T071["✓ T-071 · Ejecutar pedidos en segundo plano con su pr…"]:::done
   T072["✓ T-072 · Cargar los documentos del pliego y leerlos…"]:::done
-  T073["○ T-073 · Proponer la matriz en nivel media, con fila…"]:::todo
+  T073["✓ T-073 · Proponer la matriz en nivel media, con fila…"]:::done
   T074["○ T-074 · Mostrar la matriz propuesta con la leyenda…"]:::todo
   T075["○ T-075 · Probar el hilo mínimo con el caso-00 y los…"]:::todo
   T076["✓ T-076 · Preparar la lista esperada del caso-00"]:::done
