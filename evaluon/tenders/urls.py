@@ -5,7 +5,7 @@ original (T-072)."""
 
 from django.urls import path
 
-from evaluon.tenders.views import documents, matrix, procedures, review
+from evaluon.tenders.views import consequences, documents, matrix, procedures, review
 
 app_name = "tenders"
 
@@ -28,6 +28,8 @@ urlpatterns = [
     path("requisitos/<int:requirement_id>/restituir/", review.restore,
          name="review_restore"),
     path("requisitos/<int:requirement_id>/historial/", review.history, name="history"),
+    path("requisitos/<int:requirement_id>/consecuencia/", consequences.choose,
+         name="consequence_choose"),
     path("pendientes/<int:pending_id>/resolver/", review.resolve, name="review_resolve"),
     path(
         "documentos/<int:document_id>/original/",
