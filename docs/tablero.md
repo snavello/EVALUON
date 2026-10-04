@@ -42,7 +42,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 33/46 | ███████░░░ 72% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 34/46 | ███████░░░ 74% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -368,9 +368,8 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 13 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 12 tareas sin terminar.
 - ○ T-094 · Medir la aceptación con los casos 01 y 02 (pendiente)
-- ○ T-100 · Quitar el nivel "media" y dejar un solo proceso registrado (pendiente)
 - ○ T-101 · Unificar las filas que repiten la misma condición (pendiente)
 - ○ T-102 · Filtrar con dos preguntas y repartir cada fila en firme, sugerencia o descartada (pendiente)
 - ○ T-103 · Medir los sobrantes sobre las filas firmes, con tope e informe de descartadas (pendiente)
@@ -418,6 +417,7 @@ flowchart LR
 - ✓ T-097 · Corregir la cita literal de las filas técnicas con varios documentos en `medir_matriz` (`8e2f6f2` 2026-10-04)
 - ✓ T-098 · Corregir la pasada de circulares (fuentes, tramos descartados y no ubicados) (`91dfa17` 2026-10-04, `ade33cd` 2026-10-04)
 - ✓ T-099 · Crear la tabla de filas descartadas, el estado de sugerencia, el respaldo normativo, las citas repetidas y los parámetros del filtro (`60b3e30` 2026-10-04)
+- ✓ T-100 · Quitar el nivel "media" y dejar un solo proceso registrado (`4b49bad` 2026-10-04, `b271132` 2026-10-04)
 - ✓ T-104 · Listar y devolver las filas descartadas, y revisar por grupos (`db7c8e2` 2026-10-04)
 
 ### Mapa de tareas
@@ -457,7 +457,7 @@ flowchart TD
   T097["✓ T-097 · Corregir la cita literal de las filas técni…"]:::done
   T098["✓ T-098 · Corregir la pasada de circulares (fuentes,…"]:::done
   T099["✓ T-099 · Crear la tabla de filas descartadas, el est…"]:::done
-  T100["○ T-100 · Quitar el nivel 'media' y dejar un solo pro…"]:::todo
+  T100["✓ T-100 · Quitar el nivel 'media' y dejar un solo pro…"]:::done
   T101["○ T-101 · Unificar las filas que repiten la misma con…"]:::todo
   T102["○ T-102 · Filtrar con dos preguntas y repartir cada f…"]:::todo
   T103["○ T-103 · Medir los sobrantes sobre las filas firmes,…"]:::todo
