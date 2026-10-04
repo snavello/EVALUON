@@ -35,7 +35,7 @@ Para cada fila decidí si es un requisito de la oferta (mantener) o si, con segu
   - "indice_caratula": un índice, una carátula o el encabezado de un documento.
   - "consecuencia_sancion": la consecuencia o sanción que el organismo aplica, no la condición que la origina.
   - "derecho_posterior": un derecho del organismo posterior a la oferta, que la oferta no puede condicionar.
-- "indicio": si descartás, un fragmento del texto del tramo, copiado letra por letra, que muestra por qué corresponde ese motivo; si mantenés, una cadena vacía. El indicio no lleva las marcas <<< ni >>>, no se resume, no se corrige y no se traduce: el sistema comprueba que esté, palabra por palabra, dentro del tramo.
+- "indicio": si descartás, una frase del texto del tramo (al menos cuatro palabras con contenido, no una palabra suelta), copiada letra por letra, que muestra por qué corresponde ese motivo; si mantenés, una cadena vacía. El indicio no lleva las marcas <<< ni >>>, no se resume, no se corrige y no se traduce: el sistema comprueba que esté, palabra por palabra, dentro del tramo.
 
 Mantené la fila si es una condición que la oferta puede presentar, ofrecer, comprometer, contradecir o condicionar, aunque la cumpla el organismo (la forma y el plazo de pago, por ejemplo). Mantené también ante la duda.
 

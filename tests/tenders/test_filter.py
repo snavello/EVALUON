@@ -309,14 +309,14 @@ def test_a_suggestion_without_a_clue_has_no_evidence(operator_user, script, filt
 def test_the_whole_tramo_is_discarded_only_if_every_row_was(operator_user, script, filt):
     """REQ-033: un tramo cuyas filas se descartaron todas queda `descartado` con origen
     `filtro`; uno con alguna fila firme o una sugerencia queda `requisitos`."""
-    two = "El oferente deberá firmar cada hoja de la planilla. La caución se devuelve al final."
+    two = "El oferente deberá firmar cada hoja de la planilla. La caución se devuelve al finalizar el alquiler."
     three = "Se cotizará en pesos por jornada y por unidad."
     script.when(SENT_1, item([(FRAG_1, "formal")]))
     script.when(two, item([("firmar cada hoja de la planilla", "formal"),
-                           ("La caución se devuelve al final", "formal")]))
+                           ("La caución se devuelve al finalizar el alquiler", "formal")]))
     script.when(three, item([(three, "economico")]))
     filt.when(FRAG_1, discard("ejecucion_contrato", SENT_1), "no")
-    filt.when("La caución", discard("ejecucion_contrato", "La caución se devuelve al final."),
+    filt.when("La caución", discard("ejecucion_contrato", "La caución se devuelve al finalizar el alquiler."),
               "no")
     filt.when("Se cotizará", KEEP, "duda")
 
@@ -340,7 +340,7 @@ def test_the_disposition_reason_for_motives_the_tramo_list_lacks(operator_user, 
     (lista del ADR-0019) lo registra con el motivo más cercano y la fila descartada conserva
     el exacto."""
     one_row(script)
-    clue = "El adjudicatario armará los gazebos"
+    clue = SENT_1
     filt.when(FRAG_1, discard("consecuencia_sancion", clue), "no")
 
     run = run_with(operator_user, pliego(CLAUSE))
@@ -675,3 +675,50 @@ def test_the_instructions_use_the_motives_of_the_settings(settings):
     for motive in settings.FILTER_MOTIVES:
         assert f'"{motive}"' in first
     assert "consecuencia_o_sancion" not in first + second
+
+
+# --- Bordes que no pueden perder una fila ---------------------------------------------------------
+
+
+def test_a_repeated_id_in_the_output_is_invalid_for_that_row(operator_user, script, filt):
+    """REQ-033: si el modelo repite el id de una fila ("mantener" y después "descartar"),
+    la salida de esa fila no vale y no descarta: con la otra pregunta que descarta, la fila
+    queda como sugerencia por opinión incompleta."""
+    one_row(script)
+    filt.when(FRAG_1, discard(), "no")
+    keep = {"decision": KEEP, "motivo": "", "indicio": ""}
+    drop = {"decision": "descartar", "motivo": "ejecucion_contrato", "indicio": SENT_1}
+    filt.raw("a", [f'{{"F1": {json.dumps(keep)}, "F1": {json.dumps(drop)}}}'])
+
+    run = run_with(operator_user, pliego(CLAUSE))
+
+    assert destination(run) == ("sugerencia", "opinion_incompleta")
+    assert not m.DiscardedRow.objects.filter(run=run).exists()
+    step = m.RunStep.objects.get(run=run, pass_name="filtro")
+    assert step.anomalies[0]["type"] == "filtro_fila_repetida"
+
+
+def test_a_repeated_field_inside_a_row_is_invalid(operator_user, script, filt):
+    """REQ-033: un campo repetido dentro de la respuesta de una fila también la invalida."""
+    one_row(script)
+    filt.when(FRAG_1, discard(), "no")
+    filt.raw("a", ['{"F1": {"decision": "mantener", "decision": "descartar", '
+                   f'"motivo": "ejecucion_contrato", "indicio": "{SENT_1}"}}}}'])
+
+    assert destination(run_with(operator_user, pliego(CLAUSE))) == (
+        "sugerencia", "opinion_incompleta")
+
+
+@pytest.mark.parametrize("clue", ["a", "predio", "los gazebos", "armará los gazebos"])
+def test_a_trivial_clue_cannot_support_a_discard(operator_user, script, filt, clue):
+    """REQ-033: un indicio de una letra, una palabra suelta o menos de `MIN_CLUE_WORDS`
+    palabras con contenido, aunque esté en el tramo, no sostiene el descarte: la fila queda
+    como sugerencia sin sustento."""
+    assert row_filter.MIN_CLUE_WORDS == 4
+    one_row(script)
+    filt.when(FRAG_1, discard(clue=clue), "no")
+
+    run = run_with(operator_user, pliego(CLAUSE))
+
+    assert destination(run) == ("sugerencia", "descarte_sin_sustento")
+    assert not m.DiscardedRow.objects.filter(run=run).exists()

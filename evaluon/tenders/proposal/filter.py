@@ -52,7 +52,7 @@ from django.conf import settings
 
 from evaluon.ai import AIServiceError, generation
 from evaluon.tenders.models import PassName, RunStep, SegmentType
-from evaluon.tenders.proposal import extraction, quotes
+from evaluon.tenders.proposal import dedup, extraction, quotes
 from evaluon.tenders.proposal.completeness import passes_of
 from evaluon.tenders.proposal.extraction import BODY_CLASSES
 
@@ -72,6 +72,31 @@ ANOMALY_SERVICE = "servicio"
 ANOMALY_NO_OPINION = "filtro_sin_opinion"
 ANOMALY_ONE_OPINION = "filtro_una_opinion"
 ANOMALY_NOT_SUPPORTED = "filtro_descarte_sin_sustento"
+
+ANOMALY_REPEATED_ALIAS = "filtro_fila_repetida"
+
+# Un indicio trivial (una letra, una palabra suelta) está en cualquier tramo y no sostiene un
+# descarte: el indicio tiene que tener al menos estas palabras con contenido (sin las de
+# uso común, `dedup.content_words`).
+MIN_CLUE_WORDS = 4
+
+# Clave con la que `_no_repeats` marca los ids que el modelo repitió en un objeto.
+_REPEATED = "__repetidos__"
+
+
+def _no_repeats(pairs):
+    """Lee un objeto JSON sin perder los ids repetidos (`json` se queda con el último): los
+    deja marcados en `_REPEATED`. En un objeto interno, la marca rompe la forma esperada y la
+    respuesta de esa fila no vale."""
+    result, repeated = {}, []
+    for key, value in pairs:
+        if key in result:
+            repeated.append(key)
+        result[key] = value
+    if repeated:
+        result[_REPEATED] = repeated
+    return result
+
 
 MARK_OPEN, MARK_CLOSE = "<<<", ">>>"
 _CLASS_LABELS = {"formal": "formal", "economico": "económico"}
@@ -283,7 +308,11 @@ def decide(row, a, b):
     supported = False
     if a is not None and a["decision"] == DISCARD:
         evidence = find_evidence(row.segment, a["indicio"])
-        supported = a["motivo"] in settings.FILTER_MOTIVES and evidence is not None
+        supported = (
+            a["motivo"] in settings.FILTER_MOTIVES
+            and evidence is not None
+            and len(dedup.content_words(dedup.normalize(evidence["text"]))) >= MIN_CLUE_WORDS
+        )
     verdict = Verdict(row, FIRME, vote_a=a, vote_b=b, evidence=evidence)
 
     if a is None and b is None:
@@ -404,18 +433,22 @@ class Filter:
 
         anomalies, data = [], {}
         try:
-            data = json.loads(output.content)
+            data = json.loads(output.content, object_pairs_hook=_no_repeats)
             if not isinstance(data, dict):
                 raise ValueError("no es un objeto")
         except ValueError as error:
             anomalies.append({"type": ANOMALY_INVALID, "detail": f"no es JSON: {error}",
                               "finish_reason": output.finish_reason})
             data = {}
+        repeated_ids = set(data.pop(_REPEATED, ())) if isinstance(data, dict) else set()
         answers, parsed = [], {}
         for alias, row in aliased:
             parsed[alias] = {"segmento": row.segment.pk, "valida": False}
             answer = None
-            if alias not in data:
+            if alias in repeated_ids:
+                anomalies.append({"type": ANOMALY_REPEATED_ALIAS, "alias": alias,
+                                  "segment": row.segment.pk})
+            elif alias not in data:
                 if data:
                     anomalies.append({"type": ANOMALY_MISSING_ALIAS, "alias": alias,
                                       "segment": row.segment.pk})
