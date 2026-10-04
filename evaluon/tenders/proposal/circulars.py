@@ -5,6 +5,12 @@ Una circular modificatoria o aclaratoria, o la respuesta a la pregunta de un ofe
 cambiar, precisar o quitar un requisito del pliego, o agregar uno. La pasada corre después de
 las filas técnicas, sobre los requisitos ya numerados como van a quedar en la versión.
 
+**Entrega 2 (T-115).** Lo que `circular_units` no resuelve por clave pasa primero a
+`circular_changes`: el modelo extrae, sin ver el pliego, la lista de cambios de la unidad y el
+código los aplica por clave; solo los tramos de los cambios sin objetivo, no estables o sin
+cita verificable (o toda la unidad, si el modelo falla) siguen el flujo de candidatas que
+sigue. Con `CIRCULAR_EXTRACTION_ENABLED` en falso queda la entrega 1 más ese flujo.
+
 **Orden.** Los documentos se procesan por fecha y, a igual fecha, por orden de carga. Cada
 tramo de cada documento es un pedido al modelo. El texto que se le muestra de cada cita es el
 vigente: si una circular anterior lo modificó, ve el original y el vigente, de modo que dos
@@ -615,7 +621,9 @@ class Processor:
         self.stats = {"requests": 0, "segments": 0, "retried": 0, "effects": 0,
                       "new_requirements": 0, "no_effect": 0, "pending": 0,
                       "wide_quotes": 0, "dropped_effects": 0, "units": 0, "units_applied": 0,
-                      "units_data": 0, "units_fallback": 0}
+                      "units_data": 0, "units_fallback": 0,
+                      "units_extracted": 0, "extraction_requests": 0, "changes_applied": 0,
+                      "changes_unstable": 0, "changes_unresolved": 0}
         self._batch = 0
 
     # -- Pedidos -----------------------------------------------------------------------------
@@ -807,6 +815,11 @@ class Processor:
         if pliego is None:
             pliego = units.load_pliego(self.run)
         verdicts, sources, new_requirements = {}, [], []
+        extractor = None
+        if settings.CIRCULAR_EXTRACTION_ENABLED:
+            from evaluon.tenders.proposal import circular_changes
+
+            extractor = circular_changes.Extractor(self)
         for document in circulars.documents:
             issued_on = document.document.issued_on
             label = (f"{document.document.title} ({issued_on.strftime('%d/%m/%Y')})")
@@ -814,6 +827,15 @@ class Processor:
                 resolution = units.resolve(change, document, candidates, pliego)
                 step = self._record_unit(change, resolution) if resolution.record else None
                 if resolution.outcome == units.OUTCOME_FALLBACK:
+                    extracted = None
+                    if extractor is not None and not self._is_rule_only(change):
+                        extracted = extractor.run(document, change, candidates, pliego,
+                                                  resolution)
+                    if extracted is not None:
+                        self._apply_extracted(document, change, extracted, candidates,
+                                              issued_on, label, verdicts, sources,
+                                              new_requirements)
+                        continue
                     self.stats["units_fallback"] += 1
                     for unit in change.members:
                         self._fallback(document, unit, candidates, issued_on, label,
@@ -826,6 +848,53 @@ class Processor:
         return Result(verdicts=verdicts, sources=sources, new_requirements=new_requirements,
                       steps=self.steps, anomalies=self.anomalies + step_anomalies,
                       stats=self.stats)
+
+    def _is_rule_only(self, change):
+        """Un tramo suelto de página o de título: la regla lo resuelve, no hay nada que
+        extraer."""
+        return (change.kind == "suelto" and len(change.members) == 1
+                and self._rule(change.members[0].segment) is not None)
+
+    def _apply_extracted(self, document, change, extracted, candidates, issued_on, label,
+                         verdicts, sources, new_requirements):
+        """Aplica los cambios que el modelo extrajo y el código resolvió por clave (T-115).
+        Las fuentes y los requisitos nuevos son los de la resolución; los tramos donde quedó
+        un cambio sin resolver, no estable o sin cita verificable van al respaldo (el modelo
+        elige entre las candidatas, solo en esos tramos); los de datos del trámite se
+        descartan; los demás quedan con `requisitos`. El pedido de la unidad queda en
+        `tenders_run_step` sin llamada al modelo, con lo resuelto."""
+        resolution, step = extracted.resolution, extracted.step
+        self._record_unit(change, resolution)
+        self.stats["units_extracted"] += 1
+        for effect in resolution.effects:
+            sources.append(Source(effect.effect, effect.candidate, effect.segment, effect.start,
+                                  effect.end, effect.text, issued_on, step, False,
+                                  effect.original))
+            self.stats["effects"] += 1
+            self._note(effect.candidate, effect.effect, effect.text, label)
+        for addition in resolution.additions:
+            new_requirements.append(NewRequirement(
+                addition.category, addition.segment, addition.start, addition.end,
+                addition.text, issued_on, step))
+            self.stats["new_requirements"] += 1
+        base = Verdict(DispositionOutcome.REQUISITOS.value, source=DispositionSource.MODELO.value,
+                       step=step)
+        data = Verdict(DispositionOutcome.DESCARTADO.value,
+                       discard_reason=DiscardReason.DATO_PROCEDIMIENTO.value,
+                       source=DispositionSource.MODELO.value, step=step)
+        for member in change.members:
+            if member in extracted.fallback_members:
+                self._fallback(document, member, candidates, issued_on, label, verdicts,
+                               sources, new_requirements)
+                continue
+            rule = self._rule(member.segment)
+            if rule is not None:
+                verdicts[member.segment.pk] = rule
+            elif member in extracted.data_members:
+                verdicts[member.segment.pk] = data
+                self.stats["no_effect"] += 1
+            else:
+                verdicts[member.segment.pk] = base
 
     def _fallback(self, document, unit, candidates, issued_on, label, verdicts, sources,
                   new_requirements):
