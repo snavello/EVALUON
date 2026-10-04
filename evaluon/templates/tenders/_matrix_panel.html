@@ -3,7 +3,7 @@
   {% if panel.versions %}
   <ul>
     {% for version in panel.versions %}
-    <li><a href="{% url 'tenders:matrix' version.pk %}">Versión {{ version.number }}</a> · {{ version.get_status_display }} · nivel {{ version.get_level_display|lower }}{% if version.run_id %} · <a href="{% url 'tenders:coverage' version.pk %}">Cobertura</a>{% endif %}</li>
+    <li><a href="{% url 'tenders:matrix' version.pk %}">Versión {{ version.number }}</a> · {{ version.get_status_display }} · {% if version.level %}nivel {{ version.get_level_display|lower }} (anterior){% else %}proceso {{ version.get_process_display|default:"completo"|lower }}{% endif %}{% if version.run_id %} · <a href="{% url 'tenders:coverage' version.pk %}">Cobertura</a>{% endif %}</li>
     {% endfor %}
   </ul>
   {% else %}
@@ -30,12 +30,6 @@
   {% if panel.can_request %}
   <form method="post" action="{% url 'tenders:request_matrix' procedure.pk %}" class="matrix-form">
     <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-    <p>
-      <label for="matrix-level">Nivel de revisión</label>
-      <select name="level" id="matrix-level">
-        {% for value, label in levels %}<option value="{{ value }}"{% if value == selected_level %} selected{% endif %}>{{ label }}</option>{% endfor %}
-      </select>
-    </p>
     <button type="submit">Proponer matriz</button>
   </form>
   {% endif %}

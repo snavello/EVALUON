@@ -36,7 +36,7 @@ def case(operator_user, script):
     script.when(GARANTIA, item([("constituir una garantía del 5 % del monto",
                                  "economico")]))
     script.when(PAGO, item([(PAGO, "economico")]))
-    requested, job = propose(operator_user, procedure, level="media")
+    requested, job = propose(operator_user, procedure)
     assert job.status == "done", job.error
     return requested.run.version
 

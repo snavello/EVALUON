@@ -10,7 +10,7 @@ Los requisitos técnicos van en una fila por renglón del pliego, con una cita p
   especificaciones técnicas generales, o un tramo marcado `todos`). Se cita en la fila de
   cada renglón.
 
-La arma una regla, no el modelo, así que es igual en los tres niveles:
+La arma una regla, no el modelo:
 
 1. Los renglones son los de `items` de las lecturas de los documentos base. Si no hay
    ninguno, el pliego tiene una sola fila técnica, sin renglón, con todos los tramos

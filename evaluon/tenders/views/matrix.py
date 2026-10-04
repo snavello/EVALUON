@@ -2,7 +2,7 @@
 REQ-025, REQ-028, REQ-030, REQ-032; plan 003, "Pantalla"; ADR-0005; T-074).
 
 - `request_proposal`: el formulario "Proponer matriz" de la página del procedimiento. Pide
-  el nivel de revisión (por omisión, alta) y llama a `services.matrix.request_matrix`. Un
+  no pide ningún nivel (hay un solo proceso) y llama a `services.matrix.request_matrix`. Un
   pedido correcto redirige a la página del procedimiento, para que recargar no vuelva a
   pedir; uno rechazado (documentos sin leer, borrador abierto, pedido en curso) vuelve a la
   página del procedimiento con el motivo.
@@ -36,23 +36,21 @@ REQUESTED_PARAM = "pedido"
 
 @require_POST
 def request_proposal(request, procedure_id):
-    """Pide la propuesta de la matriz con el nivel elegido (por omisión, el de siempre)."""
+    """Pide la propuesta de la matriz: hay un solo proceso, no se elige nivel."""
     try:
         page = documents_service.procedure_page(request.user, procedure_id,
                                                 channel=Channel.SCREEN)
     except Procedure.DoesNotExist:
         raise Http404("No hay un procedimiento con ese número.")
-    level = request.POST.get("level", "")
     try:
         requested = matrix_service.request_matrix(request.user, page.procedure,
-                                                  level=level, channel=Channel.SCREEN)
+                                                  channel=Channel.SCREEN)
     except matrix_service.MatrixRefused as error:
         return render(request, PROCEDURE_TEMPLATE, {
             "page": page,
             "form": DocumentForm(),
             "loaded": None,
             "matrix_error": str(error),
-            "matrix_level": level,
         })
     return redirect(reverse("tenders:procedure", args=[page.procedure.pk])
                     + f"?{REQUESTED_PARAM}={requested.job.pk}")
