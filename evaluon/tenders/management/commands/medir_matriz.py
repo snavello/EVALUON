@@ -12,13 +12,17 @@ Opciones:
   carpeta `esperado/` de la lista.
 - `--commit`: commit del código con que se corre (dentro del contenedor no hay `.git`).
 - `--verificar-esperada`: no corre el modelo. Comprueba la huella de cada archivo, que cada
-  ancla esté en su tramo y que cada tramo técnico exista, e informa las cuentas.
+  ancla esté en su tramo, que cada tramo técnico exista y que cada bloque `circulares`
+  (documento, fecha, ancla, texto original y vigente) esté en la lectura, e informa las
+  cuentas.
 - `--regenerar-resumen`: carpeta de una corrida ya hecha. No corre el modelo: vuelve a medir las
   propuestas que nombra `parametros.json` (siguen en la base) y reescribe `resumen.md` y
   `resumen-publico.md` (T-096).
 
 Mide el proceso único (REQ-030 enmendado: ya no hay niveles ni comparación entre ellos):
 corre la propuesta con el canal `eval`; la versión que crea queda descartada.
+REQ-031 se mide por fila con el bloque `circulares` de la lista (T-117): efecto, texto
+original, texto vigente, documento y fecha; una lista con `alcance: circulares` mide solo eso.
 Las sugerencias de condición no entran en el tope; se informan aparte (T-111), con la
 plantilla local `muestra-sugerencias.md` para el verificador.
 Se corre de a una, sin otra carga en la GPU.
@@ -101,6 +105,14 @@ class Command(BaseCommand):
                 lines.append(f"{result['process']}: la propuesta falló ({result['error']})")
                 continue
             measures = result["measures"]
+            circulars = measures.get("circulars")
+            if circulars:
+                lines.append(
+                    f"{result['process']}: REQ-031, filas de circular que cumplen los cuatro "
+                    f"puntos {evaluation.proportion_text(circulars['met'])}; fuentes ajenas "
+                    f"{circulars['noise']['sources']}")
+            if measures.get("scope") == evaluation.SCOPE_CIRCULARS:
+                continue
             lines.append(
                 f"{result['process']}: encontrados "
                 f"{evaluation.proportion_text(measures['found'])}; cita literal "

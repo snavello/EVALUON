@@ -1410,3 +1410,347 @@ def test_a_suggestion_must_cover_half_of_the_anchor_to_match(
 
     assert short["estado"] == "faltante"
     assert long["estado"] == ev.MANDATORY_REVIEW
+
+
+# --- REQ-031 por fila (T-117) -----------------------------------------------------------------
+
+CIRCULAR_FILE = "Circular sintética.pdf"
+CIRCULAR_DATE = "2025-12-01"
+VIGENTE = "garantía del 3 % del monto"
+FIXTURE_BLOCK = """    circulares:
+      - documento: Circular sintética.pdf
+        fecha: 2099-01-10
+        efecto: modifica
+        tramo: circ/1
+        pagina: 1
+        ancla: "garantía del 3 %"
+        texto_original: "garantía del 5 %"
+        texto_vigente: "garantía del 3 %"
+"""
+
+
+def block_yaml(*, fecha=CIRCULAR_DATE, efecto="modifica", original="garantía del 5 %",
+               vigente=VIGENTE, ancla=VIGENTE, tramo="circ/1", document=CIRCULAR_FILE):
+    """Un bloque `circulares:` con el formato real de las listas: `texto_original` con
+    `{documento, pagina, cita}`."""
+    lines = ["    circulares:",
+             f"      - documento: {document}",
+             f'        fecha: "{fecha}"',
+             f"        efecto: {efecto}",
+             f'        tramo: "{tramo}"',
+             "        pagina: 1",
+             f'        ancla: "{ancla}"',
+             f'        texto_original: {{documento: {FILE}, pagina: 1, cita: "{original}"}}']
+    if vigente:
+        lines.append(f'        texto_vigente: "{vigente}"')
+    return "\n".join(lines) + "\n"
+
+
+@pytest.fixture
+def circular_case(case, operator_user, tmp_path, monkeypatch):
+    """El caso con la propuesta ya medida y una circular sintética cargada en el
+    procedimiento. Devuelve un objeto con la corrida, la circular, el tramo y ayudas para
+    escribir la lista, agregar fuentes y medir REQ-031."""
+    from datetime import date
+
+    from tests.tenders.pdfs import para, tender_pdf
+
+    procedure, _, path, text = case
+    # La versión queda abierta para agregarle fuentes sintéticas (la medición la descartaría).
+    monkeypatch.setattr(ev, "_discard", lambda *args, **kwargs: None)
+    report = run_measure(operator_user, procedure, path, tmp_path)
+    run = m.MatrixRun.objects.get(pk=report.results[0]["run"])
+    pdf = tender_pdf([[para("CIRCULAR SINTÉTICA N° 1", "1. Se modifica la cláusula 1.1.",
+                            f"1.1. Los oferentes deberán constituir una {VIGENTE}.",
+                            "2. El plazo de entrega será de 10 días corridos.")]],
+                     header=None)
+    circular = load_and_read(operator_user, procedure, pdf,
+                             kind=m.DocumentKind.CIRCULAR_MODIFICATORIA,
+                             title="Circular sintética", issued_on=date(2025, 12, 1))
+    segment = m.Segment.objects.get(reading__document=circular, text__contains=VIGENTE)
+
+    class Case:
+        pass
+
+    c = Case()
+    c.procedure, c.path, c.text, c.run, c.segment = procedure, path, text, run, segment
+    c.version, c.circular, c.report = run.version, circular, report
+
+    def write_list(block=None, **options):
+        options.setdefault("tramo", segment.key)
+        block = block or block_yaml(**options)
+        assert FIXTURE_BLOCK in text
+        listed = text.replace(FIXTURE_BLOCK, block).replace("0" * 64, circular.file_sha256)
+        write(path, listed)
+        return ev.load_expected(path)
+
+    def row_with(phrase):
+        return m.RequirementQuote.objects.get(requirement__version=c.version,
+                                              text__contains=phrase).requirement
+
+    def add_source(requirement, *, effect="modifica", phrase=VIGENTE, issued=date(2025, 12, 1),
+                   original=None):
+        start = segment.char_start + segment.text.index(phrase)
+        extra = {}
+        if original:
+            where, phrase_o = original
+            seg = m.Segment.objects.get(reading__document=where, text__contains=phrase_o)
+            offset = seg.char_start + seg.text.index(phrase_o)
+            extra = {"original_segment": seg, "original_char_start": offset,
+                     "original_char_end": offset + len(phrase_o)}
+        return m.RequirementSource.objects.create(
+            requirement=requirement, quote=requirement.quotes.order_by("order").first(),
+            effect=effect, segment=segment, char_start=start, char_end=start + len(phrase),
+            text=phrase, issued_on=issued, **extra)
+
+    def measure():
+        expected = ev.load_expected(path)
+        check = ev.verify_expected(expected, procedure)
+        return expected, check, ev.measure_version(c.run, expected, check)
+
+    c.write_list, c.row_with, c.add_source, c.measure = write_list, row_with, add_source, measure
+    return c
+
+
+def test_circular_row_with_the_four_points_meets(circular_case):
+    """REQ-031: una fila de circular con efecto, original, vigente, documento y fecha cumple
+    los cuatro puntos; el bloque se lee en el formato real de las listas."""
+    c = circular_case
+    expected = c.write_list()
+    block = next(i for i in expected.items if i.id == "S-001").blocks[0]
+    assert block.original_anchor == "garantía del 5 %" and block.original_document == FILE
+    c.add_source(c.row_with("garantía del 5 %"))
+
+    _, check, measures = c.measure()
+
+    assert check.ok, check.problems
+    info = measures["circulars"]
+    assert info["met"]["ok"] == info["met"]["total"] == 1
+    assert all(info["points"][name]["ok"] == 1 for name in ev.POINTS)
+    assert info["noise"]["sources"] == 0 and info["failing"] == []
+    assert [r for r in measures["lines"] if r["tipo"] == "circular"][0]["estado"] == "cumple"
+
+
+def test_wrong_original_text_fails_only_point_two(circular_case):
+    """REQ-031: con el texto original equivocado falla solo el punto 2."""
+    c = circular_case
+    c.write_list(original="multa del 1 % diario")
+    c.add_source(c.row_with("garantía del 5 %"))
+
+    info = c.measure()[2]["circulars"]
+
+    assert info["failing"] == [{"id": "S-001", "documento": CIRCULAR_FILE, "puntos": [2]}]
+    assert info["met"]["ok"] == 0
+
+
+def test_different_date_fails_only_point_four(circular_case):
+    """REQ-031: con una fecha distinta de la de la fuente falla solo el punto 4."""
+    c = circular_case
+    c.write_list(fecha="2025-12-02")
+    c.add_source(c.row_with("garantía del 5 %"))
+
+    info = c.measure()[2]["circulars"]
+
+    assert info["failing"][0]["puntos"] == [4]
+
+
+def test_wrong_effect_fails_only_point_one(circular_case):
+    """REQ-031: una fuente con otro efecto que el esperado falla solo el punto 1."""
+    c = circular_case
+    c.write_list()
+    c.add_source(c.row_with("garantía del 5 %"), effect="aclara")
+
+    assert c.measure()[2]["circulars"]["failing"][0]["puntos"] == [1]
+
+
+def test_row_without_source_fails_point_one(circular_case):
+    """REQ-031: una fila sin fuente falla el punto 1 (y no cumple)."""
+    c = circular_case
+    c.write_list()
+
+    info = c.measure()[2]["circulars"]
+
+    assert info["points"]["effect"]["ok"] == 0
+    assert 1 in info["failing"][0]["puntos"] and info["met"]["ok"] == 0
+
+
+def test_precisa_in_the_list_is_an_aclara_source(circular_case):
+    """REQ-031: `precisa` (efecto de las listas reales) se mide contra la fuente `aclara`; en
+    `suprime` no se exige texto vigente."""
+    c = circular_case
+    c.write_list(efecto="precisa")
+    row = c.row_with("garantía del 5 %")
+    c.add_source(row, effect="aclara")
+    assert c.measure()[2]["circulars"]["met"]["ok"] == 1
+
+    c.write_list(efecto="suprime", vigente="")
+    row.sources.all().delete()
+    c.add_source(row, effect="suprime")
+    assert c.measure()[2]["circulars"]["met"]["ok"] == 1
+
+
+def test_original_is_read_from_the_annex_when_the_source_references_it(circular_case):
+    """REQ-031: con el original en un tramo aparte (anexo), el original mostrado es ese
+    tramo, no la cita alcanzada."""
+    c = circular_case
+    c.write_list(original="multa del 1 % diario")
+    c.add_source(c.row_with("garantía del 5 %"),
+                 original=(c.procedure.documents.get(file_name=FILE), "multa del 1 % diario"))
+
+    assert c.measure()[2]["circulars"]["met"]["ok"] == 1
+
+
+def test_source_in_a_row_without_expected_circular_is_noise_by_document(circular_case):
+    """REQ-031: una fuente en una fila sin esperado de circular cuenta como ruido, por
+    documento y por fila."""
+    c = circular_case
+    c.write_list()
+    c.add_source(c.row_with("garantía del 5 %"))
+    other = c.row_with("multa del 1 % diario")
+    c.add_source(other, effect="aclara")
+
+    noise = c.measure()[2]["circulars"]["noise"]
+
+    assert noise["sources"] == 1 and noise["rows"] == 1
+    assert noise["by_document"] == {CIRCULAR_FILE: 1}
+    assert noise["by_row"] == {str(other.number): 1}
+
+
+def test_circular_origin_row_without_expected_is_noise(circular_case):
+    """REQ-031: un requisito de origen `circular` que ninguna fila esperada pide se cuenta."""
+    c = circular_case
+    c.write_list()
+    c.add_source(c.row_with("garantía del 5 %"))
+    row = add_requirement(c.version, "sec-i/3.1")
+    m.Requirement.objects.filter(pk=row.pk).update(origin="circular")
+
+    noise = c.measure()[2]["circulars"]["noise"]
+
+    assert noise["unexpected_requirements"] == [row.number]
+
+
+def test_agrega_measures_the_circular_origin_row_with_its_document_and_date(circular_case):
+    """REQ-031: `agrega`: vale la fila de origen `circular` con cita en el documento y la
+    fecha esperados; con otra fecha falla el punto 4."""
+    c = circular_case
+    c.write_list()
+    block = block_yaml(efecto="agrega", tramo=c.segment.key, ancla="plazo de entrega",
+                       original="", vigente="plazo de entrega será de 10 días")
+    old = "    origen: circular\n    renglones: []\n"
+    text = c.path.read_text(encoding="utf-8")
+    assert old in text
+    text = text.replace(old, "    origen: circular\n    renglones: []\n" + block, 1)
+    write(c.path, text)
+    c.add_source(c.row_with("garantía del 5 %"))
+    segment = m.Segment.objects.get(reading__document=c.circular,
+                                    text__contains="plazo de entrega")
+    row = m.Requirement.objects.create(
+        version=c.version, number=99, category="formal", items=[],
+        origin=m.RequirementOrigin.CIRCULAR, state="propuesto", proposed={})
+    m.RequirementQuote.objects.create(
+        requirement=row, order=1, segment=segment, char_start=segment.char_start,
+        char_end=segment.char_end, text=segment.text, scope="")
+
+    measures = c.measure()[2]
+    line = next(r for r in measures["lines"] if r.get("id") == "S-006" and r["tipo"] == "circular")
+
+    assert line["estado"] == "cumple" and line["fila"] == 99
+    assert measures["circulars"]["noise"]["unexpected_requirements"] == []
+
+    head, _, tail = text.rpartition(f'fecha: "{CIRCULAR_DATE}"')  # el bloque de S-006
+    write(c.path, head + 'fecha: "2025-12-09"' + tail)
+    failing = c.measure()[2]["circulars"]["failing"]
+    assert [f["id"] for f in failing] == ["S-006"] and failing[0]["puntos"] == [4]
+
+
+def test_list_scope_circulars_measures_only_req_031(circular_case):
+    """REQ-031: una lista con `alcance: circulares` no calcula encontrados, sobrantes ni
+    tope del resto, y el bloqueo es solo el de las filas de circular."""
+    c = circular_case
+    row = c.row_with("garantía del 5 %")
+    c.add_source(row)
+    head = c.text.split("requisitos:")[0].replace(
+        "uso: primera_corrida", "uso: ajuste\nalcance: circulares")
+    body = ("requisitos:\n  - id: S-001\n    documento: Pliego sintético.pdf\n"
+            "    tramo: sec-i/1.1\n    pagina: 1\n    ancla: \"garantía del 5 % del monto\"\n"
+            "    clase: economico\n    renglones: []\n" + block_yaml(tramo=c.segment.key))
+    write(c.path, head + body)
+    expected, check, _ = c.measure()
+    assert expected.circulars_only
+
+    result = ev._result_of_run(c.run, c.version, c.procedure, expected, check.readings)
+    measures = result["measures"]
+
+    assert measures["scope"] == "circulares"
+    assert "found" not in measures and "leftover_ratio" not in measures
+    assert measures["circulars"]["met"]["ok"] == 1
+    report = ev.Report(c.path.parent, expected, check, [result])
+    assert report.blocking == []
+    private = ev._summary(report, public=False)
+    assert "solo circulares" in private and "Sobrantes" not in private
+
+    row.sources.all().delete()
+    result = ev._result_of_run(c.run, c.version, c.procedure, expected, check.readings)
+    assert any("REQ-031" in r for r in ev.Report(c.path.parent, expected, check,
+                                                  [result]).blocking)
+
+
+def test_verify_expected_rejects_a_block_whose_anchor_is_not_in_the_reading(circular_case):
+    """REQ-031: `--verificar-esperada` rechaza un bloque cuyo ancla (de la circular, original
+    o vigente) no está en la lectura, y una fecha que no es la del documento."""
+    c = circular_case
+    for options in ({"ancla": "texto que la circular no tiene"},
+                    {"vigente": "texto vigente inventado que no está"},
+                    {"original": "texto original inventado que no está"},
+                    {"fecha": "2025-12-02"}):
+        c.write_list(**options)
+        check = ev.verify_expected(ev.load_expected(c.path), c.procedure)
+        assert not check.ok and any("S-001" in p for p in check.problems), options
+    c.write_list()
+    assert ev.verify_expected(ev.load_expected(c.path), c.procedure).ok
+
+
+def test_list_block_with_a_bad_effect_or_date_is_refused(circular_case):
+    """REQ-031: un bloque con efecto o fecha inválidos no se lee."""
+    c = circular_case
+    for options in ({"efecto": "borra"}, {"fecha": "ayer"}):
+        with pytest.raises(ev.ExpectedError, match="circulares"):
+            c.write_list(**options)
+
+
+def test_public_summary_has_no_text_of_the_circular_rows(circular_case):
+    """P4, REQ-031: `resumen-publico.md` no contiene el texto de ninguna ancla ni cita de las
+    filas de circular (se busca cada una) y sí lleva cuentas, claves y documentos."""
+    c = circular_case
+    expected = c.write_list()
+    c.add_source(c.row_with("garantía del 5 %"))
+    c.add_source(c.row_with("multa del 1 % diario"), effect="aclara")
+    _, check, _ = c.measure()
+    result = ev._result_of_run(c.run, c.version, c.procedure, expected, check.readings)
+    report = ev.Report(c.path.parent, expected, check, [result])
+
+    public = ev._summary(report, public=True)
+
+    block = next(i for i in expected.items if i.id == "S-001").blocks[0]
+    for text in (block.anchor, block.original_anchor, block.current_anchor,
+                 *(q.text for q in m.RequirementQuote.objects.filter(
+                     requirement__version=c.version))):
+        assert text not in public
+    assert "REQ-031, cumplen los cuatro puntos: " in public
+    assert "ruido" in public and CIRCULAR_FILE in public
+
+
+def test_old_list_without_blocks_gives_the_usual_measures(case, operator_user, tmp_path):
+    """REQ-031: una lista sin bloques `circulares` da las medidas de siempre y no agrega
+    líneas de circulares; las corridas viejas se regeneran."""
+    procedure, _, path, text = case
+    write(path, text.replace(FIXTURE_BLOCK, ""))
+    report = run_measure(operator_user, procedure, path, tmp_path)
+    expected = ev.load_expected(path)
+
+    assert report.results[0]["measures"]["circulars"] is None
+    assert not [r for r in report.results[0]["measures"]["lines"] if r["tipo"] == "circular"]
+    assert "la lista no tiene bloques" in (report.folder / "resumen.md").read_text(
+        encoding="utf-8")
+    again = ev.regenerate_summaries(procedure, expected, report.folder)
+    assert again.results[0]["measures"]["circulars"] is None
