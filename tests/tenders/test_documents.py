@@ -475,6 +475,16 @@ def test_page_shows_each_document_with_its_reading_state(client, operator_user, 
     assert "Página ilegible" in page
 
 
+def test_procedure_list_links_each_procedure_to_its_page(client, operator_user,
+                                                         procedure):
+    """REQ-023: la lista de procedimientos enlaza cada uno a su página, donde se cargan
+    sus documentos."""
+    log_in(client, operator_user)
+    page = page_text(client.get(reverse("tenders:procedures")))
+    link = reverse("tenders:procedure", args=[procedure.pk])
+    assert f'<a href="{link}">{procedure.number}</a>' in page
+
+
 def test_page_shows_a_failed_reading(client, operator_user, procedure):
     """REQ-028: una lectura fallida figura en la página con su motivo."""
     log_in(client, operator_user)

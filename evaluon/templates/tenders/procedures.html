@@ -28,7 +28,7 @@
     <tbody>
       {% for row in rows %}
       <tr>
-        <td>{{ row.procedure.number }}</td>
+        <td><a href="{% url 'tenders:procedure' row.procedure.pk %}">{{ row.procedure.number }}</a></td>
         <td>{{ row.procedure.subject }}</td>
         <td>{{ row.procedure.authorization_date|date:"d/m/Y" }}</td>
         <td>{% if row.regime %}{% for item in row.regime %}{% if not forloop.first %}{% if forloop.last %} y {% else %}, {% endif %}{% endif %}{{ item.name }}{% endfor %}{% else %}Sin régimen específico cargado{% endif %}</td>
