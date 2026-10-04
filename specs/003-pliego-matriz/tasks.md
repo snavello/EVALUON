@@ -15,7 +15,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
 | T-067 | Crear las tablas, los tipos de hecho y los parámetros de la 003 | REQ-022, REQ-023, REQ-024, REQ-025, REQ-026, REQ-027, REQ-028, REQ-029, REQ-030, REQ-031, REQ-032 | — | terminada |
-| T-068 | Sumar el rol de la Comisión a los usuarios | REQ-026, REQ-027, REQ-029 | T-067 | pendiente |
+| T-068 | Sumar el rol de la Comisión a los usuarios | REQ-026, REQ-027, REQ-029 | T-067 | terminada |
 | T-069 | Registrar un procedimiento y mostrar su régimen | REQ-022 | T-068 | pendiente |
 | T-070 | Partir un pliego en tramos con renglones, clase por sección y control de cobertura | REQ-024, REQ-025, REQ-028 | T-067 | pendiente |
 | T-071 | Ejecutar pedidos en segundo plano con su propio motor | REQ-024, REQ-030 | T-067 | pendiente |
@@ -34,6 +34,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-084 | Correr la medición del caso-00 | REQ-024, REQ-025, REQ-029, REQ-030 | T-075, T-076, T-077, T-080 | pendiente |
 | T-085 | Ofrecer solo los niveles que mejoran | REQ-030 | T-084 | pendiente |
 | T-086 | Imprimir y exportar la matriz a PDF con la leyenda de borrador | REQ-032 | T-082 | pendiente |
+| T-087 | Comparar en la misma zona horaria la fecha de lectura del informe | REQ-004 | — | terminada |
 
 ## Para todas las tareas
 
@@ -204,6 +205,14 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 - **Archivos:** `pyproject.toml`, `Dockerfile`, `evaluon/tenders/export.py`, `evaluon/tenders/views/export.py`, `evaluon/tenders/urls.py`, `evaluon/templates/tenders/matrix_print.html`, `evaluon/templates/tenders/matrix.html`, `evaluon/static/tenders/print.css`, `tests/tenders/test_export.py`; informe en `specs/003-pliego-matriz/verificacion/T-086.md`.
 - **Verificación:** tests con una matriz sintética de varias páginas, leyendo el PDF con pdfplumber: cada página de un borrador tiene "BORRADOR INCOMPLETO"; ninguna página de la versión validada la tiene, y todas muestran versión, fecha y evaluador; una versión descartada lleva la leyenda; la vista de impresión de un borrador tiene la leyenda; una plantilla con una dirección externa hace fallar la generación en lugar de buscarla; la exportación queda registrada con la huella del archivo entregado. En la imagen: `docker compose build app` y la suite completa en verde; el informe anota las versiones instaladas, el aumento de tamaño de la imagen, el tiempo de generación de una matriz de 40 filas y la comprobación a mano de que la impresión del navegador repite la leyenda en cada hoja.
 - **No tocar:** `docker-compose.yml`; `proposal/`; los servicios de revisión, consecuencias y validación.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-087 · Comparar en la misma zona horaria la fecha de lectura del informe
+
+- **Qué hacer:** defecto encontrado en la suite al desarrollar T-068 (decisión del Coordinador, 2026-10-03): `tests/norms/test_duplicates.py::test_report_document_part_has_file_name_hash_and_read_date` compara `read_at` del informe (hora local) con `created_at.date()` (UTC) y falla entre las 21 y las 24 hora argentina. Determinar si el defecto es del test o del informe (la fecha que ve la persona tiene que ser la local, `America/Argentina/Buenos_Aires`) y corregirlo donde corresponda, sin cambiar lo que el test comprueba. Buscar otros tests con la misma comparación.
+- **Archivos:** `tests/norms/test_duplicates.py`; el código del informe de lectura en `evaluon/norms/` solo si el defecto es del producto.
+- **Verificación:** el test pasa con el reloj fijado a las 23:30 hora argentina y a las 10:00 (por ejemplo, con `time_machine` o fijando `timezone.now`); suite completa en verde.
+- **No tocar:** `evaluon/tenders/`, `accounts`.
 - **Entorno:** cualquier equipo con Docker.
 
 ## Cobertura de requisitos

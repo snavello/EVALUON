@@ -3,6 +3,9 @@
 Es el modelo de usuario desde la primera migración (`AUTH_USER_MODEL`). No usa los grupos
 ni los permisos de Django (ADR-0005): el rol es un campo con dos valores, y la
 comprobación está en `permissions.py`.
+
+El rol de la Comisión (plan 003, "Roles") es otro campo, independiente del rol de la
+normativa: ninguno (`''`), operador o evaluador.
 """
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
@@ -14,6 +17,12 @@ from django.utils import timezone
 class Role(models.TextChoices):
     READ = "read", "Lectura"
     READ_WRITE = "read_write", "Lectura y escritura"
+
+
+class CommissionRole(models.TextChoices):
+    NONE = "", "Ninguno"
+    OPERATOR = "operator", "Operador"
+    EVALUATOR = "evaluator", "Evaluador"
 
 
 class UserManager(BaseUserManager):
@@ -39,6 +48,13 @@ class User(AbstractBaseUser):
         validators=[UnicodeUsernameValidator()],
     )
     role = models.CharField("rol", max_length=10, choices=Role.choices)
+    commission_role = models.CharField(
+        "rol de la Comisión",
+        max_length=10,
+        choices=CommissionRole.choices,
+        default=CommissionRole.NONE,
+        blank=True,
+    )
     is_active = models.BooleanField("activo", default=True)
     date_joined = models.DateTimeField("fecha de alta", default=timezone.now)
 
@@ -54,6 +70,10 @@ class User(AbstractBaseUser):
             models.CheckConstraint(
                 condition=models.Q(role__in=["read", "read_write"]),
                 name="accounts_user_role_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(commission_role__in=["", "operator", "evaluator"]),
+                name="accounts_user_commission_role_valid",
             ),
         ]
 

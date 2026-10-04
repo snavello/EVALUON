@@ -13,7 +13,7 @@ Documentos de prueba, públicos o sintéticos (P4):
 
 import hashlib
 import io
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from io import StringIO
 from pathlib import Path
 
@@ -21,6 +21,7 @@ import pypdfium2
 import pytest
 from django.core.management import CommandError, call_command
 from django.db import IntegrityError
+from django.utils import timezone as django_timezone
 
 from evaluon.accounts import permissions
 from evaluon.audit.models import AuditEvent
@@ -510,17 +511,45 @@ def test_effective_date_is_compared_only_against_parts_in_use(read_write_user):
 # --- Informe: documento y categoría (avisos de T-024 y T-025) -------------------------
 
 
+# Instantes en hora argentina (UTC-3, sin horario de verano): a las 23:30 la fecha UTC ya
+# es la del día siguiente; a las 10:00 coinciden (T-087).
+ARGENTINA = timezone(timedelta(hours=-3))
+CLOCKS = [datetime(2026, 10, 3, 23, 30, tzinfo=ARGENTINA),
+          datetime(2026, 10, 3, 10, 0, tzinfo=ARGENTINA)]
+
+
+@pytest.fixture
+def clock(request, monkeypatch):
+    """Fija el reloj de Django en el instante pedido. Reemplaza el `datetime` que usa
+    `django.utils.timezone.now`, así lo ven tanto `timezone.localtime()` como los campos
+    con `default=timezone.now`."""
+    instant = request.param
+
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return instant.astimezone(tz)
+
+    monkeypatch.setattr(django_timezone, "datetime", FixedDatetime)
+    return instant
+
+
 @pytest.mark.django_db
-def test_report_document_part_has_file_name_hash_and_read_date(read_write_user):
+@pytest.mark.parametrize("clock", CLOCKS, indirect=True, ids=["2330", "1000"])
+def test_report_document_part_has_file_name_hash_and_read_date(read_write_user, clock):
     """REQ-004, REQ-012: la parte "Documento" del informe guardado trae el nombre del
-    archivo, su huella y la fecha de lectura, en los datos y en el texto."""
+    archivo, su huella y la fecha de lectura, en los datos y en el texto. La fecha es la
+    de la hora argentina a cualquier hora del día (T-087)."""
     result = load(read_write_user)
 
     document = result.reading.report["document"]
     assert document["file_name"] == "disp-247-2022-anexo-extracto.pdf"
     assert document["file_sha256"] == sha256(EXTRACT_BYTES)
     assert document["read_at"]
-    assert date.fromisoformat(document["read_at"][:10]) == result.reading.created_at.date()
+    # `created_at` vuelve de la base en UTC; la fecha que ve la persona es la local.
+    local_created = django_timezone.localtime(result.reading.created_at)
+    assert date.fromisoformat(document["read_at"][:10]) == local_created.date()
+    assert local_created.date() == clock.date()
     text = result.reading.report_text
     assert "Archivo: disp-247-2022-anexo-extracto.pdf." in text
     assert f"Huella del archivo: {sha256(EXTRACT_BYTES)}." in text
