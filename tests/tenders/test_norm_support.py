@@ -104,6 +104,13 @@ class SupportScript:
         return " ".join(body for blocks, _, _ in self.requests for body in blocks.values())
 
 
+@pytest.fixture(autouse=True)
+def short_quotes_allowed(monkeypatch):
+    """Las normas de prueba de la 001 tienen artículos de dos palabras: salvo en las pruebas
+    del largo mínimo, que lo fijan, no se exige largo."""
+    monkeypatch.setattr(norm_support, "MIN_CITE_WORDS", 1)
+
+
 @pytest.fixture
 def support(filt, fake_generation, monkeypatch):  # noqa: F811
     return SupportScript(filt, fake_generation, monkeypatch)
@@ -633,3 +640,57 @@ def test_the_screen_and_the_print_take_the_evidence_in_the_real_format_or_none(
         assert response.status_code == 200
         assert "Indicio en el pliego" in page if shown else "Indicio en el pliego" not in page
         assert ("indicio literal del tramo" in page) is shown
+
+
+# --- Largo mínimo de la cita -----------------------------------------------------------------
+
+LARGA = "los oferentes deberán acompañar el certificado de calibración de cada balanza ofrecida"
+
+
+@pytest.fixture
+def long_norm(make_norm, make_document, make_reading, marks):  # noqa: F811
+    norm = make_norm(category="marco_nacional", citation="Decreto sintético 5/2020")
+    reading = make_reading(make_document(norm), [
+        ("art-5", f"ARTÍCULO 5°.- Se establece que {LARGA}.")])
+    marks.reranker.scores["Se establece que"] = 0.95
+    return reading.units_by_key["art-5"]
+
+
+def test_a_quote_of_four_content_words_or_more_is_support(
+        operator_user, script, filt, support, regimes, long_norm, corpus, spy, monkeypatch):  # noqa: F811
+    """REQ-036: con el largo mínimo de verdad (4 palabras con contenido), una cita larga
+    sigue siendo respaldo."""
+    monkeypatch.setattr(norm_support, "MIN_CITE_WORDS", 4)
+    support.says("Se establece que", "si", LARGA)
+
+    run = run_case(operator_user, script, filt)
+
+    [saved] = supports(run)
+    assert saved.unit_id == long_norm.pk and saved.text == LARGA
+
+
+@pytest.mark.parametrize("cite", ["certificado de calibración de", "certificado de calibración", "certificado"])
+def test_a_literal_quote_that_is_too_short_is_not_support_and_leaves_an_anomaly(
+        operator_user, script, filt, support, regimes, long_norm, corpus, spy,  # noqa: F811
+        monkeypatch, cite):
+    """REQ-036: una cita literal de una, dos o tres palabras con contenido no marca "la norma
+    la exige": sin respaldo, con la anomalía, y la sugerencia queda igual."""
+    monkeypatch.setattr(norm_support, "MIN_CITE_WORDS", 4)
+    assert cite in long_norm.text
+    support.says("Se establece que", "si", cite)
+
+    run = run_case(operator_user, script, filt)
+
+    assert supports(run) == []
+    assert_untouched(run)
+    assert norm_support.ANOMALY_QUOTE_SHORT in [a["type"] for a in run.anomalies]
+
+
+def test_the_minimum_is_the_one_of_the_filters_clue():
+    """REQ-036: el mínimo es el mismo del indicio del filtro (T-102)."""
+    from evaluon.tenders.proposal import filter as row_filter
+
+    import inspect
+
+    assert "MIN_CITE_WORDS = 4" in inspect.getsource(norm_support)
+    assert row_filter.MIN_CLUE_WORDS == 4

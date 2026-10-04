@@ -22,7 +22,8 @@ Para cada sugerencia, una consulta:
    `exige` (`si` o `no`) y `cita`.
 5. Una unidad es respaldo solo con las tres condiciones: puntaje de al menos
    `NORM_SUPPORT_MIN_SCORE`, `exige` igual a `si` y `cita` hallada, palabra por palabra, en el
-   texto de la unidad en la base (`quotes.locate`). Un alias inexistente o una cita que no
+   texto de la unidad en la base (`quotes.locate`) y tiene al menos `MIN_CITE_WORDS` palabras
+   con contenido (como el indicio del filtro). Un alias inexistente o una cita que no
    está invalidan esa unidad. Se guardan hasta dos por sugerencia, las de mayor puntaje; el
    texto guardado es el recorte de la unidad, no lo que escribió el modelo.
 
@@ -46,7 +47,7 @@ from evaluon.norms.models import Unit as NormUnit
 from evaluon.norms.models import UnitType
 from evaluon.queries import answering, retrieval
 from evaluon.tenders.models import PassName, RunStep
-from evaluon.tenders.proposal import extraction, quotes
+from evaluon.tenders.proposal import dedup, extraction, quotes
 
 QUESTION = (
     "El pliego de un procedimiento de contratación dice: «{fragment}». ¿Qué artículo del "
@@ -54,6 +55,9 @@ QUESTION = (
 )
 # Respaldos que se guardan por sugerencia.
 MAX_SUPPORTS = 2
+# Palabras con contenido que tiene que tener la cita (el criterio del indicio del filtro,
+# T-102): una cita más corta no puede marcar "la norma la exige".
+MIN_CITE_WORDS = 4
 # Máximo de la salida del pedido (por cada unidad, un sí o no y una cita corta).
 MAX_OUTPUT_TOKENS = 1500
 # Normas que no exigen: fundamentan o interpretan (plan 003, "Consulta normativa").
@@ -66,6 +70,7 @@ ANOMALY_INVALID = "respaldo_salida_invalida"
 ANOMALY_BAD_ALIAS = "respaldo_alias_inexistente"
 ANOMALY_BAD_ITEM = "respaldo_unidad_invalida"
 ANOMALY_QUOTE_MISSING = "respaldo_cita_no_esta"
+ANOMALY_QUOTE_SHORT = "respaldo_cita_corta"
 ANOMALY_NO_FIT = "respaldo_unidades_no_entran"
 ANOMALY_CORPUS_CHANGED = "respaldo_normativa_cambio"
 
@@ -298,6 +303,11 @@ class Supporter:
             span = quotes.locate(answering.unit_text(unit), answer["cita"])
             if span is None:
                 anomalies.append({"type": ANOMALY_QUOTE_MISSING, "alias": alias,
+                                  "segment": key})
+                continue
+            quote = answering.unit_text(unit)[span[0]:span[1]]
+            if len(dedup.content_words(dedup.normalize(quote))) < MIN_CITE_WORDS:
+                anomalies.append({"type": ANOMALY_QUOTE_SHORT, "alias": alias,
                                   "segment": key})
                 continue
             parsed[alias]["respaldo"] = True
