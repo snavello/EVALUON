@@ -18,9 +18,20 @@ Pasadas de **media** (las de este módulo):
    de completitud). Si cuelga de un renglón, entra en la fila de su renglón.
 4. **Filas técnicas** (`technical.py`): una por renglón, por regla.
 
-Alta y exigente piden por ahora lo mismo que media y quedan registradas con su nombre (su
-pasada de completitud y la segunda extracción llegan con T-078); la propuesta anota esa
-anomalía. Las circulares y las consecuencias llegan con T-083 y T-080: los documentos
+Pasadas de **alta** y **exigente** (`completeness.py`; T-078):
+
+- Alta: reglas, extracción, completitud y filas técnicas. La completitud (solo formales y
+  económicos) revisa cada tramo con requisitos y cada tramo que el modelo descartó teniendo
+  marcadores de obligación: suma los que faltan y divide los que juntan dos condiciones. Un
+  descartado con marcadores ya no queda pendiente por ese solo hecho; solo si la completitud
+  no dio resultado.
+- Exigente: reglas, extracción, segunda extracción con los lotes desplazados medio lote,
+  unión de las dos por superposición de cita, completitud y filas técnicas.
+- Las filas técnicas se arman después de la unión y la completitud, con la misma regla y
+  las mismas marcas técnicas en los tres niveles. Los tramos de secciones técnicas no pasan
+  por el modelo y no llegan a la completitud.
+
+Cada requisito formal o económico guarda en `passes` las pasadas que lo encontraron. Las circulares y las consecuencias llegan con T-083 y T-080: los documentos
 que no son base no se usan y la propuesta lo anota.
 
 **Disposición de cada tramo.** Todo tramo queda con una disposición (`tenders_disposition`):
@@ -64,6 +75,7 @@ from evaluon.tenders.models import (
     DispositionOutcome,
     DispositionSource,
     MatrixVersion,
+    PassName,
     PendingItem,
     PendingReason,
     Reading,
@@ -75,15 +87,18 @@ from evaluon.tenders.models import (
     SegmentType,
     VersionStatus,
 )
-from evaluon.tenders.proposal import extraction, quotes, technical
+from evaluon.tenders.proposal import completeness, extraction, quotes, technical
 from evaluon.tenders.segmenting import RULES_VERSION
 from evaluon.tenders.services.procedures import _snapshot, regime_for
 
-# Pasadas de cada nivel. Mientras alta y exigente no tengan las suyas (T-078), piden lo
-# mismo que media.
-PASSES_MEDIA = ("reglas", "extraccion", "marcadores", "filas_tecnicas")
-PASSES = {"media": PASSES_MEDIA, "alta": PASSES_MEDIA, "exigente": PASSES_MEDIA}
-LEVELS_WITHOUT_OWN_PASSES = ("alta", "exigente")
+# Pasadas de cada nivel, en orden (plan 003, "Pasadas"). En media los marcadores de
+# obligación dejan pendiente el tramo descartado; en alta y exigente lo manda la completitud.
+PASSES = {
+    "media": ("reglas", "extraccion", "marcadores", "filas_tecnicas"),
+    "alta": ("reglas", "extraccion", "completitud", "filas_tecnicas"),
+    "exigente": ("reglas", "extraccion", "extraccion_2", "union", "completitud",
+                 "filas_tecnicas"),
+}
 
 # Marcadores de obligación (plan 003, "Pasadas"); se comparan sin tildes ni mayúsculas.
 OBLIGATION_MARKERS = (
@@ -99,7 +114,6 @@ OBLIGATION_MARKERS = (
 
 ANOMALY_DISCARDED_IN_ITEM = "descartado_en_renglon"
 ANOMALY_UNPROCESSED_DOCUMENTS = "documentos_no_procesados"
-ANOMALY_LEVEL_WITHOUT_PASSES = "nivel_sin_pasadas_propias"
 ANOMALY_TECHNICAL_WITHOUT_ITEMS = "secciones_tecnicas_sin_renglones"
 
 # Orden de prioridad de los motivos de un pendiente: gana el de la lectura.
@@ -154,8 +168,10 @@ def rule_decision(segment, is_item_header):
     return None
 
 
-def model_decision(unit, outcome, anomalies):
-    """La disposición de un tramo según lo que el modelo devolvió (`extraction.Outcome`)."""
+def model_decision(unit, outcome, anomalies, markers_pending=True):
+    """La disposición de un tramo según lo que el modelo devolvió (`extraction.Outcome`).
+    Con `markers_pending` (media), un descartado con marcadores de obligación queda
+    pendiente; sin él (alta y exigente), queda descartado y la completitud lo revisa."""
     segment = unit.segment
     base = {"source": DispositionSource.MODELO.value, "step": outcome.step}
     if not outcome.valid:
@@ -171,7 +187,7 @@ def model_decision(unit, outcome, anomalies):
         anomalies.append({"type": ANOMALY_DISCARDED_IN_ITEM, "segment": segment.pk,
                           "key": segment.key, "motivo": outcome.discard})
         return Decision(DispositionOutcome.TECNICO.value, **base)
-    if has_obligation_markers(segment.text):
+    if markers_pending and has_obligation_markers(segment.text):
         return Decision(DispositionOutcome.PENDIENTE.value,
                         pending_reason=PendingReason.MARCADORES.value, **base)
     return Decision(DispositionOutcome.DESCARTADO.value,
@@ -265,7 +281,8 @@ def _begin(run):
         run.regime = regime_for(run.authorization_date)
     run.models = _models()
     run.parameters = _parameters(run)
-    run.prompt_versions = {"extraccion": settings.MATRIX_PROMPT_VERSIONS["extraccion"]}
+    names = ["extraccion"] + (["completitud"] if "completitud" in PASSES[run.level] else [])
+    run.prompt_versions = {name: settings.MATRIX_PROMPT_VERSIONS[name] for name in names}
     run.save(update_fields=["authorization_date", "corpus_version", "regime", "models",
                             "parameters", "prompt_versions"])
 
@@ -309,15 +326,10 @@ def propose(run, *, user, channel=Channel.COMMAND):
     clock = time.monotonic()
     timings = {}
     anomalies = []
-    extractor = None
+    workers = []
     try:
         _begin(run)
-        if run.level in LEVELS_WITHOUT_OWN_PASSES:
-            anomalies.append({
-                "type": ANOMALY_LEVEL_WITHOUT_PASSES, "level": run.level,
-                "detail": "completitud y segunda extracción llegan con T-078: se corren "
-                          "las pasadas de media",
-            })
+        passes = PASSES[run.level]
         others = run.procedure.documents.exclude(
             pk__in=[entry["document"] for entry in run.documents]
         ).values_list("pk", flat=True)
@@ -342,16 +354,53 @@ def propose(run, *, user, channel=Channel.COMMAND):
         started = time.monotonic()
         numbers = [number for number, _ in loaded.items]
         extractor = extraction.Extractor(run, numbers)
+        workers.append(extractor)
         result = extractor.extract(to_model)
         timings["extraccion"] = round(time.monotonic() - started, 3)
         anomalies.extend(result.anomalies)
+        outcomes = result.outcomes
+        requests = {PassName.EXTRACCION.value: result.stats["requests"]}
+        stats = [result.stats]
 
-        # 3. Marcadores (dentro de la disposición del tramo descartado).
+        # 2 bis. Segunda extracción con los lotes desplazados y unión (exigente).
+        if "extraccion_2" in passes:
+            started = time.monotonic()
+            extractor_2 = extraction.Extractor(run, numbers, PassName.EXTRACCION_2)
+            workers.append(extractor_2)
+            second = completeness.second_extraction(extractor_2, to_model)
+            timings["extraccion_2"] = round(time.monotonic() - started, 3)
+            anomalies.extend(second.anomalies)
+            requests[PassName.EXTRACCION_2.value] = second.stats["requests"]
+            stats.append(second.stats)
+            started = time.monotonic()
+            outcomes = {pk: completeness.union(outcomes[pk], second.outcomes[pk], anomalies)
+                        for pk in outcomes}
+            timings["union"] = round(time.monotonic() - started, 3)
+
+        # 3. Disposición según el modelo. En media, los marcadores de obligación dejan
+        # pendiente al tramo descartado.
         started = time.monotonic()
         by_pk = {unit.segment.pk: unit for unit in loaded.units}
-        for pk, outcome in result.outcomes.items():
-            decisions[pk] = model_decision(by_pk[pk], outcome, anomalies)
+        for pk, outcome in outcomes.items():
+            decisions[pk] = model_decision(by_pk[pk], outcome, anomalies,
+                                           markers_pending="completitud" not in passes)
         timings["marcadores"] = round(time.monotonic() - started, 3)
+
+        # 3 bis. Completitud (alta y exigente).
+        completion_stats = None
+        if "completitud" in passes:
+            started = time.monotonic()
+            completer = completeness.Completer(run)
+            workers.append(completer)
+            candidates = completeness_candidates(loaded, decisions)
+            if candidates:
+                completion = completer.complete(candidates)
+                apply_completeness(decisions, completion)
+                anomalies.extend(completion.anomalies)
+            completion_stats = {key: completer.stats[key] for key in
+                                ("segments", "added", "split", "invalid")}
+            requests[PassName.COMPLETITUD.value] = completer.stats["requests"]
+            timings["completitud"] = round(time.monotonic() - started, 3)
 
         # 4. Filas técnicas.
         started = time.monotonic()
@@ -387,12 +436,50 @@ def propose(run, *, user, channel=Channel.COMMAND):
         # Guardado: todo o nada.
         started = time.monotonic()
         with transaction.atomic():
-            version = _save(run, loaded, decisions, rows, result, anomalies, timings,
-                            clock, user, channel, started)
+            version = _save(run, loaded, decisions, rows, stats, requests, completion_stats,
+                            anomalies, timings, clock, user, channel, started)
     except Exception as error:
-        _record_failure(run, user, channel, error, extractor, timings, clock)
+        _record_failure(run, user, channel, error, workers, timings, clock)
         raise
     return version
+
+
+def completeness_candidates(loaded, decisions):
+    """Los tramos para la completitud, en el orden del pliego: los que el modelo dejó con
+    requisitos, y los que descartó teniendo marcadores de obligación. Solo pasan por acá
+    tramos que ya pasaron por el modelo, así que nunca los de una sección técnica."""
+    candidates = []
+    for unit in loaded.units:
+        decision = decisions[unit.segment.pk]
+        if decision.source != DispositionSource.MODELO.value:
+            continue
+        if decision.outcome == DispositionOutcome.REQUISITOS.value and decision.found:
+            candidates.append(completeness.Candidate(unit, list(decision.found)))
+        elif (decision.outcome == DispositionOutcome.DESCARTADO.value
+              and has_obligation_markers(unit.segment.text)):
+            candidates.append(completeness.Candidate(unit, []))
+    return candidates
+
+
+def apply_completeness(decisions, completion):
+    """Pasa a las disposiciones lo que dijo la completitud. Un descartado con marcadores
+    en que no se encontró nada queda descartado; si la completitud no dio resultado, queda
+    pendiente por los marcadores, como en media."""
+    for pk, result in completion.results.items():
+        decision = decisions[pk]
+        discarded = decision.outcome == DispositionOutcome.DESCARTADO.value
+        if not result.valid:
+            if discarded:
+                decisions[pk] = Decision(
+                    DispositionOutcome.PENDIENTE.value,
+                    pending_reason=PendingReason.MARCADORES.value,
+                    source=DispositionSource.MODELO.value, step=decision.step)
+            continue
+        if result.found:
+            decisions[pk] = Decision(
+                DispositionOutcome.REQUISITOS.value, found=result.found,
+                marks=list(decision.marks), source=DispositionSource.MODELO.value,
+                step=result.step if discarded else decision.step)
 
 
 def _requirement_sort_key(item):
@@ -400,8 +487,8 @@ def _requirement_sort_key(item):
     return (unit.position, found.span[0])
 
 
-def _save(run, loaded, decisions, rows, result, anomalies, timings, clock, user, channel,
-          started):
+def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anomalies,
+          timings, clock, user, channel, started):
     """Crea la versión borrador y todo lo que cuelga de ella, y deja el hecho
     `matrix_proposal`. Corre dentro de una transacción."""
     procedure = run.procedure
@@ -446,7 +533,7 @@ def _save(run, loaded, decisions, rows, result, anomalies, timings, clock, user,
             state=RequirementState.PROPUESTO,
             proposed={"category": found.category, "items": list(segment.items),
                       "quotes": [record]},
-            step=found.step, passes=["extraccion"],
+            step=found.step, passes=completeness.passes_of(found),
         )
         RequirementQuote.objects.create(
             requirement=requirement, order=1, segment=segment, char_start=start,
@@ -521,12 +608,15 @@ def _save(run, loaded, decisions, rows, result, anomalies, timings, clock, user,
         "requirements": sum(by_class.values()),
         "requirements_by_class": dict(by_class),
         "technical_rows": technical_rows,
-        "model_requests": result.stats["requests"],
-        "segments_retried": result.stats["segments_retried"],
-        "quotes_retried": result.stats["quotes_retried"],
-        "split_batches": result.stats["split_batches"],
+        "model_requests": sum(requests.values()),
+        "model_requests_by_pass": requests,
+        "segments_retried": sum(s["segments_retried"] for s in stats),
+        "quotes_retried": sum(s["quotes_retried"] for s in stats),
+        "split_batches": sum(s["split_batches"] for s in stats),
         "wide_quotes": wide,
     }
+    if completion_stats is not None:
+        counts["completeness"] = completion_stats
     timings["guardado"] = round(time.monotonic() - started, 3)
     timings["total"] = round(time.monotonic() - clock, 3)
     run.counts = counts
@@ -561,7 +651,7 @@ def _save(run, loaded, decisions, rows, result, anomalies, timings, clock, user,
     return version
 
 
-def _record_failure(run, user, channel, error, extractor, timings, clock):
+def _record_failure(run, user, channel, error, workers, timings, clock):
     """Deja el hecho `matrix_proposal` fallido. Lo ya guardado en `tenders_run_step`
     queda."""
     timings = {**timings, "total": round(time.monotonic() - clock, 3)}
@@ -574,7 +664,7 @@ def _record_failure(run, user, channel, error, extractor, timings, clock):
             "level": run.level,
             "run_channel": run.channel,
             "error": f"{type(error).__name__}: {error}",
-            "model_requests_saved": len(extractor.steps) if extractor else 0,
+            "model_requests_saved": sum(len(worker.steps) for worker in workers),
             "timings": timings,
         },
     )

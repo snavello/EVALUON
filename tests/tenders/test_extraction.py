@@ -21,13 +21,19 @@ from tests.tenders.scripted import (
     item,
     load_and_read,
     make_procedure,
-    propose,
+    propose as propose_at_level,
     script,  # noqa: F401  (fixture)
     three_items_pdf,
 )
 from tests.tenders.pdfs import para, synthetic_tender_pdf, tender_pdf
 
 pytestmark = pytest.mark.django_db
+
+
+def propose(user, procedure, *, level="media"):
+    """Estas pruebas son de la extracción, que es la de media: alta y exigente suman pasadas
+    propias (`test_completeness.py`) y cambiarían la cuenta de pedidos."""
+    return propose_at_level(user, procedure, level=level)
 
 GARANTIA_QUOTE = "constituir una garantía del 5 % del monto"
 
