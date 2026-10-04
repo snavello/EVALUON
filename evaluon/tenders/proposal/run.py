@@ -31,8 +31,15 @@ Pasadas de **alta** y **exigente** (`completeness.py`; T-078):
   las mismas marcas técnicas en los tres niveles. Los tramos de secciones técnicas no pasan
   por el modelo y no llegan a la completitud.
 
-Cada requisito formal o económico guarda en `passes` las pasadas que lo encontraron. Las circulares y las consecuencias llegan con T-083 y T-080: los documentos
-que no son base no se usan y la propuesta lo anota.
+Cada requisito formal o económico guarda en `passes` las pasadas que lo encontraron.
+
+**Consecuencias** (`consequences.py`; T-080), la última pasada de los tres niveles: para cada
+requisito, ya numerado como lo va a quedar en la versión, sugiere hasta tres consecuencias
+con su fundamento del pliego o de la norma, o la deja "no determinada". Las crea `_save`
+junto con los requisitos, en la misma transacción.
+
+Las circulares llegan con T-083: los documentos que no son base no se usan y la propuesta lo
+anota.
 
 **Disposición de cada tramo.** Todo tramo queda con una disposición (`tenders_disposition`):
 `requisitos`, `tecnico`, `descartado` o `pendiente`. Un tramo con requisitos y además citado
@@ -71,6 +78,8 @@ from django.db.models import Max
 from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType, Outcome
 from evaluon.tenders.models import (
+    Consequence,
+    ConsequenceOrigin,
     Disposition,
     DispositionOutcome,
     DispositionSource,
@@ -87,17 +96,23 @@ from evaluon.tenders.models import (
     SegmentType,
     VersionStatus,
 )
-from evaluon.tenders.proposal import completeness, extraction, quotes, technical
+from evaluon.tenders.proposal import (
+    completeness,
+    consequences,
+    extraction,
+    quotes,
+    technical,
+)
 from evaluon.tenders.segmenting import RULES_VERSION
 from evaluon.tenders.services.procedures import _snapshot, regime_for
 
 # Pasadas de cada nivel, en orden (plan 003, "Pasadas"). En media los marcadores de
 # obligación dejan pendiente el tramo descartado; en alta y exigente lo manda la completitud.
 PASSES = {
-    "media": ("reglas", "extraccion", "marcadores", "filas_tecnicas"),
-    "alta": ("reglas", "extraccion", "completitud", "filas_tecnicas"),
+    "media": ("reglas", "extraccion", "marcadores", "filas_tecnicas", "consecuencias"),
+    "alta": ("reglas", "extraccion", "completitud", "filas_tecnicas", "consecuencias"),
     "exigente": ("reglas", "extraccion", "extraccion_2", "union", "completitud",
-                 "filas_tecnicas"),
+                 "filas_tecnicas", "consecuencias"),
 }
 
 # Marcadores de obligación (plan 003, "Pasadas"); se comparan sin tildes ni mayúsculas.
@@ -281,7 +296,8 @@ def _begin(run):
         run.regime = regime_for(run.authorization_date)
     run.models = _models()
     run.parameters = _parameters(run)
-    names = ["extraccion"] + (["completitud"] if "completitud" in PASSES[run.level] else [])
+    names = (["extraccion"] + (["completitud"] if "completitud" in PASSES[run.level] else [])
+             + ["consecuencias"])
     run.prompt_versions = {name: settings.MATRIX_PROMPT_VERSIONS[name] for name in names}
     run.save(update_fields=["authorization_date", "corpus_version", "regime", "models",
                             "parameters", "prompt_versions"])
@@ -433,11 +449,22 @@ def propose(run, *, user, channel=Channel.COMMAND):
                                         "reconocido: una sola fila técnica sin renglón"})
         timings["filas_tecnicas"] = round(time.monotonic() - started, 3)
 
+        # 5. Consecuencias de cada requisito, numerados como van a quedar en la versión.
+        started = time.monotonic()
+        body = [(unit, found, _found_text(unit.segment, found))
+                for unit, found in _body(loaded, decisions)]
+        suggester = consequences.Suggester(run, loaded)
+        workers.append(suggester)
+        suggestions = suggester.suggest(consequences.build_subjects(loaded, body, rows))
+        anomalies.extend(suggestions.anomalies)
+        requests[PassName.CONSECUENCIAS.value] = suggestions.stats["requests"]
+        timings["consecuencias"] = round(time.monotonic() - started, 3)
+
         # Guardado: todo o nada.
         started = time.monotonic()
         with transaction.atomic():
             version = _save(run, loaded, decisions, rows, stats, requests, completion_stats,
-                            anomalies, timings, clock, user, channel, started)
+                            anomalies, timings, clock, user, channel, started, suggestions)
     except Exception as error:
         _record_failure(run, user, channel, error, workers, timings, clock)
         raise
@@ -487,8 +514,26 @@ def _requirement_sort_key(item):
     return (unit.position, found.span[0])
 
 
+def _body(loaded, decisions):
+    """Los requisitos formales y económicos como `[(unidad, Found)]`, en el orden del
+    pliego."""
+    body = []
+    for unit in loaded.units:
+        for found in decisions[unit.segment.pk].found:
+            body.append((unit, found))
+    body.sort(key=_requirement_sort_key)
+    return body
+
+
+def _found_text(segment, found):
+    """El texto literal de la cita de un requisito: el fragmento, o el tramo entero."""
+    if found.flag == quotes.WIDE:
+        return segment.text
+    return segment.text[found.span[0]:found.span[1]]
+
+
 def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anomalies,
-          timings, clock, user, channel, started):
+          timings, clock, user, channel, started, suggestions):
     """Crea la versión borrador y todo lo que cuelga de ella, y deja el hecho
     `matrix_proposal`. Corre dentro de una transacción."""
     procedure = run.procedure
@@ -511,11 +556,8 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
     )
 
     # Requisitos formales y económicos, en el orden del pliego.
-    body = []
-    for unit in loaded.units:
-        for found in decisions[unit.segment.pk].found:
-            body.append((unit, found))
-    body.sort(key=_requirement_sort_key)
+    body = _body(loaded, decisions)
+    created = {}
     counter = 0
     by_class = Counter()
     for unit, found in body:
@@ -523,11 +565,10 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
         segment = unit.segment
         reading = loaded.reading_of[segment.pk]
         start, end = _wide_or_span(segment, found)
-        text = (segment.text if found.flag == quotes.WIDE
-                else segment.text[found.span[0]:found.span[1]])
+        text = _found_text(segment, found)
         _check_quote(reading, start, end, text)
         record = _quote_record(segment, start, end, text, flag=found.flag)
-        requirement = Requirement.objects.create(
+        requirement = created[counter] = Requirement.objects.create(
             version=version, number=counter, category=found.category,
             items=list(segment.items), origin=RequirementOrigin.PROPUESTO,
             state=RequirementState.PROPUESTO,
@@ -552,7 +593,7 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
             reading = loaded.reading_of[segment.pk]
             _check_quote(reading, segment.char_start, segment.char_end, segment.text)
             records.append((order, segment, quote.scope))
-        requirement = Requirement.objects.create(
+        requirement = created[counter] = Requirement.objects.create(
             version=version, number=counter, category=RequirementClass.TECNICO.value,
             items=items, origin=RequirementOrigin.PROPUESTO,
             state=RequirementState.PROPUESTO,
@@ -575,6 +616,15 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
             "own": sum(1 for _, _, scope in records if scope == "propia"),
             "general": sum(1 for _, _, scope in records if scope == "general"),
         })
+
+    # Consecuencias sugeridas: las de cada requisito, o "no determinada".
+    Consequence.objects.bulk_create(
+        Consequence(requirement=created[number], consequence_type=option.consequence_type,
+                    grounds=option.grounds, origin=ConsequenceOrigin.SISTEMA.value,
+                    step=option.step)
+        for number, options in sorted(suggestions.options.items())
+        for option in options
+    )
 
     # Pendientes: uno por tramo.
     pending = {}
@@ -615,6 +665,9 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
         "split_batches": sum(s["split_batches"] for s in stats),
         "wide_quotes": wide,
     }
+    counts["consequences"] = {key: suggestions.stats[key] for key in (
+        "requirements", "options", "undetermined", "invalid", "dropped_options",
+        "retried", "split_batches", "norm_units", "requests")}
     if completion_stats is not None:
         counts["completeness"] = completion_stats
     timings["guardado"] = round(time.monotonic() - started, 3)

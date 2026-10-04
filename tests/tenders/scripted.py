@@ -109,6 +109,7 @@ class Script:
         self.fake = fake
         self.rules = []
         self.calls = []
+        self.consequence_calls = []
         self.fallback = DEFAULT_DISCARD
         self._override = None
         self._failing = False
@@ -141,6 +142,15 @@ class Script:
         return result
 
     def _generate(self, messages, schema, **options):
+        first = next(iter(schema.get("properties", {}).values()), {}).get("properties", {})
+        if "opciones" in first:
+            # Pedido de consecuencias (T-080): no entra en `calls`, que cuenta los pedidos
+            # de extracción; el guion responde sin opciones.
+            self.consequence_calls.append(messages)
+            if not self._failing:
+                self.fake.respond(json.dumps(
+                    {alias: {"opciones": []} for alias in schema["properties"]}))
+            return self.fake.generate(messages, schema, **options)
         blocks = parse_blocks(messages[-1]["content"])
         number = len(self.calls)
         self.calls.append(blocks)
