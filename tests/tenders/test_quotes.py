@@ -32,9 +32,9 @@ def test_locate_ignores_only_the_spaces_at_the_ends():
 
 @pytest.mark.parametrize("quote", [
     "la oferta deberá presentarse en pesos.",      # otra mayúscula
-    "La oferta deberá  presentarse en pesos.",     # un espacio de más
     "Segunda línea del tramo. Y más",              # sobra texto que el tramo no tiene
-    "La oferta deberá presentarse\nen pesos.",     # el salto de línea no es un espacio
+    "La oferta debera presentarse en pesos.",      # sin tilde
+    "La oferta deberá presentarze en pesos.",      # una letra cambiada
 ])
 def test_locate_is_exact(quote):
     """REQ-025: la copia tiene que ser letra por letra; si no, no se ubica."""
@@ -65,3 +65,25 @@ def test_absolute_moves_the_span_to_the_canonical_text():
 
     assert quotes.absolute(segment, (6, 10)) == (1006, 1010)
     assert quotes.whole(segment) == (1000, 1000 + len(TEXT))
+
+
+def test_line_breaks_and_spaces_may_differ():
+    """REQ-025: la cita puede traer saltos de línea o espacios distintos de los del tramo;
+    se ubica igual y las posiciones son las del texto del tramo."""
+    span = quotes.locate(TEXT, "La oferta  deberá\npresentarse en   pesos.")
+
+    assert TEXT[span[0]:span[1]] == "La oferta deberá presentarse en pesos."
+    span = quotes.locate(TEXT, "firma. Segunda  línea\ndel tramo.")
+    assert TEXT[span[0]:span[1]] == "firma.\nSegunda línea del tramo."
+
+
+def test_collapsed_search_keeps_the_rule_for_repeated_quotes():
+    """REQ-025: con espacios distintos, si aparece dos veces se toma la primera
+    aparición no usada, como en la búsqueda exacta."""
+    quote = "La oferta\ndeberá presentarse"
+    first = quotes.locate(TEXT, quote)
+    second = quotes.locate(TEXT, quote, used={first})
+
+    assert first[0] < second[0]
+    assert TEXT[second[0]:second[1]].startswith("La oferta deberá presentarse")
+    assert quotes.locate(TEXT, quote, used={first, second}) is None

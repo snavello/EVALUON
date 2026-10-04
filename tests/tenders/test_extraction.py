@@ -680,3 +680,44 @@ def test_technical_marks_are_numbers_or_all():
                        "descarte": ""}).technical == [2, 1]
     assert shape_item({"requisitos": [], "tecnico": ["2", "todos"],
                        "descarte": ""}).technical == ["todos"]
+
+
+def test_quote_with_other_line_breaks_is_found_and_saves_the_canonical_slice(
+        operator_user, script):
+    """REQ-025: una cita con espacios o saltos de línea distintos de los del pliego se
+    encuentra, y lo que se guarda es el recorte exacto del texto canónico, sin marca."""
+    procedure = make_procedure(operator_user)
+    document = load_and_read(operator_user, procedure, tender_pdf([[
+        para("SECCIÓN I - CONDICIONES PARTICULARES"),
+        para("1. PRESENTACIÓN", "1.1. Se presenta la oferta firmada",
+             "por el representante legal."),
+    ]], header=None))
+    script.when("firmada", item([("Se presenta  la oferta\nfirmada por\nel representante "
+                                  "legal.", "formal")]))
+
+    requested, job = propose(operator_user, procedure)
+
+    assert job.status == "done", job.error
+    cited = requirement_for(requested.run.version, "sec-i/1.1").quotes.get()
+    reading = document.readings.get()
+    assert cited.quote_flag == ""
+    assert reading.canonical_text[cited.char_start:cited.char_end] == cited.text
+    assert " ".join(cited.text.split()) == "Se presenta la oferta firmada por el " \
+        "representante legal."
+    assert len(script.calls) == 1
+
+
+def test_quote_with_a_changed_letter_is_not_found_and_stays_wide(operator_user, script):
+    """REQ-025: una letra cambiada no se tolera: se reintenta y queda cita amplia."""
+    procedure = make_procedure(operator_user)
+    load_and_read(operator_user, procedure, tender_pdf([[
+        para("SECCIÓN I - CONDICIONES PARTICULARES"),
+        para("1. PRESENTACIÓN", "1.1. Se presenta la oferta firmada."),
+    ]], header=None))
+    script.when("firmada", item([("Se presenta la oferta firmeda.", "formal")]))
+
+    requested, _ = propose(operator_user, procedure)
+
+    cited = requirement_for(requested.run.version, "sec-i/1.1").quotes.get()
+    assert cited.quote_flag == "cita_amplia"
+    assert len(script.calls) == 2
