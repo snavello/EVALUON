@@ -64,7 +64,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-114 | Crear el campo de original en un anexo, el pedido de extracción de cambios y los parámetros de circulares | REQ-031 | T-099, T-100 | terminada |
 | T-115 | Pasada de circulares, entrega 2: el modelo extrae la lista de cambios donde no hay clave | REQ-031 | T-113, T-114 | terminada |
 | T-116 | Mostrar y imprimir el original en el anexo, el cambio agrupado y el requisito agregado por una circular | REQ-031, REQ-032 | T-113, T-114, T-105, T-112 | pendiente |
-| T-117 | Medir REQ-031 por fila en `medir_matriz`: documento, fecha, texto original y vigente | REQ-031 | T-103, T-111 | pendiente |
+| T-117 | Medir REQ-031 por fila en `medir_matriz`: documento, fecha, texto original y vigente | REQ-031 | T-103, T-111 | terminada |
 | T-118 | Cargar los casos 05 y 06 y preparar sus listas esperadas de circulares | REQ-031 | T-117 | pendiente |
 | T-119 | Actualizar la lista esperada del caso-01 con las filas que las circulares afectan | REQ-031 | T-117 | pendiente |
 | T-120 | Medir y ajustar la pasada de circulares con los casos 01, 05 y 06, con estabilidad | REQ-031 | T-113, T-115, T-117, T-118, T-119 | pendiente |
@@ -504,6 +504,7 @@ Plan: sección "Rediseño de la pasada de circulares (2026-10-04)" de `plan.md`;
 ### T-118 · Cargar los casos 05 y 06 y preparar sus listas esperadas de circulares
 
 - **Qué hacer:** el Coordinador (datos, sin código), con el usuario `desarrollo`: carga los documentos de los casos 05 (A0KJ000000-0008-LPU24, precintos, circulares con respuestas a consultas) y 06 (A0PC000000-0007-LPU26, bases online, circular aclaratoria) en `corpus/casos/caso-05/` y `caso-06/` (fuera del repositorio, material público), con su fecha y tipo de documento; escribe `matriz-esperada.yaml` de cada uno con `alcance: circulares` y `uso: ajuste`, leyendo solo el texto, con una entrada por fila que una circular o respuesta cambia, aclara, suprime o agrega y su bloque `circular`. Los casos 03 y 04 no se tocan ni se miran.
+- **Aviso de tareas anteriores:** T-117: cada circular citada en los bloques `circulares` debe estar cargada en el procedimiento, o la lista debe declarar `cargado: false` en ese documento; si no, `--verificar-esperada` y la medición bloquean. Correr `--verificar-esperada` en 01, 05 y 06 antes de T-120.
 - **Archivos:** `corpus/casos/caso-05/` y `corpus/casos/caso-06/` (fuera del repositorio); en el repositorio, solo la fila de esta tabla y `specs/003-pliego-matriz/verificacion/T-118.md` con cuentas, sin texto.
 - **Verificación:** los archivos se leen como YAML; `medir_matriz --verificar-esperada` los acepta (anclas y documentos existen en la lectura); la verificación anota cuántos documentos, circulares y filas esperadas hay por caso, sin texto del pliego.
 - **No tocar:** el sistema; los casos 03 y 04.
