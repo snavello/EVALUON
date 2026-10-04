@@ -1,0 +1,767 @@
+"""Efecto de las circulares y de las respuestas a consultas sobre la matriz (REQ-031; plan
+003, "Circulares y respuestas"; T-083).
+
+Una circular modificatoria o aclaratoria, o la respuesta a la pregunta de un oferente, puede
+cambiar, precisar o quitar un requisito del pliego, o agregar uno. La pasada corre después de
+las filas técnicas, sobre los requisitos ya numerados como van a quedar en la versión.
+
+**Orden.** Los documentos se procesan por fecha y, a igual fecha, por orden de carga. Cada
+tramo de cada documento es un pedido al modelo. El texto que se le muestra de cada cita es el
+vigente: si una circular anterior lo modificó, ve el original y el vigente, de modo que dos
+circulares sobre la misma cita se aplican una sobre otra, la última por fecha al final.
+
+**Citas candidatas de un tramo.** Las citas de los requisitos que el tramo nombra ("cláusula
+1.1", "Renglón N° 2") y, de las demás, las `MATRIX_CIRCULAR_CANDIDATES` (8) que el reranker
+puntúa más alto contra el texto del tramo. Una cita del pliego es una sola candidata aunque
+varios requisitos la compartan: en un técnico, cada tramo citado es una candidata aparte, y un
+tramo común a todos los renglones alcanza la fila de cada uno. Si no entran en el contexto,
+se descartan las de menor puntaje; las que el tramo nombra no se descartan salvo que ellas
+solas no quepan.
+
+**Qué devuelve el modelo** (instrucciones `prompts/matriz-circulares-v1.md`): `efectos`
+(`modifica`, `aclara` o `suprime` sobre una candidata, con el fragmento de la circular que lo
+produce), `nuevos` (requisitos formales o económicos que la circular agrega, con su
+fragmento) o un motivo de `sin_efecto` (la lista cerrada de descartes del ADR-0019).
+
+**Validación**, como en la extracción. Un efecto sobre una cita que el pedido no mostró se
+descarta. Un tramo cuya salida no tiene la forma, o no tiene ni efectos ni nuevos ni motivo,
+se vuelve a pedir una vez; si sigue igual queda pendiente (`sin_disposicion`). Cada fragmento
+se busca exacto dentro del tramo (`quotes.locate`); si no está, se vuelve a pedir el tramo
+una vez y, si sigue sin estar, el fragmento es el tramo entero de la circular y se anota
+(`circular_cita_amplia`). Un efecto nunca se pierde por una cita mal copiada.
+
+**Disposición de cada tramo de circular** (nunca desaparece): con efectos o requisitos
+nuevos, `requisitos`; sin efecto, `descartado` con el motivo; un título, `descartado`
+(`titulo`); una página o un tramo no ubicado, `pendiente`; una salida sin forma después del
+reintento, `pendiente` (`sin_disposicion`).
+
+Este módulo no escribe los requisitos: devuelve el `Result` y quien guarda la versión
+(`run._save`) crea las fuentes (`tenders_requirement_source`) y los requisitos nuevos
+(origen `circular`). Los pedidos sí se guardan apenas vuelven, en `tenders_run_step` (P6).
+"""
+
+import json
+import re
+import time
+from dataclasses import dataclass, field
+
+from django.conf import settings
+
+from evaluon.ai import AIServiceError, generation, reranker
+from evaluon.tenders.models import (
+    DATED_DOCUMENT_KINDS,
+    DiscardReason,
+    DispositionOutcome,
+    DispositionSource,
+    PassName,
+    PendingReason,
+    RequirementClass,
+    RunStep,
+    SegmentType,
+    SourceEffect,
+)
+from evaluon.tenders.proposal import extraction, quotes
+
+EFFECTS = tuple(effect.value for effect in SourceEffect)
+BODY_CLASSES = extraction.BODY_CLASSES
+
+ANOMALY_NO_READING = "circular_sin_lectura"
+ANOMALY_SERVICE = "servicio"
+ANOMALY_INVALID = "circular_salida_invalida"
+ANOMALY_NO_DISPOSITION = "circular_sin_disposicion"
+ANOMALY_UNKNOWN_QUOTE = "circular_cita_inexistente"
+ANOMALY_QUOTE_NOT_FOUND = "circular_texto_no_encontrado"
+ANOMALY_WIDE = "circular_cita_amplia"
+ANOMALY_CANDIDATES_CUT = "circular_candidatas_recortadas"
+ANOMALY_NO_FIT = "circular_tramo_no_entra"
+
+_CLASS_LABELS = {"formal": "formal", "economico": "económico"}
+
+# Lo que un tramo nombra: cláusulas, artículos, puntos… y renglones.
+_NUMBER = r"\d+(?:\.\d+)*"
+_CLAUSE = re.compile(
+    r"(?:cl[aá]usulas?|art[ií]culos?|puntos?|apartados?|numerales?|incisos?)\s*"
+    r"(?:n[°º]\s*|n[úu]m(?:ero)?s?\.?\s*|nros?\.?\s*)?"
+    rf"({_NUMBER}(?:\s*(?:,|;|y|e|o)\s*{_NUMBER})*)", re.IGNORECASE)
+_ITEM = re.compile(
+    r"rengl[oó]n(?:es)?\s*(?:n[°º]\s*|n[úu]m(?:ero)?s?\.?\s*|nros?\.?\s*)?"
+    r"(\d+(?:\s*(?:,|;|y|e|a)\s*\d+)*)", re.IGNORECASE)
+
+
+class InvalidOutput(ValueError):
+    """Lo que el modelo devolvió no tiene la forma del esquema."""
+
+
+# --- Documentos -------------------------------------------------------------------------------
+
+
+@dataclass
+class CircularDocument:
+    """Una circular o respuesta con su lectura y sus tramos (`extraction.Unit`)."""
+
+    document: object
+    reading: object
+    units: list
+
+
+@dataclass
+class Circulars:
+    """Los documentos con fecha del procedimiento que se procesan, en orden, y los que no
+    se pudieron (sin lectura)."""
+
+    documents: list
+    missing: list
+    reading_of: dict
+
+    def __bool__(self):
+        return bool(self.documents or self.missing)
+
+
+def load(run, first_position):
+    """Las circulares y respuestas del procedimiento con su lectura vigente, por fecha y,
+    a igual fecha, por orden de carga. Los tramos se numeran desde `first_position`."""
+    documents = sorted(
+        run.procedure.documents.filter(kind__in=[k.value for k in DATED_DOCUMENT_KINDS]),
+        key=lambda d: (d.issued_on, d.loaded_at, d.pk))
+    found, missing, reading_of = [], [], {}
+    position = first_position
+    for document in documents:
+        reading = document.readings.order_by("-sequence").first()
+        if reading is None:
+            missing.append(document)
+            continue
+        units = []
+        for segment in reading.segments.order_by("order"):
+            segment.reading = reading
+            position += 1
+            units.append(extraction.Unit(segment, document.title, position))
+            reading_of[segment.pk] = reading
+        found.append(CircularDocument(document, reading, units))
+    return Circulars(found, missing, reading_of)
+
+
+# --- Lo que se le muestra -----------------------------------------------------------------------
+
+
+@dataclass
+class Target:
+    """Un requisito de la versión y la cita (por orden) a la que corresponde."""
+
+    number: int
+    order: int
+    category: str
+    items: list
+    scope: str = ""
+
+
+@dataclass
+class Candidate:
+    """Una cita del pliego que una circular puede alcanzar. Varios requisitos pueden
+    compartirla (`targets`). `current` es el texto vigente; `history` las circulares que
+    lo cambiaron."""
+
+    key: tuple
+    unit: object
+    start: int
+    end: int
+    text: str
+    targets: list
+    current: str = ""
+    suppressed: bool = False
+    history: list = field(default_factory=list)
+
+    def __post_init__(self):
+        self.current = self.text
+
+    @property
+    def segment(self):
+        return self.unit.segment
+
+
+def build_candidates(loaded, body, rows):
+    """Las citas del pliego de los requisitos de la versión. `body` es lo que arma
+    `run.propose` (`[(unidad, Found, texto)]`, formales y económicos en el orden del pliego)
+    y `rows` las filas de `technical.build_rows`; los números son los de `_save`."""
+    by_pk = {unit.segment.pk: unit for unit in loaded.units}
+    found = {}
+
+    def add(unit, start, end, text, target):
+        key = (unit.segment.pk, start, end)
+        if key not in found:
+            found[key] = Candidate(key=key, unit=unit, start=start, end=end, text=text,
+                                   targets=[])
+        found[key].targets.append(target)
+
+    for number, (unit, item, text) in enumerate(body, start=1):
+        segment = unit.segment
+        if item.flag == quotes.WIDE:
+            start, end = quotes.whole(segment)
+        else:
+            start, end = quotes.absolute(segment, item.span)
+        add(unit, start, end, text,
+            Target(number, 1, item.category, list(segment.items)))
+    number = len(body)
+    for row in rows:
+        number += 1
+        items = [row.number] if row.number is not None else []
+        for order, quote in enumerate(row.quotes, start=1):
+            segment = quote.segment
+            add(by_pk[segment.pk], segment.char_start, segment.char_end, segment.text,
+                Target(number, order, RequirementClass.TECNICO.value, items, quote.scope))
+    return sorted(found.values(), key=lambda c: (c.unit.position, c.start))
+
+
+def _key_numbers(key):
+    """Los números de cláusula de la clave de un tramo (`sec-i/1.1/v-2` → `{"1.1"}`)."""
+    numbers = set()
+    for part in key.split("/"):
+        part = re.split(r"[#~]", part)[0]
+        if re.fullmatch(_NUMBER, part):
+            numbers.add(part)
+    return numbers
+
+
+def named_in(text):
+    """Los números de cláusula y de renglón que `text` nombra: `(cláusulas, renglones)`."""
+    clauses = set()
+    for match in _CLAUSE.finditer(text):
+        clauses.update(re.findall(_NUMBER, match.group(1)))
+    items = set()
+    for match in _ITEM.finditer(text):
+        group = match.group(1)
+        numbers = [int(n) for n in re.findall(r"\d+", group)]
+        items.update(numbers)
+        for first, second in re.findall(r"(\d+)\s*a\s*(\d+)", group, re.IGNORECASE):
+            items.update(range(int(first), int(second) + 1))
+    return clauses, items
+
+
+def is_named(candidate, clauses, items):
+    """Si el tramo nombra la cláusula o el renglón de la candidata."""
+    if clauses and clauses & _key_numbers(candidate.segment.key):
+        return True
+    if items:
+        for target in candidate.targets:
+            if items & set(target.items):
+                return True
+    return False
+
+
+def _scope_line(candidate):
+    lines = []
+    for target in candidate.targets:
+        if target.category == RequirementClass.TECNICO.value:
+            if target.scope == "general":
+                lines.append("Especificaciones técnicas comunes a todos los renglones")
+            elif target.items:
+                lines.append(f"Renglón {target.items[0]}, especificaciones técnicas")
+            else:
+                lines.append("Especificaciones técnicas del pliego")
+        else:
+            label = _CLASS_LABELS.get(target.category, target.category)
+            lines.append(f"Requisito {label}")
+    return "; ".join(dict.fromkeys(lines))
+
+
+def render_candidate(alias, candidate):
+    """Una cita del pliego tal como la ve el modelo."""
+    segment = candidate.segment
+    lines = [f"[{alias}]", _scope_line(candidate),
+             f"Documento: {candidate.unit.document_title}",
+             f"Ruta: {segment.path or segment.label or segment.key}"]
+    if candidate.history:
+        lines += ["Texto original:", candidate.text,
+                  "Cambiado por: " + "; ".join(candidate.history)]
+        if candidate.suppressed:
+            lines.append("Una circular anterior la dejó sin efecto.")
+        else:
+            lines += ["Texto vigente:", candidate.current]
+    else:
+        lines += ["Texto:", candidate.text]
+    lines.append(f"[/{alias}]")
+    return "\n".join(lines)
+
+
+def render_circular(circular, unit):
+    document = circular.document
+    segment = unit.segment
+    kind = document.get_kind_display()
+    return "\n".join([
+        f"Documento: {document.title} ({kind}), del {document.issued_on.strftime('%d/%m/%Y')}",
+        f"Ruta: {segment.path or segment.label or segment.key}",
+        "Texto:", segment.text,
+    ])
+
+
+def build_schema(aliases):
+    """Esquema de la salida. Las citas de `efectos` son solo entre las mostradas."""
+    cites = {"type": "string", "enum": list(aliases)} if aliases else {"type": "string"}
+    effects = {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "cita": cites,
+                "efecto": {"type": "string", "enum": list(EFFECTS)},
+                "texto": {"type": "string", "minLength": 1},
+            },
+            "required": ["cita", "efecto", "texto"],
+            "additionalProperties": False,
+        },
+    }
+    if not aliases:
+        effects["maxItems"] = 0
+    return {
+        "type": "object",
+        "properties": {
+            "efectos": effects,
+            "nuevos": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "cita": {"type": "string", "minLength": 1},
+                        "clase": {"type": "string", "enum": list(BODY_CLASSES)},
+                    },
+                    "required": ["cita", "clase"],
+                    "additionalProperties": False,
+                },
+            },
+            "sin_efecto": {"type": "string",
+                           "enum": ["", *[reason.value for reason in DiscardReason]]},
+        },
+        "required": ["efectos", "nuevos", "sin_efecto"],
+        "additionalProperties": False,
+    }
+
+
+def build_messages(prompt, circular_block, candidate_blocks):
+    parts = [
+        "Citas del pliego:\n\n" + ("\n\n".join(candidate_blocks) if candidate_blocks
+                                   else "ninguna"),
+        "Tramo de la circular:\n\n" + circular_block,
+        "Devolvé un objeto JSON con efectos, nuevos y sin_efecto.",
+    ]
+    return [{"role": "system", "content": prompt},
+            {"role": "user", "content": "\n\n".join(parts)}]
+
+
+# --- Lo que devuelve ------------------------------------------------------------------------------
+
+
+@dataclass
+class Shaped:
+    """La salida de un tramo con la forma comprobada: efectos `(alias, efecto, texto)`,
+    nuevos `(texto, clase)` y el motivo de `sin_efecto`."""
+
+    effects: list
+    new: list
+    discard: str
+
+    @property
+    def has_disposition(self):
+        return bool(self.effects or self.new) != bool(self.discard)
+
+
+def shape(raw):
+    """Comprueba la forma de lo devuelto. Lanza `InvalidOutput`."""
+    if not isinstance(raw, dict) or set(raw) != {"efectos", "nuevos", "sin_efecto"}:
+        raise InvalidOutput("no es un objeto con efectos, nuevos y sin_efecto")
+    effects, new = [], []
+    if not isinstance(raw["efectos"], list) or not isinstance(raw["nuevos"], list):
+        raise InvalidOutput("efectos y nuevos deben ser listas")
+    for entry in raw["efectos"]:
+        if (not isinstance(entry, dict) or set(entry) != {"cita", "efecto", "texto"}
+                or not all(isinstance(entry[k], str) for k in entry)
+                or entry["efecto"] not in EFFECTS):
+            raise InvalidOutput("un efecto no es {cita, efecto, texto} con efecto válido")
+        effects.append((entry["cita"].strip().strip("[]").strip(), entry["efecto"],
+                        entry["texto"]))
+    for entry in raw["nuevos"]:
+        if (not isinstance(entry, dict) or set(entry) != {"cita", "clase"}
+                or not all(isinstance(entry[k], str) for k in entry)
+                or entry["clase"] not in BODY_CLASSES):
+            raise InvalidOutput("un nuevo no es {cita, clase} con clase válida")
+        new.append((entry["cita"], entry["clase"]))
+    discard = raw["sin_efecto"]
+    if not isinstance(discard, str) or (discard and discard not in DiscardReason.values):
+        raise InvalidOutput(f"motivo de sin efecto desconocido: {discard!r}")
+    return Shaped(effects, new, discard)
+
+
+# --- Resultado --------------------------------------------------------------------------------------
+
+
+@dataclass
+class Verdict:
+    """Qué pasó con un tramo de circular (con los nombres de `run.Decision`)."""
+
+    outcome: str
+    discard_reason: str = ""
+    source: str = DispositionSource.REGLA.value
+    step: object = None
+    pending_reason: str = ""
+
+
+@dataclass
+class Source:
+    """Lo que un tramo de circular hace a una cita del pliego: el texto de la circular, sus
+    posiciones absolutas en la lectura de la circular y a qué requisitos alcanza."""
+
+    effect: str
+    candidate: Candidate
+    segment: object
+    start: int
+    end: int
+    text: str
+    issued_on: object
+    step: object
+    wide: bool = False
+
+
+@dataclass
+class NewRequirement:
+    """Un requisito que agrega una circular."""
+
+    category: str
+    segment: object
+    start: int
+    end: int
+    text: str
+    issued_on: object
+    step: object
+    wide: bool = False
+    number: int = 0
+
+
+@dataclass
+class Result:
+    verdicts: dict
+    sources: list
+    new_requirements: list
+    steps: list
+    anomalies: list
+    stats: dict
+
+    def subjects(self, first_number, units):
+        """Los requisitos nuevos como `consequences.Subject`, numerados desde
+        `first_number`; `units` es `{pk del tramo: extraction.Unit}`."""
+        from evaluon.tenders.proposal import consequences
+
+        subjects = []
+        for offset, new in enumerate(self.new_requirements):
+            new.number = first_number + offset
+            subjects.append(consequences.Subject(
+                number=new.number, category=new.category, items=list(new.segment.items),
+                text=new.text, unit=units[new.segment.pk], own=[]))
+        return subjects
+
+
+@dataclass
+class _Outcome:
+    shaped: Shaped | None = None
+    step: object = None
+    effects: list = field(default_factory=list)   # (alias, candidata, efecto, span, texto)
+    new: list = field(default_factory=list)       # (clase, span | None, texto)
+    unfound: int = 0
+
+    @property
+    def valid(self):
+        return self.shaped is not None and self.shaped.has_disposition
+
+
+# --- El procesador --------------------------------------------------------------------------------------
+
+
+class Processor:
+    """Hace los pedidos de la pasada de circulares de una propuesta (`MatrixRun`) y guarda
+    cada uno en `tenders_run_step`."""
+
+    pass_name = PassName.CIRCULARES
+
+    def __init__(self, run):
+        self.run = run
+        self.prompt = extraction.load_prompt("circulares")
+        self.steps = []
+        self.anomalies = []
+        self.stats = {"requests": 0, "segments": 0, "retried": 0, "effects": 0,
+                      "new_requirements": 0, "no_effect": 0, "pending": 0,
+                      "wide_quotes": 0, "dropped_effects": 0}
+        self._batch = 0
+
+    # -- Pedidos -----------------------------------------------------------------------------
+
+    def _record(self, unit, result, *, parsed, anomalies, retry_of, seconds):
+        self._batch += 1
+        step = RunStep.objects.create(
+            run=self.run, pass_name=self.pass_name, batch=self._batch,
+            segment_keys=[unit.segment.key], request=result["request"],
+            raw_output=result["content"], parsed=parsed, anomalies=anomalies,
+            retry_of=retry_of,
+            timings={"seconds": round(seconds, 3),
+                     "prompt_tokens": result["prompt_tokens"],
+                     "completion_tokens": result["completion_tokens"]},
+        )
+        self.steps.append(step)
+        return step
+
+    def _space(self):
+        return (settings.GENERATION_CONTEXT_TOKENS - settings.MATRIX_MAX_OUTPUT_TOKENS
+                - settings.PROMPT_TEMPLATE_MARGIN_TOKENS
+                - generation.count_tokens(self.prompt))
+
+    def _choose(self, circular, unit, candidates, anomalies):
+        """Las candidatas del tramo: las que nombra y las mejores del reranker. Devuelve
+        `(elegidas en orden del pliego, {alias: candidata}, qué se tuvo en cuenta)`."""
+        segment = unit.segment
+        clauses, items = named_in(segment.text)
+        named = [c for c in candidates if is_named(c, clauses, items)]
+        rest = [c for c in candidates if c not in named]
+        limit = settings.MATRIX_CIRCULAR_CANDIDATES
+        scores = {}
+        if len(rest) > limit:
+            values = reranker.rerank(segment.text, [c.current for c in rest])
+            scores = {c.key: v for c, v in zip(rest, values)}
+            rest = sorted(rest, key=lambda c: -scores[c.key])[:limit]
+        ordered = named + rest
+
+        space = (self._space() - generation.count_tokens(render_circular(circular, unit)))
+        chosen, used = [], 0
+        for candidate in ordered:
+            size = generation.count_tokens(render_candidate("Q00", candidate))
+            if used + size > space:
+                anomalies.append({"type": ANOMALY_CANDIDATES_CUT,
+                                  "segment": segment.pk, "key": segment.key})
+                break
+            chosen.append(candidate)
+            used += size
+        chosen.sort(key=lambda c: (c.unit.position, c.start))
+        aliases = {f"Q{n}": c for n, c in enumerate(chosen, start=1)}
+        context = {"nombradas": [c.segment.key for c in named],
+                   "clausulas": sorted(clauses), "renglones": sorted(items),
+                   "puntajes": {f"{k[0]}:{k[1]}:{k[2]}": round(v, 4)
+                                for k, v in scores.items()},
+                   "mostradas": {a: {"segmento": c.segment.pk, "clave": c.segment.key,
+                                     "inicio": c.start, "fin": c.end,
+                                     "requisitos": [t.number for t in c.targets]}
+                                 for a, c in aliases.items()}}
+        return aliases, context
+
+    def _ask(self, circular, unit, aliases, context, retry_of=None):
+        """Un pedido con el tramo y sus candidatas. Devuelve un `_Outcome`."""
+        blocks = [render_candidate(a, c) for a, c in aliases.items()]
+        messages = build_messages(self.prompt, render_circular(circular, unit), blocks)
+        schema = build_schema(list(aliases))
+        max_tokens = settings.MATRIX_MAX_OUTPUT_TOKENS
+        started = time.monotonic()
+        try:
+            output = generation.generate_batch(messages, schema, max_tokens=max_tokens)
+        except AIServiceError as error:
+            self._record(
+                unit, {"request": generation.build_request(messages, schema, max_tokens),
+                       "content": "", "prompt_tokens": None, "completion_tokens": None},
+                parsed=None, retry_of=retry_of, seconds=time.monotonic() - started,
+                anomalies=[{"type": ANOMALY_SERVICE, "reason": error.reason,
+                            "service": error.service, "message": str(error)}])
+            raise
+        seconds = time.monotonic() - started
+        result = {"request": output.request, "content": output.content,
+                  "prompt_tokens": output.prompt_tokens,
+                  "completion_tokens": output.completion_tokens}
+        self.stats["requests"] += 1
+
+        anomalies, shaped = [], None
+        try:
+            data = json.loads(output.content)
+            shaped = shape(data)
+        except ValueError as error:   # `InvalidOutput` es un `ValueError`
+            anomalies.append({"type": ANOMALY_INVALID, "segment": unit.segment.pk,
+                              "key": unit.segment.key, "detail": str(error),
+                              "finish_reason": output.finish_reason})
+        outcome = _Outcome()
+        parsed = {"segmento": unit.segment.pk, "valida": False, "candidatas": context,
+                  "finish_reason": output.finish_reason}
+        if shaped is not None:
+            kept = []
+            for alias, effect, text in shaped.effects:
+                if alias in aliases:
+                    kept.append((alias, effect, text))
+                else:
+                    self.stats["dropped_effects"] += 1
+                    anomalies.append({"type": ANOMALY_UNKNOWN_QUOTE,
+                                      "segment": unit.segment.pk, "alias": alias})
+            shaped.effects = kept
+            if not shaped.has_disposition:
+                anomalies.append({"type": ANOMALY_NO_DISPOSITION,
+                                  "segment": unit.segment.pk, "key": unit.segment.key})
+                shaped = None
+        if shaped is not None:
+            outcome.shaped = shaped
+            self._locate(unit, aliases, outcome, anomalies)
+            parsed.update(
+                valida=True,
+                efectos=[{"cita": a, "efecto": e, "texto": t, "ubicado": span is not None}
+                         for a, _, e, span, t in outcome.effects],
+                nuevos=[{"clase": k, "texto": t, "ubicado": span is not None}
+                        for k, span, t in outcome.new],
+                sin_efecto=shaped.discard)
+        outcome.step = self._record(unit, result, parsed=parsed, anomalies=anomalies,
+                                    retry_of=retry_of, seconds=seconds)
+        return outcome
+
+    @staticmethod
+    def _locate(unit, aliases, outcome, anomalies):
+        """Ubica cada fragmento dentro del tramo; `None` si no está."""
+        text = unit.segment.text
+        seen = set()
+        for alias, effect, fragment in outcome.shaped.effects:
+            span = quotes.locate(text, fragment)
+            if span is None:
+                outcome.unfound += 1
+                anomalies.append({"type": ANOMALY_QUOTE_NOT_FOUND,
+                                  "segment": unit.segment.pk, "alias": alias})
+            key = (alias, effect, span)
+            if key in seen:
+                continue
+            seen.add(key)
+            outcome.effects.append((alias, aliases[alias], effect, span, fragment))
+        used = set()
+        for fragment, kind in outcome.shaped.new:
+            span = quotes.locate(text, fragment, used)
+            if span is None:
+                outcome.unfound += 1
+                anomalies.append({"type": ANOMALY_QUOTE_NOT_FOUND,
+                                  "segment": unit.segment.pk, "clase": kind})
+            else:
+                used.add(span)
+            outcome.new.append((kind, span, fragment))
+
+    # -- Un tramo ----------------------------------------------------------------------------
+
+    def _tramo(self, circular, unit, candidates):
+        """Pide el tramo (y lo repite una vez si hace falta) y devuelve su `_Outcome`."""
+        anomalies = []
+        aliases, context = self._choose(circular, unit, candidates, anomalies)
+        self.anomalies.extend(anomalies)
+        first = self._ask(circular, unit, aliases, context)
+        if first.valid and not first.unfound:
+            return first
+        self.stats["retried"] += 1
+        second = self._ask(circular, unit, aliases, context, retry_of=first.step)
+        if second.valid and (not first.valid or second.unfound <= first.unfound):
+            return second
+        return first if first.valid else second
+
+    def process(self, circulars, candidates):
+        """Procesa los documentos de `circulars` por fecha sobre las `candidates`
+        (`build_candidates`). Devuelve el `Result`."""
+        verdicts, sources, new_requirements = {}, [], []
+        for document in circulars.documents:
+            issued_on = document.document.issued_on
+            label = (f"{document.document.title} ({issued_on.strftime('%d/%m/%Y')})")
+            for unit in document.units:
+                verdict = self._rule(unit.segment)
+                if verdict is not None:
+                    verdicts[unit.segment.pk] = verdict
+                    continue
+                self.stats["segments"] += 1
+                outcome = self._tramo(document, unit, candidates)
+                verdicts[unit.segment.pk] = self._verdict(outcome)
+                if not outcome.valid:
+                    self.stats["pending"] += 1
+                    self.anomalies.append({"type": ANOMALY_NO_DISPOSITION,
+                                           "segment": unit.segment.pk,
+                                           "key": unit.segment.key,
+                                           "detail": "sin disposición después del reintento"})
+                    continue
+                if outcome.shaped.discard:
+                    self.stats["no_effect"] += 1
+                    continue
+                self._apply(unit, outcome, issued_on, label, sources, new_requirements)
+        step_anomalies = [a for step in self.steps for a in step.anomalies]
+        self.stats["steps"] = len(self.steps)
+        return Result(verdicts=verdicts, sources=sources, new_requirements=new_requirements,
+                      steps=self.steps, anomalies=self.anomalies + step_anomalies,
+                      stats=self.stats)
+
+    @staticmethod
+    def _rule(segment):
+        """La disposición de un tramo que no pasa por el modelo, o `None`."""
+        kind = segment.segment_type
+        if kind in (SegmentType.PAGINA, SegmentType.NO_UBICADO):
+            return Verdict(DispositionOutcome.PENDIENTE.value)
+        if kind == SegmentType.TITULO:
+            return Verdict(DispositionOutcome.DESCARTADO.value, "titulo")
+        return None
+
+    @staticmethod
+    def _verdict(outcome):
+        base = {"source": DispositionSource.MODELO.value, "step": outcome.step}
+        if not outcome.valid:
+            return Verdict(DispositionOutcome.PENDIENTE.value,
+                           pending_reason=PendingReason.SIN_DISPOSICION.value, **base)
+        if outcome.shaped.discard:
+            return Verdict(DispositionOutcome.DESCARTADO.value,
+                           discard_reason=outcome.shaped.discard, **base)
+        return Verdict(DispositionOutcome.REQUISITOS.value, **base)
+
+    def _apply(self, unit, outcome, issued_on, label, sources, new_requirements):
+        """Pasa los efectos del tramo a las fuentes y a los requisitos nuevos, y deja el
+        texto vigente de cada cita al día para las circulares que siguen."""
+        segment = unit.segment
+
+        def place(span, fragment):
+            if span is None:
+                self.stats["wide_quotes"] += 1
+                self.anomalies.append({"type": ANOMALY_WIDE, "segment": segment.pk,
+                                       "key": segment.key})
+                start, end = quotes.whole(segment)
+                return start, end, segment.text, True
+            start, end = quotes.absolute(segment, span)
+            return start, end, segment.text[span[0]:span[1]], False
+
+        for _, candidate, effect, span, fragment in outcome.effects:
+            start, end, text, wide = place(span, fragment)
+            sources.append(Source(effect, candidate, segment, start, end, text, issued_on,
+                                  outcome.step, wide))
+            self.stats["effects"] += 1
+            if effect == SourceEffect.MODIFICA.value:
+                candidate.current = text
+                candidate.suppressed = False
+                candidate.history.append(f"modificada por {label}")
+            elif effect == SourceEffect.SUPRIME.value:
+                candidate.suppressed = True
+                candidate.history.append(f"suprimida por {label}")
+        for kind, span, fragment in outcome.new:
+            start, end, text, wide = place(span, fragment)
+            new_requirements.append(NewRequirement(kind, segment, start, end, text,
+                                                   issued_on, outcome.step, wide))
+            self.stats["new_requirements"] += 1
+
+
+def apply_to_subjects(subjects, candidates):
+    """Pone en los `consequences.Subject` el texto vigente de las citas que una circular
+    modificó, con el original: la consecuencia se evalúa sobre lo que se exige hoy."""
+    by_number = {s.number: s for s in subjects}
+    for candidate in candidates:
+        if candidate.suppressed or candidate.current == candidate.text:
+            continue
+        for target in candidate.targets:
+            subject = by_number.get(target.number)
+            if subject is not None:
+                subject.changes.append((candidate.text, candidate.current))
+                if subject.category != RequirementClass.TECNICO.value:
+                    subject.text = candidate.current
+
+
+def circular_record(circulars):
+    """Los documentos usados, para dejarlos en las cuentas y en el hecho de auditoría."""
+    return [{"document": d.document.pk, "title": d.document.title,
+             "kind": d.document.kind, "issued_on": d.document.issued_on.isoformat(),
+             "reading": d.reading.pk, "sha256": d.document.file_sha256}
+            for d in circulars.documents]
+
+
+def missing_record(circulars):
+    return [{"document": d.pk, "title": d.title} for d in circulars.missing]
+
