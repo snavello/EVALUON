@@ -42,7 +42,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 32/46 | ███████░░░ 70% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 33/46 | ███████░░░ 72% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -368,13 +368,12 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 14 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 13 tareas sin terminar.
 - ○ T-094 · Medir la aceptación con los casos 01 y 02 (pendiente)
 - ○ T-100 · Quitar el nivel "media" y dejar un solo proceso registrado (pendiente)
 - ○ T-101 · Unificar las filas que repiten la misma condición (pendiente)
 - ○ T-102 · Filtrar con dos preguntas y repartir cada fila en firme, sugerencia o descartada (pendiente)
 - ○ T-103 · Medir los sobrantes sobre las filas firmes, con tope e informe de descartadas (pendiente)
-- ○ T-104 · Listar y devolver las filas descartadas, y revisar por grupos (pendiente)
 - ○ T-105 · Mostrar las descartadas, las citas repetidas y la revisión por grupos (pendiente)
 - ○ T-106 · Medir el filtro, las sugerencias y el respaldo normativo con el caso-00 y ajustarlos (pendiente)
 - ○ T-107 · Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00 (pendiente)
@@ -419,6 +418,7 @@ flowchart LR
 - ✓ T-097 · Corregir la cita literal de las filas técnicas con varios documentos en `medir_matriz` (`8e2f6f2` 2026-10-04)
 - ✓ T-098 · Corregir la pasada de circulares (fuentes, tramos descartados y no ubicados) (`91dfa17` 2026-10-04, `ade33cd` 2026-10-04)
 - ✓ T-099 · Crear la tabla de filas descartadas, el estado de sugerencia, el respaldo normativo, las citas repetidas y los parámetros del filtro (`60b3e30` 2026-10-04)
+- ✓ T-104 · Listar y devolver las filas descartadas, y revisar por grupos (`db7c8e2` 2026-10-04)
 
 ### Mapa de tareas
 
@@ -461,7 +461,7 @@ flowchart TD
   T101["○ T-101 · Unificar las filas que repiten la misma con…"]:::todo
   T102["○ T-102 · Filtrar con dos preguntas y repartir cada f…"]:::todo
   T103["○ T-103 · Medir los sobrantes sobre las filas firmes,…"]:::todo
-  T104["○ T-104 · Listar y devolver las filas descartadas, y…"]:::todo
+  T104["✓ T-104 · Listar y devolver las filas descartadas, y…"]:::done
   T105["○ T-105 · Mostrar las descartadas, las citas repetida…"]:::todo
   T106["○ T-106 · Medir el filtro, las sugerencias y el respa…"]:::todo
   T107["○ T-107 · Decidir con el responsable el tope, la list…"]:::todo
@@ -557,7 +557,7 @@ flowchart TD
 | REQ-030 | La matriz se propone siempre con un único proceso de revisión, el más completo disponible, y queda registrado con la matriz qué proceso y qué versión de instrucciones se usaron | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085, T-089, T-090, T-091, T-094, T-096, T-097, T-099, T-100, T-103, T-108 | ▶ en proceso |
 | REQ-031 | El pliego final incluye las circulares modificatorias y aclaratorias y las preguntas de los oferentes con sus respuestas, si las hay, cada una con su fecha. Cuando una de ellas cambia o precisa un requisito, la matriz aplica el cambio, muestra los dos textos y cita el documento que lo produjo | T-067, T-072, T-074, T-083, T-094, T-098, T-108 | ▶ en proceso |
 | REQ-033 | Antes de mostrar la matriz propuesta, el sistema debe descartar las filas que no son requisitos de la oferta y unificar las que repiten la misma condición. Lo descartado no desaparece: queda en una lista aparte, cada fila con su cita y el motivo, que la Comisión puede abrir y devolver a la matriz | T-099, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108 | ▶ en proceso |
-| REQ-034 | La Comisión debe poder confirmar o quitar de una vez un grupo de requisitos propuestos de un mismo tramo o cláusula; cada fila del grupo queda registrada como si se hubiera revisado por separado, con quién y cuándo | T-104, T-105, T-110, T-112 | ○ pendiente |
+| REQ-034 | La Comisión debe poder confirmar o quitar de una vez un grupo de requisitos propuestos de un mismo tramo o cláusula; cada fila del grupo queda registrada como si se hubiera revisado por separado, con quién y cuándo | T-104, T-105, T-110, T-112 | ▶ en proceso |
 | REQ-035 | La matriz propuesta debe separar los requisitos que el sistema da por firmes de las **sugerencias de condición**: condiciones plausibles sobre las que el sistema duda. Las sugerencias van en una sección aparte, cada una con su cita y el motivo de la duda; la Comisión decide cada una (o por grupo, REQ-034) si pasa a requisito o se quita, y la matriz no se puede validar mientras quede una sugerencia sin decidir | T-099, T-102, T-103, T-106, T-107, T-108, T-110, T-111, T-112 | ▶ en proceso |
 | REQ-036 | Para cada sugerencia de condición y cada fila dudosa, el sistema debe buscar en la normativa aplicable (según REQ-022) si el régimen exige esa condición a las ofertas; si la encuentra, la muestra con la cita de la norma como respaldo y puede proponerla como requisito. La normativa solo sirve para confirmar: que una condición no figure en la norma nunca es motivo para descartarla, porque el pliego puede agregar exigencias propias | T-099, T-106, T-108, T-109, T-111, T-112 | ▶ en proceso |
 | REQ-032 | Una matriz que todavía no está validada se puede ver en pantalla, imprimir y exportar a PDF, siempre con la leyenda "BORRADOR INCOMPLETO" bien visible en cada página. Una matriz validada sale sin esa leyenda, con su versión y la fecha y el evaluador que la validó | T-067, T-074, T-082, T-086, T-105, T-112 | ▶ en proceso |

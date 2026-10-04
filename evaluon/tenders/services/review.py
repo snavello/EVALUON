@@ -242,6 +242,22 @@ def _run(user, role, operation, action, channel, detail, work):
 # --- Confirmar -----------------------------------------------------------------------------------
 
 
+def _confirm_one(requirement, user, channel, done, via_group=None):
+    """Confirma un requisito ya bloqueado y suma lo hecho a `done`. Es la misma función
+    para la confirmación individual y la de un grupo (REQ-034)."""
+    if requirement.state == RequirementState.CONFIRMADO:
+        return
+    before = {"state": requirement.state}
+    requirement.state = RequirementState.CONFIRMADO
+    requirement.save(update_fields=["state"])
+    change, event = _record(requirement, ChangeAction.CONFIRMAR, before,
+                            {"state": requirement.state}, user, channel,
+                            {"via_grupo": via_group} if via_group else None)
+    done.requirements.append(requirement)
+    done.changes.append(change)
+    done.events.append(event)
+
+
 def confirm(user, requirement_ids, *, channel=Channel.SCREEN):
     """Confirma los requisitos propuestos de `requirement_ids` (de una sola versión).
     Los que ya estaban confirmados no cambian; uno quitado se rechaza. Solo el evaluador."""
@@ -262,22 +278,93 @@ def confirm(user, requirement_ids, *, channel=Channel.SCREEN):
         if any(r.state == RequirementState.QUITADO for r in locked):
             raise ReviewRefused("Un requisito quitado no se confirma: restitúyalo antes.",
                                 "requirement_removed", "requirements")
+        if any(r.state == RequirementState.SUGERIDO for r in locked):
+            raise ReviewRefused(
+                "Una sugerencia no se confirma: se decide si pasa a requisito o se quita.",
+                "requirement_suggested", "requirements")
         done = Reviewed(requirements=[])
         for requirement in locked:
-            if requirement.state == RequirementState.CONFIRMADO:
-                continue
-            before = {"state": requirement.state}
-            requirement.state = RequirementState.CONFIRMADO
-            requirement.save(update_fields=["state"])
-            change, event = _record(requirement, ChangeAction.CONFIRMAR, before,
-                                    {"state": requirement.state}, user, channel)
+            _confirm_one(requirement, user, channel, done)
+        return done
+
+    return _run(user, CommissionRole.EVALUATOR, CONFIRM_OPERATION,
+                ChangeAction.CONFIRMAR, channel, {"requirements": ids}, work)
+
+
+# --- Revisión por grupos (REQ-034) ---------------------------------------------------------------
+
+GROUP_SEPARATORS = ("/", ".", "#")
+GROUP_CONFIRM_OPERATION = "evaluon.tenders.services.review.confirm_group"
+GROUP_REMOVE_OPERATION = "evaluon.tenders.services.review.remove_group"
+
+
+def in_group(key, group):
+    """Si la clave de un tramo es del grupo `group`: es igual o lo continúa con un separador
+    de nivel (`/`, `.` o `#`), de modo que `sec-i/1` no alcanza a `sec-i/11`."""
+    return bool(group) and (key == group or any(
+        key.startswith(group + separator) for separator in GROUP_SEPARATORS))
+
+
+def _in_group(requirement, group):
+    """Una fila es del grupo si lo son los tramos de sus citas propias (la principal de un
+    formal o económico; los del renglón en un técnico). Las citas repetidas y las comunes a
+    todos los renglones no cuentan."""
+    keys = [q.segment.key for q in requirement.quotes.select_related("segment")
+            if q.scope in ("", "propia")]
+    return bool(keys) and all(in_group(key, group) for key in keys)
+
+
+def _group_rows(version_id, group):
+    """`(clave, filas)`: las filas `propuesto` del grupo, bloqueadas y por número."""
+    group = (group or "").strip()
+    if not group:
+        raise ReviewRefused("Indique la cláusula o el tramo del grupo.", "invalid_group",
+                            "group")
+    rows = Requirement.objects.select_for_update().filter(
+        version_id=version_id, state=RequirementState.PROPUESTO).order_by("number")
+    rows = [r for r in rows if _in_group(r, group)]
+    if not rows:
+        raise ReviewRefused(
+            f"El grupo «{group}» no tiene filas propuestas: no hay nada que cambiar.",
+            "empty_group", "group")
+    return group, rows
+
+
+def confirm_group(user, version_id, group, *, channel=Channel.SCREEN):
+    """Confirma las filas `propuesto` del grupo `group` (clave de una cláusula o de un
+    tramo) de la versión. Solo el evaluador. Cada fila deja su historial y su hecho, igual
+    que una confirmación individual, con `via_grupo` en el hecho. Una sola transacción."""
+
+    def work():
+        _lock_draft(version_id)
+        key, rows = _group_rows(version_id, group)
+        done = Reviewed(requirements=[])
+        for requirement in rows:
+            _confirm_one(requirement, user, channel, done, via_group=key)
+        return done
+
+    return _run(user, CommissionRole.EVALUATOR, GROUP_CONFIRM_OPERATION,
+                ChangeAction.CONFIRMAR, channel,
+                {"version": version_id, "via_grupo": group}, work)
+
+
+def remove_group(user, version_id, group, *, channel=Channel.SCREEN):
+    """Quita las filas `propuesto` del grupo `group`. El operador o el evaluador."""
+
+    def work():
+        _lock_draft(version_id)
+        key, rows = _group_rows(version_id, group)
+        done = Reviewed(requirements=[])
+        for requirement in rows:
+            change, event = _remove_one(requirement, user, channel, via_group=key)
             done.requirements.append(requirement)
             done.changes.append(change)
             done.events.append(event)
         return done
 
-    return _run(user, CommissionRole.EVALUATOR, CONFIRM_OPERATION,
-                ChangeAction.CONFIRMAR, channel, {"requirements": ids}, work)
+    return _run(user, CommissionRole.OPERATOR, GROUP_REMOVE_OPERATION,
+                ChangeAction.QUITAR, channel,
+                {"version": version_id, "via_grupo": group}, work)
 
 
 # --- Corregir ------------------------------------------------------------------------------------
@@ -436,18 +523,25 @@ def _correct_technical(requirement, version, add_segments, remove_quotes, catego
 # --- Quitar y restituir --------------------------------------------------------------------------
 
 
+def _remove_one(requirement, user, channel, via_group=None):
+    """Deja `quitado` un requisito ya bloqueado. Es la misma función para quitar uno y
+    para quitar un grupo (REQ-034). Devuelve `(cambio, hecho)`."""
+    if requirement.state == RequirementState.QUITADO:
+        raise ReviewRefused("El requisito ya está quitado.", "requirement_removed")
+    before = {"state": requirement.state}
+    requirement.state = RequirementState.QUITADO
+    requirement.save(update_fields=["state"])
+    return _record(requirement, ChangeAction.QUITAR, before,
+                   {"state": requirement.state}, user, channel,
+                   {"via_grupo": via_group} if via_group else None)
+
+
 def remove(user, requirement_id, *, channel=Channel.SCREEN):
     """Deja el requisito `quitado`: sigue visible y con su historia."""
 
     def work():
         requirement, _ = _lock_requirement(requirement_id)
-        if requirement.state == RequirementState.QUITADO:
-            raise ReviewRefused("El requisito ya está quitado.", "requirement_removed")
-        before = {"state": requirement.state}
-        requirement.state = RequirementState.QUITADO
-        requirement.save(update_fields=["state"])
-        change, event = _record(requirement, ChangeAction.QUITAR, before,
-                                {"state": requirement.state}, user, channel)
+        change, event = _remove_one(requirement, user, channel)
         return Reviewed([requirement], [change], [event])
 
     return _run(user, CommissionRole.OPERATOR, REMOVE_OPERATION, ChangeAction.QUITAR,
