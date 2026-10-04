@@ -343,3 +343,63 @@ def test_forms_of_the_matrix_with_changes_need_the_csrf_token(operator_user, cas
                       page.content.decode()).group(1)
     response = client.post(url, {"csrfmiddlewaretoken": token})
     assert response.status_code in (200, 302)
+
+
+# --- Defensas de lo que se muestra como original y del agrupado -----------------------------------------
+
+
+def shown_quote(operator_user, case, row):
+    page = matrix_page.matrix_page(operator_user, case["version"].pk)
+    rows = [x for g in page.groups for x in g.rows] + page.technical
+    return next(r for r in rows if r.requirement == row).quotes[0]
+
+
+def test_an_original_from_another_procedure_is_not_shown(operator_user, case):
+    """REQ-031, T-114: un original que es un tramo del pliego de otro procedimiento no se
+    muestra como texto original."""
+    other = make_procedure(operator_user)
+    foreign = load_and_read(operator_user, other, three_items_pdf(), title="Pliego ajeno")
+    segment = segment_with(foreign, "Los bienes tienen vencimiento")
+    row = case["version"].requirements.filter(category="economico").first()
+    add_source(row, row.quotes.get(), case["circular"], NEW_TEXT,
+               original=(segment, "Los bienes tienen vencimiento mayor a once meses."))
+
+    quote = shown_quote(operator_user, case, row)
+
+    assert quote.current is not None and quote.current.original is None
+
+
+def test_an_original_with_a_range_outside_its_stretch_is_not_shown(operator_user, case):
+    """REQ-031, T-114: un rango que se pasa del texto de la lectura, o que empieza fuera del
+    tramo, no es un recorte válido: no se muestra como original."""
+    row = case["version"].requirements.filter(category="economico").first()
+    segment, text = annex_original(case)
+    source = add_source(row, row.quotes.get(), case["circular"], NEW_TEXT,
+                        original=(segment, text))
+    reading = segment.reading
+    assert shown_quote(operator_user, case, row).current.original is not None
+
+    source.original_char_end = len(reading.canonical_text) + 10
+    source.save()
+    assert shown_quote(operator_user, case, row).current.original is None
+
+    source.original_char_start = segment.char_end
+    source.original_char_end = segment.char_end + 5
+    source.save()
+    assert shown_quote(operator_user, case, row).current.original is None
+
+
+def test_sources_with_a_different_effect_are_not_grouped(operator_user, case):
+    """REQ-031: dos fuentes del mismo tramo con efectos distintos sobre el mismo requisito
+    se ven las dos: el agrupado exige el mismo efecto."""
+    row = technical_row(case["version"])
+    first, second = list(row.quotes.order_by("order"))[:2]
+    add_source(row, first, case["circular"], NEW_TEXT, effect="modifica")
+    add_source(row, second, case["circular"], NEW_TEXT, effect="aclara")
+
+    page = matrix_page.matrix_page(operator_user, case["version"].pk)
+
+    shown = next(r for r in page.technical if r.requirement == row)
+    assert shown.quotes[0].current.effect == "modifica" and shown.quotes[0].current.reach == 1
+    assert [n.effect for n in shown.quotes[1].notes] == ["aclara"]
+    assert not shown.quotes[1].covered
