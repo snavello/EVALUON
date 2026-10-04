@@ -1,0 +1,87 @@
+/* Páginas de la matriz y su cobertura (T-074). Nada externo. */
+
+/* La franja de borrador va fija arriba y no se pierde al desplazarse (REQ-032). */
+.draft-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: 0.5rem 1rem;
+  text-align: center;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  color: #ffffff;
+  background: #b00020;
+}
+
+/* Lugar para la franja, para que no tape el encabezado. */
+.draft-banner ~ .site-header {
+  margin-top: 2.5rem;
+}
+
+.literal {
+  margin: 0.5rem 0 0.25rem 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid #8a8a8a;
+  background: #f5f5f5;
+  white-space: pre-wrap;
+}
+
+.quote-place,
+.place {
+  font-size: 0.9rem;
+  color: #444444;
+}
+
+.requirement {
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #dddddd;
+}
+
+.class-mark,
+.state-mark,
+.wide-mark {
+  padding: 0 0.4rem;
+  border: 1px solid #555555;
+  border-radius: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: normal;
+}
+
+.wide-mark {
+  border-color: #8a5a00;
+  color: #8a5a00;
+}
+
+.pending-item {
+  margin-bottom: 0.5rem;
+}
+
+.matrix-form select {
+  font: inherit;
+  padding: 0.3rem;
+}
+
+.coverage-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.coverage-table th,
+.coverage-table td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid #dddddd;
+  text-align: left;
+  vertical-align: top;
+}
+
+.coverage-pendiente {
+  background: #fff7e0;
+}
+
+.technical-quotes {
+  list-style: none;
+  padding-left: 0;
+}

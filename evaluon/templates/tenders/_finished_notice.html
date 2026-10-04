@@ -1,0 +1,17 @@
+{% comment %}Aviso de pedidos terminados que la persona todavía no vio (T-074). Cada uno se muestra una sola vez.{% endcomment %}{% if notices %}
+<section class="finished-notice" role="status" aria-label="Pedidos terminados">
+  {% for notice in notices %}
+  <p class="notice {% if notice.failed %}notice-failed{% else %}notice-done{% endif %}">
+    {% if notice.job.kind == "propose_matrix" %}
+      {% if notice.failed %}La propuesta de la matriz del procedimiento {{ notice.job.procedure.number }} falló: {{ notice.job.error }}. <a href="{% url 'tenders:procedure' notice.job.procedure_id %}">Ver el procedimiento</a>.
+      {% elif notice.version_id %}La propuesta de la matriz del procedimiento {{ notice.job.procedure.number }} terminó. <a href="{% url 'tenders:matrix' notice.version_id %}">Ver la matriz</a>.
+      {% else %}La propuesta de la matriz del procedimiento {{ notice.job.procedure.number }} terminó. <a href="{% url 'tenders:procedure' notice.job.procedure_id %}">Ver el procedimiento</a>.{% endif %}
+    {% else %}
+      {% if notice.failed %}La lectura de «{{ notice.job.document.title }}» ({{ notice.job.procedure.number }}) falló: {{ notice.job.error }}.
+      {% else %}La lectura de «{{ notice.job.document.title }}» ({{ notice.job.procedure.number }}) terminó.{% endif %}
+      <a href="{% url 'tenders:procedure' notice.job.procedure_id %}">Ver el procedimiento</a>.
+    {% endif %}
+  </p>
+  {% endfor %}
+</section>
+{% endif %}

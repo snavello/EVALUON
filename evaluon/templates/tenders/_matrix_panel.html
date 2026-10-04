@@ -1,0 +1,35 @@
+{% comment %}Sección de la matriz en la página de un procedimiento (T-074).{% endcomment %}<section class="matrix-panel" aria-labelledby="matrix-title">
+  <h2 id="matrix-title">Matriz de cumplimiento</h2>
+  {% if panel.versions %}
+  <ul>
+    {% for version in panel.versions %}
+    <li><a href="{% url 'tenders:matrix' version.pk %}">Versión {{ version.number }}</a> · {{ version.get_status_display }} · nivel {{ version.get_level_display|lower }}{% if version.run_id %} · <a href="{% url 'tenders:coverage' version.pk %}">Cobertura</a>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>Todavía no hay una propuesta de la matriz.</p>
+  {% endif %}
+
+  {% if panel.active_job %}
+  <p class="matrix-working" role="status">Hay una propuesta de la matriz {% if panel.active_job.status == "running" %}en curso{% else %}en espera{% endif %}. El aviso aparecerá aquí cuando termine.</p>
+  {% elif panel.draft_open %}
+  <p>Hay un borrador abierto: revíselo antes de pedir otra propuesta.</p>
+  {% endif %}
+
+  {% if matrix_error %}
+  <p class="form-error" role="alert">{{ matrix_error }}</p>
+  {% endif %}
+
+  {% if panel.can_request %}
+  <form method="post" action="{% url 'tenders:request_matrix' procedure.pk %}" class="matrix-form">
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+    <p>
+      <label for="matrix-level">Nivel de revisión</label>
+      <select name="level" id="matrix-level">
+        {% for value, label in levels %}<option value="{{ value }}"{% if value == selected_level %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </p>
+    <button type="submit">Proponer matriz</button>
+  </form>
+  {% endif %}
+</section>
