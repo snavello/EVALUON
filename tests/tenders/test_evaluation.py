@@ -17,6 +17,7 @@ from tests.tenders.scripted import (
     ENTREGA,
     GARANTIA,
     MULTA,
+    PAGO,
     item,
     load_and_read,
     make_procedure,
@@ -583,3 +584,50 @@ def test_runs_of_another_list_or_procedure_are_not_used(case, operator_user, tmp
     earlier = ev.previous_levels([runs], expected, procedure.number)
 
     assert earlier["media"]["run"] == "20260101-000000-aaa"
+
+
+# --- A revisión obligatoria (T-095) -------------------------------------------------------------
+
+
+def test_expected_in_a_pending_segment_is_mandatory_review_and_counts_in_acceptance(
+        case, operator_user, script, tmp_path):
+    """REQ-024: un esperado en un tramo pendiente no es faltante: cuenta como "a revisión
+    obligatoria", entra en el numerador de los encontrados y se informa aparte."""
+    procedure, _, path, _ = case
+    base = run_measure(operator_user, procedure, path, tmp_path / "base")
+    base_found = base.results[0]["measures"]["found"]["ok"]
+    script.when(PAGO, item())
+
+    report = run_measure(operator_user, procedure, path, tmp_path / "pendiente")
+
+    line = by_id(report)["S-002"]
+    assert line["estado"] == ev.MANDATORY_REVIEW
+    assert line["causa"] == ev.PENDING
+    measures = report.results[0]["measures"]
+    assert measures["review"] == {"count": 1, "ids": ["S-002"], "keys": ["sec-i/2.1"]}
+    assert ev.PENDING not in measures["causes"]
+    assert measures["found"]["ok"] == base_found + 1
+    assert measures["found_without_review"]["ok"] == base_found
+    summary = (report.folder / "resumen.md").read_text(encoding="utf-8")
+    assert "A revisión obligatoria (tramos pendientes): 1" in summary
+    public = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "S-002" in public and "sec-i/2.1" in public
+    assert "a los 90 días corridos" not in public
+    assert PAGO not in public
+
+
+def test_discarded_or_with_requirements_segments_stay_missing_not_review(
+        case, operator_user, tmp_path):
+    """REQ-024: un esperado en un tramo descartado o con otros requisitos sigue siendo
+    faltante; sin pendientes no hay revisión obligatoria."""
+    procedure, _, path, _ = case
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    lines = by_id(report)
+    assert lines["S-002"]["estado"] == "faltante"
+    assert lines["S-002"]["causa"] == ev.DISCARDED
+    measures = report.results[0]["measures"]
+    assert measures["review"]["count"] == 0
+    assert measures["found"] == measures["found_without_review"]
+    assert all(line["estado"] != ev.MANDATORY_REVIEW for line in lines.values())
