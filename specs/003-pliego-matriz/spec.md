@@ -108,6 +108,15 @@ Roles (decisión del responsable, 2026-10-03):
 - **Ningún documento del caso se sube al repositorio,** que es público: las ofertas traen datos personales de los oferentes (copia de DNI, pagarés, pólizas) y el pliego, la nómina de funcionarios con su DNI. Todo el caso queda en el equipo propio, donde corre el sistema (decisión del responsable, 2026-10-03; P4). Las listas esperadas para medir la matriz tampoco transcriben datos personales.
 - **Un solo caso alcanza para empezar,** pero no para dar por medida la feature con un único pliego. Por ahora no hay otro pliego disponible: se arranca con el caso-00 y, más adelante, la Comisión aporta otros pliegos (decisión del responsable, 2026-10-03). Hasta entonces, la medición de REQ-024 con un solo pliego se informa como provisoria y se repite cuando haya más casos.
 
+  **Casos sumados el 2026-10-03** (aportados por el responsable; descargados del portal público de compras de ARCA, `afipcompras.afip.gob.ar`; solo en el equipo propio):
+
+  | Caso | Procedimiento | Pliego | Circulares |
+  |---|---|---|---|
+  | caso-01 | Licitación pública A0PC000000-0001-LPU26, señalética de edificios (247/2022, art. 21 inc. a) | PLIEG-2026-01953220, 52 páginas, con 13 anexos técnicos | 2 (modificaciones al pliego y al cronograma) |
+  | caso-02 | Contratación directa A0PC000000-0003-CDI26, mantenimiento de UPS (247/2022, art. 21 inc. d) | PLIEG-2026-02965389, 31 páginas | — |
+
+  El caso-01 sirve además para REQ-031 (circulares reales) y para el tiempo de un pliego de unas 50 páginas. **El caso-01 y el caso-02 se reservan para la aceptación** (ADR-0014): nadie corre el sistema sobre ellos ni los usa para ajustar hasta la medición; sus listas esperadas se preparan solo desde el texto, como la del caso-00. El caso-00 queda para el hilo mínimo y el ajuste.
+
 ## Preguntas abiertas
 
 Ninguna. Las decisiones del responsable del 2026-10-03 están anotadas en cada sección.
