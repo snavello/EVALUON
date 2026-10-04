@@ -17,7 +17,9 @@ Para cada sugerencia, una consulta:
 3. Solo cuentan unidades de normas con puntaje de al menos `NORM_SUPPORT_MIN_SCORE`: no los
    considerandos, ni los dictámenes ni las recomendaciones de auditoría. Hasta
    `NORM_SUPPORT_MAX_UNITS`, las de mayor puntaje; `select_units` de la 001 elige las que
-   caben en el pedido.
+   caben en el pedido. Una unidad con cambios (modifica o deroga) vigentes a la fecha queda
+   afuera, con la anomalía `respaldo_unidad_modificada`: el texto vigente no se puede armar
+   de forma confiable y una cita del original sería un respaldo falso.
 4. Un pedido corto a `generation_batch` (alias `N1…`, salida estructurada): por unidad,
    `exige` (`si` o `no`) y `cita`.
 5. Una unidad es respaldo solo con las tres condiciones: puntaje de al menos
@@ -71,6 +73,7 @@ ANOMALY_BAD_ALIAS = "respaldo_alias_inexistente"
 ANOMALY_BAD_ITEM = "respaldo_unidad_invalida"
 ANOMALY_QUOTE_MISSING = "respaldo_cita_no_esta"
 ANOMALY_QUOTE_SHORT = "respaldo_cita_corta"
+ANOMALY_UNIT_CHANGED = "respaldo_unidad_modificada"
 ANOMALY_NO_FIT = "respaldo_unidades_no_entran"
 ANOMALY_CORPUS_CHANGED = "respaldo_normativa_cambio"
 
@@ -153,9 +156,12 @@ class Supporter:
                       "no_regime": 0, "failed_retrieval": 0, "failed_requests": 0,
                       "requests": 0, "invalid": 0, "no_units": 0}
         self._batch = 0
+        self._carry = []
 
     def _record(self, request, content, *, parsed, anomalies, seconds, tokens=(None, None)):
         self._batch += 1
+        anomalies = list(anomalies) + self._carry
+        self._carry = []
         step = RunStep.objects.create(
             run=self.run, pass_name=self.pass_name, batch=self._batch, segment_keys=[],
             request=request, raw_output=content, parsed=parsed, anomalies=anomalies,
@@ -230,7 +236,18 @@ class Supporter:
                  if u.unit_id in found
                  and found[u.unit_id].unit_type != UnitType.CONSIDERANDO
                  and found[u.unit_id].reading.document.norm.category not in NOT_NORMS]
-        return norms[:settings.NORM_SUPPORT_MAX_UNITS]
+        # El texto vigente de una unidad con cambios a la fecha no se puede armar de forma
+        # confiable (la 001 muestra el cambio aparte, no el texto resultante): una cita de su
+        # texto original sería un respaldo falso. Esas unidades no se muestran ni respaldan.
+        changes = answering.load_changes(
+            self.run.authorization_date, [found[u.unit_id] for u in norms])[0]
+        kept = []
+        for unit in norms:
+            if changes.get(unit.unit_id):
+                self._carry.append({"type": ANOMALY_UNIT_CHANGED, "unit": unit.unit_id})
+            else:
+                kept.append(unit)
+        return kept[:settings.NORM_SUPPORT_MAX_UNITS]
 
     def _ask(self, row, question, context, result, units, started):
         key = row.segment.key

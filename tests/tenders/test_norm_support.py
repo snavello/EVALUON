@@ -694,3 +694,76 @@ def test_the_minimum_is_the_one_of_the_filters_clue():
 
     assert "MIN_CITE_WORDS = 4" in inspect.getsource(norm_support)
     assert row_filter.MIN_CLUE_WORDS == 4
+
+
+# --- Unidades con cambios vigentes, considerandos y "no" con cita literal --------------------
+
+
+def test_a_unit_with_a_change_in_force_at_the_date_gives_no_support_and_is_not_shown(
+        operator_user, script, filt, support, regimes, marks, corpus, spy,  # noqa: F811
+        make_norm, make_document, make_reading, make_relation):
+    """REQ-036, REQ-007: si una relación `modifica` rige a la fecha sobre la unidad, el texto
+    vigente no es el original: la unidad no se le muestra al modelo, no hay respaldo (aunque la
+    cita esté en el original) y queda la anomalía. La sugerencia sigue igual."""
+    modifier = make_norm(citation="Disposición sintética 9/2022")
+    make_reading(make_document(modifier, effective_from=date(2022, 12, 1)),
+                 [("art-1", "ARTÍCULO 1°.- Sustitúyese el artículo 2°.")])
+    make_relation(modifier, regimes.new, "modifica", target_unit_key="anexo/art-2",
+                  effective_date=date(2023, 1, 1))
+    support.says(GARANTIAS)
+
+    run = run_case(operator_user, script, filt)
+
+    assert supports(run) == []
+    assert GARANTIAS not in support.shown()
+    assert_untouched(run)
+    unit = regimes.new_units["anexo/art-2"]
+    assert {"type": norm_support.ANOMALY_UNIT_CHANGED, "unit": unit.pk} in steps(run)[0].anomalies
+
+
+def test_a_change_that_starts_after_the_date_does_not_exclude_the_unit(
+        operator_user, script, filt, support, regimes, marks, corpus, spy,  # noqa: F811
+        make_norm, make_document, make_reading, make_relation):
+    """REQ-036: un cambio que rige después de la fecha de autorización no cuenta: la unidad
+    sigue siendo la vigente y da respaldo."""
+    modifier = make_norm(citation="Disposición sintética 9/2022")
+    make_reading(make_document(modifier, effective_from=date(2024, 1, 1)),
+                 [("art-1", "ARTÍCULO 1°.- Sustitúyese el artículo 2°.")])
+    make_relation(modifier, regimes.new, "modifica", target_unit_key="anexo/art-2",
+                  effective_date=date(2024, 1, 1))
+    support.says(GARANTIAS)
+
+    run = run_case(operator_user, script, filt)
+
+    assert [s.text for s in supports(run)] == [GARANTIAS]
+
+
+def test_a_literal_quote_with_exige_no_is_not_support(
+        operator_user, script, filt, support, regimes, marks, corpus, spy):  # noqa: F811
+    """REQ-036: `exige` en `no` con una cita que sí está literal en la unidad no es respaldo."""
+    support.says(GARANTIAS, "no", GARANTIAS)
+
+    run = run_case(operator_user, script, filt)
+
+    assert support.requests and supports(run) == []
+    assert_untouched(run)
+
+
+def test_a_considerando_among_the_units_is_excluded(
+        operator_user, script, filt, support, regimes, marks, corpus, spy,  # noqa: F811
+        make_norm, make_document, make_reading):
+    """REQ-036: un considerando de una norma del régimen no se muestra ni da respaldo, aunque
+    tenga el puntaje más alto."""
+    reading = make_reading(make_document(make_norm(category="marco_nacional",
+                                                   citation="Decreto sintético 7/2020")), [
+        {"key": "considerando-1", "unit_type": "considerando",
+         "text": "Que la garantía de curso sintética es necesaria para el procedimiento."}])
+    marks.reranker.scores["garantía de curso sintética"] = 0.99
+    support.says(GARANTIAS)
+
+    run = run_case(operator_user, script, filt)
+
+    unit = reading.units_by_key["considerando-1"]
+    assert unit.pk in {e["unit"] for e in steps(run)[0].request["retrieved"]}
+    assert "garantía de curso sintética" not in support.shown()
+    assert [s.text for s in supports(run)] == [GARANTIAS]
