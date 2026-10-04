@@ -631,3 +631,39 @@ def test_discarded_or_with_requirements_segments_stay_missing_not_review(
     assert measures["review"]["count"] == 0
     assert measures["found"] == measures["found_without_review"]
     assert all(line["estado"] != ev.MANDATORY_REVIEW for line in lines.values())
+
+
+def test_expected_in_a_segment_with_requirements_stays_missing_not_review(
+        case, operator_user, script, tmp_path):
+    """REQ-024: un esperado en un tramo con requisitos, sin esta fila, sigue siendo faltante
+    (`tramo_con_requisitos_sin_este`); no pasa a revisión obligatoria."""
+    procedure, _, path, _ = case
+    script.when(PAGO, item(requirements=[("El pago se efectuará", "economico")]))
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    line = by_id(report)["S-002"]
+    assert line["estado"] == "faltante"
+    assert line["causa"] == ev.SEGMENT_WITH_OTHERS
+    measures = report.results[0]["measures"]
+    assert measures["review"]["count"] == 0
+    assert measures["found"] == measures["found_without_review"]
+    assert all(row["estado"] != ev.MANDATORY_REVIEW for row in by_id(report).values())
+
+
+def test_previous_levels_count_mandatory_review_as_found(case, tmp_path):
+    """REQ-024: al comparar con corridas guardadas, un esperado "a revisión obligatoria"
+    cuenta como encontrado, igual que en la aceptación."""
+    procedure, _, path, _ = case
+    expected = ev.load_expected(path)
+    folder = tmp_path / "corridas" / "20260101-000000-aaa"
+    _fake_run(folder, expected, procedure, "alta", 2, 1)
+    with (folder / "resultados.jsonl").open("a", encoding="utf-8") as out:
+        out.write(json.dumps({"nivel": "alta", "tipo": "esperado", "id": "M-9",
+                              "estado": ev.MANDATORY_REVIEW}) + "\n")
+        out.write(json.dumps({"nivel": "alta", "tipo": "esperado", "id": "M-10",
+                              "estado": "faltante"}) + "\n")
+
+    earlier = ev.previous_levels([tmp_path / "corridas"], expected, procedure.number)
+
+    assert earlier["alta"] == {"found": 3, "leftovers": 1, "run": "20260101-000000-aaa"}
