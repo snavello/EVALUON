@@ -31,11 +31,14 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-081 | Elegir la consecuencia en la pantalla, con su motivo | REQ-029 | T-079, T-080 | terminada |
 | T-082 | Validar la matriz y abrir versiones nuevas | REQ-026, REQ-027, REQ-028, REQ-032 | T-081 | terminada |
 | T-083 | Incorporar circulares y respuestas a consultas | REQ-031 | T-080 | terminada |
-| T-084 | Correr la medición del caso-00 | REQ-024, REQ-025, REQ-029, REQ-030 | T-075, T-076, T-077, T-080 | pendiente |
+| T-084 | Correr la medición del caso-00 | REQ-024, REQ-025, REQ-029, REQ-030 | T-075, T-076, T-077, T-080 | terminada |
 | T-085 | Ofrecer solo los niveles que mejoran | REQ-030 | T-084 | pendiente |
 | T-086 | Imprimir y exportar la matriz a PDF con la leyenda de borrador | REQ-032 | T-082 | pendiente |
 | T-087 | Comparar en la misma zona horaria la fecha de lectura del informe | REQ-004 | — | terminada |
 | T-088 | Cambiar el rol de la Comisión de un usuario existente, con registro | REQ-026 | — | terminada |
+| T-089 | Contar bien las páginas en la extrapolación de tiempos | REQ-030 | T-084 | pendiente |
+| T-090 | Investigar y corregir los reinicios de los servidores de generación | REQ-024, REQ-030 | T-084 | pendiente |
+| T-091 | Comparar niveles medidos en corridas separadas | REQ-030 | T-084 | pendiente |
 
 ## Para todas las tareas
 
@@ -206,6 +209,30 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 - **Archivos:** `pyproject.toml`, `Dockerfile`, `evaluon/tenders/export.py`, `evaluon/tenders/views/export.py`, `evaluon/tenders/urls.py`, `evaluon/templates/tenders/matrix_print.html`, `evaluon/templates/tenders/matrix.html`, `evaluon/static/tenders/print.css`, `tests/tenders/test_export.py`; informe en `specs/003-pliego-matriz/verificacion/T-086.md`.
 - **Verificación:** tests con una matriz sintética de varias páginas, leyendo el PDF con pdfplumber: cada página de un borrador tiene "BORRADOR INCOMPLETO"; ninguna página de la versión validada la tiene, y todas muestran versión, fecha y evaluador; una versión descartada lleva la leyenda; la vista de impresión de un borrador tiene la leyenda; una plantilla con una dirección externa hace fallar la generación en lugar de buscarla; la exportación queda registrada con la huella del archivo entregado. En la imagen: `docker compose build app` y la suite completa en verde; el informe anota las versiones instaladas, el aumento de tamaño de la imagen, el tiempo de generación de una matriz de 40 filas y la comprobación a mano de que la impresión del navegador repite la leyenda en cada hoja.
 - **No tocar:** `docker-compose.yml`; `proposal/`; los servicios de revisión, consecuencias y validación.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-089 · Contar bien las páginas en la extrapolación de tiempos
+
+- **Qué hacer:** defecto F1 de T-084: `timing_summary` en `evaluon/tenders/evaluation.py` usa `len(r.pages)` (claves del diccionario, da 4) en lugar de la cantidad real de páginas (`len(r.pages["pages"])`, 20 en el caso-00), y la extrapolación a 50 páginas sale mal en `resumen-publico.md`. Corregir y sumar un test con una lectura sintética de N páginas.
+- **Archivos:** `evaluon/tenders/evaluation.py`, `tests/tenders/test_evaluation.py`.
+- **Verificación:** test con lectura de 20 páginas: la extrapolación a 50 es tiempo × 2,5; suite en verde.
+- **No tocar:** la propuesta.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-090 · Investigar y corregir los reinicios de los servidores de generación
+
+- **Qué hacer:** defecto F2 de T-084: `generation` y `generation_batch` (llama-server) terminaron solos con código 0 durante la medición (02:14 y 02:21 del 2026-10-04) y Docker los reinició; cada reinicio deja unos 80 s de HTTP 503 y hace fallar consultas. No hay error en los registros ni falta de memoria de video. Investigar la causa (parámetros del servidor, healthcheck, límites del contenedor, versión de la imagen) y corregirla, o, si no se encuentra, mitigar (reintentos en el cliente ante 503 durante la recarga) y documentarlo en el runbook. Sin tocar la base real.
+- **Archivos:** `docker-compose.yml` y `evaluon/ai/__init__.py` solo si la corrección lo requiere; informe en `specs/003-pliego-matriz/verificacion/T-090.md`.
+- **Verificación:** una corrida de varias horas (o la reproducción de la causa) sin reinicios no previstos, o el reintento probado con un servidor que devuelve 503; la consulta de la 001 sigue haciendo el mismo pedido.
+- **No tocar:** instrucciones, umbral, parámetros de búsqueda.
+- **Entorno:** MSI con GPU.
+
+### T-091 · Comparar niveles medidos en corridas separadas
+
+- **Qué hacer:** observación F3 de T-084: cuando `medir_matriz` mide los niveles en corridas separadas, la sección "Comparación entre niveles" de cada resumen dice "base". Permitir pasar las corridas anteriores (por ejemplo `--comparar-con <carpeta>`) o comparar automáticamente con la última corrida de cada nivel en la misma carpeta, y aplicar la regla de la spec (un nivel se ofrece solo si mejora al anterior).
+- **Archivos:** `evaluon/tenders/evaluation.py`, `evaluon/tenders/management/commands/medir_matriz.py`, `tests/tenders/test_evaluation.py`.
+- **Verificación:** con corridas sintéticas de media, alta y exigente en carpetas separadas, el resumen compara y dice qué niveles mejoran; nada de texto del pliego en el resumen público.
+- **No tocar:** la propuesta.
 - **Entorno:** cualquier equipo con Docker.
 
 ### T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro
