@@ -451,6 +451,48 @@ def test_role_is_checked_before_measuring(case, operator_user, evaluator_user,
     assert run_measure(evaluator_user, procedure, path, tmp_path).results[0]["level"] == "media"
 
 
+def test_technical_row_citing_two_documents_is_measured_against_each_own_reading(
+        case, operator_user, tmp_path, monkeypatch):
+    """REQ-025: una fila técnica que cita tramos de dos documentos mide cada cita contra la
+    lectura de su propio tramo, no contra la de la primera cita de la fila."""
+    from tests.tenders.pdfs import para, tender_pdf
+
+    procedure, _, path, _ = case
+    report = run_measure(operator_user, procedure, path, tmp_path)
+    run = m.MatrixRun.objects.get(pk=report.results[0]["run"])
+    base = report.results[0]["measures"]["literal"]
+    annex = load_and_read(
+        operator_user, procedure,
+        tender_pdf([[para("ANEXO SINTÉTICO", "1. Los planos se entregan en papel.",
+                          "2. La señalética es de chapa.")]], header=None),
+        kind=m.DocumentKind.ANEXO, title="Anexo sintético")
+    segment = annex.readings.get().segments.order_by("order").first()
+    # La versión medida ya está descartada y no se modifica: la cita del anexo se agrega en
+    # memoria, como primera cita de la fila técnica.
+    foreign = m.RequirementQuote(
+        order=0, segment=segment, char_start=segment.char_start, char_end=segment.char_end,
+        text=segment.reading.canonical_text[segment.char_start:segment.char_end],
+        scope=m.QuoteScope.PROPIA)
+    original = ev._proposed
+
+    def with_annex_quote(version):
+        rows = original(version)
+        technical = next(r for r in rows if r.category == ev.TECHNICAL)
+        technical.quotes.insert(0, foreign)
+        technical.reading, technical.segment = segment.reading, segment
+        return rows
+
+    monkeypatch.setattr(ev, "_proposed", with_annex_quote)
+
+    expected = ev.load_expected(path)
+    verification = ev.verify_expected(expected, procedure)
+    measures = ev.measure_version(run, expected, verification)
+
+    assert measures["literal"]["total"] == base["total"] + 1
+    assert measures["literal"]["ok"] == measures["literal"]["total"]
+    assert not [line for line in measures["lines"] if line["tipo"] == "cita"]
+
+
 def test_wide_quotes_are_counted_apart_from_the_literal_quote_measure(
         case, operator_user, tmp_path, script):
     """REQ-025: una cita amplia (el modelo copió algo que no está en el tramo) se cuenta
