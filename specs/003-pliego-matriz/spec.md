@@ -120,6 +120,15 @@ Roles (decisión del responsable, 2026-10-03):
 
   El caso-01 sirve además para REQ-031 (circulares reales) y para el tiempo de un pliego de unas 50 páginas. **El caso-01 y el caso-02 se reservan para la aceptación** (ADR-0014): nadie corre el sistema sobre ellos ni los usa para ajustar hasta la medición; sus listas esperadas se preparan solo desde el texto, como la del caso-00. El caso-00 queda para el hilo mínimo y el ajuste.
 
+  **Casos sumados el 2026-10-04** (elegidos con el responsable entre las compras con apertura en los últimos 90 días del portal público de compras de ARCA; solo en el equipo propio; listas esperadas aprobadas por el responsable el 2026-10-04):
+
+  | Caso | Procedimiento | Pliego | Circulares |
+  |---|---|---|---|
+  | caso-03 | Licitación pública AABN000000-0002-LPU26, mantenimiento de ascensores, Dirección Regional Centro II (247/2022, art. 21 inc. a) | PLIEG-2026-02183689, 65 requisitos esperados | 7: cuatro de cronograma y una cadena que cambia requisitos (la 4 fija dos renglones a un peso, la 5 la reemplaza, la 6 la rectifica en un renglón) |
+  | caso-04 | Licitación pública A0KJ000000-0021-LPU24, comidas del jardín maternal (247/2022, art. 21 inc. a) | PLIEG-2026-02263510, 58 requisitos esperados | 3: fecha de visita, cronograma, y una que precisa requisitos y responde una consulta |
+
+  **Uso de los casos desde el 2026-10-04.** La pasada de circulares se corrigió mirando el caso-01 (T-098), así que el caso-01 queda como caso de ajuste para REQ-031. La aceptación de REQ-031 se mide a ciegas con el caso-03 y el caso-04. Las listas esperadas incluyen solo lo que dice el pliego con sus circulares; lo que viene solo del régimen general no es fila esperada y se mide aparte como sugerencia con respaldo normativo (REQ-036). Decisión del responsable, 2026-10-04.
+
 ## Preguntas abiertas
 
 Ninguna. Las decisiones del responsable del 2026-10-03 están anotadas en cada sección.
