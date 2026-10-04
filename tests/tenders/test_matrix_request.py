@@ -34,6 +34,13 @@ from tests.tenders.scripted import (
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture(autouse=True)
+def offer_every_level(settings):
+    """Estas pruebas recorren las pasadas de los tres niveles, también la de exigente, que
+    existe pero no se ofrece (T-085)."""
+    settings.MATRIX_LEVELS_OFFERED = ("media", "alta", "exigente")
+
+
 @pytest.fixture
 def read_case(operator_user, script):
     """Un procedimiento con el pliego de tres renglones ya leído y un modelo que acierta."""
