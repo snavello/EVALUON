@@ -103,7 +103,9 @@ class Command(BaseCommand):
                 f"{result['process']}: encontrados "
                 f"{evaluation.proportion_text(measures['found'])}; cita literal "
                 f"{evaluation.proportion_text(measures['literal'])}; sobrantes "
-                f"{measures['leftovers']}")
+                f"{evaluation.proportion_text(measures['leftover_ratio'])}; descartadas "
+                f"{measures['discarded']['count']}; tope de sobrantes "
+                f"{'cumple' if measures['cap']['met'] else 'no cumple'}")
         blocking = report.blocking
         lines.append("Bloquea la aceptación: " + ("; ".join(blocking) if blocking
                                                   else "nada"))

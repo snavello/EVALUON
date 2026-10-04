@@ -27,7 +27,11 @@ Cómo se cuenta (ver el plan):
   `tramo_tecnico`, `sin_disposicion` y, en técnicos, `renglon_sin_fila`.
 - A revisión obligatoria: un esperado sin pareja en un tramo pendiente (`tramo_pendiente`)
   no es faltante; suma a los encontrados y se informa aparte (decisión del 2026-10-04).
-- Sobrante: propuesto sin pareja. Se informa; no tiene límite.
+- Sobrante: fila firme (propuesta o confirmada; sin las descartadas por el sistema ni las
+  sugerencias) sin pareja. Tope: hasta `MATRIX_SOBRANTES_LIMIT` de las filas firmes y el 100 %
+  de encontrados (T-103; REQ-024, REQ-033). Una fila empareja por cualquiera de sus citas; un
+  esperado en una cita `repetida` de una fila ya emparejada es "unificado"; un esperado
+  cuya cita está en una descartada es faltante `descartado_por_el_sistema`.
 
 Campos de las listas reales que se leen (aviso del Coordinador, 2026-10-03):
 
@@ -82,11 +86,14 @@ CLASSES = (FORMAL, ECONOMIC, TECHNICAL)
 ORIGIN_CIRCULAR = "circular"
 WILDCARD = "*"
 REQUIRED_OVERLAP = 0.5
+FIRM_STATES = (m.RequirementState.PROPUESTO.value, m.RequirementState.CONFIRMADO.value)
+SAMPLE_FILE = "muestra-descartadas.md"
 EXTRAPOLATED_PAGES = 50
 
 # Causas de un faltante.
 GROUPED = "agrupado"
 DISCARDED = "tramo_descartado"
+DISCARDED_BY_SYSTEM = "descartado_por_el_sistema"
 PENDING = "tramo_pendiente"
 MANDATORY_REVIEW = "a_revision_obligatoria"
 SEGMENT_WITH_OTHERS = "tramo_con_requisitos_sin_este"
@@ -363,6 +370,15 @@ def verify_expected(expected, procedure, readings=None):
             _verify_circular(expected, item, circular, result)
     for ref in expected.general + expected.annexes:
         _verify_ref(ref, "tramos generales", result, blocking=True)
+    # Dos esperados con el mismo ancla normalizado se unificarían (REQ-033).
+    same = {}
+    for item in expected.items:
+        if not item.technical and item.anchor:
+            same.setdefault(" ".join(item.anchor.casefold().split()), []).append(item.id)
+    for ids in same.values():
+        if len(ids) > 1:
+            result.notes.append(f"{' y '.join(ids)}: tienen el mismo ancla normalizado "
+                                "(la unificación los juntaría)")
     return result
 
 
@@ -512,16 +528,19 @@ class Proposed:
     matched: str = ""
 
     @property
-    def span(self):
-        quote = self.quotes[0]
-        return (quote.char_start, quote.char_end)
+    def spans(self):
+        """Todas las citas de la fila: `(lectura, inicio, fin, repetida)`."""
+        return [(q.segment.reading_id, q.char_start, q.char_end,
+                 q.scope == m.QuoteScope.REPETIDA.value) for q in self.quotes]
 
 
 def _proposed(version):
+    """Las filas firmes de la versión: lo que ve la Comisión, sin las sugerencias ni las
+    quitadas; las descartadas por el sistema están en otra tabla."""
     rows = []
-    for requirement in version.requirements.order_by("number").prefetch_related(
-            "quotes__segment__reading"):
-        quote_list = list(requirement.quotes.all())
+    for requirement in version.requirements.filter(state__in=FIRM_STATES).order_by(
+            "number").prefetch_related("quotes__segment__reading"):
+        quote_list = list(requirement.quotes.order_by("order"))
         first = quote_list[0].segment if quote_list else None
         rows.append(Proposed(
             number=requirement.number, category=requirement.category,
@@ -530,16 +549,26 @@ def _proposed(version):
     return rows
 
 
+def _covers(entry, spans):
+    """Si alguna de las citas `spans` (lectura, inicio, fin, ...) cubre al menos la mitad
+    del ancla de `entry`."""
+    size = entry.span[1] - entry.span[0]
+    return any(
+        span[0] == entry.reading.pk and (o := _overlap(entry.span, (span[1], span[2])))
+        and o >= REQUIRED_OVERLAP * size
+        for span in spans)
+
+
 def _pairs(located, proposed):
-    """Parejas uno a uno: de mayor a menor superposición; la cita cubre al menos la mitad
-    del ancla."""
+    """Parejas uno a uno: de mayor a menor superposición; una cita cualquiera de la fila
+    cubre al menos la mitad del ancla."""
     candidates = []
     for e_index, entry in enumerate(located):
         size = entry.span[1] - entry.span[0]
         for p_index, row in enumerate(proposed):
-            if row.reading is None or row.reading.pk != entry.reading.pk:
-                continue
-            overlap = _overlap(entry.span, row.span)
+            overlap = max((_overlap(entry.span, (start, end))
+                           for reading, start, end, _ in row.spans
+                           if reading == entry.reading.pk), default=0)
             if overlap and overlap >= REQUIRED_OVERLAP * size:
                 candidates.append((-overlap, e_index, p_index))
     candidates.sort()
@@ -555,12 +584,7 @@ def _pairs(located, proposed):
 
 def _would_match(entry, rows):
     """Si alguna fila propuesta cubriría el ancla (aunque esté tomada por otro)."""
-    size = entry.span[1] - entry.span[0]
-    return any(
-        row.reading is not None and row.reading.pk == entry.reading.pk
-        and (o := _overlap(entry.span, row.span)) and o >= REQUIRED_OVERLAP * size
-        for row in rows
-    )
+    return any(_covers(entry, row.spans) for row in rows)
 
 
 def _row_refs_present(refs, row_quotes):
@@ -590,9 +614,11 @@ def measure_version(run, expected, verification):
 
     located = [verification.located[i.id] for i in fe_items]
     pairs = _pairs(located, fe_rows)
+    paired_rows = set(pairs.values())
+    discarded = _discarded_rows(run)
     lines, found_count, class_ok = [], 0, 0
     causes, wrong_class = Counter(), 0
-    review = []
+    review, unified = [], []
     matched_pk = {}
 
     for e_index, entry in enumerate(located):
@@ -615,8 +641,14 @@ def measure_version(run, expected, verification):
                         detalle="clase equivocada: el ancla está en un tramo de una fila "
                                 "técnica")
             matched_pk[item.id] = cited.requirement_id
+        elif (host := _repeated_in(entry, fe_rows, paired_rows)) is not None:
+            # La unificación no crea faltantes: el esperado está en una cita `repetida` de
+            # una fila ya emparejada con otro (T-103).
+            unified.append(item.id)
+            line.update(estado="encontrado", detalle="unificado", propuesto=host.number)
+            matched_pk[item.id] = host.requirement_id
         else:
-            cause, detail = _cause(entry, fe_rows, dispositions, pending)
+            cause, detail = _cause(entry, fe_rows, dispositions, pending, discarded)
             if cause == PENDING:
                 # Decisión del 2026-10-04: no es un faltante; la matriz no se valida sin
                 # que el evaluador resuelva el pendiente.
@@ -680,6 +712,9 @@ def measure_version(run, expected, verification):
     # Una fila técnica propuesta y citada por una clase equivocada no es sobrante de nada.
     leftovers = sum(1 for line in lines
                     if line["tipo"] == "propuesto" and line["estado"] == "sobrante")
+    leftovers_fe = leftovers - leftover_class[TECHNICAL]
+    firm_total = len(proposed)
+    firm_fe = len(fe_rows)
 
     # Citas.
     quote_total = quote_ok = wide = wide_ok = 0
@@ -706,17 +741,28 @@ def measure_version(run, expected, verification):
             if item.consequence in suggested:
                 consequences["entre_las_sugeridas"] += 1
 
+    # Descartadas por el sistema (informe, REQ-033).
+    discarded_report = _discarded_report(discarded, located, leftovers)
+    lines += discarded_report.pop("lines")
+
     measured_total = len(measured)
+    found = ratio(found_count + len(unified) + len(review), measured_total)
+    leftover_ratio = ratio(leftovers, firm_total)
     return {
         "lines": lines,
-        "found": ratio(found_count + len(review), measured_total),
-        "found_without_review": ratio(found_count, measured_total),
+        "found": found,
+        "found_without_review": ratio(found_count + len(unified), measured_total),
         "review": {"count": len(review), "ids": [r["id"] for r in review],
                    "keys": sorted({r["tramo"] for r in review})},
+        "unified": {"count": len(unified), "ids": unified},
         "class": ratio(class_ok, found_count),
         "class_wrong_found": wrong_class,
         "causes": dict(causes),
         "leftovers": leftovers,
+        "leftover_ratio": leftover_ratio,
+        "leftover_ratio_formal_economic": ratio(leftovers_fe, firm_fe),
+        "cap": cap_verdict(leftover_ratio, found),
+        "discarded": discarded_report,
         "leftovers_by_class": dict(leftover_class),
         "leftovers_by_segment": dict(leftover_segment),
         "literal": ratio(quote_ok, quote_total),
@@ -726,7 +772,89 @@ def measure_version(run, expected, verification):
         "circular_unmeasured": len(circular_items),
         "consequences": dict(consequences),
         "coverage": _coverage(run, dispositions),
-        "proposed_total": len(proposed),
+        "proposed_total": firm_total,
+    }
+
+
+def cap_verdict(leftover_ratio, found):
+    """El tope de sobrantes (REQ-024, REQ-033): cumple si los sobrantes son hasta
+    `MATRIX_SOBRANTES_LIMIT` de las filas firmes y los encontrados son el 100 % (con "a
+    revisión obligatoria"). El intervalo de Wilson se informa y no decide."""
+    limit = settings.MATRIX_SOBRANTES_LIMIT
+    leftovers_ok = leftover_ratio["ok"] <= limit * leftover_ratio["total"] + 1e-9
+    found_ok = found["ok"] >= found["total"]
+    return {"limit": limit, "leftovers_ok": leftovers_ok, "found_ok": found_ok,
+            "met": leftovers_ok and found_ok}
+
+
+def _repeated_in(entry, fe_rows, paired_rows):
+    """La fila ya emparejada con citas `repetida` que cubre el ancla de `entry` con
+    cualquiera de sus citas (la principal incluida), o `None`. Una fila sin repetidas no
+    cuenta para dos esperados."""
+    for index in sorted(paired_rows):
+        row = fe_rows[index]
+        if any(span[3] for span in row.spans) and _covers(entry, row.spans):
+            return row
+    return None
+
+
+@dataclass
+class _Discarded:
+    row: object
+    key: str
+    spans: list
+
+
+def _discarded_rows(run):
+    rows = list(m.DiscardedRow.objects.filter(run=run).order_by("order", "id")
+                .select_related("segment"))
+    extra_ids = {extra["segment"] for row in rows for extra in row.extra_quotes}
+    extra_readings = dict(m.Segment.objects.filter(pk__in=extra_ids)
+                          .values_list("pk", "reading_id"))
+    result = []
+    for row in rows:
+        spans = [(row.segment.reading_id, row.char_start, row.char_end, False)]
+        spans += [(extra_readings[extra["segment"]], extra["char_start"], extra["char_end"],
+                   True) for extra in row.extra_quotes]
+        result.append(_Discarded(row, row.segment.key, spans))
+    return result
+
+
+def sample_indexes(total, sample):
+    """Posiciones (en el orden de la corrida) de la muestra de descartadas: una de cada
+    `every`, con un mínimo de `minimum`, repartidas parejo; con menos filas que el mínimo,
+    todas (REQ-033)."""
+    if total <= 0:
+        return []
+    size = min(total, max(sample["minimum"], -(-total // sample["every"])))
+    return [i * total // size for i in range(size)]
+
+
+def _discarded_report(discarded, located, leftovers):
+    """Cantidad de descartadas, reparto por motivo, tramo y pasada, cuántas cubren un ancla
+    de la lista, los sobrantes que habría sin el filtro y la muestra con texto."""
+    by_reason, by_segment, by_pass = Counter(), Counter(), Counter()
+    lines, with_pair = [], 0
+    for item in discarded:
+        row = item.row
+        by_reason[row.reason] += 1
+        by_segment[item.key] += 1
+        by_pass[row.source_pass] += 1
+        paired = any(_covers(entry, item.spans) for entry in located)
+        with_pair += paired
+        lines.append({"tipo": "descartada", "orden": row.order, "tramo": item.key,
+                      "clase": row.category, "motivo": row.reason,
+                      "pasada": row.source_pass,
+                      "estado": "con_pareja" if paired else "sin_pareja"})
+    sample = [{"order": discarded[i].row.order, "tramo": discarded[i].key,
+               "reason": discarded[i].row.reason, "text": discarded[i].row.text,
+               "evidence": discarded[i].row.evidence_text}
+              for i in sample_indexes(len(discarded), settings.MATRIX_SAMPLE_DISCARDED)]
+    return {
+        "count": len(discarded), "by_reason": dict(by_reason), "by_segment": dict(by_segment),
+        "by_pass": dict(by_pass), "with_pair": with_pair,
+        "leftovers_without_filter": leftovers + len(discarded) - with_pair,
+        "sample": sample, "lines": lines,
     }
 
 
@@ -739,9 +867,12 @@ def _technical_citing(entry, rows):
     return None
 
 
-def _cause(entry, fe_rows, dispositions, pending):
+def _cause(entry, fe_rows, dispositions, pending, discarded=()):
     if _would_match(entry, fe_rows):
         return GROUPED, ""
+    for item in discarded:
+        if _covers(entry, item.spans):
+            return DISCARDED_BY_SYSTEM, f"motivo: {item.row.reason}; tramo: {item.key}"
     disposition = dispositions.get(entry.segment.pk)
     if disposition is None:
         return NO_DISPOSITION, ""
@@ -798,6 +929,9 @@ def timing_summary(run):
         summary["extrapolated_50_pages_seconds"] = round(total / pages * EXTRAPOLATED_PAGES, 1)
     if total is not None and segments:
         summary["seconds_per_segment"] = round(total / segments, 3)
+    if "unificacion" in run.timings or "filtro" in run.timings:
+        summary["filter_seconds"] = round(
+            run.timings.get("unificacion", 0) + run.timings.get("filtro", 0), 3)
     return summary
 
 
@@ -823,6 +957,9 @@ class Report:
             for name in ("found", "literal"):
                 if measures[name]["ok"] < measures[name]["total"]:
                     reasons.append(f"{result['process']}: {name} no llega al 100 %")
+            if not measures["cap"]["leftovers_ok"]:
+                reasons.append(f"{result['process']}: los sobrantes pasan el tope de "
+                               f"{_percent(measures['cap']['limit'])} de las filas firmes")
             coverage = measures["coverage"]
             if coverage["with_disposition"] < coverage["segments"]:
                 reasons.append(f"{result['process']}: hay tramos sin disposición")
@@ -930,6 +1067,7 @@ def regenerate_summaries(procedure, expected, folder):
     (folder / "resumen.md").write_text(_summary(report, public=False), encoding="utf-8")
     (folder / "resumen-publico.md").write_text(_summary(report, public=True),
                                                encoding="utf-8")
+    _write_sample(report, overwrite=False)  # la que ya completó el verificador no se pisa
     return report
 
 
@@ -999,6 +1137,30 @@ def _write(report, procedure, started_at, commit):
                                               encoding="utf-8")
     (report.folder / "resumen-publico.md").write_text(_summary(report, public=True),
                                                       encoding="utf-8")
+    _write_sample(report, overwrite=True)
+
+
+def _cell(text):
+    return " ".join(str(text).split()).replace("|", "\\|")
+
+
+def _write_sample(report, *, overwrite):
+    """La plantilla local `muestra-descartadas.md`, con texto del pliego (no va al
+    repositorio): una fila por descartada de la muestra y una columna para que quien
+    verifica diga si el descarte era correcto."""
+    for result in report.results:
+        sample = [] if result.get("error") else result["measures"]["discarded"]["sample"]
+        target = report.folder / SAMPLE_FILE
+        if not sample or (target.exists() and not overwrite):
+            continue
+        out = ["# Muestra de descartadas por el sistema", "",
+               "Texto del pliego: no se copia al repositorio. Completar la última columna "
+               "con sí o no.", "",
+               "| N.º | Tramo | Motivo | Cita | Indicio | ¿Descarte correcto? |",
+               "|---|---|---|---|---|---|"]
+        out += [f"| {r['order']} | {r['tramo']} | {r['reason']} | {_cell(r['text'])} | "
+                f"{_cell(r['evidence'])} | |" for r in sample]
+        target.write_text("\n".join(out) + "\n", encoding="utf-8")
 
 
 def _seconds(value):
@@ -1042,9 +1204,18 @@ def _summary(report, *, public):
             f"- Tramos técnicos citados por renglón: "
             f"{proportion_text(measures['technical_tramos'])} (se informa; no bloquea)",
             *_review_summary(measures),
-            f"- Sobrantes: {measures['leftovers']} "
+            f"- Unificados (encontrados por una cita repetida): "
+            f"{measures['unified']['count']}"
+            + (f" ({', '.join(measures['unified']['ids'])})" if measures["unified"]["ids"]
+               else ""),
+            f"- Sobrantes (filas firmes sin pareja, sin descartadas ni sugerencias): "
+            f"{proportion_text(measures['leftover_ratio'])} "
             f"(por clase: {_counter_text(measures['leftovers_by_class'])})",
+            f"- Sobrantes solo sobre formales y económicas: "
+            f"{proportion_text(measures['leftover_ratio_formal_economic'])}",
+            *_cap_lines(measures),
             f"- Sobrantes por tramo: {_counter_text(measures['leftovers_by_segment'])}",
+            *_discarded_lines(measures["discarded"], measures["leftovers"]),
             f"- Faltantes por causa: {_counter_text(measures['causes'])}",
             f"- Filas de circulares sin medir (T-083): {measures['circular_unmeasured']}",
         ]
@@ -1071,6 +1242,34 @@ def _review_summary(measures):
             f"tramos: {', '.join(review['keys'])}"]
 
 
+def _yes(value):
+    return "sí" if value else "no"
+
+
+def _cap_lines(measures):
+    cap = measures["cap"]
+    return [f"- Tope de sobrantes (hasta {_percent(cap['limit'])} de las filas firmes y "
+            f"100 % de encontrados): {'cumple' if cap['met'] else 'no cumple'} "
+            f"(sobrantes dentro del tope: {_yes(cap['leftovers_ok'])}; encontrados al "
+            f"100 %: {_yes(cap['found_ok'])}); el intervalo se informa y no decide"]
+
+
+def _discarded_lines(info, leftovers):
+    lines = [f"- Descartadas por el sistema: {info['count']}"]
+    if not info["count"]:
+        return lines
+    lines += [
+        f"- Descartadas por motivo: {_counter_text(info['by_reason'])}",
+        f"- Descartadas por tramo: {_counter_text(info['by_segment'])}",
+        f"- Descartadas por pasada: {_counter_text(info['by_pass'])}",
+        f"- Descartadas que cubren un ancla de la lista: {info['with_pair']}",
+        f"- Sobrantes que habría sin el filtro: {info['leftovers_without_filter']} "
+        f"(los {leftovers} de ahora más {info['count'] - info['with_pair']} descartadas "
+        "sin pareja)",
+    ]
+    return lines
+
+
 def _counter_text(values):
     if not values:
         return "ninguno"
@@ -1081,6 +1280,11 @@ def _timing_lines(timings):
     lines = [f"- Tiempo total: {_seconds(timings['passes'].get('total'))}; por pasada: "
              + ", ".join(f"{name} {_seconds(value)}"
                          for name, value in timings["passes"].items() if name != "total")]
+    if "filter_seconds" in timings:
+        passes = timings["passes"]
+        lines.append(f"- Unificación y filtro: {_seconds(timings['filter_seconds'])} "
+                     f"(unificacion {_seconds(passes.get('unificacion'))}, "
+                     f"filtro {_seconds(passes.get('filtro'))})")
     if "seconds_per_page" in timings:
         lines.append(
             f"- Por página: {_seconds(timings['seconds_per_page'])}; por tramo: "
@@ -1123,6 +1327,13 @@ def _detail_lines(result, report, public):
             lines += ["", "Sobrantes (primeros 80 caracteres de la cita):"]
             lines += [f"- #{r['numero']} {r['tramo']}: «{texts.get(r['numero'], '')[:80]}»"
                       for r in leftovers]
+        sample = result["measures"]["discarded"]["sample"]
+        if sample:
+            lines += ["", f"Muestra de descartadas ({len(sample)} de "
+                      f"{result['measures']['discarded']['count']}):"]
+            lines += [f"- #{r['order']} {r['tramo']} [{r['reason']}]: "
+                      f"«{_cell(r['text'])[:200]}»; indicio «{_cell(r['evidence'])[:120]}»"
+                      for r in sample]
     return lines
 
 
