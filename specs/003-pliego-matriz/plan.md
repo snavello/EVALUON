@@ -1,6 +1,6 @@
 # Plan 003 · Procedimiento, pliego final y matriz de cumplimiento
 
-Estado: aprobado · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-04, tope de sobrantes, REQ-033, REQ-034 y proceso único sin niveles (sección "Enmienda del 2026-10-04"), aprobada por el responsable el 2026-10-04 · Enmienda de sugerencias: 2026-10-04, REQ-035 y REQ-036 (subsección "Sugerencias de condición y respaldo normativo"), aprobada por el responsable el 2026-10-04
+Estado: aprobado · Fecha: 2026-10-03 · Aprobó: responsable del proyecto · Enmienda: 2026-10-04, tope de sobrantes, REQ-033, REQ-034 y proceso único sin niveles (sección "Enmienda del 2026-10-04"), aprobada por el responsable el 2026-10-04 · Enmienda de sugerencias: 2026-10-04, REQ-035 y REQ-036 (subsección "Sugerencias de condición y respaldo normativo"), aprobada por el responsable el 2026-10-04 · Enmienda de circulares: 2026-10-04, rediseño de la pasada de circulares (sección "Rediseño de la pasada de circulares", ADR-0023), aprobada por el responsable el 2026-10-04
 
 Spec: `specs/003-pliego-matriz/spec.md` (aprobada el 2026-10-03, enmendada el mismo día: requisitos técnicos por renglón, criterio de requisito y de clase, tipos de consecuencia y REQ-032; enmendada el 2026-10-04: requisitos en tramos pendientes, tope de sobrantes, REQ-033 y REQ-034; enmendada otra vez el 2026-10-04: sugerencias de condición y respaldo normativo, REQ-035 y REQ-036).
 
@@ -840,6 +840,112 @@ Sin tipos de hecho nuevos. Cada decisión sobre una sugerencia es un `requiremen
 4. **Consecuencias para las sugerencias.** Se piden desde la propuesta, aunque no se elijan hasta que pasen a requisito; es costo de tiempo, no un requisito de la spec, y se justifica con el trabajo de la Comisión (P10: si la medición muestra que no ayuda, se saca).
 5. **Fallas técnicas.** Sin ninguna opinión válida la fila queda firme y no sugerencia, para que las fallas no llenen la sección; con una sola opinión válida que dude, es sugerencia (`opinion_incompleta`).
 
+## Rediseño de la pasada de circulares (2026-10-04)
+
+Estado: aprobado · Fecha: 2026-10-04 · Aprobó: responsable del proyecto (enmienda de la pasada de circulares, REQ-031; decisión en ADR-0023)
+
+Fuente: `specs/003-pliego-matriz/verificacion/T-113-diagnostico.md`. La pasada de T-083/T-098 elige, por cada tramo que dejó la lectura, una cita del pliego entre candidatas; falló en M-013, M-029, M-044 y M-015 y metió ruido (72 fuentes técnicas ajenas, 20 requisitos de más) porque le deja al modelo lo que la circular dice con precisión y lo que el código puede decidir por la clave. Esta sección cambia el enfoque en dos entregas. No cambia la spec: REQ-031 pide lo mismo; cambia cómo se cumple y cómo se mide. Decisión: ADR-0023 (opción a; la opción b, ajustes incrementales, descartada).
+
+### Qué se conserva
+
+Orden por fecha (y por orden de carga a igual fecha), citas verificadas literalmente, disposición de cada tramo de circular (ninguno desaparece), los textos vigente y original, el registro de cada pedido (P6), `Source`, `Result`, `_apply` y las tablas `tenders_requirement_source`/`tenders_requirement_quote`. El flujo actual (candidatas nombradas, aludidas y reranker, el modelo elige) queda como **respaldo** y se limita a los cambios sin clave.
+
+### Entrega 1, sin modelo (T-113)
+
+**Unidades de cambio** (módulo nuevo `proposal/circular_units.py`). La circular se parte en unidades de cambio sobre los tramos que ya dejó la lectura, usando su clave, su tipo y sus rótulos; nada se relee:
+
+| Unidad | Cómo se detecta | Qué abarca |
+|---|---|---|
+| Cláusula numerada de la circular | Tramo `cláusula` de primer nivel de la circular (`1`, `2`, `3`), con los tramos que cuelgan hasta la siguiente | La cláusula entera, con sus viñetas |
+| Apartado completo | Título con numeración romana (`I`, `II.`) y todos los tramos hasta el próximo encabezado romano, cláusula numerada o firma | El apartado entero: una lista de 79 líneas es una unidad |
+| Par "Donde dice / Debe decir" | Rótulo "donde dice" y "debe decir" (comparación sin mayúsculas ni tildes, con o sin dos puntos), cada uno en su tramo, el texto de cada lado hasta el rótulo siguiente; los tramos `no_ubicado` y las tablas que caen entre ellos pertenecen al par | Los dos lados juntos: el lado "dice" es la clave de texto anterior y el lado "debe decir" el texto nuevo; el lado "dice" nunca produce un efecto |
+| Tramo suelto | Cualquier tramo que no cae en lo anterior | El tramo (comportamiento de hoy, al respaldo) |
+
+Todo tramo de una unidad queda con la disposición de la unidad (con su origen `regla`): un tramo no ubicado de un par ya no queda sin ubicar.
+
+**Tipo de cambio.** Por verbos y rótulos de lista cerrada, en código (se modifica, reemplaza, sustituye, "por la siguiente" → `reemplaza`; se suprime, elimina, "deja sin efecto", "no será considerada como requisito" → `suprime`; se agrega, incorpora → `agrega`; el par "Donde dice / Debe decir" → `reemplaza`; "aclara", "precisa", "se informa" → `aclara`). Una unidad sin verbo reconocible o sin objetivo va al respaldo. Los verbos son una lista en el módulo, con tests; no hay lista de palabras del caso-01 (principio de generalidad de "Cómo se prueba").
+
+**Objetivo y aplicación por clave.** El objetivo se resuelve contra el pliego sin modelo y el efecto se aplica a **todas** las citas afectadas, una fuente por cita:
+
+| Objetivo | Qué se resuelve | Efecto |
+|---|---|---|
+| Cláusula `N` | Todas las citas (de requisitos formales, económicos y técnicos, propias o generales) cuyo tramo tiene la clave `.../N` o cuelga de ella; número normalizado y límite de nivel (`7.5.4` no alcanza `7.5.41`, igual que la clave de grupo de REQ-034) | `reemplaza` → `modifica` en cada cita, con el texto nuevo de la unidad; `suprime` → `suprime` en cada una |
+| Anexo `X` (número o título) | Las citas de los tramos del anexo y las cláusulas del pliego que lo **piden** (su texto nombra el anexo por número o por título entre comillas y contiene un verbo de presentación: completar, adjuntar, presentar, acompañar) | `suprime` en cada una cuando la circular dice que no es requisito; la Comisión decide cada una, con su cita |
+| Renglón `N` | Las filas técnicas de ese renglón | Se busca el texto anterior de la unidad (par, "donde dice" o lo que cita) en las citas de la fila; si está, `modifica` esa cita; si no, respaldo |
+| Texto anterior sin objetivo | El lado "dice" de un par se busca (sin mayúsculas, tildes ni espacios sobrantes) en las citas de todo el pliego | Una sola coincidencia: `modifica`; ninguna o varias: respaldo |
+| Cláusula o número que el pliego no tiene | La clave no existe | Con verbo `agrega`: requisito nuevo de origen `circular` con la cita literal en el tramo de la circular; si no, respaldo |
+
+Una circular que repite la cláusula en dos documentos se aplica por fecha, como hoy. Si una unidad se resuelve a cero citas, no se pierde: va al respaldo y queda registrada.
+
+**Listas de datos del trámite.** Una unidad de tipo apartado cuyos tramos son mayoritariamente líneas cortas de la forma rótulo y valor (fecha, hora, lugar, referente, dirección, teléfono) y no contienen marcadores de obligación (los de T-093) es un **dato del trámite**: ningún requisito nuevo. Sus tramos quedan `descartado` con el motivo existente `dato_procedimiento`. Si la unidad reemplaza un anexo del pliego (su encabezado o primeras líneas nombran el anexo por su título, que tampoco tiene requisitos propios, y alguna cláusula del pliego lo menciona), el sistema crea **una** fuente `modifica` por cada cita que menciona ese anexo (R93 y R94 en el caso-01), con el bloque entero como texto vigente y el tramo del anexo como original (campo nuevo, abajo). Los umbrales de "línea corta" y de "mayoría" son constantes del módulo, ajustadas en T-120.
+
+**Normas externas.** `named_annexes` no toma como anexo del pliego una mención seguida de "de la/del/de" y un tipo de norma ("Anexo IV de la Disposición N° …", Resolución, Decreto, Ley, Circular, Nota, Acuerdo). Vale para los dos flujos: se acaban las 540 aludidas.
+
+**Registro (P6).** Cada unidad deja un pedido en `tenders_run_step` (`circulares`) sin llamada al modelo: la unidad (claves de sus tramos), el tipo y el objetivo detectados, las citas resueltas, las fuentes creadas, el descarte o el pase al respaldo. Los pedidos del respaldo se registran como hoy.
+
+### Campo nuevo y migración (una sola tarea de esquema, T-114)
+
+**Texto original en un anexo sin requisitos.** La fuente guarda dónde está el texto que la circular reemplaza cuando no es la cita alcanzada. `tenders_requirement_source` suma tres campos opcionales: `original_segment` (clave al tramo del anexo), `original_char_start` y `original_char_end` (posiciones en el texto canónico de su lectura), con la regla de que los tres van juntos o ninguno, y que la cita literal sea igual a `canonical_text[inicio:fin]` como toda cita. Sin el campo, `modifica` mantiene el original en la cita alcanzada (como hoy). Una migración, de datos viejos válidos (nulos); el trigger de inmutabilidad de una versión validada cubre los campos nuevos y `validation._copy` los copia. En la misma migración, `tenders_run_step.pass_name` suma `circulares_cambios` (la extracción de la entrega 2) y `settings.py` suma `CIRCULAR_EXTRACTION_ENABLED` (verdadero), `CIRCULAR_EXTRACTION_REPEATS` (1; 3 en la medición de estabilidad) y la versión de instrucciones `circulares_cambios` en `MATRIX_PROMPT_VERSIONS`. Un solo agente de esquema: T-114, que va después de T-099 y T-100 (ya integradas). Es la decisión 3 del responsable.
+
+**Requisito que agrega una circular** (decisión 4): sin migración. La pantalla y la impresión toman documento, título y fecha del tramo de su cita (el requisito `origin` `circular` ya tiene su cita en el tramo de la circular).
+
+### Entrega 2, con modelo (T-115)
+
+Para lo que no tiene clave (la entrega 1 lo deja en "respaldo": "la memoria RAM del equipo", respuestas a consultas sin número), el modelo extrae una **lista estructurada de cambios de cada unidad**, sin ver las citas del pliego:
+
+- Pedido por unidad (cortos; una circular de unas 100 líneas son 8 a 12 pedidos), con salida estructurada obligada: `cambios`, cada uno con `tipo` (`reemplaza`, `suprime`, `agrega`, `aclara`, `dato_del_tramite`), `objetivo` (`clausula`, `anexo`, `renglon`, `ninguno`) y `referencia` (número o título), `texto_anterior` (si la circular lo da) y `texto_nuevo`, estos dos como **citas literales** de la unidad verificadas como en la extracción (reintento único si no están).
+- Lo que el modelo devuelve con objetivo resoluble pasa por la **misma aplicación por clave** de la entrega 1; lo que no tiene objetivo, o no se resuelve, va al flujo actual de candidatas restringido a esos cambios. El modelo no elige citas del pliego salvo en el respaldo.
+- **Estabilidad.** Con `CIRCULAR_EXTRACTION_REPEATS` mayor que 1 la extracción se repite y se compara: los cambios iguales (mismo tipo, objetivo y texto) se aceptan; los que difieren entre repeticiones quedan marcados como no estables, no se aplican en firme y van al respaldo con la anomalía. La medición de ajuste repite 3 veces sobre el caso-01 (T-120).
+- Instrucciones `prompts/matriz-circulares-v3.md`, con ejemplos sintéticos de otro objeto y otras cifras; el modelo y los parámetros se registran como en las demás pasadas.
+- Con `CIRCULAR_EXTRACTION_ENABLED` en falso queda la entrega 1 más el respaldo actual.
+
+### Pantalla e impresión (T-116)
+
+- Una fuente con `original_segment` muestra como "Texto original" el tramo del anexo, con su documento, página y enlace al original en la página; el vigente sigue siendo el texto de la circular con su documento y fecha.
+- Una fuente sobre varias citas del mismo cambio se agrupa en la pantalla: el cambio de la circular se muestra una vez por requisito, no repetido por línea (el historial "modificada por Circular-1" aparece una vez).
+- Un requisito `origin` `circular` muestra "Agregado por <documento> del <fecha>" tomados del tramo de su cita; en la vista de impresión y el PDF, igual. La leyenda de borrador no cambia.
+
+### Cambios en `medir_matriz` (T-117)
+
+REQ-031 hoy se mide a ojo con el caso-01. Se agrega una medición automática, por fila, que no cambia la regla de emparejamiento ni las medidas anteriores:
+
+- **Lista esperada.** Un esperado puede llevar un bloque opcional `circular` con: `documento` (título del documento de la circular), `fecha`, `efecto` (`modifica`, `aclara`, `suprime`, `agrega`), `ancla_original` (fragmento del texto original, literal del pliego o del anexo) y `ancla_vigente` (fragmento del texto nuevo, literal de la circular; vacío en `suprime`). Un esperado con bloque `circular` es esperado "de circular". El bloque se comprueba con `--verificar-esperada` (anclas, documento y fecha existen en la lectura de la corrida).
+- **Medida por fila de circular.** Cada fila esperada de circular se mide en cuatro puntos, informados por separado: (1) tiene fuente con el efecto esperado; (2) el texto original mostrado contiene el ancla original (con la regla de cobertura de la mitad del ancla); (3) el texto vigente contiene el ancla vigente; (4) el documento y la fecha de la fuente son los esperados. Cumple REQ-031 la fila que cumple los cuatro. Para `agrega`, vale la fila de origen `circular` con cita en el documento y fecha esperados.
+- **Ruido de circulares.** Fuentes que caen en filas sin esperado de circular, contadas por documento y por fila (sin texto en `resumen-publico.md`), y requisitos `origin` `circular` sin esperado.
+- **Alcance.** Una lista con `alcance: circulares` mide solo REQ-031 (para los casos de ajuste 05 y 06, que no tienen la lista completa del pliego): no calcula encontrados, sobrantes ni tope del resto.
+- **Informe.** Cuántas filas de circular se esperaban, cuántas cumplieron cada punto, fuentes ajenas, por circular. `resumen-publico.md` lleva cuentas, claves `M-NNN` y los títulos de documentos, sin texto. Las corridas anteriores (sin bloque `circular`) siguen dando las medidas de siempre.
+- La lista esperada del caso-01 se actualiza en T-119: las filas del Anexo VI que la circular suprime cuentan como afectadas y esperadas (decisión 5), con su bloque `circular`.
+
+### Costo y tiempos
+
+Entrega 1: sin modelo; la propuesta ya no hace los 99 pedidos de la Circular 1: la pasada baja a segundos más los pedidos del respaldo. Entrega 2: unos 8 a 12 pedidos cortos por circular (estimación del diagnóstico: 5 a 10 veces menos tokens que los 836.000 y 432 s medidos); con tres repeticiones, el triple, sigue por debajo de lo medido. Se mide en T-120 y se informa; no hay máximo (decisión del responsable sobre el tiempo, ver "Tiempos y GPU"). Código: entrega 1, unas 300 a 400 líneas y entre 30 y 40 % de `circulars.py` pasa a `circular_units.py`; entrega 2, un módulo `circular_changes.py` de tamaño similar y una instrucción.
+
+### Cómo se prueba sin mirar los casos 03 y 04
+
+1. **Reglas de aplicación (código, sin modelo):** tests con pliegos y circulares sintéticos que reproducen las *formas* (no el texto) del caso-01, escritos para fallar sin el arreglo: cláusula de dos citas reemplazada (las dos reciben la fuente); anexo declarado no requisito con una cláusula que lo pide; apartado de datos bajo un encabezado romano que no crea requisitos y reemplaza un anexo sin requisitos (una fuente por cita que lo menciona, con el original en el anexo); "Donde dice / Debe decir" en tramos separados con el rótulo y el texto viejo en tramos distintos; mención de un anexo de una norma externa; el ejemplo de la spec (16 GB a 32 GB en un renglón) por la clave del renglón y por el texto anterior; clave inexistente que va al respaldo. Cada test con textos inventados. Una prueba busca las anclas de los casos y falla si aparece alguna de 5 palabras en tests o instrucciones.
+2. **Extracción con modelo (ajuste):** caso-01 (T-098 ya lo usó), caso-05 (A0KJ000000-0008-LPU24: precintos, circulares con respuestas a consultas) y caso-06 (A0PC000000-0007-LPU26: bases online, circular aclaratoria), tres casos de ajuste distintos de las formas del caso-01. Se repite la extracción 3 veces sobre el caso-01 para medir estabilidad. Hasta dos rondas de ajuste de las instrucciones y de las constantes, con una frase general por ronda, sin nombrar cláusulas.
+3. **Aceptación:** los casos 03 y 04 se miden a ciegas una sola vez, en T-108, después de la entrega 2, sin ajustar sobre ellos y sin mirarlos antes. Sus listas, ya preparadas solo desde el texto, necesitan el bloque `circular`; si no lo tienen, el Coordinador lo agrega solo desde el texto antes de correr.
+4. **Datos:** los casos no se suben a GitHub (principio P4 y decisión del responsable); los informes llevan identificadores, claves, cuentas y tiempos.
+
+### Riesgos
+
+| Riesgo | Mitigación |
+|---|---|
+| Quitar de más una cláusula que nombra el anexo de pasada | Solo cláusulas cuyo texto pide el anexo (verbos de presentación); queda como propuesta con su cita; la Comisión decide |
+| Una numeración distinta entre la circular y el pliego | Número normalizado; si no existe, respaldo; nada se pierde |
+| Una partición equivocada se arrastra a todos sus tramos | La unidad queda registrada con sus tramos; una circular sin encabezados cae en "un tramo, una unidad" (como hoy); tests de partición con formas distintas |
+| El modelo equivoca el tipo (`reemplaza` por `aclara`) en la entrega 2 | La lista de cambios es corta y se repite; los cambios inestables no se aplican en firme |
+| Una lista de datos con una obligación escondida | La unidad con marcadores de obligación no es dato del trámite: sigue su camino de unidad común |
+| Conflictos de archivo con las tareas en curso | T-113 toca `run.py` solo en `_save_circulars`; ver "Conflictos de archivo" en `tasks.md` |
+
+### Cobertura de la enmienda
+
+| Requisito | Parte del plan |
+|---|---|
+| REQ-031 | Unidades de cambio, aplicación por clave, datos del trámite, normas externas, campo de original, entrega 2, pantalla e impresión, medición por fila |
+| REQ-028 | Todo tramo de una unidad queda con disposición; los no ubicados de un par se resuelven con el par |
+| REQ-032 | Impresión y PDF con documento y fecha del requisito agregado y el original del anexo |
+
 ## Qué no se hace en esta feature
 
 - La revisión del pliego borrador contra la normativa (002), las ofertas (008) y la evaluación (004). Redactar o modificar el pliego.
@@ -867,7 +973,7 @@ Sin tipos de hecho nuevos. Cada decisión sobre una sugerencia es un `requiremen
 | REQ-028 | Páginas ilegibles o dudosas, tablas, tramos no ubicados, tramos sin disposición y renglones sin especificaciones como pendientes; marcadores en media | Test: un pliego sintético con una página de ruido; esa página figura como pendiente de revisión en la matriz propuesta y ninguna otra |
 | REQ-029 | Pasada de consecuencias con fundamentos del pliego y de la norma a la fecha; lista cerrada de siete tipos; elección con motivo por un evaluador | Tests con dobles: una cláusula que sanciona con desestimación produce la sugerencia con su cita; sin fundamento, "no determinada"; el sistema no sugiere aprobación condicionada ni aprobar de todas maneras; la elección queda con quién, cuándo y motivo |
 | REQ-030 | Nivel en el pedido, por omisión alta; guardado en la propuesta y en la versión; niveles ofrecidos por configuración | Tests: sin elegir, alta; con media o exigente, el elegido; cada nivel corre sus pasadas. Medición por nivel en T-084 |
-| REQ-031 | Tipos de documento con fecha; pasada de circulares; `tenders_requirement_source` por cita; pantalla con los dos textos | Test con un pliego sintético: "16 GB de RAM" y una circular "32 GB": el requisito exige 32 GB, muestra los dos textos y cita la circular; una respuesta que precisa un requisito figura junto a él con su cita |
+| REQ-031 | Tipos de documento con fecha; pasada de circulares por unidades de cambio y aplicación por clave, con extracción con modelo y respaldo (sección "Rediseño de la pasada de circulares", ADR-0023); `tenders_requirement_source` por cita, con referencia al original en un anexo; pantalla con los dos textos; medición por fila en `medir_matriz` | Test con un pliego sintético: "16 GB de RAM" y una circular "32 GB": el requisito exige 32 GB, muestra los dos textos y cita la circular; una respuesta que precisa un requisito figura junto a él con su cita |
 | REQ-032 | Franja en la página de la matriz; plantilla de impresión; `export.py` con WeasyPrint (ADR-0020); leyenda en las cajas de margen de cada página; datos de validación; hecho `matrix_export` | Tests: un PDF de un borrador de varias páginas, leído con pdfplumber, tiene "BORRADOR INCOMPLETO" en cada página; el de una versión validada no la tiene y muestra versión, fecha y evaluador; la página y la vista de impresión de un borrador muestran la leyenda; el PDF no pide ningún recurso externo. A mano: la impresión del navegador repite la leyenda en cada hoja |
 
 Requisitos no funcionales: la medición, en "Medición"; tiempo y nivel, en "Tiempos y GPU" y T-084; sin conexión, con la red interna, el `URLFetcher` cerrado y una prueba con la red cortada en T-075.
