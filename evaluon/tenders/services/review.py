@@ -280,7 +280,7 @@ def confirm(user, requirement_ids, *, channel=Channel.SCREEN):
                                 "requirement_removed", "requirements")
         if any(r.state == RequirementState.SUGERIDO for r in locked):
             raise ReviewRefused(
-                "Una sugerencia no se confirma: se decide si pasa a requisito o se quita.",
+                "Una sugerencia no se confirma: pásela primero a requisito o quítela.",
                 "requirement_suggested", "requirements")
         done = Reviewed(requirements=[])
         for requirement in locked:
@@ -314,18 +314,21 @@ def _in_group(requirement, group):
     return bool(keys) and all(in_group(key, group) for key in keys)
 
 
-def _group_rows(version_id, group):
-    """`(clave, filas)`: las filas `propuesto` del grupo, bloqueadas y por número."""
+def _group_rows(version_id, group, state=RequirementState.PROPUESTO):
+    """`(clave, filas)`: las filas del grupo en el estado `state` (`propuesto` o, para las
+    sugerencias, `sugerido`), bloqueadas y por número."""
     group = (group or "").strip()
     if not group:
         raise ReviewRefused("Indique la cláusula o el tramo del grupo.", "invalid_group",
                             "group")
     rows = Requirement.objects.select_for_update().filter(
-        version_id=version_id, state=RequirementState.PROPUESTO).order_by("number")
+        version_id=version_id, state=state).order_by("number")
     rows = [r for r in rows if _in_group(r, group)]
     if not rows:
+        what = ("sugerencias" if state == RequirementState.SUGERIDO
+                else "filas propuestas")
         raise ReviewRefused(
-            f"El grupo «{group}» no tiene filas propuestas: no hay nada que cambiar.",
+            f"El grupo «{group}» no tiene {what}: no hay nada que cambiar.",
             "empty_group", "group")
     return group, rows
 
@@ -348,12 +351,14 @@ def confirm_group(user, version_id, group, *, channel=Channel.SCREEN):
                 {"version": version_id, "via_grupo": group}, work)
 
 
-def remove_group(user, version_id, group, *, channel=Channel.SCREEN):
-    """Quita las filas `propuesto` del grupo `group`. El operador o el evaluador."""
+def remove_group(user, version_id, group, *, state=RequirementState.PROPUESTO,
+                 channel=Channel.SCREEN):
+    """Quita las filas `propuesto` del grupo `group` o, con `state="sugerido"`, sus
+    sugerencias (T-110). El operador o el evaluador."""
 
     def work():
         _lock_draft(version_id)
-        key, rows = _group_rows(version_id, group)
+        key, rows = _group_rows(version_id, group, state)
         done = Reviewed(requirements=[])
         for requirement in rows:
             change, event = _remove_one(requirement, user, channel, via_group=key)
