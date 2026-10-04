@@ -42,7 +42,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 48/54 | █████████░ 89% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 49/54 | █████████░ 91% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -368,12 +368,11 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 6 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 5 tareas sin terminar.
 - ○ T-106 · Medir el filtro, las sugerencias y el respaldo normativo con el caso-00 y ajustarlos (pendiente)
 - ○ T-107 · Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00 (pendiente)
 - ○ T-108 · Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04 (pendiente)
 - ○ T-109 · Buscar el respaldo normativo de cada sugerencia, sin que nunca la descarte (pendiente)
-- ○ T-116 · Mostrar y imprimir el original en el anexo, el cambio agrupado y el requisito agregado por una circular (pendiente)
 - ○ T-120 · Medir y ajustar la pasada de circulares con los casos 01, 05 y 06, con estabilidad (pendiente)
 
 ### Qué se hizo
@@ -424,6 +423,7 @@ flowchart LR
 - ✓ T-113 · Pasada de circulares, entrega 1: unidades de cambio aplicadas por clave, sin modelo (`cb8072c` 2026-10-04)
 - ✓ T-114 · Crear el campo de original en un anexo, el pedido de extracción de cambios y los parámetros de circulares (`8b858d6` 2026-10-04)
 - ✓ T-115 · Pasada de circulares, entrega 2: el modelo extrae la lista de cambios donde no hay clave (`1955dc6` 2026-10-04, `63f815c` 2026-10-04)
+- ✓ T-116 · Mostrar y imprimir el original en el anexo, el cambio agrupado y el requisito agregado por una circular (`894321e` 2026-10-04, `f17dce3` 2026-10-04)
 - ✓ T-117 · Medir REQ-031 por fila en `medir_matriz`: documento, fecha, texto original y vigente (`d0db99b` 2026-10-04, `f1ff70c` 2026-10-04)
 - ✓ T-118 · Cargar los casos 05 y 06 y preparar sus listas esperadas de circulares
 - ✓ T-119 · Actualizar la lista esperada del caso-01 con las filas que las circulares afectan
@@ -481,7 +481,7 @@ flowchart TD
   T113["✓ T-113 · Pasada de circulares, entrega 1: unidades d…"]:::done
   T114["✓ T-114 · Crear el campo de original en un anexo, el…"]:::done
   T115["✓ T-115 · Pasada de circulares, entrega 2: el modelo…"]:::done
-  T116["○ T-116 · Mostrar y imprimir el original en el anexo,…"]:::todo
+  T116["✓ T-116 · Mostrar y imprimir el original en el anexo,…"]:::done
   T117["✓ T-117 · Medir REQ-031 por fila en medir_matriz: doc…"]:::done
   T118["✓ T-118 · Cargar los casos 05 y 06 y preparar sus lis…"]:::done
   T119["✓ T-119 · Actualizar la lista esperada del caso-01 co…"]:::done
@@ -596,4 +596,4 @@ flowchart TD
 | REQ-034 | La Comisión debe poder confirmar o quitar de una vez un grupo de requisitos propuestos de un mismo tramo o cláusula; cada fila del grupo queda registrada como si se hubiera revisado por separado, con quién y cuándo | T-104, T-105, T-110, T-112 | ✓ cubierto |
 | REQ-035 | La matriz propuesta debe separar los requisitos que el sistema da por firmes de las **sugerencias de condición**: condiciones plausibles sobre las que el sistema duda. Las sugerencias van en una sección aparte, cada una con su cita y el motivo de la duda; la Comisión decide cada una (o por grupo, REQ-034) si pasa a requisito o se quita, y la matriz no se puede validar mientras quede una sugerencia sin decidir | T-099, T-102, T-103, T-106, T-107, T-108, T-110, T-111, T-112 | ▶ en proceso |
 | REQ-036 | Para cada sugerencia de condición y cada fila dudosa, el sistema debe buscar en la normativa aplicable (según REQ-022) si el régimen exige esa condición a las ofertas; si la encuentra, la muestra con la cita de la norma como respaldo y puede proponerla como requisito. La normativa solo sirve para confirmar: que una condición no figure en la norma nunca es motivo para descartarla, porque el pliego puede agregar exigencias propias | T-099, T-106, T-108, T-109, T-111, T-112 | ▶ en proceso |
-| REQ-032 | Una matriz que todavía no está validada se puede ver en pantalla, imprimir y exportar a PDF, siempre con la leyenda "BORRADOR INCOMPLETO" bien visible en cada página. Una matriz validada sale sin esa leyenda, con su versión y la fecha y el evaluador que la validó | T-067, T-074, T-082, T-086, T-105, T-112, T-116 | ▶ en proceso |
+| REQ-032 | Una matriz que todavía no está validada se puede ver en pantalla, imprimir y exportar a PDF, siempre con la leyenda "BORRADOR INCOMPLETO" bien visible en cada página. Una matriz validada sale sin esa leyenda, con su versión y la fecha y el evaluador que la validó | T-067, T-074, T-082, T-086, T-105, T-112, T-116 | ✓ cubierto |
