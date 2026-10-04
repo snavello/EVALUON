@@ -109,3 +109,47 @@
 .requirement.removed {
   opacity: 0.75;
 }
+
+/* Descartadas, grupos y citas repetidas (T-105). */
+.discarded-line {
+  padding: 0.4rem 0.75rem;
+  border-left: 4px solid #6b6b6b;
+  background: #f3f3f3;
+}
+
+.group-header {
+  margin: 1rem 0 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border-left: 4px solid #2a5db0;
+  background: #eef3fb;
+}
+
+.group-header.group-segment {
+  margin-left: 1rem;
+  border-left-color: #7f9fd3;
+}
+
+.group-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.group-buttons form {
+  margin: 0;
+}
+
+.repeated-label,
+.no-suggestions {
+  font-style: italic;
+  margin: 0.25rem 0;
+}
+
+.corrected-mark {
+  background: #fff7e0;
+  border: 1px solid #c79a00;
+}
+
+.requirement.discarded.returned {
+  opacity: 0.75;
+}

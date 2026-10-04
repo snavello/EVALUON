@@ -42,7 +42,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 39/54 | ███████░░░ 72% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 41/54 | ████████░░ 76% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -368,10 +368,8 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 15 tareas sin terminar.
-- ○ T-101 · Unificar las filas que repiten la misma condición (pendiente)
+- **Próximo paso:** Desarrollar: 13 tareas sin terminar.
 - ○ T-102 · Filtrar con dos preguntas y repartir cada fila en firme, sugerencia o descartada (pendiente)
-- ○ T-105 · Mostrar las descartadas, las citas repetidas y la revisión por grupos (pendiente)
 - ○ T-106 · Medir el filtro, las sugerencias y el respaldo normativo con el caso-00 y ajustarlos (pendiente)
 - ○ T-107 · Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00 (pendiente)
 - ○ T-108 · Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04 (pendiente)
@@ -422,8 +420,10 @@ flowchart LR
 - ✓ T-098 · Corregir la pasada de circulares (fuentes, tramos descartados y no ubicados) (`91dfa17` 2026-10-04, `ade33cd` 2026-10-04)
 - ✓ T-099 · Crear la tabla de filas descartadas, el estado de sugerencia, el respaldo normativo, las citas repetidas y los parámetros del filtro (`60b3e30` 2026-10-04)
 - ✓ T-100 · Quitar el nivel "media" y dejar un solo proceso registrado (`4b49bad` 2026-10-04, `b271132` 2026-10-04)
+- ✓ T-101 · Unificar las filas que repiten la misma condición (`cdae731` 2026-10-04, `c0fb425` 2026-10-04, `432b167` 2026-10-04, `faedb67` 2026-10-04)
 - ✓ T-103 · Medir los sobrantes sobre las filas firmes, con tope e informe de descartadas (`c631202` 2026-10-04, `73b947a` 2026-10-04)
 - ✓ T-104 · Listar y devolver las filas descartadas, y revisar por grupos (`db7c8e2` 2026-10-04)
+- ✓ T-105 · Mostrar las descartadas, las citas repetidas y la revisión por grupos (`aeb4cc5` 2026-10-04)
 - ✓ T-110 · Decidir las sugerencias: pasar a requisito o quitar, una por una o por grupo, y bloquear la validación (`19b59ad` 2026-10-04)
 - ✓ T-113 · Pasada de circulares, entrega 1: unidades de cambio aplicadas por clave, sin modelo (`cb8072c` 2026-10-04)
 - ✓ T-114 · Crear el campo de original en un anexo, el pedido de extracción de cambios y los parámetros de circulares (`8b858d6` 2026-10-04)
@@ -466,11 +466,11 @@ flowchart TD
   T098["✓ T-098 · Corregir la pasada de circulares (fuentes,…"]:::done
   T099["✓ T-099 · Crear la tabla de filas descartadas, el est…"]:::done
   T100["✓ T-100 · Quitar el nivel 'media' y dejar un solo pro…"]:::done
-  T101["○ T-101 · Unificar las filas que repiten la misma con…"]:::todo
+  T101["✓ T-101 · Unificar las filas que repiten la misma con…"]:::done
   T102["○ T-102 · Filtrar con dos preguntas y repartir cada f…"]:::todo
   T103["✓ T-103 · Medir los sobrantes sobre las filas firmes,…"]:::done
   T104["✓ T-104 · Listar y devolver las filas descartadas, y…"]:::done
-  T105["○ T-105 · Mostrar las descartadas, las citas repetida…"]:::todo
+  T105["✓ T-105 · Mostrar las descartadas, las citas repetida…"]:::done
   T106["○ T-106 · Medir el filtro, las sugerencias y el respa…"]:::todo
   T107["○ T-107 · Decidir con el responsable el tope, la list…"]:::todo
   T108["○ T-108 · Medir la aceptación del proceso con filtro…"]:::todo

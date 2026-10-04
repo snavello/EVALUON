@@ -20,7 +20,10 @@ Pasadas, en orden:
    ("deberá", "mín.", "desestim", …): suma los que faltan y divide los que juntan dos
    condiciones. Un descartado con marcadores queda pendiente solo si la completitud no dio
    resultado.
-4. **Filas técnicas** (`technical.py`): una por renglón, por regla, después de la
+4. **Unificación** (`dedup.py`; solo formales y económicos): por regla, junta las filas
+   que repiten la misma condición; queda la primera en el orden del pliego, con las citas
+   de las otras como citas `repetida`.
+5. **Filas técnicas** (`technical.py`): una por renglón, por regla, después de la
    completitud. Los tramos de secciones técnicas no pasan por el modelo y no llegan a la
    completitud.
 
@@ -100,6 +103,7 @@ from evaluon.tenders.proposal import (
     circulars,
     completeness,
     consequences,
+    dedup,
     extraction,
     quotes,
     technical,
@@ -108,7 +112,8 @@ from evaluon.tenders.segmenting import RULES_VERSION
 from evaluon.tenders.services.procedures import _snapshot, regime_for
 
 # Pasadas del proceso único, en orden (plan 003, "Pasadas"; REQ-030 enmendado).
-PASSES = ("reglas", "extraccion", "completitud", "filas_tecnicas", "consecuencias")
+PASSES = ("reglas", "extraccion", "completitud", "unificacion", "filas_tecnicas",
+          "consecuencias")
 
 # Marcadores de obligación (plan 003, "Pasadas"); se comparan sin tildes ni mayúsculas.
 OBLIGATION_MARKERS = (
@@ -283,6 +288,9 @@ def _parameters(run, with_circulars=False):
         "generation_batch_timeout_seconds": settings.GENERATION_BATCH_TIMEOUT_SECONDS,
         "rules_version": RULES_VERSION,
         "obligation_markers": list(OBLIGATION_MARKERS),
+        "dedup_min_similarity": dedup.MIN_SIMILARITY,
+        "dedup_containment": dedup.USE_CONTAINMENT,
+        "dedup_rule_version": dedup.RULE_VERSION,
     }
 
 
@@ -395,6 +403,12 @@ def propose(run, *, user, channel=Channel.COMMAND):
 
         keep_tables_pending(loaded, decisions)
 
+        # 3 ter. Unificación de las filas que repiten la misma condición.
+        started = time.monotonic()
+        unification = unify_decisions(run, loaded, decisions)
+        workers.append(unification)
+        timings["unificacion"] = round(time.monotonic() - started, 3)
+
         # 4. Filas técnicas.
         started = time.monotonic()
         contributions = []
@@ -460,7 +474,7 @@ def propose(run, *, user, channel=Channel.COMMAND):
         with transaction.atomic():
             version = _save(run, loaded, decisions, rows, stats, requests, completion_stats,
                             anomalies, timings, clock, user, channel, started, suggestions,
-                            dated, circular_result)
+                            dated, circular_result, unification)
     except Exception as error:
         _record_failure(run, user, channel, error, workers, timings, clock)
         raise
@@ -482,6 +496,21 @@ def completeness_candidates(loaded, decisions):
               and has_obligation_markers(unit.segment.text)):
             candidates.append(completeness.Candidate(unit, []))
     return candidates
+
+
+def unify_decisions(run, loaded, decisions):
+    """Junta las filas formales y económicas que repiten la misma condición (`dedup.py`):
+    quita de la disposición de su tramo las filas unidas y deja el pedido de la pasada en
+    `tenders_run_step`. Devuelve el `dedup.Result`."""
+    result = dedup.unify(_body(loaded, decisions))
+    gone = {id(found) for group in result.merged for found in
+            (row.found for row in group.repeated)}
+    for unit in loaded.units:
+        decision = decisions[unit.segment.pk]
+        if any(id(found) in gone for found in decision.found):
+            decision.found = [f for f in decision.found if id(f) not in gone]
+    result.steps = [dedup.record(run, result)]
+    return result
 
 
 def keep_tables_pending(loaded, decisions):
@@ -610,7 +639,7 @@ def _save_circulars(version, dated, result, created, quote_of, by_class):
 
 def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anomalies,
           timings, clock, user, channel, started, suggestions, dated=None,
-          circular_result=None):
+          circular_result=None, unification=None):
     """Crea la versión borrador y todo lo que cuelga de ella, y deja el hecho
     `matrix_proposal`. Corre dentro de una transacción."""
     procedure = run.procedure
@@ -641,6 +670,7 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
 
     # Requisitos formales y económicos, en el orden del pliego.
     body = _body(loaded, decisions)
+    repeated = unification.repeated if unification is not None else {}
     created, quote_of = {}, {}
     counter = 0
     by_class = Counter()
@@ -652,18 +682,34 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
         text = _found_text(segment, found)
         _check_quote(reading, start, end, text)
         record = _quote_record(segment, start, end, text, flag=found.flag)
+        # Citas adicionales de las filas que repiten esta condición (REQ-025, REQ-033).
+        extra = []
+        for other_unit, other in repeated.get(id(found), ()):
+            other_start, other_end = _wide_or_span(other_unit.segment, other)
+            other_text = _found_text(other_unit.segment, other)
+            _check_quote(loaded.reading_of[other_unit.segment.pk], other_start, other_end,
+                         other_text)
+            if (other_unit.segment.pk, other_start, other_end) != (segment.pk, start, end):
+                extra.append((other_unit.segment, other_start, other_end, other_text))
         requirement = created[counter] = Requirement.objects.create(
             version=version, number=counter, category=found.category,
             items=list(segment.items), origin=RequirementOrigin.PROPUESTO,
             state=RequirementState.PROPUESTO,
             proposed={"category": found.category, "items": list(segment.items),
-                      "quotes": [record]},
+                      "quotes": [record] + [
+                          _quote_record(s, a, b, t, scope="repetida")
+                          for s, a, b, t in extra]},
             step=found.step, passes=completeness.passes_of(found),
         )
         quote_of[(counter, 1)] = RequirementQuote.objects.create(
             requirement=requirement, order=1, segment=segment, char_start=start,
             char_end=end, text=text, scope="", quote_flag=found.flag,
         )
+        for order, (s, a, b, t) in enumerate(extra, start=2):
+            RequirementQuote.objects.create(
+                requirement=requirement, order=order, segment=s, char_start=a,
+                char_end=b, text=t, scope="repetida", quote_flag="",
+            )
         by_class[found.category] += 1
 
     # Filas técnicas, una por renglón.
@@ -766,6 +812,16 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
         "retried", "split_batches", "norm_units", "requests")}
     if completion_stats is not None:
         counts["completeness"] = completion_stats
+    if unification is not None:
+        counts["unification"] = {
+            "min_similarity": unification.threshold,
+            "containment": unification.containment,
+            "rows_before": len(unification.groups)
+            + sum(len(g.repeated) for g in unification.groups),
+            "rows_after": len(unification.groups),
+            "merged": len(unification.pairs),
+            "groups": len(unification.merged),
+        }
     if circular_result is not None:
         counts["circulars"] = {
             "documents": circulars.circular_record(dated),

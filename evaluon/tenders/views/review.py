@@ -11,10 +11,19 @@ denegado" (403) y el rechazo queda registrado. La vista no guarda nada en la ses
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
+from evaluon.accounts.models import CommissionRole
+from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
-from evaluon.tenders.models import MatrixVersion, PendingItem, Requirement
+from evaluon.tenders.models import (
+    ChangeAction,
+    MatrixVersion,
+    PendingItem,
+    Requirement,
+    RequirementChange,
+    VersionStatus,
+)
 from evaluon.tenders.services import matrix_page as pages
 from evaluon.tenders.services import review as service
 
@@ -145,3 +154,99 @@ def join_segment(request, version_id):
     return _act(request, version_id, lambda: service.correct(
         request.user, int(row), add_segments=[request.POST.get("segment")],
         channel=Channel.SCREEN))
+
+
+# --- Revisión por grupos (REQ-034, T-105) --------------------------------------------------------
+
+GROUP_TEMPLATE = "tenders/group_confirm.html"
+GROUP_OPERATION = "evaluon.tenders.views.review.group"
+
+# Qué rol pide cada acción de grupo y qué servicio la aplica: confirmar es del evaluador;
+# quitar, del operador o el evaluador (igual que en la matriz).
+GROUP_ACTIONS = {
+    "confirmar": (CommissionRole.EVALUATOR, service.confirm_group, "Confirmar"),
+    "quitar": (CommissionRole.OPERATOR, service.remove_group, "Quitar"),
+}
+
+
+def clause_of(key):
+    """La cláusula de primer nivel de la clave de un tramo: `sec-i/3.1.2` es de `sec-i/3`;
+    las claves no tienen más niveles que la sección y la cláusula."""
+    head = "/".join(key.split("/")[:2])
+    for separator in (".", "#"):
+        head = head.split(separator)[0]
+    return head
+
+
+def proposed_entries(version):
+    """`[(requisito, [claves de sus citas propias])]` de las filas `propuesto` de la
+    versión: lo mismo que mira el servicio para decidir si una fila es de un grupo."""
+    entries = []
+    for requirement in version.requirements.filter(state="propuesto").order_by("number"):
+        keys = [q.segment.key for q in requirement.quotes.select_related("segment")
+                if q.scope in ("", "propia")]
+        entries.append((requirement, keys))
+    return entries
+
+
+def in_group(keys, group):
+    """Si una fila con esas claves es del grupo (la regla de `services.review`)."""
+    return bool(keys) and all(service.in_group(key, group) for key in keys)
+
+
+def _group_rows(version, group):
+    rows = [r for r, keys in proposed_entries(version) if in_group(keys, group)]
+    if not rows:
+        raise service.ReviewRefused(
+            f"El grupo «{group}» no tiene filas propuestas: no hay nada que cambiar.",
+            "empty_group", "group")
+    return rows
+
+
+def _group_page(request, version, action, group):
+    """La página de confirmación previa: las N filas con su texto literal y, marcadas, las
+    que una persona corrigió (vuelven a `propuesto` y entran en el grupo)."""
+    role, _apply, verb = GROUP_ACTIONS[action]
+    require_commission_role(request.user, role, operation=GROUP_OPERATION,
+                            channel=Channel.SCREEN)
+    if version.status != VersionStatus.DRAFT:
+        raise service.ReviewRefused(
+            "La versión de la matriz ya está validada o descartada y no se puede "
+            "cambiar: abra una versión nueva.", "version_not_draft")
+    group = (group or "").strip()
+    if not group:
+        raise service.ReviewRefused("Indique la cláusula o el tramo del grupo.",
+                                    "invalid_group", "group")
+    rows = _group_rows(version, group)
+    corrected = set(RequirementChange.objects.filter(
+        requirement__in=rows, action=ChangeAction.CORREGIR).values_list(
+        "requirement_id", flat=True))
+    cache = pages._Pages()
+    items = [{"requirement": r, "corrected": r.pk in corrected,
+              "quotes": pages._quote_rows(r, cache)[0]} for r in rows]
+    return render(request, GROUP_TEMPLATE, {
+        "version": version, "procedure": version.procedure, "group": group,
+        "action": action, "verb": verb, "items": items, "count": len(items),
+        "corrected_count": len(corrected)})
+
+
+@require_http_methods(["GET", "POST"])
+def group(request, version_id):
+    """GET: la página previa con las filas que se van a tocar. POST ("Aceptar"): lo aplica."""
+    try:
+        version = MatrixVersion.objects.select_related("procedure").get(pk=version_id)
+    except MatrixVersion.DoesNotExist:
+        raise Http404("No hay una versión de la matriz con ese número.")
+    data = request.POST if request.method == "POST" else request.GET
+    action = data.get("action", "")
+    name = data.get("group", "")
+    try:
+        if action not in GROUP_ACTIONS:
+            raise service.ReviewRefused("Elija si confirmar o quitar el grupo.",
+                                        "invalid_group_action", "action")
+        if request.method == "GET":
+            return _group_page(request, version, action, name)
+        GROUP_ACTIONS[action][1](request.user, version_id, name, channel=Channel.SCREEN)
+    except service.ReviewRefused as error:
+        return _refused(request, version_id, error)
+    return _back(version_id)

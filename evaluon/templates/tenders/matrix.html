@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static consequence_tags %}
+{% load static consequence_tags review_tags %}
 
 {% block title %}Matriz · versión {{ page.version.number }} · {{ page.procedure.number }} · EVALUON{% endblock %}
 
@@ -38,6 +38,7 @@
   </dl>
   {% include "queries/_regime_line.html" with reference_date=page.authorization_date regime=page.regime %}
   {% if page.run %}<p><a href="{% url 'tenders:coverage' page.version.pk %}">Ver la cobertura de la propuesta</a></p>{% endif %}
+  {% discarded_line page %}
 </section>
 
 <section class="matrix-summary" aria-labelledby="summary-title">
@@ -89,11 +90,24 @@
 
 <section class="matrix-requirements" aria-labelledby="requirements-title">
   <h2 id="requirements-title">Requisitos formales y económicos</h2>
+  {% group_headers page as headers %}
   {% for group in page.groups %}
   <h3>{{ group.title }}</h3>
   {% for row in group.rows %}
+  {% for header in headers|lookup:row.requirement.pk %}
+  <div class="group-header group-{{ header.kind }}">
+    <p class="group-title"><strong>{{ header.title }}</strong>{% if header.path %} · {{ header.path }}{% endif %} · {{ header.count }} propuesta{{ header.count|pluralize }}</p>
+    {% if header.count >= 2 %}
+    <div class="group-buttons">
+      {% if page.can_confirm %}<form method="get" action="{% url 'tenders:group_review' page.version.pk %}"><input type="hidden" name="group" value="{{ header.group }}"><input type="hidden" name="action" value="confirmar"><button type="submit">Confirmar las {{ header.count }} propuestas</button></form>{% endif %}
+      {% if page.can_edit %}<form method="get" action="{% url 'tenders:group_review' page.version.pk %}"><input type="hidden" name="group" value="{{ header.group }}"><input type="hidden" name="action" value="quitar"><button type="submit">Quitar las {{ header.count }} propuestas</button></form>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
   <article class="requirement" id="requisito-{{ row.requirement.number }}">
-    <h4>Requisito {{ row.requirement.number }} <span class="class-mark class-{{ row.requirement.category }}">{{ row.requirement.get_category_display }}</span>{% if row.requirement.state == "confirmado" %} <span class="state-mark">Confirmado</span>{% endif %}{% if row.requirement.origin == "agregado" %} <span class="state-mark">Agregado por una persona</span>{% endif %}</h4>
+    <h4>Requisito {{ row.requirement.number }} <span class="class-mark class-{{ row.requirement.category }}">{{ row.requirement.get_category_display }}</span>{% if row.requirement.state == "confirmado" %} <span class="state-mark">Confirmado</span>{% endif %}{% if row.requirement.origin == "agregado" %} <span class="state-mark">Agregado por una persona</span>{% endif %}{% if row.requirement.origin == "devuelto" %} <span class="state-mark">Devuelto de las descartadas</span>{% endif %}</h4>
+    {% if row.requirement.origin == "devuelto" %}<p class="no-suggestions">Sin sugerencias de consecuencia: la fila se devolvió de las descartadas y el evaluador elige el tipo.</p>{% endif %}
     {% if page.can_confirm and row.requirement.state == "propuesto" %}<label class="confirm-box"><input type="checkbox" name="requirement" value="{{ row.requirement.pk }}" form="confirm-form"> Confirmar</label>{% endif %}
     {% for quote in row.quotes %}
     {% if quote.current %}
@@ -102,6 +116,7 @@
     <p class="quote-place">{% include "tenders/_place.html" with place=quote.current.place %}</p>
     <p class="original-label">Texto original del pliego:</p>
     {% endif %}
+    {% if quote.scope == "repetida" %}<p class="repeated-label">También en:</p>{% endif %}
     <blockquote class="literal">{{ quote.text }}</blockquote>
     <p class="quote-place">{% include "tenders/_place.html" with place=quote.place %}{% if quote.wide %} <span class="wide-mark">Cita amplia, revisar</span>{% endif %}</p>
     {% for note in quote.notes %}

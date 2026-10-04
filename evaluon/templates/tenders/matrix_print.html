@@ -1,4 +1,4 @@
-{% load static consequence_tags %}<!doctype html>
+{% load static consequence_tags review_tags %}<!doctype html>
 {% comment %}
 Matriz para imprimir y para el PDF (REQ-032, ADR-0020, T-086). Es la misma plantilla de las
 dos salidas. Recibe `page` (sin acciones de edición), `pdf` (verdadero para WeasyPrint),
@@ -63,6 +63,7 @@ una versión abierta sobre otra no tiene propuesta propia.
     <li>Pendientes de revisión: {{ page.pending_open }}</li>
     <li>Consecuencias sin elegir: {{ page.counts.sin_consecuencia }}</li>
   </ul>
+  {% discarded_line page link=False %}
 </section>
 
 <section>
@@ -92,6 +93,7 @@ una versión abierta sobre otra no tiene propuesta propia.
     <p class="quote-place">{% include "tenders/_place_print.html" with place=quote.current.place %}</p>
     <p class="original-label">Texto original del pliego:</p>
     {% endif %}
+    {% if quote.scope == "repetida" %}<p class="repeated-label">También en:</p>{% endif %}
     <blockquote class="literal">{{ quote.text }}</blockquote>
     <p class="quote-place">{% include "tenders/_place_print.html" with place=quote.place %}{% if quote.wide %} <span class="wide-mark">Cita amplia, revisar</span>{% endif %}</p>
     {% for note in quote.notes %}

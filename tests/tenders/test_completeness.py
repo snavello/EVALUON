@@ -464,9 +464,10 @@ def test_the_single_process_has_no_second_extraction(operator_user, script):
     run = run_level(operator_user)
 
     assert list(dict.fromkeys(step_passes(run))) == ["extraccion", "completitud",
-                                                      "consecuencias"]
+                                                      "unificacion", "consecuencias"]
     assert run.parameters["passes"] == [
-        "reglas", "extraccion", "completitud", "filas_tecnicas", "consecuencias"]
+        "reglas", "extraccion", "completitud", "unificacion", "filas_tecnicas",
+        "consecuencias"]
     assert "extraccion_2" not in run.counts["model_requests_by_pass"]
     assert not hasattr(completeness, "second_extraction")
     assert not hasattr(completeness, "union")
