@@ -48,6 +48,7 @@
     <li>Económicos: {{ page.counts.economico }}</li>
     <li>Técnicos (filas por renglón): {{ page.counts.tecnico }}</li>
     <li>Pendientes de revisión: {{ page.pending_open }}</li>
+    <li>Sugerencias sin decidir: {{ page.suggestions_open }}</li>
     <li>Consecuencias sin elegir: {{ page.counts.sin_consecuencia }}</li>
   </ul>
 </section>
@@ -81,6 +82,32 @@
   <p>No hay tramos pendientes de revisión.</p>
   {% endif %}
 </section>
+
+{% if page.suggestions or page.draft %}
+<section class="matrix-suggestions" aria-labelledby="suggestions-title">
+  <h2 id="suggestions-title">Sugerencias de condición</h2>
+  {% if page.suggestions %}
+  <p class="suggestions-note">El sistema duda de estas condiciones: decida cada una; no se puede validar con sugerencias sin decidir ({{ page.suggestions_open }} por decidir).</p>
+  {% suggestion_headers page as sheaders %}
+  {% for row in page.suggestions %}
+  {% for header in sheaders|lookup:row.requirement.pk %}
+  <div class="group-header group-{{ header.kind }}">
+    <p class="group-title"><strong>{{ header.title }}</strong>{% if header.path %} · {{ header.path }}{% endif %} · {{ header.count }} sugerencia{{ header.count|pluralize }}</p>
+    {% if header.count >= 2 and page.can_edit %}
+    <div class="group-buttons">
+      <form method="get" action="{% url 'tenders:suggestion_group' page.version.pk %}"><input type="hidden" name="group" value="{{ header.group }}"><input type="hidden" name="action" value="pasar"><button type="submit">Pasar a requisito las {{ header.count }}</button></form>
+      <form method="get" action="{% url 'tenders:suggestion_group' page.version.pk %}"><input type="hidden" name="group" value="{{ header.group }}"><input type="hidden" name="action" value="quitar"><button type="submit">Quitar las {{ header.count }}</button></form>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% include "tenders/_suggestion.html" with row=row page=page %}
+  {% endfor %}
+  {% else %}
+  <p>No hay sugerencias de condición sin decidir.</p>
+  {% endif %}
+</section>
+{% endif %}
 
 {% if page.can_confirm %}
 <form id="confirm-form" method="post" action="{% url 'tenders:review_confirm' page.version.pk %}" class="confirm-form">{% csrf_token %}
@@ -130,6 +157,8 @@
     <blockquote class="literal">{{ note.text }}</blockquote>
     <p class="quote-place">{% include "tenders/_place.html" with place=note.place %}</p>
     {% endfor %}
+    {% if row.passed %}<p class="passed-note">Pasó de sugerencia el {{ row.passed.at|date:"d/m/Y" }} por {{ row.passed.username }}.</p>{% endif %}
+    {% include "tenders/_support.html" with row=row print=False %}
     {% consequence_panel row.requirement %}
     <p class="review-links"><a href="{% url 'tenders:history' row.requirement.pk %}">Historial</a></p>
     {% if page.can_edit %}

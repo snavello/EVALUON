@@ -37,6 +37,7 @@
         <th scope="col">Disposición</th>
         <th scope="col">Origen</th>
         <th scope="col">Motivo</th>
+        <th scope="col">Filas</th>
       </tr>
     </thead>
     <tbody>
@@ -46,6 +47,7 @@
         <td>{{ row.outcome_label }}</td>
         <td>{{ row.source_label|default:"—" }}</td>
         <td>{{ row.reason|default:"—" }}</td>
+        <td>{% for number, label in row.rows %}Requisito {{ number }}: {{ label }}{% if not forloop.last %} · {% endif %}{% empty %}—{% endfor %}</td>
       </tr>
       {% endfor %}
     </tbody>

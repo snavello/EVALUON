@@ -61,6 +61,7 @@ una versión abierta sobre otra no tiene propuesta propia.
     <li>Económicos: {{ page.counts.economico }}</li>
     <li>Técnicos (filas por renglón): {{ page.counts.tecnico }}</li>
     <li>Pendientes de revisión: {{ page.pending_open }}</li>
+    <li>Sugerencias sin decidir: {{ page.suggestions_open }}</li>
     <li>Consecuencias sin elegir: {{ page.counts.sin_consecuencia }}</li>
   </ul>
   {% discarded_line page link=False %}
@@ -78,6 +79,16 @@ una versión abierta sobre otra no tiene propuesta propia.
   <p>No hay tramos pendientes de revisión.</p>
   {% endif %}
 </section>
+
+{% if page.suggestions %}
+<section>
+  <h2>Sugerencias de condición sin decidir</h2>
+  <p>El sistema duda de estas condiciones y la Comisión todavía no las decidió: no son requisitos de la matriz.</p>
+  {% for row in page.suggestions %}
+  {% include "tenders/_suggestion_print.html" with row=row %}
+  {% endfor %}
+</section>
+{% endif %}
 
 <section>
   <h2>Requisitos formales y económicos</h2>
@@ -107,6 +118,8 @@ una versión abierta sobre otra no tiene propuesta propia.
     <blockquote class="literal">{{ note.text }}</blockquote>
     <p class="quote-place">{% include "tenders/_place_print.html" with place=note.place %}</p>
     {% endfor %}
+    {% if row.passed %}<p class="passed-note">Pasó de sugerencia el {{ row.passed.at|date:"d/m/Y" }} por {{ row.passed.username }}.</p>{% endif %}
+    {% include "tenders/_support.html" with row=row print=True %}
     {% consequence_print row.requirement %}
   </article>
   {% endfor %}

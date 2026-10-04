@@ -24,6 +24,7 @@ from evaluon.tenders.models import (
     RequirementChange,
     VersionStatus,
 )
+from evaluon.tenders.services import groups
 from evaluon.tenders.services import matrix_page as pages
 from evaluon.tenders.services import review as service
 
@@ -169,33 +170,8 @@ GROUP_ACTIONS = {
 }
 
 
-def clause_of(key):
-    """La cláusula de primer nivel de la clave de un tramo: `sec-i/3.1.2` es de `sec-i/3`;
-    las claves no tienen más niveles que la sección y la cláusula."""
-    head = "/".join(key.split("/")[:2])
-    for separator in (".", "#"):
-        head = head.split(separator)[0]
-    return head
-
-
-def proposed_entries(version):
-    """`[(requisito, [claves de sus citas propias])]` de las filas `propuesto` de la
-    versión: lo mismo que mira el servicio para decidir si una fila es de un grupo."""
-    entries = []
-    for requirement in version.requirements.filter(state="propuesto").order_by("number"):
-        keys = [q.segment.key for q in requirement.quotes.select_related("segment")
-                if q.scope in ("", "propia")]
-        entries.append((requirement, keys))
-    return entries
-
-
-def in_group(keys, group):
-    """Si una fila con esas claves es del grupo (la regla de `services.review`)."""
-    return bool(keys) and all(service.in_group(key, group) for key in keys)
-
-
 def _group_rows(version, group):
-    rows = [r for r, keys in proposed_entries(version) if in_group(keys, group)]
+    rows = [r for r, keys in groups.proposed_entries(version) if groups.in_group(keys, group)]
     if not rows:
         raise service.ReviewRefused(
             f"El grupo «{group}» no tiene filas propuestas: no hay nada que cambiar.",
@@ -221,9 +197,9 @@ def _group_page(request, version, action, group):
     corrected = set(RequirementChange.objects.filter(
         requirement__in=rows, action=ChangeAction.CORREGIR).values_list(
         "requirement_id", flat=True))
-    cache = pages._Pages()
+    cache = pages.Pages()
     items = [{"requirement": r, "corrected": r.pk in corrected,
-              "quotes": pages._quote_rows(r, cache)[0]} for r in rows]
+              "quotes": pages.quote_rows(r, cache)[0]} for r in rows]
     return render(request, GROUP_TEMPLATE, {
         "version": version, "procedure": version.procedure, "group": group,
         "action": action, "verb": verb, "items": items, "count": len(items),

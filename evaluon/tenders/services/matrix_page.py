@@ -26,15 +26,19 @@ from evaluon.norms.reading import DocumentReading, Line, Page, Word
 from evaluon.norms.splitting.canonical import build_canonical_text
 from evaluon.tenders import jobs
 from evaluon.tenders.models import (
+    ChangeAction,
     Consequence,
     DispositionOutcome,
     JobKind,
     JobStatus,
     MatrixVersion,
+    NormSupport,
     PendingItem,
     Procedure,
     Requirement,
+    RequirementChange,
     RequirementClass,
+    RequirementQuote,
     RequirementState,
     Segment,
     SourceEffect,
@@ -45,6 +49,15 @@ from evaluon.tenders.services.procedures import regime_for
 PANEL_OPERATION = "evaluon.tenders.services.matrix_page.panel"
 MATRIX_OPERATION = "evaluon.tenders.services.matrix_page.matrix_page"
 COVERAGE_OPERATION = "evaluon.tenders.services.matrix_page.coverage_page"
+
+
+# El estado de cada fila en la cobertura; la sugerencia figura como tal.
+ROW_STATE_LABELS = {
+    RequirementState.PROPUESTO: "Propuesto",
+    RequirementState.CONFIRMADO: "Confirmado",
+    RequirementState.QUITADO: "Quitado",
+    RequirementState.SUGERIDO: "Sugerencia sin decidir",
+}
 
 
 # --- Páginas de las citas --------------------------------------------------------------------
@@ -65,7 +78,7 @@ def _rebuild_reading(reading):
                            encoding=data.get("encoding"))
 
 
-class _Pages:
+class Pages:
     """Página de una cita. Un tramo de una sola página da su página; si abarca varias, se
     ubica la cita en las líneas del texto canónico (`pages_at`), que se arma de nuevo una
     vez por lectura. Si no coincide con el texto guardado, se muestra el rango del tramo."""
@@ -108,7 +121,7 @@ class Place:
     label: str
 
 
-def _place(pages, segment, start=None, end=None):
+def place(pages, segment, start=None, end=None):
     first, last = pages.of(segment, start, end)
     document = segment.reading.document
     return Place(
@@ -147,10 +160,48 @@ class QuoteRow:
 
 
 @dataclass
+class SupportView:
+    """El respaldo normativo de una sugerencia (REQ-036), tal como se guardó: la norma y su
+    ruta, la cita literal y dónde está en el original de la norma."""
+
+    unit_label: str
+    text: str
+    regime: str
+    corpus_version: int
+    effective_from: object
+    effective_to: object
+    document_id: int
+    page: int | None
+
+
+# Una frase fija por motivo de la duda (la lista cerrada `DoubtReason`): no es texto del
+# modelo (P3).
+DOUBT_PHRASES = {
+    "no_coinciden": "Las dos preguntas del sistema no coincidieron sobre esta condición.",
+    "duda": "El sistema dudó de que sea una condición que se le exige a las ofertas.",
+    "descarte_sin_sustento": ("El sistema pensó en descartarla, pero no pudo comprobar el "
+                              "motivo en el pliego."),
+    "opinion_incompleta": "Solo una de las dos preguntas del sistema pudo responderse.",
+}
+
+
+@dataclass
+class OriginNote:
+    """"Pasó de sugerencia el DD/MM/AAAA por <persona>" (REQ-035)."""
+
+    at: object
+    username: str
+
+
+@dataclass
 class RequirementRow:
     requirement: Requirement
     quotes: list
     sources: list = field(default_factory=list)  # fuentes que no alcanzan a una cita
+    supports: list = field(default_factory=list)  # respaldo normativo (sugerencias y su origen)
+    doubt_phrase: str = ""  # la frase fija del motivo de la duda, si es o fue sugerencia
+    evidence: str = ""  # el indicio literal del tramo, si lo hay
+    passed: OriginNote | None = None  # quién la pasó a requisito y cuándo
 
 
 @dataclass
@@ -185,6 +236,8 @@ class MatrixPage:
     segment_options: list = field(default_factory=list)  # (id, descripción) para elegir un tramo
     can_validate: bool = False  # borrador y evaluador: validar y descartar
     can_open_new: bool = False  # validada, la última, sin borrador abierto: versión nueva
+    suggestions: list = field(default_factory=list)  # sugerencias de condición sin decidir
+    suggestions_open: int = 0
 
 
 def _require(user, operation, channel):
@@ -192,14 +245,14 @@ def _require(user, operation, channel):
                             channel=channel)
 
 
-def _quote_rows(requirement, pages):
+def quote_rows(requirement, pages):
     by_quote, loose = {}, []
     for source in requirement.sources.select_related(
             "segment__reading__document").order_by("issued_on", "id"):
         row = SourceRow(
             effect=source.effect,
             effect_label=SourceEffect(source.effect).label,
-            place=_place(pages, source.segment, source.char_start, source.char_end),
+            place=place(pages, source.segment, source.char_start, source.char_end),
             text=source.text,
             issued_on=source.issued_on,
         )
@@ -214,7 +267,7 @@ def _quote_rows(requirement, pages):
         mine = by_quote.get(quote.pk, [])
         modifying = [s for s in mine if s.effect == SourceEffect.MODIFICA]
         rows.append(QuoteRow(
-            place=_place(pages, quote.segment, quote.char_start, quote.char_end),
+            place=place(pages, quote.segment, quote.char_start, quote.char_end),
             quote_id=quote.pk,
             segment_id=quote.segment_id,
             text=quote.text,
@@ -225,6 +278,57 @@ def _quote_rows(requirement, pages):
             notes=[s for s in mine if s.effect != SourceEffect.MODIFICA],
         ))
     return rows, loose
+
+
+def _evidence(doubt):
+    """El indicio literal del tramo guardado con la duda, si lo hay."""
+    found = doubt.get("evidence") if isinstance(doubt, dict) else None
+    if isinstance(found, dict):
+        found = found.get("text")
+    return found if isinstance(found, str) else ""
+
+
+def _support_views(requirement):
+    views = []
+    supports = requirement.norm_supports.select_related(
+        "unit__reading__document").order_by("-score", "id")
+    for support in supports:
+        document = support.unit.reading.document
+        views.append(SupportView(
+            unit_label=support.unit_label, text=support.text, regime=support.regime,
+            corpus_version=support.corpus_version, effective_from=document.effective_from,
+            effective_to=document.effective_to, document_id=document.pk,
+            page=support.unit.page_start))
+    return views
+
+
+def _passed(requirement):
+    """Quién pasó a requisito una fila que fue sugerencia y cuándo; en una versión nueva,
+    el dato sale de la fila de la que se copió."""
+    seen = 0
+    while requirement is not None and seen < 50:
+        change = (RequirementChange.objects.filter(
+            requirement=requirement, action=ChangeAction.ACEPTAR_SUGERENCIA)
+            .select_related("user").order_by("-id").first())
+        if change is not None:
+            return OriginNote(at=change.at, username=change.user.username if change.user
+                              else "")
+        requirement, seen = requirement.previous, seen + 1
+    return None
+
+
+def requirement_row(requirement, pages):
+    """Una fila de la matriz: sus citas y, si es o fue una sugerencia, su motivo, el indicio y
+    el respaldo normativo (REQ-035, REQ-036)."""
+    quotes, loose = quote_rows(requirement, pages)
+    row = RequirementRow(requirement=requirement, quotes=quotes, sources=loose)
+    if requirement.doubt_reason:
+        row.doubt_phrase = DOUBT_PHRASES.get(requirement.doubt_reason, "")
+        row.evidence = _evidence(requirement.doubt)
+        row.supports = _support_views(requirement)
+        if requirement.state != RequirementState.SUGERIDO:
+            row.passed = _passed(requirement)
+    return row
 
 
 def _segment_options(version):
@@ -247,19 +351,24 @@ def matrix_page(user, version_id, *, channel=Channel.SCREEN):
     version = MatrixVersion.objects.select_related(
         "procedure", "run", "validated_by").get(pk=version_id)
     run = version.run
-    pages = _Pages()
+    pages = Pages()
     every = list(version.requirements.order_by("number"))
-    requirements = [r for r in every if r.state != RequirementState.QUITADO]
-    removed = [RequirementRow(requirement=r, quotes=_quote_rows(r, pages)[0])
+    suggested = [r for r in every if r.state == RequirementState.SUGERIDO]
+    requirements = [r for r in every if r.state not in (RequirementState.QUITADO,
+                                                        RequirementState.SUGERIDO)]
+    removed = [RequirementRow(requirement=r, quotes=quote_rows(r, pages)[0])
                for r in every if r.state == RequirementState.QUITADO]
+    # Primero las que la norma respalda, después el resto, cada grupo en el orden del pliego.
+    suggestion_rows = [requirement_row(r, pages) for r in suggested]
+    suggestion_rows.sort(key=lambda row: (not row.supports, row.requirement.number))
 
     groups, technical, by_document = [], [], {}
     counts = {RequirementClass.FORMAL: 0, RequirementClass.ECONOMICO: 0,
               RequirementClass.TECNICO: 0}
     for requirement in requirements:
         counts[requirement.category] += 1
-        quotes, loose = _quote_rows(requirement, pages)
-        row = RequirementRow(requirement=requirement, quotes=quotes, sources=loose)
+        row = requirement_row(requirement, pages)
+        quotes = row.quotes
         if requirement.category == RequirementClass.TECNICO:
             technical.append(row)
             continue
@@ -271,7 +380,7 @@ def matrix_page(user, version_id, *, channel=Channel.SCREEN):
 
     pending = [
         PendingRow(item=item, reason=item.get_reason_display(),
-                   place=_place(pages, item.segment))
+                   place=place(pages, item.segment))
         for item in version.pending_items.select_related(
             "segment__reading__document").order_by(
             F("resolved_at").asc(nulls_first=True), "segment__reading__document_id",
@@ -311,6 +420,8 @@ def matrix_page(user, version_id, *, channel=Channel.SCREEN):
         can_validate=editable and user.commission_role == CommissionRole.EVALUATOR,
         can_open_new=can_open_new,
         segment_options=_segment_options(version) if editable else [],
+        suggestions=suggestion_rows,
+        suggestions_open=len(suggestion_rows),
     )
 
 
@@ -324,6 +435,7 @@ class CoverageRow:
     outcome_label: str
     source_label: str
     reason: str
+    rows: list = field(default_factory=list)  # (número, estado) de las filas que citan el tramo
 
 
 @dataclass
@@ -345,7 +457,7 @@ def coverage_page(user, version_id, *, channel=Channel.SCREEN):
     run = version.run
     rows, counts = [], {}
     if run is not None:
-        pages = _Pages()
+        pages = Pages()
         pending_reasons = {item.segment_id: item.get_reason_display()
                            for item in version.pending_items.all()}
         dispositions = {d.segment_id: d for d in run.dispositions.all()}
@@ -353,6 +465,12 @@ def coverage_page(user, version_id, *, channel=Channel.SCREEN):
         segments = (Segment.objects.filter(reading_id__in=reading_ids)
                     .select_related("reading__document")
                     .order_by("reading__document_id", "order"))
+        by_segment = {}
+        for quote in RequirementQuote.objects.filter(
+                requirement__version=version, scope__in=("", "propia")).select_related(
+                "requirement").order_by("requirement__number"):
+            by_segment.setdefault(quote.segment_id, []).append(
+                (quote.requirement.number, ROW_STATE_LABELS[quote.requirement.state]))
         for segment in segments:
             disposition = dispositions.get(segment.pk)
             if disposition is None:
@@ -368,9 +486,9 @@ def coverage_page(user, version_id, *, channel=Channel.SCREEN):
                     reasons.append("Pendiente: " + pending_reasons[segment.pk])
                 reason = " · ".join(reasons)
             counts[label] = counts.get(label, 0) + 1
-            rows.append(CoverageRow(place=_place(pages, segment), outcome=outcome,
+            rows.append(CoverageRow(place=place(pages, segment), outcome=outcome,
                                     outcome_label=label, source_label=source,
-                                    reason=reason))
+                                    reason=reason, rows=by_segment.get(segment.pk, [])))
     return CoveragePage(version=version, procedure=version.procedure, run=run, rows=rows,
                         counts=list(counts.items()),
                         anomalies=list(run.anomalies) if run else [])
@@ -431,3 +549,9 @@ def finished_notice(user):
                               version_id=version_id))
     jobs.mark_seen(user, [job.pk for job in unseen])
     return notices
+
+
+# Nombres de antes, para quien todavía los importa (consecuencias, descartadas).
+_Pages = Pages
+_place = place
+_quote_rows = quote_rows
