@@ -26,6 +26,8 @@ dependencies = [
     "pytesseract==0.3.13",
     "beautifulsoup4==4.15.0",
     "lxml==6.1.3",
+    # PDF de la matriz generado en el equipo (ADR-0020, REQ-032)
+    "weasyprint==70.0",
     # Casos de las evals en YAML (evals/casos/EV-NNN.yaml); la biblioteca estándar
     # no lee YAML. Los clientes HTTP de evaluon/ai/ usan urllib de la biblioteca
     # estándar, por eso no hay biblioteca de cliente HTTP.

@@ -1,0 +1,139 @@
+{% load static consequence_tags %}<!doctype html>
+{% comment %}
+Matriz para imprimir y para el PDF (REQ-032, ADR-0020, T-086). Es la misma plantilla de las
+dos salidas. Recibe `page` (sin acciones de edición), `pdf` (verdadero para WeasyPrint),
+`css_href`, `legend` (verdadero si la versión no está validada) y `file_name`.
+Sin recursos externos: la única hoja de estilos es la de impresión. No supone `page.run`:
+una versión abierta sobre otra no tiene propuesta propia.
+{% endcomment %}
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Matriz · versión {{ page.version.number }} · {{ page.procedure.number }}</title>
+  <link rel="stylesheet" href="{{ css_href }}">
+  {% if not pdf %}<script src="{% static 'tenders/print.js' %}" defer></script>{% endif %}
+</head>
+<body>
+{% if pdf %}
+  {% if legend %}
+  <div class="top-mark draft">BORRADOR INCOMPLETO</div>
+  <div class="bottom-mark draft">BORRADOR INCOMPLETO</div>
+  {% else %}
+  <div class="top-mark validated">Matriz validada · versión {{ page.version.number }} · validada el {{ page.version.validated_at|date:"d/m/Y" }} por {{ page.version.validated_by.username }}</div>
+  <div class="bottom-mark validated">Procedimiento {{ page.procedure.number }} · versión {{ page.version.number }}</div>
+  {% endif %}
+{% else %}
+  <div class="toolbar">
+    <button type="button" id="print-button">Imprimir</button>
+    <a href="{% url 'tenders:pdf' page.version.pk %}">Exportar PDF</a>
+    <a href="{% url 'tenders:matrix' page.version.pk %}">Volver a la matriz</a>
+  </div>
+  {% comment %}La marca va en el encabezado (thead) de una tabla que envuelve la matriz: el navegador lo repite en cada hoja impresa y le reserva su lugar, así no tapa el contenido.{% endcomment %}
+  <table class="sheet">
+    <thead><tr><td>
+      {% if legend %}
+      <div class="page-mark draft" role="note">BORRADOR INCOMPLETO</div>
+      {% else %}
+      <div class="page-mark validated" role="note">Matriz validada · versión {{ page.version.number }} · validada el {{ page.version.validated_at|date:"d/m/Y" }} por {{ page.version.validated_by.username }}</div>
+      {% endif %}
+    </td></tr></thead>
+    <tbody><tr><td>
+{% endif %}
+
+<h1>Matriz de cumplimiento · versión {{ page.version.number }}</h1>
+
+<section>
+  <h2>Encabezado</h2>
+  <dl>
+    <dt>Procedimiento</dt><dd>{{ page.procedure.number }} · {{ page.procedure.subject }}</dd>
+    <dt>Versión</dt><dd>{{ page.version.number }}</dd>
+    <dt>Estado</dt><dd>{{ page.version.get_status_display }}</dd>
+    <dt>Nivel de revisión</dt><dd>{{ page.version.get_level_display }}</dd>
+    {% if not legend %}<dt>Validada</dt><dd>el {{ page.version.validated_at|date:"d/m/Y" }} por {{ page.version.validated_by.username }}</dd>{% endif %}
+  </dl>
+  {% include "queries/_regime_line.html" with reference_date=page.authorization_date regime=page.regime %}
+</section>
+
+<section>
+  <h2>Resumen</h2>
+  <ul>
+    <li>Formales: {{ page.counts.formal }}</li>
+    <li>Económicos: {{ page.counts.economico }}</li>
+    <li>Técnicos (filas por renglón): {{ page.counts.tecnico }}</li>
+    <li>Pendientes de revisión: {{ page.pending_open }}</li>
+    <li>Consecuencias sin elegir: {{ page.counts.sin_consecuencia }}</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Pendiente de revisión</h2>
+  {% if page.pending %}
+  <ul>
+    {% for row in page.pending %}
+    <li><strong>{{ row.reason }}</strong>{% if row.item.resolved_at %} · resuelto{% endif %} · {% include "tenders/_place_print.html" with place=row.place %}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No hay tramos pendientes de revisión.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Requisitos formales y económicos</h2>
+  {% for group in page.groups %}
+  <h3>{{ group.title }}</h3>
+  {% for row in group.rows %}
+  <article class="requirement">
+    <h4>Requisito {{ row.requirement.number }} <span class="class-mark">{{ row.requirement.get_category_display }}</span>{% if row.requirement.state == "confirmado" %} <span class="state-mark">Confirmado</span>{% endif %}{% if row.requirement.origin == "agregado" %} <span class="state-mark">Agregado por una persona</span>{% endif %}</h4>
+    {% for quote in row.quotes %}
+    {% if quote.current %}
+    <p class="current-label">Texto vigente, según la circular del {{ quote.current.issued_on|date:"d/m/Y" }}:</p>
+    <blockquote class="literal">{{ quote.current.text }}</blockquote>
+    <p class="quote-place">{% include "tenders/_place_print.html" with place=quote.current.place %}</p>
+    <p class="original-label">Texto original del pliego:</p>
+    {% endif %}
+    <blockquote class="literal">{{ quote.text }}</blockquote>
+    <p class="quote-place">{% include "tenders/_place_print.html" with place=quote.place %}{% if quote.wide %} <span class="wide-mark">Cita amplia, revisar</span>{% endif %}</p>
+    {% for note in quote.notes %}
+    <p class="source-label">{{ note.effect_label }} ({{ note.issued_on|date:"d/m/Y" }}):</p>
+    <blockquote class="literal">{{ note.text }}</blockquote>
+    <p class="quote-place">{% include "tenders/_place_print.html" with place=note.place %}</p>
+    {% endfor %}
+    {% endfor %}
+    {% for note in row.sources %}
+    <p class="source-label">{{ note.effect_label }} ({{ note.issued_on|date:"d/m/Y" }}):</p>
+    <blockquote class="literal">{{ note.text }}</blockquote>
+    <p class="quote-place">{% include "tenders/_place_print.html" with place=note.place %}</p>
+    {% endfor %}
+    {% consequence_print row.requirement %}
+  </article>
+  {% endfor %}
+  {% empty %}
+  <p>La propuesta no tiene requisitos formales ni económicos.</p>
+  {% endfor %}
+</section>
+
+<section>
+  <h2>Requisitos técnicos por renglón</h2>
+  {% for row in page.technical %}
+  <article class="requirement">
+    <h3>{% if row.requirement.items %}Renglón {{ row.requirement.items|join:", " }}{% else %}Técnico sin renglón{% endif %} · Técnico · se evalúa con el informe técnico del área requirente</h3>
+    {% if row.requirement.state == "confirmado" %}<span class="state-mark">Confirmado</span>{% endif %}
+    <p>Tramos citados: {{ row.quotes|length }}</p>
+    <ul>
+      {% for quote in row.quotes %}
+      <li>{% include "tenders/_place_print.html" with place=quote.place %}{% if quote.scope_label %} · {{ quote.scope_label }}{% endif %}{% if quote.wide %} <span class="wide-mark">Cita amplia, revisar</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% consequence_print row.requirement %}
+  </article>
+  {% empty %}
+  <p>La propuesta no tiene filas técnicas.</p>
+  {% endfor %}
+</section>
+{% if not pdf %}
+    </td></tr></tbody>
+  </table>
+{% endif %}
+</body>
+</html>
