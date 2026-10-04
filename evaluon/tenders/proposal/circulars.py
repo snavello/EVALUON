@@ -30,9 +30,17 @@ se busca exacto dentro del tramo (`quotes.locate`); si no está, se vuelve a ped
 una vez y, si sigue sin estar, el fragmento es el tramo entero de la circular y se anota
 (`circular_cita_amplia`). Un efecto nunca se pierde por una cita mal copiada.
 
+**Contexto de un tramo suelto** (T-098): una circular sin cláusulas parte un apartado en una
+línea por tramo; un tramo que no es una cláusula numerada se muestra con el encabezado del
+apartado ("II. …") y los dos tramos anteriores, y el reranker lo puntúa con ese encabezado.
+La cláusula completa (y su ruta) es lo que el reranker puntúa de cada cita. Además de las que
+nombra por cláusula o renglón, el tramo alcanza las citas cuya cláusula define el anexo que
+nombra ("Anexo VI") o que mencionan el título entre comillas que el tramo repite.
+
 **Disposición de cada tramo de circular** (nunca desaparece): con efectos o requisitos
 nuevos, `requisitos`; sin efecto, `descartado` con el motivo; un título, `descartado`
-(`titulo`); una página o un tramo no ubicado, `pendiente`; una salida sin forma después del
+(`titulo`); una página, `pendiente`; un tramo no ubicado lo ve el modelo (y sigue pendiente
+por la lectura); una salida sin forma después del
 reintento, `pendiente` (`sin_disposicion`).
 
 Este módulo no escribe los requisitos: devuelve el `Result` y quien guarda la versión
@@ -43,6 +51,7 @@ Este módulo no escribe los requisitos: devuelve el `Result` y quien guarda la v
 import json
 import re
 import time
+import unicodedata
 from dataclasses import dataclass, field
 
 from django.conf import settings
@@ -86,6 +95,25 @@ _CLAUSE = re.compile(
 _ITEM = re.compile(
     r"rengl[oó]n(?:es)?\s*(?:n[°º]\s*|n[úu]m(?:ero)?s?\.?\s*|nros?\.?\s*)?"
     r"(\d+(?:\s*(?:,|;|y|e|a)\s*\d+)*)", re.IGNORECASE)
+# Un anexo por su número ("Anexo VI", "ANEXO N° 2"), sobre texto sin tildes ni mayúsculas.
+_ANNEX = re.compile(r"\banexos?\s*(?:n[°º]\s*|num(?:ero)?s?\.?\s*|nros?\.?\s*)?"
+                    r"([ivxlc]+|\d+)\b")
+# Un número de cláusula con varios niveles al comienzo de una línea ("7.5.5 CONFLICTO…").
+_LEADING_CLAUSE = re.compile(r"^[ \t]*(\d+(?:\.\d+)+)\.?[ \t]+\S", re.MULTILINE)
+# El título entre comillas de un anexo o documento ("Anexo “FECHA DE VISITA”").
+_QUOTED_TITLE = re.compile(r"[“\"]([^”\"\n]{6,80})[”\"]")
+# Encabezado de un apartado de una circular sin cláusulas ("II. SE FIJAN NUEVAS FECHAS").
+_HEADING = re.compile(r"^\s*[IVXLC]+\.\s+\S")
+HEADING_LOOKBACK = 60       # tramos hacia atrás en que se busca el encabezado
+CONTEXT_PREVIOUS = 2        # tramos anteriores que se muestran como contexto
+CONTEXT_CHARS = 400         # largo máximo de cada tramo de contexto
+RANK_SEGMENT_CHARS = 1200   # largo máximo de la cláusula que se le da al reranker
+
+
+def fold(text):
+    """Minúsculas y sin tildes."""
+    decomposed = unicodedata.normalize("NFD", text.lower())
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
 
 
 class InvalidOutput(ValueError):
@@ -102,6 +130,30 @@ class CircularDocument:
     document: object
     reading: object
     units: list
+
+    def context(self, unit):
+        """Lo que precede a un tramo suelto de la circular: `(encabezado, anteriores)`. Una
+        circular sin cláusulas parte un apartado en una línea por tramo ("II. SE FIJAN
+        NUEVAS FECHAS", "FECHA: …", "HORA: …"); sola, cada línea no dice de qué trata. El
+        encabezado es el último tramo que empieza con un número romano ("II. …"), buscado
+        hacia atrás; los anteriores son los `CONTEXT_PREVIOUS` tramos inmediatos. Una cláusula
+        numerada se entiende sola: no lleva contexto."""
+        if unit.segment.segment_type == SegmentType.CLAUSULA:
+            return "", []
+        index = self.units.index(unit)
+        heading = None
+        for back in range(index - 1, max(index - 1 - HEADING_LOOKBACK, -1), -1):
+            first = self.units[back].segment.text.strip().split("\n")[0]
+            if _HEADING.match(first) and len(first) <= CONTEXT_CHARS:
+                heading = back
+                break
+        previous = [u.segment.text.strip()[:CONTEXT_CHARS]
+                    for i, u in enumerate(self.units[max(index - CONTEXT_PREVIOUS, 0):index],
+                                          start=max(index - CONTEXT_PREVIOUS, 0))
+                    if i != heading]
+        title = (self.units[heading].segment.text.strip().split("\n")[0]
+                 if heading is not None else "")
+        return title, previous
 
 
 @dataclass
@@ -169,6 +221,7 @@ class Candidate:
     current: str = ""
     suppressed: bool = False
     history: list = field(default_factory=list)
+    _folded: str = ""
 
     def __post_init__(self):
         self.current = self.text
@@ -176,6 +229,27 @@ class Candidate:
     @property
     def segment(self):
         return self.unit.segment
+
+    @property
+    def folded(self):
+        """La cláusula completa que contiene la cita, con su ruta, sin tildes ni mayúsculas."""
+        if not self._folded:
+            segment = self.segment
+            self._folded = fold(f"{segment.path} {segment.key} {segment.text}")
+        return self._folded
+
+    def rank_text(self):
+        """Lo que se le da al reranker: la ruta y la cláusula completa que contiene la cita
+        (el nombre de un anexo suele estar en la cláusula y no en el recorte citado); si una
+        circular ya la cambió, el texto vigente."""
+        segment = self.segment
+        if self.current != self.text:
+            body = self.current
+        elif len(segment.text) <= RANK_SEGMENT_CHARS:
+            body = segment.text
+        else:
+            body = self.text
+        return f"{segment.path or segment.label or segment.key}\n{body}"
 
 
 def build_candidates(loaded, body, rows):
@@ -233,7 +307,18 @@ def named_in(text):
         items.update(numbers)
         for first, second in re.findall(r"(\d+)\s*a\s*(\d+)", group, re.IGNORECASE):
             items.update(range(int(first), int(second) + 1))
+    # Un "Debe decir" reproduce la cláusula con su número ("7.5.5 CONFLICTO…") sin decir
+    # "cláusula". Solo cuenta desde la segunda línea: el número con que empieza el tramo es
+    # el de la circular misma.
+    _, _, rest = text.partition("\n")
+    for match in _LEADING_CLAUSE.finditer(rest):
+        clauses.add(match.group(1))
     return clauses, items
+
+
+def named_annexes(text):
+    """Los anexos que `text` nombra por su número, en minúsculas ("vi", "2")."""
+    return set(_ANNEX.findall(fold(text)))
 
 
 def is_named(candidate, clauses, items):
@@ -243,6 +328,25 @@ def is_named(candidate, clauses, items):
     if items:
         for target in candidate.targets:
             if items & set(target.items):
+                return True
+    return False
+
+
+def is_referred(candidate, annexes, haystack):
+    """Si el tramo alude a la candidata sin decir su cláusula: nombra un anexo que su
+    cláusula define o contiene ("Anexo VI"), o repite el título entre comillas de un anexo
+    que la cita menciona ("Anexo “FECHA DE VISITA”"). `haystack` es el texto del tramo (y su
+    contexto) sin tildes ni mayúsculas."""
+    if annexes:
+        segment = candidate.segment
+        if any(f"anexo-{a}" in segment.key.lower() for a in annexes):
+            return True
+        if annexes & set(_ANNEX.findall(candidate.folded)):
+            return True
+    if haystack:
+        for title in _QUOTED_TITLE.findall(candidate.text):
+            folded = fold(title).strip()
+            if len(folded.split()) >= 2 and folded in haystack:
                 return True
     return False
 
@@ -335,10 +439,22 @@ def build_schema(aliases):
     }
 
 
-def build_messages(prompt, circular_block, candidate_blocks):
+def render_context(heading, previous):
+    """El contexto de un tramo suelto (`CircularDocument.context`), o vacío."""
+    lines = ([f"Apartado: {heading}"] if heading else [])
+    lines += [f"Tramo anterior: {text}" for text in previous]
+    return "\n".join(lines)
+
+
+def build_messages(prompt, circular_block, candidate_blocks, context=""):
     parts = [
         "Citas del pliego:\n\n" + ("\n\n".join(candidate_blocks) if candidate_blocks
                                    else "ninguna"),
+    ]
+    if context:
+        parts.append("Contexto de la circular (lo que precede al tramo en el mismo documento; "
+                     "sirve para entender de qué trata, no se analiza):\n\n" + context)
+    parts += [
         "Tramo de la circular:\n\n" + circular_block,
         "Devolvé un objeto JSON con efectos, nuevos y sin_efecto.",
     ]
@@ -510,22 +626,30 @@ class Processor:
                 - settings.PROMPT_TEMPLATE_MARGIN_TOKENS
                 - generation.count_tokens(self.prompt))
 
-    def _choose(self, circular, unit, candidates, anomalies):
-        """Las candidatas del tramo: las que nombra y las mejores del reranker. Devuelve
-        `(elegidas en orden del pliego, {alias: candidata}, qué se tuvo en cuenta)`."""
+    def _choose(self, circular, unit, candidates, anomalies, heading="", rendered=""):
+        """Las candidatas del tramo: las que nombra (por cláusula o renglón), las que alude
+        (por anexo o por el título entre comillas de un anexo) y las mejores del reranker.
+        Devuelve `({alias: candidata}, qué se tuvo en cuenta)`. Si no entran todas en el
+        contexto, se descartan primero las del reranker, después las aludidas."""
         segment = unit.segment
         clauses, items = named_in(segment.text)
+        annexes = named_annexes(segment.text)
+        haystack = fold(f"{segment.text} {rendered}")
         named = [c for c in candidates if is_named(c, clauses, items)]
-        rest = [c for c in candidates if c not in named]
+        referred = [c for c in candidates
+                    if c not in named and is_referred(c, annexes, haystack)]
+        rest = [c for c in candidates if c not in named and c not in referred]
         limit = settings.MATRIX_CIRCULAR_CANDIDATES
         scores = {}
         if len(rest) > limit:
-            values = reranker.rerank(segment.text, [c.current for c in rest])
+            query = f"{heading}\n{segment.text}" if heading else segment.text
+            values = reranker.rerank(query, [c.rank_text() for c in rest])
             scores = {c.key: v for c, v in zip(rest, values)}
             rest = sorted(rest, key=lambda c: -scores[c.key])[:limit]
-        ordered = named + rest
+        ordered = named + referred + rest
 
-        space = (self._space() - generation.count_tokens(render_circular(circular, unit)))
+        space = (self._space() - generation.count_tokens(render_circular(circular, unit))
+                 - (generation.count_tokens(rendered) if rendered else 0))
         chosen, used = [], 0
         for candidate in ordered:
             size = generation.count_tokens(render_candidate("Q00", candidate))
@@ -538,6 +662,8 @@ class Processor:
         chosen.sort(key=lambda c: (c.unit.position, c.start))
         aliases = {f"Q{n}": c for n, c in enumerate(chosen, start=1)}
         context = {"nombradas": [c.segment.key for c in named],
+                   "aludidas": [c.segment.key for c in referred],
+                   "anexos": sorted(annexes), "encabezado": heading,
                    "clausulas": sorted(clauses), "renglones": sorted(items),
                    "puntajes": {f"{k[0]}:{k[1]}:{k[2]}": round(v, 4)
                                 for k, v in scores.items()},
@@ -547,10 +673,11 @@ class Processor:
                                  for a, c in aliases.items()}}
         return aliases, context
 
-    def _ask(self, circular, unit, aliases, context, retry_of=None):
+    def _ask(self, circular, unit, aliases, context, rendered="", retry_of=None):
         """Un pedido con el tramo y sus candidatas. Devuelve un `_Outcome`."""
         blocks = [render_candidate(a, c) for a, c in aliases.items()]
-        messages = build_messages(self.prompt, render_circular(circular, unit), blocks)
+        messages = build_messages(self.prompt, render_circular(circular, unit), blocks,
+                                  rendered)
         schema = build_schema(list(aliases))
         max_tokens = settings.MATRIX_MAX_OUTPUT_TOKENS
         started = time.monotonic()
@@ -641,13 +768,16 @@ class Processor:
     def _tramo(self, circular, unit, candidates):
         """Pide el tramo (y lo repite una vez si hace falta) y devuelve su `_Outcome`."""
         anomalies = []
-        aliases, context = self._choose(circular, unit, candidates, anomalies)
+        heading, previous = circular.context(unit)
+        rendered = render_context(heading, previous)
+        aliases, context = self._choose(circular, unit, candidates, anomalies, heading,
+                                        rendered)
         self.anomalies.extend(anomalies)
-        first = self._ask(circular, unit, aliases, context)
+        first = self._ask(circular, unit, aliases, context, rendered)
         if first.valid and not first.unfound:
             return first
         self.stats["retried"] += 1
-        second = self._ask(circular, unit, aliases, context, retry_of=first.step)
+        second = self._ask(circular, unit, aliases, context, rendered, retry_of=first.step)
         if second.valid and (not first.valid or second.unfound <= first.unfound):
             return second
         return first if first.valid else second
@@ -686,9 +816,13 @@ class Processor:
 
     @staticmethod
     def _rule(segment):
-        """La disposición de un tramo que no pasa por el modelo, o `None`."""
+        """La disposición de un tramo que no pasa por el modelo, o `None`. Un tramo
+        `no_ubicado` sí pasa (T-098): una circular suele repetir una cláusula con otra
+        numeración o bajo el título de una sección ("Donde dice… / Debe decir…") y la lectura
+        no la ubica; sigue en "Pendiente de revisión" por el motivo de la lectura (REQ-028),
+        pero su efecto no se pierde."""
         kind = segment.segment_type
-        if kind in (SegmentType.PAGINA, SegmentType.NO_UBICADO):
+        if kind == SegmentType.PAGINA:
             return Verdict(DispositionOutcome.PENDIENTE.value)
         if kind == SegmentType.TITULO:
             return Verdict(DispositionOutcome.DESCARTADO.value, "titulo")
