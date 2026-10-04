@@ -378,12 +378,14 @@ def test_failed_proposal_does_not_block_a_new_request(operator_user, read_case, 
     assert first.run.version is None
 
 
-# --- Circulares y respuestas: todavía no se usan (T-083) ----------------------------------------
+# --- Circulares y respuestas: se procesan aparte (T-083) ----------------------------------------
 
 
-def test_other_documents_do_not_block_and_are_not_used_yet(operator_user, read_case, script):
-    """REQ-031: las circulares y respuestas no bloquean el pedido; hasta T-083 no se usan,
-    y la propuesta lo anota."""
+def test_circulars_do_not_block_the_request_and_are_processed(operator_user, read_case,
+                                                              script, fake_reranker):
+    """REQ-031: las circulares y respuestas no bloquean el pedido ni entran en los documentos
+    base de la propuesta; la propuesta las procesa aparte (T-083) y ya no las anota como no
+    procesadas."""
     from evaluon.tenders.services import documents
 
     circular = documents.load_document(
@@ -398,8 +400,10 @@ def test_other_documents_do_not_block_and_are_not_used_yet(operator_user, read_c
 
     assert job.status == "done", job.error
     assert [d["title"] for d in requested.run.documents] == ["Pliego sintético"]
-    note = [a for a in requested.run.anomalies if a["type"] == "documentos_no_procesados"]
-    assert note and note[0]["documents"] == [circular.document.pk]
+    assert not any(a["type"] == "documentos_no_procesados" for a in requested.run.anomalies)
+    assert requested.run.counts["circulars"]["documents"][0]["document"] == \
+        circular.document.pk
+    assert m.RunStep.objects.filter(run=requested.run, pass_name="circulares").exists()
     assert not any("plazo de entrega" in block["text"]
                    for blocks in script.calls for block in blocks.values())
 

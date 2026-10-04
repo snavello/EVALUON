@@ -38,8 +38,13 @@ requisito, ya numerado como lo va a quedar en la versión, sugiere hasta tres co
 con su fundamento del pliego o de la norma, o la deja "no determinada". Las crea `_save`
 junto con los requisitos, en la misma transacción.
 
-Las circulares llegan con T-083: los documentos que no son base no se usan y la propuesta lo
-anota.
+**Circulares y respuestas** (`circulars.py`; T-083), después de las filas técnicas y antes de
+las consecuencias, si el procedimiento tiene alguna: por fecha, cada tramo cambia, aclara o
+suprime una cita de un requisito, o agrega un requisito (origen `circular`). Los documentos
+usados quedan en `run.counts["circulars"]` y en el hecho de auditoría; los efectos, en
+`tenders_requirement_source`. Un requisito formal o económico suprimido queda `quitado`, visible
+y con la cita de la circular. Los requisitos nuevos se numeran después de las filas técnicas y
+también reciben consecuencias.
 
 **Disposición de cada tramo.** Todo tramo queda con una disposición (`tenders_disposition`):
 `requisitos`, `tecnico`, `descartado` o `pendiente`. Un tramo con requisitos y además citado
@@ -92,11 +97,14 @@ from evaluon.tenders.models import (
     RequirementClass,
     RequirementOrigin,
     RequirementQuote,
+    RequirementSource,
     RequirementState,
     SegmentType,
+    SourceEffect,
     VersionStatus,
 )
 from evaluon.tenders.proposal import (
+    circulars,
     completeness,
     consequences,
     extraction,
@@ -128,7 +136,6 @@ OBLIGATION_MARKERS = (
 )
 
 ANOMALY_DISCARDED_IN_ITEM = "descartado_en_renglon"
-ANOMALY_UNPROCESSED_DOCUMENTS = "documentos_no_procesados"
 ANOMALY_TECHNICAL_WITHOUT_ITEMS = "secciones_tecnicas_sin_renglones"
 
 # Orden de prioridad de los motivos de un pendiente: gana el de la lectura.
@@ -271,9 +278,13 @@ def _models():
     }
 
 
-def _parameters(run):
+def _parameters(run, with_circulars=False):
+    passes = list(PASSES[run.level])
+    if with_circulars:
+        passes.insert(passes.index("consecuencias"), "circulares")
     return {
-        "passes": list(PASSES[run.level]),
+        "passes": passes,
+        "circular_candidates": settings.MATRIX_CIRCULAR_CANDIDATES,
         "temperature": settings.GENERATION_TEMPERATURE,
         "seed": settings.GENERATION_SEED,
         "thinking": settings.GENERATION_THINKING,
@@ -287,7 +298,7 @@ def _parameters(run):
     }
 
 
-def _begin(run):
+def _begin(run, with_circulars=False):
     """Fija fecha, régimen, versión de la normativa, modelos, parámetros e instrucciones
     de la propuesta, en una misma instantánea (P6, P8)."""
     run.authorization_date = run.procedure.authorization_date
@@ -295,9 +306,9 @@ def _begin(run):
         run.corpus_version = audit.current_corpus_version()
         run.regime = regime_for(run.authorization_date)
     run.models = _models()
-    run.parameters = _parameters(run)
+    run.parameters = _parameters(run, with_circulars)
     names = (["extraccion"] + (["completitud"] if "completitud" in PASSES[run.level] else [])
-             + ["consecuencias"])
+             + (["circulares"] if with_circulars else []) + ["consecuencias"])
     run.prompt_versions = {name: settings.MATRIX_PROMPT_VERSIONS[name] for name in names}
     run.save(update_fields=["authorization_date", "corpus_version", "regime", "models",
                             "parameters", "prompt_versions"])
@@ -344,19 +355,16 @@ def propose(run, *, user, channel=Channel.COMMAND):
     anomalies = []
     workers = []
     try:
-        _begin(run)
         passes = PASSES[run.level]
-        others = run.procedure.documents.exclude(
-            pk__in=[entry["document"] for entry in run.documents]
-        ).values_list("pk", flat=True)
-        if others:
-            anomalies.append({"type": ANOMALY_UNPROCESSED_DOCUMENTS,
-                              "documents": sorted(others),
-                              "detail": "circulares y respuestas llegan con T-083"})
 
         # 1. Disposición por regla.
         started = time.monotonic()
         loaded = load(run)
+        dated = circulars.load(run, len(loaded.units))
+        _begin(run, with_circulars=bool(dated.documents))
+        for document in dated.missing:
+            anomalies.append({"type": circulars.ANOMALY_NO_READING,
+                              "document": document.pk, "title": document.title})
         decisions, to_model = {}, []
         for unit in loaded.units:
             decision = rule_decision(unit.segment, unit.segment.pk in loaded.header_pks)
@@ -449,13 +457,30 @@ def propose(run, *, user, channel=Channel.COMMAND):
                                         "reconocido: una sola fila técnica sin renglón"})
         timings["filas_tecnicas"] = round(time.monotonic() - started, 3)
 
-        # 5. Consecuencias de cada requisito, numerados como van a quedar en la versión.
-        started = time.monotonic()
+        # 4 bis. Circulares y respuestas a consultas, por fecha.
         body = [(unit, found, _found_text(unit.segment, found))
                 for unit, found in _body(loaded, decisions)]
+        circular_result = None
+        if dated.documents:
+            started = time.monotonic()
+            processor = circulars.Processor(run)
+            workers.append(processor)
+            circular_result = processor.process(
+                dated, circulars.build_candidates(loaded, body, rows))
+            anomalies.extend(circular_result.anomalies)
+            requests[PassName.CIRCULARES.value] = circular_result.stats["requests"]
+            timings["circulares"] = round(time.monotonic() - started, 3)
+
+        # 5. Consecuencias de cada requisito, numerados como van a quedar en la versión.
+        started = time.monotonic()
+        subjects = consequences.build_subjects(loaded, body, rows)
+        if circular_result is not None:
+            subjects += circular_result.subjects(
+                len(subjects) + 1, {u.segment.pk: u for d in dated.documents
+                                    for u in d.units})
         suggester = consequences.Suggester(run, loaded)
         workers.append(suggester)
-        suggestions = suggester.suggest(consequences.build_subjects(loaded, body, rows))
+        suggestions = suggester.suggest(subjects)
         anomalies.extend(suggestions.anomalies)
         requests[PassName.CONSECUENCIAS.value] = suggestions.stats["requests"]
         timings["consecuencias"] = round(time.monotonic() - started, 3)
@@ -464,7 +489,8 @@ def propose(run, *, user, channel=Channel.COMMAND):
         started = time.monotonic()
         with transaction.atomic():
             version = _save(run, loaded, decisions, rows, stats, requests, completion_stats,
-                            anomalies, timings, clock, user, channel, started, suggestions)
+                            anomalies, timings, clock, user, channel, started, suggestions,
+                            dated, circular_result)
     except Exception as error:
         _record_failure(run, user, channel, error, workers, timings, clock)
         raise
@@ -532,8 +558,48 @@ def _found_text(segment, found):
     return segment.text[found.span[0]:found.span[1]]
 
 
+def _save_circulars(version, dated, result, created, quote_of, by_class):
+    """Crea las fuentes de las circulares (`tenders_requirement_source`), una por requisito
+    alcanzado, y los requisitos que agregan. Un formal o económico que una circular suprime
+    queda `quitado`, visible y con su cita."""
+    for source in result.sources:
+        reading = dated.reading_of[source.segment.pk]
+        _check_quote(reading, source.start, source.end, source.text)
+        for target in source.candidate.targets:
+            requirement = created[target.number]
+            RequirementSource.objects.create(
+                requirement=requirement, quote=quote_of[(target.number, target.order)],
+                effect=source.effect, segment=source.segment, char_start=source.start,
+                char_end=source.end, text=source.text, issued_on=source.issued_on,
+                step=source.step,
+            )
+            if (source.effect == SourceEffect.SUPRIME.value
+                    and target.category != RequirementClass.TECNICO.value):
+                requirement.state = RequirementState.QUITADO
+                requirement.save(update_fields=["state"])
+    for new in result.new_requirements:
+        reading = dated.reading_of[new.segment.pk]
+        _check_quote(reading, new.start, new.end, new.text)
+        flag = quotes.WIDE if new.wide else ""
+        record = _quote_record(new.segment, new.start, new.end, new.text, flag=flag)
+        requirement = created[new.number] = Requirement.objects.create(
+            version=version, number=new.number,
+            category=new.category, items=list(new.segment.items),
+            origin=RequirementOrigin.CIRCULAR, state=RequirementState.PROPUESTO,
+            proposed={"category": new.category, "items": list(new.segment.items),
+                      "quotes": [record]},
+            step=new.step, passes=[],
+        )
+        RequirementQuote.objects.create(
+            requirement=requirement, order=1, segment=new.segment, char_start=new.start,
+            char_end=new.end, text=new.text, scope="", quote_flag=flag,
+        )
+        by_class[new.category] += 1
+
+
 def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anomalies,
-          timings, clock, user, channel, started, suggestions):
+          timings, clock, user, channel, started, suggestions, dated=None,
+          circular_result=None):
     """Crea la versión borrador y todo lo que cuelga de ella, y deja el hecho
     `matrix_proposal`. Corre dentro de una transacción."""
     procedure = run.procedure
@@ -554,10 +620,17 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
         )
         for unit in loaded.units
     )
+    if circular_result is not None:
+        Disposition.objects.bulk_create(
+            Disposition(run=run, segment_id=pk, outcome=verdict.outcome,
+                        discard_reason=verdict.discard_reason, source=verdict.source,
+                        step=verdict.step)
+            for pk, verdict in circular_result.verdicts.items()
+        )
 
     # Requisitos formales y económicos, en el orden del pliego.
     body = _body(loaded, decisions)
-    created = {}
+    created, quote_of = {}, {}
     counter = 0
     by_class = Counter()
     for unit, found in body:
@@ -576,7 +649,7 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
                       "quotes": [record]},
             step=found.step, passes=completeness.passes_of(found),
         )
-        RequirementQuote.objects.create(
+        quote_of[(counter, 1)] = RequirementQuote.objects.create(
             requirement=requirement, order=1, segment=segment, char_start=start,
             char_end=end, text=text, scope="", quote_flag=found.flag,
         )
@@ -603,12 +676,13 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
                                  for _, segment, scope in records]},
             step=None, passes=[],
         )
-        RequirementQuote.objects.bulk_create(
+        for made in RequirementQuote.objects.bulk_create(
             RequirementQuote(requirement=requirement, order=order, segment=segment,
                              char_start=segment.char_start, char_end=segment.char_end,
                              text=segment.text, scope=scope, quote_flag="")
             for order, segment, scope in records
-        )
+        ):
+            quote_of[(counter, made.order)] = made
         by_class[RequirementClass.TECNICO.value] += 1
         technical_rows.append({
             "item": row.number,
@@ -616,6 +690,10 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
             "own": sum(1 for _, _, scope in records if scope == "propia"),
             "general": sum(1 for _, _, scope in records if scope == "general"),
         })
+
+    # Circulares y respuestas: lo que cambian, aclaran o suprimen, y lo que agregan.
+    if circular_result is not None:
+        _save_circulars(version, dated, circular_result, created, quote_of, by_class)
 
     # Consecuencias sugeridas: las de cada requisito, o "no determinada".
     Consequence.objects.bulk_create(
@@ -632,6 +710,13 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
         reason = _pending_reason(unit.segment, decisions[unit.segment.pk])
         if reason:
             pending[unit.segment.pk] = reason
+    if circular_result is not None:
+        circular_units = {u.segment.pk: u for d in dated.documents for u in d.units}
+        for pk, verdict in circular_result.verdicts.items():
+            reason = _pending_reason(circular_units[pk].segment, verdict)
+            if reason:
+                pending[pk] = reason
+        by_pk = {**by_pk, **circular_units}
     for row in rows:
         if row.pending is not None:
             pending.setdefault(row.pending.pk,
@@ -670,6 +755,16 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
         "retried", "split_batches", "norm_units", "requests")}
     if completion_stats is not None:
         counts["completeness"] = completion_stats
+    if circular_result is not None:
+        counts["circulars"] = {
+            "documents": circulars.circular_record(dated),
+            "not_read": circulars.missing_record(dated),
+            "dispositions": dict(Counter(v.outcome
+                                         for v in circular_result.verdicts.values())),
+            **{key: circular_result.stats[key] for key in (
+                "segments", "requests", "retried", "effects", "new_requirements",
+                "no_effect", "pending", "wide_quotes", "dropped_effects")},
+        }
     timings["guardado"] = round(time.monotonic() - started, 3)
     timings["total"] = round(time.monotonic() - clock, 3)
     run.counts = counts
@@ -693,6 +788,7 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
             "regime": run.regime,
             "corpus_version": run.corpus_version,
             "documents": run.documents,
+            "circulars": counts.get("circulars", {}).get("documents", []),
             "models": run.models,
             "parameters": run.parameters,
             "prompt_versions": run.prompt_versions,
