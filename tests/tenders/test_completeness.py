@@ -722,3 +722,86 @@ def test_completeness_split_across_line_breaks(operator_user, script):
         requirement__version=run.version).order_by("char_start")]
     assert texts == ["deberá mantener la oferta", "durante:\n60 días corridos"]
     check_quotes_are_canonical(run)
+
+
+# --- T-092: el original de una división no coincide letra por letra ----------------------------
+
+SPLIT_TEXT = "Presentar la declaración jurada y la constancia de inscripción."
+SPLIT_PARTS = [("Presentar la declaración jurada", "formal"),
+               ("la constancia de inscripción", "formal")]
+
+
+def split_with(original, parts=SPLIT_PARTS, found=None):
+    unit = unit_of(SPLIT_TEXT)
+    found = found if found is not None else [Found("formal", (0, len(SPLIT_TEXT)))]
+    anomalies = []
+    final, _, divided = completeness.apply(unit, found, [], [(original, parts)], anomalies)
+    return final, divided, anomalies
+
+
+@pytest.mark.parametrize("original", [
+    SPLIT_TEXT + " (formal)",
+    "(formal) " + SPLIT_TEXT,
+    "Presentar  la declaración jurada\ny la constancia de inscripción",
+    "Presentar la declaración jurada y la constancia",
+    "declaración jurada y la constancia de inscripción.",
+])
+def test_a_split_is_applied_although_the_original_is_not_letter_for_letter(original):
+    """REQ-024: el original se reconoce por superposición con la cita de la fila, tolerando
+    la etiqueta de clase, los espacios y los recortes; sin duplicar filas."""
+    final, divided, anomalies = split_with(original)
+
+    assert divided == 1 and anomalies == []
+    assert [SPLIT_TEXT[f.span[0]:f.span[1]] for f in final] == [p for p, _ in SPLIT_PARTS]
+
+
+def test_a_split_whose_parts_carry_the_class_label_is_applied():
+    """REQ-024: la etiqueta de clase pegada en una parte tampoco impide la división."""
+    final, divided, _ = split_with(SPLIT_TEXT, [
+        ("Presentar la declaración jurada (formal)", "formal"),
+        ("la constancia de inscripción (formal)", "formal")])
+
+    assert divided == 1 and len(final) == 2
+
+
+def test_a_split_with_an_original_that_matches_no_row_is_ignored_with_an_anomaly():
+    """REQ-024: un original que no corresponde a ninguna fila se ignora y la anomalía lo dice."""
+    text = "Presentar la declaración jurada. Cotizar en pesos y en dólares."
+    unit = unit_of(text)
+    found = [Found("formal", (0, text.index(".") + 1))]
+    anomalies = []
+
+    final, _, divided = completeness.apply(
+        unit, found, [], [("Cotizar en pesos y en dólares.", [("Cotizar en pesos", "economico"),
+                                                             ("en dólares", "economico")])],
+        anomalies)
+
+    assert final == found and divided == 0
+    assert [a["type"] for a in anomalies] == ["completitud_division_no_aplicada"]
+
+
+def test_a_tolerant_original_never_accepts_parts_that_do_not_cover_it():
+    """REQ-024: con el original en otra forma, las partes siguen teniendo que cubrirlo (F1)."""
+    found = [Found("formal", (0, len(SPLIT_TEXT)))]
+    final, divided, anomalies = split_with(
+        SPLIT_TEXT + " (formal)", [("la declaración jurada", "formal"),
+                                   ("Presentar", "formal")], found)
+
+    assert final == found and divided == 0
+    assert [a["type"] for a in anomalies] == ["completitud_division_no_aplicada"]
+
+
+def test_a_part_that_is_already_another_row_is_not_duplicated():
+    """REQ-024: si una parte de la división ya es otra fila del tramo, no se repite."""
+    text = "Presentar la declaración jurada y la constancia de inscripción. Cotizar en pesos."
+    unit = unit_of(text)
+    end = text.index("inscripción.") + len("inscripción.")
+    part_two = text.index("la constancia")
+    found = [Found("formal", (0, end)), Found("formal", (part_two, end))]
+
+    final, _, divided = completeness.apply(
+        unit, found, [], [(text[:end] + " (formal)", SPLIT_PARTS)], [])
+
+    assert divided == 1
+    assert [text[f.span[0]:f.span[1]] for f in final] == [
+        "Presentar la declaración jurada", "la constancia de inscripción."]

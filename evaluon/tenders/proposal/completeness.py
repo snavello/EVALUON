@@ -39,6 +39,7 @@ import json
 import re
 import time
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 
 from django.conf import settings
 
@@ -337,6 +338,45 @@ def _split_target(final, span):
     return target
 
 
+_CLASS_LABEL = re.compile(r"\(\s*(?:formal|econ[oó]mic[oa]|t[eé]cnic[oa])\s*\)", re.IGNORECASE)
+SAME_TEXT = 0.8  # fracción del más corto de dos textos que tiene que coincidir en un bloque
+
+
+def _clean(quote):
+    """La cita del modelo sin la etiqueta de clase que a veces copia, "(formal)"."""
+    return " ".join(_CLASS_LABEL.sub(" ", quote or "").split())
+
+
+def _resolve_target(text, original, final):
+    """La fila de `final` que el `original` de una división reemplaza. Primero por posición
+    (el original se ubica en el tramo y se superpone con la fila); si no, por parecido del
+    texto, que tolera la etiqueta de clase, los espacios y los recortes distintos. Devuelve
+    `(fila, detalle)`: `fila` es None si no corresponde a ninguna."""
+    span = quotes.locate(text, _clean(original)) or quotes.locate(text, original)
+    if span is not None:
+        target = _split_target(final, span)
+        if target is not None:
+            return target, ""
+    wanted = _clean(original).lower()
+    best, best_score = None, 0.0
+    for candidate in final:
+        if candidate.flag == quotes.WIDE:
+            continue
+        shown = " ".join(text[candidate.span[0]:candidate.span[1]].split()).lower()
+        if not shown or not wanted:
+            continue
+        block = SequenceMatcher(None, shown, wanted, autojunk=False).find_longest_match(
+            0, len(shown), 0, len(wanted))
+        score = block.size / min(len(shown), len(wanted))
+        if score >= SAME_TEXT and score > best_score:
+            best, best_score = candidate, score
+    if best is not None:
+        return best, ""
+    if span is None:
+        return None, "el original no está en el tramo"
+    return None, "el original no coincide con un requisito"
+
+
 _LEADING_NUMBER = re.compile(r"^\s*(?:[•−–-]\s*|[A-Za-z]\)\s*)?(?:\d+\.)*\s*")
 
 
@@ -367,20 +407,17 @@ def apply(unit, found_list, missing, splits, anomalies):
                           "key": segment.key, "detail": detail})
 
     for original, parts in splits:
-        span = quotes.locate(text, original)
-        if span is None:
-            refuse("el original no está en el tramo")
-            continue
-        target = _split_target(final, span)
+        target, detail = _resolve_target(text, original, final)
         if target is None:
-            refuse("el original no coincide con un requisito")
+            refuse(detail)
             continue
         base = target.span
         inner = text[base[0]:base[1]]
         located = []
         for quote, kind in parts:
             taken = {(s - base[0], e - base[0]) for (s, e), _ in located}
-            relative = quotes.locate(inner, quote, taken)
+            relative = (quotes.locate(inner, _clean(quote), taken)
+                        or quotes.locate(inner, quote, taken))
             if relative is None:
                 located = None
                 break
@@ -396,9 +433,13 @@ def apply(unit, found_list, missing, splits, anomalies):
             refuse("las partes no cubren el original")
             continue
         pieces = []
+        others = [f for f in final if f is not target]
         for part_span, category in located:
             piece = Found(category=category, span=part_span)
             piece.passes = [PassName.COMPLETITUD.value]
+            # Una parte que ya es otra fila del tramo no se repite: esa fila la cubre.
+            if any(_same_requirement(piece, old) for old in others + pieces):
+                continue
             pieces.append(piece)
         at = final.index(target)
         final[at:at + 1] = pieces
