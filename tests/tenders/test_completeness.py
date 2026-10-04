@@ -941,3 +941,128 @@ def test_the_likeness_never_takes_a_wide_quote_for_the_row():
         found)
 
     assert final == found and divided == 0
+
+
+# --- T-093: instrucciones v2, marcadores nuevos y tablas que no se descartan ----------------------
+
+ENUM = ("Los precios se expresarán en dólares estadounidenses, no incluirán el flete y "
+        "serán válidos por 30 días.")
+ENUM_PARTS = [("Los precios se expresarán en dólares estadounidenses", "economico"),
+              ("no incluirán el flete", "economico"),
+              ("serán válidos por 30 días", "economico")]
+EFECTO = "Las ofertas que no acompañen el certificado de visita quedarán descalificadas."
+
+
+def enumeration_pdf():
+    return tender_pdf([[
+        para("SECCIÓN I - CONDICIONES PARTICULARES"),
+        para("1. PRECIOS", *clause("1.1.", ENUM)),
+        para("2. VISITA", *clause("2.1.", EFECTO)),
+    ]])
+
+
+@pytest.mark.parametrize("name", ["extraccion", "completitud"])
+def test_prompts_v2_are_active_and_teach_enumerations_and_effects(name):
+    """REQ-024: las instrucciones activas son las v2; piden una fila por condición en las
+    enumeraciones y reconocen las condiciones dichas como efecto, con ejemplos inventados.
+    Las v1 siguen como estaban."""
+    from django.conf import settings
+
+    assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v2"
+    text = extraction.load_prompt(name)
+    for phrase in ("comas o por \"y\"", "se considerará", "se entenderá", "quedará"):
+        assert phrase in text
+    old = (extraction.PROMPTS_DIR / f"matriz-{name}-v1.md").read_text(encoding="utf-8")
+    assert "se entenderá" not in old and "comas o por" not in old
+
+
+@pytest.mark.parametrize("text", [
+    "Se considerará válida la oferta", "SE ENTENDERÁ que acepta", "La oferta quedará excluida",
+    "las ofertas quedarán descalificadas", "Se considerarán prorrogadas",
+])
+def test_effect_markers_are_obligation_markers(text):
+    """REQ-028: "se considerará", "se entenderá" y "quedará" (también en plural y sin
+    tildes ni mayúsculas) son marcadores de obligación."""
+    assert proposal.has_obligation_markers(text)
+
+
+def test_extraction_gives_one_row_per_condition_of_an_enumeration(operator_user, script):
+    """REQ-024, REQ-025: la oración con tres condiciones que el modelo devuelve en tres filas
+    queda en tres requisitos, cada uno con su cita literal."""
+    script.when(ENUM, item(ENUM_PARTS))
+
+    run = run_level(operator_user, "media", enumeration_pdf())
+
+    rows = body(run)["sec-i/1.1"]
+    assert [text for text, _, _ in rows] == [quote for quote, _ in ENUM_PARTS]
+    check_quotes_are_canonical(run)
+
+
+def test_completeness_splits_an_enumeration_found_as_one_row(operator_user, script):
+    """REQ-024: si la primera lectura dejó la enumeración en una fila, la división de la
+    completitud la separa en una fila por condición."""
+    script.when(ENUM, item([(ENUM, "economico")]))
+    script.complete_when(ENUM, fix(splits=[(ENUM, ENUM_PARTS)]))
+
+    run = run_level(operator_user, "alta", enumeration_pdf())
+
+    rows = body(run)["sec-i/1.1"]
+    assert [text for text, _, _ in rows] == [quote for quote, _ in ENUM_PARTS]
+    check_quotes_are_canonical(run)
+
+
+def test_effect_condition_is_a_candidate_and_is_added_by_completeness(operator_user, script):
+    """REQ-028, REQ-024: un tramo que el modelo descartó y dice la condición como efecto
+    ("quedarán…") llega a la completitud por el marcador, y el requisito que ésta agrega
+    queda en la matriz. En media, el mismo tramo queda pendiente por marcadores."""
+    script.complete_when(EFECTO, fix(missing=[(EFECTO, "formal")]))
+
+    alta = run_level(operator_user, "alta", enumeration_pdf())
+    media = run_level(operator_user, "media", enumeration_pdf())
+
+    assert any(EFECTO in text for text in script.sent_to_completeness())
+    assert [text for text, _, _ in body(alta)["sec-i/2.1"]] == [EFECTO]
+    assert disposition(media, "sec-i/2.1").outcome == "pendiente"
+    assert pending(media)["sec-i/2.1"] == "marcadores"
+
+
+def plain_table_pdf():
+    """Una tabla sin marcadores de obligación."""
+    return tender_pdf([[
+        para("SECCIÓN I - CONDICIONES PARTICULARES"),
+        para("1. DATOS"),
+        table(("CONCEPTO", "OPCIÓN"), ("Modalidad", "Por lote X"), ("Idioma", "Español")),
+    ]])
+
+
+@pytest.mark.parametrize("level", ["media", "alta", "exigente"])
+@pytest.mark.parametrize("pdf", [table_pdf, plain_table_pdf], ids=["con_marcadores", "sin_marcadores"])
+def test_a_table_is_never_discarded(operator_user, script, level, pdf):
+    """REQ-028: si el modelo descarta un tramo de tabla (con o sin marcadores de obligación),
+    el tramo queda pendiente con el motivo `tabla`, no descartado, en todos los niveles."""
+    run = run_level(operator_user, level, pdf())
+
+    tables = m.Segment.objects.filter(
+        reading__document__procedure=run.procedure, segment_type="tabla")
+    assert tables.exists()
+    for segment in tables:
+        found = m.Disposition.objects.get(run=run, segment=segment)
+        assert found.outcome == "pendiente"
+        assert found.discard_reason == ""
+        assert pending(run)[segment.key] == "tabla"
+    assert not m.Disposition.objects.filter(
+        run=run, segment__in=tables, outcome="descartado").exists()
+
+
+def test_a_table_with_rows_proposed_by_completeness_stays_a_requirement(operator_user, script):
+    """REQ-028: la regla de tablas no quita lo que la completitud le encontró a una tabla:
+    queda con requisitos y sigue figurando como pendiente de lectura."""
+    script.complete_when("CONCEPTO", fix(missing=[
+        ("deberá mantener la oferta durante: 60 días corridos", "formal")]))
+
+    run = run_level(operator_user, "alta", table_pdf())
+
+    key = m.Segment.objects.get(
+        reading__document__procedure=run.procedure, segment_type="tabla").key
+    assert disposition(run, key).outcome == "requisitos"
+    assert pending(run)[key] == "tabla"
