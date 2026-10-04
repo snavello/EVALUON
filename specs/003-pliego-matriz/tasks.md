@@ -44,6 +44,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-094 | Medir la aceptación con los casos 01 y 02 | REQ-024, REQ-025, REQ-030, REQ-031 | T-085, T-093, T-095 | pendiente |
 | T-095 | Contar como "a revisión obligatoria" los requisitos en tramos pendientes | REQ-024 | T-093 | terminada |
 | T-096 | Corregir la cobertura de tramos de `medir_matriz` cuando hay circulares | REQ-030 | T-095 | terminada |
+| T-097 | Corregir la cita literal de las filas técnicas con varios documentos en `medir_matriz` | REQ-025, REQ-030 | T-096 | terminada |
 
 ## Para todas las tareas
 
@@ -280,6 +281,14 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 - **No tocar:** la propuesta, las instrucciones, la lista esperada.
 - **Entorno:** cualquier equipo con Docker.
 
+### T-097 · Corregir la cita literal de las filas técnicas con varios documentos en `medir_matriz`
+
+- **Qué hacer:** en la medición del caso-01 (T-094) la cita literal dio 57,4 % (media) y 54,8 % (alta); todas las citas no literales eran de filas técnicas. Diagnóstico con la base real, en solo lectura: las 10.874 y 10.984 citas de las dos versiones son literales contra la lectura de su propio tramo (texto igual al recorte, dentro del tramo, con página). El defecto es del medidor: `measure_version` comparaba cada cita de una fila contra la lectura de la primera cita de la fila, y una fila técnica cita tramos del pliego y del manual. Medir cada cita contra la lectura de su propio tramo. Regenerar después los resúmenes del caso-01 con `medir_matriz --regenerar-resumen`.
+- **Archivos:** `evaluon/tenders/evaluation.py`, `tests/tenders/test_evaluation.py`.
+- **Verificación:** test: una fila técnica que cita tramos de dos documentos mide el 100 % de sus citas literales (falla sin el arreglo); suite completa en verde.
+- **No tocar:** la propuesta, las instrucciones, la lista esperada.
+- **Entorno:** cualquier equipo con Docker.
+
 ### T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro
 
 - **Qué hacer:** hoy `crear_usuario --rol-comision` solo sirve para usuarios nuevos. El 2026-10-04 el Coordinador le dio rol de evaluador al usuario `sandro` en la base real con una actualización directa del campo `commission_role` (pedido del responsable), sin hecho de auditoría porque no hay tipo de hecho ni comando para eso. Agregar un comando `rol_comision <usuario> {operador,evaluador,ninguno}` que cambie el rol y deje un hecho (un tipo nuevo `user_role_changed`, con su migración de `audit`, o el que corresponda), y anotar en el registro el cambio manual del 2026-10-04 corriendo el comando sobre `sandro` con el mismo valor o registrando el hecho de regularización.
@@ -303,12 +312,12 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | REQ-022 | T-067, T-069, T-075 |
 | REQ-023 | T-067, T-072, T-075 |
 | REQ-024 | T-067, T-070, T-071, T-073, T-074, T-075, T-076, T-077, T-078, T-084 |
-| REQ-025 | T-067, T-070, T-073, T-074, T-075, T-076, T-077, T-084 |
+| REQ-025 | T-067, T-070, T-073, T-074, T-075, T-076, T-077, T-084, T-097 |
 | REQ-026 | T-067, T-068, T-079, T-082 |
 | REQ-027 | T-067, T-068, T-082 |
 | REQ-028 | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082 |
 | REQ-029 | T-067, T-068, T-080, T-081, T-084 |
-| REQ-030 | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085, T-096 |
+| REQ-030 | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085, T-096, T-097 |
 | REQ-031 | T-067, T-072, T-074, T-083 |
 | REQ-032 | T-067, T-074, T-082, T-086 |
 
