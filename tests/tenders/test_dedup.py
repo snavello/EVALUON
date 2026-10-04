@@ -30,6 +30,7 @@ MANT_QUOTE = "mantener la oferta durante 60 días corridos"
 MANT_LONG = "mantener la oferta durante 60 días corridos desde la apertura de sobres"
 GAR = "Los oferentes deberán constituir una garantía del 5 % del monto."
 GAR_QUOTE = "constituir una garantía del 5 % del monto"
+GAR_TOTAL = GAR_QUOTE + " total"
 PAGO = "El pago se efectuará a los 90 días corridos de la factura."
 PAGO_QUOTE = "se efectuará a los 90 días corridos de la factura"
 
@@ -68,8 +69,10 @@ def test_normalization_ignores_accents_case_spaces_and_punctuation():
 
 
 def test_a_row_contained_in_another_is_merged():
-    """REQ-033: una fila cuyo texto está contenido en el de otra se une a ella."""
-    first, second = row("a", MANT_QUOTE), row("b", MANT_LONG)
+    """REQ-033: una fila cuyo texto está contenido en el de otra, que no le agrega una
+    condición (solo una palabra suelta), se une a ella."""
+    first = row("a", "garantía de mantenimiento de oferta del 5 % del monto")
+    second = row("b", "la garantía de mantenimiento de oferta del 5 % del monto total")
     result = dedup.unify([first, second], 0.9)
     assert result.body == [first]
     assert merged_keys(result) == [("a", "b", "contenida")]
@@ -89,7 +92,7 @@ def test_similar_words_merge_only_from_the_threshold():
     b = row("b", "El oferente deberá presentar constancia de inscripción vigente en el "
                  "registro de proveedores del organismo contratante hoy")
     assert len(dedup.unify([a, b], 0.7).body) == 1
-    assert len(dedup.unify([a, b], 0.95).body) == 2
+    assert len(dedup.unify([a, b], 0.99).body) == 2
 
 
 def test_distinct_conditions_do_not_merge():
@@ -107,15 +110,63 @@ def test_two_rows_of_one_segment_with_disjoint_quotes_are_not_merged():
 
 
 def test_wide_quotes_are_neither_merged_nor_absorb_others():
-    """REQ-033: una cita amplia (el tramo entero) no se junta con otra fila."""
+    """REQ-033: una cita amplia (el tramo entero) no se junta con otra fila, entre primera o
+    segunda."""
     wide, other = row("a", MANT_QUOTE, flag=WIDE), row("b", MANT_QUOTE)
     assert len(dedup.unify([wide, other], 0.9).body) == 2
+    assert len(dedup.unify([other, row("c", MANT_QUOTE, flag=WIDE)], 0.9).body) == 2
+
+
+LONG = ("Los oferentes {} subcontratar parcialmente la prestación objeto de la contratación "
+        "con terceros inscriptos en el registro de proveedores del organismo contratante, "
+        "siempre que la documentación respaldatoria esté completa, actualizada, legible y "
+        "presentada en la sede central del organismo dentro del plazo establecido para la "
+        "recepción de las ofertas, {}")
+ADVERSE = [
+    ("negación y afirmación, frase larga",
+     LONG.format("podrán", "durante la ejecución"), LONG.format("no podrán", "durante la ejecución")),
+    ("afirmación contenida en la negación",
+     "podrá subcontratar parcialmente la prestación",
+     "no podrá subcontratar parcialmente la prestación"),
+    ("60 contra 90 días en un párrafo largo",
+     LONG.format("podrán", "con validez de 60 días"), LONG.format("podrán", "con validez de 90 días")),
+    ("deberán contra no deberán",
+     LONG.format("deberán", "y firmada"), LONG.format("no deberán", "y firmada")),
+    ("firmada contra sin firmar",
+     LONG.format("deberán", "firmada por el oferente"), LONG.format("deberán", "sin firmar por el oferente")),
+    ("sujeto y objeto intercambiados",
+     "El organismo contratante notificará al oferente adjudicatario la orden de compra emitida",
+     "El oferente adjudicatario notificará al organismo contratante la orden de compra emitida"),
+    ("calificador agregado",
+     "garantía del 5 % del monto",
+     "garantía del 5 % del monto de cada renglón cotizado y adjudicado por separado"),
+    ("10 % contra 20 %", "garantía del 10 % del monto adjudicado", "garantía del 20 % del monto adjudicado"),
+    ("un modal contra otro",
+     LONG.format("deberán", "durante la ejecución"), LONG.format("podrán", "durante la ejecución")),
+    ("mínimo contra máximo", "plazo mínimo de entrega de bienes", "plazo máximo de entrega de bienes"),
+]
+
+
+@pytest.mark.parametrize("label,one,two", ADVERSE, ids=[a[0] for a in ADVERSE])
+def test_conditions_that_differ_in_figures_negations_modals_or_order_stay_apart(
+        label, one, two):
+    """REQ-033: la unificación es conservadora; ante la duda no une. Dos condiciones que se
+    distinguen por una cifra, una negación, un modal, un calificador o el orden de las
+    palabras quedan como filas separadas, en cualquier orden de entrada."""
+    assert len(dedup.unify([row("a", one), row("b", two)], 0.9).body) == 2
+    assert len(dedup.unify([row("a", two), row("b", one)], 0.9).body) == 2
+
+
+def test_a_long_phrase_equal_but_for_punctuation_still_merges():
+    """REQ-033: la cautela no impide unir lo realmente igual."""
+    text = LONG.format("podrán", "durante la ejecución")
+    assert len(dedup.unify([row("a", text), row("b", text.upper() + ".")], 0.9).body) == 1
 
 
 def test_threshold_one_merges_only_equal_texts():
     """REQ-033: con el umbral en 1,0 solo se unen las filas de texto igual."""
     equal = dedup.unify([row("a", MANT_QUOTE), row("b", MANT_QUOTE)], 1.0)
-    contained = dedup.unify([row("a", MANT_QUOTE), row("b", MANT_LONG)], 1.0)
+    contained = dedup.unify([row("a", GAR_QUOTE), row("b", GAR_TOTAL)], 1.0)
     assert len(equal.body) == 1
     assert len(contained.body) == 2
 
@@ -191,11 +242,10 @@ def test_the_same_fragment_in_two_segments_gives_one_row_with_two_quotes(
 
 def test_a_row_contained_in_another_is_merged_in_the_process(operator_user, script):
     """REQ-033: una fila contenida en otra se une; queda la primera del pliego."""
-    script.when("durante 60 días corridos.", item([(MANT_QUOTE, "formal")]))
-    script.when("apertura de sobres", item([(MANT_LONG, "formal")]))
+    script.when(GAR, item([(GAR_QUOTE, "economico")]))
+    script.when("monto total", item([(GAR_TOTAL, "economico")]))
 
-    run = run_with(operator_user, pliego(
-        MANT, MANT.replace("corridos.", "corridos desde la apertura de sobres.")))
+    run = run_with(operator_user, pliego(GAR, GAR.replace("monto.", "monto total.")))
 
     rows = formal_rows(run)
     assert len(rows) == 1
@@ -251,11 +301,11 @@ def test_threshold_one_in_the_process_merges_only_equal_texts(
         operator_user, script, settings):
     """REQ-033: con `DEDUP_MIN_SIMILARITY` en 1,0 la fila contenida no se une; la igual sí."""
     settings.DEDUP_MIN_SIMILARITY = 1.0
-    script.when("durante 60 días corridos.", item([(MANT_QUOTE, "formal")]))
-    script.when("apertura de sobres", item([(MANT_LONG, "formal")]))
+    script.when(GAR, item([(GAR_QUOTE, "economico")]))
+    script.when("monto total", item([(GAR_TOTAL, "economico")]))
 
     run = run_with(operator_user, pliego(
-        MANT, MANT.replace("corridos.", "corridos desde la apertura de sobres."), MANT))
+        GAR, GAR.replace("monto.", "monto total."), GAR))
 
     rows = formal_rows(run)
     assert len(rows) == 2
