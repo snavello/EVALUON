@@ -454,6 +454,35 @@ def remove(user, requirement_id, *, channel=Channel.SCREEN):
                 channel, {"requirement": requirement_id}, work)
 
 
+def _undo_join(requirement, joined_change, user, channel):
+    """Deshace el pase a técnico de `requirement`: saca de la fila técnica la cita que se
+    le sumó y lo registra en el historial de la fila. Devuelve `(cambio, hecho)` o `None`
+    si la cita ya no está en la fila (se sacó a mano)."""
+    from evaluon.audit.models import AuditEvent
+
+    event = (AuditEvent.objects.filter(event_type=EventType.REQUIREMENT_CHANGE,
+                                       detail__joined_from=requirement.pk)
+             .order_by("-id").first())
+    if event is None or event.id < joined_change.event_id:
+        return None
+    row = Requirement.objects.select_for_update().filter(pk=event.detail["requirement"]
+                                                         ).first()
+    own = requirement.quotes.first()
+    if row is None or own is None:
+        return None
+    joined = row.quotes.filter(segment_id=own.segment_id, char_start=own.char_start,
+                               char_end=own.char_end).first()
+    if joined is None:
+        return None
+    before = _snapshot(row)
+    joined.delete()
+    if row.state == RequirementState.CONFIRMADO:
+        row.state = RequirementState.PROPUESTO
+        row.save(update_fields=["state"])
+    return _record(row, ChangeAction.CORREGIR, before, _snapshot(row), user, channel,
+                   {"undone_from": requirement.pk})
+
+
 def restore(user, requirement_id, *, channel=Channel.SCREEN):
     """Devuelve un requisito quitado al estado que tenía cuando se quitó."""
 
@@ -461,19 +490,29 @@ def restore(user, requirement_id, *, channel=Channel.SCREEN):
         requirement, _ = _lock_requirement(requirement_id)
         if requirement.state != RequirementState.QUITADO:
             raise ReviewRefused("El requisito no está quitado.", "requirement_not_removed")
-        last = requirement.changes.filter(action=ChangeAction.QUITAR).order_by("-id").first()
+        history = list(requirement.changes.order_by("-id"))
+        last = next((c for c in history if (c.after or {}).get("state")
+                     == RequirementState.QUITADO), None)
         state = (last.before or {}).get("state") if last else None
         if state not in (RequirementState.PROPUESTO, RequirementState.CONFIRMADO):
             state = RequirementState.PROPUESTO
         if requirement.category in SINGLE_QUOTE and not requirement.quotes.exists():
             raise ReviewRefused("El requisito no tiene cita: no se puede restituir.",
                                 "no_quote")
+        # Si se quitó al pasarlo a técnico, restituirlo deshace el pase: su cita sale de
+        # la fila técnica, para que no quede en dos lugares.
+        undone = _undo_join(requirement, last, user, channel) if (
+            last is not None and last.action == ChangeAction.CORREGIR) else None
         before = {"state": requirement.state}
         requirement.state = state
         requirement.save(update_fields=["state"])
         change, event = _record(requirement, ChangeAction.RESTITUIR, before,
                                 {"state": state}, user, channel)
-        return Reviewed([requirement], [change], [event])
+        changes, events = [change], [event]
+        if undone is not None:
+            changes.append(undone[0])
+            events.append(undone[1])
+        return Reviewed([requirement], changes, events)
 
     return _run(user, CommissionRole.OPERATOR, RESTORE_OPERATION,
                 ChangeAction.RESTITUIR, channel, {"requirement": requirement_id}, work)

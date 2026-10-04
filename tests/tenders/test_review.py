@@ -568,3 +568,55 @@ def test_a_technical_row_for_an_item_not_in_the_tender_is_rejected(operator_user
     assert counts() == before
     assert rejected("item_unknown").count() == 1
     assert not m.Requirement.objects.filter(version=case, items=[9]).exists()
+
+
+def test_restoring_a_formal_passed_to_technical_takes_its_quote_out_of_the_row(
+        operator_user, case):
+    """O1: restituir deshace el pase a técnico: la cita sale de la fila y queda registrado
+    en el historial de la fila; no queda en dos lugares."""
+    row = tech(case, 2)
+    requirement = req(case, PAGO)
+    segment = segment_with(case, PAGO)
+    quotes_before = row.quotes.count()
+    review.correct(operator_user, requirement.pk, category="tecnico", items="2")
+    assert row.quotes.filter(segment=segment).exists()
+
+    done = review.restore(operator_user, requirement.pk)
+
+    requirement.refresh_from_db()
+    assert requirement.state == "propuesto" and requirement.category == "economico"
+    assert requirement.quotes.count() == 1
+    assert row.quotes.count() == quotes_before
+    assert not row.quotes.filter(segment=segment, text=PAGO).exists()
+    last = row.changes.order_by("-id").first()
+    assert last.action == "corregir" and last.user == operator_user
+    assert len(last.after["quotes"]) == len(last.before["quotes"]) - 1
+    assert {c.requirement_id for c in done.changes} == {requirement.pk, row.pk}
+    check_deferred()
+
+
+def test_restoring_a_plain_removal_does_not_touch_technical_rows(operator_user, case):
+    row = tech(case, 2)
+    requirement = req(case, PAGO)
+    review.remove(operator_user, requirement.pk)
+    review.restore(operator_user, requirement.pk)
+    assert not row.changes.exists()
+
+
+def test_correcting_a_wide_quote_removes_the_wide_mark(operator_user, case):
+    """O2: corregir una cita amplia le quita la marca `cita_amplia`."""
+    requirement = req(case, PAGO)
+    quote = requirement.quotes.get()
+    quote.quote_flag = "cita_amplia"
+    quote.save()
+    segment = segment_with(case, PAGO)
+
+    review.correct(operator_user, requirement.pk, segment=segment.pk,
+                   quote="a los 90 días corridos de la factura")
+
+    quote.refresh_from_db()
+    assert quote.quote_flag == ""
+    assert quote.text == "a los 90 días corridos de la factura"
+    change = requirement.changes.get()
+    assert change.before["quotes"][0]["flag"] == "cita_amplia"
+    assert change.after["quotes"][0]["flag"] == ""
