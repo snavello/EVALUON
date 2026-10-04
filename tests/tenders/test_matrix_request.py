@@ -96,15 +96,19 @@ def test_chosen_level_is_recorded(operator_user, read_case, level):
     assert job.status == "done", job.error
     assert requested.run.level == level
     assert requested.run.version.level == level
-    assert requested.run.parameters["passes"] == [
-        "reglas", "extraccion", "marcadores", "filas_tecnicas"]
+    assert requested.run.parameters["passes"] == {
+        "media": ["reglas", "extraccion", "marcadores", "filas_tecnicas"],
+        "exigente": ["reglas", "extraccion", "extraccion_2", "union", "completitud",
+                     "filas_tecnicas"],
+    }[level]
     detail = request_events().get().detail
     assert detail["level"] == level and detail["default_level"] is False
 
 
-def test_alta_and_exigente_ask_for_the_same_as_media_and_say_so(operator_user, script):
-    """REQ-030: mientras alta y exigente no tienen sus pasadas (T-078), piden lo mismo que
-    media y quedan registrados con su nombre y una anomalía que lo dice."""
+def test_each_level_records_its_own_passes_and_no_level_lacks_them(operator_user, script):
+    """REQ-030: cada nivel corre y registra sus pasadas (T-078); ya no queda la anomalía de
+    "nivel sin pasadas propias". Si la completitud no agrega nada, los tres niveles dan la
+    misma matriz para este pliego."""
     script.when(PAGO, item([(PAGO, "economico")]))
     results = {}
     for level in ("media", "alta", "exigente"):
@@ -114,13 +118,16 @@ def test_alta_and_exigente_ask_for_the_same_as_media_and_say_so(operator_user, s
         assert job.status == "done", job.error
         results[level] = requested
 
+    assert [results[level].run.parameters["passes"] for level in results] == [
+        ["reglas", "extraccion", "marcadores", "filas_tecnicas"],
+        ["reglas", "extraccion", "completitud", "filas_tecnicas"],
+        ["reglas", "extraccion", "extraccion_2", "union", "completitud",
+         "filas_tecnicas"],
+    ]
     assert signature(results["media"].run.version) == signature(
         results["alta"].run.version) == signature(results["exigente"].run.version)
-    types = {level: [a["type"] for a in requested.run.anomalies]
-             for level, requested in results.items()}
-    assert "nivel_sin_pasadas_propias" not in types["media"]
-    assert "nivel_sin_pasadas_propias" in types["alta"]
-    assert "nivel_sin_pasadas_propias" in types["exigente"]
+    for requested in results.values():
+        assert "nivel_sin_pasadas_propias" not in [a["type"] for a in requested.run.anomalies]
     assert [r.run.level for r in results.values()] == ["media", "alta", "exigente"]
 
 
