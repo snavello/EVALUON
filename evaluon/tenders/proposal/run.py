@@ -571,10 +571,31 @@ def _found_text(segment, found):
     return segment.text[found.span[0]:found.span[1]]
 
 
+def _original_fields(source, circular_readings):
+    """Dónde está el texto que la fuente reemplaza cuando no es la cita (anexo sin
+    requisitos; T-113). La base no garantiza que el tramo sea de la lectura de las posiciones
+    ni que sea del pliego: se comprueba acá, como toda cita."""
+    original = getattr(source, "original", None)
+    if original is None:
+        return {}
+    segment = original.segment
+    reading = segment.reading
+    if (reading.pk in circular_readings
+            or not segment.char_start <= original.start < original.end <= len(reading.canonical_text)
+            or original.start >= segment.char_end):
+        raise RuntimeError(
+            "El original de una fuente de circular no es un recorte de la lectura de un "
+            f"documento del pliego ({segment.key} {original.start}:{original.end}): no se "
+            "guardó la matriz.")
+    return {"original_segment": segment, "original_char_start": original.start,
+            "original_char_end": original.end}
+
+
 def _save_circulars(version, dated, result, created, quote_of, by_class):
     """Crea las fuentes de las circulares (`tenders_requirement_source`), una por requisito
     alcanzado, y los requisitos que agregan. Un formal o económico que una circular suprime
     queda `quitado`, visible y con su cita."""
+    circular_readings = {d.reading.pk for d in dated.documents}
     for source in result.sources:
         reading = dated.reading_of[source.segment.pk]
         _check_quote(reading, source.start, source.end, source.text)
@@ -584,7 +605,7 @@ def _save_circulars(version, dated, result, created, quote_of, by_class):
                 requirement=requirement, quote=quote_of[(target.number, target.order)],
                 effect=source.effect, segment=source.segment, char_start=source.start,
                 char_end=source.end, text=source.text, issued_on=source.issued_on,
-                step=source.step,
+                step=source.step, **_original_fields(source, circular_readings),
             )
             if (source.effect == SourceEffect.SUPRIME.value
                     and target.category != RequirementClass.TECNICO.value):

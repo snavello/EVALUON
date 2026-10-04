@@ -34,6 +34,7 @@ from evaluon.tenders.models import (
     JobKind,
     JobStatus,
     MatrixVersion,
+    NormSupport,
     PendingItem,
     Procedure,
     Requirement,
@@ -42,7 +43,7 @@ from evaluon.tenders.models import (
     RequirementState,
     VersionStatus,
 )
-from evaluon.tenders.services import discarded, review
+from evaluon.tenders.services import discarded, review, suggestions
 
 VALIDATE_OPERATION = "evaluon.tenders.services.validation.validate"
 DISCARD_OPERATION = "evaluon.tenders.services.validation.discard"
@@ -56,6 +57,13 @@ class ValidationRefused(review.ReviewRefused):
 
 def _numbers(requirements):
     return ", ".join(str(r.number) for r in requirements)
+
+
+def _groups(requirements):
+    """Las claves de los tramos citados por las filas, sin repetir y en orden."""
+    keys = {q.segment.key for r in requirements
+            for q in r.quotes.select_related("segment") if q.scope in ("", "propia")}
+    return ", ".join(sorted(keys))
 
 
 def _refuse_record(error, event_type, user, channel, detail):
@@ -98,6 +106,12 @@ def validate(user, version_id, *, channel=Channel.SCREEN):
             raise ValidationRefused(
                 f"No se puede validar: quedan {open_pending} tramos pendientes de revisión "
                 "sin resolver.", "pending_unresolved", "pending")
+        undecided = suggestions.undecided(version)
+        if undecided:
+            raise ValidationRefused(
+                f"No se puede validar: quedan {len(undecided)} sugerencias sin decidir "
+                f"(en {_groups(undecided)}). Pase cada una a requisito o quítela.",
+                "suggestions_undecided", "suggestions")
         chosen = set(Consequence.objects.filter(
             requirement__in=active, chosen=True).values_list("requirement_id", flat=True))
         missing = [r for r in active if r.pk not in chosen]
@@ -123,6 +137,10 @@ def validate(user, version_id, *, channel=Channel.SCREEN):
             by_state[requirement.state] = by_state.get(requirement.state, 0) + 1
             by_class[requirement.category] = by_class.get(requirement.category, 0) + 1
         discarded_total, restored = discarded.counts(version)
+        accepted = sum(1 for r in requirements if r.changes.filter(
+            action=ChangeAction.ACEPTAR_SUGERENCIA).exists())
+        removed = sum(1 for r in requirements
+                      if r.state == RequirementState.QUITADO and r.doubt_reason)
         version.status = VersionStatus.VALIDATED
         version.validated_at = timezone.now()
         version.validated_by = user
@@ -132,7 +150,9 @@ def validate(user, version_id, *, channel=Channel.SCREEN):
             detail={"procedure": version.procedure_id, "version": version.pk,
                     "version_number": version.number, "by_state": by_state,
                     "by_class": by_class, "confirmed_by_validation": confirmed,
-                    "discarded": discarded_total, "restored": restored})
+                    "discarded": discarded_total, "restored": restored,
+                    "suggestions_accepted": accepted,
+                    "suggestions_removed": removed})
         return version
 
     return _run(user, CommissionRole.EVALUATOR, VALIDATE_OPERATION,
@@ -173,7 +193,8 @@ def latest_validated(procedure):
 def _copy(source, new):
     """Copia a `new` las filas de `source`. Devuelve cuántas de cada tabla."""
     quote_map, count = {}, {"requirements": 0, "quotes": 0, "sources": 0,
-                            "consequences": 0, "pending": 0}
+                            "consequences": 0, "pending": 0,
+                            "norm_supports": 0}
     for old in source.requirements.order_by("number"):
         copy = Requirement.objects.create(
             version=new, number=old.number, category=old.category, items=old.items,
@@ -187,6 +208,13 @@ def _copy(source, new):
                 char_start=quote.char_start, char_end=quote.char_end, text=quote.text,
                 scope=quote.scope, quote_flag=quote.quote_flag)
             count["quotes"] += 1
+        for support in old.norm_supports.order_by("id"):
+            NormSupport.objects.create(
+                requirement=copy, unit=support.unit, unit_label=support.unit_label,
+                char_start=support.char_start, char_end=support.char_end,
+                text=support.text, score=support.score, regime=support.regime,
+                corpus_version=support.corpus_version, step=support.step)
+            count["norm_supports"] += 1
         for src in old.sources.order_by("id"):
             RequirementSource.objects.create(
                 requirement=copy, quote=quote_map.get(src.quote_id), effect=src.effect,
@@ -241,7 +269,8 @@ def open_new_version(user, procedure_id, *, channel=Channel.SCREEN):
         number = procedure.matrix_versions.aggregate(last=Max("number"))["last"] + 1
         new = MatrixVersion.objects.create(
             procedure=procedure, number=number, status=VersionStatus.DRAFT,
-            level=source.level, run=None, based_on=source, created_by=user)
+            level=source.level, process=source.process, run=None, based_on=source,
+            created_by=user)
         copied = _copy(source, new)
         audit.record(
             EventType.MATRIX_VERSION, outcome=Outcome.OK, channel=channel, user=user,
