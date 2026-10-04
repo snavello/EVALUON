@@ -464,6 +464,7 @@ class PassName(models.TextChoices):
     FILTRO = "filtro", "Filtro de sobrantes"
     FILTRO_2 = "filtro_2", "Filtro de sobrantes, segunda opinión"
     RESPALDO_NORMATIVO = "respaldo_normativo", "Respaldo normativo"
+    CIRCULARES_CAMBIOS = "circulares_cambios", "Extracción de cambios de circulares"
 
 
 class RunStep(models.Model):
@@ -915,6 +916,22 @@ class RequirementSource(models.Model):
         blank=True,
         related_name="requirement_sources",
     )
+    # Dónde está el texto que la circular reemplaza cuando no es la cita alcanzada: un
+    # anexo sin requisitos. Los tres campos van juntos o ninguno.
+    original_segment = models.ForeignKey(
+        Segment,
+        verbose_name="tramo del original",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="requirement_source_originals",
+    )
+    original_char_start = models.PositiveIntegerField(
+        "inicio del original en el texto canónico", null=True, blank=True
+    )
+    original_char_end = models.PositiveIntegerField(
+        "fin del original en el texto canónico", null=True, blank=True
+    )
 
     class Meta:
         db_table = "tenders_requirement_source"
@@ -923,6 +940,17 @@ class RequirementSource(models.Model):
         constraints = [
             _valid("effect", SourceEffect, "tenders_requirement_source_effect_valid"),
             _char_range("tenders_requirement_source"),
+            models.CheckConstraint(
+                condition=(
+                    Q(original_segment__isnull=True, original_char_start__isnull=True,
+                      original_char_end__isnull=True)
+                    | Q(original_segment__isnull=False,
+                        original_char_start__isnull=False,
+                        original_char_end__isnull=False,
+                        original_char_end__gte=F("original_char_start"))
+                ),
+                name="tenders_requirement_source_original_valid",
+            ),
         ]
 
 
