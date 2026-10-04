@@ -142,15 +142,22 @@ def requirement_with(version, text):
     raise AssertionError(f"ningún requisito cita {text!r}")
 
 
+def model_steps():
+    """Los pedidos de circulares que fueron al modelo (los de unidades resueltas por clave,
+    de T-113, no llevan pedido)."""
+    return [s for s in m.RunStep.objects.filter(pass_name="circulares").order_by("id")
+            if "messages" in s.request]
+
+
 def steps_for(text):
     """Los pedidos de circulares cuyo tramo contiene `text`, en orden."""
-    return [s for s in m.RunStep.objects.filter(pass_name="circulares").order_by("id")
+    return [s for s in model_steps()
             if text in s.request["messages"][-1]["content"]]
 
 
 def step_for(text):
     """El pedido de circulares cuyo tramo contiene `text`."""
-    return next(s for s in m.RunStep.objects.filter(pass_name="circulares").order_by("id")
+    return next(s for s in model_steps()
                 if text in s.request["messages"][-1]["content"])
 
 
@@ -193,11 +200,12 @@ def test_modifying_circular_changes_the_item_row_and_keeps_both_texts(operator_u
 
 
 def test_the_model_sees_the_candidates_the_tramo_names(operator_user, case, script):
-    """REQ-031: las citas candidatas incluyen las que el tramo nombra ("Renglón N° 1") y el
-    pedido deja constancia de por qué se mostró cada una."""
+    """REQ-031: lo que no se resuelve por clave va al respaldo: el modelo ve las citas que el
+    tramo nombra ("Renglón N° 1") y el pedido deja constancia de por qué se mostró cada una.
+    Sin un texto anterior que coincida con una cita del renglón, la unidad no se aplica sola
+    y queda registrada con su motivo."""
     add_circular(operator_user, case, "Circular N.º 1", date(2025, 12, 1),
-                 "1. Reemplázase en el Renglón N° 1 la memoria de 16 GB de RAM por 32 GB "
-                 "de RAM.")
+                 "1. Reemplázase en el Renglón N° 1 la memoria por 32 GB de RAM.")
 
     run_proposal(operator_user, case)
 
@@ -206,6 +214,10 @@ def test_the_model_sees_the_candidates_the_tramo_names(operator_user, case, scri
     step = step_for("por 32 GB")
     assert step.parsed["candidatas"]["renglones"] == [1]
     assert step.segment_keys and step.request["messages"][0]["role"] == "system"
+    unit_step = m.RunStep.objects.get(pass_name="circulares", request__has_key="unidad",
+                                      parsed__resultado="respaldo")
+    assert unit_step.parsed["motivo"] == "texto_anterior_sin_coincidencia"
+    assert unit_step.request["sin_modelo"] is True
 
 
 # --- Aclaración y respuesta a una consulta -----------------------------------------------------------------
@@ -281,23 +293,23 @@ def test_suppressing_one_technical_citation_keeps_the_row(operator_user, case, s
 def test_two_circulars_on_the_same_citation_apply_by_date_not_by_load_order(
         operator_user, case, script):
     """REQ-031: dos circulares sobre la misma cita se aplican por fecha: la segunda ve el
-    texto que dejó la primera y el vigente es el de la última por fecha."""
+    texto que dejó la primera y el vigente es el de la última por fecha. La primera se
+    resuelve por clave; la segunda, que no da texto anterior, va al respaldo y el modelo ve el
+    original y el vigente."""
     # Se carga primero la de diciembre y después la de noviembre.
     add_circular(operator_user, case, "Circular N.º 2", date(2025, 12, 10),
-                 "1. Reemplázase en el Renglón N° 1 la memoria de 32 GB de RAM por 64 GB "
-                 "de RAM.")
+                 "1. Reemplázase en el Renglón N° 1 la memoria por 64 GB de RAM.")
     add_circular(operator_user, case, "Circular N.º 1", date(2025, 12, 1),
                  "1. Reemplázase en el Renglón N° 1 la memoria de 16 GB de RAM por 32 GB "
                  "de RAM.")
-    script.c_when("por 32 GB", efectos=[("16 GB de RAM", "modifica", "32 GB de RAM")])
     script.c_when("por 64 GB", efectos=[("GB de RAM", "modifica", "64 GB de RAM")])
 
     version, _ = run_proposal(operator_user, case)
 
     asked = [r for r in script.requests if "Reemplázase" in r["tramo"]]
-    assert "por 32 GB" in asked[0]["tramo"] and "por 64 GB" in asked[1]["tramo"]
+    assert len(asked) == 1 and "por 64 GB" in asked[0]["tramo"]
     # La segunda circular vio el texto vigente que dejó la primera.
-    second = asked[1]["cites"]
+    second = asked[0]["cites"]
     assert any("Texto vigente:\n32 GB de RAM" in body and "Texto original:" in body
                for body in second.values())
     row = row_of_item(version, 1)
@@ -346,8 +358,7 @@ def test_every_circular_segment_has_a_disposition(operator_user, case, script):
     document = add_circular(
         operator_user, case, "Circular N.º 1", date(2025, 12, 1),
         "1. Reemplázase en el Renglón N° 1 la memoria de 16 GB de RAM por 32 GB de RAM.",
-        "2. Prorrógase la fecha de apertura de ofertas al 10 de diciembre.")
-    script.c_when("por 32 GB", efectos=[("16 GB de RAM", "modifica", "32 GB de RAM")])
+        "2. Prorrógase el acto de apertura de ofertas al 10 de diciembre.")
 
     _, run = run_proposal(operator_user, case)
 
@@ -361,7 +372,8 @@ def test_every_circular_segment_has_a_disposition(operator_user, case, script):
     outcomes = {("por 32 GB" in by_text[pk], "Prorrógase" in by_text[pk]): d
                 for pk, d in dispositions.items()}
     assert outcomes[(True, False)].outcome == "requisitos"
-    assert outcomes[(True, False)].source == "modelo" and outcomes[(True, False)].step
+    # Lo resuelve la clave del renglón, sin modelo (T-113): disposición por regla.
+    assert outcomes[(True, False)].source == "regla" and outcomes[(True, False)].step
     assert outcomes[(False, True)].outcome == "descartado"
     assert outcomes[(False, True)].discard_reason == "dato_procedimiento"
     assert all(d.outcome in ("requisitos", "descartado", "pendiente", "tecnico")
@@ -391,8 +403,7 @@ def test_a_fragment_not_in_the_circular_is_retried_and_then_cites_the_whole_tram
     """REQ-031 / REQ-025: si el fragmento no está en el tramo se repite el pedido; si sigue
     sin estar, el efecto no se pierde: cita el tramo entero y se anota."""
     add_circular(operator_user, case, "Circular N.º 1", date(2025, 12, 1),
-                 "1. Reemplázase en el Renglón N° 1 la memoria de 16 GB de RAM por 32 GB "
-                 "de RAM.")
+                 "1. Reemplázase en el Renglón N° 1 la memoria por 32 GB de RAM.")
     bad = json.dumps({"efectos": [{"cita": "Q1", "efecto": "modifica",
                                    "texto": "treinta y dos gigas"}],
                       "nuevos": [], "sin_efecto": ""})
@@ -666,9 +677,9 @@ def test_a_general_technical_citation_reaches_every_item_row(operator_user, scri
 
 # --- Pasada de circulares: causas generales de T-094 (T-098) ------------------------------------------------
 
-ANEXO = "los oferentes deberán completar y adjuntar la planilla del anexo"
+ANEXO = "cada oferente cargará y presentará la planilla del anexo"
 ANEXO_CLAUSE = f"1.1. ANEXO VI - PLANILLA SINTÉTICA: {ANEXO}."
-FECHAS = ("Los interesados deberán asistir en la fecha indicada en el Anexo “FECHA DE VISITA” "
+FECHAS = ("Los interesados concurrirán en la jornada indicada en el Anexo “JORNADA DE RECORRIDO” "
           "del portal")
 
 
@@ -690,41 +701,39 @@ def economy_tender(operator_user, script, clause=ANEXO_CLAUSE, quote=ANEXO):
 
 def test_a_tramo_that_names_an_annex_reaches_the_clause_that_defines_it(
         operator_user, script, fake_reranker, settings):
-    """REQ-031 (T-094, M-029): un tramo que nombra "Anexo VI" alcanza la cita del requisito
-    cuya cláusula lo define aunque el reranker no la ponga entre las mejores y la cita
-    (un recorte de la cláusula) no repita el nombre del anexo."""
+    """REQ-031 (T-094, M-029; T-113): un tramo que dice que el "Anexo VI" no es requisito
+    alcanza por la clave la cita del requisito cuya cláusula lo define, sin modelo y aunque la
+    cita (un recorte de la cláusula) no repita el nombre del anexo."""
     settings.MATRIX_CIRCULAR_CANDIDATES = 0
     procedure = economy_tender(operator_user, script)
     add_circular(operator_user, procedure, "Circular N.º 1", date(2025, 12, 1),
-                 "1. La información del Anexo VI no será considerada como un requisito.")
-    script.c_when("no será considerada", efectos=[(ANEXO, "suprime", "no será considerada")])
+                 "1. Queda sin efecto como exigencia lo informado en el Anexo VI.")
 
     version, _ = run_proposal(operator_user, procedure)
 
-    request = next(r for r in script.requests if "no será considerada" in r["tramo"])
-    assert any(ANEXO in body for body in request["cites"].values())
-    assert PAGO not in " ".join(request["cites"].values())
+    assert not [r for r in script.requests if "Queda sin efecto como exigencia" in r["tramo"]]
     requirement = requirement_with(version, ANEXO)
     assert requirement.state == "quitado"
     assert requirement.sources.get().effect == "suprime"
+    assert requirement_with(version, PAGO).state == "propuesto"
 
 
 def test_a_tramo_that_repeats_the_quoted_title_of_an_annex_reaches_the_citation(
         operator_user, script, fake_reranker, settings):
     """REQ-031 (T-094, M-044): un tramo que repite el título entre comillas de un anexo que
-    la cita menciona ("Anexo “FECHA DE VISITA”") alcanza esa cita."""
+    la cita menciona ("Anexo “JORNADA DE RECORRIDO”") alcanza esa cita."""
     settings.MATRIX_CIRCULAR_CANDIDATES = 0
     procedure = economy_tender(operator_user, script, clause=f"1.1. {FECHAS}.", quote=FECHAS)
     load_and_read(operator_user, procedure,
-                  narrative_circular("II. SE FIJAN NUEVAS FECHAS",
-                                     "FECHA DE VISITA: 21 de julio"),
+                  narrative_circular("II. SE PROGRAMAN OTRAS JORNADAS",
+                                     "JORNADA DE RECORRIDO: 21 de julio"),
                   kind="circular_modificatoria", title="Circular N.º 1",
                   issued_on=date(2025, 12, 1))
     script.c_when("21 de julio", efectos=[(FECHAS, "modifica", "21 de julio")])
 
     version, _ = run_proposal(operator_user, procedure)
 
-    request = next(r for r in script.requests if r["tramo"].startswith("FECHA DE VISITA"))
+    request = next(r for r in script.requests if r["tramo"].startswith("JORNADA DE RECORRIDO"))
     assert any(FECHAS in body for body in request["cites"].values())
     assert PAGO not in " ".join(request["cites"].values())
     assert requirement_with(version, FECHAS).sources.get().effect == "modifica"
@@ -772,10 +781,12 @@ def test_unlocated_segments_of_a_circular_reach_the_model_and_stay_pending(
 
 def test_a_loose_paragraph_is_shown_with_its_heading_and_the_previous_lines(
         operator_user, case, script):
-    """REQ-031 (T-094, M-044): un párrafo suelto de una circular se muestra con el encabezado
-    de su apartado ("II. …") y las dos líneas anteriores, aparte del tramo."""
+    """REQ-031 (T-094, M-044): un párrafo de un apartado que va al respaldo (no es una lista de
+    datos del trámite ni se resuelve por clave) se muestra con el encabezado de su apartado
+    ("II. …") y las dos líneas anteriores, aparte del tramo."""
     load_and_read(operator_user, case,
-                  narrative_circular("I. OTRO APARTADO", "II. SE FIJAN NUEVAS FECHAS",
+                  narrative_circular("I. OTRO APARTADO", "II. SE PROGRAMAN OTRAS JORNADAS",
+                                     "Los asistentes deberán identificarse.",
                                      "SEDE UNO", "HORA: 10hs", "PUNTO DE ENCUENTRO: puerta"),
                   kind="circular_modificatoria", title="Circular N.º 1",
                   issued_on=date(2025, 12, 1))
@@ -784,7 +795,7 @@ def test_a_loose_paragraph_is_shown_with_its_heading_and_the_previous_lines(
 
     request = next(r for r in script.requests if r["tramo"].startswith("PUNTO DE ENCUENTRO"))
     context = request["context"]
-    assert "II. SE FIJAN NUEVAS FECHAS" in context
+    assert "II. SE PROGRAMAN OTRAS JORNADAS" in context
     assert "SEDE UNO" in context and "HORA: 10hs" in context
     assert "I. OTRO APARTADO" not in context and "PUNTO DE ENCUENTRO" not in context
 
