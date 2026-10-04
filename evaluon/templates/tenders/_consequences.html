@@ -1,0 +1,40 @@
+{% comment %}Las consecuencias de un requisito con el texto literal de su fundamento, y el formulario de elección del evaluador. Recibe `requirement`, `options`, `can_choose`, `page`, `other_types`.{% endcomment %}<section class="consequences" aria-label="Consecuencias del incumplimiento">
+  <h5>Consecuencia de no cumplir</h5>
+  {% if error %}<p class="review-error" role="alert">{{ error }}</p>{% endif %}
+  {% if not options %}<p>Todavía no hay consecuencias sugeridas para este requisito.</p>{% endif %}
+  <ul>
+    {% for option in options %}
+    <li class="consequence{% if option.chosen %} chosen{% endif %}">
+      {% if option.undetermined %}
+      <strong>No determinada</strong> <span class="state-mark">Sin fundamento: no se puede elegir</span>
+      {% else %}
+      <strong>{{ option.label }}</strong>
+      <span class="state-mark">{% if option.from_system %}Sugerida por el sistema{% else %}Propuesta por una persona{% endif %}</span>
+      {% if option.chosen %}<span class="state-mark">Elegida por {{ option.consequence.chosen_by.username }} el {{ option.consequence.chosen_at|date:"d/m/Y H:i" }}</span>{% endif %}
+      {% endif %}
+      {% for ground in option.grounds %}
+      <p class="source-label">{% if ground.source == "norma" %}Fundamento en la norma · {{ ground.citation }}{% else %}Fundamento en el pliego{% endif %}:</p>
+      <blockquote class="literal">{{ ground.text }}</blockquote>
+      {% if ground.place %}<p class="quote-place">{% include "tenders/_place.html" with place=ground.place %}</p>{% endif %}
+      {% endfor %}
+      {% if option.chosen and option.consequence.chosen_note %}<p class="chosen-note">{% if option.consequence.consequence_type == "aprobacion_condicionada" %}Condición{% else %}Motivo{% endif %}: {{ option.consequence.chosen_note }}</p>{% endif %}
+      {% if can_choose and not option.undetermined %}
+      <label class="consequence-pick"><input type="radio" name="option" value="{{ option.consequence.pk }}" form="choose-{{ requirement.pk }}"{% if option.chosen %} checked{% endif %}> Elegir esta</label>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% if can_choose %}
+  <details class="review-actions"{% if error %} open{% endif %}><summary>Elegir la consecuencia</summary>
+    <form id="choose-{{ requirement.pk }}" method="post" action="{% url 'tenders:consequence_choose' requirement.pk %}">{% csrf_token %}
+      <p>Si elige una sugerida del sistema (arriba), su fundamento es el motivo y no hace falta escribir nada.</p>
+      <label>O elija otro tipo <select name="consequence_type"><option value="">(ninguno: usar la opción marcada)</option>{% for value, label in other_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+      <label>Motivo (obligatorio si elige otra; en una aprobación condicionada, la condición) <textarea name="note" rows="2"></textarea></label>
+      <p>Para consultar al oferente u otra consecuencia del pliego sin sugerencia, indique el tramo que la sostiene:</p>
+      <label>Tramo <select name="segment"><option value="">(solo si hace falta)</option>{% for id, text in page.segment_options %}<option value="{{ id }}">{{ text }}</option>{% endfor %}</select></label>
+      <label>Fragmento literal del tramo <textarea name="quote" rows="2"></textarea></label>
+      <button type="submit">Registrar la consecuencia elegida</button>
+    </form>
+  </details>
+  {% endif %}
+</section>

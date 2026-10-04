@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static consequence_tags %}
 
 {% block title %}Matriz · versión {{ page.version.number }} · {{ page.procedure.number }} · EVALUON{% endblock %}
 
@@ -103,6 +103,7 @@
     <blockquote class="literal">{{ note.text }}</blockquote>
     <p class="quote-place">{% include "tenders/_place.html" with place=note.place %}</p>
     {% endfor %}
+    {% consequence_panel row.requirement %}
     <p class="review-links"><a href="{% url 'tenders:history' row.requirement.pk %}">Historial</a></p>
     {% if page.can_edit %}
     <details class="review-actions"><summary>Corregir o quitar</summary>
@@ -146,6 +147,7 @@
       </li>
       {% endfor %}
     </ul>
+    {% consequence_panel row.requirement %}
     <p class="review-links"><a href="{% url 'tenders:history' row.requirement.pk %}">Historial</a></p>
     {% if page.can_edit %}
     <form method="post" action="{% url 'tenders:review_remove' row.requirement.pk %}">{% csrf_token %}<button type="submit">Quitar la fila</button></form>
