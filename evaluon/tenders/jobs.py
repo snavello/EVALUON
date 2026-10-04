@@ -29,7 +29,7 @@ from django.utils import timezone
 from django.utils.module_loading import import_string
 
 from evaluon.ai import AIServiceError
-from evaluon.tenders.models import Job, JobStatus
+from evaluon.tenders.models import Job, JobKind, JobStatus
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,9 @@ logger = logging.getLogger(__name__)
 INTERRUPTED = "interrumpido"
 
 # Tipo de pedido → manejador (función o su ruta). Ver el docstring del módulo.
-HANDLERS = {}
+HANDLERS = {
+    JobKind.READ_DOCUMENT: "evaluon.tenders.services.documents.run_read_document",
+}
 
 FINISHED = (JobStatus.DONE, JobStatus.FAILED)
 

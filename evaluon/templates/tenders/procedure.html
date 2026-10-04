@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Procedimiento {{ page.procedure.number }} · EVALUON{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'tenders:procedures' %}">Procedimientos</a></p>
+<h1>Procedimiento {{ page.procedure.number }}</h1>
+
+<section class="procedure-data" aria-labelledby="data-title">
+  <h2 id="data-title">Datos</h2>
+  <dl>
+    <dt>Tipo</dt><dd>{{ page.procedure.procedure_type }}</dd>
+    <dt>Objeto</dt><dd>{{ page.procedure.subject }}</dd>
+  </dl>
+  {% include "queries/_regime_line.html" with reference_date=page.procedure.authorization_date regime=page.regime %}
+</section>
+
+{% if loaded %}
+<p class="loaded" role="status">Documento cargado: {{ loaded.title }}. Su lectura quedó en espera.</p>
+{% endif %}
+
+<section class="document-list" aria-labelledby="documents-title">
+  <h2 id="documents-title">Documentos del pliego</h2>
+  {% if page.documents %}
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Título</th>
+        <th scope="col">Tipo</th>
+        <th scope="col">Fecha</th>
+        <th scope="col">Lectura</th>
+        <th scope="col">Original</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in page.documents %}
+      <tr>
+        <td>{{ row.document.title }}</td>
+        <td>{{ row.document.get_kind_display }}</td>
+        <td>{% if row.document.issued_on %}{{ row.document.issued_on|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+        <td>
+          {% if row.state == "leido" %}Leído{% if row.pending %} · {{ row.pending|length }} pendiente{{ row.pending|length|pluralize }} de revisión{% endif %}
+          {% elif row.state == "leyendo" %}Leyendo
+          {% elif row.state == "fallido" %}No se pudo leer: {{ row.job.error }}
+          {% else %}En espera de lectura{% endif %}
+        </td>
+        <td><a href="{% url 'tenders:document_original' row.document.pk %}">{{ row.document.file_name }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% for row in page.documents %}{% if row.pending %}
+  <section class="pending" aria-labelledby="pending-{{ row.document.pk }}">
+    <h3 id="pending-{{ row.document.pk }}">Pendiente de revisión · {{ row.document.title }}</h3>
+    <ul>
+      {% for segment in row.pending %}
+      <li>
+        {% if segment.page_start %}<a href="{% url 'tenders:document_original' row.document.pk %}#page={{ segment.page_start }}">Página {{ segment.page_start }}{% if segment.page_end and segment.page_end != segment.page_start %} a {{ segment.page_end }}{% endif %}</a> · {% endif %}{{ segment.get_review_reason_display }}{% if segment.path %} · {{ segment.path }}{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}{% endfor %}
+  {% else %}
+  <p>Todavía no hay documentos cargados.</p>
+  {% endif %}
+</section>
+
+<section class="document-form" aria-labelledby="form-title">
+  <h2 id="form-title">Cargar un documento</h2>
+  <form method="post" enctype="multipart/form-data" action="{% url 'tenders:procedure' page.procedure.pk %}">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <p class="form-error" role="alert">{{ form.non_field_errors|join:" " }}</p>
+    {% endif %}
+    {% for field in form %}
+    <p>
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+    </p>
+    {% if field.errors %}
+    <p class="form-error" role="alert" id="{{ field.auto_id }}_error">{{ field.errors|join:" " }}</p>
+    {% endif %}
+    {% endfor %}
+    <button type="submit">Cargar</button>
+  </form>
+</section>
+{% endblock %}
