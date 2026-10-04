@@ -42,7 +42,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 16/22 | ███████░░░ 73% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 17/22 | ████████░░ 77% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -368,8 +368,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 6 tareas sin terminar.
-- ○ T-081 · Elegir la consecuencia en la pantalla, con su motivo (pendiente)
+- **Próximo paso:** Desarrollar: 5 tareas sin terminar.
 - ○ T-082 · Validar la matriz y abrir versiones nuevas (pendiente)
 - ○ T-083 · Incorporar circulares y respuestas a consultas (pendiente)
 - ○ T-084 · Correr la medición del caso-00 (pendiente)
@@ -393,6 +392,7 @@ flowchart LR
 - ✓ T-078 · Completar los niveles alta y exigente (`eb07cf5` 2026-10-03, `062b704` 2026-10-03)
 - ✓ T-079 · Revisar la matriz: confirmar, corregir, quitar y agregar (`6f1d7ce` 2026-10-04, `99b6f89` 2026-10-04, `079bc82` 2026-10-04)
 - ✓ T-080 · Sugerir consecuencias con fundamento (`5bd4a61` 2026-10-04, `9325480` 2026-10-04)
+- ✓ T-081 · Elegir la consecuencia en la pantalla, con su motivo (`5c5c251` 2026-10-04, `f7671a6` 2026-10-04)
 - ✓ T-087 · Comparar en la misma zona horaria la fecha de lectura del informe (`5a07f91` 2026-10-03)
 - ✓ T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro (`94ab0d5` 2026-10-04)
 
@@ -414,7 +414,7 @@ flowchart TD
   T078["✓ T-078 · Completar los niveles alta y exigente"]:::done
   T079["✓ T-079 · Revisar la matriz: confirmar, corregir, qui…"]:::done
   T080["✓ T-080 · Sugerir consecuencias con fundamento"]:::done
-  T081["○ T-081 · Elegir la consecuencia en la pantalla, con…"]:::todo
+  T081["✓ T-081 · Elegir la consecuencia en la pantalla, con…"]:::done
   T082["○ T-082 · Validar la matriz y abrir versiones nuevas"]:::todo
   T083["○ T-083 · Incorporar circulares y respuestas a consul…"]:::todo
   T084["○ T-084 · Correr la medición del caso-00"]:::todo
