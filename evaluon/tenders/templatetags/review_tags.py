@@ -4,7 +4,7 @@
 - `discarded_line`: la línea "El sistema descartó N filas y unificó M repetidas" de la
   matriz (con el enlace a la lista) y de la impresión y el PDF (con el reparto por motivo
   y sin enlace).
-- `group_headers`: los encabezados por cláusula de primer nivel y por tramo con dos o más
+- `group_headers` y `suggestion_headers`: los encabezados por cláusula de primer nivel y por tramo con dos o más
   propuestas, con la cantidad de filas `propuesto` que tocaría cada botón; se cuentan con
   la misma regla que usa el servicio de grupos.
 - `lookup`: busca una clave en un diccionario.
@@ -15,8 +15,7 @@ from collections import Counter
 from django import template
 
 from evaluon.tenders.models import FilterMotive, RequirementQuote, Segment
-from evaluon.tenders.services import discarded
-from evaluon.tenders.views import review
+from evaluon.tenders.services import discarded, groups
 
 register = template.Library()
 
@@ -49,19 +48,15 @@ def discarded_line(page, link=True):
     }
 
 
-@register.simple_tag
-def group_headers(page):
-    """`{id del requisito: [encabezados]}`: el encabezado va antes de la primera fila de su
-    cláusula o tramo en cada documento. Solo en un borrador (donde se revisa)."""
+def _headers(page, lists, entries):
+    """Los encabezados de las filas de `lists` (una lista de filas por documento o una sola),
+    con la cantidad de filas de `entries` que tocaría cada botón."""
     headers = {}
-    if not page.can_edit:
-        return headers
-    entries = review.proposed_entries(page.version)
-    ids = {q.segment_id for d in page.groups for r in d.rows for q in r.quotes}
+    ids = {q.segment_id for rows in lists for r in rows for q in r.quotes}
     key_of = dict(Segment.objects.filter(pk__in=ids).values_list("pk", "key"))
 
     def count(group):
-        return sum(1 for _r, keys in entries if review.in_group(keys, group))
+        return sum(1 for _r, keys in entries if groups.in_group(keys, group))
 
     totals = {}
 
@@ -70,15 +65,15 @@ def group_headers(page):
             totals[group] = count(group)
         return totals[group]
 
-    for document in page.groups:
+    for rows in lists:
         previous_clause = previous_segment = None
-        for row in document.rows:
+        for row in rows:
             keys = [key_of[q.segment_id] for q in row.quotes if q.scope in ("", "propia")]
             if not keys:
                 previous_clause = previous_segment = None
                 continue
             segment = keys[0]
-            clause = review.clause_of(segment)
+            clause = groups.clause_of(segment)
             found = []
             if clause != previous_clause and total(clause):
                 found.append({"kind": "clause", "title": f"Cláusula {clause}",
@@ -91,3 +86,22 @@ def group_headers(page):
             if found:
                 headers[row.requirement.pk] = found
     return headers
+
+
+@register.simple_tag
+def group_headers(page):
+    """`{id del requisito: [encabezados]}`: el encabezado va antes de la primera fila de su
+    cláusula o tramo en cada documento. Solo en un borrador (donde se revisa)."""
+    if not page.can_edit:
+        return {}
+    return _headers(page, [d.rows for d in page.groups], groups.proposed_entries(page.version))
+
+
+@register.simple_tag
+def suggestion_headers(page):
+    """Lo mismo para las sugerencias de condición (REQ-034, REQ-035): encabezado por
+    cláusula y por tramo con la cantidad de sugerencias que tocaría "Pasar a requisito" o
+    "Quitar", contada con la regla de grupo de los servicios."""
+    if not page.can_edit:
+        return {}
+    return _headers(page, [page.suggestions], groups.suggested_entries(page.version))

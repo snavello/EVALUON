@@ -88,3 +88,6 @@ ul { margin: 0.2rem 0; padding-left: 1.2rem; }
 @media print {
   .toolbar { display: none; }
 }
+
+.suggestion { border-left: 3px solid #8a8a8a; padding-left: 0.4rem; }
+.doubt-reason, .no-support, .passed-note, .norm-support { margin: 0.15rem 0; font-size: 8.5pt; }

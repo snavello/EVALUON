@@ -1,0 +1,12 @@
+{% comment %}El respaldo normativo de una fila que es o fue sugerencia (REQ-036): norma y ruta, vigencia, cita literal y, en la pantalla, el enlace a la unidad. Sin respaldo, una sugerencia lo dice. Recibe `row` y `print` (verdadero en la impresión y el PDF, sin enlaces).{% endcomment %}{% if row.supports %}
+<div class="norm-support">
+  <p class="source-label">Respaldo normativo:</p>
+  {% for support in row.supports %}
+  <p class="source-label">{{ support.unit_label }} · vigente desde {{ support.effective_from|date:"d/m/Y" }}{% if support.effective_to %} hasta {{ support.effective_to|date:"d/m/Y" }}{% endif %} · {{ support.regime }} · normativa versión {{ support.corpus_version }}:</p>
+  <blockquote class="literal">{{ support.text }}</blockquote>
+  {% if not print %}<p class="quote-place"><a class="original-link" href="{% url 'norms:original' support.document_id %}{% if support.page %}#page={{ support.page }}{% endif %}">Ver la unidad en el original de la norma</a></p>{% endif %}
+  {% endfor %}
+</div>
+{% elif row.requirement.state == "sugerido" %}
+<p class="no-support">Sin respaldo normativo encontrado: no es motivo para quitarla.</p>
+{% endif %}
