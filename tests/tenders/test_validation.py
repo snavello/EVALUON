@@ -639,3 +639,18 @@ def test_the_new_version_button_is_only_on_the_last_validated(
 
     assert url not in page_text(client.get(reverse("tenders:matrix", args=[first.pk])))
     assert url in page_text(client.get(reverse("tenders:matrix", args=[second.pk])))
+
+
+def test_the_new_version_copies_the_reference_to_the_original(
+        operator_user, evaluator_user, ready):
+    """REQ-031: una versión nueva copia el original en un anexo de cada fuente."""
+    annex = ready.requirements.get(sources__isnull=False).quotes.get().segment
+    m.RequirementSource.objects.filter(requirement__version=ready).update(
+        original_segment=annex, original_char_start=2, original_char_end=6)
+    validated = service.validate(evaluator_user, ready.pk)
+
+    new = service.open_new_version(operator_user, validated.procedure_id)
+
+    copied = m.RequirementSource.objects.get(requirement__version=new)
+    assert (copied.original_segment_id, copied.original_char_start,
+            copied.original_char_end) == (annex.pk, 2, 6)

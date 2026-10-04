@@ -1358,3 +1358,118 @@ def test_invalid_process_or_level_rejected(procedure, read_write_user):
     ):
         with pytest.raises(IntegrityError), transaction.atomic():
             insert()
+
+
+# --- T-114: original de la circular en un anexo, pasada nueva, parámetros ---------------
+
+
+def _source_with(requirement, segment, **fields):
+    values = {
+        "requirement": requirement, "effect": "modifica", "segment": segment,
+        "char_start": 0, "char_end": 1, "text": "S", "issued_on": date(2025, 11, 20),
+    }
+    values.update(fields)
+    return m.RequirementSource.objects.create(**values)
+
+
+@pytest.mark.django_db
+def test_source_without_original_stays_valid(segments, draft):
+    """REQ-031: una fuente sin los tres campos del original sigue siendo válida."""
+    a, b = segments
+    requirement = add_requirement(draft, 1, "formal")
+    add_quote(requirement, a)
+    source = _source_with(requirement, b)
+    source.refresh_from_db()
+    assert (source.original_segment_id, source.original_char_start,
+            source.original_char_end) == (None, None, None)
+
+
+@pytest.mark.django_db
+def test_source_with_the_three_original_fields_accepted(segments, draft):
+    """REQ-031: con los tres campos del original y posiciones coherentes, se acepta."""
+    a, b = segments
+    requirement = add_requirement(draft, 1, "formal")
+    add_quote(requirement, a)
+    source = _source_with(
+        requirement, b, original_segment=a, original_char_start=5, original_char_end=9
+    )
+    source.refresh_from_db()
+    assert source.original_segment == a
+    assert (source.original_char_start, source.original_char_end) == (5, 9)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("given", [
+    ("segment",), ("start",), ("end",), ("segment", "start"), ("segment", "end"),
+    ("start", "end"),
+])
+def test_source_with_some_original_fields_rejected(segments, draft, given):
+    """REQ-031: los tres campos del original van juntos o ninguno."""
+    a, b = segments
+    requirement = add_requirement(draft, 1, "formal")
+    add_quote(requirement, a)
+    fields = {}
+    if "segment" in given:
+        fields["original_segment"] = a
+    if "start" in given:
+        fields["original_char_start"] = 5
+    if "end" in given:
+        fields["original_char_end"] = 9
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _source_with(requirement, b, **fields)
+
+
+@pytest.mark.django_db
+def test_source_with_inverted_original_range_rejected(segments, draft):
+    """REQ-031: el fin del original no puede ser menor que su inicio."""
+    a, b = segments
+    requirement = add_requirement(draft, 1, "formal")
+    add_quote(requirement, a)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _source_with(requirement, b, original_segment=a, original_char_start=9,
+                     original_char_end=5)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("column,value", [
+    ("original_char_start", "7"), ("original_char_end", "20"),
+    ("original_segment_id", "NULL"),
+])
+def test_original_fields_of_a_validated_source_cannot_change(
+        segments, draft, read_write_user, column, value):
+    """REQ-031, REQ-027: la base rechaza un UPDATE de los campos del original de una
+    fuente de una versión validada."""
+    a, b = segments
+    requirement = add_requirement(draft, 1, "formal")
+    add_quote(requirement, a)
+    source = _source_with(requirement, b, original_segment=a, original_char_start=5,
+                          original_char_end=9)
+    validate(draft, read_write_user)
+    with pytest.raises(DatabaseError) as rejected, transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"UPDATE tenders_requirement_source SET {column} = {value} WHERE id = %s",
+                [source.pk],
+            )
+    assert "versión validada" in str(rejected.value)
+
+
+@pytest.mark.django_db
+def test_pass_name_circulares_cambios_accepted_and_invented_rejected(new_run):
+    """REQ-031: `circulares_cambios` es una pasada válida; una inventada, no."""
+    m.RunStep.objects.create(
+        run=new_run, pass_name="circulares_cambios", batch=1, request={}
+    )
+    with pytest.raises(IntegrityError), transaction.atomic():
+        m.RunStep.objects.create(
+            run=new_run, pass_name="circulares_cambio", batch=2, request={}
+        )
+
+
+def test_circular_extraction_parameters_in_settings():
+    """REQ-031: los parámetros de la extracción de cambios existen con sus valores por
+    omisión y la pasada tiene su versión de instrucciones."""
+    assert settings.CIRCULAR_EXTRACTION_ENABLED is True
+    assert settings.CIRCULAR_EXTRACTION_REPEATS == 1
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v3"
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares"] == "matriz-circulares-v2"
