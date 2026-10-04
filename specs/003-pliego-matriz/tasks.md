@@ -33,7 +33,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-083 | Incorporar circulares y respuestas a consultas | REQ-031 | T-080 | terminada |
 | T-084 | Correr la medición del caso-00 | REQ-024, REQ-025, REQ-029, REQ-030 | T-075, T-076, T-077, T-080 | terminada |
 | T-085 | Ofrecer solo los niveles que mejoran | REQ-030 | T-084 | pendiente |
-| T-086 | Imprimir y exportar la matriz a PDF con la leyenda de borrador | REQ-032 | T-082 | pendiente |
+| T-086 | Imprimir y exportar la matriz a PDF con la leyenda de borrador | REQ-032 | T-082 | terminada |
 | T-087 | Comparar en la misma zona horaria la fecha de lectura del informe | REQ-004 | — | terminada |
 | T-088 | Cambiar el rol de la Comisión de un usuario existente, con registro | REQ-026 | — | terminada |
 | T-089 | Contar bien las páginas en la extrapolación de tiempos | REQ-030 | T-084 | terminada |
