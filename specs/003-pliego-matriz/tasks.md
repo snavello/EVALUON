@@ -39,6 +39,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-089 | Contar bien las páginas en la extrapolación de tiempos | REQ-030 | T-084 | pendiente |
 | T-090 | Investigar y corregir los reinicios de los servidores de generación | REQ-024, REQ-030 | T-084 | terminada |
 | T-091 | Comparar niveles medidos en corridas separadas | REQ-030 | T-084 | pendiente |
+| T-092 | Aceptar las divisiones de la completitud aunque el original no coincida letra por letra | REQ-024 | T-084 | en curso |
 
 ## Para todas las tareas
 
@@ -233,6 +234,14 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 - **Archivos:** `evaluon/tenders/evaluation.py`, `evaluon/tenders/management/commands/medir_matriz.py`, `tests/tenders/test_evaluation.py`.
 - **Verificación:** con corridas sintéticas de media, alta y exigente en carpetas separadas, el resumen compara y dice qué niveles mejoran; nada de texto del pliego en el resumen público.
 - **No tocar:** la propuesta.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-092 · Aceptar las divisiones de la completitud aunque el original no coincida letra por letra
+
+- **Qué hacer:** defecto encontrado al analizar los faltantes de T-084 (consulta de solo lectura del 2026-10-04): la pasada de completitud propuso divisiones correctas (M-044 en alta, M-009 en exigente) y el sistema las rechazó con `completitud_division_no_aplicada` porque el `original` que escribe el modelo no es idéntico al fragmento de la fila existente (por ejemplo, el modelo copia la etiqueta de clase "(formal)" dentro del original, o recorta distinto). Además, esa pasada dejó una fila duplicada. Identificar la fila original por superposición con la cita existente (tolerando la etiqueta de clase, espacios y recortes) en lugar de igualdad exacta; mantener las reglas de T-078 (las partes dentro del original y cubriéndolo; si no, queda el original con la anomalía); no crear duplicados.
+- **Archivos:** `evaluon/tenders/proposal/completeness.py`, `tests/tenders/test_completeness.py`.
+- **Verificación:** tests con el doble: un original con "(formal)" pegado, uno con espacios o recorte distinto, y uno que no corresponde a ninguna fila (se ignora con anomalía); ninguna división acepta partes que no cubran el original; sin duplicados. Suite en verde.
+- **No tocar:** instrucciones, `run.py` salvo lo imprescindible, la lista esperada.
 - **Entorno:** cualquier equipo con Docker.
 
 ### T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro
