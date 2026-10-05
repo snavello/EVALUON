@@ -221,7 +221,7 @@ def test_a_requirement_without_an_answer_says_it_was_not_found(offer, operator_u
     page = sheets.sheet_page(operator_user, sheet.pk)
     missing = {r.requirement.number for r in page.missing}
     assert 3 in missing and 1 not in missing
-    assert sheet.counts["not_found"] + sheet.counts["found"] == sheet.counts["entries"] == 8
+    assert sheet.counts["not_found"] + sheet.counts["found"] == sheet.counts["entries"] == 9
 
 
 def test_an_offer_with_no_passages_leaves_every_requirement_not_found(
@@ -377,7 +377,8 @@ def test_a_quoted_item_shows_its_citation_and_a_missing_one_is_not_quoted(
         "Los precios")
     assert third.quoted == om.Quoted.NO_COTIZADO and not third.fragments.exists()
     assert entry_of(sheet, 1).quoted == ""  # solo las filas por renglón llevan cotización
-    assert script.calls[-1]["schema"]["required"] == ["cotizado", "pasajes", "sintesis"]
+    item_call = next(c for c in script.calls if c["messages"][-1]["content"].startswith("Renglón"))
+    assert item_call["schema"]["required"] == ["cotizado", "pasajes", "sintesis"]
 
 
 def test_an_item_the_model_says_was_not_quoted_is_not_quoted_even_with_a_passage(

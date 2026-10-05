@@ -22,11 +22,12 @@ pytestmark = pytest.mark.django_db
 # Qué pasaje elige el guion para cada requisito del caso chico (por su texto).
 ANSWERS = (
     ("declaración jurada", "Declaro bajo juramento"),
-    ("constancia de inscripción", "registro de proveedores"),
+    ("constancia de inscripción", "registro de proveedores con el número"),
+    ("garantía", "constituye la garantía"),
     ("Cotizar en pesos", "precios se cotizan"),
     ("validez", "validez por sesenta"),
-    ("RESMA", "Renglón 1"),
-    ("CARTUCHO", "Renglón 2"),
+    ("RESMA", "1 Resma"),
+    ("CARTUCHO", "2 Cartucho"),
 )
 
 
@@ -50,6 +51,9 @@ def case_script(script, *, wrong=None, extra=None):
 def chico(db, operator_user, fake_ai, expected):
     """El caso chico armado en la base, con la lectura real de sus tres PDF."""
     procedure, offers = ev.build_case(operator_user, expected)
+    # el reranker puntúa alto lo que el guion va a elegir (con 13 pasajes y 8 candidatos,
+    # sin puntajes el azar de los vectores del doble dejaría afuera algún pasaje)
+    fake_ai.reranker.scores = {needle: 0.9 for _, needle in ANSWERS}
     return procedure, offers
 
 
@@ -63,12 +67,14 @@ def run(operator_user, chico, expected, tmp_path, **kwargs):
 
 
 def test_the_list_of_the_small_case_loads(expected):
-    """La lista del caso chico: una oferta, seis fragmentos, un requisito sin respuesta."""
+    """La lista del caso chico: una oferta de cuatro documentos, siete fragmentos, un
+    requisito sin respuesta y una página no legible."""
     offer = expected.offers[0]
-    assert len(offer.fragments) == 6 and offer.no_answer == ["M-003"]
+    assert len(offer.fragments) == 7 and offer.no_answer == ["M-009"]
+    assert len(offer.documents) == 4 and len(offer.unreadable_pages) == 1
     assert offer.items == {1: "cotizado", 2: "cotizado", 3: "no_cotizado"}
     assert offer.technical_documents is True
-    assert len(expected.requirements) == 8 and expected.approval
+    assert len(expected.requirements) == 9 and expected.approval
 
 
 def test_a_list_without_approval_is_not_used(tmp_path):
@@ -86,7 +92,7 @@ def test_a_list_without_approval_is_not_used(tmp_path):
     ("requisito: M-006", "requisito: M-099", "requisito desconocido"),
     ("documento: constancia-escaneada.pdf, pagina: 1", "documento: otro.pdf, pagina: 1",
      "documento desconocido"),
-    ("sin_respuesta: [M-003]", "sin_respuesta: [M-099]", "requisitos desconocidos"),
+    ("sin_respuesta: [M-009]", "sin_respuesta: [M-099]", "requisitos desconocidos"),
     ("renglones: {1: cotizado,", "renglones: {1: quizas,", "cotizado"),
     ("clase: tecnico, renglon: 1", "clase: tecnico", "renglon"),
 ])
@@ -103,7 +109,8 @@ def test_a_badly_formed_list_is_refused(tmp_path, old, new, message):
 def test_a_document_that_does_not_match_its_fingerprint_is_refused(operator_user, expected,
                                                                    tmp_path):
     """P6: el archivo debe ser el que la lista nombra, con su huella."""
-    for name in ("pliego.pdf", "oferta-propuesta.pdf", "constancia-escaneada.pdf"):
+    for name in ("pliego.pdf", "oferta-propuesta.pdf", "constancia-escaneada.pdf",
+                 "poliza-caucion.pdf", "documento-firmado-mixto.pdf"):
         shutil.copy(DATA / name, tmp_path / name)
     (tmp_path / "oferta-propuesta.pdf").write_bytes(b"%PDF-1.4 cambiado")
     with pytest.raises(ev.MeasurementRefused, match="huella"):
@@ -114,13 +121,13 @@ def test_a_document_that_does_not_match_its_fingerprint_is_refused(operator_user
 
 
 def test_the_case_is_built_with_a_validated_matrix_and_a_read_offer(chico, expected):
-    """El corte vertical: procedimiento, matriz validada, oferta con sus dos documentos
-    leídos (uno escaneado)."""
+    """El corte vertical: procedimiento, matriz validada, oferta con sus cuatro documentos
+    leídos (dos con escaneo)."""
     procedure, offers = chico
     version = procedure.matrix_versions.get()
-    assert version.status == "validated" and version.requirements.count() == 8
+    assert version.status == "validated" and version.requirements.count() == 9
     offer = offers["Oferente A Sintético"]
-    assert offer.documents.count() == 2
+    assert offer.documents.count() == 4
     assert all(d.readings.count() == 1 for d in offer.documents.all())
     assert offer.documents.get(file_name="constancia-escaneada.pdf").readings.get()\
         .passages.first().text_origin == "ocr"
@@ -130,7 +137,7 @@ def test_building_the_case_twice_does_not_duplicate_anything(chico, operator_use
     """El armado es idempotente: lo que existe no se vuelve a crear."""
     procedure, offers = ev.build_case(operator_user, expected)
     assert procedure.offers.count() == 1 and procedure.matrix_versions.count() == 1
-    assert om.Reading.objects.count() == 2
+    assert om.Reading.objects.count() == 4
 
 
 def test_the_list_is_verified_against_the_readings_without_the_model(chico, expected,
@@ -139,7 +146,7 @@ def test_the_list_is_verified_against_the_readings_without_the_model(chico, expe
     _, offers = chico
     verification = ev.verify_expected(expected, offers)
     assert verification.ok, verification.lines
-    assert verification.counts == {"documents": 2, "anchors": 6, "unreadable_pages": 0}
+    assert verification.counts == {"documents": 4, "anchors": 7, "unreadable_pages": 1}
     assert script.calls == []
 
 
@@ -173,13 +180,16 @@ def test_a_model_that_answers_well_meets_every_threshold(chico, operator_user, e
     report = run(operator_user, chico, expected, tmp_path)
     total = report.total
     assert report.blocking == []
-    assert total["found"] == {"ok": 6, "total": 6, "rate": 1.0}
-    assert (total["literal"]["ok"], total["literal"]["total"]) == (6, 6)
+    assert total["found"] == {"ok": 7, "total": 7, "rate": 1.0}
+    assert (total["literal"]["ok"], total["literal"]["total"]) == (7, 7)
     assert total["no_answer"] == {"ok": 1, "total": 1, "rate": 1.0}
-    assert total["items"] == {"ok": 3, "total": 3, "rate": 1.0}
+    # el renglón sin oferta no se puede dar por "no cotizado": la oferta tiene una página
+    # ilegible, así que figura "no se pudo leer" y se informa aparte
+    assert total["items"] == {"ok": 2, "total": 2, "rate": 1.0}
+    assert total["items_unreadable"] == [3]
     assert total["technical_documents"]["rate"] == 1.0
     assert total["pages_unlisted"] == [] and total["false_findings"] == []
-    assert total["extra_fragments"] == 0 and total["pages"] == 3
+    assert total["extra_fragments"] == 0 and total["pages"] == 8
 
 
 def test_the_run_leaves_its_folder_with_a_public_summary(chico, operator_user, expected,
@@ -217,11 +227,11 @@ def test_the_measure_leaves_the_sheet_with_the_eval_channel(chico, operator_user
 
 def test_a_missed_fragment_lowers_the_found_rate_and_blocks(chico, operator_user, expected,
                                                             script, tmp_path):
-    """REQ-039: un fragmento esperado en otro lugar no cuenta como encontrado; 5 de 6 es
-    83,3 %, menos del 90 %, y bloquea."""
-    case_script(script, wrong={"validez": "Renglón 2"})
+    """REQ-039: un fragmento esperado en otro lugar no cuenta como encontrado; 6 de 7 es
+    85,7 %, menos del 90 %, y bloquea."""
+    case_script(script, wrong={"validez": "2 Cartucho"})
     report = run(operator_user, chico, expected, tmp_path)
-    assert report.total["found"]["ok"] == 5
+    assert report.total["found"]["ok"] == 6
     assert any("Fragmentos esperados encontrados" in line for line in report.blocking)
     causes = [line["causa"] for r in report.results for line in r["measures"]["lines"]
               if line["tipo"] == "fragmento" and not line["encontrado"]]
@@ -233,18 +243,18 @@ def test_a_fragment_in_a_requirement_without_an_answer_is_a_false_finding(
         chico, operator_user, expected, script, tmp_path):
     """REQ-040: un fragmento propuesto donde no hay respuesta se informa como falso hallazgo
     y la medida del requisito sin respuesta baja a 0 de 1."""
-    case_script(script, extra={"garantía": "validez por sesenta"})
+    case_script(script, extra={"certificado fiscal": "validez por sesenta"})
     report = run(operator_user, chico, expected, tmp_path)
-    assert report.total["false_findings"] == ["M-003"]
+    assert report.total["false_findings"] == ["M-009"]
     assert report.total["no_answer"]["ok"] == 0
     assert any("sin respuesta" in line for line in report.blocking)
 
 
 def test_a_wrong_item_state_blocks(chico, operator_user, expected, script, tmp_path):
     """REQ-044: un renglón con otro estado que el esperado baja la medida de renglones."""
-    case_script(script, extra={"ARCHIVADOR": "Renglón 2"})
+    case_script(script, extra={"ARCHIVADOR": "1 Resma"})
     report = run(operator_user, chico, expected, tmp_path)
-    assert report.total["items"]["ok"] == 2
+    assert report.total["items"] == {"ok": 2, "total": 3, "rate": 2 / 3}
     assert any("Renglones" in line for line in report.blocking)
 
 
@@ -306,13 +316,14 @@ def test_the_command_builds_verifies_and_measures_the_small_case(
     mide con el modelo."""
     call_command("medir_fichas", usuario="operador", caso_chico=True, verificar_esperada=True)
     out = capsys.readouterr().out
-    assert "anclas 6" in out and "sin fallas" in out
+    assert "anclas 7" in out and "sin fallas" in out
+    fake_ai.reranker.scores = {needle: 0.9 for _, needle in ANSWERS}
     case_script(script)
     call_command("medir_fichas", usuario="operador", caso_chico=True, corridas=str(tmp_path),
                  commit="abc1234")
     out = capsys.readouterr().out
     assert "Corrida guardada en" in out and "Bloquea la aceptación: nada" in out
-    assert "6 de 6" in out
+    assert "7 de 7" in out
 
 
 def test_the_command_needs_a_list(as_operator):

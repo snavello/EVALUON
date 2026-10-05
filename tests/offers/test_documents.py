@@ -137,14 +137,14 @@ def test_reading_a_text_document_saves_passages_with_vectors(new_offer, operator
     assert jobs.run_next().status == m.JobStatus.DONE
     reading = document.readings.get()
     passages = list(reading.passages.order_by("order"))
-    assert [p.page for p in passages] == [1, 1, 2]
+    assert [p.page for p in passages] == [1, 1, 2, 2, 3]
     assert all(reading.canonical_text[p.char_start:p.char_end] == p.text for p in passages)
     assert all(len(p.embedding) == 1024 for p in passages)
     assert sum(len(call) for call in fake_ai.embeddings.calls) == len(passages)
     report = reading.report
-    assert report["pages"] == 2 and report["unread"] == [] == report["without_text_unlisted"]
+    assert report["pages"] == 3 and report["unread"] == [] == report["without_text_unlisted"]
     event = events(EventType.OFFER_READ, Outcome.OK).get()
-    assert event.detail["reading"] == reading.pk and event.detail["passages"] == 3
+    assert event.detail["reading"] == reading.pk and event.detail["passages"] == 5
     assert event.detail["tool_versions"]["embeddings"]["model"]
 
 
