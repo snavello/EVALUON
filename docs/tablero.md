@@ -57,7 +57,7 @@ flowchart LR
 | 009 · Validación continua con la Comisión | Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus respuestas. Cada cuestión resuelta puede quedar como fundamento (ADR-0009), como caso para medir al sistema o como pedido de cargar una norma o un documento. Lo que queda sin validar se ve como pendiente. Uso intensivo al principio, y después ante cuestiones que no se saben resolver | No iniciada | — | — |
 | 010 · Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | No iniciada | — | — |
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
-| [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 4 de 7 · Desarrollo | 2/8 | ██░░░░░░░░ 25% |
+| [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 4 de 7 · Desarrollo | 3/8 | ████░░░░░░ 38% |
 
 <a id="001"></a>
 
@@ -735,8 +735,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 6 tareas sin terminar.
-- ○ T-140 · Leer la página pública del proceso: datos básicos, renglones, cronograma, garantías y lista de documentos, con el texto normalizado (pendiente)
+- **Próximo paso:** Desarrollar: 5 tareas sin terminar.
 - ○ T-141 · Corte vertical: registrar el enlace, explorar, proponer, aprobar ítem por ítem y cargar el procedimiento y los renglones, con pantalla (pendiente)
 - ○ T-142 · Importar los documentos: bajar el pliego, circulares y demás con su huella y cargarlos por `load_document` (pendiente)
 - ○ T-143 · Importar las ofertas: acta de apertura y cuadro comparativo, ofertas con garantía y cotización por renglón (pendiente)
@@ -748,6 +747,7 @@ flowchart LR
 - Etapas completas: Spec, Plan, Tareas.
 - ✓ T-138 · Preparar el esquema, la conexión acotada y la cola del Portal: tablas de `portal`, cambios de `tenders_job` y de auditoría, servicio `portal_worker`, cliente HTTP con lista de destinos y `entorno.md` (`f245f36` 2026-10-05, `3e2d665` 2026-10-05)
 - ✓ T-139 · Preparar los casos para probar: páginas reales del caso-00 y de un proceso con circulares (fuera del repositorio), calcos con datos inventados y lista esperada (Coordinador) (`69db5db` 2026-10-05)
+- ✓ T-140 · Leer la página pública del proceso: datos básicos, renglones, cronograma, garantías y lista de documentos, con el texto normalizado (`c4ad118` 2026-10-05)
 
 ### Mapa de tareas
 
@@ -755,7 +755,7 @@ flowchart LR
 flowchart TD
   T138["✓ T-138 · Preparar el esquema, la conexión acotada y…"]:::done
   T139["✓ T-139 · Preparar los casos para probar: páginas rea…"]:::done
-  T140["○ T-140 · Leer la página pública del proceso: datos b…"]:::todo
+  T140["✓ T-140 · Leer la página pública del proceso: datos b…"]:::done
   T141["○ T-141 · Corte vertical: registrar el enlace, explor…"]:::todo
   T142["○ T-142 · Importar los documentos: bajar el pliego, c…"]:::todo
   T143["○ T-143 · Importar las ofertas: acta de apertura y cu…"]:::todo
