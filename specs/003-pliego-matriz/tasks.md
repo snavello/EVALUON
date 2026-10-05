@@ -77,7 +77,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-127 | Impedir que una aclaración termine como supresión y registrar la versión de `circulares_cambios` | REQ-031 | T-115, T-124 | terminada |
 | T-128 | Aplicar una aclaración de cláusula a todas sus citas | REQ-031 | T-115, T-124, T-127 | terminada |
 | T-129 | Reconocer supresiones dichas con sustantivo y aplicar la aclaración de un renglón a sus citas | REQ-031 | T-127, T-128 | terminada |
-| T-137 | Pasada de circulares: revisión obligatoria visible ante un cambio sin resolver y las tres causas de la aceptación a ciegas | REQ-031 | T-108, T-129 | pendiente |
+| T-137 | Pasada de circulares: revisión obligatoria visible ante un cambio sin resolver y las tres causas de la aceptación a ciegas | REQ-031 | T-108, T-129 | terminada |
 
 ## Para todas las tareas
 
