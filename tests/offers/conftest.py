@@ -178,3 +178,10 @@ def pick(*needles, synthesis="Lo que ofrece el oferente.", quoted=None, when="")
         return answer
 
     return function
+
+
+@pytest.fixture(autouse=True)
+def _no_minimum_rerank_score(settings):
+    """Los dobles del reranker puntúan 0,0 por omisión: las pruebas que no hablan del puntaje
+    mínimo (T-136) lo dejan en 0 para que pasen los mejores candidatos como antes."""
+    settings.OFFERS_MIN_RERANK_SCORE = 0.0

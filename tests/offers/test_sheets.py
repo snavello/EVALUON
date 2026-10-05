@@ -182,17 +182,17 @@ def test_candidates_come_from_all_documents_regardless_of_their_kind(
 def test_only_the_best_candidates_by_the_reranker_reach_the_model(
         procedure, operator_user, fake_ai, script):
     """ADR-0027: pasan los mejores del reranker, de mayor a menor puntaje, hasta el tope."""
-    pages = [f"Texto número {n}." for n in range(1, 13)]
+    pages = [f"Texto número {n}." for n in range(1, 17)]
     offer = make_offer(procedure, operator_user, "Muchos", {"a.pdf": pages})
-    fake_ai.reranker.scores = {f"número {n}.": n / 20 for n in range(1, 13)}
-    script.choose(pick("número 12."))
+    fake_ai.reranker.scores = {f"número {n}.": n / 20 for n in range(1, 17)}
+    script.choose(pick("número 16."))
     sheet = build(offer, operator_user)
     blocks = script.calls[0]["blocks"]
     assert len(blocks) == 8
-    assert list(blocks.values())[0] == "Texto número 12."
-    assert list(blocks.values())[-1] == "Texto número 5."
+    assert list(blocks.values())[0] == "Texto número 16."
+    assert list(blocks.values())[-1] == "Texto número 9."
     step = sheet.steps.filter(entry__requirement__number=1).get()
-    assert len(step.candidates["pool"]) == 12 and len(step.candidates["sent"]) == 8
+    assert len(step.candidates["pool"]) == 16 and len(step.candidates["sent"]) == 8
 
 
 def test_the_request_to_the_model_uses_the_batch_engine_and_fixed_parameters(
@@ -285,14 +285,16 @@ def test_a_synthesis_with_judgment_is_retried_with_the_warning(offer, operator_u
     assert sheet.counts["retries"] == 1 and sheet.anomalies == []
 
 
-def test_a_synthesis_that_keeps_the_judgment_is_left_empty_with_its_anomaly(
+def test_a_synthesis_that_keeps_the_judgment_is_replaced_by_a_neutral_one_with_its_anomaly(
         offer, operator_user, script):
-    """REQ-041: si vuelve a fallar, la fila queda sin síntesis (conserva sus fragmentos) y la
-    anomalía en el registro; ninguna síntesis guardada tiene palabras de juicio."""
+    """REQ-041: si vuelve a fallar, la fila no queda vacía: lleva una síntesis neutra que solo
+    dice dónde está la respuesta, conserva sus fragmentos y deja la anomalía en el registro;
+    ninguna síntesis guardada tiene palabras de juicio (T-135)."""
     script.choose(pick(DECLARATION, synthesis="La oferta cumple.", when="declaración jurada"))
     sheet = build(offer, operator_user)
     row = entry_of(sheet, 1)
-    assert row.synthesis == "" and row.fragments.count() == 1
+    assert row.synthesis.startswith("El oferente responde en: ") and row.fragments.count() == 1
+    assert "oferta.pdf" in row.synthesis and "página 1" in row.synthesis
     assert row.outcome == om.Outcome.ENCONTRADO
     assert {"type": "sintesis_con_juicio", "requirement": 1} in sheet.anomalies
     assert all(not sheets.judgment_words(e.synthesis) for e in sheet.entries.all())
@@ -360,7 +362,7 @@ def test_every_model_request_is_recorded(offer, operator_user, script):
     detail = events(EventType.SHEET_BUILD, Outcome.OK).get().detail
     assert detail["models"]["generation_batch"]["sha256"]
     assert detail["parameters"]["candidates_to_model"] == 8
-    assert detail["prompt_versions"] == {"ficha": "ficha-v1", "ficha_renglon": "ficha-renglon-v1"}
+    assert detail["prompt_versions"] == {"ficha": "ficha-v2", "ficha_renglon": "ficha-renglon-v4"}
     assert detail["counts"]["model_requests"] == sheet.steps.count()
 
 
@@ -484,3 +486,331 @@ def test_the_prompts_exist_and_say_the_model_does_not_judge():
     for name in ("ficha", "ficha_renglon"):
         text = sheets.load_prompt(name)
         assert "no cumple" in text and "No decidís" in text
+
+
+# --- Ronda 1 de T-135 --------------------------------------------------------------------------
+
+
+def _table_offer(procedure, operator_user):
+    """Una oferta cuya tabla del Portal (solo número y descripción) está partida en tres
+    pasajes de la misma página, más una página aparte."""
+    offer = make_offer(procedure, operator_user, "Con tabla", {
+        "tabla.pdf": ["Renglón Descripción", "Otra página sin relación."]})
+    reading = om.Reading.objects.get(document__offer=offer)
+    first = reading.passages.get(page=1)
+    from tests.conftest import unit_vector
+
+    for order, text in ((3, "2 Cartucho de tóner negro"), (4, "1 Resma de papel A4")):
+        om.Passage.objects.create(
+            reading=reading, order=order, key=f"p1/b{order}", page=1, char_start=0, char_end=1,
+            text=text, text_origin="pdf_text", embedding=unit_vector(100 + order))
+    return offer, first
+
+
+def test_the_query_of_an_item_row_starts_with_the_item_number(offer, operator_user, fake_ai,
+                                                              script):
+    """REQ-044 (T-135): la consulta del renglón lleva "Renglón N" delante; la de un requisito
+    común no cambia."""
+    build(offer, operator_user)
+    queries = [query for query, _ in fake_ai.reranker.calls]
+    assert any(q.startswith("Renglón 1: ") for q in queries)
+    assert any(q.startswith("Renglón 3: ") for q in queries)
+    assert not any(q.startswith("Renglón") for q in queries
+                   if "declaración jurada" in q or "validez" in q)
+
+
+def test_an_item_row_also_gets_the_neighbors_of_its_best_passages(
+        procedure, operator_user, fake_ai, script, settings):
+    """REQ-044 (T-135): la zona de tabla: los pasajes vecinos de la misma página del mejor
+    candidato llegan al modelo aunque no hayan entrado por el reranker; una fila común no los
+    recibe, y una página distinta tampoco."""
+    settings.OFFERS_CANDIDATES_TO_MODEL = 1
+    settings.OFFERS_ITEM_CANDIDATES_TO_MODEL = 1
+    offer, _ = _table_offer(procedure, operator_user)
+    fake_ai.reranker.scores = {"Cartucho": 0.9}
+    script.choose(lambda requirement, blocks, number, messages: None)
+    sheet = build(offer, operator_user)
+    item_call = next(c for c in script.calls if c["messages"][-1]["content"].startswith("Renglón"))
+    texts = list(item_call["blocks"].values())
+    assert texts[0] == "2 Cartucho de tóner negro"
+    assert "1 Resma de papel A4" in texts and "Renglón Descripción" not in texts
+    assert "Otra página sin relación." not in texts
+    common = next(c for c in script.calls
+                  if not c["messages"][-1]["content"].startswith("Renglón"))
+    assert len(common["blocks"]) == 1
+    step = sheet.steps.filter(entry__requirement__number=6).get()
+    assert any("neighbor" in c["sources"] for c in step.candidates["pool"])
+    assert len(step.candidates["sent"]) == 2
+
+
+def test_the_item_prompt_v4_asks_for_price_or_quantity_and_not_for_a_technical_sheet():
+    """REQ-044: la instrucción del renglón v4 pide el precio o la cantidad ofrecida, en
+    cualquier documento, y dice que una hoja técnica sola no alcanza; v1 y v2 siguen como
+    estaban."""
+    text = sheets.load_prompt("ficha_renglon")
+    assert "el precio o la cantidad que el oferente ofrece" in text
+    assert "Una hoja técnica" in text and "no alcanzan" in text
+    assert "No decidís" in text and "no cumple" in text
+    for old in ("ficha-renglon-v1.md", "ficha-renglon-v2.md"):
+        assert "no alcanzan" not in sheets.PROMPTS_DIR.joinpath(old).read_text(encoding="utf-8")
+
+
+def test_the_sheet_prompt_v2_asks_for_the_concrete_datum_and_abstention():
+    """REQ-040: la instrucción v2 pide el dato concreto, trae ejemplos de pasaje de tema
+    parecido que no responde y dice que sin respuesta la lista va vacía; la v1 no cambió."""
+    text = sheets.PROMPTS_DIR.joinpath("ficha-v2.md").read_text(encoding="utf-8")
+    assert "dato concreto" in text and "no se encontró" in text and "Ante la duda" in text
+    assert text.count('{"pasajes": [], "sintesis": ""}') >= 2
+    old = sheets.PROMPTS_DIR.joinpath("ficha-v1.md").read_text(encoding="utf-8")
+    assert "dato concreto" not in old and old.count('{"pasajes": [], "sintesis": ""}') == 1
+    assert sheets.load_prompt("ficha") == text
+
+
+def test_a_found_row_never_stays_without_a_synthesis(offer, operator_user, script):
+    """REQ-041 (T-135): si el modelo devuelve pasajes con la síntesis vacía, la fila lleva la
+    síntesis neutra que dice dónde está la respuesta."""
+    script.choose(pick(DECLARATION, synthesis="", when="declaración jurada"))
+    row = entry_of(build(offer, operator_user), 1)
+    assert row.outcome == om.Outcome.ENCONTRADO
+    assert row.synthesis.startswith("El oferente responde en: ")
+    assert not sheets.judgment_words(row.synthesis)
+
+
+# --- Cotización de un renglón y copias idénticas (T-135, decisiones del responsable) -------------
+
+
+def test_an_item_with_only_a_technical_sheet_is_not_quoted_but_shows_it(
+        procedure, operator_user, fake_ai, script):
+    """REQ-044 (T-136): una hoja técnica sola no es la cotización: aunque el modelo diga "si",
+    el renglón no figura "cotizado" (queda sin cotización a la vista) pero la fila sigue
+    mostrando la hoja que describe lo ofrecido."""
+    offer = make_offer(procedure, operator_user, "Solo hoja", {
+        "hoja.docx": ["Resma de papel A4, 75 g/m2, 500 hojas. Marca Ficticia."]},
+        kinds={"hoja.docx": "tecnica"})
+    script.choose(pick("Resma", when="RESMA"))
+    sheet = build(offer, operator_user)
+    row = entry_of(sheet, 6)
+    assert row.quoted == "" and row.outcome == om.Outcome.ENCONTRADO
+    assert row.fragments.get().text.startswith("Resma de papel A4, 75 g/m2")
+    assert sheet.counts["sin_cotizacion_a_la_vista"] >= 1 and sheet.counts["cotizado"] == 0
+
+
+def test_an_item_with_a_price_in_a_separate_sheet_is_quoted(procedure, operator_user, fake_ai,
+                                                            script):
+    """REQ-044: el precio en una planilla aparte, junto a una hoja técnica, da "cotizado" y
+    la cita es la planilla."""
+    offer = make_offer(procedure, operator_user, "Planilla aparte", {
+        "hoja.docx": ["Resma de papel A4, 75 g/m2, 500 hojas. Marca Ficticia."],
+        "planilla.pdf": ["Renglón 1 · 100 unidades · precio unitario $ 3.100"]},
+        kinds={"hoja.docx": "tecnica", "planilla.pdf": "economica"})
+    script.choose(pick("precio unitario", when="RESMA"))
+    row = entry_of(build(offer, operator_user), 6)
+    assert row.quoted == om.Quoted.COTIZADO
+    assert row.fragments.get().passage.reading.document.file_name == "planilla.pdf"
+
+
+def test_identical_passages_are_grouped_before_the_reranker(procedure, operator_user, fake_ai,
+                                                            script):
+    """REQ-039 (T-135, 2b): una copia idéntica de otro documento no ocupa un candidato: se
+    puntúa y se manda una sola vez; la copia queda en el registro con `copy_of`."""
+    text = "Declaro bajo juramento que estoy habilitado para contratar."
+    offer = make_offer(procedure, operator_user, "Con copias", {
+        "a.pdf": [text, "Otro texto distinto."], "b.pdf": [text.upper()]})
+    script.choose(pick(DECLARATION, when="declaración jurada"))
+    sheet = build(offer, operator_user)
+    step = sheet.steps.filter(entry__requirement__number=1).get()
+    copies = [c for c in step.candidates["pool"] if c["copy_of"]]
+    assert len(copies) == 1 and len(step.candidates["sent"]) == 2
+    assert len(script.calls[0]["blocks"]) == 2
+    scored = [c for c in step.candidates["pool"] if c["score"] is not None]
+    assert len(scored) == 2
+
+
+# --- Ronda 2 de T-136 ---------------------------------------------------------------------------
+
+
+def _passage(kind):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(reading=SimpleNamespace(document=SimpleNamespace(kind=kind)))
+
+
+@pytest.mark.parametrize("quoted, kinds, unread, expected", [
+    ("si", ["economica"], False, om.Quoted.COTIZADO),
+    ("si", ["tecnica", "economica"], False, om.Quoted.COTIZADO),
+    ("si", ["tecnica"], False, ""),  # la hoja técnica sola no es la cotización
+    ("si", [], False, ""),
+    ("sin_precio", ["tecnica"], False, ""),
+    ("sin_precio", [], False, ""),
+    ("sin_precio", [], True, om.Quoted.NO_SE_PUDO_LEER),
+    ("sin_precio", ["tecnica"], True, ""),
+    ("no", [], False, om.Quoted.NO_COTIZADO),
+    ("no", ["economica"], True, om.Quoted.NO_COTIZADO),  # la negativa expresa está a la vista
+    ("no", [], True, om.Quoted.NO_SE_PUDO_LEER),
+])
+def test_the_state_of_an_item_is_separate_from_the_passages_it_shows(
+        quoted, kinds, unread, expected):
+    """REQ-044 (T-136): "cotizado" solo con precio o cantidad ofrecida; "no cotizado" solo si la
+    oferta dice que no cotiza o su tabla de precios no lo trae; en los demás casos, sin
+    cotización a la vista (en blanco), y con páginas sin leer y sin pasajes, "no se pudo
+    leer"."""
+    assert sheets.item_state(quoted, [_passage(k) for k in kinds], unread) == expected
+
+
+def test_the_item_answer_accepts_the_three_states_and_nothing_else():
+    """REQ-044 (T-136): el esquema y la validación aceptan si, sin_precio y no."""
+    schema = sheets.build_schema(["P1"], True)
+    assert schema["properties"]["cotizado"]["enum"] == ["si", "sin_precio", "no"]
+    for value in ("si", "sin_precio", "no"):
+        content = json.dumps({"cotizado": value, "pasajes": ["P1"], "sintesis": "x"})
+        assert sheets.parse_answer(content, ["P1"], True)[2] == value
+    bad = json.dumps({"cotizado": "quizás", "pasajes": [], "sintesis": ""})
+    with pytest.raises(sheets.InvalidAnswer):
+        sheets.parse_answer(bad, ["P1"], True)
+
+
+def test_an_item_described_by_a_signed_spec_without_price_shows_it_without_quote(
+        procedure, operator_user, fake_ai, script):
+    """REQ-044 (T-136): un renglón con especificaciones firmadas y sin precio ni cantidad
+    muestra el pasaje y queda "sin cotización a la vista", no "no cotizado"."""
+    offer = make_offer(procedure, operator_user, "Con especificaciones", {
+        "especificaciones.pdf": ["Renglón 1: resma de papel A4, marca Ficticia, 75 g/m2."]},
+        kinds={"especificaciones.pdf": "tecnica"})
+    script.choose(pick("marca Ficticia", quoted="sin_precio", when="RESMA"))
+    row = entry_of(build(offer, operator_user), 6)
+    assert row.quoted == "" and row.outcome == om.Outcome.ENCONTRADO
+    assert row.fragments.get().text.startswith("Renglón 1: resma de papel A4, marca Ficticia")
+
+
+def test_an_item_the_offer_says_it_does_not_quote_is_not_quoted_and_shows_the_proof(
+        procedure, operator_user, fake_ai, script):
+    """REQ-044 (T-136): con una tabla de precios en la que el renglón no figura, el modelo
+    contesta "no": el renglón figura "no cotizado" y la tabla queda como fragmento."""
+    offer = make_offer(procedure, operator_user, "Con tabla de precios", {
+        "planilla.pdf": ["Planilla de precios. Renglón 2: cartucho, 30 unidades, $ 4.500."]},
+        kinds={"planilla.pdf": "economica"})
+    script.choose(pick("Planilla de precios", quoted="no", when="RESMA"))
+    row = entry_of(build(offer, operator_user), 6)
+    assert row.quoted == om.Quoted.NO_COTIZADO
+    assert row.fragments.get().text.startswith("Planilla de precios")
+
+
+def test_the_item_prompt_v4_has_the_three_answers_and_the_earlier_ones_are_untouched():
+    """REQ-044 (T-136): la instrucción v4 distingue si, sin_precio y no, y dice que "no" es solo
+    la negativa expresa o la tabla sin el renglón; v3 sigue como estaba."""
+    text = sheets.load_prompt("ficha_renglon")
+    assert sheets.settings.OFFERS_PROMPT_VERSIONS["ficha_renglon"] == "ficha-renglon-v4"
+    for word in ('"si"', '"sin_precio"', '"no"', "expresamente", "No decidís"):
+        assert word in text
+    v3 = sheets.PROMPTS_DIR.joinpath("ficha-renglon-v3.md").read_text(encoding="utf-8")
+    assert "sin_precio" not in v3 and "no alcanzan" in v3
+
+
+def test_a_common_row_sends_eight_candidates_and_an_item_row_twelve(
+        procedure, operator_user, fake_ai, script):
+    """REQ-039 (T-136): las filas que no son de renglón vuelven a 8 candidatos; las de renglón
+    conservan 12."""
+    pages = [f"Texto número {n}." for n in range(1, 17)]
+    offer = make_offer(procedure, operator_user, "Muchos", {"a.pdf": pages})
+    fake_ai.reranker.scores = {f"número {n}.": 0.5 + n / 40 for n in range(1, 17)}
+    script.choose(lambda requirement, blocks, number, messages: None)
+    sheet = build(offer, operator_user)
+    sizes = {c["messages"][-1]["content"].startswith("Renglón"): len(c["blocks"])
+             for c in script.calls}
+    assert sizes == {False: 8, True: 12}
+    assert sheet.parameters["candidates_to_model"] == 8
+    assert sheet.parameters["item_candidates_to_model"] == 12
+
+
+def test_a_common_row_needs_the_minimum_reranker_score(procedure, operator_user, fake_ai, script,
+                                                     settings):
+    """REQ-040 (T-136): un pasaje por debajo del puntaje mínimo del reranker no llega al modelo
+    en una fila común; si ninguno lo alcanza, la fila queda "no se encontró" sin preguntarle al
+    modelo, y el registro conserva lo visto con su puntaje."""
+    settings.OFFERS_MIN_RERANK_SCORE = 0.3
+    offer = make_offer(procedure, operator_user, "Dos temas", {
+        "a.pdf": ["Declaro bajo juramento que estoy habilitado.", "Otro tema de formularios."]})
+    fake_ai.reranker.scores = {"Declaro": 0.9, "Otro tema": 0.29}
+    script.choose(pick("Otro tema", "Declaro", when="declaración jurada"))
+    sheet = build(offer, operator_user)
+    first = script.calls[0]
+    assert list(first["blocks"].values()) == ["Declaro bajo juramento que estoy habilitado."]
+    step = sheet.steps.filter(entry__requirement__number=1).get()
+    assert len(step.candidates["pool"]) == 2 and len(step.candidates["sent"]) == 1
+    assert sorted(c["score"] for c in step.candidates["pool"]) == [0.29, 0.9]
+    # Sin ningún pasaje por encima del mínimo: no se le pregunta al modelo.
+    fake_ai.reranker.scores = {"Declaro": 0.1, "Otro tema": 0.29}
+    before = len(script.calls)
+    sheet = build(offer, operator_user)
+    common_calls = [c for c in script.calls[before:]
+                    if not c["messages"][-1]["content"].startswith("Renglón")]
+    assert common_calls == []
+    row = entry_of(sheet, 1)
+    assert row.outcome == om.Outcome.NO_ENCONTRADO and not row.fragments.exists()
+    assert sheet.parameters["min_rerank_score"] == 0.3
+
+
+def test_an_item_row_does_not_use_the_minimum_reranker_score(
+        procedure, operator_user, fake_ai, script, settings):
+    """REQ-044 (T-136): las filas de renglón conservan sus candidatos aunque el puntaje sea
+    bajo: la tabla de la oferta no se parece al encabezado del pliego."""
+    settings.OFFERS_MIN_RERANK_SCORE = 0.3
+    offer = make_offer(procedure, operator_user, "Tabla", {
+        "tabla.pdf": ["1 Alimento 2700,00 kg 7.390,00"]})
+    fake_ai.reranker.scores = {"Alimento": 0.05}
+    script.choose(pick("Alimento", quoted="si", when="RESMA"))
+    row = entry_of(build(offer, operator_user), 6)
+    assert row.quoted == om.Quoted.COTIZADO and row.fragments.count() == 1
+
+
+# Puntajes del reranker real (bge-reranker-v2-m3) medidos en T-136 sobre textos inventados con la
+# forma de los falsos hallazgos de T-134: la consulta es la cita de un requisito y cada pasaje
+# es una respuesta, un pasaje del mismo tema que no responde o uno ajeno.
+CALIBRATION = [
+    ("validez de la oferta por sesenta días corridos", "responde",
+     "El oferente mantiene su oferta por sesenta días corridos desde la apertura.", 0.999),
+    ("validez de la oferta por sesenta días corridos", "mismo tema",
+     "Los plazos de este formulario se cuentan en días hábiles administrativos.", 0.032),
+    ("precios en pesos con impuestos incluidos", "responde",
+     "Los precios cotizados se expresan en pesos e incluyen el IVA y demás impuestos.", 0.998),
+    ("precios en pesos con impuestos incluidos", "mismo tema",
+     "Total ofertado: $ 100.900.600,00. Cantidad de alternativas presentadas: 6.", 0.004),
+    ("precios en pesos con impuestos incluidos", "mismo tema",
+     "La póliza se emite en pesos argentinos y el premio incluye los impuestos de sellos.", 0.263),
+    ("garantía de oferta del cinco por ciento del monto", "responde",
+     "Se adjunta póliza de seguro de caución en garantía de oferta por el 5 % del monto.", 0.854),
+    ("garantía de oferta del cinco por ciento del monto", "mismo tema",
+     "Condiciones generales de la póliza: el asegurador se obliga a pagar al asegurado.", 0.004),
+    ("garantía de oferta del cinco por ciento del monto", "mismo tema",
+     "La garantía de cumplimiento del contrato será del diez por ciento del monto.", 0.002),
+    ("constancia de inscripción vigente en AFIP", "responde",
+     "Se acompaña la constancia de inscripción en AFIP, con estado activo y vigente.", 0.993),
+    ("constancia de inscripción vigente en AFIP", "mismo tema",
+     "Declaro conocer y aceptar el pliego y someterme a la jurisdicción de los tribunales.", 0.0),
+    ("constancia de inscripción vigente en AFIP", "ajeno",
+     "Renglón 3: alimento balanceado, 250,00 kg, precio unitario $ 12.000,00.", 0.0),
+]
+
+
+def test_the_minimum_score_sits_in_the_gap_between_answers_and_same_topic_non_answers(
+        procedure, operator_user, fake_ai, script, settings):
+    """REQ-040 (T-136): con el puntaje mínimo de `settings.py` (el calibrado) y los puntajes
+    medidos con el reranker real sobre textos inventados, pasan al modelo todos los pasajes que
+    responden y ninguno de los del mismo tema que no responden ni de los ajenos."""
+    from evaluon import settings as defaults
+
+    settings.OFFERS_MIN_RERANK_SCORE = defaults.OFFERS_MIN_RERANK_SCORE
+    minimum = defaults.OFFERS_MIN_RERANK_SCORE
+    answers = [s for _, kind, _, s in CALIBRATION if kind == "responde"]
+    others = [s for _, kind, _, s in CALIBRATION if kind != "responde"]
+    assert max(others) < minimum < min(answers)
+    assert minimum - max(others) > 0.1 and min(answers) - minimum > 0.4  # margen a ambos lados
+    offer = make_offer(procedure, operator_user, "Calibración",
+                       {"a.pdf": [text for _, _, text, _ in CALIBRATION]})
+    fake_ai.reranker.scores = {text[:30]: score for _, _, text, score in CALIBRATION}
+    script.choose(lambda requirement, blocks, number, messages: None)
+    sheet = build(offer, operator_user)
+    sent = {text for call in script.calls if not call["messages"][-1]["content"]
+            .startswith("Renglón") for text in call["blocks"].values()}
+    assert sent == {text for _, kind, text, _ in CALIBRATION if kind == "responde"}
+    assert sheet.parameters["min_rerank_score"] == minimum

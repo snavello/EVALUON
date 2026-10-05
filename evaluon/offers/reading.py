@@ -8,10 +8,12 @@ Todo corre en el equipo, en CPU y sin conexión (P4), con lo que la imagen ya tr
   PDF de una página (la imagen entera, ya girada según su marca de orientación), que la
   lectura de la 001 reconoce como página escaneada.
 - Segundo intento (`read_with_second_attempt`): la lectura normal de la 001 y, para cada página
-  reconocida por OCR cuya confianza quedó por debajo del umbral de dudosa, una vez más con la
-  imagen preparada (enderezada y con umbral adaptativo). Se conserva la lectura de mayor
-  confianza y el informe dice cuál se usó. Las páginas buenas no se tocan: su texto es el de
-  la lectura normal, sin cambios.
+  reconocida por OCR que no quedó legible (dudosa o ilegible, T-136), dos veces más: con la
+  imagen preparada (enderezada y con umbral adaptativo) y con la configuración para tablas
+  (ampliada, sin ruido de puntos, segmentación de texto disperso y filas rearmadas; solo vale
+  si salió una tabla de cifras). Se conserva la lectura de mayor confianza y el informe dice
+  cuál se usó. Las páginas buenas no se tocan: su texto es el de la lectura normal, sin
+  cambios.
 - Word (`docx_to_pdf`): el `.docx` se convierte a PDF dentro del equipo (texto y tablas, con
   WeasyPrint); no se usa ningún servicio externo. Las imágenes incrustadas no se copian: si
   el documento tiene solo imágenes, la página queda vacía y no se inventa texto.
@@ -19,18 +21,26 @@ Todo corre en el equipo, en CPU y sin conexión (P4), con lo que la imagen ya tr
 
 import io
 import re
+import statistics
 import zipfile
 from dataclasses import replace
 from xml.sax.saxutils import escape
 
 import pypdfium2 as pdfium
+import pytesseract
 from lxml import etree
 from PIL import Image, ImageChops, ImageFilter, ImageOps
 
 from evaluon.norms.reading import (
     FORMAT_PDF,
     ORIGIN_OCR,
+    PAGE_BLANK,
+    PAGE_DOUBTFUL,
     PAGE_ILLEGIBLE,
+    PAGE_READ,
+    Line,
+    Page,
+    Word,
     detect_format,
     ocr,
     read_document,
@@ -59,9 +69,37 @@ DESKEW_MIN_GAIN = 1.05
 THRESHOLD_BLUR_FRACTION = 0.02
 THRESHOLD_MARGIN = 14
 
+# Lectura de tablas (T-136): la página se dibuja ampliada hasta `TABLE_TARGET_WIDTH` puntos de
+# ancho (sin achicarla ni pasar de `TABLE_MAX_SCALE` veces), se pasa a un solo canal (el rojo
+# y el gris, las dos variantes de `TABLE_CHANNELS`: el rojo borra el fondo verde de las celdas
+# de las pantallas del Portal), se le quita el ruido de puntos de una foto de pantalla (el
+# moiré) con un filtro de mediana y se reconoce con la segmentación de texto disperso
+# (`--psm 11`: cada celda es su propio bloque) en vez de la de página (`--psm 3`), que mezcla
+# las columnas. Las palabras se vuelven a juntar en filas por su altura. Se conserva la
+# variante de mayor confianza. Valores medidos con las fotos de pantalla del Portal del
+# caso-00 (informe de T-136, ADR-0028).
+TABLE_TARGET_WIDTH = 3200
+TABLE_MAX_SCALE = 3.0
+TABLE_MEDIAN_SIZE = 3
+TABLE_PSM = 11
+TABLE_CHANNELS = ("R", "L")
+TABLE_ROW_TOLERANCE = 0.6  # fracción de la altura mediana de palabra
+# Una lectura "de tabla" solo se conserva si tiene cifras: al menos `TABLE_MIN_NUMBERS`
+# palabras con un dígito y `TABLE_MIN_SHARE` de las palabras.
+TABLE_MIN_NUMBERS = 6
+TABLE_MIN_SHARE = 0.15
+# Una página legible con menos de estas palabras se prueba con la lectura de tabla; se conserva
+# si trae `TABLE_SPARSE_GAIN` veces los importes bien formados de la primera. En una página
+# dudosa o ilegible, la lectura de tabla se conserva si trae más importes bien formados que la
+# mejor de las otras (la confianza promedio sola no sirve: una lectura que pierde las cifras
+# puede tenerla más alta).
+TABLE_SPARSE_WORDS = 120
+TABLE_SPARSE_GAIN = 2.0
+
 # Qué lectura se conservó de cada página reintentada.
 KEPT_FIRST = "primera"
 KEPT_SECOND = "segunda"
+KEPT_TABLE = "tabla"
 
 
 class UnreadableFile(ValueError):
@@ -224,16 +262,123 @@ def prepare_image(image):
     return darker.point(lambda v: 0 if v > THRESHOLD_MARGIN else 255), angle
 
 
+# Importe con forma completa: miles con punto en grupos de tres y dos decimales (`7.390,00`), o una
+# cantidad de cuatro cifras sin separador (`2700,00`). Un OCR que inventa cifras rara vez arma
+# grupos coherentes.
+_AMOUNT = re.compile(r"^\d{1,3}(?:\.\d{3})*,\d{2}$|^\d{4},\d{2}$")
+# Confianza mínima de una palabra para contarla como importe leído (más alta que la de dudosa:
+# un importe inventado por el OCR con confianza media no tiene que ganarle a la primera lectura).
+TABLE_AMOUNT_MIN_CONFIDENCE = 65
+
+
 def _confidence(page):
     return -1.0 if page.confidence is None else page.confidence
 
 
 def _needs_second_attempt(page):
-    """Páginas reconocidas por OCR cuya confianza quedó por debajo del umbral de dudosa
-    (ADR-0028): las ilegibles, con o sin palabras reconocidas."""
+    """Páginas reconocidas por OCR que no quedaron legibles (ADR-0028, T-136): las dudosas y
+    las ilegibles, con o sin palabras reconocidas."""
     if page.origin != ORIGIN_OCR:
         return False
-    return page.status == PAGE_ILLEGIBLE or _confidence(page) < ocr.DOUBTFUL_FROM
+    return page.status in (PAGE_DOUBTFUL, PAGE_ILLEGIBLE)
+
+
+def _page_words(page):
+    return [word for line in page.lines for word in line.words]
+
+
+def _reliable_numbers(page):
+    """Los importes con forma completa (`7.390,00`, `2700,00`; ver `_AMOUNT`) reconocidos con
+    confianza de `TABLE_AMOUNT_MIN_CONFIDENCE` o más: cuántos datos de una tabla (cantidades,
+    precios) se pudieron leer de verdad. La confianza promedio sola no lo dice: una lectura que
+    pierde las cifras puede tenerla más alta; y una palabra con forma de importe pero con
+    separadores incoherentes (`19953.000,00`) o confianza baja no cuenta."""
+    return sum(1 for word in _page_words(page)
+               if word.confidence >= TABLE_AMOUNT_MIN_CONFIDENCE and _AMOUNT.match(word.text))
+
+
+def _looks_tabular(page):
+    """La lectura tiene cifras de sobra: una tabla de renglones, cantidades y precios."""
+    words = _page_words(page)
+    numbers = sum(1 for word in words if any(c.isdigit() for c in word.text))
+    return numbers >= TABLE_MIN_NUMBERS and numbers >= TABLE_MIN_SHARE * len(words)
+
+
+def _rows(words):
+    """Agrupa las palabras `(texto, confianza, izquierda, arriba, ancho, alto)` en filas por la
+    altura de su centro; devuelve las filas de arriba hacia abajo, cada una de izquierda a
+    derecha."""
+    typical = statistics.median(w[5] for w in words)
+    groups = []
+    for word in sorted(words, key=lambda w: w[3] + w[5] / 2):
+        center = word[3] + word[5] / 2
+        if groups and abs(center - groups[-1]["center"]) <= TABLE_ROW_TOLERANCE * typical:
+            group = groups[-1]
+            group["words"].append(word)
+            group["center"] = sum(w[3] + w[5] / 2 for w in group["words"]) / len(group["words"])
+        else:
+            groups.append({"center": center, "words": [word]})
+    return [sorted(group["words"], key=lambda w: w[2]) for group in groups]
+
+
+def _channel(image, name):
+    rgb = image.convert("RGB")
+    return rgb.split()[0] if name == "R" else rgb.convert("L")
+
+
+def _table_variant(image, number, width, height, scale, channel):
+    """Una lectura de tabla de la imagen (ver `TABLE_CHANNELS`): una línea por fila de la
+    tabla, con sus palabras de izquierda a derecha. `scale` es cuánto está ampliada la imagen
+    respecto de la página a `ocr.RENDER_DPI`; `width` y `height` son los de la página en
+    puntos."""
+    gray = _channel(image, channel).filter(ImageFilter.MedianFilter(TABLE_MEDIAN_SIZE))
+    gray = ImageOps.autocontrast(gray, cutoff=1)
+    data = pytesseract.image_to_data(
+        gray, lang=ocr.LANGUAGE,
+        config=f"--oem 1 --psm {TABLE_PSM} --dpi {ocr.RENDER_DPI}",
+        output_type=pytesseract.Output.DICT)
+    words = []
+    for index, level in enumerate(data["level"]):
+        text = data["text"][index].strip()
+        if level == 5 and text:
+            words.append((text, ocr._round(max(float(data["conf"][index]), 0)),
+                          data["left"][index], data["top"][index], data["width"][index],
+                          data["height"][index]))
+    lines = []
+    for row in _rows(words) if words else []:
+        row_words = [Word(text=w[0], confidence=w[1]) for w in row]
+        lines.append(Line(
+            text=" ".join(w.text for w in row_words),
+            x0=ocr._points(min(w[2] for w in row) / scale),
+            top=ocr._points(min(w[3] for w in row) / scale),
+            x1=ocr._points(max(w[2] + w[4] for w in row) / scale),
+            bottom=ocr._points(max(w[3] + w[5] for w in row) / scale),
+            origin=ORIGIN_OCR,
+            confidence=ocr._round(sum(w.confidence for w in row_words) / len(row_words)),
+            words=row_words))
+    every = [word for line in lines for word in line.words]
+    status = ocr.page_status(every)
+    confidence = (ocr._round(sum(w.confidence for w in every) / len(every))
+                  if every else None)
+    return Page(number=number, width=width, height=height, status=status,
+                lines=lines if status != PAGE_ILLEGIBLE else [], origin=ORIGIN_OCR,
+                confidence=confidence)
+
+
+def read_table_image(image, number, width, height, scale=1.0):
+    """Reconoce la imagen de una página con la configuración para tablas (ver
+    `TABLE_TARGET_WIDTH`) y devuelve la variante de mayor confianza."""
+    pages = [_table_variant(image, number, width, height, scale, channel)
+             for channel in TABLE_CHANNELS]
+    return max(pages, key=_confidence)
+
+
+def _table_read(pdf_page, number):
+    """Vuelve a leer una página de PDF con la configuración para tablas."""
+    width, height = pdf_page.get_size()
+    scale = min(TABLE_MAX_SCALE, max(1.0, TABLE_TARGET_WIDTH / (width * ocr.RENDER_DPI / 72)))
+    image = pdf_page.render(scale=ocr.RENDER_DPI / 72 * scale).to_pil()
+    return read_table_image(image, number, ocr._round(width), ocr._round(height), scale)
 
 
 def _second_read(pdf_page, number):
@@ -249,13 +394,43 @@ def _second_read(pdf_page, number):
     return reread, angle
 
 
+def _is_sparse(page):
+    """Una página reconocida por OCR y legible, pero con tan pocas palabras que puede haber
+    perdido una tabla entera (una foto de pantalla: la confianza se calcula solo sobre lo que
+    se reconoció)."""
+    return (page.origin == ORIGIN_OCR and page.status not in (PAGE_DOUBTFUL, PAGE_ILLEGIBLE)
+            and page.status != PAGE_BLANK and len(_page_words(page)) < TABLE_SPARSE_WORDS)
+
+
+def _attempt_entry(first, second, table, angle, kept):
+    return {
+        "page": first.number,
+        "first_confidence": first.confidence,
+        "first_status": first.status,
+        "second_confidence": None if second is None else second.confidence,
+        "second_status": None if second is None else second.status,
+        "table_confidence": table.confidence,
+        "table_status": table.status,
+        "rotation_degrees": angle,
+        "kept": kept,
+    }
+
+
 def read_with_second_attempt(pdf_bytes):
-    """Lee un PDF con la lectura de la 001 y vuelve a leer una vez las páginas de baja
-    confianza con la imagen preparada. Devuelve `(lectura, intentos)`; `intentos` tiene una
-    entrada por página reintentada, con las dos confianzas y la lectura que se conservó
-    (`primera` o `segunda`, la de mayor confianza; si empatan, la primera)."""
+    """Lee un PDF con la lectura de la 001 y vuelve a leer las páginas reconocidas por OCR
+    que no quedaron legibles (dudosas o ilegibles): una vez con la imagen preparada y una con
+    la configuración para tablas. Devuelve `(lectura, intentos)`; `intentos` tiene una entrada
+    por página reintentada, con las confianzas y la lectura que se conservó (`primera`,
+    `segunda` o `tabla`: entre la primera y la segunda, la de mayor confianza (si empatan, la
+    primera); la de tabla gana si trae más importes bien formados, ver `_reliable_numbers`).
+
+    Una página legible con muy pocas palabras (menos de `TABLE_SPARSE_WORDS`) se prueba solo
+    con la configuración para tablas, y la lectura de tabla se conserva solo si trae
+    `TABLE_SPARSE_GAIN` veces las importes bien formados de la primera; si no, la página no cambia y no queda
+    en `intentos`."""
     reading = read_document(pdf_bytes)
-    retry = [i for i, page in enumerate(reading.pages) if _needs_second_attempt(page)]
+    retry = [i for i, page in enumerate(reading.pages)
+             if _needs_second_attempt(page) or _is_sparse(page)]
     if not retry:
         return reading, []
     attempts = []
@@ -264,19 +439,27 @@ def read_with_second_attempt(pdf_bytes):
     try:
         for index in retry:
             first = pages[index]
-            second, angle = _second_read(document[index], first.number)
-            kept = KEPT_SECOND if _confidence(second) > _confidence(first) else KEPT_FIRST
-            attempts.append({
-                "page": first.number,
-                "first_confidence": first.confidence,
-                "first_status": first.status,
-                "second_confidence": second.confidence,
-                "second_status": second.status,
-                "rotation_degrees": angle,
-                "kept": kept,
-            })
-            if kept == KEPT_SECOND:
-                pages[index] = replace(second, classification=first.classification)
+            sparse = not _needs_second_attempt(first)
+            second, angle = (None, 0.0) if sparse else _second_read(document[index],
+                                                                    first.number)
+            table = _table_read(document[index], first.number)
+            kept, best = KEPT_FIRST, first
+            if second is not None and _confidence(second) > _confidence(best):
+                kept, best = KEPT_SECOND, second
+            # La lectura de tabla solo cuenta si salió una tabla de cifras y con texto.
+            if table.lines and _looks_tabular(table):
+                needed = TABLE_SPARSE_GAIN if sparse else 1.0
+                if _reliable_numbers(table) > needed * _reliable_numbers(best):
+                    # Una lectura de tabla nunca deja la página "legible": queda al menos
+                    # "dudosa" y la Comisión la sigue viendo marcada (P3).
+                    kept = KEPT_TABLE
+                    best = (replace(table, status=PAGE_DOUBTFUL)
+                            if table.status == PAGE_READ else table)
+            if sparse and kept == KEPT_FIRST:
+                continue
+            attempts.append(_attempt_entry(first, second, table, angle, kept))
+            if kept != KEPT_FIRST:
+                pages[index] = replace(best, classification=first.classification)
     finally:
         document.close()
     return replace(reading, pages=pages), attempts
@@ -349,3 +532,22 @@ def docx_to_pdf(data):
     if not re.search(r"<(p|table)", html):
         raise UnreadableFile("El documento de Word no tiene texto.")
     return HTML(string=html).write_pdf()
+
+
+# --- Lectura guardada a objetos ----------------------------------------------------------------
+
+
+def rebuild_reading(data):
+    """La lectura guardada (`Reading.pages`, el JSON de `DocumentReading.as_json`) como
+    objetos, para volver a armar su texto canónico y sus pasajes sin leer de nuevo el
+    archivo (T-136)."""
+    from evaluon.norms.reading import DocumentReading, Line, Page, Word
+
+    pages = [
+        Page(**{**page, "lines": [
+            Line(**{**line, "words": [Word(**word) for word in line["words"]]})
+            for line in page["lines"]]})
+        for page in data["pages"]
+    ]
+    return DocumentReading(file_format=data["file_format"], pages=pages,
+                           tool_versions=data["tool_versions"], encoding=data.get("encoding"))

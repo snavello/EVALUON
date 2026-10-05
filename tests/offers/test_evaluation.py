@@ -350,3 +350,61 @@ def test_the_loading_command_registers_the_offer_and_queues_the_readings(
                  procedimiento=matrix.procedure.number, oferente="Oferente por comando")
     assert "ya está cargado" in capsys.readouterr().out
     assert offer.documents.count() == 2
+
+
+def _total(**changes):
+    total = {name: {"ok": 1, "total": 1, "rate": 1.0} for name in
+             ("found", "literal", "no_answer", "synthesis", "items", "technical_documents",
+              "expected_pages")}
+    total["pages_unlisted"] = []
+    total.update(changes)
+    return total
+
+
+def test_case_00_has_its_own_thresholds():
+    """REQ-040, REQ-044 (T-135, H-0): en el caso-00 "sin respuesta" se informa sin tope y los
+    renglones piden 90 %; el caso chico sigue con 100 %."""
+    total = _total(no_answer={"ok": 0, "total": 5, "rate": 0.0},
+                   items={"ok": 17, "total": 18, "rate": 17 / 18})
+    assert ev.blocking(total, "caso-00") == []
+    assert len(ev.blocking(total, "caso-chico")) == 2
+    assert len(ev.blocking(total)) == 2
+
+
+def test_case_00_items_below_ninety_percent_block():
+    """REQ-044: 16 de 18 (88,9 %) no llega al 90 % del caso-00."""
+    total = _total(items={"ok": 16, "total": 18, "rate": 16 / 18})
+    failed = ev.blocking(total, "caso-00")
+    assert len(failed) == 1 and "Renglones" in failed[0]
+
+
+def test_the_summary_of_case_00_says_no_cap_for_no_answer(chico, operator_user, expected,
+                                                          script, tmp_path):
+    """REQ-040: la tabla del resumen del caso-00 dice "informado, sin tope"."""
+    import dataclasses
+
+    case_script(script)
+    as_case_00 = dataclasses.replace(expected, case="caso-00")
+    report = run(operator_user, chico, as_case_00, tmp_path)
+    summary = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "informado, sin tope" in summary
+    assert report.expected.case == "caso-00"
+
+
+def test_an_identical_copy_in_another_document_counts_as_the_same_place(
+        procedure, operator_user, fake_ai):
+    """REQ-039 (T-135, decisión del responsable): el mismo pasaje literal en otro documento de
+    la oferta, o el mismo lugar de una página de texto igual, es el mismo lugar; un pasaje
+    distinto o del mismo documento no."""
+    from tests.offers.conftest import make_offer
+
+    offer = make_offer(procedure, operator_user, "Copias", {
+        "a.pdf": ["Constancia de inscripción número 000123.", "Texto distinto uno."],
+        "b.pdf": ["CONSTANCIA de inscripción  número 000123.", "Texto distinto dos."]})
+    a, b = (om.Passage.objects.filter(reading__document__file_name=n).order_by("order")
+            for n in ("a.pdf", "b.pdf"))
+    cache = {}
+    assert ev.is_identical_copy(b[0], a[0], cache)
+    assert not ev.is_identical_copy(b[1], a[0], cache)
+    assert not ev.is_identical_copy(a[1], a[0], cache)
+    assert not ev.is_identical_copy(b[1], a[1], cache)
