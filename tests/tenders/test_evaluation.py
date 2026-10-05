@@ -1994,3 +1994,40 @@ def test_two_expected_over_one_suppressed_row_one_is_found_and_the_other_is_miss
                    if _line(measures, i)["estado"] == "faltante")
     assert missing["causa"] == ev.SUPPRESSED
     assert len(measures["suppressed"]["ids"]) == 1
+
+
+# --- T-137: desempate estable de las fuentes de una fila de circular ----------------------------------
+
+
+def _stub_source(pk, effect, document, issued_on):
+    from datetime import date
+    from types import SimpleNamespace
+
+    reading = SimpleNamespace(document=SimpleNamespace(file_name=document))
+    return SimpleNamespace(pk=pk, effect=effect, text="texto de la fuente",
+                           segment=SimpleNamespace(reading=reading),
+                           issued_on=date.fromisoformat(issued_on),
+                           original_segment_id=None, quote_id=None)
+
+
+def test_a_tie_between_sources_is_won_by_the_one_of_the_expected_document_and_date():
+    """REQ-031: dos fuentes empatan en puntos (una tiene el efecto, la otra el documento y la
+    fecha); la medición elige la del documento y la fecha esperados, sin importar en qué orden
+    vengan, para que el punto 4 no dé un falso negativo."""
+    from types import SimpleNamespace
+
+    block = SimpleNamespace(source_effect="modifica", effect="modifica", original_anchor="",
+                            current_anchor="texto de la fuente", document="circular-d5.pdf",
+                            date="2026-03-01")
+    item = SimpleNamespace(anchor="")
+    only_effect = _stub_source(1, "modifica", "circular-d7.pdf", "2026-03-20")
+    right_document = _stub_source(2, "aclara", "circular-d5.pdf", "2026-03-01")
+
+    for sources in ([only_effect, right_document], [right_document, only_effect]):
+        flags = ev.best_source_points(item, block, sources)
+        assert flags[3] is True
+    # Sin empate en el punto 4, gana quien suma más; con todo igual, la de menor id.
+    twin = _stub_source(3, "aclara", "circular-d5.pdf", "2026-03-01")
+    assert ev.best_source_points(item, block, [twin, right_document]) == \
+        ev.best_source_points(item, block, [right_document, twin])
+    assert ev.best_source_points(item, block, []) == (False, False, False, False)
