@@ -360,5 +360,5 @@ OFFERS_QUERY_MAX_CHARS = 800
 # Versión de cada instrucción: archivo `evaluon/offers/prompts/<versión>.md`.
 OFFERS_PROMPT_VERSIONS = {
     "ficha": "ficha-v2",
-    "ficha_renglon": "ficha-renglon-v2",
+    "ficha_renglon": "ficha-renglon-v3",
 }

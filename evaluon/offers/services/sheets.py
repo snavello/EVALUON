@@ -377,6 +377,10 @@ def _correction(problem):
             + "). Respondé solo con el objeto JSON pedido y usá solo los alias de la lista.")
 
 
+def _only_technical(passages):
+    return all(p.reading.document.kind == DocumentKind.TECNICA for p in passages)
+
+
 def neutral_synthesis(passages):
     """Síntesis de una fila cuyo texto del modelo sigue con juicio después del reintento: solo
     dice dónde está la respuesta (documento y página de los pasajes), sin datos del modelo
@@ -461,6 +465,10 @@ def _answer_entry(offer, requirement, unread, clock):
         return entry
     chosen, synthesis, quoted = answer
     entry.passages = [alias_to_passage[a] for a in chosen]
+    if item_row and quoted == "si" and entry.passages and _only_technical(entry.passages):
+        # Una hoja técnica o las especificaciones solas no son la cotización: el renglón no
+        # figura cotizado y la fila no muestra esos pasajes (T-135).
+        quoted, entry.passages = "no", []
     if entry.passages:
         entry.outcome = EntryOutcome.ENCONTRADO
         entry.synthesis = synthesis or neutral_synthesis(entry.passages)

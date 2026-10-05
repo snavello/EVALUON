@@ -362,7 +362,7 @@ def test_every_model_request_is_recorded(offer, operator_user, script):
     detail = events(EventType.SHEET_BUILD, Outcome.OK).get().detail
     assert detail["models"]["generation_batch"]["sha256"]
     assert detail["parameters"]["candidates_to_model"] == 12
-    assert detail["prompt_versions"] == {"ficha": "ficha-v2", "ficha_renglon": "ficha-renglon-v2"}
+    assert detail["prompt_versions"] == {"ficha": "ficha-v2", "ficha_renglon": "ficha-renglon-v3"}
     assert detail["counts"]["model_requests"] == sheet.steps.count()
 
 
@@ -542,14 +542,16 @@ def test_an_item_row_also_gets_the_neighbors_of_its_best_passages(
     assert len(step.candidates["sent"]) == 2
 
 
-def test_the_item_prompt_v2_accepts_a_table_row_with_number_and_description():
-    """REQ-044: la instrucción del renglón v2 dice que la tabla con número y descripción, o la
-    hoja técnica, ofrece el renglón; la v1 sigue como estaba."""
-    text = sheets.PROMPTS_DIR.joinpath("ficha-renglon-v2.md").read_text(encoding="utf-8")
-    assert "aunque no traiga precio" in text and "hoja técnica" in text
+def test_the_item_prompt_v3_asks_for_price_or_quantity_and_not_for_a_technical_sheet():
+    """REQ-044: la instrucción del renglón v3 pide el precio o la cantidad ofrecida, en
+    cualquier documento, y dice que una hoja técnica sola no alcanza; v1 y v2 siguen como
+    estaban."""
+    text = sheets.load_prompt("ficha_renglon")
+    assert "el precio o la cantidad que el oferente ofrece" in text
+    assert "Una hoja técnica" in text and "no alcanzan" in text
     assert "No decidís" in text and "no cumple" in text
-    assert "aunque no traiga precio" not in sheets.PROMPTS_DIR.joinpath(
-        "ficha-renglon-v1.md").read_text(encoding="utf-8")
+    for old in ("ficha-renglon-v1.md", "ficha-renglon-v2.md"):
+        assert "no alcanzan" not in sheets.PROMPTS_DIR.joinpath(old).read_text(encoding="utf-8")
 
 
 def test_the_sheet_prompt_v2_asks_for_the_concrete_datum_and_abstention():
@@ -571,3 +573,50 @@ def test_a_found_row_never_stays_without_a_synthesis(offer, operator_user, scrip
     assert row.outcome == om.Outcome.ENCONTRADO
     assert row.synthesis.startswith("El oferente responde en: ")
     assert not sheets.judgment_words(row.synthesis)
+
+
+# --- Cotización de un renglón y copias idénticas (T-135, decisiones del responsable) -------------
+
+
+def test_an_item_with_only_a_technical_sheet_is_not_quoted(procedure, operator_user, fake_ai,
+                                                           script):
+    """REQ-044: una hoja técnica sola no es la cotización: aunque el modelo diga "sí", el
+    renglón figura "no cotizado" y la fila no muestra fragmentos."""
+    offer = make_offer(procedure, operator_user, "Solo hoja", {
+        "hoja.docx": ["Resma de papel A4, 75 g/m2, 500 hojas. Marca Ficticia."]},
+        kinds={"hoja.docx": "tecnica"})
+    script.choose(pick("Resma", when="RESMA"))
+    sheet = build(offer, operator_user)
+    row = entry_of(sheet, 6)
+    assert row.quoted == om.Quoted.NO_COTIZADO and not row.fragments.exists()
+
+
+def test_an_item_with_a_price_in_a_separate_sheet_is_quoted(procedure, operator_user, fake_ai,
+                                                            script):
+    """REQ-044: el precio en una planilla aparte, junto a una hoja técnica, da "cotizado" y
+    la cita es la planilla."""
+    offer = make_offer(procedure, operator_user, "Planilla aparte", {
+        "hoja.docx": ["Resma de papel A4, 75 g/m2, 500 hojas. Marca Ficticia."],
+        "planilla.pdf": ["Renglón 1 · 100 unidades · precio unitario $ 3.100"]},
+        kinds={"hoja.docx": "tecnica", "planilla.pdf": "economica"})
+    script.choose(pick("precio unitario", when="RESMA"))
+    row = entry_of(build(offer, operator_user), 6)
+    assert row.quoted == om.Quoted.COTIZADO
+    assert row.fragments.get().passage.reading.document.file_name == "planilla.pdf"
+
+
+def test_identical_passages_are_grouped_before_the_reranker(procedure, operator_user, fake_ai,
+                                                            script):
+    """REQ-039 (T-135, 2b): una copia idéntica de otro documento no ocupa un candidato: se
+    puntúa y se manda una sola vez; la copia queda en el registro con `copy_of`."""
+    text = "Declaro bajo juramento que estoy habilitado para contratar."
+    offer = make_offer(procedure, operator_user, "Con copias", {
+        "a.pdf": [text, "Otro texto distinto."], "b.pdf": [text.upper()]})
+    script.choose(pick(DECLARATION, when="declaración jurada"))
+    sheet = build(offer, operator_user)
+    step = sheet.steps.filter(entry__requirement__number=1).get()
+    copies = [c for c in step.candidates["pool"] if c["copy_of"]]
+    assert len(copies) == 1 and len(step.candidates["sent"]) == 2
+    assert len(script.calls[0]["blocks"]) == 2
+    scored = [c for c in step.candidates["pool"] if c["score"] is not None]
+    assert len(scored) == 2
