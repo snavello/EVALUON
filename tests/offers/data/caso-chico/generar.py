@@ -15,6 +15,8 @@ Escribe en esta carpeta, con esta variedad:
   propuesta económica con una tabla de precios por renglón, y un anexo con una respuesta
   implícita ("según pliego").
 - `poliza-caucion.pdf`: una póliza con texto (la garantía).
+- `hoja-tecnica-resma.pdf`: una hoja técnica con texto, tabla de características y firma (la
+  documentación técnica, REQ-044; T-131).
 - `constancia-escaneada.pdf`: una constancia escaneada, torcida, con ruido, con un sello y una
   firma encima del texto.
 - `documento-firmado-mixto.pdf`: un PDF con una página de texto y otra escaneada y borrosa,
@@ -129,6 +131,17 @@ CONSTANCIA = [
     ],
 ]
 
+HOJA_TECNICA = [
+    [
+        para("HOJA TÉCNICA · RESMA DE PAPEL A4 DE 75 GRAMOS",
+             "Producto ofrecido por el Oferente A Sintético: marca sintética, modelo S-75."),
+        table(("Característica", "Valor"), ("Gramaje", "75 g/m²"), ("Hojas por resma", "500"),
+              ("Blancura", "92 %")),
+        para("Firmado: Responsable técnico sintético, en representación del Oferente A "
+             "Sintético."),
+    ],
+]
+
 IDENTIDAD = [
     [
         para("DOCUMENTO DE IDENTIDAD DEL REPRESENTANTE",
@@ -218,6 +231,7 @@ def main():
     (HERE / "pliego.pdf").write_bytes(tender_pdf(PLIEGO, header=None))
     (HERE / "oferta-propuesta.pdf").write_bytes(tender_pdf(OFERTA, header=HEADER))
     (HERE / "poliza-caucion.pdf").write_bytes(tender_pdf(POLIZA, header=HEADER))
+    (HERE / "hoja-tecnica-resma.pdf").write_bytes(tender_pdf(HOJA_TECNICA, header=HEADER))
 
     constancia = render(CONSTANCIA)[0]
     stamp_and_signature(constancia, rng)
