@@ -31,6 +31,8 @@ Cómo se cuenta (plan 008, "Cómo se cuenta"):
    la fila del mismo requisito lo encuentra si está en el mismo documento y la misma página y
    cae en el mismo pasaje o su texto cubre al menos la mitad del pasaje ubicado. No se exige
    igualdad de palabras.
+   Una copia idéntica en otro documento de la misma oferta cuenta como encontrada
+   (`is_identical_copy`, T-135).
 2. Texto literal: todo fragmento mostrado es igual al recorte del texto canónico y cae dentro
    de su pasaje y su página.
 3. Sin respuesta: el requisito figura "no se encontró"; un fragmento propuesto ahí es un
@@ -95,6 +97,16 @@ THRESHOLDS = {
     "technical_documents": 1.0,
 }
 MAX_PAGES_UNLISTED = 0
+
+# Umbrales del caso-00, tres ofertas reales (plan 008, "Umbrales"): "sin respuesta" se informa
+# sin tope (`None`) y los renglones piden 90 %. Se aplican cuando la lista dice `caso: caso-00`.
+CASE_00 = "caso-00"
+THRESHOLDS_CASE_00 = {**THRESHOLDS, "no_answer": None, "items": 0.90}
+
+
+def thresholds_for(case):
+    """Los umbrales que corresponden al caso de la lista (el caso-00 tiene los suyos)."""
+    return THRESHOLDS_CASE_00 if case == CASE_00 else THRESHOLDS
 
 LABELS = {
     "found": "Fragmentos esperados encontrados (REQ-039)",
@@ -507,6 +519,34 @@ def _covers(fragment, passage):
     return overlap >= COVERS * max(1, passage.char_end - passage.char_start)
 
 
+def _flat(text):
+    return " ".join((text or "").lower().split())
+
+
+def _page_text(reading_id, page, cache):
+    key = (reading_id, page)
+    if key not in cache:
+        cache[key] = _flat(" ".join(om.Passage.objects.filter(
+            reading_id=reading_id, page=page).order_by("order").values_list("text", flat=True)))
+    return cache[key]
+
+
+def is_identical_copy(passage, located, cache):
+    """El `passage` es el mismo lugar que `located` en otro documento de la misma oferta
+    (T-135, decisión del responsable: una copia idéntica cuenta como encontrada). Regla:
+    el mismo pasaje literal (texto igual, sin distinguir mayúsculas ni espacios) o el mismo
+    lugar (misma clave de pasaje) de una página cuyo texto completo es igual. Dos
+    documentos distintos que no son copias no coinciden."""
+    if passage.reading_id == located.reading_id:
+        return False
+    if _flat(passage.text) == _flat(located.text):
+        return True
+    return (passage.key == located.key
+            and _page_text(passage.reading_id, passage.page, cache) != ""
+            and _page_text(passage.reading_id, passage.page, cache)
+            == _page_text(located.reading_id, located.page, cache))
+
+
 def measure_sheet(sheet, entry, offer, mapping):
     """Mide una ficha contra lo esperado de su oferta. Devuelve un diccionario con las
     medidas, las líneas de detalle y lo que bloquea."""
@@ -517,6 +557,7 @@ def measure_sheet(sheet, entry, offer, mapping):
     # 1. Fragmentos esperados encontrados.
     found = 0
     matched_fragments = set()
+    page_cache = {}
     for expected in entry.fragments:
         requirement = mapping.get(expected.requirement)
         reading = by_document.get(expected.document)
@@ -534,8 +575,9 @@ def measure_sheet(sheet, entry, offer, mapping):
                     "passage__reading__document"):
                 same_place = (fragment.passage.reading_id == reading.pk
                               and fragment.passage.page == expected.page)
-                if same_place and (fragment.passage_id == located.pk
-                                   or _covers(fragment, located)):
+                copy = is_identical_copy(fragment.passage, located, page_cache)
+                if copy or (same_place and (fragment.passage_id == located.pk
+                                            or _covers(fragment, located))):
                     ok = True
                     matched_fragments.add(fragment.pk)
                     break
@@ -649,12 +691,13 @@ def aggregate(measures):
     return result
 
 
-def blocking(total):
-    """Lo que no llega al umbral del caso chico (vacío si todo cumple)."""
+def blocking(total, case=None):
+    """Lo que no llega al umbral del caso (vacío si todo cumple); por omisión, el del caso
+    chico."""
     failed = []
-    for name, minimum in THRESHOLDS.items():
+    for name, minimum in thresholds_for(case).items():
         value = total[name]
-        if value["total"] and value["rate"] < minimum:
+        if minimum is not None and value["total"] and value["rate"] < minimum:
             failed.append(f"{LABELS[name]}: {proportion_text(value)}, mínimo {_pct(minimum)}")
     pages = total["expected_pages"]
     if pages["total"] and pages["ok"] < pages["total"]:
@@ -679,7 +722,7 @@ class Report:
 
     @property
     def blocking(self):
-        return blocking(self.total)
+        return blocking(self.total, self.expected.case)
 
 
 def _dumps(value, **kwargs):
@@ -740,7 +783,7 @@ def _write(report, procedure, version, started_at, commit):
         "lista": {"sha256": expected.sha256, "visto_bueno": expected.approval,
                   "ofertas": len(expected.offers),
                   "fragmentos": sum(len(o.fragments) for o in expected.offers)},
-        "umbrales": {**THRESHOLDS, "paginas_sin_lista_maximo": MAX_PAGES_UNLISTED},
+        "umbrales": {**thresholds_for(expected.case), "paginas_sin_lista_maximo": MAX_PAGES_UNLISTED},
         "comprobacion": dict(report.verification.counts),
         "fichas": [{"oferta": r["number"], "ficha": r["sheet"], "parametros": r["parameters"],
                     "instrucciones": r["prompt_versions"], "modelos": r["models"]}
@@ -758,8 +801,8 @@ def _write(report, procedure, version, started_at, commit):
                                                       encoding="utf-8")
 
 
-def _verdict(total):
-    failed = blocking(total)
+def _verdict(total, case=None):
+    failed = blocking(total, case)
     return "Cumple el umbral." if not failed else "No cumple: " + "; ".join(failed) + "."
 
 
@@ -770,15 +813,15 @@ def _summary(report, *, public):
         f"Lista: `{report.expected.sha256[:12]}` · visto bueno: {report.expected.approval}",
         "", "## Resultado contra el umbral", "",
         "| Medida | Umbral | Medido |", "|---|---|---|"]
-    for name, minimum in THRESHOLDS.items():
-        lines.append(f"| {LABELS[name]} | {_pct(minimum)} o más | "
-                     f"{proportion_text(total[name])} |")
+    for name, minimum in thresholds_for(report.expected.case).items():
+        required = "informado, sin tope" if minimum is None else f"{_pct(minimum)} o más"
+        lines.append(f"| {LABELS[name]} | {required} | {proportion_text(total[name])} |")
     lines.append(f"| Páginas sin texto ni lista (REQ-038) | {MAX_PAGES_UNLISTED} | "
                  f"{len(total['pages_unlisted'])} |")
     pages = total["expected_pages"]
     lines.append("| Páginas no legibles esperadas en las listas (REQ-038) | todas | "
                  f"{pages['ok']} de {pages['total']} |")
-    lines += ["", _verdict(total), "", "## Se informa, no bloquea", "",
+    lines += ["", _verdict(total, report.expected.case), "", "## Se informa, no bloquea", "",
               f"- Fragmentos mostrados sin pareja en la lista: {total['extra_fragments']}.",
               f"- Falsos hallazgos (fragmento en un requisito sin respuesta): "
               f"{len(total['false_findings'])}.",

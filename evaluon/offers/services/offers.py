@@ -331,6 +331,27 @@ def _plain(text):
                   "".join(c for c in decomposed if unicodedata.category(c) != "Mn"))
 
 
+# Raíces del encabezado de un documento técnico (T-135): una hoja técnica no siempre trae una
+# frase de la lista, y el OCR cambia letras ("espec1ficaciones"). Una palabra del nombre o
+# del encabezado (primeros `_TITLE_CHARS` caracteres) que empieza como la raíz, con una
+# letra de diferencia como máximo, la cuenta.
+_TECHNICAL_ROOTS = ("tecnic", "especif")
+_TITLE_CHARS = 400
+
+
+def _close(prefix, root):
+    """Las dos cadenas (del mismo largo) difieren en una letra a lo sumo."""
+    return len(prefix) == len(root) and sum(a != b for a, b in zip(prefix, root)) <= 1
+
+
+def _has_technical_root(source):
+    for word in re.findall(r"\w+", source):
+        for root in _TECHNICAL_ROOTS:
+            if len(word) >= len(root) and _close(word[:len(root)], root):
+                return True
+    return False
+
+
 def classify_kind(file_name, text):
     """El tipo del documento por reglas sobre su nombre y el comienzo de su texto; vacío
     si ninguna regla alcanza."""
@@ -338,6 +359,9 @@ def classify_kind(file_name, text):
         for kind, words in KIND_RULES:
             if any(word in source for word in words):
                 return kind.value
+    for source in (_plain(file_name), _plain((text or "")[:_TITLE_CHARS])):
+        if _has_technical_root(source):
+            return DocumentKind.TECNICA.value
     return ""
 
 
@@ -528,3 +552,100 @@ def original_file(user, document_id, *, channel=Channel.SCREEN):
     require_commission_role(user, CommissionRole.OPERATOR, operation=ORIGINAL_OPERATION,
                             channel=channel)
     return DocumentFile.objects.select_related("document").get(document_id=document_id)
+
+
+# --- Mantenimiento de lo ya cargado (T-136) ----------------------------------------------------
+
+RECLASSIFY_OPERATION = "evaluon.offers.services.offers.reclassify_documents"
+REBUILD_OPERATION = "evaluon.offers.services.offers.rebuild_passages"
+
+
+def reclassify_documents(user, procedure, *, channel=Channel.COMMAND):
+    """Vuelve a aplicar `classify_kind` a los documentos ya cargados del procedimiento, sobre
+    su nombre y el texto canónico de su última lectura. No lee ni usa OCR ni GPU. Si ninguna
+    regla alcanza, el tipo que ya tenía no se toca (igual que al leer). Cada documento cuyo
+    tipo cambia deja el hecho `offer_read` con `action: reclassify`, el tipo anterior y el
+    nuevo (P6). Devuelve la lista `(documento, tipo anterior, tipo nuevo)` de los que
+    cambiaron."""
+    require_commission_role(user, CommissionRole.OPERATOR, operation=RECLASSIFY_OPERATION,
+                            channel=channel)
+    changed = []
+    documents = Document.objects.filter(offer__procedure=procedure).select_related("offer")
+    for document in documents.order_by("offer__number", "loaded_at", "id"):
+        reading = document.readings.order_by("-sequence").first()
+        if reading is None:
+            continue
+        kind = classify_kind(document.file_name, reading.canonical_text)
+        if not kind or kind == document.kind:
+            continue
+        with transaction.atomic():
+            before = document.kind
+            document.kind = kind
+            document.save(update_fields=["kind"])
+            audit.record(
+                EventType.OFFER_READ, outcome=Outcome.OK, channel=channel, user=user,
+                detail={"action": "reclassify", "procedure": procedure.pk,
+                        "offer": document.offer_id, "document": document.pk,
+                        "reading": reading.pk, "kind_before": before, "kind": kind})
+        changed.append((document, before, kind))
+    return changed
+
+
+def _passage_shape(items):
+    return [(i.key, i.page, i.char_start, i.char_end, i.text) for i in items]
+
+
+def rebuild_passages(user, document, *, channel=Channel.COMMAND):
+    """Arma de nuevo los pasajes de `document` desde las páginas de su última lectura, con
+    las reglas de partición de hoy, sin OCR. Si salen otros pasajes, guarda una lectura nueva
+    (la anterior queda: las lecturas son de solo agregado) con las mismas páginas, su texto
+    canónico, sus pasajes con vectores y su informe, y deja el hecho `offer_read` con
+    `action: rebuild_passages`. Devuelve la lectura nueva, o `None` si el particionado no
+    cambia nada."""
+    require_commission_role(user, CommissionRole.OPERATOR, operation=REBUILD_OPERATION,
+                            channel=channel)
+    detail = {"action": "rebuild_passages", "procedure": document.offer.procedure_id,
+              "offer": document.offer_id, "document": document.pk}
+    try:
+        previous = document.readings.order_by("-sequence").first()
+        if previous is None:
+            raise ValueError("El documento todavía no tiene una lectura.")
+        detail["from_reading"] = previous.pk
+        reading = reading_tools.rebuild_reading(previous.pages)
+        canonical = build_canonical_text(reading)
+        specs = passage_rules.build_passages(canonical)
+        if (canonical.text == previous.canonical_text
+                and _passage_shape(specs) == _passage_shape(previous.passages.order_by("order"))):
+            return None
+        vectors = _vectors(specs)
+        canonical_sha256 = hashlib.sha256(canonical.text.encode("utf-8")).hexdigest()
+        tool_versions = {**previous.tool_versions, "embeddings": _embedding_info(),
+                         "rebuilt_from_reading": previous.pk}
+        report = read_report(document, reading, specs,
+                             previous.report.get("second_attempt", []))
+        with transaction.atomic():
+            Document.objects.select_for_update().get(pk=document.pk)
+            last = document.readings.aggregate(last=Max("sequence"))["last"] or 0
+            saved = Reading.objects.create(
+                document=document, sequence=last + 1, pages=previous.pages,
+                canonical_text=canonical.text, canonical_sha256=canonical_sha256,
+                tool_versions=tool_versions, report=report, job=None)
+            Passage.objects.bulk_create(
+                Passage(reading=saved, order=spec.order, key=spec.key, page=spec.page,
+                        char_start=spec.char_start, char_end=spec.char_end, text=spec.text,
+                        text_origin=spec.text_origin,
+                        ocr_confidence_min=spec.ocr_confidence_min,
+                        ocr_confidence_avg=spec.ocr_confidence_avg, embedding=vector)
+                for spec, vector in zip(specs, vectors, strict=True))
+            audit.record(
+                EventType.OFFER_READ, outcome=Outcome.OK, channel=channel, user=user,
+                detail={**detail, "reading": saved.pk, "sequence": saved.sequence,
+                        "canonical_sha256": canonical_sha256, "tool_versions": tool_versions,
+                        "passages_before": previous.passages.count(),
+                        "passages": len(specs)})
+    except Exception as error:
+        audit.record(EventType.OFFER_READ, outcome=Outcome.FAILED, channel=channel,
+                     user=user, detail={**detail,
+                                        "error": f"{type(error).__name__}: {error}"})
+        raise
+    return saved

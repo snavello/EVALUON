@@ -141,3 +141,20 @@ def test_unknown_rows_and_users_without_role(client, sheet, no_commission_user,
     assert client.post(reverse("offers:add_fragment", args=[9999])).status_code == 404
     assert client.post(reverse("offers:fragment_action",
                                args=[9999, "quitar"])).status_code == 404
+
+
+def test_an_item_without_a_quote_in_sight_is_labeled_so_and_still_shows_its_fragment(
+        client, procedure, operator_user, script):
+    """REQ-044 (T-136): en la pantalla, un renglón con la hoja técnica y sin precio dice "sin
+    cotización a la vista" y muestra el fragmento."""
+    from tests.offers.conftest import make_offer
+
+    offer = make_offer(procedure, operator_user, "Solo hoja", {
+        "hoja.docx": ["Resma de papel A4, 75 g/m2, 500 hojas. Marca Ficticia."]},
+        kinds={"hoja.docx": "tecnica"})
+    script.choose(pick("Resma", quoted="sin_precio", when="RESMA"))
+    built = sheets.build_sheet(offer, operator_user)
+    log_in(client, operator_user)
+    page = text_of(client.get(reverse("offers:sheet", args=[built.pk])))
+    assert "sin cotización a la vista" in page
+    assert "Resma de papel A4, 75 g/m2" in page

@@ -85,3 +85,38 @@ def test_a_page_without_text_has_no_passages():
 def test_orders_are_consecutive(pages):
     _, specs = passages_of([[para(f"Texto de la página {n}.")] for n in range(1, pages + 1)])
     assert [spec.order for spec in specs] == list(range(1, len(specs) + 1))
+
+
+def _item_lines():
+    lines = []
+    for number in (1, 2, 3):
+        lines.append(f"Descripción sintética del artículo {number}, con cantidad y unidad.")
+        lines.append(f"RENGLÓN {number + 1}")
+        lines.append("Cuerpo ficticio del renglón con marca y modelo del artículo, "
+                     "cantidad y precio unitario de la tabla del Portal.")
+    return lines
+
+
+def test_a_split_never_leaves_an_item_heading_apart_from_its_body(settings):
+    """REQ-039, REQ-044 (T-135): al partir un bloque largo, cada encabezado "RENGLÓN" empieza
+    un pasaje con su cuerpo; ninguno queda al final de otro."""
+    settings.OFFERS_PASSAGE_MAX_CHARS = 260
+    settings.OFFERS_PASSAGE_MIN_CHARS = 10
+    _, specs = passages_of([[para(*_item_lines())]])
+    for number in (2, 3, 4):
+        owners = [s for s in specs if f"RENGLÓN {number}" in s.text]
+        assert len(owners) == 1
+        assert owners[0].text.startswith(f"RENGLÓN {number}")
+        assert "Cuerpo ficticio" in owners[0].text
+    assert all(not s.text.rstrip().endswith(f"RENGLÓN {n}") for s in specs for n in (2, 3, 4))
+
+
+def test_a_heading_misread_by_the_ocr_also_cuts_and_a_mention_does_not(settings):
+    """REQ-044: "RENGL0N" abre un pasaje; "el renglón 3" en medio de una frase no corta."""
+    settings.OFFERS_PASSAGE_MAX_CHARS = 100
+    settings.OFFERS_PASSAGE_MIN_CHARS = 10
+    _, specs = passages_of([[para(
+        "Primer artículo ficticio de la tabla, que se ofrece según el renglón 3 del pliego.",
+        "RENGL0N 2", "Segundo artículo ficticio de la tabla del Portal.")]])
+    assert any(s.text.startswith("RENGL0N 2") for s in specs)
+    assert any("el renglón 3 del pliego" in s.text for s in specs)
