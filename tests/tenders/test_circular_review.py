@@ -471,19 +471,25 @@ def test_a_dropped_title_that_names_no_condition_of_the_row_does_not_mark_it(
 
 # --- Ronda 2: la marca cae donde el cambio perdido apunta ------------------------------------------------------
 
-COTIZAR = "Cada participante cotizará la totalidad de los renglones del presente pliego."
+COTIZAR = ("Cada participante cotizará la totalidad de los renglones y consignará el precio "
+           "unitario en pesos.")
+COTIZAR_UNA_RAIZ = "El precio de cada renglón incluye los impuestos vigentes."
+COTIZAR_SIN_RENGLON = "Cada participante cotizará el precio unitario en pesos."
 
 
 def pricing_case(user, script):
     """Una cláusula de cotización sin renglón y los renglones 6 y 14."""
     procedure = make_procedure(user)
     load_and_read(user, procedure, tender_pdf([
-        [para("SECCIÓN I - CONDICIONES PARTICULARES"), para("1. COTIZACIÓN", f"1.1. {COTIZAR}")],
+        [para("SECCIÓN I - CONDICIONES PARTICULARES"), para("1. COTIZACIÓN", f"1.1. {COTIZAR}", f"1.2. {COTIZAR_UNA_RAIZ}",
+                                       f"1.3. {COTIZAR_SIN_RENGLON}")],
         [para("SECCIÓN II - ESPECIFICACIONES TÉCNICAS PARTICULARES"),
          para("6. RENGLÓN N° 6 - EQUIPO SINTÉTICO A", f"6.1. {EQUIPO}"),
          para("14. RENGLÓN N° 14 - EQUIPO SINTÉTICO B", f"14.1. {EQUIPO}")],
     ]))
-    script.when(COTIZAR, item([("cotizará la totalidad de los renglones", "economico")]))
+    script.when(COTIZAR, item([(COTIZAR.rstrip("."), "economico")]))
+    script.when(COTIZAR_UNA_RAIZ, item([(COTIZAR_UNA_RAIZ.rstrip("."), "economico")]))
+    script.when(COTIZAR_SIN_RENGLON, item([(COTIZAR_SIN_RENGLON.rstrip("."), "economico")]))
     script.when("EQUIPO SINTÉTICO", item(technical=["6"]))
     script.override(lambda blocks, number, answer: {
         alias: (item(technical=[block["items"]]) if block["items"] else answer[alias])
@@ -495,19 +501,20 @@ def test_a_lost_pricing_change_marks_the_pricing_row_and_only_the_renglon_it_nam
         operator_user, script):
     """REQ-031, P3 (caso-03, D7, M-028): la circular rectifica lo del renglón 6 y pide cotizar
     por servicio; el cambio no se resuelve. Quedan marcadas la fila del renglón 6 y la de la
-    cláusula de cotización (nombra los renglones y comparte "cotizar"), no el renglón 14 ni
-    ninguna otra fila, aunque un renglón anterior del encabezado nombre otros."""
+    cláusula de cotización (nombra los renglones y comparte dos raíces con el cambio), no el
+    renglón 14, ni la cita que comparte una sola raíz, ni la que no habla de renglones, aunque
+    un renglón anterior del encabezado nombre otros."""
     procedure = pricing_case(operator_user, script)
     load_and_read(operator_user, procedure, narrative_circular(
         "SE MODIFICAN LOS RENGLONES 1 A 20 DE LA TABLA DE PRECIOS:",
         "Se rectifica la circular anterior en lo que respecta al renglón 6, debiendo las "
         "empresas participantes cotizar en este renglón los siguientes servicios y sus "
-        "repuestos, según el siguiente detalle:"),
+        "repuestos con precio unitario por servicio, según el siguiente detalle:"),
         kind="circular_modificatoria", title="Circular N.º 5", issued_on=date(2025, 12, 2))
     script.x_when("rectifica la circular", [change(
         "reemplaza", "renglon", "6", "",
         "debiendo las empresas participantes cotizar en este renglón los siguientes "
-        "servicios y sus repuestos")])
+        "servicios y sus repuestos con precio unitario por servicio")])
 
     version, _ = run_proposal(operator_user, procedure)
 
@@ -539,3 +546,71 @@ def test_a_bare_change_under_a_long_renglon_heading_goes_only_to_that_renglon(
     assert not row_of_item(version, 14).sources.exists()
     # Lo aplica el código por clave, sin que el respaldo vea otros renglones.
     assert not [r for r in script.requests if "Dentro del título" in r["tramo"]]
+
+
+def test_a_change_that_names_a_renglon_no_candidate_has_marks_nothing_else(operator_user, script):
+    """REQ-031, P3 (ronda 2): el cambio perdido nombra el renglón 99, que no existe; otro
+    cambio de la misma unidad nombra el 6. Como el cambio perdido sí nombra algo, no se
+    recurre a todo lo que nombra la unidad: ninguna fila queda marcada por él."""
+    procedure = items_case(operator_user, script)
+    add_circular(operator_user, procedure, "Circular N.º 7", date(2025, 12, 9),
+                 "1. En el Renglón N° 6 el cable pasa a ser de ocho milímetros y en el "
+                 "Renglón N° 99 se reemplaza la balanza por otra.")
+    script.x_when("cable pasa", [
+        change("aclara", "renglon", "6", "", "el cable pasa a ser de ocho milímetros"),
+        change("reemplaza", "renglon", "99", "la balanza", "otra")])
+
+    version, run = run_proposal(operator_user, procedure)
+
+    assert anomalies_of(run, circulars.ANOMALY_REVIEW_REQUIRED)
+    assert not flagged_numbers(operator_user, version)
+
+
+def test_a_lost_change_that_names_nothing_marks_what_the_unit_names(operator_user, script):
+    """REQ-031, P3 (ronda 2): el cambio perdido no nombra renglón ni cláusula; entonces se
+    marcan las filas que nombra la unidad (el renglón 6) y no las de otro renglón."""
+    procedure = items_case(operator_user, script)
+    add_circular(operator_user, procedure, "Circular N.º 7", date(2025, 12, 9),
+                 "1. En el Renglón N° 6 se reemplaza la balanza de plataforma por una "
+                 "balanza de precisión.")
+    script.x_when("balanza", [change("reemplaza", "ninguno", "", "la balanza de plataforma",
+                                     "una balanza de precisión")])
+
+    version, _ = run_proposal(operator_user, procedure)
+
+    assert list(flagged_numbers(operator_user, version)) == [row_of_item(version, 6).number]
+
+
+def test_a_title_dropped_by_the_fallback_marks_the_row_only_if_it_names_its_condition(
+        operator_user, script):
+    """REQ-031, P3 (ronda 2): el modelo de respaldo devuelve un título como `aclara`; se
+    descarta y la fila se marca solo si el título comparte dos raíces con su condición."""
+    procedure = visit_case(operator_user, script)
+    sharing = "LICITACIÓN PÚBLICA N° 99/2099 - VISITA AL LUGAR DE ENTREGA"
+    load_and_read(operator_user, procedure, narrative_circular(sharing),
+                  kind="circular_modificatoria", title="Circular N.º 2",
+                  issued_on=date(2025, 12, 1))
+    script.c_when("LICITACIÓN PÚBLICA", efectos=[("visita", "aclara", sharing)])
+
+    version, run = run_proposal(operator_user, procedure)
+
+    assert anomalies_of(run, circulars.ANOMALY_TITLE_NOT_CLARIFICATION)
+    assert not m.RequirementSource.objects.filter(requirement__version=version).exists()
+    assert list(flagged_numbers(operator_user, version)) == [
+        requirement_with(version, VISITA_QUOTE).number]
+
+
+def test_a_title_dropped_by_the_fallback_that_shares_one_root_does_not_mark_the_row(
+        operator_user, script):
+    """REQ-031 (ronda 2): comparte solo una raíz ("visita") con la condición: no se marca."""
+    procedure = visit_case(operator_user, script)
+    one_root = "LICITACIÓN PÚBLICA N° 99/2099 - VISITA TÉCNICA DE INSUMOS"
+    load_and_read(operator_user, procedure, narrative_circular(one_root),
+                  kind="circular_modificatoria", title="Circular N.º 2",
+                  issued_on=date(2025, 12, 1))
+    script.c_when("LICITACIÓN PÚBLICA", efectos=[("visita", "aclara", one_root)])
+
+    version, run = run_proposal(operator_user, procedure)
+
+    assert anomalies_of(run, circulars.ANOMALY_TITLE_NOT_CLARIFICATION)
+    assert not flagged_numbers(operator_user, version)

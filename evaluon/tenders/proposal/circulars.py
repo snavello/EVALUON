@@ -386,13 +386,23 @@ def named_in(text):
     return clauses, items
 
 
-_STEM_SKIP = frozenset("rengl sigui prese plieg ofere deber contr".split())
+# Raíces de palabras de uso común en un pliego: no dicen de qué habla un texto.
+_STEM_SKIP = frozenset(
+    "rengl sigui prese plieg ofere ofert deber contr servi docum garan prove adjud condi "
+    "parti empre bases lugar segun gener espec requi siste".split())
+SHARED_STEMS = 2    # raíces en común para decir que dos textos hablan de lo mismo
 
 
 def word_stems(text):
     """Los primeros cinco caracteres de las palabras de seis letras o más, sin las de uso
     común en un pliego: sirven para ver si dos textos hablan de lo mismo."""
     return {w[:5] for w in re.findall(r"[a-z]{6,}", fold(text))} - _STEM_SKIP
+
+
+def shares_topic(first, second):
+    """Si dos textos tienen al menos `SHARED_STEMS` raíces de palabra en común, sin contar
+    las genéricas del pliego."""
+    return len(word_stems(first) & word_stems(second)) >= SHARED_STEMS
 
 
 def candidate_items(candidate):
@@ -994,7 +1004,7 @@ class Processor:
         """Las citas que el texto nombra: por cláusula, renglón o anexo, o por el título entre
         comillas de un anexo; con `scope`, también las del renglón del encabezado. Un cambio
         que nombra un renglón alcanza además las citas sin renglón que hablan de "los
-        renglones" y comparten una palabra con él (la cláusula de cotización)."""
+        renglones" y comparten dos raíces de palabra con él (la cláusula de cotización)."""
         clauses, items = named_in(text)
         items = items | set(scope)
         annexes = named_annexes(text)
@@ -1002,11 +1012,10 @@ class Processor:
         found = [c for c in candidates
                  if is_named(c, clauses, items) or is_referred(c, annexes, haystack)]
         if items:
-            stems = word_stems(text)
             found += [c for c in candidates
                       if c not in found and not candidate_items(c)
                       and all(t.category != RequirementClass.TECNICO.value for t in c.targets)
-                      and "renglon" in fold(c.text) and stems & word_stems(c.text)]
+                      and "renglon" in fold(c.text) and shares_topic(text, c.text)]
         return found
 
     @staticmethod
@@ -1316,7 +1325,7 @@ class Processor:
                     "key": segment.key, "alias": alias, "step": outcome.step.pk,
                     "review_required": True, "circular": label,
                     "requirements": [t.number for t in candidate.targets
-                                     if word_stems(text) & word_stems(candidate.text)]})
+                                     if shares_topic(text, candidate.text)]})
                 continue
             sources.append(Source(effect, candidate, segment, start, end, text, issued_on,
                                   outcome.step, wide))
