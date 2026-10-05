@@ -1,5 +1,5 @@
 # Lista de fragmentos esperados del caso chico (T-130; plan 008, "Lista esperada de fichas").
-# Caso INVENTADO y público (P4): ningún dato es real. Los cinco PDF los genera `generar.py`.
+# Caso INVENTADO y público (P4): ningún dato es real. Los seis PDF los genera `generar.py`.
 # La forma de las ofertas (documentos mezclados, tabla de precios, escaneo torcido con sello,
 # página ilegible, respuesta "según pliego") sigue la variedad de las ofertas reales, sin
 # copiar nada de ellas.
@@ -28,6 +28,7 @@ ofertas:
     documentos:
       - {archivo: oferta-propuesta.pdf, sha256: "cdcddf62f7d406c46f429b359d5169425facfd7924eaca027ec4a415a05f1eab"}
       - {archivo: poliza-caucion.pdf, sha256: "38f7c483d2d424b5f0b1cb81d01ad86c983660e0374977141e6bf43c36c1e94c"}
+      - {archivo: hoja-tecnica-resma.pdf, sha256: "022e4f1b3c576d0228b034fbc6274902cc4563224b2b10753f8e7413d0b5fdb7"}
       - {archivo: constancia-escaneada.pdf, sha256: "332033d2745197ccbcac18ed96d5eb15e6193ae6e5f22dcd8ee7643bda65271b"}
       - {archivo: documento-firmado-mixto.pdf, sha256: "d0c2a023c6cbf6a7e43842274dd705673539c0c32b41d0cc0853b0d7f6874167"}
     fragmentos:

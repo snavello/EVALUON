@@ -194,8 +194,13 @@ def test_the_sheet_page_shows_fragments_missing_rows_and_no_judgment(
 
 
 def test_the_sheet_page_shows_the_item_rows_and_technical_documentation(
-        client, operator_user, offer, script):
-    """REQ-044: renglones "cotizado" o "no cotizado" y la documentación técnica."""
+        client, operator_user, procedure, fake_ai, script):
+    """REQ-044: renglones "cotizado" o "no cotizado" y la documentación técnica, que cuenta
+    solo si hay un documento técnico."""
+    offer = make_offer(procedure, operator_user, "Con hoja técnica", {
+        "oferta.pdf": ["Renglón 1: resma de papel A4, 100 unidades, precio unitario $ 3.000."],
+        "hoja-tecnica.pdf": ["Hoja técnica: gramaje 75 g/m²."]},
+        kinds={"hoja-tecnica.pdf": "tecnica"})
     script.choose(pick("Renglón 1: resma", when="RESMA"))
     sheet = sheets.build_sheet(offer, operator_user)
     log_in(client, operator_user)

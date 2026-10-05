@@ -21,6 +21,7 @@
       <tr>
         <th scope="col">Título</th>
         <th scope="col">Tipo</th>
+        <th scope="col">Formato</th>
         <th scope="col">Estado</th>
         <th scope="col">Original</th>
       </tr>
@@ -30,13 +31,14 @@
       <tr>
         <td>{{ row.document.title }}</td>
         <td>{% if row.document.kind %}{{ row.document.get_kind_display }}{% else %}—{% endif %}</td>
+        <td>{{ row.document.get_file_format_display }}</td>
         <td>
-          {% if row.state == "leido" %}Leído{% if row.reading %} · {{ row.reading.report.pages }} página{{ row.reading.report.pages|pluralize }}{% endif %}
+          {% if row.state == "leido" %}Leído{% if row.reading %} · {{ row.reading.report.pages }} página{{ row.reading.report.pages|pluralize }}{% endif %}{% for retry in row.reading.report.second_attempt %}<br><small>Página {{ retry.page }}: se leyó una segunda vez con la imagen preparada; se conservó la {{ retry.kept }} lectura.</small>{% endfor %}
           {% elif row.state == "leyendo" %}Leyendo
           {% elif row.state == "fallido" %}No se pudo leer: {{ row.job.error }}
           {% else %}En espera de lectura{% endif %}
         </td>
-        <td><a href="{% url 'offers:document_original' row.document.pk %}">{{ row.document.file_name }}</a></td>
+        <td><a href="{% url 'offers:document_original' row.document.pk %}">{{ row.document.file_name }}</a> · <a href="{% url 'offers:document_original' row.document.pk %}?descargar=1">Descargar</a></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -53,7 +55,7 @@
   <h3>Páginas no leídas</h3>
   <ul>
     {% for entry in page.unread %}
-    <li>{{ entry.title }} · página {{ entry.page }}{% if entry.confidence is not None %} · confianza {{ entry.confidence }}{% endif %}</li>
+    <li>{{ entry.title }} · <a href="{% url 'offers:document_original' entry.document %}#page={{ entry.page }}">página {{ entry.page }}</a>{% if entry.confidence is not None %} · confianza {{ entry.confidence }}{% endif %}</li>
     {% endfor %}
   </ul>
   {% endif %}
@@ -61,7 +63,7 @@
   <h3>Páginas leídas con baja confianza</h3>
   <ul>
     {% for entry in page.low_confidence %}
-    <li>{{ entry.title }} · página {{ entry.page }}{% if entry.confidence is not None %} · confianza {{ entry.confidence }}{% endif %}</li>
+    <li>{{ entry.title }} · <a href="{% url 'offers:document_original' entry.document %}#page={{ entry.page }}">página {{ entry.page }}</a>{% if entry.confidence is not None %} · confianza {{ entry.confidence }}{% endif %}</li>
     {% endfor %}
   </ul>
   {% endif %}
@@ -102,8 +104,8 @@
     {% csrf_token %}
     {% for message in errors %}<p class="form-error" role="alert">{{ message }}</p>{% endfor %}
     <p>
-      <label for="id_file">Archivos (PDF)</label>
-      <input type="file" name="file" id="id_file" multiple>
+      <label for="id_file">Archivos (PDF, Word o fotos JPG y PNG; puede elegir varios)</label>
+      <input type="file" name="file" id="id_file" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png">
     </p>
     <button type="submit">Cargar</button>
   </form>

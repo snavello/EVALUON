@@ -40,16 +40,14 @@ from evaluon.ai import embeddings
 from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType, Outcome
 from evaluon.norms.reading import (
-    FORMAT_PDF,
     PAGE_BLANK,
     PAGE_DOUBTFUL,
     PAGE_ILLEGIBLE,
     PAGE_NOT_READ,
-    detect_format,
-    read_document,
 )
 from evaluon.norms.splitting.canonical import build_canonical_text
 from evaluon.offers import passages as passage_rules
+from evaluon.offers import reading as reading_tools
 from evaluon.offers.models import (
     Document,
     DocumentFile,
@@ -215,14 +213,29 @@ def _violated_constraint(error):
 # --- Carga del documento ----------------------------------------------------------------------
 
 
+# Formatos que se cargan, con el valor que se guarda en `Document.file_format`. El original
+# se guarda tal cual; fotos y Word se convierten a PDF solo para leerlos (`reading.py`).
+LOADABLE_FORMATS = {reading_tools.FORMAT_PDF: FileFormat.PDF,
+                    reading_tools.FORMAT_JPG: FileFormat.JPG,
+                    reading_tools.FORMAT_PNG: FileFormat.PNG,
+                    reading_tools.FORMAT_DOCX: FileFormat.DOCX}
+
+
 def _check(file_name, data):
-    """Comprueba los datos y devuelve el formato del archivo."""
+    """Comprueba los datos y devuelve el formato del archivo (por su contenido, no por el
+    nombre): PDF, Word, o foto JPG o PNG que se abre."""
     if not data or not (file_name or "").strip():
         raise OfferRefused("Elija el archivo del documento.", "file", "missing_data")
-    if detect_format(data) != FORMAT_PDF:
-        raise OfferRefused("El archivo no es un PDF: no se cargó.", "file",
-                           "unsupported_format")
-    return FileFormat.PDF.value
+    detected = reading_tools.detect_upload_format(data)
+    if detected not in LOADABLE_FORMATS:
+        raise OfferRefused("El archivo no es un PDF, un documento de Word (.docx) ni una foto JPG o PNG: no se cargó.",
+                           "file", "unsupported_format")
+    if detected in (reading_tools.FORMAT_JPG, reading_tools.FORMAT_PNG):
+        try:
+            detected = reading_tools.check_image(data)
+        except reading_tools.UnreadableFile as error:
+            raise OfferRefused(f"{error} No se cargó.", "file", "unreadable_file") from error
+    return LOADABLE_FORMATS[detected].value
 
 
 def _duplicate(offer, sha256):
@@ -302,8 +315,12 @@ KIND_RULES = (
                              "garantia de oferta", "garantia de cumplimiento", "pagare")),
     (DocumentKind.ECONOMICA, ("propuesta economica", "oferta economica", "planilla de cotizacion",
                               "planilla de precios", "cotizacion", "precio unitario")),
-    (DocumentKind.TECNICA, ("especificaciones tecnicas", "documentacion tecnica",
-                            "ficha tecnica", "memoria tecnica", "folleto", "catalogo")),
+    # Un documento técnico de verdad (especificaciones firmadas, folletos, hojas técnicas),
+    # no una tabla de renglones con precios (T-130, decisión del Coordinador).
+    (DocumentKind.TECNICA, ("especificaciones tecnicas", "especificacion tecnica",
+                            "documentacion tecnica", "ficha tecnica", "fichas tecnicas",
+                            "hoja tecnica", "hojas tecnicas", "hoja de datos", "datasheet",
+                            "memoria tecnica", "folleto", "brochure", "catalogo")),
 )
 _HEAD_CHARS = 1500
 
@@ -334,7 +351,7 @@ def _page_entries(document, pages, statuses):
             for page in pages if page.status in statuses]
 
 
-def read_report(document, reading, specs):
+def read_report(document, reading, specs, second_attempt=()):
     """El informe de una lectura: páginas por estado y origen, páginas no leídas y de baja
     confianza (REQ-038), páginas en blanco y páginas sin texto que no están en ninguna
     lista (que no debería haber)."""
@@ -357,6 +374,9 @@ def read_report(document, reading, specs):
         "blank": [page.number for page in pages if page.status == PAGE_BLANK],
         "without_text_unlisted": unlisted,
         "passages": len(specs),
+        # Páginas que se leyeron por segunda vez con la imagen preparada (ADR-0028), con la
+        # lectura que se conservó (`primera` o `segunda`).
+        "second_attempt": list(second_attempt),
     }
 
 
@@ -390,13 +410,14 @@ def run_read_document(job):
             raise OriginalChanged(
                 "El original guardado no coincide con la huella con que se cargó: no se "
                 "leyó.")
-        reading = read_document(data)
+        pdf = reading_tools.to_pdf(data, document.file_format)
+        reading, attempts = reading_tools.read_with_second_attempt(pdf)
         canonical = build_canonical_text(reading)
         specs = passage_rules.build_passages(canonical)
         vectors = _vectors(specs)
         canonical_sha256 = hashlib.sha256(canonical.text.encode("utf-8")).hexdigest()
         tool_versions = {**reading.tool_versions, "embeddings": _embedding_info()}
-        report = read_report(document, reading, specs)
+        report = read_report(document, reading, specs, attempts)
         kind = classify_kind(document.file_name, canonical.text)
 
         with transaction.atomic():

@@ -272,3 +272,169 @@ def test_the_offers_list_shows_reading_and_sheet_state(procedure, new_offer, ope
     jobs.run_next()
     _, rows = services.offers_page(operator_user, procedure.pk)
     assert rows[0].read == 1
+
+
+# --- Fotos, segundo intento y enlaces (T-131) ------------------------------------------------
+
+
+def _photo(kind="jpg", *, angle=0, shadow=0, noise=0, blur=0):
+    from tests.offers.test_reading import jpeg, png, synthetic_photo
+
+    image = synthetic_photo(angle, shadow, noise, blur)
+    return jpeg(image) if kind == "jpg" else png(image)
+
+
+@pytest.mark.parametrize("kind", ["jpg", "png"])
+def test_a_photo_is_loaded_keeps_its_original_and_is_read(new_offer, operator_user, fake_ai,
+                                                         kind):
+    """REQ-037, REQ-038: una foto se guarda tal cual, se convierte en el equipo y se lee."""
+    data = _photo(kind)
+    document = load(operator_user, new_offer, name=f"foto.{kind}", data=data).document
+    assert document.file_format == kind
+    assert bytes(document.file.content) == data
+    assert jobs.run_next().status == m.JobStatus.DONE
+    reading = document.readings.get()
+    assert reading.report["second_attempt"] == []
+    assert "registro de proveedores" in " ".join(p.text for p in reading.passages.all())
+
+
+def test_a_damaged_photo_and_a_damaged_word_file_are_refused_with_their_event(
+        new_offer, operator_user):
+    """REQ-037: una foto dañada y un Word dañado se rechazan y dejan su hecho."""
+    for name, data, reason in [("rota.jpg", _photo()[:300], "unreadable_file"),
+                               ("hoja.docx", b"PKroto", "unsupported_format")]:
+        with pytest.raises(services.OfferRefused):
+            load(operator_user, new_offer, name=name, data=data)
+        assert events(EventType.OFFER_LOAD, Outcome.REJECTED).filter(
+            detail__reason=reason).exists()
+    assert not new_offer.documents.exists()
+
+
+def test_the_same_photo_twice_is_refused(new_offer, operator_user):
+    """REQ-037: la misma foto dos veces en la oferta se rechaza."""
+    data = _photo()
+    load(operator_user, new_offer, name="a.jpg", data=data)
+    with pytest.raises(services.DuplicateFile):
+        load(operator_user, new_offer, name="b.jpg", data=data)
+
+
+def test_a_crooked_photo_is_read_again_and_the_report_says_which_reading_was_kept(
+        new_offer, operator_user, fake_ai):
+    """REQ-038: la foto torcida con sombra y ruido queda leída tras el segundo intento; el
+    informe de la lectura lo dice, y el hecho `offer_read` lo lleva."""
+    document = load(operator_user, new_offer, name="torcida.jpg",
+                    data=_photo(angle=7, shadow=200, noise=5, blur=3)).document
+    jobs.run_next()
+    reading = document.readings.get()
+    [attempt] = reading.report["second_attempt"]
+    assert attempt["page"] == 1 and attempt["kept"] == "segunda"
+    assert reading.report["unread"] == []
+    assert "registro de proveedores" in " ".join(p.text for p in reading.passages.all())
+    assert events(EventType.OFFER_READ, Outcome.OK).get().detail["second_attempt"] == [attempt]
+
+
+def test_a_photo_that_cannot_be_read_goes_to_the_unread_list_with_its_page(
+        new_offer, operator_user, fake_ai):
+    """REQ-038: la foto que sigue ilegible figura en la lista de no leídas, con documento y
+    página; no se inventa texto."""
+    document = load(operator_user, new_offer, name="mala.jpg",
+                    data=_photo(angle=6, shadow=120, noise=8, blur=4.5)).document
+    jobs.run_next()
+    reading = document.readings.get()
+    assert [(e["document"], e["page"]) for e in reading.report["unread"]] == [(document.pk, 1)]
+    assert reading.report["second_attempt"][0]["kept"] == "primera"
+    assert not reading.passages.exists()
+    assert services.offer_page(operator_user, new_offer.pk).unread[0]["page"] == 1
+
+
+def test_good_pages_do_not_change_their_text_after_the_second_attempt_exists(
+        new_offer, operator_user, fake_ai):
+    """REQ-038: una oferta con un PDF de texto y un escaneo bueno no relee nada."""
+    for name in ("oferta-propuesta.pdf", "constancia-escaneada.pdf"):
+        load(operator_user, new_offer, name=name)
+        jobs.run_next()
+    for reading in om.Reading.objects.all():
+        assert reading.report["second_attempt"] == []
+
+
+@pytest.mark.parametrize("name, text, kind", [
+    ("hoja-tecnica-resma.docx", "", "tecnica"),
+    ("folleto-cartucho.pdf", "", "tecnica"),
+    ("especificaciones-tecnicas-firmadas.pdf", "", "tecnica"),
+    ("renglones.pdf", "Renglón 1 · Cantidad 100 · Precio unitario 3.000", "economica"),
+    ("anexo.pdf", "HOJA TÉCNICA del producto ofrecido", "tecnica"),
+])
+def test_a_technical_document_is_classified_but_a_price_table_is_not(name, text, kind):
+    """REQ-044: la documentación técnica es un documento técnico (hoja, folleto,
+    especificaciones), no una tabla de renglones con precios."""
+    assert services.classify_kind(name, text) == kind
+
+
+def test_the_offer_page_links_the_pages_to_review_and_the_download(client, operator_user,
+                                                                   procedure, fake_ai):
+    """REQ-038: cada página no leída enlaza al original en esa página; el original se baja."""
+    from django.urls import reverse
+
+    from tests.conftest import TEST_PASSWORD
+
+    offer = services.register_offer(operator_user, procedure, bidder="Con foto mala")
+    document = load(operator_user, offer, name="mala.jpg",
+                    data=_photo(angle=6, shadow=120, noise=8, blur=4.5)).document
+    jobs.run_next()
+    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
+    body = client.get(reverse("offers:offer", args=[offer.pk])).content.decode()
+    original = reverse("offers:document_original", args=[document.pk])
+    assert f"{original}#page=1" in body and f"{original}?descargar=1" in body
+    assert "Foto JPG" in body
+    download = client.get(original + "?descargar=1")
+    assert download["Content-Disposition"].startswith("attachment")
+    assert download["Content-Type"] == "image/jpeg"
+
+
+def test_the_procedure_page_links_to_its_offers(client, operator_user, procedure):
+    """REQ-037: desde el procedimiento se llega a sus ofertas."""
+    from django.urls import reverse
+
+    from tests.conftest import TEST_PASSWORD
+
+    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
+    body = client.get(reverse("tenders:procedure", args=[procedure.pk])).content.decode()
+    assert reverse("offers:procedure_offers", args=[procedure.pk]) in body
+
+
+def _data_sheet_docx():
+    """Un .docx inventado con la forma de una hoja técnica: encabezado, tabla de
+    características y bloque de firma."""
+    from tests.offers.test_reading import make_docx
+
+    return make_docx(
+        ["HOJA TÉCNICA · Resma de papel A4 de 75 gramos", "Marca sintética · Modelo S-75",
+         "CARACTERÍSTICAS", "Firmado: Responsable técnico sintético"],
+        rows=[("Característica", "Valor"), ("Gramaje", "75 g/m²"),
+              ("Hojas por resma", "500"), ("Blancura", "92 %")])
+
+
+def test_a_word_data_sheet_is_loaded_converted_read_and_classified_technical(
+        new_offer, operator_user, fake_ai):
+    """REQ-037, REQ-038, REQ-044: la hoja técnica en Word se guarda tal cual, se convierte
+    en el equipo, se lee con su tabla y el sistema la clasifica como técnica."""
+    data = _data_sheet_docx()
+    document = load(operator_user, new_offer, name="hoja-tecnica-resma.docx", data=data).document
+    assert document.file_format == "docx" and bytes(document.file.content) == data
+    assert jobs.run_next().status == m.JobStatus.DONE
+    document.refresh_from_db()
+    assert document.kind == om.DocumentKind.TECNICA
+    text = " ".join(p.text for p in document.readings.get().passages.all())
+    assert "Gramaje" in text and "75 g/m²" in text and "Hojas por resma" in text
+
+
+def test_a_word_original_is_served_with_its_type(client, operator_user, new_offer, fake_ai):
+    """REQ-037: el original Word se entrega como Word."""
+    from django.urls import reverse
+
+    from tests.conftest import TEST_PASSWORD
+
+    document = load(operator_user, new_offer, name="hoja.docx", data=_data_sheet_docx()).document
+    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
+    response = client.get(reverse("offers:document_original", args=[document.pk]))
+    assert response["Content-Type"].endswith("wordprocessingml.document")

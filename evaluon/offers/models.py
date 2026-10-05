@@ -89,6 +89,7 @@ class FileFormat(models.TextChoices):
     PDF = "pdf", "PDF"
     JPG = "jpg", "Foto JPG"
     PNG = "png", "Foto PNG"
+    DOCX = "docx", "Word"
 
 
 class Document(models.Model):

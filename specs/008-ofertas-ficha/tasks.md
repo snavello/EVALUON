@@ -15,10 +15,10 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
 | T-130 | Corte vertical con el caso chico: esquema, carga, lectura (texto y escaneo), ficha, pantalla mínima y medición | REQ-037, REQ-038, REQ-039, REQ-040, REQ-041, REQ-043, REQ-044 | — | terminada |
-| T-131 | Completar la carga y la lectura de ofertas: pantalla, fotos sueltas, segundo intento de lectura y lista de páginas no leídas | REQ-037, REQ-038 | T-130 | pendiente |
+| T-131 | Completar la carga y la lectura de ofertas: pantalla, fotos sueltas, segundo intento de lectura y lista de páginas no leídas | REQ-037, REQ-038 | T-130 | terminada |
 | T-132 | Corregir la ficha: confirmar, corregir, quitar y agregar fragmentos, historial y aviso de versión de la matriz | REQ-042, REQ-043 | T-130 | terminada |
-| T-133 | Preparar el caso-00 para medir: lista esperada de fichas de las tres ofertas y matriz validada (Coordinador) | REQ-039, REQ-040, REQ-044 | — | pendiente |
-| T-134 | Medir la ficha con las tres ofertas del caso-00 (medición base) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-131, T-133 | pendiente |
+| T-133 | Preparar el caso-00 para medir: lista esperada de fichas de las tres ofertas y matriz validada (Coordinador) | REQ-039, REQ-040, REQ-044 | — | terminada |
+| T-134 | Medir la ficha con las tres ofertas del caso-00 (medición base) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-131, T-133 | terminada |
 | T-135 | Corregir los hallazgos de T-134 y medir de nuevo (ronda 1) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-134 | pendiente |
 | T-136 | Solo si T-135 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-135 | pendiente |
 
@@ -81,7 +81,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Requisitos:** REQ-038, REQ-039, REQ-040, REQ-041, REQ-044
 - **Nivel de verificación:** plena.
 - **Qué hay que hacer:** cargar las tres ofertas (29 documentos) con `cargar_oferta`, leerlas, medir con `medir_fichas` y guardar la corrida fuera del repositorio. Informar por oferta y por página el tiempo y el reparto de páginas por estado. Clasificar cada hallazgo por causa: lectura, recuperación, elección del modelo, síntesis, renglones. No corrige nada.
-- **Aviso de tareas anteriores:** T-130: la regla "renglón sin oferta = no se pudo leer si la oferta tiene cualquier página no leída" es demasiado amplia y la medición cuenta esos renglones aparte (el 2/2 del caso chico está inflado): informar la proporción de renglones "aparte" y acotar la regla a las páginas relevantes en la ronda 1 si pesa. Las anclas se escriben como las ve una persona, no como sale de la lectura de una tabla. T-132: se puede confirmar una fila "no se encontró" (queda confirmada la ausencia); tenerlo en cuenta al contar filas confirmadas.
+- **Aviso de tareas anteriores:** T-130: la regla "renglón sin oferta = no se pudo leer si la oferta tiene cualquier página no leída" es demasiado amplia y la medición cuenta esos renglones aparte (el 2/2 del caso chico está inflado): informar la proporción de renglones "aparte" y acotar la regla a las páginas relevantes en la ronda 1 si pesa. Las anclas se escriben como las ve una persona, no como sale de la lectura de una tabla. T-132: se puede confirmar una fila "no se encontró" (queda confirmada la ausencia); tenerlo en cuenta al contar filas confirmadas. T-131: el segundo intento de lectura no se probó con documentos reales que lo necesiten (los CamScanner de Zelarayan leen con 84,8 a 90,6 de confianza): informar en la medición cuántas páginas lo usaron; falta un test de la descarga (`?descargar`).
 - **Umbral (escrito antes de medir):** el de la columna "Caso-00" de la tabla del plan: 90 % de fragmentos o más, 100 % de texto literal, 100 % de síntesis sin juicio, 90 % de renglones (17 de 18), 100 % de documentación técnica, 0 páginas sin texto ni lista.
 - **Archivos:** `specs/008-ofertas-ficha/verificacion/T-134.md` (solo identificadores, cuentas, causas y tiempos; sin datos personales). La corrida completa queda en `corpus/casos/caso-00/corridas/`.
 - **Verificación:** el resumen público con las proporciones y sus intervalos, y la lista de hallazgos por causa.
