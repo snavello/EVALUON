@@ -72,8 +72,10 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-122 | Mostrar los cambios vigentes de la norma al proponer consecuencias, o no fundar en unidades modificadas | REQ-029 | T-109 | pendiente |
 | T-123 | Corregir la medición: citas de otra lectura y filas suprimidas por una circular | REQ-024, REQ-031 | T-117 | terminada |
 | T-124 | Pasada de circulares: original en el anexo por título y requisitos que agrega un "Debe decir" | REQ-031 | T-115 | terminada |
-| T-125 | Corregir el criterio del filtro que descartó requisitos reales | REQ-024, REQ-033 | T-102 | terminada |
+| T-125 | Corregir el criterio del filtro que descartó requisitos reales | REQ-024, REQ-033 | T-102 | terminada |
 | T-126 | Mostrar la cadena completa de circulares que modifican una misma condición | REQ-031 | T-116, T-124 | pendiente |
+| T-127 | Impedir que una aclaración termine como supresión y registrar la versión de `circulares_cambios` | REQ-031 | T-115, T-124 | pendiente |
+| T-128 | Aplicar una aclaración de cláusula a todas sus citas | REQ-031 | T-115, T-124, T-127 | pendiente |
 
 ## Para todas las tareas
 
@@ -581,6 +583,26 @@ Plan: sección "Rediseño de la pasada de circulares (2026-10-04)" de `plan.md`;
 - **No tocar:** la pasada de circulares; la medición.
 - **Entorno:** cualquier equipo con Docker.
 
+### T-127 · Impedir que una aclaración termine como supresión y registrar la versión de `circulares_cambios`
+
+- **Qué hacer:** hallazgo bloqueante del diagnóstico 5 de T-120, sección 1 (caso-06, M-005). Una `aclara` decidida en la extracción que no se puede anclar (`clave_ambigua`) va al respaldo; el respaldo no recibe el efecto ya decidido, devuelve `suprime`, `Processor._apply` (`circulars.py:1041-1066`) lo copia sin validar y `run.py:707-709` deja la fila `quitado`. (a) El respaldo recibe el efecto que decidió la extracción para ese cambio y no puede contradecirlo (si lo contradice, se conserva el de la extracción y se registra la anomalía). (b) Un `suprime` solo se acepta como firme si el texto de la circular citado contiene una frase explícita de supresión ("se suprime", "queda sin efecto", "se elimina", "déjase sin efecto", "no será exigible", "derógase" y sus formas); si no la tiene, se guarda como sugerencia de revisión obligatoria, nunca como supresión firme ni como estado `quitado`. (c) `run.py:331-334` (`_begin`): `prompt_versions` incluye `circulares_cambios` y un nombre por instrucción de la pasada de circulares (respaldo y extracción), diagnóstico 5, punto 4.
+- **Aviso de tareas anteriores:** T-115 (extracción y respaldo) y T-124 (`circulars.py`, `run.py`, estado del requisito nuevo): mismos archivos, se espera a que estén integradas. T-123: la regla de la medición para una fila `quitado` por `suprime` no cambia. T-120 se mide de nuevo después de esta tarea (caso-06: M-005 deja de ser `suprimido_por_circular`; caso-01 sin cambios) y antes de T-108.
+- **Archivos:** `evaluon/tenders/proposal/circulars.py`, `evaluon/tenders/proposal/run.py` (`_begin` y la transición a `quitado`), `evaluon/tenders/proposal/circular_units.py` solo si la lista de frases de supresión va ahí, `tests/tenders/test_circulars.py`, `tests/tenders/test_run_versions.py` (o el test existente de `prompt_versions`).
+- **Verificación:** tests con textos inventados que fallan sin el arreglo: (a) cambio `aclara` de la extracción con respaldo que devuelve `suprime` queda `aclara` y se registra; (b) `suprime` con frase explícita queda firme, con cada frase de la lista; `suprime` sin frase queda como sugerencia y la fila no pasa a `quitado`; una circular que dice "sin efecto" en otra oración no relacionada con la cita no habilita la supresión (caso adverso); (c) `prompt_versions` de la corrida trae `circulares_cambios`; suite en verde. Se registra en la auditoría (P6) el efecto original, el devuelto y el resultado.
+- **No tocar:** la extracción por clave (`circular_changes.py`: es T-128); `evaluation.py`; instrucciones de las pasadas; esquema.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-128 · Aplicar una aclaración de cláusula a todas sus citas
+
+**Decisión del responsable del 2026-10-05: sí. Cuando una circular aclara una cláusula sin decir a qué oración se refiere, la aclaración se aplica a todas las citas de esa cláusula.**
+
+- **Qué hacer:** diagnóstico 4, causa B, y diagnóstico 5, corrección 2. Cuando la circular nombra una cláusula que tiene varias citas y no copia texto anterior, hoy se declara `clave_ambigua` (`circular_changes.py:249-250`) y todo va al respaldo; igual con un anexo nombrado sin texto anterior (`:262-263`). Propuesta: un cambio `aclara` sobre una cláusula (o anexo) nombrado se aplica a todas las citas de esa cláusula, con efecto `aclara` (inocuo: no cambia el texto vigente ni quita la fila). `reemplaza` y `suprime` sin texto anterior siguen sin aplicarse a varias citas. Afirma una aclaración sobre varias citas: por eso necesita la decisión del responsable antes de arrancar; si decide otra cosa, la tarea se reescribe o se retira.
+- **Aviso de tareas anteriores:** T-115 (`circular_changes.py`) y T-124 (misma pasada); T-127 va antes (cierra el camino `aclara` a `suprime` por el respaldo, que esta tarea reduce pero no elimina). T-120 se mide de nuevo después de T-127 y de esta tarea, si se aprueba.
+- **Archivos:** `evaluon/tenders/proposal/circular_changes.py`, `tests/tenders/test_circular_changes.py`.
+- **Verificación:** tests con textos inventados que fallan sin el arreglo: `aclara` sobre cláusula de dos o tres citas sin texto anterior da una fuente por cita; un anexo nombrado igual; `reemplaza` o `suprime` sin texto anterior sobre varias citas siguen en `clave_ambigua`; cláusula inexistente sigue al respaldo; suite en verde. Efecto real: caso-06 (M-004, M-005, M-025) y caso-05 (M-046), medido en T-120.
+- **No tocar:** `circulars.py` y `run.py` (T-127); instrucciones; la medición.
+- **Entorno:** cualquier equipo con Docker.
+
 ### T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro
 
 - **Qué hacer:** hoy `crear_usuario --rol-comision` solo sirve para usuarios nuevos. El 2026-10-04 el Coordinador le dio rol de evaluador al usuario `sandro` en la base real con una actualización directa del campo `commission_role` (pedido del responsable), sin hecho de auditoría porque no hay tipo de hecho ni comando para eso. Agregar un comando `rol_comision <usuario> {operador,evaluador,ninguno}` que cambie el rol y deje un hecho (un tipo nuevo `user_role_changed`, con su migración de `audit`, o el que corresponda), y anotar en el registro el cambio manual del 2026-10-04 corriendo el comando sobre `sandro` con el mismo valor o registrando el hecho de regularización.
@@ -610,7 +632,7 @@ Plan: sección "Rediseño de la pasada de circulares (2026-10-04)" de `plan.md`;
 | REQ-028 | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082, T-098, T-113 |
 | REQ-029 | T-067, T-068, T-080, T-081, T-084 |
 | REQ-030 | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085, T-096, T-097, T-099, T-100, T-103, T-108 |
-| REQ-031 | T-067, T-072, T-074, T-083, T-098, T-108, T-113, T-114, T-115, T-116, T-117, T-118, T-119, T-120 |
+| REQ-031 | T-067, T-072, T-074, T-083, T-098, T-108, T-113, T-114, T-115, T-116, T-117, T-118, T-119, T-120, T-127, T-128 |
 | REQ-032 | T-067, T-074, T-082, T-086, T-105, T-112, T-116 |
 | REQ-033 | T-099, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108 |
 | REQ-034 | T-104, T-105, T-110, T-112 |
