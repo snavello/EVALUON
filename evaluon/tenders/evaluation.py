@@ -24,7 +24,12 @@ Cómo se cuenta (ver el plan):
 - Un esperado formal o económico sin pareja cuyo ancla cae dentro de un tramo citado por
   una fila técnica cuenta como encontrado con clase equivocada.
 - Faltante con causa: `agrupado`, `tramo_descartado`, `tramo_con_requisitos_sin_este`,
-  `tramo_tecnico`, `sin_disposicion` y, en técnicos, `renglon_sin_fila`.
+  `tramo_tecnico`, `sin_disposicion`, `suprimido_por_circular` (T-123: su única pareja es una
+  fila quitada por una circular) y, en técnicos, `renglon_sin_fila`.
+- Una fila quitada por una circular con fuente `suprime` es el comportamiento correcto
+  (REQ-031): un esperado con bloque `circulares` de efecto `suprime` empareja con ella (uno a
+  uno) y cuenta como encontrado ("suprimido por circular"); no es sobrante ni entra en el
+  denominador de los sobrantes.
 - A revisión obligatoria: un esperado sin pareja en un tramo pendiente (`tramo_pendiente`)
   no es faltante; suma a los encontrados y se informa aparte (decisión del 2026-10-04).
 - Sobrante: fila firme (propuesta o confirmada; sin las descartadas por el sistema ni las
@@ -106,6 +111,7 @@ DISCARDED_BY_SYSTEM = "descartado_por_el_sistema"
 PENDING = "tramo_pendiente"
 MANDATORY_REVIEW = "a_revision_obligatoria"
 SUGGESTION_CAUSE = "sugerencia"
+SUPPRESSED = "suprimido_por_circular"
 SEGMENT_WITH_OTHERS = "tramo_con_requisitos_sin_este"
 SEGMENT_TECHNICAL = "tramo_tecnico"
 NO_DISPOSITION = "sin_disposicion"
@@ -672,6 +678,16 @@ def _rows(version, states):
     return rows
 
 
+def _suppressed(version):
+    """Las filas que una circular dejó `quitado` con una fuente `suprime` (T-123)."""
+    rows = _rows(version, (m.RequirementState.QUITADO.value,))
+    with_source = set(m.RequirementSource.objects.filter(
+        requirement__version=version, effect=m.SourceEffect.SUPRIME.value,
+        requirement__state=m.RequirementState.QUITADO.value).values_list(
+            "requirement_id", flat=True))
+    return [r for r in rows if r.requirement_id in with_source]
+
+
 def _covers(entry, spans):
     """Si alguna de las citas `spans` (lectura, inicio, fin, ...) cubre al menos la mitad
     del ancla de `entry`."""
@@ -742,17 +758,25 @@ def measure_version(run, expected, verification):
     pairs = _pairs(located, fe_rows)
     paired_rows = set(pairs.values())
     discarded = _discarded_rows(run)
+    # Un esperado con bloque `suprime` sin pareja firme se empareja, uno a uno, con las filas
+    # que una circular dejó quitadas (T-123).
+    suppressed = _suppressed(version)
+    wants_suppressed = [i for i, entry in enumerate(located) if i not in pairs and any(
+        b.effect == "suprime" for b in entry.item.blocks)]
+    suppressed_pairs = _pairs([located[i] for i in wants_suppressed], suppressed)
+    suppressed_for = {wants_suppressed[c]: suppressed[p] for c, p in suppressed_pairs.items()}
     # Esperados sin pareja firme, ni por una fila técnica ni por unificación: se emparejan uno a
     # uno con las sugerencias, con la misma regla (T-111).
     candidates = [
         i for i, entry in enumerate(located)
-        if i not in pairs and _technical_citing(entry, tech_rows.values()) is None
+        if i not in pairs and i not in suppressed_for
+        and _technical_citing(entry, tech_rows.values()) is None
         and _repeated_in(entry, fe_rows, paired_rows) is None]
     suggestion_pairs = _pairs([located[i] for i in candidates], suggestions)
     suggested_for = {candidates[c]: suggestions[p] for c, p in suggestion_pairs.items()}
     lines, found_count, class_ok = [], 0, 0
     causes, wrong_class = Counter(), 0
-    review, unified, suggestion_review = [], [], []
+    review, unified, suggestion_review, suppressed_ids = [], [], [], []
     matched_pk = {}
 
     for e_index, entry in enumerate(located):
@@ -767,6 +791,16 @@ def measure_version(run, expected, verification):
             class_ok += ok_class
             line.update(estado="encontrado", clase_propuesta=row.category,
                         clase_correcta=ok_class, propuesto=row.number)
+        elif (gone := suppressed_for.get(e_index)) is not None:
+            # REQ-031: la fila que la circular quitó es la que mide el efecto `suprime`.
+            suppressed_ids.append(item.id)
+            found_count += 1
+            ok_class = gone.category == item.clase
+            class_ok += ok_class
+            matched_pk[item.id] = gone.requirement_id
+            line.update(estado="encontrado", clase_propuesta=gone.category,
+                        clase_correcta=ok_class, propuesto=gone.number,
+                        detalle="suprimido por circular")
         elif cited := _technical_citing(entry, tech_rows.values()):
             found_count += 1
             wrong_class += 1
@@ -788,7 +822,8 @@ def measure_version(run, expected, verification):
             line.update(estado=MANDATORY_REVIEW, causa=SUGGESTION_CAUSE,
                         detalle=f"motivo de la duda: {suggested.doubt_reason}")
         else:
-            cause, detail = _cause(entry, fe_rows, dispositions, pending, discarded)
+            cause, detail = _cause(entry, fe_rows, dispositions, pending, discarded,
+                                   suppressed)
             if cause == PENDING:
                 # Decisión del 2026-10-04: no es un faltante; la matriz no se valida sin
                 # que el evaluador resuelva el pendiente.
@@ -906,6 +941,7 @@ def measure_version(run, expected, verification):
         "suggestion_review": {"count": len(suggestion_review),
                               "ids": [e.item.id for e in suggestion_review]},
         "unified": {"count": len(unified), "ids": unified},
+        "suppressed": {"count": len(suppressed_ids), "ids": suppressed_ids},
         "class": ratio(class_ok, found_count),
         "class_wrong_found": wrong_class,
         "causes": dict(causes),
@@ -1011,7 +1047,11 @@ def measure_circulars(version, expected, verification, matched_pk):
         "segment__reading__document", "quote", "original_segment__reading"))
     rows = list(version.requirements.filter(state__in=FIRM_STATES).prefetch_related(
         sources, "quotes__segment__reading__document").order_by("number"))
+    # Las filas quitadas por una circular sirven para medir `suprime`, pero no son ruido.
     by_pk = {r.pk: r for r in rows}
+    by_pk.update({r.pk: r for r in version.requirements.filter(
+        state=m.RequirementState.QUITADO.value, sources__effect=m.SourceEffect.SUPRIME.value
+    ).distinct().prefetch_related(sources, "quotes__segment__reading__document")})
     claimed, lines, unmeasured = set(), [], []
     points, met, failing = Counter(), 0, []
     by_document, measured = {}, 0
@@ -1228,15 +1268,17 @@ def _discarded_report(discarded, located, leftovers):
 def _technical_citing(entry, rows):
     for row in rows:
         for quote in row.quotes:
-            if (row.reading is not None and row.reading.pk == entry.reading.pk
+            if (quote.segment.reading_id == entry.reading.pk
                     and quote.char_start <= entry.span[0] and entry.span[1] <= quote.char_end):
                 return row
     return None
 
 
-def _cause(entry, fe_rows, dispositions, pending, discarded=()):
+def _cause(entry, fe_rows, dispositions, pending, discarded=(), suppressed=()):
     if _would_match(entry, fe_rows):
         return GROUPED, ""
+    if _would_match(entry, suppressed):
+        return SUPPRESSED, ""
     for item in discarded:
         if _covers(entry, item.spans):
             return DISCARDED_BY_SYSTEM, f"motivo: {item.row.reason}; tramo: {item.key}"
@@ -1628,6 +1670,10 @@ def _summary(report, *, public):
             f"- Sobrantes por tramo: {_counter_text(measures['leftovers_by_segment'])}",
             *_discarded_lines(measures["discarded"], measures["leftovers"]),
             *_suggestion_lines(measures["suggestions"]),
+            f"- Suprimidas por una circular y encontradas (T-123): "
+            f"{measures['suppressed']['count']}"
+            + (f" ({', '.join(measures['suppressed']['ids'])})"
+               if measures["suppressed"]["ids"] else ""),
             f"- Faltantes por causa: {_counter_text(measures['causes'])}",
             f"- Filas de circulares sin medir (T-083): {measures['circular_unmeasured']}",
             *_circular_lines(measures.get("circulars"), report.expected),
