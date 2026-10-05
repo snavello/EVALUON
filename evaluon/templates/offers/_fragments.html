@@ -1,0 +1,12 @@
+{% comment %}Fragmentos de una fila de la ficha: documento, página, texto literal y enlace al original en esa página.{% endcomment %}
+{% if row.fragments %}
+<ul class="fragments">
+  {% for view in row.fragments %}
+  <li>
+    <a href="{% url 'offers:document_original' view.document.pk %}#page={{ view.page }}">{{ view.document.title }} · página {{ view.page }}</a>
+    {% if view.fragment.state == "confirmado" %}<span class="state">(confirmado)</span>{% endif %}
+    <blockquote>{{ view.fragment.text }}</blockquote>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
