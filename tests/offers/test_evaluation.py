@@ -389,3 +389,22 @@ def test_the_summary_of_case_00_says_no_cap_for_no_answer(chico, operator_user, 
     summary = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
     assert "informado, sin tope" in summary
     assert report.expected.case == "caso-00"
+
+
+def test_an_identical_copy_in_another_document_counts_as_the_same_place(
+        procedure, operator_user, fake_ai):
+    """REQ-039 (T-135, decisión del responsable): el mismo pasaje literal en otro documento de
+    la oferta, o el mismo lugar de una página de texto igual, es el mismo lugar; un pasaje
+    distinto o del mismo documento no."""
+    from tests.offers.conftest import make_offer
+
+    offer = make_offer(procedure, operator_user, "Copias", {
+        "a.pdf": ["Constancia de inscripción número 000123.", "Texto distinto uno."],
+        "b.pdf": ["CONSTANCIA de inscripción  número 000123.", "Texto distinto dos."]})
+    a, b = (om.Passage.objects.filter(reading__document__file_name=n).order_by("order")
+            for n in ("a.pdf", "b.pdf"))
+    cache = {}
+    assert ev.is_identical_copy(b[0], a[0], cache)
+    assert not ev.is_identical_copy(b[1], a[0], cache)
+    assert not ev.is_identical_copy(a[1], a[0], cache)
+    assert not ev.is_identical_copy(b[1], a[1], cache)

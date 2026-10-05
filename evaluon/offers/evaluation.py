@@ -31,6 +31,8 @@ Cómo se cuenta (plan 008, "Cómo se cuenta"):
    la fila del mismo requisito lo encuentra si está en el mismo documento y la misma página y
    cae en el mismo pasaje o su texto cubre al menos la mitad del pasaje ubicado. No se exige
    igualdad de palabras.
+   Una copia idéntica en otro documento de la misma oferta cuenta como encontrada
+   (`is_identical_copy`, T-135).
 2. Texto literal: todo fragmento mostrado es igual al recorte del texto canónico y cae dentro
    de su pasaje y su página.
 3. Sin respuesta: el requisito figura "no se encontró"; un fragmento propuesto ahí es un
@@ -517,6 +519,34 @@ def _covers(fragment, passage):
     return overlap >= COVERS * max(1, passage.char_end - passage.char_start)
 
 
+def _flat(text):
+    return " ".join((text or "").lower().split())
+
+
+def _page_text(reading_id, page, cache):
+    key = (reading_id, page)
+    if key not in cache:
+        cache[key] = _flat(" ".join(om.Passage.objects.filter(
+            reading_id=reading_id, page=page).order_by("order").values_list("text", flat=True)))
+    return cache[key]
+
+
+def is_identical_copy(passage, located, cache):
+    """El `passage` es el mismo lugar que `located` en otro documento de la misma oferta
+    (T-135, decisión del responsable: una copia idéntica cuenta como encontrada). Regla:
+    el mismo pasaje literal (texto igual, sin distinguir mayúsculas ni espacios) o el mismo
+    lugar (misma clave de pasaje) de una página cuyo texto completo es igual. Dos
+    documentos distintos que no son copias no coinciden."""
+    if passage.reading_id == located.reading_id:
+        return False
+    if _flat(passage.text) == _flat(located.text):
+        return True
+    return (passage.key == located.key
+            and _page_text(passage.reading_id, passage.page, cache) != ""
+            and _page_text(passage.reading_id, passage.page, cache)
+            == _page_text(located.reading_id, located.page, cache))
+
+
 def measure_sheet(sheet, entry, offer, mapping):
     """Mide una ficha contra lo esperado de su oferta. Devuelve un diccionario con las
     medidas, las líneas de detalle y lo que bloquea."""
@@ -527,6 +557,7 @@ def measure_sheet(sheet, entry, offer, mapping):
     # 1. Fragmentos esperados encontrados.
     found = 0
     matched_fragments = set()
+    page_cache = {}
     for expected in entry.fragments:
         requirement = mapping.get(expected.requirement)
         reading = by_document.get(expected.document)
@@ -544,8 +575,9 @@ def measure_sheet(sheet, entry, offer, mapping):
                     "passage__reading__document"):
                 same_place = (fragment.passage.reading_id == reading.pk
                               and fragment.passage.page == expected.page)
-                if same_place and (fragment.passage_id == located.pk
-                                   or _covers(fragment, located)):
+                copy = is_identical_copy(fragment.passage, located, page_cache)
+                if copy or (same_place and (fragment.passage_id == located.pk
+                                            or _covers(fragment, located))):
                     ok = True
                     matched_fragments.add(fragment.pk)
                     break
