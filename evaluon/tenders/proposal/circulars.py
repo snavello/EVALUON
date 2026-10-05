@@ -965,7 +965,8 @@ class Processor:
                 else:
                     self._apply_unit(change, resolution, step, issued_on, label, verdicts,
                                      sources, new_requirements)
-                self._review_losses(label, change, candidates, sources[before:], losses)
+                self._review_losses(label, change, candidates, sources[before:], losses,
+                                    earlier=sources[:before])
         # Un tramo puede llegar a la misma fuente por dos caminos (la extracción por clave y
         # el respaldo): una fuente igual no se guarda dos veces.
         seen = set()
@@ -1000,11 +1001,14 @@ class Processor:
     # -- Red de seguridad (T-137, P3) ---------------------------------------------------------
 
     @staticmethod
-    def _named_candidates(text, candidates, scope=()):
+    def _named_candidates(text, candidates, scope=(), changed=(), topic=""):
         """Las citas que el texto nombra: por cláusula, renglón o anexo, o por el título entre
         comillas de un anexo; con `scope`, también las del renglón del encabezado. Un cambio
         que nombra un renglón alcanza además las citas sin renglón que hablan de "los
-        renglones" y comparten dos raíces de palabra con él (la cláusula de cotización)."""
+        renglones" y comparten dos raíces de palabra con él (la cláusula de cotización).
+        `changed` son las citas que una circular anterior ya cambió (T-147): el objetivo de un
+        cambio que rectifica a esa circular es la cita que ella cambió, aunque comparta una sola
+        raíz de palabra con el cambio o con su unidad entera (`topic`)."""
         clauses, items = named_in(text)
         items = items | set(scope)
         annexes = named_annexes(text)
@@ -1016,6 +1020,10 @@ class Processor:
                       if c not in found and not candidate_items(c)
                       and all(t.category != RequirementClass.TECNICO.value for t in c.targets)
                       and "renglon" in fold(c.text) and shares_topic(text, c.text)]
+            found += [c for c in changed
+                      if c not in found and not candidate_items(c)
+                      and all(t.category != RequirementClass.TECNICO.value for t in c.targets)
+                      and word_stems(f"{text} {topic}") & word_stems(c.text)]
         return found
 
     @staticmethod
@@ -1052,7 +1060,7 @@ class Processor:
             losses.append((REVIEW_UNRESOLVED, names, whole))
         return losses
 
-    def _review_losses(self, label, change, candidates, produced, losses):
+    def _review_losses(self, label, change, candidates, produced, losses, earlier=()):
         """Marca "a revisión obligatoria" las filas que la circular nombra y a las que la
         unidad no dejó ninguna fuente, por cada pérdida posible (P3). Una fila con una fuente
         de la unidad se da por atendida: un técnico tiene varias citas (el título del renglón,
@@ -1062,10 +1070,14 @@ class Processor:
         by_fallback = {t.number for source in produced
                        if source.step is not None and source.step.pass_name == self.pass_name
                        for t in source.candidate.targets}
+        changed = []
+        for source in earlier:
+            if source.candidate not in changed:
+                changed.append(source.candidate)
         for reason, names, whole in losses:
-            named = self._named_candidates(names, candidates)
+            named = self._named_candidates(names, candidates, changed=changed, topic=whole)
             if not named and not self._names_something(names):
-                named = self._named_candidates(whole, candidates)
+                named = self._named_candidates(whole, candidates, changed=changed)
             # Una pérdida de toda la unidad no dice qué cambio se perdió: las filas que nombra
             # se marcan aunque hayan recibido alguna fuente (P3, D1).
             done = by_fallback if reason == REVIEW_UNRESOLVED else set()
