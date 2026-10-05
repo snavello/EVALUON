@@ -464,10 +464,9 @@ def _unread_pages(readings):
 def _technical_documents(offer, entries):
     docs = list(offer.documents.filter(kind=DocumentKind.TECNICA)
                 .order_by("id").values_list("pk", flat=True))
-    from_fragments = any(e.passages for e in entries
-                         if e.requirement.category == RequirementClass.TECNICO)
-    return {"present": bool(docs) or from_fragments, "documents": docs,
-            "from_fragments": from_fragments}
+    # Cuenta solo un documento técnico (especificaciones firmadas, folletos, hojas técnicas,
+    # T-131); una tabla de renglones con fragmentos no alcanza.
+    return {"present": bool(docs), "documents": docs}
 
 
 def _counts(entries, steps_count):

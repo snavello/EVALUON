@@ -213,24 +213,24 @@ def _violated_constraint(error):
 # --- Carga del documento ----------------------------------------------------------------------
 
 
-# Formatos que se cargan, con el valor que se guarda en `Document.file_format`. El Word
-# (`docx`) se convierte en `reading.py`, pero no se carga todavía: el esquema de la 008 no
-# lo admite (ver el informe de T-131).
+# Formatos que se cargan, con el valor que se guarda en `Document.file_format`. El original
+# se guarda tal cual; fotos y Word se convierten a PDF solo para leerlos (`reading.py`).
 LOADABLE_FORMATS = {reading_tools.FORMAT_PDF: FileFormat.PDF,
                     reading_tools.FORMAT_JPG: FileFormat.JPG,
-                    reading_tools.FORMAT_PNG: FileFormat.PNG}
+                    reading_tools.FORMAT_PNG: FileFormat.PNG,
+                    reading_tools.FORMAT_DOCX: FileFormat.DOCX}
 
 
 def _check(file_name, data):
     """Comprueba los datos y devuelve el formato del archivo (por su contenido, no por el
-    nombre): PDF, o foto JPG o PNG que se abre."""
+    nombre): PDF, Word, o foto JPG o PNG que se abre."""
     if not data or not (file_name or "").strip():
         raise OfferRefused("Elija el archivo del documento.", "file", "missing_data")
     detected = reading_tools.detect_upload_format(data)
     if detected not in LOADABLE_FORMATS:
-        raise OfferRefused("El archivo no es un PDF ni una foto JPG o PNG: no se cargó.",
+        raise OfferRefused("El archivo no es un PDF, un documento de Word (.docx) ni una foto JPG o PNG: no se cargó.",
                            "file", "unsupported_format")
-    if detected != reading_tools.FORMAT_PDF:
+    if detected in (reading_tools.FORMAT_JPG, reading_tools.FORMAT_PNG):
         try:
             detected = reading_tools.check_image(data)
         except reading_tools.UnreadableFile as error:

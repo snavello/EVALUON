@@ -298,12 +298,11 @@ def test_a_photo_is_loaded_keeps_its_original_and_is_read(new_offer, operator_us
     assert "registro de proveedores" in " ".join(p.text for p in reading.passages.all())
 
 
-def test_a_damaged_photo_and_a_word_file_are_refused_with_their_event(new_offer, operator_user):
-    """REQ-037: una foto dañada y un formato sin carga (Word) se rechazan y dejan su hecho."""
-    from tests.offers.test_reading import make_docx
-
+def test_a_damaged_photo_and_a_damaged_word_file_are_refused_with_their_event(
+        new_offer, operator_user):
+    """REQ-037: una foto dañada y un Word dañado se rechazan y dejan su hecho."""
     for name, data, reason in [("rota.jpg", _photo()[:300], "unreadable_file"),
-                               ("hoja.docx", make_docx(["Hoja técnica"]), "unsupported_format")]:
+                               ("hoja.docx", b"PKroto", "unsupported_format")]:
         with pytest.raises(services.OfferRefused):
             load(operator_user, new_offer, name=name, data=data)
         assert events(EventType.OFFER_LOAD, Outcome.REJECTED).filter(
@@ -362,7 +361,7 @@ def test_good_pages_do_not_change_their_text_after_the_second_attempt_exists(
     ("hoja-tecnica-resma.docx", "", "tecnica"),
     ("folleto-cartucho.pdf", "", "tecnica"),
     ("especificaciones-tecnicas-firmadas.pdf", "", "tecnica"),
-    ("renglones.pdf", "Renglón 1 · Cantidad 100 · Precio unitario $ 3.000", "economica"),
+    ("renglones.pdf", "Renglón 1 · Cantidad 100 · Precio unitario 3.000", "economica"),
     ("anexo.pdf", "HOJA TÉCNICA del producto ofrecido", "tecnica"),
 ])
 def test_a_technical_document_is_classified_but_a_price_table_is_not(name, text, kind):
@@ -401,3 +400,41 @@ def test_the_procedure_page_links_to_its_offers(client, operator_user, procedure
     assert client.login(username=operator_user.username, password=TEST_PASSWORD)
     body = client.get(reverse("tenders:procedure", args=[procedure.pk])).content.decode()
     assert reverse("offers:procedure_offers", args=[procedure.pk]) in body
+
+
+def _data_sheet_docx():
+    """Un .docx inventado con la forma de una hoja técnica: encabezado, tabla de
+    características y bloque de firma."""
+    from tests.offers.test_reading import make_docx
+
+    return make_docx(
+        ["HOJA TÉCNICA · Resma de papel A4 de 75 gramos", "Marca sintética · Modelo S-75",
+         "CARACTERÍSTICAS", "Firmado: Responsable técnico sintético"],
+        rows=[("Característica", "Valor"), ("Gramaje", "75 g/m²"),
+              ("Hojas por resma", "500"), ("Blancura", "92 %")])
+
+
+def test_a_word_data_sheet_is_loaded_converted_read_and_classified_technical(
+        new_offer, operator_user, fake_ai):
+    """REQ-037, REQ-038, REQ-044: la hoja técnica en Word se guarda tal cual, se convierte
+    en el equipo, se lee con su tabla y el sistema la clasifica como técnica."""
+    data = _data_sheet_docx()
+    document = load(operator_user, new_offer, name="hoja-tecnica-resma.docx", data=data).document
+    assert document.file_format == "docx" and bytes(document.file.content) == data
+    assert jobs.run_next().status == m.JobStatus.DONE
+    document.refresh_from_db()
+    assert document.kind == om.DocumentKind.TECNICA
+    text = " ".join(p.text for p in document.readings.get().passages.all())
+    assert "Gramaje" in text and "75 g/m²" in text and "Hojas por resma" in text
+
+
+def test_a_word_original_is_served_with_its_type(client, operator_user, new_offer, fake_ai):
+    """REQ-037: el original Word se entrega como Word."""
+    from django.urls import reverse
+
+    from tests.conftest import TEST_PASSWORD
+
+    document = load(operator_user, new_offer, name="hoja.docx", data=_data_sheet_docx()).document
+    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
+    response = client.get(reverse("offers:document_original", args=[document.pk]))
+    assert response["Content-Type"].endswith("wordprocessingml.document")

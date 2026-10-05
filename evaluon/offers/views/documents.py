@@ -29,7 +29,8 @@ from evaluon.tenders.models import Procedure
 OFFERS_TEMPLATE = "offers/offers.html"
 OFFER_TEMPLATE = "offers/offer.html"
 
-CONTENT_TYPES = {"pdf": "application/pdf", "jpg": "image/jpeg", "png": "image/png"}
+CONTENT_TYPES = {"pdf": "application/pdf", "jpg": "image/jpeg", "png": "image/png",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
 
 # Parámetros con que las redirecciones nombran lo que se acaba de hacer.
 LOADED_PARAM = "cargados"

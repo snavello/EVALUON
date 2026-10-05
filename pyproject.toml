@@ -26,6 +26,8 @@ dependencies = [
     "pytesseract==0.3.13",
     "beautifulsoup4==4.15.0",
     "lxml==6.1.3",
+    # Fotos de ofertas y su preparación para el OCR (ADR-0028, T-131); ya la trae la imagen
+    "pillow==12.3.0",
     # PDF de la matriz generado en el equipo (ADR-0020, REQ-032)
     "weasyprint==70.0",
     # Casos de las evals en YAML (evals/casos/EV-NNN.yaml); la biblioteca estándar

@@ -104,8 +104,8 @@
     {% csrf_token %}
     {% for message in errors %}<p class="form-error" role="alert">{{ message }}</p>{% endfor %}
     <p>
-      <label for="id_file">Archivos (PDF o fotos JPG y PNG; puede elegir varios)</label>
-      <input type="file" name="file" id="id_file" multiple accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png">
+      <label for="id_file">Archivos (PDF, Word o fotos JPG y PNG; puede elegir varios)</label>
+      <input type="file" name="file" id="id_file" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png">
     </p>
     <button type="submit">Cargar</button>
   </form>
