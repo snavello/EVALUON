@@ -97,6 +97,7 @@ una versión abierta sobre otra no tiene propuesta propia.
   {% for row in group.rows %}
   <article class="requirement">
     <h4>Requisito {{ row.requirement.number }} <span class="class-mark">{{ row.requirement.get_category_display }}</span>{% if row.requirement.state == "confirmado" %} <span class="state-mark">Confirmado</span>{% endif %}{% if row.requirement.origin == "agregado" %} <span class="state-mark">Agregado por una persona</span>{% endif %}{% if row.added_by %} <span class="state-mark">Agregado por {{ row.added_by.document_title }}{% if row.added_by.issued_on %} del {{ row.added_by.issued_on|date:"d/m/Y" }}{% endif %}</span>{% endif %}</h4>
+    {% include "tenders/_review_note.html" with row=row %}
     {% for quote in row.quotes %}
     {% if quote.current %}
     {% include "tenders/_change.html" with change=quote.current current=True print=True %}
@@ -127,6 +128,7 @@ una versión abierta sobre otra no tiene propuesta propia.
   <h2>Requisitos técnicos por renglón</h2>
   {% for row in page.technical %}
   <article class="requirement">
+    {% include "tenders/_review_note.html" with row=row %}
     <h3>{% if row.requirement.items %}Renglón {{ row.requirement.items|join:", " }}{% else %}Técnico sin renglón{% endif %} · Técnico · se evalúa con el informe técnico del área requirente</h3>
     {% if row.requirement.state == "confirmado" %}<span class="state-mark">Confirmado</span>{% endif %}
     <p>Tramos citados: {{ row.quotes|length }}</p>
