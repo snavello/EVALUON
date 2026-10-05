@@ -362,7 +362,8 @@ def test_every_model_request_is_recorded(offer, operator_user, script):
     detail = events(EventType.SHEET_BUILD, Outcome.OK).get().detail
     assert detail["models"]["generation_batch"]["sha256"]
     assert detail["parameters"]["candidates_to_model"] == 8
-    assert detail["prompt_versions"] == {"ficha": "ficha-v2", "ficha_renglon": "ficha-renglon-v4"}
+    assert detail["prompt_versions"] == {"ficha": "ficha-v2", "ficha_renglon": "ficha-renglon-v4",
+                                         "reescritura": "reescritura-v1"}
     assert detail["counts"]["model_requests"] == sheet.steps.count()
 
 
@@ -763,54 +764,210 @@ def test_an_item_row_does_not_use_the_minimum_reranker_score(
     assert row.quoted == om.Quoted.COTIZADO and row.fragments.count() == 1
 
 
-# Puntajes del reranker real (bge-reranker-v2-m3) medidos en T-136 sobre textos inventados con la
-# forma de los falsos hallazgos de T-134: la consulta es la cita de un requisito y cada pasaje
-# es una respuesta, un pasaje del mismo tema que no responde o uno ajeno.
+# --- T-146: búsqueda con el requisito reescrito como lo diría una oferta -------------------------
+
+POLICY = ("Póliza de seguro de caución N° 0000-123. Tomador: Insumos Ficticios S.R.L. Asegurado: "
+          "el organismo contratante. Suma asegurada: $ 5.045.030,00. Objeto: garantizar el "
+          "mantenimiento de la oferta.")
+POLICY_QUERY = ("póliza de seguro de caución, garantía de mantenimiento de la oferta, suma "
+                "asegurada, vigencia")
+
+
+def _by_query(monkeypatch, original, rewritten, rewritten_queries):
+    """Doble del reranker que puntúa según la consulta: `original` y `rewritten` son
+    `{marca del texto: puntaje}` para la consulta del pliego y para las consultas de
+    `rewritten_queries`; lo que no figura puntúa 0,0. Devuelve la lista de consultas vistas."""
+    from evaluon.ai import reranker as reranker_client
+
+    calls = []
+
+    def rerank(query, documents):
+        table = rewritten if query in rewritten_queries else original
+        calls.append(query)
+        return [max([v for k, v in table.items() if k in d] or [0.0]) for d in documents]
+
+    monkeypatch.setattr(reranker_client, "rerank", rerank)
+    return calls
+
+
+def test_the_rewritten_requirement_finds_the_passage_the_pliego_wording_misses(
+        procedure, operator_user, fake_ai, script, settings, monkeypatch):
+    """REQ-039 (T-146): la póliza no se parece a la cita del pliego (puntaje 0,09) pero sí al
+    requisito dicho como lo diría una oferta (0,99): el pasaje queda con el mejor puntaje, pasa
+    al modelo y los dos puntajes y la reescritura quedan en el registro de la ficha (P6)."""
+    settings.OFFERS_MIN_RERANK_SCORE = 0.35
+    offer = make_offer(procedure, operator_user, "Póliza", {
+        "poliza.pdf": [POLICY, "Condiciones generales de la póliza: el asegurador paga."]})
+    script.rewrite_with(lambda text: POLICY_QUERY if "garantía de mantenimiento" in text
+                        else text)
+    calls = _by_query(monkeypatch, {"Póliza de seguro": 0.092}, {"Póliza de seguro": 0.994},
+                      [POLICY_QUERY])
+    script.choose(pick("Póliza de seguro", when="garantía de mantenimiento"))
+    sheet = build(offer, operator_user)
+    row = entry_of(sheet, 3)
+    assert row.outcome == om.Outcome.ENCONTRADO
+    assert row.fragments.get().text == POLICY
+    assert POLICY_QUERY in calls
+    step = sheet.steps.filter(entry__requirement__number=3).get()
+    candidate = next(c for c in step.candidates["pool"] if c["score"] > 0.9)
+    assert (candidate["score_original"], candidate["score_rewrite"], candidate["score"]) == (
+        0.092, 0.994, 0.994)
+    rewrite = step.candidates["rewrite"]
+    assert rewrite["query"] == POLICY_QUERY and rewrite["prompt_version"] == "reescritura-v1"
+    assert rewrite["raw_output"] and rewrite["request"]["messages"][0]["content"] == (
+        sheets.load_prompt("reescritura"))
+    assert sheet.prompt_versions["reescritura"] == "reescritura-v1"
+
+
+def test_the_original_score_still_counts_when_it_is_the_better_one(
+        procedure, operator_user, fake_ai, script, settings, monkeypatch):
+    """REQ-039 (T-146): el pasaje queda con el mejor de los dos puntajes, también cuando es el
+    de la consulta original: la reescritura no empeora lo que ya se encontraba."""
+    settings.OFFERS_MIN_RERANK_SCORE = 0.35
+    offer = make_offer(procedure, operator_user, "Nota", {
+        "nota.pdf": ["Nota: la oferta se mantiene vigente por 60 días desde la apertura."]})
+    script.rewrite_with(lambda text: "formulario de la oferta" if "validez" in text else text)
+    _by_query(monkeypatch, {"Nota": 0.981}, {"Nota": 0.2}, ["formulario de la oferta"])
+    script.choose(pick("Nota", when="validez"))
+    sheet = build(offer, operator_user)
+    step = sheet.steps.filter(entry__requirement__number=5).get()
+    [candidate] = step.candidates["pool"]
+    assert (candidate["score_original"], candidate["score_rewrite"], candidate["score"]) == (
+        0.981, 0.2, 0.981)
+    assert entry_of(sheet, 5).outcome == om.Outcome.ENCONTRADO
+
+
+def test_a_rewrite_without_the_requested_shape_is_dropped_and_recorded(
+        offer, operator_user, fake_ai, script):
+    """REQ-040 (T-146): si el modelo no devuelve la consulta pedida, la búsqueda sigue solo con
+    la cita del pliego; la ficha se arma igual y la anomalía queda en su registro."""
+    script.rewrite_with(lambda text: '{"otra": "cosa"}')
+    script.choose(pick(DECLARATION, when="declaración jurada"))
+    sheet = build(offer, operator_user)
+    assert entry_of(sheet, 1).outcome == om.Outcome.ENCONTRADO
+    step = sheet.steps.filter(entry__requirement__number=1).first()
+    assert step.candidates["rewrite"]["query"] == ""
+    assert step.candidates["rewrite"]["anomaly"]
+    assert any(a["type"] == sheets.ANOMALY_REWRITE and a["requirement"] == 1
+               for a in sheet.anomalies)
+    assert all(c["score_rewrite"] is None for c in step.candidates["pool"])
+
+
+def test_item_rows_are_not_rewritten(offer, operator_user, fake_ai, script):
+    """REQ-044 (T-146): las filas de renglón buscan como antes, sin reescritura; solo se
+    reescriben las filas comunes."""
+    sheet = build(offer, operator_user)
+    common = [e for e in sheet.entries.all() if not sheets.is_item_row(e.requirement)]
+    assert common and len(script.rewrites) == len(common)
+    assert not any("Renglón" in r["requirement"] for r in script.rewrites)
+    step = sheet.steps.filter(entry__requirement__number=6).first()
+    assert "rewrite" not in step.candidates
+
+
+def test_the_rewrite_instructions_are_versioned_and_teach_the_form_of_real_offers():
+    """REQ-040 (T-146): las instrucciones de la reescritura tienen versión registrada, piden
+    el formato y sus ejemplos (inventados) usan la forma de lo que responde una oferta."""
+    from evaluon import settings as defaults
+
+    assert defaults.OFFERS_PROMPT_VERSIONS["reescritura"] == "reescritura-v1"
+    text = sheets.load_prompt("reescritura")
+    for form in ("póliza de seguro de caución", "nota de la empresa", "declaro bajo juramento",
+                 "constancia", "formulario"):
+        assert form in text
+    assert '{"consulta"' in text
+
+
+# Puntajes del reranker real (bge-reranker-v2-m3, T-146) sobre textos inventados con la forma de
+# lo que responden las ofertas del caso-00 (pólizas de caución, notas de la empresa, formularios
+# del Portal, declaraciones juradas, constancias, pagarés): `(original, reescrito)` es el puntaje
+# contra la cita del pliego y contra su reescritura con las instrucciones `reescritura-v1`; el
+# del pasaje es el mayor de los dos.
 CALIBRATION = [
-    ("validez de la oferta por sesenta días corridos", "responde",
-     "El oferente mantiene su oferta por sesenta días corridos desde la apertura.", 0.999),
-    ("validez de la oferta por sesenta días corridos", "mismo tema",
-     "Los plazos de este formulario se cuentan en días hábiles administrativos.", 0.032),
-    ("precios en pesos con impuestos incluidos", "responde",
-     "Los precios cotizados se expresan en pesos e incluyen el IVA y demás impuestos.", 0.998),
-    ("precios en pesos con impuestos incluidos", "mismo tema",
-     "Total ofertado: $ 100.900.600,00. Cantidad de alternativas presentadas: 6.", 0.004),
-    ("precios en pesos con impuestos incluidos", "mismo tema",
-     "La póliza se emite en pesos argentinos y el premio incluye los impuestos de sellos.", 0.263),
-    ("garantía de oferta del cinco por ciento del monto", "responde",
-     "Se adjunta póliza de seguro de caución en garantía de oferta por el 5 % del monto.", 0.854),
-    ("garantía de oferta del cinco por ciento del monto", "mismo tema",
-     "Condiciones generales de la póliza: el asegurador se obliga a pagar al asegurado.", 0.004),
-    ("garantía de oferta del cinco por ciento del monto", "mismo tema",
-     "La garantía de cumplimiento del contrato será del diez por ciento del monto.", 0.002),
-    ("constancia de inscripción vigente en AFIP", "responde",
-     "Se acompaña la constancia de inscripción en AFIP, con estado activo y vigente.", 0.993),
-    ("constancia de inscripción vigente en AFIP", "mismo tema",
-     "Declaro conocer y aceptar el pliego y someterme a la jurisdicción de los tribunales.", 0.0),
-    ("constancia de inscripción vigente en AFIP", "ajeno",
-     "Renglón 3: alimento balanceado, 250,00 kg, precio unitario $ 12.000,00.", 0.0),
+    ("responde", "Póliza de seguro de caución N° 0000-123. Tomador: Insumos Ficticios S.R.L. "
+                 "Suma asegurada: $ 5.045.030,00. Objeto: mantenimiento de la oferta.",
+     0.092, 0.994),
+    ("responde", "Se adjunta póliza de caución en garantía de mantenimiento de oferta, por el 5 % "
+                 "del monto cotizado.", 0.897, 0.785),
+    ("responde", "Constancia de inscripción en el registro de proveedores, número 000123, "
+                 "estado: activo.", 0.551, 0.996),
+    ("responde", "Se acompaña constancia de inscripción en AFIP, CUIT 30-00000000-0, con "
+                 "impuestos activos.", 0.016, 0.564),
+    ("responde", "Declaración jurada de aptitud para contratar. Declaro bajo juramento que no me "
+                 "encuentro comprendido en las causales de inhabilidad.", 0.978, 1.000),
+    ("responde", "Nota de la empresa: nos comprometemos a entregar los bienes en un plazo de "
+                 "diez días corridos desde la orden de compra.", 0.996, 1.000),
+    ("responde", "Formulario de oferta. La oferta mantiene su validez por sesenta días corridos "
+                 "desde la fecha de apertura.", 0.999, 1.000),
+    ("responde", "Detalle de la oferta (Portal). Moneda: peso argentino. Los precios incluyen "
+                 "IVA y demás impuestos.", 0.901, 0.979),
+    ("responde", "Documento Nacional de Identidad de Pérez, Juan (ficticio). Copia certificada, "
+                 "firmada por el titular.", 0.471, 0.356),
+    ("responde", "Pagaré a la vista sin protesto por la suma de $ 1.000.000,00, librado a favor "
+                 "del organismo.", 0.954, 0.986),
+    ("mismo tema", "La garantía de cumplimiento del contrato será del diez por ciento del monto "
+                   "adjudicado.", 0.002, 0.022),
+    ("mismo tema", "Condiciones generales de la póliza: el asegurador se obliga a pagar al "
+                   "asegurado.", 0.000, 0.038),
+    ("mismo tema", "Factura N° 0001-00001234. Concepto: premio de la póliza. Importe: $ 52.300,00.",
+     0.000, 0.022),
+    ("mismo tema", "El registro de proveedores se encuentra abierto durante todo el año.",
+     0.010, 0.027),
+    ("mismo tema", "Declaración jurada de domicilio: constituyo domicilio especial en la calle "
+                   "Ficticia 123.", 0.001, 0.002),
+    ("mismo tema", "Los plazos de este formulario se cuentan en días hábiles administrativos.",
+     0.114, 0.328),
+    ("mismo tema", "La prórroga de la validez de la oferta se considerará aceptada si el "
+                   "oferente no manifiesta lo contrario.", 0.273, 0.077),
+    ("mismo tema", "La garantía podrá constituirse mediante pagaré, póliza de caución o depósito "
+                   "bancario.", 0.173, 0.068),
+    ("mismo tema", "El firmante declara conocer las condiciones del pliego y aceptarlas.",
+     0.058, 0.010),
+    ("ajeno", "Renglón 3: alimento balanceado, 250,00 kg, precio unitario $ 12.000,00.",
+     0.000, 0.000),
+    ("ajeno", "Total ofertado: $ 100.900.600,00. Cantidad de alternativas presentadas: 6.",
+     0.001, 0.000),
 ]
+# Un pasaje que ningún corte separa (nombra las causales del pliego sin que el oferente ofrezca
+# nada; puntúa 0,58 con las dos consultas): lo decide el modelo, no el corte.
+INSEPARABLE = ("Las causales de inhabilidad para contratar están enumeradas en el reglamento "
+               "del régimen de contrataciones.", 0.569, 0.580)
 
 
-def test_the_minimum_score_sits_in_the_gap_between_answers_and_same_topic_non_answers(
-        procedure, operator_user, fake_ai, script, settings):
-    """REQ-040 (T-136): con el puntaje mínimo de `settings.py` (el calibrado) y los puntajes
-    medidos con el reranker real sobre textos inventados, pasan al modelo todos los pasajes que
-    responden y ninguno de los del mismo tema que no responden ni de los ajenos."""
+def test_the_minimum_score_separates_answers_from_same_topic_non_answers():
+    """REQ-040 (T-146): con el puntaje mínimo de `settings.py` (recalibrado con el mejor de los
+    dos puntajes) los pasajes que responden quedan por encima y los del mismo tema que no
+    responden, por debajo, con margen; solo el que ningún corte separa pasa al modelo."""
+    from evaluon import settings as defaults
+
+    minimum = defaults.OFFERS_MIN_RERANK_SCORE
+    best = {kind: [max(a, b) for k, _, a, b in CALIBRATION if k == kind]
+            for kind in ("responde", "mismo tema", "ajeno")}
+    assert min(best["responde"]) > minimum + 0.1
+    assert max(best["mismo tema"] + best["ajeno"]) < minimum
+    assert max(INSEPARABLE[1:]) > minimum  # lo que queda es del modelo
+    # La reescritura sube lo que la cita sola dejaba por debajo (T-136: 32 de 52 casi nulos).
+    lifted = [t for k, t, a, b in CALIBRATION if k == "responde" and a < minimum <= b]
+    assert len(lifted) == 2
+
+
+def test_the_calibrated_minimum_lets_through_what_answers_and_nothing_else(
+        procedure, operator_user, fake_ai, script, settings, monkeypatch):
+    """REQ-040 (T-146): de punta a punta con el mínimo calibrado: al modelo llegan solo pasajes
+    que responden, ninguno de los del mismo tema que no responden ni de los ajenos."""
     from evaluon import settings as defaults
 
     settings.OFFERS_MIN_RERANK_SCORE = defaults.OFFERS_MIN_RERANK_SCORE
-    minimum = defaults.OFFERS_MIN_RERANK_SCORE
-    answers = [s for _, kind, _, s in CALIBRATION if kind == "responde"]
-    others = [s for _, kind, _, s in CALIBRATION if kind != "responde"]
-    assert max(others) < minimum < min(answers)
-    assert minimum - max(others) > 0.1 and min(answers) - minimum > 0.4  # margen a ambos lados
+    rewritten_query = "consulta reescrita de prueba"
     offer = make_offer(procedure, operator_user, "Calibración",
-                       {"a.pdf": [text for _, _, text, _ in CALIBRATION]})
-    fake_ai.reranker.scores = {text[:30]: score for _, _, text, score in CALIBRATION}
+                       {"a.pdf": [t for _, t, _, _ in CALIBRATION]})
+    _by_query(monkeypatch, {t[:30]: a for _, t, a, _ in CALIBRATION},
+              {t[:30]: b for _, t, _, b in CALIBRATION}, [rewritten_query])
+    script.rewrite_with(lambda text: rewritten_query)
     script.choose(lambda requirement, blocks, number, messages: None)
-    sheet = build(offer, operator_user)
-    sent = {text for call in script.calls if not call["messages"][-1]["content"]
-            .startswith("Renglón") for text in call["blocks"].values()}
-    assert sent == {text for _, kind, text, _ in CALIBRATION if kind == "responde"}
-    assert sheet.parameters["min_rerank_score"] == minimum
+    build(offer, operator_user)
+    first = next(c for c in script.calls if not c["messages"][-1]["content"]
+                 .startswith("Renglón"))
+    sent = set(first["blocks"].values())
+    answers = {t for k, t, _, _ in CALIBRATION if k == "responde"}
+    assert sent and sent <= answers
+    assert len(sent) == min(8, len(answers))

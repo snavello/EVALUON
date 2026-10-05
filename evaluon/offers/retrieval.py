@@ -24,6 +24,11 @@ ADR-0007).
    de la tabla del renglón), hasta `OFFERS_ITEM_NEIGHBORS`, con la fuente "neighbor" y sin
    puntaje del reranker.
 
+5. Con una consulta reescrita (T-146: el requisito como lo diría una oferta) los pasos 1 a 3 se
+   repiten con las dos consultas: la unión trae los candidatos de ambas y cada pasaje se
+   puntúa con las dos; queda con el mejor puntaje, y el pozo guarda los dos (`score_original`,
+   `score_rewrite`).
+
 Devuelve todos los candidatos (con su puntaje) y los que pasan, para registrar en
 `offers_sheet_step.candidates` lo que se vio y lo que se mandó al modelo (P6). Los clientes
 se usan por su módulo para que los dobles de las pruebas los reemplacen; sus errores
@@ -93,13 +98,16 @@ class Candidate:
     sources: list = field(default_factory=list)
     distance: float | None = None
     words_rank: float | None = None
-    score: float | None = None
+    score: float | None = None  # el mejor de los dos puntajes
+    score_original: float | None = None  # contra la consulta del pliego
+    score_rewrite: float | None = None  # contra la consulta reescrita (T-146)
     copy_of: int | None = None  # pasaje de texto idéntico que lo representa
 
     def as_json(self):
         return {"passage": self.passage_id, "sources": self.sources,
                 "distance": self.distance, "words_rank": self.words_rank,
-                "score": self.score, "copy_of": self.copy_of}
+                "score": self.score, "score_original": self.score_original,
+                "score_rewrite": self.score_rewrite, "copy_of": self.copy_of}
 
 
 @dataclass
@@ -109,6 +117,7 @@ class Retrieval:
     query: str
     pool: list
     chosen: list
+    rewrite: str = ""
 
 
 def _vector_literal(vector):
@@ -178,33 +187,62 @@ def _group_copies(candidates, texts):
     return representatives, copies
 
 
-def retrieve(offer, query, neighbors=False):
-    """Candidatos de `offer` para `query`, ya reordenados. Ver el módulo."""
-    query = (query or "").strip()[:settings.OFFERS_QUERY_MAX_CHARS]
-    pool = {}
-    if query:
-        [vector] = embeddings.embed([query])
-        for passage_id, distance in _fetch(
-                _SEMANTIC_SQL, [_vector_literal(vector), offer.pk,
-                                settings.OFFERS_CANDIDATES_EMBEDDINGS]):
-            candidate = pool.setdefault(passage_id, Candidate(passage_id))
+def _clip(text):
+    return (text or "").strip()[:settings.OFFERS_QUERY_MAX_CHARS]
+
+
+def _gather(pool, offer, query, vector):
+    """Suma al `pool` los candidatos de una consulta por los dos caminos."""
+    for passage_id, distance in _fetch(
+            _SEMANTIC_SQL, [_vector_literal(vector), offer.pk,
+                            settings.OFFERS_CANDIDATES_EMBEDDINGS]):
+        candidate = pool.setdefault(passage_id, Candidate(passage_id))
+        if SEMANTIC not in candidate.sources:
             candidate.sources.append(SEMANTIC)
-            candidate.distance = round(float(distance), 6)
-        words = words_query(query)
-        if words:
-            for passage_id, rank in _fetch(
-                    _WORDS_SQL, [words, offer.pk, settings.OFFERS_CANDIDATES_WORDS]):
-                candidate = pool.setdefault(passage_id, Candidate(passage_id))
+        distance = round(float(distance), 6)
+        if candidate.distance is None or distance < candidate.distance:
+            candidate.distance = distance
+    words = words_query(query)
+    if words:
+        for passage_id, rank in _fetch(
+                _WORDS_SQL, [words, offer.pk, settings.OFFERS_CANDIDATES_WORDS]):
+            candidate = pool.setdefault(passage_id, Candidate(passage_id))
+            if WORDS not in candidate.sources:
                 candidate.sources.append(WORDS)
-                candidate.words_rank = round(float(rank), 6)
+            rank = round(float(rank), 6)
+            if candidate.words_rank is None or rank > candidate.words_rank:
+                candidate.words_rank = rank
+
+
+def retrieve(offer, query, neighbors=False, rewrite=""):
+    """Candidatos de `offer` para `query`, ya reordenados. Ver el módulo. Con `rewrite` (el
+    requisito escrito como lo diría una oferta, T-146) se recupera y se reordena también con
+    esa consulta y cada pasaje queda con el mejor de los dos puntajes."""
+    query = _clip(query)
+    rewrite = _clip(rewrite)
+    if rewrite == query:
+        rewrite = ""
+    queries = [q for q in (query, rewrite) if q]
+    pool = {}
+    if queries:
+        vectors = embeddings.embed(queries)
+        for text, vector in zip(queries, vectors, strict=True):
+            _gather(pool, offer, text, vector)
     candidates = list(pool.values())
     copies = []
     if candidates:
         texts = passage_texts([c.passage_id for c in candidates])
         candidates, copies = _group_copies(candidates, texts)
-        scores = reranker.rerank(query, [texts[c.passage_id] for c in candidates])
+        documents = [texts[c.passage_id] for c in candidates]
+        scores = reranker.rerank(query, documents) if query else [0.0] * len(candidates)
         for candidate, score in zip(candidates, scores, strict=True):
-            candidate.score = round(float(score), 6)
+            candidate.score_original = round(float(score), 6)
+            candidate.score = candidate.score_original
+        if rewrite:
+            for candidate, score in zip(candidates, reranker.rerank(rewrite, documents),
+                                        strict=True):
+                candidate.score_rewrite = round(float(score), 6)
+                candidate.score = max(candidate.score, candidate.score_rewrite)
     order = sorted(range(len(candidates)), key=lambda i: (-candidates[i].score, i))
     if neighbors:
         chosen = [candidates[i] for i in order[:settings.OFFERS_ITEM_CANDIDATES_TO_MODEL]]
@@ -213,4 +251,4 @@ def retrieve(offer, query, neighbors=False):
                   if candidates[i].score >= settings.OFFERS_MIN_RERANK_SCORE]
     if neighbors and chosen:
         chosen = _add_neighbors(candidates, chosen)
-    return Retrieval(query=query, pool=candidates + copies, chosen=chosen)
+    return Retrieval(query=query, pool=candidates + copies, chosen=chosen, rewrite=rewrite)
