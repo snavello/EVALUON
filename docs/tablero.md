@@ -45,7 +45,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 52/59 | █████████░ 88% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 53/59 | █████████░ 90% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -372,9 +372,8 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 7 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 6 tareas sin terminar.
 - ◐ T-124 · Pasada de circulares: original en el anexo por título y requisitos que agrega un "Debe decir" (en verificación)
-- ◐ T-125 · Corregir el criterio del filtro que descartó requisitos reales (en verificación)
 - ○ T-106 · Medir el filtro, las sugerencias y el respaldo normativo con el caso-00 y ajustarlos (pendiente)
 - ○ T-107 · Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00 (pendiente)
 - ○ T-108 · Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04 (pendiente)
@@ -436,6 +435,7 @@ flowchart LR
 - ✓ T-119 · Actualizar la lista esperada del caso-01 con las filas que las circulares afectan
 - ✓ T-121 · Corregir el consumo de memoria de la medición (citas que cargaban cada una su lectura) (`215300c` 2026-10-04, `39b9103` 2026-10-04)
 - ✓ T-123 · Corregir la medición: citas de otra lectura y filas suprimidas por una circular (`367acd8` 2026-10-04, `4f2f044` 2026-10-04)
+- ✓ T-125 · Corregir el criterio del filtro que descartó requisitos reales (`42646c1` 2026-10-04, `2e72018` 2026-10-04, `409557a` 2026-10-04)
 
 ### Mapa de tareas
 
@@ -499,7 +499,7 @@ flowchart TD
   T122["○ T-122 · Mostrar los cambios vigentes de la norma al…"]:::todo
   T123["✓ T-123 · Corregir la medición: citas de otra lectura…"]:::done
   T124["◐ T-124 · Pasada de circulares: original en el anexo…"]:::review
-  T125["◐ T-125 · Corregir el criterio del filtro que descart…"]:::review
+  T125["✓ T-125 · Corregir el criterio del filtro que descart…"]:::done
   T067 --> T068
   T068 --> T069
   T067 --> T070
