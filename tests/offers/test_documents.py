@@ -457,3 +457,116 @@ def test_the_technical_root_in_the_header_tolerates_text_recognition_errors(name
     """REQ-044: una hoja con otro encabezado o un título mal leído se clasifica técnica por
     la raíz "tecnic" o "especif" (T-135)."""
     assert services.classify_kind(name, text) == kind
+
+
+# --- Reclasificar y rearmar lo ya cargado (T-136) -----------------------------------------------
+
+
+def _long_item_pdf():
+    """Un PDF de una página con un solo párrafo largo que trae dos encabezados de renglón."""
+    lines = []
+    for item in (1, 2):
+        lines.append(f"RENGLÓN {item}: alimento balanceado para perros adultos de raza grande.")
+        lines += [f"Descripción {item}.{n}: bolsa de veinte kilos, presentación cerrada y "
+                  "etiquetada." for n in range(1, 8)]
+    return tender_pdf([[para(*lines)]], header=None)
+
+
+@pytest.fixture
+def read_document_of(new_offer, operator_user, fake_ai):
+    """Una oferta con un documento ya leído (PDF con texto, dos renglones en un párrafo)."""
+    document = load(operator_user, new_offer, name="especificaciones.pdf",
+                    data=_long_item_pdf()).document
+    jobs.run_next()
+    return document
+
+
+def test_rebuilding_passages_adds_a_new_reading_without_reading_the_file_again(
+        read_document_of, operator_user, fake_ai, settings, monkeypatch):
+    """REQ-039 (T-136): con el particionado de hoy se arma una lectura nueva desde las páginas
+    guardadas, sin OCR ni leer el archivo; la anterior queda como estaba y el texto de cada
+    pasaje es el recorte del texto canónico."""
+    document = read_document_of
+    old = document.readings.get()
+    old_passages = list(old.passages.values_list("text", flat=True))
+    settings.OFFERS_PASSAGE_MAX_CHARS = 400
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("no se vuelve a leer el archivo")
+
+    monkeypatch.setattr("evaluon.offers.reading.read_with_second_attempt", forbidden)
+    monkeypatch.setattr("evaluon.offers.reading.read_document", forbidden)
+    new = services.rebuild_passages(operator_user, document)
+    assert new.sequence == 2 and new.job is None
+    assert new.pages == old.pages and new.canonical_sha256 == old.canonical_sha256
+    assert new.passages.count() > len(old_passages)
+    for passage in new.passages.all():
+        assert passage.text == new.canonical_text[passage.char_start:passage.char_end]
+        assert passage.embedding is not None
+    assert list(old.passages.values_list("text", flat=True)) == old_passages
+    assert document.readings.count() == 2
+    event = events(EventType.OFFER_READ, Outcome.OK).filter(
+        detail__action="rebuild_passages").get()
+    assert event.detail["from_reading"] == old.pk and event.detail["reading"] == new.pk
+    assert event.detail["passages"] == new.passages.count()
+    assert event.detail["passages_before"] == len(old_passages)
+
+
+def test_a_rebuild_that_changes_nothing_adds_no_reading(read_document_of, operator_user):
+    """REQ-039 (T-136): si el particionado de hoy da los mismos pasajes, no hay lectura nueva."""
+    assert services.rebuild_passages(operator_user, read_document_of) is None
+    assert read_document_of.readings.count() == 1
+
+
+def test_a_rebuild_needs_a_commission_role_and_a_reading(new_offer, operator_user,
+                                                         read_document_of):
+    """REQ-039 (T-136): sin rol no se rearma; un documento sin lectura deja el hecho fallido."""
+    with pytest.raises(RoleRejected):
+        services.rebuild_passages(None, read_document_of)
+    unread = load(operator_user, new_offer, name="otra.pdf", data=_long_item_pdf() + b"\n").document
+    with pytest.raises(ValueError):
+        services.rebuild_passages(operator_user, unread)
+    assert events(EventType.OFFER_READ, Outcome.FAILED).filter(
+        detail__action="rebuild_passages").exists()
+
+
+def test_reclassifying_applies_the_current_rules_and_records_each_change(
+        procedure, operator_user):
+    """REQ-044 (T-136): se vuelve a aplicar `classify_kind` al nombre y al texto de la última
+    lectura de cada documento, sin leer ni OCR; el cambio queda en el registro con el tipo
+    anterior. Los que no cambian y los que ninguna regla alcanza no se tocan."""
+    from tests.offers.conftest import make_offer
+
+    offer = make_offer(procedure, operator_user, "Reclasificar", {
+        "sin-tipo.pdf": ["ESPEC1FICACIONES firmadas por el oferente para el renglón 1."],
+        "con-tipo.pdf": ["Planilla de precios del oferente."],
+        "nada.pdf": ["Un texto cualquiera sin palabras clave."]},
+        kinds={"con-tipo.pdf": "economica", "nada.pdf": "otro"})
+    changed = services.reclassify_documents(operator_user, procedure)
+    assert [(d.file_name, before, after) for d, before, after in changed] == [
+        ("sin-tipo.pdf", "", "tecnica")]
+    kinds = dict(offer.documents.values_list("file_name", "kind"))
+    assert kinds == {"sin-tipo.pdf": "tecnica", "con-tipo.pdf": "economica", "nada.pdf": "otro"}
+    event = events(EventType.OFFER_READ, Outcome.OK).get(detail__action="reclassify")
+    assert event.detail["kind_before"] == "" and event.detail["kind"] == "tecnica"
+    assert services.reclassify_documents(operator_user, procedure) == []
+    with pytest.raises(RoleRejected):
+        services.reclassify_documents(None, procedure)
+
+
+def test_the_maintenance_commands_reclassify_and_rebuild(
+        read_document_of, procedure, operator_user, settings, monkeypatch, capsys):
+    """REQ-039, REQ-044 (T-136): los dos comandos corren los servicios sobre el procedimiento."""
+    from django.core.management import call_command
+
+    monkeypatch.setattr("evaluon.accounts.permissions.authenticate_command",
+                        lambda username: operator_user)
+    call_command("reclasificar_documentos", usuario="operador",
+                 procedimiento=procedure.number)
+    assert "documentos cambiaron de tipo" in capsys.readouterr().out
+    settings.OFFERS_PASSAGE_MAX_CHARS = 400
+    call_command("rearmar_pasajes", usuario="operador", procedimiento=procedure.number)
+    assert "1 documentos con lectura nueva" in capsys.readouterr().out
+    assert read_document_of.readings.count() == 2
+    call_command("rearmar_pasajes", usuario="operador", procedimiento=procedure.number)
+    assert "sin cambios" in capsys.readouterr().out
