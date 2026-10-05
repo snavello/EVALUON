@@ -1923,10 +1923,15 @@ def test_row_suppressed_by_a_circular_matches_an_expected_with_a_suprime_block(c
     quitada por la circular y cuenta como encontrado; la fila no es sobrante."""
     c = circular_case
     c.write_list(efecto="suprime", vigente=None)
+    before = c.measure()[2]
     row = _suppress(c, "garantía del 5 %")
 
     _, _, measures = c.measure()
 
+    # Los sobrantes se miden solo sobre filas firmes: la suprimida no suma ni al conteo ni
+    # al total.
+    assert measures["leftovers"] == before["leftovers"]
+    assert measures["proposed_total"] == before["proposed_total"] - 1
     line = _line(measures, "S-001")
     assert line["estado"] == "encontrado" and line["detalle"] == "suprimido por circular"
     assert measures["suppressed"]["ids"] == ["S-001"]
@@ -1962,3 +1967,30 @@ def test_suppressed_row_is_matched_one_to_one(circular_case):
     located = [check.located["S-001"], check.located["S-001"]]
 
     assert len(ev._pairs(located, ev._suppressed(c.version))) == 1
+
+
+def test_two_expected_over_one_suppressed_row_one_is_found_and_the_other_is_missing(
+        circular_case):
+    """REQ-031: la regla uno a uno, medida de punta a punta: dos esperados con bloque `suprime`
+    sobre la misma fila quitada por la circular; uno la encuentra y el otro es faltante."""
+    c = circular_case
+    c.write_list(efecto="suprime", vigente=None)
+    block = block_yaml(efecto="suprime", vigente=None, tramo=c.segment.key)
+    out, current = [], None
+    for line in c.path.read_text(encoding="utf-8").splitlines():
+        out.append(line)
+        if line.startswith("  - id: "):
+            current = line.split(": ")[1]
+        if current in ("S-003", "S-004") and line.strip() == "renglones: []":
+            out.append(block.rstrip("\n"))
+    write(c.path, "\n".join(out) + "\n")
+    _suppress(c, "multa del 1 % diario")
+
+    _, _, measures = c.measure()
+
+    states = sorted(_line(measures, i)["estado"] for i in ("S-003", "S-004"))
+    assert states == ["encontrado", "faltante"]
+    missing = next(_line(measures, i) for i in ("S-003", "S-004")
+                   if _line(measures, i)["estado"] == "faltante")
+    assert missing["causa"] == ev.SUPPRESSED
+    assert len(measures["suppressed"]["ids"]) == 1
