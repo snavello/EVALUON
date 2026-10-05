@@ -69,8 +69,8 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-119 | Actualizar la lista esperada del caso-01 con las filas que las circulares afectan | REQ-031 | T-117 | terminada |
 | T-120 | Medir y ajustar la pasada de circulares con los casos 01, 05 y 06, con estabilidad | REQ-031 | T-113, T-115, T-117, T-118, T-119 | pendiente |
 | T-121 | Corregir el consumo de memoria de la medición (citas que cargaban cada una su lectura) | REQ-024, REQ-030 | T-117 | terminada |
-| T-122 | Mostrar los cambios vigentes de la norma al proponer consecuencias, o no fundar en unidades modificadas | REQ-029 | T-109 | pendiente |
-| T-123 | Corregir la medición: citas de otra lectura y filas suprimidas por una circular | REQ-024, REQ-031 | T-117 | en verificación |
+| T-122 | Mostrar los cambios vigentes de la norma al proponer consecuencias, o no fundar en unidades modificadas | REQ-029 | T-109 | pendiente |
+| T-123 | Corregir la medición: citas de otra lectura y filas suprimidas por una circular | REQ-024, REQ-031 | T-117 | terminada |
 | T-124 | Pasada de circulares: original en el anexo por título y requisitos que agrega un "Debe decir" | REQ-031 | T-115 | en verificación |
 | T-125 | Corregir el criterio del filtro que descartó requisitos reales | REQ-024, REQ-033 | T-102 | en verificación |
 
