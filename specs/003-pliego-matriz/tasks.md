@@ -75,7 +75,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-125 | Corregir el criterio del filtro que descartó requisitos reales | REQ-024, REQ-033 | T-102 | terminada |
 | T-126 | Mostrar la cadena completa de circulares que modifican una misma condición | REQ-031 | T-116, T-124 | pendiente |
 | T-127 | Impedir que una aclaración termine como supresión y registrar la versión de `circulares_cambios` | REQ-031 | T-115, T-124 | pendiente |
-| T-128 | Aplicar una aclaración de cláusula a todas sus citas | REQ-031 | T-115, T-124, T-127 | bloqueada |
+| T-128 | Aplicar una aclaración de cláusula a todas sus citas | REQ-031 | T-115, T-124, T-127 | pendiente |
 
 ## Para todas las tareas
 
@@ -594,7 +594,7 @@ Plan: sección "Rediseño de la pasada de circulares (2026-10-04)" de `plan.md`;
 
 ### T-128 · Aplicar una aclaración de cláusula a todas sus citas
 
-**Bloqueada hasta la decisión del responsable sobre la causa B.**
+**Decisión del responsable del 2026-10-05: sí. Cuando una circular aclara una cláusula sin decir a qué oración se refiere, la aclaración se aplica a todas las citas de esa cláusula.**
 
 - **Qué hacer:** diagnóstico 4, causa B, y diagnóstico 5, corrección 2. Cuando la circular nombra una cláusula que tiene varias citas y no copia texto anterior, hoy se declara `clave_ambigua` (`circular_changes.py:249-250`) y todo va al respaldo; igual con un anexo nombrado sin texto anterior (`:262-263`). Propuesta: un cambio `aclara` sobre una cláusula (o anexo) nombrado se aplica a todas las citas de esa cláusula, con efecto `aclara` (inocuo: no cambia el texto vigente ni quita la fila). `reemplaza` y `suprime` sin texto anterior siguen sin aplicarse a varias citas. Afirma una aclaración sobre varias citas: por eso necesita la decisión del responsable antes de arrancar; si decide otra cosa, la tarea se reescribe o se retira.
 - **Aviso de tareas anteriores:** T-115 (`circular_changes.py`) y T-124 (misma pasada); T-127 va antes (cierra el camino `aclara` a `suprime` por el respaldo, que esta tarea reduce pero no elimina). T-120 se mide de nuevo después de T-127 y de esta tarea, si se aprueba.
