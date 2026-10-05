@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Oferta {{ page.offer.number }} · {{ page.offer.procedure.number }} · EVALUON{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'offers:procedure_offers' page.offer.procedure.pk %}">Ofertas del procedimiento {{ page.offer.procedure.number }}</a></p>
+<h1>Oferta {{ page.offer.number }} · {{ page.offer.bidder }}</h1>
+
+{% if loaded %}
+<p class="loaded" role="status">Se cargaron {{ loaded }} documento{{ loaded|pluralize }}. Su lectura quedó en espera.</p>
+{% endif %}
+{% if requested %}
+<p class="loaded" role="status">Se pidió la ficha. Queda en espera hasta que el servicio la tome.</p>
+{% endif %}
+
+<section class="document-list" aria-labelledby="documents-title">
+  <h2 id="documents-title">Documentos</h2>
+  {% if page.documents %}
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Título</th>
+        <th scope="col">Tipo</th>
+        <th scope="col">Estado</th>
+        <th scope="col">Original</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in page.documents %}
+      <tr>
+        <td>{{ row.document.title }}</td>
+        <td>{% if row.document.kind %}{{ row.document.get_kind_display }}{% else %}—{% endif %}</td>
+        <td>
+          {% if row.state == "leido" %}Leído{% if row.reading %} · {{ row.reading.report.pages }} página{{ row.reading.report.pages|pluralize }}{% endif %}
+          {% elif row.state == "leyendo" %}Leyendo
+          {% elif row.state == "fallido" %}No se pudo leer: {{ row.job.error }}
+          {% else %}En espera de lectura{% endif %}
+        </td>
+        <td><a href="{% url 'offers:document_original' row.document.pk %}">{{ row.document.file_name }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>Todavía no hay documentos cargados.</p>
+  {% endif %}
+</section>
+
+{% if page.unread or page.low_confidence %}
+<section class="unread-pages" aria-labelledby="unread-title">
+  <h2 id="unread-title">Páginas para revisar a mano</h2>
+  {% if page.unread %}
+  <h3>Páginas no leídas</h3>
+  <ul>
+    {% for entry in page.unread %}
+    <li>{{ entry.title }} · página {{ entry.page }}{% if entry.confidence is not None %} · confianza {{ entry.confidence }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if page.low_confidence %}
+  <h3>Páginas leídas con baja confianza</h3>
+  <ul>
+    {% for entry in page.low_confidence %}
+    <li>{{ entry.title }} · página {{ entry.page }}{% if entry.confidence is not None %} · confianza {{ entry.confidence }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="sheets" aria-labelledby="sheets-title">
+  <h2 id="sheets-title">Ficha</h2>
+  {% if sheet_error %}<p class="form-error" role="alert">{{ sheet_error }}</p>{% endif %}
+  {% if page.sheets %}
+  <ul>
+    {% for sheet in page.sheets %}
+    <li><a href="{% url 'offers:sheet' sheet.pk %}">Ficha {{ sheet.number }}</a> · matriz versión {{ sheet.matrix_version.number }} · {{ sheet.built_at|date:"d/m/Y H:i" }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>Todavía no se armó la ficha de esta oferta.</p>
+  {% endif %}
+  {% if page.sheet_job and page.sheet_job.status != "done" and page.sheet_job.status != "failed" %}
+  <p>Ficha en preparación ({% if page.sheet_job.status == "running" %}en curso{% else %}en espera{% endif %}).</p>
+  {% elif page.sheet_job and page.sheet_job.status == "failed" %}
+  <p class="form-error">El último pedido de ficha falló: {{ page.sheet_job.error }}</p>
+  {% endif %}
+  {% if page.validated_matrix %}
+  <form method="post" action="{% url 'offers:build_sheet' page.offer.pk %}">
+    {% csrf_token %}
+    <button type="submit">Armar ficha</button>
+    <span>contra la matriz versión {{ page.validated_matrix.number }}</span>
+  </form>
+  {% else %}
+  <p>El procedimiento no tiene una matriz validada: la ficha se arma solo contra una matriz validada.</p>
+  {% endif %}
+</section>
+
+<section class="document-form" aria-labelledby="form-title">
+  <h2 id="form-title">Cargar documentos</h2>
+  <form method="post" enctype="multipart/form-data" action="{% url 'offers:offer' page.offer.pk %}">
+    {% csrf_token %}
+    {% for message in errors %}<p class="form-error" role="alert">{{ message }}</p>{% endfor %}
+    <p>
+      <label for="id_file">Archivos (PDF)</label>
+      <input type="file" name="file" id="id_file" multiple>
+    </p>
+    <button type="submit">Cargar</button>
+  </form>
+</section>
+{% endblock %}

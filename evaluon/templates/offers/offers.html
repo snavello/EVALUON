@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Ofertas · {{ procedure.number }} · EVALUON{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'tenders:procedure' procedure.pk %}">Procedimiento {{ procedure.number }}</a></p>
+<h1>Ofertas del procedimiento {{ procedure.number }}</h1>
+
+<section class="offer-list" aria-labelledby="offers-title">
+  <h2 id="offers-title">Ofertas</h2>
+  {% if rows %}
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">N.º</th>
+        <th scope="col">Oferente</th>
+        <th scope="col">Documentos</th>
+        <th scope="col">Lectura</th>
+        <th scope="col">Ficha</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.offer.number }}</td>
+        <td><a href="{% url 'offers:offer' row.offer.pk %}">{{ row.offer.bidder }}</a></td>
+        <td>{{ row.documents }}</td>
+        <td>{% if not row.documents %}Sin documentos{% elif row.failed %}{{ row.failed }} con falla{% elif row.read == row.documents %}Leídos{% else %}{{ row.read }} de {{ row.documents }} leídos{% endif %}</td>
+        <td>{% if row.sheet %}<a href="{% url 'offers:sheet' row.sheet.pk %}">Ficha {{ row.sheet.number }}</a>{% else %}Sin ficha{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>Todavía no hay ofertas registradas.</p>
+  {% endif %}
+</section>
+
+<section class="offer-form" aria-labelledby="form-title">
+  <h2 id="form-title">Registrar una oferta</h2>
+  <form method="post" action="{% url 'offers:procedure_offers' procedure.pk %}">
+    {% csrf_token %}
+    {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+    <p>
+      <label for="id_bidder">Oferente</label>
+      <input type="text" name="bidder" id="id_bidder" maxlength="300" value="{{ bidder }}">
+    </p>
+    <button type="submit">Registrar</button>
+  </form>
+</section>
+{% endblock %}
