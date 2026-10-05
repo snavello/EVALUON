@@ -385,3 +385,38 @@ def test_a_screen_photo_of_a_table_is_read_with_the_table_configuration():
         first.pages[0].classification
     row = next(line.text for line in page.lines if "8760" in line.text or "7.760,00" in line.text)
     assert "7.760,00" in row or "67.977.600,00" in row
+
+
+def test_a_page_that_keeps_the_table_reading_is_never_legible(monkeypatch):
+    """REQ-038, P3 (T-136): aunque la lectura de tabla dé 85 de confianza y estado legible, la
+    página queda "dudosa" y sigue en la lista de baja confianza."""
+    first = page_of("dudosa", [("Detalle", 71.0)] * 6 + [("2700,00", 80.0)])
+    table = page_of("legible", [(f"{n}.390,00", 85.0) for n in range(1, 9)] + [("kg", 85.0)] * 2)
+    assert table.status == PAGE_READ and table.confidence >= 80
+    pdf = stub_reading(monkeypatch, first, table=table)
+    reading, attempts = tools.read_with_second_attempt(pdf)
+    assert attempts[0]["kept"] == tools.KEPT_TABLE
+    assert reading.pages[0].status == PAGE_DOUBTFUL and reading.pages[0].confidence == 85.0
+
+
+def test_a_table_reading_that_is_tabular_but_has_no_more_reliable_amounts_loses(monkeypatch):
+    """REQ-038 (T-136): una lectura de tabla con cifras de sobra pero con menos importes
+    confiables que la primera (o con los mismos) no la reemplaza: la lectura de tabla no gana
+    siempre."""
+    first = page_of("dudosa", table_words(5))
+    digits = [(str(n * 111), 90.0) for n in range(1, 9)]
+    for table in (page_of("dudosa", digits + table_words(2)),   # solo 2 importes
+                  page_of("dudosa", digits + table_words(5))):  # los mismos 5
+        assert tools._looks_tabular(table)
+        pdf = stub_reading(monkeypatch, first, table=table)
+        reading, attempts = tools.read_with_second_attempt(pdf)
+        assert attempts[0]["kept"] == tools.KEPT_FIRST and reading.pages[0] is first
+
+
+def test_only_complete_amounts_with_enough_confidence_count_as_reliable():
+    """REQ-038 (T-136): cuentan los importes con miles y decimales coherentes y confianza de 65
+    o más; no los de separadores incoherentes ni los de confianza media."""
+    words = [("7.390,00", 80.0), ("2700,00", 70.0), ("19953.000,00", 90.0),
+             ("12,000,00", 90.0), ("7.39,00", 90.0), ("3.000.000,00", 64.0),
+             ("11.500,00", 66.0), ("1.000", 90.0), ("27000,00", 90.0)]
+    assert tools._reliable_numbers(page_of("dudosa", words)) == 3

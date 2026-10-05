@@ -37,6 +37,7 @@ from evaluon.norms.reading import (
     PAGE_BLANK,
     PAGE_DOUBTFUL,
     PAGE_ILLEGIBLE,
+    PAGE_READ,
     Line,
     Page,
     Word,
@@ -261,7 +262,13 @@ def prepare_image(image):
     return darker.point(lambda v: 0 if v > THRESHOLD_MARGIN else 255), angle
 
 
-_AMOUNT = re.compile(r"^\d{1,3}(?:\.\d{3})*,\d{2}$|^\d+,\d{2}$")
+# Importe con forma completa: miles con punto en grupos de tres y dos decimales (`7.390,00`), o una
+# cantidad de cuatro cifras sin separador (`2700,00`). Un OCR que inventa cifras rara vez arma
+# grupos coherentes.
+_AMOUNT = re.compile(r"^\d{1,3}(?:\.\d{3})*,\d{2}$|^\d{4},\d{2}$")
+# Confianza mínima de una palabra para contarla como importe leído (más alta que la de dudosa:
+# un importe inventado por el OCR con confianza media no tiene que ganarle a la primera lectura).
+TABLE_AMOUNT_MIN_CONFIDENCE = 65
 
 
 def _confidence(page):
@@ -281,12 +288,13 @@ def _page_words(page):
 
 
 def _reliable_numbers(page):
-    """Los importes bien formados (`7.390,00`, `2700,00`) reconocidos con confianza de dudosa o
-    más: cuántos datos de una tabla (cantidades, precios) se pudieron leer de verdad. La
-    confianza promedio sola no lo dice: una lectura que pierde las cifras puede tenerla más
-    alta."""
+    """Los importes con forma completa (`7.390,00`, `2700,00`; ver `_AMOUNT`) reconocidos con
+    confianza de `TABLE_AMOUNT_MIN_CONFIDENCE` o más: cuántos datos de una tabla (cantidades,
+    precios) se pudieron leer de verdad. La confianza promedio sola no lo dice: una lectura que
+    pierde las cifras puede tenerla más alta; y una palabra con forma de importe pero con
+    separadores incoherentes (`19953.000,00`) o confianza baja no cuenta."""
     return sum(1 for word in _page_words(page)
-               if word.confidence >= ocr.DOUBTFUL_FROM and _AMOUNT.match(word.text))
+               if word.confidence >= TABLE_AMOUNT_MIN_CONFIDENCE and _AMOUNT.match(word.text))
 
 
 def _looks_tabular(page):
@@ -442,7 +450,11 @@ def read_with_second_attempt(pdf_bytes):
             if table.lines and _looks_tabular(table):
                 needed = TABLE_SPARSE_GAIN if sparse else 1.0
                 if _reliable_numbers(table) > needed * _reliable_numbers(best):
-                    kept, best = KEPT_TABLE, table
+                    # Una lectura de tabla nunca deja la página "legible": queda al menos
+                    # "dudosa" y la Comisión la sigue viendo marcada (P3).
+                    kept = KEPT_TABLE
+                    best = (replace(table, status=PAGE_DOUBTFUL)
+                            if table.status == PAGE_READ else table)
             if sparse and kept == KEPT_FIRST:
                 continue
             attempts.append(_attempt_entry(first, second, table, angle, kept))
