@@ -375,7 +375,7 @@ def test_a_cover_title_extracted_as_a_clarification_is_dropped(operator_user, sc
     ("La constancia de visita puede emitirla el correo.", False),      # una respuesta
     ("II. SE ACLARA EL PLAZO DE ENTREGA", False),                      # encabezado de apartado
     ("FECHA: 3 de marzo\nHORA: 9 hs", False),                          # varias líneas
-    ("El oferente deberá presentar la constancia de visita", False),   # minúsculas con verbo
+    ("Los participantes tendrán que acompañar el comprobante de visita", False),   # minúsculas con verbo
 ])
 def test_what_counts_as_a_cover_title(text, expected):
     """REQ-031: una carátula es una línea sin punto final en mayúsculas o con el nombre del
