@@ -381,3 +381,52 @@ def test_what_counts_as_a_cover_title(text, expected):
     """REQ-031: una carátula es una línea sin punto final en mayúsculas o con el nombre del
     procedimiento y su número; una oración de respuesta no lo es."""
     assert units.is_title_text(text) is expected
+
+
+# --- Verificación de T-137: la marca va por cambio; una exigencia no es un título ----------------------------
+
+
+def test_a_lost_change_marks_the_row_even_if_another_change_of_the_unit_reached_it(
+        operator_user, script):
+    """REQ-031, P3 (D1): en una misma unidad un cambio se aplica al renglón 6 y otro, sobre
+    el mismo renglón, no se resuelve; la fila del 6 tiene una fuente y queda marcada igual."""
+    procedure = items_case(operator_user, script)
+    add_circular(operator_user, procedure, "Circular N.º 7", date(2025, 12, 9),
+                 "1. En el Renglón N° 6 el cable pasa a ser de ocho milímetros. En el "
+                 "Renglón N° 6 se reemplaza la balanza de plataforma por una balanza de "
+                 "precisión.")
+    script.x_when("cable pasa", [
+        change("aclara", "renglon", "6", "", "el cable pasa a ser de ocho milímetros"),
+        change("reemplaza", "renglon", "6", "la balanza de plataforma",
+               "una balanza de precisión")])
+
+    version, run = run_proposal(operator_user, procedure)
+
+    row = row_of_item(version, 6)
+    assert row.sources.exists()
+    assert list(flagged_numbers(operator_user, version)) == [row.number]
+
+
+@pytest.mark.parametrize("text", [
+    "SE DEBERÁ PRESENTAR MUESTRA DE CADA RENGLÓN",
+    "LA GARANTÍA DE OFERTA SERÁ DEL 5% DEL MONTO",
+    "Compulsa abreviada N° 3: se exige muestra",
+])
+def test_an_exigence_is_never_a_cover_title(text):
+    """REQ-031, P3 (D2): un texto con marcador de obligación o verbo de exigencia no es título."""
+    assert units.is_title_text(text) is False
+
+
+def test_a_dropped_title_leaves_the_named_row_for_review(operator_user, script):
+    """REQ-031, P3 (D2): cuando se descarta un título como aclaración, la fila que nombra
+    queda a revisión obligatoria en lugar de descartarse en silencio."""
+    procedure = visit_case(operator_user, script)
+    load_and_read(operator_user, procedure, narrative_circular(CARATULA),
+                  kind="circular_modificatoria", title="Circular N.º 2",
+                  issued_on=date(2025, 12, 1))
+    script.x_when("LICITACIÓN PÚBLICA", [change("aclara", "clausula", "1.1", "", CARATULA)])
+
+    version, _ = run_proposal(operator_user, procedure)
+
+    assert list(flagged_numbers(operator_user, version)) == [
+        requirement_with(version, VISITA_QUOTE).number]

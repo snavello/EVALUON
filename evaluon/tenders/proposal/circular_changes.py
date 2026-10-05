@@ -300,9 +300,16 @@ def resolve_change(ctx, change, anomalies=None):
     if (change.type == units.CHANGE_CLARIFIES and change.new_text
             and units.is_title_text(change.new_text)):
         # T-137: el título de una carátula no es una aclaración.
+        # Ante la duda no se descarta en silencio: las filas que nombra quedan a revisión.
         if anomalies is not None:
-            anomalies.append({"type": circulars.ANOMALY_TITLE_NOT_CLARIFICATION,
-                              "tramos": unit.keys, "referencia": change.reference})
+            pool, reason = _pool_for(ctx, change)
+            anomalies.append({
+                "type": circulars.ANOMALY_TITLE_NOT_CLARIFICATION, "review_required": True,
+                "tramos": unit.keys, "referencia": change.reference,
+                "circular": f"{document.document.title} "
+                            f"({document.document.issued_on.strftime('%d/%m/%Y')})",
+                "requirements": [] if reason else sorted(
+                    {t.number for c in pool for t in c.targets})})
         return [], [], ""
     if change.type == units.CHANGE_ADDS:
         if change.target != "clausula":

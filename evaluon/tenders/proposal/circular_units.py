@@ -929,13 +929,19 @@ def is_title_text(text):
     line = " ".join(stripped.split())
     if not line or "\n" in stripped or len(line) > 200 or line.endswith((".", ":", ";")):
         return False
-    if _ROMAN_HEADING.match(line):
+    if _ROMAN_HEADING.match(line) or has_circular_obligation(line) or _EXIGENCE.search(
+            fold(line)):
         return False
     letters = [c for c in line if c.isalpha()]
     if len(letters) >= 6 and sum(c.isupper() for c in letters) / len(letters) >= 0.7:
         return True
     return bool(_PROCESS_TITLE.match(fold(line)))
 
+
+# Verbos de exigencia: un texto que los tiene dice qué se pide, no es un título.
+_EXIGENCE = re.compile(
+    r"\b(?:exige\w*|requiere\w*|sera\w*|presentar\w*|aportar\w*|acompan\w*"
+    r"|cumpl\w*|constitu\w*|incluir\w*|solicit\w*)\b")
 
 _PROCESS_TITLE = re.compile(
     r"^(?:licitacion|contratacion|compulsa|concurso|subasta|procedimiento|expediente|proceso)\b"

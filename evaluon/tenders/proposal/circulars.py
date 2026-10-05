@@ -1023,12 +1023,17 @@ class Processor:
         de la unidad se da por atendida: un técnico tiene varias citas (el título del renglón,
         sus cláusulas) y marcarlas por separado sería ruido."""
         reached = {t.number for source in produced for t in source.candidate.targets}
+        # Un cambio sin resolver se marca aunque la unidad haya aplicado otros sobre la misma
+        # fila (D1): solo lo atiende el respaldo, que lee el tramo (paso de `circulares`).
+        by_fallback = {t.number for source in produced
+                       if source.step is not None and source.step.pass_name == self.pass_name
+                       for t in source.candidate.targets}
         for reason, names, whole in losses:
             named = (self._named_candidates(names, candidates)
                      or self._named_candidates(whole, candidates))
+            done = by_fallback if reason == REVIEW_UNRESOLVED else reached
             self._mark_review(label, change.keys, reason,
-                              [c for c in named
-                               if not reached & {t.number for t in c.targets}])
+                              [c for c in named if not done & {t.number for t in c.targets}])
 
     def _mark_review(self, label, keys, reason, marked):
         """Deja la anomalía que la pantalla y la impresión muestran como "a revisión
@@ -1280,7 +1285,9 @@ class Processor:
                 # T-137: el título de una carátula no precisa ninguna condición.
                 self.anomalies.append({
                     "type": ANOMALY_TITLE_NOT_CLARIFICATION, "segment": segment.pk,
-                    "key": segment.key, "alias": alias, "step": outcome.step.pk})
+                    "key": segment.key, "alias": alias, "step": outcome.step.pk,
+                    "review_required": True, "circular": label,
+                    "requirements": [t.number for t in candidate.targets]})
                 continue
             sources.append(Source(effect, candidate, segment, start, end, text, issued_on,
                                   outcome.step, wide))

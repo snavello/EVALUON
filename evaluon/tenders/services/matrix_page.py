@@ -398,7 +398,7 @@ def _review_notes(run):
             continue
         # T-137: la supresión sin frase y el cambio de circular que no se pudo aplicar con
         # certeza se marcan igual; el texto de la marca dice cuál es.
-        lost = anomaly.get("type") == "circular_revision_obligatoria"
+        lost = anomaly.get("type") != "circular_supresion_sin_frase"
         for number in anomaly.get("requirements", []):
             found = notes.setdefault(number, [])
             if not any(n["circular"] == anomaly["circular"] and n["lost"] == lost
