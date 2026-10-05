@@ -36,6 +36,7 @@ Material de referencia para construir: un caso público completo (pliego, oferta
 
 - **Borrador de acta.** El acta de evaluación aportada es un ejemplo de cómo termina el proceso; por ahora el sistema no la redacta (decisión del responsable del 2026-10-03).
 - **Texto ordenado de las normas.** La feature 001 reúne las normas tal como fueron publicadas y registra sus modificaciones. Queda por decidir si más adelante el sistema arma además el texto vigente con las modificaciones aplicadas, y si para eso se usa una IA externa (permitido, por ser normativa pública) con validación de una persona. Se construiría sobre lo que la 001 deja guardado, como una feature nueva.
+- **Revisión con el primer producto.** Lo menor de la 003 (filtro y sobrantes, tablas pendientes, líneas de formulario, T-122) se revisa con la 008 y la 004 terminadas; hasta el piloto los sobrantes se informan y no bloquean (ADR-0024, decisión del responsable del 2026-10-05).
 
 ## Cómo se modifica
 

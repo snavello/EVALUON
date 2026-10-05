@@ -57,6 +57,13 @@ Las etapas 4 y 5 se repiten por tarea hasta pasar, y tareas distintas pueden ava
 - El cierre se hace con `tools/cerrar.sh FEATURE NNN "mensaje" [MAIN_VERIFICADO]`, con `COORD_DIR` apuntando a la carpeta local del Coordinador.
 - Si el script termina con error, no se integra.
 
+**Ritmo de trabajo (ADR-0024 y ADR-0025):**
+- Toda medición escribe antes su umbral y tiene como máximo dos rondas de ajuste; lo que no llega pasa, con su impacto, a la lista de revisión con el primer producto. Una ronda más solo si se pierde un requisito o se viola un principio.
+- Verificación plena para lógica, datos, esquema, instrucciones al modelo o principios de la constitución; liviana (diff y tests del área, registro corto, suite al cierre del lote) para cambios acotados con test que falla antes y pasa después. El encargo dice el nivel; ante la duda, plena.
+- Los hallazgos de una medición se corrigen en una sola tarea y se mide una vez por lote. Nunca dos mediciones a la vez.
+- Las ramas de tarea no tocan `tasks.md` ni el tablero: el Coordinador los actualiza una vez por lote en su rama de gestión.
+- Una feature nueva arranca con su criterio de aceptación numérico y un corte vertical con un caso chico y público, antes de los casos reales.
+
 La spec la escribís vos junto con el responsable, partiendo de `specs/_plantillas/spec.md`. Describe qué y por qué, sin tecnología. Marcá cada duda con `[A ACLARAR: ...]` en lugar de suponer; una spec con marcas pendientes no pasa la compuerta.
 
 ## Tablero de avance
