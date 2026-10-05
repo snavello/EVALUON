@@ -94,6 +94,7 @@ from evaluon.tenders.models import (
     Disposition,
     DispositionOutcome,
     DispositionSource,
+    DoubtReason,
     MatrixVersion,
     NormSupport,
     PassName,
@@ -723,7 +724,9 @@ def _save_circulars(version, dated, result, created, quote_of, by_class):
         requirement = created[new.number] = Requirement.objects.create(
             version=version, number=new.number,
             category=new.category, items=list(new.segment.items),
-            origin=RequirementOrigin.CIRCULAR, state=RequirementState.PROPUESTO,
+            origin=RequirementOrigin.CIRCULAR,
+            state=(RequirementState.SUGERIDO if new.suggested else RequirementState.PROPUESTO),
+            doubt_reason=DoubtReason.DUDA if new.suggested else "",
             proposed={"category": new.category, "items": list(new.segment.items),
                       "quotes": [record]},
             step=new.step, passes=[],
