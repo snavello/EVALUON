@@ -394,12 +394,16 @@ def _review_notes(run):
     explícita, por número de requisito (T-127, P3): salen de las anomalías de la propuesta."""
     notes = {}
     for anomaly in (run.anomalies if run else None) or []:
-        if anomaly.get("type") != "circular_supresion_sin_frase":
+        if not anomaly.get("review_required") or not anomaly.get("circular"):
             continue
+        # T-137: la supresión sin frase y el cambio de circular que no se pudo aplicar con
+        # certeza se marcan igual; el texto de la marca dice cuál es.
+        lost = anomaly.get("type") == "circular_revision_obligatoria"
         for number in anomaly.get("requirements", []):
             found = notes.setdefault(number, [])
-            if not any(n["circular"] == anomaly["circular"] for n in found):
-                found.append({"circular": anomaly["circular"]})
+            if not any(n["circular"] == anomaly["circular"] and n["lost"] == lost
+                       for n in found):
+                found.append({"circular": anomaly["circular"], "lost": lost})
     return notes
 
 

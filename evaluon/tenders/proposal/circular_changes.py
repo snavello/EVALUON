@@ -276,6 +276,8 @@ def _pool_for(ctx, change):
             return pool, ""
         return _from_old_text(change, pool, units.FALLBACK_NO_OLD_TEXT)
     pool = [c for c in candidates if not units._is_shared(c)]
+    # T-137: bajo el encabezado de un renglón, el texto anterior se busca en ese renglón.
+    pool = units.restrict_to_scope(ctx, pool)
     return _from_old_text(change, pool, units.FALLBACK_NO_TARGET)
 
 
@@ -287,6 +289,20 @@ def resolve_change(ctx, change, anomalies=None):
     canonical = document.reading.canonical_text
 
     if change.type == units.CHANGE_DATA:
+        # T-137: fecha, hora y lugar que el pliego fija en una cláusula (la visita) precisan esa
+        # condición; con dos cláusulas posibles, el respaldo.
+        found, ambiguous = units.data_clause_candidates(ctx)
+        if ambiguous:
+            return [], [], units.FALLBACK_AMBIGUOUS
+        span = units.data_clause_span(ctx)
+        return [units._effect(unit, document, candidate, SourceEffect.MODIFICA.value, *span)
+                for candidate in found], [], ""
+    if (change.type == units.CHANGE_CLARIFIES and change.new_text
+            and units.is_title_text(change.new_text)):
+        # T-137: el título de una carátula no es una aclaración.
+        if anomalies is not None:
+            anomalies.append({"type": circulars.ANOMALY_TITLE_NOT_CLARIFICATION,
+                              "tramos": unit.keys, "referencia": change.reference})
         return [], [], ""
     if change.type == units.CHANGE_ADDS:
         if change.target != "clausula":
@@ -350,6 +366,8 @@ class Extractor:
         self.processor = processor
         self.prompt = extraction.load_prompt("circulares_cambios")
         self.version = settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"]
+        # T-137: por qué la unidad que se acaba de extraer pudo perder un cambio.
+        self.loss = []
 
     # -- Pedidos --------------------------------------------------------------------------
 
@@ -417,6 +435,11 @@ class Extractor:
         self.processor.stats["retried"] += 1
         second, second_step, second_unfound = self._ask(document, change_unit, text,
                                                         messages, first_step, repetition)
+        if second is not None and (first is None or len(second) < len(first)):
+            # T-137: la salida del primer pedido no sirvió o traía más cambios: el reintento
+            # pudo perder alguno.
+            if circulars.REVIEW_RETRY_LOST not in self.loss:
+                self.loss.append(circulars.REVIEW_RETRY_LOST)
         if second is not None and (first is None or second_unfound <= first_unfound):
             return second, second_step
         return (first, first_step) if first is not None else (second, second_step)
@@ -427,12 +450,14 @@ class Extractor:
         """Extrae y resuelve los cambios de la unidad. Devuelve un `Extraction` o `None` si
         la unidad entera va al respaldo (falla del modelo, salida inválida o sin cambios)."""
         processor = self.processor
+        self.loss = []
         text = units.unit_text(change_unit, document)
         messages = build_messages(self.prompt, render_unit(document, change_unit, text))
         space = (processor._space()
                  - generation.count_tokens(messages[-1]["content"]))
         if space < 0:
             processor.anomalies.append({"type": ANOMALY_NO_FIT, "tramos": change_unit.keys})
+            self.loss.append(circulars.REVIEW_NO_FIT)
             return None
 
         repeats = max(1, int(settings.CIRCULAR_EXTRACTION_REPEATS))
@@ -440,6 +465,9 @@ class Extractor:
         for number in range(1, repeats + 1):
             changes, step = self._repetition(document, change_unit, text, messages, number)
             if changes is None:
+                served = not any(a.get("type") == ANOMALY_SERVICE for a in step.anomalies)
+                self.loss.append(circulars.REVIEW_INVALID if served
+                                 else circulars.REVIEW_SERVICE)
                 return None
             runs.append(changes)
             steps.append(step)
@@ -480,7 +508,7 @@ class Extractor:
                 change.reason = reason
                 unresolved.append(change)
                 continue
-            if change.type == units.CHANGE_DATA:
+            if change.type == units.CHANGE_DATA and not effects:
                 spans_data.extend(change.spans())
                 continue
             resolution.effects.extend(effects)
