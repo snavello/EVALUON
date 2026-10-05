@@ -12,7 +12,7 @@ Dos tareas que no dependen entre sí y no comparten archivos se pueden hacer en 
 
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
-| T-138 | Preparar el esquema, la conexión acotada y la cola del Portal: tablas de `portal`, cambios de `tenders_job` y de auditoría, servicio `portal_worker`, cliente HTTP con lista de destinos y `entorno.md` | REQ-045, REQ-049 | — | pendiente |
+| T-138 | Preparar el esquema, la conexión acotada y la cola del Portal: tablas de `portal`, cambios de `tenders_job` y de auditoría, servicio `portal_worker`, cliente HTTP con lista de destinos y `entorno.md` | REQ-045, REQ-049 | — | terminada |
 | T-139 | Preparar los casos para probar: páginas reales del caso-00 y de un proceso con circulares (fuera del repositorio), calcos con datos inventados y lista esperada (Coordinador) | REQ-046, REQ-047, REQ-050 | — | terminada |
 | T-140 | Leer la página pública del proceso: datos básicos, renglones, cronograma, garantías y lista de documentos, con el texto normalizado | REQ-046 | T-138, T-139 | pendiente |
 | T-141 | Corte vertical: registrar el enlace, explorar, proponer, aprobar ítem por ítem y cargar el procedimiento y los renglones, con pantalla | REQ-045, REQ-046, REQ-048, REQ-049 | T-138, T-140 | pendiente |
@@ -79,7 +79,7 @@ Dos tareas que no dependen entre sí y no comparten archivos se pueden hacer en 
 - **Requisitos:** REQ-045, REQ-046, REQ-048, REQ-049
 - **Nivel de verificación:** plena.
 - **Qué hay que hacer:**
-- **Aviso de tareas anteriores:** T-139: la fecha de autorización no figura en la página; proponer como candidata la fecha de vinculación de "Autorización llamado" y que la apruebe quien carga.
+- **Aviso de tareas anteriores:** T-139: la fecha de autorización no figura en la página; proponer como candidata la fecha de vinculación de "Autorización llamado" y que la apruebe quien carga. T-138: crear `evaluon.portal.services.explore.run_explore` y `run_review` (hoy los pedidos del Portal fallan por falta del módulo); los avisos de fin usan `job.procedure.number` y un pedido del Portal no tiene procedimiento. Aviso menor: no hay test de reversión de las migraciones.
   1. `services/links.py`: `register_link` (rol, validación del enlace contra la lista de destinos, explicación del rechazo, hecho `portal_link`), `stop_following`.
   2. `services/explore.py`: manejador de `portal_explore` (y de `portal_review`, que lo reutiliza): baja la página con el cliente, la guarda, la lee con `parsing/pagina.py` y arma la propuesta y sus ítems; descubre los tipos de ítem por los archivos de `importers/` (`KIND`, `explore`, `load`) y sus anomalías; hecho `portal_explore`.
   3. `importers/procedure.py`: ítems `procedimiento` (crear o asociar al procedimiento ya registrado con ese número) y `renglones`; su carga llama a `register_procedure` y guarda `portal_procedure_data` y `portal_line`.
