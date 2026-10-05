@@ -1,10 +1,10 @@
 # Plan 008 · Ofertas y ficha por oferta
 
-Estado: borrador · Fecha: 2026-10-05 · Aprobó: —
+Estado: aprobado · Fecha: 2026-10-05 · Aprobó: responsable del proyecto (2026-10-05, con sus respuestas a los puntos 1 a 3 de "Puntos para el responsable")
 
 Spec: `specs/008-ofertas-ficha/spec.md` (aprobada el 2026-10-05)
 
-ADR de este plan, todos **propuestos**:
+ADR de este plan, todos **aceptados**:
 
 - `docs/adr/0026-ofertas-modulo-propio-y-cola-compartida.md`: las ofertas viven en un módulo `evaluon/offers/` con tablas propias; la cola de pedidos de la 003 se comparte.
 - `docs/adr/0027-fragmentos-por-recuperacion-y-eleccion-del-modelo.md`: los fragmentos se encuentran por recuperación en pasajes y el modelo elige entre candidatos; el texto es siempre el del pasaje.
@@ -57,7 +57,7 @@ Nombres en inglés; valores de dominio en español sin tildes, como en la 003. T
 
 **`offers_offer`**: una oferta. `procedure` (FK a `tenders_procedure`), `number` (correlativo dentro del procedimiento), `bidder` (nombre del oferente, texto que escribe la persona; único dentro del procedimiento), `created_at`, `created_by`. Los datos personales del oferente solo existen en la base; no van al repositorio ni a los registros públicos (P4).
 
-**`offers_document`**: un archivo de la oferta. `offer`, `kind` (`propuesta_economica`, `declaracion_jurada`, `garantia`, `constancia`, `tecnica`, `otro`; lo elige quien carga), `title`, `file_name`, `file_format` (`pdf`, `jpg`, `png`), `file_size`, `file_sha256` (única dentro de la oferta: el mismo archivo dos veces se rechaza con aviso), `loaded_at`, `loaded_by`.
+**`offers_document`**: un archivo de la oferta. `offer`, `kind` (`economica`, `tecnica`, `garantia`, `otro` o vacío si el sistema no pudo clasificarlo; lo pone el sistema al leer, por reglas sobre el nombre del archivo y su texto, nunca la persona que carga; es solo un dato y jamás excluye al documento de la búsqueda), `title`, `file_name`, `file_format` (`pdf`, `jpg`, `png`), `file_size`, `file_sha256` (única dentro de la oferta: el mismo archivo dos veces se rechaza con aviso), `loaded_at`, `loaded_by`.
 
 **`offers_document_file`**: el original byte por byte, en tabla aparte, como en la 003.
 
@@ -98,7 +98,7 @@ Un usuario sin rol de la Comisión no ve estas páginas; el rechazo se registra 
 
 ## Carga y lectura (REQ-037, REQ-038)
 
-1. Se registra la oferta (oferente) y se cargan sus documentos, cada uno con su tipo. Se guarda el original y la huella; el mismo archivo dos veces en la oferta se rechaza. Se encola `read_offer_document`. Hecho `offer_load`.
+1. Se registra la oferta (oferente) y se cargan sus documentos, sin elegir tipo (el sistema lo clasifica al leer, si puede). Se guarda el original y la huella; el mismo archivo dos veces en la oferta se rechaza. Se encola `read_offer_document`. Hecho `offer_load`.
 2. El `worker` lee con `evaluon.norms.reading.read_document` (PDF con texto o escaneado, página por página; ADR-0028), arma el texto canónico, parte cada página en pasajes y calcula sus vectores con `evaluon.ai.embeddings`. Hecho `offer_read`.
 3. Cada página queda con texto o en la lista de **páginas no leídas** (ilegibles, no leídas) o de **baja confianza** (dudosas), con documento, número y confianza (REQ-038). La pantalla de la oferta muestra esa lista y el estado de cada documento.
 4. Fotos JPG o PNG (T-131): se guardan tal cual y se convierten a un PDF de una página, en el equipo, para leerlas.
@@ -112,14 +112,14 @@ Un usuario sin rol de la Comisión no ve estas páginas; el rechazo se registra 
 **Por cada requisito no quitado de la matriz (formales, económicos y técnicos):**
 
 - **Consulta.** El texto literal de la cita del requisito (con su ruta, para las filas técnicas: "Renglón k" y el texto de su encabezado).
-- **Recuperación.** Los 20 pasajes más cercanos por embeddings y los 20 mejores por palabras, solo de la oferta, unidos (ADR-0007, ADR-0003).
+- **Recuperación.** Los 20 pasajes más cercanos por embeddings y los 20 mejores por palabras, de **todos los documentos** de la oferta, sin filtrar por tipo (hay documentos que mezclan aspectos formales con otros), unidos (ADR-0007, ADR-0003).
 - **Reordenamiento.** El reranker ordena los candidatos; pasan los 8 mejores.
 - **Generación.** Un pedido a `generation_batch` (temperatura 0, semilla fija, salida con esquema JSON, como la 003). Recibe las instrucciones (`prompts/ficha-v1.md`: qué es "responde a un requisito", síntesis breve y neutra, "ninguno" es una respuesta válida), el requisito y los candidatos con alias `P1…P8` (documento, página, texto). Devuelve `{pasajes: [alias], sintesis}`.
 - **Cita.** El sistema valida las alias y arma cada fragmento con el texto del pasaje elegido, copiado de la base (100 % literal por construcción). El modelo no escribe texto citado.
 - **Síntesis sin juicio (REQ-041).** Se controla con una lista de palabras de juicio ("cumple", "no cumple", "incumple", "satisface", "adecuado", "conforme" y sus formas). Si falla, un reintento con el aviso; si vuelve a fallar, la fila queda sin síntesis y la anomalía en el registro.
 - **Abstención (REQ-040).** Sin alias válida: `no_encontrado`, con el texto "no se encontró en la oferta", sin síntesis. Si la oferta tiene páginas sin leer, la fila lo avisa; el sistema no supone que la respuesta estaba ahí.
 
-**Filas técnicas por renglón (REQ-044).** El pedido pide además `cotizado` (sí o no) para el renglón: sí si algún candidato elegido ofrece ese renglón con precio o cantidad. Un renglón con fragmento elegido figura "cotizado" con su cita; sin fragmento, "no cotizado" (con el aviso de páginas sin leer si las hay). Si el pliego no tiene renglones, no hay estado de cotización. La ficha indica además `technical_documents`: sí, si la oferta tiene un documento de tipo `tecnica` o alguna fila técnica tiene fragmentos. No se compara el contenido técnico con las especificaciones (feature 010).
+**Filas técnicas por renglón (REQ-044).** El pedido pide además `cotizado` (sí o no) para el renglón: sí si algún candidato elegido ofrece ese renglón con precio o cantidad. Un renglón con fragmento elegido figura "cotizado" con su cita; sin fragmento, "no cotizado", salvo que el renglón no se haya podido leer: si el encabezado del renglón o la tabla de cotización cae en una página o zona ilegible, la fila dice expresamente "no se pudo leer" y nunca "no cotizado" (valor `no_se_pudo_leer`; la comprobación es por regla sobre las páginas no leídas de los documentos de la oferta, no la decide el modelo). Si el pliego no tiene renglones, no hay estado de cotización. La ficha indica además `technical_documents`: sí, si la oferta tiene un documento clasificado `tecnica` (dato, nunca filtro) o alguna fila técnica tiene fragmentos. No se compara el contenido técnico con las especificaciones (feature 010).
 
 **Versión de la matriz (REQ-043).** La ficha guarda la versión con que se armó. En la pantalla, si la matriz tiene una versión validada posterior, la ficha lo avisa ("Armada con la versión 1; la versión vigente es la 2") y ofrece armar una nueva.
 
@@ -130,8 +130,8 @@ Un usuario sin rol de la Comisión no ve estas páginas; el rechazo se registra 
 Páginas armadas en el servidor, sin htmx (ADR-0005), con la hoja de estilos de la 003.
 
 - **Ofertas** de un procedimiento: lista de oferentes con estado de lectura y de ficha; registrar una oferta.
-- **Oferta**: documentos con tipo, estado, enlace al original y botón de carga (varios a la vez); páginas no leídas y de baja confianza; "Armar ficha".
-- **Ficha**: encabezado con la oferta, la versión de la matriz y el aviso de versión; "Lo que no se encontró" y "Páginas sin leer" primero; una fila por requisito con su síntesis, sus fragmentos (documento, página, texto literal, enlace al original en esa página) y sus acciones; filas técnicas con "cotizado" o "no cotizado" y la indicación de documentación técnica. Sin palabras de juicio en ninguna parte.
+- **Oferta**: documentos con su tipo (si el sistema lo clasificó), estado, enlace al original y botón de carga (varios a la vez); páginas no leídas y de baja confianza; "Armar ficha".
+- **Ficha**: encabezado con la oferta, la versión de la matriz y el aviso de versión; "Lo que no se encontró" y "Páginas sin leer" primero; una fila por requisito con su síntesis, sus fragmentos (documento, página, texto literal, enlace al original en esa página) y sus acciones; filas técnicas con "cotizado", "no cotizado" o "no se pudo leer" y la indicación de documentación técnica. Sin palabras de juicio en ninguna parte.
 - **Historial** de una fila.
 - Aviso de fin de pedido, el de la 003.
 
@@ -140,7 +140,7 @@ Páginas armadas en el servidor, sin htmx (ADR-0005), con la hoja de estilos de 
 | Hecho | Qué guarda además de los datos comunes |
 |---|---|
 | `offer_register` | Procedimiento, oferta, oferente (id, no nombre en el detalle público) |
-| `offer_load` | Oferta, tipo, título, nombre, formato, tamaño y huella; también las cargas rechazadas |
+| `offer_load` | Oferta, título, nombre, formato, tamaño y huella; también las cargas rechazadas |
 | `offer_read` | Documento, lectura, versiones de las herramientas, páginas por estado, páginas no leídas y de baja confianza, pasajes, tiempo |
 | `sheet_request` | Oferta, versión de la matriz, lecturas incluidas |
 | `sheet_build` | Ficha, versión de la matriz, modelos con huella, parámetros, versiones de instrucciones, cuentas por resultado, anomalías, tiempos. El detalle de cada pedido (candidatos con puntajes, pedido, salida) está en `offers_sheet_step` |
@@ -180,7 +180,7 @@ visto_bueno: "responsable, AAAA-MM-DD"
 2. **Texto literal.** Todo fragmento mostrado es igual al recorte del texto canónico y cae dentro de su pasaje y su página (100 %).
 3. **Sin respuesta.** Todo requisito listado en `sin_respuesta` figura "no se encontró"; un fragmento propuesto ahí es un falso hallazgo.
 4. **Fragmentos de más.** Los fragmentos propuestos sin pareja se cuentan y se informan; no bloquean (como los sobrantes de la 003).
-5. **Renglones (REQ-044).** Cada renglón con el estado esperado (`cotizado` o `no_cotizado`) y la indicación de documentación técnica.
+5. **Renglones (REQ-044).** Cada renglón con el estado esperado (`cotizado` o `no_cotizado`) y la indicación de documentación técnica. Los renglones que la ficha marca "no se pudo leer" se cuentan aparte, se informan con su causa (página o tabla) y no son acierto ni "no cotizado"; si el esperado es `no_cotizado` pero la ficha dice "no se pudo leer" y la página es legible, es una falla.
 6. **Páginas no legibles (REQ-038).** Toda página de `paginas_no_legibles` está en la lista de no leídas o de baja confianza; toda página sin texto ni figura en esa lista es una falla.
 7. **Síntesis (REQ-041).** Ninguna contiene palabras de juicio.
 8. **Tiempo.** Por oferta y por página, informado, sin máximo.
@@ -193,7 +193,7 @@ visto_bueno: "responsable, AAAA-MM-DD"
 | Texto literal (REQ-039) | 100 % | 100 % |
 | Requisitos sin respuesta con "no se encontró" (REQ-040) | 100 % | informado, sin tope (los falsos hallazgos no bloquean) |
 | Síntesis sin palabras de juicio (REQ-041) | 100 % | 100 % |
-| Renglones con el estado correcto (REQ-044) | 100 % | 90 % o más (17 de 18) |
+| Renglones con el estado correcto (REQ-044); un renglón "no se pudo leer" no cuenta como acierto ni como "no cotizado" y se informa aparte | 100 % | 90 % o más (17 de 18) |
 | Documentación técnica indicada (REQ-044) | 100 % | 100 % |
 | Páginas sin texto ni figura en la lista de no leídas (REQ-038) | 0 | 0 |
 
@@ -221,7 +221,7 @@ Estimación a confirmar con T-130 y T-134. Unas 35 a 45 filas por oferta, un ped
 | REQ-041 | Instrucciones, control de palabras de juicio y reintento | Test del control; medición (100 % sin juicio) |
 | REQ-042 | `services/review.py`, `offers_change`, hecho `sheet_change`, historial en pantalla (T-132) | Test de corregir y ver el fragmento anterior en el historial |
 | REQ-043 | `offers_sheet.matrix_version`, ficha solo contra matriz validada, aviso de versión (T-130 y T-132) | Test con versión 1 y 2 de la matriz |
-| REQ-044 | Pedido con `cotizado`, `technical_documents`, tipo de documento `tecnica` | Test de renglones; medición de renglones y documentación técnica |
+| REQ-044 | Pedido con `cotizado`, `technical_documents`, tipo de documento `tecnica` (dato, no filtro); estado "no se pudo leer" | Test de renglones; medición de renglones y documentación técnica |
 
 ## Verificación contra la constitución
 
@@ -256,11 +256,11 @@ Decir si cumple o no cumple (004); hojas de compliance (005); preguntas a la Com
 
 ## Decisiones
 
-ADR 0026, 0027 y 0028, propuestos (ver arriba).
+ADR 0026, 0027 y 0028, aceptados.
 
-## Puntos para el responsable
+## Decisiones del responsable (2026-10-05)
 
-1. **Tipo de documento al cargar.** El operador elige el tipo (propuesta económica, declaración jurada, garantía, constancia, técnica, otro). Propuesta: sí, con "otro" como valor por omisión; alimenta la indicación de documentación técnica (REQ-044).
-2. **Fotos sueltas (JPG o PNG).** Propuesta: aceptarlas, convertidas a PDF dentro del equipo (T-131). Si el responsable las descarta, T-131 se achica.
-3. **Matriz validada del caso-00.** La prepara el Coordinador con el usuario de desarrollo desde la propuesta medida en la 003, sin pedir aprobaciones operativas al responsable.
-4. **Umbral de renglones en caso-00:** 90 % (17 de 18) y no 100 %, porque las tablas de precios escaneadas pueden perder un renglón. Propuesta: 90 %.
+1. **Tipo de documento.** El operador no lo elige: el sistema lo clasifica solo cuando puede (económica, técnica, garantía, otro) y si no puede queda vacío. La búsqueda recorre siempre todos los documentos de la oferta; el tipo es solo un dato (por ejemplo, para "trae documentación técnica") y nunca excluye un documento.
+2. **Fotos sueltas (JPG o PNG):** sí, convertidas a PDF dentro del equipo (T-131).
+3. **Renglones en el caso-00:** 90 % (17 de 18). Un renglón que no se pudo leer figura "no se pudo leer", nunca "no cotizado", y la medición informa aparte cuántos quedaron así.
+4. **Matriz validada del caso-00.** La prepara el Coordinador con el usuario de desarrollo desde la propuesta medida en la 003 (decisión del plan, sin aprobación operativa).

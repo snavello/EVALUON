@@ -1,6 +1,6 @@
 # ADR-0027 · Cómo se encuentran los fragmentos de una oferta: recuperación en pasajes y elección del modelo entre candidatos
 
-Estado: propuesto · Fecha: 2026-10-05 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-05 · Decidió: responsable del proyecto (al aprobar el plan 008). La recuperación recorre siempre todos los documentos de la oferta, sin filtrar por tipo.
 
 ## Contexto
 

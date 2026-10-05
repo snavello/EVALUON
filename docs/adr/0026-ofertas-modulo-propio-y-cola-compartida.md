@@ -1,6 +1,6 @@
 # ADR-0026 · Las ofertas viven en un módulo propio, con la cola de pedidos compartida
 
-Estado: propuesto · Fecha: 2026-10-05 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-05 · Decidió: responsable del proyecto (al aprobar el plan 008)
 
 ## Contexto
 

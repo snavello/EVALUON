@@ -1,6 +1,6 @@
 # ADR-0028 · Lectura de escaneos y fotos de ofertas con el OCR existente, con preparación de imagen solo si hace falta
 
-Estado: propuesto · Fecha: 2026-10-05 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-05 · Decidió: responsable del proyecto (al aprobar el plan 008; fotos sueltas JPG y PNG aceptadas)
 
 ## Contexto
 
