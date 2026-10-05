@@ -521,3 +521,57 @@ def test_a_source_reached_by_the_key_and_by_the_fallback_is_saved_once(operator_
     assert fallback_asked(script, "pasa de")          # el respaldo corrió
     sources = list(row_of_item(version, 1).sources.all())
     assert len(sources) == 1 and sources[0].text == "32 GB de RAM"
+
+
+# --- Una aclaración de cláusula alcanza todas sus citas (T-128) ---------------------------------------
+
+CLARIFICATION = "La garantía de oferta se presenta por el portal de la jurisdicción"
+
+
+def test_a_clarification_without_old_text_reaches_every_citation_of_the_clause(
+        operator_user, script):
+    """REQ-031 (T-128): una aclaración de la cláusula 3.1, sin texto anterior, da una fuente
+    `aclara` a cada una de sus dos citas, con la aclaración completa; la otra cláusula no
+    cambia y no hay `clave_ambigua`."""
+    procedure = guarantee_case(operator_user, script)
+    add_circular(operator_user, procedure, "Circular N.º 4", date(2025, 12, 1),
+                 f"1. {CLARIFICATION}, conforme a la cláusula 3.1.")
+    script.x_when("portal", [change("aclara", "clausula", "3.1", "", CLARIFICATION)])
+
+    version, run = run_proposal(operator_user, procedure)
+
+    for text in (GA, GB):
+        source = requirement_with(version, text).sources.get()
+        assert source.effect == "aclara" and source.text == CLARIFICATION
+    assert not requirement_with(version, PLAZO).sources.exists()
+    assert not fallback_asked(script, "portal")
+    assert "clave_ambigua" not in json.dumps(unit_steps()[-1].parsed)
+
+
+def test_a_clarification_of_a_clause_with_one_citation_is_unchanged(operator_user, script):
+    """REQ-031 (T-128): una cláusula con una sola cita recibe una sola fuente `aclara`."""
+    procedure = guarantee_case(operator_user, script)
+    add_circular(operator_user, procedure, "Circular N.º 4", date(2025, 12, 1),
+                 f"1. {CLARIFICATION}, conforme a la cláusula 4.1.")
+    script.x_when("portal", [change("aclara", "clausula", "4.1", "", CLARIFICATION)])
+
+    version, run = run_proposal(operator_user, procedure)
+
+    assert requirement_with(version, PLAZO).sources.get().effect == "aclara"
+    assert not requirement_with(version, GA).sources.exists()
+
+
+def test_a_suppression_by_key_without_an_explicit_phrase_stays_a_clarification(
+        operator_user, script):
+    """REQ-031 (T-127/T-128): un `suprime` por clave cuyo texto no tiene frase explícita queda
+    `aclara` y deja la anomalía de revisión obligatoria."""
+    procedure = guarantee_case(operator_user, script)
+    add_circular(operator_user, procedure, "Circular N.º 4", date(2025, 12, 1),
+                 f"1. {CLARIFICATION}, conforme a la cláusula 4.1.")
+    script.x_when("portal", [change("suprime", "clausula", "4.1", "", CLARIFICATION)])
+
+    version, run = run_proposal(operator_user, procedure)
+
+    assert requirement_with(version, PLAZO).sources.get().effect == "aclara"
+    found = [a for a in run.anomalies if a["type"] == "circular_supresion_sin_frase"]
+    assert found and found[0]["review_required"] is True and found[0]["result"] == "aclara"
