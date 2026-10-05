@@ -16,7 +16,6 @@ from evaluon.accounts.permissions import RoleRejected
 from evaluon.ai import ServiceTimeoutError
 from evaluon.audit.models import AuditEvent, EventType, Outcome
 from evaluon.offers import models as om
-from evaluon.offers import retrieval
 from evaluon.offers.services import offers as offers_service
 from evaluon.offers.services import sheets
 from evaluon.tenders import jobs

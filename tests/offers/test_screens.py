@@ -10,7 +10,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 
-from evaluon.audit.models import AuditEvent, EventType, Outcome
+from evaluon.audit.models import AuditEvent, EventType
 from evaluon.offers import models as om
 from evaluon.offers.services import sheets
 from evaluon.tenders import jobs
@@ -237,4 +237,4 @@ def test_an_unknown_offer_or_sheet_is_a_404(client, operator_user):
     assert client.get(reverse("offers:offer", args=[999])).status_code == 404
     assert client.get(reverse("offers:sheet", args=[999])).status_code == 404
     assert client.get(reverse("offers:procedure_offers", args=[999])).status_code == 404
-    assert om.Sheet.objects.count() == 0 and Outcome.OK
+    assert om.Sheet.objects.count() == 0
