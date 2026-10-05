@@ -13,7 +13,7 @@ Dos tareas que no dependen entre sí y no comparten archivos se pueden hacer en 
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
 | T-138 | Preparar el esquema, la conexión acotada y la cola del Portal: tablas de `portal`, cambios de `tenders_job` y de auditoría, servicio `portal_worker`, cliente HTTP con lista de destinos y `entorno.md` | REQ-045, REQ-049 | — | pendiente |
-| T-139 | Preparar los casos para probar: páginas reales del caso-00 y de un proceso con circulares (fuera del repositorio), calcos con datos inventados y lista esperada (Coordinador) | REQ-046, REQ-047, REQ-050 | — | pendiente |
+| T-139 | Preparar los casos para probar: páginas reales del caso-00 y de un proceso con circulares (fuera del repositorio), calcos con datos inventados y lista esperada (Coordinador) | REQ-046, REQ-047, REQ-050 | — | terminada |
 | T-140 | Leer la página pública del proceso: datos básicos, renglones, cronograma, garantías y lista de documentos, con el texto normalizado | REQ-046 | T-138, T-139 | pendiente |
 | T-141 | Corte vertical: registrar el enlace, explorar, proponer, aprobar ítem por ítem y cargar el procedimiento y los renglones, con pantalla | REQ-045, REQ-046, REQ-048, REQ-049 | T-138, T-140 | pendiente |
 | T-142 | Importar los documentos: bajar el pliego, circulares y demás con su huella y cargarlos por `load_document` | REQ-046, REQ-048, REQ-049, REQ-051 | T-141 | pendiente |
@@ -66,6 +66,7 @@ Dos tareas que no dependen entre sí y no comparten archivos se pueden hacer en 
 - **Requisitos:** REQ-046
 - **Nivel de verificación:** plena (lógica de lectura y datos).
 - **Qué hay que hacer:**
+- **Aviso de tareas anteriores:** T-139: el texto acentuado llega roto en los datos (`¿¿` por letra, `&#191;&#191;`, `è` por `é`) y no se recupera: mostrarlo marcado; desescapar entidades antes de comparar; `&nbsp` sin punto y coma en el expediente; pasar a bs4 texto ya decodificado como UTF-8. Las circulares se abren por GET a VistaPreviaCircularCiudadano.aspx?qs=<id> (onclick VerCircularCiudadano). El Pliego de Bases y Condiciones Generales y su disposición dan pantalla de error.
   1. `parsing/texto.py`: decodificación y normalización (ADR-0032). Primero comprobar con los bytes reales guardados (`corpus/casos/caso-00/portal/`, solo localmente) si el daño es de decodificación (recuperable) o ya viene en los bytes; anotar el hallazgo en `specs/012-portal-compras/plan.md`, sección "Riesgos". Los campos con `¿¿` o `�` se marcan, no se adivinan.
   2. `parsing/pagina.py`: función pura sobre bytes que devuelve datos básicos (número, expediente, objeto, tipo, encuadre legal, fecha de autorización), renglones con cantidad, cronograma, garantías, y la lista de documentos con su nombre, su número GDE si lo trae, su URL directa o los campos del envío de formulario, y la URL del acta y del dictamen. Si falta un dato obligatorio, lo informa en lugar de inventarlo.
   3. Si la fecha de autorización no está en la página, informar de dónde sale y dejar el campo pendiente para quien aprueba (se anota para el responsable).
@@ -78,6 +79,7 @@ Dos tareas que no dependen entre sí y no comparten archivos se pueden hacer en 
 - **Requisitos:** REQ-045, REQ-046, REQ-048, REQ-049
 - **Nivel de verificación:** plena.
 - **Qué hay que hacer:**
+- **Aviso de tareas anteriores:** T-139: la fecha de autorización no figura en la página; proponer como candidata la fecha de vinculación de "Autorización llamado" y que la apruebe quien carga.
   1. `services/links.py`: `register_link` (rol, validación del enlace contra la lista de destinos, explicación del rechazo, hecho `portal_link`), `stop_following`.
   2. `services/explore.py`: manejador de `portal_explore` (y de `portal_review`, que lo reutiliza): baja la página con el cliente, la guarda, la lee con `parsing/pagina.py` y arma la propuesta y sus ítems; descubre los tipos de ítem por los archivos de `importers/` (`KIND`, `explore`, `load`) y sus anomalías; hecho `portal_explore`.
   3. `importers/procedure.py`: ítems `procedimiento` (crear o asociar al procedimiento ya registrado con ese número) y `renglones`; su carga llama a `register_procedure` y guarda `portal_procedure_data` y `portal_line`.
@@ -109,6 +111,7 @@ Dos tareas que no dependen entre sí y no comparten archivos se pueden hacer en 
 - **Requisitos:** REQ-047, REQ-048, REQ-049, REQ-051
 - **Nivel de verificación:** plena.
 - **Qué hay que hacer:**
+- **Aviso de tareas anteriores:** T-139: el acta de apertura repite una oferta por cada garantía (mismo proveedor en dos filas con montos distintos o vacío) y tiene filas repetidas; agrupar por CUIT.
   1. `parsing/acta.py`: por oferente, CUIT, fecha de confirmación, moneda, total, tipo, forma y monto de la garantía.
   2. `parsing/cuadro.py`: oferentes, totales y el precio y la cantidad por renglón de cada oferente.
   3. `importers/offers.py`: bajar el acta y el cuadro comparativo (este último por envío de formulario), proponer un ítem `oferta` por oferente con todos sus datos y sus cotizaciones; la carga llama a `register_offer` de la 008 y guarda `portal_offer_data` y `portal_quote`. Si el acta y el cuadro difieren en un total, se informa como anomalía del ítem. Un ítem de oferta exige el procedimiento y los renglones cargados.
