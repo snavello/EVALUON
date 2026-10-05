@@ -19,8 +19,8 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-132 | Corregir la ficha: confirmar, corregir, quitar y agregar fragmentos, historial y aviso de versión de la matriz | REQ-042, REQ-043 | T-130 | terminada |
 | T-133 | Preparar el caso-00 para medir: lista esperada de fichas de las tres ofertas y matriz validada (Coordinador) | REQ-039, REQ-040, REQ-044 | — | terminada |
 | T-134 | Medir la ficha con las tres ofertas del caso-00 (medición base) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-131, T-133 | terminada |
-| T-135 | Corregir los hallazgos de T-134 y medir de nuevo (ronda 1) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-134 | pendiente |
-| T-136 | Solo si T-135 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-135 | pendiente |
+| T-135 | Corregir los hallazgos de T-134 y medir de nuevo (ronda 1) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-134 | terminada |
+| T-136 | Solo si T-135 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-135 | terminada |
 | T-146 | Búsqueda de la ficha con el requisito reescrito como lo diría una oferta | REQ-039, REQ-040 | T-136 | pendiente |
 
 ## Paralelismo
