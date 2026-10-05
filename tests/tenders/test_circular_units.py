@@ -241,7 +241,8 @@ VISITA_B = ("Los interesados presentarán la constancia de la visita indicada en
             "“JORNADA DE RECORRIDO” del portal.")
 
 
-def visit_case(user, script):
+def visit_case(user, script, annex_title="Anexo JORNADA DE RECORRIDO",
+               annex_head="ANEXO - JORNADA DE RECORRIDO"):
     procedure = make_procedure(user)
     load_and_read(user, procedure, tender_pdf([[
         para("SECCIÓN I - CONDICIONES PARTICULARES"),
@@ -249,8 +250,8 @@ def visit_case(user, script):
         para("2. PAGO", f"2.1. {PAGO}"),
     ]]))
     load_and_read(user, procedure,
-                  tender_pdf([[para("ANEXO - JORNADA DE RECORRIDO", "Visita: 10 de junio.")]]),
-                  kind=m.DocumentKind.ANEXO, title="Anexo JORNADA DE RECORRIDO")
+                  tender_pdf([[para(annex_head, "Visita: 10 de junio.")]]),
+                  kind=m.DocumentKind.ANEXO, title=annex_title)
     script.when(VISITA_A, item([(VISITA_A, "formal"), (VISITA_B, "formal")]))
     script.when(PAGO, item([(PAGO, "economico")]))
     return procedure
@@ -306,6 +307,143 @@ def test_a_list_of_procedure_data_creates_no_requirement_and_replaces_the_annex_
         assert source.original_segment.reading == annex
         text = annex.canonical_text[source.original_char_start:source.original_char_end]
         assert "10 de junio" in text
+
+
+@pytest.mark.parametrize("annex_title, annex_head", [
+    ("ANEXO_JORNADA_DE_RECORRIDO.pdf", "Planilla de datos"),    # el título es un nombre de archivo
+    ("scan_0042.pdf", "ANEXO - JORNADA DE RECORRIDO"),         # el título está en el primer párrafo
+])
+def test_the_original_is_found_when_the_annex_title_is_a_file_name_or_is_in_its_first_line(
+        operator_user, script, annex_title, annex_head):
+    """REQ-031 (T-124): el anexo cuyo título de documento es un nombre de archivo (guiones
+    bajos, extensión) o que lleva el título solo en su primer párrafo se encuentra: la fuente
+    guarda el anexo como original."""
+    procedure = visit_case(operator_user, script, annex_title, annex_head)
+    load_and_read(operator_user, procedure, narrative_circular(*LIST),
+                  kind="circular_modificatoria", title="Circular N.º 1",
+                  issued_on=date(2025, 12, 1))
+
+    version, _ = run_proposal(operator_user, procedure)
+
+    annex = m.Reading.objects.get(document__title=annex_title)
+    for text in (VISITA_A, VISITA_B):
+        source = requirement_with(version, text).sources.get()
+        assert source.original_segment.reading == annex
+        assert "10 de junio" in annex.canonical_text[source.original_char_start:
+                                                       source.original_char_end]
+
+
+def test_a_pair_that_adds_an_obligation_creates_a_circular_requirement(operator_user, script):
+    """REQ-031 (T-124, M-015): el lado "debe decir" repite la cláusula y suma una oración con
+    obligación: además del `modifica` sobre lo existente, esa oración es un requisito formal
+    de origen `circular` con su cita literal en el tramo de la circular; las oraciones que ya
+    estaban no se duplican y el modelo no interviene."""
+    extra = "Cada firmante deberá registrar la recepción de la muestra física."
+    procedure = conflict_case(operator_user, script)
+    document = add_paras(
+        operator_user, procedure, "Circular N.º 2", date(2025, 12, 5),
+        "DONDE DICE:", f"4.1. {OLD} {OLD_B}", "DEBE DECIR:", f"4.1. {NEW} {NEW_B}", extra)
+
+    version, run = run_proposal(operator_user, procedure)
+
+    new = version.requirements.get(origin="circular")
+    assert new.category == "formal"
+    quote = new.quotes.get()
+    assert quote.text == extra
+    assert quote.segment.reading.document == document
+    for text in (OLD, OLD_B):
+        assert [s.effect for s in requirement_with(version, text).sources.all()] == ["modifica"]
+    assert not script.requests
+    assert every_segment_has_a_disposition(document, run)
+
+
+def test_a_pair_that_adds_nothing_obligatory_creates_no_requirement(operator_user, script):
+    """REQ-031 (T-124): si el lado "debe decir" solo cambia la redacción de lo que ya está,
+    no se crea ningún requisito."""
+    procedure = conflict_case(operator_user, script)
+    add_paras(operator_user, procedure, "Circular N.º 2", date(2025, 12, 5),
+              "DONDE DICE:", f"4.1. {OLD} {OLD_B}", "DEBE DECIR:", f"4.1. {OLD} {OLD_B}")
+
+    version, _ = run_proposal(operator_user, procedure)
+
+    assert not version.requirements.filter(origin="circular").exists()
+
+
+def test_two_annexes_that_name_the_title_leave_the_original_empty(operator_user, script):
+    """REQ-031 (T-124): si dos anexos del pliego nombran el título, no hay un original
+    único: la fuente se guarda sin original."""
+    procedure = visit_case(operator_user, script)
+    load_and_read(operator_user, procedure,
+                  tender_pdf([[para("ANEXO - JORNADA DE RECORRIDO", "Visita: 3 de mayo.")]]),
+                  kind=m.DocumentKind.ANEXO, title="Anexo JORNADA DE RECORRIDO (copia)")
+    load_and_read(operator_user, procedure, narrative_circular(*LIST),
+                  kind="circular_modificatoria", title="Circular N.º 1",
+                  issued_on=date(2025, 12, 1))
+
+    version, _ = run_proposal(operator_user, procedure)
+
+    for text in (VISITA_A, VISITA_B):
+        source = requirement_with(version, text).sources.get()
+        assert source.effect == "modifica" and source.original_segment is None
+
+
+def test_the_annex_title_is_matched_by_whole_words(operator_user, script):
+    """REQ-031 (T-124): un documento cuyo título contiene el del anexo dentro de otras
+    palabras ("SOBREJORNADA … RECORRIDOS") no es ese anexo."""
+    procedure = visit_case(operator_user, script, "Anexo SOBREJORNADA DE RECORRIDOS", "Planilla")
+    load_and_read(operator_user, procedure, narrative_circular(*LIST),
+                  kind="circular_modificatoria", title="Circular N.º 1",
+                  issued_on=date(2025, 12, 1))
+
+    version, _ = run_proposal(operator_user, procedure)
+
+    assert requirement_with(version, VISITA_A).sources.get().original_segment is None
+
+
+SAME = "Cada firmante deberá registrar la recepción de la muestra física."
+REWORDED = "Cada firmante deberá registrar la recepción de la muestra física de inmediato."
+
+
+def _pair_with(operator_user, script, old_extra, *new_paragraphs):
+    procedure = conflict_case(operator_user, script)
+    document = add_paras(
+        operator_user, procedure, "Circular N.º 2", date(2025, 12, 5),
+        "DONDE DICE:", f"4.1. {OLD} {OLD_B} {old_extra}", "DEBE DECIR:",
+        f"4.1. {NEW} {NEW_B}", *new_paragraphs)
+    version, _ = run_proposal(operator_user, procedure)
+    return document, version
+
+
+def test_an_obligation_repeated_from_the_dice_side_creates_nothing(operator_user, script):
+    """REQ-031 (T-124): la oración con obligación que el "Debe decir" repite del "Dice" no
+    es un requisito nuevo."""
+    _, version = _pair_with(operator_user, script, SAME, SAME)
+
+    assert not version.requirements.filter(origin="circular").exists()
+
+
+def test_a_reworded_obligation_is_a_suggestion_not_a_firm_requirement(operator_user, script):
+    """REQ-031 (T-124): una oración del "Debe decir" que reformula una del "Dice" (una
+    palabra agregada) no es un requisito firme: queda como sugerencia, con motivo `duda`, para
+    que la Comisión decida. Una claramente nueva sigue siendo firme."""
+    fresh = "La Comisión deberá publicar el acta de apertura en el portal."
+    document, version = _pair_with(operator_user, script, SAME, REWORDED, fresh)
+
+    new = {r.quotes.get().text: r for r in version.requirements.filter(origin="circular")}
+    assert set(new) == {REWORDED, fresh}
+    assert new[REWORDED].state == "sugerido" and new[REWORDED].doubt_reason == "duda"
+    assert new[fresh].state == "propuesto" and new[fresh].doubt_reason == ""
+    assert new[REWORDED].quotes.get().segment.reading.document == document
+
+
+def test_an_obligation_repeated_in_the_must_say_side_gives_one_requirement(operator_user,
+                                                                           script):
+    """REQ-031 (T-124): la misma oración nueva escrita dos veces en el "Debe decir" da un
+    solo requisito."""
+    fresh = "La Comisión deberá publicar el acta de apertura en el portal."
+    _, version = _pair_with(operator_user, script, "", fresh, fresh)
+
+    assert version.requirements.filter(origin="circular").count() == 1
 
 
 def test_the_original_of_a_source_must_be_a_cut_of_a_tender_reading(operator_user, script):

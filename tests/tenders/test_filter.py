@@ -625,7 +625,7 @@ def test_the_proposal_records_the_filter_in_parameters_and_counts(operator_user,
     assert run.parameters["filter_enabled"] is True
     assert run.parameters["filter_batch_rows"] == 15
     assert "consecuencia_sancion" in run.parameters["filter_motives"]
-    assert run.prompt_versions["filtro"] == "matriz-filtro-v1"
+    assert run.prompt_versions["filtro"] == "matriz-filtro-v2"
     assert run.parameters["passes"].index("filtro") == run.parameters["passes"].index(
         "unificacion") + 1
     stats = run.counts["filter"]
@@ -658,7 +658,7 @@ def test_no_instruction_test_or_example_of_the_filter_repeats_five_words_of_a_ca
     known = set(HASHES.read_text(encoding="utf-8").split())
     assert len(known) > 100
     files = [Path(__file__), Path(row_filter.__file__),
-             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v1.md"]
+             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v2.md"]
     hits = []
     for path in files:
         for shingle in _shingles(path.read_text(encoding="utf-8")):
@@ -722,3 +722,124 @@ def test_a_trivial_clue_cannot_support_a_discard(operator_user, script, filt, cl
 
     assert destination(run) == ("sugerencia", "descarte_sin_sustento")
     assert not m.DiscardedRow.objects.filter(run=run).exists()
+
+
+# --- T-125: lo que el filtro descartó de más (REQ-024, REQ-033) -------------------------------------
+
+DEPOSIT = "Los depósitos se abonarán en pesos y conforme a lo dispuesto por el reglamento de alquileres."
+DEPOSIT_HEAD = "Los depósitos se abonarán en pesos"
+DEPOSIT_TAIL = "y conforme a lo dispuesto por el reglamento de alquileres"
+
+
+def test_a_row_that_shares_a_sentence_with_a_firm_row_cannot_be_discarded(
+        operator_user, script, filt):
+    """REQ-024, REQ-033: un fragmento que es la cola de la misma oración que otra fila firme
+    del tramo no se descarta aunque se cumplan las cuatro condiciones: queda como sugerencia
+    con la duda `duda`, con sus dos respuestas, y el descarte no se guarda."""
+    script.when(DEPOSIT, item([(DEPOSIT_HEAD, "economico"), (DEPOSIT_TAIL, "formal")]))
+    filt.when(DEPOSIT_HEAD, KEEP, "si")
+    filt.when(DEPOSIT_TAIL, discard("norma_aplicable", DEPOSIT), "no")
+
+    run = run_with(operator_user, pliego(DEPOSIT))
+
+    assert not m.DiscardedRow.objects.filter(run=run).exists()
+    rows = formal_rows(run)
+    assert [(r.state, r.doubt_reason) for r in rows] == [
+        ("propuesto", ""), ("sugerido", "duda")]
+    assert rows[1].doubt["vote_a"]["decision"] == "descartar"
+    assert rows[1].doubt["vote_b"] == {"respuesta": "no"}
+
+
+def test_the_sentence_guard_does_not_protect_a_row_from_another_sentence(
+        operator_user, script, filt):
+    """REQ-033: dos filas del mismo tramo en oraciones distintas: la descartada sigue
+    descartada (la guarda mira posiciones, no el tramo entero)."""
+    script.when(SENT_1, item([(FRAG_1, "formal"), (FRAG_2, "formal")]))
+    filt.when(FRAG_2, KEEP, "si")
+    filt.when(FRAG_1, discard(), "no")
+
+    run = run_with(operator_user, pliego(CLAUSE))
+
+    assert [d.text for d in m.DiscardedRow.objects.filter(run=run)] == [FRAG_1]
+    assert [r.state for r in formal_rows(run)] == ["propuesto"]
+
+
+def test_a_row_sharing_a_sentence_with_another_discarded_row_is_still_discarded(
+        operator_user, script, filt):
+    """REQ-033: la guarda protege solo cuando la otra fila es firme; si las dos partes de la
+    oración se descartan, se descartan."""
+    script.when(DEPOSIT, item([(DEPOSIT_HEAD, "economico"), (DEPOSIT_TAIL, "formal")]))
+    filt.when(DEPOSIT_HEAD, discard("ejecucion_contrato", DEPOSIT), "no")
+    filt.when(DEPOSIT_TAIL, discard("norma_aplicable", DEPOSIT), "no")
+
+    run = run_with(operator_user, pliego(DEPOSIT))
+
+    assert m.DiscardedRow.objects.filter(run=run).count() == 2
+
+
+def test_the_v2_instructions_state_the_two_general_rules_in_both_questions(settings):
+    """REQ-033: las instrucciones activas son la v2 y cada pregunta lleva la regla de lo
+    verificado del oferente (aunque el sujeto sea el organismo) y la de la oración
+    continuada, con ejemplos de otro objeto."""
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v2"
+    for prompt in row_filter.load_prompts():
+        assert "no quién lo verifica" in prompt
+        assert "continúa una oración" in prompt
+        assert "multas pendientes" in prompt
+
+
+ART = "Los depósitos se abonarán en pesos y conforme al art. 5 del reglamento de alquileres."
+ART_TAIL = "conforme al art. 5 del reglamento de alquileres"
+
+
+@pytest.mark.parametrize("abbr", ["art.", "inc.", "Dec.", "S.A.", "Res.", "Disp.", "nro.", "J."])
+def test_an_abbreviation_does_not_end_the_sentence(abbr):
+    """REQ-024, REQ-033: un punto tras una abreviatura conocida o una inicial no termina la
+    oración; uno tras una palabra común sí."""
+    text = f"El pago es conforme al {abbr} 5 del reglamento. Otra frase."
+    cut = text.index("Otra")
+    assert row_filter.sentence_range(text, (3, 10)) == row_filter.sentence_range(
+        text, (text.index("5 del"), text.index("5 del") + 5))
+    assert row_filter.sentence_range(text, (cut, cut + 4)) == (1, 1)
+
+
+def test_a_tail_split_by_an_abbreviation_is_still_protected(operator_user, script, filt):
+    """REQ-024, REQ-033: "conforme al art. 5 ..." en el hueco de una oración: la cola sigue
+    siendo de la misma oración que la cabeza firme y no se descarta."""
+    script.when(ART, item([(DEPOSIT_HEAD, "economico"), (ART_TAIL, "formal")]))
+    filt.when(DEPOSIT_HEAD, KEEP, "si")
+    filt.when(ART_TAIL, discard("norma_aplicable", ART), "no")
+
+    run = run_with(operator_user, pliego(ART))
+
+    assert not m.DiscardedRow.objects.filter(run=run).exists()
+    assert [(r.state, r.doubt_reason) for r in formal_rows(run)] == [
+        ("propuesto", ""), ("sugerido", "duda")]
+
+
+def test_rows_of_two_different_tramos_do_not_protect_each_other(operator_user, script, filt):
+    """REQ-033: la misma posición en dos tramos distintos no cuenta como oración compartida:
+    la descartada de un tramo sigue descartada aunque en otro haya una firme."""
+    script.when(SENT_1, item([(FRAG_1, "formal")]))
+    script.when(SENT_2, item([(FRAG_2, "formal")]))
+    filt.when(FRAG_2, KEEP, "si")
+    filt.when(FRAG_1, discard(), "no")
+
+    run = run_with(operator_user, pliego(SENT_1, SENT_2))
+
+    assert [d.text for d in m.DiscardedRow.objects.filter(run=run)] == [FRAG_1]
+    assert [r.state for r in formal_rows(run)] == ["propuesto"]
+
+
+@pytest.mark.parametrize("head", ["duda", "no"])
+def test_a_head_that_is_only_a_suggestion_does_not_protect(operator_user, script, filt, head):
+    """REQ-033: solo protege una fila firme; si la cabeza es sugerencia, la cola con las
+    cuatro condiciones se descarta."""
+    script.when(DEPOSIT, item([(DEPOSIT_HEAD, "economico"), (DEPOSIT_TAIL, "formal")]))
+    filt.when(DEPOSIT_HEAD, KEEP, head)
+    filt.when(DEPOSIT_TAIL, discard("norma_aplicable", DEPOSIT), "no")
+
+    run = run_with(operator_user, pliego(DEPOSIT))
+
+    assert [d.text for d in m.DiscardedRow.objects.filter(run=run)] == [DEPOSIT_TAIL]
+    assert [r.state for r in formal_rows(run)] == ["sugerido"]
