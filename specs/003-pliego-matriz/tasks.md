@@ -72,7 +72,8 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-122 | Mostrar los cambios vigentes de la norma al proponer consecuencias, o no fundar en unidades modificadas | REQ-029 | T-109 | pendiente |
 | T-123 | Corregir la medición: citas de otra lectura y filas suprimidas por una circular | REQ-024, REQ-031 | T-117 | terminada |
 | T-124 | Pasada de circulares: original en el anexo por título y requisitos que agrega un "Debe decir" | REQ-031 | T-115 | terminada |
-| T-125 | Corregir el criterio del filtro que descartó requisitos reales | REQ-024, REQ-033 | T-102 | terminada |
+| T-125 | Corregir el criterio del filtro que descartó requisitos reales | REQ-024, REQ-033 | T-102 | terminada |
+| T-126 | Mostrar la cadena completa de circulares que modifican una misma condición | REQ-031 | T-116, T-124 | pendiente |
 
 ## Para todas las tareas
 
@@ -571,6 +572,14 @@ Plan: sección "Rediseño de la pasada de circulares (2026-10-04)" de `plan.md`;
 - **Verificación:** tests con el doble y textos inventados; nunca convierte firme en descartada ni sugerencia en firme.
 - **No tocar:** `evaluation.py`; circulares.
 - **Entorno:** cualquier equipo con Docker; el efecto real se mide con el caso-01 (ajuste) y a ciegas con 02, 03 y 04.
+
+### T-126 · Mostrar la cadena completa de circulares que modifican una misma condición
+
+- **Qué hacer:** decisión del responsable del 2026-10-04: cuando varias circulares modifican, reemplazan o rectifican la misma condición (por ejemplo, una cadena 4 → 5 → 6), la pantalla, la impresión y el PDF muestran la cadena completa en orden de fecha: texto original del pliego, cada texto intermedio con su circular y fecha, y el texto vigente al final, marcado como vigente. Hoy se muestra solo el último.
+- **Archivos:** `evaluon/tenders/services/matrix_page.py`, `evaluon/templates/tenders/_change.html`, `matrix.html`, `matrix_print.html`, tests de `tests/tenders/test_circular_screen.py`.
+- **Verificación:** tests con textos inventados: cadena de tres circulares sobre la misma cita en orden; una circular que anula a otra se muestra como tal; leyenda de borrador intacta; texto literal.
+- **No tocar:** la pasada de circulares; la medición.
+- **Entorno:** cualquier equipo con Docker.
 
 ### T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro
 
