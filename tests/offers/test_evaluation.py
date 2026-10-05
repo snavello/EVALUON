@@ -23,7 +23,7 @@ pytestmark = pytest.mark.django_db
 ANSWERS = (
     ("declaración jurada", "Declaro bajo juramento"),
     ("constancia de inscripción", "registro de proveedores con el número"),
-    ("garantía", "constituye la garantía"),
+    ("garantía", "garantiza, hasta la suma"),
     ("Cotizar en pesos", "precios se cotizan"),
     ("validez", "validez por sesenta"),
     ("RESMA", "1 Resma"),

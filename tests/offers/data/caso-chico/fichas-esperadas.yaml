@@ -33,7 +33,7 @@ ofertas:
     fragmentos:
       - {id: F-001, requisito: M-001, documento: oferta-propuesta.pdf, pagina: 1, ancla: "Declaro bajo juramento que me encuentro habilitado para contratar con el organismo"}
       - {id: F-002, requisito: M-002, documento: constancia-escaneada.pdf, pagina: 1, ancla: "se encuentra inscripto en el registro de proveedores con el número 000123"}
-      - {id: F-003, requisito: M-003, documento: poliza-caucion.pdf, pagina: 1, ancla: "Esta póliza constituye la garantía de mantenimiento de la oferta."}
+      - {id: F-003, requisito: M-003, documento: poliza-caucion.pdf, pagina: 1, ancla: "garantiza, hasta la suma de $ 21.750, el cumplimiento de la obligación del Oferente A Sintético de mantener su oferta"}
       - {id: F-004, requisito: M-004, documento: oferta-propuesta.pdf, pagina: 2, ancla: "Los precios se cotizan en pesos con impuestos incluidos."}
       - {id: F-005, requisito: M-005, documento: oferta-propuesta.pdf, pagina: 1, ancla: "La oferta mantiene su validez por sesenta días corridos desde la fecha de apertura."}
       - {id: F-006, requisito: M-006, documento: oferta-propuesta.pdf, pagina: 2, ancla: "1 Resma de papel A4 de 75 gramos 100 $ 3.000"}
