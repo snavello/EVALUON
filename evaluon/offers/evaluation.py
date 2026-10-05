@@ -96,6 +96,16 @@ THRESHOLDS = {
 }
 MAX_PAGES_UNLISTED = 0
 
+# Umbrales del caso-00, tres ofertas reales (plan 008, "Umbrales"): "sin respuesta" se informa
+# sin tope (`None`) y los renglones piden 90 %. Se aplican cuando la lista dice `caso: caso-00`.
+CASE_00 = "caso-00"
+THRESHOLDS_CASE_00 = {**THRESHOLDS, "no_answer": None, "items": 0.90}
+
+
+def thresholds_for(case):
+    """Los umbrales que corresponden al caso de la lista (el caso-00 tiene los suyos)."""
+    return THRESHOLDS_CASE_00 if case == CASE_00 else THRESHOLDS
+
 LABELS = {
     "found": "Fragmentos esperados encontrados (REQ-039)",
     "literal": "Texto literal (REQ-039)",
@@ -649,12 +659,13 @@ def aggregate(measures):
     return result
 
 
-def blocking(total):
-    """Lo que no llega al umbral del caso chico (vacío si todo cumple)."""
+def blocking(total, case=None):
+    """Lo que no llega al umbral del caso (vacío si todo cumple); por omisión, el del caso
+    chico."""
     failed = []
-    for name, minimum in THRESHOLDS.items():
+    for name, minimum in thresholds_for(case).items():
         value = total[name]
-        if value["total"] and value["rate"] < minimum:
+        if minimum is not None and value["total"] and value["rate"] < minimum:
             failed.append(f"{LABELS[name]}: {proportion_text(value)}, mínimo {_pct(minimum)}")
     pages = total["expected_pages"]
     if pages["total"] and pages["ok"] < pages["total"]:
@@ -679,7 +690,7 @@ class Report:
 
     @property
     def blocking(self):
-        return blocking(self.total)
+        return blocking(self.total, self.expected.case)
 
 
 def _dumps(value, **kwargs):
@@ -740,7 +751,7 @@ def _write(report, procedure, version, started_at, commit):
         "lista": {"sha256": expected.sha256, "visto_bueno": expected.approval,
                   "ofertas": len(expected.offers),
                   "fragmentos": sum(len(o.fragments) for o in expected.offers)},
-        "umbrales": {**THRESHOLDS, "paginas_sin_lista_maximo": MAX_PAGES_UNLISTED},
+        "umbrales": {**thresholds_for(expected.case), "paginas_sin_lista_maximo": MAX_PAGES_UNLISTED},
         "comprobacion": dict(report.verification.counts),
         "fichas": [{"oferta": r["number"], "ficha": r["sheet"], "parametros": r["parameters"],
                     "instrucciones": r["prompt_versions"], "modelos": r["models"]}
@@ -758,8 +769,8 @@ def _write(report, procedure, version, started_at, commit):
                                                       encoding="utf-8")
 
 
-def _verdict(total):
-    failed = blocking(total)
+def _verdict(total, case=None):
+    failed = blocking(total, case)
     return "Cumple el umbral." if not failed else "No cumple: " + "; ".join(failed) + "."
 
 
@@ -770,15 +781,15 @@ def _summary(report, *, public):
         f"Lista: `{report.expected.sha256[:12]}` · visto bueno: {report.expected.approval}",
         "", "## Resultado contra el umbral", "",
         "| Medida | Umbral | Medido |", "|---|---|---|"]
-    for name, minimum in THRESHOLDS.items():
-        lines.append(f"| {LABELS[name]} | {_pct(minimum)} o más | "
-                     f"{proportion_text(total[name])} |")
+    for name, minimum in thresholds_for(report.expected.case).items():
+        required = "informado, sin tope" if minimum is None else f"{_pct(minimum)} o más"
+        lines.append(f"| {LABELS[name]} | {required} | {proportion_text(total[name])} |")
     lines.append(f"| Páginas sin texto ni lista (REQ-038) | {MAX_PAGES_UNLISTED} | "
                  f"{len(total['pages_unlisted'])} |")
     pages = total["expected_pages"]
     lines.append("| Páginas no legibles esperadas en las listas (REQ-038) | todas | "
                  f"{pages['ok']} de {pages['total']} |")
-    lines += ["", _verdict(total), "", "## Se informa, no bloquea", "",
+    lines += ["", _verdict(total, report.expected.case), "", "## Se informa, no bloquea", "",
               f"- Fragmentos mostrados sin pareja en la lista: {total['extra_fragments']}.",
               f"- Falsos hallazgos (fragmento en un requisito sin respuesta): "
               f"{len(total['false_findings'])}.",
