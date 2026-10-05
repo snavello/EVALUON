@@ -1080,7 +1080,8 @@ class Processor:
                            discard_reason=outcome.shaped.discard, **base)
         return Verdict(DispositionOutcome.REQUISITOS.value, **base)
 
-    def _guard_effect(self, unit, outcome, alias, effect, text, wide, decided):
+    def _guard_effect(self, unit, outcome, alias, effect, text, wide, decided, candidate,
+                      label):
         """Dos frenos al efecto que devuelve el respaldo (T-127, P3). (a) No contradice el
         efecto que decidió la extracción: se conserva el de la extracción. (b) Un `suprime`
         es firme solo si el texto citado de la circular tiene una frase explícita de
@@ -1101,7 +1102,8 @@ class Processor:
                 "type": ANOMALY_SUPPRESSION_WITHOUT_PHRASE, "segment": segment.pk,
                 "key": segment.key, "alias": alias, "decided": list(decided),
                 "returned": returned, "result": SourceEffect.ACLARA.value, "text": text,
-                "review_required": True, "step": outcome.step.pk})
+                "review_required": True, "step": outcome.step.pk,
+                "circular": label, "requirements": [t.number for t in candidate.targets]})
             effect = SourceEffect.ACLARA.value
         return effect
 
@@ -1122,7 +1124,8 @@ class Processor:
 
         for alias, candidate, effect, span, fragment in outcome.effects:
             start, end, text, wide = place(span, fragment)
-            effect = self._guard_effect(unit, outcome, alias, effect, text, wide, decided)
+            effect = self._guard_effect(unit, outcome, alias, effect, text, wide, decided,
+                                       candidate, label)
             sources.append(Source(effect, candidate, segment, start, end, text, issued_on,
                                   outcome.step, wide))
             self.stats["effects"] += 1

@@ -129,3 +129,28 @@ def test_the_explicit_phrases_are_found_on_folded_text():
     assert circulars.has_suppression_phrase("el requisito no será exigible")
     assert not circulars.has_suppression_phrase("se presenta por el portal")
     assert not circulars.has_suppression_phrase("el efecto de la suprema corte")
+
+
+def test_a_suppression_without_a_phrase_shows_in_the_matrix_and_the_print(
+        operator_user, case, script):
+    """REQ-031, P3: la fila afectada se ve "a revisión obligatoria" con la circular, en la
+    pantalla y en la impresión; una fila sin anomalía no lleva la marca."""
+    from evaluon.tenders import export as matrix_export
+    from evaluon.tenders.services import matrix_page
+
+    add_circular(operator_user, case, "Circular N.º 2", date(2025, 12, 5),
+                 "1. La constancia de visita se entrega por el portal en lugar de la mesa.")
+    script.c_when("constancia de visita", efectos=[(
+        "constancia de visita", "suprime", "La constancia de visita se entrega por el portal")])
+
+    version, run = run_proposal(operator_user, case)
+
+    page = matrix_page.matrix_page(operator_user, version.pk)
+    rows = [r for g in page.groups for r in g.rows] + page.technical
+    flagged = {r.requirement.number: r.review_notes for r in rows if r.review_notes}
+    assert list(flagged) == [requirement_with(version, VISITA_QUOTE).number]
+    (note,) = next(iter(flagged.values()))
+    assert "Circular N.º 2" in note["circular"] and "05/12/2025" in note["circular"]
+    html, _ = matrix_export.render_html(operator_user, version.pk, pdf=False)
+    assert html.count("A revisión obligatoria") == 1
+    assert "podría dejar sin efecto esta condición" in html and "Circular N.º 2" in html

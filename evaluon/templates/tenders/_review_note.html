@@ -1,0 +1,1 @@
+{% comment %}Revisión obligatoria (T-127, P3): una circular podría dejar sin efecto la condición y no lo dice de forma explícita. Recibe `row`.{% endcomment %}{% for note in row.review_notes %}<p class="review-required"><strong>A revisión obligatoria:</strong> Una circular podría dejar sin efecto esta condición: revisar {{ note.circular }}.</p>{% endfor %}

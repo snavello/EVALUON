@@ -225,6 +225,7 @@ class RequirementRow:
     evidence: str = ""  # el indicio literal del tramo, si lo hay
     passed: OriginNote | None = None  # quién la pasó a requisito y cuándo
     added_by: "AddedBy | None" = None  # la circular que lo agregó (origen `circular`)
+    review_notes: list = field(default_factory=list)  # circulares que podrían suprimirla (T-127)
 
 
 @dataclass
@@ -379,11 +380,26 @@ def _passed(requirement):
     return None
 
 
-def requirement_row(requirement, pages):
+def _review_notes(run):
+    """Las circulares que podrían dejar sin efecto una condición sin decirlo de forma
+    explícita, por número de requisito (T-127, P3): salen de las anomalías de la propuesta."""
+    notes = {}
+    for anomaly in (run.anomalies if run else None) or []:
+        if anomaly.get("type") != "circular_supresion_sin_frase":
+            continue
+        for number in anomaly.get("requirements", []):
+            found = notes.setdefault(number, [])
+            if not any(n["circular"] == anomaly["circular"] for n in found):
+                found.append({"circular": anomaly["circular"]})
+    return notes
+
+
+def requirement_row(requirement, pages, review=None):
     """Una fila de la matriz: sus citas y, si es o fue una sugerencia, su motivo, el indicio y
     el respaldo normativo (REQ-035, REQ-036)."""
     quotes, loose = quote_rows(requirement, pages)
     row = RequirementRow(requirement=requirement, quotes=quotes, sources=loose)
+    row.review_notes = (review or {}).get(requirement.number, [])
     if requirement.origin == RequirementOrigin.CIRCULAR and quotes:
         document = requirement.quotes.select_related("segment__reading__document").order_by(
             "order").first().segment.reading.document
@@ -419,6 +435,7 @@ def matrix_page(user, version_id, *, channel=Channel.SCREEN):
     run = version.run
     pages = Pages()
     every = list(version.requirements.order_by("number"))
+    review = _review_notes(run)
     suggested = [r for r in every if r.state == RequirementState.SUGERIDO]
     requirements = [r for r in every if r.state not in (RequirementState.QUITADO,
                                                         RequirementState.SUGERIDO)]
@@ -433,7 +450,7 @@ def matrix_page(user, version_id, *, channel=Channel.SCREEN):
               RequirementClass.TECNICO: 0}
     for requirement in requirements:
         counts[requirement.category] += 1
-        row = requirement_row(requirement, pages)
+        row = requirement_row(requirement, pages, review)
         quotes = row.quotes
         if requirement.category == RequirementClass.TECNICO:
             technical.append(row)
