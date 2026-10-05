@@ -14,7 +14,7 @@ Dos tareas que no dependen entre sí y no comparten archivos se pueden hacer en 
 |---|---|---|---|---|
 | T-138 | Preparar el esquema, la conexión acotada y la cola del Portal: tablas de `portal`, cambios de `tenders_job` y de auditoría, servicio `portal_worker`, cliente HTTP con lista de destinos y `entorno.md` | REQ-045, REQ-049 | — | terminada |
 | T-139 | Preparar los casos para probar: páginas reales del caso-00 y de un proceso con circulares (fuera del repositorio), calcos con datos inventados y lista esperada (Coordinador) | REQ-046, REQ-047, REQ-050 | — | terminada |
-| T-140 | Leer la página pública del proceso: datos básicos, renglones, cronograma, garantías y lista de documentos, con el texto normalizado | REQ-046 | T-138, T-139 | pendiente |
+| T-140 | Leer la página pública del proceso: datos básicos, renglones, cronograma, garantías y lista de documentos, con el texto normalizado | REQ-046 | T-138, T-139 | terminada |
 | T-141 | Corte vertical: registrar el enlace, explorar, proponer, aprobar ítem por ítem y cargar el procedimiento y los renglones, con pantalla | REQ-045, REQ-046, REQ-048, REQ-049 | T-138, T-140 | pendiente |
 | T-142 | Importar los documentos: bajar el pliego, circulares y demás con su huella y cargarlos por `load_document` | REQ-046, REQ-048, REQ-049, REQ-051 | T-141 | pendiente |
 | T-143 | Importar las ofertas: acta de apertura y cuadro comparativo, ofertas con garantía y cotización por renglón | REQ-047, REQ-048, REQ-049, REQ-051 | T-141 | pendiente |
@@ -140,6 +140,7 @@ Dos tareas que no dependen entre sí y no comparten archivos se pueden hacer en 
 - **Requisitos:** REQ-045, REQ-046, REQ-047, REQ-048, REQ-049, REQ-050, REQ-051
 - **Nivel de verificación:** plena (medición con umbral escrito en el plan, dos rondas como máximo).
 - **Qué hay que hacer:**
+- **Aviso de tareas anteriores:** T-140: el test contra las páginas reales solo compara el caso-00 (renglones y faltantes); en la medición comprobar también el caso-05 (4 renglones, 13 documentos, 3 circulares). La marca de daño también marca `è` en nombres propios legítimos.
   1. `evaluation.py` y el comando `medir_portal`: reproduce la exploración con las páginas guardadas de `corpus/casos/caso-00/portal/` (sin conexión) y compara con `portal-esperado.yaml` según los umbrales del plan; carpeta de corrida (`parametros.json`, `resultados.jsonl`, `resumen.md`, `resumen-publico.md` sin datos reales), como las de la 003 y la 008. Reutiliza `tenders/evaluation.py` (carpeta de corrida, intervalos) sin rehacerlo.
   2. Una corrida base; los hallazgos se corrigen juntos, con un commit por hallazgo, y se mide una vez más (ronda 1). Solo si no llegó al umbral, una ronda más (ronda 2, la última). Lo que falte pasa, con su impacto, a la lista de revisión con el primer producto.
   3. Una pasada "en vivo" (una sola vez, con el Coordinador presente) con el enlace real para comprobar que la lectura coincide con las páginas guardadas; el resultado se anota en `verificacion/T-145.md`.
