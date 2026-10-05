@@ -134,6 +134,7 @@
   {% endfor %}
   <article class="requirement" id="requisito-{{ row.requirement.number }}">
     <h4>Requisito {{ row.requirement.number }} <span class="class-mark class-{{ row.requirement.category }}">{{ row.requirement.get_category_display }}</span>{% if row.requirement.state == "confirmado" %} <span class="state-mark">Confirmado</span>{% endif %}{% if row.requirement.origin == "agregado" %} <span class="state-mark">Agregado por una persona</span>{% endif %}{% if row.requirement.origin == "devuelto" %} <span class="state-mark">Devuelto de las descartadas</span>{% endif %}{% if row.added_by %} <span class="state-mark">Agregado por {{ row.added_by.document_title }}{% if row.added_by.issued_on %} del {{ row.added_by.issued_on|date:"d/m/Y" }}{% endif %}</span>{% endif %}</h4>
+    {% include "tenders/_review_note.html" with row=row %}
     {% if row.requirement.origin == "devuelto" %}<p class="no-suggestions">Sin sugerencias de consecuencia: la fila se devolvió de las descartadas y el evaluador elige el tipo.</p>{% endif %}
     {% if page.can_confirm and row.requirement.state == "propuesto" %}<label class="confirm-box"><input type="checkbox" name="requirement" value="{{ row.requirement.pk }}" form="confirm-form"> Confirmar</label>{% endif %}
     {% for quote in row.quotes %}
@@ -188,6 +189,7 @@
   <h2 id="technical-title">Requisitos técnicos por renglón</h2>
   {% for row in page.technical %}
   <article class="requirement technical" id="requisito-{{ row.requirement.number }}">
+    {% include "tenders/_review_note.html" with row=row %}
     <h3>{% if row.requirement.items %}Renglón {{ row.requirement.items|join:", " }}{% else %}Técnico sin renglón{% endif %} · Técnico · se evalúa con el informe técnico del área requirente</h3>
     {% if page.can_confirm and row.requirement.state == "propuesto" %}<label class="confirm-box"><input type="checkbox" name="requirement" value="{{ row.requirement.pk }}" form="confirm-form"> Confirmar</label>{% endif %}
     {% if row.requirement.state == "confirmado" %}<span class="state-mark">Confirmado</span>{% endif %}
