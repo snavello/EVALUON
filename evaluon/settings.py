@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "evaluon.audit",
     "evaluon.norms",
     "evaluon.offers",
+    "evaluon.portal",
     "evaluon.queries",
     "evaluon.tenders",
 ]
@@ -332,6 +333,21 @@ GENERATION_BATCH_URL = env_str("GENERATION_BATCH_URL", "http://generation_batch:
 GENERATION_BATCH_TIMEOUT_SECONDS = 180
 # Segundos entre consultas a la cola de pedidos cuando está vacía.
 WORKER_POLL_SECONDS = 5
+
+# --- Importación desde el Portal de Compras (plan 012, "Parámetros"; ADR-0031) -----------
+# Hosts a los que puede conectar el servicio `portal_worker` (solo HTTPS, puerto 443). El
+# valor por omisión es el del Portal; la lista se repite en docker-compose.yml.
+PORTAL_ALLOWED_HOSTS = env_list("PORTAL_ALLOWED_HOSTS", "afipcompras.afip.gob.ar")
+# Espera máxima de cada solicitud, en segundos.
+PORTAL_TIMEOUT_SECONDS = int(env_str("PORTAL_TIMEOUT_SECONDS", "30"))
+# Tamaño máximo de cada respuesta, en bytes (50 MiB).
+PORTAL_MAX_BYTES = int(env_str("PORTAL_MAX_BYTES", str(50 * 1024 * 1024)))
+# Pausa entre solicitudes al Portal, en segundos.
+PORTAL_PAUSE_SECONDS = float(env_str("PORTAL_PAUSE_SECONDS", "2"))
+# Hora local (Buenos Aires) desde la que se encola la revisión diaria (ADR-0033).
+PORTAL_REVIEW_HOUR = int(env_str("PORTAL_REVIEW_HOUR", "7"))
+# Identificación que el cliente declara en cada solicitud.
+PORTAL_USER_AGENT = env_str("PORTAL_USER_AGENT", "EVALUON/1.0 (lectura de procesos publicos)")
 
 # --- Ofertas y ficha por oferta (plan 008, "Parámetros"; ADR-0026 y ADR-0027) ----------
 # Valores iniciales. Se copian en cada ficha (`offers_sheet.parameters`); cambiarlos exige

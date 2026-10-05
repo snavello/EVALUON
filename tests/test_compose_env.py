@@ -180,3 +180,49 @@ def test_engine_build_is_the_image_tag(compose):
         builds.add(match["build"])
 
     assert builds == {settings.GENERATION_ENGINE_BUILD}
+
+
+# Variables del Portal de Compras (plan 012, ADR-0031): el compose las pasa a todos los
+# servicios de la imagen y `settings.py` las lee con el mismo valor por omisión.
+PORTAL_VARIABLES = (
+    "PORTAL_ALLOWED_HOSTS",
+    "PORTAL_TIMEOUT_SECONDS",
+    "PORTAL_MAX_BYTES",
+    "PORTAL_PAUSE_SECONDS",
+    "PORTAL_REVIEW_HOUR",
+    "PORTAL_USER_AGENT",
+)
+
+
+def test_portal_variables_reach_app_and_portal_worker(compose):
+    """REQ-045: la aplicación (que valida el enlace) y `portal_worker` (que conecta) reciben
+    la misma lista de destinos y los mismos límites."""
+    for service in ("app", "migrate", "worker", "portal_worker"):
+        environment = compose["services"][service]["environment"]
+        for name in PORTAL_VARIABLES:
+            assert name in environment, f"{service} no recibe {name}"
+    app = compose["services"]["app"]["environment"]
+    worker = compose["services"]["portal_worker"]["environment"]
+    for name in PORTAL_VARIABLES:
+        assert app[name] == worker[name]
+
+
+def test_portal_settings_defaults_are_the_compose_defaults(compose, monkeypatch):
+    """REQ-045: sin variables en el entorno, `settings.py` toma los mismos valores por
+    omisión que el compose, y el destino por omisión es solo el host del Portal."""
+    environment = compose["services"]["portal_worker"]["environment"]
+    for name in PORTAL_VARIABLES:
+        monkeypatch.delenv(name, raising=False)
+
+    fresh = runpy.run_path(str(Path(settings.BASE_DIR) / "evaluon" / "settings.py"))
+
+    assert fresh["PORTAL_ALLOWED_HOSTS"] == ["afipcompras.afip.gob.ar"]
+    assert fresh["PORTAL_ALLOWED_HOSTS"] == resolve(
+        environment["PORTAL_ALLOWED_HOSTS"], {}).split(",")
+    assert fresh["PORTAL_TIMEOUT_SECONDS"] == int(
+        resolve(environment["PORTAL_TIMEOUT_SECONDS"], {}))
+    assert fresh["PORTAL_MAX_BYTES"] == int(resolve(environment["PORTAL_MAX_BYTES"], {}))
+    assert fresh["PORTAL_PAUSE_SECONDS"] == float(
+        resolve(environment["PORTAL_PAUSE_SECONDS"], {}))
+    assert fresh["PORTAL_REVIEW_HOUR"] == int(resolve(environment["PORTAL_REVIEW_HOUR"], {}))
+    assert fresh["PORTAL_USER_AGENT"] == resolve(environment["PORTAL_USER_AGENT"], {})
