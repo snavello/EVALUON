@@ -11,11 +11,16 @@ excepción es leer el Portal de Compras, y la hace **un solo servicio**:
 | Servicio | Redes | Salida a internet |
 |---|---|---|
 | `portal_worker` | `internal` y `egress` | Sí, solo para leer el Portal (ver "Destinos") |
-| `worker` (lee pliegos y ofertas, usa IA) | `internal` | No |
-| `app` | `internal` y `web` (solo publica el puerto en 127.0.0.1) | No |
+| `worker` (lee pliegos y ofertas, usa IA) | `internal` | No (red sin salida y sin cliente que salga) |
+| `app` | `internal` y `web` (bridge común, solo para publicar el puerto en 127.0.0.1) | La red lo permitiría, pero `app` no tiene ningún cliente que salga a internet |
 | `db`, `migrate`, `generation`, `generation_batch`, `embeddings`, `reranker` | `internal` | No |
 
-- `internal` es una red de Docker con `internal: true`: sin salida.
+- `internal` es una red de Docker con `internal: true`: sin salida. El aislamiento total de red
+  aplica a `worker`, la base y los servicios de IA. `app` está además en `web`, un bridge con
+  salida, porque una red `internal: true` no permite publicar el puerto de la pantalla; su
+  garantía es otra: en `evaluon/`, fuera de `portal/`, no hay código que abra conexiones
+  salientes a internet (lo comprueba `tests/portal/test_no_outbound.py`). Solo `portal_worker`
+  tiene un cliente que sale, con la lista de destinos.
 - `egress` es una red de Docker común (con salida). La usa solo `portal_worker`, que además
   está en `internal` para llegar a la base.
 - `portal_worker` es la misma imagen que `app` y `worker`; corre `manage.py procesar_portal`,
@@ -47,7 +52,7 @@ Variables (en `.env`, todas opcionales; valores por omisión en `evaluon/setting
 
 1. **Regla de red (sin red real).** `docker compose run --rm app pytest tests/portal/test_network.py`
    lee `docker-compose.yml` y comprueba que solo `portal_worker` usa `egress`, que
-   `internal` sigue siendo interna y que `worker`, `app`, la base y la IA no tienen salida.
+   `internal` sigue siendo interna y que `worker`, la base y la IA están solo en ella; `app` está en `internal` y `web`. Que `app` no tiene cliente saliente lo comprueba `tests/portal/test_no_outbound.py`.
 2. **Lista de destinos (sin red real).** `tests/portal/test_client.py` comprueba, con un
    transporte de mentira, que un host fuera de la lista, HTTP, otro puerto, una dirección
    con usuario y una redirección a otro host se rechazan antes de conectar.

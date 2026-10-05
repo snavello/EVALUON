@@ -190,6 +190,7 @@ PORTAL_VARIABLES = (
     "PORTAL_MAX_BYTES",
     "PORTAL_PAUSE_SECONDS",
     "PORTAL_REVIEW_HOUR",
+    "PORTAL_USER_AGENT",
 )
 
 
@@ -224,3 +225,4 @@ def test_portal_settings_defaults_are_the_compose_defaults(compose, monkeypatch)
     assert fresh["PORTAL_PAUSE_SECONDS"] == float(
         resolve(environment["PORTAL_PAUSE_SECONDS"], {}))
     assert fresh["PORTAL_REVIEW_HOUR"] == int(resolve(environment["PORTAL_REVIEW_HOUR"], {}))
+    assert fresh["PORTAL_USER_AGENT"] == resolve(environment["PORTAL_USER_AGENT"], {})

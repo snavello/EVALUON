@@ -55,6 +55,7 @@ x-app: &app
     PORTAL_MAX_BYTES: "${PORTAL_MAX_BYTES:-52428800}"
     PORTAL_PAUSE_SECONDS: "${PORTAL_PAUSE_SECONDS:-2}"
     PORTAL_REVIEW_HOUR: "${PORTAL_REVIEW_HOUR:-7}"
+    PORTAL_USER_AGENT: ${PORTAL_USER_AGENT:-EVALUON/1.0 (lectura de procesos publicos)}
   volumes:
     - ./evaluon:/app/evaluon:ro
     - ./tests:/app/tests:ro
