@@ -50,7 +50,7 @@ flowchart LR
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
 | 007 · Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | No iniciada | — | — |
-| [008 · Ofertas y ficha por oferta](#008) | La carga de cada oferta en varios documentos (PDF con texto o escaneado) y una ficha por oferta: síntesis de lo ofrecido frente a cada requisito de la matriz, con los documentos y fragmentos que lo respaldan | 4 de 7 · Desarrollo | 2/7 | ███░░░░░░░ 29% |
+| [008 · Ofertas y ficha por oferta](#008) | La carga de cada oferta en varios documentos (PDF con texto o escaneado) y una ficha por oferta: síntesis de lo ofrecido frente a cada requisito de la matriz, con los documentos y fragmentos que lo respaldan | 4 de 7 · Desarrollo | 3/7 | ████░░░░░░ 43% |
 | 009 · Validación continua con la Comisión | Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus respuestas. Cada cuestión resuelta puede quedar como fundamento (ADR-0009), como caso para medir al sistema o como pedido de cargar una norma o un documento. Lo que queda sin validar se ve como pendiente. Uso intensivo al principio, y después ante cuestiones que no se saben resolver | No iniciada | — | — |
 | 010 · Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | No iniciada | — | — |
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
@@ -656,8 +656,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 5 tareas sin terminar.
-- ○ T-131 · Completar la carga y la lectura de ofertas: pantalla, fotos sueltas, segundo intento de lectura y lista de páginas no leídas (pendiente)
+- **Próximo paso:** Desarrollar: 4 tareas sin terminar.
 - ○ T-133 · Preparar el caso-00 para medir: lista esperada de fichas de las tres ofertas y matriz validada (Coordinador) (pendiente)
 - ○ T-134 · Medir la ficha con las tres ofertas del caso-00 (medición base) (pendiente)
 - ○ T-135 · Corregir los hallazgos de T-134 y medir de nuevo (ronda 1) (pendiente)
@@ -667,6 +666,7 @@ flowchart LR
 
 - Etapas completas: Spec, Plan, Tareas.
 - ✓ T-130 · Corte vertical con el caso chico: esquema, carga, lectura (texto y escaneo), ficha, pantalla mínima y medición (`7a40aff` 2026-10-05, `00dbbc4` 2026-10-05, `6a83b15` 2026-10-05, `7e84c95` 2026-10-05, `25794ca` 2026-10-05, `afe69e1` 2026-10-05, `e8d7295` 2026-10-05, `384cb43` 2026-10-05)
+- ✓ T-131 · Completar la carga y la lectura de ofertas: pantalla, fotos sueltas, segundo intento de lectura y lista de páginas no leídas (`069e87a` 2026-10-05, `25e603a` 2026-10-05, `a434c41` 2026-10-05)
 - ✓ T-132 · Corregir la ficha: confirmar, corregir, quitar y agregar fragmentos, historial y aviso de versión de la matriz (`d0bac35` 2026-10-05)
 
 ### Mapa de tareas
@@ -674,7 +674,7 @@ flowchart LR
 ```mermaid
 flowchart TD
   T130["✓ T-130 · Corte vertical con el caso chico: esquema,…"]:::done
-  T131["○ T-131 · Completar la carga y la lectura de ofertas:…"]:::todo
+  T131["✓ T-131 · Completar la carga y la lectura de ofertas:…"]:::done
   T132["✓ T-132 · Corregir la ficha: confirmar, corregir, qui…"]:::done
   T133["○ T-133 · Preparar el caso-00 para medir: lista esper…"]:::todo
   T134["○ T-134 · Medir la ficha con las tres ofertas del cas…"]:::todo
@@ -697,7 +697,7 @@ flowchart TD
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-037 | El sistema debe permitir registrar las ofertas de un procedimiento, cada una con su oferente, y cargar en cada una varios documentos. | T-130, T-131 | ▶ en proceso |
+| REQ-037 | El sistema debe permitir registrar las ofertas de un procedimiento, cada una con su oferente, y cargar en cada una varios documentos. | T-130, T-131 | ✓ cubierto |
 | REQ-038 | El sistema debe leer los documentos con texto y los escaneados o fotografiados, e informar qué páginas no pudo leer o leyó con baja confianza. | T-130, T-131, T-134, T-135, T-136 | ▶ en proceso |
 | REQ-039 | Para cada oferta y cada requisito de la matriz validada, el sistema debe proponer los fragmentos de la oferta que responden al requisito, cada uno con el documento, la página y el texto literal. | T-130, T-133, T-134, T-135, T-136 | ▶ en proceso |
 | REQ-040 | Cuando no encuentra ningún fragmento para un requisito, el sistema debe decirlo expresamente en la ficha ("no se encontró en la oferta"), sin dejar el requisito vacío ni suponer. | T-130, T-133, T-134, T-135, T-136 | ▶ en proceso |
