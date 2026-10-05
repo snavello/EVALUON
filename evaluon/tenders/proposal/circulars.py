@@ -191,7 +191,9 @@ class CircularDocument:
         index = self.units.index(unit)
         for back in range(index - 1, max(index - 1 - ITEM_LOOKBACK, -1), -1):
             first = self.units[back].segment.text.strip().split("\n")[0]
-            if _ITEM_HEADING.match(first) and len(first) <= CONTEXT_CHARS:
+            # Cualquier tramo corto que nombra un renglón ("MODIFICAR EL PLIEGO EN EL RENGLÓN
+            # NRO 6:", "Se rectifica … el renglón 6, …") es el encabezado de los que siguen.
+            if len(first) <= CONTEXT_CHARS:
                 items = named_in(first)[1]
                 if items:
                     return first, items
@@ -382,6 +384,15 @@ def named_in(text):
     for match in _LEADING_CLAUSE.finditer(rest):
         clauses.add(match.group(1))
     return clauses, items
+
+
+_STEM_SKIP = frozenset("rengl sigui prese plieg ofere deber contr".split())
+
+
+def word_stems(text):
+    """Los primeros cinco caracteres de las palabras de seis letras o más, sin las de uso
+    común en un pliego: sirven para ver si dos textos hablan de lo mismo."""
+    return {w[:5] for w in re.findall(r"[a-z]{6,}", fold(text))} - _STEM_SKIP
 
 
 def candidate_items(candidate):
@@ -981,13 +992,27 @@ class Processor:
     @staticmethod
     def _named_candidates(text, candidates, scope=()):
         """Las citas que el texto nombra: por cláusula, renglón o anexo, o por el título entre
-        comillas de un anexo; con `scope`, también las del renglón del encabezado."""
+        comillas de un anexo; con `scope`, también las del renglón del encabezado. Un cambio
+        que nombra un renglón alcanza además las citas sin renglón que hablan de "los
+        renglones" y comparten una palabra con él (la cláusula de cotización)."""
         clauses, items = named_in(text)
         items = items | set(scope)
         annexes = named_annexes(text)
         haystack = fold(text)
-        return [c for c in candidates
-                if is_named(c, clauses, items) or is_referred(c, annexes, haystack)]
+        found = [c for c in candidates
+                 if is_named(c, clauses, items) or is_referred(c, annexes, haystack)]
+        if items:
+            stems = word_stems(text)
+            found += [c for c in candidates
+                      if c not in found and not candidate_items(c)
+                      and all(t.category != RequirementClass.TECNICO.value for t in c.targets)
+                      and "renglon" in fold(c.text) and stems & word_stems(c.text)]
+        return found
+
+    @staticmethod
+    def _names_something(text):
+        clauses, items = named_in(text)
+        return bool(clauses or items or named_annexes(text))
 
     @staticmethod
     def _unit_names(document, change, units):
@@ -1013,8 +1038,9 @@ class Processor:
             names = " ".join(part for part in (
                 f"{word} {found.reference}" if word and found.reference else "",
                 found.old_text, found.new_text) if part)
-            losses.append((REVIEW_UNRESOLVED, f"{names}\n{heading}" if heading else names,
-                           whole))
+            if heading and not self._names_something(names):
+                names = f"{names}\n{heading}"   # sin renglón propio: el del encabezado
+            losses.append((REVIEW_UNRESOLVED, names, whole))
         return losses
 
     def _review_losses(self, label, change, candidates, produced, losses):
@@ -1028,8 +1054,9 @@ class Processor:
                        if source.step is not None and source.step.pass_name == self.pass_name
                        for t in source.candidate.targets}
         for reason, names, whole in losses:
-            named = (self._named_candidates(names, candidates)
-                     or self._named_candidates(whole, candidates))
+            named = self._named_candidates(names, candidates)
+            if not named and not self._names_something(names):
+                named = self._named_candidates(whole, candidates)
             # Una pérdida de toda la unidad no dice qué cambio se perdió: las filas que nombra
             # se marcan aunque hayan recibido alguna fuente (P3, D1).
             done = by_fallback if reason == REVIEW_UNRESOLVED else set()
@@ -1288,7 +1315,8 @@ class Processor:
                     "type": ANOMALY_TITLE_NOT_CLARIFICATION, "segment": segment.pk,
                     "key": segment.key, "alias": alias, "step": outcome.step.pk,
                     "review_required": True, "circular": label,
-                    "requirements": [t.number for t in candidate.targets]})
+                    "requirements": [t.number for t in candidate.targets
+                                     if word_stems(text) & word_stems(candidate.text)]})
                 continue
             sources.append(Source(effect, candidate, segment, start, end, text, issued_on,
                                   outcome.step, wide))

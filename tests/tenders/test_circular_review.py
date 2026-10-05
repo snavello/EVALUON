@@ -437,16 +437,105 @@ def test_an_exigence_is_never_a_cover_title(text):
     assert units.is_title_text(text) is False
 
 
-def test_a_dropped_title_leaves_the_named_row_for_review(operator_user, script):
-    """REQ-031, P3 (D2): cuando se descarta un título como aclaración, la fila que nombra
-    queda a revisión obligatoria en lugar de descartarse en silencio."""
+def test_a_dropped_title_that_names_a_condition_of_the_row_leaves_it_for_review(
+        operator_user, script):
+    """REQ-031, P3 (D2): si el título descartado habla de la condición de la fila (comparte una
+    palabra con ella), la fila queda a revisión obligatoria."""
+    procedure = visit_case(operator_user, script)
+    title = "LICITACIÓN PÚBLICA N° 99/2099 - VISITA AL LUGAR DE ENTREGA"
+    load_and_read(operator_user, procedure, narrative_circular(title),
+                  kind="circular_modificatoria", title="Circular N.º 2",
+                  issued_on=date(2025, 12, 1))
+    script.x_when("LICITACIÓN PÚBLICA", [change("aclara", "clausula", "1.1", "", title)])
+
+    version, _ = run_proposal(operator_user, procedure)
+
+    assert list(flagged_numbers(operator_user, version)) == [
+        requirement_with(version, VISITA_QUOTE).number]
+
+
+def test_a_dropped_title_that_names_no_condition_of_the_row_does_not_mark_it(
+        operator_user, script):
+    """REQ-031 (ronda 2): un título que no habla de nada de la fila no la marca."""
     procedure = visit_case(operator_user, script)
     load_and_read(operator_user, procedure, narrative_circular(CARATULA),
                   kind="circular_modificatoria", title="Circular N.º 2",
                   issued_on=date(2025, 12, 1))
     script.x_when("LICITACIÓN PÚBLICA", [change("aclara", "clausula", "1.1", "", CARATULA)])
 
+    version, run = run_proposal(operator_user, procedure)
+
+    assert anomalies_of(run, circulars.ANOMALY_TITLE_NOT_CLARIFICATION)
+    assert not flagged_numbers(operator_user, version)
+
+
+# --- Ronda 2: la marca cae donde el cambio perdido apunta ------------------------------------------------------
+
+COTIZAR = "Cada participante cotizará la totalidad de los renglones del presente pliego."
+
+
+def pricing_case(user, script):
+    """Una cláusula de cotización sin renglón y los renglones 6 y 14."""
+    procedure = make_procedure(user)
+    load_and_read(user, procedure, tender_pdf([
+        [para("SECCIÓN I - CONDICIONES PARTICULARES"), para("1. COTIZACIÓN", f"1.1. {COTIZAR}")],
+        [para("SECCIÓN II - ESPECIFICACIONES TÉCNICAS PARTICULARES"),
+         para("6. RENGLÓN N° 6 - EQUIPO SINTÉTICO A", f"6.1. {EQUIPO}"),
+         para("14. RENGLÓN N° 14 - EQUIPO SINTÉTICO B", f"14.1. {EQUIPO}")],
+    ]))
+    script.when(COTIZAR, item([("cotizará la totalidad de los renglones", "economico")]))
+    script.when("EQUIPO SINTÉTICO", item(technical=["6"]))
+    script.override(lambda blocks, number, answer: {
+        alias: (item(technical=[block["items"]]) if block["items"] else answer[alias])
+        for alias, block in blocks.items()})
+    return procedure
+
+
+def test_a_lost_pricing_change_marks_the_pricing_row_and_only_the_renglon_it_names(
+        operator_user, script):
+    """REQ-031, P3 (caso-03, D7, M-028): la circular rectifica lo del renglón 6 y pide cotizar
+    por servicio; el cambio no se resuelve. Quedan marcadas la fila del renglón 6 y la de la
+    cláusula de cotización (nombra los renglones y comparte "cotizar"), no el renglón 14 ni
+    ninguna otra fila, aunque un renglón anterior del encabezado nombre otros."""
+    procedure = pricing_case(operator_user, script)
+    load_and_read(operator_user, procedure, narrative_circular(
+        "SE MODIFICAN LOS RENGLONES 1 A 20 DE LA TABLA DE PRECIOS:",
+        "Se rectifica la circular anterior en lo que respecta al renglón 6, debiendo las "
+        "empresas participantes cotizar en este renglón los siguientes servicios y sus "
+        "repuestos, según el siguiente detalle:"),
+        kind="circular_modificatoria", title="Circular N.º 5", issued_on=date(2025, 12, 2))
+    script.x_when("rectifica la circular", [change(
+        "reemplaza", "renglon", "6", "",
+        "debiendo las empresas participantes cotizar en este renglón los siguientes "
+        "servicios y sus repuestos")])
+
     version, _ = run_proposal(operator_user, procedure)
 
-    assert list(flagged_numbers(operator_user, version)) == [
-        requirement_with(version, VISITA_QUOTE).number]
+    flagged = set(flagged_numbers(operator_user, version))
+    assert flagged == {row_of_item(version, 6).number,
+                       requirement_with(version, "cotizará la totalidad").number}
+
+
+def test_a_bare_change_under_a_long_renglon_heading_goes_only_to_that_renglon(
+        operator_user, script):
+    """REQ-031 (caso-03, D7, polea y cable): el encabezado nombra el renglón al final de una
+    línea larga ("MODIFICAR EL PLIEGO … EN EL RENGLÓN NRO 6:"); el tramo siguiente no nombra
+    ninguno y el texto es el mismo en el 6 y en el 14: solo el 6 recibe la fuente."""
+    procedure = items_case(operator_user, script)
+    load_and_read(operator_user, procedure, narrative_circular(
+        "MODIFICAR EL PLIEGO DE BASES Y CONDICIONES PARTICULARES EN EL RENGLÓN NRO 6:",
+        "Dentro del título Cable: el cable de seis milímetros modificar por el cable de ocho "
+        "milímetros."),
+        kind="circular_modificatoria", title="Circular N.º 3", issued_on=date(2025, 12, 2))
+    script.x_when("Dentro del título", [change("reemplaza", "ninguno", "",
+                                                "el cable de seis milímetros",
+                                                "el cable de ocho milímetros")])
+    script.c_when("Dentro del título", efectos=[("6.1. El equipo", "modifica",
+                                                 "el cable de ocho milímetros")])
+
+    version, _ = run_proposal(operator_user, procedure)
+
+    assert row_of_item(version, 6).sources.exists()
+    assert not row_of_item(version, 14).sources.exists()
+    # Lo aplica el código por clave, sin que el respaldo vea otros renglones.
+    assert not [r for r in script.requests if "Dentro del título" in r["tramo"]]

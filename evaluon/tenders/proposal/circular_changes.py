@@ -309,7 +309,8 @@ def resolve_change(ctx, change, anomalies=None):
                 "circular": f"{document.document.title} "
                             f"({document.document.issued_on.strftime('%d/%m/%Y')})",
                 "requirements": [] if reason else sorted(
-                    {t.number for c in pool for t in c.targets})})
+                    {t.number for c in pool for t in c.targets
+                     if circulars.word_stems(change.new_text) & circulars.word_stems(c.text)})})
         return [], [], ""
     if change.type == units.CHANGE_ADDS:
         if change.target != "clausula":
