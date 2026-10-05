@@ -403,3 +403,182 @@ def test_sources_with_a_different_effect_are_not_grouped(operator_user, case):
     assert shown.quotes[0].current.effect == "modifica" and shown.quotes[0].current.reach == 1
     assert [n.effect for n in shown.quotes[1].notes] == ["aclara"]
     assert not shown.quotes[1].covered
+
+
+# --- La cadena completa de circulares sobre una misma condición (T-126) ---------------------------
+
+FIRST_TEXT = "La bolsa tendrá treinta litros de capacidad."
+SECOND_TEXT = "La bolsa tendrá treinta y cinco litros de capacidad."
+THIRD_TEXT = "La bolsa tendrá cuarenta litros de capacidad."
+
+
+def chain_case(operator_user, case):
+    """Tres circulares inventadas sobre la misma cita del renglón 2, con fechas distintas;
+    se crean fuera de orden para comprobar que la pantalla ordena por fecha."""
+    row = technical_row(case["version"])
+    quote = row.quotes.order_by("order").first()
+    circulars = []
+    for number, (text, day) in enumerate(
+            [(THIRD_TEXT, date(2025, 12, 10)), (FIRST_TEXT, date(2025, 11, 20)),
+             (SECOND_TEXT, date(2025, 12, 1))], start=1):
+        circulars.append(load_and_read(
+            operator_user, case["procedure"],
+            tender_pdf([[para(f"CIRCULAR MODIFICATORIA N° {number + 1}"),
+                         para("1. Se modifica el renglón 2.", f"1.1. {text}")]]),
+            kind=m.DocumentKind.CIRCULAR_MODIFICATORIA, title=f"Circular {number + 1}",
+            issued_on=day))
+    for circular, text in zip(circulars, (THIRD_TEXT, FIRST_TEXT, SECOND_TEXT)):
+        add_source(row, quote, circular, text)
+    return row, quote
+
+
+def positions(page, texts):
+    return [page.index(f'<blockquote class="literal">{t}</blockquote>') for t in texts]
+
+
+def test_the_chain_of_three_circulars_is_shown_in_date_order(client, operator_user, case):
+    """REQ-031: tres circulares sobre la misma cita se muestran en orden de fecha: el
+    original del pliego, los dos textos intermedios con su fecha y al final el vigente."""
+    row, quote = chain_case(operator_user, case)
+    log_in(client, operator_user)
+
+    page = text_of(client.get(reverse("tenders:matrix", args=[case["version"].pk])))
+
+    order = positions(page, [quote.text, FIRST_TEXT, SECOND_TEXT, THIRD_TEXT])
+    assert order == sorted(order)
+    assert "Modifica (20/11/2025)" in page and "Modifica (01/12/2025)" in page
+    assert page.count("Texto vigente, según la circular del 10/12/2025") == 1
+    assert page.count("Texto vigente") == 1
+    assert page.index("Texto vigente") > order[2]
+
+
+def test_the_service_gives_the_earlier_changes_and_the_current_one(operator_user, case):
+    """REQ-031: en los datos de la página, la cita lleva las modificaciones anteriores por
+    fecha y la última como vigente."""
+    row, quote = chain_case(operator_user, case)
+
+    page = matrix_page.matrix_page(operator_user, case["version"].pk)
+
+    shown = next(r for r in page.technical if r.requirement == row).quotes[0]
+    assert [s.text for s in shown.earlier] == [FIRST_TEXT, SECOND_TEXT]
+    assert shown.current.text == THIRD_TEXT
+
+
+def test_the_print_view_and_the_pdf_show_the_whole_chain(client, operator_user, case):
+    """REQ-031, REQ-032: la impresión y el PDF llevan la cadena completa en orden, el texto
+    literal y la leyenda de borrador en cada página."""
+    row, quote = chain_case(operator_user, case)
+    log_in(client, operator_user)
+
+    page = text_of(client.get(reverse("tenders:print", args=[case["version"].pk])))
+
+    order = positions(page, [quote.text, FIRST_TEXT, SECOND_TEXT, THIRD_TEXT])
+    assert order == sorted(order) and LEGEND in page
+    data, _ = export.export_pdf(operator_user, case["version"].pk)
+    pages = pdf_pages(data)
+    everything = " ".join(pages)
+    assert all(LEGEND in text for text in pages)
+    found = [everything.index(squash(t)) for t in (FIRST_TEXT, SECOND_TEXT, THIRD_TEXT)]
+    assert found == sorted(found)
+
+
+def test_a_circular_that_annuls_another_is_shown_as_such(client, operator_user, case):
+    """REQ-031: una circular que suprime lo que cambió otra se muestra como "Suprime" con su
+    fecha, junto a la cadena, y no se confunde con un texto vigente."""
+    row, quote = chain_case(operator_user, case)
+    annulling = load_and_read(
+        operator_user, case["procedure"],
+        tender_pdf([[para("CIRCULAR MODIFICATORIA N° 5"),
+                     para("1. Se deja sin efecto.", "1.1. Queda sin efecto el cambio anterior.")]]),
+        kind=m.DocumentKind.CIRCULAR_MODIFICATORIA, title="Circular 5",
+        issued_on=date(2025, 12, 20))
+    add_source(row, quote, annulling, "Queda sin efecto el cambio anterior.",
+               effect="suprime")
+    log_in(client, operator_user)
+
+    page = text_of(client.get(reverse("tenders:matrix", args=[case["version"].pk])))
+
+    assert "Suprime (20/12/2025)" in page
+    assert '<blockquote class="literal">Queda sin efecto el cambio anterior.</blockquote>' in page
+    assert "Texto vigente" not in page
+
+
+def test_a_single_change_keeps_the_previous_layout(operator_user, case):
+    """REQ-031: con una sola circular no hay modificaciones anteriores."""
+    row = technical_row(case["version"])
+    add_source(row, row.quotes.order_by("order").first(), case["circular"], NEW_TEXT)
+
+    page = matrix_page.matrix_page(operator_user, case["version"].pk)
+
+    shown = next(r for r in page.technical if r.requirement == row).quotes[0]
+    assert shown.earlier == [] and shown.current.text == NEW_TEXT
+
+
+def test_the_chain_text_is_shown_literally(client, operator_user, case):
+    """REQ-031: el texto de cada paso de la cadena sale tal cual, sin interpretarse como
+    marcas."""
+    row, quote = chain_case(operator_user, case)
+    m.RequirementSource.objects.filter(text=FIRST_TEXT).update(text="<b>treinta</b> & litros")
+    log_in(client, operator_user)
+
+    raw = client.get(reverse("tenders:matrix", args=[case["version"].pk])).content.decode()
+
+    assert "&lt;b&gt;treinta&lt;/b&gt; &amp; litros" in raw
+    assert "<b>treinta</b>" not in raw
+
+
+def annul(operator_user, case, row, quote, day, title):
+    circular = load_and_read(
+        operator_user, case["procedure"],
+        tender_pdf([[para(f"CIRCULAR MODIFICATORIA {title}"),
+                     para("1. Se deja sin efecto.", "1.1. Queda sin efecto el renglón dos.")]]),
+        kind=m.DocumentKind.CIRCULAR_MODIFICATORIA, title=title, issued_on=day)
+    add_source(row, quote, circular, "Queda sin efecto el renglón dos.", effect="suprime")
+
+
+def test_a_last_suppression_leaves_no_current_text(client, operator_user, case):
+    """REQ-031: si el último eslabón es una supresión, ningún texto es vigente; la
+    supresión va en su lugar por fecha y al final dice "Sin efecto desde"; igual en
+    impresión y PDF."""
+    row, quote = chain_case(operator_user, case)
+    annul(operator_user, case, row, quote, date(2025, 12, 20), "Circular Cinco")
+    log_in(client, operator_user)
+
+    for name in ("matrix", "print"):
+        page = text_of(client.get(reverse(f"tenders:{name}", args=[case["version"].pk])))
+        assert "Texto vigente" not in page
+        order = positions(page, [quote.text, FIRST_TEXT, SECOND_TEXT, THIRD_TEXT,
+                                 "Queda sin efecto el renglón dos."])
+        assert order == sorted(order)
+        assert page.index("Sin efecto desde 20/12/2025, Circular Cinco") > order[-1]
+    data, _ = export.export_pdf(operator_user, case["version"].pk)
+    everything = " ".join(pdf_pages(data))
+    assert "Texto vigente" not in everything
+    assert "Sin efecto desde 20/12/2025, Circular Cinco" in everything
+
+
+def test_a_modification_after_a_suppression_is_current_again(client, operator_user, case):
+    """REQ-031: si una modificación sigue a una supresión, esa modificación vuelve a ser el
+    texto vigente y no hay "Sin efecto"."""
+    row, quote = chain_case(operator_user, case)
+    annul(operator_user, case, row, quote, date(2025, 12, 5), "Circular Cinco")
+    log_in(client, operator_user)
+
+    page = text_of(client.get(reverse("tenders:matrix", args=[case["version"].pk])))
+
+    assert "Sin efecto desde" not in page
+    assert page.count("Texto vigente") == 1
+    assert page.index("Texto vigente") > page.index("Suprime (05/12/2025)")
+    assert "Texto vigente, según la circular del 10/12/2025" in page
+
+
+def test_a_suppression_alone_closes_the_condition(operator_user, case):
+    """REQ-031: una supresión sin modificaciones previas deja la cita sin texto vigente."""
+    row = technical_row(case["version"])
+    quote = row.quotes.order_by("order").first()
+    annul(operator_user, case, row, quote, date(2025, 12, 20), "Circular Cinco")
+
+    page = matrix_page.matrix_page(operator_user, case["version"].pk)
+
+    shown = next(r for r in page.technical if r.requirement == row).quotes[0]
+    assert shown.current is None and shown.voided.issued_on == date(2025, 12, 20)
