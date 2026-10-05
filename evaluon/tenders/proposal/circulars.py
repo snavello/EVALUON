@@ -92,6 +92,15 @@ ANOMALY_NO_FIT = "circular_tramo_no_entra"
 # T-127: el respaldo contradijo el efecto de la extracción; un `suprime` sin frase explícita.
 ANOMALY_EFFECT_CONTRADICTED = "circular_efecto_contradice_extraccion"
 ANOMALY_SUPPRESSION_WITHOUT_PHRASE = "circular_supresion_sin_frase"
+# T-137 (P3): un cambio de circular que no se pudo aplicar con certeza no se pierde en silencio:
+# las filas que la circular nombra quedan "a revisión obligatoria".
+ANOMALY_REVIEW_REQUIRED = "circular_revision_obligatoria"
+ANOMALY_TITLE_NOT_CLARIFICATION = "circular_titulo_no_es_aclaracion"
+REVIEW_UNRESOLVED = "cambio_sin_resolver"
+REVIEW_INVALID = "salida_invalida"
+REVIEW_SERVICE = "servicio"
+REVIEW_RETRY_LOST = "reintento_pierde_cambios"
+REVIEW_NO_FIT = "unidad_no_entra"
 
 # Frases explícitas de supresión (T-127), sobre texto sin tildes ni mayúsculas: "se suprime(n)",
 # "se elimina(n)", "se deroga(n)", "suprímase", "elimínase", "derógase", "queda(n) / déjase
@@ -136,6 +145,11 @@ _QUOTED_TITLE = re.compile(r"[“\"]([^”\"\n]{6,80})[”\"]")
 # Encabezado de un apartado de una circular sin cláusulas ("II. SE FIJAN NUEVAS FECHAS").
 _HEADING = re.compile(r"^\s*[IVXLC]+(?:\.\s*-|\.|\s+-|\))\s+\S")
 HEADING_LOOKBACK = 60       # tramos hacia atrás en que se busca el encabezado
+ITEM_LOOKBACK = 12          # tramos hacia atrás en que se busca el encabezado de un renglón
+# Un tramo que abre con un renglón ("Renglón N° 6", "En el renglón nro 6, ...") es el encabezado
+# de lo que sigue hasta que otro renglón o un apartado nuevo lo reemplace (T-137).
+_ITEM_HEADING = re.compile(
+    r"^\W*(?:[\w.\-)°º]+\s+){0,4}?rengl[oó]n(?:es)?\b", re.IGNORECASE)
 CONTEXT_PREVIOUS = 2        # tramos anteriores que se muestran como contexto
 CONTEXT_CHARS = 400         # largo máximo de cada tramo de contexto
 RANK_SEGMENT_CHARS = 1200   # largo máximo de la cláusula que se le da al reranker
@@ -166,6 +180,26 @@ class CircularDocument:
     document: object
     reading: object
     units: list
+
+    def item_heading(self, unit):
+        """T-137: el renglón bajo el que está el tramo: `(línea, {números})` del tramo anterior
+        más cercano que abre con un renglón, sin cruzar el encabezado de un apartado nuevo;
+        `("", set())` si no hay. Un cambio sin renglón propio es de ese renglón y no de otro
+        con el mismo texto."""
+        if unit not in self.units:
+            return "", set()
+        index = self.units.index(unit)
+        for back in range(index - 1, max(index - 1 - ITEM_LOOKBACK, -1), -1):
+            first = self.units[back].segment.text.strip().split("\n")[0]
+            # Cualquier tramo corto que nombra un renglón ("MODIFICAR EL PLIEGO EN EL RENGLÓN
+            # NRO 6:", "Se rectifica … el renglón 6, …") es el encabezado de los que siguen.
+            if len(first) <= CONTEXT_CHARS:
+                items = named_in(first)[1]
+                if items:
+                    return first, items
+            if _HEADING.match(first):
+                break
+        return "", set()
 
     def context(self, unit):
         """Lo que precede a un tramo suelto de la circular: `(encabezado, anteriores)`. Una
@@ -350,6 +384,44 @@ def named_in(text):
     for match in _LEADING_CLAUSE.finditer(rest):
         clauses.add(match.group(1))
     return clauses, items
+
+
+# Raíces de palabras de uso común en un pliego: no dicen de qué habla un texto.
+_STEM_SKIP = frozenset(
+    "rengl sigui prese plieg ofere ofert deber contr servi docum garan prove adjud condi "
+    "parti empre bases lugar segun gener espec requi siste".split())
+SHARED_STEMS = 2    # raíces en común para decir que dos textos hablan de lo mismo
+
+
+def word_stems(text):
+    """Los primeros cinco caracteres de las palabras de seis letras o más, sin las de uso
+    común en un pliego: sirven para ver si dos textos hablan de lo mismo."""
+    return {w[:5] for w in re.findall(r"[a-z]{6,}", fold(text))} - _STEM_SKIP
+
+
+def shares_topic(first, second):
+    """Si dos textos tienen al menos `SHARED_STEMS` raíces de palabra en común, sin contar
+    las genéricas del pliego."""
+    return len(word_stems(first) & word_stems(second)) >= SHARED_STEMS
+
+
+def candidate_items(candidate):
+    """Los renglones a los que pertenece una cita del pliego."""
+    return {i for t in candidate.targets for i in t.items}
+
+
+def scope_items_of(document, unit, text):
+    """Los renglones de una unidad (`circular_units.ChangeUnit`): los que nombra su texto o,
+    si no nombra ninguno, los del encabezado que la precede (T-137)."""
+    own = named_in(text)[1]
+    if own:
+        return set(own)
+    if not hasattr(document, "item_heading"):
+        return set()
+    clauses = named_in(text)[0]
+    if clauses:
+        return set()
+    return set(document.item_heading(unit.members[0])[1])
 
 
 def named_annexes(text):
@@ -648,7 +720,7 @@ class Processor:
                       "wide_quotes": 0, "dropped_effects": 0, "units": 0, "units_applied": 0,
                       "units_data": 0, "units_fallback": 0,
                       "units_extracted": 0, "extraction_requests": 0, "changes_applied": 0,
-                      "changes_unstable": 0, "changes_unresolved": 0}
+                      "changes_unstable": 0, "changes_unresolved": 0, "review_marks": 0}
         self._batch = 0
 
     # -- Pedidos -----------------------------------------------------------------------------
@@ -672,7 +744,8 @@ class Processor:
                 - settings.PROMPT_TEMPLATE_MARGIN_TOKENS
                 - generation.count_tokens(self.prompt))
 
-    def _choose(self, circular, unit, candidates, anomalies, heading="", rendered=""):
+    def _choose(self, circular, unit, candidates, anomalies, heading="", rendered="",
+                scope_items=()):
         """Las candidatas del tramo: las que nombra (por cláusula o renglón), las que alude
         (por anexo o por el título entre comillas de un anexo) y las mejores del reranker.
         Devuelve `({alias: candidata}, qué se tuvo en cuenta)`. Si no entran todas en el
@@ -681,6 +754,14 @@ class Processor:
         clauses, items = named_in(segment.text)
         annexes = named_annexes(segment.text)
         haystack = fold(f"{segment.text} {rendered}")
+        scope = set(scope_items) if not clauses and not items else set()
+        if scope:
+            # T-137: el tramo está bajo el encabezado de un renglón y no nombra otro: es de ese
+            # renglón; las citas de otros renglones no se muestran (texto idéntico en dos
+            # renglones no se confunde).
+            items = items | scope
+            candidates = [c for c in candidates
+                          if not candidate_items(c) or candidate_items(c) & scope]
         named = [c for c in candidates if is_named(c, clauses, items)]
         referred = [c for c in candidates
                     if c not in named and is_referred(c, annexes, haystack)]
@@ -817,12 +898,16 @@ class Processor:
         anomalies = []
         heading, previous = circular.context(unit)
         rendered = render_context(heading, previous)
+        item_line, scope = circular.item_heading(unit)
+        if item_line:
+            line = f"Renglón del encabezado: {item_line}"
+            rendered = f"{rendered}\n{line}" if rendered else line
         if decided:
             line = ("La extracción de cambios ya leyó este tramo como: "
                     + ", ".join(decided) + ". El efecto no se contradice.")
             rendered = f"{rendered}\n{line}" if rendered else line
         aliases, context = self._choose(circular, unit, candidates, anomalies, heading,
-                                        rendered)
+                                        rendered, scope)
         self.anomalies.extend(anomalies)
         first = self._ask(circular, unit, aliases, context, rendered)
         if first.valid and not first.unfound:
@@ -856,23 +941,31 @@ class Processor:
             for change in units.partition(document.units):
                 resolution = units.resolve(change, document, candidates, pliego)
                 step = self._record_unit(change, resolution) if resolution.record else None
+                before, losses = len(sources), []
                 if resolution.outcome == units.OUTCOME_FALLBACK:
                     extracted = None
                     if extractor is not None and not self._is_rule_only(change):
                         extracted = extractor.run(document, change, candidates, pliego,
                                                   resolution)
+                        losses = self._extraction_losses(extractor, extracted, document,
+                                                         change, units)
                     if extracted is not None:
                         self._apply_extracted(document, change, extracted, candidates,
                                               issued_on, label, verdicts, sources,
                                               new_requirements)
-                        continue
-                    self.stats["units_fallback"] += 1
-                    for unit in change.members:
-                        self._fallback(document, unit, candidates, issued_on, label,
-                                       verdicts, sources, new_requirements)
-                    continue
-                self._apply_unit(change, resolution, step, issued_on, label, verdicts,
-                                 sources, new_requirements)
+                    else:
+                        if resolution.reason in units.UNRESOLVED_REASONS:
+                            # El cambio se reconoció pero no se aplicó por clave (T-137).
+                            whole = self._unit_names(document, change, units)
+                            losses.append((REVIEW_UNRESOLVED, whole, whole))
+                        self.stats["units_fallback"] += 1
+                        for unit in change.members:
+                            self._fallback(document, unit, candidates, issued_on, label,
+                                           verdicts, sources, new_requirements)
+                else:
+                    self._apply_unit(change, resolution, step, issued_on, label, verdicts,
+                                     sources, new_requirements)
+                self._review_losses(label, change, candidates, sources[before:], losses)
         # Un tramo puede llegar a la misma fuente por dos caminos (la extracción por clave y
         # el respaldo): una fuente igual no se guarda dos veces.
         seen = set()
@@ -903,6 +996,90 @@ class Processor:
         extraer."""
         return (change.kind == "suelto" and len(change.members) == 1
                 and self._rule(change.members[0].segment) is not None)
+
+    # -- Red de seguridad (T-137, P3) ---------------------------------------------------------
+
+    @staticmethod
+    def _named_candidates(text, candidates, scope=()):
+        """Las citas que el texto nombra: por cláusula, renglón o anexo, o por el título entre
+        comillas de un anexo; con `scope`, también las del renglón del encabezado. Un cambio
+        que nombra un renglón alcanza además las citas sin renglón que hablan de "los
+        renglones" y comparten dos raíces de palabra con él (la cláusula de cotización)."""
+        clauses, items = named_in(text)
+        items = items | set(scope)
+        annexes = named_annexes(text)
+        haystack = fold(text)
+        found = [c for c in candidates
+                 if is_named(c, clauses, items) or is_referred(c, annexes, haystack)]
+        if items:
+            found += [c for c in candidates
+                      if c not in found and not candidate_items(c)
+                      and all(t.category != RequirementClass.TECNICO.value for t in c.targets)
+                      and "renglon" in fold(c.text) and shares_topic(text, c.text)]
+        return found
+
+    @staticmethod
+    def _names_something(text):
+        clauses, items = named_in(text)
+        return bool(clauses or items or named_annexes(text))
+
+    @staticmethod
+    def _unit_names(document, change, units):
+        """El texto de la unidad con el encabezado del renglón que la precede, para saber qué
+        filas nombra."""
+        heading = document.item_heading(change.members[0])[0]
+        text = units.unit_text(change, document)
+        return f"{heading}\n{text}" if heading else text
+
+    def _extraction_losses(self, extractor, extracted, document, change, units):
+        """Lo que la extracción de una unidad no pudo aplicar con certeza, como
+        `[(motivo, texto que nombra lo afectado, texto de la unidad)]`: una salida inválida o
+        un servicio caído, un reintento que pudo perder cambios y cada cambio que quedó sin
+        resolver (sin objetivo, sin coincidencia, ambiguo, no estable o sin cita)."""
+        heading = document.item_heading(change.members[0])[0]
+        whole = self._unit_names(document, change, units)
+        losses = [(reason, whole, whole) for reason in extractor.loss]
+        for found in (extracted.changes if extracted is not None else []):
+            if not found.reason:
+                continue
+            word = {"renglon": "renglón", "clausula": "cláusula", "anexo": "anexo"}.get(
+                found.target, "")
+            names = " ".join(part for part in (
+                f"{word} {found.reference}" if word and found.reference else "",
+                found.old_text, found.new_text) if part)
+            if heading and not self._names_something(names):
+                names = f"{names}\n{heading}"   # sin renglón propio: el del encabezado
+            losses.append((REVIEW_UNRESOLVED, names, whole))
+        return losses
+
+    def _review_losses(self, label, change, candidates, produced, losses):
+        """Marca "a revisión obligatoria" las filas que la circular nombra y a las que la
+        unidad no dejó ninguna fuente, por cada pérdida posible (P3). Una fila con una fuente
+        de la unidad se da por atendida: un técnico tiene varias citas (el título del renglón,
+        sus cláusulas) y marcarlas por separado sería ruido."""
+        # Un cambio sin resolver se marca aunque la unidad haya aplicado otros sobre la misma
+        # fila (D1): solo lo atiende el respaldo, que lee el tramo (paso de `circulares`).
+        by_fallback = {t.number for source in produced
+                       if source.step is not None and source.step.pass_name == self.pass_name
+                       for t in source.candidate.targets}
+        for reason, names, whole in losses:
+            named = self._named_candidates(names, candidates)
+            if not named and not self._names_something(names):
+                named = self._named_candidates(whole, candidates)
+            # Una pérdida de toda la unidad no dice qué cambio se perdió: las filas que nombra
+            # se marcan aunque hayan recibido alguna fuente (P3, D1).
+            done = by_fallback if reason == REVIEW_UNRESOLVED else set()
+            self._mark_review(label, change.keys, reason,
+                              [c for c in named if not done & {t.number for t in c.targets}])
+
+    def _mark_review(self, label, keys, reason, marked):
+        """Deja la anomalía que la pantalla y la impresión muestran como "a revisión
+        obligatoria" en cada fila alcanzada, con la circular y su fecha."""
+        self.stats["review_marks"] += 1
+        self.anomalies.append({
+            "type": ANOMALY_REVIEW_REQUIRED, "review_required": True, "circular": label,
+            "reason": reason, "tramos": list(keys),
+            "requirements": sorted({t.number for c in marked for t in c.targets})})
 
     def _apply_extracted(self, document, change, extracted, candidates, issued_on, label,
                          verdicts, sources, new_requirements):
@@ -981,6 +1158,11 @@ class Processor:
             self.anomalies.append({"type": ANOMALY_NO_DISPOSITION,
                                    "segment": unit.segment.pk, "key": unit.segment.key,
                                    "detail": "sin disposición después del reintento"})
+            heading, scope = document.item_heading(unit)
+            names = f"{unit.segment.text}\n{heading}" if heading else unit.segment.text
+            self._mark_review(
+                label, [unit.segment.key], REVIEW_INVALID,
+                self._named_candidates(names, candidates, scope))
             return
         if outcome.shaped.discard:
             self.stats["no_effect"] += 1
@@ -1118,6 +1300,8 @@ class Processor:
     def _apply(self, unit, outcome, issued_on, label, sources, new_requirements, decided=()):
         """Pasa los efectos del tramo a las fuentes y a los requisitos nuevos, y deja el
         texto vigente de cada cita al día para las circulares que siguen."""
+        from evaluon.tenders.proposal import circular_units as units
+
         segment = unit.segment
 
         def place(span, fragment):
@@ -1134,6 +1318,15 @@ class Processor:
             start, end, text, wide = place(span, fragment)
             effect = self._guard_effect(unit, outcome, alias, effect, text, wide, decided,
                                        candidate, label)
+            if effect == SourceEffect.ACLARA.value and units.is_title_text(text):
+                # T-137: el título de una carátula no precisa ninguna condición.
+                self.anomalies.append({
+                    "type": ANOMALY_TITLE_NOT_CLARIFICATION, "segment": segment.pk,
+                    "key": segment.key, "alias": alias, "step": outcome.step.pk,
+                    "review_required": True, "circular": label,
+                    "requirements": [t.number for t in candidate.targets
+                                     if shares_topic(text, candidate.text)]})
+                continue
             sources.append(Source(effect, candidate, segment, start, end, text, issued_on,
                                   outcome.step, wide))
             self.stats["effects"] += 1

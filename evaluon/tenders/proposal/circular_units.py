@@ -71,6 +71,12 @@ FALLBACK_ZERO = "cero_citas"
 FALLBACK_SEVERAL_PAIRS = "varios_pares"
 FALLBACK_EXISTING_KEY = "clave_existente"
 
+# Motivos de respaldo en que la unidad dice un cambio y el código no lo pudo aplicar (T-137): si
+# el respaldo tampoco lo aplica, las filas que nombra quedan a revisión obligatoria.
+UNRESOLVED_REASONS = frozenset({
+    FALLBACK_MISSING_KEY, FALLBACK_AMBIGUOUS, FALLBACK_NO_OLD_TEXT, FALLBACK_AMBIGUOUS_OLD_TEXT,
+    FALLBACK_NO_NEW_TEXT, FALLBACK_ZERO, FALLBACK_SEVERAL_PAIRS})
+
 # Una lista de datos del trámite: líneas cortas y de la forma rótulo y valor, sin marcadores
 # de obligación. Se ajustan en T-120.
 SHORT_LINE_CHARS = 100
@@ -490,6 +496,9 @@ class _Ctx:
         self.unit, self.document = unit, document
         self.candidates, self.pliego = candidates, pliego
         self.text = unit_text(unit, document)
+        # T-137: los renglones del encabezado que precede a la unidad ("Renglón N° 6") y los
+        # que la unidad nombra; un cambio sin renglón propio es de ese renglón.
+        self.scope_items = circulars.scope_items_of(document, unit, self.text)
 
 
 def _single_group(found):
@@ -512,6 +521,18 @@ def _resolve_clauses(ctx, numbers):
 
 def _item_candidates(candidates, items):
     return [c for c in candidates if _tech_items(c) and _tech_items(c) <= set(items)]
+
+
+def restrict_to_scope(ctx, pool):
+    """T-137: si la unidad está bajo un renglón (por su encabezado o porque lo nombra), solo
+    las citas de ese renglón y las que no son de ningún renglón; dos renglones con texto
+    idéntico no se confunden. Si no queda ninguna, el `pool` entero."""
+    scope = ctx.scope_items
+    if not scope:
+        return pool
+    restricted = [c for c in pool
+                  if not circulars.candidate_items(c) or circulars.candidate_items(c) & scope]
+    return restricted if any(circulars.candidate_items(c) & scope for c in restricted) else pool
 
 
 def _new_text_span(ctx, after):
@@ -546,7 +567,7 @@ def _resolve_pair(ctx, pair):
             return res.fallback(reason)
     else:
         pool = (_item_candidates(ctx.candidates, items) if items
-                else [c for c in ctx.candidates if not _is_shared(c)])
+                else restrict_to_scope(ctx, [c for c in ctx.candidates if not _is_shared(c)]))
         res.target = {"tipo": "texto_anterior", "referencia": sorted(items)}
         found, reason = match_old_text(pair.old, pool)
         if reason:
@@ -865,6 +886,68 @@ def _find_original(ctx, title, mentioning):
     return Original(body[0], min(s.char_start for s in body), max(s.char_end for s in body))
 
 
+# T-137: el tema de una lista de datos que el pliego fija en una cláusula: la visita. Las fechas
+# de apertura o de presentación siguen siendo datos del trámite.
+_DATA_TOPIC = frozenset({"visita", "visitas"})
+
+
+def _data_topic_words(text):
+    """El tema de una lista de datos según la primera línea de la unidad: la visita."""
+    first = text.strip().split("\n")[0]
+    return _DATA_TOPIC & set(_words(first))
+
+
+def data_clause_candidates(ctx):
+    """T-137: una fecha, hora y lugar que el pliego fija en una cláusula (la visita) no son
+    dato del trámite: precisan una condición. Las citas (no técnicas) del pliego cuya cláusula
+    habla del tema de la lista; `([], False)` si ninguna; `(citas, True)` si son de más de una
+    cláusula (ambiguo: lo decide el respaldo)."""
+    topic = _data_topic_words(ctx.unit.members[0].segment.text or "")
+    if not topic:
+        return [], False
+    found = [c for c in ctx.candidates
+             if all(t.category != RequirementClass.TECNICO.value for t in c.targets)
+             and topic & set(_words(c.segment.text or ""))]
+    if not found:
+        return [], False
+    if not _single_group(found) or len({_clause_root(c.segment.key) for c in found}) > 1:
+        return found, True
+    return found, False
+
+
+def data_clause_span(ctx):
+    """Posiciones de la lista (sin su encabezado) dentro de la lectura de la circular."""
+    members = _body_members(ctx.unit) or ctx.unit.members
+    return members[0].segment.char_start, members[-1].segment.char_end
+
+
+def is_title_text(text):
+    """Si el texto es un título de carátula ("CONTRATACIÓN DIRECTA N° 9/26 - …"): una línea sin
+    punto final, en mayúsculas o que empieza con el nombre de un procedimiento y su número.
+    Un título no precisa ningún requisito (T-137)."""
+    stripped = (text or "").strip()
+    line = " ".join(stripped.split())
+    if not line or "\n" in stripped or len(line) > 200 or line.endswith((".", ":", ";")):
+        return False
+    if _ROMAN_HEADING.match(line) or has_circular_obligation(line) or _EXIGENCE.search(
+            fold(line)):
+        return False
+    letters = [c for c in line if c.isalpha()]
+    if len(letters) >= 6 and sum(c.isupper() for c in letters) / len(letters) >= 0.7:
+        return True
+    return bool(_PROCESS_TITLE.match(fold(line)))
+
+
+# Verbos de exigencia: un texto que los tiene dice qué se pide, no es un título.
+_EXIGENCE = re.compile(
+    r"\b(?:exige\w*|requiere\w*|sera\w*|presentar\w*|aportar\w*|acompan\w*"
+    r"|cumpl\w*|constitu\w*|incluir\w*|solicit\w*)\b")
+
+_PROCESS_TITLE = re.compile(
+    r"^(?:licitacion|contratacion|compulsa|concurso|subasta|procedimiento|expediente|proceso)\b"
+    r".{0,150}\d")
+
+
 def _resolve_data(ctx):
     """Una lista de datos: ningún requisito. Si la lista lleva el título de un anexo que
     alguna cita del pliego menciona, reemplaza ese anexo: una fuente `modifica` por cada
@@ -874,6 +957,17 @@ def _resolve_data(ctx):
     head = fold(" ".join(m.segment.text for m in ctx.unit.members[:HEAD_LINES]))
     titles = {t for c in ctx.candidates for t in _titles_in(c.text) if t in head}
     if len(titles) != 1 or not body:
+        # T-137: si el pliego tiene la cláusula que fija esos datos (la visita), la lista la
+        # precisa: una fuente `modifica` por cada cita; con varias cláusulas, el respaldo.
+        found, ambiguous = data_clause_candidates(ctx)
+        if ambiguous:
+            return res.fallback(FALLBACK_AMBIGUOUS)
+        start, end = data_clause_span(ctx)
+        res.target = {"tipo": "clausula", "referencia": sorted(_data_topic_words(
+            ctx.unit.members[0].segment.text or ""))}
+        for candidate in found:
+            res.effects.append(_effect(ctx.unit, ctx.document, candidate,
+                                       SourceEffect.MODIFICA.value, start, end))
         return res
     title = next(iter(titles))
     mentioning = [c for c in ctx.candidates if title in _titles_in(c.text)]

@@ -1012,6 +1012,21 @@ def _source_points(item, block, source):
     )
 
 
+def best_source_points(item, block, sources):
+    """Los puntos de la mejor fuente de una fila para el bloque (T-137). Gana la de más
+    puntos; en empate, la que es del documento y la fecha esperados (punto 4) y, después, la
+    de los primeros puntos; si siguen iguales, la de menor id: el resultado no depende del
+    orden en que la base devuelve las fuentes."""
+    best = (False,) * 4
+    best_key = (0, False, best)
+    for source in sorted(sources, key=lambda s: s.pk or 0):
+        candidate = _source_points(item, block, source)
+        key = (sum(candidate), candidate[3], candidate)
+        if key > best_key:
+            best, best_key = candidate, key
+    return best
+
+
 def _added_points(item, block, rows, claimed):
     """`agrega`: la fila de origen `circular` con una cita en el documento esperado que
     contiene el ancla de la lista. Devuelve `(fila, puntos)`."""
@@ -1067,11 +1082,7 @@ def measure_circulars(version, expected, verification, matched_pk):
             row, flags = _added_points(item, block, rows, claimed)
         else:
             row = by_pk.get(matched_pk.get(item.id))
-            flags = (False,) * 4
-            for source in (row.sources.all() if row else []):
-                candidate = _source_points(item, block, source)
-                if sum(candidate) > sum(flags):
-                    flags = candidate
+            flags = best_source_points(item, block, row.sources.all() if row else [])
         if row is not None:
             claimed.add(row.pk)
         for name, flag in zip(POINTS, flags):
