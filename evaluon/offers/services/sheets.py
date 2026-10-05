@@ -223,6 +223,8 @@ def _parameters():
         "candidates_embeddings": settings.OFFERS_CANDIDATES_EMBEDDINGS,
         "candidates_words": settings.OFFERS_CANDIDATES_WORDS,
         "candidates_to_model": settings.OFFERS_CANDIDATES_TO_MODEL,
+        "item_candidates_to_model": settings.OFFERS_ITEM_CANDIDATES_TO_MODEL,
+        "min_rerank_score": settings.OFFERS_MIN_RERANK_SCORE,
         "item_neighbor_seeds": settings.OFFERS_ITEM_NEIGHBOR_SEEDS,
         "item_neighbors": settings.OFFERS_ITEM_NEIGHBORS,
         "max_output_tokens": settings.OFFERS_MAX_OUTPUT_TOKENS,
@@ -295,7 +297,8 @@ def build_schema(aliases, item_row):
     }
     required = ["pasajes", "sintesis"]
     if item_row:
-        properties = {"cotizado": {"type": "string", "enum": ["si", "no"]}, **properties}
+        properties = {"cotizado": {"type": "string", "enum": ["si", "sin_precio", "no"]},
+                      **properties}
         required = ["cotizado", *required]
     return {"type": "object", "properties": properties, "required": required,
             "additionalProperties": False}
@@ -330,7 +333,7 @@ def parse_answer(content, aliases, item_row):
     quoted = None
     if item_row:
         quoted = data["cotizado"]
-        if quoted not in ("si", "no"):
+        if quoted not in ("si", "sin_precio", "no"):
             raise InvalidAnswer("cotizado no es si ni no")
     unique = list(dict.fromkeys(chosen))
     return unique, synthesis.strip(), quoted
@@ -408,6 +411,8 @@ def _answer_entry(offer, requirement, unread, clock):
         entry.steps.append(StepData(
             candidates={"pool": pool_json, "sent": sent, "query": found.query},
             timings={"retrieval_seconds": round(retrieval_seconds, 3)}))
+        if item_row:
+            entry.quoted = item_state("sin_precio", [], unread)
         return entry
 
     aliased = [(f"P{i}", passages[c.passage_id].reading.document.title,
@@ -465,23 +470,34 @@ def _answer_entry(offer, requirement, unread, clock):
         return entry
     chosen, synthesis, quoted = answer
     entry.passages = [alias_to_passage[a] for a in chosen]
-    if item_row and quoted == "si" and entry.passages and _only_technical(entry.passages):
-        # Una hoja técnica o las especificaciones solas no son la cotización: el renglón no
-        # figura cotizado y la fila no muestra esos pasajes (T-135).
-        quoted, entry.passages = "no", []
     if entry.passages:
         entry.outcome = EntryOutcome.ENCONTRADO
         entry.synthesis = synthesis or neutral_synthesis(entry.passages)
     if item_row:
-        if quoted == "si" and entry.passages:
-            entry.quoted = Quoted.COTIZADO
-        elif unread:
-            # No se puede afirmar que no se cotizó lo que quizás está en una página que no
-            # se pudo leer (REQ-044).
-            entry.quoted = Quoted.NO_SE_PUDO_LEER
-        else:
-            entry.quoted = Quoted.NO_COTIZADO
+        entry.quoted = item_state(quoted, entry.passages, unread)
     return entry
+
+
+def item_state(quoted, passages, unread):
+    """El estado de cotización de una fila por renglón (REQ-044), separado de los pasajes que
+    la fila muestra (T-136). `quoted` es lo que contestó el modelo (`si`, `sin_precio` o
+    `no`), `passages` los pasajes de la fila y `unread` las páginas sin leer de la oferta.
+
+    - "cotizado": solo si algún pasaje trae el precio o la cantidad ofrecida. Una hoja técnica
+      o las especificaciones solas no alcanzan, aunque el modelo diga `si`: la fila las sigue
+      mostrando, pero el renglón queda sin cotización a la vista.
+    - "no cotizado": la oferta dice expresamente que no lo cotiza, o su tabla de precios no lo
+      trae (el modelo contestó `no`). Sin pasajes y con páginas sin leer, "no se pudo leer".
+    - sin cotización a la vista (`Quoted` en blanco): hay pasajes que describen lo ofrecido, o
+      ninguno, pero ni precio ni cantidad ni una negativa expresa. Con páginas sin leer y sin
+      pasajes, "no se pudo leer": no se afirma lo que quizás está en una página ilegible."""
+    if quoted == "si" and passages and not _only_technical(passages):
+        return Quoted.COTIZADO
+    if quoted == "no":
+        return Quoted.NO_SE_PUDO_LEER if unread and not passages else Quoted.NO_COTIZADO
+    if unread and not passages:
+        return Quoted.NO_SE_PUDO_LEER
+    return ""
 
 
 def _unread_pages(readings):
@@ -505,6 +521,8 @@ def _counts(entries, steps_count):
               "fragments": sum(len(e.passages) for e in entries)}
     for kind in Quoted:
         counts[kind.value] = sum(1 for e in entries if e.quoted == kind)
+    counts["sin_cotizacion_a_la_vista"] = sum(
+        1 for e in entries if is_item_row(e.requirement) and e.quoted == "")
     return counts
 
 

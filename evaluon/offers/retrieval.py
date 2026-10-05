@@ -13,7 +13,9 @@ ADR-0007).
 2. Unión sin repetir pasajes, en el orden de los caminos; cada candidato anota por qué
    camino entró.
 3. El reranker puntúa cada candidato contra la consulta en un solo pedido; pasan los
-   `OFFERS_CANDIDATES_TO_MODEL` mejores, de mayor a menor puntaje (empate: orden de la unión).
+   `OFFERS_CANDIDATES_TO_MODEL` mejores (`OFFERS_ITEM_CANDIDATES_TO_MODEL` en una fila por
+   renglón), de mayor a menor puntaje (empate: orden de la unión). Fuera de las filas por
+   renglón solo pasan los de puntaje de al menos `OFFERS_MIN_RERANK_SCORE` (T-136).
    Antes del reranker se agrupan los pasajes de texto idéntico (sin distinguir mayúsculas ni
    espacios): solo el primero de cada grupo se puntúa y puede pasar; los demás quedan en el
    `pool` con `copy_of` y sin puntaje, para no ocupar candidatos (T-135).
@@ -204,7 +206,11 @@ def retrieve(offer, query, neighbors=False):
         for candidate, score in zip(candidates, scores, strict=True):
             candidate.score = round(float(score), 6)
     order = sorted(range(len(candidates)), key=lambda i: (-candidates[i].score, i))
-    chosen = [candidates[i] for i in order[:settings.OFFERS_CANDIDATES_TO_MODEL]]
+    if neighbors:
+        chosen = [candidates[i] for i in order[:settings.OFFERS_ITEM_CANDIDATES_TO_MODEL]]
+    else:
+        chosen = [candidates[i] for i in order[:settings.OFFERS_CANDIDATES_TO_MODEL]
+                  if candidates[i].score >= settings.OFFERS_MIN_RERANK_SCORE]
     if neighbors and chosen:
         chosen = _add_neighbors(candidates, chosen)
     return Retrieval(query=query, pool=candidates + copies, chosen=chosen)
