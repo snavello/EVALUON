@@ -53,7 +53,7 @@ flowchart LR
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
 | 007 · Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | No iniciada | — | — |
-| [008 · Ofertas y ficha por oferta](#008) | La carga de cada oferta en varios documentos (PDF con texto o escaneado) y una ficha por oferta: síntesis de lo ofrecido frente a cada requisito de la matriz, con los documentos y fragmentos que lo respaldan | 4 de 7 · Desarrollo | 5/7 | ███████░░░ 71% |
+| [008 · Ofertas y ficha por oferta](#008) | La carga de cada oferta en varios documentos (PDF con texto o escaneado) y una ficha por oferta: síntesis de lo ofrecido frente a cada requisito de la matriz, con los documentos y fragmentos que lo respaldan | 4 de 7 · Desarrollo | 6/8 | ████████░░ 75% |
 | 009 · Validación continua con la Comisión | Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus respuestas. Cada cuestión resuelta puede quedar como fundamento (ADR-0009), como caso para medir al sistema o como pedido de cargar una norma o un documento. Lo que queda sin validar se ve como pendiente. Uso intensivo al principio, y después ante cuestiones que no se saben resolver | No iniciada | — | — |
 | 010 · Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | No iniciada | — | — |
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
@@ -662,7 +662,7 @@ flowchart LR
 
 - **Próximo paso:** Desarrollar: 2 tareas sin terminar.
 - ○ T-135 · Corregir los hallazgos de T-134 y medir de nuevo (ronda 1) (pendiente)
-- ○ T-136 · Solo si T-135 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) (pendiente)
+- ○ T-146 · Búsqueda de la ficha con el requisito reescrito como lo diría una oferta (pendiente)
 
 ### Qué se hizo
 
@@ -672,6 +672,7 @@ flowchart LR
 - ✓ T-132 · Corregir la ficha: confirmar, corregir, quitar y agregar fragmentos, historial y aviso de versión de la matriz (`d0bac35` 2026-10-05)
 - ✓ T-133 · Preparar el caso-00 para medir: lista esperada de fichas de las tres ofertas y matriz validada (Coordinador)
 - ✓ T-134 · Medir la ficha con las tres ofertas del caso-00 (medición base)
+- ✓ T-136 · Solo si T-135 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) (`eeae37f` 2026-10-05, `d514129` 2026-10-05, `8477cd8` 2026-10-05, `c6d8d9d` 2026-10-05)
 
 ### Mapa de tareas
 
@@ -683,13 +684,15 @@ flowchart TD
   T133["✓ T-133 · Preparar el caso-00 para medir: lista esper…"]:::done
   T134["✓ T-134 · Medir la ficha con las tres ofertas del cas…"]:::done
   T135["○ T-135 · Corregir los hallazgos de T-134 y medir de…"]:::todo
-  T136["○ T-136 · Solo si T-135 no llegó al umbral: corregir…"]:::todo
+  T136["✓ T-136 · Solo si T-135 no llegó al umbral: corregir…"]:::done
+  T146["○ T-146 · Búsqueda de la ficha con el requisito reesc…"]:::todo
   T130 --> T131
   T130 --> T132
   T131 --> T134
   T133 --> T134
   T134 --> T135
   T135 --> T136
+  T136 --> T146
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -703,8 +706,8 @@ flowchart TD
 |---|---|---|---|
 | REQ-037 | El sistema debe permitir registrar las ofertas de un procedimiento, cada una con su oferente, y cargar en cada una varios documentos. | T-130, T-131 | ✓ cubierto |
 | REQ-038 | El sistema debe leer los documentos con texto y los escaneados o fotografiados, e informar qué páginas no pudo leer o leyó con baja confianza. | T-130, T-131, T-134, T-135, T-136 | ▶ en proceso |
-| REQ-039 | Para cada oferta y cada requisito de la matriz validada, el sistema debe proponer los fragmentos de la oferta que responden al requisito, cada uno con el documento, la página y el texto literal. | T-130, T-133, T-134, T-135, T-136 | ▶ en proceso |
-| REQ-040 | Cuando no encuentra ningún fragmento para un requisito, el sistema debe decirlo expresamente en la ficha ("no se encontró en la oferta"), sin dejar el requisito vacío ni suponer. | T-130, T-133, T-134, T-135, T-136 | ▶ en proceso |
+| REQ-039 | Para cada oferta y cada requisito de la matriz validada, el sistema debe proponer los fragmentos de la oferta que responden al requisito, cada uno con el documento, la página y el texto literal. | T-130, T-133, T-134, T-135, T-136, T-146 | ▶ en proceso |
+| REQ-040 | Cuando no encuentra ningún fragmento para un requisito, el sistema debe decirlo expresamente en la ficha ("no se encontró en la oferta"), sin dejar el requisito vacío ni suponer. | T-130, T-133, T-134, T-135, T-136, T-146 | ▶ en proceso |
 | REQ-041 | La ficha debe mostrar una síntesis breve de lo ofrecido para cada requisito, sin juicio de cumplimiento. | T-130, T-134, T-135, T-136 | ▶ en proceso |
 | REQ-042 | La Comisión debe poder confirmar, corregir, quitar o agregar fragmentos de la ficha. Cada cambio queda registrado con quién y cuándo (P6). | T-132 | ✓ cubierto |
 | REQ-043 | La ficha se arma solo contra una matriz validada. Si la matriz cambia de versión, la ficha indica con qué versión se armó. | T-130, T-132 | ✓ cubierto |
