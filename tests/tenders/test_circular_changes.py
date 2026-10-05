@@ -618,3 +618,34 @@ def test_a_suppression_by_key_without_a_phrase_shows_in_the_matrix_and_the_print
     assert "Circular N.º 4" in note["circular"] and "01/12/2025" in note["circular"]
     html, _ = matrix_export.render_html(operator_user, version.pk, pdf=False)
     assert html.count("A revisión obligatoria") == 1
+
+
+# --- Una aclaración de renglón alcanza las citas del renglón (T-129) ----------------------------------
+
+
+def test_a_clarification_of_an_item_without_old_text_reaches_its_citations(
+        operator_user, case, script):
+    """REQ-031 (T-129): una aclaración del renglón 1, sin texto anterior, da una fuente
+    `aclara` a la cita del renglón 1; el renglón 2 no cambia y no se usa el respaldo."""
+    add_circular(operator_user, case, "Circular N.º 4", date(2025, 12, 1),
+                 f"1. {CLARIFICATION}, respecto del renglón 1.")
+    script.x_when("portal", [change("aclara", "renglon", "1", "", CLARIFICATION)])
+
+    version, run = run_proposal(operator_user, case)
+
+    sources = list(row_of_item(version, 1).sources.all())
+    assert sources and all(s.effect == "aclara" and s.text == CLARIFICATION for s in sources)
+    assert not row_of_item(version, 2).sources.exists()
+    assert not fallback_asked(script, "portal")
+
+
+def test_a_clarification_of_an_item_the_tender_lacks_gives_no_source(
+        operator_user, case, script):
+    """REQ-031 (T-129): una aclaración de un renglón que el pliego no tiene no da fuentes."""
+    add_circular(operator_user, case, "Circular N.º 4", date(2025, 12, 1),
+                 f"1. {CLARIFICATION}, respecto del renglón 99.")
+    script.x_when("portal", [change("aclara", "renglon", "99", "", CLARIFICATION)])
+
+    version, run = run_proposal(operator_user, case)
+
+    assert not sources_of(version)

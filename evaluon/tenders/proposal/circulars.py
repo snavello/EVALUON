@@ -96,10 +96,18 @@ ANOMALY_SUPPRESSION_WITHOUT_PHRASE = "circular_supresion_sin_frase"
 # Frases explícitas de supresión (T-127), sobre texto sin tildes ni mayúsculas: "se suprime(n)",
 # "se elimina(n)", "se deroga(n)", "suprímase", "elimínase", "derógase", "queda(n) / déjase
 # sin efecto", "no será exigible", "queda(n) derogado".
+# T-129: también el infinitivo ("se dispone suprimir…") y el sustantivo con objeto de pliego
+# ("la eliminación de la subcláusula…"); sin objeto de pliego ("eliminación de residuos") no
+# cuenta.
+_SUPPRESSION_OBJECT = (r"(?:sub)?(?:clausulas?|articulos?|puntos?|apartados?|numerales?|incisos?"
+                       r"|renglon(?:es)?|anexos?|requisitos?|exigencias?|parrafos?|items?)")
 _SUPPRESSION_PHRASE = re.compile(
     r"\b(?:se\s+(?:suprim\w+|elimin\w+|derog\w+)|suprimase|eliminase|derogase"
     r"|(?:queda\w*|dejase|dejan?|deja)\s+sin\s+efecto"
-    r"|no\s+(?:sera|seran)\s+exigibles?|queda\w*\s+derogad\w+)\b")
+    r"|no\s+(?:sera|seran)\s+exigibles?|queda\w*\s+derogad\w+"
+    r"|(?:dispone|resuelve|decide|ordena)\s+(?:suprimir|eliminar|derogar)"
+    r"|(?:eliminacion|supresion|derogacion)\s+(?:total\s+|parcial\s+)?(?:de|del)\s+"
+    rf"(?:(?:la|el|las|los|dicha|dicho)\s+)?{_SUPPRESSION_OBJECT})\b")
 
 _CLASS_LABELS = {"formal": "formal", "economico": "económico"}
 

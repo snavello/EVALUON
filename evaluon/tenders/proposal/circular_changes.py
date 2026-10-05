@@ -258,7 +258,9 @@ def _pool_for(ctx, change):
             return [], units.FALLBACK_MISSING_KEY
         if change.old_text:
             return units.match_old_text(units._without_names(change.old_text), pool)
-        if change.type == units.CHANGE_SUPPRESSES:
+        # T-129: una aclaración de renglón sin texto anterior alcanza las citas del renglón,
+        # con el mismo criterio que la cláusula y el anexo (T-128).
+        if change.type in (units.CHANGE_SUPPRESSES, units.CHANGE_CLARIFIES):
             return pool, ""
         return [], units.FALLBACK_NO_OLD_TEXT
     if kind == "anexo":
