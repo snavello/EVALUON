@@ -330,7 +330,10 @@ def _begin(run, with_circulars=False):
     run.process = settings.MATRIX_PROCESS
     names = (["extraccion", "completitud"]
              + (["filtro"] if settings.FILTER_ENABLED else [])
-             + (["circulares"] if with_circulars else []) + ["consecuencias"])
+             + (["circulares"] if with_circulars else [])
+             + (["circulares_cambios"]
+                if with_circulars and settings.CIRCULAR_EXTRACTION_ENABLED else [])
+             + ["consecuencias"])
     run.prompt_versions = {name: settings.MATRIX_PROMPT_VERSIONS[name] for name in names}
     run.save(update_fields=["process", "authorization_date", "corpus_version", "regime",
                             "models",
