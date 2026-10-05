@@ -1866,3 +1866,99 @@ def test_the_rows_share_one_reading_instead_of_loading_one_per_quote(
         assert row.reading is row.quotes[0].segment.reading
     reading_queries = [q for q in queries.captured_queries if 'FROM "tenders_reading"' in q["sql"]]
     assert len(reading_queries) <= 2
+
+
+# --- Correcciones de la medición (T-123) --------------------------------------------------------
+
+
+def test_technical_row_quote_in_another_reading_does_not_match_an_expected(
+        case, operator_user, tmp_path, monkeypatch):
+    """REQ-024: una cita de una fila técnica en otra lectura (un anexo) cuyas posiciones
+    contienen numéricamente las del ancla del pliego no empareja al esperado: la cita tiene
+    que ser de la misma lectura que el esperado."""
+    from tests.tenders.pdfs import para, tender_pdf
+
+    procedure, _, path, _ = case
+    annex = load_and_read(
+        operator_user, procedure,
+        tender_pdf([[para("ANEXO SINTÉTICO", "1. Los planos se entregan en papel.")]],
+                   header=None),
+        kind=m.DocumentKind.ANEXO, title="Anexo sintético")
+    segment = annex.readings.get().segments.order_by("order").first()
+    # Una cita del anexo que abarca todo el rango numérico del pliego.
+    foreign = m.RequirementQuote(order=9, segment=segment, char_start=0, char_end=10**6,
+                                 text="x", scope=m.QuoteScope.PROPIA)
+    original = ev._proposed
+
+    def rows_without_the_guarantee(version):
+        rows = [r for r in original(version)
+                if "garantía" not in " ".join(q.text for q in r.quotes)]
+        technical = next(r for r in rows if r.category == ev.TECHNICAL)
+        technical.quotes.append(foreign)
+        return rows
+
+    monkeypatch.setattr(ev, "_proposed", rows_without_the_guarantee)
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    line = by_id(report)["S-001"]
+    assert line["estado"] == "faltante"
+    assert "clase_propuesta" not in line
+
+
+def _suppress(c, phrase):
+    """Deja la fila de `phrase` quitada por una circular, con una fuente `suprime`."""
+    row = c.row_with(phrase)
+    c.add_source(row, effect="suprime")
+    m.Requirement.objects.filter(pk=row.pk).update(state=m.RequirementState.QUITADO)
+    return row
+
+
+def _line(measures, item_id):
+    return next(r for r in measures["lines"] if r.get("id") == item_id and r["tipo"] == "esperado")
+
+
+def test_row_suppressed_by_a_circular_matches_an_expected_with_a_suprime_block(circular_case):
+    """REQ-031: un esperado con bloque `circulares` de efecto `suprime` empareja con la fila
+    quitada por la circular y cuenta como encontrado; la fila no es sobrante."""
+    c = circular_case
+    c.write_list(efecto="suprime", vigente=None)
+    row = _suppress(c, "garantía del 5 %")
+
+    _, _, measures = c.measure()
+
+    line = _line(measures, "S-001")
+    assert line["estado"] == "encontrado" and line["detalle"] == "suprimido por circular"
+    assert measures["suppressed"]["ids"] == ["S-001"]
+    assert not measures["causes"].get(ev.SUPPRESSED)
+    assert not [r for r in measures["lines"]
+                if r["tipo"] == "propuesto" and r.get("numero") == row.number]
+    info = measures["circulars"]
+    assert info["met"]["ok"] == info["met"]["total"] == 1
+
+
+def test_expected_without_suprime_block_with_only_a_suppressed_match_has_its_cause(
+        circular_case):
+    """REQ-031: un esperado sin bloque `suprime` cuya única pareja es una fila quitada por una
+    circular es un faltante con causa `suprimido_por_circular`."""
+    c = circular_case
+    c.write_list()  # el bloque de S-001 es `modifica`
+    _suppress(c, "garantía del 5 %")
+
+    _, _, measures = c.measure()
+
+    line = _line(measures, "S-001")
+    assert line["estado"] == "faltante" and line["causa"] == ev.SUPPRESSED
+    assert measures["causes"][ev.SUPPRESSED] == 1
+
+
+def test_suppressed_row_is_matched_one_to_one(circular_case):
+    """REQ-031: la regla uno a uno vale también para las filas quitadas: una fila suprimida no
+    es pareja de dos esperados."""
+    c = circular_case
+    c.write_list(efecto="suprime", vigente=None)
+    _suppress(c, "garantía del 5 %")
+    _, check, _ = c.measure()
+    located = [check.located["S-001"], check.located["S-001"]]
+
+    assert len(ev._pairs(located, ev._suppressed(c.version))) == 1
