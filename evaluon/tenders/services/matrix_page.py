@@ -167,6 +167,7 @@ class QuoteRow:
     scope: str
     scope_label: str
     current: SourceRow | None = None  # la fuente que modifica el texto, si hay
+    earlier: list = field(default_factory=list)  # modificaciones previas a la vigente, por fecha
     notes: list = field(default_factory=list)  # aclaraciones y supresiones
     quote_id: int | None = None
     segment_id: int | None = None
@@ -336,6 +337,7 @@ def quote_rows(requirement, pages):
             scope=quote.scope,
             scope_label=quote.get_scope_display() if quote.scope else "",
             current=modifying[-1] if modifying else None,
+            earlier=modifying[:-1],
             notes=[s for s in mine if s.effect != SourceEffect.MODIFICA],
             covered=quote.pk in covered and not mine,
         ))

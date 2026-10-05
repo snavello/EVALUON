@@ -137,7 +137,8 @@
     {% if row.requirement.origin == "devuelto" %}<p class="no-suggestions">Sin sugerencias de consecuencia: la fila se devolvió de las descartadas y el evaluador elige el tipo.</p>{% endif %}
     {% if page.can_confirm and row.requirement.state == "propuesto" %}<label class="confirm-box"><input type="checkbox" name="requirement" value="{{ row.requirement.pk }}" form="confirm-form"> Confirmar</label>{% endif %}
     {% for quote in row.quotes %}
-    {% if quote.current %}
+    {% if quote.earlier %}<p class="original-label">Texto original del pliego:</p>
+    {% elif quote.current %}
     {% include "tenders/_change.html" with change=quote.current current=True print=False %}
     {% if not quote.current.original %}<p class="original-label">Texto original del pliego:</p>{% else %}<p class="original-label">Cita del requisito:</p>{% endif %}
     {% endif %}
@@ -145,6 +146,12 @@
     <blockquote class="literal">{{ quote.text }}</blockquote>
     <p class="quote-place">{% include "tenders/_place.html" with place=quote.place %}{% if quote.wide %} <span class="wide-mark">Cita amplia, revisar</span>{% endif %}</p>
     {% if quote.covered %}<p class="repeated-label">Alcanzada por el cambio mostrado arriba.</p>{% endif %}
+    {% if quote.earlier %}
+    {% for old in quote.earlier %}
+    {% include "tenders/_change.html" with change=old current=False print=False %}
+    {% endfor %}
+    {% include "tenders/_change.html" with change=quote.current current=True print=False %}
+    {% endif %}
     {% for note in quote.notes %}
     {% include "tenders/_change.html" with change=note current=False print=False %}
     {% endfor %}
@@ -190,9 +197,10 @@
       <li>
         <details>
           <summary>{% include "tenders/_place.html" with place=quote.place %}{% if quote.scope_label %} · {{ quote.scope_label }}{% endif %}{% if quote.wide %} <span class="wide-mark">Cita amplia, revisar</span>{% endif %}</summary>
-          {% if quote.current %}{% include "tenders/_change.html" with change=quote.current current=True print=False %}<p class="original-label">{% if quote.current.original %}Cita del requisito:{% else %}Texto original del pliego:{% endif %}</p>{% endif %}
+          {% if quote.earlier %}<p class="original-label">Texto original del pliego:</p>{% elif quote.current %}{% include "tenders/_change.html" with change=quote.current current=True print=False %}<p class="original-label">{% if quote.current.original %}Cita del requisito:{% else %}Texto original del pliego:{% endif %}</p>{% endif %}
           <blockquote class="literal">{{ quote.text }}</blockquote>
           {% if quote.covered %}<p class="repeated-label">Alcanzada por el cambio mostrado arriba.</p>{% endif %}
+          {% if quote.earlier %}{% for old in quote.earlier %}{% include "tenders/_change.html" with change=old current=False print=False %}{% endfor %}{% include "tenders/_change.html" with change=quote.current current=True print=False %}{% endif %}
           {% for note in quote.notes %}{% include "tenders/_change.html" with change=note current=False print=False %}{% endfor %}
           {% if page.can_edit %}
           <form method="post" action="{% url 'tenders:review_correct' row.requirement.pk %}">{% csrf_token %}<input type="hidden" name="remove_quote" value="{{ quote.quote_id }}"><button type="submit">Quitar este tramo de la fila</button></form>
