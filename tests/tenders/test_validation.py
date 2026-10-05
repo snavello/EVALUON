@@ -5,6 +5,7 @@ Pliegos y datos sintéticos (P4). El pliego es el de tres renglones de `scripted
 garantía y un pago como económicos, una fila técnica por renglón y un tramo pendiente.
 """
 
+from django.utils import timezone
 import html
 from datetime import date
 
@@ -263,7 +264,7 @@ def test_the_page_of_a_validated_version_has_no_draft_banner_and_shows_who_and_w
 
     assert "BORRADOR INCOMPLETO" not in text
     assert f"versión {ready.number}" in text
-    assert ready.validated_at.strftime("%d/%m/%Y") in text
+    assert timezone.localtime(ready.validated_at).strftime("%d/%m/%Y") in text
     assert evaluator_user.username in text
 
 
@@ -533,7 +534,7 @@ def test_the_validated_page_says_when_and_by_whom_as_another_user_sees_it(
     también para quien no la validó."""
     version = service.validate(evaluator_user, ready.pk)
     version.refresh_from_db()
-    day = version.validated_at.strftime("%d/%m/%Y")
+    day = timezone.localtime(version.validated_at).strftime("%d/%m/%Y")
     expected = (f"versión {version.number} · validada el {day} por "
                 f"{evaluator_user.username}")
     log_in(client, operator_user)

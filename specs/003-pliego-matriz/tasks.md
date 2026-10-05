@@ -68,6 +68,8 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-118 | Cargar los casos 05 y 06 y preparar sus listas esperadas de circulares | REQ-031 | T-117 | terminada |
 | T-119 | Actualizar la lista esperada del caso-01 con las filas que las circulares afectan | REQ-031 | T-117 | terminada |
 | T-120 | Medir y ajustar la pasada de circulares con los casos 01, 05 y 06, con estabilidad | REQ-031 | T-113, T-115, T-117, T-118, T-119 | pendiente |
+| T-121 | Corregir el consumo de memoria de la medición (citas que cargaban cada una su lectura) | REQ-024, REQ-030 | T-117 | terminada |
+| T-122 | Mostrar los cambios vigentes de la norma al proponer consecuencias, o no fundar en unidades modificadas | REQ-029 | T-109 | pendiente |
 
 ## Para todas las tareas
 
@@ -526,6 +528,22 @@ Plan: sección "Rediseño de la pasada de circulares (2026-10-04)" de `plan.md`;
 - **Verificación:** el informe con todas las medidas; REQ-031 cumplido en el caso-01 (todas sus filas de circular en los cuatro puntos) y las cuentas de 05 y 06; estabilidad de las 3 repeticiones; cuántas rondas se hicieron y qué movió cada una; ningún texto del pliego en el repositorio; suite en verde si hubo cambios de código. Si no se cumple, se informa con la causa y se pasa al Coordinador; no se ajusta más.
 - **No tocar:** las listas esperadas; la regla de emparejamiento; los casos 03 y 04; las instrucciones de las demás pasadas.
 - **Entorno:** MSI con GPU, sin otra carga.
+
+### T-121 · Corregir el consumo de memoria de la medición
+
+- **Qué hacer:** la medición real del caso-01 del 2026-10-04 (corrida 14) murió por falta de memoria (14,9 GB): `evaluation.py::_rows` salteaba la precarga y cada cita cargaba su propia lectura. Precargar las citas ordenadas con su tramo y lectura compartida, sin cambiar resultados.
+- **Archivos:** `evaluon/tenders/evaluation.py`, `tests/tenders/test_evaluation.py`.
+- **Verificación:** test que falla sin el arreglo; pico de memoria de la medición de la corrida 14 y resultados idénticos a los de main sobre una versión que main sí termina.
+- **No tocar:** la propuesta; la regla de emparejamiento.
+- **Entorno:** cualquier equipo con Docker; copia de la base real en solo lectura.
+
+### T-122 · Mostrar los cambios vigentes de la norma al proponer consecuencias
+
+- **Qué hacer:** hallazgo de T-109 (2026-10-04): `consequences.py::render_norm` muestra el texto original de una unidad aunque tenga `modifica` o `deroga` vigente a la fecha de autorización, y el modelo puede fundar una consecuencia en un artículo cambiado. Mostrar los cambios vigentes (`answering.change_block`) o no fundar en unidades con cambios vigentes, con el mismo criterio que T-109.
+- **Archivos:** `evaluon/tenders/proposal/consequences.py`, `tests/tenders/test_consequences.py`.
+- **Verificación:** test con una unidad modificada a la fecha; ninguna consecuencia fundada en texto no vigente.
+- **No tocar:** la 001; las demás pasadas.
+- **Entorno:** cualquier equipo con Docker.
 
 ### T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro
 

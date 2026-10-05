@@ -656,9 +656,14 @@ def _rows(version, states):
     """Las filas de la versión en los estados `states`: las firmes no incluyen sugerencias ni
     quitadas; las descartadas por el sistema están en otra tabla."""
     rows = []
+    # Las citas se precargan ya ordenadas y `segment__reading` se resuelve en una sola
+    # consulta, con una instancia por lectura: `requirement.quotes.order_by(...)` saltea la
+    # precarga y carga una lectura completa (texto y páginas) por cada cita (T-121).
+    quotes = Prefetch("quotes", queryset=m.RequirementQuote.objects.order_by("order")
+                      .select_related("segment"))
     for requirement in version.requirements.filter(state__in=states).order_by(
-            "number").prefetch_related("quotes__segment__reading"):
-        quote_list = list(requirement.quotes.order_by("order"))
+            "number").prefetch_related(quotes, "quotes__segment__reading"):
+        quote_list = list(requirement.quotes.all())
         first = quote_list[0].segment if quote_list else None
         rows.append(Proposed(
             number=requirement.number, category=requirement.category,
