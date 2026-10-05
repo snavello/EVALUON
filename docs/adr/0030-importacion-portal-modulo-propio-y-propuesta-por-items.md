@@ -1,6 +1,6 @@
 # ADR-0030 · La importación del Portal vive en un módulo propio y propone por ítems antes de cargar
 
-Estado: propuesto · Fecha: 2026-10-05 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-05 · Decidió: responsable del proyecto
 
 ## Contexto
 

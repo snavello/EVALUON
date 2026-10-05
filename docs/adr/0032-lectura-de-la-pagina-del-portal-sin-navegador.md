@@ -1,6 +1,6 @@
 # ADR-0032 · Lectura de la página del Portal: HTML con las librerías existentes, formularios de ASP.NET con la biblioteca estándar, y texto mal codificado sin adivinar
 
-Estado: propuesto · Fecha: 2026-10-05 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-05 · Decidió: responsable del proyecto
 
 ## Contexto
 

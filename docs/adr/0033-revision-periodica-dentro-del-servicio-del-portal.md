@@ -1,6 +1,6 @@
 # ADR-0033 · Revisión periódica: la hace el servicio del Portal, una vez por día hábil y a demanda
 
-Estado: propuesto · Fecha: 2026-10-05 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-05 · Decidió: responsable del proyecto
 
 ## Contexto
 

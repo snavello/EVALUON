@@ -1,6 +1,6 @@
 # ADR-0031 · Conexión acotada al Portal: un servicio aparte con salida a internet y una lista de destinos permitidos
 
-Estado: propuesto · Fecha: 2026-10-05 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-05 · Decidió: responsable del proyecto
 
 ## Contexto
 

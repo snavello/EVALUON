@@ -1,6 +1,6 @@
 # Plan 012 · Importación asistida desde el Portal de Compras
 
-Estado: borrador · Fecha: 2026-10-05 · Aprobó: —
+Estado: aprobado · Fecha: 2026-10-05 · Aprobó: responsable del proyecto (2026-10-05: sí a las cinco decisiones propuestas; el enlace de un proceso con circulares lo aporta el responsable para T-139)
 
 Spec: `specs/012-portal-compras/spec.md` (aprobada el 2026-10-05)
 
