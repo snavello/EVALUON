@@ -21,7 +21,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-134 | Medir la ficha con las tres ofertas del caso-00 (medición base) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-131, T-133 | terminada |
 | T-135 | Corregir los hallazgos de T-134 y medir de nuevo (ronda 1) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-134 | terminada |
 | T-136 | Solo si T-135 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-135 | terminada |
-| T-146 | Búsqueda de la ficha con el requisito reescrito como lo diría una oferta | REQ-039, REQ-040 | T-136 | pendiente |
+| T-146 | Búsqueda de la ficha con el requisito reescrito como lo diría una oferta | REQ-039, REQ-040 | T-136 | terminada |
 
 ## Paralelismo
 
@@ -117,5 +117,9 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Entorno:** MSI con GPU para la medición, de a una.
 
 ## Revisión con el primer producto
+
+- Ficha (T-146, ADR-0035): fragmentos encontrados en torno al 55 % con el método de búsqueda de pasajes; la lectura completa de los documentos por requisito se encara en la 004.
+- Medición de la ficha: reconocer como encontrada la copia deduplicada (`copy_of`) del documento esperado.
+- Lista esperada del caso-00: sumar los cuadros del Portal (fotos de Lombardozzi y Zelarayan) y los renglones de esas ofertas; releer las fotos con la lectura de tablas de T-136 (hoy no hay forma de releer un documento cargado).
 
 Lo que no llegue al umbral después de la ronda 2 se anota acá, con su impacto (ADR-0024). Vacía por ahora.

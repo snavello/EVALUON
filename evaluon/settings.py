@@ -370,12 +370,13 @@ OFFERS_ITEM_CANDIDATES_TO_MODEL = 12
 # Puntaje mínimo del reranker (entre 0 y 1) que un pasaje tiene que alcanzar para pasar al
 # modelo en las filas que no son de renglón (T-136): por debajo, la fila queda "no se
 # encontró" sin preguntarle al modelo. Las filas por renglón no lo usan. Calibrado con el
-# reranker real sobre textos inventados con la forma de los falsos hallazgos de T-134 (cláusulas
-# del mismo tema que no responden, formularios con campos vacíos, importes sueltos): los pasajes
-# que responden puntuaron 0,85 o más; los del mismo tema que no responden, 0,26 o menos, salvo
-# un formulario con el campo vacío (0,82), que ningún corte separa. 0,4 queda en el hueco, lejos
-# de los que responden para no perder respuestas. Se recalibra con la medición.
-OFFERS_MIN_RERANK_SCORE = 0.4
+# reranker real (T-146) sobre textos inventados con la forma de lo que responden las ofertas
+# (pólizas de caución, notas, formularios del Portal, declaraciones juradas, constancias): el
+# puntaje de un pasaje es el mayor entre el de la cita del pliego y el de su reescritura como la
+# diría una oferta. Los que responden puntuaron 0,47 o más; los del mismo tema que no responden,
+# 0,33 o menos, salvo uno que ningún corte separa (0,58). 0,35 queda en el hueco. Se recalibra
+# con la medición.
+OFFERS_MIN_RERANK_SCORE = 0.35
 # Fila por renglón (T-135): pasajes vecinos de la misma página (zona de tabla) que se suman a
 # los candidatos de los `OFFERS_ITEM_NEIGHBOR_SEEDS` mejores, hasta `OFFERS_ITEM_NEIGHBORS`.
 OFFERS_ITEM_NEIGHBOR_SEEDS = 3
@@ -389,4 +390,6 @@ OFFERS_QUERY_MAX_CHARS = 800
 OFFERS_PROMPT_VERSIONS = {
     "ficha": "ficha-v2",
     "ficha_renglon": "ficha-renglon-v4",
+    # Reescritura del requisito como lo diría una oferta, para buscar (T-146).
+    "reescritura": "reescritura-v1",
 }

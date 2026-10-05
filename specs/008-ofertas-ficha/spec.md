@@ -1,6 +1,6 @@
 # Spec 008 · Ofertas y ficha por oferta
 
-Estado: aprobada · Fecha: 2026-10-05 · Aprobó: responsable del proyecto (2026-10-05, con las tres respuestas de "Preguntas abiertas")
+Estado: aprobada · Fecha: 2026-10-05 · Aprobó: responsable del proyecto (2026-10-05, con las tres respuestas de "Preguntas abiertas"); enmienda del 2026-10-05: criterio de REQ-039 (ADR-0035), decisión del responsable
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
 > Cada duda se marca `[A ACLARAR: pregunta concreta]`. Una spec con marcas pendientes no pasa la compuerta.
@@ -43,6 +43,7 @@ Los roles son los de la 003: el operador carga y corrige; el evaluador valida (P
 - **REQ-037.** Dado un procedimiento con la matriz validada, cuando el operador registra una oferta y carga sus documentos, entonces la oferta queda con su oferente y todos sus documentos, cada uno con su huella.
 - **REQ-038.** Dada una oferta con documentos escaneados, cuando el sistema la lee, entonces cada página tiene texto o figura en la lista de páginas no leídas.
 - **REQ-039.** Dada una oferta de un caso medido, cuando el sistema arma la ficha, entonces encuentra al menos el **90 %** de los fragmentos esperados de la lista del caso, y el texto que muestra es copia literal del documento (100 %). Un fragmento cuenta como encontrado si señala el mismo lugar de la oferta (documento, página y pasaje) que el esperado, aunque no coincida palabra por palabra (decisión del responsable, 2026-10-05).
+  - **Enmienda del 2026-10-05 (ADR-0035):** bloquean el texto literal (100 %) y que ningún hallazgo se presente sin respaldo ("no se encontró" cuando no lo hay). El 90 % de fragmentos encontrados se mide y se informa sin bloquear, y pasa a ser meta de la 004, que lee completos los documentos de la oferta por requisito.
 - **REQ-040.** Dado un requisito sin respuesta en la oferta, cuando se arma la ficha, entonces figura "no se encontró en la oferta" y cuenta en la lista del escenario 3.
 - **REQ-041.** Dada una ficha armada, la síntesis no contiene "cumple" ni "no cumple" ni equivalentes.
 - **REQ-042.** Dada una ficha, cuando un integrante corrige un fragmento, entonces el cambio queda con su autor y su fecha, y el fragmento anterior sigue visible en el historial.

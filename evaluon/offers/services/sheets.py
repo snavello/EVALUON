@@ -89,6 +89,7 @@ ANOMALY_INVALID_OUTPUT = "salida_invalida"
 ANOMALY_UNKNOWN_ALIAS = "alias_inexistente"
 ANOMALY_JUDGMENT = "sintesis_con_juicio"
 ANOMALY_NO_QUOTE = "requisito_sin_cita"
+ANOMALY_REWRITE = "reescritura_descartada"
 
 MAX_PASSAGES_PER_ANSWER = 3
 
@@ -393,6 +394,41 @@ def neutral_synthesis(passages):
     return text if not judgment_words(text) else "El oferente responde en los pasajes mostrados."
 
 
+REWRITE_SCHEMA = {"type": "object", "properties": {"consulta": {"type": "string"}},
+                  "required": ["consulta"], "additionalProperties": False}
+
+
+def rewrite_requirement(text, clock=time.monotonic):
+    """El requisito escrito como lo diría una oferta (T-146), para buscar. Devuelve el
+    registro de la reescritura (P6): `query` es el texto, vacío si se descartó (salida sin la
+    forma pedida, o vacía); en ese caso la búsqueda sigue solo con la
+    consulta del pliego y `anomaly` dice por qué."""
+    messages = [
+        {"role": "system", "content": load_prompt("reescritura")},
+        {"role": "user", "content": f"Requisito del pliego:\n«{text}»\n\n"
+                                    "Devolvé un objeto JSON con el campo pedido."}]
+    started = clock()
+    result = generation.generate(
+        messages, REWRITE_SCHEMA, max_tokens=settings.OFFERS_MAX_OUTPUT_TOKENS,
+        base_url=settings.GENERATION_BATCH_URL, timeout=settings.OFFERS_REQUEST_TIMEOUT_SECONDS)
+    record = {"prompt_version": settings.OFFERS_PROMPT_VERSIONS["reescritura"],
+              "request": result.request, "raw_output": result.content, "query": "",
+              "seconds": round(clock() - started, 3)}
+    try:
+        data = json.loads(result.content)
+        query = data["consulta"].strip()
+        if set(data) != {"consulta"}:
+            raise ValueError("campos de más")
+    except (ValueError, KeyError, TypeError, AttributeError):
+        record["anomaly"] = "salida sin la forma pedida"
+        return record
+    if not query:
+        record["anomaly"] = "consulta vacía"
+    else:
+        record["query"] = query
+    return record
+
+
 def _answer_entry(offer, requirement, unread, clock):
     """Arma una fila: recupera candidatos, pide al modelo y valida su respuesta."""
     entry = EntryData(requirement=requirement, unread_warning=bool(unread))
@@ -400,16 +436,24 @@ def _answer_entry(offer, requirement, unread, clock):
     text = requirement_text(requirement)
     if not text:
         entry.anomalies.append({"type": ANOMALY_NO_QUOTE, "requirement": requirement.number})
+    # Las filas comunes buscan también con el requisito reescrito como lo diría una oferta
+    # (T-146); las de renglón no (T-135: su consulta ya es la tabla).
+    rewrite = rewrite_requirement(text, clock) if text and not item_row else None
     started = clock()
-    found = retrieval.retrieve(offer, retrieval_query(requirement, text), neighbors=item_row)
+    found = retrieval.retrieve(offer, retrieval_query(requirement, text), neighbors=item_row,
+                               rewrite=rewrite["query"] if rewrite else "")
     retrieval_seconds = clock() - started
     passages = {p.pk: p for p in Passage.objects.filter(
         pk__in=[c.passage_id for c in found.pool]).select_related("reading__document")}
     pool_json = [_candidate_json(c, passages[c.passage_id]) for c in found.pool]
     sent = [c.passage_id for c in found.chosen]
+    extra = {"rewrite": rewrite} if rewrite else {}
+    if rewrite and rewrite.get("anomaly"):
+        entry.anomalies.append({"type": ANOMALY_REWRITE, "requirement": requirement.number,
+                                "reason": rewrite["anomaly"]})
     if not found.chosen:
         entry.steps.append(StepData(
-            candidates={"pool": pool_json, "sent": sent, "query": found.query},
+            candidates={"pool": pool_json, "sent": sent, "query": found.query, **extra},
             timings={"retrieval_seconds": round(retrieval_seconds, 3)}))
         if item_row:
             entry.quoted = item_state("sin_precio", [], unread)
@@ -423,7 +467,7 @@ def _answer_entry(offer, requirement, unread, clock):
     aliases = list(alias_to_passage)
     prompt = load_prompt("ficha_renglon" if item_row else "ficha")
     schema = build_schema(aliases, item_row)
-    candidates = {"pool": pool_json, "sent": sent, "query": found.query,
+    candidates = {"pool": pool_json, "sent": sent, "query": found.query, **extra,
                   "aliases": {alias: p.pk for alias, p in alias_to_passage.items()}}
 
     answer, correction, previous = None, "", None
