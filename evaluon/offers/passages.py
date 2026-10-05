@@ -9,7 +9,9 @@ la suya. Se arman sobre el texto canónico de la lectura (`norms/splitting/canon
 2. Un bloque de menos de `OFFERS_PASSAGE_MIN_CHARS` caracteres se une al siguiente de su
    página, hasta llegar al mínimo o quedarse sin siguiente.
 3. Un bloque de más de `OFFERS_PASSAGE_MAX_CHARS` caracteres se parte en límite de
-   oración (o, si una oración sola es más larga, en un espacio).
+   oración (o, si una oración sola es más larga, en un espacio). Al partir, un encabezado
+   "RENGLÓN" empieza siempre un pasaje: nunca queda al final de uno, separado de su cuerpo
+   (T-135).
 4. Una página sin texto (ilegible, en blanco) no genera pasajes.
 
 El texto de un pasaje es siempre el recorte `canonical_text[char_start:char_end]`: lo que
@@ -26,6 +28,14 @@ from evaluon.norms.reading import ORIGIN_OCR
 
 # Fin de oración: el espacio que sigue a un punto, signo de cierre, punto y coma o dos puntos.
 _SENTENCE_END = re.compile(r"(?<=[.!?;:])\s+")
+
+
+# Encabezado de renglón: "RENGLÓN" en mayúsculas (como lo lee el OCR, también "RENGL0N") o
+# "Renglón N" al comienzo de una oración. El texto canónico une las líneas de un párrafo con
+# espacios, así que no se busca el comienzo de línea; un "renglón 3" en medio de una frase
+# no corta.
+_ITEM_HEADING = re.compile(
+    r"\bRENGL[OÓ0]N\b|(?:(?<=[.;:!?] )|^)Rengl[oó0]n\s+\d", re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -109,11 +119,23 @@ def _hard_split(text, start, end, maximum):
     return pieces
 
 
+def _item_segments(text, start, end):
+    """El tramo partido donde empieza cada encabezado "RENGLÓN" (el primero, si abre el
+    tramo, no corta nada)."""
+    cuts = [m.start() for m in _ITEM_HEADING.finditer(text, start, end)]
+    bounds = sorted({start, *cuts, end})
+    return [(a, b) for a, b in zip(bounds, bounds[1:]) if b > a]
+
+
 def _split_long(text, start, end, maximum):
     """Parte `text[start:end]` en tramos de hasta `maximum` caracteres, en límite de
-    oración; una oración más larga se parte en un espacio."""
+    oración; una oración más larga se parte en un espacio. Cada encabezado "RENGLÓN"
+    empieza un tramo."""
     if end - start <= maximum:
         return [(start, end)]
+    segments = _item_segments(text, start, end)
+    if len(segments) > 1:
+        return [piece for a, b in segments for piece in _split_long(text, a, b, maximum)]
     pieces, current = [], None
     for sentence_start, sentence_end in _sentences(text, start, end):
         for piece_start, piece_end in _hard_split(text, sentence_start, sentence_end,

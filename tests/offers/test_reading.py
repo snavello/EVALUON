@@ -200,3 +200,223 @@ def test_a_damaged_or_empty_word_document_is_refused():
         tools.docx_to_pdf(b"PK\x03\x04roto")
     with pytest.raises(tools.UnreadableFile):
         tools.docx_to_pdf(make_docx([]))
+
+
+# --- Foto de pantalla con una tabla (T-136) -------------------------------------------------
+
+TABLE_HEADER = ["Renglon", "Alternativa", "Descripcion", "Cantidad", "Unidad", "Precio",
+                "Precio"]
+TABLE_ROWS = [("1", "1", "RESMA DE PAPEL", "2700,00", "kg", "7.390,00", "19.953.000,00"),
+              ("2", "1", "RESMA DE PAPEL", "8760,00", "kg", "7.760,00", "67.977.600,00"),
+              ("3", "1", "RESMA DE PAPEL", "250,00", "kg", "12.000,00", "3.000.000,00"),
+              ("4", "1", "RESMA DE PAPEL", "360,00", "kg", "12.000,00", "4.320.000,00"),
+              ("5", "1", "RESMA DE PAPEL", "200,00", "kg", "11.000,00", "2.200.000,00"),
+              ("6", "1", "RESMA DE PAPEL", "300,00", "kg", "11.500,00", "3.450.000,00")]
+TABLE_PRICES = [cell for row in TABLE_ROWS for cell in row[-2:]]
+
+
+def screen_photo(width=1600, height=640, moire=30, shear=0.03, blur=0.8, noise=0.002, seed=3):
+    """Una foto de la pantalla de un portal inventado: una tabla con rejilla, la columna del
+    renglón con fondo verde, cantidades y precios; vista en perspectiva, con moiré (una trama
+    de rayas finas) y un poco de desenfoque."""
+    rng = random.Random(seed)
+    image = Image.new("RGB", (width, height), (232, 232, 232))
+    draw = ImageDraw.Draw(image)
+    small = ImageFont.truetype(str(FONT), 17)
+    big = ImageFont.truetype(str(FONT), 30)
+    draw.text((20, 18), "Detalle de oferta por renglon", font=small, fill=(20, 20, 20))
+    columns = [20, 150, 280, 620, 790, 900, 1130, 1380]
+    top, row_h = 60, 58
+    for i, title in enumerate(TABLE_HEADER):
+        draw.rectangle([columns[i], top, columns[i + 1], top + 50], fill=(190, 190, 190))
+        draw.text((columns[i] + 6, top + 14), title, font=small, fill=(30, 30, 30))
+    for r, row in enumerate(TABLE_ROWS):
+        y = top + 50 + r * row_h
+        draw.rectangle([columns[0], y, columns[1], y + row_h], fill=(160, 210, 150))
+        for c, cell in enumerate(row):
+            font = big if c == 0 else small
+            draw.text((columns[c] + 8, y + (6 if c == 0 else 18)), cell, font=font,
+                      fill=(25, 25, 25))
+    for x in columns:
+        draw.line([x, top, x, top + 50 + len(TABLE_ROWS) * row_h], fill=(90, 90, 90), width=2)
+    for r in range(len(TABLE_ROWS) + 2):
+        y = top + (0 if r == 0 else 50 + (r - 1) * row_h)
+        draw.line([columns[0], y, columns[-1], y], fill=(90, 90, 90), width=2)
+    # perspectiva: un lado de la foto más alto que el otro
+    coeffs = (1, shear, -shear * 40, 0.0, 1, 0, 0, shear / 400)
+    image = image.transform(image.size, Image.PERSPECTIVE, coeffs, Image.BICUBIC,
+                            fillcolor=(232, 232, 232))
+    stripes = Image.new("L", image.size, 0)
+    sd = ImageDraw.Draw(stripes)
+    for x in range(0, width, 3):
+        sd.line([x, 0, x + 40, height], fill=moire, width=1)
+    image = ImageChops.subtract(image, Image.merge("RGB", (stripes, stripes, stripes)))
+    image = image.filter(ImageFilter.GaussianBlur(blur))
+    pixels = image.load()
+    for _ in range(int(noise * width * height)):
+        pixels[rng.randrange(width), rng.randrange(height)] = (rng.randrange(256),) * 3
+    return image
+
+
+def screen_pdf(**kwargs):
+    out = io.BytesIO()
+    screen_photo(**kwargs).save(out, format="JPEG", quality=60)
+    return tools.photo_to_pdf(out.getvalue())
+
+
+def amounts_in(reading):
+    text = words(reading)
+    return sum(1 for price in TABLE_PRICES if price in text)
+
+
+def page_of(status, words_conf, origin="ocr", number=1):
+    """Una página ya leída con las palabras dadas: `[(texto, confianza)]` en una línea."""
+    from evaluon.norms.reading import Line, Page, Word
+
+    cells = [Word(text=t, confidence=c) for t, c in words_conf]
+    average = sum(c for _, c in words_conf) / len(words_conf) if words_conf else None
+    lines = [Line(text=" ".join(t for t, _ in words_conf), x0=0.0, top=0.0, x1=1.0, bottom=1.0,
+                  origin=origin, confidence=average, words=cells)] if cells else []
+    return Page(number=number, width=100.0, height=100.0, status=status, lines=lines,
+                origin=origin, confidence=average)
+
+
+def table_words(good=8):
+    """Palabras de una tabla: `good` importes bien formados y cantidades."""
+    return [(f"{n}.390,00", 80.0) for n in range(1, good + 1)] + [("kg", 80.0)] * 2
+
+
+def stub_reading(monkeypatch, first, *, second=None, table=None):
+    """Dobles de las tres lecturas de una página: la normal, la preparada y la de tabla."""
+    from evaluon.norms.reading import DocumentReading
+
+    pdf = tender_pdf([[para("x")]], header=None)
+    monkeypatch.setattr(tools, "read_document", lambda source: DocumentReading(
+        file_format="pdf", pages=[first], tool_versions={}))
+    monkeypatch.setattr(tools, "_second_read",
+                        lambda page, number: (second or page_of("ilegible", []), 0.0))
+    monkeypatch.setattr(tools, "_table_read",
+                        lambda page, number: table or page_of("ilegible", []))
+    return pdf
+
+
+def test_a_doubtful_page_gets_a_second_attempt_even_with_confidence_above_fifty(monkeypatch):
+    """REQ-038 (T-136): toda página dudosa tiene segundo intento; antes solo lo tenían las de
+    menos de 50 % de confianza."""
+    first = page_of("dudosa", [("Detalle", 71.0)] * 4)
+    assert first.status == PAGE_DOUBTFUL and tools._needs_second_attempt(first)
+    pdf = stub_reading(monkeypatch, first)
+    _, attempts = tools.read_with_second_attempt(pdf)
+    assert len(attempts) == 1 and attempts[0]["first_status"] == "dudosa"
+    assert attempts[0]["kept"] == tools.KEPT_FIRST
+    legible = page_of("legible", [("Detalle", 90.0)] * 130)
+    assert not tools._needs_second_attempt(legible) and not tools._is_sparse(legible)
+    assert not tools._needs_second_attempt(page_of("dudosa", [("x", 71.0)], origin="pdf_text"))
+
+
+def test_the_table_reading_wins_when_it_brings_more_well_formed_amounts(monkeypatch):
+    """REQ-038 (T-136): en una página de tabla se conserva la lectura de tabla aunque su
+    confianza promedio sea menor, si trae más importes bien formados; el informe lo dice."""
+    first = page_of("dudosa", [("Detalle", 71.0)] * 6 + [("19953.000,00", 70.0)] * 6
+                    + [("2700,00", 80.0)])
+    table = page_of("dudosa", table_words(10))
+    table = replace(table, confidence=60.0)
+    pdf = stub_reading(monkeypatch, first, table=table)
+    reading, attempts = tools.read_with_second_attempt(pdf)
+    assert attempts[0]["kept"] == tools.KEPT_TABLE
+    assert attempts[0]["table_confidence"] == 60.0 and attempts[0]["first_confidence"] > 60.0
+    assert reading.pages[0] is not first and "1.390,00" in words(reading)
+
+
+def test_the_table_reading_is_not_kept_for_a_text_page_or_with_fewer_amounts(monkeypatch):
+    """REQ-038 (T-136): una lectura de tabla sin cifras de sobra, o con menos importes que la
+    mejor, no reemplaza la lectura anterior."""
+    first = page_of("dudosa", table_words(8))
+    pdf = stub_reading(monkeypatch, first, table=page_of("dudosa", table_words(3)))
+    reading, attempts = tools.read_with_second_attempt(pdf)
+    assert attempts[0]["kept"] == tools.KEPT_FIRST and reading.pages[0] is first
+    prose = page_of("dudosa", [("palabra", 90.0)] * 40 + [("1", 90.0)] * 2)
+    assert not tools._looks_tabular(prose)
+    pdf = stub_reading(monkeypatch, page_of("dudosa", [("a", 60.0)] * 3), table=prose)
+    assert tools.read_with_second_attempt(pdf)[1][0]["kept"] == tools.KEPT_FIRST
+
+
+def test_a_legible_page_with_almost_no_text_is_probed_and_changes_only_for_a_real_table(
+        monkeypatch):
+    """REQ-038 (T-136): una foto de pantalla puede quedar "legible" con unas pocas palabras y
+    perder la tabla. Se prueba con la lectura de tabla y solo cambia si trae el doble de
+    importes confiables; si no, la página no cambia y no queda en el informe."""
+    first = page_of("legible", [("Precio", 87.0), ("Unitario", 87.0), ("6.749,27", 90.0)])
+    assert tools._is_sparse(first) and not tools._needs_second_attempt(first)
+    pdf = stub_reading(monkeypatch, first, table=page_of("dudosa", table_words(10)))
+    reading, attempts = tools.read_with_second_attempt(pdf)
+    assert [a["kept"] for a in attempts] == [tools.KEPT_TABLE]
+    assert attempts[0]["second_confidence"] is None
+    assert len(reading.pages[0].lines[0].words) == 12
+    pdf = stub_reading(monkeypatch, first, table=page_of("dudosa", table_words(1)))
+    reading, attempts = tools.read_with_second_attempt(pdf)
+    assert attempts == [] and reading.pages[0] is first
+
+
+def test_words_are_grouped_into_rows_by_height_and_ordered_from_left_to_right():
+    """REQ-038 (T-136): el texto disperso devuelve cada celda por separado; se vuelven a juntar
+    en filas para que el precio quede junto a su renglón."""
+    cells = [("7.390,00", 80.0, 500, 102, 90, 20), ("RESMA", 80.0, 100, 100, 80, 20),
+             ("1", 80.0, 10, 104, 12, 20), ("3.000,00", 80.0, 500, 200, 90, 20),
+             ("RESMA", 80.0, 100, 198, 80, 20)]
+    rows = tools._rows(cells)
+    assert [[w[0] for w in row] for row in rows] == [["1", "RESMA", "7.390,00"],
+                                                     ["RESMA", "3.000,00"]]
+
+
+def test_a_screen_photo_of_a_table_is_read_with_the_table_configuration():
+    """REQ-038 (T-136): la foto de una pantalla con tabla, en perspectiva y con moiré, sale
+    "dudosa" con la lectura normal y desordenada; el segundo intento usa la configuración de
+    tablas, conserva esa lectura y recupera más precios, que quedan en la fila de su renglón."""
+    pdf = screen_pdf(moire=45, blur=1.1, shear=0.05)
+    first = read_document(pdf)
+    assert first.pages[0].status == PAGE_DOUBTFUL
+    reading, attempts = tools.read_with_second_attempt(pdf)
+    assert len(attempts) == 1 and attempts[0]["kept"] == tools.KEPT_TABLE
+    assert amounts_in(reading) > amounts_in(first)
+    assert amounts_in(reading) >= 5
+    page = reading.pages[0]
+    assert page.origin == "ocr" and page.lines and page.classification == \
+        first.pages[0].classification
+    row = next(line.text for line in page.lines if "8760" in line.text or "7.760,00" in line.text)
+    assert "7.760,00" in row or "67.977.600,00" in row
+
+
+def test_a_page_that_keeps_the_table_reading_is_never_legible(monkeypatch):
+    """REQ-038, P3 (T-136): aunque la lectura de tabla dé 85 de confianza y estado legible, la
+    página queda "dudosa" y sigue en la lista de baja confianza."""
+    first = page_of("dudosa", [("Detalle", 71.0)] * 6 + [("2700,00", 80.0)])
+    table = page_of("legible", [(f"{n}.390,00", 85.0) for n in range(1, 9)] + [("kg", 85.0)] * 2)
+    assert table.status == PAGE_READ and table.confidence >= 80
+    pdf = stub_reading(monkeypatch, first, table=table)
+    reading, attempts = tools.read_with_second_attempt(pdf)
+    assert attempts[0]["kept"] == tools.KEPT_TABLE
+    assert reading.pages[0].status == PAGE_DOUBTFUL and reading.pages[0].confidence == 85.0
+
+
+def test_a_table_reading_that_is_tabular_but_has_no_more_reliable_amounts_loses(monkeypatch):
+    """REQ-038 (T-136): una lectura de tabla con cifras de sobra pero con menos importes
+    confiables que la primera (o con los mismos) no la reemplaza: la lectura de tabla no gana
+    siempre."""
+    first = page_of("dudosa", table_words(5))
+    digits = [(str(n * 111), 90.0) for n in range(1, 9)]
+    for table in (page_of("dudosa", digits + table_words(2)),   # solo 2 importes
+                  page_of("dudosa", digits + table_words(5))):  # los mismos 5
+        assert tools._looks_tabular(table)
+        pdf = stub_reading(monkeypatch, first, table=table)
+        reading, attempts = tools.read_with_second_attempt(pdf)
+        assert attempts[0]["kept"] == tools.KEPT_FIRST and reading.pages[0] is first
+
+
+def test_only_complete_amounts_with_enough_confidence_count_as_reliable():
+    """REQ-038 (T-136): cuentan los importes con miles y decimales coherentes y confianza de 65
+    o más; no los de separadores incoherentes ni los de confianza media."""
+    words = [("7.390,00", 80.0), ("2700,00", 70.0), ("19953.000,00", 90.0),
+             ("12,000,00", 90.0), ("7.39,00", 90.0), ("3.000.000,00", 64.0),
+             ("11.500,00", 66.0), ("1.000", 90.0), ("27000,00", 90.0)]
+    assert tools._reliable_numbers(page_of("dudosa", words)) == 3
