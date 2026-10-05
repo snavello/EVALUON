@@ -157,7 +157,27 @@ def test_a_retry_that_loses_a_change_marks_the_row_it_did_not_reach(operator_use
     assert not row_of_item(version, 14).sources.exists()
     (anomaly,) = anomalies_of(run, circulars.ANOMALY_REVIEW_REQUIRED)
     assert anomaly["reason"] == "reintento_pierde_cambios"
-    assert anomaly["requirements"] == [row_of_item(version, 14).number]
+    # No se sabe qué cambio se perdió: las dos filas que la unidad nombra quedan a revisión.
+    assert anomaly["requirements"] == sorted([row_of_item(version, 6).number,
+                                              row_of_item(version, 14).number])
+
+
+def test_a_retry_that_applies_one_change_to_a_row_and_loses_another_still_marks_it(
+        operator_user, script):
+    """REQ-031, P3 (D1): el reintento aplica el cambio A a la fila 6 y pierde el B, que nombra
+    la misma fila: la fila tiene fuente y queda marcada igual."""
+    procedure = items_case(operator_user, script)
+    add_circular(operator_user, procedure, "Circular N.º 8", date(2025, 12, 10),
+                 "1. En el Renglón N° 6 el cable pasa a ser de ocho milímetros. En el "
+                 "Renglón N° 6 la balanza pasa a ser digital.")
+    script.x_when("cable pasa", "salida cortada", [
+        change("aclara", "renglon", "6", "", "el cable pasa a ser de ocho milímetros")])
+
+    version, _ = run_proposal(operator_user, procedure)
+
+    row = row_of_item(version, 6)
+    assert row.sources.exists()
+    assert list(flagged_numbers(operator_user, version)) == [row.number]
 
 
 def test_a_tramo_the_model_cannot_dispose_of_marks_the_rows_it_names(operator_user, script,

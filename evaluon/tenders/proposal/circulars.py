@@ -1022,7 +1022,6 @@ class Processor:
         unidad no dejó ninguna fuente, por cada pérdida posible (P3). Una fila con una fuente
         de la unidad se da por atendida: un técnico tiene varias citas (el título del renglón,
         sus cláusulas) y marcarlas por separado sería ruido."""
-        reached = {t.number for source in produced for t in source.candidate.targets}
         # Un cambio sin resolver se marca aunque la unidad haya aplicado otros sobre la misma
         # fila (D1): solo lo atiende el respaldo, que lee el tramo (paso de `circulares`).
         by_fallback = {t.number for source in produced
@@ -1031,7 +1030,9 @@ class Processor:
         for reason, names, whole in losses:
             named = (self._named_candidates(names, candidates)
                      or self._named_candidates(whole, candidates))
-            done = by_fallback if reason == REVIEW_UNRESOLVED else reached
+            # Una pérdida de toda la unidad no dice qué cambio se perdió: las filas que nombra
+            # se marcan aunque hayan recibido alguna fuente (P3, D1).
+            done = by_fallback if reason == REVIEW_UNRESOLVED else set()
             self._mark_review(label, change.keys, reason,
                               [c for c in named if not done & {t.number for t in c.targets}])
 
