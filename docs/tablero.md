@@ -45,7 +45,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 55/62 | █████████░ 89% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 56/62 | █████████░ 90% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -372,8 +372,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 7 tareas sin terminar.
-- ✕ T-128 · Aplicar una aclaración de cláusula a todas sus citas (bloqueada)
+- **Próximo paso:** Desarrollar: 6 tareas sin terminar.
 - ○ T-106 · Medir el filtro, las sugerencias y el respaldo normativo con el caso-00 y ajustarlos (pendiente)
 - ○ T-107 · Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00 (pendiente)
 - ○ T-108 · Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04 (pendiente)
@@ -439,6 +438,7 @@ flowchart LR
 - ✓ T-124 · Pasada de circulares: original en el anexo por título y requisitos que agrega un "Debe decir" (`1a296ac` 2026-10-04, `464d2ca` 2026-10-04)
 - ✓ T-125 · Corregir el criterio del filtro que descartó requisitos reales (`42646c1` 2026-10-04, `2e72018` 2026-10-04, `409557a` 2026-10-04)
 - ✓ T-127 · Impedir que una aclaración termine como supresión y registrar la versión de `circulares_cambios` (`064c2c8` 2026-10-05, `678ff48` 2026-10-05)
+- ✓ T-128 · Aplicar una aclaración de cláusula a todas sus citas (`aef659f` 2026-10-05, `dac4513` 2026-10-05)
 
 ### Mapa de tareas
 
@@ -505,7 +505,7 @@ flowchart TD
   T125["✓ T-125 · Corregir el criterio del filtro que descart…"]:::done
   T126["○ T-126 · Mostrar la cadena completa de circulares qu…"]:::todo
   T127["✓ T-127 · Impedir que una aclaración termine como sup…"]:::done
-  T128["✕ T-128 · Aplicar una aclaración de cláusula a todas…"]:::blocked
+  T128["✓ T-128 · Aplicar una aclaración de cláusula a todas…"]:::done
   T067 --> T068
   T068 --> T069
   T067 --> T070
@@ -623,7 +623,7 @@ flowchart TD
 | REQ-028 | Cuando el sistema no puede ubicar con certeza un tramo del pliego (texto ilegible, tabla mal leída), debe señalarlo para revisión en lugar de omitirlo | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082, T-098, T-113 | ✓ cubierto |
 | REQ-029 | Para cada requisito, el sistema debe proponer las consecuencias posibles de no cumplirlo (por ejemplo, desestimación de la oferta o intimación a subsanar), cada una con su fundamento en el pliego o en la norma aplicable; un integrante de la Comisión confirma una. Si el sistema no encuentra fundamento, la consecuencia queda "no determinada" | T-067, T-068, T-080, T-081, T-084, T-122 | ▶ en proceso |
 | REQ-030 | La matriz se propone siempre con un único proceso de revisión, el más completo disponible, y queda registrado con la matriz qué proceso y qué versión de instrucciones se usaron | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085, T-089, T-090, T-091, T-094, T-096, T-097, T-099, T-100, T-103, T-108, T-121 | ▶ en proceso |
-| REQ-031 | El pliego final incluye las circulares modificatorias y aclaratorias y las preguntas de los oferentes con sus respuestas, si las hay, cada una con su fecha. Cuando una de ellas cambia o precisa un requisito, la matriz aplica el cambio, muestra los dos textos y cita el documento que lo produjo | T-067, T-072, T-074, T-083, T-094, T-098, T-108, T-113, T-114, T-115, T-116, T-117, T-118, T-119, T-120, T-123, T-124, T-126, T-127, T-128 | ✕ bloqueado |
+| REQ-031 | El pliego final incluye las circulares modificatorias y aclaratorias y las preguntas de los oferentes con sus respuestas, si las hay, cada una con su fecha. Cuando una de ellas cambia o precisa un requisito, la matriz aplica el cambio, muestra los dos textos y cita el documento que lo produjo | T-067, T-072, T-074, T-083, T-094, T-098, T-108, T-113, T-114, T-115, T-116, T-117, T-118, T-119, T-120, T-123, T-124, T-126, T-127, T-128 | ▶ en proceso |
 | REQ-033 | Antes de mostrar la matriz propuesta, el sistema debe descartar las filas que no son requisitos de la oferta y unificar las que repiten la misma condición. Lo descartado no desaparece: queda en una lista aparte, cada fila con su cita y el motivo, que la Comisión puede abrir y devolver a la matriz | T-099, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108, T-125 | ▶ en proceso |
 | REQ-034 | La Comisión debe poder confirmar o quitar de una vez un grupo de requisitos propuestos de un mismo tramo o cláusula; cada fila del grupo queda registrada como si se hubiera revisado por separado, con quién y cuándo | T-104, T-105, T-110, T-112 | ✓ cubierto |
 | REQ-035 | La matriz propuesta debe separar los requisitos que el sistema da por firmes de las **sugerencias de condición**: condiciones plausibles sobre las que el sistema duda. Las sugerencias van en una sección aparte, cada una con su cita y el motivo de la duda; la Comisión decide cada una (o por grupo, REQ-034) si pasa a requisito o se quita, y la matriz no se puede validar mientras quede una sugerencia sin decidir | T-099, T-102, T-103, T-106, T-107, T-108, T-110, T-111, T-112 | ▶ en proceso |
