@@ -76,6 +76,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-126 | Mostrar la cadena completa de circulares que modifican una misma condición | REQ-031 | T-116, T-124 | pendiente |
 | T-127 | Impedir que una aclaración termine como supresión y registrar la versión de `circulares_cambios` | REQ-031 | T-115, T-124 | terminada |
 | T-128 | Aplicar una aclaración de cláusula a todas sus citas | REQ-031 | T-115, T-124, T-127 | terminada |
+| T-129 | Reconocer supresiones dichas con sustantivo y aplicar la aclaración de un renglón a sus citas | REQ-031 | T-127, T-128 | pendiente |
 
 ## Para todas las tareas
 
@@ -604,6 +605,15 @@ Plan: sección "Rediseño de la pasada de circulares (2026-10-04)" de `plan.md`;
 - **No tocar:** `circulars.py` y `run.py` (T-127); instrucciones; la medición.
 - **Entorno:** cualquier equipo con Docker.
 
+### T-129 · Reconocer supresiones dichas con sustantivo y aplicar la aclaración de un renglón a sus citas
+
+- **Qué hacer:** diagnóstico 6 de T-120, correcciones 1 y 2. (1) `_SUPPRESSION_PHRASE` (`evaluon/tenders/proposal/circulars.py`, cerca de las líneas 99-101) reconoce también las formas nominales con objeto de pliego ("se dispone la eliminación de la subcláusula…", "supresión del punto…", "derogación del artículo…") y el infinitivo ("se dispone suprimir/eliminar…"). Un sustantivo sin objeto de pliego no cuenta, para no tomar "eliminación de residuos" como supresión. (2) `_pool_for` (`circular_changes.py`, cerca de las líneas 260-263) acepta una `aclara` con objetivo de renglón y sin texto anterior, y la aplica a las citas de ese renglón, con el mismo criterio que T-128 aplica a cláusula y anexo (decisión del Coordinador: es el criterio que aprobó el responsable el 2026-10-05).
+- **Aviso de tareas anteriores:** T-127 (lista de frases de supresión y marca de revisión obligatoria) y T-128 (`_pool_for`): mismos archivos, se espera a que estén integradas. T-120 se mide de nuevo después, con 01, 05 y 06 y estabilidad; meta según el diagnóstico 6: caso-01 15 de 15 y caso-05 7 de 8 (M-059 queda: es de lectura de tablas). Contar aparte las marcas de revisión obligatoria de supresión (aviso de T-127). Riesgo: más fuentes ajenas en filas técnicas (hoy 0 por renglón); medirlo.
+- **Archivos:** `evaluon/tenders/proposal/circulars.py`, `evaluon/tenders/proposal/circular_changes.py`, `tests/tenders/test_circulars.py`, `tests/tenders/test_circular_changes.py`.
+- **Verificación:** tests con textos inventados que fallan sin el arreglo: cada forma nominal e infinitiva reconocida como supresión; un falso positivo ("eliminación de residuos") que no cuenta; una `aclara` de renglón sin texto anterior da una fuente por cita del renglón; un renglón inexistente no da nada; suite en verde.
+- **No tocar:** `circular_units.py`, los prompts, la medición, el esquema.
+- **Entorno:** cualquier equipo con Docker.
+
 ### T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro
 
 - **Qué hacer:** hoy `crear_usuario --rol-comision` solo sirve para usuarios nuevos. El 2026-10-04 el Coordinador le dio rol de evaluador al usuario `sandro` en la base real con una actualización directa del campo `commission_role` (pedido del responsable), sin hecho de auditoría porque no hay tipo de hecho ni comando para eso. Agregar un comando `rol_comision <usuario> {operador,evaluador,ninguno}` que cambie el rol y deje un hecho (un tipo nuevo `user_role_changed`, con su migración de `audit`, o el que corresponda), y anotar en el registro el cambio manual del 2026-10-04 corriendo el comando sobre `sandro` con el mismo valor o registrando el hecho de regularización.
@@ -633,7 +643,7 @@ Plan: sección "Rediseño de la pasada de circulares (2026-10-04)" de `plan.md`;
 | REQ-028 | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082, T-098, T-113 |
 | REQ-029 | T-067, T-068, T-080, T-081, T-084 |
 | REQ-030 | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085, T-096, T-097, T-099, T-100, T-103, T-108 |
-| REQ-031 | T-067, T-072, T-074, T-083, T-098, T-108, T-113, T-114, T-115, T-116, T-117, T-118, T-119, T-120, T-127, T-128 |
+| REQ-031 | T-067, T-072, T-074, T-083, T-098, T-108, T-113, T-114, T-115, T-116, T-117, T-118, T-119, T-120, T-127, T-128, T-129 |
 | REQ-032 | T-067, T-074, T-082, T-086, T-105, T-112, T-116 |
 | REQ-033 | T-099, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108 |
 | REQ-034 | T-104, T-105, T-110, T-112 |
