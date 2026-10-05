@@ -9,8 +9,11 @@
 <p>Armada con la matriz versión {{ page.sheet.matrix_version.number }} el {{ page.sheet.built_at|date:"d/m/Y H:i" }}.
 La ficha dice qué ofreció el oferente y dónde lo dice. Evaluar cada requisito es tarea de la Comisión.</p>
 
+{% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+
 {% if page.newer_version %}
-<p class="notice" role="status">Armada con la versión {{ page.sheet.matrix_version.number }}; la versión vigente es la {{ page.newer_version.number }}. <a href="{% url 'offers:offer' page.offer.pk %}">Armar una ficha nueva</a>.</p>
+<p class="notice" role="status">Armada con la versión {{ page.sheet.matrix_version.number }}; la versión vigente es la {{ page.newer_version.number }}. </p>
+<form method="post" action="{% url 'offers:build_sheet' page.offer.pk %}">{% csrf_token %}<button type="submit">Armar una ficha nueva</button></form>
 {% endif %}
 
 <section class="sheet-missing" aria-labelledby="missing-title">
@@ -46,18 +49,23 @@ La ficha dice qué ofreció el oferente y dónde lo dice. Evaluar cada requisito
 
 <section class="sheet-rows" aria-labelledby="rows-title">
   <h2 id="rows-title">Requisitos</h2>
+  <form method="post" action="{% url 'offers:confirm_entries' page.sheet.pk %}">
+  {% csrf_token %}
   <table>
     <thead>
       <tr>
+        {% if review.can_confirm %}<th scope="col">Confirmar</th>{% endif %}
         <th scope="col">N.º</th>
         <th scope="col">Clase</th>
         <th scope="col">Requisito del pliego</th>
         <th scope="col">Lo que ofrece la oferta</th>
+        <th scope="col">Estado</th>
       </tr>
     </thead>
     <tbody>
       {% for row in page.rows %}
-      <tr>
+      <tr id="fila-{{ row.entry.pk }}">
+        {% if review.can_confirm %}<td>{% if row.entry.state != "confirmado" %}<input type="checkbox" name="entry" value="{{ row.entry.pk }}" aria-label="Confirmar el requisito {{ row.requirement.number }}">{% endif %}</td>{% endif %}
         <td>{{ row.requirement.number }}</td>
         <td>{{ row.requirement.get_category_display }}{% if row.item %} · renglón {{ row.item }}{% endif %}</td>
         <td>{{ row.text|truncatechars:240 }}</td>
@@ -66,15 +74,32 @@ La ficha dice qué ofreció el oferente y dónde lo dice. Evaluar cada requisito
           <p><strong>No se encontró en la oferta.</strong>{% if row.entry.unread_pages_warning %} Hay páginas sin leer en la oferta.{% endif %}</p>
           {% else %}
           {% if row.entry.synthesis %}<p>{{ row.entry.synthesis }}</p>{% endif %}
-          {% include "offers/_fragments.html" %}
+          {% if row.fragments %}
+          <ul class="fragments">
+            {% for view in row.fragments %}
+            <li>
+              <a href="{% url 'offers:document_original' view.document.pk %}#page={{ view.page }}">{{ view.document.title }} · página {{ view.page }}</a>
+              {% if view.fragment.state == "confirmado" %}<span class="state">(confirmado)</span>{% endif %}
+              {% if view.fragment.origin == "persona" %}<span class="state">(agregado por una persona)</span>{% endif %}
+              <blockquote>{{ view.fragment.text }}</blockquote>
+              <button type="submit" formmethod="post" formaction="{% url 'offers:fragment_action' view.fragment.pk 'quitar' %}">Quitar</button>
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
           {% endif %}
           {% if row.entry.quoted == "cotizado" %}<p>Renglón: <strong>cotizado</strong>.</p>
           {% elif row.entry.quoted == "no_cotizado" %}<p>Renglón: <strong>no cotizado</strong>.</p>
           {% elif row.entry.quoted == "no_se_pudo_leer" %}<p>Renglón: <strong>no se pudo leer</strong>: la oferta tiene páginas sin leer.</p>{% endif %}
+          {% if row.removed %}<ul class="fragments removed"><li>Quitados:</li>{% for view in row.removed %}<li>{{ view.document.title }} · página {{ view.page }}: «{{ view.fragment.text|truncatechars:160 }}» <button type="submit" formmethod="post" formaction="{% url 'offers:fragment_action' view.fragment.pk 'restituir' %}">Restituir</button></li>{% endfor %}</ul>{% endif %}
+          <p><a href="{% url 'offers:entry_history' row.entry.pk %}">Corregir, agregar e historial</a></p>
         </td>
+        <td>{{ row.entry.get_state_display }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  {% if review.can_confirm %}<p><button type="submit">Confirmar las filas marcadas</button></p>{% else %}<p>Confirmar las filas lo hace el evaluador.</p>{% endif %}
+  </form>
 </section>
 {% endblock %}
