@@ -246,8 +246,8 @@ def _pool_for(ctx, change):
             if len(found) == 1:
                 return found, ""
             return [], reason
-        if change.type == units.CHANGE_CLARIFIES and len(found) > 1:
-            return [], units.FALLBACK_AMBIGUOUS
+        # T-128: una aclaración sin texto anterior se aplica a todas las citas de la cláusula
+        # (decisión del responsable, 2026-10-05).
         return found, ""
     if kind == "renglon":
         items = {int(n) for n in re.findall(r"\d+", reference)}
@@ -258,7 +258,9 @@ def _pool_for(ctx, change):
             return [], units.FALLBACK_MISSING_KEY
         if change.old_text:
             return units.match_old_text(units._without_names(change.old_text), pool)
-        if change.type == units.CHANGE_SUPPRESSES:
+        # T-129: una aclaración de renglón sin texto anterior alcanza las citas del renglón,
+        # con el mismo criterio que la cláusula y el anexo (T-128).
+        if change.type in (units.CHANGE_SUPPRESSES, units.CHANGE_CLARIFIES):
             return pool, ""
         return [], units.FALLBACK_NO_OLD_TEXT
     if kind == "anexo":
@@ -269,14 +271,15 @@ def _pool_for(ctx, change):
                 if units._in_annex(c, annexes) or units._asks_for_annex(c, annexes, titles)]
         if not pool:
             return [], units.FALLBACK_ZERO
-        if change.type == units.CHANGE_SUPPRESSES and not change.old_text:
+        if (change.type in (units.CHANGE_SUPPRESSES, units.CHANGE_CLARIFIES)
+                and not change.old_text):
             return pool, ""
         return _from_old_text(change, pool, units.FALLBACK_NO_OLD_TEXT)
     pool = [c for c in candidates if not units._is_shared(c)]
     return _from_old_text(change, pool, units.FALLBACK_NO_TARGET)
 
 
-def resolve_change(ctx, change):
+def resolve_change(ctx, change, anomalies=None):
     """Aplica un cambio por clave: `(efectos, nuevos, motivo)`. Con motivo, el cambio no se
     resolvió y va al respaldo."""
     document = ctx.document
@@ -315,6 +318,21 @@ def resolve_change(ctx, change):
         effect = (SourceEffect.SUPRIME if change.type == units.CHANGE_SUPPRESSES
                   else SourceEffect.ACLARA).value
         span = change.new_span or units._span_of_head(ctx)
+        if (effect == SourceEffect.SUPRIME.value
+                and not circulars.has_suppression_phrase(canonical[span[0]:span[1]])):
+            # T-127/T-128: sin frase explícita no hay supresión firme: queda `aclara`, con
+            # revisión obligatoria (P3).
+            effect = SourceEffect.ACLARA.value
+            if anomalies is not None:
+                anomalies.append({
+                    "type": circulars.ANOMALY_SUPPRESSION_WITHOUT_PHRASE,
+                    "tramos": unit.keys, "tipo": change.type, "objetivo": change.target,
+                    "referencia": change.reference, "returned": SourceEffect.SUPRIME.value,
+                    "result": effect, "text": canonical[span[0]:span[1]],
+                    "review_required": True,
+                    "circular": f"{document.document.title} "
+                                f"({document.document.issued_on.strftime('%d/%m/%Y')})",
+                    "requirements": sorted({t.number for c in targets for t in c.targets})})
     return [units._effect(unit, document, candidate, effect, *span)
             for candidate in targets], [], ""
 
@@ -457,7 +475,7 @@ class Extractor:
             if change.reason:
                 unresolved.append(change)
                 continue
-            effects, additions, reason = resolve_change(ctx, change)
+            effects, additions, reason = resolve_change(ctx, change, processor.anomalies)
             if reason:
                 change.reason = reason
                 unresolved.append(change)
