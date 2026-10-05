@@ -45,7 +45,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 59/63 | █████████░ 94% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 60/63 | ██████████ 95% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -372,10 +372,9 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 4 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 3 tareas sin terminar.
 - ○ T-106 · Medir el filtro, las sugerencias y el respaldo normativo con el caso-00 y ajustarlos (pendiente)
 - ○ T-108 · Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04 (pendiente)
-- ○ T-120 · Medir y ajustar la pasada de circulares con los casos 01, 05 y 06, con estabilidad (pendiente)
 - ○ T-122 · Mostrar los cambios vigentes de la norma al proponer consecuencias, o no fundar en unidades modificadas (pendiente)
 
 ### Qué se hizo
@@ -432,6 +431,7 @@ flowchart LR
 - ✓ T-117 · Medir REQ-031 por fila en `medir_matriz`: documento, fecha, texto original y vigente (`d0db99b` 2026-10-04, `f1ff70c` 2026-10-04)
 - ✓ T-118 · Cargar los casos 05 y 06 y preparar sus listas esperadas de circulares
 - ✓ T-119 · Actualizar la lista esperada del caso-01 con las filas que las circulares afectan
+- ✓ T-120 · Medir y ajustar la pasada de circulares con los casos 01, 05 y 06, con estabilidad (`eec12a1` 2026-10-05, `f8b51df` 2026-10-05, `fb8f1b6` 2026-10-05)
 - ✓ T-121 · Corregir el consumo de memoria de la medición (citas que cargaban cada una su lectura) (`215300c` 2026-10-04, `39b9103` 2026-10-04)
 - ✓ T-123 · Corregir la medición: citas de otra lectura y filas suprimidas por una circular (`367acd8` 2026-10-04, `4f2f044` 2026-10-04)
 - ✓ T-124 · Pasada de circulares: original en el anexo por título y requisitos que agrega un "Debe decir" (`1a296ac` 2026-10-04, `464d2ca` 2026-10-04)
@@ -498,7 +498,7 @@ flowchart TD
   T117["✓ T-117 · Medir REQ-031 por fila en medir_matriz: doc…"]:::done
   T118["✓ T-118 · Cargar los casos 05 y 06 y preparar sus lis…"]:::done
   T119["✓ T-119 · Actualizar la lista esperada del caso-01 co…"]:::done
-  T120["○ T-120 · Medir y ajustar la pasada de circulares con…"]:::todo
+  T120["✓ T-120 · Medir y ajustar la pasada de circulares con…"]:::done
   T121["✓ T-121 · Corregir el consumo de memoria de la medici…"]:::done
   T122["○ T-122 · Mostrar los cambios vigentes de la norma al…"]:::todo
   T123["✓ T-123 · Corregir la medición: citas de otra lectura…"]:::done
