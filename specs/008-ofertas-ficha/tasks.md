@@ -21,6 +21,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-134 | Medir la ficha con las tres ofertas del caso-00 (medición base) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-131, T-133 | terminada |
 | T-135 | Corregir los hallazgos de T-134 y medir de nuevo (ronda 1) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-134 | pendiente |
 | T-136 | Solo si T-135 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-135 | pendiente |
+| T-146 | Búsqueda de la ficha con el requisito reescrito como lo diría una oferta | REQ-039, REQ-040 | T-136 | pendiente |
 
 ## Paralelismo
 
@@ -104,6 +105,16 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Archivos:** como T-135, más `specs/008-ofertas-ficha/verificacion/T-136.md`.
 - **Verificación:** la medición con el mismo umbral.
 - **No tocar:** lo mismo que T-135.
+
+### T-146 · Búsqueda de la ficha con el requisito reescrito como lo diría una oferta
+
+- **Requisitos:** REQ-039, REQ-040
+- **Origen:** calibración de T-136 (`verificacion/T-136.md`): 32 de 55 pasajes correctos reciben puntaje casi nulo del reranker porque la consulta usa el texto del pliego y la oferta responde con otras palabras; ningún umbral pasa de 25 de 55. Decisión del responsable del 2026-10-05: tarea nueva (cambio de diseño de la búsqueda, no una tercera ronda; ADR-0025).
+- **Nivel de verificación:** plena (instrucciones al modelo).
+- **Qué hay que hacer:** antes de recuperar, el modelo reescribe cada requisito como lo diría una oferta (por ejemplo, "garantía de mantenimiento de oferta del 5 %" como "póliza de caución, suma asegurada, mantenimiento de oferta"); se recupera y se reordena con la consulta original y la reescrita, y el pasaje queda con el mejor puntaje de las dos. La reescritura se guarda en el registro de la ficha (P6). Instrucciones nuevas con su versión. El umbral de 0,4 se recalibra con los puntajes nuevos.
+- **Umbral (escrito antes de medir):** fragmentos encontrados 90 % (REQ-039), con falsos hallazgos no mayores que en T-136 (1) más 5, texto literal y síntesis sin juicio 100 %. Una medición con el caso-00; lo que no llegue va a la revisión con el primer producto.
+- **No tocar:** el esquema; la lectura; la medición.
+- **Entorno:** MSI con GPU para la medición, de a una.
 
 ## Revisión con el primer producto
 
