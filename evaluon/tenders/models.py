@@ -323,6 +323,14 @@ class JobKind(models.TextChoices):
     # oferta o la oferta.
     READ_OFFER_DOCUMENT = "read_offer_document", "Leer un documento de una oferta"
     BUILD_SHEET = "build_sheet", "Armar la ficha de una oferta"
+    # Feature 012 (ADR-0030, ADR-0031): pedidos del Portal de Compras; `target_id` es el
+    # enlace (`portal_link`) y el procedimiento puede no existir todavía.
+    PORTAL_EXPLORE = "portal_explore", "Explorar un proceso del Portal"
+    PORTAL_REVIEW = "portal_review", "Revisar un proceso del Portal"
+
+
+# Tipos que atiende el servicio `portal_worker` y no el `worker` (ADR-0031).
+PORTAL_JOB_KINDS = (JobKind.PORTAL_EXPLORE, JobKind.PORTAL_REVIEW)
 
 
 class JobStatus(models.TextChoices):
@@ -339,8 +347,15 @@ class Job(models.Model):
     status = models.CharField(
         "estado", max_length=10, choices=JobStatus.choices, default=JobStatus.QUEUED
     )
+    # Nulo solo en los pedidos del Portal, que pueden ser anteriores al procedimiento
+    # (restricción `tenders_job_procedure_required`).
     procedure = models.ForeignKey(
-        Procedure, verbose_name="procedimiento", on_delete=models.PROTECT, related_name="jobs"
+        Procedure,
+        verbose_name="procedimiento",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="jobs",
     )
     document = models.ForeignKey(
         Document,
@@ -378,6 +393,16 @@ class Job(models.Model):
                 condition=~Q(kind__in=[JobKind.READ_OFFER_DOCUMENT, JobKind.BUILD_SHEET])
                 | Q(target_id__isnull=False),
                 name="tenders_job_offer_kinds_have_target",
+            ),
+            # Solo los pedidos del Portal pueden no tener procedimiento (ADR-0030).
+            models.CheckConstraint(
+                condition=Q(procedure__isnull=False) | Q(kind__in=PORTAL_JOB_KINDS),
+                name="tenders_job_procedure_required",
+            ),
+            # Un pedido del Portal nombra su enlace.
+            models.CheckConstraint(
+                condition=~Q(kind__in=PORTAL_JOB_KINDS) | Q(target_id__isnull=False),
+                name="tenders_job_portal_kinds_have_target",
             ),
         ]
 
