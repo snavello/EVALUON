@@ -167,7 +167,10 @@ class QuoteRow:
     scope: str
     scope_label: str
     current: SourceRow | None = None  # la fuente que modifica el texto, si hay
+    earlier: list = field(default_factory=list)  # eslabones previos (modifica o suprime), por fecha
+    voided: SourceRow | None = None  # la supresión que cierra la cadena: nada rige
     notes: list = field(default_factory=list)  # aclaraciones y supresiones
+    side_notes: list = field(default_factory=list)  # aclaraciones: las supresiones van en la cadena
     quote_id: int | None = None
     segment_id: int | None = None
     covered: bool = False  # un cambio ya mostrado en una cita anterior también la alcanza
@@ -326,7 +329,10 @@ def quote_rows(requirement, pages):
     rows = []
     for quote in quotes:
         mine = by_quote.get(quote.pk, [])
-        modifying = [s for s in mine if s.effect == SourceEffect.MODIFICA]
+        # La cadena: modificaciones y supresiones en orden de fecha. Si el último eslabón
+        # suprime, ningún texto es vigente; si una modificación lo sigue, vuelve a serlo.
+        chain = [s for s in mine if s.effect in (SourceEffect.MODIFICA, SourceEffect.SUPRIME)]
+        closed = bool(chain) and chain[-1].effect == SourceEffect.SUPRIME
         rows.append(QuoteRow(
             place=place(pages, quote.segment, quote.char_start, quote.char_end),
             quote_id=quote.pk,
@@ -335,8 +341,11 @@ def quote_rows(requirement, pages):
             wide=bool(quote.quote_flag),
             scope=quote.scope,
             scope_label=quote.get_scope_display() if quote.scope else "",
-            current=modifying[-1] if modifying else None,
+            current=chain[-1] if chain and not closed else None,
+            earlier=chain if closed else chain[:-1],
+            voided=chain[-1] if closed else None,
             notes=[s for s in mine if s.effect != SourceEffect.MODIFICA],
+            side_notes=[s for s in mine if s.effect == SourceEffect.ACLARA],
             covered=quote.pk in covered and not mine,
         ))
     return rows, loose
