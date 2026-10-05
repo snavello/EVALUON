@@ -575,3 +575,46 @@ def test_a_suppression_by_key_without_an_explicit_phrase_stays_a_clarification(
     assert requirement_with(version, PLAZO).sources.get().effect == "aclara"
     found = [a for a in run.anomalies if a["type"] == "circular_supresion_sin_frase"]
     assert found and found[0]["review_required"] is True and found[0]["result"] == "aclara"
+
+
+def test_a_clarification_of_a_named_annex_without_old_text_reaches_its_citations(
+        operator_user, script):
+    """REQ-031 (T-128): una aclaración del Anexo VI sin texto anterior da una fuente `aclara`
+    a cada cita del anexo (las del anexo y la cláusula que manda completarlo)."""
+    from tests.tenders.test_circular_units import ANEXO, ANEXO_ROW, annex_case
+
+    procedure = annex_case(operator_user, script)
+    add_circular(operator_user, procedure, "Circular N.º 4", date(2025, 12, 1),
+                 f"1. {CLARIFICATION}, respecto del Anexo VI.")
+    script.x_when("portal", [change("aclara", "anexo", "VI", "", CLARIFICATION)])
+
+    version, run = run_proposal(operator_user, procedure)
+
+    for text in (ANEXO, ANEXO_ROW):
+        source = requirement_with(version, text).sources.get()
+        assert source.effect == "aclara" and source.text == CLARIFICATION
+    assert not fallback_asked(script, "portal")
+
+
+def test_a_suppression_by_key_without_a_phrase_shows_in_the_matrix_and_the_print(
+        operator_user, script):
+    """REQ-031 (T-128, P3): la anomalía de la extracción por clave lleva la circular y los
+    requisitos, y la fila se ve "a revisión obligatoria" en la matriz y en la impresión."""
+    from evaluon.tenders import export as matrix_export
+    from evaluon.tenders.services import matrix_page
+
+    procedure = guarantee_case(operator_user, script)
+    add_circular(operator_user, procedure, "Circular N.º 4", date(2025, 12, 1),
+                 f"1. {CLARIFICATION}, conforme a la cláusula 4.1.")
+    script.x_when("portal", [change("suprime", "clausula", "4.1", "", CLARIFICATION)])
+
+    version, run = run_proposal(operator_user, procedure)
+
+    page = matrix_page.matrix_page(operator_user, version.pk)
+    rows = [r for g in page.groups for r in g.rows] + page.technical
+    flagged = {r.requirement.number: r.review_notes for r in rows if r.review_notes}
+    assert list(flagged) == [requirement_with(version, PLAZO).number]
+    (note,) = next(iter(flagged.values()))
+    assert "Circular N.º 4" in note["circular"] and "01/12/2025" in note["circular"]
+    html, _ = matrix_export.render_html(operator_user, version.pk, pdf=False)
+    assert html.count("A revisión obligatoria") == 1

@@ -327,7 +327,10 @@ def resolve_change(ctx, change, anomalies=None):
                     "tramos": unit.keys, "tipo": change.type, "objetivo": change.target,
                     "referencia": change.reference, "returned": SourceEffect.SUPRIME.value,
                     "result": effect, "text": canonical[span[0]:span[1]],
-                    "review_required": True})
+                    "review_required": True,
+                    "circular": f"{document.document.title} "
+                                f"({document.document.issued_on.strftime('%d/%m/%Y')})",
+                    "requirements": sorted({t.number for c in targets for t in c.targets})})
     return [units._effect(unit, document, candidate, effect, *span)
             for candidate in targets], [], ""
 
