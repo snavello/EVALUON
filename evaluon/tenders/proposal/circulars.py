@@ -566,6 +566,7 @@ class NewRequirement:
     step: object
     wide: bool = False
     number: int = 0
+    suggested: bool = False      # una reformulación probable: va como sugerencia
 
 
 @dataclass
@@ -894,7 +895,7 @@ class Processor:
         for addition in resolution.additions:
             new_requirements.append(NewRequirement(
                 addition.category, addition.segment, addition.start, addition.end,
-                addition.text, issued_on, step))
+                addition.text, issued_on, step, suggested=addition.suggested))
             self.stats["new_requirements"] += 1
         base = Verdict(DispositionOutcome.REQUISITOS.value, source=DispositionSource.MODELO.value,
                        step=step)
@@ -997,7 +998,7 @@ class Processor:
         for addition in resolution.additions:
             new_requirements.append(NewRequirement(
                 addition.category, addition.segment, addition.start, addition.end,
-                addition.text, issued_on, step))
+                addition.text, issued_on, step, suggested=addition.suggested))
             self.stats["new_requirements"] += 1
 
     @staticmethod

@@ -31,6 +31,7 @@ efectos (`Effect`) y los requisitos nuevos (`Addition`); `circulars.Processor` l
 los registra y los pasa al resultado.
 """
 
+import difflib
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -79,6 +80,7 @@ DATA_MIN_LINES = 2
 HEAD_LINES = 4              # líneas del apartado en que se busca el título de un anexo
 MIN_OVERLAP_WORDS = 2       # palabras seguidas en común para dar por alcanzada una cita
 MIN_CONTAINED_CHARS = 15    # largo mínimo de una cita contenida en el texto anterior
+SIMILAR_SENTENCE = 0.7      # parecido de palabras para tomar una oración por reformulación
 
 _STOPWORDS = frozenset("de la el los las del en por y a que con al un una se lo su sus o e".split())
 
@@ -421,6 +423,7 @@ class Addition:
     start: int
     end: int
     text: str
+    suggested: bool = False     # se parece a una oración del lado "dice": va como sugerencia
 
 
 @dataclass
@@ -547,15 +550,29 @@ def _sentences(text, base):
             start = found.end()
 
 
+def _similarity(a, b):
+    """Parecido de dos oraciones por palabras: el mayor entre la secuencia común y el
+    conjunto de palabras (cubre el orden distinto y una palabra cambiada o agregada)."""
+    wa, wb = _words(a), _words(b)
+    if not wa or not wb:
+        return 0.0
+    sequence = difflib.SequenceMatcher(None, wa, wb, autojunk=False).ratio()
+    sa, sb = set(wa), set(wb)
+    return max(sequence, len(sa & sb) / len(sa | sb))
+
+
 def _added_obligations(ctx, pair, found):
     """Lo que el lado "debe decir" suma: las oraciones con marcador de obligación que no
-    están en el lado "dice" ni en las citas alcanzadas. Cada una es un requisito formal de
-    origen `circular`, con la cita literal en el tramo de la circular."""
+    están en el lado "dice" ni en las citas alcanzadas. Las claramente nuevas son requisitos
+    formales de origen `circular`; las que se parecen a una oración del lado "dice" (una
+    reformulación) van como sugerencia. Una oración repetida da un solo requisito."""
     from evaluon.tenders.proposal.run import has_obligation_markers
 
-    known = _norm(" ".join([pair.old] + [c.text for c in found]))
+    old_text = " ".join([pair.old] + [c.text for c in found])
+    known = _norm(old_text)
+    old_sentences = [old_text[a:b] for a, b in _sentences(old_text, 0)]
     canonical = ctx.document.reading.canonical_text
-    out = []
+    out, seen = [], set()
     for member in ctx.unit.members:
         low = max(member.segment.char_start, pair.new_start)
         high = min(member.segment.char_end, pair.new_end)
@@ -565,10 +582,13 @@ def _added_obligations(ctx, pair, found):
             sentence = canonical[start:end]
             body = _norm(_LEADING_NUMBERING.sub("", sentence))
             if (not has_obligation_markers(sentence) or len(body) < MIN_CONTAINED_CHARS
-                    or body in known):
+                    or body in known or body in seen):
                 continue
+            seen.add(body)
+            similar = any(_similarity(sentence, old) >= SIMILAR_SENTENCE
+                          for old in old_sentences)
             out.append(Addition(RequirementClass.FORMAL.value, member.segment, start, end,
-                                sentence))
+                                sentence, suggested=similar))
     return out
 
 
@@ -767,24 +787,21 @@ def is_procedure_data(unit):
             and (labeled + short) / len(lines) >= DATA_SHARE)
 
 
-_FILE_EXTENSION = re.compile(r"\.[A-Za-z0-9]{2,5}$")
-
-
-def _plain_title(text):
-    """El título sin extensión de archivo, con guiones y guiones bajos como espacios, sin
-    mayúsculas ni tildes."""
-    text = _FILE_EXTENSION.sub("", (text or "").strip())
-    return _norm(re.sub(r"[_\-]+", " ", text))
+def _has_words(text, title):
+    """Si `title` está en `text` como palabras completas y seguidas (sin mayúsculas, tildes,
+    guiones ni guiones bajos), no como parte de otra palabra."""
+    wanted = " ".join(_words(title))
+    return bool(wanted) and f" {wanted} " in f" {' '.join(_words(text))} "
 
 
 def _names_title(title, document_title, segments):
     """Si el documento lleva `title`: en su título (normalizado) o, si no, en sus primeros
     párrafos con texto (el primero suele ser el membrete de página)."""
-    if title in _plain_title(document_title) or title in fold(document_title):
+    if _has_words(document_title, title):
         return True
     head = [s for s in segments if s.segment_type != SegmentType.PAGINA
             and (s.text or "").strip()][:HEAD_LINES]
-    return any(title in _plain_title(s.text) for s in head)
+    return any(_has_words(s.text, title) for s in head)
 
 
 def _find_original(ctx, title, mentioning):
@@ -808,7 +825,7 @@ def _find_original(ctx, title, mentioning):
             parts = container.key.split("/")
             index = next((i for i, p in enumerate(parts) if p.lower().startswith("anexo-")),
                          None)
-            if index is None or title not in fold(container.text or ""):
+            if index is None or not _has_words(container.text, title):
                 continue
             prefix = "/".join(parts[:index + 1])
             body = [s for s in segments
