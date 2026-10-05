@@ -182,17 +182,17 @@ def test_candidates_come_from_all_documents_regardless_of_their_kind(
 def test_only_the_best_candidates_by_the_reranker_reach_the_model(
         procedure, operator_user, fake_ai, script):
     """ADR-0027: pasan los mejores del reranker, de mayor a menor puntaje, hasta el tope."""
-    pages = [f"Texto número {n}." for n in range(1, 13)]
+    pages = [f"Texto número {n}." for n in range(1, 17)]
     offer = make_offer(procedure, operator_user, "Muchos", {"a.pdf": pages})
-    fake_ai.reranker.scores = {f"número {n}.": n / 20 for n in range(1, 13)}
-    script.choose(pick("número 12."))
+    fake_ai.reranker.scores = {f"número {n}.": n / 20 for n in range(1, 17)}
+    script.choose(pick("número 16."))
     sheet = build(offer, operator_user)
     blocks = script.calls[0]["blocks"]
-    assert len(blocks) == 8
-    assert list(blocks.values())[0] == "Texto número 12."
+    assert len(blocks) == 12
+    assert list(blocks.values())[0] == "Texto número 16."
     assert list(blocks.values())[-1] == "Texto número 5."
     step = sheet.steps.filter(entry__requirement__number=1).get()
-    assert len(step.candidates["pool"]) == 12 and len(step.candidates["sent"]) == 8
+    assert len(step.candidates["pool"]) == 16 and len(step.candidates["sent"]) == 12
 
 
 def test_the_request_to_the_model_uses_the_batch_engine_and_fixed_parameters(
@@ -285,14 +285,16 @@ def test_a_synthesis_with_judgment_is_retried_with_the_warning(offer, operator_u
     assert sheet.counts["retries"] == 1 and sheet.anomalies == []
 
 
-def test_a_synthesis_that_keeps_the_judgment_is_left_empty_with_its_anomaly(
+def test_a_synthesis_that_keeps_the_judgment_is_replaced_by_a_neutral_one_with_its_anomaly(
         offer, operator_user, script):
-    """REQ-041: si vuelve a fallar, la fila queda sin síntesis (conserva sus fragmentos) y la
-    anomalía en el registro; ninguna síntesis guardada tiene palabras de juicio."""
+    """REQ-041: si vuelve a fallar, la fila no queda vacía: lleva una síntesis neutra que solo
+    dice dónde está la respuesta, conserva sus fragmentos y deja la anomalía en el registro;
+    ninguna síntesis guardada tiene palabras de juicio (T-135)."""
     script.choose(pick(DECLARATION, synthesis="La oferta cumple.", when="declaración jurada"))
     sheet = build(offer, operator_user)
     row = entry_of(sheet, 1)
-    assert row.synthesis == "" and row.fragments.count() == 1
+    assert row.synthesis.startswith("El oferente responde en: ") and row.fragments.count() == 1
+    assert "oferta.pdf" in row.synthesis and "página 1" in row.synthesis
     assert row.outcome == om.Outcome.ENCONTRADO
     assert {"type": "sintesis_con_juicio", "requirement": 1} in sheet.anomalies
     assert all(not sheets.judgment_words(e.synthesis) for e in sheet.entries.all())
@@ -359,8 +361,8 @@ def test_every_model_request_is_recorded(offer, operator_user, script):
     assert step.timings["generation_seconds"] >= 0
     detail = events(EventType.SHEET_BUILD, Outcome.OK).get().detail
     assert detail["models"]["generation_batch"]["sha256"]
-    assert detail["parameters"]["candidates_to_model"] == 8
-    assert detail["prompt_versions"] == {"ficha": "ficha-v1", "ficha_renglon": "ficha-renglon-v1"}
+    assert detail["parameters"]["candidates_to_model"] == 12
+    assert detail["prompt_versions"] == {"ficha": "ficha-v2", "ficha_renglon": "ficha-renglon-v2"}
     assert detail["counts"]["model_requests"] == sheet.steps.count()
 
 
@@ -484,3 +486,88 @@ def test_the_prompts_exist_and_say_the_model_does_not_judge():
     for name in ("ficha", "ficha_renglon"):
         text = sheets.load_prompt(name)
         assert "no cumple" in text and "No decidís" in text
+
+
+# --- Ronda 1 de T-135 --------------------------------------------------------------------------
+
+
+def _table_offer(procedure, operator_user):
+    """Una oferta cuya tabla del Portal (solo número y descripción) está partida en tres
+    pasajes de la misma página, más una página aparte."""
+    offer = make_offer(procedure, operator_user, "Con tabla", {
+        "tabla.pdf": ["Renglón Descripción", "Otra página sin relación."]})
+    reading = om.Reading.objects.get(document__offer=offer)
+    first = reading.passages.get(page=1)
+    from tests.conftest import unit_vector
+
+    for order, text in ((3, "2 Cartucho de tóner negro"), (4, "1 Resma de papel A4")):
+        om.Passage.objects.create(
+            reading=reading, order=order, key=f"p1/b{order}", page=1, char_start=0, char_end=1,
+            text=text, text_origin="pdf_text", embedding=unit_vector(100 + order))
+    return offer, first
+
+
+def test_the_query_of_an_item_row_starts_with_the_item_number(offer, operator_user, fake_ai,
+                                                              script):
+    """REQ-044 (T-135): la consulta del renglón lleva "Renglón N" delante; la de un requisito
+    común no cambia."""
+    build(offer, operator_user)
+    queries = [query for query, _ in fake_ai.reranker.calls]
+    assert any(q.startswith("Renglón 1: ") for q in queries)
+    assert any(q.startswith("Renglón 3: ") for q in queries)
+    assert not any(q.startswith("Renglón") for q in queries
+                   if "declaración jurada" in q or "validez" in q)
+
+
+def test_an_item_row_also_gets_the_neighbors_of_its_best_passages(
+        procedure, operator_user, fake_ai, script, settings):
+    """REQ-044 (T-135): la zona de tabla: los pasajes vecinos de la misma página del mejor
+    candidato llegan al modelo aunque no hayan entrado por el reranker; una fila común no los
+    recibe, y una página distinta tampoco."""
+    settings.OFFERS_CANDIDATES_TO_MODEL = 1
+    offer, _ = _table_offer(procedure, operator_user)
+    fake_ai.reranker.scores = {"Cartucho": 0.9}
+    script.choose(lambda requirement, blocks, number, messages: None)
+    sheet = build(offer, operator_user)
+    item_call = next(c for c in script.calls if c["messages"][-1]["content"].startswith("Renglón"))
+    texts = list(item_call["blocks"].values())
+    assert texts[0] == "2 Cartucho de tóner negro"
+    assert "1 Resma de papel A4" in texts and "Renglón Descripción" not in texts
+    assert "Otra página sin relación." not in texts
+    common = next(c for c in script.calls
+                  if not c["messages"][-1]["content"].startswith("Renglón"))
+    assert len(common["blocks"]) == 1
+    step = sheet.steps.filter(entry__requirement__number=6).get()
+    assert any("neighbor" in c["sources"] for c in step.candidates["pool"])
+    assert len(step.candidates["sent"]) == 2
+
+
+def test_the_item_prompt_v2_accepts_a_table_row_with_number_and_description():
+    """REQ-044: la instrucción del renglón v2 dice que la tabla con número y descripción, o la
+    hoja técnica, ofrece el renglón; la v1 sigue como estaba."""
+    text = sheets.PROMPTS_DIR.joinpath("ficha-renglon-v2.md").read_text(encoding="utf-8")
+    assert "aunque no traiga precio" in text and "hoja técnica" in text
+    assert "No decidís" in text and "no cumple" in text
+    assert "aunque no traiga precio" not in sheets.PROMPTS_DIR.joinpath(
+        "ficha-renglon-v1.md").read_text(encoding="utf-8")
+
+
+def test_the_sheet_prompt_v2_asks_for_the_concrete_datum_and_abstention():
+    """REQ-040: la instrucción v2 pide el dato concreto, trae ejemplos de pasaje de tema
+    parecido que no responde y dice que sin respuesta la lista va vacía; la v1 no cambió."""
+    text = sheets.PROMPTS_DIR.joinpath("ficha-v2.md").read_text(encoding="utf-8")
+    assert "dato concreto" in text and "no se encontró" in text and "Ante la duda" in text
+    assert text.count('{"pasajes": [], "sintesis": ""}') >= 2
+    old = sheets.PROMPTS_DIR.joinpath("ficha-v1.md").read_text(encoding="utf-8")
+    assert "dato concreto" not in old and old.count('{"pasajes": [], "sintesis": ""}') == 1
+    assert sheets.load_prompt("ficha") == text
+
+
+def test_a_found_row_never_stays_without_a_synthesis(offer, operator_user, script):
+    """REQ-041 (T-135): si el modelo devuelve pasajes con la síntesis vacía, la fila lleva la
+    síntesis neutra que dice dónde está la respuesta."""
+    script.choose(pick(DECLARATION, synthesis="", when="declaración jurada"))
+    row = entry_of(build(offer, operator_user), 1)
+    assert row.outcome == om.Outcome.ENCONTRADO
+    assert row.synthesis.startswith("El oferente responde en: ")
+    assert not sheets.judgment_words(row.synthesis)

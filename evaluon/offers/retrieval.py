@@ -14,6 +14,10 @@ ADR-0007).
    camino entró.
 3. El reranker puntúa cada candidato contra la consulta en un solo pedido; pasan los
    `OFFERS_CANDIDATES_TO_MODEL` mejores, de mayor a menor puntaje (empate: orden de la unión).
+4. Para una fila por renglón (`neighbors=True`, T-135) se suman, tras los mejores, los pasajes
+   vecinos de la misma lectura y página de los `OFFERS_ITEM_NEIGHBOR_SEEDS` primeros (la zona
+   de la tabla del renglón), hasta `OFFERS_ITEM_NEIGHBORS`, con la fuente "neighbor" y sin
+   puntaje del reranker.
 
 Devuelve todos los candidatos (con su puntaje) y los que pasan, para registrar en
 `offers_sheet_step.candidates` lo que se vio y lo que se mandó al modelo (P6). Los clientes
@@ -31,6 +35,7 @@ from evaluon.ai import embeddings, reranker
 
 SEMANTIC = "semantic"
 WORDS = "words"
+NEIGHBOR = "neighbor"
 
 _JOINS = """
 FROM offers_passage p
@@ -60,6 +65,15 @@ CROSS JOIN search_query(%s) AS q(query)
   AND p.tsv @@ q.query
 ORDER BY rank DESC, p.id
 LIMIT %s
+"""
+
+_NEIGHBORS_SQL = """
+SELECT n.id
+FROM offers_passage p
+JOIN offers_passage n ON n.reading_id = p.reading_id AND n.page = p.page
+                     AND n."order" IN (p."order" - 1, p."order" + 1)
+WHERE p.id = %s
+ORDER BY n."order", n.id
 """
 
 _WORD_RE = re.compile(r"\w+", re.UNICODE)
@@ -120,7 +134,27 @@ def passage_texts(passage_ids):
     return dict(rows)
 
 
-def retrieve(offer, query):
+def _add_neighbors(candidates, chosen):
+    """Suma a `chosen` los vecinos de página de los primeros candidatos (y a `candidates` los
+    que todavía no estaban)."""
+    in_pool = {c.passage_id: c for c in candidates}
+    taken = {c.passage_id for c in chosen}
+    added = []
+    for seed in chosen[:settings.OFFERS_ITEM_NEIGHBOR_SEEDS]:
+        for (passage_id,) in _fetch(_NEIGHBORS_SQL, [seed.passage_id]):
+            if passage_id in taken or len(added) >= settings.OFFERS_ITEM_NEIGHBORS:
+                continue
+            taken.add(passage_id)
+            candidate = in_pool.get(passage_id)
+            if candidate is None:
+                candidate = Candidate(passage_id)
+                candidates.append(candidate)
+            candidate.sources.append(NEIGHBOR)
+            added.append(candidate)
+    return chosen + added
+
+
+def retrieve(offer, query, neighbors=False):
     """Candidatos de `offer` para `query`, ya reordenados. Ver el módulo."""
     query = (query or "").strip()[:settings.OFFERS_QUERY_MAX_CHARS]
     pool = {}
@@ -147,4 +181,6 @@ def retrieve(offer, query):
             candidate.score = round(float(score), 6)
     order = sorted(range(len(candidates)), key=lambda i: (-candidates[i].score, i))
     chosen = [candidates[i] for i in order[:settings.OFFERS_CANDIDATES_TO_MODEL]]
+    if neighbors and chosen:
+        chosen = _add_neighbors(candidates, chosen)
     return Retrieval(query=query, pool=candidates, chosen=chosen)

@@ -347,7 +347,11 @@ OFFERS_EMBED_BATCH = 16
 # Candidatos por significado y por palabras, y los que pasan al modelo tras el reranker.
 OFFERS_CANDIDATES_EMBEDDINGS = 20
 OFFERS_CANDIDATES_WORDS = 20
-OFFERS_CANDIDATES_TO_MODEL = 8
+OFFERS_CANDIDATES_TO_MODEL = 12
+# Fila por renglón (T-135): pasajes vecinos de la misma página (zona de tabla) que se suman a
+# los candidatos de los `OFFERS_ITEM_NEIGHBOR_SEEDS` mejores, hasta `OFFERS_ITEM_NEIGHBORS`.
+OFFERS_ITEM_NEIGHBOR_SEEDS = 3
+OFFERS_ITEM_NEIGHBORS = 4
 # Máximo de tokens de salida de cada pedido de la ficha y espera máxima de cada pedido.
 OFFERS_MAX_OUTPUT_TOKENS = 400
 OFFERS_REQUEST_TIMEOUT_SECONDS = GENERATION_BATCH_TIMEOUT_SECONDS
@@ -355,6 +359,6 @@ OFFERS_REQUEST_TIMEOUT_SECONDS = GENERATION_BATCH_TIMEOUT_SECONDS
 OFFERS_QUERY_MAX_CHARS = 800
 # Versión de cada instrucción: archivo `evaluon/offers/prompts/<versión>.md`.
 OFFERS_PROMPT_VERSIONS = {
-    "ficha": "ficha-v1",
-    "ficha_renglon": "ficha-renglon-v1",
+    "ficha": "ficha-v2",
+    "ficha_renglon": "ficha-renglon-v2",
 }

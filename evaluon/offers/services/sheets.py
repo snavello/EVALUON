@@ -223,6 +223,8 @@ def _parameters():
         "candidates_embeddings": settings.OFFERS_CANDIDATES_EMBEDDINGS,
         "candidates_words": settings.OFFERS_CANDIDATES_WORDS,
         "candidates_to_model": settings.OFFERS_CANDIDATES_TO_MODEL,
+        "item_neighbor_seeds": settings.OFFERS_ITEM_NEIGHBOR_SEEDS,
+        "item_neighbors": settings.OFFERS_ITEM_NEIGHBORS,
         "max_output_tokens": settings.OFFERS_MAX_OUTPUT_TOKENS,
         "request_timeout_seconds": settings.OFFERS_REQUEST_TIMEOUT_SECONDS,
         "query_max_chars": settings.OFFERS_QUERY_MAX_CHARS,
@@ -259,6 +261,15 @@ def requirement_text(requirement):
         own = [q for q in quotes if q.scope == "propia"]
         return " ".join(q.text for q in (own or quotes[:1]))
     return quotes[0].text
+
+
+def retrieval_query(requirement, text):
+    """La consulta de la recuperación: la cita del requisito; la de una fila por renglón
+    empieza con "Renglón N", porque las tablas de las ofertas traen solo el número y la
+    descripción (T-135)."""
+    if text and is_item_row(requirement):
+        return f"Renglón {requirement.items[0]}: {text}"
+    return text
 
 
 def build_messages(prompt, requirement, text, aliased, correction=""):
@@ -366,6 +377,15 @@ def _correction(problem):
             + "). Respondé solo con el objeto JSON pedido y usá solo los alias de la lista.")
 
 
+def neutral_synthesis(passages):
+    """Síntesis de una fila cuyo texto del modelo sigue con juicio después del reintento: solo
+    dice dónde está la respuesta (documento y página de los pasajes), sin datos del modelo
+    (T-135)."""
+    places = "; ".join(f"{p.reading.document.title}, página {p.page}" for p in passages)
+    text = f"El oferente responde en: {places}."
+    return text if not judgment_words(text) else "El oferente responde en los pasajes mostrados."
+
+
 def _answer_entry(offer, requirement, unread, clock):
     """Arma una fila: recupera candidatos, pide al modelo y valida su respuesta."""
     entry = EntryData(requirement=requirement, unread_warning=bool(unread))
@@ -374,7 +394,7 @@ def _answer_entry(offer, requirement, unread, clock):
     if not text:
         entry.anomalies.append({"type": ANOMALY_NO_QUOTE, "requirement": requirement.number})
     started = clock()
-    found = retrieval.retrieve(offer, text)
+    found = retrieval.retrieve(offer, retrieval_query(requirement, text), neighbors=item_row)
     retrieval_seconds = clock() - started
     passages = {p.pk: p for p in Passage.objects.filter(
         pk__in=[c.passage_id for c in found.pool]).select_related("reading__document")}
@@ -443,7 +463,7 @@ def _answer_entry(offer, requirement, unread, clock):
     entry.passages = [alias_to_passage[a] for a in chosen]
     if entry.passages:
         entry.outcome = EntryOutcome.ENCONTRADO
-        entry.synthesis = synthesis
+        entry.synthesis = synthesis or neutral_synthesis(entry.passages)
     if item_row:
         if quoted == "si" and entry.passages:
             entry.quoted = Quoted.COTIZADO
