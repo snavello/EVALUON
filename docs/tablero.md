@@ -19,6 +19,7 @@ flowchart LR
   F009["○ 009 · Validación continua con la Co…"]:::todo
   F010["○ 010 · Asistente técnico"]:::todo
   F011["○ 011 · Pautas para documentos legibl…"]:::todo
+  F012["▶ 012 · Importación asistida desde el…"]:::active
   F001 --> F002
   F003 --> F002
   F001 --> F003
@@ -34,6 +35,8 @@ flowchart LR
   F008 --> F010
   F003 --> F011
   F009 --> F011
+  F003 --> F012
+  F008 --> F012
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -54,6 +57,7 @@ flowchart LR
 | 009 · Validación continua con la Comisión | Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus respuestas. Cada cuestión resuelta puede quedar como fundamento (ADR-0009), como caso para medir al sistema o como pedido de cargar una norma o un documento. Lo que queda sin validar se ve como pendiente. Uso intensivo al principio, y después ante cuestiones que no se saben resolver | No iniciada | — | — |
 | 010 · Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | No iniciada | — | — |
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
+| [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 2 de 7 · Plan | — | — |
 
 <a id="001"></a>
 
@@ -705,3 +709,39 @@ flowchart TD
 | REQ-042 | La Comisión debe poder confirmar, corregir, quitar o agregar fragmentos de la ficha. Cada cambio queda registrado con quién y cuándo (P6). | T-132 | ✓ cubierto |
 | REQ-043 | La ficha se arma solo contra una matriz validada. Si la matriz cambia de versión, la ficha indica con qué versión se armó. | T-130, T-132 | ✓ cubierto |
 | REQ-044 | Para la parte técnica, la ficha indica si la oferta trae documentación técnica y, cuando el pliego tiene renglones, si el oferente cotizó o no cada renglón. No compara el contenido técnico con las especificaciones (eso es la feature 010). | T-130, T-133, T-134, T-135, T-136 | ▶ en proceso |
+
+<a id="012"></a>
+
+## 012 · Importación asistida desde el Portal de Compras
+
+**Etapa actual:** 2 de 7 · Plan (1 dudas abiertas) · [carpeta](../specs/012-portal-compras)
+
+```mermaid
+flowchart LR
+  E0["✓ 1. Spec"]:::done --> E1["▶ 2. Plan"]:::active --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
+
+### Qué falta
+
+- **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
+
+### Qué se hizo
+
+- Etapas completas: Spec.
+
+### Requisitos
+
+| Requisito | Descripción | Tareas | Estado |
+|---|---|---|---|
+| REQ-045 | El sistema debe permitir registrar un proceso a partir del enlace público de su página en el Portal de Compras. | — | — |
+| REQ-046 | Con ese enlace, el sistema debe explorar lo publicado y proponer, sin cargar nada todavía: los datos del procedimiento (número, expediente, objeto, tipo, encuadre legal y fecha de autorización), los renglones con su cantidad, el cronograma, las garantías, y la lista de documentos disponibles (pliego, circulares, actos administrativos, acta de apertura, dictamen). | — | — |
+| REQ-047 | Si las ofertas ya están abiertas, la propuesta debe incluir cada oferta con su oferente, su CUIT, su total, su garantía (tipo, forma y monto) y el precio y la cantidad ofrecidos por renglón. | — | — |
+| REQ-048 | Nada se carga sin la aprobación de un evaluador; el operador puede aprobar solo la carga de documentos. La aprobación puede ser de toda la propuesta o ítem por ítem, y cada ítem aprobado o rechazado queda registrado con quién y cuándo (P6). | — | — |
+| REQ-049 | Cada documento y cada dato cargado desde el Portal debe conservar su origen (la página o el documento del Portal y la fecha de la consulta) y, para los documentos, el original sin cambios con su huella. | — | — |
+| REQ-050 | El sistema debe revisar periódicamente los procesos en curso y proponer las novedades (documentos o datos nuevos o cambiados) con el mismo circuito de aprobación. Lo ya aprobado no se vuelve a proponer. | — | — |
+| REQ-051 | La carga a mano sigue disponible para todo lo que el Portal no publique o no deje bajar, y convive con lo importado. | — | — |
