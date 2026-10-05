@@ -1,0 +1,38 @@
+# Lista de fragmentos esperados del caso chico (T-130; plan 008, "Lista esperada de fichas").
+# Caso INVENTADO y público (P4): ningún dato es real. Los tres PDF los genera `generar.py`.
+caso: caso-chico
+matriz:
+  procedimiento: CASO-CHICO-SINTETICO
+  tipo: Contratación directa sintética
+  objeto: Adquisición de insumos de oficina sintéticos (caso inventado)
+  fecha_autorizacion: 2026-01-15
+  pliego:
+    archivo: pliego.pdf
+    sha256: "2ee500be88e7bbc517151a69fcdd4af122bd213ee86f2139283e7b23b51b9b2b"
+    titulo: Pliego sintético
+  requisitos:
+    - {id: M-001, clase: formal, cita: "Presentar la declaración jurada de habilidad para contratar firmada por el oferente."}
+    - {id: M-002, clase: formal, cita: "Acompañar la constancia de inscripción del oferente en el registro de proveedores."}
+    - {id: M-003, clase: formal, cita: "Constituir una garantía de mantenimiento de la oferta del cinco por ciento del monto cotizado."}
+    - {id: M-004, clase: economico, cita: "Cotizar en pesos con impuestos incluidos, indicando el precio unitario de cada renglón."}
+    - {id: M-005, clase: economico, cita: "Mantener la validez de la oferta por sesenta días corridos desde la apertura."}
+    - {id: M-006, clase: tecnico, renglon: 1}
+    - {id: M-007, clase: tecnico, renglon: 2}
+    - {id: M-008, clase: tecnico, renglon: 3}
+ofertas:
+  - oferente: "Oferente A Sintético"
+    documentos:
+      - {archivo: oferta-propuesta.pdf, sha256: "689aa83d9d9ce51af64d4e4b50fc0e6276fb85cfd66aa838ed2599e92fa414c2"}
+      - {archivo: constancia-escaneada.pdf, sha256: "bbc591bf55a25d245e88e52907afbdec9c6444b38edf114806e1607b356d7d70"}
+    fragmentos:
+      - {id: F-001, requisito: M-001, documento: oferta-propuesta.pdf, pagina: 1, ancla: "Declaro bajo juramento que me encuentro habilitado para contratar con el organismo"}
+      - {id: F-002, requisito: M-002, documento: constancia-escaneada.pdf, pagina: 1, ancla: "Se deja constancia de que el Oferente A Sintético, CUIT 00-00000000-0, se encuentra inscripto en el registro de proveedores"}
+      - {id: F-003, requisito: M-004, documento: oferta-propuesta.pdf, pagina: 2, ancla: "Los precios se cotizan en pesos con impuestos incluidos."}
+      - {id: F-004, requisito: M-005, documento: oferta-propuesta.pdf, pagina: 1, ancla: "La oferta mantiene su validez por sesenta días corridos desde la fecha de apertura."}
+      - {id: F-005, requisito: M-006, documento: oferta-propuesta.pdf, pagina: 2, ancla: "Renglón 1: resma de papel A4 de 75 gramos, 100 unidades, precio unitario $ 3.000."}
+      - {id: F-006, requisito: M-007, documento: oferta-propuesta.pdf, pagina: 2, ancla: "Renglón 2: cartucho de tóner negro, 30 unidades, precio unitario $ 4.500."}
+    sin_respuesta: [M-003]
+    renglones: {1: cotizado, 2: cotizado, 3: no_cotizado}
+    documentacion_tecnica: "si"
+    paginas_no_legibles: []
+visto_bueno: "Desarrollador de T-130, 2026-10-05 (caso inventado y público; la revisa el Coordinador)"
