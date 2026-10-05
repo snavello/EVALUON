@@ -162,7 +162,7 @@ def test_row_that_joins_two_conditions_counts_one_and_the_other_is_found_in_that
     assert lines[elsewhere]["propuesto"] == lines[other]["propuesto"]
     info = measures_of(report)["elsewhere"]
     assert info["ids"] == [elsewhere]
-    assert info["rows"] == {elsewhere: lines[elsewhere]["propuesto"]}
+    assert info["rows"] == {elsewhere: [lines[elsewhere]["propuesto"]]}
     assert ev.GROUPED not in measures_of(report)["causes"]
     summary = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
     assert "Encontrados en otra fila" in summary and elsewhere in summary
@@ -923,15 +923,49 @@ def test_cap_fails_with_a_missing_even_if_the_proportion_meets_it(
     assert "Tope de sobrantes" in summary and "no cumple" in summary
 
 
-def test_cap_over_the_limit_blocks_the_acceptance(case, operator_user, monkeypatch, tmp_path):
-    """REQ-024: una proporción de sobrantes mayor que el tope se informa entre los bloqueos."""
+def test_cap_over_the_limit_is_reported_but_does_not_block(case, operator_user, monkeypatch,
+                                                           tmp_path):
+    """REQ-024, ADR-0024: una proporción de sobrantes mayor que el tope se informa, pero hasta
+    el piloto no bloquea la aceptación."""
     procedure, _, path, _ = case
     after_propose(monkeypatch, lambda v: add_requirement(v, "sec-ii/1.1"))
 
     report = run_measure(operator_user, procedure, path, tmp_path)
 
-    assert any("sobrantes" in reason and "tope" in reason for reason in report.blocking)
+    assert not any("sobrantes" in reason for reason in report.blocking)
     assert not measures_of(report)["cap"]["leftovers_ok"]
+    summary = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "Tope de sobrantes" in summary and "informativo" in summary
+    assert "sobrantes pasan el tope" not in summary.split("## Bloqueos")[1]
+
+
+def test_content_split_across_rows_of_the_same_tramo_is_found_in_those_rows(
+        case, operator_user, monkeypatch, tmp_path):
+    """REQ-024, ADR-0034: el ancla está partida en dos filas del mismo tramo, ninguna cubre la
+    mitad pero juntas sí: cuenta como encontrada en otra fila y se informan las filas."""
+    procedure, _, path, _ = case
+
+    def split(version):
+        quote = m.RequirementQuote.objects.filter(
+            requirement__version=version, text__contains="garantía del 5 %").first()
+        row, seg = quote.requirement, quote.segment
+        first = ev.find_anchor(seg, "garantía del", 1)
+        second = ev.find_anchor(seg, "5 % del", 1)
+        text = seg.reading.canonical_text
+        m.RequirementQuote.objects.filter(pk=quote.pk).update(
+            char_start=first[0], char_end=first[1], text=text[first[0]:first[1]])
+        other = add_requirement(version, seg.key)
+        m.RequirementQuote.objects.filter(requirement=other).update(
+            char_start=second[0], char_end=second[1], text=text[second[0]:second[1]])
+        split.rows = sorted([row.number, other.number])
+
+    after_propose(monkeypatch, split)
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    line = by_id(report)["S-001"]
+    assert line["estado"] == "encontrado" and line["detalle"] == "en otra fila"
+    assert measures_of(report)["elsewhere"]["rows"]["S-001"] == split.rows
 
 
 def test_discarded_report_counts_by_reason_segment_and_pass_and_the_leftovers_without_filter(

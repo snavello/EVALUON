@@ -825,12 +825,15 @@ def measure_version(run, expected, verification):
             suggestion_review.append(entry)
             line.update(estado=MANDATORY_REVIEW, causa=SUGGESTION_CAUSE,
                         detalle=f"motivo de la duda: {suggested.doubt_reason}")
-        elif (host := _covering_row(entry, fe_rows)) is not None:
-            # ADR-0034: el contenido del requisito está en otra fila de la matriz (una oración
-            # partida, un encabezado de lista): cuenta como encontrado y se informa aparte.
-            elsewhere[item.id] = host.number
-            matched_pk[item.id] = host.requirement_id
-            line.update(estado="encontrado", detalle="en otra fila", propuesto=host.number)
+        elif hosts := ([host] if (host := _covering_row(entry, fe_rows)) is not None
+                       else _union_rows(entry, fe_rows)):
+            # ADR-0034: el contenido del requisito está en otra fila de la matriz, o repartido
+            # entre varias del mismo tramo (una oración partida, un encabezado de lista):
+            # cuenta como encontrado y se informa aparte con las filas que lo contienen.
+            elsewhere[item.id] = [h.number for h in hosts]
+            matched_pk[item.id] = hosts[0].requirement_id
+            line.update(estado="encontrado", detalle="en otra fila",
+                        propuesto=hosts[0].number, filas=[h.number for h in hosts])
         else:
             cause, detail = _cause(entry, fe_rows, dispositions, pending, discarded,
                                    suppressed)
@@ -1209,6 +1212,33 @@ def _repeated_in(entry, fe_rows, paired_rows):
     return None
 
 
+def _union_rows(entry, rows):
+    """Las filas con una cita en el tramo del ancla que, juntas, cubren al menos la mitad del
+    ancla (una oración partida en varias filas), o `[]` (ADR-0034)."""
+    pieces = []
+    for row in rows:
+        for quote in row.quotes:
+            if quote.segment_id != entry.segment.pk:
+                continue
+            start, end = max(quote.char_start, entry.span[0]), min(quote.char_end, entry.span[1])
+            if start < end:
+                pieces.append((start, end, row))
+    pieces.sort(key=lambda p: (p[0], p[1]))
+    covered, edge = 0, entry.span[0]
+    for start, end, _ in pieces:
+        start = max(start, edge)
+        if end > start:
+            covered += end - start
+            edge = end
+    if covered < REQUIRED_OVERLAP * (entry.span[1] - entry.span[0]):
+        return []
+    found = []
+    for _, _, row in pieces:
+        if row not in found:
+            found.append(row)
+    return sorted(found, key=lambda r: r.number)
+
+
 def _covering_row(entry, rows):
     """La primera fila propuesta que cubre el ancla de `entry` (aunque esté emparejada con otro
     esperado), o `None`."""
@@ -1440,9 +1470,7 @@ class Report:
             for name in ("found", "literal"):
                 if measures[name]["ok"] < measures[name]["total"]:
                     reasons.append(f"{result['process']}: {name} no llega al 100 %")
-            if not measures["cap"]["leftovers_ok"]:
-                reasons.append(f"{result['process']}: los sobrantes pasan el tope de "
-                               f"{_percent(measures['cap']['limit'])} de las filas firmes")
+            # Los sobrantes son informativos hasta el piloto (ADR-0024): no bloquean.
             coverage = measures["coverage"]
             if coverage["with_disposition"] < coverage["segments"]:
                 reasons.append(f"{result['process']}: hay tramos sin disposición")
@@ -1847,7 +1875,8 @@ def _elsewhere_lines(measures):
     info = measures["elsewhere"]
     return [f"- Encontrados en otra fila (ADR-0034, ya sumados a los encontrados): "
             f"{info['count']}"
-            + (" (" + ", ".join(f"{i} en la fila #{n}" for i, n in info["rows"].items()) + ")"
+            + (" (" + ", ".join(f"{i} en las filas " + ", ".join(f"#{n}" for n in numbers)
+                                for i, numbers in info["rows"].items()) + ")"
                if info["count"] else "")]
 
 
@@ -1899,7 +1928,8 @@ def _cap_lines(measures):
     return [f"- Tope de sobrantes (hasta {_percent(cap['limit'])} de las filas firmes y "
             f"100 % de encontrados): {'cumple' if cap['met'] else 'no cumple'} "
             f"(sobrantes dentro del tope: {_yes(cap['leftovers_ok'])}; encontrados al "
-            f"100 %: {_yes(cap['found_ok'])}); el intervalo se informa y no decide"]
+            f"100 %: {_yes(cap['found_ok'])}); el intervalo se informa y no decide; "
+            "informativo, no bloquea hasta el piloto (ADR-0024)"]
 
 
 def _discarded_lines(info, leftovers):
