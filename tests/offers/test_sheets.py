@@ -407,8 +407,8 @@ def test_an_item_in_an_unreadable_page_is_never_not_quoted(
 
 
 def test_technical_documentation_is_indicated(procedure, operator_user, fake_ai, script):
-    """REQ-044: la ficha indica si la oferta trae documentación técnica: por un documento
-    clasificado técnico o por fragmentos en una fila técnica."""
+    """REQ-044: la ficha indica si la oferta trae documentación técnica solo si hay un
+    documento clasificado técnico; una tabla de renglones con fragmentos no alcanza."""
     without = make_offer(procedure, operator_user, "Sin", {"a.pdf": ["Texto sin relación."]})
     assert build(without, operator_user).technical_documents["present"] is False
     typed = make_offer(procedure, operator_user, "Con tipo",
@@ -420,8 +420,9 @@ def test_technical_documentation_is_indicated(procedure, operator_user, fake_ai,
     cited = make_offer(procedure, operator_user, "Con cita",
                        {"c.pdf": ["Renglón 2: cartucho de tóner."]})
     sheet = build(cited, operator_user)
-    assert sheet.technical_documents == {"present": True, "documents": [],
-                                         "from_fragments": True}
+    assert sheet.technical_documents == {"present": False, "documents": []}
+    assert sheet.entries.filter(requirement__category="tecnico", fragments__isnull=False
+                                ).exists()
 
 
 # --- Versión de la matriz --------------------------------------------------------------------

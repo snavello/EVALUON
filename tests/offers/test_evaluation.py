@@ -71,7 +71,7 @@ def test_the_list_of_the_small_case_loads(expected):
     requisito sin respuesta y una página no legible."""
     offer = expected.offers[0]
     assert len(offer.fragments) == 7 and offer.no_answer == ["M-009"]
-    assert len(offer.documents) == 4 and len(offer.unreadable_pages) == 1
+    assert len(offer.documents) == 5 and len(offer.unreadable_pages) == 1
     assert offer.items == {1: "cotizado", 2: "cotizado", 3: "no_cotizado"}
     assert offer.technical_documents is True
     assert len(expected.requirements) == 9 and expected.approval
@@ -127,7 +127,7 @@ def test_the_case_is_built_with_a_validated_matrix_and_a_read_offer(chico, expec
     version = procedure.matrix_versions.get()
     assert version.status == "validated" and version.requirements.count() == 9
     offer = offers["Oferente A Sintético"]
-    assert offer.documents.count() == 4
+    assert offer.documents.count() == 5
     assert all(d.readings.count() == 1 for d in offer.documents.all())
     assert offer.documents.get(file_name="constancia-escaneada.pdf").readings.get()\
         .passages.first().text_origin == "ocr"
@@ -137,7 +137,7 @@ def test_building_the_case_twice_does_not_duplicate_anything(chico, operator_use
     """El armado es idempotente: lo que existe no se vuelve a crear."""
     procedure, offers = ev.build_case(operator_user, expected)
     assert procedure.offers.count() == 1 and procedure.matrix_versions.count() == 1
-    assert om.Reading.objects.count() == 4
+    assert om.Reading.objects.count() == 5
 
 
 def test_the_list_is_verified_against_the_readings_without_the_model(chico, expected,
@@ -146,7 +146,7 @@ def test_the_list_is_verified_against_the_readings_without_the_model(chico, expe
     _, offers = chico
     verification = ev.verify_expected(expected, offers)
     assert verification.ok, verification.lines
-    assert verification.counts == {"documents": 4, "anchors": 7, "unreadable_pages": 1}
+    assert verification.counts == {"documents": 5, "anchors": 7, "unreadable_pages": 1}
     assert script.calls == []
 
 
@@ -189,7 +189,7 @@ def test_a_model_that_answers_well_meets_every_threshold(chico, operator_user, e
     assert total["items_unreadable"] == [3]
     assert total["technical_documents"]["rate"] == 1.0
     assert total["pages_unlisted"] == [] and total["false_findings"] == []
-    assert total["extra_fragments"] == 0 and total["pages"] == 8
+    assert total["extra_fragments"] == 0 and total["pages"] == 9
 
 
 def test_the_run_leaves_its_folder_with_a_public_summary(chico, operator_user, expected,
