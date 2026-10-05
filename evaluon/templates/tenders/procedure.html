@@ -6,6 +6,7 @@
 {% block content %}
 <p><a href="{% url 'tenders:procedures' %}">Procedimientos</a></p>
 <h1>Procedimiento {{ page.procedure.number }}</h1>
+<p><a href="{% url 'offers:procedure_offers' page.procedure.pk %}">Ofertas del procedimiento</a></p>
 
 <section class="procedure-data" aria-labelledby="data-title">
   <h2 id="data-title">Datos</h2>

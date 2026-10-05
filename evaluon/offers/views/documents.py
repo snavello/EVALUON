@@ -6,7 +6,8 @@ sus documentos (REQ-037, REQ-038; plan 008, "Pantalla"; ADR-0005; T-130).
 - `offer`: los documentos de la oferta con su tipo (si el sistema lo clasificó), su estado y
   el enlace al original; las páginas no leídas y de baja confianza; el formulario de carga y
   "Armar ficha".
-- `document_original`: el original byte por byte (el PDF va para el visor del navegador).
+- `document_original`: el original byte por byte (el PDF y las fotos van para el visor del
+  navegador; con `?descargar` se baja como archivo).
 
 Las funciones de negocio comprueban el rol de la Comisión: sin él, "acceso denegado" (403).
 Una operación correcta redirige a la misma página, para que recargar no repita el pedido; una
@@ -101,5 +102,5 @@ def document_original(request, document_id):
     response = HttpResponse(bytes(stored.content),
                             content_type=CONTENT_TYPES[document.file_format])
     response["Content-Disposition"] = content_disposition_header(
-        as_attachment=False, filename=document.file_name)
+        as_attachment="descargar" in request.GET, filename=document.file_name)
     return response
