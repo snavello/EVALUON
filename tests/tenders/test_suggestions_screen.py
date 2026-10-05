@@ -5,6 +5,7 @@ ADR-0022; T-112).
 Pliego, normas y datos sintéticos (P4). Las pantallas se prueban con el cliente de pruebas.
 """
 
+from django.utils import timezone
 import html
 import io
 import re
@@ -208,7 +209,7 @@ def test_pass_to_requirement_changes_the_state_and_the_row_moves_to_the_firm_one
     firm = page[page.index('id="requirements-title"'):page.index('id="technical-title"')]
     assert f"Requisito {rows[0].number}" in firm
     change = rows[0].changes.get(action="aceptar_sugerencia")
-    date = change.at.strftime("%d/%m/%Y")
+    date = timezone.localtime(change.at).strftime("%d/%m/%Y")
     assert f"Pasó de sugerencia el {date} por operador" in squash(firm)
     assert "Norma sintética, art. 1" in firm
     assert f"Requisito {rows[0].number}" not in section_of(
