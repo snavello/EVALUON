@@ -45,7 +45,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 56/63 | █████████░ 89% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 57/63 | █████████░ 90% |
 | 004 · Evaluación asistida de ofertas | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | No iniciada | — | — |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -372,14 +372,13 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 7 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 6 tareas sin terminar.
 - ○ T-106 · Medir el filtro, las sugerencias y el respaldo normativo con el caso-00 y ajustarlos (pendiente)
 - ○ T-107 · Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00 (pendiente)
 - ○ T-108 · Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04 (pendiente)
 - ○ T-120 · Medir y ajustar la pasada de circulares con los casos 01, 05 y 06, con estabilidad (pendiente)
 - ○ T-122 · Mostrar los cambios vigentes de la norma al proponer consecuencias, o no fundar en unidades modificadas (pendiente)
 - ○ T-126 · Mostrar la cadena completa de circulares que modifican una misma condición (pendiente)
-- ○ T-129 · Reconocer supresiones dichas con sustantivo y aplicar la aclaración de un renglón a sus citas (pendiente)
 
 ### Qué se hizo
 
@@ -440,6 +439,7 @@ flowchart LR
 - ✓ T-125 · Corregir el criterio del filtro que descartó requisitos reales (`42646c1` 2026-10-04, `2e72018` 2026-10-04, `409557a` 2026-10-04)
 - ✓ T-127 · Impedir que una aclaración termine como supresión y registrar la versión de `circulares_cambios` (`064c2c8` 2026-10-05, `678ff48` 2026-10-05)
 - ✓ T-128 · Aplicar una aclaración de cláusula a todas sus citas (`aef659f` 2026-10-05, `dac4513` 2026-10-05)
+- ✓ T-129 · Reconocer supresiones dichas con sustantivo y aplicar la aclaración de un renglón a sus citas (`83bf814` 2026-10-05)
 
 ### Mapa de tareas
 
@@ -507,7 +507,7 @@ flowchart TD
   T126["○ T-126 · Mostrar la cadena completa de circulares qu…"]:::todo
   T127["✓ T-127 · Impedir que una aclaración termine como sup…"]:::done
   T128["✓ T-128 · Aplicar una aclaración de cláusula a todas…"]:::done
-  T129["○ T-129 · Reconocer supresiones dichas con sustantivo…"]:::todo
+  T129["✓ T-129 · Reconocer supresiones dichas con sustantivo…"]:::done
   T067 --> T068
   T068 --> T069
   T067 --> T070
