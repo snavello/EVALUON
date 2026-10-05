@@ -500,7 +500,7 @@ def test_a_circular_that_annuls_another_is_shown_as_such(client, operator_user, 
 
     assert "Suprime (20/12/2025)" in page
     assert '<blockquote class="literal">Queda sin efecto el cambio anterior.</blockquote>' in page
-    assert page.count("Texto vigente") == 1
+    assert "Texto vigente" not in page
 
 
 def test_a_single_change_keeps_the_previous_layout(operator_user, case):
@@ -525,3 +525,60 @@ def test_the_chain_text_is_shown_literally(client, operator_user, case):
 
     assert "&lt;b&gt;treinta&lt;/b&gt; &amp; litros" in raw
     assert "<b>treinta</b>" not in raw
+
+
+def annul(operator_user, case, row, quote, day, title):
+    circular = load_and_read(
+        operator_user, case["procedure"],
+        tender_pdf([[para(f"CIRCULAR MODIFICATORIA {title}"),
+                     para("1. Se deja sin efecto.", "1.1. Queda sin efecto el renglón dos.")]]),
+        kind=m.DocumentKind.CIRCULAR_MODIFICATORIA, title=title, issued_on=day)
+    add_source(row, quote, circular, "Queda sin efecto el renglón dos.", effect="suprime")
+
+
+def test_a_last_suppression_leaves_no_current_text(client, operator_user, case):
+    """REQ-031: si el último eslabón es una supresión, ningún texto es vigente; la
+    supresión va en su lugar por fecha y al final dice "Sin efecto desde"; igual en
+    impresión y PDF."""
+    row, quote = chain_case(operator_user, case)
+    annul(operator_user, case, row, quote, date(2025, 12, 20), "Circular Cinco")
+    log_in(client, operator_user)
+
+    for name in ("matrix", "print"):
+        page = text_of(client.get(reverse(f"tenders:{name}", args=[case["version"].pk])))
+        assert "Texto vigente" not in page
+        order = positions(page, [quote.text, FIRST_TEXT, SECOND_TEXT, THIRD_TEXT,
+                                 "Queda sin efecto el renglón dos."])
+        assert order == sorted(order)
+        assert page.index("Sin efecto desde 20/12/2025, Circular Cinco") > order[-1]
+    data, _ = export.export_pdf(operator_user, case["version"].pk)
+    everything = " ".join(pdf_pages(data))
+    assert "Texto vigente" not in everything
+    assert "Sin efecto desde 20/12/2025, Circular Cinco" in everything
+
+
+def test_a_modification_after_a_suppression_is_current_again(client, operator_user, case):
+    """REQ-031: si una modificación sigue a una supresión, esa modificación vuelve a ser el
+    texto vigente y no hay "Sin efecto"."""
+    row, quote = chain_case(operator_user, case)
+    annul(operator_user, case, row, quote, date(2025, 12, 5), "Circular Cinco")
+    log_in(client, operator_user)
+
+    page = text_of(client.get(reverse("tenders:matrix", args=[case["version"].pk])))
+
+    assert "Sin efecto desde" not in page
+    assert page.count("Texto vigente") == 1
+    assert page.index("Texto vigente") > page.index("Suprime (05/12/2025)")
+    assert "Texto vigente, según la circular del 10/12/2025" in page
+
+
+def test_a_suppression_alone_closes_the_condition(operator_user, case):
+    """REQ-031: una supresión sin modificaciones previas deja la cita sin texto vigente."""
+    row = technical_row(case["version"])
+    quote = row.quotes.order_by("order").first()
+    annul(operator_user, case, row, quote, date(2025, 12, 20), "Circular Cinco")
+
+    page = matrix_page.matrix_page(operator_user, case["version"].pk)
+
+    shown = next(r for r in page.technical if r.requirement == row).quotes[0]
+    assert shown.current is None and shown.voided.issued_on == date(2025, 12, 20)
