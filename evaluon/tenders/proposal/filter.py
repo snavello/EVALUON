@@ -351,15 +351,41 @@ def decide(row, a, b):
     return verdict
 
 
-SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+SENTENCE_END = re.compile(r"[.!?]\s+")
+_WORD_BEFORE = re.compile(r"([^\W\d_]+(?:\.[^\W\d_]+)*)\.$")
+
+# Abreviaturas que no terminan la oración aunque lleven punto y espacio detrás (en
+# minúscula y sin el punto final); una inicial suelta ("S.A.", "J. Pérez") tampoco la termina.
+ABBREVIATIONS = frozenset({
+    "art", "arts", "inc", "incs", "dec", "decs", "res", "disp", "nro", "nros", "núm", "num",
+    "cap", "apdo", "pto", "ptos", "pág", "pag", "págs", "ap", "cód", "cod", "ej", "dto",
+    "lic", "dr", "dra", "ing", "sr", "sra", "ref", "vs", "s.a", "s.r.l", "s.a.s", "c.u.i.t",
+    "cons", "pár", "par", "anex", "exp", "expte", "fs", "tít", "tit", "sec", "ss", "cfr",
+})
 ANOMALY_SHARED_SENTENCE = "filtro_comparte_oracion"
+
+
+def _sentence_ends(text):
+    """Las posiciones donde empieza una oración nueva: tras `.`, `!` o `?` y espacio,
+    salvo cuando el punto cierra una abreviatura conocida o una inicial."""
+    ends = []
+    for mark in SENTENCE_END.finditer(text):
+        if text[mark.start()] == ".":
+            word = _WORD_BEFORE.search(text[:mark.start() + 1])
+            if word:
+                lower = word.group(1).lower()
+                if lower in ABBREVIATIONS or all(len(p) == 1 for p in lower.split(".")):
+                    continue
+        ends.append(mark.end())
+    return ends
 
 
 def sentence_range(text, span):
     """Las oraciones del texto canónico del tramo que toca `span`, como `(primera, última)`.
     Una oración termina en un punto, un cierre de exclamación o de pregunta seguido de
-    espacio; las posiciones son las del texto del tramo."""
-    ends = [mark.end() for mark in SENTENCE_END.finditer(text)]
+    espacio, salvo tras una abreviatura (`ABBREVIATIONS`) o una inicial; las posiciones son
+    las del texto del tramo."""
+    ends = _sentence_ends(text)
     first = sum(1 for end in ends if end <= span[0])
     last = sum(1 for end in ends if end < span[1])
     return first, last
