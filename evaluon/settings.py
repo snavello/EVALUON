@@ -278,7 +278,7 @@ MATRIX_PROMPT_VERSIONS = {
     "completitud": "matriz-completitud-v2",
     "consecuencias": "matriz-consecuencias-v1",
     "circulares": "matriz-circulares-v2",
-    "circulares_cambios": "matriz-circulares-v3",
+    "circulares_cambios": "matriz-circulares-v4",
     "unificacion": "matriz-unificacion-v1",
     "filtro": "matriz-filtro-v2",
     "respaldo": "matriz-respaldo-v1",

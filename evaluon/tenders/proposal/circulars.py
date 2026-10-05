@@ -115,7 +115,7 @@ _LEADING_CLAUSE = re.compile(r"^[ \t]*(\d+(?:\.\d+)+)\.?[ \t]+\S", re.MULTILINE)
 # El título entre comillas de un anexo o documento ("Anexo “FECHA DE VISITA”").
 _QUOTED_TITLE = re.compile(r"[“\"]([^”\"\n]{6,80})[”\"]")
 # Encabezado de un apartado de una circular sin cláusulas ("II. SE FIJAN NUEVAS FECHAS").
-_HEADING = re.compile(r"^\s*[IVXLC]+\.\s+\S")
+_HEADING = re.compile(r"^\s*[IVXLC]+(?:\.\s*-|\.|\s+-|\))\s+\S")
 HEADING_LOOKBACK = 60       # tramos hacia atrás en que se busca el encabezado
 CONTEXT_PREVIOUS = 2        # tramos anteriores que se muestran como contexto
 CONTEXT_CHARS = 400         # largo máximo de cada tramo de contexto

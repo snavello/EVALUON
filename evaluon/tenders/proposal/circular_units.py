@@ -130,8 +130,9 @@ _PARTIAL = re.compile(
 _DICE = re.compile(r"(?im)^[ \t]*donde[ \t]+dice[ \t]*:?")
 _DEBE = re.compile(r"(?im)^[ \t]*debe[ \t]+decir[ \t]*:?")
 
-_ROMAN_HEADING = re.compile(r"^\s*[IVXLC]+\.\s+\S")
-_ROMAN_PREFIX = re.compile(r"^\s*[IVXLC]+\.\s+")
+# Encabezado romano: "I. ", "I.- ", "I - ", "I) " (T-120).
+_ROMAN_HEADING = re.compile(r"^\s*[IVXLC]+(?:\.\s*-|\.|\s+-|\))\s+\S")
+_ROMAN_PREFIX = re.compile(r"^\s*[IVXLC]+(?:\.\s*-|\.|\s+-|\))\s+")
 _OWN_NUMBER = re.compile(r"^\s*\d+(?:\.\d+)*\.?\s+")
 _LEADING_NUMBER = re.compile(r"^\s*(\d+(?:\.\d+)+)\.?\s+\S")
 _FIRST_LEVEL = re.compile(r"^\d+$")
@@ -146,7 +147,33 @@ _ITEM_OBJECT = re.compile(
 # Una cláusula que pide un anexo: verbo de presentación y, seguido, el anexo.
 _ASKS_FOR = re.compile(r"\b(?:complet|adjunt|present|acompan)\w*\b[^.;]{0,60}?\banexos?\b")
 _PATH_PARTS = ("v-", "inc-", "p-", "tabla-")
-_LABELED = re.compile(r"^[^\n:]{2,60}:\s*\S")
+# Rótulo y valor corto ("FECHA: 3 de marzo"). Las líneas "Consulta N° 1: ..." y "Respuesta: ..." de
+# una circular de consultas no son rótulo y valor aunque tengan dos puntos (T-120).
+LABEL_VALUE_MAX_CHARS = 80
+_LABELED_RE = re.compile(rf"^[^\n:]{{2,60}}:\s*\S[^\n]{{0,{LABEL_VALUE_MAX_CHARS - 1}}}$")
+_QUESTION_LINE = re.compile(r"^\s*(?:consulta|respuesta|pregunta)\b", re.IGNORECASE)
+
+
+class _Labeled:
+    @staticmethod
+    def match(line):
+        return None if _QUESTION_LINE.match(line) else _LABELED_RE.match(line)
+
+
+_LABELED = _Labeled()
+
+# Marcadores de obligación propios de las circulares (T-120): los de la extracción del pliego y
+# "debe/deben", "corresponde" y "es obligatorio". "Debe decir" es el rótulo del par, no obligación.
+_CIRCULAR_OBLIGATION = re.compile(
+    r"\bdeb(?:e|en|era|eran)\b(?!\s+decir\b)|\bcorresponde(?:ra|n)?\b"
+    r"|\bes\s+obligatori[oa]\b|\bson\s+obligatori[oa]s\b")
+
+
+def has_circular_obligation(text):
+    """Si el texto de una circular tiene un marcador de obligación."""
+    from evaluon.tenders.proposal.run import has_obligation_markers
+
+    return has_obligation_markers(text) or bool(_CIRCULAR_OBLIGATION.search(fold(text)))
 
 
 # --- Tramos y unidades ---------------------------------------------------------------------------
@@ -566,8 +593,6 @@ def _added_obligations(ctx, pair, found):
     están en el lado "dice" ni en las citas alcanzadas. Las claramente nuevas son requisitos
     formales de origen `circular`; las que se parecen a una oración del lado "dice" (una
     reformulación) van como sugerencia. Una oración repetida da un solo requisito."""
-    from evaluon.tenders.proposal.run import has_obligation_markers
-
     old_text = " ".join([pair.old] + [c.text for c in found])
     known = _norm(old_text)
     old_sentences = [old_text[a:b] for a, b in _sentences(old_text, 0)]
@@ -581,7 +606,7 @@ def _added_obligations(ctx, pair, found):
         for start, end in _sentences(canonical[low:high], low):
             sentence = canonical[start:end]
             body = _norm(_LEADING_NUMBERING.sub("", sentence))
-            if (not has_obligation_markers(sentence) or len(body) < MIN_CONTAINED_CHARS
+            if (not has_circular_obligation(sentence) or len(body) < MIN_CONTAINED_CHARS
                     or body in known or body in seen):
                 continue
             seen.add(body)
@@ -771,14 +796,12 @@ def _body_members(unit):
 def is_procedure_data(unit):
     """Un apartado de líneas cortas, de la forma rótulo y valor, sin marcadores de
     obligación: fechas, horas, lugares, referentes. No son requisitos de la oferta."""
-    from evaluon.tenders.proposal.run import has_obligation_markers
-
     if unit.kind != KIND_SECTION:
         return False
     lines = [m.segment.text.strip() for m in _body_members(unit)]
     if len(lines) < DATA_MIN_LINES:
         return False
-    if any(has_obligation_markers(m.segment.text or "") for m in unit.members):
+    if any(has_circular_obligation(m.segment.text or "") for m in unit.members):
         return False
     labeled = sum(1 for line in lines if _LABELED.match(line))
     short = sum(1 for line in lines
