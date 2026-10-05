@@ -55,7 +55,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-105 | Mostrar las descartadas, las citas repetidas y la revisión por grupos | REQ-032, REQ-033, REQ-034 | T-100, T-104 | terminada |
 | T-106 | Medir el filtro, las sugerencias y el respaldo normativo con el caso-00 y ajustarlos | REQ-024, REQ-033, REQ-035, REQ-036 | T-102, T-103, T-109, T-111 | pendiente |
 | T-107 | Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00 | REQ-033, REQ-035 | T-106 | terminada |
-| T-108 | Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04 | REQ-024, REQ-025, REQ-030, REQ-031, REQ-033, REQ-035, REQ-036 | T-094, T-105, T-112, T-107, T-116, T-120 | pendiente |
+| T-108 | Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04 | REQ-024, REQ-025, REQ-030, REQ-031, REQ-033, REQ-035, REQ-036 | T-094, T-105, T-112, T-107, T-116, T-120 | terminada |
 | T-109 | Buscar el respaldo normativo de cada sugerencia, sin que nunca la descarte | REQ-036 | T-099, T-102 | terminada |
 | T-110 | Decidir las sugerencias: pasar a requisito o quitar, una por una o por grupo, y bloquear la validación | REQ-035, REQ-034, REQ-026 | T-099, T-104 | terminada |
 | T-111 | Medir las sugerencias y el respaldo normativo: a revisión obligatoria e informe | REQ-035, REQ-036, REQ-024 | T-099, T-103 | terminada |
@@ -77,6 +77,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-127 | Impedir que una aclaración termine como supresión y registrar la versión de `circulares_cambios` | REQ-031 | T-115, T-124 | terminada |
 | T-128 | Aplicar una aclaración de cláusula a todas sus citas | REQ-031 | T-115, T-124, T-127 | terminada |
 | T-129 | Reconocer supresiones dichas con sustantivo y aplicar la aclaración de un renglón a sus citas | REQ-031 | T-127, T-128 | terminada |
+| T-137 | Pasada de circulares: revisión obligatoria visible ante un cambio sin resolver y las tres causas de la aceptación a ciegas | REQ-031 | T-108, T-129 | pendiente |
 
 ## Para todas las tareas
 
@@ -634,6 +635,16 @@ Plan: sección "Rediseño de la pasada de circulares (2026-10-04)" de `plan.md`;
 - **No tocar:** `evaluon/tenders/`, `accounts`.
 - **Entorno:** cualquier equipo con Docker.
 
+### T-137 · Pasada de circulares: revisión obligatoria visible ante un cambio sin resolver y las tres causas de la aceptación a ciegas
+
+- **Origen:** informe de T-108 (`verificacion/T-108.md`, punto 3): fallos que hacen perder o falsean un requisito sin que la Comisión lo vea (ADR-0024, punto 4: se corrigen). Una sola tarea agrupada (ADR-0025).
+- **Qué hacer:** (1) **red de seguridad (P3):** cuando un cambio de una circular queda sin resolver, el pedido al modelo da salida inválida o el reintento pierde cambios, las filas que la circular nombra (cláusula, renglón, anexo) se marcan "A revisión obligatoria" con la circular y su fecha, con el mismo mecanismo de T-127; nunca se pierde un cambio en silencio. (2) Pasar el encabezado del renglón al contexto de la pasada, para que un cambio de un renglón no se aplique a otro (caso-03, D7, renglones 6 y 14). (3) Fecha, hora y lugar de una visita no son dato del trámite cuando el pliego tiene la cláusula que los fija (caso-04, D2), y un título de carátula no es una aclaración. (4) Desempate estable en `_source_points` de la medición (`evaluation.py`).
+- **Umbral (escrito antes):** ningún cambio de circular perdido sin marca en los casos 03 y 04; el renglón 14 del caso-03 sin fuentes de D7; M-035 del caso-04 con su fuente. Se mide una vez con 03 y 04 (sin ser ya a ciegas, se informa así) y se comprueba que 01, 05 y 06 no bajan de 15/15, 7/8 y 3/3. Lo que no llegue va a la revisión con el primer producto, con su impacto.
+- **Nivel de verificación:** plena (instrucciones al modelo y P3).
+- **Archivos:** `evaluon/tenders/proposal/circular_units.py`, `circular_changes.py`, `circulars.py`, `run.py` (solo la marca), `evaluon/tenders/evaluation.py` (solo el desempate), prompts de circulares (versión nueva si cambian), tests de `tests/tenders/`.
+- **No tocar:** el esquema; la extracción y el filtro; las listas esperadas.
+- **Entorno:** MSI con GPU para la medición, de a una.
+
 ## Revisión con el primer producto (ADR-0024)
 
 Lo menor de la 003, que se encara con la 008 y la 004 terminadas, con el uso real de la Comisión:
@@ -645,6 +656,9 @@ Lo menor de la 003, que se encara con la 008 y la 004 terminadas, con el uso rea
 - Granularidad de las listas esperadas frente a la del extractor.
 - La marca de revisión obligatoria de una supresión sin frase no aparece en una versión nueva de la matriz sin propuesta propia (aviso de T-127); se cuenta aparte en la medición.
 - Fuentes ajenas que agrega una aclaración aplicada a todas las citas (T-128, T-129).
+
+- Faltantes de la aceptación a ciegas que no pierden requisito (T-108): M-030, M-032 y M-043 del caso-03 (oración partida, encabezado de lista sin fila, agrupado); su contenido está en otras filas.
+- Imprecisiones de REQ-031 en la aceptación a ciegas que no pierden requisito (texto original o vigente parcial, convención de cadena D5 → D6), según `verificacion/T-108.md`.
 
 ## Cobertura de requisitos
 
