@@ -1,0 +1,64 @@
+nota: Calco con datos inventados de la estructura real (T-139). Cada entrada dice qué responde el Portal a un envío de formulario o a un GET. Las rutas de archivo son relativas a esta carpeta.
+host: afipcompras.afip.gob.ar
+pagina_proceso:
+  ruta: /PLIEGO/VistaPreviaPliegoCiudadano.aspx
+  action_del_formulario: VistaPreviaPliegoCiudadano.aspx?qs=0UctONwuanrUJ2igucLo0zm7cHgKrDLpOwBw5oEmmZziCikpNr92KGrlCm4D9YAo5uPktoeMh%2fjAaUyHZLmg20AGcvM1ENqhFpstuJGj5roY3xNw9KJnzh2buqfrLL2YNVNT23chbv1%7cx%3d&amp;AspxAutoDetectCookieSupport=1
+  version_1: proceso.html
+  version_2_con_circular: proceso-con-circular.html
+envios_de_formulario:
+  ctl00$CPH1$UCVistaPreviaPliego$UC_DetalleProductos$gvLineaPliego$ctl02$lnkVerItem:
+    archivo: item-1.html
+    tipo: text/html; charset=utf-8
+    nota: devuelve la misma página con los datos del renglón 1 en la ventana Información del ítem
+  ctl00$CPH1$UCVistaPreviaPliego$UCCondicionesGenerales$gvCondicionesGenerales$ctl02$lnkAbrir:
+    archivo: error-pantalla.html
+    tipo: text/html; charset=utf-8
+    redireccion_final: /CORE/PantallaError.aspx?qs=<fake>
+    nota: 'en el Portal real responde la pantalla de error 0643217: el documento no se puede obtener (anomalía esperada)'
+  ctl00$CPH1$UCVistaPreviaPliego$UCCondicionesGenerales$gvCondicionesGenerales$ctl02$lnkAbrirDisposicion:
+    archivo: error-pantalla.html
+    tipo: text/html; charset=utf-8
+    redireccion_final: /CORE/PantallaError.aspx?qs=<fake>
+    nota: igual que la anterior
+  ctl00$CPH1$UCVistaPreviaPliego$UC_Clausulas$gvActosAdministrativos$ctl02$btnVer:
+    archivo: clausulas-particulares.pdf
+    tipo: application/pdf
+    content_disposition: attachment;filename="PLIEG-2099-00000001-ARCA-DXXXXX#SDGXXX.pdf"
+    sha256: 91ef128235342b277b4356ec26683057e5c40b4bec16166f8adaa36e987ade3c
+  ctl00$CPH1$UCVistaPreviaPliego$UC_OfertasProceso$lnkVerCuadroComparativo:
+    archivo: cuadro-comparativo.html
+    tipo: text/html; charset=utf-8
+    redireccion_final: /OFERTA/VerCuadroComparativo.aspx?qs=<fake>
+  ctl00$CPH1$UCVistaPreviaPliego$UC_ActosAdministrativos$gvActosAdministrativos$ctl02$btnVer:
+    archivo: autorizacion-llamado.pdf
+    tipo: application/pdf
+    content_disposition: attachment;filename="DI-2099-00000002-ARCA-DXXXXX#SDGXXX.pdf"
+    sha256: b537f1b5e2e71bf5d6c0348196f68a25734b433b0f4c54a12200b977402fb1ec
+  ctl00$CPH1$UCVistaPreviaPliego$UC_ActosAdministrativos$gvActosAdministrativos$ctl03$btnVer:
+    archivo: autorizacion-llamado.pdf
+    tipo: application/pdf
+    content_disposition: attachment;filename="DI-2099-00000002-ARCA-DXXXXX#SDGXXX.pdf"
+    sha256: b537f1b5e2e71bf5d6c0348196f68a25734b433b0f4c54a12200b977402fb1ec
+    nota: la autorización del pliego es el mismo documento que la del llamado (igual que en el Portal real)
+  ctl00$CPH1$UCVistaPreviaPliego$UC_ActosAdministrativos$gvActosAdministrativos$ctl04$btnVer:
+    archivo: adjudicacion-oc.pdf
+    tipo: application/pdf
+    content_disposition: attachment;filename="DI-2099-00000003-ARCA-DXXXXX#SDGXXX.pdf"
+    sha256: 375e97f40b01ea69ab22a06a7f24b024b2a49ca2c5bb08c32562ff475aa6d348
+  solo_version_2:
+    ctl00$CPH1$UCVistaPreviaPliego$UCAnexos$rptAnexos$MiClaveUnica1$btnVerAnexo:
+      archivo: circular-1.pdf
+      tipo: application/pdf
+      content_disposition: attachment;filename=IF-2099-00000004-ARCA-DXXXXX%25SDGXXX.pdf
+      sha256: e9cb1f155ec58632a8487ea9ae7a5a1238426295db255dd99e78c685d846d0af
+get_directos:
+  ? /EVALUACIONOFERTA/GenerarActaAperturaBastrap.aspx?qs=MafBJNBJO6cou5UukMECmhHCavSFbyg1QlC69uVd3MJ5U5O6jFlloxjM8SXDg48FplunKdXjubK363S4dUPHRP/8l6Qm9d9DA38TCBNNf4k2wE3r6b2fIVZ0EKo3qoApHX8R3FVAa3jV0Mphdi1bHvTn4LHESsKqm8EK7|x=
+  : archivo: acta-apertura.html
+    tipo: text/html; charset=utf-8
+  ? /EVALUACIONOFERTA/PreAdjudicarVisualizarVersionDictamen.aspx?qs=cBdkP0lu7pTXRNBFtOLj145Bnv1vaxBtzAhzBYnAzy8tNAxTA3YLfIfnDaMdMoyNozfU9pKol4NaANy9m3vFQkchrOmuBRaWZ31pMKZUCT4pNKqx/Q6kZIQI5SN0LEaO0Ia3rHOmF8iFnGxghjgTIQujV6tRIl1opGi1C4JLP8ztP8MrE3eL2pUwSBvi3CBYFbbGATSHfKR9PcquoLD7x90sP|x=
+  : archivo: dictamen.html
+    tipo: text/html; charset=utf-8
+  /PLIEGO/VistaPreviaCircularCiudadano.aspx?qs=iChusphEv2uHCOucIGQZCgZt|FAKE0001:
+    archivo: circular-1.html
+    tipo: text/html; charset=utf-8
+    nota: solo en la versión 2; el enlace sale del onclick VerCircularCiudadano('...') del botón Ver de la tabla de circulares (no es un envío de formulario)

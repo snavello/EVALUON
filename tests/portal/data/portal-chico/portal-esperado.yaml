@@ -1,0 +1,315 @@
+caso: portal-chico (calco con datos inventados)
+version: 1
+preparo: Coordinador (agente delegado), 2026-10-05
+visto_bueno: pendiente
+nota: 'Lista esperada de la página ''proceso.html'' y sus respuestas. Todos los datos son inventados: no hay CUIT, razón social ni nombre reales (P4). Los documentos de ejemplo son PDF inventados y su huella
+  está en cada fila.'
+procedimiento:
+  numero: A0ZZ000000-0001-LPU99
+  expediente: EX-2099-00000001-   -ARCA-SGXXXXX#SDGXXX
+  nombre: ADQUISICIÓN DE YERBA MATE PARA OFICINAS
+  objeto: ADQUISICIÓN DE YERBA MATE PARA OFICINAS
+  unidad_operativa: A0ZZ000000 - DIR. DE ABASTECIMIENTO DEMO Y LOG¿¿STICA (SDG XXX)
+  tipo: Licitacion Pública
+  encuadre_legal: Disposici¿¿n N¿¿ 247/2022 (AFIP) Art. 21 inc a
+  tipo_cotizacion:
+  - 'Por cantidad de renglón: parcial'
+  - 'Por renglones: parcial'
+  moneda: Peso Argentino
+  mantenimiento_oferta: 60 Días corridos Acto de apertura
+  cronograma:
+    Fecha y hora estimada de publicación en el portal: 18/11/2025 09:00:00 a.m.
+    Fecha y hora publicación en boletin oficial: 18/11/2025 09:00:00 a.m.
+    Fecha y hora inicio de consultas: 18/11/2025 09:01:00 a.m.
+    Fecha y hora final de consultas: 20/11/2025 04:00:00 p.m.
+    Fecha y hora inicio recepción de documentos en soporte físico: 18/11/2025 09:01:00 a.m.
+    Fecha y hora fin recepción de documentos en soporte físico: 03/12/2025 03:59:00 p.m.
+    Cantidad de días a publicar: '2'
+    Fecha y hora acto de apertura: 03/12/2025 04:00:00 p.m.
+  garantias:
+  - Garantía de observación al dictamen de evaluación
+  - La garant¿a de observaci¿n al dictamen de evaluaci¿n deber ser del cero por ciento (0%) del monto de la oferta del rengl¿n o los renglones en cuyo favor se hubiere aconsejado adjudicar el contrato.
+  - Garantía de mantenimiento de oferta
+  - La garantía de mantenimiento de oferta debe ser del cinco por ciento (5%) sobre el monto total de la oferta presentada.
+  - Este proceso de compra
+  - Si requiere
+  - En el caso de aceptar más de una oferta por proveedor, la garantía se calcula sobre el mayor valor propuesto. En caso de resultar adjudicatario esta garantía se prolongará hasta la constitución de la
+    garantía de cumplimiento del contrato.
+  - Garantía de cumplimiento de contrato
+  - La garantía de cumplimiento de contrato debe ser del diez por ciento (10%) del monto total del contrato.
+  - Este proceso de compra
+  - Si requiere
+  - Este proceso de compra
+  - No requiere
+  - incorporar contragarantía.
+  proveedores_participantes: 5
+  ofertas_confirmadas: 3
+  fecha_autorizacion:
+    valor: null
+    estado: 'pendiente: la página no la muestra'
+    candidata: '2025-11-14'
+    origen_candidata: fecha de vinculación de 'Autorización llamado' en Actos administrativos; la aprueba quien carga
+renglones:
+- numero: 1
+  codigo_item: 2.1.2-0001.900001
+  descripcion: YERBA MATE ELABORADA
+  cantidad: 2700
+  unidad: kg
+- numero: 2
+  codigo_item: 2.1.2-0001.900001
+  descripcion: YERBA MATE ELABORADA
+  cantidad: 8760
+  unidad: kg
+- numero: 3
+  codigo_item: 2.1.2-0001.900001
+  descripcion: YERBA MATE ELABORADA
+  cantidad: 250
+  unidad: kg
+- numero: 4
+  codigo_item: 2.1.2-0001.900001
+  descripcion: YERBA MATE ELABORADA
+  cantidad: 360
+  unidad: kg
+- numero: 5
+  codigo_item: 2.1.2-0001.900001
+  descripcion: YERBA MATE ELABORADA
+  cantidad: 200
+  unidad: kg
+- numero: 6
+  codigo_item: 2.1.2-0001.900001
+  descripcion: YERBA MATE ELABORADA
+  cantidad: 300
+  unidad: kg
+documentos:
+- nombre: Pliego de Bases y Condiciones Generales
+  numero_gde: null
+  como: envío de formulario
+  target: ctl00$CPH1$UCVistaPreviaPliego$UCCondicionesGenerales$gvCondicionesGenerales$ctl02$lnkAbrir
+  resultado: 'no se puede bajar: el Portal responde la pantalla de error (anomalía)'
+  sha256: null
+- nombre: Disposición Aprobatoria del pliego general
+  numero_gde: null
+  como: envío de formulario
+  target: ctl00$CPH1$UCVistaPreviaPliego$UCCondicionesGenerales$gvCondicionesGenerales$ctl02$lnkAbrirDisposicion
+  resultado: 'no se puede bajar: pantalla de error (anomalía)'
+  sha256: null
+- nombre: Clausulas Particulares
+  numero_gde: PLIEG-2099-00000001-ARCA-DXXXXX#SDGXXX
+  fecha_vinculacion: 14/11/2025
+  como: envío de formulario
+  target: ctl00$CPH1$UCVistaPreviaPliego$UC_Clausulas$gvActosAdministrativos$ctl02$btnVer
+  archivo: clausulas-particulares.pdf
+  sha256: 91ef128235342b277b4356ec26683057e5c40b4bec16166f8adaa36e987ade3c
+- nombre: Autorización llamado
+  numero_gde: DI-2099-00000002-ARCA-DXXXXX#SDGXXX
+  fecha_vinculacion: 14/11/2025
+  como: envío de formulario
+  target: ctl00$CPH1$UCVistaPreviaPliego$UC_ActosAdministrativos$gvActosAdministrativos$ctl02$btnVer
+  archivo: autorizacion-llamado.pdf
+  sha256: b537f1b5e2e71bf5d6c0348196f68a25734b433b0f4c54a12200b977402fb1ec
+- nombre: Autorización pliego
+  numero_gde: DI-2099-00000002-ARCA-DXXXXX#SDGXXX
+  fecha_vinculacion: 14/11/2025
+  como: envío de formulario
+  target: ctl00$CPH1$UCVistaPreviaPliego$UC_ActosAdministrativos$gvActosAdministrativos$ctl03$btnVer
+  archivo: autorizacion-llamado.pdf
+  sha256: b537f1b5e2e71bf5d6c0348196f68a25734b433b0f4c54a12200b977402fb1ec
+  nota: mismo archivo que la autorización del llamado (misma huella)
+- nombre: Adjudicación y OC
+  numero_gde: DI-2099-00000003-ARCA-DXXXXX#SDGXXX
+  numero_especial: DI-2099-9-DXXXXX#SDGXXX
+  fecha_vinculacion: 30/03/2026
+  como: envío de formulario
+  target: ctl00$CPH1$UCVistaPreviaPliego$UC_ActosAdministrativos$gvActosAdministrativos$ctl04$btnVer
+  archivo: adjudicacion-oc.pdf
+  sha256: 375e97f40b01ea69ab22a06a7f24b024b2a49ca2c5bb08c32562ff475aa6d348
+- nombre: Acta de Apertura
+  fecha: 3/12/2025
+  como: URL directa
+  url: /EVALUACIONOFERTA/GenerarActaAperturaBastrap.aspx?qs=MafBJNBJO6cou5UukMECmhHCavSFbyg1QlC69uVd3MJ5U5O6jFlloxjM8SXDg48FplunKdXjubK363S4dUPHRP/8l6Qm9d9DA38TCBNNf4k2wE3r6b2fIVZ0EKo3qoApHX8R3FVAa3jV0Mphdi1bHvTn4LHESsKqm8EK7|x=
+  archivo: acta-apertura.html
+- nombre: Dictamen de Evaluación
+  fecha: 5/3/2026
+  estado: Autorizado
+  como: URL directa
+  url: /EVALUACIONOFERTA/PreAdjudicarVisualizarVersionDictamen.aspx?qs=cBdkP0lu7pTXRNBFtOLj145Bnv1vaxBtzAhzBYnAzy8tNAxTA3YLfIfnDaMdMoyNozfU9pKol4NaANy9m3vFQkchrOmuBRaWZ31pMKZUCT4pNKqx/Q6kZIQI5SN0LEaO0Ia3rHOmF8iFnGxghjgTIQujV6tRIl1opGi1C4JLP8ztP8MrE3eL2pUwSBvi3CBYFbbGATSHfKR9PcquoLD7x90sP|x=
+  archivo: dictamen.html
+- nombre: Cuadro comparativo de ofertas
+  como: envío de formulario
+  target: ctl00$CPH1$UCVistaPreviaPliego$UC_OfertasProceso$lnkVerCuadroComparativo
+  archivo: cuadro-comparativo.html
+ofertas:
+- proveedor: ALBERTO DEMO TRES
+  cuit: '20000000036'
+  orden_en_cuadro: 3
+  confirmada: 30/11/2025
+  moneda: Peso Argentino
+  total: 195823.5
+  garantia:
+    tipo: Mantenimiento oferta
+    forma: Pagare
+    monto: 9791.17
+- proveedor: Marta Josefina Demo Uno
+  cuit: '27000000014'
+  orden_en_cuadro: 1
+  confirmada: 26/11/2025
+  moneda: Peso Argentino
+  total: 183835.0
+  garantia:
+    tipo: Mantenimiento oferta
+    forma: Seguros
+    monto: 9191.75
+- proveedor: ÑANDÚ INSUMOS DEMO SRL
+  cuit: '30999999919'
+  orden_en_cuadro: 2
+  confirmada: 02/12/2025
+  moneda: Peso Argentino
+  total: 178376.0
+  garantia:
+    tipo: Mantenimiento oferta
+    forma: Seguros
+    monto: 8918.8
+pares_oferta_renglon:
+- renglon: 1
+  cuit: '27000000014'
+  precio_unitario: 12.5
+  cantidad: 2700
+  total: 33750.0
+- renglon: 1
+  cuit: '30999999919'
+  precio_unitario: 12.8
+  cantidad: 2700
+  total: 34560.0
+- renglon: 1
+  cuit: '20000000036'
+  precio_unitario: 13.4
+  cantidad: 2700
+  total: 36180.0
+- renglon: 2
+  cuit: '27000000014'
+  precio_unitario: 14.2
+  cantidad: 8760
+  total: 124392.0
+- renglon: 2
+  cuit: '30999999919'
+  precio_unitario: 13.9
+  cantidad: 8760
+  total: 121764.0
+- renglon: 2
+  cuit: '20000000036'
+  precio_unitario: 15.1
+  cantidad: 8760
+  total: 132276.0
+- renglon: 3
+  cuit: '27000000014'
+  precio_unitario: 20.1
+  cantidad: 250
+  total: 5025.0
+- renglon: 3
+  cuit: '30999999919'
+  precio_unitario: 18.6
+  cantidad: 250
+  total: 4650.0
+- renglon: 3
+  cuit: '20000000036'
+  precio_unitario: 21.75
+  cantidad: 250
+  total: 5437.5
+- renglon: 4
+  cuit: '27000000014'
+  precio_unitario: 18.3
+  cantidad: 360
+  total: 6588.0
+- renglon: 4
+  cuit: '30999999919'
+  precio_unitario: 15.2
+  cantidad: 360
+  total: 5472.0
+- renglon: 4
+  cuit: '20000000036'
+  precio_unitario: 21.75
+  cantidad: 360
+  total: 7830.0
+- renglon: 5
+  cuit: '27000000014'
+  precio_unitario: 25.4
+  cantidad: 200
+  total: 5080.0
+- renglon: 5
+  cuit: '30999999919'
+  precio_unitario: 19.9
+  cantidad: 200
+  total: 3980.0
+- renglon: 5
+  cuit: '20000000036'
+  precio_unitario: 24.0
+  cantidad: 200
+  total: 4800.0
+- renglon: 6
+  cuit: '27000000014'
+  precio_unitario: 30.0
+  cantidad: 300
+  total: 9000.0
+- renglon: 6
+  cuit: '30999999919'
+  precio_unitario: 26.5
+  cantidad: 300
+  total: 7950.0
+- renglon: 6
+  cuit: '20000000036'
+  precio_unitario: 31.0
+  cantidad: 300
+  total: 9300.0
+dictamen:
+  adjudicaciones:
+  - renglon: 1
+    cuit: '27000000014'
+  - renglon: 2
+    cuit: '30999999919'
+  - renglon: 3
+    cuit: '30999999919'
+  - renglon: 4
+    cuit: '30999999919'
+  - renglon: 5
+    cuit: '30999999919'
+  - renglon: 6
+    cuit: '30999999919'
+  total_preadjudicado: 177566.0
+  desestimada:
+    cuit: '20000000036'
+marcas_de_texto_danado:
+  nota: campos donde el Portal entrega ¿¿ en lugar de la letra acentuada; se marcan y no se corrigen
+  campos:
+  - unidad_operativa
+  - encuadre_legal
+
+# ---- Versión 2 de la página (proceso-con-circular.html): lo que cambia ----
+version_2:
+  caso: portal-chico, versión 2 con circular
+  version: 1
+  preparo: Coordinador (agente delegado), 2026-10-05
+  visto_bueno: pendiente
+  nota: 'Lista esperada de la página ''proceso.html'' y sus respuestas. Todos los datos son inventados: no hay CUIT, razón social ni nombre reales (P4). Los documentos de ejemplo son PDF inventados y su
+    huella está en cada fila.'
+  pagina: proceso-con-circular.html
+  novedades_respecto_de_la_version_1:
+    anexos_nuevos:
+    - nombre: IF-2099-00000004-ARCA-DXXXXX%SDGXXX.pdf
+      tipo: Administrativo
+      descripcion: CIRCULAR 1 - RESPUESTA A LA CONSULTA EFECTUADA AL PROCESO DE COMPRAS
+      como: envío de formulario
+      target: ctl00$CPH1$UCVistaPreviaPliego$UCAnexos$rptAnexos$MiClaveUnica1$btnVerAnexo
+      archivo: circular-1.pdf
+      sha256: e9cb1f155ec58632a8487ea9ae7a5a1238426295db255dd99e78c685d846d0af
+    circulares_nuevas:
+    - numero: 1
+      fecha_publicacion: 02/07/2026
+      tipo: Con consulta
+      como: GET directo (el id sale del onclick VerCircularCiudadano)
+      url: /PLIEGO/VistaPreviaCircularCiudadano.aspx?qs=iChusphEv2uHCOucIGQZCgZt|FAKE0001
+      archivo: circular-1.html
+    actos_administrativos_nuevos:
+    - nombre: Autorización circular
+      numero_gde: IF-2099-00000099-ARCA-DXXXXX#SDGXXX
+      fecha_vinculacion: 02/07/2026
+    sin_cambios: todo lo demás de la versión 1; la revisión periódica solo debe proponer lo nuevo
