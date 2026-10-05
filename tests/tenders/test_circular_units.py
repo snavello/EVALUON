@@ -998,17 +998,40 @@ def test_a_heading_with_dot_and_dash_keeps_the_question_and_answer_in_one_unit()
     ]
 
 
-def test_the_v4_circular_instructions_load_and_carry_the_round_one_rules():
-    """REQ-031 (T-120, causa F): la versión activa del pedido `circulares_cambios` es la v4 y
+def test_the_v5_circular_instructions_load_and_carry_the_round_one_rules():
+    """REQ-031 (T-120, causa F): la versión activa del pedido `circulares_cambios` es la v5 y
     trae las cinco reglas nuevas con sus ejemplos."""
     from django.conf import settings
 
     from evaluon.tenders.proposal import extraction
 
-    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v4"
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v5"
     prompt = extraction.load_prompt("circulares_cambios")
     for phrase in ('"Ítem" vale como renglón', "Un cambio por renglón",
                    "Un cambio por cada objeto nombrado", "oraciones completas",
                    "un cambio por cada cláusula nombrada"):
         assert phrase in prompt, phrase
     assert prompt.count('{"cambios"') >= 10
+
+
+def test_a_reminder_with_must_at_the_end_of_a_list_of_dates_is_still_procedure_data():
+    """REQ-031 (T-120, ronda 2): un apartado de fechas de visita cuyo último tramo es un
+    recordatorio con "deben" sigue siendo datos del trámite; una consulta larga no."""
+    visit = _section("I.- FECHAS DE VISITA", "FECHA: 3 de marzo de 2026", "HORA: 9 hs",
+                     "LUGAR: portería del edificio central",
+                     "SE RECUERDA QUE DEBEN CONCURRIR CON DOCUMENTO DE IDENTIDAD")
+    assert units.is_procedure_data(visit)
+    # Una obligación del pliego sigue sacando al apartado de los datos.
+    assert not units.is_procedure_data(_section(
+        "I.- FECHAS", "FECHA: 3 de marzo", "HORA: 9 hs", "LUGAR: portería",
+        "Los oferentes deberán presentar una nota firmada"))
+
+
+def test_the_v5_instructions_make_a_date_change_a_replacement_of_its_clause():
+    """REQ-031 (T-120, ronda 2): la v5 trae la regla de fechas, horarios y lugares como
+    "reemplaza" sobre la cláusula que los fija."""
+    from evaluon.tenders.proposal import extraction
+
+    prompt = extraction.load_prompt("circulares_cambios")
+    assert 'es "reemplaza" sobre la cláusula del pliego que los fija' in prompt
+    assert prompt.count('{"cambios"') >= 11

@@ -172,7 +172,7 @@ def test_the_request_records_model_parameters_instructions_version_and_unit(
     assert request["temperature"] == settings.GENERATION_TEMPERATURE
     assert request["seed"] == settings.GENERATION_SEED
     assert request["max_tokens"] == settings.MATRIX_MAX_OUTPUT_TOKENS
-    assert request["instrucciones"] == "matriz-circulares-v4"
+    assert request["instrucciones"] == "matriz-circulares-v5"
     assert request["unidad"]["tipo"] == "clausula" and len(request["unidad"]["tramos"]) == 1
     assert step.segment_keys == request["unidad"]["tramos"]
     assert step.parsed["valida"] is True
@@ -476,13 +476,13 @@ def test_the_shape_of_the_output_is_checked():
 # --- Generalidad: ninguna ancla de los casos 00, 01 y 02 -----------------------------------------------------
 
 
-def test_the_v4_instructions_and_the_module_repeat_no_case_anchor():
-    """REQ-031 (generalidad): ni las instrucciones v4 ni sus ejemplos ni el módulo repiten
+def test_the_v5_instructions_and_the_module_repeat_no_case_anchor():
+    """REQ-031 (generalidad): ni las instrucciones v5 ni sus ejemplos ni el módulo repiten
     cinco palabras seguidas de las anclas de los casos 00, 01 y 02 (huellas en
     `fixtures/case_anchor_hashes.txt`, como en `test_circular_units`)."""
     known = set(HASHES.read_text(encoding="utf-8").split())
     assert len(known) > 100
-    files = [extraction.PROMPTS_DIR / "matriz-circulares-v4.md", Path(changes.__file__)]
+    files = [extraction.PROMPTS_DIR / "matriz-circulares-v5.md", Path(changes.__file__)]
     hits = []
     for path in files:
         text = path.read_text(encoding="utf-8")
@@ -491,10 +491,10 @@ def test_the_v4_instructions_and_the_module_repeat_no_case_anchor():
     assert not hits, hits
 
 
-def test_the_active_extraction_instructions_are_v4_with_synthetic_examples(settings):
-    """REQ-031: la versión activa de `circulares_cambios` es la v4, con ejemplos de la forma
+def test_the_active_extraction_instructions_are_v5_with_synthetic_examples(settings):
+    """REQ-031: la versión activa de `circulares_cambios` es la v5, con ejemplos de la forma
     de la salida y de cada tipo."""
-    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v4"
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v5"
     prompt = extraction.load_prompt("circulares_cambios")
     for word in ("reemplaza", "suprime", "agrega", "aclara", "dato_del_tramite",
                  "Donde dice", "Debe decir", "No ves el pliego"):

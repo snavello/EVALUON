@@ -801,7 +801,11 @@ def is_procedure_data(unit):
     lines = [m.segment.text.strip() for m in _body_members(unit)]
     if len(lines) < DATA_MIN_LINES:
         return False
-    if any(has_circular_obligation(m.segment.text or "") for m in unit.members):
+    # Con los marcadores del pliego: un recordatorio final con "deben" no quita el carácter
+    # de datos (el "debe/deben" de las circulares vale solo para las obligaciones agregadas).
+    from evaluon.tenders.proposal.run import has_obligation_markers
+
+    if any(has_obligation_markers(m.segment.text or "") for m in unit.members):
         return False
     labeled = sum(1 for line in lines if _LABELED.match(line))
     short = sum(1 for line in lines

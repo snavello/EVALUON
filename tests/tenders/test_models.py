@@ -1472,5 +1472,5 @@ def test_circular_extraction_parameters_in_settings():
     omisión y la pasada tiene su versión de instrucciones."""
     assert settings.CIRCULAR_EXTRACTION_ENABLED is True
     assert settings.CIRCULAR_EXTRACTION_REPEATS == 1
-    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v4"
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v5"
     assert settings.MATRIX_PROMPT_VERSIONS["circulares"] == "matriz-circulares-v2"
