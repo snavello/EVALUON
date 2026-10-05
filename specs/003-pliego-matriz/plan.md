@@ -899,6 +899,8 @@ Para lo que no tiene clave (la entrega 1 lo deja en "respaldo": "la memoria RAM 
 - Instrucciones `prompts/matriz-circulares-v3.md`, con ejemplos sintéticos de otro objeto y otras cifras; el modelo y los parámetros se registran como en las demás pasadas.
 - Con `CIRCULAR_EXTRACTION_ENABLED` en falso queda la entrega 1 más el respaldo actual.
 
+**Nota del 2026-10-05 (T-127, T-128; diagnóstico 5 de T-120).** (1) El efecto que decidió la extracción no lo puede contradecir el respaldo, y un `suprime` solo es firme si el texto de la circular tiene una frase explícita de supresión; si no, va como sugerencia de revisión obligatoria (P3: una lectura dudosa no llega como hecho). Es una guarda de código sobre lo ya diseñado, sin ADR. (2) `prompt_versions` registra `circulares_cambios` (P6). (3) Aplicar una `aclara` de cláusula a todas sus citas (T-128) cambia el criterio de "una cláusula con varias citas sin texto anterior es ambigua" y queda bloqueada hasta que el responsable decida; si lo aprueba, se anota aquí, sin ADR salvo que cambie algo de fondo.
+
 ### Pantalla e impresión (T-116)
 
 - Una fuente con `original_segment` muestra como "Texto original" el tramo del anexo, con su documento, página y enlace al original en la página; el vigente sigue siendo el texto de la circular con su documento y fecha.
