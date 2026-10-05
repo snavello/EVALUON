@@ -1,0 +1,348 @@
+
+
+<!DOCTYPE html>
+<!--[if lt IE 7]><html lang="es" class="lt-ie10 lt-ie9 lt-ie8 lt-ie7"><![endif]-->
+<!--[if IE 7]><html lang="es" class="lt-ie10 lt-ie9 lt-ie8"><![endif]-->
+<!--[if IE 8]><html lang="es" class="lt-ie10 lt-ie9"> <![endif]-->
+<!--[if IE 9]><html lang="es" class="lt-ie10"> <![endif]-->
+<!--[if gt IE 9]><!-->
+<html lang="es">
+<!--<![endif]-->
+<head><meta http-equiv="X-UA-Compatible" content="IE=edge" /><meta http-equiv="Content-Type" content="text/html; charset=utf-8" /><title>
+	Compras - Portal de Compras AFIP
+</title><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script type="text/javascript" src="/App_Themes/styles-viejo/javascript/Trazabilidad.js"></script>
+    <link type="text/css" rel="stylesheet" href="/WebResource.axd?d=MniCTg_lj02ZKJ1BYDtfpXeV93Fh3iLU2BbqXtnJSWyG37MpMd9_IOx03luEe5dEKoU8yWZdiuaGQj--fY9sK-HpewsFuJyyLeNUR4AYSV8ziDCvnMBSr3dg2pJ1KvCENIsrjQ2&amp;t=637722247300000000" /><link type="text/css" rel="stylesheet" href="/WebResource.axd?d=-xx-qtxbM0BMSpxNtvGraafHo0vxusLD18XFLgEZG2YB7iQIHW6G9vw-s3pP3FGr4QPMEyxT2kZs94fncaTMe4xRvYSSLqxNhJImO69y1DkwwoibLFRIaxKWDz5ZrFdfc2iWI1bUz5GDy4HxUWYAfVcELHRrFM3PEA0Q-jPS8fqn6Cu90&amp;t=637722247300000000" /><link type="text/css" rel="stylesheet" href="/WebResource.axd?d=lEC0CcLjSb1M72RSyH1PCms8LJC51Itpa4EUysV3C-rq1LAKjElGujjaqN0zg1C_bNncsHd3hxHUVWepxeQwCQgV7dvCNXdVBCKd9P1V65BcE8gxDokgFDg5EtYtfjcMFvR1KrYUWJ255NwtTTtz6OoR518w7GkdYP1DH75Uw6xkoC1R0&amp;t=637722247300000000" /><link href="../App_Themes/bastrap/bootstrap.min.css?60212" type="text/css" rel="stylesheet" /><link href="../App_Themes/bastrap/bootstrap-multiselect.css?60212" type="text/css" rel="stylesheet" /><link href="../App_Themes/bastrap/styles.min.css?60212" type="text/css" rel="stylesheet" /><link href="../App_Themes/bastrap/styles-seac.min.css?60212" type="text/css" rel="stylesheet" /></head>
+<body>
+    <!--[if lt IE 9]>
+        <script src="/App_Themes/bastrap/scripts/html5shiv.min.js"></script>
+        <script src="/App_Themes/bastrap/scripts/respond.min.js"></script>
+    <![endif]-->
+    
+
+
+
+<header class="headerBackground">
+
+
+
+    <div class="container">
+        
+        <div class="row">
+            <div class="pull-left">
+                <a id="ctl00_CtrlHeaderBastrap_linkComprasAFIP" onClick="return confirm('Usted será redirigido al portal y perderá la sesión. ¿Desea continuar?');" href="/Default.aspx">
+                    <img src="../Imagenes/Logos/logoComprasAFIP.png" class="logoComprasAFIP" alt="ARCA"/>
+                </a>
+            </div>
+
+            <div class="pull-right hidden-xs">
+                <a id="ctl00_CtrlHeaderBastrap_linkAFIP" href="http://www.afip.gob.ar" target="_blank">
+                    <img src="../Imagenes/Logos/logoAFIP.png" class="logoAFIP" alt="ARCA"/>
+                </a>
+            </div>
+        </div>
+    </div>
+</header>
+
+    <form name="aspnetForm" method="post" action="PantallaError.aspx?qs=f59auUxBOzIKid4NWzPkUpI8cWekavKWQt%2f0lSFAAfqKztalRgv2E07IAKtte%7cx%3d" id="aspnetForm">
+<div>
+<input type="hidden" name="__EVENTTARGET" id="__EVENTTARGET" value="" />
+<input type="hidden" name="__EVENTARGUMENT" id="__EVENTARGUMENT" value="" />
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="aIfFNlIgDGzQt0R+VgQJ0RKvfnMRYW4NwMIwstIcyFj534UIRj4m7pHvwjTbqU09utkJCy+sOKCidutBlzJX3j9eN3qM+zW6gHxJGJNj7FZRt5siWPucg/MOIR54S/59uFJdTv18TOLAcNrX33PRwskzvXd9nzUXiMcZAC0yeAWNVDpjVEbvOWDiyFIbJGNeid70zNY13mecqZ4ncHTqWfRF8p7Y7SdLt6N6ws7fUwc3LdlEofLIBdFv3pZwoelSBJcFhosivv0K1OqrmuOPa0HBFoYSDVuFK+MqWXT45y7kjblfgz5+jzo/aKisVQIltI009VaXvbUn1bvhKkFvvGtYPBAwj5FJNG/rsDvv2Hd4aJ+pdYi2vXnur/e885Bk/9VrJOZF6PiG4KxtyN3y6l/pJpNfq2qAC4jwktfm0idVnIueC22RZnZtGsWrj3MPJRZJrBocrx/czjUEuFTERVGGVMH5tj2a9sOCH8kihlznaMk/B7MeOuk+SiqFJGma8jHb0cAkeFMgyLlTZ+SbxaAQHyvFc4qLDtkOGt+GGrgRGDvDqbKA+ih3oDT1qBtqopqMnIzaByORVkp0ueBexhv/vrlXui9bYOn0lqu5Q8dp5omoXWtBR+WyYNs2CKBolZN/70lOb0SXOM1rK9Gcg+nH0p8wndNWLfyM/X2Hf1JCoYXx3SNsoZCmh3aTQryNk38y5es9IvOCzQ4M02Xgni2HFKq1FU+RW4XN2cs4pV+yqSnc4QJ6kg0dgk1rfUw+3m3XyTsQl9IaNpZlrq4QIFj0+U8sE3ZTN2anqnmqJKOMF52H01NsLeF9sMIv5183LXwPUQAxdy6gM8ViIuZWlGXb2XdSwlTSb7xuoDleYbAyuGH3FnC5xKpY5dMxNJwolkf8aYZN1ySYG8/T9qMops2nrnGIx/OeYkRdH4kXexoyH0j27VHaXzylgrcpjBabEY40vq3bXv+FVCIv9YTMoAQ/YQvWy1ExXjmLtqlSKBXCMMZB3Gh5hXqlh3lG36vHn31iwLgTpu4p++bgkenlO5Vf8UI3xroPkILLmELAtKhmvjFCYDlBvh6o7ax4U8vm6W35QTcZwTkmGUwkCrI/qQomLbItMV8lBmqlaHQMoKvkVKwowiFl0ZTYXav9hdoWFDaEhZhvv4Pe2TaCgVy7qAbKl6zaF5Bx0sDJshOFtej8vZ==" />
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var theForm = document.forms['aspnetForm'];
+if (!theForm) {
+    theForm = document.aspnetForm;
+}
+function __doPostBack(eventTarget, eventArgument) {
+    if (!theForm.onsubmit || (theForm.onsubmit() != false)) {
+        theForm.__EVENTTARGET.value = eventTarget;
+        theForm.__EVENTARGUMENT.value = eventArgument;
+        theForm.submit();
+    }
+}
+//]]>
+</script>
+
+
+<script src="/WebResource.axd?d=ti8E1RJxGu1V-wWyzEBs_H8Q5GeaBQNYhbRNIvamW5MHPlLV3gikOCfP5h_Eyz5wS2xJyOWmAbBU0deWUbzzAjsADq41&amp;t=638250528092864286" type="text/javascript"></script>
+
+
+<script type="text/javascript">
+//<![CDATA[
+var __cultureInfo = '{"name":"es-AR","numberFormat":{"CurrencyDecimalDigits":2,"CurrencyDecimalSeparator":",","IsReadOnly":true,"CurrencyGroupSizes":[3],"NumberGroupSizes":[3],"PercentGroupSizes":[3],"CurrencyGroupSeparator":".","CurrencySymbol":"$","NaNSymbol":"NeuN","CurrencyNegativePattern":2,"NumberNegativePattern":1,"PercentPositivePattern":0,"PercentNegativePattern":0,"NegativeInfinitySymbol":"-Infinito","NegativeSign":"-","NumberDecimalDigits":2,"NumberDecimalSeparator":",","NumberGroupSeparator":".","CurrencyPositivePattern":2,"PositiveInfinitySymbol":"Infinito","PositiveSign":"+","PercentDecimalDigits":2,"PercentDecimalSeparator":",","PercentGroupSeparator":".","PercentSymbol":"%","PerMilleSymbol":"‰","NativeDigits":["0","1","2","3","4","5","6","7","8","9"],"DigitSubstitution":1},"dateTimeFormat":{"AMDesignator":"a.m.","Calendar":{"MinSupportedDateTime":"\/Date(-62135586000000)\/","MaxSupportedDateTime":"\/Date(253402300799999)\/","AlgorithmType":1,"CalendarType":1,"Eras":[1],"TwoDigitYearMax":2029,"IsReadOnly":true},"DateSeparator":"/","FirstDayOfWeek":0,"CalendarWeekRule":0,"FullDateTimePattern":"dddd, dd\u0027 de \u0027MMMM\u0027 de \u0027yyyy hh:mm:ss tt","LongDatePattern":"dddd, dd\u0027 de \u0027MMMM\u0027 de \u0027yyyy","LongTimePattern":"hh:mm:ss tt","MonthDayPattern":"dd MMMM","PMDesignator":"p.m.","RFC1123Pattern":"ddd, dd MMM yyyy HH\u0027:\u0027mm\u0027:\u0027ss \u0027GMT\u0027","ShortDatePattern":"dd/MM/yyyy","ShortTimePattern":"hh:mm tt","SortableDateTimePattern":"yyyy\u0027-\u0027MM\u0027-\u0027dd\u0027T\u0027HH\u0027:\u0027mm\u0027:\u0027ss","TimeSeparator":":","UniversalSortableDateTimePattern":"yyyy\u0027-\u0027MM\u0027-\u0027dd HH\u0027:\u0027mm\u0027:\u0027ss\u0027Z\u0027","YearMonthPattern":"MMMM\u0027 de \u0027yyyy","AbbreviatedDayNames":["dom","lun","mar","mié","jue","vie","sáb"],"ShortestDayNames":["do","lu","ma","mi","ju","vi","sá"],"DayNames":["domingo","lunes","martes","miércoles","jueves","viernes","sábado"],"AbbreviatedMonthNames":["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic",""],"MonthNames":["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre",""],"IsReadOnly":true,"NativeCalendarName":"calendario gregoriano","AbbreviatedMonthGenitiveNames":["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic",""],"MonthGenitiveNames":["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre",""]}}';//]]>
+</script>
+
+<script src="/ScriptResource.axd?d=A_W8pxUN3GJFLIvqNE5-iC2-saBCMZvLu57rGG73ZmX5e1kxhuVA1S8rFJOzMIZ8hYVt7T4tNWGgAYgsZWFEzsbLZ4RoXtmiBVYAcyTLmxOaGZx8Ckr6N9Zd84B8WOqR7pCzDenEbIgdrK77kn-HNFMT51U1&amp;t=3f4a792d" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=-HuFlfKw5UAwKkjql1j4-R9q4hBVWZPm2UTBVMu8Uxg-l16ZAA15rjG9Al_L3D7esQI-Vd_OcrGNm-BscOG3LngsTab7ZkcGTKibTIFdHIIhsuw37b4BvmNJ6vCPoaoSRFt7eGQHR_UcbtVC-8NGuDsOJ8EM-72OgDr2QVs97L5KYO850&amp;t=3f4a792d" type="text/javascript"></script>
+<div>
+
+	<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="D4FD5083" />
+	<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="iRHL74+FrHkuLP/1c77k5pIcsJS5WXW1BgM+3+rANA+j2gqPGxwTjo==" />
+</div>
+        <script type="text/javascript">
+//<![CDATA[
+Sys.WebForms.PageRequestManager._initialize('ctl00$ScriptManager1', document.getElementById('aspnetForm'));
+Sys.WebForms.PageRequestManager.getInstance()._updateControls([], [], [], 90);
+//]]>
+</script>
+
+        <nav class="navbar-inverse" role="navigation">
+            
+        </nav>
+        <div class="fechaactual" style="padding-top: 5px; padding-bottom: 5px;">
+            <div class="container">
+                <div class="row">
+                    
+
+<script type="text/javascript">
+    //Función de Fecha y Hora
+    var months = new Array("Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre")
+    var dayName = new Array("Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado")
+    var relojGlobal
+    var intDiferencia
+
+    function reloj() {
+        var date = relojGlobal
+        intDiferencia = (relojGlobal - new Date()) / 1000
+        correrReloj()
+    }
+    function correrReloj() {
+
+        var difMax = 60;
+        var difSeg = (relojGlobal - new Date()) / 1000
+        if (difSeg > intDiferencia + difMax || difSeg < intDiferencia - difMax)
+            window.location.reload();
+
+        var date = new Date();
+        relojGlobal = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds() + intDiferencia)
+        date = relojGlobal
+
+        var year = date.getFullYear()
+        var month = date.getMonth()
+        var day = date.getDate()
+        var hour = date.getHours()
+        var minute = date.getMinutes()
+        var second = date.getSeconds()
+        var monthname = months[month]
+
+        if (hour > 12) {
+            //hour = hour - 12;
+            var AM_PM = ""
+        }
+        else {
+            var AM_PM = ""
+        }
+        if (minute < 10) { minute = "0" + minute }
+        if (second < 10) { second = "0" + second }
+        if (month < 10) { month = "0" + month }
+        var dayString = dayName[date.getDay()]
+        if (document.getElementById('divReloj') != null) {
+            document.getElementById('divReloj').innerHTML = " " + dayString + " " + day + " de " + monthname + ", <b class=\"texto11Azul\">" + hour + ":" + minute + ":" + second + " " + AM_PM + "</b>"
+        }
+        setTimeout("correrReloj()", 1000)
+    }
+</script>
+
+<div id="date" style="font-size: 11px; text-align: right; height: 1.5em;padding-top:1em; padding-bottom:1em; " >
+    <span id="ctl00_CtrlTimeNow_scriptFechaHora"><script>relojGlobal= new Date(2026, 9, 5, 17, 44, 46);reloj()</script></span>
+    <span id="divReloj"></span>
+</div>
+
+                </div>
+            </div>
+        </div>
+        <section>
+            
+    <div id="contenido" class="container">
+        <div>
+            <br />
+            <br />
+            <div id="ctl00_CPH1_divError" class="alert alert-spot alert-danger">
+                <span class="glyphicon glyphicon-remove text-danger"></span>
+                <div class="alert-link-text text-danger">
+                    <h4>
+                        <span id="ctl00_CPH1_lblMensajeErrorGenerico" class="h4">Se ha producido un problema al intentar mostrar la página</span>
+                    </h4>
+                    <p>
+                        <span id="ctl00_CPH1_lblMensaje">Código: </span>
+                        <span id="ctl00_CPH1_lblError">0643217</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div id="ctl00_CPH1_divMesaAyuda" class="panel-body">
+            
+            
+            <span class="txt_11px" style="text-align: justify">
+                <strong>Por favor comuníquese a través de los siguientes medios: </strong>
+                <br />
+            </span>
+            <ul>
+                
+                <li class="txt_11px" style="text-align: justify">
+                    <strong>E-mail:</strong>
+                    <span id="ctl00_CPH1_lblFonoAyudaEmail">registrodeproveedores@arca.gob.ar</span>
+                </li>
+                <li class="txt_11px" style="text-align: justify">
+                    <strong>Horario de Atención: </strong>
+                    <span id="ctl00_CPH1_lblFonoAyudaHorario">Horario de atenci¿¿n: 9 a 17 hs.</span>
+                    <br />
+                </li>
+            </ul>
+        </div>
+        <br />
+        
+        
+    </div>
+
+        </section>
+        
+        <script src="/App_Themes/bastrap/scripts/jquery.min.js"></script>
+        <script src="/App_Themes/bastrap/scripts/bootstrap.min.js"></script>
+
+        
+
+        
+
+<script type="text/javascript">
+    function openModalNavegadores() {
+        $('#modalAvisoNavegadores').modal('show');
+    }
+
+    function openModalTerminos() {
+        $('#modalTerminosYCondiciones').modal('show');
+    }
+</script>
+<footer>
+    <div class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="sub-brand">
+                        
+                        <p class="text-center">
+                            ARCA - v6.0.2.12_COMPRAR
+                        </p>
+                        <p class="text-center">
+                            <a id="ctl00_pie_lnkAvisoNavegadores" href="javascript:__doPostBack('ctl00$pie$lnkAvisoNavegadores','')">Avisos sobre Navegadores</a>
+                            |&nbsp;
+                            <a id="ctl00_pie_lnkTerminos" href="javascript:__doPostBack('ctl00$pie$lnkTerminos','')">Términos y Condiciones de Uso</a>
+                            <span id="ctl00_pie_spTrazabilidad">| <a href="javascript:void(0);" onclick="trBuscarCasoUso(); return false;">CU</a>
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+<div class="modal" id="modalAvisoNavegadores" tabindex="-2" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div id="ctl00_pie_div1" class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h4 class="modal-title">Aviso sobre Navegadores</h4>
+            </div>
+            <div class="modal-body" data-backdrop="static" data-keyboard="false">
+                <div class="container-fluid">
+                    Para brindar la mejor calidad y velocidad de navegación nuestro sitio está desarrollado en función de las últimas versiones de los navegadores:
+                    <div class="col-md-6 col-md-offset-3">
+                        <div class="container-fluid">
+                            <div class="carousel slide" data-ride="carousel" id="carousel">
+                                <div class="carousel-inner">
+                                    <div class="item active">
+                                        <img id="ctl00_pie_imgCarrousel" src="/App_Themes/bastrap/images/navegadores.jpg" style="border-width:0px;" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal" id="modalTerminosYCondiciones" tabindex="-2" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <p><u>DI-2023-2-E-AFIP-SDGADF - ANEXO II (IF-2023-00008046-AFIP-SDGADF) </u></p>
+                <h4 class="modal-title" id="myModalLabel">
+                    ANEXO II (Artículo 3°) <br /> 
+                    POLÍTICAS, TÉRMINOS Y CONDICIONES DE USO DEL SISTEMA “PORTAL DE COMPRAS AFIP”</h4>
+            </div>
+            <div class="modal-body" style="height: 500px; overflow-y: auto; text-align: justify;">
+                <p><b>1. ENCUADRE JURÍDICO</b></p>
+                <p>El acceso y uso del sistema “Portal de Compras AFIP” se efectuará en el marco del Régimen General para Contrataciones de Bienes, Servicios y Obras Públicas de la AFIP aprobado por la DI-2022-247-EAFIP-AFIP, de las presentes Políticas, Términos y Condiciones de Uso y de las Condiciones Especiales que puedan complementar o modificar al citado sistema. </p>
+                <p><b>2. ACEPTACIÓN</b></p>
+                <p>Desde el momento de acceso y/o uso del sistema “Portal de Compras AFIP” se considera que el usuario acepta plenamente y sin reserva alguna las Políticas, los Términos y las Condiciones, así como las condiciones particulares de uso del sistema que pudieran dictarse, adhiriendo en forma inmediata a todas y cada de una ellas. </p>
+                <p><b>3. ACCESO</b></p>
+                <p>El acceso al sistema “Portal de Compras AFIP” es público y gratuito, y se realiza a través de Internet, cuya página principal se encuentra ubicada en el sitio “web” http://www.afip.gob.ar/compras o aquella que en el futuro la reemplace.
+                <p>El usuario deberá contar con un equipo y programas informáticos que cumplan con los requisitos mínimos de compatibilidad con el sistema (acceso por Internet, navegadores utilizados por la Administración Federal de Ingresos Públicos). En su defecto, no podrá tener acceso al sistema o podrá bloquearse su acceso. </p>
+                <p><b>4. TÉRMINOS</b></p>
+                <p>Al efecto de las presentes Políticas, Términos y Condiciones de Uso del sistema “Portal de Compras AFIP”, se entenderá que:</p>
+                <p><u>“PORTAL DE COMPRAS AFIP”</u></p>
+                <p>Constituye el sistema electrónico de contrataciones a través del cual se realizan los procedimientos de selección prescriptos en la normativa vigente.</p>
+                <p><a>http://www.afip.gob.ar/compras:</a></p>
+                <p>es el portal sobre el que se gestiona el “PORTAL DE COMPRAS AFIP” y donde se difunden las convocatorias y las restantes etapas de los procedimientos de selección.</p>
+                <p>El acceso a este portal es público y gratuito. Asimismo, constituye un medio válido de notificación entre esta Administración Federal y los interesados, oferentes, adjudicatarios o co-contratantes. </p>
+                <p><u>USUARIOS DEL PROVEEDOR:</u></p>
+                <p>son las personas humanas que utilizan el sistema “Portal de Compras AFIP” en representación de la persona humana o jurídica inscripta en el Registro de Proveedores de la AFIP, conforme al procedimiento de registro y autenticación de los usuarios de los proveedores.</p>
+                <p><u>USUARIOS COMPRADORES:</u></p>
+                <p>son las personas humanas designadas por la Unidad con Capacidad de Contratación como responsables de la utilización del sistema “Portal de Compras AFIP”, de acuerdo con los roles de usuarios otorgados a través del Sistema Único de Autenticación (SUA). </p>
+                <p><b>5. CONDICIONES DE UTILIZACIÓN DEL “PORTAL DE COMPRAS AFIP”</b></p>
+                <p><u>5.1. PROTECCIÓN DE LA INFORMACIÓN CONTENIDA EN EL PORTAL</u></p>
+                <p>La información elaborada o disponible en el portal se encuentra protegida por las previsiones del ordenamiento jurídico en materia de propiedad intelectual. Está prohibido a los usuarios modificar, copiar, transmitir, vender, distribuir, exhibir, publicar, licenciar, crear trabajos derivados o utilizar, en general, el contenido disponible en el portal, cualquiera sea la finalidad de su utilización (comercial u otra).</p>
+                <p><u>5.2. USO ADECUADO DEL PORTAL</u></p>
+                <p>El usuario que ingresa al portal se compromete a utilizarlo en forma lícita y de acuerdo con las Políticas, Términos y Condiciones de Uso. Se encuentra prohibida la realización de actos que atenten contra el sitio, o que de alguna manera puedan dañar, inutilizar, sobrecargar, deteriorar, impedir o limitar la utilización de todas o algunas de sus funcionalidades.</p>
+                <p><u>5.3. RESPONSABILIDAD POR CLAVES DE USUARIO</u></p>
+                <p>Los usuarios del sistema “Portal de Compras AFIP” no pueden ceder, transferir o comunicar sus claves y nombres de usuarios, siendo responsables por los actos, documentos, anexos, ofertas y demás antecedentes que ingresen utilizando tales claves y nombres de usuario. Los usuarios asumen la obligación de cambiar sus claves frecuentemente, evitando que sean evidentes y/o simples.</p>
+                <p><u>5.4. RESPONSABILIDAD</u></p>
+                <p>Esta Administración Federal no se responsabiliza por:</p>
+                <p>a) Los daños y/o perjuicios derivados del acceso y/o uso de los contenidos publicados en el sitio “web” <a>http://www.afip.gob.ar/compras</a>.</p>
+                <p>b) Las interrupciones del servicio o inconvenientes originados en causas que impidan el acceso que no le sean imputables. La veracidad e integridad de la información y del contenido de los documentos publicados son de exclusiva responsabilidad de los usuarios que los publican y envían, de acuerdo con las claves de acceso con las que actúen.</p>
+                <p>c) La interrupción en la recepción de correos electrónicos por parte del usuarioproveedor.</p>
+                <p>d) Los virus que puedan contener los documentos que adjuntan los usuarios del sitio. Es responsabilidad de cada usuario controlar que los archivos que se suben al sitio no tengan ningún tipo de virus. Las estadísticas e informes disponibles en el sistema son meramente referenciales, por lo que no la comprometen.</p>
+                <p><u>5.5. SUSPENSIÓN O ELIMINACIÓN DE USUARIOS</u></p>
+                <p>Esta Administración Federal podrá suspender y/o eliminar unilateral y automáticamente del sistema “Portal de Compras AFIP” a los usuarios que incurran en infracciones a las presentes normas.</p>
+                <p><u>5.6. CENTRO DE CONTACTO. MESA DE AYUDA TELEFÓNICA</u></p>
+                <p>Se establece para el sistema “Portal de Compras AFIP” un centro de contacto que contará con una mesa de ayuda, que atenderá las consultas que los usuarios formulen respecto del funcionamiento del sistema en la dirección de correo electrónico: registrodeproveedores@arca.gob.ar.</p>
+                <p><b>6. USUARIOS DE LOS PROVEEDORES</b></p>
+                <p><u>6.1. CORREOS ENVIADOS POR EL SISTEMA “PORTAL DE COMPRAS AFIP”</u></p>                
+                <p>Los usuarios de los proveedores aceptan recibir correos electrónicos relativos a procedimientos de selección y demás información relevante en la dirección de correo electrónico informada en el Registro de Proveedores. </p>
+                <p>El sitio "web"<a>http://www.afip.gob.ar/compras</a> es el medio obligatorio de difusión de las convocatorias y de las restantes etapas de los procedimientos de selección, sin perjuicio de las demás formas de difusión y publicidad que la reglamentación vigente determina. </p>
+                <p>Los correos electrónicos enviados por el sistema sólo constituyen un medio de aviso.</p>
+                <p>Los proveedores deberán revisar periódicamente el sitio web indicado, en particular el Escritorio del Proveedor, para notificarse de las novedades vinculadas a las etapas, desarrollo del procedimiento de contratación electrónica y demás información relevante, así como consultar las demás formas de difusión y publicidad que la reglamentación vigente determina.</p>
+                <p><u>6.2. LIBERACIÓN DE RESPONSABILIDAD</u></p>
+                <p>Los usuarios proveedores deben velar por la seriedad de las ofertas ingresadas al “Portal de Compras AFIP”, siendo plenamente responsables por ellas.</p>
+                <p>Los usuarios proveedores aceptan que esta Administración Federal carece de responsabilidad por los resultados que obtengan en cada uno de los procedimientos de selección en que intervengan, liberando al Organismo de cualquier responsabilidad derivada de la dilación o no envío oportuno de correos electrónicos de alerta, conociendo que el medio de notificación es la difusión que cada usuario comprador efectúa en el portal de compras. </p>
+                <p>La no recepción oportuna de correos electrónicos de alerta que envía el sistema no justifica ni se considera causal suficiente para eximir a los proponentes de sus cargas y responsabilidades. </p>
+                <p><u>6.3. POLÍTICAS DE PRIVACIDAD</u></p>
+                <p>Los usuarios del sistema “Portal de Compras AFIP” aceptan, por el solo hecho de su inscripción o registro en el sitio, que los datos, antecedentes e información aportados en las diversas etapas de los procedimientos en que participan sean de público conocimiento en el ámbito de las transacciones que se efectúan en él y que sólo se encuentran disponibles públicamente a esos efectos. Asimismo, y por el sólo hecho de su inscripción, otorgan su conformidad para que los resultados de los procedimientos de selección en que participen y las respectivas contrataciones integren las estadísticas e informes, se procesen y sean publicados por esta Administración Federal.</p> 
+                <p>Cuando se solicite por parte de terceros acceso a información que pudiese afectar derechos de los usuarios proveedores, tales como los relacionados con su vida privada o derechos de carácter económico o comercial, se procederá de acuerdo con lo previsto por el ordenamiento vigente y, en especial, por la Ley de Protección de Datos Personales Nº 25.326, el Decreto Nº 1.558 del 29 de noviembre de 2001, el Anexo VII del Decreto Nº 1.172 del 3 de diciembre de 2003, el Decreto N° 117 del 12 de enero de 2016 - “Plan de Apertura de Datos”, la Ley de Acceso a la Información Pública N° 27.275, el Decreto N° 206 del 27 de marzo de 2017, y por sus normas modificatorias y complementarias.</p> 
+                <p><u>6.4. DECLARACIÓN</u></p>
+                <p>Los usuarios del sistema declaran conocer y aceptar la circunstancia relativa a que el Organismo puede en cualquier momento modificar en todo o en parte las presentes Políticas, Términos y Condiciones de Uso, las que serán publicadas en el sitio “web”<a>http://www.afip.gob.ar/compras</a>. </p>
+                <p><b>7. USUARIOS COMPRADORES</b></p>
+                <p>El usuario comprador es responsable de la información que se difunda y debe procurar que su contenido se adapte a las previsiones contempladas por el ordenamiento vigente. Queda estrictamente prohibido a los usuarios compradores realizar cualquier uso del sistema ajeno al marco del proceso de contrataciones públicas electrónicas. Los organismos de control están autorizados a utilizar el “Portal de Compras AFIP” con el objeto de asegurar el correcto desempeño de los distintos procesos y velar por su transparencia.</p>
+                <p><b>8. LÍMITE DE RESPONSABILIDAD DEL SISTEMA SOBRE EL PROCESO DE SELECCIÓN</b></p>
+                <p>El “Portal de Compras AFIP” es un medio que facilita la realización de los procedimientos de selección. La seriedad e idoneidad de las ofertas recibidas serán evaluadas por las áreas competentes.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+    
+
+<script type="text/javascript">
+//<![CDATA[
+Sys.Application.initialize();
+//]]>
+</script>
+</form>
+</body>
+</html>
