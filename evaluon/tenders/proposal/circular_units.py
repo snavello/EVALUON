@@ -524,7 +524,52 @@ def _resolve_pair(ctx, pair):
     for candidate in found:
         res.effects.append(_effect(ctx.unit, ctx.document, candidate, SourceEffect.MODIFICA.value,
                                    pair.new_start, pair.new_end))
-    return res if res.effects else res.fallback(FALLBACK_ZERO)
+    if not res.effects:
+        return res.fallback(FALLBACK_ZERO)
+    res.additions.extend(_added_obligations(ctx, pair, found))
+    return res
+
+
+_SENTENCE_BREAK = re.compile(r"(?<=[^\d][.;])\s+|\n+")
+_LEADING_NUMBERING = re.compile(r"^\s*\d+(?:\.\d+)*\.?\s*")
+
+
+def _sentences(text, base):
+    """Las oraciones de `text` con su posición absoluta (`base` es la de `text[0]`)."""
+    start = 0
+    for found in list(_SENTENCE_BREAK.finditer(text)) + [None]:
+        end = found.start() if found else len(text)
+        piece = text[start:end]
+        lead = len(piece) - len(piece.lstrip())
+        if piece.strip():
+            yield base + start + lead, base + start + lead + len(piece.strip())
+        if found:
+            start = found.end()
+
+
+def _added_obligations(ctx, pair, found):
+    """Lo que el lado "debe decir" suma: las oraciones con marcador de obligación que no
+    están en el lado "dice" ni en las citas alcanzadas. Cada una es un requisito formal de
+    origen `circular`, con la cita literal en el tramo de la circular."""
+    from evaluon.tenders.proposal.run import has_obligation_markers
+
+    known = _norm(" ".join([pair.old] + [c.text for c in found]))
+    canonical = ctx.document.reading.canonical_text
+    out = []
+    for member in ctx.unit.members:
+        low = max(member.segment.char_start, pair.new_start)
+        high = min(member.segment.char_end, pair.new_end)
+        if low >= high:
+            continue
+        for start, end in _sentences(canonical[low:high], low):
+            sentence = canonical[start:end]
+            body = _norm(_LEADING_NUMBERING.sub("", sentence))
+            if (not has_obligation_markers(sentence) or len(body) < MIN_CONTAINED_CHARS
+                    or body in known):
+                continue
+            out.append(Addition(RequirementClass.FORMAL.value, member.segment, start, end,
+                                sentence))
+    return out
 
 
 def _partial(text):
@@ -722,17 +767,39 @@ def is_procedure_data(unit):
             and (labeled + short) / len(lines) >= DATA_SHARE)
 
 
+_FILE_EXTENSION = re.compile(r"\.[A-Za-z0-9]{2,5}$")
+
+
+def _plain_title(text):
+    """El título sin extensión de archivo, con guiones y guiones bajos como espacios, sin
+    mayúsculas ni tildes."""
+    text = _FILE_EXTENSION.sub("", (text or "").strip())
+    return _norm(re.sub(r"[_\-]+", " ", text))
+
+
+def _names_title(title, document_title, segments):
+    """Si el documento lleva `title`: en su título (normalizado) o, si no, en sus primeros
+    párrafos con texto (el primero suele ser el membrete de página)."""
+    if title in _plain_title(document_title) or title in fold(document_title):
+        return True
+    head = [s for s in segments if s.segment_type != SegmentType.PAGINA
+            and (s.text or "").strip()][:HEAD_LINES]
+    return any(title in _plain_title(s.text) for s in head)
+
+
 def _find_original(ctx, title, mentioning):
     """Dónde está en el pliego el anexo que lleva `title`: un documento que no es el de las
     citas y cuyo título lo nombra, o un anexo (`…/anexo-x`) cuyo encabezado lo nombra. `None`
     si no hay uno solo."""
     holders = {c.segment.reading_id for c in mentioning}
+    title = _norm(title)
     by_reading = {}
     for unit in ctx.pliego.units:
         by_reading.setdefault(unit.segment.reading_id, []).append(unit.segment)
     found = {}
     for reading_id, segments in by_reading.items():
-        if title in fold(ctx.pliego.titles.get(reading_id, "")) and reading_id not in holders:
+        if reading_id not in holders and _names_title(
+                title, ctx.pliego.titles.get(reading_id, ""), segments):
             body = [s for s in segments if s.segment_type != SegmentType.PAGINA and s.text]
             if body:
                 found[(reading_id, "")] = body
