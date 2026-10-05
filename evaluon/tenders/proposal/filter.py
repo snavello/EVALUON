@@ -33,6 +33,9 @@ propiedad obligatoria por alias; la segunda no ve la respuesta de la primera):
 | una sola respuesta válida: `descartar`, `no` o `duda` | | sugerencia | `opinion_incompleta` |
 | una sola respuesta válida: `mantener` o `si`; o ninguna válida | | firme, con la anomalía | |
 
+Guarda en código (T-125, REQ-024): una fila descartada que comparte oración con una fila
+firme del mismo tramo pasa a sugerencia con la duda `duda` (`protect_shared_sentences`).
+
 Con `SUGGESTIONS_ENABLED` en falso, lo que sería sugerencia queda firme. Un lote cuya salida
 se corta por el máximo se parte en dos, como en la extracción. Una falla del servicio no
 detiene la propuesta: ese pedido no da opinión. Cada pedido se guarda en `tenders_run_step`
@@ -56,7 +59,7 @@ from evaluon.tenders.proposal import dedup, extraction, quotes
 from evaluon.tenders.proposal.completeness import passes_of
 from evaluon.tenders.proposal.extraction import BODY_CLASSES
 
-RULE_VERSION = "filtro-v1"
+RULE_VERSION = "filtro-v2"
 
 FIRME = "firme"
 SUGERENCIA = "sugerencia"
@@ -348,6 +351,46 @@ def decide(row, a, b):
     return verdict
 
 
+SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+ANOMALY_SHARED_SENTENCE = "filtro_comparte_oracion"
+
+
+def sentence_range(text, span):
+    """Las oraciones del texto canónico del tramo que toca `span`, como `(primera, última)`.
+    Una oración termina en un punto, un cierre de exclamación o de pregunta seguido de
+    espacio; las posiciones son las del texto del tramo."""
+    ends = [mark.end() for mark in SENTENCE_END.finditer(text)]
+    first = sum(1 for end in ends if end <= span[0])
+    last = sum(1 for end in ends if end < span[1])
+    return first, last
+
+
+def protect_shared_sentences(verdicts):
+    """Guarda en código (REQ-024): una fila que comparte oración con una fila firme del mismo
+    tramo no puede descartarse, porque es parte de una condición que el filtro mantuvo (la
+    cola de la misma oración leída sola parece otra cosa). Pasa a sugerencia con la duda
+    `duda`; sus dos respuestas y el indicio quedan en `doubt`. La comparación es por
+    posiciones del texto canónico: dos filas comparten oración si sus fragmentos tocan una
+    misma oración del tramo. Las firmes se miden antes de aplicar esta guarda."""
+    firm = {}
+    for verdict in verdicts:
+        if verdict.destination == FIRME:
+            row = verdict.row
+            firm.setdefault(row.segment.pk, []).append(
+                sentence_range(row.segment.text, row.found.span))
+    for verdict in verdicts:
+        if verdict.destination != DESCARTADA:
+            continue
+        row = verdict.row
+        first, last = sentence_range(row.segment.text, row.found.span)
+        if any(first <= other_last and other_first <= last
+               for other_first, other_last in firm.get(row.segment.pk, ())):
+            verdict.destination = SUGERENCIA
+            verdict.doubt_reason = "duda"
+            verdict.reason = ""
+            verdict.anomaly = ANOMALY_SHARED_SENTENCE
+
+
 # --- El filtro ---------------------------------------------------------------------------------
 
 
@@ -478,11 +521,12 @@ class Filter:
             for row, (a, step_a), (b, step_b) in zip(batch, answers_a, answers_b):
                 verdict = decide(row, a, b)
                 verdict.step_a, verdict.step_b = step_a, step_b
-                if (verdict.destination == SUGERENCIA
-                        and not settings.SUGGESTIONS_ENABLED):
-                    verdict.destination = FIRME
-                    verdict.anomaly = verdict.anomaly or "filtro_sugerencias_apagadas"
                 verdicts.append(verdict)
+        protect_shared_sentences(verdicts)
+        for verdict in verdicts:
+            if verdict.destination == SUGERENCIA and not settings.SUGGESTIONS_ENABLED:
+                verdict.destination = FIRME
+                verdict.anomaly = verdict.anomaly or "filtro_sugerencias_apagadas"
         self._count(rows, verdicts)
         step_anomalies = [a for step in self.steps for a in step.anomalies]
         return Result(verdicts=verdicts, steps=self.steps,
