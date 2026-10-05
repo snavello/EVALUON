@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Requisito {{ history.requirement.number }} · ficha {{ history.sheet.number }} · EVALUON{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'offers:sheet' history.sheet.pk %}#fila-{{ history.entry.pk }}">Ficha {{ history.sheet.number }} · oferta {{ history.offer.number }} · {{ history.offer.bidder }}</a></p>
+<h1>Requisito {{ history.requirement.number }}: corregir e historial</h1>
+<p>{{ history.text|truncatechars:400 }}</p>
+<p>Estado de la fila: {{ history.entry.get_state_display }}.
+{% if history.entry.outcome == "no_encontrado" %}No se encontró en la oferta.{% endif %}</p>
+
+{% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+
+<section aria-labelledby="current-title">
+  <h2 id="current-title">Fragmentos vigentes</h2>
+  {% for fragment in history.current %}
+  <article id="fragmento-{{ fragment.pk }}">
+    <p>{{ fragment.passage.reading.document.title }} · página {{ fragment.passage.page }}
+      {% if fragment.state == "confirmado" %}<span class="state">(confirmado)</span>{% endif %}
+      {% if fragment.origin == "persona" %}<span class="state">(agregado por una persona)</span>{% endif %}</p>
+    <blockquote>{{ fragment.text }}</blockquote>
+    <form method="post" action="{% url 'offers:fragment_action' fragment.pk 'corregir' %}">
+      {% csrf_token %}
+      <input type="hidden" name="volver" value="fila">
+      <label>Pasaje
+        <select name="passage">
+          {% for passage in history.passages %}
+          <option value="{{ passage.pk }}"{% if passage.pk == fragment.passage_id %} selected{% endif %}>{{ passage.reading.document.title }} · página {{ passage.page }} · {{ passage.text|truncatechars:80 }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Recorte literal (vacío: el pasaje entero)
+        <textarea name="text" rows="2"></textarea>
+      </label>
+      <button type="submit">Corregir</button>
+    </form>
+    <form method="post" action="{% url 'offers:fragment_action' fragment.pk 'quitar' %}">
+      {% csrf_token %}
+      <input type="hidden" name="volver" value="fila">
+      <button type="submit">Quitar</button>
+    </form>
+  </article>
+  {% empty %}
+  <p>La fila no tiene fragmentos vigentes.</p>
+  {% endfor %}
+</section>
+
+{% if history.removed %}
+<section aria-labelledby="removed-title">
+  <h2 id="removed-title">Fragmentos quitados</h2>
+  {% for fragment in history.removed %}
+  <article>
+    <p>{{ fragment.passage.reading.document.title }} · página {{ fragment.passage.page }}</p>
+    <blockquote>{{ fragment.text }}</blockquote>
+    <form method="post" action="{% url 'offers:fragment_action' fragment.pk 'restituir' %}">
+      {% csrf_token %}
+      <input type="hidden" name="volver" value="fila">
+      <button type="submit">Restituir</button>
+    </form>
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section aria-labelledby="add-title">
+  <h2 id="add-title">Agregar un fragmento</h2>
+  <form method="post" action="{% url 'offers:add_fragment' history.entry.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="volver" value="fila">
+    <label>Pasaje
+      <select name="passage">
+        {% for passage in history.passages %}
+        <option value="{{ passage.pk }}">{{ passage.reading.document.title }} · página {{ passage.page }} · {{ passage.text|truncatechars:80 }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Recorte literal (vacío: el pasaje entero)
+      <textarea name="text" rows="2"></textarea>
+    </label>
+    <button type="submit">Agregar</button>
+  </form>
+</section>
+
+<section aria-labelledby="proposed-title">
+  <h2 id="proposed-title">Lo que propuso el sistema</h2>
+  {% for fragment in history.proposed %}
+  <blockquote>{{ fragment.proposed.text }}</blockquote>
+  {% empty %}
+  <p>El sistema no propuso fragmentos para esta fila.</p>
+  {% endfor %}
+</section>
+
+<section aria-labelledby="changes-title">
+  <h2 id="changes-title">Historial</h2>
+  {% if history.changes %}
+  <ol>
+    {% for change in history.changes %}
+    <li>
+      {{ change.at|date:"d/m/Y H:i" }} · {{ change.user.username }} · {{ change.get_action_display }}
+      {% if change.before.text %}<div>Antes: <blockquote>{{ change.before.text }}</blockquote></div>{% endif %}
+      {% if change.after.text %}<div>Después: <blockquote>{{ change.after.text }}</blockquote></div>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p>Todavía no hay cambios en esta fila.</p>
+  {% endif %}
+</section>
+{% endblock %}
