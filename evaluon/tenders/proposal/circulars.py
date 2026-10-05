@@ -89,6 +89,25 @@ ANOMALY_QUOTE_NOT_FOUND = "circular_texto_no_encontrado"
 ANOMALY_WIDE = "circular_cita_amplia"
 ANOMALY_CANDIDATES_CUT = "circular_candidatas_recortadas"
 ANOMALY_NO_FIT = "circular_tramo_no_entra"
+# T-127: el respaldo contradijo el efecto de la extracción; un `suprime` sin frase explícita.
+ANOMALY_EFFECT_CONTRADICTED = "circular_efecto_contradice_extraccion"
+ANOMALY_SUPPRESSION_WITHOUT_PHRASE = "circular_supresion_sin_frase"
+
+# Frases explícitas de supresión (T-127), sobre texto sin tildes ni mayúsculas: "se suprime(n)",
+# "se elimina(n)", "se deroga(n)", "suprímase", "elimínase", "derógase", "queda(n) / déjase
+# sin efecto", "no será exigible", "queda(n) derogado".
+# T-129: también el infinitivo ("se dispone suprimir…") y el sustantivo con objeto de pliego
+# ("la eliminación de la subcláusula…"); sin objeto de pliego ("eliminación de residuos") no
+# cuenta.
+_SUPPRESSION_OBJECT = (r"(?:sub)?(?:clausulas?|articulos?|puntos?|apartados?|numerales?|incisos?"
+                       r"|renglon(?:es)?|anexos?|requisitos?|exigencias?|parrafos?|items?)")
+_SUPPRESSION_PHRASE = re.compile(
+    r"\b(?:se\s+(?:suprim\w+|elimin\w+|derog\w+)|suprimase|eliminase|derogase"
+    r"|(?:queda\w*|dejase|dejan?|deja)\s+sin\s+efecto"
+    r"|no\s+(?:sera|seran)\s+exigibles?|queda\w*\s+derogad\w+"
+    r"|(?:dispone|resuelve|decide|ordena)\s+(?:suprimir|eliminar|derogar)"
+    r"|(?:eliminacion|supresion|derogacion)\s+(?:total\s+|parcial\s+)?(?:de|del)\s+"
+    rf"(?:(?:la|el|las|los|dicha|dicho)\s+)?{_SUPPRESSION_OBJECT})\b")
 
 _CLASS_LABELS = {"formal": "formal", "economico": "económico"}
 
@@ -115,7 +134,7 @@ _LEADING_CLAUSE = re.compile(r"^[ \t]*(\d+(?:\.\d+)+)\.?[ \t]+\S", re.MULTILINE)
 # El título entre comillas de un anexo o documento ("Anexo “FECHA DE VISITA”").
 _QUOTED_TITLE = re.compile(r"[“\"]([^”\"\n]{6,80})[”\"]")
 # Encabezado de un apartado de una circular sin cláusulas ("II. SE FIJAN NUEVAS FECHAS").
-_HEADING = re.compile(r"^\s*[IVXLC]+\.\s+\S")
+_HEADING = re.compile(r"^\s*[IVXLC]+(?:\.\s*-|\.|\s+-|\))\s+\S")
 HEADING_LOOKBACK = 60       # tramos hacia atrás en que se busca el encabezado
 CONTEXT_PREVIOUS = 2        # tramos anteriores que se muestran como contexto
 CONTEXT_CHARS = 400         # largo máximo de cada tramo de contexto
@@ -126,6 +145,11 @@ def fold(text):
     """Minúsculas y sin tildes."""
     decomposed = unicodedata.normalize("NFD", text.lower())
     return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+def has_suppression_phrase(text):
+    """Si `text` dice de forma explícita que algo se suprime o queda sin efecto (T-127)."""
+    return _SUPPRESSION_PHRASE.search(fold(text)) is not None
 
 
 class InvalidOutput(ValueError):
@@ -787,11 +811,16 @@ class Processor:
 
     # -- Un tramo ----------------------------------------------------------------------------
 
-    def _tramo(self, circular, unit, candidates):
-        """Pide el tramo (y lo repite una vez si hace falta) y devuelve su `_Outcome`."""
+    def _tramo(self, circular, unit, candidates, decided=()):
+        """Pide el tramo (y lo repite una vez si hace falta) y devuelve su `_Outcome`. Si la
+        extracción ya decidió el efecto del cambio (`decided`), el pedido lo trae (T-127)."""
         anomalies = []
         heading, previous = circular.context(unit)
         rendered = render_context(heading, previous)
+        if decided:
+            line = ("La extracción de cambios ya leyó este tramo como: "
+                    + ", ".join(decided) + ". El efecto no se contradice.")
+            rendered = f"{rendered}\n{line}" if rendered else line
         aliases, context = self._choose(circular, unit, candidates, anomalies, heading,
                                         rendered)
         self.anomalies.extend(anomalies)
@@ -905,7 +934,8 @@ class Processor:
         for member in change.members:
             if member in extracted.fallback_members:
                 self._fallback(document, member, candidates, issued_on, label, verdicts,
-                               sources, new_requirements)
+                               sources, new_requirements,
+                               decided=self._decided_effects(extracted, member))
                 continue
             rule = self._rule(member.segment)
             if rule is not None:
@@ -916,15 +946,35 @@ class Processor:
             else:
                 verdicts[member.segment.pk] = base
 
+    @staticmethod
+    def _decided_effects(extracted, member):
+        """Los efectos que la extracción decidió para los cambios sin resolver que tocan el
+        tramo (`aclara`, `modifica` por `reemplaza`, `suprime`), en ese orden (T-127)."""
+        by_type = {"aclara": SourceEffect.ACLARA.value, "reemplaza": SourceEffect.MODIFICA.value,
+                   "suprime": SourceEffect.SUPRIME.value}
+        segment = member.segment
+        found = set()
+        for change in extracted.changes:
+            if not change.reason or change.type not in by_type:
+                continue
+            spans = change.spans()
+            if spans and not any(s < segment.char_end and e > segment.char_start
+                                 for s, e in spans):
+                continue
+            found.add(by_type[change.type])
+        return tuple(e for e in EFFECTS if e in found)
+
     def _fallback(self, document, unit, candidates, issued_on, label, verdicts, sources,
-                  new_requirements):
-        """El flujo de respaldo de un tramo: el modelo elige entre las candidatas."""
+                  new_requirements, decided=()):
+        """El flujo de respaldo de un tramo: el modelo elige entre las candidatas. `decided`
+        son los efectos que la extracción ya decidió para el tramo; el respaldo no los
+        contradice (T-127)."""
         verdict = self._rule(unit.segment)
         if verdict is not None:
             verdicts[unit.segment.pk] = verdict
             return
         self.stats["segments"] += 1
-        outcome = self._tramo(document, unit, candidates)
+        outcome = self._tramo(document, unit, candidates, decided)
         verdicts[unit.segment.pk] = self._verdict(outcome)
         if not outcome.valid:
             self.stats["pending"] += 1
@@ -935,7 +985,7 @@ class Processor:
         if outcome.shaped.discard:
             self.stats["no_effect"] += 1
             return
-        self._apply(unit, outcome, issued_on, label, sources, new_requirements)
+        self._apply(unit, outcome, issued_on, label, sources, new_requirements, decided)
 
     def _record_unit(self, change, resolution):
         """El pedido de una unidad, sin llamada al modelo (P6): sus tramos, el tipo y el
@@ -1038,7 +1088,34 @@ class Processor:
                            discard_reason=outcome.shaped.discard, **base)
         return Verdict(DispositionOutcome.REQUISITOS.value, **base)
 
-    def _apply(self, unit, outcome, issued_on, label, sources, new_requirements):
+    def _guard_effect(self, unit, outcome, alias, effect, text, wide, decided, candidate,
+                      label):
+        """Dos frenos al efecto que devuelve el respaldo (T-127, P3). (a) No contradice el
+        efecto que decidió la extracción: se conserva el de la extracción. (b) Un `suprime`
+        es firme solo si el texto citado de la circular tiene una frase explícita de
+        supresión; si no, queda como `aclara` (no quita la fila ni suprime la cita) y como
+        revisión obligatoria. Cada cambio deja su anomalía con el efecto original, el
+        devuelto y el resultado (P6)."""
+        segment = unit.segment
+        returned = effect
+        if decided and effect not in decided:
+            effect = SourceEffect.ACLARA.value if SourceEffect.ACLARA.value in decided \
+                else decided[0]
+            self.anomalies.append({
+                "type": ANOMALY_EFFECT_CONTRADICTED, "segment": segment.pk,
+                "key": segment.key, "alias": alias, "decided": list(decided),
+                "returned": returned, "result": effect, "step": outcome.step.pk})
+        if effect == SourceEffect.SUPRIME.value and (wide or not has_suppression_phrase(text)):
+            self.anomalies.append({
+                "type": ANOMALY_SUPPRESSION_WITHOUT_PHRASE, "segment": segment.pk,
+                "key": segment.key, "alias": alias, "decided": list(decided),
+                "returned": returned, "result": SourceEffect.ACLARA.value, "text": text,
+                "review_required": True, "step": outcome.step.pk,
+                "circular": label, "requirements": [t.number for t in candidate.targets]})
+            effect = SourceEffect.ACLARA.value
+        return effect
+
+    def _apply(self, unit, outcome, issued_on, label, sources, new_requirements, decided=()):
         """Pasa los efectos del tramo a las fuentes y a los requisitos nuevos, y deja el
         texto vigente de cada cita al día para las circulares que siguen."""
         segment = unit.segment
@@ -1053,8 +1130,10 @@ class Processor:
             start, end = quotes.absolute(segment, span)
             return start, end, segment.text[span[0]:span[1]], False
 
-        for _, candidate, effect, span, fragment in outcome.effects:
+        for alias, candidate, effect, span, fragment in outcome.effects:
             start, end, text, wide = place(span, fragment)
+            effect = self._guard_effect(unit, outcome, alias, effect, text, wide, decided,
+                                       candidate, label)
             sources.append(Source(effect, candidate, segment, start, end, text, issued_on,
                                   outcome.step, wide))
             self.stats["effects"] += 1

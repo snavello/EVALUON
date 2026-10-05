@@ -172,7 +172,7 @@ def test_the_request_records_model_parameters_instructions_version_and_unit(
     assert request["temperature"] == settings.GENERATION_TEMPERATURE
     assert request["seed"] == settings.GENERATION_SEED
     assert request["max_tokens"] == settings.MATRIX_MAX_OUTPUT_TOKENS
-    assert request["instrucciones"] == "matriz-circulares-v3"
+    assert request["instrucciones"] == "matriz-circulares-v5"
     assert request["unidad"]["tipo"] == "clausula" and len(request["unidad"]["tramos"]) == 1
     assert step.segment_keys == request["unidad"]["tramos"]
     assert step.parsed["valida"] is True
@@ -476,13 +476,13 @@ def test_the_shape_of_the_output_is_checked():
 # --- Generalidad: ninguna ancla de los casos 00, 01 y 02 -----------------------------------------------------
 
 
-def test_the_v3_instructions_and_the_module_repeat_no_case_anchor():
-    """REQ-031 (generalidad): ni las instrucciones v3 ni sus ejemplos ni el módulo repiten
+def test_the_v5_instructions_and_the_module_repeat_no_case_anchor():
+    """REQ-031 (generalidad): ni las instrucciones v5 ni sus ejemplos ni el módulo repiten
     cinco palabras seguidas de las anclas de los casos 00, 01 y 02 (huellas en
     `fixtures/case_anchor_hashes.txt`, como en `test_circular_units`)."""
     known = set(HASHES.read_text(encoding="utf-8").split())
     assert len(known) > 100
-    files = [extraction.PROMPTS_DIR / "matriz-circulares-v3.md", Path(changes.__file__)]
+    files = [extraction.PROMPTS_DIR / "matriz-circulares-v5.md", Path(changes.__file__)]
     hits = []
     for path in files:
         text = path.read_text(encoding="utf-8")
@@ -491,10 +491,10 @@ def test_the_v3_instructions_and_the_module_repeat_no_case_anchor():
     assert not hits, hits
 
 
-def test_the_active_extraction_instructions_are_v3_with_synthetic_examples(settings):
-    """REQ-031: la versión activa de `circulares_cambios` es la v3, con ejemplos de la forma
+def test_the_active_extraction_instructions_are_v5_with_synthetic_examples(settings):
+    """REQ-031: la versión activa de `circulares_cambios` es la v5, con ejemplos de la forma
     de la salida y de cada tipo."""
-    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v3"
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v5"
     prompt = extraction.load_prompt("circulares_cambios")
     for word in ("reemplaza", "suprime", "agrega", "aclara", "dato_del_tramite",
                  "Donde dice", "Debe decir", "No ves el pliego"):
@@ -521,3 +521,131 @@ def test_a_source_reached_by_the_key_and_by_the_fallback_is_saved_once(operator_
     assert fallback_asked(script, "pasa de")          # el respaldo corrió
     sources = list(row_of_item(version, 1).sources.all())
     assert len(sources) == 1 and sources[0].text == "32 GB de RAM"
+
+
+# --- Una aclaración de cláusula alcanza todas sus citas (T-128) ---------------------------------------
+
+CLARIFICATION = "La garantía de oferta se presenta por el portal de la jurisdicción"
+
+
+def test_a_clarification_without_old_text_reaches_every_citation_of_the_clause(
+        operator_user, script):
+    """REQ-031 (T-128): una aclaración de la cláusula 3.1, sin texto anterior, da una fuente
+    `aclara` a cada una de sus dos citas, con la aclaración completa; la otra cláusula no
+    cambia y no hay `clave_ambigua`."""
+    procedure = guarantee_case(operator_user, script)
+    add_circular(operator_user, procedure, "Circular N.º 4", date(2025, 12, 1),
+                 f"1. {CLARIFICATION}, conforme a la cláusula 3.1.")
+    script.x_when("portal", [change("aclara", "clausula", "3.1", "", CLARIFICATION)])
+
+    version, run = run_proposal(operator_user, procedure)
+
+    for text in (GA, GB):
+        source = requirement_with(version, text).sources.get()
+        assert source.effect == "aclara" and source.text == CLARIFICATION
+    assert not requirement_with(version, PLAZO).sources.exists()
+    assert not fallback_asked(script, "portal")
+    assert "clave_ambigua" not in json.dumps(unit_steps()[-1].parsed)
+
+
+def test_a_clarification_of_a_clause_with_one_citation_is_unchanged(operator_user, script):
+    """REQ-031 (T-128): una cláusula con una sola cita recibe una sola fuente `aclara`."""
+    procedure = guarantee_case(operator_user, script)
+    add_circular(operator_user, procedure, "Circular N.º 4", date(2025, 12, 1),
+                 f"1. {CLARIFICATION}, conforme a la cláusula 4.1.")
+    script.x_when("portal", [change("aclara", "clausula", "4.1", "", CLARIFICATION)])
+
+    version, run = run_proposal(operator_user, procedure)
+
+    assert requirement_with(version, PLAZO).sources.get().effect == "aclara"
+    assert not requirement_with(version, GA).sources.exists()
+
+
+def test_a_suppression_by_key_without_an_explicit_phrase_stays_a_clarification(
+        operator_user, script):
+    """REQ-031 (T-127/T-128): un `suprime` por clave cuyo texto no tiene frase explícita queda
+    `aclara` y deja la anomalía de revisión obligatoria."""
+    procedure = guarantee_case(operator_user, script)
+    add_circular(operator_user, procedure, "Circular N.º 4", date(2025, 12, 1),
+                 f"1. {CLARIFICATION}, conforme a la cláusula 4.1.")
+    script.x_when("portal", [change("suprime", "clausula", "4.1", "", CLARIFICATION)])
+
+    version, run = run_proposal(operator_user, procedure)
+
+    assert requirement_with(version, PLAZO).sources.get().effect == "aclara"
+    found = [a for a in run.anomalies if a["type"] == "circular_supresion_sin_frase"]
+    assert found and found[0]["review_required"] is True and found[0]["result"] == "aclara"
+
+
+def test_a_clarification_of_a_named_annex_without_old_text_reaches_its_citations(
+        operator_user, script):
+    """REQ-031 (T-128): una aclaración del Anexo VI sin texto anterior da una fuente `aclara`
+    a cada cita del anexo (las del anexo y la cláusula que manda completarlo)."""
+    from tests.tenders.test_circular_units import ANEXO, ANEXO_ROW, annex_case
+
+    procedure = annex_case(operator_user, script)
+    add_circular(operator_user, procedure, "Circular N.º 4", date(2025, 12, 1),
+                 f"1. {CLARIFICATION}, respecto del Anexo VI.")
+    script.x_when("portal", [change("aclara", "anexo", "VI", "", CLARIFICATION)])
+
+    version, run = run_proposal(operator_user, procedure)
+
+    for text in (ANEXO, ANEXO_ROW):
+        source = requirement_with(version, text).sources.get()
+        assert source.effect == "aclara" and source.text == CLARIFICATION
+    assert not fallback_asked(script, "portal")
+
+
+def test_a_suppression_by_key_without_a_phrase_shows_in_the_matrix_and_the_print(
+        operator_user, script):
+    """REQ-031 (T-128, P3): la anomalía de la extracción por clave lleva la circular y los
+    requisitos, y la fila se ve "a revisión obligatoria" en la matriz y en la impresión."""
+    from evaluon.tenders import export as matrix_export
+    from evaluon.tenders.services import matrix_page
+
+    procedure = guarantee_case(operator_user, script)
+    add_circular(operator_user, procedure, "Circular N.º 4", date(2025, 12, 1),
+                 f"1. {CLARIFICATION}, conforme a la cláusula 4.1.")
+    script.x_when("portal", [change("suprime", "clausula", "4.1", "", CLARIFICATION)])
+
+    version, run = run_proposal(operator_user, procedure)
+
+    page = matrix_page.matrix_page(operator_user, version.pk)
+    rows = [r for g in page.groups for r in g.rows] + page.technical
+    flagged = {r.requirement.number: r.review_notes for r in rows if r.review_notes}
+    assert list(flagged) == [requirement_with(version, PLAZO).number]
+    (note,) = next(iter(flagged.values()))
+    assert "Circular N.º 4" in note["circular"] and "01/12/2025" in note["circular"]
+    html, _ = matrix_export.render_html(operator_user, version.pk, pdf=False)
+    assert html.count("A revisión obligatoria") == 1
+
+
+# --- Una aclaración de renglón alcanza las citas del renglón (T-129) ----------------------------------
+
+
+def test_a_clarification_of_an_item_without_old_text_reaches_its_citations(
+        operator_user, case, script):
+    """REQ-031 (T-129): una aclaración del renglón 1, sin texto anterior, da una fuente
+    `aclara` a la cita del renglón 1; el renglón 2 no cambia y no se usa el respaldo."""
+    add_circular(operator_user, case, "Circular N.º 4", date(2025, 12, 1),
+                 f"1. {CLARIFICATION}, respecto del renglón 1.")
+    script.x_when("portal", [change("aclara", "renglon", "1", "", CLARIFICATION)])
+
+    version, run = run_proposal(operator_user, case)
+
+    sources = list(row_of_item(version, 1).sources.all())
+    assert sources and all(s.effect == "aclara" and s.text == CLARIFICATION for s in sources)
+    assert not row_of_item(version, 2).sources.exists()
+    assert not fallback_asked(script, "portal")
+
+
+def test_a_clarification_of_an_item_the_tender_lacks_gives_no_source(
+        operator_user, case, script):
+    """REQ-031 (T-129): una aclaración de un renglón que el pliego no tiene no da fuentes."""
+    add_circular(operator_user, case, "Circular N.º 4", date(2025, 12, 1),
+                 f"1. {CLARIFICATION}, respecto del renglón 99.")
+    script.x_when("portal", [change("aclara", "renglon", "99", "", CLARIFICATION)])
+
+    version, run = run_proposal(operator_user, case)
+
+    assert not sources_of(version)

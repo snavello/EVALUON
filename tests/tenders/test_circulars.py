@@ -487,6 +487,8 @@ def test_the_proposal_records_the_circulars_and_the_instructions_used(operator_u
     version, run = run_proposal(operator_user, case)
 
     assert run.prompt_versions["circulares"] == "matriz-circulares-v2"
+    # T-127 (P6): la instrucción de la extracción de cambios también queda registrada.
+    assert run.prompt_versions["circulares_cambios"] == "matriz-circulares-v5"
     assert "circulares" in run.parameters["passes"]
     used = run.counts["circulars"]["documents"]
     assert [d["document"] for d in used] == [document.pk]
@@ -505,6 +507,7 @@ def test_without_circulars_nothing_changes(operator_user, case, script):
 
     assert not m.RunStep.objects.filter(pass_name="circulares").exists()
     assert "circulares" not in run.prompt_versions
+    assert "circulares_cambios" not in run.prompt_versions
     assert "circulars" not in run.counts
     assert not m.RequirementSource.objects.exists()
     assert script.requests == []
@@ -844,3 +847,28 @@ def test_the_active_circular_instructions_are_v2_and_v1_is_kept(settings):
     assert "ARCA" not in v2 and "señalética" not in v2.lower()
     v1 = (extraction.PROMPTS_DIR / "matriz-circulares-v1.md").read_text(encoding="utf-8")
     assert "Debe decir" not in v1
+
+
+@pytest.mark.parametrize("text", [
+    "Por esta nota se ordena la eliminación del inciso 4.2 del pliego.",
+    "Corresponde la supresión del punto 7 del pliego.",
+    "Se aprueba la derogación del artículo 12.",
+    "Por la presente se dispone suprimir el requisito de visita.",
+    "Se dispone eliminar la exigencia de muestras.",
+    "Se resuelve la eliminación total del renglón 3.",
+])
+def test_a_suppression_said_with_a_noun_or_an_infinitive_is_recognized(text):
+    """REQ-031 (T-129): la supresión dicha con sustantivo y objeto de pliego, o con
+    infinitivo, cuenta como frase explícita."""
+    assert circulars.has_suppression_phrase(text)
+
+
+@pytest.mark.parametrize("text", [
+    "Se informa la eliminación de residuos en la sede de entrega.",
+    "La supresión de plazos no se contempla en esta nota.",
+    "La derogación de la norma fue anunciada.",
+    "Se dispone la presentación del certificado.",
+])
+def test_a_noun_without_a_tender_object_is_not_a_suppression(text):
+    """REQ-031 (T-129): un sustantivo de supresión sin objeto de pliego no cuenta."""
+    assert not circulars.has_suppression_phrase(text)

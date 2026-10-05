@@ -877,3 +877,161 @@ def test_no_test_or_fixture_repeats_five_words_of_a_case_anchor():
             if hashlib.sha256(shingle.encode()).hexdigest() in known:
                 hits.append(f"{path.name}: {hashlib.sha256(shingle.encode()).hexdigest()[:12]}")
     assert not hits, hits
+
+
+# --- Ronda 1 de ajustes (T-120): causas A, C, E y F ------------------------------------------------------------------------
+
+
+def _section(*lines):
+    members = [SimpleNamespace(segment=SimpleNamespace(
+        text=t, segment_type="parrafo", key=f"pre/p-{i}")) for i, t in enumerate(lines)]
+    return units.ChangeUnit(units.KIND_SECTION, members)
+
+
+def test_a_long_question_and_answer_without_markers_is_not_procedure_data():
+    """REQ-031 (T-120, causa A): un apartado de consultas y respuestas largas, sin
+    marcadores de obligación, no es una lista de datos del trámite: sigue su camino de
+    unidad común, aunque sus líneas tengan dos puntos."""
+    qa = _section(
+        "I.- CONSULTAS DE LOS INTERESADOS",
+        "Consulta N° 1: ¿Los chalecos pueden ser de otro color o solo del color indicado en la "
+        "planilla de cotización del pliego?",
+        "Respuesta: Los chalecos pueden ser naranja o amarillos, siempre que tengan bandas "
+        "reflectivas visibles desde lejos.",
+        "Consulta N° 2: ¿La garantía de los equipos se cuenta desde la entrega o desde la "
+        "recepción definitiva de los mismos?",
+        "Respuesta: La garantía se cuenta desde la recepción definitiva de los equipos.")
+    assert not units.is_procedure_data(qa)
+    # Aun con líneas cortas, las líneas de consulta y respuesta no son rótulo y valor.
+    short = _section("I.- CONSULTAS", "Consulta N° 1: ¿Hay visita?", "Respuesta: Sí.",
+                     "Consulta N° 2: ¿Hay muestras?", "Respuesta: No.")
+    assert not units.is_procedure_data(short)
+
+
+def test_a_real_list_of_procedure_data_is_still_procedure_data():
+    """REQ-031 (T-120, causa A): fecha, hora, lugar y referente con valor corto siguen siendo
+    datos del trámite."""
+    data = _section("I.- NUEVA VISITA", "FECHA: 3 de marzo de 2026", "HORA: 9 hs",
+                    "LUGAR: portería del edificio central", "REFERENTE: oficina de compras")
+    assert units.is_procedure_data(data)
+    # Un valor largo no es un valor corto.
+    long_value = _section("I.- NUEVA VISITA", "FECHA: " + "una fecha muy larga " * 8,
+                          "HORA: " + "una hora muy larga " * 8)
+    assert not units.is_procedure_data(long_value)
+
+
+def test_must_markers_count_as_obligation_in_a_circular_but_not_the_label_of_a_pair():
+    """REQ-031 (T-120, causa C): "debe/deben" y "corresponde" son marcadores de obligación
+    de las circulares; el rótulo "Debe decir" no lo es. La lista de la extracción del pliego no
+    cambia."""
+    from evaluon.tenders.proposal import run as run_module
+
+    for text in ("El importe debe coincidir con el total de la oferta.",
+                 "Los sobres deben presentarse cerrados.", "Corresponde presentar la nota.",
+                 "La nota es obligatoria.", "Los oferentes deberán firmar."):
+        assert units.has_circular_obligation(text), text
+    assert not units.has_circular_obligation("Debe decir: el plazo es de cinco días.")
+    assert not units.has_circular_obligation("El plazo es de cinco días.")
+    assert "debe" not in run_module.OBLIGATION_MARKERS
+    assert not run_module.has_obligation_markers("El importe debe coincidir con el total.")
+
+
+def test_a_must_agreed_by_a_debe_decir_side_is_a_firm_circular_requirement(operator_user,
+                                                                          script):
+    """REQ-031 (T-120, causa C): una oración nueva con "debe coincidir" en el lado "Debe
+    decir" sale como requisito `agrega` firme de origen `circular`."""
+    extra = "El monto de la garantía debe coincidir con el total de la oferta presentada."
+    procedure = conflict_case(operator_user, script)
+    document = add_paras(
+        operator_user, procedure, "Circular N.º 2", date(2025, 12, 5),
+        "DONDE DICE:", f"4.1. {OLD} {OLD_B}", "DEBE DECIR:", f"4.1. {NEW} {NEW_B}", extra)
+
+    version, _ = run_proposal(operator_user, procedure)
+
+    new = version.requirements.get(origin="circular")
+    assert new.state == "propuesto" and new.category == "formal"
+    quote = new.quotes.get()
+    assert quote.text == extra and quote.segment.reading.document == document
+
+
+def test_a_new_sentence_sharing_subject_and_verb_is_not_a_suggestion(operator_user, script):
+    """REQ-031 (T-124, aviso en T-120): una oración nueva que solo comparte sujeto y verbo con
+    una del lado "Dice" no es una reformulación: queda firme, no como sugerencia."""
+    fresh = "Cada firmante deberá presentar el comprobante de pago del sellado correspondiente."
+    _, version = _pair_with(operator_user, script, SAME, fresh)
+
+    new = version.requirements.get(origin="circular")
+    assert new.quotes.get().text == fresh
+    assert new.state == "propuesto" and new.doubt_reason == ""
+
+
+@pytest.mark.parametrize("heading", ["I. NUEVAS CONSULTAS", "I.- NUEVAS CONSULTAS",
+                                     "I - NUEVAS CONSULTAS", "I) NUEVAS CONSULTAS",
+                                     "II.- NUEVAS CONSULTAS"])
+def test_every_roman_heading_form_is_recognized(heading):
+    """REQ-031 (T-120, causa E): "I.", "I.-", "I -" e "I)" son encabezados de apartado, en la
+    partición y en el respaldo; un número arábigo o una palabra no lo son."""
+    assert units._ROMAN_HEADING.match(heading)
+    assert circulars._HEADING.match(heading)
+    assert units._ROMAN_PREFIX.sub("", heading) == "NUEVAS CONSULTAS"
+    for other in ("1.- Texto", "Información general", "I Texto sin guion"):
+        assert not units._ROMAN_HEADING.match(other)
+        assert not circulars._HEADING.match(other)
+
+
+def test_a_heading_with_dot_and_dash_keeps_the_question_and_answer_in_one_unit():
+    """REQ-031 (T-120, causa E): con un encabezado "I.-", la consulta y su respuesta caen en
+    la misma unidad de apartado."""
+    tramos = [
+        fake_unit("pre/p-1", "CIRCULAR SINTÉTICA"),
+        fake_unit("pre/p-2", "I.- CONSULTAS DE LOS INTERESADOS"),
+        fake_unit("pre/p-3", "Consulta N° 1: ¿Se aceptan renglones por separado?"),
+        fake_unit("pre/p-4", "Respuesta: Se aceptan, con la oferta completa de cada uno."),
+        fake_unit("pre/p-5", "II.- OTRA CONSULTA"),
+        fake_unit("pre/p-6", "Consulta N° 2: ¿Hay muestras?"),
+    ]
+    got = [(u.kind, [m_.segment.key for m_ in u.members]) for u in units.partition(tramos)]
+    assert got == [
+        ("suelto", ["pre/p-1"]),
+        ("apartado", ["pre/p-2", "pre/p-3", "pre/p-4"]),
+        ("apartado", ["pre/p-5", "pre/p-6"]),
+    ]
+
+
+def test_the_v5_circular_instructions_load_and_carry_the_round_one_rules():
+    """REQ-031 (T-120, causa F): la versión activa del pedido `circulares_cambios` es la v5 y
+    trae las cinco reglas nuevas con sus ejemplos."""
+    from django.conf import settings
+
+    from evaluon.tenders.proposal import extraction
+
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v5"
+    prompt = extraction.load_prompt("circulares_cambios")
+    for phrase in ('"Ítem" vale como renglón', "Un cambio por renglón",
+                   "Un cambio por cada objeto nombrado", "oraciones completas",
+                   "un cambio por cada cláusula nombrada"):
+        assert phrase in prompt, phrase
+    assert prompt.count('{"cambios"') >= 10
+
+
+def test_a_reminder_with_must_at_the_end_of_a_list_of_dates_is_still_procedure_data():
+    """REQ-031 (T-120, ronda 2): un apartado de fechas de visita cuyo último tramo es un
+    recordatorio con "deben" sigue siendo datos del trámite; una consulta larga no."""
+    visit = _section("I.- FECHAS DE VISITA", "FECHA: 3 de marzo de 2026", "HORA: 9 hs",
+                     "LUGAR: portería del edificio central",
+                     "SE RECUERDA QUE DEBEN CONCURRIR CON DOCUMENTO DE IDENTIDAD")
+    assert units.is_procedure_data(visit)
+    # Una obligación del pliego sigue sacando al apartado de los datos.
+    assert not units.is_procedure_data(_section(
+        "I.- FECHAS", "FECHA: 3 de marzo", "HORA: 9 hs", "LUGAR: portería",
+        "Los oferentes deberán presentar una nota firmada"))
+
+
+def test_the_v5_instructions_make_a_date_change_a_replacement_of_its_clause():
+    """REQ-031 (T-120, ronda 2): la v5 trae la regla de fechas, horarios y lugares como
+    "reemplaza" sobre la cláusula que los fija."""
+    from evaluon.tenders.proposal import extraction
+
+    prompt = extraction.load_prompt("circulares_cambios")
+    assert 'es "reemplaza" sobre la cláusula del pliego que los fija' in prompt
+    assert prompt.count('{"cambios"') >= 11
