@@ -69,7 +69,10 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-119 | Actualizar la lista esperada del caso-01 con las filas que las circulares afectan | REQ-031 | T-117 | terminada |
 | T-120 | Medir y ajustar la pasada de circulares con los casos 01, 05 y 06, con estabilidad | REQ-031 | T-113, T-115, T-117, T-118, T-119 | pendiente |
 | T-121 | Corregir el consumo de memoria de la medición (citas que cargaban cada una su lectura) | REQ-024, REQ-030 | T-117 | terminada |
-| T-122 | Mostrar los cambios vigentes de la norma al proponer consecuencias, o no fundar en unidades modificadas | REQ-029 | T-109 | pendiente |
+| T-122 | Mostrar los cambios vigentes de la norma al proponer consecuencias, o no fundar en unidades modificadas | REQ-029 | T-109 | pendiente |
+| T-123 | Corregir la medición: citas de otra lectura y filas suprimidas por una circular | REQ-024, REQ-031 | T-117 | en verificación |
+| T-124 | Pasada de circulares: original en el anexo por título y requisitos que agrega un "Debe decir" | REQ-031 | T-115 | en verificación |
+| T-125 | Corregir el criterio del filtro que descartó requisitos reales | REQ-024, REQ-033 | T-102 | en verificación |
 
 ## Para todas las tareas
 
@@ -544,6 +547,30 @@ Plan: sección "Rediseño de la pasada de circulares (2026-10-04)" de `plan.md`;
 - **Verificación:** test con una unidad modificada a la fecha; ninguna consecuencia fundada en texto no vigente.
 - **No tocar:** la 001; las demás pasadas.
 - **Entorno:** cualquier equipo con Docker.
+
+### T-123 · Corregir la medición: citas de otra lectura y filas suprimidas por una circular
+
+- **Qué hacer:** diagnóstico 1 de T-120: `_technical_citing` comparaba posiciones de citas de otra lectura; una fila que una circular deja `quitado` con `suprime` debe emparejar con el esperado de bloque `suprime` (encontrado), sin contar como sobrante; sin bloque, causa `suprimido_por_circular`.
+- **Archivos:** `evaluon/tenders/evaluation.py`, `tests/tenders/test_evaluation.py`.
+- **Verificación:** tests sintéticos que fallan sin el arreglo; regeneración sobre la base real del caso-01 (encontrados 83 → 91 de 93; REQ-031 2 → 13 de 15) y del caso-02 sin cambios.
+- **No tocar:** la propuesta; las listas.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-124 · Pasada de circulares: original en el anexo por título y requisitos que agrega un "Debe decir"
+
+- **Qué hacer:** diagnóstico 1 de T-120 (M-044, M-015): buscar el anexo por título normalizado por palabras completas y en sus primeros tramos; en un par "Donde dice / Debe decir", cada oración nueva con marcador de obligación es requisito `circular`; las que reformulan el "Dice" van como sugerencia; sin duplicados.
+- **Archivos:** `evaluon/tenders/proposal/circular_units.py`, `circulars.py`, `run.py` (estado del requisito nuevo), tests de `tests/tenders/test_circular_units.py`.
+- **Verificación:** tests con textos inventados que fallan sin el arreglo; casos adversos de ambigüedad, reformulación y duplicados.
+- **No tocar:** `evaluation.py`; modelos.
+- **Entorno:** cualquier equipo con Docker.
+
+### T-125 · Corregir el criterio del filtro que descartó requisitos reales
+
+- **Qué hacer:** diagnóstico 1 de T-120 (M-058, M-063); decisión del responsable del 2026-10-04 (el caso-01 pasa a ajuste del filtro): instrucciones `matriz-filtro-v2.md` con dos reglas generales y una guarda en código: una fila que comparte oración con una fila firme del mismo tramo no se descarta (pasa a sugerencia), con un separador de oraciones que respeta abreviaturas.
+- **Archivos:** `evaluon/tenders/proposal/filter.py`, `evaluon/tenders/prompts/matriz-filtro-v2.md`, `evaluon/settings.py` (`MATRIX_PROMPT_VERSIONS`), `tests/tenders/test_filter.py`.
+- **Verificación:** tests con el doble y textos inventados; nunca convierte firme en descartada ni sugerencia en firme.
+- **No tocar:** `evaluation.py`; circulares.
+- **Entorno:** cualquier equipo con Docker; el efecto real se mide con el caso-01 (ajuste) y a ciegas con 02, 03 y 04.
 
 ### T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro
 
