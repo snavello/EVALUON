@@ -660,6 +660,8 @@ Lo menor de la 003, que se encara con la 008 y la 004 terminadas, con el uso rea
 - Faltantes de la aceptación a ciegas que no pierden requisito (T-108): M-030, M-032 y M-043 del caso-03 (oración partida, encabezado de lista sin fila, agrupado); su contenido está en otras filas.
 - Imprecisiones de REQ-031 en la aceptación a ciegas que no pierden requisito (texto original o vigente parcial, convención de cadena D5 → D6), según `verificacion/T-108.md`.
 
+- Circulares (T-137, medición de la ronda 2): en el caso-03, la cláusula de cotización (#183, M-028) sigue mostrando "UN peso" como vigente sin marca propia (el aviso está en el renglón 6 y en las cláusulas #276 y #279); 20 de 22 filas marcadas por la pérdida de D7 no lo necesitaban (y 3 de 5 en el caso-04): la Comisión las descarta una por una. Ver `verificacion/T-137.md`.
+
 ## Cobertura de requisitos
 
 | Requisito | Tareas |
