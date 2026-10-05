@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "evaluon.accounts",
     "evaluon.audit",
     "evaluon.norms",
+    "evaluon.offers",
     "evaluon.queries",
     "evaluon.tenders",
 ]
@@ -331,3 +332,29 @@ GENERATION_BATCH_URL = env_str("GENERATION_BATCH_URL", "http://generation_batch:
 GENERATION_BATCH_TIMEOUT_SECONDS = 180
 # Segundos entre consultas a la cola de pedidos cuando está vacía.
 WORKER_POLL_SECONDS = 5
+
+# --- Ofertas y ficha por oferta (plan 008, "Parámetros"; ADR-0026 y ADR-0027) ----------
+# Valores iniciales. Se copian en cada ficha (`offers_sheet.parameters`); cambiarlos exige
+# volver a medir (P7).
+
+# Largo máximo de un pasaje de una oferta, en caracteres; un bloque más largo se parte en
+# límite de oración. Un bloque de menos de OFFERS_PASSAGE_MIN_CHARS se une al siguiente de
+# su página.
+OFFERS_PASSAGE_MAX_CHARS = 1200
+OFFERS_PASSAGE_MIN_CHARS = 200
+# Pasajes por pedido de vectores al servicio de embeddings.
+OFFERS_EMBED_BATCH = 16
+# Candidatos por significado y por palabras, y los que pasan al modelo tras el reranker.
+OFFERS_CANDIDATES_EMBEDDINGS = 20
+OFFERS_CANDIDATES_WORDS = 20
+OFFERS_CANDIDATES_TO_MODEL = 8
+# Máximo de tokens de salida de cada pedido de la ficha y espera máxima de cada pedido.
+OFFERS_MAX_OUTPUT_TOKENS = 400
+OFFERS_REQUEST_TIMEOUT_SECONDS = GENERATION_BATCH_TIMEOUT_SECONDS
+# Largo máximo de la consulta (cita del requisito) enviada a la recuperación.
+OFFERS_QUERY_MAX_CHARS = 800
+# Versión de cada instrucción: archivo `evaluon/offers/prompts/<versión>.md`.
+OFFERS_PROMPT_VERSIONS = {
+    "ficha": "ficha-v1",
+    "ficha_renglon": "ficha-renglon-v1",
+}

@@ -38,6 +38,13 @@ class EventType(models.TextChoices):
     MATRIX_EXPORT = "matrix_export", "Exportación de matriz"
     # T-088: cambio del rol de la Comisión de un usuario existente.
     USER_ROLE_CHANGED = "user_role_changed", "Cambio de rol de la Comisión"
+    # Feature 008 (plan 008, "Registro de auditoría").
+    OFFER_REGISTER = "offer_register", "Alta de oferta"
+    OFFER_LOAD = "offer_load", "Carga de documento de una oferta"
+    OFFER_READ = "offer_read", "Lectura de documento de una oferta"
+    SHEET_REQUEST = "sheet_request", "Pedido de ficha"
+    SHEET_BUILD = "sheet_build", "Armado de ficha"
+    SHEET_CHANGE = "sheet_change", "Cambio de la ficha"
 
 
 class Outcome(models.TextChoices):
