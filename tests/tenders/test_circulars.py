@@ -488,7 +488,7 @@ def test_the_proposal_records_the_circulars_and_the_instructions_used(operator_u
 
     assert run.prompt_versions["circulares"] == "matriz-circulares-v2"
     # T-127 (P6): la instrucción de la extracción de cambios también queda registrada.
-    assert run.prompt_versions["circulares_cambios"] == "matriz-circulares-v3"
+    assert run.prompt_versions["circulares_cambios"] == "matriz-circulares-v5"
     assert "circulares" in run.parameters["passes"]
     used = run.counts["circulars"]["documents"]
     assert [d["document"] for d in used] == [document.pk]
