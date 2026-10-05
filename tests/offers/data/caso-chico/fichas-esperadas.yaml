@@ -1,0 +1,46 @@
+# Lista de fragmentos esperados del caso chico (T-130; plan 008, "Lista esperada de fichas").
+# Caso INVENTADO y público (P4): ningún dato es real. Los cinco PDF los genera `generar.py`.
+# La forma de las ofertas (documentos mezclados, tabla de precios, escaneo torcido con sello,
+# página ilegible, respuesta "según pliego") sigue la variedad de las ofertas reales, sin
+# copiar nada de ellas.
+caso: caso-chico
+matriz:
+  procedimiento: CASO-CHICO-SINTETICO
+  tipo: Contratación directa sintética
+  objeto: Adquisición de insumos de oficina sintéticos (caso inventado)
+  fecha_autorizacion: 2026-01-15
+  pliego:
+    archivo: pliego.pdf
+    sha256: "3db5af9861756eb0cc1cce5e2bbe2bb06bfd9145198c974834d0a3cf38b05c48"
+    titulo: Pliego sintético
+  requisitos:
+    - {id: M-001, clase: formal, cita: "Presentar la declaración jurada de habilidad para contratar firmada por el oferente."}
+    - {id: M-002, clase: formal, cita: "Acompañar la constancia de inscripción del oferente en el registro de proveedores."}
+    - {id: M-003, clase: formal, cita: "Constituir una garantía de mantenimiento de la oferta del cinco por ciento del monto cotizado."}
+    - {id: M-004, clase: economico, cita: "Cotizar en pesos con impuestos incluidos, indicando el precio unitario de cada renglón."}
+    - {id: M-005, clase: economico, cita: "Mantener la validez de la oferta por sesenta días corridos desde la apertura."}
+    - {id: M-006, clase: tecnico, renglon: 1}
+    - {id: M-007, clase: tecnico, renglon: 2}
+    - {id: M-008, clase: tecnico, renglon: 3}
+    - {id: M-009, clase: formal, cita: "Acompañar el certificado fiscal de libre deuda vigente."}
+ofertas:
+  - oferente: "Oferente A Sintético"
+    documentos:
+      - {archivo: oferta-propuesta.pdf, sha256: "cdcddf62f7d406c46f429b359d5169425facfd7924eaca027ec4a415a05f1eab"}
+      - {archivo: poliza-caucion.pdf, sha256: "38f7c483d2d424b5f0b1cb81d01ad86c983660e0374977141e6bf43c36c1e94c"}
+      - {archivo: constancia-escaneada.pdf, sha256: "332033d2745197ccbcac18ed96d5eb15e6193ae6e5f22dcd8ee7643bda65271b"}
+      - {archivo: documento-firmado-mixto.pdf, sha256: "d0c2a023c6cbf6a7e43842274dd705673539c0c32b41d0cc0853b0d7f6874167"}
+    fragmentos:
+      - {id: F-001, requisito: M-001, documento: oferta-propuesta.pdf, pagina: 1, ancla: "Declaro bajo juramento que me encuentro habilitado para contratar con el organismo"}
+      - {id: F-002, requisito: M-002, documento: constancia-escaneada.pdf, pagina: 1, ancla: "se encuentra inscripto en el registro de proveedores con el número 000123"}
+      - {id: F-003, requisito: M-003, documento: poliza-caucion.pdf, pagina: 1, ancla: "garantiza, hasta la suma de $ 21.750, el cumplimiento de la obligación del Oferente A Sintético de mantener su oferta"}
+      - {id: F-004, requisito: M-004, documento: oferta-propuesta.pdf, pagina: 2, ancla: "Los precios se cotizan en pesos con impuestos incluidos."}
+      - {id: F-005, requisito: M-005, documento: oferta-propuesta.pdf, pagina: 1, ancla: "La oferta mantiene su validez por sesenta días corridos desde la fecha de apertura."}
+      - {id: F-006, requisito: M-006, documento: oferta-propuesta.pdf, pagina: 2, ancla: "1 Resma de papel A4 de 75 gramos 100 $ 3.000"}
+      - {id: F-007, requisito: M-007, documento: oferta-propuesta.pdf, pagina: 2, ancla: "2 Cartucho de tóner negro30 $ 4.500"}
+    sin_respuesta: [M-009]
+    renglones: {1: cotizado, 2: cotizado, 3: no_cotizado}
+    documentacion_tecnica: "si"
+    paginas_no_legibles:
+      - {documento: documento-firmado-mixto.pdf, pagina: 2}
+visto_bueno: "Desarrollador de T-130, 2026-10-05 (caso inventado y público; la revisa el Coordinador)"

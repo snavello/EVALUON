@@ -319,6 +319,10 @@ class Segment(models.Model):
 class JobKind(models.TextChoices):
     READ_DOCUMENT = "read_document", "Leer un documento"
     PROPOSE_MATRIX = "propose_matrix", "Proponer la matriz"
+    # Feature 008 (ADR-0026): pedidos de ofertas; `target_id` nombra el documento de la
+    # oferta o la oferta.
+    READ_OFFER_DOCUMENT = "read_offer_document", "Leer un documento de una oferta"
+    BUILD_SHEET = "build_sheet", "Armar la ficha de una oferta"
 
 
 class JobStatus(models.TextChoices):
@@ -346,6 +350,9 @@ class Job(models.Model):
         blank=True,
         related_name="jobs",
     )
+    # Id del documento de oferta (`read_offer_document`) o de la oferta (`build_sheet`).
+    # Sin clave foránea (ADR-0026): lo comprueba la función de negocio de `offers`.
+    target_id = models.PositiveBigIntegerField("objeto del pedido", null=True, blank=True)
     requested_by = _user_fk("pedido por", "tender_jobs_requested")
     requested_at = models.DateTimeField("pedido", default=timezone.now)
     started_at = models.DateTimeField("empezado", null=True, blank=True)
@@ -365,6 +372,12 @@ class Job(models.Model):
             models.CheckConstraint(
                 condition=~Q(kind=JobKind.READ_DOCUMENT) | Q(document__isnull=False),
                 name="tenders_job_read_document_has_document",
+            ),
+            # Un pedido de ofertas nombra su objeto (ADR-0026).
+            models.CheckConstraint(
+                condition=~Q(kind__in=[JobKind.READ_OFFER_DOCUMENT, JobKind.BUILD_SHEET])
+                | Q(target_id__isnull=False),
+                name="tenders_job_offer_kinds_have_target",
             ),
         ]
 

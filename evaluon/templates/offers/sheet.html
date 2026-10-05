@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Ficha {{ page.sheet.number }} · oferta {{ page.offer.number }} · EVALUON{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'offers:offer' page.offer.pk %}">Oferta {{ page.offer.number }} · {{ page.offer.bidder }}</a></p>
+<h1>Ficha {{ page.sheet.number }} de la oferta {{ page.offer.number }} · {{ page.offer.bidder }}</h1>
+
+<p>Armada con la matriz versión {{ page.sheet.matrix_version.number }} el {{ page.sheet.built_at|date:"d/m/Y H:i" }}.
+La ficha dice qué ofreció el oferente y dónde lo dice. Evaluar cada requisito es tarea de la Comisión.</p>
+
+{% if page.newer_version %}
+<p class="notice" role="status">Armada con la versión {{ page.sheet.matrix_version.number }}; la versión vigente es la {{ page.newer_version.number }}. <a href="{% url 'offers:offer' page.offer.pk %}">Armar una ficha nueva</a>.</p>
+{% endif %}
+
+<section class="sheet-missing" aria-labelledby="missing-title">
+  <h2 id="missing-title">Lo que no se encontró</h2>
+  {% if page.missing %}
+  <ul>
+    {% for row in page.missing %}
+    <li>Requisito {{ row.requirement.number }}{% if row.item %} (renglón {{ row.item }}){% endif %}: {{ row.text|truncatechars:160 }}{% if row.entry.unread_pages_warning %} <em>(hay páginas sin leer en la oferta)</em>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>Todos los requisitos tienen al menos un fragmento.</p>
+  {% endif %}
+</section>
+
+<section class="sheet-unread" aria-labelledby="unread-title">
+  <h2 id="unread-title">Páginas sin leer</h2>
+  {% if page.unread %}
+  <ul>
+    {% for entry in page.unread %}
+    <li>{{ entry.title }} · página {{ entry.page }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No hay páginas sin leer.</p>
+  {% endif %}
+</section>
+
+<section class="sheet-technical" aria-labelledby="technical-title">
+  <h2 id="technical-title">Documentación técnica</h2>
+  <p>{% if page.technical_documents.present %}La oferta trae documentación técnica.{% else %}No se encontró documentación técnica en la oferta.{% endif %}</p>
+</section>
+
+<section class="sheet-rows" aria-labelledby="rows-title">
+  <h2 id="rows-title">Requisitos</h2>
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">N.º</th>
+        <th scope="col">Clase</th>
+        <th scope="col">Requisito del pliego</th>
+        <th scope="col">Lo que ofrece la oferta</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in page.rows %}
+      <tr>
+        <td>{{ row.requirement.number }}</td>
+        <td>{{ row.requirement.get_category_display }}{% if row.item %} · renglón {{ row.item }}{% endif %}</td>
+        <td>{{ row.text|truncatechars:240 }}</td>
+        <td>
+          {% if row.entry.outcome == "no_encontrado" %}
+          <p><strong>No se encontró en la oferta.</strong>{% if row.entry.unread_pages_warning %} Hay páginas sin leer en la oferta.{% endif %}</p>
+          {% else %}
+          {% if row.entry.synthesis %}<p>{{ row.entry.synthesis }}</p>{% endif %}
+          {% include "offers/_fragments.html" %}
+          {% endif %}
+          {% if row.entry.quoted == "cotizado" %}<p>Renglón: <strong>cotizado</strong>.</p>
+          {% elif row.entry.quoted == "no_cotizado" %}<p>Renglón: <strong>no cotizado</strong>.</p>
+          {% elif row.entry.quoted == "no_se_pudo_leer" %}<p>Renglón: <strong>no se pudo leer</strong>: la oferta tiene páginas sin leer.</p>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

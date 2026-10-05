@@ -18,8 +18,9 @@ servicio `worker` corre `procesar_pedidos`, que los atiende de a uno:
 Manejadores (`HANDLERS`): un tipo de pedido, una función que recibe el `Job`. Se anotan
 por su ruta (`"evaluon.tenders.services.documents.run_read_document"`) para que el
 servicio que encola un pedido pueda registrar su manejador aquí sin importarse en
-círculo. Los registran T-072 (`read_document`) y T-073 (`propose_matrix`). Cada
-manejador deja su propio registro de auditoría (`tender_read`, `matrix_proposal`, P6).
+círculo. Los registran T-072 (`read_document`), T-073 (`propose_matrix`) y T-130
+(`read_offer_document`, `build_sheet`). Cada manejador deja su propio registro de
+auditoría (`tender_read`, `matrix_proposal`, `offer_read`, `sheet_build`, P6).
 """
 
 import logging
@@ -40,15 +41,20 @@ INTERRUPTED = "interrumpido"
 HANDLERS = {
     JobKind.READ_DOCUMENT: "evaluon.tenders.services.documents.run_read_document",
     JobKind.PROPOSE_MATRIX: "evaluon.tenders.services.matrix.run_propose_matrix",
+    # Feature 008 (ADR-0026): los dos pedidos de ofertas comparten esta cola.
+    JobKind.READ_OFFER_DOCUMENT: "evaluon.offers.services.offers.run_read_document",
+    JobKind.BUILD_SHEET: "evaluon.offers.services.sheets.run_build_sheet",
 }
 
 FINISHED = (JobStatus.DONE, JobStatus.FAILED)
 
 
-def enqueue(kind, *, procedure, requested_by, document=None):
-    """Deja un pedido en espera y lo devuelve."""
+def enqueue(kind, *, procedure, requested_by, document=None, target_id=None):
+    """Deja un pedido en espera y lo devuelve. `target_id` es el objeto de un pedido de
+    ofertas (ADR-0026): el documento de la oferta o la oferta."""
     return Job.objects.create(
-        kind=kind, procedure=procedure, document=document, requested_by=requested_by
+        kind=kind, procedure=procedure, document=document, requested_by=requested_by,
+        target_id=target_id,
     )
 
 
