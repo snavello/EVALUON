@@ -331,6 +331,27 @@ def _plain(text):
                   "".join(c for c in decomposed if unicodedata.category(c) != "Mn"))
 
 
+# Raíces del encabezado de un documento técnico (T-135): una hoja técnica no siempre trae una
+# frase de la lista, y el OCR cambia letras ("espec1ficaciones"). Una palabra del nombre o
+# del encabezado (primeros `_TITLE_CHARS` caracteres) que empieza como la raíz, con una
+# letra de diferencia como máximo, la cuenta.
+_TECHNICAL_ROOTS = ("tecnic", "especif")
+_TITLE_CHARS = 400
+
+
+def _close(prefix, root):
+    """Las dos cadenas (del mismo largo) difieren en una letra a lo sumo."""
+    return len(prefix) == len(root) and sum(a != b for a, b in zip(prefix, root)) <= 1
+
+
+def _has_technical_root(source):
+    for word in re.findall(r"\w+", source):
+        for root in _TECHNICAL_ROOTS:
+            if len(word) >= len(root) and _close(word[:len(root)], root):
+                return True
+    return False
+
+
 def classify_kind(file_name, text):
     """El tipo del documento por reglas sobre su nombre y el comienzo de su texto; vacío
     si ninguna regla alcanza."""
@@ -338,6 +359,9 @@ def classify_kind(file_name, text):
         for kind, words in KIND_RULES:
             if any(word in source for word in words):
                 return kind.value
+    for source in (_plain(file_name), _plain((text or "")[:_TITLE_CHARS])):
+        if _has_technical_root(source):
+            return DocumentKind.TECNICA.value
     return ""
 
 

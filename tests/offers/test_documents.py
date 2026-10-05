@@ -438,3 +438,22 @@ def test_a_word_original_is_served_with_its_type(client, operator_user, new_offe
     assert client.login(username=operator_user.username, password=TEST_PASSWORD)
     response = client.get(reverse("offers:document_original", args=[document.pk]))
     assert response["Content-Type"].endswith("wordprocessingml.document")
+
+
+@pytest.mark.parametrize("name, text, kind", [
+    # título mal leído por el OCR: una letra cambiada en "especificaciones"
+    ("firmadas.pdf", "ESPECIFICAC10NES del equipo ofrecido, firmadas por el oferente", "tecnica"),
+    ("firmadas.pdf", "Espec1ficaciones del equipo ofrecido", "tecnica"),
+    # hoja con un encabezado que no es una frase de la lista
+    ("hoja-1.docx", "Datos técnicos del modelo XT-5\nPotencia: 500 W", "tecnica"),
+    ("hoja-2.docx", "ESPECIFICACIÓN DEL PRODUCTO\nMarca: Marca Ficticia", "tecnica"),
+    ("hoja-3.docx", "Caracteristicas tecn1cas\nPeso: 2 kg", "tecnica"),
+    # no se confunde: nada que parezca la raíz, o la tabla de precios del Portal
+    ("tabla.pdf", "Renglón Descripción\n1 Resma de papel A4\n2 Cartucho de tóner", ""),
+    ("carta.pdf", "Nota de presentación de la oferta a la Comisión", ""),
+    ("renglones.pdf", "Renglón 1 · Cantidad 100 · Precio unitario 3.000 · técnico", "economica"),
+])
+def test_the_technical_root_in_the_header_tolerates_text_recognition_errors(name, text, kind):
+    """REQ-044: una hoja con otro encabezado o un título mal leído se clasifica técnica por
+    la raíz "tecnic" o "especif" (T-135)."""
+    assert services.classify_kind(name, text) == kind
