@@ -146,19 +146,26 @@ def test_list_without_approval_is_not_measured(case, operator_user, tmp_path):
 # --- Emparejamiento y faltantes ----------------------------------------------------------------
 
 
-def test_row_that_joins_two_conditions_counts_one_and_leaves_the_other_grouped(
+def test_row_that_joins_two_conditions_counts_one_and_the_other_is_found_in_that_row(
         case, operator_user, tmp_path):
-    """REQ-024: una fila formal/económica que junta dos condiciones cuenta una sola ancla
-    (emparejamiento uno a uno) y deja la otra con causa `agrupado`."""
+    """REQ-024, ADR-0034: una fila formal/económica que junta dos condiciones empareja con una
+    sola ancla (uno a uno); la otra cuenta como encontrada en otra fila y se informa aparte
+    con la fila que la contiene."""
     procedure, _, path, _ = case
 
     report = run_measure(operator_user, procedure, path, tmp_path)
 
     lines = by_id(report)
-    states = {lines["S-003"]["estado"], lines["S-004"]["estado"]}
-    assert states == {"encontrado", "faltante"}
-    missing = lines["S-003"] if lines["S-003"]["estado"] == "faltante" else lines["S-004"]
-    assert missing["causa"] == ev.GROUPED
+    assert {lines["S-003"]["estado"], lines["S-004"]["estado"]} == {"encontrado"}
+    elsewhere = next(i for i in ("S-003", "S-004") if lines[i].get("detalle") == "en otra fila")
+    other = "S-004" if elsewhere == "S-003" else "S-003"
+    assert lines[elsewhere]["propuesto"] == lines[other]["propuesto"]
+    info = measures_of(report)["elsewhere"]
+    assert info["ids"] == [elsewhere]
+    assert info["rows"] == {elsewhere: lines[elsewhere]["propuesto"]}
+    assert ev.GROUPED not in measures_of(report)["causes"]
+    summary = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "Encontrados en otra fila" in summary and elsewhere in summary
 
 
 def test_discarded_segment_leaves_its_anchor_with_that_cause(case, operator_user, tmp_path):
@@ -1091,13 +1098,13 @@ def test_row_with_repeated_quotes_covers_the_expected_of_its_main_quote_too(
 
 def test_row_without_repeated_quotes_does_not_count_for_two_expected(
         case, operator_user, tmp_path):
-    """REQ-033: sin citas `repetida`, una fila sigue contando para un solo esperado (la otra
-    condición queda `agrupado`)."""
+    """REQ-033, ADR-0034: sin citas `repetida`, una fila sigue emparejando con un solo esperado
+    (la otra condición no es "unificada": se informa como encontrada en otra fila)."""
     procedure, _, path, _ = case
 
     report = run_measure(operator_user, procedure, path, tmp_path)
 
-    assert ev.GROUPED in measures_of(report)["causes"]
+    assert measures_of(report)["elsewhere"]["count"] == 1
     assert measures_of(report)["unified"]["count"] == 0
 
 
@@ -1736,7 +1743,7 @@ def test_public_summary_has_no_text_of_the_circular_rows(circular_case):
                  *(q.text for q in m.RequirementQuote.objects.filter(
                      requirement__version=c.version))):
         assert text not in public
-    assert "REQ-031, cumplen los cuatro puntos: " in public
+    assert "REQ-031, cumplen los cuatro puntos (se informa; no bloquea, ADR-0034): " in public
     assert "ruido" in public and CIRCULAR_FILE in public
 
 
@@ -2031,3 +2038,122 @@ def test_a_tie_between_sources_is_won_by_the_one_of_the_expected_document_and_da
     assert ev.best_source_points(item, block, [twin, right_document]) == \
         ev.best_source_points(item, block, [right_document, twin])
     assert ev.best_source_points(item, block, []) == (False, False, False, False)
+
+
+# --- T-147: P3 por fila de circular, encontrados en otra fila y memoria de video ----------------
+
+
+def mark(c, *numbers):
+    """Deja en la corrida la marca "a revisión obligatoria" de una circular en las filas."""
+    c.run.anomalies = [{"type": "circular_revision_obligatoria", "review_required": True,
+                        "circular": "Circular sintética (01/12/2025)",
+                        "reason": "cambio_sin_resolver", "tramos": [],
+                        "requirements": list(numbers)}]
+    c.run.save(update_fields=["anomalies"])
+
+
+def p3_result(c):
+    expected, check, _ = c.measure()
+    result = ev._result_of_run(c.run, c.version, c.procedure, expected, check.readings)
+    return result, ev.Report(c.path.parent, expected, check, [result])
+
+
+def test_a_row_with_the_change_and_its_citation_meets_p3_even_if_a_point_fails(circular_case):
+    """REQ-031, ADR-0034: la fila que muestra el cambio de la circular esperada cumple P3 aunque
+    falle un punto (el efecto): los cuatro puntos se informan aparte y no bloquean."""
+    c = circular_case
+    c.write_list()
+    c.add_source(c.row_with("garantía del 5 %"), effect="aclara")
+
+    result, report = p3_result(c)
+    info = result["measures"]["circulars"]
+
+    assert info["p3"]["ok"] == info["p3"]["total"] == 1
+    assert info["met"]["ok"] == 0 and info["failing"][0]["puntos"] == [1]
+    line = next(r for r in result["measures"]["lines"] if r["tipo"] == "circular")
+    assert line["p3"] == "cambio"
+    assert not [r for r in report.blocking if "REQ-031" in r]
+
+
+def test_a_row_without_the_change_and_without_the_mark_fails_p3_and_blocks(circular_case):
+    """REQ-031, P3, ADR-0034: la fila de una circular esperada sin el cambio ni la marca
+    muestra el texto original como vigente sin aviso: no cumple P3 y bloquea."""
+    c = circular_case
+    c.write_list()
+
+    result, report = p3_result(c)
+    info = result["measures"]["circulars"]
+
+    assert info["p3"]["ok"] == 0 and info["p3_failing"] == ["S-001"]
+    line = next(r for r in result["measures"]["lines"] if r["tipo"] == "circular")
+    assert line["p3"] == "falta"
+    assert any("REQ-031" in r and "P3" in r for r in report.blocking)
+    assert "P3" in ev._summary(report, public=True)
+
+
+def test_a_row_with_the_mark_and_without_the_change_meets_p3(circular_case):
+    """REQ-031, ADR-0034 (caso-03, #183): la fila sin el cambio de la circular esperada pero
+    marcada "a revisión obligatoria" cumple P3, y se informa como marcada."""
+    c = circular_case
+    c.write_list()
+    mark(c, c.row_with("garantía del 5 %").number)
+
+    result, report = p3_result(c)
+    info = result["measures"]["circulars"]
+
+    assert info["p3"]["ok"] == 1 and info["p3_marked"] == ["S-001"]
+    assert next(r for r in result["measures"]["lines"]
+                if r["tipo"] == "circular")["p3"] == "marca"
+    assert not [r for r in report.blocking if "REQ-031" in r]
+
+
+def test_a_source_of_another_circular_does_not_show_the_expected_change(circular_case):
+    """REQ-031, P3 (caso-03, #183): la fila tiene la fuente de otra circular (la del "UN peso")
+    pero no la de la circular esperada: sin marca no cumple P3."""
+    c = circular_case
+    c.write_list()
+    row = c.row_with("garantía del 5 %")
+    source = c.add_source(row)
+    other = m.Segment.objects.filter(reading__document__file_name=FILE).first()
+    m.RequirementSource.objects.filter(pk=source.pk).update(segment=other)   # de otro documento
+
+    info = c.measure()[2]["circulars"]
+
+    assert info["p3"]["ok"] == 0 and info["p3_failing"] == ["S-001"]
+
+
+def test_a_mark_on_another_row_does_not_cover_the_expected_row(circular_case):
+    """REQ-031, P3: la marca tiene que estar en la fila que el cambio modifica, no en otra."""
+    c = circular_case
+    c.write_list()
+    mark(c, c.row_with("multa del 1 % diario").number)
+
+    info = c.measure()[2]["circulars"]
+
+    assert info["p3"]["ok"] == 0 and info["p3_failing"] == ["S-001"]
+
+
+def test_video_memory_is_read_from_the_configured_command(monkeypatch):
+    """P6: la memoria de video usada se lee con un comando configurable (por defecto
+    nvidia-smi); si no se puede leer, se registra que no estaba disponible y por qué."""
+    monkeypatch.setenv("MEASURE_VIDEO_MEMORY_COMMAND", "echo 12345, 24463")
+    assert ev.video_memory() == {"available": True, "used_mib": 12345, "total_mib": 24463}
+
+    monkeypatch.setenv("MEASURE_VIDEO_MEMORY_COMMAND", "comando-que-no-existe-xyz")
+    result = ev.video_memory()
+    assert result["available"] is False and result["reason"]
+
+
+def test_each_measurement_records_the_video_memory(case, operator_user, monkeypatch, tmp_path):
+    """P6: cada medición deja la memoria de video antes y después de la propuesta en
+    parametros.json y en el resumen."""
+    monkeypatch.setenv("MEASURE_VIDEO_MEMORY_COMMAND", "echo 1000, 24000")
+    procedure, _, path, _ = case
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    recorded = json.loads((report.folder / "parametros.json").read_text(
+        encoding="utf-8"))["propuestas"][0]["video_memory"]
+    assert recorded["before"]["used_mib"] == 1000 and recorded["after"]["total_mib"] == 24000
+    summary = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "Memoria de video" in summary and "1000" in summary
