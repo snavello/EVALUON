@@ -54,7 +54,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-104 | Listar y devolver las filas descartadas, y revisar por grupos | REQ-026, REQ-033, REQ-034 | T-099 | terminada |
 | T-105 | Mostrar las descartadas, las citas repetidas y la revisión por grupos | REQ-032, REQ-033, REQ-034 | T-100, T-104 | terminada |
 | T-106 | Medir el filtro, las sugerencias y el respaldo normativo con el caso-00 y ajustarlos | REQ-024, REQ-033, REQ-035, REQ-036 | T-102, T-103, T-109, T-111 | pendiente |
-| T-107 | Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00 | REQ-033, REQ-035 | T-106 | pendiente |
+| T-107 | Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00 | REQ-033, REQ-035 | T-106 | terminada |
 | T-108 | Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04 | REQ-024, REQ-025, REQ-030, REQ-031, REQ-033, REQ-035, REQ-036 | T-094, T-105, T-112, T-107, T-116, T-120 | pendiente |
 | T-109 | Buscar el respaldo normativo de cada sugerencia, sin que nunca la descarte | REQ-036 | T-099, T-102 | terminada |
 | T-110 | Decidir las sugerencias: pasar a requisito o quitar, una por una o por grupo, y bloquear la validación | REQ-035, REQ-034, REQ-026 | T-099, T-104 | terminada |
@@ -395,6 +395,7 @@ Plan: sección "Enmienda del 2026-10-04" de `plan.md` y su subsección "Sugerenc
 
 ### T-106 · Medir el filtro, las sugerencias y el respaldo normativo con el caso-00 y ajustarlos
 
+- **Diferida a la revisión con el primer producto (ADR-0024, 2026-10-05).**
 - **Qué hacer:** con T-102, T-103, T-109 y T-111 integradas, corrida real del caso-00 (`uso: ajuste`; el Coordinador pasa la lista de `primera_corrida` a `ajuste` antes, si todavía no lo hizo) con el proceso único, el filtro con sus tres destinos y el respaldo normativo; informe: encontrados (con causas, y en especial esperados descartados por el sistema, que deben ser 0, y esperados "a revisión obligatoria" por sugerencia o por tramo pendiente), sobrantes sobre las filas firmes y su proporción con IC, descartadas por motivo y por tramo, unificadas, sobrantes que habría sin el filtro, **sugerencias (cantidad, por motivo de duda, proporción que eran esperados, sobrantes "si fueran firmes"), cuántas con respaldo normativo y cuántas de esas eran esperados, y la muestra de respaldos revisada (el verificador dice si la norma citada exige de verdad esa condición)**, muestra revisada de las descartadas (el verificador completa `muestra-descartadas.md` fuera del repositorio y el informe trae solo cuentas: correctos e incorrectos), cita literal, tiempos por pasada (incluidas `filtro` y `respaldo_normativo`) y por página, extrapolación a 50 páginas (se informa, sin máximo). Si hace falta, **hasta dos rondas de ajuste** (v2 y v3), solo de las instrucciones del filtro y del respaldo y de sus parámetros (`NORM_SUPPORT_MIN_SCORE` incluido, sin bajarlo para que aparezcan respaldos), con una frase general por ronda que no nombre cláusulas, midiendo cada una; ninguna fila plausible se descarta para ajustarse a la lista y la tabla de destinos no se ajusta.
 - **Aviso de tareas anteriores:** T-103: antes de medir, regenerar con `--regenerar-resumen` las corridas guardadas del caso-01 y caso-02 y comprobar que los encontrados no cambian respecto de los resúmenes anteriores. T-101: la unificación por omisión solo une textos idénticos normalizados (`dedup.MIN_SIMILARITY=1.0`, `USE_CONTAINMENT=False`); `settings.DEDUP_MIN_SIMILARITY` (0,9) quedó sin uso: retirarlo o alinearlo. Medir cuántas repetidas legítimas quedan sin unir; si se enciende similitud o contención, repetir la batería adversa de `test_dedup.py`. T-102: `Disposition.discard_reason` registra `obligacion_organismo` para los motivos `consecuencia_sancion` y `derecho_posterior` (la fila descartada conserva el exacto); el mínimo de indicio (`MIN_CLUE_WORDS = 4` palabras con contenido) puede mandar a sugerencia descartes legítimos cortos: medir cuántos con el caso-00. T-109: una unidad de norma con cualquier cambio (`modifica`/`deroga`) vigente a la fecha de autorización no da respaldo (anomalía `respaldo_unidad_modificada`), porque la 001 no arma el texto vigente; medir cuántos respaldos se pierden. `consequences.py::render_norm` muestra el texto original de unidades modificadas (tarea aparte). T-125: contar en la medición las sugerencias con anomalía `filtro_comparte_oracion`; la pantalla muestra "El modelo dudó" para ellas (`duda`) aunque las frenó el código: considerar un motivo propio; comprobar con el caso-01 si M-058 y M-063 quedan firmes o como sugerencia.
 - **Archivos:** `evaluon/tenders/prompts/matriz-filtro-v2.md` y `matriz-filtro-v3.md`, `matriz-respaldo-v2.md` y `matriz-respaldo-v3.md` (solo si hay ajuste), `evaluon/settings.py` (versión activa en `MATRIX_PROMPT_VERSIONS`, parámetros del filtro y del respaldo), tests de la versión de instrucciones en `tests/tenders/`; corridas en `corpus/casos/caso-00/corridas/` (fuera del repositorio); informe `specs/003-pliego-matriz/verificacion/T-106.md` sin texto del pliego ni de la norma citada más allá de su identificación.
@@ -404,6 +405,7 @@ Plan: sección "Enmienda del 2026-10-04" de `plan.md` y su subsección "Sugerenc
 
 ### T-107 · Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00
 
+- **Resuelta por ADR-0024 (2026-10-05):** el tope de sobrantes pasa a informativo hasta el piloto; las listas no se amplían; las sugerencias quedan como están. Se vuelve a decidir antes del piloto, con lo que la Comisión haya visto en uso.
 - **Qué hacer:** el Coordinador lleva al responsable el informe de T-106 (si el tope se cumplió o cuántos sobrantes plausibles quedan y de qué clase, con tabla de ejemplos reales; **cuántas sugerencias hay y qué proporción eran esperados, cuántos esperados quedaron como sugerencia en lugar de firmes, y cuántas sugerencias tuvieron respaldo normativo y cuántas de esas eran esperados, con ejemplos reales sí/no por fila**: la spec no limita cuántos esperados pueden quedar como sugerencia y esta tarea es donde se mira si la sección es útil o un depósito, y si conviene o no la promoción automática por respaldo, que hoy no existe) y registra su decisión: seguir con las listas y el tope como están; revisar con la Comisión si las condiciones plausibles son requisitos y ampliar las listas esperadas de los tres casos (antes de correr 01 y 02, y sin mirar sus sobrantes: la ampliación de 01 y 02 se hace solo desde el texto, como la original); o cambiar el tope. Anota la decisión en `specs/003-pliego-matriz/verificacion/T-107.md` y, si cambia la spec, la enmienda se hace por el camino de la spec, no acá.
 - **Archivos:** `specs/003-pliego-matriz/verificacion/T-107.md`; las listas esperadas (fuera del repositorio) solo si el responsable decide ampliarlas.
 - **Verificación:** la decisión del responsable anotada con fecha; si se amplían listas, la huella nueva y su visto bueno; sin texto del pliego en el repositorio.
@@ -412,6 +414,7 @@ Plan: sección "Enmienda del 2026-10-04" de `plan.md` y su subsección "Sugerenc
 
 ### T-108 · Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04
 
+- **ADR-0024 (2026-10-05):** se mide **una sola vez, sin rondas de ajuste**, con las instrucciones actuales (sin esperar a T-106). Los sobrantes se informan y no bloquean. Un faltante o un error de circulares que haga perder un requisito se corrige; lo demás va a la revisión con el primer producto.
 - **Qué hacer:** con las instrucciones fijas después de T-106 y T-120 y la decisión de T-107, medir los casos 01 y 02 solo con el proceso único (la medición de T-094 se hizo antes del filtro y con niveles; esta es la medida de aceptación): `medir_matriz --verificar-esperada` y la corrida de cada caso. Medidas: 100 % de encontrados (con "a revisión obligatoria": tramos pendientes y sugerencias, informados aparte), esperados descartados por el sistema (0), sobrantes hasta el tope sobre las filas firmes, cita literal 100 %, las filas descartadas con la muestra revisada de sus motivos, **las sugerencias (cuántas, proporción que eran esperados, cuántas con respaldo normativo y cuántas de esas eran esperados; REQ-035 y REQ-036)**, tiempos por pliego y por página (el caso-01 tiene 52 páginas; se informan, sin máximo) y memoria de video. Informe sin texto del pliego; un faltante o un tope no cumplido bloquea la aceptación y se informa con su causa, sin ajustar nada.
 - **Aviso de tareas anteriores:** T-127: la marca de revisión obligatoria de una supresión sin frase se lee de las anomalías de `version.run`; una versión nueva de la matriz sin propuesta propia no la muestra. Resolver antes del piloto (tarea aparte). 6: con la cadena de circulares, observar en el caso-03 (cadena 4 → 5 → 6) que el orden por fecha y el texto vigente sean correctos; en una cadena cerrada por una supresión, la supresión aparece dos veces (como eslabón y en la línea final "Sin efecto desde …"); la modificación posterior a una supresión tiene test solo en pantalla. T-126: con la cadena de circulares, observar en el caso-03 (cadena 4 → 5 → 6) que el orden por fecha y el texto vigente sean correctos; en una cadena cerrada por una supresión, la supresión aparece dos veces (como eslabón y en la línea final "Sin efecto desde …"); la modificación posterior a una supresión tiene test solo en pantalla.
 - **Archivos:** corridas en `corpus/casos/caso-0N/corridas/` (fuera del repositorio); `specs/003-pliego-matriz/verificacion/T-108.md`.
@@ -547,6 +550,7 @@ Plan: sección "Rediseño de la pasada de circulares (2026-10-04)" de `plan.md`;
 
 ### T-122 · Mostrar los cambios vigentes de la norma al proponer consecuencias
 
+- **Diferida a la revisión con el primer producto (ADR-0024, 2026-10-05).**
 - **Qué hacer:** hallazgo de T-109 (2026-10-04): `consequences.py::render_norm` muestra el texto original de una unidad aunque tenga `modifica` o `deroga` vigente a la fecha de autorización, y el modelo puede fundar una consecuencia en un artículo cambiado. Mostrar los cambios vigentes (`answering.change_block`) o no fundar en unidades con cambios vigentes, con el mismo criterio que T-109.
 - **Archivos:** `evaluon/tenders/proposal/consequences.py`, `tests/tenders/test_consequences.py`.
 - **Verificación:** test con una unidad modificada a la fecha; ninguna consecuencia fundada en texto no vigente.
@@ -629,6 +633,18 @@ Plan: sección "Rediseño de la pasada de circulares (2026-10-04)" de `plan.md`;
 - **Verificación:** el test pasa con el reloj fijado a las 23:30 hora argentina y a las 10:00 (por ejemplo, con `time_machine` o fijando `timezone.now`); suite completa en verde.
 - **No tocar:** `evaluon/tenders/`, `accounts`.
 - **Entorno:** cualquier equipo con Docker.
+
+## Revisión con el primer producto (ADR-0024)
+
+Lo menor de la 003, que se encara con la 008 y la 004 terminadas, con el uso real de la Comisión:
+
+- Ajuste del filtro y de los sobrantes (T-106): oraciones partidas, anexos, deberes generales y etapas posteriores como filas propias (diagnósticos 2 a 4 de T-120).
+- Tramos de tabla que quedan pendientes y no dan fila (M-059 de los casos 01 y 05).
+- Líneas de formulario u opciones sin verbo que la extracción toma como dato (M-033 del caso-05).
+- Cambios vigentes de la norma en las consecuencias (T-122).
+- Granularidad de las listas esperadas frente a la del extractor.
+- La marca de revisión obligatoria de una supresión sin frase no aparece en una versión nueva de la matriz sin propuesta propia (aviso de T-127); se cuenta aparte en la medición.
+- Fuentes ajenas que agrega una aclaración aplicada a todas las citas (T-128, T-129).
 
 ## Cobertura de requisitos
 
