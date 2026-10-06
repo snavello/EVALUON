@@ -2,12 +2,13 @@
 pantallas de la matriz, la revisión y las preguntas suman sus rutas en archivos aparte
 (`urls_matrix.py`, `urls_review.py`, `urls_questions.py`)."""
 
-from django.urls import path
+from django.urls import include, path
 
 from evaluon.assessment.views import results
 
 app_name = "assessment"
 
 urlpatterns = [
+    path("", include("evaluon.assessment.urls_review")),
     path("par/<int:offer_id>/<int:requirement_id>/", results.pair, name="pair"),
 ]

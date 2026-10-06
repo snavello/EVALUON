@@ -920,3 +920,16 @@ def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(
     assert questions == raw["resumen"]["preguntas_esperadas"] + 1
     assert not any(r.outcome == "no_cumple" and not offer_cites(r)
                    for run in runs for r in run.results.all())
+
+
+def test_a_downgraded_cumple_leaves_the_question_open_for_the_commission(
+        offer, operator_user, procedure, model):
+    """REQ-055 (T-153): el "cumple" que el contraste baja a "sin corroborar" queda con una
+    pregunta abierta a la Comisión."""
+    model.evaluates(cumple_declaration)
+    model.contrasts(lambda call: {"respuesta": "no", "motivo": "no lo prueba"})
+    _, runs = run_all(operator_user, procedure)
+    result = results_of(runs[0])[number_of(procedure, "declaración jurada")]
+    assert result.doubt == "sin_corroborar"
+    assert am.Question.objects.filter(result=result, answers__isnull=True).count() == 1
+    assert runs[0].counts["questions"] >= 1

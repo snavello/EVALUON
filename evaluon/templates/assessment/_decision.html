@@ -1,0 +1,30 @@
+<section class="result-decision" aria-labelledby="decision-title">
+  <h2 id="decision-title">Decisión de la Comisión</h2>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <p>Estado de la propuesta: <strong>{{ review.state }}</strong>.</p>
+  {% for decision in page.decisions %}
+  <p>{{ decision.get_action_display }}{% if decision.outcome_after %}: resultado «{{ decision.get_outcome_after_display }}»{% endif %}, por {{ decision.user.username }} el {{ decision.at|date:"d/m/Y H:i" }}.{% if decision.note %} Motivo: {{ decision.note }}{% endif %}</p>
+  {% empty %}
+  <p>Todavía nadie decidió sobre esta propuesta.</p>
+  {% endfor %}
+  {% if review.can_decide %}
+  <form method="post" action="{% url 'assessment:decide' page.result.pk %}">
+    {% csrf_token %}
+    <p><label for="outcome_after">Resultado correcto (solo para corregir)</label>
+      <select name="outcome_after" id="outcome_after">
+        <option value="">—</option>
+        {% for value, label in review.outcomes %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select></p>
+    <p><label for="note">Motivo (obligatorio para corregir y rechazar)</label><br>
+      <textarea name="note" id="note" rows="3"></textarea></p>
+    <p>
+      <button type="submit" name="action" value="confirmar">Confirmar</button>
+      <button type="submit" name="action" value="corregir">Corregir</button>
+      <button type="submit" name="action" value="rechazar">Rechazar</button>
+    </p>
+  </form>
+  {% else %}
+  <p><small>Solo el evaluador de la Comisión decide.</small></p>
+  {% endif %}
+  <p><a href="{% url 'assessment:history' page.offer.pk page.requirement.pk %}">Ver el historial de este par</a></p>
+</section>
