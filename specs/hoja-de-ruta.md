@@ -43,6 +43,8 @@ Material de referencia para construir: un caso público completo (pliego, oferta
 
 - **Auditoría de cumplimiento antes del piloto (2026-10-05).** Por feature se audita solo el funcionamiento; la auditoría formal y de cumplimiento se hace una vez, antes del piloto, para todas las features (ADR-0036).
 
+- **Caso en curso para la prueba a ciegas (2026-10-05).** El responsable reservó un proceso de compra que todavía no terminó, para seguirlo y evaluarlo con el producto más cerrado sin conocer el resultado: `https://afipcompras.afip.gob.ar/PLIEGO/VistaPreviaPliegoCiudadano.aspx?qs=BQoBkoMoEhxvHtev2mhsoLPzLyDZRnlJlJ/3u47YSgnYkqdbRNSGG5hRRUBqIsoU1b8E1T25o2rd23ytZ3mhlSIXalFI7R53b1XoV1Y2GBi/RWbdPEJla29xxLz2|JL1|fYUuzOJhxk=`. Se usa cuando estén la 012, la 004 y la carga de ofertas: importarlo desde el Portal, seguir sus novedades con la revisión diaria y evaluarlo a ciegas. Nadie lo carga ni lo mira antes.
+
 ## Cómo se modifica
 
 Agregar, quitar o reordenar features se hace en esta tabla, con aprobación del responsable. La numeración no se reutiliza.
