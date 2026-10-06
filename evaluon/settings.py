@@ -421,4 +421,5 @@ ASSESSMENT_ANSWERS_MAX = 20
 ASSESSMENT_PROMPT_VERSIONS = {
     "evaluacion": "evaluacion-v3",
     "contraste": "contraste-v2",
+    "clausulas": "clausulas-v1",
 }

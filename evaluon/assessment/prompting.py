@@ -242,3 +242,51 @@ def parse_contrast(content):
             or data["respuesta"] not in VERDICTS or not isinstance(data["motivo"], str)):
         raise InvalidOutput("la salida no tiene los campos pedidos")
     return data["respuesta"], data["motivo"].strip()
+
+
+# --- Contraste por cláusula (T-158) -------------------------------------------------------------
+
+CLAUSE_STATES = ("coincide", "contradice", "no_aparece")
+
+CLAUSES_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "clausulas": {"type": "array", "items": {
+            "type": "object",
+            "properties": {"clausula": {"type": "string"},
+                           "estado": {"type": "string", "enum": list(CLAUSE_STATES)},
+                           "motivo": {"type": "string"}},
+            "required": ["clausula", "estado", "motivo"], "additionalProperties": False}},
+        "pregunta": {"type": "string"}},
+    "required": ["clausulas", "pregunta"], "additionalProperties": False}
+
+
+def build_clauses_messages(system, requirement_block, cited, correction=""):
+    """El pedido del contraste por cláusula de un renglón: el requisito y el texto citado."""
+    quotes = "\n".join(f"- {title}, página {page}: «{text}»" for title, page, text in cited)
+    parts = [requirement_block, "Texto citado de la oferta:\n" + quotes,
+             "Devolvé un objeto JSON con los campos pedidos.", correction]
+    user = "\n\n".join(part for part in parts if part)
+    return [{"role": "system", "content": system}, {"role": "user", "content": user}]
+
+
+def parse_clauses(content):
+    """`([(cláusula, estado, motivo)], pregunta)`. Lanza `InvalidOutput` si no tiene la forma
+    o si no trae ninguna cláusula."""
+    try:
+        data = json.loads(content)
+    except ValueError as error:
+        raise InvalidOutput("la salida no es JSON") from error
+    if (not isinstance(data, dict) or set(data) != {"clausulas", "pregunta"}
+            or not isinstance(data["clausulas"], list) or not data["clausulas"]
+            or not isinstance(data["pregunta"], str)):
+        raise InvalidOutput("la salida no tiene los campos pedidos")
+    rows = []
+    for item in data["clausulas"]:
+        if (not isinstance(item, dict) or set(item) != {"clausula", "estado", "motivo"}
+                or item["estado"] not in CLAUSE_STATES
+                or not isinstance(item["clausula"], str)
+                or not isinstance(item["motivo"], str)):
+            raise InvalidOutput("una cláusula no tiene la forma pedida")
+        rows.append((item["clausula"].strip(), item["estado"], item["motivo"].strip()))
+    return rows, data["pregunta"].strip()

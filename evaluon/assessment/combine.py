@@ -234,3 +234,29 @@ def apply_contrast(combined, answer, reason=""):
     return replace(combined, outcome=OUT_NO_DETERMINADO, doubt=UNCORROBORATED,
                    explanation=explanation,
                    question=fixed_question(UNCORROBORATED))
+
+
+def apply_clauses(combined, rows, question, requirement_text):
+    """Contraste por cláusula de un "cumple" técnico (T-158). `rows`: `(cláusula, estado,
+    motivo)`. Con alguna cláusula contradicha (y copiada letra por letra del requisito):
+    "no cumple", que cita la cláusula y la oferta. Si no, con alguna que no aparece, o una
+    contradicha sin cláusula válida: "no determinado" `sin_dato` con pregunta. Solo si todas
+    coinciden queda el "cumple" (y sigue al contraste común)."""
+    if combined.outcome != OUT_CUMPLE:
+        return combined
+    contradicted = [(c, why) for c, state, why in rows if state == "contradice"
+                    and clause_supported(c, requirement_text)]
+    if contradicted:
+        clause, why = contradicted[0]
+        note = f"Cláusula del pliego contradicha: «{clause}» {why}".strip()
+        return replace(combined, outcome=OUT_NO_CUMPLE, doubt="", question="",
+                       explanation=f"{note} (revisión por cláusula)")
+    missing = [(c, why) for c, state, why in rows if state != "coincide"]
+    if missing:
+        names = "; ".join(f"«{c}»" for c, _ in missing)
+        note = f"El sistema no pudo confirmar estas cláusulas con la oferta: {names}."
+        explanation = f"{combined.explanation} {note}".strip()
+        return replace(combined, outcome=OUT_NO_DETERMINADO, doubt=NO_DATA,
+                       explanation=explanation,
+                       question=question or fixed_question(NO_DATA, note))
+    return combined

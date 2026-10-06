@@ -222,3 +222,49 @@ def test_a_group_without_data_for_a_technical_no_cumple_is_undetermined_without_
     combined = run(group(0, "no_determinado", doubt="sin_dato", cites=[cite()]))
     assert combined.outcome == "no_determinado" and combined.doubt == "sin_dato"
     assert combined.question and not combined.needs_contrast
+
+
+# --- Contraste por cláusula (T-158) ------------------------------------------------------------
+
+PUPPY_ROW = ("Renglón 5 del pliego: 5.1 Alimento balanceado para cachorros. "
+             "5.2 Presentación en bolsa de 15 kilos.")
+PUPPY = "5.1 Alimento balanceado para cachorros."
+BAG = "5.2 Presentación en bolsa de 15 kilos."
+
+
+def a_cumple():
+    return run(group(0, "cumple", cites=[cite()], explanation="Es el mismo producto."))
+
+
+def test_a_contradicted_clause_makes_the_cumple_a_no_cumple_citing_the_clause():
+    """REQ-052: la oferta ofrece alimento para adultos y el pliego pide cachorros: no cumple,
+    con la cláusula."""
+    rows = [(PUPPY, "contradice", "La oferta es para adultos."), (BAG, "coincide", "")]
+    combined = combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW)
+    assert combined.outcome == "no_cumple" and combined.doubt == ""
+    assert PUPPY in combined.explanation and "adultos" in combined.explanation
+    assert [c.text for c in combined.citations] == ["texto citado"]
+
+
+def test_a_clause_that_does_not_appear_makes_it_undetermined_with_a_question():
+    """REQ-052, REQ-055: una cláusula que la oferta no menciona: no determinado, con pregunta."""
+    rows = [(PUPPY, "coincide", "para cachorros"), (BAG, "no_aparece", "")]
+    combined = combine.apply_clauses(a_cumple(), rows, "¿Qué bolsa ofrece?", PUPPY_ROW)
+    assert combined.outcome == "no_determinado" and combined.doubt == "sin_dato"
+    assert combined.question == "¿Qué bolsa ofrece?" and BAG in combined.explanation
+    # sin pregunta del modelo, el sistema pone la suya
+    assert combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW).question
+
+
+def test_a_contradiction_without_a_real_clause_does_not_become_a_no_cumple():
+    """REQ-052: "contradice" con una cláusula inventada no alcanza para "no cumple"."""
+    rows = [("5.9 Una cláusula que no existe.", "contradice", "otro valor")]
+    combined = combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW)
+    assert combined.outcome == "no_determinado" and combined.question
+
+
+def test_only_when_every_clause_matches_the_cumple_stands():
+    """REQ-052: todas coinciden: queda el "cumple", que sigue al contraste común."""
+    rows = [(PUPPY, "coincide", "cachorros"), (BAG, "coincide", "15 kg")]
+    combined = combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW)
+    assert combined.outcome == "cumple" and combined.needs_contrast

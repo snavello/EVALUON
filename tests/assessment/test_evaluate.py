@@ -709,7 +709,8 @@ def test_everything_the_model_was_asked_is_recorded(offer, operator_user, proced
     assert step.documents[0]["tokens"] > 0 and step.prompt_tokens is not None
     assert step.request["response_format"]["type"] == "json_schema"
     assert run.models_used["generation_batch"]["context_tokens"] == 32768
-    assert run.prompt_versions == {"evaluacion": "evaluacion-v3", "contraste": "contraste-v2"}
+    assert run.prompt_versions == {
+        "evaluacion": "evaluacion-v3", "contraste": "contraste-v2", "clausulas": "clausulas-v1"}
     assert run.parameters["group_tokens"] == 20000
     assert run.norms["matrix_version"] == 1 and run.norms["authorization_date"]
     assert run.matrix_version == request.matrix_version and run.channel == "eval"
@@ -981,3 +982,74 @@ def test_a_downgraded_cumple_leaves_the_question_open_for_the_commission(
     assert result.doubt == "sin_corroborar"
     assert am.Question.objects.filter(result=result, answers__isnull=True).count() == 1
     assert runs[0].counts["questions"] >= 1
+
+
+# --- Contraste por cláusula (T-158) ------------------------------------------------------------
+
+
+def row_one(procedure, model):
+    """El renglón 1 evaluado como "cumple"; devuelve su fila de la matriz."""
+    row = next(r for r in sheets_firm(procedure) if r.category == "tecnico" and r.items == [1])
+    model.evaluates(lambda call: says("cumple", call.quote("Renglón 1: resma de papel A4"))
+                    if call.requirement.startswith("Renglón 1 del pliego") else None)
+    return row
+
+
+def test_a_technical_cumple_is_checked_clause_by_clause(offer, operator_user, procedure, model):
+    """REQ-052, T-158: un "cumple" de un renglón pasa por el contraste por cláusula: el pedido
+    lleva el requisito y la oferta, y queda registrado como paso de contraste."""
+    row = row_one(procedure, model)
+    _, runs = run_all(operator_user, procedure, offers=[offer])
+    assert len(model.clause_calls) == 1
+    assert "Renglón 1 del pliego" in model.clause_calls[0].user
+    assert "Renglón 1: resma de papel A4" in model.clause_calls[0].user
+    step = am.Step.objects.filter(run=runs[0], purpose="contraste", requirement=row).first()
+    assert step.parsed["clausulas"][0]["estado"] == "coincide"
+    assert results_of(runs[0])[row.number].outcome == "cumple"
+
+
+def test_a_contradicted_clause_turns_the_technical_cumple_into_no_cumple(
+        offer, operator_user, procedure, model):
+    """REQ-052, T-158: la oferta trae otra etapa o presentación que la que el pliego pide:
+    "no cumple", con la cláusula y la cita de la oferta."""
+    row = row_one(procedure, model)
+    clause = row.quotes.order_by("order").first().text
+    model.clauses(lambda call: {"clausulas": [
+        {"clausula": clause, "estado": "contradice", "motivo": "Ofrece otra presentación."}],
+        "pregunta": ""})
+    _, runs = run_all(operator_user, procedure, offers=[offer])
+    result = results_of(runs[0])[row.number]
+    assert result.outcome == "no_cumple" and offer_cites(result)
+    assert "Ofrece otra presentación" in result.explanation
+
+
+def test_a_clause_missing_from_the_offer_makes_the_technical_cumple_undetermined(
+        offer, operator_user, procedure, model):
+    """REQ-052, REQ-055, T-158: una cláusula sin dato en la oferta: "no determinado" con
+    pregunta."""
+    row = row_one(procedure, model)
+    model.clauses(lambda call: {"clausulas": [
+        {"clausula": "x", "estado": "no_aparece", "motivo": ""}],
+        "pregunta": "¿Qué presentación ofrece?"})
+    _, runs = run_all(operator_user, procedure, offers=[offer])
+    result = results_of(runs[0])[row.number]
+    assert result.outcome == "no_determinado" and result.doubt == "sin_dato"
+    assert result.questions.get().text == "¿Qué presentación ofrece?"
+
+
+def test_a_non_technical_cumple_skips_the_clause_check(offer, operator_user, procedure, model):
+    """REQ-052, T-158: el contraste por cláusula es solo de las filas técnicas."""
+    model.evaluates(cumple_declaration)
+    run_all(operator_user, procedure)
+    assert model.clause_calls == []
+
+
+def test_an_invalid_clause_output_leaves_the_cumple_uncorroborated(
+        offer, operator_user, procedure, model):
+    """REQ-052, T-158: dos salidas sin la forma pedida: "no determinado" sin corroborar."""
+    row = row_one(procedure, model)
+    model.clauses(lambda call: "no es JSON")
+    _, runs = run_all(operator_user, procedure, offers=[offer])
+    result = results_of(runs[0])[row.number]
+    assert result.outcome == "no_determinado" and result.doubt == "sin_corroborar"
+    assert len(model.clause_calls) == 2

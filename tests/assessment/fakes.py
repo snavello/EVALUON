@@ -76,9 +76,16 @@ class ScriptedModel:
     def __init__(self, fake):
         self.fake = fake
         self.calls, self.contrast_calls, self.rewrite_calls = [], [], []
+        self.clause_calls = []
         self._evaluate = None
         self._contrast = None
+        self._clauses = None
         self._rewrite = None
+
+    def clauses(self, function):
+        """Guion del contraste por cláusula: recibe un `Contrast`; por omisión, todas
+        coinciden."""
+        self._clauses = function
 
     def evaluates(self, function):
         self._evaluate = function
@@ -93,6 +100,8 @@ class ScriptedModel:
         properties = schema["properties"]
         if "consulta" in properties:
             return self._respond_rewrite(messages, schema, **kwargs)
+        if "clausulas" in properties:
+            return self._respond_clauses(messages, schema, **kwargs)
         if "respuesta" in properties:
             return self._respond_contrast(messages, schema, **kwargs)
         return self._respond_evaluation(messages, schema, **kwargs)
@@ -124,6 +133,16 @@ class ScriptedModel:
         answer = self._contrast(call) if self._contrast else None
         if answer is None:
             answer = {"respuesta": "si", "motivo": "El texto lo demuestra."}
+        return self._answer(answer, messages, schema, kwargs)
+
+    def _respond_clauses(self, messages, schema, **kwargs):
+        call = Contrast(number=len(self.clause_calls) + 1, messages=messages,
+                        user=messages[-1]["content"])
+        self.clause_calls.append(call)
+        answer = self._clauses(call) if self._clauses else None
+        if answer is None:
+            answer = {"clausulas": [{"clausula": "x", "estado": "coincide", "motivo": ""}],
+                      "pregunta": ""}
         return self._answer(answer, messages, schema, kwargs)
 
     def _respond_rewrite(self, messages, schema, **kwargs):
