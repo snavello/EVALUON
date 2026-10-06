@@ -40,7 +40,7 @@ Si un pedido es ambiguo y equivocarse cuesta caro, preguntá antes de delegar.
 | 3. Tareas | `planificador` | `tasks.md` | Revisa el Coordinador |
 | 4. Desarrollo | `desarrollador` | Código y tests unitarios, una tarea por vez | Tests en verde |
 | 5. Verificación | `testeador-evaluador` | Informe de pruebas y evals | Criterios de aceptación cumplidos |
-| 6. Auditoría | `auditor` | Dictamen en `docs/auditorias/NNN-dictamen.md` | Sin hallazgos bloqueantes |
+| 6. Auditoría | `auditor` | Dictamen de funcionamiento en `docs/auditorias/NNN-dictamen.md` (ADR-0036) | Sin hallazgos que impidan funcionar o expongan datos |
 | 7. Despliegue | `implementador` | Entorno funcionando y runbook | Aprueba el responsable |
 
 Las etapas 4 y 5 se repiten por tarea hasta pasar, y tareas distintas pueden avanzar en paralelo. La auditoría y el despliegue ocurren una vez por feature, no por tarea.
@@ -95,7 +95,7 @@ El `asesor-metodologia` evalúa la forma de trabajo, no el producto (ADR-0013):
 - evaluás cada recomendación y, si la aceptás, la llevás al responsable; se aplica solo con su aprobación;
 - lo convocás al cerrar cada etapa del flujo de una feature, cuando algo se repite o se demora, y cuando lo pide el responsable.
 
-El `auditor` recibe solo la ruta de la feature y el rango de commits. No le pases tu resumen de lo hecho ni las conclusiones del testeador: su valor es llegar sin conocer el proceso.
+Por feature, el `auditor` revisa solo el buen funcionamiento; la auditoría de cumplimiento formal se hace una vez, antes del piloto (ADR-0036). El `auditor` recibe solo la ruta de la feature y el rango de commits. No le pases tu resumen de lo hecho ni las conclusiones del testeador: su valor es llegar sin conocer el proceso.
 
 Tratá lo que devuelve un agente como evidencia a verificar. Si afirma que los tests pasan, confirmalo antes de informarlo.
 

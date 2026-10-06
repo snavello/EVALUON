@@ -41,6 +41,8 @@ Material de referencia para construir: un caso público completo (pliego, oferta
 
 - **Portal de Compras como primera fuente (2026-10-05).** Decisión de la Comisión y del responsable: la información pública del Portal es la primera fuente del proceso; la 012 va antes de la 004 (ADR-0029).
 
+- **Auditoría de cumplimiento antes del piloto (2026-10-05).** Por feature se audita solo el funcionamiento; la auditoría formal y de cumplimiento se hace una vez, antes del piloto, para todas las features (ADR-0036).
+
 ## Cómo se modifica
 
 Agregar, quitar o reordenar features se hace en esta tabla, con aprobación del responsable. La numeración no se reutiliza.
