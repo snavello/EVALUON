@@ -6,8 +6,9 @@
   `GENERATION_BATCH_URL` con la espera de los pedidos del `worker`.
 - El doble de `tests/conftest.py` registra lo mismo.
 - `docker-compose.yml`: `generation_batch` arranca igual que `generation` (misma imagen,
-  modelo, `--parallel 1`, `--offline`) salvo el contexto, que es propio (32.768, plan 004,
-  ADR-0037), en la red interna y sin puertos;
+  `--parallel 1`, `--offline`) salvo el contexto, que es propio (32.768, plan 004,
+  ADR-0037), y el modelo, el alias y el proyector de imagen (ADR-0041 y ADR-0042), en la
+  red interna y sin puertos;
   `worker` corre `procesar_pedidos` con la imagen de `app`.
 
 Se prueba con un servidor HTTP local de prueba, sin modelo ni GPU. Textos sintéticos
@@ -158,22 +159,32 @@ def compose():
     return yaml.safe_load(COMPOSE_FILE.read_text(encoding="utf-8"))
 
 
-def _without_context(command):
-    """El `command` sin el valor de `--ctx-size`."""
+# Lo propio del motor de lotes: contexto, modelo, alias y proyector de imagen.
+BATCH_OWN_FLAGS = ("--ctx-size", "--model", "--alias", "--mmproj")
+
+
+def _without_batch_own(command):
+    """El `command` sin las banderas propias del lote y sus valores."""
     command = [str(item) for item in command]
-    position = command.index("--ctx-size") + 1
-    return command[:position] + command[position + 1:]
+    for flag in BATCH_OWN_FLAGS:
+        if flag in command:
+            position = command.index(flag)
+            del command[position:position + 2]
+    return command
 
 
 def test_generation_batch_starts_like_generation(compose):
     """REQ-024, REQ-054: `generation_batch` es la misma imagen, compilación, modelo y
-    argumentos que `generation` (`--parallel 1`, `--offline`) salvo el contexto, en la red
-    interna, sin puertos publicados y con los modelos en solo lectura (ADR-0018, ADR-0037)."""
+    argumentos que `generation` (`--parallel 1`, `--offline`) salvo el contexto, el modelo,
+    el alias y el proyector de imagen, en la red interna, sin puertos publicados y con los
+    modelos en solo lectura (ADR-0018, ADR-0037, ADR-0042)."""
     services = compose["services"]
     batch, interactive = services["generation_batch"], services["generation"]
     assert batch["image"] == interactive["image"]
     assert batch["image"].endswith(settings.GENERATION_ENGINE_BUILD)
-    assert _without_context(batch["command"]) == _without_context(interactive["command"])
+    assert _without_batch_own(batch["command"]) == _without_batch_own(interactive["command"])
+    assert "--mmproj" in [str(item) for item in batch["command"]]
+    assert "--mmproj" not in [str(item) for item in interactive["command"]]
     command = [str(item) for item in batch["command"]]
     assert command[command.index("--parallel") + 1] == "1"
     assert "--offline" in command
@@ -244,10 +255,35 @@ def test_only_app_writes_the_cases_folder(compose):
 def test_the_proposal_and_the_sheet_record_the_batch_engine_context(settings):
     """REQ-054 (P6): las propuestas de la 003 y las fichas de la 008 registran el contexto
     real del motor que respondió, el de `generation_batch`, y no el de `generation`."""
+    from evaluon.assessment.services import evaluate
     from evaluon.offers.services import sheets
     from evaluon.tenders.proposal import run as proposal_run
 
     settings.GENERATION_CONTEXT_TOKENS = 16384
     settings.GENERATION_BATCH_CONTEXT_TOKENS = 32768
-    for models in (proposal_run._models(), sheets._models()):
+    for models in (proposal_run._models(), sheets._models(), evaluate._models()):
         assert models["generation_batch"]["context_tokens"] == 32768
+
+
+def test_the_records_name_the_model_and_the_projector_of_the_batch_engine(settings):
+    """REQ-052 (P6, ADR-0042): las propuestas de la 003, las fichas de la 008 y las
+    evaluaciones de la 004 registran el alias, el archivo y la huella del modelo del motor
+    de lotes y su proyector de imagen, no los de `generation`."""
+    from evaluon.assessment.services import evaluate
+    from evaluon.offers.services import sheets
+    from evaluon.tenders.proposal import run as proposal_run
+
+    settings.GENERATION_MODEL = "interactivo"
+    settings.GENERATION_MODEL_FILE = "interactivo.gguf"
+    settings.GENERATION_MODEL_SHA256 = "a" * 64
+    settings.GENERATION_BATCH_MODEL = "lote"
+    settings.GENERATION_BATCH_MODEL_FILE = "lote.gguf"
+    settings.GENERATION_BATCH_MODEL_SHA256 = "b" * 64
+    settings.GENERATION_BATCH_MMPROJ_FILE = "lote-mmproj.gguf"
+    settings.GENERATION_BATCH_MMPROJ_SHA256 = "c" * 64
+    for models in (proposal_run._models(), sheets._models(), evaluate._models()):
+        assert models["generation_batch"]["model"] == "lote"
+        assert models["generation_batch"]["file"] == "lote.gguf"
+        assert models["generation_batch"]["sha256"] == "b" * 64
+        assert models["generation_batch"]["mmproj_file"] == "lote-mmproj.gguf"
+        assert models["generation_batch"]["mmproj_sha256"] == "c" * 64
