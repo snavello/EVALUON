@@ -255,10 +255,12 @@ def test_a_job_can_name_its_request_after_the_request_is_inserted(rows, procedur
     assert m.Job.objects.get(pk=job.pk).target_id == request.pk
 
 
-def test_an_evaluate_offers_job_without_handler_fails_with_a_reason(procedure,
-                                                                    operator_user):
-    """REQ-052: hasta que exista `run_evaluate_offers` (T-150), el pedido falla con un
-    motivo y no tira al `worker`."""
+def test_an_evaluate_offers_job_without_handler_fails_with_a_reason(procedure, operator_user,
+                                                                    monkeypatch):
+    """REQ-052: un pedido cuyo manejador no existe falla con un motivo y no tira al `worker`.
+    Desde T-150 el manejador existe: se prueba con un módulo que falta."""
+    monkeypatch.setitem(jobs.HANDLERS, m.JobKind.EVALUATE_OFFERS,
+                        "evaluon.assessment.services.no_existe.run_evaluate_offers")
     job = jobs.enqueue(m.JobKind.EVALUATE_OFFERS, procedure=procedure,
                        requested_by=operator_user, target_id=1)
     jobs.run_next()
