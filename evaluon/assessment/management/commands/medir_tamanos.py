@@ -6,8 +6,10 @@ por teclado. Solo traduce y llama a `evaluon.assessment.sizing`.
 
 Por oferta: páginas, tokens por documento y por página, documentos de texto idéntico y
 cuántos grupos salen con `ASSESSMENT_GROUP_TOKENS` en orden de carga. Informa además el
-contexto real del motor de lotes y la memoria de video usada (los mismos datos que se
-registran con una evaluación).
+contexto configurado del motor de lotes y la memoria de video usada, si el comando de
+`MEASURE_VIDEO_MEMORY_COMMAND` (o `nvidia-smi`) responde en el contenedor. El contexto real
+con que arrancó el servidor se comprueba con `GET /props` (specs/004-evaluacion-asistida/
+entorno.md): `sizing` no abre conexiones por su cuenta.
 
 - `--procedimiento`: número del procedimiento con sus ofertas ya cargadas y leídas.
 - `--corridas`: carpeta (fuera del repositorio) donde se guarda el detalle por documento y
@@ -62,12 +64,11 @@ class Command(BaseCommand):
 
         measures = [sizing.measure_offer(offer, budget=budget) for offer in offers]
         engine = {"context_configured": settings.GENERATION_BATCH_CONTEXT_TOKENS,
-                  "context_real": sizing.engine_context(),
                   "video_memory": video_memory()}
 
         lines = [f"Procedimiento {procedure.number}; presupuesto {budget} tokens por grupo; "
-                 f"contexto del motor de lotes: configurado "
-                 f"{engine['context_configured']}, real {engine['context_real']}."]
+                 f"contexto configurado del motor de lotes: "
+                 f"{engine['context_configured']}."]
         for position, measure in enumerate(measures, start=1):
             lines.append(
                 f"Oferta {position} (número {offers[position - 1].number}): "

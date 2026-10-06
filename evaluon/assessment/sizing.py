@@ -15,10 +15,6 @@ No guarda nada en la base ni en el repositorio: devuelve diccionarios. Los núme
 documento los guarda el comando fuera del repositorio.
 """
 
-import json
-import urllib.error
-import urllib.request
-
 from django.conf import settings
 
 from evaluon.ai import generation
@@ -150,16 +146,3 @@ def measure_offer(offer, count=None, budget=None):
         "groups": len(groups),
         "group_tokens": [sum(item["tokens"] for item in group) for group in groups],
     }
-
-
-def engine_context(base_url=None, timeout=10):
-    """Contexto (`n_ctx`) con que arrancó el servidor del motor de lotes, según
-    `GET /props`; `None` si no responde. Es el valor real, el que cuenta para la memoria
-    de video y el que se registra con cada evaluación (P6)."""
-    url = (base_url or settings.GENERATION_BATCH_URL).rstrip("/") + "/props"
-    try:
-        with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310
-            data = json.loads(response.read())
-        return int(data["default_generation_settings"]["n_ctx"])
-    except (OSError, urllib.error.URLError, ValueError, KeyError, TypeError):
-        return None

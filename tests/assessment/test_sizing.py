@@ -183,11 +183,10 @@ def test_the_command_reports_counts_per_offer_and_saves_the_detail_apart(
     documentos."""
     make_offer(procedure, logged_in, "Oferente A", {"secreto.pdf": [words(10)]})
     make_offer(procedure, logged_in, "Oferente B", {"x.pdf": [words(4)], "y.pdf": [words(4)]})
-    monkeypatch.setattr(sizing, "engine_context", lambda *a, **k: 32768)
     output = run_command("--usuario", logged_in.username, "--procedimiento",
                          procedure.number, "--corridas", str(tmp_path))
     assert "Oferta 1" in output and "Oferta 2" in output
-    assert "real 32768" in output
+    assert "configurado del motor de lotes: 32768" in output
     assert "secreto.pdf" not in output and "Oferente" not in output
     detail = json.loads(next(tmp_path.glob("*/tamanos.json")).read_text(encoding="utf-8"))
     assert detail["offers"][0]["documents"][0]["file"] == "secreto.pdf"
