@@ -108,7 +108,8 @@ def load(user, item, confirmation=None, channel=Channel.SCREEN):
 
 def _load_procedure(user, item, link, confirmation, channel):
     data = item.payload
-    if action(item) == ASSOCIATE:
+    action_before = action(item)
+    if action_before == ASSOCIATE:
         procedure = Procedure.objects.get(number=data["numero"])
     else:
         authorization_date = confirmation.get("authorization_date")
@@ -136,9 +137,29 @@ def _load_procedure(user, item, link, confirmation, channel):
         existing.item = item
         existing.save()
         _record_update(user, item, channel, procedure, before, values | {"item": item.pk})
+    if existing is not None or action_before == ASSOCIATE:
+        _warn_if_subject_differs(user, item, channel, procedure, data, existing is not None)
     link.procedure = procedure
     link.save(update_fields=["procedure"])
     return LoadedModel.PROCEDURE, procedure.pk
+
+
+def _warn_if_subject_differs(user, item, channel, procedure, data, changed):
+    """El nombre y el objeto del procedimiento son de la 003 y no se tocan desde el Portal:
+    si lo que trae el Portal difiere, se avisa en el resultado de la decisión (`item.notice`)
+    y se deja en el registro (P6); quien corresponda lo corrige a mano."""
+    portal = data["objeto"] or data["nombre"] or ""
+    if " ".join(portal.split()) == " ".join((procedure.subject or "").split()):
+        return
+    item.notice = (
+        "el Portal cambió el nombre u objeto; el procedimiento conserva el anterior"
+        if changed else
+        "el nombre u objeto del Portal difiere del registrado a mano; "
+        "el procedimiento conserva el registrado")
+    audit.record(EventType.PORTAL_DECISION, outcome=Outcome.OK, channel=channel, user=user,
+                 detail={"action": "nombre_u_objeto_cambiado", "link": item.proposal.link_id,
+                         "item": item.pk, "procedure": procedure.pk,
+                         "portal": portal, "conserva": procedure.subject})
 
 
 def _record_update(user, item, channel, procedure, before, after):

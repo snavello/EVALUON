@@ -57,7 +57,7 @@ flowchart LR
 | 009 · Validación continua con la Comisión | Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus respuestas. Cada cuestión resuelta puede quedar como fundamento (ADR-0009), como caso para medir al sistema o como pedido de cargar una norma o un documento. Lo que queda sin validar se ve como pendiente. Uso intensivo al principio, y después ante cuestiones que no se saben resolver | No iniciada | — | — |
 | 010 · Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | No iniciada | — | — |
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
-| [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 4 de 7 · Desarrollo | 7/8 | █████████░ 88% |
+| [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 
 <a id="001"></a>
 
@@ -802,11 +802,11 @@ flowchart TD
 
 ## 012 · Importación asistida desde el Portal de Compras
 
-**Etapa actual:** 4 de 7 · Desarrollo (1 dudas abiertas) · [carpeta](../specs/012-portal-compras)
+**Etapa actual:** 5 de 7 · Verificación (1 dudas abiertas) · [carpeta](../specs/012-portal-compras)
 
 ```mermaid
 flowchart LR
-  E0["✓ 1. Spec"]:::done --> E1["✓ 2. Plan"]:::done --> E2["✓ 3. Tareas"]:::done --> E3["▶ 4. Desarrollo"]:::active --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  E0["✓ 1. Spec"]:::done --> E1["✓ 2. Plan"]:::done --> E2["✓ 3. Tareas"]:::done --> E3["✓ 4. Desarrollo"]:::done --> E4["▶ 5. Verificación"]:::active --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -816,12 +816,11 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 1 tarea sin terminar.
-- ○ T-145 · Medir con el caso-00 y el proceso con circulares, corregir una ronda y dejar la medición (pendiente)
+- **Próximo paso:** Verificar: el testeador evaluador cierra las tareas y entrega `informe-pruebas.md`.
 
 ### Qué se hizo
 
-- Etapas completas: Spec, Plan, Tareas.
+- Etapas completas: Spec, Plan, Tareas, Desarrollo.
 - ✓ T-138 · Preparar el esquema, la conexión acotada y la cola del Portal: tablas de `portal`, cambios de `tenders_job` y de auditoría, servicio `portal_worker`, cliente HTTP con lista de destinos y `entorno.md` (`f245f36` 2026-10-05, `3e2d665` 2026-10-05)
 - ✓ T-139 · Preparar los casos para probar: páginas reales del caso-00 y de un proceso con circulares (fuera del repositorio), calcos con datos inventados y lista esperada (Coordinador) (`69db5db` 2026-10-05)
 - ✓ T-140 · Leer la página pública del proceso: datos básicos, renglones, cronograma, garantías y lista de documentos, con el texto normalizado (`c4ad118` 2026-10-05)
@@ -829,6 +828,7 @@ flowchart LR
 - ✓ T-142 · Importar los documentos: bajar el pliego, circulares y demás con su huella y cargarlos por `load_document` (`1ba8be3` 2026-10-05)
 - ✓ T-143 · Importar las ofertas: acta de apertura y cuadro comparativo, ofertas con garantía y cotización por renglón (`5f6c49b` 2026-10-05)
 - ✓ T-144 · Revisión periódica: una vez por día hábil y a demanda, con novedades y sin repetir lo decidido (`39c5dfd` 2026-10-06)
+- ✓ T-145 · Medir con el caso-00 y el proceso con circulares, corregir una ronda y dejar la medición (`18e970e` 2026-10-06, `b20b7e5` 2026-10-06, `d0a7159` 2026-10-06, `c7c86eb` 2026-10-06, `e2739c9` 2026-10-06, `895ea60` 2026-10-06, `bdfc22e` 2026-10-06)
 
 ### Mapa de tareas
 
@@ -841,7 +841,7 @@ flowchart TD
   T142["✓ T-142 · Importar los documentos: bajar el pliego, c…"]:::done
   T143["✓ T-143 · Importar las ofertas: acta de apertura y cu…"]:::done
   T144["✓ T-144 · Revisión periódica: una vez por día hábil y…"]:::done
-  T145["○ T-145 · Medir con el caso-00 y el proceso con circu…"]:::todo
+  T145["✓ T-145 · Medir con el caso-00 y el proceso con circu…"]:::done
   T138 --> T140
   T139 --> T140
   T138 --> T141
@@ -862,10 +862,10 @@ flowchart TD
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-045 | El sistema debe permitir registrar un proceso a partir del enlace público de su página en el Portal de Compras. | T-138, T-141, T-145 | ▶ en proceso |
-| REQ-046 | Con ese enlace, el sistema debe explorar lo publicado y proponer, sin cargar nada todavía: los datos del procedimiento (número, expediente, objeto, tipo, encuadre legal y fecha de autorización), los renglones con su cantidad, el cronograma, las garantías, y la lista de documentos disponibles (pliego, circulares, actos administrativos, acta de apertura, dictamen). | T-139, T-140, T-141, T-142, T-145 | ▶ en proceso |
-| REQ-047 | Si las ofertas ya están abiertas, la propuesta debe incluir cada oferta con su oferente, su CUIT, su total, su garantía (tipo, forma y monto) y el precio y la cantidad ofrecidos por renglón. | T-139, T-143, T-145 | ▶ en proceso |
-| REQ-048 | Nada se carga sin la aprobación de un evaluador; el operador puede aprobar solo la carga de documentos. La aprobación puede ser de toda la propuesta o ítem por ítem, y cada ítem aprobado o rechazado queda registrado con quién y cuándo (P6). | T-141, T-142, T-143, T-144, T-145 | ▶ en proceso |
-| REQ-049 | Cada documento y cada dato cargado desde el Portal debe conservar su origen (la página o el documento del Portal y la fecha de la consulta) y, para los documentos, el original sin cambios con su huella. | T-138, T-141, T-142, T-143, T-145 | ▶ en proceso |
-| REQ-050 | El sistema debe revisar periódicamente los procesos en curso y proponer las novedades (documentos o datos nuevos o cambiados) con el mismo circuito de aprobación. Lo ya aprobado no se vuelve a proponer. | T-139, T-144, T-145 | ▶ en proceso |
-| REQ-051 | La carga a mano sigue disponible para todo lo que el Portal no publique o no deje bajar, y convive con lo importado. | T-142, T-143, T-145 | ▶ en proceso |
+| REQ-045 | El sistema debe permitir registrar un proceso a partir del enlace público de su página en el Portal de Compras. | T-138, T-141, T-145 | ✓ cubierto |
+| REQ-046 | Con ese enlace, el sistema debe explorar lo publicado y proponer, sin cargar nada todavía: los datos del procedimiento (número, expediente, objeto, tipo, encuadre legal y fecha de autorización), los renglones con su cantidad, el cronograma, las garantías, y la lista de documentos disponibles (pliego, circulares, actos administrativos, acta de apertura, dictamen). | T-139, T-140, T-141, T-142, T-145 | ✓ cubierto |
+| REQ-047 | Si las ofertas ya están abiertas, la propuesta debe incluir cada oferta con su oferente, su CUIT, su total, su garantía (tipo, forma y monto) y el precio y la cantidad ofrecidos por renglón. | T-139, T-143, T-145 | ✓ cubierto |
+| REQ-048 | Nada se carga sin la aprobación de un evaluador; el operador puede aprobar solo la carga de documentos. La aprobación puede ser de toda la propuesta o ítem por ítem, y cada ítem aprobado o rechazado queda registrado con quién y cuándo (P6). | T-141, T-142, T-143, T-144, T-145 | ✓ cubierto |
+| REQ-049 | Cada documento y cada dato cargado desde el Portal debe conservar su origen (la página o el documento del Portal y la fecha de la consulta) y, para los documentos, el original sin cambios con su huella. | T-138, T-141, T-142, T-143, T-145 | ✓ cubierto |
+| REQ-050 | El sistema debe revisar periódicamente los procesos en curso y proponer las novedades (documentos o datos nuevos o cambiados) con el mismo circuito de aprobación. Lo ya aprobado no se vuelve a proponer. | T-139, T-144, T-145 | ✓ cubierto |
+| REQ-051 | La carga a mano sigue disponible para todo lo que el Portal no publique o no deje bajar, y convive con lo importado. | T-142, T-143, T-145 | ✓ cubierto |

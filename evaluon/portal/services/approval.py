@@ -231,7 +231,9 @@ def _decide_one(user, item_id, decision, confirmation, channel):
             return ItemResult(item, KEPT_AS_FILE)
         _event(item, user, channel, Outcome.OK, APPROVE, LOADED,
                loaded_model=item.loaded_model, loaded_id=item.loaded_id)
-        return ItemResult(item, LOADED)
+        # Un importador puede dejar en `item.notice` un aviso para quien aprobó (por ejemplo,
+        # que el Portal cambió el nombre o el objeto y el procedimiento conserva el anterior).
+        return ItemResult(item, LOADED, getattr(item, "notice", ""))
 
 
 def _end_if_dictamen(item, user, channel):

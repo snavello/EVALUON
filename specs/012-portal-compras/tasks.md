@@ -19,7 +19,7 @@ Dos tareas que no dependen entre sí y no comparten archivos se pueden hacer en 
 | T-142 | Importar los documentos: bajar el pliego, circulares y demás con su huella y cargarlos por `load_document` | REQ-046, REQ-048, REQ-049, REQ-051 | T-141 | terminada |
 | T-143 | Importar las ofertas: acta de apertura y cuadro comparativo, ofertas con garantía y cotización por renglón | REQ-047, REQ-048, REQ-049, REQ-051 | T-141 | terminada |
 | T-144 | Revisión periódica: una vez por día hábil y a demanda, con novedades y sin repetir lo decidido | REQ-050, REQ-048 | T-142, T-143 | terminada |
-| T-145 | Medir con el caso-00 y el proceso con circulares, corregir una ronda y dejar la medición | REQ-045, REQ-046, REQ-047, REQ-048, REQ-049, REQ-050, REQ-051 | T-144 | pendiente |
+| T-145 | Medir con el caso-00 y el proceso con circulares, corregir una ronda y dejar la medición | REQ-045, REQ-046, REQ-047, REQ-048, REQ-049, REQ-050, REQ-051 | T-144 | terminada |
 
 ## Paralelismo
 
