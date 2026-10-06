@@ -39,3 +39,22 @@
 - **Runbook (P5):** no existe un runbook de despliegue de la 003 (`Despliegue: pendiente` en `tasks.md`); `specs/001-normativa/entorno.md` no cubre `worker` ni `generation_batch`. Corresponde a la etapa 7, pero no se pudo comprobar el levantado desde cero.
 - **Historial de secretos:** solo búsqueda por patrones en el árbol actual.
 - **Tests con servicios de IA reales:** la suite usa dobles; el hilo con servicios reales no se corrió.
+
+---
+
+# Segunda vuelta · 2026-10-05
+
+Alcance: `specs/003-pliego-matriz/`, rango `b85a97e..c7def4a`. Texto del auditor (solo lectura), registrado por el Coordinador.
+
+**Resultado: aprobado con observaciones. Sin bloqueantes.** Los dos hallazgos de la primera vuelta quedan cerrados por la enmienda de la spec (ADR-0034) y T-147: P3 por fila de circular 10 de 10 (caso-03, #183 marcada) y 4 de 4 (caso-04); encontrados 65 de 65 en el caso-03 según la regla enmendada (63 automáticos, M-043 en otra fila, M-030 y M-032 confirmados a mano en #218 y #249 a #265).
+
+No bloqueantes:
+1. (P7) La suite del auditor se superpuso con una corrida suya anterior y dio errores de bloqueo de la base; repetidos los archivos afectados, todo en verde. Conviene avisar en el runbook que no se lancen dos corridas contra la misma base.
+2. (P7) Las medidas de aceptación son las declaradas en `verificacion/T-147.md` (no reproducibles sin GPU y casos reales); "65 de 65" incluye dos confirmaciones manuales.
+3. (P7) La regla de una raíz común de T-147 puede marcar de más; a la revisión con el primer producto.
+4. (P6) La memoria de video se anotó a mano: el contenedor `app` no tiene `nvidia-smi`; conviene una fuente automática.
+5. (P1) Falta la línea de despliegue aprobado (etapa 7).
+
+Controlado y en orden: trazabilidad de commits, P4 (sin clientes externos, sin datos de casos en el diff), P3, P6 y P8, tablero al día.
+
+No verificado: evals y mediciones reales, runbook desde cero (etapa 7), historial de secretos con herramienta dedicada.

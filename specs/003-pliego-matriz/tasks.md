@@ -672,6 +672,8 @@ Lo menor de la 003, que se encara con la 008 y la 004 terminadas, con el uso rea
 
 - Circulares (T-137, medición de la ronda 2): en el caso-03, la cláusula de cotización (#183, M-028) sigue mostrando "UN peso" como vigente sin marca propia (el aviso está en el renglón 6 y en las cláusulas #276 y #279); 20 de 22 filas marcadas por la pérdida de D7 no lo necesitaban (y 3 de 5 en el caso-04): la Comisión las descarta una por una. Ver `verificacion/T-137.md`.
 
+- Auditoría de la 003 (segunda vuelta): la regla de "una raíz común" de T-147 puede marcar de más (falta un test de que una raíz suelta no marque); la memoria de video no se registra sola en la medición (el contenedor `app` no tiene `nvidia-smi`); "encontrado en otra fila" no detecta el contenido repartido entre filas que no cubren la mitad del ancla (M-030 y M-032 del caso-03, confirmados a mano).
+
 ## Cobertura de requisitos
 
 | Requisito | Tareas |
