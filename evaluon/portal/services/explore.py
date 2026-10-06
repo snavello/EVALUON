@@ -170,7 +170,8 @@ def _save(link, exploration, origin, job, page, drafts, anomalies, parsed):
         for draft, sha in fresh:
             PortalItem.objects.create(
                 proposal=proposal, kind=draft.kind, key=draft.key, payload=draft.payload,
-                content_sha256=sha, damaged_fields=list(draft.damaged_fields), page=page,
+                content_sha256=sha, damaged_fields=list(draft.damaged_fields),
+                page=draft.page or page,
                 file=draft.file,
             )
     return proposal, counts, omitted
