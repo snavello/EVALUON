@@ -1,0 +1,17 @@
+{% comment %}Ítem "renglones" (T-141). La descripción dañada se muestra tal cual y marcada.{% endcomment %}
+<h3>Renglones ({{ item.payload.renglones|length }})</h3>
+<table>
+  <thead>
+    <tr><th scope="col">N.º</th><th scope="col">Descripción</th><th scope="col">Cantidad</th><th scope="col">Unidad</th></tr>
+  </thead>
+  <tbody>
+    {% for line in item.payload.renglones %}
+    <tr>
+      <td>{{ line.numero }}</td>
+      <td>{% if line.danado %}<mark class="damaged">{{ line.descripcion }}</mark> (texto dañado en el Portal){% else %}{{ line.descripcion }}{% endif %}</td>
+      <td>{{ line.cantidad|default_if_none:"—" }}</td>
+      <td>{{ line.unidad }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

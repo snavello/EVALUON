@@ -9,5 +9,6 @@ urlpatterns = [
     path("normas/", include("evaluon.norms.urls")),
     path("procedimientos/", include("evaluon.tenders.urls")),
     path("ofertas/", include("evaluon.offers.urls")),
+    path("importar/", include("evaluon.portal.urls")),
     path("", include("evaluon.queries.urls")),
 ]

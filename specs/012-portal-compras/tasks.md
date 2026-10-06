@@ -15,7 +15,7 @@ Dos tareas que no dependen entre sí y no comparten archivos se pueden hacer en 
 | T-138 | Preparar el esquema, la conexión acotada y la cola del Portal: tablas de `portal`, cambios de `tenders_job` y de auditoría, servicio `portal_worker`, cliente HTTP con lista de destinos y `entorno.md` | REQ-045, REQ-049 | — | terminada |
 | T-139 | Preparar los casos para probar: páginas reales del caso-00 y de un proceso con circulares (fuera del repositorio), calcos con datos inventados y lista esperada (Coordinador) | REQ-046, REQ-047, REQ-050 | — | terminada |
 | T-140 | Leer la página pública del proceso: datos básicos, renglones, cronograma, garantías y lista de documentos, con el texto normalizado | REQ-046 | T-138, T-139 | terminada |
-| T-141 | Corte vertical: registrar el enlace, explorar, proponer, aprobar ítem por ítem y cargar el procedimiento y los renglones, con pantalla | REQ-045, REQ-046, REQ-048, REQ-049 | T-138, T-140 | pendiente |
+| T-141 | Corte vertical: registrar el enlace, explorar, proponer, aprobar ítem por ítem y cargar el procedimiento y los renglones, con pantalla | REQ-045, REQ-046, REQ-048, REQ-049 | T-138, T-140 | terminada |
 | T-142 | Importar los documentos: bajar el pliego, circulares y demás con su huella y cargarlos por `load_document` | REQ-046, REQ-048, REQ-049, REQ-051 | T-141 | pendiente |
 | T-143 | Importar las ofertas: acta de apertura y cuadro comparativo, ofertas con garantía y cotización por renglón | REQ-047, REQ-048, REQ-049, REQ-051 | T-141 | pendiente |
 | T-144 | Revisión periódica: una vez por día hábil y a demanda, con novedades y sin repetir lo decidido | REQ-050, REQ-048 | T-142, T-143 | pendiente |
@@ -126,6 +126,7 @@ Dos tareas que no dependen entre sí y no comparten archivos se pueden hacer en 
 - **Requisitos:** REQ-050, REQ-048
 - **Nivel de verificación:** plena (lógica).
 - **Qué hay que hacer:**
+- **Aviso de tareas anteriores:** T-141: un ítem que cambió en el Portal no se puede cargar después de aprobar el cambio: el pedido queda `fallido` con `IntegrityError` (`portal_line_number_unique` o `portal_procedure_data_procedure_id_key`). Pasos: aprobar procedimiento y renglones, cambiar la página, correr `portal_review` y aprobar el ítem nuevo. La carga de un cambio tiene que actualizar lo cargado (con registro P6), no crearlo de nuevo.
   1. `services/schedule.py`: `enqueue_due(now)` (día hábil, hora, enlace en curso, `last_review_on` distinto de hoy, sin pedido en espera) y "Revisar ahora"; `procesar_portal` lo llama en cada vuelta (reloj inyectable para los tests).
   2. La revisión reutiliza la exploración: propone solo ítems nuevos o con otra huella que la última decidida; un ítem rechazado con la misma huella no se repite; si no hay novedades no se crea propuesta; un ítem cambiado se muestra "cambiado respecto de lo aprobado".
   3. Fin del seguimiento: al decidirse el ítem del dictamen o con el botón "Dejar de seguir".

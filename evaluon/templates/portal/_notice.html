@@ -1,0 +1,3 @@
+{% comment %}Aviso de fin de un pedido del Portal, que no tiene procedimiento (T-141); lo incluye tenders/_finished_notice.html.{% endcomment %}{% if notice.job.kind == "portal_review" %}La revisión{% else %}La exploración{% endif %} del Portal
+{% if notice.failed %}falló: {{ notice.job.error }}.{% else %}terminó.{% endif %}
+<a href="{% url 'portal:proposal' notice.job.target_id %}">Ver la propuesta</a>.
