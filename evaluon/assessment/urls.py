@@ -10,5 +10,6 @@ app_name = "assessment"
 
 urlpatterns = [
     path("", include("evaluon.assessment.urls_review")),
+    path("", include("evaluon.assessment.urls_questions")),
     path("par/<int:offer_id>/<int:requirement_id>/", results.pair, name="pair"),
 ]
