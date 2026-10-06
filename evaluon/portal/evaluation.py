@@ -54,6 +54,8 @@ from evaluon.portal.client import PortalClient, Response, https_transport
 from evaluon.portal.models import (
     ItemKind,
     ItemState,
+    PageKind,
+    PortalItem,
     PortalLine,
     PortalLink,
     PortalOfferData,
@@ -334,8 +336,14 @@ def _compare_documents(result, expected, link, transport, anomalies):
         if "PantallaError" in (entry.get("final_url") or ""):
             expected_errors += 1
             continue
-        ok = entry["sha256"] in downloaded
-        result.add("documentos", name, ok, "" if ok else "la huella esperada no se bajó")
+        stable = _stable_identity(name, entry, link)
+        if stable is None:  # PDF y demás archivos: la huella es la identidad
+            ok, why = entry["sha256"] in downloaded, "la huella esperada no se bajó"
+        else:  # páginas HTML: llevan campos que cambian en cada visita; se compara quién es
+            ok, why = stable, "el documento no se bajó (por su clase)"
+        if name.startswith("circular-"):
+            continue  # cada circular se mide abajo, por número, fecha y tipo
+        result.add("documentos", name, ok, "" if ok else why)
     for index in range(expected_errors):
         ok = index < len(error_anomalies)
         result.add("documentos", f"pantalla de error {index + 1}", ok,
@@ -346,7 +354,7 @@ def _compare_documents(result, expected, link, transport, anomalies):
         if link.proposals.exists() else {}
     for circular in expected.data.get("circulares") or []:
         mine = items.get(circular["numero"])
-        ok = (mine is not None and mine.payload["archivo"]["sha256"] == circular["sha256"]
+        ok = (mine is not None
               and _collapse(mine.payload.get("tipo_portal")) == _collapse(circular["tipo"])
               and mine.payload.get("fecha") == _iso(circular["fecha_publicacion"]))
         result.add("documentos", f"circular {circular['numero']}", ok,
@@ -650,3 +658,21 @@ def _summary(report, *, public):
     if public:
         lines += ["", "Los datos de los procesos y de los oferentes no figuran en este resumen."]
     return "\n".join(lines) + "\n"
+
+
+def _stable_identity(name, entry, link):
+    """Para una página HTML guardada (acta, dictamen, cuadro): si el documento de su clase
+    se bajó. La huella de esas páginas cambia en cada visita (campos del formulario y
+    direcciones con `qs`), así que no es su identidad; la clase, el número y la fecha sí.
+    `None` si no es una página HTML o no se la reconoce: se compara la huella."""
+    if "html" not in str(entry.get("tipo") or ""):
+        return None
+    classes = {i.payload.get("clase") for i in PortalItem.objects.filter(
+        proposal__link=link, kind=ItemKind.DOCUMENTO)}
+    if "ActaApertura" in name:
+        return "acta" in classes
+    if "Dictamen" in name:
+        return "dictamen" in classes
+    if "CuadroComparativo" in name:
+        return link.pages.filter(kind=PageKind.CUADRO).exists()
+    return None

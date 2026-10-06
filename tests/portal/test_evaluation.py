@@ -164,3 +164,22 @@ def test_the_live_pass_uses_the_real_client_and_skips_the_novelty(
     assert not any("Novedad" in line for line in report.blocking)
     parameters = json.loads((report.folder / "parametros.json").read_text("utf-8"))
     assert parameters["en_vivo"] is True and parameters["sin_conexion"] is False
+
+
+def test_html_pages_are_compared_by_identity_not_by_fingerprint(
+        tmp_path, evaluator_user, portal_settings, no_sockets):
+    """REQ-046: las páginas HTML cambian de huella en cada visita (pasada en vivo de T-145):
+    una circular con otra huella pero igual número, fecha y tipo cuenta; con otra fecha no."""
+    folder = make_case(tmp_path, page="proceso-con-circular.html", circular=True)
+    path = folder / "esperado" / "portal-esperado.yaml"
+    data = yaml.safe_load(path.read_text("utf-8"))
+    data["circulares"][0]["sha256"] = "0" * 64
+    data["documentos"].append({"archivo": "circular-1.bin", "tipo": "text/html",
+                               "sha256": "0" * 64})
+    path.write_text(yaml.safe_dump(data, allow_unicode=True), "utf-8")
+    _, result = evaluation.measure_case(evaluator_user, folder)
+    assert result.ratio("documentos")["ok"] == result.ratio("documentos")["total"]
+    data["circulares"][0]["fecha_publicacion"] = "03/07/2026"
+    path.write_text(yaml.safe_dump(data, allow_unicode=True), "utf-8")
+    _, result = evaluation.measure_case(evaluator_user, folder)
+    assert result.ratio("documentos")["ok"] < result.ratio("documentos")["total"]
