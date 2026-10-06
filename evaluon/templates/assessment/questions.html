@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Preguntas a la Comisión · {{ procedure.number }} · EVALUON{% endblock %}
+
+{% block content %}
+<h1>Preguntas a la Comisión · {{ procedure.number }}</h1>
+<p class="notice" role="note">Una pregunta sin responder no es fundamento de ningún resultado. Una respuesta no cambia lo ya evaluado: la Comisión decide si evalúa de nuevo.</p>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+{% if offered %}
+<section class="answer-offer" aria-labelledby="offer-title">
+  <h2 id="offer-title">Respuesta registrada</h2>
+  <p>La respuesta quedó registrada. Alcanza a {{ offered.pairs|length }} requisito{{ offered.pairs|length|pluralize }} evaluado{{ offered.pairs|length|pluralize }}:</p>
+  <ul>{% for offer, requirement in offered.pairs %}<li>Oferta {{ offer.number }} · requisito {{ requirement.number }}</li>{% endfor %}</ul>
+  {% if offered.decided %}
+  <p><small>Ya decididos por la Comisión, no se evalúan de nuevo: {% for offer, requirement in offered.decided %}oferta {{ offer.number }} · requisito {{ requirement.number }}{% if not forloop.last %}; {% endif %}{% endfor %}.</small></p>
+  {% endif %}
+  {% if can_answer and offered.pairs %}
+  {% if offered.whole %}
+  <form method="post" action="{% url 'assessment:reevaluate_answer' offered.answer.pk %}">
+    {% csrf_token %}
+    <button type="submit">Evaluar de nuevo esos requisitos</button>
+  </form>
+  {% endif %}
+  {% if offered.offers|length > 1 or not offered.whole %}
+  {% for offer in offered.offers %}
+  <form method="post" action="{% url 'assessment:reevaluate_answer' offered.answer.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="offer" value="{{ offer.pk }}">
+    <button type="submit">Evaluar de nuevo solo la oferta {{ offer.number }}</button>
+  </form>
+  {% endfor %}
+  {% endif %}
+  {% endif %}
+</section>
+{% endif %}
+
+{% for row in rows %}
+<section class="question" aria-labelledby="question-{{ row.question.pk }}">
+  <h2 id="question-{{ row.question.pk }}">Requisito {{ row.question.requirement.number }} · oferta {{ row.question.offer.number }}</h2>
+  <p>{{ row.question.text }}</p>
+  <p><small>Formulada el {{ row.question.created_at|date:"d/m/Y H:i" }}. <a href="{% url 'assessment:pair' row.question.offer.pk row.question.requirement.pk %}">Ver el par</a>.</small></p>
+  {% if row.answer %}
+  <p><strong>Respuesta de la Comisión</strong>, de {{ row.answer.answered_by.username }} el {{ row.answer.answered_at|date:"d/m/Y H:i" }} (alcance: {{ row.answer.get_scope_display }}):</p>
+  <blockquote>{{ row.answer.text }}</blockquote>
+  {% for old in row.previous_answers %}
+  <p><small>Respuesta anterior, reemplazada, de {{ old.answered_by.username }} el {{ old.answered_at|date:"d/m/Y H:i" }} ({{ old.get_scope_display }}): {{ old.text }}</small></p>
+  {% endfor %}
+  {% else %}
+  <p><em>Sin responder.</em></p>
+  {% endif %}
+  {% if can_answer %}
+  <form method="post" action="{% url 'assessment:answer' row.question.pk %}">
+    {% csrf_token %}
+    <p><label for="text-{{ row.question.pk }}">{% if row.answer %}Nueva respuesta (reemplaza a la vigente){% else %}Respuesta{% endif %}</label><br>
+      <textarea name="text" id="text-{{ row.question.pk }}" rows="3"></textarea></p>
+    <p><label for="scope-{{ row.question.pk }}">Se aplica a</label>
+      <select name="scope" id="scope-{{ row.question.pk }}">
+        {% for value, label in scopes %}<option value="{{ value }}"{% if value == default_scope %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select></p>
+    <button type="submit">Responder</button>
+  </form>
+  {% endif %}
+</section>
+{% empty %}
+<p>El sistema no formuló preguntas para este procedimiento.</p>
+{% endfor %}
+{% if not can_answer %}<p><small>Solo el evaluador de la Comisión responde.</small></p>{% endif %}
+{% endblock %}
