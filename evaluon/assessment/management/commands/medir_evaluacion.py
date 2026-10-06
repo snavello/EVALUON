@@ -73,7 +73,7 @@ class Command(BaseCommand):
                     procedure = Procedure.objects.get(number=number)
                 except Procedure.DoesNotExist:
                     raise CommandError("No hay un procedimiento con ese número.") from None
-                offers = {o.bidder: o for o in procedure.offers.all()}
+                offers = evaluation.resolve_offers(expected, procedure)
 
             if verify_only:
                 verification = evaluation.verify_expected(expected, offers)

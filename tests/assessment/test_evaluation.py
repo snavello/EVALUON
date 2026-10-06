@@ -295,3 +295,14 @@ def test_the_command_measures_the_small_case(db, operator_user, fake_ai, model, 
     with pytest.raises(CommandError):
         call_command("medir_evaluacion", "--usuario", operator_user.username,
                      stdout=StringIO())
+
+
+def test_bidder_names_of_the_dictamen_are_paired_with_the_loaded_offers():
+    """REQ-052 (caso-00): el dictamen nombra a «Munoz» y la oferta cargada es «Muñoz Insumos
+    Veterinarios SRL»; el nombre se parea sin tildes ni mayúsculas, y un nombre ambiguo no."""
+    names = ["Lombardozzi", "Muñoz Insumos Veterinarios SRL", "Ricardo José Zelarayan"]
+    assert ev.match_name("Munoz", names) == "Muñoz Insumos Veterinarios SRL"
+    assert ev.match_name("Zelarayan", names) == "Ricardo José Zelarayan"
+    assert ev.match_name("Lombardozzi", names) == "Lombardozzi"
+    assert ev.match_name("Perez", names) is None
+    assert ev.match_name("Muñoz", ["Muñoz Uno SA", "Muñoz Dos SA"]) is None

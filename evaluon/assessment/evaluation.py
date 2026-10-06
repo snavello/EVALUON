@@ -637,8 +637,9 @@ def _requirement_mapping(version, expected, fichas):
 
 def _fragments_for(expected, entry, fichas):
     """Fragmentos esperados y copias equivalentes de una oferta para REQ-054."""
-    if fichas is not None and entry.bidder in fichas.fragments:
-        return fichas.fragments[entry.bidder], fichas.equivalents.get(entry.bidder, {})
+    name = match_name(entry.bidder, fichas.fragments) if fichas is not None else None
+    if name is not None:
+        return fichas.fragments[name], fichas.equivalents.get(name, {})
     derived = [{"requisito": p.requirement, "documento": c["documento"], "pagina": c["pagina"]}
                for p in entry.pairs for c in p.citations]
     return derived, dict(entry.copies)
@@ -797,3 +798,42 @@ def _summary(report, *, public):
     else:
         lines += ["", "Los datos de los oferentes no figuran en este resumen."]
     return "\n".join(lines) + "\n"
+
+
+# --- Nombres de oferentes -----------------------------------------------------------------------
+
+
+def _plain(text):
+    """El nombre sin tildes, mayúsculas ni signos, para parear «Munoz» con «Muñoz Insumos S.R.L.»."""
+    import re
+    import unicodedata
+
+    decomposed = unicodedata.normalize("NFD", text or "")
+    base = "".join(c for c in decomposed if not unicodedata.combining(c))
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", base.lower()).split())
+
+
+def match_name(name, candidates):
+    """El candidato que corresponde a `name`: el igual o, si no hay, el único que contiene el
+    nombre (o está contenido en él) sin tildes ni mayúsculas. `None` si no hay o hay varios."""
+    candidates = list(candidates)
+    if name in candidates:
+        return name
+    wanted = _plain(name)
+    found = [c for c in candidates
+             if wanted and (wanted in _plain(c) or _plain(c) in wanted)]
+    return found[0] if len(found) == 1 else None
+
+
+def resolve_offers(expected, procedure):
+    """`{oferente de la lista: oferta del procedimiento}`; lanza `MeasurementRefused` si un
+    oferente de la lista no está cargado (o no se puede decir cuál es)."""
+    by_name = {o.bidder: o for o in procedure.offers.all()}
+    offers = {}
+    for entry in expected.offers:
+        name = match_name(entry.bidder, by_name)
+        if name is None:
+            raise MeasurementRefused("Un oferente de la lista no está cargado en el "
+                                     "procedimiento o su nombre no es unívoco.")
+        offers[entry.bidder] = by_name[name]
+    return offers
