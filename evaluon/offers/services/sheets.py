@@ -207,7 +207,7 @@ def _models():
             "model": settings.GENERATION_MODEL, "file": settings.GENERATION_MODEL_FILE,
             "sha256": settings.GENERATION_MODEL_SHA256,
             "engine_build": settings.GENERATION_ENGINE_BUILD,
-            "context_tokens": settings.GENERATION_CONTEXT_TOKENS},
+            "context_tokens": settings.GENERATION_BATCH_CONTEXT_TOKENS},
         "embeddings": {
             "model": settings.EMBEDDINGS_MODEL, "file": settings.EMBEDDINGS_MODEL_FILE,
             "sha256": settings.EMBEDDINGS_MODEL_SHA256},

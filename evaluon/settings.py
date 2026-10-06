@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.staticfiles",
     "evaluon.accounts",
+    "evaluon.assessment",
     "evaluon.audit",
     "evaluon.norms",
     "evaluon.offers",
@@ -329,6 +330,10 @@ NORM_SUPPORT_QUERY_MAX_CHARS = 800
 # Motor de generación de los pedidos del `worker` (ADR-0018). Apuntarlo a
 # `GENERATION_URL` vuelve a un solo motor sin cambiar código.
 GENERATION_BATCH_URL = env_str("GENERATION_BATCH_URL", "http://generation_batch:8080")
+# Contexto del servidor `generation_batch` (--ctx-size en docker-compose.yml). Es propio del
+# motor de lotes y mayor que el de `generation` (16.384) para la lectura completa de la
+# evaluación (plan 004, ADR-0037). Se registra con cada propuesta y evaluación (P6).
+GENERATION_BATCH_CONTEXT_TOKENS = int(env_str("GENERATION_BATCH_CTX_SIZE", "32768"))
 # Espera máxima de cada pedido del `worker` al modelo.
 GENERATION_BATCH_TIMEOUT_SECONDS = 180
 # Segundos entre consultas a la cola de pedidos cuando está vacía.
@@ -392,4 +397,28 @@ OFFERS_PROMPT_VERSIONS = {
     "ficha_renglon": "ficha-renglon-v4",
     # Reescritura del requisito como lo diría una oferta, para buscar (T-146).
     "reescritura": "reescritura-v1",
+}
+
+# --- Evaluación asistida de ofertas (plan 004, "Parámetros"; ADR-0037 a ADR-0040) ---------
+# Texto de oferta por pedido al modelo, en tokens: instrucciones, requisito, fundamentos,
+# salida y margen de plantilla (unos 6.000) caben en `GENERATION_BATCH_CONTEXT_TOKENS`.
+ASSESSMENT_GROUP_TOKENS = 20000
+# Máximo de grupos de documentos que se leen por oferta; más allá, el par queda con
+# lectura incompleta.
+ASSESSMENT_MAX_GROUPS = 4
+# Máximo de tokens de salida de cada pedido de lectura y de contraste.
+ASSESSMENT_MAX_OUTPUT_TOKENS = 700
+# Citas de la oferta por resultado y largo máximo de cada una, en caracteres.
+ASSESSMENT_MAX_CITATIONS = 4
+ASSESSMENT_CITATION_MAX_CHARS = 600
+# Espera máxima de cada pedido al modelo.
+ASSESSMENT_REQUEST_TIMEOUT_SECONDS = 300
+# Unidades de norma que respaldan un requisito y respuestas de la Comisión que se le dan al
+# modelo por par.
+ASSESSMENT_NORM_UNITS_MAX = 4
+ASSESSMENT_ANSWERS_MAX = 20
+# Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150).
+ASSESSMENT_PROMPT_VERSIONS = {
+    "evaluacion": "evaluacion-v1",
+    "contraste": "contraste-v1",
 }
