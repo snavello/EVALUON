@@ -55,7 +55,8 @@ from evaluon.assessment import models as am
 from evaluon.assessment.citations import PageFinder
 from evaluon.assessment.models import Channel as RunChannel
 from evaluon.assessment.services import evaluate
-from evaluon.audit.models import Channel
+from evaluon.audit import services as audit
+from evaluon.audit.models import Channel, EventType, Outcome
 from evaluon.offers import evaluation as sheets_measure
 from evaluon.offers.evaluation import (
     ExpectedError,
@@ -70,6 +71,7 @@ from evaluon.tenders import models as m
 from evaluon.tenders.evaluation import ratio
 from evaluon.tenders.proposal import quotes
 from evaluon.tenders.services import procedures as tender_procedures
+from evaluon.tenders.services.validation import _copy as copy_version
 from evaluon.tenders.services.validation import latest_validated
 
 __all__ = ["ExpectedError", "ExpectedNotApproved", "MeasurementRefused"]
@@ -835,3 +837,67 @@ def resolve_offers(expected, procedure):
                                      "procedimiento o su nombre no es unívoco.")
         offers[entry.bidder] = by_name[name]
     return offers
+
+
+# --- Rehacer la matriz de un procedimiento ya armado (T-156) -------------------------------------
+
+
+def rebuild_matrix(user, procedure, *, channel=Channel.COMMAND):
+    """Una versión nueva y validada de la matriz con todas las cláusulas de cada renglón.
+
+    La matriz que armó la 008 del caso-00 trae, en cada fila técnica, solo el encabezado del
+    renglón: el modelo comparaba títulos. Copia la última versión validada (la anterior no se
+    toca), reemplaza las citas de cada fila técnica por el encabezado y todas sus cláusulas
+    (`_descendant`), la deja validada por `user` y lo registra (P6, evento `matrix_version`,
+    acción `rebuilt`). Si ninguna fila cambia no crea nada. Devuelve la versión nueva y la
+    cantidad de filas cambiadas; lanza `MeasurementRefused` si no hay nada que rehacer."""
+    require_commission_role(user, CommissionRole.OPERATOR, operation=OPERATION + ".rebuild",
+                            channel=channel)
+    source = latest_validated(procedure)
+    if source is None:
+        raise MeasurementRefused("El procedimiento no tiene una matriz validada.")
+    if procedure.matrix_versions.filter(status=m.VersionStatus.DRAFT).exists():
+        raise MeasurementRefused("Hay un borrador abierto: se termina o se descarta antes.")
+    plans = {}
+    for requirement in source.requirements.filter(category="tecnico"):
+        first = requirement.quotes.order_by("order").select_related("segment__reading").first()
+        if first is None or not requirement.items:
+            continue
+        reading = first.segment.reading
+        header = next((item["key"] for item in reading.items
+                       if item["number"] == requirement.items[0]), None)
+        if header is None:
+            continue
+        chosen = [s for s in reading.segments.order_by("order") if _descendant(s.key, header)]
+        current = [q.segment_id for q in requirement.quotes.order_by("order")]
+        if [s.pk for s in chosen] != current:
+            plans[requirement.number] = chosen
+    if not plans:
+        raise MeasurementRefused(
+            "Las filas técnicas de la última matriz validada ya tienen todas sus cláusulas.")
+    with transaction.atomic():
+        number = procedure.matrix_versions.order_by("-number").first().number + 1
+        version = m.MatrixVersion.objects.create(
+            procedure=procedure, number=number, status=m.VersionStatus.DRAFT,
+            level=source.level, process=source.process, run=None, based_on=source,
+            created_by=user)
+        copied = copy_version(source, version)
+        for requirement in version.requirements.filter(number__in=plans):
+            requirement.quotes.all().delete()
+            for order, segment in enumerate(plans[requirement.number], start=1):
+                m.RequirementQuote.objects.create(
+                    requirement=requirement, order=order, segment=segment,
+                    char_start=segment.char_start, char_end=segment.char_end,
+                    text=segment.text, scope=m.QuoteScope.PROPIA)
+        version.status = m.VersionStatus.VALIDATED
+        version.validated_at = timezone.now()
+        version.validated_by = user
+        version.save(update_fields=["status", "validated_at", "validated_by"])
+        audit.record(
+            EventType.MATRIX_VERSION, outcome=Outcome.OK, channel=channel, user=user,
+            detail={"procedure": procedure.pk, "version": version.pk,
+                    "version_number": version.number, "based_on": source.pk,
+                    "based_on_number": source.number, "action": "rebuilt",
+                    "reason": "clausulas_de_renglon", "rows": sorted(plans),
+                    "copied": copied})
+    return version, len(plans)
