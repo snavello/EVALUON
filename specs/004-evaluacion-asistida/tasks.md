@@ -24,6 +24,11 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-155 | Medir el caso-00 contra el dictamen (medición base) | REQ-052, REQ-053, REQ-054, REQ-059 | T-149, T-151, T-152 | terminada |
 | T-156 | Corregir los hallazgos de T-155 y medir de nuevo (ronda 1) | REQ-052, REQ-053, REQ-054, REQ-059 | T-154, T-155 | pendiente |
 | T-157 | Solo si T-156 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) | REQ-052, REQ-053, REQ-054, REQ-059 | T-156 | pendiente |
+| T-159 | Descarga y verificación de archivos y servicio: proyector del 12B, 26B-A4B con su proyector, variables propias del lote, `--mmproj`, archivo `docker-compose.modelo-grande.yml`, prueba de humo con imagen y memoria medida | REQ-052 | — | pendiente |
+| T-160 | Lectura con visión de las páginas dudosas: criterio, imagen, transcripción, lectura nueva con origen `vision`, registro y pantalla rotulada, con tests | REQ-052, REQ-053, REQ-054 | T-159 | pendiente |
+| T-161 | Medir el caso-00 con el 12B y visión (referencia, y medición de la visión) | REQ-052, REQ-053, REQ-054, REQ-059 | T-158, T-160 | pendiente |
+| T-162 | Medir el caso-00 con el 26B-A4B y visión, comparar con T-161 y decidir según el umbral (ronda 1) | REQ-052, REQ-053, REQ-054, REQ-059 | T-161 | pendiente |
+| T-163 | Solo si T-162 quedó entre 2 y 3 pares de adoptarlo: un cambio igual para los dos modelos y las dos corridas de nuevo (ronda 2, la última) | REQ-052, REQ-053, REQ-054, REQ-059 | T-162 | pendiente |
 
 ## Paralelismo
 
@@ -34,6 +39,10 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **T-154 después de T-153**: edita la misma plantilla del par (`result.html`) y usa el servicio de decisiones de T-153. No toca el esquema.
 - **T-155 usa la GPU.** Empieza cuando terminaron T-149, T-151 y T-152; puede correr mientras T-153 y T-154 se desarrollan, porque no tocan la construcción de la evaluación. Una medición a la vez; nunca dos.
 - **T-156 y T-157 en secuencia.** T-156 espera también a T-154, para corregir sobre el producto completo.
+- Las ramas de tarea no tocan `tasks.md` ni el tablero (ADR-0025).
+
+- **Enmienda 2026-10-06 (ADR-0041 y ADR-0042).** T-159 y T-160 no usan la GPU para medir (T-159 solo una prueba de humo y la memoria; coordinar con quien tenga la GPU). T-159 toca configuración compartida (`docker-compose.yml`, `settings.py`, `.env.example`, `scripts/`): va sola entre las tareas que las toquen; antes de lanzarla, el Coordinador confirma que T-156 a T-158 no las tocan (si las tocan, T-159 va después). T-160 toca `evaluon/offers/` (archivo nuevo y una migración de opciones), `evaluate.py`, `documents.py` y `result.html`: no corre a la vez que T-156, T-157 ni T-158, que editan los mismos módulos de `assessment/`; si T-157 se hace, T-160 espera a que se integre.
+- **T-161, T-162 y T-163 usan la GPU y van después de T-158**, en secuencia y de a una. Ninguna otra medición ni carga de la GPU mientras corren. T-162 y T-163 cambian el motor de lotes por el 26B: nadie más evalúa en ese lapso.
 - Las ramas de tarea no tocan `tasks.md` ni el tablero (ADR-0025).
 
 ## Detalle
@@ -164,6 +173,68 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Archivos:** como T-156, más `specs/004-evaluacion-asistida/verificacion/T-157.md`.
 - **Verificación:** la medición con el mismo umbral.
 - **No tocar:** lo mismo que T-156.
+- **Entorno:** GPU, de a una.
+
+### T-159 · Descarga, verificación y servicio de los modelos
+
+- **Requisitos:** REQ-052
+- **Nivel de verificación:** plena (configuración compartida, memoria de video, archivos).
+- **Qué hay que hacer:**
+  1. `scripts/fetch_models.sh` y `scripts/models.sha256`: sumar el proyector del 12B (`mmproj-gemma-4-12b-it-qat-q4_0.gguf`, 175.115.616 bytes, SHA-256 `cb018338a7538a9814d994bfe54644c71eb7ed54e31eae2f721e45fd3c260da7`, misma revisión `29d097773436b69ff9feafd636ab4cf873786537`) a la lista normal, y una lista aparte, con la opción `--modelo-grande`, con los dos archivos del 26B-A4B en la revisión `d1c082be9cf3c8a514acf63b8761f4b41935842e`: `gemma-4-26B_q4_0-it.gguf` (14.439.363.584 bytes, SHA-256 `3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d`) y `gemma-4-26B-it-mmproj.gguf` (1.194.828.160 bytes, SHA-256 `a359953a076b877db30c31dbbb4c6d93b4a6e017ee5db5784247e4d4c0dd4f3b`). Antes de fijar, releer tamaños, huellas y revisión en la API de Hugging Face (`/api/models/<repo>/tree/<revisión>`) y corregir el ADR-0042 si algo difiere. Bajar y verificar con el script (es el único paso con internet). Los archivos no van al repositorio.
+  2. `docker-compose.yml`: `generation_batch` suma `--mmproj /models/${GENERATION_BATCH_MMPROJ_FILE:-mmproj-gemma-4-12b-it-qat-q4_0.gguf}` y toma modelo, alias y huella de variables propias (`GENERATION_BATCH_MODEL_FILE`, `GENERATION_BATCH_MODEL_ALIAS`, `GENERATION_BATCH_MODEL_SHA256`, por omisión las de `generation`); `app` y `worker` las reciben. `evaluon/settings.py` y `.env.example`: las variables y `GENERATION_BATCH_MODEL_SHA256`, y los registros de las evaluaciones y propuestas (`assessment/services/evaluate.py`, `tenders/proposal/run.py`, `offers/services/sheets.py`: una línea cada uno) leen el modelo del lote. Ajustar `tests/test_compose_env.py` y `tests/tenders/test_generation_batch.py` (los dos motores iguales salvo contexto, modelo, alias y proyector).
+  3. `docker-compose.modelo-grande.yml` (nuevo): sobrescribe `generation_batch` con el 26B-A4B y su proyector; no se usa salvo en la comparación.
+  4. Prueba de humo, de a una: levantar `generation_batch` con el 12B y el proyector (un pedido con una imagen pública inventada) y con el 26B y su proyector. Medir la memoria de video máxima con embeddings, reranker y `generation` cargados, con contexto 32.768 y con una imagen, y el tiempo de un pedido de unos 20.000 tokens de entrada y el de uno con imagen. Si la compilación `server-cuda-b11347` no carga el 26B o un proyector, informarlo sin cambiar la compilación. Anotar todo en `specs/004-evaluacion-asistida/entorno.md` y, si la espera de 180 s no alcanza, proponer el valor.
+- **Archivos:** `scripts/fetch_models.sh`, `scripts/models.sha256`, `docker-compose.yml`, `docker-compose.modelo-grande.yml`, `.env.example`, `evaluon/settings.py`, `evaluon/assessment/services/evaluate.py`, `evaluon/tenders/proposal/run.py`, `evaluon/offers/services/sheets.py` (una línea cada una), `tests/test_compose_env.py`, `tests/tenders/test_generation_batch.py`, `specs/004-evaluacion-asistida/entorno.md`, `docs/adr/0042-…md` (si cambia un dato).
+- **Verificación:** `docker compose run --rm app pytest tests/test_compose_env.py tests/tenders tests/assessment` en verde; la suite completa una vez al final; huellas verificadas por el script; memoria y tiempos de la prueba de humo en `entorno.md`.
+- **No tocar:** lógica de evaluación, `evaluon/offers/` (salvo la línea indicada), el esquema.
+- **Entorno:** descarga de 15,6 GB (15 a 45 minutos); la GPU solo para la prueba de humo, de a una.
+
+### T-160 · Lectura con visión de las páginas dudosas
+
+- **Requisitos:** REQ-052, REQ-053, REQ-054
+- **Nivel de verificación:** plena (lógica, datos, instrucciones al modelo, P3 y P6; incluye un cambio de opciones en el esquema de `offers`).
+- **Qué hay que hacer:**
+  1. `evaluon/offers/vision.py`: criterio de lectura dudosa (páginas `low_confidence`, `unread`, `without_text_unlisted` del informe de la última lectura, y toda página de un documento en formato imagen), tope `ASSESSMENT_VISION_MAX_PAGES`, dibujo de la página con pypdfium2 y su huella, pedido de transcripción al motor de lotes con la imagen, descarte de transcripciones vacías o con más de 30 % de `[ilegible]`, y lectura nueva del documento (`sequence` siguiente) con las páginas legibles de la anterior y las de visión con origen `vision`. Idempotente: no repite páginas ya leídas por visión.
+  2. `evaluon/assessment/prompts/vision-v1.md`, parámetros en `settings.py` (`ASSESSMENT_VISION_MAX_PAGES`, resolución, tokens por imagen) y valor `vision` en las opciones del origen del texto del pasaje (una migración de opciones en `offers`).
+  3. `assessment/services/evaluate.py`: antes de armar los documentos de una oferta, pedir la lectura por visión de sus páginas dudosas; registrar en `assessment_run.documents` qué lecturas por visión se usaron; marcar el resultado cuando una cita de la oferta cae en una página por visión. `documents.py`: una página por visión cuenta como leída.
+  4. Informe de la lectura con el registro de P6 (modelo, huellas, compilación, parámetros, versión de instrucciones, motivo por página, huella de la imagen, pedido, salida cruda, tokens, tiempos).
+  5. Pantalla del par (`result.html`): la cita de una página por visión rotulada "leída por visión", con la imagen de la página y el enlace al original.
+  6. Comando `leer_con_vision` para correrla a mano sobre una oferta.
+- **Archivos:** `evaluon/offers/vision.py`, `evaluon/offers/models.py` y su migración (solo opciones), `evaluon/assessment/prompts/vision-v1.md`, `evaluon/assessment/services/evaluate.py`, `evaluon/assessment/documents.py`, `evaluon/settings.py`, `evaluon/templates/assessment/result.html`, `evaluon/assessment/views/results.py`, `evaluon/offers/management/commands/leer_con_vision.py`, `tests/offers/test_vision.py`, `tests/assessment/test_vision_flow.py`, `tests/assessment/fakes.py` (modelo simulado con imagen), datos inventados en `tests/assessment/data/` (una página de texto inventado dibujada como imagen y una foto de tabla inventada).
+- **Verificación:** `docker compose run --rm app pytest tests/offers tests/assessment`; la suite completa una vez al final. Tests de: el criterio (legible no va, dudosa e ilegible sí, formato imagen sí, tope respetado); una transcripción con demasiado `[ilegible]` deja la página sin leer; la lectura nueva conserva las páginas legibles y no toca la anterior; la cita sobre una página por visión es igual al recorte del canónico y una no ubicable degrada a "no determinado"; el registro trae modelo, huellas e imagen; la pantalla rotula; sin `--mmproj` o con el tope en 0 el flujo sigue igual. Una corrida con la página inventada y el motor real.
+- **No tocar:** otro esquema que el valor de opciones; `combine.py`, `prompting.py`, las instrucciones de evaluación y el contraste; el compose y la configuración de T-159; la lista esperada.
+- **Entorno:** la prueba con el motor real usa la GPU, de a una.
+
+### T-161 · Medir el caso-00 con el 12B y visión (referencia)
+
+- **Requisitos:** REQ-052, REQ-053, REQ-054, REQ-059
+- **Nivel de verificación:** plena (medición con umbral escrito).
+- **Qué hay que hacer:** con el código que deja T-158 y la visión de T-160, correr `medir_evaluacion` sobre el caso-00 con el 12B del lote, sobre una base limpia, con la misma lista esperada y `fichas-esperadas.yaml`. Registrar las páginas que fueron a visión (cuántas, por qué criterio), el tiempo por oferta y por pedido, los tokens y la memoria de video máxima, y clasificar cada par que cambió de resultado respecto de la última medición de T-158. Es la referencia de T-162. No corrige nada.
+- **Umbral (escrito antes de medir):** el del ADR-0041 (0 contradicciones; al menos 3 de los 10 pares de datos que no se leen pasan a coincidir; ningún par que coincidía deja de coincidir por una transcripción inventada; citas sobre páginas por visión 100 % literales) más el de la tabla del plan para el caso-00. Una ronda de ajuste de `vision-v1.md` o de la resolución si no llega (dentro de esta tarea, con commit propio y nueva versión); una segunda solo si la primera acercó.
+- **Archivos:** `specs/004-evaluacion-asistida/verificacion/T-161.md` (solo identificadores, cuentas, causas y tiempos); ajustes de `vision-v1.md` y parámetros si hace falta. La corrida completa queda en `corpus/casos/caso-00/corridas/`.
+- **Verificación:** el resumen público con proporciones e intervalos y la lista de pares que cambiaron, con su causa.
+- **No tocar:** el código de evaluación, la lista esperada, el compose; ningún dato real al repositorio.
+- **Entorno:** GPU, de a una; no corre con otra medición.
+
+### T-162 · Medir con el 26B-A4B y decidir (ronda 1)
+
+- **Requisitos:** REQ-052, REQ-053, REQ-054, REQ-059
+- **Nivel de verificación:** plena.
+- **Qué hay que hacer:** recrear `generation_batch` con `docker-compose.modelo-grande.yml` (el 26B-A4B y su proyector, descargados en T-159), comprobar la huella y la memoria, correr exactamente la misma medición de T-161 (mismo código, instrucciones, lecturas, matriz y lista esperada), y comparar par por par. Informar el tiempo por oferta y por pedido, los tokens, la memoria máxima y el tiempo total del caso-00. Aplicar la tabla de adopción del ADR-0042 y dejar el veredicto: adoptar, quedarse con el 12B, o segunda ronda. Al terminar, restaurar `generation_batch` con el compose base y verificar que arranca con el 12B. Si se adopta, el responsable decide y se redacta el ADR de reemplazo del modelo del lote; esta tarea no cambia el compose base.
+- **Umbral (escrito antes de medir, ADR-0042):** 0 contradicciones; 0 conclusiones sin cita y citas 100 % literales; pares que pasan a coincidir menos pares que dejan de coincidir de al menos 4 sobre la referencia y 2 de los 4 desaciertos del modelo recuperados; incumplimientos reales detectados no menos que la referencia; cada par que cambia, explicado; tiempo hasta 30 minutos por oferta (decisión del responsable, 2026-10-06); memoria máxima hasta 22.000 MiB y ningún pedido fallido por memoria o espera.
+- **Archivos:** `specs/004-evaluacion-asistida/verificacion/T-162.md` (solo identificadores, cuentas, causas, tiempos y el veredicto); la corrida en `corpus/casos/caso-00/corridas/`.
+- **Verificación:** resumen público de las dos corridas lado a lado, la lista de pares que cambian con su causa y la tabla de adopción completa.
+- **No tocar:** el compose base, el código, la lista esperada. Nada se ajusta al 26B.
+- **Entorno:** GPU, de a una; el 12B del lote apagado durante la corrida.
+
+### T-163 · Ronda 2 de la comparación (condicional)
+
+- **Requisitos:** REQ-052, REQ-053, REQ-054, REQ-059
+- **Nivel de verificación:** el de T-162.
+- **Qué hay que hacer:** solo si T-162 cumplió los puntos de seguridad, tiempo y memoria y quedó entre 2 y 3 pares de la mejora exigida: un único cambio (presupuesto de grupo o instrucción del contraste), el mismo para los dos modelos, y las dos corridas de nuevo en secuencia, con el 12B primero. Lo que no llegue queda con el 12B y pasa, con su impacto, a la lista de revisión con el primer producto (ADR-0024). No hay tercera ronda salvo que el faltante haga perder un requisito o viole un principio (ADR-0025).
+- **Archivos:** como T-162, más `specs/004-evaluacion-asistida/verificacion/T-163.md`.
+- **Verificación:** la misma tabla de adopción.
+- **No tocar:** lo mismo que T-162.
 - **Entorno:** GPU, de a una.
 
 ## Revisión con el primer producto
