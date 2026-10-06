@@ -58,6 +58,7 @@ Usa la GPU: de a una, sin otra medición ni pedido del `worker` (ADR-0025). Ante
 
 - Caso chico y público (arma el caso en la base y lo mide):
   `docker compose run --rm app python manage.py medir_fichas --usuario NOMBRE --caso-chico`
+- Si falla al guardar la corrida (carpeta de solo lectura), agregar `--corridas evals/corridas-fichas`.
 - Solo comprobar la lista de fragmentos esperados contra la lectura, sin usar el modelo de generación (la lectura del caso sí usa embeddings):
   `docker compose run --rm app python manage.py medir_fichas --usuario NOMBRE --caso-chico --verificar-esperada`
 - Un caso real ya cargado: `--procedimiento NUMERO --esperada corpus/casos/CASO/esperado/fichas-esperadas.yaml --commit HASH` (`--commit` hace falta: el contenedor no tiene `.git`).
@@ -90,8 +91,18 @@ Según el caso:
 
 ## 8. Prueba del runbook (2026-10-05)
 
-Proyecto de pruebas `evaluon-dep008` (imagen `evaluon-app:dep008`, puerto 18008, claves propias en `.env`), sin tocar el proyecto `evaluon`. Salteado lo que usa la GPU, porque había una medición de la 003 en curso (`medir_matriz`).
+Proyecto de pruebas `evaluon-dep008` (imagen `evaluon-app:dep008`, puerto 18008, claves propias en `.env`, base propia). Para no cargar la GPU con otros motores, `app` y `worker` se sumaron a la red `evaluon_internal` del proyecto principal (archivo de compose adicional, fuera del repositorio) y se apuntaron `GENERATION_BATCH_URL`, `EMBEDDINGS_URL` y `RERANKER_URL` a esos contenedores, con `POSTGRES_HOST` apuntando a la base de prueba. No se reinició nada del proyecto principal. Antes de cada corrida se comprobó que no hubiera una medición en curso. Al final, `down -v`.
 
-Probado: construir la imagen; levantar `db`; secciones 1 (hasta `app` sana y pantalla respondiendo, con `--no-deps`) y 2 completa (`migrate` se niega con datos y sin respaldo; `pg_dump`; `migrate`; `migrate --check`); reversa de la sección 6 (opciones 2 y 3); alta de usuario; redirección a ingreso de las rutas de la 008; `down -v`.
+Probado, todo con resultado correcto:
 
-No probado: cargar una oferta, armar y ver la ficha, `reclasificar_documentos`, `rearmar_pasajes` y `medir_fichas --caso-chico --verificar-esperada`: leer el caso chico necesita el servicio de embeddings (GPU). Sin él, el comando falla con el error de la sección 7. Falta correrlos con la GPU libre.
+- construir la imagen, levantar `db`, `migrate` (43 migraciones en base vacía), alta de usuario y `app` sana;
+- sección 2 completa: `migrate` se niega con datos, `pg_dump`, `migrate`, `migrate --check`, y la reversa y la restauración de la sección 6 (opciones 2 y 3);
+- `medir_fichas --caso-chico --verificar-esperada`: "Documentos 5, anclas 7, páginas no legibles 1: sin fallas";
+- `medir_fichas --caso-chico`: 7 de 7 fragmentos, texto literal 9 de 9, síntesis sin juicio 8 de 8, renglones 3 de 3, falsos hallazgos 0, "Bloquea la aceptación: nada";
+- `cargar_oferta` con dos PDF del caso chico (oferente B), lectura por el `worker`, botón "Armar ficha" (pedido `build_sheet` terminado) y ficha en `/ofertas/fichas/ID/` con sus filas "no se encontró" y los hallazgos;
+- `reclasificar_documentos` (0 cambios) y `rearmar_pasajes` (0 documentos con lectura nueva) sobre el caso chico.
+
+Hallazgos de la prueba, a devolver al desarrollo (no se tocó código):
+
+- `medir_fichas --caso-chico` sin `--corridas` falla al guardar la corrida: la carpeta por omisión (`tests/offers/data/caso-chico/corridas`) está en un montaje de solo lectura. Con `--corridas evals/corridas-fichas` (carpeta con escritura) funciona. En Git Bash, una ruta que empiece con `/` se convierte a una de Windows: usar la ruta relativa, o anteponer `MSYS_NO_PATHCONV=1`.
+- Con `-T` y la clave por la entrada estándar la medición anda, pero escribe la clave en pantalla; solo para pruebas.

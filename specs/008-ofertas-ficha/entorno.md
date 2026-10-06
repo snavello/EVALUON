@@ -47,4 +47,5 @@ Sobre una base al día de la 003 se aplican también `audit/0006_portal`, `tende
 - Memoria del equipo: el núcleo de WSL2 tiene 15,3 GiB; por eso `GENERATION_CACHE_RAM=2048` (T-090).
 - Disco: cada oferta guarda sus PDF originales, las lecturas con huella y los pasajes con vector; contar decenas de MB por oferta, más los respaldos de `backups/`.
 - Tiempos (plan, "Tiempos y GPU"): de 2 a 5 minutos de modelo por oferta (35 a 45 filas). El OCR corre en CPU y se mide por página. Armar fichas y medir usan la GPU: una sola corrida a la vez (ADR-0025).
+- Probado el 2026-10-05 con `app` y `worker` unidos a la red de los motores de otro proyecto: sirve para probar sin duplicar la GPU (ver runbook, sección 8).
 - Los casos reales (pliegos y ofertas) quedan solo en el equipo, en `corpus/casos/` (ignorada por git); no se suben (P4).
