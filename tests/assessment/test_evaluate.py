@@ -232,6 +232,25 @@ def test_a_citation_that_cannot_be_located_lowers_the_cumple_to_undetermined(
     assert not model.contrast_calls
 
 
+def test_a_citation_with_the_wrong_alias_is_located_in_the_document_that_has_it(
+        offer, operator_user, procedure, model):
+    """REQ-053, T-157: el modelo copió bien el texto pero nombró otro documento del grupo; el
+    sistema lo ubica en el documento que de verdad lo tiene y lo anota como anomalía."""
+    def function(call):
+        if "declaración jurada" in call.requirement:
+            right = call.alias_with(DECLARATION)
+            wrong = next(a for a in call.documents if a != right)
+            return says("cumple", (wrong, DECLARATION))
+
+    model.evaluates(function)
+    _, runs = run_all(operator_user, procedure)
+    result = results_of(runs[0])[number_of(procedure, "declaración jurada")]
+    assert result.outcome == "cumple"
+    cite = offer_cites(result)[0]
+    assert cite.document.file_name == "oferta.pdf" and cite.text == DECLARATION
+    assert any(a["type"] == "cita_en_otro_documento" for a in runs[0].anomalies)
+
+
 def test_the_retry_can_rescue_a_citation(offer, operator_user, procedure, model):
     """REQ-053: el reintento con el aviso puede dar una cita ubicada."""
     def function(call):
@@ -690,7 +709,7 @@ def test_everything_the_model_was_asked_is_recorded(offer, operator_user, proced
     assert step.documents[0]["tokens"] > 0 and step.prompt_tokens is not None
     assert step.request["response_format"]["type"] == "json_schema"
     assert run.models_used["generation_batch"]["context_tokens"] == 32768
-    assert run.prompt_versions == {"evaluacion": "evaluacion-v2", "contraste": "contraste-v2"}
+    assert run.prompt_versions == {"evaluacion": "evaluacion-v3", "contraste": "contraste-v2"}
     assert run.parameters["group_tokens"] == 20000
     assert run.norms["matrix_version"] == 1 and run.norms["authorization_date"]
     assert run.matrix_version == request.matrix_version and run.channel == "eval"

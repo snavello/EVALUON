@@ -407,10 +407,10 @@ ASSESSMENT_GROUP_TOKENS = 20000
 # lectura incompleta.
 ASSESSMENT_MAX_GROUPS = 4
 # Máximo de tokens de salida de cada pedido de lectura y de contraste.
-ASSESSMENT_MAX_OUTPUT_TOKENS = 700
+ASSESSMENT_MAX_OUTPUT_TOKENS = 1400
 # Citas de la oferta por resultado y largo máximo de cada una, en caracteres.
 ASSESSMENT_MAX_CITATIONS = 4
-ASSESSMENT_CITATION_MAX_CHARS = 600
+ASSESSMENT_CITATION_MAX_CHARS = 1000
 # Espera máxima de cada pedido al modelo.
 ASSESSMENT_REQUEST_TIMEOUT_SECONDS = 300
 # Unidades de norma que respaldan un requisito y respuestas de la Comisión que se le dan al
@@ -419,6 +419,6 @@ ASSESSMENT_NORM_UNITS_MAX = 4
 ASSESSMENT_ANSWERS_MAX = 20
 # Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150).
 ASSESSMENT_PROMPT_VERSIONS = {
-    "evaluacion": "evaluacion-v2",
+    "evaluacion": "evaluacion-v3",
     "contraste": "contraste-v2",
 }

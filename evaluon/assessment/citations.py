@@ -13,6 +13,7 @@ pantalla de la matriz); si no coincide con el guardado, la página sale de los p
 nunca cruzan una página.
 """
 
+import re
 from dataclasses import dataclass
 
 from django.conf import settings
@@ -26,6 +27,8 @@ ANOMALY_NOT_FOUND = "cita_no_ubicada"
 ANOMALY_UNKNOWN_ALIAS = "alias_inexistente"
 ANOMALY_TOO_LONG = "cita_larga"
 ANOMALY_REPEATED = "cita_repetida"
+ANOMALY_ELLIPSIS = "cita_con_puntos_suspensivos"
+ANOMALY_OTHER_DOCUMENT = "cita_en_otro_documento"
 
 
 @dataclass(frozen=True)
@@ -52,12 +55,19 @@ SCAN_NOISE = frozenset("*°º˚|¦_~^`´¨·•")
 MIN_FOLDED_CHARS = 12
 
 
+# Marca que el lector de PDF deja donde no pudo traducir un carácter, p. ej. `(cid:13)` (T-157).
+READER_MARK = re.compile(r"\(cid:\d+\)")
+
+
 def _fold(text):
-    """El texto sin espacios ni ruido de escaneo y, para cada carácter que queda, su posición
-    en el original."""
+    """El texto sin espacios, sin ruido de escaneo y sin marcas del lector y, para cada
+    carácter que queda, su posición en el original."""
+    skipped = set()
+    for mark in READER_MARK.finditer(text):
+        skipped.update(range(mark.start(), mark.end()))
     chars, positions = [], []
     for index, char in enumerate(text):
-        if not char.isspace() and char not in SCAN_NOISE:
+        if index not in skipped and not char.isspace() and char not in SCAN_NOISE:
             chars.append(char)
             positions.append(index)
     return "".join(chars), positions
@@ -117,30 +127,66 @@ class PageFinder:
         return min(pages) if pages else None
 
 
-def locate_quote(document, quote, finder, used=(), anomalies=None):
-    """Ubica `quote` (texto del modelo) en el documento `document` (`DocumentText`). Devuelve
-    una `Located`, o `None` con la anomalía anotada en `anomalies` (una lista) si no está,
-    es más larga que `ASSESSMENT_CITATION_MAX_CHARS` o repite una ya ubicada (`used`, de
-    `Located.span`)."""
-    anomalies = anomalies if anomalies is not None else []
-    reading = document.reading
-    if len(quote or "") > settings.ASSESSMENT_CITATION_MAX_CHARS:
-        anomalies.append({"type": ANOMALY_TOO_LONG, "document": document.document.pk,
-                          "chars": len(quote)})
-        return None
-    span = locate_text(reading.canonical_text, quote) if reading is not None else None
-    if span is None:
-        anomalies.append({"type": ANOMALY_NOT_FOUND, "document": document.document.pk,
-                          "quote": (quote or "")[:120]})
-        return None
-    if (document.document.pk, *span) in used:
-        anomalies.append({"type": ANOMALY_REPEATED, "document": document.document.pk})
+MIN_PIECE_CHARS = 20
+ELLIPSIS = re.compile(r"\.{3,}|…")
+
+
+def _locate_in(reading, quote):
+    return locate_text(reading.canonical_text, quote) if reading is not None else None
+
+
+def _make(document, reading, span, finder, anomalies, used):
+    """La `Located` de `span`, o `None` (con la anomalía) si repite una ya ubicada o no se puede
+    decir su página."""
+    if (document.pk, *span) in used:
+        anomalies.append({"type": ANOMALY_REPEATED, "document": document.pk})
         return None
     start, end = span
     page = finder.page_of(reading, start, end)
     if page is None:
-        anomalies.append({"type": ANOMALY_NOT_FOUND, "document": document.document.pk,
-                          "quote": (quote or "")[:120], "reason": "sin página"})
+        anomalies.append({"type": ANOMALY_NOT_FOUND, "document": document.pk,
+                          "reason": "sin página"})
         return None
-    return Located(document=document.document, reading=reading, page=page, char_start=start,
+    return Located(document=document, reading=reading, page=page, char_start=start,
                    char_end=end, text=reading.canonical_text[start:end])
+
+
+def locate_quote(document, quote, finder, used=(), anomalies=None, others=()):
+    """Ubica `quote` (texto del modelo) en el documento `document` (`DocumentText`). Devuelve
+    una `Located`, o `None` con la anomalía anotada en `anomalies` (una lista) si no está,
+    es más larga que `ASSESSMENT_CITATION_MAX_CHARS` o repite una ya ubicada (`used`, de
+    `Located.span`).
+
+    Dos tolerancias (T-157) que no aceptan nada que no sea literal: si el texto no está en el
+    documento que el modelo nombró pero está en exactamente uno de `others` (los demás
+    documentos que recibió), se ubica ahí; y si la cita une trozos con puntos suspensivos, se
+    guarda el trozo literal más largo."""
+    anomalies = anomalies if anomalies is not None else []
+    if len(quote or "") > settings.ASSESSMENT_CITATION_MAX_CHARS:
+        anomalies.append({"type": ANOMALY_TOO_LONG, "document": document.document.pk,
+                          "chars": len(quote)})
+        return None
+    span = _locate_in(document.reading, quote)
+    if span is not None:
+        return _make(document.document, document.reading, span, finder, anomalies, used)
+    pieces = sorted((p.strip() for p in ELLIPSIS.split(quote or "")), key=len, reverse=True)
+    pieces = [p for p in pieces if p]
+    candidates = [p for p in pieces if len(p) >= MIN_PIECE_CHARS] if len(pieces) > 1 else [quote]
+    for candidate in candidates:
+        hits = [(entry, _locate_in(entry.reading, candidate)) for entry in (document, *others)]
+        hits = [(entry, where) for entry, where in hits if where is not None]
+        own = [hit for hit in hits if hit[0] is document]
+        hits = own or hits
+        if len(hits) != 1:
+            continue
+        entry, where = hits[0]
+        if candidate is not quote:
+            anomalies.append({"type": ANOMALY_ELLIPSIS, "document": entry.document.pk})
+        if entry is not document:
+            anomalies.append({"type": ANOMALY_OTHER_DOCUMENT,
+                              "declared": document.document.pk,
+                              "document": entry.document.pk})
+        return _make(entry.document, entry.reading, where, finder, anomalies, used)
+    anomalies.append({"type": ANOMALY_NOT_FOUND, "document": document.document.pk,
+                      "quote": (quote or "")[:120]})
+    return None

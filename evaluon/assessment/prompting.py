@@ -126,7 +126,7 @@ def evaluation_schema(doc_aliases, support_aliases):
             "explicacion": {"type": "string"},
             "externo": {"type": "boolean"},
             "pregunta": {"type": "string"},
-            # Opcional: solo en un "no cumple" de un renglón (evaluacion-v2).
+            # Opcional: solo en un "no cumple" de un renglón (evaluacion-v2; v3 sigue igual).
             "clausula": {"type": "string"},
         },
         "required": ["resultado", "exigencia", "citas", "fundamentos", "explicacion",

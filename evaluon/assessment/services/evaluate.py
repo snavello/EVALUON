@@ -391,7 +391,8 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
                     step.anomalies.append({"type": ANOMALY_UNKNOWN_ALIAS, "alias": alias})
                     continue
                 found = citing.locate_quote(piece.doc, quote, ctx.finder, used,
-                                            step.anomalies)
+                                            step.anomalies,
+                                            others=[p.doc for p in pieces if p is not piece])
                 if found is not None:
                     located.append(found)
                     used.add(found.span)
