@@ -22,11 +22,13 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-153 | Revisión: confirmar, corregir y rechazar cada propuesta, con historial y fundamentos a la vista | REQ-053, REQ-056 | T-150 | terminada |
 | T-154 | Preguntas a la Comisión, respuestas como fundamento y subsanación con su recorrido | REQ-055, REQ-056, REQ-060 | T-153 | terminada |
 | T-155 | Medir el caso-00 contra el dictamen (medición base) | REQ-052, REQ-053, REQ-054, REQ-059 | T-149, T-151, T-152 | terminada |
-| T-156 | Corregir los hallazgos de T-155 y medir de nuevo (ronda 1) | REQ-052, REQ-053, REQ-054, REQ-059 | T-154, T-155 | pendiente |
-| T-157 | Solo si T-156 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) | REQ-052, REQ-053, REQ-054, REQ-059 | T-156 | pendiente |
+| T-156 | Corregir los hallazgos de T-155 y medir de nuevo (ronda 1) | REQ-052, REQ-053, REQ-054, REQ-059 | T-154, T-155 | terminada |
+| T-157 | Solo si T-156 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) | REQ-052, REQ-053, REQ-054, REQ-059 | T-156 | terminada |
+| T-158 | Contraste por cláusula de un cumple técnico: cero contradicciones con el dictamen (tercera ronda por la contradicción M-051, decisión del responsable) | REQ-052, REQ-053 | T-157 | terminada |
+| T-164 | Corregir los hallazgos de T-158: el no cumple técnico exige una cita de la oferta que contradiga la cláusula (F-1) y el contraste por cláusula acota cláusulas y tokens (F-2); se mide con T-161 | REQ-052, REQ-053 | T-158 | pendiente |
 | T-159 | Descarga y verificación de archivos y servicio: proyector del 12B, 26B-A4B con su proyector, variables propias del lote, `--mmproj`, archivo `docker-compose.modelo-grande.yml`, prueba de humo con imagen y memoria medida | REQ-052 | — | pendiente |
 | T-160 | Lectura con visión de las páginas dudosas: criterio, imagen, transcripción, lectura nueva con origen `vision`, registro y pantalla rotulada, con tests | REQ-052, REQ-053, REQ-054 | T-159 | pendiente |
-| T-161 | Medir el caso-00 con el 12B y visión (referencia, y medición de la visión) | REQ-052, REQ-053, REQ-054, REQ-059 | T-158, T-160 | pendiente |
+| T-161 | Medir el caso-00 con el 12B y visión (referencia, y medición de la visión y de T-164) | REQ-052, REQ-053, REQ-054, REQ-059 | T-160, T-164 | pendiente |
 | T-162 | Medir el caso-00 con el 26B-A4B y visión, comparar con T-161 y decidir según el umbral (ronda 1) | REQ-052, REQ-053, REQ-054, REQ-059 | T-161 | pendiente |
 | T-163 | Solo si T-162 quedó entre 2 y 3 pares de adoptarlo: un cambio igual para los dos modelos y las dos corridas de nuevo (ronda 2, la última) | REQ-052, REQ-053, REQ-054, REQ-059 | T-162 | pendiente |
 
@@ -174,6 +176,23 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Verificación:** la medición con el mismo umbral.
 - **No tocar:** lo mismo que T-156.
 - **Entorno:** GPU, de a una.
+
+### T-158 · Contraste por cláusula de un cumple técnico
+
+- **Requisitos:** REQ-052, REQ-053
+- **Resultado:** ver `verificacion/T-158.md` (0 contradicciones, 0 conclusiones sin cita; coincidencia 22 de 49).
+
+### T-164 · Hallazgos de T-158 (F-1 y F-2)
+
+- **Requisitos:** REQ-052, REQ-053
+- **Nivel de verificación:** plena (lógica e instrucciones al modelo).
+- **Qué hay que hacer:**
+  1. F-1: un "no cumple" técnico por cláusula exige, además de la cláusula literal del pliego, una cita literal de la oferta que la contradiga (ubicada en el texto canónico, ADR-0038). Sin esa cita, o si el motivo es la calidad de la lectura (escaneo, OCR), el resultado es "no determinado" con pregunta, nunca "no cumple".
+  2. F-2: el contraste por cláusula agrupa las cláusulas del renglón (tope de cláusulas por pedido, sin partir fórmulas o tablas en líneas sueltas) y su salida no se corta: tokens suficientes o pedidos en partes. Una salida cortada se reintenta en partes antes de degradar a "sin_corroborar".
+  3. El contraste por cláusula ve el documento de la oferta que respalda la cita (no solo la cita), para que una cláusula del encabezado del renglón no quede "no_aparece" cuando está en el documento (caso M-048).
+- **Archivos:** `evaluon/assessment/prompts/clausulas-v2.md` (nueva versión; la v1 no se edita), `combine.py`, `services/evaluate.py`, `prompting.py`, `settings.py`, tests del área con datos inventados.
+- **Verificación:** tests de cada punto (cita que contradice, motivo de lectura, salida cortada, cláusula en el documento y no en la cita); la suite completa una vez al final. No se mide sola: la medición del caso-00 va en T-161 (ADR-0025, una medición por lote).
+- **No tocar:** `evaluon/offers/`, el compose, la visión (T-160).
 
 ### T-159 · Descarga, verificación y servicio de los modelos
 
