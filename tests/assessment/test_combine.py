@@ -173,3 +173,12 @@ def test_only_an_undetermined_result_carries_the_models_question():
     assert combined.outcome == "cumple" and combined.question == ""
     undetermined = run(group(0, "no_determinado", doubt="duda", question="¿Y esto?"))
     assert undetermined.question == "¿Y esto?"
+
+
+def test_a_downgraded_conclusion_carries_the_question_for_the_commission():
+    """REQ-055, REQ-056 (T-153): un "cumple" que el contraste baja a `sin_corroborar` lleva la
+    pregunta, para que el evaluador lo confirme, lo corrija o lo rechace."""
+    combined = run(group(0, "cumple", cites=[cite()], explanation="Lo dice."))
+    assert combined.question == ""
+    downgraded = combine.apply_contrast(combined, "parcial", "solo lo anuncia")
+    assert downgraded.doubt == "sin_corroborar" and downgraded.question
