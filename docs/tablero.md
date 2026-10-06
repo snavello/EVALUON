@@ -49,7 +49,7 @@ flowchart LR
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
 | [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 63/65 | ██████████ 97% |
-| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 13/17 | ████████░░ 76% |
+| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 14/17 | ████████░░ 82% |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
 | 007 · Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | No iniciada | — | — |
@@ -664,9 +664,8 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 4 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 3 tareas sin terminar.
 - ○ T-159 · Descarga y verificación de archivos y servicio: proyector del 12B, 26B-A4B con su proyector, variables propias del lote, `--mmproj`, archivo `docker-compose.modelo-grande.yml`, prueba de humo con imagen y memoria medida (pendiente)
-- ○ T-161 · Medir el caso-00 con el 12B y visión (referencia, y medición de la visión y de T-164) (pendiente)
 - ○ T-162 · Medir el caso-00 con el 26B-A4B y visión, comparar con T-161 y decidir según el umbral (ronda 1) (pendiente)
 - ○ T-163 · Solo si T-162 quedó entre 2 y 3 pares de adoptarlo: un cambio igual para los dos modelos y las dos corridas de nuevo (ronda 2, la última) (pendiente)
 
@@ -686,6 +685,7 @@ flowchart LR
 - ✓ T-158 · Contraste por cláusula de un cumple técnico: cero contradicciones con el dictamen (tercera ronda por la contradicción M-051, decisión del responsable) (`c6aded5` 2026-10-06)
 - ✓ T-164 · Corregir los hallazgos de T-158: el no cumple técnico exige una cita de la oferta que contradiga la cláusula (F-1) y el contraste por cláusula acota cláusulas y tokens (F-2); se mide con T-161 (`0ba1662` 2026-10-06)
 - ✓ T-160 · Lectura con visión de las páginas dudosas: criterio, imagen, transcripción, lectura nueva con origen `vision`, registro y pantalla rotulada, con tests (`5ab2597` 2026-10-06, `95ad3d3` 2026-10-06)
+- ✓ T-161 · Medir el caso-00 con el 12B y visión (referencia, y medición de la visión y de T-164) (`9816e02` 2026-10-06)
 
 ### Mapa de tareas
 
@@ -705,7 +705,7 @@ flowchart TD
   T164["✓ T-164 · Corregir los hallazgos de T-158: el no cump…"]:::done
   T159["○ T-159 · Descarga y verificación de archivos y servi…"]:::todo
   T160["✓ T-160 · Lectura con visión de las páginas dudosas:…"]:::done
-  T161["○ T-161 · Medir el caso-00 con el 12B y visión (refer…"]:::todo
+  T161["✓ T-161 · Medir el caso-00 con el 12B y visión (refer…"]:::done
   T162["○ T-162 · Medir el caso-00 con el 26B-A4B y visión, c…"]:::todo
   T163["○ T-163 · Solo si T-162 quedó entre 2 y 3 pares de ad…"]:::todo
   T148 --> T150
