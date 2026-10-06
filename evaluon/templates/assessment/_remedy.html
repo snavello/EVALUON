@@ -1,0 +1,44 @@
+{% if remedy.applicable %}
+<section class="result-remedy" aria-labelledby="remedy-title">
+  <h2 id="remedy-title">Subsanación</h2>
+  {% if page.result.outcome == "sin_documento" %}
+  <p>El documento no está en la oferta. La Comisión puede pedir que se subsane.</p>
+  {% else %}
+  <p>Falta la hoja de compliance. La Comisión puede subirla (también una que diga que no cumple) y el requisito se evalúa de nuevo.</p>
+  {% endif %}
+  {% if remedy.requested %}
+  <p>Subsanación pedida por {{ remedy.requested.user.username }} el {{ remedy.requested.at|date:"d/m/Y H:i" }}. Motivo: {{ remedy.requested.note }}</p>
+  {% endif %}
+  {% if remedy.added %}
+  <p>Documento agregado: «{{ remedy.added.document.title }}» (huella {{ remedy.added.document.file_sha256 }}), cargado por {{ remedy.added.user.username }} el {{ remedy.added.at|date:"d/m/Y H:i" }}.
+    {% if remedy.reading == "read" %}Ya está leído.{% else %}Todavía se está leyendo: espere a que termine para evaluar de nuevo.{% endif %}</p>
+  {% endif %}
+  {% if review.can_decide %}
+  {% if not remedy.requested %}
+  <form method="post" action="{% url 'assessment:request_remedy' page.result.pk %}">
+    {% csrf_token %}
+    <p><label for="remedy-note">Motivo del pedido (obligatorio)</label><br>
+      <textarea name="note" id="remedy-note" rows="2"></textarea></p>
+    <button type="submit">Pedir la subsanación</button>
+  </form>
+  {% else %}
+  <form method="post" action="{% url 'assessment:add_remedy_document' page.result.pk %}" enctype="multipart/form-data">
+    {% csrf_token %}
+    <p><label for="remedy-file">Documento presentado por el oferente</label>
+      <input type="file" name="file" id="remedy-file"></p>
+    <p><label for="remedy-doc-note">Nota (opcional)</label><br>
+      <textarea name="note" id="remedy-doc-note" rows="2"></textarea></p>
+    <button type="submit">Agregar el documento a la oferta</button>
+  </form>
+  {% endif %}
+  {% if remedy.added %}
+  <form method="post" action="{% url 'assessment:reevaluate_remedy' page.result.pk %}">
+    {% csrf_token %}
+    <button type="submit"{% if not remedy.can_reevaluate %} disabled{% endif %}>Evaluar de nuevo este requisito</button>
+  </form>
+  {% endif %}
+  {% else %}
+  <p><small>Solo el evaluador de la Comisión pide la subsanación.</small></p>
+  {% endif %}
+</section>
+{% endif %}

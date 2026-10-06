@@ -84,9 +84,10 @@
 <section class="result-question" aria-labelledby="question-title">
   <h2 id="question-title">Pregunta a la Comisión</h2>
   <p>{{ page.question.text }}</p>
-  <p><small>Sin responder: no es fundamento de ningún resultado.</small></p>
+  <p><small>Sin responder: no es fundamento de ningún resultado. <a href="{% url 'assessment:questions' page.offer.procedure_id %}">Ver las preguntas del procedimiento</a>.</small></p>
 </section>
 {% endif %}
 
 {% include "assessment/_decision.html" %}
+{% include "assessment/_remedy.html" %}
 {% endblock %}

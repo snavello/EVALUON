@@ -11,6 +11,7 @@
 <section class="history-stage" aria-labelledby="stage-{{ stage.result.pk }}">
   <h2 id="stage-{{ stage.result.pk }}">Evaluación {{ stage.run.number }}{% if stage.is_current %} (vigente){% endif %}</h2>
   <p>Armada el {{ stage.run.built_at|date:"d/m/Y H:i" }} con la matriz versión {{ stage.run.matrix_version.number }}.</p>
+  {% if stage.result.previous %}<p>Evaluación nueva del requisito: reemplaza a la propuesta de la evaluación {{ stage.result.previous.run.number }}.</p>{% endif %}
   <p>Propuesta del sistema: <strong>{{ stage.result.get_outcome_display }}</strong>{% if stage.result.doubt %} ({{ stage.result.get_doubt_display }}){% endif %}. Estado: {{ stage.state }}.</p>
   <p>Explicación del sistema (no es texto de la oferta ni del pliego): {{ stage.result.explanation|default:"sin explicación" }}</p>
 
@@ -30,7 +31,7 @@
   <h3>Decisiones</h3>
   <ul>
     {% for d in stage.decisions %}
-    <li>{{ d.get_action_display }}{% if d.outcome_after %} → «{{ d.get_outcome_after_display }}» (el sistema había propuesto «{{ stage.result.get_outcome_display }}»){% endif %} · {{ d.user.username }} · {{ d.at|date:"d/m/Y H:i" }}{% if d.note %} · {{ d.note }}{% endif %}</li>
+    <li>{{ d.get_action_display }}{% if d.document %}: «{{ d.document.title }}» (huella {{ d.document.file_sha256 }}, cargado por {{ d.document.loaded_by.username }}){% endif %}{% if d.outcome_after %} → «{{ d.get_outcome_after_display }}» (el sistema había propuesto «{{ stage.result.get_outcome_display }}»){% endif %} · {{ d.user.username }} · {{ d.at|date:"d/m/Y H:i" }}{% if d.note %} · {{ d.note }}{% endif %}</li>
     {% empty %}<li>Sin decisiones.</li>{% endfor %}
   </ul>
 </section>
