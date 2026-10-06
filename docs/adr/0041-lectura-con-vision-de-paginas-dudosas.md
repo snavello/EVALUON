@@ -1,6 +1,6 @@
 # ADR-0041 · Lectura con visión de las páginas de lectura dudosa
 
-Estado: propuesto · Fecha: 2026-10-06 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-06 · Decidió: responsable del proyecto (2026-10-06)
 
 ## Contexto
 

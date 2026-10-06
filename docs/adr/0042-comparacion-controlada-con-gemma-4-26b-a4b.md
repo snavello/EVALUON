@@ -1,6 +1,6 @@
 # ADR-0042 · Comparación controlada del modelo de generación: Gemma 4 12B contra Gemma 4 26B-A4B
 
-Estado: propuesto · Fecha: 2026-10-06 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-06 · Decidió: responsable del proyecto (2026-10-06)
 
 ## Contexto
 
@@ -73,7 +73,7 @@ Referencia: T-161 (12B con visión), mismo código y misma lista. El 26B se adop
 | 3 | Coincidencia | pares que pasan a coincidir menos pares que dejan de coincidir ≥ 4 sobre la referencia (hoy ≥ 8 puntos de 49), y al menos 2 de los 4 desaciertos "del modelo" recuperados | sí |
 | 4 | Incumplimientos reales (pares donde el dictamen dice "no cumple") detectados como "no cumple" | no menos que la referencia, y ninguno de ellos que antes se detectaba | sí |
 | 5 | Razón de la mejora | cada par que cambia se revisa y se clasifica; la mejora debe venir de pares donde el 12B "no veía un dato que está" o contrastaba mal, no de un cambio de lo que se cuenta | sí |
-| 6 | Tiempo por oferta | hasta 2,5 veces el de la referencia y hasta 15 min por oferta (el caso-00 completo, hasta 60 min) | sí |
+| 6 | Tiempo por oferta | hasta 30 min por oferta (decisión del responsable, 2026-10-06; el caso-00 completo, hasta 90 min) | sí |
 | 7 | Memoria de video máxima | hasta 22.000 MiB, y 0 pedidos fallidos por memoria o espera agotada | sí |
 | 8 | Fragmentos de la ficha, orden económico, descarte | no peor que la referencia | no, se informa |
 

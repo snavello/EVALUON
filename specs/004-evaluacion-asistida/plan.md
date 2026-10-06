@@ -332,7 +332,7 @@ ADR 0037, 0038, 0039 y 0040, propuestos.
 
 ## Enmienda 2026-10-06: lectura con visión y comparación de modelos
 
-Estado: borrador, a la espera de aprobación del responsable · Fecha: 2026-10-06
+Estado: aprobada · Fecha: 2026-10-06 · Aprobó: responsable del proyecto (2026-10-06; tiempo por oferta hasta 30 minutos)
 
 Motivo: la medición base del caso-00 dio 26 de 49 coincidencias; de los 23 desaciertos, 10 son datos que no se leen, 4 del modelo, 6 de diseño y 3 de medida. El responsable aprobó probar (1) la lectura con visión de las páginas que el reconocimiento de texto no lee bien y (2) una comparación controlada con un modelo más grande. Las correcciones de diseño y de medida siguen en T-156 a T-158 y no se tocan aquí.
 
@@ -363,7 +363,7 @@ Todo sigue en el equipo y sin red de salida del camino de pliegos y ofertas (P4)
 - **Candidato**: `google/gemma-4-26B-A4B-it-qat-q4_0-gguf`, revisión `d1c082be9cf3c8a514acf63b8761f4b41935842e`, `gemma-4-26B_q4_0-it.gguf`, 14.439.363.584 bytes, SHA-256 `3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d`; proyector `gemma-4-26B-it-mmproj.gguf`, 1.194.828.160 bytes, SHA-256 `a359953a076b877db30c31dbbb4c6d93b4a6e017ee5db5784247e4d4c0dd4f3b`.
 - **Memoria**: no entra junto al 12B del lote (27.000 MiB o más). Reemplaza temporalmente a `generation_batch`: unos 19.400 a 20.500 MiB con visión, de 24.463; aceptable hasta 22.000.
 - **Corridas**: T-161 (12B con visión, referencia) y T-162 (26B con visión), de a una, con el mismo código, instrucciones, lecturas, matriz y lista esperada. T-163 solo si falta poco.
-- **Umbral y rondas**: los de la tabla del ADR-0042, escritos antes de medir: 0 contradicciones, 0 conclusiones sin cita, coincidencia con al menos 4 pares netos más que la referencia y 2 de los 4 desaciertos del modelo recuperados, incumplimientos reales no peores, mejora explicada par por par, tiempo hasta 2,5 veces y 15 minutos por oferta, memoria hasta 22.000 MiB. Dos rondas como máximo.
+- **Umbral y rondas**: los de la tabla del ADR-0042, escritos antes de medir: 0 contradicciones, 0 conclusiones sin cita, coincidencia con al menos 4 pares netos más que la referencia y 2 de los 4 desaciertos del modelo recuperados, incumplimientos reales no peores, mejora explicada par por par, hasta 30 minutos por oferta, memoria hasta 22.000 MiB. Dos rondas como máximo.
 - **Tiempo**: 3 a 5 horas de reloj para una ronda (1 a 1,5 de GPU); descarga de 15,6 GB entre 15 y 45 minutos.
 
 ### Medición de la lectura con visión (umbral del ADR-0041)
@@ -408,4 +408,4 @@ Aplicar visión a una página legible; un modelo de lectura aparte; leer el cuad
 
 1. **Un "cumple" o "no cumple" apoyado solo en una página leída por visión.** Propuesta: se permite como propuesta rotulada, porque la Comisión confirma con el original a la vista. Alternativa más cauta: queda "no determinado" hasta que una persona lo confirme (baja la coincidencia).
 2. **Cuadros mal leídos con confianza alta** no tienen criterio objetivo: no entran en la visión. Alternativa: mandar a visión toda página reconocida por OCR de las ofertas (más tiempo, y riesgo de empeorar texto que estaba bien). Propuesta: no, y evaluar con la medición cuántos pares quedan.
-3. **Umbrales de adopción del 26B** (mejora neta de al menos 4 pares, tiempo hasta 2,5 veces y 15 minutos por oferta, memoria hasta 22.000 MiB): confirmar o ajustar antes de medir.
+3. **Umbrales de adopción del 26B** (mejora neta de al menos 4 pares, hasta 30 minutos por oferta, memoria hasta 22.000 MiB): confirmar o ajustar antes de medir.
