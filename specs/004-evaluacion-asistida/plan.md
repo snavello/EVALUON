@@ -329,3 +329,83 @@ ADR 0037, 0038, 0039 y 0040, propuestos.
 2. **Filas técnicas por renglón:** la 004 opina por renglón (cumple, no cumple, no determinado) con cita de la especificación del pliego y de la hoja técnica de la oferta; la comparación valor por valor, con su tabla para el informe técnico, queda para la 010.
 3. **Descarte:** también por un "no cumple" económico (por ejemplo, la garantía que el pliego manda desestimar si falta).
 4. **Contexto del motor de lotes:** se amplía a 32.768 tokens (ADR-0037), midiendo antes la memoria de video.
+
+## Enmienda 2026-10-06: lectura con visión y comparación de modelos
+
+Estado: borrador, a la espera de aprobación del responsable · Fecha: 2026-10-06
+
+Motivo: la medición base del caso-00 dio 26 de 49 coincidencias; de los 23 desaciertos, 10 son datos que no se leen, 4 del modelo, 6 de diseño y 3 de medida. El responsable aprobó probar (1) la lectura con visión de las páginas que el reconocimiento de texto no lee bien y (2) una comparación controlada con un modelo más grande. Las correcciones de diseño y de medida siguen en T-156 a T-158 y no se tocan aquí.
+
+ADR propuestos: `docs/adr/0041-lectura-con-vision-de-paginas-dudosas.md` y `docs/adr/0042-comparacion-controlada-con-gemma-4-26b-a4b.md`.
+
+### Componentes
+
+| Componente | Cambio |
+|---|---|
+| `generation_batch` | Suma `--mmproj` (proyector de imagen del 12B, 175 MB). Modelo, proyector y huella pasan a variables propias del lote (`GENERATION_BATCH_MODEL_FILE`, `_MODEL_ALIAS`, `_MODEL_SHA256`, `_MMPROJ_FILE`, por omisión las del 12B). `generation`, `embeddings` y `reranker`, sin cambios |
+| `docker-compose.modelo-grande.yml` (nuevo) | Archivo adicional que reemplaza solo a `generation_batch` por el 26B-A4B con su proyector, para la comparación; no es parte del entorno de uso |
+| `worker` | Antes de evaluar una oferta, pide la lectura por visión de sus páginas dudosas |
+| `scripts/fetch_models.sh`, `scripts/models.sha256` | Suman el proyector del 12B y, aparte (opción `--modelo-grande`), el 26B-A4B y su proyector, con revisión y huella fijadas |
+
+Todo sigue en el equipo y sin red de salida del camino de pliegos y ofertas (P4): la descarga es el único paso con internet, como hoy, y se hace con el script, una vez.
+
+### Lectura con visión (ADR-0041)
+
+- **Criterio** (objetivo, ya existente en el informe de la lectura): páginas `dudosa` (`low_confidence`), ilegibles y casi sin texto (`unread`), `without_text_unlisted`, y toda página de un documento en formato imagen. Hasta `ASSESSMENT_VISION_MAX_PAGES` por oferta.
+- **Qué se hace**: una página por pedido a `generation_batch` con la imagen dibujada con pypdfium2; el modelo transcribe literalmente, con `[ilegible]` donde no lee. La transcripción se guarda como lectura nueva del documento (`sequence` siguiente, solo inserción) con las páginas legibles de la anterior tal cual y origen `vision` en los pasajes de las páginas por visión.
+- **Dónde va el código**: `evaluon/offers/vision.py` (criterio, imagen, pedido, lectura nueva), `evaluon/assessment/prompts/vision-v1.md`, y un llamado desde `assessment/services/evaluate.py` antes de armar los documentos de la oferta. El único cambio de esquema es el valor `vision` del origen del texto de un pasaje.
+- **Cita**: igual que hoy (ADR-0038): el modelo copia, el sistema ubica en el texto canónico de la lectura por visión y muestra el recorte del canónico. La pantalla rotula "leída por visión", muestra la imagen de la página y marca el resultado; la persona compara con el original antes de confirmar (P3).
+- **Auditoría (P6, P8)**: el informe de la lectura guarda modelo y huella, huella del proyector, compilación, parámetros de imagen, versión de las instrucciones, página y motivo de cada transcripción, huella de cada imagen, pedido, salida cruda, tokens y tiempos; `assessment_run.documents` dice qué lecturas por visión usó cada evaluación.
+- **Memoria**: +0,3 a 0,6 GB sobre los 10.530 MiB medidos en T-148; T-159 lo mide.
+
+### Comparación de modelos (ADR-0042)
+
+- **Candidato**: `google/gemma-4-26B-A4B-it-qat-q4_0-gguf`, revisión `d1c082be9cf3c8a514acf63b8761f4b41935842e`, `gemma-4-26B_q4_0-it.gguf`, 14.439.363.584 bytes, SHA-256 `3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d`; proyector `gemma-4-26B-it-mmproj.gguf`, 1.194.828.160 bytes, SHA-256 `a359953a076b877db30c31dbbb4c6d93b4a6e017ee5db5784247e4d4c0dd4f3b`.
+- **Memoria**: no entra junto al 12B del lote (27.000 MiB o más). Reemplaza temporalmente a `generation_batch`: unos 19.400 a 20.500 MiB con visión, de 24.463; aceptable hasta 22.000.
+- **Corridas**: T-161 (12B con visión, referencia) y T-162 (26B con visión), de a una, con el mismo código, instrucciones, lecturas, matriz y lista esperada. T-163 solo si falta poco.
+- **Umbral y rondas**: los de la tabla del ADR-0042, escritos antes de medir: 0 contradicciones, 0 conclusiones sin cita, coincidencia con al menos 4 pares netos más que la referencia y 2 de los 4 desaciertos del modelo recuperados, incumplimientos reales no peores, mejora explicada par por par, tiempo hasta 2,5 veces y 15 minutos por oferta, memoria hasta 22.000 MiB. Dos rondas como máximo.
+- **Tiempo**: 3 a 5 horas de reloj para una ronda (1 a 1,5 de GPU); descarga de 15,6 GB entre 15 y 45 minutos.
+
+### Medición de la lectura con visión (umbral del ADR-0041)
+
+En T-161, sobre el caso-00: 0 contradicciones; al menos 3 de los 10 pares de datos que no se leen pasan a coincidir; ningún par que coincidía deja de hacerlo por una transcripción inventada; citas sobre páginas de visión 100 % literales contra su canónico; tiempo informado. Una ronda de ajuste de la instrucción o de la resolución, y una segunda solo si acerca.
+
+### Cobertura de requisitos
+
+| Requisito | Cómo se resuelve | Cómo se verifica |
+|---|---|---|
+| REQ-052 | Lectura con visión de las páginas dudosas (ADR-0041) y comparación de modelos (ADR-0042) para subir la coincidencia sin contradicciones; T-159 a T-163 | Mediciones T-161 y T-162 con los umbrales de arriba |
+| REQ-053 | La cita de una página por visión se ubica en el texto canónico de su lectura y se muestra rotulada con la imagen; T-160 | Test: la cita de una página de visión es igual al recorte del canónico; una transcripción no ubicable degrada a "no determinado"; medición: 100 % literales |
+| REQ-054 | Las páginas ilegibles pasan a ser texto para la lectura completa; T-160 | Test: la página dudosa se reemplaza por su transcripción en el texto por página y en los grupos; medición de fragmentos de la ficha |
+
+### Verificación contra la constitución
+
+| Principio | Cumple | Nota |
+|---|---|---|
+| P3 | sí | La visión transcribe, no decide; el resultado sobre una página de visión va marcado y la persona confirma con el original a la vista; ante `[ilegible]` en exceso la página sigue "no se pudo leer" |
+| P4 | sí | Modelos y proyectores en el equipo, sin red; solo se bajan una vez con el script y se verifican por huella |
+| P5 | sí | Las variables nuevas con valores por omisión; el 26B es un archivo adicional, no el entorno de uso |
+| P6 y P8 | sí | Ver "Auditoría" arriba: modelo, proyector, imagen, instrucciones y lecturas usadas |
+| P7 | sí | Umbrales escritos antes, dos rondas, regla de adopción |
+| P10 | sí | Sin servicio nuevo ni modelo nuevo para leer; la comparación es temporal y se desmonta |
+
+### Qué no se hace
+
+Aplicar visión a una página legible; un modelo de lectura aparte; leer el cuadro de precios con confianza alta pero equivocado (sin criterio objetivo para detectarlo); cambiar `generation` (consulta de normativa) de modelo; medir el 31B; mantener instalado el 26B si no se adopta.
+
+### Riesgos
+
+| Riesgo | Impacto | Mitigación |
+|---|---|---|
+| El modelo inventa texto donde no se lee | Un "cumple" sobre texto falso | Marca visible y original al lado; `[ilegible]` obligatorio; transcripción con más de 30 % de `[ilegible]` no cuenta; se revisan contra la imagen las de los pares que cambian |
+| La compilación fijada no carga el 26B o su proyector | La comparación no corre | T-159 hace la prueba de humo antes de cualquier medición; si falla, se informa y no se cambia la compilación sin ADR |
+| La memoria del 26B no cabe o deja menos de 2,4 GB | Pedidos fallidos | Medición en T-159; baja el contexto a 24.576 en las dos corridas |
+| La espera de 180 s por pedido no alcanza con el 26B | Pedidos fallidos que parecen del modelo | T-159 la mide; se sube para las dos corridas |
+| La mejora medida viene de azar o de otra causa | Se adopta algo que no ayuda | Regla de "razón de la mejora" par por par, mismas condiciones, 0 contradicciones |
+| Dos mediciones a la vez en una GPU | Resultados corruptos | T-161 a T-163 después de T-158, de a una; ninguna otra tarea usa la GPU en ese lapso |
+
+### Puntos para el responsable
+
+1. **Un "cumple" o "no cumple" apoyado solo en una página leída por visión.** Propuesta: se permite como propuesta rotulada, porque la Comisión confirma con el original a la vista. Alternativa más cauta: queda "no determinado" hasta que una persona lo confirme (baja la coincidencia).
+2. **Cuadros mal leídos con confianza alta** no tienen criterio objetivo: no entran en la visión. Alternativa: mandar a visión toda página reconocida por OCR de las ofertas (más tiempo, y riesgo de empeorar texto que estaba bien). Propuesta: no, y evaluar con la medición cuántos pares quedan.
+3. **Umbrales de adopción del 26B** (mejora neta de al menos 4 pares, tiempo hasta 2,5 veces y 15 minutos por oferta, memoria hasta 22.000 MiB): confirmar o ajustar antes de medir.
