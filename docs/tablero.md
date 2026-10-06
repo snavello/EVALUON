@@ -49,7 +49,7 @@ flowchart LR
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
 | [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 63/65 | ██████████ 97% |
-| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 6/10 | ██████░░░░ 60% |
+| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 7/10 | ███████░░░ 70% |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
 | 007 · Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | No iniciada | — | — |
@@ -664,9 +664,8 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 4 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 3 tareas sin terminar.
 - ○ T-154 · Preguntas a la Comisión, respuestas como fundamento y subsanación con su recorrido (pendiente)
-- ○ T-155 · Medir el caso-00 contra el dictamen (medición base) (pendiente)
 - ○ T-156 · Corregir los hallazgos de T-155 y medir de nuevo (ronda 1) (pendiente)
 - ○ T-157 · Solo si T-156 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) (pendiente)
 
@@ -679,6 +678,7 @@ flowchart LR
 - ✓ T-151 · Medir el caso chico: lista esperada, comparación y comando `medir_evaluacion` (`90013ce` 2026-10-06, `cb8bc30` 2026-10-06, `34dc67d` 2026-10-06, `2991f18` 2026-10-06)
 - ✓ T-152 · Matriz de evaluación de todas las ofertas: descarte propuesto, orden económico con el Portal, estado por oferta y aviso de versión (`4d4d086` 2026-10-06, `840c6c1` 2026-10-06)
 - ✓ T-153 · Revisión: confirmar, corregir y rechazar cada propuesta, con historial y fundamentos a la vista (`f6e762e` 2026-10-06)
+- ✓ T-155 · Medir el caso-00 contra el dictamen (medición base)
 
 ### Mapa de tareas
 
@@ -691,7 +691,7 @@ flowchart TD
   T152["✓ T-152 · Matriz de evaluación de todas las ofertas:…"]:::done
   T153["✓ T-153 · Revisión: confirmar, corregir y rechazar ca…"]:::done
   T154["○ T-154 · Preguntas a la Comisión, respuestas como fu…"]:::todo
-  T155["○ T-155 · Medir el caso-00 contra el dictamen (medici…"]:::todo
+  T155["✓ T-155 · Medir el caso-00 contra el dictamen (medici…"]:::done
   T156["○ T-156 · Corregir los hallazgos de T-155 y medir de…"]:::todo
   T157["○ T-157 · Solo si T-156 no llegó al umbral: corregir…"]:::todo
   T148 --> T150
