@@ -2,7 +2,7 @@
 
 Plan: `specs/003-pliego-matriz/plan.md`
 
-Despliegue: pendiente
+Despliegue: aprobado 2026-10-05
 
 > El tablero (`docs/tablero.md`) se genera de este archivo. Al aprobarse el despliegue, la línea de arriba pasa a `Despliegue: aprobado AAAA-MM-DD`.
 
