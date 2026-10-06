@@ -12,6 +12,7 @@ ADR-0030).
   depende de otro no cargado, o que pide un dato que falta (la fecha de autorización), no
   se decide: queda `propuesto` con el motivo.
 - `approve_all`: aprueba todo lo pendiente del enlace; solo el evaluador.
+- Al decidirse el ítem del dictamen termina el seguimiento del proceso (REQ-050).
 
 Cada decisión deja el hecho `portal_decision` con usuario y fecha (P6). Nada se carga sin una
 aprobación explícita.
@@ -30,6 +31,7 @@ from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType, Outcome
 from evaluon.portal.importers import discover
 from evaluon.portal.models import ItemKind, ItemState, PortalItem, PortalLink
+from evaluon.portal.services.schedule import end_following_for_dictamen
 
 DECIDE_OPERATION = "evaluon.portal.services.approval.decide"
 APPROVE_ALL_OPERATION = "evaluon.portal.services.approval.approve_all"
@@ -196,6 +198,7 @@ def _decide_one(user, item_id, decision, confirmation, channel):
             item.state = ItemState.RECHAZADO
             item.save(update_fields=["state", "decided_by", "decided_at"])
             _event(item, user, channel, Outcome.OK, REJECT, REJECTED)
+            _end_if_dictamen(item, user, channel)
             return ItemResult(item, REJECTED)
         blocker = _blocker(item, confirmation)
         if blocker:
@@ -222,9 +225,16 @@ def _decide_one(user, item_id, decision, confirmation, channel):
                                      "loaded_model", "loaded_id"])
             _event(item, user, channel, Outcome.FAILED, APPROVE, FAILED, reason=reason)
             return ItemResult(item, FAILED, reason)
+        _end_if_dictamen(item, user, channel)
         if item.state == ItemState.APROBADO:
             _event(item, user, channel, Outcome.OK, APPROVE, KEPT_AS_FILE, file=item.file_id)
             return ItemResult(item, KEPT_AS_FILE)
         _event(item, user, channel, Outcome.OK, APPROVE, LOADED,
                loaded_model=item.loaded_model, loaded_id=item.loaded_id)
         return ItemResult(item, LOADED)
+
+
+def _end_if_dictamen(item, user, channel):
+    """Decidido el ítem del dictamen (aprobado o rechazado), termina el seguimiento."""
+    if item.kind == ItemKind.DOCUMENTO and item.payload.get("clase") == "dictamen":
+        end_following_for_dictamen(item, user, channel)

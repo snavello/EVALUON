@@ -11,8 +11,10 @@ la había registrado a mano con el mismo nombre, se asocia a esa); lo que la 008
 guardar va a `portal_offer_data` y `portal_quote`, con el ítem de origen. Los documentos de la
 oferta no son públicos: se cargan a mano con `offers.load_document`, que no se toca.
 
-Límite del esquema: `portal_offer_data` guarda una sola garantía. Si el acta trae más de una
-para el mismo oferente, el ítem las muestra y las conserva todas y la tabla guarda la primera.
+Una oferta puede tener varias garantías (`portal_guarantee`). Si el ítem es un cambio de una
+oferta ya cargada desde el Portal, `load` actualiza lo cargado y deja el antes y el después en el
+registro (REQ-050). Anomalías: el precio por la cantidad no da el total del renglón, o el mismo
+CUIT figura con nombres distintos.
 """
 
 import hashlib
@@ -21,7 +23,8 @@ from datetime import date
 from decimal import Decimal
 from urllib.parse import urljoin
 
-from evaluon.audit.models import Channel
+from evaluon.audit import services as audit
+from evaluon.audit.models import Channel, EventType, Outcome
 from evaluon.offers.models import Offer
 from evaluon.offers.services.offers import register_offer
 from evaluon.portal.client import PortalError
@@ -30,6 +33,7 @@ from evaluon.portal.models import (
     ItemKind,
     LoadedModel,
     PageKind,
+    PortalGuarantee,
     PortalLine,
     PortalOfferData,
     PortalPage,
@@ -115,9 +119,9 @@ def _draft(context, cuit, found, cuadro, acta_page, cuadro_page, page):
         notes.append(f"el total del acta ({offer.total}) y el del cuadro comparativo "
                      f"({bidder.total}) difieren")
     guarantees = offer.guarantees if offer else []
-    if len(guarantees) > 1:
-        notes.append(f"el acta trae {len(guarantees)} garantías: se muestran todas y se "
-                     "registra la primera")
+    if offer and bidder and not _same_name(offer.bidder, bidder.bidder):
+        notes.append(f"el CUIT figura con nombres distintos: «{offer.bidder}» en el acta y "
+                     f"«{bidder.bidder}» en el cuadro comparativo")
     quotes, taken = [], set()
     for quote in (cuadro.quotes if cuadro else []):
         if quote["cuit"] != cuit:
@@ -127,6 +131,12 @@ def _draft(context, cuit, found, cuadro, acta_page, cuadro_page, page):
                          "se toma la primera")
             continue
         taken.add(quote["renglon"])
+        line_total = quote["total"]
+        if line_total is not None and abs(quote["precio"] * quote["cantidad"] - line_total) \
+                > Decimal("0.01"):
+            notes.append(f"renglón {quote['renglon']}: el precio ({quote['precio']}) por la "
+                         f"cantidad ({quote['cantidad']}) no da el total del renglón "
+                         f"({line_total})")
         quotes.append({"renglon": quote["renglon"], "alternativa": quote["alternativa"],
                        "precio": quote["precio"], "cantidad": quote["cantidad"],
                        "total_renglon": quote["total"]})
@@ -153,34 +163,86 @@ def _same_name(a, b):
     return " ".join(a.split()).casefold() == " ".join(b.split()).casefold()
 
 
-def load(user, item, confirmation=None, channel=Channel.SCREEN):
-    """Carga la oferta aprobada. Devuelve `(modelo, id)`; levanta una excepción con el motivo."""
-    data = item.payload
-    procedure = item.proposal.link.procedure
-    if PortalOfferData.objects.filter(offer__procedure=procedure, cuit=data["cuit"]).exists():
-        raise ValueError("Esta oferta ya está cargada desde el Portal para el procedimiento.")
-    lines = {line.number: line for line in PortalLine.objects.filter(procedure=procedure)}
-    missing = sorted({q["renglon"] for q in data["cotizaciones"]} - set(lines))
-    if missing:
-        raise ValueError("El cuadro cotiza renglones que no están cargados: "
-                         + ", ".join(str(n) for n in missing) + ".")
-    existing = next((o for o in Offer.objects.filter(procedure=procedure)
-                     if _same_name(o.bidder, data["oferente"])), None)
-    offer = existing or register_offer(user, procedure, bidder=data["oferente"], channel=channel)
-    if existing is not None and PortalOfferData.objects.filter(offer=existing).exists():
-        raise ValueError("Esta oferta ya está cargada desde el Portal para el procedimiento.")
-    guarantee = (data["garantias"] or [{}])[0]
-    PortalOfferData.objects.create(
-        offer=offer, cuit=data["cuit"], confirmed_on=_date(data["confirmada"]),
-        currency=_currency_code(data["moneda"]), total=_decimal(data["total"]),
-        guarantee_type=guarantee.get("tipo") or "", guarantee_form=guarantee.get("forma") or "",
-        guarantee_amount=_decimal(guarantee.get("monto")), item=item,
+def _snapshot(offer_data):
+    """Lo cargado de una oferta, para el registro de un cambio (P6)."""
+    return jsonable({
+        "total": offer_data.total, "moneda": offer_data.currency,
+        "confirmada": offer_data.confirmed_on,
+        "garantias": [{"tipo": g.guarantee_type, "forma": g.guarantee_form, "monto": g.amount}
+                      for g in offer_data.guarantees.all()],
+        "cotizaciones": [{"renglon": q.line.number, "precio": q.price, "cantidad": q.quantity}
+                         for q in PortalQuote.objects.filter(offer=offer_data.offer)
+                         .select_related("line").order_by("line__number")],
+        "item": offer_data.item_id,
+    })
+
+
+def _write_guarantees(offer_data, guarantees, item):
+    PortalGuarantee.objects.bulk_create(
+        PortalGuarantee(offer_data=offer_data, guarantee_type=g.get("tipo") or "",
+                        guarantee_form=g.get("forma") or "", amount=_decimal(g.get("monto")),
+                        item=item)
+        for g in guarantees
     )
+
+
+def _update(user, item, channel, offer_data, data, lines):
+    """El ítem trae un cambio de una oferta ya cargada: actualiza lo cargado y deja el
+    registro con el antes y el después (P6)."""
+    before = _snapshot(offer_data)
+    offer_data.confirmed_on = _date(data["confirmada"])
+    offer_data.currency = _currency_code(data["moneda"])
+    offer_data.total = _decimal(data["total"])
+    offer_data.item = item
+    offer_data.save()
+    offer_data.guarantees.all().delete()
+    _write_guarantees(offer_data, data["garantias"], item)
+    PortalQuote.objects.filter(offer=offer_data.offer).delete()
+    _write_quotes(offer_data.offer, data, lines)
+    audit.record(EventType.PORTAL_DECISION, outcome=Outcome.OK, channel=channel, user=user,
+                 detail={"action": "actualizar_cargado", "link": item.proposal.link_id,
+                         "item": item.pk, "kind": item.kind, "key": item.key,
+                         "offer": offer_data.offer_id, "before": before,
+                         "after": _snapshot(offer_data)})
+    return LoadedModel.OFFER, offer_data.offer_id
+
+
+def _write_quotes(offer, data, lines):
     PortalQuote.objects.bulk_create(
         PortalQuote(offer=offer, line=lines[q["renglon"]], price=_decimal(q["precio"]),
                     quantity=_decimal(q["cantidad"]))
         for q in data["cotizaciones"]
     )
+
+
+def load(user, item, confirmation=None, channel=Channel.SCREEN):
+    """Carga la oferta aprobada. Devuelve `(modelo, id)`; levanta una excepción con el motivo.
+    Si la oferta ya estaba cargada desde el Portal, el ítem es un cambio y actualiza lo
+    cargado (REQ-050)."""
+    data = item.payload
+    procedure = item.proposal.link.procedure
+    lines = {line.number: line for line in PortalLine.objects.filter(procedure=procedure)}
+    missing = sorted({q["renglon"] for q in data["cotizaciones"]} - set(lines))
+    if missing:
+        raise ValueError("El cuadro cotiza renglones que no están cargados: "
+                         + ", ".join(str(n) for n in missing) + ".")
+    loaded = list(PortalOfferData.objects.select_for_update()
+                  .filter(offer__procedure=procedure, cuit=data["cuit"]))
+    if len(loaded) > 1:
+        raise ValueError("Hay más de una oferta cargada con ese CUIT en el procedimiento.")
+    if loaded:
+        return _update(user, item, channel, loaded[0], data, lines)
+    existing = next((o for o in Offer.objects.filter(procedure=procedure)
+                     if _same_name(o.bidder, data["oferente"])), None)
+    offer = existing or register_offer(user, procedure, bidder=data["oferente"], channel=channel)
+    if existing is not None and PortalOfferData.objects.filter(offer=existing).exists():
+        raise ValueError("Esta oferta ya está cargada desde el Portal con otro CUIT.")
+    offer_data = PortalOfferData.objects.create(
+        offer=offer, cuit=data["cuit"], confirmed_on=_date(data["confirmada"]),
+        currency=_currency_code(data["moneda"]), total=_decimal(data["total"]), item=item,
+    )
+    _write_guarantees(offer_data, data["garantias"], item)
+    _write_quotes(offer, data, lines)
     return LoadedModel.OFFER, offer.pk
 
 

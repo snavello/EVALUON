@@ -87,3 +87,12 @@ def test_argentine_amounts():
     assert parse_amount("178376") == Decimal("178376")
     assert parse_amount("1.500") == Decimal("1500")
     assert parse_amount("") is None
+
+
+def test_same_cuit_with_different_names_is_reported_and_stays_one_offer():
+    """REQ-047: el mismo CUIT con nombres distintos en el acta se informa; una sola oferta."""
+    acta = parse_acta(with_rows(row("OTRO NOMBRE SA", "20000000036", "195823,50", amount="1,00")))
+    assert any("nombres distintos" in issue for issue in acta.issues)
+    assert len([o for o in acta.offers if o.cuit == "20000000036"]) == 1
+    alberto = next(o for o in acta.offers if o.cuit == "20000000036")
+    assert alberto.bidder != "OTRO NOMBRE SA"
