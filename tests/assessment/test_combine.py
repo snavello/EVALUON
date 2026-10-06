@@ -1,0 +1,175 @@
+"""Unir los grupos y el contraste en un resultado (REQ-052, REQ-053, REQ-055, REQ-060; plan 004,
+"Unir grupos y contrastar"; ADR-0038; T-150). Sin base ni modelo: la lógica pura."""
+
+from types import SimpleNamespace
+
+import pytest
+
+from evaluon.assessment import combine
+from evaluon.assessment.citations import Located
+
+DOC = SimpleNamespace(pk=1, title="oferta.pdf")
+
+
+def cite(start=0, text="texto citado"):
+    return Located(document=DOC, reading=None, page=1, char_start=start,
+                   char_end=start + len(text), text=text)
+
+
+def group(index, result, *, exigence="condicion", cites=(), doubt="", question="",
+          external=False, explanation=""):
+    return combine.GroupResult(index, result, doubt=doubt, exigence=exigence,
+                               citations=list(cites), question=question, external=external,
+                               explanation=explanation)
+
+
+def run(*groups, unread=(), without_reading=(), unread_groups=0):
+    return combine.combine(list(groups), unread=list(unread),
+                           without_reading=list(without_reading), unread_groups=unread_groups)
+
+
+UNREAD = [{"document": 1, "title": "doc.pdf", "page": 2}]
+
+
+def test_a_conclusion_with_a_cited_text_stands_and_goes_to_the_contrast():
+    """REQ-052, REQ-053: "cumple" con cita ubicada es la propuesta, pendiente de contraste."""
+    combined = run(group(0, "cumple", cites=[cite()], explanation="Lo dice el texto."))
+    assert combined.outcome == "cumple" and combined.doubt == ""
+    assert combined.needs_contrast
+    assert [c.text for c in combined.citations] == ["texto citado"]
+
+
+def test_a_conclusion_and_no_consta_in_the_other_groups_keeps_the_conclusion():
+    """ADR-0038: una conclusión con cita y "no consta" en los demás grupos queda."""
+    combined = run(group(0, "no_consta", exigence="documento"),
+                   group(1, "no_cumple", cites=[cite(10)]),
+                   group(2, "no_consta", exigence="documento"))
+    assert combined.outcome == "no_cumple"
+
+
+def test_cumple_and_no_cumple_in_different_groups_is_a_contradiction():
+    """ADR-0038: "cumple" y "no cumple" en grupos distintos: no determinado por
+    contradicción, con las citas de ambos."""
+    combined = run(group(0, "cumple", cites=[cite(0, "uno")]),
+                   group(1, "no_cumple", cites=[cite(50, "dos")]))
+    assert combined.outcome == "no_determinado" and combined.doubt == "contradiccion"
+    assert [c.text for c in combined.citations] == ["uno", "dos"]
+    assert not combined.needs_contrast
+
+
+def test_a_group_in_doubt_stops_a_conclusion_from_the_other():
+    """ADR-0038 (conservador): si otro grupo duda, no se concluye; se conservan las citas."""
+    combined = run(group(0, "cumple", cites=[cite()]),
+                   group(1, "no_determinado", doubt="duda"))
+    assert combined.outcome == "no_determinado" and combined.doubt == "duda"
+    assert len(combined.citations) == 1
+
+
+def test_all_groups_no_consta_for_a_document_is_not_found_when_everything_was_read():
+    """REQ-060: "no se encontró el documento" si la exigencia es un documento en todos los
+    grupos, no hay páginas sin leer y se leyeron todos los grupos. Sin pregunta."""
+    combined = run(group(0, "no_consta", exigence="documento"),
+                   group(1, "no_consta", exigence="documento"))
+    assert combined.outcome == "sin_documento" and combined.doubt == ""
+    assert combined.exigence == "documento"
+    assert combined.question == ""
+    assert not combined.unread_warning
+
+
+def test_no_consta_with_unread_pages_is_not_a_missing_document():
+    """ADR-0038: con páginas sin leer, no se supone que el documento no estaba: no
+    determinado por lectura incompleta, con una pregunta."""
+    combined = run(group(0, "no_consta", exigence="documento"), unread=UNREAD)
+    assert combined.outcome == "no_determinado" and combined.doubt == "lectura_incompleta"
+    assert combined.unread_warning
+    assert "doc.pdf, página 2" in combined.question
+
+
+def test_no_consta_with_a_group_that_was_not_read_is_incomplete():
+    """ADR-0038: con grupos que pasaron del tope, queda lectura incompleta."""
+    combined = run(group(0, "no_consta", exigence="documento"), unread_groups=1)
+    assert combined.outcome == "no_determinado" and combined.doubt == "lectura_incompleta"
+
+
+def test_no_consta_with_a_document_without_reading_is_incomplete():
+    combined = run(group(0, "no_consta", exigence="documento"), without_reading=[7])
+    assert combined.doubt == "lectura_incompleta"
+
+
+def test_no_consta_for_a_condition_is_a_missing_data_with_a_question():
+    """REQ-055: si la exigencia es una condición y todo se leyó, falta un dato: no
+    determinado con una pregunta (la del modelo, o la fija)."""
+    asked = run(group(0, "no_consta", exigence="condicion",
+                      question="¿Qué plazo de entrega se aceptó?"))
+    assert asked.outcome == "no_determinado" and asked.doubt == "sin_dato"
+    assert asked.question == "¿Qué plazo de entrega se aceptó?"
+    fixed = run(group(0, "no_consta", exigence="condicion"))
+    assert fixed.doubt == "sin_dato" and fixed.question
+
+
+def test_an_external_requirement_is_undetermined_with_a_question_and_never_inferred():
+    """P9, REQ-055: lo que se verifica fuera de la oferta es "no determinado" (falta la hoja de
+    compliance), aunque otro grupo diga "cumple", y con una pregunta."""
+    combined = run(group(0, "cumple", cites=[cite()]),
+                   group(1, "no_determinado", doubt="duda", external=True))
+    assert combined.outcome == "no_determinado" and combined.doubt == "externo"
+    assert "hoja de compliance" in combined.question
+    assert not combined.needs_contrast
+
+
+def test_a_conclusion_whose_citation_was_not_located_is_undetermined_without_citation():
+    """REQ-053: una conclusión sin cita ubicada queda "no determinado" `sin_cita`."""
+    combined = run(group(0, "no_determinado", doubt="sin_cita", explanation="Dice cumple."))
+    assert combined.outcome == "no_determinado" and combined.doubt == "sin_cita"
+
+
+def test_a_doubt_without_a_failed_citation_is_a_plain_doubt():
+    combined = run(group(0, "no_determinado", doubt="duda"),
+                   group(1, "no_determinado", doubt="sin_cita"))
+    assert combined.doubt == "duda"
+
+
+def test_no_groups_is_an_incomplete_reading():
+    combined = run()
+    assert combined.outcome == "no_determinado" and combined.doubt == "lectura_incompleta"
+
+
+def test_the_contrast_that_does_not_say_yes_downgrades_and_keeps_the_citations():
+    """ADR-0038: si el contraste no contesta `si`, "no determinado" `sin_corroborar` con las
+    mismas citas; con `si` nada cambia; un resultado que no es conclusión no se contrasta."""
+    combined = run(group(0, "cumple", cites=[cite()], explanation="Lo dice."))
+    assert combine.apply_contrast(combined, "si") is combined
+    for answer in ("no", "parcial"):
+        downgraded = combine.apply_contrast(combined, answer, "solo lo anuncia")
+        assert downgraded.outcome == "no_determinado"
+        assert downgraded.doubt == "sin_corroborar"
+        assert downgraded.citations == combined.citations
+        assert "solo lo anuncia" in downgraded.explanation
+    undetermined = run(group(0, "no_determinado", doubt="duda"))
+    assert combine.apply_contrast(undetermined, "no") is undetermined
+
+
+@pytest.mark.parametrize("doubt", ["externo", "sin_dato", "lectura_incompleta"])
+def test_these_doubts_always_carry_a_question(doubt):
+    """REQ-055: externo, sin dato y lectura incompleta siempre llevan una pregunta."""
+    assert combine.fixed_question(doubt, UNREAD, "algo")
+    assert not combine.fixed_question("duda")
+
+
+def test_a_doubt_with_unread_pages_is_an_incomplete_reading_with_a_question():
+    """ADR-0038: con partes de la oferta sin leer, una duda puede venir de ahí: queda
+    `lectura_incompleta` y se le pregunta a la Comisión."""
+    combined = run(group(0, "no_determinado", doubt="duda", cites=[cite()],
+                         explanation="Anuncia el documento, pero su página es ilegible."),
+                   unread=UNREAD)
+    assert combined.outcome == "no_determinado" and combined.doubt == "lectura_incompleta"
+    assert combined.unread_warning and "doc.pdf, página 2" in combined.question
+    assert len(combined.citations) == 1
+
+
+def test_only_an_undetermined_result_carries_the_models_question():
+    """REQ-055: una conclusión no lleva pregunta, aunque el modelo la haya formulado."""
+    combined = run(group(0, "cumple", cites=[cite()], question="¿Y esto?"))
+    assert combined.outcome == "cumple" and combined.question == ""
+    undetermined = run(group(0, "no_determinado", doubt="duda", question="¿Y esto?"))
+    assert undetermined.question == "¿Y esto?"

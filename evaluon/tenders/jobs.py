@@ -127,12 +127,17 @@ def fail_interrupted(kinds=None, exclude=None):
 def _handler(kind):
     handler = HANDLERS.get(kind)
     if isinstance(handler, str):
+        path = handler
         try:
-            handler = import_string(handler)
-        except ImportError:
-            # Un manejador que todavía no existe: el pedido falla con un motivo, no tira
-            # al `worker`.
-            return None
+            handler = import_string(path)
+        except ModuleNotFoundError as error:
+            # Un manejador que todavía no existe (su módulo o un paquete de su ruta): el
+            # pedido falla con un motivo, no tira al `worker`. Un módulo que falta *dentro*
+            # del manejador es un defecto: sube con su causa.
+            module = path.rsplit(".", 1)[0]
+            if error.name and (module == error.name or module.startswith(error.name + ".")):
+                return None
+            raise
     return handler
 
 
@@ -146,7 +151,13 @@ def _reason(error):
 
 def run(job):
     """Ejecuta un pedido ya tomado con el manejador de su tipo y deja su estado final."""
-    handler = _handler(job.kind)
+    try:
+        handler = _handler(job.kind)
+    except ImportError as error:
+        # El módulo del manejador existe pero no se puede importar: queda la causa.
+        logger.exception("Manejador roto para el pedido %s", job.pk)
+        fail(job, f"manejador roto para el tipo de pedido {job.kind}: {_reason(error)}")
+        return
     if handler is None:
         fail(job, f"sin manejador para el tipo de pedido {job.kind}")
         return
