@@ -270,7 +270,7 @@ def test_changed_item_is_marked_as_changed_from_what_was_approved(
     rows = approval.proposal_page(evaluator_user, link.pk).rows[ItemKind.RENGLONES]
     marks = {row.item.pk: row.changed for row in rows}
     assert marks[new.pk] is True
-    assert marks[lines_item.pk] is False
+    assert sum(marks.values()) == 1
     assert client.login(username=evaluator_user.username, password=TEST_PASSWORD)
     html = client.get(f"/importar/{link.pk}/").content.decode()
     assert html.count("Cambiado respecto de lo aprobado") == 1
