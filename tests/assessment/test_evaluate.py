@@ -663,7 +663,7 @@ def test_everything_the_model_was_asked_is_recorded(offer, operator_user, proced
     assert step.documents[0]["tokens"] > 0 and step.prompt_tokens is not None
     assert step.request["response_format"]["type"] == "json_schema"
     assert run.models_used["generation_batch"]["context_tokens"] == 32768
-    assert run.prompt_versions == {"evaluacion": "evaluacion-v1", "contraste": "contraste-v1"}
+    assert run.prompt_versions == {"evaluacion": "evaluacion-v1", "contraste": "contraste-v2"}
     assert run.parameters["group_tokens"] == 20000
     assert run.norms["matrix_version"] == 1 and run.norms["authorization_date"]
     assert run.matrix_version == request.matrix_version and run.channel == "eval"
@@ -850,13 +850,13 @@ def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(
     """REQ-052 a REQ-055, REQ-059, REQ-060: tres ofertas leídas de verdad (con un escaneo y una
     página ilegible), una matriz validada y un modelo simulado que contesta lo que la lista
     esperada del caso chico (T-149) dice. El sistema llega a los resultados esperados, con
-    citas literales y preguntas, salvo un par: la lista espera "no se encontró el documento" en
-    una oferta que tiene una página sin leer, y la regla del ADR-0038 no lo permite."""
+    citas literales y preguntas. Con la lista corregida por T-151 (ADR-0038, regla 3), la oferta con una
+    página sin leer queda en "lectura incompleta" y la que se lee completa, en "no se encontró el documento"."""
     import re
 
     import yaml
 
-    from evaluon.offers import evaluation as ev
+    from evaluon.assessment import evaluation as ev
     from tests.assessment.fakes import CASO_CHICO
 
     expected = ev.load_expected(CASO_CHICO / "evaluacion-esperada.yaml")
@@ -912,12 +912,11 @@ def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(
                            for c in cites)
             if entry["resultado"] == "no_determinado":
                 assert result.doubt == {"falta_hoja_compliance": "externo",
-                                        "pagina_ilegible": "lectura_incompleta"}[entry["motivo"]]
+                                        "pagina_ilegible": "lectura_incompleta",
+                                        "lectura_incompleta": "lectura_incompleta"}[entry["motivo"]]
         questions += run.counts["questions"]
-    assert differences == [("Oferente B Sintético", "M-003", "no_determinado",
-                            "lectura_incompleta")]
-    # las cuatro preguntas esperadas más la de la oferta con una página sin leer
-    assert questions == raw["resumen"]["preguntas_esperadas"] + 1
+    assert differences == []
+    assert questions == raw["resumen"]["preguntas_esperadas"]
     assert not any(r.outcome == "no_cumple" and not offer_cites(r)
                    for run in runs for r in run.results.all())
 
