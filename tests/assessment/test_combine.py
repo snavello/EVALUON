@@ -207,6 +207,15 @@ def test_a_technical_no_cumple_needs_a_clause_that_is_in_the_requirement():
     assert not combine.clause_supported("", requirement)
 
 
+def test_a_trivial_stretch_of_the_requirement_is_not_a_clause():
+    """REQ-052, T-157: un tramo literal pero sin contenido ("de", "3.1", "Renglón 5") no es una
+    cláusula: no alcanza para sostener un "no cumple"."""
+    requirement = "Renglón 5 del pliego: «5.1 Bolsas de 20 kilos.  5.2 Proteína mínima 24 %.»"
+    for trivial in ("de", "5.1", "Renglón 5", "20 kilos", "Bolsas de"):
+        assert not combine.clause_supported(trivial, requirement)
+    assert combine.clause_supported("5.2 Proteína mínima 24 %.", requirement)
+
+
 def test_a_group_without_data_for_a_technical_no_cumple_is_undetermined_without_data():
     """REQ-052, T-156: el grupo que bajó un "no cumple" sin cláusula llega como `sin_dato` y
     lleva siempre una pregunta; no se vuelve "duda"."""

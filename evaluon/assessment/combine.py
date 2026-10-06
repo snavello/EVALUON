@@ -29,6 +29,7 @@ Un "cumple" o "no cumple" va después al contraste (`apply_contrast`): si no con
 del modelo o una fija del sistema.
 """
 
+import re
 from dataclasses import dataclass, field, replace
 
 from django.conf import settings
@@ -138,6 +139,7 @@ def fixed_question(doubt, unread=(), explanation=""):
     return ""
 
 
+MIN_CLAUSE_WORDS = 2   # palabras de tres letras o más que debe tener una cláusula citada
 NO_CLAUSE_NOTE = ("El sistema no encontró una cláusula del pliego que contradiga lo ofrecido: "
                   "una descripción sin el dato que la cláusula pide no alcanza para decir que "
                   "no cumple.")
@@ -148,7 +150,11 @@ def clause_supported(clause, requirement_text):
     cláusula que está, letra por letra, en el texto del requisito del pliego (con los espacios
     colapsados, como toda cita). Sin ella el "no cumple" pasa a "no determinado" `sin_dato`."""
     text = " ".join((clause or "").strip(" «»\"").split())
-    return bool(text) and quotes.locate(requirement_text or "", text) is not None
+    # Una cláusula tiene contenido: un tramo trivial ("de", "3.1", "Renglón 3") no alcanza.
+    words = re.findall(r"[^\W\d_]{3,}", text)
+    if len(words) < MIN_CLAUSE_WORDS:
+        return False
+    return quotes.locate(requirement_text or "", text) is not None
 
 
 def combine(groups, *, unread, without_reading=(), unread_groups=0):
