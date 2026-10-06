@@ -1,6 +1,6 @@
 # ADR-0039 · Módulo de evaluación propio: resultados inmutables, decisiones aparte y recorrido por par
 
-Estado: propuesto · Fecha: 2026-10-06 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-06 · Decidió: responsable del proyecto
 
 ## Contexto
 

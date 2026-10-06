@@ -1,6 +1,6 @@
 # ADR-0038 · Resultados con cita literal verificada por el sistema y contraste antes de concluir
 
-Estado: propuesto · Fecha: 2026-10-06 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-06 · Decidió: responsable del proyecto
 
 ## Contexto
 

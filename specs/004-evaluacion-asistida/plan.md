@@ -1,6 +1,6 @@
 # Plan 004 · Evaluación asistida de ofertas
 
-Estado: borrador · Fecha: 2026-10-06 · Aprobó: —
+Estado: aprobado · Fecha: 2026-10-06 · Aprobó: responsable del proyecto (2026-10-06, con las decisiones de abajo)
 
 Spec: `specs/004-evaluacion-asistida/spec.md` (aprobada el 2026-10-06)
 
@@ -321,3 +321,11 @@ ADR 0037, 0038, 0039 y 0040, propuestos.
 2. **Filas técnicas por renglón.** La spec deja la comparación técnica renglón por renglón a la 010, pero 6 de los 18 requisitos del dictamen son el ajuste técnico (por ejemplo, la oferta de alimento para adultos en un renglón de cachorros). Propuesta: la 004 propone sobre el ajuste de lo ofrecido al renglón con cita de la oferta y del pliego, y deja a la 010 la comparación valor por valor.
 3. **Descarte por requisitos económicos.** La spec descarta por requisitos formales o técnicos; la garantía no individualizada es económica y el pliego manda desestimarla. Propuesta: el descarte propuesto alcanza también a un "no cumple" económico, mostrando la consecuencia prevista en la matriz.
 4. **Contexto del motor de lotes** de 16.384 a 32.768 tokens (ADR-0037, puede cambiar la memoria de video).
+
+
+## Decisiones del responsable (2026-10-06)
+
+1. **Requisitos externos** (Registro de Proveedores, REPSAL, deuda, Superintendencia de Seguros): los integra la **hoja de compliance**. La evaluación los deja como "falta la hoja de compliance"; la Comisión puede subir la hoja (o una que diga que no cumple) y el requisito se vuelve a evaluar con el mismo circuito de la subsanación. En la medición contra el dictamen, ese resultado cuenta como coincidencia.
+2. **Filas técnicas por renglón:** la 004 opina por renglón (cumple, no cumple, no determinado) con cita de la especificación del pliego y de la hoja técnica de la oferta; la comparación valor por valor, con su tabla para el informe técnico, queda para la 010.
+3. **Descarte:** también por un "no cumple" económico (por ejemplo, la garantía que el pliego manda desestimar si falta).
+4. **Contexto del motor de lotes:** se amplía a 32.768 tokens (ADR-0037), midiendo antes la memoria de video.

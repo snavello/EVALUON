@@ -1,6 +1,6 @@
 # ADR-0040 · Registro mínimo de preguntas y respuestas de la Comisión dentro de la 004
 
-Estado: propuesto · Fecha: 2026-10-06 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-06 · Decidió: responsable del proyecto
 
 ## Contexto
 

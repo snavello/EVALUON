@@ -1,6 +1,6 @@
 # ADR-0037 · Lectura completa por requisito: grupos de documentos completos y contexto de 32.768 tokens en el motor de lotes
 
-Estado: propuesto · Fecha: 2026-10-06 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-06 · Decidió: responsable del proyecto
 
 ## Contexto
 
