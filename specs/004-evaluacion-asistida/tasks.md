@@ -29,7 +29,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-159 | Descarga y verificación de archivos y servicio: proyector del 12B, 26B-A4B con su proyector, variables propias del lote, `--mmproj`, archivo `docker-compose.modelo-grande.yml`, prueba de humo con imagen y memoria medida | REQ-052 | — | pendiente |
 | T-160 | Lectura con visión de las páginas dudosas: criterio, imagen, transcripción, lectura nueva con origen `vision`, registro y pantalla rotulada, con tests | REQ-052, REQ-053, REQ-054 | T-159 | terminada |
 | T-161 | Medir el caso-00 con el 12B y visión (referencia, y medición de la visión y de T-164) | REQ-052, REQ-053, REQ-054, REQ-059 | T-160, T-164 | terminada |
-| T-162 | Medir el caso-00 con el 26B-A4B y visión, comparar con T-161 y decidir según el umbral (ronda 1) | REQ-052, REQ-053, REQ-054, REQ-059 | T-161 | pendiente |
+| T-162 | Medir el caso-00 con el 26B-A4B y visión, comparar con T-161 y decidir según el umbral (ronda 1) | REQ-052, REQ-053, REQ-054, REQ-059 | T-161 | terminada |
 | T-163 | Solo si T-162 quedó entre 2 y 3 pares de adoptarlo: un cambio igual para los dos modelos y las dos corridas de nuevo (ronda 2, la última) | REQ-052, REQ-053, REQ-054, REQ-059 | T-162 | pendiente |
 
 ## Paralelismo
@@ -253,6 +253,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Requisitos:** REQ-052, REQ-053, REQ-054, REQ-059
 - **Nivel de verificación:** el de T-162.
 - **Qué hay que hacer:** solo si T-162 cumplió los puntos de seguridad, tiempo y memoria y quedó entre 2 y 3 pares de la mejora exigida: un único cambio (presupuesto de grupo o instrucción del contraste), el mismo para los dos modelos, y las dos corridas de nuevo en secuencia, con el 12B primero. Lo que no llegue queda con el 12B y pasa, con su impacto, a la lista de revisión con el primer producto (ADR-0024). No hay tercera ronda salvo que el faltante haga perder un requisito o viole un principio (ADR-0025).
+- **Aviso de tareas anteriores:** (T-162) No corresponde: el 26B-A4B quedó a 13 pares de la mejora exigida (15/49 contra 24/49 del 12B) y perdió el no cumple real; se queda el 12B (ADR-0042). La tarea no se ejecuta.
 - **Archivos:** como T-162, más `specs/004-evaluacion-asistida/verificacion/T-163.md`.
 - **Verificación:** la misma tabla de adopción.
 - **No tocar:** lo mismo que T-162.
