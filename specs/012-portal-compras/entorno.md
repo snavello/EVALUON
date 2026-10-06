@@ -84,3 +84,48 @@ código a la red. No está hecho; el cliente no cambiaría.
 
 Ningún test se conecta al Portal real ni a internet: usan un transporte de mentira con
 contenido inventado, y un test falla si el cliente intenta abrir una conexión real.
+
+## Pasos para el runbook del despliegue (T-145)
+
+Orden para dejar la lectura del Portal funcionando en un equipo nuevo. Cada paso dice cómo
+saber que salió bien.
+
+1. **Variables en `.env`** (todas opcionales; sin ellas rigen los valores por omisión de
+   `.env.example`): `PORTAL_ALLOWED_HOSTS` (hosts separados por comas; por omisión
+   `afipcompras.afip.gob.ar`), `PORTAL_TIMEOUT_SECONDS` (30), `PORTAL_MAX_BYTES` (52428800),
+   `PORTAL_PAUSE_SECONDS` (2), `PORTAL_REVIEW_HOUR` (7, hora de Buenos Aires),
+   `PORTAL_USER_AGENT`. No hay claves ni cuentas del Portal: la lectura es pública. Cambiar la
+   lista de hosts es una decisión de despliegue y requiere reiniciar `portal_worker`.
+2. **Red.** `docker compose up -d` crea `internal` (sin salida), `web` y `egress` (con salida).
+   Solo `portal_worker` está en `egress`. Comprobar: `docker network inspect <proyecto>_egress`
+   lista únicamente a `portal_worker`, y `docker compose run --rm app pytest
+   tests/portal/test_network.py tests/portal/test_no_outbound.py` pasa. El equipo necesita
+   salida HTTPS (443) hacia los hosts de la lista y resolución de nombres; ningún otro puerto ni
+   destino.
+3. **Servicio.** `docker compose up -d portal_worker` (depende de la base y de la migración).
+   Comprobar: `docker compose logs portal_worker` dice «Esperando pedidos del Portal.» y el
+   servicio sigue `running`. No usa GPU ni IA: levantarlo no cambia los recursos de la IA.
+4. **Salida real, solo desde `portal_worker`.** `docker compose exec portal_worker python -c
+   "import socket; socket.create_connection(('afipcompras.afip.gob.ar', 443), 5)"` conecta;
+   el mismo comando con `worker` en lugar de `portal_worker` falla (no tiene salida).
+5. **Extremo a extremo.** Un operador pega el enlace de un proceso público en la pantalla
+   «Importar del Portal»; en segundos aparece la propuesta o el motivo. La revisión diaria
+   (lunes a viernes, desde `PORTAL_REVIEW_HOUR`) la encola `portal_worker` solo.
+6. **Medición sin conexión (aceptación).** Con las páginas guardadas en `corpus/casos/` (fuera
+   del repositorio): `docker compose run --rm --no-deps -v <corpus/casos>:/casos:ro -v
+   <carpeta de corridas>:/corridas app python manage.py medir_portal --usuario <evaluador>
+   --caso /casos/caso-00 --caso /casos/caso-05 --corridas /corridas --commit <commit>`. No usa
+   la red (se puede correr con la red cortada) y deja la base como estaba.
+7. **Pasada en vivo (una sola vez, con el Coordinador).** El mismo comando con `portal_worker`
+   en lugar de `app` y la opción `--en-vivo`; es el único que sale a internet. Ver
+   `verificacion/T-145.md`.
+
+**Cómo cortar la conexión** (en cualquier momento): `docker compose stop portal_worker`. Todo lo
+demás sigue funcionando y la carga manual no se ve afectada (REQ-051). Volver a levantarlo:
+`docker compose start portal_worker`; los pedidos en espera se atienden y los que estaban en
+curso quedan fallidos «interrumpido». Para quitar la salida de forma definitiva: sacar
+`portal_worker` y la red `egress` de `docker-compose.yml`.
+
+**Qué mirar si algo falla:** un enlace rechazado muestra su motivo en pantalla; un pedido fallido
+deja el motivo en la lista de enlaces y el hecho `portal_explore` o `portal_review` con
+`reason`; un host fuera de la lista se rechaza antes de conectar (`DestinationNotAllowed`).

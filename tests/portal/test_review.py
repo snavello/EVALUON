@@ -171,3 +171,65 @@ def test_deciding_the_dictamen_ends_the_following(operator_user, evaluator_user,
     assert link.following is False
     assert AuditEvent.objects.filter(event_type=EventType.PORTAL_LINK,
                                      detail__action="fin_de_seguimiento").count() == 1
+
+
+def test_rejecting_the_dictamen_also_ends_the_following(operator_user, evaluator_user,
+                                                        explore_link, docs_portal):
+    """REQ-050: decidir el dictamen, también rechazarlo, termina el seguimiento (aviso de
+    T-144: el rechazo no tenía test)."""
+    link, _ = explore_link(operator_user)
+    approve_basics(evaluator_user)
+    dictamen = [i for i in PortalItem.objects.filter(kind=ItemKind.DOCUMENTO)
+                if i.payload["clase"] == "dictamen"]
+    link.refresh_from_db()
+    assert link.following is True
+    results = approval.decide(operator_user, [dictamen[0].pk], approval.REJECT)
+    assert [r.result for r in results] == [approval.REJECTED]
+    link.refresh_from_db()
+    assert link.following is False
+    event = AuditEvent.objects.get(event_type=EventType.PORTAL_LINK,
+                                   detail__action="fin_de_seguimiento")
+    assert event.user == operator_user and event.detail["item"] == dictamen[0].pk
+
+
+def test_a_new_name_or_object_is_shown_and_recorded_not_applied(
+        operator_user, evaluator_user, explore_link, fake_portal_calco):
+    """REQ-050, P6: si el Portal cambia el nombre o el objeto, el procedimiento conserva el
+    anterior, y el cambio queda a la vista en el resultado y en el registro."""
+    from evaluon.tenders.models import Procedure
+
+    link, _ = explore_link(operator_user)
+    approve_basics(evaluator_user)
+    before = Procedure.objects.get().subject
+    change_page(fake_portal_calco,
+                (b"ADQUISICI\xc3\x93N DE YERBA MATE PARA OFICINAS",
+                 b"ADQUISICI\xc3\x93N DE T\xc3\x89 PARA OFICINAS"))
+    review(operator_user, link)
+    changed = PortalItem.objects.get(proposal__origin=Origin.REVISION,
+                                     kind=ItemKind.PROCEDIMIENTO)
+    (result,) = approval.decide(evaluator_user, [changed.pk], approval.APPROVE)
+    assert result.result == approval.LOADED
+    assert "el Portal cambió el nombre u objeto; el procedimiento conserva el anterior" \
+        in result.reason
+    assert Procedure.objects.get().subject == before
+    event = AuditEvent.objects.get(event_type=EventType.PORTAL_DECISION,
+                                   detail__action="nombre_u_objeto_cambiado")
+    assert event.user == evaluator_user
+    assert event.detail["conserva"] == before and "T\u00c9" in event.detail["portal"]
+
+
+def test_the_notice_reaches_the_screen(client, operator_user, evaluator_user, explore_link,
+                                       fake_portal_calco):
+    """REQ-050: el aviso del cambio de nombre u objeto se ve en la pantalla de la propuesta."""
+    link, _ = explore_link(operator_user)
+    approve_basics(evaluator_user)
+    change_page(fake_portal_calco, (b"ADQUISICI\xc3\x93N DE YERBA MATE PARA OFICINAS",
+                                    b"ADQUISICI\xc3\x93N DE T\xc3\x89 PARA OFICINAS"))
+    review(operator_user, link)
+    changed = PortalItem.objects.get(proposal__origin=Origin.REVISION,
+                                     kind=ItemKind.PROCEDIMIENTO)
+    assert client.login(username=evaluator_user.username, password=TEST_PASSWORD)
+    response = client.post(reverse("portal:decide", args=[link.pk]),
+                           {"decision": "aprobar", "item": [changed.pk]})
+    html = response.content.decode()
+    assert "el Portal cambió el nombre u objeto; el procedimiento conserva el anterior" in html
