@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Oferta {{ page.offer.number }} · requisito {{ page.requirement.number }} · EVALUON{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'offers:offer' page.offer.pk %}">Oferta {{ page.offer.number }} · {{ page.offer.bidder }}</a></p>
+<h1>Requisito {{ page.requirement.number }} · oferta {{ page.offer.number }}</h1>
+
+<p class="notice" role="note">Lo que sigue es una propuesta del sistema. La decisión es de la Comisión.</p>
+
+<p>Evaluación {{ page.run.number }} de la oferta, armada con la matriz versión {{ page.run.matrix_version.number }} el {{ page.run.built_at|date:"d/m/Y H:i" }}.</p>
+{% if page.newer_version %}
+<p class="notice" role="status">Evaluada con la versión {{ page.run.matrix_version.number }}; la versión vigente es la {{ page.newer_version.number }}.</p>
+{% endif %}
+
+<section class="result-outcome" aria-labelledby="outcome-title">
+  <h2 id="outcome-title">Resultado propuesto</h2>
+  <p><strong>{{ page.result.get_outcome_display }}</strong></p>
+  {% if page.result.doubt %}
+  <p>Motivo: {% if page.result.doubt == "externo" %}falta la hoja de compliance: el requisito se verifica con una consulta fuera de la oferta.{% else %}{{ page.result.get_doubt_display }}.{% endif %}</p>
+  {% endif %}
+  {% if page.result.outcome == "sin_documento" %}
+  <p>El pliego exige un documento que no está en la oferta. No es un «no cumple»: la Comisión decide si pide que se subsane.</p>
+  {% endif %}
+  {% if page.result.unread_pages_warning %}
+  <p><em>La oferta tiene páginas que no se pudieron leer: revise el original.</em></p>
+  {% endif %}
+</section>
+
+<section class="result-requirement" aria-labelledby="requirement-title">
+  <h2 id="requirement-title">Lo que pide el pliego</h2>
+  {% for citation in page.requirement_citations %}
+  <blockquote>{{ citation.text }}</blockquote>
+  {% if citation.original_text %}<p>Texto original, antes de la circular:</p><blockquote>{{ citation.original_text }}</blockquote>{% endif %}
+  {% endfor %}
+</section>
+
+<section class="result-offer" aria-labelledby="offer-title">
+  <h2 id="offer-title">Lo que dice la oferta</h2>
+  {% if page.offer_citations %}
+  <ul class="fragments">
+    {% for citation in page.offer_citations %}
+    <li>
+      <a href="{% url 'offers:document_original' citation.document.pk %}#page={{ citation.page }}">{{ citation.document.title }} · página {{ citation.page }}</a>
+      <blockquote>{{ citation.text }}</blockquote>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No hay texto de la oferta que respalde una conclusión.</p>
+  {% endif %}
+</section>
+
+{% if page.norm_citations %}
+<section class="result-norms" aria-labelledby="norms-title">
+  <h2 id="norms-title">Normativa</h2>
+  <ul>
+    {% for citation in page.norm_citations %}
+    <li>{{ citation.label }}<blockquote>{{ citation.text }}</blockquote></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if page.answer_citations %}
+<section class="result-answers" aria-labelledby="answers-title">
+  <h2 id="answers-title">Respuestas de la Comisión</h2>
+  <ul>
+    {% for citation in page.answer_citations %}
+    <li>Respuesta de la Comisión, de {{ citation.answer.answered_by.username }} el {{ citation.answer.answered_at|date:"d/m/Y H:i" }}:
+      <blockquote>{{ citation.answer.text }}</blockquote></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="result-explanation" aria-labelledby="explanation-title">
+  <h2 id="explanation-title">Explicación del sistema</h2>
+  <p>{{ page.result.explanation|default:"El sistema no agregó una explicación." }}</p>
+  <p><small>Esta explicación la redactó el sistema: no es texto de la oferta ni del pliego.</small></p>
+</section>
+
+{% if page.question %}
+<section class="result-question" aria-labelledby="question-title">
+  <h2 id="question-title">Pregunta a la Comisión</h2>
+  <p>{{ page.question.text }}</p>
+  <p><small>Sin responder: no es fundamento de ningún resultado.</small></p>
+</section>
+{% endif %}
+{% endblock %}
