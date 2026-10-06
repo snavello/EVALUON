@@ -118,3 +118,7 @@ Consultadas el 2026-10-06 mediante una herramienta que resume las páginas (ver 
 - La memoria del 26B con contexto 32.768 es una estimación a partir de datos de otra GPU y de otro archivo; la memoria real y la velocidad en esta notebook no están medidas.
 - Las velocidades citadas son de un tercero y de otra GPU; los tiempos de la tabla son estimaciones.
 - La espera por pedido del motor de lotes (`GENERATION_BATCH_TIMEOUT_SECONDS`, 180 s) puede quedar corta con el 26B en un grupo de 20.000 tokens: se mide en T-159 y, si hace falta, se sube para las dos corridas.
+
+## Resultado (2026-10-06)
+
+Medido en T-162 (`specs/004-evaluacion-asistida/verificacion/T-162.md`): el 26B-A4B dio 15 de 49 coincidencias contra 24 del 12B (referencia T-161), 0 contradicciones, 0 de 2 no cumple reales contra 1 de 2, la mitad del tiempo y 17.965 MiB con `generation` apagado. No cumple los puntos 3, 4 y 5 de la tabla de adopción: **se queda el 12B**. No corresponde la ronda 2 (T-163).
