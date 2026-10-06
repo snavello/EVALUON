@@ -198,6 +198,21 @@ GENERATION_MODEL_SHA256 = env_str(
     "93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b",
 )
 
+# Modelo propio del motor de lotes, `generation_batch` (plan 004, ADR-0041 y ADR-0042): por
+# omisión, el mismo que `generation`. Las evaluaciones, las propuestas de la 003 y las
+# fichas de la 008 registran estos valores, no los de `generation` (P6). El proyector de
+# imagen es el de la lectura con visión.
+GENERATION_BATCH_MODEL = env_str("GENERATION_BATCH_MODEL_ALIAS", GENERATION_MODEL)
+GENERATION_BATCH_MODEL_FILE = env_str("GENERATION_BATCH_MODEL_FILE", GENERATION_MODEL_FILE)
+GENERATION_BATCH_MODEL_SHA256 = env_str(
+    "GENERATION_BATCH_MODEL_SHA256", GENERATION_MODEL_SHA256)
+GENERATION_BATCH_MMPROJ_FILE = env_str(
+    "GENERATION_BATCH_MMPROJ_FILE", "mmproj-gemma-4-12b-it-qat-q4_0.gguf")
+GENERATION_BATCH_MMPROJ_SHA256 = env_str(
+    "GENERATION_BATCH_MMPROJ_SHA256",
+    "cb018338a7538a9814d994bfe54644c71eb7ed54e31eae2f721e45fd3c260da7",
+)
+
 EMBEDDINGS_MODEL = env_str("EMBEDDINGS_MODEL_ALIAS", "bge-m3")
 EMBEDDINGS_MODEL_FILE = env_str("EMBEDDINGS_MODEL_FILE", "bge-m3-FP16.gguf")
 EMBEDDINGS_MODEL_SHA256 = env_str(

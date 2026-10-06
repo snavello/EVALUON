@@ -1,0 +1,61 @@
+# Comparación de modelos de la 004 (ADR-0042, T-159): reemplaza TEMPORALMENTE el modelo de
+# `generation_batch` (el motor de las evaluaciones) por Gemma 4 26B-A4B con su proyector de
+# imagen. No se usa salvo en la comparación; el compose base sigue con el 12B.
+# `generation`, `embeddings` y `reranker` no cambian.
+#
+# Los archivos se bajan con `scripts/fetch_models.sh --modelo-grande`.
+#
+# Uso (de a una medición, sin otra carga de la GPU):
+#   docker compose -f docker-compose.yml -f docker-compose.modelo-grande.yml up -d --no-deps generation_batch
+# `app` y `worker` registran el modelo del lote (alias, archivo, huella y proyector) con las
+# variables `GENERATION_BATCH_*`; con este archivo las reciben del 26B-A4B y hay que
+# recrearlos con los dos archivos para que lo registren:
+#   docker compose -f docker-compose.yml -f docker-compose.modelo-grande.yml up -d --no-deps generation_batch worker app
+# Para volver al 12B: recrear los mismos servicios solo con el compose base.
+#
+# El contexto sigue siendo `GENERATION_BATCH_CTX_SIZE` (igual en las dos corridas).
+
+x-modelo-grande: &modelo-grande
+  GENERATION_BATCH_MODEL_ALIAS: gemma-4-26b-a4b-it-qat-q4_0
+  GENERATION_BATCH_MODEL_FILE: gemma-4-26B_q4_0-it.gguf
+  GENERATION_BATCH_MODEL_SHA256: 3eca3b8f6d7baf218a7dd6bba5fb59a56ee25fe2d567b6f5f589b4f697eca51d
+  GENERATION_BATCH_MMPROJ_FILE: gemma-4-26B-it-mmproj.gguf
+  GENERATION_BATCH_MMPROJ_SHA256: a359953a076b877db30c31dbbb4c6d93b4a6e017ee5db5784247e4d4c0dd4f3b
+
+services:
+  generation_batch:
+    # El `command` se escribe entero aquí (no depende de `.env`): usar este archivo es
+    # siempre el 26B-A4B. Es el del compose base con el modelo, el alias y el proyector.
+    command:
+      - --model
+      - /models/gemma-4-26B_q4_0-it.gguf
+      - --alias
+      - gemma-4-26b-a4b-it-qat-q4_0
+      - --mmproj
+      - /models/gemma-4-26B-it-mmproj.gguf
+      - --ctx-size
+      - "${GENERATION_BATCH_CTX_SIZE:-32768}"
+      - --parallel
+      - "1"
+      - --n-gpu-layers
+      - all
+      - --fit
+      - "off"
+      - --reasoning
+      - "off"
+      - --reasoning-budget
+      - "0"
+      - --cache-ram
+      - "${GENERATION_CACHE_RAM:-2048}"
+      - --no-context-shift
+      - --offline
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+
+  worker:
+    environment: *modelo-grande
+
+  app:
+    environment: *modelo-grande

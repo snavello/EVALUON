@@ -43,6 +43,14 @@ x-app: &app
     # Contexto propio del motor de lotes (plan 004, ADR-0037); lo registran la 003, la 008 y
     # la 004 con cada propuesta.
     GENERATION_BATCH_CTX_SIZE: "${GENERATION_BATCH_CTX_SIZE:-32768}"
+    # Modelo propio del motor de lotes (plan 004, ADR-0042): por omisión, el mismo que
+    # `generation`. docker-compose.modelo-grande.yml los cambia para la comparación con el
+    # 26B-A4B. Las evaluaciones, las propuestas y las fichas registran estos valores (P6).
+    GENERATION_BATCH_MODEL_ALIAS: ${GENERATION_BATCH_MODEL_ALIAS:-${GENERATION_MODEL_ALIAS:-gemma-4-12b-it-qat-q4_0}}
+    GENERATION_BATCH_MODEL_FILE: ${GENERATION_BATCH_MODEL_FILE:-${GENERATION_MODEL_FILE:-gemma-4-12b-it-qat-q4_0.gguf}}
+    GENERATION_BATCH_MODEL_SHA256: ${GENERATION_BATCH_MODEL_SHA256:-${GENERATION_MODEL_SHA256:-93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b}}
+    GENERATION_BATCH_MMPROJ_FILE: ${GENERATION_BATCH_MMPROJ_FILE:-mmproj-gemma-4-12b-it-qat-q4_0.gguf}
+    GENERATION_BATCH_MMPROJ_SHA256: ${GENERATION_BATCH_MMPROJ_SHA256:-cb018338a7538a9814d994bfe54644c71eb7ed54e31eae2f721e45fd3c260da7}
     EMBEDDINGS_MODEL_ALIAS: ${EMBEDDINGS_MODEL_ALIAS:-bge-m3}
     EMBEDDINGS_MODEL_FILE: ${EMBEDDINGS_MODEL_FILE:-bge-m3-FP16.gguf}
     EMBEDDINGS_MODEL_SHA256: ${EMBEDDINGS_MODEL_SHA256:-daec91ffb5dd0c27411bd71f29932917c49cf529a641d0168496c3a501e3062c}
@@ -66,8 +74,9 @@ x-app: &app
     - ./manage.py:/app/manage.py:ro
     - ./pyproject.toml:/app/pyproject.toml:ro
     # Solo para tests/test_compose_env.py, que compara lo que ve la aplicación con lo que
-    # usan los servicios de IA.
+    # usan los servicios de IA (y con el archivo de la comparación de modelos).
     - ./docker-compose.yml:/app/docker-compose.yml:ro
+    - ./docker-compose.modelo-grande.yml:/app/docker-compose.modelo-grande.yml:ro
     - ./corpus:/app/corpus:ro
     - ./evals:/app/evals
   networks:
@@ -149,18 +158,22 @@ services:
 
   generation_batch:
     # Segunda instancia del motor, solo para los pedidos del `worker` y el comando de
-    # medición (ADR-0018): misma imagen, compilación, modelo y argumentos que generation,
-    # así la consulta de normativa no queda en fila detrás de una matriz y generation sigue
-    # como se midió en la 001. El contexto es propio, `GENERATION_BATCH_CTX_SIZE` (32.768,
-    # ADR-0037), para la lectura completa de la evaluación; cuesta más memoria de video.
+    # medición (ADR-0018): misma imagen, compilación y argumentos que generation, así la
+    # consulta de normativa no queda en fila detrás de una matriz y generation sigue como
+    # se midió en la 001. Propios del lote: el contexto, `GENERATION_BATCH_CTX_SIZE` (32.768,
+    # ADR-0037); el modelo, el alias y el proyector de imagen (`GENERATION_BATCH_MODEL_*`,
+    # `GENERATION_BATCH_MMPROJ_FILE`; por omisión el 12B de generation, ADR-0041 y ADR-0042).
     # tests/tenders/test_generation_batch.py comprueba que el command sea igual al de
-    # generation salvo el contexto: al cambiar uno, cambiar los dos.
+    # generation salvo esos cuatro puntos: al cambiar uno, cambiar los dos.
     image: ghcr.io/ggml-org/llama.cpp:server-cuda-b11347
     command:
       - --model
-      - /models/${GENERATION_MODEL_FILE:-gemma-4-12b-it-qat-q4_0.gguf}
+      - /models/${GENERATION_BATCH_MODEL_FILE:-${GENERATION_MODEL_FILE:-gemma-4-12b-it-qat-q4_0.gguf}}
       - --alias
-      - ${GENERATION_MODEL_ALIAS:-gemma-4-12b-it-qat-q4_0}
+      - ${GENERATION_BATCH_MODEL_ALIAS:-${GENERATION_MODEL_ALIAS:-gemma-4-12b-it-qat-q4_0}}
+      # Proyector de imagen (lectura con visión, ADR-0041).
+      - --mmproj
+      - /models/${GENERATION_BATCH_MMPROJ_FILE:-mmproj-gemma-4-12b-it-qat-q4_0.gguf}
       - --ctx-size
       - "${GENERATION_BATCH_CTX_SIZE:-32768}"
       - --parallel
@@ -331,6 +344,7 @@ services:
       - ./manage.py:/app/manage.py:ro
       - ./pyproject.toml:/app/pyproject.toml:ro
       - ./docker-compose.yml:/app/docker-compose.yml:ro
+      - ./docker-compose.modelo-grande.yml:/app/docker-compose.modelo-grande.yml:ro
       - ./corpus:/app/corpus:ro
       - ./corpus/casos:/app/corpus/casos
       - ./evals:/app/evals
