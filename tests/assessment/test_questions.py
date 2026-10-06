@@ -8,6 +8,7 @@ from evaluon.accounts.permissions import RoleRejected
 from evaluon.assessment import models as am
 from evaluon.assessment.services import evaluate, questions, review
 from evaluon.audit.models import AuditEvent, EventType
+from evaluon.audit.models import Channel as AuditChannel
 from evaluon.audit.models import Outcome as EventOutcome
 from tests.assessment.fakes import model, says  # noqa: F401 - `model` es una fixture
 from tests.assessment.test_evaluate import number_of, requirement_of, run_all
@@ -29,7 +30,7 @@ def asked(offer, operator_user, procedure, model):
     """Una evaluación en la que el requisito del plazo queda "no determinado" con pregunta."""
     model.evaluates(ask_about_days)
     run_all(operator_user, procedure)
-    return am.Question.objects.get(requirement__number=number_of(procedure, DAYS))
+    return am.Question.objects.get(requirement__number=number_of(procedure, DAYS), offer=offer)
 
 
 @pytest.fixture
@@ -188,3 +189,84 @@ def test_open_questions_come_first_and_answered_ones_follow(
     rows = questions.question_list(operator_user, procedure)
     assert rows[0].is_open and rows[0].question == asked
     assert rows[-1].question == other and not rows[-1].is_open
+
+
+# --- Evaluar de nuevo: solo los pares que muestra la pantalla ----------------------------------
+
+
+def ask_days_and_declaration(call):
+    if DAYS in call.requirement:
+        return says("no_consta", exigence="condicion", question="¿Desde cuándo corre?")
+    if "declaración jurada" in call.requirement and call.alias_with("Declaro bajo juramento"):
+        return says("no_consta", exigence="condicion", question="¿Qué se declara?")
+
+
+def test_a_requirement_scope_answer_reaches_both_offers(
+        other_offer, asked, offer, evaluator_user, procedure):
+    """REQ-055: una respuesta de alcance `requisito` con dos ofertas evaluadas alcanza a las dos y
+    el pedido de "evaluar de nuevo" es exactamente esos pares."""
+    answer = questions.answer(evaluator_user, asked.pk, "Desde la apertura.", "requisito").answer
+    assert {(o.pk, r.pk) for o, r in questions.affected_pairs(answer)} == {
+        (offer.pk, asked.requirement_id), (other_offer.pk, asked.requirement_id)}
+    request = questions.reevaluate(evaluator_user, answer.pk).request
+    assert sorted(request.offers) == sorted([offer.pk, other_offer.pk])
+    assert request.requirements == [asked.requirement_id] and request.cause == "respuesta"
+
+
+def test_a_procedure_scope_answer_reaches_only_the_undetermined_pairs_and_asks_per_offer_if_uneven(
+        other_offer, offer, evaluator_user, operator_user, procedure, model):
+    """REQ-055: el alcance `procedimiento` alcanza los pares hoy "no determinado" (no los demás);
+    si no son los mismos requisitos en todas las ofertas, el pedido conjunto se rechaza, queda
+    registrado, y se pide oferta por oferta."""
+    model.evaluates(ask_days_and_declaration)
+    run_all(operator_user, procedure)
+    days = requirement_of(procedure, DAYS)
+    declaration = requirement_of(procedure, "declaración jurada")
+    question = am.Question.objects.get(offer=offer, requirement=days)
+    answer = questions.answer(evaluator_user, question.pk, "Vale para todo.",
+                              "procedimiento").answer
+    assert {(o.pk, r.pk) for o, r in questions.affected_pairs(answer)} == {
+        (offer.pk, days.pk), (offer.pk, declaration.pk), (other_offer.pk, days.pk)}
+    assert not questions.is_rectangular(questions.affected_pairs(answer))
+    with pytest.raises(questions.AnswerRefused) as caught:
+        questions.reevaluate(evaluator_user, answer.pk)
+    assert caught.value.reason == "not_rectangular"
+    assert AuditEvent.objects.filter(event_type=EventType.EVAL_ANSWER,
+                                     outcome=EventOutcome.REJECTED,
+                                     detail__reason="not_rectangular").exists()
+    assert not am.Request.objects.filter(cause="respuesta").exists()
+    request = questions.reevaluate(evaluator_user, answer.pk, offer_id=offer.pk).request
+    assert request.offers == [offer.pk]
+    assert sorted(request.requirements) == sorted([days.pk, declaration.pk])
+
+
+def test_a_pair_already_confirmed_is_not_overwritten_by_the_new_evaluation(
+        other_offer, asked, offer, evaluator_user, operator_user, procedure, model):
+    """REQ-056, P3: un par que la Comisión ya confirmó no entra en "evaluar de nuevo": se avisa
+    y la evaluación nueva no deja una propuesta encima."""
+    confirmed = evaluate.current_result(other_offer, asked.requirement)
+    review.confirm(evaluator_user, confirmed.pk)
+    answer = questions.answer(evaluator_user, asked.pk, "Desde la apertura.").answer
+    assert questions.affected_pairs(answer) == [(offer, asked.requirement)]
+    assert questions.decided_pairs(answer) == [(other_offer, asked.requirement)]
+    requested = questions.reevaluate(evaluator_user, answer.pk)
+    assert requested.request.offers == [offer.pk]
+    runs = evaluate.execute(
+        requested.request, evaluator_user, channel=am.Channel.EVAL,
+        audit_channel=AuditChannel.EVAL, job=requested.job)
+    assert runs
+    assert evaluate.current_result(other_offer, asked.requirement).pk == confirmed.pk
+    assert review.state_of(confirmed) == "confirmado"
+
+
+def test_reevaluate_records_its_rejections(asked, evaluator_user):
+    """P6: una respuesta que no alcanza ningún par, o que no existe, deja el hecho rechazado."""
+    review.reject(evaluator_user, evaluate.current_result(
+        asked.offer, asked.requirement).pk, "No corresponde.")
+    answer = questions.answer(evaluator_user, asked.pk, "Algo.", "par").answer
+    for target, reason in ((answer.pk, "no_affected_pairs"), (999999, "answer_not_found")):
+        with pytest.raises(questions.AnswerRefused):
+            questions.reevaluate(evaluator_user, target)
+        assert AuditEvent.objects.filter(event_type=EventType.EVAL_ANSWER,
+                                         outcome=EventOutcome.REJECTED,
+                                         detail__reason=reason).exists()

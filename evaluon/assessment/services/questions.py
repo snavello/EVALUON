@@ -23,7 +23,7 @@ from django.db import transaction
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.assessment.models import Answer, AnswerScope, Cause, Outcome, Question, Result
-from evaluon.assessment.services import evaluate
+from evaluon.assessment.services import evaluate, review
 from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType
 from evaluon.audit.models import Outcome as EventOutcome
@@ -137,10 +137,9 @@ def _current_results(offer):
     return list(latest.values())
 
 
-def affected_pairs(answer):
-    """Los pares `(oferta, requisito)` con resultado vigente a los que la respuesta aplica: el
-    par de la pregunta (`par`), todas las ofertas evaluadas de ese requisito (`requisito`) o
-    los pares hoy "no determinado" del procedimiento (`procedimiento`)."""
+def _scope_pairs(answer):
+    """Todos los pares `(oferta, requisito)` con resultado vigente a los que alcanza el alcance
+    de la respuesta."""
     question = answer.question
     if answer.scope == AnswerScope.PAR:
         return [(question.offer, question.requirement)]
@@ -157,21 +156,61 @@ def affected_pairs(answer):
     return pairs
 
 
-def reevaluate(user, answer_id, *, channel=Channel.SCREEN):
-    """Pide evaluar de nuevo los pares afectados por la respuesta `answer_id` (causa
-    `respuesta`). Lo pide el evaluador. Lo evaluado antes no se toca: la evaluación nueva es
-    otro resultado del par."""
+def _is_decided(offer, requirement):
+    return review.state_of(evaluate.current_result(offer, requirement)) != review.PROPOSED
+
+
+def affected_pairs(answer):
+    """Los pares a los que la respuesta aplica y que se pueden evaluar de nuevo: par de la
+    pregunta (`par`), ofertas evaluadas de ese requisito (`requisito`) o pares hoy "no
+    determinado" (`procedimiento`). Un par que la Comisión ya decidió (confirmado, corregido o
+    rechazado) no entra: la evaluación nueva no se pone encima sin que lo pida (ver
+    `decided_pairs`)."""
+    return [p for p in _scope_pairs(answer) if not _is_decided(*p)]
+
+
+def decided_pairs(answer):
+    """Los pares que la respuesta alcanza pero que la Comisión ya decidió: se avisan y no se
+    evalúan de nuevo."""
+    return [p for p in _scope_pairs(answer) if _is_decided(*p)]
+
+
+def is_rectangular(pairs):
+    """Si el pedido por ofertas y requisitos evalúa exactamente `pairs` (sin pares de más)."""
+    offers = {o.pk for o, _ in pairs}
+    requirements = {r.pk for _, r in pairs}
+    return len(pairs) == len(offers) * len(requirements)
+
+
+def _refuse(user, channel, error, detail):
+    _record_refusal(error, user, channel, detail)
+    raise error
+
+
+def reevaluate(user, answer_id, *, offer_id=None, channel=Channel.SCREEN):
+    """Pide evaluar de nuevo exactamente los pares que `affected_pairs` muestra (causa
+    `respuesta`), o los de una sola oferta si se da `offer_id`. Lo pide el evaluador. Lo evaluado
+    antes no se toca. El pedido es por ofertas y requisitos: si los pares no forman un
+    rectángulo, se rechaza y se pide oferta por oferta. Todo rechazo queda registrado (P6)."""
     require_commission_role(user, CommissionRole.EVALUATOR, operation=REEVALUATE_OPERATION,
                             channel=channel)
+    detail = {"answer": answer_id, "operation": "reevaluate", "offer": offer_id}
     try:
         found = Answer.objects.select_related("question__procedure").get(pk=int(answer_id))
     except (Answer.DoesNotExist, TypeError, ValueError):
-        raise AnswerRefused("No hay una respuesta con ese número.", "answer_not_found",
-                            "answer")
+        _refuse(user, channel, AnswerRefused(
+            "No hay una respuesta con ese número.", "answer_not_found", "answer"), detail)
     pairs = affected_pairs(found)
+    if offer_id is not None:
+        pairs = [p for p in pairs if str(p[0].pk) == str(offer_id)]
     if not pairs:
-        raise AnswerRefused("La respuesta no aplica a ningún requisito evaluado.",
-                            "no_affected_pairs", "answer")
+        _refuse(user, channel, AnswerRefused(
+            "La respuesta no alcanza a ningún requisito que se pueda evaluar de nuevo.",
+            "no_affected_pairs", "answer"), detail)
+    if not is_rectangular(pairs):
+        _refuse(user, channel, AnswerRefused(
+            "Los requisitos alcanzados no son los mismos en todas las ofertas: pida la "
+            "evaluación oferta por oferta.", "not_rectangular", "answer"), detail)
     offers = list(dict.fromkeys(o.pk for o, _ in pairs))
     requirements = list(dict.fromkeys(r.pk for _, r in pairs))
     return evaluate.request_evaluation(

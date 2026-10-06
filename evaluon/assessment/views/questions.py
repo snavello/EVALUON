@@ -29,7 +29,11 @@ def _page(request, procedure, *, error="", status=200):
         found = Answer.objects.select_related("question").filter(
             pk=int(answered), question__procedure=procedure).first()
         if found is not None:
-            offered = {"answer": found, "pairs": questions.affected_pairs(found)}
+            pairs = questions.affected_pairs(found)
+            offered = {"answer": found, "pairs": pairs,
+                       "decided": questions.decided_pairs(found),
+                       "whole": questions.is_rectangular(pairs),
+                       "offers": list(dict.fromkeys(o for o, _ in pairs))}
     return render(request, QUESTIONS_TEMPLATE, {
         "procedure": procedure, "rows": rows, "error": error, "offered": offered,
         "can_answer": getattr(request.user, "commission_role", "") == CommissionRole.EVALUATOR,
@@ -76,7 +80,8 @@ def reevaluate(request, answer_id):
         raise Http404("No hay una respuesta con ese número.")
     procedure = found.question.procedure
     try:
-        questions.reevaluate(request.user, answer_id, channel=Channel.SCREEN)
+        questions.reevaluate(request.user, answer_id, offer_id=request.POST.get("offer") or None,
+                             channel=Channel.SCREEN)
     except (questions.AnswerRefused, evaluate.EvaluationRefused) as error:
         return _page(request, procedure, error=str(error), status=422)
     return redirect(reverse("assessment:questions", args=[procedure.pk]) + "?pedida=1")

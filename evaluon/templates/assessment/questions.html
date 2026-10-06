@@ -12,11 +12,25 @@
   <h2 id="offer-title">Respuesta registrada</h2>
   <p>La respuesta quedó registrada. Alcanza a {{ offered.pairs|length }} requisito{{ offered.pairs|length|pluralize }} evaluado{{ offered.pairs|length|pluralize }}:</p>
   <ul>{% for offer, requirement in offered.pairs %}<li>Oferta {{ offer.number }} · requisito {{ requirement.number }}</li>{% endfor %}</ul>
+  {% if offered.decided %}
+  <p><small>Ya decididos por la Comisión, no se evalúan de nuevo: {% for offer, requirement in offered.decided %}oferta {{ offer.number }} · requisito {{ requirement.number }}{% if not forloop.last %}; {% endif %}{% endfor %}.</small></p>
+  {% endif %}
   {% if can_answer and offered.pairs %}
+  {% if offered.whole %}
   <form method="post" action="{% url 'assessment:reevaluate_answer' offered.answer.pk %}">
     {% csrf_token %}
     <button type="submit">Evaluar de nuevo esos requisitos</button>
   </form>
+  {% endif %}
+  {% if offered.offers|length > 1 or not offered.whole %}
+  {% for offer in offered.offers %}
+  <form method="post" action="{% url 'assessment:reevaluate_answer' offered.answer.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="offer" value="{{ offer.pk }}">
+    <button type="submit">Evaluar de nuevo solo la oferta {{ offer.number }}</button>
+  </form>
+  {% endfor %}
+  {% endif %}
   {% endif %}
 </section>
 {% endif %}
