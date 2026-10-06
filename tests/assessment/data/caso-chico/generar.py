@@ -233,7 +233,10 @@ def main():
         sheet = _base.degrade(sheet, rng, angle=1.6, noise=40, blur=0.8)
         write(folder, "constancia-escaneada.pdf", _base.images_pdf([sheet]))
 
-        if key != "b":  # la oferta B no trae el certificado de vigencia del contrato social
+        # La oferta B no trae el certificado de vigencia del contrato social y tiene una página
+        # sin leer (no se puede decir que falta: ADR-0038, regla 3); la C tampoco lo trae y se
+        # lee completa: ahí el documento está ausente (T-151).
+        if key == "a":
             write(folder, "certificado-vigencia.pdf", tender_pdf(vigencia(key), header=head))
         if key == "b":  # la oferta B trae el documento con una página escaneada e ilegible
             scan = _base.render(identidad(key))[0]

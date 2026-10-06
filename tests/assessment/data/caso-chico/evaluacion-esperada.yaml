@@ -7,13 +7,13 @@
 # `resultado` es uno de los cuatro: cumple, no_cumple, no_determinado, no_se_encontro_documento.
 # `base`: oferta (documentos de la oferta), externa (se verifica fuera de la oferta: la hoja de
 # compliance, decisión 1 del responsable 2026-10-06) o tecnica (requisito por renglón, decisión 2).
-# `motivo` de un no_determinado: falta_hoja_compliance o pagina_ilegible; con `pregunta: si`
+# `motivo` de un no_determinado: falta_hoja_compliance, pagina_ilegible o lectura_incompleta; con `pregunta: si`
 # el par debe traer una pregunta para la Comisión. `citas` son literales de la oferta (documento,
 # página y fragmento exacto del texto leído); un cumple o un no_cumple lleva al menos una.
 # Las anclas de documentos escaneados las comprueba `medir_evaluacion --verificar-esperada`.
 caso: caso-chico-evaluacion
 preparo: "Coordinador (agente delegado), 2026-10-06"
-visto_bueno: pendiente   # lo da el Coordinador al revisar (T-149)
+visto_bueno: "Coordinador, 2026-10-06 (T-149 verificada); T-151: M-003 de B a lectura incompleta (ADR-0038) y M-003 de C sin documento, decisión del Coordinador"
 matriz:
   procedimiento: CASO-CHICO-EVALUACION
   tipo: Contratación directa sintética
@@ -76,7 +76,7 @@ ofertas:
     requisitos:
       - {requisito: M-001, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-b/oferta-propuesta.pdf, pagina: 1, ancla: "Declaro bajo juramento que me encuentro habilitado para contratar con el organismo"}]}
       - {requisito: M-002, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-b/constancia-escaneada.pdf, pagina: 1, ancla: "se encuentra inscripto en el registro de proveedores con el número 000123"}]}
-      - {requisito: M-003, resultado: no_se_encontro_documento, base: oferta, nota: "la oferta no trae el certificado de vigencia del contrato social; no es un no cumple"}
+      - {requisito: M-003, resultado: no_determinado, base: oferta, motivo: lectura_incompleta, pregunta: si, nota: "T-151, corrección por conflicto con el ADR-0038 (regla 3, decisión del Coordinador): la oferta no trae el certificado, pero tiene una página sin leer y no se puede afirmar que el documento falta; no es un no cumple. Antes decía no_se_encontro_documento"}
       - {requisito: M-004, resultado: no_determinado, base: oferta, motivo: pagina_ilegible, pregunta: si, nota: "la copia del documento de identidad está en la página 2, escaneada e ilegible; la página 1 solo dice que se adjunta"}
       - {requisito: M-005, resultado: no_determinado, base: externa, motivo: falta_hoja_compliance, pregunta: si}
       - {requisito: M-006, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-b/poliza-caucion.pdf, pagina: 1, ancla: "hasta la suma de $ 25.950"}]}
@@ -91,7 +91,6 @@ ofertas:
       - {archivo: ofertas/oferente-c/poliza-caucion.pdf, sha256: "15c40dc61e91350e9fe9e787a3b7a9802c3059ae3a8ecd7bc9fc16dab722fce7"}
       - {archivo: ofertas/oferente-c/hoja-tecnica-resma.pdf, sha256: "9e6162621a8aef70a5f61cad69290cc6cbde54c24db8718df3c7e30da26d9ac9"}
       - {archivo: ofertas/oferente-c/constancia-escaneada.pdf, sha256: "664a6629f7950caa8c5f923b3ad7ca7cfdb144926675536d6a6b4bd482c1e123"}
-      - {archivo: ofertas/oferente-c/certificado-vigencia.pdf, sha256: "5f35810fb84341d9f6a153502696ebecb443805082b7a1c730cdc4dd653be0e4"}
       - {archivo: ofertas/oferente-c/documento-identidad.pdf, sha256: "64356264db111f6a550e899fb4c9f77e92583d6720e03d5c288d526094cd33fd"}
     descartada: si          # M-001 no cumple: el pliego manda desestimar la oferta con una declaración de inhabilidad
     descarte: {requisito: M-001, fundamento: "La declaración jurada informa una causal de inhabilidad; el pliego (2.1) la desestima."}
@@ -101,7 +100,7 @@ ofertas:
     requisitos:
       - {requisito: M-001, resultado: no_cumple, base: oferta, citas: [{documento: ofertas/oferente-c/oferta-propuesta.pdf, pagina: 1, ancla: "se encuentra comprendido en una causal de inhabilidad para contratar por deuda exigible con el organismo"}]}
       - {requisito: M-002, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-c/constancia-escaneada.pdf, pagina: 1, ancla: "se encuentra inscripto en el registro de proveedores con el número 000123"}]}
-      - {requisito: M-003, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-c/certificado-vigencia.pdf, pagina: 1, ancla: "el contrato social de Oferente C Sintético se encuentra vigente"}]}
+      - {requisito: M-003, resultado: no_se_encontro_documento, base: oferta, nota: "T-151: la oferta C se lee completa y no trae el certificado de vigencia del contrato social; no es un no cumple. Antes traía el documento"}
       - {requisito: M-004, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-c/documento-identidad.pdf, pagina: 1, ancla: "Copia del documento de identidad sintético número 00.000.000"}]}
       - {requisito: M-005, resultado: no_determinado, base: externa, motivo: falta_hoja_compliance, pregunta: si}
       - {requisito: M-006, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-c/poliza-caucion.pdf, pagina: 1, ancla: "hasta la suma de $ 23.800"}]}
@@ -118,7 +117,7 @@ orden_economico:         # las no descartadas, de menor a mayor total (el cuadro
   excluidas: [Oferente C Sintético]                   # descartada; con su total (476.000) sería la primera
 resumen:
   pares: 30
-  por_resultado: {cumple: 23, no_cumple: 2, no_determinado: 4, no_se_encontro_documento: 1}
+  por_resultado: {cumple: 22, no_cumple: 2, no_determinado: 5, no_se_encontro_documento: 1}
   externos: 3            # M-005 en las tres ofertas
   tecnicos: 9            # M-008 a M-010 en las tres ofertas
-  preguntas_esperadas: 4 # los tres M-005 y el M-004 de la oferta B
+  preguntas_esperadas: 5 # los tres M-005, el M-004 y el M-003 de la oferta B
