@@ -444,3 +444,17 @@ ASSESSMENT_PROMPT_VERSIONS = {
     "contraste": "contraste-v2",
     "clausulas": "clausulas-v2",
 }
+
+# Lectura con visión de las páginas dudosas (T-160; ADR-0041). Páginas por oferta que se mandan
+# al motor de lotes con su imagen (0 la apaga: la evaluación sigue con la lectura que haya);
+# resolución a la que se dibuja la página y lado mayor máximo de la imagen, en puntos; tokens
+# por imagen con que se estima (lo fija el motor: se registra); máximo de tokens de la
+# transcripción de una página; proporción de `[ilegible]` por encima de la cual la página no
+# cuenta como leída; versión de la instrucción (`evaluon/assessment/prompts/<versión>.md`).
+ASSESSMENT_VISION_MAX_PAGES = 40
+ASSESSMENT_VISION_DPI = 150
+ASSESSMENT_VISION_MAX_SIDE = 1800
+ASSESSMENT_VISION_IMAGE_TOKENS = 280
+ASSESSMENT_VISION_MAX_OUTPUT_TOKENS = 3000
+ASSESSMENT_VISION_MAX_ILLEGIBLE_SHARE = 0.30
+ASSESSMENT_VISION_PROMPT_VERSION = "vision-v1"

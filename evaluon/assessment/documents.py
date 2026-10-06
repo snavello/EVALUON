@@ -2,7 +2,8 @@
 se lee y cómo se agrupa"; ADR-0037; T-150).
 
 Cada documento de la oferta es su última lectura, armada como texto por página con los pasajes
-de la lectura (`sizing.render_page`: una página ilegible figura "no se pudo leer"). Los
+de la lectura (`sizing.render_page`: una página ilegible figura "no se pudo leer"; una página que la lectura con
+visión transcribió cuenta como leída, `offers/vision.py`). Los
 documentos de texto canónico idéntico se cuentan una vez: el resto figura como copia de otro
 documento y la cita se hace sobre el que quedó. Los tokens se cuentan una vez por documento y
 por página (`generation.count_tokens`), no por requisito.
@@ -27,7 +28,7 @@ from django.conf import settings
 
 from evaluon.ai import generation
 from evaluon.assessment import sizing
-from evaluon.offers import retrieval
+from evaluon.offers import retrieval, vision
 from evaluon.offers.models import Passage
 
 
@@ -44,6 +45,9 @@ class DocumentText:
     header_tokens: int = 0
     # Documento que tiene el mismo texto canónico y quedó en su lugar.
     copy_of: int | None = None
+    # Páginas cuyo texto es la transcripción de la lectura con visión (ADR-0041): cuentan como
+    # leídas, y las citas sobre ellas se rotulan "leída por visión".
+    vision_pages: list = field(default_factory=list)
 
     @property
     def tokens(self):
@@ -128,7 +132,7 @@ class OfferText:
             "reading": d.reading.pk if d.reading else None, "sha256": d.sha256,
             "pages": len(d.pages), "unread_pages": d.unread_pages, "tokens": d.tokens,
             "page_tokens": d.page_tokens, "copy_of": d.copy_of,
-            "windows": windowed.get(d.document.pk, []),
+            "windows": windowed.get(d.document.pk, []), "vision_pages": d.vision_pages,
         } for d in self.documents]
 
 
@@ -141,6 +145,7 @@ def read_document(document, count):
     entry.reading = reading
     entry.sha256 = reading.canonical_sha256
     entry.pages = sizing.document_pages(reading)
+    entry.vision_pages = sorted(vision.vision_pages(reading))
     entry.page_tokens = [count(sizing.render_page(p)) for p in entry.pages]
     entry.header_tokens = count(entry.header)
     return entry
