@@ -129,6 +129,9 @@ def fixed_question(doubt, unread=(), explanation=""):
         detail = f" {explanation}" if explanation else ""
         return ("Para este requisito falta un dato que no consta en la oferta ni en la "
                 "normativa." + detail + " ¿Qué determina la Comisión?")
+    if doubt == UNCORROBORATED:
+        return ("El sistema llegó a una conclusión con el texto de la oferta, pero no pudo "
+                "corroborarla. ¿La Comisión la confirma, la corrige o la rechaza?")
     return ""
 
 
@@ -203,4 +206,5 @@ def apply_contrast(combined, answer, reason=""):
     note = f"El contraste no corroboró la conclusión ({answer}): {reason}".rstrip(": ")
     explanation = f"{combined.explanation} {note}".strip()
     return replace(combined, outcome=OUT_NO_DETERMINADO, doubt=UNCORROBORATED,
-                   explanation=explanation)
+                   explanation=explanation,
+                   question=fixed_question(UNCORROBORATED))

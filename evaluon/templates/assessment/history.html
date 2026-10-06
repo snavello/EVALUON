@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Historial · oferta {{ offer.number }} · requisito {{ requirement.number }} · EVALUON{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'assessment:pair' offer.pk requirement.pk %}">Volver al par</a></p>
+<h1>Historial · requisito {{ requirement.number }} · oferta {{ offer.number }}</h1>
+<p class="notice" role="note">Cada propuesta del sistema queda como se generó; las decisiones de la Comisión se agregan aparte, con quién y cuándo.</p>
+
+{% for stage in stages %}
+<section class="history-stage" aria-labelledby="stage-{{ stage.result.pk }}">
+  <h2 id="stage-{{ stage.result.pk }}">Evaluación {{ stage.run.number }}{% if stage.is_current %} (vigente){% endif %}</h2>
+  <p>Armada el {{ stage.run.built_at|date:"d/m/Y H:i" }} con la matriz versión {{ stage.run.matrix_version.number }}.</p>
+  <p>Propuesta del sistema: <strong>{{ stage.result.get_outcome_display }}</strong>{% if stage.result.doubt %} ({{ stage.result.get_doubt_display }}){% endif %}. Estado: {{ stage.state }}.</p>
+  <p>Explicación del sistema (no es texto de la oferta ni del pliego): {{ stage.result.explanation|default:"sin explicación" }}</p>
+
+  {% with cites=stage.citations %}
+  {% if cites.pliego %}<h3>Lo que pedía el pliego</h3>
+  {% for c in cites.pliego %}<blockquote>{{ c.text }}</blockquote>{% endfor %}{% endif %}
+  <h3>Texto de la oferta</h3>
+  {% for c in cites.oferta %}
+  <blockquote><a href="{% url 'offers:document_original' c.document.pk %}#page={{ c.page }}">{{ c.document.title }} · página {{ c.page }}</a>: {{ c.text }}</blockquote>
+  {% empty %}<p>Sin texto de la oferta que respalde una conclusión.</p>{% endfor %}
+  {% if cites.norma %}<h3>Normativa</h3>
+  {% for c in cites.norma %}<blockquote>{{ c.label }}: {{ c.text }}</blockquote>{% endfor %}{% endif %}
+  {% if cites.respuesta %}<h3>Respuestas de la Comisión</h3>
+  {% for c in cites.respuesta %}<blockquote>Respuesta de {{ c.answer.answered_by.username }} el {{ c.answer.answered_at|date:"d/m/Y H:i" }}: {{ c.answer.text }}</blockquote>{% endfor %}{% endif %}
+  {% endwith %}
+
+  <h3>Decisiones</h3>
+  <ul>
+    {% for d in stage.decisions %}
+    <li>{{ d.get_action_display }}{% if d.outcome_after %} → «{{ d.get_outcome_after_display }}» (el sistema había propuesto «{{ stage.result.get_outcome_display }}»){% endif %} · {{ d.user.username }} · {{ d.at|date:"d/m/Y H:i" }}{% if d.note %} · {{ d.note }}{% endif %}</li>
+    {% empty %}<li>Sin decisiones.</li>{% endfor %}
+  </ul>
+</section>
+{% endfor %}
+{% endblock %}
