@@ -6,6 +6,8 @@
       {% include "portal/_notice.html" %}
     {% elif notice.job.kind == "build_sheet" or notice.job.kind == "read_offer_document" %}
       {% include "offers/_notice.html" %}
+    {% elif notice.job.kind == "evaluate_offers" %}
+      {% if notice.failed %}La evaluación de las ofertas del procedimiento {{ notice.job.procedure.number }} falló: {{ notice.job.error }}.{% else %}La evaluación de las ofertas del procedimiento {{ notice.job.procedure.number }} terminó.{% endif %} <a href="{% url 'assessment:matrix' notice.job.procedure_id %}">Ver la matriz de evaluación</a>.
     {% elif notice.job.kind == "propose_matrix" %}
       {% if notice.failed %}La propuesta de la matriz del procedimiento {{ notice.job.procedure.number }} falló: {{ notice.job.error }}. <a href="{% url 'tenders:procedure' notice.job.procedure_id %}">Ver el procedimiento</a>.
       {% elif notice.version_id %}La propuesta de la matriz del procedimiento {{ notice.job.procedure.number }} terminó. <a href="{% url 'tenders:matrix' notice.version_id %}">Ver la matriz</a>.
