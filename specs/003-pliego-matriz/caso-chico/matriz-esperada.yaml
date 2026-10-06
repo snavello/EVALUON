@@ -1,0 +1,58 @@
+# Lista esperada del caso chico sintético del runbook 003. Todo inventado (P4).
+# Los dos __SHA_...__ se reemplazan por la huella de los PDF generados (cada generación da PDF con huella distinta); ver runbook, sección 4.
+caso: caso-chico
+documentos:
+  - archivo: pliego-sintetico.pdf
+    sha256: __SHA_PLIEGO__
+    rol: pliego
+  - archivo: circular-sintetica-1.pdf
+    sha256: __SHA_CIRCULAR__
+    rol: circular
+criterios: "prueba del runbook 003"
+preparo: "Implementador, 2026-10-05"
+visto_bueno: "no corresponde: caso inventado para probar el procedimiento"
+confirmacion_comision: pendiente
+uso: ajuste
+
+tecnico_general:
+  - {documento: pliego-sintetico.pdf, tramo: sec-i/3.1}
+
+requisitos:
+  - id: S-001
+    documento: pliego-sintetico.pdf
+    tramo: sec-i/1.1
+    pagina: 1
+    ancla: "garantía del 5 % del monto"
+    clase: economico
+    renglones: []
+  - id: S-002
+    documento: pliego-sintetico.pdf
+    tramo: sec-i/2.1
+    pagina: 1
+    ancla: "a los 90 días corridos"
+    clase: economico
+    renglones: []
+  - id: S-003
+    documento: pliego-sintetico.pdf
+    tramo: sec-i/4.1
+    pagina: 1
+    ancla: "constancia de visita al lugar de entrega"
+    clase: formal
+    renglones: []
+  - id: S-004
+    clase: tecnico
+    renglon: 1
+    tramos: [sec-ii/1, sec-ii/1.1, sec-ii/1.2]
+    circulares:
+      - documento: circular-sintetica-1.pdf
+        fecha: "2026-09-10"
+        efecto: modifica
+        tramo: "1"
+        pagina: 1
+        ancla: "la computadora tendrá 32 GB de RAM"
+        texto_original: {documento: pliego-sintetico.pdf, pagina: 2, cita: "La computadora tendrá 16 GB de RAM"}
+        texto_vigente: "la computadora tendrá 32 GB de RAM"
+  - id: S-005
+    clase: tecnico
+    renglon: 2
+    tramos: [sec-ii/2, sec-ii/2.1]
