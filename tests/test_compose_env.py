@@ -29,12 +29,16 @@ from django.conf import settings
 COMPOSE_FILE = Path(settings.BASE_DIR) / "docker-compose.yml"
 
 AI_SERVICES = ("generation", "embeddings", "reranker")
+# Servicios de generación: `generation_batch` es el mismo motor con su propio contexto
+# (plan 004, ADR-0037).
+COMMAND_SERVICES = AI_SERVICES + ("generation_batch",)
 
 # Variables de modelo que usan los servicios y que la aplicación tiene que recibir igual.
 SHARED_VARIABLES = (
     "GENERATION_MODEL_ALIAS",
     "GENERATION_MODEL_FILE",
     "GENERATION_CTX_SIZE",
+    "GENERATION_BATCH_CTX_SIZE",
     "EMBEDDINGS_MODEL_ALIAS",
     "EMBEDDINGS_MODEL_FILE",
     "RERANKER_MODEL_ALIAS",
@@ -84,7 +88,7 @@ def service_defaults(compose):
     """Valor por omisión de cada variable en los `command` de los servicios de IA. Una
     variable que aparece con dos valores por omisión distintos es un error del compose."""
     defaults = {}
-    for service in AI_SERVICES:
+    for service in COMMAND_SERVICES:
         for item in compose["services"][service]["command"]:
             for match in INTERPOLATION.finditer(str(item)):
                 previous = defaults.setdefault(match["name"], match["default"])
@@ -139,6 +143,9 @@ def test_application_sees_what_the_services_use(compose):
     assert settings.GENERATION_CONTEXT_TOKENS == int(
         argument(compose, "generation", "--ctx-size", env)
     )
+    assert settings.GENERATION_BATCH_CONTEXT_TOKENS == int(
+        argument(compose, "generation_batch", "--ctx-size", env)
+    )
 
 
 def test_settings_defaults_are_the_compose_defaults(compose, monkeypatch):
@@ -163,9 +170,22 @@ def test_settings_defaults_are_the_compose_defaults(compose, monkeypatch):
         compose, "reranker", "--model", no_env)
     assert fresh["GENERATION_CONTEXT_TOKENS"] == int(
         argument(compose, "generation", "--ctx-size", no_env))
+    assert fresh["GENERATION_BATCH_CONTEXT_TOKENS"] == int(
+        argument(compose, "generation_batch", "--ctx-size", no_env))
+    assert fresh["GENERATION_BATCH_CONTEXT_TOKENS"] == 32768
     # Direcciones y huellas: el nombre en settings.py es el de la variable.
     for name in APP_ONLY_VARIABLES:
         assert fresh[name] == resolve(app_environment[name], no_env), name
+
+
+def test_the_batch_engine_context_reaches_every_service_of_the_app_image(compose):
+    """REQ-054 (ADR-0037, P6): `app`, `migrate` y `worker` reciben el contexto del motor de
+    lotes desde `.env`, con el mismo valor por omisión (32.768) que el servicio, para
+    registrar el contexto real con cada propuesta y evaluación."""
+    for name in ("app", "migrate", "worker"):
+        environment = compose["services"][name]["environment"]
+        assert environment["GENERATION_BATCH_CTX_SIZE"] == (
+            "${GENERATION_BATCH_CTX_SIZE:-32768}")
 
 
 def test_engine_build_is_the_image_tag(compose):
