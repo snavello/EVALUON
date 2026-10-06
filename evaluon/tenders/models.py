@@ -327,6 +327,9 @@ class JobKind(models.TextChoices):
     # enlace (`portal_link`) y el procedimiento puede no existir todavía.
     PORTAL_EXPLORE = "portal_explore", "Explorar un proceso del Portal"
     PORTAL_REVIEW = "portal_review", "Revisar un proceso del Portal"
+    # Feature 004 (ADR-0039): evaluar las ofertas de un procedimiento; `target_id` es el
+    # pedido de evaluación (`assessment_request`), sin clave foránea.
+    EVALUATE_OFFERS = "evaluate_offers", "Evaluar las ofertas"
 
 
 # Tipos que atiende el servicio `portal_worker` y no el `worker` (ADR-0031).

@@ -50,6 +50,11 @@ class EventType(models.TextChoices):
     PORTAL_EXPLORE = "portal_explore", "Exploración del Portal"
     PORTAL_REVIEW = "portal_review", "Revisión periódica del Portal"
     PORTAL_DECISION = "portal_decision", "Decisión sobre un ítem del Portal"
+    # Feature 004 (plan 004, "Registro de auditoría").
+    EVAL_REQUEST = "eval_request", "Pedido de evaluación"
+    EVAL_BUILD = "eval_build", "Evaluación de una oferta"
+    EVAL_DECISION = "eval_decision", "Decisión sobre un resultado de la evaluación"
+    EVAL_ANSWER = "eval_answer", "Respuesta de la Comisión"
 
 
 class Outcome(models.TextChoices):

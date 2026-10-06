@@ -6,7 +6,8 @@
   `GENERATION_BATCH_URL` con la espera de los pedidos del `worker`.
 - El doble de `tests/conftest.py` registra lo mismo.
 - `docker-compose.yml`: `generation_batch` arranca igual que `generation` (misma imagen,
-  modelo, contexto, `--parallel 1`, `--offline`), en la red interna y sin puertos;
+  modelo, `--parallel 1`, `--offline`) salvo el contexto, que es propio (32.768, plan 004,
+  ADR-0037), en la red interna y sin puertos;
   `worker` corre `procesar_pedidos` con la imagen de `app`.
 
 Se prueba con un servidor HTTP local de prueba, sin modelo ni GPU. Textos sintéticos
@@ -157,15 +158,22 @@ def compose():
     return yaml.safe_load(COMPOSE_FILE.read_text(encoding="utf-8"))
 
 
+def _without_context(command):
+    """El `command` sin el valor de `--ctx-size`."""
+    command = [str(item) for item in command]
+    position = command.index("--ctx-size") + 1
+    return command[:position] + command[position + 1:]
+
+
 def test_generation_batch_starts_like_generation(compose):
-    """REQ-024: `generation_batch` es la misma imagen, compilación, modelo, contexto y
-    argumentos que `generation` (`--parallel 1`, `--offline`), en la red interna, sin
-    puertos publicados y con los modelos en solo lectura (ADR-0018)."""
+    """REQ-024, REQ-054: `generation_batch` es la misma imagen, compilación, modelo y
+    argumentos que `generation` (`--parallel 1`, `--offline`) salvo el contexto, en la red
+    interna, sin puertos publicados y con los modelos en solo lectura (ADR-0018, ADR-0037)."""
     services = compose["services"]
     batch, interactive = services["generation_batch"], services["generation"]
     assert batch["image"] == interactive["image"]
     assert batch["image"].endswith(settings.GENERATION_ENGINE_BUILD)
-    assert batch["command"] == interactive["command"]
+    assert _without_context(batch["command"]) == _without_context(interactive["command"])
     command = [str(item) for item in batch["command"]]
     assert command[command.index("--parallel") + 1] == "1"
     assert "--offline" in command
@@ -174,6 +182,21 @@ def test_generation_batch_starts_like_generation(compose):
     assert batch["volumes"] == ["./models:/models:ro"]
     assert batch["deploy"] == interactive["deploy"]
     assert batch["healthcheck"] == interactive["healthcheck"]
+
+
+def test_the_batch_engine_has_its_own_context_and_the_interactive_one_keeps_16384(compose):
+    """REQ-054 (ADR-0037): `generation_batch` arranca con `GENERATION_BATCH_CTX_SIZE`
+    (32.768 por omisión) y `generation` sigue con `GENERATION_CTX_SIZE` (16.384)."""
+    services = compose["services"]
+
+    def context(name):
+        command = [str(item) for item in services[name]["command"]]
+        return command[command.index("--ctx-size") + 1]
+
+    assert context("generation_batch") == "${GENERATION_BATCH_CTX_SIZE:-32768}"
+    assert context("generation") == "${GENERATION_CTX_SIZE:-16384}"
+    assert settings.GENERATION_BATCH_CONTEXT_TOKENS == 32768
+    assert settings.GENERATION_CONTEXT_TOKENS == 16384
 
 
 def test_worker_runs_the_queue_with_the_app_image(compose):
@@ -213,3 +236,18 @@ def test_only_app_writes_the_cases_folder(compose):
     assert "./corpus:/app/corpus:ro" in services["app"]["volumes"]
     for name in ("worker", "migrate"):
         assert not any("corpus/casos" in v for v in services[name]["volumes"])
+
+
+# --- Contexto registrado (plan 004, ADR-0037; P6) ----------------------------------------
+
+
+def test_the_proposal_and_the_sheet_record_the_batch_engine_context(settings):
+    """REQ-054 (P6): las propuestas de la 003 y las fichas de la 008 registran el contexto
+    real del motor que respondió, el de `generation_batch`, y no el de `generation`."""
+    from evaluon.offers.services import sheets
+    from evaluon.tenders.proposal import run as proposal_run
+
+    settings.GENERATION_CONTEXT_TOKENS = 16384
+    settings.GENERATION_BATCH_CONTEXT_TOKENS = 32768
+    for models in (proposal_run._models(), sheets._models()):
+        assert models["generation_batch"]["context_tokens"] == 32768

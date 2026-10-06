@@ -53,6 +53,9 @@ HANDLERS = {
     # `evaluon.portal.services.explore`; hasta entonces el pedido falla con un motivo.
     JobKind.PORTAL_EXPLORE: "evaluon.portal.services.explore.run_explore",
     JobKind.PORTAL_REVIEW: "evaluon.portal.services.explore.run_review",
+    # Feature 004 (ADR-0039): el manejador lo crea T-150 en
+    # `evaluon.assessment.services.evaluate`; hasta entonces el pedido falla con un motivo.
+    JobKind.EVALUATE_OFFERS: "evaluon.assessment.services.evaluate.run_evaluate_offers",
 }
 
 FINISHED = (JobStatus.DONE, JobStatus.FAILED)
@@ -124,7 +127,12 @@ def fail_interrupted(kinds=None, exclude=None):
 def _handler(kind):
     handler = HANDLERS.get(kind)
     if isinstance(handler, str):
-        handler = import_string(handler)
+        try:
+            handler = import_string(handler)
+        except ImportError:
+            # Un manejador que todavía no existe: el pedido falla con un motivo, no tira
+            # al `worker`.
+            return None
     return handler
 
 
