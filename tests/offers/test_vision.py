@@ -194,6 +194,10 @@ def test_the_image_document_page_is_replaced_by_the_transcription_of_the_photo(
     assert "Renglon 1 resma 3150" not in reading.canonical_text
     assert vision.vision_pages(reading) == {1}
     assert {p.text_origin for p in reading.passages.all()} == {"vision"}
+    # La foto se dibuja a la resolución con que se la convirtió a PDF: con los píxeles de la foto.
+    entry = reading.report["vision"]["pages"][0]
+    width, height = entry["image_size"]
+    assert entry["dpi"] == 300 and abs(width - 1500) <= 1 and abs(height - 900) <= 1
 
 
 def test_the_request_carries_the_page_image_and_the_registered_instructions(

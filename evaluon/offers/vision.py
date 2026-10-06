@@ -59,7 +59,7 @@ from evaluon.accounts.permissions import require_commission_role
 from evaluon.ai import AIServiceError, generation
 from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType, Outcome
-from evaluon.norms.reading import PAGE_READ, Line
+from evaluon.norms.reading import PAGE_READ, Line, ocr
 from evaluon.norms.splitting.canonical import build_canonical_text
 from evaluon.offers import passages as passage_rules
 from evaluon.offers import reading as reading_tools
@@ -221,17 +221,18 @@ def parse_transcription(content):
     return text if isinstance(text, str) else None
 
 
-def transcribe_page(pdf_bytes, page, *, clock=time.monotonic):
+def transcribe_page(pdf_bytes, page, *, dpi=None, clock=time.monotonic):
     """Pide la transcripción de la página `page` y devuelve su registro (ver el módulo): trae
     `outcome` y, si se leyó, `text`. Un error del motor lanza `AIServiceError`."""
-    png, width, height = render_image(pdf_bytes, page)
+    dpi = dpi or settings.ASSESSMENT_VISION_DPI
+    png, width, height = render_image(pdf_bytes, page, dpi=dpi)
     sha256 = hashlib.sha256(png).hexdigest()
     started = clock()
     result = generation.generate(
         build_messages(png), SCHEMA, max_tokens=settings.ASSESSMENT_VISION_MAX_OUTPUT_TOKENS,
         base_url=settings.GENERATION_BATCH_URL,
         timeout=settings.ASSESSMENT_REQUEST_TIMEOUT_SECONDS)
-    entry = {"page": page, "image_sha256": sha256, "image_size": [width, height],
+    entry = {"page": page, "image_sha256": sha256, "image_size": [width, height], "dpi": dpi,
              "request": _without_image(result.request, sha256), "raw_output": result.content,
              "finish_reason": result.finish_reason, "prompt_tokens": result.prompt_tokens,
              "completion_tokens": result.completion_tokens,
@@ -412,6 +413,10 @@ def read_offer(offer, *, user, channel=Channel.COMMAND, job=None, clock=time.mon
         if not chosen or stopped:
             continue
         entries = []
+        # Una foto se convierte en un PDF a la resolución de la lectura (300 puntos por
+        # pulgada, 1 a 1 con sus píxeles): se dibuja a esa misma, hasta el lado máximo, para no
+        # perder la mitad de los píxeles de la foto.
+        dpi = ocr.RENDER_DPI if document.file_format in IMAGE_FORMATS else None
         try:
             pdf = _original_pdf(document)
         except Exception as error:  # noqa: BLE001 - el original no se pudo preparar
@@ -419,7 +424,7 @@ def read_offer(offer, *, user, channel=Channel.COMMAND, job=None, clock=time.mon
             continue
         for candidate in chosen:
             try:
-                entry = transcribe_page(pdf, candidate["page"], clock=clock)
+                entry = transcribe_page(pdf, candidate["page"], dpi=dpi, clock=clock)
             except AIServiceError as error:
                 summary.errors.append(
                     f"documento {document.pk}, página {candidate['page']}: "
