@@ -614,3 +614,59 @@ def test_a_title_dropped_by_the_fallback_that_shares_one_root_does_not_mark_the_
 
     assert anomalies_of(run, circulars.ANOMALY_TITLE_NOT_CLARIFICATION)
     assert not flagged_numbers(operator_user, version)
+
+
+# --- T-147: la marca cae en la fila que el cambio modifica (caso-03, #183) ----------------------------------------
+
+TODOS = ("Cada firma cotizará la tabla completa; omitir uno de sus ítems "
+         "será causal de desestimación.")
+FALTA = "La falta de cotización de un renglón no impide evaluar las demás ofertas."
+UN_PESO = "se pide un precio simbólico de UN peso por ítem"
+
+
+def rectified_pricing_case(user, script):
+    """La cláusula de cotización ya tiene la fuente de una circular anterior (la del "UN peso"),
+    y otra circular rectifica lo del renglón 6 pidiendo cotizar por servicio."""
+    procedure = make_procedure(user)
+    load_and_read(user, procedure, tender_pdf([
+        [para("SECCIÓN I - CONDICIONES PARTICULARES"),
+         para("1. COTIZACIÓN", f"1.1. {TODOS}", f"1.2. {FALTA}")],
+        [para("SECCIÓN II - ESPECIFICACIONES TÉCNICAS PARTICULARES"),
+         para("6. RENGLÓN N° 6 - EQUIPO SINTÉTICO A", f"6.1. {EQUIPO}"),
+         para("14. RENGLÓN N° 14 - EQUIPO SINTÉTICO B", f"14.1. {EQUIPO}")],
+    ]))
+    script.when(TODOS, item([(TODOS.rstrip("."), "economico")]))
+    script.when(FALTA, item([(FALTA.rstrip("."), "economico")]))
+    script.when("EQUIPO SINTÉTICO", item(technical=["6"]))
+    script.override(lambda blocks, number, answer: {
+        alias: (item(technical=[block["items"]]) if block["items"] else answer[alias])
+        for alias, block in blocks.items()})
+    add_circular(user, procedure, "Circular N.º 4", date(2025, 12, 1),
+                 f"1. En la cláusula 1.1, {UN_PESO}.")
+    script.x_when(UN_PESO, [change("reemplaza", "clausula", "1.1", "", UN_PESO)])
+    load_and_read(user, procedure, narrative_circular(
+        "MODIFICAR EL PLIEGO EN EL RENGLÓN NRO 6:",
+        "Se rectifica la Circular N.º 4 en lo que respecta al renglón 6, debiendo las empresas "
+        "cotizar en este renglón los siguientes servicios y sus repuestos, según el detalle:"),
+        kind="circular_modificatoria", title="Circular N.º 5", issued_on=date(2025, 12, 2))
+    script.x_when("Se rectifica la Circular", [change(
+        "reemplaza", "renglon", "6", "", "cotizar en este renglón los siguientes servicios")])
+    return procedure
+
+
+def test_a_lost_change_marks_the_row_a_previous_circular_changed_on_the_same_subject(
+        operator_user, script):
+    """REQ-031, P3 (caso-03, D7, M-028): la cláusula de cotización muestra el "UN peso" de una
+    circular anterior; la que lo rectifica para el renglón 6 no se pudo aplicar. Aunque la
+    cláusula comparta con el cambio una sola palabra, queda marcada; la cláusula que habla
+    de cotizar pero ninguna circular cambió, y el renglón 14, no."""
+    procedure = rectified_pricing_case(operator_user, script)
+
+    version, _ = run_proposal(operator_user, procedure)
+
+    assert requirement_with(version, "cotizará la tabla").sources.exists()
+    flagged = set(flagged_numbers(operator_user, version))
+    assert requirement_with(version, "cotizará la tabla").number in flagged
+    assert row_of_item(version, 6).number in flagged
+    assert requirement_with(version, FALTA[:30]).number not in flagged
+    assert row_of_item(version, 14).number not in flagged
