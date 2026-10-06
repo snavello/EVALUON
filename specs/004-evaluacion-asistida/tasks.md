@@ -19,7 +19,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-150 | Corte vertical: evaluar una oferta de punta a punta (lectura completa por grupos, cita ubicada, contraste, cuatro resultados, preguntas formuladas) con pantalla mínima del par | REQ-052, REQ-053, REQ-054, REQ-055, REQ-059, REQ-060 | T-148 | terminada |
 | T-151 | Medir el caso chico: lista esperada, comparación y comando `medir_evaluacion` | REQ-052, REQ-053, REQ-054, REQ-055, REQ-060 | T-149, T-150 | pendiente |
 | T-152 | Matriz de evaluación de todas las ofertas: descarte propuesto, orden económico con el Portal, estado por oferta y aviso de versión | REQ-057, REQ-058, REQ-059 | T-150 | pendiente |
-| T-153 | Revisión: confirmar, corregir y rechazar cada propuesta, con historial y fundamentos a la vista | REQ-053, REQ-056 | T-150 | pendiente |
+| T-153 | Revisión: confirmar, corregir y rechazar cada propuesta, con historial y fundamentos a la vista | REQ-053, REQ-056 | T-150 | terminada |
 | T-154 | Preguntas a la Comisión, respuestas como fundamento y subsanación con su recorrido | REQ-055, REQ-056, REQ-060 | T-153 | pendiente |
 | T-155 | Medir el caso-00 contra el dictamen (medición base) | REQ-052, REQ-053, REQ-054, REQ-059 | T-149, T-151, T-152 | pendiente |
 | T-156 | Corregir los hallazgos de T-155 y medir de nuevo (ronda 1) | REQ-052, REQ-053, REQ-054, REQ-059 | T-154, T-155 | pendiente |
@@ -126,6 +126,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Requisitos:** REQ-055, REQ-056, REQ-060
 - **Nivel de verificación:** plena (P3, P6 y recorrido registrado).
 - **Qué hay que hacer:**
+- **Aviso de tareas anteriores:** T-153: un resultado rechazado deja `effective_outcome` en `None`; la matriz y los conteos deben tratarlo. El estado de un par se define en `review.state_of` / `effective_outcome` (única definición; T-152 la reutiliza).
   1. `services/questions.py`: listar preguntas abiertas y respondidas; responder (solo el evaluador) con alcance `par`, `requisito` (por omisión) o `procedimiento`, o dejar sin responder; hecho `eval_answer`; una respuesta nueva reemplaza a la anterior como vigente y la anterior queda. Al responder, ofrecer "evaluar de nuevo" los pares afectados (causa `respuesta`), sin cambiar lo ya evaluado.
   2. `services/remedy.py`: `pedir_subsanacion` (evaluador, con nota) cuando el resultado es "no se encontró el documento"; agregar el documento a la oferta con `offers.services.offers.load_document` y vincularlo (`subsanar`); pedir evaluar de nuevo ese requisito (causa `subsanacion`), que lee todos los documentos, incluido el agregado, y crea un resultado nuevo con `previous` al anterior. La evaluación nueva espera a que la lectura del documento termine.
   3. Pantalla: la lista de preguntas con el formulario de respuesta, la marca "subsanación pedida" y el recorrido completo en el historial del par (resultado con la cita del pliego, pedido, documento agregado con su huella y quién lo cargó, evaluación nueva, decisión sobre ella); `views/questions.py`, `views/remedy.py`, `templates/assessment/questions.html` y `_remedy.html` (incluido desde `result.html`).
