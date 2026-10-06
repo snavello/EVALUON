@@ -368,3 +368,20 @@ def test_the_finished_notice_of_an_evaluation_links_to_the_matrix(
     text = text_of(response)
     assert "La evaluación de las ofertas del procedimiento" in text and "terminó" in text
     assert reverse("assessment:matrix", args=[procedure.pk]) in response.content.decode()
+
+
+def test_a_rejected_proposal_is_in_the_state_count_but_not_in_the_outcome_count(
+        evaluated, procedure, operator_user, evaluator_user, client):
+    """REQ-058: la propuesta rechazada cuenta como "rechazado" y no tiene resultado efectivo;
+    la grilla lo dice y el estado sin decisión se rotula "propuesto" (el de la revisión)."""
+    b = evaluated[1]
+    declaration = requirement(procedure, "declaración jurada")
+    decide(evaluator_user, evaluate.current_result(b, declaration), am.Action.RECHAZAR,
+           note="No es así.")
+    page = page_of(operator_user, procedure)
+    status = {s.offer.pk: s for s in page.statuses}[b.pk]
+    assert status.by_state[service.REJECTED] == 1
+    assert "no_cumple" not in status.by_outcome and sum(status.by_outcome.values()) == 2
+    log_in(client, operator_user)
+    text = text_of(client.get(reverse("assessment:matrix", args=[procedure.pk])))
+    assert "Propuesta rechazada" in text and "Propuesto" in text

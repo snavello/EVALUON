@@ -10,7 +10,7 @@ REQ-059; plan 004, "Pantalla" y "Decisiones del responsable"; T-152).
   documentos con un solo pedido (`evaluate.request_evaluation`; el aviso de fin es el de la 003)
   y devuelve cuáles quedaron afuera por no tener documentos, para avisarlo antes.
 
-**Estado de un par.** `sin_evaluar` (no hay resultado), `sin_decidir` (hay propuesta y ninguna
+**Estado de un par.** `sin_evaluar` (no hay resultado), `propuesto` (hay propuesta y ninguna
 decisión), `confirmado`, `corregido` o `rechazado`: el de la última decisión entre confirmar,
 corregir y rechazar sobre el resultado vigente; pedir la subsanación y subsanar son el recorrido
 y no lo cambian. El **resultado efectivo** es el de la propuesta, o el que la persona eligió al
@@ -22,8 +22,8 @@ from dataclasses import dataclass, field
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.assessment import ordering
-from evaluon.assessment.models import Action, Decision, Outcome, Question, Result
-from evaluon.assessment.services import evaluate
+from evaluon.assessment.models import Outcome, Question, Result
+from evaluon.assessment.services import evaluate, review
 from evaluon.audit.models import Channel
 from evaluon.offers.services import sheets
 from evaluon.tenders.models import Job, JobKind, JobStatus, MatrixVersion, Procedure
@@ -34,17 +34,15 @@ REQUEST_OPERATION = "evaluon.assessment.services.matrix.request_all"
 
 # Estados de un par.
 UNEVALUATED = "sin_evaluar"
-PENDING = "sin_decidir"
+PENDING = review.PROPOSED
 CONFIRMED = "confirmado"
 CORRECTED = "corregido"
 REJECTED = "rechazado"
 STATES = (UNEVALUATED, PENDING, CONFIRMED, CORRECTED, REJECTED)
 STATE_LABELS = {
-    UNEVALUATED: "Sin evaluar", PENDING: "Sin decidir", CONFIRMED: "Confirmado",
+    UNEVALUATED: "Sin evaluar", PENDING: "Propuesto", CONFIRMED: "Confirmado",
     CORRECTED: "Corregido", REJECTED: "Rechazado",
 }
-_DECIDING = {Action.CONFIRMAR: CONFIRMED, Action.CORREGIR: CORRECTED,
-             Action.RECHAZAR: REJECTED}
 
 
 @dataclass
@@ -56,7 +54,6 @@ class Cell:
     result: Result | None
     state: str = UNEVALUATED
     effective_outcome: str | None = None
-    decision: Decision | None = None
 
     @property
     def state_label(self):
@@ -72,19 +69,12 @@ class Cell:
         return self.state == CORRECTED
 
 
-def _cell(offer, requirement, result, decisions):
+def _cell(offer, requirement, result):
+    """El estado y el resultado efectivo salen de `review` (T-153): una sola definición."""
     if result is None:
         return Cell(offer=offer, requirement=requirement, result=None)
-    deciding = [d for d in decisions.get(result.pk, []) if d.action in _DECIDING]
-    last = deciding[-1] if deciding else None
-    if last is None:
-        return Cell(offer, requirement, result, PENDING, result.outcome)
-    state = _DECIDING[last.action]
-    effective = {CONFIRMED: result.outcome, CORRECTED: last.outcome_after,
-                 REJECTED: None}[state]
-    return Cell(offer, requirement, result, state, effective, last)
-
-
+    return Cell(offer, requirement, result, review.state_of(result),
+                review.effective_outcome(result))
 @dataclass
 class OfferStatus:
     """El estado de la evaluación de una oferta (REQ-058)."""
@@ -155,11 +145,7 @@ def matrix_page(user, procedure_id, *, channel=Channel.SCREEN):
 
     results = {(o.pk, r.pk): evaluate.current_result(o, r)
                for o in offers for r in requirements}
-    decisions = {}
-    ids = [r.pk for r in results.values() if r is not None]
-    for decision in Decision.objects.filter(result_id__in=ids).order_by("at", "pk"):
-        decisions.setdefault(decision.result_id, []).append(decision)
-    cells = {(o.pk, r.pk): _cell(o, r, results[(o.pk, r.pk)], decisions)
+    cells = {(o.pk, r.pk): _cell(o, r, results[(o.pk, r.pk)])
              for o in offers for r in requirements}
 
     newer = validated if (validated is not None and version is not None
