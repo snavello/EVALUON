@@ -47,6 +47,7 @@ REJECTED = "rechazado"
 FAILED = "fallido"
 PENDING = "pendiente"  # no se decidió: queda propuesto con su motivo
 ALREADY = "ya_decidido"
+KEPT_AS_FILE = "guardado_como_archivo"  # aprobado sin crear nada: queda el archivo del Portal
 
 
 @dataclass
@@ -174,7 +175,8 @@ def _blocker(item, confirmation):
             confirmation.get("authorization_date"), date
         ):
             return "Confirme la fecha de autorización del procedimiento."
-    return ""
+    check = getattr(discover()[item.kind], "blocker", None)  # p. ej. el tipo de una circular
+    return check(item, confirmation) if check else ""
 
 
 def _reason(error):
@@ -202,10 +204,14 @@ def _decide_one(user, item_id, decision, confirmation, channel):
             return ItemResult(item, PENDING, blocker)
         try:
             with transaction.atomic():
-                loaded_model, loaded_id = discover()[item.kind].load(
-                    user, item, confirmation, channel)
-                item.state = ItemState.CARGADO
-                item.loaded_model, item.loaded_id = loaded_model, loaded_id
+                loaded = discover()[item.kind].load(user, item, confirmation, channel)
+                if loaded is None:
+                    # No se creó nada: el original queda como archivo del Portal (acta,
+                    # dictamen, actos); el ítem queda aprobado.
+                    item.state, item.loaded_model, item.loaded_id = ItemState.APROBADO, "", None
+                else:
+                    item.state = ItemState.CARGADO
+                    item.loaded_model, item.loaded_id = loaded
                 item.save(update_fields=["state", "decided_by", "decided_at", "loaded_model",
                                          "loaded_id"])
         except Exception as error:  # noqa: BLE001 - toda falla de carga deja el ítem fallido
@@ -216,6 +222,9 @@ def _decide_one(user, item_id, decision, confirmation, channel):
                                      "loaded_model", "loaded_id"])
             _event(item, user, channel, Outcome.FAILED, APPROVE, FAILED, reason=reason)
             return ItemResult(item, FAILED, reason)
+        if item.state == ItemState.APROBADO:
+            _event(item, user, channel, Outcome.OK, APPROVE, KEPT_AS_FILE, file=item.file_id)
+            return ItemResult(item, KEPT_AS_FILE)
         _event(item, user, channel, Outcome.OK, APPROVE, LOADED,
                loaded_model=item.loaded_model, loaded_id=item.loaded_id)
         return ItemResult(item, LOADED)
