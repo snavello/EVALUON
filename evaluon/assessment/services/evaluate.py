@@ -28,7 +28,7 @@ El rol se comprueba fuera de toda transacción. Todo corre en el equipo, sin ser
 """
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from django.conf import settings
 from django.db import transaction
@@ -305,11 +305,11 @@ class Context:
         return len(self.steps) - 1
 
 
-def _generate(messages, schema, step, ctx):
+def _generate(messages, schema, step, ctx, max_tokens=None):
     """El pedido al motor de lotes; anota en `step` lo que se envió y lo que volvió."""
     started = ctx.clock()
     result = generation.generate(
-        messages, schema, max_tokens=settings.ASSESSMENT_MAX_OUTPUT_TOKENS,
+        messages, schema, max_tokens=max_tokens or settings.ASSESSMENT_MAX_OUTPUT_TOKENS,
         base_url=settings.GENERATION_BATCH_URL,
         timeout=settings.ASSESSMENT_REQUEST_TIMEOUT_SECONDS)
     step.timings["generation_seconds"] = round(ctx.clock() - started, 3)
@@ -475,37 +475,125 @@ def _supports_text(combined):
     return "Fundamentos:\n" + "\n".join(lines) if lines else ""
 
 
+def _clause_chunks(quotes):
+    """Las cláusulas del renglón en pedidos de a lo sumo `ASSESSMENT_CLAUSES_PER_REQUEST`
+    cláusulas y `ASSESSMENT_CLAUSES_REQUEST_CHARS` caracteres. Una cita del pliego (con sus
+    fórmulas o tablas) no se parte nunca: va entera en un solo pedido (T-164)."""
+    chunks, current, chars = [], [], 0
+    for quote in quotes:
+        size = len(quote.text) + len(quote.original or "")
+        if current and (len(current) >= settings.ASSESSMENT_CLAUSES_PER_REQUEST
+                        or chars + size > settings.ASSESSMENT_CLAUSES_REQUEST_CHARS):
+            chunks.append(current)
+            current, chars = [], 0
+        current.append(quote)
+        chars += size
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def _offer_documents(ctx, combined):
+    """Los documentos de la oferta que respaldan la cita (`DocumentText`) y su texto para el
+    pedido: el documento entero si entra en `ASSESSMENT_CLAUSES_DOCUMENT_TOKENS`; si no, las
+    páginas que rodean a las citadas (T-164)."""
+    cited = {}
+    for found in combined.citations:
+        cited.setdefault(found.document.pk, []).append(found.page)
+    shown = [d for d in ctx.offer_text.documents if d.document.pk in cited and d.pages]
+    budget = settings.ASSESSMENT_CLAUSES_DOCUMENT_TOKENS
+    rendered = []
+    for doc in shown:
+        if doc.tokens <= budget // max(len(shown), 1):
+            rendered.append(doc.render())
+            continue
+        pages = cited[doc.document.pk]
+        first, last = max(1, min(pages) - 1), max(pages) + 1
+        rendered.append(doc.render(first, last))
+    return shown, "\n\n".join(rendered)
+
+
+def _locate_evidence(ctx, shown, rows):
+    """Ubica en el texto canónico la cita de la oferta de cada cláusula "contradice". Devuelve
+    las filas con la `Located` (o `None` si el modelo no citó nada ubicable)."""
+    out = []
+    for clause, state, why, quote in rows:
+        located = None
+        if state == "contradice" and quote and shown:
+            located = citing.locate_quote(shown[0], quote, ctx.finder, others=shown[1:])
+        out.append((clause, state, why, located))
+    return out
+
+
+def _clauses_request(ctx, pair, quotes, shown, documents, cited, system, state, retry_of,
+                     correction):
+    """Un pedido del contraste por cláusula para `quotes`; `(filas, pregunta)` o `None` si la
+    salida no es válida (cortada o con otra forma)."""
+    step = StepData(Purpose.CONTRASTE, pair.requirement, retry_of=retry_of)
+    position = ctx.add(step)
+    block = replace(pair.text, quotes=quotes).render()
+    messages = prompting.build_clauses_messages(system, block, cited, correction, documents)
+    result = _generate(messages, prompting.CLAUSES_SCHEMA, step, ctx,
+                       max_tokens=settings.ASSESSMENT_CLAUSES_MAX_OUTPUT_TOKENS)
+    try:
+        rows, question = prompting.parse_clauses(result.content)
+    except prompting.InvalidOutput as error:
+        step.anomalies.append({"type": error.kind, "message": str(error)})
+        pair.anomalies.append({"type": ANOMALY_CONTRAST_INVALID,
+                               "requirement": pair.requirement.number, "step": position})
+        state["last"] = position
+        return None
+    rows = _locate_evidence(ctx, shown, rows)
+    step.parsed = {"clausulas": [{"clausula": c, "estado": s, "motivo": m,
+                                  "cita_ubicada": located is not None}
+                                 for c, s, m, located in rows], "pregunta": question}
+    return rows, question
+
+
+def _clauses_rows(ctx, pair, quotes, shown, documents, cited, system, state, retry_of=None):
+    """Las filas del contraste de `quotes`. Una salida inválida (por ejemplo, cortada) se
+    reintenta en partes: el grupo se divide en dos; un grupo de una sola cita se repite una
+    vez con la corrección. Si ni así sale, `None`."""
+    first = _clauses_request(ctx, pair, quotes, shown, documents, cited, system, state,
+                             retry_of, "")
+    if first is not None:
+        return first
+    if len(quotes) > 1:
+        middle = len(quotes) // 2
+        rows, questions = [], []
+        for part in (quotes[:middle], quotes[middle:]):
+            got = _clauses_rows(ctx, pair, part, shown, documents, cited, system, state,
+                                state["last"])
+            if got is None:
+                return None
+            rows.extend(got[0])
+            questions.append(got[1])
+        return rows, " ".join(q for q in questions if q)
+    return _clauses_request(ctx, pair, quotes, shown, documents, cited, system, state,
+                            state.get("last"),
+                            prompting.correction_for(prompting.ANOMALY_INVALID_OUTPUT))
+
+
 def _clauses_pair(ctx, pair):
-    """Contraste por cláusula de un "cumple" técnico (T-158): cada especificación del renglón
-    se compara con la oferta; una contradicha da "no cumple", una que no aparece, "no
-    determinado". Dos salidas inválidas dejan el "cumple" sin corroborar."""
+    """Contraste por cláusula de un "cumple" técnico (T-158, T-164): cada especificación del
+    renglón se compara con la oferta (la cita y el documento que la respalda); una contradicha
+    con una cita ubicada da "no cumple", una que no aparece o no se lee, "no determinado". Las
+    cláusulas van en pedidos acotados; una salida inválida se reintenta en partes y, si no
+    sale, el "cumple" queda sin corroborar."""
     combined = pair.combined
     system = prompting.load_prompt("clausulas")
     cited = [(c.document.title, c.page, c.text) for c in combined.citations]
-    parsed, previous, correction = None, None, ""
-    for attempt in range(2):
-        step = StepData(Purpose.CONTRASTE, pair.requirement, retry_of=previous)
-        position = ctx.add(step)
-        messages = prompting.build_clauses_messages(system, pair.text.render(), cited,
-                                                    correction)
-        result = _generate(messages, prompting.CLAUSES_SCHEMA, step, ctx)
-        try:
-            parsed = prompting.parse_clauses(result.content)
-        except prompting.InvalidOutput as error:
-            step.anomalies.append({"type": error.kind, "message": str(error)})
-            pair.anomalies.append({"type": ANOMALY_CONTRAST_INVALID,
-                                   "requirement": pair.requirement.number, "step": position})
-            previous = position
-            correction = prompting.correction_for(prompting.ANOMALY_INVALID_OUTPUT)
-            continue
-        step.parsed = {"clausulas": [{"clausula": c, "estado": s, "motivo": m}
-                                     for c, s, m in parsed[0]], "pregunta": parsed[1]}
-        break
-    if parsed is None:
-        pair.combined = combine.apply_contrast(
-            combined, "parcial", "el contraste por cláusula no devolvió una salida válida")
-        return
-    rows, question = parsed
+    shown, documents = _offer_documents(ctx, combined)
+    rows, questions, state = [], [], {}
+    for quotes in _clause_chunks(pair.text.quotes):
+        got = _clauses_rows(ctx, pair, quotes, shown, documents, cited, system, state)
+        if got is None:
+            pair.combined = combine.apply_contrast(
+                combined, "parcial", "el contraste por cláusula no devolvió una salida válida")
+            return
+        rows.extend(got[0])
+        questions.append(got[1])
+    question = " ".join(q for q in questions if q)
     pair.combined = combine.apply_clauses(combined, rows, question, pair.text.text)
 
 

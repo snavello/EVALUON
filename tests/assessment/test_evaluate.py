@@ -710,7 +710,7 @@ def test_everything_the_model_was_asked_is_recorded(offer, operator_user, proced
     assert step.request["response_format"]["type"] == "json_schema"
     assert run.models_used["generation_batch"]["context_tokens"] == 32768
     assert run.prompt_versions == {
-        "evaluacion": "evaluacion-v3", "contraste": "contraste-v2", "clausulas": "clausulas-v1"}
+        "evaluacion": "evaluacion-v3", "contraste": "contraste-v2", "clausulas": "clausulas-v2"}
     assert run.parameters["group_tokens"] == 20000
     assert run.norms["matrix_version"] == 1 and run.norms["authorization_date"]
     assert run.matrix_version == request.matrix_version and run.channel == "eval"
@@ -1010,17 +1010,92 @@ def test_a_technical_cumple_is_checked_clause_by_clause(offer, operator_user, pr
 
 def test_a_contradicted_clause_turns_the_technical_cumple_into_no_cumple(
         offer, operator_user, procedure, model):
-    """REQ-052, T-158: la oferta trae otra etapa o presentación que la que el pliego pide:
-    "no cumple", con la cláusula y la cita de la oferta."""
+    """REQ-052, REQ-053, T-164: la oferta trae otra presentación que la que el pliego pide, y el
+    modelo cita el tramo de la oferta que lo muestra: "no cumple", con la cláusula y esa cita
+    ubicada por el sistema."""
     row = row_one(procedure, model)
     clause = row.quotes.order_by("order").first().text
     model.clauses(lambda call: {"clausulas": [
-        {"clausula": clause, "estado": "contradice", "motivo": "Ofrece otra presentación."}],
-        "pregunta": ""})
+        {"clausula": clause, "estado": "contradice", "motivo": "Ofrece otra presentación.",
+         "cita": "resma de papel A4, 100 unidades"}], "pregunta": ""})
     _, runs = run_all(operator_user, procedure, offers=[offer])
     result = results_of(runs[0])[row.number]
-    assert result.outcome == "no_cumple" and offer_cites(result)
+    cites = offer_cites(result)
+    assert result.outcome == "no_cumple"
+    assert cites[0].text == "resma de papel A4, 100 unidades"
+    assert cites[0].text == cites[0].reading.canonical_text[cites[0].char_start:cites[0].char_end]
     assert "Ofrece otra presentación" in result.explanation
+
+
+def test_a_contradiction_without_a_quote_that_the_system_can_locate_is_undetermined(
+        offer, operator_user, procedure, model):
+    """REQ-052, REQ-053, T-164 (F-1): sin cita, o con una cita que no está en el texto de la
+    oferta, "contradice" no hace un "no cumple": no determinado con pregunta."""
+    row = row_one(procedure, model)
+    clause = row.quotes.order_by("order").first().text
+    for quote in ("", "una frase que la oferta no dice"):
+        model.clauses(lambda call: {"clausulas": [
+            {"clausula": clause, "estado": "contradice", "motivo": "Otra presentación.",
+             "cita": quote}], "pregunta": ""})
+        _, runs = run_all(operator_user, procedure, offers=[offer])
+        result = results_of(runs[0])[row.number]
+        assert result.outcome == "no_determinado" and result.doubt == "sin_dato", quote
+        assert am.Question.objects.filter(requirement=row, answers__isnull=True).exists()
+
+
+def test_a_contradiction_that_blames_the_reading_is_undetermined(
+        offer, operator_user, procedure, model):
+    """REQ-052, T-164 (F-1): aunque traiga una cita ubicada, un motivo de calidad de lectura
+    (escaneo, transcripción) no es una contradicción: no determinado con pregunta."""
+    row = row_one(procedure, model)
+    clause = row.quotes.order_by("order").first().text
+    model.clauses(lambda call: {"clausulas": [
+        {"clausula": clause, "estado": "contradice",
+         "motivo": "Errores de transcripción del escaneo.",
+         "cita": "resma de papel A4, 100 unidades"}], "pregunta": ""})
+    _, runs = run_all(operator_user, procedure, offers=[offer])
+    result = results_of(runs[0])[row.number]
+    assert result.outcome == "no_determinado" and result.questions.exists()
+
+
+def test_the_clause_check_sees_the_document_that_backs_the_citation(
+        offer, operator_user, procedure, model):
+    """REQ-052, T-164: el pedido trae el documento de la oferta donde está la cita (no solo la
+    cita), para una cláusula que está en el documento y no en el tramo citado."""
+    row_one(procedure, model)
+    run_all(operator_user, procedure, offers=[offer])
+    user = model.clause_calls[0].user
+    assert "Documento de la oferta donde está el texto citado" in user
+    assert "validez por sesenta días" in user          # otra página del mismo documento
+    assert "Constancia de inscripción" not in user     # un documento que no respalda la cita
+
+
+def test_the_clauses_go_in_bounded_requests(offer, operator_user, procedure, model, settings):
+    """REQ-052, T-164 (F-2): las cláusulas van en pedidos con tope por cantidad; el resultado
+    junta las filas de todos."""
+    row = row_one(procedure, model)
+    settings.ASSESSMENT_CLAUSES_PER_REQUEST = 1
+    quotes = row.quotes.count()
+    _, runs = run_all(operator_user, procedure, offers=[offer])
+    assert len(model.clause_calls) == quotes
+    assert results_of(runs[0])[row.number].outcome == "cumple"
+
+
+def test_a_cut_output_is_retried_in_parts_before_giving_up(
+        offer, operator_user, procedure, model, settings):
+    """REQ-052, T-164 (F-2): una salida cortada se reintenta en dos partes; con las partes
+    bien, el "cumple" sigue (no baja a "sin corroborar")."""
+    row = row_one(procedure, model)
+    assert row.quotes.count() >= 2
+    settings.ASSESSMENT_CLAUSES_PER_REQUEST = 50
+    settings.ASSESSMENT_CLAUSES_REQUEST_CHARS = 10 ** 6
+    model.clauses(lambda call: '{"clausulas": [{"clausula": "5.1 Alim' if call.number == 1 else None)
+    _, runs = run_all(operator_user, procedure, offers=[offer])
+    assert len(model.clause_calls) == 3
+    assert results_of(runs[0])[row.number].outcome == "cumple"
+    steps = list(am.Step.objects.filter(run=runs[0], purpose="contraste", requirement=row)
+                 .order_by("pk"))
+    assert steps[1].retry_of is not None and steps[0].anomalies
 
 
 def test_a_clause_missing_from_the_offer_makes_the_technical_cumple_undetermined(
@@ -1046,10 +1121,11 @@ def test_a_non_technical_cumple_skips_the_clause_check(offer, operator_user, pro
 
 def test_an_invalid_clause_output_leaves_the_cumple_uncorroborated(
         offer, operator_user, procedure, model):
-    """REQ-052, T-158: dos salidas sin la forma pedida: "no determinado" sin corroborar."""
+    """REQ-052, T-158, T-164: las salidas sin la forma pedida (el pedido entero, la primera
+    parte y su repetición): "no determinado" sin corroborar."""
     row = row_one(procedure, model)
     model.clauses(lambda call: "no es JSON")
     _, runs = run_all(operator_user, procedure, offers=[offer])
     result = results_of(runs[0])[row.number]
     assert result.outcome == "no_determinado" and result.doubt == "sin_corroborar"
-    assert len(model.clause_calls) == 2
+    assert len(model.clause_calls) == 3

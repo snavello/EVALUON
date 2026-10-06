@@ -236,14 +236,39 @@ def a_cumple():
     return run(group(0, "cumple", cites=[cite()], explanation="Es el mismo producto."))
 
 
+ADULTS = cite(100, "perros adultos")
+
+
 def test_a_contradicted_clause_makes_the_cumple_a_no_cumple_citing_the_clause():
-    """REQ-052: la oferta ofrece alimento para adultos y el pliego pide cachorros: no cumple,
-    con la cláusula."""
-    rows = [(PUPPY, "contradice", "La oferta es para adultos."), (BAG, "coincide", "")]
+    """REQ-052, REQ-053: la oferta ofrece alimento para adultos y el pliego pide cachorros: no
+    cumple, con la cláusula y la cita de la oferta que la contradice (T-164)."""
+    rows = [(PUPPY, "contradice", "La oferta es para adultos.", ADULTS), (BAG, "coincide", "")]
     combined = combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW)
     assert combined.outcome == "no_cumple" and combined.doubt == ""
     assert PUPPY in combined.explanation and "adultos" in combined.explanation
-    assert [c.text for c in combined.citations] == ["texto citado"]
+    assert [c.text for c in combined.citations] == ["perros adultos", "texto citado"]
+
+
+def test_a_contradiction_without_a_quote_of_the_offer_stays_undetermined():
+    """REQ-052, REQ-053, T-164 (F-1): "contradice" sin cita de la oferta ubicada no alcanza para
+    "no cumple": no determinado, con pregunta."""
+    for rows in ([(PUPPY, "contradice", "La oferta es para adultos.")],
+                 [(PUPPY, "contradice", "La oferta es para adultos.", None)]):
+        combined = combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW)
+        assert combined.outcome == "no_determinado" and combined.doubt == "sin_dato"
+        assert combined.question and PUPPY in combined.explanation
+
+
+def test_a_contradiction_that_is_about_the_quality_of_the_reading_is_not_a_no_cumple():
+    """REQ-052, T-164 (F-1): un motivo de escaneo u OCR, aunque traiga cita, deja "no
+    determinado" con pregunta; un estado "no_legible" también."""
+    for why in ("Errores de transcripción y omite dos minerales.",
+                "El escaneo tiene un OCR deficiente.", "Texto ilegible."):
+        rows = [(PUPPY, "contradice", why, ADULTS)]
+        combined = combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW)
+        assert combined.outcome == "no_determinado" and combined.question, why
+    combined = combine.apply_clauses(a_cumple(), [(PUPPY, "no_legible", "")], "", PUPPY_ROW)
+    assert combined.outcome == "no_determinado" and combined.doubt == "sin_dato"
 
 
 def test_a_clause_that_does_not_appear_makes_it_undetermined_with_a_question():
@@ -258,7 +283,7 @@ def test_a_clause_that_does_not_appear_makes_it_undetermined_with_a_question():
 
 def test_a_contradiction_without_a_real_clause_does_not_become_a_no_cumple():
     """REQ-052: "contradice" con una cláusula inventada no alcanza para "no cumple"."""
-    rows = [("5.9 Una cláusula que no existe.", "contradice", "otro valor")]
+    rows = [("5.9 Una cláusula que no existe.", "contradice", "otro valor", ADULTS)]
     combined = combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW)
     assert combined.outcome == "no_determinado" and combined.question
 

@@ -236,22 +236,37 @@ def apply_contrast(combined, answer, reason=""):
                    question=fixed_question(UNCORROBORATED))
 
 
+# Un motivo que habla de la calidad de la lectura no es una contradicción de la oferta (T-164).
+READING_QUALITY = re.compile(
+    r"transcripci|escane|\bocr\b|ilegible|reconocimiento|mala lectura|lectura (?:defectuosa|"
+    r"deficiente)|cortad[oa]|borros|error(?:es)? de lectura", re.IGNORECASE)
+
+
 def apply_clauses(combined, rows, question, requirement_text):
-    """Contraste por cláusula de un "cumple" técnico (T-158). `rows`: `(cláusula, estado,
-    motivo)`. Con alguna cláusula contradicha (y copiada letra por letra del requisito):
-    "no cumple", que cita la cláusula y la oferta. Si no, con alguna que no aparece, o una
-    contradicha sin cláusula válida: "no determinado" `sin_dato` con pregunta. Solo si todas
-    coinciden queda el "cumple" (y sigue al contraste común)."""
+    """Contraste por cláusula de un "cumple" técnico (T-158, T-164). `rows`: `(cláusula,
+    estado, motivo)` o `(cláusula, estado, motivo, cita)`, con `cita` la `Located` que el
+    sistema ubicó en el texto canónico de la oferta. "No cumple" exige las dos cosas: la
+    cláusula copiada letra por letra del requisito y una cita de la oferta ubicada que la
+    contradiga; con un motivo que habla de la calidad de la lectura (escaneo, OCR) o sin esa
+    cita, la cláusula cuenta como no confirmada. Si no, con alguna cláusula no confirmada
+    (no aparece, ilegible o contradicha sin respaldo): "no determinado" `sin_dato` con
+    pregunta. Solo si todas coinciden queda el "cumple" (y sigue al contraste común)."""
     if combined.outcome != OUT_CUMPLE:
         return combined
-    contradicted = [(c, why) for c, state, why in rows if state == "contradice"
-                    and clause_supported(c, requirement_text)]
+    rows = [(*row, None) if len(row) == 3 else row for row in rows]
+    contradicted = [(c, why, located) for c, state, why, located in rows
+                    if state == "contradice" and located is not None
+                    and clause_supported(c, requirement_text)
+                    and not READING_QUALITY.search(why or "")]
     if contradicted:
-        clause, why = contradicted[0]
+        clause, why, located = contradicted[0]
         note = f"Cláusula del pliego contradicha: «{clause}» {why}".strip()
+        spans = {located.span}
+        citations = [located] + [c for c in combined.citations if c.span not in spans]
         return replace(combined, outcome=OUT_NO_CUMPLE, doubt="", question="",
+                       citations=citations[:settings.ASSESSMENT_MAX_CITATIONS],
                        explanation=f"{note} (revisión por cláusula)")
-    missing = [(c, why) for c, state, why in rows if state != "coincide"]
+    missing = [(c, why) for c, state, why, _ in rows if state != "coincide"]
     if missing:
         names = "; ".join(f"«{c}»" for c, _ in missing)
         note = f"El sistema no pudo confirmar estas cláusulas con la oferta: {names}."

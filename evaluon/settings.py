@@ -411,6 +411,12 @@ ASSESSMENT_MAX_OUTPUT_TOKENS = 1400
 # Citas de la oferta por resultado y largo máximo de cada una, en caracteres.
 ASSESSMENT_MAX_CITATIONS = 4
 ASSESSMENT_CITATION_MAX_CHARS = 1000
+# Contraste por cláusula (T-164): cláusulas por pedido, caracteres por pedido, tokens de salida
+# y tokens del documento de la oferta que se muestra junto con la cita.
+ASSESSMENT_CLAUSES_PER_REQUEST = 6
+ASSESSMENT_CLAUSES_REQUEST_CHARS = 3500
+ASSESSMENT_CLAUSES_MAX_OUTPUT_TOKENS = 2500
+ASSESSMENT_CLAUSES_DOCUMENT_TOKENS = 6000
 # Espera máxima de cada pedido al modelo.
 ASSESSMENT_REQUEST_TIMEOUT_SECONDS = 300
 # Unidades de norma que respaldan un requisito y respuestas de la Comisión que se le dan al
@@ -421,5 +427,5 @@ ASSESSMENT_ANSWERS_MAX = 20
 ASSESSMENT_PROMPT_VERSIONS = {
     "evaluacion": "evaluacion-v3",
     "contraste": "contraste-v2",
-    "clausulas": "clausulas-v1",
+    "clausulas": "clausulas-v2",
 }
