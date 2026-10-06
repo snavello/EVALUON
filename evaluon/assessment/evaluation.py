@@ -465,9 +465,7 @@ def measure_pair(pair, result, requirement, offer, finder, fragments, equivalent
                     and reading.canonical_text[cite.char_start:cite.char_end] == cite.text
                     and finder.page_of(reading, cite.char_start, cite.char_end) == cite.page)
     concluded = result.outcome in (am.Outcome.CUMPLE, am.Outcome.NO_CUMPLE)
-    asked = (am.Question.objects.filter(result=result).exists()
-             or am.Question.objects.filter(offer=offer, requirement=requirement,
-                                           answers__isnull=True).exists())
+    asked = am.Question.objects.filter(result=result).exists()
     wanted = [f for f in fragments if f["requisito"] == pair.requirement]
     fragment_ok = None
     if wanted and cites:

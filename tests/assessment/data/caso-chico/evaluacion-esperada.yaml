@@ -13,7 +13,7 @@
 # Las anclas de documentos escaneados las comprueba `medir_evaluacion --verificar-esperada`.
 caso: caso-chico-evaluacion
 preparo: "Coordinador (agente delegado), 2026-10-06"
-visto_bueno: "Coordinador, 2026-10-06 (T-149 verificada); T-151: M-003 de B a lectura incompleta (ADR-0038) y M-003 de C sin documento, decisión del Coordinador"
+visto_bueno: "Coordinador, 2026-10-06: lista revisada en T-149; M-003 de B pasa a lectura incompleta (ADR-0038) y se quita el certificado de la oferta C para cubrir 'no se encontró el documento' (T-151)"
 matriz:
   procedimiento: CASO-CHICO-EVALUACION
   tipo: Contratación directa sintética

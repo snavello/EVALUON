@@ -306,3 +306,65 @@ def test_bidder_names_of_the_dictamen_are_paired_with_the_loaded_offers():
     assert ev.match_name("Lombardozzi", names) == "Lombardozzi"
     assert ev.match_name("Perez", names) is None
     assert ev.match_name("Muñoz", ["Muñoz Uno SA", "Muñoz Dos SA"]) is None
+
+
+# --- Alteraciones de las métricas que bloquean ------------------------------------------------------
+
+
+def _pair_on(rows, outcome, number=2, doubt=""):
+    """Un resultado nuevo (otra evaluación) del requisito de `rows`, sin citas."""
+    run = am.Run.objects.create(
+        request=rows.request, offer=rows.run.offer, matrix_version=rows.version, number=number,
+        channel=am.Channel.SCREEN, documents=[], norms={}, models_used={}, parameters={},
+        prompt_versions={})
+    return am.Result.objects.create(run=run, offer=run.offer, requirement=rows.requirement,
+                                    outcome=outcome, doubt=doubt,
+                                    exigence=am.Exigence.CONDICION)
+
+
+def test_a_citation_that_is_not_the_canonical_cut_is_not_counted_as_literal(rows):
+    """REQ-053: una cita cuyo texto no es el recorte del texto canónico no cuenta como
+    literal, ni una cuya página no es la del recorte."""
+    result = _pair_on(rows, am.Outcome.CUMPLE)
+    reading = rows.reading
+    common = dict(result=result, kind=am.CitationKind.OFERTA, document=rows.document,
+                  reading=reading, page=1, char_start=0, char_end=10)
+    am.Citation.objects.create(order=1, text=reading.canonical_text[:10], **common)
+    am.Citation.objects.create(order=2, text="otro texto", **common)
+    pair = ev.ExpectedPair(requirement="M-001", result=am.Outcome.CUMPLE, base="oferta")
+    record = ev.measure_pair(pair, result, rows.requirement, result.offer, ev.PageFinder(),
+                             [], {})
+    assert (record["citas_oferta"], record["citas_literales"]) == (2, 1)
+    total = ev.aggregate([{"records": [record], "timings": {}, "steps": {
+        "pedidos": 0, "tokens_pedido": 0, "tokens_salida": 0}, "unread_pages": 0,
+        "discard_ok": None}])
+    assert total["literal"] == {"ok": 1, "total": 2, "rate": 0.5}
+    assert any("Citas de la oferta" in line for line in ev.blocking(total))
+
+
+def test_a_cumple_without_a_citation_is_counted_and_blocks(rows):
+    """REQ-053: un "cumple" sin cita de la oferta queda en `no_citation` y bloquea."""
+    result = _pair_on(rows, am.Outcome.CUMPLE)
+    pair = ev.ExpectedPair(requirement="M-001", result=am.Outcome.CUMPLE, base="oferta")
+    record = ev.measure_pair(pair, result, rows.requirement, result.offer, ev.PageFinder(),
+                             [], {})
+    assert record["sin_cita"] is True
+    total = ev.aggregate([{"records": [record], "timings": {}, "steps": {
+        "pedidos": 0, "tokens_pedido": 0, "tokens_salida": 0}, "unread_pages": 0,
+        "discard_ok": None}])
+    assert total["no_citation"] == ["M-001"]
+    assert any("sin cita" in line for line in ev.blocking(total))
+
+
+def test_a_question_of_an_earlier_evaluation_is_not_counted(rows):
+    """REQ-055: "pregunta formulada" cuenta solo la pregunta de la evaluación medida, no la
+    abierta de una corrida anterior."""
+    result = _pair_on(rows, am.Outcome.NO_DETERMINADO, doubt=am.Doubt.EXTERNO)
+    pair = ev.ExpectedPair(requirement="M-001", result=am.Outcome.NO_DETERMINADO,
+                           base="oferta", question=True)
+    other = am.Question.objects.create(
+        procedure=rows.request.procedure, requirement=rows.requirement,
+        offer=result.offer, result=rows.result, text="¿Otra pregunta?", reason="externo")
+    record = ev.measure_pair(pair, result, rows.requirement, result.offer, ev.PageFinder(),
+                             [], {})
+    assert other.answers.count() == 0 and record["pregunta_formulada"] is False
