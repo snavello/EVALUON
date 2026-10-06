@@ -246,7 +246,7 @@ def parse_contrast(content):
 
 # --- Contraste por cláusula (T-158) -------------------------------------------------------------
 
-CLAUSE_STATES = ("coincide", "contradice", "no_aparece")
+CLAUSE_STATES = ("coincide", "contradice", "no_aparece", "no_legible")
 
 CLAUSES_SCHEMA = {
     "type": "object",
@@ -255,24 +255,29 @@ CLAUSES_SCHEMA = {
             "type": "object",
             "properties": {"clausula": {"type": "string"},
                            "estado": {"type": "string", "enum": list(CLAUSE_STATES)},
+                           "cita": {"type": "string"},
                            "motivo": {"type": "string"}},
-            "required": ["clausula", "estado", "motivo"], "additionalProperties": False}},
+            "required": ["clausula", "estado", "cita", "motivo"],
+            "additionalProperties": False}},
         "pregunta": {"type": "string"}},
     "required": ["clausulas", "pregunta"], "additionalProperties": False}
 
 
-def build_clauses_messages(system, requirement_block, cited, correction=""):
-    """El pedido del contraste por cláusula de un renglón: el requisito y el texto citado."""
+def build_clauses_messages(system, requirement_block, cited, correction="", documents=""):
+    """El pedido del contraste por cláusula de un renglón (o de un grupo de sus cláusulas): el
+    requisito, el texto citado y el documento de la oferta donde está (T-164)."""
     quotes = "\n".join(f"- {title}, página {page}: «{text}»" for title, page, text in cited)
     parts = [requirement_block, "Texto citado de la oferta:\n" + quotes,
+             ("Documento de la oferta donde está el texto citado:\n" + documents)
+             if documents else "",
              "Devolvé un objeto JSON con los campos pedidos.", correction]
     user = "\n\n".join(part for part in parts if part)
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
 def parse_clauses(content):
-    """`([(cláusula, estado, motivo)], pregunta)`. Lanza `InvalidOutput` si no tiene la forma
-    o si no trae ninguna cláusula."""
+    """`([(cláusula, estado, motivo, cita)], pregunta)`. Lanza `InvalidOutput` si no tiene la
+    forma o si no trae ninguna cláusula. `cita` es opcional (vacía si falta)."""
     try:
         data = json.loads(content)
     except ValueError as error:
@@ -283,10 +288,14 @@ def parse_clauses(content):
         raise InvalidOutput("la salida no tiene los campos pedidos")
     rows = []
     for item in data["clausulas"]:
-        if (not isinstance(item, dict) or set(item) != {"clausula", "estado", "motivo"}
+        if (not isinstance(item, dict)
+                or not {"clausula", "estado", "motivo"} <= set(item) <= {
+                    "clausula", "estado", "motivo", "cita"}
                 or item["estado"] not in CLAUSE_STATES
                 or not isinstance(item["clausula"], str)
-                or not isinstance(item["motivo"], str)):
+                or not isinstance(item["motivo"], str)
+                or not isinstance(item.get("cita", ""), str)):
             raise InvalidOutput("una cláusula no tiene la forma pedida")
-        rows.append((item["clausula"].strip(), item["estado"], item["motivo"].strip()))
+        rows.append((item["clausula"].strip(), item["estado"], item["motivo"].strip(),
+                     item.get("cita", "").strip()))
     return rows, data["pregunta"].strip()

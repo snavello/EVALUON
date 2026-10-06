@@ -49,7 +49,7 @@ flowchart LR
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
 | [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 63/65 | ██████████ 97% |
-| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 11/17 | ██████░░░░ 65% |
+| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 12/17 | ███████░░░ 71% |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
 | 007 · Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | No iniciada | — | — |
@@ -664,8 +664,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 6 tareas sin terminar.
-- ○ T-164 · Corregir los hallazgos de T-158: el no cumple técnico exige una cita de la oferta que contradiga la cláusula (F-1) y el contraste por cláusula acota cláusulas y tokens (F-2); se mide con T-161 (pendiente)
+- **Próximo paso:** Desarrollar: 5 tareas sin terminar.
 - ○ T-159 · Descarga y verificación de archivos y servicio: proyector del 12B, 26B-A4B con su proyector, variables propias del lote, `--mmproj`, archivo `docker-compose.modelo-grande.yml`, prueba de humo con imagen y memoria medida (pendiente)
 - ○ T-160 · Lectura con visión de las páginas dudosas: criterio, imagen, transcripción, lectura nueva con origen `vision`, registro y pantalla rotulada, con tests (pendiente)
 - ○ T-161 · Medir el caso-00 con el 12B y visión (referencia, y medición de la visión y de T-164) (pendiente)
@@ -686,6 +685,7 @@ flowchart LR
 - ✓ T-156 · Corregir los hallazgos de T-155 y medir de nuevo (ronda 1) (`eafd501` 2026-10-06, `56a46fb` 2026-10-06, `aaf996d` 2026-10-06, `5d684a2` 2026-10-06)
 - ✓ T-157 · Solo si T-156 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) (`970baf6` 2026-10-06, `a3af7ad` 2026-10-06)
 - ✓ T-158 · Contraste por cláusula de un cumple técnico: cero contradicciones con el dictamen (tercera ronda por la contradicción M-051, decisión del responsable) (`c6aded5` 2026-10-06)
+- ✓ T-164 · Corregir los hallazgos de T-158: el no cumple técnico exige una cita de la oferta que contradiga la cláusula (F-1) y el contraste por cláusula acota cláusulas y tokens (F-2); se mide con T-161 (`0ba1662` 2026-10-06)
 
 ### Mapa de tareas
 
@@ -702,7 +702,7 @@ flowchart TD
   T156["✓ T-156 · Corregir los hallazgos de T-155 y medir de…"]:::done
   T157["✓ T-157 · Solo si T-156 no llegó al umbral: corregir…"]:::done
   T158["✓ T-158 · Contraste por cláusula de un cumple técnico…"]:::done
-  T164["○ T-164 · Corregir los hallazgos de T-158: el no cump…"]:::todo
+  T164["✓ T-164 · Corregir los hallazgos de T-158: el no cump…"]:::done
   T159["○ T-159 · Descarga y verificación de archivos y servi…"]:::todo
   T160["○ T-160 · Lectura con visión de las páginas dudosas:…"]:::todo
   T161["○ T-161 · Medir el caso-00 con el 12B y visión (refer…"]:::todo
