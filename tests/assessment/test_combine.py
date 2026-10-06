@@ -182,3 +182,34 @@ def test_a_downgraded_conclusion_carries_the_question_for_the_commission():
     assert combined.question == ""
     downgraded = combine.apply_contrast(combined, "parcial", "solo lo anuncia")
     assert downgraded.doubt == "sin_corroborar" and downgraded.question
+
+
+def test_external_wins_over_a_doubt_and_over_a_missing_document():
+    """REQ-055, T-156: lo que se verifica fuera de la oferta es "externo" aunque otro grupo
+    dude o diga "no consta" un documento que se leyó completo (no es "no se encontró")."""
+    over_doubt = run(group(0, "no_determinado", doubt="duda"),
+                     group(1, "no_determinado", doubt="duda", external=True))
+    assert over_doubt.doubt == "externo" and over_doubt.question
+    over_missing = run(group(0, "no_consta", exigence="documento"),
+                       group(1, "no_determinado", doubt="duda", exigence="documento",
+                             external=True))
+    assert over_missing.outcome == "no_determinado" and over_missing.doubt == "externo"
+    single = run(group(0, "no_determinado", doubt="duda", exigence="documento", external=True))
+    assert single.outcome == "no_determinado" and single.doubt == "externo"
+
+
+def test_a_technical_no_cumple_needs_a_clause_that_is_in_the_requirement():
+    """REQ-052, T-156: la cláusula citada tiene que estar letra por letra en el requisito."""
+    requirement = "Renglón 5 del pliego: «5.1 Bolsas de 20 kilos.  5.2 Proteína mínima 24 %.»"
+    assert combine.clause_supported("5.1 Bolsas de 20 kilos.", requirement)
+    assert combine.clause_supported("Bolsas de 20  kilos.", requirement)
+    assert not combine.clause_supported("Bolsas de 10 kilos.", requirement)
+    assert not combine.clause_supported("", requirement)
+
+
+def test_a_group_without_data_for_a_technical_no_cumple_is_undetermined_without_data():
+    """REQ-052, T-156: el grupo que bajó un "no cumple" sin cláusula llega como `sin_dato` y
+    lleva siempre una pregunta; no se vuelve "duda"."""
+    combined = run(group(0, "no_determinado", doubt="sin_dato", cites=[cite()]))
+    assert combined.outcome == "no_determinado" and combined.doubt == "sin_dato"
+    assert combined.question and not combined.needs_contrast

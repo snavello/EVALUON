@@ -644,6 +644,33 @@ def test_a_technical_row_is_evaluated_per_renglon_with_the_quotes_of_the_pliego(
     assert result.citations.filter(kind="pliego").count() == row.quotes.count()
 
 
+def test_a_technical_no_cumple_needs_a_cited_clause_that_contradicts_it(
+        offer, operator_user, procedure, model):
+    """REQ-052, T-156: un "no cumple" de un renglón sin una cláusula del pliego (copiada letra
+    por letra del requisito) es "no determinado" sin dato, con pregunta; con la cláusula
+    citada, queda "no cumple"."""
+    row = next(r for r in sheets_firm(procedure) if r.category == "tecnico"
+               and r.items == [1])
+    cited = {"clause": ""}
+
+    def function(call):
+        if not call.requirement.startswith("Renglón 1 del pliego"):
+            return None
+        return {**says("no_cumple", call.quote("Renglón 1: resma de papel A4")),
+                "clausula": cited["clause"]}
+
+    model.evaluates(function)
+    _, runs = run_all(operator_user, procedure, offers=[offer])
+    result = results_of(runs[0])[row.number]
+    assert result.outcome == "no_determinado" and result.doubt == "sin_dato"
+    cited["clause"] = "una cláusula inventada que el pliego no tiene"
+    _, runs = run_all(operator_user, procedure, offers=[offer])
+    assert results_of(runs[0])[row.number].outcome == "no_determinado"
+    cited["clause"] = row.quotes.order_by("order").first().text
+    _, runs = run_all(operator_user, procedure, offers=[offer])
+    assert results_of(runs[0])[row.number].outcome == "no_cumple"
+
+
 # --- Registro y no pisar nada ------------------------------------------------------------------
 
 
@@ -663,7 +690,7 @@ def test_everything_the_model_was_asked_is_recorded(offer, operator_user, proced
     assert step.documents[0]["tokens"] > 0 and step.prompt_tokens is not None
     assert step.request["response_format"]["type"] == "json_schema"
     assert run.models_used["generation_batch"]["context_tokens"] == 32768
-    assert run.prompt_versions == {"evaluacion": "evaluacion-v1", "contraste": "contraste-v2"}
+    assert run.prompt_versions == {"evaluacion": "evaluacion-v2", "contraste": "contraste-v2"}
     assert run.parameters["group_tokens"] == 20000
     assert run.norms["matrix_version"] == 1 and run.norms["authorization_date"]
     assert run.matrix_version == request.matrix_version and run.channel == "eval"
@@ -886,7 +913,10 @@ def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(
         if result in ("cumple", "no_cumple"):
             quotes = [shorter_quote(call, c["ancla"]) for c in entry["citas"]]
             missing.extend((bidder, entry["requisito"]) for q in quotes if q is None)
-            return says(result, *[q for q in quotes if q is not None])
+            answer = says(result, *[q for q in quotes if q is not None])
+            if result == "no_cumple" and call.requirement.startswith("Renglón"):
+                answer["clausula"] = re.findall(r"«(.*?)»", call.requirement)[-1]
+            return answer
         if entry.get("motivo") == "falta_hoja_compliance":
             return says("no_determinado", external=True)
         return says("no_consta", exigence="documento")

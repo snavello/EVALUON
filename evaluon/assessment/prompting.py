@@ -126,6 +126,8 @@ def evaluation_schema(doc_aliases, support_aliases):
             "explicacion": {"type": "string"},
             "externo": {"type": "boolean"},
             "pregunta": {"type": "string"},
+            # Opcional: solo en un "no cumple" de un renglón (evaluacion-v2).
+            "clausula": {"type": "string"},
         },
         "required": ["resultado", "exigencia", "citas", "fundamentos", "explicacion",
                      "externo", "pregunta"],
@@ -144,16 +146,19 @@ class Evaluation:
     explanation: str = ""
     external: bool = False
     question: str = ""
+    clause: str = ""        # la cláusula del pliego que contradice un "no cumple" técnico
 
     def as_json(self):
         return {"resultado": self.result, "exigencia": self.exigence,
                 "citas": [{"documento": a, "texto": t} for a, t in self.citations],
                 "fundamentos": self.supports, "explicacion": self.explanation,
-                "externo": self.external, "pregunta": self.question}
+                "externo": self.external, "pregunta": self.question,
+                "clausula": self.clause}
 
 
 _FIELDS = {"resultado", "exigencia", "citas", "fundamentos", "explicacion", "externo",
            "pregunta"}
+_OPTIONAL = {"clausula"}
 
 
 def parse_evaluation(content, doc_aliases, support_aliases):
@@ -164,7 +169,7 @@ def parse_evaluation(content, doc_aliases, support_aliases):
         data = json.loads(content)
     except ValueError as error:
         raise InvalidOutput("la salida no es JSON") from error
-    if not isinstance(data, dict) or set(data) != _FIELDS:
+    if not isinstance(data, dict) or not _FIELDS <= set(data) <= _FIELDS | _OPTIONAL:
         raise InvalidOutput("la salida no tiene los campos pedidos")
     if data["resultado"] not in RESULTS:
         raise InvalidOutput("resultado no es uno de los cuatro")
@@ -174,6 +179,8 @@ def parse_evaluation(content, doc_aliases, support_aliases):
         raise InvalidOutput("citas y fundamentos son listas")
     if not isinstance(data["explicacion"], str) or not isinstance(data["pregunta"], str):
         raise InvalidOutput("explicacion y pregunta son texto")
+    if not isinstance(data.get("clausula", ""), str):
+        raise InvalidOutput("clausula es texto")
     if not isinstance(data["externo"], bool):
         raise InvalidOutput("externo es verdadero o falso")
     citations = []
@@ -188,7 +195,8 @@ def parse_evaluation(content, doc_aliases, support_aliases):
         result=data["resultado"], exigence=data["exigencia"],
         citations=citations[:settings.ASSESSMENT_MAX_CITATIONS],
         supports=list(dict.fromkeys(supports)), explanation=data["explicacion"].strip(),
-        external=data["externo"], question=data["pregunta"].strip())
+        external=data["externo"], question=data["pregunta"].strip(),
+        clause=data.get("clausula", "").strip())
 
 
 def correction_for(problem):

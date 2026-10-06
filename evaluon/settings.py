@@ -419,6 +419,6 @@ ASSESSMENT_NORM_UNITS_MAX = 4
 ASSESSMENT_ANSWERS_MAX = 20
 # Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150).
 ASSESSMENT_PROMPT_VERSIONS = {
-    "evaluacion": "evaluacion-v1",
+    "evaluacion": "evaluacion-v2",
     "contraste": "contraste-v2",
 }

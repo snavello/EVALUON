@@ -60,7 +60,14 @@ from evaluon.offers.models import Offer
 from evaluon.offers.services import offers as offers_service
 from evaluon.offers.services import sheets
 from evaluon.tenders import jobs
-from evaluon.tenders.models import Job, JobKind, JobStatus, MatrixVersion, Requirement
+from evaluon.tenders.models import (
+    Job,
+    JobKind,
+    JobStatus,
+    MatrixVersion,
+    Requirement,
+    RequirementClass,
+)
 from evaluon.tenders.services.validation import latest_validated
 
 REQUEST_OPERATION = "evaluon.assessment.services.evaluate.request_evaluation"
@@ -68,6 +75,7 @@ PAGE_OPERATION = "evaluon.assessment.services.evaluate.pair_page"
 
 # Anomalías del registro.
 ANOMALY_NO_QUOTE = "requisito_sin_cita"
+ANOMALY_NO_CLAUSE = "no_cumple_sin_clausula"
 ANOMALY_REWRITE = "reescritura_descartada"
 ANOMALY_UNKNOWN_ALIAS = "alias_inexistente"
 ANOMALY_CONTRAST_INVALID = "contraste_invalido"
@@ -412,6 +420,16 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             exigence=evaluation.exigence, supports=supports,
             explanation=evaluation.explanation, question=evaluation.question,
             external=evaluation.external)
+    if (evaluation.result == prompting.NO_CUMPLE
+            and pair.requirement.category == RequirementClass.TECNICO
+            and not combine.clause_supported(evaluation.clause, pair.text.text)):
+        pair.anomalies.append({"type": ANOMALY_NO_CLAUSE, "requirement": pair.requirement.number,
+                               "group": group_index})
+        return combine.GroupResult(
+            group_index, prompting.NO_DETERMINADO, doubt=combine.NO_DATA,
+            exigence=evaluation.exigence, citations=located, supports=supports,
+            explanation=f"{evaluation.explanation} {combine.NO_CLAUSE_NOTE}".strip(),
+            question=evaluation.question, external=evaluation.external)
     keep = [] if evaluation.result == prompting.NO_CONSTA else located
     return combine.GroupResult(
         group_index, evaluation.result,
