@@ -247,3 +247,30 @@ def test_proposal_page_marks_damaged_text_and_what_the_user_can_decide(
     assert not as_operator.can_approve_all and as_evaluator.can_approve_all
     (row,) = as_evaluator.rows[ItemKind.PROCEDIMIENTO]
     assert row.action == "crear" and row.item.damaged_fields
+
+
+def test_changed_item_is_marked_as_changed_from_what_was_approved(
+        client, operator_user, evaluator_user, proposed, fake_portal_calco):
+    """REQ-050: un ítem con otra huella que el ya cargado se muestra "cambiado respecto de lo
+    aprobado"; el que no cambió no lleva la marca."""
+    from evaluon.portal.models import Origin
+    from evaluon.tenders import jobs
+    from tests.conftest import TEST_PASSWORD
+    from tests.portal.conftest import reply
+    from tests.portal.fakeportal import DATA, LINK_URL
+
+    link, procedure_item, lines_item = proposed
+    approval.approve_all(evaluator_user, link.pk, confirmations=confirm(procedure_item))
+    page = (DATA / "proceso.html").read_bytes().replace(b"2700 kg", b"2800 kg")
+    fake_portal_calco.routes[("GET", LINK_URL)] = reply(LINK_URL, page)
+    review = jobs.enqueue("portal_review", procedure=None, requested_by=operator_user,
+                          target_id=link.pk)
+    jobs.run(review)
+    new = PortalItem.objects.get(proposal__origin=Origin.REVISION)
+    rows = approval.proposal_page(evaluator_user, link.pk).rows[ItemKind.RENGLONES]
+    marks = {row.item.pk: row.changed for row in rows}
+    assert marks[new.pk] is True
+    assert marks[lines_item.pk] is False
+    assert client.login(username=evaluator_user.username, password=TEST_PASSWORD)
+    html = client.get(f"/importar/{link.pk}/").content.decode()
+    assert html.count("Cambiado respecto de lo aprobado") == 1
