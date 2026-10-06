@@ -15,7 +15,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
 | T-148 | Esquema, configuración compartida y tamaños: módulo `assessment` con todas sus tablas y triggers, tipo de pedido y de hecho, contexto del motor de lotes, `medir_tamanos` y `entorno.md` | REQ-052, REQ-053, REQ-054, REQ-056, REQ-057 | — | pendiente |
-| T-149 | Preparar los casos para medir (Coordinador): caso chico calcado de ofertas reales y lista esperada del dictamen del caso-00, con la lista de fichas completada | REQ-052, REQ-053, REQ-054, REQ-059, REQ-060 | — | pendiente |
+| T-149 | Preparar los casos para medir (Coordinador): caso chico calcado de ofertas reales y lista esperada del dictamen del caso-00, con la lista de fichas completada | REQ-052, REQ-053, REQ-054, REQ-059, REQ-060 | — | terminada |
 | T-150 | Corte vertical: evaluar una oferta de punta a punta (lectura completa por grupos, cita ubicada, contraste, cuatro resultados, preguntas formuladas) con pantalla mínima del par | REQ-052, REQ-053, REQ-054, REQ-055, REQ-059, REQ-060 | T-148 | pendiente |
 | T-151 | Medir el caso chico: lista esperada, comparación y comando `medir_evaluacion` | REQ-052, REQ-053, REQ-054, REQ-055, REQ-060 | T-149, T-150 | pendiente |
 | T-152 | Matriz de evaluación de todas las ofertas: descarte propuesto, orden económico con el Portal, estado por oferta y aviso de versión | REQ-057, REQ-058, REQ-059 | T-150 | pendiente |
@@ -88,6 +88,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Requisitos:** REQ-052, REQ-053, REQ-054, REQ-055, REQ-060
 - **Nivel de verificación:** plena (medición con umbral escrito en el plan).
 - **Qué hay que hacer:**
+- **Aviso de tareas anteriores:** T-149: el formato de `evaluacion-esperada.yaml` lo definió T-149; el lector de la medición se ajusta a él. `fichas-esperadas.yaml` trae un campo nuevo `equivalentes` (copias deduplicadas) que el lector de la 008 ignora: leerlo para REQ-054. Las anclas de las fotos del Portal y de los escaneos del caso chico se comprueban con `--verificar-esperada`.
   1. `evaluation.py` y comando `medir_evaluacion`: carga la lista esperada (`evaluacion-esperada.yaml` del caso chico y `dictamen-esperado.yaml` del caso-00, con huella y visto bueno, reutilizando `tenders/evaluation.py`), arma el caso chico en la base (`--caso-chico`), corre la evaluación en el canal `eval`, cuenta según "Cómo se cuenta" del plan (coincidencia, contradicciones, citas, fragmentos de la ficha, matriz, tiempos y tokens) y guarda la corrida (`parametros.json`, `resultados.jsonl`, `resumen.md`, `resumen-publico.md`). `--verificar-esperada` comprueba las listas contra las lecturas sin usar el modelo.
   2. Una medición del caso chico. Si no llega al umbral, se corrige dentro de esta tarea antes de cerrarla; no cuenta como ronda del caso-00. Cada cambio de instrucciones sube la versión.
 - **Umbral (escrito antes de medir):** el de la columna "Caso chico" de la tabla del plan: coincidencia 100 %, 0 contradicciones, 0 "cumple" o "no cumple" sin cita, citas 100 % literales, "no se encontró el documento" y pregunta 100 % donde corresponde.
@@ -101,6 +102,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Requisitos:** REQ-057, REQ-058, REQ-059
 - **Nivel de verificación:** plena (lógica y datos).
 - **Qué hay que hacer:**
+- **Aviso de tareas anteriores:** T-149: el dictamen del caso-00 descarta una oferta **por renglón** (Lombardozzi, renglones 5 y 6, art. 55 inc. h): la matriz de evaluación tiene que admitir el descarte parcial por renglón, además del descarte de la oferta entera (decisión del Coordinador, dentro de REQ-059).
   1. `services/matrix.py`: la grilla de requisitos por ofertas con el resultado vigente y el estado de cada par, el estado por oferta (requisitos por estado y por resultado, preguntas abiertas), el aviso de versión posterior de la matriz, y el pedido "Evaluar todas las ofertas" (llama a `request_evaluation` con todas las ofertas) con el aviso de fin de la 003.
   2. `ordering.py`: descarte propuesto (algún requisito formal o técnico con resultado efectivo "no cumple", con requisito, fundamento y la consecuencia prevista de la matriz; "no se encontró el documento" y "no determinado" no descartan) y orden económico: total y por renglón con `portal_offer_data` y `portal_quote` de la 012; oferta sin datos del Portal al final y sin posición; monedas distintas sin orden y con aviso. El alcance del descarte a requisitos económicos queda detrás de una sola constante, según la respuesta del responsable al punto 3 del plan.
   3. Pantalla: la matriz de evaluación (ofertas por requisitos), estado por oferta, descartes propuestos con su motivo, orden económico, preguntas abiertas y aviso de versión, todo rotulado como propuesta; `views/matrix.py`, `templates/assessment/matrix.html`.

@@ -1,0 +1,124 @@
+# Lista esperada de la evaluación del caso chico (T-149; plan 004, "Listas esperadas").
+# Caso INVENTADO y público (P4): ningún dato es real. Los PDF los genera `generar.py`.
+# La forma de las ofertas (documentos que mezclan temas, escaneo con sello, póliza, hoja técnica,
+# página ilegible, un documento exigido que falta, una copia de texto idéntico, una declaración
+# jurada desfavorable) sigue la variedad de las ofertas del caso de referencia, sin copiar nada.
+#
+# `resultado` es uno de los cuatro: cumple, no_cumple, no_determinado, no_se_encontro_documento.
+# `base`: oferta (documentos de la oferta), externa (se verifica fuera de la oferta: la hoja de
+# compliance, decisión 1 del responsable 2026-10-06) o tecnica (requisito por renglón, decisión 2).
+# `motivo` de un no_determinado: falta_hoja_compliance o pagina_ilegible; con `pregunta: si`
+# el par debe traer una pregunta para la Comisión. `citas` son literales de la oferta (documento,
+# página y fragmento exacto del texto leído); un cumple o un no_cumple lleva al menos una.
+# Las anclas de documentos escaneados las comprueba `medir_evaluacion --verificar-esperada`.
+caso: caso-chico-evaluacion
+preparo: "Coordinador (agente delegado), 2026-10-06"
+visto_bueno: pendiente   # lo da el Coordinador al revisar (T-149)
+matriz:
+  procedimiento: CASO-CHICO-EVALUACION
+  tipo: Contratación directa sintética
+  objeto: Adquisición de insumos de oficina sintéticos (caso inventado)
+  fecha_autorizacion: 2026-01-15
+  pliego:
+    archivo: pliego.pdf
+    sha256: "bae6af6b0edcc0faee0c6bc7319898641f9b605082e8666b2eeeeb85f66c1a6d"
+    titulo: Pliego sintético
+  requisitos:
+    - {id: M-001, clase: formal, base: oferta, cita: "Presentar la declaración jurada de habilidad para contratar firmada por el oferente.", consecuencia: desestimar la oferta si informa una causal de inhabilidad}
+    - {id: M-002, clase: formal, base: oferta, cita: "Acompañar la constancia de inscripción del oferente en el registro de proveedores."}
+    - {id: M-003, clase: formal, base: oferta, cita: "Acompañar el certificado de vigencia del contrato social del oferente."}
+    - {id: M-004, clase: formal, base: oferta, cita: "Acompañar copia del documento de identidad del representante legal."}
+    - {id: M-005, clase: formal, base: externa, cita: "La inexistencia de sanciones y de deuda exigible del oferente se verificará en la etapa de evaluación"}
+    - {id: M-006, clase: economico, base: oferta, cita: "Constituir una garantía de mantenimiento de la oferta del cinco por ciento del monto cotizado."}
+    - {id: M-007, clase: economico, base: oferta, cita: "Cotizar en pesos con impuestos incluidos, indicando el precio unitario de cada renglón."}
+    - {id: M-008, clase: tecnico, base: tecnica, renglon: 1}
+    - {id: M-009, clase: tecnico, base: tecnica, renglon: 2}
+    - {id: M-010, clase: tecnico, base: tecnica, renglon: 3}
+ofertas:
+  - oferente: "Oferente A Sintético"
+    carpeta: ofertas/oferente-a
+    documentos:
+      - {archivo: ofertas/oferente-a/oferta-propuesta.pdf, sha256: "e92dec96be3997863e9026cb0c8864f832b3a187d0b3b224c6459a6053cd7a3f"}
+      - {archivo: ofertas/oferente-a/poliza-caucion.pdf, sha256: "161c7e4ff7027510f3af6a76d45eaffc41bd72383fdb6b69a104cb12155c0585"}
+      - {archivo: ofertas/oferente-a/poliza-caucion-copia.pdf, sha256: "161c7e4ff7027510f3af6a76d45eaffc41bd72383fdb6b69a104cb12155c0585", copy_of: ofertas/oferente-a/poliza-caucion.pdf}
+      - {archivo: ofertas/oferente-a/hoja-tecnica-resma.pdf, sha256: "409f16e66fd5ff59c82b65cc27402846bdda9b60a552ab1ef07932fa200998cc"}
+      - {archivo: ofertas/oferente-a/constancia-escaneada.pdf, sha256: "789bb70b9f3614ebdd6c73b8b1b8b0888d306c7e8a31f5c542416c1c3016dd22"}
+      - {archivo: ofertas/oferente-a/certificado-vigencia.pdf, sha256: "e5bc48db6027e6db71518c1ba74ed5de59a2696a2b889bc3ed63d26f4bc14b2e"}
+      - {archivo: ofertas/oferente-a/documento-identidad.pdf, sha256: "5c9886b70f8dd82e5d0d9e7cfaaa471492840cc1a561d6692638f80723c5fae5"}
+    descartada: no
+    total: 535000
+    precios_unitarios: {1: 3000, 2: 4500, 3: 2000}
+    paginas_no_legibles: []
+    requisitos:
+      - {requisito: M-001, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-a/oferta-propuesta.pdf, pagina: 1, ancla: "Declaro bajo juramento que me encuentro habilitado para contratar con el organismo"}]}
+      - {requisito: M-002, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-a/constancia-escaneada.pdf, pagina: 1, ancla: "se encuentra inscripto en el registro de proveedores con el número 000123"}]}
+      - {requisito: M-003, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-a/certificado-vigencia.pdf, pagina: 1, ancla: "el contrato social de Oferente A Sintético se encuentra vigente"}]}
+      - {requisito: M-004, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-a/documento-identidad.pdf, pagina: 1, ancla: "Copia del documento de identidad sintético número 00.000.000"}]}
+      - {requisito: M-005, resultado: no_determinado, base: externa, motivo: falta_hoja_compliance, pregunta: si}
+      - {requisito: M-006, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-a/poliza-caucion.pdf, pagina: 1, ancla: "hasta la suma de $ 26.750"}]}
+      - {requisito: M-007, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-a/oferta-propuesta.pdf, pagina: 2, ancla: "Los precios se cotizan en pesos con impuestos incluidos."}]}
+      - {requisito: M-008, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-a/hoja-tecnica-resma.pdf, pagina: 1, ancla: "Gramaje 75 g/m²"}]}
+      - {requisito: M-009, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-a/oferta-propuesta.pdf, pagina: 3, ancla: "Cartucho de tóner negro compatible con la impresora láser del organismo."}]}
+      - {requisito: M-010, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-a/oferta-propuesta.pdf, pagina: 3, ancla: "Archivador de palanca de lomo ancho, tamaño oficio."}]}
+  - oferente: "Oferente B Sintético"
+    carpeta: ofertas/oferente-b
+    documentos:
+      - {archivo: ofertas/oferente-b/oferta-propuesta.pdf, sha256: "4aa84d74950000800744edc8643d52270f93ef49765543faa8058bb27abfce74"}
+      - {archivo: ofertas/oferente-b/poliza-caucion.pdf, sha256: "1f89179c810271ad1eaa49057ce80a3e087896df0b11430107668e48ba631e68"}
+      - {archivo: ofertas/oferente-b/hoja-tecnica-resma.pdf, sha256: "202f80d2d3fefc6fed805a692810412b7984465467f1bf6cadd97bbfd82fb469"}
+      - {archivo: ofertas/oferente-b/constancia-escaneada.pdf, sha256: "4273e30634de78379cad4375f4f3825614c511209fb359f10a1568c59e98e418"}
+      - {archivo: ofertas/oferente-b/documento-firmado-mixto.pdf, sha256: "1855b4e5e680b27942b8c8c793e379ca7a9ac076c75153bd46f3298937fbd330"}
+    descartada: no
+    total: 519000
+    precios_unitarios: {1: 2800, 2: 4800, 3: 1900}
+    paginas_no_legibles:
+      - {documento: ofertas/oferente-b/documento-firmado-mixto.pdf, pagina: 2}
+    requisitos:
+      - {requisito: M-001, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-b/oferta-propuesta.pdf, pagina: 1, ancla: "Declaro bajo juramento que me encuentro habilitado para contratar con el organismo"}]}
+      - {requisito: M-002, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-b/constancia-escaneada.pdf, pagina: 1, ancla: "se encuentra inscripto en el registro de proveedores con el número 000123"}]}
+      - {requisito: M-003, resultado: no_se_encontro_documento, base: oferta, nota: "la oferta no trae el certificado de vigencia del contrato social; no es un no cumple"}
+      - {requisito: M-004, resultado: no_determinado, base: oferta, motivo: pagina_ilegible, pregunta: si, nota: "la copia del documento de identidad está en la página 2, escaneada e ilegible; la página 1 solo dice que se adjunta"}
+      - {requisito: M-005, resultado: no_determinado, base: externa, motivo: falta_hoja_compliance, pregunta: si}
+      - {requisito: M-006, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-b/poliza-caucion.pdf, pagina: 1, ancla: "hasta la suma de $ 25.950"}]}
+      - {requisito: M-007, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-b/oferta-propuesta.pdf, pagina: 2, ancla: "Los precios se cotizan en pesos con impuestos incluidos."}]}
+      - {requisito: M-008, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-b/hoja-tecnica-resma.pdf, pagina: 1, ancla: "Gramaje 75 g/m²"}]}
+      - {requisito: M-009, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-b/oferta-propuesta.pdf, pagina: 3, ancla: "Cartucho de tóner negro, modelo compatible con impresoras láser del organismo."}]}
+      - {requisito: M-010, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-b/oferta-propuesta.pdf, pagina: 3, ancla: "Archivador de palanca, lomo ancho, tamaño oficio."}]}
+  - oferente: "Oferente C Sintético"
+    carpeta: ofertas/oferente-c
+    documentos:
+      - {archivo: ofertas/oferente-c/oferta-propuesta.pdf, sha256: "cb76555837448769033c7680052de60ad95b2fe2e2421502e16ee321c8dd08ff"}
+      - {archivo: ofertas/oferente-c/poliza-caucion.pdf, sha256: "15c40dc61e91350e9fe9e787a3b7a9802c3059ae3a8ecd7bc9fc16dab722fce7"}
+      - {archivo: ofertas/oferente-c/hoja-tecnica-resma.pdf, sha256: "9e6162621a8aef70a5f61cad69290cc6cbde54c24db8718df3c7e30da26d9ac9"}
+      - {archivo: ofertas/oferente-c/constancia-escaneada.pdf, sha256: "664a6629f7950caa8c5f923b3ad7ca7cfdb144926675536d6a6b4bd482c1e123"}
+      - {archivo: ofertas/oferente-c/certificado-vigencia.pdf, sha256: "5f35810fb84341d9f6a153502696ebecb443805082b7a1c730cdc4dd653be0e4"}
+      - {archivo: ofertas/oferente-c/documento-identidad.pdf, sha256: "64356264db111f6a550e899fb4c9f77e92583d6720e03d5c288d526094cd33fd"}
+    descartada: si          # M-001 no cumple: el pliego manda desestimar la oferta con una declaración de inhabilidad
+    descarte: {requisito: M-001, fundamento: "La declaración jurada informa una causal de inhabilidad; el pliego (2.1) la desestima."}
+    total: 476000
+    precios_unitarios: {1: 2600, 2: 4200, 3: 1800}
+    paginas_no_legibles: []
+    requisitos:
+      - {requisito: M-001, resultado: no_cumple, base: oferta, citas: [{documento: ofertas/oferente-c/oferta-propuesta.pdf, pagina: 1, ancla: "se encuentra comprendido en una causal de inhabilidad para contratar por deuda exigible con el organismo"}]}
+      - {requisito: M-002, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-c/constancia-escaneada.pdf, pagina: 1, ancla: "se encuentra inscripto en el registro de proveedores con el número 000123"}]}
+      - {requisito: M-003, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-c/certificado-vigencia.pdf, pagina: 1, ancla: "el contrato social de Oferente C Sintético se encuentra vigente"}]}
+      - {requisito: M-004, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-c/documento-identidad.pdf, pagina: 1, ancla: "Copia del documento de identidad sintético número 00.000.000"}]}
+      - {requisito: M-005, resultado: no_determinado, base: externa, motivo: falta_hoja_compliance, pregunta: si}
+      - {requisito: M-006, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-c/poliza-caucion.pdf, pagina: 1, ancla: "hasta la suma de $ 23.800"}]}
+      - {requisito: M-007, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-c/oferta-propuesta.pdf, pagina: 2, ancla: "Los precios se cotizan en pesos con impuestos incluidos."}]}
+      - {requisito: M-008, resultado: no_cumple, base: tecnica, citas: [{documento: ofertas/oferente-c/hoja-tecnica-resma.pdf, pagina: 1, ancla: "Gramaje 70 g/m²"}], nota: "el pliego pide 75 gramos; ofrece 70"}
+      - {requisito: M-009, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-c/oferta-propuesta.pdf, pagina: 3, ancla: "Cartucho de tóner negro compatible con la impresora láser del organismo."}]}
+      - {requisito: M-010, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-c/oferta-propuesta.pdf, pagina: 3, ancla: "Archivador de palanca con lomo ancho y tamaño oficio."}]}
+orden_economico:         # las no descartadas, de menor a mayor total (el cuadro comparativo del Portal, inventado)
+  por_total: [Oferente B Sintético, Oferente A Sintético]
+  por_renglon:
+    1: [Oferente B Sintético, Oferente A Sintético]   # 2.800 contra 3.000
+    2: [Oferente A Sintético, Oferente B Sintético]   # 4.500 contra 4.800
+    3: [Oferente B Sintético, Oferente A Sintético]   # 1.900 contra 2.000
+  excluidas: [Oferente C Sintético]                   # descartada; con su total (476.000) sería la primera
+resumen:
+  pares: 30
+  por_resultado: {cumple: 23, no_cumple: 2, no_determinado: 4, no_se_encontro_documento: 1}
+  externos: 3            # M-005 en las tres ofertas
+  tecnicos: 9            # M-008 a M-010 en las tres ofertas
+  preguntas_esperadas: 4 # los tres M-005 y el M-004 de la oferta B
