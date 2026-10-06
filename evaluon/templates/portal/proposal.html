@@ -5,6 +5,7 @@
 {% block content %}
 <p><a href="{% url 'portal:links' %}">Importar desde el Portal</a></p>
 <h1>Propuesta del proceso {{ page.link.process_number|default:"(todavía sin leer)" }}</h1>
+<p><a href="{% url 'portal:imported' page.link.pk %}">Ver lo importado</a></p>
 
 {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
 

@@ -18,7 +18,7 @@ from evaluon.portal.models import PortalItem, PortalLink
 from evaluon.portal.services import approval as services
 
 TEMPLATE = "portal/proposal.html"
-DATE_PREFIX = "fecha_"
+CIRCULAR_KINDS = ("circular_modificatoria", "circular_aclaratoria")
 ALL = "aprobar_todo"
 
 
@@ -43,14 +43,24 @@ def proposal(request, link_id):
 
 
 def _confirmations(post):
-    """`{id del ítem: {"authorization_date": fecha}}` de los campos `fecha_<id>` con fecha."""
+    """Lo que confirma quien aprueba, por ítem: `fecha_<id>` (fecha de autorización del
+    procedimiento), `emision_<id>` (fecha de una circular) y `tipo_<id>` (tipo de una
+    circular). Devuelve `({id: {...}}, [lo que no es válido])`."""
     confirmations, invalid = {}, []
     for name, value in post.items():
-        if not name.startswith(DATE_PREFIX) or not value.strip():
+        prefix, _, item_id = name.partition("_")
+        if prefix not in ("fecha", "emision", "tipo") or not item_id.isdigit() or not value.strip():
             continue
-        item_id = name[len(DATE_PREFIX):]
+        entry = confirmations.setdefault(int(item_id), {})
+        value = value.strip()
+        if prefix == "tipo":
+            if value not in CIRCULAR_KINDS:
+                invalid.append(value)
+            entry["circular_kind"] = value
+            continue
         try:
-            confirmations[int(item_id)] = {"authorization_date": date.fromisoformat(value.strip())}
+            entry["authorization_date" if prefix == "fecha" else "issued_on"] = (
+                date.fromisoformat(value))
         except ValueError:
             invalid.append(value)
     return confirmations, invalid
@@ -61,7 +71,7 @@ def decide(request, link_id):
     """Aprobar o rechazar los ítems tildados, o aprobar todo."""
     confirmations, invalid = _confirmations(request.POST)
     if invalid:
-        return _page(request, link_id, error="La fecha de autorización no es válida.")
+        return _page(request, link_id, error="Una fecha o un tipo elegido no es válido.")
     action = request.POST.get("decision", "")
     try:
         if action == ALL:

@@ -62,6 +62,7 @@ class Context:
     page: PortalPage
     parsed: ProcessPage
     anomalies: list = field(default_factory=list)
+    files: list = field(default_factory=list)  # archivos bajados: URL, huella y fecha (P6)
 
 
 def new_client():
@@ -119,6 +120,7 @@ def _run(job, origin, event_type, client):
             )
         context = Context(link=link, exploration=exploration, client=client, page=page,
                           parsed=parsed)
+        detail["files"] = context.files
         context.anomalies.extend(
             {"parte": "pagina", "motivo": f"falta el dato obligatorio {key}"}
             for key in parsed.missing if key != "numero"
