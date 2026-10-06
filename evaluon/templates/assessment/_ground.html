@@ -1,0 +1,6 @@
+<div class="discard-ground">
+  <p><a href="{% url 'assessment:pair' ground.result.offer_id ground.requirement.pk %}">Requisito {{ ground.requirement.number }}</a> ({{ ground.requirement.get_category_display }}{% if ground.item %}, renglón {{ ground.item }}{% endif %}): no cumple.</p>
+  {% if ground.requirement_text %}<p>Lo que pide el pliego:</p><blockquote>{{ ground.requirement_text }}</blockquote>{% endif %}
+  {% for quote in ground.offer_quotes %}<p>Lo que dice la oferta ({{ quote.document.title }} · página {{ quote.page }}):</p><blockquote>{{ quote.text }}</blockquote>{% endfor %}
+  <p>Consecuencia prevista en la matriz: {% if ground.consequences %}{{ ground.consequences|join:"; " }}{% else %}no determinada{% endif %}.</p>
+</div>
