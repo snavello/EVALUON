@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "evaluon.audit",
     "evaluon.norms",
     "evaluon.offers",
+    "evaluon.portal",
     "evaluon.queries",
     "evaluon.tenders",
 ]
@@ -333,6 +334,21 @@ GENERATION_BATCH_TIMEOUT_SECONDS = 180
 # Segundos entre consultas a la cola de pedidos cuando está vacía.
 WORKER_POLL_SECONDS = 5
 
+# --- Importación desde el Portal de Compras (plan 012, "Parámetros"; ADR-0031) -----------
+# Hosts a los que puede conectar el servicio `portal_worker` (solo HTTPS, puerto 443). El
+# valor por omisión es el del Portal; la lista se repite en docker-compose.yml.
+PORTAL_ALLOWED_HOSTS = env_list("PORTAL_ALLOWED_HOSTS", "afipcompras.afip.gob.ar")
+# Espera máxima de cada solicitud, en segundos.
+PORTAL_TIMEOUT_SECONDS = int(env_str("PORTAL_TIMEOUT_SECONDS", "30"))
+# Tamaño máximo de cada respuesta, en bytes (50 MiB).
+PORTAL_MAX_BYTES = int(env_str("PORTAL_MAX_BYTES", str(50 * 1024 * 1024)))
+# Pausa entre solicitudes al Portal, en segundos.
+PORTAL_PAUSE_SECONDS = float(env_str("PORTAL_PAUSE_SECONDS", "2"))
+# Hora local (Buenos Aires) desde la que se encola la revisión diaria (ADR-0033).
+PORTAL_REVIEW_HOUR = int(env_str("PORTAL_REVIEW_HOUR", "7"))
+# Identificación que el cliente declara en cada solicitud.
+PORTAL_USER_AGENT = env_str("PORTAL_USER_AGENT", "EVALUON/1.0 (lectura de procesos publicos)")
+
 # --- Ofertas y ficha por oferta (plan 008, "Parámetros"; ADR-0026 y ADR-0027) ----------
 # Valores iniciales. Se copian en cada ficha (`offers_sheet.parameters`); cambiarlos exige
 # volver a medir (P7).
@@ -348,6 +364,23 @@ OFFERS_EMBED_BATCH = 16
 OFFERS_CANDIDATES_EMBEDDINGS = 20
 OFFERS_CANDIDATES_WORDS = 20
 OFFERS_CANDIDATES_TO_MODEL = 8
+# Las filas por renglón conservan más candidatos (T-135): las tablas de la oferta parten el
+# renglón en varios pasajes.
+OFFERS_ITEM_CANDIDATES_TO_MODEL = 12
+# Puntaje mínimo del reranker (entre 0 y 1) que un pasaje tiene que alcanzar para pasar al
+# modelo en las filas que no son de renglón (T-136): por debajo, la fila queda "no se
+# encontró" sin preguntarle al modelo. Las filas por renglón no lo usan. Calibrado con el
+# reranker real (T-146) sobre textos inventados con la forma de lo que responden las ofertas
+# (pólizas de caución, notas, formularios del Portal, declaraciones juradas, constancias): el
+# puntaje de un pasaje es el mayor entre el de la cita del pliego y el de su reescritura como la
+# diría una oferta. Los que responden puntuaron 0,47 o más; los del mismo tema que no responden,
+# 0,33 o menos, salvo uno que ningún corte separa (0,58). 0,35 queda en el hueco. Se recalibra
+# con la medición.
+OFFERS_MIN_RERANK_SCORE = 0.35
+# Fila por renglón (T-135): pasajes vecinos de la misma página (zona de tabla) que se suman a
+# los candidatos de los `OFFERS_ITEM_NEIGHBOR_SEEDS` mejores, hasta `OFFERS_ITEM_NEIGHBORS`.
+OFFERS_ITEM_NEIGHBOR_SEEDS = 3
+OFFERS_ITEM_NEIGHBORS = 4
 # Máximo de tokens de salida de cada pedido de la ficha y espera máxima de cada pedido.
 OFFERS_MAX_OUTPUT_TOKENS = 400
 OFFERS_REQUEST_TIMEOUT_SECONDS = GENERATION_BATCH_TIMEOUT_SECONDS
@@ -355,6 +388,8 @@ OFFERS_REQUEST_TIMEOUT_SECONDS = GENERATION_BATCH_TIMEOUT_SECONDS
 OFFERS_QUERY_MAX_CHARS = 800
 # Versión de cada instrucción: archivo `evaluon/offers/prompts/<versión>.md`.
 OFFERS_PROMPT_VERSIONS = {
-    "ficha": "ficha-v1",
-    "ficha_renglon": "ficha-renglon-v1",
+    "ficha": "ficha-v2",
+    "ficha_renglon": "ficha-renglon-v4",
+    # Reescritura del requisito como lo diría una oferta, para buscar (T-146).
+    "reescritura": "reescritura-v1",
 }

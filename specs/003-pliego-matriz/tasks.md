@@ -54,7 +54,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-104 | Listar y devolver las filas descartadas, y revisar por grupos | REQ-026, REQ-033, REQ-034 | T-099 | terminada |
 | T-105 | Mostrar las descartadas, las citas repetidas y la revisión por grupos | REQ-032, REQ-033, REQ-034 | T-100, T-104 | terminada |
 | T-106 | Medir el filtro, las sugerencias y el respaldo normativo con el caso-00 y ajustarlos | REQ-024, REQ-033, REQ-035, REQ-036 | T-102, T-103, T-109, T-111 | pendiente |
-| T-107 | Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00 | REQ-033, REQ-035 | T-106 | terminada |
+| T-107 | Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00 | REQ-033, REQ-035 | T-106 (T-106 diferida, ADR-0024) | terminada |
 | T-108 | Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04 | REQ-024, REQ-025, REQ-030, REQ-031, REQ-033, REQ-035, REQ-036 | T-094, T-105, T-112, T-107, T-116, T-120 | terminada |
 | T-109 | Buscar el respaldo normativo de cada sugerencia, sin que nunca la descarte | REQ-036 | T-099, T-102 | terminada |
 | T-110 | Decidir las sugerencias: pasar a requisito o quitar, una por una o por grupo, y bloquear la validación | REQ-035, REQ-034, REQ-026 | T-099, T-104 | terminada |
@@ -78,6 +78,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-128 | Aplicar una aclaración de cláusula a todas sus citas | REQ-031 | T-115, T-124, T-127 | terminada |
 | T-129 | Reconocer supresiones dichas con sustantivo y aplicar la aclaración de un renglón a sus citas | REQ-031 | T-127, T-128 | terminada |
 | T-137 | Pasada de circulares: revisión obligatoria visible ante un cambio sin resolver y las tres causas de la aceptación a ciegas | REQ-031 | T-108, T-129 | terminada |
+| T-147 | Circulares: aviso en la fila que cambia (#183) y medición del criterio de ADR-0034 | REQ-031, REQ-024 | T-137 | terminada |
 
 ## Para todas las tareas
 
@@ -643,6 +644,15 @@ Plan: sección "Rediseño de la pasada de circulares (2026-10-04)" de `plan.md`;
 - **Nivel de verificación:** plena (instrucciones al modelo y P3).
 - **Archivos:** `evaluon/tenders/proposal/circular_units.py`, `circular_changes.py`, `circulars.py`, `run.py` (solo la marca), `evaluon/tenders/evaluation.py` (solo el desempate), prompts de circulares (versión nueva si cambian), tests de `tests/tenders/`.
 - **No tocar:** el esquema; la extracción y el filtro; las listas esperadas.
+- **Entorno:** MSI con GPU para la medición, de a una.
+
+### T-147 · Circulares: aviso en la fila que cambia (#183) y medición del criterio de ADR-0034
+
+- **Origen:** dictamen de auditoría de la 003 (rechazado) y ADR-0034. Ronda adicional admitida por ADR-0025 (violación de P3).
+- **Nivel de verificación:** plena (P3).
+- **Qué hacer:** (1) que un cambio de una circular que no se pudo aplicar deje la marca "A revisión obligatoria" en la fila que ese cambio modifica (caso-03: la cláusula de cotización #183, M-028, que hoy muestra "UN peso" como vigente sin aviso), aunque la fila comparta pocas palabras con el cambio; usar el objetivo del cambio (cláusula o renglón nombrado) antes que la coincidencia de palabras. (2) Medición (`evaluation.py`): informar por fila de circular esperada si cumple P3 (muestra el cambio con su cita o tiene la marca) como medida que bloquea, y los cuatro puntos aparte sin bloquear; contar como encontrado el requisito cuyo contenido está en otra fila e informarlo aparte (ADR-0034). (3) Registrar la memoria de video usada en cada medición (hallazgo menor de la auditoría, P6).
+- **Umbral (escrito antes de medir):** casos 03 y 04: P3 en el 100 % de las filas de circular esperadas; encontrados 100 % con la regla de ADR-0034; sin regresión en 01, 05 y 06.
+- **No tocar:** el esquema; la extracción y el filtro.
 - **Entorno:** MSI con GPU para la medición, de a una.
 
 ## Revisión con el primer producto (ADR-0024)

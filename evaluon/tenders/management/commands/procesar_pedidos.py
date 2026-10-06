@@ -7,7 +7,8 @@ tipo; con la cola vacía espera `WORKER_POLL_SECONDS` y vuelve a mirar. Con
 `--hasta-vaciar` termina cuando no quedan pedidos en espera.
 
 La orden de detenerse (`docker compose stop`, Ctrl-C) corta el pedido en curso, que queda
-`failed` "interrumpido", y termina. Solo traduce y llama a `evaluon.tenders.jobs`.
+`failed` "interrumpido", y termina. Ignora los pedidos del Portal, que atiende el servicio
+`portal_worker` con `procesar_portal` (ADR-0031). Solo traduce y llama a `evaluon.tenders.jobs`.
 """
 
 import signal
@@ -17,6 +18,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from evaluon.tenders import jobs
+from evaluon.tenders.models import PORTAL_JOB_KINDS
 
 
 def _stop(signum, frame):
@@ -43,14 +45,14 @@ class Command(BaseCommand):
             signal.signal(signal.SIGTERM, previous)
 
     def _loop(self, until_empty):
-        interrupted = jobs.fail_interrupted()
+        interrupted = jobs.fail_interrupted(exclude=PORTAL_JOB_KINDS)
         if interrupted == 1:
             self._say("1 pedido interrumpido pasó a fallido.")
         elif interrupted:
             self._say(f"{interrupted} pedidos interrumpidos pasaron a fallidos.")
         self._say("Esperando pedidos.")
         while True:
-            job = jobs.run_next()
+            job = jobs.run_next(exclude=PORTAL_JOB_KINDS)
             if job is not None:
                 line = f"Pedido {job.pk} ({job.kind}): {job.status}"
                 self._say(f"{line}. {job.error}" if job.error else f"{line}.")

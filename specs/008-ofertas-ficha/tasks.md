@@ -2,7 +2,7 @@
 
 Plan: `specs/008-ofertas-ficha/plan.md`
 
-Despliegue: pendiente
+Despliegue: aprobado 2026-10-05
 
 > El tablero (`docs/tablero.md`) se genera de este archivo. Al aprobarse el despliegue, la línea de arriba pasa a `Despliegue: aprobado AAAA-MM-DD`.
 
@@ -19,8 +19,9 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-132 | Corregir la ficha: confirmar, corregir, quitar y agregar fragmentos, historial y aviso de versión de la matriz | REQ-042, REQ-043 | T-130 | terminada |
 | T-133 | Preparar el caso-00 para medir: lista esperada de fichas de las tres ofertas y matriz validada (Coordinador) | REQ-039, REQ-040, REQ-044 | — | terminada |
 | T-134 | Medir la ficha con las tres ofertas del caso-00 (medición base) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-131, T-133 | terminada |
-| T-135 | Corregir los hallazgos de T-134 y medir de nuevo (ronda 1) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-134 | pendiente |
-| T-136 | Solo si T-135 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-135 | pendiente |
+| T-135 | Corregir los hallazgos de T-134 y medir de nuevo (ronda 1) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-134 | terminada |
+| T-136 | Solo si T-135 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) | REQ-038, REQ-039, REQ-040, REQ-041, REQ-044 | T-135 | terminada |
+| T-146 | Búsqueda de la ficha con el requisito reescrito como lo diría una oferta | REQ-039, REQ-040 | T-136 | terminada |
 
 ## Paralelismo
 
@@ -53,7 +54,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Requisitos:** REQ-037, REQ-038
 - **Nivel de verificación:** plena (lectura de datos y umbrales de OCR).
 - **Qué hay que hacer:** pantalla completa de ofertas: registrar oferente, cargar varios documentos a la vez (sin elegir tipo), ver estado y tipo clasificado, descargar el original, aviso de fin de la 003. Aceptar fotos JPG y PNG (guardar el original y convertirlas a un PDF de una página en el equipo). Segundo intento de lectura para páginas con confianza por debajo del umbral de dudosa (enderezado y umbral adaptativo; se conserva la lectura de mayor confianza y el informe dice cuál). Verificar antes de agregar cualquier dependencia de imagen si ya está en la imagen. Lista de páginas no leídas y de baja confianza con documento, página y confianza, en la oferta.
-- **Aviso de tareas anteriores:** T-130: la clasificación de documentación técnica debe contar un documento técnico (especificaciones firmadas, folletos, hojas técnicas), no solo una tabla de renglones (decisión del Coordinador, T-133); leer también .docx (hojas técnicas de Lombardozzi en el caso-00), convertidos dentro del equipo; falta el enlace desde la pantalla del procedimiento a las ofertas.
+- **Aviso de tareas anteriores:** T-130: la clasificación de documentación técnica debe contar un documento técnico (especificaciones firmadas, folletos, hojas técnicas), no solo una tabla de renglones (decisión del Coordinador, T-133); leer también .docx (hojas técnicas de oferente 1 en el caso-00), convertidos dentro del equipo; falta el enlace desde la pantalla del procedimiento a las ofertas.
 - **Archivos:** `evaluon/offers/services/offers.py`, `evaluon/offers/passages.py` (solo si hace falta), `evaluon/offers/reading.py` (nuevo: conversión y segundo intento), `evaluon/offers/views/documents.py`, `evaluon/offers/urls_documents.py`, `evaluon/templates/offers/offers.html` y `offer.html`, `pyproject.toml` y `Dockerfile` solo si falta una dependencia, `tests/offers/test_documents.py`, `tests/offers/test_reading.py`.
 - **Verificación:** tests con un escaneo sintético torcido y una foto sintética: la página queda leída o en la lista; las páginas buenas no cambian de texto. `pytest tests/offers`; suite completa una vez al final.
 - **No tocar:** el esquema y las migraciones, `settings.py`, `evaluon/offers/services/sheets.py`, `evaluon/offers/services/review.py`, `views/sheet*.py`, plantillas de la ficha, `evaluon/norms/`.
@@ -81,7 +82,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Requisitos:** REQ-038, REQ-039, REQ-040, REQ-041, REQ-044
 - **Nivel de verificación:** plena.
 - **Qué hay que hacer:** cargar las tres ofertas (29 documentos) con `cargar_oferta`, leerlas, medir con `medir_fichas` y guardar la corrida fuera del repositorio. Informar por oferta y por página el tiempo y el reparto de páginas por estado. Clasificar cada hallazgo por causa: lectura, recuperación, elección del modelo, síntesis, renglones. No corrige nada.
-- **Aviso de tareas anteriores:** T-130: la regla "renglón sin oferta = no se pudo leer si la oferta tiene cualquier página no leída" es demasiado amplia y la medición cuenta esos renglones aparte (el 2/2 del caso chico está inflado): informar la proporción de renglones "aparte" y acotar la regla a las páginas relevantes en la ronda 1 si pesa. Las anclas se escriben como las ve una persona, no como sale de la lectura de una tabla. T-132: se puede confirmar una fila "no se encontró" (queda confirmada la ausencia); tenerlo en cuenta al contar filas confirmadas. T-131: el segundo intento de lectura no se probó con documentos reales que lo necesiten (los CamScanner de Zelarayan leen con 84,8 a 90,6 de confianza): informar en la medición cuántas páginas lo usaron; falta un test de la descarga (`?descargar`).
+- **Aviso de tareas anteriores:** T-130: la regla "renglón sin oferta = no se pudo leer si la oferta tiene cualquier página no leída" es demasiado amplia y la medición cuenta esos renglones aparte (el 2/2 del caso chico está inflado): informar la proporción de renglones "aparte" y acotar la regla a las páginas relevantes en la ronda 1 si pesa. Las anclas se escriben como las ve una persona, no como sale de la lectura de una tabla. T-132: se puede confirmar una fila "no se encontró" (queda confirmada la ausencia); tenerlo en cuenta al contar filas confirmadas. T-131: el segundo intento de lectura no se probó con documentos reales que lo necesiten (los CamScanner de oferente 3 leen con 84,8 a 90,6 de confianza): informar en la medición cuántas páginas lo usaron; falta un test de la descarga (`?descargar`).
 - **Umbral (escrito antes de medir):** el de la columna "Caso-00" de la tabla del plan: 90 % de fragmentos o más, 100 % de texto literal, 100 % de síntesis sin juicio, 90 % de renglones (17 de 18), 100 % de documentación técnica, 0 páginas sin texto ni lista.
 - **Archivos:** `specs/008-ofertas-ficha/verificacion/T-134.md` (solo identificadores, cuentas, causas y tiempos; sin datos personales). La corrida completa queda en `corpus/casos/caso-00/corridas/`.
 - **Verificación:** el resumen público con las proporciones y sus intervalos, y la lista de hallazgos por causa.
@@ -105,6 +106,21 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Verificación:** la medición con el mismo umbral.
 - **No tocar:** lo mismo que T-135.
 
+### T-146 · Búsqueda de la ficha con el requisito reescrito como lo diría una oferta
+
+- **Requisitos:** REQ-039, REQ-040
+- **Origen:** calibración de T-136 (`verificacion/T-136.md`): 32 de 55 pasajes correctos reciben puntaje casi nulo del reranker porque la consulta usa el texto del pliego y la oferta responde con otras palabras; ningún umbral pasa de 25 de 55. Decisión del responsable del 2026-10-05: tarea nueva (cambio de diseño de la búsqueda, no una tercera ronda; ADR-0025).
+- **Nivel de verificación:** plena (instrucciones al modelo).
+- **Qué hay que hacer:** antes de recuperar, el modelo reescribe cada requisito como lo diría una oferta (por ejemplo, "garantía de mantenimiento de oferta del 5 %" como "póliza de caución, suma asegurada, mantenimiento de oferta"); se recupera y se reordena con la consulta original y la reescrita, y el pasaje queda con el mejor puntaje de las dos. La reescritura se guarda en el registro de la ficha (P6). Instrucciones nuevas con su versión. El umbral de 0,4 se recalibra con los puntajes nuevos.
+- **Umbral (escrito antes de medir):** fragmentos encontrados 90 % (REQ-039), con falsos hallazgos no mayores que en T-136 (1) más 5, texto literal y síntesis sin juicio 100 %. Una medición con el caso-00; lo que no llegue va a la revisión con el primer producto.
+- **No tocar:** el esquema; la lectura; la medición.
+- **Entorno:** MSI con GPU para la medición, de a una.
+
 ## Revisión con el primer producto
+
+- `medir_fichas --caso-chico` sin `--corridas` falla al guardar porque `tests/` está montada en solo lectura; el runbook indica usar `--corridas evals/corridas-fichas` (despliegue de la 008).
+- Ficha (T-146, ADR-0035): fragmentos encontrados en torno al 55 % con el método de búsqueda de pasajes; la lectura completa de los documentos por requisito se encara en la 004.
+- Medición de la ficha: reconocer como encontrada la copia deduplicada (`copy_of`) del documento esperado.
+- Lista esperada del caso-00: sumar los cuadros del Portal (fotos de oferente 1 y oferente 3) y los renglones de esas ofertas; releer las fotos con la lectura de tablas de T-136 (hoy no hay forma de releer un documento cargado).
 
 Lo que no llegue al umbral después de la ronda 2 se anota acá, con su impacto (ADR-0024). Vacía por ahora.

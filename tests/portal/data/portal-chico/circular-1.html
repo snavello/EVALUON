@@ -1,0 +1,412 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" style="background-color: #FFF;">
+
+<head id="ctl00_Head1"><meta http-equiv="Content-Type" content="text/html; charset=utf-8" /><title>
+
+</title>
+    <!-- link rel="stylesheet" type="text/css" href="/App_Themes/styles/css/css.css" / -->
+    
+    <title></title>
+    <script src="JavaScript/Generica.js" type="text/javascript"></script>
+    <script src="JavaScript/VistaPreviaPliegoCiudadano.js" type="text/javascript"></script>
+    <script type="text/javascript">
+        function Cerrar() {
+            window.parent.CloseModal('ctl00_CPH1_devPopupVistaPreviaPliego');
+        }
+    </script>
+<link type="text/css" rel="stylesheet" href="/WebResource.axd?d=MniCTg_lj02ZKJ1BYDtfpXeV93Fh3iLU2BbqXtnJSWyG37MpMd9_IOx03luEe5dEKoU8yWZdiuaGQj--fY9sK-HpewsFuJyyLeNUR4AYSV8ziDCvnMBSr3dg2pJ1KvCENIsrjQ2&amp;t=637722247300000000" /><link type="text/css" rel="stylesheet" href="/WebResource.axd?d=-xx-qtxbM0BMSpxNtvGraafHo0vxusLD18XFLgEZG2YB7iQIHW6G9vw-s3pP3FGr4QPMEyxT2kZs94fncaTMe4xRvYSSLqxNhJImO69y1DkwwoibLFRIaxKWDz5ZrFdfc2iWI1bUz5GDy4HxUWYAfVcELHRrFM3PEA0Q-jPS8fqn6Cu90&amp;t=637722247300000000" /><link type="text/css" rel="stylesheet" href="/WebResource.axd?d=lEC0CcLjSb1M72RSyH1PCms8LJC51Itpa4EUysV3C-rq1LAKjElGujjaqN0zg1C_bNncsHd3hxHUVWepxeQwCQgV7dvCNXdVBCKd9P1V65BcE8gxDokgFDg5EtYtfjcMFvR1KrYUWJ255NwtTTtz6OoR518w7GkdYP1DH75Uw6xkoC1R0&amp;t=637722247300000000" /><link href="../App_Themes/styles-viejo/BlackGlass/Web/styles.css?60212" type="text/css" rel="stylesheet" /><link href="../App_Themes/styles-viejo/css/ADxMenuHoriz-IE6.css?60212" type="text/css" rel="stylesheet" /><link href="../App_Themes/styles-viejo/css/AjaxPanelProgreso.css?60212" type="text/css" rel="stylesheet" /><link href="../App_Themes/styles-viejo/css/bootstrap.min.css?60212" type="text/css" rel="stylesheet" /><link href="../App_Themes/styles-viejo/css/css.css?60212" type="text/css" rel="stylesheet" /><link href="../App_Themes/styles-viejo/css/jquery.lightbox-0.5.css?60212" type="text/css" rel="stylesheet" /><link href="../App_Themes/styles-viejo/css/print.css?60212" type="text/css" rel="stylesheet" /><link href="../App_Themes/styles-viejo/estilocontroles/Editors/styles.css?60212" type="text/css" rel="stylesheet" /><link href="../App_Themes/styles-viejo/estilocontroles/GridView/styles.css?60212" type="text/css" rel="stylesheet" /><link href="../App_Themes/styles-viejo/estilocontroles/Web/styles.css?60212" type="text/css" rel="stylesheet" /><link href="../App_Themes/styles-viejo/styles.css?60212" type="text/css" rel="stylesheet" /><link href="../App_Themes/styles-viejo/ventana-modal.css?60212" type="text/css" rel="stylesheet" /></head>
+<body style="overflow-y: auto; overflow-x: auto; background-image: none;">
+    <form name="aspnetForm" method="post" action="VistaPreviaCircularCiudadano.aspx?qs=nKjktueZ15gUOc0TtbAV%2fq6jqdfMPBQwK%7cx%3d" id="aspnetForm">
+<div>
+<input type="hidden" name="__EVENTTARGET" id="__EVENTTARGET" value="" />
+<input type="hidden" name="__EVENTARGUMENT" id="__EVENTARGUMENT" value="" />
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="Y5Oum1AXTUzfCPqVrC3ZdFCtLq6NaNQaa97jcNNoSrSOXYIScSLummxzgQ1UBhW+CRhhkeVFnfFkVSv5YF29tmH+zPU9ElZWLIZCNMTbTH9aKMBX9N8uTedYP1Q0kRaJ3KJsUm8o8j1ETVJkGW8W7h9hdgxHLVAYO6MvZgZeKFu9VFluL0cRyPUijnLgl60xTSNL2C9Em8p7sRklMaiqV/NNI6LY3CwVZRHmtM29INkwwHmZHOoteu04ViFDma+jc++9stVItHpUic8n7uadiOo28AuYNhvTB3EP5GrXvOluKGxIM+Swhykxxd1lTVuUqFOFII8wdLgEj9qO0yZP+VqLqv59ZDFFAncnsk27ue2vkhg6xd/b6cZddn+c5j5ifpk94At+Ey/oz+9kzAtJ7STkq/uGRxDiWTHoBAEQBzVVjYj90JRbEYbS603lTXu1ujfRV3JyENsqe2Y4hjCw0Iql0j+aJQjR6jei8b8+CNM9UGmWe8XRwpMKkBk4rYiNB5brdrXwhf4GMUIXUjW577yIM3Awcygrk9AfF97p+sKvG3d+xLAC/MGo4fbwPU8/a09bLCVjfWiuks6DRc1sn8Br3XLuNPGHOMfz9pDdheqX2aPv++7bQUeaCdx0V0Xm1n/ZU8F9yF84ZP/MOcuHzL7jMt5ctI3AgwtKicK3GifYkePS1xaP6OF/+lLJK3qZ1fqd5lXQNlI9xX7b/80cluiII4AtG/kQ3MvIjOjj5U30P7ppDRD/c/Rs5GR6CLnf2KBN5D71JANMfoIhxIV7MsNYx0BnOI89gf/FTlP4ql43BF/MkxKW7PKSNDEoCCpv3Co2VgE9QAW0Fj/2Deyoke+jnb8jfEOOEAwr7uSLWOKJoB4oTLoOzmJBGcfPda8oGevFwfzOihNwC/u0fdtLWhI7/TlUHUCKdprpfbPtpU/EknJbSqxRg32RHcD5MmUXxKmc3en0r48TrCYhOhvwpAnd3n//ZTQwZrsVTl+urSEkkArX0sKYjInAz80dZKBe/LkaV2ZQr0f5reHPILJq78x8T6JnoBSx+ncjaCZYKmeD5FKxwIj9iBOmHpKnbvTIBEcLttdQ1JPQvD9kI/yy+fNpDKlXOxXTKVRq4CrD2LiHbORNOncsRwkyeQi2TL6vaPg8Io8bjPom5+EK1fpQGMUKWE7IeiN/VUhVQtw4rErH/6==" />
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var theForm = document.forms['aspnetForm'];
+if (!theForm) {
+    theForm = document.aspnetForm;
+}
+function __doPostBack(eventTarget, eventArgument) {
+    if (!theForm.onsubmit || (theForm.onsubmit() != false)) {
+        theForm.__EVENTTARGET.value = eventTarget;
+        theForm.__EVENTARGUMENT.value = eventArgument;
+        theForm.submit();
+    }
+}
+//]]>
+</script>
+
+
+<script src="/WebResource.axd?d=ti8E1RJxGu1V-wWyzEBs_H8Q5GeaBQNYhbRNIvamW5MHPlLV3gikOCfP5h_Eyz5wS2xJyOWmAbBU0deWUbzzAjsADq41&amp;t=638250528092864286" type="text/javascript"></script>
+
+
+<script type="text/javascript">
+//<![CDATA[
+var __cultureInfo = '{"name":"es-AR","numberFormat":{"CurrencyDecimalDigits":2,"CurrencyDecimalSeparator":",","IsReadOnly":true,"CurrencyGroupSizes":[3],"NumberGroupSizes":[3],"PercentGroupSizes":[3],"CurrencyGroupSeparator":".","CurrencySymbol":"$","NaNSymbol":"NeuN","CurrencyNegativePattern":2,"NumberNegativePattern":1,"PercentPositivePattern":0,"PercentNegativePattern":0,"NegativeInfinitySymbol":"-Infinito","NegativeSign":"-","NumberDecimalDigits":2,"NumberDecimalSeparator":",","NumberGroupSeparator":".","CurrencyPositivePattern":2,"PositiveInfinitySymbol":"Infinito","PositiveSign":"+","PercentDecimalDigits":2,"PercentDecimalSeparator":",","PercentGroupSeparator":".","PercentSymbol":"%","PerMilleSymbol":"‰","NativeDigits":["0","1","2","3","4","5","6","7","8","9"],"DigitSubstitution":1},"dateTimeFormat":{"AMDesignator":"a.m.","Calendar":{"MinSupportedDateTime":"\/Date(-62135586000000)\/","MaxSupportedDateTime":"\/Date(253402300799999)\/","AlgorithmType":1,"CalendarType":1,"Eras":[1],"TwoDigitYearMax":2029,"IsReadOnly":true},"DateSeparator":"/","FirstDayOfWeek":0,"CalendarWeekRule":0,"FullDateTimePattern":"dddd, dd\u0027 de \u0027MMMM\u0027 de \u0027yyyy hh:mm:ss tt","LongDatePattern":"dddd, dd\u0027 de \u0027MMMM\u0027 de \u0027yyyy","LongTimePattern":"hh:mm:ss tt","MonthDayPattern":"dd MMMM","PMDesignator":"p.m.","RFC1123Pattern":"ddd, dd MMM yyyy HH\u0027:\u0027mm\u0027:\u0027ss \u0027GMT\u0027","ShortDatePattern":"dd/MM/yyyy","ShortTimePattern":"hh:mm tt","SortableDateTimePattern":"yyyy\u0027-\u0027MM\u0027-\u0027dd\u0027T\u0027HH\u0027:\u0027mm\u0027:\u0027ss","TimeSeparator":":","UniversalSortableDateTimePattern":"yyyy\u0027-\u0027MM\u0027-\u0027dd HH\u0027:\u0027mm\u0027:\u0027ss\u0027Z\u0027","YearMonthPattern":"MMMM\u0027 de \u0027yyyy","AbbreviatedDayNames":["dom","lun","mar","mié","jue","vie","sáb"],"ShortestDayNames":["do","lu","ma","mi","ju","vi","sá"],"DayNames":["domingo","lunes","martes","miércoles","jueves","viernes","sábado"],"AbbreviatedMonthNames":["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic",""],"MonthNames":["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre",""],"IsReadOnly":true,"NativeCalendarName":"calendario gregoriano","AbbreviatedMonthGenitiveNames":["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic",""],"MonthGenitiveNames":["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre",""]}}';//]]>
+</script>
+
+<script src="/ScriptResource.axd?d=A_W8pxUN3GJFLIvqNE5-iC2-saBCMZvLu57rGG73ZmX5e1kxhuVA1S8rFJOzMIZ8hYVt7T4tNWGgAYgsZWFEzsbLZ4RoXtmiBVYAcyTLmxOaGZx8Ckr6N9Zd84B8WOqR7pCzDenEbIgdrK77kn-HNFMT51U1&amp;t=3f4a792d" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=-HuFlfKw5UAwKkjql1j4-R9q4hBVWZPm2UTBVMu8Uxg-l16ZAA15rjG9Al_L3D7esQI-Vd_OcrGNm-BscOG3LngsTab7ZkcGTKibTIFdHIIhsuw37b4BvmNJ6vCPoaoSRFt7eGQHR_UcbtVC-8NGuDsOJ8EM-72OgDr2QVs97L5KYO850&amp;t=3f4a792d" type="text/javascript"></script>
+<div>
+
+	<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="D3F1DD32" />
+	<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="1O9TcDyS26+ugIpvD9oPiEa7j/5UGVc7JtuIHSgANVVgGk==" />
+</div>
+        <script type="text/javascript">
+//<![CDATA[
+Sys.WebForms.PageRequestManager._initialize('ctl00$ScriptManager1', document.getElementById('aspnetForm'));
+Sys.WebForms.PageRequestManager.getInstance()._updateControls([], [], [], 90);
+//]]>
+</script>
+
+        <div id="page_pop">
+            <div id="contenido_pop">
+                <div id="contenido_tablas_pop">
+                    
+    <div>
+        
+
+<style type="text/css">
+    .style1
+    {
+        height: 26px;
+    }
+</style>
+<div>
+    <table width="100%">
+        <tr>
+            <td class="fondoblanco">
+                
+<table width="100%" class="fondoblanco">
+    <tr>
+        <td style="width: 100%; text-align: left;" colspan="2">
+            <br />
+            <div style="text-align: center;">
+                <img src="/controles/Logo.aspx?qs=Ejob2zlMfZ960kS0NYwD/2ys0aWDT5DML|x=" id="ctl00_CPH1_UCVistaPreviaCircular_ControlLogo_imgLogo" alt="Logo" />
+            </div>
+            <br />
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div style="width: 100%; text-align: center;">
+                <span class="titulo_principal">
+                    <span id="ctl00_CPH1_UCVistaPreviaCircular_ControlLogo_lbl_titulo" style="font-weight:normal;">Agencia de Recaudación y Control Aduanero</span></span>
+            </div>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div style="width: 100%; text-align: center;">
+                <span class="titulo_principal">
+                    <span id="ctl00_CPH1_UCVistaPreviaCircular_ControlLogo_Lbl_frase" ont-Bold="false" style="font-size:Small;">-</span></span>
+            </div>
+        </td>
+    </tr>
+</table>
+
+            </td>
+        </tr>
+        <tr>
+            <td class="fondoblanco">
+                
+<!-- área resumen datos -->
+<style type="text/css">
+    .style1
+    {
+        width: 273px;
+    }
+</style>
+<table class="informacion_basica" cellspacing="5">
+    <tr>
+        <td style="text-align: left; width: 30%">
+            <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCabeceraPliego_Label36" style="color:#3B3B3B;font-family:Verdana;font-size:11px;font-weight:bold;">Número de expediente:</span>
+        </td>
+        <td style="text-align: left">
+            <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCabeceraPliego_lblNumExpediente" style="color:#707172;font-family:Verdana;font-size:11px;font-weight:normal;">EX-2099-00000001-&nbsp&nbsp&nbsp-ARCA-SGXXXXX#SDGXXX</span>
+        </td>
+    </tr>
+    <tr>
+        <td style="text-align: left;">
+            <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCabeceraPliego_Label37" style="color:#3B3B3B;font-family:Verdana;font-size:11px;font-weight:bold;">Número del proceso de compra:</span>
+        </td>
+        <td style="text-align: left">
+            <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCabeceraPliego_lblNumPliego" style="color:#707172;font-family:Verdana;font-size:11px;font-weight:normal;">A0ZZ000000-0001-LPU99</span>
+        </td>
+    </tr>
+    <tr>
+        <td style="text-align: left;">
+            <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCabeceraPliego_Label39" style="color:#3B3B3B;font-family:Verdana;font-size:11px;font-weight:bold;">Nombre descriptivo proceso de compra:</span>
+        </td>
+        <td style="text-align: left">
+            <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCabeceraPliego_lblNomPliego" style="color:#707172;font-family:Verdana;font-size:11px;font-weight:normal;">ADQUISICIÓN DE YERBA MATE PARA OFICINAS</span>
+        </td>
+    </tr>
+    <tr>
+        <td style="text-align: left;">
+            <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCabeceraPliego_Label41" style="color:#3B3B3B;font-family:Verdana;font-size:11px;font-weight:bold;">Unidad con Capacidad de Contratación:</span>
+        </td>
+        <td style="text-align: left">
+            <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCabeceraPliego_lblUnidadOperativa" style="color:#707172;font-family:Verdana;font-size:11px;font-weight:normal;">A0ZZ000000 - DIR. DE ABASTECIMIENTO DEMO Y LOG¿¿STICA (SDG XXX)</span>
+        </td>
+    </tr>
+</table>
+<!-- fin área resumen datos -->
+
+            </td>
+        </tr>
+        <tr>
+            <td class="fondoblanco">
+                <br />
+                
+
+<style type="text/css">
+    .style1
+    {
+        height: 26px;
+    }
+    .style2
+    {
+        width: 33%;
+    }
+    .style3
+    {
+        height: 26px;
+        width: 33%;
+    }
+</style>
+
+<!-- SUBTITULO "INFORMACION DE LA CIRCULAR" -->
+<div style="float:left; margin-left:3px;">
+    <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_lblTituloInformacionCircular" style="color:#303030;font-family:Verdana;font-size:12px;font-weight:bold;">Información de la circular:</span>
+</div>
+<br />
+<br />
+
+<!-- CABECERA DE LA CIRCULAR -->
+<div style="width: 100%; height: 11px; background-color: #f2f2f2; clear: left;">
+    <div style="float: left; background-color: #FFFFFF; background-position: top;">
+        <img src="/App_Themes/styles-viejo/imagenes/fondos/curv_gris_sup_izq.gif" alt="cierre tabla" /></div>
+    <div style="float: right; background-color: #FFFFFF; background-position: top;">
+        <img src="/App_Themes/styles-viejo/imagenes/fondos/curv_gris_sup_der.gif" alt="cierre tabla" /></div>
+</div>
+
+<div style="width: 100%; height: auto; background-color: #f2f2f2;" align="center">
+    <table width="98%">
+        <tr>
+            <td class="fondoblanco">
+                <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_Label4" style="color:#3B3B3B;font-family:Verdana;font-size:11px;font-weight:bold;">Número de circular</span>
+            </td>
+            <td style="width: 75%; vertical-align: top;" class="fondoblanco">
+                <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_lblNumeroCircular" style="color:#707172;font-family:Verdana;font-size:11px;font-weight:normal;">1</span>   
+           </td>
+        </tr>
+        
+        <tr>
+            <td class="fondoblanco">
+                <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_Label2" style="color:#3B3B3B;font-family:Verdana;font-size:11px;font-weight:bold;">Tipo circular</span>
+            </td>
+            <td style="width: 75%; vertical-align: top;" class="fondoblanco">
+                <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_lblTipoCircular" style="display:inline-block;color:#707172;font-family:Verdana;font-size:11px;font-weight:normal;width:80px;">Con consulta</span>                          
+            </td>
+        </tr>
+        
+        <tr>
+            <td class="fondoblanco">
+                <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_Label8" style="color:#3B3B3B;font-family:Verdana;font-size:11px;font-weight:bold;">Tipo de proceso</span>
+            </td>
+            <td style="width: 75%; vertical-align: top;" class="fondoblanco">
+                <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_lblTipoProceso" style="color:#707172;font-family:Verdana;font-size:11px;font-weight:normal;">Licitacion Pública</span>
+            </td>
+        </tr>
+        
+        
+        <tr>
+            <td class="fondoblanco">
+                <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_Label3" style="color:#3B3B3B;font-family:Verdana;font-size:11px;font-weight:bold;">Fecha de publicación</span>
+            </td>
+            <td style="width: 75%; vertical-align: top;" class="fondoblanco">
+                <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_lblFechaPublicacion" style="display:inline-block;color:#707172;font-family:Verdana;font-size:11px;font-weight:normal;width:80px;">02/07/2026</span>                          
+            </td>
+        </tr>
+        
+        
+
+    </table>
+</div>
+
+<div style="width: 100%; height: 11px; background-color: #f2f2f2">
+    <div style="float: left; background-color: #FFFFFF; background-position: top;">
+        <img src="/App_Themes/styles-viejo/imagenes/fondos/curv_gris_inf_izq.gif" alt="cierre tabla" /></div>
+    <div style="float: right; background-color: #FFFFFF; background-position: top;">
+        <img src="/App_Themes/styles-viejo/imagenes/fondos/curv_gris_inf_der.gif" alt="cierre tabla" /></div>
+</div>
+<br />
+<br />
+
+<!-- SUBTITULO "MOTIVO DE LA CIRCULAR -->
+<div style="float:left; margin-left:3px;">
+    <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_Label1" style="color:#303030;font-family:Verdana;font-size:12px;font-weight:bold;">Motivo de la circular:</span>
+</div>
+<br />
+<br />
+<div style="width: 100%; height: 11px; background-color: #f2f2f2; clear: left;">
+    <div style="float: left; background-color: #FFFFFF; background-position: top;">
+        <img src="/App_Themes/styles-viejo/imagenes/fondos/curv_gris_sup_izq.gif" alt="cierre tabla" /></div>
+    <div style="float: right; background-color: #FFFFFF; background-position: top;">
+        <img src="/App_Themes/styles-viejo/imagenes/fondos/curv_gris_sup_der.gif" alt="cierre tabla" /></div>
+</div>
+<div style="width: 100%; height: auto; background-color: #f2f2f2;" align="center">
+    <table width="98%">
+        <tr>
+            <td style="width: 100%; vertical-align: top;" class="fondoblanco">
+                <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_lblMotivo" style="display:inline-block;color:#707172;font-family:Verdana;font-size:11px;font-weight:normal;width:100%;">CIRCULAR 1 - RESPUESTA A LA CONSULTA EFECTUADA AL PROCESO DE COMPRAS</span>            
+            </td>
+        </tr>
+    </table>
+</div>
+<div style="width: 100%; height: 11px; background-color: #f2f2f2">
+    <div style="float: left; background-color: #FFFFFF; background-position: top;">
+        <img src="/App_Themes/styles-viejo/imagenes/fondos/curv_gris_inf_izq.gif" alt="cierre tabla" /></div>
+    <div style="float: right; background-color: #FFFFFF; background-position: top;">
+        <img src="/App_Themes/styles-viejo/imagenes/fondos/curv_gris_inf_der.gif" alt="cierre tabla" /></div>
+</div>
+
+<!-- ACLARACIONES -->
+
+    <br />
+    <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_lblSeccionAclaraciones" style="color:#303030;font-family:Verdana;font-size:12px;font-weight:bold;">Aclaraciones</span>
+    <br />
+    <br />
+
+<div id="divAclaraciones">
+    
+
+<table style="width:100%; background-color:#cccccc" cellspacing="1" border="0">
+    <tr>
+        <td style="width:100%" class="fondoblanco" colspan="2">
+            
+            <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_3005510_Label1" style="color:#303030;font-family:Verdana;font-size:12px;font-weight:bold;">Aclaración N° 1</span>
+
+            <br />
+            
+        </td>
+    </tr>
+    <tr>
+        <td style="width:25%" class="fondoblanco">
+            <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_3005510_lblVistaDescripcion">Descripción</span>
+            
+        </td>
+        <td style="width:75%" class="fondoblanco">
+            
+            <span id="ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_3005510_lblTextDescripcion">RESPUESTA A LA CONSULTA EFECTUADA AL PROCESO DE COMPRAS</span>
+            <br />
+            <br />
+            
+        </td>
+    </tr>
+</table>
+<br />
+    <br />
+</div>
+<br />
+
+<!-- LINK "VER FICHA DEL PROCESO PUBLICADO" -->
+
+
+<!-- LINK "VER MODIFICACIONES REALIZADAS" -->
+
+
+            </td>
+        </tr>
+    </table>
+</div>
+
+        <div style="float: right">
+            <span id="ctl00_CPH1_lblNombrePersonaFirma" style="color:#303030;font-family:Verdana;font-size:12px;font-weight:bold;"></span>
+            <br />
+            <span id="ctl00_CPH1_lblCargoPersonaFirma" style="color:#303030;font-family:Verdana;font-size:12px;font-weight:bold;"></span>
+            <br />
+        </div>
+        <br />
+        <br />
+        <br />
+        <div style="padding-left: 30px">
+            <div id="Botonera" style="text-align: left">
+                <a onclick="javascript:Cerrar();return false;" id="ctl00_CPH1_lnkCerrar" href="javascript:WebForm_DoPostBackWithOptions(new WebForm_PostBackOptions(&quot;ctl00$CPH1$lnkCerrar&quot;, &quot;&quot;, true, &quot;&quot;, &quot;&quot;, false, true))" style="color:#006AAC;font-family:Verdana;font-size:11px;font-weight:normal;">Cerrar</a>
+            </div>
+        </div>
+    </div>
+
+                </div>
+            </div>
+        </div>
+    
+<script type="text/javascript">
+            if (typeof jQuery.fn.live == 'undefined' || !(jQuery.isFunction(jQuery.fn.live))) {
+              jQuery.fn.extend({
+                  live: function (event, callback) {
+                     if (this.selector) {
+                          jQuery(document).on(event, this.selector, callback);
+                      }
+                  }
+              });
+            }
+            if (jQuery.fn.limitMaxlength == null) {
+                jQuery.fn.limitMaxlength = function(options) {
+
+                    var settings = jQuery.extend({
+                        attribute: "maxlength",
+                        onLimit: function() { },
+                        onEdit: function() { }
+                    }, options);
+
+                    // Event handler to limit the textarea
+                    var onEdit = function() {
+                        var textarea = jQuery(this);
+                        var maxlength = parseInt(jQuery(options)[0]); 
+
+                        var texto = textarea.val().replace(/(\r\n|\n|\r)/gm, '\r\n');
+
+                        if (texto.length > maxlength) {
+                            textarea.val(texto.substr(0, maxlength));
+
+                            // Call the onlimit handler within the scope of the textarea
+                            jQuery.proxy(settings.onLimit, this)();
+                        }
+
+                        // Call the onEdit handler within the scope of the textarea
+                        jQuery.proxy(settings.onEdit, this)(maxlength - texto.length);
+                    }
+
+                    this.each(onEdit);
+
+                    return $(this).keyup(onEdit)
+                    .keydown(onEdit)
+                    .focus(onEdit)
+                    .blur(onEdit)
+                    .live('input paste', onEdit);
+                }
+            }
+
+            $(document).ready(
+                function() {
+                    $("textarea[id=ctl00_CPH1_UCVistaPreviaCircular_DatosCircular_3005510_txtDescripcion]").limitMaxlength(8000);
+                }
+              );
+            
+            </script>
+<script type="text/javascript">
+//<![CDATA[
+Sys.Application.initialize();
+//]]>
+</script>
+</form>
+</body>
+</html>

@@ -118,6 +118,9 @@ _BLOCK = re.compile(r"\[(P\d+)\]\nDocumento: (.*?)\nPágina: (\d+)\nTexto:\n(.*?
 _REQUIREMENT = re.compile(r"^(?:Requisito|Renglón \d+) del pliego:\n«(.*?)»\n", re.DOTALL)
 
 
+_REWRITE_REQUEST = re.compile(r"^Requisito del pliego:\n«(.*?)»\n", re.DOTALL)
+
+
 def parse_request(messages):
     """`(texto del requisito, {alias: texto}, es_renglón)` de un pedido de la ficha."""
     user = messages[-1]["content"]
@@ -135,12 +138,21 @@ class Script:
     def __init__(self, fake):
         self.fake = fake
         self.calls = []
+        self.rewrites = []  # pedidos de reescritura (T-146): no cuentan en `calls`
         self._function = None
+        self._rewrite = None
 
     def choose(self, function):
         self._function = function
 
+    def rewrite_with(self, function):
+        """Qué contesta el modelo a la reescritura: `función(requisito) -> consulta` (por
+        omisión, el mismo requisito)."""
+        self._rewrite = function
+
     def respond(self, messages, schema, **kwargs):
+        if "consulta" in schema["properties"]:
+            return self._respond_rewrite(messages, schema, **kwargs)
         requirement, blocks, item_row = parse_request(messages)
         number = len(self.calls) + 1
         self.calls.append({"requirement": requirement, "blocks": blocks, "messages": messages,
@@ -151,6 +163,15 @@ class Script:
             if item_row:
                 answer = {"cotizado": "no", **answer}
         content = answer if isinstance(answer, str) else json.dumps(answer, ensure_ascii=False)
+        self.fake.respond(content)
+        return self.fake.generate(messages, schema, **kwargs)
+
+    def _respond_rewrite(self, messages, schema, **kwargs):
+        text = _REWRITE_REQUEST.match(messages[-1]["content"]).group(1)
+        self.rewrites.append({"requirement": text, "messages": messages, "kwargs": kwargs})
+        query = self._rewrite(text) if self._rewrite else text
+        content = query if query.startswith("{") else json.dumps({"consulta": query},
+                                                                  ensure_ascii=False)
         self.fake.respond(content)
         return self.fake.generate(messages, schema, **kwargs)
 
@@ -178,3 +199,10 @@ def pick(*needles, synthesis="Lo que ofrece el oferente.", quoted=None, when="")
         return answer
 
     return function
+
+
+@pytest.fixture(autouse=True)
+def _no_minimum_rerank_score(settings):
+    """Los dobles del reranker puntúan 0,0 por omisión: las pruebas que no hablan del puntaje
+    mínimo (T-136) lo dejan en 0 para que pasen los mejores candidatos como antes."""
+    settings.OFFERS_MIN_RERANK_SCORE = 0.0

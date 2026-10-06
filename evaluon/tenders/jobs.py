@@ -12,6 +12,11 @@ servicio `worker` corre `procesar_pedidos`, que los atiende de a uno:
   pedido, el pedido queda `failed` "interrumpido" antes de salir.
 - `fail_interrupted`: al arrancar, pasa a `failed` "interrumpido" los pedidos que quedaron
   `running` porque el `worker` se cayó. Nunca queda una matriz a medias marcada como lista.
+- Dos consumidores (ADR-0031): `worker` atiende todo menos los pedidos del Portal
+  (`exclude=PORTAL_JOB_KINDS`) y `portal_worker` solo esos
+  (`kinds=PORTAL_JOB_KINDS`). `claim`, `run_next` y `fail_interrupted` reciben `kinds` (solo
+  esos) o `exclude` (todos menos esos); sin ninguno, atienden todos los tipos. Así uno no
+  toma ni corta los pedidos del otro.
 - `unseen_finished` y `mark_seen`: el aviso de fin, con los pedidos de la persona que
   terminaron y todavía no vio.
 
@@ -30,7 +35,7 @@ from django.utils import timezone
 from django.utils.module_loading import import_string
 
 from evaluon.ai import AIServiceError
-from evaluon.tenders.models import Job, JobKind, JobStatus
+from evaluon.tenders.models import PORTAL_JOB_KINDS, Job, JobKind, JobStatus
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +49,10 @@ HANDLERS = {
     # Feature 008 (ADR-0026): los dos pedidos de ofertas comparten esta cola.
     JobKind.READ_OFFER_DOCUMENT: "evaluon.offers.services.offers.run_read_document",
     JobKind.BUILD_SHEET: "evaluon.offers.services.sheets.run_build_sheet",
+    # Feature 012 (ADR-0031): los manejadores los crea T-141 en
+    # `evaluon.portal.services.explore`; hasta entonces el pedido falla con un motivo.
+    JobKind.PORTAL_EXPLORE: "evaluon.portal.services.explore.run_explore",
+    JobKind.PORTAL_REVIEW: "evaluon.portal.services.explore.run_review",
 }
 
 FINISHED = (JobStatus.DONE, JobStatus.FAILED)
@@ -58,12 +67,24 @@ def enqueue(kind, *, procedure, requested_by, document=None, target_id=None):
     )
 
 
-def claim():
-    """Toma el pedido en espera más antiguo, lo pasa a `running` y lo devuelve; `None`
-    si no hay. Un pedido que otra toma tiene bloqueado se saltea, sin esperar."""
+def _of_kinds(queryset, kinds=None, exclude=None):
+    """Limita el conjunto a los tipos `kinds` o, si no, a todos menos `exclude`."""
+    if kinds is not None:
+        queryset = queryset.filter(kind__in=kinds)
+    if exclude is not None:
+        queryset = queryset.exclude(kind__in=exclude)
+    return queryset
+
+
+def claim(kinds=None, exclude=None):
+    """Toma el pedido en espera más antiguo (solo de los tipos `kinds`, o de todos menos
+    `exclude`), lo pasa a `running` y lo devuelve; `None` si no hay. Un pedido que otra
+    toma tiene bloqueado se saltea, sin esperar."""
     with transaction.atomic():
         job = (
-            Job.objects.select_for_update(skip_locked=True)
+            _of_kinds(
+                Job.objects.select_for_update(skip_locked=True), kinds, exclude
+            )
             .filter(status=JobStatus.QUEUED)
             .order_by("requested_at", "id")
             .first()
@@ -92,10 +113,10 @@ def fail(job, reason):
     job.save(update_fields=["status", "finished_at", "error"])
 
 
-def fail_interrupted():
-    """Pasa a `failed` "interrumpido" los pedidos que quedaron `running`. Devuelve
-    cuántos."""
-    return Job.objects.filter(status=JobStatus.RUNNING).update(
+def fail_interrupted(kinds=None, exclude=None):
+    """Pasa a `failed` "interrumpido" los pedidos que quedaron `running` (solo de los
+    tipos `kinds`, o de todos menos `exclude`). Devuelve cuántos."""
+    return _of_kinds(Job.objects.filter(status=JobStatus.RUNNING), kinds, exclude).update(
         status=JobStatus.FAILED, error=INTERRUPTED, finished_at=timezone.now()
     )
 
@@ -134,9 +155,10 @@ def run(job):
         finish(job)
 
 
-def run_next():
-    """Toma y ejecuta el pedido siguiente. Devuelve el pedido, o `None` si no había."""
-    job = claim()
+def run_next(kinds=None, exclude=None):
+    """Toma y ejecuta el pedido siguiente de los tipos que se atienden. Devuelve el
+    pedido, o `None` si no había."""
+    job = claim(kinds, exclude)
     if job is not None:
         run(job)
     return job
