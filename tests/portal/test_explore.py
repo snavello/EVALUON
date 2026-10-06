@@ -20,6 +20,7 @@ from evaluon.portal.parsing import texto
 from evaluon.portal.services import approval, explore
 from evaluon.tenders import jobs
 from evaluon.tenders.models import Job, JobStatus, Procedure
+from tests.portal.conftest import reply
 from tests.portal.fakeportal import (  # noqa: F401
     DATA,
     EXPECTED,
@@ -166,6 +167,10 @@ def test_http_error_fails_the_job_with_a_fact(operator_user, explore_link, fake_
 def test_decided_items_are_not_proposed_again(operator_user, evaluator_user, explore_link,
                                               fake_portal_calco):
     """REQ-050 (inicio): lo aprobado y lo rechazado con la misma huella no se repite."""
+    # Sin ofertas abiertas: el calco sin los enlaces del acta ni del cuadro (esos no se sirven acá).
+    html = (DATA / "proceso.html").read_text(encoding="utf-8")
+    html = html.replace("lnkVerCuadroComparativo", "otro").replace("lnkVerActaApertura", "otroActa")
+    fake_portal_calco.routes[("GET", LINK_URL)] = reply(LINK_URL, html.encode("utf-8"))
     link, _ = explore_link(operator_user)
     procedure_item, lines_item = item_of(ItemKind.PROCEDIMIENTO), item_of(ItemKind.RENGLONES)
     approval.decide(evaluator_user, [procedure_item.pk], approval.APPROVE,

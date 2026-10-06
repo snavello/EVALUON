@@ -31,6 +31,7 @@ class Draft:
     payload: dict
     damaged_fields: list = field(default_factory=list)
     file: object = None
+    page: object = None  # página de origen si no es la del proceso (acta, cuadro)
 
 
 def jsonable(value):

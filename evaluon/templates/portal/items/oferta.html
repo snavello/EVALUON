@@ -1,0 +1,33 @@
+{% comment %}Ítem "oferta" (T-143). El oferente dañado en el Portal se muestra tal cual y marcado.{% endcomment %}
+{% with data=item.payload damaged=item.damaged_fields %}
+<h3>Oferta de {% if "oferente" in damaged %}<mark class="damaged">{{ data.oferente }}</mark>{% else %}{{ data.oferente }}{% endif %}</h3>
+{% if damaged %}<p><mark class="damaged">Hay texto dañado en el Portal (letras reemplazadas por «¿»): se muestra tal cual, sin adivinar.</mark></p>{% endif %}
+<dl>
+  <dt>CUIT</dt><dd>{{ data.cuit }}</dd>
+  <dt>Confirmada el</dt><dd>{{ data.confirmada|default:"—" }}</dd>
+  <dt>Moneda</dt><dd>{{ data.moneda|default:"—" }}</dd>
+  <dt>Total</dt><dd>{{ data.total|default_if_none:"—" }}</dd>
+  <dt>Garantía</dt>
+  <dd>{% if data.garantias %}<ul>{% for g in data.garantias %}<li>{{ g.tipo|default:"—" }} · {{ g.forma|default:"—" }} · {{ g.monto|default_if_none:"—" }}</li>{% endfor %}</ul>{% else %}—{% endif %}</dd>
+</dl>
+{% if data.anomalias %}<ul>{% for note in data.anomalias %}<li><mark class="damaged">Atención: {{ note }}.</mark></li>{% endfor %}</ul>{% endif %}
+<table>
+  <caption>Cotización por renglón</caption>
+  <thead>
+    <tr><th scope="col">Renglón</th><th scope="col">Precio unitario</th><th scope="col">Cantidad ofertada</th><th scope="col">Total del renglón</th></tr>
+  </thead>
+  <tbody>
+    {% for q in data.cotizaciones %}
+    <tr>
+      <td>{{ q.renglon }}</td>
+      <td>{{ q.precio }}</td>
+      <td>{{ q.cantidad }}</td>
+      <td>{{ q.total_renglon|default_if_none:"—" }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4">Sin cotizaciones leídas: cárguelas a mano.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if item.state == "propuesto" %}<p>Se carga con el procedimiento y los renglones ya aprobados. Los documentos de la oferta no son públicos: se cargan a mano.</p>{% endif %}
+{% endwith %}
