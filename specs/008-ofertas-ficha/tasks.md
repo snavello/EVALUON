@@ -118,6 +118,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 
 ## Revisión con el primer producto
 
+- `medir_fichas --caso-chico` sin `--corridas` falla al guardar porque `tests/` está montada en solo lectura; el runbook indica usar `--corridas evals/corridas-fichas` (despliegue de la 008).
 - Ficha (T-146, ADR-0035): fragmentos encontrados en torno al 55 % con el método de búsqueda de pasajes; la lectura completa de los documentos por requisito se encara en la 004.
 - Medición de la ficha: reconocer como encontrada la copia deduplicada (`copy_of`) del documento esperado.
 - Lista esperada del caso-00: sumar los cuadros del Portal (fotos de oferente 1 y oferente 3) y los renglones de esas ofertas; releer las fotos con la lectura de tablas de T-136 (hoy no hay forma de releer un documento cargado).
