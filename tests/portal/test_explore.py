@@ -176,7 +176,9 @@ def test_decided_items_are_not_proposed_again(operator_user, evaluator_user, exp
     jobs.run(review)
     assert Job.objects.get(pk=review.pk).status == JobStatus.DONE
     assert PortalItem.objects.count() == 2
-    assert not PortalProposal.objects.filter(origin=Origin.REVISION).exists()
+    # Sin novedades no hay ítems nuevos (las anomalías de los documentos que el portal de
+    # mentira no sirve las decide T-144: qué hacer con anomalías que se repiten).
+    assert not PortalItem.objects.filter(proposal__origin=Origin.REVISION).exists()
     event = AuditEvent.objects.get(event_type=EventType.PORTAL_REVIEW)
     assert event.detail["omitted"] == 2 and event.detail["items"] == {}
 

@@ -1,0 +1,29 @@
+{% comment %}Ítem "documento" (T-142). Pliego, anexo y circular se cargan como documento del pliego; acto, acta y dictamen quedan como archivo del Portal. Una circular sin tipo o sin fecha en el Portal los pide a quien aprueba.{% endcomment %}
+{% with data=item.payload %}
+<h3>{{ data.nombre }}{% if item.damaged_fields %} <mark class="damaged">(texto dañado en el Portal)</mark>{% endif %}</h3>
+<dl>
+  <dt>Clase</dt><dd>{{ data.clase }}{% if data.numero %} n.º {{ data.numero }}{% endif %}</dd>
+  <dt>Fecha</dt><dd>{{ data.fecha|default:"—" }}</dd>
+  {% if data.numero_gde %}<dt>Número</dt><dd>{{ data.numero_gde }}</dd>{% endif %}
+  <dt>Archivo</dt><dd>{{ data.archivo.nombre }} ({{ data.archivo.formato }}, {{ data.archivo.tamano }} bytes)</dd>
+  <dt>Huella</dt><dd><code>{{ data.archivo.sha256 }}</code></dd>
+</dl>
+<p>{% if data.se_carga_como == "documento" %}Se cargará como documento del pliego y se encolará su lectura.{% else %}No es parte del pliego: queda como archivo del Portal, con su origen, y se podrá descargar desde lo importado.{% endif %}</p>
+{% if data.clase == "circular" and item.state == "propuesto" and can_decide %}
+  {% if not data.tipo_circular %}
+  <p>El Portal dice «{{ data.tipo_portal|default:"nada" }}» como tipo de circular.
+    <label for="id_tipo_{{ item.pk }}">Elija el tipo</label>
+    <select name="tipo_{{ item.pk }}" id="id_tipo_{{ item.pk }}">
+      <option value="">— elegir —</option>
+      <option value="circular_modificatoria">Modificatoria</option>
+      <option value="circular_aclaratoria">Aclaratoria</option>
+    </select></p>
+  {% endif %}
+  {% if not data.fecha %}
+  <p><label for="id_emision_{{ item.pk }}">Fecha de la circular</label>
+    <input type="date" name="emision_{{ item.pk }}" id="id_emision_{{ item.pk }}"></p>
+  {% endif %}
+{% elif data.clase == "circular" and data.tipo_circular %}
+<p>Tipo: {{ data.tipo_circular }}.</p>
+{% endif %}
+{% endwith %}

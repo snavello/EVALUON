@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Lo importado · {{ link.process_number|default:"proceso" }} · EVALUON{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'portal:proposal' link.pk %}">Volver a la propuesta</a></p>
+<h1>Lo importado del proceso {{ link.process_number|default:"(sin leer)" }}</h1>
+
+<section aria-labelledby="imported-docs">
+  <h2 id="imported-docs">Documentos del Portal</h2>
+  {% if items %}
+  <table>
+    <thead>
+      <tr><th scope="col">Documento</th><th scope="col">Dónde quedó</th><th scope="col">Origen</th><th scope="col">Huella</th></tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td>{{ item.payload.nombre }} ({{ item.payload.clase }}){% if item.payload.fecha %} · {{ item.payload.fecha }}{% endif %}</td>
+        <td>{% if item.state == "cargado" %}Documento del pliego{% else %}Archivo del Portal · <a href="{% url 'portal:download' link.pk item.file_id %}">descargar</a>{% endif %}</td>
+        <td>Portal · página consultada el {{ item.page.fetched_at|date:"d/m/Y H:i" }} · aprobado por {{ item.decided_by.username }} el {{ item.decided_at|date:"d/m/Y H:i" }}</td>
+        <td><code>{{ item.file.sha256 }}</code></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>Todavía no se importó ningún documento.</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="manual-docs">
+  <h2 id="manual-docs">Documentos del procedimiento cargados a mano</h2>
+  {% if manual %}
+  <table>
+    <thead>
+      <tr><th scope="col">Documento</th><th scope="col">Origen</th><th scope="col">Huella</th></tr>
+    </thead>
+    <tbody>
+      {% for document in manual %}
+      <tr>
+        <td>{{ document.title }} ({{ document.get_kind_display }}){% if document.issued_on %} · {{ document.issued_on|date:"d/m/Y" }}{% endif %}</td>
+        <td>Carga manual · {{ document.loaded_by.username }} el {{ document.loaded_at|date:"d/m/Y H:i" }}</td>
+        <td><code>{{ document.file_sha256 }}</code></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No hay documentos cargados a mano.</p>
+  {% endif %}
+</section>
+{% endblock %}
