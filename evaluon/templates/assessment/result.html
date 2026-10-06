@@ -22,6 +22,9 @@
   {% if page.result.outcome == "sin_documento" %}
   <p>El pliego exige un documento que no está en la oferta. No es un «no cumple»: la Comisión decide si pide que se subsane.</p>
   {% endif %}
+  {% if page.by_vision %}
+  <p class="notice" role="note"><strong>Leída por visión.</strong> Este resultado se apoya en una página que el sistema leyó mirando su imagen: el texto citado es la transcripción del modelo, no el del original. Compare con el original antes de confirmar.</p>
+  {% endif %}
   {% if page.result.unread_pages_warning %}
   <p><em>La oferta tiene páginas que no se pudieron leer: revise el original.</em></p>
   {% endif %}
@@ -42,7 +45,14 @@
     {% for citation in page.offer_citations %}
     <li>
       <a href="{% url 'offers:document_original' citation.document.pk %}#page={{ citation.page }}">{{ citation.document.title }} · página {{ citation.page }}</a>
+      {% if citation.by_vision %}<span class="badge">leída por visión</span>{% endif %}
       <blockquote>{{ citation.text }}</blockquote>
+      {% if citation.by_vision %}
+      <figure class="vision-page">
+        <img src="{% url 'assessment:vision_page' page.offer.pk page.requirement.pk citation.document.pk citation.page %}" alt="Imagen de la página {{ citation.page }} de {{ citation.document.title }}, que el sistema leyó por visión" width="480">
+        <figcaption>Página {{ citation.page }} tal como la vio el sistema, leída por visión. <a href="{% url 'offers:document_original' citation.document.pk %}#page={{ citation.page }}">Abrir el original</a>.</figcaption>
+      </figure>
+      {% endif %}
     </li>
     {% endfor %}
   </ul>

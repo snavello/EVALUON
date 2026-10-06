@@ -13,5 +13,7 @@ urlpatterns = [
     path("", include("evaluon.assessment.urls_review")),
     path("", include("evaluon.assessment.urls_questions")),
     path("par/<int:offer_id>/<int:requirement_id>/", results.pair, name="pair"),
+    path("par/<int:offer_id>/<int:requirement_id>/pagina/<int:document_id>/<int:page>/",
+         results.vision_page, name="vision_page"),
     *urls_matrix.urlpatterns,
 ]

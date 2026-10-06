@@ -27,7 +27,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-158 | Contraste por cláusula de un cumple técnico: cero contradicciones con el dictamen (tercera ronda por la contradicción M-051, decisión del responsable) | REQ-052, REQ-053 | T-157 | terminada |
 | T-164 | Corregir los hallazgos de T-158: el no cumple técnico exige una cita de la oferta que contradiga la cláusula (F-1) y el contraste por cláusula acota cláusulas y tokens (F-2); se mide con T-161 | REQ-052, REQ-053 | T-158 | terminada |
 | T-159 | Descarga y verificación de archivos y servicio: proyector del 12B, 26B-A4B con su proyector, variables propias del lote, `--mmproj`, archivo `docker-compose.modelo-grande.yml`, prueba de humo con imagen y memoria medida | REQ-052 | — | pendiente |
-| T-160 | Lectura con visión de las páginas dudosas: criterio, imagen, transcripción, lectura nueva con origen `vision`, registro y pantalla rotulada, con tests | REQ-052, REQ-053, REQ-054 | T-159 | pendiente |
+| T-160 | Lectura con visión de las páginas dudosas: criterio, imagen, transcripción, lectura nueva con origen `vision`, registro y pantalla rotulada, con tests | REQ-052, REQ-053, REQ-054 | T-159 | terminada |
 | T-161 | Medir el caso-00 con el 12B y visión (referencia, y medición de la visión y de T-164) | REQ-052, REQ-053, REQ-054, REQ-059 | T-160, T-164 | pendiente |
 | T-162 | Medir el caso-00 con el 26B-A4B y visión, comparar con T-161 y decidir según el umbral (ronda 1) | REQ-052, REQ-053, REQ-054, REQ-059 | T-161 | pendiente |
 | T-163 | Solo si T-162 quedó entre 2 y 3 pares de adoptarlo: un cambio igual para los dos modelos y las dos corridas de nuevo (ronda 2, la última) | REQ-052, REQ-053, REQ-054, REQ-059 | T-162 | pendiente |
@@ -259,7 +259,9 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 
 ## Revisión con el primer producto
 
-Lo que no llegue al umbral después de la ronda 2 se anota acá, con su impacto (ADR-0024). Vacía por ahora.
+Lo que no llegue al umbral después de la ronda 2 se anota acá, con su impacto (ADR-0024).
+
+- (T-160) Falta un test de que la vista `assessment:vision_page` se niegue a servir una página citada que no fue leída por visión (mutación M5 de `verificacion/T-160.md`). El código actual es correcto; impacto bajo (mismo par y mismo rol de la Comisión).
 
 - Medición a ciegas con el proceso en curso que reservó el responsable, cuando el producto esté más cerrado (spec).
 - Cómo se integran las tablas de preguntas y respuestas con el circuito general de la 009 (ADR-0040).

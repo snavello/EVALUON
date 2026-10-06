@@ -20,7 +20,7 @@ from django.db.models import F, Q
 from django.utils import timezone
 from pgvector.django import VectorField
 
-from evaluon.norms.models import SHA256_REGEX, TextOrigin, TsvectorField
+from evaluon.norms.models import SHA256_REGEX, TsvectorField
 from evaluon.tenders.models import Job, MatrixVersion, Procedure, Requirement
 
 EMBEDDING_DIMENSIONS = settings.EMBEDDINGS_DIMENSIONS
@@ -176,6 +176,16 @@ class Reading(models.Model):
         return f"{self.document} · lectura {self.sequence}"
 
 
+class PassageOrigin(models.TextChoices):
+    """Origen del texto de un pasaje de una oferta: los de la 001 y `vision`, el texto que el
+    modelo transcribió mirando la imagen de la página (T-160; ADR-0041)."""
+
+    PDF_TEXT = "pdf_text", "PDF con texto"
+    OCR = "ocr", "Reconocimiento de texto"
+    WEB = "web", "Página web"
+    VISION = "vision", "Leída por visión"
+
+
 class Passage(models.Model):
     """Un pasaje de una lectura: un bloque de texto de una sola página, con su vector y
     sus palabras. No se modifica. `text` es igual a `canonical_text[char_start:char_end]`."""
@@ -190,7 +200,7 @@ class Passage(models.Model):
     char_end = models.PositiveIntegerField("fin en el texto canónico")
     text = models.TextField("texto literal")
     text_origin = models.CharField("origen del texto", max_length=10,
-                                   choices=TextOrigin.choices)
+                                   choices=PassageOrigin.choices)
     ocr_confidence_min = models.FloatField("confianza mínima", null=True, blank=True)
     ocr_confidence_avg = models.FloatField("confianza promedio", null=True, blank=True)
     embedding = VectorField("vector", dimensions=EMBEDDING_DIMENSIONS)
@@ -208,7 +218,7 @@ class Passage(models.Model):
         verbose_name = "pasaje de la oferta"
         verbose_name_plural = "pasajes de las ofertas"
         constraints = [
-            _valid("text_origin", TextOrigin, "offers_passage_text_origin_valid"),
+            _valid("text_origin", PassageOrigin, "offers_passage_text_origin_valid"),
             models.CheckConstraint(condition=Q(char_end__gte=F("char_start")),
                                    name="offers_passage_char_range_valid"),
             models.UniqueConstraint(fields=["reading", "key"],

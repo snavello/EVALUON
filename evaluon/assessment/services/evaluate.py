@@ -56,6 +56,7 @@ from evaluon.assessment.models import Channel as RunChannel
 from evaluon.assessment.models import Purpose
 from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType, Outcome
+from evaluon.offers import vision
 from evaluon.offers.models import Offer
 from evaluon.offers.services import offers as offers_service
 from evaluon.offers.services import sheets
@@ -80,6 +81,8 @@ ANOMALY_REWRITE = "reescritura_descartada"
 ANOMALY_UNKNOWN_ALIAS = "alias_inexistente"
 ANOMALY_CONTRAST_INVALID = "contraste_invalido"
 ANOMALY_UNREAD_GROUPS = "grupos_sin_leer"
+ANOMALY_VISION_ERRORS = "vision_con_errores"
+ANOMALY_VISION_OVER_LIMIT = "vision_sobre_el_tope"
 
 
 class EvaluationRefused(ValueError):
@@ -215,6 +218,25 @@ def request_evaluation(user, procedure, offers=None, requirements=None, cause=Ca
 
 
 # --- Armado ------------------------------------------------------------------------------------
+
+
+def _read_with_vision(offer, user, audit_channel, job, clock):
+    """La lectura con visión de las páginas dudosas de la oferta (`offers/vision.py`). Nada de lo
+    que falle ahí frena la evaluación: sigue con la lectura que haya."""
+    try:
+        return vision.read_offer(offer, user=user, channel=audit_channel, job=job, clock=clock)
+    except Exception as error:  # noqa: BLE001 - la evaluación sigue sin visión
+        summary = vision.VisionSummary()
+        summary.errors.append(f"{type(error).__name__}: {error}")
+        return summary
+
+
+def vision_pages_of(offer_text, document_id):
+    """Páginas del documento de la oferta cuyo texto es una transcripción de la visión."""
+    for doc in offer_text.documents:
+        if doc.document.pk == document_id:
+            return doc.vision_pages
+    return []
 
 
 def _models():
@@ -716,6 +738,9 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
         version = request.matrix_version
         requirements = _requirements(request, version)
         started = clock()
+        # Antes de armar los documentos: las páginas de lectura dudosa se leen por visión y
+        # quedan como lectura nueva del documento (ADR-0041; T-160).
+        seen = _read_with_vision(offer, user, audit_channel, job, clock)
         offer_text = documents.build_offer_text(offer)
         if not offer_text.pieces:
             raise EvaluationRefused("La oferta no tiene ningún documento leído.",
@@ -735,12 +760,20 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
         for pair in pairs:
             _contrast_pair(ctx, pair)
         anomalies = [a for pair in pairs for a in pair.anomalies]
+        if seen.errors:
+            anomalies.append({"type": ANOMALY_VISION_ERRORS, "errors": seen.errors})
+        if seen.over_limit:
+            anomalies.append({"type": ANOMALY_VISION_OVER_LIMIT, "pages": seen.over_limit})
+        vision_cited = sum(
+            1 for pair in pairs for c in pair.combined.citations
+            if c.page in vision_pages_of(offer_text, c.document.pk))
         counts = {**_counts(pairs, ctx.steps), "rewrites_reused": ctx.rewrites_reused,
                   "documents": len(offer_text.documents),
                   "copies": sum(1 for d in offer_text.documents if d.copy_of is not None),
                   "pieces": len(offer_text.pieces), "tokens": offer_text.tokens,
                   "unread_pages": len(offer_text.unread),
-                  "without_reading": len(offer_text.without_reading)}
+                  "without_reading": len(offer_text.without_reading),
+                  "vision": {**seen.record(), "citations": vision_cited}}
         timings = {"total_seconds": round(clock() - started, 3), "pairs": len(pairs),
                    "model_requests": len(ctx.steps),
                    "pair_seconds": {str(p.requirement.number): round(p.seconds, 3)
@@ -831,6 +864,9 @@ class PairPage:
     question: Question | None
     newer_version: MatrixVersion | None
     decisions: list
+    # Alguna cita de la oferta cae en una página leída por visión (ADR-0041): el texto es la
+    # transcripción del modelo y la persona compara con el original antes de confirmar (P3).
+    by_vision: bool = False
 
 
 def pair_page(user, offer_id, requirement_id, *, channel=Channel.SCREEN):
@@ -849,9 +885,14 @@ def pair_page(user, offer_id, requirement_id, *, channel=Channel.SCREEN):
     latest = latest_validated(result.offer.procedure)
     newer = latest if latest is not None and latest.number > result.run.matrix_version.number \
         else None
+    offer_citations = [c for c in rows if c.kind == CitationKind.OFERTA]
+    for citation in offer_citations:
+        citation.by_vision = (citation.reading is not None
+                              and citation.page in vision.vision_pages(citation.reading))
     return PairPage(
         offer=result.offer, requirement=result.requirement, result=result, run=result.run,
-        offer_citations=[c for c in rows if c.kind == CitationKind.OFERTA],
+        by_vision=any(c.by_vision for c in offer_citations),
+        offer_citations=offer_citations,
         requirement_citations=[c for c in rows if c.kind == CitationKind.PLIEGO],
         norm_citations=[c for c in rows if c.kind == CitationKind.NORMA],
         answer_citations=[c for c in rows if c.kind == CitationKind.RESPUESTA],
