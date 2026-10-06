@@ -142,3 +142,25 @@ def test_the_run_folder_has_its_files_and_the_public_summary_has_no_real_data(
     assert parameters["sin_conexion"] is True and parameters["commit"] == "abc"
     public = (report.folder / "resumen-publico.md").read_text("utf-8")
     assert "YERBA" not in public and "A0ZZ000000" not in public
+
+
+def test_the_live_pass_uses_the_real_client_and_skips_the_novelty(
+        tmp_path, evaluator_user, portal_settings, no_sockets, monkeypatch):
+    """REQ-049: `--en-vivo` pide al Portal (aquí, un transporte de mentira en lugar de la
+    conexión) con el cliente de la aplicación y no mide la novedad, que necesita dos estados."""
+    folder = make_case(tmp_path)
+    replay = evaluation.ReplayTransport(folder / "portal")
+    asked = []
+
+    def fake_https(request, *, timeout, max_bytes):
+        asked.append((request.method, request.url, timeout, max_bytes))
+        return replay(request)
+
+    monkeypatch.setattr(evaluation, "https_transport", fake_https)
+    report = evaluation.measure(evaluator_user, [folder], tmp_path / "corridas", live=True)
+    (expected, result), = report.cases
+    assert asked and asked[0][:2] == ("GET", LINK_URL)
+    assert result.ratio("renglones")["ok"] == 6 and result.ratio("novedad")["total"] == 0
+    assert not any("Novedad" in line for line in report.blocking)
+    parameters = json.loads((report.folder / "parametros.json").read_text("utf-8"))
+    assert parameters["en_vivo"] is True and parameters["sin_conexion"] is False

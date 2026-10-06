@@ -50,7 +50,7 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
 from evaluon.offers.models import Offer
-from evaluon.portal.client import PortalClient, Response
+from evaluon.portal.client import PortalClient, Response, https_transport
 from evaluon.portal.models import (
     ItemKind,
     ItemState,
@@ -182,6 +182,32 @@ class ReplayTransport:
     def client(self):
         return PortalClient(transport=self, allowed_hosts=list(settings.PORTAL_ALLOWED_HOSTS),
                             pause=0, timeout=5, max_bytes=settings.PORTAL_MAX_BYTES)
+
+
+class LiveTransport:
+    """La pasada «en vivo» (`medir_portal --en-vivo`, una sola vez, con el Coordinador): el
+    cliente real con la configuración de la aplicación (lista de destinos, pausa, tope), y
+    la huella de todo lo que sirvió el Portal. Solo se arma desde `portal_worker`, el único
+    servicio con salida. La dirección del proceso sale de `proceso.html.meta.json`."""
+
+    def __init__(self, folder):
+        meta_path = Path(folder) / "proceso.html.meta.json"
+        try:
+            self.process_url = json.loads(meta_path.read_text(encoding="utf-8"))["url"]
+        except (OSError, KeyError, ValueError):
+            raise MeasurementRefused(f"{meta_path}: falta la dirección del proceso") from None
+        self.requests, self.missing, self.served = [], [], {}
+
+    def client(self):
+        return PortalClient(transport=self)
+
+    def __call__(self, request):
+        self.requests.append((request.method, request.url))
+        response = https_transport(request, timeout=settings.PORTAL_TIMEOUT_SECONDS,
+                                   max_bytes=settings.PORTAL_MAX_BYTES)
+        self.served[f"{request.method} {request.url} {len(self.served)}"] = hashlib.sha256(
+            response.body).hexdigest()
+        return response
 
 
 def without_circulars(body):
@@ -422,11 +448,11 @@ def _run_job(link, user, transport, kind):
     return link.proposals.filter(job=job).first()  # una revisión sin novedades no la deja
 
 
-def _scenario_base(user, folder, expected):
+def _scenario_base(user, folder, expected, live=False):
     """Exploración con la página completa, comparación con la lista, carga previa vacía,
     aprobación y comprobación de lo cargado."""
     result = CaseResult(expected.case)
-    transport = ReplayTransport(folder)
+    transport = LiveTransport(folder) if live else ReplayTransport(folder)
     before = _counts()
     link = links.register_link(user, transport.process_url, channel=Channel.COMMAND)
     proposal = _run_job(link, user, transport, JobKind.PORTAL_EXPLORE)
@@ -499,7 +525,7 @@ def _scenario_novelty(user, folder, expected, result):
                               "repetidos": [f"{i.kind}" for i in repeated]}
 
 
-def measure_case(user, case_dir):
+def measure_case(user, case_dir, live=False):
     """Mide un caso. Cada escenario se deshace al terminar."""
     case_dir = Path(case_dir)
     expected = load_expected(case_dir / "esperado" / "portal-esperado.yaml")
@@ -509,11 +535,14 @@ def measure_case(user, case_dir):
     holder = {}
     try:
         with transaction.atomic():
-            holder["result"], _ = _scenario_base(user, folder, expected)
+            holder["result"], _ = _scenario_base(user, folder, expected, live)
             raise _Rollback
     except _Rollback:
         pass
     result = holder["result"]
+    if live:
+        result.info["en_vivo"] = True  # la novedad necesita dos estados del Portal: no se mide
+        return expected, result
     try:
         with transaction.atomic():
             _scenario_novelty(user, folder, expected, result)
@@ -534,12 +563,13 @@ def _dumps(value, **kwargs):
 class Report:
     folder: Path
     cases: list  # [(Expected, CaseResult)]
+    live: bool = False
 
     @property
     def blocking(self):
         failed = []
         for expected, result in self.cases:
-            for name in MEASURES:
+            for name in (m for m in MEASURES if not (result.info.get("en_vivo") and m == "novedad")):
                 value = result.ratio(name)
                 if value["total"] and value["rate"] < THRESHOLD:
                     failed.append(f"{expected.case} · {LABELS[name]}: "
@@ -549,18 +579,18 @@ class Report:
         return failed
 
 
-def measure(user, case_dirs, runs_dir, *, commit=None):
+def measure(user, case_dirs, runs_dir, *, commit=None, live=False):
     require_commission_role(user, CommissionRole.EVALUATOR, operation=OPERATION,
                             channel=Channel.COMMAND)
     started_at = timezone.now()
-    cases = [measure_case(user, case_dir) for case_dir in case_dirs]
+    cases = [measure_case(user, case_dir, live) for case_dir in case_dirs]
     base = f"{started_at:%Y%m%d-%H%M%S}-{commit or 'sin-commit'}"
     folder = Path(runs_dir) / base
     suffix = 1
     while folder.exists():
         suffix += 1
         folder = Path(runs_dir) / f"{base}-{suffix}"
-    report = Report(folder, cases)
+    report = Report(folder, cases, live=live)
     _write(report, started_at, commit)
     return report
 
@@ -568,7 +598,7 @@ def measure(user, case_dirs, runs_dir, *, commit=None):
 def _write(report, started_at, commit):
     report.folder.mkdir(parents=True, exist_ok=False)
     parameters = {
-        "iniciada": started_at, "commit": commit or "sin-commit", "sin_conexion": True,
+        "iniciada": started_at, "commit": commit or "sin-commit", "sin_conexion": not report.live, "en_vivo": report.live,
         "umbral": THRESHOLD,
         "casos": [{"caso": e.case, "lista": {"sha256": e.sha256, "visto_bueno": e.approval},
                    "solicitudes": r.info.get("solicitudes"),
@@ -589,7 +619,7 @@ def _write(report, started_at, commit):
 
 
 def _summary(report, *, public):
-    lines = ["# Medición de la importación del Portal", ""]
+    lines = ["# Medición de la importación del Portal" + (" · pasada en vivo" if report.live else ""), ""]
     failed = report.blocking
     lines.append("Cumple el umbral." if not failed else "No cumple: " + "; ".join(failed) + ".")
     for expected, result in report.cases:

@@ -11,7 +11,9 @@ Opciones:
 - `--corridas`: carpeta donde se guarda la corrida.
 - `--commit`: commit del código con que se corre (dentro del contenedor no hay `.git`).
 
-No abre ninguna conexión: el transporte sirve los archivos guardados. Cada escenario se
+Sin `--en-vivo` no abre ninguna conexión: el transporte sirve los archivos guardados.
+`--en-vivo` es la pasada única con el enlace real: solo se corre desde `portal_worker` (único
+servicio con salida), una vez y con el Coordinador presente. Cada escenario se
 deshace al terminar, así que la base queda como estaba.
 """
 
@@ -31,6 +33,9 @@ class Command(BaseCommand):
                             help="Carpeta de un caso (se puede repetir).")
         parser.add_argument("--corridas", required=True,
                             help="Carpeta donde se guarda la corrida.")
+        parser.add_argument("--en-vivo", action="store_true", dest="en_vivo",
+                            help="Pasada única con el enlace real (solo desde portal_worker, con el "
+                                 "Coordinador presente): compara lo que sirve el Portal ahora.")
         parser.add_argument("--commit", default=None,
                             help="Commit del código con que se corre.")
 
@@ -38,7 +43,7 @@ class Command(BaseCommand):
         user = permissions.authenticate_command(options["usuario"])
         try:
             report = evaluation.measure(user, options["casos"], options["corridas"],
-                                        commit=options["commit"])
+                                        commit=options["commit"], live=options["en_vivo"])
         except (RoleRejected, evaluation.ExpectedError, evaluation.MeasurementRefused) as error:
             raise CommandError(str(error)) from None
         lines = [f"Corrida guardada en {report.folder}"]
