@@ -67,6 +67,28 @@ Roles de la 003: el operador prepara; el evaluador decide (P3).
 
 Pliegos, ofertas y dictámenes de casos públicos, fuera del repositorio (P4); al repositorio solo identificadores y medidas.
 
+## Decisiones del responsable (texto literal)
+
+Se copian tal como las dio el responsable; mandan sobre el plan, el código y la forma de medir. Antes de cada medición se comprueba que estén aplicadas.
+
+| Fecha | Tema | Decisión (literal) |
+|---|---|---|
+| 2026-10-06 | Coincidencia y técnico | "el porcentaje esta bien, aunque no necesariamente sea literal la coincidencia. Lo tecnico verificamos que exista y que en caso de tener renglones si tiene o no tiene oferta" |
+| 2026-10-06 | Técnico | "La parte tecnica ya te dije que venia del area correspondiente"; "la comision debiera dar el ok de que tiene el informe tecnico aprobado. Para eso lo vamos a asistir por separado" (feature 010) |
+| 2026-10-06 | Externos | "eso lo integrará un documento que llamamos hoja de compliance. Si detectas que falta uno pueden subir otra. O una que informe que No cumple"; "Ya te dije que habia datos en una hoja de compliance con chequeos externos" |
+| 2026-10-06 | Portal | "Debiste informar que el doc esta en el portal o que falta coincidencia" |
+| 2026-10-06 | Ilegible | "lo del pagare es ilegible se informa asi y ese si lo chequea la comision"; "con la aclaracion de que no pudo leer alguno" |
+| 2026-10-06 | Documento faltante | "Informa 'no se encontró documento' la comisión decide" |
+| 2026-10-06 | Rol del sistema | "el que lo haga la comision no es opcion, asi el sistema no aporta nada. La comision conformar y elegir en casos que no haya alternativa" |
+
+### Enmienda 2026-10-06 (aprobada por el responsable)
+
+- **REQ-061 · Filas técnicas por renglón.** El sistema verifica que exista el documento técnico de la oferta y, si el procedimiento tiene renglones, qué renglones tienen oferta (con la cotización del Portal cuando la hay). El cumple o no cumple técnico lo da el informe técnico del área correspondiente: el resultado queda "pendiente del informe técnico" hasta que la Comisión da el ok de que tiene el informe técnico aprobado. La opinión técnica con citas, si la hay, se muestra como información, no como resultado. La asistencia al informe técnico es de la 010.
+- **REQ-062 · Datos del Portal.** Cuando el dato o el documento que pide un requisito está en el Portal (por ejemplo, la garantía individualizada o la cotización por renglón), el sistema lo informa y lo cita como fuente (Portal, con su página o cuadro); si el Portal y la oferta no coinciden, lo informa como falta de coincidencia.
+- **REQ-063 · Externos.** Un requisito que se verifica con consultas externas (registro de proveedores, sanciones, deuda, validación de la póliza) tiene resultado "falta la hoja de compliance" hasta que la Comisión la sube; nunca "duda".
+- **REQ-064 · Ilegible.** Si el documento que responde un requisito no se puede leer, el resultado es "no se pudo leer", con el documento y la página, y lo verifica la Comisión.
+- **Medición.** Cuentan como coincidencia con el dictamen: "falta la hoja de compliance" en un requisito externo; "pendiente del informe técnico" en una fila técnica, si la existencia del documento técnico y los renglones ofertados son correctos; "no se pudo leer" en un documento ilegible; y un dato citado del Portal que coincide con el dictamen. Se mantienen 0 contradicciones y 100 % de citas literales.
+
 ## Preguntas abiertas
 
 Ninguna. Respuestas del responsable (2026-10-06):

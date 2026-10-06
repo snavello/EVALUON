@@ -286,7 +286,7 @@ Estimación a confirmar con T-148 y T-155. Caso-00: 52 requisitos por 3 ofertas,
 
 ## Qué no se hace
 
-El compliance (005) como fundamento; el circuito general de validación con la Comisión (009); la planilla por oferta, el cuadro comparativo y el acta (006); la comparación valor por valor de las especificaciones técnicas (010); leer precios de los documentos de la oferta; usar los datos del Portal (garantía, CUIT) como fundamento de un requisito; búsqueda normativa nueva (se usa la que la matriz ya trae); la medición a ciegas.
+El compliance (005) como fundamento; el circuito general de validación con la Comisión (009); la planilla por oferta, el cuadro comparativo y el acta (006); la comparación valor por valor de las especificaciones técnicas (010); leer precios de los documentos de la oferta; ~~usar los datos del Portal (garantía, CUIT) como fundamento de un requisito~~ (exclusión quitada por la enmienda 2026-10-06, REQ-062: el Portal se informa y se cita como fuente); búsqueda normativa nueva (se usa la que la matriz ya trae); la medición a ciegas.
 
 ## Riesgos
 
@@ -409,3 +409,155 @@ Aplicar visión a una página legible; un modelo de lectura aparte; leer el cuad
 1. **Un "cumple" o "no cumple" apoyado solo en una página leída por visión.** Propuesta: se permite como propuesta rotulada, porque la Comisión confirma con el original a la vista. Alternativa más cauta: queda "no determinado" hasta que una persona lo confirme (baja la coincidencia).
 2. **Cuadros mal leídos con confianza alta** no tienen criterio objetivo: no entran en la visión. Alternativa: mandar a visión toda página reconocida por OCR de las ofertas (más tiempo, y riesgo de empeorar texto que estaba bien). Propuesta: no, y evaluar con la medición cuántos pares quedan.
 3. **Umbrales de adopción del 26B** (mejora neta de al menos 4 pares, hasta 30 minutos por oferta, memoria hasta 22.000 MiB): confirmar o ajustar antes de medir.
+
+## Enmienda 2026-10-06 (decisiones literales)
+
+Estado: aprobada · Fecha: 2026-10-06 · Aprobó: responsable del proyecto (2026-10-06, "si" a aplicar las decisiones literales; el ok técnico por renglón lo precisó el Coordinador)
+
+Spec: `specs/004-evaluacion-asistida/spec.md`, "Decisiones del responsable (texto literal)" y "Enmienda 2026-10-06" (REQ-061 a REQ-064 y la regla de medición).
+
+Motivo: la medición dio 24 de 49 (T-161) porque el sistema no aplicaba decisiones ya tomadas: opinaba sobre el ajuste técnico (es del área; la Comisión da el ok del informe técnico), devolvía "duda" en requisitos externos (debe decir "falta la hoja de compliance"), no usaba el Portal y la medición contaba como desacierto el "no se pudo leer". No cambia el motor, el modelo, la lectura completa, la cita literal ni el contraste: cambia **quién decide qué** (una regla, el modelo o la Comisión) y **cómo se cuenta**.
+
+Esta enmienda **reemplaza** de lo anterior: el punto 1 de "Decisiones del responsable (2026-10-06)" en lo que dice que un externo queda "no determinado" con pregunta (ahora es "falta la hoja de compliance"); el punto 2 (la 004 opina por renglón cumple o no cumple: ahora la opinión es informativa); la exclusión del Portal como fundamento de "Qué no se hace" (quitada); y el punto 1 de "Cómo se cuenta". El resto sigue.
+
+### Resultados y motivos nuevos, y esquema
+
+Decisión de diseño (registrada en el ADR-0043; ver "Decisiones"): los cuatro resultados de la 003 y la 004 **no cambian**. Lo nuevo son **motivos** de un "no determinado" (columna `doubt`), porque ninguno de ellos es una conclusión: son "todavía no se puede decir, y esto es lo que falta".
+
+| Resultado que ve la Comisión | `outcome` | `doubt` | Quién lo decide | Cambio de esquema |
+|---|---|---|---|---|
+| Falta la hoja de compliance (REQ-063) | `no_determinado` | `externo` (ya existe; solo cambia su rótulo) | regla (`externals.py`) o el modelo | No |
+| Pendiente del informe técnico (REQ-061) | `no_determinado` | `pendiente_informe_tecnico` (nuevo) | regla: la categoría de la fila es técnica | Sí |
+| No se pudo leer, con documento y página (REQ-064) | `no_determinado` | `no_se_pudo_leer` (nuevo) | regla sobre el informe de lectura | Sí |
+| El documento está en el Portal (REQ-062) | `no_determinado` | `en_portal` (nuevo) | regla (`portal_facts.py`) | Sí |
+| Falta de coincidencia entre el Portal y la oferta (REQ-062) | `no_determinado` | `falta_coincidencia` (nuevo) | regla: compara dos valores literales | Sí |
+| No se encontró el documento (decisión "Documento faltante") | `sin_documento` | — | regla existente de `combine.py` | No |
+
+Una **sola migración** (T-165, `assessment 0003`, más `0004_triggers` para la tabla nueva), para que nadie más toque el esquema:
+
+- `assessment_result.doubt`: valores válidos nuevos (restricción) y rótulos. "Duda" queda solo como el residuo sin regla (ver "Rol del sistema").
+- `assessment_result.opinion` (nuevo, `cumple`, `no_cumple`, `no_determinado` o vacío): la opinión técnica informativa. Nunca es el resultado de la fila ni entra en descarte, conteos de "cumple" o medición de contradicciones.
+- `assessment_result.facts` (nuevo, JSON, por omisión `{}`): lo verificado por regla y la regla que decidió (P6). Claves: `regla` (`externo_catalogo`, `externo_modelo`, `tecnica_categoria`, `ilegible_informe`, `portal`), `version_reglas`, `documento_tecnico` (`hay`, `no_se_encontro`, `no_determinado`), `renglon_ofertado` (`si`, `no`, `no_determinado`, o ausente si no es fila por renglón), `ilegible` (`{documento, pagina}`).
+- `assessment_citation.kind`: valor nuevo `portal`, con `portal_item` (FK a `portal_item`: la página del Portal y el archivo salen de ahí), `portal_kind` (`garantia`, `cotizacion`, `total`, `cuit`), `text` (el dato escrito por el sistema desde las columnas del Portal, nunca por el modelo) y `label` (por ejemplo, «Portal: acta de apertura» o «Portal: cuadro comparativo»). Una restricción por clase, como las demás. Una cita del Portal **no habilita** "cumple" ni "no cumple" (solo las de la oferta, P3).
+- Tabla nueva `assessment_technical_ok` (de solo inserción, con trigger): `offer`, `items` (lista de renglones o nula si es todo el informe), `verdict` por renglón (`apto` o `no_apto`, tal como lo dice el informe técnico aprobado), `action` (`dar_ok`, `retirar_ok`), `note`, `user`, `at`, `event` (FK a `audit_event`, tipo `eval_decision` ya existente: no hay que tocar `audit`). El ok vigente de un renglón de una oferta es la última fila que lo nombra.
+- `pyproject.toml`: marcador de pytest `decision_literal` (con `--strict-markers` hay que registrarlo) y `settings.py`: `ASSESSMENT_RULES_VERSION` (`reglas-v1`).
+
+### Qué se decide sin el modelo y en qué orden (`evaluon/assessment/rules.py`)
+
+`evaluate.py` llama a `rules.apply(pair, ctx)` **después** de unir los grupos y del contraste y **antes** de guardar. La función aplica, en este orden, la primera que corresponde y deja en `facts` cuál fue:
+
+1. **Externo** (`externals.py`, REQ-063). Un requisito es externo si su texto vigente del pliego coincide con el catálogo de verificaciones externas (Registro de Proveedores, REPSAL o sancionados, deuda, Superintendencia de Seguros o validación de la póliza, habilidad para contratar), o si el modelo lo marcó `externo` (ya lo hace). Resultado: `no_determinado`, `externo`, sin pregunta de la Comisión (la acción es subir la hoja), y la explicación dice qué consulta falta. Gana sobre "no se encontró el documento" y sobre "duda". **Si la Comisión ya subió la hoja** (existe una decisión `subsanar` sobre un resultado `externo` del mismo par, `remedy.py`), la regla no rige: la hoja es un documento más de la oferta y se evalúa por lectura, con su cita (P9: el sistema no infiere la consulta, lee la hoja que una persona cargó).
+2. **Técnico** (`technical.py`, REQ-061): ver abajo.
+3. **No se pudo leer** (`unreadable.py`, REQ-064): ver abajo.
+4. **Portal** (`portal_facts.py`, REQ-062): ver abajo.
+5. Lo que no entra en ninguna sigue el flujo de la 004 (cumple, no cumple, "no se encontró el documento", "no determinado" con su motivo).
+
+El catálogo de externos es una lista de expresiones en código, versionada con `ASSESSMENT_RULES_VERSION` y con un test por entrada; sumar un tipo de verificación es un cambio de código con test (decisión 1 de "Decisiones"). Las filas de la matriz no tienen una marca de "externo" y no se agrega: es un cambio de la 003 que ningún requisito pide (P10).
+
+### Filas técnicas por renglón (REQ-061)
+
+Por la **categoría de la fila** (`requirement.category == tecnico`, con renglón o sin él), no por lo que diga el modelo:
+
+- **Se verifica** (por regla, sin opinar): (1) que exista el documento técnico de la oferta: hay si la lectura del renglón citó un documento de la oferta (la opinión con cita, o el tipo `tecnica` del documento); "no se encontró el documento" (`sin_documento`, con la cita del pliego; la Comisión decide) si `combine.py` lo concluye por su regla 5; si no, `no_determinado`; (2) si la fila es de un renglón, **si ese renglón tiene oferta**: hay cotización del Portal para el par (`portal_quote` con precio, citada como fundamento `portal`) o la lectura citó el renglón en la oferta; no hay si el Portal no lo tiene y la lectura completa no lo encontró; si no, `no_determinado`.
+- **Resultado de la fila**: `no_determinado`, `pendiente_informe_tecnico`, con los dos hechos en `facts`. Si el documento técnico no se encontró, el resultado es `sin_documento` y los hechos se muestran igual.
+- **Opinión informativa**: lo que hoy hacen la lectura por grupos, el contraste y el contraste por cláusula (T-158, T-164) sigue corriendo, pero su "cumple" o "no cumple" se guarda en `opinion`, con sus citas de la oferta y del pliego, y la pantalla la rotula «opinión del sistema (información, no es el resultado)». No descarta, no cuenta como conclusión y no puede contradecir al dictamen. El cumple o no cumple técnico lo da el informe del área; la asistencia a ese informe es de la 010.
+- **Cuándo deja de estar pendiente**: cuando la Comisión da el ok del informe técnico (siguiente apartado). Con el ok, la fila técnica de cada renglón pasa a "cumple" (`apto`) o "no cumple" (`no_apto`) con fundamento «informe técnico aprobado, ok de la Comisión por … el …» (resultado nuevo de la fila, de solo inserción; el anterior queda en el historial), y un "no cumple" técnico entra al descarte propuesto por renglón (REQ-059). El sistema no juzga lo técnico: toma lo que dice el informe que la Comisión aprobó. Decisión del Coordinador al revisar el plan (2026-10-06), para que el descarte por renglón del dictamen siga siendo posible sin la 010.
+- Costo: el contraste por cláusula sigue pidiéndose para la opinión (tiempo informado, sin máximo). Si el tiempo molesta, se apaga con un parámetro sin tocar el resto (decisión del Coordinador en T-167; no se mide esa mejora).
+
+### Ok del informe técnico (REQ-061, P6)
+
+Mínimo: `services/technical.py` con `give_ok(user, offer, items=None, verdicts=None, note="")` y `withdraw_ok(user, offer, items=None, note)` (nota obligatoria al retirar). Solo el **evaluador** (es una decisión de la Comisión, P3); el operador lo ve. Cada acción inserta su fila en `assessment_technical_ok` y deja el hecho `eval_decision` con `detail.kind = "technical_ok"` (oferta, renglones, acción, nota, usuario). La matriz muestra por oferta y renglón: "pendiente del informe técnico", "informe técnico aprobado por … el …" o "ok retirado". No adjunta ni lee el informe: cargarlo y asistirlo es de la 010; acá la Comisión solo da su ok de que **lo tiene aprobado**.
+
+### El Portal como fuente (REQ-062)
+
+Se lee de las tablas que la 012 ya cargó (`portal_guarantee`, `portal_quote`, `portal_offer_data`, `portal_item`), sin red. Quitada la exclusión del plan original.
+
+- **Qué requisito pide un dato del Portal**: `portal_facts.py` lo reconoce por el texto vigente del pliego con un catálogo corto, como el de externos y con la misma versión: garantía de oferta o de mantenimiento (`portal_guarantee`: tipo, forma, monto), cotización por renglón (`portal_quote`: precio y cantidad), total de la oferta (`portal_offer_data.total`) y CUIT.
+- **Qué se informa** (con cita `portal`, que muestra el dato y el enlace a la página o archivo del Portal): si el documento o el dato está en el Portal y **no** en la oferta, el resultado es `no_determinado`, `en_portal` («el documento está en el Portal»), en vez de "no se encontró el documento" o "lectura incompleta". Si está en los dos, se agrega la cita del Portal al resultado de la oferta sin cambiarlo.
+- **Falta de coincidencia**: el modelo devuelve, además, un campo opcional `datos` con el texto **literal** de la oferta donde figura el monto, la forma de la garantía, el precio o el CUIT (se ubica como cualquier cita, ADR-0038). El sistema interpreta ese texto (monto y CUIT por regla, sin el modelo) y lo compara con el valor del Portal: si difieren, el resultado es `no_determinado`, `falta_coincidencia`, con las dos citas (oferta y Portal) lado a lado. Si no hay `datos` ubicable, no se compara y no se afirma nada.
+- La cotización por renglón del Portal figura siempre en las filas técnicas por renglón (hecho de "qué renglones tienen oferta") y sigue siendo la base del orden económico (T-152, sin cambios).
+- Toca la instrucción: `evaluacion-v5.md` (campo `datos`), encadenada sobre `evaluacion-v4.md` (campo `ilegible` y tipos de externos, T-166); cada cambio sube la versión.
+
+### No se pudo leer (REQ-064)
+
+El **informe de lectura** (`offers_reading.report`: `unread`, `low_confidence` y las páginas que la visión no logró leer, T-160) dice qué páginas no se leyeron; no lo decide el modelo. Para atar una página ilegible a un requisito, el modelo devuelve el campo `ilegible` con el alias del documento (`D3`) que **debería** responder el requisito pero tiene una página marcada «no se pudo leer»; el sistema comprueba que ese alias esté en el informe como no leído. Resultado: `no_determinado`, `no_se_pudo_leer`, con `facts.ilegible = {documento, pagina}` y la pregunta fija «¿lo que exige este requisito está en la página N de «documento»? Hay que revisar el original»; lo verifica la Comisión. Sin ese alias (el modelo no lo señala) sigue `lectura_incompleta`, que pasa a ser solo "hay partes sin leer sin relación visible con este requisito". `no_se_pudo_leer` no se mezcla con "no se encontró el documento": un documento ilegible no es un documento ausente.
+
+### Contraste por cláusula, visión y lectura completa
+
+Siguen como están (T-158, T-160, T-164): la lectura completa por grupos, la cita ubicada por el sistema, el contraste común y la visión de las páginas dudosas. Lo único que cambia es que, en las filas técnicas, su salida va a `opinion`. El contraste común sigue protegiendo los "cumple" y "no cumple" de los requisitos de oferta (formales y económicos).
+
+### Rol del sistema ("la comisión conformar y elegir en casos que no haya alternativa")
+
+Se aplica como regla de diseño: **si hay una regla, el sistema decide; la Comisión confirma.** Cada "no determinado" lleva uno de los motivos concretos de arriba, con lo que falta y quién lo trae (la hoja, el informe técnico, el original, la lectura del Portal). `duda`, `sin_dato` y `sin_corroborar` quedan solo para lo que ninguna regla resuelve (el modelo no concluyó, o un contraste lo frenó) y la medición los **informa aparte** como residuo, con su cuenta, para ver cuánto queda realmente "a elección de la Comisión". Un requisito que antes devolvía una pregunta genérica ("¿qué determina la Comisión?") y tiene regla ya no la pregunta.
+
+### Registro de auditoría (P6)
+
+`eval_build` suma a cuentas y anomalías: cuántos pares decidió cada regla (`facts.regla`), `version_reglas`, versión de la instrucción (`evaluacion-v5`), los hechos técnicos por par y las citas del Portal con el `portal_item` de origen. `eval_decision` suma `kind = technical_ok`. Con eso se reconstruye por qué una fila quedó "pendiente del informe técnico" o "falta la hoja de compliance": la regla, su versión y el texto del pliego que la activó.
+
+### Medición con la regla nueva
+
+Reglas de conteo, en `assessment/evaluation.py` (spec, "Medición"); la lista esperada del caso-00 (local, `corpus/casos/caso-00/esperado/`, la actualiza el Coordinador desde el dictamen, sin correr el sistema) suma por par lo que haga falta:
+
+| Par del dictamen | Coincide si | La lista esperada trae |
+|---|---|---|
+| `base: externa` | resultado `no_determinado` con `externo` (aunque el dictamen diga cumple o no cumple), o la hoja cargada y leída con el mismo resultado del dictamen | `base: externa` (ya está) |
+| `base: tecnica` | resultado `pendiente_informe_tecnico` (o `sin_documento` si lo esperado es que falta) **y** `documento_tecnico` y `renglon_ofertado` iguales a los esperados | `documento_tecnico: hay o no_se_encontro` y `renglon_ofertado: si, no o no_aplica` |
+| Documento ilegible | `no_se_pudo_leer` con el mismo documento y página | `ilegible: {documento, pagina}` (el pagaré) |
+| Dato o documento del Portal | resultado con la cita `portal` del mismo tipo y valor igual al esperado (`en_portal`, `falta_coincidencia` o el resultado de la oferta con la cita agregada) | `portal: {tipo, valor}` |
+| `base: oferta` | igual que hoy: cumple o no cumple igual al dictamen | — |
+
+"No necesariamente literal" (primera decisión): la coincidencia se mira por **la regla del tipo de par**, no por igualdad exacta de resultado. Lo que sigue **sin** contar: `duda`, `sin_dato`, `sin_corroborar`, `sin_cita`, `lectura_incompleta` y "no se encontró el documento" donde el dictamen dice cumple.
+
+- **Contradicciones**: solo `cumple` contra `no_cumple` del `outcome` (la `opinion` técnica no cuenta) y un hecho técnico o un valor del Portal opuesto al dictamen (por ejemplo, `renglon_ofertado: si` donde el dictamen dice que no se ofertó): también se cuenta como contradicción y se informa aparte.
+- **Citas literales**: las de la oferta, igual que hoy; las del Portal, iguales al dato de la tabla del Portal (comprobado contra la fila, 100 %).
+- **Se informa, no bloquea**: coincidencia por tipo de par (externo, técnico, ilegible, Portal, oferta), residuo de `duda` y afines, descarte propuesto (el técnico ya no lo propone el sistema: el dictamen descarta renglones por lo técnico; se informa la diferencia), opinión técnica contra el dictamen, fragmentos de la ficha, tiempo.
+- **Antes de medir** (decisiones aplicadas): `medir_evaluacion --verificar-decisiones` corre los tests marcados `decision_literal` (uno por decisión de la tabla de abajo) y comprueba que la lista esperada trae los campos nuevos; si algo falla, la medición se rechaza. Es lo que pide la spec: "antes de cada medición se comprueba que estén aplicadas".
+- **Umbral** (escrito antes de medir, el de la spec): coincidencia **de más del 80 %** según la regla nueva (más de 39 de 49, con el intervalo de Wilson informado), **0** contradicciones, **100 %** de citas literales. Los demás umbrales del plan (fragmentos de la ficha 90 %, matriz 100 %) siguen y se informan.
+- **Una sola medición final** (T-171), de a una, con la GPU libre. Sin ronda previa en la GPU: las tareas anteriores se prueban con modelo simulado y con la lista esperada verificada sin modelo. Si no llega, un solo lote de correcciones y una segunda medición como máximo (ADR-0025); una contradicción abierta no se acepta.
+
+### Decisión literal → dónde se aplica (código) → cómo se mide
+
+| # | Decisión literal (spec, 2026-10-06) | Dónde se aplica (código) | Cómo se mide |
+|---|---|---|---|
+| 1 | Coincidencia y técnico: «el porcentaje esta bien, aunque no necesariamente sea literal la coincidencia. Lo tecnico verificamos que exista y que en caso de tener renglones si tiene o no tiene oferta» | `evaluation.py` (coincidencia por tipo de par, `_match`); `technical.py` (`documento_tecnico`, `renglon_ofertado`); umbral de la spec | Más del 80 % con la regla de la tabla de arriba; en filas técnicas, coinciden solo con los dos hechos iguales a la lista esperada |
+| 2 | Técnico: «La parte tecnica ya te dije que venia del area correspondiente»; «la comision debiera dar el ok de que tiene el informe tecnico aprobado. Para eso lo vamos a asistir por separado» | `technical.py` (resultado `pendiente_informe_tecnico`, la opinión en `opinion`); `services/technical.py` (ok de la Comisión); la asistencia al informe es de la 010 | El par técnico coincide con `pendiente_informe_tecnico` y hechos correctos; 0 resultados técnicos "cumple" o "no cumple" en `outcome`; opinión técnica informada aparte |
+| 3 | Externos: «eso lo integrará un documento que llamamos hoja de compliance. Si detectas que falta uno pueden subir otra. O una que informe que No cumple»; «Ya te dije que habia datos en una hoja de compliance con chequeos externos» | `externals.py` (catálogo + marca del modelo); `combine.py` (`externo` gana a `sin_documento` y a `duda`); `remedy.py` (la hoja subida es un documento más, sin cambios de código salvo el rótulo) | Los pares `base: externa` coinciden con `externo`; 0 `externo` convertido en `duda` o `sin_documento`; hoja cargada: se evalúa por lectura |
+| 4 | Portal: «Debiste informar que el doc esta en el portal o que falta coincidencia» | `portal_facts.py` (`en_portal`, `falta_coincidencia`, cita `portal`); `evaluate.py` (guarda la cita); `result.html` (muestra el dato y el enlace) | Pares con `portal` en la lista esperada: cita del Portal del mismo tipo y valor; citas del Portal 100 % iguales a la fila |
+| 5 | Ilegible: «lo del pagare es ilegible se informa asi y ese si lo chequea la comision»; «con la aclaracion de que no pudo leer alguno» | `unreadable.py` (`no_se_pudo_leer` con documento y página del informe de lectura); `evaluacion-v4.md` (campo `ilegible`, T-166) | Los pares del pagaré coinciden con `no_se_pudo_leer`, documento y página iguales a `ilegible` de la lista; la medición ya no cuenta ese motivo como desacierto |
+| 6 | Documento faltante: «Informa 'no se encontró documento' la comisión decide» | `combine.py` regla 5 (`sin_documento` con la cita del pliego, sin cambios); `remedy.py` (pedir subsanación) | `missing_document` de la medición (cita del pliego en 100 % donde se espera); "no se encontró" donde el dictamen dice cumple, informado |
+| 7 | Rol del sistema: «el que lo haga la comision no es opcion, asi el sistema no aporta nada. La comision conformar y elegir en casos que no haya alternativa» | `rules.py` (si hay regla, decide el sistema); motivos concretos en vez de `duda` y preguntas genéricas | Residuo de `duda`, `sin_dato` y `sin_corroborar` informado aparte (cuántos pares quedan a elección de la Comisión) y reducido contra T-161 (referencia: 33 "no determinado") |
+
+### Cobertura de requisitos (enmienda)
+
+| Requisito | Cómo se resuelve | Cómo se verifica |
+|---|---|---|
+| REQ-061 | "Filas técnicas por renglón" y "Ok del informe técnico": `technical.py`, `services/technical.py`; T-165 (esquema), T-167, T-168 | Tests: fila técnica = `pendiente_informe_tecnico` con `documento_tecnico` y `renglon_ofertado`; la opinión no es resultado; solo el evaluador da el ok y queda registrado; medición T-171 |
+| REQ-062 | "El Portal como fuente": `portal_facts.py`, cita `portal`; T-165, T-169 | Tests: dato en el Portal y no en la oferta = `en_portal`; valores distintos = `falta_coincidencia`; la cita del Portal es igual a la fila; medición T-171 |
+| REQ-063 | "Qué se decide sin el modelo", regla 1: `externals.py`; T-166 | Tests: cada entrada del catálogo; `externo` gana a `sin_documento` y `duda`; con hoja cargada se evalúa; medición T-171 |
+| REQ-064 | "No se pudo leer": `unreadable.py`; T-166 | Tests: alias ilegible comprobado contra el informe de lectura; sin alias, `lectura_incompleta`; medición T-171 |
+| Medición (spec) | "Medición con la regla nueva": `evaluation.py`; T-170, T-171 | `--verificar-decisiones` en verde; resumen público con coincidencia por tipo de par |
+
+### Riesgos
+
+| Riesgo | Impacto | Mitigación |
+|---|---|---|
+| El catálogo de externos o del Portal no reconoce un requisito (texto distinto en otro pliego) | Un externo vuelve a salir como `duda` | El modelo sigue marcando `externo` como segunda vía; la medición informa el residuo; sumar entradas es un cambio con test |
+| El catálogo reconoce de más y marca externo un requisito que se resuelve con la oferta | Un "cumple" válido queda "falta la hoja" | Una entrada por tipo de verificación y un test negativo cada una; la Comisión corrige y queda registrado; se mira en la revisión a mano de T-171 |
+| El modelo no señala el alias `ilegible` | El pagaré queda `lectura_incompleta` y no coincide | Instrucción con ejemplo; si pasa, se informa y entra en la lista de revisión con el primer producto, sin segunda lógica |
+| La lista esperada del caso-00 no trae los campos nuevos | La medición se rechaza (`--verificar-decisiones`) | T-170 la actualiza (Coordinador) desde el dictamen, sin correr el sistema, con huella nueva |
+| El 80 % no se alcanza porque los técnicos no cuentan salvo hechos correctos | Faltan pares | Se informa por tipo; lo que falta pasa con su impacto a la lista de revisión (ADR-0024) |
+| Conflicto de archivos entre tareas | Integración trabada | Cada regla en su módulo; las tres que tocan `evaluate.py` y `combine.py` van en cadena (T-166, T-167, T-169) |
+
+### Verificación contra la constitución (enmienda)
+
+P3: el sistema no concluye lo que es del área técnica ni inventa lo externo; todo "no determinado" dice qué falta; el Portal se cita pero no habilita "cumple" ni "no cumple". P4: el Portal se lee de tablas locales; todo sigue sin red. P6: regla, versión y origen de cada resultado en `facts` y `eval_build`; el ok técnico, con quién y cuándo. P7: umbral escrito antes, una medición final. P8: sin cambio. P9: el sistema no infiere la consulta externa; usa la hoja que una persona cargó. P10: sin servicio, sin marca nueva en la 003, sin leer el informe técnico (010). P11: esta enmienda queda en borrador hasta que la apruebe el responsable.
+
+### Decisiones
+
+- **ADR-0043**: motivos nuevos de "no determinado" en vez de resultados nuevos. Alternativas: (A) cuatro resultados y motivos nuevos (elegida: una migración chica, los cuatro resultados de decisión y descarte no cambian, la restricción "el motivo solo existe en un no determinado" se conserva); (B) resultados nuevos (`pendiente_informe_tecnico`, `falta_hoja_compliance`, `no_se_pudo_leer`) en `outcome`: más fiel al texto de la spec, pero cambia la lista de resultados que la Comisión puede elegir al corregir, el descarte, la matriz y el esquema de las decisiones. La pantalla muestra el motivo como el resultado, así que para la Comisión no hay diferencia.
+- Catálogos de externos y de Portal en código (no una marca en la matriz de la 003).
+- Ningún cambio de modelo, de motor ni de compose.
+
+### Tareas
+
+T-165 a T-171, en `tasks.md`.
