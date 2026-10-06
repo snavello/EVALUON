@@ -1,14 +1,15 @@
-"""Comando `procesar_pedidos`: atiende la cola de pedidos en segundo plano (plan 003,
-"Componentes"; ADR-0018). Lo corre el servicio `worker`.
+"""Comando `procesar_portal`: atiende los pedidos del Portal de Compras (plan 012,
+"Componentes"; ADR-0031). Lo corre el servicio `portal_worker`, el único con salida a
+internet.
 
-Al arrancar pasa a `failed` "interrumpido" los pedidos que quedaron `running`. Después
-toma los pedidos de a uno, en orden de llegada, y los ejecuta con el manejador de su
-tipo; con la cola vacía espera `WORKER_POLL_SECONDS` y vuelve a mirar. Con
-`--hasta-vaciar` termina cuando no quedan pedidos en espera.
+Igual que `procesar_pedidos`, pero solo de los tipos `portal_explore` y `portal_review`: al
+arrancar pasa a `failed` "interrumpido" solo los suyos que quedaron `running`, y no toma
+nunca un pedido del `worker`. Con la cola vacía espera `WORKER_POLL_SECONDS`; con
+`--hasta-vaciar` termina cuando no quedan pedidos en espera. En esta tarea solo atiende
+pedidos; la revisión diaria la suma T-144 (ADR-0033).
 
 La orden de detenerse (`docker compose stop`, Ctrl-C) corta el pedido en curso, que queda
-`failed` "interrumpido", y termina. Ignora los pedidos del Portal, que atiende el servicio
-`portal_worker` con `procesar_portal` (ADR-0031). Solo traduce y llama a `evaluon.tenders.jobs`.
+`failed` "interrumpido", y termina. Solo traduce y llama a `evaluon.tenders.jobs`.
 """
 
 import signal
@@ -26,7 +27,7 @@ def _stop(signum, frame):
 
 
 class Command(BaseCommand):
-    help = "Atiende los pedidos en segundo plano (leer documentos, proponer matrices)."
+    help = "Atiende los pedidos del Portal de Compras (explorar y revisar un proceso)."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -45,14 +46,14 @@ class Command(BaseCommand):
             signal.signal(signal.SIGTERM, previous)
 
     def _loop(self, until_empty):
-        interrupted = jobs.fail_interrupted(exclude=PORTAL_JOB_KINDS)
+        interrupted = jobs.fail_interrupted(kinds=PORTAL_JOB_KINDS)
         if interrupted == 1:
             self._say("1 pedido interrumpido pasó a fallido.")
         elif interrupted:
             self._say(f"{interrupted} pedidos interrumpidos pasaron a fallidos.")
-        self._say("Esperando pedidos.")
+        self._say("Esperando pedidos del Portal.")
         while True:
-            job = jobs.run_next(exclude=PORTAL_JOB_KINDS)
+            job = jobs.run_next(kinds=PORTAL_JOB_KINDS)
             if job is not None:
                 line = f"Pedido {job.pk} ({job.kind}): {job.status}"
                 self._say(f"{line}. {job.error}" if job.error else f"{line}.")

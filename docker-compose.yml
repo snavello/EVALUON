@@ -1,7 +1,8 @@
 # Entorno de EVALUON (plan 001, "Servicios"; plan 003, "Componentes"): los seis servicios
 # de la 001 más `generation_batch` y `worker` (ADR-0018).
 # Los servicios de IA y la base están en una red interna sin salida a internet y sin
-# puertos publicados. Los archivos de los modelos se bajan con scripts/fetch_models.sh.
+# puertos publicados. La única excepción es `portal_worker` (plan 012, ADR-0031), que
+# además está en la red `egress` para leer el Portal de Compras. Los archivos de los modelos se bajan con scripts/fetch_models.sh.
 # Las credenciales de la base se leen de .env (copiar .env.example y completar).
 
 name: evaluon
@@ -45,6 +46,16 @@ x-app: &app
     RERANKER_MODEL_ALIAS: ${RERANKER_MODEL_ALIAS:-bge-reranker-v2-m3}
     RERANKER_MODEL_FILE: ${RERANKER_MODEL_FILE:-bge-reranker-v2-m3-FP16.gguf}
     RERANKER_MODEL_SHA256: ${RERANKER_MODEL_SHA256:-5df93be121c09c43432102ad2b9569d369ccb85c209ca7583e8ccd28f0e41b88}
+    # Importación desde el Portal de Compras (plan 012, ADR-0031). Los reciben todos los
+    # servicios de la imagen (la aplicación valida con la lista el enlace que se registra),
+    # pero solo `portal_worker` tiene salida a internet. Los valores por omisión son los de
+    # evaluon/settings.py; tests/test_compose_env.py comprueba que coincidan.
+    PORTAL_ALLOWED_HOSTS: ${PORTAL_ALLOWED_HOSTS:-afipcompras.afip.gob.ar}
+    PORTAL_TIMEOUT_SECONDS: "${PORTAL_TIMEOUT_SECONDS:-30}"
+    PORTAL_MAX_BYTES: "${PORTAL_MAX_BYTES:-52428800}"
+    PORTAL_PAUSE_SECONDS: "${PORTAL_PAUSE_SECONDS:-2}"
+    PORTAL_REVIEW_HOUR: "${PORTAL_REVIEW_HOUR:-7}"
+    PORTAL_USER_AGENT: ${PORTAL_USER_AGENT:-EVALUON/1.0 (lectura de procesos publicos)}
   volumes:
     - ./evaluon:/app/evaluon:ro
     - ./tests:/app/tests:ro
@@ -379,9 +390,31 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  portal_worker:
+    # Pedidos del Portal de Compras (ADR-0031): explorar y revisar un proceso público. Misma
+    # imagen y variables que app. Es el ÚNICO servicio en la red `egress` (con salida a
+    # internet) y además está en `internal` para llegar a la base; no depende de la IA ni
+    # de la GPU. El código solo conecta a los hosts de PORTAL_ALLOWED_HOSTS, por HTTPS
+    # (evaluon/portal/client.py). Para cortar la conexión: `docker compose stop
+    # portal_worker` (ver specs/012-portal-compras/entorno.md). tests/portal/test_network.py
+    # comprueba que ningún otro servicio use `egress`.
+    <<: *app
+    command: ["python", "manage.py", "procesar_portal"]
+    networks:
+      - internal
+      - egress
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
 networks:
   internal:
     internal: true
+  # Con salida a internet: solo la usa `portal_worker` (ADR-0031).
+  egress:
   web:
 
 volumes:

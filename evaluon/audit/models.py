@@ -45,6 +45,11 @@ class EventType(models.TextChoices):
     SHEET_REQUEST = "sheet_request", "Pedido de ficha"
     SHEET_BUILD = "sheet_build", "Armado de ficha"
     SHEET_CHANGE = "sheet_change", "Cambio de la ficha"
+    # Feature 012 (plan 012, "Registro de auditoría").
+    PORTAL_LINK = "portal_link", "Enlace del Portal"
+    PORTAL_EXPLORE = "portal_explore", "Exploración del Portal"
+    PORTAL_REVIEW = "portal_review", "Revisión periódica del Portal"
+    PORTAL_DECISION = "portal_decision", "Decisión sobre un ítem del Portal"
 
 
 class Outcome(models.TextChoices):
