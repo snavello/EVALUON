@@ -239,7 +239,7 @@ def test_the_report_records_what_P6_asks_for(new_offer, operator_user, model):
     assert report["parameters"]["dpi"] == settings.ASSESSMENT_VISION_DPI
     assert report["parameters"]["image_tokens"] == settings.ASSESSMENT_VISION_IMAGE_TOKENS
     assert report["parameters"]["temperature"] == 0 and report["parameters"]["seed"] == 42
-    assert report["prompt_version"] == "vision-v1"
+    assert report["prompt_version"] == "vision-v2"
     entry = report["pages"][0]
     assert entry["page"] == 1 and entry["reason"] == "unread" and entry["status"] == "ilegible"
     assert entry["confidence"] == 20.0 and entry["outcome"] == "read"
