@@ -262,6 +262,10 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 Lo que no llegue al umbral después de la ronda 2 se anota acá, con su impacto (ADR-0024).
 
 - (T-160) Falta un test de que la vista `assessment:vision_page` se niegue a servir una página citada que no fue leída por visión (mutación M5 de `verificacion/T-160.md`). El código actual es correcto; impacto bajo (mismo par y mismo rol de la Comisión).
+- (T-161) La lectura con visión del 12B no llegó a su umbral (1 de 4 pares de lectura recuperados; se pedían 3), tras dos rondas. Impacto: el pagaré y otros escaneos siguen sin leerse; queda "no determinado" con pregunta.
+- (T-161, V-1) Una transcripción por visión que se corta por repetición se descarta entera. Corregir con texto plano y marcador de fin o penalizando la repetición, sin aceptar transcripciones parciales con cifras dudosas.
+- (T-161, V-2) Las tablas transcriptas como "celda | celda" impiden ubicar citas de encabezado y valor; pedir citas de fila completa o ubicar la unión.
+- (T-161, V-3) M-051 de la oferta 1 cambia entre corridas (no cumple / cumple); seguirlo en la prueba a ciegas.
 
 - Medición a ciegas con el proceso en curso que reservó el responsable, cuando el producto esté más cerrado (spec).
 - Cómo se integran las tablas de preguntas y respuestas con el circuito general de la 009 (ADR-0040).
