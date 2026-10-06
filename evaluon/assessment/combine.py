@@ -16,6 +16,8 @@ Reglas, en este orden:
 4. Sin conclusión: "no determinado" si algún grupo duda (`sin_cita` si lo que falló fue la
    cita; si no, `duda`; con partes de la oferta sin leer, una `duda` pasa a
    `lectura_incompleta`: puede venir de ahí y se le pregunta a la Comisión).
+   Un "no cumple" técnico sin cláusula del pliego que lo contradiga llega acá como duda
+   `sin_dato` (T-156, `clause_supported`).
 5. Todos los grupos "no consta": "no se encontró el documento" si la exigencia es `documento`
    en todos, no hay páginas sin leer ni documentos sin lectura y se leyeron todos los grupos;
    "no determinado" `lectura_incompleta` si hay algo sin leer; `sin_dato` si la exigencia es
@@ -27,6 +29,7 @@ Un "cumple" o "no cumple" va después al contraste (`apply_contrast`): si no con
 del modelo o una fija del sistema.
 """
 
+import re
 from dataclasses import dataclass, field, replace
 
 from django.conf import settings
@@ -36,6 +39,7 @@ from evaluon.assessment.prompting import (
     NO_CUMPLE,
     NO_DETERMINADO,
 )
+from evaluon.tenders.proposal import quotes
 
 # Resultados del par (los de `assessment_result.outcome`) y motivos de la duda.
 OUT_CUMPLE = "cumple"
@@ -135,6 +139,24 @@ def fixed_question(doubt, unread=(), explanation=""):
     return ""
 
 
+MIN_CLAUSE_WORDS = 2   # palabras de tres letras o más que debe tener una cláusula citada
+NO_CLAUSE_NOTE = ("El sistema no encontró una cláusula del pliego que contradiga lo ofrecido: "
+                  "una descripción sin el dato que la cláusula pide no alcanza para decir que "
+                  "no cumple.")
+
+
+def clause_supported(clause, requirement_text):
+    """Regla de cierre de un "no cumple" técnico (T-156): vale solo si el modelo citó una
+    cláusula que está, letra por letra, en el texto del requisito del pliego (con los espacios
+    colapsados, como toda cita). Sin ella el "no cumple" pasa a "no determinado" `sin_dato`."""
+    text = " ".join((clause or "").strip(" «»\"").split())
+    # Una cláusula tiene contenido: un tramo trivial ("de", "3.1", "Renglón 3") no alcanza.
+    words = re.findall(r"[^\W\d_]{3,}", text)
+    if len(words) < MIN_CLAUSE_WORDS:
+        return False
+    return quotes.locate(requirement_text or "", text) is not None
+
+
 def combine(groups, *, unread, without_reading=(), unread_groups=0):
     """El resultado del par a partir de lo que dijo cada grupo (`GroupResult`). `unread` son
     las páginas sin leer de la oferta (`{"title", "page"}`), `without_reading` los
@@ -184,6 +206,10 @@ def combine(groups, *, unread, without_reading=(), unread_groups=0):
                     pool=conclusions)
     if doubtful:
         failed_citation = all(g.doubt == NO_CITATION for g in doubtful)
+        if any(g.doubt == NO_DATA for g in doubtful):
+            # Un "no cumple" técnico sin cláusula que lo contradiga (`clause_supported`).
+            return done(OUT_NO_DETERMINADO, NO_DATA,
+                        pool=[g for g in doubtful if g.doubt == NO_DATA])
         return done(OUT_NO_DETERMINADO, NO_CITATION if failed_citation else DOUBT)
     # Todos los grupos dijeron "no consta".
     exigence = "documento" if all(g.exigence == "documento" for g in groups) else "condicion"
@@ -208,3 +234,29 @@ def apply_contrast(combined, answer, reason=""):
     return replace(combined, outcome=OUT_NO_DETERMINADO, doubt=UNCORROBORATED,
                    explanation=explanation,
                    question=fixed_question(UNCORROBORATED))
+
+
+def apply_clauses(combined, rows, question, requirement_text):
+    """Contraste por cláusula de un "cumple" técnico (T-158). `rows`: `(cláusula, estado,
+    motivo)`. Con alguna cláusula contradicha (y copiada letra por letra del requisito):
+    "no cumple", que cita la cláusula y la oferta. Si no, con alguna que no aparece, o una
+    contradicha sin cláusula válida: "no determinado" `sin_dato` con pregunta. Solo si todas
+    coinciden queda el "cumple" (y sigue al contraste común)."""
+    if combined.outcome != OUT_CUMPLE:
+        return combined
+    contradicted = [(c, why) for c, state, why in rows if state == "contradice"
+                    and clause_supported(c, requirement_text)]
+    if contradicted:
+        clause, why = contradicted[0]
+        note = f"Cláusula del pliego contradicha: «{clause}» {why}".strip()
+        return replace(combined, outcome=OUT_NO_CUMPLE, doubt="", question="",
+                       explanation=f"{note} (revisión por cláusula)")
+    missing = [(c, why) for c, state, why in rows if state != "coincide"]
+    if missing:
+        names = "; ".join(f"«{c}»" for c, _ in missing)
+        note = f"El sistema no pudo confirmar estas cláusulas con la oferta: {names}."
+        explanation = f"{combined.explanation} {note}".strip()
+        return replace(combined, outcome=OUT_NO_DETERMINADO, doubt=NO_DATA,
+                       explanation=explanation,
+                       question=question or fixed_question(NO_DATA, note))
+    return combined

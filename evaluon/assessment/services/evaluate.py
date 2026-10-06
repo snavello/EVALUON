@@ -60,7 +60,14 @@ from evaluon.offers.models import Offer
 from evaluon.offers.services import offers as offers_service
 from evaluon.offers.services import sheets
 from evaluon.tenders import jobs
-from evaluon.tenders.models import Job, JobKind, JobStatus, MatrixVersion, Requirement
+from evaluon.tenders.models import (
+    Job,
+    JobKind,
+    JobStatus,
+    MatrixVersion,
+    Requirement,
+    RequirementClass,
+)
 from evaluon.tenders.services.validation import latest_validated
 
 REQUEST_OPERATION = "evaluon.assessment.services.evaluate.request_evaluation"
@@ -68,6 +75,7 @@ PAGE_OPERATION = "evaluon.assessment.services.evaluate.pair_page"
 
 # Anomalías del registro.
 ANOMALY_NO_QUOTE = "requisito_sin_cita"
+ANOMALY_NO_CLAUSE = "no_cumple_sin_clausula"
 ANOMALY_REWRITE = "reescritura_descartada"
 ANOMALY_UNKNOWN_ALIAS = "alias_inexistente"
 ANOMALY_CONTRAST_INVALID = "contraste_invalido"
@@ -383,7 +391,8 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
                     step.anomalies.append({"type": ANOMALY_UNKNOWN_ALIAS, "alias": alias})
                     continue
                 found = citing.locate_quote(piece.doc, quote, ctx.finder, used,
-                                            step.anomalies)
+                                            step.anomalies,
+                                            others=[p.doc for p in pieces if p is not piece])
                 if found is not None:
                     located.append(found)
                     used.add(found.span)
@@ -412,6 +421,16 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             exigence=evaluation.exigence, supports=supports,
             explanation=evaluation.explanation, question=evaluation.question,
             external=evaluation.external)
+    if (evaluation.result == prompting.NO_CUMPLE
+            and pair.requirement.category == RequirementClass.TECNICO
+            and not combine.clause_supported(evaluation.clause, pair.text.text)):
+        pair.anomalies.append({"type": ANOMALY_NO_CLAUSE, "requirement": pair.requirement.number,
+                               "group": group_index})
+        return combine.GroupResult(
+            group_index, prompting.NO_DETERMINADO, doubt=combine.NO_DATA,
+            exigence=evaluation.exigence, citations=located, supports=supports,
+            explanation=f"{evaluation.explanation} {combine.NO_CLAUSE_NOTE}".strip(),
+            question=evaluation.question, external=evaluation.external)
     keep = [] if evaluation.result == prompting.NO_CONSTA else located
     return combine.GroupResult(
         group_index, evaluation.result,
@@ -456,12 +475,53 @@ def _supports_text(combined):
     return "Fundamentos:\n" + "\n".join(lines) if lines else ""
 
 
+def _clauses_pair(ctx, pair):
+    """Contraste por cláusula de un "cumple" técnico (T-158): cada especificación del renglón
+    se compara con la oferta; una contradicha da "no cumple", una que no aparece, "no
+    determinado". Dos salidas inválidas dejan el "cumple" sin corroborar."""
+    combined = pair.combined
+    system = prompting.load_prompt("clausulas")
+    cited = [(c.document.title, c.page, c.text) for c in combined.citations]
+    parsed, previous, correction = None, None, ""
+    for attempt in range(2):
+        step = StepData(Purpose.CONTRASTE, pair.requirement, retry_of=previous)
+        position = ctx.add(step)
+        messages = prompting.build_clauses_messages(system, pair.text.render(), cited,
+                                                    correction)
+        result = _generate(messages, prompting.CLAUSES_SCHEMA, step, ctx)
+        try:
+            parsed = prompting.parse_clauses(result.content)
+        except prompting.InvalidOutput as error:
+            step.anomalies.append({"type": error.kind, "message": str(error)})
+            pair.anomalies.append({"type": ANOMALY_CONTRAST_INVALID,
+                                   "requirement": pair.requirement.number, "step": position})
+            previous = position
+            correction = prompting.correction_for(prompting.ANOMALY_INVALID_OUTPUT)
+            continue
+        step.parsed = {"clausulas": [{"clausula": c, "estado": s, "motivo": m}
+                                     for c, s, m in parsed[0]], "pregunta": parsed[1]}
+        break
+    if parsed is None:
+        pair.combined = combine.apply_contrast(
+            combined, "parcial", "el contraste por cláusula no devolvió una salida válida")
+        return
+    rows, question = parsed
+    pair.combined = combine.apply_clauses(combined, rows, question, pair.text.text)
+
+
 def _contrast_pair(ctx, pair):
     """El pedido corto del contraste de un "cumple" o un "no cumple"."""
     combined = pair.combined
     if combined is None or not combined.needs_contrast:
         return
     started = ctx.clock()
+    if (combined.outcome == combine.OUT_CUMPLE
+            and pair.requirement.category == RequirementClass.TECNICO):
+        _clauses_pair(ctx, pair)
+        combined = pair.combined
+        if not combined.needs_contrast:
+            pair.seconds += ctx.clock() - started
+            return
     system = prompting.load_prompt("contraste")
     cited = [(c.document.title, c.page, c.text) for c in combined.citations]
     conclusion = "cumple" if combined.outcome == combine.OUT_CUMPLE else "no cumple"

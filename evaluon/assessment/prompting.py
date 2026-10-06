@@ -126,6 +126,8 @@ def evaluation_schema(doc_aliases, support_aliases):
             "explicacion": {"type": "string"},
             "externo": {"type": "boolean"},
             "pregunta": {"type": "string"},
+            # Opcional: solo en un "no cumple" de un renglón (evaluacion-v2; v3 sigue igual).
+            "clausula": {"type": "string"},
         },
         "required": ["resultado", "exigencia", "citas", "fundamentos", "explicacion",
                      "externo", "pregunta"],
@@ -144,16 +146,19 @@ class Evaluation:
     explanation: str = ""
     external: bool = False
     question: str = ""
+    clause: str = ""        # la cláusula del pliego que contradice un "no cumple" técnico
 
     def as_json(self):
         return {"resultado": self.result, "exigencia": self.exigence,
                 "citas": [{"documento": a, "texto": t} for a, t in self.citations],
                 "fundamentos": self.supports, "explicacion": self.explanation,
-                "externo": self.external, "pregunta": self.question}
+                "externo": self.external, "pregunta": self.question,
+                "clausula": self.clause}
 
 
 _FIELDS = {"resultado", "exigencia", "citas", "fundamentos", "explicacion", "externo",
            "pregunta"}
+_OPTIONAL = {"clausula"}
 
 
 def parse_evaluation(content, doc_aliases, support_aliases):
@@ -164,7 +169,7 @@ def parse_evaluation(content, doc_aliases, support_aliases):
         data = json.loads(content)
     except ValueError as error:
         raise InvalidOutput("la salida no es JSON") from error
-    if not isinstance(data, dict) or set(data) != _FIELDS:
+    if not isinstance(data, dict) or not _FIELDS <= set(data) <= _FIELDS | _OPTIONAL:
         raise InvalidOutput("la salida no tiene los campos pedidos")
     if data["resultado"] not in RESULTS:
         raise InvalidOutput("resultado no es uno de los cuatro")
@@ -174,6 +179,8 @@ def parse_evaluation(content, doc_aliases, support_aliases):
         raise InvalidOutput("citas y fundamentos son listas")
     if not isinstance(data["explicacion"], str) or not isinstance(data["pregunta"], str):
         raise InvalidOutput("explicacion y pregunta son texto")
+    if not isinstance(data.get("clausula", ""), str):
+        raise InvalidOutput("clausula es texto")
     if not isinstance(data["externo"], bool):
         raise InvalidOutput("externo es verdadero o falso")
     citations = []
@@ -188,7 +195,8 @@ def parse_evaluation(content, doc_aliases, support_aliases):
         result=data["resultado"], exigence=data["exigencia"],
         citations=citations[:settings.ASSESSMENT_MAX_CITATIONS],
         supports=list(dict.fromkeys(supports)), explanation=data["explicacion"].strip(),
-        external=data["externo"], question=data["pregunta"].strip())
+        external=data["externo"], question=data["pregunta"].strip(),
+        clause=data.get("clausula", "").strip())
 
 
 def correction_for(problem):
@@ -234,3 +242,51 @@ def parse_contrast(content):
             or data["respuesta"] not in VERDICTS or not isinstance(data["motivo"], str)):
         raise InvalidOutput("la salida no tiene los campos pedidos")
     return data["respuesta"], data["motivo"].strip()
+
+
+# --- Contraste por cláusula (T-158) -------------------------------------------------------------
+
+CLAUSE_STATES = ("coincide", "contradice", "no_aparece")
+
+CLAUSES_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "clausulas": {"type": "array", "items": {
+            "type": "object",
+            "properties": {"clausula": {"type": "string"},
+                           "estado": {"type": "string", "enum": list(CLAUSE_STATES)},
+                           "motivo": {"type": "string"}},
+            "required": ["clausula", "estado", "motivo"], "additionalProperties": False}},
+        "pregunta": {"type": "string"}},
+    "required": ["clausulas", "pregunta"], "additionalProperties": False}
+
+
+def build_clauses_messages(system, requirement_block, cited, correction=""):
+    """El pedido del contraste por cláusula de un renglón: el requisito y el texto citado."""
+    quotes = "\n".join(f"- {title}, página {page}: «{text}»" for title, page, text in cited)
+    parts = [requirement_block, "Texto citado de la oferta:\n" + quotes,
+             "Devolvé un objeto JSON con los campos pedidos.", correction]
+    user = "\n\n".join(part for part in parts if part)
+    return [{"role": "system", "content": system}, {"role": "user", "content": user}]
+
+
+def parse_clauses(content):
+    """`([(cláusula, estado, motivo)], pregunta)`. Lanza `InvalidOutput` si no tiene la forma
+    o si no trae ninguna cláusula."""
+    try:
+        data = json.loads(content)
+    except ValueError as error:
+        raise InvalidOutput("la salida no es JSON") from error
+    if (not isinstance(data, dict) or set(data) != {"clausulas", "pregunta"}
+            or not isinstance(data["clausulas"], list) or not data["clausulas"]
+            or not isinstance(data["pregunta"], str)):
+        raise InvalidOutput("la salida no tiene los campos pedidos")
+    rows = []
+    for item in data["clausulas"]:
+        if (not isinstance(item, dict) or set(item) != {"clausula", "estado", "motivo"}
+                or item["estado"] not in CLAUSE_STATES
+                or not isinstance(item["clausula"], str)
+                or not isinstance(item["motivo"], str)):
+            raise InvalidOutput("una cláusula no tiene la forma pedida")
+        rows.append((item["clausula"].strip(), item["estado"], item["motivo"].strip()))
+    return rows, data["pregunta"].strip()

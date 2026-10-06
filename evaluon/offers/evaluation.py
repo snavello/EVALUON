@@ -321,8 +321,10 @@ def _create_matrix(user, procedure, document, entries):
             if technical:
                 header = next((item["key"] for item in reading.items
                                if item["number"] == entry["renglon"]), None)
+                # El encabezado y todas sus cláusulas (`sec-iii/5` y `sec-iii/5.1`, ...): con
+                # solo el encabezado el modelo compara títulos (T-155, T-156).
                 chosen = [s for s in segments
-                          if s.key == header or s.key.startswith(f"{header}/")] \
+                          if s.key == header or s.key.startswith((f"{header}/", f"{header}."))] \
                     if header else []
                 if not chosen:
                     raise MeasurementRefused(

@@ -48,7 +48,12 @@ def oracle_for(raw, *, change=None):
         result = entry["resultado"]
         if result in ("cumple", "no_cumple"):
             quotes = [quote_of(call, c["ancla"]) for c in entry["citas"]]
-            return says(result, *[q for q in quotes if q is not None])
+            answer = says(result, *[q for q in quotes if q is not None])
+            if result == "no_cumple" and call.requirement.startswith("Renglón"):
+                # Un "no cumple" de un renglón cita la cláusula del pliego que contradice
+                # (T-156): la última cláusula del requisito, sin las comillas.
+                answer["clausula"] = re.findall(r"«(.*?)»", call.requirement)[-1]
+            return answer
         if entry.get("motivo") == "falta_hoja_compliance":
             return says("no_determinado", external=True)
         return says("no_consta", exigence="documento")

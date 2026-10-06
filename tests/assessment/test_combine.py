@@ -182,3 +182,89 @@ def test_a_downgraded_conclusion_carries_the_question_for_the_commission():
     assert combined.question == ""
     downgraded = combine.apply_contrast(combined, "parcial", "solo lo anuncia")
     assert downgraded.doubt == "sin_corroborar" and downgraded.question
+
+
+def test_external_wins_over_a_doubt_and_over_a_missing_document():
+    """REQ-055, T-156: lo que se verifica fuera de la oferta es "externo" aunque otro grupo
+    dude o diga "no consta" un documento que se leyó completo (no es "no se encontró")."""
+    over_doubt = run(group(0, "no_determinado", doubt="duda"),
+                     group(1, "no_determinado", doubt="duda", external=True))
+    assert over_doubt.doubt == "externo" and over_doubt.question
+    over_missing = run(group(0, "no_consta", exigence="documento"),
+                       group(1, "no_determinado", doubt="duda", exigence="documento",
+                             external=True))
+    assert over_missing.outcome == "no_determinado" and over_missing.doubt == "externo"
+    single = run(group(0, "no_determinado", doubt="duda", exigence="documento", external=True))
+    assert single.outcome == "no_determinado" and single.doubt == "externo"
+
+
+def test_a_technical_no_cumple_needs_a_clause_that_is_in_the_requirement():
+    """REQ-052, T-156: la cláusula citada tiene que estar letra por letra en el requisito."""
+    requirement = "Renglón 5 del pliego: «5.1 Bolsas de 20 kilos.  5.2 Proteína mínima 24 %.»"
+    assert combine.clause_supported("5.1 Bolsas de 20 kilos.", requirement)
+    assert combine.clause_supported("Bolsas de 20  kilos.", requirement)
+    assert not combine.clause_supported("Bolsas de 10 kilos.", requirement)
+    assert not combine.clause_supported("", requirement)
+
+
+def test_a_trivial_stretch_of_the_requirement_is_not_a_clause():
+    """REQ-052, T-157: un tramo literal pero sin contenido ("de", "3.1", "Renglón 5") no es una
+    cláusula: no alcanza para sostener un "no cumple"."""
+    requirement = "Renglón 5 del pliego: «5.1 Bolsas de 20 kilos.  5.2 Proteína mínima 24 %.»"
+    for trivial in ("de", "5.1", "Renglón 5", "20 kilos", "Bolsas de"):
+        assert not combine.clause_supported(trivial, requirement)
+    assert combine.clause_supported("5.2 Proteína mínima 24 %.", requirement)
+
+
+def test_a_group_without_data_for_a_technical_no_cumple_is_undetermined_without_data():
+    """REQ-052, T-156: el grupo que bajó un "no cumple" sin cláusula llega como `sin_dato` y
+    lleva siempre una pregunta; no se vuelve "duda"."""
+    combined = run(group(0, "no_determinado", doubt="sin_dato", cites=[cite()]))
+    assert combined.outcome == "no_determinado" and combined.doubt == "sin_dato"
+    assert combined.question and not combined.needs_contrast
+
+
+# --- Contraste por cláusula (T-158) ------------------------------------------------------------
+
+PUPPY_ROW = ("Renglón 5 del pliego: 5.1 Alimento balanceado para cachorros. "
+             "5.2 Presentación en bolsa de 15 kilos.")
+PUPPY = "5.1 Alimento balanceado para cachorros."
+BAG = "5.2 Presentación en bolsa de 15 kilos."
+
+
+def a_cumple():
+    return run(group(0, "cumple", cites=[cite()], explanation="Es el mismo producto."))
+
+
+def test_a_contradicted_clause_makes_the_cumple_a_no_cumple_citing_the_clause():
+    """REQ-052: la oferta ofrece alimento para adultos y el pliego pide cachorros: no cumple,
+    con la cláusula."""
+    rows = [(PUPPY, "contradice", "La oferta es para adultos."), (BAG, "coincide", "")]
+    combined = combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW)
+    assert combined.outcome == "no_cumple" and combined.doubt == ""
+    assert PUPPY in combined.explanation and "adultos" in combined.explanation
+    assert [c.text for c in combined.citations] == ["texto citado"]
+
+
+def test_a_clause_that_does_not_appear_makes_it_undetermined_with_a_question():
+    """REQ-052, REQ-055: una cláusula que la oferta no menciona: no determinado, con pregunta."""
+    rows = [(PUPPY, "coincide", "para cachorros"), (BAG, "no_aparece", "")]
+    combined = combine.apply_clauses(a_cumple(), rows, "¿Qué bolsa ofrece?", PUPPY_ROW)
+    assert combined.outcome == "no_determinado" and combined.doubt == "sin_dato"
+    assert combined.question == "¿Qué bolsa ofrece?" and BAG in combined.explanation
+    # sin pregunta del modelo, el sistema pone la suya
+    assert combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW).question
+
+
+def test_a_contradiction_without_a_real_clause_does_not_become_a_no_cumple():
+    """REQ-052: "contradice" con una cláusula inventada no alcanza para "no cumple"."""
+    rows = [("5.9 Una cláusula que no existe.", "contradice", "otro valor")]
+    combined = combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW)
+    assert combined.outcome == "no_determinado" and combined.question
+
+
+def test_only_when_every_clause_matches_the_cumple_stands():
+    """REQ-052: todas coinciden: queda el "cumple", que sigue al contraste común."""
+    rows = [(PUPPY, "coincide", "cachorros"), (BAG, "coincide", "15 kg")]
+    combined = combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW)
+    assert combined.outcome == "cumple" and combined.needs_contrast
