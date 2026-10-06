@@ -31,6 +31,13 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-161 | Medir el caso-00 con el 12B y visión (referencia, y medición de la visión y de T-164) | REQ-052, REQ-053, REQ-054, REQ-059 | T-160, T-164 | terminada |
 | T-162 | Medir el caso-00 con el 26B-A4B y visión, comparar con T-161 y decidir según el umbral (ronda 1) | REQ-052, REQ-053, REQ-054, REQ-059 | T-161 | terminada |
 | T-163 | Solo si T-162 quedó entre 2 y 3 pares de adoptarlo: un cambio igual para los dos modelos y las dos corridas de nuevo (ronda 2, la última) | REQ-052, REQ-053, REQ-054, REQ-059 | T-162 | terminada |
+| T-165 | Esquema y resultados nuevos (enmienda de decisiones literales): motivos nuevos de "no determinado", opinión y hechos en el resultado, cita del Portal, tabla del ok del informe técnico, versión de reglas y marcador de pruebas | REQ-061, REQ-062, REQ-063, REQ-064 | — | pendiente |
+| T-166 | Externos e ilegible como regla: "falta la hoja de compliance" (catálogo y marca del modelo) y "no se pudo leer" con documento y página del informe de lectura | REQ-063, REQ-064 | T-165 | pendiente |
+| T-167 | Filas técnicas por renglón: documento técnico y renglones con oferta como hechos, resultado "pendiente del informe técnico" y la opinión como información | REQ-061 | T-166 | pendiente |
+| T-168 | Ok de la Comisión del informe técnico y presentación en la matriz de los resultados nuevos | REQ-061, REQ-063, REQ-064 | T-165 | pendiente |
+| T-169 | El Portal como fuente: dato o documento en el Portal, falta de coincidencia y cita del Portal | REQ-062 | T-167 | pendiente |
+| T-170 | Medición con la regla nueva: conteo por tipo de par, `--verificar-decisiones` y actualización de la lista esperada del caso-00 (Coordinador, fuera del repositorio) | REQ-052, REQ-053, REQ-061, REQ-062, REQ-063, REQ-064 | T-165 | pendiente |
+| T-171 | Medir el caso-00 con las decisiones aplicadas (medición final, una sola) | REQ-052, REQ-053, REQ-054, REQ-059, REQ-061, REQ-062, REQ-063, REQ-064 | T-166, T-167, T-168, T-169, T-170 | pendiente |
 
 ## Paralelismo
 
@@ -46,6 +53,14 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Enmienda 2026-10-06 (ADR-0041 y ADR-0042).** T-159 y T-160 no usan la GPU para medir (T-159 solo una prueba de humo y la memoria; coordinar con quien tenga la GPU). T-159 toca configuración compartida (`docker-compose.yml`, `settings.py`, `.env.example`, `scripts/`): va sola entre las tareas que las toquen; antes de lanzarla, el Coordinador confirma que T-156 a T-158 no las tocan (si las tocan, T-159 va después). T-160 toca `evaluon/offers/` (archivo nuevo y una migración de opciones), `evaluate.py`, `documents.py` y `result.html`: no corre a la vez que T-156, T-157 ni T-158, que editan los mismos módulos de `assessment/`; si T-157 se hace, T-160 espera a que se integre.
 - **T-161, T-162 y T-163 usan la GPU y van después de T-158**, en secuencia y de a una. Ninguna otra medición ni carga de la GPU mientras corren. T-162 y T-163 cambian el motor de lotes por el 26B: nadie más evalúa en ese lapso.
 - Las ramas de tarea no tocan `tasks.md` ni el tablero (ADR-0025).
+
+- **Enmienda 2026-10-06 (decisiones literales; T-165 a T-171).**
+  - **T-165 va sola** entre las tareas de código: es el esquema (migraciones de `assessment`), `settings.py` y `pyproject.toml`. Nadie más toca esos archivos hasta que se integre. Después de T-165, **ninguna** tarea toca el esquema; si una lo necesita, se detiene, lo informa y se encadena una tarea nueva que corre sola.
+  - **Cadena T-166, T-167, T-169**: las tres editan `services/evaluate.py` y `combine.py` (y T-166 y T-169, `prompting.py` y `prompts/`; T-167 y T-169, `settings.py` para un parámetro o una versión): van en secuencia, una por vez, cada una en su módulo nuevo (`externals.py` y `unreadable.py`; `technical.py`; `portal_facts.py`) y con un solo punto de enganche (`rules.py`, que crea T-166).
+  - **T-168 en paralelo con la cadena** (después de T-165): sus archivos son `services/technical.py`, `views/technical.py`, `urls_technical.py`, `services/matrix.py` y las plantillas de la matriz; no toca `evaluate.py`, `combine.py`, `result.html` ni `settings.py`. Usa solo la tabla de T-165.
+  - **T-170 en paralelo con todo lo anterior** (después de T-165): toca `evaluation.py`, el comando `medir_evaluacion` y `tests/assessment/test_evaluation.py`, que ninguna otra toca; no usa la GPU. Su parte del Coordinador (la lista esperada local) es independiente del código.
+  - **T-171 usa la GPU y va sola**: después de T-166, T-167, T-168, T-169 y T-170 integradas en `main`. Una sola medición, de a una; ninguna otra carga de la GPU mientras corre.
+  - Ninguna de estas tareas usa la GPU salvo T-171. Las ramas de tarea no tocan `tasks.md` ni el tablero (ADR-0025).
 
 ## Detalle
 
@@ -258,6 +273,100 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Verificación:** la misma tabla de adopción.
 - **No tocar:** lo mismo que T-162.
 - **Entorno:** GPU, de a una.
+
+### T-165 · Esquema y resultados nuevos (enmienda de decisiones literales)
+
+- **Requisitos:** REQ-061, REQ-062, REQ-063, REQ-064
+- **Nivel de verificación:** plena (esquema, configuración compartida y principio P3).
+- **Qué hay que hacer:** (plan, "Enmienda 2026-10-06", "Resultados y motivos nuevos, y esquema")
+  1. `models.py`: en `Doubt`, los valores `pendiente_informe_tecnico`, `no_se_pudo_leer`, `en_portal` y `falta_coincidencia`, y el rótulo de `externo` pasa a «Falta la hoja de compliance». `Result` suma `opinion` (`cumple`, `no_cumple`, `no_determinado` o vacío) y `facts` (JSON, por omisión `{}`). `CitationKind` suma `portal`, y `Citation` suma `portal_item` (FK a `portal.PortalItem`), `portal_kind` (`garantia`, `cotizacion`, `total`, `cuit`) y `label` ya existe: una restricción por clase (la de la cita `portal` exige `portal_item`, `portal_kind` y `text`, y deja vacíos los campos de las otras clases; las demás clases dejan vacíos los nuevos). Modelo nuevo `TechnicalOk` (`assessment_technical_ok`): `offer`, `items` (JSON: lista de renglones o nulo), `verdicts` (JSON: renglón → `apto` o `no_apto`, según el informe técnico aprobado), `action` (`dar_ok`, `retirar_ok`), `note` (obligatoria en `retirar_ok`), `user`, `at`, `event` (FK a `audit.AuditEvent`).
+  2. `migrations/0003_...` (campos, restricciones, tabla nueva) y `0004_triggers` (solo inserción para `assessment_technical_ok`; las demás tablas ya los tienen y agregar columnas no dispara UPDATE). Comprobar que la migración aplica sobre una base con resultados existentes.
+  3. `settings.py`: `ASSESSMENT_RULES_VERSION = "reglas-v1"`, copiada al registro de cada evaluación (`assessment_run.parameters` y `prompt_versions`: la copia en `evaluate.py` la hace T-166; acá solo la variable). `pyproject.toml`: marcador de pytest `decision_literal` (con `--strict-markers`).
+  4. Una prueba del esquema por cada restricción y trigger nuevos, y que los resultados guardados antes de la migración siguen siendo válidos.
+- **Archivos:** `evaluon/assessment/models.py`, `evaluon/assessment/migrations/0003_*.py`, `0004_triggers.py`, `evaluon/settings.py`, `pyproject.toml`, `tests/assessment/test_schema.py`.
+- **Verificación:** `docker compose run --rm app pytest tests/assessment tests/test_migrations*` (o el equivalente que ya exista) en verde; `makemigrations --check` sin cambios pendientes; la suite completa una vez al final. Tests: `doubt` válido solo en un `no_determinado`; cita `portal` válida e inválida; `retirar_ok` sin nota rechazado; UPDATE y DELETE de `assessment_technical_ok` rechazados; los cuatro resultados y los valores de `Decision.outcome_after` no cambian.
+- **No tocar:** `evaluate.py`, `combine.py`, `prompting.py`, `prompts/`, las vistas y plantillas, `audit/` (el ok técnico usa el tipo de hecho `eval_decision` que ya existe), `portal/`, `tenders/`, `offers/`.
+
+### T-166 · Externos e ilegible como regla
+
+- **Requisitos:** REQ-063, REQ-064
+- **Nivel de verificación:** plena (lógica, instrucciones al modelo, P3 y P9).
+- **Qué hay que hacer:** (plan, "Qué se decide sin el modelo y en qué orden", reglas 1 y 3, y "No se pudo leer")
+  1. `rules.py` (nuevo): `apply(pair, ctx)` con el orden del plan, que registra en `facts` la `regla` y la `version_reglas`; en esta tarea solo estén las reglas de externo y de ilegible, y deja el lugar de las de técnico y Portal (las agregan T-167 y T-169 con una línea en la lista de reglas).
+  2. `externals.py` (nuevo): catálogo de verificaciones externas (Registro de Proveedores, REPSAL o sancionados, deuda, Superintendencia de Seguros o validación de la póliza, habilidad para contratar) aplicado al texto vigente del pliego del requisito, con una entrada por tipo y su test. Un requisito externo, o marcado `externo` por el modelo, queda `no_determinado`, `externo`, sin pregunta de la Comisión y con la explicación de qué consulta falta; gana sobre `sin_documento`, `duda` y `lectura_incompleta`. Si ya hay una decisión `subsanar` de la Comisión sobre un resultado `externo` del mismo par, la regla no rige y se evalúa por lectura con la hoja cargada.
+  3. `unreadable.py` (nuevo): con el campo `ilegible` de la salida del modelo (alias de un documento con una página «no se pudo leer»), comprobado contra el informe de lectura (`unread`, `low_confidence` y lo que la visión no leyó, `offers/vision.py`), el resultado es `no_determinado`, `no_se_pudo_leer`, con `facts.ilegible = {documento, pagina}` y la pregunta fija del plan. Un alias que el informe no avala se descarta con anomalía y el resultado sigue su camino (`lectura_incompleta`).
+  4. `prompting.py` y `prompts/evaluacion-v4.md` (nueva versión; la v3 no se edita): el campo `ilegible` (y un ejemplo), la instrucción de `externo` con los tipos del catálogo; `settings.py` (`ASSESSMENT_PROMPT_VERSIONS`: una línea); `combine.py` (`fixed_question` ya no pregunta por `externo`; `externo` gana también en `done`); `evaluate.py`: llamar a `rules.apply` antes de guardar y registrar `facts`, la versión de las reglas en `prompt_versions` y la cuenta de pares por regla en `counts`.
+  5. Un test marcado `decision_literal` por cada decisión que aplica (externos, ilegible).
+- **Archivos:** `evaluon/assessment/rules.py`, `externals.py`, `unreadable.py`, `prompting.py`, `combine.py`, `prompts/evaluacion-v4.md`, `services/evaluate.py`, `evaluon/settings.py` (una línea), `tests/assessment/test_rules.py`, `test_externals.py`, `test_unreadable.py`, `test_combine.py`, `test_evaluate.py`, `fakes.py`, datos inventados en `tests/assessment/data/`.
+- **Verificación:** `docker compose run --rm app pytest tests/assessment`; suite completa una vez al final. Tests de: cada entrada del catálogo (y un requisito de oferta que no lo es); un `externo` que antes salía `sin_documento` o `duda`; la hoja subida por subsanación se lee y se cita; un alias ilegible avalado y uno no avalado por el informe; la pregunta fija. No se mide en la GPU: la medición es T-171.
+- **No tocar:** el esquema y las migraciones, `matrix.py`, `review.py`, `questions.py`, `remedy.py`, `evaluation.py`, el contraste por cláusula, `offers/`, `portal/`.
+
+### T-167 · Filas técnicas por renglón
+
+- **Requisitos:** REQ-061
+- **Nivel de verificación:** plena (lógica, datos y principio P3).
+- **Qué hay que hacer:** (plan, "Filas técnicas por renglón")
+  1. `technical.py` (nuevo): para una fila de categoría técnica (con renglón o sin él) resuelve `documento_tecnico` (`hay`, `no_se_encontro`, `no_determinado`) y, si es de un renglón, `renglon_ofertado` (`si`, `no`, `no_determinado`) a partir de lo ya leído (citas de la oferta, regla 5 de `combine.py`) y de la cotización del Portal del par (`portal_quote` con precio, leída de las tablas de la 012, sin red); el resultado de la fila queda `no_determinado`, `pendiente_informe_tecnico` (o `sin_documento` si el documento técnico no se encontró), con los hechos en `facts` y la cotización citada como cita `portal` (clase `cotizacion`).
+  2. La opinión: el "cumple" o "no cumple" que hoy producen la lectura por grupos y el contraste por cláusula se guarda en `Result.opinion` con sus citas de la oferta y del pliego; no es el resultado. Una opinión nunca produce `no_cumple` en `outcome` ni descarte. Un parámetro (`ASSESSMENT_TECHNICAL_OPINION`, por omisión encendido) permite apagar el contraste por cláusula si el tiempo molesta.
+  3. `rules.py` (de T-166): una línea que suma la regla técnica en su lugar. `evaluate.py`: guardar `opinion`, `facts` y la cita `portal` de la cotización; `combine.py`: lo mínimo para que el resultado técnico no pase por el descarte de `clause_supported` como `sin_dato`.
+  4. La pantalla del par (`result.html`) rotula la opinión: «opinión del sistema (información, no es el resultado)» y muestra los hechos. `ordering.py` no cambia: sin "no cumple" técnico del sistema no hay descarte técnico propuesto; la Comisión puede corregir y entonces rige como siempre.
+  5. Tests marcados `decision_literal` para las decisiones 1 y 2.
+- **Archivos:** `evaluon/assessment/technical.py`, `rules.py` (una línea), `combine.py`, `services/evaluate.py`, `evaluon/settings.py` (un parámetro), `evaluon/templates/assessment/result.html`, `tests/assessment/test_technical.py`, `test_evaluate.py`, `test_result_page.py`, `fakes.py`, datos inventados en `tests/assessment/data/`.
+- **Verificación:** `docker compose run --rm app pytest tests/assessment`; suite completa una vez al final. Tests de: una fila técnica de un renglón con documento y cotización del Portal (`pendiente_informe_tecnico`, `hay`, `si`, cita `portal`); sin documento técnico (`sin_documento` con la cita del pliego); renglón sin cotización del Portal y sin mención en la oferta (`no`); un caso `no_determinado`; la opinión "no cumple" no descarta ni cambia `outcome`; una fila técnica sin renglón; el parámetro apagado.
+- **No tocar:** el esquema y las migraciones, `matrix.py`, `review.py`, `remedy.py`, `evaluation.py`, `prompts/`, `ordering.py`, `portal/`.
+
+### T-168 · Ok del informe técnico y matriz con los resultados nuevos
+
+- **Requisitos:** REQ-061, REQ-063, REQ-064
+- **Nivel de verificación:** plena (principios P3 y P6).
+- **Qué hay que hacer:** (plan, "Ok del informe técnico")
+  1. `services/technical.py`: `give_ok` y `withdraw_ok` (solo el evaluador; el operador lo ve), que insertan su fila en `assessment_technical_ok` y dejan el hecho `eval_decision` con `kind = technical_ok`; `ok_of(offer, item)` con la última fila que nombra al renglón. Rechazo por rol registrado como `rejected`.
+  1b. El ok lleva por renglón lo que dice el informe técnico aprobado (`apto` o `no_apto`); con el ok, la fila técnica de ese renglón pasa a "cumple" o "no cumple" con fundamento «informe técnico aprobado, ok de la Comisión por … el …» (resultado nuevo, el anterior en el historial) y un "no cumple" entra al descarte propuesto por renglón (plan, "Cuándo deja de estar pendiente"). El campo `verdict` va en la migración de T-165.
+  2. Vista y plantilla mínimas: botón "Dar el ok del informe técnico" y "Retirar el ok" por oferta y por renglón, con quién y cuándo, y nota.
+  3. `matrix.py` y `matrix.html`: mostrar por celda el resultado por su motivo (falta la hoja de compliance, pendiente del informe técnico con su ok, no se pudo leer, en el Portal, falta de coincidencia, no se encontró el documento) y las cuentas por oferta con esos motivos; "a resolver por la Comisión" se agrupa por motivo. La matriz no cambia el descarte ni el orden económico.
+  4. Test marcado `decision_literal` para la decisión 2 (ok de la Comisión).
+- **Archivos:** `evaluon/assessment/services/technical.py`, `views/technical.py`, `urls_technical.py`, `evaluon/assessment/services/matrix.py`, `evaluon/urls.py` (una línea) o `urls.py` del módulo, `evaluon/templates/assessment/matrix.html`, `_technical_ok.html`, `tests/assessment/test_technical_ok.py`, `test_matrix.py`.
+- **Verificación:** `docker compose run --rm app pytest tests/assessment/test_technical_ok.py tests/assessment/test_matrix.py`; suite completa una vez al final. Tests de: el evaluador da y retira el ok y quedan fila y hecho con usuario y fecha; el operador no; retirar sin nota rechazado; el ok de un renglón no afecta a otro; la matriz muestra cada motivo nuevo y no cambia descartes ni orden.
+- **No tocar:** el esquema y las migraciones, `services/evaluate.py`, `combine.py`, `result.html`, `settings.py`, `prompts/`, `ordering.py`.
+
+### T-169 · El Portal como fuente
+
+- **Requisitos:** REQ-062
+- **Nivel de verificación:** plena (lógica, datos, instrucciones al modelo y P3).
+- **Qué hay que hacer:** (plan, "El Portal como fuente")
+  1. `portal_facts.py` (nuevo): catálogo de requisitos que piden un dato del Portal (garantía de oferta o mantenimiento, cotización por renglón, total, CUIT), lectura de `portal_guarantee`, `portal_quote`, `portal_offer_data` y `portal_item` (página y archivo de origen), y la comparación de valores (monto y CUIT por regla, sobre el texto literal ubicado en la oferta).
+  2. Regla en `rules.py` (una línea): dato o documento en el Portal y no en la oferta, `no_determinado`, `en_portal`, con la cita `portal`; si está en los dos, la cita se agrega sin cambiar el resultado; si los valores difieren, `no_determinado`, `falta_coincidencia`, con la cita de la oferta y la del Portal. Sin texto literal ubicable en la oferta no se compara ni se afirma nada. El texto de la cita lo escribe el sistema desde las columnas del Portal.
+  3. `prompting.py` y `prompts/evaluacion-v5.md` (nueva versión): campo opcional `datos` (texto literal de la oferta con el monto, la forma de la garantía, el precio o el CUIT); `settings.py`: la versión, una línea; `evaluate.py`: guardar las citas `portal` y registrar en `counts` y en `eval_build` el origen (`portal_item`).
+  4. `result.html`: mostrar la cita del Portal con el dato, el enlace a la página o archivo del Portal y la leyenda «fuente: Portal».
+  5. Tests marcados `decision_literal` para la decisión 4.
+- **Archivos:** `evaluon/assessment/portal_facts.py`, `rules.py` (una línea), `prompting.py`, `prompts/evaluacion-v5.md`, `services/evaluate.py`, `evaluon/settings.py` (una línea), `evaluon/templates/assessment/result.html`, `views/results.py` (si hace falta el enlace), `tests/assessment/test_portal_facts.py`, `test_evaluate.py`, `test_result_page.py`, `fakes.py`, datos inventados.
+- **Verificación:** `docker compose run --rm app pytest tests/assessment`; suite completa una vez al final. Tests de: garantía en el Portal y no en la oferta (`en_portal`, cita); los dos con el mismo monto (cita agregada, resultado igual); montos distintos (`falta_coincidencia`, las dos citas); requisito que no es del Portal (sin cita); un `datos` no ubicable (no compara); la cita del Portal es igual a la fila; sin red.
+- **No tocar:** el esquema y las migraciones, `portal/` (solo lectura), `matrix.py`, `ordering.py`, `review.py`, `remedy.py`, `evaluation.py`.
+
+### T-170 · Medición con la regla nueva
+
+- **Requisitos:** REQ-052, REQ-053, REQ-061, REQ-062, REQ-063, REQ-064
+- **Nivel de verificación:** plena (medición y lógica de conteo).
+- **Qué hay que hacer:** (plan, "Medición con la regla nueva")
+  1. `evaluation.py`: la coincidencia por tipo de par (externo, técnico con sus dos hechos, ilegible con documento y página, Portal con tipo y valor, oferta), contradicciones solo de `outcome` más hecho técnico o valor del Portal opuestos al dictamen, citas del Portal comparadas con la fila, y en el resumen: coincidencia por tipo de par, residuo de `duda`, `sin_dato` y `sin_corroborar` aparte, opinión técnica contra el dictamen (informada) y descarte técnico (informado). Los pares de la lista que no traen el campo que su tipo necesita rechazan la medición con el motivo.
+  2. `medir_evaluacion --verificar-decisiones`: corre los tests marcados `decision_literal` y comprueba que la lista esperada trae los campos nuevos; con una falla, la medición se rechaza. Sin el modelo.
+  3. Umbral escrito en `thresholds_for` (el de la spec): coincidencia de más del 80 %, 0 contradicciones, 100 % de citas; los demás como hoy. El caso chico se ajusta a la regla nueva con su lista (inventada, en el repositorio): un par externo, un técnico por renglón, un ilegible y un dato del Portal; sin medirlo en la GPU en esta tarea.
+  4. **Parte del Coordinador (fuera del repositorio, sin tocar código):** actualizar `corpus/casos/caso-00/esperado/dictamen-esperado.yaml` leyendo el dictamen, sin correr el sistema: por par `base: tecnica`, `documento_tecnico` y `renglon_ofertado`; el pagaré, `ilegible: {documento, pagina}`; los pares que el dictamen sustenta con el Portal, `portal: {tipo, valor}`. Huella nueva y visto bueno; `--verificar-esperada` y `--verificar-decisiones` la comprueban. No se ajusta a lo que el sistema encuentra.
+- **Archivos:** `evaluon/assessment/evaluation.py`, `management/commands/medir_evaluacion.py`, `tests/assessment/test_evaluation.py`, `tests/assessment/data/caso-chico/evaluacion-esperada.yaml`; fuera del repositorio: `corpus/casos/caso-00/esperado/`.
+- **Verificación:** `docker compose run --rm app pytest tests/assessment/test_evaluation.py`; suite completa una vez al final; `medir_evaluacion --verificar-esperada` y `--verificar-decisiones` en verde sobre las dos listas. Tests de: cada tipo de par coincide y no coincide; un `duda` no coincide; contradicción por hecho técnico opuesto; una lista sin el campo que su tipo necesita se rechaza; el resumen público trae las cuentas por tipo y no trae datos de oferentes (P4).
+- **No tocar:** `evaluate.py`, `combine.py`, `rules.py`, el esquema, `matrix.py`; la lista esperada no se ajusta al sistema.
+
+### T-171 · Medición final del caso-00
+
+- **Requisitos:** REQ-052, REQ-053, REQ-054, REQ-059, REQ-061, REQ-062, REQ-063, REQ-064
+- **Nivel de verificación:** plena (medición con umbral escrito).
+- **Qué hay que hacer:** con `main` que contiene T-165 a T-170, `--verificar-decisiones` y `--verificar-esperada` en verde, correr **una** medición del caso-00 con el 12B del lote y la visión, sobre una base limpia (respaldo previo y base aparte, como T-161), con `dictamen-esperado.yaml` actualizado y `fichas-esperadas.yaml`. Informar: coincidencia con la regla nueva y por tipo de par (con intervalo de Wilson), contradicciones, citas literales (oferta y Portal), fragmentos de la ficha, orden económico y descarte, residuo de `duda` y afines, opinión técnica contra el dictamen, tiempo por oferta y por pedido, memoria. Revisar a mano cada par que no coincide y cada resultado `externo`, `pendiente_informe_tecnico`, `no_se_pudo_leer` y `en_portal` o `falta_coincidencia`, para detectar un catálogo que reconoce de más. No corrige nada.
+- **Umbral (escrito antes de medir, el de la spec):** coincidencia de más del 80 % según la regla nueva (más de 39 de 49), 0 contradicciones, 100 % de citas literales; fragmentos de la ficha 90 %, tres ofertas evaluadas y orden igual al del Portal, como en la tabla del plan. Se informa lo demás.
+- **Rondas:** una sola medición. Si no llega, los hallazgos se corrigen en una tarea, una vez, y se mide por última vez (ADR-0025); lo que falte pasa con su impacto a la lista de revisión con el primer producto. Una contradicción abierta no se acepta: se pasa al responsable.
+- **Archivos:** `specs/004-evaluacion-asistida/verificacion/T-171.md` (solo identificadores, cuentas, causas y tiempos); la corrida completa queda en `corpus/casos/caso-00/esperado/corridas/` (local).
+- **Verificación:** el resumen público con las proporciones y la lista de pares que no coinciden con su causa.
+- **No tocar:** el código, la lista esperada, el compose; ningún dato real al repositorio.
+- **Entorno:** GPU, de a una; no corre con otra medición ni con otra carga.
 
 ## Revisión con el primer producto
 
