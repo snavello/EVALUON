@@ -103,3 +103,38 @@ def test_the_page_is_found_with_the_lines_of_a_real_reading(db, operator_user, f
         entry, "Los precios se cotizan en pesos con impuestos incluidos.", finder)
     assert found.page == 2
     assert found.text == entry.reading.canonical_text[found.char_start:found.char_end]
+
+
+@pytest.fixture
+def scan(procedure, operator_user, fake_ai):
+    """Un documento escaneado: el reconocimiento escribió `*` por `°` y metió un `|`."""
+    offer = make_offer(procedure, operator_user, "Oferente S", {
+        "escaneo.pdf": ["RENGLÓN N° 5 - ALIMENTO PARA PERROS | cantidad 300 kg, bolsas de 20 kg.",
+                        "RENGLÓN N° 6 - ALIMENTO PARA GATOS, cantidad 250 kg."]})
+    return documents.build_offer_text(offer)
+
+
+def test_a_quote_with_the_scan_noise_is_located_and_the_cut_is_the_documents(scan):
+    """REQ-053, T-156: `*` por `°` y un símbolo de ruido no impiden ubicar la cita; lo que se
+    guarda es el recorte del texto canónico, con su `°`."""
+    document = doc(scan, "escaneo.pdf")
+    found = citations.locate_quote(
+        document, "RENGLÓN N* 5 - ALIMENTO PARA PERROS cantidad 300 kg", citations.PageFinder())
+    assert found is not None and found.page == 1
+    assert found.text == "RENGLÓN N° 5 - ALIMENTO PARA PERROS | cantidad 300 kg"
+    assert found.text == document.reading.canonical_text[found.char_start:found.char_end]
+
+
+@pytest.mark.parametrize("invented", [
+    "RENGLÓN N* 5 - ALIMENTO PARA PERROS cantidad 400 kg",    # otro dato
+    "RENGLÓN N* 7 - ALIMENTO PARA GATOS, cantidad 250 kg",    # otro renglón
+    "Cartucho de tóner negro compatible con la impresora",    # inventada
+    "*|*",                                                    # solo ruido
+])
+def test_a_quote_that_is_not_literal_is_still_dropped(scan, invented):
+    """REQ-053, T-156: la tolerancia es solo de ruido: una cita con otro dato o inventada no
+    se ubica."""
+    anomalies = []
+    assert citations.locate_quote(doc(scan, "escaneo.pdf"), invented, citations.PageFinder(),
+                                  anomalies=anomalies) is None
+    assert anomalies[0]["type"] == citations.ANOMALY_NOT_FOUND

@@ -45,6 +45,40 @@ class Located:
         return (self.document.pk, self.char_start, self.char_end)
 
 
+# Ruido típico del reconocimiento de un escaneo: el grado `°` sale como `*` y aparecen barras,
+# guiones bajos y marcas sueltas. No cuentan al comparar; las letras, los números y la demás
+# puntuación sí (T-156).
+SCAN_NOISE = frozenset("*°º˚|¦_~^`´¨·•")
+MIN_FOLDED_CHARS = 12
+
+
+def _fold(text):
+    """El texto sin espacios ni ruido de escaneo y, para cada carácter que queda, su posición
+    en el original."""
+    chars, positions = [], []
+    for index, char in enumerate(text):
+        if not char.isspace() and char not in SCAN_NOISE:
+            chars.append(char)
+            positions.append(index)
+    return "".join(chars), positions
+
+
+def locate_text(text, quote):
+    """Posiciones de `quote` en `text`: primero literal (espacios colapsados, como la 003) y, si
+    no está, sin el ruido de escaneo. Lo que se guarda sigue siendo el recorte de `text`."""
+    span = quotes.locate(text, quote)
+    if span is not None:
+        return span
+    needle, _ = _fold(quote or "")
+    if len(needle) < MIN_FOLDED_CHARS:
+        return None
+    haystack, positions = _fold(text)
+    start = haystack.find(needle)
+    if start == -1:
+        return None
+    return positions[start], positions[start + len(needle) - 1] + 1
+
+
 class PageFinder:
     """Página de un tramo del texto canónico de una lectura."""
 
@@ -94,7 +128,7 @@ def locate_quote(document, quote, finder, used=(), anomalies=None):
         anomalies.append({"type": ANOMALY_TOO_LONG, "document": document.document.pk,
                           "chars": len(quote)})
         return None
-    span = quotes.locate(reading.canonical_text, quote) if reading is not None else None
+    span = locate_text(reading.canonical_text, quote) if reading is not None else None
     if span is None:
         anomalies.append({"type": ANOMALY_NOT_FOUND, "document": document.document.pk,
                           "quote": (quote or "")[:120]})
