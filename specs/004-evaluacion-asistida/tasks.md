@@ -259,7 +259,9 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 
 ## Revisión con el primer producto
 
-Lo que no llegue al umbral después de la ronda 2 se anota acá, con su impacto (ADR-0024). Vacía por ahora.
+Lo que no llegue al umbral después de la ronda 2 se anota acá, con su impacto (ADR-0024).
+
+- (T-160) Falta un test de que la vista `assessment:vision_page` se niegue a servir una página citada que no fue leída por visión (mutación M5 de `verificacion/T-160.md`). El código actual es correcto; impacto bajo (mismo par y mismo rol de la Comisión).
 
 - Medición a ciegas con el proceso en curso que reservó el responsable, cuando el producto esté más cerrado (spec).
 - Cómo se integran las tablas de preguntas y respuestas con el circuito general de la 009 (ADR-0040).
