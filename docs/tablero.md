@@ -49,7 +49,7 @@ flowchart LR
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
 | [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 63/65 | ██████████ 97% |
-| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 3/10 | ███░░░░░░░ 30% |
+| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 4/10 | ████░░░░░░ 40% |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
 | 007 · Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | No iniciada | — | — |
@@ -664,10 +664,9 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 7 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 6 tareas sin terminar.
 - ○ T-151 · Medir el caso chico: lista esperada, comparación y comando `medir_evaluacion` (pendiente)
 - ○ T-152 · Matriz de evaluación de todas las ofertas: descarte propuesto, orden económico con el Portal, estado por oferta y aviso de versión (pendiente)
-- ○ T-153 · Revisión: confirmar, corregir y rechazar cada propuesta, con historial y fundamentos a la vista (pendiente)
 - ○ T-154 · Preguntas a la Comisión, respuestas como fundamento y subsanación con su recorrido (pendiente)
 - ○ T-155 · Medir el caso-00 contra el dictamen (medición base) (pendiente)
 - ○ T-156 · Corregir los hallazgos de T-155 y medir de nuevo (ronda 1) (pendiente)
@@ -679,6 +678,7 @@ flowchart LR
 - ✓ T-148 · Esquema, configuración compartida y tamaños: módulo `assessment` con todas sus tablas y triggers, tipo de pedido y de hecho, contexto del motor de lotes, `medir_tamanos` y `entorno.md` (`40cf449` 2026-10-06, `dfbe9c4` 2026-10-06, `fc67181` 2026-10-06, `6eee1fc` 2026-10-06)
 - ✓ T-149 · Preparar los casos para medir (Coordinador): caso chico calcado de ofertas reales y lista esperada del dictamen del caso-00, con la lista de fichas completada (`f606137` 2026-10-06)
 - ✓ T-150 · Corte vertical: evaluar una oferta de punta a punta (lectura completa por grupos, cita ubicada, contraste, cuatro resultados, preguntas formuladas) con pantalla mínima del par (`557dd54` 2026-10-06, `d4849ea` 2026-10-06, `ccb9567` 2026-10-06, `2a01ea9` 2026-10-06)
+- ✓ T-153 · Revisión: confirmar, corregir y rechazar cada propuesta, con historial y fundamentos a la vista (`f6e762e` 2026-10-06)
 
 ### Mapa de tareas
 
@@ -689,7 +689,7 @@ flowchart TD
   T150["✓ T-150 · Corte vertical: evaluar una oferta de punta…"]:::done
   T151["○ T-151 · Medir el caso chico: lista esperada, compar…"]:::todo
   T152["○ T-152 · Matriz de evaluación de todas las ofertas:…"]:::todo
-  T153["○ T-153 · Revisión: confirmar, corregir y rechazar ca…"]:::todo
+  T153["✓ T-153 · Revisión: confirmar, corregir y rechazar ca…"]:::done
   T154["○ T-154 · Preguntas a la Comisión, respuestas como fu…"]:::todo
   T155["○ T-155 · Medir el caso-00 contra el dictamen (medici…"]:::todo
   T156["○ T-156 · Corregir los hallazgos de T-155 y medir de…"]:::todo
