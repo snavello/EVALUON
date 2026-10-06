@@ -204,8 +204,11 @@ def load_prompt(name):
 def _models():
     return {
         "generation_batch": {
-            "model": settings.GENERATION_MODEL, "file": settings.GENERATION_MODEL_FILE,
-            "sha256": settings.GENERATION_MODEL_SHA256,
+            "model": settings.GENERATION_BATCH_MODEL,
+            "file": settings.GENERATION_BATCH_MODEL_FILE,
+            "sha256": settings.GENERATION_BATCH_MODEL_SHA256,
+            "mmproj_file": settings.GENERATION_BATCH_MMPROJ_FILE,
+            "mmproj_sha256": settings.GENERATION_BATCH_MMPROJ_SHA256,
             "engine_build": settings.GENERATION_ENGINE_BUILD,
             "context_tokens": settings.GENERATION_BATCH_CONTEXT_TOKENS},
         "embeddings": {
