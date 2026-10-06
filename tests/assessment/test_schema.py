@@ -86,12 +86,13 @@ def test_an_undetermined_result_always_says_why_and_only_it(rows, outcome, doubt
                                  outcome=outcome, doubt=doubt)
 
 
-def test_the_four_outcomes_and_seven_doubts_are_the_plans():
+def test_the_four_outcomes_and_eleven_doubts_are_the_plans():
     assert set(am.Outcome.values) == {"cumple", "no_cumple", "sin_documento",
                                       "no_determinado"}
     assert set(am.Doubt.values) == {"duda", "sin_corroborar", "contradiccion",
                                     "lectura_incompleta", "externo", "sin_cita",
-                                    "sin_dato"}
+                                    "sin_dato", "pendiente_informe_tecnico",
+                                    "no_se_pudo_leer", "en_portal", "falta_coincidencia"}
 
 
 # --- Una restricción por clase de cita (REQ-053) ----------------------------------------------
@@ -293,3 +294,207 @@ def test_the_audit_table_accepts_the_new_event_types(operator_user):
         event = audit.record(event_type, outcome=Outcome.OK, channel=Channel.EVAL,
                              user=operator_user)
         assert event.event_type == event_type
+
+
+# --- Enmienda de decisiones literales (T-165; ADR-0043; REQ-061 a REQ-064) --------------------
+
+NEW_DOUBTS = ("pendiente_informe_tecnico", "no_se_pudo_leer", "en_portal",
+              "falta_coincidencia")
+
+
+@pytest.fixture
+def portal_item(procedure, operator_user):
+    from evaluon.portal import models as pm
+
+    link = pm.PortalLink.objects.create(url="https://portal.invalid/proceso",
+                                        procedure=procedure, created_by=operator_user)
+    page = pm.PortalPage.objects.create(link=link, exploration=1, kind="cuadro",
+                                        url="https://portal.invalid/cuadro",
+                                        sha256="a" * 64, content=b"x")
+    proposal = pm.PortalProposal.objects.create(link=link, exploration=1,
+                                                origin="importacion")
+    return pm.PortalItem.objects.create(proposal=proposal, kind="oferta", key="o",
+                                        payload={}, content_sha256="b" * 64, page=page)
+
+
+@pytest.mark.decision_literal
+@pytest.mark.parametrize("doubt", NEW_DOUBTS)
+def test_each_new_doubt_is_valid_only_in_an_undetermined_result(rows, doubt):
+    """REQ-061, REQ-062, REQ-063, REQ-064: los motivos nuevos valen solo en un «no
+    determinado»; en cualquier otro resultado, la base los rechaza."""
+    run = _new_run(rows)
+    result = am.Result.objects.create(
+        run=run, offer=run.offer, requirement=rows.requirement,
+        outcome=am.Outcome.NO_DETERMINADO, doubt=doubt)
+    assert am.Result.objects.get(pk=result.pk).doubt == doubt
+    run = _new_run(rows, number=3)
+    for outcome in (am.Outcome.CUMPLE, am.Outcome.NO_CUMPLE, am.Outcome.SIN_DOCUMENTO):
+        with pytest.raises(IntegrityError), transaction.atomic():
+            am.Result.objects.create(run=run, offer=run.offer,
+                                     requirement=rows.requirement, outcome=outcome,
+                                     doubt=doubt)
+
+
+def test_the_external_doubt_reads_as_missing_compliance_sheet():
+    """REQ-063: el rótulo de `externo` pasa a «Falta la hoja de compliance»."""
+    assert am.Doubt.EXTERNO.label == "Falta la hoja de compliance"
+    assert am.Doubt.EXTERNO.value == "externo"
+
+
+def test_the_four_outcomes_and_decision_outcomes_do_not_change():
+    """REQ-052: los cuatro resultados y los de `Decision.outcome_after` siguen iguales."""
+    assert [c[0] for c in am.Decision._meta.get_field("outcome_after").choices] == [
+        "cumple", "no_cumple", "sin_documento", "no_determinado"]
+
+
+@pytest.mark.decision_literal
+def test_a_result_opinion_and_facts_are_optional_and_validated(rows):
+    """REQ-061: `opinion` es cumple, no_cumple, no_determinado o vacío; `facts` es `{}`."""
+    assert rows.result.opinion == ""
+    assert am.Result.objects.get(pk=rows.result.pk).facts == {}
+    run = _new_run(rows)
+    result = am.Result.objects.create(
+        run=run, offer=run.offer, requirement=rows.requirement,
+        outcome=am.Outcome.NO_DETERMINADO, doubt="pendiente_informe_tecnico",
+        opinion=am.Opinion.NO_CUMPLE,
+        facts={"regla": "tecnica_categoria", "version_reglas": "reglas-v1"})
+    assert am.Result.objects.get(pk=result.pk).facts["regla"] == "tecnica_categoria"
+    run = _new_run(rows, number=3)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        am.Result.objects.create(run=run, offer=run.offer, requirement=rows.requirement,
+                                 outcome=am.Outcome.CUMPLE, opinion="aprobado")
+
+
+def _portal_citation(rows, order, portal_item, **fields):
+    base = dict(kind=am.CitationKind.PORTAL, portal_item=portal_item,
+                portal_kind=am.PortalKind.COTIZACION, text="Precio: 1000",
+                label="Portal: cuadro comparativo")
+    return am.Citation.objects.create(result=rows.result, order=order, **{**base, **fields})
+
+
+@pytest.mark.decision_literal
+def test_a_portal_citation_needs_item_kind_and_text(rows, portal_item):
+    """REQ-062, REQ-053: la cita del Portal lleva el ítem, la clase de dato y el texto, y
+    deja vacíos los campos de las demás clases."""
+    _portal_citation(rows, 2, portal_item)
+    for index, kind in enumerate(am.PortalKind.values):
+        _portal_citation(rows, 10 + index, portal_item, portal_kind=kind)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _portal_citation(rows, 3, None)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _portal_citation(rows, 4, portal_item, portal_kind="")
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _portal_citation(rows, 5, portal_item, portal_kind="otro")
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _portal_citation(rows, 6, portal_item, text="")
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _portal_citation(rows, 7, portal_item, document=rows.document)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _portal_citation(rows, 8, portal_item, requirement_quote=rows.quote)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _portal_citation(rows, 9, portal_item, answer=rows.answer)
+
+
+@pytest.mark.decision_literal
+def test_the_other_citation_kinds_refuse_the_portal_fields(rows, portal_item):
+    """REQ-053: las citas de la oferta, del pliego y de una respuesta no llevan datos del
+    Portal."""
+    offer_fields = dict(kind=am.CitationKind.OFERTA, document=rows.document,
+                        reading=rows.reading, page=1, char_start=0, char_end=5,
+                        text="Decla")
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _citation(rows, 2, portal_item=portal_item, **offer_fields)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _citation(rows, 3, portal_kind="total", **offer_fields)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _citation(rows, 4, kind=am.CitationKind.PLIEGO, requirement_quote=rows.quote,
+                  text="x", portal_item=portal_item)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _citation(rows, 5, kind=am.CitationKind.RESPUESTA, answer=rows.answer,
+                  portal_kind="cuit")
+
+
+def _technical_ok(rows, offer, evaluator_user, **fields):
+    base = dict(offer=offer, action=am.TechnicalAction.DAR_OK, user=evaluator_user,
+                event=rows.event, items=[1, 2], verdicts={"1": "apto", "2": "no_apto"})
+    return am.TechnicalOk.objects.create(**{**base, **fields})
+
+
+@pytest.mark.decision_literal
+def test_a_technical_ok_holds_items_and_verdicts(rows, offer, evaluator_user):
+    """REQ-061: el ok guarda la oferta, los renglones (o nulo: todo el informe) y el dictamen
+    de cada renglón según el informe aprobado."""
+    ok = _technical_ok(rows, offer, evaluator_user)
+    whole = _technical_ok(rows, offer, evaluator_user, items=None, verdicts={})
+    assert am.TechnicalOk.objects.get(pk=ok.pk).verdicts == {"1": "apto", "2": "no_apto"}
+    assert am.TechnicalOk.objects.get(pk=whole.pk).items is None
+
+
+@pytest.mark.decision_literal
+def test_withdrawing_a_technical_ok_needs_a_note(rows, offer, evaluator_user):
+    """REQ-061 (P3): retirar el ok exige nota; darlo no."""
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _technical_ok(rows, offer, evaluator_user, action=am.TechnicalAction.RETIRAR_OK)
+    _technical_ok(rows, offer, evaluator_user, action=am.TechnicalAction.RETIRAR_OK,
+                  note="El informe se reabrió.")
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _technical_ok(rows, offer, evaluator_user, action="borrar", note="x")
+
+
+@pytest.mark.decision_literal
+def test_the_technical_ok_table_is_insert_only(rows, offer, evaluator_user):
+    """REQ-061 (P6): `assessment_technical_ok` rechaza UPDATE y DELETE, también por SQL y
+    desde el modelo."""
+    ok = _technical_ok(rows, offer, evaluator_user)
+    for sql in ("UPDATE assessment_technical_ok SET note = 'x'",
+                "DELETE FROM assessment_technical_ok"):
+        with pytest.raises(Exception, match="solo admite agregar filas"):
+            with transaction.atomic(), connection.cursor() as cursor:
+                cursor.execute(sql)
+    ok.note = "otra"
+    with pytest.raises(Exception, match="solo admite agregar filas"), transaction.atomic():
+        ok.save()
+    with pytest.raises(Exception, match="solo admite agregar filas"), transaction.atomic():
+        ok.delete()
+
+
+def test_the_rules_version_is_set():
+    """REQ-063: la versión de las reglas existe para copiarla al registro de la evaluación."""
+    from django.conf import settings
+
+    assert settings.ASSESSMENT_RULES_VERSION == "reglas-v1"
+
+
+def test_the_decision_literal_marker_is_registered(pytestconfig):
+    """El marcador está registrado (con `--strict-markers`)."""
+    assert any(line.startswith("decision_literal") for line in
+               pytestconfig.getini("markers"))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_migration_applies_over_existing_results_and_is_reversible(rows):
+    """REQ-052: las migraciones 0003 y 0004 se revierten y se vuelven a aplicar con
+    resultados y citas guardados, que siguen siendo válidos (sin opinión ni hechos)."""
+    from django.db.migrations.executor import MigrationExecutor
+
+    def migrate(target):
+        MigrationExecutor(connection).migrate([("assessment", target)])
+
+    result_id, citation_id = rows.result.pk, rows.citation.pk
+    migrate("0002_triggers")
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT to_regclass('assessment_technical_ok')")
+        assert cursor.fetchone()[0] is None
+        cursor.execute("SELECT count(*) FROM assessment_result WHERE id = %s", [result_id])
+        assert cursor.fetchone()[0] == 1
+    migrate("0004_triggers")
+    result = am.Result.objects.get(pk=result_id)
+    assert (result.outcome, result.doubt, result.opinion, result.facts) == (
+        am.Outcome.CUMPLE, "", "", {})
+    citation = am.Citation.objects.get(pk=citation_id)
+    assert (citation.kind, citation.portal_item_id, citation.portal_kind) == (
+        am.CitationKind.OFERTA, None, "")
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM pg_trigger "
+                       "WHERE tgname = 'assessment_technical_ok_append_only'")
+        assert cursor.fetchone()[0] == 1
