@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Propuesta · {{ page.link.process_number|default:"proceso" }} · EVALUON{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'portal:links' %}">Importar desde el Portal</a></p>
+<h1>Propuesta del proceso {{ page.link.process_number|default:"(todavía sin leer)" }}</h1>
+
+{% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+
+{% if results %}
+<section class="portal-results" role="status" aria-label="Resultado">
+  <h2>Resultado</h2>
+  <ul>
+    {% for result in results %}
+    <li>{{ result.item.get_kind_display }} ({{ result.item.key }}): {{ result.result }}{% if result.reason %} · {{ result.reason }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if page.anomalies %}
+<section class="portal-anomalies" aria-labelledby="anomalies-title">
+  <h2 id="anomalies-title">No se pudo leer</h2>
+  <ul>
+    {% for anomaly in page.anomalies %}<li>{{ anomaly.parte }}: {{ anomaly.motivo }}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if not groups %}
+<p>Todavía no hay nada propuesto. Si el pedido está en espera, vuelva a mirar en un momento.</p>
+{% else %}
+<form method="post" action="{% url 'portal:decide' page.link.pk %}">
+  {% csrf_token %}
+  {% for kind, label, rows in groups %}
+  <section class="portal-group" aria-labelledby="group-{{ kind }}">
+    <h2 id="group-{{ kind }}">{{ label }}</h2>
+    {% for row in rows %}
+    <article class="portal-item" id="item-{{ row.item.pk }}">
+      {% if row.item.state == "propuesto" and row.can_decide %}
+      <p><label><input type="checkbox" name="item" value="{{ row.item.pk }}"> Elegir este ítem</label></p>
+      {% endif %}
+      {% if row.changed %}<p class="portal-changed"><strong>Cambiado respecto de lo aprobado.</strong></p>{% endif %}
+      {% include row.template with item=row.item can_decide=row.can_decide action=row.action %}
+      <p class="portal-origin">Origen: página del proceso consultada el {{ row.item.page.fetched_at|date:"d/m/Y H:i" }}.
+        Estado: {{ row.item.get_state_display }}{% if row.item.decided_by %} · decidido por {{ row.item.decided_by.username }} el {{ row.item.decided_at|date:"d/m/Y H:i" }}{% endif %}.
+        {% if row.item.failure %}Motivo: {{ row.item.failure }}{% endif %}</p>
+      {% if row.item.state == "propuesto" and not row.can_decide %}<p>Este ítem lo aprueba un evaluador.</p>{% endif %}
+    </article>
+    {% endfor %}
+  </section>
+  {% endfor %}
+
+  {% if page.pending %}
+  <p>
+    <button type="submit" name="decision" value="aprobar">Aprobar lo elegido</button>
+    <button type="submit" name="decision" value="rechazar">Rechazar lo elegido</button>
+    {% if page.can_approve_all %}<button type="submit" name="decision" value="aprobar_todo">Aprobar todo</button>{% endif %}
+  </p>
+  {% endif %}
+</form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,26 @@
+{% comment %}Ítem "procedimiento" (T-141). El texto dañado en el Portal se muestra tal cual y marcado.{% endcomment %}
+{% with data=item.payload damaged=item.damaged_fields %}
+<h3>Procedimiento {{ data.numero }}</h3>
+<p>{% if action == "crear" %}Se creará el procedimiento.{% elif action %}Ya está registrado: se asociará al existente.{% endif %}</p>
+{% if damaged %}<p><mark class="damaged">Hay texto dañado en el Portal (letras reemplazadas por «¿»): se muestra tal cual, sin adivinar.</mark></p>{% endif %}
+<dl>
+  <dt>Expediente</dt><dd>{{ data.expediente|default:"—" }}</dd>
+  <dt>Objeto</dt><dd>{% if "objeto" in damaged %}<mark class="damaged">{{ data.objeto }}</mark>{% else %}{{ data.objeto|default:"—" }}{% endif %}</dd>
+  <dt>Tipo</dt><dd>{{ data.tipo }}</dd>
+  <dt>Unidad operativa</dt><dd>{% if "unidad_operativa" in damaged %}<mark class="damaged">{{ data.unidad_operativa }}</mark>{% else %}{{ data.unidad_operativa|default:"—" }}{% endif %}</dd>
+  <dt>Encuadre legal</dt><dd>{% if "encuadre_legal" in damaged %}<mark class="damaged">{{ data.encuadre_legal }}</mark>{% else %}{{ data.encuadre_legal|default:"—" }}{% endif %}</dd>
+  <dt>Cronograma</dt>
+  <dd>{% if data.cronograma %}<ul>{% for name, value in data.cronograma.items %}<li>{{ name }}: {{ value }}</li>{% endfor %}</ul>{% else %}—{% endif %}</dd>
+  <dt>Garantías</dt>
+  <dd>{% if data.garantias %}{% if "garantias" in damaged %}<mark class="damaged">{% endif %}<ul>{% for text in data.garantias %}<li>{{ text }}</li>{% endfor %}</ul>{% if "garantias" in damaged %}</mark>{% endif %}{% else %}—{% endif %}</dd>
+</dl>
+{% if action == "crear" %}
+<p>Fecha de autorización: el Portal no la muestra.
+  {% if data.fecha_autorizacion.candidata %}Candidata: {{ data.fecha_autorizacion.candidata }} ({{ data.fecha_autorizacion.origen }}).{% endif %}
+  {% if item.state == "propuesto" and can_decide %}
+  <label for="id_fecha_{{ item.pk }}">Confirme la fecha de autorización</label>
+  <input type="date" name="fecha_{{ item.pk }}" id="id_fecha_{{ item.pk }}" value="{{ data.fecha_autorizacion.candidata|default_if_none:'' }}">
+  {% endif %}
+</p>
+{% endif %}
+{% endwith %}

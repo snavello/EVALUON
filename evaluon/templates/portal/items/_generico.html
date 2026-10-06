@@ -1,0 +1,4 @@
+{% comment %}Parcial de respaldo para un tipo de ítem que todavía no tiene el suyo.{% endcomment %}
+<h3>{{ item.get_kind_display }}: {{ item.key }}</h3>
+<pre>{{ item.payload }}</pre>
+{% if item.damaged_fields %}<p><mark class="damaged">Hay texto dañado en el Portal; se muestra tal cual.</mark></p>{% endif %}

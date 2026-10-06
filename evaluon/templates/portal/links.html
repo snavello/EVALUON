@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Importar desde el Portal · EVALUON{% endblock %}
+
+{% block content %}
+<h1>Importar desde el Portal</h1>
+<p>Pegue el enlace público de un proceso del Portal de Compras. El sistema lo lee y le propone qué cargar; nada se carga hasta que una persona lo aprueba.</p>
+
+<section class="portal-form" aria-labelledby="form-title">
+  <h2 id="form-title">Registrar un enlace</h2>
+  <form method="post" action="{% url 'portal:links' %}">
+    {% csrf_token %}
+    {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+    <p>
+      <label for="id_url">Enlace del proceso</label>
+      <input type="url" name="url" id="id_url" maxlength="2000" size="80" value="{{ url }}">
+    </p>
+    <button type="submit">Explorar</button>
+  </form>
+</section>
+
+<section class="portal-links" aria-labelledby="links-title">
+  <h2 id="links-title">Procesos registrados</h2>
+  {% if rows %}
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Proceso</th>
+        <th scope="col">Última exploración</th>
+        <th scope="col">Por decidir</th>
+        <th scope="col">Seguimiento</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td><a href="{% url 'portal:proposal' row.link.pk %}">{{ row.link.process_number|default:"Proceso sin leer" }}</a></td>
+        <td>{% if not row.last_job %}Sin pedido{% elif row.last_job.status == "failed" %}Falló: {{ row.last_job.error }}{% elif row.last_job.status == "done" %}Terminada{% elif row.last_job.status == "running" %}En curso{% else %}En espera{% endif %}</td>
+        <td>{{ row.pending }}</td>
+        <td>{% if row.link.following %}
+          <form method="post" action="{% url 'portal:stop_following' row.link.pk %}">{% csrf_token %}<button type="submit">Dejar de seguir</button></form>
+          {% else %}Sin seguimiento{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>Todavía no hay procesos registrados.</p>
+  {% endif %}
+</section>
+{% endblock %}
