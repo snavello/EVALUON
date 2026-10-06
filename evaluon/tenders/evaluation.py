@@ -65,6 +65,9 @@ Decisiones fuera del plan (informadas en la entrega de T-077):
 
 import hashlib
 import json
+import os
+import shlex
+import subprocess
 import time
 from collections import Counter
 from dataclasses import dataclass, field
@@ -778,6 +781,7 @@ def measure_version(run, expected, verification):
     causes, wrong_class = Counter(), 0
     review, unified, suggestion_review, suppressed_ids = [], [], [], []
     matched_pk = {}
+    elsewhere = {}
 
     for e_index, entry in enumerate(located):
         item = entry.item
@@ -821,6 +825,15 @@ def measure_version(run, expected, verification):
             suggestion_review.append(entry)
             line.update(estado=MANDATORY_REVIEW, causa=SUGGESTION_CAUSE,
                         detalle=f"motivo de la duda: {suggested.doubt_reason}")
+        elif hosts := ([host] if (host := _covering_row(entry, fe_rows)) is not None
+                       else _union_rows(entry, fe_rows)):
+            # ADR-0034: el contenido del requisito está en otra fila de la matriz, o repartido
+            # entre varias del mismo tramo (una oración partida, un encabezado de lista):
+            # cuenta como encontrado y se informa aparte con las filas que lo contienen.
+            elsewhere[item.id] = [h.number for h in hosts]
+            matched_pk[item.id] = hosts[0].requirement_id
+            line.update(estado="encontrado", detalle="en otra fila",
+                        propuesto=hosts[0].number, filas=[h.number for h in hosts])
         else:
             cause, detail = _cause(entry, fe_rows, dispositions, pending, discarded,
                                    suppressed)
@@ -922,20 +935,23 @@ def measure_version(run, expected, verification):
 
     measured_total = len(measured)
     reviewed = len(review) + len(suggestion_review)
-    found = ratio(found_count + len(unified) + reviewed, measured_total)
+    found = ratio(found_count + len(unified) + len(elsewhere) + reviewed, measured_total)
     leftover_ratio = ratio(leftovers, firm_total)
     suggestions_report = _suggestions_report(
         suggestions, [located[i] for i in candidates], len(suggestion_pairs),
         len(suggestion_review), leftovers, firm_total, found, measured_total)
     lines += suggestions_report.pop("lines")
-    circulars = measure_circulars(version, expected, verification, matched_pk)
+    circulars = measure_circulars(version, expected, verification, matched_pk,
+                                  marked_rows(run))
     if circulars:
         lines += circulars.pop("lines")
     return {
         "circulars": circulars,
         "lines": lines,
         "found": found,
-        "found_without_review": ratio(found_count + len(unified), measured_total),
+        "found_without_review": ratio(found_count + len(unified) + len(elsewhere),
+                                      measured_total),
+        "elsewhere": {"count": len(elsewhere), "ids": list(elsewhere), "rows": dict(elsewhere)},
         "review": {"count": len(review), "ids": [r["id"] for r in review],
                    "keys": sorted({r["tramo"] for r in review})},
         "suggestion_review": {"count": len(suggestion_review),
@@ -1046,7 +1062,25 @@ def _added_points(item, block, rows, claimed):
     return best, best_points or (False, False, False, False)
 
 
-def measure_circulars(version, expected, verification, matched_pk):
+def marked_rows(run):
+    """Los números de fila que la propuesta dejó "a revisión obligatoria" por una circular (la
+    misma regla que usa la pantalla: anomalía `review_required` con circular)."""
+    return {number for anomaly in (run.anomalies or []) if anomaly.get("review_required")
+            and anomaly.get("circular") for number in anomaly.get("requirements", [])}
+
+
+def _shows_change(row, block):
+    """Si la fila muestra un cambio de la circular esperada con su cita: una fuente cuyo
+    documento es el del bloque, o, en `agrega`, la fila de origen `circular` con cita en él."""
+    if row is None:
+        return False
+    if block.adds:
+        return True
+    return any(source.segment.reading.document.file_name == block.document
+               for source in row.sources.all())
+
+
+def measure_circulars(version, expected, verification, matched_pk, marked=frozenset()):
     """REQ-031 por fila (plan 003, "Cambios en `medir_matriz` (T-117)"): cada bloque
     `circulares` de la lista se mide en cuatro puntos, por separado: (1) una fuente con el
     efecto esperado; (2) el original mostrado contiene el ancla original; (3) el vigente
@@ -1054,7 +1088,11 @@ def measure_circulars(version, expected, verification, matched_pk):
     cumple si una misma fuente cumple los cuatro. Para `agrega` vale la fila de origen
     `circular` con cita en el documento esperado. Ruido: fuentes en filas sin esperado de
     circular, por documento y por fila, y filas de origen `circular` sin esperado.
-    `matched_pk` es `{id esperado: requisito}`. Sin bloques, devuelve `None`."""
+    `matched_pk` es `{id esperado: requisito}`. Sin bloques, devuelve `None`.
+
+    Lo que bloquea (ADR-0034, P3) es otra medida: la fila cumple si muestra el cambio de la
+    circular esperada con su cita o está en `marked` ("a revisión obligatoria"). Los cuatro
+    puntos se informan aparte y no bloquean."""
     entries = [(i, b) for i in expected.items for b in i.blocks]
     if not entries:
         return None
@@ -1070,6 +1108,7 @@ def measure_circulars(version, expected, verification, matched_pk):
     claimed, lines, unmeasured = set(), [], []
     points, met, failing = Counter(), 0, []
     by_document, measured = {}, 0
+    p3_ok, p3_failing, p3_marked = 0, [], []
     for item, block in entries:
         line = {"tipo": "circular", "id": item.id, "documento": block.document,
                 "fecha": block.date, "efecto": block.effect}
@@ -1095,7 +1134,16 @@ def measure_circulars(version, expected, verification, matched_pk):
         if not ok:
             failing.append({"id": item.id, "documento": block.document,
                             "puntos": [i for i, flag in enumerate(flags, start=1) if not flag]})
-        lines.append({**line, "estado": "cumple" if ok else "no_cumple",
+        if _shows_change(row, block):
+            notice = "cambio"
+        elif row is not None and row.number in marked:
+            notice = "marca"
+            p3_marked.append(item.id)
+        else:
+            notice = "falta"
+            p3_failing.append(item.id)
+        p3_ok += notice != "falta"
+        lines.append({**line, "estado": "cumple" if ok else "no_cumple", "p3": notice,
                       "fila": row.number if row else None,
                       **{name: bool(flag) for name, flag in zip(POINTS, flags)}})
     noise_by_document, noise_by_row = Counter(), Counter()
@@ -1109,6 +1157,7 @@ def measure_circulars(version, expected, verification, matched_pk):
     return {
         "expected": measured, "unmeasured": unmeasured,
         "met": ratio(met, measured),
+        "p3": ratio(p3_ok, measured), "p3_failing": p3_failing, "p3_marked": p3_marked,
         "points": {name: ratio(points[name], measured) for name in POINTS},
         "by_document": by_document, "failing": failing,
         "noise": {"sources": sum(noise_by_row.values()), "rows": len(noise_by_row),
@@ -1135,7 +1184,8 @@ def _measure_circulars_only(run, expected, verification, fe_rows, tech_rows):
         row = tech_rows.get(item.renglon) if item.technical else None
         if row is not None:
             matched[item.id] = row.requirement_id
-    circulars = measure_circulars(run.version, expected, verification, matched)
+    circulars = measure_circulars(run.version, expected, verification, matched,
+                                  marked_rows(run))
     lines = circulars.pop("lines") if circulars else []
     return {"scope": SCOPE_CIRCULARS, "circulars": circulars, "lines": lines}
 
@@ -1160,6 +1210,39 @@ def _repeated_in(entry, fe_rows, paired_rows):
         if any(span[3] for span in row.spans) and _covers(entry, row.spans):
             return row
     return None
+
+
+def _union_rows(entry, rows):
+    """Las filas con una cita en el tramo del ancla que, juntas, cubren al menos la mitad del
+    ancla (una oración partida en varias filas), o `[]` (ADR-0034)."""
+    pieces = []
+    for row in rows:
+        for quote in row.quotes:
+            if quote.segment_id != entry.segment.pk:
+                continue
+            start, end = max(quote.char_start, entry.span[0]), min(quote.char_end, entry.span[1])
+            if start < end:
+                pieces.append((start, end, row))
+    pieces.sort(key=lambda p: (p[0], p[1]))
+    covered, edge = 0, entry.span[0]
+    for start, end, _ in pieces:
+        start = max(start, edge)
+        if end > start:
+            covered += end - start
+            edge = end
+    if covered < REQUIRED_OVERLAP * (entry.span[1] - entry.span[0]):
+        return []
+    found = []
+    for _, _, row in pieces:
+        if row not in found:
+            found.append(row)
+    return sorted(found, key=lambda r: r.number)
+
+
+def _covering_row(entry, rows):
+    """La primera fila propuesta que cubre el ancla de `entry` (aunque esté emparejada con otro
+    esperado), o `None`."""
+    return next((row for row in rows if _covers(entry, row.spans)), None)
 
 
 def _suggestions(version):
@@ -1377,18 +1460,17 @@ class Report:
                 continue
             measures = result["measures"]
             circulars = measures.get("circulars")
-            if circulars and circulars["met"]["ok"] < circulars["met"]["total"]:
-                reasons.append(f"{result['process']}: REQ-031: "
-                               f"{circulars['met']['total'] - circulars['met']['ok']} filas de "
-                               "circular no cumplen los cuatro puntos")
+            if circulars and circulars["p3"]["ok"] < circulars["p3"]["total"]:
+                reasons.append(f"{result['process']}: REQ-031 (P3): "
+                               f"{circulars['p3']['total'] - circulars['p3']['ok']} filas de "
+                               "circular sin el cambio con su cita ni la marca "
+                               "\"a revisión obligatoria\"")
             if measures.get("scope") == SCOPE_CIRCULARS:
                 continue
             for name in ("found", "literal"):
                 if measures[name]["ok"] < measures[name]["total"]:
                     reasons.append(f"{result['process']}: {name} no llega al 100 %")
-            if not measures["cap"]["leftovers_ok"]:
-                reasons.append(f"{result['process']}: los sobrantes pasan el tope de "
-                               f"{_percent(measures['cap']['limit'])} de las filas firmes")
+            # Los sobrantes son informativos hasta el piloto (ADR-0024): no bloquean.
             coverage = measures["coverage"]
             if coverage["with_disposition"] < coverage["segments"]:
                 reasons.append(f"{result['process']}: hay tramos sin disposición")
@@ -1408,6 +1490,25 @@ def _discard(version, user, run):
     )
 
 
+VIDEO_MEMORY_COMMAND = ("nvidia-smi --query-gpu=memory.used,memory.total "
+                        "--format=csv,noheader,nounits")
+
+
+def video_memory():
+    """La memoria de video usada y total, en MiB (P6). El comando se toma de la variable de
+    entorno `MEASURE_VIDEO_MEMORY_COMMAND` (por defecto `nvidia-smi`) y debe escribir
+    "usada, total". Si no se puede leer, devuelve que no estaba disponible y por qué: la
+    medición no falla por eso."""
+    command = os.environ.get("MEASURE_VIDEO_MEMORY_COMMAND") or VIDEO_MEMORY_COMMAND
+    try:
+        output = subprocess.run(shlex.split(command), capture_output=True, text=True,
+                                timeout=10, check=True).stdout
+        used, total = [int(part) for part in output.strip().splitlines()[0].split(",")[:2]]
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError) as error:
+        return {"available": False, "reason": type(error).__name__}
+    return {"available": True, "used_mib": used, "total_mib": total}
+
+
 def measure_process(user, procedure, expected, clock=time.monotonic):
     """Corre la propuesta del proceso único con el canal `eval`, la mide y descarta la
     versión."""
@@ -1420,17 +1521,21 @@ def measure_process(user, procedure, expected, clock=time.monotonic):
     for entry in snapshot:
         reading = m.Reading.objects.select_related("document").get(pk=entry["reading"])
         readings[reading.document.file_name] = reading
+    video = {"before": video_memory()}
     started = clock()
     try:
         version = proposal.propose(run, user=user, channel=Channel.COMMAND)
     except Exception as error:
+        video["after"] = video_memory()
         return {"process": settings.MATRIX_PROCESS, "run": run.pk,
                 "error": f"{type(error).__name__}: {error}",
-                "error_class": type(error).__name__,
+                "error_class": type(error).__name__, "video_memory": video,
                 "seconds": round(clock() - started, 1)}
+    video["after"] = video_memory()
     run.refresh_from_db()
     try:
         result = _result_of_run(run, version, procedure, expected, readings)
+        result["video_memory"] = video
     finally:
         _discard(version, user, run)
     return result
@@ -1491,7 +1596,9 @@ def regenerate_summaries(procedure, expected, folder):
         for document in run.documents:
             reading = m.Reading.objects.select_related("document").get(pk=document["reading"])
             readings[reading.document.file_name] = reading
-        results.append(_result_of_run(run, version, procedure, expected, readings))
+        result = _result_of_run(run, version, procedure, expected, readings)
+        result["video_memory"] = entry.get("video_memory")
+        results.append(result)
     report = Report(folder, expected, verification, results)
     (folder / "resumen.md").write_text(_summary(report, public=False), encoding="utf-8")
     (folder / "resumen-publico.md").write_text(_summary(report, public=True),
@@ -1550,7 +1657,8 @@ def _write(report, procedure, started_at, commit):
         "comprobacion": dict(report.verification.counts),
         "propuestas": [
             {k: r.get(k) for k in ("process", "run", "version", "parameters",
-                                    "prompt_versions", "models", "corpus_version", "error")}
+                                    "prompt_versions", "models", "corpus_version", "error",
+                                    "video_memory")}
             for r in report.results
         ],
     }
@@ -1634,6 +1742,7 @@ def _summary(report, *, public):
             f"Uso de la lista: {expected.use or 'sin indicar'}.", ""]
     for result in report.results:
         out.append(f"## Proceso {result['process']}")
+        out += _video_lines(result.get("video_memory"))
         if result.get("error"):
             shown = result["error_class"] if public else result["error"]
             out += ["", f"La propuesta falló: {shown}", ""]
@@ -1668,6 +1777,7 @@ def _summary(report, *, public):
             f"{proportion_text(measures['technical_tramos'])} (se informa; no bloquea)",
             *_review_summary(measures),
             *_suggestion_review_summary(measures),
+            *_elsewhere_lines(measures),
             f"- Unificados (encontrados por una cita repetida): "
             f"{measures['unified']['count']}"
             + (f" ({', '.join(measures['unified']['ids'])})" if measures["unified"]["ids"]
@@ -1715,7 +1825,13 @@ def _circular_lines(info, expected):
         f"- REQ-031, filas de circular esperadas: {info['expected']}"
         + (f"; sin medir porque la circular no está cargada: {', '.join(info['unmeasured'])}"
            if info["unmeasured"] else ""),
-        f"- REQ-031, cumplen los cuatro puntos: {proportion_text(info['met'])}",
+        f"- REQ-031, filas con el cambio y su cita o con la marca \"a revisión obligatoria\" "
+        f"(P3, bloquea): {proportion_text(info['p3'])}"
+        + (f"; solo con la marca: {', '.join(info['p3_marked'])}" if info["p3_marked"] else "")
+        + (f"; sin cambio ni marca: {', '.join(info['p3_failing'])}"
+           if info["p3_failing"] else ""),
+        f"- REQ-031, cumplen los cuatro puntos (se informa; no bloquea, ADR-0034): "
+        f"{proportion_text(info['met'])}",
         *[f"- REQ-031, punto {number} ({POINT_NAMES[name]}): "
           f"{proportion_text(info['points'][name])}"
           for number, name in enumerate(POINTS, start=1)],
@@ -1740,6 +1856,28 @@ def _circular_lines(info, expected):
                  + (" (filas " + ", ".join(f"#{n}" for n in noise["unexpected_requirements"])
                     + ")" if noise["unexpected_requirements"] else ""))
     return lines
+
+
+def _video_lines(video):
+    if not video:
+        return []
+
+    def one(moment):
+        if not moment or not moment.get("available"):
+            return f"no disponible ({(moment or {}).get('reason', 'sin dato')})"
+        return f"{moment['used_mib']} de {moment['total_mib']} MiB"
+
+    return ["", f"- Memoria de video (P6): antes de la propuesta {one(video.get('before'))}; "
+            f"después {one(video.get('after'))}"]
+
+
+def _elsewhere_lines(measures):
+    info = measures["elsewhere"]
+    return [f"- Encontrados en otra fila (ADR-0034, ya sumados a los encontrados): "
+            f"{info['count']}"
+            + (" (" + ", ".join(f"{i} en las filas " + ", ".join(f"#{n}" for n in numbers)
+                                for i, numbers in info["rows"].items()) + ")"
+               if info["count"] else "")]
 
 
 def _review_summary(measures):
@@ -1790,7 +1928,8 @@ def _cap_lines(measures):
     return [f"- Tope de sobrantes (hasta {_percent(cap['limit'])} de las filas firmes y "
             f"100 % de encontrados): {'cumple' if cap['met'] else 'no cumple'} "
             f"(sobrantes dentro del tope: {_yes(cap['leftovers_ok'])}; encontrados al "
-            f"100 %: {_yes(cap['found_ok'])}); el intervalo se informa y no decide"]
+            f"100 %: {_yes(cap['found_ok'])}); el intervalo se informa y no decide; "
+            "informativo, no bloquea hasta el piloto (ADR-0024)"]
 
 
 def _discarded_lines(info, leftovers):
