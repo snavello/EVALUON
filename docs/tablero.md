@@ -57,7 +57,7 @@ flowchart LR
 | 009 · Validación continua con la Comisión | Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus respuestas. Cada cuestión resuelta puede quedar como fundamento (ADR-0009), como caso para medir al sistema o como pedido de cargar una norma o un documento. Lo que queda sin validar se ve como pendiente. Uso intensivo al principio, y después ante cuestiones que no se saben resolver | No iniciada | — | — |
 | 010 · Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | No iniciada | — | — |
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
-| [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 4 de 7 · Desarrollo | 6/8 | ████████░░ 75% |
+| [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 4 de 7 · Desarrollo | 7/8 | █████████░ 88% |
 
 <a id="001"></a>
 
@@ -816,8 +816,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 2 tareas sin terminar.
-- ○ T-144 · Revisión periódica: una vez por día hábil y a demanda, con novedades y sin repetir lo decidido (pendiente)
+- **Próximo paso:** Desarrollar: 1 tarea sin terminar.
 - ○ T-145 · Medir con el caso-00 y el proceso con circulares, corregir una ronda y dejar la medición (pendiente)
 
 ### Qué se hizo
@@ -829,6 +828,7 @@ flowchart LR
 - ✓ T-141 · Corte vertical: registrar el enlace, explorar, proponer, aprobar ítem por ítem y cargar el procedimiento y los renglones, con pantalla (`1f1bfb5` 2026-10-05, `afe81f4` 2026-10-05, `0af9c1c` 2026-10-05)
 - ✓ T-142 · Importar los documentos: bajar el pliego, circulares y demás con su huella y cargarlos por `load_document` (`1ba8be3` 2026-10-05)
 - ✓ T-143 · Importar las ofertas: acta de apertura y cuadro comparativo, ofertas con garantía y cotización por renglón (`5f6c49b` 2026-10-05)
+- ✓ T-144 · Revisión periódica: una vez por día hábil y a demanda, con novedades y sin repetir lo decidido (`39c5dfd` 2026-10-06)
 
 ### Mapa de tareas
 
@@ -840,7 +840,7 @@ flowchart TD
   T141["✓ T-141 · Corte vertical: registrar el enlace, explor…"]:::done
   T142["✓ T-142 · Importar los documentos: bajar el pliego, c…"]:::done
   T143["✓ T-143 · Importar las ofertas: acta de apertura y cu…"]:::done
-  T144["○ T-144 · Revisión periódica: una vez por día hábil y…"]:::todo
+  T144["✓ T-144 · Revisión periódica: una vez por día hábil y…"]:::done
   T145["○ T-145 · Medir con el caso-00 y el proceso con circu…"]:::todo
   T138 --> T140
   T139 --> T140

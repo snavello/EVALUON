@@ -26,19 +26,21 @@
     <thead>
       <tr>
         <th scope="col">Proceso</th>
-        <th scope="col">Última exploración</th>
-        <th scope="col">Por decidir</th>
-        <th scope="col">Seguimiento</th>
+        <th scope="col">Último pedido</th>
+        <th scope="col">Novedades por decidir</th>
+        <th scope="col">Seguimiento y revisión</th>
       </tr>
     </thead>
     <tbody>
       {% for row in rows %}
       <tr>
         <td><a href="{% url 'portal:proposal' row.link.pk %}">{{ row.link.process_number|default:"Proceso sin leer" }}</a></td>
-        <td>{% if not row.last_job %}Sin pedido{% elif row.last_job.status == "failed" %}Falló: {{ row.last_job.error }}{% elif row.last_job.status == "done" %}Terminada{% elif row.last_job.status == "running" %}En curso{% else %}En espera{% endif %}</td>
+        <td>{% if not row.last_job %}Sin pedido{% elif row.last_job.status == "failed" %}<strong class="job-failed" role="alert">{% if row.last_job.kind == "portal_review" %}La revisión falló{% else %}La exploración falló{% endif %}: {{ row.last_job.error }}</strong> Lo ya propuesto sigue disponible.{% elif row.last_job.status == "done" %}Terminada{% elif row.last_job.status == "running" %}En curso{% else %}En espera{% endif %}</td>
         <td>{{ row.pending }}</td>
         <td>{% if row.link.following %}
+          <form method="post" action="{% url 'portal:review_now' row.link.pk %}">{% csrf_token %}<button type="submit">Revisar ahora</button></form>
           <form method="post" action="{% url 'portal:stop_following' row.link.pk %}">{% csrf_token %}<button type="submit">Dejar de seguir</button></form>
+          {% if row.link.last_review_on %}<small>Última revisión pedida: {{ row.link.last_review_on|date:"d/m/Y" }}</small>{% endif %}
           {% else %}Sin seguimiento{% endif %}</td>
       </tr>
       {% endfor %}

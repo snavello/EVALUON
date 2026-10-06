@@ -99,9 +99,15 @@ def parse_acta(data: bytes) -> Acta:
                 currency=texto.normalize(cells[3].get_text()), total=total,
                 damaged=name.damaged, order=len(by_cuit) + 1)
             acta.offers.append(offer)
-        elif total is not None and offer.total not in (None, total):
-            acta.issues.append(
-                f"el CUIT {cuit} figura con dos totales distintos en el acta; se toma el primero")
+        else:
+            if not _same_name(offer.bidder, name.value):
+                acta.issues.append(
+                    f"el CUIT {cuit} figura con nombres distintos en el acta: "
+                    f"«{offer.bidder}» y «{name.value}»; se toma el primero")
+            if total is not None and offer.total not in (None, total):
+                acta.issues.append(
+                    f"el CUIT {cuit} figura con dos totales distintos en el acta; "
+                    "se toma el primero")
         guarantee = {"tipo": texto.normalize(cells[6].get_text()),
                      "forma": texto.normalize(cells[7].get_text()),
                      "monto": parse_amount(cells[8].get_text())}
@@ -116,3 +122,7 @@ def parse_acta(data: bytes) -> Acta:
             acta.issues.append(
                 f"el acta no trae la fecha de confirmación del CUIT {offer.cuit}")
     return acta
+
+
+def _same_name(a, b):
+    return " ".join(a.split()).casefold() == " ".join(b.split()).casefold()

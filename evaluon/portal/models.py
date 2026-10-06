@@ -305,11 +305,6 @@ class PortalOfferData(models.Model):
     total = models.DecimalField(
         "total", max_digits=20, decimal_places=2, null=True, blank=True
     )
-    guarantee_type = models.CharField("tipo de garantía", max_length=100, blank=True)
-    guarantee_form = models.CharField("forma de garantía", max_length=100, blank=True)
-    guarantee_amount = models.DecimalField(
-        "monto de la garantía", max_digits=20, decimal_places=2, null=True, blank=True
-    )
     item = models.ForeignKey(
         PortalItem, verbose_name="ítem de origen", on_delete=models.PROTECT,
         related_name="offer_data",
@@ -319,6 +314,30 @@ class PortalOfferData(models.Model):
         db_table = "portal_offer_data"
         verbose_name = "datos de la oferta del Portal"
         verbose_name_plural = "datos de la oferta del Portal"
+
+
+class PortalGuarantee(models.Model):
+    """Una garantía de una oferta (acta de apertura). Una oferta puede tener varias."""
+
+    offer_data = models.ForeignKey(
+        PortalOfferData, verbose_name="datos de la oferta", on_delete=models.CASCADE,
+        related_name="guarantees",
+    )
+    guarantee_type = models.CharField("tipo de garantía", max_length=100, blank=True)
+    guarantee_form = models.CharField("forma de garantía", max_length=100, blank=True)
+    amount = models.DecimalField(
+        "monto de la garantía", max_digits=20, decimal_places=2, null=True, blank=True
+    )
+    item = models.ForeignKey(
+        PortalItem, verbose_name="ítem de origen", on_delete=models.PROTECT,
+        related_name="guarantees",
+    )
+
+    class Meta:
+        db_table = "portal_guarantee"
+        verbose_name = "garantía de la oferta del Portal"
+        verbose_name_plural = "garantías de la oferta del Portal"
+        ordering = ["offer_data_id", "id"]
 
 
 class PortalQuote(models.Model):

@@ -14,7 +14,8 @@ Una exploración:
 3. pasa el resultado a cada importador de `importers/` (se descubren por nombre de archivo),
    que devuelven los ítems y las anomalías (lo que no se pudo leer no frena el resto);
 4. guarda la propuesta con sus ítems, dejando afuera los ya decididos con la misma huella
-   (no se repite lo aprobado ni lo rechazado).
+   (no se repite lo aprobado ni lo rechazado). Una revisión sin ítems nuevos y sin anomalías
+   nuevas (una ya informada en otra propuesta del enlace no cuenta) no crea propuesta (REQ-050).
 
 Nada se carga acá: eso lo hace `approval.decide` cuando una persona aprueba. Cada exploración
 deja el hecho `portal_explore` (o `portal_review`), también cuando falla (P6). No usa IA.
@@ -96,6 +97,14 @@ def _already_decided(link, draft, sha):
     return previous is not None and previous.state in _SETTLED and previous.content_sha256 == sha
 
 
+def _new_anomalies(link, anomalies):
+    """Las anomalías que ninguna propuesta anterior del enlace informó ya."""
+    known = []
+    for earlier in link.proposals.values_list("anomalies", flat=True):
+        known.extend(earlier or [])
+    return [a for a in anomalies if a not in known]
+
+
 def _run(job, origin, event_type, client):
     started = time.monotonic()
     link = PortalLink.objects.get(pk=job.target_id)
@@ -162,7 +171,8 @@ def _save(link, exploration, origin, job, page, drafts, anomalies, parsed):
     with transaction.atomic():
         link.process_number = parsed.data["numero"]
         link.save(update_fields=["process_number"])
-        if origin == Origin.REVISION and not fresh and not anomalies:
+        news = _new_anomalies(link, anomalies) if origin == Origin.REVISION else anomalies
+        if origin == Origin.REVISION and not fresh and not news:
             return None, counts, omitted
         proposal = PortalProposal.objects.create(
             link=link, exploration=exploration, origin=origin, job=job, anomalies=anomalies
