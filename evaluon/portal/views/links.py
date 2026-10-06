@@ -14,6 +14,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from evaluon.audit.models import Channel
 from evaluon.portal.models import PortalLink
 from evaluon.portal.services import links as services
+from evaluon.portal.services import schedule
 
 TEMPLATE = "portal/links.html"
 
@@ -39,6 +40,15 @@ def links(request):
 def stop_following(request, link_id):
     try:
         services.stop_following(request.user, link_id, channel=Channel.SCREEN)
+    except PortalLink.DoesNotExist:
+        raise Http404("No hay un enlace con ese número.")
+    return redirect(reverse("portal:links"))
+
+
+@require_POST
+def review_now(request, link_id):
+    try:
+        schedule.review_now(request.user, link_id, channel=Channel.SCREEN)
     except PortalLink.DoesNotExist:
         raise Http404("No hay un enlace con ese número.")
     return redirect(reverse("portal:links"))

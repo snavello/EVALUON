@@ -6,13 +6,18 @@
   garantías) va a `portal_procedure_data`.
 - `renglones`: los renglones con su cantidad; van a `portal_line`.
 
+Un ítem que cambió respecto de lo ya cargado (REQ-050) actualiza lo cargado en lugar de crearlo
+de nuevo y deja el antes y el después en el registro (P6). Un renglón cargado que el Portal ya
+no trae no se borra: la carga falla con el motivo.
+
 La fecha de autorización no figura en la página: se propone una candidata (la fecha de
 vinculación de «Autorización llamado») y la confirma quien aprueba (no se inventa, P3).
 """
 
 from datetime import date
 
-from evaluon.audit.models import Channel
+from evaluon.audit import services as audit
+from evaluon.audit.models import Channel, EventType, Outcome
 from evaluon.portal.importers import Draft, jsonable
 from evaluon.portal.models import (
     ItemKind,
@@ -97,7 +102,7 @@ def load(user, item, confirmation=None, channel=Channel.SCREEN):
     """Carga el ítem aprobado. Devuelve `(modelo, id)`; levanta una excepción con el motivo."""
     link = item.proposal.link
     if item.kind == ItemKind.RENGLONES:
-        return _load_lines(item, link)
+        return _load_lines(user, item, link, channel)
     return _load_procedure(user, item, link, confirmation or {}, channel)
 
 
@@ -115,23 +120,63 @@ def _load_procedure(user, item, link, confirmation, channel):
             subject=data["objeto"] or data["nombre"],
             authorization_date=authorization_date, channel=channel,
         ).procedure
-    PortalProcedureData.objects.create(
-        procedure=procedure, file_number=data.get("expediente") or "",
-        legal_framework=data.get("encuadre_legal") or "",
-        schedule=data.get("cronograma") or {}, guarantees=data.get("garantias") or [],
-        item=item,
-    )
+    values = {
+        "file_number": data.get("expediente") or "",
+        "legal_framework": data.get("encuadre_legal") or "",
+        "schedule": data.get("cronograma") or {}, "guarantees": data.get("garantias") or [],
+    }
+    existing = PortalProcedureData.objects.select_for_update().filter(procedure=procedure).first()
+    if existing is None:
+        PortalProcedureData.objects.create(procedure=procedure, item=item, **values)
+    else:
+        # Un cambio de lo ya cargado: se actualiza y queda el antes y el después (P6).
+        before = {key: getattr(existing, key) for key in values} | {"item": existing.item_id}
+        for key, value in values.items():
+            setattr(existing, key, value)
+        existing.item = item
+        existing.save()
+        _record_update(user, item, channel, procedure, before, values | {"item": item.pk})
     link.procedure = procedure
     link.save(update_fields=["procedure"])
     return LoadedModel.PROCEDURE, procedure.pk
 
 
-def _load_lines(item, link):
+def _record_update(user, item, channel, procedure, before, after):
+    audit.record(EventType.PORTAL_DECISION, outcome=Outcome.OK, channel=channel, user=user,
+                 detail={"action": "actualizar_cargado", "link": item.proposal.link_id,
+                         "item": item.pk, "kind": item.kind, "key": item.key,
+                         "procedure": procedure.pk, "before": jsonable(before),
+                         "after": jsonable(after)})
+
+
+def _load_lines(user, item, link, channel):
     procedure = link.procedure
-    for line in item.payload["renglones"]:
-        PortalLine.objects.create(
-            procedure=procedure, number=line["numero"],
-            description=line["descripcion"] or "", quantity=line["cantidad"],
-            unit=line["unidad"] or "", item=item,
-        )
+    new = {line["numero"]: line for line in item.payload["renglones"]}
+    current = {line.number: line for line in PortalLine.objects.filter(procedure=procedure)}
+    gone = sorted(set(current) - set(new))
+    if gone:
+        raise ValueError(
+            "El Portal ya no trae los renglones " + ", ".join(str(n) for n in gone)
+            + ", que están cargados: corríjalos a mano.")
+    before = {number: _line_values(line) for number, line in current.items()}
+    for number, line in new.items():
+        values = {"description": line["descripcion"] or "", "quantity": line["cantidad"],
+                  "unit": line["unidad"] or ""}
+        if number in current:
+            row = current[number]
+            for key, value in values.items():
+                setattr(row, key, value)
+            row.item = item
+            row.save()
+        else:
+            PortalLine.objects.create(procedure=procedure, number=number, item=item, **values)
+    if current:
+        after = {line.number: _line_values(line)
+                 for line in PortalLine.objects.filter(procedure=procedure)}
+        _record_update(user, item, channel, procedure, before, after)
     return LoadedModel.PROCEDURE, procedure.pk
+
+
+def _line_values(line):
+    return {"descripcion": line.description, "cantidad": line.quantity, "unidad": line.unit,
+            "item": line.item_id}

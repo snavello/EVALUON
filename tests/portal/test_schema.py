@@ -22,7 +22,7 @@ pytestmark = pytest.mark.django_db
 
 PORTAL_TABLES = {
     "portal_link", "portal_page", "portal_file", "portal_proposal", "portal_item",
-    "portal_procedure_data", "portal_line", "portal_offer_data", "portal_quote",
+    "portal_procedure_data", "portal_line", "portal_offer_data", "portal_quote", "portal_guarantee",
 }
 
 
@@ -180,9 +180,12 @@ def test_data_without_a_place_points_to_its_item(item, procedure, read_write_use
         procedure=procedure, number=1, bidder="Oferente Inventado SA", created_by=read_write_user)
     extra = p.PortalOfferData.objects.create(
         offer=offer, cuit="30-00000000-0", confirmed_on=date(2025, 12, 1), currency="ARS",
-        total=Decimal("1000.50"), guarantee_type="Oferta", guarantee_form="Póliza",
-        guarantee_amount=Decimal("10.00"), item=item)
-    assert extra.item == item
+        total=Decimal("1000.50"), item=item)
+    p.PortalGuarantee.objects.create(
+        offer_data=extra, guarantee_type="Oferta", guarantee_form="Póliza",
+        amount=Decimal("10.00"), item=item)
+    p.PortalGuarantee.objects.create(offer_data=extra, guarantee_type="Contrato", item=item)
+    assert extra.item == item and extra.guarantees.count() == 2
     p.PortalQuote.objects.create(
         offer=offer, line=line, price=Decimal("100.0000"), quantity=Decimal("10"))
     with pytest.raises(IntegrityError), transaction.atomic():
