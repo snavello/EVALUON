@@ -23,8 +23,9 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.assessment import ordering
 from evaluon.assessment.models import Doubt, Outcome, Question, Result
-from evaluon.assessment.services import evaluate, review, technical
+from evaluon.assessment.services import compliance, evaluate, review, technical
 from evaluon.audit.models import Channel
+from evaluon.offers.services import offers as offers_service
 from evaluon.offers.services import sheets
 from evaluon.tenders.models import Job, JobKind, JobStatus, MatrixVersion, Procedure
 from evaluon.tenders.services.validation import latest_validated
@@ -107,6 +108,11 @@ class OfferStatus:
     open_questions: list = field(default_factory=list)
     newer_version: MatrixVersion | None = None
     has_documents: bool = True
+    # Hoja de compliance de la oferta (T-189; REQ-073): sus hojas, cuántos requisitos siguen
+    # «falta la hoja de compliance» y si ya se puede pedir evaluarlos de nuevo.
+    sheets: list = field(default_factory=list)
+    externals_pending: int = 0
+    sheet_reading: bool = False
 
     @property
     def by_state_rows(self):
@@ -138,6 +144,11 @@ class MatrixPage:
     pending_job: Job | None
     can_request: bool
     can_decide_technical: bool = False
+
+    @property
+    def can_upload_sheet(self):
+        """Solo el evaluador sube la hoja de compliance (T-189; REQ-073)."""
+        return self.can_decide_technical
 
     @property
     def rows(self):
@@ -212,6 +223,11 @@ def _status(offer, requirements, cells, validated, version=None):
         if validated is not None and validated.number > status.run.matrix_version.number:
             status.newer_version = validated
     status.technical = technical.status_of(offer, version)
+    status.sheets = compliance.sheets_of(offer)
+    status.externals_pending = len(compliance.external_results(offer))
+    status.sheet_reading = any(
+        offers_service.document_row(d).state != offers_service.STATE_READ
+        for d in status.sheets)
     status.open_questions = list(
         Question.objects.filter(offer=offer, requirement__in=requirements,
                                 answers__isnull=True)

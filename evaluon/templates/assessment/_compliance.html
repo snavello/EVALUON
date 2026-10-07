@@ -1,0 +1,28 @@
+<div class="compliance-sheet">
+  <h4>Hoja de compliance de la oferta {{ status.offer.number }}</h4>
+  <p><small>Los chequeos que la Comisión valida en sistemas externos (Registro de Proveedores, REPSAL, deuda, Superintendencia de Seguros, habilidad para contratar) constan en una hoja por oferta. Se sube una vez, también una que diga que no cumple, y rige para todos los requisitos externos de la oferta.</small></p>
+  {% if compliance_error and compliance_offer == status.offer.pk %}<p class="notice notice-failed" role="alert">{{ compliance_error }}</p>{% endif %}
+  {% if status.sheets %}
+  <ul>
+    {% for sheet in status.sheets %}<li>Hoja «{{ sheet.title }}» (huella {{ sheet.file_sha256 }}), subida por {{ sheet.loaded_by.username }} el {{ sheet.loaded_at|date:"d/m/Y H:i" }}.</li>{% endfor %}
+  </ul>
+  {% if status.sheet_reading %}<p class="notice" role="status">La hoja se está leyendo. Al terminar, los requisitos externos de la oferta se evalúan de nuevo solos.</p>{% endif %}
+  {% else %}
+  <p class="notice" role="status">Falta la hoja de compliance de esta oferta.</p>
+  {% endif %}
+  {% if status.externals_pending %}<p>Requisitos «falta la hoja de compliance» por resolver: {{ status.externals_pending }}.</p>{% endif %}
+  {% if page.can_upload_sheet %}
+  <form method="post" action="{% url 'assessment:compliance_upload' status.offer.pk %}" enctype="multipart/form-data">{% csrf_token %}
+    <p><label>Hoja de compliance (puede ser una que diga que no cumple) <input type="file" name="file"></label></p>
+    <p><label>Nota (opcional) <input type="text" name="note" maxlength="500"></label></p>
+    <button type="submit">Subir hoja de compliance</button>
+  </form>
+  {% if status.sheets and status.externals_pending and not status.sheet_reading %}
+  <form method="post" action="{% url 'assessment:compliance_reevaluate' status.offer.pk %}">{% csrf_token %}
+    <button type="submit">Evaluar de nuevo los requisitos externos</button>
+  </form>
+  {% endif %}
+  {% else %}
+  <p><small>Solo el evaluador de la Comisión sube la hoja de compliance.</small></p>
+  {% endif %}
+</div>
