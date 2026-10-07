@@ -950,3 +950,40 @@ def test_the_v3_instructions_leave_the_adjudicatario_duties_out_of_the_offer(set
     for text in texts:
         assert "adjudicatari" in text and "durante la prestación" in text
     assert "se acredita al ofertar" in texts[0]
+
+
+def test_the_offer_guarantee_sentence_enters_as_a_suggestion_even_if_no_row_named_it(
+        operator_user, script, filt):
+    """REQ-035, REQ-036: si el modelo descartó el tramo entero y ninguna fila nombra la
+    garantía de la oferta, la oración que la nombra entra a la matriz como sugerencia con
+    la duda `duda`, con su cita literal y la anomalía registrada."""
+    run = run_with(operator_user, pliego(GUARANTEE))  # el guion descarta el tramo
+
+    rows = formal_rows(run)
+    assert [(r.state, r.category, r.doubt_reason) for r in rows] == [
+        ("sugerido", "economico", "duda")]
+    quote = rows[0].quotes.get()
+    assert quote.text == GUARANTEE
+    assert quote.segment.key == "sec-i/1.1"
+    assert rows[0].passes == ["filtro"]
+    disposition = m.Disposition.objects.get(run=run, segment=quote.segment)
+    assert disposition.outcome == "requisitos"
+
+
+def test_no_guarantee_sentence_is_added_when_the_pliego_does_not_name_it(
+        operator_user, script, filt):
+    """REQ-036: sin mención en el pliego no se agrega nada (la norma solo confirma)."""
+    run = run_with(operator_user, pliego("Los precios se expresarán en pesos."))
+
+    assert formal_rows(run) == []
+
+
+def test_no_guarantee_sentence_is_added_when_a_row_already_names_it(
+        operator_user, script, filt):
+    """REQ-035: si una fila ya nombra la garantía, no se suma otra por la misma mención."""
+    sentence = f"Los oferentes constituirán una {PHRASE} del 5 %."
+    script.when(sentence, item([(sentence, "economico")]))
+
+    run = run_with(operator_user, pliego(sentence))
+
+    assert [r.state for r in formal_rows(run)] == ["propuesto"]

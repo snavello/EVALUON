@@ -401,6 +401,18 @@ def sentence_range(text, span):
     return first, last
 
 
+def sentence_bounds(text, position):
+    """`(inicio, fin)` de la oración del tramo que contiene `position`, sin los espacios de
+    los bordes."""
+    ends = _sentence_ends(text)
+    start = max([end for end in ends if end <= position], default=0)
+    stop = min([end for end in ends if end > position], default=len(text))
+    chunk = text[start:stop]
+    start += len(chunk) - len(chunk.lstrip())
+    stop -= len(chunk) - len(chunk.rstrip())
+    return start, stop
+
+
 def protect_shared_sentences(verdicts):
     """Guarda en código (REQ-024): una fila que comparte oración con una fila firme del mismo
     tramo no puede descartarse, porque es parte de una condición que el filtro mantuvo (la

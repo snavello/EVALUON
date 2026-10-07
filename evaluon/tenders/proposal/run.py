@@ -122,6 +122,7 @@ from evaluon.tenders.proposal import (
     technical,
 )
 from evaluon.tenders.proposal import filter as row_filter
+from evaluon.tenders.proposal.extraction import Found
 from evaluon.tenders.segmenting import RULES_VERSION
 from evaluon.tenders.services.procedures import _snapshot, regime_for
 
@@ -598,6 +599,7 @@ def filter_decisions(row_pass, loaded, decisions, unification):
     outside = [_found_text(unit.segment, found) for unit, found in body
                if id(found) not in in_filter]
     result = row_pass.filter_rows(rows, outside)
+    add_offer_guarantee_mention(loaded, decisions, result, outside)
     gone = {id(v.row.found): v for v in result.of(row_filter.DESCARTADA)}
     for unit in loaded.units:
         decision = decisions[unit.segment.pk]
@@ -617,6 +619,47 @@ def filter_decisions(row_pass, loaded, decisions, unification):
             discard_reason=_DISPOSITION_REASON.get(reason, reason),
             source=DispositionSource.FILTRO.value, step=mine[0].step_a)
     return result
+
+
+def add_offer_guarantee_mention(loaded, decisions, result, outside):
+    """Guarda en código (T-178, REQ-035, REQ-036): si el pliego nombra la garantía de la oferta
+    y ninguna fila (firme, sugerencia o fuera del filtro) la nombra, la oración del primer
+    tramo que la nombra entra como sugerencia con la duda `duda`. Un pliego que solo la
+    menciona para decir qué pasa si falta la da por supuesta; el modelo puede no haber
+    propuesto esa oración. La Comisión decide, con la cita de la norma como respaldo. No se
+    toca un tramo técnico, una tabla ni un título."""
+    guarantee = row_filter.OFFER_GUARANTEE
+    if any(guarantee.search(text) for text in outside):
+        return
+    if any(v.destination != row_filter.DESCARTADA and guarantee.search(v.row.text)
+           for v in result.verdicts):
+        return
+    for unit in loaded.units:
+        segment = unit.segment
+        decision = decisions[segment.pk]
+        if (segment.section_class == RequirementClass.TECNICO
+                or segment.segment_type in (SegmentType.TITULO, SegmentType.TABLA)
+                or decision.outcome not in (DispositionOutcome.DESCARTADO.value,
+                                            DispositionOutcome.REQUISITOS.value,
+                                            DispositionOutcome.TECNICO.value)):
+            continue
+        match = guarantee.search(segment.text)
+        if match is None:
+            continue
+        start, end = row_filter.sentence_bounds(segment.text, match.start())
+        found = Found(RequirementClass.ECONOMICO.value, (start, end))
+        found.passes = [PassName.FILTRO.value]
+        if decision.outcome != DispositionOutcome.REQUISITOS.value:
+            decisions[segment.pk] = decision = Decision(
+                DispositionOutcome.REQUISITOS.value, source=DispositionSource.REGLA.value,
+                marks=list(decision.marks))
+        decision.found.append(found)
+        row = row_filter.Row(unit, found, max([v.row.order for v in result.verdicts],
+                                              default=0) + 1)
+        result.verdicts.append(row_filter.Verdict(
+            row, row_filter.SUGERENCIA, doubt_reason="duda",
+            anomaly=row_filter.ANOMALY_OFFER_GUARANTEE))
+        return
 
 
 def keep_tables_pending(loaded, decisions):
