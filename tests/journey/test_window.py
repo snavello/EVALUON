@@ -3,11 +3,13 @@ actual, los últimos pasos con su hora, lo hecho y lo que falta, y queda con el 
 terminar; viaja en el mismo bloque del sondeo. Pedido simulado, textos inventados (P4)."""
 
 import re
-from datetime import date
+from datetime import date, datetime, timedelta
+from datetime import timezone as dt_timezone
 from pathlib import Path
 
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 
 from evaluon.journey.window import window_for
 from evaluon.tenders.models import Job, JobStatus, Procedure
@@ -83,10 +85,33 @@ def test_finished_job_stays_with_summary(client, procedure, two_offers, simulate
 def test_failed_job_shows_reason(client, procedure, two_offers, simulate, operator_user):
     """REQ-070: la falla se resume con su motivo y se anuncia como alerta."""
     log_in(client, operator_user)
-    simulate(two_offers, JobStatus.FAILED, error="el motor devolvió un error")
+    simulate(two_offers, JobStatus.FAILED, error="AIServiceError: x")
     html = block(client, procedure)
     assert 'data-window-state="failed"' in html and 'role="alert"' in html
-    assert "el motor devolvió un error" in html and 'data-nombre="Falló"' in html
+    assert 'data-nombre="Falló"' in html
+
+
+def test_failure_reason_is_plain_language(client, procedure, two_offers, simulate,
+                                          operator_user):
+    """REQ-070: el motivo se dice en lenguaje llano, sin tipos de error ni direcciones
+    internas; el texto técnico queda en el registro del pedido."""
+    log_in(client, operator_user)
+    raw = "timeout: http://generation_batch:8080/v1 no respondió"
+    made = simulate(two_offers, JobStatus.FAILED, error=raw)
+    window = re.search(r'<section.*?id="process-window".*?</section>',
+                       block(client, procedure), re.S).group(0)
+    assert "el motor de IA no respondió a tiempo" in window
+    for technical in ("http", "generation_batch", "8080", "timeout", "Error"):
+        assert technical not in window
+    made.job.refresh_from_db()
+    assert made.job.error == raw
+    assert "no se pudo leer el documento" in window_for_error("UnreadableFile: a.pdf")
+    assert "Traceback" not in window_for_error("KeyError: 'x'")
+
+
+def window_for_error(error):
+    from evaluon.journey.window import plain_reason
+    return plain_reason(error)
 
 
 def test_active_job_wins_over_a_finished_one(procedure, two_offers, simulate):
@@ -94,6 +119,56 @@ def test_active_job_wins_over_a_finished_one(procedure, two_offers, simulate):
     simulate(two_offers, JobStatus.DONE, done=2)
     running = simulate(two_offers, JobStatus.RUNNING, done=0)
     assert window_for(procedure)["job_id"] == running.job.pk
+
+
+def test_active_job_wins_over_a_newer_finished_one(procedure, two_offers, simulate):
+    """REQ-070: el activo gana aunque haya uno terminado pedido después."""
+    running = simulate(two_offers, JobStatus.RUNNING, done=0)
+    done = simulate(two_offers, JobStatus.DONE, done=2)
+    Job.objects.filter(pk=done.job.pk).update(
+        requested_at=running.job.requested_at + timedelta(minutes=5))
+    assert window_for(procedure)["job_id"] == running.job.pk
+
+
+def test_steps_show_local_time_and_date_when_not_today():
+    """REQ-070: la hora es local (Buenos Aires, UTC-3) y lleva fecha si no es de hoy."""
+    from evaluon.journey.window import _steps
+    now = datetime(2026, 10, 7, 18, 0, tzinfo=dt_timezone.utc)
+    recent = [{"at": "2026-10-05T17:53:43+00:00", "text": "viejo"},
+              {"at": "2026-10-07T17:53:43+00:00", "text": "hoy"}]
+    steps = _steps(recent, now)
+    assert steps[0]["time"] == "14:53:43" and steps[1]["time"] == "5/10 14:53:43"
+
+
+def test_icon_is_focusable_and_name_shows_with_focus(client, procedure, two_offers, simulate,
+                                                     operator_user):
+    """REQ-070: el ícono recibe el foco y su nombre aparece con el foco, no solo con el mouse."""
+    log_in(client, operator_user)
+    simulate(two_offers, JobStatus.RUNNING, done=1)
+    html = block(client, procedure)
+    assert re.search(r'class="pw-icon[^"]*"\s+tabindex="0"', html)
+    css = (Path(__file__).resolve().parents[2] / "evaluon" / "static" / "journey"
+           / "recorrido.css").read_text(encoding="utf-8")
+    assert ".pw-icon:focus::after" in css and "attr(data-nombre)" in css
+
+
+def test_finished_job_is_complete_for_24_hours_then_one_line(procedure, two_offers, simulate,
+                                                             progress_steps):
+    """REQ-070: terminado o fallido se ve completo hasta 24 h; después, una línea con fecha y
+    sin pasos. En espera o en curso, siempre completo."""
+    made = simulate(two_offers, JobStatus.RUNNING, done=1)
+    progress_steps(made.job, STEPS, done=1, total=3, scope="Oferta 2 de 2")
+    finished = timezone.now()
+    Job.objects.filter(pk=made.job.pk).update(status=JobStatus.DONE, finished_at=finished)
+    soon = window_for(procedure, now=finished + timedelta(hours=23))
+    assert soon["state"] == "done" and soon["steps"]
+    late = window_for(procedure, now=finished + timedelta(hours=25))
+    local = timezone.localtime(finished)
+    assert late["state"] == "old" and "steps" not in late
+    assert late["last_line"] == (f"Último pedido: terminó el {local.day}/{local.month} "
+                                 f"a las {local:%H:%M}")
+    Job.objects.filter(pk=made.job.pk).update(status=JobStatus.RUNNING)
+    assert window_for(procedure, now=finished + timedelta(days=9))["state"] == "running"
 
 
 def test_window_is_in_the_page_and_in_the_polled_block(client, procedure, two_offers, simulate,

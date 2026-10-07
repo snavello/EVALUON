@@ -5,6 +5,8 @@ Arma, para un procedimiento, lo que muestra el panel: el pedido en curso (o, si 
 pasos con su hora. Solo lee: `progress_of` (T-184) ya trae los pasos en lenguaje llano y sin
 datos personales; aquí no se decide nada (P3)."""
 
+from datetime import timedelta
+
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
@@ -22,20 +24,55 @@ STATES = {
 }
 
 
+# Un pedido terminado o fallido se muestra completo este tiempo; después, una sola línea.
+FULL_FOR = timedelta(hours=24)
+
+# Inicio del motivo técnico guardado en el pedido -> motivo en lenguaje llano. El texto técnico
+# (tipo de error, direcciones internas) queda solo en el registro del pedido.
+REASONS = (
+    ("timeout", "el motor de IA no respondió a tiempo"),
+    ("service_unavailable", "el motor de IA no está disponible"),
+    ("input_too_long", "el texto a analizar es demasiado largo para el motor de IA"),
+    ("AIServiceError", "el motor de IA no está disponible"),
+    ("UnreadableFile", "no se pudo leer el documento"),
+    ("UnsupportedFormatError", "no se pudo leer el documento"),
+    ("InvalidOutput", "el motor de IA devolvió una respuesta que no se pudo usar"),
+    ("interrumpido", "el pedido se interrumpió"),
+)
+DEFAULT_REASON = "ocurrió un problema al procesar el pedido"
+
+
+def plain_reason(error):
+    """El motivo de una falla en lenguaje llano; nunca el texto técnico."""
+    if not error:
+        return "no se registró el motivo"
+    for prefix, text in REASONS:
+        if error.startswith(prefix):
+            return text
+    return DEFAULT_REASON
+
+
 def _job_of(procedure):
     """El pedido más reciente en espera o en curso; si no hay, el último, en el estado que sea."""
     jobs = Job.objects.filter(procedure=procedure).order_by("-requested_at", "-pk")
     return jobs.filter(status__in=ACTIVE).first() or jobs.first()
 
 
-def _steps(recent):
-    """Los últimos pasos, del más nuevo al más viejo, con la hora local (HH:MM:SS)."""
+def _steps(recent, now=None):
+    """Los últimos pasos, del más nuevo al más viejo, con la hora local (HH:MM:SS); si no son
+    de hoy, también la fecha (D/M)."""
+    today = timezone.localtime(now or timezone.now()).date()
     out = []
     for item in reversed(recent):
         moment = parse_datetime(str(item.get("at") or ""))
         if moment is not None and timezone.is_aware(moment):
             moment = timezone.localtime(moment)
-        out.append({"time": moment.strftime("%H:%M:%S") if moment else "",
+        text = ""
+        if moment:
+            text = moment.strftime("%H:%M:%S")
+            if moment.date() != today:
+                text = f"{moment.day}/{moment.month} {text}"
+        out.append({"time": text,
                     "text": item["text"], "scope": item.get("scope") or ""})
     return out
 
@@ -55,6 +92,12 @@ def window_for(procedure, now=None):
     if job is None:
         return None
     now = now or timezone.now()
+    if job.status in (JobStatus.DONE, JobStatus.FAILED):
+        ended = timezone.localtime(job.finished_at or job.requested_at)
+        if now - (job.finished_at or job.requested_at) > FULL_FOR:
+            return {"state": "old", "job_id": job.pk, "active": False,
+                    "last_line": (f"Último pedido: terminó el {ended.day}/{ended.month} "
+                                  f"a las {ended:%H:%M}")}
     data = progress_of(job, now=now)
     if job.status == JobStatus.QUEUED:
         state = "waiting"
@@ -86,13 +129,13 @@ def window_for(procedure, now=None):
         if main:
             summary += f" Se completaron {main['done']} de {main['total']}."
     elif state == "failed":
-        summary = f"Falló a los {elapsed}: {job.error or 'no se registró el motivo'}."
+        summary = f"Falló a los {elapsed}: {plain_reason(job.error)}."
     else:
         summary = ""
 
     return {
         "state": state, "state_label": STATES[state], "task": data["task"],
         "step": data["step"], "elapsed": elapsed, "main": main, "detail": detail,
-        "steps": _steps(data["recent"]), "summary": summary, "error": job.error,
+        "steps": _steps(data["recent"], now), "summary": summary,
         "job_id": job.pk, "active": state in ("waiting", "running"),
     }
