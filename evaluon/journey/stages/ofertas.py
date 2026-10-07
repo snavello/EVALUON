@@ -85,7 +85,8 @@ def compute(user, procedure):
     pending = sum(count for _, _, count in pending_sheets)
     suggestions = 0
     if all_read and latest_validated(procedure) is not None:
-        suggestions = sum(1 for o in with_documents if not o.sheets.exists())
+        suggestions = sum(1 for o in with_documents
+                          if not o.sheets.filter(channel=SheetChannel.SCREEN).exists())
     counts = {"pending": pending, "suggestions": suggestions}
 
     decide_url = None
