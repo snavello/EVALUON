@@ -612,7 +612,9 @@ def test_pages_and_static_files_have_no_external_references(
         assert not re.search(r"\sstyle\s*=", body)
         assert not re.search(r"\son[a-z]+\s*=", body), "manejador de evento en línea"
 
-    static_files = [p for p in STATIC_DIR.rglob("*") if p.is_file()]
+    # Solo lo que el navegador interpreta: las fuentes (woff2) son binarias y sus licencias (.txt) citan su origen sin cargarlo.
+    text_suffixes = {".css", ".js", ".html", ".svg", ".map", ".json"}
+    static_files = [p for p in STATIC_DIR.rglob("*") if p.is_file() and p.suffix.lower() in text_suffixes]
     assert static_files
     for path in static_files:
         assert not EXTERNAL_IN_STATIC.search(path.read_text(encoding="utf-8")), path
