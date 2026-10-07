@@ -41,8 +41,9 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-172 | Corregir los hallazgos de T-171: documento técnico afirmado por una línea de precio (H-3), ilegible del pagaré en todos los pares de la garantía (H-4), M-008 y M-016 externos (H-5), hechos técnicos de una oferta sin ficha (H-6) | REQ-061, REQ-063, REQ-064 | T-171 | terminada |
 | T-173 | Medir el caso-00 con los datos del Portal cargados (ronda 2, la última, ADR-0025) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-172, T-174 | terminada |
 | T-174 | Emparejar las ofertas del Portal con las cargadas a mano (CUIT o nombre normalizado, como propuesta del evaluador), necesario para cargar el Portal del caso-00 | REQ-062 | — | terminada |
-| T-175 | Completar REQ-062 y corregir el medidor tras T-173: cita del Portal de la cotización y de la garantía cuando la oferta no la trae; la medición cuenta la fila técnica pendiente con hechos correctos aunque falte el documento; externos de habilidad y de la póliza electrónica reconocidos por el título del tramo y la norma de la Superintendencia (ronda extra por requisito incompleto, ADR-0025) | REQ-052, REQ-062, REQ-063 | T-173 | pendiente |
-| T-176 | Medir el caso-00 después de T-175 (medición final) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-175 | pendiente |
+| T-175 | Completar REQ-062 y corregir el medidor tras T-173: cita del Portal de la cotización y de la garantía cuando la oferta no la trae; la medición cuenta la fila técnica pendiente con hechos correctos aunque falte el documento; externos de habilidad y de la póliza electrónica reconocidos por el título del tramo y la norma de la Superintendencia (ronda extra por requisito incompleto, ADR-0025) | REQ-052, REQ-062, REQ-063 | T-173 | terminada |
+| T-177 | Lectura con visión: enderezar la página, texto plano con marcador de fin, penalizar la repetición y franjas a mayor resolución (el pagaré del caso-00 es legible: lo verificó el responsable) | REQ-064, REQ-054 | T-175 | en curso |
+| T-176 | Medir el caso-00 después de T-175 y T-177 (medición final) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-175, T-177 | pendiente |
 
 ## Paralelismo
 
@@ -389,6 +390,12 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Requisitos:** REQ-052, REQ-061 a REQ-064
 - **Qué hay que hacer:** base nueva restaurada del respaldo previo a T-161, con el caso-00 importado del Portal (012) y aprobado; `--verificar-esperada` y `--verificar-decisiones`; una medición con el umbral de la spec (más de 39 de 49, 0 contradicciones, 100 % de citas literales de la oferta y del Portal). Lo que no llegue pasa a la revisión con el primer producto (ADR-0024 y ADR-0025).
 - **Aviso de tareas anteriores:** (T-172) Revisar a mano los no_se_pudo_leer propagados y los externos de garantía y declaraciones. M-008 se reconoce solo si el texto de la fila trae el título del tramo; un par de garantía que no nombra forma ni obligación solo recibe el ilegible si el modelo lo vincula.
+
+### T-176 · Medición final del caso-00
+
+- **Requisitos:** REQ-052, REQ-061 a REQ-064
+- **Aviso de tareas anteriores:** (T-175) Revisar M-040 y M-041 (no deben citar cotizaciones ni dar falta_coincidencia). La lista esperada espera cumple por lectura en los tres pares del pagaré de la oferta 1 (es legible). Medir después de T-177.
+- **Qué hay que hacer:** sobre `evaluon_t173` (Portal cargado), con una base nueva si la visión ya intentó las páginas; `--verificar-esperada` y `--verificar-decisiones`; una medición con el umbral de la spec.
 
 ## Revisión con el primer producto
 
