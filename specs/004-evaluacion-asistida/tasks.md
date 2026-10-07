@@ -38,7 +38,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-169 | El Portal como fuente: dato o documento en el Portal, falta de coincidencia y cita del Portal | REQ-062 | T-167 | terminada |
 | T-170 | Medición con la regla nueva: conteo por tipo de par, `--verificar-decisiones` y actualización de la lista esperada del caso-00 (Coordinador, fuera del repositorio) | REQ-052, REQ-053, REQ-061, REQ-062, REQ-063, REQ-064 | T-165 | pendiente |
 | T-171 | Medir el caso-00 con las decisiones aplicadas (medición final, una sola) | REQ-052, REQ-053, REQ-054, REQ-059, REQ-061, REQ-062, REQ-063, REQ-064 | T-166, T-167, T-168, T-169, T-170 | terminada |
-| T-172 | Corregir los hallazgos de T-171: documento técnico afirmado por una línea de precio (H-3), ilegible del pagaré en todos los pares de la garantía (H-4), M-008 y M-016 externos (H-5), hechos técnicos de una oferta sin ficha (H-6) | REQ-061, REQ-063, REQ-064 | T-171 | pendiente |
+| T-172 | Corregir los hallazgos de T-171: documento técnico afirmado por una línea de precio (H-3), ilegible del pagaré en todos los pares de la garantía (H-4), M-008 y M-016 externos (H-5), hechos técnicos de una oferta sin ficha (H-6) | REQ-061, REQ-063, REQ-064 | T-171 | terminada |
 | T-173 | Medir el caso-00 con los datos del Portal cargados (ronda 2, la última, ADR-0025) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-172 | pendiente |
 
 ## Paralelismo
@@ -385,6 +385,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 
 - **Requisitos:** REQ-052, REQ-061 a REQ-064
 - **Qué hay que hacer:** base nueva restaurada del respaldo previo a T-161, con el caso-00 importado del Portal (012) y aprobado; `--verificar-esperada` y `--verificar-decisiones`; una medición con el umbral de la spec (más de 39 de 49, 0 contradicciones, 100 % de citas literales de la oferta y del Portal). Lo que no llegue pasa a la revisión con el primer producto (ADR-0024 y ADR-0025).
+- **Aviso de tareas anteriores:** (T-172) Revisar a mano los no_se_pudo_leer propagados y los externos de garantía y declaraciones. M-008 se reconoce solo si el texto de la fila trae el título del tramo; un par de garantía que no nombra forma ni obligación solo recibe el ilegible si el modelo lo vincula.
 
 ## Revisión con el primer producto
 

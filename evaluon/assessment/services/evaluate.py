@@ -332,6 +332,7 @@ class Context:
         self.finder = citing.PageFinder()
         self.steps = []
         self.single_plan = None
+        self.unreadable_flags = []
         self.rewrites_reused = 0
 
     def add(self, step):
@@ -810,6 +811,7 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
         for pair in pairs:
             _contrast_pair(ctx, pair)
         # Lo que se decide sin el modelo, después de unir y contrastar y antes de guardar.
+        ctx.unreadable_flags = unreadable.collect(pairs)
         for pair in pairs:
             pair.rule = rules.apply(pair, ctx)
         anomalies = [a for pair in pairs for a in pair.anomalies]
