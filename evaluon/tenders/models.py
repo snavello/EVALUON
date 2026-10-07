@@ -378,6 +378,10 @@ class Job(models.Model):
     error = models.TextField("motivo de la falla", blank=True)
     # Cuándo vio el aviso de fin quien lo pidió.
     seen_at = models.DateTimeField("aviso visto", null=True, blank=True)
+    # Avance fino del pedido en curso (REQ-067, ADR-0045 3.B): paso actual, cuenta y una lista
+    # corta de los últimos pasos. Dato descartable que escribe `jobs.report`; no es registro
+    # de auditoría.
+    progress = models.JSONField("avance", default=dict, blank=True)
 
     class Meta:
         db_table = "tenders_job"
