@@ -66,19 +66,25 @@ CATALOG = (
            r"(?:(?:estar|encontrarse|hallarse|figurar)\s+inscript[oa]s?\b.{0,60}"
            r"registro de proveedores"
            rf"|registro de proveedores.{{0,80}}{_VERIFIED}"
-           rf"|{_VERIFIED}\w*.{{0,80}}registro de proveedores)"),
+           rf"|{_VERIFIED}\w*.{{0,80}}registro de proveedores"
+           r"|tramite de inscripcion.{0,60}registro de proveedores"
+           r"|estado de (?:la )?inscripcion.{0,60}registro de proveedores)"),
     _check("sancionados", "REPSAL o registro de sancionados",
            r"\brepsal\b|registro publico de empleadores con sanciones laborales"
            r"|registro de sancionados|\bsancionad[oa]s?\b"),
     _check("deuda", "situación de deuda del oferente",
-           r"deuda exigible|inexistencia de deuda|deuda (?:tributaria|previsional|fiscal)"
+           r"deuda exigible|existencia de deuda|deuda (?:tributaria|previsional|fiscal)"
            r"|situacion (?:fiscal|previsional)"),
     _check("seguros", "Superintendencia de Seguros de la Nación",
            r"superintendencia de seguros|\bssn\b"
            r"|validacion de (?:la |las )?polizas?|validez de (?:la |las )?polizas?"),
     _check("habilidad_contratar", "habilidad para contratar",
            rf"habilidad para contratar.{{0,120}}{_VERIFIED}"
-           rf"|{_VERIFIED}\w*.{{0,120}}habilidad para contratar"),
+           rf"|{_VERIFIED}\w*.{{0,120}}habilidad para contratar"
+           r"|habilidad para contratar.{0,120}(?:articulo 18|art\. ?18|causas? penal"
+           r"|causales? de inhabilidad|sanciones)"
+           r"|(?:articulo 18|art\. ?18|causas? penal|causales? de inhabilidad).{0,120}"
+           r"habilidad para contratar"),
 )
 
 

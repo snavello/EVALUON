@@ -32,7 +32,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-162 | Medir el caso-00 con el 26B-A4B y visión, comparar con T-161 y decidir según el umbral (ronda 1) | REQ-052, REQ-053, REQ-054, REQ-059 | T-161 | terminada |
 | T-163 | Solo si T-162 quedó entre 2 y 3 pares de adoptarlo: un cambio igual para los dos modelos y las dos corridas de nuevo (ronda 2, la última) | REQ-052, REQ-053, REQ-054, REQ-059 | T-162 | terminada |
 | T-165 | Esquema y resultados nuevos (enmienda de decisiones literales): motivos nuevos de "no determinado", opinión y hechos en el resultado, cita del Portal, tabla del ok del informe técnico, versión de reglas y marcador de pruebas | REQ-061, REQ-062, REQ-063, REQ-064 | — | terminada |
-| T-166 | Externos e ilegible como regla: "falta la hoja de compliance" (catálogo y marca del modelo) y "no se pudo leer" con documento y página del informe de lectura | REQ-063, REQ-064 | T-165 | pendiente |
+| T-166 | Externos e ilegible como regla: "falta la hoja de compliance" (catálogo y marca del modelo) y "no se pudo leer" con documento y página del informe de lectura | REQ-063, REQ-064 | T-165 | terminada |
 | T-167 | Filas técnicas por renglón: documento técnico y renglones con oferta como hechos, resultado "pendiente del informe técnico" y la opinión como información | REQ-061 | T-166 | terminada |
 | T-168 | Ok de la Comisión del informe técnico y presentación en la matriz de los resultados nuevos | REQ-061, REQ-063, REQ-064 | T-165 | terminada |
 | T-169 | El Portal como fuente: dato o documento en el Portal, falta de coincidencia y cita del Portal | REQ-062 | T-167 | terminada |
