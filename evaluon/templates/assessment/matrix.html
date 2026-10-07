@@ -79,6 +79,7 @@
     <p>Por estado: {% for label, count in status.by_state_rows %}{{ label }} {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}.</p>
     {% if status.evaluated %}<p>Por resultado: {% for label, count in status.by_outcome_rows %}{{ label }} {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}.</p>{% endif %}
     {% if status.by_reason_rows %}<p>No determinado, por motivo: {% for label, count in status.by_reason_rows %}{{ label }} {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}.</p>{% endif %}
+    {% include "assessment/_compliance.html" %}
     {% include "assessment/_technical_ok.html" %}
     <p>Preguntas abiertas a la Comisión: {{ status.open_questions|length }}.</p>
     {% if status.open_questions %}
