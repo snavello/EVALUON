@@ -79,7 +79,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-129 | Reconocer supresiones dichas con sustantivo y aplicar la aclaración de un renglón a sus citas | REQ-031 | T-127, T-128 | terminada |
 | T-137 | Pasada de circulares: revisión obligatoria visible ante un cambio sin resolver y las tres causas de la aceptación a ciegas | REQ-031 | T-108, T-129 | terminada |
 | T-147 | Circulares: aviso en la fila que cambia (#183) y medición del criterio de ADR-0034 | REQ-031, REQ-024 | T-137 | terminada |
-| T-178 | Pliegos nuevos: cláusulas de primer nivel sin punto, recuadros de una columna, obligaciones de ejecución, garantía de mantenimiento como sugerencia con respaldo normativo (prueba con el proceso AABN5) | REQ-021, REQ-035, REQ-036 | — | pendiente |
+| T-178 | Pliegos nuevos: cláusulas de primer nivel sin punto, recuadros de una columna, obligaciones de ejecución, garantía de mantenimiento como sugerencia con respaldo normativo (prueba con el proceso AABN5) | REQ-024, REQ-028, REQ-035, REQ-036 | — | pendiente |
 
 ## Para todas las tareas
 
