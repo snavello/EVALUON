@@ -107,13 +107,16 @@ def test_no_consta_for_a_condition_is_a_missing_data_with_a_question():
     assert fixed.doubt == "sin_dato" and fixed.question
 
 
-def test_an_external_requirement_is_undetermined_with_a_question_and_never_inferred():
-    """P9, REQ-055: lo que se verifica fuera de la oferta es "no determinado" (falta la hoja de
-    compliance), aunque otro grupo diga "cumple", y con una pregunta."""
+@pytest.mark.decision_literal
+def test_an_external_requirement_is_a_missing_compliance_sheet_without_a_question():
+    """REQ-063, P9: lo que se verifica fuera de la oferta es "no determinado" `externo` (falta
+    la hoja de compliance), aunque otro grupo diga "cumple" y aunque el modelo haya formulado
+    una pregunta: la acción es subir la hoja, no contestar."""
     combined = run(group(0, "cumple", cites=[cite()]),
-                   group(1, "no_determinado", doubt="duda", external=True))
+                   group(1, "no_determinado", doubt="duda", external=True,
+                         question="¿Se cuenta con la consulta?"))
     assert combined.outcome == "no_determinado" and combined.doubt == "externo"
-    assert "hoja de compliance" in combined.question
+    assert combined.question == ""
     assert not combined.needs_contrast
 
 
@@ -149,11 +152,18 @@ def test_the_contrast_that_does_not_say_yes_downgrades_and_keeps_the_citations()
     assert combine.apply_contrast(undetermined, "no") is undetermined
 
 
-@pytest.mark.parametrize("doubt", ["externo", "sin_dato", "lectura_incompleta"])
+@pytest.mark.parametrize("doubt", ["sin_dato", "lectura_incompleta"])
 def test_these_doubts_always_carry_a_question(doubt):
-    """REQ-055: externo, sin dato y lectura incompleta siempre llevan una pregunta."""
+    """REQ-055: sin dato y lectura incompleta siempre llevan una pregunta."""
     assert combine.fixed_question(doubt, UNREAD, "algo")
     assert not combine.fixed_question("duda")
+
+
+@pytest.mark.decision_literal
+def test_external_has_no_fixed_question():
+    """REQ-063: «falta la hoja de compliance» no pregunta nada a la Comisión."""
+    assert not combine.fixed_question("externo", UNREAD, "algo")
+    assert "externo" not in combine.ALWAYS_ASK
 
 
 def test_a_doubt_with_unread_pages_is_an_incomplete_reading_with_a_question():
@@ -189,7 +199,7 @@ def test_external_wins_over_a_doubt_and_over_a_missing_document():
     dude o diga "no consta" un documento que se leyó completo (no es "no se encontró")."""
     over_doubt = run(group(0, "no_determinado", doubt="duda"),
                      group(1, "no_determinado", doubt="duda", external=True))
-    assert over_doubt.doubt == "externo" and over_doubt.question
+    assert over_doubt.doubt == "externo" and not over_doubt.question
     over_missing = run(group(0, "no_consta", exigence="documento"),
                        group(1, "no_determinado", doubt="duda", exigence="documento",
                              external=True))

@@ -443,7 +443,7 @@ ASSESSMENT_ANSWERS_MAX = 20
 ASSESSMENT_RULES_VERSION = "reglas-v1"
 # Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150).
 ASSESSMENT_PROMPT_VERSIONS = {
-    "evaluacion": "evaluacion-v3",
+    "evaluacion": "evaluacion-v4",
     "contraste": "contraste-v2",
     "clausulas": "clausulas-v2",
 }

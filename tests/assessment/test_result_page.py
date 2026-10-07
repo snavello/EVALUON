@@ -75,7 +75,7 @@ def test_an_undetermined_result_shows_its_reason_and_the_open_question(
     assert "¿Desde cuándo corre?" in page and "no es fundamento" in page
     external = text_of(client.get(page_url(offer, procedure, "libre deuda")))
     assert "falta la hoja de compliance" in external
-    assert "Pregunta a la Comisión" in external
+    assert "Pregunta a la Comisión" not in external
 
 
 def test_the_page_warns_about_a_newer_matrix(

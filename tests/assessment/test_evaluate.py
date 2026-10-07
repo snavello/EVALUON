@@ -347,10 +347,11 @@ def test_no_consta_in_a_condition_is_undetermined_with_a_question(offer, operato
     assert not am.Answer.objects.exists()
 
 
-def test_an_external_requirement_is_a_missing_compliance_sheet_with_a_question(
+def test_an_external_requirement_is_a_missing_compliance_sheet_without_a_question(
         offer, operator_user, procedure, model):
-    """P9, REQ-055: lo que se verifica fuera de la oferta queda "no determinado" `externo`
-    (falta la hoja de compliance) y con una pregunta, aunque la oferta lo declare."""
+    """P9, REQ-063: lo que se verifica fuera de la oferta queda "no determinado" `externo`
+    (falta la hoja de compliance) y sin pregunta (se sube la hoja), aunque la oferta lo
+    declare."""
     def function(call):
         if "libre deuda" in call.requirement:
             return says("cumple", call.quote(DECLARATION), external=True)
@@ -360,7 +361,8 @@ def test_an_external_requirement_is_a_missing_compliance_sheet_with_a_question(
     number = number_of(procedure, "libre deuda")
     result = results_of(runs[0])[number]
     assert result.outcome == "no_determinado" and result.doubt == "externo"
-    assert am.Question.objects.get(requirement__number=number).text
+    assert not am.Question.objects.filter(requirement__number=number).exists()
+    assert result.facts["regla"] == "externo_modelo"
     assert not model.contrast_calls
 
 
@@ -710,7 +712,9 @@ def test_everything_the_model_was_asked_is_recorded(offer, operator_user, proced
     assert step.request["response_format"]["type"] == "json_schema"
     assert run.models_used["generation_batch"]["context_tokens"] == 32768
     assert run.prompt_versions == {
-        "evaluacion": "evaluacion-v3", "contraste": "contraste-v2", "clausulas": "clausulas-v2"}
+        "evaluacion": "evaluacion-v4", "contraste": "contraste-v2", "clausulas": "clausulas-v2",
+        "reglas": "reglas-v1"}
+    assert run.parameters["rules_version"] == "reglas-v1"
     assert run.parameters["group_tokens"] == 20000
     assert run.norms["matrix_version"] == 1 and run.norms["authorization_date"]
     assert run.matrix_version == request.matrix_version and run.channel == "eval"

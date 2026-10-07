@@ -8,7 +8,8 @@ documento": lo decide la regla de abajo sobre lo leído.
 Reglas, en este orden:
 
 1. Si algún grupo señala que el requisito se verifica fuera de la oferta: "no determinado",
-   `externo` (el sistema no infiere hojas de compliance, P9; falta la hoja).
+   `externo` (falta la hoja de compliance; el sistema no la infiere, P9). Gana sobre todas las
+   demás, sin pregunta a la Comisión: la acción es subir la hoja (REQ-063, T-166).
 2. "Cumple" y "no cumple" en grupos distintos: "no determinado", `contradiccion`, con las
    citas de ambos.
 3. Una conclusión (con cita ubicada) y "no consta" en los demás grupos: queda la conclusión. Si
@@ -25,8 +26,9 @@ Reglas, en este orden:
 
 Un "cumple" o "no cumple" va después al contraste (`apply_contrast`): si no contesta `si`, es
 "no determinado" `sin_corroborar` con las mismas citas. Un "no determinado" que falta un dato
-(`externo`, `sin_dato`, `lectura_incompleta`) siempre lleva una pregunta para la Comisión: la
-del modelo o una fija del sistema.
+(`sin_dato`, `lectura_incompleta`) siempre lleva una pregunta para la Comisión: la del modelo o
+una fija del sistema. `externo` no lleva ninguna. Lo que se decide por regla (externos del
+catálogo y páginas ilegibles) lo aplica `rules.py` después de esta unión (T-166).
 """
 
 import re
@@ -54,9 +56,11 @@ INCOMPLETE = "lectura_incompleta"
 EXTERNAL = "externo"
 NO_CITATION = "sin_cita"
 NO_DATA = "sin_dato"
+UNREADABLE = "no_se_pudo_leer"
 
-# Dudas que siempre llevan una pregunta a la Comisión (REQ-055).
-ALWAYS_ASK = (EXTERNAL, NO_DATA, INCOMPLETE)
+# Dudas que siempre llevan una pregunta a la Comisión (REQ-055). `externo` ya no: falta la hoja
+# de compliance y la acción es subirla (REQ-063).
+ALWAYS_ASK = (NO_DATA, INCOMPLETE)
 
 
 @dataclass
@@ -74,6 +78,9 @@ class GroupResult:
     explanation: str = ""
     question: str = ""
     external: bool = False
+    # El documento que el modelo señaló como ilegible y el informe de lectura avala
+    # (`unreadable.resolve`), o `None` (REQ-064).
+    unreadable: dict | None = None
 
 
 @dataclass
@@ -88,6 +95,8 @@ class Combined:
     explanation: str = ""
     question: str = ""
     unread_warning: bool = False
+    # Lo verificado por regla y la regla que decidió (`rules.py`; P6).
+    facts: dict = field(default_factory=dict)
 
     @property
     def needs_contrast(self):
@@ -121,9 +130,6 @@ def unread_text(unread):
 
 def fixed_question(doubt, unread=(), explanation=""):
     """La pregunta del sistema cuando el modelo no formuló una (REQ-055)."""
-    if doubt == EXTERNAL:
-        return ("Este requisito se verifica con una consulta fuera de la oferta. ¿Se cuenta "
-                "con la hoja de compliance de la oferta para este requisito?")
     if doubt == INCOMPLETE:
         where = unread_text(unread)
         suffix = f" ({where})" if where else ""
@@ -175,7 +181,8 @@ def combine(groups, *, unread, without_reading=(), unread_groups=0):
         text = explanation if explanation is not None else _first(
             pool if pool is not None else groups, "explanation")
         # Una conclusión no lleva pregunta: solo la lleva un "no determinado".
-        asked = question if outcome == OUT_NO_DETERMINADO else ""
+        # Falta la hoja de compliance: no hay nada que preguntar, hay que subirla (REQ-063).
+        asked = question if outcome == OUT_NO_DETERMINADO and doubt != EXTERNAL else ""
         if not asked and ask and doubt in ALWAYS_ASK:
             asked = fixed_question(doubt, unread, text)
         return Combined(

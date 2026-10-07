@@ -101,12 +101,16 @@ def sees_message(messages):
 
 
 def says(result, *citations, exigence="condicion", explanation="Porque lo dice el texto.",
-         question="", external=False, supports=()):
-    """La salida de un grupo como la devolvería el modelo."""
-    return {"resultado": result, "exigencia": exigence,
-            "citas": [{"documento": a, "texto": t} for a, t in citations if a],
-            "fundamentos": list(supports), "explicacion": explanation, "externo": external,
-            "pregunta": question}
+         question="", external=False, supports=(), ilegible=None):
+    """La salida de un grupo como la devolvería el modelo. `ilegible` (alias de un documento
+    con una página «no se pudo leer») es el campo de `evaluacion-v4`: solo se manda si se pide."""
+    answer = {"resultado": result, "exigencia": exigence,
+              "citas": [{"documento": a, "texto": t} for a, t in citations if a],
+              "fundamentos": list(supports), "explicacion": explanation, "externo": external,
+              "pregunta": question}
+    if ilegible is not None:
+        answer["ilegible"] = ilegible
+    return answer
 
 
 class ScriptedModel:
