@@ -660,7 +660,8 @@ def test_a_technical_row_is_evaluated_per_renglon_with_the_quotes_of_the_pliego(
     call = next(c for c in model.calls if c.requirement.startswith("Renglón 1 del pliego"))
     assert "renglón 1" in call.requirement
     result = results_of(runs[0])[row.number]
-    assert result.outcome == "cumple"
+    # T-167: lo que el modelo concluye es la opinión; el resultado espera el informe técnico.
+    assert result.opinion == "cumple" and result.doubt == "pendiente_informe_tecnico"
     assert offer_cites(result)[0].text == "Renglón 1: resma de papel A4"
     assert result.citations.filter(kind="pliego").count() == row.quotes.count()
 
@@ -683,13 +684,15 @@ def test_a_technical_no_cumple_needs_a_cited_clause_that_contradicts_it(
     model.evaluates(function)
     _, runs = run_all(operator_user, procedure, offers=[offer])
     result = results_of(runs[0])[row.number]
-    assert result.outcome == "no_determinado" and result.doubt == "sin_dato"
+    # T-167: lo que se juzga es la opinión; el resultado es siempre "pendiente del informe".
+    assert result.opinion == "no_determinado" and result.doubt == "pendiente_informe_tecnico"
     cited["clause"] = "una cláusula inventada que el pliego no tiene"
     _, runs = run_all(operator_user, procedure, offers=[offer])
-    assert results_of(runs[0])[row.number].outcome == "no_determinado"
+    assert results_of(runs[0])[row.number].opinion == "no_determinado"
     cited["clause"] = row.quotes.order_by("order").first().text
     _, runs = run_all(operator_user, procedure, offers=[offer])
-    assert results_of(runs[0])[row.number].outcome == "no_cumple"
+    result = results_of(runs[0])[row.number]
+    assert result.opinion == "no_cumple" and result.outcome == "no_determinado"
 
 
 # --- Registro y no pisar nada ------------------------------------------------------------------
@@ -956,6 +959,18 @@ def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(
         got = results_of(run)
         for number, entry in by_bidder[run.offer.bidder].items():
             result = got[number]
+            if result.requirement.category == "tecnico" and result.outcome != "sin_documento":
+                # T-167: una fila técnica espera el informe del área; lo que la lista dice que
+                # el sistema concluye es su opinión (informativa).
+                got_value, got_doubt = result.opinion, result.doubt
+                ok = (result.outcome == "no_determinado"
+                      and result.doubt == "pendiente_informe_tecnico"
+                      and result.opinion == wanted[entry["resultado"]]
+                      or entry["resultado"] == "no_se_encontro_documento")
+                if not ok:
+                    differences.append((run.offer.bidder, entry["requisito"], got_value,
+                                        got_doubt))
+                continue
             if result.outcome != wanted[entry["resultado"]]:
                 differences.append((run.offer.bidder, entry["requisito"], result.outcome,
                                     result.doubt))
@@ -1009,7 +1024,7 @@ def test_a_technical_cumple_is_checked_clause_by_clause(offer, operator_user, pr
     assert "Renglón 1: resma de papel A4" in model.clause_calls[0].user
     step = am.Step.objects.filter(run=runs[0], purpose="contraste", requirement=row).first()
     assert step.parsed["clausulas"][0]["estado"] == "coincide"
-    assert results_of(runs[0])[row.number].outcome == "cumple"
+    assert results_of(runs[0])[row.number].opinion == "cumple"
 
 
 def test_a_contradicted_clause_turns_the_technical_cumple_into_no_cumple(
@@ -1025,7 +1040,7 @@ def test_a_contradicted_clause_turns_the_technical_cumple_into_no_cumple(
     _, runs = run_all(operator_user, procedure, offers=[offer])
     result = results_of(runs[0])[row.number]
     cites = offer_cites(result)
-    assert result.outcome == "no_cumple"
+    assert result.opinion == "no_cumple"
     assert cites[0].text == "resma de papel A4, 100 unidades"
     assert cites[0].text == cites[0].reading.canonical_text[cites[0].char_start:cites[0].char_end]
     assert "Ofrece otra presentación" in result.explanation
@@ -1043,8 +1058,7 @@ def test_a_contradiction_without_a_quote_that_the_system_can_locate_is_undetermi
              "cita": quote}], "pregunta": ""})
         _, runs = run_all(operator_user, procedure, offers=[offer])
         result = results_of(runs[0])[row.number]
-        assert result.outcome == "no_determinado" and result.doubt == "sin_dato", quote
-        assert am.Question.objects.filter(requirement=row, answers__isnull=True).exists()
+        assert result.opinion == "no_determinado", quote
 
 
 def test_a_contradiction_that_blames_the_reading_is_undetermined(
@@ -1059,7 +1073,7 @@ def test_a_contradiction_that_blames_the_reading_is_undetermined(
          "cita": "resma de papel A4, 100 unidades"}], "pregunta": ""})
     _, runs = run_all(operator_user, procedure, offers=[offer])
     result = results_of(runs[0])[row.number]
-    assert result.outcome == "no_determinado" and result.questions.exists()
+    assert result.opinion == "no_determinado" and result.outcome == "no_determinado"
 
 
 def test_the_clause_check_sees_the_document_that_backs_the_citation(
@@ -1082,7 +1096,7 @@ def test_the_clauses_go_in_bounded_requests(offer, operator_user, procedure, mod
     quotes = row.quotes.count()
     _, runs = run_all(operator_user, procedure, offers=[offer])
     assert len(model.clause_calls) == quotes
-    assert results_of(runs[0])[row.number].outcome == "cumple"
+    assert results_of(runs[0])[row.number].opinion == "cumple"
 
 
 def test_a_cut_output_is_retried_in_parts_before_giving_up(
@@ -1096,7 +1110,7 @@ def test_a_cut_output_is_retried_in_parts_before_giving_up(
     model.clauses(lambda call: '{"clausulas": [{"clausula": "5.1 Alim' if call.number == 1 else None)
     _, runs = run_all(operator_user, procedure, offers=[offer])
     assert len(model.clause_calls) == 3
-    assert results_of(runs[0])[row.number].outcome == "cumple"
+    assert results_of(runs[0])[row.number].opinion == "cumple"
     steps = list(am.Step.objects.filter(run=runs[0], purpose="contraste", requirement=row)
                  .order_by("pk"))
     assert steps[1].retry_of is not None and steps[0].anomalies
@@ -1112,8 +1126,8 @@ def test_a_clause_missing_from_the_offer_makes_the_technical_cumple_undetermined
         "pregunta": "¿Qué presentación ofrece?"})
     _, runs = run_all(operator_user, procedure, offers=[offer])
     result = results_of(runs[0])[row.number]
-    assert result.outcome == "no_determinado" and result.doubt == "sin_dato"
-    assert result.questions.get().text == "¿Qué presentación ofrece?"
+    assert result.opinion == "no_determinado" and result.doubt == "pendiente_informe_tecnico"
+    assert not result.questions.exists()  # el informe del área, no una pregunta (T-167)
 
 
 def test_a_non_technical_cumple_skips_the_clause_check(offer, operator_user, procedure, model):
@@ -1131,5 +1145,5 @@ def test_an_invalid_clause_output_leaves_the_cumple_uncorroborated(
     model.clauses(lambda call: "no es JSON")
     _, runs = run_all(operator_user, procedure, offers=[offer])
     result = results_of(runs[0])[row.number]
-    assert result.outcome == "no_determinado" and result.doubt == "sin_corroborar"
+    assert result.opinion == "no_determinado" and result.doubt == "pendiente_informe_tecnico"
     assert len(model.clause_calls) == 3

@@ -277,6 +277,7 @@ def _parameters():
         "passage_max_chars": settings.OFFERS_PASSAGE_MAX_CHARS,
         "passage_min_chars": settings.OFFERS_PASSAGE_MIN_CHARS,
         "rules_version": settings.ASSESSMENT_RULES_VERSION,
+        "technical_opinion": settings.ASSESSMENT_TECHNICAL_OPINION,
     }
 
 
@@ -646,7 +647,8 @@ def _contrast_pair(ctx, pair):
         return
     started = ctx.clock()
     if (combined.outcome == combine.OUT_CUMPLE
-            and pair.requirement.category == RequirementClass.TECNICO):
+            and pair.requirement.category == RequirementClass.TECNICO
+            and settings.ASSESSMENT_TECHNICAL_OPINION):
         _clauses_pair(ctx, pair)
         combined = pair.combined
         if not combined.needs_contrast:
@@ -718,7 +720,7 @@ def _save_pair(run, offer, pair, procedure):
         run=run, offer=offer, requirement=pair.requirement, outcome=combined.outcome,
         doubt=combined.doubt, exigence=combined.exigence, explanation=combined.explanation,
         unread_pages_warning=combined.unread_warning, facts=combined.facts,
-        previous=pair.previous)
+        opinion=combined.opinion, previous=pair.previous)
     order = 0
 
     def cite(**fields):
@@ -730,6 +732,9 @@ def _save_pair(run, offer, pair, procedure):
         cite(kind=CitationKind.OFERTA, document=found.document, reading=found.reading,
              page=found.page, char_start=found.char_start, char_end=found.char_end,
              text=found.text)
+    for datum in combined.portal:
+        cite(kind=CitationKind.PORTAL, portal_item_id=datum["item"],
+             portal_kind=datum["kind"], label=datum.get("label", ""), text=datum["text"])
     for quote in pair.text.quotes:
         cite(kind=CitationKind.PLIEGO, requirement_quote=quote.quote, text=quote.text,
              original_text=quote.original)
@@ -894,6 +899,23 @@ class PairPage:
     # Alguna cita de la oferta cae en una página leída por visión (ADR-0041): el texto es la
     # transcripción del modelo y la persona compara con el original antes de confirmar (P3).
     by_vision: bool = False
+    # Datos del Portal citados (cotización del renglón) y hechos verificados por regla (T-167).
+    portal_citations: list = field(default_factory=list)
+    technical_facts: dict | None = None
+
+
+def _technical_facts(result):
+    """Los hechos de una fila técnica para la pantalla (T-167), o `None` si la fila no los
+    tiene."""
+    facts = result.facts or {}
+    if "documento_tecnico" not in facts:
+        return None
+    labels = {"hay": "hay", "no_se_encontro": "no se encontró", "si": "sí", "no": "no",
+              "no_determinado": "no se pudo determinar"}
+    return {"document": labels.get(facts["documento_tecnico"], facts["documento_tecnico"]),
+            "line": (labels.get(facts["renglon_ofertado"], facts["renglon_ofertado"])
+                     if "renglon_ofertado" in facts else None),
+            "item": facts.get("renglon")}
 
 
 def pair_page(user, offer_id, requirement_id, *, channel=Channel.SCREEN):
@@ -923,5 +945,7 @@ def pair_page(user, offer_id, requirement_id, *, channel=Channel.SCREEN):
         requirement_citations=[c for c in rows if c.kind == CitationKind.PLIEGO],
         norm_citations=[c for c in rows if c.kind == CitationKind.NORMA],
         answer_citations=[c for c in rows if c.kind == CitationKind.RESPUESTA],
+        portal_citations=[c for c in rows if c.kind == CitationKind.PORTAL],
+        technical_facts=_technical_facts(result),
         question=_open_question(result.offer, result.requirement), newer_version=newer,
         decisions=list(Decision.objects.filter(result=result).order_by("at", "pk")))

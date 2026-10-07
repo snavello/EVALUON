@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from evaluon.assessment import combine, externals, rules, unreadable
+from evaluon.assessment import combine, externals, rules, technical, unreadable
 
 pytestmark = pytest.mark.django_db
 
@@ -22,9 +22,9 @@ FOUND = {"documento": "pagare.pdf", "documento_id": 1, "archivo": "pagare.pdf", 
 
 
 def test_the_rules_come_in_the_planned_order():
-    """El externo va primero y la ilegible después; las de técnico y Portal se suman en su lugar
-    (T-167, T-169) con una línea."""
-    assert rules.RULES == (externals.rule, unreadable.rule)
+    """El externo va primero, después el técnico (T-167) y la ilegible; la del Portal se suma en su lugar
+    (T-169) con una línea."""
+    assert rules.RULES == (externals.rule, technical.rule, unreadable.rule)
 
 
 def test_a_pair_no_rule_covers_follows_the_normal_flow():

@@ -97,6 +97,11 @@ class Combined:
     unread_warning: bool = False
     # Lo verificado por regla y la regla que decidió (`rules.py`; P6).
     facts: dict = field(default_factory=dict)
+    # Opinión informativa de una fila técnica (REQ-061): nunca es el resultado.
+    opinion: str = ""
+    # Datos del Portal que se citan (`portal_facts.py`, `technical.py`): cada uno es
+    # `{"item": id del ítem, "kind": clase, "text": texto, "label": rótulo}`.
+    portal: list = field(default_factory=list)
 
     @property
     def needs_contrast(self):

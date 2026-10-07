@@ -28,7 +28,26 @@
   {% if page.result.unread_pages_warning %}
   <p><em>La oferta tiene páginas que no se pudieron leer: revise el original.</em></p>
   {% endif %}
+  {% if page.result.doubt == "pendiente_informe_tecnico" %}
+  <p>Lo técnico lo resuelve el informe del área correspondiente: la Comisión da el ok de que lo tiene aprobado.</p>
+  {% endif %}
 </section>
+
+{% if page.technical_facts %}
+<section class="result-technical" aria-labelledby="technical-title">
+  <h2 id="technical-title">Lo que el sistema verificó</h2>
+  <ul>
+    <li>Documento técnico de la oferta: {{ page.technical_facts.document }}.</li>
+    {% if page.technical_facts.line %}<li>Renglón ofertado ({{ page.technical_facts.item }}): {{ page.technical_facts.line }}.</li>{% endif %}
+  </ul>
+  {% for citation in page.portal_citations %}
+  <p>Dato del Portal: <blockquote>{{ citation.text }}</blockquote></p>
+  {% endfor %}
+  {% if page.result.opinion %}
+  <p>La opinión del sistema (información, no es el resultado): <strong>{{ page.result.get_opinion_display }}</strong>.</p>
+  {% endif %}
+</section>
+{% endif %}
 
 <section class="result-requirement" aria-labelledby="requirement-title">
   <h2 id="requirement-title">Lo que pide el pliego</h2>
