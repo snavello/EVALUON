@@ -7,9 +7,17 @@
 # `resultado` es uno de los cuatro: cumple, no_cumple, no_determinado, no_se_encontro_documento.
 # `base`: oferta (documentos de la oferta), externa (se verifica fuera de la oferta: la hoja de
 # compliance, decisión 1 del responsable 2026-10-06) o tecnica (requisito por renglón, decisión 2).
-# `motivo` de un no_determinado: falta_hoja_compliance, pagina_ilegible o lectura_incompleta; con `pregunta: si`
+# `motivo` de un no_determinado: falta_hoja_compliance, pagina_ilegible, lectura_incompleta,
+# pendiente_informe_tecnico (fila técnica) o no_se_pudo_leer (con `ilegible`); con `pregunta: si`
 # el par debe traer una pregunta para la Comisión. `citas` son literales de la oferta (documento,
 # página y fragmento exacto del texto leído); un cumple o un no_cumple lleva al menos una.
+# Regla nueva (enmienda 2026-10-06, T-170): la coincidencia se cuenta por tipo de par. Una fila
+# técnica trae `documento_tecnico` (hay o no_se_encontro) y `renglon_ofertado` (si, no o
+# no_aplica), y su `dictamen` (lo que dice el área técnica, para comparar la opinión del sistema);
+# un documento ilegible, `ilegible: {documento, pagina}`; un dato que el dictamen sustenta con el
+# Portal, `portal: {tipo, valor}` (tipo: garantia, cotizacion, total o cuit). El caso chico no
+# carga el Portal: el par con `portal` se mide con las tablas del Portal cargadas, o queda
+# informado como no coincidente.
 # Las anclas de documentos escaneados las comprueba `medir_evaluacion --verificar-esperada`.
 caso: caso-chico-evaluacion
 preparo: "Coordinador (agente delegado), 2026-10-06"
@@ -55,11 +63,11 @@ ofertas:
       - {requisito: M-003, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-a/certificado-vigencia.pdf, pagina: 1, ancla: "el contrato social de Oferente A Sintético se encuentra vigente"}]}
       - {requisito: M-004, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-a/documento-identidad.pdf, pagina: 1, ancla: "Copia del documento de identidad sintético número 00.000.000"}]}
       - {requisito: M-005, resultado: no_determinado, base: externa, motivo: falta_hoja_compliance, pregunta: si}
-      - {requisito: M-006, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-a/poliza-caucion.pdf, pagina: 1, ancla: "hasta la suma de $ 26.750"}]}
+      - {requisito: M-006, resultado: cumple, base: oferta, portal: {tipo: garantia, valor: "26750"}, citas: [{documento: ofertas/oferente-a/poliza-caucion.pdf, pagina: 1, ancla: "hasta la suma de $ 26.750"}]}
       - {requisito: M-007, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-a/oferta-propuesta.pdf, pagina: 2, ancla: "Los precios se cotizan en pesos con impuestos incluidos."}]}
-      - {requisito: M-008, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-a/hoja-tecnica-resma.pdf, pagina: 1, ancla: "Gramaje 75 g/m²"}]}
-      - {requisito: M-009, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-a/oferta-propuesta.pdf, pagina: 3, ancla: "Cartucho de tóner negro compatible con la impresora láser del organismo."}]}
-      - {requisito: M-010, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-a/oferta-propuesta.pdf, pagina: 3, ancla: "Archivador de palanca de lomo ancho, tamaño oficio."}]}
+      - {requisito: M-008, resultado: no_determinado, base: tecnica, motivo: pendiente_informe_tecnico, documento_tecnico: hay, renglon_ofertado: si, dictamen: cumple}
+      - {requisito: M-009, resultado: no_determinado, base: tecnica, motivo: pendiente_informe_tecnico, documento_tecnico: hay, renglon_ofertado: si, dictamen: cumple}
+      - {requisito: M-010, resultado: no_determinado, base: tecnica, motivo: pendiente_informe_tecnico, documento_tecnico: hay, renglon_ofertado: si, dictamen: cumple}
   - oferente: "Oferente B Sintético"
     carpeta: ofertas/oferente-b
     documentos:
@@ -77,13 +85,13 @@ ofertas:
       - {requisito: M-001, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-b/oferta-propuesta.pdf, pagina: 1, ancla: "Declaro bajo juramento que me encuentro habilitado para contratar con el organismo"}]}
       - {requisito: M-002, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-b/constancia-escaneada.pdf, pagina: 1, ancla: "se encuentra inscripto en el registro de proveedores con el número 000123"}]}
       - {requisito: M-003, resultado: no_determinado, base: oferta, motivo: lectura_incompleta, pregunta: si, nota: "T-151, corrección por conflicto con el ADR-0038 (regla 3, decisión del Coordinador): la oferta no trae el certificado, pero tiene una página sin leer y no se puede afirmar que el documento falta; no es un no cumple. Antes decía no_se_encontro_documento"}
-      - {requisito: M-004, resultado: no_determinado, base: oferta, motivo: pagina_ilegible, pregunta: si, nota: "la copia del documento de identidad está en la página 2, escaneada e ilegible; la página 1 solo dice que se adjunta"}
+      - {requisito: M-004, resultado: no_determinado, base: oferta, motivo: no_se_pudo_leer, ilegible: {documento: ofertas/oferente-b/documento-firmado-mixto.pdf, pagina: 2}, pregunta: si, nota: "la copia del documento de identidad está en la página 2, escaneada e ilegible; la página 1 solo dice que se adjunta"}
       - {requisito: M-005, resultado: no_determinado, base: externa, motivo: falta_hoja_compliance, pregunta: si}
       - {requisito: M-006, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-b/poliza-caucion.pdf, pagina: 1, ancla: "hasta la suma de $ 25.950"}]}
       - {requisito: M-007, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-b/oferta-propuesta.pdf, pagina: 2, ancla: "Los precios se cotizan en pesos con impuestos incluidos."}]}
-      - {requisito: M-008, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-b/hoja-tecnica-resma.pdf, pagina: 1, ancla: "Gramaje 75 g/m²"}]}
-      - {requisito: M-009, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-b/oferta-propuesta.pdf, pagina: 3, ancla: "Cartucho de tóner negro, modelo compatible con impresoras láser del organismo."}]}
-      - {requisito: M-010, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-b/oferta-propuesta.pdf, pagina: 3, ancla: "Archivador de palanca, lomo ancho, tamaño oficio."}]}
+      - {requisito: M-008, resultado: no_determinado, base: tecnica, motivo: pendiente_informe_tecnico, documento_tecnico: hay, renglon_ofertado: si, dictamen: cumple}
+      - {requisito: M-009, resultado: no_determinado, base: tecnica, motivo: pendiente_informe_tecnico, documento_tecnico: hay, renglon_ofertado: si, dictamen: cumple}
+      - {requisito: M-010, resultado: no_determinado, base: tecnica, motivo: pendiente_informe_tecnico, documento_tecnico: hay, renglon_ofertado: si, dictamen: cumple}
   - oferente: "Oferente C Sintético"
     carpeta: ofertas/oferente-c
     documentos:
@@ -105,9 +113,9 @@ ofertas:
       - {requisito: M-005, resultado: no_determinado, base: externa, motivo: falta_hoja_compliance, pregunta: si}
       - {requisito: M-006, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-c/poliza-caucion.pdf, pagina: 1, ancla: "hasta la suma de $ 23.800"}]}
       - {requisito: M-007, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-c/oferta-propuesta.pdf, pagina: 2, ancla: "Los precios se cotizan en pesos con impuestos incluidos."}]}
-      - {requisito: M-008, resultado: no_cumple, base: tecnica, citas: [{documento: ofertas/oferente-c/hoja-tecnica-resma.pdf, pagina: 1, ancla: "Gramaje 70 g/m²"}], nota: "el pliego pide 75 gramos; ofrece 70"}
-      - {requisito: M-009, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-c/oferta-propuesta.pdf, pagina: 3, ancla: "Cartucho de tóner negro compatible con la impresora láser del organismo."}]}
-      - {requisito: M-010, resultado: cumple, base: tecnica, citas: [{documento: ofertas/oferente-c/oferta-propuesta.pdf, pagina: 3, ancla: "Archivador de palanca con lomo ancho y tamaño oficio."}]}
+      - {requisito: M-008, resultado: no_determinado, base: tecnica, motivo: pendiente_informe_tecnico, documento_tecnico: hay, renglon_ofertado: si, dictamen: no_cumple, nota: "el pliego pide 75 gramos; ofrece 70"}
+      - {requisito: M-009, resultado: no_determinado, base: tecnica, motivo: pendiente_informe_tecnico, documento_tecnico: hay, renglon_ofertado: si, dictamen: cumple}
+      - {requisito: M-010, resultado: no_determinado, base: tecnica, motivo: pendiente_informe_tecnico, documento_tecnico: hay, renglon_ofertado: si, dictamen: cumple}
 orden_economico:         # las no descartadas, de menor a mayor total (el cuadro comparativo del Portal, inventado)
   por_total: [Oferente B Sintético, Oferente A Sintético]
   por_renglon:
@@ -117,7 +125,9 @@ orden_economico:         # las no descartadas, de menor a mayor total (el cuadro
   excluidas: [Oferente C Sintético]                   # descartada; con su total (476.000) sería la primera
 resumen:
   pares: 30
-  por_resultado: {cumple: 22, no_cumple: 2, no_determinado: 5, no_se_encontro_documento: 1}
+  por_resultado: {cumple: 14, no_cumple: 1, no_determinado: 14, no_se_encontro_documento: 1}
   externos: 3            # M-005 en las tres ofertas
-  tecnicos: 9            # M-008 a M-010 en las tres ofertas
+  tecnicos: 9            # M-008 a M-010 en las tres ofertas: pendientes del informe técnico
+  ilegibles: 1           # M-004 de la oferta B
+  portal: 1              # M-006 de la oferta A
   preguntas_esperadas: 5 # los tres M-005, el M-004 y el M-003 de la oferta B

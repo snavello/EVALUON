@@ -18,6 +18,12 @@ Opciones:
 - `--commit`: commit del código con que se corre (dentro del contenedor no hay `.git`).
 - `--verificar-esperada`: no usa el modelo. Comprueba la huella de cada documento, que cada
   ancla esté en su página y que cada página no legible lo sea, e informa las cuentas.
+- `--verificar-decisiones`: no usa el modelo ni la GPU. Corre los tests marcados
+  `decision_literal` (uno por decisión del responsable, ADR-0043) y comprueba que la lista
+  esperada trae los campos de la regla nueva (`documento_tecnico` y `renglon_ofertado` en cada
+  fila técnica, `ilegible` donde dice «no se pudo leer»). Si un test falla o falta un campo, la
+  medición se rechaza (error). Si todavía ningún test lleva la marca, lo informa y no bloquea.
+  Toda medición vuelve a comprobar los campos de la lista antes de empezar.
 
 Se corre de a una medición, sin otra carga en la GPU (ADR-0025).
 """
@@ -53,17 +59,26 @@ class Command(BaseCommand):
         parser.add_argument("--verificar-esperada", action="store_true",
                             dest="verificar_esperada",
                             help="Solo comprueba la lista contra la lectura; no usa el modelo.")
+        parser.add_argument("--verificar-decisiones", action="store_true",
+                            dest="verificar_decisiones",
+                            help="Corre los tests `decision_literal` y comprueba los campos de "
+                                 "la lista; rechaza la medición si algo falla.")
 
     def handle(self, *args, **options):
         user = permissions.authenticate_command(options["usuario"])
         verify_only = options["verificar_esperada"]
+        verify_decisions = options["verificar_decisiones"]
         esperada = options["esperada"]
         if options["caso_chico"] and not esperada:
             esperada = str(CASO_CHICO / "evaluacion-esperada.yaml")
         if not esperada:
             raise CommandError("Falta --esperada (o --caso-chico).")
         try:
-            expected = evaluation.load_expected(esperada, require_approval=not verify_only)
+            expected = evaluation.load_expected(
+                esperada, require_approval=not (verify_only or verify_decisions))
+            if verify_decisions:
+                self._verify_decisions(expected)
+                return
             fichas = evaluation.load_fichas(options["fichas"]) if options["fichas"] else None
             if options["caso_chico"]:
                 procedure, offers = evaluation.build_case(user, expected)
@@ -88,6 +103,27 @@ class Command(BaseCommand):
         except (RoleRejected, evaluation.ExpectedError, evaluation.MeasurementRefused) as error:
             raise CommandError(str(error)) from None
 
+        self._report(report)
+
+    def _verify_decisions(self, expected):
+        status, output = evaluation.run_decision_tests(cwd=settings.BASE_DIR)
+        lines = [f"Tests decision_literal: {status}", output]
+        missing = evaluation.check_fields(expected)
+        lines.append("Lista esperada: " + ("trae los campos nuevos" if not missing
+                                           else f"faltan {len(missing)} campos"))
+        lines += missing
+        if status == "ausente":
+            lines.append("Ningún test lleva todavía la marca `decision_literal`: se informa, "
+                         "no bloquea.")
+        self.stdout.write("\n".join(lines))
+        if status == "fallo":
+            raise CommandError("Un test de las decisiones literales falla: la medición se "
+                               "rechaza.")
+        if missing:
+            raise CommandError("La lista esperada no trae los campos de la regla nueva: la "
+                               "medición se rechaza.")
+
+    def _report(self, report):
         total = report.total
         lines = [f"Corrida guardada en {report.folder}"]
         for name in evaluation.LABELS:
