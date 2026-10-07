@@ -6,79 +6,84 @@
 <title>EVALUON · muestra visual</title>
 <link rel="stylesheet" href="../../evaluon/static/diseno/tokens.css">
 <style>
-  *, *::before, *::after { box-sizing: border-box; }
-  body { margin: 0; font: var(--ev-t-base)/var(--ev-interlineado) var(--ev-fuente); color: var(--ev-texto); background: var(--ev-fondo); }
-  a { color: var(--ev-enlace); font-weight: var(--ev-peso-enlace); }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; }
+  body { font: var(--ev-t-base)/var(--ev-interlineado) var(--ev-fuente); color: var(--ev-texto); background: var(--ev-fondo); -webkit-font-smoothing: antialiased; }
+  a { color: var(--ev-enlace); }
   :focus-visible { outline: 3px solid var(--ev-foco); outline-offset: 2px; }
-  .wrap { max-width: var(--ev-ancho-contenido); margin: 0 auto; padding: 0 var(--ev-e4); }
+  h1, h2, h3, h4 { font-family: var(--ev-fuente-titulo); font-weight: 700; text-wrap: balance; }
+  .wrap { max-width: var(--ev-ancho-contenido); margin: 0 auto; padding: 0 clamp(14px, 3vw, 36px); }
+  /* Encabezado: barra oscura, nombre condensado en mayúsculas con filo de acento, usuario a la derecha */
   header.top { background: var(--ev-encabezado-fondo); color: var(--ev-encabezado-texto); border-bottom: 3px solid var(--ev-rojo); }
-  header.top .wrap { display: flex; align-items: center; gap: var(--ev-e4); padding-top: var(--ev-e3); padding-bottom: var(--ev-e3); }
-  header.top .nombre { font-family: var(--ev-fuente-titulo); font-size: var(--ev-t-h3); font-weight: 600; letter-spacing: .04em; margin-right: auto; }
-  header.top .usuario { font-size: var(--ev-t-sm); color: var(--ev-azul-200); }
-  nav.main { background: var(--ev-nav-fondo); box-shadow: var(--ev-sombra-nav); }
-  nav.main ul { display: flex; gap: var(--ev-e1); list-style: none; margin: 0; padding: 0; }
-  nav.main a { display: block; padding: var(--ev-nav-relleno); margin: 0 var(--ev-e2); color: var(--ev-nav-texto); text-decoration: none; font-weight: 500; font-size: var(--ev-t-nav); }
-  nav.main a[aria-current] { background: var(--ev-fondo); color: var(--ev-texto); }
-  nav.main a:hover { background: var(--ev-azul-700); color: #fff; }
-  main { padding: var(--ev-e6) 0 var(--ev-e7); }
-  h1, h2, h3 { font-family: var(--ev-fuente-titulo); font-weight: var(--ev-peso-titulo); }
-  h1 { font-size: var(--ev-t-h1); line-height: 1.1; margin: 0 0 var(--ev-e2); }
-  h2 { font-size: var(--ev-t-h2); line-height: 1.1; margin: var(--ev-e6) 0 var(--ev-e3); }
-  h3 { font-size: var(--ev-t-h3); margin: 0 0 var(--ev-e2); }
-  .lede { color: var(--ev-texto-suave); max-width: var(--ev-ancho-lectura); margin: 0 0 var(--ev-e5); }
-  .card { background: var(--ev-superficie); border: 1px solid var(--ev-borde); border-radius: var(--ev-radio); box-shadow: var(--ev-sombra-1); padding: var(--ev-e5); }
-  /* Recorrido */
-  ol.etapas { display: flex; list-style: none; margin: 0; padding: 0; counter-reset: e; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio); overflow: hidden; background: var(--ev-superficie); }
-  ol.etapas li { flex: 1; padding: var(--ev-e3) var(--ev-e4); font-size: var(--ev-t-sm); color: var(--ev-texto-suave); border-right: 1px solid var(--ev-borde); counter-increment: e; }
+  header.top .wrap { display: flex; align-items: center; gap: 14px; padding-top: 11px; padding-bottom: 11px; }
+  header.top .nombre { font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-marca); line-height: 1; letter-spacing: var(--ev-espaciado-marca); text-transform: uppercase; padding-right: 14px; border-right: 2px solid var(--ev-rojo); white-space: nowrap; }
+  header.top .usuario { margin-left: auto; text-align: right; font-size: var(--ev-t-xs); line-height: 1.35; color: var(--ev-azul-200); }
+  header.top .usuario strong { display: block; color: #fff; font-size: var(--ev-t-sm); }
+  /* Pestañas: condensada en mayúsculas con subrayado grueso en la activa */
+  nav.tabs { background: var(--ev-superficie); border-bottom: 1px solid var(--ev-borde); }
+  nav.tabs ul { display: flex; gap: 2px; list-style: none; padding: 0; overflow-x: auto; }
+  nav.tabs a { display: block; font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: 1rem; letter-spacing: var(--ev-espaciado-pestana); text-transform: uppercase; color: var(--ev-texto-suave); text-decoration: none; padding: 13px 14px 11px; border-bottom: 3px solid transparent; white-space: nowrap; }
+  nav.tabs a:hover { color: var(--ev-texto); }
+  nav.tabs a[aria-current] { color: var(--ev-texto); border-bottom-color: var(--ev-azul-700); }
+  main { padding: 24px 0 70px; }
+  h1 { font-size: clamp(1.9rem, 4.5vw, 3.1rem); line-height: 1; margin: 6px 0 10px; }
+  h2 { font-size: var(--ev-t-h2); line-height: var(--ev-interlineado-titulo); margin: 34px 0 10px; }
+  h3 { font-size: var(--ev-t-h3); letter-spacing: var(--ev-espaciado-titulo); margin-bottom: 6px; }
+  .lede { color: var(--ev-texto-suave); max-width: 80ch; margin-bottom: 18px; }
+  .panel { background: var(--ev-superficie); border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-panel); padding: var(--ev-panel-relleno); box-shadow: var(--ev-sombra-1); }
+  /* Recorrido de etapas */
+  ol.etapas { display: flex; list-style: none; padding: 0; counter-reset: e; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-tarjeta); overflow: hidden; background: var(--ev-superficie); box-shadow: var(--ev-sombra-1); }
+  ol.etapas li { flex: 1; padding: 11px 14px; font-size: var(--ev-t-sm); color: var(--ev-texto-suave); border-right: 1px solid var(--ev-borde); counter-increment: e; }
   ol.etapas li:last-child { border-right: 0; }
-  ol.etapas li::before { content: counter(e); display: inline-block; width: 1.5rem; height: 1.5rem; line-height: 1.5rem; text-align: center; border-radius: 50%; margin-right: var(--ev-e2); background: var(--ev-azul-100); color: var(--ev-texto-suave); font-weight: 700; }
+  ol.etapas li::before { content: counter(e); display: inline-block; width: 1.5rem; height: 1.5rem; line-height: 1.5rem; text-align: center; border-radius: 50%; margin-right: 8px; background: var(--ev-azul-100); color: var(--ev-texto-suave); font-family: var(--ev-fuente-num); font-weight: 700; font-size: var(--ev-t-xs); }
   ol.etapas li.hecha::before { content: "\2713"; background: var(--ev-azul-700); color: #fff; }
-  ol.etapas li.actual { background: var(--ev-azul-50); color: var(--ev-texto); font-weight: 700; box-shadow: inset 0 -3px 0 var(--ev-azul-700); }
+  ol.etapas li.actual { background: var(--ev-azul-50); color: var(--ev-texto); font-weight: 600; box-shadow: inset 0 -3px 0 var(--ev-azul-700); }
   ol.etapas li.actual::before { background: var(--ev-azul-900); color: #fff; }
   /* Tabla densa */
-  .tabla-scroll { overflow-x: auto; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio); background: var(--ev-superficie); }
+  .tabla-scroll { overflow-x: auto; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-panel); background: var(--ev-superficie); box-shadow: var(--ev-sombra-1); }
   table.matriz { border-collapse: collapse; width: 100%; font-size: var(--ev-t-sm); line-height: var(--ev-interlineado-tabla); font-variant-numeric: tabular-nums; }
-  .matriz caption { text-align: left; padding: var(--ev-e3); font-weight: 600; font-size: var(--ev-t-base); }
-  .matriz th, .matriz td { padding: 6px var(--ev-e3); border-bottom: 1px solid var(--ev-borde); text-align: left; vertical-align: top; }
-  .matriz thead th { position: sticky; top: 0; background: var(--ev-tabla-cabecera); border-bottom: 2px solid var(--ev-azul-700); font-weight: 700; white-space: nowrap; }
+  .matriz caption { text-align: left; padding: 12px 10px; font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-lg); letter-spacing: var(--ev-espaciado-titulo); }
+  .matriz th, .matriz td { padding: var(--ev-celda-tabla-densa); border-bottom: 1px solid var(--ev-borde); text-align: left; vertical-align: top; }
+  .matriz thead th { position: sticky; top: 0; background: var(--ev-tabla-cabecera); border-bottom: 2px solid var(--ev-azul-700); font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-xs); letter-spacing: var(--ev-espaciado-etiqueta); text-transform: uppercase; color: var(--ev-texto-suave); white-space: nowrap; padding: var(--ev-celda-tabla); }
   .matriz tbody tr:nth-child(even) { background: var(--ev-tabla-cebra); }
   .matriz tbody tr:hover { background: var(--ev-azul-50); }
   .matriz tbody th { font-weight: 600; }
-  .matriz td.n { text-align: right; }
-  .estado { display: inline-block; padding: 1px 8px; border-radius: var(--ev-radio-s); font-weight: 600; font-size: var(--ev-t-xs); white-space: nowrap; border: 1px solid currentColor; }
+  .matriz td.n { text-align: right; font-family: var(--ev-fuente-num); }
+  .estado { display: inline-block; padding: 1px 8px; border-radius: var(--ev-radio-chip); font-weight: 600; font-size: var(--ev-t-xs); white-space: nowrap; border: 1px solid currentColor; }
   .estado.cumple { color: var(--ev-cumple); background: var(--ev-cumple-fondo); }
   .estado.nocumple { color: var(--ev-nocumple); background: var(--ev-nocumple-fondo); }
   .estado.nodet { color: var(--ev-nodeterminado); background: var(--ev-nodeterminado-fondo); }
   .estado.pend { color: var(--ev-pendiente); background: var(--ev-pendiente-fondo); }
   /* Botones */
-  .btn { font: var(--ev-peso-boton) var(--ev-t-base)/1.43 var(--ev-fuente); padding: var(--ev-boton-relleno); box-shadow: none; border-radius: var(--ev-radio); border: 1px solid transparent; cursor: pointer; }
+  .btn { font: var(--ev-peso-control) var(--ev-t-ctl)/1.2 var(--ev-fuente); padding: var(--ev-boton-relleno); border-radius: var(--ev-radio-btn); border: 1px solid transparent; cursor: pointer; }
   .btn.primario { background: var(--ev-boton-fondo); color: var(--ev-boton-texto); }
   .btn.primario:hover { background: var(--ev-boton-hover); }
-  .btn.secundario { background: var(--ev-superficie); color: var(--ev-azul-700); border-color: var(--ev-azul-700); }
+  .btn.secundario { background: transparent; color: var(--ev-texto); border-color: var(--ev-borde-campo); }
   .btn.secundario:hover { background: var(--ev-azul-50); }
+  header.top .btn.secundario { color: #fff; border-color: rgba(255, 255, 255, .35); padding: 7px 12px; font-size: var(--ev-t-xs); }
+  header.top .btn.secundario:hover { background: var(--ev-azul-800); }
   .btn.peligro { background: var(--ev-rojo); color: #fff; }
   .btn.peligro:hover { background: var(--ev-rojo-hover); }
-  .fila { display: flex; gap: var(--ev-e3); flex-wrap: wrap; }
-  /* Aviso */
-  .aviso { border: 1px solid var(--ev-azul-300); border-left: 5px solid var(--ev-azul-700); background: var(--ev-azul-50); padding: var(--ev-e3) var(--ev-e4); border-radius: var(--ev-radio); }
-  .aviso.importante { border-color: var(--ev-nocumple); border-left-color: var(--ev-rojo); background: var(--ev-nocumple-fondo); color: var(--ev-nocumple); }
+  .fila { display: flex; gap: 10px; flex-wrap: wrap; }
+  /* Aviso (nota con filete lateral) */
+  .aviso { border-left: 3px solid var(--ev-azul-700); background: var(--ev-azul-50); padding: 10px 14px; border-radius: 0 10px 10px 0; font-size: var(--ev-t-sm); }
+  .aviso.importante { border-left-color: var(--ev-rojo); background: var(--ev-nocumple-fondo); color: var(--ev-nocumple); }
   .aviso strong { display: block; }
   /* Formulario */
-  form.f { display: grid; gap: var(--ev-e4); max-width: var(--ev-ancho-lectura); }
-  label { display: block; font-size: var(--ev-campo-t); font-weight: 600; margin-bottom: var(--ev-e1); }
-  .ayuda { font-size: var(--ev-t-xs); color: var(--ev-texto-suave); margin: var(--ev-e1) 0 0; }
-  input[type=text], select, textarea { width: 100%; font: inherit; color: var(--ev-texto); background: var(--ev-superficie); border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio); padding: 8px var(--ev-e3); }
+  form.f { display: grid; gap: 14px; max-width: 44rem; }
+  label { display: block; font-size: var(--ev-t-sm); font-weight: 600; margin-bottom: 4px; }
+  .ayuda { font-size: var(--ev-t-xs); color: var(--ev-texto-suave); margin-top: 4px; }
+  input[type=text], select, textarea { width: 100%; font: inherit; font-size: var(--ev-t-ctl); color: var(--ev-texto); background: var(--ev-superficie); border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 9px 12px; }
   textarea { min-height: 5rem; }
-  @media (max-width: 40rem) { ol.etapas { flex-direction: column; } ol.etapas li { border-right: 0; border-bottom: 1px solid var(--ev-borde); } nav.main ul { flex-wrap: wrap; } }
+  @media (max-width: 600px) { header.top .wrap { gap: 11px; } header.top .nombre { font-size: 1.625rem; padding-right: 11px; } header.top .usuario { display: none; } ol.etapas { flex-direction: column; } ol.etapas li { border-right: 0; border-bottom: 1px solid var(--ev-borde); } }
 </style>
 </head>
 <body>
 <header class="top"><div class="wrap">
   <span class="nombre">EVALUON</span>
-  <span class="usuario">Comisión Evaluadora · usuario de muestra</span>
+  <span class="usuario"><strong>Comisión Evaluadora</strong>usuario de muestra</span>
   <button class="btn secundario" type="button">Salir</button>
 </div></header>
-<nav class="main" aria-label="Principal"><div class="wrap"><ul>
+<nav class="tabs" aria-label="Principal"><div class="wrap"><ul>
   <li><a href="#" aria-current="page">Procesos</a></li><li><a href="#">Pliegos</a></li><li><a href="#">Ofertas</a></li><li><a href="#">Normativa</a></li><li><a href="#">Aportes de la Comisión</a></li>
 </ul></div></nav>
 
@@ -108,7 +113,7 @@
   <div class="aviso importante" role="alert"><strong>Hay filas sin determinar</strong>Dos requisitos necesitan que la Comisión confirme la evidencia.</div>
 
   <h2>Formulario y botones</h2>
-  <form class="card f" onsubmit="return false">
+  <form class="panel f" onsubmit="return false">
     <div><label for="req">Requisito</label>
       <select id="req"><option>1 · Garantía de mantenimiento de oferta</option><option>2 · Constancia de inscripción vigente</option></select></div>
     <div><label for="nom">Oferente</label><input id="nom" type="text" value="Oferente de muestra S. A.">
