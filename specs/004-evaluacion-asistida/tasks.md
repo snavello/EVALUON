@@ -42,7 +42,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-173 | Medir el caso-00 con los datos del Portal cargados (ronda 2, la última, ADR-0025) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-172, T-174 | terminada |
 | T-174 | Emparejar las ofertas del Portal con las cargadas a mano (CUIT o nombre normalizado, como propuesta del evaluador), necesario para cargar el Portal del caso-00 | REQ-062 | — | terminada |
 | T-175 | Completar REQ-062 y corregir el medidor tras T-173: cita del Portal de la cotización y de la garantía cuando la oferta no la trae; la medición cuenta la fila técnica pendiente con hechos correctos aunque falte el documento; externos de habilidad y de la póliza electrónica reconocidos por el título del tramo y la norma de la Superintendencia (ronda extra por requisito incompleto, ADR-0025) | REQ-052, REQ-062, REQ-063 | T-173 | terminada |
-| T-177 | Lectura con visión: enderezar la página, texto plano con marcador de fin, penalizar la repetición y franjas a mayor resolución (el pagaré del caso-00 es legible: lo verificó el responsable) | REQ-064, REQ-054 | T-175 | en curso |
+| T-177 | Lectura con visión: enderezar la página, texto plano con marcador de fin, penalizar la repetición y franjas a mayor resolución (el pagaré del caso-00 es legible: lo verificó el responsable) | REQ-064, REQ-054 | T-175 | terminada |
 | T-176 | Medir el caso-00 después de T-175 y T-177 (medición final) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-175, T-177 | pendiente |
 
 ## Paralelismo
@@ -394,7 +394,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 ### T-176 · Medición final del caso-00
 
 - **Requisitos:** REQ-052, REQ-061 a REQ-064
-- **Aviso de tareas anteriores:** (T-175) Revisar M-040 y M-041 (no deben citar cotizaciones ni dar falta_coincidencia). La lista esperada espera cumple por lectura en los tres pares del pagaré de la oferta 1 (es legible). Medir después de T-177.
+- **Aviso de tareas anteriores:** (T-175) Revisar M-040 y M-041 (no deben citar cotizaciones ni dar falta_coincidencia). La lista esperada espera cumple por lectura en los tres pares del pagaré de la oferta 1 (es legible). Medir después de T-177. (T-177) El 12B transcribe lo manuscrito del pagaré con valores plausibles y distintos del original (monto en números bien; letras, fecha, beneficiario y concepto mal; H-1 de verificacion/T-177.md). Revisar a mano cada cita de página leída por visión contra la imagen antes de contarla.
 - **Qué hay que hacer:** sobre `evaluon_t173` (Portal cargado), con una base nueva si la visión ya intentó las páginas; `--verificar-esperada` y `--verificar-decisiones`; una medición con el umbral de la spec.
 
 ## Revisión con el primer producto
