@@ -843,3 +843,125 @@ def test_a_head_that_is_only_a_suggestion_does_not_protect(operator_user, script
 
     assert [d.text for d in m.DiscardedRow.objects.filter(run=run)] == [DEPOSIT_TAIL]
     assert [r.state for r in formal_rows(run)] == ["sugerido"]
+
+
+# --- T-178: tablas de anexos, garantía de la oferta y obligaciones del adjudicatario ---------------
+
+
+def test_a_table_inside_an_annex_goes_through_the_filter_and_a_body_table_does_not():
+    """REQ-033, REQ-024: las celdas de una tabla de anexo (el formulario que se completa)
+    pasan por el filtro; las tablas del cuerpo del pliego siguen firmes."""
+
+    def unit(key, kind="tabla"):
+        segment = SimpleNamespace(pk=1, key=key, text="x" * 30, segment_type=kind,
+                                  section_class="")
+        return SimpleNamespace(segment=segment, document_title="d")
+
+    annex = (unit("sec-ii/anexo-iii/tabla-5"), Found("formal", (0, 10)))
+    body = (unit("sec-i/6/tabla-1"), Found("formal", (0, 10)))
+    plain = (unit("sec-ii/anexos-varios/tabla-1"), Found("formal", (0, 10)))
+
+    rows = row_filter.candidates([annex, body, plain])
+
+    assert [row.found for row in rows] == [annex[1]]
+
+
+# La frase se arma con un hueco para no repetir en el repositorio una secuencia de palabras de
+# las anclas de los casos (ver el test de generalidad).
+PHRASE = "garantía de {} de la oferta".format("mantenimiento")
+GUARANTEE = f"La falta de presentación en término determinará la pérdida de la {PHRASE}."
+
+
+def test_the_offer_guarantee_sentence_is_a_suggestion_in_the_matrix(operator_user, script, filt):
+    """REQ-035, REQ-036: de punta a punta, la oración que solo menciona la garantía como
+    consecuencia llega a la matriz como sugerencia, no como descartada."""
+    fragment = f"determinará la pérdida de la {PHRASE}"
+    script.when("pérdida", item([(fragment, "economico")]))
+    filt.when(fragment, discard("consecuencia_sancion", GUARANTEE), "no")
+
+    run = run_with(operator_user, pliego(GUARANTEE))
+
+    assert not m.DiscardedRow.objects.filter(run=run).exists()
+    assert [(r.state, r.doubt_reason) for r in formal_rows(run)] == [("sugerido", "duda")]
+
+
+def test_the_v3_instructions_leave_the_adjudicatario_duties_out_of_the_offer(settings):
+    """REQ-033, REQ-024: las instrucciones activas de extracción y completitud dicen que lo
+    que el adjudicatario hace durante la prestación es ejecución del contrato, y que lo que
+    se acredita al ofertar sigue siendo requisito. El filtro conserva su v2: con la v3 de
+    prueba se perdió un requisito esperado del caso de ajuste."""
+    from evaluon.tenders.proposal import extraction
+
+    versions = settings.MATRIX_PROMPT_VERSIONS
+    assert versions["extraccion"] == "matriz-extraccion-v3"
+    assert versions["completitud"] == "matriz-completitud-v3"
+    assert versions["filtro"] == "matriz-filtro-v2"
+    texts = [extraction.load_prompt("extraccion"), extraction.load_prompt("completitud")]
+    for text in texts:
+        assert "adjudicatari" in text and "durante la prestación" in text
+    assert "se acredita al ofertar" in texts[0]
+
+
+def test_the_offer_guarantee_sentence_enters_as_a_suggestion_even_if_no_row_named_it(
+        operator_user, script, filt):
+    """REQ-035, REQ-036: si el modelo descartó el tramo entero y ninguna fila nombra la
+    garantía de la oferta, la oración que la nombra entra a la matriz como sugerencia con
+    la duda `duda`, con su cita literal y la anomalía registrada."""
+    run = run_with(operator_user, pliego(GUARANTEE))  # el guion descarta el tramo
+
+    rows = formal_rows(run)
+    assert [(r.state, r.category, r.doubt_reason) for r in rows] == [
+        ("sugerido", "economico", "duda")]
+    quote = rows[0].quotes.get()
+    assert quote.text == GUARANTEE
+    assert quote.segment.key == "sec-i/1.1"
+    assert rows[0].passes == ["filtro"]
+    disposition = m.Disposition.objects.get(run=run, segment=quote.segment)
+    assert disposition.outcome == "requisitos"
+
+
+def test_no_guarantee_sentence_is_added_when_the_pliego_does_not_name_it(
+        operator_user, script, filt):
+    """REQ-036: sin mención en el pliego no se agrega nada (la norma solo confirma)."""
+    run = run_with(operator_user, pliego("Los precios se expresarán en pesos."))
+
+    assert formal_rows(run) == []
+
+
+def test_no_guarantee_sentence_is_added_when_a_row_already_names_it(
+        operator_user, script, filt):
+    """REQ-035: si una fila ya nombra la garantía, no se suma otra por la misma mención."""
+    sentence = f"Los oferentes constituirán una {PHRASE} del 5 %."
+    script.when(sentence, item([(sentence, "economico")]))
+
+    run = run_with(operator_user, pliego(sentence))
+
+    assert [r.state for r in formal_rows(run)] == ["propuesto"]
+
+
+def test_a_row_whose_quote_is_in_the_sentence_that_names_the_guarantee_covers_it(
+        operator_user, script, filt):
+    """REQ-035: la fila que cita solo una parte de la oración que nombra la garantía (sin
+    la frase) la cubre: no se suma una sugerencia repetida."""
+    sentence = f"La {PHRASE} deberá ser individualizada al presentar la oferta."
+    script.when(sentence, item([("deberá ser individualizada al presentar la oferta",
+                                 "economico")]))
+
+    run = run_with(operator_user, pliego(sentence))
+
+    assert [r.state for r in formal_rows(run)] == ["propuesto"]
+
+
+def test_a_row_in_another_sentence_of_the_same_tramo_does_not_cover_the_guarantee(
+        operator_user, script, filt):
+    """REQ-035, REQ-036: en un tramo con filas, la oración que solo nombra la garantía como
+    consecuencia, sin fila propia, entra como sugerencia y la otra fila no cambia."""
+    other = "Los oferentes adjuntarán la declaración jurada firmada."
+    clause = f"{other} {GUARANTEE}"
+    script.when(other, item([(other, "formal")]))
+
+    run = run_with(operator_user, pliego(clause))
+
+    rows = formal_rows(run)
+    assert [(r.state, r.quotes.get().text) for r in rows] == [
+        ("propuesto", other), ("sugerido", GUARANTEE)]

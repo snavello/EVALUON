@@ -198,7 +198,7 @@ class Supporter:
             self.stats["no_regime"] += 1
             self.anomalies.append({"type": ANOMALY_NO_REGIME, "segment": key})
             return []
-        question = build_question(row.text)
+        question = build_question(getattr(row, "query", "") or row.text)
         context = self._context(question)
         self.stats["consulted"] += 1
         started = time.monotonic()

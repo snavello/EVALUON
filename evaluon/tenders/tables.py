@@ -43,6 +43,10 @@ def table_zones(data: bytes) -> list[dict]:
         with pdfplumber.open(io.BytesIO(data)) as pdf:
             for number, page in enumerate(pdf.pages, start=1):
                 for table in page.find_tables():
+                    # Un recuadro de una sola columna es texto con borde, no una tabla
+                    # (T-178): sus cláusulas se parten como cualquier otra.
+                    if max((len(row.cells) for row in table.rows), default=0) < 2:
+                        continue
                     x0, top, x1, bottom = table.bbox
                     zones.append(
                         {

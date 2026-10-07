@@ -293,8 +293,8 @@ MATRIX_CONSEQUENCES_PER_REQUEST = 25
 MATRIX_CIRCULAR_CANDIDATES = 8
 # Versión de cada instrucción de la matriz: archivo `evaluon/tenders/prompts/<versión>.md`.
 MATRIX_PROMPT_VERSIONS = {
-    "extraccion": "matriz-extraccion-v2",
-    "completitud": "matriz-completitud-v2",
+    "extraccion": "matriz-extraccion-v3",
+    "completitud": "matriz-completitud-v3",
     "consecuencias": "matriz-consecuencias-v1",
     "circulares": "matriz-circulares-v2",
     "circulares_cambios": "matriz-circulares-v5",

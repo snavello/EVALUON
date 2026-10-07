@@ -79,6 +79,7 @@ Formato liviano (ADR-0014, punto 6): este archivo tiene solo la tabla y lo que p
 | T-129 | Reconocer supresiones dichas con sustantivo y aplicar la aclaración de un renglón a sus citas | REQ-031 | T-127, T-128 | terminada |
 | T-137 | Pasada de circulares: revisión obligatoria visible ante un cambio sin resolver y las tres causas de la aceptación a ciegas | REQ-031 | T-108, T-129 | terminada |
 | T-147 | Circulares: aviso en la fila que cambia (#183) y medición del criterio de ADR-0034 | REQ-031, REQ-024 | T-137 | terminada |
+| T-178 | Pliegos nuevos: cláusulas de primer nivel sin punto, recuadros de una columna, obligaciones de ejecución, garantía de mantenimiento como sugerencia con respaldo normativo (prueba con el proceso AABN5) | REQ-024, REQ-028, REQ-035, REQ-036 | — | terminada |
 
 ## Para todas las tareas
 
@@ -656,6 +657,9 @@ Plan: sección "Rediseño de la pasada de circulares (2026-10-04)" de `plan.md`;
 - **Entorno:** MSI con GPU para la medición, de a una.
 
 ## Revisión con el primer producto (ADR-0024)
+
+- (T-178) Faltan dos tests del segmentador: título en minúscula que continúa la numeración, y línea en mayúsculas en medio de una oración (verificacion/T-178.md, hallazgo 1). Falsos positivos residuales poco probables: una línea en mayúsculas con el número siguiente en un párrafo propio (por ejemplo, una fecha) abre cláusula; impacto: un tramo de más que la Comisión ve.
+- (T-178) Sigue sobrando cerca de la mitad de lo propuesto (celdas de tablas de anexos, frases partidas de enumeraciones).
 
 Lo menor de la 003, que se encara con la 008 y la 004 terminadas, con el uso real de la Comisión:
 
