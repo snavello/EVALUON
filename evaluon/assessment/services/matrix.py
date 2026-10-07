@@ -23,7 +23,13 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.assessment import ordering
 from evaluon.assessment.models import Doubt, Outcome, Question, Result
-from evaluon.assessment.services import compliance, evaluate, review, technical
+from evaluon.assessment.services import (
+    compliance,
+    evaluate,
+    review,
+    technical,
+    technical_report,
+)
 from evaluon.audit.models import Channel
 from evaluon.offers.services import offers as offers_service
 from evaluon.offers.services import sheets
@@ -113,6 +119,9 @@ class OfferStatus:
     sheets: list = field(default_factory=list)
     externals_pending: int = 0
     sheet_reading: bool = False
+    # Informes técnicos del área de la oferta (T-190; REQ-074): los cargados y si alguno se lee.
+    reports: list = field(default_factory=list)
+    report_reading: bool = False
 
     @property
     def by_state_rows(self):
@@ -148,6 +157,11 @@ class MatrixPage:
     @property
     def can_upload_sheet(self):
         """Solo el evaluador sube la hoja de compliance (T-189; REQ-073)."""
+        return self.can_decide_technical
+
+    @property
+    def can_upload_report(self):
+        """Solo el evaluador sube el informe técnico del área (T-190; REQ-074)."""
         return self.can_decide_technical
 
     @property
@@ -228,6 +242,8 @@ def _status(offer, requirements, cells, validated, version=None):
     status.sheet_reading = any(
         offers_service.document_row(d).state != offers_service.STATE_READ
         for d in status.sheets)
+    status.reports = technical_report.reports_of(offer)
+    status.report_reading = bool(technical_report.reading_reports(offer))
     status.open_questions = list(
         Question.objects.filter(offer=offer, requirement__in=requirements,
                                 answers__isnull=True)

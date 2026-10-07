@@ -79,12 +79,14 @@ class DocumentKind(models.TextChoices):
     """Tipo de un documento de la oferta: lo pone el sistema al leer, por reglas; nunca
     la persona que carga, y nunca excluye al documento de la búsqueda. Única excepción
     (T-189; REQ-073): la hoja de compliance la fija la acción "Subir hoja de compliance" de la
-    Comisión y la clasificación por reglas no la pisa."""
+    Comisión y la clasificación por reglas no la pisa. Lo mismo el informe técnico del área
+    (T-190; REQ-074)."""
 
     ECONOMICA = "economica", "Propuesta económica"
     TECNICA = "tecnica", "Documentación técnica"
     GARANTIA = "garantia", "Garantía"
     COMPLIANCE = "compliance", "Hoja de compliance"
+    INFORME_TECNICO = "informe_tecnico", "Informe técnico del área"
     OTRO = "otro", "Otro"
 
 
