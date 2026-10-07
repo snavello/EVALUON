@@ -39,7 +39,8 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-170 | Medición con la regla nueva: conteo por tipo de par, `--verificar-decisiones` y actualización de la lista esperada del caso-00 (Coordinador, fuera del repositorio) | REQ-052, REQ-053, REQ-061, REQ-062, REQ-063, REQ-064 | T-165 | pendiente |
 | T-171 | Medir el caso-00 con las decisiones aplicadas (medición final, una sola) | REQ-052, REQ-053, REQ-054, REQ-059, REQ-061, REQ-062, REQ-063, REQ-064 | T-166, T-167, T-168, T-169, T-170 | terminada |
 | T-172 | Corregir los hallazgos de T-171: documento técnico afirmado por una línea de precio (H-3), ilegible del pagaré en todos los pares de la garantía (H-4), M-008 y M-016 externos (H-5), hechos técnicos de una oferta sin ficha (H-6) | REQ-061, REQ-063, REQ-064 | T-171 | terminada |
-| T-173 | Medir el caso-00 con los datos del Portal cargados (ronda 2, la última, ADR-0025) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-172 | pendiente |
+| T-173 | Medir el caso-00 con los datos del Portal cargados (ronda 2, la última, ADR-0025) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-172, T-174 | pendiente |
+| T-174 | Emparejar las ofertas del Portal con las cargadas a mano (CUIT o nombre normalizado, como propuesta del evaluador), necesario para cargar el Portal del caso-00 | REQ-062 | — | pendiente |
 
 ## Paralelismo
 
