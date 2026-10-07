@@ -66,6 +66,7 @@ class ItemRow:
     changed: bool = False
     template: str = ""
     action: str = ""  # del ítem procedimiento: "crear" o "asociar"
+    match: object = None  # del ítem oferta: con qué oferta cargada se asocia (T-174)
 
 
 @dataclass
@@ -111,8 +112,11 @@ def proposal_page(user, link_id, *, channel=Channel.SCREEN):
         action = (discover()[item.kind].action(item)
                   if item.kind == ItemKind.PROCEDIMIENTO and item.state == ItemState.PROPUESTO
                   else "")
+        match = (discover()[item.kind].proposal_match(item)
+                 if item.kind == ItemKind.OFERTA and item.state == ItemState.PROPUESTO
+                 else None)
         rows[item.kind].append(ItemRow(item=item, can_decide=_can(user, required_role(item.kind)),
-                                       action=action,
+                                       action=action, match=match,
                                        changed=changed))
     pending = sum(1 for group in rows.values() for row in group
                   if row.item.state == ItemState.PROPUESTO)
@@ -230,7 +234,8 @@ def _decide_one(user, item_id, decision, confirmation, channel):
             _event(item, user, channel, Outcome.OK, APPROVE, KEPT_AS_FILE, file=item.file_id)
             return ItemResult(item, KEPT_AS_FILE)
         _event(item, user, channel, Outcome.OK, APPROVE, LOADED,
-               loaded_model=item.loaded_model, loaded_id=item.loaded_id)
+               loaded_model=item.loaded_model, loaded_id=item.loaded_id,
+               **getattr(item, "audit_extra", {}))
         # Un importador puede dejar en `item.notice` un aviso para quien aprobó (por ejemplo,
         # que el Portal cambió el nombre o el objeto y el procedimiento conserva el anterior).
         return ItemResult(item, LOADED, getattr(item, "notice", ""))
