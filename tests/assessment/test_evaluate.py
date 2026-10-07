@@ -21,7 +21,7 @@ from evaluon.audit.models import AuditEvent, Channel, EventType
 from evaluon.offers import models as om
 from evaluon.tenders import jobs
 from evaluon.tenders import models as m
-from tests.assessment.fakes import model, says  # noqa: F401 - `model` es una fixture
+from tests.assessment.fakes import ILEGIBLE_NEEDLE, model, model_view, says  # noqa: F401
 from tests.offers.conftest import make_offer
 
 pytestmark = pytest.mark.django_db
@@ -935,7 +935,7 @@ def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(
     def oracle(call):
         bidder = next(b for b in by_bidder if b in "".join(call.documents.values()))
         number = int(re.search(r"requisito (\d+)", call.requirement).group(1))
-        entry = by_bidder[bidder][number]
+        entry = model_view(bidder, by_bidder[bidder][number])
         result = entry["resultado"]
         if result in ("cumple", "no_cumple"):
             quotes = [shorter_quote(call, c["ancla"]) for c in entry["citas"]]
@@ -944,6 +944,8 @@ def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(
             if result == "no_cumple" and call.requirement.startswith("Renglón"):
                 answer["clausula"] = re.findall(r"«(.*?)»", call.requirement)[-1]
             return answer
+        if entry.get("ilegible"):
+            return says("no_determinado", ilegible=call.alias_with(ILEGIBLE_NEEDLE))
         if entry.get("motivo") == "falta_hoja_compliance":
             return says("no_determinado", external=True)
         return says("no_consta", exigence="documento")
@@ -965,12 +967,15 @@ def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(
                 got_value, got_doubt = result.opinion, result.doubt
                 ok = (result.outcome == "no_determinado"
                       and result.doubt == "pendiente_informe_tecnico"
-                      and result.opinion == wanted[entry["resultado"]]
-                      or entry["resultado"] == "no_se_encontro_documento")
+                      and result.opinion == wanted[entry["dictamen"]])
                 if not ok:
                     differences.append((run.offer.bidder, entry["requisito"], got_value,
                                         got_doubt))
                 continue
+            if entry.get("portal"):
+                # Su regla llega con T-169; la mide `medir_evaluacion` (T-171), no esta prueba.
+                continue
+            questions += am.Question.objects.filter(result=result).count()
             if result.outcome != wanted[entry["resultado"]]:
                 differences.append((run.offer.bidder, entry["requisito"], result.outcome,
                                     result.doubt))
@@ -982,10 +987,12 @@ def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(
             if entry["resultado"] == "no_determinado":
                 assert result.doubt == {"falta_hoja_compliance": "externo",
                                         "pagina_ilegible": "lectura_incompleta",
+                                         "no_se_pudo_leer": "no_se_pudo_leer",
                                         "lectura_incompleta": "lectura_incompleta"}[entry["motivo"]]
-        questions += run.counts["questions"]
     assert differences == []
-    assert questions == raw["resumen"]["preguntas_esperadas"]
+    assert questions == sum(
+        1 for o in raw["ofertas"] for e in o["requisitos"] if e.get("pregunta") == "si"
+        and e["base"] != "tecnica" and not e.get("portal"))
     assert not any(r.outcome == "no_cumple" and not offer_cites(r)
                    for run in runs for r in run.results.all())
 
