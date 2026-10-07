@@ -13,13 +13,23 @@ leer». El sistema comprueba que ese documento figure en el informe como no leí
 - si no figura, el alias se descarta con una anomalía y el par sigue su camino (la regla de
   `combine.py` lo deja en `lectura_incompleta`).
 
+**Propagación (T-172, H-4).** Si el modelo señaló un documento ilegible en un par, los demás
+pares de la misma oferta que dependen de ese documento (los que nombran la misma forma de
+garantía, pagaré con pagaré o póliza con póliza, o la misma obligación, y ninguna distinta: una
+«garantía técnica», «de fábrica», «de impugnación» o «de cumplimiento» no lo recibe) y no llegaron a una conclusión con otro documento quedan igual en
+"no se pudo leer", con el mismo documento y la misma página: `facts.ilegible.propagado = True`.
+Lo que depende de un documento ilegible no se puede evaluar aunque el modelo no lo haya señalado
+en cada par. No se propaga a un par con conclusión (cumple o no cumple) ni a otros documentos.
+
 Un documento ilegible no es un documento ausente: no se mezcla con "no se encontró el
 documento". Una conclusión con cita ubicada en otro documento no se pisa.
 """
 
+import re
 from dataclasses import replace
 
 from evaluon.assessment import combine
+from evaluon.assessment.externals import fold
 
 RULE = "ilegible_informe"
 ANOMALY_NOT_BACKED = "ilegible_no_avalado"
@@ -43,6 +53,69 @@ def resolve(piece, unread):
             "archivo": document.file_name, "pagina": first, "paginas": pages}
 
 
+# Qué documento de garantía nombra un texto (texto sin acentos): la forma (pagaré, póliza,
+# fianza, aval) y la obligación a la que sirve. Se propaga por el documento, no por la palabra
+# «garantía» (T-172, H-B).
+FORMS = {
+    "pagare": re.compile(r"\bpagares?\b"),
+    "poliza": re.compile(r"\bpolizas?\b|\bcaucion\b|seguros? de caucion"),
+    "fianza": re.compile(r"\bfianzas?\b"),
+    "aval": re.compile(r"\baval(?:es)? bancarios?\b|\bcarta de credito\b"),
+}
+GUARANTEE = re.compile(r"garantia|pagare|poliza|caucion|fianza|aval bancario")
+OBLIGATIONS = {
+    # La garantía que se integra con la oferta.
+    "oferta": re.compile(r"mantenimiento de (?:la )?oferta|(?:con|presentar(?:se)?|presentacion de)"
+                         r" (?:la )?oferta"),
+    "cumplimiento": re.compile(r"cumplimiento (?:del? )?contrato|cumplimiento del contrato"),
+    "impugnacion": re.compile(r"impugnacion"),
+    "tecnica": re.compile(r"garantia (?:tecnica|de fabrica|del fabricante|del bien|de calidad"
+                          r"|de funcionamiento)"),
+}
+
+
+def forms_of(text):
+    folded = fold(text)
+    return {name for name, pattern in FORMS.items() if pattern.search(folded)}
+
+
+def obligations_of(text):
+    folded = fold(text)
+    if not GUARANTEE.search(folded):
+        return set()
+    return {name for name, pattern in OBLIGATIONS.items() if pattern.search(folded)}
+
+
+def depends_on(mine, other):
+    """El texto `mine` depende del mismo documento que `other` (ambos: `(formas, obligaciones)`):
+    nombra la misma forma de garantía o la misma obligación, y no sirve a una obligación
+    distinta de la del documento señalado."""
+    forms, obligations = mine
+    other_forms, other_obligations = other
+    if obligations and other_obligations and not obligations & other_obligations:
+        return False
+    return bool(forms & other_forms or obligations & other_obligations)
+
+
+def kinds_of(text):
+    return forms_of(text), obligations_of(text)
+
+
+def collect(pairs):
+    """Los documentos que el modelo señaló como ilegibles (avalados por el informe) en algún
+    par, con sus formas y obligaciones: `[{"found": {...}, "kinds": (...)}]`. Se arma una vez por oferta, antes de
+    aplicar las reglas."""
+    flagged = []
+    for pair in pairs:
+        found = next((g.unreadable for g in pair.groups if g.unreadable), None)
+        if found is None:
+            continue
+        kinds = kinds_of(pair.text.text)
+        if kinds[0] or kinds[1]:
+            flagged.append({"found": found, "kinds": kinds})
+    return flagged
+
+
 def question(where):
     """La pregunta fija a la Comisión (REQ-064)."""
     return (f"¿Lo que exige este requisito está en la página {where['pagina']} de "
@@ -59,6 +132,10 @@ def rule(pair, ctx):
     if combined.doubt == combine.CONTRADICTION:
         return None
     found = next((g.unreadable for g in pair.groups if g.unreadable), None)
+    propagated = False
+    if found is None:
+        found = _propagated(pair, ctx)
+        propagated = found is not None
     if found is None:
         return None
     note = (f"No se pudo leer la página {found['pagina']} de «{found['documento']}», que "
@@ -69,4 +146,16 @@ def rule(pair, ctx):
         facts={**combined.facts, "regla": RULE,
                "ilegible": {"documento": found["documento"], "pagina": found["pagina"],
                             "documento_id": found["documento_id"],
-                            "archivo": found["archivo"], "paginas": found["paginas"]}})
+                            "archivo": found["archivo"], "paginas": found["paginas"],
+                            **({"propagado": True} if propagated else {})}})
+
+
+def _propagated(pair, ctx):
+    """El documento ilegible señalado en otro par, si este par depende del mismo documento."""
+    mine = kinds_of(pair.text.text)
+    if not (mine[0] or mine[1]):
+        return None
+    for entry in getattr(ctx, "unreadable_flags", None) or []:
+        if depends_on(mine, entry["kinds"]):
+            return entry["found"]
+    return None

@@ -49,7 +49,7 @@ flowchart LR
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
 | [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 63/65 | ██████████ 97% |
-| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 22/26 | ████████░░ 85% |
+| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 23/26 | █████████░ 88% |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
 | 007 · Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | No iniciada | — | — |
@@ -664,10 +664,9 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 4 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 3 tareas sin terminar.
 - ○ T-159 · Descarga y verificación de archivos y servicio: proyector del 12B, 26B-A4B con su proyector, variables propias del lote, `--mmproj`, archivo `docker-compose.modelo-grande.yml`, prueba de humo con imagen y memoria medida (pendiente)
 - ○ T-170 · Medición con la regla nueva: conteo por tipo de par, `--verificar-decisiones` y actualización de la lista esperada del caso-00 (Coordinador, fuera del repositorio) (pendiente)
-- ○ T-172 · Corregir los hallazgos de T-171: documento técnico afirmado por una línea de precio (H-3), ilegible del pagaré en todos los pares de la garantía (H-4), M-008 y M-016 externos (H-5), hechos técnicos de una oferta sin ficha (H-6) (pendiente)
 - ○ T-173 · Medir el caso-00 con los datos del Portal cargados (ronda 2, la última, ADR-0025) (pendiente)
 
 ### Qué se hizo
@@ -695,6 +694,7 @@ flowchart LR
 - ✓ T-168 · Ok de la Comisión del informe técnico y presentación en la matriz de los resultados nuevos (`4d610a8` 2026-10-06, `880e5b4` 2026-10-06, `ca115e7` 2026-10-06)
 - ✓ T-169 · El Portal como fuente: dato o documento en el Portal, falta de coincidencia y cita del Portal (`ba7dd3e` 2026-10-07, `dea0bdc` 2026-10-06)
 - ✓ T-171 · Medir el caso-00 con las decisiones aplicadas (medición final, una sola)
+- ✓ T-172 · Corregir los hallazgos de T-171: documento técnico afirmado por una línea de precio (H-3), ilegible del pagaré en todos los pares de la garantía (H-4), M-008 y M-016 externos (H-5), hechos técnicos de una oferta sin ficha (H-6) (`f43776d` 2026-10-07, `df7904d` 2026-10-07)
 
 ### Mapa de tareas
 
@@ -724,7 +724,7 @@ flowchart TD
   T169["✓ T-169 · El Portal como fuente: dato o documento en…"]:::done
   T170["○ T-170 · Medición con la regla nueva: conteo por tip…"]:::todo
   T171["✓ T-171 · Medir el caso-00 con las decisiones aplicad…"]:::done
-  T172["○ T-172 · Corregir los hallazgos de T-171: documento…"]:::todo
+  T172["✓ T-172 · Corregir los hallazgos de T-171: documento…"]:::done
   T173["○ T-173 · Medir el caso-00 con los datos del Portal c…"]:::todo
   T148 --> T150
   T149 --> T151
