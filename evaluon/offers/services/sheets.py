@@ -590,8 +590,16 @@ def build_sheet(offer, user, *, channel=SheetChannel.SCREEN, job=None,
         detail.update(matrix_version=version.pk, matrix_version_number=version.number)
         unread = _unread_pages(readings)
         started = clock()
-        entries = [_answer_entry(offer, requirement, unread, clock)
-                   for requirement in firm_requirements(version)]
+        requirements = list(firm_requirements(version))
+        entries = []
+        for index, requirement in enumerate(requirements):
+            if job is not None:
+                jobs.report(job, f"Buscando en la oferta el requisito {requirement.number}",
+                            index, len(requirements), f"Ficha de la oferta {offer.number}")
+            entries.append(_answer_entry(offer, requirement, unread, clock))
+        if job is not None:
+            jobs.report(job, "Guardando la ficha", len(requirements), len(requirements),
+                        f"Ficha de la oferta {offer.number}")
         steps_count = sum(len(e.steps) for e in entries)
         counts = _counts(entries, steps_count)
         anomalies = [a for e in entries for a in e.anomalies]

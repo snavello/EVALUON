@@ -63,7 +63,7 @@ flowchart LR
 | 010 · Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | No iniciada | — | — |
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
-| [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 2/13 | ██░░░░░░░░ 15% |
+| [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 8/13 | ██████░░░░ 62% |
 
 <a id="001"></a>
 
@@ -958,13 +958,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 11 tareas sin terminar.
-- ○ T-180 · Etapas Portal, Pliego y circulares, y Matriz: estado, pendientes y enlaces (pendiente)
-- ○ T-181 · Etapa Ofertas: documentos, fichas, estado, pendientes y enlaces (pendiente)
-- ○ T-182 · Etapa Matriz de evaluación: pares por decidir, preguntas abiertas, ok del informe técnico y enlaces (pendiente)
-- ○ T-183 · Entrada completa: procedimientos con etapa actual y pendientes; alta explorando primero el Portal y la carga a mano como complemento (REQ-071) (pendiente)
-- ○ T-184 · Avance fino de los pedidos: columna `progress` en la cola y aviso desde la evaluación y la ficha (aprobada por el responsable, ADR-0045) (pendiente)
-- ○ T-187 · Ventana del proceso: panel en vivo con los pasos del pedido en curso, en lenguaje llano (REQ-070) (pendiente)
+- **Próximo paso:** Desarrollar: 5 tareas sin terminar.
 - ○ T-188 · Aplicar la guía visual aprobada (docs/diseno/guia-visual.md, tokens.css): encabezado, recorrido, tablas y estados con íconos de color y nombre al pasar el mouse (pendiente)
 - ○ T-190 · Informe técnico del área: subirlo (por procedimiento u oferta), el sistema propone apto/no apto por oferta y renglón con cita del informe y la Comisión da el ok (REQ-074) (pendiente)
 - ○ T-191 · Recorrido: cuentas y accesos de hojas de compliance e informes técnicos que faltan en la etapa de evaluación (REQ-073, REQ-074) (pendiente)
@@ -974,20 +968,26 @@ flowchart LR
 ### Qué se hizo
 
 - Etapas completas: Spec, Plan, Tareas.
-- ✓ T-179 · Corte vertical: módulo `journey`, página de recorrido del caso chico con la etapa Evaluación en vivo (sondeo cada 5 s), roles, entrada mínima y las otras cinco etapas como lugares reservados (`682f61e` 2026-10-07, `75a6527` 2026-10-07)
-- ✓ T-189 · Hoja de compliance por oferta: subirla una vez, rige para todos los requisitos externos de la oferta (reevaluación automática citándola), acceso en la matriz de evaluación (REQ-073) (`c58dee6` 2026-10-07)
+- ✓ T-179 · Corte vertical: módulo `journey`, página de recorrido del caso chico con la etapa Evaluación en vivo (sondeo cada 5 s), roles, entrada mínima y las otras cinco etapas como lugares reservados (`e7851e5` 2026-10-07, `682f61e` 2026-10-07, `75a6527` 2026-10-07)
+- ✓ T-180 · Etapas Portal, Pliego y circulares, y Matriz: estado, pendientes y enlaces (`9af7a54` 2026-10-07)
+- ✓ T-181 · Etapa Ofertas: documentos, fichas, estado, pendientes y enlaces (`1573289` 2026-10-07, `91af577` 2026-10-07)
+- ✓ T-182 · Etapa Matriz de evaluación: pares por decidir, preguntas abiertas, ok del informe técnico y enlaces (`0ec55a2` 2026-10-07, `91ed278` 2026-10-07)
+- ✓ T-183 · Entrada completa: procedimientos con etapa actual y pendientes; alta explorando primero el Portal y la carga a mano como complemento (REQ-071) (`39cc589` 2026-10-07)
+- ✓ T-184 · Avance fino de los pedidos: columna `progress` en la cola y aviso desde la evaluación y la ficha (aprobada por el responsable, ADR-0045) (`63251e5` 2026-10-07)
+- ✓ T-187 · Ventana del proceso: panel en vivo con los pasos del pedido en curso, en lenguaje llano (REQ-070) (`09bc7b9` 2026-10-07, `184d8ce` 2026-10-07, `94889a9` 2026-10-07)
+- ✓ T-189 · Hoja de compliance por oferta: subirla una vez, rige para todos los requisitos externos de la oferta (reevaluación automática citándola), acceso en la matriz de evaluación (REQ-073)
 
 ### Mapa de tareas
 
 ```mermaid
 flowchart TD
   T179["✓ T-179 · Corte vertical: módulo journey, página de r…"]:::done
-  T180["○ T-180 · Etapas Portal, Pliego y circulares, y Matri…"]:::todo
-  T181["○ T-181 · Etapa Ofertas: documentos, fichas, estado,…"]:::todo
-  T182["○ T-182 · Etapa Matriz de evaluación: pares por decid…"]:::todo
-  T183["○ T-183 · Entrada completa: procedimientos con etapa…"]:::todo
-  T184["○ T-184 · Avance fino de los pedidos: columna progres…"]:::todo
-  T187["○ T-187 · Ventana del proceso: panel en vivo con los…"]:::todo
+  T180["✓ T-180 · Etapas Portal, Pliego y circulares, y Matri…"]:::done
+  T181["✓ T-181 · Etapa Ofertas: documentos, fichas, estado,…"]:::done
+  T182["✓ T-182 · Etapa Matriz de evaluación: pares por decid…"]:::done
+  T183["✓ T-183 · Entrada completa: procedimientos con etapa…"]:::done
+  T184["✓ T-184 · Avance fino de los pedidos: columna progres…"]:::done
+  T187["✓ T-187 · Ventana del proceso: panel en vivo con los…"]:::done
   T188["○ T-188 · Aplicar la guía visual aprobada (docs/disen…"]:::todo
   T189["✓ T-189 · Hoja de compliance por oferta: subirla una…"]:::done
   T190["○ T-190 · Informe técnico del área: subirlo (por proc…"]:::todo

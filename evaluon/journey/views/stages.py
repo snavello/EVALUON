@@ -6,11 +6,12 @@ from django.shortcuts import render
 from django.views.decorators.http import require_GET
 
 from evaluon.journey.views.procedure import get_journey
+from evaluon.journey.window import window_for
 
 
 @require_GET
 def stages(request, procedure_id):
     journey = get_journey(request, procedure_id)
-    response = render(request, "journey/_stages.html", {"journey": journey})
+    response = render(request, "journey/_stages.html", {"journey": journey, "window": window_for(journey.procedure)})
     response["Cache-Control"] = "no-store"
     return response
