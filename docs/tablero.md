@@ -63,7 +63,7 @@ flowchart LR
 | 010 · Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | No iniciada | — | — |
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
-| [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 8/13 | ██████░░░░ 62% |
+| [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 
 <a id="001"></a>
 
@@ -960,9 +960,8 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 5 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 4 tareas sin terminar.
 - ○ T-188 · Aplicar la guía visual aprobada (docs/diseno/guia-visual.md, tokens.css): encabezado, recorrido, tablas y estados con íconos de color y nombre al pasar el mouse (pendiente)
-- ○ T-190 · Informe técnico del área: subirlo (por procedimiento u oferta), el sistema propone apto/no apto por oferta y renglón con cita del informe y la Comisión da el ok (REQ-074) (pendiente)
 - ○ T-191 · Recorrido: cuentas y accesos de hojas de compliance e informes técnicos que faltan en la etapa de evaluación (REQ-073, REQ-074) (pendiente)
 - ○ T-185 · Los cinco momentos y los roles con el caso chico: 30 de 30 celdas y enlaces de las seis etapas (pendiente)
 - ○ T-186 · Comprobación con el caso-00 desde cero (Coordinador y testeador): cinco momentos, avance en vivo y carga en menos de 2 s (pendiente)
@@ -978,6 +977,7 @@ flowchart LR
 - ✓ T-184 · Avance fino de los pedidos: columna `progress` en la cola y aviso desde la evaluación y la ficha (aprobada por el responsable, ADR-0045) (`63251e5` 2026-10-07)
 - ✓ T-187 · Ventana del proceso: panel en vivo con los pasos del pedido en curso, en lenguaje llano (REQ-070) (`09bc7b9` 2026-10-07, `184d8ce` 2026-10-07, `94889a9` 2026-10-07)
 - ✓ T-189 · Hoja de compliance por oferta: subirla una vez, rige para todos los requisitos externos de la oferta (reevaluación automática citándola), acceso en la matriz de evaluación (REQ-073) (`c58dee6` 2026-10-07)
+- ✓ T-190 · Informe técnico del área: subirlo (por procedimiento u oferta), el sistema propone apto/no apto por oferta y renglón con cita del informe y la Comisión da el ok (REQ-074) (`7df719e` 2026-10-07, `02c1b95` 2026-10-07)
 
 ### Mapa de tareas
 
@@ -992,7 +992,7 @@ flowchart TD
   T187["✓ T-187 · Ventana del proceso: panel en vivo con los…"]:::done
   T188["○ T-188 · Aplicar la guía visual aprobada (docs/disen…"]:::todo
   T189["✓ T-189 · Hoja de compliance por oferta: subirla una…"]:::done
-  T190["○ T-190 · Informe técnico del área: subirlo (por proc…"]:::todo
+  T190["✓ T-190 · Informe técnico del área: subirlo (por proc…"]:::done
   T191["○ T-191 · Recorrido: cuentas y accesos de hojas de co…"]:::todo
   T185["○ T-185 · Los cinco momentos y los roles con el caso…"]:::todo
   T186["○ T-186 · Comprobación con el caso-00 desde cero (Coo…"]:::todo
