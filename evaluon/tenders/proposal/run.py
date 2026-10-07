@@ -655,7 +655,7 @@ def add_offer_guarantee_mention(loaded, decisions, result, outside):
                 marks=list(decision.marks))
         decision.found.append(found)
         row = row_filter.Row(unit, found, max([v.row.order for v in result.verdicts],
-                                              default=0) + 1)
+                                              default=0) + 1, query=match.group(0))
         result.verdicts.append(row_filter.Verdict(
             row, row_filter.SUGERENCIA, doubt_reason="duda",
             anomaly=row_filter.ANOMALY_OFFER_GUARANTEE))

@@ -126,6 +126,9 @@ class Row:
     found: object
     order: int
     repeated: list = field(default_factory=list)
+    # Lo que se le pregunta a la normativa (REQ-036) si no es el fragmento: la condición que
+    # el pliego da por supuesta (T-178).
+    query: str = ""
 
     @property
     def segment(self):
@@ -460,7 +463,9 @@ def protect_offer_guarantee(verdicts, other_texts=()):
     if any(OFFER_GUARANTEE.search(v.row.text) for v in kept):
         return
     for verdict in verdicts:
-        if verdict.destination == DESCARTADA and OFFER_GUARANTEE.search(verdict.row.text):
+        match = OFFER_GUARANTEE.search(verdict.row.text)
+        if verdict.destination == DESCARTADA and match:
+            verdict.row.query = match.group(0)
             verdict.destination = SUGERENCIA
             verdict.doubt_reason = "duda"
             verdict.reason = ""
