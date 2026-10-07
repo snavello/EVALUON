@@ -47,6 +47,34 @@ ENTRIES = {
         "Presentar la declaración jurada de habilidad para contratar firmada por el oferente."),
 }
 
+# Otras formas del mismo tipo (hallazgo 1 de la verificación): el texto que se reconoce y un
+# parecido que sigue siendo un documento de la oferta.
+EXTRA_FORMS = [
+    ("habilidad_contratar",
+     "Declaración jurada de habilidad para contratar: no estar comprendido en las causales "
+     "del artículo 18 ni tener causas penales.",
+     "Adjuntar la declaración jurada de habilidad para contratar, firmada y fechada."),
+    ("registro_proveedores",
+     "El oferente deberá haber culminado el trámite de inscripción en el Registro de "
+     "Proveedores antes de la adjudicación.",
+     "Acompañar el formulario del trámite de inscripción del oferente en su cámara empresaria."),
+    ("registro_proveedores",
+     "Se controlará el estado de la inscripción del oferente en el Registro de Proveedores.",
+     "Acompañar la constancia de inscripción del oferente en el registro de proveedores."),
+    ("deuda",
+     "La existencia de deuda del oferente también deberá constatarse al evaluar.",
+     "Informar la existencia de contratos vigentes del oferente con otros organismos."),
+]
+
+
+@pytest.mark.decision_literal
+@pytest.mark.parametrize("key,external,similar", EXTRA_FORMS)
+def test_the_catalog_recognizes_the_other_forms_of_the_same_check(key, external, similar):
+    """REQ-063: habilidad con causales, trámite o estado de inscripción y existencia de deuda
+    son externos; un parecido que pide un documento de la oferta no lo es."""
+    assert key in [c.key for c in externals.match(external)]
+    assert key not in [c.key for c in externals.match(similar)]
+
 
 def test_the_catalog_has_one_entry_per_kind_of_external_check():
     """REQ-063: un tipo por verificación externa de la decisión del responsable."""
