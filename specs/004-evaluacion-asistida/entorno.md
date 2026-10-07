@@ -70,7 +70,7 @@ Cuentas por oferta, en el orden de las ofertas del procedimiento; los documentos
 | `tenders` | `0007_evaluacion` | `tenders_job`: tipo de pedido `evaluate_offers` |
 | `audit` | `0007_evaluacion` | Restricción de tipos de hecho: `eval_request`, `eval_build`, `eval_decision`, `eval_answer` |
 
-Solo agregan tablas, valores y restricciones; no tocan datos existentes. Hasta que T-150 cree `evaluon/assessment/services/evaluate.py`, un pedido `evaluate_offers` falla con el motivo «sin manejador para el tipo de pedido».
+Solo agregan tablas, valores y restricciones; no tocan datos existentes. (La tabla es la de T-148; las migraciones posteriores están en "Despliegue", abajo.) Hasta que T-150 cree `evaluon/assessment/services/evaluate.py`, un pedido `evaluate_offers` falla con el motivo «sin manejador para el tipo de pedido».
 
 ## Modelos de la enmienda 2026-10-06 (T-159; ADR-0041 y ADR-0042)
 
@@ -120,3 +120,15 @@ Lectura de los números:
 - La espera de 180 s por pedido (`GENERATION_BATCH_TIMEOUT_SECONDS`) alcanza con holgura: un pedido de 20.000 tokens tarda 7 s con cualquiera de los dos modelos; no se propone cambiarla.
 - La velocidad de generación y de lectura del 26B-A4B es igual o mejor que la del 12B en estos pedidos, como esperaba el ADR-0042.
 - Al terminar, `generation_batch` quedó con el 12B y el proyector del compose base (`n_ctx` 32.768), respondiendo.
+
+## Despliegue (2026-10-07; `specs/004-evaluacion-asistida/runbook.md`)
+
+Preparado para la aprobación del responsable (P11); nada se aplicó sobre la base real.
+
+- **Migraciones de la 004 completas:** `audit.0007`, `tenders.0007`, `offers.0004_passage_origin_vision` (T-160), `assessment.0001` a `0004` (`0003_resultados_decisiones_literales` y `0004_triggers`, T-165). La tabla de T-148 de arriba solo traía las primeras.
+- **Base real, leída el 2026-10-07:** tiene aplicadas todas menos `assessment.0003` y `0004`. El despliegue aplica esas dos, con respaldo previo (`backups/evaluon-AAAA-MM-DD-previo-004.dump`).
+- **Entorno en marcha, leído el 2026-10-07:** `generation_batch` con `n_ctx` 32.768, alias del 12B y `vision: true`; `generation` con 16.384; memoria de video usada 17.530 de 24.463 MiB (con la visión cargada y sin carga de evaluación). El compose y `.env.example` ya traen todas las variables de esta feature (`GENERATION_BATCH_*`); no cambia ningún servicio, imagen ni red.
+- **Modelos para el uso normal:** el 12B, su proyector (`mmproj-gemma-4-12b-it-qat-q4_0.gguf`), `bge-m3` y el reranker. Los archivos del 26B-A4B no se necesitan (ADR-0044).
+- **Salida a internet:** sin cambios (solo `portal_worker`); `tests/portal/test_network.py` pasa.
+- **Reversa:** la de `assessment.0003` solo es posible sin resultados nuevos (restricciones anteriores, tablas de solo inserción); si no, se restaura el respaldo (runbook, sección 9).
+- **Despliegue aplicado el 2026-10-07** (código de `main` en `eed328d`): respaldo `backups/evaluon-2026-10-07-previo-004.dump` (126.048.888 bytes, `pg_restore --list` lo lee: 753 entradas); aplicadas `assessment.0003` y `0004`, `migrate --check` en 0; `app`, `worker` y `portal_worker` levantados de nuevo. Humo: servicios sanos (`worker` y `portal_worker` Up), `generation_batch` con `n_ctx` 32.768, `vision: true` y alias del 12B, `generation` con 16.384, la red de salida lista solo a `portal_worker`, pantalla de ingreso responde, sin errores en los registros. No se corrió el `pytest` del humo ni `--caso-chico` (había otra corrida de tests usando `test_evaluon` y la GPU se dejó libre). Se borraron las bases de medición `evaluon_t161`, `evaluon_t162`, `evaluon_t171`, `evaluon_t173` y `evaluon_t176` con aprobación del responsable; quedan `evaluon` y `test_evaluon`.

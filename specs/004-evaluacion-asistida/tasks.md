@@ -26,7 +26,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-157 | Solo si T-156 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) | REQ-052, REQ-053, REQ-054, REQ-059 | T-156 | terminada |
 | T-158 | Contraste por cláusula de un cumple técnico: cero contradicciones con el dictamen (tercera ronda por la contradicción M-051, decisión del responsable) | REQ-052, REQ-053 | T-157 | terminada |
 | T-164 | Corregir los hallazgos de T-158: el no cumple técnico exige una cita de la oferta que contradiga la cláusula (F-1) y el contraste por cláusula acota cláusulas y tokens (F-2); se mide con T-161 | REQ-052, REQ-053 | T-158 | terminada |
-| T-159 | Descarga y verificación de archivos y servicio: proyector del 12B, 26B-A4B con su proyector, variables propias del lote, `--mmproj`, archivo `docker-compose.modelo-grande.yml`, prueba de humo con imagen y memoria medida | REQ-052 | — | pendiente |
+| T-159 | Descarga y verificación de archivos y servicio: proyector del 12B, 26B-A4B con su proyector, variables propias del lote, `--mmproj`, archivo `docker-compose.modelo-grande.yml`, prueba de humo con imagen y memoria medida | REQ-052 | — | terminada |
 | T-160 | Lectura con visión de las páginas dudosas: criterio, imagen, transcripción, lectura nueva con origen `vision`, registro y pantalla rotulada, con tests | REQ-052, REQ-053, REQ-054 | T-159 | terminada |
 | T-161 | Medir el caso-00 con el 12B y visión (referencia, y medición de la visión y de T-164) | REQ-052, REQ-053, REQ-054, REQ-059 | T-160, T-164 | terminada |
 | T-162 | Medir el caso-00 con el 26B-A4B y visión, comparar con T-161 y decidir según el umbral (ronda 1) | REQ-052, REQ-053, REQ-054, REQ-059 | T-161 | terminada |
@@ -36,7 +36,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-167 | Filas técnicas por renglón: documento técnico y renglones con oferta como hechos, resultado "pendiente del informe técnico" y la opinión como información | REQ-061 | T-166 | terminada |
 | T-168 | Ok de la Comisión del informe técnico y presentación en la matriz de los resultados nuevos | REQ-061, REQ-063, REQ-064 | T-165 | terminada |
 | T-169 | El Portal como fuente: dato o documento en el Portal, falta de coincidencia y cita del Portal | REQ-062 | T-167 | terminada |
-| T-170 | Medición con la regla nueva: conteo por tipo de par, `--verificar-decisiones` y actualización de la lista esperada del caso-00 (Coordinador, fuera del repositorio) | REQ-052, REQ-053, REQ-061, REQ-062, REQ-063, REQ-064 | T-165 | pendiente |
+| T-170 | Medición con la regla nueva: conteo por tipo de par, `--verificar-decisiones` y actualización de la lista esperada del caso-00 (Coordinador, fuera del repositorio) | REQ-052, REQ-053, REQ-061, REQ-062, REQ-063, REQ-064 | T-165 | terminada |
 | T-171 | Medir el caso-00 con las decisiones aplicadas (medición final, una sola) | REQ-052, REQ-053, REQ-054, REQ-059, REQ-061, REQ-062, REQ-063, REQ-064 | T-166, T-167, T-168, T-169, T-170 | terminada |
 | T-172 | Corregir los hallazgos de T-171: documento técnico afirmado por una línea de precio (H-3), ilegible del pagaré en todos los pares de la garantía (H-4), M-008 y M-016 externos (H-5), hechos técnicos de una oferta sin ficha (H-6) | REQ-061, REQ-063, REQ-064 | T-171 | terminada |
 | T-173 | Medir el caso-00 con los datos del Portal cargados (ronda 2, la última, ADR-0025) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-172, T-174 | terminada |
@@ -412,7 +412,7 @@ Lo que no llegue al umbral después de la ronda 2 se anota acá, con su impacto 
 - (T-176) M-039 (cotización por renglón genérica) queda sin cita del Portal en las tres ofertas: falta la regla para esa forma de requisito.
 - (T-176) M-041 (cantidad por renglón): `falta_coincidencia` falso y citas de cotización de más, porque el comienzo del tramo trae palabras de precio. No afecta la coincidencia ni crea contradicciones.
 - (T-176) El modelo no vincula el pagaré con la garantía de mantenimiento (M-012 y M-015 de la oferta 1).
-- (T-176) Fragmentos de la ficha en 81 %, debajo del 90 % del plan (informativo).
+- (T-176) REQ-054: fragmentos de la ficha en 81 % (17 de 21), debajo del 90 % del criterio de aceptación. Se difiere a la revisión con el primer producto (ADR-0044, punto 4). Impacto: algunas propuestas citan un pasaje distinto del que señala la ficha; la cita sigue siendo literal.
 - (T-177) La imagen de la página en la pantalla de la Comisión se muestra sin enderezar; y el solape entre franjas solo se quita si las líneas son idénticas.
 
 - Medición a ciegas con el proceso en curso que reservó el responsable, cuando el producto esté más cerrado (spec).
