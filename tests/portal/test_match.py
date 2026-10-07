@@ -124,3 +124,48 @@ def test_screen_shows_the_proposed_association(client, procedure, operator_user)
     html = client.get(reverse("portal:proposal", args=[link.pk])).content.decode()
     assert "Se asocia a la oferta cargada «Nandu Insumos Demo SRL»" in html
     assert "por nombre" in html
+
+
+@pytest.mark.parametrize("generic, portal", [
+    ("SRL", NANDU), ("S.R.L.", NANDU), ("de", ("20000000044", "Juan de la Cruz")),
+    ("y", ("20000000052", "Pedro y Hermanos SA")), ("SA", ("20000000060", "Pedro y Hermanos SA")),
+    ("de la", ("20000000044", "Juan de la Cruz")),
+])
+def test_generic_name_is_not_matched_by_words(procedure, operator_user, generic, portal):
+    """REQ-062 (H-1): un nombre solo de palabras vacías o formas societarias no se empareja
+    por contenido y se informa."""
+    by_hand(operator_user, procedure, generic)
+    found = match_offer(procedure, *portal)
+    assert found.offer is None and "no tiene ningún término" in found.note
+
+
+def test_short_term_is_not_enough(procedure, operator_user):
+    """REQ-062 (H-1): un término de menos de 3 letras no alcanza."""
+    by_hand(operator_user, procedure, "Li SRL")
+    found = match_offer(procedure, "20000000078", "Li Wei Demo SA")
+    assert found.offer is None and "no tiene ningún término" in found.note
+
+
+def test_societary_form_is_ignored_when_matching(procedure, operator_user):
+    """REQ-062 (H-1): con un término significativo y forma societaria distinta sigue
+    emparejando por nombre."""
+    offer = by_hand(operator_user, procedure, "Nandu Insumos Demo SA")
+    found = match_offer(procedure, *NANDU)
+    assert (found.offer, found.how) == (offer, "nombre")
+
+
+def test_two_items_competing_for_one_offer_are_not_matched(
+        client, procedure, operator_user, evaluator_user):
+    """REQ-062 (H-2): dos ítems del Portal contra la misma oferta cargada: la pantalla avisa
+    en ambos y al aprobar en lote ninguno se asocia."""
+    manual = by_hand(operator_user, procedure, "Demo")
+    link = offer_items().first().proposal.link
+    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
+    html = client.get(reverse("portal:proposal", args=[link.pk])).content.decode()
+    assert html.count("compite con otra oferta del Portal") >= 2
+    assert "Se asocia a la oferta cargada «Demo»" not in html
+    ids = list(offer_items().filter(key__in=[f"oferta:{MARTA[0]}", f"oferta:{ALBERTO[0]}"])
+               .values_list("pk", flat=True))
+    results = approval.decide(evaluator_user, ids, approval.APPROVE)
+    assert all(r.result == approval.LOADED for r in results)
+    assert not PortalOfferData.objects.filter(offer=manual).exists()
