@@ -4,7 +4,7 @@ pantallas de la matriz, la revisión y las preguntas suman sus rutas en archivos
 
 from django.urls import include, path
 
-from evaluon.assessment import urls_matrix
+from evaluon.assessment import urls_matrix, urls_technical
 from evaluon.assessment.views import results
 
 app_name = "assessment"
@@ -16,4 +16,5 @@ urlpatterns = [
     path("par/<int:offer_id>/<int:requirement_id>/pagina/<int:document_id>/<int:page>/",
          results.vision_page, name="vision_page"),
     *urls_matrix.urlpatterns,
+    *urls_technical.urlpatterns,
 ]

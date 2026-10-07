@@ -1,0 +1,27 @@
+{% if status.technical %}
+<div class="technical-ok">
+  <h4>Informe técnico de la oferta {{ status.offer.number }}</h4>
+  <p><small>El juicio técnico es del área correspondiente. Acá la Comisión solo da su ok de que tiene el informe técnico aprobado y carga lo que dice por renglón.</small></p>
+  {% if technical_error and technical_offer == status.offer.pk %}<p class="notice notice-failed" role="alert">{{ technical_error }}</p>{% endif %}
+  <form method="post" action="{% url 'assessment:technical_give' status.offer.pk %}">{% csrf_token %}
+    <table>
+      <thead><tr><th scope="col">Renglón</th><th scope="col">Ok de la Comisión</th>{% if page.can_decide_technical %}<th scope="col">Dice el informe aprobado</th>{% endif %}</tr></thead>
+      <tbody>
+        {% for row in status.technical %}
+        <tr>
+          <th scope="row">{% if page.can_decide_technical %}<label><input type="checkbox" name="item" value="{{ row.item }}"> Renglón {{ row.item }}</label>{% else %}Renglón {{ row.item }}{% endif %}</th>
+          <td>{% if row.approved %}Informe técnico aprobado ({{ row.verdict_label }}), ok de {{ row.ok.user.username }} el {{ row.ok.at|date:"d/m/Y H:i" }}{% if row.ok.note %}: {{ row.ok.note }}{% endif %}{% elif row.withdrawn %}Ok retirado por {{ row.ok.user.username }} el {{ row.ok.at|date:"d/m/Y H:i" }}: {{ row.ok.note }}{% else %}Pendiente del informe técnico{% endif %}</td>
+          {% if page.can_decide_technical %}<td><select name="verdict_{{ row.item }}" aria-label="Lo que dice el informe del renglón {{ row.item }}"><option value="">—</option><option value="apto">Apto</option><option value="no_apto">No apto</option></select></td>{% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if page.can_decide_technical %}
+    <p><label><input type="checkbox" name="all" value="1"> Todo el informe (todos los renglones)</label></p>
+    <p><label>Nota <input type="text" name="note" maxlength="500"></label></p>
+    <button type="submit">Dar el ok del informe técnico</button>
+    <button type="submit" formaction="{% url 'assessment:technical_withdraw' status.offer.pk %}">Retirar el ok</button>
+    {% endif %}
+  </form>
+</div>
+{% endif %}

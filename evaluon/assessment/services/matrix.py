@@ -22,8 +22,8 @@ from dataclasses import dataclass, field
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.assessment import ordering
-from evaluon.assessment.models import Outcome, Question, Result
-from evaluon.assessment.services import evaluate, review
+from evaluon.assessment.models import Doubt, Outcome, Question, Result
+from evaluon.assessment.services import evaluate, review, technical
 from evaluon.audit.models import Channel
 from evaluon.offers.services import sheets
 from evaluon.tenders.models import Job, JobKind, JobStatus, MatrixVersion, Procedure
@@ -64,6 +64,24 @@ class Cell:
         return Outcome(self.effective_outcome).label if self.effective_outcome else ""
 
     @property
+    def reason(self):
+        """El motivo del «no determinado» propuesto (por qué no se pudo concluir), o vacío. Solo
+        se muestra mientras rige la propuesta: una corrección de la persona ya no lo tiene."""
+        if (self.result is not None and self.effective_outcome == Outcome.NO_DETERMINADO
+                and self.result.outcome == Outcome.NO_DETERMINADO and self.result.doubt):
+            return self.result.doubt
+        return ""
+
+    @property
+    def reason_label(self):
+        return Doubt(self.reason).label if self.reason else ""
+
+    @property
+    def from_technical_ok(self):
+        """La fila salió del ok de la Comisión al informe técnico (REQ-061)."""
+        return self.result is not None and bool(self.result.facts.get("technical_ok"))
+
+    @property
     def changed(self):
         """La persona corrigió el resultado propuesto."""
         return self.state == CORRECTED
@@ -84,6 +102,8 @@ class OfferStatus:
     run: object = None
     by_state: dict = field(default_factory=dict)
     by_outcome: dict = field(default_factory=dict)
+    by_reason: dict = field(default_factory=dict)
+    technical: list = field(default_factory=list)
     open_questions: list = field(default_factory=list)
     newer_version: MatrixVersion | None = None
     has_documents: bool = True
@@ -95,6 +115,12 @@ class OfferStatus:
     @property
     def by_outcome_rows(self):
         return [(o.label, self.by_outcome.get(o.value, 0)) for o in Outcome]
+
+    @property
+    def by_reason_rows(self):
+        """«No determinado» agrupado por motivo: lo que la Comisión tiene que resolver o traer,
+        con lo que falta en cada caso."""
+        return [(d.label, self.by_reason[d.value]) for d in Doubt if self.by_reason.get(d.value)]
 
 
 @dataclass
@@ -111,6 +137,7 @@ class MatrixPage:
     without_documents: list
     pending_job: Job | None
     can_request: bool
+    can_decide_technical: bool = False
 
     @property
     def rows(self):
@@ -150,7 +177,7 @@ def matrix_page(user, procedure_id, *, channel=Channel.SCREEN):
 
     newer = validated if (validated is not None and version is not None
                           and validated.number > version.number) else None
-    statuses = [_status(o, requirements, cells, validated) for o in offers]
+    statuses = [_status(o, requirements, cells, validated, version) for o in offers]
     discards = ordering.propose_discards(offers, requirements, cells)
     pending = (Job.objects.filter(kind=JobKind.EVALUATE_OFFERS, procedure=procedure,
                                   status__in=[JobStatus.QUEUED, JobStatus.RUNNING])
@@ -162,10 +189,12 @@ def matrix_page(user, procedure_id, *, channel=Channel.SCREEN):
         discards=[discards[o.pk] for o in offers if o.pk in discards],
         order=ordering.economic_order(procedure, offers, discards) if offers else None,
         without_documents=without, pending_job=pending,
-        can_request=validated is not None and len(without) < len(offers) and pending is None)
+        can_request=validated is not None and len(without) < len(offers) and pending is None,
+        can_decide_technical=(
+            getattr(user, "commission_role", "") == CommissionRole.EVALUATOR))
 
 
-def _status(offer, requirements, cells, validated):
+def _status(offer, requirements, cells, validated, version=None):
     own = [cells[(offer.pk, r.pk)] for r in requirements]
     evaluated = [c for c in own if c.result is not None]
     status = OfferStatus(offer=offer, evaluated=bool(evaluated),
@@ -176,10 +205,13 @@ def _status(offer, requirements, cells, validated):
         if cell.effective_outcome:
             status.by_outcome[cell.effective_outcome] = \
                 status.by_outcome.get(cell.effective_outcome, 0) + 1
+        if cell.reason:
+            status.by_reason[cell.reason] = status.by_reason.get(cell.reason, 0) + 1
     if evaluated:
         status.run = max((c.result.run for c in evaluated), key=lambda r: (r.number, r.pk))
         if validated is not None and validated.number > status.run.matrix_version.number:
             status.newer_version = validated
+    status.technical = technical.status_of(offer, version)
     status.open_questions = list(
         Question.objects.filter(offer=offer, requirement__in=requirements,
                                 answers__isnull=True)
