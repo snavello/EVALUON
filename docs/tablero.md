@@ -20,6 +20,7 @@ flowchart LR
   F010["○ 010 · Asistente técnico"]:::todo
   F011["○ 011 · Pautas para documentos legibl…"]:::todo
   F012["▶ 012 · Importación asistida desde el…"]:::active
+  F013["▶ 013 · Recorrido del procedimiento (…"]:::active
   F001 --> F002
   F003 --> F002
   F001 --> F003
@@ -37,6 +38,10 @@ flowchart LR
   F009 --> F011
   F003 --> F012
   F008 --> F012
+  F003 --> F013
+  F004 --> F013
+  F008 --> F013
+  F012 --> F013
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -58,6 +63,7 @@ flowchart LR
 | 010 · Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | No iniciada | — | — |
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
+| [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 2 de 7 · Plan | — | — |
 
 <a id="001"></a>
 
@@ -933,3 +939,37 @@ flowchart TD
 | REQ-049 | Cada documento y cada dato cargado desde el Portal debe conservar su origen (la página o el documento del Portal y la fecha de la consulta) y, para los documentos, el original sin cambios con su huella. | T-138, T-141, T-142, T-143, T-145 | ✓ cubierto |
 | REQ-050 | El sistema debe revisar periódicamente los procesos en curso y proponer las novedades (documentos o datos nuevos o cambiados) con el mismo circuito de aprobación. Lo ya aprobado no se vuelve a proponer. | T-139, T-144, T-145 | ✓ cubierto |
 | REQ-051 | La carga a mano sigue disponible para todo lo que el Portal no publique o no deje bajar, y convive con lo importado. | T-142, T-143, T-145 | ✓ cubierto |
+
+<a id="013"></a>
+
+## 013 · Recorrido del procedimiento (aplicación mínima)
+
+**Etapa actual:** 2 de 7 · Plan · [carpeta](../specs/013-recorrido-procedimiento)
+
+```mermaid
+flowchart LR
+  E0["✓ 1. Spec"]:::done --> E1["▶ 2. Plan"]:::active --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
+
+### Qué falta
+
+- **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
+
+### Qué se hizo
+
+- Etapas completas: Spec.
+
+### Requisitos
+
+| Requisito | Descripción | Tareas | Estado |
+|---|---|---|---|
+| REQ-065 | Una página de entrada lista los procedimientos con su etapa actual y lo pendiente de decidir, y permite empezar uno nuevo desde el enlace del Portal o a mano. | — | — |
+| REQ-066 | Cada procedimiento tiene una página de recorrido con sus etapas en orden y el estado de cada una (pendiente, en curso, a decidir, lista, con error), calculado a partir de lo que ya registra el sistema. | — | — |
+| REQ-067 | Mientras el sistema trabaja en segundo plano, la página muestra el avance en vivo (tarea, paso, porcentaje o cuenta, tiempo transcurrido) sin recargar, y avisa cuando termina o falla, con el motivo. | — | — |
+| REQ-068 | Cada etapa muestra cuántas decisiones esperan a la Comisión y enlaza a la pantalla existente donde se toman; el recorrido no duplica esas pantallas. | — | — |
+| REQ-069 | El recorrido respeta los roles: el operador ve todo y prepara; solo el evaluador ve las acciones de decisión. | — | — |
