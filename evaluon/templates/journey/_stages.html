@@ -1,4 +1,4 @@
-{% comment %}Bloque de las etapas del recorrido (T-179). Lo arma la página y lo vuelve a pedir el sondeo; no tiene formularios: las decisiones están en sus pantallas (P3).{% endcomment %}<div class="journey-summary">
+{% comment %}Bloque de las etapas del recorrido (T-179). Lo arma la página y lo vuelve a pedir el sondeo; no tiene formularios: las decisiones están en sus pantallas (P3).{% endcomment %}{% include "journey/_window.html" %}<div class="journey-summary">
   <p>Etapa actual: <strong>{% if journey.current %}{{ journey.current.label }}{% else %}ninguna, todas están listas{% endif %}</strong>.
   Decisiones pendientes: <strong>{{ journey.pending }}</strong>.
   Sugerencias del sistema: <strong>{{ journey.suggestions }}</strong>.</p>

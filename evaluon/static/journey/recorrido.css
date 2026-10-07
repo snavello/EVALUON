@@ -34,3 +34,53 @@
 
 .journey-status { font-weight: bold; min-height: 1.5rem; }
 .journey-connection { color: #8a5200; }
+
+/* Ventana del proceso (T-187, REQ-070). Usa los tokens de la guía visual (diseno/tokens.css). */
+.process-window {
+  background: var(--ev-superficie);
+  border: var(--ev-borde-fino) solid var(--ev-borde);
+  border-radius: var(--ev-radio-panel);
+  box-shadow: var(--ev-sombra-1);
+  padding: var(--ev-panel-relleno);
+  margin: var(--ev-e4) 0;
+  color: var(--ev-texto);
+  font-size: var(--ev-t-base);
+  line-height: var(--ev-interlineado);
+}
+.process-window.process-running { background: var(--ev-azul-50); border-color: var(--ev-azul-300); }
+.process-window.process-failed { border-color: var(--ev-icono-nocumple); }
+.process-window p { margin: var(--ev-e1) 0; }
+.pw-title { font: 700 var(--ev-t-h2-bloque)/var(--ev-interlineado-titulo) var(--ev-fuente-titulo);
+  margin: 0 0 var(--ev-e2); display: flex; align-items: center; gap: var(--ev-e2); }
+.pw-subtitle { font: 700 var(--ev-t-xs)/1.2 var(--ev-fuente-titulo); text-transform: uppercase;
+  letter-spacing: var(--ev-espaciado-etiqueta); color: var(--ev-texto-suave);
+  margin: var(--ev-e3) 0 var(--ev-e1); }
+.pw-num { font-family: var(--ev-fuente-num); font-variant-numeric: tabular-nums; }
+.pw-label { color: var(--ev-texto-suave); font-size: var(--ev-t-sm); }
+.pw-step { font-weight: var(--ev-peso-control); }
+.pw-error { color: var(--ev-nocumple); background: var(--ev-nocumple-fondo);
+  border-radius: var(--ev-radio-btn); padding: var(--ev-e1) var(--ev-e2); }
+.pw-steps { list-style: none; margin: 0; padding: 0; font-size: var(--ev-t-sm);
+  line-height: var(--ev-interlineado-tabla); }
+.pw-steps li { padding: var(--ev-e1) 0; border-top: var(--ev-borde-fino) solid var(--ev-borde); }
+.pw-steps li:first-child { border-top: 0; font-weight: var(--ev-peso-control); }
+.pw-time { color: var(--ev-texto-suave); margin-right: var(--ev-e2); }
+.pw-scope { color: var(--ev-texto-suave); }
+.pw-empty { color: var(--ev-texto-suave); font-size: var(--ev-t-sm); }
+
+/* Ícono de estado: círculo de color con símbolo blanco; el nombre al pasar el mouse o con el foco. */
+.pw-icon { position: relative; display: inline-flex; width: var(--ev-icono-tam);
+  height: var(--ev-icono-tam); }
+.pw-icon svg { width: 100%; height: 100%; }
+.pw-icon-waiting, .pw-icon-running { color: var(--ev-icono-pendiente); }
+.pw-icon-done { color: var(--ev-icono-cumple); }
+.pw-icon-failed { color: var(--ev-icono-nocumple); }
+.pw-icon::after { content: attr(data-nombre); position: absolute; left: calc(100% + 8px);
+  top: 50%; transform: translateY(-50%); z-index: 5; background: var(--ev-tooltip-fondo);
+  color: var(--ev-tooltip-texto); font: 600 var(--ev-t-xs)/1.2 var(--ev-fuente);
+  padding: 5px 9px; border-radius: var(--ev-radio-btn); white-space: nowrap;
+  box-shadow: var(--ev-sombra-flotante); opacity: 0; visibility: hidden;
+  pointer-events: none; transition: opacity 0.12s; }
+.pw-icon:hover::after, .pw-icon:focus::after { opacity: 1; visibility: visible; }
+.pw-icon:focus-visible { outline: 2px solid var(--ev-foco); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .pw-icon::after { transition: none; } }

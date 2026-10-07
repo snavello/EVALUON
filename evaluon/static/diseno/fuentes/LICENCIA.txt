@@ -1,0 +1,4 @@
+Barlow Condensed Bold (barlow-condensed-bold.woff2)
+Diseño: Jeremy Tribby. Licencia: SIL Open Font License 1.1 (https://openfontlicense.org).
+Copiada del repositorio propio del responsable (snavello/MITRABAJOC, static/fonts/), donde se usa
+con la misma licencia. Se puede usar, copiar y alojar libremente; no se vende sola.
