@@ -977,7 +977,7 @@ flowchart LR
 - ✓ T-183 · Entrada completa: procedimientos con etapa actual y pendientes; alta explorando primero el Portal y la carga a mano como complemento (REQ-071) (`39cc589` 2026-10-07)
 - ✓ T-184 · Avance fino de los pedidos: columna `progress` en la cola y aviso desde la evaluación y la ficha (aprobada por el responsable, ADR-0045) (`63251e5` 2026-10-07)
 - ✓ T-187 · Ventana del proceso: panel en vivo con los pasos del pedido en curso, en lenguaje llano (REQ-070) (`09bc7b9` 2026-10-07, `184d8ce` 2026-10-07, `94889a9` 2026-10-07)
-- ✓ T-189 · Hoja de compliance por oferta: subirla una vez, rige para todos los requisitos externos de la oferta (reevaluación automática citándola), acceso en la matriz de evaluación (REQ-073)
+- ✓ T-189 · Hoja de compliance por oferta: subirla una vez, rige para todos los requisitos externos de la oferta (reevaluación automática citándola), acceso en la matriz de evaluación (REQ-073) (`c58dee6` 2026-10-07)
 
 ### Mapa de tareas
 
