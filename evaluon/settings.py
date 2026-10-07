@@ -443,7 +443,7 @@ ASSESSMENT_ANSWERS_MAX = 20
 ASSESSMENT_TECHNICAL_OPINION = True
 # Versión de las reglas que deciden sin el modelo (externos, técnico, ilegible, Portal); se
 # copia al registro de cada evaluación (ADR-0043; T-165). Cambia cuando cambia una regla.
-ASSESSMENT_RULES_VERSION = "reglas-v5"
+ASSESSMENT_RULES_VERSION = "reglas-v7"
 # Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150).
 ASSESSMENT_PROMPT_VERSIONS = {
     "evaluacion": "evaluacion-v5",

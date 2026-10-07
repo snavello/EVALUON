@@ -82,6 +82,12 @@ CATALOG = (
            # T-172 (H-C): la mención de la Superintendencia, o un verbo de verificación sobre la
            # póliza. Una póliza que el oferente presenta no es externa.
            r"superintendencia de seguros|\bssn\b"
+           # T-175: la Resolución 219/2018 de la Superintendencia de Seguros de la Nación (y sus
+           # modificatorias) fija los requisitos de la póliza de caución electrónica y rige en
+           # todos los pliegos de la AFIP/ARCA (normativa nacional, no un dato de un caso): quien
+           # la nombra pide que la Comisión valide la póliza ante la Superintendencia. Una póliza
+           # que el oferente presenta, sin esa norma, sigue siendo un documento de la oferta.
+           r"|\bresolucion\s*(?:(?:n|no|nro|ssn)\b\W{0,3}\s*)*219\s*/\s*(?:20)?18\b"
            r"|validacion de (?:la |las )?polizas?|validez de (?:la |las )?polizas?"
            rf"|polizas?.{{0,80}}{_POLICY_VERB}|{_POLICY_VERB}\w*.{{0,80}}polizas?"),
     _check("habilidad_contratar", "habilidad para contratar",
@@ -123,7 +129,9 @@ def rule(pair, ctx):
     """La regla 1 de `rules.py`: devuelve el resultado nuevo del par (`Combined`) o `None` si
     el requisito no es externo o ya se subió la hoja."""
     combined = pair.combined
-    found = match(pair.text.text)
+    # T-175: se mira el título del tramo además del texto de la cita (a veces la cita recorta
+    # solo la condición y el título que la hace externa queda antes).
+    found = match(getattr(pair.text, "context", None) or pair.text.text)
     if not found and combined.doubt != combine.EXTERNAL:
         return None
     if remedied(ctx.offer, pair.requirement):

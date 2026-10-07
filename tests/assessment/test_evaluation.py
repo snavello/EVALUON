@@ -443,12 +443,17 @@ def test_a_technical_row_matches_pending_with_the_two_facts_equal():
     whole = _technical(offered="no_aplica")
     assert ev._match(whole, _result(am.Outcome.NO_DETERMINADO, PENDING,
                                     facts={"documento_tecnico": "hay"}))
-    # Si lo esperado es que el documento falta, coincide «no se encontró el documento».
+    # Si lo esperado es que el documento falta, coincide «no se encontró el documento» y también
+    # «pendiente del informe técnico» con los dos hechos iguales (T-175: regla de la spec).
     missing = _technical(technical_document="no_se_encontro", offered="no")
     assert ev._match(missing, _result(am.Outcome.SIN_DOCUMENTO, facts={
         "documento_tecnico": "no_se_encontro", "renglon_ofertado": "no"}))
-    assert not ev._match(missing, _result(am.Outcome.NO_DETERMINADO, PENDING, facts={
+    assert ev._match(missing, _result(am.Outcome.NO_DETERMINADO, PENDING, facts={
         "documento_tecnico": "no_se_encontro", "renglon_ofertado": "no"}))
+    assert not ev._match(missing, _result(am.Outcome.NO_DETERMINADO, PENDING, facts={
+        "documento_tecnico": "hay", "renglon_ofertado": "no"}))
+    assert not ev._match(missing, _result(am.Outcome.NO_DETERMINADO, PENDING, facts={
+        "documento_tecnico": "no_se_encontro", "renglon_ofertado": "si"}))
 
 
 @pytest.mark.decision_literal
