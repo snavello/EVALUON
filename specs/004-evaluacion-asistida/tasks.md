@@ -43,7 +43,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-174 | Emparejar las ofertas del Portal con las cargadas a mano (CUIT o nombre normalizado, como propuesta del evaluador), necesario para cargar el Portal del caso-00 | REQ-062 | — | terminada |
 | T-175 | Completar REQ-062 y corregir el medidor tras T-173: cita del Portal de la cotización y de la garantía cuando la oferta no la trae; la medición cuenta la fila técnica pendiente con hechos correctos aunque falte el documento; externos de habilidad y de la póliza electrónica reconocidos por el título del tramo y la norma de la Superintendencia (ronda extra por requisito incompleto, ADR-0025) | REQ-052, REQ-062, REQ-063 | T-173 | terminada |
 | T-177 | Lectura con visión: enderezar la página, texto plano con marcador de fin, penalizar la repetición y franjas a mayor resolución (el pagaré del caso-00 es legible: lo verificó el responsable) | REQ-064, REQ-054 | T-175 | terminada |
-| T-176 | Medir el caso-00 después de T-175 y T-177 (medición final) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-175, T-177 | pendiente |
+| T-176 | Medir el caso-00 después de T-175 y T-177 (medición final) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-175, T-177 | terminada |
 
 ## Paralelismo
 
@@ -408,6 +408,12 @@ Lo que no llegue al umbral después de la ronda 2 se anota acá, con su impacto 
 - (T-161, V-3) M-051 de la oferta 1 cambia entre corridas (no cumple / cumple); seguirlo en la prueba a ciegas.
 - (T-162) El 26B-A4B no se adopta (15/49 contra 24/49): cita de forma no literal y es más estricto en el contraste; adoptarlo exigiría apagar la consulta de normativa o rehacer el reparto de memoria (ADR-0002). Lee 4 de 6 páginas por visión contra 2 del 12B: reconsiderarlo solo para la visión si V-1 no se resuelve.
 - (T-162) La evaluación llama a `generation` para contar tokens aunque solo use el motor de lotes; si `generation` está apagado, falla. Contar con el motor de lotes.
+- (T-176) Lectura de manuscritos: el 12B transcribe el pagaré con datos distintos del original (monto en letras, año, dígitos de la norma impresa) sin marcar [ilegible]. Impacto: los tres pares del pagaré quedan sin cumple. Alternativa medida: el 26B lo lee casi sin errores; requiere rehacer el reparto de memoria (ADR-0044).
+- (T-176) M-039 (cotización por renglón genérica) queda sin cita del Portal en las tres ofertas: falta la regla para esa forma de requisito.
+- (T-176) M-041 (cantidad por renglón): `falta_coincidencia` falso y citas de cotización de más, porque el comienzo del tramo trae palabras de precio. No afecta la coincidencia ni crea contradicciones.
+- (T-176) El modelo no vincula el pagaré con la garantía de mantenimiento (M-012 y M-015 de la oferta 1).
+- (T-176) Fragmentos de la ficha en 81 %, debajo del 90 % del plan (informativo).
+- (T-177) La imagen de la página en la pantalla de la Comisión se muestra sin enderezar; y el solape entre franjas solo se quita si las líneas son idénticas.
 
 - Medición a ciegas con el proceso en curso que reservó el responsable, cuando el producto esté más cerrado (spec).
 - Cómo se integran las tablas de preguntas y respuestas con el circuito general de la 009 (ADR-0040).

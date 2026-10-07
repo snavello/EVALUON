@@ -49,7 +49,7 @@ flowchart LR
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
 | [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 63/65 | ██████████ 97% |
-| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 27/30 | █████████░ 90% |
+| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 28/30 | █████████░ 93% |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
 | 007 · Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | No iniciada | — | — |
@@ -664,10 +664,9 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 3 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 2 tareas sin terminar.
 - ○ T-159 · Descarga y verificación de archivos y servicio: proyector del 12B, 26B-A4B con su proyector, variables propias del lote, `--mmproj`, archivo `docker-compose.modelo-grande.yml`, prueba de humo con imagen y memoria medida (pendiente)
 - ○ T-170 · Medición con la regla nueva: conteo por tipo de par, `--verificar-decisiones` y actualización de la lista esperada del caso-00 (Coordinador, fuera del repositorio) (pendiente)
-- ○ T-176 · Medir el caso-00 después de T-175 y T-177 (medición final) (pendiente)
 
 ### Qué se hizo
 
@@ -699,6 +698,7 @@ flowchart LR
 - ✓ T-174 · Emparejar las ofertas del Portal con las cargadas a mano (CUIT o nombre normalizado, como propuesta del evaluador), necesario para cargar el Portal del caso-00 (`b3ec5dd` 2026-10-07, `2732a6d` 2026-10-07)
 - ✓ T-175 · Completar REQ-062 y corregir el medidor tras T-173: cita del Portal de la cotización y de la garantía cuando la oferta no la trae; la medición cuenta la fila técnica pendiente con hechos correctos aunque falte el documento; externos de habilidad y de la póliza electrónica reconocidos por el título del tramo y la norma de la Superintendencia (ronda extra por requisito incompleto, ADR-0025) (`cb829a0` 2026-10-07, `3f9bc34` 2026-10-07)
 - ✓ T-177 · Lectura con visión: enderezar la página, texto plano con marcador de fin, penalizar la repetición y franjas a mayor resolución (el pagaré del caso-00 es legible: lo verificó el responsable) (`50e3533` 2026-10-07)
+- ✓ T-176 · Medir el caso-00 después de T-175 y T-177 (medición final)
 
 ### Mapa de tareas
 
@@ -733,7 +733,7 @@ flowchart TD
   T174["✓ T-174 · Emparejar las ofertas del Portal con las ca…"]:::done
   T175["✓ T-175 · Completar REQ-062 y corregir el medidor tra…"]:::done
   T177["✓ T-177 · Lectura con visión: enderezar la página, te…"]:::done
-  T176["○ T-176 · Medir el caso-00 después de T-175 y T-177 (…"]:::todo
+  T176["✓ T-176 · Medir el caso-00 después de T-175 y T-177 (…"]:::done
   T148 --> T150
   T149 --> T151
   T150 --> T151
