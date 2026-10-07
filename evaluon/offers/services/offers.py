@@ -255,9 +255,12 @@ def _record_load_refusal(user, channel, detail, error):
                  user=user, detail=detail)
 
 
-def load_document(user, offer, *, data, file_name, title="", channel=Channel.SCREEN):
+def load_document(user, offer, *, data, file_name, title="", kind="",
+                  channel=Channel.SCREEN):
     """Carga el archivo `data` (sus bytes, con su nombre `file_name`) como documento de
-    `offer` y encola su lectura. Ver el módulo.
+    `offer` y encola su lectura. Ver el módulo. `kind` lo fija solo quien sube la hoja de
+    compliance (`DocumentKind.COMPLIANCE`, T-189); en los demás casos queda vacío y lo
+    clasifica la lectura.
 
     Lanza `RoleRejected` sin rol de la Comisión, `DuplicateFile` si el archivo ya está
     cargado en la oferta y `OfferRefused` con un dato que falta o un formato que no se
@@ -270,6 +273,8 @@ def load_document(user, offer, *, data, file_name, title="", channel=Channel.SCR
     detail = {"procedure": offer.procedure_id, "offer": offer.pk, "title": title,
               "file": {"name": file_name, "format": None, "size": len(data),
                        "sha256": sha256}}
+    if kind:
+        detail["kind"] = kind
     try:
         file_format = _check(file_name, data)
         detail["file"]["format"] = file_format
@@ -279,7 +284,7 @@ def load_document(user, offer, *, data, file_name, title="", channel=Channel.SCR
         with transaction.atomic():
             document = Document.objects.create(
                 offer=offer, title=title, file_name=file_name, file_format=file_format,
-                file_size=len(data), file_sha256=sha256, loaded_by=user)
+                file_size=len(data), file_sha256=sha256, loaded_by=user, kind=kind)
             DocumentFile.objects.create(document=document, content=data)
             job = jobs.enqueue(JobKind.READ_OFFER_DOCUMENT, procedure=offer.procedure,
                                requested_by=user, target_id=document.pk)
@@ -458,7 +463,7 @@ def run_read_document(job):
                         ocr_confidence_min=spec.ocr_confidence_min,
                         ocr_confidence_avg=spec.ocr_confidence_avg, embedding=vector)
                 for spec, vector in zip(specs, vectors, strict=True))
-            if kind and document.kind != kind:
+            if kind and document.kind != kind and document.kind != DocumentKind.COMPLIANCE:
                 document.kind = kind
                 document.save(update_fields=["kind"])
             audit.record(
@@ -576,7 +581,7 @@ def reclassify_documents(user, procedure, *, channel=Channel.COMMAND):
         if reading is None:
             continue
         kind = classify_kind(document.file_name, reading.canonical_text)
-        if not kind or kind == document.kind:
+        if not kind or kind == document.kind or document.kind == DocumentKind.COMPLIANCE:
             continue
         with transaction.atomic():
             before = document.kind

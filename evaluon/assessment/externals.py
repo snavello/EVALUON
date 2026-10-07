@@ -9,8 +9,10 @@ literal del responsable: «eso lo integrará un documento que llamamos hoja de c
 sistema no infiere la consulta (P9).
 
 Si la Comisión ya subió la hoja (una decisión `subsanar` sobre un resultado `externo` del mismo
-par), la regla no rige: la hoja es un documento más de la oferta y se evalúa por lectura, con su
-cita.
+par, o la hoja de compliance de la oferta, un documento de tipo `compliance`: T-189, REQ-073), la
+regla no rige: la hoja es un documento más de la oferta y se evalúa por lectura, con su cita. Si
+la oferta tiene hoja y el modelo no encontró en ella nada sobre este chequeo, el resultado es
+«no determinado» con la explicación de que la hoja no lo trata (no «no se encontró el documento»).
 
 El catálogo es una lista de expresiones en código, versionada con `ASSESSMENT_RULES_VERSION`.
 Sumar un tipo de verificación es un cambio de código con su prueba. Cada entrada es lo más
@@ -24,9 +26,14 @@ from dataclasses import dataclass, replace
 
 from evaluon.assessment import combine
 from evaluon.assessment.models import Action, Decision, Doubt
+from evaluon.offers.models import Document, DocumentKind
 
 RULE_CATALOG = "externo_catalogo"
 RULE_MODEL = "externo_modelo"
+RULE_SHEET_GAP = "externo_hoja_sin_chequeo"
+
+SHEET_GAP = ("La hoja de compliance de la oferta no trata este chequeo{what}: no se puede "
+             "determinar. Si la Comisión tiene una hoja que lo incluya, puede subirla.")
 
 EXPLANATION = ("Falta la hoja de compliance: este requisito se verifica con una consulta fuera "
                "de la oferta{what}, y esa hoja no está cargada. Se resuelve subiendo la hoja "
@@ -117,10 +124,16 @@ def match(text):
     return [check for check in CATALOG if check.matches(folded)]
 
 
+def has_sheet(offer):
+    """La oferta tiene su hoja de compliance (T-189, REQ-073): rige para todos sus requisitos
+    externos."""
+    return Document.objects.filter(offer=offer, kind=DocumentKind.COMPLIANCE).exists()
+
+
 def remedied(offer, requirement):
-    """La Comisión ya subió la hoja para este par: hay una decisión `subsanar` sobre un
-    resultado `externo` del par (`remedy.py`)."""
-    return Decision.objects.filter(
+    """La Comisión ya subió la hoja para este par: la hoja de compliance de la oferta o una
+    decisión `subsanar` sobre un resultado `externo` del par (`remedy.py`)."""
+    return has_sheet(offer) or Decision.objects.filter(
         action=Action.SUBSANAR, result__offer=offer, result__requirement=requirement,
         result__doubt=Doubt.EXTERNO).exists()
 
@@ -132,13 +145,29 @@ def rule(pair, ctx):
     # T-175: se mira el título del tramo además del texto de la cita (a veces la cita recorta
     # solo la condición y el título que la hace externa queda antes).
     found = match(getattr(pair.text, "context", None) or pair.text.text)
-    if not found and combined.doubt != combine.EXTERNAL:
+    flagged = combined.doubt == combine.EXTERNAL or getattr(pair, "external_flagged", False)
+    if not found and not flagged:
         return None
     if remedied(ctx.offer, pair.requirement):
-        return None
+        return _sheet_gap(pair, ctx, found)
     what = f" ({'; '.join(c.label for c in found)})" if found else ""
     facts = {**combined.facts, "regla": RULE_CATALOG if found else RULE_MODEL,
              "externo": {"tipos": [c.key for c in found],
                          "consultas": [c.label for c in found]}}
     return replace(combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.EXTERNAL,
                    question="", explanation=EXPLANATION.format(what=what), facts=facts)
+
+
+def _sheet_gap(pair, ctx, found):
+    """La hoja ya está: el requisito se evalúa por lectura. Si la lectura no encontró nada sobre
+    el chequeo (el modelo dijo "no consta" y quedó «no se encontró el documento»), la hoja no lo
+    trata: «no determinado», no «no se encontró el documento». Si no, `None` (sigue el flujo)."""
+    combined = pair.combined
+    if not has_sheet(ctx.offer) or combined.outcome != combine.OUT_SIN_DOCUMENTO:
+        return None
+    what = f" ({'; '.join(c.label for c in found)})" if found else ""
+    facts = {**combined.facts, "regla": RULE_SHEET_GAP,
+             "externo": {"tipos": [c.key for c in found],
+                         "consultas": [c.label for c in found]}}
+    return replace(combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.DOUBT,
+                   question="", explanation=SHEET_GAP.format(what=what), facts=facts)

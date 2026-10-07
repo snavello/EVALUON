@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "evaluon.accounts",
     "evaluon.assessment",
     "evaluon.audit",
+    "evaluon.journey",
     "evaluon.norms",
     "evaluon.offers",
     "evaluon.portal",

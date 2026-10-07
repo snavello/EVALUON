@@ -319,6 +319,9 @@ class PairData:
     # Texto literal de la oferta con el monto o el CUIT (campo `datos`, ya ubicado) que
     # `portal_facts.py` compara con el Portal (REQ-062).
     datos: list = field(default_factory=list)
+    # El modelo marcó el requisito como externo (aunque la hoja ya esté subida y deje de regir
+    # la marca): `externals.py` lo usa para decir que la hoja no trata el chequeo (REQ-073).
+    external_flagged: bool = False
 
 
 class Context:
@@ -518,6 +521,7 @@ def _read_pair(ctx, pair):
                                "groups": plan.unread_groups})
     for index, pieces in enumerate(plan.groups):
         pair.groups.append(_group_result(ctx, pair, index, pieces, note if index == 0 else None))
+    pair.external_flagged = any(group.external for group in pair.groups)
     if externals.remedied(ctx.offer, pair.requirement):
         # La Comisión ya subió la hoja: es un documento más y se evalúa por lectura (REQ-063).
         for group in pair.groups:

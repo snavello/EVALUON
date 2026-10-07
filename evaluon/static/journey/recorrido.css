@@ -1,0 +1,36 @@
+/* Recorrido del procedimiento (T-179). Solo estilos propios, sin fuentes ni recursos externos. */
+
+.journey-stages {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.journey-stages .stage {
+  border: 1px solid #c8c8c8;
+  border-left-width: 0.4rem;
+  border-radius: 0.25rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.journey-stages .stage h3 { margin: 0 0 0.25rem; }
+.journey-stages .stage p { margin: 0.25rem 0; }
+
+.stage-pendiente { border-left-color: #8a8a8a; }
+.stage-en_curso { border-left-color: #1f5fbf; }
+.stage-a_decidir { border-left-color: #b36b00; }
+.stage-lista { border-left-color: #1d7a3a; }
+.stage-con_error { border-left-color: #b3261e; }
+
+.badge { font-weight: bold; }
+.badge-en_curso { color: #1f5fbf; }
+.badge-a_decidir { color: #8a5200; }
+.badge-lista { color: #1d7a3a; }
+.badge-con_error { color: #b3261e; }
+
+.stage-error { color: #b3261e; font-weight: bold; }
+.stage-links a { margin-right: 1rem; }
+
+.journey-status { font-weight: bold; min-height: 1.5rem; }
+.journey-connection { color: #8a5200; }

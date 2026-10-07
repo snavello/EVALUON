@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Recorrido · {{ journey.procedure.number }} · EVALUON{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'journey/recorrido.css' %}">
+<script src="{% static 'journey/recorrido.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'journey:index' %}">Recorrido</a> · <a href="{% url 'tenders:procedure' journey.procedure.pk %}">Procedimiento {{ journey.procedure.number }}</a></p>
+<h1>Recorrido del procedimiento {{ journey.procedure.number }}</h1>
+
+<p class="notice" role="note">El recorrido muestra en qué etapa está el procedimiento y lleva a las pantallas donde se decide. No decide nada: la decisión es de la Comisión.</p>
+
+<p id="journey-status" class="journey-status" role="status" aria-live="polite"></p>
+<p id="journey-connection" class="journey-connection" role="status" hidden></p>
+
+<section id="journey-stages" data-url="{{ stages_url }}" data-login-url="{{ login_url }}" aria-label="Etapas">
+  {% include "journey/_stages.html" %}
+</section>
+{% endblock %}
