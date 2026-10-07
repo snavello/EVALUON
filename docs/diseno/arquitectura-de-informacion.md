@@ -129,3 +129,58 @@ La matriz de evaluación usa las mismas reglas: filas = requisitos agrupados por
 1. Registrar la decisión de organización como ADR.
 2. Pasar a la spec 013 (o a una nueva) los cambios de navegación: expediente como portada, ocho partes, barra de etapas, bandeja de decisiones.
 3. Rehacer primero la matriz de cumplimiento (el caso más grave) y después la matriz de evaluación, con el caso-00.
+
+## 9. Altas, cargas y correcciones
+
+Agregado el 2026-10-08 a pedido del responsable ("no veo en el mockup algo sencillo como dónde subir un documento… dónde están las altas").
+
+Regla general: **cada carga está en la parte del expediente a la que pertenece**, con un botón visible a la derecha del título de la parte, y además como acción directa en la fila de la lista de control donde algo falta ("Falta el pliego → Subir documento"). No hay una sección aparte de cargas.
+
+| Qué se da de alta o se carga | Dónde | Cómo |
+|---|---|---|
+| Procedimiento | Procedimientos → Nuevo procedimiento | Primero "Explorar el Portal": pegar el enlace, ver la propuesta agrupada (datos, renglones, cronograma y garantías, documentos, ofertas) y aprobar ítem por ítem o todo. Alternativa: alta a mano con número, expediente, tipo, objeto, fecha de autorización (muestra el régimen) y renglones. |
+| Documentos del pliego | 2 · Pliego y circulares → "Subir documento" | Arrastrar y soltar varios archivos; cada uno con tipo (pliego, circular modificatoria, circular aclaratoria, respuesta a consulta, anexo), título y fecha propuestos por el sistema y corregibles; estado de lectura en vivo. Una circular modificatoria avisa que puede abrir una versión nueva de la matriz. |
+| Oferta | 4 · Ofertas → "Agregar oferta" | Desde el Portal (acta de apertura: oferente, CUIT, total, garantía) o a mano. |
+| Documentos de una oferta | Dentro de cada oferta → "Subir documentos", y "Subir" en cada celda que falta del cuadro de exigidos | Varios a la vez; el sistema propone a qué documento exigido corresponde cada archivo y el cuadro se completa al terminar la lectura. |
+| Hoja de compliance | 5 · Hojas de compliance, botón en cada fila que falta (y en la lista de control) | Archivo, fecha de la verificación y resultado que informa (puede ser "no cumple"). |
+| Informe técnico | 6 · Informe técnico | Por procedimiento o por oferta. |
+| Norma | Normativa → "Cargar norma" | Archivo, tipo, número, organismo, parte de la normativa, título, fechas de publicación y vigencia, fuente y a qué norma modifica. Después, el informe de lectura y "Validar la lectura". |
+
+**Corregir sin borrar (P6).** Toda corrección pide motivo y queda registrada con quién y cuándo:
+- *Editar datos* del procedimiento o de una oferta: muestra el origen de cada dato y la lista de cambios (antes, después, motivo).
+- *Reemplazar* un documento: la versión anterior se conserva y lo que dependía de ella se vuelve a leer y evaluar.
+- *Retirar* un documento: sale del expediente pero no se borra; aparece en "Mostrar los retirados" y se puede restituir. Usa el botón de acento (acción con efecto fuerte).
+- *Historial* de un documento: línea de tiempo (subido, leído, evaluado, reemplazado, retirado) y tabla de versiones con su huella.
+
+## 10. Índice de pantallas
+
+Agregado el 2026-10-08 ("armá el mockup de todo, desde el ingreso a la evaluación final"). En la maqueta, el mismo índice está en la pantalla "Mapa de pantallas" (`#mapa`). Roles: el operador prepara y carga; el evaluador además decide; el usuario de lectura solo consulta. En la maqueta se cambia de rol con "ver como" en el encabezado: con operador desaparecen los botones de decisión y se avisa "lo decide un evaluador".
+
+| N.º | Pantalla (ancla) | Qué muestra | Quién la usa | Acciones |
+|---|---|---|---|---|
+| 1 | Ingreso (`#ingreso`) | Usuario y clave; error de clave con intentos restantes; qué puede cada rol | Todos | Ingresar; salir (vuelve acá con aviso) |
+| 2 | Procedimientos (`#procedimientos`) | Lista con régimen, etapa actual, pendientes, sugerencias, última novedad del Portal | Todos | Explorar el Portal; alta a mano; abrir un expediente |
+| 3 | Nuevo procedimiento (`#nuevo`, `#nuevo-mano`) | Pasos pegar enlace → revisar → aprobar; propuesta agrupada con origen en el Portal; o formulario a mano con renglones | Operador prepara; evaluador aprueba datos y ofertas | Explorar; marcar o desmarcar ítems; aprobar los marcados; rechazar el resto; crear a mano; agregar renglón |
+| 4 | Estado del expediente (`#expediente`) | Para decidir (pendientes y sugerencias separados); lista de control de las 8 partes; ejemplo de procedimiento recién creado | Todos | Ir a cada decisión; acción directa en cada falta (subir, agregar oferta, subir hoja, subir informe) |
+| 5 | Editar datos del procedimiento (`#editar-proc`) | Datos con su origen; cambios registrados | Operador y evaluador | Guardar con motivo |
+| 6 | 1 · Normativa aplicable (`#normativa-proc`) | Normas que rigen a la fecha de autorización; la que no aplica; la que falta cargar | Todos | Ir a cargarla |
+| 7 | Normativa, biblioteca (`#normativa`) | Normas con parte, estado, unidades y origen; lecturas para validar | Operador carga; evaluador valida | Cargar norma; ver informe; validar; reemplazar; retirar; registrar modificatoria |
+| 8 | Informe de lectura (`#lectura-norma`) | Unidades reconocidas, páginas no leídas, tramos sin ubicar | Evaluador | Validar la lectura; rechazar y volver a cargar |
+| 9 | Consulta de normativa (`#consulta`) | Pregunta con fecha de autorización; respuesta con citas literales y su parte; "no determinado" | Todos | Consultar; abrir la norma citada |
+| 10 | 2 · Pliego y circulares (`#pliego`, `#pliego-subir`) | Documentos con tipo, fecha, origen, lectura y efecto en la matriz; retirados | Operador | Subir varios (arrastrar y soltar); reemplazar; retirar; historial; restituir |
+| 11 | 3 · Matriz, antes de proponer (`#matriz-vacia`) | Estado vacío con lo que hay del pliego | Operador o evaluador | Proponer la matriz (abre la ventana del proceso) |
+| 12 | 3 · Matriz de cumplimiento (`#matriz`) | Tabla agrupada por tipo y sección, contadores que filtran, filtros, filas que se abren con cita y consecuencias; en borrador: franja, sugerencias y tramos | Evaluador decide; operador prepara | Confirmar (uno o por grupo), corregir, quitar, agregar, pasar o quitar sugerencias, elegir consecuencia, validar, descartar el borrador, versiones, imprimir, exportar, abrir versión nueva |
+| 13 | 4 · Ofertas (`#ofertas`, `#ofertas-alta`) | Pendientes de la parte; cuadro de documentos exigidos por oferente; detalle por oferta | Operador | Agregar oferta (Portal o a mano); subir documentos; subir en la celda que falta; editar datos; reemplazar; retirar; aprobar novedades del Portal |
+| 14 | Ficha de la oferta (`#ficha`) | Síntesis y fragmento literal por requisito; "no se encontró en la oferta" | Todos (opcional) | Corregir o agregar fragmentos |
+| 15 | Historial de un documento (`#historial`) | Línea de tiempo y versiones con huella; ejemplo de retiro | Todos | Ver versiones; restituir |
+| 16 | 5 · Hojas de compliance (`#compliance`) | Hoja por oferta, requisitos que cubre, cuáles faltan | Evaluador | Subir hoja; ver; reemplazar; retirar |
+| 17 | 6 · Informe técnico (`#informe`) | Informe subido y propuesta apto o no apto por oferta y renglón con cita | Evaluador | Subir informe (procedimiento u oferta); ver el proceso; dar el ok |
+| 18 | 7 · Evaluación (`#evaluacion`) | Descartes propuestos, orden económico (total y por renglón), estado por oferta, matriz requisitos × ofertas | Evaluador decide | Volver a evaluar; confirmar o rechazar descartes; abrir el detalle; confirmar, corregir, rechazar |
+| 19 | Ventana del proceso (`#proceso`) | Tarea, paso actual, hecho y lo que falta, últimos pasos, aviso al terminar | Todos | Abrir y cerrar desde cualquier pantalla del procedimiento |
+| 20 | Detalle de un par (`#par`) | Cita del pliego, de la oferta y del Portal, cálculo, norma, historial | Evaluador | Confirmar; corregir con fundamento; rechazar la propuesta |
+| 21 | Preguntas a la Comisión (`#preguntas`) | Abiertas con su contexto citado; respondidas y dónde se usan | Evaluador | Registrar respuesta; dejar sin responder |
+| 22 | Subsanación (`#subsanacion`) | Pasos no se encontró → decidir → pedir → subir → reevaluar | Evaluador decide; operador sube | Pedir que se subsane con plazo; no pedir; subir el documento |
+| 23 | 8 · Evaluación final y dictamen (`#cierre`) | Qué falta para cerrar; al terminar: resultado por oferta, orden de mérito por renglón, borrador del dictamen | Evaluador | Generar borrador; exportar planilla o PDF; cerrar el expediente |
+| 24 | Estados vacíos y errores (`#estados`) | Sin procedimientos, Portal caído, documento ilegible, proceso que falló, matriz cambiada, falta lo previo, sin permiso, sesión vencida, documento repetido | Todos | La acción que corresponde a cada caso |
+
+Pendiente de decisión del responsable: el **borrador del dictamen** (pantalla 23) está diferido en la hoja de ruta desde el 2026-10-03; la maqueta lo muestra para que se decida si se habilita.
