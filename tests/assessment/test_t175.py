@@ -36,9 +36,9 @@ def quotes_of(portal, offer, procedure, prices=("100.0000", "250.5000")):
 
 @pytest.mark.parametrize("text", [
     PER_LINE,
-    "Por Renglón X",
-    "Se podrá cotizar todos o algunos de los renglones del llamado.",
-    "La cotización se hará por renglón.",
+    "Precio por Renglón X",
+    "Se podrá cotizar todos o algunos de los renglones del llamado, con su precio.",
+    "La cotización del importe se hará por renglón.",
 ])
 def test_a_text_that_asks_to_quote_per_line_is_a_quote_without_naming_a_line(text):
     """REQ-062: «cotizar todos o algunos renglones», «cada uno de los renglones» o «por renglón»
@@ -53,6 +53,40 @@ def test_a_text_that_asks_to_quote_per_line_is_a_quote_without_naming_a_line(tex
 def test_quoting_without_a_line_is_not_a_per_line_quote(text):
     """REQ-062: sin mención de renglones, «cotizar» no es una cotización por renglón."""
     assert portal_facts.kind_of(text, SimpleNamespace(items=[])) is None
+
+
+@pytest.mark.decision_literal
+@pytest.mark.parametrize("text", [
+    "La cotización parcial deberá ser de al menos el porcentaje de la cotización de cada "
+    "renglón ofertado.",
+    "Presentar la cotización pertinente por la cantidad total indicada para cada renglón.",
+])
+def test_a_requirement_about_percentage_or_quantity_is_not_a_per_line_quote(text):
+    """REQ-062 (H-1): la cotización sin renglón nombrado aplica solo si el requisito pide
+    precio, valor unitario o importe; porcentaje o cantidad por renglón no lo piden."""
+    assert portal_facts.kind_of(text, SimpleNamespace(items=[])) is None
+
+
+@pytest.mark.decision_literal
+def test_a_quantity_read_from_the_offer_is_not_compared_with_the_portal_prices(
+        offer, procedure, portal):
+    """REQ-062 (H-1): una cantidad leída de la oferta no da falta de coincidencia falsa."""
+    quotes_of(portal, offer, procedure)
+    text = "Cantidad ofertada 1.500,00"
+    pair = pair_of("Presentar la cotización pertinente por la cantidad total indicada para "
+                   "cada renglón.", combine.Combined(outcome="cumple", citations=[located(text)]),
+                   datos=[text])
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) is None
+
+
+@pytest.mark.decision_literal
+def test_the_portal_quote_cite_is_compared_only_by_its_price():
+    """REQ-062 (H-3): el número de renglón y la cantidad de la cita no cuentan como precio."""
+    from evaluon.assessment.evaluation import portal_value_in
+    cite = "Renglón 2: precio 250.5000, cantidad 10.0000"
+    assert portal_value_in("cotizacion", cite, Decimal("250.50"))
+    assert not portal_value_in("cotizacion", cite, Decimal("2"))
+    assert not portal_value_in("cotizacion", cite, Decimal("10"))
 
 
 @pytest.mark.decision_literal

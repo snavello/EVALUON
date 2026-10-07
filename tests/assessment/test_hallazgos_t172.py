@@ -264,7 +264,7 @@ def test_the_catalog_does_not_mark_other_declarations_or_policies(text):
     assert externals.match(text) == []
 
 
-def test_the_rules_version_is_v6():
-    """T-175: la versión de las reglas sube a `reglas-v6` (T-172 la había subido a v5)."""
+def test_the_rules_version_is_v7():
+    """T-175: la versión de las reglas sube a `reglas-v7` (T-172 la subió a v5, T-175 a v6)."""
     from django.conf import settings
-    assert settings.ASSESSMENT_RULES_VERSION == "reglas-v6"
+    assert settings.ASSESSMENT_RULES_VERSION == "reglas-v7"

@@ -563,6 +563,11 @@ def portal_value_in(kind, text, value):
     if kind == am.PortalKind.CUIT:
         wanted = re.sub(r"\D", "", str(value))
         return bool(wanted) and wanted in re.sub(r"\D", "", str(text or ""))
+    if kind == am.PortalKind.COTIZACION:
+        # T-175 (H-3): de «Renglón N: precio P, cantidad Q» solo cuenta el precio.
+        prices = re.findall(r"precio\s+(\d[\d.,]*)", str(text or ""))
+        if prices:
+            text = " ".join(prices)
     wanted = _numbers(value)
     return bool(wanted) and wanted <= _numbers(text)
 

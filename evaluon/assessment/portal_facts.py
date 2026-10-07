@@ -78,6 +78,11 @@ PER_LINE = re.compile(
     r"|(?:precio|valor) unitario\W+(?:\w+\W+){0,8}?renglon|por renglon|cada (?:uno de los )?renglon")
 
 
+# T-175 (H-1): la cotización sin renglón nombrado aplica solo si el requisito pide un precio, un
+# valor unitario o un importe; «porcentaje de la cotización» o «cantidad por renglón» no lo piden.
+PRICE_WORD = re.compile(r"\bprecios?\b|\bimportes?\b|\bvalor(?:es)?\b")
+
+
 def kind_of(text, requirement=None):
     """La clase de dato del Portal que pide el requisito, o `None`. La cotización por renglón
     rige si la fila es de un renglón o si el texto pide cotizar por renglón (todos, algunos o
@@ -86,7 +91,7 @@ def kind_of(text, requirement=None):
     items = getattr(requirement, "items", None) or []
     for kind, pattern in CATALOG:
         if kind == COTIZACION and not items:
-            if PER_LINE.search(folded):
+            if PER_LINE.search(folded) and PRICE_WORD.search(folded):
                 return kind
             continue
         if not pattern.search(folded):
