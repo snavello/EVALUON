@@ -1,6 +1,6 @@
 # Guía visual de EVALUON (propuesta)
 
-Estado: propuesta, 2026-10-07, pendiente de aprobación del responsable.
+Estado: aprobada por el responsable el 2026-10-07 (ver sección 3).
 Archivos: `evaluon/static/diseno/tokens.css` (variables), `evaluon/static/diseno/fuentes/` (tipografía alojada) y `docs/diseno/muestra.html` (página de muestra, abrir en el navegador).
 
 ## 1. Referencias extraídas
@@ -75,18 +75,24 @@ Texto suave: `#3E4C63` (descripciones, ayudas, etiquetas, pestañas inactivas).
 
 Acento: rojo oscuro `#8B1E2D` (hover `#6F1723`). Uso acotado: filete inferior del encabezado, filo del nombre en la barra, acción destructiva o irreversible, aviso importante. No decora ni titula.
 
-### 2.2 Estados de cumplimiento
+### 2.2 Estados de cumplimiento: ícono de color, sin pastillas
 
-Siempre con texto y símbolo además del color. Etiqueta tipo chip (radio 20 px, 12,5 px, peso 600, borde del color del texto).
+Decisión del responsable (sección 3): cada estado se muestra como un **ícono de color** del mismo tamaño y forma base, y **el nombre aparece al pasar el mouse**.
 
-| Estado | Texto | Fondo | Símbolo |
-|---|---|---|---|
-| Cumple | `#14573D` | `#E1EFE7` | ✓ |
-| No cumple | `#7A1626` | `#F6E1E3` | ✗ |
-| No determinado | `#6B4700` | `#F6EACB` | ? |
-| Pendiente | `#34476A` | `#E3E9F0` | … |
+- Forma: círculo de 16 px (`--ev-icono-tam`) con un símbolo blanco distinto adentro: tilde, cruz, signo de pregunta, reloj. SVG en línea (sprite `<symbol>` + `<use>`), sin dependencias externas.
+- Nombre: al pasar el mouse **y también al enfocar con el teclado** (`tabindex="0"`). Cada ícono lleva `role="img"`, `aria-label` y `title` con el nombre, y un tooltip propio en CSS (`data-nombre`, fondo azul-900, texto blanco, a la derecha del ícono) porque el `title` nativo tarda y no se ve con el foco. En la muestra hay además una leyenda fija de los cuatro estados.
+- La información no depende solo del color: la forma del símbolo distingue cada estado.
 
-Justificación: "pendiente" queda dentro de la gama azul. "Cumple" necesita un verde y "no determinado" un ámbar porque con solo azules y rojo no se distinguen cuatro estados en una matriz; son tonos apagados que conviven con el beige. "No cumple" usa un rojo propio, más frío que el acento, para no mezclar un resultado de evaluación con una acción destructiva; puede unificarse con el acento si el responsable lo prefiere.
+| Estado | Color del círculo | Símbolo | vs superficie `#FCFAF5` | vs cebra `#F3EFE4` | vs fila resaltada `#EFF3F8` | Símbolo blanco vs círculo |
+|---|---|---|---|---|---|---|
+| Cumple | `#1E7F55` | tilde | 4,77 | 4,33 | 4,46 | 4,97 |
+| No cumple | `#B3263C` | cruz | 6,18 | 5,61 | 5,78 | 6,44 |
+| No determinado | `#A8680B` | signo de pregunta | 4,33 | 3,93 | 4,05 | 4,52 |
+| Pendiente | `#4A6590` | reloj | 5,66 | 5,14 | 5,30 | 5,91 |
+
+Componente gráfico (WCAG 1.4.11): el círculo debe superar 3:1 contra el fondo de la celda; el mínimo es 3,69:1 (no determinado sobre `#E3E9F0`, el fondo "pendiente" en avisos), y el símbolo blanco supera 4,5:1 contra el círculo. Los colores de texto y fondo de estado (`--ev-cumple`, `--ev-nocumple`, etc.) quedan para avisos y textos que nombren el estado.
+
+Justificación de la gama: "pendiente" queda dentro de la gama azul. "Cumple" lleva un verde apagado y "no determinado" un ámbar apagado, porque con solo azules y rojo no se distinguen cuatro estados en una matriz. "No cumple" usa su rojo propio, más claro y frío que el acento `#8B1E2D`, para no mezclar un resultado de evaluación con una acción destructiva.
 
 ### 2.3 Tipografía
 
@@ -123,6 +129,7 @@ Líneas de lectura de hasta 80 caracteres.
 
 ### 2.5 Tablas densas (matrices grandes)
 
+- Estados como íconos de 16 px centrados en su celda (sección 2.2).
 - Texto de 13,5 px, interlineado 1,4; relleno de celda 4px 8px en matrices (7px 10px en tablas de lectura).
 - Cabecera fija (`position: sticky`) con fondo `#E2E7EE`, texto condensado en mayúsculas de 12,5 px con espaciado 1,2 px y filete inferior de 2 px en azul-700.
 - Cebra con beige-200, separadores de 1 px, resalte al pasar en azul-50.
@@ -162,9 +169,21 @@ Cálculo: luminancia relativa L = 0,2126 R + 0,7152 G + 0,0722 B con canales lin
 
 Todas las combinaciones propuestas superan 4,5:1. Los textos de 11–12,5 px de la escala usan los pares ya calculados (texto, texto suave, estados), que superan el mínimo con margen.
 
-## 3. Qué falta decidir
+## 3. Decisiones del responsable (texto literal)
 
-1. Aprobar la gama y el rojo acento (o ajustar tonos tras ver `muestra.html`).
-2. Confirmar si "no cumple" usa el rojo propio (`#7A1626`) o se unifica con el acento.
-3. Decidir si se quiere el peso 600 de Barlow Condensed (hoy solo 700, que es el que hay en el repositorio del responsable); requeriría descargarlo.
-4. Una tarea posterior aplicará los tokens a las plantillas.
+Aprobación de la guía: 2026-10-07. Respuestas a las tres preguntas de la propuesta:
+
+1. Aplicar la guía en la feature 013: **sí**.
+2. "No cumple" con su rojo propio, distinto del acento: **sí**.
+3. Verde y ámbar apagados para "cumple" y "no determinado": **sí**.
+
+Decisión adicional, textual:
+
+> "los estados no me gustan las pastillas preferiria un icono de color y que al pasar el mouse muestre el nombre asi son todos iguales"
+
+Aplicada en la sección 2.2, en `tokens.css` (`--ev-icono-*`, `--ev-icono-tam`, `--ev-tooltip-*`) y en la matriz de `muestra.html`.
+
+## 4. Pendiente
+
+- El peso 600 de Barlow Condensed no está en el repositorio del responsable; solo se usa el 700. Si se lo quiere, habría que descargarlo.
+- La aplicación de los tokens a las plantillas la hace una tarea de la feature 013.

@@ -48,11 +48,19 @@
   .matriz tbody tr:hover { background: var(--ev-azul-50); }
   .matriz tbody th { font-weight: 600; }
   .matriz td.n { text-align: right; font-family: var(--ev-fuente-num); }
-  .estado { display: inline-block; padding: 1px 8px; border-radius: var(--ev-radio-chip); font-weight: 600; font-size: var(--ev-t-xs); white-space: nowrap; border: 1px solid currentColor; }
-  .estado.cumple { color: var(--ev-cumple); background: var(--ev-cumple-fondo); }
-  .estado.nocumple { color: var(--ev-nocumple); background: var(--ev-nocumple-fondo); }
-  .estado.nodet { color: var(--ev-nodeterminado); background: var(--ev-nodeterminado-fondo); }
-  .estado.pend { color: var(--ev-pendiente); background: var(--ev-pendiente-fondo); }
+  /* Estado: ícono de color (círculo de 16 px, símbolo distinto); el nombre aparece al pasar el mouse o con el foco */
+  .est { position: relative; display: inline-flex; vertical-align: middle; width: var(--ev-icono-tam); height: var(--ev-icono-tam); border-radius: 50%; cursor: help; }
+  .est svg { width: 100%; height: 100%; display: block; }
+  .est.cumple { color: var(--ev-icono-cumple); }
+  .est.nocumple { color: var(--ev-icono-nocumple); }
+  .est.nodet { color: var(--ev-icono-nodeterminado); }
+  .est.pend { color: var(--ev-icono-pendiente); }
+  .est::after { content: attr(data-nombre); position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%); z-index: 5; background: var(--ev-tooltip-fondo); color: var(--ev-tooltip-texto); font: 600 var(--ev-t-xs)/1.2 var(--ev-fuente); padding: 5px 9px; border-radius: var(--ev-radio-btn); white-space: nowrap; box-shadow: var(--ev-sombra-flotante); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .12s; }
+  .est:hover::after, .est:focus-visible::after { opacity: 1; visibility: visible; }
+  .matriz td.e { text-align: center; }
+  .leyenda { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; font-size: var(--ev-t-sm); color: var(--ev-texto-suave); margin-top: 10px; }
+  .leyenda span.item { display: inline-flex; gap: 6px; align-items: center; }
+  @media (prefers-reduced-motion: reduce) { .est::after { transition: none; } }
   /* Botones */
   .btn { font: var(--ev-peso-control) var(--ev-t-ctl)/1.2 var(--ev-fuente); padding: var(--ev-boton-relleno); border-radius: var(--ev-radio-btn); border: 1px solid transparent; cursor: pointer; }
   .btn.primario { background: var(--ev-boton-fondo); color: var(--ev-boton-texto); }
@@ -78,6 +86,12 @@
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-cumple" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M4.5 8.3l2.3 2.3 4.7-5" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-nocumple" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M5.2 5.2l5.6 5.6M10.8 5.2l-5.6 5.6" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-nodet" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M6.1 6.2a2 2 0 1 1 2.9 1.8c-.7.4-1 .8-1 1.6" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="12" r="1" fill="#fff"/></symbol>
+  <symbol id="i-pend" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M8 4.2V8l2.6 1.6" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
 <header class="top"><div class="wrap">
   <span class="nombre">EVALUON</span>
   <span class="usuario"><strong>Comisión Evaluadora</strong>usuario de muestra</span>
@@ -89,7 +103,7 @@
 
 <main><div class="wrap">
   <h1>Evaluación de ofertas</h1>
-  <p class="lede">Proceso de muestra con datos inventados. Esta página solo ilustra tipografía, superficies, estados y componentes de la propuesta visual.</p>
+  <p class="lede">Proceso de muestra con datos inventados. En la matriz, pase el mouse o enfoque con el teclado un ícono para ver el nombre del estado. Esta página solo ilustra tipografía, superficies, estados y componentes de la propuesta visual.</p>
 
   <ol class="etapas" aria-label="Recorrido">
     <li class="hecha">Pliego</li><li class="hecha">Ofertas</li><li class="actual" aria-current="step">Matriz</li><li>Dictamen</li>
@@ -100,12 +114,18 @@
     <caption>Requisitos del pliego por oferente (datos de muestra)</caption>
     <thead><tr><th scope="col">N.º</th><th scope="col">Requisito</th><th scope="col">Oferente A</th><th scope="col">Oferente B</th><th scope="col">Oferente C</th><th scope="col" class="n">Folio</th></tr></thead>
     <tbody>
-      <tr><th scope="row">1</th><td>Garantía de mantenimiento de oferta</td><td><span class="estado cumple">&#10003; Cumple</span></td><td><span class="estado cumple">&#10003; Cumple</span></td><td><span class="estado nocumple">&#10007; No cumple</span></td><td class="n">12</td></tr>
-      <tr><th scope="row">2</th><td>Constancia de inscripción vigente</td><td><span class="estado cumple">&#10003; Cumple</span></td><td><span class="estado nodet">? No determinado</span></td><td><span class="estado cumple">&#10003; Cumple</span></td><td class="n">15</td></tr>
-      <tr><th scope="row">3</th><td>Antecedentes de provisión similares</td><td><span class="estado pend">&#8943; Pendiente</span></td><td><span class="estado cumple">&#10003; Cumple</span></td><td><span class="estado nodet">? No determinado</span></td><td class="n">21</td></tr>
-      <tr><th scope="row">4</th><td>Plazo de entrega no mayor a 30 días</td><td><span class="estado cumple">&#10003; Cumple</span></td><td><span class="estado nocumple">&#10007; No cumple</span></td><td><span class="estado cumple">&#10003; Cumple</span></td><td class="n">27</td></tr>
+      <tr><th scope="row">1</th><td>Garantía de mantenimiento de oferta</td><td class="e"><span class="est cumple" tabindex="0" role="img" title="Cumple" aria-label="Cumple" data-nombre="Cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span></td><td class="e"><span class="est cumple" tabindex="0" role="img" title="Cumple" aria-label="Cumple" data-nombre="Cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span></td><td class="e"><span class="est nocumple" tabindex="0" role="img" title="No cumple" aria-label="No cumple" data-nombre="No cumple"><svg aria-hidden="true"><use href="#i-nocumple"/></svg></span></td><td class="n">12</td></tr>
+      <tr><th scope="row">2</th><td>Constancia de inscripción vigente</td><td class="e"><span class="est cumple" tabindex="0" role="img" title="Cumple" aria-label="Cumple" data-nombre="Cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span></td><td class="e"><span class="est nodet" tabindex="0" role="img" title="No determinado" aria-label="No determinado" data-nombre="No determinado"><svg aria-hidden="true"><use href="#i-nodet"/></svg></span></td><td class="e"><span class="est cumple" tabindex="0" role="img" title="Cumple" aria-label="Cumple" data-nombre="Cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span></td><td class="n">15</td></tr>
+      <tr><th scope="row">3</th><td>Antecedentes de provisión similares</td><td class="e"><span class="est pend" tabindex="0" role="img" title="Pendiente" aria-label="Pendiente" data-nombre="Pendiente"><svg aria-hidden="true"><use href="#i-pend"/></svg></span></td><td class="e"><span class="est cumple" tabindex="0" role="img" title="Cumple" aria-label="Cumple" data-nombre="Cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span></td><td class="e"><span class="est nodet" tabindex="0" role="img" title="No determinado" aria-label="No determinado" data-nombre="No determinado"><svg aria-hidden="true"><use href="#i-nodet"/></svg></span></td><td class="n">21</td></tr>
+      <tr><th scope="row">4</th><td>Plazo de entrega no mayor a 30 días</td><td class="e"><span class="est cumple" tabindex="0" role="img" title="Cumple" aria-label="Cumple" data-nombre="Cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span></td><td class="e"><span class="est nocumple" tabindex="0" role="img" title="No cumple" aria-label="No cumple" data-nombre="No cumple"><svg aria-hidden="true"><use href="#i-nocumple"/></svg></span></td><td class="e"><span class="est cumple" tabindex="0" role="img" title="Cumple" aria-label="Cumple" data-nombre="Cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span></td><td class="n">27</td></tr>
     </tbody>
   </table></div>
+  <div class="leyenda" aria-label="Leyenda de estados">
+    <span class="item"><span class="est cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span> Cumple</span>
+    <span class="item"><span class="est nocumple"><svg aria-hidden="true"><use href="#i-nocumple"/></svg></span> No cumple</span>
+    <span class="item"><span class="est nodet"><svg aria-hidden="true"><use href="#i-nodet"/></svg></span> No determinado</span>
+    <span class="item"><span class="est pend"><svg aria-hidden="true"><use href="#i-pend"/></svg></span> Pendiente</span>
+  </div>
 
   <h2>Avisos</h2>
   <div class="aviso"><strong>Evaluación guiada</strong>La IA propone y la Comisión decide: cada fila queda sujeta a su revisión.</div>
