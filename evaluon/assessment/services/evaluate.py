@@ -327,8 +327,10 @@ class PairData:
 class Context:
     """Lo que comparten los pares de una oferta mientras se arma su evaluación."""
 
-    def __init__(self, offer, offer_text, rewrites, clock):
+    def __init__(self, offer, offer_text, rewrites, clock, job=None, scope=""):
         self.offer = offer
+        self.job = job
+        self.scope = scope
         self.offer_text = offer_text
         self.rewrites = rewrites
         self.clock = clock
@@ -337,10 +339,18 @@ class Context:
         self.single_plan = None
         self.unreadable_flags = []
         self.rewrites_reused = 0
+        self.total = 0
+        self.read_done = 0
+        self.contrast_done = 0
 
     def add(self, step):
         self.steps.append(step)
         return len(self.steps) - 1
+
+    def report(self, step, done=None, total=None):
+        """Avance fino del pedido (REQ-067): en lenguaje llano y sin datos personales."""
+        if self.job is not None:
+            jobs.report(self.job, step, done, total, self.scope)
 
 
 def _generate(messages, schema, step, ctx, max_tokens=None):
@@ -520,6 +530,9 @@ def _read_pair(ctx, pair):
                                "requirement": pair.requirement.number,
                                "groups": plan.unread_groups})
     for index, pieces in enumerate(plan.groups):
+        if len(plan.groups) > 1:
+            ctx.report(f"Leyendo el requisito {pair.requirement.number}: grupo de documentos "
+                       f"{index + 1} de {len(plan.groups)}", ctx.read_done, ctx.total)
         pair.groups.append(_group_result(ctx, pair, index, pieces, note if index == 0 else None))
     pair.external_flagged = any(group.external for group in pair.groups)
     if externals.remedied(ctx.offer, pair.requirement):
@@ -670,6 +683,8 @@ def _contrast_pair(ctx, pair):
     combined = pair.combined
     if combined is None or not combined.needs_contrast:
         return
+    ctx.report(f"Contrastando la conclusión del requisito {pair.requirement.number}",
+               ctx.contrast_done, ctx.total)
     started = ctx.clock()
     if (combined.outcome == combine.OUT_CUMPLE
             and pair.requirement.category == RequirementClass.TECNICO
@@ -782,8 +797,8 @@ def _save_pair(run, offer, pair, procedure):
 
 def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
                    audit_channel=Channel.COMMAND, job=None, rewrites=None,
-                   clock=time.monotonic):
-    """Evalúa la oferta `offer` contra la matriz del pedido y guarda la evaluación entera en una
+                   clock=time.monotonic, position=None):
+    """Evalúa la oferta `offer` (la `position` = (k, n) del pedido, para el avance) contra la matriz del pedido y guarda la evaluación entera en una
     transacción. Cualquier falla deja el hecho `eval_build` fallido y se vuelve a lanzar."""
     rewrites = rewrites if rewrites is not None else {}
     detail = {"procedure": offer.procedure_id, "offer": offer.pk, "request": request.pk,
@@ -795,12 +810,17 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
         started = clock()
         # Antes de armar los documentos: las páginas de lectura dudosa se leen por visión y
         # quedan como lectura nueva del documento (ADR-0041; T-160).
+        scope = f"Oferta {position[0]} de {position[1]}" if position else f"Oferta {offer.number}"
+        if job is not None:
+            jobs.report(job, "Revisando con visión las páginas de lectura dudosa", None, None,
+                        scope)
         seen = _read_with_vision(offer, user, audit_channel, job, clock)
         offer_text = documents.build_offer_text(offer)
         if not offer_text.pieces:
             raise EvaluationRefused("La oferta no tiene ningún documento leído.",
                                     "no_documents")
-        ctx = Context(offer, offer_text, rewrites, clock)
+        ctx = Context(offer, offer_text, rewrites, clock, job=job, scope=scope)
+        ctx.total = len(requirements)
         pairs = []
         for requirement in requirements:
             pair = PairData(requirement=requirement, text=grounds.requirement_text(requirement),
@@ -810,14 +830,23 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
             pairs.append(pair)
         # Por cada requisito se piden seguidos todos los grupos; los contrastes, al final y
         # juntos, para no desalojar el prefijo de los documentos (plan, "Orden de los pedidos").
-        for pair in pairs:
+        for index, pair in enumerate(pairs):
+            ctx.read_done = index
+            ctx.report(f"Leyendo el requisito {pair.requirement.number} en los documentos de la "
+                       f"oferta", index, ctx.total)
             _read_pair(ctx, pair)
-        for pair in pairs:
+        for index, pair in enumerate(pairs):
+            ctx.contrast_done = index
             _contrast_pair(ctx, pair)
+        ctx.report("Aplicando las reglas fijas a los resultados", ctx.total, ctx.total)
         # Lo que se decide sin el modelo, después de unir y contrastar y antes de guardar.
         ctx.unreadable_flags = unreadable.collect(pairs)
         for pair in pairs:
             pair.rule = rules.apply(pair, ctx)
+            if pair.rule:
+                ctx.report(f"Una regla fija decidió el requisito {pair.requirement.number}",
+                           ctx.total, ctx.total)
+        ctx.report("Guardando la evaluación de la oferta", ctx.total, ctx.total)
         anomalies = [a for pair in pairs for a in pair.anomalies]
         if seen.errors:
             anomalies.append({"type": ANOMALY_VISION_ERRORS, "errors": seen.errors})
@@ -883,12 +912,17 @@ def execute(request, user, *, channel=RunChannel.SCREEN, audit_channel=Channel.C
     """Evalúa las ofertas del pedido, de a una. Cada una queda guardada al terminar; si alguna
     falla, las demás siguen y al final se lanza `EvaluationFailed` con lo que falló."""
     rewrites, runs, failures = {}, [], []
-    for offer_id in request.offers:
+    total = len(request.offers)
+    for index, offer_id in enumerate(request.offers, start=1):
         offer = Offer.objects.select_related("procedure").get(pk=offer_id)
+        if job is not None:
+            jobs.report(job, f"Empezando la oferta {index} de {total}", index - 1, total,
+                        f"Oferta {index} de {total}")
         try:
             runs.append(evaluate_offer(request, offer, user, channel=channel,
                                        audit_channel=audit_channel, job=job,
-                                       rewrites=rewrites, clock=clock))
+                                       rewrites=rewrites, clock=clock,
+                                       position=(index, total)))
         except Exception as error:  # noqa: BLE001 - ya quedó el hecho fallido de la oferta
             failures.append(f"oferta {offer.number}: {type(error).__name__}: {error}")
     if failures:
