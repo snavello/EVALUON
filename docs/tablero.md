@@ -49,7 +49,7 @@ flowchart LR
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
 | [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 63/65 | ██████████ 97% |
-| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 23/26 | █████████░ 88% |
+| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 24/27 | █████████░ 89% |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
 | 007 · Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | No iniciada | — | — |
@@ -695,6 +695,7 @@ flowchart LR
 - ✓ T-169 · El Portal como fuente: dato o documento en el Portal, falta de coincidencia y cita del Portal (`ba7dd3e` 2026-10-07, `dea0bdc` 2026-10-06)
 - ✓ T-171 · Medir el caso-00 con las decisiones aplicadas (medición final, una sola)
 - ✓ T-172 · Corregir los hallazgos de T-171: documento técnico afirmado por una línea de precio (H-3), ilegible del pagaré en todos los pares de la garantía (H-4), M-008 y M-016 externos (H-5), hechos técnicos de una oferta sin ficha (H-6) (`f43776d` 2026-10-07, `df7904d` 2026-10-07)
+- ✓ T-174 · Emparejar las ofertas del Portal con las cargadas a mano (CUIT o nombre normalizado, como propuesta del evaluador), necesario para cargar el Portal del caso-00 (`b3ec5dd` 2026-10-07, `2732a6d` 2026-10-07)
 
 ### Mapa de tareas
 
@@ -726,6 +727,7 @@ flowchart TD
   T171["✓ T-171 · Medir el caso-00 con las decisiones aplicad…"]:::done
   T172["✓ T-172 · Corregir los hallazgos de T-171: documento…"]:::done
   T173["○ T-173 · Medir el caso-00 con los datos del Portal c…"]:::todo
+  T174["✓ T-174 · Emparejar las ofertas del Portal con las ca…"]:::done
   T148 --> T150
   T149 --> T151
   T150 --> T151
@@ -757,6 +759,7 @@ flowchart TD
   T170 --> T171
   T171 --> T172
   T172 --> T173
+  T174 --> T173
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
