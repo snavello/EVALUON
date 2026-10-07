@@ -625,7 +625,7 @@ def test_the_proposal_records_the_filter_in_parameters_and_counts(operator_user,
     assert run.parameters["filter_enabled"] is True
     assert run.parameters["filter_batch_rows"] == 15
     assert "consecuencia_sancion" in run.parameters["filter_motives"]
-    assert run.prompt_versions["filtro"] == "matriz-filtro-v3"
+    assert run.prompt_versions["filtro"] == "matriz-filtro-v2"
     assert run.parameters["passes"].index("filtro") == run.parameters["passes"].index(
         "unificacion") + 1
     stats = run.counts["filter"]
@@ -658,7 +658,7 @@ def test_no_instruction_test_or_example_of_the_filter_repeats_five_words_of_a_ca
     known = set(HASHES.read_text(encoding="utf-8").split())
     assert len(known) > 100
     files = [Path(__file__), Path(row_filter.__file__),
-             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v3.md"]
+             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v2.md"]
     hits = []
     for path in files:
         for shingle in _shingles(path.read_text(encoding="utf-8")):
@@ -781,7 +781,7 @@ def test_the_v2_instructions_state_the_two_general_rules_in_both_questions(setti
     """REQ-033: las instrucciones activas son la v2 y cada pregunta lleva la regla de lo
     verificado del oferente (aunque el sujeto sea el organismo) y la de la oración
     continuada, con ejemplos de otro objeto."""
-    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v3"
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v2"
     for prompt in row_filter.load_prompts():
         assert "no quién lo verifica" in prompt
         assert "continúa una oración" in prompt
@@ -937,16 +937,17 @@ def test_the_offer_guarantee_sentence_is_a_suggestion_in_the_matrix(operator_use
 
 
 def test_the_v3_instructions_leave_the_adjudicatario_duties_out_of_the_offer(settings):
-    """REQ-033, REQ-024: las instrucciones activas de extracción, completitud y filtro dicen
-    que lo que el adjudicatario hace durante la prestación es ejecución del contrato, y que
-    lo que se acredita al ofertar sigue siendo requisito."""
+    """REQ-033, REQ-024: las instrucciones activas de extracción y completitud dicen que lo
+    que el adjudicatario hace durante la prestación es ejecución del contrato, y que lo que
+    se acredita al ofertar sigue siendo requisito. El filtro conserva su v2: con la v3 de
+    prueba se perdió un requisito esperado del caso de ajuste."""
     from evaluon.tenders.proposal import extraction
 
     versions = settings.MATRIX_PROMPT_VERSIONS
     assert versions["extraccion"] == "matriz-extraccion-v3"
     assert versions["completitud"] == "matriz-completitud-v3"
-    texts = [extraction.load_prompt("extraccion"), extraction.load_prompt("completitud"),
-             *row_filter.load_prompts()]
+    assert versions["filtro"] == "matriz-filtro-v2"
+    texts = [extraction.load_prompt("extraccion"), extraction.load_prompt("completitud")]
     for text in texts:
         assert "adjudicatari" in text and "durante la prestación" in text
     assert "se acredita al ofertar" in texts[0]
