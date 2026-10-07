@@ -10,6 +10,7 @@
   <dt>Garantía</dt>
   <dd>{% if data.garantias %}<ul>{% for g in data.garantias %}<li>{{ g.tipo|default:"—" }} · {{ g.forma|default:"—" }} · {{ g.monto|default_if_none:"—" }}</li>{% endfor %}</ul>{% else %}—{% endif %}</dd>
 </dl>
+{% if match and match.offer %}<p class="portal-match">Se asocia a la oferta cargada «{{ match.offer.bidder }}» (oferta {{ match.offer.number }}) por {% if match.how == "cuit" %}CUIT{% else %}nombre{% endif %}. Al aprobar, los datos del Portal quedan enlazados a esa oferta y su nombre no cambia.</p>{% elif match and match.note %}<p class="portal-match"><mark class="damaged">Atención: {{ match.note }}.</mark></p>{% endif %}
 {% if data.anomalias %}<ul>{% for note in data.anomalias %}<li><mark class="damaged">Atención: {{ note }}.</mark></li>{% endfor %}</ul>{% endif %}
 <table>
   <caption>Cotización por renglón</caption>

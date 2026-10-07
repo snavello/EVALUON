@@ -19,6 +19,7 @@ CUIT figura con nombres distintos.
 
 import hashlib
 import unicodedata
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from urllib.parse import urljoin
@@ -31,9 +32,11 @@ from evaluon.portal.client import PortalError
 from evaluon.portal.importers import Draft, jsonable
 from evaluon.portal.models import (
     ItemKind,
+    ItemState,
     LoadedModel,
     PageKind,
     PortalGuarantee,
+    PortalItem,
     PortalLine,
     PortalOfferData,
     PortalPage,
@@ -163,6 +166,120 @@ def _same_name(a, b):
     return " ".join(a.split()).casefold() == " ".join(b.split()).casefold()
 
 
+def _words(name):
+    """Palabras de un nombre sin acentos ni signos y en minúsculas (para emparejar)."""
+    text = unicodedata.normalize("NFD", name or "")
+    text = "".join(c for c in text if not unicodedata.combining(c)).casefold()
+    text = text.replace(".", "").replace("'", "")  # S.R.L. = SRL; D'Alessio = DAlessio
+    return "".join(c if c.isalnum() else " " for c in text).split()
+
+
+# Palabras vacías y formas societarias: no distinguen a un oferente de otro (T-174, H-1).
+_FILLER = {"de", "del", "la", "las", "los", "y", "e", "el",
+           "srl", "sa", "sas", "sau", "sca", "sh", "sc", "saic", "saci", "saicyf", "sacif",
+           "saeca", "scs", "scpa", "se", "sem", "ltda", "ltd", "inc", "llc", "cia", "cv"}
+MIN_TERM = 3
+
+
+def _terms(name):
+    """Términos que distinguen un nombre: sin palabras vacías ni formas societarias."""
+    return {w for w in _words(name) if w not in _FILLER}
+
+
+def _meaningful(terms):
+    return any(len(t) >= MIN_TERM for t in terms)
+
+
+@dataclass
+class Match:
+    """Propuesta de emparejar una oferta del Portal con una ya cargada (T-174)."""
+    offer: object = None
+    how: str = ""  # "cuit", "nombre" o "" si no se empareja
+    note: str = ""  # por qué no se empareja o qué difiere (falta de coincidencia)
+
+
+def match_offer(procedure, cuit, name):
+    """Busca la oferta ya cargada del procedimiento que corresponde a la del Portal.
+
+    1) Por CUIT, si la oferta cargada lo tiene (lo trae su carga desde el Portal).
+    2) Si no, por nombre normalizado igual o, si todas las palabras del nombre cargado están
+    en el del Portal, siempre que haya un solo candidato. Con dos candidatos posibles no se
+    empareja. Una oferta cargada con otro CUIT no es candidata: se informa como falta de
+    coincidencia. Solo propone; no escribe nada."""
+    offers = list(Offer.objects.filter(procedure=procedure).order_by("number"))
+    cuits = dict(PortalOfferData.objects.filter(offer__in=offers).values_list("offer_id", "cuit"))
+    for offer in offers:
+        if cuits.get(offer.pk) == cuit:
+            return Match(offer, "cuit")
+    portal = _terms(name)
+    exact, partial, other_cuit, generic = [], [], [], []
+    for offer in offers:
+        words = _terms(offer.bidder)
+        if not _meaningful(words):
+            if (words and words <= portal) or (
+                    not words and _words(offer.bidder)
+                    and set(_words(offer.bidder)) <= set(_words(name))):
+                generic.append(offer)
+            continue
+        if words == portal:
+            kind = exact
+        elif set(words) <= set(portal):
+            kind = partial
+        else:
+            continue
+        (other_cuit if offer.pk in cuits else kind).append(offer)
+    for candidates in (exact, partial):
+        if len(candidates) == 1:
+            return Match(candidates[0], "nombre")
+        if len(candidates) > 1:
+            names = "; ".join(o.bidder for o in candidates)
+            return Match(note=f"hay más de una oferta cargada que podría ser esta ({names}): "
+                              "no se empareja, asócielas a mano")
+    if generic:
+        names = "; ".join(o.bidder for o in generic)
+        return Match(note=f"el nombre cargado ({names}) no tiene ningún término que lo "
+                          "distinga (solo palabras vacías, formas societarias o menos de "
+                          f"{MIN_TERM} letras): no se empareja por palabras, asóciela a mano")
+    if other_cuit:
+        names = "; ".join(f"{o.bidder} (CUIT {cuits[o.pk]})" for o in other_cuit)
+        return Match(note=f"falta de coincidencia: el nombre se parece al de {names}, pero el "
+                          f"CUIT del Portal ({cuit}) es otro; no se empareja")
+    return Match()
+
+
+def _with_rivals(item, found):
+    """Si otro ítem de oferta pendiente del mismo enlace se propone contra la misma oferta
+    cargada, compiten: ninguno se empareja y se informa (T-174, H-2)."""
+    if found.offer is None or found.how != "nombre":
+        return found
+    link = item.proposal.link
+    rivals = []
+    pending = (PortalItem.objects.filter(proposal__link=link, kind=ItemKind.OFERTA,
+                                         state__in=(ItemState.PROPUESTO, ItemState.APROBADO))
+               .exclude(key=item.key).select_related("proposal"))
+    seen = set()
+    for other in pending:
+        if other.key in seen:
+            continue
+        seen.add(other.key)
+        theirs = match_offer(link.procedure, other.payload["cuit"], other.payload["oferente"])
+        if theirs.offer == found.offer:
+            rivals.append(other.payload["oferente"])
+    if not rivals:
+        return found
+    return Match(note=f"compite con otra oferta del Portal ({'; '.join(rivals)}) por la misma "
+                      f"oferta cargada «{found.offer.bidder}»: no se empareja, el evaluador "
+                      "decide")
+
+
+def proposal_match(item):
+    """Para la pantalla de aprobación: a qué oferta cargada se asociaría el ítem."""
+    if not item.proposal.link.procedure_id:
+        return Match()
+    return _with_rivals(item, match_offer(item.proposal.link.procedure, item.payload["cuit"],
+                                          item.payload["oferente"]))
+
+
 def _snapshot(offer_data):
     """Lo cargado de una oferta, para el registro de un cambio (P6)."""
     return jsonable({
@@ -232,11 +349,14 @@ def load(user, item, confirmation=None, channel=Channel.SCREEN):
         raise ValueError("Hay más de una oferta cargada con ese CUIT en el procedimiento.")
     if loaded:
         return _update(user, item, channel, loaded[0], data, lines)
-    existing = next((o for o in Offer.objects.filter(procedure=procedure)
-                     if _same_name(o.bidder, data["oferente"])), None)
+    found = _with_rivals(item, match_offer(procedure, data["cuit"], data["oferente"]))
+    existing = found.offer
     offer = existing or register_offer(user, procedure, bidder=data["oferente"], channel=channel)
     if existing is not None and PortalOfferData.objects.filter(offer=existing).exists():
         raise ValueError("Esta oferta ya está cargada desde el Portal con otro CUIT.")
+    # Lo que se decidió sobre el emparejamiento queda en el registro del ítem (P6).
+    item.audit_extra = {"match": found.how, "match_offer": existing.pk if existing else None,
+                        "match_note": found.note}
     offer_data = PortalOfferData.objects.create(
         offer=offer, cuit=data["cuit"], confirmed_on=_date(data["confirmada"]),
         currency=_currency_code(data["moneda"]), total=_decimal(data["total"]), item=item,

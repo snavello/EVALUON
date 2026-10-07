@@ -43,7 +43,7 @@
       <p><label><input type="checkbox" name="item" value="{{ row.item.pk }}"> Elegir este ítem</label></p>
       {% endif %}
       {% if row.changed %}<p class="portal-changed"><strong>Cambiado respecto de lo aprobado.</strong></p>{% endif %}
-      {% include row.template with item=row.item can_decide=row.can_decide action=row.action %}
+      {% include row.template with item=row.item can_decide=row.can_decide action=row.action match=row.match %}
       <p class="portal-origin">Origen: página del proceso consultada el {{ row.item.page.fetched_at|date:"d/m/Y H:i" }}.
         Estado: {{ row.item.get_state_display }}{% if row.item.decided_by %} · decidido por {{ row.item.decided_by.username }} el {{ row.item.decided_at|date:"d/m/Y H:i" }}{% endif %}.
         {% if row.item.failure %}Motivo: {{ row.item.failure }}{% endif %}</p>
