@@ -58,6 +58,14 @@ HANDLERS = {
     JobKind.EVALUATE_OFFERS: "evaluon.assessment.services.evaluate.run_evaluate_offers",
 }
 
+# Qué hacer cuando un pedido de este tipo terminó bien (ya marcado `done`): función (o su ruta)
+# que recibe el `Job`. Para encadenar un paso que necesita el pedido ya cerrado: la hoja de
+# compliance leída vuelve a evaluar los requisitos externos de su oferta (T-189, REQ-073). Una
+# falla del paso se registra y no cambia el estado del pedido.
+AFTER_DONE = {
+    JobKind.READ_OFFER_DOCUMENT: "evaluon.assessment.services.compliance.after_read",
+}
+
 FINISHED = (JobStatus.DONE, JobStatus.FAILED)
 
 
@@ -172,6 +180,17 @@ def run(job):
         raise
     else:
         finish(job)
+        _after_done(job)
+
+
+def _after_done(job):
+    hook = AFTER_DONE.get(job.kind)
+    if hook is None:
+        return
+    try:
+        (import_string(hook) if isinstance(hook, str) else hook)(job)
+    except Exception:  # noqa: BLE001 - el paso encadenado no cambia el estado del pedido
+        logger.exception("Paso posterior del pedido %s sin hacer", job.pk)
 
 
 def run_next(kinds=None, exclude=None):
