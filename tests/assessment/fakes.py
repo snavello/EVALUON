@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
+from django.conf import settings
 from PIL import Image, ImageDraw
 
 from evaluon.ai import generation as generation_client
@@ -69,16 +70,28 @@ class Contrast:
     user: str
 
 
+class Raw(str):
+    """Salida del modelo de visión tal cual, sin agregarle el marcador de fin."""
+
+
+class Cut(str):
+    """Salida del modelo de visión cortada en el tope de tokens: sin marcador y `length`."""
+
+
 @dataclass
 class Seen:
-    """Un pedido de lectura con visión: la imagen que llegó (bytes PNG, huella y tamaño) y los
-    mensajes."""
+    """Un pedido de lectura con visión: la imagen que llegó (bytes PNG, huella y tamaño), los
+    mensajes y los parámetros del pedido."""
 
     number: int
     messages: list
-    schema: dict
     kwargs: dict
     image: bytes = b""
+    schema: dict | None = None
+
+    @property
+    def user_text(self):
+        return self.messages[-1]["content"][0]["text"]
 
     @property
     def sha256(self):
@@ -140,9 +153,9 @@ class ScriptedModel:
         self._evaluate = function
 
     def sees(self, function):
-        """Guion de la lectura con visión: recibe un `Seen`; devuelve la transcripción (texto),
-        un diccionario o un texto de salida sin tocar si empieza con `{`. Por omisión, una
-        página sin texto."""
+        """Guion de la lectura con visión: recibe un `Seen`; devuelve la transcripción (texto,
+        al que el doble le agrega el marcador de fin), `Raw(texto)` para una salida sin tocar
+        o `Cut(texto)` para una salida cortada en el tope. Por omisión, una página sin texto."""
         self._vision = function
 
     def contrasts(self, function):
@@ -153,8 +166,6 @@ class ScriptedModel:
 
     def respond(self, messages, schema, **kwargs):
         properties = schema["properties"]
-        if "transcripcion" in properties:
-            return self._respond_vision(messages, schema, **kwargs)
         if "consulta" in properties:
             return self._respond_rewrite(messages, schema, **kwargs)
         if "clausulas" in properties:
@@ -183,14 +194,30 @@ class ScriptedModel:
             answer = says("no_consta", exigence="documento")
         return self._answer(answer, messages, schema, kwargs)
 
-    def _respond_vision(self, messages, schema, **kwargs):
-        call = Seen(number=len(self.vision_calls) + 1, messages=messages, schema=schema,
-                    kwargs=kwargs, image=sees_message(messages))
+    def respond_text(self, messages, *, max_tokens, repeat_penalty, base_url=None, timeout=None):
+        """El doble de `generation.generate_text`: la lectura con visión, en texto plano."""
+        kwargs = {"max_tokens": max_tokens, "repeat_penalty": repeat_penalty,
+                  "base_url": base_url, "timeout": timeout}
+        call = Seen(number=len(self.vision_calls) + 1, messages=messages, kwargs=kwargs,
+                    image=sees_message(messages))
         self.vision_calls.append(call)
         answer = self._vision(call) if self._vision else ""
-        if isinstance(answer, str) and not answer.startswith("{"):
-            answer = {"transcripcion": answer}
-        return self._answer(answer, messages, schema, kwargs)
+        finish = "stop"
+        if isinstance(answer, Cut):
+            finish = "length"
+        elif not isinstance(answer, Raw):
+            answer = f"{answer}\n{settings.ASSESSMENT_VISION_END_MARKER}"
+        content = str(answer)
+        request = generation_client.build_text_request(messages, max_tokens, repeat_penalty)
+        prompt_tokens = sum(len(str(m.get("content", "")).split()) for m in messages)
+        completion_tokens = len(content.split())
+        response = {"choices": [{"index": 0, "finish_reason": finish,
+                                 "message": {"role": "assistant", "content": content}}],
+                    "usage": {"prompt_tokens": prompt_tokens,
+                              "completion_tokens": completion_tokens}}
+        return generation_client.GenerationResult(
+            content=content, finish_reason=finish, prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens, request=request, response=response)
 
     def _respond_contrast(self, messages, schema, **kwargs):
         call = Contrast(number=len(self.contrast_calls) + 1, messages=messages,
@@ -224,6 +251,7 @@ def model(fake_ai, monkeypatch):
     `generation.generate`; el contador de tokens es el del doble (una palabra, un token)."""
     script = ScriptedModel(fake_ai.generation)
     monkeypatch.setattr(generation_client, "generate", script.respond)
+    monkeypatch.setattr(generation_client, "generate_text", script.respond_text)
     return script
 
 

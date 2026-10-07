@@ -463,4 +463,18 @@ ASSESSMENT_VISION_MAX_SIDE = 1800
 ASSESSMENT_VISION_IMAGE_TOKENS = 280
 ASSESSMENT_VISION_MAX_OUTPUT_TOKENS = 3000
 ASSESSMENT_VISION_MAX_ILLEGIBLE_SHARE = 0.30
-ASSESSMENT_VISION_PROMPT_VERSION = "vision-v2"
+ASSESSMENT_VISION_PROMPT_VERSION = "vision-v3"
+# T-177 (REQ-064): cómo se le pide al modelo. Salida en texto plano que termina con un
+# marcador de fin (sin él, la salida se descarta: no se aceptan transcripciones parciales);
+# penalización de repetición del motor; orientación (confianza mínima de OSD de Tesseract para
+# fiarse de él y lado mayor de la copia reducida con que se detecta); franjas horizontales
+# solapadas a 300 puntos por pulgada para páginas apaisadas o de lectura dudosa (cantidad,
+# solape como proporción del alto de la franja y lado mayor de cada franja).
+ASSESSMENT_VISION_END_MARKER = "<<FIN>>"
+ASSESSMENT_VISION_REPEAT_PENALTY = float(env_str("ASSESSMENT_VISION_REPEAT_PENALTY", "1.15"))
+ASSESSMENT_VISION_OSD_MIN_CONFIDENCE = 5.0
+ASSESSMENT_VISION_ORIENTATION_MAX_SIDE = 1400
+ASSESSMENT_VISION_TILE_DPI = 300
+ASSESSMENT_VISION_TILES = 2
+ASSESSMENT_VISION_TILE_OVERLAP = 0.05
+ASSESSMENT_VISION_TILE_MAX_SIDE = 1600

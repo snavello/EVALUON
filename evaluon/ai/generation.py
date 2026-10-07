@@ -81,6 +81,29 @@ def generate(messages, schema, *, max_tokens=None, base_url=None, timeout=None):
     body = build_request(messages, schema, max_tokens)
     data = post_json(SERVICE, base_url or settings.GENERATION_URL, "/v1/chat/completions",
                      body, timeout=timeout)
+    return _result(data, body)
+
+
+def build_text_request(messages, max_tokens, repeat_penalty):
+    """Cuerpo de un pedido de texto libre (sin `response_format`): los mismos parámetros fijos
+    de `settings.py` y la penalización de repetición indicada (T-177)."""
+    body = build_request(messages, None, max_tokens)
+    del body["response_format"]
+    body["repeat_penalty"] = repeat_penalty
+    return body
+
+
+def generate_text(messages, *, max_tokens, repeat_penalty, base_url=None, timeout=None):
+    """Pide al motor una respuesta de texto libre, sin esquema, con `repeat_penalty`, y la
+    devuelve sin tocar. La usa la lectura con visión: con la salida JSON obligada, el modelo
+    repetía guiones bajos hasta cortarse (T-177)."""
+    body = build_text_request(messages, max_tokens, repeat_penalty)
+    data = post_json(SERVICE, base_url or settings.GENERATION_URL, "/v1/chat/completions",
+                     body, timeout=timeout)
+    return _result(data, body)
+
+
+def _result(data, body):
     try:
         choice = data["choices"][0]
         content = choice["message"]["content"]

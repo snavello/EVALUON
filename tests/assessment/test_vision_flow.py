@@ -29,6 +29,13 @@ from tests.offers.test_screens import log_in, text_of
 
 pytestmark = pytest.mark.django_db
 
+
+@pytest.fixture(autouse=True)
+def whole_pages():
+    """Estos tests miran el flujo, no las franjas (T-177): la página va entera."""
+    with override_settings(ASSESSMENT_VISION_TILES=1):
+        yield
+
 SEEN = f"CONSTANCIA INVENTADA\n{DECLARATION}, según la planilla 7."
 
 
