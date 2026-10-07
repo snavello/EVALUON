@@ -17,6 +17,12 @@ descarte propuesto por renglón (`ordering.propose_discards`, sin cambios).
   cualquier otra (por ejemplo, un renglón que la oferta no cotizó) no se toca y queda en
   `skipped`. Retirar el ok devuelve la fila a "pendiente del informe técnico".
 - `ok_of(offer, item)`: la última fila de ok que nombra al renglón (`items` nulo nombra a todos).
+- **Propuesta del informe del área (T-190; REQ-074).** Cuando la Comisión sube el informe técnico
+  aprobado del área, `technical_report.py` lo lee y propone por renglón apto o no apto con la cita
+  literal del informe (o dice que no lo trata). `proposals_of` devuelve esa propuesta vigente y la
+  matriz la precarga junto al ok: la Comisión la confirma o la corrige al dar el ok, y el hecho del
+  ok registra qué se propuso y si se corrigió (P6). El sistema no juzga lo técnico: solo toma lo
+  que dice el informe (P3).
 """
 
 from dataclasses import dataclass, field
@@ -44,7 +50,7 @@ from evaluon.assessment.models import Channel as RunChannel
 from evaluon.assessment.services.evaluate import current_result
 from evaluon.assessment import grounds
 from evaluon.audit import services as audit
-from evaluon.audit.models import Channel, EventType
+from evaluon.audit.models import AuditEvent, Channel, EventType
 from evaluon.audit.models import Outcome as EventOutcome
 from evaluon.offers.models import Offer
 from evaluon.offers.services import sheets
@@ -86,6 +92,8 @@ class TechnicalRow:
     item: int
     requirement: object
     ok: TechnicalOk | None
+    # Lo que el informe del área dice de este renglón de esta oferta (`Proposal`), si se subió.
+    proposal: object = None
 
     @property
     def approved(self):
@@ -173,9 +181,94 @@ def has_ok(offer, item):
 
 
 def status_of(offer, version=None):
-    """Las filas técnicas por renglón de la oferta con su ok vigente, en orden de renglón."""
-    return [TechnicalRow(item=item, requirement=requirement, ok=ok_of(offer, item))
+    """Las filas técnicas por renglón de la oferta con su ok vigente y la propuesta del informe
+    del área, en orden de renglón."""
+    proposals = proposals_of(offer)
+    return [TechnicalRow(item=item, requirement=requirement, ok=ok_of(offer, item),
+                         proposal=proposals.get(item))
             for item, requirement in sorted(item_rows(offer, version).items())]
+
+
+# --- Propuesta del informe del área --------------------------------------------------------------
+
+PROPOSAL_KIND = "technical_proposal"
+
+NOT_TREATED = "no_trata"
+REASON_LABELS = {
+    NOT_TREATED: "El informe no trata este renglón de esta oferta.",
+    "contradictorio": "El informe dice cosas distintas de este renglón en tramos distintos.",
+    "cita_no_ubicada": ("El sistema no pudo copiar del informe la frase donde lo dice, "
+                        "así que no propone."),
+    "paginas_sin_leer": "Hay páginas del informe que no se pudieron leer.",
+    "sin_lectura": "El informe todavía no tiene lectura.",
+    "falla": "No se pudo leer el informe con el modelo.",
+}
+
+
+@dataclass
+class Proposal:
+    """Lo que el informe del área dice de un renglón de una oferta (T-190). Con `verdict` hay
+    propuesta y `quote` es la cita literal del informe; sin él, `reason` dice por qué no se
+    propone."""
+
+    item: int
+    verdict: str = ""
+    quote: str = ""
+    page: int | None = None
+    document: int | None = None
+    document_title: str = ""
+    motive: str = ""
+    reason: str = ""
+    event: int | None = None
+
+    @property
+    def verdict_label(self):
+        return TechnicalVerdict(self.verdict).label if self.verdict else ""
+
+    @property
+    def reason_label(self):
+        return REASON_LABELS.get(self.reason, self.reason)
+
+
+def proposals_of(offer):
+    """`{renglón: Proposal}` vigente de la oferta, según los informes del área que se leyeron.
+    Se toma la última propuesta de cada informe; entre informes, para cada renglón rige la más
+    nueva que trae dictamen (si ninguna lo trae, queda el motivo de la más nueva)."""
+    found, seen = {}, set()
+    events = AuditEvent.objects.filter(
+        event_type=EventType.EVAL_BUILD, outcome=EventOutcome.OK,
+        detail__kind=PROPOSAL_KIND, detail__offer=offer.pk).order_by("-pk")
+    for event in events:
+        detail = event.detail
+        if detail.get("document") in seen:
+            continue
+        seen.add(detail.get("document"))
+        for key, entry in (detail.get("items") or {}).items():
+            item = int(key)
+            proposal = Proposal(
+                item=item, verdict=entry.get("verdict") or "", quote=entry.get("quote", ""),
+                page=entry.get("page"), document=detail.get("document"),
+                document_title=detail.get("document_title", ""), motive=entry.get("motive", ""),
+                reason=entry.get("reason", ""), event=event.pk)
+            if item not in found or (proposal.verdict and not found[item].verdict):
+                found[item] = proposal
+    return found
+
+
+def _proposal_record(offer, scope, clean):
+    """Lo que el ok deja anotado de la propuesta: por renglón, qué se propuso y si la Comisión
+    lo corrigió (P6)."""
+    proposals = proposals_of(offer)
+    record = {}
+    for item in scope:
+        proposal = proposals.get(item)
+        proposed = proposal.verdict if proposal and proposal.verdict else None
+        record[str(item)] = {
+            "proposed": proposed, "given": clean.get(str(item)),
+            "corrected": proposed is not None and proposed != clean.get(str(item)),
+            "document": proposal.document if proposed else None,
+            "event": proposal.event if proposed else None}
+    return record
 
 
 # --- Dar y retirar ---------------------------------------------------------------------------
@@ -288,6 +381,8 @@ def _apply(user, offer, action, items, verdicts, note, channel):
         EventType.EVAL_DECISION, outcome=EventOutcome.OK, channel=channel, user=user,
         detail={"kind": KIND, "offer": offer.pk, "action": action,
                 "items": None if items is None else scope, "verdicts": clean, "note": note,
+                "proposal": (_proposal_record(offer, scope, clean)
+                             if action == TechnicalAction.DAR_OK else {}),
                 "user": user.get_username(), "changed": [t[0] for t in targets],
                 "skipped": skipped})
     ok = TechnicalOk.objects.create(

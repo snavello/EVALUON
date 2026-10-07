@@ -56,6 +56,7 @@ JOIN offers_document d ON d.id = r.document_id
 # Solo la última lectura de cada documento de la oferta.
 _LATEST = """
 WHERE d.offer_id = %s
+  AND d.kind <> 'informe_tecnico'
   AND r.sequence = (SELECT max(r2.sequence) FROM offers_reading r2
                     WHERE r2.document_id = r.document_id)
 """

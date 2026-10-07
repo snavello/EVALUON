@@ -313,6 +313,10 @@ def _title_from(file_name):
 
 # --- Clasificación del tipo de documento ---------------------------------------------------------
 
+# Tipos que fija la acción de la Comisión al subir el documento (hoja de compliance, T-189;
+# informe técnico del área, T-190): la clasificación por reglas no los pisa.
+FIXED_KINDS = (DocumentKind.COMPLIANCE, DocumentKind.INFORME_TECNICO)
+
 # Reglas por palabras del nombre del archivo y del comienzo del texto, en este orden. Solo
 # sirven para clasificar (dato); nunca excluyen un documento de la búsqueda (plan 008).
 KIND_RULES = (
@@ -463,7 +467,7 @@ def run_read_document(job):
                         ocr_confidence_min=spec.ocr_confidence_min,
                         ocr_confidence_avg=spec.ocr_confidence_avg, embedding=vector)
                 for spec, vector in zip(specs, vectors, strict=True))
-            if kind and document.kind != kind and document.kind != DocumentKind.COMPLIANCE:
+            if kind and document.kind != kind and document.kind not in FIXED_KINDS:
                 document.kind = kind
                 document.save(update_fields=["kind"])
             audit.record(
@@ -505,10 +509,16 @@ def document_row(document):
                        reading=reading, unread=unread, low_confidence=low)
 
 
+def own_documents(offer):
+    """Los documentos que presentó el oferente: todos menos el informe técnico del área
+    (T-190; REQ-074; P3), que no es de la oferta y no se cita como si lo fuera."""
+    return offer.documents.exclude(kind=DocumentKind.INFORME_TECNICO)
+
+
 def latest_readings(offer):
     """La última lectura de cada documento de la oferta que ya se leyó."""
     readings = []
-    for document in offer.documents.order_by("loaded_at", "id"):
+    for document in own_documents(offer).order_by("loaded_at", "id"):
         reading = document.readings.order_by("-sequence").first()
         if reading is not None:
             readings.append(reading)
@@ -581,7 +591,7 @@ def reclassify_documents(user, procedure, *, channel=Channel.COMMAND):
         if reading is None:
             continue
         kind = classify_kind(document.file_name, reading.canonical_text)
-        if not kind or kind == document.kind or document.kind == DocumentKind.COMPLIANCE:
+        if not kind or kind == document.kind or document.kind in FIXED_KINDS:
             continue
         with transaction.atomic():
             before = document.kind

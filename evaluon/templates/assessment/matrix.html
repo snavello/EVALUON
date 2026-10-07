@@ -64,6 +64,19 @@
 </section>
 {% endif %}
 
+{% if page.can_upload_report and page.offers %}
+<section class="technical-report-procedure" aria-labelledby="report-procedure-title">
+  <h2 id="report-procedure-title">Informe técnico del área para todo el procedimiento</h2>
+  <p><small>Si el área requirente hizo un solo informe técnico aprobado para todas las ofertas, súbalo acá: se carga en cada oferta y el sistema propone, por oferta y renglón, lo que el informe dice. Si hay un informe por oferta, súbalo en cada oferta.</small></p>
+  {% if report_error and not report_offer %}<p class="notice notice-failed" role="alert">{{ report_error }}</p>{% endif %}
+  <form method="post" action="{% url 'assessment:report_upload_procedure' page.procedure.pk %}" enctype="multipart/form-data">{% csrf_token %}
+    <p><label>Informe técnico aprobado <input type="file" name="file"></label></p>
+    <p><label>Nota (opcional) <input type="text" name="note" maxlength="500"></label></p>
+    <button type="submit">Subir informe técnico</button>
+  </form>
+</section>
+{% endif %}
+
 <section class="matrix-status" aria-labelledby="status-title">
   <h2 id="status-title">Estado por oferta</h2>
   {% for status in page.statuses %}

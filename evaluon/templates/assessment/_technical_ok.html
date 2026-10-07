@@ -1,17 +1,27 @@
 {% if status.technical %}
 <div class="technical-ok">
   <h4>Informe técnico de la oferta {{ status.offer.number }}</h4>
-  <p><small>El juicio técnico es del área correspondiente. Acá la Comisión solo da su ok de que tiene el informe técnico aprobado y carga lo que dice por renglón.</small></p>
+  <p><small>El juicio técnico es del área correspondiente. Acá la Comisión solo da su ok de que tiene el informe técnico aprobado y carga lo que dice por renglón. Si se sube el informe del área, el sistema propone lo que el informe dice, con su cita; la Comisión lo confirma o lo corrige.</small></p>
   {% if technical_error and technical_offer == status.offer.pk %}<p class="notice notice-failed" role="alert">{{ technical_error }}</p>{% endif %}
+  {% if report_error and report_offer == status.offer.pk %}<p class="notice notice-failed" role="alert">{{ report_error }}</p>{% endif %}
+  {% if status.reports %}
+  <ul>
+    {% for report in status.reports %}<li>Informe técnico «{{ report.title }}» (huella {{ report.file_sha256 }}), subido por {{ report.loaded_by.username }} el {{ report.loaded_at|date:"d/m/Y H:i" }}.</li>{% endfor %}
+  </ul>
+  {% if status.report_reading %}<p class="notice" role="status">El informe se está leyendo. Al terminar, el sistema propone lo que dice por renglón.</p>{% endif %}
+  {% else %}
+  <p class="notice" role="status">Falta el informe técnico del área de esta oferta.</p>
+  {% endif %}
   <form method="post" action="{% url 'assessment:technical_give' status.offer.pk %}">{% csrf_token %}
     <table>
-      <thead><tr><th scope="col">Renglón</th><th scope="col">Ok de la Comisión</th>{% if page.can_decide_technical %}<th scope="col">Dice el informe aprobado</th>{% endif %}</tr></thead>
+      <thead><tr><th scope="col">Renglón</th><th scope="col">Ok de la Comisión</th>{% if page.can_decide_technical %}<th scope="col">Dice el informe aprobado</th>{% endif %}<th scope="col">Propuesta del sistema según el informe</th></tr></thead>
       <tbody>
         {% for row in status.technical %}
         <tr>
           <th scope="row">{% if page.can_decide_technical %}<label><input type="checkbox" name="item" value="{{ row.item }}"> Renglón {{ row.item }}</label>{% else %}Renglón {{ row.item }}{% endif %}</th>
           <td>{% if row.approved %}Informe técnico aprobado ({{ row.verdict_label }}), ok de {{ row.ok.user.username }} el {{ row.ok.at|date:"d/m/Y H:i" }}{% if row.ok.note %}: {{ row.ok.note }}{% endif %}{% elif row.withdrawn %}Ok retirado por {{ row.ok.user.username }} el {{ row.ok.at|date:"d/m/Y H:i" }}: {{ row.ok.note }}{% else %}Pendiente del informe técnico{% endif %}</td>
-          {% if page.can_decide_technical %}<td><select name="verdict_{{ row.item }}" aria-label="Lo que dice el informe del renglón {{ row.item }}"><option value="">—</option><option value="apto">Apto</option><option value="no_apto">No apto</option></select></td>{% endif %}
+          {% if page.can_decide_technical %}<td><select name="verdict_{{ row.item }}" aria-label="Lo que dice el informe del renglón {{ row.item }}"><option value="">—</option><option value="apto"{% if row.proposal.verdict == "apto" %} selected{% endif %}>Apto</option><option value="no_apto"{% if row.proposal.verdict == "no_apto" %} selected{% endif %}>No apto</option></select></td>{% endif %}
+          <td>{% if row.proposal.verdict %}Propone <strong>{{ row.proposal.verdict_label }}</strong>. El informe dice: «{{ row.proposal.quote }}» (página {{ row.proposal.page }}, {{ row.proposal.document_title }}).{% elif row.proposal %}No propone: {{ row.proposal.reason_label }}{% elif status.reports %}Sin propuesta todavía.{% else %}Sin informe subido.{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -23,5 +33,19 @@
     <button type="submit" formaction="{% url 'assessment:technical_withdraw' status.offer.pk %}">Retirar el ok</button>
     {% endif %}
   </form>
+  {% if page.can_upload_report %}
+  <form method="post" action="{% url 'assessment:report_upload' status.offer.pk %}" enctype="multipart/form-data">{% csrf_token %}
+    <p><label>Informe técnico aprobado del área <input type="file" name="file"></label></p>
+    <p><label>Nota (opcional) <input type="text" name="note" maxlength="500"></label></p>
+    <button type="submit">Subir informe técnico</button>
+  </form>
+  {% if status.reports and not status.report_reading %}
+  <form method="post" action="{% url 'assessment:report_propose' status.offer.pk %}">{% csrf_token %}
+    <button type="submit">Proponer de nuevo desde el informe</button>
+  </form>
+  {% endif %}
+  {% else %}
+  <p><small>Solo el evaluador de la Comisión sube el informe técnico del área.</small></p>
+  {% endif %}
 </div>
 {% endif %}

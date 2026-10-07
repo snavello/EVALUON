@@ -144,7 +144,7 @@ def _check_request(offer):
         raise SheetRefused(
             "El procedimiento no tiene una matriz validada: la ficha se arma solo contra "
             "una matriz validada.", "no_matrix")
-    rows = [offers_service.document_row(d) for d in offer.documents.order_by("loaded_at", "id")]
+    rows = [offers_service.document_row(d) for d in offers_service.own_documents(offer).order_by("loaded_at", "id")]
     if not rows:
         raise SheetRefused("La oferta no tiene documentos cargados: cargue sus documentos "
                            "antes de armar la ficha.", "no_documents")

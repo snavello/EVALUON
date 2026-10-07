@@ -159,7 +159,7 @@ def _check_request(procedure, offers, requirements):
     requirement_ids = _requested_requirements(version, requirements)
     for offer in chosen:
         rows = [offers_service.document_row(d)
-                for d in offer.documents.order_by("loaded_at", "id")]
+                for d in offers_service.own_documents(offer).order_by("loaded_at", "id")]
         if not rows:
             raise EvaluationRefused(
                 f"La oferta {offer.number} no tiene documentos cargados.", "no_documents")

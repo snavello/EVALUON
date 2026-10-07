@@ -29,7 +29,7 @@ from django.conf import settings
 from evaluon.ai import generation
 from evaluon.assessment import sizing
 from evaluon.offers import retrieval, vision
-from evaluon.offers.models import Passage
+from evaluon.offers.models import DocumentKind, Passage
 
 
 @dataclass
@@ -157,7 +157,10 @@ def build_offer_text(offer, count=None, budget=None):
     count = count or generation.count_tokens
     budget = budget or settings.ASSESSMENT_GROUP_TOKENS
     documents, first_seen = [], {}
-    for document in offer.documents.order_by("loaded_at", "id"):
+    # El informe técnico del área no es un documento de la oferta: no se lee para evaluarla
+    # (T-190; REQ-074). Lo lee `services/technical_report.py` para proponer el ok técnico.
+    for document in offer.documents.exclude(
+            kind=DocumentKind.INFORME_TECNICO).order_by("loaded_at", "id"):
         entry = read_document(document, count)
         if entry.sha256 in first_seen:
             entry.copy_of = first_seen[entry.sha256]
