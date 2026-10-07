@@ -1,28 +1,30 @@
 # ADR-0050 · Formato de las exportaciones de la evaluación
 
-Estado: propuesto · Fecha: 2026-10-07 · Decidió: —
+Estado: propuesto · Fecha: 2026-10-07 · Decidió: responsable del proyecto (formato); falta que acepte la dependencia
 
 ## Contexto
 
-REQ-093 pide exportar en la sección 4 la planilla por oferta y el cuadro comparativo. Hoy solo la matriz de cumplimiento se imprime y baja en PDF (con `weasyprint`, que ya está en las dependencias fijadas). No hay ninguna librería de hojas de cálculo. El entorno es local y reproducible (P5); agregar una dependencia obliga a fijar su versión, a rehacer la imagen y a verificar su licencia y su mantenimiento: esos datos se verifican al implementar, no se dan por conocidos aquí.
+REQ-093 pide exportar en la sección 4 la planilla por oferta y el cuadro comparativo. Decisión del responsable (2026-10-07): «Excel y PDF». Hoy solo la matriz de cumplimiento se imprime y baja en PDF con `weasyprint`, que ya está fijado en las dependencias. No hay ninguna librería de hojas de cálculo. El entorno es local y reproducible (P5): una dependencia nueva se fija con versión exacta, funciona sin internet una vez instalada y no manda datos a ningún servicio (P4).
+
+Datos verificados el 2026-10-07 en fuentes públicas: XlsxWriter 3.2.9 (publicada el 16-09-2025), licencia BSD-2-Clause, requiere Python 3.8 o posterior ([CERN simple-repository](https://simple-repository.app.cern.ch/project/xlsxwriter), [PyPI](https://pypi.python.org/pypi/XlsxWriter)); openpyxl 3.1.5 (publicada el 28-06-2024), licencia MIT ([CERN simple-repository](https://simple-repository.app.cern.ch/project/openpyxl)). La versión exacta y su compatibilidad con la versión de Python de la imagen se confirman al fijarla (T-212).
 
 ## Alternativas
 
-### A. CSV para la planilla y PDF para el cuadro comparativo
-La planilla (una fila por oferta y requisito) es un CSV en UTF-8 con marca de orden de bytes, para que una hoja de cálculo lo abra bien; el cuadro, que es para leer e imprimir, es una página impresa con `weasyprint`, igual que la matriz. Se gana: ninguna dependencia nueva, mismo mecanismo que ya existe, fácil de probar. Se pierde: el CSV no tiene formato ni varias hojas; el cuadro no se edita.
+### A. XlsxWriter para el Excel y `weasyprint` para el PDF
+XlsxWriter solo escribe archivos `.xlsx` (no los lee), con formato, anchos de columna, filtros, paneles fijos y varias hojas. Se gana: es lo que hace falta (generar, no leer), licencia permisiva, publicación reciente, todo local; una hoja por oferta más una de cuadro comparativo. El PDF reutiliza el mecanismo existente. Se pierde: una dependencia nueva a fijar y a incluir en la imagen.
 
-### B. Hoja de cálculo nativa (`.xlsx`) para los dos
-Una librería de hojas de cálculo escribiría un archivo con una hoja por oferta y el cuadro con formato. Se gana: es lo que probablemente espera quien dice «planilla». Se pierde: una dependencia nueva a fijar y verificar (versión, licencia, mantenimiento), más superficie de prueba y de rehacer la imagen.
+### B. openpyxl para el Excel y `weasyprint` para el PDF
+Lee y escribe `.xlsx`. Se gana: licencia permisiva y muy conocida. Se pierde: lee y modifica archivos, que esta feature no necesita (P10); última publicación más antigua.
 
-### C. Solo PDF para los dos
-Se gana: un solo mecanismo. Se pierde: la planilla no se puede ordenar ni filtrar.
+### C. CSV y PDF (sin dependencia nueva)
+Se gana: ninguna dependencia. Se pierde: no es lo que decidió el responsable («Excel y PDF») y el CSV no tiene formato ni varias hojas.
 
 ## Decisión
 
-A, propuesta, por simplicidad (P10) y porque no suma dependencias. Si el responsable prefiere `.xlsx`, se elige B y la tarea T-212 verifica antes la librería (versión actual, licencia, mantenimiento) en su documentación oficial y la fija.
+A, propuesta: **Excel con XlsxWriter y PDF con `weasyprint`**, generados en el servidor local. La planilla por oferta es un libro con una hoja por oferta (requisito, resultado, fundamento, decisión de la Comisión, descarte y su decisión) más una hoja del cuadro comparativo; el cuadro también sale en PDF. El responsable acepta o rechaza la dependencia nueva junto con el plan.
 
 ## Consecuencias
 
-- Más fácil: sin dependencia nueva; el cuadro hereda la hoja de estilos de impresión.
-- Más difícil: si se quiere formato de hoja de cálculo, hay que sumar la dependencia después.
-- Revertir: cambiar el generador de la planilla; las rutas y el hecho de auditoría `eval_export` no cambian.
+- Más fácil: archivos con formato que se abren directo en Excel; el PDF hereda la hoja de estilos de impresión.
+- Más difícil: mantener la dependencia nueva con su versión fijada; rehacer la imagen (`docker compose build app`).
+- Revertir: cambiar el generador; las rutas y el hecho de auditoría `eval_export` no cambian.

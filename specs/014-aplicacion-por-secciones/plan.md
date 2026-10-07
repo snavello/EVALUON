@@ -20,6 +20,8 @@ Lo nuevo de verdad, según el relevamiento verificado en el código:
 |---|---|
 | Alta del procedimiento desde el pliego subido, con datos y renglones propuestos (`register_procedure` pide los cuatro datos tipeados; los renglones solo existen si vienen del Portal) | T-193 (modelo), T-196 (servicio), T-197 (pantalla); ADR-0049 |
 | Subir varios documentos del pliego a la vez (hoy `DocumentForm` sube uno; las ofertas ya suben varios) | T-198 |
+| Alta de una oferta sin Portal con nombre y CUIT del oferente propuestos leyendo sus archivos (hoy `register_offer` pide el nombre tipeado y el CUIT solo existe si viene del acta) | T-193 (modelo), T-220 (servicio), T-202 (pantalla) |
+| Corregir un dato propuesto escribiendo el valor y el motivo, con registro de quién y cuándo (hoy no existe en el alta de procedimiento, de oferta ni de norma) | T-196, T-197, T-213, T-214, T-220, T-202 |
 | Reemplazar, retirar y restituir documentos con historial (hoy no hay ninguna de las tres) | T-193, T-199, T-200, T-206; ADR-0048 |
 | Matriz como tabla agrupada con filtros y lista de versiones (hoy es una página de tarjetas con `<details>`, sin tabla ni filtros ni lista de versiones) | T-192 |
 | Confirmar o rechazar descartes (hoy el descarte solo se propone y se muestra) | T-193, T-210 |
@@ -33,7 +35,7 @@ Lo nuevo de verdad, según el relevamiento verificado en el código:
 **Ninguna tarea de interfaz arranca antes de que el responsable apruebe la maqueta corregida** (`docs/diseno/mockup/index.html`, que se rehace con las cinco secciones en otra rama). Es una compuerta humana (P11) y se cumple así:
 
 - Las tareas de interfaz llevan en su detalle la línea "No arranca sin la maqueta aprobada". Son: T-192, T-194, T-195, T-197, T-198, T-200 a T-212, T-214 a T-219.
-- Pueden empezar antes, una vez aprobado este plan y aceptados los ADR, las tareas sin pantalla: T-193 (esquema), T-196 (servicio de propuesta desde el pliego), T-199 (servicio de historial) y T-213 (propuesta de datos de una norma).
+- Pueden empezar antes, una vez aprobado este plan y aceptados los ADR, las tareas sin pantalla: T-193 (esquema), T-196 (servicio de propuesta desde el pliego), T-199 (servicio de historial), T-213 (propuesta de datos de una norma) y T-220 (propuesta de nombre y CUIT desde los archivos de una oferta).
 - Si la maqueta aprobada cambia la estructura de una sección, el Coordinador ajusta antes de lanzar la tarea de esa sección; este plan no define la disposición visual, solo qué contiene cada sección.
 
 ## Criterio de aceptación numérico y umbrales (escritos antes de medir)
@@ -41,16 +43,17 @@ Lo nuevo de verdad, según el relevamiento verificado en el código:
 | Qué | Umbral | Con qué se mide | Tarea |
 |---|---|---|---|
 | Requisitos comprobados en pantalla | 26 de 26 (REQ-075 a REQ-100) con el caso chico y con el caso-00 | Lista de comprobación en `verificacion/T-218.md` | T-218 |
-| Datos o renglones tipeados en el alta | 0, desde el Portal y desde el pliego subido | Revisión de los formularios de alta (test que cuenta campos de texto libre de datos y renglones) y prueba en el navegador | T-197, T-218 |
+| Datos o renglones tipeados desde cero en el alta | 0, desde el Portal, desde el pliego subido y desde los archivos de una oferta (solo se corrige lo propuesto, con motivo obligatorio) | Revisión de los formularios de alta (test: ningún campo en blanco de datos ni renglones; la corrección sin motivo se rechaza) y prueba en el navegador | T-197, T-202, T-218 |
+| Propuesta de nombre y CUIT desde los archivos de una oferta | caso chico: 2 de 2 datos por oferta, con cita; pliego/ofertas públicos del caso-00: al menos 90 % de ofertas con CUIT correcto y 80 % con nombre correcto; sin cita verificable queda «no determinado» | `tests/offers/test_offer_proposal.py` y medición local | T-220 |
 | Carga de cada pantalla | menos de 2 s, mediana de 5 cargas con el caso-00, en el equipo, para portada y las cinco secciones | Medición local; al repositorio solo cifras | T-218 |
 | Propuesta de datos desde el pliego (ADR-0049) | caso chico: 5 de 5 datos y 100 % de renglones con número, descripción y cantidad; pliego público del caso-00: al menos 4 de 5 datos y 90 % de renglones | `tests/tenders/test_procedure_proposal.py` y medición local | T-196 |
 | Propuesta de datos de una norma (ADR-0051) | al menos 8 de 10 datos correctos en 5 normas públicas del corpus; lo que no reconoce queda marcado para confirmar | `tests/norms/test_upload_proposal.py` | T-213 |
 | Estados y cuentas | 25 de 25 celdas (5 momentos por 5 secciones) y operador con 0 acciones de decisión | `tests/journey/test_moments.py` con el caso chico | T-217 |
 | Historial de documentos | 100 % de los reemplazos y retiros dejan versión anterior, quién y cuándo; 0 borrados | `tests/tenders/test_document_history.py`, `tests/offers/test_document_history.py` | T-199 |
-| Exportaciones | la planilla y el cuadro del caso chico contienen el 100 % de ofertas y requisitos y se abren en una hoja de cálculo | `tests/assessment/test_export.py` | T-212 |
+| Exportaciones | la planilla y el cuadro del caso chico contienen el 100 % de ofertas y requisitos en el Excel; el PDF del cuadro se genera | `tests/assessment/test_export.py` | T-212 |
 | Sin internet | 0 direcciones externas en plantillas y scripts nuevos | Test que busca `http://` y `https://` | T-192 y cada tarea de interfaz |
 
-Máximo dos rondas de ajuste (ADR-0025); lo que no llegue pasa con su impacto a "Revisión con el primer producto". Los umbrales de propuesta (T-196, T-213) se miden una sola vez por lote.
+Máximo dos rondas de ajuste (ADR-0025); lo que no llegue pasa con su impacto a "Revisión con el primer producto". Los umbrales de propuesta (T-196, T-213, T-220) se miden una sola vez por lote.
 
 ## Componentes
 
@@ -120,7 +123,11 @@ Todo el esquema lo toca **una sola tarea, T-193**, para que ninguna otra tarea g
 | `portal_line.item` y `portal_procedure_data.item` pasan a admitir nulo y ambas suman `document` (documento del pliego de origen); una restricción exige exactamente uno de los dos | Los renglones y el expediente propuestos desde el pliego se guardan en las mismas tablas que los del Portal, así `assessment` y las pantallas siguen leyendo un solo lugar. El origen sale de cuál de los dos está presente (ADR-0049) | REQ-077, REQ-078 |
 | `assessment_discard_decision` (nueva, solo inserta): procedimiento, oferta, renglón (nulo si es toda la oferta), pedido de evaluación sobre el que se decidió, acción (`confirmar`, `rechazar`), nota, usuario, momento, hecho | Decisión de la Comisión sobre cada descarte propuesto. El estado del descarte es la última decisión sobre la evaluación vigente: si se evalúa de nuevo, vuelve a quedar sin decidir | REQ-091 |
 | `norms_upload` (nueva): archivo, huella, nombre, datos propuestos con la evidencia de cada uno, estado, usuario, momento, documento de norma resultante | Una norma subida espera aquí hasta que la Comisión confirma los datos propuestos; recién entonces se llama a `load_norm` (ADR-0051) | REQ-094 |
-| `audit.EventType` suma `document_change`, `procedure_proposal`, `discard_decision`, `norm_upload`, `eval_export`, con su restricción | Registro de auditoría (P6) | REQ-091, REQ-093, REQ-094, REQ-099 |
+| `offers_offer_draft` y `offers_offer_draft_file` (nuevas): procedimiento, archivos de la oferta (bytes y huella), propuesta (JSON con nombre y CUIT, cada uno con su cita), estado (`leyendo`, `propuesto`, `aprobado`, `rechazado`, `fallido`), pedido, usuario, momento, oferta resultante | Alta de oferta sin Portal: la oferta no puede existir sin oferente, así que los archivos esperan aquí hasta que la Comisión aprueba o corrige el nombre y el CUIT | REQ-083 |
+| `tenders_job.kind` suma también `propose_offer` (`target_id` = borrador de oferta), mismo ajuste de restricción | Pedido en segundo plano que lee los archivos de la oferta y propone | REQ-083 |
+| `portal_offer_data.item` pasa a admitir nulo y suma `document` (documento de la oferta de origen), con la restricción de «exactamente uno» | El CUIT propuesto desde los archivos se guarda donde ya se guarda el del acta | REQ-083 |
+| Corrección de un dato propuesto: no es una tabla aparte. Cada propuesta guarda, por dato, `{propuesto, corregido, motivo, quién, cuándo}` dentro de su JSON (`tenders_procedure_draft`, `offers_offer_draft`, `norms_upload`) y la aprobación lo copia al hecho de auditoría | «Escribe el valor y motivo»: corrige lo propuesto, el motivo es obligatorio; el valor propuesto original no se pierde | REQ-077, REQ-083, REQ-094 |
+| `audit.EventType` suma `document_change`, `procedure_proposal`, `offer_proposal`, `discard_decision`, `norm_upload`, `eval_export`, con su restricción | Registro de auditoría (P6) | REQ-091, REQ-093, REQ-094, REQ-099 |
 
 Los parciales de las plantillas no tienen modelos. El borrador del dictamen no existe (fuera de alcance). No hay cambios en `tenders_job.progress` ni en la cola más allá del tipo nuevo.
 
@@ -128,18 +135,20 @@ Los parciales de las plantillas no tienen modelos. El borrador del dictamen no e
 
 | Acción | Quién | Cómo se comprueba |
 |---|---|---|
-| Ver cualquier sección, subir archivos, tomar del Portal, aprobar lo del Portal, proponer desde el pliego, reemplazar, retirar, restituir, exportar | Operador o evaluador | `require_commission_role(OPERATOR)` en cada servicio nuevo, con su rechazo registrado |
+| Ver cualquier sección, subir archivos (incluidos el pliego y los archivos de una oferta para que el sistema proponga), aprobar la carga de documentos del Portal, reemplazar, retirar, restituir, exportar | Operador o evaluador | `require_commission_role(OPERATOR)` en cada servicio nuevo, con su rechazo registrado |
+| Aprobar o corregir datos, renglones y ofertas importados del Portal, el alta del procedimiento desde el pliego y el alta de una oferta desde sus archivos (REQ-048 de la 012) | Solo evaluador | `require_commission_role(EVALUATOR)`; el operador sube y ve la propuesta pero no ve los botones de aprobar ni corregir |
 | Decidir descartes, validar la matriz, decidir resultados, dar el ok del informe técnico, validar una norma | Evaluador | `require_commission_role(EVALUATOR)`; el botón no se dibuja para el operador (REQ-091) |
 | Usuario de lectura sin rol de la Comisión | Rechazado (403) en todo el procedimiento | Como hoy |
 
-Dos cosas que hoy no coinciden y se resuelven en T-214: las operaciones de normas exigen el rol de normativa de lectura y escritura (`Role.READ_WRITE`), no el rol de la Comisión. La pantalla exige además evaluador de la Comisión para validar (REQ-094); el servicio sigue exigiendo su rol de normativa. El usuario del piloto que valida debe tener los dos (ver "Dudas abiertas").
+Dos cosas que hoy no coinciden y se resuelven en T-214: las operaciones de normas exigen el rol de normativa de lectura y escritura (`Role.READ_WRITE`), no el rol de la Comisión. La pantalla exige además evaluador de la Comisión para validar (REQ-094); el servicio sigue exigiendo su rol de normativa. Decisión operativa del Coordinador (punto 4 de «Decisiones operativas»): no se cambia el modelo de permisos; los evaluadores se crean con los dos roles, y el runbook de T-214 lo documenta (`crear_usuario` y `rol_comision`).
 
 ## Flujo de IA
 
 La feature **no cambia ningún flujo de IA existente** (evaluación, matriz, ficha). Dos usos nuevos de lectura, ambos locales:
 
-- **Propuesta de datos desde el pliego (T-196, ADR-0049).** Se lee el pliego con la lectura local ya existente (`tenders.reading`) sobre los bytes del borrador. Número, expediente y fecha de autorización se buscan por reglas sobre las primeras páginas; tipo y objeto, por reglas y, si no alcanzan, con el modelo local pidiéndole la cita literal que se verifica contra el texto (mismo patrón que la matriz: sin cita verificable, el dato queda "no determinado" y no se propone). Los renglones salen de la tabla de renglones de la lectura (número, descripción, cantidad). Cada dato propuesto lleva su cita (página y texto). La Comisión aprueba, descarta o elige entre los candidatos mostrados (P3). Se registra modelo, parámetros, instrucciones y fragmentos (P6).
-- **Datos de una norma subida (T-213, ADR-0051).** Solo reglas sobre el encabezado del PDF; sin IA. Los datos que no reconoce quedan marcados para que la Comisión los confirme.
+- **Propuesta de datos desde el pliego (T-196, ADR-0049).** Se lee el pliego con la lectura local ya existente (`tenders.reading`) sobre los bytes del borrador. Número, expediente y fecha de autorización se buscan por reglas sobre las primeras páginas; tipo y objeto, por reglas y, si no alcanzan, con el modelo local pidiéndole la cita literal que se verifica contra el texto (mismo patrón que la matriz: sin cita verificable, el dato queda "no determinado" y no se propone). Los renglones salen de la tabla de renglones de la lectura (número, descripción, cantidad). Cada dato propuesto lleva su cita (página y texto). El evaluador aprueba, descarta o corrige cada dato escribiendo el valor y el motivo (obligatorio; queda quién y cuándo; P3). Se registra modelo, parámetros, instrucciones y fragmentos (P6).
+- **Nombre y CUIT del oferente desde los archivos de la oferta (T-220).** Se leen los archivos de la oferta con la lectura local de ofertas sobre los bytes del borrador; el CUIT se busca por regla (formato y dígito verificador) y el nombre por regla y, si no alcanza, con el modelo local pidiendo la cita literal que se verifica contra el texto; sin cita verificable el dato queda «no determinado». El evaluador aprueba o corrige escribiendo el valor y el motivo. Se registra modelo, parámetros, instrucciones y fragmentos (P6).
+- **Datos de una norma subida (T-213, ADR-0051).** Solo reglas sobre el encabezado del PDF; sin IA. Los datos que no reconoce quedan marcados para que la Comisión los confirme o corrija con valor y motivo.
 
 Evals (P7): como no cambia recuperación ni instrucciones existentes, no se vuelve a correr el conjunto dorado de la evaluación. Las instrucciones nuevas de la propuesta desde el pliego se miden con los umbrales de la tabla (una vez por lote).
 
@@ -150,6 +159,8 @@ Cada operación nueva deja un hecho (P6), con usuario, momento y canal pantalla:
 - Reemplazar, retirar, restituir: `document_change` con documento, acción, documento nuevo, nota y huellas.
 - Propuesta desde el pliego: `procedure_proposal` con la huella del archivo, la lectura usada, modelo y parámetros (si se usó), instrucciones, las citas, y luego la decisión de la Comisión ítem por ítem. Al aprobar, el alta del procedimiento deja además el hecho `procedure` de siempre.
 - Decisión de un descarte: `discard_decision` con oferta, renglón, motivos (los requisitos con "no cumple" y sus fundamentos), evaluación, acción y nota.
+- Alta de oferta desde sus archivos: `offer_proposal` con las huellas, la lectura usada, modelo y parámetros (si se usó), instrucciones, las citas y la decisión o corrección (valor propuesto, valor corregido, motivo) con quién y cuándo; al aprobar, además el hecho `offer_register` de siempre.
+- Toda corrección de un dato propuesto guarda el valor original, el corregido, el motivo, quién y cuándo, en el hecho de su propuesta.
 - Norma subida: `norm_upload` con la huella y los datos propuestos y confirmados; la carga, la lectura y la validación siguen dejando `load`, `reread` y `validation`.
 - Exportaciones: `eval_export` con qué se exportó (planilla o cuadro), de qué evaluación y en qué formato.
 - Pedidos de rol rechazados: `rejected`, como hoy.
@@ -160,13 +171,13 @@ Cada operación nueva deja un hecho (P6), con usuario, momento y canal pantalla:
 |---|---|---|
 | REQ-075 | Registro de secciones y barra en toda pantalla del procedimiento (T-192); redirección de las pantallas viejas (T-219) | `tests/journey/test_sections.py`: cinco secciones con estado y cuentas, cualquiera se abre sin pasar por otra; T-217 y T-218 |
 | REQ-076 | Tema `s1_portal`: pegar enlace, propuesta agrupada, aprobar ítem por ítem o todo (`approve_all`), destino por sección (T-195, T-197) | Test del flujo con el caso chico simulado; T-218 con el caso-00: datos en la 1, pliego en la 2, ofertas en la 3 |
-| REQ-077 | Borrador, pedido `propose_procedure`, servicio de propuesta y aprobación (T-193, T-196); pantalla sin campos libres de datos ni renglones (T-197) | `test_procedure_proposal.py` (umbral de la tabla) y test de formulario; T-218 |
+| REQ-077 | Borrador, pedido `propose_procedure`, servicio de propuesta y aprobación (T-193, T-196); pantalla que solo permite aprobar, descartar o corregir lo propuesto con valor y motivo obligatorio, sin formulario de alta en blanco; aprueba solo el evaluador (T-197) | `test_procedure_proposal.py` (umbral de la tabla), test de que no existe alta en blanco y de que la corrección exige motivo; T-218 |
 | REQ-078 | Tema `s1_datos`: número, expediente, tipo, objeto, fecha con régimen (`regime_for`), renglones con cantidad, apertura, garantías y origen de cada dato (T-194) | Test con caso del Portal y con caso desde pliego; régimen 247/2022 con el caso-00 |
 | REQ-079 | Se reutiliza la revisión periódica (`portal_review`, `following`); sus novedades se cuentan como pendientes de la sección 1 y de la portada y no se cargan sin aprobar (T-195) | Test: novedad detectada aparece como `propuesto` y nada se carga |
 | REQ-080 | Tema `s2_documentos`: lista por tipo con origen, «Subir archivo» múltiple, «Tomar del Portal» (T-198) | Test: procedimiento sin pliego muestra los dos accesos; subir tres documentos |
 | REQ-081 | Tema `s2_matriz`: tabla agrupada por tipo, filtros, fila que abre la cita, acciones de la Comisión (T-192, T-201) | Test del filtro "solo lo que falta decidir"; acciones confirmar, corregir, quitar, agregar, validar desde la fila |
 | REQ-082 | Lista de versiones con fecha y quién validó (T-192); imprimir y exportar PDF (T-201, reutiliza `export`) | Test con matriz de dos versiones; PDF responde 200 |
-| REQ-083 | Tema `s3_ofertas`: botón de alta visible; alta desde el acta del Portal o subiendo archivos (T-202) | Test: el botón está en la página sin abrir nada |
+| REQ-083 | Tema `s3_ofertas`: botón de alta visible; alta desde el acta del Portal o subiendo los archivos de la oferta, con nombre y CUIT propuestos por el sistema con su cita y aprobados o corregidos (valor y motivo) por el evaluador (T-193, T-220, T-202) | Test: el botón está en la página sin abrir nada; `test_offer_proposal.py` (umbral de la tabla); el operador sube pero no aprueba |
 | REQ-084 | Subida múltiple en la oferta (ya existe en `offers.views.documents.offer`), integrada en la sección (T-202) | Test: tres archivos juntos quedan en la oferta |
 | REQ-085 | Tema `s3_circulares`: lista y subida; al aprobar o subir una circular modificatoria se abre una versión nueva de la matriz con lo cambiado marcado (T-205) | Test: circular que cambia un requisito produce versión nueva con ese requisito marcado |
 | REQ-086 | Tema `s3_ficha`: la ficha de la oferta dentro de la sección, con lo presentado y el fragmento o "no se encontró en la oferta" (T-203) | Test con oferta leída |
@@ -176,7 +187,7 @@ Cada operación nueva deja un hecho (P6), con usuario, momento y canal pantalla:
 | REQ-090 | Tema `s4_preguntas` (T-208) | Test: pregunta abierta figura entre los pendientes con su acceso |
 | REQ-091 | Tema `s4_descartes`: tabla de decisión, servicio, auditoría y orden económico (T-193, T-210) | Test: el evaluador confirma y queda quién y cuándo; el operador no ve el botón |
 | REQ-092 | Tema `s4_dictamen`: dictamen del Portal (archivo ya importado) o subido (tipo `dictamen`); ninguna acción de borrador (T-211) | Test: dictamen del Portal aparece; no existe la ruta "generar borrador" |
-| REQ-093 | Tema `s4_exportar` (T-212, ADR-0050) | `test_export.py` con el caso evaluado |
+| REQ-093 | Tema `s4_exportar`: planilla por oferta en Excel y cuadro comparativo en Excel y PDF (T-212, ADR-0050) | `test_export.py` con el caso evaluado: el `.xlsx` se abre y trae el 100 % de ofertas y requisitos; el PDF responde 200 |
 | REQ-094 | Staging `norms_upload`, propuesta de datos, informe de lectura y validación (T-193, T-213, T-214) | Test del flujo completo sin comandos |
 | REQ-095 | Tema `s5_rigen`: `applicable_regimes` por fecha de autorización, normas cargadas y normas faltantes (T-215) | Test con el caso-00 (247/2022) |
 | REQ-096 | Tema `s5_consulta`: la consulta existente dentro de la sección (T-216) | Test: respuesta con citas literales y su parte |
@@ -202,6 +213,9 @@ Cada decisión literal de la spec y de los ADR, y dónde se aplica. Antes de med
 | 2026-10-07 | Borrador del dictamen: «Sigue diferido» | Tema `s4_dictamen`: sin ruta ni botón de borrador; test de que no existe |
 | 2026-10-07 | Normas: «Solo subir el archivo» | Tema `s5_normas`; `norms_upload`; ADR-0051 (datos propuestos desde el archivo, sin formulario de diez campos tipeados desde cero) |
 | 2026-10-07 | «Todo sí» al resto de la hoja (1.1 a 1.4, 2.1 a 2.3, 3.1, 3.2, 3.6, 4.1 a 4.3, 4.5, 5.2, 5.3, T.1 a T.6) | Tabla "Cobertura de requisitos", una fila por requisito |
+| 2026-10-07 | Alta de oferta sin Portal, nombre y CUIT: «El sistema lo propone» (lee los archivos y propone con su cita; la Comisión aprueba o corrige) | Modelo `offers_offer_draft`; Flujo de IA, nombre y CUIT; T-220 (servicio) y T-202 (pantalla); REQ-083 |
+| 2026-10-07 | Corregir un dato propuesto (pliego, oferta, norma): «Escribe el valor y motivo» | Modelo, fila «Corrección de un dato propuesto»; Registro de auditoría; T-196, T-197, T-213, T-214, T-220, T-202; ADR-0049 y ADR-0051 |
+| 2026-10-07 | Exportación de la planilla y el cuadro: «Excel y PDF» | ADR-0050 (XlsxWriter y `weasyprint`); T-212; REQ-093 |
 | 2026-10-07 | «usa el diseño que acordamos» | Plantilla común y `secciones.css` con `tokens.css` (T-192); REQ-100; revisión del Coordinador |
 | Vigente | El Portal es la primera fuente; lo que no publica se sube (REQ-071) | Cada sección muestra primero «Tomar del Portal» cuando hay algo publicado y «Subir archivo» siempre |
 | Vigente | Pendientes y sugerencias separados y los dos visibles (REQ-072) | `TemaStatus.pending` y `.suggestions` en dos bloques (REQ-098) |
@@ -216,21 +230,21 @@ Cada decisión literal de la spec y de los ADR, y dónde se aplica. Antes de med
 |---|---|---|
 | P1 Spec fuente de verdad | sí | Cada tarea nombra sus REQ; las dudas están abajo |
 | P2 Trazabilidad | sí | Tabla de cobertura y `tasks.md` con REQ por tarea |
-| P3 El sistema recomienda, la Comisión decide | sí | Todo lo propuesto (datos del pliego, datos de la norma, descartes, versión nueva por circular) queda en estado propuesto hasta que una persona decide; el operador no ve acciones de decisión |
+| P3 El sistema recomienda, la Comisión decide | sí | Todo lo propuesto (datos del pliego, nombre y CUIT de la oferta, datos de la norma, descartes, versión nueva por circular) queda en estado propuesto hasta que una persona decide; el operador no ve acciones de decisión |
 | P4 Datos | sí | Material público; el camino de pliegos y ofertas es local; normas solo por archivo subido; casos reales no suben al repositorio |
-| P5 Local y reproducible | sí | Sin servicios nuevos; se evita una dependencia nueva salvo que el ADR-0050 la elija |
+| P5 Local y reproducible | sí | Sin servicios nuevos; una sola dependencia nueva, XlsxWriter (ADR-0050), local y con versión fijada |
 | P6 Auditoría | sí | Hechos nuevos para cada operación (ver sección); nada se borra |
 | P7 Evals | sí | No cambia recuperación ni instrucciones existentes; lo nuevo se mide con los umbrales de la tabla |
 | P8 Normativa versionada | sí | La carga de normas usa `load_norm` y sus versiones sin cambios |
 | P9 Compliance | sí | La hoja la sube una persona identificada; el sistema no la completa |
-| P10 Simplicidad | sí | Se reutilizan servicios y modelos; las tablas nuevas existen porque un requisito las pide (REQ-077, 091, 094, 099); no se agrega nada más |
+| P10 Simplicidad | sí | Se reutilizan servicios y modelos; las tablas nuevas existen porque un requisito las pide (REQ-077, 083, 091, 094, 099); no se agrega nada más |
 | P11 Compuertas humanas | sí | Maqueta, plan y despliegue requieren aprobación del responsable |
 
 ## Decisiones
 
 - ADR-0048 (propuesto): historial de documentos sin borrar (tabla de cambios solo-inserción y estado calculado).
 - ADR-0049 (propuesto): alta del procedimiento desde el pliego subido (borrador previo, renglones en las tablas del Portal, reglas más modelo local con cita verificada).
-- ADR-0050 (propuesto): formato de las exportaciones de la evaluación.
+- ADR-0050 (propuesto): formato de las exportaciones de la evaluación (Excel con XlsxWriter, dependencia nueva a aceptar, y PDF con `weasyprint`).
 - ADR-0051 (propuesto): carga de normas subiendo solo el archivo (datos propuestos por reglas, confirmación y staging).
 
 ## Riesgos
@@ -238,14 +252,14 @@ Cada decisión literal de la spec y de los ADR, y dónde se aplica. Antes de med
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
 | El cálculo de las cinco secciones en cada pantalla (la barra) supera 2 s con el caso-00; el recorrido de la 013 nunca se midió con el caso-00 (T-186 quedó pendiente) | REQ de rendimiento incumplido | Medir en T-192 con el caso chico y en T-218 con el caso-00; la barra usa solo conteos; si no alcanza, una ronda: memoria de 5 s por procedimiento en el cálculo de la matriz de evaluación |
-| La propuesta de datos desde el pliego no reconoce bien un pliego real | Alta con muchas correcciones | Cita verificada y estado "no determinado"; candidatos para elegir; umbral escrito y dos rondas; lo que no llegue pasa a la lista de revisión |
+| La propuesta de datos desde el pliego no reconoce bien un pliego real | Alta con muchas correcciones | Cita verificada y estado "no determinado"; corrección con valor y motivo; umbral escrito y dos rondas; lo que no llegue pasa a la lista de revisión |
 | Circular modificatoria: hoy la incorporan los pedidos de propuesta de la matriz, no hay un camino documentado para aplicarla sobre una versión validada | REQ-085 más caro de lo previsto | T-205 empieza relevando `tenders/proposal/circulars.py` y `circular_changes.py`; si hace falta, la versión nueva se obtiene con un pedido de propuesta que incluya la circular, con lo cambiado marcado por `previous` y `RequirementSource` |
 | Reemplazar o retirar un documento del pliego deja una matriz validada apoyada en un documento ya no vigente | Matriz inconsistente | El retiro no modifica versiones validadas (no cambian); se avisa en la sección 2 "la matriz vigente se armó con un documento retirado" y se ofrece abrir versión nueva; el retiro no dispara ninguna propuesta sola |
 | Retirar una oferta o documento ya evaluado deja evaluaciones sobre un documento retirado | Resultado sin respaldo vigente | Las evaluaciones guardan los documentos usados (P6); se marca la evaluación como "con documentos retirados" y se pide evaluar de nuevo; no se recalcula sola |
 | Dos tareas de sección con parciales o rutas en común | Conflictos al integrar | Un tema por archivo y rutas por tema; la plantilla de sección solo incluye los parciales (T-192); las tareas no tocan `base.html`, `urls.py`, `settings.py` |
 | Duplicar el pliego al leerlo dos veces (para proponer y al cargarlo ya aprobado) | Tiempo extra | Aceptado en la primera versión; el costo es una lectura local |
 | Las pantallas viejas siguen accesibles y confunden | El responsable ve dos organizaciones | T-219 las redirige antes de la comprobación final |
-| Rol de normativa y rol de la Comisión no coinciden para validar normas | El evaluador no puede validar | T-214 comprueba ambos y muestra el motivo; ver duda abierta 4 |
+| Rol de normativa y rol de la Comisión no coinciden para validar normas | El evaluador no puede validar | T-214 comprueba ambos y muestra el motivo; los evaluadores se crean con los dos roles (decisión operativa 4) |
 | Cambiar la maqueta después de empezar a programar | Retrabajo | Compuerta previa explícita; las tareas con pantalla no arrancan sin ella |
 
 ## Tareas de la 013 que se absorben
@@ -257,11 +271,15 @@ Cada decisión literal de la spec y de los ADR, y dónde se aplica. Antes de med
 | T-188 · Aplicar la guía visual | T-192 (jerarquía común, `secciones.css`, íconos y tabla densa) y la aplicación en cada tarea de interfaz; revisión final en T-218 |
 | T-191 · Cuentas y accesos de hojas de compliance e informes técnicos que faltan | T-204 (hoja de compliance faltante, sección 3) y T-209 (informe técnico faltante, sección 4), con sus cuentas en la portada (T-192) |
 
-## Dudas abiertas (para el responsable)
+## Dudas abiertas
 
-1. **«Corregir» en el alta desde el pliego (REQ-077).** La spec dice que la Comisión "aprueba o corrige como lo del Portal" y a la vez que "no hay formulario para tipear datos ni renglones". El plan resuelve la corrección eligiendo entre los candidatos que muestra el sistema con su cita y descartando un renglón. Para la fecha de autorización, como en el Portal, la persona la confirma en un campo prellenado. Si ningún candidato es correcto, el alta no se aprueba y el pliego queda como no propuesto. ¿Alcanza, o se admite editar un valor propuesto?
-2. **Oferente en el alta subiendo archivos (REQ-083).** Hoy el nombre del oferente se escribe. El plan lo mantiene (no es dato ni renglón del procedimiento). Proponerlo leyendo los archivos sería una función nueva.
-3. **Formato de la planilla y del cuadro (REQ-093).** Ver ADR-0050: el plan propone CSV para la planilla y PDF para el cuadro; hoja de cálculo nativa agrega una dependencia.
-4. **Validar normas (REQ-094).** El servicio exige el rol de normativa de lectura y escritura. El plan exige además evaluador en la pantalla. Confirmar que el usuario que valida tiene los dos.
-5. **"Normas que faltan cargar" (REQ-095).** No hay un catálogo de normas esperadas. El plan toma como faltantes: la norma del régimen que fija la fecha de autorización si no está cargada y las modificatorias registradas sin cargar (`PendingAmendment`). Confirmar que esto es lo que se quiere ver.
-6. **Pantalla de alta antes del procedimiento.** La sección 1 "empieza con el explorador" pero un procedimiento todavía no existe. El plan la muestra en `expedientes/nuevo/` (y como primer bloque de la sección 1 de cada procedimiento). La maqueta debe mostrarlo.
+Ninguna. Las seis dudas de la primera versión quedaron resueltas el 2026-10-07: las tres primeras por el responsable (filas nuevas de «Control de decisiones» y de la spec) y las otras cuatro, más una, como decisiones operativas del Coordinador.
+
+## Decisiones operativas del Coordinador (2026-10-07)
+
+Son decisiones de operación, no del responsable sobre el producto.
+
+4. **Validar normas por pantalla.** Lo hace el evaluador de la Comisión; quien tenga ese rol necesita además el rol de normativa de lectura y escritura. No se cambia el modelo de permisos. El runbook de T-214 documenta que los evaluadores se crean con los dos roles.
+5. **«Normas que faltan cargar» (REQ-095).** Son: la norma del régimen que fija la fecha de autorización, el marco nacional, las modificatorias registradas sin cargar (`PendingAmendment`) y las normas que cita el pliego y no están cargadas. Se aplica en T-215.
+6. **Pantalla «Nuevo procedimiento» previa** (`expedientes/nuevo/`, o el nombre que fije la maqueta, que ya la muestra como `#nuevo`). Se aplica en T-192 y T-195.
+7. **Roles de aprobación de lo importado.** Según REQ-048 de la 012: datos, renglones y ofertas los aprueba solo un evaluador; el operador puede aprobar solo la carga de documentos. Se aplica también al alta desde el pliego (T-196, T-197) y al alta de una oferta desde sus archivos (T-220, T-202); ver «Roles».

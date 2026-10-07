@@ -24,6 +24,8 @@ Se gana: nombres limpios. Se pierde: dos lugares donde buscar renglones (`assess
 
 A, propuesta, con B como primera ronda de medición: se mide primero con reglas y el modelo local entra solo para los datos que no alcancen, sujeto a los umbrales del plan (caso chico 5 de 5; caso-00 al menos 4 de 5 datos y 90 % de renglones) y a dos rondas máximo. Si las reglas alcanzan, el modelo no se usa. El nombre de las tablas del Portal no se cambia en esta feature.
 
+Corrección y roles (decisión del responsable, 2026-10-07: «Escribe el valor y motivo»): para corregir un dato o un renglón propuesto, el evaluador escribe el valor correcto y un motivo obligatorio; queda guardado el valor propuesto, el corregido, el motivo, quién y cuándo. No existe un alta en blanco: sin propuesta no hay nada que corregir. Subir el pliego lo puede hacer el operador; aprobar o corregir lo propuesto (datos y renglones) solo el evaluador, igual que lo importado del Portal (REQ-048 de la 012).
+
 ## Consecuencias
 
 - Más fácil: el alta sin Portal es igual al alta con Portal (propuesta, cita, aprobación); las demás pantallas leen los renglones de siempre.

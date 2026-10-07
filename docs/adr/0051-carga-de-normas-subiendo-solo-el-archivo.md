@@ -21,6 +21,8 @@ Se gana: es lo más simple y reutiliza la carga tal cual. Se pierde: contradice 
 
 A, propuesta. B queda como alternativa si las reglas no alcanzan el umbral del plan (8 de 10 datos correctos en 5 normas públicas del corpus) tras dos rondas. La pantalla exige el rol de evaluador de la Comisión para validar; el servicio mantiene su rol de normativa, así que el usuario que valida debe tener ambos (duda abierta del plan).
 
+Corrección: un dato propuesto de la norma se corrige escribiendo el valor y un motivo obligatorio; queda el valor propuesto, el corregido, el motivo, quién y cuándo (decisión del responsable, 2026-10-07). Un dato que el sistema no reconoció se completa del mismo modo, con el motivo «no reconocido».
+
 ## Consecuencias
 
 - Más fácil: cargar una norma sin comandos; ver el informe de lectura y validar desde la pantalla.
