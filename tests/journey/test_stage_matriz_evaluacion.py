@@ -167,6 +167,34 @@ def test_suggestions_are_counted_apart_from_pending(procedure, offer, operator_u
     assert "Sugerencias del sistema: 1 descarte" in stage.detail
 
 
+def test_a_suggestion_with_everything_decided_leaves_the_stage_ready(
+        procedure, offer, operator_user, evaluator_user, declaration):
+    """REQ-072: un descarte propuesto con todo decidido no frena la etapa: lista, sin
+    pendientes y con la sugerencia contada aparte."""
+    open_matrix()
+    m.Consequence.objects.create(
+        requirement=declaration, consequence_type="desestimacion", grounds=[],
+        origin="persona", chosen=True, chosen_by=operator_user, chosen_at=timezone.now(),
+        chosen_note="El pliego desestima sin subsanar.")
+    saved = add_run(operator_user, procedure, offer, {declaration: "no_cumple"})
+    decide(evaluator_user, saved[declaration.pk], am.Action.CONFIRMAR)
+    stage = matriz_evaluacion.compute(operator_user, procedure)
+    assert (stage.state, stage.pending, stage.suggestions) == (base.LISTA, 0, 1)
+
+
+def test_a_technical_row_without_document_is_not_counted_twice(
+        procedure, offer, operator_user, evaluator_user, declaration):
+    """REQ-066/REQ-068: una fila técnica `sin_documento` cuenta como ok pendiente de su oferta
+    y no también como par por decidir."""
+    saved = add_run(operator_user, procedure, offer,
+                    {declaration: "cumple", requirement(procedure, item=1): "sin_documento"})
+    decide(evaluator_user, saved[declaration.pk], am.Action.CONFIRMAR)
+    stage = matriz_evaluacion.compute(operator_user, procedure)
+    assert stage.pending == 1
+    assert "par por decidir" not in stage.detail and "pares por decidir" not in stage.detail
+    assert "1 oferta" in stage.detail
+
+
 def test_computing_the_stage_changes_no_pair_state(procedure, offer, operator_user,
                                                    declaration, registry):
     """REQ-066: la etapa solo lee: el estado de cada par y la cantidad de filas no cambian."""

@@ -20,7 +20,6 @@ son preguntas, las preguntas (`assessment:questions`); solo el evaluador recibe 
 
 from django.urls import reverse
 
-from evaluon.assessment.models import Doubt
 from evaluon.assessment.services import matrix as matrix_service
 from evaluon.journey.stages import base
 
@@ -33,12 +32,12 @@ def _plural(count, one, many):
 
 
 def _undecided_pairs(page):
-    """Los pares `propuesto`, sin los de filas técnicas: la decisión de esas filas es el ok del
-    informe técnico (pendiente o ya dado), que se cuenta aparte."""
-    return sum(1 for cell in page.cells.values()
-               if cell.state == matrix_service.PENDING
-               and cell.reason != Doubt.PENDIENTE_INFORME_TECNICO
-               and not cell.from_technical_ok)
+    """Los pares `propuesto`, sin los de filas técnicas (cualquiera sea su resultado): la
+    decisión de esas filas es el ok del informe técnico, que se cuenta aparte."""
+    technical_cells = {(status.offer.pk, row.requirement.pk)
+                       for status in page.statuses for row in status.technical}
+    return sum(1 for key, cell in page.cells.items()
+               if cell.state == matrix_service.PENDING and key not in technical_cells)
 
 
 def _technical_pending_offers(page):
