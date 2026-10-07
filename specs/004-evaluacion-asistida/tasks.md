@@ -43,7 +43,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-174 | Emparejar las ofertas del Portal con las cargadas a mano (CUIT o nombre normalizado, como propuesta del evaluador), necesario para cargar el Portal del caso-00 | REQ-062 | — | terminada |
 | T-175 | Completar REQ-062 y corregir el medidor tras T-173: cita del Portal de la cotización y de la garantía cuando la oferta no la trae; la medición cuenta la fila técnica pendiente con hechos correctos aunque falte el documento; externos de habilidad y de la póliza electrónica reconocidos por el título del tramo y la norma de la Superintendencia (ronda extra por requisito incompleto, ADR-0025) | REQ-052, REQ-062, REQ-063 | T-173 | terminada |
 | T-177 | Lectura con visión: enderezar la página, texto plano con marcador de fin, penalizar la repetición y franjas a mayor resolución (el pagaré del caso-00 es legible: lo verificó el responsable) | REQ-064, REQ-054 | T-175 | terminada |
-| T-176 | Medir el caso-00 después de T-175 y T-177 (medición final) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-175, T-177 | pendiente |
+| T-176 | Medir el caso-00 después de T-175 y T-177 (medición final) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-175, T-177 | terminada |
 
 ## Paralelismo
 
