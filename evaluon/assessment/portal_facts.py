@@ -57,7 +57,10 @@ CUADRO = "Portal: cuadro comparativo"
 CATALOG = (
     (GARANTIA, re.compile(
         r"garantia de (?:mantenimiento|oferta)|mantenimiento de (?:la )?oferta"
-        r"|garantia de (?:la )?oferta|poliza de caucion|pagare")),
+        r"|garantia de (?:la )?oferta|poliza de caucion|pagare"
+        # T-175: la garantía individualizada en el Portal («Paso 4 Ingreso de Garantía»).
+        r"|ingreso de (?:la )?garantia|garantias? (?:\w+ ){0,3}individualizad"
+        r"|individualiz\w* (?:\w+ ){0,3}garantia")),
     (CUIT, re.compile(r"\bcuit\b|clave unica de identificacion tributaria")),
     (COTIZACION, re.compile(
         r"cotizacion|cotizar|precio unitario|planilla de precios|oferta economica")),
@@ -67,15 +70,31 @@ CATALOG = (
 )
 
 
+# T-175: un requisito que pide cotizar por renglón (todos o algunos, el valor unitario de cada
+# uno, «por renglón») sin ser la fila de un renglón concreto: pide la cotización de todos los
+# renglones de la oferta que el Portal tiene.
+PER_LINE = re.compile(
+    r"cotiz\w*\W+(?:\w+\W+){0,12}?renglon|renglon\w*\W+(?:\w+\W+){0,12}?cotiz"
+    r"|(?:precio|valor) unitario\W+(?:\w+\W+){0,8}?renglon|por renglon|cada (?:uno de los )?renglon")
+
+
+# T-175 (H-1): la cotización sin renglón nombrado aplica solo si el requisito pide un precio, un
+# valor unitario o un importe; «porcentaje de la cotización» o «cantidad por renglón» no lo piden.
+PRICE_WORD = re.compile(r"\bprecios?\b|\bimportes?\b|\bvalor(?:es)?\b")
+
+
 def kind_of(text, requirement=None):
     """La clase de dato del Portal que pide el requisito, o `None`. La cotización por renglón
-    solo rige si la fila es de un renglón; sin renglón, una oferta económica es el total."""
+    rige si la fila es de un renglón o si el texto pide cotizar por renglón (todos, algunos o
+    cada uno); si no, una oferta económica es el total."""
     folded = fold(text)
     items = getattr(requirement, "items", None) or []
     for kind, pattern in CATALOG:
-        if not pattern.search(folded):
-            continue
         if kind == COTIZACION and not items:
+            if PER_LINE.search(folded) and PRICE_WORD.search(folded):
+                return kind
+            continue
+        if not pattern.search(folded):
             continue
         return kind
     return None
@@ -146,17 +165,17 @@ def read(offer, kind, text, items):
                       f"Total de la oferta: {_amount(data.total)}"
                       + (f" {data.currency}" if data.currency else ""))]
     if kind == COTIZACION:
-        found = []
-        for item in items:
-            quote = (PortalQuote.objects.filter(
-                offer=offer, line__procedure_id=offer.procedure_id, line__number=item,
-                price__isnull=False).select_related("line").first())
-            if quote is not None:
-                found.append(Datum(
-                    COTIZACION, quote.price, _amount(quote.price), data.item_id, CUADRO,
-                    f"Renglón {quote.line.number}: precio {_amount(quote.price)}, cantidad "
-                    f"{_amount(quote.quantity)}"))
-        return found
+        # Con renglones nombrados, los de la fila; sin ellos (cotizar por renglón), todos los
+        # que cotizó la oferta (T-175).
+        quotes = PortalQuote.objects.filter(
+            offer=offer, line__procedure_id=offer.procedure_id,
+            price__isnull=False).select_related("line").order_by("line__number")
+        if items:
+            quotes = quotes.filter(line__number__in=items)
+        return [Datum(
+            COTIZACION, quote.price, _amount(quote.price), data.item_id, CUADRO,
+            f"Renglón {quote.line.number}: precio {_amount(quote.price)}, cantidad "
+            f"{_amount(quote.quantity)}") for quote in quotes]
     return []
 
 
@@ -236,10 +255,13 @@ def rule(pair, ctx):
     """La regla 4 de `rules.py`: devuelve el resultado nuevo del par o `None` si el requisito no
     pide un dato del Portal o el Portal no lo tiene para la oferta."""
     requirement = pair.requirement
-    kind = kind_of(pair.text.text, requirement)
+    # T-175: además del texto de la cita se mira lo que la antecede en su tramo (la cita puede
+    # recortar solo «el número identificatorio…» y la condición dice «Ingreso de Garantía»).
+    text = getattr(pair.text, "opening", None) or pair.text.text
+    kind = kind_of(text, requirement)
     if kind is None:
         return None
-    portal = read(ctx.offer, kind, pair.text.text, item_numbers(requirement))
+    portal = read(ctx.offer, kind, text, item_numbers(requirement))
     if not portal:
         return None
     combined = pair.combined

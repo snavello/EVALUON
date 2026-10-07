@@ -15,6 +15,7 @@ recibe y qué devuelve el modelo"; ADR-0040; T-150).
   matriz; sin propuesta (una matriz armada a mano), el régimen a la fecha de autorización.
 """
 
+import re
 from dataclasses import dataclass, field
 
 from django.conf import settings
@@ -36,6 +37,41 @@ from evaluon.tenders.services.procedures import regime_for
 # Máximo de caracteres que se le dan al modelo de una unidad de norma tomada de la consecuencia
 # (las del respaldo normativo ya son una cita corta).
 NORM_UNIT_MAX_CHARS = 1500
+
+
+# Cuánto del texto del tramo anterior a la cita se mira como encabezado (T-175).
+LEAD_MAX_CHARS = 200
+_PATH_SEPARATOR = " › "
+# Fin de una oración: un punto seguido de mayúscula (no el de «11.8.» ni el de «219/2018.»).
+_SENTENCE_END = re.compile(r"(?<!\d)\.\s+(?=[A-ZÁÉÍÓÚÑ]|$)")
+_UNTITLED_PART = re.compile(
+    r"^(?:\d+(?:\.\d+)*\.?|(?:párrafo|tabla|viñeta|no ubicado)\b.*)$", re.IGNORECASE)
+
+
+def segment_heading(quote, *, titles=True):
+    """El título del tramo del pliego del que sale la cita (T-175; REQ-063): el encabezado del
+    tramo, el título del apartado más cercano de su ruta y el texto del tramo que antecede a
+    la cita (hasta `LEAD_MAX_CHARS`), porque el pliego a veces pone el título en la misma línea
+    que la condición («Declaración jurada de habilidad para contratar: el oferente deberá
+    completar…») y la cita recorta solo la condición. Con `titles=False`, solo lo que antecede a
+    la cita en el tramo. Vacío si la cita no tiene tramo."""
+    segment = getattr(quote, "segment", None)
+    if segment is None:
+        return ""
+    parts = []
+    label = (segment.label or "").strip()
+    if titles and label and not _UNTITLED_PART.match(label):
+        parts.append(label)
+    for part in reversed((segment.path or "").split(_PATH_SEPARATOR) if titles else []):
+        if part.strip() and not _UNTITLED_PART.match(part.strip()):
+            parts.append(part.strip())
+            break
+    lead = (segment.text or "")[:max(quote.char_start - segment.char_start, 0)]
+    # Solo la oración en que empieza la cita: lo anterior es otra condición del tramo.
+    lead = _SENTENCE_END.split(lead)[-1]
+    if lead.strip():
+        parts.append(lead.strip()[-LEAD_MAX_CHARS:])
+    return " ".join(dict.fromkeys(parts))
 
 
 @dataclass
@@ -75,6 +111,21 @@ class RequirementText:
         """El texto vigente de todas sus citas, para buscar y para reordenar."""
         return " ".join(q.text for q in self.quotes)
 
+    @property
+    def context(self):
+        """El título del tramo de cada cita y su texto vigente: lo que mira la regla de los
+        externos (T-175). El pedido al modelo y la búsqueda siguen con `text`."""
+        return " ".join(part for q in self.quotes
+                        for part in (segment_heading(q.quote), q.text) if part)
+
+    @property
+    def opening(self):
+        """Lo que antecede a cada cita en su tramo y su texto vigente: lo que mira la regla del
+        Portal además del texto (T-175). Sin los títulos de la ruta, que alcanzan a toda una
+        sección."""
+        return " ".join(part for q in self.quotes
+                        for part in (segment_heading(q.quote, titles=False), q.text) if part)
+
     def render(self):
         """El bloque del requisito al final del pedido."""
         head = f"Requisito del pliego ({self.label})"
@@ -93,7 +144,7 @@ class RequirementText:
 
 def requirement_text(requirement):
     """El requisito con el texto vigente de cada una de sus citas."""
-    quotes = list(requirement.quotes.order_by("order"))
+    quotes = list(requirement.quotes.select_related("segment").order_by("order"))
     sources = list(requirement.sources.exclude(quote=None).order_by("issued_on", "pk"))
     out = RequirementText(requirement=requirement)
     for quote in quotes:
