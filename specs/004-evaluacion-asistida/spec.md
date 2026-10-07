@@ -89,6 +89,10 @@ Se copian tal como las dio el responsable; mandan sobre el plan, el código y la
 - **REQ-064 · Ilegible.** Si el documento que responde un requisito no se puede leer, el resultado es "no se pudo leer", con el documento y la página, y lo verifica la Comisión.
 - **Medición.** Cuentan como coincidencia con el dictamen: "falta la hoja de compliance" en un requisito externo; "pendiente del informe técnico" en una fila técnica, si la existencia del documento técnico y los renglones ofertados son correctos; "no se pudo leer" en un documento ilegible; y un dato citado del Portal que coincide con el dictamen. Se mantienen 0 contradicciones y 100 % de citas literales.
 
+## Aceptación
+
+Aceptada por el responsable el 2026-10-07 con la medición de T-176: 42 de 49 (85,7 %), 0 contradicciones, 100 % de citas literales (ADR-0044).
+
 ## Preguntas abiertas
 
 Ninguna. Respuestas del responsable (2026-10-06):
