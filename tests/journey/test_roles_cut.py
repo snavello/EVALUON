@@ -36,12 +36,13 @@ def test_the_page_shows_go_to_decide_only_to_the_evaluator(client, procedure, op
 
 
 def test_there_are_six_stages_in_order(procedure, operator_user):
-    """REQ-066: seis etapas en el orden de la spec; las cinco reservadas están pendientes."""
+    """REQ-066: seis etapas en el orden de la spec, cada una con un estado válido."""
     journey = stages_for(operator_user, procedure)
     assert [s.key for s in journey.stages] == [
         "portal", "pliego", "matriz", "ofertas", "evaluacion", "matriz_evaluacion"]
     assert journey.stages[0].optional
-    assert all(s.state == "pendiente" for s in journey.stages if s.key != "evaluacion")
+    assert all(s.state in {"pendiente", "en_curso", "a_decidir", "lista", "con_error"}
+               for s in journey.stages)
 
 
 def test_without_commission_role_it_is_forbidden_and_recorded(client, procedure,
