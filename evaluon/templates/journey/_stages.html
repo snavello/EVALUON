@@ -1,0 +1,27 @@
+{% comment %}Bloque de las etapas del recorrido (T-179). Lo arma la página y lo vuelve a pedir el sondeo; no tiene formularios: las decisiones están en sus pantallas (P3).{% endcomment %}<div class="journey-summary">
+  <p>Etapa actual: <strong>{% if journey.current %}{{ journey.current.label }}{% else %}ninguna, todas están listas{% endif %}</strong>.
+  Decisiones pendientes: <strong>{{ journey.pending }}</strong>.
+  Sugerencias del sistema: <strong>{{ journey.suggestions }}</strong>.</p>
+</div>
+<ol class="journey-stages">
+  {% for stage in journey.stages %}
+  <li class="stage stage-{{ stage.state }}" data-stage="{{ stage.key }}" data-state="{{ stage.state }}" data-label="{{ stage.label }}" data-error="{{ stage.error }}">
+    <h3>{{ stage.label }}{% if stage.optional %} <small>(opcional)</small>{% endif %}</h3>
+    <p class="stage-state"><span class="badge badge-{{ stage.state }}">{{ stage.state_label }}</span></p>
+    {% if stage.detail %}<p class="stage-detail">{{ stage.detail }}</p>{% endif %}
+    {% if stage.progress %}
+    <div class="stage-progress">
+      <p>{{ stage.progress.task }}: {{ stage.progress.step }}.
+        {% if stage.progress.waiting %}En espera desde hace{% else %}Lleva{% endif %} {{ stage.progress.elapsed_text }}.</p>
+      {% if stage.progress.percent is not None %}<progress max="100" value="{{ stage.progress.percent }}">{{ stage.progress.percent }} %</progress> {{ stage.progress.percent }} %{% endif %}
+    </div>
+    {% endif %}
+    {% if stage.error %}<p class="stage-error" role="alert">Falló: {{ stage.error }}</p>{% endif %}
+    <p class="stage-counts">Decisiones pendientes: {{ stage.pending }} · Sugerencias: {{ stage.suggestions }}</p>
+    <p class="stage-links">
+      {% if stage.view_url %}<a href="{{ stage.view_url }}">Ver</a>{% endif %}
+      {% if stage.decide_url %}<a href="{{ stage.decide_url }}">Ir a decidir</a>{% endif %}
+    </p>
+  </li>
+  {% endfor %}
+</ol>

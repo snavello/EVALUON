@@ -14,7 +14,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
-| T-179 | Corte vertical: módulo `journey`, página de recorrido del caso chico con la etapa Evaluación en vivo (sondeo cada 5 s), roles, entrada mínima y las otras cinco etapas como lugares reservados | REQ-065, REQ-066, REQ-067, REQ-068, REQ-069 | — | pendiente |
+| T-179 | Corte vertical: módulo `journey`, página de recorrido del caso chico con la etapa Evaluación en vivo (sondeo cada 5 s), roles, entrada mínima y las otras cinco etapas como lugares reservados | REQ-065, REQ-066, REQ-067, REQ-068, REQ-069 | — | terminada |
 | T-180 | Etapas Portal, Pliego y circulares, y Matriz: estado, pendientes y enlaces | REQ-066, REQ-068, REQ-069 | T-179 | pendiente |
 | T-181 | Etapa Ofertas: documentos, fichas, estado, pendientes y enlaces | REQ-066, REQ-068, REQ-069 | T-179 | pendiente |
 | T-182 | Etapa Matriz de evaluación: pares por decidir, preguntas abiertas, ok del informe técnico y enlaces | REQ-066, REQ-068, REQ-069 | T-179 | pendiente |
@@ -120,6 +120,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Nivel de verificación:** plena (verificación del criterio de aceptación).
 - **Umbral (escrito antes):** 30 de 30 celdas (5 momentos por 6 etapas), seis enlaces que responden 200 al evaluador, 0 acciones de decisión del operador. Máximo dos rondas.
 - **Qué hacer:** con el caso chico inventado y los servicios reales (modelo simulado donde haga falta, sin GPU), recorrer los cinco momentos de REQ-066 en este orden: antes de importar (procedimiento vacío), importado (procedimiento, pliego y ofertas cargados), matriz propuesta (borrador con propuestos), matriz validada, evaluación terminada (con pares propuestos). En cada momento comprobar el estado y la cuenta de las seis etapas contra una tabla esperada escrita en el test. Comprobar los enlaces de las seis etapas con pendientes (evaluador) y que el operador no recibe ninguna acción de decisión.
+- **Aviso de tareas anteriores:** (T-179) Sumar tests de la pausa del sondeo con la pestaña oculta y de Stage.suggestions (REQ-072). El runbook de la 013 debe decir que hay que reconstruir la imagen (docker compose build app) para que collectstatic sirva recorrido.js y recorrido.css.
 - **Archivos:** `tests/journey/test_moments.py`, `tests/journey/test_roles.py`, `tests/journey/data/momentos-esperados.yaml`; `specs/013-recorrido-procedimiento/verificacion/T-185.md` (lo deja el testeador).
 - **Verificación:** `pytest tests/journey` en verde y la tabla esperada con los 30 valores correctos. Cualquier diferencia es un hallazgo de la etapa correspondiente: se corrige en una sola tarea de ajuste y se vuelve a correr (una ronda).
 - **No tocar:** el código del módulo salvo en una tarea de ajuste aparte; el caso-00.
