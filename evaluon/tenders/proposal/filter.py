@@ -35,6 +35,9 @@ propiedad obligatoria por alias; la segunda no ve la respuesta de la primera):
 
 Guarda en código (T-125, REQ-024): una fila descartada que comparte oración con una fila
 firme del mismo tramo pasa a sugerencia con la duda `duda` (`protect_shared_sentences`).
+Guarda en código (T-178): si el pliego nombra la garantía de la oferta y
+ninguna fila la nombra, la primera descartada que la nombra pasa a sugerencia
+(`protect_offer_guarantee`).
 
 Con `SUGGESTIONS_ENABLED` en falso, lo que sería sugerencia queda firme. Un lote cuya salida
 se corta por el máximo se parte en dos, como en la extracción. Una falla del servicio no
@@ -59,7 +62,7 @@ from evaluon.tenders.proposal import dedup, extraction, quotes
 from evaluon.tenders.proposal.completeness import passes_of
 from evaluon.tenders.proposal.extraction import BODY_CLASSES
 
-RULE_VERSION = "filtro-v2"
+RULE_VERSION = "filtro-v3"
 
 FIRME = "firme"
 SUGERENCIA = "sugerencia"
@@ -137,13 +140,20 @@ class Row:
         return passes_of(self.found)
 
 
+# Un anexo del pliego: su clave lleva `anexo` como un componente ("sec-ii/anexo-iii/tabla-5").
+_ANNEX_KEY = re.compile(r"(?:^|/)anexo(?:-|~|/|$)")
+
+
 def in_scope(unit, found):
     """Si la fila pasa por el modelo: ni cita amplia, ni tramo `tabla`, ni sección
-    titulada como formal o económica."""
+    titulada como formal o económica. Una tabla dentro de un anexo sí pasa (T-178): casi
+    siempre es el formulario que la oferta completa, y sus celdas no son condiciones; las
+    tablas del cuerpo del pliego (detalle de bienes, tipos de cotización) siguen firmes."""
     segment = unit.segment
+    is_table = segment.segment_type == SegmentType.TABLA
     return (
         found.flag != quotes.WIDE
-        and segment.segment_type != SegmentType.TABLA
+        and (not is_table or bool(_ANNEX_KEY.search(segment.key)))
         and segment.section_class not in BODY_CLASSES
     )
 
@@ -417,6 +427,35 @@ def protect_shared_sentences(verdicts):
             verdict.anomaly = ANOMALY_SHARED_SENTENCE
 
 
+# La garantía con que se mantiene la oferta, en singular o plural, con o sin artículo.
+OFFER_GUARANTEE = re.compile(
+    r"garant[ií]as?\s+de\s+(?:mantenimiento\s+de\s+)?(?:la\s+)?oferta", re.IGNORECASE
+)
+ANOMALY_OFFER_GUARANTEE = "filtro_garantia_oferta_mencionada"
+
+
+def protect_offer_guarantee(verdicts, other_texts=()):
+    """Guarda en código (T-178, REQ-035, REQ-036): si el pliego nombra la garantía de la
+    oferta y ninguna fila firme ni sugerencia la nombra, la primera fila descartada que la
+    nombra pasa a sugerencia con la duda `duda`. Un pliego que solo la menciona al decir qué
+    pasa si no se cumple (la pérdida de esa garantía) la da por supuesta: el régimen la exige
+    a toda oferta, y la Comisión decide si es un requisito, con la cita de la norma como
+    respaldo (REQ-036). `other_texts` son los fragmentos de las filas que no pasaron por el
+    filtro (quedaron firmes)."""
+    if any(OFFER_GUARANTEE.search(text) for text in other_texts):
+        return
+    kept = [v for v in verdicts if v.destination != DESCARTADA]
+    if any(OFFER_GUARANTEE.search(v.row.text) for v in kept):
+        return
+    for verdict in verdicts:
+        if verdict.destination == DESCARTADA and OFFER_GUARANTEE.search(verdict.row.text):
+            verdict.destination = SUGERENCIA
+            verdict.doubt_reason = "duda"
+            verdict.reason = ""
+            verdict.anomaly = ANOMALY_OFFER_GUARANTEE
+            return
+
+
 # --- El filtro ---------------------------------------------------------------------------------
 
 
@@ -535,9 +574,10 @@ class Filter:
             parsed={"filas": parsed, "finish_reason": output.finish_reason})
         return [(answer, step) for answer in answers]
 
-    def filter_rows(self, rows):
+    def filter_rows(self, rows, other_texts=()):
         """Pregunta A y pregunta B de cada lote de `FILTER_BATCH_ROWS` filas, y reparte
-        cada fila. Devuelve el `Result`."""
+        cada fila. `other_texts` son los fragmentos de las filas que no pasan por el filtro.
+        Devuelve el `Result`."""
         size = max(settings.FILTER_BATCH_ROWS, 1)
         verdicts = []
         for at in range(0, len(rows), size):
@@ -549,6 +589,7 @@ class Filter:
                 verdict.step_a, verdict.step_b = step_a, step_b
                 verdicts.append(verdict)
         protect_shared_sentences(verdicts)
+        protect_offer_guarantee(verdicts, other_texts)
         for verdict in verdicts:
             if verdict.destination == SUGERENCIA and not settings.SUGGESTIONS_ENABLED:
                 verdict.destination = FIRME

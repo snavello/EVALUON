@@ -591,9 +591,13 @@ def filter_decisions(row_pass, loaded, decisions, unification):
     """Pasa por el filtro las filas formales y económicas (`filter.py`), quita de la
     disposición de su tramo las descartadas y deja la disposición `descartado` (origen
     `filtro`) en el tramo cuyas filas se descartaron todas. Devuelve el `filter.Result`."""
+    body = _body(loaded, decisions)
     rows = row_filter.candidates(
-        _body(loaded, decisions), unification.repeated if unification is not None else {})
-    result = row_pass.filter_rows(rows)
+        body, unification.repeated if unification is not None else {})
+    in_filter = {id(row.found) for row in rows}
+    outside = [_found_text(unit.segment, found) for unit, found in body
+               if id(found) not in in_filter]
+    result = row_pass.filter_rows(rows, outside)
     gone = {id(v.row.found): v for v in result.of(row_filter.DESCARTADA)}
     for unit in loaded.units:
         decision = decisions[unit.segment.pk]

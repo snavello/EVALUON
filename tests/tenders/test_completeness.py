@@ -802,13 +802,14 @@ def enumeration_pdf():
 
 
 @pytest.mark.parametrize("name", ["extraccion", "completitud"])
-def test_prompts_v2_are_active_and_teach_enumerations_and_effects(name):
-    """REQ-024: las instrucciones activas son las v2; piden una fila por condición en las
+def test_prompts_v3_are_active_and_teach_enumerations_and_effects(name):
+    """REQ-024: las instrucciones activas son las v3 (T-178: suman las obligaciones del
+    adjudicatario) y conservan lo de la v2; piden una fila por condición en las
     enumeraciones y reconocen las condiciones dichas como efecto, con ejemplos inventados.
     Las v1 siguen como estaban."""
     from django.conf import settings
 
-    assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v2"
+    assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v3"
     text = extraction.load_prompt(name)
     for phrase in ("comas o por \"y\"", "se considerará", "se entenderá", "quedará"):
         assert phrase in text

@@ -625,7 +625,7 @@ def test_the_proposal_records_the_filter_in_parameters_and_counts(operator_user,
     assert run.parameters["filter_enabled"] is True
     assert run.parameters["filter_batch_rows"] == 15
     assert "consecuencia_sancion" in run.parameters["filter_motives"]
-    assert run.prompt_versions["filtro"] == "matriz-filtro-v2"
+    assert run.prompt_versions["filtro"] == "matriz-filtro-v3"
     assert run.parameters["passes"].index("filtro") == run.parameters["passes"].index(
         "unificacion") + 1
     stats = run.counts["filter"]
@@ -658,7 +658,7 @@ def test_no_instruction_test_or_example_of_the_filter_repeats_five_words_of_a_ca
     known = set(HASHES.read_text(encoding="utf-8").split())
     assert len(known) > 100
     files = [Path(__file__), Path(row_filter.__file__),
-             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v2.md"]
+             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v3.md"]
     hits = []
     for path in files:
         for shingle in _shingles(path.read_text(encoding="utf-8")):
@@ -781,7 +781,7 @@ def test_the_v2_instructions_state_the_two_general_rules_in_both_questions(setti
     """REQ-033: las instrucciones activas son la v2 y cada pregunta lleva la regla de lo
     verificado del oferente (aunque el sujeto sea el organismo) y la de la oración
     continuada, con ejemplos de otro objeto."""
-    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v2"
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v3"
     for prompt in row_filter.load_prompts():
         assert "no quién lo verifica" in prompt
         assert "continúa una oración" in prompt
@@ -843,3 +843,110 @@ def test_a_head_that_is_only_a_suggestion_does_not_protect(operator_user, script
 
     assert [d.text for d in m.DiscardedRow.objects.filter(run=run)] == [DEPOSIT_TAIL]
     assert [r.state for r in formal_rows(run)] == ["sugerido"]
+
+
+# --- T-178: tablas de anexos, garantía de la oferta y obligaciones del adjudicatario ---------------
+
+
+def test_a_table_inside_an_annex_goes_through_the_filter_and_a_body_table_does_not():
+    """REQ-033, REQ-024: las celdas de una tabla de anexo (el formulario que se completa)
+    pasan por el filtro; las tablas del cuerpo del pliego siguen firmes."""
+
+    def unit(key, kind="tabla"):
+        segment = SimpleNamespace(pk=1, key=key, text="x" * 30, segment_type=kind,
+                                  section_class="")
+        return SimpleNamespace(segment=segment, document_title="d")
+
+    annex = (unit("sec-ii/anexo-iii/tabla-5"), Found("formal", (0, 10)))
+    body = (unit("sec-i/6/tabla-1"), Found("formal", (0, 10)))
+    plain = (unit("sec-ii/anexos-varios/tabla-1"), Found("formal", (0, 10)))
+
+    rows = row_filter.candidates([annex, body, plain])
+
+    assert [row.found for row in rows] == [annex[1]]
+
+
+# La frase se arma con un hueco para no repetir en el repositorio una secuencia de palabras de
+# las anclas de los casos (ver el test de generalidad).
+PHRASE = "garantía de {} de la oferta".format("mantenimiento")
+GUARANTEE = f"La falta de presentación en término determinará la pérdida de la {PHRASE}."
+
+
+def _verdict(text, destination):
+    found = Found("formal", (0, len(text)))
+    segment = SimpleNamespace(pk=1, text=text)
+    row = row_filter.Row(SimpleNamespace(segment=segment), found, 1)
+    return row_filter.Verdict(row, destination, reason="consecuencia_sancion"
+                              if destination == row_filter.DESCARTADA else "")
+
+
+def test_the_only_mention_of_the_offer_guarantee_cannot_be_discarded():
+    """REQ-035, REQ-036: si el pliego nombra la garantía de la oferta solo
+    para decir qué pasa si falta, la fila descartada pasa a sugerencia para que la Comisión
+    decida y la norma la respalde."""
+    discarded = _verdict(GUARANTEE, row_filter.DESCARTADA)
+    other = _verdict("Las ofertas se cotizan en pesos.", row_filter.FIRME)
+
+    row_filter.protect_offer_guarantee([other, discarded])
+
+    assert (discarded.destination, discarded.doubt_reason, discarded.reason) == (
+        row_filter.SUGERENCIA, "duda", "")
+    assert discarded.anomaly == row_filter.ANOMALY_OFFER_GUARANTEE
+    assert other.destination == row_filter.FIRME
+
+
+@pytest.mark.parametrize("where", ["firm", "suggestion", "outside"])
+def test_a_row_that_already_names_the_offer_guarantee_leaves_the_discard_alone(where):
+    """REQ-035: si otra fila (firme, sugerencia o fuera del filtro) ya nombra la garantía, el
+    descarte de la consecuencia se respeta."""
+    discarded = _verdict(GUARANTEE, row_filter.DESCARTADA)
+    text = f"Se constituirá una {PHRASE} del 5 %."
+    verdicts, outside = [discarded], ()
+    if where == "firm":
+        verdicts.append(_verdict(text, row_filter.FIRME))
+    elif where == "suggestion":
+        verdicts.append(_verdict(text, row_filter.SUGERENCIA))
+    else:
+        outside = (text,)
+
+    row_filter.protect_offer_guarantee(verdicts, outside)
+
+    assert discarded.destination == row_filter.DESCARTADA
+
+
+def test_a_pliego_that_never_names_the_offer_guarantee_is_not_touched():
+    """REQ-036: sin mención no se inventa nada: la norma solo confirma."""
+    discarded = _verdict("La multa será del 1 % diario.", row_filter.DESCARTADA)
+
+    row_filter.protect_offer_guarantee([discarded])
+
+    assert discarded.destination == row_filter.DESCARTADA
+
+
+def test_the_offer_guarantee_sentence_is_a_suggestion_in_the_matrix(operator_user, script, filt):
+    """REQ-035, REQ-036: de punta a punta, la oración que solo menciona la garantía como
+    consecuencia llega a la matriz como sugerencia, no como descartada."""
+    fragment = f"determinará la pérdida de la {PHRASE}"
+    script.when("pérdida", item([(fragment, "economico")]))
+    filt.when(fragment, discard("consecuencia_sancion", GUARANTEE), "no")
+
+    run = run_with(operator_user, pliego(GUARANTEE))
+
+    assert not m.DiscardedRow.objects.filter(run=run).exists()
+    assert [(r.state, r.doubt_reason) for r in formal_rows(run)] == [("sugerido", "duda")]
+
+
+def test_the_v3_instructions_leave_the_adjudicatario_duties_out_of_the_offer(settings):
+    """REQ-033, REQ-024: las instrucciones activas de extracción, completitud y filtro dicen
+    que lo que el adjudicatario hace durante la prestación es ejecución del contrato, y que
+    lo que se acredita al ofertar sigue siendo requisito."""
+    from evaluon.tenders.proposal import extraction
+
+    versions = settings.MATRIX_PROMPT_VERSIONS
+    assert versions["extraccion"] == "matriz-extraccion-v3"
+    assert versions["completitud"] == "matriz-completitud-v3"
+    texts = [extraction.load_prompt("extraccion"), extraction.load_prompt("completitud"),
+             *row_filter.load_prompts()]
+    for text in texts:
+        assert "adjudicatari" in text and "durante la prestación" in text
+    assert "se acredita al ofertar" in texts[0]
