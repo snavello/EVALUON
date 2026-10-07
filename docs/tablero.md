@@ -63,7 +63,7 @@ flowchart LR
 | 010 · Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | No iniciada | — | — |
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
-| [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 2 de 7 · Plan | — | — |
+| [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 2 de 7 · Plan | 0/8 | ░░░░░░░░░░ 0% |
 
 <a id="001"></a>
 
@@ -958,18 +958,56 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
+- **Próximo paso:** Aprobar el plan (compuerta del responsable).
+- ○ T-179 · Corte vertical: módulo `journey`, página de recorrido del caso chico con la etapa Evaluación en vivo (sondeo cada 5 s), roles, entrada mínima y las otras cinco etapas como lugares reservados (pendiente)
+- ○ T-180 · Etapas Portal, Pliego y circulares, y Matriz: estado, pendientes y enlaces (pendiente)
+- ○ T-181 · Etapa Ofertas: documentos, fichas, estado, pendientes y enlaces (pendiente)
+- ○ T-182 · Etapa Matriz de evaluación: pares por decidir, preguntas abiertas, ok del informe técnico y enlaces (pendiente)
+- ○ T-183 · Entrada completa: procedimientos con etapa actual y pendientes, alta con el enlace del Portal o a mano (pendiente)
+- ○ T-184 · Avance fino de los pedidos: columna `progress` en la cola y aviso desde la evaluación y la ficha (opcional, ADR-0045) (pendiente)
+- ○ T-185 · Los cinco momentos y los roles con el caso chico: 30 de 30 celdas y enlaces de las seis etapas (pendiente)
+- ○ T-186 · Comprobación con el caso-00 desde cero (Coordinador y testeador): cinco momentos, avance en vivo y carga en menos de 2 s (pendiente)
 
 ### Qué se hizo
 
 - Etapas completas: Spec.
 
+### Mapa de tareas
+
+```mermaid
+flowchart TD
+  T179["○ T-179 · Corte vertical: módulo journey, página de r…"]:::todo
+  T180["○ T-180 · Etapas Portal, Pliego y circulares, y Matri…"]:::todo
+  T181["○ T-181 · Etapa Ofertas: documentos, fichas, estado,…"]:::todo
+  T182["○ T-182 · Etapa Matriz de evaluación: pares por decid…"]:::todo
+  T183["○ T-183 · Entrada completa: procedimientos con etapa…"]:::todo
+  T184["○ T-184 · Avance fino de los pedidos: columna progres…"]:::todo
+  T185["○ T-185 · Los cinco momentos y los roles con el caso…"]:::todo
+  T186["○ T-186 · Comprobación con el caso-00 desde cero (Coo…"]:::todo
+  T179 --> T180
+  T179 --> T181
+  T179 --> T182
+  T179 --> T183
+  T179 --> T184
+  T180 --> T185
+  T181 --> T185
+  T182 --> T185
+  T183 --> T186
+  T184 --> T186
+  T185 --> T186
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
+
 ### Requisitos
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-065 | Una página de entrada lista los procedimientos con su etapa actual y lo pendiente de decidir, y permite empezar uno nuevo desde el enlace del Portal o a mano. | — | — |
-| REQ-066 | Cada procedimiento tiene una página de recorrido con sus etapas en orden y el estado de cada una (pendiente, en curso, a decidir, lista, con error), calculado a partir de lo que ya registra el sistema. | — | — |
-| REQ-067 | Mientras el sistema trabaja en segundo plano, la página muestra el avance en vivo (tarea, paso, porcentaje o cuenta, tiempo transcurrido) sin recargar, y avisa cuando termina o falla, con el motivo. | — | — |
-| REQ-068 | Cada etapa muestra cuántas decisiones esperan a la Comisión y enlaza a la pantalla existente donde se toman; el recorrido no duplica esas pantallas. | — | — |
-| REQ-069 | El recorrido respeta los roles: el operador ve todo y prepara; solo el evaluador ve las acciones de decisión. | — | — |
+| REQ-065 | Una página de entrada lista los procedimientos con su etapa actual y lo pendiente de decidir, y permite empezar uno nuevo desde el enlace del Portal o a mano. | T-179, T-183, T-186 | ○ pendiente |
+| REQ-066 | Cada procedimiento tiene una página de recorrido con sus etapas en orden y el estado de cada una (pendiente, en curso, a decidir, lista, con error), calculado a partir de lo que ya registra el sistema. | T-179, T-180, T-181, T-182, T-185, T-186 | ○ pendiente |
+| REQ-067 | Mientras el sistema trabaja en segundo plano, la página muestra el avance en vivo (tarea, paso, porcentaje o cuenta, tiempo transcurrido) sin recargar, y avisa cuando termina o falla, con el motivo. | T-179, T-184, T-186 | ○ pendiente |
+| REQ-068 | Cada etapa muestra cuántas decisiones esperan a la Comisión y enlaza a la pantalla existente donde se toman; el recorrido no duplica esas pantallas. | T-179, T-180, T-181, T-182, T-185, T-186 | ○ pendiente |
+| REQ-069 | El recorrido respeta los roles: el operador ve todo y prepara; solo el evaluador ve las acciones de decisión. | T-179, T-180, T-181, T-182, T-185, T-186 | ○ pendiente |
