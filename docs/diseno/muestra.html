@@ -8,22 +8,23 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; font: var(--ev-t-base)/var(--ev-interlineado) var(--ev-fuente); color: var(--ev-texto); background: var(--ev-fondo); }
-  a { color: var(--ev-enlace); }
+  a { color: var(--ev-enlace); font-weight: var(--ev-peso-enlace); }
   :focus-visible { outline: 3px solid var(--ev-foco); outline-offset: 2px; }
   .wrap { max-width: var(--ev-ancho-contenido); margin: 0 auto; padding: 0 var(--ev-e4); }
   header.top { background: var(--ev-encabezado-fondo); color: var(--ev-encabezado-texto); border-bottom: 3px solid var(--ev-rojo); }
   header.top .wrap { display: flex; align-items: center; gap: var(--ev-e4); padding-top: var(--ev-e3); padding-bottom: var(--ev-e3); }
-  header.top .nombre { font-size: var(--ev-t-h3); font-weight: 700; letter-spacing: .04em; margin-right: auto; }
+  header.top .nombre { font-family: var(--ev-fuente-titulo); font-size: var(--ev-t-h3); font-weight: 600; letter-spacing: .04em; margin-right: auto; }
   header.top .usuario { font-size: var(--ev-t-sm); color: var(--ev-azul-200); }
-  nav.main { background: var(--ev-nav-fondo); }
+  nav.main { background: var(--ev-nav-fondo); box-shadow: var(--ev-sombra-nav); }
   nav.main ul { display: flex; gap: var(--ev-e1); list-style: none; margin: 0; padding: 0; }
-  nav.main a { display: block; padding: var(--ev-e3) var(--ev-e4); color: var(--ev-nav-texto); text-decoration: none; font-weight: 600; font-size: var(--ev-t-sm); }
+  nav.main a { display: block; padding: var(--ev-nav-relleno); margin: 0 var(--ev-e2); color: var(--ev-nav-texto); text-decoration: none; font-weight: 500; font-size: var(--ev-t-nav); }
   nav.main a[aria-current] { background: var(--ev-fondo); color: var(--ev-texto); }
   nav.main a:hover { background: var(--ev-azul-700); color: #fff; }
   main { padding: var(--ev-e6) 0 var(--ev-e7); }
-  h1 { font-size: var(--ev-t-h1); line-height: 1.2; font-weight: 700; margin: 0 0 var(--ev-e2); }
-  h2 { font-size: var(--ev-t-h2); line-height: 1.25; font-weight: 600; margin: var(--ev-e6) 0 var(--ev-e3); }
-  h3 { font-size: var(--ev-t-h3); font-weight: 600; margin: 0 0 var(--ev-e2); }
+  h1, h2, h3 { font-family: var(--ev-fuente-titulo); font-weight: var(--ev-peso-titulo); }
+  h1 { font-size: var(--ev-t-h1); line-height: 1.1; margin: 0 0 var(--ev-e2); }
+  h2 { font-size: var(--ev-t-h2); line-height: 1.1; margin: var(--ev-e6) 0 var(--ev-e3); }
+  h3 { font-size: var(--ev-t-h3); margin: 0 0 var(--ev-e2); }
   .lede { color: var(--ev-texto-suave); max-width: var(--ev-ancho-lectura); margin: 0 0 var(--ev-e5); }
   .card { background: var(--ev-superficie); border: 1px solid var(--ev-borde); border-radius: var(--ev-radio); box-shadow: var(--ev-sombra-1); padding: var(--ev-e5); }
   /* Recorrido */
@@ -50,7 +51,7 @@
   .estado.nodet { color: var(--ev-nodeterminado); background: var(--ev-nodeterminado-fondo); }
   .estado.pend { color: var(--ev-pendiente); background: var(--ev-pendiente-fondo); }
   /* Botones */
-  .btn { font: 600 var(--ev-t-base)/1.2 var(--ev-fuente); padding: 10px var(--ev-e4); border-radius: var(--ev-radio); border: 1px solid transparent; cursor: pointer; }
+  .btn { font: var(--ev-peso-boton) var(--ev-t-base)/1.43 var(--ev-fuente); padding: var(--ev-boton-relleno); box-shadow: none; border-radius: var(--ev-radio); border: 1px solid transparent; cursor: pointer; }
   .btn.primario { background: var(--ev-boton-fondo); color: var(--ev-boton-texto); }
   .btn.primario:hover { background: var(--ev-boton-hover); }
   .btn.secundario { background: var(--ev-superficie); color: var(--ev-azul-700); border-color: var(--ev-azul-700); }
@@ -64,7 +65,7 @@
   .aviso strong { display: block; }
   /* Formulario */
   form.f { display: grid; gap: var(--ev-e4); max-width: var(--ev-ancho-lectura); }
-  label { display: block; font-weight: 600; margin-bottom: var(--ev-e1); }
+  label { display: block; font-size: var(--ev-campo-t); font-weight: 600; margin-bottom: var(--ev-e1); }
   .ayuda { font-size: var(--ev-t-xs); color: var(--ev-texto-suave); margin: var(--ev-e1) 0 0; }
   input[type=text], select, textarea { width: 100%; font: inherit; color: var(--ev-texto); background: var(--ev-superficie); border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio); padding: 8px var(--ev-e3); }
   textarea { min-height: 5rem; }

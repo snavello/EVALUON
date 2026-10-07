@@ -5,19 +5,23 @@ Archivos: `evaluon/static/diseno/tokens.css` (variables) y `docs/diseno/muestra.
 
 ## 1. Lo extraído de la referencia
 
-Fuentes consultadas (solo páginas principales públicas): https://www.arca.gob.ar/ y https://afipcompras.afip.gob.ar/ (2026-10-07).
+Fuentes: https://www.arca.gob.ar/ (estilos calculados medidos en el navegador, 2026-10-07) y la página principal pública de https://afipcompras.afip.gob.ar/ (estructura). ARCA usa el sistema de diseño "Poncho" del Estado argentino sobre Bootstrap 3. Hojas de fuentes cargadas: roboto-fontface, encode-sans-latin y droid-serif. Iconos: Font Awesome y Material Symbols.
 
-**Limitación de la extracción.** La herramienta de lectura entrega el contenido convertido a texto: no expone las hojas de estilo, ni los códigos de color, ni las familias tipográficas declaradas, y el acceso directo desde la terminal estaba bloqueado. Lo que sigue es lo observable en la estructura; lo que no se pudo verificar está marcado. Recomiendo una revisión visual rápida del responsable contra el sitio real antes de aprobar.
+| Aspecto | Valor medido |
+|---|---|
+| Cuerpo | Roboto 16 px, peso 400, interlineado 22,9 px (1,43), texto `#333333`, fondo `#FAFBFC` |
+| Títulos | Roboto peso 500; h1 29 px (interlineado 31,9 px), h2 26 px (28,6 px); algunos h3 en Encode Sans 16 px peso 500 |
+| Navegación | Barra de fondo `#242C4F` con sombra `0 2px 2px rgba(0,0,0,.2)`; enlaces del menú 20 px, peso 500, relleno 6px 5px |
+| Enlaces | `#0072BB`, peso 500 |
+| Botón principal (`.btn`) | Fondo `#139ED9`, texto blanco, peso 700, relleno 8px 10px, radio 4 px, sin sombra |
+| Pie | Fondo `#242C4F`, relleno 24px 0 |
+| Campos | 14 px, peso 600 |
+| Estructura | Columna centrada receptiva; encabezado de ancho completo con menú horizontal y desplegables; tarjetas rectangulares uniformes con ícono; pie en varias columnas |
+| Portal de Compras | Base Bootstrap con tema propio; barra de navegación con colapso en pantallas chicas, tarjetas de acción, modales de aviso (colores y fuentes no medidos) |
 
-| Aspecto | Observado | Fuente |
-|---|---|---|
-| Tipografía | Sans-serif sin remates en todo el sitio; jerarquía por niveles de título (h1 a h3) y texto de cuerpo. Familia y tamaños exactos: no verificados. | ARCA |
-| Estructura | Una sola columna centrada y receptiva; encabezado de ancho completo con logo y menú horizontal con desplegables; carrusel destacado; tarjetas rectangulares uniformes con ícono ("Más consultados"); pie en varias columnas. | ARCA |
-| Superficies | Fondo blanco con secciones en gris suave; texto gris oscuro a negro; azul claro en elementos interactivos; azul marino/negro en zonas de contraste. | ARCA |
-| Componentes | Menú principal con desplegables, bloque de acceso, tarjetas de servicios, botones de llamada a la acción como texto azul enlazado, pie con enlaces agrupados. | ARCA |
-| Portal de Compras | Base Bootstrap (tema propio); barra de navegación con colapso en pantallas chicas, carrusel, tarjetas de acción ("Soy Proveedor", "Procesos de compra"), modales de aviso, búsquedas frecuentes. Colores y fuentes: no verificados. | Portal de Compras |
+Contraste de los pares medidos (para decidir qué adoptar): texto `#333333` sobre `#FAFBFC` 12,20:1; enlace `#0072BB` sobre `#FAFBFC` 4,91:1; blanco sobre `#242C4F` 13,56:1; blanco sobre el botón `#139ED9` solo 3,03:1, por debajo de AA para texto normal. Por eso **no adoptamos el color del botón**, solo su forma.
 
-Rasgos que adoptamos (la forma, no la marca): encabezado oscuro de ancho completo; navegación horizontal simple; contenido en columna centrada con tarjetas rectangulares de bordes finos; fondos claros con contraste fuerte de texto; jerarquía clara de títulos. No se copia logo, escudo, marca ni el color institucional.
+Adoptamos la forma, no la marca: tipografías, escala, pesos, interlineado, relleno de botones, radio de 4 px, barra de navegación oscura con sombra leve, enlaces en peso 500. No se copia logo, escudo ni el color institucional (`#139ED9`, `#0072BB`, `#242C4F`).
 
 ## 2. Propuesta para EVALUON
 
@@ -69,26 +73,33 @@ Justificación: "pendiente" queda dentro de la gama azul. "Cumple" necesita un v
 
 ### 2.3 Tipografía
 
-Familia: **Source Sans 3** (Adobe), licencia **SIL Open Font License 1.1** (libre uso, redistribución y alojamiento propio). Elegida por su legibilidad en tamaños chicos, números tabulares (`font-variant-numeric: tabular-nums`) y buena cobertura del español. Se aloja en `evaluon/static/diseno/fuentes/` (woff2, pesos 400, 600 y 700); `tokens.css` ya declara los `@font-face`. **Pendiente:** los archivos de fuente no se incluyeron porque no hubo acceso a internet desde esta tarea; hay que bajarlos una vez de https://github.com/adobe-fonts/source-sans y guardarlos junto con el texto de la licencia. Mientras tanto la pila cae a Segoe UI y fuentes del sistema, sin servicios externos. Mono (identificadores, citas literales): pila del sistema.
+Para respetar la forma institucional se usan las mismas familias que ARCA:
+- **Roboto** para el texto (licencia Apache 2.0), pesos 400, 500 y 700.
+- **Encode Sans** para los títulos (SIL Open Font License 1.1), pesos 500 y 600.
+
+Ambas son de libre licencia y se alojan en `evaluon/static/diseno/fuentes/` (woff2); `tokens.css` ya declara los `@font-face`, con `local()` primero. **Pendiente de autorización del responsable:** la descarga de los archivos (Roboto: https://github.com/googlefonts/roboto; Encode Sans: https://github.com/thundernixon/Encode-Sans) junto con el texto de cada licencia. Mientras tanto la pila cae a Segoe UI y fuentes del sistema, sin servicios externos. Mono: pila del sistema.
 
 | Nivel | Tamaño | Peso | Interlineado |
 |---|---|---|---|
-| h1 | 34 px (2,125 rem) | 700 | 1,2 |
-| h2 | 26 px (1,625 rem) | 600 | 1,25 |
-| h3 | 20 px (1,25 rem) | 600 | 1,3 |
-| Cuerpo | 16 px | 400 | 1,5 |
-| Destacado | 18 px | 400 | 1,5 |
-| Tabla densa | 14 px | 400 / 600 en encabezados | 1,3 |
-| Notas y etiquetas | 13 px | 400 / 600 | 1,4 |
+| h1 (Encode Sans) | 29 px (1,8125 rem) | 500 | 1,1 |
+| h2 (Encode Sans) | 26 px (1,625 rem) | 500 | 1,1 |
+| h3 (Encode Sans) | 20 px (1,25 rem) | 500 | 1,2 |
+| Cuerpo (Roboto) | 16 px | 400 | 1,43 |
+| Enlaces | 16 px | 500 | 1,43 |
+| Menú | 20 px | 500 | relleno 6px 5px |
+| Botón | 16 px | 700 | relleno 8px 10px |
+| Etiquetas de campo | 14 px | 600 | 1,43 |
+| Tabla densa | 14 px | 400 / 700 en encabezados | 1,3 |
+| Notas | 13 px | 400 / 600 | 1,4 |
 
-Líneas de lectura de hasta 44 rem (unos 75 caracteres).
+Líneas de lectura de hasta 44 rem.
 
 ### 2.4 Espaciado, radios y sombras
 
 - Base de 4 px: 4, 8, 12, 16, 24, 32, 48 (`--ev-e1` a `--ev-e7`).
 - Contenido centrado, máximo 72 rem; margen lateral 16 px (en móvil también 16 px).
-- Radios: 2 px (etiquetas de estado), 4 px (botones, campos, tarjetas), 8 px (diálogos). Esquinas poco redondeadas: aspecto institucional.
-- Sombras casi planas: `0 1px 2px rgba(11,27,51,.10)` para tarjetas; `0 2px 8px rgba(11,27,51,.14)` solo para menús y diálogos. La jerarquía la dan los bordes de 1 px, no las sombras.
+- Radios: 2 px (etiquetas de estado), 4 px (botones, campos, tarjetas, como ARCA), 8 px (diálogos). Esquinas poco redondeadas: aspecto institucional.
+- Sombras casi planas: botones sin sombra; barra de navegación `0 2px 2px rgba(0,0,0,.2)` (medida en ARCA); `0 1px 2px rgba(11,27,51,.10)` para tarjetas; `0 2px 8px rgba(11,27,51,.14)` solo para menús y diálogos. La jerarquía la dan los bordes de 1 px, no las sombras.
 - Texturas: ninguna imagen ni degradado; superficies planas beige con bordes finos.
 
 ### 2.5 Tablas densas (matrices grandes)
@@ -110,6 +121,7 @@ Cálculo: luminancia relativa L = 0,2126 R + 0,7152 G + 0,0722 B con canales lin
 | Texto / superficie secundaria | `#0B1B33` / `#EEE9DC` | 14,21 | sí |
 | Texto / cebra | `#0B1B33` / `#F3EFE4` | 15,00 | sí |
 | Texto / cabecera de tabla | `#0B1B33` / `#E2E7EE` | 13,86 | sí |
+| Cuerpo ARCA, referencia (`#333333` / `#FAFBFC`) | no usado | 12,20 | sí |
 | Texto suave / fondo | `#3E4C63` / `#F7F4EC` | 7,90 | sí |
 | Texto suave / superficie | `#3E4C63` / `#FCFAF5` | 8,32 | sí |
 | Texto suave / superficie secundaria | `#3E4C63` / `#EEE9DC` | 7,16 | sí |
@@ -131,12 +143,11 @@ Cálculo: luminancia relativa L = 0,2126 R + 0,7152 G + 0,0722 B con canales lin
 | Borde de campo / superficie (componente, mínimo 3:1) | `#7A7260` / `#FCFAF5` | 4,57 | sí |
 | Anillo de foco / fondo (mínimo 3:1) | `#1B4F8F` / `#F7F4EC` | 7,46 | sí |
 
-Todas las combinaciones propuestas superan 4,5:1. El script de cálculo no se versiona (es de una sola vez); los códigos de la tabla son los de `tokens.css`.
+Los colores propuestos no cambiaron con la medición, así que no hubo que recalcular. Todas las combinaciones propuestas superan 4,5:1. El script de cálculo no se versiona (es de una sola vez); los códigos de la tabla son los de `tokens.css`.
 
 ## 3. Qué falta decidir
 
 1. Aprobar la gama y el rojo acento (o ajustar tonos tras ver `muestra.html`).
 2. Confirmar si "no cumple" usa el rojo propio (`#7A1626`) o se unifica con el acento.
-3. Autorizar bajar e incorporar los archivos de Source Sans 3 (OFL) a `evaluon/static/diseno/fuentes/`.
-4. Verificar visualmente contra el sitio de ARCA lo que la extracción no pudo confirmar (familias y tamaños exactos).
-5. Una tarea posterior aplicará los tokens a las plantillas.
+3. Autorizar bajar e incorporar los archivos de Roboto (Apache 2.0) y Encode Sans (OFL) a `evaluon/static/diseno/fuentes/`.
+4. Una tarea posterior aplicará los tokens a las plantillas.
