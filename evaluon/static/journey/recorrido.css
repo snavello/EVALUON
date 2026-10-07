@@ -84,3 +84,4 @@
 .pw-icon:hover::after, .pw-icon:focus::after { opacity: 1; visibility: visible; }
 .pw-icon:focus-visible { outline: 2px solid var(--ev-foco); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .pw-icon::after { transition: none; } }
+.pw-sprite { position: absolute; }

@@ -114,3 +114,14 @@ def test_window_uses_guide_tokens_and_no_external_addresses():
     assert "var(--ev-icono-cumple)" in css and "var(--ev-superficie)" in css
     html = (root / "templates" / "journey" / "_window.html").read_text(encoding="utf-8")
     assert "http://" not in html and "https://" not in html
+
+
+def test_window_has_no_inline_styles_or_handlers(client, procedure, two_offers, simulate,
+                                                 operator_user):
+    """REQ-070: la política de contenido solo admite el propio servidor; la ventana no usa
+    estilos ni manejadores en línea."""
+    log_in(client, operator_user)
+    simulate(two_offers, JobStatus.RUNNING, done=1)
+    html = block(client, procedure)
+    assert not re.search(r"\sstyle\s*=", html) and "<style" not in html
+    assert not re.search(r"\son[a-z]+\s*=", html)
