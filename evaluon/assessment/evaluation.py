@@ -615,11 +615,13 @@ def _match(pair, result):
     if kind == "portal":
         return _portal_check(pair, result)[0]
     if kind == "tecnico":
+        # Regla de la spec (enmienda 2026-10-06, "Medición"): «pendiente del informe técnico»
+        # coincide si los dos hechos son iguales a la lista, también cuando el documento no se
+        # encontró (T-175); «no se encontró el documento» sigue coincidiendo en ese caso.
+        outcome_ok = (result.outcome == am.Outcome.NO_DETERMINADO
+                      and result.doubt == am.Doubt.PENDIENTE_INFORME_TECNICO)
         if pair.technical_document == "no_se_encontro":
-            outcome_ok = result.outcome == am.Outcome.SIN_DOCUMENTO
-        else:
-            outcome_ok = (result.outcome == am.Outcome.NO_DETERMINADO
-                          and result.doubt == am.Doubt.PENDIENTE_INFORME_TECNICO)
+            outcome_ok = outcome_ok or result.outcome == am.Outcome.SIN_DOCUMENTO
         return outcome_ok and _facts_check(pair, facts)[0]
     if result.outcome != pair.result:
         # Decisión 1 del responsable: lo externo sin hoja de compliance coincide con lo que

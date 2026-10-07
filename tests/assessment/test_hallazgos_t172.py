@@ -235,6 +235,9 @@ HABILITY = ("El Oferente deberá completar, suscribir y adjuntar la Declaración
     ("La póliza de caución debe estar emitida según los requisitos de la Resolución N° 10/2020 "
      "de la Superintendencia de Seguros de la Nación.", "seguros"),
     ("La Comisión verificará la validez de la póliza de caución.", "seguros"),
+    # T-175: la norma de la Superintendencia sobre pólizas electrónicas es un externo.
+    ("En caso de póliza de seguro de caución electrónica, debe estar emitida a nombre del "
+     "organismo y cumplir la Resolución N° 219/2018.", "seguros"),
     ("Se consultará la póliza presentada ante el organismo de control.", "seguros"),
 ])
 def test_the_catalog_recognizes_the_habilidad_declaration_and_the_policy_validation(text, key):
@@ -253,15 +256,15 @@ def test_the_catalog_recognizes_the_habilidad_declaration_and_the_policy_validat
     "jurisdicción que se agrega como Anexo.",
     "Presentar la póliza de caución en original firmada por el representante.",
     "En caso de póliza de seguro de caución electrónica, debe estar emitida a nombre del "
-    "organismo y cumplir la Resolución N° 219/2018.",
+    "organismo y cumplir la Resolución N° 21/2018.",
 ])
 def test_the_catalog_does_not_mark_other_declarations_or_policies(text):
     """REQ-063, H-C: otra declaración jurada «que se agrega como Anexo», una póliza que el
-    oferente presenta o un número de resolución solo no son externos."""
+    oferente presenta o otro número de resolución no son externos."""
     assert externals.match(text) == []
 
 
-def test_the_rules_version_is_v5():
-    """T-172: la versión de las reglas sube a `reglas-v5`."""
+def test_the_rules_version_is_v6():
+    """T-175: la versión de las reglas sube a `reglas-v6` (T-172 la había subido a v5)."""
     from django.conf import settings
-    assert settings.ASSESSMENT_RULES_VERSION == "reglas-v5"
+    assert settings.ASSESSMENT_RULES_VERSION == "reglas-v6"
