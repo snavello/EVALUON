@@ -169,9 +169,24 @@ class Doubt(models.TextChoices):
     SIN_CORROBORAR = "sin_corroborar", "Sin corroborar"
     CONTRADICCION = "contradiccion", "Contradicción entre documentos"
     LECTURA_INCOMPLETA = "lectura_incompleta", "Lectura incompleta"
-    EXTERNO = "externo", "Requisito que se verifica fuera de la oferta"
+    EXTERNO = "externo", "Falta la hoja de compliance"
     SIN_CITA = "sin_cita", "Sin cita ubicada"
     SIN_DATO = "sin_dato", "Falta un dato"
+    # Motivos de la enmienda de decisiones literales (ADR-0043; REQ-061 a REQ-064): ninguno
+    # es una conclusión sobre la oferta, todos dicen qué falta para poder decir.
+    PENDIENTE_INFORME_TECNICO = (
+        "pendiente_informe_tecnico", "Pendiente del informe técnico")
+    NO_SE_PUDO_LEER = "no_se_pudo_leer", "No se pudo leer"
+    EN_PORTAL = "en_portal", "El documento está en el Portal"
+    FALTA_COINCIDENCIA = "falta_coincidencia", "Falta de coincidencia con el Portal"
+
+
+class Opinion(models.TextChoices):
+    """Opinión técnica informativa del sistema: nunca es el resultado de la fila (REQ-061)."""
+
+    CUMPLE = "cumple", "Cumple"
+    NO_CUMPLE = "no_cumple", "No cumple"
+    NO_DETERMINADO = "no_determinado", "No determinado"
 
 
 class Exigence(models.TextChoices):
@@ -196,7 +211,7 @@ class Result(models.Model):
     )
     outcome = models.CharField("resultado", max_length=20, choices=Outcome.choices)
     # Vacío, o el motivo de un «no determinado».
-    doubt = models.CharField("motivo de la duda", max_length=20, choices=Doubt.choices,
+    doubt = models.CharField("motivo de la duda", max_length=30, choices=Doubt.choices,
                              blank=True)
     exigence = models.CharField("exigencia", max_length=10, choices=Exigence.choices,
                                 blank=True)
@@ -204,6 +219,11 @@ class Result(models.Model):
     # presenta como cita.
     explanation = models.TextField("explicación", blank=True)
     unread_pages_warning = models.BooleanField("hay páginas sin leer", default=False)
+    # Opinión informativa (filas técnicas): no es el resultado ni entra en descartes (REQ-061).
+    opinion = models.CharField("opinión del sistema", max_length=15,
+                               choices=Opinion.choices, blank=True)
+    # Lo verificado por regla y la regla que decidió (`regla`, `version_reglas`, ...; P6).
+    facts = models.JSONField("hechos verificados", default=dict, blank=True)
     # El resultado anterior del mismo par, para el recorrido (REQ-060).
     previous = models.ForeignKey(
         "self", verbose_name="resultado anterior", on_delete=models.PROTECT, null=True,
@@ -218,6 +238,7 @@ class Result(models.Model):
             _valid("outcome", Outcome, "assessment_result_outcome_valid"),
             _valid("doubt", Doubt, "assessment_result_doubt_valid", blank=True),
             _valid("exigence", Exigence, "assessment_result_exigence_valid", blank=True),
+            _valid("opinion", Opinion, "assessment_result_opinion_valid", blank=True),
             # Un «no determinado» siempre dice por qué, y solo él (P3).
             models.CheckConstraint(
                 condition=(Q(outcome=Outcome.NO_DETERMINADO) & ~Q(doubt=""))
@@ -237,15 +258,26 @@ class CitationKind(models.TextChoices):
     PLIEGO = "pliego", "Texto del pliego"
     NORMA = "norma", "Norma"
     RESPUESTA = "respuesta", "Respuesta de la Comisión"
+    PORTAL = "portal", "Dato del Portal"
+
+
+class PortalKind(models.TextChoices):
+    GARANTIA = "garantia", "Garantía"
+    COTIZACION = "cotizacion", "Cotización"
+    TOTAL = "total", "Total"
+    CUIT = "cuit", "CUIT"
 
 
 # Campos propios de cada clase de cita: los de su clase se exigen y los demás quedan vacíos.
 _OFFER_FIELDS = ("document", "reading", "page", "char_start", "char_end")
+_PORTAL_FIELDS = ("portal_item",)
 _OTHER_FIELDS = {
-    CitationKind.OFERTA: ("requirement_quote", "norm_unit", "answer"),
-    CitationKind.PLIEGO: _OFFER_FIELDS + ("norm_unit", "answer"),
-    CitationKind.NORMA: _OFFER_FIELDS + ("requirement_quote", "answer"),
-    CitationKind.RESPUESTA: _OFFER_FIELDS + ("requirement_quote", "norm_unit"),
+    CitationKind.OFERTA: ("requirement_quote", "norm_unit", "answer") + _PORTAL_FIELDS,
+    CitationKind.PLIEGO: _OFFER_FIELDS + ("norm_unit", "answer") + _PORTAL_FIELDS,
+    CitationKind.NORMA: _OFFER_FIELDS + ("requirement_quote", "answer") + _PORTAL_FIELDS,
+    CitationKind.RESPUESTA: _OFFER_FIELDS + ("requirement_quote", "norm_unit")
+    + _PORTAL_FIELDS,
+    CitationKind.PORTAL: _OFFER_FIELDS + ("requirement_quote", "norm_unit", "answer"),
 }
 
 
@@ -305,6 +337,14 @@ class Citation(models.Model):
         "assessment.Answer", verbose_name="respuesta", on_delete=models.PROTECT,
         null=True, blank=True, related_name="citations",
     )
+    # portal: el dato lo escribe el sistema desde las columnas del Portal, nunca el modelo; no
+    # habilita «cumple» ni «no cumple» (P3). `text` y `label` son los de arriba.
+    portal_item = models.ForeignKey(
+        "portal.PortalItem", verbose_name="ítem del Portal", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="assessment_citations",
+    )
+    portal_kind = models.CharField("dato del Portal", max_length=12,
+                                   choices=PortalKind.choices, blank=True)
 
     class Meta:
         db_table = "assessment_citation"
@@ -317,26 +357,35 @@ class Citation(models.Model):
             models.CheckConstraint(
                 condition=_only_if(
                     CitationKind.OFERTA, _OFFER_FIELDS, _OTHER_FIELDS[CitationKind.OFERTA],
-                    extra=Q(char_end__gte=F("char_start")) & ~Q(text="")),
+                    extra=Q(char_end__gte=F("char_start")) & ~Q(text="")
+                    & Q(portal_kind="")),
                 name="assessment_citation_oferta_fields",
             ),
             models.CheckConstraint(
                 condition=_only_if(
                     CitationKind.PLIEGO, ("requirement_quote",),
-                    _OTHER_FIELDS[CitationKind.PLIEGO], extra=~Q(text="")),
+                    _OTHER_FIELDS[CitationKind.PLIEGO],
+                    extra=~Q(text="") & Q(portal_kind="")),
                 name="assessment_citation_pliego_fields",
             ),
             models.CheckConstraint(
                 condition=_only_if(
                     CitationKind.NORMA, ("norm_unit",), _OTHER_FIELDS[CitationKind.NORMA],
-                    extra=~Q(text="") & ~Q(label="")),
+                    extra=~Q(text="") & ~Q(label="") & Q(portal_kind="")),
                 name="assessment_citation_norma_fields",
             ),
             models.CheckConstraint(
                 condition=_only_if(
                     CitationKind.RESPUESTA, ("answer",),
-                    _OTHER_FIELDS[CitationKind.RESPUESTA]),
+                    _OTHER_FIELDS[CitationKind.RESPUESTA], extra=Q(portal_kind="")),
                 name="assessment_citation_respuesta_fields",
+            ),
+            models.CheckConstraint(
+                condition=_only_if(
+                    CitationKind.PORTAL, ("portal_item",),
+                    _OTHER_FIELDS[CitationKind.PORTAL],
+                    extra=~Q(text="") & Q(portal_kind__in=PortalKind.values)),
+                name="assessment_citation_portal_fields",
             ),
         ]
 
@@ -523,4 +572,52 @@ class Answer(models.Model):
             _valid("scope", AnswerScope, "assessment_answer_scope_valid"),
             models.CheckConstraint(condition=~Q(text=""),
                                    name="assessment_answer_text_required"),
+        ]
+
+
+# --- Ok de la Comisión al informe técnico (ADR-0043; REQ-061) ---------------------------------
+
+
+class TechnicalAction(models.TextChoices):
+    DAR_OK = "dar_ok", "Dar el ok del informe técnico"
+    RETIRAR_OK = "retirar_ok", "Retirar el ok"
+
+
+class TechnicalVerdict(models.TextChoices):
+    APTO = "apto", "Apto"
+    NO_APTO = "no_apto", "No apto"
+
+
+class TechnicalOk(models.Model):
+    """El ok de la Comisión de que tiene aprobado el informe técnico de una oferta, entero o
+    por renglón. No se modifica; el ok vigente de un renglón es la última fila que lo nombra.
+    El sistema no lee el informe: `verdicts` copia lo que dice el informe aprobado."""
+
+    offer = models.ForeignKey(
+        Offer, verbose_name="oferta", on_delete=models.PROTECT,
+        related_name="assessment_technical_oks",
+    )
+    # Lista de renglones, o nulo si es todo el informe.
+    items = models.JSONField("renglones", null=True, blank=True)
+    # Renglón -> `apto` o `no_apto`, según el informe técnico aprobado.
+    verdicts = models.JSONField("dictamen por renglón", default=dict, blank=True)
+    action = models.CharField("acción", max_length=12, choices=TechnicalAction.choices)
+    note = models.TextField("nota", blank=True)
+    user = _user_fk("usuario", "assessment_technical_oks")
+    at = models.DateTimeField("momento", default=timezone.now)
+    event = models.ForeignKey(
+        "audit.AuditEvent", verbose_name="hecho registrado", on_delete=models.PROTECT,
+        related_name="assessment_technical_oks",
+    )
+
+    class Meta:
+        db_table = "assessment_technical_ok"
+        verbose_name = "ok del informe técnico"
+        verbose_name_plural = "oks del informe técnico"
+        constraints = [
+            _valid("action", TechnicalAction, "assessment_technical_ok_action_valid"),
+            models.CheckConstraint(
+                condition=~Q(action=TechnicalAction.RETIRAR_OK) | ~Q(note=""),
+                name="assessment_technical_ok_note_required",
+            ),
         ]

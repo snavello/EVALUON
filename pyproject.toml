@@ -50,3 +50,6 @@ packages = []
 DJANGO_SETTINGS_MODULE = "evaluon.settings"
 testpaths = ["tests"]
 addopts = "--strict-markers"
+markers = [
+    "decision_literal: prueba de una decisión literal del responsable (004, ADR-0043)",
+]
