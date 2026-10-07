@@ -1,6 +1,6 @@
 # ADR-0045 · Recorrido del procedimiento: estado calculado, actualización por sondeo local y avance de los pedidos
 
-Estado: propuesto · Fecha: 2026-10-07 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-07 · Decidió: responsable del proyecto (2026-10-07, al aprobar el plan 013)
 
 ## Contexto
 

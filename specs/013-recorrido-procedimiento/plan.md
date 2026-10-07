@@ -1,6 +1,6 @@
 # Plan 013 · Recorrido del procedimiento (aplicación mínima)
 
-Estado: borrador · Fecha: 2026-10-07 · Aprobó: —
+Estado: aprobado · Fecha: 2026-10-07 · Aprobó: responsable del proyecto (2026-10-07: T-184 sí; ficha opcional; sugerencias aparte y visibles; Portal primero)
 
 Spec: `specs/013-recorrido-procedimiento/spec.md` (aprobada el 2026-10-07)
 
@@ -151,3 +151,10 @@ La página no decide ni modifica nada, así que no agrega hechos de auditoría (
 2. **Sugeridos de la matriz.** El plan no cuenta los tramos "sugeridos" como decisión pendiente (no frenan la validación). Si se quiere, se suman a la cuenta de la etapa Matriz.
 3. **Columna `progress` (T-184).** Toca la cola compartida. Si el responsable prefiere no tocarla, se omite y la evaluación muestra "oferta k de N" y el tiempo.
 4. **Etapa Portal opcional.** El plan la trata como opcional (un procedimiento cargado a mano nunca tiene datos del Portal). Confirmar.
+
+## Enmienda 2026-10-07 (decisiones del responsable)
+
+- **Dudas abiertas resueltas:** T-184 (columna `progress`) se hace y deja de ser opcional; la ficha no es obligatoria para evaluar; las sugerencias se muestran aparte de los pendientes y las dos se ven (REQ-072); el Portal es opcional pero es la primera fuente (REQ-071).
+- **REQ-070 · Ventana del proceso (T-187):** un panel en la página de recorrido que muestra, en vivo y en lenguaje llano, los pasos del pedido en curso. Fuente: un registro de pasos por pedido (`progress` de T-184 extendido a una lista corta de los últimos pasos, o los hechos de auditoría que ya escribe cada etapa, lo que sea más simple); se actualiza con el mismo sondeo. Va después de T-184.
+- **REQ-071 · El Portal primero (en T-183):** la entrada ofrece primero "Explorar el Portal" con el enlace del proceso; la carga a mano queda como alternativa y, dentro del recorrido, como complemento. La etapa Portal muestra lo que trajo y, aparte, lo subido a mano.
+- **REQ-072 (en T-180 a T-182):** cada etapa muestra dos cuentas: decisiones pendientes y sugerencias.

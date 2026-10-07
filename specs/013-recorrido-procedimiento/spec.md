@@ -1,6 +1,6 @@
 # Spec 013 · Recorrido del procedimiento (aplicación mínima)
 
-Estado: aprobada · Fecha: 2026-10-07 · Aprobó: responsable del proyecto (2026-10-07)
+Estado: aprobada · Fecha: 2026-10-07 · Aprobó: responsable del proyecto (2026-10-07; enmienda del mismo día con REQ-070 a REQ-072)
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
 
@@ -52,6 +52,21 @@ Sin esa vista no se puede mostrar el producto ni operarlo en el piloto: la evalu
 ## Datos involucrados
 
 Los mismos de las features 003, 004, 008 y 012; la página no agrega datos nuevos. Casos públicos (P4).
+
+## Decisiones del responsable (texto literal)
+
+| Fecha | Tema | Decisión (literal) |
+|---|---|---|
+| 2026-10-07 | Ver el proceso | "me gustaria ver en una ventana el proceso" |
+| 2026-10-07 | Ficha | La ficha de la oferta no es obligatoria para evaluar ("si") |
+| 2026-10-07 | Sugerencias | Se cuentan aparte de las decisiones pendientes, "pero que quede claro que estan ambas" |
+| 2026-10-07 | Portal | "el portal es opcional pero debiera poder ser explorado como primer fuente y no al reves. Asi funciona hoy la comision. Es decir explora porta , muestra que tiene mas lo que se sube a mano como complemento" |
+
+### Enmienda 2026-10-07
+
+- **REQ-070 · Ventana del proceso.** Mientras el sistema trabaja, una ventana (panel) muestra el proceso paso a paso, en vivo y en lenguaje llano: qué documento lee, qué requisito evalúa, qué decidió una regla, cuánto lleva; con la lista de lo hecho y lo que falta.
+- **REQ-071 · El Portal primero.** El alta de un procedimiento empieza explorando el Portal (enlace del proceso); el recorrido muestra lo que trajo el Portal y, aparte, lo que se sube a mano como complemento. La carga a mano sin Portal sigue siendo posible.
+- **REQ-072 · Sugerencias y pendientes.** En cada etapa se ven por separado las decisiones pendientes y las sugerencias, las dos visibles.
 
 ## Preguntas abiertas
 
