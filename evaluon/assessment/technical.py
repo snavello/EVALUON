@@ -30,6 +30,7 @@ from dataclasses import replace
 from django.utils import timezone
 
 from evaluon.assessment import combine
+from evaluon.assessment.portal_facts import _amount
 from evaluon.assessment.models import TechnicalAction, TechnicalVerdict
 from evaluon.offers.models import DocumentKind
 from evaluon.portal.models import PortalOfferData, PortalQuote
@@ -85,13 +86,6 @@ def portal_quote(offer, item):
             .select_related("line").first())
 
 
-def _number(value):
-    if value is None:
-        return "sin dato"
-    text = format(value.normalize(), "f")
-    return text
-
-
 def quote_citation(offer, quote):
     """La cotización como dato citado del Portal (clase `cotizacion`); `None` si la oferta no
     tiene el ítem de origen de sus datos."""
@@ -100,8 +94,8 @@ def quote_citation(offer, quote):
         return None
     return {"item": data.item_id, "kind": "cotizacion",
             "label": f"Portal: cotización del renglón {quote.line.number}",
-            "text": (f"Renglón {quote.line.number}: precio {_number(quote.price)}, "
-                     f"cantidad {_number(quote.quantity)}")}
+            "text": (f"Renglón {quote.line.number}: precio {_amount(quote.price)}, "
+                     f"cantidad {_amount(quote.quantity)}")}
 
 
 def line_state(pair, quote):

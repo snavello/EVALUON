@@ -131,6 +131,9 @@ def evaluation_schema(doc_aliases, support_aliases):
             # Opcional (evaluacion-v4): el alias del documento que debería responder el requisito
             # y tiene una página «no se pudo leer»; vacío si no hay (REQ-064).
             "ilegible": {"type": "string", "enum": ["", *doc_aliases]},
+            # Opcional (evaluacion-v5): texto literal de la oferta con el monto, la forma de la
+            # garantía, el precio o el CUIT que pide el requisito (REQ-062).
+            "datos": {"type": "array", "items": citation, "maxItems": 2},
         },
         "required": ["resultado", "exigencia", "citas", "fundamentos", "explicacion",
                      "externo", "pregunta"],
@@ -151,18 +154,20 @@ class Evaluation:
     question: str = ""
     clause: str = ""        # la cláusula del pliego que contradice un "no cumple" técnico
     unreadable: str = ""    # alias del documento con una página ilegible que podría responder
+    data: list = field(default_factory=list)   # [(alias, texto)] con el monto o el CUIT (REQ-062)
 
     def as_json(self):
         return {"resultado": self.result, "exigencia": self.exigence,
                 "citas": [{"documento": a, "texto": t} for a, t in self.citations],
                 "fundamentos": self.supports, "explicacion": self.explanation,
                 "externo": self.external, "pregunta": self.question,
-                "clausula": self.clause, "ilegible": self.unreadable}
+                "clausula": self.clause, "ilegible": self.unreadable,
+                "datos": [{"documento": a, "texto": t} for a, t in self.data]}
 
 
 _FIELDS = {"resultado", "exigencia", "citas", "fundamentos", "explicacion", "externo",
            "pregunta"}
-_OPTIONAL = {"clausula", "ilegible"}
+_OPTIONAL = {"clausula", "ilegible", "datos"}
 
 
 def parse_evaluation(content, doc_aliases, support_aliases):
@@ -187,6 +192,8 @@ def parse_evaluation(content, doc_aliases, support_aliases):
         raise InvalidOutput("clausula es texto")
     if not isinstance(data.get("ilegible", ""), str):
         raise InvalidOutput("ilegible es texto")
+    if not isinstance(data.get("datos", []), list):
+        raise InvalidOutput("datos es una lista")
     if not isinstance(data["externo"], bool):
         raise InvalidOutput("externo es verdadero o falso")
     citations = []
@@ -196,13 +203,21 @@ def parse_evaluation(content, doc_aliases, support_aliases):
                 or not isinstance(cite["texto"], str)):
             raise InvalidOutput("una cita no tiene documento y texto")
         citations.append((cite["documento"], cite["texto"]))
+    quotes = []
+    for cite in data.get("datos", []):
+        if (not isinstance(cite, dict) or set(cite) != {"documento", "texto"}
+                or not isinstance(cite["documento"], str)
+                or not isinstance(cite["texto"], str)):
+            raise InvalidOutput("un dato no tiene documento y texto")
+        quotes.append((cite["documento"], cite["texto"]))
     supports = [a for a in data["fundamentos"] if isinstance(a, str) and a in support_aliases]
     return Evaluation(
         result=data["resultado"], exigence=data["exigencia"],
         citations=citations[:settings.ASSESSMENT_MAX_CITATIONS],
         supports=list(dict.fromkeys(supports)), explanation=data["explicacion"].strip(),
         external=data["externo"], question=data["pregunta"].strip(),
-        clause=data.get("clausula", "").strip(), unreadable=data.get("ilegible", "").strip())
+        clause=data.get("clausula", "").strip(), unreadable=data.get("ilegible", "").strip(),
+        data=quotes[:2])
 
 
 def correction_for(problem):

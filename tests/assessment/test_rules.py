@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from evaluon.assessment import combine, externals, rules, technical, unreadable
+from evaluon.assessment import combine, externals, portal_facts, rules, technical, unreadable
 
 pytestmark = pytest.mark.django_db
 
@@ -22,9 +22,8 @@ FOUND = {"documento": "pagare.pdf", "documento_id": 1, "archivo": "pagare.pdf", 
 
 
 def test_the_rules_come_in_the_planned_order():
-    """El externo va primero, después el técnico (T-167) y la ilegible; la del Portal se suma en su lugar
-    (T-169) con una línea."""
-    assert rules.RULES == (externals.rule, technical.rule, unreadable.rule)
+    """El externo va primero, después el técnico (T-167), la ilegible y la del Portal (T-169)."""
+    assert rules.RULES == (externals.rule, technical.rule, unreadable.rule, portal_facts.rule)
 
 
 def test_a_pair_no_rule_covers_follows_the_normal_flow():
@@ -56,7 +55,7 @@ def test_an_unreadable_page_applies_to_an_undetermined_pair_and_stamps_the_versi
                      group)
     assert rules.apply(pair, CTX) == "ilegible_informe"
     facts = pair.combined.facts
-    assert facts["regla"] == "ilegible_informe" and facts["version_reglas"] == "reglas-v2"
+    assert facts["regla"] == "ilegible_informe" and facts["version_reglas"] == "reglas-v3"
     assert (facts["ilegible"]["documento"], facts["ilegible"]["pagina"]) == ("pagare.pdf", 2)
     assert "página 2" in pair.combined.question and "«pagare.pdf»" in pair.combined.question
 

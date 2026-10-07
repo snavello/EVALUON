@@ -101,7 +101,7 @@ def sees_message(messages):
 
 
 def says(result, *citations, exigence="condicion", explanation="Porque lo dice el texto.",
-         question="", external=False, supports=(), ilegible=None):
+         question="", external=False, supports=(), ilegible=None, datos=None):
     """La salida de un grupo como la devolvería el modelo. `ilegible` (alias de un documento
     con una página «no se pudo leer») es el campo de `evaluacion-v4`: solo se manda si se pide."""
     answer = {"resultado": result, "exigencia": exigence,
@@ -110,6 +110,8 @@ def says(result, *citations, exigence="condicion", explanation="Porque lo dice e
               "pregunta": question}
     if ilegible is not None:
         answer["ilegible"] = ilegible
+    if datos is not None:
+        answer["datos"] = [{"documento": a, "texto": t} for a, t in datos if a]
     return answer
 
 

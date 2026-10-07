@@ -316,6 +316,9 @@ class PairData:
     rule: str | None = None
     # El resultado vigente del par antes de esta evaluación (para el recorrido).
     previous: object = None
+    # Texto literal de la oferta con el monto o el CUIT (campo `datos`, ya ubicado) que
+    # `portal_facts.py` compara con el Portal (REQ-062).
+    datos: list = field(default_factory=list)
 
 
 class Context:
@@ -407,7 +410,7 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
         messages = prompting.build_evaluation_messages(
             system, docs_text, answers_text, norms_text, requirement_block, correction)
         result = _generate(messages, schema, step, ctx)
-        problem, evaluation, located, backed = None, None, [], None
+        problem, evaluation, located, backed, data_located = None, None, [], None, []
         try:
             evaluation = prompting.parse_evaluation(
                 result.content, list(doc_map), list(support_map))
@@ -427,6 +430,18 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
                 if found is not None:
                     located.append(found)
                     used.add(found.span)
+            for alias, quote in evaluation.data:
+                # `datos`: texto literal con el monto o el CUIT; se ubica como cualquier cita
+                # y solo lo que se ubicó se compara con el Portal (REQ-062).
+                piece = doc_map.get(alias)
+                if piece is None:
+                    step.anomalies.append({"type": ANOMALY_UNKNOWN_ALIAS, "alias": alias})
+                    continue
+                found = citing.locate_quote(piece.doc, quote, ctx.finder,
+                                            {c.span for c in data_located}, step.anomalies,
+                                            others=[p.doc for p in pieces if p is not piece])
+                if found is not None:
+                    data_located.append(found)
             if evaluation.unreadable:
                 # El alias `ilegible` se comprueba contra el informe de lectura (REQ-064).
                 piece = doc_map.get(evaluation.unreadable)
@@ -438,7 +453,10 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             step.parsed = {**evaluation.as_json(),
                            "citas_ubicadas": [{"documento": c.document.pk, "pagina": c.page,
                                                "inicio": c.char_start, "fin": c.char_end}
-                                              for c in located]}
+                                              for c in located],
+                           "datos_ubicados": [{"documento": c.document.pk, "pagina": c.page,
+                                               "inicio": c.char_start, "fin": c.char_end}
+                                              for c in data_located]}
             if evaluation.result in (prompting.CUMPLE, prompting.NO_CUMPLE) and not located:
                 step.anomalies.append({"type": prompting.ANOMALY_NO_CITATION})
                 problem = prompting.ANOMALY_NO_CITATION
@@ -450,6 +468,8 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             correction = prompting.correction_for(problem)
             previous = position
 
+    known = {c.span for c in pair.datos}
+    pair.datos.extend(c for c in data_located if c.span not in known)
     if problem == prompting.ANOMALY_INVALID_OUTPUT:
         return combine.GroupResult(group_index, prompting.NO_DETERMINADO, doubt=combine.DOUBT,
                                    explanation="El modelo no devolvió una salida válida.")
@@ -705,7 +725,10 @@ def _counts(pairs, steps):
             "contrasts": sum(1 for s in steps if s.purpose == Purpose.CONTRASTE),
             "questions": sum(1 for p in pairs if p.combined.question),
             # Cuántos pares decidió cada regla (P6); `sin_regla` sigue el flujo de la 004.
-            "by_rule": by_rule}
+            "by_rule": by_rule,
+            # El origen de las citas del Portal (`portal_item`) de cada par (REQ-062; P6).
+            "portal": {"citations": sum(len(p.combined.portal) for p in pairs),
+                       "items": sorted({d["item"] for p in pairs for d in p.combined.portal})}}
 
 
 def _open_question(offer, requirement):
@@ -930,6 +953,7 @@ def pair_page(user, offer_id, requirement_id, *, channel=Channel.SCREEN):
         raise Result.DoesNotExist("El par no se evaluó.")
     rows = list(result.citations.select_related(
         "document", "reading", "requirement_quote", "norm_unit", "answer__question",
+        "portal_item__page", "portal_item__proposal",
         "answer__answered_by").order_by("order"))
     latest = latest_validated(result.offer.procedure)
     newer = latest if latest is not None and latest.number > result.run.matrix_version.number \
