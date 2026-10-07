@@ -15,11 +15,11 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
 | T-179 | Corte vertical: módulo `journey`, página de recorrido del caso chico con la etapa Evaluación en vivo (sondeo cada 5 s), roles, entrada mínima y las otras cinco etapas como lugares reservados | REQ-065, REQ-066, REQ-067, REQ-068, REQ-069 | — | terminada |
-| T-180 | Etapas Portal, Pliego y circulares, y Matriz: estado, pendientes y enlaces | REQ-066, REQ-068, REQ-069 | T-179 | pendiente |
-| T-181 | Etapa Ofertas: documentos, fichas, estado, pendientes y enlaces | REQ-066, REQ-068, REQ-069 | T-179 | pendiente |
-| T-182 | Etapa Matriz de evaluación: pares por decidir, preguntas abiertas, ok del informe técnico y enlaces | REQ-066, REQ-068, REQ-069 | T-179 | pendiente |
-| T-183 | Entrada completa: procedimientos con etapa actual y pendientes; alta explorando primero el Portal y la carga a mano como complemento (REQ-071) | REQ-065 | T-179 | pendiente |
-| T-184 | Avance fino de los pedidos: columna `progress` en la cola y aviso desde la evaluación y la ficha (aprobada por el responsable, ADR-0045) | REQ-067 | T-179 | pendiente |
+| T-180 | Etapas Portal, Pliego y circulares, y Matriz: estado, pendientes y enlaces | REQ-066, REQ-068, REQ-069 | T-179 | terminada |
+| T-181 | Etapa Ofertas: documentos, fichas, estado, pendientes y enlaces | REQ-066, REQ-068, REQ-069 | T-179 | terminada |
+| T-182 | Etapa Matriz de evaluación: pares por decidir, preguntas abiertas, ok del informe técnico y enlaces | REQ-066, REQ-068, REQ-069 | T-179 | terminada |
+| T-183 | Entrada completa: procedimientos con etapa actual y pendientes; alta explorando primero el Portal y la carga a mano como complemento (REQ-071) | REQ-065 | T-179 | terminada |
+| T-184 | Avance fino de los pedidos: columna `progress` en la cola y aviso desde la evaluación y la ficha (aprobada por el responsable, ADR-0045) | REQ-067 | T-179 | terminada |
 | T-187 | Ventana del proceso: panel en vivo con los pasos del pedido en curso, en lenguaje llano (REQ-070) | REQ-070, REQ-067 | T-184 | pendiente |
 | T-188 | Aplicar la guía visual aprobada (docs/diseno/guia-visual.md, tokens.css): encabezado, recorrido, tablas y estados con íconos de color y nombre al pasar el mouse | REQ-066, REQ-068 | T-179 | pendiente |
 | T-189 | Hoja de compliance por oferta: subirla una vez, rige para todos los requisitos externos de la oferta (reevaluación automática citándola), acceso en la matriz de evaluación (REQ-073) | REQ-073, REQ-063 | T-179 | pendiente |
