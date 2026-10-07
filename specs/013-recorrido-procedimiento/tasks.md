@@ -14,7 +14,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
-| T-179 | Corte vertical: módulo `journey`, página de recorrido del caso chico con la etapa Evaluación en vivo (sondeo cada 5 s), roles, entrada mínima y las otras cinco etapas como lugares reservados | REQ-065, REQ-066, REQ-067, REQ-068, REQ-069 | — | pendiente |
+| T-179 | Corte vertical: módulo `journey`, página de recorrido del caso chico con la etapa Evaluación en vivo (sondeo cada 5 s), roles, entrada mínima y las otras cinco etapas como lugares reservados | REQ-065, REQ-066, REQ-067, REQ-068, REQ-069 | — | terminada |
 | T-180 | Etapas Portal, Pliego y circulares, y Matriz: estado, pendientes y enlaces | REQ-066, REQ-068, REQ-069 | T-179 | pendiente |
 | T-181 | Etapa Ofertas: documentos, fichas, estado, pendientes y enlaces | REQ-066, REQ-068, REQ-069 | T-179 | pendiente |
 | T-182 | Etapa Matriz de evaluación: pares por decidir, preguntas abiertas, ok del informe técnico y enlaces | REQ-066, REQ-068, REQ-069 | T-179 | pendiente |
@@ -22,6 +22,9 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-184 | Avance fino de los pedidos: columna `progress` en la cola y aviso desde la evaluación y la ficha (aprobada por el responsable, ADR-0045) | REQ-067 | T-179 | pendiente |
 | T-187 | Ventana del proceso: panel en vivo con los pasos del pedido en curso, en lenguaje llano (REQ-070) | REQ-070, REQ-067 | T-184 | pendiente |
 | T-188 | Aplicar la guía visual aprobada (docs/diseno/guia-visual.md, tokens.css): encabezado, recorrido, tablas y estados con íconos de color y nombre al pasar el mouse | REQ-066, REQ-068 | T-179 | pendiente |
+| T-189 | Hoja de compliance por oferta: subirla una vez, rige para todos los requisitos externos de la oferta (reevaluación automática citándola), acceso en la matriz de evaluación (REQ-073) | REQ-073, REQ-063 | T-179 | pendiente |
+| T-190 | Informe técnico del área: subirlo (por procedimiento u oferta), el sistema propone apto/no apto por oferta y renglón con cita del informe y la Comisión da el ok (REQ-074) | REQ-074, REQ-061 | T-189 | pendiente |
+| T-191 | Recorrido: cuentas y accesos de hojas de compliance e informes técnicos que faltan en la etapa de evaluación (REQ-073, REQ-074) | REQ-073, REQ-074 | T-182, T-189, T-190 | pendiente |
 | T-185 | Los cinco momentos y los roles con el caso chico: 30 de 30 celdas y enlaces de las seis etapas | REQ-066, REQ-068, REQ-069 | T-180, T-181, T-182 | pendiente |
 | T-186 | Comprobación con el caso-00 desde cero (Coordinador y testeador): cinco momentos, avance en vivo y carga en menos de 2 s | REQ-065, REQ-066, REQ-067, REQ-068, REQ-069 | T-183, T-184, T-185 | pendiente |
 
@@ -117,6 +120,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Nivel de verificación:** plena (verificación del criterio de aceptación).
 - **Umbral (escrito antes):** 30 de 30 celdas (5 momentos por 6 etapas), seis enlaces que responden 200 al evaluador, 0 acciones de decisión del operador. Máximo dos rondas.
 - **Qué hacer:** con el caso chico inventado y los servicios reales (modelo simulado donde haga falta, sin GPU), recorrer los cinco momentos de REQ-066 en este orden: antes de importar (procedimiento vacío), importado (procedimiento, pliego y ofertas cargados), matriz propuesta (borrador con propuestos), matriz validada, evaluación terminada (con pares propuestos). En cada momento comprobar el estado y la cuenta de las seis etapas contra una tabla esperada escrita en el test. Comprobar los enlaces de las seis etapas con pendientes (evaluador) y que el operador no recibe ninguna acción de decisión.
+- **Aviso de tareas anteriores:** (T-179) Sumar tests de la pausa del sondeo con la pestaña oculta y de Stage.suggestions (REQ-072). El runbook de la 013 debe decir que hay que reconstruir la imagen (docker compose build app) para que collectstatic sirva recorrido.js y recorrido.css.
 - **Archivos:** `tests/journey/test_moments.py`, `tests/journey/test_roles.py`, `tests/journey/data/momentos-esperados.yaml`; `specs/013-recorrido-procedimiento/verificacion/T-185.md` (lo deja el testeador).
 - **Verificación:** `pytest tests/journey` en verde y la tabla esperada con los 30 valores correctos. Cualquier diferencia es un hallazgo de la etapa correspondiente: se corrige en una sola tarea de ajuste y se vuelve a correr (una ronda).
 - **No tocar:** el código del módulo salvo en una tarea de ajuste aparte; el caso-00.
