@@ -438,12 +438,15 @@ ASSESSMENT_REQUEST_TIMEOUT_SECONDS = 300
 # modelo por par.
 ASSESSMENT_NORM_UNITS_MAX = 4
 ASSESSMENT_ANSWERS_MAX = 20
+# Filas técnicas (REQ-061, T-167): el contraste por cláusula alimenta la opinión informativa
+# del sistema; apagarlo la deja solo con la lectura por grupos (el resultado no cambia).
+ASSESSMENT_TECHNICAL_OPINION = True
 # Versión de las reglas que deciden sin el modelo (externos, técnico, ilegible, Portal); se
 # copia al registro de cada evaluación (ADR-0043; T-165). Cambia cuando cambia una regla.
-ASSESSMENT_RULES_VERSION = "reglas-v1"
+ASSESSMENT_RULES_VERSION = "reglas-v2"
 # Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150).
 ASSESSMENT_PROMPT_VERSIONS = {
-    "evaluacion": "evaluacion-v3",
+    "evaluacion": "evaluacion-v4",
     "contraste": "contraste-v2",
     "clausulas": "clausulas-v2",
 }

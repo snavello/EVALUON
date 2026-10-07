@@ -62,7 +62,7 @@ ofertas:
       - {requisito: M-002, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-a/constancia-escaneada.pdf, pagina: 1, ancla: "se encuentra inscripto en el registro de proveedores con el número 000123"}]}
       - {requisito: M-003, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-a/certificado-vigencia.pdf, pagina: 1, ancla: "el contrato social de Oferente A Sintético se encuentra vigente"}]}
       - {requisito: M-004, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-a/documento-identidad.pdf, pagina: 1, ancla: "Copia del documento de identidad sintético número 00.000.000"}]}
-      - {requisito: M-005, resultado: no_determinado, base: externa, motivo: falta_hoja_compliance, pregunta: si}
+      - {requisito: M-005, resultado: no_determinado, base: externa, motivo: falta_hoja_compliance}
       - {requisito: M-006, resultado: cumple, base: oferta, portal: {tipo: garantia, valor: "26750"}, citas: [{documento: ofertas/oferente-a/poliza-caucion.pdf, pagina: 1, ancla: "hasta la suma de $ 26.750"}]}
       - {requisito: M-007, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-a/oferta-propuesta.pdf, pagina: 2, ancla: "Los precios se cotizan en pesos con impuestos incluidos."}]}
       - {requisito: M-008, resultado: no_determinado, base: tecnica, motivo: pendiente_informe_tecnico, documento_tecnico: hay, renglon_ofertado: si, dictamen: cumple}
@@ -86,7 +86,7 @@ ofertas:
       - {requisito: M-002, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-b/constancia-escaneada.pdf, pagina: 1, ancla: "se encuentra inscripto en el registro de proveedores con el número 000123"}]}
       - {requisito: M-003, resultado: no_determinado, base: oferta, motivo: lectura_incompleta, pregunta: si, nota: "T-151, corrección por conflicto con el ADR-0038 (regla 3, decisión del Coordinador): la oferta no trae el certificado, pero tiene una página sin leer y no se puede afirmar que el documento falta; no es un no cumple. Antes decía no_se_encontro_documento"}
       - {requisito: M-004, resultado: no_determinado, base: oferta, motivo: no_se_pudo_leer, ilegible: {documento: ofertas/oferente-b/documento-firmado-mixto.pdf, pagina: 2}, pregunta: si, nota: "la copia del documento de identidad está en la página 2, escaneada e ilegible; la página 1 solo dice que se adjunta"}
-      - {requisito: M-005, resultado: no_determinado, base: externa, motivo: falta_hoja_compliance, pregunta: si}
+      - {requisito: M-005, resultado: no_determinado, base: externa, motivo: falta_hoja_compliance}
       - {requisito: M-006, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-b/poliza-caucion.pdf, pagina: 1, ancla: "hasta la suma de $ 25.950"}]}
       - {requisito: M-007, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-b/oferta-propuesta.pdf, pagina: 2, ancla: "Los precios se cotizan en pesos con impuestos incluidos."}]}
       - {requisito: M-008, resultado: no_determinado, base: tecnica, motivo: pendiente_informe_tecnico, documento_tecnico: hay, renglon_ofertado: si, dictamen: cumple}
@@ -110,7 +110,7 @@ ofertas:
       - {requisito: M-002, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-c/constancia-escaneada.pdf, pagina: 1, ancla: "se encuentra inscripto en el registro de proveedores con el número 000123"}]}
       - {requisito: M-003, resultado: no_se_encontro_documento, base: oferta, nota: "T-151: la oferta C se lee completa y no trae el certificado de vigencia del contrato social; no es un no cumple. Antes traía el documento"}
       - {requisito: M-004, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-c/documento-identidad.pdf, pagina: 1, ancla: "Copia del documento de identidad sintético número 00.000.000"}]}
-      - {requisito: M-005, resultado: no_determinado, base: externa, motivo: falta_hoja_compliance, pregunta: si}
+      - {requisito: M-005, resultado: no_determinado, base: externa, motivo: falta_hoja_compliance}
       - {requisito: M-006, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-c/poliza-caucion.pdf, pagina: 1, ancla: "hasta la suma de $ 23.800"}]}
       - {requisito: M-007, resultado: cumple, base: oferta, citas: [{documento: ofertas/oferente-c/oferta-propuesta.pdf, pagina: 2, ancla: "Los precios se cotizan en pesos con impuestos incluidos."}]}
       - {requisito: M-008, resultado: no_determinado, base: tecnica, motivo: pendiente_informe_tecnico, documento_tecnico: hay, renglon_ofertado: si, dictamen: no_cumple, nota: "el pliego pide 75 gramos; ofrece 70"}
@@ -130,4 +130,4 @@ resumen:
   tecnicos: 9            # M-008 a M-010 en las tres ofertas: pendientes del informe técnico
   ilegibles: 1           # M-004 de la oferta B
   portal: 1              # M-006 de la oferta A
-  preguntas_esperadas: 5 # los tres M-005, el M-004 y el M-003 de la oferta B
+  preguntas_esperadas: 2 # el M-004 y el M-003 de la oferta B (falta la hoja de compliance no pregunta, REQ-063)

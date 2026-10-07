@@ -39,7 +39,8 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.ai import generation
 from evaluon.assessment import citations as citing
-from evaluon.assessment import combine, documents, grounds, prompting
+from evaluon.assessment import combine, documents, externals, grounds, prompting, rules
+from evaluon.assessment import unreadable
 from evaluon.assessment.models import (
     Answer,
     Cause,
@@ -83,6 +84,7 @@ ANOMALY_CONTRAST_INVALID = "contraste_invalido"
 ANOMALY_UNREAD_GROUPS = "grupos_sin_leer"
 ANOMALY_VISION_ERRORS = "vision_con_errores"
 ANOMALY_VISION_OVER_LIMIT = "vision_sobre_el_tope"
+ANOMALY_UNREADABLE_NOT_BACKED = unreadable.ANOMALY_NOT_BACKED
 
 
 class EvaluationRefused(ValueError):
@@ -274,6 +276,8 @@ def _parameters():
         "generation_batch_url": settings.GENERATION_BATCH_URL,
         "passage_max_chars": settings.OFFERS_PASSAGE_MAX_CHARS,
         "passage_min_chars": settings.OFFERS_PASSAGE_MIN_CHARS,
+        "rules_version": settings.ASSESSMENT_RULES_VERSION,
+        "technical_opinion": settings.ASSESSMENT_TECHNICAL_OPINION,
     }
 
 
@@ -308,6 +312,8 @@ class PairData:
     anomalies: list = field(default_factory=list)
     seconds: float = 0.0
     contrast: tuple | None = None
+    # La regla de `rules.py` que decidió el par (`None` si ninguna).
+    rule: str | None = None
     # El resultado vigente del par antes de esta evaluación (para el recorrido).
     previous: object = None
 
@@ -401,7 +407,7 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
         messages = prompting.build_evaluation_messages(
             system, docs_text, answers_text, norms_text, requirement_block, correction)
         result = _generate(messages, schema, step, ctx)
-        problem, evaluation, located = None, None, []
+        problem, evaluation, located, backed = None, None, [], None
         try:
             evaluation = prompting.parse_evaluation(
                 result.content, list(doc_map), list(support_map))
@@ -421,6 +427,14 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
                 if found is not None:
                     located.append(found)
                     used.add(found.span)
+            if evaluation.unreadable:
+                # El alias `ilegible` se comprueba contra el informe de lectura (REQ-064).
+                piece = doc_map.get(evaluation.unreadable)
+                backed = None if piece is None else unreadable.resolve(
+                    piece, ctx.offer_text.unread)
+                if backed is None:
+                    step.anomalies.append({"type": ANOMALY_UNREADABLE_NOT_BACKED,
+                                           "alias": evaluation.unreadable})
             step.parsed = {**evaluation.as_json(),
                            "citas_ubicadas": [{"documento": c.document.pk, "pagina": c.page,
                                                "inicio": c.char_start, "fin": c.char_end}
@@ -445,7 +459,7 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             group_index, prompting.NO_DETERMINADO, doubt=combine.NO_CITATION,
             exigence=evaluation.exigence, supports=supports,
             explanation=evaluation.explanation, question=evaluation.question,
-            external=evaluation.external)
+            external=evaluation.external, unreadable=backed)
     if (evaluation.result == prompting.NO_CUMPLE
             and pair.requirement.category == RequirementClass.TECNICO
             and not combine.clause_supported(evaluation.clause, pair.text.text)):
@@ -455,14 +469,14 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             group_index, prompting.NO_DETERMINADO, doubt=combine.NO_DATA,
             exigence=evaluation.exigence, citations=located, supports=supports,
             explanation=f"{evaluation.explanation} {combine.NO_CLAUSE_NOTE}".strip(),
-            question=evaluation.question, external=evaluation.external)
+            question=evaluation.question, external=evaluation.external, unreadable=backed)
     keep = [] if evaluation.result == prompting.NO_CONSTA else located
     return combine.GroupResult(
         group_index, evaluation.result,
         doubt=combine.DOUBT if evaluation.result == prompting.NO_DETERMINADO else "",
         exigence=evaluation.exigence, citations=keep, supports=supports,
         explanation=evaluation.explanation, question=evaluation.question,
-        external=evaluation.external)
+        external=evaluation.external, unreadable=backed)
 
 
 def _read_pair(ctx, pair):
@@ -483,6 +497,10 @@ def _read_pair(ctx, pair):
                                "groups": plan.unread_groups})
     for index, pieces in enumerate(plan.groups):
         pair.groups.append(_group_result(ctx, pair, index, pieces, note if index == 0 else None))
+    if externals.remedied(ctx.offer, pair.requirement):
+        # La Comisión ya subió la hoja: es un documento más y se evalúa por lectura (REQ-063).
+        for group in pair.groups:
+            group.external = False
     pair.combined = combine.combine(
         pair.groups, unread=offer_text.unread, without_reading=offer_text.without_reading,
         unread_groups=plan.unread_groups)
@@ -629,7 +647,8 @@ def _contrast_pair(ctx, pair):
         return
     started = ctx.clock()
     if (combined.outcome == combine.OUT_CUMPLE
-            and pair.requirement.category == RequirementClass.TECNICO):
+            and pair.requirement.category == RequirementClass.TECNICO
+            and settings.ASSESSMENT_TECHNICAL_OPINION):
         _clauses_pair(ctx, pair)
         combined = pair.combined
         if not combined.needs_contrast:
@@ -673,8 +692,10 @@ def _requirements(request, version):
 
 
 def _counts(pairs, steps):
-    by_outcome, by_doubt = {}, {}
+    by_outcome, by_doubt, by_rule = {}, {}, {}
     for pair in pairs:
+        key = pair.rule or "sin_regla"
+        by_rule[key] = by_rule.get(key, 0) + 1
         by_outcome[pair.combined.outcome] = by_outcome.get(pair.combined.outcome, 0) + 1
         if pair.combined.doubt:
             by_doubt[pair.combined.doubt] = by_doubt.get(pair.combined.doubt, 0) + 1
@@ -682,7 +703,9 @@ def _counts(pairs, steps):
             "model_requests": len(steps),
             "retries": sum(1 for s in steps if s.retry_of is not None),
             "contrasts": sum(1 for s in steps if s.purpose == Purpose.CONTRASTE),
-            "questions": sum(1 for p in pairs if p.combined.question)}
+            "questions": sum(1 for p in pairs if p.combined.question),
+            # Cuántos pares decidió cada regla (P6); `sin_regla` sigue el flujo de la 004.
+            "by_rule": by_rule}
 
 
 def _open_question(offer, requirement):
@@ -696,7 +719,8 @@ def _save_pair(run, offer, pair, procedure):
     result = Result.objects.create(
         run=run, offer=offer, requirement=pair.requirement, outcome=combined.outcome,
         doubt=combined.doubt, exigence=combined.exigence, explanation=combined.explanation,
-        unread_pages_warning=combined.unread_warning, previous=pair.previous)
+        unread_pages_warning=combined.unread_warning, facts=combined.facts,
+        opinion=combined.opinion, previous=pair.previous)
     order = 0
 
     def cite(**fields):
@@ -708,6 +732,9 @@ def _save_pair(run, offer, pair, procedure):
         cite(kind=CitationKind.OFERTA, document=found.document, reading=found.reading,
              page=found.page, char_start=found.char_start, char_end=found.char_end,
              text=found.text)
+    for datum in combined.portal:
+        cite(kind=CitationKind.PORTAL, portal_item_id=datum["item"],
+             portal_kind=datum["kind"], label=datum.get("label", ""), text=datum["text"])
     for quote in pair.text.quotes:
         cite(kind=CitationKind.PLIEGO, requirement_quote=quote.quote, text=quote.text,
              original_text=quote.original)
@@ -759,6 +786,9 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
             _read_pair(ctx, pair)
         for pair in pairs:
             _contrast_pair(ctx, pair)
+        # Lo que se decide sin el modelo, después de unir y contrastar y antes de guardar.
+        for pair in pairs:
+            pair.rule = rules.apply(pair, ctx)
         anomalies = [a for pair in pairs for a in pair.anomalies]
         if seen.errors:
             anomalies.append({"type": ANOMALY_VISION_ERRORS, "errors": seen.errors})
@@ -787,7 +817,9 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
                 channel=channel, documents=offer_text.record(),
                 norms=grounds.norms_record(version), models_used=_models(),
                 parameters=_parameters(),
-                prompt_versions=dict(settings.ASSESSMENT_PROMPT_VERSIONS), counts=counts,
+                prompt_versions={**settings.ASSESSMENT_PROMPT_VERSIONS,
+                                 "reglas": settings.ASSESSMENT_RULES_VERSION},
+                counts=counts,
                 timings=timings, anomalies=anomalies, built_at=timezone.now())
             saved = []
             for step in ctx.steps:
@@ -867,6 +899,23 @@ class PairPage:
     # Alguna cita de la oferta cae en una página leída por visión (ADR-0041): el texto es la
     # transcripción del modelo y la persona compara con el original antes de confirmar (P3).
     by_vision: bool = False
+    # Datos del Portal citados (cotización del renglón) y hechos verificados por regla (T-167).
+    portal_citations: list = field(default_factory=list)
+    technical_facts: dict | None = None
+
+
+def _technical_facts(result):
+    """Los hechos de una fila técnica para la pantalla (T-167), o `None` si la fila no los
+    tiene."""
+    facts = result.facts or {}
+    if "documento_tecnico" not in facts:
+        return None
+    labels = {"hay": "hay", "no_se_encontro": "no se encontró", "si": "sí", "no": "no",
+              "no_determinado": "no se pudo determinar"}
+    return {"document": labels.get(facts["documento_tecnico"], facts["documento_tecnico"]),
+            "line": (labels.get(facts["renglon_ofertado"], facts["renglon_ofertado"])
+                     if "renglon_ofertado" in facts else None),
+            "item": facts.get("renglon")}
 
 
 def pair_page(user, offer_id, requirement_id, *, channel=Channel.SCREEN):
@@ -896,5 +945,7 @@ def pair_page(user, offer_id, requirement_id, *, channel=Channel.SCREEN):
         requirement_citations=[c for c in rows if c.kind == CitationKind.PLIEGO],
         norm_citations=[c for c in rows if c.kind == CitationKind.NORMA],
         answer_citations=[c for c in rows if c.kind == CitationKind.RESPUESTA],
+        portal_citations=[c for c in rows if c.kind == CitationKind.PORTAL],
+        technical_facts=_technical_facts(result),
         question=_open_question(result.offer, result.requirement), newer_version=newer,
         decisions=list(Decision.objects.filter(result=result).order_by("at", "pk")))

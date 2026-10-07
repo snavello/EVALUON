@@ -15,16 +15,15 @@ from django.core.management.base import CommandError
 from evaluon.accounts import permissions
 from evaluon.assessment import evaluation as ev
 from evaluon.assessment import models as am
-from tests.assessment.fakes import CASO_CHICO, model, says  # noqa: F401 - `model` es fixture
+from tests.assessment.fakes import (  # noqa: F401 - `model` es fixture
+    CASO_CHICO, ILEGIBLE_NEEDLE, model, model_view, says)
 
 pytestmark = pytest.mark.django_db
 
 LIST = CASO_CHICO / "evaluacion-esperada.yaml"
-# Pares del caso chico cuya regla (T-166, T-167, T-169) todavía no está en esta rama: las filas
-# técnicas (9), el ilegible (1) y el del Portal (1). Con el modelo simulado y sin esas reglas no
-# coinciden; los tipos de par que sí funcionan (oferta y externo) llegan al 100 %. Cuando
-# se integren las reglas, la medición de T-171 los cuenta (esto se aprieta ahí).
-WITHOUT_RULES = 11
+# Pares del caso chico cuya regla todavía no existe: el del Portal (1, llega con T-169). Con el
+# modelo simulado no coincide; el resto llega al 100 %. T-169 lo quita.
+WITHOUT_RULES = 1
 
 
 def oracle_for(raw, *, change=None):
@@ -45,7 +44,7 @@ def oracle_for(raw, *, change=None):
     def oracle(call):
         bidder = next(b for b in by_bidder if b in "".join(call.documents.values()))
         number = int(re.search(r"requisito (\d+)", call.requirement).group(1))
-        entry = by_bidder[bidder][number]
+        entry = model_view(bidder, by_bidder[bidder][number])
         if change is not None:
             other = change(bidder, entry["requisito"], entry, call)
             if other is not None:
@@ -59,6 +58,8 @@ def oracle_for(raw, *, change=None):
                 # (T-156): la última cláusula del requisito, sin las comillas.
                 answer["clausula"] = re.findall(r"«(.*?)»", call.requirement)[-1]
             return answer
+        if entry.get("ilegible"):
+            return says("no_determinado", ilegible=call.alias_with(ILEGIBLE_NEEDLE))
         if entry.get("motivo") == "falta_hoja_compliance":
             return says("no_determinado", external=True)
         return says("no_consta", exigence="documento")
