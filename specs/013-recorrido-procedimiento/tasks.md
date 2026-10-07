@@ -22,7 +22,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-184 | Avance fino de los pedidos: columna `progress` en la cola y aviso desde la evaluación y la ficha (aprobada por el responsable, ADR-0045) | REQ-067 | T-179 | pendiente |
 | T-187 | Ventana del proceso: panel en vivo con los pasos del pedido en curso, en lenguaje llano (REQ-070) | REQ-070, REQ-067 | T-184 | pendiente |
 | T-188 | Aplicar la guía visual aprobada (docs/diseno/guia-visual.md, tokens.css): encabezado, recorrido, tablas y estados con íconos de color y nombre al pasar el mouse | REQ-066, REQ-068 | T-179 | pendiente |
-| T-189 | Hoja de compliance por oferta: subirla una vez, rige para todos los requisitos externos de la oferta (reevaluación automática citándola), acceso en la matriz de evaluación (REQ-073) | REQ-073, REQ-063 | T-179 | pendiente |
+| T-189 | Hoja de compliance por oferta: subirla una vez, rige para todos los requisitos externos de la oferta (reevaluación automática citándola), acceso en la matriz de evaluación (REQ-073) | REQ-073, REQ-063 | T-179 | terminada |
 | T-190 | Informe técnico del área: subirlo (por procedimiento u oferta), el sistema propone apto/no apto por oferta y renglón con cita del informe y la Comisión da el ok (REQ-074) | REQ-074, REQ-061 | T-189 | pendiente |
 | T-191 | Recorrido: cuentas y accesos de hojas de compliance e informes técnicos que faltan en la etapa de evaluación (REQ-073, REQ-074) | REQ-073, REQ-074 | T-182, T-189, T-190 | pendiente |
 | T-185 | Los cinco momentos y los roles con el caso chico: 30 de 30 celdas y enlaces de las seis etapas | REQ-066, REQ-068, REQ-069 | T-180, T-181, T-182 | pendiente |
