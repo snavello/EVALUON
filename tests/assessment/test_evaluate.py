@@ -952,6 +952,11 @@ def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(
         got = results_of(run)
         for number, entry in by_bidder[run.offer.bidder].items():
             result = got[number]
+            if entry["base"] == "tecnica" or entry.get("ilegible") or entry.get("portal"):
+                # Regla nueva (T-170): estos pares se cuentan por tipo y su regla llega con
+                # T-166, T-167 y T-169; los mide `medir_evaluacion` (T-171), no esta prueba.
+                continue
+            questions += am.Question.objects.filter(result=result).count()
             if result.outcome != wanted[entry["resultado"]]:
                 differences.append((run.offer.bidder, entry["requisito"], result.outcome,
                                     result.doubt))
@@ -964,9 +969,10 @@ def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(
                 assert result.doubt == {"falta_hoja_compliance": "externo",
                                         "pagina_ilegible": "lectura_incompleta",
                                         "lectura_incompleta": "lectura_incompleta"}[entry["motivo"]]
-        questions += run.counts["questions"]
     assert differences == []
-    assert questions == raw["resumen"]["preguntas_esperadas"]
+    assert questions == sum(
+        1 for o in raw["ofertas"] for e in o["requisitos"] if e.get("pregunta") == "si"
+        and e["base"] != "tecnica" and not e.get("ilegible") and not e.get("portal"))
     assert not any(r.outcome == "no_cumple" and not offer_cites(r)
                    for run in runs for r in run.results.all())
 
