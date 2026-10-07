@@ -39,8 +39,10 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-170 | Medición con la regla nueva: conteo por tipo de par, `--verificar-decisiones` y actualización de la lista esperada del caso-00 (Coordinador, fuera del repositorio) | REQ-052, REQ-053, REQ-061, REQ-062, REQ-063, REQ-064 | T-165 | pendiente |
 | T-171 | Medir el caso-00 con las decisiones aplicadas (medición final, una sola) | REQ-052, REQ-053, REQ-054, REQ-059, REQ-061, REQ-062, REQ-063, REQ-064 | T-166, T-167, T-168, T-169, T-170 | terminada |
 | T-172 | Corregir los hallazgos de T-171: documento técnico afirmado por una línea de precio (H-3), ilegible del pagaré en todos los pares de la garantía (H-4), M-008 y M-016 externos (H-5), hechos técnicos de una oferta sin ficha (H-6) | REQ-061, REQ-063, REQ-064 | T-171 | terminada |
-| T-173 | Medir el caso-00 con los datos del Portal cargados (ronda 2, la última, ADR-0025) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-172, T-174 | pendiente |
+| T-173 | Medir el caso-00 con los datos del Portal cargados (ronda 2, la última, ADR-0025) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-172, T-174 | terminada |
 | T-174 | Emparejar las ofertas del Portal con las cargadas a mano (CUIT o nombre normalizado, como propuesta del evaluador), necesario para cargar el Portal del caso-00 | REQ-062 | — | terminada |
+| T-175 | Completar REQ-062 y corregir el medidor tras T-173: cita del Portal de la cotización y de la garantía cuando la oferta no la trae; la medición cuenta la fila técnica pendiente con hechos correctos aunque falte el documento; externos de habilidad y de la póliza electrónica reconocidos por el título del tramo y la norma de la Superintendencia (ronda extra por requisito incompleto, ADR-0025) | REQ-052, REQ-062, REQ-063 | T-173 | pendiente |
+| T-176 | Medir el caso-00 después de T-175 (medición final) | REQ-052, REQ-061, REQ-062, REQ-063, REQ-064 | T-175 | pendiente |
 
 ## Paralelismo
 
