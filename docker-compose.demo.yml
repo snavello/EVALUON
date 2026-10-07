@@ -1,0 +1,166 @@
+# Instancia de demostración (feature 013, specs/013-recorrido-procedimiento/demo.md).
+# Segunda aplicación con su propia base vacía, aparte de la de trabajo: proyecto
+# `evaluon-demo`, base propia (`demo_db`, volumen `demo_pgdata`), `demo_app`, `demo_worker`
+# y `demo_portal_worker`. NO levanta modelos: comparte los de la pila `evaluon`
+# (generation, generation_batch, embeddings, reranker) por su red `evaluon_internal`, que
+# tiene que estar levantada. No toca ningún contenedor ni volumen `evaluon-*`.
+#
+# Los nombres de servicio llevan el prefijo `demo_` a propósito: en la red compartida cada
+# servicio se alcanza por su nombre, y `db` o `app` chocarían con los de la pila real.
+# La base de la demostración está solo en `demo_internal` (sin salida y sin puertos).
+# P4: solo `demo_portal_worker` está en `demo_egress` (salida a internet, código limitado a
+# PORTAL_ALLOWED_HOSTS); `demo_app` y `demo_worker` no. Los secretos van en un archivo
+# fuera del repositorio (--env-file); ver scripts/demo.sh.
+
+name: evaluon-demo
+
+x-demo-app: &demo-app
+  # La misma imagen ya construida para la pila real (no se reconstruye ni se retaga).
+  image: evaluon-app:local
+  pull_policy: never
+  environment:
+    DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Falta DJANGO_SECRET_KEY (archivo de --env-file)}
+    DJANGO_DEBUG: "false"
+    DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+    POSTGRES_DB: evaluon_demo
+    POSTGRES_USER: evaluon_demo
+    POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD (archivo de --env-file)}"
+    POSTGRES_HOST: demo_db
+    POSTGRES_PORT: "5432"
+    # Modelos compartidos de la pila `evaluon`, por los mismos valores que usa su .env.
+    GENERATION_URL: http://generation:8080
+    GENERATION_BATCH_URL: http://generation_batch:8080
+    EMBEDDINGS_URL: http://embeddings:8080
+    RERANKER_URL: http://reranker:8080
+    GENERATION_MODEL_ALIAS: ${GENERATION_MODEL_ALIAS:-gemma-4-12b-it-qat-q4_0}
+    GENERATION_MODEL_FILE: ${GENERATION_MODEL_FILE:-gemma-4-12b-it-qat-q4_0.gguf}
+    GENERATION_MODEL_SHA256: ${GENERATION_MODEL_SHA256:-93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b}
+    GENERATION_CTX_SIZE: "${GENERATION_CTX_SIZE:-16384}"
+    GENERATION_BATCH_CTX_SIZE: "${GENERATION_BATCH_CTX_SIZE:-32768}"
+    GENERATION_BATCH_MODEL_ALIAS: ${GENERATION_BATCH_MODEL_ALIAS:-${GENERATION_MODEL_ALIAS:-gemma-4-12b-it-qat-q4_0}}
+    GENERATION_BATCH_MODEL_FILE: ${GENERATION_BATCH_MODEL_FILE:-${GENERATION_MODEL_FILE:-gemma-4-12b-it-qat-q4_0.gguf}}
+    GENERATION_BATCH_MODEL_SHA256: ${GENERATION_BATCH_MODEL_SHA256:-${GENERATION_MODEL_SHA256:-93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b}}
+    GENERATION_BATCH_MMPROJ_FILE: ${GENERATION_BATCH_MMPROJ_FILE:-mmproj-gemma-4-12b-it-qat-q4_0.gguf}
+    GENERATION_BATCH_MMPROJ_SHA256: ${GENERATION_BATCH_MMPROJ_SHA256:-cb018338a7538a9814d994bfe54644c71eb7ed54e31eae2f721e45fd3c260da7}
+    EMBEDDINGS_MODEL_ALIAS: ${EMBEDDINGS_MODEL_ALIAS:-bge-m3}
+    EMBEDDINGS_MODEL_FILE: ${EMBEDDINGS_MODEL_FILE:-bge-m3-FP16.gguf}
+    EMBEDDINGS_MODEL_SHA256: ${EMBEDDINGS_MODEL_SHA256:-daec91ffb5dd0c27411bd71f29932917c49cf529a641d0168496c3a501e3062c}
+    RERANKER_MODEL_ALIAS: ${RERANKER_MODEL_ALIAS:-bge-reranker-v2-m3}
+    RERANKER_MODEL_FILE: ${RERANKER_MODEL_FILE:-bge-reranker-v2-m3-FP16.gguf}
+    RERANKER_MODEL_SHA256: ${RERANKER_MODEL_SHA256:-5df93be121c09c43432102ad2b9569d369ccb85c209ca7583e8ccd28f0e41b88}
+    PORTAL_ALLOWED_HOSTS: ${PORTAL_ALLOWED_HOSTS:-afipcompras.afip.gob.ar}
+    PORTAL_TIMEOUT_SECONDS: "${PORTAL_TIMEOUT_SECONDS:-30}"
+    PORTAL_MAX_BYTES: "${PORTAL_MAX_BYTES:-52428800}"
+    PORTAL_PAUSE_SECONDS: "${PORTAL_PAUSE_SECONDS:-2}"
+    PORTAL_REVIEW_HOUR: "${PORTAL_REVIEW_HOUR:-7}"
+    PORTAL_USER_AGENT: ${PORTAL_USER_AGENT:-EVALUON/1.0 (lectura de procesos publicos)}
+  volumes:
+    - ./evaluon:/app/evaluon:ro
+    - ./tests:/app/tests:ro
+    - ./scripts:/app/scripts:ro
+    - ./manage.py:/app/manage.py:ro
+    - ./pyproject.toml:/app/pyproject.toml:ro
+    - ./corpus:/app/corpus:ro
+  networks:
+    - demo_internal
+
+services:
+  demo_db:
+    # Misma imagen (y huella) que `db` de la pila real; base y usuario propios, volumen propio.
+    image: pgvector/pgvector:0.8.7-pg17-bookworm@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
+    environment:
+      POSTGRES_DB: evaluon_demo
+      POSTGRES_USER: evaluon_demo
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD (archivo de --env-file)}"
+    volumes:
+      - demo_pgdata:/var/lib/postgresql/data
+    networks:
+      - demo_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: "no"
+
+  demo_migrate:
+    <<: *demo-app
+    command: ["bash", "scripts/migrate_on_start.sh"]
+    depends_on:
+      demo_db:
+        condition: service_healthy
+    restart: "no"
+
+  demo_app:
+    <<: *demo-app
+    command:
+      - gunicorn
+      - evaluon.wsgi:application
+      - --bind
+      - 0.0.0.0:8000
+      - --workers
+      - "1"
+      - --threads
+      - "4"
+      - --timeout
+      - "120"
+      - --access-logfile
+      - "-"
+    ports:
+      - "127.0.0.1:${DEMO_PORT:-8001}:8000"
+    networks:
+      - demo_internal
+      - evaluon_internal   # solo para llegar a los modelos compartidos
+      - demo_web
+    depends_on:
+      demo_db:
+        condition: service_healthy
+      demo_migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/static/css/evaluon.css', timeout=5)"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: "no"
+
+  demo_worker:
+    <<: *demo-app
+    command: ["python", "manage.py", "procesar_pedidos"]
+    networks:
+      - demo_internal
+      - evaluon_internal   # generation_batch, embeddings y reranker compartidos
+    depends_on:
+      demo_db:
+        condition: service_healthy
+      demo_migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  demo_portal_worker:
+    # Igual que `portal_worker`: único con salida a internet (red propia `demo_egress`).
+    <<: *demo-app
+    command: ["python", "manage.py", "procesar_portal"]
+    networks:
+      - demo_internal
+      - demo_egress
+    depends_on:
+      demo_db:
+        condition: service_healthy
+      demo_migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+networks:
+  demo_internal:
+    internal: true
+  demo_egress:
+  demo_web:
+  # Red de la pila real, que debe estar levantada; la demostración no la crea ni la borra.
+  evaluon_internal:
+    external: true
+
+volumes:
+  demo_pgdata:
