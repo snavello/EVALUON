@@ -8,9 +8,11 @@ correspondiente»; «la comision debiera dar el ok de que tiene el informe tecni
 La regla rige por la **categoría** de la fila (`tecnico`, con renglón o sin él), no por lo que
 diga el modelo. Verifica dos hechos y deja el resultado en espera del informe del área:
 
-- `documento_tecnico`: `hay` si la lectura citó un documento de la oferta o la oferta tiene un
-  documento de tipo técnico; `no_se_encontro` si `combine.py` concluyó "no se encontró el
-  documento" (regla 5); `no_determinado` si no.
+- `documento_tecnico`: `hay` solo con un documento técnico real (clasificado como técnico, con
+  nombre o texto de ficha, hoja o especificación); una línea de precio u otra cita de la
+  cotización no cuenta (T-172, H-3). `no_se_encontro` si `combine.py` concluyó "no se encontró el
+  documento" (regla 5) o si la lectura fue completa y no hay ninguno (H-6); `no_determinado` si
+  hay partes sin leer.
 - `renglon_ofertado` (solo en una fila de un renglón): `si` si el Portal tiene una cotización
   con precio del renglón para la oferta (las tablas locales de la 012, sin red) o la lectura
   citó el renglón; `no` si el Portal no la tiene y la lectura completa no lo encontró;
@@ -25,6 +27,7 @@ T-168), la fila se guarda con lo que dice ese informe (apto: cumple; no apto: no
 una reevaluación no pierda el ok. Es la misma fila que escribe `give_ok` (mismos `facts`).
 """
 
+import re
 from dataclasses import replace
 
 from django.utils import timezone
@@ -67,13 +70,46 @@ def _cited(pair):
     return bool(pair.combined.citations) or any(g.citations for g in pair.groups)
 
 
+# Lo que dice un documento técnico real: ficha, hoja técnica, especificación técnica, folleto,
+# catálogo. Se busca en el nombre del archivo, en el título y en el texto citado.
+_TECHNICAL_DOCUMENT = re.compile(
+    r"ficha[\s_-]+t[eé]cnica|hoja[\s_-]+t[eé]cnica"
+    r"|especificaci(?:ón|on|ones)[\s_-]+t[eé]cnicas?"
+    r"|data\s*sheet|folleto|cat[aá]logo|ficha|hoja\s+de\s+(?:datos|producto)",
+    re.IGNORECASE)
+
+
+def _is_technical_document(document):
+    if document is None:
+        return False
+    if document.kind == DocumentKind.TECNICA:
+        return True
+    return bool(_TECHNICAL_DOCUMENT.search(f"{document.title} {document.file_name}"))
+
+
+def _has_technical_document(pair, ctx):
+    """Hay un documento técnico real: uno clasificado como técnico, uno que se llama como una
+    ficha, hoja o especificación, o una cita de la lectura con ese texto. Una línea de precio u
+    otra cita de la cotización no es un documento técnico (T-172, H-3)."""
+    if any(_is_technical_document(d.document)
+           for d in getattr(ctx.offer_text, "documents", []) or []):
+        return True
+    cited = [*pair.combined.citations, *(c for g in pair.groups for c in g.citations)]
+    return any(_is_technical_document(c.document) or _TECHNICAL_DOCUMENT.search(c.text or "")
+               for c in cited)
+
+
 def document_state(pair, ctx):
-    """`hay`, `no_se_encontro` o `no_determinado` (el documento técnico de la oferta)."""
-    typed = any(d.document.kind == DocumentKind.TECNICA
-                for d in getattr(ctx.offer_text, "documents", []) or [])
-    if _cited(pair) or typed:
+    """`hay`, `no_se_encontro` o `no_determinado` (el documento técnico de la oferta).
+
+    `no_se_encontro` cuando la regla 5 de `combine.py` lo concluyó o cuando la lectura fue
+    completa (sin páginas ni documentos sin leer) y no hay ningún documento técnico (T-172,
+    H-6); con partes sin leer no se afirma que falta."""
+    if _has_technical_document(pair, ctx):
         return HAY
     if pair.combined.outcome == combine.OUT_SIN_DOCUMENTO:
+        return NO_SE_ENCONTRO
+    if pair.groups and not pair.combined.unread_warning:
         return NO_SE_ENCONTRO
     return NO_DETERMINADO
 
@@ -177,7 +213,10 @@ def rule(pair, ctx):
     if opinion and combined.explanation:
         explanation += (" La opinión del sistema (información, no es el resultado): "
                         f"{combined.explanation}")
-    outcome, doubt = ((combine.OUT_SIN_DOCUMENTO, "") if document == NO_SE_ENCONTRO
+    # `sin_documento` solo si `combine.py` lo concluyó; si no, la fila queda pendiente del informe.
+    outcome, doubt = ((combine.OUT_SIN_DOCUMENTO, "")
+                      if document == NO_SE_ENCONTRO
+                      and combined.outcome == combine.OUT_SIN_DOCUMENTO
                       else (combine.OUT_NO_DETERMINADO, PENDING))
     if outcome == combine.OUT_SIN_DOCUMENTO:
         explanation = (f"{explanation} La Comisión decide si pide que se subsane.")

@@ -13,13 +13,22 @@ leer». El sistema comprueba que ese documento figure en el informe como no leí
 - si no figura, el alias se descarta con una anomalía y el par sigue su camino (la regla de
   `combine.py` lo deja en `lectura_incompleta`).
 
+**Propagación (T-172, H-4).** Si el modelo señaló un documento ilegible en un par, los demás
+pares de la misma oferta que dependen de ese documento (los del mismo tema: la garantía, con su
+pagaré, su póliza o su fianza) y no llegaron a una conclusión con otro documento quedan igual en
+"no se pudo leer", con el mismo documento y la misma página: `facts.ilegible.propagado = True`.
+Lo que depende de un documento ilegible no se puede evaluar aunque el modelo no lo haya señalado
+en cada par. No se propaga a un par con conclusión (cumple o no cumple) ni a otros temas.
+
 Un documento ilegible no es un documento ausente: no se mezcla con "no se encontró el
 documento". Una conclusión con cita ubicada en otro documento no se pisa.
 """
 
+import re
 from dataclasses import replace
 
 from evaluon.assessment import combine
+from evaluon.assessment.externals import fold
 
 RULE = "ilegible_informe"
 ANOMALY_NOT_BACKED = "ilegible_no_avalado"
@@ -43,6 +52,32 @@ def resolve(piece, unread):
             "archivo": document.file_name, "pagina": first, "paginas": pages}
 
 
+# Temas con que se decide qué pares dependen de un mismo documento (texto sin acentos).
+TOPICS = {
+    "garantia": re.compile(r"garantia|pagare|poliza|caucion|fianza|aval bancario"),
+}
+
+
+def topics_of(text):
+    folded = fold(text)
+    return {name for name, pattern in TOPICS.items() if pattern.search(folded)}
+
+
+def collect(pairs):
+    """Los documentos que el modelo señaló como ilegibles (avalados por el informe) en algún
+    par, con su tema: `[{"found": {...}, "topics": {...}}]`. Se arma una vez por oferta, antes de
+    aplicar las reglas."""
+    flagged = []
+    for pair in pairs:
+        found = next((g.unreadable for g in pair.groups if g.unreadable), None)
+        if found is None:
+            continue
+        topics = topics_of(pair.text.text)
+        if topics:
+            flagged.append({"found": found, "topics": topics})
+    return flagged
+
+
 def question(where):
     """La pregunta fija a la Comisión (REQ-064)."""
     return (f"¿Lo que exige este requisito está en la página {where['pagina']} de "
@@ -59,6 +94,10 @@ def rule(pair, ctx):
     if combined.doubt == combine.CONTRADICTION:
         return None
     found = next((g.unreadable for g in pair.groups if g.unreadable), None)
+    propagated = False
+    if found is None:
+        found = _propagated(pair, ctx)
+        propagated = found is not None
     if found is None:
         return None
     note = (f"No se pudo leer la página {found['pagina']} de «{found['documento']}», que "
@@ -69,4 +108,16 @@ def rule(pair, ctx):
         facts={**combined.facts, "regla": RULE,
                "ilegible": {"documento": found["documento"], "pagina": found["pagina"],
                             "documento_id": found["documento_id"],
-                            "archivo": found["archivo"], "paginas": found["paginas"]}})
+                            "archivo": found["archivo"], "paginas": found["paginas"],
+                            **({"propagado": True} if propagated else {})}})
+
+
+def _propagated(pair, ctx):
+    """El documento ilegible señalado en otro par del mismo tema, si este par depende de él."""
+    mine = topics_of(pair.text.text)
+    if not mine:
+        return None
+    for entry in getattr(ctx, "unreadable_flags", None) or []:
+        if mine & entry["topics"]:
+            return entry["found"]
+    return None

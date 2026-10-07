@@ -40,10 +40,13 @@ def test_the_rules_have_the_technical_one_between_external_and_unreadable():
 
 @pytest.mark.decision_literal
 def test_a_technical_row_with_document_and_portal_quote_is_pending_the_technical_report(
-        offer, operator_user, procedure, model, portal):
+        operator_user, procedure, model, portal):
     """REQ-061, decisión 1: documento técnico y renglón con cotización del Portal quedan como
     hechos; el resultado es «no determinado», «pendiente del informe técnico»; la cotización
-    se cita como dato del Portal."""
+    se cita como dato del Portal. Desde T-172 la ficha técnica hace falta: la línea de precio
+    de la oferta no es un documento técnico."""
+    offer = make_offer(procedure, operator_user, "Oferente con ficha",
+                       {"oferta.pdf": [ROW_ONE], "ficha-tecnica.pdf": ["Ficha técnica: A4."]})
     quote_data(portal, procedure, offer, total=Decimal("900"),
                prices={1: (Decimal("120.50"), Decimal("10"))})
     reads_row_one(model)
@@ -51,7 +54,7 @@ def test_a_technical_row_with_document_and_portal_quote_is_pending_the_technical
     result = row_result(procedure, runs)
     assert (result.outcome, result.doubt) == ("no_determinado", "pendiente_informe_tecnico")
     assert result.facts["regla"] == "tecnico_hechos"
-    assert result.facts["version_reglas"] == "reglas-v3"
+    assert result.facts["version_reglas"] == "reglas-v4"
     assert result.facts["documento_tecnico"] == "hay"
     assert result.facts["renglon_ofertado"] == "si"
     assert result.facts["renglon"] == 1

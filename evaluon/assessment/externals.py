@@ -77,14 +77,26 @@ CATALOG = (
            r"|situacion (?:fiscal|previsional)"),
     _check("seguros", "Superintendencia de Seguros de la Nación",
            r"superintendencia de seguros|\bssn\b"
-           r"|validacion de (?:la |las )?polizas?|validez de (?:la |las )?polizas?"),
+           r"|validacion de (?:la |las )?polizas?|validez de (?:la |las )?polizas?"
+           # T-172 (H-5): la póliza de seguro de caución electrónica que debe estar emitida
+           # según la Resolución 219/2018 de la Superintendencia (se valida fuera de la oferta).
+           r"|resolucion (?:n\S{0,3}\s*)?219/2018"
+           r"|poliza de seguro de caucion electronica.{0,80}(?:emitid|requisitos establecidos)"),
     _check("habilidad_contratar", "habilidad para contratar",
            rf"habilidad para contratar.{{0,120}}{_VERIFIED}"
            rf"|{_VERIFIED}\w*.{{0,120}}habilidad para contratar"
            r"|habilidad para contratar.{0,120}(?:articulo 18|art\. ?18|causas? penal"
            r"|causales? de inhabilidad|sanciones)"
            r"|(?:articulo 18|art\. ?18|causas? penal|causales? de inhabilidad).{0,120}"
-           r"habilidad para contratar"),
+           r"habilidad para contratar"
+           # T-172 (H-5): la declaración jurada de habilidad para contratar del pliego («completar,
+           # suscribir y adjuntar la Declaración Jurada ... Anexo»). La habilidad se chequea afuera
+           # (hoja de compliance); la declaración presentada se cita como información. Solo la
+           # forma del pliego: «presentar la declaración de habilidad firmada» sigue siendo un
+           # documento de la oferta que se evalúa por lectura.
+           r"|completar, suscribir y adjuntar la declaracion jurada.{0,60}"
+           r"(?:habilidad para contratar|que se agrega como anexo)"
+           r"|declaracion jurada habilidad para contratar"),
 )
 
 
