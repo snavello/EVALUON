@@ -70,3 +70,18 @@ def simulate(procedure, matrix, evaluator_user):
         return SimpleNamespace(job=job, request=request, runs=runs)
 
     return build
+
+
+@pytest.fixture
+def progress_steps():
+    """`progress_steps(job, steps, done, total, scope)`: anota en el pedido, con `jobs.report`,
+    los pasos en lenguaje llano (inventados) como lo haría la evaluación."""
+    from evaluon.tenders import jobs
+
+    def apply(job, steps, done=None, total=None, scope=""):
+        for text in steps:
+            jobs.report(job, text, done, total, scope)
+        job.refresh_from_db()
+        return job
+
+    return apply
