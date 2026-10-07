@@ -77,7 +77,7 @@ from evaluon.norms.splitting.canonical import (
 from evaluon.norms.splitting.headings import ANNEX_HEADING, TITLE_HEADING, is_uppercase
 
 # Versión de las reglas de tramos. La lectura la guarda en `tool_versions`.
-RULES_VERSION = "tramos-1"
+RULES_VERSION = "tramos-2"
 
 # Tipos de tramo (`tenders_segment.segment_type`).
 TITULO = "titulo"
@@ -604,9 +604,18 @@ class _Walker:
             return False
         raw = match.group("number")
         levels = tuple(int(part) for part in raw.split("."))
-        if len(levels) == 1 and not match.group("dot"):
-            return False
         rest = text[match.end() :].strip()
+        if len(levels) == 1 and not match.group("dot"):
+            # "5 DEFINICIÓN DEL SERVICIO.": sin punto, solo si es un título en
+            # mayúsculas al comienzo de un párrafo y continúa la numeración (T-178). Si
+            # no, es parte de una oración ("3 UNIDADES") y no abre ni rechaza nada.
+            if not (
+                rest
+                and is_uppercase(rest)
+                and (line.paragraph_start or self._previous_text_closes(number))
+                and self._continues(levels)
+            ):
+                return False
         clause_items = _clause_items(rest)
         title = rest if rest and is_uppercase(rest) else ""
         if not self._continues(levels):

@@ -223,7 +223,7 @@ def test_proposal_records_models_parameters_prompts_regime_and_corpus_version(
     assert parameters["max_output_tokens"] == 4096
     assert parameters["batch_input_tokens"] == 1500
     assert parameters["generation_batch_timeout_seconds"] == 180
-    assert parameters["rules_version"] == "tramos-1"
+    assert parameters["rules_version"] == "tramos-2"
     event = proposal_events().get()
     assert event.outcome == Outcome.OK and event.channel == Channel.COMMAND
     assert event.user == operator_user
