@@ -21,6 +21,7 @@ flowchart LR
   F011["○ 011 · Pautas para documentos legibl…"]:::todo
   F012["▶ 012 · Importación asistida desde el…"]:::active
   F013["▶ 013 · Recorrido del procedimiento (…"]:::active
+  F014["▶ 014 · Aplicación por secciones"]:::active
   F001 --> F002
   F003 --> F002
   F001 --> F003
@@ -42,6 +43,7 @@ flowchart LR
   F004 --> F013
   F008 --> F013
   F012 --> F013
+  F013 --> F014
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -64,6 +66,7 @@ flowchart LR
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
+| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 1 de 7 · Spec | — | — |
 
 <a id="001"></a>
 
@@ -1030,3 +1033,58 @@ flowchart TD
 | REQ-067 | Mientras el sistema trabaja en segundo plano, la página muestra el avance en vivo (tarea, paso, porcentaje o cuenta, tiempo transcurrido) sin recargar, y avisa cuando termina o falla, con el motivo. | T-179, T-184, T-187, T-186 | ▶ en proceso |
 | REQ-068 | Cada etapa muestra cuántas decisiones esperan a la Comisión y enlaza a la pantalla existente donde se toman; el recorrido no duplica esas pantallas. | T-179, T-180, T-181, T-182, T-188, T-185, T-186 | ▶ en proceso |
 | REQ-069 | El recorrido respeta los roles: el operador ve todo y prepara; solo el evaluador ve las acciones de decisión. | T-179, T-180, T-181, T-182, T-185, T-186 | ▶ en proceso |
+
+<a id="014"></a>
+
+## 014 · Aplicación por secciones
+
+**Etapa actual:** 1 de 7 · Spec (spec en borrador) · [carpeta](../specs/014-aplicacion-por-secciones)
+
+```mermaid
+flowchart LR
+  E0["▶ 1. Spec"]:::active --> E1["○ 2. Plan"]:::todo --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
+
+### Qué falta
+
+- **Próximo paso:** Aprobar la spec (compuerta del responsable).
+
+### Qué se hizo
+
+- Nada terminado todavía.
+
+### Requisitos
+
+| Requisito | Descripción | Tareas | Estado |
+|---|---|---|---|
+| REQ-075 | T.1 | — | — |
+| REQ-076 | 1.1 | — | — |
+| REQ-077 | 1.2, T.3 | — | — |
+| REQ-078 | 1.3 | — | — |
+| REQ-079 | 1.4 | — | — |
+| REQ-080 | 2.1 | — | — |
+| REQ-081 | 2.2 | — | — |
+| REQ-082 | 2.3 | — | — |
+| REQ-083 | 3.1 | — | — |
+| REQ-084 | 3.2 | — | — |
+| REQ-085 | 3.3 | — | — |
+| REQ-086 | 3.4 | — | — |
+| REQ-087 | 3.5 | — | — |
+| REQ-088 | 3.6 | — | — |
+| REQ-089 | 4.1 | — | — |
+| REQ-090 | 4.2 | — | — |
+| REQ-091 | 4.3 | — | — |
+| REQ-092 | 4.4 | — | — |
+| REQ-093 | 4.5 | — | — |
+| REQ-094 | 5.1 | — | — |
+| REQ-095 | 5.2 | — | — |
+| REQ-096 | 5.3 | — | — |
+| REQ-097 | T.2 | — | — |
+| REQ-098 | T.4 | — | — |
+| REQ-099 | T.5 | — | — |
+| REQ-100 | T.6 | — | — |
