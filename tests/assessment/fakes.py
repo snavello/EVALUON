@@ -286,3 +286,32 @@ def make_read_document(offer, user, name, pages, *, file_format="pdf", content=N
                    ocr_confidence_avg=spec.ocr_confidence_avg, embedding=vector)
         for spec, vector in zip(specs, vectors, strict=True))
     return document
+
+
+# Las filas técnicas de la lista esperada traen el dictamen y no citas (la regla técnica deja el
+# resultado en espera del informe del área). El modelo simulado necesita un texto donde apoyar su
+# opinión: estas son las frases de los documentos del caso chico, por oferente y requisito.
+TECHNICAL_ANCHORS = {
+    ("A", "M-008"): "Gramaje 75 g/m²",
+    ("A", "M-009"): "Cartucho de tóner negro compatible con la impresora láser del organismo.",
+    ("A", "M-010"): "Archivador de palanca de lomo ancho, tamaño oficio.",
+    ("B", "M-008"): "Gramaje 75 g/m²",
+    ("B", "M-009"): "Cartucho de tóner negro, modelo compatible con impresoras láser del organismo.",
+    ("B", "M-010"): "Archivador de palanca, lomo ancho, tamaño oficio.",
+    ("C", "M-008"): "Gramaje 70 g/m²",
+    ("C", "M-009"): "Cartucho de tóner negro compatible con la impresora láser del organismo.",
+    ("C", "M-010"): "Archivador de palanca con lomo ancho y tamaño oficio.",
+}
+
+
+def model_view(bidder, entry):
+    """La entrada de la lista como la contesta el modelo simulado: una fila técnica contesta su
+    dictamen apoyado en la frase del documento; el resto, tal cual."""
+    if entry.get("base") != "tecnica" or not entry.get("dictamen"):
+        return entry
+    anchor = TECHNICAL_ANCHORS[(bidder.split()[1], entry["requisito"])]
+    return {**entry, "resultado": entry["dictamen"], "citas": [{"ancla": anchor}]}
+
+# La frase de la página legible del documento mixto de la oferta B: con ella el modelo simulado
+# señala el documento que tiene una página «no se pudo leer» (campo `ilegible`, T-166).
+ILEGIBLE_NEEDLE = "Se adjunta la copia del documento de identidad del representante legal."

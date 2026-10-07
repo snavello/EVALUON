@@ -51,7 +51,7 @@ def test_a_technical_row_with_document_and_portal_quote_is_pending_the_technical
     result = row_result(procedure, runs)
     assert (result.outcome, result.doubt) == ("no_determinado", "pendiente_informe_tecnico")
     assert result.facts["regla"] == "tecnico_hechos"
-    assert result.facts["version_reglas"] == "reglas-v1"
+    assert result.facts["version_reglas"] == "reglas-v2"
     assert result.facts["documento_tecnico"] == "hay"
     assert result.facts["renglon_ofertado"] == "si"
     assert result.facts["renglon"] == 1
