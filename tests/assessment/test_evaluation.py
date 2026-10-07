@@ -205,7 +205,9 @@ def test_a_model_that_follows_the_list_reaches_the_threshold(db, operator_user, 
     assert total["contradictions"] == [] and total["no_citation"] == []
     assert total["literal"]["ok"] == total["literal"]["total"] > 0
     assert total["missing_document"] == {"ok": 1, "total": 1, "rate": 1.0}
-    assert total["questions"] == {"ok": 5, "total": 5, "rate": 1.0}
+    raw = yaml.safe_load(LIST.read_text(encoding="utf-8"))
+    asked = sum(e.get("pregunta") == "si" for o in raw["ofertas"] for e in o["requisitos"])
+    assert total["questions"] == {"ok": asked, "total": asked, "rate": 1.0}
     assert total["matrix"]["ok"] == 30
     assert total["discards"]["ok"] == 3
     assert sorted(p.name for p in report.folder.iterdir()) == sorted(ev.RUN_FILE_NAMES)
@@ -472,11 +474,13 @@ def test_an_unreadable_document_matches_only_with_its_document_and_page():
     """REQ-052, REQ-064 (decisión 5): «no se pudo leer» coincide con el documento y la página
     de la lista; con otra página, otro documento o `lectura_incompleta`, no."""
     pair = _unreadable()
-    good = {"ilegible": {"documento": "mixto.pdf", "pagina": 2}}
+    good = {"ilegible": {"documento": "Título del documento", "documento_id": 7,
+                         "archivo": "mixto.pdf", "pagina": 2, "paginas": [2]}}
     assert ev._match(pair, _result(am.Outcome.NO_DETERMINADO, am.Doubt.NO_SE_PUDO_LEER,
                                    facts=good))
-    for facts in ({"ilegible": {"documento": "mixto.pdf", "pagina": 3}},
-                  {"ilegible": {"documento": "otro.pdf", "pagina": 2}}, {}):
+    for facts in ({"ilegible": {"archivo": "mixto.pdf", "pagina": 3, "paginas": [3]}},
+                  {"ilegible": {"archivo": "otro.pdf", "documento": "mixto.pdf",
+                                "pagina": 2}}, {}):
         assert not ev._match(pair, _result(
             am.Outcome.NO_DETERMINADO, am.Doubt.NO_SE_PUDO_LEER, facts=facts))
     assert not ev._match(pair, _result(am.Outcome.NO_DETERMINADO, am.Doubt.LECTURA_INCOMPLETA,

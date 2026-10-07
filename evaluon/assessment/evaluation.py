@@ -595,9 +595,13 @@ def _facts_check(pair, facts):
 
 
 def _unreadable_equal(pair, facts):
+    """El documento por `archivo` (o `documento`, si no trae archivo) y la página por `pagina` o
+    por `paginas`; el título del documento no sirve para comparar (T-166)."""
     found = facts.get("ilegible") or {}
-    return (_name(found.get("documento", "")) == _name(pair.unreadable["documento"])
-            and found.get("pagina") == pair.unreadable["pagina"])
+    wanted = _name(pair.unreadable["documento"])
+    names = {_name(found.get("archivo") or found.get("documento") or "")}
+    pages = {found.get("pagina"), *(found.get("paginas") or [])}
+    return wanted in names and pair.unreadable["pagina"] in pages
 
 
 def _match(pair, result):
