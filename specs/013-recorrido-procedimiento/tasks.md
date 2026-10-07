@@ -21,6 +21,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-183 | Entrada completa: procedimientos con etapa actual y pendientes; alta explorando primero el Portal y la carga a mano como complemento (REQ-071) | REQ-065 | T-179 | pendiente |
 | T-184 | Avance fino de los pedidos: columna `progress` en la cola y aviso desde la evaluación y la ficha (aprobada por el responsable, ADR-0045) | REQ-067 | T-179 | pendiente |
 | T-187 | Ventana del proceso: panel en vivo con los pasos del pedido en curso, en lenguaje llano (REQ-070) | REQ-070, REQ-067 | T-184 | pendiente |
+| T-188 | Aplicar la guía visual aprobada (docs/diseno/guia-visual.md, tokens.css): encabezado, recorrido, tablas y estados con íconos de color y nombre al pasar el mouse | REQ-066, REQ-068 | T-179 | pendiente |
 | T-185 | Los cinco momentos y los roles con el caso chico: 30 de 30 celdas y enlaces de las seis etapas | REQ-066, REQ-068, REQ-069 | T-180, T-181, T-182 | pendiente |
 | T-186 | Comprobación con el caso-00 desde cero (Coordinador y testeador): cinco momentos, avance en vivo y carga en menos de 2 s | REQ-065, REQ-066, REQ-067, REQ-068, REQ-069 | T-183, T-184, T-185 | pendiente |
 

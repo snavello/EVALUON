@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EVALUON · muestra visual</title>
+<link rel="stylesheet" href="../../evaluon/static/diseno/tokens.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; }
+  body { font: var(--ev-t-base)/var(--ev-interlineado) var(--ev-fuente); color: var(--ev-texto); background: var(--ev-fondo); -webkit-font-smoothing: antialiased; }
+  a { color: var(--ev-enlace); }
+  :focus-visible { outline: 3px solid var(--ev-foco); outline-offset: 2px; }
+  h1, h2, h3, h4 { font-family: var(--ev-fuente-titulo); font-weight: 700; text-wrap: balance; }
+  .wrap { max-width: var(--ev-ancho-contenido); margin: 0 auto; padding: 0 clamp(14px, 3vw, 36px); }
+  /* Encabezado: barra oscura, nombre condensado en mayúsculas con filo de acento, usuario a la derecha */
+  header.top { background: var(--ev-encabezado-fondo); color: var(--ev-encabezado-texto); border-bottom: 3px solid var(--ev-rojo); }
+  header.top .wrap { display: flex; align-items: center; gap: 14px; padding-top: 11px; padding-bottom: 11px; }
+  header.top .nombre { font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-marca); line-height: 1; letter-spacing: var(--ev-espaciado-marca); text-transform: uppercase; padding-right: 14px; border-right: 2px solid var(--ev-rojo); white-space: nowrap; }
+  header.top .usuario { margin-left: auto; text-align: right; font-size: var(--ev-t-xs); line-height: 1.35; color: var(--ev-azul-200); }
+  header.top .usuario strong { display: block; color: #fff; font-size: var(--ev-t-sm); }
+  /* Pestañas: condensada en mayúsculas con subrayado grueso en la activa */
+  nav.tabs { background: var(--ev-superficie); border-bottom: 1px solid var(--ev-borde); }
+  nav.tabs ul { display: flex; gap: 2px; list-style: none; padding: 0; overflow-x: auto; }
+  nav.tabs a { display: block; font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: 1rem; letter-spacing: var(--ev-espaciado-pestana); text-transform: uppercase; color: var(--ev-texto-suave); text-decoration: none; padding: 13px 14px 11px; border-bottom: 3px solid transparent; white-space: nowrap; }
+  nav.tabs a:hover { color: var(--ev-texto); }
+  nav.tabs a[aria-current] { color: var(--ev-texto); border-bottom-color: var(--ev-azul-700); }
+  main { padding: 24px 0 70px; }
+  h1 { font-size: clamp(1.9rem, 4.5vw, 3.1rem); line-height: 1; margin: 6px 0 10px; }
+  h2 { font-size: var(--ev-t-h2); line-height: var(--ev-interlineado-titulo); margin: 34px 0 10px; }
+  h3 { font-size: var(--ev-t-h3); letter-spacing: var(--ev-espaciado-titulo); margin-bottom: 6px; }
+  .lede { color: var(--ev-texto-suave); max-width: 80ch; margin-bottom: 18px; }
+  .panel { background: var(--ev-superficie); border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-panel); padding: var(--ev-panel-relleno); box-shadow: var(--ev-sombra-1); }
+  /* Recorrido de etapas */
+  ol.etapas { display: flex; list-style: none; padding: 0; counter-reset: e; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-tarjeta); overflow: hidden; background: var(--ev-superficie); box-shadow: var(--ev-sombra-1); }
+  ol.etapas li { flex: 1; padding: 11px 14px; font-size: var(--ev-t-sm); color: var(--ev-texto-suave); border-right: 1px solid var(--ev-borde); counter-increment: e; }
+  ol.etapas li:last-child { border-right: 0; }
+  ol.etapas li::before { content: counter(e); display: inline-block; width: 1.5rem; height: 1.5rem; line-height: 1.5rem; text-align: center; border-radius: 50%; margin-right: 8px; background: var(--ev-azul-100); color: var(--ev-texto-suave); font-family: var(--ev-fuente-num); font-weight: 700; font-size: var(--ev-t-xs); }
+  ol.etapas li.hecha::before { content: "\2713"; background: var(--ev-azul-700); color: #fff; }
+  ol.etapas li.actual { background: var(--ev-azul-50); color: var(--ev-texto); font-weight: 600; box-shadow: inset 0 -3px 0 var(--ev-azul-700); }
+  ol.etapas li.actual::before { background: var(--ev-azul-900); color: #fff; }
+  /* Tabla densa */
+  .tabla-scroll { overflow-x: auto; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-panel); background: var(--ev-superficie); box-shadow: var(--ev-sombra-1); }
+  table.matriz { border-collapse: collapse; width: 100%; font-size: var(--ev-t-sm); line-height: var(--ev-interlineado-tabla); font-variant-numeric: tabular-nums; }
+  .matriz caption { text-align: left; padding: 12px 10px; font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-lg); letter-spacing: var(--ev-espaciado-titulo); }
+  .matriz th, .matriz td { padding: var(--ev-celda-tabla-densa); border-bottom: 1px solid var(--ev-borde); text-align: left; vertical-align: top; }
+  .matriz thead th { position: sticky; top: 0; background: var(--ev-tabla-cabecera); border-bottom: 2px solid var(--ev-azul-700); font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-xs); letter-spacing: var(--ev-espaciado-etiqueta); text-transform: uppercase; color: var(--ev-texto-suave); white-space: nowrap; padding: var(--ev-celda-tabla); }
+  .matriz tbody tr:nth-child(even) { background: var(--ev-tabla-cebra); }
+  .matriz tbody tr:hover { background: var(--ev-azul-50); }
+  .matriz tbody th { font-weight: 600; }
+  .matriz td.n { text-align: right; font-family: var(--ev-fuente-num); }
+  /* Estado: ícono de color (círculo de 16 px, símbolo distinto); el nombre aparece al pasar el mouse o con el foco */
+  .est { position: relative; display: inline-flex; vertical-align: middle; width: var(--ev-icono-tam); height: var(--ev-icono-tam); border-radius: 50%; cursor: help; }
+  .est svg { width: 100%; height: 100%; display: block; }
+  .est.cumple { color: var(--ev-icono-cumple); }
+  .est.nocumple { color: var(--ev-icono-nocumple); }
+  .est.nodet { color: var(--ev-icono-nodeterminado); }
+  .est.pend { color: var(--ev-icono-pendiente); }
+  .est::after { content: attr(data-nombre); position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%); z-index: 5; background: var(--ev-tooltip-fondo); color: var(--ev-tooltip-texto); font: 600 var(--ev-t-xs)/1.2 var(--ev-fuente); padding: 5px 9px; border-radius: var(--ev-radio-btn); white-space: nowrap; box-shadow: var(--ev-sombra-flotante); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .12s; }
+  .est:hover::after, .est:focus-visible::after { opacity: 1; visibility: visible; }
+  .matriz td.e { text-align: center; }
+  .leyenda { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; font-size: var(--ev-t-sm); color: var(--ev-texto-suave); margin-top: 10px; }
+  .leyenda span.item { display: inline-flex; gap: 6px; align-items: center; }
+  @media (prefers-reduced-motion: reduce) { .est::after { transition: none; } }
+  /* Botones */
+  .btn { font: var(--ev-peso-control) var(--ev-t-ctl)/1.2 var(--ev-fuente); padding: var(--ev-boton-relleno); border-radius: var(--ev-radio-btn); border: 1px solid transparent; cursor: pointer; }
+  .btn.primario { background: var(--ev-boton-fondo); color: var(--ev-boton-texto); }
+  .btn.primario:hover { background: var(--ev-boton-hover); }
+  .btn.secundario { background: transparent; color: var(--ev-texto); border-color: var(--ev-borde-campo); }
+  .btn.secundario:hover { background: var(--ev-azul-50); }
+  header.top .btn.secundario { color: #fff; border-color: rgba(255, 255, 255, .35); padding: 7px 12px; font-size: var(--ev-t-xs); }
+  header.top .btn.secundario:hover { background: var(--ev-azul-800); }
+  .btn.peligro { background: var(--ev-rojo); color: #fff; }
+  .btn.peligro:hover { background: var(--ev-rojo-hover); }
+  .fila { display: flex; gap: 10px; flex-wrap: wrap; }
+  /* Aviso (nota con filete lateral) */
+  .aviso { border-left: 3px solid var(--ev-azul-700); background: var(--ev-azul-50); padding: 10px 14px; border-radius: 0 10px 10px 0; font-size: var(--ev-t-sm); }
+  .aviso.importante { border-left-color: var(--ev-rojo); background: var(--ev-nocumple-fondo); color: var(--ev-nocumple); }
+  .aviso strong { display: block; }
+  /* Formulario */
+  form.f { display: grid; gap: 14px; max-width: 44rem; }
+  label { display: block; font-size: var(--ev-t-sm); font-weight: 600; margin-bottom: 4px; }
+  .ayuda { font-size: var(--ev-t-xs); color: var(--ev-texto-suave); margin-top: 4px; }
+  input[type=text], select, textarea { width: 100%; font: inherit; font-size: var(--ev-t-ctl); color: var(--ev-texto); background: var(--ev-superficie); border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 9px 12px; }
+  textarea { min-height: 5rem; }
+  @media (max-width: 600px) { header.top .wrap { gap: 11px; } header.top .nombre { font-size: 1.625rem; padding-right: 11px; } header.top .usuario { display: none; } ol.etapas { flex-direction: column; } ol.etapas li { border-right: 0; border-bottom: 1px solid var(--ev-borde); } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-cumple" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M4.5 8.3l2.3 2.3 4.7-5" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-nocumple" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M5.2 5.2l5.6 5.6M10.8 5.2l-5.6 5.6" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-nodet" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M6.1 6.2a2 2 0 1 1 2.9 1.8c-.7.4-1 .8-1 1.6" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="12" r="1" fill="#fff"/></symbol>
+  <symbol id="i-pend" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path d="M8 4.2V8l2.6 1.6" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+<header class="top"><div class="wrap">
+  <span class="nombre">EVALUON</span>
+  <span class="usuario"><strong>Comisión Evaluadora</strong>usuario de muestra</span>
+  <button class="btn secundario" type="button">Salir</button>
+</div></header>
+<nav class="tabs" aria-label="Principal"><div class="wrap"><ul>
+  <li><a href="#" aria-current="page">Procesos</a></li><li><a href="#">Pliegos</a></li><li><a href="#">Ofertas</a></li><li><a href="#">Normativa</a></li><li><a href="#">Aportes de la Comisión</a></li>
+</ul></div></nav>
+
+<main><div class="wrap">
+  <h1>Evaluación de ofertas</h1>
+  <p class="lede">Proceso de muestra con datos inventados. En la matriz, pase el mouse o enfoque con el teclado un ícono para ver el nombre del estado. Esta página solo ilustra tipografía, superficies, estados y componentes de la propuesta visual.</p>
+
+  <ol class="etapas" aria-label="Recorrido">
+    <li class="hecha">Pliego</li><li class="hecha">Ofertas</li><li class="actual" aria-current="step">Matriz</li><li>Dictamen</li>
+  </ol>
+
+  <h2>Matriz de cumplimiento</h2>
+  <div class="tabla-scroll"><table class="matriz">
+    <caption>Requisitos del pliego por oferente (datos de muestra)</caption>
+    <thead><tr><th scope="col">N.º</th><th scope="col">Requisito</th><th scope="col">Oferente A</th><th scope="col">Oferente B</th><th scope="col">Oferente C</th><th scope="col" class="n">Folio</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">1</th><td>Garantía de mantenimiento de oferta</td><td class="e"><span class="est cumple" tabindex="0" role="img" title="Cumple" aria-label="Cumple" data-nombre="Cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span></td><td class="e"><span class="est cumple" tabindex="0" role="img" title="Cumple" aria-label="Cumple" data-nombre="Cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span></td><td class="e"><span class="est nocumple" tabindex="0" role="img" title="No cumple" aria-label="No cumple" data-nombre="No cumple"><svg aria-hidden="true"><use href="#i-nocumple"/></svg></span></td><td class="n">12</td></tr>
+      <tr><th scope="row">2</th><td>Constancia de inscripción vigente</td><td class="e"><span class="est cumple" tabindex="0" role="img" title="Cumple" aria-label="Cumple" data-nombre="Cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span></td><td class="e"><span class="est nodet" tabindex="0" role="img" title="No determinado" aria-label="No determinado" data-nombre="No determinado"><svg aria-hidden="true"><use href="#i-nodet"/></svg></span></td><td class="e"><span class="est cumple" tabindex="0" role="img" title="Cumple" aria-label="Cumple" data-nombre="Cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span></td><td class="n">15</td></tr>
+      <tr><th scope="row">3</th><td>Antecedentes de provisión similares</td><td class="e"><span class="est pend" tabindex="0" role="img" title="Pendiente" aria-label="Pendiente" data-nombre="Pendiente"><svg aria-hidden="true"><use href="#i-pend"/></svg></span></td><td class="e"><span class="est cumple" tabindex="0" role="img" title="Cumple" aria-label="Cumple" data-nombre="Cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span></td><td class="e"><span class="est nodet" tabindex="0" role="img" title="No determinado" aria-label="No determinado" data-nombre="No determinado"><svg aria-hidden="true"><use href="#i-nodet"/></svg></span></td><td class="n">21</td></tr>
+      <tr><th scope="row">4</th><td>Plazo de entrega no mayor a 30 días</td><td class="e"><span class="est cumple" tabindex="0" role="img" title="Cumple" aria-label="Cumple" data-nombre="Cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span></td><td class="e"><span class="est nocumple" tabindex="0" role="img" title="No cumple" aria-label="No cumple" data-nombre="No cumple"><svg aria-hidden="true"><use href="#i-nocumple"/></svg></span></td><td class="e"><span class="est cumple" tabindex="0" role="img" title="Cumple" aria-label="Cumple" data-nombre="Cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span></td><td class="n">27</td></tr>
+    </tbody>
+  </table></div>
+  <div class="leyenda" aria-label="Leyenda de estados">
+    <span class="item"><span class="est cumple"><svg aria-hidden="true"><use href="#i-cumple"/></svg></span> Cumple</span>
+    <span class="item"><span class="est nocumple"><svg aria-hidden="true"><use href="#i-nocumple"/></svg></span> No cumple</span>
+    <span class="item"><span class="est nodet"><svg aria-hidden="true"><use href="#i-nodet"/></svg></span> No determinado</span>
+    <span class="item"><span class="est pend"><svg aria-hidden="true"><use href="#i-pend"/></svg></span> Pendiente</span>
+  </div>
+
+  <h2>Avisos</h2>
+  <div class="aviso"><strong>Evaluación guiada</strong>La IA propone y la Comisión decide: cada fila queda sujeta a su revisión.</div>
+  <p></p>
+  <div class="aviso importante" role="alert"><strong>Hay filas sin determinar</strong>Dos requisitos necesitan que la Comisión confirme la evidencia.</div>
+
+  <h2>Formulario y botones</h2>
+  <form class="panel f" onsubmit="return false">
+    <div><label for="req">Requisito</label>
+      <select id="req"><option>1 · Garantía de mantenimiento de oferta</option><option>2 · Constancia de inscripción vigente</option></select></div>
+    <div><label for="nom">Oferente</label><input id="nom" type="text" value="Oferente de muestra S. A.">
+      <p class="ayuda">Nombre tal como figura en la oferta.</p></div>
+    <div><label for="obs">Aporte de la Comisión</label><textarea id="obs"></textarea>
+      <p class="ayuda">Explique el criterio aplicado; sirve para mejorar el sistema.</p></div>
+    <div class="fila"><button class="btn primario" type="submit">Guardar aporte</button><button class="btn secundario" type="button">Cancelar</button><button class="btn peligro" type="button">Descartar</button></div>
+  </form>
+</div></main>
+</body>
+</html>
