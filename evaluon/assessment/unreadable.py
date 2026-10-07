@@ -14,11 +14,12 @@ leer». El sistema comprueba que ese documento figure en el informe como no leí
   `combine.py` lo deja en `lectura_incompleta`).
 
 **Propagación (T-172, H-4).** Si el modelo señaló un documento ilegible en un par, los demás
-pares de la misma oferta que dependen de ese documento (los del mismo tema: la garantía, con su
-pagaré, su póliza o su fianza) y no llegaron a una conclusión con otro documento quedan igual en
+pares de la misma oferta que dependen de ese documento (los que nombran la misma forma de
+garantía, pagaré con pagaré o póliza con póliza, o la misma obligación, y ninguna distinta: una
+«garantía técnica», «de fábrica», «de impugnación» o «de cumplimiento» no lo recibe) y no llegaron a una conclusión con otro documento quedan igual en
 "no se pudo leer", con el mismo documento y la misma página: `facts.ilegible.propagado = True`.
 Lo que depende de un documento ilegible no se puede evaluar aunque el modelo no lo haya señalado
-en cada par. No se propaga a un par con conclusión (cumple o no cumple) ni a otros temas.
+en cada par. No se propaga a un par con conclusión (cumple o no cumple) ni a otros documentos.
 
 Un documento ilegible no es un documento ausente: no se mezcla con "no se encontró el
 documento". Una conclusión con cita ubicada en otro documento no se pisa.
@@ -52,29 +53,66 @@ def resolve(piece, unread):
             "archivo": document.file_name, "pagina": first, "paginas": pages}
 
 
-# Temas con que se decide qué pares dependen de un mismo documento (texto sin acentos).
-TOPICS = {
-    "garantia": re.compile(r"garantia|pagare|poliza|caucion|fianza|aval bancario"),
+# Qué documento de garantía nombra un texto (texto sin acentos): la forma (pagaré, póliza,
+# fianza, aval) y la obligación a la que sirve. Se propaga por el documento, no por la palabra
+# «garantía» (T-172, H-B).
+FORMS = {
+    "pagare": re.compile(r"\bpagares?\b"),
+    "poliza": re.compile(r"\bpolizas?\b|\bcaucion\b|seguros? de caucion"),
+    "fianza": re.compile(r"\bfianzas?\b"),
+    "aval": re.compile(r"\baval(?:es)? bancarios?\b|\bcarta de credito\b"),
+}
+GUARANTEE = re.compile(r"garantia|pagare|poliza|caucion|fianza|aval bancario")
+OBLIGATIONS = {
+    # La garantía que se integra con la oferta.
+    "oferta": re.compile(r"mantenimiento de (?:la )?oferta|(?:con|presentar(?:se)?|presentacion de)"
+                         r" (?:la )?oferta"),
+    "cumplimiento": re.compile(r"cumplimiento (?:del? )?contrato|cumplimiento del contrato"),
+    "impugnacion": re.compile(r"impugnacion"),
+    "tecnica": re.compile(r"garantia (?:tecnica|de fabrica|del fabricante|del bien|de calidad"
+                          r"|de funcionamiento)"),
 }
 
 
-def topics_of(text):
+def forms_of(text):
     folded = fold(text)
-    return {name for name, pattern in TOPICS.items() if pattern.search(folded)}
+    return {name for name, pattern in FORMS.items() if pattern.search(folded)}
+
+
+def obligations_of(text):
+    folded = fold(text)
+    if not GUARANTEE.search(folded):
+        return set()
+    return {name for name, pattern in OBLIGATIONS.items() if pattern.search(folded)}
+
+
+def depends_on(mine, other):
+    """El texto `mine` depende del mismo documento que `other` (ambos: `(formas, obligaciones)`):
+    nombra la misma forma de garantía o la misma obligación, y no sirve a una obligación
+    distinta de la del documento señalado."""
+    forms, obligations = mine
+    other_forms, other_obligations = other
+    if obligations and other_obligations and not obligations & other_obligations:
+        return False
+    return bool(forms & other_forms or obligations & other_obligations)
+
+
+def kinds_of(text):
+    return forms_of(text), obligations_of(text)
 
 
 def collect(pairs):
     """Los documentos que el modelo señaló como ilegibles (avalados por el informe) en algún
-    par, con su tema: `[{"found": {...}, "topics": {...}}]`. Se arma una vez por oferta, antes de
+    par, con sus formas y obligaciones: `[{"found": {...}, "kinds": (...)}]`. Se arma una vez por oferta, antes de
     aplicar las reglas."""
     flagged = []
     for pair in pairs:
         found = next((g.unreadable for g in pair.groups if g.unreadable), None)
         if found is None:
             continue
-        topics = topics_of(pair.text.text)
-        if topics:
-            flagged.append({"found": found, "topics": topics})
+        kinds = kinds_of(pair.text.text)
+        if kinds[0] or kinds[1]:
+            flagged.append({"found": found, "kinds": kinds})
     return flagged
 
 
@@ -113,11 +151,11 @@ def rule(pair, ctx):
 
 
 def _propagated(pair, ctx):
-    """El documento ilegible señalado en otro par del mismo tema, si este par depende de él."""
-    mine = topics_of(pair.text.text)
-    if not mine:
+    """El documento ilegible señalado en otro par, si este par depende del mismo documento."""
+    mine = kinds_of(pair.text.text)
+    if not (mine[0] or mine[1]):
         return None
     for entry in getattr(ctx, "unreadable_flags", None) or []:
-        if mine & entry["topics"]:
+        if depends_on(mine, entry["kinds"]):
             return entry["found"]
     return None

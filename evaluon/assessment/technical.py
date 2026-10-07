@@ -71,16 +71,18 @@ def _cited(pair):
 
 
 # Lo que dice un documento técnico real: ficha, hoja técnica, especificación técnica, folleto,
-# catálogo. Se busca en el nombre del archivo, en el título y en el texto citado.
+# catálogo. Se busca solo en el nombre del archivo y en el título del documento, nunca en el texto
+# citado (una línea de precio de un artículo «folleto» no es un documento técnico, T-172 H-A2).
+# Límites de palabra reales: `_` y `-` separan, una letra o un número pegados no.
 _TECHNICAL_DOCUMENT = re.compile(
-    r"ficha[\s_-]+t[eé]cnica|hoja[\s_-]+t[eé]cnica"
-    r"|especificaci(?:ón|on|ones)[\s_-]+t[eé]cnicas?"
-    r"|data\s*sheet|folleto|cat[aá]logo|ficha|hoja\s+de\s+(?:datos|producto)",
+    r"(?<![^\W_])(?:ficha|hoja[\s_-]+t[eé]cnica|especificaci(?:ón|on|ones)[\s_-]+t[eé]cnicas?"
+    r"|data[\s_-]*sheet|folleto|cat[aá]logo|hoja[\s_-]+de[\s_-]+(?:datos|producto))(?![^\W_])",
     re.IGNORECASE)
 
 
 def _is_technical_document(document):
-    if document is None:
+    """Por tipo, título o nombre del documento; un documento de tipo económica nunca lo es."""
+    if document is None or document.kind == DocumentKind.ECONOMICA:
         return False
     if document.kind == DocumentKind.TECNICA:
         return True
@@ -88,15 +90,15 @@ def _is_technical_document(document):
 
 
 def _has_technical_document(pair, ctx):
-    """Hay un documento técnico real: uno clasificado como técnico, uno que se llama como una
-    ficha, hoja o especificación, o una cita de la lectura con ese texto. Una línea de precio u
-    otra cita de la cotización no es un documento técnico (T-172, H-3)."""
+    """Hay un documento técnico real: uno de la oferta clasificado como técnico o que se llama
+    como una ficha, hoja o especificación, o una cita cuyo documento lo es. El texto citado no
+    cuenta: una línea de precio u otra cita de la cotización no es un documento técnico (T-172,
+    H-3, H-A2)."""
     if any(_is_technical_document(d.document)
            for d in getattr(ctx.offer_text, "documents", []) or []):
         return True
     cited = [*pair.combined.citations, *(c for g in pair.groups for c in g.citations)]
-    return any(_is_technical_document(c.document) or _TECHNICAL_DOCUMENT.search(c.text or "")
-               for c in cited)
+    return any(_is_technical_document(c.document) for c in cited)
 
 
 def document_state(pair, ctx):

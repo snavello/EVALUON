@@ -43,6 +43,9 @@ def fold(text):
 # Verbos con que un pliego dice que algo se comprueba por una consulta de la Comisión.
 _VERIFIED = r"(?:verific|consult|constat|comprob|control|valid)"
 
+# Verbos con que un pliego dice que una póliza se comprueba (no «válida» como adjetivo).
+_POLICY_VERB = r"(?:verific|consult|constat|comprob|validar|validacion|validen?\b)"
+
 
 @dataclass(frozen=True)
 class ExternalCheck:
@@ -76,12 +79,11 @@ CATALOG = (
            r"deuda exigible|existencia de deuda|deuda (?:tributaria|previsional|fiscal)"
            r"|situacion (?:fiscal|previsional)"),
     _check("seguros", "Superintendencia de Seguros de la Nación",
+           # T-172 (H-C): la mención de la Superintendencia, o un verbo de verificación sobre la
+           # póliza. Una póliza que el oferente presenta no es externa.
            r"superintendencia de seguros|\bssn\b"
            r"|validacion de (?:la |las )?polizas?|validez de (?:la |las )?polizas?"
-           # T-172 (H-5): la póliza de seguro de caución electrónica que debe estar emitida
-           # según la Resolución 219/2018 de la Superintendencia (se valida fuera de la oferta).
-           r"|resolucion (?:n\S{0,3}\s*)?219/2018"
-           r"|poliza de seguro de caucion electronica.{0,80}(?:emitid|requisitos establecidos)"),
+           rf"|polizas?.{{0,80}}{_POLICY_VERB}|{_POLICY_VERB}\w*.{{0,80}}polizas?"),
     _check("habilidad_contratar", "habilidad para contratar",
            rf"habilidad para contratar.{{0,120}}{_VERIFIED}"
            rf"|{_VERIFIED}\w*.{{0,120}}habilidad para contratar"
@@ -89,14 +91,17 @@ CATALOG = (
            r"|causales? de inhabilidad|sanciones)"
            r"|(?:articulo 18|art\. ?18|causas? penal|causales? de inhabilidad).{0,120}"
            r"habilidad para contratar"
-           # T-172 (H-5): la declaración jurada de habilidad para contratar del pliego («completar,
-           # suscribir y adjuntar la Declaración Jurada ... Anexo»). La habilidad se chequea afuera
-           # (hoja de compliance); la declaración presentada se cita como información. Solo la
-           # forma del pliego: «presentar la declaración de habilidad firmada» sigue siendo un
-           # documento de la oferta que se evalúa por lectura.
-           r"|completar, suscribir y adjuntar la declaracion jurada.{0,60}"
-           r"(?:habilidad para contratar|que se agrega como anexo)"
-           r"|declaracion jurada habilidad para contratar"),
+           # T-172 (H-C): la declaración jurada de habilidad se reconoce por la palabra
+           # «habilidad» o por los supuestos del artículo 18 junto a la declaración, en la forma
+           # del pliego (completar o anexo); otra declaración jurada «que se agrega como Anexo»
+           # no lo es, y «adjuntar la declaración de habilidad firmada» sigue siendo un
+           # documento de la oferta.
+           r"|(?=.*(?:completar|anexo))(?:.*declaracion jurada.{0,120}habilidad"
+           r"|.*habilidad.{0,120}declaracion jurada)"
+           r"|declaracion jurada.{0,200}(?:articulo 18|art\. ?18|causas? penal|inhabilidad"
+           r"|sanciones)"
+           r"|(?:articulo 18|art\. ?18|causas? penal|inhabilidad|sanciones).{0,200}"
+           r"declaracion jurada"),
 )
 
 
