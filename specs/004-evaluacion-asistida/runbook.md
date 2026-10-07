@@ -4,7 +4,7 @@ Para llegar al sistema funcionando desde un equipo limpio y operar la evaluació
 
 Los comandos se corren desde la raíz del repositorio (Git Bash o PowerShell). `docker compose` usa el proyecto `evaluon`; para pruebas se agrega `-p nombre`. En Git Bash, anteponer `MSYS_NO_PATHCONV=1` a los comandos con rutas que empiezan con `/`.
 
-Estado: preparado, pendiente de la aprobación del responsable (P11). Nada de lo que sigue se aplicó sobre la base real.
+Estado: aprobado y aplicado · Fecha: 2026-10-07 · Aprobó: responsable del proyecto
 
 ## 1. Requisitos
 
