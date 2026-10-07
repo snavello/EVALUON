@@ -23,12 +23,12 @@ from evaluon.tenders.models import Procedure
 MATRIX_TEMPLATE = "assessment/matrix.html"
 
 
-def _render(request, procedure_id, **extra):
+def _render(request, procedure_id, status=200, **extra):
     try:
         page = service.matrix_page(request.user, procedure_id, channel=Channel.SCREEN)
     except Procedure.DoesNotExist:
         raise Http404("No hay un procedimiento con ese número.")
-    return render(request, MATRIX_TEMPLATE, {"page": page, **extra})
+    return render(request, MATRIX_TEMPLATE, {"page": page, **extra}, status=status)
 
 
 @require_GET
