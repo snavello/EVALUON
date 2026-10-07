@@ -39,7 +39,7 @@ DJ_FULL = "La oferta deberá incluir " + DJ
 CONSTANCIA = "la constancia de inscripción en el registro de proveedores"
 MANT = "Los oferentes deberán mantener la oferta durante 60 días corridos."
 MANT_QUOTE = "mantener la oferta durante 60 días corridos"
-NOALT = "No se aceptarán ofertas alternativas sin garantía de mantenimiento de la oferta."
+NOALT = "No se aceptarán ofertas alternativas sin certificado de inscripción en el registro."
 OBJETO = "El objeto de la contratación es la adquisición de bienes sintéticos."
 TECNICO = "Los bienes deberán tener vencimiento mayor a once meses."
 RENGLON = "Bolsa de veinte kilogramos con rótulo sintético."
@@ -802,13 +802,14 @@ def enumeration_pdf():
 
 
 @pytest.mark.parametrize("name", ["extraccion", "completitud"])
-def test_prompts_v2_are_active_and_teach_enumerations_and_effects(name):
-    """REQ-024: las instrucciones activas son las v2; piden una fila por condición en las
+def test_prompts_v3_are_active_and_teach_enumerations_and_effects(name):
+    """REQ-024: las instrucciones activas son las v3 (T-178: suman las obligaciones del
+    adjudicatario) y conservan lo de la v2; piden una fila por condición en las
     enumeraciones y reconocen las condiciones dichas como efecto, con ejemplos inventados.
     Las v1 siguen como estaban."""
     from django.conf import settings
 
-    assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v2"
+    assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v3"
     text = extraction.load_prompt(name)
     for phrase in ("comas o por \"y\"", "se considerará", "se entenderá", "quedará"):
         assert phrase in text

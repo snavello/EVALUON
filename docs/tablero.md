@@ -53,7 +53,7 @@ flowchart LR
 |---|---|---|---|---|
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
-| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 63/65 | ██████████ 97% |
+| [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 5 de 7 · Verificación | 30/30 | ██████████ 100% |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
@@ -63,7 +63,7 @@ flowchart LR
 | 010 · Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | No iniciada | — | — |
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
-| [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 1/13 | █░░░░░░░░░ 8% |
+| [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 8/13 | ██████░░░░ 62% |
 
 <a id="001"></a>
 
@@ -452,6 +452,7 @@ flowchart LR
 - ✓ T-129 · Reconocer supresiones dichas con sustantivo y aplicar la aclaración de un renglón a sus citas (`83bf814` 2026-10-05)
 - ✓ T-137 · Pasada de circulares: revisión obligatoria visible ante un cambio sin resolver y las tres causas de la aceptación a ciegas (`791260a` 2026-10-05, `a2d546c` 2026-10-05, `1159d3b` 2026-10-05, `9e1eff1` 2026-10-05, `c0281a2` 2026-10-05, `25a7b4d` 2026-10-05, `0f14d17` 2026-10-05)
 - ✓ T-147 · Circulares: aviso en la fila que cambia (#183) y medición del criterio de ADR-0034 (`0b214c5` 2026-10-05, `c954243` 2026-10-05, `e7f2554` 2026-10-05)
+- ✓ T-178 · Pliegos nuevos: cláusulas de primer nivel sin punto, recuadros de una columna, obligaciones de ejecución, garantía de mantenimiento como sugerencia con respaldo normativo (prueba con el proceso AABN5) (`1b1621a` 2026-10-07, `0eec096` 2026-10-07, `0dbd700` 2026-10-07, `be3279e` 2026-10-07, `0f0876d` 2026-10-07, `370d0a4` 2026-10-07)
 
 ### Mapa de tareas
 
@@ -522,6 +523,7 @@ flowchart TD
   T129["✓ T-129 · Reconocer supresiones dichas con sustantivo…"]:::done
   T137["✓ T-137 · Pasada de circulares: revisión obligatoria…"]:::done
   T147["✓ T-147 · Circulares: aviso en la fila que cambia (#1…"]:::done
+  T178["✓ T-178 · Pliegos nuevos: cláusulas de primer nivel s…"]:::done
   T067 --> T068
   T068 --> T069
   T067 --> T070
@@ -638,18 +640,18 @@ flowchart TD
 |---|---|---|---|
 | REQ-022 | El sistema debe registrar un procedimiento con su número, tipo, objeto y fecha de autorización, y mostrar el régimen de la AFIP que le corresponde según esa fecha | T-067, T-069, T-075 | ✓ cubierto |
 | REQ-023 | El sistema debe permitir cargar el pliego final de un procedimiento como uno o más documentos, conservando cada original sin cambios | T-067, T-072, T-075 | ✓ cubierto |
-| REQ-024 | El sistema debe proponer, a partir del pliego cargado, la lista de requisitos que debe cumplir una oferta, cada uno clasificado como formal, económico o técnico | T-067, T-070, T-071, T-073, T-074, T-075, T-076, T-077, T-078, T-084, T-090, T-092, T-093, T-094, T-095, T-102, T-103, T-106, T-108, T-111, T-121, T-123, T-125, T-147 | ▶ en proceso |
+| REQ-024 | El sistema debe proponer, a partir del pliego cargado, la lista de requisitos que debe cumplir una oferta, cada uno clasificado como formal, económico o técnico | T-067, T-070, T-071, T-073, T-074, T-075, T-076, T-077, T-078, T-084, T-090, T-092, T-093, T-094, T-095, T-102, T-103, T-106, T-108, T-111, T-121, T-123, T-125, T-147, T-178 | ▶ en proceso |
 | REQ-025 | Cada requisito propuesto debe citar el texto literal del pliego que lo exige, con el documento y la ubicación (página y cláusula, si la hay) | T-067, T-070, T-073, T-074, T-075, T-076, T-077, T-084, T-094, T-097, T-101, T-108 | ✓ cubierto |
 | REQ-026 | La Comisión debe poder confirmar, corregir, quitar o agregar requisitos; cada cambio queda registrado con quién lo hizo y cuándo | T-067, T-068, T-079, T-082, T-088, T-104, T-110 | ✓ cubierto |
 | REQ-027 | Una matriz validada queda fija: cambiarla después genera una versión nueva, sin perder la anterior | T-067, T-068, T-082 | ✓ cubierto |
-| REQ-028 | Cuando el sistema no puede ubicar con certeza un tramo del pliego (texto ilegible, tabla mal leída), debe señalarlo para revisión en lugar de omitirlo | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082, T-098, T-113 | ✓ cubierto |
+| REQ-028 | Cuando el sistema no puede ubicar con certeza un tramo del pliego (texto ilegible, tabla mal leída), debe señalarlo para revisión en lugar de omitirlo | T-067, T-070, T-072, T-073, T-074, T-075, T-077, T-079, T-082, T-098, T-113, T-178 | ✓ cubierto |
 | REQ-029 | Para cada requisito, el sistema debe proponer las consecuencias posibles de no cumplirlo (por ejemplo, desestimación de la oferta o intimación a subsanar), cada una con su fundamento en el pliego o en la norma aplicable; un integrante de la Comisión confirma una. Si el sistema no encuentra fundamento, la consecuencia queda "no determinada" | T-067, T-068, T-080, T-081, T-084, T-122 | ▶ en proceso |
 | REQ-030 | La matriz se propone siempre con un único proceso de revisión, el más completo disponible, y queda registrado con la matriz qué proceso y qué versión de instrucciones se usaron | T-067, T-071, T-073, T-074, T-077, T-078, T-084, T-085, T-089, T-090, T-091, T-094, T-096, T-097, T-099, T-100, T-103, T-108, T-121 | ✓ cubierto |
 | REQ-031 | El pliego final incluye las circulares modificatorias y aclaratorias y las preguntas de los oferentes con sus respuestas, si las hay, cada una con su fecha. Cuando una de ellas cambia o precisa un requisito, la matriz aplica el cambio, muestra los dos textos y cita el documento que lo produjo | T-067, T-072, T-074, T-083, T-094, T-098, T-108, T-113, T-114, T-115, T-116, T-117, T-118, T-119, T-120, T-123, T-124, T-126, T-127, T-128, T-129, T-137, T-147 | ✓ cubierto |
 | REQ-033 | Antes de mostrar la matriz propuesta, el sistema debe descartar las filas que no son requisitos de la oferta y unificar las que repiten la misma condición. Lo descartado no desaparece: queda en una lista aparte, cada fila con su cita y el motivo, que la Comisión puede abrir y devolver a la matriz | T-099, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108, T-125 | ▶ en proceso |
 | REQ-034 | La Comisión debe poder confirmar o quitar de una vez un grupo de requisitos propuestos de un mismo tramo o cláusula; cada fila del grupo queda registrada como si se hubiera revisado por separado, con quién y cuándo | T-104, T-105, T-110, T-112 | ✓ cubierto |
-| REQ-035 | La matriz propuesta debe separar los requisitos que el sistema da por firmes de las **sugerencias de condición**: condiciones plausibles sobre las que el sistema duda. Las sugerencias van en una sección aparte, cada una con su cita y el motivo de la duda; la Comisión decide cada una (o por grupo, REQ-034) si pasa a requisito o se quita, y la matriz no se puede validar mientras quede una sugerencia sin decidir | T-099, T-102, T-103, T-106, T-107, T-108, T-110, T-111, T-112 | ▶ en proceso |
-| REQ-036 | Para cada sugerencia de condición y cada fila dudosa, el sistema debe buscar en la normativa aplicable (según REQ-022) si el régimen exige esa condición a las ofertas; si la encuentra, la muestra con la cita de la norma como respaldo y puede proponerla como requisito. La normativa solo sirve para confirmar: que una condición no figure en la norma nunca es motivo para descartarla, porque el pliego puede agregar exigencias propias | T-099, T-106, T-108, T-109, T-111, T-112 | ▶ en proceso |
+| REQ-035 | La matriz propuesta debe separar los requisitos que el sistema da por firmes de las **sugerencias de condición**: condiciones plausibles sobre las que el sistema duda. Las sugerencias van en una sección aparte, cada una con su cita y el motivo de la duda; la Comisión decide cada una (o por grupo, REQ-034) si pasa a requisito o se quita, y la matriz no se puede validar mientras quede una sugerencia sin decidir | T-099, T-102, T-103, T-106, T-107, T-108, T-110, T-111, T-112, T-178 | ▶ en proceso |
+| REQ-036 | Para cada sugerencia de condición y cada fila dudosa, el sistema debe buscar en la normativa aplicable (según REQ-022) si el régimen exige esa condición a las ofertas; si la encuentra, la muestra con la cita de la norma como respaldo y puede proponerla como requisito. La normativa solo sirve para confirmar: que una condición no figure en la norma nunca es motivo para descartarla, porque el pliego puede agregar exigencias propias | T-099, T-106, T-108, T-109, T-111, T-112, T-178 | ▶ en proceso |
 | REQ-032 | Una matriz que todavía no está validada se puede ver en pantalla, imprimir y exportar a PDF, siempre con la leyenda "BORRADOR INCOMPLETO" bien visible en cada página. Una matriz validada sale sin esa leyenda, con su versión y la fecha y el evaluador que la validó | T-067, T-074, T-082, T-086, T-105, T-112, T-116 | ✓ cubierto |
 
 <a id="004"></a>
@@ -958,15 +960,8 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 12 tareas sin terminar.
-- ○ T-180 · Etapas Portal, Pliego y circulares, y Matriz: estado, pendientes y enlaces (pendiente)
-- ○ T-181 · Etapa Ofertas: documentos, fichas, estado, pendientes y enlaces (pendiente)
-- ○ T-182 · Etapa Matriz de evaluación: pares por decidir, preguntas abiertas, ok del informe técnico y enlaces (pendiente)
-- ○ T-183 · Entrada completa: procedimientos con etapa actual y pendientes; alta explorando primero el Portal y la carga a mano como complemento (REQ-071) (pendiente)
-- ○ T-184 · Avance fino de los pedidos: columna `progress` en la cola y aviso desde la evaluación y la ficha (aprobada por el responsable, ADR-0045) (pendiente)
-- ○ T-187 · Ventana del proceso: panel en vivo con los pasos del pedido en curso, en lenguaje llano (REQ-070) (pendiente)
+- **Próximo paso:** Desarrollar: 5 tareas sin terminar.
 - ○ T-188 · Aplicar la guía visual aprobada (docs/diseno/guia-visual.md, tokens.css): encabezado, recorrido, tablas y estados con íconos de color y nombre al pasar el mouse (pendiente)
-- ○ T-189 · Hoja de compliance por oferta: subirla una vez, rige para todos los requisitos externos de la oferta (reevaluación automática citándola), acceso en la matriz de evaluación (REQ-073) (pendiente)
 - ○ T-190 · Informe técnico del área: subirlo (por procedimiento u oferta), el sistema propone apto/no apto por oferta y renglón con cita del informe y la Comisión da el ok (REQ-074) (pendiente)
 - ○ T-191 · Recorrido: cuentas y accesos de hojas de compliance e informes técnicos que faltan en la etapa de evaluación (REQ-073, REQ-074) (pendiente)
 - ○ T-185 · Los cinco momentos y los roles con el caso chico: 30 de 30 celdas y enlaces de las seis etapas (pendiente)
@@ -975,21 +970,28 @@ flowchart LR
 ### Qué se hizo
 
 - Etapas completas: Spec, Plan, Tareas.
-- ✓ T-179 · Corte vertical: módulo `journey`, página de recorrido del caso chico con la etapa Evaluación en vivo (sondeo cada 5 s), roles, entrada mínima y las otras cinco etapas como lugares reservados (`682f61e` 2026-10-07, `75a6527` 2026-10-07)
+- ✓ T-179 · Corte vertical: módulo `journey`, página de recorrido del caso chico con la etapa Evaluación en vivo (sondeo cada 5 s), roles, entrada mínima y las otras cinco etapas como lugares reservados (`e7851e5` 2026-10-07, `682f61e` 2026-10-07, `75a6527` 2026-10-07)
+- ✓ T-180 · Etapas Portal, Pliego y circulares, y Matriz: estado, pendientes y enlaces (`9af7a54` 2026-10-07)
+- ✓ T-181 · Etapa Ofertas: documentos, fichas, estado, pendientes y enlaces (`1573289` 2026-10-07, `91af577` 2026-10-07)
+- ✓ T-182 · Etapa Matriz de evaluación: pares por decidir, preguntas abiertas, ok del informe técnico y enlaces (`0ec55a2` 2026-10-07, `91ed278` 2026-10-07)
+- ✓ T-183 · Entrada completa: procedimientos con etapa actual y pendientes; alta explorando primero el Portal y la carga a mano como complemento (REQ-071) (`39cc589` 2026-10-07)
+- ✓ T-184 · Avance fino de los pedidos: columna `progress` en la cola y aviso desde la evaluación y la ficha (aprobada por el responsable, ADR-0045) (`63251e5` 2026-10-07)
+- ✓ T-187 · Ventana del proceso: panel en vivo con los pasos del pedido en curso, en lenguaje llano (REQ-070) (`09bc7b9` 2026-10-07, `184d8ce` 2026-10-07, `94889a9` 2026-10-07)
+- ✓ T-189 · Hoja de compliance por oferta: subirla una vez, rige para todos los requisitos externos de la oferta (reevaluación automática citándola), acceso en la matriz de evaluación (REQ-073) (`c58dee6` 2026-10-07)
 
 ### Mapa de tareas
 
 ```mermaid
 flowchart TD
   T179["✓ T-179 · Corte vertical: módulo journey, página de r…"]:::done
-  T180["○ T-180 · Etapas Portal, Pliego y circulares, y Matri…"]:::todo
-  T181["○ T-181 · Etapa Ofertas: documentos, fichas, estado,…"]:::todo
-  T182["○ T-182 · Etapa Matriz de evaluación: pares por decid…"]:::todo
-  T183["○ T-183 · Entrada completa: procedimientos con etapa…"]:::todo
-  T184["○ T-184 · Avance fino de los pedidos: columna progres…"]:::todo
-  T187["○ T-187 · Ventana del proceso: panel en vivo con los…"]:::todo
+  T180["✓ T-180 · Etapas Portal, Pliego y circulares, y Matri…"]:::done
+  T181["✓ T-181 · Etapa Ofertas: documentos, fichas, estado,…"]:::done
+  T182["✓ T-182 · Etapa Matriz de evaluación: pares por decid…"]:::done
+  T183["✓ T-183 · Entrada completa: procedimientos con etapa…"]:::done
+  T184["✓ T-184 · Avance fino de los pedidos: columna progres…"]:::done
+  T187["✓ T-187 · Ventana del proceso: panel en vivo con los…"]:::done
   T188["○ T-188 · Aplicar la guía visual aprobada (docs/disen…"]:::todo
-  T189["○ T-189 · Hoja de compliance por oferta: subirla una…"]:::todo
+  T189["✓ T-189 · Hoja de compliance por oferta: subirla una…"]:::done
   T190["○ T-190 · Informe técnico del área: subirlo (por proc…"]:::todo
   T191["○ T-191 · Recorrido: cuentas y accesos de hojas de co…"]:::todo
   T185["○ T-185 · Los cinco momentos y los roles con el caso…"]:::todo

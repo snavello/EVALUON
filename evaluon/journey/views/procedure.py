@@ -7,6 +7,7 @@ from django.views.decorators.http import require_GET
 
 from evaluon.audit.models import Channel
 from evaluon.journey.stages import stages_for
+from evaluon.journey.window import window_for
 from evaluon.tenders.models import Procedure
 
 
@@ -24,6 +25,7 @@ def procedure(request, procedure_id):
     journey = get_journey(request, procedure_id)
     return render(request, "journey/procedure.html", {
         "journey": journey,
+        "window": window_for(journey.procedure),
         "stages_url": reverse("journey:stages", args=[procedure_id]),
         "login_url": reverse("accounts:login"),
     })

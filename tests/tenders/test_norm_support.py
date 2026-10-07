@@ -767,3 +767,23 @@ def test_a_considerando_among_the_units_is_excluded(
     assert unit.pk in {e["unit"] for e in steps(run)[0].request["retrieved"]}
     assert "garantía de curso sintética" not in support.shown()
     assert [s.text for s in supports(run)] == [GARANTIAS]
+
+
+def test_the_offer_guarantee_a_pliego_takes_for_granted_is_consulted_by_the_condition(
+        operator_user, script, filt, support, regimes, marks, corpus, spy):  # noqa: F811
+    """REQ-036, T-178: la sugerencia que entra porque el pliego solo nombra la garantía de la
+    oferta al decir qué pasa si falta se consulta con la condición nombrada y no con la
+    oración de la sanción, que no se parece a ningún artículo."""
+    # La frase se arma con un hueco: no repite palabras de las anclas de los casos.
+    phrase = "garantía de {} de la oferta".format("mantenimiento")
+    sentence = f"La falta de presentación en término determinará la pérdida de la {phrase}."
+    procedure = make_procedure(operator_user, AFTER)
+    load_and_read(operator_user, procedure, pliego(sentence))
+
+    requested, job = propose(operator_user, procedure)
+
+    assert job.status == "done", job.error
+    [(question, _)] = spy.calls
+    assert phrase in question and "falta de presentación" not in question
+    [row] = formal(requested.run)
+    assert row.state == "sugerido" and row.quotes.get().text == sentence

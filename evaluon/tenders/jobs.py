@@ -17,6 +17,9 @@ servicio `worker` corre `procesar_pedidos`, que los atiende de a uno:
   (`kinds=PORTAL_JOB_KINDS`). `claim`, `run_next` y `fail_interrupted` reciben `kinds` (solo
   esos) o `exclude` (todos menos esos); sin ninguno, atienden todos los tipos. Así uno no
   toma ni corta los pedidos del otro.
+- `report`: el avance fino de un pedido en curso (REQ-067, ADR-0045 3.B), en la columna
+  `progress`: `{step, done, total, scope, recent}`, con `recent` la lista corta de los últimos
+  pasos. Se escribe aparte, fuera de la transacción del manejador, y nunca hace fallar al pedido.
 - `unseen_finished` y `mark_seen`: el aviso de fin, con los pedidos de la persona que
   terminaron y todavía no vio.
 
@@ -71,6 +74,34 @@ AFTER_DONE = {
 }
 
 FINISHED = (JobStatus.DONE, JobStatus.FAILED)
+
+# Cuántos pasos recientes conserva `progress["recent"]` y cuánto texto cada uno.
+RECENT_STEPS = 8
+STEP_MAX_CHARS = 140
+
+
+def report(job, step, done=None, total=None, scope=""):
+    """Anota el avance de `job`: el paso actual `step` (lenguaje llano, sin datos personales),
+    cuántos van de cuántos y el contexto `scope` (por ejemplo "Oferta 2 de 5"). El paso se suma
+    a la lista corta de los últimos. Escribe con una consulta aparte y devuelve `True` si
+    pudo; ninguna falla al escribir sale de aquí (el avance es descartable)."""
+    try:
+        step = str(step)[:STEP_MAX_CHARS]
+        current = job.progress if isinstance(job.progress, dict) else {}
+        recent = list(current.get("recent") or [])
+        if not recent or recent[-1].get("text") != step or recent[-1].get("scope") != scope:
+            recent.append({"at": timezone.now().isoformat(timespec="seconds"),
+                           "text": step, "scope": str(scope)[:STEP_MAX_CHARS]})
+        data = {"step": step, "done": done, "total": total, "scope": str(scope)[:STEP_MAX_CHARS],
+                "recent": recent[-RECENT_STEPS:]}
+        with transaction.atomic():
+            Job.objects.filter(pk=job.pk).update(progress=data)
+        job.progress = data
+        return True
+    except Exception:  # noqa: BLE001 - el avance nunca hace fallar al pedido
+        logger.warning("No se pudo anotar el avance del pedido %s", getattr(job, "pk", None),
+                       exc_info=True)
+        return False
 
 
 def enqueue(kind, *, procedure, requested_by, document=None, target_id=None):

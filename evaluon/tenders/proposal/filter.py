@@ -35,6 +35,9 @@ propiedad obligatoria por alias; la segunda no ve la respuesta de la primera):
 
 Guarda en código (T-125, REQ-024): una fila descartada que comparte oración con una fila
 firme del mismo tramo pasa a sugerencia con la duda `duda` (`protect_shared_sentences`).
+Guarda en código (T-178): si el pliego nombra la garantía de la oferta y ninguna fila la
+cubre, entra como sugerencia (`run.protect_offer_guarantee`, que usa `OFFER_GUARANTEE` y
+`sentence_bounds` de este módulo).
 
 Con `SUGGESTIONS_ENABLED` en falso, lo que sería sugerencia queda firme. Un lote cuya salida
 se corta por el máximo se parte en dos, como en la extracción. Una falla del servicio no
@@ -59,7 +62,7 @@ from evaluon.tenders.proposal import dedup, extraction, quotes
 from evaluon.tenders.proposal.completeness import passes_of
 from evaluon.tenders.proposal.extraction import BODY_CLASSES
 
-RULE_VERSION = "filtro-v2"
+RULE_VERSION = "filtro-v3"
 
 FIRME = "firme"
 SUGERENCIA = "sugerencia"
@@ -123,6 +126,9 @@ class Row:
     found: object
     order: int
     repeated: list = field(default_factory=list)
+    # Lo que se le pregunta a la normativa (REQ-036) si no es el fragmento: la condición que
+    # el pliego da por supuesta (T-178).
+    query: str = ""
 
     @property
     def segment(self):
@@ -137,13 +143,20 @@ class Row:
         return passes_of(self.found)
 
 
+# Un anexo del pliego: su clave lleva `anexo` como un componente ("sec-ii/anexo-iii/tabla-5").
+_ANNEX_KEY = re.compile(r"(?:^|/)anexo(?:-|~|/|$)")
+
+
 def in_scope(unit, found):
     """Si la fila pasa por el modelo: ni cita amplia, ni tramo `tabla`, ni sección
-    titulada como formal o económica."""
+    titulada como formal o económica. Una tabla dentro de un anexo sí pasa (T-178): casi
+    siempre es el formulario que la oferta completa, y sus celdas no son condiciones; las
+    tablas del cuerpo del pliego (detalle de bienes, tipos de cotización) siguen firmes."""
     segment = unit.segment
+    is_table = segment.segment_type == SegmentType.TABLA
     return (
         found.flag != quotes.WIDE
-        and segment.segment_type != SegmentType.TABLA
+        and (not is_table or bool(_ANNEX_KEY.search(segment.key)))
         and segment.section_class not in BODY_CLASSES
     )
 
@@ -391,6 +404,18 @@ def sentence_range(text, span):
     return first, last
 
 
+def sentence_bounds(text, position):
+    """`(inicio, fin)` de la oración del tramo que contiene `position`, sin los espacios de
+    los bordes."""
+    ends = _sentence_ends(text)
+    start = max([end for end in ends if end <= position], default=0)
+    stop = min([end for end in ends if end > position], default=len(text))
+    chunk = text[start:stop]
+    start += len(chunk) - len(chunk.lstrip())
+    stop -= len(chunk) - len(chunk.rstrip())
+    return start, stop
+
+
 def protect_shared_sentences(verdicts):
     """Guarda en código (REQ-024): una fila que comparte oración con una fila firme del mismo
     tramo no puede descartarse, porque es parte de una condición que el filtro mantuvo (la
@@ -415,6 +440,13 @@ def protect_shared_sentences(verdicts):
             verdict.doubt_reason = "duda"
             verdict.reason = ""
             verdict.anomaly = ANOMALY_SHARED_SENTENCE
+
+
+# La garantía con que se mantiene la oferta, en singular o plural, con o sin artículo.
+OFFER_GUARANTEE = re.compile(
+    r"garant[ií]as?\s+de\s+(?:mantenimiento\s+de\s+)?(?:la\s+)?oferta", re.IGNORECASE
+)
+ANOMALY_OFFER_GUARANTEE = "filtro_garantia_oferta_mencionada"
 
 
 # --- El filtro ---------------------------------------------------------------------------------
