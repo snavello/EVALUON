@@ -35,14 +35,35 @@ Cómo se cuenta (plan 004, "Cómo se cuenta"):
    (algún «no cumple») contra el esperado. El orden económico lo muestra la matriz de la
    evaluación (T-152) y se mide con ella.
 6. Tiempo: por oferta, con los tokens por pedido y las páginas sin leer; informado, sin máximo.
+
+Regla nueva (enmienda 2026-10-06, decisiones literales; REQ-052, REQ-053, REQ-061 a REQ-064;
+T-170): la coincidencia se mira por el tipo de par, no por igualdad exacta del resultado.
+
+- externo: «falta la hoja de compliance» coincide con lo que diga el dictamen; con la hoja cargada,
+  el mismo resultado del dictamen;
+- técnico: «pendiente del informe técnico» (o «no se encontró el documento» si lo esperado es que
+  falta) **y** `documento_tecnico` y `renglon_ofertado` de `facts` iguales a la lista;
+- ilegible: «no se pudo leer» con el documento y la página de la lista (`ilegible`);
+- Portal: una cita del Portal del tipo y valor de la lista (`portal`);
+- oferta: igual que antes.
+
+Contradicciones: «cumple» contra «no cumple» del resultado, y un hecho técnico o un valor del
+Portal opuestos a la lista (se informan aparte). La opinión técnica no es el resultado: se
+compara con el dictamen y se informa. Sin contar quedan `duda`, `sin_dato`, `sin_corroborar`,
+`sin_cita` y «no se encontró el documento» donde el dictamen dice «cumple»; su residuo se
+informa aparte.
 """
 
 import hashlib
 import json
+import re
+import subprocess
+import sys
 import time
 from dataclasses import dataclass, field
 from datetime import date
-from pathlib import Path
+from decimal import Decimal, InvalidOperation
+from pathlib import Path, PurePosixPath
 
 import yaml
 from django.core.serializers.json import DjangoJSONEncoder
@@ -84,33 +105,47 @@ CASE_00 = "caso-00"
 RESULTS = {"cumple": am.Outcome.CUMPLE, "no_cumple": am.Outcome.NO_CUMPLE,
            "no_determinado": am.Outcome.NO_DETERMINADO,
            "no_se_encontro_documento": am.Outcome.SIN_DOCUMENTO}
+BASES = ("oferta", "externa", "tecnica")
+TECHNICAL_DOCUMENT = ("hay", "no_se_encontro")
+OFFERED = ("si", "no", "no_aplica")
+PAIR_TYPES = ("oferta", "externo", "tecnico", "ilegible", "portal")
+# Motivos que quedan sin una causa concreta: el residuo que se informa aparte.
+RESIDUE = (am.Doubt.DUDA, am.Doubt.SIN_DATO, am.Doubt.SIN_CORROBORAR)
+DECISION_MARK = "decision_literal"
 # Motivo de la lista -> motivo de la duda del sistema.
 MOTIVES = {"falta_hoja_compliance": am.Doubt.EXTERNO, "pagina_ilegible": am.Doubt.LECTURA_INCOMPLETA,
-           "lectura_incompleta": am.Doubt.LECTURA_INCOMPLETA}
+           "lectura_incompleta": am.Doubt.LECTURA_INCOMPLETA,
+           "pendiente_informe_tecnico": am.Doubt.PENDIENTE_INFORME_TECNICO,
+           "no_se_pudo_leer": am.Doubt.NO_SE_PUDO_LEER, "en_portal": am.Doubt.EN_PORTAL,
+           "falta_coincidencia": am.Doubt.FALTA_COINCIDENCIA}
 
 # Umbrales escritos antes de medir (plan 004, "Umbrales"). Cada uno es `(mínimo, bloquea)` o,
 # para los que cuentan fallas, `(máximo, bloquea)`. `None` = se informa sin tope.
 THRESHOLDS_SMALL = {
     "match": (1.0, True), "contradictions": (0, True), "no_citation": (0, True),
     "literal": (1.0, True), "missing_document": (1.0, True), "questions": (1.0, True),
-    "fragments": (None, False), "matrix": (1.0, True),
+    "fragments": (None, False), "matrix": (1.0, True), "portal_literal": (1.0, True),
 }
 THRESHOLDS_CASE_00 = {
     "match": (0.80, True), "contradictions": (0, True), "no_citation": (0, True),
     "literal": (1.0, True), "missing_document": (None, False), "questions": (None, False),
-    "fragments": (0.90, True), "matrix": (1.0, True),
+    "fragments": (0.90, True), "matrix": (1.0, True), "portal_literal": (1.0, True),
 }
 MAXIMUMS = ("contradictions", "no_citation")
+# Mínimos que piden «más de» (la spec: coincidencia de más del 80 % en el caso-00).
+MORE_THAN = {CASE_00: ("match",)}
 
 LABELS = {
-    "match": "Coincidencia con el esperado (REQ-052)",
-    "contradictions": "Contradicciones: «cumple» por «no cumple» o al revés (REQ-052)",
+    "match": "Coincidencia con el esperado según el tipo de par (REQ-052)",
+    "contradictions": "Contradicciones: «cumple» por «no cumple», hecho técnico o dato del "
+                      "Portal opuesto (REQ-052)",
     "no_citation": "«Cumple» o «no cumple» sin cita de la oferta (REQ-053)",
     "literal": "Citas de la oferta iguales al recorte del texto canónico (REQ-053)",
     "missing_document": "«No se encontró el documento» con la cita del pliego (REQ-060)",
     "questions": "Pregunta formulada donde falta un dato (REQ-055)",
     "fragments": "Propuestas que citan el fragmento de la ficha (REQ-054)",
     "matrix": "Ofertas evaluadas con un resultado por par (REQ-059)",
+    "portal_literal": "Citas del Portal iguales al dato de la fila (REQ-062)",
 }
 
 
@@ -132,6 +167,27 @@ class ExpectedPair:
     citations: list = field(default_factory=list)
     via: str = ""
     note: str = ""
+    # Campos de la regla nueva (T-170). `None` = la lista no los trae.
+    dictamen: str = ""                    # lo que dice el dictamen (cumple o no_cumple)
+    technical_document: str | None = None  # hay o no_se_encontro (fila técnica)
+    offered: str | None = None            # si, no o no_aplica (fila técnica)
+    unreadable: dict | None = None        # {documento, pagina}
+    portal: dict | None = None            # {tipo, valor}
+
+    @property
+    def kind(self):
+        """El tipo de par que decide cómo se cuenta la coincidencia."""
+        return pair_type(self)
+
+
+def pair_type(pair):
+    if pair.unreadable:
+        return "ilegible"
+    if pair.portal:
+        return "portal"
+    if pair.base == "tecnica":
+        return "tecnico"
+    return "externo" if pair.base == "externa" else "oferta"
 
 
 @dataclass
@@ -185,11 +241,50 @@ def _pair(entry, where, kind):
     citations = entry.get("citas") or []
     if kind == "evaluacion" and raw in ("cumple", "no_cumple") and not citations:
         raise ExpectedError(f"{where}: {ident}: un cumple o un no cumple lleva citas")
+    technical_document = entry.get("documento_tecnico")
+    if technical_document is not None and technical_document not in TECHNICAL_DOCUMENT:
+        raise ExpectedError(f"{where}: {ident}: `documento_tecnico` es `hay` o `no_se_encontro`")
+    offered = entry.get("renglon_ofertado")
+    if offered is not None and offered not in OFFERED:
+        raise ExpectedError(f"{where}: {ident}: `renglon_ofertado` es `si`, `no` o `no_aplica`")
+    unreadable = entry.get("ilegible")
+    if unreadable is not None and not (
+            isinstance(unreadable, dict) and unreadable.get("documento")
+            and isinstance(unreadable.get("pagina"), int)):
+        raise ExpectedError(f"{where}: {ident}: `ilegible` lleva `documento` y `pagina`")
+    portal = entry.get("portal")
+    if portal is not None and not (
+            isinstance(portal, dict) and portal.get("tipo") in am.PortalKind.values
+            and str(portal.get("valor") or "").strip()):
+        raise ExpectedError(f"{where}: {ident}: `portal` lleva `tipo` "
+                            f"({', '.join(am.PortalKind.values)}) y `valor`")
+    dictamen = entry.get("dictamen") if entry.get("dictamen") in ("cumple", "no_cumple") else ""
     return ExpectedPair(
         requirement=ident, result=RESULTS[raw], base=base, doubt=MOTIVES.get(motive, ""),
         question=str(entry.get("pregunta") or "").lower() in ("si", "sí", "true"),
         citations=list(citations), via=str(entry.get("via") or ""),
-        note=str(entry.get("nota") or entry.get("fundamento") or ""))
+        note=str(entry.get("nota") or entry.get("fundamento") or ""), dictamen=dictamen,
+        technical_document=technical_document, offered=offered, unreadable=unreadable,
+        portal=portal)
+
+
+def check_fields(expected):
+    """Lo que la lista no trae y su tipo de par necesita (regla nueva, T-170): una fila técnica
+    sin `documento_tecnico` y `renglon_ofertado`, un «no se pudo leer» sin `ilegible`. Devuelve
+    los motivos, uno por par y oferta (vacío si la lista está completa). Los datos del
+    oferente no figuran en el motivo (P4)."""
+    problems = []
+    for number, offer in enumerate(expected.offers, start=1):
+        for pair in offer.pairs:
+            where = f"oferta {number}, {pair.requirement}"
+            if pair.base == "tecnica":
+                for name, value in (("documento_tecnico", pair.technical_document),
+                                    ("renglon_ofertado", pair.offered)):
+                    if value is None:
+                        problems.append(f"{where}: fila técnica sin `{name}`")
+            if pair.doubt == am.Doubt.NO_SE_PUDO_LEER and not pair.unreadable:
+                problems.append(f"{where}: «no se pudo leer» sin `ilegible` (documento y página)")
+    return problems
 
 
 def load_expected(path, *, require_approval=True):
@@ -414,7 +509,12 @@ def verify_expected(expected, offers, folder=None):
                         reading, cite["pagina"], cite["ancla"]) is None:
                     result.fail(f"{pair.requirement}: el ancla no está en la página "
                                 f"{cite['pagina']} de {cite['documento']}")
-        for unreadable in entry.unreadable_pages:
+        # Las páginas no legibles de la oferta y las de los pares `ilegible` (T-170).
+        listed_pages = list(entry.unreadable_pages)
+        seen_pages = {(u["documento"], u["pagina"]) for u in listed_pages}
+        from_pairs = [p.unreadable for p in entry.pairs if p.unreadable
+                      and (p.unreadable["documento"], p.unreadable["pagina"]) not in seen_pages]
+        for unreadable in listed_pages + from_pairs:
             _, reading = sheets_measure._reading_of(offer, unreadable["documento"])
             pages += 1
             listed = reading is not None and any(
@@ -433,19 +533,115 @@ def verify_expected(expected, offers, folder=None):
 # --- Medición ---------------------------------------------------------------------------------------
 
 
+def _name(path):
+    return PurePosixPath(str(path).replace("\\", "/")).name
+
+
+def _number(token):
+    """Un número escrito a la argentina («26.750,00») o sin separadores, como `Decimal`."""
+    token = token.strip(".,")
+    if "," in token:
+        whole, _, fraction = token.rpartition(",")
+        token = f"{whole.replace('.', '')}.{fraction}"
+    elif token.count(".") > 1 or (token.count(".") == 1 and len(token.split(".")[1]) == 3):
+        token = token.replace(".", "")
+    try:
+        return Decimal(token).normalize()
+    except InvalidOperation:
+        return None
+
+
+def _numbers(text):
+    found = {_number(t) for t in re.findall(r"\d[\d.,]*", str(text or ""))}
+    found.discard(None)
+    return found
+
+
+def portal_value_in(kind, text, value):
+    """Si el texto de una cita del Portal trae `value` (un monto, un total, una cotización, o
+    un CUIT por sus dígitos)."""
+    if kind == am.PortalKind.CUIT:
+        wanted = re.sub(r"\D", "", str(value))
+        return bool(wanted) and wanted in re.sub(r"\D", "", str(text or ""))
+    wanted = _numbers(value)
+    return bool(wanted) and wanted <= _numbers(text)
+
+
+def _portal_cites(result):
+    return list(result.citations.filter(kind=am.CitationKind.PORTAL)) if result.pk else []
+
+
+def _portal_check(pair, result):
+    """`(coincide, opuesto)`: hay una cita del Portal del tipo esperado con el valor esperado, o
+    solo con otro valor (opuesto al dictamen)."""
+    same_kind = [c for c in _portal_cites(result) if c.portal_kind == pair.portal["tipo"]]
+    if any(portal_value_in(c.portal_kind, c.text, pair.portal["valor"]) for c in same_kind):
+        return True, False
+    return False, bool(same_kind)
+
+
+def _facts_check(pair, facts):
+    """`(iguales, opuestos)` de los dos hechos de una fila técnica contra la lista."""
+    found_doc = facts.get("documento_tecnico")
+    found_offered = facts.get("renglon_ofertado", "no_aplica")
+    equal = (found_doc == pair.technical_document and found_offered == pair.offered)
+    opposed = []
+    if {found_doc, pair.technical_document} == set(TECHNICAL_DOCUMENT):
+        opposed.append(f"documento_tecnico: esperado {pair.technical_document}, "
+                       f"obtenido {found_doc}")
+    if {found_offered, pair.offered} == {"si", "no"}:
+        opposed.append(f"renglon_ofertado: esperado {pair.offered}, obtenido {found_offered}")
+    return equal, opposed
+
+
+def _unreadable_equal(pair, facts):
+    found = facts.get("ilegible") or {}
+    return (_name(found.get("documento", "")) == _name(pair.unreadable["documento"])
+            and found.get("pagina") == pair.unreadable["pagina"])
+
+
 def _match(pair, result):
-    """Si el resultado propuesto coincide con el esperado del par."""
+    """Si el resultado propuesto coincide con el esperado, según el tipo del par (regla nueva:
+    no es una igualdad exacta del resultado)."""
+    kind = pair.kind
+    facts = result.facts or {}
+    if kind == "ilegible":
+        return (result.outcome == am.Outcome.NO_DETERMINADO
+                and result.doubt == am.Doubt.NO_SE_PUDO_LEER and _unreadable_equal(pair, facts))
+    if kind == "portal":
+        return _portal_check(pair, result)[0]
+    if kind == "tecnico":
+        if pair.technical_document == "no_se_encontro":
+            outcome_ok = result.outcome == am.Outcome.SIN_DOCUMENTO
+        else:
+            outcome_ok = (result.outcome == am.Outcome.NO_DETERMINADO
+                          and result.doubt == am.Doubt.PENDIENTE_INFORME_TECNICO)
+        return outcome_ok and _facts_check(pair, facts)[0]
     if result.outcome != pair.result:
-        # Decisión 1 del responsable: lo externo sin hoja de compliance coincide con el
-        # «cumple» del dictamen (la abstención correcta, P3 y P9).
-        return (pair.base == "externa" and pair.result == am.Outcome.CUMPLE
-                and result.outcome == am.Outcome.NO_DETERMINADO
+        # Decisión 1 del responsable: lo externo sin hoja de compliance coincide con lo que
+        # diga el dictamen (la abstención correcta, P3 y P9).
+        return (kind == "externo" and result.outcome == am.Outcome.NO_DETERMINADO
                 and result.doubt == am.Doubt.EXTERNO)
     return not pair.doubt or result.doubt == pair.doubt
 
 
+def _reference(pair):
+    """Lo que concluye el dictamen: en una fila técnica, su `dictamen`; si no, el resultado."""
+    return pair.dictamen if pair.base == "tecnica" and pair.dictamen else pair.result
+
+
 def _contradiction(pair, result):
-    return {pair.result, result.outcome} == {am.Outcome.CUMPLE, am.Outcome.NO_CUMPLE}
+    return {_reference(pair), result.outcome} == {am.Outcome.CUMPLE, am.Outcome.NO_CUMPLE}
+
+
+def _fact_contradictions(pair, result):
+    """Los hechos técnicos y el valor del Portal opuestos a la lista (se informan aparte)."""
+    kind = pair.kind
+    if kind == "tecnico" and pair.technical_document is not None:
+        return _facts_check(pair, result.facts or {})[1]
+    if kind == "portal" and _portal_check(pair, result)[1]:
+        return [f"portal {pair.portal['tipo']}: valor distinto del esperado"]
+    return []
 
 
 def _canonical_document(name, equivalents):
@@ -454,6 +650,25 @@ def _canonical_document(name, equivalents):
         seen.add(name)
         name = equivalents[name]
     return name
+
+
+def _portal_cite_is_literal(cite, offer):
+    """La cita del Portal es igual al dato de su fila: el monto, el total, el precio o el CUIT
+    de la fila de la que sale (`portal_item`) está en el texto de la cita (T-170)."""
+    item, kind = cite.portal_item, cite.portal_kind
+    if item is None or not cite.text:
+        return False
+    if kind == am.PortalKind.GARANTIA:
+        values = [g.amount for g in item.guarantees.all()]
+    elif kind == am.PortalKind.TOTAL:
+        values = [d.total for d in item.offer_data.all()]
+    elif kind == am.PortalKind.CUIT:
+        return any(portal_value_in(kind, cite.text, d.cuit) for d in item.offer_data.all())
+    else:
+        from evaluon.portal.models import PortalQuote
+        quotes = PortalQuote.objects.filter(offer=offer, line__item=item)
+        values = [q.price for q in (quotes or PortalQuote.objects.filter(offer=offer))]
+    return any(v is not None and portal_value_in(kind, cite.text, v) for v in values)
 
 
 def measure_pair(pair, result, requirement, offer, finder, fragments, equivalents):
@@ -477,11 +692,21 @@ def measure_pair(pair, result, requirement, offer, finder, fragments, equivalent
             (_canonical_document(c.document.file_name, equivalents), c.page) in places
             for c in cites)
     pliego = result.citations.filter(kind=am.CitationKind.PLIEGO).exists()
+    portal_cites = _portal_cites(result)
+    portal_literal = sum(_portal_cite_is_literal(c, offer) for c in portal_cites)
+    kind = pair.kind
+    facts = result.facts or {}
     return {
-        "requisito": pair.requirement, "base": pair.base, "via": pair.via,
+        "requisito": pair.requirement, "base": pair.base, "via": pair.via, "tipo": kind,
         "esperado": pair.result, "motivo_esperado": pair.doubt,
         "obtenido": result.outcome, "motivo": result.doubt,
         "coincide": _match(pair, result), "contradiccion": _contradiction(pair, result),
+        "contradicciones_hecho": _fact_contradictions(pair, result),
+        "hechos": {k: facts.get(k) for k in ("regla", "documento_tecnico", "renglon_ofertado",
+                                              "ilegible") if k in facts},
+        "opinion": result.opinion, "dictamen": pair.dictamen,
+        "citas_portal": len(portal_cites), "citas_portal_literales": portal_literal,
+        "tecnico_concluido": kind == "tecnico" and concluded,
         "sin_documento_donde_cumple": (result.outcome == am.Outcome.SIN_DOCUMENTO
                                        and pair.result == am.Outcome.CUMPLE),
         "citas_oferta": len(cites), "citas_literales": literal,
@@ -515,6 +740,10 @@ def measure_offer(entry, offer, run, mapping, finder, fragments, equivalents):
         result = results.get(requirement.pk) if requirement else None
         if result is None:
             records.append({"requisito": pair.requirement, "base": pair.base,
+                            "tipo": pair.kind, "contradicciones_hecho": [], "opinion": "",
+                            "dictamen": pair.dictamen, "citas_portal": 0,
+                            "citas_portal_literales": 0, "tecnico_concluido": False,
+                            "motivo": "", "hechos": {},
                             "esperado": pair.result, "obtenido": None, "coincide": False,
                             "contradiccion": False, "sin_cita": False, "citas_oferta": 0,
                             "citas_literales": 0, "pregunta_esperada": pair.question,
@@ -529,11 +758,23 @@ def measure_offer(entry, offer, run, mapping, finder, fragments, equivalents):
     discard_ok = None
     if entry.discarded in ("si", "no", "parcial"):
         want = entry.discarded != "no"
-        discard_ok = bool(proposed_ids) == want
-        if discard_ok and entry.discarded == "si" and entry.discard.get("requisito"):
-            discard_ok = entry.discard["requisito"] in proposed_ids
+        # El sistema ya no descarta por lo técnico (decisión 2): un descarte que el dictamen
+        # sustenta solo con filas técnicas no se mide acá; se informa en `technical_discard`.
+        technical_only = want and not any(
+            p.result == am.Outcome.NO_CUMPLE and p.base != "tecnica" for p in entry.pairs)
+        if not technical_only:
+            discard_ok = bool(proposed_ids) == want
+            if discard_ok and entry.discarded == "si" and entry.discard.get("requisito"):
+                discard_ok = entry.discard["requisito"] in proposed_ids
+    technical = [r for r in records if r.get("tipo") == "tecnico"]
+    technical_discard = {
+        "dictamen_no_cumple": sum(1 for r in technical if r["dictamen"] == "no_cumple"),
+        "opinion_no_cumple": sum(1 for r in technical if r["opinion"] == "no_cumple"),
+        "ambos": sum(1 for r in technical
+                     if r["dictamen"] == "no_cumple" and r["opinion"] == "no_cumple")}
     return {
         "records": records, "proposed_discard": proposed_ids, "discard_ok": discard_ok,
+        "technical_discard": technical_discard,
         "counts": run.counts, "timings": run.timings, "anomalies": run.anomalies,
         "steps": _steps_summary(run), "run": run.pk, "number": run.number,
         "unread_pages": run.counts.get("unread_pages", 0),
@@ -553,11 +794,29 @@ def aggregate(measures):
     expected_questions = [r for r in records if r["pregunta_esperada"]]
     fragmented = [r for r in records if r["fragmento"] is not None]
     cites = sum(r["citas_oferta"] for r in records)
+    technical = [r for r in records if r.get("tipo") == "tecnico"]
+    with_opinion = [r for r in technical if r.get("dictamen") and r.get("opinion")]
+    fact_contradictions = [(r["requisito"], c) for r in records
+                           for c in r.get("contradicciones_hecho", [])]
     return {
         "pairs": len(records),
         "match": _sum(records, lambda r: r["coincide"]),
+        "match_by_type": {t: _sum([r for r in records if r.get("tipo", "oferta") == t],
+                                  lambda r: r["coincide"])
+                          for t in PAIR_TYPES},
         "contradictions": [(r["requisito"], r["esperado"], r["obtenido"])
-                           for r in records if r["contradiccion"]],
+                           for r in records if r["contradiccion"]] + fact_contradictions,
+        "fact_contradictions": fact_contradictions,
+        "portal_literal": ratio(sum(r.get("citas_portal_literales", 0) for r in records),
+                                sum(r.get("citas_portal", 0) for r in records)),
+        "residue": {d: sum(1 for r in records if r["obtenido"] == am.Outcome.NO_DETERMINADO
+                           and r.get("motivo") == d) for d in RESIDUE},
+        "technical_concluded": [r["requisito"] for r in technical
+                                if r.get("tecnico_concluido")],
+        "technical_opinion": _sum(with_opinion, lambda r: r["opinion"] == r["dictamen"]),
+        "technical_discard": {
+            k: sum(m_.get("technical_discard", {}).get(k, 0) for m_ in measures)
+            for k in ("dictamen_no_cumple", "opinion_no_cumple", "ambos")},
         "no_citation": [r["requisito"] for r in records if r["sin_cita"]],
         "literal": ratio(sum(r["citas_literales"] for r in records), cites),
         "missing_document": _sum(
@@ -593,8 +852,11 @@ def blocking(total, case=None):
         if name in MAXIMUMS:
             if len(value) > limit:
                 failed.append(f"{LABELS[name]}: {len(value)}, máximo {limit}")
-        elif value["total"] and value["rate"] < limit:
-            failed.append(f"{LABELS[name]}: {proportion_text(value)}, mínimo {_pct(limit)}")
+        elif value["total"]:
+            more = name in MORE_THAN.get(case, ())
+            if (value["rate"] <= limit) if more else (value["rate"] < limit):
+                failed.append(f"{LABELS[name]}: {proportion_text(value)}, "
+                              f"{'más de' if more else 'mínimo'} {_pct(limit)}")
     return failed
 
 
@@ -677,6 +939,10 @@ def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=
                             channel=Channel.COMMAND)
     if not expected.approval:
         raise ExpectedNotApproved("la lista no tiene visto bueno: no se usa")
+    missing = check_fields(expected)
+    if missing:
+        raise MeasurementRefused("La lista no trae los campos de la regla nueva:\n"
+                                 + "\n".join(missing))
     verification = verify_expected(expected, offers)
     if not verification.ok:
         raise MeasurementRefused("La lista no se puede usar:\n" + "\n".join(verification.lines))
@@ -768,7 +1034,18 @@ def _summary(report, *, public):
               f"- Pares: {total['pairs']}; por resultado propuesto: {total['by_outcome']}.",
               f"- «No se encontró el documento» donde se espera «cumple»: "
               f"{len(total['missing_where_cumple'])}.",
-              f"- Descarte propuesto igual al esperado: {proportion_text(total['discards'])}.",
+              f"- Descarte propuesto igual al esperado (sin lo técnico): "
+              f"{proportion_text(total['discards'])}.",
+              f"- Descarte técnico (informado): {total['technical_discard']}.",
+              "- Coincidencia por tipo de par: " + "; ".join(
+                  f"{t} {proportion_text(v)}" for t, v in total["match_by_type"].items()) + ".",
+              f"- Residuo de «no determinado» sin causa concreta: {total['residue']}.",
+              f"- Opinión técnica igual al dictamen (informada): "
+              f"{proportion_text(total['technical_opinion'])}.",
+              f"- Filas técnicas con «cumple» o «no cumple» en el resultado: "
+              f"{len(total['technical_concluded'])}.",
+              f"- Hechos o datos del Portal opuestos a la lista: "
+              f"{len(total['fact_contradictions'])}.",
               "- Orden económico: lo muestra la matriz de la evaluación (T-152); no se mide acá.",
               f"- Páginas sin leer en las ofertas: {total['unread_pages']}.", "",
               "## Tiempo y tokens", "",
@@ -798,6 +1075,29 @@ def _summary(report, *, public):
     else:
         lines += ["", "Los datos de los oferentes no figuran en este resumen."]
     return "\n".join(lines) + "\n"
+
+
+# --- Decisiones aplicadas (T-170) -----------------------------------------------------------------
+
+
+def run_decision_tests(runner=subprocess.run, *, cwd=None):
+    """Corre los tests marcados `decision_literal` (uno por decisión del responsable, ADR-0043) en
+    un proceso aparte. Devuelve `(estado, salida)`: `ok`, `fallo` o `ausente` (ningún test lleva
+    todavía la marca: se informa, no bloquea). Cualquier otro resultado cuenta como fallo."""
+    command = [sys.executable, "-m", "pytest", "-m", DECISION_MARK, "-q", "-p", "no:cacheprovider",
+               "tests"]
+    try:
+        done = runner(command, cwd=str(cwd) if cwd else None, capture_output=True, text=True,
+                      check=False)
+    except OSError as error:
+        return "fallo", f"no se pudo correr pytest ({error.__class__.__name__})"
+    output = (done.stdout or "") + (done.stderr or "")
+    tail = "\n".join(output.strip().splitlines()[-15:])
+    if done.returncode == 0:
+        return "ok", tail
+    if done.returncode == 5:
+        return "ausente", tail
+    return "fallo", tail
 
 
 # --- Nombres de oferentes -----------------------------------------------------------------------
