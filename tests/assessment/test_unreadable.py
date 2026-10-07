@@ -45,7 +45,7 @@ def test_an_unreadable_page_is_reported_with_document_and_page_for_the_commissio
     result = results_of(runs[0])[number]
     assert (result.outcome, result.doubt) == ("no_determinado", "no_se_pudo_leer")
     assert result.facts["regla"] == "ilegible_informe"
-    assert result.facts["version_reglas"] == "reglas-v1"
+    assert result.facts["version_reglas"] == "reglas-v2"
     assert (result.facts["ilegible"]["documento"], result.facts["ilegible"]["pagina"]) == (
         "pagare.pdf", 2)
     question = am.Question.objects.get(requirement__number=number)

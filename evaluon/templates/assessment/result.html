@@ -40,12 +40,23 @@
     <li>Documento técnico de la oferta: {{ page.technical_facts.document }}.</li>
     {% if page.technical_facts.line %}<li>Renglón ofertado ({{ page.technical_facts.item }}): {{ page.technical_facts.line }}.</li>{% endif %}
   </ul>
-  {% for citation in page.portal_citations %}
-  <p>Dato del Portal: <blockquote>{{ citation.text }}</blockquote></p>
-  {% endfor %}
   {% if page.result.opinion %}
   <p>La opinión del sistema (información, no es el resultado): <strong>{{ page.result.get_opinion_display }}</strong>.</p>
   {% endif %}
+</section>
+{% endif %}
+
+{% if page.portal_citations %}
+<section class="result-portal" aria-labelledby="portal-title">
+  <h2 id="portal-title">Lo que informa el Portal</h2>
+  {% for citation in page.portal_citations %}
+  <p>{{ citation.label }} · fuente: Portal
+    · <a href="{{ citation.portal_item.page.url }}">página del Portal</a>{% if citation.portal_item.file_id %}
+    · <a href="{% url 'portal:download' citation.portal_item.proposal.link_id citation.portal_item.file_id %}">archivo del Portal</a>{% endif %}</p>
+  <blockquote>{{ citation.text }}</blockquote>
+  {% endfor %}
+  {% if page.result.doubt == "en_portal" %}<p>El documento o el dato está en el Portal: la Comisión lo verifica ahí.</p>{% endif %}
+  {% if page.result.doubt == "falta_coincidencia" %}<p>El Portal y la oferta no coinciden: se muestran las dos citas, la de la oferta arriba y la del Portal acá.</p>{% endif %}
 </section>
 {% endif %}
 

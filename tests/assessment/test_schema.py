@@ -357,7 +357,7 @@ def test_a_result_opinion_and_facts_are_optional_and_validated(rows):
         run=run, offer=run.offer, requirement=rows.requirement,
         outcome=am.Outcome.NO_DETERMINADO, doubt="pendiente_informe_tecnico",
         opinion=am.Opinion.NO_CUMPLE,
-        facts={"regla": "tecnica_categoria", "version_reglas": "reglas-v1"})
+        facts={"regla": "tecnica_categoria", "version_reglas": "reglas-v2"})
     assert am.Result.objects.get(pk=result.pk).facts["regla"] == "tecnica_categoria"
     run = _new_run(rows, number=3)
     with pytest.raises(IntegrityError), transaction.atomic():
@@ -462,7 +462,7 @@ def test_the_rules_version_is_set():
     """REQ-063: la versión de las reglas existe para copiarla al registro de la evaluación."""
     from django.conf import settings
 
-    assert settings.ASSESSMENT_RULES_VERSION == "reglas-v1"
+    assert settings.ASSESSMENT_RULES_VERSION == "reglas-v2"
 
 
 def test_the_decision_literal_marker_is_registered(pytestconfig):

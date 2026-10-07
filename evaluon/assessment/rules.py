@@ -13,20 +13,20 @@ Orden (cada regla es una función `(pair, ctx) -> Combined | None` en su módulo
 1. externo (`externals.py`, REQ-063): siempre "falta la hoja de compliance";
 2. técnico (`technical.py`, REQ-061): hechos y «pendiente del informe técnico» (T-167);
 3. no se pudo leer (`unreadable.py`, REQ-064);
-4. Portal (`portal_facts.py`, REQ-062): lo agrega T-169 con una línea en `RULES`.
+4. Portal (`portal_facts.py`, REQ-062): T-169.
 
 Una regla nueva se suma en su lugar de la lista, nada más.
 """
 
 from django.conf import settings
 
-from evaluon.assessment import externals, technical, unreadable
+from evaluon.assessment import externals, portal_facts, technical, unreadable
 
 RULES = (
     externals.rule,
     technical.rule,
     unreadable.rule,
-    # T-169: portal_facts.rule
+    portal_facts.rule,
 )
 
 
