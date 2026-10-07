@@ -55,7 +55,7 @@
       <tr>
         <th scope="row">{{ requirement.number }} · {{ requirement.get_category_display }}{% if requirement.items %} · renglón {{ requirement.items.0 }}{% endif %}</th>
         {% for cell in row %}
-        <td>{% if cell.result %}<a href="{% url 'assessment:pair' cell.offer.pk cell.requirement.pk %}">{% if cell.effective_outcome %}{{ cell.effective_label }}{% else %}Propuesta rechazada{% endif %}</a><br><small>{{ cell.state_label }}{% if cell.changed %} (propuesto: {{ cell.result.get_outcome_display }}){% endif %}</small>{% else %}Sin evaluar{% endif %}</td>
+        <td>{% if cell.result %}<a href="{% url 'assessment:pair' cell.offer.pk cell.requirement.pk %}">{% if cell.effective_outcome %}{{ cell.effective_label }}{% if cell.reason_label %}: {{ cell.reason_label }}{% endif %}{% else %}Propuesta rechazada{% endif %}</a><br><small>{{ cell.state_label }}{% if cell.from_technical_ok %} · ok de la Comisión al informe técnico{% endif %}{% if cell.changed %} (propuesto: {{ cell.result.get_outcome_display }}){% endif %}</small>{% else %}Sin evaluar{% endif %}</td>
         {% endfor %}
       </tr>
       {% endfor %}
@@ -78,6 +78,8 @@
     {% endif %}
     <p>Por estado: {% for label, count in status.by_state_rows %}{{ label }} {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}.</p>
     {% if status.evaluated %}<p>Por resultado: {% for label, count in status.by_outcome_rows %}{{ label }} {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}.</p>{% endif %}
+    {% if status.by_reason_rows %}<p>No determinado, por motivo: {% for label, count in status.by_reason_rows %}{{ label }} {{ count }}{% if not forloop.last %} · {% endif %}{% endfor %}.</p>{% endif %}
+    {% include "assessment/_technical_ok.html" %}
     <p>Preguntas abiertas a la Comisión: {{ status.open_questions|length }}.</p>
     {% if status.open_questions %}
     <ul>
