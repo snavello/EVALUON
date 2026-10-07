@@ -716,8 +716,8 @@ def test_everything_the_model_was_asked_is_recorded(offer, operator_user, proced
     assert run.models_used["generation_batch"]["context_tokens"] == 32768
     assert run.prompt_versions == {
         "evaluacion": "evaluacion-v5", "contraste": "contraste-v2", "clausulas": "clausulas-v2",
-        "reglas": "reglas-v2"}
-    assert run.parameters["rules_version"] == "reglas-v2"
+        "reglas": "reglas-v3"}
+    assert run.parameters["rules_version"] == "reglas-v3"
     assert run.parameters["group_tokens"] == 20000
     assert run.norms["matrix_version"] == 1 and run.norms["authorization_date"]
     assert run.matrix_version == request.matrix_version and run.channel == "eval"
@@ -950,6 +950,24 @@ def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(
             return says("no_determinado", external=True)
         return says("no_consta", exigence="documento")
 
+    # El Portal del caso chico (datos inventados): la garantía del M-006 de la oferta A.
+    from decimal import Decimal
+
+    from evaluon.portal import models as pm
+    link = pm.PortalLink.objects.create(url="https://portal.invalid/proceso",
+                                        procedure=procedure, created_by=operator_user)
+    page = pm.PortalPage.objects.create(link=link, exploration=1, kind="cuadro",
+                                        url="https://portal.invalid/cuadro",
+                                        sha256="a" * 64, content=b"x")
+    proposal = pm.PortalProposal.objects.create(link=link, exploration=1, origin="importacion")
+    item = pm.PortalItem.objects.create(proposal=proposal, kind="oferta", key="o", payload={},
+                                        content_sha256="b" * 64, page=page)
+    offer_a = offers["Oferente A Sintético"]
+    data = pm.PortalOfferData.objects.create(offer=offer_a, cuit="30-00000000-0",
+                                             total=Decimal("535000.00"), item=item)
+    pm.PortalGuarantee.objects.create(offer_data=data, guarantee_type="Garantía de mantenimiento",
+                                      amount=Decimal("26750.00"), item=item)
+
     model.evaluates(oracle)
     _, runs = run_all(operator_user, procedure)
     assert len(runs) == 3
@@ -971,9 +989,6 @@ def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(
                 if not ok:
                     differences.append((run.offer.bidder, entry["requisito"], got_value,
                                         got_doubt))
-                continue
-            if entry.get("portal"):
-                # Su regla llega con T-169; la mide `medir_evaluacion` (T-171), no esta prueba.
                 continue
             questions += am.Question.objects.filter(result=result).count()
             if result.outcome != wanted[entry["resultado"]]:

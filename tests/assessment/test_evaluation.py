@@ -21,9 +21,8 @@ from tests.assessment.fakes import (  # noqa: F401 - `model` es fixture
 pytestmark = pytest.mark.django_db
 
 LIST = CASO_CHICO / "evaluacion-esperada.yaml"
-# Pares del caso chico cuya regla todavía no existe: el del Portal (1, llega con T-169). Con el
-# modelo simulado no coincide; el resto llega al 100 %. T-169 lo quita.
-WITHOUT_RULES = 1
+# Pares del caso chico cuya regla todavía no existe (T-169 los llevó a 0).
+WITHOUT_RULES = 0
 
 
 def oracle_for(raw, *, change=None):
@@ -67,9 +66,30 @@ def oracle_for(raw, *, change=None):
     return oracle
 
 
+def load_small_case_portal(user, procedure, offers):
+    """Las tablas del Portal del caso chico (datos inventados): la garantía del M-006 de A."""
+    from decimal import Decimal
+
+    from evaluon.portal import models as pm
+    link = pm.PortalLink.objects.create(url="https://portal.invalid/proceso",
+                                        procedure=procedure, created_by=user)
+    page = pm.PortalPage.objects.create(link=link, exploration=1, kind="cuadro",
+                                        url="https://portal.invalid/cuadro",
+                                        sha256="a" * 64, content=b"x")
+    proposal = pm.PortalProposal.objects.create(link=link, exploration=1, origin="importacion")
+    item = pm.PortalItem.objects.create(proposal=proposal, kind="oferta", key="o", payload={},
+                                        content_sha256="b" * 64, page=page)
+    data = pm.PortalOfferData.objects.create(offer=offers["Oferente A Sintético"],
+                                             cuit="30-00000000-0", total=Decimal("535000.00"),
+                                             item=item)
+    pm.PortalGuarantee.objects.create(offer_data=data, guarantee_type="Garantía de mantenimiento",
+                                      amount=Decimal("26750.00"), item=item)
+
+
 def measured(user, model_, tmp_path, *, change=None, fichas=None):
     expected = ev.load_expected(LIST)
     procedure, offers = ev.build_case(user, expected)
+    load_small_case_portal(user, procedure, offers)
     raw = yaml.safe_load(LIST.read_text(encoding="utf-8"))
     model_.evaluates(oracle_for(raw, change=change))
     report = ev.measure(user, procedure, expected, offers, tmp_path, fichas=fichas,
@@ -198,8 +218,8 @@ def test_a_model_that_follows_the_list_reaches_the_threshold(db, operator_user, 
     medidas del caso chico llegan al umbral y la corrida guarda sus cuatro archivos."""
     report, _, _ = measured(operator_user, model, tmp_path)
     total = report.total
-    # Solo la coincidencia queda corta, por los pares cuya regla no está en esta rama.
-    assert [line.split(":")[0] for line in report.blocking] == [ev.LABELS["match"]]
+    # Con todas las reglas (T-169), ninguna medida queda corta.
+    assert report.blocking == []
     assert total["pairs"] == 30 and total["match"]["ok"] == 30 - WITHOUT_RULES
     assert total["match_by_type"]["oferta"] == {"ok": 16, "total": 16, "rate": 1.0}
     assert total["match_by_type"]["externo"] == {"ok": 3, "total": 3, "rate": 1.0}
