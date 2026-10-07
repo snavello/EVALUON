@@ -173,7 +173,8 @@ class MatrixPage:
 
 def offers_without_documents(procedure):
     """Las ofertas del procedimiento que no tienen ningún documento cargado."""
-    return [o for o in procedure.offers.order_by("number") if not o.documents.exists()]
+    return [o for o in procedure.offers.order_by("number")
+            if not offers_service.own_documents(o).exists()]
 
 
 def _grid_version(procedure, offers):
@@ -223,7 +224,7 @@ def _status(offer, requirements, cells, validated, version=None):
     own = [cells[(offer.pk, r.pk)] for r in requirements]
     evaluated = [c for c in own if c.result is not None]
     status = OfferStatus(offer=offer, evaluated=bool(evaluated),
-                         has_documents=offer.documents.exists())
+                         has_documents=offers_service.own_documents(offer).exists())
     for state in STATES:
         status.by_state[state] = sum(1 for c in own if c.state == state)
     for cell in evaluated:

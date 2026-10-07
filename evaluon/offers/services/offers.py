@@ -509,10 +509,16 @@ def document_row(document):
                        reading=reading, unread=unread, low_confidence=low)
 
 
+def own_documents(offer):
+    """Los documentos que presentó el oferente: todos menos el informe técnico del área
+    (T-190; REQ-074; P3), que no es de la oferta y no se cita como si lo fuera."""
+    return offer.documents.exclude(kind=DocumentKind.INFORME_TECNICO)
+
+
 def latest_readings(offer):
     """La última lectura de cada documento de la oferta que ya se leyó."""
     readings = []
-    for document in offer.documents.order_by("loaded_at", "id"):
+    for document in own_documents(offer).order_by("loaded_at", "id"):
         reading = document.readings.order_by("-sequence").first()
         if reading is not None:
             readings.append(reading)

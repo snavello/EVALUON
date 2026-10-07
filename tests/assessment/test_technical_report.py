@@ -472,3 +472,72 @@ def test_a_follow_up_hook_that_fails_does_not_stop_the_other(
     job = jobs.run_next()
     assert job.status == "done"
     assert verdicts(a) == {1: "apto", 2: "apto", 3: "apto"}
+
+
+def test_two_windows_that_say_different_things_of_a_row_do_not_propose(
+        offers, evaluator_user, model, settings):
+    """REQ-074: si dos tramos del informe dicen cosas distintas del mismo renglón (apto en uno,
+    no apto en otro), no se propone nada para ese renglón y el motivo es «contradictorio»."""
+    a, _ = offers
+    settings.ASSESSMENT_GROUP_TOKENS = 60
+    pages = [paragraphs("INFORME TÉCNICO", line("Oferente A", 1), "Se deja constancia."),
+             paragraphs("Hoja de continuación", line("Oferente A", 2), "Se deja constancia."),
+             paragraphs("Hoja de cierre", line("Oferente A", 1, NO_APTO), "Se deja constancia.")]
+    report.upload_report(evaluator_user, offer_id=a.pk, data=tender_pdf(pages, header=None),
+                         file_name="informe.pdf")
+    read_queue()
+    assert len(model.calls) >= 2
+    proposals = technical.proposals_of(a)
+    assert proposals[1].reason == "contradictorio" and not proposals[1].verdict
+    assert proposals[2].verdict == "apto"
+
+
+def test_the_report_is_not_a_document_of_the_offer_for_the_guards(
+        procedure, operator_user, offers):
+    """REQ-074, P3: un informe fallido o en lectura no bloquea la evaluación ni la ficha, y una
+    oferta con solo el informe no cuenta como oferta con documentos."""
+    from evaluon.assessment.services import matrix as matrix_service
+    from evaluon.offers.services import sheets
+    from evaluon.tenders.models import Job, JobKind, JobStatus
+    a, _ = offers
+    waiting = om.Document.objects.create(
+        offer=a, title="informe", file_name="informe.pdf", file_format="pdf", file_size=1,
+        file_sha256="c" * 64, loaded_by=operator_user, kind=om.DocumentKind.INFORME_TECNICO)
+    # En lectura: no bloquea.
+    evaluate.request_evaluation(operator_user, procedure, offers=[a.pk])
+    sheets._check_request(a)
+    Job.objects.filter(kind=JobKind.EVALUATE_OFFERS).update(status=JobStatus.DONE)
+    # Fallido: tampoco.
+    Job.objects.create(kind=JobKind.READ_OFFER_DOCUMENT, procedure=procedure,
+                       target_id=waiting.pk, status=JobStatus.FAILED,
+                       requested_by=operator_user, error="falla")
+    evaluate.request_evaluation(operator_user, procedure, offers=[a.pk])
+    sheets._check_request(a)
+    # Una oferta con solo el informe: sin documentos.
+    only = om.Offer.objects.create(procedure=procedure, number=9, bidder="Solo informe",
+                                   created_by=operator_user)
+    om.Document.objects.create(
+        offer=only, title="informe", file_name="i2.pdf", file_format="pdf", file_size=1,
+        file_sha256="d" * 64, loaded_by=operator_user, kind=om.DocumentKind.INFORME_TECNICO)
+    with pytest.raises(evaluate.EvaluationRefused) as error:
+        evaluate.request_evaluation(operator_user, procedure, offers=[only.pk])
+    assert error.value.reason == "no_documents"
+    with pytest.raises(sheets.SheetRefused) as sheet_error:
+        sheets._check_request(only)
+    assert sheet_error.value.reason == "no_documents"
+    assert only in matrix_service.offers_without_documents(procedure)
+
+
+def test_the_report_does_not_enter_the_retrieval_of_the_offer(
+        procedure, operator_user, fake_ai):
+    """REQ-074, P3: los pasajes del informe del área no son candidatos de la recuperación de la
+    oferta: no pueden citarse en la ficha como si los hubiera presentado el oferente."""
+    from evaluon.offers import retrieval
+    offer = make_offer(
+        procedure, operator_user, "Oferente A",
+        {"oferta.pdf": ["El gramaje ofrecido es de 75 gramos."],
+         "informe.pdf": ["El area considera apto el gramaje de Oferente A."]},
+        kinds={"informe.pdf": "informe_tecnico"})
+    found = retrieval.retrieve(offer, "gramaje apto")
+    kinds = {om.Passage.objects.get(pk=c.passage_id).reading.document.kind for c in found.pool}
+    assert found.pool and om.DocumentKind.INFORME_TECNICO not in kinds

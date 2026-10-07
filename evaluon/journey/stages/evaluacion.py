@@ -16,6 +16,7 @@ from django.urls import reverse
 from evaluon.assessment.models import Run
 from evaluon.journey.progress import progress_of
 from evaluon.journey.stages import base
+from evaluon.offers.services.offers import own_documents
 from evaluon.tenders.models import JobKind, JobStatus
 from evaluon.tenders.services.validation import latest_validated
 
@@ -49,7 +50,8 @@ def compute(user, procedure):
     version = latest_validated(procedure)
     if version is None:
         return base.Stage(state=base.PENDIENTE, detail="Falta una matriz validada.", **common)
-    offers = [o for o in procedure.offers.order_by("number") if o.documents.exists()]
+    offers = [o for o in procedure.offers.order_by("number")
+              if own_documents(o).exists()]
     if not offers:
         return base.Stage(state=base.PENDIENTE,
                           detail="Faltan ofertas con documentos cargados.", **common)

@@ -23,7 +23,8 @@ from django.urls import reverse
 
 from evaluon.journey.progress import progress_of
 from evaluon.journey.stages import base
-from evaluon.offers.models import Document, EntryState, Sheet, SheetChannel
+from evaluon.offers.models import Document, DocumentKind, EntryState, Sheet, SheetChannel
+from evaluon.offers.services.offers import own_documents
 from evaluon.tenders.models import JobKind, JobStatus
 from evaluon.tenders.services.validation import latest_validated
 
@@ -76,8 +77,9 @@ def compute(user, procedure):
     common = {"key": KEY, "label": LABEL, "view_url": view_url}
 
     offers = list(procedure.offers.order_by("number"))
-    with_documents = [o for o in offers if o.documents.exists()]
-    documents = list(Document.objects.filter(offer__in=with_documents))
+    with_documents = [o for o in offers if own_documents(o).exists()]
+    documents = list(Document.objects.filter(offer__in=with_documents)
+                     .exclude(kind=DocumentKind.INFORME_TECNICO))
     unread = [d for d in documents if not d.readings.exists()]
     all_read = bool(with_documents) and not unread
 
