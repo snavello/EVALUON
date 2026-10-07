@@ -1,6 +1,6 @@
 # ADR-0047 · Cinco secciones sin orden obligatorio
 
-Estado: propuesto · Fecha: 2026-10-07 · Decide: responsable del proyecto
+Estado: aceptado · Fecha: 2026-10-07 · Decidió: responsable del proyecto (aprobó la spec 014, 20:20)
 
 ## Contexto
 

@@ -1,6 +1,6 @@
 # Spec 014 · Aplicación por secciones
 
-Estado: borrador · Fecha: 2026-10-07 · Aprobó: —
+Estado: aprobada · Fecha: 2026-10-07 · Aprobó: responsable del proyecto (2026-10-07 20:20, «si»)
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
 
