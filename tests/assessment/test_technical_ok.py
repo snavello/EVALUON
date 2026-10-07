@@ -71,7 +71,7 @@ def test_the_ok_and_its_event_record_who_when_and_what(pending, evaluator_user):
     nota, y el hecho `eval_decision` con `kind = technical_ok`."""
     offer, rows = pending
     applied = technical.give_ok(evaluator_user, offer, items=[1],
-                                verdicts={1: "apto", 2: "no_apto"}, note="Aprobado")
+                                verdicts={1: "apto"}, note="Aprobado")
     ok = am.TechnicalOk.objects.get()
     assert (ok.user, ok.offer, ok.items, ok.verdicts, ok.action, ok.note) == (
         evaluator_user, offer, [1], {"1": "apto"}, "dar_ok", "Aprobado")
@@ -163,7 +163,8 @@ def test_the_operator_cannot_give_or_withdraw_the_ok(pending, operator_user, eva
 
 @pytest.mark.parametrize("verdicts,reason", [
     ({1: "apto"}, "verdict_required"),
-    ({1: "apto", 2: "quizas"}, "verdict_invalid"),
+    ({1: "apto", 2: "quizas", 3: "apto"}, "verdict_invalid"),
+    ({1: "apto", 2: "apto", 3: "apto", 9: "apto"}, "verdict_out_of_scope"),
 ])
 def test_every_row_needs_what_the_report_says(pending, evaluator_user, verdicts, reason):
     """REQ-061: el ok lleva por renglón apto o no apto; sin eso no se guarda."""

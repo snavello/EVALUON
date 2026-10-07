@@ -187,6 +187,11 @@ def _name(user):
 
 def _clean_verdicts(scope, verdicts):
     verdicts = {str(k): v for k, v in (verdicts or {}).items()}
+    extra = sorted(set(verdicts) - {str(i) for i in scope})
+    if extra:
+        raise TechnicalRefused(
+            "Hay lo que dice el informe de renglones que el ok no nombra: "
+            + ", ".join(extra) + ".", "verdict_out_of_scope", "verdicts")
     clean = {}
     for item in scope:
         value = verdicts.get(str(item))
