@@ -872,57 +872,6 @@ PHRASE = "garantía de {} de la oferta".format("mantenimiento")
 GUARANTEE = f"La falta de presentación en término determinará la pérdida de la {PHRASE}."
 
 
-def _verdict(text, destination):
-    found = Found("formal", (0, len(text)))
-    segment = SimpleNamespace(pk=1, text=text)
-    row = row_filter.Row(SimpleNamespace(segment=segment), found, 1)
-    return row_filter.Verdict(row, destination, reason="consecuencia_sancion"
-                              if destination == row_filter.DESCARTADA else "")
-
-
-def test_the_only_mention_of_the_offer_guarantee_cannot_be_discarded():
-    """REQ-035, REQ-036: si el pliego nombra la garantía de la oferta solo
-    para decir qué pasa si falta, la fila descartada pasa a sugerencia para que la Comisión
-    decida y la norma la respalde."""
-    discarded = _verdict(GUARANTEE, row_filter.DESCARTADA)
-    other = _verdict("Las ofertas se cotizan en pesos.", row_filter.FIRME)
-
-    row_filter.protect_offer_guarantee([other, discarded])
-
-    assert (discarded.destination, discarded.doubt_reason, discarded.reason) == (
-        row_filter.SUGERENCIA, "duda", "")
-    assert discarded.anomaly == row_filter.ANOMALY_OFFER_GUARANTEE
-    assert other.destination == row_filter.FIRME
-
-
-@pytest.mark.parametrize("where", ["firm", "suggestion", "outside"])
-def test_a_row_that_already_names_the_offer_guarantee_leaves_the_discard_alone(where):
-    """REQ-035: si otra fila (firme, sugerencia o fuera del filtro) ya nombra la garantía, el
-    descarte de la consecuencia se respeta."""
-    discarded = _verdict(GUARANTEE, row_filter.DESCARTADA)
-    text = f"Se constituirá una {PHRASE} del 5 %."
-    verdicts, outside = [discarded], ()
-    if where == "firm":
-        verdicts.append(_verdict(text, row_filter.FIRME))
-    elif where == "suggestion":
-        verdicts.append(_verdict(text, row_filter.SUGERENCIA))
-    else:
-        outside = (text,)
-
-    row_filter.protect_offer_guarantee(verdicts, outside)
-
-    assert discarded.destination == row_filter.DESCARTADA
-
-
-def test_a_pliego_that_never_names_the_offer_guarantee_is_not_touched():
-    """REQ-036: sin mención no se inventa nada: la norma solo confirma."""
-    discarded = _verdict("La multa será del 1 % diario.", row_filter.DESCARTADA)
-
-    row_filter.protect_offer_guarantee([discarded])
-
-    assert discarded.destination == row_filter.DESCARTADA
-
-
 def test_the_offer_guarantee_sentence_is_a_suggestion_in_the_matrix(operator_user, script, filt):
     """REQ-035, REQ-036: de punta a punta, la oración que solo menciona la garantía como
     consecuencia llega a la matriz como sugerencia, no como descartada."""
@@ -988,3 +937,31 @@ def test_no_guarantee_sentence_is_added_when_a_row_already_names_it(
     run = run_with(operator_user, pliego(sentence))
 
     assert [r.state for r in formal_rows(run)] == ["propuesto"]
+
+
+def test_a_row_whose_quote_is_in_the_sentence_that_names_the_guarantee_covers_it(
+        operator_user, script, filt):
+    """REQ-035: la fila que cita solo una parte de la oración que nombra la garantía (sin
+    la frase) la cubre: no se suma una sugerencia repetida."""
+    sentence = f"La {PHRASE} deberá ser individualizada al presentar la oferta."
+    script.when(sentence, item([("deberá ser individualizada al presentar la oferta",
+                                 "economico")]))
+
+    run = run_with(operator_user, pliego(sentence))
+
+    assert [r.state for r in formal_rows(run)] == ["propuesto"]
+
+
+def test_a_row_in_another_sentence_of_the_same_tramo_does_not_cover_the_guarantee(
+        operator_user, script, filt):
+    """REQ-035, REQ-036: en un tramo con filas, la oración que solo nombra la garantía como
+    consecuencia, sin fila propia, entra como sugerencia y la otra fila no cambia."""
+    other = "Los oferentes adjuntarán la declaración jurada firmada."
+    clause = f"{other} {GUARANTEE}"
+    script.when(other, item([(other, "formal")]))
+
+    run = run_with(operator_user, pliego(clause))
+
+    rows = formal_rows(run)
+    assert [(r.state, r.quotes.get().text) for r in rows] == [
+        ("propuesto", other), ("sugerido", GUARANTEE)]

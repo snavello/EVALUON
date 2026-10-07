@@ -595,11 +595,8 @@ def filter_decisions(row_pass, loaded, decisions, unification):
     body = _body(loaded, decisions)
     rows = row_filter.candidates(
         body, unification.repeated if unification is not None else {})
-    in_filter = {id(row.found) for row in rows}
-    outside = [_found_text(unit.segment, found) for unit, found in body
-               if id(found) not in in_filter]
-    result = row_pass.filter_rows(rows, outside)
-    add_offer_guarantee_mention(loaded, decisions, result, outside)
+    result = row_pass.filter_rows(rows)
+    protect_offer_guarantee(loaded, decisions, result)
     gone = {id(v.row.found): v for v in result.of(row_filter.DESCARTADA)}
     for unit in loaded.units:
         decision = decisions[unit.segment.pk]
@@ -621,45 +618,59 @@ def filter_decisions(row_pass, loaded, decisions, unification):
     return result
 
 
-def add_offer_guarantee_mention(loaded, decisions, result, outside):
-    """Guarda en código (T-178, REQ-035, REQ-036): si el pliego nombra la garantía de la oferta
-    y ninguna fila (firme, sugerencia o fuera del filtro) la nombra, la oración del primer
-    tramo que la nombra entra como sugerencia con la duda `duda`. Un pliego que solo la
-    menciona para decir qué pasa si falta la da por supuesta; el modelo puede no haber
-    propuesto esa oración. La Comisión decide, con la cita de la norma como respaldo. No se
+def protect_offer_guarantee(loaded, decisions, result):
+    """Guarda en código (T-178, REQ-035, REQ-036): si el pliego nombra la garantía de la
+    oferta y ninguna fila firme ni sugerencia cubre una de esas menciones (una fila cubre la
+    mención si su cita toca la misma oración), la primera mención entra como sugerencia con
+    la duda `duda`. Un pliego que solo la nombra para decir qué pasa si falta la da por
+    supuesta; el modelo puede haber descartado esa oración o no haberla propuesto. Si una
+    fila descartada toca la oración, esa fila es la que pasa a sugerencia; si no, entra la
+    oración como fila nueva. La Comisión decide, con la cita de la norma como respaldo
+    (REQ-036), consultada por la condición nombrada y no por la oración de la sanción. No se
     toca un tramo técnico, una tabla ni un título."""
     guarantee = row_filter.OFFER_GUARANTEE
-    if any(guarantee.search(text) for text in outside):
-        return
-    if any(v.destination != row_filter.DESCARTADA and guarantee.search(v.row.text)
-           for v in result.verdicts):
-        return
+    discarded = {id(v.row.found): v for v in result.verdicts
+                 if v.destination == row_filter.DESCARTADA}
+    first = None
     for unit in loaded.units:
         segment = unit.segment
         decision = decisions[segment.pk]
-        if (segment.section_class == RequirementClass.TECNICO
-                or segment.segment_type in (SegmentType.TITULO, SegmentType.TABLA)
-                or decision.outcome not in (DispositionOutcome.DESCARTADO.value,
-                                            DispositionOutcome.REQUISITOS.value,
-                                            DispositionOutcome.TECNICO.value)):
-            continue
-        match = guarantee.search(segment.text)
-        if match is None:
-            continue
-        start, end = row_filter.sentence_bounds(segment.text, match.start())
-        found = Found(RequirementClass.ECONOMICO.value, (start, end))
-        found.passes = [PassName.FILTRO.value]
-        if decision.outcome != DispositionOutcome.REQUISITOS.value:
-            decisions[segment.pk] = decision = Decision(
-                DispositionOutcome.REQUISITOS.value, source=DispositionSource.REGLA.value,
-                marks=list(decision.marks))
-        decision.found.append(found)
-        row = row_filter.Row(unit, found, max([v.row.order for v in result.verdicts],
-                                              default=0) + 1, query=match.group(0))
-        result.verdicts.append(row_filter.Verdict(
-            row, row_filter.SUGERENCIA, doubt_reason="duda",
-            anomaly=row_filter.ANOMALY_OFFER_GUARANTEE))
+        for match in guarantee.finditer(segment.text):
+            start, end = row_filter.sentence_bounds(segment.text, match.start())
+            if any(id(f) not in discarded and f.span[0] < end and f.span[1] > start
+                   for f in decision.found):
+                return
+            skip = (segment.section_class == RequirementClass.TECNICO
+                    or segment.segment_type in (SegmentType.TITULO, SegmentType.TABLA)
+                    or decision.outcome not in (DispositionOutcome.DESCARTADO.value,
+                                                DispositionOutcome.REQUISITOS.value,
+                                                DispositionOutcome.TECNICO.value))
+            if first is None and not skip:
+                first = (unit, decision, match, start, end)
+    if first is None:
         return
+    unit, decision, match, start, end = first
+    for found in decision.found:
+        verdict = discarded.get(id(found))
+        if verdict is not None and found.span[0] < end and found.span[1] > start:
+            verdict.row.query = match.group(0)
+            verdict.destination = row_filter.SUGERENCIA
+            verdict.doubt_reason = "duda"
+            verdict.reason = ""
+            verdict.anomaly = row_filter.ANOMALY_OFFER_GUARANTEE
+            return
+    found = Found(RequirementClass.ECONOMICO.value, (start, end))
+    found.passes = [PassName.FILTRO.value]
+    if decision.outcome != DispositionOutcome.REQUISITOS.value:
+        decisions[unit.segment.pk] = decision = Decision(
+            DispositionOutcome.REQUISITOS.value, source=DispositionSource.REGLA.value,
+            marks=list(decision.marks))
+    decision.found.append(found)
+    row = row_filter.Row(unit, found, max([v.row.order for v in result.verdicts], default=0) + 1,
+                         query=match.group(0))
+    result.verdicts.append(row_filter.Verdict(
+        row, row_filter.SUGERENCIA, doubt_reason="duda",
+        anomaly=row_filter.ANOMALY_OFFER_GUARANTEE))
 
 
 def keep_tables_pending(loaded, decisions):

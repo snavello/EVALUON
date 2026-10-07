@@ -35,9 +35,9 @@ propiedad obligatoria por alias; la segunda no ve la respuesta de la primera):
 
 Guarda en código (T-125, REQ-024): una fila descartada que comparte oración con una fila
 firme del mismo tramo pasa a sugerencia con la duda `duda` (`protect_shared_sentences`).
-Guarda en código (T-178): si el pliego nombra la garantía de la oferta y
-ninguna fila la nombra, la primera descartada que la nombra pasa a sugerencia
-(`protect_offer_guarantee`).
+Guarda en código (T-178): si el pliego nombra la garantía de la oferta y ninguna fila la
+cubre, entra como sugerencia (`run.protect_offer_guarantee`, que usa `OFFER_GUARANTEE` y
+`sentence_bounds` de este módulo).
 
 Con `SUGGESTIONS_ENABLED` en falso, lo que sería sugerencia queda firme. Un lote cuya salida
 se corta por el máximo se parte en dos, como en la extracción. Una falla del servicio no
@@ -449,30 +449,6 @@ OFFER_GUARANTEE = re.compile(
 ANOMALY_OFFER_GUARANTEE = "filtro_garantia_oferta_mencionada"
 
 
-def protect_offer_guarantee(verdicts, other_texts=()):
-    """Guarda en código (T-178, REQ-035, REQ-036): si el pliego nombra la garantía de la
-    oferta y ninguna fila firme ni sugerencia la nombra, la primera fila descartada que la
-    nombra pasa a sugerencia con la duda `duda`. Un pliego que solo la menciona al decir qué
-    pasa si no se cumple (la pérdida de esa garantía) la da por supuesta: el régimen la exige
-    a toda oferta, y la Comisión decide si es un requisito, con la cita de la norma como
-    respaldo (REQ-036). `other_texts` son los fragmentos de las filas que no pasaron por el
-    filtro (quedaron firmes)."""
-    if any(OFFER_GUARANTEE.search(text) for text in other_texts):
-        return
-    kept = [v for v in verdicts if v.destination != DESCARTADA]
-    if any(OFFER_GUARANTEE.search(v.row.text) for v in kept):
-        return
-    for verdict in verdicts:
-        match = OFFER_GUARANTEE.search(verdict.row.text)
-        if verdict.destination == DESCARTADA and match:
-            verdict.row.query = match.group(0)
-            verdict.destination = SUGERENCIA
-            verdict.doubt_reason = "duda"
-            verdict.reason = ""
-            verdict.anomaly = ANOMALY_OFFER_GUARANTEE
-            return
-
-
 # --- El filtro ---------------------------------------------------------------------------------
 
 
@@ -591,10 +567,9 @@ class Filter:
             parsed={"filas": parsed, "finish_reason": output.finish_reason})
         return [(answer, step) for answer in answers]
 
-    def filter_rows(self, rows, other_texts=()):
+    def filter_rows(self, rows):
         """Pregunta A y pregunta B de cada lote de `FILTER_BATCH_ROWS` filas, y reparte
-        cada fila. `other_texts` son los fragmentos de las filas que no pasan por el filtro.
-        Devuelve el `Result`."""
+        cada fila. Devuelve el `Result`."""
         size = max(settings.FILTER_BATCH_ROWS, 1)
         verdicts = []
         for at in range(0, len(rows), size):
@@ -606,7 +581,6 @@ class Filter:
                 verdict.step_a, verdict.step_b = step_a, step_b
                 verdicts.append(verdict)
         protect_shared_sentences(verdicts)
-        protect_offer_guarantee(verdicts, other_texts)
         for verdict in verdicts:
             if verdict.destination == SUGERENCIA and not settings.SUGGESTIONS_ENABLED:
                 verdict.destination = FIRME
