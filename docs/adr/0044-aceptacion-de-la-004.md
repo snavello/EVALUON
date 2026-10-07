@@ -11,6 +11,7 @@ La spec 004 fija, con la regla de medición de la enmienda del 2026-10-06 (decis
 1. La 004 cumple su criterio de aceptación y pasa a la auditoría de funcionamiento (ADR-0036) y al despliegue.
 2. Siguen el modelo de generación de 12B y la lectura con visión con ese modelo (T-177). La lectura de manuscritos con el modelo de 26B (que en la prueba del 2026-10-07 leyó el pagaré casi sin errores) queda para la revisión con el primer producto: hoy no entra junto con el 12B en la memoria de video.
 3. Lo que no llegó pasa, con su impacto, a "Revisión con el primer producto" de `specs/004-evaluacion-asistida/tasks.md`.
+4. REQ-054 (fragmentos de la ficha) midió 81 % contra el 90 % de su criterio: se difiere a la revisión con el primer producto, con su impacto anotado (señalado por la auditoría de funcionamiento, 2026-10-07).
 
 ## Consecuencias
 
