@@ -49,7 +49,7 @@ flowchart LR
 | [001 · Normativa consultable con cita](#001) | Las normas de compras cargadas, versionadas y consultables, con cada respuesta respaldada por el artículo que la sostiene | 4 de 7 · Desarrollo | 64/66 | ██████████ 97% |
 | 002 · Análisis del pliego borrador | Opcional: un informe de cumplimiento de un pliego borrador contra la normativa, con preguntas a la Comisión sobre lo que no puede resolver, y su matriz de cumplimiento preliminar | No iniciada | — | — |
 | [003 · Procedimiento, pliego final y matriz de cumplimiento](#003) | El procedimiento con su fecha de autorización; la carga del pliego final publicado; la matriz de cumplimiento (requisitos formales, económicos y técnicos que debe cumplir la oferta, cada uno con su cita al pliego) armada desde el pliego final y validada por la Comisión | 4 de 7 · Desarrollo | 63/65 | ██████████ 97% |
-| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 21/24 | █████████░ 88% |
+| [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 4 de 7 · Desarrollo | 22/26 | ████████░░ 85% |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
 | 007 · Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | No iniciada | — | — |
@@ -664,10 +664,11 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 3 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 4 tareas sin terminar.
 - ○ T-159 · Descarga y verificación de archivos y servicio: proyector del 12B, 26B-A4B con su proyector, variables propias del lote, `--mmproj`, archivo `docker-compose.modelo-grande.yml`, prueba de humo con imagen y memoria medida (pendiente)
 - ○ T-170 · Medición con la regla nueva: conteo por tipo de par, `--verificar-decisiones` y actualización de la lista esperada del caso-00 (Coordinador, fuera del repositorio) (pendiente)
-- ○ T-171 · Medir el caso-00 con las decisiones aplicadas (medición final, una sola) (pendiente)
+- ○ T-172 · Corregir los hallazgos de T-171: documento técnico afirmado por una línea de precio (H-3), ilegible del pagaré en todos los pares de la garantía (H-4), M-008 y M-016 externos (H-5), hechos técnicos de una oferta sin ficha (H-6) (pendiente)
+- ○ T-173 · Medir el caso-00 con los datos del Portal cargados (ronda 2, la última, ADR-0025) (pendiente)
 
 ### Qué se hizo
 
@@ -693,6 +694,7 @@ flowchart LR
 - ✓ T-167 · Filas técnicas por renglón: documento técnico y renglones con oferta como hechos, resultado "pendiente del informe técnico" y la opinión como información (`a2967fb` 2026-10-06, `4da445b` 2026-10-06)
 - ✓ T-168 · Ok de la Comisión del informe técnico y presentación en la matriz de los resultados nuevos (`4d610a8` 2026-10-06, `880e5b4` 2026-10-06, `ca115e7` 2026-10-06)
 - ✓ T-169 · El Portal como fuente: dato o documento en el Portal, falta de coincidencia y cita del Portal (`ba7dd3e` 2026-10-07, `dea0bdc` 2026-10-06)
+- ✓ T-171 · Medir el caso-00 con las decisiones aplicadas (medición final, una sola)
 
 ### Mapa de tareas
 
@@ -721,7 +723,9 @@ flowchart TD
   T168["✓ T-168 · Ok de la Comisión del informe técnico y pre…"]:::done
   T169["✓ T-169 · El Portal como fuente: dato o documento en…"]:::done
   T170["○ T-170 · Medición con la regla nueva: conteo por tip…"]:::todo
-  T171["○ T-171 · Medir el caso-00 con las decisiones aplicad…"]:::todo
+  T171["✓ T-171 · Medir el caso-00 con las decisiones aplicad…"]:::done
+  T172["○ T-172 · Corregir los hallazgos de T-171: documento…"]:::todo
+  T173["○ T-173 · Medir el caso-00 con los datos del Portal c…"]:::todo
   T148 --> T150
   T149 --> T151
   T150 --> T151
@@ -751,6 +755,8 @@ flowchart TD
   T168 --> T171
   T169 --> T171
   T170 --> T171
+  T171 --> T172
+  T172 --> T173
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -762,14 +768,14 @@ flowchart TD
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-052 | Para cada oferta y cada requisito de la matriz validada, el sistema debe proponer un resultado: cumple, no cumple, no se encontró el documento, o no determinado (con duda o sin corroborar, citando lo que tiene). | T-148, T-149, T-150, T-151, T-155, T-156, T-157, T-158, T-164, T-159, T-160, T-161, T-162, T-163, T-170, T-171 | ▶ en proceso |
+| REQ-052 | Para cada oferta y cada requisito de la matriz validada, el sistema debe proponer un resultado: cumple, no cumple, no se encontró el documento, o no determinado (con duda o sin corroborar, citando lo que tiene). | T-148, T-149, T-150, T-151, T-155, T-156, T-157, T-158, T-164, T-159, T-160, T-161, T-162, T-163, T-170, T-171, T-173 | ▶ en proceso |
 | REQ-053 | Cada propuesta debe traer su fundamento citado: el texto del requisito (pliego o circular), el texto de la oferta que lo sostiene (documento y página, texto literal) y, si lo usa, la norma con su artículo o la respuesta registrada de la Comisión. Sin fundamento citado, el resultado es "no determinado". | T-148, T-149, T-150, T-151, T-153, T-155, T-156, T-157, T-158, T-164, T-160, T-161, T-162, T-163, T-170, T-171 | ▶ en proceso |
-| REQ-054 | Para proponer, el sistema debe leer completos los documentos de la oferta que pueden responder el requisito, no solo los pasajes que encuentra una búsqueda. | T-148, T-149, T-150, T-151, T-155, T-156, T-157, T-160, T-161, T-162, T-163, T-171 | ▶ en proceso |
+| REQ-054 | Para proponer, el sistema debe leer completos los documentos de la oferta que pueden responder el requisito, no solo los pasajes que encuentra una búsqueda. | T-148, T-149, T-150, T-151, T-155, T-156, T-157, T-160, T-161, T-162, T-163, T-171 | ✓ cubierto |
 | REQ-055 | Cuando no puede resolver un requisito con el pliego, la oferta, la normativa o lo ya respondido, el sistema debe formular una pregunta concreta a la Comisión. Una pregunta sin respuesta deja el requisito en "no determinado" y se informa. | T-150, T-151, T-154 | ✓ cubierto |
 | REQ-056 | El evaluador debe poder confirmar, corregir o rechazar cada propuesta, y responder las preguntas. Cada decisión y cada respuesta quedan registradas con quién y cuándo (P6). Una respuesta puede servir de fundamento en otros requisitos (ADR-0009). | T-148, T-153, T-154 | ✓ cubierto |
 | REQ-057 | La evaluación de una oferta se arma contra una versión de la matriz validada y lo indica; si la matriz cambia, se avisa. | T-148, T-152 | ✓ cubierto |
 | REQ-058 | El sistema debe mostrar, por oferta, el estado de la evaluación: requisitos por estado y preguntas abiertas. | T-152 | ✓ cubierto |
-| REQ-059 | La evaluación se pide para todas las ofertas del procedimiento a la vez y se presenta como una **matriz de evaluación** (ofertas por requisitos). Las ofertas que no cumplen requisitos formales o técnicos quedan señaladas como descartadas, con el requisito y su fundamento, y las demás se **ordenan por lo económico** (precio total y por renglón, con la cotización del Portal cuando la hay). El descarte y el orden son propuestas: decide la Comisión. | T-149, T-150, T-152, T-155, T-156, T-157, T-161, T-162, T-163, T-171 | ▶ en proceso |
+| REQ-059 | La evaluación se pide para todas las ofertas del procedimiento a la vez y se presenta como una **matriz de evaluación** (ofertas por requisitos). Las ofertas que no cumplen requisitos formales o técnicos quedan señaladas como descartadas, con el requisito y su fundamento, y las demás se **ordenan por lo económico** (precio total y por renglón, con la cotización del Portal cuando la hay). El descarte y el orden son propuestas: decide la Comisión. | T-149, T-150, T-152, T-155, T-156, T-157, T-161, T-162, T-163, T-171 | ✓ cubierto |
 | REQ-060 | Cuando el pliego exige un documento que no está en la oferta, el resultado es "no se encontró el documento", con la cita del pliego; no es "no cumple". La Comisión decide: puede pedir que se subsane y, si el oferente lo presenta, el documento se agrega a la oferta y ese requisito se vuelve a evaluar, con registro de todo el recorrido. | T-149, T-150, T-151, T-154 | ✓ cubierto |
 
 <a id="008"></a>
