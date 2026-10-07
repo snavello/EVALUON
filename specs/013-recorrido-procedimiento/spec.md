@@ -61,12 +61,16 @@ Los mismos de las features 003, 004, 008 y 012; la página no agrega datos nuevo
 | 2026-10-07 | Ficha | La ficha de la oferta no es obligatoria para evaluar ("si") |
 | 2026-10-07 | Sugerencias | Se cuentan aparte de las decisiones pendientes, "pero que quede claro que estan ambas" |
 | 2026-10-07 | Portal | "el portal es opcional pero debiera poder ser explorado como primer fuente y no al reves. Asi funciona hoy la comision. Es decir explora porta , muestra que tiene mas lo que se sube a mano como complemento" |
+| 2026-10-07 | Hoja de compliance | Una hoja de compliance por oferta para las acciones que la Comisión valida en sistemas externos, subida una vez, con acceso y cuenta en el recorrido ("si") |
+| 2026-10-07 | Informe técnico | "creo que pasa algo similar con el informe tecnico del area requirente lo mismo para el informe tecnico" |
 
 ### Enmienda 2026-10-07
 
 - **REQ-070 · Ventana del proceso.** Mientras el sistema trabaja, una ventana (panel) muestra el proceso paso a paso, en vivo y en lenguaje llano: qué documento lee, qué requisito evalúa, qué decidió una regla, cuánto lleva; con la lista de lo hecho y lo que falta.
 - **REQ-071 · El Portal primero.** El alta de un procedimiento empieza explorando el Portal (enlace del proceso); el recorrido muestra lo que trajo el Portal y, aparte, lo que se sube a mano como complemento. La carga a mano sin Portal sigue siendo posible.
 - **REQ-072 · Sugerencias y pendientes.** En cada etapa se ven por separado las decisiones pendientes y las sugerencias, las dos visibles.
+- **REQ-073 · Hoja de compliance por oferta.** La Comisión sube una hoja de compliance por oferta (también una que diga que no cumple); rige para todos los requisitos externos de esa oferta, que se vuelven a evaluar solos citando la hoja. El recorrido muestra cuántas hojas faltan y da el acceso para subirlas.
+- **REQ-074 · Informe técnico del área requirente.** La Comisión sube el informe técnico aprobado del área (por procedimiento o por oferta). El sistema lo lee y propone, por oferta y renglón, apto o no apto con la cita del informe; la Comisión da el ok (confirma o corrige). El juicio técnico es del área: el sistema solo toma lo que dice el informe. El recorrido muestra los informes que faltan y da el acceso para subirlos.
 
 ## Preguntas abiertas
 
