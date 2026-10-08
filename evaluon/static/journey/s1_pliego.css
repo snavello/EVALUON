@@ -1,0 +1,16 @@
+/* Alta subiendo el pliego (T-197, REQ-077): lo propio de la pantalla de la propuesta. Lo común
+   (tablas, avisos, campos) viene de secciones.css y s1.css. */
+.pliego-propuesta .cita { display: block; margin-top: 2px; font-size: var(--ev-t-xs); color: var(--ev-texto-suave); }
+.pliego-propuesta .corregido { margin-top: 4px; font-size: var(--ev-t-xs); }
+.pliego-propuesta .corregido li { margin-bottom: 2px; }
+.pliego-propuesta details.acc { display: inline-block; vertical-align: top; margin: 4px 6px 0 0; }
+.pliego-propuesta details.acc > summary { list-style: none; cursor: pointer; display: inline-block; }
+.pliego-propuesta details.acc > summary::-webkit-details-marker { display: none; }
+.pliego-propuesta details.acc[open] { display: block; max-width: 40rem; }
+.pliego-propuesta details.acc form { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-btn); background: var(--ev-superficie); }
+.pliego-propuesta details.acc label { display: block; margin-top: 6px; font-size: var(--ev-t-xs); font-weight: 600; }
+.pliego-propuesta details.acc textarea, .pliego-propuesta details.acc input[type=text], .pliego-propuesta details.acc input[type=date], .pliego-propuesta details.acc select { width: 100%; font: inherit; font-size: var(--ev-t-ctl); border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 6px 8px; }
+.pliego-propuesta .descartar { display: flex; gap: 6px; align-items: center; font-size: var(--ev-t-xs); }
+.pliego-propuesta .no-determinado { font-weight: 600; }
+.pliego-propuesta .pie-propuesta { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; justify-content: space-between; }
+.pliego-espera li { margin-bottom: 4px; }
