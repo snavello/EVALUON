@@ -1,0 +1,14 @@
+{% comment %}Las cinco pestañas cuando todavía no existe el procedimiento (T-195, maqueta aprobada): Procedimiento, activa y sin crear; Pliego y matriz, Ofertas y Evaluación, en gris hasta crearlo; Normativas, siempre disponible. Recibe `tabs` y `normativas_url`. No tiene formularios (P3).{% endcomment %}<ul>
+  {% for tab in tabs %}
+  <li>{% if tab.key == "procedimiento" %}<a href="{% url 'expedientes:nuevo' %}" aria-current="page">
+      <span class="t-nombre">{% include "journey/_icono.html" with icon="pend" name="Sin crear todavía" tip=False %}<span>{{ tab.label }}</span></span>
+      <span class="t-pie">sin crear</span></a>
+    {% elif tab.enabled %}<a href="{{ normativas_url }}">
+      <span class="t-nombre">{% include "journey/_icono.html" with icon="pend" name="Disponible" tip=False %}<span>{{ tab.label }}</span></span>
+      <span class="t-pie">siempre disponible</span></a>
+    {% else %}<span class="off" tabindex="0" role="link" aria-disabled="true" title="Disponible al crear el procedimiento">
+      <span class="t-nombre"><span>{{ tab.label }}</span></span>
+      <span class="t-pie">no disponible</span>
+      <span class="sr-only">Disponible al crear el procedimiento</span></span>{% endif %}</li>
+  {% endfor %}
+</ul>

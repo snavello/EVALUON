@@ -1,0 +1,3 @@
+{% comment %}Lo que confirma quien aprueba un documento (T-195): el tipo y la fecha de una circular que el Portal no trae. Recibe `i` (el ítem) y `kinds`.{% endcomment %}
+{% if i.ask_kind %}<span class="confirmar"><label for="tipo-{{ i.pk }}">Tipo de circular</label> <select name="tipo_{{ i.pk }}" id="tipo-{{ i.pk }}"><option value="">Elegir</option>{% for value, label in kinds %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></span>{% endif %}
+{% if i.ask_date %}<span class="confirmar"><label for="emision-{{ i.pk }}">Fecha de la circular</label> <input type="date" name="emision_{{ i.pk }}" id="emision-{{ i.pk }}"></span>{% endif %}

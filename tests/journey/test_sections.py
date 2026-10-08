@@ -118,13 +118,15 @@ def test_the_bar_fragment_is_only_the_tabs(client, procedure, operator_user):
     assert response["Cache-Control"] == "no-store"
 
 
-def test_the_header_lists_procedures_and_links_to_the_existing_new_procedure_screen(
+def test_the_header_lists_procedures_and_links_to_the_new_procedure_screen(
         client, procedure, operator_user):
-    """El encabezado ofrece cambiar de procedimiento y «+ Nuevo procedimiento»."""
+    """El encabezado ofrece cambiar de procedimiento y «+ Nuevo procedimiento», que lleva al alta
+    dentro de las cinco pestañas (T-195) y ya no al recorrido de la 013."""
     log_in(client, operator_user)
     html = client.get(reverse("expedientes:portada", args=[procedure.pk])).content.decode()
     assert procedure.number in html
-    assert "Nuevo procedimiento" in html and reverse("journey:index") in html
+    assert "Nuevo procedimiento" in html
+    assert f'href="{reverse("expedientes:nuevo")}"' in html and reverse("journey:index") not in html
     assert "Salir" in html and operator_user.username in html
 
 

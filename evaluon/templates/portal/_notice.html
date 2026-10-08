@@ -1,3 +1,3 @@
-{% comment %}Aviso de fin de un pedido del Portal, que no tiene procedimiento (T-141); lo incluye tenders/_finished_notice.html.{% endcomment %}{% if notice.job.kind == "portal_review" %}La revisión{% else %}La exploración{% endif %} del Portal
+{% comment %}Aviso de fin de un pedido del Portal, que no tiene procedimiento (T-141); lo incluye tenders/_finished_notice.html. El enlace va a la propuesta de la sección Procedimiento (T-195): la pantalla `nuevo/<enlace>/` abre la pestaña del procedimiento si el enlace ya tiene uno.{% endcomment %}{% if notice.job.kind == "portal_review" %}La revisión{% else %}La exploración{% endif %} del Portal
 {% if notice.failed %}falló: {{ notice.job.error }}.{% else %}terminó.{% endif %}
-<a href="{% url 'portal:proposal' notice.job.target_id %}">Ver la propuesta</a>.
+<a href="{% url 'expedientes:nuevo_enlace' notice.job.target_id %}">Ver la propuesta</a>.

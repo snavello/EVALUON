@@ -1,0 +1,102 @@
+{% comment %}La propuesta del Portal agrupada (T-195, REQ-076): datos, renglones, documentos y ofertas, cada grupo con la sección donde queda y su aprobación (ítem, grupo o todo). Un solo formulario: el botón apretado dice qué aprobar (`aprobar` = item:<id>, grupo:<clave> o todo). Recibe `v` (ver journey/temas/s1_portal.py, `link_view`) y `kinds`.{% endcomment %}
+{% with p=v.proposal %}
+{% if p.anomalies %}
+<div class="aviso aviso-error" role="alert"><b>No se pudo leer</b>
+  <ul>{% for a in p.anomalies %}<li>{{ a.parte }}: {{ a.motivo }}</li>{% endfor %}</ul></div>
+{% endif %}
+<form method="post" action="{{ v.urls.decide }}" class="propuesta">
+  {% csrf_token %}
+  {% for g in p.groups %}
+  <div class="bloque" id="s1-grupo-{{ g.key }}">
+    <div class="bloque-cab"><h3>{{ g.title }} <span class="cta">{{ g.items|length }}</span></h3>{% if g.key == "datos" %}<span class="linea-portal">El cronograma y las garantías se aprueban con los datos</span>{% endif %}</div>
+
+    {% if g.key == "datos" %}
+      {% for i in g.items %}
+      <p class="estado-item">{% include "journey/temas/_s1_estado.html" %}{% if i.changed %} · <b>Cambiado respecto de lo aprobado</b>{% endif %}</p>
+      {% if i.action == "crear" %}<p class="ayuda">Se creará el procedimiento.</p>{% elif i.action %}<p class="ayuda">Ya está registrado: se asociará al procedimiento existente.</p>{% endif %}
+      <div class="tabla-scroll"><table class="matriz lectura">
+        <caption class="sr-only">Datos del procedimiento que encontró el sistema</caption>
+        <thead><tr><th scope="col">Dato</th><th scope="col">Lo que encontró</th><th scope="col">Queda en</th></tr></thead>
+        <tbody>
+          {% for label, value, bad in i.rows %}
+          <tr><th scope="row">{{ label }}</th><td>{% if value %}{{ value }}{% if bad %}{% include "journey/temas/_s1_dano.html" %}{% endif %}{% else %}<span class="suave">No consta</span>{% endif %}</td><td>{{ i.destination }}</td></tr>
+          {% endfor %}
+          {% if i.action == "crear" %}
+          <tr><th scope="row"><label for="fecha-{{ i.pk }}">Fecha de autorización</label></th>
+            <td>{% if i.authorization.ask %}<input type="date" name="fecha_{{ i.pk }}" id="fecha-{{ i.pk }}" value="{{ i.authorization.candidate }}"> <span class="suave chica">El Portal no la muestra{% if i.authorization.origin %}; candidata: {{ i.authorization.origin }}{% endif %}. Confírmela antes de aprobar.</span>{% elif i.authorization.candidate %}<span class="num">{{ i.authorization.candidate }}</span>{% else %}<span class="suave">La confirma quien aprueba</span>{% endif %}
+              {% if i.authorization.regimes %}<br><span class="suave chica">Régimen: {{ i.authorization.regimes|join:" · " }}</span>{% endif %}</td><td>{{ i.destination }}</td></tr>
+          {% endif %}
+        </tbody>
+      </table></div>
+      <div class="tabla-scroll"><table class="matriz lectura">
+        <caption>Cronograma{% if i.damaged_schedule %}{% include "journey/temas/_s1_dano.html" %}{% endif %}</caption>
+        <thead><tr><th scope="col">Hito</th><th scope="col">Fecha y hora</th><th scope="col">Queda en</th></tr></thead>
+        <tbody>{% for concept, value in i.schedule %}<tr><th scope="row">{{ concept }}</th><td class="num">{{ value }}</td><td>{{ i.destination }}</td></tr>{% empty %}<tr><td colspan="3"><span class="suave">El Portal no publicó el cronograma</span></td></tr>{% endfor %}</tbody>
+      </table></div>
+      <div class="tabla-scroll"><table class="matriz lectura">
+        <caption>Garantías{% if i.damaged_guarantees %}{% include "journey/temas/_s1_dano.html" %}{% endif %}</caption>
+        <thead><tr><th scope="col">Garantía</th><th scope="col">¿Se requiere?</th><th scope="col" class="n">Porcentaje</th><th scope="col">Queda en</th></tr></thead>
+        <tbody>{% for gar in i.guarantees %}<tr><th scope="row">{{ gar.name }}</th><td>{% if gar.required is True %}Sí{% elif gar.required is False %}No{% else %}<span class="suave">No consta</span>{% endif %}</td><td class="n">{{ gar.percent|default:"—" }}</td><td>{{ i.destination }}</td></tr>{% empty %}<tr><td colspan="4"><span class="suave">El Portal no publicó las garantías</span></td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% endfor %}
+
+    {% elif g.key == "renglones" %}
+      {% for i in g.items %}
+      <p class="estado-item">{% include "journey/temas/_s1_estado.html" %}</p>
+      <div class="tabla-scroll"><table class="matriz lectura">
+        <caption class="sr-only">Renglones que encontró el sistema</caption>
+        <thead><tr><th scope="col" class="n">Renglón</th><th scope="col">Descripción</th><th scope="col" class="n">Cantidad</th><th scope="col">Queda en</th></tr></thead>
+        <tbody>{% for line in i.lines %}<tr><td class="n">{{ line.number }}</td><td>{{ line.description }}{% if line.damaged %}{% include "journey/temas/_s1_dano.html" %}{% endif %}</td><td class="n">{{ line.quantity }}</td><td>{{ i.destination }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% endfor %}
+
+    {% elif g.key == "documentos" %}
+      <div class="tabla-scroll"><table class="matriz lectura">
+        <caption class="sr-only">Documentos que publicó el Portal</caption>
+        <thead><tr><th scope="col">Documento</th><th scope="col">Fecha</th><th scope="col">Queda en</th><th scope="col">Aprobación</th></tr></thead>
+        <tbody>
+          {% for i in g.items %}
+          <tr id="item-{{ i.pk }}"><th scope="row">{{ i.title }}{% if i.damaged %}{% include "journey/temas/_s1_dano.html" %}{% endif %}<br><span class="suave chica">{{ i.file }}</span>{% if i.ask_kind or i.ask_date %}<br>{% include "journey/temas/_s1_confirmar.html" with kinds=kinds %}{% endif %}</th>
+            <td class="num">{{ i.date|default:"—" }}</td><td>{{ i.destination }}{% if i.portal_kind and i.class_label == "circular" %}<br><span class="suave chica">El Portal dice: {{ i.portal_kind }}</span>{% endif %}</td>
+            <td>{% if i.pending and i.can_decide %}<button class="btn primario chico" type="submit" name="aprobar" value="item:{{ i.pk }}">Aprobar</button>{% elif i.pending %}<span class="suave chica">Lo aprueba un evaluador</span>{% else %}{% include "journey/temas/_s1_estado.html" %}{% endif %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+
+    {% else %}
+      <div class="tabla-scroll"><table class="matriz lectura">
+        <caption class="sr-only">Ofertas del acta de apertura</caption>
+        <thead><tr><th scope="col">Oferente</th><th scope="col">CUIT</th><th scope="col" class="n">Total</th><th scope="col">Garantía</th><th scope="col">Queda en</th><th scope="col">Aprobación</th></tr></thead>
+        <tbody>
+          {% for i in g.items %}
+          <tr id="item-{{ i.pk }}"><th scope="row">{{ i.bidder }}{% if i.damaged %}{% include "journey/temas/_s1_dano.html" %}{% endif %}{% if i.match %}<br><span class="suave chica">Se asocia a la oferta cargada «{{ i.match }}»</span>{% endif %}{% if i.match_note %}<br><span class="chica">{{ i.match_note }}</span>{% endif %}{% for note in i.notes %}<br><span class="chica">Atención: {{ note }}</span>{% endfor %}</th>
+            <td class="num">{{ i.cuit }}</td><td class="n">{{ i.total }}</td>
+            <td>{% for gar in i.guarantees %}{{ gar }}{% if not forloop.last %}<br>{% endif %}{% empty %}<span class="suave">Sin garantía</span>{% endfor %}</td>
+            <td>{{ i.destination }}</td>
+            <td>{% if i.pending and i.can_decide %}<button class="btn primario chico" type="submit" name="aprobar" value="item:{{ i.pk }}">Aprobar</button>{% elif i.pending %}<span class="suave chica">Lo aprueba un evaluador</span>{% else %}{% include "journey/temas/_s1_estado.html" %}{% endif %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+      <p class="ayuda">Los documentos de cada oferta no los publica el Portal: se suben en la pestaña Ofertas.</p>
+    {% endif %}
+
+    {% if g.pending %}
+    <div class="bloque-pie">
+      {% if g.can_decide %}<button class="btn secundario chico" type="submit" name="aprobar" value="grupo:{{ g.key }}">Aprobar este grupo</button>{% else %}<span>Este grupo lo aprueba un evaluador.</span>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  <div class="bloque">
+    <div class="bloque-pie pie-total">
+      <span>Aprobados <b class="num">{{ p.done }}</b> de <b class="num">{{ p.total }}</b></span>
+      <span class="fila">
+        {% if p.pending %}
+          {% if v.can_approve_all %}<button class="btn primario" type="submit" name="aprobar" value="todo">Aprobar todo lo encontrado</button>{% else %}<span class="suave chica">Datos, renglones y ofertas los aprueba un evaluador; usted puede aprobar los documentos.</span>{% endif %}
+        {% endif %}
+      </span>
+    </div>
+  </div>
+</form>
+{% endwith %}
