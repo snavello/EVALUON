@@ -1,0 +1,14 @@
+/* Tema «anexos técnicos y hoja de compliance» de la pestaña Ofertas (T-204, REQ-087, REQ-088).
+   Todo va bajo `.s3-anx` para no mezclarse con los demás temas. Usa los tokens de la guía
+   visual; sin recursos externos. */
+
+.s3-anx .oferta-anexos { border-top: 1px solid var(--ev-borde); padding: 10px 0 6px; }
+.s3-anx .oferta-anexos h4 { margin: 0 0 6px; font-family: var(--ev-fuente-titulo); font-size: var(--ev-t-base); }
+.s3-anx .parte { margin: 0 0 12px; }
+.s3-anx .parte h5 { margin: 0 0 4px; font-family: var(--ev-fuente-titulo); font-size: var(--ev-t-sm); }
+.s3-anx .docs-anexos { margin: 0 0 6px; padding-left: 1.1rem; font-size: var(--ev-t-sm); overflow-wrap: anywhere; }
+.s3-anx form.en-linea { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 6px; }
+.s3-anx .subida input[type=file] { font: inherit; font-size: var(--ev-t-ctl); max-width: 100%; }
+.s3-anx .aviso { margin: 8px 0; padding: 9px 12px; border-radius: var(--ev-radio-btn); border: 1px solid var(--ev-borde); font-size: var(--ev-t-sm); }
+.s3-anx .aviso-ok { background: var(--ev-azul-50); border-color: var(--ev-azul-300); }
+.s3-anx .aviso-error { background: var(--ev-beige-100); border-color: var(--ev-beige-400); font-weight: 600; }
