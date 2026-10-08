@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EVALUON · maqueta en cinco secciones</title>
-<!-- Maqueta navegable de la spec 014 (ADR-0047): cinco secciones sin orden obligatorio.
+<title>EVALUON</title>
+<!-- Maqueta navegable de la spec 014 (ADR-0047): la aplicación como la ve el evaluador, con cinco pestañas sin orden obligatorio.
      Un solo archivo; estilos de la guía visual (docs/diseno/guia-visual.md) con los tokens de evaluon/static/diseno/tokens.css.
      Datos INVENTADOS con la forma del caso-00: ningún nombre, CUIT ni dato real. -->
 <style>
@@ -51,11 +51,6 @@
   header.top .nombre { font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-marca); line-height: 1; letter-spacing: var(--ev-espaciado-marca); text-transform: uppercase; padding-right: 14px; border-right: 2px solid var(--ev-rojo); white-space: nowrap; color: #fff; text-decoration: none; }
   header.top .usuario { margin-left: auto; text-align: right; font-size: var(--ev-t-xs); line-height: 1.35; color: var(--ev-azul-200); }
   header.top .usuario strong { display: block; color: #fff; font-size: var(--ev-t-sm); }
-  nav.tabs { background: var(--ev-superficie); border-bottom: 1px solid var(--ev-borde); position: sticky; top: 0; z-index: 20; }
-  nav.tabs ul { display: flex; gap: 2px; list-style: none; padding: 0; overflow-x: auto; }
-  nav.tabs a { display: block; font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: 1rem; letter-spacing: var(--ev-espaciado-pestana); text-transform: uppercase; color: var(--ev-texto-suave); text-decoration: none; padding: 13px 14px 11px; border-bottom: 3px solid transparent; white-space: nowrap; }
-  nav.tabs a:hover { color: var(--ev-texto); }
-  nav.tabs a[aria-current] { color: var(--ev-texto); border-bottom-color: var(--ev-azul-700); }
   main { padding: 24px 0 70px; }
   h1 { font-size: clamp(1.9rem, 4.5vw, 3.1rem); line-height: 1; margin: 6px 0 10px; }
   h2 { font-size: var(--ev-t-h2); line-height: var(--ev-interlineado-titulo); margin: 34px 0 10px; }
@@ -104,7 +99,7 @@
   .ayuda { font-size: var(--ev-t-xs); color: var(--ev-texto-suave); margin-top: 4px; }
   input[type=text], input[type=search], input[type=date], input[type=number], select, textarea { width: 100%; font: inherit; font-size: var(--ev-t-ctl); color: var(--ev-texto); background: var(--ev-superficie); border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 9px 12px; }
 
-  /* Composición de la maqueta (solo disposición, con los mismos tokens) */
+  /* Composición de las pantallas (solo disposición, con los mismos tokens) */
   .pantalla { display: none; }
   .pantalla.activa { display: block; }
   .migas { font-size: var(--ev-t-sm); color: var(--ev-texto-suave); }
@@ -198,37 +193,21 @@
   dialog .d-cab h3 { margin: 0; }
   dialog .d-cuerpo { padding: 14px 16px; display: grid; gap: 12px; }
   dialog .d-pie { padding: 12px 16px; border-top: 1px solid var(--ev-borde); display: flex; justify-content: flex-end; gap: 10px; }
-  body.sin-sesion nav.tabs, body.sin-sesion header.top .usuario, body.sin-sesion header.top .salir { display: none; }
+  body.sin-sesion .con-sesion { display: none !important; }
   body.operador .solo-eval { display: none !important; }
   .solo-op { display: none; }
   body.operador .solo-op { display: block; }
-  header.top select { width: auto; padding: 3px 6px; font-size: var(--ev-t-xs); background: var(--ev-azul-800); color: #fff; border-color: rgba(255,255,255,.35); margin-top: 3px; }
   .ingreso { max-width: 36rem; margin: 40px auto; }
   .ingreso .panel { display: grid; gap: 14px; padding: 22px; }
   .estado-vacio { text-align: center; padding: 36px 16px; }
   .estado-vacio p { max-width: 60ch; margin: 6px auto 14px; color: var(--ev-texto-suave); }
-  .pantalla:not(.vacia) > .estado-vacio { display: none; }
-  .galeria { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: 14px; }
-  .galeria .panel h4 { margin-bottom: 8px; }
   .respuesta p { max-width: 80ch; margin-bottom: 8px; }
   sup.ref { font-family: var(--ev-fuente-num); font-size: var(--ev-t-2xs); color: var(--ev-enlace); }
   @media (max-width: 900px) {
     .dos, .det-grid { grid-template-columns: 1fr; }
   }
 
-  /* Cinco secciones sin orden obligatorio (spec 014, ADR-0047) */
-  nav.tabs { position: static; }
-  nav.secciones { position: sticky; top: 0; z-index: 19; background: var(--ev-superficie); border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-tarjeta); box-shadow: var(--ev-sombra-1); margin: 0 0 16px; overflow: hidden; }
-  nav.secciones ul { display: flex; list-style: none; padding: 0; margin: 0; overflow-x: auto; }
-  nav.secciones li { flex: 1 0 9.5rem; min-width: 9.5rem; border-right: 1px solid var(--ev-borde); }
-  nav.secciones li:last-child { border-right: 0; }
-  nav.secciones li.portada { flex: 0 0 7rem; min-width: 7rem; }
-  nav.secciones .s-nombre { display: block; line-height: 1.25; }
-  nav.secciones a { display: block; height: 100%; padding: 9px 12px 8px; color: var(--ev-texto-suave); text-decoration: none; border-bottom: 3px solid transparent; font-size: var(--ev-t-sm); }
-  nav.secciones a:hover .s-nombre { text-decoration: underline; }
-  nav.secciones a[aria-current=page] { background: var(--ev-azul-50); color: var(--ev-texto); font-weight: 600; border-bottom-color: var(--ev-azul-700); }
-  nav.secciones .s-pie { display: flex; gap: 8px; align-items: center; margin-top: 4px; font-size: var(--ev-t-xs); font-weight: 400; color: var(--ev-texto-suave); flex-wrap: wrap; }
-  nav.secciones .s-pie b { color: var(--ev-texto); font-family: var(--ev-fuente-num); }
+  /* Cinco pestañas sin orden obligatorio (spec 014, ADR-0047) */
   .resumen-linea { color: var(--ev-texto-suave); margin: 0 0 16px; max-width: 90ch; }
   .resumen-linea b { color: var(--ev-texto); font-family: var(--ev-fuente-num); }
   .bloque { background: var(--ev-superficie); border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-panel); padding: var(--ev-panel-relleno); box-shadow: var(--ev-sombra-1); margin-bottom: 16px; }
@@ -247,21 +226,64 @@
   .grupo-ps { font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-xs); letter-spacing: var(--ev-espaciado-etiqueta); text-transform: uppercase; color: var(--ev-texto-suave); padding: 8px 0 2px; }
   .migas { margin-bottom: 2px; }
   .linea-portal { font-size: var(--ev-t-xs); color: var(--ev-texto-suave); }
-  .solo-lectura { background: var(--ev-azul-50); border: 1px dashed var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 6px 10px; font-size: var(--ev-t-xs); color: var(--ev-texto-suave); display: none; margin-bottom: 12px; }
-  body.lectura .solo-lectura { display: block; }
-  .ctl-maqueta { font-size: var(--ev-t-xs); color: var(--ev-texto-suave); }
   .enlace-portal { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
   .enlace-portal .campo { flex: 1; min-width: 18rem; }
   .ok-fila td, .ok-fila th { background: var(--ev-cumple-fondo); }
   .tdgap { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .tabla-chica { font-size: var(--ev-t-xs); }
   .tabla-chica td, .tabla-chica th { white-space: normal; }
-  .notas-mapa { font-size: var(--ev-t-sm); color: var(--ev-texto-suave); max-width: 90ch; margin-bottom: 12px; }
   body.operador .solo-eval, body.lectura .solo-eval, body.lectura .carga-op { display: none !important; }
   .dialogo-lectura { margin-top: 8px; }
   .matriz { min-width: 40rem; }
   .barra-ind { margin: 0 0 12px; }
   header.top .wrap { flex-wrap: wrap; }
+
+  /* Aplicación para el evaluador: encabezado con procedimiento y usuario, y cinco pestañas siempre visibles */
+  header.top .wrap { flex-wrap: nowrap; gap: 12px; }
+  header.top .espacio { flex: 1 1 0; }
+  header.top .sel-proc { position: relative; flex: 0 1 30rem; min-width: 0; }
+  header.top .sel-user { position: relative; }
+  .btn-menu { display: flex; align-items: center; gap: 10px; width: 100%; background: transparent; color: #fff; border: 1px solid rgba(255, 255, 255, .3); border-radius: var(--ev-radio-btn); padding: 5px 11px; font: 600 var(--ev-t-sm)/1.25 var(--ev-fuente); cursor: pointer; text-align: left; }
+  .btn-menu:hover { background: var(--ev-azul-800); }
+  .btn-menu .b-txt { display: block; min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn-menu small { display: block; font-weight: 400; font-size: var(--ev-t-2xs); color: var(--ev-azul-200); letter-spacing: .2px; }
+  .btn-menu strong { display: block; font-size: var(--ev-t-sm); }
+  header.top .chip-proceso { white-space: nowrap; flex: none; }
+  .menu { position: absolute; top: calc(100% + 6px); left: 0; width: max-content; min-width: 100%; max-width: min(34rem, 92vw); background: var(--ev-superficie); color: var(--ev-texto); border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-tarjeta); box-shadow: var(--ev-sombra-flotante); z-index: 60; padding: 6px; }
+  .menu.der { left: auto; right: 0; }
+  .menu .menu-tit { font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-2xs); letter-spacing: var(--ev-espaciado-etiqueta); text-transform: uppercase; color: var(--ev-texto-suave); padding: 6px 10px 4px; }
+  .menu button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 8px 10px; border-radius: 8px; font: 400 var(--ev-t-sm)/1.3 var(--ev-fuente); color: var(--ev-texto); cursor: pointer; }
+  .menu button:hover { background: var(--ev-azul-50); }
+  .menu button.actual { background: var(--ev-azul-50); font-weight: 600; box-shadow: inset 3px 0 0 var(--ev-azul-700); }
+  .menu button small { display: block; font-weight: 400; font-size: var(--ev-t-xs); color: var(--ev-texto-suave); }
+  .menu hr { border: 0; border-top: 1px solid var(--ev-borde); margin: 6px 0; }
+  nav.tabs { background: var(--ev-superficie); border-bottom: 1px solid var(--ev-borde); position: sticky; top: 0; z-index: 20; box-shadow: var(--ev-sombra-1); }
+  nav.tabs .wrap { padding: 0 clamp(8px, 3vw, 36px); }
+  nav.tabs ul { display: flex; list-style: none; padding: 0; margin: 0; }
+  nav.tabs li { flex: 1 1 0; min-width: 0; }
+  nav.tabs a, nav.tabs .off { display: block; padding: 9px 6px 7px; text-align: center; text-decoration: none; color: var(--ev-texto-suave); border-bottom: 3px solid transparent; position: relative; }
+  nav.tabs a:hover { background: var(--ev-azul-50); color: var(--ev-texto); }
+  nav.tabs a[aria-current=page] { color: var(--ev-texto); background: var(--ev-azul-50); border-bottom-color: var(--ev-azul-700); }
+  nav.tabs .t-nombre { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; font-size: var(--ev-t-sm); white-space: nowrap; }
+  nav.tabs .t-pie { display: block; font-size: var(--ev-t-2xs); color: var(--ev-texto-suave); white-space: nowrap; margin-top: 1px; }
+  nav.tabs .t-pie b { color: var(--ev-texto); font-family: var(--ev-fuente-num); }
+  nav.tabs .off { opacity: .5; cursor: not-allowed; }
+  nav.tabs .off::after { content: attr(data-tip); position: absolute; left: 50%; top: calc(100% + 4px); transform: translateX(-50%); z-index: 40; background: var(--ev-tooltip-fondo); color: var(--ev-tooltip-texto); font: 600 var(--ev-t-xs)/1.2 var(--ev-fuente); padding: 5px 9px; border-radius: var(--ev-radio-btn); white-space: nowrap; box-shadow: var(--ev-sombra-flotante); opacity: 0; visibility: hidden; pointer-events: none; }
+  nav.tabs .off:hover::after, nav.tabs .off:focus-visible::after { opacity: 1; visibility: visible; }
+  nav.tabs .est { cursor: inherit; }
+  nav.tabs .est::after { display: none; }
+  p.volver { margin: 0 0 8px; font-size: var(--ev-t-sm); }
+  .bloque, .panel { scroll-margin-top: 4.5rem; }
+  .pantalla.sin-datos .contenido { display: none; }
+  body.m-nuevo .requiere-proc, body.m-nuevo .chip-proceso { display: none; }
+  .estado-vacio { text-align: center; padding: 28px 16px; margin-bottom: 16px; }
+  .estado-vacio h3 { justify-content: center; display: flex; gap: 8px; align-items: center; }
+  .estado-vacio p { max-width: 60ch; margin: 6px auto 14px; color: var(--ev-texto-suave); }
+  @media (max-width: 1100px) {
+    header.top .sel-proc { flex-basis: 22rem; }
+    header.top .chip-proceso .mp-txt { display: none; }
+    nav.tabs .t-nombre { font-size: var(--ev-t-xs); gap: 4px; }
+  }
 </style>
 </head>
 <body>
@@ -273,15 +295,14 @@
 </svg>
 
 <header class="top"><div class="wrap">
-  <a class="nombre" href="#procedimientos">EVALUON</a>
-  <span class="usuario"><strong id="u-nombre">evaluador de muestra</strong><span id="u-rol">Comisión Evaluadora · evaluador</span><br>
-    <label style="display:inline;color:inherit;font-weight:400;font-size:inherit">Maqueta, ver como <select id="ver-como"><option value="evaluador">evaluador</option><option value="operador">operador</option><option value="lectura">lectura</option></select></label></span>
-  <a class="btn secundario salir" href="#salir">Salir</a>
+  <a class="nombre" href="#proc">EVALUON</a>
+  <div class="sel-proc con-sesion"><button class="btn-menu" type="button" data-menu="proc" aria-haspopup="menu" aria-expanded="false"><span class="b-txt"><small>Procedimiento</small><span id="proc-etiqueta">CD N.º 99/2026 · Alimento balanceado para perros</span></span><span aria-hidden="true">▾</span></button></div>
+  <button class="btn secundario chico boton-ventana chip-proceso con-sesion" type="button" data-abrir-ventana><span class="latido"></span><span class="mp-txt">Proceso en curso: informe técnico</span> <span class="num mini-prog">9/16</span></button>
+  <span class="espacio"></span>
+  <div class="sel-user con-sesion"><button class="btn-menu" type="button" data-menu="user" aria-haspopup="menu" aria-expanded="false"><span class="b-txt"><strong id="u-nombre">evaluador de muestra</strong><small id="u-rol">Comisión Evaluadora</small></span><span aria-hidden="true">▾</span></button></div>
+  <a class="btn secundario salir con-sesion" href="#salir">Salir</a>
 </div></header>
-<nav class="tabs" aria-label="Principal"><div class="wrap"><ul>
-  <li><a href="#procedimientos" data-sec="proc">Procedimientos</a></li>
-  <li><a href="#mapa" data-sec="mapa">Mapa de pantallas</a></li>
-</ul></div></nav>
+<nav class="tabs con-sesion" aria-label="Pestañas del procedimiento"><div class="wrap"><ul></ul></div></nav>
 
 <main><div class="wrap">
 
@@ -290,96 +311,57 @@
   <div class="ingreso">
     <h1>Ingresar</h1>
     <p class="lede">EVALUON asiste a la Comisión Evaluadora. Ingrese con su usuario y clave.</p>
-    <div class="aviso" id="aviso-salida" hidden style="margin-bottom:12px"><strong>Cerró la sesión</strong>Para seguir, vuelva a ingresar.</div>
-    <div class="aviso importante" id="aviso-clave" hidden style="margin-bottom:12px" role="alert"><strong>Usuario o clave incorrectos</strong></div>
-    <form class="panel" onsubmit="return false">
-      <div><label for="in-usu">Usuario</label><input id="in-usu" type="text" autocomplete="username"></div>
-      <div><label for="in-cla">Clave</label><input id="in-cla" type="password" autocomplete="current-password" style="width:100%;font:inherit;font-size:var(--ev-t-ctl);border:1px solid var(--ev-borde-campo);border-radius:var(--ev-radio-btn);padding:9px 12px;background:var(--ev-superficie)"></div>
-      <div class="fila"><a class="btn primario" href="#procedimientos">Ingresar</a><a class="chica" href="#ingreso-error">Ver el error de clave (maqueta)</a></div>
+    <div id="aviso-salida"></div>
+    <div id="aviso-clave"></div>
+    <form class="panel" id="form-ingreso" onsubmit="return false">
+      <div><label for="in-usu">Usuario</label><input id="in-usu" type="text" autocomplete="username" value="evaluador"></div>
+      <div><label for="in-cla">Clave</label><input id="in-cla" type="password" autocomplete="current-password" value="clave-de-muestra" style="width:100%;font:inherit;font-size:var(--ev-t-ctl);border:1px solid var(--ev-borde-campo);border-radius:var(--ev-radio-btn);padding:9px 12px;background:var(--ev-superficie)"></div>
+      <div class="fila"><button class="btn primario" type="submit" id="btn-ingresar">Ingresar</button></div>
     </form>
-    <p class="ayuda" style="margin-top:10px">Cada usuario tiene un rol: el operador prepara y carga; el evaluador además decide; el usuario de lectura solo consulta.</p>
   </div>
 </section>
 
-<!-- LISTA DE PROCEDIMIENTOS -->
-<section class="pantalla" id="p-procedimientos">
-  <div class="encab-parte"><h1>Procedimientos</h1><a class="btn primario carga-op" href="#nuevo">Nuevo procedimiento</a></div>
-  <p class="resumen-linea">Tres procedimientos de muestra. Cada uno se organiza en cinco secciones a las que se entra en cualquier orden; acá se ve el estado de cada una, con sus pendientes de decidir y las sugerencias del sistema.</p>
-  <div class="solo-lectura">Está viendo como usuario de lectura: solo puede consultar.</div>
-  <div class="tabla-scroll"><table class="matriz lectura">
-    <caption>Procedimientos de la Comisión</caption>
-    <thead><tr><th scope="col">Procedimiento</th><th scope="col">Régimen</th><th scope="col" class="e" title="Procedimiento de compra">Sec. 1</th><th scope="col" class="e" title="Pliego y matriz">Sec. 2</th><th scope="col" class="e" title="Ofertas">Sec. 3</th><th scope="col" class="e" title="Evaluación y dictamen">Sec. 4</th><th scope="col" class="e" title="Normativas">Sec. 5</th><th scope="col" class="n">Pend.</th><th scope="col" class="n">Sug.</th></tr></thead>
-    <tbody id="lista-proc"></tbody>
-  </table></div>
-  <div class="leyenda">
-    <span class="item"><span data-est="cumple" data-nombre="Lista"></span> Lista</span>
-    <span class="item"><span data-est="nodet" data-nombre="A decidir"></span> A decidir</span>
-    <span class="item"><span data-est="nocumple" data-nombre="Falta"></span> Falta</span>
-    <span class="item"><span data-est="pend" data-nombre="En curso"></span> En curso</span>
-    <span class="item suave">Pase el mouse por un ícono para ver el nombre del estado. Pend.: decisiones de la Comisión · Sug.: sugerencias del sistema.</span>
-  </div>
-</section>
 
-<!-- PORTADA DEL PROCEDIMIENTO (REQ-075, REQ-098) -->
-<section class="pantalla" id="p-portada" data-sec="portada">
-  <div class="ctx-head"></div><nav class="secciones" aria-label="Secciones del procedimiento"></nav>
-  <div class="encab-parte"><h2>Portada del procedimiento</h2></div>
-  <p class="resumen-linea" id="portada-resumen"></p>
+
+<!-- PESTAÑA PROCEDIMIENTO (REQ-075, REQ-098) -->
+<section class="pantalla" id="p-proc" data-tab="proc">
+  <div class="encab-parte"><div><h1 id="proc-titulo">Alimento balanceado para perros</h1>
+    <div class="datos-proc" id="proc-datos"><span>Contratación Directa <b class="num">N.º 99/2026</b></span><span>Expediente <b class="num">EX-2026-00000099-DEMO</b></span><span>Autorización <b class="num">14/08/2026</b> · régimen <b>Disp. AFIP 247/2022</b></span><span>Apertura <b class="num">22/09/2026</b></span><span>6 renglones · 3 ofertas</span></div></div>
+    <span class="barra-cargas"><a class="btn primario carga-op" href="#s1-portal">Tomar del Portal</a><button class="btn secundario carga-op" type="button" data-subir="s1">Subir archivo</button><button class="btn secundario carga-op" type="button" data-subir="pliego-alta">Subir el pliego</button></span></div>
+  <p class="resumen-linea" id="proc-resumen"></p>
   <div class="dos" style="margin-bottom:18px">
-    <div class="panel" id="portada-pend"></div>
-    <div class="panel" id="portada-sug"></div>
+    <div class="panel" id="proc-pend"></div>
+    <div class="panel" id="proc-sug"></div>
   </div>
-  <h3>Qué hay, qué falta y de dónde vino cada cosa</h3>
+  <h3>Qué hay y qué falta, por pestaña</h3>
   <div class="cards5">
-    <div class="panel"><h4><span data-est="nodet" data-nombre="A decidir"></span>1 · Procedimiento de compra</h4>
+    <div class="panel"><h4><span data-est="nodet" data-nombre="A decidir"></span>Procedimiento</h4>
       <dl><dt>Hay</dt><dd>Número, expediente, tipo, objeto, autorización 14/08/2026 (Disp. 247/2022), 6 renglones, cronograma y garantías.</dd>
       <dt>Falta</dt><dd>Nada. Hay 2 novedades del Portal para aprobar.</dd>
       <dt>De dónde vino</dt><dd>Portal de Compras (hoy 08:00) y pliego subido.</dd></dl>
-      <div class="pie"><a class="btn secundario chico" href="#s1">Abrir la sección 1</a></div></div>
-    <div class="panel"><h4><span data-est="nodet" data-nombre="A decidir"></span>2 · Pliego y matriz</h4>
+      <div class="pie"><a class="btn secundario chico" href="#s1-datos">Ver los datos</a></div></div>
+    <div class="panel"><h4><span data-est="nodet" data-nombre="A decidir"></span>Pliego y matriz</h4>
       <dl><dt>Hay</dt><dd>Pliego, Anexo I y Anexo II. Matriz de 23 requisitos: versiones 1 y 2 validadas, versión 3 en revisión.</dd>
       <dt>Falta</dt><dd>Anexo III (modelo de DJ de intereses): el Portal lo lista y no se tomó.<br><button class="btn primario chico carga-op" type="button" data-tomar="s2" style="margin-top:4px">Tomar del Portal</button></dd>
       <dt>De dónde vino</dt><dd>Portal (3 documentos); la matriz la propone el sistema.</dd></dl>
-      <div class="pie"><a class="btn secundario chico" href="#s2">Abrir la sección 2</a></div></div>
-    <div class="panel"><h4><span data-est="nocumple" data-nombre="Falta"></span>3 · Ofertas</h4>
+      <div class="pie"><a class="btn secundario chico" href="#pliego">Ir a «Pliego y matriz»</a></div></div>
+    <div class="panel"><h4><span data-est="nocumple" data-nombre="Falta"></span>Ofertas</h4>
       <dl><dt>Hay</dt><dd>3 ofertas del acta de apertura, 23 documentos, 2 circulares modificatorias, 1 aclaración y 1 hoja de compliance.</dd>
       <dt>Falta</dt><dd>Hoja de compliance de las ofertas 2 y 3; fichas técnicas R5 y R6 de la oferta 3; DJ de intereses de la oferta 2.<br><span class="fila" style="margin-top:4px"><button class="btn primario chico carga-op" type="button" data-subir="compliance" data-que="Oferta 2">Subir hoja de compliance (of. 2)</button><button class="btn primario chico carga-op" type="button" data-subir="compliance" data-que="Oferta 3">Subir hoja de compliance (of. 3)</button><button class="btn secundario chico carga-op" type="button" data-subir="anexo" data-que="Oferta 3">Subir anexo técnico (of. 3)</button><button class="btn secundario chico carga-op" type="button" data-subir="oferta-docs" data-que="Oferta 2">Subir documentos (of. 2)</button></span></dd>
       <dt>De dónde vino</dt><dd>Portal (acta, circulares) y documentos subidos por la Comisión.</dd></dl>
-      <div class="pie"><a class="btn secundario chico" href="#s3">Abrir la sección 3</a></div></div>
-    <div class="panel"><h4><span data-est="pend" data-nombre="En curso"></span>4 · Evaluación y dictamen</h4>
+      <div class="pie"><a class="btn secundario chico" href="#ofertas">Ir a «Ofertas»</a></div></div>
+    <div class="panel"><h4><span data-est="pend" data-nombre="En curso"></span>Evaluación y dictamen</h4>
       <dl><dt>Hay</dt><dd>Propuesta de 3 ofertas × 23 requisitos, 2 descartes propuestos, orden económico e informe técnico IT-07/2026 (leyéndose).</dd>
       <dt>Falta</dt><dd>Dictamen: el Portal publicó uno que no se aprobó todavía.<br><button class="btn primario chico carga-op" type="button" data-tomar="dictamen" style="margin-top:4px">Tomar del Portal</button></dd>
       <dt>De dónde vino</dt><dd>Propuesta del sistema; informe subido por la Comisión.</dd></dl>
-      <div class="pie"><a class="btn secundario chico" href="#s4">Abrir la sección 4</a></div></div>
-    <div class="panel"><h4><span data-est="nodet" data-nombre="A decidir"></span>5 · Normativas</h4>
+      <div class="pie"><a class="btn secundario chico" href="#evaluacion">Ir a «Evaluación y dictamen»</a></div></div>
+    <div class="panel"><h4><span data-est="nodet" data-nombre="A decidir"></span>Normativas</h4>
       <dl><dt>Hay</dt><dd>Disp. 247/2022 y marco nacional validados; 1 norma complementaria de ejemplo cargada sin validar.</dd>
       <dt>Falta</dt><dd>Norma de ejemplo de montos 2026 (ficticia), citada por el pliego.<br><button class="btn primario chico carga-op" type="button" data-subir="norma" style="margin-top:4px">Subir archivo</button></dd>
       <dt>De dónde vino</dt><dd>Archivos subidos por la Comisión.</dd></dl>
-      <div class="pie"><a class="btn secundario chico" href="#s5">Abrir la sección 5</a></div></div>
+      <div class="pie"><a class="btn secundario chico" href="#normativas">Ir a «Normativas»</a></div></div>
   </div>
-</section>
-
-<!-- SECCIÓN 1 · PROCEDIMIENTO DE COMPRA (REQ-076 a REQ-079, REQ-097) -->
-<section class="pantalla" id="p-s1" data-sec="s1">
-  <div class="ctx-head"></div><nav class="secciones" aria-label="Secciones del procedimiento"></nav>
-  <div class="encab-parte"><h2>1 · Procedimiento de compra</h2>
-    <span class="barra-cargas"><a class="btn primario carga-op" href="#s1-portal">Tomar del Portal</a><button class="btn secundario carga-op" type="button" data-subir="s1">Subir archivo</button><button class="btn secundario carga-op" type="button" data-subir="pliego-alta">Subir el pliego</button></span></div>
-  <p class="resumen-linea">Contratación Directa <b>N.º 99/2026</b>, autorizada el <b>14/08/2026</b> bajo la Disp. 247/2022 · <b>6</b> renglones · apertura el <b>22/09/2026</b>. Todos los datos dicen de dónde salieron.</p>
-  <div class="dos ps" data-ps="1" style="margin-bottom:16px"></div>
-
-  <div class="bloque" id="s1-novedades">
-    <div class="bloque-cab"><h3>Novedades del Portal <span class="cta">2 sin aprobar</span></h3><span class="linea-portal">El sistema revisa el proceso en el Portal cada mañana · última revisión hoy 08:00</span></div>
-    <div class="tabla-scroll"><table class="matriz lectura">
-      <thead><tr><th scope="col">Novedad</th><th scope="col">Publicada</th><th scope="col">Queda en</th><th scope="col" class="e">Estado</th><th scope="col">Acción</th></tr></thead>
-      <tbody>
-        <tr id="nov-1"><th scope="row">Respuesta a la consulta N.º 2 (aclaratoria)</th><td class="num">06/10/2026</td><td>Sección 3 · Ofertas</td><td class="e"><span data-est="nodet" data-nombre="Sin aprobar: no se cargó"></span></td><td><button class="btn primario chico" type="button" data-aprobar-nov="nov-1">Aprobar la carga</button></td></tr>
-        <tr id="nov-2"><th scope="row">Dictamen de la Comisión Evaluadora</th><td class="num">06/10/2026</td><td>Sección 4 · Evaluación y dictamen</td><td class="e"><span data-est="nodet" data-nombre="Sin aprobar: no se cargó"></span></td><td><button class="btn primario chico" type="button" data-aprobar-nov="nov-2">Aprobar la carga</button></td></tr>
-      </tbody>
-    </table></div>
-    <div class="bloque-pie"><span>Nada entra sin su aprobación: hasta entonces la novedad figura como pendiente.</span></div>
-  </div>
-
-  <div class="bloque">
+  <div class="bloque" id="s1-datos">
     <div class="bloque-cab"><h3>Datos del procedimiento</h3><span class="linea-portal">Proceso en el Portal: <a href="#s1-portal">CD 99/2026</a></span></div>
     <div class="tabla-scroll"><table class="matriz lectura">
       <thead><tr><th scope="col">Dato</th><th scope="col">Valor</th><th scope="col">De dónde salió</th><th scope="col">Acción</th></tr></thead>
@@ -421,11 +403,26 @@
       </tbody>
     </table></div>
   </div>
+  <div class="bloque" id="s1-novedades">
+    <div class="bloque-cab"><h3>Novedades del Portal <span class="cta">2 sin aprobar</span></h3><span class="linea-portal">El sistema revisa el proceso en el Portal cada mañana · última revisión hoy 08:00</span></div>
+    <div class="tabla-scroll"><table class="matriz lectura">
+      <thead><tr><th scope="col">Novedad</th><th scope="col">Publicada</th><th scope="col">Queda en</th><th scope="col" class="e">Estado</th><th scope="col">Acción</th></tr></thead>
+      <tbody>
+        <tr id="nov-1"><th scope="row">Respuesta a la consulta N.º 2 (aclaratoria)</th><td class="num">06/10/2026</td><td>Ofertas</td><td class="e"><span data-est="nodet" data-nombre="Sin aprobar: no se cargó"></span></td><td><button class="btn primario chico" type="button" data-aprobar-nov="nov-1">Aprobar la carga</button></td></tr>
+        <tr id="nov-2"><th scope="row">Dictamen de la Comisión Evaluadora</th><td class="num">06/10/2026</td><td>Evaluación y dictamen</td><td class="e"><span data-est="nodet" data-nombre="Sin aprobar: no se cargó"></span></td><td><button class="btn primario chico" type="button" data-aprobar-nov="nov-2">Aprobar la carga</button></td></tr>
+      </tbody>
+    </table></div>
+    <div class="bloque-pie"><span>Nada entra sin su aprobación: hasta entonces la novedad figura como pendiente.</span></div>
+  </div>
+
 </section>
 
+<!-- SECCIÓN 1 · PROCEDIMIENTO DE COMPRA (REQ-076 a REQ-079, REQ-097) -->
+
+
 <!-- SECCIÓN 1 · EXPLORADOR DEL PORTAL (REQ-076) -->
-<section class="pantalla" id="p-s1-portal" data-sec="alta-portal">
-  <div class="ctx-head"></div><nav class="secciones" aria-label="Secciones del procedimiento"></nav>
+<section class="pantalla" id="p-s1-portal" data-tab="proc">
+  <p class="volver"></p>
   <div class="encab-parte"><h2>Propuesta del sistema</h2>
     <span class="barra-cargas"><button class="btn secundario carga-op" type="button" data-subir="s1">Subir archivo</button><button class="btn secundario carga-op" type="button" data-subir="pliego-alta">Subir el pliego</button></span></div>
   <p class="resumen-linea">Se pegó el enlace del proceso y el sistema encontró <b>25</b> ítems: 6 datos, 6 renglones, 3 fechas, 3 garantías, 6 documentos y 3 ofertas. Apruebe ítem por ítem o todo junto; lo aprobado queda en la sección que dice la última columna.</p>
@@ -435,70 +432,70 @@
     <p class="ayuda" id="ayuda-enlace">Lo único que se pega es el enlace: lo demás lo lee el sistema del Portal.</p>
   </div>
 
-  <div class="bloque"><div class="bloque-cab"><h3>Datos <span class="cta">6</span></h3><span class="linea-portal">Quedan en la sección 1</span></div>
+  <div class="bloque"><div class="bloque-cab"><h3>Datos <span class="cta">6</span></h3><span class="linea-portal">Quedan en la Procedimiento</span></div>
     <div class="tabla-scroll"><table class="matriz lectura"><thead><tr><th scope="col">Dato</th><th scope="col">Lo que encontró</th><th scope="col">Queda en</th><th scope="col">Aprobación</th></tr></thead><tbody>
-      <tr><th scope="row">Número</th><td class="num">CD N.º 99/2026</td><td>Sección 1</td><td class="ap"></td></tr>
-      <tr><th scope="row">Expediente</th><td class="num">EX-2026-00000099-DEMO</td><td>Sección 1</td><td class="ap"></td></tr>
-      <tr><th scope="row">Tipo</th><td>Contratación Directa</td><td>Sección 1</td><td class="ap"></td></tr>
-      <tr><th scope="row">Objeto</th><td>Alimento balanceado para perros</td><td>Sección 1</td><td class="ap"></td></tr>
-      <tr><th scope="row">Fecha de autorización</th><td class="num">14/08/2026 <span class="suave chica">→ régimen Disp. 247/2022</span></td><td>Sección 1</td><td class="ap"></td></tr>
-      <tr><th scope="row">Organismo contratante</th><td>Departamento de Compras (dato de muestra)</td><td>Sección 1</td><td class="ap"></td></tr>
+      <tr><th scope="row">Número</th><td class="num">CD N.º 99/2026</td><td>Procedimiento</td><td class="ap"></td></tr>
+      <tr><th scope="row">Expediente</th><td class="num">EX-2026-00000099-DEMO</td><td>Procedimiento</td><td class="ap"></td></tr>
+      <tr><th scope="row">Tipo</th><td>Contratación Directa</td><td>Procedimiento</td><td class="ap"></td></tr>
+      <tr><th scope="row">Objeto</th><td>Alimento balanceado para perros</td><td>Procedimiento</td><td class="ap"></td></tr>
+      <tr><th scope="row">Fecha de autorización</th><td class="num">14/08/2026 <span class="suave chica">→ régimen Disp. 247/2022</span></td><td>Procedimiento</td><td class="ap"></td></tr>
+      <tr><th scope="row">Organismo contratante</th><td>Departamento de Compras (dato de muestra)</td><td>Procedimiento</td><td class="ap"></td></tr>
     </tbody></table></div>
     <div class="bloque-pie"><button class="btn secundario chico" type="button" data-aprobar-grupo>Aprobar este grupo</button></div></div>
 
-  <div class="bloque"><div class="bloque-cab"><h3>Renglones <span class="cta">6</span></h3><span class="linea-portal">Quedan en la sección 1</span></div>
+  <div class="bloque"><div class="bloque-cab"><h3>Renglones <span class="cta">6</span></h3><span class="linea-portal">Quedan en la Procedimiento</span></div>
     <div class="tabla-scroll"><table class="matriz lectura"><thead><tr><th scope="col" class="n">Renglón</th><th scope="col">Descripción</th><th scope="col" class="n">Cantidad</th><th scope="col">Queda en</th><th scope="col">Aprobación</th></tr></thead><tbody>
-      <tr><td class="n">1</td><td>Alimento balanceado adulto raza grande, bolsa de 20 kg</td><td class="n">120 u.</td><td>Sección 1</td><td class="ap"></td></tr>
-      <tr><td class="n">2</td><td>Alimento balanceado adulto raza mediana, bolsa de 15 kg</td><td class="n">80 u.</td><td>Sección 1</td><td class="ap"></td></tr>
-      <tr><td class="n">3</td><td>Alimento balanceado cachorro, bolsa de 15 kg</td><td class="n">40 u.</td><td>Sección 1</td><td class="ap"></td></tr>
-      <tr><td class="n">4</td><td>Alimento balanceado senior, bolsa de 15 kg</td><td class="n">30 u.</td><td>Sección 1</td><td class="ap"></td></tr>
-      <tr><td class="n">5</td><td>Dieta gastrointestinal, bolsa de 10 kg</td><td class="n">20 u.</td><td>Sección 1</td><td class="ap"></td></tr>
-      <tr><td class="n">6</td><td>Dieta renal, bolsa de 10 kg</td><td class="n">12 u.</td><td>Sección 1</td><td class="ap"></td></tr>
+      <tr><td class="n">1</td><td>Alimento balanceado adulto raza grande, bolsa de 20 kg</td><td class="n">120 u.</td><td>Procedimiento</td><td class="ap"></td></tr>
+      <tr><td class="n">2</td><td>Alimento balanceado adulto raza mediana, bolsa de 15 kg</td><td class="n">80 u.</td><td>Procedimiento</td><td class="ap"></td></tr>
+      <tr><td class="n">3</td><td>Alimento balanceado cachorro, bolsa de 15 kg</td><td class="n">40 u.</td><td>Procedimiento</td><td class="ap"></td></tr>
+      <tr><td class="n">4</td><td>Alimento balanceado senior, bolsa de 15 kg</td><td class="n">30 u.</td><td>Procedimiento</td><td class="ap"></td></tr>
+      <tr><td class="n">5</td><td>Dieta gastrointestinal, bolsa de 10 kg</td><td class="n">20 u.</td><td>Procedimiento</td><td class="ap"></td></tr>
+      <tr><td class="n">6</td><td>Dieta renal, bolsa de 10 kg</td><td class="n">12 u.</td><td>Procedimiento</td><td class="ap"></td></tr>
     </tbody></table></div>
     <div class="bloque-pie"><button class="btn secundario chico" type="button" data-aprobar-grupo>Aprobar este grupo</button></div></div>
 
-  <div class="bloque"><div class="bloque-cab"><h3>Cronograma y garantías <span class="cta">6</span></h3><span class="linea-portal">Quedan en la sección 1</span></div>
+  <div class="bloque"><div class="bloque-cab"><h3>Cronograma y garantías <span class="cta">6</span></h3><span class="linea-portal">Quedan en la Procedimiento</span></div>
     <div class="tabla-scroll"><table class="matriz lectura"><thead><tr><th scope="col">Concepto</th><th scope="col">Lo que encontró</th><th scope="col">Queda en</th><th scope="col">Aprobación</th></tr></thead><tbody>
-      <tr><th scope="row">Publicación</th><td class="num">20/08/2026</td><td>Sección 1</td><td class="ap"></td></tr>
-      <tr><th scope="row">Consultas hasta</th><td class="num">15/09/2026</td><td>Sección 1</td><td class="ap"></td></tr>
-      <tr><th scope="row">Apertura de ofertas</th><td class="num">22/09/2026 11:00</td><td>Sección 1</td><td class="ap"></td></tr>
-      <tr><th scope="row">Garantía de mantenimiento de oferta</th><td class="num">5 %</td><td>Sección 1</td><td class="ap"></td></tr>
-      <tr><th scope="row">Garantía de cumplimiento</th><td class="num">10 %</td><td>Sección 1</td><td class="ap"></td></tr>
-      <tr><th scope="row">Garantía de impugnación</th><td class="num">3 %</td><td>Sección 1</td><td class="ap"></td></tr>
+      <tr><th scope="row">Publicación</th><td class="num">20/08/2026</td><td>Procedimiento</td><td class="ap"></td></tr>
+      <tr><th scope="row">Consultas hasta</th><td class="num">15/09/2026</td><td>Procedimiento</td><td class="ap"></td></tr>
+      <tr><th scope="row">Apertura de ofertas</th><td class="num">22/09/2026 11:00</td><td>Procedimiento</td><td class="ap"></td></tr>
+      <tr><th scope="row">Garantía de mantenimiento de oferta</th><td class="num">5 %</td><td>Procedimiento</td><td class="ap"></td></tr>
+      <tr><th scope="row">Garantía de cumplimiento</th><td class="num">10 %</td><td>Procedimiento</td><td class="ap"></td></tr>
+      <tr><th scope="row">Garantía de impugnación</th><td class="num">3 %</td><td>Procedimiento</td><td class="ap"></td></tr>
     </tbody></table></div>
     <div class="bloque-pie"><button class="btn secundario chico" type="button" data-aprobar-grupo>Aprobar este grupo</button></div></div>
 
   <div class="bloque"><div class="bloque-cab"><h3>Documentos publicados <span class="cta">6</span></h3><span class="linea-portal">Se bajan del Portal</span></div>
     <div class="tabla-scroll"><table class="matriz lectura"><thead><tr><th scope="col">Documento</th><th scope="col">Fecha</th><th scope="col" class="n">Págs.</th><th scope="col">Queda en</th><th scope="col">Aprobación</th></tr></thead><tbody>
-      <tr><th scope="row">Pliego de bases y condiciones particulares</th><td class="num">20/08/2026</td><td class="n">18</td><td>Sección 2 · Pliego y matriz</td><td class="ap"></td></tr>
-      <tr><th scope="row">Anexo I · Especificaciones técnicas</th><td class="num">20/08/2026</td><td class="n">6</td><td>Sección 2 · Pliego y matriz</td><td class="ap"></td></tr>
-      <tr><th scope="row">Anexo II · Planilla de cotización</th><td class="num">20/08/2026</td><td class="n">2</td><td>Sección 2 · Pliego y matriz</td><td class="ap"></td></tr>
-      <tr><th scope="row">Circular N.º 1 (modificatoria)</th><td class="num">10/09/2026</td><td class="n">2</td><td>Sección 3 · Ofertas (abre una versión nueva de la matriz)</td><td class="ap"></td></tr>
-      <tr><th scope="row">Circular N.º 2 (modificatoria)</th><td class="num">15/09/2026</td><td class="n">1</td><td>Sección 3 · Ofertas (abre una versión nueva de la matriz)</td><td class="ap"></td></tr>
-      <tr><th scope="row">Respuesta a la consulta N.º 1 (aclaratoria)</th><td class="num">08/09/2026</td><td class="n">1</td><td>Sección 3 · Ofertas</td><td class="ap"></td></tr>
+      <tr><th scope="row">Pliego de bases y condiciones particulares</th><td class="num">20/08/2026</td><td class="n">18</td><td>Pliego y matriz</td><td class="ap"></td></tr>
+      <tr><th scope="row">Anexo I · Especificaciones técnicas</th><td class="num">20/08/2026</td><td class="n">6</td><td>Pliego y matriz</td><td class="ap"></td></tr>
+      <tr><th scope="row">Anexo II · Planilla de cotización</th><td class="num">20/08/2026</td><td class="n">2</td><td>Pliego y matriz</td><td class="ap"></td></tr>
+      <tr><th scope="row">Circular N.º 1 (modificatoria)</th><td class="num">10/09/2026</td><td class="n">2</td><td>Ofertas (abre una versión nueva de la matriz)</td><td class="ap"></td></tr>
+      <tr><th scope="row">Circular N.º 2 (modificatoria)</th><td class="num">15/09/2026</td><td class="n">1</td><td>Ofertas (abre una versión nueva de la matriz)</td><td class="ap"></td></tr>
+      <tr><th scope="row">Respuesta a la consulta N.º 1 (aclaratoria)</th><td class="num">08/09/2026</td><td class="n">1</td><td>Ofertas</td><td class="ap"></td></tr>
     </tbody></table></div>
     <div class="bloque-pie"><button class="btn secundario chico" type="button" data-aprobar-grupo>Aprobar este grupo</button></div></div>
 
-  <div class="bloque"><div class="bloque-cab"><h3>Ofertas del acta de apertura <span class="cta">3</span></h3><span class="linea-portal">Los documentos de cada oferta no los publica el Portal: se suben en la sección 3</span></div>
+  <div class="bloque"><div class="bloque-cab"><h3>Ofertas del acta de apertura <span class="cta">3</span></h3><span class="linea-portal">Los documentos de cada oferta no los publica el Portal: se suben en la Ofertas</span></div>
     <div class="tabla-scroll"><table class="matriz lectura"><thead><tr><th scope="col">Oferente</th><th scope="col">CUIT</th><th scope="col" class="n">Total</th><th scope="col">Garantía</th><th scope="col">Queda en</th><th scope="col">Aprobación</th></tr></thead><tbody>
-      <tr><th scope="row">Nutrición Canina Austral S.A.</th><td class="num">30-00000001-0</td><td class="n">$ 16.054.000</td><td>Póliza · $ 802.700</td><td>Sección 3 · Ofertas</td><td class="ap"></td></tr>
-      <tr><th scope="row">Agroalimentos Río Seco S.R.L.</th><td class="num">30-00000002-0</td><td class="n">$ 13.952.400</td><td>Pagaré · $ 697.620</td><td>Sección 3 · Ofertas</td><td class="ap"></td></tr>
-      <tr><th scope="row">Mascotas del Litoral S.A.</th><td class="num">30-00000003-0</td><td class="n">$ 16.485.000</td><td>Póliza · $ 659.400</td><td>Sección 3 · Ofertas</td><td class="ap"></td></tr>
+      <tr><th scope="row">Nutrición Canina Austral S.A.</th><td class="num">30-00000001-0</td><td class="n">$ 16.054.000</td><td>Póliza · $ 802.700</td><td>Ofertas</td><td class="ap"></td></tr>
+      <tr><th scope="row">Agroalimentos Río Seco S.R.L.</th><td class="num">30-00000002-0</td><td class="n">$ 13.952.400</td><td>Pagaré · $ 697.620</td><td>Ofertas</td><td class="ap"></td></tr>
+      <tr><th scope="row">Mascotas del Litoral S.A.</th><td class="num">30-00000003-0</td><td class="n">$ 16.485.000</td><td>Póliza · $ 659.400</td><td>Ofertas</td><td class="ap"></td></tr>
     </tbody></table></div>
     <div class="bloque-pie"><button class="btn secundario chico" type="button" data-aprobar-grupo>Aprobar este grupo</button></div></div>
 
   <div class="bloque">
     <div class="bloque-pie" style="border-top:0;margin-top:0;padding-top:0;justify-content:space-between">
       <span id="cuenta-aprob">Aprobados <b class="num">0</b> de <b class="num">25</b></span>
-      <span class="fila"><a class="btn secundario" href="#nuevo">Volver</a><button class="btn primario solo-eval" type="button" id="aprobar-todo">Aprobar todo lo encontrado</button><span class="solo-op suave chica">datos, renglones y ofertas: lo aprueba un evaluador; usted puede aprobar los documentos</span></span>
+      <span class="fila"><a class="btn secundario" data-volver-alta href="#nuevo">Volver</a><button class="btn primario solo-eval" type="button" id="aprobar-todo">Aprobar todo lo encontrado</button><span class="solo-op suave chica">datos, renglones y ofertas: lo aprueba un evaluador; usted puede aprobar los documentos</span></span>
     </div>
-    <div class="aviso" id="aprobado-todo" hidden style="margin-top:10px"><strong>Cargado</strong>Los datos quedaron en la sección 1, el pliego y sus anexos en la 2, las circulares y las ofertas en la 3.<br><a class="btn primario" style="margin-top:8px" href="#portada">Abrir el procedimiento creado</a></div>
+    <div id="aprobado-todo" style="margin-top:10px"></div>
   </div>
 </section>
 
 <!-- SECCIÓN 1 · ALTA SUBIENDO EL PLIEGO (REQ-077) -->
-<section class="pantalla" id="p-s1-pliego" data-sec="alta-pliego">
-  <div class="ctx-head"></div><nav class="secciones" aria-label="Secciones del procedimiento"></nav>
+<section class="pantalla" id="p-s1-pliego" data-tab="proc">
+  <p class="volver"></p>
   <div class="encab-parte"><h2>Propuesta del sistema</h2>
     <span class="barra-cargas"><button class="btn secundario carga-op" type="button" data-subir="pliego-alta">Subir el pliego</button><a class="btn secundario carga-op" href="#s1-portal">Tomar del Portal</a></span></div>
   <p class="resumen-linea">Se leyó <b>pliego-cd-99-2026.pdf</b> (18 páginas). El sistema propone <b>5</b> datos y <b>6</b> renglones. No se tipea nada: apruebe lo propuesto o, si un valor está mal, use «Corregir» y deje el motivo.</p>
@@ -524,64 +521,56 @@
   <div class="bloque">
     <div class="bloque-pie" style="border-top:0;margin-top:0;padding-top:0;justify-content:space-between">
       <span id="cuenta-aprob-p">Aprobados <b class="num">0</b> de <b class="num">11</b></span>
-      <span class="fila"><a class="btn secundario" href="#nuevo">Volver</a><button class="btn primario solo-eval" type="button" id="aprobar-todo-p">Aprobar todo lo propuesto</button><span class="solo-op suave chica">lo aprueba un evaluador</span></span>
+      <span class="fila"><a class="btn secundario" data-volver-alta href="#nuevo">Volver</a><button class="btn primario solo-eval" type="button" id="aprobar-todo-p">Aprobar todo lo propuesto</button><span class="solo-op suave chica">lo aprueba un evaluador</span></span>
     </div>
-    <div class="aviso" id="aprobado-todo-p" hidden style="margin-top:10px"><strong>Procedimiento armado</strong>Los datos y los renglones quedaron en la sección 1 y el pliego en la sección 2, donde el sistema ya puede proponer la matriz.<br><a class="btn primario" style="margin-top:8px" href="#portada">Abrir el procedimiento creado</a></div>
+    <div id="aprobado-todo-p" style="margin-top:10px"></div>
   </div>
 </section>
 
 
 <!-- NUEVO PROCEDIMIENTO: antes de que exista (REQ-076, REQ-077) -->
-<section class="pantalla" id="p-nuevo">
-  <p class="migas"><a href="#procedimientos">Procedimientos</a> › Nuevo procedimiento</p>
+<section class="pantalla" id="p-nuevo" data-tab="proc">
   <h1>Nuevo procedimiento</h1>
-  <p class="resumen-linea">Todavía no existe. Se arma por una de las dos entradas de la sección 1 y no se tipea nada. Cuando la Comisión aprueba la propuesta, el procedimiento se crea y se abre con sus cinco secciones.</p>
+  <p class="resumen-linea">Todavía no existe. Se arma por una de las dos entradas y no se tipea nada. Cuando la Comisión aprueba la propuesta, el procedimiento se crea y se habilitan sus pestañas.</p>
   <div class="dos" style="margin-bottom:16px">
-    <div class="bloque" style="margin:0"><div class="bloque-cab"><h3>Explorar el Portal</h3></div>
+    <div class="bloque" style="margin:0" id="entrada-portal"><div class="bloque-cab"><h3>Explorar el Portal</h3></div>
       <p class="ayuda" style="margin-bottom:8px">Pegue el enlace del proceso. El sistema muestra lo que encontró (datos, renglones, cronograma, garantías, documentos y ofertas) y usted aprueba ítem por ítem o todo junto.</p>
       <div class="enlace-portal"><div class="campo"><label for="in-enlace-n">Enlace del proceso en el Portal</label><input id="in-enlace-n" type="text" placeholder="https://comprar.ejemplo.gob.ar/procesos/…"></div></div>
-      <div class="bloque-pie"><a class="btn primario carga-op" href="#s1-portal">Explorar el Portal</a></div></div>
+      <div id="error-enlace"></div>
+      <div class="bloque-pie"><button class="btn primario carga-op" type="button" id="btn-explorar-n">Explorar el Portal</button></div></div>
     <div class="bloque" style="margin:0"><div class="bloque-cab"><h3>Subir el pliego</h3></div>
       <p class="ayuda" style="margin-bottom:8px">Para un procedimiento que no está en el Portal. El sistema lee el archivo y propone número, expediente, tipo, objeto, fecha de autorización y renglones; usted los aprueba o corrige con motivo.</p>
       <div class="soltar" style="padding:14px 10px">Arrastre el archivo del pliego o use el botón</div>
       <div class="bloque-pie"><button class="btn primario carga-op" type="button" data-subir="pliego-alta">Subir el pliego</button></div></div>
   </div>
-  <div class="aviso"><strong>Después de aprobar</strong>Se abre el procedimiento creado con sus cinco secciones: los datos y renglones en la 1, el pliego en la 2 y, si vienen del Portal, las circulares y ofertas en la 3.</div>
+  <div class="aviso"><strong>Después de aprobar</strong>Se crea el procedimiento y se habilitan sus pestañas: los datos y renglones quedan en «Procedimiento», el pliego en «Pliego y matriz» y, si vienen del Portal, las circulares y ofertas en «Ofertas».</div>
 </section>
 
 <!-- PROCEDIMIENTO RECIÉN CREADO (REQ-097, REQ-080, REQ-083) -->
-<section class="pantalla" id="p-recien-creado" data-sec="nuevo">
-  <div class="ctx-head"></div><nav class="secciones" aria-label="Secciones del procedimiento"></nav>
-  <div class="encab-parte"><h2>Procedimiento nuevo</h2></div>
-  <p class="resumen-linea">Todavía no tiene datos. Hay dos maneras de empezar y ninguna pide tipear: pegar el enlace del Portal o subir el pliego. En cada sección se ve qué falta, con su acción directa.</p>
-  <div class="dos" style="margin-bottom:16px">
-    <div class="bloque" style="margin:0"><div class="bloque-cab"><h3>Con Portal</h3></div>
-      <p class="ayuda" style="margin-bottom:8px">Pegue el enlace del proceso: el sistema muestra lo que encontró y usted aprueba qué se carga.</p>
-      <div class="enlace-portal"><div class="campo"><label for="in-enlace-2">Enlace del proceso en el Portal</label><input id="in-enlace-2" type="text" placeholder="https://comprar.ejemplo.gob.ar/procesos/…"></div></div>
-      <div class="bloque-pie"><a class="btn primario carga-op" href="#s1-portal">Explorar el Portal</a></div></div>
-    <div class="bloque" style="margin:0"><div class="bloque-cab"><h3>Sin Portal</h3></div>
-      <p class="ayuda" style="margin-bottom:8px">Suba el pliego: el sistema lee número, expediente, tipo, objeto, fecha de autorización y renglones, y usted los aprueba o corrige.</p>
-      <div class="soltar" style="padding:14px 10px">Arrastre el archivo del pliego o use el botón</div>
-      <div class="bloque-pie"><button class="btn primario carga-op" type="button" data-subir="pliego-alta">Subir el pliego</button></div></div>
-  </div>
-  <h3>Qué falta en cada sección</h3>
+<section class="pantalla" id="p-creado" data-tab="proc">
+  <div class="encab-parte"><div><h1 id="creado-titulo">Alimento balanceado para perros</h1>
+    <div class="datos-proc"><span>Contratación Directa <b class="num" id="creado-num">N.º 99/2026</b></span><span>Expediente <b class="num" id="creado-exp">EX-2026-00000099-DEMO</b></span><span>Autorización <b class="num" id="creado-aut">14/08/2026</b> · régimen <b>Disp. AFIP 247/2022</b></span><span>Cargado por <b>operador de muestra</b></span></div></div>
+    <span class="barra-cargas"><a class="btn primario carga-op" href="#s1-portal">Tomar del Portal</a><button class="btn secundario carga-op" type="button" data-subir="s1">Subir archivo</button></span></div>
+  <p class="resumen-linea">Tiene los datos y los renglones que aprobó la Comisión. Falta cargar lo demás, en cualquier orden: cada pestaña tiene su botón a la vista.</p>
+  <h3>Qué falta, por pestaña</h3>
   <div class="tabla-scroll"><table class="matriz lectura">
-    <thead><tr><th scope="col">Sección</th><th scope="col" class="e">Estado</th><th scope="col">Qué falta</th><th scope="col">Acción directa</th></tr></thead>
+    <thead><tr><th scope="col">Pestaña</th><th scope="col" class="e">Estado</th><th scope="col">Qué falta</th><th scope="col">Acción directa</th></tr></thead>
     <tbody>
-      <tr><th scope="row">1 · Procedimiento de compra</th><td class="e"><span data-est="nocumple" data-nombre="Falta"></span></td><td>Datos, renglones, cronograma y garantías</td><td class="tdgap"><a class="btn primario chico carga-op" href="#s1-portal">Tomar del Portal</a><button class="btn secundario chico carga-op" type="button" data-subir="pliego-alta">Subir el pliego</button></td></tr>
-      <tr><th scope="row">2 · Pliego y matriz</th><td class="e"><span data-est="nocumple" data-nombre="Falta"></span></td><td>Pliego, anexos y especificaciones técnicas; sin ellos no hay matriz</td><td class="tdgap"><button class="btn primario chico carga-op" type="button" data-subir="s2">Subir archivo</button><button class="btn secundario chico carga-op" type="button" data-tomar="s2">Tomar del Portal</button></td></tr>
-      <tr><th scope="row">3 · Ofertas</th><td class="e"><span data-est="nocumple" data-nombre="Falta"></span></td><td>Ofertas, circulares y aclaraciones</td><td class="tdgap"><button class="btn primario chico carga-op" type="button" data-tomar="oferta-alta">Agregar oferta desde el Portal</button><button class="btn secundario chico carga-op" type="button" data-subir="oferta-alta">Subir los archivos de una oferta</button></td></tr>
-      <tr><th scope="row">4 · Evaluación y dictamen</th><td class="e"><span data-est="nocumple" data-nombre="Falta"></span></td><td>Informe técnico del área y dictamen</td><td class="tdgap"><button class="btn primario chico carga-op" type="button" data-subir="informe">Subir informe técnico</button><button class="btn secundario chico carga-op" type="button" data-tomar="dictamen">Tomar del Portal</button></td></tr>
-      <tr><th scope="row">5 · Normativas</th><td class="e"><span data-est="nocumple" data-nombre="Falta"></span></td><td>Normas que lo rigen según su fecha de autorización (se conoce al cargar los datos)</td><td class="tdgap"><button class="btn primario chico carga-op" type="button" data-subir="norma">Subir archivo</button></td></tr>
+      <tr><th scope="row">Procedimiento</th><td class="e"><span data-est="nodet" data-nombre="A completar"></span></td><td>Cronograma y garantías (el pliego no los trae completos)</td><td class="tdgap"><a class="btn primario chico carga-op" href="#s1-portal">Tomar del Portal</a><button class="btn secundario chico carga-op" type="button" data-subir="s1">Subir archivo</button></td></tr>
+      <tr><th scope="row"><a href="#pliego">Pliego y matriz</a></th><td class="e"><span data-est="nocumple" data-nombre="Falta"></span></td><td>Pliego, anexos y especificaciones técnicas; sin ellos no hay matriz</td><td class="tdgap"><button class="btn primario chico carga-op" type="button" data-subir="s2">Subir archivo</button><button class="btn secundario chico carga-op" type="button" data-tomar="s2">Tomar del Portal</button></td></tr>
+      <tr><th scope="row"><a href="#ofertas">Ofertas</a></th><td class="e"><span data-est="nocumple" data-nombre="Falta"></span></td><td>Ofertas, circulares y aclaraciones</td><td class="tdgap"><button class="btn primario chico carga-op" type="button" data-tomar="oferta-alta">Agregar oferta desde el Portal</button><button class="btn secundario chico carga-op" type="button" data-subir="oferta-alta">Subir los archivos de una oferta</button></td></tr>
+      <tr><th scope="row"><a href="#evaluacion">Evaluación y dictamen</a></th><td class="e"><span data-est="nocumple" data-nombre="Falta"></span></td><td>Informe técnico del área y dictamen</td><td class="tdgap"><button class="btn primario chico carga-op" type="button" data-subir="informe">Subir informe técnico</button><button class="btn secundario chico carga-op" type="button" data-tomar="dictamen">Tomar del Portal</button></td></tr>
+      <tr><th scope="row"><a href="#normativas">Normativas</a></th><td class="e"><span data-est="nodet" data-nombre="A decidir"></span></td><td>Las normas que lo rigen ya se conocen por la fecha de autorización; falta cargar las complementarias que cita el pliego</td><td class="tdgap"><button class="btn primario chico carga-op" type="button" data-subir="norma">Subir archivo</button></td></tr>
     </tbody>
   </table></div>
 </section>
 
 <!-- SECCIÓN 2 · PLIEGO Y MATRIZ (REQ-080, REQ-081, REQ-082) -->
-<section class="pantalla" id="p-s2" data-sec="s2">
-  <div class="ctx-head"></div><nav class="secciones" aria-label="Secciones del procedimiento"></nav>
-  <div class="encab-parte"><h2>2 · Pliego y matriz</h2>
+<section class="pantalla" id="p-pliego" data-tab="pliego">
+  <div class="encab-parte"><h2>Pliego y matriz</h2>
     <span class="barra-cargas"><button class="btn primario carga-op" type="button" data-subir="s2">Subir archivo</button><button class="btn secundario carga-op" type="button" data-tomar="s2">Tomar del Portal</button></span></div>
+  <div class="vacio-slot"></div>
+  <div class="contenido">
   <p class="resumen-linea" id="s2-resumen">Pliego, Anexo I y Anexo II leídos · matriz de <b>23</b> requisitos: versiones 1 y 2 validadas, <b>versión 3 en revisión</b> con <b>3</b> requisitos sin confirmar.</p>
   <div class="dos ps" data-ps="2" style="margin-bottom:16px"></div>
 
@@ -645,13 +634,15 @@
       </tbody>
     </table></div>
   </div>
+  </div>
 </section>
 
 <!-- SECCIÓN 3 · OFERTAS (REQ-083 a REQ-088) -->
-<section class="pantalla" id="p-s3" data-sec="s3">
-  <div class="ctx-head"></div><nav class="secciones" aria-label="Secciones del procedimiento"></nav>
-  <div class="encab-parte"><h2>3 · Ofertas</h2>
+<section class="pantalla" id="p-ofertas" data-tab="ofertas">
+  <div class="encab-parte"><h2>Ofertas</h2>
     <span class="barra-cargas"><button class="btn primario carga-op" type="button" data-subir="s3">Subir archivo</button><button class="btn secundario carga-op" type="button" data-tomar="s3">Tomar del Portal</button></span></div>
+  <div class="vacio-slot"></div>
+  <div class="contenido">
   <p class="resumen-linea"><b>3</b> ofertas · <b>23</b> documentos · 2 circulares modificatorias y 1 aclaración · hoja de compliance: <b>1 de 3</b>. Faltan documentos en las ofertas 2 y 3.</p>
   <div class="dos ps" data-ps="3" style="margin-bottom:16px"></div>
 
@@ -693,15 +684,16 @@
         <tr class="fila-novedad"><th scope="row">Respuesta a la consulta N.º 2</th><td>Aclaratoria</td><td class="num">06/10/2026</td><td class="origen"><b>Portal</b> · detectada hoy, sin aprobar</td><td>Aún no cargada.</td><td class="acciones-doc"><button class="enlace carga-op" type="button" data-tomar="circular">Tomar del Portal</button></td></tr>
       </tbody>
     </table></div>
-    <div class="bloque-pie"><span>Una circular modificatoria abre una versión nueva de la matriz de la sección 2, con lo cambiado marcado, y la Comisión la valida de nuevo.</span><a class="btn secundario" href="#s2-versiones">Ver las versiones de la matriz</a></div>
+    <div class="bloque-pie"><span>Una circular modificatoria abre una versión nueva de la matriz de la Pliego y matriz, con lo cambiado marcado, y la Comisión la valida de nuevo.</span><a class="btn secundario" href="#s2-versiones">Ver las versiones de la matriz</a></div>
+  </div>
   </div>
 </section>
 
 
 <!-- ALTA DE OFERTA SUBIENDO ARCHIVOS (REQ-083) -->
-<section class="pantalla" id="p-oferta-nueva" data-sec="s3">
-  <div class="ctx-head"></div><nav class="secciones" aria-label="Secciones del procedimiento"></nav>
-  <div class="encab-parte"><h2>3 · Lo que el sistema leyó de la oferta nueva</h2><span class="barra-cargas"><button class="btn secundario carga-op" type="button" data-subir="oferta-docs" data-que="Oferta nueva">Subir documentos</button></span></div>
+<section class="pantalla" id="p-oferta-nueva" data-tab="ofertas">
+  <p class="volver"></p>
+  <div class="encab-parte"><h2>Lo que el sistema leyó de la oferta nueva</h2><span class="barra-cargas"><button class="btn secundario carga-op" type="button" data-subir="oferta-docs" data-que="Oferta nueva">Subir documentos</button></span></div>
   <p class="resumen-linea">Se leyó <b>oferta-nueva-completa.pdf</b> (9 páginas). El sistema propone <b>4</b> datos; <b>solo un evaluador</b> los aprueba o corrige (con valor y motivo). Nada se tipea desde cero.</p>
   <div class="bloque"><div class="bloque-cab"><h3>Datos propuestos <span class="cta">4</span></h3></div>
     <div class="tabla-scroll"><table class="matriz lectura"><thead><tr><th scope="col">Dato</th><th scope="col">Propuesto</th><th scope="col">Dónde lo leyó</th><th scope="col">Aprobación</th></tr></thead><tbody>
@@ -714,16 +706,16 @@
   <div class="bloque">
     <div class="bloque-pie" style="border-top:0;margin-top:0;padding-top:0;justify-content:space-between">
       <span id="cuenta-aprob-o">Aprobados <b class="num">0</b> de <b class="num">4</b></span>
-      <span class="fila"><a class="btn secundario" href="#s3">Volver a la sección 3</a><button class="btn primario solo-eval" type="button" id="aprobar-todo-o">Aprobar todo lo propuesto</button><span class="solo-op suave chica">lo aprueba un evaluador</span></span>
+      <span class="fila"><a class="btn secundario" href="#ofertas">Volver a Ofertas</a><button class="btn primario solo-eval" type="button" id="aprobar-todo-o">Aprobar todo lo propuesto</button><span class="solo-op suave chica">lo aprueba un evaluador</span></span>
     </div>
-    <div class="aviso" id="aprobado-todo-o" hidden style="margin-top:10px"><strong>Oferta registrada</strong>Quedó en la sección 3, con los documentos que se subieron.</div>
+    <div id="aprobado-todo-o" style="margin-top:10px"></div>
   </div>
 </section>
 
 <!-- UNA OFERTA (REQ-084, REQ-087, REQ-088) -->
-<section class="pantalla" id="p-oferta" data-sec="s3">
-  <div class="ctx-head"></div><nav class="secciones" aria-label="Secciones del procedimiento"></nav>
-  <div class="encab-parte"><h2>3 · Oferta 2 · Agroalimentos Río Seco S.R.L.</h2>
+<section class="pantalla" id="p-oferta" data-tab="ofertas">
+  <p class="volver"></p>
+  <div class="encab-parte"><h2>Oferta 2 · Agroalimentos Río Seco S.R.L.</h2>
     <span class="barra-cargas"><button class="btn primario carga-op" type="button" data-subir="oferta-docs" data-que="Oferta 2">Subir documentos</button><button class="btn secundario carga-op" type="button" data-subir="anexo" data-que="Oferta 2">Subir anexo técnico</button><button class="btn secundario carga-op" type="button" data-subir="compliance" data-que="Oferta 2">Subir hoja de compliance</button></span></div>
   <p class="resumen-linea">Total <b>$ 13.952.400</b> · garantía: pagaré de $ 697.620 · cotiza los renglones 1 a 4 · datos del <b>Portal</b> (acta de apertura). Los documentos se suben varios a la vez.</p>
   <div class="bloque">
@@ -756,14 +748,14 @@
   <div class="bloque">
     <div class="bloque-cab"><h3>Hoja de compliance</h3><button class="btn secundario chico carga-op" type="button" data-subir="compliance" data-que="Oferta 2">Subir hoja de compliance</button></div>
     <p><span class="con-icono"><span data-est="nocumple" data-nombre="Falta"></span> No hay hoja de compliance de esta oferta.</span> <span class="suave">Mientras falte, los requisitos externos (F-06, F-07, F-09) quedan «sin determinar».</span></p>
-    <div class="bloque-pie"><a class="btn secundario" href="#ficha">Ver la ficha de la oferta (opcional)</a><a class="btn secundario" href="#s3">Volver a la sección 3</a></div>
+    <div class="bloque-pie"><a class="btn secundario" href="#ficha">Ver la ficha de la oferta (opcional)</a><a class="btn secundario" href="#ofertas">Volver a Ofertas</a></div>
   </div>
 </section>
 
 <!-- FICHA DE LA OFERTA (REQ-086) -->
-<section class="pantalla" id="p-ficha" data-sec="s3">
-  <div class="ctx-head"></div><nav class="secciones" aria-label="Secciones del procedimiento"></nav>
-  <div class="encab-parte"><h2>3 · Ficha de la Oferta 2</h2><a class="btn secundario" href="#oferta">Volver a la oferta</a></div>
+<section class="pantalla" id="p-ficha" data-tab="ofertas">
+  <p class="volver"></p>
+  <div class="encab-parte"><h2>Ficha de la Oferta 2</h2><a class="btn secundario" href="#oferta">Volver a la oferta</a></div>
   <p class="resumen-linea">Qué presentó <b>Agroalimentos Río Seco S.R.L.</b> frente a cada requisito de la matriz, con el fragmento de la oferta que lo respalda. La ficha es opcional: sirve para revisar con el original a mano.</p>
   <div class="bloque">
     <div class="bloque-cab"><h3>Pendiente <span class="cta">2 sin respaldo</span></h3></div>
@@ -788,8 +780,8 @@
 </section>
 
 <!-- HISTORIAL DE UN DOCUMENTO (REQ-099) -->
-<section class="pantalla" id="p-historial" data-sec="s3">
-  <div class="ctx-head"></div><nav class="secciones" aria-label="Secciones del procedimiento"></nav>
+<section class="pantalla" id="p-historial" data-tab="*">
+  <p class="volver"></p>
   <div class="encab-parte"><h2>Historial · Pagaré de la Oferta 2</h2>
     <span class="barra-cargas"><button class="btn secundario carga-op" type="button" data-dlg="reemplazar" data-que="Pagaré · Oferta 2">Reemplazar</button><button class="btn secundario carga-op" type="button" data-dlg="retirar" data-que="Pagaré · Oferta 2">Retirar</button></span></div>
   <p class="resumen-linea">Reemplazar o retirar no borra nada: la versión anterior y lo retirado quedan acá y se pueden ver. <b>2</b> versiones · <b>1</b> documento retirado.</p>
@@ -812,10 +804,11 @@
 </section>
 
 <!-- SECCIÓN 4 · EVALUACIÓN Y DICTAMEN (REQ-089 a REQ-093) -->
-<section class="pantalla" id="p-s4" data-sec="s4">
-  <div class="ctx-head"></div><nav class="secciones" aria-label="Secciones del procedimiento"></nav>
-  <div class="encab-parte"><h2>4 · Evaluación y dictamen</h2>
+<section class="pantalla" id="p-evaluacion" data-tab="evaluacion">
+  <div class="encab-parte"><h2>Evaluación y dictamen</h2>
     <span class="barra-cargas"><button class="btn primario carga-op" type="button" data-subir="informe">Subir informe técnico</button><button class="btn secundario carga-op" type="button" data-subir="s4">Subir archivo</button><button class="btn secundario carga-op" type="button" data-tomar="dictamen">Tomar del Portal</button></span></div>
+  <div class="vacio-slot"></div>
+  <div class="contenido">
   <p class="resumen-linea">Propuesta para <b>3</b> ofertas × <b>23</b> requisitos · <b>2</b> descartes propuestos · orden económico calculado · dictamen: <b>no cargado</b>. El sistema propone; la Comisión decide.</p>
   <div class="dos ps" data-ps="4" style="margin-bottom:16px"></div>
 
@@ -908,7 +901,7 @@
   <div class="bloque" id="s4-dictamen">
     <div class="bloque-cab"><h3>Dictamen <span class="cta">no cargado</span></h3>
       <span class="barra-cargas"><button class="btn primario carga-op" type="button" data-tomar="dictamen">Tomar del Portal</button><button class="btn secundario carga-op" type="button" data-subir="dictamen">Subir el dictamen</button></span></div>
-    <p id="dictamen-estado"><span class="con-icono"><span data-est="nodet" data-nombre="Hay uno en el Portal, sin aprobar"></span> El Portal publicó un dictamen el 06/10/2026 (novedad pendiente de aprobar en la sección 1). Tómelo del Portal o suba el archivo.</span></p>
+    <p id="dictamen-estado"><span class="con-icono"><span data-est="nodet" data-nombre="Hay uno en el Portal, sin aprobar"></span> El Portal publicó un dictamen el 06/10/2026 (novedad pendiente de aprobar en la Procedimiento). Tómelo del Portal o suba el archivo.</span></p>
     <p class="ayuda">El dictamen siempre viene del Portal o de un archivo: el sistema no lo redacta.</p>
   </div>
 
@@ -920,12 +913,13 @@
     </tbody></table></div>
   </div>
 
+  </div>
 </section>
 
 <!-- DETALLE DE UN PAR OFERTA × REQUISITO (REQ-089) -->
-<section class="pantalla" id="p-par" data-sec="s4">
-  <div class="ctx-head"></div><nav class="secciones" aria-label="Secciones del procedimiento"></nav>
-  <div class="encab-parte"><h2>4 · Oferta 3 × F-04 · Garantía del 5 %</h2><a class="btn secundario" href="#s4-propuesta">Volver a la propuesta</a></div>
+<section class="pantalla" id="p-par" data-tab="evaluacion">
+  <p class="volver"></p>
+  <div class="encab-parte"><h2>Oferta 3 × F-04 · Garantía del 5 %</h2><a class="btn secundario" href="#s4-propuesta">Volver a la propuesta</a></div>
   <p class="resumen-linea">El sistema propone <b>no cumple</b>: la garantía presentada es el 4 % del total ofertado y el pliego exige el 5 %.</p>
   <div class="bloque">
     <div class="bloque-cab"><h3>Pendiente</h3></div>
@@ -945,14 +939,13 @@
 </section>
 
 <!-- SECCIÓN 5 · NORMATIVAS (REQ-094 a REQ-096) -->
-<section class="pantalla" id="p-s5" data-sec="s5">
-  <div class="ctx-head"></div><nav class="secciones" aria-label="Secciones del procedimiento"></nav>
-  <div class="encab-parte"><h2>5 · Normativas</h2>
+<section class="pantalla" id="p-normativas" data-tab="normativas">
+  <div class="encab-parte"><h2>Normativas</h2>
     <span class="barra-cargas"><button class="btn primario carga-op" type="button" data-subir="norma">Subir archivo</button></span></div>
-  <p class="resumen-linea">Este procedimiento se autorizó el <b>14/08/2026</b>: lo rige la <b>Disp. AFIP 247/2022</b> y el marco nacional. <b>4</b> normas cargadas, <b>1</b> sin validar, <b>1</b> falta cargar. Las normas se cargan subiendo su archivo; el Portal no las publica.</p>
-  <div class="dos ps" data-ps="5" style="margin-bottom:16px"></div>
+  <p class="resumen-linea" id="s5-resumen">Este procedimiento se autorizó el <b>14/08/2026</b>: lo rige la <b>Disp. AFIP 247/2022</b> y el marco nacional. <b>4</b> normas cargadas, <b>1</b> sin validar, <b>1</b> falta cargar. Las normas se cargan subiendo su archivo; el Portal no las publica.</p>
+  <div class="dos ps requiere-proc" data-ps="5" style="margin-bottom:16px"></div>
 
-  <div class="bloque" id="s5-normas">
+  <div class="bloque requiere-proc" id="s5-normas">
     <div class="bloque-cab"><h3>Normas que lo rigen y cuáles faltan</h3><button class="btn secundario chico carga-op" type="button" data-subir="norma">Subir una norma</button></div>
     <div class="tabla-scroll"><table class="matriz lectura">
       <thead><tr><th scope="col">Norma</th><th scope="col">Por qué lo rige</th><th scope="col" class="e">Estado</th><th scope="col">De dónde vino</th><th scope="col">Acciones</th></tr></thead>
@@ -980,9 +973,9 @@
 </section>
 
 <!-- INFORME DE LECTURA DE UNA NORMA (REQ-094) -->
-<section class="pantalla" id="p-lectura-norma" data-sec="s5">
-  <div class="ctx-head"></div><nav class="secciones" aria-label="Secciones del procedimiento"></nav>
-  <div class="encab-parte"><h2>5 · Informe de lectura · Norma complementaria de ejemplo N.º 1 (ficticia)</h2><a class="btn secundario" href="#s5">Volver a la sección 5</a></div>
+<section class="pantalla" id="p-lectura-norma" data-tab="normativas">
+  <p class="volver"></p>
+  <div class="encab-parte"><h2>Informe de lectura · Norma complementaria de ejemplo N.º 1 (ficticia)</h2><a class="btn secundario" href="#normativas">Volver a Normativas</a></div>
   <p class="resumen-linea">Archivo <b>norma-ejemplo-1.pdf</b> (12 páginas). El sistema leyó <b>41</b> de <b>44</b> unidades. Falta que el evaluador la valide.</p>
   <div class="bloque">
     <div class="bloque-cab"><h3>Para revisar <span class="cta">3</span></h3></div>
@@ -1007,53 +1000,9 @@
   </div>
 </section>
 
-<!-- ESTADOS VACÍOS Y ERRORES -->
-<section class="pantalla" id="p-estados">
-  <h1>Estados vacíos y errores</h1>
-  <p class="resumen-linea">Qué ve el usuario cuando falta algo o algo falla. Siempre hay una acción a la vista.</p>
-  <div class="galeria">
-    <div class="panel"><h4><span data-est="nocumple" data-nombre="Falta"></span> Sección 2 sin pliego</h4><p class="suave">Todavía no hay pliego ni matriz.</p><div class="fila" style="margin-top:8px"><button class="btn primario chico carga-op" type="button" data-subir="s2">Subir archivo</button><button class="btn secundario chico carga-op" type="button" data-tomar="s2">Tomar del Portal</button></div></div>
-    <div class="panel"><h4><span data-est="nocumple" data-nombre="Falta"></span> El Portal no responde</h4><p class="suave">No se pudo consultar el Portal. No se cargó nada. Puede reintentar o subir los archivos.</p><div class="fila" style="margin-top:8px"><button class="btn primario chico carga-op" type="button" data-tomar="s2">Reintentar</button><button class="btn secundario chico carga-op" type="button" data-subir="s2">Subir archivo</button></div></div>
-    <div class="panel"><h4><span data-est="nocumple" data-nombre="Error"></span> El enlace no es de un proceso</h4><p class="suave">El enlace pegado no corresponde a un proceso del Portal. Revíselo o suba el pliego.</p><div class="fila" style="margin-top:8px"><a class="btn secundario chico carga-op" href="#recien-creado">Volver</a><button class="btn secundario chico carga-op" type="button" data-subir="pliego-alta">Subir el pliego</button></div></div>
-    <div class="panel"><h4><span data-est="nodet" data-nombre="A revisar"></span> No se pudo leer el pliego</h4><p class="suave">El archivo está escaneado sin texto legible. No se propuso ningún dato. Suba una copia mejor o tómelo del Portal.</p><div class="fila" style="margin-top:8px"><button class="btn secundario chico carga-op" type="button" data-subir="pliego-alta">Subir otra copia</button><button class="btn secundario chico carga-op" type="button" data-tomar="s2">Tomar del Portal</button></div></div>
-    <div class="panel"><h4><span data-est="nocumple" data-nombre="No admitido"></span> Archivo no admitido</h4><p class="suave">«planilla.exe» no es un documento. Se admiten PDF, Word, Excel e imágenes.</p></div>
-    <div class="panel"><h4><span data-est="pend" data-nombre="Sin ofertas en el acta"></span> El acta no lista ofertas</h4><p class="suave">El Portal todavía no publicó el acta de apertura. Puede subir los archivos de cada oferta.</p><div class="fila" style="margin-top:8px"><button class="btn secundario chico carga-op" type="button" data-subir="oferta-alta">Subir los archivos de una oferta</button></div></div>
-    <div class="panel"><h4><span data-est="nodet" data-nombre="No determinado"></span> Consulta sin respuesta</h4><p class="suave">Las normas validadas no alcanzan para responder: «no determinado». Cargue la norma que falta.</p><div class="fila" style="margin-top:8px"><button class="btn secundario chico carga-op" type="button" data-subir="norma">Subir archivo</button></div></div>
-    <div class="panel"><h4><span data-est="pend" data-nombre="Solo lectura"></span> Usuario de lectura</h4><p class="suave">Sin botones de carga ni de decisión: puede ver todo, no cambiar nada. Pruébelo con «ver como: lectura».</p></div>
-  </div>
-</section>
 
-<!-- MAPA DE PANTALLAS -->
-<section class="pantalla" id="p-mapa">
-  <h1 id="mapa-titulo">Mapa de pantallas</h1>
-  <p class="notas-mapa">Cada pantalla de esta maqueta, con los requisitos de la spec 014 que cubre. La maqueta se organiza en las cinco secciones del procedimiento, sin orden obligatorio; se entra a cualquiera desde la barra de secciones. Datos inventados. Detalle de qué se ve y dónde: <code>docs/diseno/control-014.md</code>.</p>
-  <div class="tabla-scroll"><table class="matriz lectura">
-    <thead><tr><th scope="col" class="n">#</th><th scope="col">Pantalla</th><th scope="col">Quién</th><th scope="col">Requisitos que cubre</th><th scope="col">Qué muestra</th></tr></thead>
-    <tbody>
-      <tr><td class="num">1</td><th scope="row"><a href="#ingreso">Ingreso</a> · <a href="#ingreso-error">con error</a></th><td>Todos</td><td class="num">REQ-100</td><td>Usuario y clave; «usuario o clave incorrectos»</td></tr>
-      <tr><td class="num">2</td><th scope="row"><a href="#procedimientos">Lista de procedimientos</a></th><td>Todos</td><td class="num">REQ-075, REQ-098, REQ-100</td><td>Estado de las cinco secciones y cuentas de pendientes y sugerencias por procedimiento</td></tr>
-      <tr><td class="num">3</td><th scope="row"><a href="#portada">Portada del procedimiento</a></th><td>Todos</td><td class="num">REQ-075, REQ-097, REQ-098, REQ-100</td><td>Cinco secciones con estado y cuentas; pendientes y sugerencias en dos bloques; qué hay, qué falta y de dónde vino</td></tr>
-      <tr><td class="num">4</td><th scope="row"><a href="#s1">Sección 1 · Procedimiento de compra</a></th><td>Todos; carga: operador</td><td class="num">REQ-075, REQ-078, REQ-079, REQ-097, REQ-098</td><td>Datos con origen, régimen por fecha de autorización, renglones, apertura, garantías, novedades del Portal para aprobar</td></tr>
-      <tr><td class="num">5</td><th scope="row"><a href="#s1-portal">Explorador del Portal</a></th><td>Operador y evaluador</td><td class="num">REQ-076, REQ-079</td><td>Lo encontrado agrupado; aprobar ítem por ítem o todo; destino de cada ítem</td></tr>
-      <tr><td class="num">6</td><th scope="row"><a href="#s1-pliego">Alta subiendo el pliego</a></th><td>Operador y evaluador</td><td class="num">REQ-077</td><td>Datos y renglones propuestos por el sistema; aprobar o corregir con motivo; nada se tipea</td></tr>
-      <tr><td class="num">6b</td><th scope="row"><a href="#nuevo">Nuevo procedimiento</a></th><td>Operador</td><td class="num">REQ-076, REQ-077</td><td>Las dos entradas de la sección 1 (pegar enlace del Portal o subir el pliego), sin campos de datos; al aprobar se abre el procedimiento con sus cinco secciones</td></tr>
-      <tr><td class="num">7</td><th scope="row"><a href="#recien-creado">Procedimiento recién creado (vacío)</a></th><td>Operador</td><td class="num">REQ-076, REQ-077, REQ-080, REQ-083, REQ-097</td><td>Las dos maneras de empezar y qué falta en cada sección con su acción directa</td></tr>
-      <tr><td class="num">8</td><th scope="row"><a href="#s2">Sección 2 · Pliego y matriz</a></th><td>Operador carga; evaluador decide</td><td class="num">REQ-080, REQ-081, REQ-082, REQ-097, REQ-098</td><td>Documentos con Subir archivo y Tomar del Portal; matriz por tipo con filtros y citas; acciones; versiones</td></tr>
-      <tr><td class="num">9</td><th scope="row"><a href="#s3">Sección 3 · Ofertas</a></th><td>Operador carga</td><td class="num">REQ-083, REQ-084, REQ-085, REQ-087, REQ-088, REQ-097, REQ-098</td><td>Alta de oferta a la vista, documentos, anexos y compliance por oferta, circulares y aclaraciones</td></tr>
-      <tr><td class="num">9b</td><th scope="row"><a href="#oferta-nueva">Alta de oferta subiendo archivos</a></th><td>Operador sube; evaluador aprueba</td><td class="num">REQ-083</td><td>Oferente, CUIT, total y garantía propuestos, cada uno con documento y página; aprobar o corregir (valor y motivo)</td></tr>
-      <tr><td class="num">10</td><th scope="row"><a href="#oferta">Una oferta</a></th><td>Operador</td><td class="num">REQ-084, REQ-087, REQ-088, REQ-099</td><td>Documentos, anexos técnicos y hoja de compliance de la Oferta 2, con sus botones</td></tr>
-      <tr><td class="num">11</td><th scope="row"><a href="#ficha">Ficha de la oferta</a></th><td>Todos</td><td class="num">REQ-086</td><td>Lo presentado frente a cada requisito, con fragmento o «no se encontró»</td></tr>
-      <tr><td class="num">12</td><th scope="row"><a href="#historial">Historial de un documento</a></th><td>Todos</td><td class="num">REQ-099</td><td>Versión anterior y nueva; retirados con motivo</td></tr>
-      <tr><td class="num">13</td><th scope="row"><a href="#s4">Sección 4 · Evaluación y dictamen</a></th><td>Evaluador decide</td><td class="num">REQ-089, REQ-090, REQ-091, REQ-092, REQ-093, REQ-097, REQ-098</td><td>Resultado y orden económico, descartes, preguntas y subsanaciones, dictamen, propuesta, informe técnico, exportar</td></tr>
-      <tr><td class="num">14</td><th scope="row"><a href="#par">Detalle de un par oferta × requisito</a></th><td>Evaluador</td><td class="num">REQ-089</td><td>Cita del pliego, cita de la oferta, propuesta y decisión</td></tr>
-      <tr><td class="num">15</td><th scope="row"><a href="#proceso">Ventana del proceso</a></th><td>Todos</td><td class="num">REQ-089, REQ-100</td><td>Avance en vivo de la lectura del informe técnico</td></tr>
-      <tr><td class="num">16</td><th scope="row"><a href="#s5">Sección 5 · Normativas</a></th><td>Evaluador valida; operador sube</td><td class="num">REQ-094, REQ-095, REQ-096, REQ-097, REQ-098</td><td>Normas que rigen y cuáles faltan, subir archivo, consulta con citas literales</td></tr>
-      <tr><td class="num">17</td><th scope="row"><a href="#lectura-norma">Informe de lectura de una norma</a></th><td>Evaluador</td><td class="num">REQ-094</td><td>Qué se leyó, qué revisar y «Validar la norma» desde la pantalla</td></tr>
-      <tr><td class="num">18</td><th scope="row"><a href="#estados">Estados vacíos y errores</a></th><td>Todos</td><td class="num">REQ-097, REQ-080</td><td>Qué se ve cuando falta algo o algo falla</td></tr>
-      <tr><td class="num">19</td><th scope="row"><a href="#mapa">Mapa de pantallas</a></th><td>—</td><td class="num">REQ-100</td><td>Esta tabla</td></tr>
-    </tbody>
-  </table></div>
-</section>
+
+
 
 </div></main>
 
@@ -1095,15 +1044,23 @@ function pintarIconos(raiz) {
   });
 }
 
-/* ---------- Las cinco secciones: sin orden obligatorio ---------- */
+/* ---------- Las cinco pestañas: sin orden obligatorio ---------- */
 var SECC = [
-  { k: "s1", n: "1 · Procedimiento de compra", e: "nodet", en: "A decidir" },
-  { k: "s2", n: "2 · Pliego y matriz", e: "nodet", en: "A decidir" },
-  { k: "s3", n: "3 · Ofertas", e: "nocumple", en: "Falta" },
-  { k: "s4", n: "4 · Evaluación y dictamen", e: "pend", en: "En curso" },
-  { k: "s5", n: "5 · Normativas", e: "nodet", en: "A decidir" }
+  { k: "proc", n: "Procedimiento", e: "nodet", en: "A decidir" },
+  { k: "pliego", n: "Pliego y matriz", e: "nodet", en: "A decidir" },
+  { k: "ofertas", n: "Ofertas", e: "nocumple", en: "Falta" },
+  { k: "evaluacion", n: "Evaluación y dictamen", e: "pend", en: "En curso" },
+  { k: "normativas", n: "Normativas", e: "nodet", en: "A decidir" }
 ];
-/* Pendientes de decidir (h = a dónde lleva) y sugerencias del sistema, por sección: una sola fuente para la portada y cada sección */
+/* Estado de la sesión de uso */
+var modo = "normal";        /* normal: procedimiento con datos · nuevo: antes de crearlo · creado: recién creado, con lo demás por cargar */
+var procSel = "99";         /* 99, 12 o nuevo (el recién creado por el alta) */
+var rol = "evaluador", ultimaTab = "ofertas", TABACT = "proc";
+var CFG = {
+  nuevo: { t: "Alimento balanceado para perros", n: "N.º 99/2026", e: "EX-2026-00000099-DEMO", a: "14/08/2026", lab: "CD N.º 99/2026 · Alimento balanceado para perros", sub: "recién creado" },
+  "12": { t: "Insumos de librería", n: "N.º 12/2026", e: "EX-2026-00000012-DEMO", a: "02/09/2026", lab: "CD N.º 12/2026 · Insumos de librería", sub: "datos cargados; falta el resto" }
+};
+/* Pendientes de decidir (h = a dónde lleva) y sugerencias del sistema, por pestaña (s = número de pestaña) */
 var PEND = [
   { k: "nov-1", s: 1, t: "Novedad del Portal: respuesta a la consulta N.º 2 (publicada el 06/10/2026)", h: "#s1-novedades" },
   { k: "nov-2", s: 1, t: "Novedad del Portal: dictamen de la Comisión (publicado el 06/10/2026)", h: "#s1-novedades" },
@@ -1119,7 +1076,7 @@ var PEND = [
   { k: "norma", s: 5, t: "Norma cargada sin validar: Norma complementaria de ejemplo N.º 1 (ficticia)", h: "#lectura-norma" }
 ];
 var SUG = [
-  { k: "imp", s: 1, t: "Garantía de impugnación (3 %) publicada por el Portal y no mencionada en el pliego: verificar", h: "#s1" },
+  { k: "imp", s: 1, t: "Garantía de impugnación (3 %) publicada por el Portal y no mencionada en el pliego: verificar", h: "#s1-datos" },
   { k: "muestras", s: 2, t: "Muestras del producto «si la Comisión las pide» (art. 11): condición facultativa, ¿es requisito?", h: "#s2-decidir" },
   { k: "habil", s: 2, t: "Habilitación del establecimiento elaborador (Anexo I, nota al pie): sin cláusula propia", h: "#s2-decidir" },
   { k: "fichas", s: 3, t: "La oferta 3 no trae fichas técnicas de los renglones 5 y 6", h: "#s3-ofertas" },
@@ -1131,9 +1088,10 @@ function resolver(k) {
   PEND = PEND.filter(function (x) { return x.k !== k; }); SUG = SUG.filter(function (x) { return x.k !== k; });
   refrescar();
 }
-function cuenta(lista, s) { return lista.filter(function (x) { return x.s === s; }).length; }
+function L(l) { return modo === "normal" ? l : []; }
+function cuenta(lista, s) { return L(lista).filter(function (x) { return x.s === s; }).length; }
 function bloquePS(lista, titulo, tipo, s) {
-  var it = lista.filter(function (x) { return s ? x.s === s : true; });
+  var it = L(lista).filter(function (x) { return s ? x.s === s : true; });
   var cuerpo = "";
   if (!it.length) cuerpo = '<p class="suave" style="margin-top:6px">Nada por ahora.</p>';
   else {
@@ -1148,39 +1106,38 @@ function bloquePS(lista, titulo, tipo, s) {
   return "<h3>" + titulo + ' <span class="cta">' + it.length + "</span></h3>" +
     '<p class="ayuda">' + (tipo === "pend" ? "Esperan su decisión." : "El sistema duda o propone: usted decide si las toma.") + "</p>" + cuerpo;
 }
-function contexto(sec) {
-  var alta = sec === "alta-portal" || sec === "alta-pliego", nuevo = sec === "nuevo", tp = PEND.length, ts = SUG.length;
-  if (alta) {
-    var que = sec === "alta-portal" ? "Lo que el sistema encontró en el Portal" : "Lo que el sistema leyó del pliego";
-    return ['<p class="migas"><a href="#procedimientos">Procedimientos</a> › <a href="#nuevo">Nuevo procedimiento</a> › ' + que + "</p><h1>" + que + '</h1><div class="datos-proc"><span>El procedimiento todavía no existe: se crea cuando la Comisión aprueba la propuesta</span></div>', ""];
-  }
-  var ind = '<div class="barra-ind"><button class="btn secundario chico boton-ventana" type="button" data-abrir-ventana><span class="latido"' + (terminado ? ' style="display:none"' : "") + '></span><span class="mp-txt">' + (terminado ? "Proceso terminado" : "Proceso en curso") + ': informe técnico</span> <span class="num mini-prog">' + hechas + "/16</span></button></div>";
-  var head = nuevo
-    ? '<p class="migas"><a href="#procedimientos">Procedimientos</a> › Procedimiento nuevo</p><h1>Procedimiento nuevo, sin datos todavía</h1><div class="datos-proc"><span>Creado hoy 07/10/2026 por <b>operador de muestra</b></span><span>Sin número ni expediente: se completan al cargar el pliego o el Portal</span></div>'
-    : '<p class="migas"><a href="#procedimientos">Procedimientos</a> › CD N.º 99/2026</p><h1>Alimento balanceado para perros</h1>' +
-      '<div class="datos-proc"><span>Contratación Directa <b class="num">N.º 99/2026</b></span><span>Expediente <b class="num">EX-2026-00000099-DEMO</b></span><span>Autorización <b class="num">14/08/2026</b> · régimen <b>Disp. AFIP 247/2022</b></span><span>Apertura <b class="num">22/09/2026</b></span><span>6 renglones · 3 ofertas</span></div>' + ind;
-  var li = '<li class="portada"><a href="#portada"' + (sec === "portada" ? ' aria-current="page"' : "") + '><span class="s-nombre">Portada</span><span class="s-pie"><b>' + (nuevo ? 0 : tp) + "</b> pend. · <b>" + (nuevo ? 0 : ts) + "</b> sug.</span></a></li>" +
-    SECC.map(function (x) {
-      var n = +x.k.slice(1), p = nuevo ? 0 : cuenta(PEND, n), g = nuevo ? 0 : cuenta(SUG, n);
-      var a = nuevo ? { e: "nocumple", en: "Falta" } : (n === 2 && p + g === 0 ? { e: "cumple", en: "Lista" } : x);
-      return '<li><a href="#' + x.k + '"' + (x.k === sec ? ' aria-current="page"' : "") + '><span class="s-nombre">' + x.n + '</span><span class="s-pie">' + icono(a.e, a.en) + " <span><b>" + p + "</b> pend. · <b>" + g + "</b> sug.</span></span></a></li>";
-    }).join("");
-  return [head, "<ul>" + li + "</ul>"];
+/* Estado de cada pestaña (ícono) según el modo */
+function estadoTab(n) {
+  var p = cuenta(PEND, n), g = cuenta(SUG, n);
+  if (modo === "nuevo") return n === 1 ? { e: "pend", en: "Sin crear todavía" } : { e: "pend", en: "Disponible" };
+  if (modo === "creado") return n === 1 ? { e: "nodet", en: "A completar" } : n === 5 ? { e: "nodet", en: "A decidir" } : { e: "nocumple", en: "Falta" };
+  return n === 2 && p + g === 0 ? { e: "cumple", en: "Lista" } : SECC[n - 1];
 }
-
-/* ---------- Lista de procedimientos ---------- */
-(function () {
-  var f = [
-    ["#portada", "CD N.º 99/2026 · Alimento balanceado para perros", "Disp. 247/2022", SECC.map(function (x) { return [x.e, x.en]; }), PEND.length, SUG.length],
-    ["#portada", "CD N.º 12/2026 · Insumos de librería (caso chico)", "Disp. 247/2022", [["cumple", "Lista"], ["cumple", "Lista"], ["nodet", "A decidir"], ["nodet", "A decidir"], ["cumple", "Lista"]], 3, 1],
-    ["#recien-creado", "Procedimiento nuevo (sin número todavía)", "—", [["nocumple", "Falta"], ["nocumple", "Falta"], ["nocumple", "Falta"], ["nocumple", "Falta"], ["nocumple", "Falta"]], 0, 0]
-  ];
-  document.getElementById("lista-proc").innerHTML = f.map(function (r) {
-    return '<tr><th scope="row"><a href="' + r[0] + '">' + r[1] + '</a></th><td>' + r[2] + "</td>" + r[3].map(function (e) { return '<td class="e">' + icono(e[0], e[1]) + "</td>"; }).join("") + '<td class="n">' + r[4] + '</td><td class="n">' + r[5] + "</td></tr>";
+function hrefTab(n) { return n === 1 ? (modo === "nuevo" ? "#nuevo" : modo === "creado" ? "#creado" : "#proc") : "#" + SECC[n - 1].k; }
+function renderTabs() {
+  var ul = document.querySelector("nav.tabs ul"); if (!ul) return;
+  ul.innerHTML = SECC.map(function (x, i) {
+    var n = i + 1;
+    if (modo === "nuevo" && n >= 2 && n <= 4)
+      return '<li><span class="off" tabindex="0" role="link" aria-disabled="true" title="Disponible al crear el procedimiento" data-tip="Disponible al crear el procedimiento"><span class="t-nombre">' + x.n + '</span><span class="t-pie">no disponible</span></span></li>';
+    var a = estadoTab(n), p = cuenta(PEND, n), g = cuenta(SUG, n);
+    var pie = modo === "nuevo" ? (n === 1 ? "sin crear" : "siempre disponible") : "<b>" + p + "</b> pend. · <b>" + g + "</b> sug.";
+    return '<li><a href="' + hrefTab(n) + '"' + (x.k === TABACT ? ' aria-current="page"' : "") + '><span class="t-nombre">' + icono(a.e, a.en) + x.n + '</span><span class="t-pie">' + pie + "</span></a></li>";
   }).join("");
-})();
-
-/* ---------- Matriz de cumplimiento y resultados (datos inventados con la forma del caso-00) ---------- */
+}
+function etiquetaProc() {
+  if (modo === "nuevo") return "Nuevo procedimiento (sin crear)";
+  if (modo === "creado") return CFG[procSel].lab;
+  return "CD N.º 99/2026 · Alimento balanceado para perros";
+}
+function renderHeader() {
+  document.getElementById("proc-etiqueta").textContent = etiquetaProc();
+  document.getElementById("u-nombre").textContent = rol + " de muestra";
+  document.getElementById("u-rol").textContent = "Comisión Evaluadora";
+  document.body.classList.remove("operador", "lectura"); if (rol !== "evaluador") document.body.classList.add(rol);
+  document.body.classList.toggle("m-nuevo", modo === "nuevo"); document.body.classList.toggle("m-creado", modo === "creado");
+}
+/* ---------- Matriz de cumplimiento y resultados (datos de muestra con la forma del caso-00) ---------- */
 var R = [
   { t: "formal", sec: "Art. 3 · Presentación de la oferta", id: "F-01", x: "Oferta firmada por el representante legal o apoderado", u: "Pliego, pág. 3, art. 3.1", c: "Intimación a subsanar", rb: "cumple", cita: "La oferta deberá estar firmada en todas sus hojas por el representante legal o apoderado del oferente.", r: [["cumple", "Cumple"], ["cumple", "Cumple"], ["cumple", "Cumple"]] },
   { t: "formal", sec: "Art. 3 · Presentación de la oferta", id: "F-02", x: "Presentación dentro del plazo de apertura", u: "Pliego, pág. 3, art. 3.2", c: "Desestimación", rb: "cumple", cita: "No se considerarán las ofertas presentadas después de la hora fijada para la apertura.", r: [["cumple", "Cumple · Portal, acta de apertura"], ["cumple", "Cumple · Portal, acta de apertura"], ["cumple", "Cumple · Portal, acta de apertura"]] },
@@ -1263,13 +1220,13 @@ function renderMatriz() {
 }
 document.addEventListener("click", function (e) {
   var c = e.target.closest("[data-confirmar-req]");
-  if (c) { var id = c.getAttribute("data-confirmar-req"); confirmados[id] = true; resolver(id); renderMatriz(); pintarIconos(document.getElementById("p-s2")); return; }
+  if (c) { var id = c.getAttribute("data-confirmar-req"); confirmados[id] = true; resolver(id); renderMatriz(); pintarIconos(document.getElementById("p-pliego")); return; }
   var r = e.target.closest("[data-res]");
   if (r) { var k = r.getAttribute("data-res"), tr = document.getElementById("dec-" + k); tr.querySelector(".dec").innerHTML = '<span class="con-icono">' + icono("cumple", "Decidido") + " " + r.getAttribute("data-t") + " · evaluador de muestra · hoy</span>"; resolver(k); return; }
   if (e.target.closest("#validar-v3")) validarV3();
 });
 document.getElementById("conf-propuestos").addEventListener("click", function () {
-  R.forEach(function (f) { if (f.rb === "pend" && !confirmados[f.id]) { confirmados[f.id] = true; PEND = PEND.filter(function (x) { return x.k !== f.id; }); } }); refrescar(); renderMatriz(); pintarIconos(document.getElementById("p-s2"));
+  R.forEach(function (f) { if (f.rb === "pend" && !confirmados[f.id]) { confirmados[f.id] = true; PEND = PEND.filter(function (x) { return x.k !== f.id; }); } }); refrescar(); renderMatriz(); pintarIconos(document.getElementById("p-pliego"));
 });
 ["f-tipo"].forEach(function (id) { document.getElementById(id).addEventListener("change", renderMatriz); });
 document.getElementById("f-txt").addEventListener("input", renderMatriz);
@@ -1291,7 +1248,7 @@ function validarV3() {
   document.getElementById("s2-resumen").innerHTML = "Pliego, Anexo I y Anexo II leídos · matriz de <b>23</b> requisitos: versiones 1, 2 y <b>3 validadas</b>.";
   actualizarValidar();
 }
-/* ---------- Propuesta de evaluación por oferta y requisito (sección 4) ---------- */
+/* ---------- Propuesta de evaluación por oferta y requisito (Evaluación y dictamen) ---------- */
 function celda(c) { return c[0] === "-" ? '<span class="suave" title="' + c[1] + '">—</span>' : icono(c[0], c[1]); }
 function renderEval() {
   var tipo = document.getElementById("e-tipo").value, res = document.getElementById("e-res").value;
@@ -1388,24 +1345,24 @@ document.getElementById("v-cerrar").addEventListener("click", function () { abri
 var dlg = document.getElementById("dlg"), dlgAccion = null;
 var TIPOS_DOC = ["Pliego de bases y condiciones", "Anexo del pliego", "Especificaciones técnicas", "Circular modificatoria", "Circular aclaratoria", "Respuesta a consulta", "Documento de la oferta", "Anexo técnico de la oferta", "Hoja de compliance", "Informe técnico del área", "Dictamen", "Norma", "Otro"];
 var SUBIR = {
-  s1: ["Subir archivo · sección 1", "El sistema lee cada archivo, propone qué es y en qué sección queda; usted lo confirma.", [["acta-de-apertura.pdf", "Otro", "Sección 3 · Ofertas"], ["nota-del-expediente.pdf", "Otro", "Sección 1"]], "Subir los archivos"],
-  "pliego-alta": ["Subir el pliego", "El sistema lee el pliego y propone número, expediente, tipo, objeto, fecha de autorización y renglones. Nada se tipea.", [["pliego-cd-99-2026.pdf", "Pliego de bases y condiciones", "Sección 2; datos y renglones propuestos en la 1"]], "Subir y leer el pliego"],
-  s2: ["Subir archivo · sección 2", "Pliego, anexos y especificaciones técnicas.", [["anexo-iii-dj-intereses.pdf", "Anexo del pliego", "Sección 2"]], "Subir los archivos"],
-  pliego: ["Subir el pliego o un anexo", "Pliego, anexos y especificaciones técnicas.", [["anexo-iii-dj-intereses.pdf", "Anexo del pliego", "Sección 2"]], "Subir los archivos"],
-  s3: ["Subir archivo · sección 3", "Ofertas, circulares y aclaraciones, anexos técnicos y hojas de compliance. El sistema propone a qué corresponde cada archivo.", [["circular-3.pdf", "Circular modificatoria", "Sección 3 (abre la versión 4 de la matriz)"], ["fichas-r5-r6.pdf", "Anexo técnico de la oferta", "Sección 3 · oferta 3"]], "Subir los archivos"],
-  circular: ["Subir circular o aclaración", "Modificatorias, aclaratorias y respuestas a consultas.", [["circular-3.pdf", "Circular modificatoria", "Sección 3 (abre la versión 4 de la matriz)"], ["respuesta-consulta-2.pdf", "Respuesta a consulta", "Sección 3"]], "Subir los archivos", "Una circular modificatoria abre una versión nueva de la matriz de la sección 2, con lo cambiado marcado, para validarla de nuevo."],
+  s1: ["Subir archivo · Procedimiento", "El sistema lee cada archivo, propone qué es y en qué pestaña queda; usted lo confirma.", [["acta-de-apertura.pdf", "Otro", "Ofertas"], ["nota-del-expediente.pdf", "Otro", "Procedimiento"]], "Subir los archivos"],
+  "pliego-alta": ["Subir el pliego", "El sistema lee el pliego y propone número, expediente, tipo, objeto, fecha de autorización y renglones. Nada se tipea.", [["pliego-cd-99-2026.pdf", "Pliego de bases y condiciones", "Pliego y matriz; datos y renglones propuestos en Procedimiento"]], "Subir y leer el pliego"],
+  s2: ["Subir archivo · Pliego y matriz", "Pliego, anexos y especificaciones técnicas.", [["anexo-iii-dj-intereses.pdf", "Anexo del pliego", "Pliego y matriz"]], "Subir los archivos"],
+  pliego: ["Subir el pliego o un anexo", "Pliego, anexos y especificaciones técnicas.", [["anexo-iii-dj-intereses.pdf", "Anexo del pliego", "Pliego y matriz"]], "Subir los archivos"],
+  s3: ["Subir archivo · Ofertas", "Ofertas, circulares y aclaraciones, anexos técnicos y hojas de compliance. El sistema propone a qué corresponde cada archivo.", [["circular-3.pdf", "Circular modificatoria", "Ofertas (abre la versión 4 de la matriz)"], ["fichas-r5-r6.pdf", "Anexo técnico de la oferta", "Ofertas · oferta 3"]], "Subir los archivos"],
+  circular: ["Subir circular o aclaración", "Modificatorias, aclaratorias y respuestas a consultas.", [["circular-3.pdf", "Circular modificatoria", "Ofertas (abre la versión 4 de la matriz)"], ["respuesta-consulta-2.pdf", "Respuesta a consulta", "Ofertas"]], "Subir los archivos", "Una circular modificatoria abre una versión nueva de la matriz de la Pliego y matriz, con lo cambiado marcado, para validarla de nuevo."],
   "oferta-alta": ["Subir los archivos de una oferta", "El sistema lee la oferta y propone oferente, CUIT, total y garantía; la Comisión los aprueba o corrige. No se tipea nada.", [["oferta-nueva-completa.pdf", "Documento de la oferta", "Oferta nueva (datos propuestos para aprobar)"]], "Subir y leer la oferta"],
   "oferta-docs": ["Subir documentos de la oferta", "Se suben varios a la vez; el sistema propone a qué documento exigido corresponde cada uno.", [["dj-intereses.pdf", "Documento de la oferta", "DJ de intereses"], ["planilla-corregida.pdf", "Documento de la oferta", "Planilla de cotización"], ["estatuto.pdf", "Documento de la oferta", "Estatuto y poder"]], "Subir los 3 archivos"],
   anexo: ["Subir anexo técnico de la oferta", "Fichas y folletos técnicos que presenta el oferente.", [["ficha-tecnica-r5.pdf", "Anexo técnico de la oferta", "Anexos técnicos de la oferta"], ["folleto-r6.pdf", "Anexo técnico de la oferta", "Anexos técnicos de la oferta"]], "Subir los 2 archivos"],
-  compliance: ["Subir hoja de compliance", "Una por oferta; rige para todos sus requisitos externos, que se vuelven a evaluar solos citando la hoja.", [["hoja-compliance.pdf", "Hoja de compliance", "Sección 3 · hoja de la oferta"]], "Subir la hoja"],
-  informe: ["Subir informe técnico del área", "Por procedimiento o por oferta. El juicio técnico es del área: el sistema solo toma lo que dice el informe.", [["IT-07-2026.pdf", "Informe técnico del área", "Sección 4 · todo el procedimiento"]], "Subir el informe"],
-  s4: ["Subir archivo · sección 4", "Informe técnico del área o dictamen.", [["IT-07-2026.pdf", "Informe técnico del área", "Sección 4"], ["dictamen-cd-99-2026.pdf", "Dictamen", "Sección 4"]], "Subir los archivos"],
-  dictamen: ["Subir el dictamen", "El dictamen se sube como archivo: el sistema no lo redacta.", [["dictamen-cd-99-2026.pdf", "Dictamen", "Sección 4"]], "Subir el dictamen"],
-  norma: ["Subir una norma", "Solo el archivo: el sistema la lee, muestra el informe de lectura y la Comisión la valida.", [["resolucion-montos-2026.pdf", "Norma", "Sección 5 · informe de lectura"]], "Subir y leer la norma"]
+  compliance: ["Subir hoja de compliance", "Una por oferta; rige para todos sus requisitos externos, que se vuelven a evaluar solos citando la hoja.", [["hoja-compliance.pdf", "Hoja de compliance", "Ofertas · hoja de la oferta"]], "Subir la hoja"],
+  informe: ["Subir informe técnico del área", "Por procedimiento o por oferta. El juicio técnico es del área: el sistema solo toma lo que dice el informe.", [["IT-07-2026.pdf", "Informe técnico del área", "Evaluación y dictamen · todo el procedimiento"]], "Subir el informe"],
+  s4: ["Subir archivo · Evaluación y dictamen", "Informe técnico del área o dictamen.", [["IT-07-2026.pdf", "Informe técnico del área", "Evaluación y dictamen"], ["dictamen-cd-99-2026.pdf", "Dictamen", "Evaluación y dictamen"]], "Subir los archivos"],
+  dictamen: ["Subir el dictamen", "El dictamen se sube como archivo: el sistema no lo redacta.", [["dictamen-cd-99-2026.pdf", "Dictamen", "Evaluación y dictamen"]], "Subir el dictamen"],
+  norma: ["Subir una norma", "Solo el archivo: el sistema la lee, muestra el informe de lectura y la Comisión la valida.", [["resolucion-montos-2026.pdf", "Norma", "Normativas · informe de lectura"]], "Subir y leer la norma"]
 };
 var PORTAL = {
   s2: ["Tomar del Portal · pliego y anexos", [["Anexo III · Modelo de DJ de intereses", "Nuevo"], ["Pliego de bases y condiciones particulares", "Ya cargado"], ["Anexo I · Especificaciones técnicas", "Ya cargado"]]],
-  s3: ["Tomar del Portal · sección 3", [["Respuesta a la consulta N.º 2", "Nuevo"], ["Circular N.º 2", "Ya cargado"]]],
+  s3: ["Tomar del Portal · Ofertas", [["Respuesta a la consulta N.º 2", "Nuevo"], ["Circular N.º 2", "Ya cargado"]]],
   circular: ["Tomar del Portal · circulares y aclaraciones", [["Respuesta a la consulta N.º 2 (aclaratoria, 06/10/2026)", "Nuevo"], ["Circular N.º 2 (modificatoria)", "Ya cargado"], ["Circular N.º 1 (modificatoria)", "Ya cargado"]]],
   "oferta-alta": ["Agregar oferta desde el Portal", [["Nutrición Canina Austral S.A. · 30-00000001-0 · $ 16.054.000", "Ya cargada"], ["Agroalimentos Río Seco S.R.L. · 30-00000002-0 · $ 13.952.400", "Ya cargada"], ["Mascotas del Litoral S.A. · 30-00000003-0 · $ 16.485.000", "Ya cargada"]]],
   dictamen: ["Tomar del Portal · dictamen", [["Dictamen de la Comisión Evaluadora (06/10/2026)", "Nuevo"]]]
@@ -1494,7 +1451,7 @@ function corregir(dato) {
 function activarAprobacion(pantalla, contador, total, botonTodo, avisoId, conCorregir) {
   var sec = document.getElementById(pantalla), n = 0;
   var cel = [].slice.call(sec.querySelectorAll("td.ap"));
-  function cta() { document.getElementById(contador).innerHTML = "Aprobados <b class=\"num\">" + n + "</b> de <b class=\"num\">" + total + "</b>"; if (n === total) document.getElementById(avisoId).hidden = false; }
+  function cta() { document.getElementById(contador).innerHTML = "Aprobados <b class=\"num\">" + n + "</b> de <b class=\"num\">" + total + "</b>"; if (n === total) mostrarAviso(avisoId); }
   function aprobar(td) { if (td.getAttribute("data-ok")) return; td.setAttribute("data-ok", "1"); td.innerHTML = '<span class="con-icono">' + icono("cumple", "Aprobado") + " Aprobado</span>"; td.parentNode.className = "ok-fila"; n++; cta(); }
   cel.forEach(function (td) {
     var doc = /^Documentos/.test(td.closest(".bloque").querySelector("h3").textContent);
@@ -1516,7 +1473,7 @@ activarAprobacion("p-s1-pliego", "cuenta-aprob-p", 11, "aprobar-todo-p", "aproba
 activarAprobacion("p-oferta-nueva", "cuenta-aprob-o", 4, "aprobar-todo-o", "aprobado-todo-o", true);
 document.querySelectorAll("[data-explorar]").forEach(function (b) { b.addEventListener("click", function () { b.textContent = "Explorado de nuevo: sin novedades"; }); });
 
-/* ---------- Roles ---------- */
+/* ---------- Roles (marca de botones) ---------- */
 var DECIDE = /^(Confirmar|Rechazar|Validar|Dar el ok|Pedir que se subsane|No pedir|Responder|Quitar|Corregir|Agregar requisito|Devolver|Pasar a requisito|Marcar revisado)/;
 var CARGA = /^(Subir|Tomar|Agregar oferta|Explorar|Reemplazar|Retirar|Restituir|Aprobar|Nuevo procedimiento)/;
 function marcarRol() {
@@ -1526,51 +1483,162 @@ function marcarRol() {
   });
 }
 new MutationObserver(marcarRol).observe(document.body, { childList: true, subtree: true });
-document.getElementById("ver-como").addEventListener("change", function () {
-  document.body.classList.remove("operador", "lectura"); if (this.value !== "evaluador") document.body.classList.add(this.value);
-  document.getElementById("u-nombre").textContent = this.value + " de muestra";
-  document.getElementById("u-rol").textContent = "Comisión Evaluadora · " + this.value;
+
+/* ---------- Menús del encabezado: se arman al abrirlos ---------- */
+function cerrarMenus() {
+  document.querySelectorAll(".menu").forEach(function (m) { m.remove(); });
+  document.querySelectorAll("[data-menu]").forEach(function (b) { b.setAttribute("aria-expanded", "false"); });
+}
+function abrirMenu(k, btn) {
+  var yaAbierto = btn.parentNode.querySelector(".menu");
+  cerrarMenus(); if (yaAbierto) return;
+  var m = document.createElement("div"); m.className = "menu" + (k === "user" ? " der" : ""); m.setAttribute("role", "menu");
+  if (k === "proc") {
+    var items = [
+      ["99", "CD N.º 99/2026 · Alimento balanceado para perros", "3 ofertas · evaluación en curso", modo === "normal"],
+      ["12", "CD N.º 12/2026 · Insumos de librería", "datos cargados; falta el resto", modo === "creado" && procSel === "12"]
+    ];
+    if (procSel === "nuevo") items.push(["nuevo", CFG.nuevo.lab, "recién creado", modo === "creado"]);
+    m.innerHTML = '<div class="menu-tit">Cambiar de procedimiento</div>' + items.map(function (x) {
+      return '<button type="button" role="menuitem" data-proc="' + x[0] + '"' + (x[3] ? ' class="actual" aria-current="true"' : "") + ">" + x[1] + "<small>" + x[2] + "</small></button>";
+    }).join("") + '<hr><button type="button" role="menuitem" class="carga-op' + (modo === "nuevo" ? ' actual' : '') + '" data-proc="alta">+ Nuevo procedimiento</button>';
+  } else {
+    var otros = ["evaluador", "operador", "lectura"].filter(function (r) { return r !== rol; });
+    m.innerHTML = '<div class="menu-tit">Sesión de ' + rol + " de muestra</div>" + otros.map(function (r) {
+      return '<button type="button" role="menuitem" data-rol="' + r + '">Cambiar a ' + (r === "evaluador" ? "evaluador" : r === "operador" ? "operador" : "lectura") + " (demo)</button>";
+    }).join("");
+  }
+  btn.parentNode.appendChild(m); btn.setAttribute("aria-expanded", "true"); marcarRol();
+}
+document.addEventListener("click", function (e) {
+  var mb = e.target.closest("[data-menu]");
+  if (mb) { abrirMenu(mb.getAttribute("data-menu"), mb); return; }
+  var pr = e.target.closest("[data-proc]");
+  if (pr) {
+    var k = pr.getAttribute("data-proc"); cerrarMenus();
+    if (k === "alta") { modo = "nuevo"; irA("#nuevo"); }
+    else if (k === "99") { modo = "normal"; procSel = "99"; irA("#proc"); }
+    else { modo = "creado"; procSel = k; irA("#creado"); }
+    return;
+  }
+  var ro = e.target.closest("[data-rol]");
+  if (ro) { rol = ro.getAttribute("data-rol"); cerrarMenus(); renderHeader(); return; }
+  if (e.target.closest("[data-crear]")) { modo = "creado"; procSel = "nuevo"; irA("#creado"); return; }
+  if (!e.target.closest(".menu")) cerrarMenus();
+});
+document.addEventListener("keydown", function (e) { if (e.key === "Escape") cerrarMenus(); });
+function irA(h) { if (location.hash === h) mostrar(); else location.hash = h; }
+
+/* ---------- Ingreso ---------- */
+document.getElementById("form-ingreso").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var ok = document.getElementById("in-usu").value.trim() && document.getElementById("in-cla").value;
+  if (!ok) { document.getElementById("aviso-clave").innerHTML = '<div class="aviso importante" style="margin-bottom:12px" role="alert"><strong>Usuario o clave incorrectos</strong></div>'; return; }
+  document.getElementById("aviso-clave").innerHTML = "";
+  modo = "normal"; procSel = "99"; rol = "evaluador"; irA("#proc");
 });
 
-/* ---------- Navegación por pantallas ---------- */
+/* ---------- Entrada «Explorar el Portal» del procedimiento nuevo: el error aparece donde ocurre ---------- */
+document.getElementById("btn-explorar-n").addEventListener("click", function () {
+  var v = document.getElementById("in-enlace-n").value.trim();
+  if (/^https?:\/\/\S+/.test(v)) { document.getElementById("error-enlace").innerHTML = ""; location.hash = "#s1-portal"; return; }
+  document.getElementById("error-enlace").innerHTML = '<div class="aviso importante" style="margin-top:10px" role="alert"><strong>El enlace no corresponde a un proceso del Portal</strong>Revíselo o, si el procedimiento no está en el Portal, suba el pliego.<br><button class="btn secundario chico" style="margin-top:8px" type="button" data-subir="pliego-alta">Subir el pliego</button></div>';
+});
+
+/* ---------- Avisos al terminar de aprobar ---------- */
+function mostrarAviso(id) {
+  var el = document.getElementById(id), alta = id !== "aprobado-todo-o";
+  var txt = id === "aprobado-todo" ? "Los datos y los renglones quedaron en «Procedimiento», el pliego y sus anexos en «Pliego y matriz», las circulares y las ofertas en «Ofertas»."
+    : id === "aprobado-todo-p" ? "Los datos y los renglones quedaron en «Procedimiento» y el pliego en «Pliego y matriz», donde el sistema ya puede proponer la matriz."
+    : "Quedó en «Ofertas», con los documentos que se subieron.";
+  var tit = id === "aprobado-todo" ? "Cargado" : id === "aprobado-todo-p" ? "Procedimiento armado" : "Oferta registrada";
+  var bt = !alta ? '<a class="btn primario" style="margin-top:8px" href="#ofertas">Volver a Ofertas</a>'
+    : modo === "nuevo" ? '<button class="btn primario" style="margin-top:8px" type="button" data-crear>Abrir el procedimiento creado</button>'
+    : '<a class="btn primario" style="margin-top:8px" href="#proc">Volver a Procedimiento</a>';
+  el.innerHTML = '<div class="aviso"><strong>' + tit + "</strong>" + txt + "<br>" + bt + "</div>"; marcarRol();
+}
+
+/* ---------- Navegación por pestañas y pantallas de detalle ---------- */
 var ALIAS = {
-  salir: "ingreso", "ingreso-error": "ingreso", proceso: "s4",
-  "s1-novedades": ["s1", "s1-novedades"], "s2-matriz": ["s2", "s2-matriz"], "s2-versiones": ["s2", "s2-versiones"], "s2-documentos": ["s2", "s2-documentos"],
-  "s3-ofertas": ["s3", "s3-ofertas"], "s3-circulares": ["s3", "s3-circulares"],
-  "s4-resultado": ["s4", "s4-resultado"], "s4-descartes": ["s4", "s4-descartes"], "s4-preguntas": ["s4", "s4-preguntas"], "s4-dictamen": ["s4", "s4-dictamen"],
-  "s4-propuesta": ["s4", "s4-propuesta"], "s4-informe": ["s4", "s4-informe"], "s4-exportar": ["s4", "s4-exportar"],
-  "s2-decidir": ["s2", "s2-decidir"], "s5-normas": ["s5", "s5-normas"], "s5-consulta": ["s5", "s5-consulta"], "historial-retiro": ["historial", "historial-retiro"]
+  salir: "ingreso", s1: "proc", s2: "pliego", s3: "ofertas", s4: "evaluacion", s5: "normativas", "recien-creado": "creado", proceso: "evaluacion",
+  "s1-novedades": ["proc", "s1-novedades"], "s1-datos": ["proc", "s1-datos"],
+  "s2-matriz": ["pliego", "s2-matriz"], "s2-versiones": ["pliego", "s2-versiones"], "s2-documentos": ["pliego", "s2-documentos"], "s2-decidir": ["pliego", "s2-decidir"],
+  "s3-ofertas": ["ofertas", "s3-ofertas"], "s3-circulares": ["ofertas", "s3-circulares"],
+  "s4-resultado": ["evaluacion", "s4-resultado"], "s4-descartes": ["evaluacion", "s4-descartes"], "s4-preguntas": ["evaluacion", "s4-preguntas"], "s4-dictamen": ["evaluacion", "s4-dictamen"],
+  "s4-propuesta": ["evaluacion", "s4-propuesta"], "s4-informe": ["evaluacion", "s4-informe"], "s4-exportar": ["evaluacion", "s4-exportar"],
+  "s5-normas": ["normativas", "s5-normas"], "s5-consulta": ["normativas", "s5-consulta"], "historial-retiro": ["historial", "historial-retiro"]
 };
+var VACIO = {
+  pliego: ["Todavía no hay pliego ni matriz", "Suba el pliego, los anexos y las especificaciones, o tómelos del Portal. Con el pliego cargado el sistema propone la matriz de cumplimiento.", '<button class="btn primario" type="button" data-subir="s2">Subir archivo</button><button class="btn secundario" type="button" data-tomar="s2">Tomar del Portal</button>'],
+  ofertas: ["Todavía no hay ofertas", "Agréguelas desde el acta de apertura del Portal o suba los archivos de cada oferta. Las circulares y aclaraciones también se cargan acá.", '<button class="btn primario" type="button" data-tomar="oferta-alta">Agregar oferta desde el Portal</button><button class="btn secundario" type="button" data-subir="oferta-alta">Subir los archivos de una oferta</button>'],
+  evaluacion: ["Todavía no hay nada para evaluar", "La propuesta de evaluación aparece cuando hay matriz validada y ofertas cargadas. Mientras tanto se puede cargar el informe técnico del área y el dictamen.", '<button class="btn primario" type="button" data-subir="informe">Subir informe técnico</button><button class="btn secundario" type="button" data-tomar="dictamen">Tomar del Portal</button>']
+};
+var VOLVER = { "oferta-nueva": "ofertas", oferta: "ofertas", ficha: "ofertas", par: "evaluacion", "lectura-norma": "normativas" };
+var NOMBRE_TAB = { proc: "Procedimiento", pliego: "Pliego y matriz", ofertas: "Ofertas", evaluacion: "Evaluación y dictamen", normativas: "Normativas" };
+var ORIG5 = null, ORIG5R = null;
 function pintarPantalla(p, id) {
-  var sec = p.getAttribute("data-sec");
-  if (!sec) return;
-  var c = contexto(sec), nav = p.querySelector("nav.secciones");
-  p.querySelector(".ctx-head").innerHTML = c[0]; nav.innerHTML = c[1]; nav.hidden = !c[1];
-  if (id === "portada") {
-    document.getElementById("portada-pend").innerHTML = bloquePS(PEND, "Pendientes de decidir", "pend", 0);
-    document.getElementById("portada-sug").innerHTML = bloquePS(SUG, "Sugerencias del sistema", "sug", 0);
-    document.getElementById("portada-resumen").innerHTML = "<b>" + PEND.length + "</b> pendientes de decidir y <b>" + SUG.length + "</b> sugerencias del sistema, en dos bloques separados. El Portal se revisó hoy a las 08:00. Cada sección se abre en cualquier orden.";
+  var c = modo === "creado" ? CFG[procSel] : null;
+  if (id === "proc") {
+    document.getElementById("proc-pend").innerHTML = bloquePS(PEND, "Pendientes de decidir", "pend", 0);
+    document.getElementById("proc-sug").innerHTML = bloquePS(SUG, "Sugerencias del sistema", "sug", 0);
+    document.getElementById("proc-resumen").innerHTML = "<b>" + PEND.length + "</b> pendientes de decidir y <b>" + SUG.length + "</b> sugerencias del sistema, en dos bloques separados. El Portal se revisó hoy a las 08:00. Cada pestaña se abre en cualquier orden.";
+  }
+  if (id === "creado" && c) {
+    document.getElementById("creado-titulo").textContent = c.t; document.getElementById("creado-num").textContent = c.n;
+    document.getElementById("creado-exp").textContent = c.e; document.getElementById("creado-aut").textContent = c.a;
   }
   var ps = p.querySelector(".ps");
   if (ps) { var n = +ps.getAttribute("data-ps"); ps.innerHTML = '<div class="panel">' + bloquePS(PEND, "Pendientes de decidir", "pend", n) + '</div><div class="panel">' + bloquePS(SUG, "Sugerencias del sistema", "sug", n) + "</div>"; }
+  var tab = p.getAttribute("data-tab"), slot = p.querySelector(".vacio-slot");
+  if (slot) {
+    var v = VACIO[tab];
+    slot.innerHTML = modo === "creado" ? '<div class="panel estado-vacio"><h3><span data-est="nocumple" data-nombre="Falta"></span> ' + v[0] + "</h3><p>" + v[1] + '</p><div class="fila" style="justify-content:center">' + v[2] + "</div></div>" : "";
+    p.classList.toggle("sin-datos", modo === "creado");
+  }
+  /* Normativas: qué rige depende de la fecha de autorización, que no existe mientras el procedimiento no se crea */
+  if (id === "normativas") {
+    var r = document.getElementById("s5-resumen"), t = document.getElementById("s5-normas");
+    if (ORIG5 === null) { ORIG5 = r.innerHTML; ORIG5R = t.innerHTML; }
+    if (modo === "nuevo") r.innerHTML = "El procedimiento todavía no existe, así que aún no se sabe qué normas lo rigen. Mientras tanto se pueden cargar normas subiendo su archivo y consultar las ya validadas.";
+    else if (c) { r.innerHTML = ORIG5.replace("14/08/2026", c.a); t.innerHTML = ORIG5R.replace(/14\/08\/2026/g, c.a); }
+    else { r.innerHTML = ORIG5; t.innerHTML = ORIG5R; }
+    pintarIconos(t);
+  }
+  /* Volver a la pestaña madre */
+  var vol = p.querySelector(".volver");
+  if (vol) {
+    var dest = VOLVER[id] || (id === "historial" ? ultimaTab : null), href, nom;
+    if (id === "s1-portal" || id === "s1-pliego") { href = modo === "nuevo" ? "#nuevo" : "#proc"; nom = modo === "nuevo" ? "Nuevo procedimiento" : "Procedimiento"; }
+    else { href = "#" + dest; nom = NOMBRE_TAB[dest]; }
+    vol.innerHTML = '<a href="' + href + '">← Volver a ' + nom + "</a>";
+  }
+  p.querySelectorAll("[data-volver-alta]").forEach(function (a) { a.setAttribute("href", modo === "nuevo" ? "#nuevo" : "#proc"); });
   pintarIconos(p); marcarRol();
 }
 function refrescar() {
   var p = document.querySelector(".pantalla.activa"); if (!p) return;
-  pintarPantalla(p, p.id.slice(2)); actualizarValidar();
+  pintarPantalla(p, p.id.slice(2)); renderTabs(); actualizarValidar();
 }
 function mostrar() {
   var h = (location.hash || "#ingreso").slice(1), id = h, ancla = null, a = ALIAS[h];
   if (a) { if (Array.isArray(a)) { id = a[0]; ancla = a[1]; } else id = a; }
-  if (!document.getElementById("p-" + id)) id = "procedimientos";
-  document.querySelectorAll(".pantalla").forEach(function (p) { p.classList.toggle("activa", p.id === "p-" + id); });
-  pintarPantalla(document.getElementById("p-" + id), id);
-  document.querySelectorAll("nav.tabs a").forEach(function (x) { if (x.getAttribute("data-sec") === (id === "mapa" ? "mapa" : "proc")) x.setAttribute("aria-current", "page"); else x.removeAttribute("aria-current"); });
-  if (h === "proceso") abrirVentana(true);
+  if (id === "nuevo") modo = "nuevo"; else if (id === "creado") modo = "creado";
+  else if (id === "proc") { modo = "normal"; procSel = "99"; }
+  if (modo === "creado" && !CFG[procSel]) procSel = "nuevo";
+  if (!document.getElementById("p-" + id)) id = "proc";
+  var prev = document.querySelector(".pantalla.activa"), prevTab = prev ? TABACT : null, prevId = prev ? prev.id.slice(2) : null;
+  if (id === "proc") id = modo === "nuevo" ? "nuevo" : modo === "creado" ? "creado" : "proc";
+  var p = document.getElementById("p-" + id), tab = p.getAttribute("data-tab");
+  if (modo === "nuevo" && id !== "ingreso" && tab && tab !== "proc" && tab !== "normativas" && tab !== "*") { id = "nuevo"; p = document.getElementById("p-nuevo"); tab = "proc"; }
+  if (tab === "*") { if (prevId !== "historial" && prevTab) ultimaTab = prevTab; tab = ultimaTab; }
+  TABACT = tab || TABACT;
+  document.querySelectorAll(".pantalla").forEach(function (x) { x.classList.toggle("activa", x === p); });
   document.body.classList.toggle("sin-sesion", id === "ingreso");
-  document.getElementById("aviso-salida").hidden = h !== "salir";
-  document.getElementById("aviso-clave").hidden = h !== "ingreso-error";
-  if (ancla) setTimeout(function () { document.getElementById(ancla).scrollIntoView(); }, 0); else window.scrollTo(0, 0);
+  renderHeader(); pintarPantalla(p, id); renderTabs();
+  if (h === "proceso") abrirVentana(true);
+  document.getElementById("aviso-salida").innerHTML = h === "salir" ? '<div class="aviso" style="margin-bottom:12px"><strong>Cerró la sesión</strong>Para seguir, vuelva a ingresar.</div>' : "";
+  document.title = id === "ingreso" ? "EVALUON · Ingresar" : "EVALUON · " + etiquetaProc();
+  if (ancla) setTimeout(function () { var e = document.getElementById(ancla); if (e) e.scrollIntoView(); }, 0); else window.scrollTo(0, 0);
 }
 window.addEventListener("hashchange", mostrar);
 
