@@ -122,7 +122,7 @@ def test_norms_cited_by_the_pliego_are_listed_loaded_or_missing(
     rows = s5_rigen.rows(after)
     assert only(rows, "Resolución 12/2020").why == "La cita el pliego (encuadre legal)"
     assert only(rows, "Resolución 12/2020").state == s5_rigen.LOADED
-    assert only(rows, "Ley 24.156/1992").state == s5_rigen.MISSING
+    assert only(rows, "Ley 24156/1992").state == s5_rigen.MISSING
     assert len([r for r in rows if "247" in r.name]) == 1
 
 
@@ -148,3 +148,106 @@ def test_the_partial_renders_the_blocks_without_old_texts(after, two_regimes):
     assert "20/05/2024" in html
     assert "ejemplo" not in html.lower() and "ficticia" not in html.lower()
     assert ctx["missing"] == 2 and ctx["loaded"] == 1
+
+
+# --- Correcciones de la verificación ----------------------------------------------------
+
+
+def with_framework(text, procedure, user):
+    source = load_and_read(user, procedure,
+                           tender_pdf([[para("PLIEGO SINTÉTICO"), para("1. Objeto.")]]),
+                           title="Pliego", file_name="pliego.pdf")
+    PortalProcedureData.objects.create(procedure=procedure, legal_framework=text, document=source)
+
+
+def test_amendments_of_the_regime_that_does_not_apply_are_not_listed(after, two_regimes):
+    """REQ-095: una modificatoria de la 297/03 no figura en un procedimiento de 2024."""
+    user = two_regimes.old.created_by
+    PendingAmendment.objects.create(
+        target_norm=two_regimes.old, norm_type="disposicion", number="77", year=2010,
+        issuer="afip", source_ref="nota", registered_by=user)
+    PendingAmendment.objects.create(
+        target_norm=two_regimes.new, norm_type="disposicion", number="500", year=2024,
+        issuer="afip", source_ref="nota", registered_by=user)
+    names = [r.name for r in s5_rigen.rows(after)]
+    assert not any("77/2010" in n for n in names)
+    assert any("500/2024" in n for n in names)
+    assert any("Disposición 500/2024" in n for n in names)  # con tilde
+
+
+def test_loaded_amendments_are_not_listed_as_missing(after, two_regimes, make_norm):
+    """REQ-095: una modificatoria ya cargada no figura como faltante."""
+    loaded = make_norm(norm_type="disposicion", number="500", year=2024, issuer="afip")
+    PendingAmendment.objects.create(
+        target_norm=two_regimes.new, norm_type="disposicion", number="500", year=2024,
+        issuer="afip", source_ref="nota", registered_by=two_regimes.new.created_by,
+        loaded_norm=loaded)
+    assert not any("500/2024" in r.name for r in s5_rigen.rows(after))
+
+
+def test_the_boundary_of_the_new_regime_is_january_2nd_2023(operator_user):
+    """REQ-095: 1/1/2023 se rige por la 297/03; 2/1/2023, por la 247/2022."""
+    day_before = make_procedure(operator_user, datetime.date(2023, 1, 1))
+    day_after = make_procedure(operator_user, datetime.date(2023, 1, 2))
+    assert only(s5_rigen.rows(day_before), "297/03").state == s5_rigen.MISSING
+    assert only(s5_rigen.rows(day_before), "247/2022").state == s5_rigen.NOT_APPLICABLE
+    assert only(s5_rigen.rows(day_after), "247/2022").state == s5_rigen.MISSING
+    assert only(s5_rigen.rows(day_after), "297/03").state == s5_rigen.NOT_APPLICABLE
+
+
+def test_a_framework_decree_cited_by_the_pliego_shows_once(after, operator_user, two_regimes):
+    """REQ-095: «Decreto 1023/01» del pliego y el marco «Decreto 1023/2001» son una sola fila."""
+    with_framework("Decreto 1023/01 y Decreto Delegado N° 1030/2016", after, operator_user)
+    rows = s5_rigen.rows(after)
+    assert len([r for r in rows if "1023" in r.name]) == 1
+    assert len([r for r in rows if "1030" in r.name]) == 1
+    assert only(rows, "1023").why == "Marco nacional · citado por el pliego"
+    assert only(rows, "1023").upload_url
+    assert len(s5_rigen.status(None, after).missing) == 2
+
+
+def test_the_reading_link_uses_the_format_of_the_upload_tab(after, make_norm, make_document,
+                                                              make_reading):
+    """REQ-095: el enlace para validar es `?lectura=<id>#s5-lectura` dentro de la pestaña."""
+    norm = make_norm(norm_type="disposicion", number="247", year=2022, issuer="afip",
+                     citation="Disposición AFIP 247/2022", general_regime=True)
+    reading = make_reading(make_document(norm), [("art-1", "Texto sintético.")], status="pending")
+    row = only(s5_rigen.rows(after), "247/2022")
+    assert row.validate_url == (f"/expedientes/{after.pk}/normativas/"
+                                f"?lectura={reading.pk}#s5-lectura")
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("Decreto Delegado N° 1023/2001", "Decreto 1023/2001"),
+    ("Decreto Delegado Nº 1023/01", "Decreto 1023/2001"),
+    ("Resolución General N° 4000/2017", "Resolución 4000/2017"),
+    ("Res. Gral. 4000/17", "Resolución 4000/2017"),
+    ("Disp. AFIP N° 99/2022", "Disposición 99/2022"),
+    ("Disposición N° 99/2022 (AFIP)", "Disposición 99/2022"),
+    ("Ley N° 24.156", "Ley 24.156"),
+    ("Ley 24156", "Ley 24156"),
+    ("la Ley N° 24.156/1992", "Ley 24156/1992"),
+])
+def test_each_form_of_citation_is_recognized(after, operator_user, text, expected):
+    """REQ-095: las formas de citar del encuadre legal se reconocen y se muestran normalizadas."""
+    with_framework(f"Encuadre: {text}.", after, operator_user)
+    names = [c.text for c in s5_rigen._cited(after)]
+    assert names == [expected]
+
+
+def test_what_is_not_recognized_is_not_invented(after, operator_user):
+    """REQ-095: sin año (salvo la ley), sin número o con texto suelto no se arma ninguna cita."""
+    with_framework("Decreto 1023 y la resolución vigente, Disposición N° 247, régimen general",
+                   after, operator_user)
+    assert s5_rigen._cited(after) == []
+
+
+def test_a_law_without_year_is_found_when_loaded(after, operator_user, make_norm, make_document,
+                                                   make_reading):
+    """REQ-095: una ley citada sin año se reconoce como cargada si hay una ley con ese número."""
+    with_framework("Ley N° 24.156", after, operator_user)
+    assert only(s5_rigen.rows(after), "Ley 24.156").state == s5_rigen.MISSING
+    norm = make_norm(norm_type="ley", number="24156", year=1992, issuer="congreso",
+                     citation="Ley 24.156")
+    make_reading(make_document(norm), [("art-1", "Texto sintético.")])
+    assert only(s5_rigen.rows(after), "Ley 24.156").state == s5_rigen.LOADED

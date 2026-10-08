@@ -41,10 +41,18 @@ STATES = {
     MISSING: ("nocumple", "Falta cargar"),
 }
 
-# «Decreto 1023/2001», «Disp. 247/22», «Ley N.º 24.156», «Resolución 12/2020»…
+# «Decreto 1023/2001», «Decreto Delegado N° 1023/01», «Disp. AFIP N° 247/22», «Disposición N° 247/2022
+# (AFIP)», «Resolución General N° 4000/2017», «Ley N° 24.156» (la ley puede ir sin año).
 _CITED = re.compile(
-    r"\b(Ley|Decreto|Disposici[oó]n|Disp\.|Resoluci[oó]n|Res\.)(?:\s+(?:N\.?\s?[º°o]\.?|n[º°]))?"
-    r"\s*(\d[\d.]*)\s*/\s*(\d{2,4})", re.I)
+    r"\b(Ley|Decreto(?:\s+Delegado|\s+de\s+Necesidad\s+y\s+Urgencia)?|Disposici[oó]n|Disp\.|"
+    r"Resoluci[oó]n(?:\s+General|\s+Conjunta)?|Res\.(?:\s+Gral\.)?)"
+    r"(?:\s+(?:AFIP|ARCA))?(?:\s+(?:N\.?\s?[º°o]\.?|n[º°]|Nro\.?))?"
+    r"\s*(\d[\d.]*\d|\d)(?:\s*/\s*(\d{2,4}))?(?!\d)", re.I)
+KINDS = (("ley", "Ley", "ley"), ("decreto", "Decreto", "decreto"),
+         ("disp", "Disposición", "disposicion"), ("resol", "Resolución", "resolucion"),
+         ("res.", "Resolución", "resolucion"))
+TYPE_NAMES = {"ley": "Ley", "decreto": "Decreto", "disposicion": "Disposición",
+              "resolucion": "Resolución", "decision": "Decisión"}
 
 
 @dataclass(frozen=True)
@@ -79,9 +87,19 @@ def _full_year(value):
     return year
 
 
-def _find(number, year):
-    """La norma cargada con ese número y año, si hay (el tipo y el organismo no se exigen)."""
-    return Norm.objects.filter(number=number, year=year).order_by("pk").first()
+def _find(number, year, norm_type=None):
+    """La norma cargada con ese número y año, si hay (el organismo no se exige). Sin año (solo
+    las leyes), se busca por tipo y número."""
+    norms = Norm.objects.filter(number=number)
+    if year is not None:
+        norms = norms.filter(year=year)
+    elif norm_type:
+        norms = norms.filter(norm_type=norm_type)
+    return norms.order_by("pk").first()
+
+
+def _type_name(norm_type):
+    return TYPE_NAMES.get(norm_type.lower(), norm_type.capitalize())
 
 
 def _norm_info(norm):
@@ -111,12 +129,14 @@ def _norm_info(norm):
         source = "Archivo"
     versions = sorted({d.version_number for d in documents if d.version_number})
     version = f"versión {versions[-1]}" if versions else ""
-    validate = f"#s5-lectura-{pending_reading.pk}" if pending_reading else ""
+    validate = f"?lectura={pending_reading.pk}#s5-lectura" if pending_reading else ""
     return state, source, version, url, validate
 
 
-def _row(norm, name, why):
+def _row(norm, name, why, procedure=None):
     state, source, version, url, validate = _norm_info(norm)
+    if validate and procedure is not None:
+        validate = reverse("expedientes:normativas", args=[procedure.pk]) + validate
     return Row(name=name or norm.citation, why=why, state=state, source=source,
                version=version, original_url=url, validate_url=validate)
 
@@ -129,7 +149,7 @@ def _expected_regime(authorization_date):
     return NEW_REGIME if authorization_date >= NEW_REGIME_FROM else OLD_REGIME
 
 
-def _regime_rows(procedure, shown):
+def _regime_rows(procedure, shown, governs):
     """Las normas del régimen: el que rige a la fecha y, marcado, el que no aplica."""
     day = procedure.authorization_date
     when = f"{day:%d/%m/%Y}"
@@ -139,7 +159,9 @@ def _regime_rows(procedure, shown):
     if applicable:
         for pk in applicable:
             shown.add(pk)
-            rows.append(_row(norms[pk], None, f"Autorizado el {when}, bajo su vigencia"))
+            governs.add(pk)
+            rows.append(_row(norms[pk], None, f"Autorizado el {when}, bajo su vigencia",
+                             procedure))
         applies = {(n.number, n.year) for n in norms.values()}
     else:
         number, year, name = _expected_regime(day)
@@ -150,7 +172,8 @@ def _regime_rows(procedure, shown):
             rows.append(_missing_row(name, why, procedure))
         else:
             shown.add(norm.pk)
-            rows.append(_row(norm, name, why))
+            governs.add(norm.pk)
+            rows.append(_row(norm, name, why, procedure))
         applies = {(number, year)}
     other = next((r for r in (NEW_REGIME, OLD_REGIME) if (r[0], r[1]) not in applies), None)
     if other is not None:
@@ -165,64 +188,99 @@ def _regime_rows(procedure, shown):
     return rows
 
 
-def _framework_rows(procedure, shown):
+def _framework_rows(procedure, shown, governs, cited):
+    """El marco nacional; si además lo cita el pliego, una sola fila que lo dice."""
+    cited_ids = {(c.number, c.year) for c in cited}
     rows = []
+
+    def why(number, year):
+        if (number, year) in cited_ids:
+            return "Marco nacional · citado por el pliego"
+        return "Marco nacional de contrataciones"
+
     for number, year, name in NATIONAL_FRAMEWORK:
         norm = _find(number, year)
         if norm is None:
-            rows.append(_missing_row(name, "Marco nacional de contrataciones", procedure))
+            rows.append(_missing_row(name, why(number, year), procedure))
         else:
             shown.add(norm.pk)
-            rows.append(_row(norm, name, "Marco nacional de contrataciones"))
+            governs.add(norm.pk)
+            rows.append(_row(norm, name, why(number, year), procedure))
     for norm in Norm.objects.filter(category=Category.MARCO_NACIONAL).exclude(pk__in=shown):
         shown.add(norm.pk)
-        rows.append(_row(norm, None, "Marco nacional de contrataciones"))
+        governs.add(norm.pk)
+        rows.append(_row(norm, None, why(norm.number, norm.year), procedure))
     return rows
 
 
-def _amendment_rows(procedure, shown):
-    entries = (PendingAmendment.objects.filter(loaded_norm__isnull=True, target_norm__in=shown)
+def _amendment_rows(procedure, governs):
+    """Las modificatorias registradas y sin cargar, solo de las normas que rigen."""
+    entries = (PendingAmendment.objects.filter(loaded_norm__isnull=True, target_norm__in=governs)
                .select_related("target_norm").order_by("pk"))
-    return [Row(name=f"{e.norm_type.capitalize()} {e.number}/{e.year} ({e.issuer.upper()})",
+    return [Row(name=f"{_type_name(e.norm_type)} {e.number}/{e.year} ({e.issuer.upper()})",
                 why=f"Modifica a {e.target_norm.citation}", state=MISSING,
                 source=f"Registrada {_day(e.registered_at)}", upload_url=upload_url(procedure))
             for e in entries]
 
 
+@dataclass(frozen=True)
+class Cited:
+    kind: str       # «Decreto», «Ley»…
+    norm_type: str  # el de `norms_norm`: «decreto», «ley»…
+    number: str     # sin puntos ni ceros a la izquierda
+    year: int | None
+    text: str       # cómo se muestra: «Decreto 1023/2001»
+
+
 def _cited(procedure):
-    """Las normas que cita el encuadre legal del pliego, como (número, año, texto citado)."""
+    """Las normas que cita el encuadre legal del pliego. Solo lo que se reconoce: número y año
+    (dos o cuatro cifras); sin año, solo las leyes."""
     data = PortalProcedureData.objects.filter(procedure=procedure).first()
     text = data.legal_framework if data else ""
     found, seen = [], set()
     for match in _CITED.finditer(text):
-        number, year = _plain_number(match.group(2)), _full_year(match.group(3))
-        if (number, year) not in seen:
-            seen.add((number, year))
-            found.append((number, year, match.group(0).strip()))
+        raw = match.group(1).lower()
+        kind, norm_type = next((k, t) for prefix, k, t in KINDS if raw.startswith(prefix))
+        number = _plain_number(match.group(2))
+        year = _full_year(match.group(3)) if match.group(3) else None
+        if (year is None and norm_type != "ley") or not number:
+            continue
+        if (norm_type, number, year) in seen:
+            continue
+        seen.add((norm_type, number, year))
+        shown_number = match.group(2) if year is None else number
+        name = f"{kind} {shown_number}" + (f"/{year}" if year else "")
+        found.append(Cited(kind, norm_type, number, year, name))
     return found
 
 
-def _cited_rows(procedure, shown):
+def _cited_rows(procedure, shown, cited):
     rows = []
     why = "La cita el pliego (encuadre legal)"
-    for number, year, text in _cited(procedure):
-        norm = _find(number, year)
+    for c in cited:
+        norm = _find(c.number, c.year, c.norm_type)
         if norm is not None and norm.pk in shown:
             continue
         if norm is None:
-            rows.append(_missing_row(text, why, procedure))
+            if any(n == c.number and y == c.year for n, y, _ in _EXPECTED):
+                continue  # ya figura como faltante del régimen o del marco
+            rows.append(_missing_row(c.text, why, procedure))
         else:
             shown.add(norm.pk)
-            rows.append(_row(norm, None, why))
+            rows.append(_row(norm, None, why, procedure))
     return rows
 
 
+_EXPECTED = (NEW_REGIME, OLD_REGIME) + NATIONAL_FRAMEWORK
+
+
 def rows(procedure):
-    shown = set()
-    result = _regime_rows(procedure, shown)
-    result += _framework_rows(procedure, shown)
-    result += _amendment_rows(procedure, shown)
-    result += _cited_rows(procedure, shown)
+    shown, governs = set(), set()
+    cited = _cited(procedure)
+    result = _regime_rows(procedure, shown, governs)
+    result += _framework_rows(procedure, shown, governs, cited)
+    result += _amendment_rows(procedure, governs)
+    result += _cited_rows(procedure, shown, cited)
     return result
 
 
