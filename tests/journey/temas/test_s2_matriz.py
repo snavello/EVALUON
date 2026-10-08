@@ -6,6 +6,7 @@ import re
 
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 
 from evaluon.tenders.models import MatrixVersion, Procedure, Requirement, RequirementState, VersionStatus
 from evaluon.tenders.services import validation
@@ -95,7 +96,7 @@ def test_the_list_of_versions_shows_both_with_date_and_who_validated(
     assert block.count('<tr class="version"') == 2
     first = procedure.matrix_versions.get(number=1)
     assert "Validada" in block and "En revisión" in block
-    assert first.validated_at.strftime("%d/%m/%Y") in block
+    assert timezone.localtime(first.validated_at).strftime("%d/%m/%Y") in block
     assert first.validated_by.username in block
 
 
@@ -142,3 +143,15 @@ def test_a_procedure_without_matrix_shows_an_empty_state(client, operator_user):
     log_in(client, operator_user)
     html = page(client, bare).content.decode()
     assert "Todavía no hay una matriz" in html and 'id="t-matriz"' not in html
+
+
+def test_dates_are_shown_in_local_time(client, procedure, two_versions, operator_user):
+    """REQ-100: a las 01:20 UTC del 08/10 en Buenos Aires todavía es 07/10."""
+    from datetime import datetime, timezone
+    moment = datetime(2026, 10, 8, 1, 20, tzinfo=timezone.utc)
+    draft, _ = two_versions
+    MatrixVersion.objects.filter(pk=draft.pk).update(created_at=moment)
+    log_in(client, operator_user)
+    html = page(client, procedure).content.decode()
+    block = html[html.index('id="s2-versiones"'):]
+    assert "abierta el 07/10/2026" in block and "abierta el 08/10/2026" not in block

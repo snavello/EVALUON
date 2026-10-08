@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 from django.db.models import Count, Q
 from django.urls import reverse
+from django.utils import timezone
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.audit.models import Channel
@@ -66,6 +67,11 @@ class Row:
     suggestions: list
 
 
+def _day(moment):
+    """La fecha en hora local (America/Argentina/Buenos_Aires), no la de la base en UTC."""
+    return f"{timezone.localtime(moment):%d/%m/%Y}"
+
+
 def latest_version(procedure):
     """La versión que cuenta: la última no descartada."""
     return (MatrixVersion.objects.filter(procedure=procedure)
@@ -79,7 +85,7 @@ def status(user, procedure):
     who = f" por {version.validated_by.username}" if version.validated_by_id else ""
     if version.status == VersionStatus.VALIDATED:
         source = (f"Matriz: versión {version.number} validada el "
-                  f"{version.validated_at:%d/%m/%Y}{who}.")
+                  f"{_day(version.validated_at)}{who}.")
     else:
         source = f"Matriz: versión {version.number} en revisión."
     return TemaStatus(sources=(source,))
@@ -210,11 +216,11 @@ def _versions(procedure):
     for version in versions:
         if version.status == VersionStatus.VALIDATED:
             when, who = version.validated_at, version.validated_by
-            when_text = f"{when:%d/%m/%Y}"
+            when_text = _day(when)
         elif version.status == VersionStatus.DISCARDED:
-            when_text, who = f"{version.discarded_at:%d/%m/%Y}", version.discarded_by
+            when_text, who = _day(version.discarded_at), version.discarded_by
         else:
-            when_text, who = f"abierta el {version.created_at:%d/%m/%Y}", None
+            when_text, who = f"abierta el {_day(version.created_at)}", None
         reason = ("Propuesta del sistema sobre el pliego" if version.based_on is None
                   else f"Abierta sobre la versión {version.based_on.number}")
         rows.append({"version": version, "label": VERSION_LABELS[version.status],

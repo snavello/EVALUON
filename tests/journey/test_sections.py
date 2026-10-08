@@ -155,3 +155,28 @@ def test_no_demo_elements_reach_the_application(client, procedure, operator_user
         html = client.get(reverse(f"expedientes:{key}", args=[procedure.pk])).content.decode()
         for forbidden in ("Mapa de pantallas", "Ver como", "(demo)", "de muestra"):
             assert forbidden.lower() not in html.lower()
+
+
+def test_a_single_ready_document_is_written_in_the_singular(procedure, operator_user):
+    """REQ-100: «El documento del pliego está leído», no «Los 1 documentos»."""
+    stage = stages_for(operator_user, procedure).stages[1]
+    assert stage.key == "pliego" and "Los 1 documentos" not in stage.detail
+    assert stage.detail.startswith("El documento del pliego")
+
+
+def test_the_section_has_one_summary_line_without_repeated_versions(
+        client, procedure, matrix, operator_user):
+    """REQ-100: una sola línea de resumen; la versión de la matriz no se repite."""
+    log_in(client, operator_user)
+    html = client.get(reverse("expedientes:pliego", args=[procedure.pk])).content.decode()
+    resumen = html[html.index('id="seccion-resumen"'):html.index('id="pendientes"')]
+    assert resumen.count("<span class=\"linea") <= 1
+    assert resumen.count("ersión 1") <= 1
+
+
+def test_no_construction_text_in_the_sections(client, procedure, operator_user):
+    """REQ-100: sin el bloque «Otras pantallas» ni «mientras se completa»."""
+    log_in(client, operator_user)
+    for key in KEYS:
+        html = client.get(reverse(f"expedientes:{key}", args=[procedure.pk])).content.decode()
+        assert "Otras pantallas" not in html and "mientras se completa" not in html
