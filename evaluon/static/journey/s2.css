@@ -34,11 +34,30 @@ body.app select, body.app input[type=search] {
 .matriz tr.detalle td { background: var(--ev-superficie); padding: 10px 14px 14px 38px; }
 .matriz tr.detalle[hidden] { display: none; }
 .matriz tbody tr.detalle:hover { background: var(--ev-superficie); }
-blockquote.cita { border-left: 3px solid var(--ev-azul-300); padding: 4px 12px; margin: 6px 0; font-size: var(--ev-t-sm); max-width: 80ch; }
+blockquote.cita { white-space: pre-wrap; overflow-wrap: anywhere; border-left: 3px solid var(--ev-azul-300); padding: 4px 12px; margin: 6px 0; font-size: var(--ev-t-sm); max-width: 80ch; }
 blockquote.cita.vieja { border-left-color: var(--ev-beige-400); color: var(--ev-texto-suave); text-decoration: line-through; }
 .det-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 26px; }
-.det-grid dl { margin: 0; }
+.det-grid dl { margin: 0; min-width: 0; }
+.det-grid dd { overflow-wrap: anywhere; }
 .det-grid dt { font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-xs); letter-spacing: var(--ev-espaciado-etiqueta); text-transform: uppercase; color: var(--ev-texto-suave); }
 .det-grid dd { margin: 0 0 6px; font-size: var(--ev-t-sm); }
 .matriz .place { font-size: var(--ev-t-xs); }
 @media (max-width: 900px) { .det-grid { grid-template-columns: 1fr; } }
+
+/* Acciones de la Comisión (T-201): formularios en línea, desplegables y el aviso de lo hecho. */
+form.en-linea { display: inline-block; margin: 0 6px 6px 0; }
+.g-accion { margin-left: 12px; font-weight: 400; letter-spacing: 0; }
+.acciones-fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--ev-borde); }
+details.acc { display: inline-block; vertical-align: top; margin: 0 6px 6px 0; }
+details.acc > summary { list-style: none; cursor: pointer; display: inline-block; }
+details.acc > summary::-webkit-details-marker { display: none; }
+details.acc[open] { display: block; flex-basis: 100%; max-width: 44rem; }
+details.acc form { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-btn); background: var(--ev-superficie); }
+details.acc label { margin-top: 6px; }
+details.acc textarea, details.acc input[type=text], details.acc input[type=number] { width: 100%; font: inherit; font-size: var(--ev-t-ctl); border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 6px 8px; }
+details.acc label.chk { font-weight: 400; display: flex; gap: 6px; align-items: flex-start; }
+.aviso { margin: 10px 0; padding: 9px 12px; border-radius: var(--ev-radio-btn); border: 1px solid var(--ev-borde); font-size: var(--ev-t-sm); }
+.aviso-ok { background: var(--ev-azul-50); border-color: var(--ev-azul-300); }
+.aviso-error { background: var(--ev-beige-100); border-color: var(--ev-beige-400); font-weight: 600; }
+.condicion { text-align: right; margin: 6px 0 0; }
+td.dec { white-space: normal; }
