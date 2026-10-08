@@ -80,6 +80,13 @@ def _day(moment):
     return f"{timezone.localtime(moment):%d/%m/%Y}"
 
 
+def _pliego_read(user, procedure):
+    """Hay pliego y todo lo cargado está leído: se puede pedir la propuesta de la matriz."""
+    from evaluon.journey.stages import base as stage_base
+    from evaluon.journey.stages import pliego
+    return pliego.compute(user, procedure).state == stage_base.LISTA
+
+
 def latest_version(procedure):
     """La versión que cuenta: la última no descartada."""
     return (MatrixVersion.objects.filter(procedure=procedure)
@@ -333,7 +340,7 @@ def _motives(requirement_ids):
 def context(user, procedure, request):
     version = latest_version(procedure)
     base = {"version": None, "versions": _versions(procedure), "types": TYPE_OPTIONS,
-            "filters": FILTERS, "propose_url": reverse("tenders:procedure", args=[procedure.pk]),
+            "filters": FILTERS, "can_propose": _pliego_read(user, procedure),
             "pid": procedure.pk, "aviso": acciones.unpack(request.GET.get("aviso"))}
     if version is None:
         return base

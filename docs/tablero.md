@@ -66,7 +66,7 @@ flowchart LR
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
-| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 6/33 | ██░░░░░░░░ 18% |
+| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 7/33 | ██░░░░░░░░ 21% |
 
 <a id="001"></a>
 
@@ -1052,11 +1052,10 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 27 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 26 tareas sin terminar.
 - ○ T-195 · Sección 1: explorador y cargador del Portal (pegar enlace, propuesta agrupada, aprobar ítem por ítem o todo) y novedades de la revisión periódica (pendiente)
 - ○ T-196 · Propuesta de datos y renglones desde el pliego subido: servicio, pedido en segundo plano, citas y aprobación que crea el procedimiento (sin pantalla) (pendiente)
 - ○ T-197 · Sección 1: alta subiendo el pliego (propuesta con citas; el evaluador aprueba, descarta o corrige escribiendo valor y motivo; sin alta en blanco) (pendiente)
-- ○ T-198 · Sección 2: documentos del pliego, anexos y especificaciones (lista por tipo con origen, subida de varios a la vez, tomar del Portal, faltantes) (pendiente)
 - ○ T-200 · Sección 2: reemplazar, retirar y restituir documentos del pliego, historial de versiones y «retirados» (pendiente)
 - ○ T-202 · Sección 3: lista de ofertas con alta a la vista (desde el Portal o subiendo archivos, con nombre y CUIT propuestos para aprobar o corregir) y documentos de cada oferta, subida múltiple (pendiente)
 - ○ T-203 · Sección 3: ficha de cada oferta (qué presentó frente a cada requisito, con el fragmento o «no se encontró en la oferta») (pendiente)
@@ -1087,6 +1086,7 @@ flowchart LR
 - ✓ T-192 · Corte vertical: esqueleto de las cinco secciones (barra, portada con pendientes y sugerencias separados, jerarquía común, guía visual) y sección 2 con la matriz de cumplimiento en tabla agrupada, filtros, filas con cita y lista de versiones, con el caso chico (`b6615ce` 2026-10-07, `da02b02` 2026-10-07)
 - ✓ T-193 · Esquema de la feature (una sola tarea): cambios de historial de documentos, tipos nuevos, borrador de procedimiento y de oferta, pedidos nuevos, renglones y CUIT con documento de origen, decisión de descartes, subida de normas y hechos de auditoría (`ac98d30` 2026-10-07)
 - ✓ T-194 · Sección 1: datos del procedimiento con origen de cada dato, régimen por fecha de autorización, renglones, apertura, garantías y ofertas del Portal (`205e53e` 2026-10-08, `7f9f512` 2026-10-08, `8cacd74` 2026-10-08)
+- ✓ T-198 · Sección 2: documentos del pliego, anexos y especificaciones (lista por tipo con origen, subida de varios a la vez, tomar del Portal, faltantes) (`5e15ed0` 2026-10-08, `afeeecd` 2026-10-08, `d90305a` 2026-10-08, `84a8e70` 2026-10-08)
 - ✓ T-199 · Servicio de historial de documentos del pliego y de las ofertas: reemplazar, retirar, restituir, con auditoría y estado calculado (sin pantalla) (`392d862` 2026-10-08, `c693c79` 2026-10-08)
 - ✓ T-201 · Sección 2: acciones de la Comisión en la tabla de la matriz (confirmar, corregir, quitar, agregar, validar), versión nueva, imprimir y exportar (`1be8f9e` 2026-10-07, `5d3c949` 2026-10-07)
 - ✓ T-213 · Propuesta de los datos de una norma desde su archivo y staging de la subida (sin pantalla) (`fc5a81b` 2026-10-08)
@@ -1101,7 +1101,7 @@ flowchart TD
   T195["○ T-195 · Sección 1: explorador y cargador del Portal…"]:::todo
   T196["○ T-196 · Propuesta de datos y renglones desde el pli…"]:::todo
   T197["○ T-197 · Sección 1: alta subiendo el pliego (propues…"]:::todo
-  T198["○ T-198 · Sección 2: documentos del pliego, anexos y…"]:::todo
+  T198["✓ T-198 · Sección 2: documentos del pliego, anexos y…"]:::done
   T199["✓ T-199 · Servicio de historial de documentos del pli…"]:::done
   T200["○ T-200 · Sección 2: reemplazar, retirar y restituir…"]:::todo
   T201["✓ T-201 · Sección 2: acciones de la Comisión en la ta…"]:::done
@@ -1207,7 +1207,7 @@ flowchart TD
 | REQ-077 | 1.2, T.3 | T-193, T-196, T-197, T-218 | ▶ en proceso |
 | REQ-078 | 1.3 | T-194, T-218 | ▶ en proceso |
 | REQ-079 | 1.4 | T-195, T-218 | ○ pendiente |
-| REQ-080 | 2.1 | T-198, T-218 | ○ pendiente |
+| REQ-080 | 2.1 | T-198, T-218 | ▶ en proceso |
 | REQ-081 | 2.2 | T-192, T-201, T-218 | ▶ en proceso |
 | REQ-082 | 2.3 | T-192, T-201, T-218 | ▶ en proceso |
 | REQ-083 | 3.1 | T-193, T-202, T-218, T-220 | ▶ en proceso |
