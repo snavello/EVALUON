@@ -123,7 +123,7 @@ def compute(user, procedure):
             detail=f"Faltan leer {len(unread)} de {len(documents)} documentos de las ofertas.",
             **common_all)
     if pending_sheets:
-        parts = [f"oferta {offer.number} ({offer.bidder}): {count} "
+        parts = [f"Oferta {offer.number} ({offer.bidder}): {count} "
                  f"{'fila' if count == 1 else 'filas'} de la ficha por confirmar"
                  for offer, _, count in pending_sheets]
         return base.Stage(state=base.A_DECIDIR, detail="; ".join(parts) + ".", **common_all)
