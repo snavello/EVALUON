@@ -222,3 +222,16 @@ def test_dates_are_shown_in_local_time(client, procedure, operator_user):
     tm.Document.objects.filter(pk=document.pk).update(
         loaded_at=datetime(2026, 10, 8, 1, 30, tzinfo=dt_timezone.utc))
     assert "07/10/2026 22:30" in dictamen_block(page(client, procedure))
+
+
+def test_an_uploaded_dictamen_does_not_count_as_a_pliego_document_to_read(
+        client, procedure, operator_user):
+    """REQ-092: el dictamen no se lee, así que no deja la etapa del pliego en «falta leer»."""
+    from evaluon.journey.stages import pliego
+
+    before = pliego.compute(operator_user, procedure)
+    log_in(client, operator_user)
+    notice(client, post_upload(client, procedure))
+    after = pliego.compute(operator_user, procedure)
+    assert (after.state, after.detail) == (before.state, before.detail)
+    assert "Falta leer" not in after.detail
