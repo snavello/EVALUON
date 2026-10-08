@@ -22,7 +22,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-195 | Sección 1: explorador y cargador del Portal (pegar enlace, propuesta agrupada, aprobar ítem por ítem o todo) y novedades de la revisión periódica | REQ-076, REQ-079, REQ-097 | T-194 | pendiente |
 | T-196 | Propuesta de datos y renglones desde el pliego subido: servicio, pedido en segundo plano, citas y aprobación que crea el procedimiento (sin pantalla) | REQ-077 | T-193 | pendiente |
 | T-197 | Sección 1: alta subiendo el pliego (propuesta con citas; el evaluador aprueba, descarta o corrige escribiendo valor y motivo; sin alta en blanco) | REQ-077, REQ-076, REQ-097 | T-195, T-196 | pendiente |
-| T-198 | Sección 2: documentos del pliego, anexos y especificaciones (lista por tipo con origen, subida de varios a la vez, tomar del Portal, faltantes) | REQ-080, REQ-097 | T-192 | pendiente |
+| T-198 | Sección 2: documentos del pliego, anexos y especificaciones (lista por tipo con origen, subida de varios a la vez, tomar del Portal, faltantes) | REQ-080, REQ-097 | T-192 | terminada |
 | T-199 | Servicio de historial de documentos del pliego y de las ofertas: reemplazar, retirar, restituir, con auditoría y estado calculado (sin pantalla) | REQ-099 | T-193 | terminada |
 | T-200 | Sección 2: reemplazar, retirar y restituir documentos del pliego, historial de versiones y «retirados» | REQ-099, REQ-097 | T-198, T-199 | pendiente |
 | T-201 | Sección 2: acciones de la Comisión en la tabla de la matriz (confirmar, corregir, quitar, agregar, validar), versión nueva, imprimir y exportar | REQ-081, REQ-082 | T-192 | terminada |

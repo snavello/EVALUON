@@ -61,3 +61,15 @@ details.acc label.chk { font-weight: 400; display: flex; gap: 6px; align-items: 
 .aviso-error { background: var(--ev-beige-100); border-color: var(--ev-beige-400); font-weight: 600; }
 .condicion { text-align: right; margin: 6px 0 0; }
 td.dec { white-space: normal; }
+
+/* Documentos del pliego (T-198): subida de varios archivos y resultado por archivo. */
+details.subir { margin-top: 12px; }
+details.subir > summary { list-style: none; cursor: pointer; display: inline-block; }
+details.subir > summary::-webkit-details-marker { display: none; }
+details.subir form { margin-top: 8px; padding: 12px 14px; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-btn); background: var(--ev-superficie); max-width: 52rem; }
+details.subir form > * + * { margin-top: 8px; }
+details.subir input[type=text] { width: 100%; font: inherit; font-size: var(--ev-t-ctl); border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 6px 8px; }
+details.subir input[type=date] { font: inherit; font-size: var(--ev-t-ctl); border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 6px 8px; }
+ul.resultado-subida { margin: 6px 0 0; padding-left: 1.2rem; }
+ul.resultado-subida li.rechazado { font-weight: 600; }
+.matriz tr.falta-doc th { font-weight: 600; }

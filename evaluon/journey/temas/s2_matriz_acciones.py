@@ -30,6 +30,7 @@ from evaluon.tenders.models import (
     VersionStatus,
 )
 from evaluon.tenders.services import consequences, suggestions, validation
+from evaluon.tenders.services import matrix as matrix_service
 from evaluon.tenders.services import review as review_service
 
 SALT = "journey.s2.aviso"
@@ -336,7 +337,21 @@ def open_new(request, procedure_id):
         "anterior queda como estaba.")
 
 
+@require_POST
+def propose(request, procedure_id):
+    """Pide la propuesta de la matriz (el mismo servicio que el botón de la pantalla vieja) y
+    vuelve a la pestaña con el aviso."""
+    procedure = _procedure(procedure_id)
+    try:
+        matrix_service.request_matrix(request.user, procedure, channel=CHANNEL)
+    except matrix_service.MatrixRefused as error:
+        return back(procedure, str(error), ok=False)
+    return back(procedure, "Se pidió la propuesta de la matriz. El sistema la arma en segundo "
+                           "plano; esta pestaña muestra el avance.")
+
+
 urlpatterns = [
+    path("matriz/proponer/", propose, name="s2_proponer"),
     path("matriz/confirmar/", confirm, name="s2_confirmar"),
     path("matriz/agregar/", add, name="s2_agregar"),
     path("matriz/agregar-tecnico/", add_technical, name="s2_agregar_tecnico"),
