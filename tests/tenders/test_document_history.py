@@ -207,3 +207,29 @@ def test_a_validated_matrix_does_not_change_and_is_marked(operator_user, validat
     assert [(v.pk, [d.pk for d in docs]) for v, docs in marked] == [(version.pk, [used])]
     history.restore(operator_user, document)
     assert history.versions_with_withdrawn(procedure) == []
+
+
+def test_a_failure_linking_the_replacement_leaves_no_new_document(
+        operator_user, procedure, document, monkeypatch):
+    """REQ-099: reemplazo en una sola transacción; si falla el vínculo no queda nada."""
+    def broken(*args, **kwargs):
+        raise RuntimeError("falla el vínculo")
+
+    monkeypatch.setattr(history, "_add_change", broken)
+    events_before = AuditEvent.objects.count()
+    with pytest.raises(RuntimeError):
+        history.replace(operator_user, document, data=pdf("v2"), file_name="v2.pdf")
+    assert m.Document.objects.filter(procedure=procedure).count() == 1
+    assert m.Job.objects.filter(kind=m.JobKind.READ_DOCUMENT).count() == 1
+    assert AuditEvent.objects.count() == events_before
+    assert list(history.current_documents(procedure)) == [document]
+
+
+def test_a_refused_load_in_a_replacement_keeps_its_rejection_event(
+        operator_user, procedure, document):
+    """P6: el rechazo de la carga queda registrado aunque el reemplazo no se haga."""
+    data = bytes(m.DocumentFile.objects.get(document=document).content)
+    with pytest.raises(documents.DuplicateFile):
+        history.replace(operator_user, document, data=data, file_name="b.pdf")
+    assert AuditEvent.objects.filter(event_type=EventType.TENDER_LOAD,
+                                     outcome=Outcome.REJECTED).count() == 1

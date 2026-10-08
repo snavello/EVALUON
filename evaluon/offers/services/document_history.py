@@ -12,7 +12,8 @@ El estado se calcula del último cambio de cada documento. Nada se modifica ni s
 Lo retirado o reemplazado deja de usarse para evaluar (`assessment.documents`). Las
 evaluaciones ya hechas no cambian: `runs_with_withdrawn` dice cuáles usaron un documento que
 ya no está vigente, para pedir evaluar de nuevo (no se recalcula sola). En `replace`, la carga
-del archivo nuevo es su propia transacción (deja su hecho `offer_load`) y el cambio va después.
+y el vínculo van en una sola transacción: si algo falla no queda el documento nuevo; el rechazo
+de la carga sí deja su hecho `offer_load`.
 """
 
 from django.db import transaction
@@ -174,10 +175,22 @@ def replace(user, document, *, data, file_name, note="", channel=Channel.SCREEN)
     note = (note or "").strip()
     _require_state(user, channel, document, DocumentChangeAction.REEMPLAZAR, note,
                    STATE_CURRENT, "Solo se reemplaza un documento vigente; este está {state}.")
-    loaded = offers_service.load_document(
-        user, document.offer, data=data, file_name=file_name, kind=document.kind,
-        title=document.title, channel=channel)
-    change = link_replacement(user, document, loaded.document, note=note, channel=channel)
+    # La carga y el vínculo van en una sola transacción: si el vínculo falla, no queda el
+    # documento nuevo. Un rechazo de la carga (archivo repetido, formato) no deshace su hecho
+    # de rechazo: se captura dentro, se cierra la transacción sin cambios y se vuelve a lanzar.
+    refusal = None
+    with transaction.atomic():
+        try:
+            loaded = offers_service.load_document(
+                user, document.offer, data=data, file_name=file_name, kind=document.kind,
+                title=document.title, channel=channel)
+        except offers_service.OfferRefused as error:
+            refusal = error
+        else:
+            change = link_replacement(user, document, loaded.document, note=note,
+                                      channel=channel)
+    if refusal is not None:
+        raise refusal
     return change, loaded
 
 

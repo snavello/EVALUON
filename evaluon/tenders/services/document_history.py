@@ -24,8 +24,8 @@ que la sección 2 lo avise.
 El rol (operador o evaluador) se comprueba antes de cualquier cambio; un rechazo por estado o
 por datos deja el hecho `document_change` en resultado `rejected` con su motivo. Todo hecho
 `ok` se escribe en la misma transacción que su cambio. En `replace`, la carga del archivo nuevo
-es su propia transacción (deja su hecho `tender_load`, también si la rechaza) y el cambio va
-después.
+y el vínculo van en una sola transacción: si algo falla no queda el documento nuevo; el
+rechazo de la carga sí deja su hecho `tender_load`.
 """
 
 from django.db import transaction
@@ -193,10 +193,22 @@ def replace(user, document, *, data, file_name, note="", channel=Channel.SCREEN)
     note = (note or "").strip()
     _require_state(user, channel, document, DocumentChangeAction.REEMPLAZAR, note,
                    STATE_CURRENT, "Solo se reemplaza un documento vigente; este está {state}.")
-    loaded = documents_service.load_document(
-        user, document.procedure, data=data, file_name=file_name, kind=document.kind,
-        title=document.title, issued_on=document.issued_on, channel=channel)
-    change = link_replacement(user, document, loaded.document, note=note, channel=channel)
+    # La carga y el vínculo van en una sola transacción: si el vínculo falla, no queda el
+    # documento nuevo. Un rechazo de la carga (archivo repetido, formato) no deshace su hecho
+    # de rechazo: se captura dentro, se cierra la transacción sin cambios y se vuelve a lanzar.
+    refusal = None
+    with transaction.atomic():
+        try:
+            loaded = documents_service.load_document(
+                user, document.procedure, data=data, file_name=file_name, kind=document.kind,
+                title=document.title, issued_on=document.issued_on, channel=channel)
+        except documents_service.DocumentRefused as error:
+            refusal = error
+        else:
+            change = link_replacement(user, document, loaded.document, note=note,
+                                      channel=channel)
+    if refusal is not None:
+        raise refusal
     return change, loaded
 
 
