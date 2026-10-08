@@ -1,0 +1,14 @@
+/* Tema «descartes y orden económico» de la sección 4 (T-210, REQ-091). Todo va bajo `.s4-desc` para no
+   mezclarse con los demás temas. Usa los tokens de la guía visual; sin recursos externos. */
+
+.s4-desc tr { scroll-margin-top: 5rem; }
+.s4-desc .sep { margin-top: 12px; }
+.s4-desc .orden td.pos { font-family: var(--ev-fuente-num); font-weight: 700; text-align: center; }
+.s4-desc .tachada td, .s4-desc .tachada th { color: var(--ev-texto-suave); }
+.s4-desc .motivo { margin-bottom: 8px; overflow-wrap: anywhere; }
+.s4-desc .registro { font-size: var(--ev-t-xs); color: var(--ev-texto-suave); margin: 2px 0 6px; overflow-wrap: anywhere; }
+.s4-desc textarea {
+  width: 100%; font: inherit; font-size: var(--ev-t-ctl); color: var(--ev-texto); background: var(--ev-superficie);
+  border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 6px 8px; margin: 4px 0 6px;
+}
+.s4-desc details.acc { margin-bottom: 6px; }

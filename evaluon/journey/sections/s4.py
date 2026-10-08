@@ -7,7 +7,9 @@ KEY = "evaluacion"
 LABEL = "Evaluación y dictamen"
 SLUG = "evaluacion"
 STAGE_KEYS = ("evaluacion", "matriz_evaluacion")
-TEMA_KEYS = ("s4_propuesta", "s4_preguntas", "s4_informe", "s4_descartes", "s4_dictamen",
+# El orden de los bloques de la pestaña es el de la maqueta aprobada: resultado y orden económico y
+# descartes, propuesta, preguntas, informe, dictamen y exportar.
+TEMA_KEYS = ("s4_descartes", "s4_propuesta", "s4_preguntas", "s4_informe", "s4_dictamen",
              "s4_exportar")
 
 

@@ -394,19 +394,22 @@ def test_the_pending_are_listed_one_by_one_and_match_the_bar(
     log_in(client, operator_user)
     stage = matriz_evaluacion.compute(operator_user, procedure)
     section = sections_for(operator_user, procedure).get("evaluacion")
-    assert stage.pending > 0 and section.pending == stage.pending
-    assert len(section.pending_items) == stage.pending
-    assert section.suggestions == stage.suggestions == len(section.suggestion_items) == 1
+    # El descarte propuesto es decisión de la Comisión: lo lista `s4_descartes` (T-210) como
+    # pendiente y no como sugerencia.
+    assert stage.pending > 0 and section.pending == stage.pending + stage.suggestions
+    assert len(section.pending_items) == section.pending
+    assert section.suggestions == 0 == len(section.suggestion_items)
     html = page(client, procedure)
     panel = re.search(r'<section class="panel" id="pendientes".*?</section>', html, re.S).group(0)
-    assert f'<span class="cta">{stage.pending}</span>' in panel
-    assert panel.count("Resolver") == stage.pending
+    assert f'<span class="cta">{section.pending}</span>' in panel
+    assert panel.count("Resolver") == section.pending
     for item in section.pending_items:
         anchor = item.url.split("#")[1]
         assert f'id="{anchor}"' in html and f'href="{item.url}"' in panel
         assert item.action == "Resolver"
-    sugg = re.search(r'<section class="panel" id="sugerencias".*?</section>', html, re.S).group(0)
-    assert "Descarte propuesto: oferta" in sugg
+    sugg = re.search(r'<section class="panel" id="sugerencias".*?</section>', html, re.S)
+    assert sugg is None or "Descarte propuesto" not in sugg.group(0)
+    assert "Descarte propuesto por decidir: oferta" in panel
     # La barra de pestañas muestra las mismas cuentas.
     bar = client.get(reverse("expedientes:barra", args=[procedure.pk])).content.decode()
     mine = re.search(r'data-seccion="evaluacion".*?</a>', bar, re.S).group(0)
