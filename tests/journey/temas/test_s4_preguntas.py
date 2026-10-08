@@ -138,7 +138,7 @@ def test_the_block_has_the_approved_titles_and_none_of_the_mockup_samples_or_old
     for text in ("Preguntas a la Comisión y pedidos de subsanación", "Asunto",
                  "Oferta · requisito", "Respuesta registrada / acción"):
         assert text in html
-    assert "por decidir" in html and "resueltos" in html
+    assert "por decidir" in html and "1 resuelto" in html
     for sample in ("pago a 15 días", "hoja de compliance según", "evaluador de muestra",
                    "[texto de ejemplo]"):
         assert sample not in html
@@ -338,3 +338,13 @@ def test_a_result_that_was_evaluated_again_stays_as_a_resolved_remedy(
     assert "Subsanación: ya se evaluó de nuevo" in html and "Subsanada" in html
     assert "motivo: Se pide la constancia." in html
     assert "Pedir que se subsane" not in html
+
+
+def test_the_title_counts_resolved_in_singular_and_plural(client, asked, procedure,
+                                                           evaluator_user, evaluated):
+    """REQ-090: «1 resuelto» en singular y «2 resueltos» en plural."""
+    open_, _, _ = asked
+    log_in(client, evaluator_user)
+    assert "2 por decidir · 1 resuelto<" in block(client, procedure)
+    client.post(answer_url(procedure, open_), {"text": "Vigente."})
+    assert "1 por decidir · 2 resueltos<" in block(client, procedure)

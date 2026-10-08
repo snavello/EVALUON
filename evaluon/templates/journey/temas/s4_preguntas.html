@@ -1,7 +1,7 @@
 {% load static %}{% comment %}Tema s4_preguntas (T-208, REQ-090): preguntas a la Comisión y pedidos de subsanación, con su respuesta registrada, quién y cuándo. Las acciones del evaluador son formularios POST a las rutas de s4_preguntas_acciones, que llaman a los mismos servicios que la pantalla vieja y vuelven a esta pestaña; un operador no ve los botones. Recibe `t` (ver evaluon/journey/temas/s4_preguntas.py).{% endcomment %}
 <link rel="stylesheet" href="{% static 'journey/s4_preguntas.css' %}">
 <div class="bloque s4-preg" id="s4-preguntas">
-  <div class="bloque-cab"><h3>Preguntas a la Comisión y pedidos de subsanación <span class="cta">{{ t.to_decide }} por decidir · {{ t.resolved }} resueltos</span></h3></div>
+  <div class="bloque-cab"><h3>Preguntas a la Comisión y pedidos de subsanación <span class="cta">{{ t.to_decide }} por decidir · {{ t.resolved }} {% if t.resolved == 1 %}resuelto{% else %}resueltos{% endif %}</span></h3></div>
   {% if t.lines %}
   <div class="tabla-scroll"><table class="matriz lectura">
     <thead><tr><th scope="col">Asunto</th><th scope="col">Oferta · requisito</th><th scope="col">Estado</th><th scope="col">Respuesta registrada / acción</th></tr></thead>
