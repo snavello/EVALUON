@@ -37,7 +37,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-210 | Sección 4: descartes propuestos y orden económico; el evaluador confirma o rechaza cada descarte con quién y cuándo | REQ-091 | T-192, T-193 | pendiente |
 | T-211 | Sección 4: dictamen del Portal o subido (sin borrador) | REQ-092, REQ-097 | T-192, T-193 | pendiente |
 | T-212 | Sección 4: exportar la planilla por oferta (Excel) y el cuadro comparativo (Excel y PDF); suma la dependencia XlsxWriter (ADR-0050) | REQ-093 | T-192 | pendiente |
-| T-213 | Propuesta de los datos de una norma desde su archivo y staging de la subida (sin pantalla) | REQ-094 | T-193 | pendiente |
+| T-213 | Propuesta de los datos de una norma desde su archivo y staging de la subida (sin pantalla) | REQ-094 | T-193 | terminada |
 | T-214 | Sección 5: subir una norma, ver el informe de lectura y validarla desde la pantalla | REQ-094, REQ-097 | T-192, T-213 | pendiente |
 | T-215 | Sección 5: normas que rigen al procedimiento según su fecha de autorización y cuáles faltan cargar | REQ-095, REQ-097 | T-192 | pendiente |
 | T-216 | Sección 5: consulta de normativa con citas literales | REQ-096 | T-192 | pendiente |
