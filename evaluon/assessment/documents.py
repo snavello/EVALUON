@@ -19,7 +19,8 @@ El empaquetado reutiliza `sizing.pack` y `sizing.windows`:
 - un documento mayor que el presupuesto se parte por páginas en ventanas con una página de
   solape.
 
-No guarda nada en la base.
+Solo entran los documentos vigentes (`offers.services.document_history`). No guarda nada en
+la base.
 """
 
 from dataclasses import dataclass, field
@@ -30,6 +31,7 @@ from evaluon.ai import generation
 from evaluon.assessment import sizing
 from evaluon.offers import retrieval, vision
 from evaluon.offers.models import DocumentKind, Passage
+from evaluon.offers.services import document_history
 
 
 @dataclass
@@ -159,7 +161,8 @@ def build_offer_text(offer, count=None, budget=None):
     documents, first_seen = [], {}
     # El informe técnico del área no es un documento de la oferta: no se lee para evaluarla
     # (T-190; REQ-074). Lo lee `services/technical_report.py` para proponer el ok técnico.
-    for document in offer.documents.exclude(
+    # Los documentos retirados o reemplazados no se leen (REQ-099, ADR-0048).
+    for document in document_history.current_documents(offer).exclude(
             kind=DocumentKind.INFORME_TECNICO).order_by("loaded_at", "id"):
         entry = read_document(document, count)
         if entry.sha256 in first_seen:
