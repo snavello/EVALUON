@@ -11,6 +11,15 @@ los tipos fechados) pasa por `load_document` por separado, así que cada uno dej
 otros. «Tomar del Portal» lleva a los documentos que el Portal propone. El tema no decide nada
 (P3): cargar es una acción de una persona.
 
+Historial (REQ-099, T-200): cada documento vigente tiene «Historial», «Reemplazar» y «Retirar»,
+que llaman al servicio `tenders.services.document_history` (nada se borra). El historial de un
+documento se abre dentro de la pestaña (`?historial=<documento>`), con la línea de tiempo de sus
+versiones, quién, cuándo y el motivo; `?historial=retirados` muestra solo el bloque «Retirados»,
+con «Restituir». La tabla principal muestra solo lo vigente. Si la matriz se armó con un
+documento que después se retiró o se reemplazó, un aviso lo dice. El motivo es obligatorio en
+los tres cambios (la pantalla lo exige; el servicio lo guarda). Solo el operador y el
+evaluador cambian; sin rol, 403 con el rechazo registrado.
+
 El resultado de la subida viaja firmado en la dirección (`?docs=`), sin guardar nada en la
 sesión, y vale cinco minutos.
 """
@@ -26,6 +35,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from evaluon.accounts.models import CommissionRole
+from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
 from evaluon.journey.sections.base import Missing, TemaStatus
 from evaluon.portal.models import ItemKind, ItemState, LoadedModel, PortalItem
@@ -37,6 +47,7 @@ from evaluon.tenders.models import (
     JobKind,
     Procedure,
 )
+from evaluon.tenders.services import document_history as history_service
 from evaluon.tenders.services import documents as services
 
 KEY = "s2_documentos"
@@ -76,6 +87,7 @@ class DocRow:
     origin: str  # «Portal» o «Archivo»
     origin_date: str
     origin_by: str
+    note: str = ""
 
 
 @dataclass
@@ -94,8 +106,9 @@ def can_load(user):
 
 
 def documents_of(procedure):
-    """Los documentos de esta pestaña: pliego, anexos y especificaciones, en orden de carga."""
-    return list(procedure.documents.filter(kind__in=KIND_VALUES)
+    """Los documentos vigentes de esta pestaña: pliego, anexos y especificaciones, en orden de
+    carga. Lo retirado y lo reemplazado no figura (está en el historial)."""
+    return list(history_service.current_documents(procedure).filter(kind__in=KIND_VALUES)
                 .select_related("loaded_by").order_by("loaded_at", "pk"))
 
 
@@ -187,6 +200,164 @@ def status(user, procedure):
     return TemaStatus(missing=tuple(missing), sources=tuple(sources))
 
 
+# --- Historial, reemplazo, retiro y restitución (T-200) --------------------------------------
+
+
+@dataclass
+class Entry:
+    """Un renglón de la línea de tiempo de un documento."""
+    at: object
+    when: str
+    who: str
+    title: str
+    text: str
+    css: str = ""
+    document: object = None
+
+
+def _moment(moment):
+    """Fecha y hora locales (la base guarda UTC)."""
+    return f"{timezone.localtime(moment):%d/%m/%Y %H:%M}"
+
+
+def _who(user):
+    return user.username if user is not None else "sistema"
+
+
+def timeline(document):
+    """La línea de tiempo del documento: cada versión (con quién la subió, cuándo y el motivo del
+    reemplazo) y cada retiro o restitución, de lo más nuevo a lo más viejo."""
+    changes = history_service.history(document)
+    versions = {document.pk: document}
+    for change in changes:
+        versions[change.document_id] = change.document
+        if change.new_document is not None:
+            versions[change.new_document_id] = change.new_document
+    ordered = sorted(versions.values(), key=lambda d: (d.loaded_at, d.pk))
+    replaced_by = {c.new_document_id: c for c in changes
+                   if c.action == "reemplazar" and c.new_document_id}
+    entries = []
+    for number, version in enumerate(ordered, start=1):
+        state = history_service.state(version)
+        change = replaced_by.get(version.pk)
+        if change is not None:
+            how, at, who = "reemplazo", change.at, change.user
+            text = f"Motivo: «{change.note}»." if change.note else "Sin motivo escrito."
+        else:
+            portal = PortalItem.objects.filter(
+                kind=ItemKind.DOCUMENTO, loaded_model=LoadedModel.DOCUMENT,
+                loaded_id=version.pk).exists()
+            how = "tomado del Portal" if portal else "subido como archivo"
+            at, who = version.loaded_at, version.loaded_by
+            text = ""
+        entries.append(Entry(
+            at=at, when=_moment(at), who=_who(who), title=f"Versión {number} · {state}",
+            text=f"{how} · {version.file_name}" + (f" · {text}" if text else ""),
+            document=version))
+    for change in changes:
+        if change.action in ("retirar", "restituir"):
+            retired = change.action == "retirar"
+            entries.append(Entry(
+                at=change.at, when=_moment(change.at), who=_who(change.user),
+                title="Retirado" if retired else "Restituido",
+                text=f"Motivo: «{change.note}»." if change.note else "Sin motivo escrito.",
+                css="retiro" if retired else ""))
+    entries.sort(key=lambda e: e.at, reverse=True)
+    return entries
+
+
+def withdrawn_rows(procedure):
+    """Los documentos retirados de esta pestaña, con quién, cuándo y el motivo del retiro."""
+    rows = []
+    for document in (history_service.withdrawn_documents(procedure).filter(kind__in=KIND_VALUES)
+                     .select_related("loaded_by")):
+        change = document.changes.filter(action="retirar").order_by("-id").first()
+        rows.append(DocRow(
+            document=document, kind_label=DocumentKind(document.kind).label, icon="",
+            icon_name="", reading_text="", pages=None, origin="",
+            origin_date=_moment(change.at), origin_by=_who(change.user), note=change.note))
+    return rows
+
+
+def stale_matrix_warnings(procedure):
+    """Un aviso por cada versión de la matriz armada con un documento que hoy está retirado o
+    reemplazado."""
+    warnings = []
+    for version, gone in history_service.versions_with_withdrawn(procedure):
+        names = ", ".join(f"«{d.title}» ({history_service.state(d)})" for d in gone)
+        warnings.append(f"La versión {version.number} de la matriz se armó con {names}. "
+                        "La matriz no cambia sola: revísela y, si hace falta, abra una versión "
+                        "nueva.")
+    return warnings
+
+
+def _document(procedure, document_id):
+    try:
+        document = Document.objects.get(pk=document_id, procedure=procedure)
+    except Document.DoesNotExist:
+        raise Http404("No hay un documento con ese número en este procedimiento.")
+    if document.kind not in KIND_VALUES:
+        raise Http404("Ese documento no es del pliego.")
+    return document
+
+
+def _procedure(procedure_id):
+    try:
+        return Procedure.objects.get(pk=procedure_id)
+    except Procedure.DoesNotExist:
+        raise Http404("No hay un procedimiento con ese número.")
+
+
+def _change(request, procedure_id, document_id, operation, done, call, needs_file=False):
+    """Valida rol, motivo (y archivo) y llama al servicio; con rechazo vuelve con el motivo."""
+    procedure = _procedure(procedure_id)
+    document = _document(procedure, document_id)
+    require_commission_role(request.user, CommissionRole.OPERATOR, operation=operation,
+                            channel=Channel.SCREEN)
+    note = " ".join(request.POST.get("note", "").split())
+    if not note:
+        return _back(procedure, [_result(document.title, False, "Escriba el motivo: es "
+                                         "obligatorio y queda registrado.")])
+    upload_file = request.FILES.get("file")
+    if needs_file and upload_file is None:
+        return _back(procedure, [_result(document.title, False,
+                                         "Elija el archivo que reemplaza al documento.")])
+    try:
+        call(request.user, document, note, upload_file)
+    except (history_service.HistoryRefused, services.DocumentRefused) as error:
+        return _back(procedure, [_result(document.title, False, str(error))])
+    return _back(procedure, [_result(document.title, True, done)])
+
+
+@require_POST
+def withdraw(request, procedure_id, document_id):
+    return _change(
+        request, procedure_id, document_id, history_service.WITHDRAW_OPERATION,
+        "Retirado: no se borra, queda en «Retirados» y se puede restituir.",
+        lambda user, doc, note, f: history_service.withdraw(user, doc, note,
+                                                            channel=Channel.SCREEN))
+
+
+@require_POST
+def restore(request, procedure_id, document_id):
+    return _change(
+        request, procedure_id, document_id, history_service.RESTORE_OPERATION,
+        "Restituido: vuelve a estar vigente.",
+        lambda user, doc, note, f: history_service.restore(user, doc, note=note,
+                                                           channel=Channel.SCREEN))
+
+
+@require_POST
+def replace(request, procedure_id, document_id):
+    return _change(
+        request, procedure_id, document_id, history_service.REPLACE_OPERATION,
+        "Reemplazado: la versión anterior queda en el historial y la nueva queda en espera de "
+        "lectura.",
+        lambda user, doc, note, f: history_service.replace(
+            user, doc, data=f.read(), file_name=f.name, note=note, channel=Channel.SCREEN),
+        needs_file=True)
+
+
 # --- Subida de varios archivos --------------------------------------------------------------
 
 
@@ -266,13 +437,42 @@ def upload(request, procedure_id):
     return _back(procedure, results)
 
 
-urlpatterns = [path("documentos/subir/", upload, name="s2_documentos_subir")]
+urlpatterns = [
+    path("documentos/subir/", upload, name="s2_documentos_subir"),
+    path("documentos/<int:document_id>/reemplazar/", replace, name="s2_documentos_reemplazar"),
+    path("documentos/<int:document_id>/retirar/", withdraw, name="s2_documentos_retirar"),
+    path("documentos/<int:document_id>/restituir/", restore, name="s2_documentos_restituir"),
+]
+
+
+def _open_history(procedure, request):
+    """Lo que pide `?historial=`: `("retirados", None)`, `("documento", doc)` o `None`."""
+    value = request.GET.get("historial", "")
+    if value == "retirados":
+        return "retirados", None
+    if value.isdigit():
+        try:
+            return "documento", _document(procedure, int(value))
+        except Http404:
+            return None
+    return None
 
 
 def context(user, procedure, request):
     rows = rows_of(procedure)
     absent = missing_from_portal(procedure)
+    opened = _open_history(procedure, request)
+    tab_url = reverse("expedientes:pliego", args=[procedure.pk])
+    entries = timeline(opened[1]) if opened and opened[0] == "documento" else []
     return {
+        "withdrawn": withdrawn_rows(procedure), "history_mode": opened[0] if opened else "",
+        "history_document": opened[1] if opened else None,
+        "timeline": entries,
+        "history_current": bool(opened and opened[1] is not None
+                                and history_service.state(opened[1]) == "vigente"),
+        "versions_count": sum(1 for e in entries if e.document is not None),
+        "tab_url": tab_url, "retired_url": f"{tab_url}?historial=retirados#s2-retirados",
+        "stale": stale_matrix_warnings(procedure),
         "rows": rows, "absent": absent, "pid": procedure.pk, "empty": not rows,
         "can_load": can_load(user), "kind_choices": KIND_CHOICES,
         "portal_url": portal_url(procedure),
