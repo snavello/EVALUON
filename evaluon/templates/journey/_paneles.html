@@ -4,7 +4,7 @@
     {% if pending_rows %}
     <ul class="lista">
       {% for s, item in pending_rows %}
-      <li>{% if show_section %}<span class="donde">{{ s.label }}</span>{% endif %}<span>{{ item.text }}</span>{% if item.url %}<a class="accion" href="{{ item.url }}">Ver</a>{% endif %}</li>
+      <li>{% if show_section %}<span class="donde">{{ s.label }}</span>{% endif %}<span>{{ item.text }}</span>{% if item.url %}<a class="accion" href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}</li>
       {% endfor %}
     </ul>
     {% else %}<p class="suave">No hay nada pendiente de decidir.</p>{% endif %}
@@ -14,7 +14,7 @@
     {% if suggestion_rows %}
     <ul class="lista">
       {% for s, item in suggestion_rows %}
-      <li>{% if show_section %}<span class="donde">{{ s.label }}</span>{% endif %}<span>{{ item.text }}</span>{% if item.url %}<a class="accion" href="{{ item.url }}">Ver</a>{% endif %}</li>
+      <li>{% if show_section %}<span class="donde">{{ s.label }}</span>{% endif %}<span>{{ item.text }}</span>{% if item.url %}<a class="accion" href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}</li>
       {% endfor %}
     </ul>
     <p class="ayuda">Son propuestas del sistema: no frenan nada y las decide la Comisión.</p>

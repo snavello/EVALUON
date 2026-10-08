@@ -21,8 +21,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from evaluon.accounts.models import CommissionRole
-from evaluon.audit.models import Channel
-from evaluon.journey.sections.base import TemaStatus
+from evaluon.audit.models import AuditEvent, Channel, EventType
+from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.tenders.models import (
     Consequence,
     ConsequenceType,
@@ -70,6 +70,7 @@ class Row:
     changed: bool
     page_row: object  # la fila de `matrix_page`, con sus citas y cambios
     suggestions: list
+    motives: list = field(default_factory=list)  # «Corregido por … · motivo: …»
     options: list = field(default_factory=list)  # consecuencias elegibles (solo quien decide)
     technical: bool = False
 
@@ -85,6 +86,52 @@ def latest_version(procedure):
             .exclude(status=VersionStatus.DISCARDED).order_by("-number").first())
 
 
+PLAIN_REASONS = {
+    "pagina_ilegible": "No se pudo leer esta página",
+    "pagina_dudosa": "Esta página se leyó con dudas",
+    "tabla": "Hay una tabla que el sistema no pudo interpretar",
+    "no_ubicado": "El sistema no pudo ubicar este tramo en el pliego",
+    "sin_disposicion": "El sistema no pudo decidir si este tramo contiene requisitos",
+    "marcadores": "El sistema lo descartó, pero el tramo tiene marcas de obligación",
+    "renglon_sin_especificaciones": "Este renglón no tiene especificaciones",
+}
+
+
+def _plain_reason(item):
+    return PLAIN_REASONS.get(item.reason, item.get_reason_display())
+
+
+def _where(segment):
+    document = segment.reading.document.title
+    return f"{document} › {segment.path}" if segment.path else document
+
+
+def _decision_items(version):
+    """Cada cosa que la Comisión debe decidir en el borrador, con su ancla en esta pestaña.
+    Devuelve `(pendientes, sugerencias, cuántas consecuencias faltan)`."""
+    base = reverse("expedientes:pliego", args=[version.procedure_id])
+    live = version.requirements.exclude(state__in=("quitado", "sugerido")).order_by("number")
+    chosen = set(Consequence.objects.filter(requirement__in=live, chosen=True)
+                 .values_list("requirement_id", flat=True))
+    pending = []
+    for requirement in live.filter(state="propuesto"):
+        pending.append(Item(f"Requisito {requirement.number} sin confirmar",
+                            f"{base}#req-{requirement.number}", 1, "Resolver"))
+    for item in version.pending_items.filter(resolved_at__isnull=True).select_related(
+            "segment__reading__document").order_by("pk"):
+        pending.append(Item(f"Tramo por revisar: {_where(item.segment)}",
+                            f"{base}#tramo-{item.pk}", 1, "Resolver"))
+    missing = [r for r in live if r.pk not in chosen]
+    for requirement in missing:
+        pending.append(Item(f"Consecuencia sin elegir: requisito {requirement.number}",
+                            f"{base}#req-{requirement.number}", 1, "Resolver"))
+    suggestions = []
+    for requirement in version.requirements.filter(state="sugerido").order_by("number"):
+        suggestions.append(Item(f"Sugerencia {requirement.number} para decidir",
+                                f"{base}#sug-{requirement.number}", 1, "Resolver"))
+    return pending, suggestions, len(missing)
+
+
 def status(user, procedure):
     version = latest_version(procedure)
     if version is None:
@@ -95,6 +142,13 @@ def status(user, procedure):
                   f"{_day(version.validated_at)}{who}.")
     else:
         source = f"Matriz: versión {version.number} en revisión."
+    if version.status == VersionStatus.DRAFT:
+        pending, suggestions, no_consequence = _decision_items(version)
+        # La etapa de la matriz ya cuenta los requisitos sin confirmar y los tramos; acá se
+        # suman las consecuencias sin elegir, que también frenan la validación.
+        return TemaStatus(sources=(source,), pending=no_consequence,
+                          pending_items=tuple(pending), suggestion_items=tuple(suggestions),
+                          detailed_stages=("matriz",))
     return TemaStatus(sources=(source,))
 
 
@@ -254,7 +308,26 @@ def _segment_choices(page, version):
 
 
 def _tramos(page):
-    return [row for row in page.pending if row.item.resolved_at is None]
+    rows = [row for row in page.pending if row.item.resolved_at is None]
+    for row in rows:
+        row.reason = _plain_reason(row.item)
+    return rows
+
+
+def _motives(requirement_ids):
+    """El motivo de cada corrección o quitar, con quién y cuándo, desde el hecho de auditoría."""
+    found = defaultdict(list)
+    verbs = {"corregir": "Corregido", "quitar": "Quitado"}
+    events = AuditEvent.objects.filter(
+        event_type=EventType.REQUIREMENT_CHANGE, detail__action="motivo",
+        detail__requirement__in=list(requirement_ids)).select_related("user").order_by("pk")
+    for event in events:
+        who = event.user.username if event.user else event.username
+        when = f"{timezone.localtime(event.occurred_at):%d/%m %H:%M}"
+        verb = verbs.get(event.detail.get("of"), "Cambiado")
+        found[event.detail["requirement"]].append(
+            f"{verb} por {who} el {when} · motivo: {event.detail.get('reason', '')}")
+    return found
 
 
 def context(user, procedure, request):
@@ -268,6 +341,12 @@ def context(user, procedure, request):
     is_evaluator = user.commission_role == CommissionRole.EVALUATOR
     decides = is_evaluator and version.status == VersionStatus.DRAFT
     rows = _rows(page, with_options=decides)
+    motives = _motives([r.page_row.requirement.pk for r in rows]
+                       + [r.requirement.pk for r in page.removed])
+    for row in rows:
+        row.motives = motives.get(row.page_row.requirement.pk, [])
+    removed_motives = {r.requirement.pk: motives.get(r.requirement.pk, [])
+                       for r in page.removed}
     chosen, kind, state, text = _select(rows, request.GET)
     unconfirmed = sum(r.unconfirmed for r in rows)
     changed = sum(r.changed for r in rows)
@@ -294,7 +373,7 @@ def context(user, procedure, request):
         "unconfirmed_ids": [r.page_row.requirement.pk for r in rows if r.unconfirmed],
         "suggestion_rows": page.suggestions, "segment_rows": segments,
         "to_decide": len(page.suggestions) + len(segments),
-        "removed": page.removed, "segment_options": _segment_choices(page, version),
+        "removed": [(r, removed_motives[r.requirement.pk]) for r in page.removed], "segment_options": _segment_choices(page, version),
         "technical_rows": [r for r in rows if r.technical],
         "consequence_types": [(v, l) for v, l in ConsequenceType.choices
                               if v != ConsequenceType.NO_DETERMINADA.value],

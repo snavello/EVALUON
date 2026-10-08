@@ -10,7 +10,7 @@
       {% for row in t.suggestion_rows %}
       <tr id="sug-{{ row.requirement.number }}">
         <th scope="row">Sugerencia {{ row.requirement.number }}</th>
-        <td>{% with quote=row.quotes.0 %}{% if quote %}«{{ quote.text|truncatechars:240 }}» {% include "tenders/_place.html" with place=quote.place %}{% endif %}{% endwith %}{% if row.doubt_phrase %}<br><span class="suave">{{ row.doubt_phrase }}</span>{% endif %}{% if row.supports %}<br><span class="suave">La norma aplicable la exige.</span>{% endif %}</td>
+        <td>{% with quote=row.quotes.0 %}{% if quote %}«{{ quote.text }}» {% include "tenders/_place.html" with place=quote.place %}{% endif %}{% endwith %}{% if row.doubt_phrase %}<br><span class="suave">{{ row.doubt_phrase }}</span>{% endif %}{% if row.supports %}<br><span class="suave">La norma aplicable la exige.</span>{% endif %}</td>
         <td class="dec">{% if t.can_review %}
           <form class="en-linea" method="post" action="{% url 'expedientes:s2_sugerencia_pasar' t.pid row.requirement.pk %}">{% csrf_token %}<button class="btn secundario chico" type="submit">Pasar a requisito</button></form>
           <form class="en-linea" method="post" action="{% url 'expedientes:s2_sugerencia_quitar' t.pid row.requirement.pk %}">{% csrf_token %}<button class="btn secundario chico" type="submit">Quitar la sugerencia</button></form>
@@ -121,6 +121,7 @@
               <dt>Consecuencia de no cumplir</dt>
               <dd>{{ row.consequence }}{% if row.suggestions %} · sugeridas por el sistema: {{ row.suggestions|join:", " }}{% endif %}</dd>
               {% if row.marks %}<dt>Marcas</dt><dd>{{ row.marks|join:" · " }}</dd>{% endif %}
+              {% if row.motives %}<dt>Cambios con motivo</dt>{% for line in row.motives %}<dd>{{ line }}</dd>{% endfor %}{% endif %}
               <dt>Más</dt>
               <dd class="fila"><a href="{% url 'tenders:history' row.page_row.requirement.pk %}">Historial</a></dd>
             </dl>
@@ -216,8 +217,8 @@
     <caption class="sr-only">Requisitos quitados</caption>
     <thead><tr><th scope="col">N.º</th><th scope="col">Tipo</th><th scope="col">Cita</th><th scope="col">Acción</th></tr></thead>
     <tbody>
-      {% for row in t.removed %}
-      <tr><th scope="row" class="num">{{ row.requirement.number }}</th><td>{{ row.requirement.get_category_display }}</td><td>{% with quote=row.quotes.0 %}{% if quote %}{{ quote.text|truncatechars:200 }}{% endif %}{% endwith %}</td>
+      {% for row, motives in t.removed %}
+      <tr><th scope="row" class="num">{{ row.requirement.number }}</th><td>{{ row.requirement.get_category_display }}</td><td>{% with quote=row.quotes.0 %}{% if quote %}{{ quote.text|truncatewords:30 }}{% endif %}{% endwith %}{% for line in motives %}<br><span class="suave">{{ line }}</span>{% endfor %}</td>
         <td>{% if t.can_review %}<form class="en-linea" method="post" action="{% url 'expedientes:s2_restituir' t.pid row.requirement.pk %}">{% csrf_token %}<button class="btn secundario chico" type="submit">Restituir</button></form>{% elif t.is_draft %}<span class="suave">Lo decide un evaluador</span>{% endif %} <a href="{% url 'tenders:history' row.requirement.pk %}">Historial</a></td></tr>
       {% endfor %}
     </tbody>

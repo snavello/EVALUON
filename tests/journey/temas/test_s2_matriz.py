@@ -127,14 +127,18 @@ def test_the_old_screen_link_is_gone(client, procedure, two_versions, operator_u
 
 def test_the_unconfirmed_rows_count_once_in_the_section(procedure, two_versions,
                                                         evaluator_user):
-    """REQ-098: lo sin confirmar lo cuenta la etapa de la matriz (no se repite en el tema)."""
+    """REQ-098: lo sin confirmar lo cuenta la etapa de la matriz; el tema solo suma las
+    consecuencias sin elegir (nada se cuenta dos veces)."""
     from evaluon.journey import sections
     from evaluon.journey.temas import s2_matriz
     _, unconfirmed = two_versions
-    assert s2_matriz.status(evaluator_user, procedure).pending == 0
+    from evaluon.journey.stages import matriz as stage
+    status = s2_matriz.status(evaluator_user, procedure)
     section = sections.sections_for(evaluator_user, procedure).get("pliego")
-    assert section.pending >= len(unconfirmed)
-    assert any("Matriz" in item.text for item in section.pending_items)
+    assert section.pending == stage.compute(evaluator_user, procedure).pending + status.pending
+    assert sum(item.count for item in section.pending_items) == section.pending
+    assert all(f"Requisito {n} sin confirmar" in " ".join(i.text for i in section.pending_items)
+               for n in unconfirmed)
 
 
 def test_a_procedure_without_matrix_shows_an_empty_state(client, operator_user):

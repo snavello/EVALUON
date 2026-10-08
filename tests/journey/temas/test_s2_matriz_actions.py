@@ -435,3 +435,95 @@ def test_the_evaluator_sees_the_buttons_of_the_mockup(client, procedure, board, 
         assert label in html, label
     assert html.count("del grupo</button>") >= 1
     assert "Motivo (obligatorio)" in html and "required" in html
+
+
+# --- Paneles de la pestaña, cuentas y texto llano --------------------------------------------------
+
+
+def quedan(html):
+    return int(re.search(r"Quedan (\d+) sin decidir", html).group(1))
+
+
+def panel_counts(procedure, user):
+    from evaluon.journey.sections import sections_for
+    section = sections_for(user, procedure).get("pliego")
+    return section.pending, section.suggestions
+
+
+def test_the_panels_list_each_thing_with_a_link_to_this_tab(client, procedure, board,
+                                                            evaluator_user):
+    """REQ-098: cada cosa por decidir figura con su «Resolver» al ancla de esta pestaña, nunca a
+    la pantalla vieja."""
+    log_in(client, evaluator_user)
+    html = client.get(tab(procedure)).content.decode()
+    panels = html[html.index('id="pendientes"'):html.index('id="seccion-detalle"')]
+    base = tab(procedure)
+    for number in [r.number for r in board.rows]:
+        assert f"Requisito {number} sin confirmar" in panels
+        assert f'href="{base}#req-{number}"' in panels
+    assert f"Tramo por revisar:" in panels and f'#tramo-{board.pending.pk}' in panels
+    assert "Consecuencia sin elegir: requisito" in panels
+    assert f'href="{base}#sug-{board.suggestion.number}"' in panels
+    assert "Resolver</a>" in panels
+    assert "/procedimientos/matrices/" not in panels
+    assert "Matriz de cumplimiento:" not in panels
+
+
+def test_pending_plus_suggestions_always_match_what_is_left(client, procedure, board,
+                                                            evaluator_user):
+    """REQ-098: pendientes + sugerencias de la barra y del panel coinciden con «Quedan N»."""
+    log_in(client, evaluator_user)
+
+    def check():
+        html = client.get(tab(procedure)).content.decode()
+        pending, suggestions = panel_counts(procedure, evaluator_user)
+        left = quedan(html) if "Quedan" in html else 0
+        assert pending + suggestions == left
+        panel = html[html.index('id="pendientes"'):html.index('id="sugerencias"')]
+        assert f'<span class="cta">{pending}</span>' in panel
+        return left
+
+    assert check() == 14
+    client.post(url("s2_confirmar", procedure), {"requirement": [board.rows[0].pk]})
+    assert check() == 13
+    client.post(url("s2_consecuencia", procedure, board.rows[0].pk), {
+        "consequence_type": "desestimacion", "note": "Lo dice el pliego."})
+    assert check() == 12
+    client.post(url("s2_sugerencia_quitar", procedure, board.suggestion.pk))
+    client.post(url("s2_tramo_revisado", procedure, board.pending.pk))
+    assert check() == 10
+
+
+def test_the_segment_reason_is_in_plain_words(client, procedure, board, evaluator_user):
+    """REQ-100: sin jerga del modelo en el tramo por revisar."""
+    log_in(client, evaluator_user)
+    html = client.get(tab(procedure)).content.decode()
+    assert "Sin disposición del modelo" not in html
+    assert "El sistema no pudo decidir si este tramo contiene requisitos" in html
+
+
+def test_the_suggestion_shows_the_whole_sentence(client, procedure, board, evaluator_user):
+    """REQ-081: la sugerencia no se corta a mitad de palabra."""
+    segment = max(board.segments, key=lambda s: len(s.text))
+    long = make_suggestion(board.draft, segment)
+    quote = long.quotes.get()
+    text = segment.text.strip()
+    m.RequirementQuote.objects.filter(pk=quote.pk).update(
+        char_end=segment.char_start + len(segment.text), text=segment.text)
+    log_in(client, evaluator_user)
+    html = htmllib.unescape(client.get(tab(procedure)).content.decode())
+    assert text in " ".join(html.split()) or " ".join(text.split()) in " ".join(html.split())
+
+
+def test_the_motive_shows_in_the_open_row(client, procedure, board, evaluator_user):
+    """REQ-081: el motivo de corregir o quitar se ve junto al cambio, con quién y cuándo."""
+    row, other = board.rows[:2]
+    log_in(client, evaluator_user)
+    client.post(url("s2_quitar", procedure, other.pk), {"motive": "Duplica otro."})
+    client.post(url("s2_restituir", procedure, other.pk))
+    client.post(url("s2_corregir", procedure, row.pk),
+                {**edit_form(row), "motive": "Es económico."})
+    html = client.get(tab(procedure)).content.decode()
+    assert re.search(r"Corregido por evaluador el \d\d/\d\d \d\d:\d\d · motivo: Es económico\.",
+                     html)
+    assert "Quitado por evaluador" in html and "motivo: Duplica otro." in html
