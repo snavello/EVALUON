@@ -1,0 +1,25 @@
+/* Tema «consulta de normativa» de la sección 5 (T-216, REQ-096). Todo va bajo `.s5-cons`. Usa los
+   tokens de la guía visual; sin recursos externos. */
+
+.s5-cons .aviso { margin: 10px 0; padding: 9px 12px; border-radius: var(--ev-radio-btn); border: 1px solid var(--ev-borde); font-size: var(--ev-t-sm); }
+.s5-cons .aviso-ok { background: var(--ev-azul-50); border-color: var(--ev-azul-300); }
+.s5-cons .aviso-error { background: var(--ev-beige-100); border-color: var(--ev-beige-400); font-weight: 600; }
+.s5-cons label { display: block; font-size: var(--ev-t-sm); font-weight: 600; margin-bottom: 4px; }
+.s5-cons input[type=search] {
+  flex: 1 1 18rem; min-width: 0; font: inherit; font-size: var(--ev-t-ctl); color: var(--ev-texto); background: var(--ev-superficie);
+  border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 6px 8px;
+}
+.s5-cons .fila-consulta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.s5-cons .espera { margin: 8px 0 0; font-size: var(--ev-t-sm); }
+.s5-cons .espera[hidden] { display: none; }
+.s5-cons .respuesta { scroll-margin-top: 5rem; }
+.s5-cons .pregunta { margin: 4px 0; overflow-wrap: anywhere; }
+.s5-cons .afirmacion { margin: 8px 0; overflow-wrap: anywhere; }
+.s5-cons .registro { font-size: var(--ev-t-xs); color: var(--ev-texto-suave); margin: 2px 0 6px; overflow-wrap: anywhere; }
+.s5-cons .nota { margin: 6px 0; padding: 8px 10px; border: 1px solid var(--ev-beige-400); background: var(--ev-beige-100); border-radius: var(--ev-radio-btn); font-size: var(--ev-t-sm); }
+.s5-cons sup.ref { margin-left: 2px; font-size: var(--ev-t-xs); }
+.s5-cons .cita-bloque { margin-top: 10px; scroll-margin-top: 5rem; }
+.s5-cons blockquote.cita { margin: 0 0 2px; padding: 8px 12px; border-left: 3px solid var(--ev-azul-300); background: var(--ev-superficie); overflow-wrap: anywhere; }
+.s5-cons .lista { list-style: none; margin: 0; padding: 0; }
+.s5-cons .lista li { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-top: 1px solid var(--ev-borde); }
+.s5-cons .lista li:first-child { border-top: 0; }
