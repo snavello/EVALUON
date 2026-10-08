@@ -1,0 +1,10 @@
+/* Historial de los documentos del pliego (T-200, REQ-099): línea de tiempo, botón de acento y lo retirado. */
+#seccion-detalle:has(#s2-historial-abierto) > :not(#s2-documentos) { display: none; }
+.btn.acento { background: var(--ev-rojo); color: #fff; border-color: var(--ev-rojo); }
+.btn.acento:hover { background: var(--ev-rojo-hover); }
+ol.historial { list-style: none; padding: 0; margin: 8px 0 0 8px; border-left: 2px solid var(--ev-azul-300); }
+ol.historial li { position: relative; padding: 0 0 16px 20px; font-size: var(--ev-t-sm); }
+ol.historial li::before { content: ""; position: absolute; left: -8px; top: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--ev-azul-700); border: 2px solid var(--ev-fondo); }
+ol.historial li.retiro::before { background: var(--ev-rojo); }
+ol.historial .cuando { color: var(--ev-texto-suave); font-size: var(--ev-t-xs); }
+tr.retirado th, tr.retirado td { color: var(--ev-texto-suave); }

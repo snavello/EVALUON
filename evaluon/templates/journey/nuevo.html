@@ -1,0 +1,82 @@
+{% extends "journey/seccion_base.html" %}
+{% load static %}
+
+{% comment %}Alta de un procedimiento antes de que exista (T-195, REQ-076): dentro de las cinco pestañas, con las dos entradas «Explorar el Portal» y «Subir el pliego»; con un enlace ya explorado, lo que encontró el sistema agrupado y su aprobación. Ver evaluon/journey/views/nuevo.py.{% endcomment %}
+
+{% block title %}Nuevo procedimiento · EVALUON{% endblock %}
+
+{% block head %}{{ block.super }}{% if refresh %}<meta http-equiv="refresh" content="{{ refresh }}">{% endif %}{% endblock %}
+
+{% block section_css %}<link rel="stylesheet" href="{% static 'journey/s1.css' %}">{% endblock %}
+
+{% block cuerpo %}
+<div class="seccion seccion-procedimiento seccion-nuevo">
+  <h1>Nuevo procedimiento</h1>
+
+  {% if not link %}
+  <p class="resumen-linea">Todavía no existe. Se arma por una de las dos entradas y no se tipea nada. Cuando la Comisión aprueba la propuesta, el procedimiento se crea y se habilitan sus pestañas.</p>
+  <div class="dos entradas">
+    <div class="bloque" id="entrada-portal">
+      <div class="bloque-cab"><h3>Explorar el Portal</h3></div>
+      <p class="ayuda">Pegue el enlace del proceso. El sistema muestra lo que encontró (datos, renglones, cronograma, garantías, documentos y ofertas) y usted aprueba ítem por ítem o todo junto.</p>
+      <form method="post" action="{% url 'expedientes:nuevo' %}">
+        {% csrf_token %}
+        <div class="enlace-portal"><div class="campo"><label for="in-enlace">Enlace del proceso en el Portal</label><input id="in-enlace" type="url" name="url" maxlength="2000" value="{{ pasted }}" required aria-describedby="ayuda-enlace"></div></div>
+        <p class="ayuda" id="ayuda-enlace">Es la dirección de la vista previa del pliego, completa.</p>
+        {% if error %}
+        <div class="aviso aviso-error" id="error-enlace" role="alert"><strong>{{ error }}</strong>
+          {% if existing %}<br><a href="{% if existing.procedure_id %}{% url 'expedientes:procedimiento' existing.procedure_id %}{% else %}{% url 'expedientes:nuevo_enlace' existing.pk %}{% endif %}">Ver ese proceso</a>{% endif %}
+          <br>Revíselo o, si el procedimiento no está en el Portal, suba el pliego.</div>
+        {% endif %}
+        <div class="bloque-pie"><button class="btn primario" type="submit">Explorar el Portal</button></div>
+      </form>
+    </div>
+    <div class="bloque" id="entrada-pliego">
+      <div class="bloque-cab"><h3>Subir el pliego</h3></div>
+      <p class="ayuda">Para un procedimiento que no está en el Portal. El sistema lee el archivo y propone número, expediente, tipo, objeto, fecha de autorización y renglones; usted los aprueba o corrige con motivo.</p>
+      {% if pliego.upload %}{% include pliego_partial with t=pliego %}
+      {% else %}
+      <div class="bloque-pie"><button class="btn primario" type="button" disabled aria-describedby="pliego-pronto">Subir el pliego</button><span class="suave chica" id="pliego-pronto">Disponible en breve</span></div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="aviso aviso-ok"><strong>Después de aprobar</strong> Se crea el procedimiento y se habilitan sus pestañas: los datos y renglones quedan en «Procedimiento», el pliego en «Pliego y matriz» y, si vienen del Portal, las circulares y ofertas en «Ofertas».</div>
+
+  {% else %}
+  {% with v=link %}
+  <p class="volver"><a href="{{ new_url }}">Volver a las dos entradas</a></p>
+  <p class="resumen-linea">Proceso del Portal: <b class="num">{{ v.link.process_number|default:"sin leer todavía" }}</b>. {{ v.job.text }}{% if v.job.at %} · {{ v.job.at }}{% endif %}.</p>
+
+  {% if messages %}
+  <div class="aviso aviso-ok" id="s1-resultado" role="status">
+    <ul class="resultado-subida">{% for m in messages %}<li class="{% if m.ok %}ok{% else %}rechazado{% endif %}">{{ m.text }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  {% if v.job.open %}
+  <div class="aviso" role="status"><strong>El sistema está leyendo el Portal</strong> Esta pantalla se actualiza sola; lo que encuentre aparece acá, sin cargarse hasta que lo apruebe.</div>
+  {% elif v.job.failed %}
+  <div class="aviso aviso-error" role="alert"><strong>{{ v.job.text }}</strong> Revise el enlace o pruebe de nuevo; si el procedimiento no está en el Portal, suba el pliego.</div>
+  {% endif %}
+
+  {% if v.proposal.groups or v.proposal.anomalies %}
+  <div id="s1-propuesta" class="propuesta-portal">
+    <h2>Propuesta del sistema</h2>
+    <p class="resumen-linea">El sistema encontró <b>{{ v.proposal.total }}</b> ítems. Apruebe ítem por ítem o todo junto; lo aprobado queda en la sección que dice la columna «Queda en».</p>
+    {% include "journey/temas/_s1_propuesta.html" with v=v kinds=confirm_kinds %}
+  </div>
+  {% elif not v.job.open and not v.job.failed %}
+  <div class="estado-vacio"><h3>No hay nada para proponer</h3><p>El Portal no devolvió datos que cargar en este proceso.</p></div>
+  {% endif %}
+
+  {% if v.can_load %}
+  <div class="fila acciones-portal">
+    <form method="post" action="{{ v.urls.review }}">{% csrf_token %}<button class="btn secundario" type="submit">Explorar de nuevo</button></form>
+    {% if v.link.following %}<form method="post" action="{{ v.urls.stop }}">{% csrf_token %}<button class="btn secundario" type="submit">Dejar de seguir</button></form>{% endif %}
+    <a class="btn secundario" href="{{ new_url }}">Volver</a>
+  </div>
+  {% endif %}
+  {% endwith %}
+  {% endif %}
+</div>
+{% endblock %}

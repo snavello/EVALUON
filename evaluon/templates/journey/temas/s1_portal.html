@@ -1,1 +1,76 @@
-{% comment %}Parcial del tema s1_portal (Explorador y cargador del Portal). Vacío en el corte vertical; lo completa T-195.{% endcomment %}
+{% comment %}Tema s1_portal (T-195, REQ-076, REQ-079, REQ-097): el proceso del Portal, la propuesta agrupada con su aprobación y las novedades de la revisión. Las acciones llaman a los servicios de la 012 y vuelven a esta pestaña con el resultado. Recibe `t` (ver evaluon/journey/temas/s1_portal.py).{% endcomment %}
+<div class="bloque" id="s1-portal">
+  <div class="bloque-cab"><h3>Portal de Compras</h3>
+    <span class="linea-portal">Lo que se encuentra en el Portal no se carga hasta que la Comisión lo aprueba</span></div>
+
+  {% if t.messages %}
+  <div class="aviso aviso-ok" id="s1-resultado" role="status">
+    <ul class="resultado-subida">
+      {% for m in t.messages %}<li class="{% if m.ok %}ok{% else %}rechazado{% endif %}">{{ m.text }}{% if m.url %} <a href="{{ m.url }}">Ir a {{ m.label }}</a>{% endif %}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% for v in t.links %}
+  <div class="proceso-portal">
+    <div class="fila">
+      <span>Proceso en el Portal: <b class="num">{{ v.link.process_number|default:"sin leer todavía" }}</b></span>
+      <span class="suave chica">{{ v.job.text }}{% if v.job.at %} · {{ v.job.at }}{% endif %}{% if v.last_review %} · última revisión {{ v.last_review }}{% endif %}</span>
+    </div>
+    <div class="fila">
+      {% if v.link.following %}
+      {% if v.can_load %}
+      <form method="post" action="{{ v.urls.review }}">{% csrf_token %}<button class="btn secundario chico" type="submit">Revisar ahora</button></form>
+      <form method="post" action="{{ v.urls.stop }}">{% csrf_token %}<button class="btn secundario chico" type="submit">Dejar de seguir</button></form>
+      {% endif %}
+      <span class="suave chica">El sistema revisa el proceso cada mañana de día hábil.</span>
+      {% else %}
+      <span class="suave chica">Sin seguimiento: el sistema ya no revisa este proceso.</span>
+      {% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <div class="estado-vacio">
+    <p>Este procedimiento no tiene un proceso del Portal asociado. Pegue el enlace del proceso: si el número coincide con el de este procedimiento, lo que se apruebe se suma a él.</p>
+    {% if t.can_load %}<a class="btn primario" href="{{ t.new_url }}">Tomar del Portal</a>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+{% for v in t.links %}
+{% if v.proposal.pending or v.proposal.anomalies %}
+<div id="{% if forloop.first %}s1-propuesta{% else %}s1-propuesta-{{ v.link.pk }}{% endif %}" class="propuesta-portal">
+  <h3>Propuesta del sistema <span class="cta">{{ v.proposal.pending }} sin aprobar</span></h3>
+  <p class="resumen-linea">Esto es lo que encontró el sistema en el Portal. Apruebe ítem por ítem, grupo por grupo o todo junto; lo aprobado queda en la sección que dice la columna «Queda en».</p>
+  {% include "journey/temas/_s1_propuesta.html" with v=v kinds=t.confirm_kinds %}
+</div>
+{% endif %}
+{% endfor %}
+
+{% if t.links %}
+<div class="bloque" id="s1-novedades">
+  <div class="bloque-cab"><h3>Novedades del Portal <span class="cta">{{ t.news_count }} sin aprobar</span></h3><span class="linea-portal">Las novedades salen de la revisión periódica del proceso</span></div>
+  {% if t.news %}
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <caption class="sr-only">Novedades del Portal que esperan aprobación</caption>
+    <thead><tr><th scope="col">Novedad</th><th scope="col">Publicada</th><th scope="col">Queda en</th><th scope="col" class="e">Estado</th><th scope="col">Acción</th></tr></thead>
+    <tbody>
+      {% for v, i in t.news %}
+      <tr id="nov-{{ i.pk }}"><th scope="row">{{ i.title }}{% if i.damaged %}{% include "journey/temas/_s1_dano.html" %}{% endif %}{% if i.changed %}<br><span class="chica">Cambiado respecto de lo aprobado</span>{% endif %}</th>
+        <td class="num">{{ i.published }}</td><td>{{ i.destination }}</td>
+        <td class="e">{% include "journey/_icono.html" with icon=i.icon name=i.icon_name %}</td>
+        <td>{% if i.can_decide %}
+          <form method="post" action="{{ v.urls.decide }}">{% csrf_token %}
+            {% if i.ask_kind or i.ask_date %}{% include "journey/temas/_s1_confirmar.html" with kinds=t.confirm_kinds %}{% endif %}
+            {% if i.authorization.ask %}<label for="fecha-{{ i.pk }}">Fecha de autorización</label> <input type="date" name="fecha_{{ i.pk }}" id="fecha-{{ i.pk }}" value="{{ i.authorization.candidate }}">{% endif %}
+            <button class="btn primario chico" type="submit" name="aprobar" value="item:{{ i.pk }}">Aprobar la carga</button></form>
+          {% else %}<span class="suave chica">Lo aprueba un evaluador</span>{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <div class="bloque-pie"><span>Nada entra sin su aprobación: hasta entonces la novedad figura como pendiente.</span></div>
+  {% else %}
+  <p class="suave">No hay novedades sin aprobar.</p>
+  {% endif %}
+</div>
+{% endif %}

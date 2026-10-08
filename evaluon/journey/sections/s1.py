@@ -13,7 +13,7 @@ TEMA_KEYS = ("s1_datos", "s1_portal", "s1_pliego")
 def legacy_links(procedure):
     return [("Datos y documentos del procedimiento",
              reverse("tenders:procedure", args=[procedure.pk])),
-            ("Importar del Portal", reverse("portal:links"))]
+            ("Importar del Portal", reverse("expedientes:nuevo"))]
 
 
 def upload_url(procedure):
