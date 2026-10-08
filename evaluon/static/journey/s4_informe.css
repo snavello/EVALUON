@@ -1,0 +1,31 @@
+/* Tema «informe técnico del área» de la sección 4 (T-209, REQ-089). Todo va bajo `.s4-inf` para no
+   mezclarse con los demás temas de la sección. Usa los tokens de la guía visual; sin recursos
+   externos. */
+
+.s4-inf label { display: block; font-size: var(--ev-t-sm); font-weight: 600; margin-bottom: 4px; }
+.s4-inf select, .s4-inf textarea {
+  width: 100%; font: inherit; font-size: var(--ev-t-ctl); color: var(--ev-texto); background: var(--ev-superficie);
+  border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 6px 8px;
+}
+.s4-inf .subida { margin: 8px 0 14px; padding: 10px 12px; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-btn); background: var(--ev-superficie); }
+.s4-inf .subida .campos { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; margin-bottom: 10px; }
+.s4-inf .subida .campos > div { min-width: 14rem; flex: 1 1 14rem; }
+.s4-inf .matriz { min-width: 40rem; }
+.s4-inf .matriz th.oferta small { display: block; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.s4-inf .matriz td.e small { display: block; font-size: var(--ev-t-2xs); color: var(--ev-texto-suave); margin-top: 2px; max-width: 18rem; }
+.s4-inf .cita-it { display: block; font-size: var(--ev-t-xs); overflow-wrap: anywhere; margin-bottom: 4px; }
+.s4-inf .ofertas-informe { margin-top: 14px; }
+.s4-inf .oferta-informe { border-top: 1px solid var(--ev-borde); padding: 8px 0 4px; }
+.s4-inf .oferta-informe h4 { margin: 0 0 4px; font-family: var(--ev-fuente-titulo); font-size: var(--ev-t-base); }
+.s4-inf .docs-informe { margin: 0 0 6px; padding-left: 1.1rem; font-size: var(--ev-t-sm); }
+.s4-inf .registro { font-size: var(--ev-t-xs); color: var(--ev-texto-suave); margin: 2px 0 6px; }
+.s4-inf form.en-linea { display: inline-block; margin: 0 6px 6px 0; }
+.s4-inf .acciones-fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; margin-top: 6px; }
+.s4-inf details.acc { display: inline-block; vertical-align: top; margin: 0 6px 6px 0; }
+.s4-inf details.acc > summary { list-style: none; cursor: pointer; display: inline-block; }
+.s4-inf details.acc > summary::-webkit-details-marker { display: none; }
+.s4-inf details.acc[open] { display: block; flex-basis: 100%; max-width: 40rem; }
+.s4-inf details.acc form { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-btn); background: var(--ev-superficie); }
+.s4-inf details.acc label { margin-top: 6px; }
+.s4-inf .aviso { margin: 8px 0; padding: 9px 12px; border-radius: var(--ev-radio-btn); border: 1px solid var(--ev-borde); font-size: var(--ev-t-sm); }
+.s4-inf .aviso-error { background: var(--ev-beige-100); border-color: var(--ev-beige-400); }
