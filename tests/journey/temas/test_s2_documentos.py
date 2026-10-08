@@ -273,7 +273,9 @@ def test_what_is_missing_shows_in_every_tab_as_text_without_old_links(
     log_in(client, operator_user)
     page = client.get(reverse(f"expedientes:{key}", args=[bare.pk])).content.decode()
     line = re.search(r'<p class="falta">(.*?)</p>', page, re.S)
-    assert "<a " not in (line.group(1) if line else "")
+    # lo que falta puede llevar su acción directa, pero nunca a una pantalla vieja
+    for href in re.findall(r'href="([^"]*)"', line.group(1) if line else ""):
+        assert href.startswith(f"/expedientes/{bare.pk}/")
     summary = re.search(r'id="seccion-resumen">(.*?)</p>', page, re.S).group(1).strip()
     assert summary
     for sentence in re.findall(r"[^.]+\.", summary):
