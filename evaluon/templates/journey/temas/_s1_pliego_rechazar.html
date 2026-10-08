@@ -1,0 +1,8 @@
+{% comment %}«Rechazar la lectura» (T-197, REQ-077): descarta un pliego mal leído o que falló, con motivo, para volver a subirlo. Solo lo ve un evaluador. Recibe `urls`.{% endcomment %}
+<details class="acc"><summary class="btn secundario">Rechazar la lectura</summary>
+  <form method="post" action="{{ urls.rechazar }}">{% csrf_token %}
+    <p class="ayuda">No se crea nada: el pliego queda descartado con su motivo y se puede volver a subir.</p>
+    <label for="motivo-rechazo">Motivo (obligatorio)</label>
+    <textarea id="motivo-rechazo" name="reason" rows="2" required></textarea>
+    <button class="btn acento" type="submit">Rechazar la lectura</button>
+  </form></details>

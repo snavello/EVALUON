@@ -125,20 +125,21 @@ def test_normativas_without_a_procedure_goes_to_the_general_consultation(
     assert "/normativas/" not in bar and f"/expedientes/{procedure.pk}/" not in bar
 
 
-def test_upload_the_tender_is_visible_but_not_available_yet(client, operator_user):
-    """La entrada «Subir el pliego» es de T-197: se ve, deshabilitada y con «Disponible en breve»."""
+def test_upload_the_tender_is_available_since_t197(client, operator_user):
+    """La entrada «Subir el pliego» (T-197) está habilitada: elige un archivo y lo sube."""
     log_in(client, operator_user)
     html = new_page(client).content.decode()
-    button = re.search(r"<button[^>]*disabled[^>]*>Subir el pliego</button>", html)
-    assert button and "Disponible en breve" in html
+    assert "Disponible en breve" not in html
+    assert "Subir y leer el pliego" in html and 'type="file"' in html
 
 
 def test_there_is_no_blank_form_to_create_a_procedure(client, operator_user):
-    """No hay alta en blanco: la única entrada de texto es el enlace del proceso."""
+    """No hay alta en blanco: lo único que se elige o pega es el enlace del proceso y el archivo
+    del pliego."""
     log_in(client, operator_user)
     html = new_page(client).content.decode()
     fields = re.findall(r'<(?:input|textarea|select)[^>]*name="([^"]+)"', html)
-    assert [f for f in fields if f != "csrfmiddlewaretoken"] == ["url"]
+    assert sorted(f for f in fields if f != "csrfmiddlewaretoken") == ["file", "url"]
 
 
 def test_new_screen_has_no_link_to_old_screens(client, operator_user, evaluator_user,
