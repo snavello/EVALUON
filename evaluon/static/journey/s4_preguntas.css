@@ -1,0 +1,17 @@
+/* Tema «preguntas y subsanación» de la sección 4 (T-208, REQ-090). Todo va bajo `.s4-preg` para no
+   mezclarse con los demás temas. Usa los tokens de la guía visual; sin recursos externos. */
+
+.s4-preg label { display: block; font-size: var(--ev-t-sm); font-weight: 600; margin-bottom: 4px; }
+.s4-preg select, .s4-preg textarea {
+  width: 100%; font: inherit; font-size: var(--ev-t-ctl); color: var(--ev-texto); background: var(--ev-superficie);
+  border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 6px 8px;
+}
+.s4-preg tr { scroll-margin-top: 5rem; }
+.s4-preg .registro { font-size: var(--ev-t-xs); color: var(--ev-texto-suave); margin: 2px 0 6px; overflow-wrap: anywhere; }
+.s4-preg form.en-linea { display: inline-block; margin: 0 6px 6px 0; }
+.s4-preg details.acc { display: inline-block; vertical-align: top; margin: 0 6px 6px 0; }
+.s4-preg details.acc > summary { list-style: none; cursor: pointer; display: inline-block; }
+.s4-preg details.acc > summary::-webkit-details-marker { display: none; }
+.s4-preg details.acc[open] { display: block; max-width: 36rem; }
+.s4-preg details.acc form { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-btn); background: var(--ev-superficie); }
+.s4-preg details.acc label { margin-top: 6px; }
