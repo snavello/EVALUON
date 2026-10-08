@@ -16,6 +16,6 @@ def legacy_links(procedure):
 
 
 def upload_url(procedure):
-    """Dónde se sube un archivo a esta sección hoy (T-192); las tareas de cada sección lo
-    reemplazan por su propio componente."""
-    return reverse("assessment:matrix", args=[procedure.pk])
+    """«Subir archivo» del encabezado lleva a la subida del informe técnico del área, en esta
+    misma pestaña (T-209)."""
+    return reverse("expedientes:evaluacion", args=[procedure.pk]) + "#s4-informe"
