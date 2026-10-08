@@ -36,6 +36,7 @@ from django.views.decorators.http import require_POST
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.audit.models import Channel
+from evaluon.journey import memo
 from evaluon.journey.sections.base import Item, Missing, TemaStatus
 from evaluon.journey.temas import s2_documentos
 from evaluon.portal.models import ItemKind, ItemState, LoadedModel, PortalItem
@@ -96,11 +97,24 @@ def matrix_url(procedure_id):
     return reverse("expedientes:pliego", args=[procedure_id]) + "#s2-matriz"
 
 
+def _states(procedure):
+    """Los estados de las circulares, calculados una vez por carga (la barra y el contexto los
+    piden los dos)."""
+    return memo.once(("s3_circulares", procedure.pk),
+                     lambda: circular_version.states(procedure))
+
+
+def _link_id(procedure):
+    return memo.once(("s3_circulares_link", procedure.pk), lambda: (
+        procedure.portal_links.order_by("-pk").values_list("pk", flat=True).first()))
+
+
 def portal_url(procedure):
     """A los ítems de documentos del Portal; sin proceso seguido, al bloque del Portal de la
     pestaña «Procedimiento», donde se da de alta (sin salir del expediente)."""
-    if procedure.portal_links.exists():
-        return s2_documentos.portal_url(procedure)
+    link_id = _link_id(procedure)
+    if link_id is not None:
+        return reverse("portal:proposal", args=[link_id]) + "#group-documento"
     return reverse("expedientes:procedimiento", args=[procedure.pk]) + "#s1-portal"
 
 
@@ -164,15 +178,17 @@ def _what_it_did(state, has_validated, has_versions, user_can):
 
 
 def _portal_items(procedure):
-    return PortalItem.objects.filter(
-        proposal__link__procedure=procedure, kind=ItemKind.DOCUMENTO).order_by("pk")
+    """Los ítems de documentos del Portal, en una consulta por carga."""
+    return memo.once(("s3_circulares_items", procedure.pk), lambda: list(
+        PortalItem.objects.filter(proposal__link__procedure=procedure,
+                                  kind=ItemKind.DOCUMENTO).order_by("pk")))
 
 
 def _from_portal(procedure, documents):
     """`{id del documento: ítem del Portal}` de las circulares que se tomaron del Portal."""
-    items = _portal_items(procedure).filter(
-        loaded_model=LoadedModel.DOCUMENT, loaded_id__in=[d.pk for d in documents])
-    return {item.loaded_id: item for item in items}
+    ids = {d.pk for d in documents}
+    return {item.loaded_id: item for item in _portal_items(procedure)
+            if item.loaded_model == LoadedModel.DOCUMENT and item.loaded_id in ids}
 
 
 def missing_from_portal(procedure):
@@ -190,7 +206,9 @@ def missing_from_portal(procedure):
 
 
 def rows_of(user, procedure):
-    states = circular_version.states(procedure)
+    states = _states(procedure)
+    if not states:
+        return []
     from_portal = _from_portal(procedure, [s.document for s in states])
     versions = procedure.matrix_versions.exclude(status=VersionStatus.DISCARDED)
     has_versions = versions.exists()
@@ -216,7 +234,8 @@ def rows_of(user, procedure):
 
 
 def status(user, procedure):
-    documents = circular_version.circulars_of(procedure)
+    rows = _states(procedure)
+    documents = [row.document for row in rows]
     sources, missing, pending = [], [], []
     if documents:
         portal = len(_from_portal(procedure, documents))
@@ -233,7 +252,7 @@ def status(user, procedure):
         what = "circular o aclaración" if count == 1 else "circulares o aclaraciones"
         missing.append(Missing(f"El Portal lista {count} {what} que no se tomaron",
                                portal_url(procedure), "Tomar del Portal"))
-    for state in circular_version.pending(procedure):
+    for state in circular_version.pending(procedure, rows):
         title = state.document.title
         if state.state == circular_version.EN_BORRADOR:
             pending.append(Item(

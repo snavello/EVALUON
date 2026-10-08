@@ -151,15 +151,20 @@ def effect_in(document, version):
     return effect
 
 
-def states(procedure):
-    """El estado de cada circular, aclaración y respuesta del procedimiento."""
+def states(procedure, documents=None):
+    """El estado de cada circular, aclaración y respuesta del procedimiento. `documents` son
+    las circulares ya traídas (`circulars_of`), para no pedirlas dos veces; sin ninguna no se
+    consulta nada más."""
+    documents = circulars_of(procedure) if documents is None else documents
+    if not documents:
+        return []
     versions = _versions(procedure)
     used = [(version, _used_documents(version)) for version in versions]
     propose = procedure.jobs.filter(kind=JobKind.PROPOSE_MATRIX)
     building = propose.filter(status__in=(JobStatus.QUEUED, JobStatus.RUNNING)).exists()
     last = propose.order_by("-requested_at", "-id").first()
     rows = []
-    for document in circulars_of(procedure):
+    for document in documents:
         row = CircularState(document=document, state=NO_APLICA,
                             reading=_reading_state(document))
         if document.kind == DocumentKind.CIRCULAR_MODIFICATORIA:
@@ -184,13 +189,15 @@ def states(procedure):
     return rows
 
 
-def pending(procedure):
+def pending(procedure, rows=None):
     """Las modificatorias sin una matriz nueva validada. Si el procedimiento todavía no tiene
     ninguna versión de la matriz, no hay nada que rehacer: la primera propuesta las incluye."""
-    if not procedure.matrix_versions.exclude(status=VersionStatus.DISCARDED).exists():
+    rows = states(procedure) if rows is None else rows
+    open_rows = [row for row in rows if row.state in (SIN_VERSION, EN_BORRADOR, DESCARTADA)]
+    if not open_rows or not procedure.matrix_versions.exclude(
+            status=VersionStatus.DISCARDED).exists():
         return []
-    return [row for row in states(procedure)
-            if row.state in (SIN_VERSION, EN_BORRADOR, DESCARTADA)]
+    return open_rows
 
 
 def open_for_circular(user, procedure, document, *, channel=Channel.SCREEN):

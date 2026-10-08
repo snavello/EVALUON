@@ -39,6 +39,17 @@ def scoped(view):
     return wrapper
 
 
+def once(key, compute):
+    """`compute()` una vez por alcance y `key`; fuera de un alcance calcula cada vez. Sirve para
+    lo que varios temas piden en la misma carga (T-205, REQ-100)."""
+    memo = _active.get()
+    if memo is None:
+        return compute()
+    if key not in memo:
+        memo[key] = compute()
+    return memo[key]
+
+
 def matrix_page(user, procedure_id, *, channel=Channel.SCREEN):
     """`matrix_service.matrix_page`, calculada una vez por alcance. La primera llamada hace la
     comprobación de rol y su registro; si lanza, no se guarda nada."""
