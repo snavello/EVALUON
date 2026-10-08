@@ -164,6 +164,18 @@ def _excerpt(text):
     return text if len(text) <= EXCERPT else text[:EXCERPT].rstrip() + "…"
 
 
+def _changed_by(row):
+    """Los documentos (circulares) que cambiaron el texto de alguna cita del requisito, en el
+    orden de fecha y sin repetir (REQ-085)."""
+    titles = []
+    for quote in row.quotes:
+        for source in [*quote.earlier, *([quote.current] if quote.current else [])]:
+            title = source.place.document_title
+            if title not in titles:
+                titles.append(title)
+    return titles
+
+
 def _marks(row):
     marks = []
     requirement = row.requirement
@@ -173,8 +185,9 @@ def _marks(row):
         marks.append("Agregado por una persona")
     if requirement.origin == RequirementOrigin.DEVUELTO:
         marks.append("Devuelto de las descartadas")
-    if any(q.current or q.earlier for q in row.quotes):
-        marks.append("Texto cambiado por circular")
+    changers = _changed_by(row)
+    if changers:
+        marks.append(f"Cambiado por {', '.join(changers)} (versión {requirement.version.number})")
     if any(q.voided for q in row.quotes):
         marks.append("Sin efecto por circular")
     if any(q.wide for q in row.quotes):
