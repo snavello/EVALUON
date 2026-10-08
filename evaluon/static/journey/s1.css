@@ -3,3 +3,35 @@
 .origen b { font-family: var(--ev-fuente-titulo); font-weight: 700; letter-spacing: var(--ev-espaciado-etiqueta); text-transform: uppercase; font-size: var(--ev-t-2xs); color: var(--ev-texto); }
 .origen a { color: inherit; }
 .dano { margin-left: 6px; font-size: var(--ev-t-xs); white-space: nowrap; }
+
+/* Explorador y cargador del Portal (T-195): la propuesta agrupada, el alta sin procedimiento y las
+   pestañas aún no disponibles. Los avisos repiten los de la sección 2 porque cada hoja se carga
+   solo en su sección. */
+.aviso { margin: 10px 0; padding: 9px 12px; border-radius: var(--ev-radio-btn); border: 1px solid var(--ev-borde); font-size: var(--ev-t-sm); }
+.aviso-ok { background: var(--ev-azul-50); border-color: var(--ev-azul-300); }
+.aviso-error { background: var(--ev-beige-100); border-color: var(--ev-beige-400); font-weight: 600; }
+.aviso ul { margin: 6px 0 0; padding-left: 1.2rem; }
+.aviso li.rechazado { font-weight: 600; }
+.enlace-portal { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.enlace-portal .campo { flex: 1; min-width: 18rem; }
+.campo label, .confirmar label { display: block; font-size: var(--ev-t-xs); font-weight: 600; margin-bottom: 3px; }
+.campo input, .confirmar select, .confirmar input, .propuesta input[type=date] {
+  font: inherit; font-size: var(--ev-t-ctl); border: 1px solid var(--ev-borde-campo);
+  border-radius: var(--ev-radio-btn); padding: 6px 8px; background: var(--ev-superficie); color: var(--ev-texto);
+}
+.campo input { width: 100%; }
+.confirmar { display: inline-block; margin: 4px 12px 0 0; }
+.proceso-portal { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; border-top: 1px solid var(--ev-borde); }
+.proceso-portal form { margin: 0; }
+.propuesta-portal { margin-top: 18px; }
+.estado-item { margin: 6px 0; }
+.propuesta .bloque .tabla-scroll + .tabla-scroll { margin-top: 10px; }
+.acciones-portal { margin-top: 16px; }
+.acciones-portal form { margin: 0; }
+.pie-total { justify-content: space-between; }
+nav.tabs .off {
+  display: flex; flex-direction: column; align-items: center; padding: 8px 6px; cursor: not-allowed;
+  color: var(--ev-texto-suave); opacity: .7; border-bottom: 3px solid transparent;
+}
+nav.tabs .off .t-nombre { font-weight: 600; font-size: var(--ev-t-sm); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
