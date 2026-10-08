@@ -66,7 +66,7 @@ flowchart LR
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
-| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 16/34 | █████░░░░░ 47% |
+| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 17/34 | █████░░░░░ 50% |
 
 <a id="001"></a>
 
@@ -1052,8 +1052,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 18 tareas sin terminar.
-- ▶ T-221 · Rendimiento de las pestañas con datos reales: Pliego y matriz, Ofertas y Evaluación cargan en menos de 2 s con el procedimiento real del sistema principal (medido en una base aparte restaurada del respaldo) (en curso)
+- **Próximo paso:** Desarrollar: 17 tareas sin terminar.
 - ○ T-202 · Sección 3: lista de ofertas con alta a la vista (desde el Portal o subiendo archivos, con nombre y CUIT propuestos para aprobar o corregir) y documentos de cada oferta, subida múltiple (pendiente)
 - ○ T-204 · Sección 3: anexos técnicos dentro de la oferta y hoja de compliance por oferta con el faltante a la vista (absorbe la parte de compliance de T-191) (pendiente)
 - ○ T-205 · Sección 3: circulares y aclaraciones (Portal o subidas); una circular modificatoria abre una versión nueva de la matriz con lo cambiado marcado (pendiente)
@@ -1091,6 +1090,7 @@ flowchart LR
 - ✓ T-209 · Sección 4: informe técnico del área (por procedimiento o por oferta) y ok de la Comisión (absorbe la parte de informe técnico de T-191) (`f26b92d` 2026-10-08, `f1577a1` 2026-10-08, `2f36fad` 2026-10-08)
 - ✓ T-213 · Propuesta de los datos de una norma desde su archivo y staging de la subida (sin pantalla) (`fc5a81b` 2026-10-08)
 - ✓ T-214 · Sección 5: subir una norma, ver el informe de lectura y validarla desde la pantalla (`4e46b05` 2026-10-08, `80230c0` 2026-10-08)
+- ✓ T-221 · Rendimiento de las pestañas con datos reales: Pliego y matriz, Ofertas y Evaluación cargan en menos de 2 s con el procedimiento real del sistema principal (medido en una base aparte restaurada del respaldo) (`73bfe16` 2026-10-08, `dd680b9` 2026-10-08)
 
 ### Mapa de tareas
 
@@ -1125,7 +1125,7 @@ flowchart TD
   T218["○ T-218 · Comprobación final con el caso chico y el c…"]:::todo
   T219["○ T-219 · Las pantallas anteriores redirigen a su sec…"]:::todo
   T220["○ T-220 · Propuesta de nombre y CUIT del oferente des…"]:::todo
-  T221["▶ T-221 · Rendimiento de las pestañas con datos reale…"]:::active
+  T221["✓ T-221 · Rendimiento de las pestañas con datos reale…"]:::done
   T185["○ T-185 · T-217 (con sus avisos: pausa del sondeo con…"]:::todo
   T186["○ T-186 · T-218 (con la nota de runbook: reconstruir…"]:::todo
   T188["○ T-188 · T-192 (base de la guía visual) y la aplicac…"]:::todo

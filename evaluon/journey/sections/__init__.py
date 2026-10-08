@@ -6,6 +6,7 @@ comprobación de rol y el rechazo registrado) y arma las cinco secciones con sus
 
 from dataclasses import dataclass
 
+from evaluon.journey import memo
 from evaluon.journey.sections import s1, s2, s3, s4, s5
 from evaluon.journey.sections.base import Section, build_section
 from evaluon.journey.stages import stages_for
@@ -29,9 +30,10 @@ class Overview:
 
 def sections_for(user, procedure, *, channel=None):
     """Calcula las cinco secciones. Lanza `RoleRejected` sin rol de la Comisión (403)."""
-    journey = stages_for(user, procedure, channel=channel)
-    by_key = {stage.key: stage for stage in journey.stages}
-    built = tuple(build_section(module, user, procedure, by_key) for module in SECTIONS)
+    with memo.scope():
+        journey = stages_for(user, procedure, channel=channel)
+        by_key = {stage.key: stage for stage in journey.stages}
+        built = tuple(build_section(module, user, procedure, by_key) for module in SECTIONS)
     return Overview(procedure=procedure, journey=journey, sections=built,
                     pending=sum(s.pending for s in built),
                     suggestions=sum(s.suggestions for s in built))
