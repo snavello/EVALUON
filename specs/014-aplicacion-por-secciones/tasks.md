@@ -24,7 +24,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-197 | Sección 1: alta subiendo el pliego (propuesta con citas; el evaluador aprueba, descarta o corrige escribiendo valor y motivo; sin alta en blanco) | REQ-077, REQ-076, REQ-097 | T-195, T-196 | pendiente |
 | T-198 | Sección 2: documentos del pliego, anexos y especificaciones (lista por tipo con origen, subida de varios a la vez, tomar del Portal, faltantes) | REQ-080, REQ-097 | T-192 | terminada |
 | T-199 | Servicio de historial de documentos del pliego y de las ofertas: reemplazar, retirar, restituir, con auditoría y estado calculado (sin pantalla) | REQ-099 | T-193 | terminada |
-| T-200 | Sección 2: reemplazar, retirar y restituir documentos del pliego, historial de versiones y «retirados» | REQ-099, REQ-097 | T-198, T-199 | pendiente |
+| T-200 | Sección 2: reemplazar, retirar y restituir documentos del pliego, historial de versiones y «retirados» | REQ-099, REQ-097 | T-198, T-199 | terminada |
 | T-201 | Sección 2: acciones de la Comisión en la tabla de la matriz (confirmar, corregir, quitar, agregar, validar), versión nueva, imprimir y exportar | REQ-081, REQ-082 | T-192 | terminada |
 | T-202 | Sección 3: lista de ofertas con alta a la vista (desde el Portal o subiendo archivos, con nombre y CUIT propuestos para aprobar o corregir) y documentos de cada oferta, subida múltiple | REQ-083, REQ-084, REQ-097 | T-192, T-220 | pendiente |
 | T-203 | Sección 3: ficha de cada oferta (qué presentó frente a cada requisito, con el fragmento o «no se encontró en la oferta») | REQ-086 | T-192 | terminada |
