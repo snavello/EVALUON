@@ -343,3 +343,14 @@ def test_an_action_on_something_that_is_not_of_the_procedure_is_not_found(
     log_in(client, operator_user)
     wrong = reverse("expedientes:s3_ficha_agregar", args=[procedure.pk + 1000, entry.pk])
     assert client.post(wrong, {"passage": 1}).status_code == 404
+
+
+def test_the_summary_line_of_the_tab_starts_with_a_capital(client, procedure, offer, sheet,
+                                                            operator_user):
+    """REQ-100: la línea de resumen de la pestaña empieza con mayúscula."""
+    log_in(client, operator_user)
+    html = client.get(url("ofertas", procedure)).content.decode()
+    text = re.search(r'id="seccion-resumen">\s*(.*?)</p>', html, re.S).group(1).strip()
+    assert "de la ficha por confirmar" in text
+    assert text[0].isupper()
+    assert "Oferta 1 (" in text
