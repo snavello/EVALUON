@@ -65,6 +65,7 @@ class Row:
     original_url: str = ""
     validate_url: str = ""
     upload_url: str = ""
+    amendment: bool = False
 
 
 def upload_url(procedure):
@@ -219,7 +220,8 @@ def _amendment_rows(procedure, governs):
                .select_related("target_norm").order_by("pk"))
     return [Row(name=f"{_type_name(e.norm_type)} {e.number}/{e.year} ({e.issuer.upper()})",
                 why=f"Modifica a {e.target_norm.citation}", state=MISSING,
-                source=f"Registrada {_day(e.registered_at)}", upload_url=upload_url(procedure))
+                source=f"Registrada {_day(e.registered_at)}", upload_url=upload_url(procedure),
+                amendment=True)
             for e in entries]
 
 
@@ -289,7 +291,7 @@ def status(user, procedure):
     la carga de normas (T-214)."""
     url = upload_url(procedure)
     missing = tuple(Missing(f"Falta cargar {r.name}", url, "Subir archivo")
-                    for r in rows(procedure) if r.state == MISSING)
+                    for r in rows(procedure) if r.state == MISSING and not r.amendment)
     source = (f"Normas que rigen: calculadas desde la fecha de autorización, "
               f"{procedure.authorization_date:%d/%m/%Y}.")
     return TemaStatus(missing=missing, sources=(source,))

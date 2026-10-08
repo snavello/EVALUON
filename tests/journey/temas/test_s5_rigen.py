@@ -251,3 +251,18 @@ def test_a_law_without_year_is_found_when_loaded(after, operator_user, make_norm
                      citation="Ley 24.156")
     make_reading(make_document(norm), [("art-1", "Texto sintético.")])
     assert only(s5_rigen.rows(after), "Ley 24.156").state == s5_rigen.LOADED
+
+
+def test_a_governing_amendment_is_counted_once_in_the_section(after, two_regimes,
+                                                              operator_user):
+    """REQ-097: la modificatoria sin cargar de la norma que rige se ve en la tabla de s5_rigen
+    pero la cuenta solo s5_normas: la sección no la suma dos veces."""
+    from evaluon.journey.temas import s5_normas
+
+    PendingAmendment.objects.create(
+        target_norm=two_regimes.new, norm_type="disposicion", number="500", year=2024,
+        issuer="afip", source_ref="nota", registered_by=two_regimes.new.created_by)
+    assert any("500/2024" in r.name for r in s5_rigen.rows(after))
+    assert not any("500/2024" in m.text for m in s5_rigen.status(None, after).missing)
+    mine = [m for m in s5_normas.status(operator_user, after).missing if "500/2024" in m.text]
+    assert len(mine) == 1
