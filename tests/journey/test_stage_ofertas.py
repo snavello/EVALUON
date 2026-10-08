@@ -140,8 +140,8 @@ def test_proposed_rows_make_the_stage_decidable_with_the_count(procedure, two_of
     stage = ofertas.compute(operator_user, procedure)
     assert stage.state == base.A_DECIDIR
     assert stage.pending == 4
-    assert f"oferta {first.number} ({first.bidder}): 3 filas" in stage.detail
-    assert f"oferta {second.number} ({second.bidder}): 1 fila " in stage.detail
+    assert f"Oferta {first.number} ({first.bidder}): 3 filas" in stage.detail
+    assert f"Oferta {second.number} ({second.bidder}): 1 fila " in stage.detail
 
 
 def test_only_the_latest_sheet_of_each_offer_counts(procedure, offer, matrix, operator_user):
