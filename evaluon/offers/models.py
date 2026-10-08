@@ -20,8 +20,14 @@ from django.db.models import F, Q
 from django.utils import timezone
 from pgvector.django import VectorField
 
-from evaluon.norms.models import SHA256_REGEX, TsvectorField
-from evaluon.tenders.models import Job, MatrixVersion, Procedure, Requirement
+from evaluon.norms.models import SHA256_REGEX, ProposalState, TsvectorField
+from evaluon.tenders.models import (
+    DocumentChangeAction,
+    Job,
+    MatrixVersion,
+    Procedure,
+    Requirement,
+)
 
 EMBEDDING_DIMENSIONS = settings.EMBEDDINGS_DIMENSIONS
 
@@ -87,6 +93,9 @@ class DocumentKind(models.TextChoices):
     GARANTIA = "garantia", "Garantía"
     COMPLIANCE = "compliance", "Hoja de compliance"
     INFORME_TECNICO = "informe_tecnico", "Informe técnico del área"
+    # Feature 014 (REQ-087): ficha o folleto técnico del oferente; lo fija la acción de la
+    # Comisión al subirlo dentro de la oferta y la clasificación por reglas no lo pisa.
+    ANEXO_TECNICO = "anexo_tecnico", "Anexo técnico de la oferta"
     OTRO = "otro", "Otro"
 
 
@@ -448,3 +457,127 @@ class Change(models.Model):
         constraints = [
             _valid("action", ChangeAction, "offers_change_action_valid"),
         ]
+
+
+# --- Feature 014: historial de documentos y alta desde los archivos --------------------------
+
+
+class DocumentChange(models.Model):
+    """Un cambio de un documento de la oferta. Solo se insertan filas (P6); ver
+    `tenders.DocumentChange`, de la que es gemela (ADR-0048, REQ-099)."""
+
+    document = models.ForeignKey(
+        Document, verbose_name="documento", on_delete=models.PROTECT, related_name="changes"
+    )
+    action = models.CharField(
+        "acción", max_length=12, choices=DocumentChangeAction.choices
+    )
+    new_document = models.ForeignKey(
+        Document, verbose_name="documento nuevo", on_delete=models.PROTECT, null=True,
+        blank=True, related_name="replaces",
+    )
+    note = models.TextField("nota", blank=True)
+    user = _user_fk("usuario", "offer_document_changes")
+    at = models.DateTimeField("momento", default=timezone.now)
+    event = models.ForeignKey(
+        "audit.AuditEvent", verbose_name="hecho registrado", on_delete=models.PROTECT,
+        related_name="offer_document_changes",
+    )
+
+    class Meta:
+        db_table = "offers_document_change"
+        verbose_name = "cambio de un documento de la oferta"
+        verbose_name_plural = "cambios de los documentos de las ofertas"
+        indexes = [models.Index(fields=["document", "id"], name="offers_docchange_document")]
+        constraints = [
+            _valid("action", DocumentChangeAction, "offers_document_change_action_valid"),
+            models.CheckConstraint(
+                condition=(
+                    Q(action=DocumentChangeAction.REEMPLAZAR)
+                    & Q(new_document__isnull=False)
+                    & ~Q(new_document=F("document"))
+                )
+                | (
+                    ~Q(action=DocumentChangeAction.REEMPLAZAR)
+                    & Q(new_document__isnull=True)
+                ),
+                name="offers_document_change_new_document_only_if_replaced",
+            ),
+        ]
+
+
+class OfferDraft(models.Model):
+    """Los archivos de una oferta que espera aprobación (REQ-083; ADR-0049): la oferta no
+    puede existir sin oferente, así que los archivos esperan aquí hasta que la Comisión aprueba
+    o corrige el nombre y el CUIT propuestos. `proposal` guarda cada dato con su cita y, por
+    dato, `{propuesto, corregido, motivo, quién, cuándo}`. Los datos personales solo existen
+    en la base (P4). No es un registro de hechos: cambia de estado."""
+
+    procedure = models.ForeignKey(
+        Procedure, verbose_name="procedimiento", on_delete=models.PROTECT,
+        related_name="offer_drafts",
+    )
+    proposal = models.JSONField("propuesta", default=dict)
+    state = models.CharField(
+        "estado", max_length=10, choices=ProposalState.choices,
+        default=ProposalState.LEYENDO,
+    )
+    failure = models.TextField("motivo de la falla", blank=True)
+    job = models.ForeignKey(
+        Job, verbose_name="pedido", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="offer_drafts",
+    )
+    created_by = _user_fk("subido por", "offer_drafts_created")
+    created_at = models.DateTimeField("subido", default=timezone.now)
+    offer = models.OneToOneField(
+        Offer, verbose_name="oferta resultante", on_delete=models.PROTECT, null=True,
+        blank=True, related_name="draft",
+    )
+
+    class Meta:
+        db_table = "offers_offer_draft"
+        verbose_name = "borrador de oferta"
+        verbose_name_plural = "borradores de oferta"
+        constraints = [
+            _valid("state", ProposalState, "offers_offer_draft_state_valid"),
+            models.CheckConstraint(
+                condition=(Q(state=ProposalState.APROBADO) & Q(offer__isnull=False))
+                | (~Q(state=ProposalState.APROBADO) & Q(offer__isnull=True)),
+                name="offers_offer_draft_offer_only_if_approved",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.procedure} · borrador {self.pk}"
+
+
+class OfferDraftFile(models.Model):
+    """Un archivo de un borrador de oferta (bytes y huella)."""
+
+    draft = models.ForeignKey(
+        OfferDraft, verbose_name="borrador", on_delete=models.PROTECT, related_name="files"
+    )
+    file_name = models.CharField("nombre del archivo", max_length=255)
+    file_format = models.CharField("formato", max_length=10, choices=FileFormat.choices)
+    file_size = models.PositiveBigIntegerField("tamaño")
+    file_sha256 = models.CharField("huella del archivo", max_length=64)
+    content = models.BinaryField("contenido")
+
+    class Meta:
+        db_table = "offers_offer_draft_file"
+        verbose_name = "archivo de un borrador de oferta"
+        verbose_name_plural = "archivos de los borradores de oferta"
+        constraints = [
+            _valid("file_format", FileFormat, "offers_offer_draft_file_format_valid"),
+            models.CheckConstraint(
+                condition=Q(file_sha256__regex=SHA256_REGEX),
+                name="offers_offer_draft_file_sha256_valid",
+            ),
+            # El mismo archivo dos veces en un borrador se rechaza.
+            models.UniqueConstraint(
+                fields=["draft", "file_sha256"], name="offers_offer_draft_file_sha256_unique"
+            ),
+        ]
+
+    def __str__(self):
+        return self.file_name

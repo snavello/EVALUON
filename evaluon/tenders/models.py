@@ -23,7 +23,7 @@ from django.db.models import F, Func, Q
 from django.db.models.lookups import Exact, LessThanOrEqual
 from django.utils import timezone
 
-from evaluon.norms.models import SHA256_REGEX, FileFormat, TextOrigin
+from evaluon.norms.models import SHA256_REGEX, FileFormat, ProposalState, TextOrigin
 
 
 def _user_fk(verbose_name, related_name, null=False):
@@ -95,6 +95,8 @@ class DocumentKind(models.TextChoices):
     CIRCULAR_MODIFICATORIA = "circular_modificatoria", "Circular modificatoria"
     CIRCULAR_ACLARATORIA = "circular_aclaratoria", "Circular aclaratoria"
     RESPUESTA_CONSULTA = "respuesta_consulta", "Respuesta a consulta"
+    # Feature 014 (REQ-092): el dictamen que la Comisión sube cuando el Portal no lo publica.
+    DICTAMEN = "dictamen", "Dictamen"
 
 
 # Tipos de documento que llevan fecha obligatoria (REQ-031).
@@ -330,10 +332,19 @@ class JobKind(models.TextChoices):
     # Feature 004 (ADR-0039): evaluar las ofertas de un procedimiento; `target_id` es el
     # pedido de evaluación (`assessment_request`), sin clave foránea.
     EVALUATE_OFFERS = "evaluate_offers", "Evaluar las ofertas"
+    # Feature 014 (ADR-0049, REQ-077 y REQ-083): leer un pliego o los archivos de una oferta y
+    # proponer sus datos; `target_id` es el borrador (`tenders_procedure_draft` u
+    # `offers_offer_draft`), sin clave foránea.
+    PROPOSE_PROCEDURE = "propose_procedure", "Proponer el procedimiento desde el pliego"
+    PROPOSE_OFFER = "propose_offer", "Proponer la oferta desde sus archivos"
 
 
 # Tipos que atiende el servicio `portal_worker` y no el `worker` (ADR-0031).
 PORTAL_JOB_KINDS = (JobKind.PORTAL_EXPLORE, JobKind.PORTAL_REVIEW)
+
+# Pedidos que nombran un borrador (feature 014). Solo `propose_procedure` puede no tener
+# procedimiento: el borrador de una oferta ya cuelga de uno.
+PROPOSAL_JOB_KINDS = (JobKind.PROPOSE_PROCEDURE, JobKind.PROPOSE_OFFER)
 
 
 class JobStatus(models.TextChoices):
@@ -401,10 +412,17 @@ class Job(models.Model):
                 | Q(target_id__isnull=False),
                 name="tenders_job_offer_kinds_have_target",
             ),
-            # Solo los pedidos del Portal pueden no tener procedimiento (ADR-0030).
+            # Solo los pedidos del Portal (ADR-0030) y la propuesta de procedimiento desde el
+            # pliego (ADR-0049) pueden no tener procedimiento.
             models.CheckConstraint(
-                condition=Q(procedure__isnull=False) | Q(kind__in=PORTAL_JOB_KINDS),
+                condition=Q(procedure__isnull=False)
+                | Q(kind__in=[*PORTAL_JOB_KINDS, JobKind.PROPOSE_PROCEDURE]),
                 name="tenders_job_procedure_required",
+            ),
+            # Un pedido de propuesta nombra su borrador.
+            models.CheckConstraint(
+                condition=~Q(kind__in=PROPOSAL_JOB_KINDS) | Q(target_id__isnull=False),
+                name="tenders_job_proposal_kinds_have_target",
             ),
             # Un pedido del Portal nombra su enlace.
             models.CheckConstraint(
@@ -1317,3 +1335,114 @@ class NormSupport(models.Model):
         constraints = [
             _char_range("tenders_norm_support"),
         ]
+
+
+# --- Feature 014: historial de documentos y alta desde el pliego ---------------------------
+
+
+class DocumentChangeAction(models.TextChoices):
+    """Qué se hizo con un documento (ADR-0048, REQ-099). Los comparten el historial del
+    pliego y el de las ofertas."""
+
+    REEMPLAZAR = "reemplazar", "Reemplazar"
+    RETIRAR = "retirar", "Retirar"
+    RESTITUIR = "restituir", "Restituir"
+
+
+class DocumentChange(models.Model):
+    """Un cambio de un documento del pliego. Solo se insertan filas (P6): el documento y su
+    archivo original nunca se modifican ni se borran. "Vigente", "reemplazado" y "retirado" se
+    calculan del último cambio del documento. En `reemplazar`, `new_document` es la versión
+    nueva, que ya existe como documento (se cargó con la carga de siempre)."""
+
+    document = models.ForeignKey(
+        Document, verbose_name="documento", on_delete=models.PROTECT, related_name="changes"
+    )
+    action = models.CharField(
+        "acción", max_length=12, choices=DocumentChangeAction.choices
+    )
+    new_document = models.ForeignKey(
+        Document, verbose_name="documento nuevo", on_delete=models.PROTECT, null=True,
+        blank=True, related_name="replaces",
+    )
+    note = models.TextField("nota", blank=True)
+    user = _user_fk("usuario", "tender_document_changes")
+    at = models.DateTimeField("momento", default=timezone.now)
+    event = models.ForeignKey(
+        "audit.AuditEvent", verbose_name="hecho registrado", on_delete=models.PROTECT,
+        related_name="tender_document_changes",
+    )
+
+    class Meta:
+        db_table = "tenders_document_change"
+        verbose_name = "cambio de un documento del pliego"
+        verbose_name_plural = "cambios de los documentos del pliego"
+        indexes = [models.Index(fields=["document", "id"], name="tenders_docchange_document")]
+        constraints = [
+            _valid("action", DocumentChangeAction, "tenders_document_change_action_valid"),
+            # El documento nuevo está si y solo si se reemplaza, y no es el mismo.
+            models.CheckConstraint(
+                condition=(
+                    Q(action=DocumentChangeAction.REEMPLAZAR)
+                    & Q(new_document__isnull=False)
+                    & ~Q(new_document=F("document"))
+                )
+                | (
+                    ~Q(action=DocumentChangeAction.REEMPLAZAR)
+                    & Q(new_document__isnull=True)
+                ),
+                name="tenders_document_change_new_document_only_if_replaced",
+            ),
+        ]
+
+
+class ProcedureDraft(models.Model):
+    """El pliego subido que espera aprobación (ADR-0049, REQ-077). El procedimiento no puede
+    existir antes de aprobarse (sus datos son obligatorios), así que el pliego espera aquí con
+    la propuesta. `proposal` guarda cada dato con sus candidatos y su cita y, por dato,
+    `{propuesto, corregido, motivo, quién, cuándo}`. No es un registro de hechos: cambia de
+    estado."""
+
+    file_name = models.CharField("nombre del archivo", max_length=255)
+    file_format = models.CharField("formato", max_length=10, choices=FileFormat.choices)
+    file_size = models.PositiveBigIntegerField("tamaño")
+    file_sha256 = models.CharField("huella del archivo", max_length=64)
+    content = models.BinaryField("contenido")
+    proposal = models.JSONField("propuesta", default=dict)
+    state = models.CharField(
+        "estado", max_length=10, choices=ProposalState.choices,
+        default=ProposalState.LEYENDO,
+    )
+    failure = models.TextField("motivo de la falla", blank=True)
+    job = models.ForeignKey(
+        Job, verbose_name="pedido", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="procedure_drafts",
+    )
+    created_by = _user_fk("subido por", "procedure_drafts_created")
+    created_at = models.DateTimeField("subido", default=timezone.now)
+    procedure = models.OneToOneField(
+        Procedure, verbose_name="procedimiento resultante", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="draft",
+    )
+
+    class Meta:
+        db_table = "tenders_procedure_draft"
+        verbose_name = "borrador de procedimiento"
+        verbose_name_plural = "borradores de procedimiento"
+        constraints = [
+            _valid("state", ProposalState, "tenders_procedure_draft_state_valid"),
+            _valid("file_format", FileFormat, "tenders_procedure_draft_file_format_valid"),
+            models.CheckConstraint(
+                condition=Q(file_sha256__regex=SHA256_REGEX),
+                name="tenders_procedure_draft_file_sha256_valid",
+            ),
+            # Aprobado dice qué procedimiento creó, y solo él.
+            models.CheckConstraint(
+                condition=(Q(state=ProposalState.APROBADO) & Q(procedure__isnull=False))
+                | (~Q(state=ProposalState.APROBADO) & Q(procedure__isnull=True)),
+                name="tenders_procedure_draft_procedure_only_if_approved",
+            ),
+        ]
+
+    def __str__(self):
+        return self.file_name
