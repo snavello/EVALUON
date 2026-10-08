@@ -239,6 +239,11 @@ def upload(request, procedure_id):
     for index, upload_file in enumerate(uploads):
         name = upload_file.name
         kind = request.POST.get(f"kind_{index}") or default_kind
+        if kind not in KIND_VALUES:
+            results.append(_result(name, False, "El tipo de documento no corresponde a esta "
+                                   "pestaña (pliego, anexo o especificaciones técnicas): no "
+                                   "se cargó."))
+            continue
         title = (request.POST.get(f"title_{index}") or "").strip() or _title(name)
         text_date = (request.POST.get(f"issued_on_{index}") or "").strip()
         content = upload_file.read()

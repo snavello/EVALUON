@@ -136,6 +136,15 @@ def build_section(module, user, procedure, stages_by_key):
         missing += status.missing
         tema_missing += status.missing
 
+    # Lo que falta se ve siempre: si los temas aportan faltantes, esos; si no, los de las etapas
+    # como texto, con enlace solo si apunta a las pantallas nuevas. Una sección con resumen
+    # propio ya dice lo que falta en su resumen.
+    if tema_missing or hasattr(module, "summary"):
+        shown_missing = tema_missing
+    else:
+        shown_missing = [Missing(m.text, m.url if (m.url or "").startswith("/expedientes/")
+                                 else None, m.action) for m in missing]
+
     failed = next((s for s in stages if s.state == stage_base.CON_ERROR), None)
     return Section(
         key=module.KEY, label=module.LABEL, slug=module.SLUG,
@@ -143,7 +152,7 @@ def build_section(module, user, procedure, stages_by_key):
         state=combine(stages, pending), pending=pending, suggestions=suggestions,
         summary=(module.summary(user, procedure, stages) if hasattr(module, "summary")
                  else tuple((s.label, s.detail) for s in stages if s.detail)),
-        missing=tuple(missing), tema_missing=tuple(tema_missing),
+        missing=tuple(missing), tema_missing=tuple(shown_missing),
         sources=tuple(source for status in statuses for source in status.sources),
         pending_items=tuple(pending_items), suggestion_items=tuple(suggestion_items),
         error=plain_reason(failed.error) if failed else "",

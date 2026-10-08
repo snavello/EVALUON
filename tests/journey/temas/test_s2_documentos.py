@@ -133,22 +133,20 @@ def test_an_unreadable_file_is_refused_and_the_rest_go_on(client, bare, operator
     assert "no es un PDF ni una página web guardada" in page
 
 
-def test_a_dated_kind_without_date_is_refused_and_with_date_is_loaded(client, bare,
-                                                                      operator_user):
-    """REQ-080: el tipo que exige fecha la pide; con la fecha se carga."""
+def test_an_optional_date_is_kept_and_an_invalid_one_is_refused(client, bare, operator_user):
+    """REQ-080: la fecha opcional se guarda; una que no es fecha se rechaza y queda registrada."""
     log_in(client, operator_user)
     response = client.post(upload_url(bare), {
-        "files": [pdf_file("c1.pdf", "uno"), pdf_file("c2.pdf", "dos"), pdf_file("c3.pdf", "tres")],
-        "kind_0": "circular_modificatoria", "kind_1": "circular_modificatoria",
-        "issued_on_1": "2026-09-10", "kind_2": "pliego", "issued_on_2": "31/02/2026"})
+        "files": [pdf_file("c2.pdf", "dos"), pdf_file("c3.pdf", "tres")],
+        "kind_0": "anexo", "issued_on_0": "2026-09-10", "kind_1": "pliego",
+        "issued_on_1": "31/02/2026"})
     page = htmllib.unescape(follow(client, response).content.decode())
-    assert "una circular modificatoria lleva siempre su fecha" in page
     assert "no es una fecha válida" in page
     assert list(bare.documents.values_list("file_name", flat=True)) == ["c2.pdf"]
     assert bare.documents.get().issued_on == datetime.date(2026, 9, 10)
     reasons = set(AuditEvent.objects.filter(outcome=Outcome.REJECTED)
                   .values_list("detail__reason", flat=True))
-    assert reasons == {"missing_date", "invalid_date"}
+    assert reasons == {"invalid_date"}
 
 
 def test_no_file_chosen_says_so(client, bare, operator_user):
@@ -266,3 +264,27 @@ def test_empty_matrix_offers_upload_without_tender_and_proposal_with_a_read_one(
     response = client.post(reverse("expedientes:s2_proponer", args=[bare.pk]))
     assert response.status_code == 302 and response["Location"].startswith(tab(bare))
     assert Job.objects.filter(kind=JobKind.PROPOSE_MATRIX, procedure=bare).exists()
+
+
+@pytest.mark.parametrize("key", ["ofertas", "evaluacion"])
+def test_what_is_missing_shows_in_every_tab_as_text_without_old_links(
+        client, bare, operator_user, key):
+    """REQ-097: Ofertas y Evaluación sin ofertas siguen mostrando qué falta, sin «Ir» viejos."""
+    log_in(client, operator_user)
+    page = client.get(reverse(f"expedientes:{key}", args=[bare.pk])).content.decode()
+    line = re.search(r'<p class="falta">(.*?)</p>', page, re.S)
+    assert line is not None
+    assert "<a " not in line.group(1)
+    assert f"/procedimientos/{bare.pk}/" not in page
+
+
+def test_a_crafted_kind_outside_this_tab_is_refused_with_its_reason(client, bare,
+                                                                     operator_user):
+    """REQ-080: solo pliego, anexo y especificaciones; una circular armada a mano se rechaza."""
+    log_in(client, operator_user)
+    response = client.post(upload_url(bare), {
+        "files": [pdf_file("c.pdf", "circular"), pdf_file("ok.pdf", "bueno")],
+        "kind_0": "circular_modificatoria", "issued_on_0": "2026-09-10", "kind_1": "anexo"})
+    page = htmllib.unescape(follow(client, response).content.decode())
+    assert "no corresponde a esta pestaña" in page
+    assert list(bare.documents.values_list("kind", flat=True)) == ["anexo"]
