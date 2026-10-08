@@ -1,0 +1,8 @@
+{% comment %}Las cinco secciones, siempre visibles, cada una con su ícono de estado y sus dos cuentas (REQ-075). Lo arma la página y lo vuelve a pedir el sondeo. No tiene formularios (P3).{% endcomment %}<ul>
+  {% for s in overview.sections %}
+  <li><a href="{{ s.url }}" data-seccion="{{ s.key }}" data-state="{{ s.state }}" data-label="{{ s.label }}" data-error="{{ s.error }}"{% if s.key == active %} aria-current="page"{% endif %}>
+    <span class="t-nombre">{% include "journey/_icono.html" with icon=s.icon name=s.state_label tip=False %}<span>{{ s.label }}</span></span>
+    <span class="t-pie"><b>{{ s.pending }}</b> pend. · <b>{{ s.suggestions }}</b> sug.</span>
+  </a></li>
+  {% endfor %}
+</ul>

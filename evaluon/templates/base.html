@@ -7,14 +7,16 @@
   <link rel="stylesheet" href="{% static 'css/evaluon.css' %}">
   {% block head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   {% block banner %}{% endblock %}
+  {% block site_header %}
   <header class="site-header">
     <span class="site-name">EVALUON</span>
     {% if user.is_authenticated %}
     {% if user.commission_role %}
     <nav class="site-nav" aria-label="Secciones">
       <a href="{% url 'queries:screen' %}">Consulta</a>
+      <a href="{% url 'expedientes:index' %}">Expedientes</a>
       <a href="{% url 'journey:index' %}">Recorrido</a>
       <a href="{% url 'tenders:procedures' %}">Procedimientos</a>
       <a href="{% url 'portal:links' %}">Importar del Portal</a>
@@ -27,6 +29,7 @@
     </form>
     {% endif %}
   </header>
+  {% endblock %}
   <main>
     {% finished_notice %}
     {% block content %}{% endblock %}

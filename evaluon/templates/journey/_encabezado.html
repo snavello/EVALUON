@@ -1,0 +1,25 @@
+{% comment %}Encabezado de la aplicación y fila de las cinco pestañas (maqueta aprobada de la 014). Los desplegables son `details`: funcionan sin scripts.{% endcomment %}<header class="top"><div class="wrap">
+  <a class="nombre" href="{% url 'expedientes:index' %}">EVALUON</a>
+  <details class="sel-proc">
+    <summary class="btn-menu" aria-label="Cambiar de procedimiento"><span class="b-txt"><small>Procedimiento</small>{{ procedure.number }} · {{ procedure.subject }}</span><span aria-hidden="true">▾</span></summary>
+    <div class="menu" role="menu">
+      <p class="menu-tit">Cambiar de procedimiento</p>
+      {% for p in procedures %}
+      <a role="menuitem" href="{% url 'expedientes:portada' p.pk %}"{% if p.pk == procedure.pk %} class="actual" aria-current="true"{% endif %}>{{ p.number }}<small>{{ p.subject|truncatechars:80 }}</small></a>
+      {% endfor %}
+      <hr>
+      <a role="menuitem" href="{% url 'journey:index' %}">+ Nuevo procedimiento</a>
+    </div>
+  </details>
+  <span class="espacio"></span>
+  <span class="sel-user"><strong>{{ user.username }}</strong>{% if role_label %}<small>{{ role_label }}</small>{% endif %}</span>
+  <form method="post" action="{% url 'accounts:logout' %}" class="logout-form">
+    {% csrf_token %}
+    <button class="btn secundario" type="submit">Salir</button>
+  </form>
+</div></header>
+<nav class="tabs" aria-label="Secciones del procedimiento"><div class="wrap">
+  <div id="barra-secciones" data-poll-url="{{ bar_url }}?activa={{ active }}" data-login-url="{{ login_url }}">{% include "journey/_barra.html" %}</div>
+  <p id="journey-status" class="journey-status sr-only" role="status" aria-live="polite"></p>
+  <p id="journey-connection" class="journey-connection" role="status" hidden></p>
+</div></nav>

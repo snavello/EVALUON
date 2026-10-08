@@ -1,0 +1,35 @@
+{% extends "journey/seccion_base.html" %}
+{% load static %}
+
+{% block title %}{{ section.label }} · {{ procedure.number }} · EVALUON{% endblock %}
+
+{% block section_css %}<link rel="stylesheet" href="{% static section.css %}">{% endblock %}
+
+{% block cuerpo %}
+<div class="seccion seccion-{{ section.key }}">
+  <div class="encab-parte">
+    <h2 id="seccion-titulo">{{ section.label }}</h2>
+    {% include "journey/_cargas.html" %}
+  </div>
+  <p class="resumen-linea" id="seccion-resumen">
+    {% if section.summary %}{% for label, detail in section.summary %}<span class="linea"><b>{{ label }}</b>: {{ detail }}</span>{% endfor %}{% else %}Esta sección no tiene todavía datos que resumir.{% endif %}
+    {% for source in section.sources %}<span class="linea origen">{{ source }}</span>{% endfor %}
+  </p>
+  {% if section.missing %}
+  <p class="falta"><b>Falta:</b> {% for item in section.missing %}{{ item.text }}{% if item.url %} <a href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+  {% endif %}
+
+  {% include "journey/_paneles.html" with pending_total=section.pending suggestion_total=section.suggestions pending_rows=pending_rows suggestion_rows=suggestion_rows show_section=False %}
+
+  <div id="seccion-detalle">
+    {% for block in blocks %}{% include block.partial with t=block.t %}{% endfor %}
+  </div>
+
+  <footer class="bloque" id="seccion-acciones">
+    <div class="bloque-cab"><h3>Otras pantallas de esta parte</h3><span class="linea-portal">Siguen funcionando mientras se completa la reorganización.</span></div>
+    <ul class="lista">
+      {% for label, url in section.legacy_links %}<li><a href="{{ url }}">{{ label }}</a></li>{% endfor %}
+    </ul>
+  </footer>
+</div>
+{% endblock %}
