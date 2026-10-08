@@ -19,7 +19,14 @@ from django.urls import reverse
 
 from evaluon.journey.progress import progress_of
 from evaluon.journey.stages import base
-from evaluon.portal.models import ItemKind, ItemState, LoadedModel, PortalItem, PortalProposal
+from evaluon.portal.models import (
+    ItemKind,
+    ItemState,
+    LoadedModel,
+    PortalItem,
+    PortalOfferData,
+    PortalProposal,
+)
 from evaluon.tenders.models import JobKind, JobStatus
 
 KINDS = (JobKind.PORTAL_EXPLORE, JobKind.PORTAL_REVIEW)
@@ -45,7 +52,11 @@ def _loaded_ids(links, model):
 def _origin_text(procedure, links):
     """Lo que trajo el Portal y, aparte, lo subido a mano (REQ-071)."""
     portal_docs = _loaded_ids(links, LoadedModel.DOCUMENT)
-    portal_offers = _loaded_ids(links, LoadedModel.OFFER)
+    # Las ofertas del acta del Portal cuentan como Portal: las cargadas por un ítem aprobado y
+    # las que tienen datos del acta con un ítem de origen.
+    portal_offers = _loaded_ids(links, LoadedModel.OFFER) | set(
+        PortalOfferData.objects.filter(offer__procedure=procedure, item__isnull=False)
+        .values_list("offer_id", flat=True))
     doc_ids = set(procedure.documents.values_list("pk", flat=True))
     offer_ids = set(procedure.offers.values_list("pk", flat=True))
     brought = []
