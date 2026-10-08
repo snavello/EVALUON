@@ -25,6 +25,9 @@ Sin esta reorganización no se puede mostrar el producto ni operarlo en el pilot
 | 2026-10-07 | Normas (5.1) | «Solo subir el archivo»: se sube el PDF de la norma; el sistema la lee, muestra el informe de lectura y la Comisión la valida. |
 | 2026-10-07 | Resto de la hoja «EVALUON en cinco secciones» (1.1 a 1.4, 2.1 a 2.3, 3.1, 3.2, 3.6, 4.1 a 4.3, 4.5, 5.2, 5.3, T.1 a T.6) | «Todo sí». |
 | 2026-10-07 | Diseño | «ademas en las pantallas usa el diseño que acordamos» (guía visual, `docs/diseno/guia-visual.md`). |
+| 2026-10-07 | Alta de oferta sin Portal: nombre y CUIT del oferente | «El sistema lo propone»: lee los archivos de la oferta y propone nombre y CUIT con su cita; la Comisión aprueba o corrige. |
+| 2026-10-07 | Corregir un dato propuesto (pliego, oferta, norma) | «Escribe el valor y motivo»: corrige lo propuesto, motivo obligatorio, queda registrado quién y cuándo; nada se escribe desde cero. |
+| 2026-10-07 | Exportación de la planilla por oferta y el cuadro comparativo | «Excel y PDF». |
 
 Decisiones anteriores que siguen vigentes: el Portal es la primera fuente y lo que no publica se sube como complemento (REQ-071, spec 013); los pendientes y las sugerencias se ven separados y los dos visibles (REQ-072, spec 013); la ficha de la oferta es opcional (plan 013); los cuatro íconos de estado tienen el nombre propio de cada pantalla al pasar el mouse (ADR-0046, punto 7).
 
