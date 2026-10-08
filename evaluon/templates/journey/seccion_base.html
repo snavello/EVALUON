@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% comment %}Plantilla común de la aplicación por secciones (T-192, REQ-100): encabezado con el procedimiento y el usuario, las cinco pestañas siempre visibles y, en el cuerpo, la misma jerarquía en todas las pantallas: título, resumen, pendientes y sugerencias, detalle y acciones al pie.{% endcomment %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'diseno/tokens.css' %}">
+<link rel="stylesheet" href="{% static 'journey/secciones.css' %}">
+<link rel="stylesheet" href="{% static 'journey/recorrido.css' %}">
+{% block section_css %}{% endblock %}
+<script src="{% static 'journey/recorrido.js' %}" defer></script>
+<script src="{% static 'journey/secciones.js' %}" defer></script>
+{% endblock %}
+
+{% block body_class %}app{% endblock %}
+
+{% block site_header %}{% include "journey/_sprite.html" %}{% include "journey/_encabezado.html" %}{% endblock %}
+
+{% block content %}
+<div class="wrap">
+{% block cuerpo %}{% endblock %}
+</div>
+{% endblock %}

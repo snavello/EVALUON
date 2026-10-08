@@ -1,0 +1,45 @@
+{% extends "journey/seccion_base.html" %}
+
+{% block title %}{{ procedure.number }} · EVALUON{% endblock %}
+
+{% block cuerpo %}
+<div class="seccion seccion-portada">
+  <div class="encab-parte">
+    <div>
+      <h1 id="seccion-titulo">{{ procedure.subject }}</h1>
+      <div class="datos-proc">
+        <span>{{ procedure.procedure_type }} <b class="num">N.º {{ procedure.number }}</b></span>
+        <span>Autorización <b class="num">{{ procedure.authorization_date|date:"d/m/Y" }}</b></span>
+      </div>
+    </div>
+  </div>
+  <p class="resumen-linea" id="seccion-resumen">
+    {% if overview.pending or overview.suggestions %}Hay <b>{{ overview.pending }}</b> cosa{{ overview.pending|pluralize }} por decidir y <b>{{ overview.suggestions }}</b> sugerencia{{ overview.suggestions|pluralize }} del sistema, repartidas en las cinco pestañas. Se puede entrar a cualquiera en cualquier momento.{% else %}No hay nada pendiente de decidir ni sugerencias del sistema. Se puede entrar a cualquier pestaña en cualquier momento.{% endif %}
+  </p>
+
+  {% include "journey/_paneles.html" with pending_total=overview.pending suggestion_total=overview.suggestions pending_rows=pending_items suggestion_rows=suggestion_items show_section=True %}
+
+  <div id="seccion-detalle">
+    <h3>Qué hay y qué falta, por pestaña</h3>
+    <div class="cards5">
+      {% for s in overview.sections %}
+      <div class="panel">
+        <h4>{% include "journey/_icono.html" with icon=s.icon name=s.state_label %}{{ s.label }}</h4>
+        <dl>
+          <dt>Cómo está</dt>
+          <dd>{% if s.summary %}{% for label, detail in s.summary %}{{ detail }}{% if not forloop.last %} {% endif %}{% endfor %}{% else %}Todavía sin datos para resumir.{% endif %}</dd>
+          <dt>Falta</dt>
+          <dd>{% if s.missing %}{% for item in s.missing %}{{ item.text }}{% if item.url %} <a href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}{% if not forloop.last %}<br>{% endif %}{% endfor %}{% else %}Nada.{% endif %}</dd>
+          {% if s.sources %}<dt>De dónde vino</dt><dd>{% for source in s.sources %}{{ source }} {% endfor %}</dd>{% endif %}
+        </dl>
+        <div class="pie"><a class="btn secundario chico" href="{{ s.url }}">Ir a «{{ s.label }}»</a></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <footer id="seccion-acciones">
+    <div id="ventana-proceso" data-poll-url="{{ window_url }}" data-login-url="{{ login_url }}">{% include "journey/_window.html" %}</div>
+  </footer>
+</div>
+{% endblock %}

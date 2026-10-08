@@ -1,0 +1,23 @@
+{% comment %}Lo pendiente de decidir y las sugerencias del sistema, en dos bloques aparte y siempre visibles (REQ-098). Recibe `pending_total`, `suggestion_total` y las listas `pending_rows` y `suggestion_rows` de pares (sección, renglón) o de renglones sueltos con `show_section`.{% endcomment %}<div class="dos paneles">
+  <section class="panel" id="pendientes" aria-labelledby="pendientes-titulo">
+    <h3 id="pendientes-titulo">Pendientes de decidir <span class="cta">{{ pending_total }}</span></h3>
+    {% if pending_rows %}
+    <ul class="lista">
+      {% for s, item in pending_rows %}
+      <li>{% if show_section %}<span class="donde">{{ s.label }}</span>{% endif %}<span>{{ item.text }}</span>{% if item.url %}<a class="accion" href="{{ item.url }}">Ver</a>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="suave">No hay nada pendiente de decidir.</p>{% endif %}
+  </section>
+  <section class="panel" id="sugerencias" aria-labelledby="sugerencias-titulo">
+    <h3 id="sugerencias-titulo">Sugerencias del sistema <span class="cta">{{ suggestion_total }}</span></h3>
+    {% if suggestion_rows %}
+    <ul class="lista">
+      {% for s, item in suggestion_rows %}
+      <li>{% if show_section %}<span class="donde">{{ s.label }}</span>{% endif %}<span>{{ item.text }}</span>{% if item.url %}<a class="accion" href="{{ item.url }}">Ver</a>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    <p class="ayuda">Son propuestas del sistema: no frenan nada y las decide la Comisión.</p>
+    {% else %}<p class="suave">El sistema no tiene sugerencias por ahora.</p>{% endif %}
+  </section>
+</div>
