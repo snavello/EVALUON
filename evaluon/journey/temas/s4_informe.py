@@ -22,7 +22,6 @@ from django.views.decorators.http import require_POST
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.assessment.models import TechnicalVerdict
-from evaluon.assessment.services import matrix as matrix_service
 from evaluon.assessment.services import technical, technical_report
 from evaluon.audit.models import Channel
 from evaluon.journey import memo

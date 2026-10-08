@@ -21,7 +21,6 @@ from django.utils import timezone
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.assessment.models import Action, AnswerScope, Decision, Doubt, Outcome
-from evaluon.assessment.services import matrix as matrix_service
 from evaluon.assessment.services import questions as questions_service
 from evaluon.assessment.services import remedy as remedy_service
 from evaluon.audit.models import Channel
