@@ -46,6 +46,7 @@ class Item:
     text: str
     url: str | None = None
     count: int = 0
+    action: str = "Ver"
 
 
 @dataclass(frozen=True)
@@ -58,6 +59,7 @@ class TemaStatus:
     sources: tuple = ()
     pending_items: tuple = ()
     suggestion_items: tuple = ()
+    detailed_stages: tuple = ()  # etapas cuyo renglón genérico reemplazan los renglones del tema
 
 
 @dataclass(frozen=True)
@@ -118,10 +120,12 @@ def build_section(module, user, procedure, stages_by_key):
     pending = sum(s.pending for s in stages) + sum(t.pending for t in statuses)
     suggestions = sum(s.suggestions for s in stages) + sum(t.suggestions for t in statuses)
 
+    detailed = {key for status in statuses for key in status.detailed_stages}
     pending_items = [Item(f"{s.label}: {s.pending} por decidir", s.decide_url or s.view_url,
-                          s.pending) for s in stages if s.pending]
+                          s.pending) for s in stages if s.pending and s.key not in detailed]
     suggestion_items = [Item(f"{s.label}: {s.suggestions} del sistema", s.view_url,
-                             s.suggestions) for s in stages if s.suggestions]
+                             s.suggestions) for s in stages
+                        if s.suggestions and s.key not in detailed]
     missing = [Missing(s.detail, s.view_url, "Ir") for s in stages
                if s.state == stage_base.PENDIENTE and not s.optional]
     for status in statuses:
