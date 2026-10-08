@@ -15,10 +15,12 @@ from evaluon.audit.models import Channel
 from evaluon.portal.models import PortalLink
 from evaluon.portal.services import links as services
 from evaluon.portal.services import schedule
+from evaluon.journey.legacy import section_url, to_section
 
 TEMPLATE = "portal/links.html"
 
 
+@to_section(lambda request: reverse("expedientes:nuevo"))
 @require_http_methods(["GET", "POST"])
 def links(request):
     error = ""

@@ -16,6 +16,7 @@ from evaluon.assessment.models import Answer, AnswerScope, Question
 from evaluon.assessment.services import evaluate, questions
 from evaluon.audit.models import Channel
 from evaluon.tenders.models import Procedure
+from evaluon.journey.legacy import section_url, to_section
 
 QUESTIONS_TEMPLATE = "assessment/questions.html"
 ANSWERED_PARAM = "respondida"
@@ -48,6 +49,7 @@ def _procedure(procedure_id):
         raise Http404("No hay un procedimiento con ese número.")
 
 
+@to_section(lambda request, procedure_id: section_url("evaluacion", procedure_id))
 @require_GET
 def question_list(request, procedure_id):
     """Las preguntas del procedimiento, abiertas y respondidas."""

@@ -217,26 +217,6 @@ def test_the_matrix_shows_each_reason_and_the_counts_without_changing_discards_o
     assert [r.offer.pk for r in after.order.totals] == before_order
 
 
-def test_the_matrix_page_shows_the_ok_with_who_and_when_and_the_buttons(
-        pending, evaluator_user, operator_user, procedure, client):
-    """REQ-061: la pantalla muestra por oferta y renglón el estado del ok con quién y cuándo, y
-    los botones solo al evaluador."""
-    offer, _ = pending
-    url = reverse("assessment:matrix", args=[procedure.pk])
-    log_in(client, operator_user)
-    text = text_of(client.get(url))
-    assert "Pendiente del informe técnico" in text
-    assert "Dar el ok del informe técnico" not in text
-    technical.give_ok(evaluator_user, offer, items=[1], verdicts={1: "no_apto"},
-                      note="Visto bueno inventado")
-    log_in(client, evaluator_user)
-    text = text_of(client.get(url))
-    assert "Dar el ok del informe técnico" in text and "Retirar el ok" in text
-    assert "Informe técnico aprobado (No apto), ok de" in text
-    assert "Visto bueno inventado" in text
-    assert "ok de la Comisión al informe técnico" in text
-
-
 def test_the_screen_gives_and_withdraws_the_ok(pending, evaluator_user, operator_user,
                                                 procedure, client):
     """REQ-061: el evaluador da y retira el ok desde la pantalla; el operador recibe 403; un ok

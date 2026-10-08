@@ -11,9 +11,11 @@ from datetime import date
 from django.http import Http404
 from django.shortcuts import render
 from django.template.loader import select_template
+from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from evaluon.audit.models import Channel
+from evaluon.journey.legacy import section_url, to_section
 from evaluon.portal.models import PortalItem, PortalLink
 from evaluon.portal.services import approval as services
 
@@ -37,6 +39,17 @@ def _page(request, link_id, results=None, error=""):
                                       "results": results or [], "error": error})
 
 
+def _link_section(request, link_id):
+    """Con procedimiento creado, su pestaña Procedimiento; si no, el alta con ese proceso."""
+    link = PortalLink.objects.filter(pk=link_id).first()
+    if link is None:
+        raise Http404("No hay un proceso del Portal con ese número.")
+    if link.procedure_id:
+        return section_url("procedimiento", link.procedure_id)
+    return reverse("expedientes:nuevo_enlace", args=[link.pk])
+
+
+@to_section(_link_section)
 @require_GET
 def proposal(request, link_id):
     return _page(request, link_id)

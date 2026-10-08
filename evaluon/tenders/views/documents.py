@@ -30,6 +30,7 @@ from evaluon.norms.views import CONTENT_TYPES, SAVED_PAGE_CSP
 from evaluon.queries.forms import DATE_INPUT_FORMATS, INVALID_DATE_ERROR
 from evaluon.tenders.models import DocumentFile, DocumentKind, Procedure
 from evaluon.tenders.services import documents as services
+from evaluon.journey.legacy import section_url, to_section
 
 TEMPLATE = "tenders/procedure.html"
 
@@ -64,6 +65,7 @@ def _loaded_id(request):
         return None
 
 
+@to_section(lambda request, procedure_id: section_url("pliego", procedure_id))
 @require_http_methods(["GET", "POST"])
 def procedure(request, procedure_id):
     """Página del procedimiento con sus documentos y el formulario de carga."""

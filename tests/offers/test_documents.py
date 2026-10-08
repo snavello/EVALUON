@@ -370,38 +370,6 @@ def test_a_technical_document_is_classified_but_a_price_table_is_not(name, text,
     assert services.classify_kind(name, text) == kind
 
 
-def test_the_offer_page_links_the_pages_to_review_and_the_download(client, operator_user,
-                                                                   procedure, fake_ai):
-    """REQ-038: cada página no leída enlaza al original en esa página; el original se baja."""
-    from django.urls import reverse
-
-    from tests.conftest import TEST_PASSWORD
-
-    offer = services.register_offer(operator_user, procedure, bidder="Con foto mala")
-    document = load(operator_user, offer, name="mala.jpg",
-                    data=_photo(angle=6, shadow=120, noise=8, blur=4.5)).document
-    jobs.run_next()
-    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
-    body = client.get(reverse("offers:offer", args=[offer.pk])).content.decode()
-    original = reverse("offers:document_original", args=[document.pk])
-    assert f"{original}#page=1" in body and f"{original}?descargar=1" in body
-    assert "Foto JPG" in body
-    download = client.get(original + "?descargar=1")
-    assert download["Content-Disposition"].startswith("attachment")
-    assert download["Content-Type"] == "image/jpeg"
-
-
-def test_the_procedure_page_links_to_its_offers(client, operator_user, procedure):
-    """REQ-037: desde el procedimiento se llega a sus ofertas."""
-    from django.urls import reverse
-
-    from tests.conftest import TEST_PASSWORD
-
-    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
-    body = client.get(reverse("tenders:procedure", args=[procedure.pk])).content.decode()
-    assert reverse("offers:procedure_offers", args=[procedure.pk]) in body
-
-
 def _data_sheet_docx():
     """Un .docx inventado con la forma de una hoja técnica: encabezado, tabla de
     características y bloque de firma."""

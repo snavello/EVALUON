@@ -177,7 +177,7 @@ def test_window_is_in_the_page_and_in_the_polled_block(client, procedure, two_of
     estilos de la guía; ningún formulario ni acción de decisión."""
     log_in(client, operator_user)
     simulate(two_offers, JobStatus.RUNNING, done=1)
-    page = client.get(reverse("journey:procedure", args=[procedure.pk])).content.decode()
+    page = client.get(reverse("expedientes:portada", args=[procedure.pk])).content.decode()
     assert 'id="process-window"' in page and "diseno/tokens.css" in page
     assert "<form" not in block(client, procedure)
 

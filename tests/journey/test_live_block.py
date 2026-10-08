@@ -64,9 +64,10 @@ def test_the_block_does_not_mark_notices_as_seen(client, procedure, two_offers, 
 def test_the_page_has_the_status_region_and_polls_the_block(client, procedure, operator_user):
     """REQ-067: la página trae el bloque, la región de aviso y la dirección del sondeo."""
     log_in(client, operator_user)
-    html = client.get(reverse("journey:procedure", args=[procedure.pk])).content.decode()
+    html = client.get(reverse("expedientes:procedimiento", args=[procedure.pk])
+                      ).content.decode()
     assert 'role="status"' in html
-    assert reverse("journey:stages", args=[procedure.pk]) in html
+    assert reverse("expedientes:barra", args=[procedure.pk]) in html
     assert "journey/recorrido.js" in html and "journey/recorrido.css" in html
 
 

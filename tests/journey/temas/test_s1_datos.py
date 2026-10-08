@@ -156,12 +156,13 @@ def test_the_offers_of_the_record_show_their_origin(client, evaluator_user, from
 
 def test_the_tab_has_no_links_to_old_screens_besides_the_portal_one(
         client, evaluator_user, from_portal):
-    """REQ-097: el único enlace a una pantalla vieja es el del proceso del Portal (012)."""
+    """REQ-097: la pestaña no enlaza a pantallas viejas; el del proceso del Portal va a la pantalla
+    de la sección (T-219)."""
     log_in(client, evaluator_user)
     html = page(client, from_portal).content.decode()
     block = html[html.index('id="s1-datos"'):html.index('id="s1-ofertas"')]
     hrefs = {h for h in re.findall(r'href="([^"]+)"', block) if not h.startswith("#")}
-    assert all(h.startswith("/importar/") for h in hrefs), hrefs
+    assert all(h.startswith("/expedientes/nuevo/") for h in hrefs), hrefs
 
 
 def _data(frags, schedule=None):
@@ -233,7 +234,7 @@ def test_damaged_portal_text_is_flagged_without_changing_it(client, evaluator_us
     assert data.item.damaged_fields  # el calco trae letras reemplazadas por «¿»
     assert html.count(warning) >= 2
     assert "Disposici¿¿n N¿¿ 247/2022" in html
-    link = reverse("portal:proposal", args=[from_portal.portal_links.get().pk])
+    link = reverse("expedientes:nuevo_enlace", args=[from_portal.portal_links.get().pk])
     assert f'<a href="{link}">Ver el proceso</a>' in html
 
 

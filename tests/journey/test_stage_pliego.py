@@ -116,13 +116,13 @@ def test_all_documents_read_is_ready(bare, operator_user):
 
 def test_the_view_link_resolves_and_nobody_gets_a_decide_link(bare, operator_user,
                                                               evaluator_user):
-    """REQ-068/REQ-069: el enlace va a `tenders:procedure`; la lectura es automática, así que
+    """REQ-068/REQ-069: el enlace va a la pestaña `expedientes:pliego`; la lectura es automática, así que
     ni siquiera el evaluador recibe un enlace de decisión."""
     add_reading(add_document(bare, operator_user))
     for user in (operator_user, evaluator_user):
         stage = pliego.compute(user, bare)
-        assert resolve(stage.view_url).view_name == "tenders:procedure"
-        assert resolve(stage.view_url).kwargs == {"procedure_id": bare.pk}
+        assert resolve(stage.view_url).view_name == "expedientes:pliego"
+        assert resolve(stage.view_url).kwargs == {"procedure_id": bare.pk, "key": "pliego"}
         assert stage.decide_url is None
 
 

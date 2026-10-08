@@ -22,7 +22,7 @@ LABEL = "Pliego y circulares"
 
 
 def compute(user, procedure):
-    view_url = reverse("tenders:procedure", args=[procedure.pk])
+    view_url = reverse("expedientes:pliego", args=[procedure.pk])
     common = {"key": KEY, "label": LABEL, "view_url": view_url}
 
     active = base.active_job(KINDS, document__procedure=procedure)

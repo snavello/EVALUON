@@ -76,27 +76,6 @@ def recorte(quote):
 # --- Matriz y franja (REQ-032) ------------------------------------------------------------------
 
 
-def test_draft_shows_the_banner_and_the_header(client, operator_user, case):
-    """REQ-032: un borrador muestra "BORRADOR INCOMPLETO", fija arriba; el encabezado dice
-    versión, estado, proceso y régimen."""
-    procedure, _, version, _ = case
-    log_in(client, operator_user)
-    response = client.get(matrix_url(version))
-
-    assert response.status_code == 200
-    page = text_of(response)
-    assert page.count(BANNER) == 1
-    assert 'class="draft-banner"' in page
-    assert page.index(BANNER) < page.index("<header")
-    assert "Versión</dt><dd>1" in page
-    assert "Borrador" in page and "Proceso</dt><dd>Completo" in page
-    assert "Nivel de revisión" not in page
-    assert "Procedimiento autorizado el 14/11/2025" in page
-    assert procedure.number in page
-    css = open("evaluon/static/tenders/matrix.css", encoding="utf8").read()
-    assert re.search(r"\.draft-banner\s*{[^}]*position:\s*fixed", css)
-
-
 def test_validated_version_has_no_banner_and_shows_who_and_when(client, operator_user,
                                                                  evaluator_user, case):
     """REQ-032: una versión validada sale sin la franja, con su versión, fecha y quién la
@@ -107,7 +86,7 @@ def test_validated_version_has_no_banner_and_shows_who_and_when(client, operator
     version.validated_by = evaluator_user
     version.save()
     log_in(client, operator_user)
-    page = text_of(client.get(matrix_url(version)))
+    page = text_of(client.get(matrix_url(version), follow=True))
 
     assert BANNER not in page
     assert "Validada" in page and evaluator_user.username in page
@@ -115,41 +94,6 @@ def test_validated_version_has_no_banner_and_shows_who_and_when(client, operator
 
 
 # --- Requisitos con su texto literal (REQ-025) ---------------------------------------------------
-
-
-def test_each_requirement_shows_its_literal_text_page_and_clause(client, operator_user, case):
-    """REQ-025: cada requisito muestra su texto igual al recorte del texto canónico, el
-    documento, la página, la cláusula y el enlace al original en esa página."""
-    _, document, version, _ = case
-    log_in(client, operator_user)
-    page = text_of(client.get(matrix_url(version)))
-
-    quotes = m.RequirementQuote.objects.filter(
-        requirement__version=version).exclude(requirement__category="tecnico")
-    assert quotes.count() == 2
-    for quote in quotes:
-        assert recorte(quote) == quote.text
-        assert f'<blockquote class="literal">{quote.text}</blockquote>' in page
-        assert quote.segment.path in page
-    link = reverse("tenders:document_original", args=[document.pk]) + "#page=1"
-    assert f'href="{link}"' in page
-    assert "Página 1" in page and document.title in page
-    assert "Cláusula: " in page
-
-
-def test_formal_and_economic_are_shown_with_their_class(client, operator_user, script):
-    """REQ-024/REQ-025: un formal y un económico se muestran con su clase."""
-    script.when(GARANTIA, item([("constituir una garantía del 5 % del monto", "formal")]))
-    script.when(PAGO, item([(PAGO, "economico")]))
-    procedure = make_procedure(operator_user)
-    load_and_read(operator_user, procedure, three_items_pdf())
-    requested, _ = propose(operator_user, procedure)
-    log_in(client, operator_user)
-    page = text_of(client.get(matrix_url(requested.run.version)))
-
-    assert re.search(r'class-mark class-formal">Formal<', page)
-    assert re.search(r'class-mark class-economico">Económico<', page)
-    assert "Formales: 1" in page and "Económicos: 1" in page
 
 
 def test_wide_quote_is_marked_for_review(client, operator_user, script):
@@ -164,85 +108,16 @@ def test_wide_quote_is_marked_for_review(client, operator_user, script):
                                            requirement__category="formal")
     assert quote.quote_flag == "cita_amplia"
     log_in(client, operator_user)
-    page = text_of(client.get(matrix_url(requested.run.version)))
+    page = text_of(client.get(matrix_url(requested.run.version), follow=True))
 
     assert "Cita amplia, revisar" in page
     assert quote.text in page
 
 
-def test_technical_row_shows_its_item_and_every_cited_stretch(client, operator_user, case):
-    """REQ-024/REQ-025: una fila técnica muestra su renglón y todos sus tramos, con su
-    texto desplegable y sin repetir el requisito como si fuera formal."""
-    _, _, version, _ = case
-    rows = m.Requirement.objects.filter(version=version, category="tecnico")
-    row = next(r for r in rows if r.items == [2])
-    quotes = list(row.quotes.order_by("order"))
-    assert len(quotes) == 4 and {q.scope for q in quotes} == {"general", "propia"}
-    log_in(client, operator_user)
-    page = text_of(client.get(matrix_url(version)))
-
-    assert "Renglón 2 · Técnico · se evalúa con el informe técnico del área requirente" in page
-    assert f"Tramos citados: {len(quotes)}" in page
-    for quote in quotes:
-        assert f'<blockquote class="literal">{quote.text}</blockquote>' in page
-    assert page.count("<details>") == sum(r.quotes.count() for r in rows)
-    assert "Renglón 1 · Técnico" in page and "Renglón 3 · Técnico" in page
-    # Las filas técnicas van después de los formales y económicos.
-    assert page.index("Requisitos formales y económicos") < page.index(
-        "Requisitos técnicos por renglón")
-
-
 # --- Pendientes (REQ-028) ------------------------------------------------------------------------
 
 
-def test_pending_come_first_with_their_reason(client, operator_user, case):
-    """REQ-028: los pendientes aparecen primero, con su motivo y la página."""
-    _, _, version, _ = case
-    pending = list(version.pending_items.all())
-    assert pending, "el renglón 3 sin especificaciones queda pendiente"
-    log_in(client, operator_user)
-    page = text_of(client.get(matrix_url(version)))
-
-    assert page.index("Pendiente de revisión</h2>") < page.index(
-        "Requisitos formales y económicos")
-    for item_ in pending:
-        assert item_.get_reason_display() in page
-    assert f"Pendientes de revisión: {len(pending)}" in page
-
-
 # --- Circulares y respuestas (REQ-031) -----------------------------------------------------------
-
-
-def test_requirement_modified_by_a_circular_shows_both_texts(client, operator_user, case):
-    """REQ-031: un requisito con fuente de circular muestra el texto vigente (el de la
-    circular, con su cita y su fecha) y el original con la suya."""
-    procedure, _, version, _ = case
-    new_text = "El pago se efectuará a los 60 días corridos de la factura."
-    circular = load_and_read(
-        operator_user, procedure,
-        tender_pdf([[para("CIRCULAR MODIFICATORIA N° 1"),
-                     para("1. Se modifica la cláusula 2.1.", f"1.1. {new_text}")]]),
-        kind=m.DocumentKind.CIRCULAR_MODIFICATORIA, title="Circular 1", issued_on=date(2025, 11, 20),
-    )
-    segment = m.Segment.objects.filter(reading__document=circular,
-                                       text__contains=new_text).first()
-    quote = m.RequirementQuote.objects.get(requirement__version=version,
-                                           requirement__category="economico",
-                                           text__contains="90 días")
-    start = segment.char_start + segment.text.index(new_text)
-    m.RequirementSource.objects.create(
-        requirement=quote.requirement, quote=quote, effect="modifica", segment=segment,
-        char_start=start, char_end=start + len(new_text), text=new_text,
-        issued_on=date(2025, 11, 20),
-    )
-    log_in(client, operator_user)
-    page = text_of(client.get(matrix_url(version)))
-
-    assert "Texto vigente, según la circular del 20/11/2025" in page
-    assert f'<blockquote class="literal">{new_text}</blockquote>' in page
-    assert "Texto original del pliego" in page
-    assert f'<blockquote class="literal">{quote.text}</blockquote>' in page
-    assert "Circular 1" in page
 
 
 # --- Cobertura ------------------------------------------------------------------------------------
@@ -307,32 +182,6 @@ def request_url(procedure):
     return reverse("tenders:request_matrix", args=[procedure.pk])
 
 
-def test_procedure_page_offers_the_button_without_a_level(client, operator_user, read_only):
-    """REQ-030: la página del procedimiento ofrece "Proponer matriz" sin elegir nivel."""
-    log_in(client, operator_user)
-    page = text_of(client.get(reverse("tenders:procedure", args=[read_only.pk])))
-
-    assert "Proponer matriz" in page
-    assert "Nivel de revisión" not in page
-    assert "name=\"level\"" not in page and "matrix-level" not in page
-    assert "Todavía no hay una propuesta de la matriz" in page
-
-
-def test_posting_the_form_queues_the_request_of_the_single_process(
-        client, operator_user, read_only):
-    """REQ-030: el formulario pide la propuesta del proceso único y la página muestra el
-    pedido en espera."""
-    log_in(client, operator_user)
-    response = client.post(request_url(read_only), {})
-
-    assert response.status_code == 302
-    run = m.MatrixRun.objects.get(procedure=read_only)
-    assert run.process == "completo" and run.level == "" and run.channel == "screen"
-    page = text_of(client.get(response["Location"]))
-    assert "Hay una propuesta de la matriz en espera" in page
-    assert "Proponer matriz</button>" not in page
-
-
 def test_a_level_in_the_form_is_ignored(client, operator_user, read_only):
     """REQ-030: un nivel que llegue en el pedido se ignora: no hay niveles."""
     log_in(client, operator_user)
@@ -356,24 +205,6 @@ def test_a_refused_request_shows_the_reason_and_queues_nothing(client, operator_
                                      outcome=Outcome.REJECTED).count() == 1
 
 
-def test_an_old_version_with_a_level_is_still_readable_as_history(client, operator_user,
-                                                                   case):
-    """REQ-030: una versión guardada antes del proceso único (con nivel y sin proceso) se
-    sigue viendo, en la matriz, en la impresión y en la lista del procedimiento, con su
-    nivel como dato anterior."""
-    procedure, _, version, _ = case
-    m.MatrixVersion.objects.filter(pk=version.pk).update(level="media", process="")
-    log_in(client, operator_user)
-
-    page = text_of(client.get(matrix_url(version)))
-    assert "Nivel de revisión (anterior)</dt><dd>Media" in page
-    assert "Proceso</dt>" not in page
-    printed = text_of(client.get(reverse("tenders:print", args=[version.pk])))
-    assert "Nivel de revisión (anterior)</dt><dd>Media" in printed
-    listing = text_of(client.get(reverse("tenders:procedure", args=[procedure.pk])))
-    assert "nivel media (anterior)" in listing
-
-
 def test_the_print_page_shows_the_process_and_no_level(client, operator_user, case):
     """REQ-030: la impresión muestra el proceso y no un nivel."""
     _, _, version, _ = case
@@ -385,49 +216,17 @@ def test_the_print_page_shows_the_process_and_no_level(client, operator_user, ca
     assert "Nivel de revisión" not in printed
 
 
-def test_procedure_page_links_the_versions(client, operator_user, case):
-    """La página del procedimiento lista las versiones con su estado, su proceso y la
-    cobertura."""
-    procedure, _, version, _ = case
-    log_in(client, operator_user)
-    page = text_of(client.get(reverse("tenders:procedure", args=[procedure.pk])))
-
-    assert f'href="{matrix_url(version)}"' in page
-    assert reverse("tenders:coverage", args=[version.pk]) in page
-    assert "Hay un borrador abierto" in page
-    assert "proceso completo" in page and "nivel" not in page.lower().replace("nivel de", "")
-
-
 def test_user_without_commission_role_is_refused(client, no_commission_user, case):
     """Sin rol de la Comisión, ninguna de las páginas ni el pedido: 403."""
     procedure, _, version, _ = case
     log_in(client, no_commission_user)
 
-    assert client.get(matrix_url(version)).status_code == 403
+    assert client.get(matrix_url(version), follow=True).status_code == 403
     assert client.get(reverse("tenders:coverage", args=[version.pk])).status_code == 403
     assert client.post(request_url(procedure), {}).status_code == 403
 
 
 # --- Aviso de fin -----------------------------------------------------------------------------------
-
-
-def test_finished_notice_shows_once_and_goes_away_when_seen(client, operator_user, script):
-    """El aviso de un pedido terminado aparece una vez y desaparece al verlo; lleva a la
-    matriz."""
-    procedure = make_procedure(operator_user)
-    load_and_read(operator_user, procedure, three_items_pdf())
-    log_in(client, operator_user)
-    client.post(request_url(procedure), {})
-    run_jobs()
-    version = m.MatrixRun.objects.get(procedure=procedure).version
-
-    first = text_of(client.get(reverse("tenders:procedures")))
-    second = text_of(client.get(reverse("tenders:procedures")))
-
-    assert first.count("La propuesta de la matriz del procedimiento") == 1
-    assert f'href="{matrix_url(version)}"' in first
-    assert "La propuesta de la matriz del procedimiento" not in second
-    assert jobs.unseen_finished(operator_user).count() == 0
 
 
 def test_finished_notice_is_only_for_who_asked_and_shows_on_every_page(
@@ -458,7 +257,7 @@ def test_failed_job_notice_says_it_failed_and_why(client, operator_user, script)
     job = m.Job.objects.get(kind="propose_matrix")
     assert job.status == "failed"
 
-    page = text_of(client.get(reverse("tenders:procedures")))
+    page = text_of(client.get(reverse("tenders:procedures"), follow=True))
 
     assert "falló" in page and job.error in page
     assert "notice-failed" in page

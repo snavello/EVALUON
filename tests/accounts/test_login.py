@@ -83,8 +83,8 @@ def test_login_page_is_public_and_only_uses_own_resources(client):
 
 @pytest.mark.django_db
 def test_login_with_valid_credentials_redirects_to_root(client, read_user):
-    """REQ-016: con usuario y clave correctos se ingresa y se va a la raíz, donde está
-    la pantalla de consulta."""
+    """REQ-016: con usuario y clave correctos se ingresa y se va a la raíz; sin rol de la
+    Comisión, la raíz lleva a la pantalla de consulta (T-219)."""
     response = client.post(
         login_url(), {"username": "lectura", "password": TEST_PASSWORD}
     )
@@ -92,7 +92,8 @@ def test_login_with_valid_credentials_redirects_to_root(client, read_user):
     assert response.status_code == 302
     assert response["Location"] == "/"
     assert client.session["_auth_user_id"] == str(read_user.pk)
-    assert client.get("/").status_code == 200
+    assert client.get("/")["Location"] == "/consulta/"
+    assert client.get("/consulta/").status_code == 200
 
 
 @pytest.mark.django_db

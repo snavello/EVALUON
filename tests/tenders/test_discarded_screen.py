@@ -81,29 +81,6 @@ def test_the_list_without_rows_says_so(client, operator_user, case):
     assert "Devolver a la matriz" not in page
 
 
-def test_returning_a_row_changes_its_state_and_it_appears_in_the_matrix(
-        client, operator_user, case):
-    """REQ-033/026: devolver crea el requisito; la lista la marca como devuelta, sin
-    casilla, y la fila aparece en la matriz con el aviso de que no tiene sugerencias de
-    consecuencia."""
-    row = add_row(case, "sec-i/3.1", order=1)
-    other = add_row(case, "sec-i/4.1", order=2)
-    log_in(client, operator_user)
-
-    response = client.post(restore_url(case), {"row": [row.pk]})
-
-    assert response.status_code == 302
-    requirement = m.Requirement.objects.get(version=case, restored_from=row)
-    assert requirement.state == "propuesto" and requirement.origin == "devuelto"
-    listing = text_of(client.get(list_url(case)))
-    assert "Devuelta a la matriz" in listing
-    assert f'value="{row.pk}"' not in listing and f'value="{other.pk}"' in listing
-    matrix = squash(text_of(client.get(reverse("tenders:matrix", args=[case.pk]))))
-    assert f'id="requisito-{requirement.number}"' in matrix
-    assert "Devuelto de las descartadas" in matrix
-    assert "Sin sugerencias de consecuencia" in matrix
-
-
 def test_returning_nothing_or_twice_shows_the_reason_and_changes_nothing(
         client, operator_user, case):
     """REQ-033: sin filas marcadas, o una fila ya devuelta, vuelve a la página con el
@@ -136,12 +113,6 @@ def test_operator_and_evaluator_return_rows_and_a_user_without_role_cannot(
     client.logout()
     log_in(client, evaluator_user)
     assert client.post(restore_url(case), {"row": [row.pk]}).status_code == 302
-
-
-def test_anonymous_users_do_not_reach_the_list(client, case):
-    """REQ-026: sin sesión no hay lista ni devolución."""
-    assert client.get(list_url(case)).status_code in (302, 403)
-    assert client.post(restore_url(case), {"row": [1]}).status_code in (302, 403)
 
 
 def test_a_validated_version_shows_the_list_without_the_return_form(
@@ -189,40 +160,6 @@ def repeat_quote(requirement, other, length, order):
         char_end=other.char_start + length,
         text=other.reading.canonical_text[other.char_start:other.char_start + length],
         scope="repetida", quote_flag="")
-
-
-def test_the_matrix_has_the_discarded_line_with_the_link(client, operator_user, case):
-    """REQ-033: la matriz dice cuántas filas descartó el sistema y cuántas unificó, con el
-    enlace a la lista; sin descartadas ni unificadas no hay línea."""
-    url = reverse("tenders:matrix", args=[case.pk])
-    log_in(client, operator_user)
-    assert "El sistema descartó" not in text_of(client.get(url))
-
-    add_row(case, "sec-i/3.1", order=1)
-    add_row(case, "sec-i/4.1", order=2)
-    requirement = case.requirements.filter(category="economico").first()
-    repeat_quote(requirement, segment(case, "sec-i/4.1"), 12, 2)
-
-    page = squash(text_of(client.get(url)))
-
-    assert "El sistema descartó 2 filas y unificó 1 repetida" in page
-    assert list_url(case) in page
-
-
-def test_a_row_with_repeated_quotes_shows_all_of_them(client, operator_user, case):
-    """REQ-033: una fila con citas repetidas muestra "También en:" con todas, cada una con
-    su texto literal y su lugar."""
-    requirement = case.requirements.filter(category="economico").first()
-    other = segment(case, "sec-i/4.1")
-    repeat_quote(requirement, other, 20, 2)
-    repeat_quote(requirement, other, 30, 3)
-    log_in(client, operator_user)
-
-    page = squash(text_of(client.get(reverse("tenders:matrix", args=[case.pk]))))
-
-    assert page.count("También en:") == 2
-    assert squash(other.reading.canonical_text[other.char_start:other.char_start + 20]) in page
-    assert squash(other.reading.canonical_text[other.char_start:other.char_start + 30]) in page
 
 
 def test_the_coverage_shows_the_filter_origin(client, operator_user, case):

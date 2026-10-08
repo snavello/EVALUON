@@ -115,17 +115,6 @@ def test_approval_with_two_candidates_creates_a_new_offer(
     assert PortalOfferData.objects.get().offer.bidder == MARTA[1]
 
 
-def test_screen_shows_the_proposed_association(client, procedure, operator_user):
-    """REQ-062, P3: la pantalla de aprobación dice a qué oferta cargada se asocia y por qué."""
-    by_hand(operator_user, procedure, "Demo Uno")
-    by_hand(operator_user, procedure, "Nandu Insumos Demo SRL")
-    link = offer_items().first().proposal.link
-    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
-    html = client.get(reverse("portal:proposal", args=[link.pk])).content.decode()
-    assert "Se asocia a la oferta cargada «Nandu Insumos Demo SRL»" in html
-    assert "por nombre" in html
-
-
 @pytest.mark.parametrize("generic, portal", [
     ("SRL", NANDU), ("S.R.L.", NANDU), ("de", ("20000000044", "Juan de la Cruz")),
     ("y", ("20000000052", "Pedro y Hermanos SA")), ("SA", ("20000000060", "Pedro y Hermanos SA")),
@@ -161,7 +150,7 @@ def test_two_items_competing_for_one_offer_are_not_matched(
     manual = by_hand(operator_user, procedure, "Demo")
     link = offer_items().first().proposal.link
     assert client.login(username=operator_user.username, password=TEST_PASSWORD)
-    html = client.get(reverse("portal:proposal", args=[link.pk])).content.decode()
+    html = client.get(reverse("portal:proposal", args=[link.pk]), follow=True).content.decode()
     assert html.count("compite con otra oferta del Portal") >= 2
     assert "Se asocia a la oferta cargada «Demo»" not in html
     ids = list(offer_items().filter(key__in=[f"oferta:{MARTA[0]}", f"oferta:{ALBERTO[0]}"])

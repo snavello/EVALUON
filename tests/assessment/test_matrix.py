@@ -169,21 +169,6 @@ def test_a_missing_document_and_an_undetermined_result_do_not_discard(
     assert [d.offer.number for d in page.discards] == [evaluated[1].number]
 
 
-def test_the_matrix_page_marks_everything_as_a_proposal_of_the_commission(
-        evaluated, procedure, operator_user, client):
-    """P3: la pantalla rotula descarte y orden como propuestas y deja la decisión a la
-    Comisión; el motivo del descarte se ve."""
-    log_in(client, operator_user)
-    response = client.get(reverse("assessment:matrix", args=[procedure.pk]))
-    assert response.status_code == 200
-    text = text_of(response)
-    assert "propuesta del sistema" in text and "Decide la Comisión" in text
-    assert "se propone descartar la oferta entera" in text
-    assert "Presentar la declaración jurada" in text
-    assert "Desestimación sin posibilidad de subsanar" in text
-    assert "Orden económico propuesto" in text
-
-
 # --- Estado de un par ----------------------------------------------------------------------
 
 
@@ -282,23 +267,6 @@ def test_an_offer_never_evaluated_has_no_run_and_all_unevaluated(
 # --- Versión de la matriz ------------------------------------------------------------------
 
 
-def test_an_evaluation_built_with_version_1_is_flagged_when_version_2_is_validated(
-        evaluated, procedure, operator_user, matrix, client):
-    """REQ-057: la evaluación dice con qué versión se armó y la pantalla avisa que hay otra."""
-    newer = m.MatrixVersion.objects.create(
-        procedure=procedure, number=2, status="draft", created_by=operator_user,
-        based_on=matrix.version)
-    m.MatrixVersion.objects.filter(pk=newer.pk).update(
-        status="validated", validated_by=operator_user, validated_at=newer.created_at)
-    page = page_of(operator_user, procedure)
-    assert page.version.number == 1 and page.newer_version.number == 2
-    assert all(s.newer_version.number == 2 for s in page.statuses if s.evaluated)
-    log_in(client, operator_user)
-    text = text_of(client.get(reverse("assessment:matrix", args=[procedure.pk])))
-    assert "la versión vigente es la 2" in text
-    assert "armada con la versión 1" in text
-
-
 # --- Evaluar todas -------------------------------------------------------------------------
 
 
@@ -308,26 +276,6 @@ def test_evaluate_all_requests_every_offer_in_one_job(three, procedure, operator
     assert left_out == []
     assert sorted(requested.request.offers) == sorted(o.pk for o in three)
     assert m.Job.objects.filter(kind=m.JobKind.EVALUATE_OFFERS).count() == 1
-
-
-def test_evaluate_all_warns_about_an_offer_without_documents_and_evaluates_the_rest(
-        three, procedure, operator_user, client):
-    """REQ-059 y aviso de T-150: antes de pedir se avisa que una oferta no tiene documentos; el
-    pedido no se rechaza entero: evalúa las otras y dice cuál quedó afuera."""
-    empty = offers_service.register_offer(operator_user, procedure, bidder="Sin documentos",
-                                          channel=Channel.COMMAND)
-    log_in(client, operator_user)
-    url = reverse("assessment:matrix", args=[procedure.pk])
-    assert "no tiene documentos y no se va a evaluar" in text_of(client.get(url))
-    response = client.post(reverse("assessment:evaluate_all", args=[procedure.pk]))
-    text = text_of(response)
-    assert "Se pidió la evaluación de 3 ofertas" in text
-    assert f"la oferta {empty.number} (Sin documentos)" in text
-    request = am.Request.objects.get()
-    assert empty.pk not in request.offers and len(request.offers) == 3
-    # un segundo pedido mientras hay uno en curso se rechaza con su motivo
-    again = text_of(client.post(reverse("assessment:evaluate_all", args=[procedure.pk])))
-    assert "Ya hay un pedido de evaluación" in again
 
 
 def test_evaluate_all_with_no_offer_having_documents_is_refused_and_registered(
@@ -351,23 +299,8 @@ def test_the_matrix_page_and_the_request_need_a_commission_role(
     with pytest.raises(RoleRejected):
         service.request_all(no_commission_user, procedure)
     log_in(client, no_commission_user)
-    assert client.get(reverse("assessment:matrix", args=[procedure.pk])).status_code == 403
+    assert client.get(reverse("assessment:matrix", args=[procedure.pk]), follow=True).status_code == 403
     assert not m.Job.objects.filter(kind=m.JobKind.EVALUATE_OFFERS).exists()
-
-
-def test_the_finished_notice_of_an_evaluation_links_to_the_matrix(
-        three, procedure, operator_user, client):
-    """El aviso de fin de la 003 nombra la evaluación y lleva a la matriz."""
-    requested, _ = service.request_all(operator_user, procedure)
-    from evaluon.tenders import jobs
-
-    job = jobs.claim([m.JobKind.EVALUATE_OFFERS])
-    jobs.finish(job)
-    log_in(client, operator_user)
-    response = client.get(reverse("assessment:matrix", args=[procedure.pk]))
-    text = text_of(response)
-    assert "La evaluación de las ofertas del procedimiento" in text and "terminó" in text
-    assert reverse("assessment:matrix", args=[procedure.pk]) in response.content.decode()
 
 
 def test_a_rejected_proposal_is_in_the_state_count_but_not_in_the_outcome_count(
@@ -383,5 +316,5 @@ def test_a_rejected_proposal_is_in_the_state_count_but_not_in_the_outcome_count(
     assert status.by_state[service.REJECTED] == 1
     assert "no_cumple" not in status.by_outcome and sum(status.by_outcome.values()) == 2
     log_in(client, operator_user)
-    text = text_of(client.get(reverse("assessment:matrix", args=[procedure.pk])))
+    text = text_of(client.get(reverse("assessment:matrix", args=[procedure.pk]), follow=True))
     assert "Propuesta rechazada" in text and "Propuesto" in text

@@ -272,5 +272,5 @@ def test_changed_item_is_marked_as_changed_from_what_was_approved(
     assert marks[new.pk] is True
     assert sum(marks.values()) == 1
     assert client.login(username=evaluator_user.username, password=TEST_PASSWORD)
-    html = client.get(f"/importar/{link.pk}/").content.decode()
+    html = client.get(f"/importar/{link.pk}/", follow=True).content.decode()
     assert html.count("Cambiado respecto de lo aprobado") == 1

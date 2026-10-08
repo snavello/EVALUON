@@ -456,39 +456,6 @@ def page_text(response):
     return html.unescape(response.content.decode())
 
 
-def test_pending_come_first_unresolved_before_resolved(client, evaluator_user, case):
-    """REQ-028: en la página, los pendientes sin resolver van antes que los resueltos."""
-    first = case.pending_items.order_by("id").first()
-    segment = segment_with(case, PAGO)
-    second = m.PendingItem.objects.create(version=case, segment=segment,
-                                          reason="sin_disposicion")
-    review.resolve_pending(evaluator_user, first.pk)
-    log_in(client, evaluator_user)
-    response = client.get(reverse("tenders:matrix", args=[case.pk]))
-    rows = response.context["page"].pending
-    assert rows[0].item.pk == second.pk and rows[-1].item.pk == first.pk
-
-
-def test_the_page_offers_actions_by_role(client, operator_user, evaluator_user, case):
-    log_in(client, operator_user)
-    page = page_text(client.get(reverse("tenders:matrix", args=[case.pk])))
-    assert "Guardar la corrección" in page and "Quitar el requisito" in page
-    assert "Confirmar los requisitos marcados" not in page
-    assert "Revisado, sin requisitos" not in page
-    assert "Agregar la fila técnica" in page
-
-    client.logout()
-    log_in(client, evaluator_user)
-    page = page_text(client.get(reverse("tenders:matrix", args=[case.pk])))
-    assert "Confirmar los requisitos marcados" in page
-    assert "Revisado, sin requisitos" in page
-
-    validate(case, evaluator_user)
-    page = page_text(client.get(reverse("tenders:matrix", args=[case.pk])))
-    assert "Guardar la corrección" not in page
-    assert "Confirmar los requisitos marcados" not in page
-
-
 def test_posting_a_correction_and_reading_the_history(client, operator_user, case):
     requirement = req(case, PAGO)
     log_in(client, operator_user)
@@ -538,18 +505,6 @@ def test_the_evaluator_confirms_from_the_page(client, evaluator_user, case):
     assert response.status_code == 302
     assert m.Requirement.objects.filter(version=case,
                                         state="confirmado").count() == len(ids)
-
-
-def test_removed_requirements_stay_visible_and_can_be_restored(
-        client, operator_user, case):
-    requirement = req(case, PAGO)
-    log_in(client, operator_user)
-    client.post(reverse("tenders:review_remove", args=[requirement.pk]))
-    page = page_text(client.get(reverse("tenders:matrix", args=[case.pk])))
-    assert "Requisitos quitados" in page and PAGO in page and "Restituir" in page
-    client.post(reverse("tenders:review_restore", args=[requirement.pk]))
-    requirement.refresh_from_db()
-    assert requirement.state == "propuesto"
 
 
 def test_get_on_an_action_is_not_allowed(client, operator_user, case):

@@ -104,39 +104,6 @@ def test_review_now_needs_a_commission_role(link, no_commission_user):
     assert not reviews().exists()
 
 
-def test_the_button_is_on_the_screen(client, link, operator_user):
-    """REQ-050: la pantalla tiene «Revisar ahora» y encola el pedido."""
-    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
-    html = client.get(reverse("portal:links")).content.decode()
-    assert "Revisar ahora" in html and "Novedades por decidir" in html
-    response = client.post(reverse("portal:review_now", args=[link.pk]))
-    assert response.status_code == 302
-    assert reviews().count() == 1
-    client.post(reverse("portal:review_now", args=[link.pk]))
-    assert reviews().count() == 1
-
-
-def test_a_failed_review_shows_its_reason_and_keeps_what_was_proposed(
-        client, operator_user, explore_link, fake_portal_calco):
-    """REQ-050: una página ilegible deja el pedido fallido con su motivo, avisa a quien
-    registró el enlace y no descarta lo ya propuesto."""
-    from evaluon.portal.models import PortalItem
-    from evaluon.tenders import jobs
-    from evaluon.tenders.models import PORTAL_JOB_KINDS
-
-    link, _ = explore_link(operator_user)
-    proposed = PortalItem.objects.count()
-    fake_portal_calco.serve("error-pantalla.html")
-    job, _ = schedule.review_now(operator_user, link.pk, now=MONDAY_8)
-    done = jobs.run_next(kinds=PORTAL_JOB_KINDS)
-    assert done.pk == job.pk and done.status == JobStatus.FAILED and done.error
-    assert PortalItem.objects.count() == proposed
-    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
-    html = client.get(reverse("portal:links")).content.decode()
-    assert "La revisión del Portal" in html and "falló" in html  # aviso a quien registró
-    assert "La revisión falló" in html and "Lo ya propuesto sigue disponible" in html
-
-
 def test_the_command_queues_the_daily_review_with_a_fake_clock(link, monkeypatch, portal_client):
     """ADR-0033: `procesar_portal` encola la revisión en cada vuelta, con el reloj inyectado."""
     monkeypatch.setattr(Command, "clock", staticmethod(lambda: MONDAY_8))

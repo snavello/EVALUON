@@ -1,7 +1,7 @@
 """Rutas del recorrido de la 013, bajo `recorrido/` (plan 013, «Rutas»), y las de la aplicación por
 secciones, bajo `expedientes/` (plan 014, «Rutas»).
 
-Las pantallas del recorrido siguen funcionando hasta que T-219 las redirija a su sección. Las
+Las pantallas del recorrido redirigen a su sección (T-219). Las
 rutas de acción de cada tema las suma `temas.url_patterns()`: después de T-192 nadie vuelve a
 tocar este archivo. Lo único propio de este archivo son las del alta sin procedimiento
 (`nuevo/`, T-195), que no cuelgan de un procedimiento."""
@@ -21,6 +21,7 @@ urlpatterns = [
     path("<int:procedure_id>/etapas/", stages.stages, name="stages"),
 ]
 
+# Se incluye en `evaluon/urls.py` con el espacio de nombres `expedientes`.
 # Se incluye en `evaluon/urls.py` con el espacio de nombres `expedientes`.
 expedientes_urlpatterns = [
     path("", portada.lista, name="index"),

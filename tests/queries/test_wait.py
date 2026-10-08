@@ -284,7 +284,7 @@ def test_query_longer_than_30_seconds_is_not_cut(gunicorn, ai_services, read_use
 
     started = time.monotonic()
     status, location = browser.submit(
-        "/", {"question": QUESTION, "reference_date": ""},
+        "/consulta/", {"question": QUESTION, "reference_date": ""},
         timeout=int(option(command, "--timeout")) + 30,
     )
     elapsed = time.monotonic() - started

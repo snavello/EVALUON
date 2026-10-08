@@ -175,8 +175,8 @@ def portal_url(procedure):
     """A los ítems de documentos del Portal; sin proceso seguido, a donde se da de alta."""
     link = procedure.portal_links.order_by("-pk").first()
     if link is None:
-        return reverse("portal:links")
-    return reverse("portal:proposal", args=[link.pk]) + "#group-documento"
+        return reverse("expedientes:nuevo")
+    return reverse("expedientes:nuevo_enlace", args=[link.pk]) + "#group-documento"
 
 
 def status(user, procedure):

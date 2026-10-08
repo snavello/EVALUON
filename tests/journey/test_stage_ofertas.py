@@ -59,7 +59,7 @@ def test_without_offers_the_stage_is_pending(procedure, operator_user):
     assert stage.state == base.PENDIENTE
     assert "no hay ofertas" in stage.detail
     assert (stage.pending, stage.suggestions) == (0, 0)
-    assert stage.view_url == reverse("offers:procedure_offers", args=[procedure.pk])
+    assert stage.view_url == reverse("expedientes:ofertas", args=[procedure.pk])
 
 
 def test_offers_without_documents_leave_the_stage_pending(procedure, operator_user):

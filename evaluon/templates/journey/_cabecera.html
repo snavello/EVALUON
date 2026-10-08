@@ -1,0 +1,20 @@
+{% comment %}Encabezado único de la aplicación (en todas las páginas) (maqueta aprobada de la 014). Los desplegables son `details`: funcionan sin scripts.{% endcomment %}<header class="top"><div class="wrap">
+  <a class="nombre" href="{% url 'inicio' %}">EVALUON</a>
+  {% if user.is_authenticated and user.commission_role %}<details class="sel-proc">
+    <summary class="btn-menu" aria-label="Cambiar de procedimiento"><span class="b-txt"><small>Procedimiento</small>{% if procedure %}{{ procedure.number }} · {{ procedure.subject }}{% elif tabs %}Nuevo procedimiento (sin crear){% else %}Elegir procedimiento{% endif %}</span><span aria-hidden="true">▾</span></summary>
+    <div class="menu" role="menu">
+      <p class="menu-tit">Cambiar de procedimiento</p>
+      {% for p in procedures %}
+      <a role="menuitem" href="{% url 'expedientes:procedimiento' p.pk %}"{% if p.pk == procedure.pk %} class="actual" aria-current="true"{% endif %}>{{ p.number }}<small>{{ p.subject|truncatechars:80 }}</small></a>
+      {% endfor %}
+      <hr>
+      <a role="menuitem" href="{% url 'expedientes:nuevo' %}"{% if not procedure and tabs %} class="actual" aria-current="true"{% endif %}>+ Nuevo procedimiento</a>
+    </div>
+  </details>{% endif %}
+  <span class="espacio"></span>
+  {% if user.is_authenticated %}<span class="sel-user"><strong>{{ user.username }}</strong>{% if role_label %}<small>{{ role_label }}</small>{% endif %}</span>
+  <form method="post" action="{% url 'accounts:logout' %}" class="logout-form">
+    {% csrf_token %}
+    <button class="btn secundario" type="submit">Salir</button>
+  </form>{% endif %}
+</div></header>

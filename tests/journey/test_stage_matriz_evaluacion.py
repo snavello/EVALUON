@@ -82,7 +82,7 @@ def test_an_open_question_counts_by_itself(procedure, offer, operator_user, eval
     assert stage.state == base.A_DECIDIR
     assert stage.pending == 1
     assert "1 pregunta" in stage.detail
-    assert stage.decide_url == reverse("assessment:questions", args=[procedure.pk])
+    assert stage.decide_url == reverse("expedientes:evaluacion", args=[procedure.pk])
 
 
 def test_an_answered_question_does_not_count(procedure, offer, operator_user, evaluator_user,
@@ -140,7 +140,7 @@ def test_the_three_kinds_add_up_and_are_detailed(procedure, technical_offer, off
     assert stage.pending == 4
     assert "2 pares" in stage.detail and "1 pregunta" in stage.detail
     assert "1 oferta" in stage.detail and "informe técnico" in stage.detail
-    assert stage.decide_url == reverse("assessment:matrix", args=[procedure.pk])
+    assert stage.decide_url == reverse("expedientes:evaluacion", args=[procedure.pk])
 
 
 def test_all_decided_is_ready(procedure, offer, operator_user, evaluator_user, declaration):
@@ -215,7 +215,7 @@ def test_links_and_roles(procedure, offer, operator_user, evaluator_user, declar
     add_run(operator_user, procedure, offer, {declaration: "cumple"})
     as_operator = matriz_evaluacion.compute(operator_user, procedure)
     as_evaluator = matriz_evaluacion.compute(evaluator_user, procedure)
-    assert as_operator.view_url == reverse("assessment:matrix", args=[procedure.pk])
+    assert as_operator.view_url == reverse("expedientes:evaluacion", args=[procedure.pk])
     assert as_operator.decide_url is None
     assert as_evaluator.decide_url == as_evaluator.view_url
     assert as_evaluator.key == "matriz_evaluacion"

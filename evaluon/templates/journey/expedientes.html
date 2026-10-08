@@ -3,31 +3,12 @@
 
 {% block title %}Expedientes · EVALUON{% endblock %}
 
-{% block head %}
-<link rel="stylesheet" href="{% static 'diseno/tokens.css' %}">
-<link rel="stylesheet" href="{% static 'journey/secciones.css' %}">
-{% endblock %}
 
-{% block body_class %}app{% endblock %}
-
-{% block site_header %}
-{% include "journey/_sprite.html" %}
-<header class="top"><div class="wrap">
-  <a class="nombre" href="{% url 'expedientes:index' %}">EVALUON</a>
-  <span class="espacio"></span>
-  <span class="sel-user"><strong>{{ user.username }}</strong></span>
-  <form method="post" action="{% url 'accounts:logout' %}" class="logout-form">
-    {% csrf_token %}
-    <button class="btn secundario" type="submit">Salir</button>
-  </form>
-</div></header>
-{% endblock %}
 
 {% block content %}
-<div class="wrap">
   <div class="encab-parte">
     <h1 id="seccion-titulo">Expedientes</h1>
-    <span class="barra-cargas"><a class="btn primario" href="{% url 'journey:index' %}">+ Nuevo procedimiento</a></span>
+    <span class="barra-cargas"><a class="btn primario" href="{% url 'expedientes:nuevo' %}">+ Nuevo procedimiento</a></span>
   </div>
   <p class="resumen-linea" id="seccion-resumen">Todos los procedimientos, el más reciente primero, con lo que espera a la Comisión.</p>
   {% if rows %}
@@ -47,7 +28,6 @@
     </tbody>
   </table></div>
   {% else %}
-  <div class="bloque estado-vacio"><h3>Todavía no hay procedimientos</h3><p>El alta empieza por el Portal o por el pliego.</p><a class="btn primario" href="{% url 'journey:index' %}">+ Nuevo procedimiento</a></div>
+  <div class="bloque estado-vacio"><h3>Todavía no hay procedimientos</h3><p>El alta empieza por el Portal o por el pliego.</p><a class="btn primario" href="{% url 'expedientes:nuevo' %}">+ Nuevo procedimiento</a></div>
   {% endif %}
-</div>
 {% endblock %}
