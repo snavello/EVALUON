@@ -52,6 +52,18 @@ class FileFormat(models.TextChoices):
     HTML = "html", "Página web"
 
 
+class ProposalState(models.TextChoices):
+    """Estado de un borrador que espera aprobación (feature 014): el pliego de un
+    procedimiento, los archivos de una oferta o una norma subida. Lo comparten las tres
+    tablas de espera (`tenders_procedure_draft`, `offers_offer_draft`, `norms_upload`)."""
+
+    LEYENDO = "leyendo", "Leyendo"
+    PROPUESTO = "propuesto", "Propuesto"
+    APROBADO = "aprobado", "Aprobado"
+    RECHAZADO = "rechazado", "Rechazado"
+    FALLIDO = "fallido", "Fallido"
+
+
 class ReadingStatus(models.TextChoices):
     PENDING = "pending", "Leída, sin validar"
     VALIDATED = "validated", "Validada"
@@ -492,3 +504,57 @@ class CorpusVersion(models.Model):
 
     def __str__(self):
         return f"versión {self.pk}"
+
+
+class NormUpload(models.Model):
+    """Una norma subida que espera la confirmación de la Comisión (feature 014, ADR-0051,
+    REQ-094). El sistema lee el archivo y propone los diez datos de la norma con su evidencia;
+    recién al confirmarlos se llama a `load_norm` y se anota el documento resultante. Cada dato
+    de `proposal` guarda `{propuesto, corregido, motivo, quién, cuándo}`: el valor propuesto
+    original no se pierde. No es un registro de hechos: cambia de estado."""
+
+    file_name = models.CharField("nombre del archivo", max_length=255)
+    file_format = models.CharField("formato", max_length=10, choices=FileFormat.choices)
+    file_size = models.PositiveBigIntegerField("tamaño")
+    file_sha256 = models.CharField("huella del archivo", max_length=64)
+    content = models.BinaryField("contenido")
+    proposal = models.JSONField("datos propuestos", default=dict)
+    state = models.CharField(
+        "estado", max_length=10, choices=ProposalState.choices,
+        default=ProposalState.LEYENDO,
+    )
+    failure = models.TextField("motivo de la falla", blank=True)
+    uploaded_by = _user_fk("subida por", "norm_uploads")
+    uploaded_at = models.DateTimeField("subida", default=timezone.now)
+    document = models.OneToOneField(
+        Document, verbose_name="documento resultante", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="upload",
+    )
+
+    class Meta:
+        db_table = "norms_upload"
+        verbose_name = "norma subida"
+        verbose_name_plural = "normas subidas"
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(state__in=ProposalState.values),
+                name="norms_upload_state_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(file_format__in=FileFormat.values),
+                name="norms_upload_file_format_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(file_sha256__regex=SHA256_REGEX),
+                name="norms_upload_file_sha256_valid",
+            ),
+            # Una subida aprobada dice qué documento creó, y solo ella.
+            models.CheckConstraint(
+                condition=(Q(state=ProposalState.APROBADO) & Q(document__isnull=False))
+                | (~Q(state=ProposalState.APROBADO) & Q(document__isnull=True)),
+                name="norms_upload_document_only_if_approved",
+            ),
+        ]
+
+    def __str__(self):
+        return self.file_name
