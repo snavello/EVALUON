@@ -124,11 +124,14 @@ def status(user, procedure):
                                 f"{base}#informe-oferta-{offer.number}", 1, "Resolver",
                                 kind="informe_falta", limit=3, noun="ofertas sin informe técnico",
                                 group_url=f"{base}{ANCHOR}", group_action="Subir"))
+    # Mismas ofertas que los pendientes «falta subir el informe»: con filas técnicas ya
+    # evaluadas y sin informe.
+    waiting = {offer.pk for offer in _pending_ok_offers(page)}
     missing = tuple(
         Missing(f"Oferta {s.offer.number}: falta el informe técnico del área",
                 f"{base}{ANCHOR}", "Subir informe técnico", kind="informe_falta",
-        noun="ofertas sin informe técnico del área")
-        for s in with_rows if not s.reports)
+                noun="ofertas sin informe técnico del área")
+        for s in with_rows if not s.reports and s.offer.pk in waiting)
     sources = []
     uploaded = [d for s in with_rows for d in s.reports]
     if uploaded:

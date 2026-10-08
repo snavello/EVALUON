@@ -113,7 +113,7 @@ def test_pairs_filter_shows_exactly_the_counted_pairs(client, procedure, evaluat
     counted = sum(i.count for i in stage_pending.pending_items if "ev-" in (i.url or "")
                   or "ver=sin-decidir" in (i.url or ""))
     html = client.get(tab(procedure) + "?ver=sin-decidir").content.decode()
-    body = html[html.index("<tbody>"):html.index("</tbody>")]
+    body = html[html.index("<tbody>", html.index('id="t-eval"')):html.index("</tbody>", html.index('id="t-eval"'))]
     assert body.count("<small>") == counted > 0
     assert "Solo los pares por decidir" in html
 

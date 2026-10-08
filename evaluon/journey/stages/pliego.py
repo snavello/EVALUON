@@ -14,7 +14,7 @@ from django.urls import reverse
 
 from evaluon.journey.progress import progress_of
 from evaluon.journey.stages import base
-from evaluon.tenders.models import JobKind, JobStatus
+from evaluon.tenders.models import DocumentKind, JobKind, JobStatus
 
 KINDS = (JobKind.READ_DOCUMENT,)
 KEY = "pliego"
@@ -30,7 +30,9 @@ def compute(user, procedure):
         return base.Stage(state=base.EN_CURSO, job=active, progress=progress_of(active),
                           detail="El sistema está leyendo los documentos.", **common)
 
-    documents = list(procedure.documents.order_by("loaded_at", "pk"))
+    # El dictamen subido es un archivo de la Comisión: no se lee, no cuenta como por leer.
+    documents = list(procedure.documents.exclude(kind=DocumentKind.DICTAMEN)
+                     .order_by("loaded_at", "pk"))
     if not documents:
         return base.Stage(state=base.PENDIENTE,
                           detail="Faltan los documentos del pliego.", **common)

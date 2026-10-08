@@ -394,22 +394,27 @@ def test_the_pending_match_the_bar_one_by_one_or_grouped(
     log_in(client, operator_user)
     stage = matriz_evaluacion.compute(operator_user, procedure)
     section = sections_for(operator_user, procedure).get("evaluacion")
-    assert stage.pending > 0 and section.pending == stage.pending
+    # El descarte propuesto es decisión de la Comisión: lo lista `s4_descartes` (T-210) como
+    # pendiente y no como sugerencia.
+    assert stage.pending > 0 and section.pending == stage.pending and stage.suggestions == 0
     # Con más de 8 pares se agrupan en una línea (T-222); la suma de cuentas no cambia.
-    assert sum(i.count for i in section.pending_items) == stage.pending
-    assert section.suggestions == stage.suggestions == len(section.suggestion_items) == 1
+    assert sum(i.count for i in section.pending_items) == section.pending
+    assert section.suggestions == 0 == len(section.suggestion_items)
     html = page(client, procedure)
     panel = re.search(r'<section class="panel" id="pendientes".*?</section>', html, re.S).group(0)
-    assert f'<span class="cta">{stage.pending}</span>' in panel
-    # Con 9 pares (más de 8) el panel los agrupa en una sola línea con su cuenta y el filtro.
-    assert stage.pending == 9
-    assert [i.text for i in section.pending_items] == ["9 pares por decidir"]
-    assert section.pending_items[0].url.endswith("?ver=sin-decidir#s4-propuesta")
-    assert 'href="' + section.pending_items[0].url + '"' in panel
+    assert f'<span class="cta">{section.pending}</span>' in panel
+    pairs = [i for i in section.pending_items if i.text.endswith("pares por decidir")]
+    assert len(pairs) == 1 and pairs[0].count == 9
+    assert pairs[0].text == "9 pares por decidir"
+    assert pairs[0].url.endswith("?ver=sin-decidir#s4-propuesta")
+    assert 'href="' + pairs[0].url + '"' in panel
     # El filtro muestra exactamente los pares contados.
     body = page(client, procedure, "?ver=sin-decidir")
-    body = body[body.index("<tbody>"):body.index("</tbody>")]
-    assert body.count("<small>") == stage.pending
+    body = body[body.index("<tbody>", body.index('id="t-eval"')):body.index("</tbody>", body.index('id="t-eval"'))]
+    assert body.count("<small>") == 9
+    sugg = re.search(r'<section class="panel" id="sugerencias".*?</section>', html, re.S)
+    assert sugg is None or "Descarte propuesto" not in sugg.group(0)
+    assert "Descarte propuesto por decidir: oferta" in panel
 
 
 def test_few_pending_are_listed_one_by_one(client, evaluated, procedure, operator_user,
@@ -425,13 +430,11 @@ def test_few_pending_are_listed_one_by_one(client, evaluated, procedure, operato
     section = sections_for(operator_user, procedure).get("evaluacion")
     html = page(client, procedure)
     panel = re.search(r'<section class="panel" id="pendientes".*?</section>', html, re.S).group(0)
-    assert len(section.pending_items) == section.pending == 9
-    assert panel.count("Resolver") == 9
+    assert len(section.pending_items) == section.pending
+    assert panel.count("Resolver") == section.pending
     for item in section.pending_items:
         anchor = item.url.split("#")[1]
         assert f'id="{anchor}"' in html and f'href="{item.url}"' in panel
-    sugg = re.search(r'<section class="panel" id="sugerencias".*?</section>', html, re.S).group(0)
-    assert "Descarte propuesto: oferta" in sugg
     # La barra de pestañas muestra las mismas cuentas.
     bar = client.get(reverse("expedientes:barra", args=[procedure.pk])).content.decode()
     mine = re.search(r'data-seccion="evaluacion".*?</a>', bar, re.S).group(0)

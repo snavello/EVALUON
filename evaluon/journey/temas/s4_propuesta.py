@@ -142,9 +142,10 @@ def _technical_cells(page):
 
 
 def _items(page, procedure):
-    """Cada cosa que la Comisión debe decidir en esta pestaña y cada sugerencia del sistema, con
-    su ancla. Los oks del informe técnico del área los lista `s4_informe` (T-209); entre los dos
-    suman lo mismo que cuenta la etapa `matriz_evaluacion`."""
+    """Cada cosa que la Comisión debe decidir en esta pestaña, con su ancla (y ninguna sugerencia:
+    el descarte propuesto es decisión de la Comisión y lo lista `s4_descartes`, T-210). Los oks
+    del informe técnico del área los lista `s4_informe` (T-209); entre los tres suman lo que
+    cuenta la etapa `matriz_evaluacion`."""
     base = _tab(procedure)
     technical = _technical_cells(page)
     pending = []
@@ -165,14 +166,7 @@ def _items(page, procedure):
                 "pregunta abierta", f"{base}#preg-{question.pk}", 1, "Resolver",
                 kind="pregunta", noun="preguntas abiertas",
                 group_url=f"{base}?preg=abiertas#s4-preguntas", group_action="Responder"))
-    suggestions = []
-    for discard in page.discards:
-        scope = ("completa" if discard.is_whole else
-                 "renglones " + ", ".join(str(i) for i in sorted(discard.by_item)))
-        suggestions.append(Item(f"Descarte propuesto: oferta {discard.offer.number} ({scope})",
-                                f"{base}#s4-descartes", 1, "Ver", kind="descarte",
-                                noun="descartes propuestos", group_url=f"{base}#s4-descartes"))
-    return pending, suggestions
+    return pending, []
 
 
 def status(user, procedure):
