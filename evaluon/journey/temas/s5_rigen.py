@@ -14,11 +14,21 @@ import re
 from dataclasses import dataclass
 from datetime import date
 
+from django.db.models import Prefetch, Q
 from django.urls import reverse
 from django.utils import timezone
 
+from evaluon.journey import memo
 from evaluon.journey.sections.base import Missing, TemaStatus
-from evaluon.norms.models import BODY_PART, Category, Norm, PendingAmendment, ReadingStatus
+from evaluon.norms.models import (
+    BODY_PART,
+    Category,
+    Document,
+    Norm,
+    PendingAmendment,
+    Reading,
+    ReadingStatus,
+)
 from evaluon.portal.models import PortalProcedureData
 from evaluon.queries.services import applicable_regimes
 
@@ -88,15 +98,39 @@ def _full_year(value):
     return year
 
 
-def _find(number, year, norm_type=None):
-    """La norma cargada con ese número y año, si hay (el organismo no se exige). Sin año (solo
-    las leyes), se busca por tipo y número."""
-    norms = Norm.objects.filter(number=number)
-    if year is not None:
-        norms = norms.filter(year=year)
-    elif norm_type:
-        norms = norms.filter(norm_type=norm_type)
-    return norms.order_by("pk").first()
+class _Index:
+    """Las normas que la tabla puede necesitar, traídas de una vez con sus documentos en uso y
+    sus lecturas (tres consultas en total, no una por norma)."""
+
+    def __init__(self, applicable_ids, cited):
+        numbers = {r[0] for r in (NEW_REGIME, OLD_REGIME) + NATIONAL_FRAMEWORK}
+        numbers |= {c.number for c in cited}
+        readings = Reading.objects.exclude(status=ReadingStatus.SUPERSEDED).order_by("-sequence")
+        documents = Document.objects.filter(in_use=True).prefetch_related(
+            Prefetch("readings", queryset=readings))
+        self.norms = list(
+            Norm.objects.filter(Q(pk__in=applicable_ids) | Q(number__in=numbers)
+                                | Q(category=Category.MARCO_NACIONAL))
+            .prefetch_related(Prefetch("documents", queryset=documents)).order_by("pk"))
+
+    def by_pk(self, pk):
+        return next(n for n in self.norms if n.pk == pk)
+
+    def marco(self):
+        return [n for n in self.norms if n.category == Category.MARCO_NACIONAL]
+
+    def find(self, number, year, norm_type=None):
+        """La norma cargada con ese número y año, si hay (el organismo no se exige). Sin año
+        (solo las leyes), se busca por tipo y número."""
+        for norm in self.norms:
+            if norm.number != number:
+                continue
+            if year is not None and norm.year != year:
+                continue
+            if year is None and norm_type and norm.norm_type != norm_type:
+                continue
+            return norm
+        return None
 
 
 def _type_name(norm_type):
@@ -106,11 +140,10 @@ def _type_name(norm_type):
 def _norm_info(norm):
     """Estado, origen y versión de una norma cargada, desde sus documentos en uso y su última
     lectura. Sin documento en uso o con alguna lectura sin validar, queda sin validar."""
-    documents = list(norm.documents.filter(in_use=True).order_by("part", "pk"))
+    documents = sorted(norm.documents.all(), key=lambda d: (d.part, d.pk))
     state, validated_at, loaded_at, url, pending_reading = LOADED, None, None, "", None
     for document in documents:
-        reading = (document.readings.exclude(status=ReadingStatus.SUPERSEDED)
-                   .order_by("-sequence").first())
+        reading = next(iter(document.readings.all()), None)
         if reading is None or reading.status != ReadingStatus.VALIDATED:
             state = UNVALIDATED
             pending_reading = pending_reading or reading
@@ -150,12 +183,11 @@ def _expected_regime(authorization_date):
     return NEW_REGIME if authorization_date >= NEW_REGIME_FROM else OLD_REGIME
 
 
-def _regime_rows(procedure, shown, governs):
+def _regime_rows(procedure, shown, governs, idx, applicable):
     """Las normas del régimen: el que rige a la fecha y, marcado, el que no aplica."""
     day = procedure.authorization_date
     when = f"{day:%d/%m/%Y}"
-    applicable = {r["norm"]: r["name"] for r in applicable_regimes(day)}
-    norms = {n.pk: n for n in Norm.objects.filter(pk__in=applicable)}
+    norms = {pk: idx.by_pk(pk) for pk in applicable}
     rows = []
     if applicable:
         for pk in applicable:
@@ -168,7 +200,7 @@ def _regime_rows(procedure, shown, governs):
         number, year, name = _expected_regime(day)
         why = (f"Autorizado el {when}, bajo su vigencia" if number == NEW_REGIME[0]
                else f"Autorizado el {when}, antes de la entrada en vigencia de la 247/2022")
-        norm = _find(number, year)
+        norm = idx.find(number, year)
         if norm is None:
             rows.append(_missing_row(name, why, procedure))
         else:
@@ -178,7 +210,7 @@ def _regime_rows(procedure, shown, governs):
         applies = {(number, year)}
     other = next((r for r in (NEW_REGIME, OLD_REGIME) if (r[0], r[1]) not in applies), None)
     if other is not None:
-        norm = _find(other[0], other[1])
+        norm = idx.find(other[0], other[1])
         if norm:
             shown.add(norm.pk)
         reason = ("No aplica: rige solo para autorizaciones anteriores a la 247/2022"
@@ -189,7 +221,7 @@ def _regime_rows(procedure, shown, governs):
     return rows
 
 
-def _framework_rows(procedure, shown, governs, cited):
+def _framework_rows(procedure, shown, governs, cited, idx):
     """El marco nacional; si además lo cita el pliego, una sola fila que lo dice."""
     cited_ids = {(c.number, c.year) for c in cited}
     rows = []
@@ -200,14 +232,14 @@ def _framework_rows(procedure, shown, governs, cited):
         return "Marco nacional de contrataciones"
 
     for number, year, name in NATIONAL_FRAMEWORK:
-        norm = _find(number, year)
+        norm = idx.find(number, year)
         if norm is None:
             rows.append(_missing_row(name, why(number, year), procedure))
         else:
             shown.add(norm.pk)
             governs.add(norm.pk)
             rows.append(_row(norm, name, why(number, year), procedure))
-    for norm in Norm.objects.filter(category=Category.MARCO_NACIONAL).exclude(pk__in=shown):
+    for norm in [n for n in idx.marco() if n.pk not in shown]:
         shown.add(norm.pk)
         governs.add(norm.pk)
         rows.append(_row(norm, None, why(norm.number, norm.year), procedure))
@@ -256,11 +288,11 @@ def _cited(procedure):
     return found
 
 
-def _cited_rows(procedure, shown, cited):
+def _cited_rows(procedure, shown, cited, idx):
     rows = []
     why = "La cita el pliego (encuadre legal)"
     for c in cited:
-        norm = _find(c.number, c.year, c.norm_type)
+        norm = idx.find(c.number, c.year, c.norm_type)
         if norm is not None and norm.pk in shown:
             continue
         if norm is None:
@@ -277,12 +309,19 @@ _EXPECTED = (NEW_REGIME, OLD_REGIME) + NATIONAL_FRAMEWORK
 
 
 def rows(procedure):
+    """Las filas de la tabla, calculadas una vez por carga (`memo.once`)."""
+    return memo.once((KEY, procedure.pk), lambda: _build_rows(procedure))
+
+
+def _build_rows(procedure):
     shown, governs = set(), set()
     cited = _cited(procedure)
-    result = _regime_rows(procedure, shown, governs)
-    result += _framework_rows(procedure, shown, governs, cited)
+    applicable = [r["norm"] for r in applicable_regimes(procedure.authorization_date)]
+    idx = _Index(applicable, cited)
+    result = _regime_rows(procedure, shown, governs, idx, applicable)
+    result += _framework_rows(procedure, shown, governs, cited, idx)
     result += _amendment_rows(procedure, governs)
-    result += _cited_rows(procedure, shown, cited)
+    result += _cited_rows(procedure, shown, cited, idx)
     return result
 
 

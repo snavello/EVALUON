@@ -49,3 +49,15 @@ def matrix_page(user, procedure_id, *, channel=Channel.SCREEN):
     if key not in memo:
         memo[key] = matrix_service.matrix_page(user, procedure_id, channel=channel)
     return memo[key]
+
+
+def once(key, compute):
+    """`compute()` una vez por alcance y clave; fuera de un alcance calcula siempre. Para lo que
+    el estado de una sección y el contexto de su tema piden en la misma carga."""
+    memo = _active.get()
+    if memo is None:
+        return compute()
+    key = ("once", key)
+    if key not in memo:
+        memo[key] = compute()
+    return memo[key]
