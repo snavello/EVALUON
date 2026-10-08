@@ -1,0 +1,2 @@
+{% comment %}Estado de un ítem de la propuesta (T-195): ícono y nombre, y quién lo decidió. Recibe `i`.{% endcomment %}
+{% include "journey/_icono.html" with icon=i.icon name=i.icon_name %} <span class="chica">{{ i.icon_name }}</span>{% if i.decided %}<br><span class="suave chica">{{ i.decided }}</span>{% endif %}{% if i.failure %}<br><span class="chica">{{ i.failure }}</span>{% endif %}

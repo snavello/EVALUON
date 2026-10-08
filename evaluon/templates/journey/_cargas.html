@@ -1,4 +1,4 @@
 {% comment %}«Subir archivo» y «Tomar del Portal», siempre a la vista junto al título de la sección (REQ-097). «Tomar del Portal» aparece solo si el procedimiento tiene un proceso del Portal seguido y la sección usa documentos del Portal; el Portal no publica normas. Recibe `section`, `portal_link`.{% endcomment %}<span class="barra-cargas">
-  {% if portal_link and section.key != "normativas" %}<a class="btn primario" href="{% url 'portal:proposal' portal_link.pk %}">Tomar del Portal</a>{% endif %}
+  {% if portal_link and section.key != "normativas" %}<a class="btn primario" href="{% url 'expedientes:procedimiento' procedure.pk %}#s1-portal">Tomar del Portal</a>{% endif %}
   {% if section.upload_url %}<a class="btn secundario" href="{{ section.upload_url }}">Subir archivo</a>{% endif %}
 </span>

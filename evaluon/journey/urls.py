@@ -3,13 +3,14 @@ secciones, bajo `expedientes/` (plan 014, «Rutas»).
 
 Las pantallas del recorrido siguen funcionando hasta que T-219 las redirija a su sección. Las
 rutas de acción de cada tema las suma `temas.url_patterns()`: después de T-192 nadie vuelve a
-tocar este archivo."""
+tocar este archivo. Lo único propio de este archivo son las del alta sin procedimiento
+(`nuevo/`, T-195), que no cuelgan de un procedimiento."""
 
 from django.urls import path
 
 from evaluon.journey import temas
 from evaluon.journey.sections import SECTIONS
-from evaluon.journey.views import index, portada, procedure, stages
+from evaluon.journey.views import index, nuevo, portada, procedure, stages
 
 app_name = "journey"
 
@@ -22,6 +23,11 @@ urlpatterns = [
 # Se incluye en `evaluon/urls.py` con el espacio de nombres `expedientes`.
 expedientes_urlpatterns = [
     path("", portada.lista, name="index"),
+    path("nuevo/", nuevo.nuevo, name="nuevo"),
+    path("nuevo/<int:link_id>/", nuevo.enlace, name="nuevo_enlace"),
+    path("nuevo/<int:link_id>/decidir/", nuevo.decidir, name="nuevo_decidir"),
+    path("nuevo/<int:link_id>/revisar/", nuevo.revisar, name="nuevo_revisar"),
+    path("nuevo/<int:link_id>/dejar-de-seguir/", nuevo.dejar, name="nuevo_dejar"),
     path("<int:procedure_id>/", portada.portada, name="portada"),
     path("<int:procedure_id>/barra/", portada.barra, name="barra"),
     path("<int:procedure_id>/ventana/", portada.ventana, name="ventana"),

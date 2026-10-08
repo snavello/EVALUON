@@ -1,1 +1,53 @@
-{% comment %}Parcial del tema s4_preguntas (Preguntas y pedidos de subsanación). Vacío en el corte vertical; lo completa T-208.{% endcomment %}
+{% load static %}{% comment %}Tema s4_preguntas (T-208, REQ-090): preguntas a la Comisión y pedidos de subsanación, con su respuesta registrada, quién y cuándo. Las acciones del evaluador son formularios POST a las rutas de s4_preguntas_acciones, que llaman a los mismos servicios que la pantalla vieja y vuelven a esta pestaña; un operador no ve los botones. Recibe `t` (ver evaluon/journey/temas/s4_preguntas.py).{% endcomment %}
+<link rel="stylesheet" href="{% static 'journey/s4_preguntas.css' %}">
+<div class="bloque s4-preg" id="s4-preguntas">
+  <div class="bloque-cab"><h3>Preguntas a la Comisión y pedidos de subsanación <span class="cta">{{ t.to_decide }} por decidir · {{ t.resolved }} {% if t.resolved == 1 %}resuelto{% else %}resueltos{% endif %}</span></h3></div>
+  {% if t.lines %}
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <thead><tr><th scope="col">Asunto</th><th scope="col">Oferta · requisito</th><th scope="col">Estado</th><th scope="col">Respuesta registrada / acción</th></tr></thead>
+    <tbody>
+    {% for line in t.lines %}
+      <tr id="{{ line.anchor }}">
+        <th scope="row">{{ line.subject }}{% if line.reason %}<small class="suave"> · {{ line.reason }}</small>{% endif %}</th>
+        <td>{{ line.where }}</td>
+        <td>{% include "journey/_icono.html" with icon=line.icon name=line.name %} {{ line.name }}</td>
+        <td>
+          {% for text in line.registered %}<p class="registro">{{ text }}</p>{% endfor %}
+          {% if line.can_answer %}
+          <details class="acc"><summary class="btn {% if line.registered %}secundario{% else %}primario{% endif %} chico">{% if line.registered %}Responder de nuevo{% else %}Responder{% endif %}</summary>
+            <form method="post" action="{% url 'expedientes:s4_responder' t.pid line.question_id %}">{% csrf_token %}
+              <label>Respuesta de la Comisión (obligatoria) <textarea name="text" rows="3" required></textarea></label>
+              <label>A qué se aplica <select name="scope">{% for value, label in t.scopes %}<option value="{{ value }}"{% if value == t.default_scope %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+              <p class="ayuda">Queda la respuesta, quién y cuándo. Responder no cambia lo ya evaluado.</p>
+              <button class="btn primario chico" type="submit">Guardar la respuesta</button>
+            </form></details>
+          {% endif %}
+          {% if line.can_ask %}
+          <details class="acc"><summary class="btn primario chico">Pedir que se subsane</summary>
+            <form method="post" action="{% url 'expedientes:s4_pedir_subsanacion' t.pid line.result_id %}">{% csrf_token %}
+              <label>Motivo del pedido (obligatorio) <textarea name="note" rows="2" required></textarea></label>
+              <button class="btn primario chico" type="submit">Pedir la subsanación</button>
+            </form></details>
+          {% endif %}
+          {% if line.can_add %}
+          <details class="acc"><summary class="btn secundario chico">{% if line.can_reevaluate %}Agregar otro documento{% else %}Agregar el documento{% endif %}</summary>
+            <form method="post" enctype="multipart/form-data" action="{% url 'expedientes:s4_agregar_documento' t.pid line.result_id %}">{% csrf_token %}
+              <label>Documento presentado por el oferente <input type="file" name="file" required></label>
+              <label>Nota (opcional) <textarea name="note" rows="2"></textarea></label>
+              <button class="btn primario chico" type="submit">Agregar el documento a la oferta</button>
+            </form></details>
+          {% endif %}
+          {% if line.can_reevaluate %}
+          <form class="en-linea" method="post" action="{% url 'expedientes:s4_evaluar_subsanacion' t.pid line.result_id %}">{% csrf_token %}<button class="btn primario chico" type="submit"{% if line.reevaluate_waits %} disabled{% endif %}>Evaluar de nuevo este requisito</button></form>
+          {% if line.reevaluate_waits %}<span class="suave">Se puede cuando termine de leerse el documento.</span>{% endif %}
+          {% endif %}
+          {% if not t.is_evaluator and line.icon == "nodet" %}<span class="suave">Lo decide un evaluador.</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="ayuda">No hay preguntas ni pedidos de subsanación.</p>
+  {% endif %}
+</div>
