@@ -33,7 +33,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-206 | Sección 3: reemplazar, retirar y restituir documentos de la oferta, con historial y «retirados» | REQ-099 | T-202, T-199 | pendiente |
 | T-207 | Sección 4: propuesta de evaluación por oferta y requisito (cumple, no cumple, no determinado, con fundamento) y decisión de la Comisión | REQ-089, REQ-097 | T-192 | terminada |
 | T-208 | Sección 4: preguntas a la Comisión y pedidos de subsanación con su respuesta registrada | REQ-090 | T-192 | terminada |
-| T-209 | Sección 4: informe técnico del área (por procedimiento o por oferta) y ok de la Comisión (absorbe la parte de informe técnico de T-191) | REQ-089, REQ-097 | T-192 | pendiente |
+| T-209 | Sección 4: informe técnico del área (por procedimiento o por oferta) y ok de la Comisión (absorbe la parte de informe técnico de T-191) | REQ-089, REQ-097 | T-192 | terminada |
 | T-210 | Sección 4: descartes propuestos y orden económico; el evaluador confirma o rechaza cada descarte con quién y cuándo | REQ-091 | T-192, T-193 | pendiente |
 | T-211 | Sección 4: dictamen del Portal o subido (sin borrador) | REQ-092, REQ-097 | T-192, T-193 | pendiente |
 | T-212 | Sección 4: exportar la planilla por oferta (Excel) y el cuadro comparativo (Excel y PDF); suma la dependencia XlsxWriter (ADR-0050) | REQ-093 | T-192 | pendiente |
@@ -45,6 +45,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-218 | Comprobación final con el caso chico y el caso-00 (Coordinador y testeador): 26 de 26 requisitos en pantalla, 0 datos tipeados, carga menor a 2 s y guía visual (reemplaza a T-186 de la 013) | REQ-075, REQ-076, REQ-077, REQ-078, REQ-079, REQ-080, REQ-081, REQ-082, REQ-083, REQ-084, REQ-085, REQ-086, REQ-087, REQ-088, REQ-089, REQ-090, REQ-091, REQ-092, REQ-093, REQ-094, REQ-095, REQ-096, REQ-097, REQ-098, REQ-099, REQ-100 | T-217 | pendiente |
 | T-219 | Las pantallas anteriores redirigen a su sección y el menú queda con la entrada nueva | REQ-075, REQ-100 | T-195, T-197, T-198, T-201, T-202, T-207, T-208, T-214 | pendiente |
 | T-220 | Propuesta de nombre y CUIT del oferente desde los archivos de una oferta: borrador, pedido en segundo plano, citas, corrección con valor y motivo y aprobación que crea la oferta (sin pantalla) | REQ-083 | T-193, T-196 | pendiente |
+| T-221 | Rendimiento de las pestañas con datos reales: Pliego y matriz, Ofertas y Evaluación cargan en menos de 2 s con el procedimiento real del sistema principal (medido en una base aparte restaurada del respaldo) | REQ-075, REQ-100 | T-209 | en curso |
 
 ## Tareas de la 013 que se absorben
 
