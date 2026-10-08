@@ -1,0 +1,52 @@
+/* Tema «propuesta de evaluación» de la sección 4 (T-207, REQ-089). Todo va bajo `.s4-prop` para no
+   mezclarse con los demás temas de la sección. Usa los tokens de la guía visual; sin recursos
+   externos. */
+
+.s4-prop label { display: block; font-size: var(--ev-t-sm); font-weight: 600; margin-bottom: 4px; }
+.s4-prop select, .s4-prop textarea {
+  width: 100%; font: inherit; font-size: var(--ev-t-ctl); color: var(--ev-texto); background: var(--ev-superficie);
+  border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 6px 8px;
+}
+.s4-prop .resumen { display: flex; flex-wrap: wrap; gap: 8px 26px; margin: 4px 0 14px; font-size: var(--ev-t-sm); color: var(--ev-texto-suave); }
+.s4-prop .resumen b { font-family: var(--ev-fuente-num); color: var(--ev-texto); font-size: var(--ev-t-base); }
+.s4-prop .filtros { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; margin: 12px 0 10px; }
+.s4-prop .filtros > div { min-width: 10rem; }
+.s4-prop .tabla-matriz { margin-top: 10px; }
+.s4-prop .matriz { min-width: 40rem; }
+.s4-prop .matriz .c-abrir { width: 1.4rem; }
+.s4-prop .matriz th.oferta small { display: block; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.s4-prop .matriz tr.grupo th { background: var(--ev-superficie-2); font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-lg); letter-spacing: var(--ev-espaciado-titulo); padding: 9px 10px; border-bottom: 1px solid var(--ev-borde); }
+.s4-prop .matriz tr.grupo .g-cta { font-family: var(--ev-fuente-num); font-size: var(--ev-t-xs); font-weight: 400; color: var(--ev-texto-suave); margin-left: 8px; letter-spacing: 0; }
+.s4-prop .matriz tr.fila-req { cursor: pointer; scroll-margin-top: 5rem; }
+.s4-prop .matriz .abrir { background: none; border: 0; cursor: pointer; color: var(--ev-texto-suave); font: inherit; width: 1.2rem; padding: 0; }
+.s4-prop .matriz td.e small { display: block; font-size: var(--ev-t-2xs); color: var(--ev-texto-suave); margin-top: 2px; }
+.s4-prop .matriz tr.detalle td { background: var(--ev-superficie); padding: 10px 14px 14px 38px; }
+.s4-prop .matriz tr.detalle[hidden] { display: none; }
+.s4-prop .matriz tbody tr.detalle:hover { background: var(--ev-superficie); }
+.s4-prop blockquote.cita { white-space: pre-wrap; overflow-wrap: anywhere; border-left: 3px solid var(--ev-azul-300); padding: 4px 12px; margin: 6px 0; font-size: var(--ev-t-sm); max-width: 80ch; }
+.s4-prop .det-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 26px; }
+.s4-prop .det-grid > div { min-width: 0; }
+.s4-prop .det-grid dl { margin: 0; min-width: 0; }
+.s4-prop .det-grid dd { margin: 0 0 6px; font-size: var(--ev-t-sm); overflow-wrap: anywhere; }
+.s4-prop .det-grid dt { font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-xs); letter-spacing: var(--ev-espaciado-etiqueta); text-transform: uppercase; color: var(--ev-texto-suave); }
+.s4-prop .par-oferta { border-top: 1px solid var(--ev-borde); padding-top: 8px; margin-top: 8px; }
+.s4-prop .par-oferta:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
+.s4-prop .registro { font-size: var(--ev-t-xs); color: var(--ev-texto-suave); margin: 2px 0 6px; }
+@media (max-width: 900px) { .s4-prop .det-grid { grid-template-columns: 1fr; } }
+
+/* Acciones de la Comisión: formularios en línea, desplegables y el aviso de lo hecho. */
+.s4-prop form.en-linea { display: inline-block; margin: 0 6px 6px 0; }
+.s4-prop .acciones-fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; margin-top: 8px; }
+.s4-prop details.acc { display: inline-block; vertical-align: top; margin: 0 6px 6px 0; }
+.s4-prop details.acc > summary { list-style: none; cursor: pointer; display: inline-block; }
+.s4-prop details.acc > summary::-webkit-details-marker { display: none; }
+.s4-prop details.acc[open] { display: block; flex-basis: 100%; max-width: 40rem; }
+.s4-prop details.acc form { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-btn); background: var(--ev-superficie); }
+.s4-prop details.acc label { margin-top: 6px; }
+.s4-prop .aviso { margin: 10px 0; padding: 9px 12px; border-radius: var(--ev-radio-btn); border: 1px solid var(--ev-borde); font-size: var(--ev-t-sm); }
+.s4-prop .aviso-ok { background: var(--ev-azul-50); border-color: var(--ev-azul-300); }
+.s4-prop .aviso-error { background: var(--ev-beige-100); border-color: var(--ev-beige-400); font-weight: 600; }
+.s4-prop .avance { margin: 8px 0 12px; font-size: var(--ev-t-sm); }
+.s4-prop .avance progress { width: 14rem; vertical-align: middle; margin-right: 8px; }
+.s4-prop ol.historial { list-style: none; padding: 0; margin: 0; }
+.s4-prop ol.historial > li { border-left: 3px solid var(--ev-azul-300); padding: 2px 0 6px 12px; margin-bottom: 8px; font-size: var(--ev-t-sm); }

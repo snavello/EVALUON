@@ -20,18 +20,18 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-193 | Esquema de la feature (una sola tarea): cambios de historial de documentos, tipos nuevos, borrador de procedimiento y de oferta, pedidos nuevos, renglones y CUIT con documento de origen, decisión de descartes, subida de normas y hechos de auditoría | REQ-077, REQ-083, REQ-087, REQ-091, REQ-092, REQ-094, REQ-099 | — | terminada |
 | T-194 | Sección 1: datos del procedimiento con origen de cada dato, régimen por fecha de autorización, renglones, apertura, garantías y ofertas del Portal | REQ-078, REQ-097 | T-192 | terminada |
 | T-195 | Sección 1: explorador y cargador del Portal (pegar enlace, propuesta agrupada, aprobar ítem por ítem o todo) y novedades de la revisión periódica | REQ-076, REQ-079, REQ-097 | T-194 | pendiente |
-| T-196 | Propuesta de datos y renglones desde el pliego subido: servicio, pedido en segundo plano, citas y aprobación que crea el procedimiento (sin pantalla) | REQ-077 | T-193 | pendiente |
+| T-196 | Propuesta de datos y renglones desde el pliego subido: servicio, pedido en segundo plano, citas y aprobación que crea el procedimiento (sin pantalla) | REQ-077 | T-193 | terminada |
 | T-197 | Sección 1: alta subiendo el pliego (propuesta con citas; el evaluador aprueba, descarta o corrige escribiendo valor y motivo; sin alta en blanco) | REQ-077, REQ-076, REQ-097 | T-195, T-196 | pendiente |
 | T-198 | Sección 2: documentos del pliego, anexos y especificaciones (lista por tipo con origen, subida de varios a la vez, tomar del Portal, faltantes) | REQ-080, REQ-097 | T-192 | terminada |
 | T-199 | Servicio de historial de documentos del pliego y de las ofertas: reemplazar, retirar, restituir, con auditoría y estado calculado (sin pantalla) | REQ-099 | T-193 | terminada |
-| T-200 | Sección 2: reemplazar, retirar y restituir documentos del pliego, historial de versiones y «retirados» | REQ-099, REQ-097 | T-198, T-199 | pendiente |
+| T-200 | Sección 2: reemplazar, retirar y restituir documentos del pliego, historial de versiones y «retirados» | REQ-099, REQ-097 | T-198, T-199 | terminada |
 | T-201 | Sección 2: acciones de la Comisión en la tabla de la matriz (confirmar, corregir, quitar, agregar, validar), versión nueva, imprimir y exportar | REQ-081, REQ-082 | T-192 | terminada |
 | T-202 | Sección 3: lista de ofertas con alta a la vista (desde el Portal o subiendo archivos, con nombre y CUIT propuestos para aprobar o corregir) y documentos de cada oferta, subida múltiple | REQ-083, REQ-084, REQ-097 | T-192, T-220 | pendiente |
-| T-203 | Sección 3: ficha de cada oferta (qué presentó frente a cada requisito, con el fragmento o «no se encontró en la oferta») | REQ-086 | T-192 | pendiente |
+| T-203 | Sección 3: ficha de cada oferta (qué presentó frente a cada requisito, con el fragmento o «no se encontró en la oferta») | REQ-086 | T-192 | terminada |
 | T-204 | Sección 3: anexos técnicos dentro de la oferta y hoja de compliance por oferta con el faltante a la vista (absorbe la parte de compliance de T-191) | REQ-087, REQ-088, REQ-097 | T-192, T-193 | pendiente |
 | T-205 | Sección 3: circulares y aclaraciones (Portal o subidas); una circular modificatoria abre una versión nueva de la matriz con lo cambiado marcado | REQ-085, REQ-097 | T-201 | pendiente |
 | T-206 | Sección 3: reemplazar, retirar y restituir documentos de la oferta, con historial y «retirados» | REQ-099 | T-202, T-199 | pendiente |
-| T-207 | Sección 4: propuesta de evaluación por oferta y requisito (cumple, no cumple, no determinado, con fundamento) y decisión de la Comisión | REQ-089, REQ-097 | T-192 | pendiente |
+| T-207 | Sección 4: propuesta de evaluación por oferta y requisito (cumple, no cumple, no determinado, con fundamento) y decisión de la Comisión | REQ-089, REQ-097 | T-192 | terminada |
 | T-208 | Sección 4: preguntas a la Comisión y pedidos de subsanación con su respuesta registrada | REQ-090 | T-192 | pendiente |
 | T-209 | Sección 4: informe técnico del área (por procedimiento o por oferta) y ok de la Comisión (absorbe la parte de informe técnico de T-191) | REQ-089, REQ-097 | T-192 | pendiente |
 | T-210 | Sección 4: descartes propuestos y orden económico; el evaluador confirma o rechaza cada descarte con quién y cuándo | REQ-091 | T-192, T-193 | pendiente |
@@ -142,6 +142,7 @@ El Coordinador marca T-185, T-186, T-188 y T-191 de la 013 como «reemplazada po
 - **Requisitos:** REQ-077, REQ-076, REQ-097
 - **No arranca sin la maqueta aprobada.**
 - **Qué hay que hacer:** tema `s1_pliego`: «Subir el pliego» (en `expedientes/nuevo/` y en la sección 1); mientras se lee, muestra el avance; al terminar, la propuesta con cada dato, su cita y su estado, y los renglones; el evaluador aprueba todo o ítem por ítem, descarta un renglón o **corrige un dato o renglón propuesto escribiendo el valor y el motivo (obligatorio)**; el operador sube el pliego y ve la propuesta sin botones de aprobar ni corregir. **No hay alta en blanco: sin propuesta no hay nada que escribir.** Al aprobar, abre el procedimiento recién creado en la sección 1.
+- **Aviso de tareas anteriores:** (T-196, dos rondas de ajuste agotadas, ADR-0024) caso-00: datos 4 de 5 (falta la fecha de autorización) y renglones 6 propuestos sin cantidad (umbral 90 %, a la lista de revisión con el primer producto). La pantalla tiene que dejar corregir con valor y motivo la cantidad, unidad y descripción de cada renglón y la fecha de autorización, y mostrar el tipo marcado «deducido del número de proceso». Usar reject para descartar un borrador mal leído.
 - **Archivos:** `evaluon/journey/temas/s1_pliego.py`, `evaluon/templates/journey/temas/s1_pliego.html`, `evaluon/journey/sections/s1.py`, `tests/journey/temas/test_s1_pliego.py`.
 - **Verificación:** `pytest tests/journey`; test de que no existe ruta ni formulario de alta en blanco y de que corregir exige motivo y registra quién y cuándo; flujo con el pliego del caso chico: subir, ver la propuesta con citas, aprobar y ver el procedimiento con su origen; pliego sin datos reconocibles muestra «no determinado» y no crea nada.
 - **No tocar:** el servicio de T-196; los temas `s1_datos` y `s1_portal` (solo se enlazan).
@@ -187,6 +188,7 @@ El Coordinador marca T-185, T-186, T-188 y T-191 de la 013 como «reemplazada po
 - **Requisitos:** REQ-083, REQ-084, REQ-097
 - **No arranca sin la maqueta aprobada.**
 - **Qué hay que hacer:** tema `s3_ofertas`: cuadro de ofertas con oferente, estado de lectura, ficha y faltantes; **botón de alta visible sin abrir nada**: desde el Portal (acta de apertura con oferente, CUIT, total, garantía y precio por renglón, ítems de oferta) o subiendo los archivos de la oferta: el sistema propone nombre y CUIT con su cita (servicio de T-220) y el evaluador los aprueba o corrige escribiendo valor y motivo; el operador sube y ve la propuesta sin botones de aprobar ni corregir; documentos de cada oferta con subida de varios a la vez (`load_document` por archivo).
+- **Aviso de tareas anteriores:** (T-203) la ficha se abre con ?ficha=<oferta>#s3-ficha: enlazarla desde la tabla de ofertas y quitar la lista provisoria de ofertas que muestra s3_ficha; revisar el enlace a /procedimientos/<id>/ que ve el operador en la lista de Ofertas.
 - **Archivos:** `evaluon/journey/temas/s3_ofertas.py`, `evaluon/templates/journey/temas/s3_ofertas.html`, `evaluon/journey/sections/s3.py`, `tests/journey/temas/test_s3_ofertas.py`.
 - **Verificación:** `pytest tests/journey tests/offers`; el botón de alta está en la página; tres archivos juntos quedan en la oferta; oferta importada del acta muestra su origen; subir los archivos de una oferta muestra nombre y CUIT propuestos con su cita; el evaluador corrige con motivo y el operador no ve el botón.
 - **No tocar:** `evaluon/offers/` (se reutiliza).
@@ -250,6 +252,7 @@ El Coordinador marca T-185, T-186, T-188 y T-191 de la 013 como «reemplazada po
 - **Requisitos:** REQ-089, REQ-097
 - **No arranca sin la maqueta aprobada.**
 - **Qué hay que hacer:** tema `s4_informe`: subir el informe técnico por procedimiento o por oferta (`technical_report`), pedir que el sistema proponga apto o no apto con cita del informe y dar el ok (evaluador); ofertas con filas técnicas sin informe figuran como faltante con su botón (absorbe la parte de informe técnico de T-191).
+- **Aviso de tareas anteriores:** (T-207) crear el ancla #s4-informe que ya usan los pendientes de s4_propuesta, sacar los oks técnicos de _items() de s4_propuesta y cambiar upload_url de sections/s4.py (hoy va a assessment:matrix).
 - **Archivos:** `evaluon/journey/temas/s4_informe.py`, `evaluon/templates/journey/temas/s4_informe.html`, `tests/journey/temas/test_s4_informe.py`.
 - **Verificación:** `pytest tests/journey tests/assessment`; el informe se sube desde la sección; la oferta sin informe figura como faltante; el ok exige evaluador.
 - **No tocar:** `evaluon/assessment/`.
@@ -259,6 +262,7 @@ El Coordinador marca T-185, T-186, T-188 y T-191 de la 013 como «reemplazada po
 - **Requisitos:** REQ-091
 - **No arranca sin la maqueta aprobada.**
 - **Qué hay que hacer:** tema `s4_descartes`: descartes propuestos (`propose_discards`) con sus motivos y fundamentos, y el orden económico total y por renglón (`economic_order`); el evaluador confirma o rechaza cada descarte (nota opcional) y queda `assessment_discard_decision` con quién y cuándo y el hecho `discard_decision`; si se evalúa de nuevo, el descarte vuelve a quedar sin decidir. El operador ve el estado y no el botón. Servicio nuevo en `assessment/services/discards.py`. Los descartes sin decisión son pendientes de la sección.
+- **Aviso de tareas anteriores:** (T-207) el descarte propuesto hoy figura entre las sugerencias; por REQ-091 es decisión de la Comisión: pasarlo a «Pendientes de decidir» y crear el ancla #s4-descartes, y sacar su renglón de _items() de s4_propuesta.
 - **Archivos:** `evaluon/assessment/services/discards.py`, `evaluon/journey/temas/s4_descartes.py`, `evaluon/templates/journey/temas/s4_descartes.html`, `tests/assessment/test_discard_decisions.py`, `tests/journey/temas/test_s4_descartes.py`.
 - **Verificación:** `pytest tests/assessment tests/journey`; el evaluador confirma y queda registrado con quién y cuándo; rechazar también; el operador no ve el botón y la ruta lo rechaza con registro; una evaluación nueva reinicia el estado; `propose_discards` y `economic_order` no cambian.
 - **No tocar:** `assessment/ordering.py` y el resto de servicios de evaluación.

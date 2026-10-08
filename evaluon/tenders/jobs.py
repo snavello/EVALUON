@@ -27,8 +27,8 @@ Manejadores (`HANDLERS`): un tipo de pedido, una función que recibe el `Job`. S
 por su ruta (`"evaluon.tenders.services.documents.run_read_document"`) para que el
 servicio que encola un pedido pueda registrar su manejador aquí sin importarse en
 círculo. Los registran T-072 (`read_document`), T-073 (`propose_matrix`) y T-130
-(`read_offer_document`, `build_sheet`). Cada manejador deja su propio registro de
-auditoría (`tender_read`, `matrix_proposal`, `offer_read`, `sheet_build`, P6).
+(`read_offer_document`, `build_sheet`) y T-196 (`propose_procedure`). Cada manejador deja su
+propio registro de auditoría (`tender_read`, `matrix_proposal`, `offer_read`, `sheet_build`, P6).
 """
 
 import logging
@@ -59,6 +59,9 @@ HANDLERS = {
     # Feature 004 (ADR-0039): el manejador lo crea T-150 en
     # `evaluon.assessment.services.evaluate`; hasta entonces el pedido falla con un motivo.
     JobKind.EVALUATE_OFFERS: "evaluon.assessment.services.evaluate.run_evaluate_offers",
+    # Feature 014 (ADR-0049, T-196): el manejador de la propuesta desde el pliego subido.
+    JobKind.PROPOSE_PROCEDURE:
+        "evaluon.tenders.services.procedure_proposal.run_propose_procedure",
 }
 
 # Qué hacer cuando un pedido de este tipo terminó bien (ya marcado `done`): función (o su ruta),
