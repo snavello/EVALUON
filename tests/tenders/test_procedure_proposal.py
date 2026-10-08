@@ -451,10 +451,6 @@ def test_text_lines_give_all_the_lines_with_a_literal_quote(operator_user, fake_
         (2, "ESCRITORIO SINTÉTICO DE MELAMINA", "1200", "UNIDAD"),
         (3, "SERVICIO DE ARMADO SINTÉTICO", "1", "GLOBAL"),
     ]
-    page_text = " ".join(
-        " ".join(line.text.split()) for line in
-        __import__("evaluon.norms.reading", fromlist=["read_document"])
-        .read_document(bytes(draft.content)).pages[0].lines)
     for line in lines:
         assert line["citation"]["page"] == 1
         assert line["description"] in line["citation"]["text"]
