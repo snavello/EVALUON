@@ -1,6 +1,6 @@
 # ADR-0046 · Organización de la aplicación por expediente (maqueta aprobada)
 
-Estado: aceptado · Fecha: 2026-10-07 · Decidió: responsable del proyecto ("ok adelante", al ver la maqueta)
+Estado: reemplazado en parte por el ADR-0047 (2026-10-07: puntos 1 a 3 y la maqueta de 24 pantallas) · Fecha: 2026-10-07 · Decidió: responsable del proyecto ("ok adelante", al ver la maqueta)
 
 ## Contexto
 
