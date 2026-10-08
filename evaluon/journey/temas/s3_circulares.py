@@ -140,8 +140,7 @@ def _what_it_did(state, has_validated, has_versions, user_can):
         if state.state == circular_version.VALIDADA:
             return (f"Entró en la versión {version.number}: {what}."
                     + _validated_day(version)), False, False
-        return (f"Entró en la versión {version.number} (en revisión): {what}. "
-                "Falta validarla."), True, False
+        return f"Entró en la versión {version.number} (en revisión): {what}.", True, False
     if state.state == circular_version.DESCARTADA:
         head = (f"La versión {state.version.number}, donde entró, se descartó. "
                 "Falta abrir una versión nueva.")
