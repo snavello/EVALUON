@@ -54,5 +54,6 @@ def compute(user, procedure):
             detail=f"Falta leer {len(unread)} de {len(documents)} documentos.", **common)
     return base.Stage(
         state=base.LISTA,
-        detail=f"Los {len(documents)} documentos del pliego y sus circulares están leídos.",
+        detail=("El documento del pliego está leído." if len(documents) == 1 else
+                f"Los {len(documents)} documentos del pliego y sus circulares están leídos."),
         **common)

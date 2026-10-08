@@ -1,0 +1,126 @@
+{% comment %}Tema s2_matriz (T-192, REQ-081, REQ-082): la matriz de cumplimiento en tabla agrupada por tipo, con filtros, filas que se abren con la cita del pliego y la lista de versiones. Solo lectura: las acciones de la Comisión siguen en la matriz completa (las trae T-201). Los filtros son un formulario GET: funcionan sin scripts. Recibe `t` (ver evaluon/journey/temas/s2_matriz.py).{% endcomment %}
+<div class="bloque" id="s2-matriz">
+  <div class="bloque-cab">
+    <h3>Matriz de cumplimiento{% if t.version %} <span class="cta" id="m-version">versión {{ t.version.number }} · {% if t.draft %}en revisión{% else %}validada{% endif %}</span>{% endif %}</h3>
+    <span class="linea-portal">Agrupada por tipo. Haga clic en una fila para ver la cita del pliego.</span>
+  </div>
+
+  {% if not t.version %}
+  <div class="estado-vacio">
+    <h3>Todavía no hay una matriz de cumplimiento</h3>
+    <p>La matriz se propone a partir del pliego leído. Cuando el pliego esté cargado, se pide la propuesta.</p>
+    <a class="btn primario" href="{{ t.propose_url }}">Cargar el pliego o pedir la propuesta</a>
+  </div>
+  {% else %}
+  <div class="resumen" id="m-resumen">
+    <span>Requisitos <b>{{ t.total }}</b></span>
+    <span>Formales <b>{{ t.summary.formal }}</b></span>
+    <span>Económicos <b>{{ t.summary.economico }}</b></span>
+    <span>Técnicos <b>{{ t.summary.tecnico }}</b></span>
+    <span>Sin confirmar <b>{{ t.summary.unconfirmed }}</b></span>
+    <span>Cambiados por circular <b>{{ t.summary.changed }}</b></span>
+  </div>
+
+  <form method="get" id="f-matriz" action="#s2-matriz">
+    <div class="filtros">
+      <div><label for="f-tipo">Tipo</label>
+        <select id="f-tipo" name="tipo">
+          <option value="">Todos</option>
+          {% for value, label in t.types %}<option value="{{ value }}"{% if value == t.kind %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select></div>
+      <div class="busca"><label for="f-txt">Buscar</label><input id="f-txt" type="search" name="q" value="{{ t.q }}" placeholder="Texto, número o cláusula"></div>
+      <div><button class="btn secundario" type="submit" name="filtro" value="{{ t.state }}">Aplicar</button></div>
+    </div>
+    <div class="contadores" role="group" aria-label="Filtrar la matriz">
+      {% for value, label, count, pressed in t.filter_buttons %}
+      <button type="submit" name="filtro" value="{{ value }}" aria-pressed="{% if pressed %}true{% else %}false{% endif %}">{{ label }} <b>{{ count }}</b></button>
+      {% endfor %}
+    </div>
+  </form>
+
+  <div class="tabla-scroll tabla-matriz">
+    <table class="matriz" id="t-matriz">
+      <caption class="sr-only">Requisitos de la versión {{ t.version.number }}, agrupados por tipo. Se muestran {{ t.shown }} de {{ t.total }}.</caption>
+      <thead><tr><th scope="col" class="c-abrir"><span class="sr-only">Abrir</span></th><th scope="col">N.º</th><th scope="col">Requisito</th><th scope="col">Ubicación en el pliego</th><th scope="col">Si no cumple</th><th scope="col">Marcas</th><th scope="col" class="e">Revisión</th></tr></thead>
+      <tbody>
+        {% for group in t.groups %}
+        <tr class="grupo" data-tipo="{{ group.category }}"><th colspan="7" scope="colgroup">{{ group.label }}<span class="g-cta">{{ group.count }} requisito{{ group.count|pluralize }} · {{ group.unconfirmed }} sin confirmar</span></th></tr>
+        {% for sub in group.subgroups %}
+        {% if sub.heading %}<tr class="subgrupo"><th colspan="7" scope="colgroup">{{ sub.heading }}</th></tr>{% endif %}
+        {% for row in sub.rows %}
+        <tr class="fila-req" data-numero="{{ row.number }}">
+          <td><button type="button" class="abrir" aria-expanded="false" aria-controls="detalle-{{ row.number }}" aria-label="Ver la cita del requisito {{ row.number }}">▸</button></td>
+          <th scope="row" class="num">{{ row.number }}</th>
+          <td>{{ row.text }}</td>
+          <td class="chica suave">{% if row.place %}{% include "tenders/_place.html" with place=row.place %}{% endif %}</td>
+          <td class="chica">{{ row.consequence }}</td>
+          <td class="chica suave">{{ row.marks|join:" · " }}</td>
+          <td class="e">{% if row.unconfirmed %}{% include "journey/_icono.html" with icon="pend" name="Propuesto, sin confirmar" %}{% else %}{% include "journey/_icono.html" with icon="cumple" name="Confirmado" %}{% endif %}</td>
+        </tr>
+        <tr class="detalle" id="detalle-{{ row.number }}" hidden>
+          <td colspan="7"><div class="det-grid">
+            <dl>
+              {% for quote in row.page_row.quotes %}
+              {% if quote.current %}
+              <dt>Texto anterior</dt>
+              <dd><blockquote class="cita vieja">{{ quote.text }}</blockquote></dd>
+              <dt>Texto vigente · {{ quote.current.place.document_title }}{% if quote.current.issued_on %}, {{ quote.current.issued_on|date:"d/m/Y" }}{% endif %}</dt>
+              <dd><blockquote class="cita">{{ quote.current.text }}</blockquote>{% include "tenders/_place.html" with place=quote.current.place %}</dd>
+              {% elif quote.voided %}
+              <dt>Cita del pliego</dt>
+              <dd><blockquote class="cita vieja">{{ quote.text }}</blockquote>Sin efecto desde {{ quote.voided.issued_on|date:"d/m/Y" }}, {{ quote.voided.place.document_title }}.</dd>
+              {% else %}
+              <dt>Cita literal del pliego{% if quote.scope_label %} · {{ quote.scope_label }}{% endif %}</dt>
+              <dd><blockquote class="cita">{{ quote.text }}</blockquote>{% include "tenders/_place.html" with place=quote.place %}</dd>
+              {% endif %}
+              {% empty %}
+              <dt>Cita literal del pliego</dt><dd class="suave">Este requisito no tiene cita guardada.</dd>
+              {% endfor %}
+            </dl>
+            <dl>
+              <dt>Consecuencia de no cumplir</dt>
+              <dd>{{ row.consequence }}{% if row.suggestions %} · sugeridas por el sistema: {{ row.suggestions|join:", " }}{% endif %}</dd>
+              {% if row.marks %}<dt>Marcas</dt><dd>{{ row.marks|join:" · " }}</dd>{% endif %}
+              <dt>Más</dt>
+              <dd class="fila"><a href="{% url 'tenders:history' row.page_row.requirement.pk %}">Historial</a>{% if t.can_review %}<a href="{{ t.matrix_url }}#requisito-{{ row.number }}">Revisar y decidir en la matriz</a>{% endif %}</dd>
+            </dl>
+          </div></td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+        {% empty %}
+        <tr><td colspan="7" class="suave">Ningún requisito con estos filtros.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="leyenda">
+    <span class="item">{% include "journey/_icono.html" with icon="cumple" name="Confirmado" %} Confirmado</span>
+    <span class="item">{% include "journey/_icono.html" with icon="pend" name="Propuesto, sin confirmar" %} Sin confirmar</span>
+  </div>
+  <div class="bloque-pie">
+    <a href="{{ t.print_url }}">Vista de impresión</a>
+    <a href="{{ t.pdf_url }}">Exportar PDF</a>
+    <a href="{{ t.matrix_url }}">Abrir la matriz completa</a>
+    {% if t.can_review %}<a class="btn primario" href="{{ t.matrix_url }}">Revisar y decidir en la matriz</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="bloque" id="s2-versiones">
+  <div class="bloque-cab"><h3>Versiones de la matriz <span class="cta">{{ t.versions|length }}</span></h3><span class="linea-portal">Una matriz validada queda fija; cambiarla abre una versión nueva sin perder la anterior.</span></div>
+  {% if t.versions %}
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <caption class="sr-only">Versiones de la matriz</caption>
+    <thead><tr><th scope="col">Versión</th><th scope="col">Estado</th><th scope="col">Motivo</th><th scope="col">Fecha</th><th scope="col">Quién la validó</th><th scope="col" class="n">Requisitos</th></tr></thead>
+    <tbody>
+      {% for v in t.versions %}
+      <tr class="version"><th scope="row">{{ v.version.number }}</th><td>{% if v.draft %}<b>{{ v.label }}</b>{% else %}{{ v.label }}{% endif %}</td><td>{{ v.reason }}</td><td class="num">{{ v.when }}</td><td>{% if v.who %}{{ v.who }}{% elif v.draft %}— (falta validar){% else %}—{% endif %}</td><td class="n">{{ v.total }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="suave">Todavía no hay versiones de la matriz.</p>
+  {% endif %}
+</div>
