@@ -5,15 +5,15 @@
     <caption class="sr-only">Datos del procedimiento y de dónde salió cada uno</caption>
     <thead><tr><th scope="col">Dato</th><th scope="col">Valor</th><th scope="col">De dónde salió</th></tr></thead>
     <tbody>
-      {% for label, value, numeric, origin in t.rows %}
+      {% for label, value, numeric, origin, bad in t.rows %}
       <tr><th scope="row">{{ label }}</th>
-        {% if value %}<td{% if numeric %} class="num"{% endif %}>{{ value }}</td>{% include "journey/temas/_s1_origen.html" with o=origin %}
+        {% if value %}<td{% if numeric %} class="num"{% endif %}>{{ value }}{% if bad %}{% include "journey/temas/_s1_dano.html" %}{% endif %}</td>{% include "journey/temas/_s1_origen.html" with o=origin %}
         {% else %}<td><span class="suave">Falta</span></td><td class="origen"><span class="suave">Sin dato</span></td>{% endif %}</tr>
       {% endfor %}
       <tr><th scope="row">Régimen que rige</th>
         <td>{% if t.regimes %}{% for name in t.regimes %}<b>{{ name }}</b>{% if not forloop.last %} · {% endif %}{% endfor %}{% else %}<span class="suave">No hay un régimen para esa fecha</span>{% endif %}</td>
         <td class="origen"><b>Calculado</b> desde la fecha de autorización</td></tr>
-      {% if t.legal_framework %}<tr><th scope="row">Encuadre legal</th><td>{{ t.legal_framework }}</td>{% include "journey/temas/_s1_origen.html" with o=t.data_origin %}</tr>{% endif %}
+      {% if t.legal_framework %}<tr><th scope="row">Encuadre legal</th><td>{{ t.legal_framework }}{% if t.damaged_legal %}{% include "journey/temas/_s1_dano.html" %}{% endif %}</td>{% include "journey/temas/_s1_origen.html" with o=t.data_origin %}</tr>{% endif %}
     </tbody>
   </table></div>
 </div>
@@ -26,7 +26,7 @@
     <thead><tr><th scope="col" class="n">Renglón</th><th scope="col">Descripción</th><th scope="col" class="n">Cantidad</th><th scope="col">De dónde salió</th></tr></thead>
     <tbody>
       {% for line in t.lines %}
-      <tr><td class="n">{{ line.number }}</td><td>{{ line.description }}</td><td class="n">{{ line.quantity }}</td>{% include "journey/temas/_s1_origen.html" with o=line.origin %}</tr>
+      <tr><td class="n">{{ line.number }}</td><td>{{ line.description }}{% if line.damaged %}{% include "journey/temas/_s1_dano.html" %}{% endif %}</td><td class="n">{{ line.quantity }}</td>{% include "journey/temas/_s1_origen.html" with o=line.origin %}</tr>
       {% endfor %}
     </tbody>
   </table></div>
@@ -34,7 +34,7 @@
 
   {% if t.opening %}<p class="resumen-linea" id="s1-apertura"><b>Apertura:</b> <span class="num">{{ t.opening.1 }}</span></p>{% endif %}
   <div class="tabla-scroll"><table class="matriz lectura">
-    <caption>Cronograma</caption>
+    <caption>Cronograma{% if t.damaged_schedule %}{% include "journey/temas/_s1_dano.html" %}{% endif %}</caption>
     <thead><tr><th scope="col">Hito</th><th scope="col">Fecha y hora</th><th scope="col">De dónde salió</th></tr></thead>
     <tbody>
       {% if not t.opening %}<tr><th scope="row">Apertura de ofertas</th><td><span class="suave">Falta</span></td><td class="origen"><span class="suave">Sin dato</span></td></tr>{% endif %}
@@ -49,7 +49,7 @@
     <thead><tr><th scope="col">Garantía</th><th scope="col">¿Se requiere?</th><th scope="col" class="n">Porcentaje</th><th scope="col">Detalle</th><th scope="col">De dónde salió</th></tr></thead>
     <tbody>
       {% for g in t.guarantees %}
-      <tr><th scope="row">{{ g.name }}</th><td>{% if g.required is True %}Sí{% elif g.required is False %}No{% else %}<span class="suave">No consta</span>{% endif %}</td><td class="n">{{ g.percent|default:"—" }}</td><td>{{ g.detail }}</td>{% include "journey/temas/_s1_origen.html" with o=t.data_origin %}</tr>
+      <tr><th scope="row">{{ g.name }}</th><td>{% if g.required is True %}Sí{% elif g.required is False %}No{% else %}<span class="suave">No consta</span>{% endif %}</td><td class="n">{{ g.percent|default:"—" }}</td><td>{{ g.detail }}{% if t.damaged_guarantees %}{% include "journey/temas/_s1_dano.html" %}{% endif %}</td>{% include "journey/temas/_s1_origen.html" with o=t.data_origin %}</tr>
       {% empty %}<tr><th scope="row">Garantías</th><td colspan="3"><span class="suave">Falta</span></td><td class="origen"><span class="suave">Sin dato</span></td></tr>{% endfor %}
     </tbody>
   </table></div>

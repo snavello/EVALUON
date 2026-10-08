@@ -160,7 +160,7 @@ def test_the_tab_has_no_links_to_old_screens_besides_the_portal_one(
     log_in(client, evaluator_user)
     html = page(client, from_portal).content.decode()
     block = html[html.index('id="s1-datos"'):html.index('id="s1-ofertas"')]
-    hrefs = set(re.findall(r'href="([^"]+)"', block))
+    hrefs = {h for h in re.findall(r'href="([^"]+)"', block) if not h.startswith("#")}
     assert all(h.startswith("/importar/") for h in hrefs), hrefs
 
 
@@ -221,3 +221,23 @@ def test_portal_offers_count_as_portal_in_the_origin_summary(from_portal):
     text = stage._origin_text(from_portal, [link])
     assert "1 oferta" in text.split("Subido a mano:")[0]
     assert "Subido a mano: nada" in text or "oferta" not in text.split("Subido a mano:")[1]
+
+
+def test_damaged_portal_text_is_flagged_without_changing_it(client, evaluator_user, from_portal):
+    """REQ-078, P3: un campo en `damaged_fields` lleva el aviso junto al valor y el texto
+    queda tal cual lo publicó el Portal."""
+    log_in(client, evaluator_user)
+    html = page(client, from_portal).content.decode()
+    warning = "El Portal publicó este texto con caracteres dañados; verificar en el original"
+    data = PortalProcedureData.objects.get()
+    assert data.item.damaged_fields  # el calco trae letras reemplazadas por «¿»
+    assert html.count(warning) >= 2
+    assert "Disposici¿¿n N¿¿ 247/2022" in html
+    link = reverse("portal:proposal", args=[from_portal.portal_links.get().pk])
+    assert f'<a href="{link}">Ver el proceso</a>' in html
+
+
+def test_clean_text_has_no_warning(client, operator_user, by_hand):
+    """REQ-078: sin campos dañados no hay aviso."""
+    log_in(client, operator_user)
+    assert "caracteres dañados" not in page(client, by_hand).content.decode()

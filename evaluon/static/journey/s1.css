@@ -2,3 +2,4 @@
 .origen { font-size: var(--ev-t-xs); color: var(--ev-texto-suave); white-space: nowrap; }
 .origen b { font-family: var(--ev-fuente-titulo); font-weight: 700; letter-spacing: var(--ev-espaciado-etiqueta); text-transform: uppercase; font-size: var(--ev-t-2xs); color: var(--ev-texto); }
 .origen a { color: inherit; }
+.dano { margin-left: 6px; font-size: var(--ev-t-xs); white-space: nowrap; }

@@ -264,8 +264,20 @@ def status(user, procedure):
                       sources=(f"Datos del procedimiento: {where}.",))
 
 
+def _damaged(data, lines):
+    """Los campos que el Portal publicó con caracteres dañados (`damaged_fields` del ítem):
+    de los datos del procedimiento y, por renglón, de la descripción."""
+    fields = set(data.item.damaged_fields) if data is not None and data.item_id else set()
+    for line in lines:
+        if line.item_id and f"renglones.{line.number}.descripcion" in line.item.damaged_fields:
+            fields.add(f"renglones.{line.number}")
+    return fields
+
+
 def context(user, procedure, request):
     data = _portal_data(procedure)
+    lines = _lines(procedure)
+    damaged = _damaged(data, lines)
     main_origin = _procedure_origin(procedure, data)
     data_origin = _origin(data.item, data.document) if data is not None else None
     schedule = _schedule(data)
@@ -275,18 +287,24 @@ def context(user, procedure, request):
         "portal_url": _portal_link_url(procedure),
         "portal_number": link.process_number if link else "",
         "rows": [
-            ("Número", procedure.number, True, main_origin),
-            ("Expediente", data.file_number if data else "", True, data_origin),
-            ("Tipo", procedure.procedure_type, False, main_origin),
-            ("Objeto", procedure.subject, False, main_origin),
+            ("Número", procedure.number, True, main_origin, "numero" in damaged),
+            ("Expediente", data.file_number if data else "", True, data_origin,
+             "expediente" in damaged),
+            ("Tipo", procedure.procedure_type, False, main_origin, "tipo" in damaged),
+            ("Objeto", procedure.subject, False, main_origin, "objeto" in damaged),
             ("Fecha de autorización", f"{procedure.authorization_date:%d/%m/%Y}", True,
-             main_origin),
+             main_origin, False),
         ],
         "regimes": [r["name"] for r in procedures.regime_for(procedure.authorization_date)],
         "legal_framework": data.legal_framework if data else "",
         "lines": [{"number": line.number, "description": line.description,
-                   "quantity": _quantity(line), "origin": _origin(line.item, line.document)}
-                  for line in _lines(procedure)],
+                   "quantity": _quantity(line), "origin": _origin(line.item, line.document),
+                   "damaged": f"renglones.{line.number}" in damaged}
+                  for line in lines],
+        "damaged_legal": "encuadre_legal" in damaged,
+        "damaged_schedule": "cronograma" in damaged,
+        "damaged_guarantees": "garantias" in damaged,
+        "damage_url": _portal_link_url(procedure) if procedure.portal_links.exists() else "",
         "schedule": schedule,
         "opening": _opening(schedule),
         "guarantees": _guarantees(data),
