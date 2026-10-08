@@ -1,4 +1,44 @@
-{% comment %}Tema s2_matriz (T-192, REQ-081, REQ-082): la matriz de cumplimiento en tabla agrupada por tipo, con filtros, filas que se abren con la cita del pliego y la lista de versiones. Solo lectura: las acciones de la Comisión siguen en la matriz completa (las trae T-201). Los filtros son un formulario GET: funcionan sin scripts. Recibe `t` (ver evaluon/journey/temas/s2_matriz.py).{% endcomment %}
+{% comment %}Tema s2_matriz (T-192, REQ-081, REQ-082): la matriz de cumplimiento en tabla agrupada por tipo, con filtros, filas que se abren con la cita del pliego y la lista de versiones. Las acciones de la Comisión (T-201) son formularios POST a las rutas de s2_matriz_acciones; el operador no ve botones de decisión. Los filtros son un formulario GET: funcionan sin scripts. Recibe `t` (ver evaluon/journey/temas/s2_matriz.py).{% endcomment %}
+{% if t.aviso %}<p class="aviso {% if t.aviso.ok %}aviso-ok{% else %}aviso-error{% endif %}" id="s2-aviso" role="{% if t.aviso.ok %}status{% else %}alert{% endif %}">{{ t.aviso.text }}</p>{% else %}<span id="s2-aviso"></span>{% endif %}
+{% if t.version and t.is_draft and t.to_decide %}
+<div class="bloque" id="s2-decidir">
+  <div class="bloque-cab"><h3>Sugerencias y tramos por decidir <span class="cta" id="decidir-cta">{{ t.to_decide }}</span></h3><span class="linea-portal">Se decide acá; los requisitos sin confirmar, en la matriz</span></div>
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <caption class="sr-only">Sugerencias del sistema y tramos del pliego que la Comisión debe decidir</caption>
+    <thead><tr><th scope="col">Qué</th><th scope="col">Detalle</th><th scope="col">Decisión</th></tr></thead>
+    <tbody>
+      {% for row in t.suggestion_rows %}
+      <tr id="sug-{{ row.requirement.number }}">
+        <th scope="row">Sugerencia {{ row.requirement.number }}</th>
+        <td>{% with quote=row.quotes.0 %}{% if quote %}«{{ quote.text }}» {% include "tenders/_place.html" with place=quote.place %}{% endif %}{% endwith %}{% if row.doubt_phrase %}<br><span class="suave">{{ row.doubt_phrase }}</span>{% endif %}{% if row.supports %}<br><span class="suave">La norma aplicable la exige.</span>{% endif %}</td>
+        <td class="dec">{% if t.can_review %}
+          <form class="en-linea" method="post" action="{% url 'expedientes:s2_sugerencia_pasar' t.pid row.requirement.pk %}">{% csrf_token %}<button class="btn secundario chico" type="submit">Pasar a requisito</button></form>
+          <form class="en-linea" method="post" action="{% url 'expedientes:s2_sugerencia_quitar' t.pid row.requirement.pk %}">{% csrf_token %}<button class="btn secundario chico" type="submit">Quitar la sugerencia</button></form>
+          {% else %}<span class="suave">Lo decide un evaluador</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      {% for row in t.segment_rows %}
+      <tr id="tramo-{{ row.item.pk }}">
+        <th scope="row">Tramo por revisar</th>
+        <td>{{ row.reason }} · {% include "tenders/_place.html" with place=row.place %}</td>
+        <td class="dec">{% if t.can_review %}
+          <form class="en-linea" method="post" action="{% url 'expedientes:s2_tramo_revisado' t.pid row.item.pk %}">{% csrf_token %}<button class="btn secundario chico" type="submit">Marcar revisado</button></form>
+          <details class="acc"><summary class="btn secundario chico">Agregar un requisito de este tramo</summary>
+            <form method="post" action="{% url 'expedientes:s2_agregar' t.pid %}">{% csrf_token %}
+              <input type="hidden" name="segment" value="{{ row.item.segment_id }}"><input type="hidden" name="pending" value="{{ row.item.pk }}">
+              <label>Tipo <select name="category"><option value="formal">Formal</option><option value="economico">Económico</option></select></label>
+              <label>Renglones (opcional) <input type="text" name="items"></label>
+              <p class="ayuda">El requisito toma la cita literal de todo el tramo.</p>
+              <button class="btn primario chico" type="submit">Agregar el requisito</button>
+            </form></details>
+          {% else %}<span class="suave">Lo decide un evaluador</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+
 <div class="bloque" id="s2-matriz">
   <div class="bloque-cab">
     <h3>Matriz de cumplimiento{% if t.version %} <span class="cta" id="m-version">versión {{ t.version.number }} · {% if t.draft %}en revisión{% else %}validada{% endif %}</span>{% endif %}</h3>
@@ -44,11 +84,11 @@
       <thead><tr><th scope="col" class="c-abrir"><span class="sr-only">Abrir</span></th><th scope="col">N.º</th><th scope="col">Requisito</th><th scope="col">Ubicación en el pliego</th><th scope="col">Si no cumple</th><th scope="col">Marcas</th><th scope="col" class="e">Revisión</th></tr></thead>
       <tbody>
         {% for group in t.groups %}
-        <tr class="grupo" data-tipo="{{ group.category }}"><th colspan="7" scope="colgroup">{{ group.label }}<span class="g-cta">{{ group.count }} requisito{{ group.count|pluralize }} · {{ group.unconfirmed }} sin confirmar</span></th></tr>
+        <tr class="grupo" data-tipo="{{ group.category }}"><th colspan="7" scope="colgroup">{{ group.label }}<span class="g-cta">{{ group.count }} requisito{{ group.count|pluralize }} · {{ group.unconfirmed }} sin confirmar</span>{% if t.can_review and group.unconfirmed %}<form class="en-linea g-accion" method="post" action="{% url 'expedientes:s2_confirmar' t.pid %}">{% csrf_token %}{% for sub in group.subgroups %}{% for row in sub.rows %}{% if row.unconfirmed %}<input type="hidden" name="requirement" value="{{ row.page_row.requirement.pk }}">{% endif %}{% endfor %}{% endfor %}<button class="btn secundario chico" type="submit">Confirmar los {{ group.unconfirmed }} del grupo</button></form>{% endif %}</th></tr>
         {% for sub in group.subgroups %}
         {% if sub.heading %}<tr class="subgrupo"><th colspan="7" scope="colgroup">{{ sub.heading }}</th></tr>{% endif %}
         {% for row in sub.rows %}
-        <tr class="fila-req" data-numero="{{ row.number }}">
+        <tr class="fila-req" data-numero="{{ row.number }}" id="req-{{ row.number }}">
           <td><button type="button" class="abrir" aria-expanded="false" aria-controls="detalle-{{ row.number }}" aria-label="Ver la cita del requisito {{ row.number }}">▸</button></td>
           <th scope="row" class="num">{{ row.number }}</th>
           <td>{{ row.text }}</td>
@@ -81,10 +121,49 @@
               <dt>Consecuencia de no cumplir</dt>
               <dd>{{ row.consequence }}{% if row.suggestions %} · sugeridas por el sistema: {{ row.suggestions|join:", " }}{% endif %}</dd>
               {% if row.marks %}<dt>Marcas</dt><dd>{{ row.marks|join:" · " }}</dd>{% endif %}
+              {% if row.motives %}<dt>Cambios con motivo</dt>{% for line in row.motives %}<dd>{{ line }}</dd>{% endfor %}{% endif %}
               <dt>Más</dt>
-              <dd class="fila"><a href="{% url 'tenders:history' row.page_row.requirement.pk %}">Historial</a>{% if t.can_review %}<a href="{{ t.matrix_url }}#requisito-{{ row.number }}">Revisar y decidir en la matriz</a>{% endif %}</dd>
+              <dd class="fila"><a href="{% url 'tenders:history' row.page_row.requirement.pk %}">Historial</a></dd>
             </dl>
-          </div></td>
+          </div>
+          {% if t.is_draft %}
+          {% if t.can_review %}
+          <div class="acciones-fila">
+            {% if row.unconfirmed %}<form class="en-linea" method="post" action="{% url 'expedientes:s2_confirmar' t.pid %}">{% csrf_token %}<input type="hidden" name="requirement" value="{{ row.page_row.requirement.pk }}"><button class="btn primario chico" type="submit">Confirmar</button></form>{% endif %}
+            <details class="acc"><summary class="btn secundario chico">Corregir</summary>
+              <form method="post" action="{% url 'expedientes:s2_corregir' t.pid row.page_row.requirement.pk %}">{% csrf_token %}
+                <p class="ayuda">Queda la versión anterior, quién y cuándo.</p>
+                {% if row.technical %}
+                <label>Sumar un tramo del pliego <select name="add_segment"><option value="">(ninguno)</option>{% for id, text in t.segment_options %}<option value="{{ id }}">{{ text }}</option>{% endfor %}</select></label>
+                {% for quote in row.page_row.quotes %}<label class="chk"><input type="checkbox" name="remove_quote" value="{{ quote.quote_id }}"> Sacar el tramo: {{ quote.place.document_title }}{% if quote.place.path %} · {{ quote.place.path }}{% endif %}</label>{% endfor %}
+                {% else %}
+                <label>Tipo <select name="category"><option value="formal"{% if row.category == "formal" %} selected{% endif %}>Formal</option><option value="economico"{% if row.category == "economico" %} selected{% endif %}>Económico</option><option value="tecnico">Técnico (se une a la fila de su renglón)</option></select></label>
+                <label>Renglones <input type="text" name="items" value="{{ row.page_row.requirement.items|join:', ' }}"></label>
+                {% with quote=row.page_row.quotes.0 %}{% if quote %}<input type="hidden" name="segment" value="{{ quote.segment_id }}"><label>Fragmento literal de la cláusula citada <textarea name="quote" rows="3">{{ quote.text }}</textarea></label>{% endif %}{% endwith %}
+                {% endif %}
+                <label>Motivo (obligatorio) <textarea name="motive" rows="2" required></textarea></label>
+                <button class="btn primario chico" type="submit">Guardar la corrección</button>
+              </form></details>
+            <details class="acc"><summary class="btn secundario chico">Quitar</summary>
+              <form method="post" action="{% url 'expedientes:s2_quitar' t.pid row.page_row.requirement.pk %}">{% csrf_token %}
+                <p class="ayuda">No se borra: pasa a «quitados» de esta versión, con el motivo.</p>
+                <label>Motivo (obligatorio) <textarea name="motive" rows="2" required></textarea></label>
+                <button class="btn secundario chico" type="submit">Quitar el requisito</button>
+              </form></details>
+            <details class="acc"><summary class="btn secundario chico">Elegir la consecuencia</summary>
+              <form method="post" action="{% url 'expedientes:s2_consecuencia' t.pid row.page_row.requirement.pk %}">{% csrf_token %}
+                {% for option in row.options %}<label class="chk"><input type="radio" name="option" value="{{ option.consequence.pk }}"{% if option.chosen %} checked{% endif %}> {{ option.label }} · {% if option.from_system %}sugerida por el sistema{% else %}propuesta por una persona{% endif %}{% if option.chosen %} · elegida{% endif %}</label>{% endfor %}
+                <p class="ayuda">O elija otro tipo y escriba su motivo (en una aprobación condicionada, la condición):</p>
+                <label>Otro tipo <select name="consequence_type"><option value="">(una de las de arriba)</option>{% for value, label in t.consequence_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+                <label>Motivo <textarea name="note" rows="2"></textarea></label>
+                <label>Tramo que la sostiene (solo para consultar al oferente u otra del pliego) <select name="segment"><option value="">(solo si hace falta)</option>{% for id, text in t.segment_options %}<option value="{{ id }}">{{ text }}</option>{% endfor %}</select></label>
+                <label>Fragmento literal del tramo <textarea name="quote" rows="2"></textarea></label>
+                <button class="btn primario chico" type="submit">Registrar la consecuencia</button>
+              </form></details>
+          </div>
+          {% else %}<p class="suave">Lo decide un evaluador.</p>{% endif %}
+          {% endif %}
+          </td>
         </tr>
         {% endfor %}
         {% endfor %}
@@ -100,13 +179,52 @@
     <span class="item">{% include "journey/_icono.html" with icon="pend" name="Propuesto, sin confirmar" %} Sin confirmar</span>
   </div>
   <div class="bloque-pie">
-    <a href="{{ t.print_url }}">Vista de impresión</a>
+    <a href="{{ t.print_url }}" target="_blank" rel="noopener">Vista de impresión</a>
     <a href="{{ t.pdf_url }}">Exportar PDF</a>
-    <a href="{{ t.matrix_url }}">Abrir la matriz completa</a>
-    {% if t.can_review %}<a class="btn primario" href="{{ t.matrix_url }}">Revisar y decidir en la matriz</a>{% endif %}
+    {% if t.coverage_url %}<a href="{{ t.coverage_url }}">Cobertura de la propuesta</a>{% endif %}
+    <a href="{{ t.discarded_url }}">Filas descartadas por el sistema</a>
+    {% if t.can_review %}
+    <details class="acc"><summary class="btn secundario">Agregar requisito desde el pliego</summary>
+      <form method="post" action="{% url 'expedientes:s2_agregar' t.pid %}">{% csrf_token %}
+        <p class="ayuda">Elija un tramo del pliego: el requisito toma su cita literal.</p>
+        <label>Tramo <select name="segment" required><option value="">Elija un tramo</option>{% for id, text in t.segment_options %}<option value="{{ id }}">{{ text }}</option>{% endfor %}</select></label>
+        <label>Tipo <select name="category"><option value="formal">Formal</option><option value="economico">Económico</option></select></label>
+        <label>Renglones (opcional) <input type="text" name="items"></label>
+        <button class="btn primario chico" type="submit">Agregar el requisito</button>
+      </form></details>
+    <details class="acc"><summary class="btn secundario">Agregar la fila técnica de un renglón</summary>
+      <form method="post" action="{% url 'expedientes:s2_agregar_tecnico' t.pid %}">{% csrf_token %}
+        <label>Renglón <input type="number" min="1" name="item" required></label>
+        <label>Primer tramo <select name="segment" required><option value="">Elija un tramo</option>{% for id, text in t.segment_options %}<option value="{{ id }}">{{ text }}</option>{% endfor %}</select></label>
+        <button class="btn primario chico" type="submit">Agregar la fila técnica</button>
+      </form></details>
+    <form class="en-linea" method="post" action="{% url 'expedientes:s2_confirmar' t.pid %}">{% csrf_token %}{% for id in t.unconfirmed_ids %}<input type="hidden" name="requirement" value="{{ id }}">{% endfor %}<button class="btn secundario" type="submit"{% if not t.unconfirmed_ids %} disabled{% endif %}>{% if t.unconfirmed_ids %}Confirmar los {{ t.unconfirmed_ids|length }} sin confirmar{% else %}Todos confirmados{% endif %}</button></form>
+    <form class="en-linea" method="post" action="{% url 'expedientes:s2_validar' t.pid t.version.pk %}">{% csrf_token %}<button class="btn primario" id="validar" type="submit"{% if t.blocked %} disabled{% endif %}>Validar la versión {{ t.version.number }}</button></form>
+    {% elif t.is_draft %}
+    <span class="suave">Las decisiones y la validación de la versión las toma un evaluador.</span>
+    {% elif t.can_open_new and t.is_evaluator %}
+    <form class="en-linea" method="post" action="{% url 'expedientes:s2_nueva_version' t.pid %}">{% csrf_token %}<button class="btn secundario" type="submit">Abrir una versión nueva</button></form>
+    {% endif %}
   </div>
+  {% if t.can_review %}<p class="ayuda condicion" id="cond-validar">{{ t.condition }}</p>{% endif %}
   {% endif %}
 </div>
+
+{% if t.version and t.removed %}
+<div class="bloque" id="s2-quitados">
+  <div class="bloque-cab"><h3>Quitados de esta versión <span class="cta">{{ t.removed|length }}</span></h3><span class="linea-portal">Quitar no borra: se pueden restituir mientras la versión esté en revisión.</span></div>
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <caption class="sr-only">Requisitos quitados</caption>
+    <thead><tr><th scope="col">N.º</th><th scope="col">Tipo</th><th scope="col">Cita</th><th scope="col">Acción</th></tr></thead>
+    <tbody>
+      {% for row, motives in t.removed %}
+      <tr><th scope="row" class="num">{{ row.requirement.number }}</th><td>{{ row.requirement.get_category_display }}</td><td>{% with quote=row.quotes.0 %}{% if quote %}{{ quote.text|truncatewords:30 }}{% endif %}{% endwith %}{% for line in motives %}<br><span class="suave">{{ line }}</span>{% endfor %}</td>
+        <td>{% if t.can_review %}<form class="en-linea" method="post" action="{% url 'expedientes:s2_restituir' t.pid row.requirement.pk %}">{% csrf_token %}<button class="btn secundario chico" type="submit">Restituir</button></form>{% elif t.is_draft %}<span class="suave">Lo decide un evaluador</span>{% endif %} <a href="{% url 'tenders:history' row.requirement.pk %}">Historial</a></td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
 
 <div class="bloque" id="s2-versiones">
   <div class="bloque-cab"><h3>Versiones de la matriz <span class="cta">{{ t.versions|length }}</span></h3><span class="linea-portal">Una matriz validada queda fija; cambiarla abre una versión nueva sin perder la anterior.</span></div>
