@@ -28,13 +28,13 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-201 | Sección 2: acciones de la Comisión en la tabla de la matriz (confirmar, corregir, quitar, agregar, validar), versión nueva, imprimir y exportar | REQ-081, REQ-082 | T-192 | terminada |
 | T-202 | Sección 3: lista de ofertas con alta a la vista (desde el Portal o subiendo archivos, con nombre y CUIT propuestos para aprobar o corregir) y documentos de cada oferta, subida múltiple | REQ-083, REQ-084, REQ-097 | T-192, T-220 | pendiente |
 | T-203 | Sección 3: ficha de cada oferta (qué presentó frente a cada requisito, con el fragmento o «no se encontró en la oferta») | REQ-086 | T-192 | terminada |
-| T-204 | Sección 3: anexos técnicos dentro de la oferta y hoja de compliance por oferta con el faltante a la vista (absorbe la parte de compliance de T-191) | REQ-087, REQ-088, REQ-097 | T-192, T-193 | pendiente |
+| T-204 | Sección 3: anexos técnicos dentro de la oferta y hoja de compliance por oferta con el faltante a la vista (absorbe la parte de compliance de T-191) | REQ-087, REQ-088, REQ-097 | T-192, T-193 | terminada |
 | T-205 | Sección 3: circulares y aclaraciones (Portal o subidas); una circular modificatoria abre una versión nueva de la matriz con lo cambiado marcado | REQ-085, REQ-097 | T-201 | pendiente |
 | T-206 | Sección 3: reemplazar, retirar y restituir documentos de la oferta, con historial y «retirados» | REQ-099 | T-202, T-199 | pendiente |
 | T-207 | Sección 4: propuesta de evaluación por oferta y requisito (cumple, no cumple, no determinado, con fundamento) y decisión de la Comisión | REQ-089, REQ-097 | T-192 | terminada |
 | T-208 | Sección 4: preguntas a la Comisión y pedidos de subsanación con su respuesta registrada | REQ-090 | T-192 | terminada |
 | T-209 | Sección 4: informe técnico del área (por procedimiento o por oferta) y ok de la Comisión (absorbe la parte de informe técnico de T-191) | REQ-089, REQ-097 | T-192 | terminada |
-| T-210 | Sección 4: descartes propuestos y orden económico; el evaluador confirma o rechaza cada descarte con quién y cuándo | REQ-091 | T-192, T-193 | pendiente |
+| T-210 | Sección 4: descartes propuestos y orden económico; el evaluador confirma o rechaza cada descarte con quién y cuándo | REQ-091 | T-192, T-193 | terminada |
 | T-211 | Sección 4: dictamen del Portal o subido (sin borrador) | REQ-092, REQ-097 | T-192, T-193 | pendiente |
 | T-212 | Sección 4: exportar la planilla por oferta (Excel) y el cuadro comparativo (Excel y PDF); suma la dependencia XlsxWriter (ADR-0050) | REQ-093 | T-192 | pendiente |
 | T-213 | Propuesta de los datos de una norma desde su archivo y staging de la subida (sin pantalla) | REQ-094 | T-193 | terminada |
@@ -45,7 +45,9 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-218 | Comprobación final con el caso chico y el caso-00 (Coordinador y testeador): 26 de 26 requisitos en pantalla, 0 datos tipeados, carga menor a 2 s y guía visual (reemplaza a T-186 de la 013) | REQ-075, REQ-076, REQ-077, REQ-078, REQ-079, REQ-080, REQ-081, REQ-082, REQ-083, REQ-084, REQ-085, REQ-086, REQ-087, REQ-088, REQ-089, REQ-090, REQ-091, REQ-092, REQ-093, REQ-094, REQ-095, REQ-096, REQ-097, REQ-098, REQ-099, REQ-100 | T-217 | pendiente |
 | T-219 | Las pantallas anteriores redirigen a su sección y el menú queda con la entrada nueva | REQ-075, REQ-100 | T-195, T-197, T-198, T-201, T-202, T-207, T-208, T-214 | pendiente |
 | T-220 | Propuesta de nombre y CUIT del oferente desde los archivos de una oferta: borrador, pedido en segundo plano, citas, corrección con valor y motivo y aprobación que crea la oferta (sin pantalla) | REQ-083 | T-193, T-196 | pendiente |
-| T-221 | Rendimiento de las pestañas con datos reales: Pliego y matriz, Ofertas y Evaluación cargan en menos de 2 s con el procedimiento real del sistema principal (medido en una base aparte restaurada del respaldo) | REQ-075, REQ-100 | T-209 | en curso |
+| T-221 | Rendimiento de las pestañas con datos reales: Pliego y matriz, Ofertas y Evaluación cargan en menos de 2 s con el procedimiento real del sistema principal (medido en una base aparte restaurada del respaldo) | REQ-075, REQ-100 | T-209 | terminada |
+| T-222 | Pendientes y sugerencias agrupados cuando son muchos: con el procedimiento real la pestaña Evaluación lista 258 pendientes uno por uno (página de 32.000 px); agrupar por tipo con su cuenta y acceso al bloque filtrado, y detallar uno por uno solo cuando son pocos | REQ-098, REQ-100 | T-221 | en curso |
+| T-223 | Menos consultas en los servicios de la evaluación y de la matriz (N+1 en matrix_page, external_results, question_list y quote_rows), sin cambiar resultados | REQ-100 | T-221 | pendiente |
 
 ## Tareas de la 013 que se absorben
 
@@ -189,7 +191,7 @@ El Coordinador marca T-185, T-186, T-188 y T-191 de la 013 como «reemplazada po
 - **Requisitos:** REQ-083, REQ-084, REQ-097
 - **No arranca sin la maqueta aprobada.**
 - **Qué hay que hacer:** tema `s3_ofertas`: cuadro de ofertas con oferente, estado de lectura, ficha y faltantes; **botón de alta visible sin abrir nada**: desde el Portal (acta de apertura con oferente, CUIT, total, garantía y precio por renglón, ítems de oferta) o subiendo los archivos de la oferta: el sistema propone nombre y CUIT con su cita (servicio de T-220) y el evaluador los aprueba o corrige escribiendo valor y motivo; el operador sube y ve la propuesta sin botones de aprobar ni corregir; documentos de cada oferta con subida de varios a la vez (`load_document` por archivo).
-- **Aviso de tareas anteriores:** (T-203) la ficha se abre con ?ficha=<oferta>#s3-ficha: enlazarla desde la tabla de ofertas y quitar la lista provisoria de ofertas que muestra s3_ficha; revisar el enlace a /procedimientos/<id>/ que ve el operador en la lista de Ofertas.
+- **Aviso de tareas anteriores:** (T-203) la ficha se abre con ?ficha=<oferta>#s3-ficha: enlazarla desde la tabla de ofertas y quitar la lista provisoria de ofertas que muestra s3_ficha; revisar el enlace a /procedimientos/<id>/ que ve el operador en la lista de Ofertas. (T-204) incluir el parcial _s3_anexos_oferta.html (offer_block) dentro de la tabla de ofertas y sacar el bloque provisorio; sumar las columnas «Págs.» y «De dónde vino» de los anexos.
 - **Archivos:** `evaluon/journey/temas/s3_ofertas.py`, `evaluon/templates/journey/temas/s3_ofertas.html`, `evaluon/journey/sections/s3.py`, `tests/journey/temas/test_s3_ofertas.py`.
 - **Verificación:** `pytest tests/journey tests/offers`; el botón de alta está en la página; tres archivos juntos quedan en la oferta; oferta importada del acta muestra su origen; subir los archivos de una oferta muestra nombre y CUIT propuestos con su cita; el evaluador corrige con motivo y el operador no ve el botón.
 - **No tocar:** `evaluon/offers/` (se reutiliza).
@@ -282,6 +284,7 @@ El Coordinador marca T-185, T-186, T-188 y T-191 de la 013 como «reemplazada po
 - **Requisitos:** REQ-093
 - **No arranca sin la maqueta aprobada.** ADR-0050 aceptado antes de empezar (incluida la dependencia nueva).
 - **Qué hay que hacer:** tema `s4_exportar`: la planilla por oferta en Excel (un libro con una hoja por oferta: cada requisito con resultado, fundamento, decisión de la Comisión, descartes y su decisión) y el cuadro comparativo (ofertas por requisito, orden económico) en Excel y en PDF; Excel con XlsxWriter (agregar a `pyproject.toml` con versión exacta, verificando antes versión actual, licencia y compatibilidad con la versión de Python de la imagen, y reconstruir la imagen) y PDF con `weasyprint`; el hecho `eval_export` con qué se exportó y de qué evaluación; rotulado como propuesta de evaluación donde corresponda.
+- **Aviso de tareas anteriores:** (T-210) en la planilla y el cuadro comparativo, tomar los descartes de discards.units y confirmed_discards (el confirmado figura descartada; el propuesto, marcado sin decidir).
 - **Archivos:** `pyproject.toml` (y el archivo de versiones fijadas si existe), `evaluon/assessment/services/export.py`, `evaluon/journey/temas/s4_exportar.py`, `evaluon/templates/journey/temas/s4_exportar.html`, `tests/assessment/test_export.py`, `tests/journey/temas/test_s4_exportar.py`.
 - **Verificación:** `pytest tests/assessment tests/journey`; con el caso evaluado se obtienen el Excel de la planilla y del cuadro con el 100 % de ofertas y requisitos (se reabre el `.xlsx` en el test) y el PDF del cuadro; queda el hecho de auditoría; la imagen se reconstruye sin internet en uso.
 - **No tocar:** `assessment/ordering.py`.

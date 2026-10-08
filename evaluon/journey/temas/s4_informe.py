@@ -22,9 +22,9 @@ from django.views.decorators.http import require_POST
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.assessment.models import TechnicalVerdict
-from evaluon.assessment.services import matrix as matrix_service
 from evaluon.assessment.services import technical, technical_report
 from evaluon.audit.models import Channel
+from evaluon.journey import memo
 from evaluon.journey.sections.base import Item, Missing, TemaStatus
 from evaluon.journey.temas import s4_propuesta_acciones as acciones
 from evaluon.journey.temas.s4_propuesta import when
@@ -109,7 +109,7 @@ def _pending_ok_offers(page):
 
 
 def status(user, procedure):
-    page = matrix_service.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
+    page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
     base = _tab(procedure)
     with_rows = _with_rows(page)
     pending = []
@@ -120,10 +120,13 @@ def status(user, procedure):
         else:  # sin informe, lo primero es subirlo: va al formulario de esa oferta
             pending.append(Item(f"Oferta {offer.number}: falta subir el informe técnico",
                                 f"{base}#informe-oferta-{offer.number}", 1, "Resolver"))
+    # Mismas ofertas que los pendientes «falta subir el informe»: con filas técnicas ya
+    # evaluadas y sin informe.
+    waiting = {offer.pk for offer in _pending_ok_offers(page)}
     missing = tuple(
         Missing(f"Oferta {s.offer.number}: falta el informe técnico del área",
                 f"{base}{ANCHOR}", "Subir informe técnico")
-        for s in with_rows if not s.reports)
+        for s in with_rows if not s.reports and s.offer.pk in waiting)
     sources = []
     uploaded = [d for s in with_rows for d in s.reports]
     if uploaded:
@@ -179,7 +182,7 @@ def _blocks(page):
 
 
 def context(user, procedure, request):
-    page = matrix_service.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
+    page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
     blocks = _blocks(page)
     items = sorted({row.item for block in blocks for row in block.rows})
     cells = {}

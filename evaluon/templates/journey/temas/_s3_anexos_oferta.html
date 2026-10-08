@@ -1,0 +1,36 @@
+{% comment %}Bloque de una oferta del tema s3_anexos (T-204): sus anexos técnicos y su hoja de compliance, con los botones. Recibe `b` (OfferBlock) y `pid`. Lo incluye la pestaña y, cuando exista, la tabla de ofertas (T-202).{% endcomment %}
+<div class="oferta-anexos" id="s3-anexos-oferta-{{ b.offer.number }}">
+  <h4>Oferta {{ b.offer.number }} · {{ b.offer.bidder }}</h4>
+
+  <div class="parte" id="s3-anexos-anexos-{{ b.offer.number }}">
+    <h5>Anexos técnicos de la oferta <span class="cta">{{ b.annexes|length }}</span></h5>
+    {% if b.annexes %}
+    <ul class="docs-anexos">{% for d in b.annexes %}<li><a href="{% url 'offers:document_original' d.document.pk %}" target="_blank" rel="noopener">{{ d.title }}</a> · subido el {{ d.loaded }} por {{ d.by }} · <b>{{ d.state }}</b></li>{% endfor %}</ul>
+    {% else %}
+    <p class="suave">Todavía no hay anexos técnicos de esta oferta. Son las fichas y folletos técnicos que presenta el oferente.</p>
+    {% endif %}
+    {% if b.can_upload_annex %}
+    <form class="subida en-linea" method="post" enctype="multipart/form-data" action="{% url 'expedientes:s3_anexos_anexo' pid b.offer.pk %}">{% csrf_token %}
+      <input type="file" name="file" aria-label="Anexo técnico de la oferta {{ b.offer.number }}" required>
+      <button class="btn secundario chico" type="submit">Subir anexo técnico</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="parte" id="s3-anexos-hoja-{{ b.offer.number }}">
+    <h5>Hoja de compliance</h5>
+    {% if b.has_sheet %}
+    <p>{% include "journey/_icono.html" with icon="cumple" name="Hoja cargada" %} Cargada el {{ b.sheet.loaded }} por {{ b.sheet.by }} · <a href="{% url 'offers:document_original' b.sheet.document.pk %}" target="_blank" rel="noopener">{{ b.sheet.title }}</a> · <b>{{ b.sheet.state }}</b></p>
+    {% else %}
+    <p>{% include "journey/_icono.html" with icon="nocumple" name="Falta la hoja de compliance" %} <b>Falta</b> <span class="suave">Mientras falte, los requisitos externos de esta oferta quedan «no determinado».</span></p>
+    {% endif %}
+    {% if b.can_upload_sheet %}
+    <form class="subida en-linea" method="post" enctype="multipart/form-data" action="{% url 'expedientes:s3_anexos_hoja' pid b.offer.pk %}">{% csrf_token %}
+      <input type="file" name="file" aria-label="Hoja de compliance de la oferta {{ b.offer.number }}" required>
+      <button class="btn {% if b.has_sheet %}secundario{% else %}primario{% endif %} chico" type="submit">Subir hoja de compliance</button>
+    </form>
+    {% else %}
+    <p class="ayuda">La hoja de compliance la sube un evaluador de la Comisión.</p>
+    {% endif %}
+  </div>
+</div>
