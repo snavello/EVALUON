@@ -40,13 +40,18 @@ def _undecided_pairs(page):
                if cell.state == matrix_service.PENDING and key not in technical_cells)
 
 
+def _technical_pending_offer_statuses(page):
+    """Los estados de las ofertas con alguna fila técnica ya evaluada y sin ok vigente."""
+    return [status for status in page.statuses
+            if any(not row.approved
+                   and page.cells[(status.offer.pk, row.requirement.pk)].result is not None
+                   for row in status.technical
+                   if (status.offer.pk, row.requirement.pk) in page.cells)]
+
+
 def _technical_pending_offers(page):
-    """Las ofertas con alguna fila técnica ya evaluada y sin ok vigente del informe."""
-    return sum(1 for status in page.statuses
-               if any(not row.approved
-                      and page.cells[(status.offer.pk, row.requirement.pk)].result is not None
-                      for row in status.technical
-                      if (status.offer.pk, row.requirement.pk) in page.cells))
+    """Cuántas ofertas tienen alguna fila técnica ya evaluada y sin ok vigente del informe."""
+    return len(_technical_pending_offer_statuses(page))
 
 
 def compute(user, procedure):
@@ -86,8 +91,13 @@ def compute(user, procedure):
     if questions:
         parts.append(_plural(questions, "pregunta abierta", "preguntas abiertas"))
     if reports:
-        parts.append(_plural(reports, "oferta", "ofertas")
-                     + " con el ok del informe técnico pendiente")
+        pending_offers = _technical_pending_offer_statuses(page)
+        without = sum(1 for status in pending_offers if not status.reports)
+        if without:
+            parts.append(_plural(without, "oferta", "ofertas") + " sin informe técnico")
+        if reports - without:
+            parts.append(_plural(reports - without, "oferta", "ofertas")
+                         + " con el ok del informe técnico pendiente")
     return base.Stage(state=base.A_DECIDIR, pending=pending, suggestions=suggestions,
                       decide_url=decide_url, detail="Falta decidir: " + "; ".join(parts) + "."
                       + hint, **common)

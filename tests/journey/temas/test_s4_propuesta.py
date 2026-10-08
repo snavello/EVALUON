@@ -443,7 +443,7 @@ def test_open_questions_and_technical_ok_are_listed_and_counted_like_the_stage(
     assert stage.pending == 3  # 1 par + 1 pregunta + 1 oferta con ok técnico pendiente
     assert section.pending == len(section.pending_items) == 3
     texts = " | ".join(i.text for i in section.pending_items)
-    assert "pregunta abierta" in texts and "falta el ok del informe técnico" in texts
+    assert "pregunta abierta" in texts and "falta subir el informe técnico" in texts
     question = am.Question.objects.get()
     link = next(i.url for i in section.pending_items if "pregunta abierta" in i.text)
     assert link == f"{tab(procedure)}#preg-{question.pk}"  # el ancla del bloque de preguntas

@@ -323,14 +323,15 @@ def test_the_operator_sees_no_buttons_and_every_post_is_denied_and_audited(
 def test_the_technical_ok_pending_is_listed_once_by_this_theme_and_sums_like_the_stage(
         client, offers, procedure, operator_user, evaluator_user):
     """REQ-097: el ok técnico pendiente figura una sola vez por oferta (en este tema, no en
-    la propuesta) con enlace al ancla #s4-informe, y la suma es la de la etapa."""
+    la propuesta) con enlace al ancla de la oferta, y la suma es la de la etapa."""
     a, b = offers
     stage = matriz_evaluacion.compute(operator_user, procedure)
     section = sections_for(operator_user, procedure).get("evaluacion")
     assert section.pending == len(section.pending_items) == stage.pending
     ok_items = [i for i in section.pending_items if "informe técnico" in i.text]
     assert len(ok_items) == 2
-    assert {i.url for i in ok_items} == {tab(procedure) + "#s4-informe"}
+    assert {i.url for i in ok_items} == {tab(procedure) + f"#informe-oferta-{o.number}"
+                                         for o in offers}
     assert all(i.text.startswith(("Oferta 1:", "Oferta 2:")) for i in ok_items)
     from evaluon.journey.temas import s4_propuesta
     assert not [i for i in s4_propuesta.status(operator_user, procedure).pending_items
@@ -376,3 +377,25 @@ def test_the_module_keys_are_the_registered_ones():
     assert s4_informe.PARTIAL == "journey/temas/s4_informe.html"
     assert re.fullmatch(r"#s4-informe", s4_informe.ANCHOR)
     assert PENDING  # el estado de las filas del caso chico
+
+
+def test_an_offer_without_report_says_to_upload_it_and_the_summary_counts_them_apart(
+        client, offers, procedure, operator_user, evaluator_user, model):
+    """REQ-097: sin informe el pendiente dice «falta subir el informe técnico» y lleva al
+    formulario de esa oferta; con informe, «falta el ok». El resumen cuenta por separado y la
+    suma no cambia."""
+    a, b = offers
+    log_in(client, evaluator_user)
+    notice(client, post_upload(client, procedure, a))
+    section = sections_for(operator_user, procedure).get("evaluacion")
+    items = {i.text: i.url for i in section.pending_items if "informe técnico" in i.text}
+    assert items == {
+        f"Oferta {a.number}: falta el ok del informe técnico": tab(procedure) + "#s4-informe",
+        f"Oferta {b.number}: falta subir el informe técnico":
+            tab(procedure) + f"#informe-oferta-{b.number}"}
+    html = page(client, procedure)
+    assert f'id="informe-oferta-{b.number}"' in html
+    stage = matriz_evaluacion.compute(operator_user, procedure)
+    assert "1 oferta sin informe técnico" in stage.detail
+    assert "1 oferta con el ok del informe técnico pendiente" in stage.detail
+    assert section.pending == len(section.pending_items) == stage.pending
