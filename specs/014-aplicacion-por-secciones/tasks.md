@@ -31,7 +31,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-204 | Sección 3: anexos técnicos dentro de la oferta y hoja de compliance por oferta con el faltante a la vista (absorbe la parte de compliance de T-191) | REQ-087, REQ-088, REQ-097 | T-192, T-193 | pendiente |
 | T-205 | Sección 3: circulares y aclaraciones (Portal o subidas); una circular modificatoria abre una versión nueva de la matriz con lo cambiado marcado | REQ-085, REQ-097 | T-201 | pendiente |
 | T-206 | Sección 3: reemplazar, retirar y restituir documentos de la oferta, con historial y «retirados» | REQ-099 | T-202, T-199 | pendiente |
-| T-207 | Sección 4: propuesta de evaluación por oferta y requisito (cumple, no cumple, no determinado, con fundamento) y decisión de la Comisión | REQ-089, REQ-097 | T-192 | pendiente |
+| T-207 | Sección 4: propuesta de evaluación por oferta y requisito (cumple, no cumple, no determinado, con fundamento) y decisión de la Comisión | REQ-089, REQ-097 | T-192 | terminada |
 | T-208 | Sección 4: preguntas a la Comisión y pedidos de subsanación con su respuesta registrada | REQ-090 | T-192 | pendiente |
 | T-209 | Sección 4: informe técnico del área (por procedimiento o por oferta) y ok de la Comisión (absorbe la parte de informe técnico de T-191) | REQ-089, REQ-097 | T-192 | pendiente |
 | T-210 | Sección 4: descartes propuestos y orden económico; el evaluador confirma o rechaza cada descarte con quién y cuándo | REQ-091 | T-192, T-193 | pendiente |
@@ -250,6 +250,7 @@ El Coordinador marca T-185, T-186, T-188 y T-191 de la 013 como «reemplazada po
 - **Requisitos:** REQ-089, REQ-097
 - **No arranca sin la maqueta aprobada.**
 - **Qué hay que hacer:** tema `s4_informe`: subir el informe técnico por procedimiento o por oferta (`technical_report`), pedir que el sistema proponga apto o no apto con cita del informe y dar el ok (evaluador); ofertas con filas técnicas sin informe figuran como faltante con su botón (absorbe la parte de informe técnico de T-191).
+- **Aviso de tareas anteriores:** (T-207) crear el ancla #s4-informe que ya usan los pendientes de s4_propuesta, sacar los oks técnicos de _items() de s4_propuesta y cambiar upload_url de sections/s4.py (hoy va a assessment:matrix).
 - **Archivos:** `evaluon/journey/temas/s4_informe.py`, `evaluon/templates/journey/temas/s4_informe.html`, `tests/journey/temas/test_s4_informe.py`.
 - **Verificación:** `pytest tests/journey tests/assessment`; el informe se sube desde la sección; la oferta sin informe figura como faltante; el ok exige evaluador.
 - **No tocar:** `evaluon/assessment/`.
@@ -259,6 +260,7 @@ El Coordinador marca T-185, T-186, T-188 y T-191 de la 013 como «reemplazada po
 - **Requisitos:** REQ-091
 - **No arranca sin la maqueta aprobada.**
 - **Qué hay que hacer:** tema `s4_descartes`: descartes propuestos (`propose_discards`) con sus motivos y fundamentos, y el orden económico total y por renglón (`economic_order`); el evaluador confirma o rechaza cada descarte (nota opcional) y queda `assessment_discard_decision` con quién y cuándo y el hecho `discard_decision`; si se evalúa de nuevo, el descarte vuelve a quedar sin decidir. El operador ve el estado y no el botón. Servicio nuevo en `assessment/services/discards.py`. Los descartes sin decisión son pendientes de la sección.
+- **Aviso de tareas anteriores:** (T-207) el descarte propuesto hoy figura entre las sugerencias; por REQ-091 es decisión de la Comisión: pasarlo a «Pendientes de decidir» y crear el ancla #s4-descartes, y sacar su renglón de _items() de s4_propuesta.
 - **Archivos:** `evaluon/assessment/services/discards.py`, `evaluon/journey/temas/s4_descartes.py`, `evaluon/templates/journey/temas/s4_descartes.html`, `tests/assessment/test_discard_decisions.py`, `tests/journey/temas/test_s4_descartes.py`.
 - **Verificación:** `pytest tests/assessment tests/journey`; el evaluador confirma y queda registrado con quién y cuándo; rechazar también; el operador no ve el botón y la ruta lo rechaza con registro; una evaluación nueva reinicia el estado; `propose_discards` y `economic_order` no cambian.
 - **No tocar:** `assessment/ordering.py` y el resto de servicios de evaluación.
