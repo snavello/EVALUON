@@ -1,6 +1,6 @@
 # ADR-0048 · Historial de documentos sin borrar
 
-Estado: propuesto · Fecha: 2026-10-07 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-07 · Decidió: responsable del proyecto (2026-10-07 21:20, «ok avanza», junto con la maqueta)
 
 ## Contexto
 

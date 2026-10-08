@@ -1,6 +1,6 @@
 # Plan 014 · Aplicación por secciones
 
-Estado: borrador · Fecha: 2026-10-07 · Aprobó: —
+Estado: aprobado · Fecha: 2026-10-07 · Aprobó: responsable del proyecto (2026-10-07 21:20, «ok avanza», junto con la maqueta)
 
 Spec: `specs/014-aplicacion-por-secciones/spec.md` (aprobada el 2026-10-07)
 

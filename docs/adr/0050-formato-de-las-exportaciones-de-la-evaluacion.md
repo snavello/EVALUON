@@ -1,6 +1,6 @@
 # ADR-0050 · Formato de las exportaciones de la evaluación
 
-Estado: propuesto · Fecha: 2026-10-07 · Decidió: responsable del proyecto (formato); falta que acepte la dependencia
+Estado: aceptado · Fecha: 2026-10-07 · Decidió: responsable del proyecto (formato «Excel y PDF»; plan y dependencia con «ok avanza», 21:20)
 
 ## Contexto
 

@@ -66,7 +66,7 @@ flowchart LR
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
-| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 2 de 7 · Plan | — | — |
+| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 0/33 | ░░░░░░░░░░ 0% |
 
 <a id="001"></a>
 
@@ -1038,11 +1038,11 @@ flowchart TD
 
 ## 014 · Aplicación por secciones
 
-**Etapa actual:** 2 de 7 · Plan · [carpeta](../specs/014-aplicacion-por-secciones)
+**Etapa actual:** 4 de 7 · Desarrollo · [carpeta](../specs/014-aplicacion-por-secciones)
 
 ```mermaid
 flowchart LR
-  E0["✓ 1. Spec"]:::done --> E1["▶ 2. Plan"]:::active --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  E0["✓ 1. Spec"]:::done --> E1["✓ 2. Plan"]:::done --> E2["✓ 3. Tareas"]:::done --> E3["▶ 4. Desarrollo"]:::active --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -1052,39 +1052,179 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
+- **Próximo paso:** Desarrollar: 33 tareas sin terminar.
+- ▶ T-192 · Corte vertical: esqueleto de las cinco secciones (barra, portada con pendientes y sugerencias separados, jerarquía común, guía visual) y sección 2 con la matriz de cumplimiento en tabla agrupada, filtros, filas con cita y lista de versiones, con el caso chico (en curso)
+- ▶ T-193 · Esquema de la feature (una sola tarea): cambios de historial de documentos, tipos nuevos, borrador de procedimiento y de oferta, pedidos nuevos, renglones y CUIT con documento de origen, decisión de descartes, subida de normas y hechos de auditoría (en curso)
+- ○ T-194 · Sección 1: datos del procedimiento con origen de cada dato, régimen por fecha de autorización, renglones, apertura, garantías y ofertas del Portal (pendiente)
+- ○ T-195 · Sección 1: explorador y cargador del Portal (pegar enlace, propuesta agrupada, aprobar ítem por ítem o todo) y novedades de la revisión periódica (pendiente)
+- ○ T-196 · Propuesta de datos y renglones desde el pliego subido: servicio, pedido en segundo plano, citas y aprobación que crea el procedimiento (sin pantalla) (pendiente)
+- ○ T-197 · Sección 1: alta subiendo el pliego (propuesta con citas; el evaluador aprueba, descarta o corrige escribiendo valor y motivo; sin alta en blanco) (pendiente)
+- ○ T-198 · Sección 2: documentos del pliego, anexos y especificaciones (lista por tipo con origen, subida de varios a la vez, tomar del Portal, faltantes) (pendiente)
+- ○ T-199 · Servicio de historial de documentos del pliego y de las ofertas: reemplazar, retirar, restituir, con auditoría y estado calculado (sin pantalla) (pendiente)
+- ○ T-200 · Sección 2: reemplazar, retirar y restituir documentos del pliego, historial de versiones y «retirados» (pendiente)
+- ○ T-201 · Sección 2: acciones de la Comisión en la tabla de la matriz (confirmar, corregir, quitar, agregar, validar), versión nueva, imprimir y exportar (pendiente)
+- ○ T-202 · Sección 3: lista de ofertas con alta a la vista (desde el Portal o subiendo archivos, con nombre y CUIT propuestos para aprobar o corregir) y documentos de cada oferta, subida múltiple (pendiente)
+- ○ T-203 · Sección 3: ficha de cada oferta (qué presentó frente a cada requisito, con el fragmento o «no se encontró en la oferta») (pendiente)
+- ○ T-204 · Sección 3: anexos técnicos dentro de la oferta y hoja de compliance por oferta con el faltante a la vista (absorbe la parte de compliance de T-191) (pendiente)
+- ○ T-205 · Sección 3: circulares y aclaraciones (Portal o subidas); una circular modificatoria abre una versión nueva de la matriz con lo cambiado marcado (pendiente)
+- ○ T-206 · Sección 3: reemplazar, retirar y restituir documentos de la oferta, con historial y «retirados» (pendiente)
+- ○ T-207 · Sección 4: propuesta de evaluación por oferta y requisito (cumple, no cumple, no determinado, con fundamento) y decisión de la Comisión (pendiente)
+- ○ T-208 · Sección 4: preguntas a la Comisión y pedidos de subsanación con su respuesta registrada (pendiente)
+- ○ T-209 · Sección 4: informe técnico del área (por procedimiento o por oferta) y ok de la Comisión (absorbe la parte de informe técnico de T-191) (pendiente)
+- ○ T-210 · Sección 4: descartes propuestos y orden económico; el evaluador confirma o rechaza cada descarte con quién y cuándo (pendiente)
+- ○ T-211 · Sección 4: dictamen del Portal o subido (sin borrador) (pendiente)
+- ○ T-212 · Sección 4: exportar la planilla por oferta (Excel) y el cuadro comparativo (Excel y PDF); suma la dependencia XlsxWriter (ADR-0050) (pendiente)
+- ○ T-213 · Propuesta de los datos de una norma desde su archivo y staging de la subida (sin pantalla) (pendiente)
+- ○ T-214 · Sección 5: subir una norma, ver el informe de lectura y validarla desde la pantalla (pendiente)
+- ○ T-215 · Sección 5: normas que rigen al procedimiento según su fecha de autorización y cuáles faltan cargar (pendiente)
+- ○ T-216 · Sección 5: consulta de normativa con citas literales (pendiente)
+- ○ T-217 · Los cinco momentos y los roles con el caso chico: estados y cuentas de las cinco secciones, 25 de 25 celdas (reemplaza a T-185 de la 013) (pendiente)
+- ○ T-218 · Comprobación final con el caso chico y el caso-00 (Coordinador y testeador): 26 de 26 requisitos en pantalla, 0 datos tipeados, carga menor a 2 s y guía visual (reemplaza a T-186 de la 013) (pendiente)
+- ○ T-219 · Las pantallas anteriores redirigen a su sección y el menú queda con la entrada nueva (pendiente)
+- ○ T-220 · Propuesta de nombre y CUIT del oferente desde los archivos de una oferta: borrador, pedido en segundo plano, citas, corrección con valor y motivo y aprobación que crea la oferta (sin pantalla) (pendiente)
+- ○ T-185 · T-217 (con sus avisos: pausa del sondeo con la pestaña oculta, `Stage.suggestions`, motivo de falla con `plain_reason`, foco del ícono tras el sondeo) (pendiente)
+- ○ T-186 · T-218 (con la nota de runbook: reconstruir la imagen con `docker compose build app` para servir los estáticos) (pendiente)
+- ○ T-188 · T-192 (base de la guía visual) y la aplicación en cada tarea de interfaz; revisión final en T-218 (pendiente)
+- ○ T-191 · T-204 (hoja de compliance que falta) y T-209 (informe técnico que falta) (pendiente)
 
 ### Qué se hizo
 
-- Etapas completas: Spec.
+- Etapas completas: Spec, Plan, Tareas.
+
+### Mapa de tareas
+
+```mermaid
+flowchart TD
+  T192["▶ T-192 · Corte vertical: esqueleto de las cinco secc…"]:::active
+  T193["▶ T-193 · Esquema de la feature (una sola tarea): cam…"]:::active
+  T194["○ T-194 · Sección 1: datos del procedimiento con orig…"]:::todo
+  T195["○ T-195 · Sección 1: explorador y cargador del Portal…"]:::todo
+  T196["○ T-196 · Propuesta de datos y renglones desde el pli…"]:::todo
+  T197["○ T-197 · Sección 1: alta subiendo el pliego (propues…"]:::todo
+  T198["○ T-198 · Sección 2: documentos del pliego, anexos y…"]:::todo
+  T199["○ T-199 · Servicio de historial de documentos del pli…"]:::todo
+  T200["○ T-200 · Sección 2: reemplazar, retirar y restituir…"]:::todo
+  T201["○ T-201 · Sección 2: acciones de la Comisión en la ta…"]:::todo
+  T202["○ T-202 · Sección 3: lista de ofertas con alta a la v…"]:::todo
+  T203["○ T-203 · Sección 3: ficha de cada oferta (qué presen…"]:::todo
+  T204["○ T-204 · Sección 3: anexos técnicos dentro de la ofe…"]:::todo
+  T205["○ T-205 · Sección 3: circulares y aclaraciones (Porta…"]:::todo
+  T206["○ T-206 · Sección 3: reemplazar, retirar y restituir…"]:::todo
+  T207["○ T-207 · Sección 4: propuesta de evaluación por ofer…"]:::todo
+  T208["○ T-208 · Sección 4: preguntas a la Comisión y pedido…"]:::todo
+  T209["○ T-209 · Sección 4: informe técnico del área (por pr…"]:::todo
+  T210["○ T-210 · Sección 4: descartes propuestos y orden eco…"]:::todo
+  T211["○ T-211 · Sección 4: dictamen del Portal o subido (si…"]:::todo
+  T212["○ T-212 · Sección 4: exportar la planilla por oferta…"]:::todo
+  T213["○ T-213 · Propuesta de los datos de una norma desde s…"]:::todo
+  T214["○ T-214 · Sección 5: subir una norma, ver el informe…"]:::todo
+  T215["○ T-215 · Sección 5: normas que rigen al procedimient…"]:::todo
+  T216["○ T-216 · Sección 5: consulta de normativa con citas…"]:::todo
+  T217["○ T-217 · Los cinco momentos y los roles con el caso…"]:::todo
+  T218["○ T-218 · Comprobación final con el caso chico y el c…"]:::todo
+  T219["○ T-219 · Las pantallas anteriores redirigen a su sec…"]:::todo
+  T220["○ T-220 · Propuesta de nombre y CUIT del oferente des…"]:::todo
+  T185["○ T-185 · T-217 (con sus avisos: pausa del sondeo con…"]:::todo
+  T186["○ T-186 · T-218 (con la nota de runbook: reconstruir…"]:::todo
+  T188["○ T-188 · T-192 (base de la guía visual) y la aplicac…"]:::todo
+  T191["○ T-191 · T-204 (hoja de compliance que falta) y T-20…"]:::todo
+  T192 --> T194
+  T194 --> T195
+  T193 --> T196
+  T195 --> T197
+  T196 --> T197
+  T192 --> T198
+  T193 --> T199
+  T198 --> T200
+  T199 --> T200
+  T192 --> T201
+  T192 --> T202
+  T220 --> T202
+  T192 --> T203
+  T192 --> T204
+  T193 --> T204
+  T201 --> T205
+  T202 --> T206
+  T199 --> T206
+  T192 --> T207
+  T192 --> T208
+  T192 --> T209
+  T192 --> T210
+  T193 --> T210
+  T192 --> T211
+  T193 --> T211
+  T192 --> T212
+  T193 --> T213
+  T192 --> T214
+  T213 --> T214
+  T192 --> T215
+  T192 --> T216
+  T194 --> T217
+  T195 --> T217
+  T197 --> T217
+  T198 --> T217
+  T200 --> T217
+  T201 --> T217
+  T202 --> T217
+  T203 --> T217
+  T204 --> T217
+  T205 --> T217
+  T206 --> T217
+  T207 --> T217
+  T208 --> T217
+  T209 --> T217
+  T210 --> T217
+  T211 --> T217
+  T212 --> T217
+  T214 --> T217
+  T215 --> T217
+  T216 --> T217
+  T219 --> T217
+  T217 --> T218
+  T195 --> T219
+  T197 --> T219
+  T198 --> T219
+  T201 --> T219
+  T202 --> T219
+  T207 --> T219
+  T208 --> T219
+  T214 --> T219
+  T193 --> T220
+  T196 --> T220
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
 
 ### Requisitos
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-075 | T.1 | — | — |
-| REQ-076 | 1.1 | — | — |
-| REQ-077 | 1.2, T.3 | — | — |
-| REQ-078 | 1.3 | — | — |
-| REQ-079 | 1.4 | — | — |
-| REQ-080 | 2.1 | — | — |
-| REQ-081 | 2.2 | — | — |
-| REQ-082 | 2.3 | — | — |
-| REQ-083 | 3.1 | — | — |
-| REQ-084 | 3.2 | — | — |
-| REQ-085 | 3.3 | — | — |
-| REQ-086 | 3.4 | — | — |
-| REQ-087 | 3.5 | — | — |
-| REQ-088 | 3.6 | — | — |
-| REQ-089 | 4.1 | — | — |
-| REQ-090 | 4.2 | — | — |
-| REQ-091 | 4.3 | — | — |
-| REQ-092 | 4.4 | — | — |
-| REQ-093 | 4.5 | — | — |
-| REQ-094 | 5.1 | — | — |
-| REQ-095 | 5.2 | — | — |
-| REQ-096 | 5.3 | — | — |
-| REQ-097 | T.2 | — | — |
-| REQ-098 | T.4 | — | — |
-| REQ-099 | T.5 | — | — |
-| REQ-100 | T.6 | — | — |
+| REQ-075 | T.1 | T-192, T-217, T-218, T-219 | ▶ en proceso |
+| REQ-076 | 1.1 | T-195, T-197, T-218 | ○ pendiente |
+| REQ-077 | 1.2, T.3 | T-193, T-196, T-197, T-218 | ▶ en proceso |
+| REQ-078 | 1.3 | T-194, T-218 | ○ pendiente |
+| REQ-079 | 1.4 | T-195, T-218 | ○ pendiente |
+| REQ-080 | 2.1 | T-198, T-218 | ○ pendiente |
+| REQ-081 | 2.2 | T-192, T-201, T-218 | ▶ en proceso |
+| REQ-082 | 2.3 | T-192, T-201, T-218 | ▶ en proceso |
+| REQ-083 | 3.1 | T-193, T-202, T-218, T-220 | ▶ en proceso |
+| REQ-084 | 3.2 | T-202, T-218 | ○ pendiente |
+| REQ-085 | 3.3 | T-205, T-218 | ○ pendiente |
+| REQ-086 | 3.4 | T-203, T-218 | ○ pendiente |
+| REQ-087 | 3.5 | T-193, T-204, T-218 | ▶ en proceso |
+| REQ-088 | 3.6 | T-204, T-218 | ○ pendiente |
+| REQ-089 | 4.1 | T-207, T-209, T-218 | ○ pendiente |
+| REQ-090 | 4.2 | T-208, T-218 | ○ pendiente |
+| REQ-091 | 4.3 | T-193, T-210, T-218 | ▶ en proceso |
+| REQ-092 | 4.4 | T-193, T-211, T-218 | ▶ en proceso |
+| REQ-093 | 4.5 | T-212, T-218 | ○ pendiente |
+| REQ-094 | 5.1 | T-193, T-213, T-214, T-218 | ▶ en proceso |
+| REQ-095 | 5.2 | T-215, T-218 | ○ pendiente |
+| REQ-096 | 5.3 | T-216, T-218 | ○ pendiente |
+| REQ-097 | T.2 | T-192, T-194, T-195, T-197, T-198, T-200, T-202, T-204, T-205, T-207, T-209, T-211, T-214, T-215, T-217, T-218 | ▶ en proceso |
+| REQ-098 | T.4 | T-192, T-217, T-218 | ▶ en proceso |
+| REQ-099 | T.5 | T-193, T-199, T-200, T-206, T-218 | ▶ en proceso |
+| REQ-100 | T.6 | T-192, T-218, T-219 | ▶ en proceso |

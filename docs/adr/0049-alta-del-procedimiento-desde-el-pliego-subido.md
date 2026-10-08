@@ -1,6 +1,6 @@
 # ADR-0049 · Alta del procedimiento desde el pliego subido
 
-Estado: propuesto · Fecha: 2026-10-07 · Decidió: —
+Estado: aceptado · Fecha: 2026-10-07 · Decidió: responsable del proyecto (2026-10-07 21:20, «ok avanza», junto con la maqueta)
 
 ## Contexto
 
