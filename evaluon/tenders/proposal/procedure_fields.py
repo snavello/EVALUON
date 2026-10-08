@@ -74,21 +74,44 @@ _MONTHS = {
 
 _VALUE = r"([A-Za-z0-9][A-Za-z0-9\-/.#_]*[A-Za-z0-9]|[A-Za-z0-9])"
 _NUMBER_LABEL = re.compile(
-    r"^\s*(?:n[uú]mero\s+de\s+(?:proceso|procedimiento)|proceso\s+(?:n[º°]\.?|nro\.?)|"
-    r"procedimiento\s+(?:n[º°]\.?|nro\.?)|(?:proceso|procedimiento)\s*:)\s*:?\s*" + _VALUE,
+    r"^\s*(?:n[uú]mero\s+de\s+(?:proceso|procedimiento)|proceso\s+de\s+compras?|"
+    r"proceso\s+(?:n[º°]\.?|nro\.?)|procedimiento\s+(?:n[º°]\.?|nro\.?)|"
+    r"(?:proceso|procedimiento)\s*:)\s*:?\s*" + _VALUE,
     re.I)
 _FILE_PATTERN = re.compile(
     r"(?:expediente|actuaci[oó]n)\s*(?:n[º°o]\.?|nro\.?|n[uú]mero)?\s*:?\s*"
-    r"((?:EX-)?[0-9A-Za-z][0-9A-Za-z\-/#.]*[0-9A-Za-z])", re.I)
-_FILE_BARE = re.compile(r"\b(EX-\d{4}-\d+[0-9A-Za-z\-#]*)")
-_TYPE_PATTERN = re.compile(
-    r"(licitaci[oó]n\s+p[uú]blica|licitaci[oó]n\s+privada|contrataci[oó]n\s+directa|"
-    r"concurso\s+p[uú]blico|concurso\s+privado|subasta\s+p[uú]blica|compulsa\s+abreviada|"
-    r"contrataci[oó]n\s+menor)(\s+(?:nacional|internacional))?", re.I)
-_SUBJECT_LABEL = re.compile(
-    r"^\s*(?:nombre\s+del\s+proceso|objeto\s+de\s+la\s+contrataci[oó]n|objeto)\s*:\s*(.+\S)\s*$",
+    r"((?:EX-)?[0-9A-Za-z][0-9A-Za-z\-/#.]*[0-9A-Za-z-](?:\s+-[0-9A-Za-z\-/#.]*[0-9A-Za-z])?)",
     re.I)
-_DATE_LABEL = re.compile(r"autoriza", re.I)
+_FILE_BARE = re.compile(r"\b(EX-\d{4}-\d+[0-9A-Za-z\-#]*)")
+_TYPE_NAMES = (
+    r"licitaci[oó]n\s+p[uú]blica|licitaci[oó]n\s+privada|contrataci[oó]n\s+directa|"
+    r"concurso\s+p[uú]blico|concurso\s+privado|subasta\s+p[uú]blica|compulsa\s+abreviada|"
+    r"contrataci[oó]n\s+menor"
+)
+_TYPE_PATTERN = re.compile(r"(" + _TYPE_NAMES + r")(\s+(?:nacional|internacional))?", re.I)
+_TYPE_LABEL = re.compile(
+    r"^\s*(?:tipo\s+de\s+(?:procedimiento|proceso|contrataci[oó]n)|modalidad|"
+    r"procedimiento\s+de\s+selecci[oó]n)\s*:\s*(.+\S)\s*$", re.I)
+# Los últimos letras del número de proceso del Portal de Compras dicen el tipo
+# (A0PC000000-0001-LPU26: licitación pública). Solo los que el Régimen General nombra.
+_TYPE_CODES = {
+    "LPU": "Licitación pública",
+    "LPR": "Licitación privada",
+    "CDI": "Contratación directa",
+}
+_TYPE_CODE = re.compile(r"-(" + "|".join(_TYPE_CODES) + r")\d{2}(?!\d)")
+_SUBJECT_LABEL = re.compile(
+    r"^\s*(?:nombre\s+del\s+proceso|objeto\s+del\s+llamado|"
+    r"objeto\s+de\s+la\s+contrataci[oó]n|objeto)\s*:\s*(.+\S)\s*$",
+    re.I)
+# Otro dato rotulado («EXPEDIENTE Nº: …»): corta el objeto que sigue en varias líneas.
+_NEXT_LABEL = re.compile(r"^\s*[^:]{2,40}:(\s|$)")
+# Una línea de ancho completo sigue en la de abajo; una corta cierra el párrafo.
+_WRAPPED_LENGTH = 60
+_DATE_LABEL = re.compile(
+    r"fecha\s+de\s+autorizaci|autoriz\w*\s+(?:el\s+|la\s+)?"
+    r"(?:llamado|convocatoria|contrataci|procedimiento|proceso)|"
+    r"(?:llamado|convocatoria|procedimiento|proceso)\s+(?:fue\s+)?autorizad", re.I)
 _DATE_NUMERIC = re.compile(r"\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})\b")
 _DATE_WORDS = re.compile(r"\b(\d{1,2})\s+de\s+([a-záéíóú]+)\s+de\s+(\d{4})\b", re.I)
 
@@ -203,29 +226,52 @@ def _find_file_number(front):
     for page, lines in front:
         for line in lines:
             match = _FILE_PATTERN.search(line) or _FILE_BARE.search(line)
-            if match:
+            if match and any(char.isdigit() for char in match.group(1)):
                 found.append((match.group(1).rstrip(".,;"), Citation(page, line)))
     return found
 
 
-def _find_type(front):
+def _find_type(front, number_found=()):
     found = []
     for page, lines in front:
         for line in lines:
+            match = _TYPE_LABEL.match(line)
+            if match:
+                inner = _TYPE_PATTERN.search(match.group(1))
+                value = _fold(inner.group(0) if inner else match.group(1)).capitalize()
+                found.append((value, Citation(page, line)))
+    # El código del número de proceso: la cita es la línea del número.
+    for value, citation in number_found:
+        code = _TYPE_CODE.search(value)
+        if code:
+            found.append((_TYPE_CODES[code.group(1)], citation))
+    # El nombre del tipo en el texto, solo en la carátula (más lejos puede ser otra cosa).
+    for page, lines in front[:1]:
+        for line in lines:
             match = _TYPE_PATTERN.search(line)
             if match:
-                value = _fold(match.group(0)).capitalize()
-                found.append((value, Citation(page, line)))
+                found.append((_fold(match.group(0)).capitalize(), Citation(page, line)))
     return found
 
 
 def _find_subject(front):
     found = []
     for page, lines in front:
-        for line in lines:
+        for index, line in enumerate(lines):
             match = _SUBJECT_LABEL.match(line)
-            if match:
-                found.append((match.group(1).strip(), Citation(page, line)))
+            if not match:
+                continue
+            parts = [line]
+            value = match.group(1).strip()
+            # El objeto sigue en las líneas de abajo hasta otro dato rotulado (como máximo 3).
+            previous = line
+            for follow in lines[index + 1:index + 4]:
+                if len(previous) < _WRAPPED_LENGTH or _NEXT_LABEL.match(follow)                         or re.match(r"^\s*\d+(\.\d+)*\.?\s", follow):
+                    break
+                previous = follow
+                parts.append(follow)
+                value = f"{value} {follow.strip()}"
+            found.append((value, Citation(page, " ".join(parts))))
     return found
 
 
@@ -249,11 +295,11 @@ def _parse_date(line):
 def _find_date(front):
     found = []
     for page, lines in front:
-        for line in lines:
-            if _DATE_LABEL.search(line):
-                parsed = _parse_date(line)
-                if parsed is not None:
-                    found.append((parsed.isoformat(), Citation(page, line)))
+        for index, line in enumerate(lines):
+            # La fecha puede quedar en la línea de abajo del renglón que dice «autoriza».
+            text = line if _parse_date(line) else " ".join(lines[index:index + 2])
+            if _DATE_LABEL.search(line) and _parse_date(text) is not None:
+                found.append((_parse_date(text).isoformat(), Citation(page, text)))
     return found
 
 
@@ -408,6 +454,161 @@ def extract_lines(data):
     return lines, warnings
 
 
+# --- Renglones escritos como texto -------------------------------------------------------
+
+# Encabezado de una tabla sin bordes: «RENGLÓN  BIEN / SERVICIO  CANTIDAD …» en una línea.
+_LAYOUT_HEADER = re.compile(r"^\s*rengl[oó]n\b(?!.*\.{5}).*\bcantidad\b", re.I)
+_ROW_START = re.compile(r"^\s*(\d{1,4})(?:\s+(.*\S))?\s*$")
+_CLAUSE = re.compile(r"^\s*\d{1,2}(?:\.\d{1,2})+\.?\s|^\s*\d{1,2}\.\s+[A-ZÁÉÍÓÚÑ]")
+_TRAILING_QUANTITY = re.compile(r"^(.*\S)\s+(\d[\d.,]*)(?:\s+([^\W\d_][\w²³/%.]*))?$")
+_ONLY_QUANTITY = re.compile(r"^(\d[\d.,]*)\s*([^\W\d_][\w²³/%.]*(?:\s+[^\W\d_][\w²³/%.]*)?)?$")
+_COLUMN_TOLERANCE = 12
+_MARGIN = 55  # puntos arriba y abajo de la página donde hay encabezado y pie
+
+# «7.1 RENGLÓN N°1: DESCRIPCIÓN», «2. RENGLÓN N° 1 - DESCRIPCIÓN»: un título de renglón.
+_HEADING = re.compile(
+    r"^\s*\d{1,2}(?:\.\d{1,2})?\.?\s*RENGL[OÓ]N\s*(?:N[º°]|NRO\.?)\s*(\d+)\s*[-–:]\s*(\S.*)$", re.I)
+_HEADING_NEXT = re.compile(r"\s+Y\s+RENGL[OÓ]N\s*(?:N[º°]|NRO\.?)\s*(\d+)\s*[-–:]\s*", re.I)
+_QUANTITY_NEAR = re.compile(r"cantidad\s*(?:total)?\s*:?\s*(\d[\d.,]*)\s*([^\W\d_][\w²³/%.]*)?",
+                            re.I)
+
+
+def _usable(page):
+    """Las líneas de la página que están entre el encabezado y el pie."""
+    height = page.height or 842
+    return [line for line in page.lines
+            if not line.discarded and line.text.strip() and line.top is not None
+            and _MARGIN < line.top < height - _MARGIN]
+
+
+def _row(number, pieces, page):
+    """Un renglón de la tabla a partir de sus fragmentos de texto (`(x, texto)` en el orden de
+    lectura). La cantidad es el fragmento de la derecha que es un número con su unidad, o el
+    final del texto."""
+    quantity = unit = None
+    texts = list(pieces)
+    if len(texts) > 1:
+        x, last = texts[-1]
+        if _ONLY_QUANTITY.match(last) and x > texts[0][0] + 60:
+            quantity, unit = parse_quantity(last)
+            texts = texts[:-1]
+    description = _fold(" ".join(text for _, text in texts))
+    if quantity is None:
+        match = _TRAILING_QUANTITY.match(description)
+        if match:
+            parsed, _ = parse_quantity(match.group(2))
+            if parsed is not None:
+                description, quantity, unit = match.group(1), parsed, match.group(3)
+    if not description:
+        return None
+    citation = _fold(" ".join([str(number)] + [text for _, text in pieces]))
+    return {"number": number, "description": description, "quantity": quantity,
+            "unit": unit or "", "citation": Citation(page, citation).as_json()}
+
+
+def layout_lines(reading):
+    """Renglones de una tabla sin bordes dibujados, leída como líneas de texto con su posición:
+    desde el encabezado «RENGLÓN … CANTIDAD» hasta la primera cláusula."""
+    rows, current, in_table, number_x = [], None, False, None
+    for page in reading.pages:
+        for line in _usable(page):
+            text = _fold(line.text)
+            if _LAYOUT_HEADER.match(text):
+                if current:
+                    rows.append(current)
+                current, in_table, number_x = None, True, None
+                continue
+            if not in_table:
+                continue
+            start = _ROW_START.match(text)
+            if number_x is None:
+                if start and not _CLAUSE.match(text):
+                    number_x = line.x0
+                else:
+                    continue
+            if (line.x0 is not None and line.x0 < number_x - 2 * _COLUMN_TOLERANCE) \
+                    or _CLAUSE.match(text):
+                if current:
+                    rows.append(current)
+                current, in_table, number_x = None, False, None
+                continue
+            if start and abs((line.x0 or 0) - number_x) <= _COLUMN_TOLERANCE:
+                if current:
+                    rows.append(current)
+                rest = start.group(2)
+                current = (int(start.group(1)), page.number,
+                           [(line.x0, rest)] if rest else [])
+            elif current:
+                current[2].append((line.x0, text))
+    if current:
+        rows.append(current)
+    lines = []
+    for number, page_number, pieces in rows:
+        row = _row(number, pieces, page_number)
+        if row:
+            lines.append(row)
+    return lines
+
+
+def heading_lines(reading):
+    """Renglones que el pliego titula «N. RENGLÓN N° 1 - DESCRIPCIÓN» (especificaciones). Se
+    saltea el índice (líneas con puntos guía). La cantidad, si hay una «CANTIDAD: n unidad» en
+    el título o en las tres líneas que siguen."""
+    found = {}
+    for page in reading.pages:
+        usable = _usable(page)
+        for index, line in enumerate(usable):
+            text = _fold(line.text)
+            if re.search(r"\.{5,}", text):
+                continue
+            match = _HEADING.match(text)
+            if not match:
+                continue
+            full = text
+            # El título sigue en la línea de abajo si esta no empieza otro título o cláusula.
+            follow = usable[index + 1] if index + 1 < len(usable) else None
+            if follow is not None and len(text) > 60 and not text.rstrip().endswith("."):
+                nxt = _fold(follow.text)
+                if not _HEADING.match(nxt) and not _CLAUSE.match(nxt) \
+                        and not re.match(r"^\s*(\d+\.|RENGL)", nxt, re.I) \
+                        and (follow.x0 or 0) >= (line.x0 or 0) - 2:
+                    full = f"{text} {nxt}"
+            body = _HEADING.match(full)
+            number, description = int(body.group(1)), body.group(2)
+            # «RENGLÓN N° 1 - A Y RENGLÓN N° 2 - B» en un mismo título.
+            parts = [(number, description)]
+            split = _HEADING_NEXT.search(description)
+            if split:
+                parts = [(number, description[:split.start()]),
+                         (int(split.group(1)), description[split.end():])]
+            window = " ".join(_fold(item.text) for item in usable[index:index + 4])
+            near = _QUANTITY_NEAR.search(window)
+            for number, description in parts:
+                if number in found:
+                    continue
+                quantity = unit = None
+                if near:
+                    quantity, unit = parse_quantity(f"{near.group(1)} {near.group(2) or ''}")
+                found[number] = {
+                    "number": number, "description": _fold(description).rstrip(" .-"),
+                    "quantity": quantity, "unit": unit or "",
+                    "citation": Citation(page.number, full).as_json()}
+    return list(found.values())
+
+
+def merge_lines(*groups):
+    """Une grupos de renglones; el primero que trae un número gana (las tablas, antes que los
+    títulos). Devuelve los renglones ordenados por número."""
+    seen, merged = set(), []
+    for group in groups:
+        for line in group:
+            if line["number"] not in seen:
+                seen.add(line["number"])
+                merged.append(line)
+    merged.sort(key=lambda item: item["number"])
+    return merged
+
+
 # --- Entrada -----------------------------------------------------------------------------
 
 
@@ -417,10 +618,11 @@ def propose(data, *, use_model=True):
     reading = read_document(data)
     pages = page_lines(reading)
     front = _front(pages)
+    numbers = _find_number(front)
     found = {
-        "number": _datum(_find_number(front)),
+        "number": _datum(numbers),
         "file_number": _datum(_find_file_number(front)),
-        "procedure_type": _datum(_find_type(front)),
+        "procedure_type": _datum(_find_type(front, numbers)),
         "subject": _datum(_find_subject(front)),
         "authorization_date": _datum(_find_date(front)),
     }
@@ -432,7 +634,10 @@ def propose(data, *, use_model=True):
         trace.append(model_trace)
     lines, warnings = ([], [])
     if detect_format(data) == FORMAT_PDF:
-        lines, warnings = extract_lines(data)
+        drawn, warnings = extract_lines(data)
+        lines = merge_lines(layout_lines(reading), drawn, heading_lines(reading))
+    else:
+        lines = merge_lines(heading_lines(reading))
     return Proposal(
         fields=found, lines=lines, warnings=warnings,
         reading={"tool_versions": {**reading.tool_versions, "rules_version": RULES_VERSION},

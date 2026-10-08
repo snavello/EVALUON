@@ -400,3 +400,193 @@ def test_approve_does_not_leave_a_procedure_if_loading_the_pliego_fails(
     draft.refresh_from_db()
     assert not m.Procedure.objects.exists()
     assert draft.state == ProposalState.PROPUESTO and draft.procedure is None
+
+
+# --- Renglones y datos escritos como texto (ronda 1) ----------------------------------------
+
+
+def text_pdf(blocks_pages):
+    return tender_pdf(blocks_pages)
+
+
+def portal_style_pdf(*, code="LPU26", with_date=True):
+    """Un pliego con la forma de los de la AFIP/ARCA, con contenido inventado: carátula con
+    rótulos, objeto en dos líneas, número con el código del tipo, tabla de renglones sin bordes
+    como líneas de texto, y títulos «N. RENGLÓN N° n - …» en las especificaciones."""
+    cover = [
+        para("PLIEGO DE BASES Y CONDICIONES PARTICULARES"),
+        para("NOMBRE DEL PROCESO: ADQUISICIÓN DE MOBILIARIO SINTÉTICO PARA LAS",
+             "OFICINAS DE PRUEBA",
+             "EXPEDIENTE N°: EX-2099-00004321- -SINT-AREA#SECCION",
+             f"PROCESO N°: S0AA000000-0005-{code}"),
+        para("Circular de la Oficina Anticorrupción N° 2 del 19 de octubre de 2021."),
+    ]
+    if with_date:
+        cover.append(para("Se autorizó el llamado mediante Disposición N° 10/2099 de fecha",
+                          "02/03/2099."))
+    detail = [
+        para("6. DETALLE DE LOS BIENES A PROVEER"),
+        para("RENGLÓN BIEN / SERVICIO CANTIDAD UNIDAD DE MEDIDA",
+             "1 SILLA SINTÉTICA GIRATORIA 12 UNIDAD",
+             "2 ESCRITORIO SINTÉTICO DE MELAMINA 1.200 UNIDAD",
+             "3 SERVICIO DE ARMADO SINTÉTICO 1 GLOBAL"),
+        para("6.1. Las cotizaciones se realizan en pesos."),
+    ]
+    specs = [
+        para("SECCIÓN III - ESPECIFICACIONES TÉCNICAS PARTICULARES"),
+        para("1. RENGLÓN N° 1 - SILLA SINTÉTICA GIRATORIA"),
+        para("2. RENGLÓN N° 2 - ESCRITORIO SINTÉTICO DE MELAMINA"),
+        para("10.2.1. RENGLÓN N° 9 - Plazo de entrega de treinta días corridos"),
+    ]
+    return text_pdf([cover + detail, specs])
+
+
+def test_text_lines_give_all_the_lines_with_a_literal_quote(operator_user, fake_generation):
+    """REQ-077: los renglones escritos como líneas de texto salen con número, descripción,
+    cantidad y unidad, y cada uno con su cita literal."""
+    draft = upload_and_read(operator_user, portal_style_pdf())
+    lines = draft.proposal["lines"]
+    assert [(x["number"], x["description"], x["quantity"], x["unit"]) for x in lines] == [
+        (1, "SILLA SINTÉTICA GIRATORIA", "12", "UNIDAD"),
+        (2, "ESCRITORIO SINTÉTICO DE MELAMINA", "1200", "UNIDAD"),
+        (3, "SERVICIO DE ARMADO SINTÉTICO", "1", "GLOBAL"),
+    ]
+    page_text = " ".join(
+        " ".join(line.text.split()) for line in
+        __import__("evaluon.norms.reading", fromlist=["read_document"])
+        .read_document(bytes(draft.content)).pages[0].lines)
+    for line in lines:
+        assert line["citation"]["page"] == 1
+        assert line["description"] in line["citation"]["text"]
+
+
+def test_headings_fill_the_lines_the_table_does_not_have(operator_user, fake_generation):
+    """REQ-077: los títulos «N. RENGLÓN N° n - …» dan los renglones cuando no hay tabla, sin
+    tomar como renglón una cláusula con tres niveles de numeración."""
+    specs_only = text_pdf([[
+        para("PROCESO N°: S0AA000000-0006-LPU26"),
+        para("1. RENGLÓN N° 1 - SILLA SINTÉTICA"),
+        para("2. RENGLÓN N° 2 - MESA SINTÉTICA"),
+        para("10.2.1. RENGLÓN N° 3 - Plazo de entrega de treinta días corridos"),
+    ]])
+    draft = upload_and_read(operator_user, specs_only)
+    lines = draft.proposal["lines"]
+    assert [(x["number"], x["description"], x["quantity"]) for x in lines] == [
+        (1, "SILLA SINTÉTICA", None), (2, "MESA SINTÉTICA", None)]
+
+
+def test_the_type_comes_from_the_process_code_with_the_number_line_as_quote(
+        operator_user, fake_generation):
+    """REQ-077: el tipo sale del código del número de proceso, citando la línea del número."""
+    for code, expected in (("LPU26", "Licitación pública"), ("CDI26", "Contratación directa")):
+        draft = upload_and_read(operator_user, portal_style_pdf(code=code), f"{code}.pdf")
+        kind = draft.proposal["fields"]["procedure_type"]
+        assert kind["proposed"] == expected
+        assert kind["citation"]["text"] == f"PROCESO N°: S0AA000000-0005-{code}"
+        m.ProcedureDraft.objects.filter(pk=draft.pk).update(state=ProposalState.RECHAZADO)
+
+
+def test_an_unknown_process_code_leaves_the_type_undetermined(operator_user, fake_generation):
+    """REQ-077: un código que el régimen no nombra no da un tipo inventado."""
+    draft = upload_and_read(operator_user, portal_style_pdf(code="XYZ26"))
+    assert draft.proposal["fields"]["procedure_type"]["state"] == "no_determinado"
+
+
+def test_the_authorization_date_comes_from_the_act_that_authorizes_the_call(
+        operator_user, fake_generation):
+    """REQ-077: la fecha es la del acto que autoriza el llamado, aunque esté en dos líneas, con
+    cita literal; otra fecha del pliego (una circular) no cuenta."""
+    draft = upload_and_read(operator_user, portal_style_pdf())
+    date_field = draft.proposal["fields"]["authorization_date"]
+    assert date_field["proposed"] == "2099-03-02"
+    assert "autorizó el llamado" in date_field["citation"]["text"]
+    assert "02/03/2099" in date_field["citation"]["text"]
+    other = upload_and_read(operator_user, portal_style_pdf(with_date=False), "otro.pdf")
+    assert other.proposal["fields"]["authorization_date"]["state"] == "no_determinado"
+
+
+def test_the_subject_and_the_file_number_keep_what_the_cover_says(operator_user,
+                                                                  fake_generation):
+    """REQ-077: el objeto en dos líneas se toma entero y el expediente con su guion partido."""
+    draft = upload_and_read(operator_user, portal_style_pdf())
+    fields = draft.proposal["fields"]
+    assert fields["subject"]["proposed"] == (
+        "ADQUISICIÓN DE MOBILIARIO SINTÉTICO PARA LAS OFICINAS DE PRUEBA")
+    assert fields["file_number"]["proposed"] == "EX-2099-00004321- -SINT-AREA#SECCION"
+    assert fields["number"]["proposed"] == "S0AA000000-0005-LPU26"
+
+
+def test_a_value_inside_a_quote_that_is_not_literal_on_the_page_stays_undetermined(
+        operator_user, fake_generation):
+    """REQ-077: el modelo cita algo que no está en la página, aunque el valor esté dentro de la
+    cita: el dato queda «no determinado»."""
+    cover = ["PROCESO N°: S0AA000000-0009-ZZZ26", "Texto sin tipo ni objeto reconocibles."]
+    fake_generation.respond(json.dumps({
+        "procedure_type": {"valor": "licitación pública",
+                           "cita": "Se trata de una licitación pública nacional."},
+        "subject": {"valor": "mobiliario", "cita": "Compra de mobiliario para las oficinas."},
+    }))
+    draft = upload_and_read(operator_user, case_pdf(cover=cover))
+    fields = draft.proposal["fields"]
+    assert fields["procedure_type"]["state"] == "no_determinado"
+    assert fields["subject"]["state"] == "no_determinado"
+    assert fields["procedure_type"]["proposed"] is None
+
+
+def test_a_literal_quote_that_does_not_contain_the_value_stays_undetermined(
+        operator_user, fake_generation):
+    """REQ-077: la cita es literal pero no contiene el valor propuesto: no se propone."""
+    cover = ["PROCESO N°: S0AA000000-0010-ZZZ26", "Texto de la carátula del pliego."]
+    fake_generation.respond(json.dumps({
+        "procedure_type": {"valor": "contratación directa",
+                           "cita": "Texto de la carátula del pliego."},
+        "subject": {"valor": "", "cita": ""},
+    }))
+    draft = upload_and_read(operator_user, case_pdf(cover=cover))
+    assert draft.proposal["fields"]["procedure_type"]["state"] == "no_determinado"
+
+
+# --- Rechazar un borrador mal leído -----------------------------------------------------------
+
+
+def test_reject_needs_a_reason_and_only_the_evaluator(operator_user, evaluator_user):
+    """REQ-077: descartar una propuesta exige motivo y es del evaluador."""
+    draft = upload_and_read(operator_user, case_pdf())
+    with pytest.raises(RoleRejected):
+        service.reject(operator_user, draft.pk, "mal leído")
+    for reason in ("", "  ", None):
+        with pytest.raises(service.ReasonRequired):
+            service.reject(evaluator_user, draft.pk, reason)
+    draft.refresh_from_db()
+    assert draft.state == ProposalState.PROPUESTO
+
+
+def test_a_rejected_draft_records_who_and_when_and_frees_the_file(operator_user,
+                                                                  evaluator_user):
+    """REQ-077: lo descartado queda «rechazado» con motivo, quién y cuándo, sin crear nada, y el
+    mismo archivo se puede volver a subir."""
+    data = case_pdf()
+    draft = upload_and_read(operator_user, data)
+    done = service.reject(evaluator_user, draft.pk, "La lectura confundió el objeto")
+    assert done.state == ProposalState.RECHAZADO and done.procedure is None
+    rejection = done.proposal["rejection"]
+    assert rejection["reason"] == "La lectura confundió el objeto"
+    assert rejection["by"] == evaluator_user.get_username() and rejection["at"]
+    assert not m.Procedure.objects.exists()
+    event = AuditEvent.objects.filter(event_type=EventType.PROCEDURE_PROPOSAL,
+                                      detail__action="reject").get()
+    assert event.user == evaluator_user and event.outcome == Outcome.OK
+    again = service.upload_tender(operator_user, data, "pliego.pdf")
+    assert again.pk != draft.pk
+    with pytest.raises(service.NotPending):
+        service.reject(evaluator_user, draft.pk, "otra vez")
+    with pytest.raises(service.NotPending):
+        service.approve(evaluator_user, draft.pk)
+
+
+def test_a_failed_draft_can_be_closed_with_reject(operator_user, evaluator_user):
+    """REQ-077: un borrador fallido también se descarta, con motivo."""
+    draft = upload_and_read(operator_user, b"%PDF-1.4\nesto no es un pdf de verdad")
+    assert draft.state == ProposalState.FALLIDO
+    assert service.reject(evaluator_user, draft.pk, "No se puede leer").state == (
+        ProposalState.RECHAZADO)

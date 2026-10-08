@@ -24,6 +24,9 @@ No hay alta en blanco: el procedimiento nace de un pliego que se sube, se lee y 
   «aprobado»: todo en una transacción (el esquema exige que `aprobado` y el procedimiento
   resultante se escriban juntos). `decisions={"discard_lines": [n, …]}` descarta renglones.
   Deja el hecho `procedure_proposal` con lo propuesto, lo corregido, los motivos y lo descartado.
+- `reject(user, draft_id, reason)`: solo el evaluador. Descarta un borrador mal leído («rechazado»,
+  o un borrador «fallido» que se da por cerrado), con motivo obligatorio, quién y cuándo, y deja
+  el hecho: el mismo archivo se puede volver a subir. No crea nada.
 
 El rol se comprueba fuera de toda transacción para que el hecho `rejected` no se pierda. Los
 mensajes son para la persona que usa la pantalla: español llano.
@@ -64,6 +67,7 @@ UPLOAD_OPERATION = "evaluon.tenders.services.procedure_proposal.upload_tender"
 VIEW_OPERATION = "evaluon.tenders.services.procedure_proposal.proposal_of"
 CORRECT_OPERATION = "evaluon.tenders.services.procedure_proposal.correct"
 APPROVE_OPERATION = "evaluon.tenders.services.procedure_proposal.approve"
+REJECT_OPERATION = "evaluon.tenders.services.procedure_proposal.reject"
 
 LINE_ATTRS = ("description", "quantity", "unit")
 _LINE_FIELD = re.compile(r"line\.(\d+)\.(description|quantity|unit)")
@@ -403,6 +407,35 @@ def approve(user, draft_id, decisions=None, *, channel=Channel.SCREEN):
                         "file_sha256": draft.file_sha256, "values": values,
                         "corrections": proposal.get("corrections", []),
                         "discarded_lines": discarded, "lines": len(kept)})
+    except ProposalRefused as error:
+        _record_refusal(user, channel, error, detail)
+        raise
+    return draft
+
+
+def reject(user, draft_id, reason, *, channel=Channel.SCREEN):
+    """Descarta la propuesta de un pliego mal leído. Ver el módulo. Devuelve el borrador."""
+    require_commission_role(user, CommissionRole.EVALUATOR, operation=REJECT_OPERATION,
+                            channel=channel)
+    detail = {"draft": draft_id, "action": "reject"}
+    try:
+        reason = (reason or "").strip()
+        if not reason:
+            raise ReasonRequired("Escriba el motivo por el que se descarta la propuesta.",
+                                 "reason")
+        with transaction.atomic():
+            draft = _get_draft(draft_id, lock=True)
+            if draft.state not in (ProposalState.PROPUESTO, ProposalState.FALLIDO):
+                raise NotPending("La propuesta todavía no está lista o ya se resolvió.", None)
+            entry = {"reason": reason, "by": _username(user), "by_id": user.pk,
+                     "at": timezone.now().isoformat(timespec="seconds"),
+                     "previous_state": draft.state}
+            draft.proposal = {**draft.proposal, "rejection": entry}
+            draft.state = ProposalState.RECHAZADO
+            draft.save(update_fields=["proposal", "state"])
+            audit.record(EventType.PROCEDURE_PROPOSAL, outcome=Outcome.OK, channel=channel,
+                         user=user, detail={**detail, **entry,
+                                            "file_sha256": draft.file_sha256})
     except ProposalRefused as error:
         _record_refusal(user, channel, error, detail)
         raise
