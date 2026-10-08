@@ -20,11 +20,11 @@ from dataclasses import dataclass, field
 from django.utils import timezone
 
 from evaluon.accounts.models import CommissionRole
-from evaluon.assessment.models import Action, AnswerScope, Decision
-from evaluon.assessment.services import matrix as matrix_service
+from evaluon.assessment.models import Action, AnswerScope, Decision, Doubt, Outcome
 from evaluon.assessment.services import questions as questions_service
 from evaluon.assessment.services import remedy as remedy_service
 from evaluon.audit.models import Channel
+from evaluon.journey import memo
 from evaluon.journey.sections.base import TemaStatus
 from evaluon.journey.temas import s4_preguntas_acciones as acciones
 from evaluon.offers.services import offers as offers_service
@@ -93,14 +93,25 @@ def _question_lines(user, procedure, is_evaluator):
     return lines
 
 
+def _is_remediable(result, effective):
+    """`remedy_service.is_remediable(result)` con el resultado que rige ya conocido."""
+    if effective == Outcome.SIN_DOCUMENTO:
+        return True
+    return (effective == Outcome.NO_DETERMINADO == result.outcome
+            and result.doubt == Doubt.EXTERNO)
+
+
 def _remedy_lines(user, procedure, is_evaluator):
-    page = matrix_service.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
+    page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
     lines = []
     live = set()
     for requirement in page.requirements:
         for offer in page.offers:
-            result = page.cells[(offer.pk, requirement.pk)].result
-            if result is None or not remedy_service.is_remediable(result):
+            cell = page.cells[(offer.pk, requirement.pk)]
+            result = cell.result
+            # `cell.effective_outcome` es `review.effective_outcome(result)` ya calculado por la
+            # matriz: así no se consulta la decisión de nuevo por cada par (T-221).
+            if result is None or not _is_remediable(result, cell.effective_outcome):
                 continue
             state = remedy_service.state(result)
             if not state.applicable:
