@@ -135,21 +135,13 @@ def _technical_cells(page):
             for status in page.statuses for row in status.technical}
 
 
-def _pending_report_offers(page):
-    """Las ofertas con alguna fila técnica ya evaluada y sin ok vigente (como la etapa)."""
-    return [status.offer for status in page.statuses
-            if any(not row.approved
-                   and page.cells[(status.offer.pk, row.requirement.pk)].result is not None
-                   for row in status.technical
-                   if (status.offer.pk, row.requirement.pk) in page.cells)]
-
-
 # --- Estado y lista de pendientes ----------------------------------------------------------------
 
 
 def _items(page, procedure):
     """Cada cosa que la Comisión debe decidir en esta pestaña y cada sugerencia del sistema, con
-    su ancla. Los `pending_items` suman lo mismo que cuenta la etapa `matriz_evaluacion`."""
+    su ancla. Los oks del informe técnico del área los lista `s4_informe` (T-209); entre los dos
+    suman lo mismo que cuenta la etapa `matriz_evaluacion`."""
     base = _tab(procedure)
     technical = _technical_cells(page)
     pending = []
@@ -167,9 +159,6 @@ def _items(page, procedure):
             pending.append(Item(
                 f"Oferta {status.offer.number} · requisito {question.requirement.number}: "
                 "pregunta abierta", f"{base}#ev-{question.requirement.number}", 1, "Resolver"))
-    for offer in _pending_report_offers(page):
-        pending.append(Item(f"Oferta {offer.number}: falta el ok del informe técnico",
-                            f"{base}#s4-informe", 1, "Resolver"))
     suggestions = []
     for discard in page.discards:
         scope = ("completa" if discard.is_whole else
