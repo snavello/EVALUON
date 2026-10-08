@@ -158,7 +158,7 @@ def _items(page, procedure):
         for question in status.open_questions:
             pending.append(Item(
                 f"Oferta {status.offer.number} · requisito {question.requirement.number}: "
-                "pregunta abierta", f"{base}#ev-{question.requirement.number}", 1, "Resolver"))
+                "pregunta abierta", f"{base}#preg-{question.pk}", 1, "Resolver"))
     suggestions = []
     for discard in page.discards:
         scope = ("completa" if discard.is_whole else
