@@ -1,1 +1,138 @@
-{% comment %}Parcial del tema s3_ficha (Ficha de cada oferta). Vacío en el corte vertical; lo completa T-203.{% endcomment %}
+{% load static %}{% comment %}Tema s3_ficha (T-203, REQ-086): «Lo que presentó cada oferta». La ficha de una oferta se abre dentro de la pestaña «Ofertas» (?ficha=<oferta>) con «Volver a Ofertas». Las acciones son formularios POST a las rutas de s3_ficha; el operador no ve el botón de confirmar. Recibe `t` (ver evaluon/journey/temas/s3_ficha.py).{% endcomment %}
+<link rel="stylesheet" href="{% static 'journey/s3_ficha.css' %}">
+<div class="ficha">
+{% if t.aviso %}<p class="aviso {% if t.aviso.ok %}aviso-ok{% else %}aviso-error{% endif %}" id="s3-aviso-ficha" role="{% if t.aviso.ok %}status{% else %}alert{% endif %}">{{ t.aviso.text }}</p>{% else %}<span id="s3-aviso-ficha"></span>{% endif %}
+
+{% if t.detail %}
+{% with d=t.detail %}
+<div class="bloque" id="s3-ficha">
+  <p class="volver"><a href="{{ d.back_url }}">← Volver a Ofertas</a></p>
+  <div class="encab-parte"><h2>Ficha de la oferta {{ d.offer.number }} · {{ d.offer.bidder }}</h2>
+    <form class="en-linea" method="post" action="{% url 'expedientes:s3_ficha_armar' t.pid d.offer.pk %}">{% csrf_token %}<button class="btn secundario" type="submit">{% if d.sheet %}Armar la ficha de nuevo{% else %}Armar la ficha{% endif %}</button></form></div>
+  <p class="resumen-linea">Qué presentó <b>{{ d.offer.bidder }}</b> frente a cada requisito de la matriz, con el fragmento de la oferta que lo respalda. La ficha es opcional: sirve para revisar con el original a mano.{% if d.sheet %} Armada el {{ d.built_at }} sobre la versión {{ d.version }} de la matriz.{% endif %}</p>
+
+  {% if not d.sheet %}
+  <div class="estado-vacio">
+    <h3>Esta oferta todavía no tiene ficha</h3>
+    <p>La ficha se arma contra la matriz validada, con los documentos leídos de la oferta. No hace falta para evaluar.</p>
+  </div>
+  {% else %}
+  {% if d.newer %}<p class="aviso aviso-error" role="status">La matriz tiene una versión más nueva ({{ d.newer.number }}); esta ficha se armó con la versión {{ d.version }}. Arme la ficha de nuevo para ponerla al día.</p>{% endif %}
+
+  {% if d.proposed or d.missing or d.unread %}
+  <div class="bloque">
+    <div class="bloque-cab"><h3>Pendiente <span class="cta">{{ d.proposed|length }} sin confirmar · {{ d.missing|length }} sin respaldo</span></h3></div>
+    <ul class="lista">
+      {% if d.proposed %}<li>{% include "journey/_icono.html" with icon="pend" name="Sin confirmar" %}<span><b>{{ d.proposed|length }}</b> fila{{ d.proposed|length|pluralize }} propuesta{{ d.proposed|length|pluralize }} por confirmar.</span>
+        {% if t.is_evaluator %}<form class="en-linea accion" method="post" action="{% url 'expedientes:s3_ficha_confirmar' t.pid d.offer.pk %}">{% csrf_token %}{% for r in d.proposed %}<input type="hidden" name="entry" value="{{ r.entry.pk }}">{% endfor %}<button class="btn primario chico" type="submit">Confirmar las {{ d.proposed|length }}</button></form>{% else %}<span class="suave accion">Las confirma un evaluador</span>{% endif %}</li>{% endif %}
+      {% for r in d.missing %}<li>{% include "journey/_icono.html" with icon="nocumple" name="Sin respaldo" %}<span><b>Requisito {{ r.number }}:</b> no se encontró en la oferta.</span></li>{% endfor %}
+      {% for page in d.unread %}<li>{% include "journey/_icono.html" with icon="nodet" name="Página sin leer" %}<span>{{ page.title|default:"Documento" }}, página {{ page.page }}: no se pudo leer.</span></li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <div class="bloque">
+    <div class="tabla-scroll"><table class="matriz" id="t-ficha">
+      <caption>Lo presentado frente a cada requisito ({{ d.rows|length }} requisito{{ d.rows|length|pluralize }})</caption>
+      <thead><tr><th scope="col" class="c-abrir"><span class="sr-only">Abrir</span></th><th scope="col">Requisito</th><th scope="col">Lo que presentó</th><th scope="col">Fragmento de la oferta</th><th scope="col">Dónde</th><th scope="col" class="e">Estado</th></tr></thead>
+      <tbody>
+        {% for r in d.rows %}
+        <tr class="fila-req" id="fila-{{ r.entry.pk }}">
+          <td><button type="button" class="abrir" aria-expanded="{% if r.active %}true{% else %}false{% endif %}" aria-controls="detalle-ficha-{{ r.entry.pk }}" aria-label="Ver el detalle del requisito {{ r.number }}">{% if r.active %}▾{% else %}▸{% endif %}</button></td>
+          <th scope="row">{{ r.number }} · {{ r.category }}{% if r.item %}, renglón {{ r.item }}{% endif %}<br><span class="suave chica">{{ r.text }}</span></th>
+          <td>{% if r.found %}{% if r.presented %}{{ r.presented }}{% else %}<span class="suave">Sin síntesis</span>{% endif %}{% else %}<span class="suave">No se encontró en la oferta</span>{% endif %}</td>
+          <td class="frag-celda">{% for view in r.fragments|slice:":1" %}«{{ view.fragment.text|truncatechars:160 }}»{% if r.fragments|length > 1 %}<br><span class="suave chica">y {{ r.fragments|length|add:"-1" }} más</span>{% endif %}{% empty %}—{% endfor %}</td>
+          <td class="chica">{% for view in r.fragments|slice:":1" %}<a href="{% url 'offers:document_original' view.document.pk %}#page={{ view.page }}" target="_blank" rel="noopener">{{ view.document.title }}, pág. {{ view.page }}</a>{% empty %}—{% endfor %}</td>
+          <td class="e">{% include "journey/_icono.html" with icon=r.icon name=r.state_name %}</td>
+        </tr>
+        <tr class="detalle" id="detalle-ficha-{{ r.entry.pk }}"{% if not r.active %} hidden{% endif %}>
+          <td colspan="6">
+            <dl>
+              <dt>Requisito {{ r.number }} · cita del pliego</dt>
+              <dd>{{ r.text|default:"Sin cita" }}</dd>
+              <dt>Estado</dt><dd>{{ r.state_name }}</dd>
+              {% if r.found %}
+              <dt>Fragmentos de la oferta</dt>
+              <dd><ul class="frag">
+                {% for view in r.fragments %}
+                <li><blockquote class="cita">{{ view.fragment.text }}</blockquote>
+                  <span class="chica"><a href="{% url 'offers:document_original' view.document.pk %}#page={{ view.page }}" target="_blank" rel="noopener">{{ view.document.title }}, pág. {{ view.page }}</a>{% if view.fragment.state == "confirmado" %} · confirmado{% endif %}{% if view.fragment.origin == "persona" %} · agregado por una persona{% endif %}</span>
+                  <div class="acciones-fila">
+                    <details class="acc"><summary class="btn secundario chico">Quitar</summary>
+                      <form method="post" action="{% url 'expedientes:s3_ficha_fragmento' t.pid view.fragment.pk 'quitar' %}">{% csrf_token %}
+                        <p class="ayuda">No se borra: queda en la fila, con el motivo, quién y cuándo.</p>
+                        <label for="q-{{ view.fragment.pk }}">Motivo (obligatorio)</label><input id="q-{{ view.fragment.pk }}" type="text" name="motive" required>
+                        <button class="btn primario chico" type="submit">Quitar el fragmento</button>
+                      </form></details>
+                    {% if r.active %}
+                    <details class="acc" open><summary class="btn secundario chico">Corregir</summary>
+                      <form method="post" action="{% url 'expedientes:s3_ficha_fragmento' t.pid view.fragment.pk 'corregir' %}">{% csrf_token %}
+                        <p class="ayuda">El recorte debe ser texto literal del pasaje elegido. Queda el fragmento anterior en el historial.</p>
+                        <label for="cp-{{ view.fragment.pk }}">Pasaje de la oferta</label>
+                        <select id="cp-{{ view.fragment.pk }}" name="passage">{% for id, label in d.passages %}<option value="{{ id }}"{% if id == view.fragment.passage_id %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+                        <label for="ct-{{ view.fragment.pk }}">Recorte (vacío: el pasaje entero)</label><textarea id="ct-{{ view.fragment.pk }}" name="text" rows="3"></textarea>
+                        <label for="cm-{{ view.fragment.pk }}">Motivo (obligatorio)</label><input id="cm-{{ view.fragment.pk }}" type="text" name="motive" required>
+                        <button class="btn primario chico" type="submit">Guardar la corrección</button>
+                      </form></details>
+                    {% endif %}
+                  </div></li>
+                {% endfor %}
+              </ul></dd>
+              {% endif %}
+              {% if r.removed %}
+              <dt>Fragmentos quitados</dt>
+              <dd><ul class="frag">{% for view in r.removed %}<li><blockquote class="cita vieja">{{ view.fragment.text }}</blockquote><span class="chica">{{ view.document.title }}, pág. {{ view.page }}</span>
+                <form class="en-linea" method="post" action="{% url 'expedientes:s3_ficha_fragmento' t.pid view.fragment.pk 'restituir' %}">{% csrf_token %}<button class="btn secundario chico" type="submit">Restituir</button></form></li>{% endfor %}</ul></dd>
+              {% endif %}
+              {% if r.motives %}<dt>Cambios con motivo</dt>{% for line in r.motives %}<dd>{{ line }}</dd>{% endfor %}{% endif %}
+              {% if r.changes %}<dt>Historial de la fila</dt>{% for line in r.changes %}<dd>{{ line }}</dd>{% endfor %}{% endif %}
+            </dl>
+            <div class="acciones-fila">
+              {% if r.proposed %}{% if t.is_evaluator %}<form class="en-linea" method="post" action="{% url 'expedientes:s3_ficha_confirmar' t.pid d.offer.pk %}">{% csrf_token %}<input type="hidden" name="entry" value="{{ r.entry.pk }}"><button class="btn primario chico" type="submit">Confirmar la fila</button></form>{% else %}<span class="suave chica">La fila la confirma un evaluador</span>{% endif %}{% endif %}
+              {% if r.active %}
+              <details class="acc" open><summary class="btn secundario chico">Agregar un fragmento</summary>
+                <form method="post" action="{% url 'expedientes:s3_ficha_agregar' t.pid r.entry.pk %}">{% csrf_token %}
+                  <p class="ayuda">El recorte debe ser texto literal del pasaje elegido; sin recorte se toma el pasaje entero.</p>
+                  <label for="ap-{{ r.entry.pk }}">Pasaje de la oferta</label>
+                  <select id="ap-{{ r.entry.pk }}" name="passage">{% for id, label in d.passages %}<option value="{{ id }}">{{ label }}</option>{% endfor %}</select>
+                  <label for="at-{{ r.entry.pk }}">Recorte (opcional)</label><textarea id="at-{{ r.entry.pk }}" name="text" rows="3"></textarea>
+                  <button class="btn primario chico" type="submit">Agregar el fragmento</button>
+                </form></details>
+              {% else %}
+              <a class="btn secundario chico" href="{{ r.edit_url }}">Corregir o agregar un fragmento</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+  {% endif %}
+  <div class="bloque-pie"><a class="btn secundario" href="{{ d.back_url }}">Volver a Ofertas</a></div>
+</div>
+{% endwith %}
+
+{% else %}
+<div class="bloque" id="s3-fichas">
+  <div class="bloque-cab"><h3>Lo que presentó cada oferta <span class="cta">{{ t.offers|length }}</span></h3><span class="linea-portal">La ficha es opcional: sirve para revisar con el original a mano.</span></div>
+  {% if not t.offers %}
+  <div class="estado-vacio"><h3>Todavía no hay ofertas</h3><p>Cuando haya ofertas cargadas, acá se abre la ficha de cada una.</p></div>
+  {% else %}
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <caption class="sr-only">Ficha de cada oferta</caption>
+    <thead><tr><th scope="col">Oferta</th><th scope="col">Ficha</th><th scope="col">Lo que presentó</th></tr></thead>
+    <tbody>
+      {% for row in t.offers %}
+      <tr>
+        <th scope="row">{{ row.offer.number }} · {{ row.offer.bidder }}</th>
+        <td>{% if row.sheet %}Armada, {{ row.total }} fila{{ row.total|pluralize }}{% if row.proposed %} · {{ row.proposed }} sin confirmar{% endif %}{% else %}<span class="suave">Sin ficha</span>{% endif %}</td>
+        <td><a href="{{ row.url }}">Ficha (opcional)</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
+</div>
+{% endif %}
+</div>
