@@ -77,6 +77,7 @@ class Section:
     pending_items: tuple = ()
     suggestion_items: tuple = ()
     error: str = ""
+    tema_missing: tuple = ()  # lo que faltan los temas, con su acción directa (sin la de las etapas)
     legacy_links: tuple = ()  # (nombre, dirección) de las pantallas actuales que aún se usan
     upload_url: str | None = None
     css: str = ""
@@ -128,18 +129,21 @@ def build_section(module, user, procedure, stages_by_key):
                         if s.suggestions and s.key not in detailed]
     missing = [Missing(s.detail, s.view_url, "Ir") for s in stages
                if s.state == stage_base.PENDIENTE and not s.optional]
+    tema_missing = []
     for status in statuses:
         pending_items += status.pending_items
         suggestion_items += status.suggestion_items
         missing += status.missing
+        tema_missing += status.missing
 
     failed = next((s for s in stages if s.state == stage_base.CON_ERROR), None)
     return Section(
         key=module.KEY, label=module.LABEL, slug=module.SLUG,
         url=reverse(f"expedientes:{module.KEY}", args=[procedure.pk]),
         state=combine(stages, pending), pending=pending, suggestions=suggestions,
-        summary=tuple((s.label, s.detail) for s in stages if s.detail),
-        missing=tuple(missing),
+        summary=(module.summary(user, procedure, stages) if hasattr(module, "summary")
+                 else tuple((s.label, s.detail) for s in stages if s.detail)),
+        missing=tuple(missing), tema_missing=tuple(tema_missing),
         sources=tuple(source for status in statuses for source in status.sources),
         pending_items=tuple(pending_items), suggestion_items=tuple(suggestion_items),
         error=plain_reason(failed.error) if failed else "",

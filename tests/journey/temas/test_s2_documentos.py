@@ -234,3 +234,35 @@ def test_what_the_portal_lists_and_was_not_taken_shows_as_missing(client, bare, 
     assert f'{reverse("portal:proposal", args=[link.pk])}#group-documento' in page
     assert "El Portal lista 1 documento del pliego que no se tomaron" in page
 
+
+
+def test_without_a_tender_there_is_one_summary_line_and_no_link_to_old_screens(
+        client, bare, operator_user):
+    """REQ-080: una sola línea de resumen, sin «Falta: … Ir» ni enlaces a la pantalla vieja."""
+    log_in(client, operator_user)
+    page = client.get(tab(bare)).content.decode()
+    assert "Todavía no hay pliego: súbalo o tómelo del Portal" in page
+    assert "<b>Falta:</b>" not in page
+    assert "Faltan los documentos del pliego" not in page
+    assert f"/procedimientos/{bare.pk}/" not in page
+
+
+def test_empty_matrix_offers_upload_without_tender_and_proposal_with_a_read_one(
+        client, bare, operator_user):
+    """REQ-080: sin pliego, «Subir archivo»; con pliego leído, «Pedir la propuesta»."""
+    log_in(client, operator_user)
+    page = client.get(tab(bare)).content.decode()
+    assert "Pedir la propuesta de la matriz" not in page
+    doc = Document.objects.create(
+        procedure=bare, kind="pliego", title="Pliego leído", file_name="p.pdf",
+        file_format="pdf", file_size=1, file_sha256="e" * 64, loaded_by=operator_user)
+    from evaluon.tenders.models import Reading
+    Reading.objects.create(document=doc, sequence=1, pages={"pages": []}, tables=[],
+                           canonical_text="x", canonical_sha256="f" * 64, items=[],
+                           tool_versions={}, report={})
+    page = client.get(tab(bare)).content.decode()
+    assert "Pedir la propuesta de la matriz" in page
+    assert f"/procedimientos/{bare.pk}/" not in page
+    response = client.post(reverse("expedientes:s2_proponer", args=[bare.pk]))
+    assert response.status_code == 302 and response["Location"].startswith(tab(bare))
+    assert Job.objects.filter(kind=JobKind.PROPOSE_MATRIX, procedure=bare).exists()

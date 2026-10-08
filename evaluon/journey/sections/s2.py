@@ -10,7 +10,16 @@ TEMA_KEYS = ("s2_documentos", "s2_matriz")
 
 
 def legacy_links(procedure):
-    return [("Cargar documentos del pliego", reverse("tenders:procedure", args=[procedure.pk]))]
+    return []
+
+
+def summary(user, procedure, stages):
+    """Sin pliego, una sola línea que dice qué hacer; si no, el detalle de cada etapa."""
+    from evaluon.journey.temas import s2_documentos
+    if not s2_documentos.documents_of(procedure):
+        return (("Pliego y matriz", "Todavía no hay pliego: súbalo o tómelo del Portal "
+                 "para que el sistema proponga la matriz."),)
+    return tuple((s.label, s.detail) for s in stages if s.detail)
 
 
 def upload_url(procedure):
