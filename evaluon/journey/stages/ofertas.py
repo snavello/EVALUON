@@ -18,14 +18,15 @@ haya una matriz validada con la cual armarla. Las filas pendientes de una ficha,
 decisiones de la Comisión. El recorrido solo lee: no arma fichas ni confirma filas.
 """
 
-from django.db.models import Count, Max, Q
+from django.db.models import Count, Exists, Max, OuterRef, Q
 from django.urls import reverse
 
 from evaluon.journey.progress import progress_of
 from evaluon.journey.stages import base
-from evaluon.offers.models import Document, DocumentKind, EntryState, Sheet, SheetChannel
+from evaluon.offers.models import (
+    Document, DocumentKind, EntryState, Reading, Sheet, SheetChannel)
 from evaluon.offers.services.offers import own_documents
-from evaluon.tenders.models import JobKind, JobStatus
+from evaluon.tenders.models import Job, JobKind, JobStatus
 from evaluon.tenders.services.validation import latest_validated
 
 KINDS = (JobKind.READ_OFFER_DOCUMENT, JobKind.BUILD_SHEET)
@@ -33,25 +34,38 @@ KEY = "ofertas"
 LABEL = "Ofertas"
 
 
+def _last_by_target(procedure, kind):
+    """El pedido más reciente de ese tipo de cada objeto del procedimiento: `{id: pedido}`."""
+    latest = {}
+    for job in (Job.objects.filter(kind=kind, procedure=procedure)
+                .order_by("-requested_at", "-pk")):
+        latest.setdefault(job.target_id, job)
+    return latest
+
+
 def _failed_job(procedure):
     """El pedido fallido más reciente cuyo objeto (documento u oferta) no tiene después un
     resultado que lo supere, o `None`. Devuelve `(pedido, nombre del objeto)`."""
     failed = []
-    for document in Document.objects.filter(offer__procedure=procedure).select_related("offer"):
-        job = base.last_job((JobKind.READ_OFFER_DOCUMENT,), target_id=document.pk,
-                            procedure=procedure)
+    # Un solo pedido por tipo, no uno por documento u oferta (T-221): el más reciente de cada
+    # objeto, con el mismo orden que `base.last_job`.
+    last_by_document = _last_by_target(procedure, JobKind.READ_OFFER_DOCUMENT)
+    last_by_offer = _last_by_target(procedure, JobKind.BUILD_SHEET)
+    documents = (Document.objects.filter(offer__procedure=procedure).select_related("offer")
+                 .annotate(latest_reading=Max("readings__created_at")))
+    for document in documents:
+        job = last_by_document.get(document.pk)
         if job is None or job.status != JobStatus.FAILED:
             continue
-        latest = document.readings.aggregate(at=Max("created_at"))["at"]
-        if not base.superseded(job, latest):
+        if not base.superseded(job, document.latest_reading):
             failed.append((job, f"el documento «{document.title}» de la oferta "
                                 f"{document.offer.number}"))
-    for offer in procedure.offers.all():
-        job = base.last_job((JobKind.BUILD_SHEET,), target_id=offer.pk, procedure=procedure)
+    offers = procedure.offers.annotate(latest_sheet=Max("sheets__built_at"))
+    for offer in offers:
+        job = last_by_offer.get(offer.pk)
         if job is None or job.status != JobStatus.FAILED:
             continue
-        latest = offer.sheets.aggregate(at=Max("built_at"))["at"]
-        if not base.superseded(job, latest):
+        if not base.superseded(job, offer.latest_sheet):
             failed.append((job, f"la ficha de la oferta {offer.number}"))
     if not failed:
         return None
@@ -79,8 +93,9 @@ def compute(user, procedure):
     offers = list(procedure.offers.order_by("number"))
     with_documents = [o for o in offers if own_documents(o).exists()]
     documents = list(Document.objects.filter(offer__in=with_documents)
-                     .exclude(kind=DocumentKind.INFORME_TECNICO))
-    unread = [d for d in documents if not d.readings.exists()]
+                     .exclude(kind=DocumentKind.INFORME_TECNICO)
+                     .annotate(has_reading=Exists(Reading.objects.filter(document=OuterRef("pk")))))
+    unread = [d for d in documents if not d.has_reading]
     all_read = bool(with_documents) and not unread
 
     pending_sheets = _pending_sheets(with_documents)

@@ -1,0 +1,27 @@
+/* Tema «subir, leer y validar normas» de la sección 5 (T-214, REQ-094). Todo va bajo `.s5-norm` para
+   no mezclarse con los demás temas. Usa los tokens de la guía visual; sin recursos externos. */
+
+.s5-norm .aviso { margin: 10px 0; padding: 9px 12px; border-radius: var(--ev-radio-btn); border: 1px solid var(--ev-borde); font-size: var(--ev-t-sm); }
+.s5-norm .aviso-ok { background: var(--ev-azul-50); border-color: var(--ev-azul-300); }
+.s5-norm .aviso-error { background: var(--ev-beige-100); border-color: var(--ev-beige-400); font-weight: 600; }
+.s5-norm label { display: block; font-size: var(--ev-t-sm); font-weight: 600; margin-bottom: 4px; }
+.s5-norm input[type=text], .s5-norm input[type=number], .s5-norm input[type=date], .s5-norm select, .s5-norm textarea {
+  width: 100%; font: inherit; font-size: var(--ev-t-ctl); color: var(--ev-texto); background: var(--ev-superficie);
+  border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 6px 8px;
+}
+.s5-norm .subida { border-top: 1px solid var(--ev-borde); padding-top: 10px; margin-top: 12px; scroll-margin-top: 5rem; }
+.s5-norm .subida h4 { margin: 0 0 4px; }
+.s5-norm .registro { font-size: var(--ev-t-xs); color: var(--ev-texto-suave); margin: 2px 0 6px; overflow-wrap: anywhere; }
+.s5-norm .evidencia { font-size: var(--ev-t-xs); color: var(--ev-texto-suave); margin: 2px 0 0; overflow-wrap: anywhere; }
+.s5-norm details.acc { display: inline-block; vertical-align: top; margin: 0 6px 6px 0; }
+.s5-norm details.acc > summary { list-style: none; cursor: pointer; display: inline-block; }
+.s5-norm details.acc > summary::-webkit-details-marker { display: none; }
+.s5-norm details.acc[open] { display: block; max-width: 36rem; }
+.s5-norm details.acc form { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-btn); background: var(--ev-superficie); }
+.s5-norm details.acc label { margin-top: 6px; }
+.s5-norm .confirmar { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-btn); }
+.s5-norm .confirmar label.simple { font-weight: 400; }
+.s5-norm input[type=checkbox] { width: auto; }
+.s5-norm tr { scroll-margin-top: 5rem; }
+.s5-norm pre.informe { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--ev-t-sm); max-height: 28rem; overflow: auto; padding: 10px 12px; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-btn); background: var(--ev-superficie); }
+.s5-norm .bloque-pie { margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
