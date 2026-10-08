@@ -50,7 +50,9 @@ def test_the_18_themes_exist_with_zero_counts(procedure, operator_user):
     for tema in temas.TEMAS:
         status = tema.status(operator_user, procedure)
         assert status.pending >= 0 and status.suggestions >= 0
-        assert (status.pending, status.suggestions, list(status.missing)) == (0, 0, [])
+        assert (status.pending, status.suggestions) == (0, 0)
+        if tema.KEY != "s1_datos":  # desde T-194 dice lo que falta del procedimiento
+            assert list(status.missing) == []
 
 
 @pytest.mark.parametrize("key", KEYS)

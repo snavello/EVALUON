@@ -14,8 +14,8 @@
   <p class="resumen-linea" id="seccion-resumen">
     {% if section.summary %}{% for label, detail in section.summary %}{{ detail }} {% endfor %}{% else %}Esta sección no tiene todavía datos que resumir.{% endif %}
   </p>
-  {% if section.missing %}
-  <p class="falta"><b>Falta:</b> {% for item in section.missing %}{{ item.text }}{% if item.url %} <a href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+  {% if section.tema_missing %}
+  <p class="falta"><b>Falta:</b> {% for item in section.tema_missing %}{{ item.text }}{% if item.url %} <a href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
   {% endif %}
 
   {% include "journey/_paneles.html" with pending_total=section.pending suggestion_total=section.suggestions pending_rows=pending_rows suggestion_rows=suggestion_rows show_section=False %}

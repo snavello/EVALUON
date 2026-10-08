@@ -49,7 +49,8 @@
   <div class="estado-vacio">
     <h3>Todavía no hay una matriz de cumplimiento</h3>
     <p>La matriz se propone a partir del pliego leído. Cuando el pliego esté cargado, se pide la propuesta.</p>
-    <a class="btn primario" href="{{ t.propose_url }}">Cargar el pliego o pedir la propuesta</a>
+    {% if t.can_propose %}<form class="en-linea" method="post" action="{% url 'expedientes:s2_proponer' t.pid %}">{% csrf_token %}<button class="btn primario" type="submit">Pedir la propuesta de la matriz</button></form>
+    {% else %}<a class="btn primario" href="#s2-subir">Subir archivo</a>{% endif %}
   </div>
   {% else %}
   <div class="resumen" id="m-resumen">

@@ -1,1 +1,72 @@
-{% comment %}Parcial del tema s2_documentos (Documentos del pliego, anexos y especificaciones). Vacío en el corte vertical; lo completa T-198.{% endcomment %}
+{% load static %}{% comment %}Tema s2_documentos (T-198, REQ-080, REQ-097): el pliego, los anexos y las especificaciones técnicas, con su origen y el estado de su lectura. «Subir archivo» sube varios a la vez (un formulario POST a la ruta s2_documentos_subir); «Tomar del Portal» lleva a los ítems de documentos del Portal. Las circulares van en Ofertas. Sin scripts el formulario sube todos los archivos con un mismo tipo; el script agrega el tipo y la fecha por archivo. Recibe `t` (ver evaluon/journey/temas/s2_documentos.py).{% endcomment %}
+<div class="bloque" id="s2-documentos">
+  <div class="bloque-cab">
+    <h3>Pliego, anexos y especificaciones técnicas <span class="cta">{{ t.loaded_count }} cargado{{ t.loaded_count|pluralize }}{% if t.missing_count %} · {{ t.missing_count }} falta{{ t.missing_count|pluralize:",n" }}{% endif %}</span></h3>
+    <span class="barra-cargas">
+      {% if t.can_load %}<a class="btn secundario chico" href="#s2-subir">Subir archivo</a>{% endif %}
+      <a class="btn secundario chico" href="{{ t.portal_url }}">Tomar del Portal</a>
+    </span>
+  </div>
+
+  {% if t.results %}
+  <div class="aviso" id="s2-resultado-subida" role="status">
+    <b>Resultado de la subida</b>
+    <ul class="resultado-subida">
+      {% for r in t.results %}<li class="{% if r.ok %}ok{% else %}rechazado{% endif %}">{% if r.name %}<b>{{ r.name }}</b>: {% endif %}{{ r.text }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if t.empty and not t.absent %}
+  <div class="estado-vacio">
+    <h3>Todavía no hay pliego ni matriz</h3>
+    <p>Falta el pliego, sus anexos y las especificaciones técnicas; sin ellos no hay matriz de cumplimiento. Súbalos como archivos o tómelos del Portal.</p>
+    {% if t.can_load %}<a class="btn primario" href="#s2-subir">Subir archivo</a>{% endif %}
+    <a class="btn secundario" href="{{ t.portal_url }}">Tomar del Portal</a>
+  </div>
+  {% else %}
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <caption class="sr-only">Documentos del pliego, con su origen y el estado de su lectura</caption>
+    <thead><tr><th scope="col">Documento</th><th scope="col">Tipo</th><th scope="col" class="n">Págs.</th><th scope="col" class="e">Estado</th><th scope="col">Lectura</th><th scope="col">De dónde vino</th></tr></thead>
+    <tbody>
+      {% for row in t.rows %}
+      <tr id="doc-{{ row.document.pk }}">
+        <th scope="row">{{ row.document.title }}<br><span class="suave chica">{{ row.document.file_name }}</span></th>
+        <td>{{ row.kind_label }}</td>
+        <td class="n">{{ row.pages|default:"—" }}</td>
+        <td class="e">{% include "journey/_icono.html" with icon=row.icon name=row.icon_name %}</td>
+        <td>{{ row.reading_text }}</td>
+        <td class="origen"><b>{{ row.origin }}</b> · {{ row.origin_date }}{% if row.origin_by %} · {{ row.origin_by }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+      {% for miss in t.absent %}
+      <tr class="falta-doc">
+        <th scope="row">{{ miss.name }}</th>
+        <td>—</td>
+        <td class="n">—</td>
+        <td class="e">{% include "journey/_icono.html" with icon="nocumple" name="Falta" %}</td>
+        <td>El Portal lo lista y no se tomó ({{ miss.state|lower }})</td>
+        <td class="origen"><a href="{{ t.portal_url }}">Tomar del Portal</a>{% if t.can_load %} · <a href="#s2-subir">Subir archivo</a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
+
+  {% if t.can_load %}
+  <details class="subir" id="s2-subir"{% if t.empty %} open{% endif %}>
+    <summary class="btn secundario chico">Subir archivos</summary>
+    <form method="post" enctype="multipart/form-data" action="{% url 'expedientes:s2_documentos_subir' t.pid %}" id="s2-subir-form">{% csrf_token %}
+      <p class="ayuda">Elija uno o varios archivos (PDF o página web guardada) a la vez. Cada uno se carga por separado: si uno se rechaza, los demás igual se cargan.</p>
+      <label for="s2-archivos">Archivos</label>
+      <input type="file" name="files" id="s2-archivos" multiple required>
+      <label for="s2-tipo">Tipo de documento <span class="suave" data-sin-script>(para todos los archivos)</span></label>
+      <select name="kind" id="s2-tipo">{% for value, label in t.kind_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+      <div id="s2-por-archivo" data-tipos='[{% for value, label in t.kind_choices %}["{{ value }}","{{ label }}"]{% if not forloop.last %},{% endif %}{% endfor %}]'></div>
+      <p class="ayuda">Las circulares y aclaraciones se suben en la pestaña Ofertas.</p>
+      <button class="btn primario" type="submit">Subir los archivos</button>
+    </form>
+  </details>
+  <script src="{% static 'journey/s2_documentos.js' %}" defer></script>
+  {% endif %}
+</div>
