@@ -47,6 +47,7 @@ from evaluon.tenders.models import (
     VersionStatus,
 )
 from evaluon.tenders.proposal import run as proposal
+from evaluon.tenders.services import document_history
 from evaluon.tenders.services import documents as documents_service
 
 REQUEST_OPERATION = "evaluon.tenders.services.matrix.request_matrix"
@@ -76,8 +77,9 @@ class Requested:
 
 
 def base_documents(procedure):
-    """Los documentos base del procedimiento, en el orden de carga."""
-    return procedure.documents.filter(kind__in=BASE_KINDS).order_by("loaded_at", "id")
+    """Los documentos base vigentes del procedimiento, en el orden de carga: los retirados o
+    reemplazados no entran a la propuesta (REQ-099, ADR-0048)."""
+    return document_history.current_documents(procedure).filter(kind__in=BASE_KINDS)
 
 
 def _documents_snapshot(procedure):

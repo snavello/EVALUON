@@ -1,0 +1,2 @@
+{% comment %}Aviso discreto de texto dañado del Portal (T-194): el texto no se toca; se avisa que hay que verificarlo en el original.{% endcomment %}
+<span class="dano suave">{% include "journey/_icono.html" with icon="nodet" name="El Portal publicó este texto con caracteres dañados; verificar en el original" %}{% if t.damage_url %} <a href="{{ t.damage_url }}">Ver el proceso</a>{% endif %}</span>

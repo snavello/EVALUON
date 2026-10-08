@@ -1,0 +1,2 @@
+{% comment %}Celda «De dónde salió» del tema s1_datos (T-194): Portal con la hora de la exploración, archivo con su nombre o carga a mano.{% endcomment %}
+<td class="origen">{% if o %}<b>{{ o.kind }}</b>{% if o.detail %} · {% if o.url %}<a href="{{ o.url }}">{{ o.detail }}</a>{% else %}{{ o.detail }}{% endif %}{% endif %}{% else %}<span class="suave">Sin dato</span>{% endif %}</td>
