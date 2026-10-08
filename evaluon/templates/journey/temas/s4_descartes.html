@@ -1,1 +1,79 @@
-{% comment %}Parcial del tema s4_descartes (Descartes propuestos y orden económico). Vacío en el corte vertical; lo completa T-210.{% endcomment %}
+{% load static %}{% comment %}Tema s4_descartes (T-210, REQ-091): resultado por oferta, orden económico (por renglón y total) y descartes propuestos. El evaluador confirma o rechaza cada descarte con un formulario POST a s4_decidir_descarte (con una nota opcional); un operador ve el estado y no los botones. Recibe `t` (ver evaluon/journey/temas/s4_descartes.py).{% endcomment %}
+<link rel="stylesheet" href="{% static 'journey/s4_descartes.css' %}">
+<div class="bloque s4-desc" id="s4-resultado">
+  <div class="bloque-cab"><h3>Resultado por oferta y orden económico</h3></div>
+  {% if not t.evaluated %}
+  <p class="ayuda">Todavía no se evaluó ninguna oferta: cuando haya una evaluación, acá se ve el resultado por oferta y el orden económico.</p>
+  {% else %}
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <caption>Resultado propuesto por oferta (sobre {{ t.requirements }} requisitos)</caption>
+    <thead><tr><th scope="col">Oferta</th><th scope="col" class="n">Cumple</th><th scope="col" class="n">No cumple</th><th scope="col" class="n">No determinado</th><th scope="col" class="n">Pendiente</th><th scope="col" class="n">Confirmados</th></tr></thead>
+    <tbody>
+    {% for r in t.results %}
+      {% if r.evaluated %}<tr><th scope="row">{{ r.offer.number }} · {{ r.offer.bidder }}</th><td class="n">{{ r.meets }}</td><td class="n">{{ r.fails }}</td><td class="n">{{ r.undetermined }}</td><td class="n">{{ r.pending }}</td><td class="n">{{ r.confirmed }}</td></tr>
+      {% else %}<tr><th scope="row">{{ r.offer.number }} · {{ r.offer.bidder }}</th><td colspan="5" class="suave">Sin evaluar</td></tr>{% endif %}
+    {% endfor %}
+    </tbody>
+  </table></div>
+
+  {% for warning in t.warnings %}<p class="aviso aviso-error" role="status">{{ warning }}</p>{% endfor %}
+
+  <div class="tabla-scroll sep"><table class="matriz lectura orden" id="t-orden-renglon">
+    <caption>Orden económico por renglón (precio unitario, menor primero)</caption>
+    <thead><tr><th scope="col">Renglón</th><th scope="col" class="n">Cant.</th>{% for n in t.columns %}<th scope="col" class="n">{{ n }}.º</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for row in t.lines %}
+      <tr><th scope="row">{{ row.label }}</th><td class="n">{{ row.quantity }}</td>{% for text, dropped in row.cells %}<td class="n">{{ text }}{% if dropped %} <span class="suave">(descartada)</span>{% endif %}</td>{% endfor %}{% for blank in row.pad %}<td class="n">—</td>{% endfor %}</tr>
+    {% empty %}
+      <tr><td colspan="{{ t.columns|length|add:2 }}" class="suave">El procedimiento no tiene renglones cargados.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+
+  <div class="tabla-scroll sep"><table class="matriz lectura orden" id="t-orden-total">
+    <caption>Orden económico total (una oferta con descarte confirmado figura como descartada y no se ordena)</caption>
+    <thead><tr><th scope="col" class="n">Orden</th><th scope="col">Oferta</th><th scope="col" class="n">Renglones</th><th scope="col" class="n">Total</th><th scope="col">Situación</th></tr></thead>
+    <tbody>
+    {% for row in t.totals %}
+      <tr{% if row.struck %} class="tachada"{% endif %}><td class="pos">{{ row.position }}</td><th scope="row">{{ row.label }}</th><td class="n">{{ row.lines }}</td><td class="n">{{ row.total }}</td><td>{{ row.situation }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
+</div>
+
+<div class="bloque s4-desc" id="s4-descartes">
+  <div class="bloque-cab"><h3>Descartes propuestos{% if t.rows %} <span class="cta">{{ t.to_decide }} por decidir · {{ t.decided }} {% if t.decided == 1 %}decidido{% else %}decididos{% endif %}</span>{% endif %}</h3></div>
+  {% if t.rows %}
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <thead><tr><th scope="col">Descarte</th><th scope="col">Fundamento</th><th scope="col">Estado</th><th scope="col">Decisión</th></tr></thead>
+    <tbody>
+    {% for row in t.rows %}
+      <tr id="{{ row.anchor }}">
+        <th scope="row">{{ row.title }}<small class="suave"> · {{ row.bidder }}</small></th>
+        <td>
+          {% for g in row.grounds %}
+          <div class="motivo"><b>{{ g.title }}:</b> {{ g.requirement }}{% if g.offer_text %}<br><span class="suave">La oferta dice:</span> {{ g.offer_text }}{% else %}<br><span class="suave">Sin texto de la oferta que lo respalde.</span>{% endif %}{% if g.consequences %}<br><span class="suave">Consecuencia prevista:</span> {{ g.consequences }}{% endif %} (<a href="{{ g.url }}">ver el detalle</a>)</div>
+          {% endfor %}
+        </td>
+        <td>{% include "journey/_icono.html" with icon=row.icon name=row.state_name %} {{ row.state_name }}</td>
+        <td>
+          {% if row.decided %}<p class="registro">{{ row.decided }}</p>{% endif %}
+          {% if row.can_decide %}
+          <form method="post" action="{% url 'expedientes:s4_decidir_descarte' t.pid %}">{% csrf_token %}
+            <input type="hidden" name="offer" value="{{ row.offer_id }}"><input type="hidden" name="line" value="{{ row.line|default_if_none:'' }}">
+            <details class="acc"><summary class="suave">Agregar una nota (opcional)</summary><textarea name="note" rows="2" aria-label="Nota (opcional)"></textarea></details>
+            <button class="btn primario chico" type="submit" name="action" value="confirmar">Confirmar el descarte</button>
+            <button class="btn secundario chico" type="submit" name="action" value="rechazar">Rechazar el descarte</button>
+          </form>
+          {% elif row.state == "propuesto" %}<span class="suave">Lo decide un evaluador.</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <div class="bloque-pie"><span>Cada decisión queda registrada con quién y cuándo.</span></div>
+  {% else %}
+  <p class="ayuda">{% if t.evaluated %}El sistema no propone descartar ninguna oferta ni renglón.{% else %}Todavía no se evaluó ninguna oferta: no hay descartes que proponer.{% endif %}</p>
+  {% endif %}
+</div>
