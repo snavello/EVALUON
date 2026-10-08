@@ -32,18 +32,25 @@
   </table></div>
   {% else %}<p class="suave">Todavía no hay renglones cargados.</p>{% endif %}
 
+  {% if t.opening %}<p class="resumen-linea" id="s1-apertura"><b>Apertura:</b> <span class="num">{{ t.opening.1 }}</span></p>{% endif %}
   <div class="tabla-scroll"><table class="matriz lectura">
-    <caption>Apertura, cronograma y garantías</caption>
-    <thead><tr><th scope="col">Concepto</th><th scope="col">Valor</th><th scope="col">De dónde salió</th></tr></thead>
+    <caption>Cronograma</caption>
+    <thead><tr><th scope="col">Hito</th><th scope="col">Fecha y hora</th><th scope="col">De dónde salió</th></tr></thead>
     <tbody>
       {% if not t.opening %}<tr><th scope="row">Apertura de ofertas</th><td><span class="suave">Falta</span></td><td class="origen"><span class="suave">Sin dato</span></td></tr>{% endif %}
       {% for concept, value in t.schedule %}
       <tr><th scope="row">{{ concept }}</th><td class="num">{{ value }}</td>{% include "journey/temas/_s1_origen.html" with o=t.data_origin %}</tr>
       {% endfor %}
-      {% for guarantee in t.guarantees %}
-      <tr><th scope="row">Garantía</th><td>{{ guarantee }}</td>{% include "journey/temas/_s1_origen.html" with o=t.data_origin %}</tr>
-      {% endfor %}
-      {% if not t.guarantees %}<tr><th scope="row">Garantías</th><td><span class="suave">Falta</span></td><td class="origen"><span class="suave">Sin dato</span></td></tr>{% endif %}
+    </tbody>
+  </table></div>
+
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <caption>Garantías</caption>
+    <thead><tr><th scope="col">Garantía</th><th scope="col">¿Se requiere?</th><th scope="col" class="n">Porcentaje</th><th scope="col">Detalle</th><th scope="col">De dónde salió</th></tr></thead>
+    <tbody>
+      {% for g in t.guarantees %}
+      <tr><th scope="row">{{ g.name }}</th><td>{% if g.required is True %}Sí{% elif g.required is False %}No{% else %}<span class="suave">No consta</span>{% endif %}</td><td class="n">{{ g.percent|default:"—" }}</td><td>{{ g.detail }}</td>{% include "journey/temas/_s1_origen.html" with o=t.data_origin %}</tr>
+      {% empty %}<tr><th scope="row">Garantías</th><td colspan="3"><span class="suave">Falta</span></td><td class="origen"><span class="suave">Sin dato</span></td></tr>{% endfor %}
     </tbody>
   </table></div>
 </div>

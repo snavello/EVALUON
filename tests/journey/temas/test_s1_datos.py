@@ -162,3 +162,62 @@ def test_the_tab_has_no_links_to_old_screens_besides_the_portal_one(
     block = html[html.index('id="s1-datos"'):html.index('id="s1-ofertas"')]
     hrefs = set(re.findall(r'href="([^"]+)"', block))
     assert all(h.startswith("/importar/") for h in hrefs), hrefs
+
+
+def _data(frags, schedule=None):
+    return PortalProcedureData(guarantees=frags, schedule=schedule or {})
+
+
+def test_the_portal_fragments_become_one_row_per_guarantee():
+    """REQ-078: la secuencia real del importador (fixture portal-chico) da una fila por
+    garantía, con si se requiere, el porcentaje y el texto completo; nada queda suelto."""
+    from tests.portal.fakeportal import EXPECTED
+    rows = s1_datos._guarantees(_data(EXPECTED["procedimiento"]["garantias"]))
+    assert [(g["name"], g["required"], g["percent"]) for g in rows] == [
+        ("Garantía de observación al dictamen de evaluación", None, "0 %"),
+        ("Garantía de mantenimiento de oferta", True, "5 %"),
+        ("Garantía de cumplimiento de contrato", True, "10 %"),
+        ("Contragarantía", False, "")]
+    assert "se prolongará hasta la constitución" in rows[1]["detail"]
+    assert "incorporar contragarantía." in rows[3]["detail"]
+
+
+def test_a_fragment_that_does_not_fit_goes_to_the_previous_guarantee():
+    """REQ-078: un fragmento que no encaja se suma al detalle de la anterior, y sin título
+    previo abre una garantía genérica; nunca hay una fila por fragmento."""
+    rows = s1_datos._guarantees(_data(["Garantía de X", "Texto con 3,5% del monto", "Otra cosa"]))
+    assert len(rows) == 1 and rows[0]["percent"] == "3,5 %"
+    assert rows[0]["detail"] == "Texto con 3,5% del monto Otra cosa"
+    assert [g["name"] for g in s1_datos._guarantees(_data(["Algo suelto"]))] == ["Garantía"]
+
+
+def test_the_schedule_is_chronological_in_24_hours_with_the_opening_first_apart():
+    """REQ-078: cronograma por fecha y hora, hora de 24 h; los renglones sin fecha al final."""
+    rows = s1_datos._schedule(_data([], {
+        "Fecha y hora acto de apertura": "03/12/2025 04:00:00 p.m.",
+        "Cantidad de días a publicar": "2",
+        "Fecha y hora inicio de consultas": "18/11/2025 09:01:00 a.m.",
+        "Fecha y hora final de consultas": "20/11/2025 12:30:00 p.m."}))
+    assert rows == [("Inicio de consultas", "18/11/2025 09:01"),
+                    ("Final de consultas", "20/11/2025 12:30"),
+                    ("Acto de apertura", "03/12/2025 16:00"),
+                    ("Cantidad de días a publicar", "2")]
+    assert s1_datos._opening(rows) == ("Acto de apertura", "03/12/2025 16:00")
+
+
+def test_the_page_shows_one_guarantee_table_and_the_opening(client, evaluator_user, from_portal):
+    """REQ-078: la pestaña muestra las garantías en su tabla y la apertura destacada."""
+    log_in(client, evaluator_user)
+    html = page(client, from_portal).content.decode()
+    assert "¿Se requiere?" in html and "Garantía de mantenimiento de oferta" in html
+    assert 'id="s1-apertura"' in html and "<b>Apertura:</b>" in html
+    assert html.count("<th scope=\"row\">Garantía</th>") == 0
+
+
+def test_portal_offers_count_as_portal_in_the_origin_summary(from_portal):
+    """REQ-078: la oferta del acta del Portal no figura como «subida a mano»."""
+    from evaluon.journey.stages import portal as stage
+    link = from_portal.portal_links.get()
+    text = stage._origin_text(from_portal, [link])
+    assert "1 oferta" in text.split("Subido a mano:")[0]
+    assert "Subido a mano: nada" in text or "oferta" not in text.split("Subido a mano:")[1]

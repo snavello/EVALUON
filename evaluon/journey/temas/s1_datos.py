@@ -9,6 +9,8 @@ el Portal (con la hora de la exploración), un archivo subido (con su nombre) o 
 `s1_portal` y `s1_pliego`. Las fechas se muestran en hora local.
 """
 
+import datetime
+import re
 from dataclasses import dataclass
 
 from django.urls import reverse
@@ -107,15 +109,51 @@ def _money(value):
     return f"$ {whole}"
 
 
+_STAMP = re.compile(r"^(\d{2})/(\d{2})/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap])?\.?\s*m?\.?)?\s*$",
+                    re.IGNORECASE)
+_PERCENT = re.compile(r"(\d+(?:[.,]\d+)?)\s*%")
+
+
+def _stamp(value):
+    """Fecha y hora de un hito como `datetime` (o `None` si no es una fecha) y su texto en
+    24 horas. El Portal escribe «03/12/2025 04:00:00 p.m.»."""
+    match = _STAMP.match(value.strip())
+    if match is None:
+        return None, value
+    day, month, year, hour, minute, half = match.groups()
+    try:
+        moment = datetime.datetime(int(year), int(month), int(day))
+        if hour is not None:
+            h = int(hour) % 12 + (12 if half.lower() == "p" else 0) if half else int(hour)
+            moment = moment.replace(hour=h, minute=int(minute))
+    except ValueError:
+        return None, value
+    text = f"{moment:%d/%m/%Y}" + (f" {moment:%H:%M}" if hour is not None else "")
+    return moment, text
+
+
 def _schedule(data):
-    """El cronograma como lista de `(concepto, valor)`; acepta el dict del Portal o una lista."""
+    """El cronograma como lista de `(concepto, valor)` en orden cronológico, con la hora en 24 h.
+    Los renglones sin fecha (por ejemplo, una cantidad de días) van al final. Acepta el dict
+    del Portal o una lista."""
     raw = data.schedule if data is not None else None
     if isinstance(raw, dict):
-        return [(str(k), str(v)) for k, v in raw.items()]
-    if isinstance(raw, list):
-        return [(str(r.get("concepto", "")), str(r.get("valor", "")))
-                if isinstance(r, dict) else (str(r), "") for r in raw]
-    return []
+        pairs = [(str(k), str(v)) for k, v in raw.items()]
+    elif isinstance(raw, list):
+        pairs = [(str(r.get("concepto", "")), str(r.get("valor", "")))
+                 if isinstance(r, dict) else (str(r), "") for r in raw]
+    else:
+        return []
+    dated, undated = [], []
+    for concept, value in pairs:
+        moment, text = _stamp(value)
+        label = concept
+        if concept.lower().startswith("fecha y hora "):
+            label = concept[len("Fecha y hora "):]
+            label = label[:1].upper() + label[1:]
+        (dated if moment else undated).append((moment, label, text))
+    dated.sort(key=lambda row: row[0])
+    return [(label, text) for _, label, text in dated + undated]
 
 
 def _opening(schedule):
@@ -123,12 +161,59 @@ def _opening(schedule):
                  if any(word in k.lower() for word in OPENING_WORDS)), None)
 
 
-def _guarantees(data):
+def _fragments(data):
     raw = data.guarantees if data is not None else None
     if not isinstance(raw, list):
         return []
-    return [r if isinstance(r, str) else " · ".join(str(v) for v in r.values() if v)
-            for r in raw]
+    return [" ".join((r if isinstance(r, str) else " ".join(
+        str(v) for v in r.values() if v)).split()) for r in raw]
+
+
+_REQUIRES = re.compile(r"^(si|no)\s+requiere\.?$", re.IGNORECASE)
+_PREFIX = "este proceso de compra"
+
+
+def _guarantees(data):
+    """Las garantías del Portal, una por fila. El Portal las entrega como una lista de
+    fragmentos: título («Garantía de …»), texto, «Este proceso de compra», «Si/No requiere» y
+    aclaraciones. Un título abre una garantía; «Este proceso de compra» + «Si/No requiere»
+    dice si se requiere; si ya se había dicho, abre otra garantía sin título (la
+    contragarantía). Todo fragmento que no encaja va al detalle de la garantía anterior, nunca
+    como fila suelta. Devuelve `[{"name", "required", "percent", "detail"}]`."""
+    groups = []
+    fragments = _fragments(data)
+    i = 0
+    while i < len(fragments):
+        text = fragments[i]
+        nxt = fragments[i + 1] if i + 1 < len(fragments) else ""
+        current = groups[-1] if groups else None
+        if text.lower().startswith("garantía") or text.lower().startswith("garantia"):
+            groups.append({"name": text, "required": None, "details": []})
+        elif text.lower().rstrip(".") == _PREFIX and _REQUIRES.match(nxt):
+            answer = nxt.lower().startswith("si")
+            if current is None or current["required"] is not None:
+                rest = fragments[i + 2] if i + 2 < len(fragments) else ""
+                name = "Contragarantía" if "contragarant" in rest.lower() else "Otra garantía"
+                current = {"name": name, "required": answer,
+                           "details": [f"{nxt.rstrip('.').capitalize()} {rest}".strip()]}
+                groups.append(current)
+                i += 1  # el fragmento siguiente ya quedó en el detalle
+                if rest:
+                    i += 1
+            else:
+                current["required"] = answer
+            i += 1
+        else:
+            if current is None:
+                current = {"name": "Garantía", "required": None, "details": []}
+                groups.append(current)
+            current["details"].append(text)
+        i += 1
+    for group in groups:
+        group["detail"] = " ".join(group.pop("details"))
+        match = _PERCENT.search(group["detail"])
+        group["percent"] = f"{match.group(1)} %" if match else ""
+    return groups
 
 
 def _offers(procedure):
