@@ -4,16 +4,17 @@ REQ-082; plan 014, T-192).
 Muestra la última versión no descartada en una tabla agrupada por tipo (formales, económicos,
 técnicos), con filtros (solo lo que falta decidir, por tipo, por estado, por texto), filas que
 se abren con la cita literal del pliego y la lista de versiones con fecha y quién validó cada
-una. Solo lectura en este corte: las acciones de la Comisión (confirmar, corregir, quitar,
-agregar, validar) siguen en la pantalla de la matriz, a la que lleva el enlace del pie, y las
-trae a esta tabla T-201. No decide nada (P3).
+una. Desde T-201 la Comisión decide todo acá (confirmar, corregir, quitar, restituir, agregar,
+sugerencias, tramos, consecuencia, validar y abrir una versión nueva) con las acciones de
+`s2_matriz_acciones`, que llaman a los mismos servicios que la pantalla vieja. Un operador no
+ve botones de decisión: ve que la decide un evaluador. El tema no decide nada (P3).
 
 Las cuentas de pendientes y sugerencias de la matriz las suma la etapa `matriz` de la 013;
 este tema no las repite.
 """
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from django.db.models import Count, Q
 from django.urls import reverse
@@ -24,18 +25,22 @@ from evaluon.audit.models import Channel
 from evaluon.journey.sections.base import TemaStatus
 from evaluon.tenders.models import (
     Consequence,
+    ConsequenceType,
     MatrixVersion,
     RequirementClass,
     RequirementOrigin,
     RequirementState,
+    Segment,
     VersionStatus,
 )
+from evaluon.journey.temas import s2_matriz_acciones as acciones
+from evaluon.tenders.services import consequences as consequence_service
 from evaluon.tenders.services import matrix_page
 
 KEY = "s2_matriz"
 SECTION = "pliego"
 PARTIAL = "journey/temas/s2_matriz.html"
-urlpatterns = []
+urlpatterns = acciones.urlpatterns
 
 TYPE_ORDER = (RequirementClass.FORMAL, RequirementClass.ECONOMICO, RequirementClass.TECNICO)
 TYPE_LABELS = {
@@ -65,6 +70,8 @@ class Row:
     changed: bool
     page_row: object  # la fila de `matrix_page`, con sus citas y cambios
     suggestions: list
+    options: list = field(default_factory=list)  # consecuencias elegibles (solo quien decide)
+    technical: bool = False
 
 
 def _day(moment):
@@ -141,7 +148,7 @@ def _suggested(consequences):
             if c.origin == "sistema" and c.consequence_type != "no_determinada"]
 
 
-def _rows(page):
+def _rows(page, with_options=False):
     every = [row for group in page.groups for row in group.rows] + list(page.technical)
     every.sort(key=lambda row: row.requirement.number)
     consequences = _consequences([row.requirement.pk for row in every])
@@ -159,7 +166,10 @@ def _rows(page):
             document=first.place.document_title if first else "Sin cita", text=text,
             place=first.place if first else None, consequence=_consequence_text(mine),
             marks=_marks(source), unconfirmed=requirement.state == RequirementState.PROPUESTO,
-            changed=_changed(source), page_row=source, suggestions=_suggested(mine)))
+            changed=_changed(source), page_row=source, suggestions=_suggested(mine),
+            options=([o for o in consequence_service.options(requirement)
+                      if not o.undetermined] if with_options else []),
+            technical=requirement.category == RequirementClass.TECNICO))
     return rows
 
 
@@ -230,19 +240,41 @@ def _versions(procedure):
     return rows
 
 
+def _segment_choices(page, version):
+    """Los tramos del pliego para elegir uno. Una versión sin propuesta (la del caso de
+    medición) usa, como el servicio de revisión, las lecturas de los documentos del
+    procedimiento."""
+    if page.segment_options or not page.can_edit:
+        return page.segment_options
+    segments = (Segment.objects.filter(reading__document__procedure_id=version.procedure_id)
+                .select_related("reading__document")
+                .order_by("reading__document_id", "order"))
+    return [(s.pk, f"{s.reading.document.title} · {s.path or s.label or s.key}: "
+                   + " ".join(s.text.split())[:70]) for s in segments]
+
+
+def _tramos(page):
+    return [row for row in page.pending if row.item.resolved_at is None]
+
+
 def context(user, procedure, request):
     version = latest_version(procedure)
     base = {"version": None, "versions": _versions(procedure), "types": TYPE_OPTIONS,
-            "filters": FILTERS, "propose_url": reverse("tenders:procedure", args=[procedure.pk])}
+            "filters": FILTERS, "propose_url": reverse("tenders:procedure", args=[procedure.pk]),
+            "pid": procedure.pk, "aviso": acciones.unpack(request.GET.get("aviso"))}
     if version is None:
         return base
     page = matrix_page.matrix_page(user, version.pk, channel=Channel.SCREEN)
-    rows = _rows(page)
+    is_evaluator = user.commission_role == CommissionRole.EVALUATOR
+    decides = is_evaluator and version.status == VersionStatus.DRAFT
+    rows = _rows(page, with_options=decides)
     chosen, kind, state, text = _select(rows, request.GET)
     unconfirmed = sum(r.unconfirmed for r in rows)
     changed = sum(r.changed for r in rows)
     counters = {"": len(rows), "falta": unconfirmed, "conf": len(rows) - unconfirmed,
                 "circ": changed}
+    counts = acciones.blockers(version) if version.status == VersionStatus.DRAFT else None
+    segments = _tramos(page)
     return {
         **base, "version": version, "draft": page.draft, "groups": _groups(chosen),
         "shown": len(chosen), "total": len(rows), "kind": kind, "state": state, "q": text,
@@ -253,7 +285,20 @@ def context(user, procedure, request):
                     "changed": changed},
         "print_url": reverse("tenders:print", args=[version.pk]),
         "pdf_url": reverse("tenders:pdf", args=[version.pk]),
-        "matrix_url": reverse("tenders:matrix", args=[version.pk]),
-        "can_review": (user.commission_role == CommissionRole.EVALUATOR
-                       and version.status == VersionStatus.DRAFT),
+        "coverage_url": reverse("tenders:coverage", args=[version.pk]) if page.run else "",
+        "discarded_url": reverse("tenders:discarded", args=[version.pk]),
+        # Decidir (solo el evaluador, en un borrador).
+        "is_draft": version.status == VersionStatus.DRAFT,
+        "is_evaluator": is_evaluator,
+        "can_review": decides,
+        "unconfirmed_ids": [r.page_row.requirement.pk for r in rows if r.unconfirmed],
+        "suggestion_rows": page.suggestions, "segment_rows": segments,
+        "to_decide": len(page.suggestions) + len(segments),
+        "removed": page.removed, "segment_options": _segment_choices(page, version),
+        "technical_rows": [r for r in rows if r.technical],
+        "consequence_types": [(v, l) for v, l in ConsequenceType.choices
+                              if v != ConsequenceType.NO_DETERMINADA.value],
+        "blockers": counts, "blocked": bool(counts and counts["total"]),
+        "condition": acciones.condition_text(counts, version.number) if counts else "",
+        "can_open_new": page.can_open_new,
     }

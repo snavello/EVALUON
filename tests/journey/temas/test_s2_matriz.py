@@ -110,17 +110,19 @@ def test_print_and_export_links_point_to_the_existing_screens(client, procedure,
     assert reverse("tenders:pdf", args=[draft.pk]) in html
 
 
-def test_only_the_evaluator_gets_the_review_actions(client, procedure, two_versions,
-                                                    operator_user, evaluator_user):
-    """REQ-081: el enlace a decidir en la matriz completa es solo del evaluador."""
+def test_the_old_screen_link_is_gone(client, procedure, two_versions, operator_user,
+                                     evaluator_user):
+    """REQ-081: se decide en la pestaña; ya no hay enlace a la pantalla vieja de la matriz."""
     draft, _ = two_versions
     target = reverse("tenders:matrix", args=[draft.pk])
-    log_in(client, operator_user)
-    assert "Revisar y decidir en la matriz" not in page(client, procedure).content.decode()
-    client.logout()
-    log_in(client, evaluator_user)
-    html = page(client, procedure).content.decode()
-    assert "Revisar y decidir en la matriz" in html and target in html
+    for user in (operator_user, evaluator_user):
+        client.logout()
+        log_in(client, user)
+        html = page(client, procedure).content.decode()
+        assert "Revisar y decidir en la matriz" not in html
+        # El bloque de la matriz (el de los paneles de pendientes es de la etapa, de la 013).
+        block = html[html.index('id="s2-matriz"'):html.index('id="s2-versiones"')]
+        assert f'href="{target}"' not in block
 
 
 def test_the_unconfirmed_rows_count_once_in_the_section(procedure, two_versions,
