@@ -66,7 +66,7 @@ flowchart LR
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
-| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 13/33 | ████░░░░░░ 39% |
+| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 14/34 | ████░░░░░░ 41% |
 
 <a id="001"></a>
 
@@ -1053,12 +1053,12 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 20 tareas sin terminar.
+- ▶ T-221 · Rendimiento de las pestañas con datos reales: Pliego y matriz, Ofertas y Evaluación cargan en menos de 2 s con el procedimiento real del sistema principal (medido en una base aparte restaurada del respaldo) (en curso)
 - ○ T-197 · Sección 1: alta subiendo el pliego (propuesta con citas; el evaluador aprueba, descarta o corrige escribiendo valor y motivo; sin alta en blanco) (pendiente)
 - ○ T-202 · Sección 3: lista de ofertas con alta a la vista (desde el Portal o subiendo archivos, con nombre y CUIT propuestos para aprobar o corregir) y documentos de cada oferta, subida múltiple (pendiente)
 - ○ T-204 · Sección 3: anexos técnicos dentro de la oferta y hoja de compliance por oferta con el faltante a la vista (absorbe la parte de compliance de T-191) (pendiente)
 - ○ T-205 · Sección 3: circulares y aclaraciones (Portal o subidas); una circular modificatoria abre una versión nueva de la matriz con lo cambiado marcado (pendiente)
 - ○ T-206 · Sección 3: reemplazar, retirar y restituir documentos de la oferta, con historial y «retirados» (pendiente)
-- ○ T-209 · Sección 4: informe técnico del área (por procedimiento o por oferta) y ok de la Comisión (absorbe la parte de informe técnico de T-191) (pendiente)
 - ○ T-210 · Sección 4: descartes propuestos y orden económico; el evaluador confirma o rechaza cada descarte con quién y cuándo (pendiente)
 - ○ T-211 · Sección 4: dictamen del Portal o subido (sin borrador) (pendiente)
 - ○ T-212 · Sección 4: exportar la planilla por oferta (Excel) y el cuadro comparativo (Excel y PDF); suma la dependencia XlsxWriter (ADR-0050) (pendiente)
@@ -1089,6 +1089,7 @@ flowchart LR
 - ✓ T-203 · Sección 3: ficha de cada oferta (qué presentó frente a cada requisito, con el fragmento o «no se encontró en la oferta») (`e75deba` 2026-10-08, `525900b` 2026-10-08)
 - ✓ T-207 · Sección 4: propuesta de evaluación por oferta y requisito (cumple, no cumple, no determinado, con fundamento) y decisión de la Comisión (`1aadd1f` 2026-10-08)
 - ✓ T-208 · Sección 4: preguntas a la Comisión y pedidos de subsanación con su respuesta registrada (`c35a8df` 2026-10-08, `da3b48b` 2026-10-08)
+- ✓ T-209 · Sección 4: informe técnico del área (por procedimiento o por oferta) y ok de la Comisión (absorbe la parte de informe técnico de T-191) (`f26b92d` 2026-10-08, `f1577a1` 2026-10-08, `2f36fad` 2026-10-08)
 - ✓ T-213 · Propuesta de los datos de una norma desde su archivo y staging de la subida (sin pantalla) (`fc5a81b` 2026-10-08)
 
 ### Mapa de tareas
@@ -1112,7 +1113,7 @@ flowchart TD
   T206["○ T-206 · Sección 3: reemplazar, retirar y restituir…"]:::todo
   T207["✓ T-207 · Sección 4: propuesta de evaluación por ofer…"]:::done
   T208["✓ T-208 · Sección 4: preguntas a la Comisión y pedido…"]:::done
-  T209["○ T-209 · Sección 4: informe técnico del área (por pr…"]:::todo
+  T209["✓ T-209 · Sección 4: informe técnico del área (por pr…"]:::done
   T210["○ T-210 · Sección 4: descartes propuestos y orden eco…"]:::todo
   T211["○ T-211 · Sección 4: dictamen del Portal o subido (si…"]:::todo
   T212["○ T-212 · Sección 4: exportar la planilla por oferta…"]:::todo
@@ -1124,6 +1125,7 @@ flowchart TD
   T218["○ T-218 · Comprobación final con el caso chico y el c…"]:::todo
   T219["○ T-219 · Las pantallas anteriores redirigen a su sec…"]:::todo
   T220["○ T-220 · Propuesta de nombre y CUIT del oferente des…"]:::todo
+  T221["▶ T-221 · Rendimiento de las pestañas con datos reale…"]:::active
   T185["○ T-185 · T-217 (con sus avisos: pausa del sondeo con…"]:::todo
   T186["○ T-186 · T-218 (con la nota de runbook: reconstruir…"]:::todo
   T188["○ T-188 · T-192 (base de la guía visual) y la aplicac…"]:::todo
@@ -1191,6 +1193,7 @@ flowchart TD
   T214 --> T219
   T193 --> T220
   T196 --> T220
+  T209 --> T221
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -1202,7 +1205,7 @@ flowchart TD
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-075 | T.1 | T-192, T-217, T-218, T-219 | ▶ en proceso |
+| REQ-075 | T.1 | T-192, T-217, T-218, T-219, T-221 | ▶ en proceso |
 | REQ-076 | 1.1 | T-195, T-197, T-218 | ▶ en proceso |
 | REQ-077 | 1.2, T.3 | T-193, T-196, T-197, T-218 | ▶ en proceso |
 | REQ-078 | 1.3 | T-194, T-218 | ▶ en proceso |
@@ -1227,4 +1230,4 @@ flowchart TD
 | REQ-097 | T.2 | T-192, T-194, T-195, T-197, T-198, T-200, T-202, T-204, T-205, T-207, T-209, T-211, T-214, T-215, T-217, T-218 | ▶ en proceso |
 | REQ-098 | T.4 | T-192, T-217, T-218 | ▶ en proceso |
 | REQ-099 | T.5 | T-193, T-199, T-200, T-206, T-218 | ▶ en proceso |
-| REQ-100 | T.6 | T-192, T-218, T-219 | ▶ en proceso |
+| REQ-100 | T.6 | T-192, T-218, T-219, T-221 | ▶ en proceso |

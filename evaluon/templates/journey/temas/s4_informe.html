@@ -1,1 +1,94 @@
-{% comment %}Parcial del tema s4_informe (Informe técnico del área). Vacío en el corte vertical; lo completa T-209.{% endcomment %}
+{% load static %}{% comment %}Tema s4_informe (T-209, REQ-089, REQ-097): el informe técnico del área requirente. Se sube por procedimiento o por oferta; el sistema propone apto o no apto por renglón con la cita literal del informe; el evaluador da o retira el ok (formularios POST a las rutas de s4_informe, que llaman a los mismos servicios que la matriz vieja y vuelven a esta pestaña). Un operador ve el estado y no los botones. Recibe `t` (ver evaluon/journey/temas/s4_informe.py).{% endcomment %}
+<link rel="stylesheet" href="{% static 'journey/s4_informe.css' %}">
+<div class="s4-inf">
+<div class="bloque" id="s4-informe">
+  <div class="bloque-cab">
+    <h3>Informe técnico del área requirente{% if t.total %} <span class="cta">propuesta en {{ t.proposed }} de {{ t.total }} renglones</span>{% endif %}</h3>
+  </div>
+
+  {% if not t.blocks %}
+  <p class="suave">Ninguna oferta tiene filas técnicas por renglón evaluadas: el informe del área se sube cuando haya ofertas con renglones técnicos.</p>
+  {% endif %}
+  <p class="ayuda">El juicio técnico es del área: el sistema solo toma lo que dice el informe y propone apto o no apto por renglón, con la frase del informe. El ok lo da la Comisión.</p>
+
+  {% if t.is_evaluator %}
+  <form class="subida" method="post" enctype="multipart/form-data" action="{% url 'expedientes:s4_informe_subir' t.pid %}" id="s4-informe-subir">{% csrf_token %}
+    <div class="campos">
+      <div><label for="inf-archivo">Informe técnico (PDF)</label><input type="file" name="file" id="inf-archivo" required></div>
+      <div><label for="inf-oferta">Para</label>
+        <select name="offer" id="inf-oferta">
+          <option value="">Todo el procedimiento (se carga en cada oferta)</option>
+          {% for b in t.blocks %}<option value="{{ b.offer.pk }}">Oferta {{ b.offer.number }} · {{ b.offer.bidder }}</option>{% endfor %}
+        </select></div>
+    </div>
+    <button class="btn primario" type="submit">Subir informe técnico</button>
+  </form>
+  {% else %}
+  <p class="ayuda" id="s4-informe-solo-eval">Solo el evaluador de la Comisión sube el informe técnico del área y da el ok.</p>
+  {% endif %}
+
+  {% if t.blocks %}
+  <div class="tabla-scroll"><table class="matriz lectura" id="t-informe">
+    <caption>Propuesta apto o no apto por renglón</caption>
+    <thead><tr><th scope="col">Renglón</th>{% for b in t.blocks %}<th scope="col" class="e oferta">Oferta {{ b.offer.number }}<small>{{ b.offer.bidder }}</small></th>{% endfor %}<th scope="col">Qué dice el informe</th></tr></thead>
+    <tbody>
+      {% for row in t.table %}
+      <tr>
+        <th scope="row">Renglón {{ row.item }}</th>
+        {% for c in row.cells %}
+        <td class="e">{% if c %}{% include "journey/_icono.html" with icon=c.icon name=c.name %}{% if c.note %}<small>{{ c.note }}</small>{% endif %}{% else %}<span class="suave" title="Sin oferta en este renglón">—</span>{% endif %}</td>
+        {% endfor %}
+        <td class="chica">{% for offer, c in row.quotes %}<span class="cita-it"><b>Oferta {{ offer.number }}:</b> «{{ c.quote }}»{% if c.page %} · página {{ c.page }}{% endif %}</span>{% empty %}<span class="suave">—</span>{% endfor %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+
+  <div class="ofertas-informe">
+    {% for b in t.blocks %}
+    <div class="oferta-informe" id="informe-oferta-{{ b.offer.number }}">
+      <h4>Oferta {{ b.offer.number }} · {{ b.offer.bidder }}</h4>
+      {% if b.docs %}
+      <ul class="docs-informe">{% for d in b.docs %}<li>{{ d.title }} · cargado el {{ d.loaded }} · <b>{{ d.state }}</b></li>{% endfor %}</ul>
+      {% else %}
+      <p class="aviso aviso-error" role="status"><b>Falta el informe técnico del área.</b></p>
+      {% endif %}
+      {% if b.approved %}<p class="registro">Renglones con ok de la Comisión: {{ b.approved }} de {{ b.rows|length }}.</p>{% endif %}
+      {% if t.is_evaluator %}
+      <div class="acciones-fila">
+        {% if not b.docs %}
+        <form class="en-linea" method="post" enctype="multipart/form-data" action="{% url 'expedientes:s4_informe_subir' t.pid %}">{% csrf_token %}<input type="hidden" name="offer" value="{{ b.offer.pk }}"><input type="file" name="file" aria-label="Informe técnico de la oferta {{ b.offer.number }}" required><button class="btn primario chico" type="submit">Subir informe técnico</button></form>
+        {% else %}
+        {% if b.can_propose %}<form class="en-linea" method="post" action="{% url 'expedientes:s4_informe_proponer' t.pid b.offer.pk %}">{% csrf_token %}<button class="btn secundario chico" type="submit">Proponer de nuevo desde el informe</button></form>{% endif %}
+        {% if b.to_decide %}
+        <details class="acc"><summary class="btn primario chico">Dar el ok a la propuesta del informe</summary>
+          <form method="post" action="{% url 'expedientes:s4_informe_ok' t.pid b.offer.pk %}">{% csrf_token %}
+            <p class="ayuda">La Comisión confirma o corrige lo que propone el sistema: lo que quede marcado es lo que dice el informe aprobado del área. Queda registrado quién y cuándo.</p>
+            {% for item, proposed in b.to_decide %}
+            <label>Renglón {{ item }}
+              <select name="verdict_{{ item }}" required>
+                <option value=""{% if not proposed %} selected{% endif %}>— elegir —</option>
+                {% for value, label in t.choices %}<option value="{{ value }}"{% if value == proposed %} selected{% endif %}>{{ label }}{% if value == proposed %} (propuesto){% endif %}</option>{% endfor %}
+              </select></label>
+            {% endfor %}
+            <label>Nota (opcional) <textarea name="note" rows="2"></textarea></label>
+            <button class="btn primario chico" type="submit">Dar el ok</button>
+          </form></details>
+        {% endif %}
+        {% if b.approved %}
+        <details class="acc"><summary class="btn secundario chico">Retirar el ok</summary>
+          <form method="post" action="{% url 'expedientes:s4_informe_retirar' t.pid b.offer.pk %}">{% csrf_token %}
+            <p class="ayuda">Las filas vuelven a «pendiente del informe técnico». Queda registrado el motivo, quién y cuándo.</p>
+            <label>Motivo (obligatorio) <textarea name="note" rows="2" required></textarea></label>
+            <button class="btn secundario chico" type="submit">Retirar el ok</button>
+          </form></details>
+        {% endif %}
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+</div>
