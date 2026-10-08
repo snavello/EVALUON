@@ -31,6 +31,7 @@ from evaluon.assessment.models import DiscardAction, Outcome
 from evaluon.assessment.services import discards as service
 from evaluon.assessment.services import matrix as matrix_service
 from evaluon.audit.models import Channel
+from evaluon.journey import memo
 from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.journey.temas import s1_datos
 from evaluon.journey.temas import s4_propuesta_acciones as base
@@ -164,7 +165,7 @@ def _decided(decision):
 def status(user, procedure):
     """Lista cada descarte sin decidir como pendiente; la cuenta la hace la etapa
     `matriz_evaluacion`."""
-    page = matrix_service.matrix_page(user, procedure.pk, channel=CHANNEL)
+    page = memo.matrix_page(user, procedure.pk, channel=CHANNEL)
     found = service.units(page)
     undecided = [u for u in found if u.state == service.PROPOSED]
     items = tuple(
@@ -308,7 +309,7 @@ def _rows(found, procedure, is_evaluator):
 
 
 def context(user, procedure, request):
-    page = matrix_service.matrix_page(user, procedure.pk, channel=CHANNEL)
+    page = memo.matrix_page(user, procedure.pk, channel=CHANNEL)
     evaluated = any(s.evaluated for s in page.statuses)
     is_evaluator = getattr(user, "commission_role", "") == CommissionRole.EVALUATOR
     empty = {"pid": procedure.pk, "evaluated": evaluated, "is_evaluator": is_evaluator,
