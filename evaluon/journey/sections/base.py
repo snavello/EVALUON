@@ -47,6 +47,33 @@ class Item:
     url: str | None = None
     count: int = 0
     action: str = "Ver"
+    kind: str = ""  # tipo de renglón: con más de GROUP_LIMIT del mismo tipo se agrupan
+    noun: str = ""  # cómo se nombra el tipo en plural, p. ej. «pares por decidir»
+    group_url: str | None = None  # el bloque ya filtrado a ese tipo
+    group_action: str = "Revisar"
+
+
+GROUP_LIMIT = 8
+
+
+def group_items(items, limit=GROUP_LIMIT):
+    """Con más de `limit` renglones de un mismo tipo, los reemplaza por uno solo con la cuenta y
+    un acceso al bloque ya filtrado. Con `limit` o menos, quedan uno por uno. La suma de
+    `count` no cambia, así que la cuenta total sigue coincidiendo con la barra."""
+    by_kind = {}
+    for item in items:
+        if item.kind:
+            by_kind.setdefault(item.kind, []).append(item)
+    grouped, done = [], set()
+    for item in items:
+        mine = by_kind.get(item.kind) if item.kind else None
+        if not mine or len(mine) <= limit:
+            grouped.append(item)
+        elif item.kind not in done:
+            done.add(item.kind)
+            grouped.append(Item(f"{len(mine)} {item.noun}", item.group_url or item.url,
+                                sum(i.count for i in mine), item.group_action))
+    return grouped
 
 
 @dataclass(frozen=True)
@@ -156,7 +183,8 @@ def build_section(module, user, procedure, stages_by_key):
         summary=summary,
         missing=tuple(missing), tema_missing=tuple(shown_missing),
         sources=tuple(source for status in statuses for source in status.sources),
-        pending_items=tuple(pending_items), suggestion_items=tuple(suggestion_items),
+        pending_items=tuple(group_items(pending_items)),
+        suggestion_items=tuple(group_items(suggestion_items)),
         error=plain_reason(failed.error) if failed else "",
         legacy_links=tuple(module.legacy_links(procedure)),
         upload_url=module.upload_url(procedure),

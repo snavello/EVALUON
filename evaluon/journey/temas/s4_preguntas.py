@@ -183,10 +183,15 @@ def context(user, procedure, request):
     is_evaluator = getattr(user, "commission_role", "") == CommissionRole.EVALUATOR
     lines = (_question_lines(user, procedure, is_evaluator)
              + _remedy_lines(user, procedure, is_evaluator))
+    total = len(lines)
     to_decide = sum(1 for line in lines if line.icon == "nodet")
+    only_open = request is not None and request.GET.get("preg") == "abiertas"
+    if only_open:  # filtro simple por dirección: solo lo que espera una respuesta o decisión
+        lines = [line for line in lines if line.icon == "nodet"]
     return {
+        "only_open": only_open,
         "pid": procedure.pk, "lines": lines, "to_decide": to_decide,
-        "resolved": len(lines) - to_decide, "is_evaluator": is_evaluator,
+        "resolved": total - to_decide, "is_evaluator": is_evaluator,
         "scopes": AnswerScope.choices, "default_scope": AnswerScope.REQUISITO,
     }
 

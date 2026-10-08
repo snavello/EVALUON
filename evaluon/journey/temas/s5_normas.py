@@ -186,11 +186,14 @@ def status(user, procedure):
     url = tab_url(procedure.pk)
     items = [Item(f"Norma {reading.document.norm.citation or reading.document.norm.title}: "
                   "su lectura espera la validación del evaluador",
-                  f"{url}?lectura={reading.pk}#s5-lectura", 1, "Ver el informe")
+                  f"{url}?lectura={reading.pk}#s5-lectura", 1, "Ver el informe",
+                  kind="lectura", noun="lecturas esperan la validación del evaluador",
+                  group_url=f"{url}#s5-lectura")
              for reading in _pending_readings()]
     waiting = NormUpload.objects.filter(state=ProposalState.PROPUESTO).order_by("pk")
     items += [Item(f"Norma subida «{one.file_name}»: faltan confirmar sus datos",
-                   f"{url}#s5-subida-{one.pk}", 1, "Revisar") for one in waiting]
+                   f"{url}#s5-subida-{one.pk}", 1, "Revisar", kind="subida",
+                   noun="normas subidas con datos por confirmar", group_url=f"{url}#s5-subir") for one in waiting]
     missing = tuple(
         Missing(f"Modificatoria sin cargar: {entry.norm_type} {entry.number}/{entry.year} "
                 f"({entry.issuer}), de {entry.target_norm.citation or entry.target_norm.title}",

@@ -462,7 +462,9 @@ def test_the_panels_list_each_thing_with_a_link_to_this_tab(client, procedure, b
         assert f"Requisito {number} sin confirmar" in panels
         assert f'href="{base}#req-{number}"' in panels
     assert f"Tramo por revisar:" in panels and f'#tramo-{board.pending.pk}' in panels
-    assert "Consecuencia sin elegir: requisito" in panels
+    # Con más de 8 del mismo tipo se agrupan en una línea con su cuenta (T-222).
+    assert ("Consecuencia sin elegir: requisito" in panels
+            or "consecuencias sin elegir" in panels)
     assert f'href="{base}#sug-{board.suggestion.number}"' in panels
     assert "Resolver</a>" in panels
     assert "/procedimientos/matrices/" not in panels

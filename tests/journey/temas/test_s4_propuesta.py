@@ -386,7 +386,7 @@ def test_the_pair_of_an_unevaluated_requirement_is_not_found(
 # --- Pendientes de la pestaña --------------------------------------------------------------------
 
 
-def test_the_pending_are_listed_one_by_one_and_match_the_bar(
+def test_the_pending_match_the_bar_one_by_one_or_grouped(
         client, evaluated, procedure, operator_user):
     """REQ-097/REQ-098: cada par por decidir es un pendiente con «Resolver» al ancla de su fila;
     la cuenta de la sección es la de la etapa y los renglones suman lo mismo. Las sugerencias
@@ -395,16 +395,21 @@ def test_the_pending_are_listed_one_by_one_and_match_the_bar(
     stage = matriz_evaluacion.compute(operator_user, procedure)
     section = sections_for(operator_user, procedure).get("evaluacion")
     assert stage.pending > 0 and section.pending == stage.pending
-    assert len(section.pending_items) == stage.pending
+    # Con más de 8 pares se agrupan en una línea (T-222); la suma de cuentas no cambia.
+    assert sum(i.count for i in section.pending_items) == stage.pending
     assert section.suggestions == stage.suggestions == len(section.suggestion_items) == 1
     html = page(client, procedure)
     panel = re.search(r'<section class="panel" id="pendientes".*?</section>', html, re.S).group(0)
     assert f'<span class="cta">{stage.pending}</span>' in panel
-    assert panel.count("Resolver") == stage.pending
-    for item in section.pending_items:
-        anchor = item.url.split("#")[1]
-        assert f'id="{anchor}"' in html and f'href="{item.url}"' in panel
-        assert item.action == "Resolver"
+    if len(section.pending_items) == stage.pending:
+        assert panel.count("Resolver") == stage.pending
+        for item in section.pending_items:
+            anchor = item.url.split("#")[1]
+            assert f'id="{anchor}"' in html and f'href="{item.url}"' in panel
+            assert item.action == "Resolver"
+    else:
+        assert [i.text for i in section.pending_items] == [f"{stage.pending} pares por decidir"]
+        assert 'href="' + section.pending_items[0].url + '"' in panel
     sugg = re.search(r'<section class="panel" id="sugerencias".*?</section>', html, re.S).group(0)
     assert "Descarte propuesto: oferta" in sugg
     # La barra de pestañas muestra las mismas cuentas.

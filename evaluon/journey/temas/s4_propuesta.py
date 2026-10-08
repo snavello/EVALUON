@@ -154,18 +154,22 @@ def _items(page, procedure):
                 pending.append(Item(
                     f"Oferta {offer.number} · requisito {requirement.number}: "
                     f"{cell.effective_label.lower()} propuesto, sin decidir",
-                    f"{base}#ev-{requirement.number}", 1, "Resolver"))
+                    f"{base}#ev-{requirement.number}", 1, "Resolver", kind="par",
+                    noun="pares por decidir", group_url=f"{base}?ver=abiertas#s4-propuesta"))
     for status in page.statuses:
         for question in status.open_questions:
             pending.append(Item(
                 f"Oferta {status.offer.number} · requisito {question.requirement.number}: "
-                "pregunta abierta", f"{base}#preg-{question.pk}", 1, "Resolver"))
+                "pregunta abierta", f"{base}#preg-{question.pk}", 1, "Resolver",
+                kind="pregunta", noun="preguntas abiertas",
+                group_url=f"{base}?preg=abiertas#s4-preguntas", group_action="Responder"))
     suggestions = []
     for discard in page.discards:
         scope = ("completa" if discard.is_whole else
                  "renglones " + ", ".join(str(i) for i in sorted(discard.by_item)))
         suggestions.append(Item(f"Descarte propuesto: oferta {discard.offer.number} ({scope})",
-                                f"{base}#s4-descartes", 1, "Ver"))
+                                f"{base}#s4-descartes", 1, "Ver", kind="descarte",
+                                noun="descartes propuestos", group_url=f"{base}#s4-descartes"))
     return pending, suggestions
 
 
