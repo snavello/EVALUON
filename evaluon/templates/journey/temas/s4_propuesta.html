@@ -1,1 +1,159 @@
-{% comment %}Parcial del tema s4_propuesta (Propuesta de evaluación por oferta y requisito). Vacío en el corte vertical; lo completa T-207.{% endcomment %}
+{% load static %}{% comment %}Tema s4_propuesta (T-207, REQ-089): «Evaluar todas las ofertas», el avance y la tabla de requisitos por ofertas con lo que el sistema propone y su fundamento. Las decisiones del evaluador (confirmar, corregir, rechazar) son formularios POST a las rutas de s4_propuesta_acciones, que llaman a los mismos servicios que la pantalla vieja y vuelven a esta pestaña; un operador no ve los botones. Los filtros son un formulario GET: funcionan sin scripts. Recibe `t` (ver evaluon/journey/temas/s4_propuesta.py).{% endcomment %}
+<link rel="stylesheet" href="{% static 'journey/s4_propuesta.css' %}">
+<div class="s4-prop">
+{% if t.aviso %}<p class="aviso {% if t.aviso.ok %}aviso-ok{% else %}aviso-error{% endif %}" id="s4-aviso" role="{% if t.aviso.ok %}status{% else %}alert{% endif %}">{{ t.aviso.text }}</p>{% else %}<span id="s4-aviso"></span>{% endif %}
+
+<div class="bloque" id="s4-propuesta">
+  <div class="bloque-cab">
+    <h3>Propuesta por oferta y requisito{% if t.version and t.evaluated %} <span class="cta">matriz versión {{ t.version.number }}</span>{% endif %}</h3>
+    <span class="barra-evaluar">
+      {% if t.offers %}
+      <form class="en-linea" method="post" action="{% url 'expedientes:s4_evaluar' t.pid %}">{% csrf_token %}<button class="btn primario" id="evaluar-todas" type="submit"{% if not t.can_request %} disabled{% endif %}>Evaluar todas las ofertas</button></form>
+      {% endif %}
+    </span>
+  </div>
+
+  {% if t.offers and t.why_not %}<p class="ayuda" id="evaluar-motivo">{{ t.why_not }}</p>{% endif %}
+  {% if t.without_documents and t.offers %}
+  <p class="ayuda">No se evalúa: {% for offer in t.without_documents %}la oferta {{ offer.number }} ({{ offer.bidder }}){% if not forloop.last %}, {% endif %}{% endfor %}, porque no tiene documentos.</p>
+  {% endif %}
+
+  <div class="avance" id="s4-avance">
+    {% if t.progress.running %}
+      {% with p=t.progress.progress %}
+      <p><b>{{ p.task }}</b> · {{ p.step }}{% if p.percent is not None %} · <progress max="100" value="{{ p.percent }}">{{ p.percent }} %</progress>{{ p.percent }} %{% endif %} · {{ p.elapsed_text }} · <a href="{% url 'expedientes:evaluacion' t.pid %}#s4-avance">Actualizar</a></p>
+      {% endwith %}
+    {% elif t.progress.failed %}
+      <p class="aviso aviso-error" role="alert">La última evaluación falló: {{ t.progress.error }}</p>
+    {% elif t.evaluated %}
+      <p class="suave">{{ t.progress.detail }}</p>
+    {% endif %}
+  </div>
+
+  {% if t.newer_version %}
+  <p class="aviso aviso-error" role="status">Las ofertas se evaluaron con la versión {{ t.version.number }} de la matriz; la versión vigente es la {{ t.newer_version.number }}. Conviene evaluar de nuevo.</p>
+  {% endif %}
+
+  {% if not t.evaluated %}
+  <div class="estado-vacio">
+    <h3>Todavía no se evaluó ninguna oferta</h3>
+    <p>{% if t.can_request %}Con la matriz validada y las ofertas cargadas, «Evaluar todas las ofertas» arma la propuesta del sistema por oferta y requisito. La Comisión decide.{% else %}{{ t.why_not|default:"No hay nada para evaluar todavía." }}{% endif %}</p>
+    <a class="btn secundario" href="{{ t.pliego_url }}">Ir a la matriz</a> <a class="btn secundario" href="{{ t.ofertas_url }}">Ir a las ofertas</a>
+  </div>
+  {% elif not t.total %}
+  <p class="suave">La versión evaluada no tiene requisitos.</p>
+  {% else %}
+  <div class="resumen" id="e-resumen">
+    <span>Requisitos <b>{{ t.total }}</b></span>
+    <span>Ofertas <b>{{ t.offers|length }}</b></span>
+    <span>Pares abiertos <b>{{ t.open_pairs }}</b></span>
+    <span>No determinados <b>{{ t.undetermined }}</b></span>
+  </div>
+  <p class="linea-portal">Haga clic en una fila para ver el fundamento de cada oferta. El sistema propone; decide la Comisión.</p>
+
+  <form method="get" id="f-eval" action="#s4-propuesta">
+    <div class="filtros">
+      <div><label for="e-tipo">Tipo</label>
+        <select id="e-tipo" name="tipo">
+          <option value="">Todos</option>
+          {% for value, label in t.types %}<option value="{{ value }}"{% if value == t.kind %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select></div>
+      <div><label for="e-ver">Mostrar</label>
+        <select id="e-ver" name="ver">
+          {% for value, label in t.shows %}<option value="{{ value }}"{% if value == t.show %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select></div>
+      <div><button class="btn secundario" type="submit">Aplicar</button></div>
+    </div>
+  </form>
+
+  <div class="tabla-scroll tabla-matriz">
+    <table class="matriz" id="t-eval">
+      <caption class="sr-only">Resultado propuesto por requisito y oferta. Se muestran {{ t.shown }} de {{ t.total }} requisitos.</caption>
+      <thead><tr><th scope="col" class="c-abrir"><span class="sr-only">Abrir</span></th><th scope="col">N.º</th><th scope="col">Requisito</th>{% for offer in t.offers %}<th scope="col" class="e oferta">Oferta {{ offer.number }}<small>{{ offer.bidder }}</small></th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for group in t.groups %}
+        <tr class="grupo" data-tipo="{{ group.category }}"><th colspan="{{ t.colspan }}" scope="colgroup">{{ group.label }}<span class="g-cta">{{ group.count }} requisito{{ group.count|pluralize }}</span></th></tr>
+        {% for row in group.rows %}
+        <tr class="fila-req" data-numero="{{ row.number }}" id="ev-{{ row.number }}">
+          <td><button type="button" class="abrir" aria-expanded="false" aria-controls="ev-det-{{ row.number }}" aria-label="Ver el fundamento del requisito {{ row.number }}">▸</button></td>
+          <th scope="row" class="num">{{ row.number }}</th>
+          <td>{{ row.text }}</td>
+          {% for c in row.cells %}
+          <td class="e">{% if c.result %}{% include "journey/_icono.html" with icon=c.icon name=c.name %}<small>{{ c.state_text }}</small>{% else %}<span class="suave" title="Sin evaluar">—</span>{% endif %}</td>
+          {% endfor %}
+        </tr>
+        <tr class="detalle" id="ev-det-{{ row.number }}" hidden>
+          <td colspan="{{ t.colspan }}"><div class="det-grid">
+            <div>
+              <dl>
+                <dt>Requisito · {{ row.document }}</dt>
+                <dd>{% if row.quote %}<blockquote class="cita">{{ row.quote }}</blockquote>{% else %}<span class="suave">Este requisito no tiene cita guardada.</span>{% endif %}</dd>
+              </dl>
+            </div>
+            <div>
+              {% for c in row.cells %}
+              <div class="par-oferta" id="par-{{ c.offer.number }}-{{ row.number }}">
+                <dl>
+                  <dt>Oferta {{ c.offer.number }} · {{ c.offer.bidder }}</dt>
+                  {% if c.result %}
+                  <dd>{% include "journey/_icono.html" with icon=c.icon name=c.name %} <b>{{ c.name }}</b> · {{ c.state_text }}</dd>
+                  {% if c.decided %}<dd class="registro">{{ c.decided }}</dd>{% endif %}
+                  {% if c.explanation %}<dd><span class="suave">Explicación del sistema (no es texto de la oferta ni del pliego):</span> {{ c.explanation }}</dd>{% endif %}
+                  {% for q in c.quotes %}<dd><blockquote class="cita">{{ q.text }}</blockquote><span class="registro">{{ q.document.title }} · página {{ q.page }}</span></dd>
+                  {% empty %}<dd class="suave">Sin texto de la oferta que respalde una conclusión.</dd>{% endfor %}
+                  {% else %}
+                  <dd class="suave">Todavía no se evaluó.</dd>
+                  {% endif %}
+                </dl>
+                {% if c.result %}
+                <div class="acciones-fila">
+                  <a class="btn secundario chico" href="{{ c.pair_url }}">Abrir el detalle</a>
+                  {% if c.technical %}
+                  <span class="suave">Esta fila se decide con el ok del informe técnico del área.</span>
+                  {% elif c.can_decide %}
+                  {% if c.cell.state != "confirmado" %}<form class="en-linea" method="post" action="{% url 'expedientes:s4_decidir' t.pid c.result.pk %}">{% csrf_token %}<input type="hidden" name="action" value="confirmar"><button class="btn primario chico" type="submit">Confirmar</button></form>{% endif %}
+                  <details class="acc"><summary class="btn secundario chico">Corregir</summary>
+                    <form method="post" action="{% url 'expedientes:s4_decidir' t.pid c.result.pk %}">{% csrf_token %}
+                      <input type="hidden" name="action" value="corregir">
+                      <p class="ayuda">Queda la propuesta original, el resultado correcto, quién y cuándo.</p>
+                      <label>Resultado correcto <select name="outcome_after" required>{% for value, label in c.options %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+                      <label>Motivo (obligatorio) <textarea name="note" rows="2" required></textarea></label>
+                      <button class="btn primario chico" type="submit">Guardar la corrección</button>
+                    </form></details>
+                  {% if c.cell.state != "rechazado" %}
+                  <details class="acc"><summary class="btn secundario chico">Rechazar</summary>
+                    <form method="post" action="{% url 'expedientes:s4_decidir' t.pid c.result.pk %}">{% csrf_token %}
+                      <input type="hidden" name="action" value="rechazar">
+                      <p class="ayuda">La propuesta se rechaza y queda sin resultado, con el motivo, hasta una evaluación nueva.</p>
+                      <label>Motivo (obligatorio) <textarea name="note" rows="2" required></textarea></label>
+                      <button class="btn secundario chico" type="submit">Rechazar la propuesta</button>
+                    </form></details>
+                  {% endif %}
+                  {% else %}
+                  <span class="suave">Lo decide un evaluador.</span>
+                  {% endif %}
+                </div>
+                {% endif %}
+              </div>
+              {% endfor %}
+            </div>
+          </div></td>
+        </tr>
+        {% endfor %}
+        {% empty %}
+        <tr><td colspan="{{ t.colspan }}" class="suave">Ningún requisito con estos filtros.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="leyenda">
+    <span class="item">{% include "journey/_icono.html" with icon="cumple" name="Cumple" %} Cumple</span>
+    <span class="item">{% include "journey/_icono.html" with icon="nocumple" name="No cumple" %} No cumple</span>
+    <span class="item">{% include "journey/_icono.html" with icon="nodet" name="No determinado" %} No determinado</span>
+    <span class="item">{% include "journey/_icono.html" with icon="pend" name="Pendiente del informe técnico o rechazada" %} Pendiente o rechazada</span>
+  </div>
+  {% if not t.is_evaluator %}<div class="bloque-pie"><span class="suave">Confirmar, corregir o rechazar lo propuesto lo decide un evaluador.</span></div>{% endif %}
+  {% endif %}
+</div>
+</div>

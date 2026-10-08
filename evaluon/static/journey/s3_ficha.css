@@ -1,0 +1,35 @@
+/* Ficha de la oferta dentro de la pestaña «Ofertas» (T-203, REQ-086). Usa los tokens de la guía
+   visual; sin recursos externos. Archivo propio del tema para no pisar el de la sección. */
+
+.ficha .volver { margin: 0 0 8px; }
+.ficha .resumen { display: flex; flex-wrap: wrap; gap: 8px 26px; margin: 4px 0 14px; font-size: var(--ev-t-sm); color: var(--ev-texto-suave); }
+.ficha .resumen b { font-family: var(--ev-fuente-num); color: var(--ev-texto); font-size: var(--ev-t-base); }
+.ficha .matriz { min-width: 40rem; }
+.ficha .matriz .c-abrir { width: 1.4rem; }
+.ficha .matriz tr.fila-req { cursor: pointer; }
+.ficha .matriz .abrir { background: none; border: 0; cursor: pointer; color: var(--ev-texto-suave); font: inherit; width: 1.2rem; padding: 0; }
+.ficha .matriz tr.detalle td { background: var(--ev-superficie); padding: 10px 14px 14px 38px; }
+.ficha .matriz tr.detalle[hidden] { display: none; }
+.ficha .matriz tbody tr.detalle:hover { background: var(--ev-superficie); }
+.ficha .matriz .place { font-size: var(--ev-t-xs); }
+.ficha .frag-celda { overflow-wrap: anywhere; }
+blockquote.cita { white-space: pre-wrap; overflow-wrap: anywhere; border-left: 3px solid var(--ev-azul-300); padding: 4px 12px; margin: 6px 0; font-size: var(--ev-t-sm); max-width: 80ch; }
+blockquote.cita.vieja { border-left-color: var(--ev-beige-400); color: var(--ev-texto-suave); text-decoration: line-through; }
+.ficha ul.frag { list-style: none; margin: 0 0 8px; padding: 0; }
+.ficha ul.frag li { margin: 0 0 10px; }
+.ficha dt { font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-xs); letter-spacing: var(--ev-espaciado-etiqueta); text-transform: uppercase; color: var(--ev-texto-suave); }
+.ficha dd { margin: 0 0 6px; font-size: var(--ev-t-sm); overflow-wrap: anywhere; }
+
+/* Acciones de la Comisión: formularios en línea, desplegables y el aviso de lo hecho. */
+form.en-linea { display: inline-block; margin: 0 6px 6px 0; }
+.acciones-fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--ev-borde); }
+details.acc { display: inline-block; vertical-align: top; margin: 0 6px 6px 0; }
+details.acc > summary { list-style: none; cursor: pointer; display: inline-block; }
+details.acc > summary::-webkit-details-marker { display: none; }
+details.acc[open] { display: block; flex-basis: 100%; max-width: 44rem; }
+details.acc form { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-btn); background: var(--ev-superficie); }
+.ficha label { display: block; font-size: var(--ev-t-sm); font-weight: 600; margin-top: 6px; }
+.ficha select, .ficha textarea, .ficha input[type=text] { width: 100%; font: inherit; font-size: var(--ev-t-ctl); color: var(--ev-texto); background: var(--ev-superficie); border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 6px 8px; }
+.aviso { margin: 10px 0; padding: 9px 12px; border-radius: var(--ev-radio-btn); border: 1px solid var(--ev-borde); font-size: var(--ev-t-sm); }
+.aviso-ok { background: var(--ev-azul-50); border-color: var(--ev-azul-300); }
+.aviso-error { background: var(--ev-beige-100); border-color: var(--ev-beige-400); font-weight: 600; }
