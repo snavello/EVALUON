@@ -199,7 +199,8 @@ def test_a_cuit_with_a_wrong_check_digit_is_not_proposed(
     cuit = fields_of(draft)["cuit"]
     assert cuit["state"] == "no_determinado" and cuit["proposed"] is None
     assert cuit["citation"] is None and cuit["candidates"] == []
-    assert fields_of(draft)["bidder"]["proposed"] == NAME_A
+    # El nombre se ancla al CUIT del oferente: sin CUIT válido, ninguna línea lo justifica.
+    assert fields_of(draft)["bidder"]["state"] == "no_determinado"
 
 
 def test_the_cuit_with_more_support_wins_and_the_others_are_candidates(
@@ -223,6 +224,105 @@ def test_a_file_without_data_proposes_nothing(
     assert draft.state == ProposalState.PROPUESTO
     assert {f["state"] for f in fields_of(draft).values()} == {"no_determinado"}
     assert len(draft.proposal["warnings"]) == 2
+
+
+# --- El nombre anclado al CUIT (ronda 1) -----------------------------------------------------
+
+PERSON = "María Fernanda Quiroga"
+CUIT_PERSON = make_cuit("27", 21345679)
+CUIT_MALE = make_cuit("20", 20456789)
+
+
+def policy_pages():
+    """Póliza de una aseguradora con tipo societario: un tercero en la misma oferta."""
+    return ("poliza.pdf", pdf(
+        ["POLIZA DE SEGURO DE CAUCION", "Seguros Ficticios del Plata S.A.",
+         f"Aseguradora CUIT {CUIT_INSURER}", f"Tomador: {PERSON}",
+         f"Tomador CUIT {CUIT_PERSON}"]))
+
+
+def test_a_third_party_with_a_company_suffix_does_not_win_the_name(
+        operator_user, procedure, fake_generation):  # noqa: F811
+    """REQ-083 / P3: una línea con «S.A.» de un tercero (aseguradora, banco) en la misma
+    oferta no gana: el nombre se justifica por su cercanía al CUIT del oferente."""
+    files = [("o.pdf", pdf(
+        ["Banco Ficticio Central S.A.", f"Garante CUIT {CUIT_INSURER}"],
+        [f"Oferente: {NAME_A}", f"CUIT: {CUIT_A}"])),
+        ("poliza.pdf", pdf(["Compañía de Seguros Inventada S.A.",
+                            f"Aseguradora CUIT {CUIT_INSURER}", f"Tomador CUIT {CUIT_A}"]))]
+    draft = upload_and_read(operator_user, procedure, files)
+    assert fields_of(draft)["cuit"]["proposed"] == CUIT_A
+    assert fields_of(draft)["bidder"]["proposed"] == NAME_A
+    assert "Seguros" not in " ".join(fields_of(draft)["bidder"]["candidates"])
+    assert "Banco" not in " ".join(fields_of(draft)["bidder"]["candidates"])
+
+
+def test_a_name_far_from_the_bidder_cuit_is_not_proposed(
+        operator_user, procedure, fake_generation):  # noqa: F811
+    """REQ-083 / P3: una línea con «S.A.» lejos del CUIT del oferente no se propone como su
+    nombre; queda «no determinado» antes que un valor equivocado."""
+    filler = [f"Texto de relleno {n}" for n in range(8)]
+    files = [("o.pdf", pdf(["Estudio Contable Lejano S.A.", *filler, f"CUIT: {CUIT_A}"]))]
+    fake_generation.respond(json.dumps({"bidder": {"valor": "", "cita": ""}}))
+    draft = upload_and_read(operator_user, procedure, files)
+    assert fields_of(draft)["cuit"]["proposed"] == CUIT_A
+    assert fields_of(draft)["bidder"]["state"] == "no_determinado"
+
+
+def test_a_human_person_is_recognised_next_to_the_cuit(
+        operator_user, procedure, fake_generation):  # noqa: F811
+    """REQ-083: una persona humana (CUIT 27-/20-) se reconoce sin tipo societario: con
+    rótulo «Apellido y nombre», antes del DNI o en la línea vecina del CUIT; y la póliza de
+    una aseguradora con «S.A.» en la misma oferta no cambia el resultado."""
+    cases = [
+        [f"Apellido y nombre: {PERSON}", f"CUIT: {CUIT_PERSON}"],
+        [f"{PERSON}, DNI 21.345.679, CUIT {CUIT_PERSON}"],
+        ["CONSTANCIA DE INSCRIPCION", PERSON, f"CUIT: {CUIT_PERSON}",
+         "Impuesto al valor agregado: Monotributo"],
+    ]
+    for lines in cases:
+        files = [("o.pdf", pdf(lines)), policy_pages()]
+        draft = upload_and_read(operator_user, procedure, files)
+        assert fields_of(draft)["cuit"]["proposed"] == CUIT_PERSON, lines
+        assert fields_of(draft)["bidder"]["proposed"] == PERSON, lines
+        assert fields_of(draft)["bidder"]["method"] == "regla"
+        assert PERSON in fields_of(draft)["bidder"]["citation"]["text"]
+        om.OfferDraft.objects.filter(pk=draft.pk).update(state=ProposalState.RECHAZADO)
+
+
+def test_a_title_line_is_not_taken_as_a_person(
+        operator_user, procedure, fake_generation):  # noqa: F811
+    """REQ-083 / P3: un título de documento junto al CUIT de una persona humana no es su
+    nombre."""
+    files = [("o.pdf", pdf(["CONSTANCIA DE INSCRIPCION", f"CUIT: {CUIT_MALE}"]))]
+    fake_generation.respond(json.dumps({"bidder": {"valor": "", "cita": ""}}))
+    draft = upload_and_read(operator_user, procedure, files)
+    assert fields_of(draft)["cuit"]["proposed"] == CUIT_MALE
+    assert fields_of(draft)["bidder"]["state"] == "no_determinado"
+
+
+def test_two_different_names_next_to_the_cuit_with_the_same_support_give_no_name(
+        operator_user, procedure, fake_generation):  # noqa: F811
+    """REQ-083 / P3: ante dos nombres distintos con el mismo respaldo junto al CUIT no se
+    propone ninguno; ambos quedan como candidatos."""
+    files = [("o.pdf", pdf([f"Razón social: {NAME_A}", f"Denominación: {NAME_B}",
+                            f"CUIT: {CUIT_A}"]))]
+    fake_generation.respond(json.dumps({"bidder": {"valor": "", "cita": ""}}))
+    draft = upload_and_read(operator_user, procedure, files)
+    name = fields_of(draft)["bidder"]
+    assert name["state"] == "no_determinado" and name["proposed"] is None
+    assert set(name["candidates"]) == {NAME_A, NAME_B}
+
+
+def test_the_model_cannot_name_a_third_party(operator_user, procedure, fake_generation):  # noqa: F811
+    """REQ-083 / P3: aunque la cita sea literal, el modelo no puede proponer como oferente a
+    una aseguradora."""
+    line = "Emite la póliza Seguros Ficticios del Plata S.A. para esta oferta."
+    fake_generation.respond(json.dumps(
+        {"bidder": {"valor": "Seguros Ficticios del Plata S.A.", "cita": line}}))
+    draft = upload_and_read(operator_user, procedure,
+                            [("o.pdf", pdf([line, f"Número de CUIT: {CUIT_A}"]))])
+    assert fields_of(draft)["bidder"]["state"] == "no_determinado"
 
 
 # --- El modelo -------------------------------------------------------------------------------

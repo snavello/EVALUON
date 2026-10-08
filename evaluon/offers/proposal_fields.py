@@ -281,54 +281,138 @@ def _clean_name(value):
     return value
 
 
+_THIRD_NAME = re.compile(
+    r"asegurador|aseguradora|\bseguros?\b|compa[ñn][ií]a\s+de\s+seguros|\bbanco\b|"
+    r"entidad\s+financiera|fiador|escriban|contador|estudio\s+jur[ií]dico", re.I)
+# Palabras de títulos y rótulos: una línea que las trae no es el nombre de una persona.
+_NOT_A_PERSON = re.compile(
+    r"constancia|inscripci|declaraci|jurada|nota\b|presentaci|oferta|formulario|impuesto|"
+    r"datos|domicilio|responsable|monotribut|afip|arca|certificado|anexo|planilla|"
+    r"p[oó]liza|propuesta|contribuyente|cuit|cuil|\bdni\b|documento|fecha|firma|"
+    r"representante|sociedad|licitaci|pliego|rengl[oó]n|precio|garant[ií]a|"
+    r"s\.?\s?a\.?\b|s\.?\s?r\.?\s?l\.?\b", re.I)
+_PERSON_WORD = re.compile(r"^[A-ZÁÉÍÓÚÑÜ][A-Za-zÁÉÍÓÚÑÜáéíóúñü'\-]+$|^(?:de|del|la|las|los|y)$")
+_PERSON_LABEL = re.compile(
+    r"^\s*(?:apellido\s+y\s+nombres?|nombres?\s+y\s+apellidos?|titular)"
+    r"\s*(?:\([^)]*\))?\s*[:\-–]\s*(.*)$", re.I)
+_DNI = re.compile(r"\bD\.?\s?N\.?\s?I\.?\b", re.I)
+PERSON_PREFIXES = ("20", "23", "24", "27")
+# Cuántas líneas alrededor de la línea del CUIT se busca el nombre.
+ANCHOR_WINDOW = 3
+
+WEIGHT_PERSON = 2
+
+
 def _acceptable(name):
     if not (NAME_MIN_CHARS <= len(name) <= NAME_MAX_CHARS):
         return False
     if not re.search(r"[^\W\d_]{2,}", name) or _PLACEHOLDER.match(name):
         return False
     plain = _plain(name)
+    if _THIRD_NAME.search(plain):
+        return False
     return not any(re.search(rf"\b{re.escape(o)}\b", plain) for o in _ORGANISM_NAMES)
 
 
-def _candidate_names(sources):
-    """`[(nombre, peso, Citation)]` en el orden en que aparecen."""
+def _person_like(text):
+    """`True` si `text` parece nombre y apellido: de 2 a 5 palabras con mayúscula inicial (o
+    todo en mayúsculas), solo letras, sin palabras de títulos ni de rótulos."""
+    text = _fold(text).strip(" ,;:.-–")
+    words = text.split()
+    if not 2 <= len(words) <= 5 or len(text) > 60 or _NOT_A_PERSON.search(_plain(text)):
+        return False
+    if text != text.upper() and not all(_PERSON_WORD.match(w) for w in words):
+        return False
+    return all(re.fullmatch(r"[A-Za-zÁÉÍÓÚÑÜáéíóúñü'\-]+", w) for w in words)
+
+
+def _anchors(sources, cuit):
+    """Dónde está el CUIT elegido: `{(huella del archivo, página): [índice de línea, …]}`."""
+    found = {}
+    for source in sources:
+        for page, lines in source.pages[:SCAN_PAGES]:
+            for index, line in enumerate(lines):
+                following = lines[index + 1] if index + 1 < len(lines) else ""
+                if any(c == cuit for c, _ in _cuits_in(line, following)):
+                    found.setdefault((source.file_sha256, page), []).append(index)
+    return found
+
+
+def _candidate_names(sources, cuit):
+    """`[(nombre, peso, Citation)]` en el orden en que aparecen. Solo valen los nombres que
+    se justifican por su cercanía al CUIT elegido (`ANCHOR_WINDOW` líneas) y que no son de un
+    tercero (aseguradora, banco, escribanía, el organismo)."""
     found = []
+    anchors = _anchors(sources, cuit)
+    person = cuit[:2] in PERSON_PREFIXES
     for source, page, index, lines, line in _scanned(sources):
-        cite = lambda text: Citation(source.file_name, source.file_sha256, page, text)  # noqa: E731
+        marks = anchors.get((source.file_sha256, page))
+        if not marks or all(abs(index - m) > ANCHOR_WINDOW for m in marks):
+            continue
+        on_cuit = index in marks
+        distance = min(abs(index - m) for m in marks)
+
+        def take(name, weight, text, page=page, source=source):
+            if _acceptable(name) and not _THIRD_NAME.search(_plain(text)):
+                found.append((name, weight,
+                              Citation(source.file_name, source.file_sha256, page, text)))
+                return True
+            return False
+
         match = _NAME_LABEL.match(line)
         if match:
             value, text = match.group(1), line
             if not value.strip() and index + 1 < len(lines):
                 value, text = lines[index + 1], f"{line} {lines[index + 1]}"
-            name = _clean_name(value)
-            if _acceptable(name):
-                found.append((name, WEIGHT_LABELED, cite(text)))
+            take(_clean_name(value), WEIGHT_LABELED, text)
             continue
         if _LABEL_ONLY.match(line) and index + 1 < len(lines):
-            name = _clean_name(lines[index + 1])
-            if _acceptable(name):
-                found.append((name, WEIGHT_LABELED, cite(f"{line} {lines[index + 1]}")))
+            take(_clean_name(lines[index + 1]), WEIGHT_LABELED, f"{line} {lines[index + 1]}")
+            continue
+        match = _PERSON_LABEL.match(line)
+        if match and person:
+            value, text = match.group(1), line
+            if not value.strip() and index + 1 < len(lines):
+                value, text = lines[index + 1], f"{line} {lines[index + 1]}"
+            name = _clean_name(value)
+            if _person_like(name):
+                take(name, WEIGHT_LABELED, text)
             continue
         label = _CUIT_LABEL.search(line)
-        if label and label.start() > 0:
+        if on_cuit and label and label.start() > 0:
             segments = [part for part in re.split(r"\s[-–]\s|:", line[:label.start()])
                         if part.strip()]
             name = _clean_name(segments[-1]) if segments else ""
-            if _SUFFIX.search(name) and _acceptable(name):
-                found.append((name, WEIGHT_BEFORE_CUIT, cite(line)))
+            if _SUFFIX.search(name) and take(name, WEIGHT_BEFORE_CUIT, line):
                 continue
-        # Una línea corta de la carátula que es solo un nombre con tipo societario.
-        if page == source.pages[0][0] and index < 12 and len(line) <= 80 and ":" not in line \
-                and len(line.split()) <= 8 and _SUFFIX.search(line):
-            name = _clean_name(line)
-            if _acceptable(name):
-                found.append((name, WEIGHT_STANDALONE, cite(line)))
+            if person and _person_like(name) and take(name, WEIGHT_PERSON, line):
+                continue
+        if person:
+            # Persona humana: nombre y apellido antes del DNI, o solo en una línea vecina.
+            dni = _DNI.search(line)
+            if dni and dni.start() > 0:
+                segments = [part for part in re.split(r"\s[-–]\s|:|,", line[:dni.start()])
+                            if part.strip()]
+                name = _clean_name(segments[-1]) if segments else ""
+                if _person_like(name) and take(name, WEIGHT_PERSON, line):
+                    continue
+            if not on_cuit and distance <= 1 and ":" not in line and _person_like(line):
+                take(_clean_name(line), WEIGHT_STANDALONE, line)
+                continue
+        # Una línea corta que es solo un nombre con tipo societario, junto al CUIT.
+        if not on_cuit and len(line) <= 80 and ":" not in line and len(line.split()) <= 8 \
+                and _SUFFIX.search(line):
+            take(_clean_name(line), WEIGHT_STANDALONE, line)
     return found
 
 
-def find_name(sources):
-    """El nombre con más respaldo y los demás como candidatos: `Datum`."""
-    found = _candidate_names(sources)
+def find_name(sources, cuit=None):
+    """El nombre anclado al CUIT elegido `cuit` (texto `NN-NNNNNNNN-N`), con los demás como
+    candidatos: `Datum`. Sin CUIT, o ante un empate entre nombres distintos, no se propone
+    ninguno (P3): es preferible «no determinado» a un valor equivocado."""
+    if not cuit:
+        return Datum()
+    found = _candidate_names(sources, cuit)
     if not found:
         return Datum()
     score, first = {}, {}
@@ -341,6 +425,8 @@ def find_name(sources):
     for key in ordered:
         if first[key][1] not in candidates:
             candidates.append(first[key][1])
+    if len(ordered) > 1 and score[ordered[0]] == score[ordered[1]]:
+        return Datum(candidates=candidates, method=METHOD_RULE)
     _, value, citation = first[ordered[0]]
     return Datum(value=value, citation=citation, candidates=candidates, method=METHOD_RULE)
 
@@ -354,7 +440,8 @@ def _verified(answer, page_texts):
     if not isinstance(answer, dict):
         return None
     value, quote = _fold(str(answer.get("valor") or "")), _fold(str(answer.get("cita") or ""))
-    if not value or not quote or _plain(value) not in _plain(quote) or not _acceptable(value):
+    if not value or not quote or _plain(value) not in _plain(quote) or not _acceptable(value) \
+            or _THIRD_NAME.search(_plain(quote)):
         return None
     for source, page, text in page_texts:
         if quote in text:
@@ -411,11 +498,13 @@ def propose(sources, reading=None):
     """Propone nombre y CUIT del oferente con las lecturas de los archivos de una oferta
     (`Source`). El nombre cae al modelo solo si las reglas no lo hallaron."""
     cuit = find_cuit(sources)
-    name = find_name(sources)
+    name = find_name(sources, cuit.value)
     traces = []
     if not name.value:
-        name, trace = ask_model(sources)
+        asked, trace = ask_model(sources)
         traces.append(trace)
+        if asked.value:
+            name = asked
     warnings = []
     if not cuit.value:
         warnings.append("No se encontró un CUIT válido en los archivos.")
