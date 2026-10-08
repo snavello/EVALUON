@@ -19,13 +19,13 @@
   {% for up in t.waiting %}
   <div class="subida" id="s5-subida-{{ up.id }}">
     <h4>Para confirmar: «{{ up.file_name }}»</h4>
-    <p class="registro">{{ up.format }}, {{ up.pages }} página(s) · subida por {{ up.who }} el {{ up.when }}. {% if up.to_check %}Faltan {{ up.to_check }} dato(s) obligatorio(s): escríbalos con su motivo.{% else %}Revise los datos antes de cargar la norma.{% endif %}</p>
+    <p class="registro">{{ up.format }}, {{ up.pages }} página{{ up.pages|pluralize }} · subida por {{ up.who }} el {{ up.when }}. {% if up.to_check %}{% if up.to_check == 1 %}Falta 1 dato obligatorio: escríbalo{% else %}Faltan {{ up.to_check }} datos obligatorios: escríbalos{% endif %} con su motivo.{% else %}Revise los datos antes de cargar la norma.{% endif %}</p>
     <div class="tabla-scroll"><table class="matriz lectura">
       <thead><tr><th scope="col">Dato</th><th scope="col">Valor</th><th scope="col">De dónde sale</th>{% if t.can_upload %}<th scope="col">Acción</th>{% endif %}</tr></thead>
       <tbody>
       {% for f in up.fields %}
         <tr>
-          <th scope="row">{{ f.label }}{% if f.required %}<span class="suave"> · obligatorio</span>{% endif %}</th>
+          <th scope="row">{{ f.label }}{% if f.required %}<small class="suave"> · obligatorio</small>{% endif %}</th>
           <td>{% if f.empty %}{% include "journey/_icono.html" with icon="nodet" name="No reconocido" %} <span class="suave">No se reconoció: complételo</span>{% else %}{{ f.value }}{% endif %}
             {% if f.corrected %}<p class="registro">Corregido por {{ f.who }} el {{ f.when }} · motivo: {{ f.reason }}{% if f.proposed %} · el sistema había propuesto «{{ f.proposed }}»{% endif %}</p>{% endif %}</td>
           <td>{% if f.evidence and not f.corrected %}<p class="evidencia">{% if f.evidence.page %}Página {{ f.evidence.page }}: {% else %}Del texto: {% endif %}«{{ f.evidence.text }}»</p>{% elif f.corrected %}<span class="suave">Escrito por la Comisión</span>{% else %}<span class="suave">—</span>{% endif %}</td>
@@ -51,10 +51,11 @@
     </table></div>
     {% if t.can_upload %}
     <form class="confirmar" method="post" action="{% url 'expedientes:s5_cargar' t.pid up.id %}">{% csrf_token %}
-      <label for="parte-{{ up.id }}">Parte de la norma</label>
-      <input id="parte-{{ up.id }}" type="text" name="part" value="cuerpo">
-      <p class="ayuda">«cuerpo» para el texto de la norma; para un anexo, su clave (por ejemplo «anexo»).</p>
-      <label class="simple"><input type="checkbox" name="general_regime"> Es el régimen general de contrataciones (solo para una norma de régimen específico)</label>
+      <label for="tipo-{{ up.id }}">Qué es este archivo</label>
+      <select id="tipo-{{ up.id }}" name="kind"><option value="texto">Texto de la norma</option><option value="anexo">Anexo</option></select>
+      <label for="anexo-{{ up.id }}">Si es un anexo, su nombre (por ejemplo I o A)</label>
+      <input id="anexo-{{ up.id }}" type="text" name="annex_name" value="{{ up.annex_guess }}">
+      <label class="simple"><input type="checkbox" name="general_regime"> Esta norma es un régimen general de contrataciones (como la Disp. AFIP 247/2022 o la 297/03)</label>
       <label for="misma-{{ up.id }}">Si ya hay una norma igual cargada</label>
       <select id="misma-{{ up.id }}" name="same_norm"><option value="">No sé: que el sistema avise</option><option value="other_file">Es otro archivo de la misma norma</option><option value="new_version">Es una versión nueva</option></select>
       <p class="ayuda">Al cargar, el sistema la lee y arma su informe de lectura. Todavía no sirve para las consultas: falta que un evaluador la valide.</p>

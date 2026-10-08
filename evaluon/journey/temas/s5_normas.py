@@ -25,6 +25,7 @@ Fuera de alcance de esta tarea: descartar una subida equivocada (el servicio `up
 """
 
 import datetime
+import re
 
 from django.core import signing
 from django.db.models import Exists, OuterRef
@@ -105,6 +106,26 @@ def _back(procedure, text, ok=True, anchor="s5-aviso", reading=None):
     if reading is not None:
         query += f"&lectura={reading}"
     return redirect(f"{tab_url(procedure.pk)}{query}#{anchor}")
+
+
+def plural(count, one, many):
+    """«1 página», «2 páginas»."""
+    return f"{count} {one if count == 1 else many}"
+
+
+def part_key(kind, annex_name):
+    """La clave interna de la parte a partir de lo que elige la persona: «Texto de la norma»
+    es el cuerpo; «Anexo» es `anexo` o `anexo-<nombre>` (letras y números del nombre)."""
+    if kind != "anexo":
+        return None
+    name = re.sub(r"[^a-z0-9]", "", annex_name.lower())
+    return f"anexo-{name}" if name else "anexo"
+
+
+def annex_guess(file_name):
+    """El nombre del anexo que sugiere el nombre del archivo («...-anexo-ii.pdf» -> «ii»)."""
+    found = re.search(r"anexo[-_ ]?([a-z0-9]{1,4})(?:[-_. ]|$)", file_name.lower())
+    return found.group(1).upper() if found else ""
 
 
 def local(moment):
@@ -197,7 +218,8 @@ def _field_rows(proposal):
         entry = proposal["fields"][name]
         current = upload.current_value(entry)
         rows.append({
-            "name": name, "label": loading.FIELDS[name][0], "value": _show(name, current),
+            "name": name, "label": loading.FIELDS[name][0][:1].upper() + loading.FIELDS[name][0][1:],
+            "value": _show(name, current),
             "raw": "" if current is None else current,
             "proposed": _show(name, entry["propuesto"]),
             "recognized": entry["reconocido"], "evidence": _evidence(entry),
@@ -218,7 +240,8 @@ def _waiting_uploads():
             "uploaded_by").order_by("pk"):
         fields = _field_rows(one.proposal)
         waiting.append({
-            "id": one.pk, "file_name": one.file_name, "pages": one.proposal.get("pages"),
+            "id": one.pk, "file_name": one.file_name, "annex_guess": annex_guess(one.file_name),
+            "pages": one.proposal.get("pages"),
             "format": one.get_file_format_display(), "when": local(one.uploaded_at),
             "who": one.uploaded_by.username if one.uploaded_by_id else "",
             "fields": fields,
@@ -343,10 +366,14 @@ def upload_file(request, procedure_id):
     except (loading.LoadRefused, upload.UploadRefused) as error:
         return _back(procedure, str(error), ok=False)
     unknown = sum(1 for e in staged.proposal["fields"].values() if not e["reconocido"])
-    tail = (f" {unknown} dato(s) no se reconocieron: complételos escribiendo el valor y el "
-            "motivo." if unknown else " Revise los datos y cargue la norma.")
+    if unknown == 1:
+        tail = " No se reconoció 1 dato: escríbalo con su motivo."
+    elif unknown:
+        tail = f" No se reconocieron {unknown} datos: escríbalos con su motivo."
+    else:
+        tail = " Revise los datos y cargue la norma."
     return _back(procedure, f"Se subió «{staged.file_name}» y el sistema la leyó "
-                            f"({staged.proposal['pages']} página(s)).{tail}",
+                            f"({plural(staged.proposal['pages'], 'página', 'páginas')}).{tail}",
                  anchor=f"s5-subida-{staged.pk}")
 
 
@@ -375,7 +402,7 @@ def load(request, procedure_id, upload_id):
     anchor = f"s5-subida-{upload_id}"
     try:
         result = upload.confirm(
-            request.user, upload_id, part=(request.POST.get("part", "").strip() or None),
+            request.user, upload_id, part=part_key(request.POST.get("kind", ""), request.POST.get("annex_name", "")),
             general_regime=request.POST.get("general_regime") == "on",
             same_norm_confirmation=request.POST.get("same_norm") or None, channel=CHANNEL)
     except (upload.UploadRefused, loading.LoadRefused) as error:

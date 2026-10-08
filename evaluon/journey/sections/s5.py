@@ -33,7 +33,9 @@ def summary(user, procedure, stages):
     if unvalidated:
         parts.append(f"{unvalidated} sin validar")
     if waiting:
-        parts.append(f"{waiting} subida(s) esperan confirmar sus datos")
+        parts.append(f"{waiting} subida espera confirmar sus datos" if waiting == 1
+                     else f"{waiting} subidas esperan confirmar sus datos")
     if missing:
-        parts.append(f"{missing} modificatoria(s) sin cargar")
+        parts.append(f"{missing} modificatoria sin cargar" if missing == 1
+                     else f"{missing} modificatorias sin cargar")
     return (("Normas", ", ".join(parts) + ". Las normas se cargan subiendo su archivo."),)

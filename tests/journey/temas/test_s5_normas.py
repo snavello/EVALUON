@@ -130,7 +130,7 @@ def complete_and_load(client, procedure, user, data=NORM_FILE, name="rg-9999-202
         if field in loading.REQUIRED and entry["propuesto"] is None:
             value = {"effective_from": "2024-04-01"}.get(field, "dato escrito")
             correct(client, procedure, staged.pk, field, value)
-    response = client.post(url("s5_cargar", procedure, staged.pk), {"part": "cuerpo"})
+    response = client.post(url("s5_cargar", procedure, staged.pk), {"kind": "texto"})
     staged.refresh_from_db()
     return staged, response
 
@@ -176,7 +176,7 @@ def test_what_the_system_does_not_recognize_is_marked_and_blocks_the_load(
     html = page(client, procedure)
     assert "No se reconoció: complételo" in html
     assert re.search(r'<button class="btn primario" type="submit" disabled>Cargar la norma', html)
-    refused = client.post(url("s5_cargar", procedure, staged.pk), {"part": "cuerpo"})
+    refused = client.post(url("s5_cargar", procedure, staged.pk), {"kind": "texto"})
     ok, text = notice(client, refused)
     assert not ok and "fecha de vigencia" in text
     assert not Norm.objects.exists()
@@ -450,3 +450,33 @@ def test_the_tab_has_no_mockup_texts_nor_links_to_the_old_screens(client, proced
                  "listar_normas", "cargar_norma", "validar_informe", "manage.py"):
         assert text not in block, text
     assert "/recorrido/" not in block
+
+
+def test_the_texts_are_plain_and_agree_in_number(client, procedure, evaluator):
+    """Lenguaje de la Comisión: plurales bien, etiquetas con mayúscula, parte elegida sin claves
+    internas y la marca de régimen general redactada sin ambigüedad."""
+    log_in(client, evaluator)
+    ok, text = notice(client, send(client, procedure, NORM_WITHOUT_DATE, "norma-anexo-ii.htm"))
+    assert "(s)" not in text and re.search(r"leyó \(\d+ página", text)
+    html = page(client, procedure)
+    assert "(s)" not in html
+    assert "Página web, 1 página ·" in html
+    assert "Falta 1 dato obligatorio: escríbalo" in html
+    assert "Categoría" in html and "Fecha de vigencia" in html and "categoría<" not in html
+    assert "<small class=\"suave\"> · obligatorio</small>" in html
+    assert "Texto de la norma" in html and "Anexo</option>" in html
+    assert 'value="II"' in html
+    assert "Esta norma es un régimen general de contrataciones (como la Disp. AFIP 247/2022" in html
+    assert "clave del anexo" not in html and ">cuerpo<" not in html and 'value="cuerpo"' not in html
+    section = sections_for(evaluator, procedure, channel=Channel.SCREEN).get("normativas")
+    assert any("1 subida espera confirmar sus datos" in d for _, d in section.summary)
+
+
+def test_choosing_annex_loads_the_norm_as_an_annex_part(client, procedure, evaluator):
+    """«Anexo» con su nombre carga la parte `anexo-ii`; «Texto de la norma», el cuerpo."""
+    log_in(client, evaluator)
+    send(client, procedure)
+    staged = NormUpload.objects.get()
+    client.post(url("s5_cargar", procedure, staged.pk), {"kind": "anexo", "annex_name": "II"})
+    staged.refresh_from_db()
+    assert staged.state == "aprobado" and staged.document.part == "anexo-ii"
