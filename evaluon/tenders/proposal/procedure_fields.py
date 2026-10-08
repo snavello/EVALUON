@@ -41,6 +41,8 @@ REQUIRED_FIELDS = ("number", "procedure_type", "subject", "authorization_date")
 STATE_PROPOSED = "propuesto"
 STATE_UNDETERMINED = "no_determinado"
 
+DEDUCED_FROM_NUMBER = "numero_de_proceso"
+
 METHOD_RULE = "regla"
 METHOD_MODEL = "modelo"
 
@@ -120,6 +122,9 @@ _DATE_WORDS = re.compile(r"\b(\d{1,2})\s+de\s+([a-záéíóú]+)\s+de\s+(\d{4})\
 class Citation:
     page: int
     text: str
+    # Si el dato no está escrito en la cita sino deducido de ella (por ejemplo, el tipo del
+    # código del número de proceso): de qué se dedujo.
+    deduced: str = ""
 
     def as_json(self):
         return {"page": self.page, "text": self.text}
@@ -145,6 +150,7 @@ class Datum:
             "candidates": self.candidates,
             "citation": self.citation.as_json() if self.citation else None,
             "method": self.method,
+            "deduced": self.citation.deduced if self.citation else "",
         }
 
 
@@ -244,7 +250,8 @@ def _find_type(front, number_found=()):
     for value, citation in number_found:
         code = _TYPE_CODE.search(value)
         if code:
-            found.append((_TYPE_CODES[code.group(1)], citation))
+            found.append((_TYPE_CODES[code.group(1)],
+                          Citation(citation.page, citation.text, deduced=DEDUCED_FROM_NUMBER)))
     # El nombre del tipo en el texto, solo en la carátula (más lejos puede ser otra cosa).
     for page, lines in front[:1]:
         for line in lines:
@@ -380,7 +387,7 @@ def _columns(row):
             if name not in mapping and any(plain.startswith(k) or plain == k for k in keys):
                 mapping[name] = index
                 break
-    if {"number", "description", "quantity"} <= set(mapping):
+    if {"number", "quantity"} <= set(mapping):
         return mapping
     return None
 
@@ -418,8 +425,9 @@ def _tables(data):
 def extract_lines(data):
     """Los renglones de la tabla de renglones de un PDF: `(renglones, avisos)`. Cada renglón es
     `{number, description, quantity, unit, citation}`; el que repite un número ya tomado se deja
-    afuera y queda en los avisos."""
-    lines, warnings, seen = [], [], set()
+    afuera y queda en los avisos. Una tabla sin descripción (renglón y cantidad) da las
+    cantidades aparte, como tercer valor."""
+    lines, warnings, seen, quantities = [], [], set(), []
     mapping = None
     for page, rows in _tables(data):
         start = 0
@@ -433,10 +441,20 @@ def extract_lines(data):
             if len(cells) <= max(mapping.values()):
                 continue
             digits = re.fullmatch(r"\d+", cells[mapping["number"]])
-            description = cells[mapping["description"]]
-            if not digits or not description:
+            description = cells[mapping["description"]] if "description" in mapping else ""
+            if not digits or (not description and "description" in mapping):
                 continue
             number = int(digits.group(0))
+            if not description:
+                quantity, unit = parse_quantity(cells[mapping["quantity"]])
+                if quantity is not None:
+                    if "unit" in mapping and cells[mapping["unit"]]:
+                        unit = cells[mapping["unit"]]
+                    quantities.append({
+                        "number": number, "description": "", "quantity": quantity,
+                        "unit": unit or "",
+                        "citation": Citation(page, " | ".join(cells)).as_json()})
+                continue
             if number in seen:
                 warnings.append(f"Renglón {number} repetido en la página {page}: se tomó el primero.")
                 continue
@@ -451,7 +469,7 @@ def extract_lines(data):
                 "unit": unit,
                 "citation": Citation(page, " | ".join(cells)).as_json(),
             })
-    return lines, warnings
+    return lines, warnings, quantities
 
 
 # --- Renglones escritos como texto -------------------------------------------------------
@@ -469,8 +487,9 @@ _MARGIN = 55  # puntos arriba y abajo de la página donde hay encabezado y pie
 _HEADING = re.compile(
     r"^\s*\d{1,2}(?:\.\d{1,2})?\.?\s*RENGL[OÓ]N\s*(?:N[º°]|NRO\.?)\s*(\d+)\s*[-–:]\s*(\S.*)$", re.I)
 _HEADING_NEXT = re.compile(r"\s+Y\s+RENGL[OÓ]N\s*(?:N[º°]|NRO\.?)\s*(\d+)\s*[-–:]\s*", re.I)
-_QUANTITY_NEAR = re.compile(r"cantidad\s*(?:total)?\s*:?\s*(\d[\d.,]*)\s*([^\W\d_][\w²³/%.]*)?",
-                            re.I)
+_QUANTITY_NEAR = re.compile(
+    r"cantidad\s*(?:total)?\s*:\s*(?:[^\W\d_]+\s*)?\(?(\d[\d.,]*)\)?\s*([^\W\d_][\w²³/%.]*)?",
+    re.I)
 
 
 def _usable(page):
@@ -499,16 +518,21 @@ def _row(number, pieces, page):
             parsed, _ = parse_quantity(match.group(2))
             if parsed is not None:
                 description, quantity, unit = match.group(1), parsed, match.group(3)
-    if not description:
-        return None
     citation = _fold(" ".join([str(number)] + [text for _, text in pieces]))
+    if quantity is None and _ONLY_QUANTITY.match(description):
+        # Tabla de cantidades aparte: solo número, cantidad y unidad (sin descripción).
+        quantity, unit = parse_quantity(description)
+        description = ""
+    if not description and quantity is None:
+        return None
     return {"number": number, "description": description, "quantity": quantity,
             "unit": unit or "", "citation": Citation(page, citation).as_json()}
 
 
 def layout_lines(reading):
     """Renglones de una tabla sin bordes dibujados, leída como líneas de texto con su posición:
-    desde el encabezado «RENGLÓN … CANTIDAD» hasta la primera cláusula."""
+    desde el encabezado «RENGLÓN … CANTIDAD» hasta la primera cláusula. Devuelve
+    `(renglones, cantidades)`: las cantidades son las filas de una tabla aparte, sin descripción."""
     rows, current, in_table, number_x = [], None, False, None
     for page in reading.pages:
         for line in _usable(page):
@@ -542,12 +566,24 @@ def layout_lines(reading):
                 current[2].append((line.x0, text))
     if current:
         rows.append(current)
-    lines = []
+    lines, quantities = [], []
     for number, page_number, pieces in rows:
         row = _row(number, pieces, page_number)
-        if row:
+        if row and row["description"]:
             lines.append(row)
-    return lines
+        elif row:
+            quantities.append(row)
+    return lines, quantities
+
+
+_LEADERS = re.compile(r"[.…·]{4,}|(?:\.\s){4,}")
+
+
+def _is_index_entry(text, on_index_page):
+    """Una entrada del índice: puntos guía, o (en la página del índice) un número de página al
+    final. No es fuente de descripciones: manda el título del cuerpo."""
+    return bool(_LEADERS.search(text)) or (
+        on_index_page and bool(re.search(r"\s\d{1,3}$", text)))
 
 
 def heading_lines(reading):
@@ -557,9 +593,10 @@ def heading_lines(reading):
     found = {}
     for page in reading.pages:
         usable = _usable(page)
+        on_index = any(re.fullmatch(r"\s*[ÍI]NDICE\s*", line.text, re.I) for line in usable)
         for index, line in enumerate(usable):
             text = _fold(line.text)
-            if re.search(r"\.{5,}", text):
+            if _is_index_entry(text, on_index):
                 continue
             match = _HEADING.match(text)
             if not match:
@@ -581,14 +618,26 @@ def heading_lines(reading):
             if split:
                 parts = [(number, description[:split.start()]),
                          (int(split.group(1)), description[split.end():])]
-            window = " ".join(_fold(item.text) for item in usable[index:index + 4])
+            # Hasta el título que sigue (como máximo 8 líneas): su «Cantidad: …» es de este.
+            window_lines = [text]
+            for item in usable[index + 1:index + 9]:
+                if _HEADING.match(_fold(item.text)):
+                    break
+                window_lines.append(_fold(item.text))
+            window = " ".join(window_lines)
             near = _QUANTITY_NEAR.search(window)
             for number, description in parts:
-                if number in found:
-                    continue
                 quantity = unit = None
-                if near:
+                if near and len(parts) == 1:
                     quantity, unit = parse_quantity(f"{near.group(1)} {near.group(2) or ''}")
+                    unit = unit.rstrip(".,;")
+                if number in found:
+                    # El mismo renglón otra vez (por ejemplo, el alcance y luego el detalle): la
+                    # descripción es la primera; la cantidad, la primera que aparezca.
+                    if found[number]["quantity"] is None and quantity is not None:
+                        found[number]["quantity"], found[number]["unit"] = quantity, unit or ""
+                        found[number]["quantity_citation"] = Citation(page.number, full).as_json()
+                    continue
                 found[number] = {
                     "number": number, "description": _fold(description).rstrip(" .-"),
                     "quantity": quantity, "unit": unit or "",
@@ -596,15 +645,25 @@ def heading_lines(reading):
     return list(found.values())
 
 
-def merge_lines(*groups):
+def merge_lines(*groups, quantities=()):
     """Une grupos de renglones; el primero que trae un número gana (las tablas, antes que los
-    títulos). Devuelve los renglones ordenados por número."""
+    títulos). A los que quedan sin cantidad les completa cantidad y unidad la tabla de cantidades
+    del mismo número, con la cita de esa fila (`quantity_citation`). Devuelve los renglones
+    ordenados por número."""
     seen, merged = set(), []
     for group in groups:
         for line in group:
             if line["number"] not in seen:
                 seen.add(line["number"])
                 merged.append(line)
+    by_number = {}
+    for row in quantities:
+        by_number.setdefault(row["number"], row)
+    for line in merged:
+        row = by_number.get(line["number"])
+        if line["quantity"] is None and row is not None:
+            line["quantity"], line["unit"] = row["quantity"], row["unit"]
+            line["quantity_citation"] = row["citation"]
     merged.sort(key=lambda item: item["number"])
     return merged
 
@@ -634,8 +693,10 @@ def propose(data, *, use_model=True):
         trace.append(model_trace)
     lines, warnings = ([], [])
     if detect_format(data) == FORMAT_PDF:
-        drawn, warnings = extract_lines(data)
-        lines = merge_lines(layout_lines(reading), drawn, heading_lines(reading))
+        drawn, warnings, drawn_quantities = extract_lines(data)
+        laid_out, laid_quantities = layout_lines(reading)
+        lines = merge_lines(laid_out, drawn, heading_lines(reading),
+                            quantities=[*laid_quantities, *drawn_quantities])
     else:
         lines = merge_lines(heading_lines(reading))
     return Proposal(

@@ -586,3 +586,109 @@ def test_a_failed_draft_can_be_closed_with_reject(operator_user, evaluator_user)
     assert draft.state == ProposalState.FALLIDO
     assert service.reject(evaluator_user, draft.pk, "No se puede leer").state == (
         ProposalState.RECHAZADO)
+
+
+# --- Cantidades de una tabla aparte, título sobre índice, tipo deducido (ronda 2) ------------
+
+
+def titles_and_quantities_pdf(*, index_with_leaders=True):
+    """Un pliego con índice, títulos «N. RENGLÓN N° n - …» en el cuerpo y, aparte, una tabla
+    «RENGLÓN · CANTIDAD · UNIDAD» sin descripciones. Contenido inventado."""
+    dots = " " + "." * 30 + " " if index_with_leaders else " "
+    index = [
+        para("ÍNDICE"),
+        para(f"1. RENGLÓN N° 1 - SILLA SINTÉTICA GIRATORIA{dots}5",
+             f"2. RENGLÓN N° 2 - ESCRITORIO SINTÉTICO{dots}6",
+             f"3. RENGLÓN N° 3 - SERVICIO SINTÉTICO DE ARMADO{dots}7"),
+    ]
+    quantities = [
+        para("PROCESO N°: S0AA000000-0011-LPU26"),
+        para("6. DETALLE DE LOS BIENES A PROVEER"),
+        para("RENGLÓN CANTIDAD UNIDAD DE MEDIDA",
+             "1 12 UNIDAD",
+             "2 1.200 UNIDAD",
+             "3 1 GLOBAL"),
+        para("6.1. Las cotizaciones se realizan en pesos."),
+    ]
+    body = [
+        para("SECCIÓN III - ESPECIFICACIONES TÉCNICAS PARTICULARES"),
+        para("1. RENGLÓN N° 1 - SILLA SINTÉTICA GIRATORIA"),
+        para("2. RENGLÓN N° 2 - ESCRITORIO SINTÉTICO"),
+        para("3. RENGLÓN N° 3 - SERVICIO SINTÉTICO DE ARMADO"),
+    ]
+    return tender_pdf([index, quantities, body])
+
+
+@pytest.mark.parametrize("leaders", [True, False])
+def test_titles_get_their_quantity_from_a_separate_table_and_the_body_beats_the_index(
+        operator_user, fake_generation, leaders):
+    """REQ-077: títulos del cuerpo + tabla de cantidades aparte: cada renglón con su cantidad y
+    unidad por número, con la cita de esa fila; la entrada del índice no es fuente."""
+    draft = upload_and_read(operator_user, titles_and_quantities_pdf(index_with_leaders=leaders))
+    lines = draft.proposal["lines"]
+    assert [(x["number"], x["description"], x["quantity"], x["unit"]) for x in lines] == [
+        (1, "SILLA SINTÉTICA GIRATORIA", "12", "UNIDAD"),
+        (2, "ESCRITORIO SINTÉTICO", "1200", "UNIDAD"),
+        (3, "SERVICIO SINTÉTICO DE ARMADO", "1", "GLOBAL"),
+    ]
+    assert lines[0]["citation"]["text"] == "1. RENGLÓN N° 1 - SILLA SINTÉTICA GIRATORIA"
+    assert lines[1]["quantity_citation"]["text"] == "2 1.200 UNIDAD"
+    assert all(x["quantity_citation"]["page"] == 2 for x in lines)
+
+
+def test_a_quantity_after_the_title_is_taken_for_that_line(operator_user, fake_generation):
+    """REQ-077: «Cantidad: Uno (1) Global» debajo del título es de ese renglón, aunque el
+    renglón también figure antes sin cantidad."""
+    data = tender_pdf([[
+        para("5.1 RENGLÓN N°1: ADECUACIONES SINTÉTICAS"),
+        para("5.2 RENGLÓN N°2: SERVICIO SINTÉTICO"),
+    ], [
+        para("7.1 RENGLÓN N°1: ADECUACIONES SINTÉTICAS.", "Cantidad: Uno (1) Global (Gl)."),
+        para("7.2 RENGLÓN N°2: SERVICIO SINTÉTICO.", "Cantidad: 12 meses."),
+    ]])
+    lines = upload_and_read(operator_user, data).proposal["lines"]
+    assert [(x["number"], x["description"], x["quantity"], x["unit"]) for x in lines] == [
+        (1, "ADECUACIONES SINTÉTICAS", "1", "Global"),
+        (2, "SERVICIO SINTÉTICO", "12", "meses")]
+
+
+def test_the_type_deduced_from_the_number_is_marked_as_deduced(operator_user, fake_generation):
+    """REQ-077: el tipo que sale del código del número queda marcado como deducido; la cita es
+    la línea del número. Lo escrito en el pliego no lleva la marca."""
+    draft = upload_and_read(operator_user, portal_style_pdf())
+    kind = draft.proposal["fields"]["procedure_type"]
+    assert kind["deduced"] == "numero_de_proceso"
+    assert kind["citation"]["text"].startswith("PROCESO N°:")
+    written = upload_and_read(operator_user, case_pdf(), "escrito.pdf")
+    assert written.proposal["fields"]["procedure_type"]["deduced"] == ""
+    assert written.proposal["fields"]["number"]["deduced"] == ""
+
+
+def test_a_line_can_be_corrected_in_quantity_unit_and_description_but_not_added(
+        operator_user, evaluator_user, fake_generation):
+    """REQ-077: si el pliego no deja leer la cantidad, el evaluador la escribe con su motivo;
+    también la unidad y la descripción; no se agregan renglones."""
+    data = tender_pdf([[para("1. RENGLÓN N° 1 - SILLA SINTÉTICA")]])
+    draft = upload_and_read(operator_user, data)
+    assert draft.proposal["lines"][0]["quantity"] is None
+    service.correct(evaluator_user, draft.pk, "line.1.quantity", "30", "Figura en el anexo")
+    service.correct(evaluator_user, draft.pk, "line.1.unit", "UNIDAD", "Figura en el anexo")
+    service.correct(evaluator_user, draft.pk, "line.1.description", "SILLA GIRATORIA", "Completa")
+    with pytest.raises(service.ProposalRefused):
+        service.correct(evaluator_user, draft.pk, "line.2.quantity", "5", "No existe")
+    for field in ("line.1.quantity", "line.1.unit", "line.1.description"):
+        with pytest.raises(service.ReasonRequired):
+            service.correct(evaluator_user, draft.pk, field, "x", "")
+    draft.refresh_from_db()
+    first = draft.proposal["corrections"][0]
+    assert first["proposed"] is None and first["corrected"] == "30" and first["reason"]
+    assert [c["field"] for c in draft.proposal["corrections"]] == [
+        "line.1.quantity", "line.1.unit", "line.1.description"]
+    assert len(draft.proposal["lines"]) == 1
+    cover = ["PROCESO N°: S0AA000000-0012-LPU26", "NOMBRE DEL PROCESO: COMPRA SINTÉTICA",
+             "Se autorizó el llamado el 01/02/2025."]
+    full = tender_pdf([[para(*cover), para("1. RENGLÓN N° 1 - SILLA SINTÉTICA")]])
+    other = upload_and_read(operator_user, full, "completo.pdf")
+    service.correct(evaluator_user, other.pk, "line.1.quantity", "30", "Figura en el anexo")
+    done = approved(evaluator_user, other.pk)
+    assert PortalLine.objects.get(procedure=done.procedure).quantity == Decimal("30")
