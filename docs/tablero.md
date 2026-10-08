@@ -66,7 +66,7 @@ flowchart LR
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
-| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 19/36 | █████░░░░░ 53% |
+| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 20/36 | ██████░░░░ 56% |
 
 <a id="001"></a>
 
@@ -1052,12 +1052,11 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 17 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 16 tareas sin terminar.
 - ▶ T-222 · Pendientes y sugerencias agrupados cuando son muchos: con el procedimiento real la pestaña Evaluación lista 258 pendientes uno por uno (página de 32.000 px); agrupar por tipo con su cuenta y acceso al bloque filtrado, y detallar uno por uno solo cuando son pocos (en curso)
 - ○ T-202 · Sección 3: lista de ofertas con alta a la vista (desde el Portal o subiendo archivos, con nombre y CUIT propuestos para aprobar o corregir) y documentos de cada oferta, subida múltiple (pendiente)
 - ○ T-205 · Sección 3: circulares y aclaraciones (Portal o subidas); una circular modificatoria abre una versión nueva de la matriz con lo cambiado marcado (pendiente)
 - ○ T-206 · Sección 3: reemplazar, retirar y restituir documentos de la oferta, con historial y «retirados» (pendiente)
-- ○ T-211 · Sección 4: dictamen del Portal o subido (sin borrador) (pendiente)
 - ○ T-212 · Sección 4: exportar la planilla por oferta (Excel) y el cuadro comparativo (Excel y PDF); suma la dependencia XlsxWriter (ADR-0050) (pendiente)
 - ○ T-215 · Sección 5: normas que rigen al procedimiento según su fecha de autorización y cuáles faltan cargar (pendiente)
 - ○ T-216 · Sección 5: consulta de normativa con citas literales (pendiente)
@@ -1090,6 +1089,7 @@ flowchart LR
 - ✓ T-208 · Sección 4: preguntas a la Comisión y pedidos de subsanación con su respuesta registrada (`c35a8df` 2026-10-08, `da3b48b` 2026-10-08)
 - ✓ T-209 · Sección 4: informe técnico del área (por procedimiento o por oferta) y ok de la Comisión (absorbe la parte de informe técnico de T-191) (`f26b92d` 2026-10-08, `f1577a1` 2026-10-08, `2f36fad` 2026-10-08)
 - ✓ T-210 · Sección 4: descartes propuestos y orden económico; el evaluador confirma o rechaza cada descarte con quién y cuándo (`61c33f6` 2026-10-08, `5d34c4f` 2026-10-08)
+- ✓ T-211 · Sección 4: dictamen del Portal o subido (sin borrador) (`b8d393f` 2026-10-08, `6b0fc65` 2026-10-08)
 - ✓ T-213 · Propuesta de los datos de una norma desde su archivo y staging de la subida (sin pantalla) (`fc5a81b` 2026-10-08)
 - ✓ T-214 · Sección 5: subir una norma, ver el informe de lectura y validarla desde la pantalla (`4e46b05` 2026-10-08, `80230c0` 2026-10-08)
 - ✓ T-221 · Rendimiento de las pestañas con datos reales: Pliego y matriz, Ofertas y Evaluación cargan en menos de 2 s con el procedimiento real del sistema principal (medido en una base aparte restaurada del respaldo) (`73bfe16` 2026-10-08, `dd680b9` 2026-10-08)
@@ -1117,7 +1117,7 @@ flowchart TD
   T208["✓ T-208 · Sección 4: preguntas a la Comisión y pedido…"]:::done
   T209["✓ T-209 · Sección 4: informe técnico del área (por pr…"]:::done
   T210["✓ T-210 · Sección 4: descartes propuestos y orden eco…"]:::done
-  T211["○ T-211 · Sección 4: dictamen del Portal o subido (si…"]:::todo
+  T211["✓ T-211 · Sección 4: dictamen del Portal o subido (si…"]:::done
   T212["○ T-212 · Sección 4: exportar la planilla por oferta…"]:::todo
   T213["✓ T-213 · Propuesta de los datos de una norma desde s…"]:::done
   T214["✓ T-214 · Sección 5: subir una norma, ver el informe…"]:::done
