@@ -39,7 +39,6 @@ REFRESH_SECONDS = 5
 def _shell(request):
     """Lo que necesita el encabezado y las pestañas cuando todavía no hay procedimiento."""
     latest = Procedure.objects.order_by("-created_at", "-pk")
-    newest = latest.first()
     tabs = [{"label": module.LABEL, "key": module.KEY, "current": module.KEY == "procedimiento",
              "enabled": module.KEY in ("procedimiento", "normativas")} for module in SECTIONS]
     return {
@@ -47,8 +46,8 @@ def _shell(request):
         "procedures": latest[:DROPDOWN_LIMIT],
         "role_label": ROLE_LABELS.get(request.user.commission_role, ""),
         "login_url": reverse("accounts:login"),
-        "normativas_url": (reverse("expedientes:normativas", args=[newest.pk]) if newest
-                           else reverse("queries:screen")),
+        # Sin procedimiento, Normativas es la consulta general, que no depende de ninguno.
+        "normativas_url": reverse("queries:screen"),
     }
 
 
