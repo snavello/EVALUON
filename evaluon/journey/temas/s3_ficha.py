@@ -34,6 +34,7 @@ from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.journey.stages.ofertas import _pending_sheets
 from evaluon.offers.models import (
     Change,
+    Document,
     Fragment,
     Offer,
     Passage,
@@ -109,8 +110,8 @@ def _latest_sheet(offer):
 
 
 def _all_read(offers):
-    documents = [d for o in offers for d in own_documents(o).exclude(kind="informe_tecnico")]
-    return bool(documents) and all(d.readings.exists() for d in documents)
+    documents = Document.objects.filter(offer__in=offers).exclude(kind="informe_tecnico")
+    return documents.exists() and not documents.filter(readings__isnull=True).exists()
 
 
 def status(user, procedure):

@@ -258,9 +258,10 @@ def _record_load_refusal(user, channel, detail, error):
 def load_document(user, offer, *, data, file_name, title="", kind="",
                   channel=Channel.SCREEN):
     """Carga el archivo `data` (sus bytes, con su nombre `file_name`) como documento de
-    `offer` y encola su lectura. Ver el módulo. `kind` lo fija solo quien sube la hoja de
-    compliance (`DocumentKind.COMPLIANCE`, T-189); en los demás casos queda vacío y lo
-    clasifica la lectura.
+    `offer` y encola su lectura. Ver el módulo. `kind` lo fija solo la acción de la Comisión
+    que sube la hoja de compliance (`DocumentKind.COMPLIANCE`, T-189) o un anexo técnico del
+    oferente (`DocumentKind.ANEXO_TECNICO`, T-204); en los demás casos queda vacío y lo
+    clasifica la lectura. El tipo fijado no lo pisa la clasificación por reglas.
 
     Lanza `RoleRejected` sin rol de la Comisión, `DuplicateFile` si el archivo ya está
     cargado en la oferta y `OfferRefused` con un dato que falta o un formato que no se
@@ -314,8 +315,10 @@ def _title_from(file_name):
 # --- Clasificación del tipo de documento ---------------------------------------------------------
 
 # Tipos que fija la acción de la Comisión al subir el documento (hoja de compliance, T-189;
-# informe técnico del área, T-190): la clasificación por reglas no los pisa.
-FIXED_KINDS = (DocumentKind.COMPLIANCE, DocumentKind.INFORME_TECNICO)
+# informe técnico del área, T-190; anexo técnico del oferente, T-204): la clasificación por
+# reglas no los pisa.
+FIXED_KINDS = (DocumentKind.COMPLIANCE, DocumentKind.INFORME_TECNICO,
+               DocumentKind.ANEXO_TECNICO)
 
 # Reglas por palabras del nombre del archivo y del comienzo del texto, en este orden. Solo
 # sirven para clasificar (dato); nunca excluyen un documento de la búsqueda (plan 008).

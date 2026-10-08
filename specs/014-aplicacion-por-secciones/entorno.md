@@ -48,3 +48,25 @@ El contenedor `app` monta `evaluon/`, `tests/`, `scripts/` y `manage.py` desde l
 1. Llevar la raíz al commit del lote 1 (c1d8b87 o el vigente antes de b233a04; cambia el árbol de trabajo: pedir confirmación).
 2. `docker tag evaluon-app:previo-014-lote2 evaluon-app:local` y `docker compose up -d --no-build --force-recreate app worker portal_worker`.
 3. Sin migraciones nuevas: no hace falta restaurar la base; el respaldo queda por si acaso.
+
+# Lote 3 · 2026-10-08
+
+Estado: desplegado (autorizado: «desplega 8000 también es un piloto»). Cumple el umbral de tiempo (< 2 s).
+
+## Qué
+- Raíz en `main` 27e641f (suma T-197 alta subiendo el pliego, T-214 normas, T-221 rendimiento). Imagen `app` reconstruida con `docker compose build app`: `evaluon-app:local` = 1c6460c88b76, coherente con el código. `migrate`: sin migraciones nuevas; `migrate --check` en 0.
+- Antes: cola sin pedidos en curso (70 trabajos `done`, 5 pedidos de evaluación `done`); se pararon `app`, `worker` y `portal_worker`. No se tocó nada más.
+- Etiquetas de imagen: `previo-014-lote1` (4bc7f409df7b) y `previo-014-lote2` (674573a2aeb9) siguen; `lote2-lento` (13c43bf91da8) ya no se usa.
+
+## Respaldo previo
+`backups/evaluon-2026-10-08-previo-014-lote3.dump` (pg_dump -Fc, 126.116.321 bytes, 861 líneas con `pg_restore -l`).
+
+## Humo
+- Sin sesión `/expedientes/` 302 a `/ingresar/?next=/expedientes/`.
+- Con sesión (cliente de pruebas, usuario 3, procedimiento 9): `/expedientes/nuevo/`, `/expedientes/9/`, `procedimiento`, `pliego`, `ofertas`, `evaluacion`, `normativas` dan 200; la barra enlaza procedimiento, pliego, ofertas, evaluación y normativas.
+- Mediana de 5 cargas (umbral < 2 s): procedimiento 0,80 s; pliego 1,11 s (1,08 a 1,19); ofertas 0,78 s (0,75 a 0,83); evaluación 1,33 s (1,28 a 1,45); normativas 0,80 s (0,77 a 0,84). Lote 2 era pliego 3,4 / ofertas 2,7 / evaluación 6,5.
+- Sin errores en los registros de `app`, `worker` y `portal_worker` (5 minutos tras el arranque).
+- No probado: caso de punta a punta con la GPU.
+
+## Volver atrás
+Sin migraciones nuevas: no hace falta restaurar la base. Llevar la raíz al commit del lote anterior (b233a04; pedir confirmación, cambia el árbol de trabajo), `docker tag evaluon-app:previo-014-lote2 evaluon-app:local` y `docker compose up -d --no-build --force-recreate app worker portal_worker`. El respaldo del lote 3 queda por si acaso.
