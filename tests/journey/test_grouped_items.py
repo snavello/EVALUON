@@ -75,3 +75,22 @@ def test_questions_block_filters_to_what_is_open(client, procedure, asked, evalu
     assert 'id="preg-filtro"' in html
     full = client.get(tab(procedure)).content.decode()
     assert "¿La firma es del apoderado?" in full
+
+
+def test_missing_of_the_same_kind_group_when_more_than_three():
+    """REQ-098: más de 3 faltantes del mismo tipo, una línea con la cuenta y la acción."""
+    from evaluon.journey.sections.base import Missing, group_missing
+    one = [Missing(f"Oferta {i}: falta el informe", "/inf", "Subir informe técnico",
+                   kind="inf", noun="ofertas sin informe técnico") for i in range(6)]
+    assert group_missing(one[:3]) == one[:3]
+    assert group_missing(one) == [Missing("6 ofertas sin informe técnico", "/inf",
+                                          "Subir informe técnico")]
+
+
+def test_technical_report_pending_group_above_three():
+    """REQ-098: los pendientes del informe técnico se agrupan con más de 3."""
+    many = [Item(f"Oferta {i}: falta subir el informe técnico", "/i", 1, "Resolver",
+                 kind="informe_falta", noun="ofertas sin informe técnico", group_url="/inf",
+                 group_action="Subir", limit=3) for i in range(4)]
+    assert [i.text for i in group_items(many)] == ["4 ofertas sin informe técnico"]
+    assert group_items(many[:3]) == many[:3]

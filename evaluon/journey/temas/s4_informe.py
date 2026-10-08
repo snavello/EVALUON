@@ -116,17 +116,18 @@ def status(user, procedure):
     for offer in _pending_ok_offers(page):
         if technical_report.reports_of(offer):
             pending.append(Item(f"Oferta {offer.number}: falta el ok del informe técnico",
-                                f"{base}{ANCHOR}", 1, "Resolver", kind="informe_ok",
+                                f"{base}{ANCHOR}", 1, "Resolver", kind="informe_ok", limit=3,
                                 noun="ofertas sin el ok del informe técnico",
                                 group_url=f"{base}{ANCHOR}"))
         else:  # sin informe, lo primero es subirlo: va al formulario de esa oferta
             pending.append(Item(f"Oferta {offer.number}: falta subir el informe técnico",
                                 f"{base}#informe-oferta-{offer.number}", 1, "Resolver",
-                                kind="informe_falta", noun="ofertas sin informe técnico",
+                                kind="informe_falta", limit=3, noun="ofertas sin informe técnico",
                                 group_url=f"{base}{ANCHOR}", group_action="Subir"))
     missing = tuple(
         Missing(f"Oferta {s.offer.number}: falta el informe técnico del área",
-                f"{base}{ANCHOR}", "Subir informe técnico")
+                f"{base}{ANCHOR}", "Subir informe técnico", kind="informe_falta",
+        noun="ofertas sin informe técnico del área")
         for s in with_rows if not s.reports)
     sources = []
     uploaded = [d for s in with_rows for d in s.reports]
