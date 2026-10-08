@@ -1,1 +1,41 @@
-{% comment %}Parcial del tema s1_pliego (Alta del procedimiento desde el pliego subido). Vacío en el corte vertical; lo completa T-197.{% endcomment %}
+{% comment %}Parcial del tema s1_pliego (T-197, REQ-077, REQ-097): en el alta (`t.procedure` falso) es la entrada «Subir el pliego» —un archivo, nada se tipea— con los pliegos que esperan; en la sección 1 de un procedimiento, de dónde vino (el pliego, quién lo subió y lo aprobó, lo corregido con su motivo) y el acceso al alta. Recibe `t` (ver evaluon/journey/temas/s1_pliego.py).{% endcomment %}
+{% if not t.procedure %}
+{% if t.messages %}
+<div class="aviso aviso-ok" id="pliego-resultado" role="status">
+  <ul class="resultado-subida">{% for m in t.messages %}<li class="{% if m.ok %}ok{% else %}rechazado{% endif %}">{{ m.text }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+<form method="post" action="{{ t.upload_url }}" enctype="multipart/form-data">
+  {% csrf_token %}
+  <div class="campo"><label for="in-pliego">Archivo del pliego (PDF o página web guardada)</label><input id="in-pliego" type="file" name="file" accept=".pdf,.html,.htm,application/pdf,text/html" required></div>
+  <div class="bloque-pie"><button class="btn primario" type="submit">Subir y leer el pliego</button></div>
+</form>
+{% if t.waiting %}
+<div class="pliego-espera" id="pliegos-en-espera">
+  <p class="ayuda">Pliegos subidos que esperan su aprobación:</p>
+  <ul>{% for d in t.waiting %}<li><a href="{{ d.url }}">{{ d.file_name }}</a> <span class="suave chica">{{ d.state }} · subido por {{ d.by }} · {{ d.at }}</span></li>{% endfor %}</ul>
+</div>
+{% endif %}
+{% else %}
+<div class="bloque" id="s1-pliego">
+  <div class="bloque-cab"><h3>Alta desde el pliego</h3>
+    {% if t.upload %}<span class="barra-cargas"><a class="btn secundario chico" href="{{ t.new_url }}">Subir el pliego</a></span>{% endif %}</div>
+  {% if t.origin %}
+  {% with o=t.origin %}
+  <p class="resumen-linea">Se creó desde el pliego subido <b>{{ o.file_name }}</b> · subido por {{ o.by }} el {{ o.at }}{% if o.approved_by %} · aprobado por {{ o.approved_by }} el {{ o.approved_at }}{% endif %}.{% if o.lines is not None %} Se cargaron {{ o.lines }} renglones{% if o.discarded %} (se descartaron los renglones {{ o.discarded|join:", " }}){% endif %}.{% endif %}</p>
+  {% if o.changes %}
+  <p class="ayuda">Lo que la Comisión corrigió de lo que leyó el sistema:</p>
+  <ul class="corregido">{% for c in o.changes %}<li><b>{{ c.label }}</b>: {% if c.previous %}de «{{ c.previous }}» a {% endif %}«{{ c.corrected }}». Motivo: {{ c.reason }} · {{ c.by }} · {{ c.at }}</li>{% endfor %}</ul>
+  {% else %}<p class="ayuda">La Comisión aprobó lo que leyó el sistema, sin correcciones.</p>{% endif %}
+  {% endwith %}
+  {% else %}
+  <p class="ayuda">Este procedimiento no se dio de alta subiendo un pliego. Para dar de alta otro procedimiento que no está en el Portal, suba su pliego.</p>
+  {% endif %}
+  {% if t.waiting %}
+  <div class="pliego-espera" id="pliegos-en-espera">
+    <p class="ayuda">Pliegos subidos que esperan su aprobación:</p>
+    <ul>{% for d in t.waiting %}<li><a href="{{ d.url }}">{{ d.file_name }}</a> <span class="suave chica">{{ d.state }} · subido por {{ d.by }} · {{ d.at }}</span></li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
