@@ -45,6 +45,15 @@ def _sha256(field, name):
     )
 
 
+def _exactly_one_origin(name):
+    """El dato viene del ítem del Portal o del documento subido, y de uno solo."""
+    return models.CheckConstraint(
+        condition=(Q(item__isnull=False) & Q(document__isnull=True))
+        | (Q(item__isnull=True) & Q(document__isnull=False)),
+        name=name,
+    )
+
+
 class PageKind(models.TextChoices):
     PROCESO = "proceso", "Página del proceso"
     ACTA = "acta", "Acta de apertura"
@@ -251,15 +260,22 @@ class PortalProcedureData(models.Model):
     legal_framework = models.CharField("encuadre legal", max_length=500, blank=True)
     schedule = models.JSONField("cronograma", default=list)
     guarantees = models.JSONField("garantías", default=list)
+    # Origen: el ítem del Portal o el documento del pliego subido, exactamente uno
+    # (feature 014, ADR-0049; restricción `portal_procedure_data_exactly_one_origin`).
     item = models.ForeignKey(
         PortalItem, verbose_name="ítem de origen", on_delete=models.PROTECT,
-        related_name="procedure_data",
+        null=True, blank=True, related_name="procedure_data",
+    )
+    document = models.ForeignKey(
+        "tenders.Document", verbose_name="documento de origen", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="portal_procedure_data",
     )
 
     class Meta:
         db_table = "portal_procedure_data"
         verbose_name = "datos del procedimiento del Portal"
         verbose_name_plural = "datos del procedimiento del Portal"
+        constraints = [_exactly_one_origin("portal_procedure_data_exactly_one_origin")]
 
 
 class PortalLine(models.Model):
@@ -275,9 +291,14 @@ class PortalLine(models.Model):
         "cantidad", max_digits=18, decimal_places=4, null=True, blank=True
     )
     unit = models.CharField("unidad", max_length=100, blank=True)
+    # Origen: el ítem del Portal o el documento del pliego subido, exactamente uno.
     item = models.ForeignKey(
         PortalItem, verbose_name="ítem de origen", on_delete=models.PROTECT,
-        related_name="lines",
+        null=True, blank=True, related_name="lines",
+    )
+    document = models.ForeignKey(
+        "tenders.Document", verbose_name="documento de origen", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="portal_lines",
     )
 
     class Meta:
@@ -289,6 +310,7 @@ class PortalLine(models.Model):
             models.UniqueConstraint(
                 fields=["procedure", "number"], name="portal_line_number_unique"
             ),
+            _exactly_one_origin("portal_line_exactly_one_origin"),
         ]
 
 
@@ -305,15 +327,22 @@ class PortalOfferData(models.Model):
     total = models.DecimalField(
         "total", max_digits=20, decimal_places=2, null=True, blank=True
     )
+    # Origen: el ítem del acta o el documento de la oferta del que salió el CUIT, exactamente
+    # uno (feature 014, REQ-083).
     item = models.ForeignKey(
         PortalItem, verbose_name="ítem de origen", on_delete=models.PROTECT,
-        related_name="offer_data",
+        null=True, blank=True, related_name="offer_data",
+    )
+    document = models.ForeignKey(
+        "offers.Document", verbose_name="documento de origen", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="portal_offer_data",
     )
 
     class Meta:
         db_table = "portal_offer_data"
         verbose_name = "datos de la oferta del Portal"
         verbose_name_plural = "datos de la oferta del Portal"
+        constraints = [_exactly_one_origin("portal_offer_data_exactly_one_origin")]
 
 
 class PortalGuarantee(models.Model):

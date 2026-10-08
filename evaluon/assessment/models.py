@@ -621,3 +621,53 @@ class TechnicalOk(models.Model):
                 name="assessment_technical_ok_note_required",
             ),
         ]
+
+
+# --- Decisión de la Comisión sobre un descarte (feature 014; REQ-091) -------------------------
+
+
+class DiscardAction(models.TextChoices):
+    CONFIRMAR = "confirmar", "Confirmar el descarte"
+    RECHAZAR = "rechazar", "Rechazar el descarte"
+
+
+class DiscardDecision(models.Model):
+    """Lo que la Comisión decide sobre un descarte propuesto, de una oferta entera (`line`
+    nulo) o de un renglón. No se modifica. El estado del descarte es la última decisión sobre
+    la evaluación vigente (`request`): si se evalúa de nuevo, vuelve a quedar sin decidir.
+    `line` es el número del renglón, no una clave: los renglones pueden venir del Portal o del
+    pliego."""
+
+    procedure = models.ForeignKey(
+        Procedure, verbose_name="procedimiento", on_delete=models.PROTECT,
+        related_name="assessment_discard_decisions",
+    )
+    offer = models.ForeignKey(
+        Offer, verbose_name="oferta", on_delete=models.PROTECT,
+        related_name="assessment_discard_decisions",
+    )
+    line = models.PositiveIntegerField("renglón", null=True, blank=True)
+    request = models.ForeignKey(
+        Request, verbose_name="pedido de evaluación", on_delete=models.PROTECT,
+        related_name="discard_decisions",
+    )
+    action = models.CharField("acción", max_length=10, choices=DiscardAction.choices)
+    note = models.TextField("nota", blank=True)
+    user = _user_fk("usuario", "assessment_discard_decisions")
+    at = models.DateTimeField("momento", default=timezone.now)
+    event = models.ForeignKey(
+        "audit.AuditEvent", verbose_name="hecho registrado", on_delete=models.PROTECT,
+        related_name="assessment_discard_decisions",
+    )
+
+    class Meta:
+        db_table = "assessment_discard_decision"
+        verbose_name = "decisión sobre un descarte"
+        verbose_name_plural = "decisiones sobre los descartes"
+        indexes = [
+            models.Index(fields=["request", "offer", "line"],
+                         name="assessment_discard_pair"),
+        ]
+        constraints = [
+            _valid("action", DiscardAction, "assessment_discard_decision_action_valid"),
+        ]

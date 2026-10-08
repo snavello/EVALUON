@@ -55,6 +55,13 @@ class EventType(models.TextChoices):
     EVAL_BUILD = "eval_build", "Evaluación de una oferta"
     EVAL_DECISION = "eval_decision", "Decisión sobre un resultado de la evaluación"
     EVAL_ANSWER = "eval_answer", "Respuesta de la Comisión"
+    # Feature 014 (plan 014, "Registro de auditoría").
+    DOCUMENT_CHANGE = "document_change", "Reemplazo, retiro o restitución de un documento"
+    PROCEDURE_PROPOSAL = "procedure_proposal", "Propuesta de procedimiento desde el pliego"
+    OFFER_PROPOSAL = "offer_proposal", "Propuesta de oferta desde sus archivos"
+    DISCARD_DECISION = "discard_decision", "Decisión sobre un descarte"
+    NORM_UPLOAD = "norm_upload", "Norma subida"
+    EVAL_EXPORT = "eval_export", "Exportación de la evaluación"
 
 
 class Outcome(models.TextChoices):

@@ -17,7 +17,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
 | T-192 | Corte vertical: esqueleto de las cinco secciones (barra, portada con pendientes y sugerencias separados, jerarquía común, guía visual) y sección 2 con la matriz de cumplimiento en tabla agrupada, filtros, filas con cita y lista de versiones, con el caso chico | REQ-075, REQ-081, REQ-082, REQ-097, REQ-098, REQ-100 | — | terminada |
-| T-193 | Esquema de la feature (una sola tarea): cambios de historial de documentos, tipos nuevos, borrador de procedimiento y de oferta, pedidos nuevos, renglones y CUIT con documento de origen, decisión de descartes, subida de normas y hechos de auditoría | REQ-077, REQ-083, REQ-087, REQ-091, REQ-092, REQ-094, REQ-099 | — | en curso |
+| T-193 | Esquema de la feature (una sola tarea): cambios de historial de documentos, tipos nuevos, borrador de procedimiento y de oferta, pedidos nuevos, renglones y CUIT con documento de origen, decisión de descartes, subida de normas y hechos de auditoría | REQ-077, REQ-083, REQ-087, REQ-091, REQ-092, REQ-094, REQ-099 | — | terminada |
 | T-194 | Sección 1: datos del procedimiento con origen de cada dato, régimen por fecha de autorización, renglones, apertura, garantías y ofertas del Portal | REQ-078, REQ-097 | T-192 | pendiente |
 | T-195 | Sección 1: explorador y cargador del Portal (pegar enlace, propuesta agrupada, aprobar ítem por ítem o todo) y novedades de la revisión periódica | REQ-076, REQ-079, REQ-097 | T-194 | pendiente |
 | T-196 | Propuesta de datos y renglones desde el pliego subido: servicio, pedido en segundo plano, citas y aprobación que crea el procedimiento (sin pantalla) | REQ-077 | T-193 | pendiente |
