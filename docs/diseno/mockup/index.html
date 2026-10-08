@@ -264,7 +264,7 @@
   nav.tabs a, nav.tabs .off { display: block; padding: 9px 6px 7px; text-align: center; text-decoration: none; color: var(--ev-texto-suave); border-bottom: 3px solid transparent; position: relative; }
   nav.tabs a:hover { background: var(--ev-azul-50); color: var(--ev-texto); }
   nav.tabs a[aria-current=page] { color: var(--ev-texto); background: var(--ev-azul-50); border-bottom-color: var(--ev-azul-700); }
-  nav.tabs .t-nombre { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; font-size: var(--ev-t-sm); white-space: nowrap; }
+  nav.tabs .t-nombre { display: inline-flex; gap: 6px; align-items: center; justify-content: center; font-weight: 600; font-size: var(--ev-t-sm); white-space: normal; text-wrap: balance; line-height: 1.2; }
   nav.tabs .t-pie { display: block; font-size: var(--ev-t-2xs); color: var(--ev-texto-suave); white-space: nowrap; margin-top: 1px; }
   nav.tabs .t-pie b { color: var(--ev-texto); font-family: var(--ev-fuente-num); }
   nav.tabs .off { opacity: .5; cursor: not-allowed; }
@@ -283,6 +283,16 @@
     header.top .sel-proc { flex-basis: 22rem; }
     header.top .chip-proceso .mp-txt { display: none; }
     nav.tabs .t-nombre { font-size: var(--ev-t-xs); gap: 4px; }
+
+  }
+  @media (max-width: 900px) {
+    nav.tabs .t-nombre { flex-direction: column; gap: 2px; }
+    nav.tabs a, nav.tabs .off { padding-inline: 2px; }
+    header.top .sel-proc { flex: 1 1 12rem; min-width: 11rem; }
+    header.top .sel-user .btn-menu small, header.top .sel-user small { display: none; }
+    header.top .sel-user { flex: none; }
+    header.top .chip-proceso { display: none; }
+    header.top .wrap { flex-wrap: wrap; row-gap: 8px; padding-block: 8px; }
   }
 </style>
 </head>
