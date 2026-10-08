@@ -401,15 +401,35 @@ def test_the_pending_match_the_bar_one_by_one_or_grouped(
     html = page(client, procedure)
     panel = re.search(r'<section class="panel" id="pendientes".*?</section>', html, re.S).group(0)
     assert f'<span class="cta">{stage.pending}</span>' in panel
-    if len(section.pending_items) == stage.pending:
-        assert panel.count("Resolver") == stage.pending
-        for item in section.pending_items:
-            anchor = item.url.split("#")[1]
-            assert f'id="{anchor}"' in html and f'href="{item.url}"' in panel
-            assert item.action == "Resolver"
-    else:
-        assert [i.text for i in section.pending_items] == [f"{stage.pending} pares por decidir"]
-        assert 'href="' + section.pending_items[0].url + '"' in panel
+    # Con 9 pares (más de 8) el panel los agrupa en una sola línea con su cuenta y el filtro.
+    assert stage.pending == 9
+    assert [i.text for i in section.pending_items] == ["9 pares por decidir"]
+    assert section.pending_items[0].url.endswith("?ver=sin-decidir#s4-propuesta")
+    assert 'href="' + section.pending_items[0].url + '"' in panel
+    # El filtro muestra exactamente los pares contados.
+    body = page(client, procedure, "?ver=sin-decidir")
+    body = body[body.index("<tbody>"):body.index("</tbody>")]
+    assert body.count("<small>") == stage.pending
+
+
+def test_few_pending_are_listed_one_by_one(client, evaluated, procedure, operator_user,
+                                           monkeypatch):
+    """REQ-098: con 8 o menos del mismo tipo, cada par por decidir va con su «Resolver» al
+    ancla de su fila."""
+    import functools
+
+    from evaluon.journey.sections import base
+    monkeypatch.setattr(base, "group_items",
+                        functools.partial(base.group_items, limit=10_000))
+    log_in(client, operator_user)
+    section = sections_for(operator_user, procedure).get("evaluacion")
+    html = page(client, procedure)
+    panel = re.search(r'<section class="panel" id="pendientes".*?</section>', html, re.S).group(0)
+    assert len(section.pending_items) == section.pending == 9
+    assert panel.count("Resolver") == 9
+    for item in section.pending_items:
+        anchor = item.url.split("#")[1]
+        assert f'id="{anchor}"' in html and f'href="{item.url}"' in panel
     sugg = re.search(r'<section class="panel" id="sugerencias".*?</section>', html, re.S).group(0)
     assert "Descarte propuesto: oferta" in sugg
     # La barra de pestañas muestra las mismas cuentas.

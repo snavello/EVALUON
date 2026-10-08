@@ -197,7 +197,8 @@ def status(user, procedure):
     missing = tuple(
         Missing(f"Modificatoria sin cargar: {entry.norm_type} {entry.number}/{entry.year} "
                 f"({entry.issuer}), de {entry.target_norm.citation or entry.target_norm.title}",
-                f"{url}#s5-subir", "Subir norma")
+                f"{url}#s5-subir", "Subir norma", kind="modificatoria",
+                noun="modificatorias sin cargar")
         for entry in PendingAmendment.objects.filter(loaded_norm__isnull=True)
         .select_related("target_norm").order_by("pk"))
     return TemaStatus(pending=len(items), pending_items=tuple(items), missing=missing)

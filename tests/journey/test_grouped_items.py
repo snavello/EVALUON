@@ -94,3 +94,34 @@ def test_technical_report_pending_group_above_three():
                  group_action="Subir", limit=3) for i in range(4)]
     assert [i.text for i in group_items(many)] == ["4 ofertas sin informe técnico"]
     assert group_items(many[:3]) == many[:3]
+
+
+def test_grouped_count_is_the_sum_of_count_not_the_number_of_lines():
+    """REQ-098: «N ofertas…» cuenta renglones; la cuenta de la sección es la suma de `count`."""
+    items = [Item(f"Oferta {i}: {i + 2} filas", "/o", i + 2, "Resolver", kind="ficha",
+                  noun="ofertas con filas por confirmar", group_url="/f") for i in range(9)]
+    (line,) = group_items(items)
+    assert line.text == "9 ofertas con filas por confirmar"
+    assert line.count == sum(i + 2 for i in range(9)) != 9
+
+
+def test_pairs_filter_shows_exactly_the_counted_pairs(client, procedure, evaluated,
+                                                      evaluator_user):
+    """REQ-098: `?ver=sin-decidir` muestra los pares del panel; `?ver=abiertas` sigue aparte."""
+    log_in(client, evaluator_user)
+    stage_pending = sections_for(evaluator_user, procedure).get("evaluacion")
+    counted = sum(i.count for i in stage_pending.pending_items if "ev-" in (i.url or "")
+                  or "ver=sin-decidir" in (i.url or ""))
+    html = client.get(tab(procedure) + "?ver=sin-decidir").content.decode()
+    body = html[html.index("<tbody>"):html.index("</tbody>")]
+    assert body.count("<small>") == counted > 0
+    assert "Solo los pares por decidir" in html
+
+
+def test_questions_filter_shows_only_the_counted_ones(client, procedure, asked, evaluator_user):
+    """REQ-098: el filtro deja las preguntas abiertas que cuenta el panel, sin subsanaciones."""
+    log_in(client, evaluator_user)
+    full = client.get(tab(procedure)).content.decode()
+    filtered = client.get(tab(procedure) + "?preg=abiertas").content.decode()
+    assert "Subsanación:" in full and "Subsanación:" not in filtered
+    assert filtered.count("Pregunta: ") == 1

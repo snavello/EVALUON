@@ -187,7 +187,12 @@ def context(user, procedure, request):
     to_decide = sum(1 for line in lines if line.icon == "nodet")
     only_open = request is not None and request.GET.get("preg") == "abiertas"
     if only_open:  # filtro simple por dirección: solo lo que espera una respuesta o decisión
-        lines = [line for line in lines if line.icon == "nodet"]
+        # exactamente las que cuenta el panel: abiertas de la matriz vigente, sin subsanaciones
+        counted = {q.pk for status in memo.matrix_page(
+            user, procedure.pk, channel=Channel.SCREEN).statuses
+            for q in status.open_questions}
+        lines = [line for line in lines
+                 if line.kind == "pregunta" and line.question_id in counted]
     return {
         "only_open": only_open,
         "pid": procedure.pk, "lines": lines, "to_decide": to_decide,
