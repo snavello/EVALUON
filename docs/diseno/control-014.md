@@ -1,5 +1,7 @@
 # Control de la maqueta de la spec 014
 
+Estado: aprobada por el responsable del proyecto el 2026-10-07 21:20 («ok avanza»).
+
 Maqueta: `docs/diseno/mockup/index.html` (abrir en el navegador; abre en el ingreso y entra directo a la pestaña «Procedimiento»). Spec: `specs/014-aplicacion-por-secciones/spec.md`. Datos inventados. Es la aplicación tal como la ve el evaluador: encabezado con el procedimiento actual (desplegable para cambiar de procedimiento o crear uno nuevo) y el usuario, y debajo una sola fila de cinco pestañas siempre visibles: «Procedimiento», «Pliego y matriz», «Ofertas», «Evaluación y dictamen» y «Normativas». Para probar los roles, el desplegable del usuario ofrece «Cambiar a operador (demo)» y «Cambiar a lectura (demo)».
 
 Cómo leer la tabla: «Pestaña › bloque» dice dónde está; «Qué se ve» dice dónde mirar sin abrir nada; «Cómo comprobarlo» es una secuencia de clics desde el ingreso. Las pantallas de detalle (oferta, ficha, historial, detalle de un par, informe de lectura de una norma, propuesta del Portal o del pliego) se abren dentro de su pestaña, con «← Volver a …» arriba.
