@@ -1,0 +1,134 @@
+{% extends "journey/seccion_base.html" %}
+{% load static %}
+
+{% comment %}Pantalla de un pliego subido para el alta (T-197, REQ-077): el avance de la lectura en vivo y, al terminar, lo que el sistema leyó —datos y renglones con dónde lo leyó— que un evaluador aprueba o corrige escribiendo el valor y el motivo. No hay alta en blanco: sin propuesta no hay nada que escribir. Ver evaluon/journey/temas/s1_pliego.py.{% endcomment %}
+
+{% block title %}Nuevo procedimiento · pliego · EVALUON{% endblock %}
+
+{% block head %}{{ block.super }}{% if refresh %}<meta http-equiv="refresh" content="{{ refresh }}">{% endif %}{% endblock %}
+
+{% block section_css %}<link rel="stylesheet" href="{% static 'journey/s1.css' %}"><link rel="stylesheet" href="{% static 'journey/s1_pliego.css' %}">{% endblock %}
+
+{% block cuerpo %}
+{% with d=v %}
+<div class="seccion seccion-procedimiento seccion-nuevo pliego-propuesta" id="s1-pliego-propuesta">
+  <h1>Nuevo procedimiento</h1>
+  <p class="volver"><a href="{{ back_url }}">Volver a las dos entradas</a></p>
+
+  {% if messages %}
+  <div class="aviso aviso-ok" id="s1-resultado" role="status">
+    <ul class="resultado-subida">{% for m in messages %}<li class="{% if m.ok %}ok{% else %}rechazado{% endif %}">{{ m.text }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  {% if d.reading %}
+  <p class="resumen-linea">Pliego <b>{{ d.file_name }}</b> · subido por {{ d.uploaded_by }} el {{ d.uploaded_at }}.</p>
+  <div class="aviso" role="status" id="lectura-en-curso"><strong>{{ d.job_text|default:"Leyendo el pliego" }}</strong> Esta pantalla se actualiza sola; lo que el sistema encuentre aparece acá, sin cargarse hasta que un evaluador lo apruebe.{% if d.job_at %} <span class="suave chica">Desde {{ d.job_at }}.</span>{% endif %}{% if d.job_step %}<br>Ahora: {{ d.job_step }}{% endif %}</div>
+
+  {% elif d.failed %}
+  <p class="resumen-linea">Pliego <b>{{ d.file_name }}</b> · subido por {{ d.uploaded_by }} el {{ d.uploaded_at }}.</p>
+  <div class="aviso aviso-error" role="alert"><strong>No se pudo leer el pliego</strong> Motivo: {{ d.failure }}. Descarte esta lectura y vuelva a subir el archivo, o suba otro.</div>
+  <div class="fila acciones-portal">
+    {% if d.can_decide %}{% include "journey/temas/_s1_pliego_rechazar.html" %}{% else %}<span class="suave chica">La descarta un evaluador</span>{% endif %}
+    <a class="btn secundario" href="{{ back_url }}">Volver</a>
+  </div>
+
+  {% elif d.rejected %}
+  <div class="aviso" role="status"><strong>Se descartó la lectura de {{ d.file_name }}</strong>{% if d.rejection %} {{ d.rejection.by }} el {{ d.rejection.at }}. Motivo: {{ d.rejection.reason }}.{% endif %} El mismo archivo se puede volver a subir.</div>
+  <div class="fila acciones-portal"><a class="btn primario" href="{{ new_url }}">Subir el pliego</a></div>
+
+  {% elif d.proposed %}
+  <div class="encab-parte"><h2>Lo que el sistema leyó del pliego</h2>
+    <span class="barra-cargas"><a class="btn secundario chico" href="{{ new_url }}">Subir otro pliego</a></span></div>
+  <p class="resumen-linea">Se leyó <b>{{ d.file_name }}</b> · subido por {{ d.uploaded_by }} el {{ d.uploaded_at }}. El sistema propone <b>{{ d.data_found }}</b> de {{ d.data|length }} datos y <b>{{ d.lines|length }}</b> renglones. No se tipea nada: apruebe lo propuesto o, si un valor está mal o falta, use «Corregir» y escriba el valor y el motivo.</p>
+  {% if d.warnings %}<div class="aviso" role="status"><strong>Avisos de la lectura</strong><ul>{% for w in d.warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>{% endif %}
+
+  <div class="bloque" id="s1-pliego-datos">
+    <div class="bloque-cab"><h3>Datos propuestos <span class="cta">{{ d.data_found }}</span></h3></div>
+    <div class="tabla-scroll"><table class="matriz lectura">
+      <caption class="sr-only">Datos del procedimiento que el sistema leyó del pliego</caption>
+      <thead><tr><th scope="col">Dato</th><th scope="col">Propuesto</th><th scope="col">Dónde lo leyó</th><th scope="col">Aprobación</th></tr></thead>
+      <tbody>
+        {% for r in d.data %}
+        <tr id="dato-{{ r.name }}">
+          <th scope="row">{{ r.label }}{% if r.required %} <span class="suave chica">(obligatorio)</span>{% endif %}</th>
+          <td>{% if r.value %}<span class="{% if r.name == 'number' or r.is_date %}num{% endif %}">{{ r.value }}</span>{% if r.regimes %} <span class="suave chica">→ régimen {{ r.regimes|join:", " }}</span>{% endif %}{% if r.deduced %}<span class="cita">Tipo deducido del número de proceso</span>{% endif %}{% if r.others %}<span class="cita">También encontró: {{ r.others|join:" · " }}</span>{% endif %}
+            {% else %}<span class="no-determinado">No determinado</span><span class="cita">El sistema no encontró este dato en el pliego.</span>{% endif %}</td>
+          <td class="origen">{% if r.where %}{{ r.where }}{% if r.quote %}<span class="cita">«{{ r.quote }}»</span>{% endif %}{% else %}<span class="suave">Sin cita en el pliego</span>{% endif %}</td>
+          <td>{% include "journey/_icono.html" with icon=r.icon name=r.icon_name %} <span class="chica">{% if r.state == "corregido" %}Corregido{% elif r.state == "propuesto" %}Se aprueba con todo{% else %}Falta completarlo{% endif %}</span>
+            {% if r.changes %}<ul class="corregido">{% for c in r.changes %}<li>{% if c.previous %}De «{{ c.previous }}» a {% endif %}«{{ c.corrected }}». Motivo: {{ c.reason }} · {{ c.by }} · {{ c.at }}</li>{% endfor %}</ul>{% endif %}
+            {% if d.can_decide %}
+            <details class="acc"><summary class="btn secundario chico">Corregir</summary>
+              <form method="post" action="{{ urls.corregir }}">{% csrf_token %}
+                <input type="hidden" name="field" value="{{ r.name }}">
+                <label for="valor-{{ r.name }}">Escribe el valor de «{{ r.label|lower }}»</label>
+                <input id="valor-{{ r.name }}" name="value" type="{% if r.is_date %}date{% else %}text{% endif %}" value="{{ r.raw }}" required>
+                <label for="motivo-{{ r.name }}">Motivo (obligatorio)</label>
+                <textarea id="motivo-{{ r.name }}" name="reason" rows="2" required></textarea>
+                <button class="btn primario chico" type="submit">Guardar la corrección</button>
+              </form></details>
+            {% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="bloque" id="s1-pliego-renglones">
+    <div class="bloque-cab"><h3>Renglones propuestos <span class="cta">{{ d.lines|length }}</span></h3><span class="linea-portal">No se agregan renglones: solo se corrigen o se descartan los leídos</span></div>
+    {% if d.lines %}
+    <div class="tabla-scroll"><table class="matriz lectura">
+      <caption class="sr-only">Renglones que el sistema leyó del pliego</caption>
+      <thead><tr><th scope="col" class="n">Renglón</th><th scope="col">Descripción</th><th scope="col" class="n">Cantidad</th><th scope="col">Dónde lo leyó</th><th scope="col">Aprobación</th></tr></thead>
+      <tbody>
+        {% for r in d.lines %}
+        <tr id="renglon-{{ r.number }}">
+          <td class="n">{{ r.number }}</td>
+          <td>{% if r.description %}{{ r.description }}{% else %}<span class="no-determinado">No determinado</span>{% endif %}</td>
+          <td class="n">{% if r.quantity %}{{ r.quantity }}{% else %}<span class="suave">No consta</span>{% endif %}</td>
+          <td class="origen">{% if r.where %}{{ r.where }}{% if r.quote %}<span class="cita">«{{ r.quote }}»</span>{% endif %}{% else %}<span class="suave">Sin cita en el pliego</span>{% endif %}</td>
+          <td>{% if r.corrected %}{% include "journey/_icono.html" with icon="cumple" name="Corregido por la Comisión" %} <span class="chica">Corregido</span>{% elif r.no_quantity or not r.description %}{% include "journey/_icono.html" with icon="nodet" name="Falta un dato del renglón: complételo con Corregir" %} <span class="chica">Falta completarlo</span>{% else %}{% include "journey/_icono.html" with icon="pend" name="Propuesto: se aprueba con todo lo propuesto" %} <span class="chica">Se aprueba con todo</span>{% endif %}
+            {% if r.changes %}<ul class="corregido">{% for c in r.changes %}<li>{{ c.label }}: {% if c.previous %}de «{{ c.previous }}» a {% endif %}«{{ c.corrected }}». Motivo: {{ c.reason }} · {{ c.by }} · {{ c.at }}</li>{% endfor %}</ul>{% endif %}
+            {% if d.can_decide %}
+            <label class="descartar"><input type="checkbox" name="descartar" value="{{ r.number }}" form="aprobar-pliego"> Descartar este renglón</label>
+            <details class="acc"><summary class="btn secundario chico">Corregir</summary>
+              <form method="post" action="{{ urls.corregir }}">{% csrf_token %}
+                <label for="campo-{{ r.number }}">Qué corregir</label>
+                <select id="campo-{{ r.number }}" name="field">
+                  <option value="line.{{ r.number }}.description">Descripción</option>
+                  <option value="line.{{ r.number }}.quantity"{% if r.no_quantity %} selected{% endif %}>Cantidad</option>
+                  <option value="line.{{ r.number }}.unit">Unidad</option>
+                </select>
+                <label for="valor-r{{ r.number }}">Escribe el valor</label>
+                <input id="valor-r{{ r.number }}" name="value" type="text" required>
+                <label for="motivo-r{{ r.number }}">Motivo (obligatorio)</label>
+                <textarea id="motivo-r{{ r.number }}" name="reason" rows="2" required></textarea>
+                <button class="btn primario chico" type="submit">Guardar la corrección</button>
+              </form></details>
+            {% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="suave">El sistema no encontró renglones en el pliego.</p>{% endif %}
+  </div>
+
+  <div class="bloque">
+    <div class="pie-propuesta">
+      {% if d.can_decide %}
+      <form id="aprobar-pliego" method="post" action="{{ urls.aprobar }}">{% csrf_token %}
+        <button class="btn primario" type="submit"{% if d.missing %} disabled aria-describedby="falta-completar"{% endif %}>Aprobar todo lo propuesto</button>
+        {% if d.missing %}<p class="ayuda" id="falta-completar">Falta {{ d.missing|join:", "|lower }}: no está determinado en el pliego. Complételo con «Corregir» y su motivo para poder aprobar.</p>
+        {% else %}<p class="ayuda">Se crea el procedimiento con lo propuesto y corregido, menos los renglones que descarte. El pliego queda en «Pliego y matriz».</p>{% endif %}
+      </form>
+      {% include "journey/temas/_s1_pliego_rechazar.html" %}
+      {% else %}
+      <span class="suave chica">Lo aprueba un evaluador. Usted puede ver lo que el sistema leyó y de dónde.</span>
+      {% endif %}
+      <a class="btn secundario" href="{{ back_url }}">Volver</a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endwith %}
+{% endblock %}
