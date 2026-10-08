@@ -412,3 +412,42 @@ def test_the_finished_notice_of_a_reading_does_not_break_the_next_page(client, o
     html = client.get(reverse("expedientes:index")).content.decode()
     assert "Terminó la lectura del pliego subido" in html
     assert reverse("expedientes:s1_pliego_borrador", args=[draft.pk]) in html
+
+
+def test_a_corrected_datum_shows_the_correction_as_its_origin_not_the_file(
+        client, evaluator_user, fake_generation):
+    """REQ-078: en la pestaña Procedimiento, lo que la Comisión corrigió dice quién, cuándo y el
+    motivo (y lo propuesto si había), nunca «Archivo»; lo no corregido sigue con el archivo."""
+    draft = proposed(client, evaluator_user, portal_style_pdf(with_date=False), "sin-fecha.pdf")
+    post(client, "corregir", draft, {"field": "authorization_date", "value": "2026-02-10",
+                                    "reason": "Figura en la resolución de apertura"})
+    post(client, "corregir", draft, {"field": "subject", "value": "OBJETO CORREGIDO",
+                                    "reason": "Mal leído"})
+    response = post(client, "aprobar", draft)
+    assert response.status_code == 302
+    procedure = m.Procedure.objects.get()
+    html = client.get(reverse("expedientes:procedimiento", args=[procedure.pk])).content.decode()
+    rows = {name: re.search(rf"<th scope=\"row\">{name}</th>(.*?)</tr>", html, re.S).group(1)
+            for name in ("Fecha de autorización", "Objeto", "Número")}
+    date_row = rows["Fecha de autorización"]
+    assert "Corregido" in date_row and f"por {evaluator_user.username}" in date_row
+    assert "motivo: Figura en la resolución de apertura" in date_row
+    assert "Archivo" not in date_row
+    assert "propuesto: «ADQUISICIÓN DE MOBILIARIO" in rows["Objeto"]
+    assert "Archivo" in rows["Número"] and "Corregido" not in rows["Número"]
+
+
+def test_the_regime_comes_from_the_rule_when_its_norm_is_not_loaded(client, evaluator_user,
+                                                                   fake_generation):
+    """REQ-078: sin la norma cargada, el régimen es el de la regla del ADR-0006 (247/2022 desde el
+    2/1/2023), con «Falta cargar la norma» y el enlace a Normativas."""
+    draft = proposed(client, evaluator_user, portal_style_pdf(with_date=False), "sin-fecha.pdf")
+    post(client, "corregir", draft, {"field": "authorization_date", "value": "2026-02-10",
+                                    "reason": "Figura en la resolución"})
+    post(client, "aprobar", draft)
+    procedure = m.Procedure.objects.get()
+    html = client.get(reverse("expedientes:procedimiento", args=[procedure.pk])).content.decode()
+    row = re.search(r'<th scope="row">Régimen que rige</th>(.*?)</tr>', html, re.S).group(1)
+    assert "Disp. AFIP 247/2022" in row and "Falta cargar la norma" in row
+    assert reverse("expedientes:normativas", args=[procedure.pk]) in row
+    assert "No hay un régimen" not in row
