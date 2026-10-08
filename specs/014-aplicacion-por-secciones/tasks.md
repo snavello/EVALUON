@@ -21,7 +21,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-194 | Sección 1: datos del procedimiento con origen de cada dato, régimen por fecha de autorización, renglones, apertura, garantías y ofertas del Portal | REQ-078, REQ-097 | T-192 | terminada |
 | T-195 | Sección 1: explorador y cargador del Portal (pegar enlace, propuesta agrupada, aprobar ítem por ítem o todo) y novedades de la revisión periódica | REQ-076, REQ-079, REQ-097 | T-194 | terminada |
 | T-196 | Propuesta de datos y renglones desde el pliego subido: servicio, pedido en segundo plano, citas y aprobación que crea el procedimiento (sin pantalla) | REQ-077 | T-193 | terminada |
-| T-197 | Sección 1: alta subiendo el pliego (propuesta con citas; el evaluador aprueba, descarta o corrige escribiendo valor y motivo; sin alta en blanco) | REQ-077, REQ-076, REQ-097 | T-195, T-196 | pendiente |
+| T-197 | Sección 1: alta subiendo el pliego (propuesta con citas; el evaluador aprueba, descarta o corrige escribiendo valor y motivo; sin alta en blanco) | REQ-077, REQ-076, REQ-097 | T-195, T-196 | terminada |
 | T-198 | Sección 2: documentos del pliego, anexos y especificaciones (lista por tipo con origen, subida de varios a la vez, tomar del Portal, faltantes) | REQ-080, REQ-097 | T-192 | terminada |
 | T-199 | Servicio de historial de documentos del pliego y de las ofertas: reemplazar, retirar, restituir, con auditoría y estado calculado (sin pantalla) | REQ-099 | T-193 | terminada |
 | T-200 | Sección 2: reemplazar, retirar y restituir documentos del pliego, historial de versiones y «retirados» | REQ-099, REQ-097 | T-198, T-199 | terminada |
@@ -38,14 +38,16 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-211 | Sección 4: dictamen del Portal o subido (sin borrador) | REQ-092, REQ-097 | T-192, T-193 | pendiente |
 | T-212 | Sección 4: exportar la planilla por oferta (Excel) y el cuadro comparativo (Excel y PDF); suma la dependencia XlsxWriter (ADR-0050) | REQ-093 | T-192 | pendiente |
 | T-213 | Propuesta de los datos de una norma desde su archivo y staging de la subida (sin pantalla) | REQ-094 | T-193 | terminada |
-| T-214 | Sección 5: subir una norma, ver el informe de lectura y validarla desde la pantalla | REQ-094, REQ-097 | T-192, T-213 | pendiente |
+| T-214 | Sección 5: subir una norma, ver el informe de lectura y validarla desde la pantalla | REQ-094, REQ-097 | T-192, T-213 | terminada |
 | T-215 | Sección 5: normas que rigen al procedimiento según su fecha de autorización y cuáles faltan cargar | REQ-095, REQ-097 | T-192 | pendiente |
 | T-216 | Sección 5: consulta de normativa con citas literales | REQ-096 | T-192 | pendiente |
 | T-217 | Los cinco momentos y los roles con el caso chico: estados y cuentas de las cinco secciones, 25 de 25 celdas (reemplaza a T-185 de la 013) | REQ-075, REQ-097, REQ-098 | T-194, T-195, T-197, T-198, T-200, T-201, T-202, T-203, T-204, T-205, T-206, T-207, T-208, T-209, T-210, T-211, T-212, T-214, T-215, T-216, T-219 | pendiente |
 | T-218 | Comprobación final con el caso chico y el caso-00 (Coordinador y testeador): 26 de 26 requisitos en pantalla, 0 datos tipeados, carga menor a 2 s y guía visual (reemplaza a T-186 de la 013) | REQ-075, REQ-076, REQ-077, REQ-078, REQ-079, REQ-080, REQ-081, REQ-082, REQ-083, REQ-084, REQ-085, REQ-086, REQ-087, REQ-088, REQ-089, REQ-090, REQ-091, REQ-092, REQ-093, REQ-094, REQ-095, REQ-096, REQ-097, REQ-098, REQ-099, REQ-100 | T-217 | pendiente |
 | T-219 | Las pantallas anteriores redirigen a su sección y el menú queda con la entrada nueva | REQ-075, REQ-100 | T-195, T-197, T-198, T-201, T-202, T-207, T-208, T-214 | pendiente |
 | T-220 | Propuesta de nombre y CUIT del oferente desde los archivos de una oferta: borrador, pedido en segundo plano, citas, corrección con valor y motivo y aprobación que crea la oferta (sin pantalla) | REQ-083 | T-193, T-196 | pendiente |
-| T-221 | Rendimiento de las pestañas con datos reales: Pliego y matriz, Ofertas y Evaluación cargan en menos de 2 s con el procedimiento real del sistema principal (medido en una base aparte restaurada del respaldo) | REQ-075, REQ-100 | T-209 | en curso |
+| T-221 | Rendimiento de las pestañas con datos reales: Pliego y matriz, Ofertas y Evaluación cargan en menos de 2 s con el procedimiento real del sistema principal (medido en una base aparte restaurada del respaldo) | REQ-075, REQ-100 | T-209 | terminada |
+| T-222 | Pendientes y sugerencias agrupados cuando son muchos: con el procedimiento real la pestaña Evaluación lista 258 pendientes uno por uno (página de 32.000 px); agrupar por tipo con su cuenta y acceso al bloque filtrado, y detallar uno por uno solo cuando son pocos | REQ-098, REQ-100 | T-221 | en curso |
+| T-223 | Menos consultas en los servicios de la evaluación y de la matriz (N+1 en matrix_page, external_results, question_list y quote_rows), sin cambiar resultados | REQ-100 | T-221 | pendiente |
 
 ## Tareas de la 013 que se absorben
 

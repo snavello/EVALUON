@@ -22,9 +22,9 @@ from django.views.decorators.http import require_POST
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.assessment.models import TechnicalVerdict
-from evaluon.assessment.services import matrix as matrix_service
 from evaluon.assessment.services import technical, technical_report
 from evaluon.audit.models import Channel
+from evaluon.journey import memo
 from evaluon.journey.sections.base import Item, Missing, TemaStatus
 from evaluon.journey.temas import s4_propuesta_acciones as acciones
 from evaluon.journey.temas.s4_propuesta import when
@@ -109,7 +109,7 @@ def _pending_ok_offers(page):
 
 
 def status(user, procedure):
-    page = matrix_service.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
+    page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
     base = _tab(procedure)
     with_rows = _with_rows(page)
     pending = []
@@ -182,7 +182,7 @@ def _blocks(page):
 
 
 def context(user, procedure, request):
-    page = matrix_service.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
+    page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
     blocks = _blocks(page)
     items = sorted({row.item for block in blocks for row in block.rows})
     cells = {}

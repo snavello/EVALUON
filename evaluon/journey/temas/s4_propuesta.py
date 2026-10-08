@@ -27,6 +27,7 @@ from evaluon.assessment.models import Citation, CitationKind, Decision, Outcome,
 from evaluon.assessment.services import evaluate, review
 from evaluon.assessment.services import matrix as matrix_service
 from evaluon.audit.models import Channel
+from evaluon.journey import memo
 from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.journey.stages import base as stage_base
 from evaluon.journey.stages import evaluacion as evaluation_stage
@@ -164,7 +165,7 @@ def _items(page, procedure):
 
 
 def status(user, procedure):
-    page = matrix_service.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
+    page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
     runs = [s.run for s in page.statuses if s.evaluated]
     if not runs:
         return TemaStatus(detailed_stages=("matriz_evaluacion",))
@@ -326,7 +327,7 @@ def _why_not(page):
 
 
 def context(user, procedure, request):
-    page = matrix_service.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
+    page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
     evaluated = any(s.evaluated for s in page.statuses)
     base = {
         "pid": procedure.pk, "aviso": acciones.unpack(request.GET.get("aviso")),

@@ -26,6 +26,7 @@ from evaluon.portal.models import (
     PortalOfferData,
     PortalProcedureData,
 )
+from evaluon.tenders.models import ProcedureDraft
 from evaluon.tenders.services import procedures
 
 KEY = "s1_datos"
@@ -80,9 +81,56 @@ def _procedure_origin(procedure, data):
     return Origin("A mano", " · ".join(p for p in (who, _moment(procedure.created_at)) if p))
 
 
+# Primer día bajo la Disp. 247/2022 (ADR-0006) y los nombres de los dos regímenes.
+NEW_REGIME_FROM = datetime.date(2023, 1, 2)
+NEW_REGIME_NAME = "Disp. AFIP 247/2022"
+OLD_REGIME_NAME = "Disp. AFIP 297/03"
+
+
+def _regime(procedure):
+    """`(nombres, falta_la_norma)`: el régimen cargado que rige a la fecha o, si la norma no está
+    cargada, el que corresponde por la regla del ADR-0006."""
+    found = [r["name"] for r in procedures.regime_for(procedure.authorization_date)]
+    if found:
+        return found, False
+    expected = (NEW_REGIME_NAME if procedure.authorization_date >= NEW_REGIME_FROM
+                else OLD_REGIME_NAME)
+    return [expected], True
+
+
+def _corrections(procedure):
+    """Lo que la Comisión corrigió de lo que leyó el sistema al dar de alta el procedimiento con un
+    pliego: `{campo: [correcciones]}` (vacío si no nació de un pliego)."""
+    draft = (ProcedureDraft.objects.filter(procedure=procedure).defer("content").first())
+    found = {}
+    for item in (draft.proposal.get("corrections", []) if draft else []):
+        found.setdefault(item["field"], []).append(item)
+    return found
+
+
+def _corrected_origin(entries, fallback):
+    """El origen de un dato corregido: nunca el archivo, porque el valor no salió de él."""
+    parts = []
+    for item in entries:
+        when = timezone.localtime(datetime.datetime.fromisoformat(item["at"]))
+        text = f"por {item['by']} el {when:%d/%m %H:%M} · motivo: {item['reason']}"
+        if item.get("proposed"):
+            text += f" · propuesto: «{item['proposed']}»"
+        parts.append(text)
+    return Origin("Corregido", " | ".join(parts))
+
+
 def _portal_data(procedure):
     return (PortalProcedureData.objects.filter(procedure=procedure)
             .select_related("item__proposal__link", "document").first())
+
+
+def _line_origin(line, fixed):
+    entries = sorted((e for f, items in fixed.items() if f.startswith(f"line.{line.number}.")
+                      for e in items), key=lambda e: e["at"])
+    if entries:
+        return _corrected_origin(entries, None)
+    return _origin(line.item, line.document)
 
 
 def _lines(procedure):
@@ -282,23 +330,34 @@ def context(user, procedure, request):
     data_origin = _origin(data.item, data.document) if data is not None else None
     schedule = _schedule(data)
     link = procedure.portal_links.order_by("-pk").first()
+    fixed = _corrections(procedure)
+
+    def origin_of(field, origin):
+        return _corrected_origin(fixed[field], origin) if field in fixed else origin
+
+    regimes, regime_missing = _regime(procedure)
     return {
         "pid": procedure.pk,
         "portal_url": _portal_link_url(procedure),
         "portal_number": link.process_number if link else "",
         "rows": [
-            ("Número", procedure.number, True, main_origin, "numero" in damaged),
-            ("Expediente", data.file_number if data else "", True, data_origin,
-             "expediente" in damaged),
-            ("Tipo", procedure.procedure_type, False, main_origin, "tipo" in damaged),
-            ("Objeto", procedure.subject, False, main_origin, "objeto" in damaged),
+            ("Número", procedure.number, True, origin_of("number", main_origin),
+             "numero" in damaged),
+            ("Expediente", data.file_number if data else "", True,
+             origin_of("file_number", data_origin), "expediente" in damaged),
+            ("Tipo", procedure.procedure_type, False,
+             origin_of("procedure_type", main_origin), "tipo" in damaged),
+            ("Objeto", procedure.subject, False, origin_of("subject", main_origin),
+             "objeto" in damaged),
             ("Fecha de autorización", f"{procedure.authorization_date:%d/%m/%Y}", True,
-             main_origin, False),
+             origin_of("authorization_date", main_origin), False),
         ],
-        "regimes": [r["name"] for r in procedures.regime_for(procedure.authorization_date)],
+        "regimes": regimes, "regime_missing": regime_missing,
+        "rules_url": reverse("expedientes:normativas", args=[procedure.pk]),
         "legal_framework": data.legal_framework if data else "",
         "lines": [{"number": line.number, "description": line.description,
-                   "quantity": _quantity(line), "origin": _origin(line.item, line.document),
+                   "quantity": _quantity(line),
+                   "origin": _line_origin(line, fixed),
                    "damaged": f"renglones.{line.number}" in damaged}
                   for line in lines],
         "damaged_legal": "encuadre_legal" in damaged,

@@ -24,6 +24,7 @@ from django.urls import reverse
 
 from evaluon.assessment.services import discards as discards_service
 from evaluon.assessment.services import matrix as matrix_service
+from evaluon.journey import memo
 from evaluon.journey.stages import base
 
 KEY = "matriz_evaluacion"
@@ -58,7 +59,7 @@ def _technical_pending_offers(page):
 
 
 def compute(user, procedure):
-    page = matrix_service.matrix_page(user, procedure.pk)
+    page = memo.matrix_page(user, procedure.pk)
     view_url = reverse("assessment:matrix", args=[procedure.pk])
     common = {"key": KEY, "label": LABEL, "view_url": view_url}
     suggestions = 0
