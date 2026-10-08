@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from evaluon.assessment import models as am
-from evaluon.assessment.services import review, technical
+from evaluon.assessment.services import discards, review, technical
 from evaluon.journey.stages import base, matriz_evaluacion
 from evaluon.tenders import models as m
 from tests.assessment.test_matrix import DECLARATION, add_run, decide, open_matrix, requirement
@@ -151,10 +151,10 @@ def test_all_decided_is_ready(procedure, offer, operator_user, evaluator_user, d
     assert (stage.state, stage.pending) == (base.LISTA, 0)
 
 
-def test_suggestions_are_counted_apart_from_pending(procedure, offer, operator_user,
-                                                    evaluator_user, declaration):
-    """REQ-072: el descarte propuesto es una sugerencia, se cuenta aparte y no suma a lo
-    pendiente (que sigue siendo el par por decidir)."""
+def test_an_undecided_discard_is_pending_not_a_suggestion(procedure, offer, operator_user,
+                                                          evaluator_user, declaration):
+    """REQ-091: el descarte propuesto sin decidir es una decisión pendiente de la Comisión, no
+    una sugerencia: suma al par por decidir y el detalle lo nombra."""
     open_matrix()
     m.Consequence.objects.create(
         requirement=declaration, consequence_type="desestimacion", grounds=[],
@@ -162,15 +162,14 @@ def test_suggestions_are_counted_apart_from_pending(procedure, offer, operator_u
         chosen_note="El pliego desestima sin subsanar.")
     add_run(operator_user, procedure, offer, {declaration: "no_cumple"})
     stage = matriz_evaluacion.compute(operator_user, procedure)
-    assert stage.suggestions == 1
-    assert stage.pending == 1
-    assert "Sugerencias del sistema: 1 descarte" in stage.detail
+    assert stage.suggestions == 0
+    assert stage.pending == 2
+    assert "1 descarte propuesto" in stage.detail and "Sugerencias" not in stage.detail
 
 
-def test_a_suggestion_with_everything_decided_leaves_the_stage_ready(
+def test_a_discard_decided_with_everything_else_leaves_the_stage_ready(
         procedure, offer, operator_user, evaluator_user, declaration):
-    """REQ-072: un descarte propuesto con todo decidido no frena la etapa: lista, sin
-    pendientes y con la sugerencia contada aparte."""
+    """REQ-091: con el par y el descarte decididos la etapa queda lista, sin pendientes."""
     open_matrix()
     m.Consequence.objects.create(
         requirement=declaration, consequence_type="desestimacion", grounds=[],
@@ -179,7 +178,10 @@ def test_a_suggestion_with_everything_decided_leaves_the_stage_ready(
     saved = add_run(operator_user, procedure, offer, {declaration: "no_cumple"})
     decide(evaluator_user, saved[declaration.pk], am.Action.CONFIRMAR)
     stage = matriz_evaluacion.compute(operator_user, procedure)
-    assert (stage.state, stage.pending, stage.suggestions) == (base.LISTA, 0, 1)
+    assert (stage.state, stage.pending) == (base.A_DECIDIR, 1)  # falta el descarte
+    discards.confirm(evaluator_user, procedure.pk, offer.pk, None)
+    stage = matriz_evaluacion.compute(operator_user, procedure)
+    assert (stage.state, stage.pending, stage.suggestions) == (base.LISTA, 0, 0)
 
 
 def test_a_technical_row_without_document_is_not_counted_twice(

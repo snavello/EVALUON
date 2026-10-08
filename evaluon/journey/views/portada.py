@@ -10,7 +10,7 @@ from django.views.decorators.http import require_GET
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
-from evaluon.journey import memo, temas
+from evaluon.journey import memo
 from evaluon.journey.sections import sections_for
 from evaluon.journey.window import window_for
 from evaluon.tenders.models import Procedure
@@ -73,7 +73,7 @@ def seccion(request, procedure_id, key):
     section = overview.get(key)
     blocks = [{"key": tema.KEY, "partial": tema.PARTIAL,
                "t": tema.context(request.user, overview.procedure, request)}
-              for tema in temas.for_section(key)]
+              for tema in section.temas]
     context = shell(request, overview, active=key)
     context.update({
         "section": section, "blocks": blocks,
