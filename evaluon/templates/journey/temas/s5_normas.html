@@ -1,1 +1,115 @@
-{% comment %}Parcial del tema s5_normas (Subir una norma y validarla). Vacío en el corte vertical; lo completa T-214.{% endcomment %}
+{% load static %}{% comment %}Tema s5_normas (T-214, REQ-094): subir el archivo de una norma, ver los datos que propone el sistema con su evidencia, corregirlos escribiendo valor y motivo, cargarla, ver su informe de lectura dentro de la pestaña y validarla (solo el evaluador). Las acciones son formularios POST a las rutas de s5_normas, que llaman a los mismos servicios que los comandos y vuelven a esta pestaña. Recibe `t` (ver evaluon/journey/temas/s5_normas.py).{% endcomment %}
+<link rel="stylesheet" href="{% static 'journey/s5_normas.css' %}">
+<div class="s5-norm">
+{% if t.aviso %}<p class="aviso {% if t.aviso.ok %}aviso-ok{% else %}aviso-error{% endif %}" id="s5-aviso" role="{% if t.aviso.ok %}status{% else %}alert{% endif %}">{{ t.aviso.text }}</p>{% else %}<span id="s5-aviso"></span>{% endif %}
+
+<div class="bloque" id="s5-subir">
+  <div class="bloque-cab"><h3>Subir una norma</h3></div>
+  {% if t.can_upload %}
+  <form method="post" enctype="multipart/form-data" action="{% url 'expedientes:s5_subir' t.pid %}">{% csrf_token %}
+    <label for="s5-archivo">Archivo de la norma (PDF o página web guardada)</label>
+    <input id="s5-archivo" type="file" name="file" required>
+    <p class="ayuda">Solo el archivo: el sistema lo lee, propone los datos de la norma con el lugar del texto que los respalda y usted los confirma o los corrige. Las normas cargadas sirven para todos los procedimientos.</p>
+    <button class="btn primario" type="submit">Subir y leer la norma</button>
+  </form>
+  {% else %}
+  <p class="ayuda">Para subir una norma le falta {{ t.upload_blocked }}. Pídaselo a quien administra los usuarios.</p>
+  {% endif %}
+
+  {% for up in t.waiting %}
+  <div class="subida" id="s5-subida-{{ up.id }}">
+    <h4>Para confirmar: «{{ up.file_name }}»</h4>
+    <p class="registro">{{ up.format }}, {{ up.pages }} página(s) · subida por {{ up.who }} el {{ up.when }}. {% if up.to_check %}Faltan {{ up.to_check }} dato(s) obligatorio(s): escríbalos con su motivo.{% else %}Revise los datos antes de cargar la norma.{% endif %}</p>
+    <div class="tabla-scroll"><table class="matriz lectura">
+      <thead><tr><th scope="col">Dato</th><th scope="col">Valor</th><th scope="col">De dónde sale</th>{% if t.can_upload %}<th scope="col">Acción</th>{% endif %}</tr></thead>
+      <tbody>
+      {% for f in up.fields %}
+        <tr>
+          <th scope="row">{{ f.label }}{% if f.required %}<span class="suave"> · obligatorio</span>{% endif %}</th>
+          <td>{% if f.empty %}{% include "journey/_icono.html" with icon="nodet" name="No reconocido" %} <span class="suave">No se reconoció: complételo</span>{% else %}{{ f.value }}{% endif %}
+            {% if f.corrected %}<p class="registro">Corregido por {{ f.who }} el {{ f.when }} · motivo: {{ f.reason }}{% if f.proposed %} · el sistema había propuesto «{{ f.proposed }}»{% endif %}</p>{% endif %}</td>
+          <td>{% if f.evidence and not f.corrected %}<p class="evidencia">{% if f.evidence.page %}Página {{ f.evidence.page }}: {% else %}Del texto: {% endif %}«{{ f.evidence.text }}»</p>{% elif f.corrected %}<span class="suave">Escrito por la Comisión</span>{% else %}<span class="suave">—</span>{% endif %}</td>
+          {% if t.can_upload %}<td>
+            <details class="acc"><summary class="btn secundario chico">{% if f.empty %}Completar{% else %}Corregir{% endif %}</summary>
+              <form method="post" action="{% url 'expedientes:s5_corregir' t.pid up.id %}">{% csrf_token %}
+                <input type="hidden" name="field" value="{{ f.name }}">
+                <label for="v-{{ up.id }}-{{ f.name }}">Valor de «{{ f.label }}»</label>
+                {% if f.kind == "select" %}<select id="v-{{ up.id }}-{{ f.name }}" name="value" required>{% for value, label in t.categories %}<option value="{{ value }}"{% if value == f.raw %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+                {% elif f.kind == "date" %}<input id="v-{{ up.id }}-{{ f.name }}" type="date" name="value" value="{{ f.raw }}" required>
+                {% elif f.kind == "number" %}<input id="v-{{ up.id }}-{{ f.name }}" type="number" name="value" value="{{ f.raw }}" required>
+                {% else %}<input id="v-{{ up.id }}-{{ f.name }}" type="text" name="value" value="{{ f.raw }}" required>{% endif %}
+                {% if f.hint %}<p class="ayuda">{{ f.hint }}</p>{% endif %}
+                <label for="m-{{ up.id }}-{{ f.name }}">Motivo (obligatorio)</label>
+                <textarea id="m-{{ up.id }}-{{ f.name }}" name="reason" rows="2" required></textarea>
+                <p class="ayuda">Queda el valor, el motivo, quién y cuándo. Lo que propuso el sistema no se pierde.</p>
+                <button class="btn primario chico" type="submit">Guardar</button>
+              </form></details>
+          </td>{% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% if t.can_upload %}
+    <form class="confirmar" method="post" action="{% url 'expedientes:s5_cargar' t.pid up.id %}">{% csrf_token %}
+      <label for="parte-{{ up.id }}">Parte de la norma</label>
+      <input id="parte-{{ up.id }}" type="text" name="part" value="cuerpo">
+      <p class="ayuda">«cuerpo» para el texto de la norma; para un anexo, su clave (por ejemplo «anexo»).</p>
+      <label class="simple"><input type="checkbox" name="general_regime"> Es el régimen general de contrataciones (solo para una norma de régimen específico)</label>
+      <label for="misma-{{ up.id }}">Si ya hay una norma igual cargada</label>
+      <select id="misma-{{ up.id }}" name="same_norm"><option value="">No sé: que el sistema avise</option><option value="other_file">Es otro archivo de la misma norma</option><option value="new_version">Es una versión nueva</option></select>
+      <p class="ayuda">Al cargar, el sistema la lee y arma su informe de lectura. Todavía no sirve para las consultas: falta que un evaluador la valide.</p>
+      <button class="btn primario" type="submit"{% if up.to_check %} disabled{% endif %}>Cargar la norma</button>
+      {% if up.to_check %}<span class="suave">Complete primero los datos obligatorios.</span>{% endif %}
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<div class="bloque" id="s5-normas">
+  <div class="bloque-cab"><h3>Normas cargadas <span class="cta">{{ t.norm_count }} {% if t.norm_count == 1 %}norma{% else %}normas{% endif %} · {{ t.unvalidated }} sin validar</span></h3></div>
+  {% if t.rows %}
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <thead><tr><th scope="col">Norma</th><th scope="col">Parte y versión</th><th scope="col" class="e">Estado</th><th scope="col">De dónde vino</th><th scope="col">Acciones</th></tr></thead>
+    <tbody>
+    {% for row in t.rows %}
+      <tr>
+        <th scope="row">{{ row.citation }}<small class="suave"> · {{ row.category }}{% if row.general %} · régimen general{% endif %}</small>
+          {% if row.amendments %}<p class="registro">Modificatorias sin cargar: {{ row.amendments|join:"; " }}.</p>{% endif %}</th>
+        <td>{{ row.part }} · {{ row.version }}{% if row.in_use %} · en uso{% endif %}</td>
+        <td class="e">{% include "journey/_icono.html" with icon=row.icon name=row.state %} {{ row.state }}</td>
+        <td class="origen"><b>{{ row.file_name }}</b><br>{{ row.origin }}</td>
+        <td class="acciones-doc">{% if row.reading_id %}<a href="?lectura={{ row.reading_id }}#s5-lectura">{% if row.icon == "nodet" %}Ver el informe de lectura{% if t.can_validate %} y validarla{% endif %}{% else %}Informe de lectura{% endif %}</a>{% else %}<span class="suave">—</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="ayuda">Todavía no hay normas cargadas. Suba el archivo de una norma para empezar.</p>
+  {% endif %}
+</div>
+
+<div class="bloque" id="s5-lectura">
+  {% if t.report %}
+  {% if t.report.error %}
+  <div class="bloque-cab"><h3>Informe de lectura</h3></div><p class="ayuda">{{ t.report.error }}</p>
+  {% else %}
+  <div class="bloque-cab"><h3>Informe de lectura · {{ t.report.citation }}</h3></div>
+  <p class="resumen-linea">Archivo <b>{{ t.report.file_name }}</b>, parte {{ t.report.part }}, lectura {{ t.report.sequence }}. {% include "journey/_icono.html" with icon=t.report.icon name=t.report.state %} {{ t.report.state }}.{% if t.report.summary %} El sistema leyó {{ t.report.summary.units }} unidades. {{ t.report.summary.effect }}{% endif %}</p>
+  {% if t.report.note %}<p class="ayuda">{{ t.report.note }}</p>{% endif %}
+  {% if t.report.summary.relations %}<ul class="lista">{% for text in t.report.summary.relations %}<li>{% include "journey/_icono.html" with icon="nodet" name="A revisar" %}<span>{{ text }}</span></li>{% endfor %}</ul>{% endif %}
+  <pre class="informe">{{ t.report.text }}</pre>
+  {% if t.report.pending %}
+  <div class="bloque-pie">
+    {% if t.can_validate %}
+    <form method="post" action="{% url 'expedientes:s5_validar' t.pid t.report.id %}">{% csrf_token %}<button class="btn primario" type="submit">Validar la norma</button></form>
+    <span class="suave">Al validar, la norma queda disponible para las consultas. Queda quién y cuándo.</span>
+    {% else %}
+    <span class="suave">La validación la hace un evaluador de la Comisión{% if t.validate_blocked %}; a su usuario le falta {{ t.validate_blocked }}{% endif %}.</span>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% endif %}
+  {% endif %}
+</div>
+</div>

@@ -2,6 +2,8 @@
 
 from django.urls import reverse
 
+from evaluon.norms.models import Norm, NormUpload, PendingAmendment, ProposalState
+
 KEY = "normativas"
 LABEL = "Normativas"
 SLUG = "normativas"
@@ -14,6 +16,24 @@ def legacy_links(procedure):
 
 
 def upload_url(procedure):
-    """Dónde se sube un archivo a esta sección hoy (T-192); las tareas de cada sección lo
-    reemplazan por su propio componente."""
-    return None
+    """«Subir archivo» de la sección: lleva al formulario de subir una norma (T-214)."""
+    return f"{reverse('expedientes:normativas', args=[procedure.pk])}#s5-subir"
+
+
+def summary(user, procedure, stages):
+    """Qué hay cargado y qué falta, en una línea (REQ-097). Las normas son comunes a todos los
+    procedimientos. Los pendientes de validar los cuenta el tema `s5_normas`."""
+    from evaluon.journey.temas import s5_normas
+
+    loaded = Norm.objects.count()
+    unvalidated = s5_normas._pending_readings().count()
+    waiting = NormUpload.objects.filter(state=ProposalState.PROPUESTO).count()
+    missing = PendingAmendment.objects.filter(loaded_norm__isnull=True).count()
+    parts = [f"{loaded} {'norma cargada' if loaded == 1 else 'normas cargadas'}"]
+    if unvalidated:
+        parts.append(f"{unvalidated} sin validar")
+    if waiting:
+        parts.append(f"{waiting} subida(s) esperan confirmar sus datos")
+    if missing:
+        parts.append(f"{missing} modificatoria(s) sin cargar")
+    return (("Normas", ", ".join(parts) + ". Las normas se cargan subiendo su archivo."),)
