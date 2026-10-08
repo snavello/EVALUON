@@ -14,9 +14,8 @@ Dos bloques, en el orden de la maqueta aprobada:
   botones. El sistema propone; no decide nada (P3).
 
 Los descartes sin decidir son pendientes de la sección (REQ-097), con su enlace «Resolver» a la
-fila. La etapa `matriz_evaluacion` de la 013 los sigue contando como sugerencias; como acá pasan a
-pendientes, el tema resta esas sugerencias de la cuenta de la sección para que no figuren en las
-dos listas. Las acciones vuelven a la pestaña con el mensaje de lo hecho.
+fila. La etapa `matriz_evaluacion` los cuenta como pendientes (no como sugerencias) y este tema
+los lista uno por uno. Las acciones vuelven a la pestaña con el mensaje de lo hecho.
 """
 
 from dataclasses import dataclass, field
@@ -163,16 +162,15 @@ def _decided(decision):
 
 
 def status(user, procedure):
-    """Los descartes sin decidir son pendientes de la sección. Las sugerencias que la etapa de
-    la 013 cuenta por estos mismos descartes se restan: ya no son sugerencias."""
+    """Lista cada descarte sin decidir como pendiente; la cuenta la hace la etapa
+    `matriz_evaluacion`."""
     page = matrix_service.matrix_page(user, procedure.pk, channel=CHANNEL)
     found = service.units(page)
     undecided = [u for u in found if u.state == service.PROPOSED]
     items = tuple(
         Item(f"Descarte propuesto por decidir: oferta {u.offer.number} ({_scope(u)})",
              f"{base.tab_url(procedure)}#{_anchor(u)}", 1, "Resolver") for u in undecided)
-    return TemaStatus(pending=len(undecided), suggestions=-len(page.discards),
-                      pending_items=items)
+    return TemaStatus(pending_items=items)
 
 
 # --- Resultado por oferta y orden económico -------------------------------------------------------
@@ -262,7 +260,11 @@ def _economic(page, found):
     lines = []
     for line_order in order.lines:
         number = line_order.line.number
-        row = LineRow(label=f"Renglón {number} · {_excerpt(line_order.line.description)}",
+        description = _excerpt(line_order.line.description)
+        label = f"Renglón {number}"
+        if description and description != label:
+            label += f" · {description}"
+        row = LineRow(label=label,
                       quantity=(_number(line_order.line.quantity)
                                 if line_order.line.quantity is not None else "—"))
         for item in line_order.rows:

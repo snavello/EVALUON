@@ -396,7 +396,7 @@ def test_the_pending_are_listed_one_by_one_and_match_the_bar(
     section = sections_for(operator_user, procedure).get("evaluacion")
     # El descarte propuesto es decisión de la Comisión: lo lista `s4_descartes` (T-210) como
     # pendiente y no como sugerencia.
-    assert stage.pending > 0 and section.pending == stage.pending + stage.suggestions
+    assert stage.pending > 0 and section.pending == stage.pending and stage.suggestions == 0
     assert len(section.pending_items) == section.pending
     assert section.suggestions == 0 == len(section.suggestion_items)
     html = page(client, procedure)

@@ -243,7 +243,8 @@ def test_undecided_discards_are_pending_with_resolve_and_not_suggestions(
     a, b, c = proposed
     stage = matriz_evaluacion.compute(operator_user, procedure)
     section = sections_for(operator_user, procedure).get("evaluacion")
-    assert section.pending == stage.pending + 2
+    assert section.pending == stage.pending and stage.suggestions == 0
+    assert "2 descartes propuestos" in stage.detail and "Sugerencias" not in stage.detail
     assert section.suggestions == 0 and section.suggestion_items == ()
     items = [i for i in section.pending_items if "Descarte propuesto" in i.text]
     assert len(items) == 2 and all(i.action == "Resolver" for i in items)
@@ -274,3 +275,27 @@ def test_without_evaluation_the_blocks_are_there_and_say_so(
     assert 'id="s4-resultado"' in html and 'id="s4-descartes"' in html
     assert "no hay descartes que proponer" in html
     assert rows_of(html) == []
+
+
+def test_the_order_row_does_not_repeat_the_line_name(client, proposed, procedure, operator_user):
+    """REQ-091: «Renglón 1 · <descripción>», o solo «Renglón 1» si la descripción repite el nombre."""
+    log_in(client, operator_user)
+    html = page(client, procedure)
+    assert "Renglón 1 · Renglón 1" not in html
+    assert '<th scope="row">Renglón 1</th>' in html
+
+
+def test_the_missing_report_and_the_pending_list_name_the_same_offers(
+        client, proposed, procedure, operator_user):
+    """REQ-097: cada oferta sin informe técnico figura igual en «Falta» y en los pendientes (las
+    dos con filas técnicas ya evaluadas); el resumen no habla de sugerencias de descartes."""
+    a, b, c = proposed
+    section = sections_for(operator_user, procedure).get("evaluacion")
+    waiting = [i.text for i in section.pending_items if "informe técnico" in i.text]
+    missing = [m.text for m in section.tema_missing if "informe técnico" in m.text]
+    assert waiting == [f"Oferta {c.number}: falta subir el informe técnico"]
+    assert missing == [f"Oferta {c.number}: falta el informe técnico del área"]
+    log_in(client, operator_user)
+    html = page(client, procedure)
+    assert "Sugerencias del sistema:" not in html
+    assert "2 descartes propuestos" in html
