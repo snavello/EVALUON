@@ -20,8 +20,9 @@ La pantalla dice cuál de los dos le falta a quien no puede una acción. Sin el 
 La biblioteca de normas es común a todos los procedimientos: la lista no depende del que se abra.
 Las acciones vuelven a la pestaña con el aviso de lo hecho (firmado en la dirección, sin sesión).
 
-Fuera de alcance de esta tarea: descartar una subida equivocada (el servicio `upload` no tiene
-`reject`; mientras espera, el mismo archivo no puede volver a subirse) y «Devolver para releer».
+«Descartar esta subida» (T-225, `upload.reject`): una subida equivocada se descarta con motivo; la
+descarta el evaluador o quien la subió. Queda «rechazado» (no se borra) y el mismo archivo se puede
+volver a subir. Fuera de alcance: «Devolver para releer».
 """
 
 import datetime
@@ -238,7 +239,16 @@ def _field_rows(proposal):
     return rows
 
 
-def _waiting_uploads():
+def _can_reject(user, one):
+    """Descarta la subida el evaluador o quien la subió (con el rol de normativa)."""
+    if not _can_write(user):
+        return False
+    commission = getattr(user, "commission_role", "")
+    return (commission == CommissionRole.EVALUATOR
+            or (commission == CommissionRole.OPERATOR and one.uploaded_by_id == user.pk))
+
+
+def _waiting_uploads(user):
     waiting = []
     for one in NormUpload.objects.filter(state=ProposalState.PROPUESTO).select_related(
             "uploaded_by").order_by("pk"):
@@ -250,6 +260,7 @@ def _waiting_uploads():
             "who": one.uploaded_by.username if one.uploaded_by_id else "",
             "fields": fields,
             "to_check": sum(1 for f in fields if f["required"] and f["empty"]),
+            "can_reject": _can_reject(user, one),
         })
     return waiting
 
@@ -333,7 +344,7 @@ def context(user, procedure, request):
     validate_blocked = _missing_roles(user, evaluator=True)
     return {
         **base, "rows": rows, "norm_count": len(items),
-        "unvalidated": _pending_readings().count(), "waiting": _waiting_uploads(),
+        "unvalidated": _pending_readings().count(), "waiting": _waiting_uploads(user),
         "categories": Category.choices,
         "upload_blocked": upload_blocked, "can_upload": not upload_blocked,
         "validate_blocked": validate_blocked, "can_validate": not validate_blocked,
@@ -418,6 +429,21 @@ def load(request, procedure_id, upload_id):
 
 
 @require_POST
+def discard(request, procedure_id, upload_id):
+    """Descarta una subida equivocada, con su motivo (`upload.reject`)."""
+    procedure = _procedure(procedure_id)
+    _require(request, CommissionRole.OPERATOR, "discard")
+    try:
+        rejected = upload.reject(request.user, upload_id, request.POST.get("reason", ""),
+                                 channel=CHANNEL)
+    except upload.UploadRefused as error:
+        return _back(procedure, str(error), ok=False, anchor=f"s5-subida-{upload_id}")
+    return _back(procedure, f"Se descartó la subida «{rejected.file_name}». No se borró: queda "
+                            "en el registro con el motivo, quién y cuándo. El mismo archivo se "
+                            "puede volver a subir.", anchor="s5-subir")
+
+
+@require_POST
 def validate(request, procedure_id, reading_id):
     """Valida la lectura de una norma (`validation.validate_reading`): solo el evaluador."""
     procedure = _procedure(procedure_id)
@@ -443,5 +469,6 @@ urlpatterns = [
     path("normativas/norma/subir/", upload_file, name="s5_subir"),
     path("normativas/subida/<int:upload_id>/corregir/", correct, name="s5_corregir"),
     path("normativas/subida/<int:upload_id>/cargar/", load, name="s5_cargar"),
+    path("normativas/subida/<int:upload_id>/descartar/", discard, name="s5_descartar"),
     path("normativas/lectura/<int:reading_id>/validar/", validate, name="s5_validar"),
 ]

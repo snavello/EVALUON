@@ -63,6 +63,15 @@
       {% if up.to_check %}<span class="suave">Complete primero los datos obligatorios.</span>{% endif %}
     </form>
     {% endif %}
+    {% if up.can_reject %}
+    <details class="acc"><summary class="btn secundario chico">Descartar esta subida</summary>
+      <form method="post" action="{% url 'expedientes:s5_descartar' t.pid up.id %}">{% csrf_token %}
+        <label for="d-{{ up.id }}">Motivo para descartarla (obligatorio)</label>
+        <textarea id="d-{{ up.id }}" name="reason" rows="2" required></textarea>
+        <p class="ayuda">No se borra: queda en el registro con el motivo, quién y cuándo, y no se carga ninguna norma. El mismo archivo se puede volver a subir.</p>
+        <button class="btn acento chico" type="submit">Descartar esta subida</button>
+      </form></details>
+    {% endif %}
   </div>
   {% endfor %}
 </div>
