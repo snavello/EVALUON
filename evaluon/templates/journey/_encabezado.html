@@ -1,14 +1,15 @@
 {% comment %}Encabezado de la aplicación y fila de las cinco pestañas (maqueta aprobada de la 014). Los desplegables son `details`: funcionan sin scripts.{% endcomment %}<header class="top"><div class="wrap">
   <a class="nombre" href="{% url 'expedientes:index' %}">EVALUON</a>
   <details class="sel-proc">
-    <summary class="btn-menu" aria-label="Cambiar de procedimiento"><span class="b-txt"><small>Procedimiento</small>{% if procedure %}{{ procedure.number }} · {{ procedure.subject }}{% else %}Nuevo procedimiento (sin crear){% endif %}</span><span aria-hidden="true">▾</span></summary>
+    <summary class="btn-menu" aria-label="Cambiar de procedimiento"><span class="b-txt"><small>Procedimiento</small>{% if procedure %}{{ procedure.number }} · {{ procedure.subject }}{% elif header_label %}{{ header_label }}{% else %}Nuevo procedimiento (sin crear){% endif %}</span><span aria-hidden="true">▾</span></summary>
     <div class="menu" role="menu">
       <p class="menu-tit">Cambiar de procedimiento</p>
       {% for p in procedures %}
       <a role="menuitem" href="{% url 'expedientes:portada' p.pk %}"{% if p.pk == procedure.pk %} class="actual" aria-current="true"{% endif %}>{{ p.number }}<small>{{ p.subject|truncatechars:80 }}</small></a>
       {% endfor %}
       <hr>
-      <a role="menuitem" href="{% url 'expedientes:nuevo' %}"{% if not procedure %} class="actual" aria-current="true"{% endif %}>+ Nuevo procedimiento</a>
+      <a role="menuitem" href="{% url 'expedientes:nuevo' %}"{% if not procedure and not header_label %} class="actual" aria-current="true"{% endif %}>+ Nuevo procedimiento</a>
+      <a role="menuitem" href="{% url 'expedientes:normativas_general' %}"{% if header_label %} class="actual" aria-current="true"{% endif %}>Normativas<small>Comunes a todos los procedimientos</small></a>
     </div>
   </details>
   <span class="espacio"></span>

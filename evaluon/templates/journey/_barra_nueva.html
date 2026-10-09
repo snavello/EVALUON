@@ -1,9 +1,9 @@
-{% comment %}Las cinco pestañas cuando todavía no existe el procedimiento (T-195, maqueta aprobada): Procedimiento, activa y sin crear; Pliego y matriz, Ofertas y Evaluación, en gris hasta crearlo; Normativas, siempre disponible. Recibe `tabs` y `normativas_url`. No tiene formularios (P3).{% endcomment %}<ul>
+{% comment %}Las cinco pestañas cuando todavía no existe el procedimiento (T-195, maqueta aprobada): Procedimiento, sin crear; Pliego y matriz, Ofertas y Evaluación, en gris hasta crearlo; Normativas, siempre disponible (la página general, T-225). La activa es la de `tab.current`. Recibe `tabs` y `normativas_url`. No tiene formularios (P3).{% endcomment %}<ul>
   {% for tab in tabs %}
-  <li>{% if tab.key == "procedimiento" %}<a href="{% url 'expedientes:nuevo' %}" aria-current="page">
+  <li>{% if tab.key == "procedimiento" %}<a href="{% url 'expedientes:nuevo' %}"{% if tab.current %} aria-current="page"{% endif %}>
       <span class="t-nombre">{% include "journey/_icono.html" with icon="pend" name="Sin crear todavía" tip=False %}<span>{{ tab.label }}</span></span>
       <span class="t-pie">sin crear</span></a>
-    {% elif tab.enabled %}<a href="{{ normativas_url }}">
+    {% elif tab.enabled %}<a href="{{ normativas_url }}"{% if tab.current %} aria-current="page"{% endif %}>
       <span class="t-nombre">{% include "journey/_icono.html" with icon="pend" name="Disponible" tip=False %}<span>{{ tab.label }}</span></span>
       <span class="t-pie">siempre disponible</span></a>
     {% else %}<span class="off" tabindex="0" role="link" aria-disabled="true" title="Disponible al crear el procedimiento">

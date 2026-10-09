@@ -20,6 +20,11 @@ La pantalla dice cuál de los dos le falta a quien no puede una acción. Sin el 
 La biblioteca de normas es común a todos los procedimientos: la lista no depende del que se abra.
 Las acciones vuelven a la pestaña con el aviso de lo hecho (firmado en la dirección, sin sesión).
 
+La normativa no está atada a ningún procedimiento (T-225): el mismo tema se muestra en la página
+general `expedientes/normativas/` (vista `views/normativas.py`), con `procedure` en `None`. Sus
+acciones son las mismas vistas con las rutas de `general_urlpatterns` (nombres con `_general`), y
+vuelven a la página de la que vinieron: subir o validar desde cualquiera de las dos da lo mismo.
+
 «Descartar esta subida» (T-225, `upload.reject`): una subida equivocada se descarta con motivo; la
 descarta el evaluador o quien la subió. Queda «rechazado» (no se borra) y el mismo archivo se puede
 volver a subir. Fuera de alcance: «Devolver para releer».
@@ -99,14 +104,29 @@ def unpack(value):
 
 
 def tab_url(procedure_id):
+    """La pestaña Normativas del procedimiento o, sin procedimiento, la página general."""
+    if procedure_id is None:
+        return reverse("expedientes:normativas_general")
     return reverse("expedientes:normativas", args=[procedure_id])
+
+
+def action_url(name, procedure_id, *args):
+    """La ruta de la acción `name` desde la pestaña del procedimiento o desde la página
+    general (`procedure_id` en `None`)."""
+    if procedure_id is None:
+        return reverse(f"expedientes:{name}_general", args=args)
+    return reverse(f"expedientes:{name}", args=[procedure_id, *args])
+
+
+def _pk(procedure):
+    return procedure.pk if procedure is not None else None
 
 
 def _back(procedure, text, ok=True, anchor="s5-aviso", reading=None):
     query = f"?aviso={pack(text, ok)}"
     if reading is not None:
         query += f"&lectura={reading}"
-    return redirect(f"{tab_url(procedure.pk)}{query}#{anchor}")
+    return redirect(f"{tab_url(_pk(procedure))}{query}#{anchor}")
 
 
 def plural(count, one, many):
@@ -184,7 +204,7 @@ def _pending_readings():
 def status(user, procedure):
     """Cuentas del tema: lecturas por validar y subidas que esperan confirmación (pendientes) y
     modificatorias registradas sin cargar (faltantes, cada una con «Subir norma»)."""
-    url = tab_url(procedure.pk)
+    url = tab_url(_pk(procedure))
     items = [Item(f"Norma {reading.document.norm.citation or reading.document.norm.title}: "
                   "su lectura espera la validación del evaluador",
                   f"{url}?lectura={reading.pk}#s5-lectura", 1, "Ver el informe",
@@ -248,7 +268,7 @@ def _can_reject(user, one):
             or (commission == CommissionRole.OPERATOR and one.uploaded_by_id == user.pk))
 
 
-def _waiting_uploads(user):
+def _waiting_uploads(user, pid):
     waiting = []
     for one in NormUpload.objects.filter(state=ProposalState.PROPUESTO).select_related(
             "uploaded_by").order_by("pk"):
@@ -261,6 +281,9 @@ def _waiting_uploads(user):
             "fields": fields,
             "to_check": sum(1 for f in fields if f["required"] and f["empty"]),
             "can_reject": _can_reject(user, one),
+            "correct_action": action_url("s5_corregir", pid, one.pk),
+            "load_action": action_url("s5_cargar", pid, one.pk),
+            "discard_action": action_url("s5_descartar", pid, one.pk),
         })
     return waiting
 
@@ -302,7 +325,7 @@ def _norm_rows(user):
     return rows, items
 
 
-def _report(user, reading_id):
+def _report(user, reading_id, pid=None):
     """El informe de lectura pedido en la dirección, con lo que pasa al validar."""
     try:
         reading_id = int(reading_id)
@@ -317,7 +340,7 @@ def _report(user, reading_id):
             "title": report.title, "part": report.part, "file_name": report.file_name,
             "sequence": report.sequence, "icon": icon, "state": name, "text": report.report_text,
             "pending": report.status == ReadingStatus.PENDING, "summary": None, "note": "",
-            "error": ""}
+            "error": "", "validate_action": action_url("s5_validar", pid, report.reading_id)}
     if data["pending"] and _can_write(user):
         try:
             summary = validation.reading_summary(user, reading_id, channel=CHANNEL)
@@ -337,18 +360,19 @@ def _report(user, reading_id):
 
 
 def context(user, procedure, request):
-    base = {"pid": procedure.pk if procedure is not None else None,
-            "aviso": unpack(request.GET.get("aviso")) if request else None}
+    pid = _pk(procedure)
+    base = {"pid": pid, "aviso": unpack(request.GET.get("aviso")) if request else None,
+            "upload_action": action_url("s5_subir", pid)}
     rows, items = _norm_rows(user)
     upload_blocked = _missing_roles(user, evaluator=False)
     validate_blocked = _missing_roles(user, evaluator=True)
     return {
         **base, "rows": rows, "norm_count": len(items),
-        "unvalidated": _pending_readings().count(), "waiting": _waiting_uploads(user),
+        "unvalidated": _pending_readings().count(), "waiting": _waiting_uploads(user, pid),
         "categories": Category.choices,
         "upload_blocked": upload_blocked, "can_upload": not upload_blocked,
         "validate_blocked": validate_blocked, "can_validate": not validate_blocked,
-        "report": _report(user, request.GET.get("lectura")) if request else None,
+        "report": _report(user, request.GET.get("lectura"), pid) if request else None,
     }
 
 
@@ -356,6 +380,9 @@ def context(user, procedure, request):
 
 
 def _procedure(procedure_id):
+    """El procedimiento de la ruta, o `None` desde la página general."""
+    if procedure_id is None:
+        return None
     try:
         return Procedure.objects.get(pk=procedure_id)
     except Procedure.DoesNotExist:
@@ -368,7 +395,7 @@ def _require(request, role, name):
 
 
 @require_POST
-def upload_file(request, procedure_id):
+def upload_file(request, procedure_id=None):
     """Sube el archivo de una norma: el sistema la lee y propone sus datos (`upload.stage`)."""
     procedure = _procedure(procedure_id)
     _require(request, CommissionRole.OPERATOR, "upload_file")
@@ -393,7 +420,7 @@ def upload_file(request, procedure_id):
 
 
 @require_POST
-def correct(request, procedure_id, upload_id):
+def correct(request, upload_id, procedure_id=None):
     """Corrige o completa un dato propuesto, con valor y motivo (`upload.correct`)."""
     procedure = _procedure(procedure_id)
     _require(request, CommissionRole.OPERATOR, "correct")
@@ -410,7 +437,7 @@ def correct(request, procedure_id, upload_id):
 
 
 @require_POST
-def load(request, procedure_id, upload_id):
+def load(request, upload_id, procedure_id=None):
     """Carga la norma con los datos confirmados (`upload.confirm`); deja su lectura pendiente."""
     procedure = _procedure(procedure_id)
     _require(request, CommissionRole.OPERATOR, "load")
@@ -429,7 +456,7 @@ def load(request, procedure_id, upload_id):
 
 
 @require_POST
-def discard(request, procedure_id, upload_id):
+def discard(request, upload_id, procedure_id=None):
     """Descarta una subida equivocada, con su motivo (`upload.reject`)."""
     procedure = _procedure(procedure_id)
     _require(request, CommissionRole.OPERATOR, "discard")
@@ -444,7 +471,7 @@ def discard(request, procedure_id, upload_id):
 
 
 @require_POST
-def validate(request, procedure_id, reading_id):
+def validate(request, reading_id, procedure_id=None):
     """Valida la lectura de una norma (`validation.validate_reading`): solo el evaluador."""
     procedure = _procedure(procedure_id)
     _require(request, CommissionRole.EVALUATOR, "validate")
@@ -471,4 +498,14 @@ urlpatterns = [
     path("normativas/subida/<int:upload_id>/cargar/", load, name="s5_cargar"),
     path("normativas/subida/<int:upload_id>/descartar/", discard, name="s5_descartar"),
     path("normativas/lectura/<int:reading_id>/validar/", validate, name="s5_validar"),
+]
+
+# Las mismas acciones desde la página general, sin procedimiento; se cuelgan de
+# `expedientes/normativas/` (journey/urls.py).
+general_urlpatterns = [
+    path("norma/subir/", upload_file, name="s5_subir_general"),
+    path("subida/<int:upload_id>/corregir/", correct, name="s5_corregir_general"),
+    path("subida/<int:upload_id>/cargar/", load, name="s5_cargar_general"),
+    path("subida/<int:upload_id>/descartar/", discard, name="s5_descartar_general"),
+    path("lectura/<int:reading_id>/validar/", validate, name="s5_validar_general"),
 ]
