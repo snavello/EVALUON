@@ -1,1 +1,23 @@
-{% comment %}Parcial del tema s5_rigen (Normas que rigen al procedimiento). Vacío en el corte vertical; lo completa T-215.{% endcomment %}
+{% comment %}Tema s5_rigen (T-215, REQ-095, REQ-097): «Normas que lo rigen y cuáles faltan». Una fila por norma: por qué lo rige, estado, de dónde vino y acciones. La que no aplica sale marcada; la que falta lleva «Subir archivo» hacia el ancla de subida de T-214 (#s5-subir). Recibe `t` (ver evaluon/journey/temas/s5_rigen.py).{% endcomment %}
+<div class="bloque" id="s5-rigen">
+  <div class="bloque-cab"><h3>Normas que lo rigen y cuáles faltan</h3></div>
+  <p class="resumen-linea">Este procedimiento se autorizó el <b>{{ t.date }}</b>. <b>{{ t.loaded }}</b> norma{{ t.loaded|pluralize }} cargada{{ t.loaded|pluralize }}{% if t.unvalidated %}, <b>{{ t.unvalidated }}</b> sin validar{% endif %}; <b>{{ t.missing }}</b> falta{{ t.missing|pluralize:",n" }} cargar.</p>
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <thead><tr><th scope="col">Norma</th><th scope="col">Por qué lo rige</th><th scope="col" class="e">Estado</th><th scope="col">De dónde vino</th><th scope="col">Acciones</th></tr></thead>
+    <tbody>
+      {% for item in t.rows %}{% with r=item.row %}
+      <tr>
+        <th scope="row">{{ r.name }}{% if r.version %}<br><span class="suave chica">{{ r.version }}</span>{% endif %}</th>
+        <td>{{ r.why }}</td>
+        <td class="e">{% if item.icon %}{% include "journey/_icono.html" with icon=item.icon name=item.state_name %}{% else %}<span class="suave" title="No aplica">—</span>{% endif %}</td>
+        <td class="origen">{% if r.source %}{{ r.source }}{% else %}—{% endif %}</td>
+        <td class="acciones-doc">
+          {% if r.upload_url %}<a href="{{ r.upload_url }}">Subir archivo</a>
+          {% elif r.state == "no_aplica" %}<span class="suave">No se necesita para este procedimiento</span>
+          {% else %}{% if r.original_url %}<a href="{{ r.original_url }}" target="_blank" rel="noopener">Ver el original</a>{% endif %}{% if r.validate_url %}{% if r.original_url %} · {% endif %}<a href="{{ r.validate_url }}">Ver el informe de lectura y validarla</a>{% endif %}{% endif %}
+        </td>
+      </tr>
+      {% endwith %}{% endfor %}
+    </tbody>
+  </table></div>
+</div>

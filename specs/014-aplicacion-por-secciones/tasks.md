@@ -29,7 +29,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-202 | Sección 3: lista de ofertas con alta a la vista (desde el Portal o subiendo archivos, con nombre y CUIT propuestos para aprobar o corregir) y documentos de cada oferta, subida múltiple | REQ-083, REQ-084, REQ-097 | T-192, T-220 | pendiente |
 | T-203 | Sección 3: ficha de cada oferta (qué presentó frente a cada requisito, con el fragmento o «no se encontró en la oferta») | REQ-086 | T-192 | terminada |
 | T-204 | Sección 3: anexos técnicos dentro de la oferta y hoja de compliance por oferta con el faltante a la vista (absorbe la parte de compliance de T-191) | REQ-087, REQ-088, REQ-097 | T-192, T-193 | terminada |
-| T-205 | Sección 3: circulares y aclaraciones (Portal o subidas); una circular modificatoria abre una versión nueva de la matriz con lo cambiado marcado | REQ-085, REQ-097 | T-201 | pendiente |
+| T-205 | Sección 3: circulares y aclaraciones (Portal o subidas); una circular modificatoria abre una versión nueva de la matriz con lo cambiado marcado | REQ-085, REQ-097 | T-201 | terminada |
 | T-206 | Sección 3: reemplazar, retirar y restituir documentos de la oferta, con historial y «retirados» | REQ-099 | T-202, T-199 | pendiente |
 | T-207 | Sección 4: propuesta de evaluación por oferta y requisito (cumple, no cumple, no determinado, con fundamento) y decisión de la Comisión | REQ-089, REQ-097 | T-192 | terminada |
 | T-208 | Sección 4: preguntas a la Comisión y pedidos de subsanación con su respuesta registrada | REQ-090 | T-192 | terminada |
@@ -39,14 +39,14 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-212 | Sección 4: exportar la planilla por oferta (Excel) y el cuadro comparativo (Excel y PDF); suma la dependencia XlsxWriter (ADR-0050) | REQ-093 | T-192 | pendiente |
 | T-213 | Propuesta de los datos de una norma desde su archivo y staging de la subida (sin pantalla) | REQ-094 | T-193 | terminada |
 | T-214 | Sección 5: subir una norma, ver el informe de lectura y validarla desde la pantalla | REQ-094, REQ-097 | T-192, T-213 | terminada |
-| T-215 | Sección 5: normas que rigen al procedimiento según su fecha de autorización y cuáles faltan cargar | REQ-095, REQ-097 | T-192 | pendiente |
+| T-215 | Sección 5: normas que rigen al procedimiento según su fecha de autorización y cuáles faltan cargar | REQ-095, REQ-097 | T-192 | terminada |
 | T-216 | Sección 5: consulta de normativa con citas literales | REQ-096 | T-192 | pendiente |
 | T-217 | Los cinco momentos y los roles con el caso chico: estados y cuentas de las cinco secciones, 25 de 25 celdas (reemplaza a T-185 de la 013) | REQ-075, REQ-097, REQ-098 | T-194, T-195, T-197, T-198, T-200, T-201, T-202, T-203, T-204, T-205, T-206, T-207, T-208, T-209, T-210, T-211, T-212, T-214, T-215, T-216, T-219 | pendiente |
 | T-218 | Comprobación final con el caso chico y el caso-00 (Coordinador y testeador): 26 de 26 requisitos en pantalla, 0 datos tipeados, carga menor a 2 s y guía visual (reemplaza a T-186 de la 013) | REQ-075, REQ-076, REQ-077, REQ-078, REQ-079, REQ-080, REQ-081, REQ-082, REQ-083, REQ-084, REQ-085, REQ-086, REQ-087, REQ-088, REQ-089, REQ-090, REQ-091, REQ-092, REQ-093, REQ-094, REQ-095, REQ-096, REQ-097, REQ-098, REQ-099, REQ-100 | T-217 | pendiente |
 | T-219 | Las pantallas anteriores redirigen a su sección y el menú queda con la entrada nueva | REQ-075, REQ-100 | T-195, T-197, T-198, T-201, T-202, T-207, T-208, T-214 | pendiente |
 | T-220 | Propuesta de nombre y CUIT del oferente desde los archivos de una oferta: borrador, pedido en segundo plano, citas, corrección con valor y motivo y aprobación que crea la oferta (sin pantalla) | REQ-083 | T-193, T-196 | pendiente |
 | T-221 | Rendimiento de las pestañas con datos reales: Pliego y matriz, Ofertas y Evaluación cargan en menos de 2 s con el procedimiento real del sistema principal (medido en una base aparte restaurada del respaldo) | REQ-075, REQ-100 | T-209 | terminada |
-| T-222 | Pendientes y sugerencias agrupados cuando son muchos: con el procedimiento real la pestaña Evaluación lista 258 pendientes uno por uno (página de 32.000 px); agrupar por tipo con su cuenta y acceso al bloque filtrado, y detallar uno por uno solo cuando son pocos | REQ-098, REQ-100 | T-221 | en curso |
+| T-222 | Pendientes y sugerencias agrupados cuando son muchos: con el procedimiento real la pestaña Evaluación lista 258 pendientes uno por uno (página de 32.000 px); agrupar por tipo con su cuenta y acceso al bloque filtrado, y detallar uno por uno solo cuando son pocos | REQ-098, REQ-100 | T-221 | terminada |
 | T-223 | Menos consultas en los servicios de la evaluación y de la matriz (N+1 en matrix_page, external_results, question_list y quote_rows), sin cambiar resultados | REQ-100 | T-221 | pendiente |
 
 ## Tareas de la 013 que se absorben
@@ -228,6 +228,7 @@ El Coordinador marca T-185, T-186, T-188 y T-191 de la 013 como «reemplazada po
 - **Requisitos:** REQ-099
 - **No arranca sin la maqueta aprobada.**
 - **Qué hay que hacer:** en el tema `s3_ofertas`, «Reemplazar», «Retirar» (con nota) y «Restituir» por documento de la oferta, historial y «retirados»; aviso de evaluación hecha con un documento retirado (se pide evaluar de nuevo; no se recalcula sola).
+- **Aviso de tareas anteriores:** (T-205) circulars_of usa document_history.current_documents: mantenerlo al agregar Historial/Reemplazar/Retirar de circulares (la maqueta los muestra).
 - **Archivos:** `evaluon/journey/temas/s3_ofertas.py`, `evaluon/templates/journey/temas/s3_ofertas.html`, `tests/journey/temas/test_s3_ofertas_history.py`.
 - **Verificación:** `pytest tests/journey`; documento reemplazado muestra la anterior y la nueva; retirado figura en «retirados»; el aviso de evaluación aparece.
 - **No tocar:** `offers/services/document_history.py`.
