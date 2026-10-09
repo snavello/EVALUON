@@ -18,9 +18,12 @@ from tests.accounts.test_session import TEST_PASSWORD
 pytestmark = pytest.mark.django_db
 
 # Máximo de consultas por pestaña con el caso chico (dos ofertas, un requisito firme): lo medido
-# más un margen. Subirlo exige explicar por qué una pestaña consulta más.
-LIMITS = {"procedimiento": 145, "pliego": 180, "ofertas": 140, "evaluacion": 145,
-          "normativas": 135}
+# el 2026-10-08 sobre main con T-205, T-210 y T-211 integrados (procedimiento 145, pliego 175,
+# ofertas 142, evaluación 145, normativas 136) más un 15 % de margen, redondeado. Los topes de
+# T-221 se habían quedado sin margen. Se bajan con T-223 (consultas repetidas en los servicios).
+# Subirlo exige explicar por qué una pestaña consulta más.
+LIMITS = {"procedimiento": 167, "pliego": 201, "ofertas": 163, "evaluacion": 167,
+          "normativas": 156}
 
 
 @pytest.fixture

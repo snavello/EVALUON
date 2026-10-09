@@ -48,6 +48,7 @@ TYPE_LABELS = {
 TYPE_OPTIONS = (("formal", "Formales"), ("economico", "Económicos"),
                 ("tecnico", "Técnicos por renglón"))
 SHOW_OPTIONS = (("", "Todos los requisitos"),
+                ("sin-decidir", "Solo los pares por decidir (los del panel de pendientes)"),
                 ("abiertas", "Solo lo abierto (sin decidir, no determinado o rechazado)"),
                 ("nocumple", "Solo los que no cumplen"))
 EXCERPT = 200
@@ -83,6 +84,7 @@ class CellView:
     explanation: str = ""
     quotes: list = field(default_factory=list)  # citas de la oferta (texto, documento, página)
     technical: bool = False
+    counted: bool = False  # par por decidir: el que cuenta el panel de pendientes
     can_decide: bool = False
     options: list = field(default_factory=list)  # resultados a los que se puede corregir
     pair_url: str = ""
@@ -155,12 +157,15 @@ def _items(page, procedure):
                 pending.append(Item(
                     f"Oferta {offer.number} · requisito {requirement.number}: "
                     f"{cell.effective_label.lower()} propuesto, sin decidir",
-                    f"{base}#ev-{requirement.number}", 1, "Resolver"))
+                    f"{base}#ev-{requirement.number}", 1, "Resolver", kind="par",
+                    noun="pares por decidir", group_url=f"{base}?ver=sin-decidir#s4-propuesta"))
     for status in page.statuses:
         for question in status.open_questions:
             pending.append(Item(
                 f"Oferta {status.offer.number} · requisito {question.requirement.number}: "
-                "pregunta abierta", f"{base}#preg-{question.pk}", 1, "Resolver"))
+                "pregunta abierta", f"{base}#preg-{question.pk}", 1, "Resolver",
+                kind="pregunta", noun="preguntas abiertas",
+                group_url=f"{base}?preg=abiertas#s4-preguntas", group_action="Responder"))
     return pending, []
 
 
@@ -242,6 +247,7 @@ def _cell_views(page, user):
         view.explanation = result.explanation
         view.quotes = offer_quotes.get(result.pk, [])
         view.technical = key in technical
+        view.counted = cell.state == matrix_service.PENDING and not view.technical
         view.can_decide = is_evaluator and not view.technical
         view.options = [(value, label) for value, label in Outcome.choices
                         if value != result.outcome]
@@ -280,6 +286,8 @@ def _select(rows, query):
     chosen = []
     for row in rows:
         if kind and row.category != kind:
+            continue
+        if show == "sin-decidir" and not any(c.counted for c in row.cells):
             continue
         if show == "abiertas" and not any(c.open for c in row.cells):
             continue
