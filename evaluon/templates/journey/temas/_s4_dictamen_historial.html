@@ -1,0 +1,8 @@
+{% comment %}Historial de un dictamen subido (T-225, REQ-099): cada versión y cada retiro o restitución, con quién, cuándo y el motivo, de lo más nuevo a lo más viejo. Recibe `entries` (`s2_documentos.timeline`).{% endcomment %}<details class="acc historial-dic"><summary class="btn secundario chico">Historial</summary>
+  <p class="ayuda">Reemplazar o retirar no borra nada: la versión anterior y lo retirado quedan acá y se pueden ver.</p>
+  <ol class="historial">
+    {% for e in entries %}
+    <li class="{{ e.css }}"><b>{{ e.title }}</b><br><span class="registro">{{ e.when }} · {{ e.who }}</span><br>{{ e.text }}{% if e.document %} <a href="{% url 'tenders:document_original' e.document.pk %}">Ver el archivo</a>{% endif %}</li>
+    {% endfor %}
+  </ol>
+</details>

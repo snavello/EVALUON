@@ -1,4 +1,4 @@
-{% load static %}{% comment %}Tema s4_dictamen (T-211, REQ-092, REQ-097): el dictamen del Portal o subido. «Tomar del Portal» aprueba la carga del dictamen que publicó el Portal; «Subir el dictamen» guarda el archivo (no se lee). El sistema no redacta el dictamen: no hay acción de borrador. Formularios POST a las rutas de s4_dictamen, que vuelven a esta pestaña. Recibe `t` (ver evaluon/journey/temas/s4_dictamen.py).{% endcomment %}
+{% load static %}{% comment %}Tema s4_dictamen (T-211, REQ-092, REQ-097): el dictamen del Portal o subido. «Tomar del Portal» aprueba la carga del dictamen que publicó el Portal; «Subir el dictamen» guarda el archivo (no se lee). El dictamen subido tiene Historial, Reemplazar y Retirar, y el retirado, Restituir (T-225, REQ-099): nada se borra. El sistema no redacta el dictamen: no hay acción de borrador. Formularios POST a las rutas de s4_dictamen, que vuelven a esta pestaña. Recibe `t` (ver evaluon/journey/temas/s4_dictamen.py).{% endcomment %}
 <link rel="stylesheet" href="{% static 'journey/s4_dictamen.css' %}">
 <div class="s4-dic">
 <div class="bloque" id="s4-dictamen">
@@ -22,14 +22,60 @@
       {% if t.portal.failure %}<span class="registro">Motivo: {{ t.portal.failure }}</span>{% endif %}</p>
     {% endif %}
     {% for u in t.uploaded %}
+    <div class="dictamen-subido" id="dictamen-{{ u.document.pk }}">
     <p class="con-icono">{% include "journey/_icono.html" with icon="cumple" name="Cargado" %} <b>Dictamen subido:</b> «{{ u.document.title }}»{% if u.issued %} · fecha {{ u.issued }}{% endif %} · cargado el {{ u.loaded }} por {{ u.by }} ·
       <a href="{% url 'tenders:document_original' u.document.pk %}">Abrir el archivo</a></p>
+    <div class="acciones-doc">
+      {% include "journey/temas/_s4_dictamen_historial.html" with entries=u.timeline %}
+      {% if t.can_load %}
+      <details class="acc"><summary class="btn secundario chico">Reemplazar</summary>
+        <form method="post" enctype="multipart/form-data" action="{% url 'expedientes:s4_dictamen_reemplazar' t.pid u.document.pk %}">{% csrf_token %}
+          <p class="ayuda">La versión anterior queda en el historial y se puede ver.</p>
+          <label for="dic-reemplazar-{{ u.document.pk }}">Archivo nuevo</label>
+          <input type="file" name="file" id="dic-reemplazar-{{ u.document.pk }}" required>
+          <label for="dic-reemplazar-motivo-{{ u.document.pk }}">Motivo (obligatorio)</label>
+          <textarea name="note" id="dic-reemplazar-motivo-{{ u.document.pk }}" rows="2" required></textarea>
+          <button class="btn primario chico" type="submit">Reemplazar</button>
+        </form></details>
+      <details class="acc"><summary class="btn acento chico">Retirar</summary>
+        <form method="post" action="{% url 'expedientes:s4_dictamen_retirar' t.pid u.document.pk %}">{% csrf_token %}
+          <p class="ayuda">No se borra: sale del expediente y queda en «Retirados» con el motivo. Se puede restituir.</p>
+          <label for="dic-retirar-{{ u.document.pk }}">Motivo (obligatorio)</label>
+          <textarea name="note" id="dic-retirar-{{ u.document.pk }}" rows="2" required></textarea>
+          <button class="btn acento chico" type="submit">Retirar</button>
+        </form></details>
+      {% endif %}
+    </div>
+    </div>
     {% endfor %}
     {% if not t.portal and not t.uploaded %}
     <p class="con-icono">{% include "journey/_icono.html" with icon="nodet" name="No cargado" %} El dictamen todavía no se cargó. {% if t.can_load %}Súbalo como archivo; si el Portal lo publica, aparece acá para tomarlo.{% endif %}</p>
     {% endif %}
   </div>
   <p class="ayuda">El dictamen siempre viene del Portal o de un archivo: el sistema no lo redacta.</p>
+
+  {% if t.withdrawn %}
+  <div id="dictamen-retirados">
+    <h4>Retirados <span class="cta">{{ t.withdrawn|length }}</span></h4>
+    {% for w in t.withdrawn %}
+    <div class="dictamen-retirado" id="dictamen-retirado-{{ w.document.pk }}">
+      <p>«{{ w.document.title }}» · retirado el {{ w.when }} por {{ w.by }} · motivo: {{ w.note }} · <a href="{% url 'tenders:document_original' w.document.pk %}">Ver el archivo</a></p>
+      <div class="acciones-doc">
+        {% include "journey/temas/_s4_dictamen_historial.html" with entries=w.timeline %}
+        {% if t.can_load %}
+        <details class="acc"><summary class="btn secundario chico">Restituir</summary>
+          <form method="post" action="{% url 'expedientes:s4_dictamen_restituir' t.pid w.document.pk %}">{% csrf_token %}
+            <p class="ayuda">Vuelve al expediente; queda registrado.</p>
+            <label for="dic-restituir-{{ w.document.pk }}">Motivo (obligatorio)</label>
+            <textarea name="note" id="dic-restituir-{{ w.document.pk }}" rows="2" required></textarea>
+            <button class="btn primario chico" type="submit">Restituir</button>
+          </form></details>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
   {% if t.can_load %}
   <form class="subida" id="dictamen-subir" method="post" enctype="multipart/form-data" action="{% url 'expedientes:s4_dictamen_subir' t.pid %}">{% csrf_token %}

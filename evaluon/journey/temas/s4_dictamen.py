@@ -13,6 +13,11 @@ por el servicio. Las fechas se muestran en hora local.
 
 Lo que falta se cuenta como faltante con su acción directa, no como pendiente: el ítem del Portal
 sin aprobar ya lo cuenta la propuesta del Portal en la sección 1.
+
+El dictamen subido se reemplaza, se retira y se restituye sin borrar nada (REQ-099, T-225), con
+el servicio `tenders.services.document_history` y el motivo obligatorio: la versión anterior y el
+retirado quedan en el historial, que se ve dentro del bloque (la misma línea de tiempo que la
+sección 2, `s2_documentos.timeline`). Un dictamen retirado deja de contar como cargado.
 """
 
 from dataclasses import dataclass
@@ -26,13 +31,15 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from evaluon.accounts.models import CommissionRole
+from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
 from evaluon.journey.sections.base import Missing, TemaStatus
 from evaluon.journey.temas import s4_propuesta_acciones as acciones
+from evaluon.journey.temas.s2_documentos import timeline
 from evaluon.journey.temas.s4_propuesta import when
 from evaluon.portal.models import ItemKind, ItemState, PortalItem
 from evaluon.portal.services import approval
-from evaluon.tenders.models import DocumentKind, Procedure
+from evaluon.tenders.models import Document, DocumentKind, Procedure
 from evaluon.tenders.services import document_history
 from evaluon.tenders.services import documents as services
 
@@ -97,6 +104,18 @@ def uploaded_dictamenes(procedure):
                 .filter(kind=DocumentKind.DICTAMEN).select_related("loaded_by"))
 
 
+def withdrawn_dictamenes(procedure):
+    return list(document_history.withdrawn_documents(procedure)
+                .filter(kind=DocumentKind.DICTAMEN).select_related("loaded_by"))
+
+
+def _withdrawal(document):
+    change = document.changes.filter(action="retirar").select_related("user").order_by(
+        "-id").first()
+    return {"when": when(change.at), "by": change.user.get_username() if change.user else "—",
+            "note": change.note}
+
+
 def _published(item):
     value = item.payload.get("fecha")
     if value:
@@ -148,8 +167,11 @@ def context(user, procedure, request):
     view = _portal_view(portal) if portal is not None else None
     uploaded = [{"document": d, "loaded": when(d.loaded_at),
                  "by": d.loaded_by.get_username() if d.loaded_by_id else "—",
-                 "issued": f"{d.issued_on:%d/%m/%Y}" if d.issued_on else ""}
+                 "issued": f"{d.issued_on:%d/%m/%Y}" if d.issued_on else "",
+                 "timeline": timeline(d)}
                 for d in uploaded_dictamenes(procedure)]
+    withdrawn = [{"document": d, "timeline": timeline(d), **_withdrawal(d)}
+                 for d in withdrawn_dictamenes(procedure)]
     loaded = bool(uploaded) or (view is not None and view.state in TAKEN)
     waiting = view is not None and view.state == ItemState.PROPUESTO
     if loaded:
@@ -160,7 +182,8 @@ def context(user, procedure, request):
         cta = "no cargado"
     return {
         "pid": procedure.pk, "aviso": acciones.unpack(request.GET.get("aviso")),
-        "portal": view, "uploaded": uploaded, "loaded": loaded, "cta": cta,
+        "portal": view, "uploaded": uploaded, "withdrawn": withdrawn, "loaded": loaded,
+        "cta": cta,
         "can_load": can_load(user), "waiting": waiting,
     }
 
@@ -225,7 +248,71 @@ def upload(request, procedure_id):
                                     "archivo: el sistema no lo lee ni lo redacta.")
 
 
+# --- Reemplazar, retirar y restituir (REQ-099) ---------------------------------------------------
+
+
+def _dictamen(procedure, document_id):
+    found = Document.objects.filter(pk=document_id, procedure=procedure,
+                                    kind=DocumentKind.DICTAMEN).first()
+    if found is None:
+        raise Http404("No hay un dictamen con ese número en este procedimiento.")
+    return found
+
+
+def _change(request, procedure_id, document_id, operation, done, call, needs_file=False):
+    """Comprueba rol, motivo (y archivo) y llama al servicio; con rechazo vuelve con el motivo."""
+    procedure = _procedure(procedure_id)
+    document = _dictamen(procedure, document_id)
+    require_commission_role(request.user, CommissionRole.OPERATOR, operation=operation,
+                            channel=CHANNEL)
+    note = " ".join(request.POST.get("note", "").split())
+    if not note:
+        return acciones.back(procedure, "Escriba el motivo: es obligatorio y queda registrado.",
+                             ok=False)
+    file = request.FILES.get("file")
+    if needs_file and file is None:
+        return acciones.back(procedure, "Elija el archivo que reemplaza al dictamen.", ok=False)
+    try:
+        call(request.user, document, note, file)
+    except (document_history.HistoryRefused, services.DocumentRefused) as error:
+        return acciones.back(procedure, str(error), ok=False)
+    return acciones.back(procedure, f"Dictamen «{document.title}»: {done}")
+
+
+@require_POST
+def replace(request, procedure_id, document_id):
+    return _change(
+        request, procedure_id, document_id, document_history.REPLACE_OPERATION,
+        "reemplazado. La versión anterior queda en el historial y se puede ver.",
+        lambda user, doc, note, f: document_history.replace(
+            user, doc, data=f.read(), file_name=f.name, note=note, channel=CHANNEL),
+        needs_file=True)
+
+
+@require_POST
+def withdraw(request, procedure_id, document_id):
+    return _change(
+        request, procedure_id, document_id, document_history.WITHDRAW_OPERATION,
+        "retirado. No se borra: queda en «Retirados» con el motivo y se puede restituir.",
+        lambda user, doc, note, f: document_history.withdraw(user, doc, note, channel=CHANNEL))
+
+
+@require_POST
+def restore(request, procedure_id, document_id):
+    return _change(
+        request, procedure_id, document_id, document_history.RESTORE_OPERATION,
+        "restituido: vuelve a estar cargado.",
+        lambda user, doc, note, f: document_history.restore(user, doc, note=note,
+                                                            channel=CHANNEL))
+
+
 urlpatterns = [
     path("evaluacion/dictamen/tomar/", take, name="s4_dictamen_tomar"),
     path("evaluacion/dictamen/subir/", upload, name="s4_dictamen_subir"),
+    path("evaluacion/dictamen/<int:document_id>/reemplazar/", replace,
+         name="s4_dictamen_reemplazar"),
+    path("evaluacion/dictamen/<int:document_id>/retirar/", withdraw,
+         name="s4_dictamen_retirar"),
+    path("evaluacion/dictamen/<int:document_id>/restituir/", restore,
+         name="s4_dictamen_restituir"),
 ]
