@@ -123,19 +123,25 @@ def _decision_items(version):
     pending = []
     for requirement in live.filter(state="propuesto"):
         pending.append(Item(f"Requisito {requirement.number} sin confirmar",
-                            f"{base}#req-{requirement.number}", 1, "Resolver"))
+                            f"{base}#req-{requirement.number}", 1, "Resolver", kind="req",
+                            noun="requisitos sin confirmar",
+                            group_url=f"{base}?filtro=falta#s2-matriz"))
     for item in version.pending_items.filter(resolved_at__isnull=True).select_related(
             "segment__reading__document").order_by("pk"):
         pending.append(Item(f"Tramo por revisar: {_where(item.segment)}",
-                            f"{base}#tramo-{item.pk}", 1, "Resolver"))
+                            f"{base}#tramo-{item.pk}", 1, "Resolver", kind="tramo",
+                            noun="tramos por revisar", group_url=f"{base}#s2-decidir"))
     missing = [r for r in live if r.pk not in chosen]
     for requirement in missing:
         pending.append(Item(f"Consecuencia sin elegir: requisito {requirement.number}",
-                            f"{base}#req-{requirement.number}", 1, "Resolver"))
+                            f"{base}#req-{requirement.number}", 1, "Resolver", kind="consec",
+                            noun="consecuencias sin elegir",
+                            group_url=f"{base}?filtro=falta#s2-matriz"))
     suggestions = []
     for requirement in version.requirements.filter(state="sugerido").order_by("number"):
         suggestions.append(Item(f"Sugerencia {requirement.number} para decidir",
-                                f"{base}#sug-{requirement.number}", 1, "Resolver"))
+                                f"{base}#sug-{requirement.number}", 1, "Resolver", kind="sug",
+                                noun="sugerencias para decidir", group_url=f"{base}#s2-decidir"))
     return pending, suggestions, len(missing)
 
 
@@ -164,6 +170,18 @@ def _excerpt(text):
     return text if len(text) <= EXCERPT else text[:EXCERPT].rstrip() + "…"
 
 
+def _changed_by(row):
+    """Los documentos (circulares) que cambiaron el texto de alguna cita del requisito, en el
+    orden de fecha y sin repetir (REQ-085)."""
+    titles = []
+    for quote in row.quotes:
+        for source in [*quote.earlier, *([quote.current] if quote.current else [])]:
+            title = source.place.document_title
+            if title not in titles:
+                titles.append(title)
+    return titles
+
+
 def _marks(row):
     marks = []
     requirement = row.requirement
@@ -173,8 +191,9 @@ def _marks(row):
         marks.append("Agregado por una persona")
     if requirement.origin == RequirementOrigin.DEVUELTO:
         marks.append("Devuelto de las descartadas")
-    if any(q.current or q.earlier for q in row.quotes):
-        marks.append("Texto cambiado por circular")
+    changers = _changed_by(row)
+    if changers:
+        marks.append(f"Cambiado por {', '.join(changers)} (versión {requirement.version.number})")
     if any(q.voided for q in row.quotes):
         marks.append("Sin efecto por circular")
     if any(q.wide for q in row.quotes):

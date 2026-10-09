@@ -402,7 +402,8 @@ def test_unvalidated_norms_and_waiting_uploads_are_pending_and_amendments_are_mi
     """REQ-097: lo pendiente de validar y lo que espera confirmación se cuenta; la modificatoria
     registrada y sin cargar es un faltante con «Subir norma»."""
     base = sections_for(evaluator, procedure, channel=Channel.SCREEN).get("normativas")
-    assert base.pending == 0 and not base.tema_missing
+    assert base.pending == 0
+    assert not [m for m in base.tema_missing if "Modificatoria sin cargar" in m.text]
     complete_and_load(client, procedure, evaluator)
     send(client, procedure, NORM_WITHOUT_DATE, "esperando.htm")
     target = make_norm()

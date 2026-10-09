@@ -1,1 +1,79 @@
-{% comment %}Parcial del tema s3_circulares (Circulares y aclaraciones). Vacío en el corte vertical; lo completa T-205.{% endcomment %}
+{% load static %}{% comment %}Tema s3_circulares (T-205, REQ-085, REQ-097): circulares modificatorias, aclaratorias y respuestas a consultas, con su tipo, fecha, origen y lo que hicieron con la matriz. «Subir circular o aclaración» sube varios a la vez (POST a s3_circulares_subir; sin scripts, un mismo tipo y una misma fecha para todos); «Abrir la versión nueva de la matriz» (POST a s3_circulares_abrir) pide la propuesta que la incorpora. Recibe `t` (ver evaluon/journey/temas/s3_circulares.py).{% endcomment %}
+<div class="bloque" id="s3-circulares">
+  <div class="bloque-cab">
+    <h3>Circulares y aclaraciones <span class="cta">{{ t.loaded_count }} cargada{{ t.loaded_count|pluralize }}{% if t.missing_count %} · {{ t.missing_count }} detectada{{ t.missing_count|pluralize }} en el Portal{% endif %}</span></h3>
+    <span class="barra-cargas">
+      {% if t.can_load %}<a class="btn secundario chico" href="#s3-subir">Subir circular o aclaración</a>{% endif %}
+      <a class="btn secundario chico" href="{{ t.portal_url }}">Tomar del Portal</a>
+    </span>
+  </div>
+
+  {% if t.results %}
+  <div class="aviso" id="s3-resultado-circulares" role="status">
+    <b>Resultado</b>
+    <ul class="resultado-subida">
+      {% for r in t.results %}<li class="{% if r.ok %}ok{% else %}rechazado{% endif %}">{% if r.name %}<b>{{ r.name }}</b>: {% endif %}{{ r.text }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if t.empty and not t.absent %}
+  <div class="estado-vacio">
+    <h3>Todavía no hay circulares ni aclaraciones</h3>
+    <p>Las modificatorias, las aclaratorias y las respuestas a consultas se cargan acá. Una modificatoria abre una versión nueva de la matriz, con lo cambiado marcado, para validarla de nuevo.</p>
+    {% if t.can_load %}<a class="btn primario" href="#s3-subir">Subir circular o aclaración</a>{% endif %}
+    <a class="btn secundario" href="{{ t.portal_url }}">Tomar del Portal</a>
+  </div>
+  {% else %}
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <caption class="sr-only">Circulares y aclaraciones, con su tipo, su fecha, de dónde vinieron y qué hicieron con la matriz</caption>
+    <thead><tr><th scope="col">Documento</th><th scope="col">Tipo</th><th scope="col">Fecha</th><th scope="col">De dónde vino</th><th scope="col">Qué hizo con la matriz</th><th scope="col">Acciones</th></tr></thead>
+    <tbody>
+      {% for row in t.rows %}
+      <tr id="circular-{{ row.document.pk }}">
+        <th scope="row">{{ row.document.title }}<br><span class="suave chica">{{ row.document.file_name }} · {{ row.reading_text }}</span></th>
+        <td>{{ row.kind_label }}</td>
+        <td class="num">{{ row.day }}</td>
+        <td class="origen"><b>{{ row.origin }}</b> · {{ row.origin_date }}{% if row.origin_by %} · {{ row.origin_by }}{% endif %}</td>
+        <td>{{ row.effect_text }}{% if row.version_url %} <a href="{{ row.version_url }}">Ver la versión {{ row.version.number }}</a>{% endif %}{% if row.needs_validation %} <b>Falta validarla.</b>{% endif %}</td>
+        <td class="acciones-doc"><a href="{% url 'tenders:document_original' row.document.pk %}">Ver el archivo</a>{% if row.can_open %}
+          <form method="post" action="{% url 'expedientes:s3_circulares_abrir' t.pid %}">{% csrf_token %}
+            <input type="hidden" name="document" value="{{ row.document.pk }}">
+            <button class="btn primario chico" type="submit">Abrir la versión nueva de la matriz</button>
+          </form>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      {% for miss in t.absent %}
+      <tr class="falta-doc fila-novedad">
+        <th scope="row">{{ miss.name }}</th>
+        <td>—</td><td class="num">—</td>
+        <td class="origen"><b>Portal</b> · detectada, sin tomar ({{ miss.state|lower }})</td>
+        <td>Aún no cargada.</td>
+        <td class="acciones-doc"><a href="{{ t.portal_url }}">Tomar del Portal</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
+
+  <div class="bloque-pie"><span>Una circular modificatoria abre una versión nueva de la matriz de «Pliego y matriz», con lo cambiado marcado, y la Comisión la valida de nuevo. Una aclaratoria o una respuesta no la cambia.</span><a class="btn secundario" href="{{ t.matrix_url }}">Ver la matriz y sus versiones</a></div>
+
+  {% if t.can_load %}
+  <details class="subir" id="s3-subir"{% if t.empty %} open{% endif %}>
+    <summary class="btn secundario chico">Subir circular o aclaración</summary>
+    <form method="post" enctype="multipart/form-data" action="{% url 'expedientes:s3_circulares_subir' t.pid %}" id="s3-subir-form">{% csrf_token %}
+      <p class="ayuda">Elija uno o varios archivos (PDF o página web guardada) a la vez. Cada uno se carga por separado: si uno se rechaza, los demás igual se cargan. La fecha del documento es obligatoria.</p>
+      <label for="s3-archivos">Archivos</label>
+      <input type="file" name="files" id="s3-archivos" multiple required>
+      <label for="s3-tipo">Tipo <span class="suave" data-sin-script>(para todos los archivos)</span></label>
+      <select name="kind" id="s3-tipo">{% for value, label in t.kind_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+      <label for="s3-fecha">Fecha del documento <span class="suave" data-sin-script>(para todos los archivos)</span></label>
+      <input type="date" name="issued_on" id="s3-fecha">
+      <div id="s3-por-archivo" data-tipos='[{% for value, label in t.kind_choices %}["{{ value }}","{{ label }}"]{% if not forloop.last %},{% endif %}{% endfor %}]'></div>
+      <p class="aviso"><strong>Circular modificatoria</strong>Una vez leída, «Abrir la versión nueva de la matriz» arma un borrador con lo cambiado marcado, para validarlo de nuevo.</p>
+      <button class="btn primario" type="submit">Subir los archivos</button>
+    </form>
+  </details>
+  <script src="{% static 'journey/s3_circulares.js' %}" defer></script>
+  {% endif %}
+</div>
