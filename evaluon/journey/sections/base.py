@@ -37,6 +37,8 @@ class Missing:
     text: str
     url: str | None = None
     action: str = ""
+    kind: str = ""  # con más de MISSING_LIMIT del mismo tipo se agrupan en una línea
+    noun: str = ""  # p. ej. «ofertas sin informe técnico»
 
 
 @dataclass(frozen=True)
@@ -47,6 +49,52 @@ class Item:
     url: str | None = None
     count: int = 0
     action: str = "Ver"
+    kind: str = ""  # tipo de renglón: con más de GROUP_LIMIT del mismo tipo se agrupan
+    noun: str = ""  # cómo se nombra el tipo en plural, p. ej. «pares por decidir»
+    group_url: str | None = None  # el bloque ya filtrado a ese tipo
+    group_action: str = "Revisar"
+    limit: int = 0  # si es mayor que 0, reemplaza a GROUP_LIMIT para este tipo
+
+
+GROUP_LIMIT = 8
+MISSING_LIMIT = 3
+
+
+def group_items(items, limit=GROUP_LIMIT):
+    """Con más de `limit` renglones de un mismo tipo, los reemplaza por uno solo con la cuenta y
+    un acceso al bloque ya filtrado. Con `limit` o menos, quedan uno por uno. La suma de
+    `count` no cambia, así que la cuenta total sigue coincidiendo con la barra."""
+    by_kind = {}
+    for item in items:
+        if item.kind:
+            by_kind.setdefault(item.kind, []).append(item)
+    grouped, done = [], set()
+    for item in items:
+        mine = by_kind.get(item.kind) if item.kind else None
+        if not mine or len(mine) <= (item.limit or limit):
+            grouped.append(item)
+        elif item.kind not in done:
+            done.add(item.kind)
+            grouped.append(Item(f"{len(mine)} {item.noun}", item.group_url or item.url,
+                                sum(i.count for i in mine), item.group_action))
+    return grouped
+
+
+def group_missing(missing, limit=MISSING_LIMIT):
+    """Los faltantes de un mismo tipo, si son más de `limit`, en una sola línea con su cuenta."""
+    by_kind = {}
+    for one in missing:
+        if one.kind:
+            by_kind.setdefault(one.kind, []).append(one)
+    grouped, done = [], set()
+    for one in missing:
+        mine = by_kind.get(one.kind) if one.kind else None
+        if not mine or len(mine) <= limit:
+            grouped.append(one)
+        elif one.kind not in done:
+            done.add(one.kind)
+            grouped.append(Missing(f"{len(mine)} {one.noun}", one.url, one.action))
+    return grouped
 
 
 @dataclass(frozen=True)
@@ -148,6 +196,9 @@ def build_section(module, user, procedure, stages_by_key):
         shown_missing = [Missing(m.text, m.url if (m.url or "").startswith("/expedientes/")
                                  else None, m.action) for m in missing if m.text not in said]
 
+    missing = group_missing(missing)
+    tema_missing = group_missing(tema_missing)
+    shown_missing = group_missing(shown_missing)
     failed = next((s for s in stages if s.state == stage_base.CON_ERROR), None)
     return Section(
         key=module.KEY, label=module.LABEL, slug=module.SLUG,
@@ -156,7 +207,8 @@ def build_section(module, user, procedure, stages_by_key):
         summary=summary,
         missing=tuple(missing), tema_missing=tuple(shown_missing),
         sources=tuple(source for status in statuses for source in status.sources),
-        pending_items=tuple(pending_items), suggestion_items=tuple(suggestion_items),
+        pending_items=tuple(group_items(pending_items)),
+        suggestion_items=tuple(group_items(suggestion_items)),
         error=plain_reason(failed.error) if failed else "",
         legacy_links=tuple(module.legacy_links(procedure)),
         upload_url=module.upload_url(procedure),

@@ -2,6 +2,7 @@
 <link rel="stylesheet" href="{% static 'journey/s4_preguntas.css' %}">
 <div class="bloque s4-preg" id="s4-preguntas">
   <div class="bloque-cab"><h3>Preguntas a la Comisión y pedidos de subsanación <span class="cta">{{ t.to_decide }} por decidir · {{ t.resolved }} {% if t.resolved == 1 %}resuelto{% else %}resueltos{% endif %}</span></h3></div>
+  {% if t.only_open %}<p class="ayuda" id="preg-filtro">Se muestra solo lo abierto. <a href="{% url 'expedientes:evaluacion' t.pid %}#s4-preguntas">Ver todas</a></p>{% endif %}
   {% if t.lines %}
   <div class="tabla-scroll"><table class="matriz lectura">
     <thead><tr><th scope="col">Asunto</th><th scope="col">Oferta · requisito</th><th scope="col">Estado</th><th scope="col">Respuesta registrada / acción</th></tr></thead>

@@ -170,7 +170,9 @@ def status(user, procedure):
     undecided = [u for u in found if u.state == service.PROPOSED]
     items = tuple(
         Item(f"Descarte propuesto por decidir: oferta {u.offer.number} ({_scope(u)})",
-             f"{base.tab_url(procedure)}#{_anchor(u)}", 1, "Resolver") for u in undecided)
+             f"{base.tab_url(procedure)}#{_anchor(u)}", 1, "Resolver", kind="descarte",
+             noun="descartes propuestos por decidir",
+             group_url=f"{base.tab_url(procedure)}#s4-descartes") for u in undecided)
     return TemaStatus(pending_items=items)
 
 
