@@ -6,10 +6,11 @@ rutas de acción de cada tema las suma `temas.url_patterns()`: después de T-192
 tocar este archivo. Lo único propio de este archivo son las del alta sin procedimiento
 (`nuevo/`, T-195), que no cuelgan de un procedimiento."""
 
-from django.urls import path
+from django.urls import include, path
 
 from evaluon.journey import temas
 from evaluon.journey.sections import SECTIONS
+from evaluon.journey.temas import s1_pliego
 from evaluon.journey.views import index, nuevo, portada, procedure, stages
 
 app_name = "journey"
@@ -24,6 +25,8 @@ urlpatterns = [
 expedientes_urlpatterns = [
     path("", portada.lista, name="index"),
     path("nuevo/", nuevo.nuevo, name="nuevo"),
+    # El alta subiendo el pliego (T-197): las rutas las define el tema s1_pliego.
+    path("nuevo/pliego/", include(s1_pliego.draft_urlpatterns)),
     path("nuevo/<int:link_id>/", nuevo.enlace, name="nuevo_enlace"),
     path("nuevo/<int:link_id>/decidir/", nuevo.decidir, name="nuevo_decidir"),
     path("nuevo/<int:link_id>/revisar/", nuevo.revisar, name="nuevo_revisar"),

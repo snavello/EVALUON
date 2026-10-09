@@ -117,7 +117,7 @@ class Loaded:
     `tender_load`."""
 
     document: Document
-    job: Job
+    job: Job | None  # `None` para el dictamen, que no se lee
     event: object
 
 
@@ -262,11 +262,14 @@ def load_document(user, procedure, *, data, file_name, kind, title, issued_on=No
                 loaded_by=user,
             )
             DocumentFile.objects.create(document=document, content=data)
-            job = jobs.enqueue(JobKind.READ_DOCUMENT, procedure=procedure,
-                               requested_by=user, document=document)
+            job = None
+            if kind != DocumentKind.DICTAMEN:
+                job = jobs.enqueue(JobKind.READ_DOCUMENT, procedure=procedure,
+                                   requested_by=user, document=document)
             event = audit.record(
                 EventType.TENDER_LOAD, outcome=Outcome.OK, channel=channel, user=user,
-                detail={**detail, "document": document.pk, "job": job.pk},
+                detail={**detail, "document": document.pk,
+                        "job": job.pk if job is not None else None},
             )
     except IntegrityError as error:
         # Otra carga del mismo archivo se confirmó entre el control y el alta.

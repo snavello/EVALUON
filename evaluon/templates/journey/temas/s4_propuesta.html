@@ -79,7 +79,7 @@
           <th scope="row" class="num">{{ row.number }}</th>
           <td>{{ row.text }}</td>
           {% for c in row.cells %}
-          <td class="e">{% if c.result %}{% include "journey/_icono.html" with icon=c.icon name=c.name %}<small>{{ c.state_text }}</small>{% else %}<span class="suave" title="Sin evaluar">—</span>{% endif %}</td>
+          <td class="e">{% if c.result and t.show != "sin-decidir" or c.counted %}{% include "journey/_icono.html" with icon=c.icon name=c.name %}<small>{{ c.state_text }}</small>{% else %}<span class="suave" title="Sin evaluar">—</span>{% endif %}</td>
           {% endfor %}
         </tr>
         <tr class="detalle" id="ev-det-{{ row.number }}" hidden>

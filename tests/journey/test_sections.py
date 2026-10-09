@@ -51,7 +51,9 @@ def test_the_18_themes_exist_with_zero_counts(procedure, operator_user):
         status = tema.status(operator_user, procedure)
         assert status.pending >= 0 and status.suggestions >= 0
         assert (status.pending, status.suggestions) == (0, 0)
-        if tema.KEY != "s1_datos":  # desde T-194 dice lo que falta del procedimiento
+        if tema.KEY not in ("s1_datos", "s4_dictamen", "s5_rigen"):
+            # dicen lo que falta con su acción directa: s1_datos (T-194), s4_dictamen (T-211)
+            # y s5_rigen (T-215)
             assert list(status.missing) == []
 
 

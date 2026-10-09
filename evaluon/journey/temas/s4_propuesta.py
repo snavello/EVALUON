@@ -27,6 +27,7 @@ from evaluon.assessment.models import Citation, CitationKind, Decision, Outcome,
 from evaluon.assessment.services import evaluate, review
 from evaluon.assessment.services import matrix as matrix_service
 from evaluon.audit.models import Channel
+from evaluon.journey import memo
 from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.journey.stages import base as stage_base
 from evaluon.journey.stages import evaluacion as evaluation_stage
@@ -47,6 +48,7 @@ TYPE_LABELS = {
 TYPE_OPTIONS = (("formal", "Formales"), ("economico", "Económicos"),
                 ("tecnico", "Técnicos por renglón"))
 SHOW_OPTIONS = (("", "Todos los requisitos"),
+                ("sin-decidir", "Solo los pares por decidir (los del panel de pendientes)"),
                 ("abiertas", "Solo lo abierto (sin decidir, no determinado o rechazado)"),
                 ("nocumple", "Solo los que no cumplen"))
 EXCERPT = 200
@@ -82,6 +84,7 @@ class CellView:
     explanation: str = ""
     quotes: list = field(default_factory=list)  # citas de la oferta (texto, documento, página)
     technical: bool = False
+    counted: bool = False  # par por decidir: el que cuenta el panel de pendientes
     can_decide: bool = False
     options: list = field(default_factory=list)  # resultados a los que se puede corregir
     pair_url: str = ""
@@ -139,9 +142,10 @@ def _technical_cells(page):
 
 
 def _items(page, procedure):
-    """Cada cosa que la Comisión debe decidir en esta pestaña y cada sugerencia del sistema, con
-    su ancla. Los oks del informe técnico del área los lista `s4_informe` (T-209); entre los dos
-    suman lo mismo que cuenta la etapa `matriz_evaluacion`."""
+    """Cada cosa que la Comisión debe decidir en esta pestaña, con su ancla (y ninguna sugerencia:
+    el descarte propuesto es decisión de la Comisión y lo lista `s4_descartes`, T-210). Los oks
+    del informe técnico del área los lista `s4_informe` (T-209); entre los tres suman lo que
+    cuenta la etapa `matriz_evaluacion`."""
     base = _tab(procedure)
     technical = _technical_cells(page)
     pending = []
@@ -153,23 +157,20 @@ def _items(page, procedure):
                 pending.append(Item(
                     f"Oferta {offer.number} · requisito {requirement.number}: "
                     f"{cell.effective_label.lower()} propuesto, sin decidir",
-                    f"{base}#ev-{requirement.number}", 1, "Resolver"))
+                    f"{base}#ev-{requirement.number}", 1, "Resolver", kind="par",
+                    noun="pares por decidir", group_url=f"{base}?ver=sin-decidir#s4-propuesta"))
     for status in page.statuses:
         for question in status.open_questions:
             pending.append(Item(
                 f"Oferta {status.offer.number} · requisito {question.requirement.number}: "
-                "pregunta abierta", f"{base}#preg-{question.pk}", 1, "Resolver"))
-    suggestions = []
-    for discard in page.discards:
-        scope = ("completa" if discard.is_whole else
-                 "renglones " + ", ".join(str(i) for i in sorted(discard.by_item)))
-        suggestions.append(Item(f"Descarte propuesto: oferta {discard.offer.number} ({scope})",
-                                f"{base}#s4-descartes", 1, "Ver"))
-    return pending, suggestions
+                "pregunta abierta", f"{base}#preg-{question.pk}", 1, "Resolver",
+                kind="pregunta", noun="preguntas abiertas",
+                group_url=f"{base}?preg=abiertas#s4-preguntas", group_action="Responder"))
+    return pending, []
 
 
 def status(user, procedure):
-    page = matrix_service.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
+    page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
     runs = [s.run for s in page.statuses if s.evaluated]
     if not runs:
         return TemaStatus(detailed_stages=("matriz_evaluacion",))
@@ -246,6 +247,7 @@ def _cell_views(page, user):
         view.explanation = result.explanation
         view.quotes = offer_quotes.get(result.pk, [])
         view.technical = key in technical
+        view.counted = cell.state == matrix_service.PENDING and not view.technical
         view.can_decide = is_evaluator and not view.technical
         view.options = [(value, label) for value, label in Outcome.choices
                         if value != result.outcome]
@@ -284,6 +286,8 @@ def _select(rows, query):
     chosen = []
     for row in rows:
         if kind and row.category != kind:
+            continue
+        if show == "sin-decidir" and not any(c.counted for c in row.cells):
             continue
         if show == "abiertas" and not any(c.open for c in row.cells):
             continue
@@ -331,7 +335,7 @@ def _why_not(page):
 
 
 def context(user, procedure, request):
-    page = matrix_service.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
+    page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
     evaluated = any(s.evaluated for s in page.statuses)
     base = {
         "pid": procedure.pk, "aviso": acciones.unpack(request.GET.get("aviso")),

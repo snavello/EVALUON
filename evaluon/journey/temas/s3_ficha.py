@@ -34,6 +34,7 @@ from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.journey.stages.ofertas import _pending_sheets
 from evaluon.offers.models import (
     Change,
+    Document,
     Fragment,
     Offer,
     Passage,
@@ -109,8 +110,8 @@ def _latest_sheet(offer):
 
 
 def _all_read(offers):
-    documents = [d for o in offers for d in own_documents(o).exclude(kind="informe_tecnico")]
-    return bool(documents) and all(d.readings.exists() for d in documents)
+    documents = Document.objects.filter(offer__in=offers).exclude(kind="informe_tecnico")
+    return documents.exists() and not documents.filter(readings__isnull=True).exists()
 
 
 def status(user, procedure):
@@ -121,13 +122,17 @@ def status(user, procedure):
     with_documents = [o for o in offers if own_documents(o).exists()]
     pending = [Item(f"Oferta {offer.number} ({offer.bidder}): {count} "
                     f"{'fila' if count == 1 else 'filas'} de la ficha por confirmar",
-                    tab_url(procedure.pk, offer.pk) + "#s3-ficha", count, "Resolver")
+                    tab_url(procedure.pk, offer.pk) + "#s3-ficha", count, "Resolver",
+                    kind="ficha", noun="ofertas con filas de la ficha por confirmar",
+                    group_url=tab_url(procedure.pk) + "#s3-ficha")
                for offer, _, count in _pending_sheets(with_documents)]
     suggestions = []
     if _all_read(with_documents) and latest_validated(procedure) is not None:
         suggestions = [Item(f"Oferta {o.number} ({o.bidder}): se puede armar la ficha "
                             "(opcional)", tab_url(procedure.pk, o.pk) + "#s3-ficha", 1,
-                            "Ver")
+                            "Ver", kind="ficha_arma",
+                            noun="ofertas donde se puede armar la ficha (opcional)",
+                            group_url=tab_url(procedure.pk) + "#s3-ficha")
                        for o in with_documents if _latest_sheet(o) is None]
     sources = []
     for offer in offers:

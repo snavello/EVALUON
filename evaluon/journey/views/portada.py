@@ -10,7 +10,7 @@ from django.views.decorators.http import require_GET
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
-from evaluon.journey import temas
+from evaluon.journey import memo
 from evaluon.journey.sections import sections_for
 from evaluon.journey.window import window_for
 from evaluon.tenders.models import Procedure
@@ -53,6 +53,7 @@ def lista(request):
 
 
 @require_GET
+@memo.scoped
 def portada(request, procedure_id):
     overview = overview_of(request, procedure_id)
     context = shell(request, overview)
@@ -66,12 +67,13 @@ def portada(request, procedure_id):
 
 
 @require_GET
+@memo.scoped
 def seccion(request, procedure_id, key):
     overview = overview_of(request, procedure_id)
     section = overview.get(key)
     blocks = [{"key": tema.KEY, "partial": tema.PARTIAL,
                "t": tema.context(request.user, overview.procedure, request)}
-              for tema in temas.for_section(key)]
+              for tema in section.temas]
     context = shell(request, overview, active=key)
     context.update({
         "section": section, "blocks": blocks,
@@ -82,6 +84,7 @@ def seccion(request, procedure_id, key):
 
 
 @require_GET
+@memo.scoped
 def barra(request, procedure_id):
     """Solo la barra de las cinco secciones, lo que pide el sondeo (ADR-0045). Sin `base.html`:
     así no consume el aviso de fin de pedidos."""
@@ -94,6 +97,7 @@ def barra(request, procedure_id):
 
 
 @require_GET
+@memo.scoped
 def ventana(request, procedure_id):
     """Solo la ventana del proceso, para el sondeo de la portada."""
     overview = overview_of(request, procedure_id)
