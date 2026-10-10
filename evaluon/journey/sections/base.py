@@ -55,6 +55,7 @@ class Item:
     group_url: str | None = None  # el bloque ya filtrado a ese tipo
     group_action: str = "Revisar"
     limit: int = 0  # si es mayor que 0, reemplaza a GROUP_LIMIT para este tipo
+    points: tuple = ()  # el punto completo del pliego del requisito (T-228), si el renglón es de uno
 
 
 GROUP_LIMIT = 8

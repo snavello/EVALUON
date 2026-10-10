@@ -146,6 +146,8 @@ class OfferBlock:
     sheets: list = field(default_factory=list)
     can_upload_annex: bool = False
     can_upload_sheet: bool = False
+    # Números de los requisitos externos que esperan la hoja de la oferta (T-228).
+    externals: tuple = ()
 
     @property
     def has_sheet(self):
@@ -166,11 +168,12 @@ def _view(document):
                    day=_day(document.loaded_at))
 
 
-def offer_block(user, offer):
-    """El bloque de una oferta, para la tabla de ofertas (T-202) y para esta pestaña."""
+def offer_block(user, offer, externals=()):
+    """El bloque de una oferta, para la tabla de ofertas (T-202) y para esta pestaña. `externals`
+    son los números de los requisitos externos que esperan su hoja de compliance."""
     role = getattr(user, "commission_role", "")
     return OfferBlock(
-        offer=offer, annexes=[_view(d) for d in _annexes(offer)],
+        offer=offer, externals=tuple(externals), annexes=[_view(d) for d in _annexes(offer)],
         sheets=[_view(d) for d in compliance.sheets_of(offer)],
         can_upload_annex=role in (CommissionRole.OPERATOR, CommissionRole.EVALUATOR),
         can_upload_sheet=role == CommissionRole.EVALUATOR)

@@ -1,0 +1,21 @@
+/* El punto completo del pliego (T-228): parcial `journey/_punto_pliego.html`, usado en la tabla de la
+   evaluación, el detalle del par, los pendientes y las preguntas. Usa los tokens de la guía visual;
+   sin recursos externos. El fragmento del requisito va resaltado con <mark> (fondo de pendiente,
+   subrayado de acento: no depende solo del color). */
+
+.punto-pliego { border-left: 3px solid var(--ev-azul-300); background: var(--ev-azul-50); border-radius: 0 var(--ev-radio-btn) var(--ev-radio-btn) 0; padding: 6px 12px; margin: 6px 0; max-width: 80ch; }
+.punto-cab { margin: 0 0 4px; font-size: var(--ev-t-xs); color: var(--ev-texto-suave); overflow-wrap: anywhere; }
+.punto-tit { font-family: var(--ev-fuente-titulo); font-weight: 700; letter-spacing: var(--ev-espaciado-etiqueta); text-transform: uppercase; }
+.punto-label { font-family: var(--ev-fuente-num); color: var(--ev-texto); font-size: var(--ev-t-sm); }
+.punto-texto { white-space: pre-line; overflow-wrap: anywhere; font-size: var(--ev-t-sm); line-height: 1.45; color: var(--ev-texto); }
+.punto-texto mark { background: var(--ev-nodeterminado-fondo); color: var(--ev-texto); padding: 0 2px; border-bottom: 2px solid var(--ev-icono-nodeterminado); }
+.punto-ver { margin-top: 4px; font-size: var(--ev-t-xs); }
+.punto-ver > summary { cursor: pointer; color: var(--ev-enlace); font-weight: 600; }
+.punto-ver[open] > summary { margin-bottom: 4px; }
+.punto-vacio { font-size: var(--ev-t-sm); }
+
+/* Marca de los requisitos con información externa (T-228): insignia con texto, nunca solo color. */
+.marca-externa { display: inline-block; font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-2xs); letter-spacing: var(--ev-espaciado-etiqueta); text-transform: uppercase; color: var(--ev-externo); background: var(--ev-externo-fondo); border: 1px solid var(--ev-externo-marca); border-radius: 999px; padding: 0 8px; line-height: 1.5; vertical-align: middle; }
+
+/* Un pendiente de la lista (panel de pendientes): el texto y debajo el punto del pliego. */
+ul.lista .renglon { flex: 1 1 auto; min-width: 0; }

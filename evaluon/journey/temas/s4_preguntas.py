@@ -16,16 +16,26 @@ pedirla («No pedir», `remedy.decline_remedy`, T-225): la decisión queda con q
 motivo, y la fila deja de estar por decidir.
 """
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 
 from django.utils import timezone
 
 from evaluon.accounts.models import CommissionRole
-from evaluon.assessment.models import Action, AnswerScope, Decision, Doubt, Outcome
+from evaluon.assessment.models import (
+    Action,
+    AnswerScope,
+    Citation,
+    CitationKind,
+    Decision,
+    Doubt,
+    Outcome,
+    Result,
+)
 from evaluon.assessment.services import questions as questions_service
 from evaluon.assessment.services import remedy as remedy_service
 from evaluon.audit.models import Channel
-from evaluon.journey import memo
+from evaluon.journey import memo, points, reading_note
 from evaluon.journey.sections.base import TemaStatus
 from evaluon.journey.temas import s4_preguntas_acciones as acciones
 from evaluon.offers.services import offers as offers_service
@@ -69,6 +79,13 @@ class Line:
     can_reevaluate: bool = False
     reevaluate_waits: bool = False
     reason: str = ""
+    # El contexto de la fila (T-228): se llena después, con pocas consultas para todas las filas.
+    requirement: object = None
+    offer: object = None
+    result: object = None
+    points: list = field(default_factory=list)  # el punto completo del pliego del requisito
+    citations: list = field(default_factory=list)  # lo citado de la oferta (documento y página)
+    read_note: str = ""  # sin cita de la oferta: qué se leyó
 
 
 def _where(offer, requirement):
@@ -83,7 +100,9 @@ def _question_lines(user, procedure, is_evaluator):
         line = Line(anchor=f"preg-{question.pk}", subject=f"Pregunta: {question.text}",
                     where=_where(question.offer, question.requirement), kind="pregunta",
                     icon=state[0], name=state[1], question_id=question.pk,
-                    reason=question.reason, can_answer=is_evaluator)
+                    reason=question.reason, can_answer=is_evaluator,
+                    requirement=question.requirement, offer=question.offer,
+                    result=question.result)
         if row.answer is not None:
             who = row.answer.answered_by.username if row.answer.answered_by_id else "—"
             line.registered = [f"«{row.answer.text}»",
@@ -134,7 +153,8 @@ def _remedy_lines(user, procedure, is_evaluator):
                     else "falta el documento")
             line = Line(anchor=f"sub-{result.pk}", subject=f"Subsanación: {what}",
                         where=_where(offer, requirement), kind="subsanacion",
-                        icon=TO_DECIDE[0], name=TO_DECIDE[1], result_id=result.pk)
+                        icon=TO_DECIDE[0], name=TO_DECIDE[1], result_id=result.pk,
+                        requirement=requirement, offer=offer, result=result)
             if state.requested is not None:
                 line.icon, line.name = REQUESTED
                 line.registered.append(
@@ -190,7 +210,8 @@ def _closed_lines(procedure, live):
         result = mine[0].result
         line = Line(anchor=f"sub-{result_id}", subject="Subsanación: ya se evaluó de nuevo",
                     where=_where(result.offer, result.requirement), kind="subsanacion",
-                    icon=CLOSED[0], name=CLOSED[1], result_id=result_id)
+                    icon=CLOSED[0], name=CLOSED[1], result_id=result_id,
+                    requirement=result.requirement, offer=result.offer, result=result)
         for decision in mine:
             if decision.action == Action.PEDIR_SUBSANACION:
                 line.registered.append(
@@ -204,6 +225,28 @@ def _closed_lines(procedure, live):
     return lines
 
 
+def _add_context(lines, user, procedure):
+    """A cada fila le suma lo que hace falta para decidir sin volver atrás (T-228): el punto
+    completo del pliego de su requisito, lo que la oferta citó (documento, página y enlace al
+    original) y, si no citó nada, qué se leyó. Todo en pocas consultas, para todas las filas."""
+    page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
+    point_map = dict(points.points_of_page(page))
+    extra = {line.requirement.pk for line in lines if line.requirement.pk not in point_map}
+    if extra:
+        point_map.update(points.points_of(extra))
+    result_ids = {line.result.pk for line in lines}
+    cited = defaultdict(list)
+    for citation in (Citation.objects.filter(result_id__in=result_ids, kind=CitationKind.OFERTA)
+                     .select_related("document").order_by("order")):
+        cited[citation.result_id].append(citation)
+    uncited = Result.objects.filter(pk__in=result_ids - set(cited)).select_related("run")
+    notes = reading_note.notes_for(uncited)
+    for line in lines:
+        line.points = point_map.get(line.requirement.pk, [])
+        line.citations = cited.get(line.result.pk, [])
+        line.read_note = notes.get(line.result.pk, "")
+
+
 def status(user, procedure):
     """Sin cuentas propias: los pendientes de preguntas ya los lista `s4_propuesta`."""
     return TemaStatus()
@@ -213,6 +256,7 @@ def context(user, procedure, request):
     is_evaluator = getattr(user, "commission_role", "") == CommissionRole.EVALUATOR
     lines = (_question_lines(user, procedure, is_evaluator)
              + _remedy_lines(user, procedure, is_evaluator))
+    _add_context(lines, user, procedure)
     total = len(lines)
     to_decide = sum(1 for line in lines if line.icon == "nodet")
     only_open = request is not None and request.GET.get("preg") == "abiertas"

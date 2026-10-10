@@ -1,5 +1,6 @@
 {% load static %}{% comment %}Tema s3_ofertas (T-202, REQ-083, REQ-084, REQ-097): «Ofertas presentadas» con el alta a la vista (desde el acta del Portal o subiendo los archivos de la oferta), una fila por oferta con su total, sus documentos, sus anexos técnicos y su hoja de compliance (parcial _s3_anexos_oferta.html de T-204) y su ficha (T-203). El detalle de la oferta (?oferta=) y la propuesta de una oferta subida (?borrador=) se abren dentro de la pestaña. Con la ficha abierta (?ficha=) la tabla no se muestra. Las acciones son formularios POST a las rutas de s3_ofertas y vuelven con el resultado. Recibe `t` (ver evaluon/journey/temas/s3_ofertas.py).{% endcomment %}
 <link rel="stylesheet" href="{% static 'journey/s3_anexos.css' %}">
+<link rel="stylesheet" href="{% static 'journey/punto.css' %}">
 <div class="s3-of"><div class="s3-anx" id="s3-anexos">
 {% if t.annex_notice %}<p class="aviso {% if t.annex_notice.ok %}aviso-ok{% else %}aviso-error{% endif %}" id="s3-aviso-anexos" role="{% if t.annex_notice.ok %}status{% else %}alert{% endif %}">{{ t.annex_notice.text }}</p>{% else %}<span id="s3-aviso-anexos"></span>{% endif %}
 {% if t.results %}

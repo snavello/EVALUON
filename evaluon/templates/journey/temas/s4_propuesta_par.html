@@ -3,7 +3,7 @@
 {% comment %}Detalle de un par oferta × requisito dentro de la pestaña «Evaluación y dictamen» (T-207, REQ-089): lo que exige el pliego, lo que presentó la oferta, la propuesta, la decisión y todo el recorrido del par. «Volver a Evaluación» lleva a la pestaña.{% endcomment %}
 
 {% block title %}Oferta {{ page.offer.number }} × requisito {{ page.requirement.number }} · {{ procedure.number }} · EVALUON{% endblock %}
-{% block section_css %}<link rel="stylesheet" href="{% static section.css %}"><link rel="stylesheet" href="{% static 'journey/s4_propuesta.css' %}">{% endblock %}
+{% block section_css %}<link rel="stylesheet" href="{% static section.css %}"><link rel="stylesheet" href="{% static 'journey/s4_propuesta.css' %}"><link rel="stylesheet" href="{% static 'journey/punto.css' %}">{% endblock %}
 
 {% block cuerpo %}
 <div class="seccion seccion-evaluacion s4-prop">
@@ -24,11 +24,13 @@
 
   <div class="dos">
     <div class="bloque"><div class="bloque-cab"><h3>Lo que exige el pliego</h3></div>
-      {% for c in page.requirement_citations %}<blockquote class="cita">{{ c.text }}</blockquote>{% empty %}<p class="suave">Este requisito no tiene cita guardada.</p>{% endfor %}
+      {% if points %}{% include "journey/_punto_pliego.html" with points=points %}
+      {% for c in page.requirement_citations %}{% if c.original_text %}<p class="ayuda">Texto vigente después de una circular:</p><blockquote class="cita">{{ c.text }}</blockquote>{% endif %}{% endfor %}
+      {% else %}{% for c in page.requirement_citations %}<blockquote class="cita">{{ c.text }}</blockquote>{% empty %}<p class="suave">Este requisito no tiene cita guardada.</p>{% endfor %}{% endif %}
       <p class="ayuda">Matriz versión {{ page.run.matrix_version.number }}</p></div>
     <div class="bloque"><div class="bloque-cab"><h3>Lo que presentó la oferta</h3></div>
       {% for c in page.offer_citations %}<blockquote class="cita">{{ c.text }}</blockquote><p class="ayuda"><a href="{% url 'offers:document_original' c.document.pk %}#page={{ c.page }}">{{ c.document.title }} · página {{ c.page }}</a></p>
-      {% empty %}<p class="suave">Sin texto de la oferta que respalde una conclusión.</p>{% endfor %}
+      {% empty %}<p class="suave">Sin texto de la oferta que respalde una conclusión.{% if read_note %} {{ read_note }}{% endif %}</p>{% endfor %}
       {% for c in page.portal_citations %}<p class="ayuda">Dato del Portal: {{ c.text }}</p>{% endfor %}</div>
   </div>
 

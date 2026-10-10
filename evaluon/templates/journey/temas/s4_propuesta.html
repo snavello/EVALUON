@@ -1,5 +1,6 @@
 {% load static %}{% comment %}Tema s4_propuesta (T-207, REQ-089): «Evaluar todas las ofertas», el avance y la tabla de requisitos por ofertas con lo que el sistema propone y su fundamento. Las decisiones del evaluador (confirmar, corregir, rechazar) son formularios POST a las rutas de s4_propuesta_acciones, que llaman a los mismos servicios que la pantalla vieja y vuelven a esta pestaña; un operador no ve los botones. Los filtros son un formulario GET: funcionan sin scripts. Recibe `t` (ver evaluon/journey/temas/s4_propuesta.py).{% endcomment %}
 <link rel="stylesheet" href="{% static 'journey/s4_propuesta.css' %}">
+<link rel="stylesheet" href="{% static 'journey/punto.css' %}">
 <div class="s4-prop">
 {% if t.aviso %}<p class="aviso {% if t.aviso.ok %}aviso-ok{% else %}aviso-error{% endif %}" id="s4-aviso" role="{% if t.aviso.ok %}status{% else %}alert{% endif %}">{{ t.aviso.text }}</p>{% else %}<span id="s4-aviso"></span>{% endif %}
 
@@ -16,6 +17,32 @@
   {% if t.offers and t.why_not %}<p class="ayuda" id="evaluar-motivo">{{ t.why_not }}</p>{% endif %}
   {% if t.without_documents and t.offers %}
   <p class="ayuda">No se evalúa: {% for offer in t.without_documents %}la oferta {{ offer.number }} ({{ offer.bidder }}){% if not forloop.last %}, {% endif %}{% endfor %}, porque no tiene documentos.</p>
+  {% endif %}
+
+  {% if t.externals %}
+  <section class="externos" id="s4-externos" aria-labelledby="s4-externos-titulo">
+    <h4 id="s4-externos-titulo"><span class="marca-externa">Externo</span> Requisitos que se cumplen con información externa <span class="cta">{{ t.externals|length }}</span></h4>
+    <p class="ayuda">No se resuelven con la oferta sino con una consulta fuera de ella. Se cargan en la hoja de compliance de cada oferta (una por oferta): mientras falte, esos requisitos quedan «no determinado». El sistema no los infiere.</p>
+    <ul class="externos-req">
+      {% for e in t.externals %}
+      <li><b>Requisito {{ e.number }}</b> · <span class="suave">{{ e.checks }}</span>
+        {% include "journey/_punto_pliego.html" with points=e.points %}</li>
+      {% endfor %}
+    </ul>
+    <ul class="externos-ofertas">
+      {% for g in t.sheet_gaps %}
+      <li>{% if g.has_sheet %}{% include "journey/_icono.html" with icon="cumple" name="Hoja cargada" %} Oferta {{ g.offer.number }} ({{ g.offer.bidder }}): hoja de compliance cargada{% if g.pending %}; {{ g.pending }} requisito{{ g.pending|pluralize }} externo{{ g.pending|pluralize }} sigue{{ g.pending|pluralize:",n" }} sin determinar{% endif %}.{% else %}{% include "journey/_icono.html" with icon="nocumple" name="Falta la hoja de compliance" %} <b>{{ g.missing_text }}</b> ({{ g.offer.bidder }}): {{ g.count }} requisito{{ g.count|pluralize }} externo{{ g.count|pluralize }} sin determinar.{% endif %}
+        {% if t.can_upload_sheet %}
+        <details class="acc"><summary class="btn {% if g.has_sheet %}secundario{% else %}primario{% endif %} chico">Subir hoja de compliance</summary>
+          <form class="subida en-linea" method="post" enctype="multipart/form-data" action="{% url 'expedientes:s3_anexos_hoja' t.pid g.offer.pk %}">{% csrf_token %}
+            <input type="file" name="file" aria-label="Hoja de compliance de la oferta {{ g.offer.number }}" required>
+            <button class="btn primario chico" type="submit">Subir</button>
+          </form></details>
+        {% elif not g.has_sheet %}<span class="suave">La sube un evaluador.</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
   {% endif %}
 
   <div class="avance" id="s4-avance">
@@ -72,12 +99,12 @@
       <thead><tr><th scope="col" class="c-abrir"><span class="sr-only">Abrir</span></th><th scope="col">N.º</th><th scope="col">Requisito</th>{% for offer in t.offers %}<th scope="col" class="e oferta">Oferta {{ offer.number }}<small>{{ offer.bidder }}</small></th>{% endfor %}</tr></thead>
       <tbody>
         {% for group in t.groups %}
-        <tr class="grupo" data-tipo="{{ group.category }}"><th colspan="{{ t.colspan }}" scope="colgroup">{{ group.label }}<span class="g-cta">{{ group.count }} requisito{{ group.count|pluralize }}</span></th></tr>
+        <tr class="grupo{% if group.external %} grupo-externo{% endif %}" data-tipo="{{ group.category }}"><th colspan="{{ t.colspan }}" scope="colgroup">{{ group.label }}<span class="g-cta">{{ group.count }} requisito{{ group.count|pluralize }}</span></th></tr>
         {% for row in group.rows %}
-        <tr class="fila-req" data-numero="{{ row.number }}" id="ev-{{ row.number }}">
+        <tr class="fila-req{% if row.external %} fila-externa{% endif %}" data-numero="{{ row.number }}" id="ev-{{ row.number }}">
           <td><button type="button" class="abrir" aria-expanded="false" aria-controls="ev-det-{{ row.number }}" aria-label="Ver el fundamento del requisito {{ row.number }}">▸</button></td>
           <th scope="row" class="num">{{ row.number }}</th>
-          <td>{{ row.text }}</td>
+          <td>{% if row.external %}<span class="marca-externa" title="{{ row.external|join:', ' }}">Externo</span> {% endif %}{{ row.text }}</td>
           {% for c in row.cells %}
           <td class="e">{% if c.result and t.show != "sin-decidir" or c.counted %}{% include "journey/_icono.html" with icon=c.icon name=c.name %}<small>{{ c.state_text }}</small>{% else %}<span class="suave" title="Sin evaluar">—</span>{% endif %}</td>
           {% endfor %}
@@ -86,8 +113,8 @@
           <td colspan="{{ t.colspan }}"><div class="det-grid">
             <div>
               <dl>
-                <dt>Requisito · {{ row.document }}</dt>
-                <dd>{% if row.quote %}<blockquote class="cita">{{ row.quote }}</blockquote>{% else %}<span class="suave">Este requisito no tiene cita guardada.</span>{% endif %}</dd>
+                <dt>Requisito {{ row.number }} · {{ row.document }}{% if row.external %} · <span class="marca-externa">Externo</span> {{ row.external|join:", " }}{% endif %}</dt>
+                <dd>{% include "journey/_punto_pliego.html" with points=row.points %}</dd>
               </dl>
             </div>
             <div>
@@ -100,7 +127,7 @@
                   {% if c.decided %}<dd class="registro">{{ c.decided }}</dd>{% endif %}
                   {% if c.explanation %}<dd><span class="suave">Explicación del sistema (no es texto de la oferta ni del pliego):</span> {{ c.explanation }}</dd>{% endif %}
                   {% for q in c.quotes %}<dd><blockquote class="cita">{{ q.text }}</blockquote><span class="registro">{{ q.document.title }} · página {{ q.page }}</span></dd>
-                  {% empty %}<dd class="suave">Sin texto de la oferta que respalde una conclusión.</dd>{% endfor %}
+                  {% empty %}<dd class="suave">Sin texto de la oferta que respalde una conclusión.{% if c.read_note %} <span class="lectura">{{ c.read_note }}</span>{% endif %}</dd>{% endfor %}
                   {% else %}
                   <dd class="suave">Todavía no se evaluó.</dd>
                   {% endif %}

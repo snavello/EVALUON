@@ -1,10 +1,10 @@
-{% comment %}Lo pendiente de decidir y las sugerencias del sistema, en dos bloques aparte y siempre visibles (REQ-098). Recibe `pending_total`, `suggestion_total` y las listas `pending_rows` y `suggestion_rows` de pares (sección, renglón) o de renglones sueltos con `show_section`.{% endcomment %}<div class="dos paneles">
+{% load static %}{% comment %}Lo pendiente de decidir y las sugerencias del sistema, en dos bloques aparte y siempre visibles (REQ-098); un pendiente de un requisito trae el punto completo del pliego (T-228). Recibe `pending_total`, `suggestion_total` y las listas `pending_rows` y `suggestion_rows` de pares (sección, renglón) o de renglones sueltos con `show_section`.{% endcomment %}<link rel="stylesheet" href="{% static 'journey/punto.css' %}"><div class="dos paneles">
   <section class="panel" id="pendientes" aria-labelledby="pendientes-titulo">
     <h3 id="pendientes-titulo">Pendientes de decidir <span class="cta">{{ pending_total }}</span></h3>
     {% if pending_rows %}
     <ul class="lista">
       {% for s, item in pending_rows %}
-      <li>{% if show_section %}<span class="donde">{{ s.label }}</span>{% endif %}<span>{{ item.text }}</span>{% if item.url %}<a class="accion" href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}</li>
+      <li>{% if show_section %}<span class="donde">{{ s.label }}</span>{% endif %}<span class="renglon"><span>{{ item.text }}</span>{% if item.points %}{% include "journey/_punto_pliego.html" with points=item.points %}{% endif %}</span>{% if item.url %}<a class="accion" href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}</li>
       {% endfor %}
     </ul>
     {% else %}<p class="suave">No hay nada pendiente de decidir.</p>{% endif %}
@@ -14,7 +14,7 @@
     {% if suggestion_rows %}
     <ul class="lista">
       {% for s, item in suggestion_rows %}
-      <li>{% if show_section %}<span class="donde">{{ s.label }}</span>{% endif %}<span>{{ item.text }}</span>{% if item.url %}<a class="accion" href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}</li>
+      <li>{% if show_section %}<span class="donde">{{ s.label }}</span>{% endif %}<span class="renglon"><span>{{ item.text }}</span>{% if item.points %}{% include "journey/_punto_pliego.html" with points=item.points %}{% endif %}</span>{% if item.url %}<a class="accion" href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}</li>
       {% endfor %}
     </ul>
     <p class="ayuda">Son propuestas del sistema: no frenan nada y las decide la Comisión.</p>

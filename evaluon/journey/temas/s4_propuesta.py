@@ -27,14 +27,14 @@ from evaluon.assessment.models import Citation, CitationKind, Decision, Outcome,
 from evaluon.assessment.services import evaluate, review
 from evaluon.assessment.services import matrix as matrix_service
 from evaluon.audit.models import Channel
-from evaluon.journey import memo
+from evaluon.journey import external, memo, points, reading_note
 from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.journey.stages import base as stage_base
 from evaluon.journey.stages import evaluacion as evaluation_stage
 from evaluon.journey.stages import stage_of
 from evaluon.journey.temas import s4_propuesta_acciones as acciones
 from evaluon.journey.window import plain_reason
-from evaluon.tenders.models import RequirementClass, RequirementQuote
+from evaluon.tenders.models import RequirementClass
 
 KEY = "s4_propuesta"
 SECTION = "evaluacion"
@@ -46,8 +46,10 @@ TYPE_LABELS = {
     RequirementClass.ECONOMICO: "Requisitos económicos",
     RequirementClass.TECNICO: "Requisitos técnicos por renglón",
 }
+EXTERNAL = "externo"
+EXTERNAL_LABEL = "Requisitos que se cumplen con información externa"
 TYPE_OPTIONS = (("formal", "Formales"), ("economico", "Económicos"),
-                ("tecnico", "Técnicos por renglón"))
+                ("tecnico", "Técnicos por renglón"), (EXTERNAL, "Con información externa"))
 SHOW_OPTIONS = (("", "Todos los requisitos"),
                 ("sin-decidir", "Solo los pares por decidir (los del panel de pendientes)"),
                 ("abiertas", "Solo lo abierto (sin decidir, no determinado o rechazado)"),
@@ -84,6 +86,7 @@ class CellView:
     decided: str = ""  # «Corregido por … el 07/10/2026 16:40 · motivo: …»
     explanation: str = ""
     quotes: list = field(default_factory=list)  # citas de la oferta (texto, documento, página)
+    read_note: str = ""  # sin cita de la oferta: qué documentos y páginas se leyeron (T-228)
     technical: bool = False
     counted: bool = False  # par por decidir: el que cuenta el panel de pendientes
     can_decide: bool = False
@@ -113,6 +116,8 @@ class Row:
     quote: str
     cells: list
     technical: bool
+    points: list = field(default_factory=list)  # el punto completo del pliego (T-228)
+    external: tuple = ()  # consultas externas que lo cubren; vacío si se resuelve con la oferta
 
 
 def _day(moment):
@@ -149,6 +154,7 @@ def _items(page, procedure):
     cuenta la etapa `matriz_evaluacion`."""
     base = _tab(procedure)
     technical = _technical_cells(page)
+    point_map = points.points_of_page(page)
     pending = []
     for requirement in page.requirements:
         for offer in page.offers:
@@ -159,14 +165,16 @@ def _items(page, procedure):
                     f"Oferta {offer.number} · requisito {requirement.number}: "
                     f"{cell.effective_label.lower()} propuesto, sin decidir",
                     f"{base}#ev-{requirement.number}", 1, "Resolver", kind="par",
-                    noun="pares por decidir", group_url=f"{base}?ver=sin-decidir#s4-propuesta"))
+                    noun="pares por decidir", group_url=f"{base}?ver=sin-decidir#s4-propuesta",
+                    points=tuple(point_map.get(requirement.pk, ()))))
     for status in page.statuses:
         for question in status.open_questions:
             pending.append(Item(
                 f"Oferta {status.offer.number} · requisito {question.requirement.number}: "
                 "pregunta abierta", f"{base}#preg-{question.pk}", 1, "Resolver",
                 kind="pregunta", noun="preguntas abiertas",
-                group_url=f"{base}?preg=abiertas#s4-preguntas", group_action="Responder"))
+                group_url=f"{base}?preg=abiertas#s4-preguntas", group_action="Responder",
+                points=tuple(point_map.get(question.requirement_id, ()))))
     return pending, []
 
 
@@ -185,15 +193,6 @@ def status(user, procedure):
 
 
 # --- La tabla --------------------------------------------------------------------------------------
-
-
-def _quotes_of(requirement_ids):
-    found = defaultdict(list)
-    for quote in (RequirementQuote.objects.filter(requirement_id__in=requirement_ids)
-                  .select_related("segment__reading__document")
-                  .order_by("requirement_id", "order")):
-        found[quote.requirement_id].append(quote)
-    return found
 
 
 def _where(quote):
@@ -227,7 +226,7 @@ def _cell_views(page, user):
                      .select_related("user").order_by("at", "pk")):
         last[decision.result_id] = decision
     is_evaluator = getattr(user, "commission_role", "") == CommissionRole.EVALUATOR
-    views = {}
+    views, unquoted = {}, []
     for key, cell in page.cells.items():
         view = CellView(offer=cell.offer, cell=cell)
         views[key] = view
@@ -247,18 +246,27 @@ def _cell_views(page, user):
         view.decided = decision_line(decision) if decision else ""
         view.explanation = result.explanation
         view.quotes = offer_quotes.get(result.pk, [])
+        if not view.quotes:
+            unquoted.append(result)
         view.technical = key in technical
         view.counted = cell.state == matrix_service.PENDING and not view.technical
         view.can_decide = is_evaluator and not view.technical
         view.options = [(value, label) for value, label in Outcome.choices
                         if value != result.outcome]
         view.pair_url = acciones.pair_url(page.procedure, cell.offer.pk, cell.requirement.pk)
+    # Los resultados sin texto de la oferta dicen qué se leyó (T-228), con una sola consulta.
+    notes = reading_note.notes_for(unquoted)
+    for view in views.values():
+        if view.cell.result is not None and view.cell.result.pk in notes:
+            view.read_note = notes[view.cell.result.pk]
     return views
 
 
 def _rows(page, user):
     views = _cell_views(page, user)
-    quotes = _quotes_of([r.pk for r in page.requirements])
+    quotes = points.quotes_of_page(page)
+    point_map = points.points_of_page(page)
+    flagged = {e.requirement.pk: e.checks for e in external.requirements_of_page(page)}
     rows = []
     for requirement in page.requirements:
         mine = quotes.get(requirement.pk, [])
@@ -272,7 +280,9 @@ def _rows(page, user):
             requirement=requirement, number=requirement.number, category=requirement.category,
             text=text, document=_where(first) if first else "Sin cita",
             quote=first.text if first else "", cells=cells,
-            technical=any(c.technical for c in cells)))
+            technical=any(c.technical for c in cells),
+            points=point_map.get(requirement.pk, []),
+            external=flagged.get(requirement.pk, ())))
     return rows
 
 
@@ -286,7 +296,9 @@ def _select(rows, query):
         show = ""
     chosen = []
     for row in rows:
-        if kind and row.category != kind:
+        if kind == EXTERNAL and not row.external:
+            continue
+        if kind and kind != EXTERNAL and row.category != kind:
             continue
         if show == "sin-decidir" and not any(c.counted for c in row.cells):
             continue
@@ -301,7 +313,14 @@ def _select(rows, query):
 
 
 def _groups(rows):
+    """Los requisitos que se cumplen con información externa, aparte y primero (T-228); después los
+    de cada clase."""
     groups = []
+    outside = [row for row in rows if row.external]
+    if outside:
+        groups.append({"category": EXTERNAL, "label": EXTERNAL_LABEL, "count": len(outside),
+                       "rows": outside, "external": True})
+    rows = [row for row in rows if not row.external]
     for category in TYPE_ORDER:
         mine = [row for row in rows if row.category == category]
         if mine:
@@ -335,6 +354,22 @@ def _why_not(page):
     return "Falta una matriz de cumplimiento validada."
 
 
+def _externals(page):
+    """Los requisitos que se cumplen con información externa, con su punto del pliego, y por
+    oferta qué falta de la hoja de compliance (T-228). Se ven desde antes de evaluar."""
+    found = external.requirements_of_page(page)
+    if not found or not page.offers:
+        return {"externals": [], "sheet_gaps": [], "can_upload_sheet": False}
+    point_map = points.points_of_page(page)
+    return {
+        "externals": [{"requirement": e.requirement, "number": e.number,
+                       "checks": ", ".join(e.checks), "points": point_map.get(e.requirement.pk, [])}
+                      for e in found],
+        "sheet_gaps": external.gaps_of_page(page),
+        "can_upload_sheet": page.can_upload_sheet,
+    }
+
+
 def context(user, procedure, request):
     page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
     evaluated = any(s.evaluated for s in page.statuses)
@@ -348,6 +383,7 @@ def context(user, procedure, request):
         "ofertas_url": reverse("expedientes:ofertas", args=[procedure.pk]),
         "is_evaluator": getattr(user, "commission_role", "") == CommissionRole.EVALUATOR,
         "groups": [], "shown": 0, "total": 0, "kind": "", "show": "",
+        **_externals(page),
     }
     if not evaluated or not page.requirements:
         return base
@@ -387,6 +423,8 @@ def pair(request, procedure_id, offer_id, requirement_id):
     technical = (page.offer.pk, page.requirement.pk) in _technical_cells(matrix)
     for stage in stages:
         stage.lines = [decision_line(d) for d in stage.decisions]
+    notes = ({} if page.offer_citations
+             else reading_note.notes_for([page.result]))
     context = portada.shell(request, overview, active=SECTION)
     context.update({
         "section": overview.get(SECTION), "page": page, "stages": stages,
@@ -396,6 +434,8 @@ def pair(request, procedure_id, offer_id, requirement_id):
         "tab_url": _tab(procedure), "built": when(page.run.built_at),
         "decided": decision_line(pair_review.decision) if pair_review.decision else "",
         "state_text": STATE_TEXT.get(pair_review.state, pair_review.state),
+        "points": points.points_of([page.requirement.pk])[page.requirement.pk],
+        "read_note": notes.get(page.result.pk, ""),
     })
     return render(request, "journey/temas/s4_propuesta_par.html", context)
 

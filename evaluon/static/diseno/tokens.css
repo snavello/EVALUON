@@ -56,6 +56,12 @@
   --ev-nocumple: #7A1626;      --ev-nocumple-fondo: #F6E1E3;
   --ev-nodeterminado: #6B4700; --ev-nodeterminado-fondo: #F6EACB;
   --ev-pendiente: #34476A;     --ev-pendiente-fondo: #E3E9F0;
+  /* Información externa (T-228): los requisitos que se cumplen con la hoja de compliance, no con
+     la oferta. No es un estado de cumplimiento sino una clase de requisito, por eso tiene su
+     propia gama (violeta apagado) y no se confunde con ningún estado. Texto sobre fondo 8,58:1;
+     marca (filete, insignia) sobre superficie 6,37:1 (mínimo 3:1 para componentes). */
+  --ev-externo: #4B2E83;       --ev-externo-fondo: #ECE7F5;
+  --ev-externo-marca: #6B4BA3;
 
   /* Íconos de estado (decisión del responsable 2026-10-07): círculo de color con símbolo blanco,
      todos del mismo tamaño y forma; el nombre aparece al pasar el mouse o con el foco.
