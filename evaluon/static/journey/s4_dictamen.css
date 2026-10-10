@@ -13,3 +13,11 @@
 .s4-dic .registro { display: block; font-size: var(--ev-t-xs); color: var(--ev-texto-suave); margin: 2px 0; }
 .s4-dic .aviso { margin: 8px 0; padding: 9px 12px; border-radius: var(--ev-radio-btn); border: 1px solid var(--ev-borde); font-size: var(--ev-t-sm); }
 .s4-dic .aviso-error { background: var(--ev-beige-100); border-color: var(--ev-beige-400); }
+
+/* Historial, reemplazar, retirar y restituir del dictamen subido (T-225, REQ-099). */
+.s4-dic .dictamen-subido, .s4-dic .dictamen-retirado { margin: 6px 0 10px; }
+.s4-dic .acciones-doc { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+.s4-dic .historial { margin: 6px 0 0 1.2rem; padding: 0; font-size: var(--ev-t-sm); }
+.s4-dic .historial li { margin: 0 0 6px; }
+.s4-dic .historial li.retiro { color: var(--ev-texto-suave); }
+.s4-dic #dictamen-retirados h4 { margin: 12px 0 4px; }

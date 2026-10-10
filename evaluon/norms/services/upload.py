@@ -16,6 +16,11 @@ Una norma se carga «solo subiendo el archivo». Tres pasos, sin pantalla y sin 
    con el documento resultante y registra el hecho. Si `load_norm` rechaza la carga, no
    queda nada aprobado y la subida sigue `propuesto`.
 
+4. `reject(user, upload_id, reason)` (T-225): descarta una subida equivocada que espera
+   confirmación. El motivo es obligatorio; la subida queda `rechazado` con el archivo, sus datos
+   y `proposal["rechazo"] = {motivo, quien, cuando}`: no se borra nada. Descarta el evaluador de
+   la Comisión o quien la subió. Una subida rechazada no impide volver a subir el mismo archivo.
+
 Cada paso deja un hecho `norm_upload` (P6). Mantiene el rol de lectura y escritura de la
 carga. `load_norm` se llama sin cambios: sus reglas (duplicados, versionado) siguen siendo
 las del comando.
@@ -37,7 +42,7 @@ from datetime import date
 from django.db import transaction
 from django.utils import timezone
 
-from evaluon.accounts.models import Role
+from evaluon.accounts.models import CommissionRole, Role
 from evaluon.accounts.permissions import require_role
 from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType, Outcome
@@ -78,6 +83,12 @@ class AlreadyStaged(UploadRefused):
 
 class InvalidCorrection(UploadRefused):
     reason = "invalid_correction"
+
+
+class RejectNotAllowed(UploadRefused):
+    """Descarta la subida el evaluador o quien la subió; nadie más."""
+
+    reason = "reject_not_allowed"
 
 
 class MissingConfirmedData(UploadRefused):
@@ -345,8 +356,43 @@ def confirm(user, upload_id, *, part=None, general_regime=False,
     return result
 
 
+def reject(user, upload_id, reason, *, channel=Channel.SCREEN):
+    """Descarta una subida que espera confirmación, con su motivo. La subida queda
+    `rechazado` (no se borra) y deja el hecho. Devuelve la `NormUpload`.
+
+    Lanza `RoleRejected` sin el rol de lectura y escritura; `InvalidCorrection` sin motivo;
+    `UploadNotFound` o `UploadNotPending` si la subida no existe o ya no espera, y
+    `RejectNotAllowed` si quien descarta no es evaluador de la Comisión ni la subió."""
+    require_role(user, Role.READ_WRITE)
+    try:
+        if not isinstance(reason, str) or not reason.strip():
+            raise InvalidCorrection("Escriba el motivo para descartar la subida.")
+        with transaction.atomic():
+            upload = _get(upload_id, lock=True)
+            _require_pending(upload)
+            if (getattr(user, "commission_role", "") != CommissionRole.EVALUATOR
+                    and upload.uploaded_by_id != user.pk):
+                raise RejectNotAllowed(
+                    "Descarta la subida un evaluador de la Comisión o quien la subió.")
+            now = timezone.now().isoformat(timespec="seconds")
+            upload.proposal["rechazo"] = {"motivo": reason.strip(),
+                                          "quien": user.get_username(), "cuando": now}
+            upload.state = ProposalState.RECHAZADO
+            upload.save(update_fields=["proposal", "state"])
+            audit.record(
+                EventType.NORM_UPLOAD, outcome=Outcome.OK, channel=channel, user=user,
+                detail={"action": "reject", "upload": upload.pk, "motivo": reason.strip(),
+                        "file": {"name": upload.file_name, "size": upload.file_size,
+                                 "sha256": upload.file_sha256}},
+            )
+    except UploadRefused as error:
+        _record_refusal(user, channel, "reject", error, upload=upload_id)
+        raise
+    return upload
+
+
 __all__ = [
-    "AlreadyStaged", "InvalidCorrection", "MissingConfirmedData", "UploadNotFound",
-    "UploadNotPending", "UploadRefused", "confirm", "confirmed_fields", "correct",
-    "current_value", "stage",
+    "AlreadyStaged", "InvalidCorrection", "MissingConfirmedData", "RejectNotAllowed",
+    "UploadNotFound", "UploadNotPending", "UploadRefused", "confirm", "confirmed_fields",
+    "correct", "current_value", "reject", "stage",
 ]

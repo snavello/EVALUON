@@ -15,7 +15,13 @@ de compliance" (no determinado, motivo `externo`): la hoja es un documento más 
    `previous` al anterior: las dos evaluaciones quedan. Mientras el documento se está leyendo, el
    pedido se rechaza (`reading_in_progress`) y se repite cuando termina.
 
-Solo el evaluador pide, agrega y reevalúa (P3). El rol se comprueba antes de toda transacción.
+4. `decline_remedy` (T-225, REQ-090): el evaluador, con un motivo, decide NO pedir la
+   subsanación del resultado vigente. No cambia el estado del par ni crea una decisión sobre el
+   resultado: queda solo el hecho `eval_decision` (acción `no_pedir_subsanacion`), que es de
+   solo inserción (P6). `declined_for` y `state` lo leen de ahí. Una subsanación ya pedida o ya
+   decidida no se vuelve a decidir.
+
+Solo el evaluador pide, agrega, reevalúa y decide no pedir (P3). El rol se comprueba antes de toda transacción.
 Un resultado rechazado no rige (`effective_outcome` en `None`): no se subsana.
 """
 
@@ -28,13 +34,16 @@ from evaluon.accounts.permissions import require_commission_role
 from evaluon.assessment.models import Action, Cause, Decision, Doubt, Outcome, Result
 from evaluon.assessment.services import evaluate, review
 from evaluon.audit import services as audit
-from evaluon.audit.models import Channel, EventType
+from evaluon.audit.models import AuditEvent, Channel, EventType
 from evaluon.audit.models import Outcome as EventOutcome
 from evaluon.offers.services import offers as offers_service
 
 REQUEST_OPERATION = "evaluon.assessment.services.remedy.request_remedy"
 ADD_OPERATION = "evaluon.assessment.services.remedy.add_document"
 REEVALUATE_OPERATION = "evaluon.assessment.services.remedy.reevaluate"
+DECLINE_OPERATION = "evaluon.assessment.services.remedy.decline_remedy"
+# La acción del hecho que deja `decline_remedy` (no es una `Action` de `Decision`).
+DECLINE_ACTION = "no_pedir_subsanacion"
 
 
 class RemedyRefused(ValueError):
@@ -56,6 +65,7 @@ class RemedyState:
     added: Decision | None
     reading: str
     can_reevaluate: bool
+    declined: AuditEvent | None = None  # el hecho de «no pedir», si se decidió
 
 
 # --- Estado ------------------------------------------------------------------------------------
@@ -71,8 +81,25 @@ def is_remediable(result):
             and result.doubt == Doubt.EXTERNO)
 
 
-def state(result):
-    """El estado de la subsanación de `result` (sin comprobar roles: lo usa la pantalla)."""
+def declined_for(result_ids):
+    """`{resultado: hecho}` de los resultados de `result_ids` para los que la Comisión decidió no
+    pedir la subsanación (el primer hecho `ok` de cada uno), en una sola consulta."""
+    found = {}
+    events = (AuditEvent.objects.filter(
+        event_type=EventType.EVAL_DECISION, outcome=EventOutcome.OK,
+        detail__action=DECLINE_ACTION, detail__result__in=list(result_ids))
+        .select_related("user").order_by("pk"))
+    for event in events:
+        found.setdefault(event.detail["result"], event)
+    return found
+
+
+_LOOK_UP = object()
+
+
+def state(result, *, declined=_LOOK_UP):
+    """El estado de la subsanación de `result` (sin comprobar roles: lo usa la pantalla).
+    `declined` es el hecho de «no pedir» si quien llama ya lo buscó con `declined_for`."""
     is_current = evaluate.current_result(result.offer, result.requirement).pk == result.pk
     applicable = is_current and is_remediable(result)
     decisions = list(Decision.objects.filter(
@@ -86,7 +113,9 @@ def state(result):
     return RemedyState(
         applicable=applicable, requested=requested, added=added, reading=reading,
         can_reevaluate=applicable and added is not None
-        and reading == offers_service.STATE_READ)
+        and reading == offers_service.STATE_READ,
+        declined=(declined_for([result.pk]).get(result.pk) if declined is _LOOK_UP
+                  else declined))
 
 
 # --- Acciones ----------------------------------------------------------------------------------
@@ -139,6 +168,42 @@ def request_remedy(user, result_id, note, *, channel=Channel.SCREEN):
         _refuse_record(error, user, channel, detail)
         raise
     return review.Decided(decision=decision, event=event)
+
+
+def decline_remedy(user, result_id, note, *, channel=Channel.SCREEN):
+    """El evaluador decide no pedir la subsanación del resultado `result_id`, con un motivo.
+    Devuelve el hecho `eval_decision` que lo registra. Lanza `RemedyRefused` sin motivo, si el
+    resultado no se puede subsanar, si ya se pidió (`already_requested`) o si ya se decidió no
+    pedirla (`already_declined`); sin el rol de evaluador, `RoleRejected`."""
+    require_commission_role(user, CommissionRole.EVALUATOR, operation=DECLINE_OPERATION,
+                            channel=channel)
+    detail = {"result": result_id, "action": DECLINE_ACTION}
+    note = (note or "").strip()
+    try:
+        with transaction.atomic():
+            result = _result_for_remedy(result_id)
+            # Se bloquea el resultado para que dos decisiones simultáneas no se pisen.
+            Result.objects.select_for_update().filter(pk=result.pk).first()
+            if not note:
+                raise RemedyRefused("Escriba el motivo para no pedir la subsanación.",
+                                    "note_required", "note")
+            if Decision.objects.filter(result=result,
+                                       action=Action.PEDIR_SUBSANACION).exists():
+                raise RemedyRefused("La subsanación de este resultado ya se pidió.",
+                                    "already_requested", "result")
+            if declined_for([result.pk]):
+                raise RemedyRefused("Ya se decidió no pedir la subsanación de este resultado.",
+                                    "already_declined", "result")
+            event = audit.record(
+                EventType.EVAL_DECISION, outcome=EventOutcome.OK, channel=channel, user=user,
+                detail={**detail, "result": result.pk, "offer": result.offer_id,
+                        "requirement": result.requirement_id,
+                        "outcome_before": result.outcome, "doubt": result.doubt,
+                        "note": note})
+    except RemedyRefused as error:
+        _refuse_record(error, user, channel, detail)
+        raise
+    return event
 
 
 def add_document(user, result_id, *, data, file_name, title="", note="",

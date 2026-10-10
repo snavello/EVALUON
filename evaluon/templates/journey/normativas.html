@@ -1,0 +1,33 @@
+{% extends "journey/seccion_base.html" %}
+{% load static %}
+
+{% comment %}Página de Normativas general, sin procedimiento (T-225, REQ-094, REQ-096): la normativa no está atada a ningún procedimiento. Encabezado de la maqueta (título, «Subir archivo» y resumen), los pendientes de la normativa, el tema s5_normas (subir, informe de lectura, validar y lista de normas) y el acceso a la consulta general. Ver evaluon/journey/views/normativas.py.{% endcomment %}
+
+{% block title %}Normativas · EVALUON{% endblock %}
+
+{% block section_css %}<link rel="stylesheet" href="{% static 'journey/s5.css' %}">{% endblock %}
+
+{% block cuerpo %}
+<div class="seccion seccion-normativas seccion-normativas-general">
+  <div class="encab-parte">
+    <h2 id="seccion-titulo">Normativas</h2>
+    <span class="barra-cargas"><a class="btn primario" href="#s5-subir">Subir archivo</a></span>
+  </div>
+  <p class="resumen-linea" id="seccion-resumen">Las normas no están atadas a ningún procedimiento: las que se cargan y validan acá sirven para todos. {% for label, detail in summary %}{{ detail }} {% endfor %}Qué normas rigen a un procedimiento según su fecha de autorización se ve en la pestaña Normativas de ese procedimiento.</p>
+  {% if missing %}
+  <p class="falta"><b>Falta:</b> {% for item in missing %}{{ item.text }}{% if item.url %} <a href="{{ item.url }}">{{ item.action|default:"Ver" }}</a>{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+  {% endif %}
+
+  {% include "journey/_paneles.html" with pending_total=pending_total suggestion_total=0 pending_rows=pending_rows suggestion_rows=None show_section=False %}
+
+  <div id="seccion-detalle">
+    {% include partial with t=t %}
+
+    <div class="bloque" id="s5-consulta">
+      <div class="bloque-cab"><h3>Consulta de normativa</h3><span class="linea-portal">Responde con citas literales de las normas validadas</span></div>
+      <p class="ayuda">Sin procedimiento, la consulta pide la fecha de autorización para saber qué régimen aplica. Desde un procedimiento se toma la suya.</p>
+      <div class="bloque-pie"><a class="btn primario" href="{{ query_url }}">Abrir la consulta de normativa</a></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
