@@ -1,1 +1,261 @@
-{% comment %}Parcial del tema s3_ofertas (Lista de ofertas y sus documentos). Vacío en el corte vertical; lo completa T-202.{% endcomment %}
+{% load static %}{% comment %}Tema s3_ofertas (T-202, REQ-083, REQ-084, REQ-097): «Ofertas presentadas» con el alta a la vista (desde el acta del Portal o subiendo los archivos de la oferta), una fila por oferta con su total, sus documentos, sus anexos técnicos y su hoja de compliance (parcial _s3_anexos_oferta.html de T-204) y su ficha (T-203). El detalle de la oferta (?oferta=) y la propuesta de una oferta subida (?borrador=) se abren dentro de la pestaña. Con la ficha abierta (?ficha=) la tabla no se muestra. Las acciones son formularios POST a las rutas de s3_ofertas y vuelven con el resultado. Recibe `t` (ver evaluon/journey/temas/s3_ofertas.py).{% endcomment %}
+<link rel="stylesheet" href="{% static 'journey/s3_anexos.css' %}">
+<div class="s3-of"><div class="s3-anx" id="s3-anexos">
+{% if t.annex_notice %}<p class="aviso {% if t.annex_notice.ok %}aviso-ok{% else %}aviso-error{% endif %}" id="s3-aviso-anexos" role="{% if t.annex_notice.ok %}status{% else %}alert{% endif %}">{{ t.annex_notice.text }}</p>{% else %}<span id="s3-aviso-anexos"></span>{% endif %}
+{% if t.results %}
+<div class="aviso" id="s3-aviso-ofertas" role="status">
+  <ul class="resultado-subida">{% for r in t.results %}<li class="{% if r.ok %}ok{% else %}rechazado{% endif %}">{% if r.name %}<b>{{ r.name }}</b>: {% endif %}{{ r.text }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% if t.mode == "oferta" and t.d.history %}{% with d=t.d %}
+<div class="bloque" id="s3-oferta">
+  <span id="s3-oferta-abierta"></span>
+  <p class="volver"><a href="{{ d.url }}">← Volver a la oferta</a></p>
+  <div class="encab-parte"><h2>Historial · {{ d.history.title }}</h2>
+    {% if t.can_load and d.history_current %}<span class="barra-cargas">{% include "journey/temas/_s3_ofertas_cambiar.html" with doc=d.history %}</span>{% endif %}</div>
+  <p class="resumen-linea">Oferta {{ d.offer.number }} · {{ d.offer.bidder }}. Reemplazar o retirar no borra nada: la versión anterior y lo retirado quedan acá y se pueden ver. <b>{{ d.versions }}</b> versi{{ d.versions|pluralize:"ón,ones" }}.</p>
+  <ol class="historial">
+    {% for e in d.timeline %}
+    <li class="{{ e.css }}"><b>{{ e.title }}</b><br><span class="cuando">{{ e.when }} · {{ e.who }}</span><br>{{ e.text }}{% if e.document %} <a href="{% url 'offers:document_original' e.document.pk %}" target="_blank" rel="noopener">Ver el archivo</a>{% endif %}</li>
+    {% endfor %}
+  </ol>
+  <div class="bloque-pie"><a class="btn secundario" href="{{ d.url }}">Volver a la oferta</a></div>
+</div>
+{% endwith %}
+
+{% elif t.mode == "oferta" %}{% with d=t.d %}
+<div class="bloque" id="s3-oferta">
+  <span id="s3-oferta-abierta"></span>
+  <p class="volver"><a href="{{ t.tab_url }}#s3-ofertas">← Volver a Ofertas</a></p>
+  <div class="encab-parte"><h2>Oferta {{ d.offer.number }} · {{ d.offer.bidder }}</h2>
+    <span class="barra-cargas">{% if t.can_load %}<a class="btn primario chico" href="#s3-subir-documentos">Subir documentos</a>{% endif %}<a class="btn secundario chico" href="{{ d.card_url }}">Ficha (opcional)</a></span></div>
+  <p class="resumen-linea">{% if d.total %}Total <b class="num">{{ d.total }}</b> · {% endif %}{% if d.cuit %}CUIT <span class="num">{{ d.cuit }}</span> · {% endif %}{% if d.guarantees %}garantía: {{ d.guarantees|join:"; " }} · {% endif %}{% if d.lines %}cotiza los renglones {{ d.lines }} · {% endif %}datos: <b>{{ d.origin }}</b> ({{ d.origin_detail }}). Los documentos se suben varios a la vez.</p>
+
+  {% for text in d.stale %}
+  <p class="aviso aviso-error" role="alert">{{ text }} <a href="{{ d.evaluation_url }}">Ir a Evaluación y dictamen</a></p>
+  {% endfor %}
+
+  {% if d.pending %}
+  <div class="bloque">
+    <div class="bloque-cab"><h3>Pendiente <span class="cta">{{ d.pending|length }}</span></h3></div>
+    <ul class="lista">{% for r in d.pending %}<li>{% include "journey/_icono.html" with icon=r.icon name=r.icon_name %}<span><b>{{ r.document.title }}:</b> {{ r.reading_text|lower }}. Lo verifica la Comisión con el original.</span></li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <div class="bloque" id="s3-documentos">
+    <div class="bloque-cab"><h3>Documentos de la oferta <span class="cta">{{ d.rows|length }}</span></h3></div>
+    {% if d.rows %}
+    <div class="tabla-scroll"><table class="matriz lectura">
+      <caption class="sr-only">Documentos de la oferta {{ d.offer.number }}, con su lectura y su origen</caption>
+      <thead><tr><th scope="col">Documento</th><th scope="col">Tipo</th><th scope="col" class="n">Págs.</th><th scope="col" class="e">Estado</th><th scope="col">Lectura</th><th scope="col">De dónde vino</th><th scope="col">Acciones</th></tr></thead>
+      <tbody>
+        {% for row in d.rows %}
+        <tr id="doc-{{ row.document.pk }}">
+          <th scope="row">{{ row.document.title }}<br><span class="suave chica">{{ row.document.file_name }}</span></th>
+          <td>{{ row.kind_label }}</td>
+          <td class="n">{{ row.pages|default:"—" }}</td>
+          <td class="e">{% include "journey/_icono.html" with icon=row.icon name=row.icon_name %}</td>
+          <td>{{ row.reading_text }}</td>
+          <td class="origen"><b>{{ row.origin }}</b> · {{ row.origin_date }}{% if row.origin_by %} · {{ row.origin_by }}{% endif %}</td>
+          <td class="acciones-doc"><a href="{% url 'offers:document_original' row.document.pk %}" target="_blank" rel="noopener">Ver el archivo</a> · <a href="{{ d.history_url }}&amp;historial={{ row.document.pk }}#s3-oferta">Historial</a>{% if t.can_load %}
+            {% include "journey/temas/_s3_ofertas_cambiar.html" with doc=row.document %}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}
+    <p class="suave">Todavía no hay documentos de esta oferta: súbalos acá, varios a la vez.</p>
+    {% endif %}
+    {% if t.can_load %}
+    <form class="subida" id="s3-subir-documentos" method="post" enctype="multipart/form-data" action="{% url 'expedientes:s3_ofertas_documentos' t.pid d.offer.pk %}">{% csrf_token %}
+      <input type="hidden" name="volver" value="oferta">
+      <label for="s3-docs-{{ d.offer.pk }}">Documentos de la oferta <span class="suave">(uno o varios: PDF, Word o foto)</span></label>
+      <input type="file" name="files" id="s3-docs-{{ d.offer.pk }}" multiple required>
+      <button class="btn primario chico" type="submit">Subir documentos</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="bloque" id="s3-retirados">
+    <div class="bloque-cab"><h3>Retirados <span class="cta">{{ d.withdrawn|length }}</span></h3></div>
+    {% if d.withdrawn %}
+    <div class="tabla-scroll"><table class="matriz lectura">
+      <caption class="sr-only">Documentos retirados de la oferta, con quién, cuándo y por qué</caption>
+      <thead><tr><th scope="col">Documento</th><th scope="col">Tipo</th><th scope="col">Retirado</th><th scope="col">Quién</th><th scope="col">Motivo</th><th scope="col">Acciones</th></tr></thead>
+      <tbody>{% for row in d.withdrawn %}
+        <tr class="retirado" id="retirado-{{ row.document.pk }}">
+          <th scope="row">{{ row.document.title }}<br><span class="suave chica">{{ row.document.file_name }}</span></th>
+          <td>{{ row.kind_label }}</td><td class="num">{{ row.origin_date }}</td><td>{{ row.origin_by }}</td><td>{{ row.note|default:"—" }}</td>
+          <td class="acciones-doc"><a href="{% url 'offers:document_original' row.document.pk %}" target="_blank" rel="noopener">Ver el archivo</a> · <a href="{{ d.history_url }}&amp;historial={{ row.document.pk }}#s3-oferta">Historial</a>{% if t.can_load %}
+            <details class="acc"><summary class="btn secundario chico">Restituir</summary>
+              <form method="post" action="{% url 'expedientes:s3_ofertas_restituir' t.pid row.document.pk %}">{% csrf_token %}
+                <p class="ayuda">Vuelve a la oferta; queda registrado.</p>
+                <label for="restituir-{{ row.document.pk }}">Motivo (obligatorio)</label>
+                <textarea name="note" id="restituir-{{ row.document.pk }}" rows="2" required></textarea>
+                <button class="btn primario chico" type="submit">Restituir</button>
+              </form></details>{% endif %}</td>
+        </tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}
+    <p class="ayuda">No hay documentos retirados. Retirar no borra: el documento queda acá, con su motivo, y se puede restituir.</p>
+    {% endif %}
+  </div>
+
+  <div class="bloque" id="s3-anexos-detalle">
+    <div class="bloque-cab"><h3>Anexos técnicos y hoja de compliance</h3></div>
+    {% include "journey/temas/_s3_anexos_oferta.html" with b=d.block pid=t.pid part="" history_url=d.history_url %}
+  </div>
+  <div class="bloque-pie"><a class="btn secundario" href="{{ d.card_url }}">Ver la ficha de la oferta (opcional)</a><a class="btn secundario" href="{{ t.tab_url }}#s3-ofertas">Volver a Ofertas</a></div>
+</div>
+{% endwith %}
+
+{% elif t.mode == "borrador" %}{% with v=t.v %}
+<div class="bloque" id="s3-borrador"{% if t.refresh %} data-recargar="{{ t.refresh }}"{% endif %}>
+  <span id="s3-oferta-abierta"></span>
+  <p class="volver"><a href="{{ t.tab_url }}#s3-ofertas">← Volver a Ofertas</a></p>
+  <div class="encab-parte"><h2>Lo que el sistema leyó de la oferta nueva</h2></div>
+  <p class="resumen-linea">{{ v.files|length }} archivo{{ v.files|length|pluralize }}: <b>{{ v.files|join:", " }}</b> · subido{{ v.files|length|pluralize }} por {{ v.by }} el {{ v.at }}.</p>
+  {% if v.reading %}
+  <div class="aviso" role="status" id="s3-lectura-en-curso"><strong>El sistema está leyendo los archivos</strong> {{ v.job_text }}. Esta parte se actualiza sola; el nombre y el CUIT propuestos aparecen acá y no se carga nada hasta que un evaluador lo apruebe.{% if v.job_step %}<br>Ahora: {{ v.job_step }}{% endif %}</div>
+  {% elif v.failed %}
+  <div class="aviso aviso-error" role="alert"><strong>No se pudieron leer los archivos.</strong> Motivo: {{ v.failure }}. Descarte esta lectura y vuelva a subirlos.</div>
+  {% if v.can_decide %}{% include "journey/temas/_s3_ofertas_rechazar.html" %}{% else %}<p class="suave chica">La descarta un evaluador.</p>{% endif %}
+  {% elif v.rejected %}
+  <div class="aviso" role="status"><strong>Se descartó esta propuesta.</strong>{% if v.rejection %} {{ v.rejection.by }} el {{ v.rejection.at }}. Motivo: {{ v.rejection.reason }}.{% endif %} Los mismos archivos se pueden volver a subir.</div>
+  {% elif v.approved %}
+  <div class="aviso" role="status"><strong>Esta propuesta ya se aprobó</strong> y quedó como oferta {{ v.draft.offer.number }}.</div>
+  {% elif v.proposed %}
+  <p class="resumen-linea">El sistema propone <b>{{ v.found }}</b> de {{ v.data|length }} datos. <b>Solo un evaluador</b> los aprueba o corrige (con el valor y el motivo). Nada se tipea desde cero.</p>
+  {% if v.warnings %}<div class="aviso" role="status"><strong>Avisos de la lectura</strong><ul>{% for w in v.warnings %}<li>{{ w }}</li>{% endfor %}</ul></div>{% endif %}
+  <div class="bloque">
+    <div class="bloque-cab"><h3>Datos propuestos <span class="cta">{{ v.found }}</span></h3></div>
+    <div class="tabla-scroll"><table class="matriz lectura">
+      <caption class="sr-only">Nombre y CUIT del oferente que el sistema leyó de los archivos</caption>
+      <thead><tr><th scope="col">Dato</th><th scope="col">Propuesto</th><th scope="col">Dónde lo leyó</th><th scope="col">Aprobación</th></tr></thead>
+      <tbody>
+        {% for r in v.data %}
+        <tr id="dato-{{ r.name }}">
+          <th scope="row">{{ r.label }}</th>
+          <td>{% if r.value %}<span{% if r.name == "cuit" %} class="num"{% endif %}>{{ r.value }}</span>{% if r.others %}<span class="cita">También encontró: {{ r.others|join:" · " }}</span>{% endif %}{% else %}<span class="no-determinado">No determinado</span><span class="cita">El sistema no encontró este dato con una cita en los archivos.</span>{% endif %}</td>
+          <td class="origen">{% if r.where %}{{ r.where }}{% if r.quote %}<span class="cita">«{{ r.quote }}»</span>{% endif %}{% else %}<span class="suave">Sin cita en los archivos</span>{% endif %}</td>
+          <td>{% include "journey/_icono.html" with icon=r.icon name=r.icon_name %} <span class="chica">{% if r.state == "corregido" %}Corregido{% elif r.state == "propuesto" %}Se aprueba con todo{% else %}Falta completarlo{% endif %}</span>
+            {% if r.changes %}<ul class="corregido">{% for c in r.changes %}<li>{% if c.previous %}De «{{ c.previous }}» a {% endif %}«{{ c.corrected }}». Motivo: {{ c.reason }} · {{ c.by }} · {{ c.at }}</li>{% endfor %}</ul>{% endif %}
+            {% if v.can_decide %}
+            <details class="acc"><summary class="btn secundario chico">Corregir</summary>
+              <form method="post" action="{{ v.urls.corregir }}">{% csrf_token %}
+                <input type="hidden" name="field" value="{{ r.name }}">
+                <label for="valor-{{ r.name }}">Escribe el valor de «{{ r.label|lower }}»</label>
+                <input id="valor-{{ r.name }}" name="value" type="text" value="{{ r.value }}" required>
+                <label for="motivo-{{ r.name }}">Motivo (obligatorio)</label>
+                <textarea id="motivo-{{ r.name }}" name="reason" rows="2" required></textarea>
+                <button class="btn primario chico" type="submit">Guardar la corrección</button>
+              </form></details>
+            {% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+  <div class="bloque-pie">
+    {% if v.can_decide %}
+    <form class="en-linea" method="post" action="{{ v.urls.aprobar }}">{% csrf_token %}<button class="btn primario" type="submit"{% if v.missing %} disabled aria-describedby="s3-falta-completar"{% endif %}>Aprobar y agregar la oferta</button></form>
+    {% if v.missing %}<span class="chica" id="s3-falta-completar">Falta {{ v.missing|join:" y " }}: complételo con «Corregir» para poder aprobar.</span>{% endif %}
+    {% include "journey/temas/_s3_ofertas_rechazar.html" %}
+    {% else %}
+    <span class="suave chica">Lo aprueba un evaluador</span>
+    {% endif %}
+    <a class="btn secundario" href="{{ t.tab_url }}#s3-ofertas">Volver a Ofertas</a>
+  </div>
+  {% endif %}
+</div>
+{% if t.refresh %}<script src="{% static 'journey/s3_ofertas.js' %}" defer></script>{% endif %}
+{% endwith %}
+
+{% elif t.mode == "tabla" %}
+<div class="bloque" id="s3-ofertas">
+  <div class="bloque-cab"><h3>Ofertas presentadas <span class="cta">{{ t.rows|length }}</span></h3>
+    <span class="barra-cargas"><a class="btn primario chico" href="{{ t.tab_url }}?alta=portal#s3-alta-portal">Agregar oferta desde el Portal</a>{% if t.can_load %}<a class="btn secundario chico" href="{{ t.tab_url }}?alta=archivos#s3-alta-archivos">Subir los archivos de una oferta</a>{% endif %}</span></div>
+  {% if t.empty %}
+  <div class="estado-vacio">
+    <h3>Todavía no hay ofertas</h3>
+    <p>Agréguelas desde el acta de apertura del Portal o suba los archivos de cada oferta: el sistema propone el nombre y el CUIT del oferente para que la Comisión los apruebe.</p>
+  </div>
+  {% else %}
+  <p class="resumen-linea"><b>{{ t.rows|length }}</b> oferta{{ t.rows|length|pluralize }} · <b>{{ t.documents_total }}</b> documento{{ t.documents_total|pluralize }} · hoja de compliance: <b>{{ t.with_sheet }} de {{ t.rows|length }}</b>{% if t.stale_count %} · <b>{{ t.stale_count }}</b> evaluada{{ t.stale_count|pluralize }} con un documento retirado{% endif %}.</p>
+  <div class="tabla-scroll"><table class="matriz lectura" id="t-ofertas">
+    <caption class="sr-only">Ofertas presentadas, con sus documentos, sus anexos técnicos, su hoja de compliance y su ficha</caption>
+    <thead><tr><th scope="col">Oferta</th><th scope="col" class="n">Total</th><th scope="col">Documentos</th><th scope="col">Anexos técnicos</th><th scope="col">Hoja de compliance</th><th scope="col">Lo que presentó</th></tr></thead>
+    <tbody>
+      {% for r in t.rows %}
+      <tr id="s3-anexos-oferta-{{ r.offer.number }}">
+        <th scope="row"><a href="{{ r.detail_url }}">{{ r.offer.number }} · {{ r.offer.bidder }}</a><br><span class="origen"><b>{{ r.origin }}</b> {{ r.origin_detail }}</span>{% if r.stale %}<br><span class="chica">{% include "journey/_icono.html" with icon="nodet" name="Evaluada con un documento retirado" %} Evaluada con un documento retirado</span>{% endif %}</th>
+        <td class="n">{{ r.total|default:"—" }}</td>
+        <td>{{ r.documents }} documento{{ r.documents|pluralize }}{% if r.unread %} <span class="chica suave">· {{ r.unread }} sin leer</span>{% endif %} · <a href="{{ r.detail_url }}">Ver</a>
+          {% if t.can_load %}<details class="acc"><summary class="btn secundario chico">Subir documentos</summary>
+            <form method="post" enctype="multipart/form-data" action="{% url 'expedientes:s3_ofertas_documentos' t.pid r.offer.pk %}">{% csrf_token %}
+              <label for="s3-docs-{{ r.offer.pk }}">Uno o varios archivos</label>
+              <input type="file" name="files" id="s3-docs-{{ r.offer.pk }}" multiple required>
+              <button class="btn primario chico" type="submit">Subir</button>
+            </form></details>{% endif %}</td>
+        <td>{% include "journey/temas/_s3_anexos_oferta.html" with b=r.block pid=t.pid part="anexos" %}</td>
+        <td>{% include "journey/temas/_s3_anexos_oferta.html" with b=r.block pid=t.pid part="hoja" %}</td>
+        <td><a href="{{ r.card_url }}">Ficha (opcional)</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
+  <div class="bloque-pie"><span>La hoja de compliance se sube una vez por oferta y rige para todos sus requisitos externos.</span></div>
+</div>
+
+{% if t.drafts %}
+<div class="bloque" id="s3-borradores">
+  <div class="bloque-cab"><h3>Ofertas subidas que esperan aprobación <span class="cta">{{ t.drafts|length }}</span></h3></div>
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <caption class="sr-only">Ofertas subidas por sus archivos que todavía no se agregaron</caption>
+    <thead><tr><th scope="col">Oferente propuesto</th><th scope="col">CUIT propuesto</th><th scope="col">Archivos</th><th scope="col">Estado</th><th scope="col">Subida</th><th scope="col">Acción</th></tr></thead>
+    <tbody>{% for x in t.drafts %}
+      <tr><th scope="row">{{ x.bidder|default:"—" }}</th><td class="num">{{ x.cuit|default:"—" }}</td><td class="n">{{ x.files }}</td><td>{{ x.state }}</td><td>{{ x.by }} · {{ x.at }}</td><td><a href="{{ x.url }}">{% if t.can_decide and x.draft.state == "propuesto" %}Revisar y aprobar{% else %}Ver{% endif %}</a></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div>
+{% endif %}
+
+<details class="bloque alta" id="s3-alta-portal"{% if t.open_portal %} open{% endif %}>
+  <summary><h3>Agregar oferta desde el Portal <span class="cta">{{ t.portal|length }} sin agregar</span></h3></summary>
+  {% if t.portal %}
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <caption class="sr-only">Ofertas del acta de apertura del Portal que todavía no se agregaron</caption>
+    <thead><tr><th scope="col">Oferente</th><th scope="col">CUIT</th><th scope="col" class="n">Total</th><th scope="col">Garantía</th><th scope="col">Renglones cotizados</th><th scope="col">Acción</th></tr></thead>
+    <tbody>{% for p in t.portal %}
+      <tr id="portal-{{ p.item.pk }}"><th scope="row">{{ p.bidder }}{% for note in p.notes %}<br><span class="chica">Atención: {{ note }}</span>{% endfor %}<br><span class="origen"><b>Portal</b> acta de apertura · {{ p.published }}</span></th>
+        <td class="num">{{ p.cuit }}</td><td class="n">{{ p.total }}</td>
+        <td>{% for g in p.guarantees %}{{ g }}{% if not forloop.last %}<br>{% endif %}{% empty %}<span class="suave">Sin garantía</span>{% endfor %}</td>
+        <td>{{ p.lines|default:"—" }}</td>
+        <td>{% if t.can_decide %}<form class="en-linea" method="post" action="{% url 'expedientes:s3_ofertas_portal' t.pid p.item.pk %}">{% csrf_token %}<button class="btn primario chico" type="submit">Agregar la oferta</button></form>{% else %}<span class="suave chica">Lo aprueba un evaluador</span>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% elif t.portal_link %}
+  <p class="suave">El acta de apertura del Portal no tiene ofertas sin agregar. Si todavía no se publicó, la revisión periódica la trae: <a href="{{ t.portal_url }}">ver el Portal en Procedimiento de compra</a>.</p>
+  {% else %}
+  <p class="suave">Este procedimiento no sigue un proceso del Portal. Para tomar las ofertas del acta de apertura, pegue el enlace del proceso en <a href="{{ t.portal_url }}">Procedimiento de compra</a>, o suba los archivos de cada oferta.</p>
+  {% endif %}
+</details>
+
+{% if t.can_load %}
+<details class="bloque alta" id="s3-alta-archivos"{% if t.open_files or t.empty %} open{% endif %}>
+  <summary><h3>Subir los archivos de una oferta</h3></summary>
+  <form class="subida" method="post" enctype="multipart/form-data" action="{% url 'expedientes:s3_ofertas_alta' t.pid %}">{% csrf_token %}
+    <p class="ayuda">Elija todos los archivos de una misma oferta (PDF, Word o foto). El sistema los lee y propone el nombre y el CUIT del oferente, con dónde los leyó; un evaluador los aprueba o corrige. No se tipea nada.</p>
+    <label for="s3-alta-files">Archivos de la oferta</label>
+    <input type="file" name="files" id="s3-alta-files" multiple required>
+    <button class="btn primario" type="submit">Subir y leer la oferta</button>
+  </form>
+</details>
+{% else %}
+<div class="bloque" id="s3-alta-archivos"><p class="suave">Los archivos de una oferta los sube el operador o el evaluador de la Comisión.</p></div>
+{% endif %}
+{% endif %}
+</div></div><span id="s3-of-fin"></span>

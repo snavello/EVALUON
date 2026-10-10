@@ -1,0 +1,16 @@
+{% comment %}«Reemplazar» y «Retirar» de un documento vigente de la oferta (T-206, REQ-099): el motivo es obligatorio y nada se borra. Recibe `doc` (el documento) y `t` (contexto del tema).{% endcomment %}<details class="acc"><summary class="btn secundario chico">Reemplazar</summary>
+  <form method="post" enctype="multipart/form-data" action="{% url 'expedientes:s3_ofertas_reemplazar' t.pid doc.pk %}">{% csrf_token %}
+    <p class="ayuda">La versión anterior queda en el historial. La nueva se lee de nuevo.</p>
+    <label for="reemplazar-{{ doc.pk }}-archivo">Archivo nuevo</label>
+    <input type="file" name="file" id="reemplazar-{{ doc.pk }}-archivo" required>
+    <label for="reemplazar-{{ doc.pk }}-motivo">Motivo (obligatorio)</label>
+    <textarea name="note" id="reemplazar-{{ doc.pk }}-motivo" rows="2" required></textarea>
+    <button class="btn primario chico" type="submit">Reemplazar</button>
+  </form></details>
+<details class="acc"><summary class="btn acento chico">Retirar</summary>
+  <form method="post" action="{% url 'expedientes:s3_ofertas_retirar' t.pid doc.pk %}">{% csrf_token %}
+    <p class="ayuda">No se borra: sale de la oferta y queda en «Retirados» con el motivo. Se puede restituir.</p>
+    <label for="retirar-{{ doc.pk }}-motivo">Motivo (obligatorio)</label>
+    <textarea name="note" id="retirar-{{ doc.pk }}-motivo" rows="2" required></textarea>
+    <button class="btn acento chico" type="submit">Retirar</button>
+  </form></details>

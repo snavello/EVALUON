@@ -118,12 +118,14 @@ def test_an_offer_without_a_sheet_shows_the_button_to_build_it(
 
 def test_the_tab_lists_the_offers_with_their_sheet_link(client, procedure, offer, sheet,
                                                          operator_user):
-    """REQ-086: sin abrir una ficha, la pestaña lista las ofertas con «Ficha (opcional)»."""
+    """REQ-086: sin abrir una ficha, la tabla de ofertas (T-202) enlaza la ficha de cada una con
+    «Ficha (opcional)»; la lista provisoria de T-203 ya no está."""
     log_in(client, operator_user)
-    html = block(client.get(url("ofertas", procedure)).content.decode())
-    assert "Lo que presentó cada oferta" in html
-    assert f'href="{tab(procedure, offer)}#s3-ficha"' in html
-    assert "Ficha (opcional)" in html
+    html = client.get(url("ofertas", procedure)).content.decode()
+    table = html[html.index('id="s3-ofertas"'):]
+    assert f'href="{tab(procedure, offer)}#s3-ficha"' in table
+    assert "Ficha (opcional)" in table
+    assert 'id="s3-fichas"' not in html
 
 
 def test_no_link_of_the_tab_goes_to_an_old_decision_screen(client, procedure, offer, sheet,

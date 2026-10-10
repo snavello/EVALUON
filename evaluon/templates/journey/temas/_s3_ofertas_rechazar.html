@@ -1,0 +1,7 @@
+{% comment %}Descartar la propuesta de una oferta subida (T-202): solo el evaluador, con motivo obligatorio. Recibe `v` (ver s3_ofertas.draft_view).{% endcomment %}<details class="acc"><summary class="btn secundario">Descartar la propuesta</summary>
+  <form method="post" action="{{ v.urls.rechazar }}">{% csrf_token %}
+    <p class="ayuda">No se crea la oferta. Queda registrado quién, cuándo y por qué; los mismos archivos se pueden volver a subir.</p>
+    <label for="s3-rechazo-{{ v.draft.pk }}">Motivo (obligatorio)</label>
+    <textarea id="s3-rechazo-{{ v.draft.pk }}" name="reason" rows="2" required></textarea>
+    <button class="btn acento chico" type="submit">Descartar</button>
+  </form></details>
