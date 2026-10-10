@@ -266,7 +266,8 @@ def test_what_the_portal_lists_and_was_not_taken_shows_as_missing(client, bare, 
     assert "Circular Portal inventada" in page
     assert "1 detectada en el Portal" in page
     assert "El Portal lista 1 circular o aclaración que no se tomaron" in page
-    assert f'{reverse("portal:proposal", args=[link.pk])}#group-documento' in page
+    assert f'{reverse("expedientes:procedimiento", args=[bare.pk])}#s1-portal' in page
+    assert "#group-documento" not in page
 
 
 def test_the_new_version_is_not_opened_by_reading_and_several_circulars_give_one_version(

@@ -15,7 +15,7 @@
   {% if window.state == "failed" %}<p class="pw-summary pw-error" role="alert">{{ window.summary }}</p>{% elif window.summary %}<p class="pw-summary">{{ window.summary }}</p>{% endif %}
   {% if window.main or window.detail %}
   <div class="pw-counts">
-    {% if window.main %}<p><span class="pw-label">Hecho</span> <span class="pw-num">{% if window.detail %}Oferta {% endif %}{{ window.main.text }}</span> · <span class="pw-label">Falta</span> <span class="pw-num">{{ window.main.left }}</span>{% if window.detail %} {% if window.main.left == 1 %}oferta{% else %}ofertas{% endif %}{% endif %}</p>
+    {% if window.main %}<p><span class="pw-label">Hecho</span> <span class="pw-num">{{ window.main.text }}</span> · <span class="pw-label">Falta</span> <span class="pw-num">{{ window.main.left }}</span>{% if window.detail %} {% if window.main.left == 1 %}oferta{% else %}ofertas{% endif %}{% endif %}</p>
     <progress max="100" value="{{ window.main.percent }}">{{ window.main.percent }} %</progress>{% endif %}
     {% if window.detail %}<p><span class="pw-label">En esta oferta</span> <span class="pw-num">{{ window.detail.text }}</span> · <span class="pw-label">Falta</span> <span class="pw-num">{{ window.detail.left }}</span> {% if window.detail.left == 1 %}requisito{% else %}requisitos{% endif %}</p>{% endif %}
   </div>

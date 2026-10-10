@@ -104,17 +104,9 @@ def _states(procedure):
                      lambda: circular_version.states(procedure))
 
 
-def _link_id(procedure):
-    return memo.once(("s3_circulares_link", procedure.pk), lambda: (
-        procedure.portal_links.order_by("-pk").values_list("pk", flat=True).first()))
-
-
 def portal_url(procedure):
-    """A los ítems de documentos del Portal; sin proceso seguido, al bloque del Portal de la
-    pestaña «Procedimiento», donde se da de alta (sin salir del expediente)."""
-    link_id = _link_id(procedure)
-    if link_id is not None:
-        return reverse("portal:proposal", args=[link_id]) + "#group-documento"
+    """Al bloque del Portal de este procedimiento, en su pestaña «Procedimiento» (T-232, O-3):
+    con o sin proceso seguido, sin pasar por la ruta vieja de importación."""
     return reverse("expedientes:procedimiento", args=[procedure.pk]) + "#s1-portal"
 
 

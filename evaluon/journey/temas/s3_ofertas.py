@@ -727,6 +727,9 @@ def upload_documents(request, procedure_id, offer_id):
         try:
             offers_service.load_document(request.user, offer, data=upload_file.read(),
                                          file_name=upload_file.name, channel=CHANNEL)
+        except offers_service.DuplicateFile as error:
+            # El aviso ya empieza con el nombre del archivo: no se repite (T-232, O-1).
+            results.append(_result("", False, str(error)))
         except offers_service.OfferRefused as error:
             results.append(_result(upload_file.name, False, str(error)))
         else:

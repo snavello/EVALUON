@@ -172,11 +172,10 @@ def missing_from_portal(procedure):
 
 
 def portal_url(procedure):
-    """A los ítems de documentos del Portal; sin proceso seguido, a donde se da de alta."""
-    link = procedure.portal_links.order_by("-pk").first()
-    if link is None:
-        return reverse("expedientes:nuevo")
-    return reverse("expedientes:nuevo_enlace", args=[link.pk]) + "#group-documento"
+    """Al bloque del Portal de este procedimiento, en su pestaña «Procedimiento» (T-232, P-8):
+    ahí se ve la propuesta de documentos y se aprueba, o se da de alta el proceso; no a la
+    pantalla de alta, que redirige sin ubicar el bloque."""
+    return reverse("expedientes:procedimiento", args=[procedure.pk]) + "#s1-portal"
 
 
 def status(user, procedure):
