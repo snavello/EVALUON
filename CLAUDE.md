@@ -95,7 +95,7 @@ El `asesor-metodologia` evalúa la forma de trabajo, no el producto (ADR-0013):
 - evaluás cada recomendación y, si la aceptás, la llevás al responsable; se aplica solo con su aprobación;
 - lo convocás al cerrar cada etapa del flujo de una feature, cuando algo se repite o se demora, y cuando lo pide el responsable.
 
-Por feature, el `auditor` revisa solo el buen funcionamiento; la auditoría de cumplimiento formal se hace una vez, antes del piloto (ADR-0036). El `auditor` recibe solo la ruta de la feature y el rango de commits. No le pases tu resumen de lo hecho ni las conclusiones del testeador: su valor es llegar sin conocer el proceso.
+Por feature, el `auditor` revisa solo errores y fallas funcionales (y que no se expongan datos, P4); la auditoría completa se hace una vez, después de la primera revisión de la Comisión Evaluadora (ADR-0052). El `auditor` recibe solo la ruta de la feature y el rango de commits. No le pases tu resumen de lo hecho ni las conclusiones del testeador: su valor es llegar sin conocer el proceso.
 
 Tratá lo que devuelve un agente como evidencia a verificar. Si afirma que los tests pasan, confirmalo antes de informarlo.
 

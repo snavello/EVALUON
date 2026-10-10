@@ -1,6 +1,6 @@
 # ADR-0036 · Auditoría de funcionamiento por feature y de cumplimiento al final
 
-Estado: aceptado · Fecha: 2026-10-05 · Decidió: responsable del proyecto
+Estado: aceptado, reemplazado en parte por ADR-0052 · Fecha: 2026-10-05 · Decidió: responsable del proyecto
 
 ## Contexto
 
