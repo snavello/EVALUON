@@ -1029,6 +1029,9 @@ class ConsequenceType(models.TextChoices):
     APROBACION_CONDICIONADA = "aprobacion_condicionada", "Aprobación condicionada"
     APROBAR_IGUAL = "aprobar_igual", "Aprobar de todas maneras"
     OTRA_PLIEGO = "otra_pliego", "Otra consecuencia prevista en el pliego"
+    # La elige la Comisión cuando el pliego no indica ninguna (T-232): no lleva motivo ni cita.
+    # «No determinada», en cambio, sigue siendo el estado del sistema sin fundamento.
+    SIN_CONSECUENCIA = "sin_consecuencia", "El pliego no indica consecuencia"
     NO_DETERMINADA = "no_determinada", "No determinada"
 
 

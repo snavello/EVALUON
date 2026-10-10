@@ -70,7 +70,9 @@ def back(procedure, text, ok=True):
 
 def blockers(version):
     """Cuántas cosas quedan sin decidir en `version` (REQ-035 de la 003): requisitos sin
-    confirmar, sugerencias, tramos sin revisar y consecuencias sin elegir."""
+    confirmar, sugerencias, tramos sin revisar y consecuencias sin elegir. `total` las suma
+    todas, como la portada; `blocking` solo las que traban la validación: el servicio de
+    validación confirma solo los requisitos propuestos (REQ-027), así que esos no traban."""
     live = version.requirements.exclude(state__in=("quitado", "sugerido"))
     chosen = Consequence.objects.filter(requirement__in=live, chosen=True).values("requirement")
     counts = {
@@ -80,6 +82,7 @@ def blockers(version):
         "consequences": live.exclude(pk__in=chosen).count(),
     }
     counts["total"] = sum(counts.values())
+    counts["blocking"] = counts["total"] - counts["unconfirmed"]
     return counts
 
 
@@ -88,7 +91,9 @@ def _plural(n, one, many):
 
 
 def condition_text(counts, number):
-    """La frase junto al botón «Validar la versión N»."""
+    """La frase junto al botón «Validar la versión N». Dice lo mismo que hace el servicio de
+    validación: traban las sugerencias, los tramos y las consecuencias sin resolver; los
+    requisitos sin confirmar los confirma la validación, con quién y cuándo."""
     if not counts["total"]:
         return f"No queda nada sin decidir: ya puede validar la versión {number}."
     parts = []
@@ -102,8 +107,14 @@ def condition_text(counts, number):
     if counts["consequences"]:
         parts.append(_plural(counts["consequences"], "consecuencia sin elegir",
                              "consecuencias sin elegir"))
-    return (f"Quedan {counts['total']} sin decidir: {', '.join(parts)}. "
-            "No se valida mientras quede alguno.")
+    head = f"Quedan {counts['total']} sin decidir: {', '.join(parts)}."
+    if not counts["blocking"]:
+        return (f"{head} Ya puede validar la versión {number}: la validación confirma esos "
+                "requisitos, cada uno con quién y cuándo.")
+    confirms = (" Los requisitos sin confirmar se confirman al validar."
+                if counts["unconfirmed"] else "")
+    return (f"{head} No se valida mientras quede alguna sugerencia, tramo o consecuencia "
+            f"sin resolver.{confirms}")
 
 
 # --- Búsqueda de lo que se toca ------------------------------------------------------------------
@@ -340,7 +351,7 @@ def validate(request, procedure_id, version_id):
     if (version.status == VersionStatus.DRAFT
             and request.user.commission_role == CommissionRole.EVALUATOR):
         counts = blockers(version)
-        if counts["total"]:
+        if counts["blocking"]:
             return back(procedure, "No se puede validar. "
                         + condition_text(counts, version.number), ok=False)
     return _act(procedure, lambda: validation.validate(request.user, version.pk,

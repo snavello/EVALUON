@@ -73,6 +73,7 @@ class Row:
     motives: list = field(default_factory=list)  # «Corregido por … · motivo: …»
     options: list = field(default_factory=list)  # consecuencias elegibles (solo quien decide)
     technical: bool = False
+    no_indica: dict = field(default_factory=dict)  # «El pliego no indica consecuencia» (T-232)
 
 
 def _day(moment):
@@ -228,6 +229,18 @@ def _suggested(consequences):
             if c.origin == "sistema" and c.consequence_type != "no_determinada"]
 
 
+def _no_indica(options):
+    """La opción «El pliego no indica consecuencia» de un requisito (T-232): se ofrece siempre.
+    Queda marcada si ya se eligió o si lo único que propuso el sistema es «no determinada» y
+    todavía no se eligió nada; la Comisión la confirma al registrar."""
+    chosen = any(o.chosen and o.consequence.consequence_type == ConsequenceType.SIN_CONSECUENCIA
+                 for o in options)
+    proposed = (any(o.undetermined for o in options)
+                and not any(o.from_system and not o.undetermined for o in options)
+                and not any(o.chosen for o in options))
+    return {"chosen": chosen, "proposed": proposed, "checked": chosen or proposed}
+
+
 def _rows(page, with_options=False):
     every = [row for group in page.groups for row in group.rows] + list(page.technical)
     every.sort(key=lambda row: row.requirement.number)
@@ -241,14 +254,16 @@ def _rows(page, with_options=False):
         if requirement.category == RequirementClass.TECNICO:
             text = f"Renglón {items or '—'} · {text}"
         mine = consequences.get(requirement.pk, [])
+        every_option = consequence_service.options(requirement) if with_options else []
         rows.append(Row(
             number=requirement.number, category=requirement.category,
             document=first.place.document_title if first else "Sin cita", text=text,
             place=first.place if first else None, consequence=_consequence_text(mine),
             marks=_marks(source), unconfirmed=requirement.state == RequirementState.PROPUESTO,
             changed=_changed(source), page_row=source, suggestions=_suggested(mine),
-            options=([o for o in consequence_service.options(requirement)
-                      if not o.undetermined] if with_options else []),
+            options=[o for o in every_option if not o.undetermined
+                     and o.consequence.consequence_type != ConsequenceType.SIN_CONSECUENCIA],
+            no_indica=_no_indica(every_option) if with_options else {},
             technical=requirement.category == RequirementClass.TECNICO))
     return rows
 
@@ -401,9 +416,11 @@ def context(user, procedure, request):
         "to_decide": len(page.suggestions) + len(segments),
         "removed": [(r, removed_motives[r.requirement.pk]) for r in page.removed], "segment_options": _segment_choices(page, version),
         "technical_rows": [r for r in rows if r.technical],
+        # «No determinada» no se elige y «El pliego no indica consecuencia» tiene su propia opción.
         "consequence_types": [(v, l) for v, l in ConsequenceType.choices
-                              if v != ConsequenceType.NO_DETERMINADA.value],
-        "blockers": counts, "blocked": bool(counts and counts["total"]),
+                              if v not in (ConsequenceType.NO_DETERMINADA.value,
+                                           ConsequenceType.SIN_CONSECUENCIA.value)],
+        "blockers": counts, "blocked": bool(counts and counts["blocking"]),
         "condition": acciones.condition_text(counts, version.number) if counts else "",
         "can_open_new": page.can_open_new,
     }
