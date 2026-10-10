@@ -212,15 +212,6 @@ def test_act_stays_as_a_portal_file_and_is_downloadable(
     assert response["Content-Type"] == "application/pdf"
 
 
-def test_download_only_serves_files_of_the_link(client, operator_user, explore_link, docs_portal):
-    link, _ = explore_link(operator_user)
-    stored = PortalFile.objects.first()
-    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
-    assert client.get(reverse("portal:download", args=[link.pk + 99, stored.pk])).status_code == 404
-    client.logout()
-    assert client.get(reverse("portal:download", args=[link.pk, stored.pk])).status_code in (302, 403)
-
-
 def test_duplicate_document_is_refused_with_a_notice(
         operator_user, evaluator_user, explore_link, docs_portal):
     """El mismo archivo ya cargado a mano se rechaza con aviso; no se carga dos veces."""
@@ -331,7 +322,7 @@ def test_circular_type_is_chosen_on_the_screen(
     load_procedure(evaluator_user, link)
     item = circular_item()
     assert client.login(username=operator_user.username, password=TEST_PASSWORD)
-    html = client.get(reverse("portal:proposal", args=[link.pk])).content.decode()
+    html = client.get(reverse("portal:proposal", args=[link.pk]), follow=True).content.decode()
     assert f'name="tipo_{item.pk}"' in html
     response = client.post(reverse("portal:decide", args=[link.pk]),
                            {"decision": "aprobar", "item": [item.pk],

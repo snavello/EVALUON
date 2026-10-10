@@ -20,6 +20,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from evaluon.audit.models import Channel
+from evaluon.journey.legacy import section_url, to_section
 from evaluon.tenders.models import MatrixVersion, Procedure
 from evaluon.tenders.services import documents as documents_service
 from evaluon.tenders.services import matrix as matrix_service
@@ -56,6 +57,15 @@ def request_proposal(request, procedure_id):
                     + f"?{REQUESTED_PARAM}={requested.job.pk}")
 
 
+def _version_procedure(request, version_id):
+    procedure_id = MatrixVersion.objects.filter(pk=version_id).values_list(
+        "procedure_id", flat=True).first()
+    if procedure_id is None:
+        raise Http404("No hay una versión de la matriz con ese número.")
+    return section_url("pliego", procedure_id)
+
+
+@to_section(_version_procedure)
 @require_GET
 def matrix(request, version_id):
     """La versión de la matriz."""

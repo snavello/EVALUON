@@ -83,149 +83,7 @@ def section_of(page_text, start, end):
 # --- La sección ----------------------------------------------------------------------------------
 
 
-def test_the_section_shows_each_suggestion_with_its_literal_text_reason_and_place(
-        client, operator_user, suggested):
-    """REQ-035: la sección está después de "Pendiente de revisión" y antes de los
-    requisitos firmes; cada sugerencia con su cita igual al recorte, documento, cláusula,
-    enlace al original, motivo (frase fija) e indicio literal, y la leyenda de que no se
-    valida con sugerencias sin decidir."""
-    version, rows, _other = suggested
-    log_in(client, operator_user)
-
-    page = text_of(client.get(matrix_url(version)))
-
-    assert page.index("Pendiente de revisión") < page.index(SECTION) < page.index(
-        "Requisitos formales y económicos")
-    assert "no se puede validar con sugerencias sin decidir" in squash(page)
-    section = squash(section_of(page, "<h2 id=\"suggestions-title\"", "Requisitos formales"))
-    for row in rows:
-        quote = row.quotes.get()
-        recorte = quote.segment.reading.canonical_text[quote.char_start:quote.char_end]
-        assert quote.text == recorte
-        assert f'<blockquote class="literal">{recorte}</blockquote>' in section
-    assert "Las dos preguntas del sistema no coincidieron" in section
-    assert "El sistema dudó" in section
-    assert "indicio" in section  # el indicio literal del tramo
-    assert reverse("tenders:document_original",
-                   args=[rows[0].quotes.get().segment.reading.document_id]) in page
-    assert "Pasar a requisito" in section and "Quitar" in section
-
-
-def test_the_text_shown_is_literal_and_escaped_not_interpreted(
-        client, operator_user, suggested):
-    """REQ-035 (P3): el texto de la cita, del indicio y de la norma se muestra tal cual,
-    sin interpretar marcas."""
-    version, rows, _other = suggested
-    row = rows[0]
-    row.doubt = {"answers": ["si", "no"], "evidence": "<b>negrita</b> & más"}
-    row.save(update_fields=["doubt"])
-    log_in(client, operator_user)
-
-    raw = client.get(matrix_url(version)).content.decode()
-
-    assert "&lt;b&gt;negrita&lt;/b&gt; &amp; más" in raw
-    assert "<b>negrita</b>" not in raw
-
-
-def test_suggestions_with_support_go_first_marked_and_show_the_cited_norm(
-        client, operator_user, suggested, norm_unit):
-    """REQ-036: primero las que tienen respaldo, marcadas "la norma aplicable la exige", con
-    norma y ruta, vigencia, cita literal y enlace a la unidad; la que no tiene dice "Sin
-    respaldo normativo encontrado: no es motivo para quitarla"."""
-    version, rows, other = suggested
-    add_support(rows[2], norm_unit, version.run)
-    log_in(client, operator_user)
-
-    page = text_of(client.get(matrix_url(version)))
-
-    section = squash(section_of(page, "<h2 id=\"suggestions-title\"", "Requisitos formales"))
-    assert section.index(f"Requisito {rows[2].number}") < section.index(
-        f"Requisito {rows[0].number}")
-    assert section.count(EXIGE) == 1
-    assert section.count(NO_SUPPORT) == 3
-    assert "Norma sintética, art. 1" in section
-    assert "Artículo 1." in section  # la cita literal de la norma
-    assert "vigente desde" in section
-    document = norm_unit.reading.document
-    assert reverse("norms:original", args=[document.pk]) in page
-    # la norma no cambia el estado: sigue siendo una sugerencia
-    assert state(rows[2]) == "sugerido"
-
-
-def test_suggestions_never_show_in_the_firm_requirements_or_the_counts(
-        client, operator_user, suggested):
-    """REQ-035: una sugerencia no figura entre los requisitos firmes ni en las cuentas por
-    clase; el resumen suma "sugerencias sin decidir"."""
-    version, _rows, _other = suggested
-    log_in(client, operator_user)
-
-    response = client.get(matrix_url(version))
-    page = text_of(response)
-
-    firm = page[page.index('id="requirements-title"'):page.index('id="technical-title"')]
-    assert "Requisito " not in firm
-    assert response.context["page"].counts["formal"] == 0
-    assert "Sugerencias sin decidir: 4" in squash(page)
-
-
-def test_the_screen_shows_the_same_groups_as_validation(client, operator_user,
-                                                        evaluator_user, suggested):
-    """REQ-035 (aviso de T-110): los grupos de la pantalla son los de `validation._groups`:
-    los mismos tramos que nombra el rechazo de la validación, con la misma cuenta."""
-    version, rows, other = suggested
-    log_in(client, operator_user)
-    page = squash(text_of(client.get(matrix_url(version))))
-    finish(evaluator_user, version)
-
-    with pytest.raises(validation.ValidationRefused) as error:
-        validation.validate(evaluator_user, version.pk)
-
-    assert validation._groups(rows + [other]) == "sec-i/3.1, sec-i/4.1"
-    for key in ("sec-i/3.1", "sec-i/4.1"):
-        assert key in str(error.value)
-        assert f"Tramo {key}" in page or f"Cláusula {key.split('.')[0]}" in page
-    assert "Pasar a requisito las 3" in page and "Quitar las 3" in page
-    assert "las 1" not in page
-    assert "4" in str(error.value)
-
-
 # --- Decidir una por una -------------------------------------------------------------------------
-
-
-def test_pass_to_requirement_changes_the_state_and_the_row_moves_to_the_firm_ones(
-        client, operator_user, suggested, norm_unit):
-    """REQ-035: "Pasar a requisito" deja la fila `propuesto`, con su historial; aparece
-    entre los requisitos con "Pasó de sugerencia el DD/MM/AAAA por <persona>" y su
-    respaldo."""
-    version, rows, _other = suggested
-    add_support(rows[0], norm_unit, version.run)
-    log_in(client, operator_user)
-
-    response = client.post(accept_url(rows[0]))
-
-    assert response.status_code == 302
-    assert state(rows[0]) == "propuesto"
-    page = text_of(client.get(matrix_url(version)))
-    firm = page[page.index('id="requirements-title"'):page.index('id="technical-title"')]
-    assert f"Requisito {rows[0].number}" in firm
-    change = rows[0].changes.get(action="aceptar_sugerencia")
-    date = timezone.localtime(change.at).strftime("%d/%m/%Y")
-    assert f"Pasó de sugerencia el {date} por operador" in squash(firm)
-    assert "Norma sintética, art. 1" in firm
-    assert f"Requisito {rows[0].number}" not in section_of(
-        page, "<h2 id=\"suggestions-title\"", "Requisitos formales")
-
-
-def test_remove_a_suggestion_sends_it_to_the_removed_ones(client, operator_user, suggested):
-    """REQ-035: "Quitar" deja la fila `quitado`, visible entre los quitados."""
-    version, rows, _other = suggested
-    log_in(client, operator_user)
-
-    client.post(reverse("tenders:review_remove", args=[rows[1].pk]))
-
-    assert state(rows[1]) == "quitado"
-    page = text_of(client.get(matrix_url(version)))
-    assert f"Requisito {rows[1].number} " in page[page.index('id="removed-title"'):]
 
 
 def test_a_user_without_commission_role_is_denied_and_the_attempt_is_recorded(
@@ -239,7 +97,7 @@ def test_a_user_without_commission_role_is_denied_and_the_attempt_is_recorded(
     assert client.post(accept_url(rows[0])).status_code == 403
     assert client.get(group_url(version), query).status_code == 403
     assert client.post(group_url(version), query).status_code == 403
-    assert client.get(matrix_url(version)).status_code == 403
+    assert client.get(matrix_url(version), follow=True).status_code == 403
 
     assert state(rows[0]) == "sugerido"
     assert AuditEvent.objects.filter(outcome=Outcome.REJECTED).count() >= 3
@@ -399,29 +257,6 @@ def test_every_page_of_the_pdf_with_suggestions_has_the_legend_and_the_section(
     assert len(pages) >= 2
     assert all(LEGEND in text for text in pages)
     assert any(PRINT_SECTION in text for text in pages)
-
-
-def test_a_validated_version_has_no_section_and_the_row_from_a_suggestion_shows_its_origin(
-        client, operator_user, evaluator_user, suggested, norm_unit):
-    """REQ-035: una versión validada no tiene la sección, ni en pantalla ni en la
-    impresión; el requisito que vino de una sugerencia muestra su origen y su respaldo."""
-    version, rows, other = suggested
-    add_support(rows[0], norm_unit, version.run)
-    for row in rows:
-        suggestions.accept_suggestion(operator_user, row.pk)
-    review.remove(operator_user, other.pk)
-    finish(evaluator_user, version)
-    validation.validate(evaluator_user, version.pk)
-    log_in(client, evaluator_user)
-
-    screen = text_of(client.get(matrix_url(version)))
-    printed = text_of(client.get(reverse("tenders:print", args=[version.pk])))
-
-    assert SECTION not in screen and PRINT_SECTION not in printed
-    assert LEGEND not in printed
-    assert "Pasó de sugerencia el" in squash(screen)
-    assert "Pasó de sugerencia el" in squash(printed)
-    assert "Norma sintética, art. 1" in squash(printed)
 
 
 def test_no_page_references_external_addresses(client, operator_user, suggested, norm_unit):

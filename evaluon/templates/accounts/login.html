@@ -3,23 +3,24 @@
 {% block title %}Ingresar · EVALUON{% endblock %}
 
 {% block content %}
-<section class="login">
+<section class="ingreso">
   <h1>Ingresar</h1>
-  <form method="post" action="{% url 'accounts:login' %}">
+  <p class="lede">EVALUON asiste a la Comisión Evaluadora. Ingrese con su usuario y clave.</p>
+  <form method="post" action="{% url 'accounts:login' %}" class="panel">
     {% csrf_token %}
     {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
     {% if form.non_field_errors %}
-    <p class="form-error" role="alert">{{ form.non_field_errors.0 }}</p>
+    <div class="aviso importante" role="alert"><strong>{{ form.non_field_errors.0 }}</strong></div>
     {% endif %}
-    <p>
+    <div>
       <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
       {{ form.username }}
-    </p>
-    <p>
+    </div>
+    <div>
       <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
       {{ form.password }}
-    </p>
-    <button type="submit">Ingresar</button>
+    </div>
+    <div class="fila"><button class="btn primario" type="submit">Ingresar</button></div>
   </form>
 </section>
 {% endblock %}

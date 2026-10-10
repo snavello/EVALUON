@@ -158,7 +158,7 @@ def date_field_value(body):
 def test_root_without_session_redirects_to_login(client):
     """REQ-013, REQ-016: la pantalla de consulta ocupa la raíz y, sin sesión, redirige
     al ingreso."""
-    response = client.get("/")
+    response = client.get("/consulta/")
 
     assert response.status_code == 302
     assert response["Location"].startswith(resolve_url(settings.LOGIN_URL) + "?next=")
@@ -179,17 +179,17 @@ def test_screen_is_root_with_header_and_question_form(client, read_user):
     botón "Salir" y el formulario de la pregunta; sin consulta, ningún bloque."""
     log_in(client)
 
-    response = client.get("/")
+    response = client.get("/consulta/")
 
     assert response.status_code == 200
     body = response.content.decode()
-    assert reverse("queries:screen") == "/"
+    assert reverse("queries:screen") == "/consulta/"
     assert "EVALUON" in body
     assert read_user.username in body
     assert ">Salir</button>" in body
     assert '<textarea name="question"' in body
     assert "Fecha de autorización del procedimiento" in body
-    assert '<form method="post" action="/"' in body
+    assert '<form method="post" action="/consulta/"' in body
     assert '<section class="result ' not in body
 
 
@@ -201,7 +201,7 @@ def test_date_field_defaults_to_today_in_buenos_aires(client, read_user, monkeyp
     monkeypatch.setattr(timezone, "now", lambda: instant)
     log_in(client)
 
-    body = client.get("/").content.decode()
+    body = client.get("/consulta/").content.decode()
 
     assert date_field_value(body) == "2026-10-03"
 
@@ -213,9 +213,9 @@ def test_screen_does_not_write_the_session(client, read_user):
     before = dict(client.session.items())
     query = save_query(read_user, undetermined_result(date(2021, 3, 15), []))
 
-    client.get("/")
+    client.get("/consulta/")
     client.get(reverse("queries:query", args=[query.pk]))
-    client.post("/", {"question": "¿Algo?", "reference_date": "2999-01-01"})
+    client.post("/consulta/", {"question": "¿Algo?", "reference_date": "2999-01-01"})
 
     assert dict(client.session.items()) == before
 
@@ -232,7 +232,7 @@ def test_future_date_is_marked_in_form_and_not_queried(client, read_user, monkey
     events_before = AuditEvent.objects.count()
 
     response = client.post(
-        "/", {"question": "¿Qué garantía se exige?", "reference_date": "2026-10-04"}
+        "/consulta/", {"question": "¿Qué garantía se exige?", "reference_date": "2026-10-04"}
     )
 
     assert response.status_code == 200
@@ -250,7 +250,7 @@ def test_invalid_date_is_marked_in_form_and_not_queried(client, read_user):
     log_in(client)
 
     response = client.post(
-        "/", {"question": "¿Qué garantía se exige?", "reference_date": "2021-02-31"}
+        "/consulta/", {"question": "¿Qué garantía se exige?", "reference_date": "2021-02-31"}
     )
 
     assert response.status_code == 200
@@ -598,7 +598,7 @@ def test_pages_and_static_files_have_no_external_references(
         save_query(read_user, undetermined_result(two_regimes.before_v, regime)),
         save_query(read_user, error_result(two_regimes.before_v, regime)),
     ]
-    responses = [client.get("/"), client.post("/", {"question": ""})] + [
+    responses = [client.get("/consulta/"), client.post("/consulta/", {"question": ""})] + [
         client.get(reverse("queries:query", args=[q.pk])) for q in queries
     ]
 
@@ -626,7 +626,7 @@ def test_waiting_script_is_an_own_file_and_form_works_without_it(client, read_us
     común."""
     log_in(client)
 
-    body = client.get("/").content.decode()
+    body = client.get("/consulta/").content.decode()
 
     script_src = settings.STATIC_URL + "js/consulta.js"
     assert script_src == "/static/js/consulta.js"
@@ -646,7 +646,7 @@ def test_waiting_script_is_an_own_file_and_form_works_without_it(client, read_us
 def ask_on_screen(client, question, reference_date):
     """Envía la pregunta desde la pantalla y devuelve la respuesta sin seguir la
     redirección."""
-    return client.post("/", {"question": question, "reference_date": reference_date})
+    return client.post("/consulta/", {"question": question, "reference_date": reference_date})
 
 
 def test_person_writes_question_and_sees_answer_with_citations(

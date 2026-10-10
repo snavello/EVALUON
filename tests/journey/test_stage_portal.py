@@ -81,7 +81,7 @@ def test_without_a_link_the_stage_is_pending_and_optional(bare, operator_user):
     stage = portal.compute(operator_user, bare)
     assert stage.state == base.PENDIENTE and stage.optional is True
     assert stage.pending == 0 and stage.decide_url is None
-    assert resolve(stage.view_url).view_name == "portal:links"
+    assert resolve(stage.view_url).view_name == "expedientes:nuevo"
 
 
 def test_an_optional_pending_portal_is_not_the_current_stage(procedure, operator_user):
@@ -168,7 +168,7 @@ def test_the_view_link_to_the_proposal_resolves(bare, link, operator_user):
     """REQ-068: con ítems propuestos el enlace va a la propuesta del enlace."""
     add_proposal(link, ["a"])
     stage = portal.compute(operator_user, bare)
-    assert resolve(stage.view_url).view_name == "portal:proposal"
+    assert resolve(stage.view_url).view_name == "expedientes:nuevo_enlace"
     assert resolve(stage.view_url).kwargs == {"link_id": link.pk}
 
 

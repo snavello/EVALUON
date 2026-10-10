@@ -19,6 +19,7 @@ from evaluon.assessment.services import evaluate
 from evaluon.assessment.services import matrix as service
 from evaluon.audit.models import Channel
 from evaluon.tenders.models import Procedure
+from evaluon.journey.legacy import section_url, to_section
 
 MATRIX_TEMPLATE = "assessment/matrix.html"
 
@@ -31,6 +32,7 @@ def _render(request, procedure_id, status=200, **extra):
     return render(request, MATRIX_TEMPLATE, {"page": page, **extra}, status=status)
 
 
+@to_section(lambda request, procedure_id: section_url("evaluacion", procedure_id))
 @require_GET
 def matrix(request, procedure_id):
     """La matriz de evaluación del procedimiento."""

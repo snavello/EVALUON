@@ -199,3 +199,15 @@ table.matriz { border-collapse: collapse; width: 100%; font-size: var(--ev-t-sm)
   header.top .sel-user small { display: none; }
   header.top .wrap { flex-wrap: wrap; row-gap: 8px; padding-block: 8px; }
 }
+
+/* Ingreso (T-219, maqueta aprobada): usuario y clave en un panel. */
+body.app .ingreso { max-width: 36rem; margin: 40px auto; }
+body.app .ingreso .panel { display: grid; gap: 14px; padding: 22px; }
+body.app .ingreso .lede { color: var(--ev-texto-suave); max-width: 80ch; margin: 0 0 18px; }
+body.app .ingreso label { display: block; font-size: var(--ev-t-xs); font-weight: 600; margin-bottom: 3px; }
+body.app .ingreso input[type=text], body.app .ingreso input[type=password] {
+  width: 100%; font: inherit; font-size: var(--ev-t-ctl); border: 1px solid var(--ev-borde-campo);
+  border-radius: var(--ev-radio-btn); padding: 9px 12px; background: var(--ev-superficie);
+}
+body.app .aviso.importante { border-left: 3px solid var(--ev-rojo); background: var(--ev-nocumple-fondo); color: var(--ev-nocumple); padding: 10px 14px; border-radius: 0 10px 10px 0; font-size: var(--ev-t-sm); }
+body.app .aviso.importante strong { display: block; }

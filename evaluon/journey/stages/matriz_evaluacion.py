@@ -60,7 +60,7 @@ def _technical_pending_offers(page):
 
 def compute(user, procedure):
     page = memo.matrix_page(user, procedure.pk)
-    view_url = reverse("assessment:matrix", args=[procedure.pk])
+    view_url = reverse("expedientes:evaluacion", args=[procedure.pk])
     common = {"key": KEY, "label": LABEL, "view_url": view_url}
     suggestions = 0
     hint = ""
@@ -80,7 +80,7 @@ def compute(user, procedure):
     decide_url = None
     if base.is_evaluator(user):
         only_questions = questions and not pairs and not reports and not discards
-        decide_url = (reverse("assessment:questions", args=[procedure.pk])
+        decide_url = (reverse("expedientes:evaluacion", args=[procedure.pk])
                       if only_questions else view_url)
 
     if pending == 0:

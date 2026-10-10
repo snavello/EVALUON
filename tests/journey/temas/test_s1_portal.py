@@ -114,15 +114,16 @@ def test_new_procedure_opens_inside_the_five_tabs(client, operator_user, procedu
     assert "Explorar el Portal" in html and "Subir el pliego" in html
 
 
-def test_normativas_without_a_procedure_goes_to_the_general_consultation(
+def test_normativas_without_a_procedure_goes_to_the_general_normativas_page(
         client, operator_user, procedure):
-    """Sin procedimiento, la pestaña Normativas lleva a la consulta general y nunca a la de otro
-    procedimiento, aunque haya procedimientos cargados."""
+    """Sin procedimiento, la pestaña Normativas lleva a la página de Normativas general (T-225:
+    la normativa no está atada a ningún procedimiento) y nunca a la de otro procedimiento,
+    aunque haya procedimientos cargados."""
     log_in(client, operator_user)
     html = new_page(client).content.decode()
     bar = html[html.index('id="barra-secciones"'):html.index('id="journey-status"')]
-    assert f'href="{reverse("queries:screen")}"' in bar
-    assert "/normativas/" not in bar and f"/expedientes/{procedure.pk}/" not in bar
+    assert f'href="{reverse("expedientes:normativas_general")}"' in bar
+    assert f"/expedientes/{procedure.pk}/" not in bar
 
 
 def test_upload_the_tender_is_available_since_t197(client, operator_user):

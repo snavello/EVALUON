@@ -2,6 +2,14 @@
 # Las versiones y el motivo de cada una están en specs/001-normativa/entorno.md (T-005).
 # La imagen de la aplicación (Dockerfile) instala las dependencias y las de prueba:
 # la suite corre dentro del contenedor con `docker compose run --rm app pytest`.
+# Forma rápida (T-224): en paralelo, una base de pruebas por proceso (test_evaluon_gwN)
+# en el mismo Postgres:
+#   docker compose run --rm app pytest -n 8 --dist worksteal -q
+# Medido en el equipo (24 CPUs, 20 GB para Docker): en serie 33-38 min; -n 8 con el
+# reparto por omisión, unos 17 min (unas pocas pruebas de 50 a 90 s quedan al final en un
+# solo proceso); -n 8 --dist worksteal, unos 9 min; -n 12, 8 min, con un 50 % más de memoria.
+# Se eligió 8: la mitad de las CPUs y unos 6 GB, porque el equipo comparte la memoria con
+# los modelos. En serie, omitir `-n` y `--dist`. Ninguna prueba necesita correr aparte.
 
 [build-system]
 requires = ["setuptools==84.0.0"]
@@ -30,6 +38,8 @@ dependencies = [
     "pillow==12.3.0",
     # PDF de la matriz generado en el equipo (ADR-0020, REQ-032)
     "weasyprint==70.0",
+    # Excel de la planilla y del cuadro de la evaluación (ADR-0050, REQ-093); solo escribe, BSD-2
+    "XlsxWriter==3.2.9",
     # Casos de las evals en YAML (evals/casos/EV-NNN.yaml); la biblioteca estándar
     # no lee YAML. Los clientes HTTP de evaluon/ai/ usan urllib de la biblioteca
     # estándar, por eso no hay biblioteca de cliente HTTP.
@@ -40,6 +50,10 @@ dependencies = [
 test = [
     "pytest==9.1.1",
     "pytest-django==4.14.0",
+    # Suite en paralelo (T-224): pytest-xdist 3.8.0, licencia MIT, Python >=3.9; pytest-django
+    # crea una base test_<db>_gwN por proceso. execnet es su dependencia.
+    "pytest-xdist==3.8.0",
+    "execnet==2.1.2",
 ]
 
 [tool.setuptools]

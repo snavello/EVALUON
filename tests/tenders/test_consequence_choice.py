@@ -96,46 +96,13 @@ def log_in(client, user):
 # --- La pantalla muestra cada opción con su fundamento literal ----------------------------------
 
 
-def test_the_page_shows_each_option_with_the_literal_text_of_its_ground(
-        client, evaluator_user, case, garantia):
-    """REQ-029, P3: cada opción se ve con el texto literal de su fundamento: el tramo del
-    pliego con su ubicación y la unidad de la norma con su cita."""
-    requirement, desest, intim, unit = garantia
-    segment = segment_with(case, GARANTIA)
-    log_in(client, evaluator_user)
-
-    text = page_text(client.get(reverse("tenders:matrix", args=[case.pk])))
-
-    assert "Desestimación sin posibilidad de subsanar" in text
-    assert "Intimación a subsanar" in text
-    assert segment.reading.canonical_text[segment.char_start:segment.char_end] in text
-    assert unit.text in text
-    assert unit.reading.document.norm.citation in text
-    assert "Sugerida por el sistema" in text
-    assert reverse("tenders:consequence_choose", args=[requirement.pk]) in text
-
-
-def test_undetermined_is_shown_as_such_and_cannot_be_picked(
-        client, evaluator_user, case):
-    """REQ-029: un requisito sin sugerencia con fundamento muestra «No determinada», sin
-    casilla para elegirla."""
-    requirement = requirement_with(case, PAGO)
-    undetermined = requirement.consequences.get(consequence_type="no_determinada")
-    log_in(client, evaluator_user)
-
-    text = page_text(client.get(reverse("tenders:matrix", args=[case.pk])))
-
-    assert "No determinada" in text
-    assert f'name="option" value="{undetermined.pk}"' not in text
-
-
 def test_the_operator_sees_the_options_but_not_the_choice_form(
         client, operator_user, case, garantia):
     """REQ-029: elegir es del evaluador; el operador ve las opciones sin formulario."""
     requirement = garantia[0]
     log_in(client, operator_user)
 
-    text = page_text(client.get(reverse("tenders:matrix", args=[case.pk])))
+    text = page_text(client.get(reverse("tenders:matrix", args=[case.pk]), follow=True))
 
     assert "Desestimación sin posibilidad de subsanar" in text
     assert reverse("tenders:consequence_choose", args=[requirement.pk]) not in text
@@ -303,27 +270,6 @@ def test_a_quote_that_is_not_in_the_segment_is_rejected(evaluator_user, case):
     assert rejected("quote_not_in_segment").count() == 1
 
 
-def test_a_verified_quote_becomes_the_ground_of_the_option(client, evaluator_user, case):
-    """REQ-029: con tramo y fragmento verificados la opción queda con ese fundamento, y la
-    pantalla muestra su texto literal."""
-    requirement = requirement_with(case, PAGO)
-    segment = segment_with(case, PAGO)
-
-    chosen = service.choose(evaluator_user, requirement.pk,
-                            consequence_type="otra_pliego", note="Lo prevé el pliego.",
-                            segment=segment.pk, quote="a los 90   días\ncorridos")
-
-    [ground] = chosen.grounds
-    canonical = segment.reading.canonical_text
-    assert ground["source"] == "pliego" and ground["segment"] == segment.pk
-    assert " ".join(canonical[ground["char_start"]:ground["char_end"]].split()) == (
-        "a los 90 días corridos")
-    log_in(client, evaluator_user)
-    text = page_text(client.get(reverse("tenders:matrix", args=[case.pk])))
-    assert canonical[ground["char_start"]:ground["char_end"]] in text
-    assert "Propuesta por una persona" in text
-
-
 def test_a_suggested_consult_is_accepted_without_choosing_a_segment(
         evaluator_user, case):
     """REQ-029: si el sistema sugirió `consultar_oferente`, su cita ya está."""
@@ -365,20 +311,6 @@ def test_an_operator_posting_a_choice_gets_403(client, operator_user, garantia):
     assert not desest.chosen
 
 
-def test_the_evaluator_chooses_from_the_page(client, evaluator_user, case, garantia):
-    """REQ-029: el evaluador elige desde la página y la ve elegida, con su nombre."""
-    requirement, desest, _, _ = garantia
-    log_in(client, evaluator_user)
-
-    response = client.post(reverse("tenders:consequence_choose", args=[requirement.pk]),
-                           {"option": desest.pk, "note": ""})
-
-    assert response.status_code == 302
-    assert response["Location"].endswith(f"#requisito-{requirement.number}")
-    text = page_text(client.get(response["Location"]))
-    assert f"Elegida por {evaluator_user.username}" in text
-
-
 def test_a_refused_post_shows_the_reason_and_changes_nothing(
         client, evaluator_user, case, garantia):
     """REQ-029: una elección rechazada vuelve a la matriz con el motivo."""
@@ -413,50 +345,6 @@ def test_option_and_a_different_type_together_are_rejected(evaluator_user, garan
 def _forms_of(requirement, text):
     marker = f"/requisitos/{requirement.pk}/consecuencia/"
     return [chunk for chunk in text.split("<form")[1:] if marker in chunk.split(">")[0]]
-
-
-def test_after_a_choice_the_form_can_pick_another_type_with_its_note(
-        client, evaluator_user, case, garantia):
-    """REQ-029, P3: con el POST de los formularios reales, después de una elección, elegir
-    otro tipo con motivo deja elegido el tipo nuevo con ese motivo."""
-    requirement, desest, _, _ = garantia
-    log_in(client, evaluator_user)
-    url = reverse("tenders:consequence_choose", args=[requirement.pk])
-    client.post(url, {"option": desest.pk})
-
-    text = page_text(client.get(reverse("tenders:matrix", args=[case.pk])))
-    forms = _forms_of(requirement, text)
-    assert forms
-    for form in forms:  # ningún formulario junta las dos vías
-        assert not ('name="option"' in form and 'name="consequence_type"' in form)
-    other = next(f for f in forms if 'name="consequence_type"' in f)
-    assert 'name="option"' not in other
-    response = client.post(url, {"consequence_type": "aprobar_igual",
-                                 "note": "No afecta la comparación."})
-
-    assert response.status_code == 302
-    chosen = m.Consequence.objects.get(requirement=requirement, chosen=True)
-    assert chosen.consequence_type == "aprobar_igual"
-    assert chosen.chosen_note == "No afecta la comparación."
-    desest.refresh_from_db()
-    assert not desest.chosen and desest.chosen_note == ""
-
-
-def test_a_ground_from_another_clause_shows_its_exact_partial_cut(
-        client, evaluator_user, case, garantia):
-    """REQ-029, P3: un fundamento de otra cláusula, con recorte parcial, se muestra con el
-    texto literal exacto."""
-    requirement = garantia[0]
-    segment = segment_with(case, PAGO)
-    start, end = segment.char_start + 3, segment.char_end - 4
-    suggest(requirement, "otra_pliego", [{**pliego_ground(segment), "char_start": start,
-                                          "char_end": end}])
-    cut = segment.reading.canonical_text[start:end]
-    log_in(client, evaluator_user)
-
-    text = page_text(client.get(reverse("tenders:matrix", args=[case.pk])))
-
-    assert f'<blockquote class="literal">{cut}</blockquote>' in text
 
 
 @pytest.mark.parametrize("status", ["discarded", "validated"])

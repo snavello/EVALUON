@@ -9,15 +9,15 @@
     {% elif notice.job.kind == "propose_procedure" %}
       {% if notice.failed %}No se pudo leer el pliego subido para dar de alta un procedimiento.{% else %}Terminó la lectura del pliego subido para dar de alta un procedimiento.{% endif %} <a href="{% url 'expedientes:s1_pliego_borrador' notice.job.target_id %}">Ver lo que leyó el sistema</a>.
     {% elif notice.job.kind == "evaluate_offers" %}
-      {% if notice.failed %}La evaluación de las ofertas del procedimiento {{ notice.job.procedure.number }} falló: {{ notice.job.error }}.{% else %}La evaluación de las ofertas del procedimiento {{ notice.job.procedure.number }} terminó.{% endif %} <a href="{% url 'assessment:matrix' notice.job.procedure_id %}">Ver la matriz de evaluación</a>.
+      {% if notice.failed %}La evaluación de las ofertas del procedimiento {{ notice.job.procedure.number }} falló: {{ notice.job.error }}.{% else %}La evaluación de las ofertas del procedimiento {{ notice.job.procedure.number }} terminó.{% endif %} <a href="{% url 'expedientes:evaluacion' notice.job.procedure_id %}">Ver la matriz de evaluación</a>.
     {% elif notice.job.kind == "propose_matrix" %}
-      {% if notice.failed %}La propuesta de la matriz del procedimiento {{ notice.job.procedure.number }} falló: {{ notice.job.error }}. <a href="{% url 'tenders:procedure' notice.job.procedure_id %}">Ver el procedimiento</a>.
-      {% elif notice.version_id %}La propuesta de la matriz del procedimiento {{ notice.job.procedure.number }} terminó. <a href="{% url 'tenders:matrix' notice.version_id %}">Ver la matriz</a>.
-      {% else %}La propuesta de la matriz del procedimiento {{ notice.job.procedure.number }} terminó. <a href="{% url 'tenders:procedure' notice.job.procedure_id %}">Ver el procedimiento</a>.{% endif %}
+      {% if notice.failed %}La propuesta de la matriz del procedimiento {{ notice.job.procedure.number }} falló: {{ notice.job.error }}. <a href="{% url 'expedientes:pliego' notice.job.procedure_id %}">Ver el procedimiento</a>.
+      {% elif notice.version_id %}La propuesta de la matriz del procedimiento {{ notice.job.procedure.number }} terminó. <a href="{% url 'expedientes:pliego' notice.job.procedure_id %}">Ver la matriz</a>.
+      {% else %}La propuesta de la matriz del procedimiento {{ notice.job.procedure.number }} terminó. <a href="{% url 'expedientes:pliego' notice.job.procedure_id %}">Ver el procedimiento</a>.{% endif %}
     {% else %}
       {% if notice.failed %}La lectura de «{{ notice.job.document.title }}» ({{ notice.job.procedure.number }}) falló: {{ notice.job.error }}.
       {% else %}La lectura de «{{ notice.job.document.title }}» ({{ notice.job.procedure.number }}) terminó.{% endif %}
-      <a href="{% url 'tenders:procedure' notice.job.procedure_id %}">Ver el procedimiento</a>.
+      <a href="{% url 'expedientes:pliego' notice.job.procedure_id %}">Ver el procedimiento</a>.
     {% endif %}
   </p>
   {% endfor %}

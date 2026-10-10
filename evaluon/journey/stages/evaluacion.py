@@ -31,7 +31,7 @@ def _latest_result_at(procedure):
 
 
 def compute(user, procedure):
-    view_url = reverse("assessment:matrix", args=[procedure.pk])
+    view_url = reverse("expedientes:evaluacion", args=[procedure.pk])
     decide_url = view_url if base.is_evaluator(user) else None
     common = {"key": KEY, "label": LABEL, "view_url": view_url, "decide_url": decide_url}
 

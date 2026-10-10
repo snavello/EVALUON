@@ -124,7 +124,7 @@ def test_screen_has_search_form_with_its_own_date_field(client, read_user, two_r
     monkeypatch.setattr(timezone, "now", lambda: instant)
     log_in(client)
 
-    body = client.get("/").content.decode()
+    body = client.get("/consulta/").content.decode()
 
     assert f'<form method="post" action="{reverse("queries:search")}' in body
     assert '<select name="search-norm"' in body
@@ -151,7 +151,7 @@ def test_norm_list_shows_only_norms_that_can_be_searched(client, read_user, two_
                  status="pending")
     log_in(client)
 
-    body = client.get("/").content.decode()
+    body = client.get("/consulta/").content.decode()
     select = re.search(r'<select name="search-norm".*?</select>', body, re.S).group(0)
 
     assert f'<option value="{two_regimes.old.pk}">{two_regimes.old.citation}</option>' \
@@ -349,7 +349,7 @@ def test_saved_query_page_brings_its_date_in_the_search_field(client, read_user,
     """REQ-020: la página de una consulta guardada trae la fecha de esa consulta también
     en el campo de fecha de la búsqueda."""
     log_in(client)
-    response = client.post("/", {"question": "¿Algo?",
+    response = client.post("/consulta/", {"question": "¿Algo?",
                                  "reference_date": two_regimes.before_v.isoformat()})
 
     body = client.get(response["Location"]).content.decode()
@@ -708,7 +708,7 @@ def test_repealed_box_is_off_by_default_and_has_its_label(client, read_user, two
     el texto) y sin repetir identificadores."""
     log_in(client)
 
-    body = client.get("/").content.decode()
+    body = client.get("/consulta/").content.decode()
 
     box = repealed_box(body)
     assert not is_checked(box)

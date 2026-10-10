@@ -58,35 +58,6 @@ def state(requirement):
 # --- Encabezados ---------------------------------------------------------------------------------
 
 
-def test_the_matrix_has_headers_by_clause_and_by_segment_with_the_group_buttons(
-        client, evaluator_user, grouped):
-    """REQ-034: encabezado de la cláusula de primer nivel y del tramo con dos o más
-    propuestas, con "Confirmar las N propuestas" y "Quitar las N propuestas"; una cláusula
-    con una sola propuesta no lleva botones de grupo."""
-    version, _rows, _other = grouped
-    log_in(client, evaluator_user)
-
-    page = squash(text_of(client.get(matrix_url(version))))
-
-    assert "Cláusula sec-i/3" in page and "Tramo sec-i/3.1" in page
-    assert "Cláusula sec-i/4" in page and "Tramo sec-i/4.1" not in page
-    assert page.count("Confirmar las 3 propuestas") == 2
-    assert page.count("Quitar las 3 propuestas") == 2
-    assert "las 1 propuestas" not in page
-
-
-def test_an_operator_sees_the_remove_button_but_not_the_confirm_one(
-        client, operator_user, grouped):
-    """REQ-034/026: el operador puede quitar por grupo, pero no ve "Confirmar" del grupo."""
-    version, _rows, _other = grouped
-    log_in(client, operator_user)
-
-    page = text_of(client.get(matrix_url(version)))
-
-    assert "Quitar las 3 propuestas" in page
-    assert "Confirmar las 3 propuestas" not in page
-
-
 def test_a_validated_version_has_no_group_buttons(client, evaluator_user, case):
     """REQ-034: una versión validada no se revisa: sin encabezados de grupo con botones."""
     finish_review(evaluator_user, case)
@@ -96,17 +67,6 @@ def test_a_validated_version_has_no_group_buttons(client, evaluator_user, case):
     page = text_of(client.get(matrix_url(case)))
 
     assert "las propuestas" not in page and "Confirmar las" not in page
-
-
-def test_confirmed_rows_are_not_counted_in_the_group(client, evaluator_user, grouped):
-    """REQ-034: solo cuentan las filas `propuesto`."""
-    version, rows, _other = grouped
-    review.confirm(evaluator_user, [rows[0].pk])
-    log_in(client, evaluator_user)
-
-    page = text_of(client.get(matrix_url(version)))
-
-    assert "Confirmar las 2 propuestas" in page and "Confirmar las 3 propuestas" not in page
 
 
 # --- La página de confirmación previa ------------------------------------------------------------

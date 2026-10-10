@@ -25,6 +25,7 @@ from evaluon.audit.models import Channel
 from evaluon.offers.models import DocumentFile, Offer
 from evaluon.offers.services import offers as services
 from evaluon.tenders.models import Procedure
+from evaluon.journey.legacy import section_url, to_section
 
 OFFERS_TEMPLATE = "offers/offers.html"
 OFFER_TEMPLATE = "offers/offer.html"
@@ -37,6 +38,15 @@ LOADED_PARAM = "cargados"
 REQUESTED_PARAM = "ficha"
 
 
+def _offer_procedure(offer_id):
+    """El procedimiento de la oferta, para llevar su página a la pestaña Ofertas."""
+    procedure_id = Offer.objects.filter(pk=offer_id).values_list("procedure_id", flat=True).first()
+    if procedure_id is None:
+        raise Http404("No hay una oferta con ese número.")
+    return procedure_id
+
+
+@to_section(lambda request, procedure_id: section_url("ofertas", procedure_id))
 @require_http_methods(["GET", "POST"])
 def procedure_offers(request, procedure_id):
     """Lista de ofertas de un procedimiento y alta de una oferta."""
@@ -60,6 +70,7 @@ def procedure_offers(request, procedure_id):
         "bidder": request.POST.get("bidder", "") if error else ""})
 
 
+@to_section(lambda request, offer_id: section_url("ofertas", _offer_procedure(offer_id)))
 @require_http_methods(["GET", "POST"])
 def offer(request, offer_id):
     """Página de una oferta y carga de documentos (uno o varios a la vez)."""

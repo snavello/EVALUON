@@ -36,18 +36,20 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-209 | Sección 4: informe técnico del área (por procedimiento o por oferta) y ok de la Comisión (absorbe la parte de informe técnico de T-191) | REQ-089, REQ-097 | T-192 | terminada |
 | T-210 | Sección 4: descartes propuestos y orden económico; el evaluador confirma o rechaza cada descarte con quién y cuándo | REQ-091 | T-192, T-193 | terminada |
 | T-211 | Sección 4: dictamen del Portal o subido (sin borrador) | REQ-092, REQ-097 | T-192, T-193 | terminada |
-| T-212 | Sección 4: exportar la planilla por oferta (Excel) y el cuadro comparativo (Excel y PDF); suma la dependencia XlsxWriter (ADR-0050) | REQ-093 | T-192 | pendiente |
+| T-212 | Sección 4: exportar la planilla por oferta (Excel) y el cuadro comparativo (Excel y PDF); suma la dependencia XlsxWriter (ADR-0050) | REQ-093 | T-192 | terminada |
 | T-213 | Propuesta de los datos de una norma desde su archivo y staging de la subida (sin pantalla) | REQ-094 | T-193 | terminada |
 | T-214 | Sección 5: subir una norma, ver el informe de lectura y validarla desde la pantalla | REQ-094, REQ-097 | T-192, T-213 | terminada |
 | T-215 | Sección 5: normas que rigen al procedimiento según su fecha de autorización y cuáles faltan cargar | REQ-095, REQ-097 | T-192 | terminada |
-| T-216 | Sección 5: consulta de normativa con citas literales | REQ-096 | T-192 | pendiente |
+| T-216 | Sección 5: consulta de normativa con citas literales | REQ-096 | T-192 | terminada |
 | T-217 | Los cinco momentos y los roles con el caso chico: estados y cuentas de las cinco secciones, 25 de 25 celdas (reemplaza a T-185 de la 013) | REQ-075, REQ-097, REQ-098 | T-194, T-195, T-197, T-198, T-200, T-201, T-202, T-203, T-204, T-205, T-206, T-207, T-208, T-209, T-210, T-211, T-212, T-214, T-215, T-216, T-219 | pendiente |
 | T-218 | Comprobación final con el caso chico y el caso-00 (Coordinador y testeador): 26 de 26 requisitos en pantalla, 0 datos tipeados, carga menor a 2 s y guía visual (reemplaza a T-186 de la 013) | REQ-075, REQ-076, REQ-077, REQ-078, REQ-079, REQ-080, REQ-081, REQ-082, REQ-083, REQ-084, REQ-085, REQ-086, REQ-087, REQ-088, REQ-089, REQ-090, REQ-091, REQ-092, REQ-093, REQ-094, REQ-095, REQ-096, REQ-097, REQ-098, REQ-099, REQ-100 | T-217 | pendiente |
-| T-219 | Las pantallas anteriores redirigen a su sección y el menú queda con la entrada nueva | REQ-075, REQ-100 | T-195, T-197, T-198, T-201, T-202, T-207, T-208, T-214 | pendiente |
+| T-219 | Las pantallas anteriores redirigen a su sección y el menú queda con la entrada nueva | REQ-075, REQ-100 | T-195, T-197, T-198, T-201, T-202, T-207, T-208, T-214 | terminada |
 | T-220 | Propuesta de nombre y CUIT del oferente desde los archivos de una oferta: borrador, pedido en segundo plano, citas, corrección con valor y motivo y aprobación que crea la oferta (sin pantalla) | REQ-083 | T-193, T-196 | pendiente |
 | T-221 | Rendimiento de las pestañas con datos reales: Pliego y matriz, Ofertas y Evaluación cargan en menos de 2 s con el procedimiento real del sistema principal (medido en una base aparte restaurada del respaldo) | REQ-075, REQ-100 | T-209 | terminada |
 | T-222 | Pendientes y sugerencias agrupados cuando son muchos: con el procedimiento real la pestaña Evaluación lista 258 pendientes uno por uno (página de 32.000 px); agrupar por tipo con su cuenta y acceso al bloque filtrado, y detallar uno por uno solo cuando son pocos | REQ-098, REQ-100 | T-221 | terminada |
 | T-223 | Menos consultas en los servicios de la evaluación y de la matriz (N+1 en matrix_page, external_results, question_list y quote_rows), sin cambiar resultados | REQ-100 | T-221 | pendiente |
+| T-224 | Suite en paralelo con pytest-xdist (8 procesos, de 35 a 8 min) y tests inestables corregidos | REQ-100 | — | terminada |
+| T-225 | Huecos funcionales: no pedir subsanación, descartar una subida de norma, Normativas general sin procedimiento, reemplazar o retirar el dictamen | REQ-090, REQ-092, REQ-094, REQ-099 | T-209, T-211, T-213 | terminada |
 
 ## Tareas de la 013 que se absorben
 
@@ -361,7 +363,7 @@ El Coordinador marca T-185, T-186, T-188 y T-191 de la 013 como «reemplazada po
 
 - **Requisitos:** REQ-075, REQ-100
 - **No arranca sin la maqueta aprobada.**
-- **Qué hay que hacer:** las páginas de lectura `tenders:procedures`, `tenders:procedure`, `tenders:matrix`, `offers:procedure_offers`, `offers:offer`, `assessment:matrix`, `assessment:questions`, `portal:links`, `portal:proposal`, `journey:index` y `journey:procedure` redirigen a la sección que corresponde; las rutas de acción (POST) y de descarga de originales se conservan. El menú queda con «Consulta» (global), «Expedientes» y «Normas». Sin pantallas duplicadas.
+- **Qué hay que hacer:** las páginas de lectura `tenders:procedures`, `tenders:procedure`, `tenders:matrix`, `offers:procedure_offers`, `offers:offer`, `assessment:matrix`, `assessment:questions`, `portal:links`, `portal:proposal`, `journey:index` y `journey:procedure` redirigen a la sección que corresponde; las rutas de acción (POST) y de descarga de originales se conservan. Sin menú: un solo encabezado como la maqueta (procedimiento con su desplegable, usuario y Salir). Sin pantallas duplicadas.
 - **Archivos:** `evaluon/tenders/views/documents.py`, `evaluon/tenders/views/procedures.py`, `evaluon/tenders/views/matrix.py`, `evaluon/offers/views/documents.py`, `evaluon/assessment/views/matrix.py`, `evaluon/assessment/views/questions.py`, `evaluon/portal/views/links.py`, `evaluon/portal/views/proposal.py`, `evaluon/journey/views/index.py`, `evaluon/journey/views/procedure.py`, `evaluon/templates/base.html`, `tests/journey/test_redirects.py` y los tests existentes de esas vistas que cambien a propósito.
 - **Verificación:** `pytest` de las apps tocadas y la suite completa una vez; cada página vieja redirige y cada acción POST sigue funcionando y vuelve a su sección; los tests de servicios no cambian.
 - **No tocar:** servicios, modelos y los temas.

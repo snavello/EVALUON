@@ -38,12 +38,12 @@ def _plural(n, one, many):
 
 def compute(user, procedure):
     common = {"key": KEY, "label": LABEL,
-              "view_url": reverse("tenders:procedure", args=[procedure.pk])}
+              "view_url": reverse("expedientes:pliego", args=[procedure.pk])}
 
     version = (MatrixVersion.objects.filter(procedure=procedure)
                .exclude(status=VersionStatus.DISCARDED).order_by("-number").first())
     if version is not None:
-        common["view_url"] = reverse("tenders:matrix", args=[version.pk])
+        common["view_url"] = reverse("expedientes:pliego", args=[procedure.pk])
 
     active = base.active_job(KINDS, procedure=procedure)
     if active is not None:

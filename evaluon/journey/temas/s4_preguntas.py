@@ -10,9 +10,10 @@ nada (P3) y las acciones (`s4_preguntas_acciones`) llaman a los mismos servicios
 pestaña con el aviso de lo hecho.
 
 Los pendientes de preguntas (con su enlace «Resolver») los lista `s4_propuesta`, que ya los suma a
-la cuenta de la sección; este tema no agrega pendientes propios para no duplicarlos. El servicio
-de subsanación no tiene «No pedir»: un resultado subsanable sin pedido queda «por decidir» y la
-decisión de no pedir no se registra.
+la cuenta de la sección; este tema no agrega pendientes propios para no duplicarlos. Un resultado
+subsanable sin pedido queda «por decidir» hasta que el evaluador pide la subsanación o decide no
+pedirla («No pedir», `remedy.decline_remedy`, T-225): la decisión queda con quién, cuándo y el
+motivo, y la fila deja de estar por decidir.
 """
 
 from dataclasses import dataclass, field
@@ -39,6 +40,7 @@ TO_DECIDE = ("nodet", "Por decidir")
 REQUESTED = ("pend", "Pedida, falta el documento")
 ADDED = ("pend", "Documento agregado")
 CLOSED = ("cumple", "Subsanada")
+DECLINED = ("cumple", "No se pide")
 
 
 def when(moment):
@@ -61,6 +63,7 @@ class Line:
     result_id: int | None = None
     can_answer: bool = False
     can_ask: bool = False  # pedir la subsanación
+    can_decline: bool = False  # decidir no pedirla
     can_add: bool = False  # agregar el documento
     can_reevaluate: bool = False
     reevaluate_waits: bool = False
@@ -105,6 +108,10 @@ def _remedy_lines(user, procedure, is_evaluator):
     page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
     lines = []
     live = set()
+    # Las decisiones de «no pedir» de todos los resultados subsanables, en una sola consulta.
+    declined = remedy_service.declined_for(
+        cell.result.pk for cell in page.cells.values()
+        if cell.result is not None and _is_remediable(cell.result, cell.effective_outcome))
     for requirement in page.requirements:
         for offer in page.offers:
             cell = page.cells[(offer.pk, requirement.pk)]
@@ -113,7 +120,7 @@ def _remedy_lines(user, procedure, is_evaluator):
             # matriz: así no se consulta la decisión de nuevo por cada par (T-221).
             if result is None or not _is_remediable(result, cell.effective_outcome):
                 continue
-            state = remedy_service.state(result)
+            state = remedy_service.state(result, declined=declined.get(result.pk))
             if not state.applicable:
                 continue
             live.add(result.pk)
@@ -136,7 +143,16 @@ def _remedy_lines(user, procedure, is_evaluator):
                     f"{state.added.user.username} el {when(state.added.at)} ({reading})")
                 line.can_reevaluate = is_evaluator
                 line.reevaluate_waits = not state.can_reevaluate
-            line.can_ask = is_evaluator and state.requested is None
+            if state.declined is not None and state.requested is None:
+                line.icon, line.name = DECLINED
+                who = (state.declined.user.username if state.declined.user_id
+                       else state.declined.username)
+                line.registered.append(
+                    f"Se decidió no pedirla: {who} el {when(state.declined.occurred_at)}"
+                    f" · motivo: {state.declined.detail.get('note', '')}")
+            undecided = state.requested is None and state.declined is None
+            line.can_ask = is_evaluator and undecided
+            line.can_decline = is_evaluator and undecided
             line.can_add = is_evaluator and state.requested is not None
             lines.append(line)
     lines.extend(_closed_lines(procedure, live))

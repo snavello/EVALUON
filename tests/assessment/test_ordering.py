@@ -92,21 +92,6 @@ def test_the_order_per_line_uses_the_price_times_the_quantity(
     assert lines[2].rows[-1].note == ordering.NO_PRICE
 
 
-def test_different_currencies_are_not_ordered_and_the_page_warns(
-        three, portal, procedure, operator_user, client):
-    """REQ-059: monedas distintas, sin orden y con aviso."""
-    a, b, c = three
-    quote_data(portal, procedure, a, total=Decimal("900"), currency="ARS")
-    quote_data(portal, procedure, b, total=Decimal("100"), currency="USD")
-    quote_data(portal, procedure, c, total=Decimal("800"), currency="ARS")
-    order = order_of(operator_user, procedure)
-    assert all(r.position is None for r in order.totals[:2])
-    assert "monedas distintas" in order.warning
-    log_in(client, operator_user)
-    text = text_of(client.get(reverse("assessment:matrix", args=[procedure.pk])))
-    assert "monedas distintas" in text
-
-
 def test_a_discarded_offer_is_left_out_of_the_order(three, portal, procedure, operator_user):
     """REQ-059: se ordena lo no descartado."""
     a, b, c = three

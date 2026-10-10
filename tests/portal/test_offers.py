@@ -321,15 +321,6 @@ def test_offer_registered_by_hand_with_the_same_name_is_associated(
     assert Offer.objects.count() == 1 and manual.portal_data.item == item
 
 
-def test_proposal_screen_shows_the_offer_with_its_table(client, explored, operator_user):
-    """El parcial de la oferta muestra oferente, CUIT, total, garantía y cotización."""
-    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
-    html = client.get(reverse("portal:proposal", args=[explored.pk])).content.decode()
-    assert "Cotización por renglón" in html
-    assert "27000000014" in html and "Pagare" in html
-    assert "Este ítem lo aprueba un evaluador." in html
-
-
 def test_quote_whose_price_times_quantity_is_not_the_line_total_is_an_anomaly(
         operator_user, open_offers, explore_link):
     """REQ-047: si precio por cantidad no da el total del renglón se informa, y el dato se

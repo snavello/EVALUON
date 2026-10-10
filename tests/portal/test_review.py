@@ -107,7 +107,7 @@ def test_a_changed_item_is_shown_as_changed(client, operator_user, evaluator_use
     change_page(fake_portal_calco, (b"2700 kg", b"2800 kg"))
     review(operator_user, link)
     assert client.login(username=operator_user.username, password=TEST_PASSWORD)
-    html = client.get(reverse("portal:proposal", args=[link.pk])).content.decode()
+    html = client.get(reverse("portal:proposal", args=[link.pk]), follow=True).content.decode()
     assert html.count("Cambiado respecto de lo aprobado") == 1
 
 
