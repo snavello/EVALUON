@@ -9,20 +9,37 @@ fragmento marcado y, si el punto es largo, sus primeras líneas y el texto compl
 («ver todo»). Lo usan la tabla de la evaluación, el detalle del par, los pendientes y las
 preguntas, con el mismo parcial (`journey/_punto_pliego.html`).
 
-Solo lee; no decide nada (P3). Las citas de todos los requisitos de una pantalla se cargan con una
-sola consulta (con el tramo y su documento), y por alcance de pedido (`memo.once`): los pendientes,
-la tabla y las preguntas no la repiten.
+El punto muestra el texto vigente, el mismo que lee la evaluación (`grounds.requirement_text`): si
+una circular modificó el requisito, el texto nuevo va en el lugar del fragmento, marcado, con una
+línea «Modificado por la circular N» y el original plegado; si la circular lo suprimió, lo dice y
+deja el fragmento original.
+
+Solo lee; no decide nada (P3). Las citas y las circulares de todos los requisitos de una pantalla
+se cargan con una consulta cada una (con el tramo y su documento), y por alcance de pedido
+(`memo.once`): los pendientes, la tabla y las preguntas no las repiten.
 """
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 
+from evaluon.assessment import grounds
 from evaluon.journey import memo
-from evaluon.tenders.models import RequirementQuote
+from evaluon.tenders.models import RequirementQuote, RequirementSource
 
 HEAD_LINES = 5  # líneas del punto que se ven antes de «ver todo»
 HEAD_CHARS = 420  # y como máximo estos caracteres
 LEAD_CHARS = 90  # si el fragmento queda más allá de las primeras líneas, cuánto texto lo antecede
+
+
+@dataclass(frozen=True)
+class Change:
+    """Lo que una circular hizo a una cita: `note` dice cuál («Modificado por la circular 3
+    (01/02/2026)») y `original` es el texto que reemplazó, plegado en la pantalla (vacío si la
+    circular suprimió la cita: el fragmento sigue a la vista)."""
+
+    note: str
+    original: str = ""
 
 
 @dataclass(frozen=True)
@@ -37,6 +54,7 @@ class Point:
     long: bool
     chars: int
     segment_id: int
+    changes: tuple = ()
 
     @property
     def text(self):
@@ -119,10 +137,54 @@ def _head_window(text, ranges):
     return first, last, (first > 0 or last < len(text))
 
 
-def build(segment, quotes):
-    """El `Point` de `segment` con sus `quotes` marcadas."""
-    text = segment.text or ""
-    ranges = _merge([found for found in (_locate(segment, q) for q in quotes) if found])
+def _circular(source):
+    """«la circular 3 (01/02/2026)»: el documento de la circular sin el prefijo «Circular», y su
+    fecha."""
+    title = (source.segment.reading.document.title or "").strip()
+    name = re.sub(r"^circular\s*", "", title, flags=re.IGNORECASE) or title
+    day = f" ({source.issued_on:%d/%m/%Y})" if source.issued_on else ""
+    return f"la circular {name}{day}"
+
+
+def _change(quote_text):
+    """El `Change` de una cita que una circular modificó o suprimió, o `None`."""
+    if quote_text.source is None:
+        return None
+    if quote_text.suppressed:
+        return Change(f"Suprimido por {_circular(quote_text.source)}: el texto marcado ya no rige.")
+    return Change(f"Modificado por {_circular(quote_text.source)}", quote_text.original)
+
+
+def _current(text, located):
+    """`(texto vigente del tramo, rangos marcados)`: el texto vigente de cada cita va en el lugar
+    del fragmento original. `located` son `(inicio, fin, texto vigente)`."""
+    pieces, ranges, cursor, size = [], [], 0, 0
+    for start, end, now in sorted(located):
+        if start < cursor:
+            continue  # dos citas que se pisan: la segunda se deja como estaba
+        pieces.append(text[cursor:start])
+        size += start - cursor
+        pieces.append(now)
+        ranges.append((size, size + len(now)))
+        size += len(now)
+        cursor = end
+    pieces.append(text[cursor:])
+    return "".join(pieces), _merge(ranges)
+
+
+def build(segment, quote_texts):
+    """El `Point` de `segment` con sus citas (`grounds.QuoteText`, con el texto vigente) marcadas."""
+    original = segment.text or ""
+    located, changes = [], []
+    for quote_text in quote_texts:
+        found = _locate(segment, quote_text.quote)
+        if found:
+            now = original[found[0]:found[1]] if quote_text.suppressed else quote_text.text
+            located.append((found[0], found[1], now))
+        change = _change(quote_text)
+        if change:
+            changes.append(change)
+    text, ranges = _current(original, located)
     first, last, long = _head_window(text, ranges)
     head = _slice(text, ranges, first, last)
     if first > 0:
@@ -131,7 +193,7 @@ def build(segment, quotes):
         head = head + [(" …", False)]
     return Point(label=_label(segment), where=_where(segment),
                  parts=tuple(_slice(text, ranges, 0, len(text))), head=tuple(head), long=long,
-                 chars=len(text), segment_id=segment.pk)
+                 chars=len(text), segment_id=segment.pk, changes=tuple(changes))
 
 
 def quotes_of(requirement_ids):
@@ -151,29 +213,54 @@ def quotes_of_page(page):
     return memo.once(key, lambda: quotes_of([r.pk for r in page.requirements]))
 
 
-def _points_of(quotes):
+def sources_of(requirement_ids):
+    """`{id del requisito: [circulares que tocan sus citas]}` en el orden de la evaluación (por
+    fecha), con el documento de la circular cargado (una sola consulta)."""
+    found = defaultdict(list)
+    for source in (RequirementSource.objects.filter(requirement_id__in=requirement_ids)
+                   .exclude(quote=None).select_related("segment__reading__document")
+                   .order_by("issued_on", "pk")):
+        found[source.requirement_id].append(source)
+    return found
+
+
+def texts_of(requirements, quotes=None):
+    """`{id del requisito: RequirementText}` con el texto vigente de cada cita, el que lee la
+    evaluación (`grounds.requirement_text`), armado con una consulta de citas y una de circulares
+    para todos los requisitos."""
+    requirements = list(requirements)
+    ids = [r.pk for r in requirements]
+    quotes = quotes if quotes is not None else quotes_of(ids)
+    sources = sources_of(ids)
+    return {r.pk: grounds.requirement_text(r, quotes.get(r.pk, []), sources.get(r.pk, []))
+            for r in requirements}
+
+
+def texts_of_page(page):
+    """`texts_of` para los requisitos de `page`, una vez por pedido."""
+    key = ("texts", page.procedure.pk, page.version.pk if page.version else None)
+    return memo.once(key, lambda: texts_of(page.requirements, quotes_of_page(page)))
+
+
+def _points_of(text):
     """Los puntos de un requisito: uno por tramo del que salen sus citas (casi siempre uno), con
     todas sus citas de ese tramo marcadas."""
     by_segment, order = defaultdict(list), []
-    for quote in quotes:
-        if quote.segment_id not in by_segment:
-            order.append(quote.segment)
-        by_segment[quote.segment_id].append(quote)
+    for quote_text in text.quotes:
+        segment = quote_text.quote.segment
+        if segment.pk not in by_segment:
+            order.append(segment)
+        by_segment[segment.pk].append(quote_text)
     return [build(segment, by_segment[segment.pk]) for segment in order]
 
 
 def points_of_page(page):
     """`{id del requisito: [Point]}` de todos los requisitos de `page`, una vez por pedido."""
     key = ("points", page.procedure.pk, page.version.pk if page.version else None)
-
-    def compute():
-        quotes = quotes_of_page(page)
-        return {r.pk: _points_of(quotes.get(r.pk, [])) for r in page.requirements}
-
-    return memo.once(key, compute)
+    return memo.once(key, lambda: {pk: _points_of(text)
+                                   for pk, text in texts_of_page(page).items()})
 
 
-def points_of(requirement_ids):
-    """`{id del requisito: [Point]}` para requisitos sueltos (una consulta)."""
-    quotes = quotes_of(list(requirement_ids))
-    return {pk: _points_of(quotes.get(pk, [])) for pk in requirement_ids}
+def points_of(requirements):
+    """`{id del requisito: [Point]}` para requisitos sueltos (dos consultas)."""
+    return {pk: _points_of(text) for pk, text in texts_of(requirements).items()}

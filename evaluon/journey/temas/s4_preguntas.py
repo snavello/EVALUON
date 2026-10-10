@@ -231,9 +231,10 @@ def _add_context(lines, user, procedure):
     original) y, si no citó nada, qué se leyó. Todo en pocas consultas, para todas las filas."""
     page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
     point_map = dict(points.points_of_page(page))
-    extra = {line.requirement.pk for line in lines if line.requirement.pk not in point_map}
+    extra = {line.requirement.pk: line.requirement for line in lines
+             if line.requirement.pk not in point_map}
     if extra:
-        point_map.update(points.points_of(extra))
+        point_map.update(points.points_of(extra.values()))
     result_ids = {line.result.pk for line in lines}
     cited = defaultdict(list)
     for citation in (Citation.objects.filter(result_id__in=result_ids, kind=CitationKind.OFERTA)

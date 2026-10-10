@@ -10,7 +10,9 @@ from types import SimpleNamespace
 import pytest
 from django.urls import reverse
 
-from evaluon.assessment import externals
+from django.db import connection
+
+from evaluon.assessment import externals, grounds
 from evaluon.assessment import models as am
 from evaluon.journey import points
 from evaluon.journey import reading_note as reading
@@ -75,10 +77,15 @@ def fake_segment(text, *, label="7.1.", start=0):
                            reading=reading_)
 
 
-def fake_quote(segment, fragment):
+def fake_quote(segment, fragment, *, current=None, source=None):
+    """La cita `fragment` del tramo, como el texto vigente que arma `grounds.requirement_text`
+    (`current` es el texto que dejó una circular)."""
     at = segment.text.index(fragment)
-    return SimpleNamespace(text=fragment, char_start=segment.char_start + at,
-                           char_end=segment.char_start + at + len(fragment))
+    quote = SimpleNamespace(text=fragment, char_start=segment.char_start + at,
+                            char_end=segment.char_start + at + len(fragment), scope="")
+    if current is None:
+        return grounds.QuoteText(quote, text=fragment)
+    return grounds.QuoteText(quote, text=current, original=fragment, source=source)
 
 
 def test_a_point_is_the_whole_segment_with_the_requirement_fragment_marked():
@@ -383,3 +390,124 @@ def test_the_offers_summary_says_which_sheet_is_missing_and_how_many_requirement
     assert f"requisito {registry.number}" in text.lower()
     assert reverse("expedientes:s3_anexos_hoja", args=[procedure.pk, three[0].pk]) in \
         response.content.decode()
+
+
+# --- Correcciones de la verificación: circulares y filas de «falta la hoja» ----------------------
+
+
+def add_circular(requirement_, text, *, effect="modifica", day="2026-02-01"):
+    """Una circular que cambia la cita del requisito (las filas de una matriz validada solo
+    admiten inserciones en un borrador: se apaga el disparador mientras dura la prueba)."""
+    with connection.cursor() as cursor:
+        cursor.execute("ALTER TABLE tenders_requirement_source DISABLE TRIGGER USER")
+    quote = requirement_.quotes.get()
+    return requirement_.sources.create(
+        quote=quote, effect=effect, segment=quote.segment, char_start=quote.char_start,
+        char_end=quote.char_end, text=text, issued_on=day)
+
+
+def test_a_circular_that_makes_a_requirement_external_groups_it(
+        client, procedure, three, evaluator_user):
+    """REQ-089 (D-1): el grupo de externos usa el texto vigente después de las circulares, como la
+    evaluación: una circular que vuelve externo un requisito lo agrupa antes de evaluar."""
+    validity = requirement(procedure, "sesenta días")
+    add_circular(validity, "La Comisión verificará la inscripción del oferente en el Registro "
+                           "de Proveedores.")
+    assert externals.match(grounds.requirement_text(validity).context)  # la evaluación lo ve
+    log_in(client, evaluator_user)
+    html = page(client, procedure)
+    assert 'id="s4-externos"' in html
+    block_ = html[html.index('id="s4-externos"'):]
+    assert f"Requisito {validity.number}" in plain(block_[:block_.index("</section>")])
+
+
+def test_a_circular_that_stops_a_requirement_being_external_ungroups_it(
+        client, procedure, three, evaluator_user, external_catalog):
+    """REQ-089 (D-1): una circular que deja de hacer externo a un requisito lo saca del grupo,
+    como la evaluación, que ya no lo trata como externo."""
+    registry = requirement(procedure, "constancia de inscripción")
+    add_circular(registry, "El oferente acompañará una nota firmada.")
+    assert not externals.match(grounds.requirement_text(registry).context)
+    log_in(client, evaluator_user)
+    html = page(client, procedure)
+    assert 'id="s4-externos"' not in html and "grupo-externo" not in html
+
+
+def test_the_point_shows_the_current_text_and_folds_the_original_after_a_circular(
+        client, evaluated, procedure, operator_user):
+    """REQ-089 (O-3): si una circular cambió el requisito, el punto muestra el texto vigente con el
+    cambio marcado, dice por qué circular y deja el original plegado."""
+    validity = requirement(procedure, "sesenta días")
+    original = validity.quotes.get().text
+    add_circular(validity, "Mantener la validez de la oferta por noventa días corridos.")
+    log_in(client, operator_user)
+    html = page(client, procedure)
+    detail = detail_of(html, validity.number)
+    marked = [squash(htmllib.unescape(m)) for m in re.findall(r"<mark>(.*?)</mark>", detail, re.S)]
+    assert "Mantener la validez de la oferta por noventa días corridos." in marked
+    text = plain(detail)
+    assert "Modificado por la circular" in text and "01/02/2026" in text
+    folded = re.search(r'<details class="punto-ver punto-original">(.*?)</details>', detail, re.S)
+    assert folded and squash(original) in plain(folded.group(1))
+    assert "Ver el texto original" in plain(folded.group(1))
+    assert squash(original) not in plain(detail.replace(folded.group(0), ""))
+
+
+def test_a_point_marks_the_current_text_inside_the_whole_segment():
+    """REQ-089 (O-3): el punto es el tramo entero con el texto vigente en el lugar del fragmento."""
+    text = "Antes. Mantener la validez por sesenta días. Después."
+    segment = fake_segment(text)
+    source = SimpleNamespace(effect="modifica", issued_on=None, segment=SimpleNamespace(
+        reading=SimpleNamespace(document=SimpleNamespace(title="Circular 3"))))
+    point = points.build(segment, [fake_quote(segment, "Mantener la validez por sesenta días.",
+                                              current="Mantener la validez por noventa días.",
+                                              source=source)])
+    assert point.text == "Antes. Mantener la validez por noventa días. Después."
+    assert [t for t, marked in point.parts if marked] == ["Mantener la validez por noventa días."]
+    assert [c.original for c in point.changes] == ["Mantener la validez por sesenta días."]
+    assert "circular 3" in point.changes[0].note.lower()
+
+
+def _result_with_reading(procedure, offer, requirement_, doubt, user):
+    """Una evaluación nueva de `offer` con lo leído registrado y el requisito en `doubt`."""
+    document = offer.documents.first()
+    version = procedure.matrix_versions.get(number=1)
+    request = am.Request.objects.create(
+        procedure=procedure, matrix_version=version, offers=[offer.pk], requirements=None,
+        cause=am.Cause.MATRIZ, requested_by=user)
+    run = am.Run.objects.create(
+        request=request, offer=offer, matrix_version=version,
+        number=offer.assessment_runs.count() + 1, channel=am.Channel.SCREEN, norms={},
+        models_used={}, parameters={}, prompt_versions={},
+        documents=[{"document": document.pk, "title": document.title, "pages": 3,
+                    "unread_pages": []}])
+    result = am.Result.objects.create(
+        run=run, offer=offer, requirement=requirement_, outcome="no_determinado", doubt=doubt,
+        exigence=am.Exigence.CONDICION, explanation="Falta la hoja.")
+    am.Step.objects.create(run=run, offer=offer, requirement=requirement_,
+                           purpose=am.Purpose.GRUPO, group_index=1,
+                           documents=[{"document": document.pk, "tokens": 5, "pages": [1, 2]}])
+    return result
+
+
+def test_a_missing_sheet_row_does_not_say_what_was_read(
+        client, evaluated, procedure, evaluator_user):
+    """REQ-089 (O-2): en las filas de «falta la hoja de compliance» (celda, detalle del par y
+    subsanación) no figura el «Se leyó…»; en las demás, sí."""
+    registry = requirement(procedure, "constancia de inscripción")
+    guarantee = requirement(procedure, "garantía de mantenimiento")
+    c = evaluated[2]
+    _result_with_reading(procedure, c, registry, "externo", evaluator_user)
+    _result_with_reading(procedure, c, guarantee, "duda", evaluator_user)
+    log_in(client, evaluator_user)
+    html = page(client, procedure)
+    assert "Se leyó" not in plain(detail_of(html, registry.number))
+    assert "Sin texto de la oferta que respalde una conclusión" in plain(
+        detail_of(html, registry.number))
+    assert "Se leyó" in plain(detail_of(html, guarantee.number))
+    response = client.get(reverse("expedientes:s4_par", args=[procedure.pk, c.pk, registry.pk]))
+    assert "Se leyó" not in plain(response.content.decode())
+    start = html.index('id="s4-preguntas"')
+    lines = re.findall(r'<tbody class="linea" id="sub-\d+">(.*?)</tbody>', html[start:], re.S)
+    external_line = [line for line in lines if "falta la hoja de compliance" in plain(line).lower()]
+    assert external_line and all("Se leyó" not in plain(line) for line in external_line)

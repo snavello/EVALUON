@@ -9,12 +9,15 @@ determinado». Este módulo los lista y dice, por oferta, qué falta. Solo lee; 
 consulta ni completa ninguna hoja (P9) y no cambia ningún resultado: el catálogo es el de la
 evaluación.
 
-Se calcula una vez por pedido (`memo.once`) y con las citas que la pantalla ya cargó.
+El texto que se mira es el vigente después de las circulares, con el título del tramo, el mismo que
+lee la evaluación (`grounds.requirement_text(...).context`): una circular puede volver externo un
+requisito o dejar de serlo. Se calcula una vez por pedido (`memo.once`) y con las citas y circulares
+que la pantalla ya cargó.
 """
 
 from dataclasses import dataclass, field
 
-from evaluon.assessment import externals, grounds
+from evaluon.assessment import externals
 from evaluon.assessment.models import Doubt, Outcome
 from evaluon.journey import memo, points
 
@@ -48,22 +51,22 @@ class SheetGap:
         return f"Falta la hoja de compliance de la oferta {self.offer.number}"
 
 
-def _checks_of(requirement, quotes):
-    text = " ".join(part for q in quotes for part in (grounds.segment_heading(q), q.text) if part)
-    return tuple(c.label for c in externals.match(text))
+def _checks_of(text):
+    """Las consultas del catálogo que reconocen el texto vigente del requisito (`RequirementText`)."""
+    return tuple(c.label for c in externals.match(text.context))
 
 
 def requirements_of_page(page):
     """`[ExternalRequirement]` de la matriz de evaluación `page`, en el orden de la matriz."""
 
     def compute():
-        quotes = points.quotes_of_page(page)
+        texts = points.texts_of_page(page)
         flagged = {cell.requirement.pk for cell in page.cells.values()
                    if cell.result is not None and cell.result.outcome == Outcome.NO_DETERMINADO
                    and cell.result.doubt == Doubt.EXTERNO}
         found = []
         for requirement in page.requirements:
-            checks = _checks_of(requirement, quotes.get(requirement.pk, []))
+            checks = _checks_of(texts[requirement.pk])
             if checks:
                 found.append(ExternalRequirement(requirement, checks))
             elif requirement.pk in flagged:

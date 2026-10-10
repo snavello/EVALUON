@@ -265,21 +265,25 @@ def _cell_views(page, user):
 def _rows(page, user):
     views = _cell_views(page, user)
     quotes = points.quotes_of_page(page)
+    texts = points.texts_of_page(page)
     point_map = points.points_of_page(page)
     flagged = {e.requirement.pk: e.checks for e in external.requirements_of_page(page)}
     rows = []
     for requirement in page.requirements:
         mine = quotes.get(requirement.pk, [])
         first = mine[0] if mine else None
+        # El texto vigente después de las circulares, el que lee la evaluación.
+        current = texts[requirement.pk].quotes
+        now = current[0].text if current else ""
         items = ", ".join(str(i) for i in requirement.items)
-        text = _excerpt(first.text) if first else "Sin cita"
+        text = _excerpt(now) if first else "Sin cita"
         if requirement.category == RequirementClass.TECNICO:
             text = f"Renglón {items or '—'} · {text}"
         cells = [views[(offer.pk, requirement.pk)] for offer in page.offers]
         rows.append(Row(
             requirement=requirement, number=requirement.number, category=requirement.category,
             text=text, document=_where(first) if first else "Sin cita",
-            quote=first.text if first else "", cells=cells,
+            quote=now, cells=cells,
             technical=any(c.technical for c in cells),
             points=point_map.get(requirement.pk, []),
             external=flagged.get(requirement.pk, ())))
@@ -434,7 +438,7 @@ def pair(request, procedure_id, offer_id, requirement_id):
         "tab_url": _tab(procedure), "built": when(page.run.built_at),
         "decided": decision_line(pair_review.decision) if pair_review.decision else "",
         "state_text": STATE_TEXT.get(pair_review.state, pair_review.state),
-        "points": points.points_of([page.requirement.pk])[page.requirement.pk],
+        "points": points.points_of([page.requirement])[page.requirement.pk],
         "read_note": notes.get(page.result.pk, ""),
     })
     return render(request, "journey/temas/s4_propuesta_par.html", context)

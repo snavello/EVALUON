@@ -11,7 +11,7 @@ guardó nada, lo dice. Solo lee lo registrado: no cambia ningún resultado ni su
 
 from collections import defaultdict
 
-from evaluon.assessment.models import Purpose, Step
+from evaluon.assessment.models import Doubt, Outcome, Purpose, Step
 
 NOTHING = "No quedó registrado qué se leyó."
 
@@ -77,8 +77,10 @@ def note_for(run, steps):
 
 def notes_for(results):
     """`{id del resultado: frase}` de los `results` dados (con su corrida cargada), con una sola
-    consulta a los pedidos al modelo."""
-    results = list(results)
+    consulta a los pedidos al modelo. Los resultados «falta la hoja de compliance» no llevan frase:
+    no se resuelven leyendo la oferta, y decir qué se leyó no aporta."""
+    results = [r for r in results
+               if not (r.outcome == Outcome.NO_DETERMINADO and r.doubt == Doubt.EXTERNO)]
     if not results:
         return {}
     steps = defaultdict(list)

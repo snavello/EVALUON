@@ -19,3 +19,7 @@
 
 /* Un pendiente de la lista (panel de pendientes): el texto y debajo el punto del pliego. */
 ul.lista .renglon { flex: 1 1 auto; min-width: 0; }
+
+/* Cambio de una circular (T-228): la línea que lo dice y el texto original plegado. */
+.punto-cambio { margin: 6px 0 2px; font-size: var(--ev-t-xs); font-weight: 600; color: var(--ev-nodeterminado); }
+.punto-original > summary { font-weight: 400; }

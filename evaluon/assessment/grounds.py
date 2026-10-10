@@ -82,6 +82,8 @@ class QuoteText:
     text: str
     original: str = ""
     suppressed: bool = False
+    # La circular que modificó o suprimió la cita (`RequirementSource`), para mostrarla (T-228).
+    source: object = None
 
     @property
     def scope_label(self):
@@ -142,18 +144,24 @@ class RequirementText:
         return "\n".join(lines)
 
 
-def requirement_text(requirement):
-    """El requisito con el texto vigente de cada una de sus citas."""
-    quotes = list(requirement.quotes.select_related("segment").order_by("order"))
-    sources = list(requirement.sources.exclude(quote=None).order_by("issued_on", "pk"))
+def requirement_text(requirement, quotes=None, sources=None):
+    """El requisito con el texto vigente de cada una de sus citas. Quien arma varios requisitos a la
+    vez (la pantalla) pasa `quotes` y `sources` ya cargados (T-228) para no consultar uno por uno;
+    sin ellos se leen de la base. La cuenta es la misma."""
+    if quotes is None:
+        quotes = list(requirement.quotes.select_related("segment").order_by("order"))
+    if sources is None:
+        sources = list(requirement.sources.exclude(quote=None).order_by("issued_on", "pk"))
     out = RequirementText(requirement=requirement)
     for quote in quotes:
         chain = [s for s in sources if s.quote_id == quote.pk
                  and s.effect in (SourceEffect.MODIFICA, SourceEffect.SUPRIME)]
         if chain and chain[-1].effect == SourceEffect.MODIFICA:
-            out.quotes.append(QuoteText(quote, text=chain[-1].text, original=quote.text))
+            out.quotes.append(QuoteText(quote, text=chain[-1].text, original=quote.text,
+                                        source=chain[-1]))
         elif chain:
-            out.quotes.append(QuoteText(quote, text=quote.text, suppressed=True))
+            out.quotes.append(QuoteText(quote, text=quote.text, suppressed=True,
+                                        source=chain[-1]))
         else:
             out.quotes.append(QuoteText(quote, text=quote.text))
     return out
