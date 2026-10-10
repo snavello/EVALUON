@@ -114,3 +114,24 @@ Estado: desplegado (autorizado: «desplega 8000 también es un piloto»). Cumple
 
 ## Volver atrás
 Sin migraciones nuevas: no hace falta restaurar la base. Llevar la raíz al commit del lote anterior (bf8c4a2; pedir confirmación, cambia el árbol de trabajo), `docker tag evaluon-app:previo-014-lote5 evaluon-app:local` y `docker compose up -d --no-build --force-recreate app worker portal_worker`.
+
+# Lotes 6 y 7 · 2026-10-10
+
+Estado: desplegado (autorizado: «desplega 8000 también es un piloto»). Cumple el umbral de tiempo (< 2 s).
+
+## Qué
+- Lote 6: raíz en `main` 77c78fa (T-217 y T-218 comprobación final, T-227 decisiones del 2026-10-10 y brechas, arreglo del botón del pliego en la pestaña Procedimiento). Suite completa sobre 77c78fa: 4470 pasados, 1 omitido.
+- Lote 7: raíz en `main` 8645380 (T-223: de 981–1289 a 112–146 consultas por pestaña). Imagen anterior: `evaluon-app:previo-014-lote7`.
+- `migrate`: sin migraciones nuevas en ninguno de los dos. Cola: 70 trabajos `done`, ninguno en curso.
+- Se bajaron los servidores de revisión de tareas ya integradas (salvo `evaluon-t210r` y `evaluon-t214r`, cuyas redes siguen en uso) para liberar memoria.
+
+## Respaldo previo
+`backups/evaluon-2026-10-10-previo-014-lote6.dump` (pg_dump -Fc, 126.117.772 bytes, 861 líneas con `pg_restore -l`). El lote 7 no tomó respaldo nuevo: sin migraciones y sin escrituras desde el del lote 6.
+
+## Humo (sesión del usuario, procedimiento 9)
+- Las cinco pestañas en 200. Mediana de 3 cargas: procedimiento 0,56 s; pliego 1,14 s; ofertas 0,73 s; evaluación 1,72 s; normativas 0,73 s.
+- En la pestaña Procedimiento el bloque se llama «Pliego del procedimiento» y «Subir el pliego» abre el formulario de ese procedimiento, no el alta.
+- No probado: caso de punta a punta con la GPU.
+
+## Volver atrás
+Sin migraciones nuevas: no hace falta restaurar la base. Llevar la raíz al commit anterior (77c78fa para el lote 6, cd26173+ para antes; pedir confirmación, cambia el árbol de trabajo), `docker tag evaluon-app:previo-014-lote7 evaluon-app:local` y `docker compose up -d --no-build --force-recreate app worker portal_worker`.
