@@ -71,7 +71,7 @@ flowchart LR
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 40/45 | █████████░ 89% |
-| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 2 de 7 · Plan | — | — |
+| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 0/20 | ░░░░░░░░░░ 0% |
 
 <a id="001"></a>
 
@@ -1275,11 +1275,11 @@ flowchart TD
 
 ## 015 · Uso y elección del modelo
 
-**Etapa actual:** 2 de 7 · Plan · [carpeta](../specs/015-uso-y-eleccion-del-modelo)
+**Etapa actual:** 4 de 7 · Desarrollo · [carpeta](../specs/015-uso-y-eleccion-del-modelo)
 
 ```mermaid
 flowchart LR
-  E0["✓ 1. Spec"]:::done --> E1["▶ 2. Plan"]:::active --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  E0["✓ 1. Spec"]:::done --> E1["✓ 2. Plan"]:::done --> E2["✓ 3. Tareas"]:::done --> E3["▶ 4. Desarrollo"]:::active --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -1289,20 +1289,101 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
+- **Próximo paso:** Desarrollar: 20 tareas sin terminar.
+- ○ T-233 · El dato del Portal que coincide con lo que exige el pliego propone «cumple» con la cita del Portal; si difiere, «no cumple» o la diferencia (garantía como porcentaje del total con tolerancia de un centavo, cotización por renglón, total, CUIT); los tests de la decisión literal del ADR-0043 se reescriben. Umbral: 100 % de los casos de prueba con dato que coincide dan «cumple» con cita del Portal; 0 «cumple» con dato que no coincide (pendiente)
+- ○ T-234 · Matriz: la cita se amplía por código hasta la unidad de sentido (módulo compartido `sentences.py`): la oración completa más las oraciones cortas contiguas del mismo asunto (ADR-0054, regla 3); dos fragmentos de la misma unidad son una fila, el encabezado del inciso viaja en el pedido y se ve en la fila; el fragmento original del modelo queda registrado (pendiente)
+- ○ T-250 · Esquema de los motivos de descarte nuevos (consecuencia en la extracción, condición opcional, pago o factura, forma de presentar por el Portal, compromiso al presentarse): `DiscardReason`, `FilterMotive`, `FILTER_MOTIVES` y una migración de `tenders`, a cargo de un solo agente (enmienda del ADR-0019) (pendiente)
+- ○ T-235 · Evaluación: la cita de la oferta se amplía a la oración completa, el requisito llega con su punto, el Portal le llega al modelo como bloque citable, el contraste recibe la oración y su contexto, y las preguntas a la Comisión se arman por código con requisito, conclusión y texto (sin texto fijo genérico; la pregunta del modelo dirigida al oferente se rechaza) (pendiente)
+- ○ T-236 · Instrucciones de la matriz, parte 1: bloque común de definiciones (literal de la spec) con versión y huella, extracción, completitud y circulares sin «dividí», «fragmento más corto» ni divisiones, con encabezado del punto, ejemplos balanceados, motivos nuevos, lotes de 3.000 a 4.000 tokens y la versión y la huella registradas en cada pedido; el informe de revisión entra al repositorio con su test de cobertura y de versiones congeladas (pendiente)
+- ○ T-252 · Instrucciones de la matriz, parte 2: filtro A y B con el bloque común, sin «mantené ante la duda» (la duda va a sugerencia), `razonamiento` antes de la decisión, B rehecha, `decide()` revisada, ejemplos 4 y 4 y lotes de 5 a 8 filas (pendiente)
+- ○ T-237 · Instrucciones de la evaluación (evaluación, contraste, cláusulas): `razonamiento`, citas y externo antes del veredicto en el esquema, cita de la oración completa en lugar del «fragmento mínimo», «cada condición con su dato» con el resultado de cada una visible por separado y el de la celda derivado de todas (REQ-104), definición de la duda, ejemplos balanceados, pregunta dirigida a la Comisión, reintento con memoria, versión y huella en cada pedido (pendiente)
+- ○ T-251 · Código listo para medir otro modelo: el cuerpo del pedido de lotes dice el modelo que lo atiende y los tokens de los lotes se cuentan con ese motor (hoy con `generation`, que es Gemma) (pendiente)
+- ○ T-238 · Medidas de la 015 en `medir_matriz` y `medir_evaluacion` (filas conservadas, pedazos sin sujeto, recall sin las entradas excluidas, celdas del Portal, «no determinado» que no espera un documento ausente, forma de las preguntas) y listas esperadas ajustadas con huella y visto bueno del Coordinador (pendiente)
+- ○ T-239 · Medición del 12B con el uso corregido: caso chico como corte vertical, caso-00 (matriz, revisión como en T-229 y evaluación de las 3 ofertas) y casos 01 a 06 (matriz), contra los umbrales del plan: 70 % de filas conservadas, 0 pedazos sin sujeto, 95 % de la lista esperada, Portal 100 % y 0, 12 de 81 «no determinado» o menos, 0 contradicciones, 100 % literal, 100 % de preguntas conformes, 60 minutos y 22.000 MiB (pendiente)
+- ○ T-240 · Ronda de ajuste única, solo si T-239 no llega a algún umbral: todos los hallazgos en una sola tarea, un commit por hallazgo; se cierra sin cambios si T-239 cumple todo (pendiente)
+- ○ T-241 · Repetición completa de la medición de T-239 sobre el commit ajustado; es la referencia del 12B para la comparación. Solo si hubo T-240; sin una segunda ronda de ajuste (pendiente)
+- ○ T-242 · Servicio de los candidatos: un archivo de compose por modelo (Qwen3.8-27B y Qwen3.6-35B-A3B) a la manera del ADR-0042, opciones de descarga con revisión fijada, huellas en `scripts/models.sha256` y tests de coherencia con el compose base (pendiente)
+- ○ T-243 · Qwen3.8-27B en servicio: prueba de humo con texto e imagen, memoria máxima (22.000 MiB), reuso de la caché de prefijo (90 % o más del prefijo), razonamiento nativo apagado (0 tokens de pensamiento) y orden del esquema respetado; velocidad medida (pendiente)
+- ○ T-244 · Comparación de Qwen3.8-27B con el 12B, con el protocolo del ADR-0042 y el uso corregido: caso-00 completo primero (compuerta de salida temprana), después los casos 01 a 06; cada par que cambia se revisa y se clasifica (pendiente)
+- ○ T-245 · Qwen3.6-35B-A3B en servicio: las mismas comprobaciones que T-243 con los mismos umbrales (pendiente)
+- ○ T-246 · Comparación de Qwen3.6-35B-A3B con el 12B, con el mismo protocolo y los mismos umbrales (pendiente)
+- ○ T-247 · ADR de resultado (reservado ADR-0057): adopta o descarta cada candidato con las corridas como evidencia; si adopta, deja preparados sin integrar los cambios de compose base y `entorno.md` para la aprobación del responsable (pendiente)
+- ○ T-248 · Resto de las instrucciones (consecuencias, respaldo, ficha, ficha por renglón, reescritura, visión, informe técnico, consulta, nombre del oferente, datos del procedimiento) y hallazgos pendientes del informe de revisión; huella de cada una; el informe queda con todo corregido o justificado (pendiente)
+- ○ T-249 · Medición de lo que cambió T-248, solo en las áreas que cambió, con el umbral de que ninguna medida empeore (P7): evals de la 001, fichas, lectura con visión, propuestas de datos y matriz con circulares (pendiente)
 
 ### Qué se hizo
 
-- Etapas completas: Spec.
+- Etapas completas: Spec, Plan, Tareas.
+
+### Mapa de tareas
+
+```mermaid
+flowchart TD
+  T233["○ T-233 · El dato del Portal que coincide con lo que…"]:::todo
+  T234["○ T-234 · Matriz: la cita se amplía por código hasta…"]:::todo
+  T250["○ T-250 · Esquema de los motivos de descarte nuevos (…"]:::todo
+  T235["○ T-235 · Evaluación: la cita de la oferta se amplía…"]:::todo
+  T236["○ T-236 · Instrucciones de la matriz, parte 1: bloque…"]:::todo
+  T252["○ T-252 · Instrucciones de la matriz, parte 2: filtro…"]:::todo
+  T237["○ T-237 · Instrucciones de la evaluación (evaluación,…"]:::todo
+  T251["○ T-251 · Código listo para medir otro modelo: el cue…"]:::todo
+  T238["○ T-238 · Medidas de la 015 en medir_matriz y medir_e…"]:::todo
+  T239["○ T-239 · Medición del 12B con el uso corregido: caso…"]:::todo
+  T240["○ T-240 · Ronda de ajuste única, solo si T-239 no lle…"]:::todo
+  T241["○ T-241 · Repetición completa de la medición de T-239…"]:::todo
+  T242["○ T-242 · Servicio de los candidatos: un archivo de c…"]:::todo
+  T243["○ T-243 · Qwen3.8-27B en servicio: prueba de humo con…"]:::todo
+  T244["○ T-244 · Comparación de Qwen3.8-27B con el 12B, con…"]:::todo
+  T245["○ T-245 · Qwen3.6-35B-A3B en servicio: las mismas com…"]:::todo
+  T246["○ T-246 · Comparación de Qwen3.6-35B-A3B con el 12B,…"]:::todo
+  T247["○ T-247 · ADR de resultado (reservado ADR-0057): adop…"]:::todo
+  T248["○ T-248 · Resto de las instrucciones (consecuencias,…"]:::todo
+  T249["○ T-249 · Medición de lo que cambió T-248, solo en la…"]:::todo
+  T233 --> T250
+  T233 --> T235
+  T234 --> T235
+  T234 --> T236
+  T250 --> T236
+  T236 --> T252
+  T235 --> T237
+  T252 --> T237
+  T236 --> T251
+  T252 --> T251
+  T237 --> T251
+  T233 --> T238
+  T234 --> T238
+  T235 --> T238
+  T237 --> T239
+  T238 --> T239
+  T251 --> T239
+  T239 --> T240
+  T240 --> T241
+  T242 --> T243
+  T241 --> T243
+  T243 --> T244
+  T244 --> T245
+  T245 --> T246
+  T244 --> T247
+  T246 --> T247
+  T237 --> T248
+  T240 --> T248
+  T246 --> T248
+  T248 --> T249
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
 
 ### Requisitos
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-101 | Cada requisito propuesto en la matriz cita la oración completa del pliego (con el encabezado del punto o del inciso cuando la oración sola no se entiende), nunca un pedazo sin sujeto | — | — |
-| REQ-102 | La matriz propuesta no incluye consecuencias, obligaciones del organismo, condiciones que solo valen si el oferente elige una opción (salvo como condición de esa opción), pago, moneda de pago, factura, forma de presentar por el Portal ni compromisos que se cumplen al presentarse; sí incluye la moneda en que se cotiza la oferta | — | — |
-| REQ-103 | Cuando el dato de la oferta está en el Portal y coincide con lo que exige el pliego, la evaluación propone «cumple» citando el dato del Portal; cuando no coincide, propone «no cumple» o la diferencia | — | — |
-| REQ-104 | En la evaluación, el sistema razona antes de dar el veredicto, cita la oración completa de la oferta y del pliego, y el contraste ve el contexto de la cita | — | — |
-| REQ-105 | Cada pregunta a la Comisión está dirigida a la Comisión (nunca al oferente) y dice qué requisito, qué conclusión y qué texto la motivan; no hay preguntas de texto fijo genérico | — | — |
-| REQ-106 | Todas las instrucciones al modelo (matriz, evaluación, contraste, visión, ficha, consulta) se revisan contra las decisiones vigentes y entre sí: sin reglas que empujen al error, con ejemplos representativos, razonamiento antes del veredicto y la versión registrada en cada pedido (P6) | — | — |
-| REQ-107 | Un modelo nuevo se adopta solo si, con el uso corregido, el mismo caso y la misma lista esperada, mejora las medidas de REQ-101 a REQ-105 sin empeorar contradicciones, citas, tiempo ni memoria, con cada cambio explicado | — | — |
+| REQ-101 | Cada requisito propuesto en la matriz cita su unidad de sentido completa: la oración entera, junto con las oraciones cortas contiguas que siguen el mismo asunto, y el encabezado del punto o del inciso cuando la oración sola no se entiende; nunca un pedazo sin sujeto ni condiciones de una misma oración separadas en filas distintas | T-234, T-236, T-238, T-239, T-240, T-241 | ○ pendiente |
+| REQ-102 | La matriz propuesta no incluye consecuencias, obligaciones del organismo, condiciones que solo valen si el oferente elige una opción (salvo como condición de esa opción), pago, moneda de pago, factura, forma de presentar por el Portal ni compromisos que se cumplen al presentarse; sí incluye la moneda en que se cotiza la oferta | T-250, T-236, T-252, T-238, T-239, T-240, T-241 | ○ pendiente |
+| REQ-103 | Cuando el dato de la oferta está en el Portal y coincide con lo que exige el pliego, la evaluación propone «cumple» citando el dato del Portal; cuando no coincide, propone «no cumple» o la diferencia | T-233, T-235, T-238, T-239, T-240, T-241 | ○ pendiente |
+| REQ-104 | En la evaluación, el sistema razona antes de dar el veredicto, revisa todas las condiciones del requisito, cada una con su dato y su resultado visible por separado («cumple» solo si se cumplen todas; «no cumple» si falla alguna; si falta el dato de alguna, «no determinado» diciendo cuál), cita la oración completa de la oferta y del pliego, y el contraste ve el contexto de la cita | T-235, T-237, T-238, T-239, T-240, T-241 | ○ pendiente |
+| REQ-105 | Cada pregunta a la Comisión está dirigida a la Comisión (nunca al oferente) y dice qué requisito, qué conclusión y qué texto la motivan; no hay preguntas de texto fijo genérico | T-235, T-237, T-238, T-239, T-240, T-241 | ○ pendiente |
+| REQ-106 | Todas las instrucciones al modelo (matriz, evaluación, contraste, visión, ficha, consulta) se revisan contra las decisiones vigentes y entre sí: sin reglas que empujen al error, con ejemplos representativos, razonamiento antes del veredicto y la versión registrada en cada pedido (P6) | T-236, T-252, T-237, T-248, T-249 | ○ pendiente |
+| REQ-107 | Un modelo nuevo se adopta solo si, con el uso corregido, el mismo caso y la misma lista esperada, mejora las medidas de REQ-101 a REQ-105 sin empeorar contradicciones, citas, tiempo ni memoria, con cada cambio explicado | T-251, T-242, T-243, T-244, T-245, T-246, T-247 | ○ pendiente |
