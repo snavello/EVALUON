@@ -167,10 +167,6 @@ def test_suggestions_count_in_the_stages_and_reach_the_sections(case, operator_u
     assert overview.get("ofertas").suggestions == 2 and overview.get("ofertas").pending == 0
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "Defecto D-1 (T-217): el aviso de fin de pedido muestra `notice.job.error` sin pasar por "
-    "`plain_reason` (evaluon/templates/tenders/_finished_notice.html, línea 12). Al corregirlo "
-    "este test pasa y `strict` obliga a quitar la marca."))
 def test_a_failure_shows_its_reason_in_plain_words_and_never_the_raw_error(
         client, case, operator_user):
     """013, aviso 3: la sección 4 con la evaluación fallida muestra el motivo en lenguaje llano

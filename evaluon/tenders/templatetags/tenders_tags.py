@@ -5,14 +5,23 @@
   `views/documents.py`; la etiqueta evita tocarlas. Toma el error de un pedido rechazado
   (`matrix_error`) del contexto.
 - `finished_notice`: el aviso de pedidos terminados que va en `base.html`, en todas las
-  páginas. Entrega cada aviso una sola vez: al armarlo, lo marca como visto.
+  páginas. Entrega cada aviso una sola vez: al armarlo, lo marca como visto. El motivo de una
+  falla sale por el filtro `plain_reason`.
 """
 
 from django import template
 
+from evaluon.journey.window import plain_reason as _plain_reason
 from evaluon.tenders.services import matrix_page
 
 register = template.Library()
+
+
+@register.filter
+def plain_reason(error):
+    """El motivo de una falla en lenguaje llano (el de la ventana del proceso); nunca el texto
+    técnico del error (D-1 de T-217)."""
+    return _plain_reason(error)
 
 
 

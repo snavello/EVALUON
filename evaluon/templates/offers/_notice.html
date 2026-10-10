@@ -1,9 +1,9 @@
-{% comment %}Aviso de fin de un pedido de ofertas (T-130); lo incluye tenders/_finished_notice.html.{% endcomment %}{% if notice.job.kind == "build_sheet" %}
-  {% if notice.failed %}La ficha de la oferta del procedimiento {{ notice.job.procedure.number }} falló: {{ notice.job.error }}.
+{% load tenders_tags %}{% comment %}Aviso de fin de un pedido de ofertas (T-130); lo incluye tenders/_finished_notice.html.{% endcomment %}{% if notice.job.kind == "build_sheet" %}
+  {% if notice.failed %}La ficha de la oferta del procedimiento {{ notice.job.procedure.number }} falló: {{ notice.job.error|plain_reason }}.
   {% else %}La ficha de la oferta del procedimiento {{ notice.job.procedure.number }} terminó.{% endif %}
   <a href="{% url 'expedientes:ofertas' notice.job.procedure_id %}">Ver la oferta</a>.
 {% else %}
-  {% if notice.failed %}La lectura de un documento de una oferta del procedimiento {{ notice.job.procedure.number }} falló: {{ notice.job.error }}.
+  {% if notice.failed %}La lectura de un documento de una oferta del procedimiento {{ notice.job.procedure.number }} falló: {{ notice.job.error|plain_reason }}.
   {% else %}La lectura de un documento de una oferta del procedimiento {{ notice.job.procedure.number }} terminó.{% endif %}
   <a href="{% url 'expedientes:ofertas' notice.job.procedure_id %}">Ver las ofertas</a>.
 {% endif %}

@@ -49,6 +49,9 @@ def plain_reason(error):
     for prefix, text in REASONS:
         if error.startswith(prefix):
             return text
+    # Un error de conexión que nombra el tiempo de espera (T-227, D-1) es el mismo motivo.
+    if "timeout" in error.lower():
+        return REASONS[0][1]
     return DEFAULT_REASON
 
 

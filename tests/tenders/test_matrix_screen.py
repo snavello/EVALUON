@@ -259,7 +259,8 @@ def test_failed_job_notice_says_it_failed_and_why(client, operator_user, script)
 
     page = text_of(client.get(reverse("tenders:procedures"), follow=True))
 
-    assert "falló" in page and job.error in page
+    assert "falló" in page and "el motor de IA no respondió a tiempo" in page
+    assert job.error not in page  # el motivo va en palabras, no el error técnico (D-1)
     assert "notice-failed" in page
     assert "Ver la matriz" not in page
 
