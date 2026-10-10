@@ -22,6 +22,7 @@ flowchart LR
   F012["▶ 012 · Importación asistida desde el…"]:::active
   F013["▶ 013 · Recorrido del procedimiento (…"]:::active
   F014["▶ 014 · Aplicación por secciones"]:::active
+  F015["▶ 015 · Uso y elección del modelo"]:::active
   F001 --> F002
   F003 --> F002
   F001 --> F003
@@ -44,6 +45,9 @@ flowchart LR
   F008 --> F013
   F012 --> F013
   F013 --> F014
+  F003 --> F015
+  F004 --> F015
+  F014 --> F015
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -67,6 +71,7 @@ flowchart LR
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 37/45 | ████████░░ 82% |
+| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 2 de 7 · Plan | — | — |
 
 <a id="001"></a>
 
@@ -1265,3 +1270,39 @@ flowchart TD
 | REQ-098 | T.4 | T-192, T-217, T-218, T-222, T-227, T-228, T-231 | ▶ en proceso |
 | REQ-099 | T.5 | T-193, T-199, T-200, T-206, T-218, T-225 | ✓ cubierto |
 | REQ-100 | T.6 | T-192, T-218, T-219, T-221, T-222, T-223, T-224, T-226, T-230, T-231 | ▶ en proceso |
+
+<a id="015"></a>
+
+## 015 · Uso y elección del modelo
+
+**Etapa actual:** 2 de 7 · Plan · [carpeta](../specs/015-uso-y-eleccion-del-modelo)
+
+```mermaid
+flowchart LR
+  E0["✓ 1. Spec"]:::done --> E1["▶ 2. Plan"]:::active --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
+
+### Qué falta
+
+- **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
+
+### Qué se hizo
+
+- Etapas completas: Spec.
+
+### Requisitos
+
+| Requisito | Descripción | Tareas | Estado |
+|---|---|---|---|
+| REQ-101 | Cada requisito propuesto en la matriz cita la oración completa del pliego (con el encabezado del punto o del inciso cuando la oración sola no se entiende), nunca un pedazo sin sujeto | — | — |
+| REQ-102 | La matriz propuesta no incluye consecuencias, obligaciones del organismo, condiciones que solo valen si el oferente elige una opción (salvo como condición de esa opción), pago, moneda de pago, factura, forma de presentar por el Portal ni compromisos que se cumplen al presentarse; sí incluye la moneda en que se cotiza la oferta | — | — |
+| REQ-103 | Cuando el dato de la oferta está en el Portal y coincide con lo que exige el pliego, la evaluación propone «cumple» citando el dato del Portal; cuando no coincide, propone «no cumple» o la diferencia | — | — |
+| REQ-104 | En la evaluación, el sistema razona antes de dar el veredicto, cita la oración completa de la oferta y del pliego, y el contraste ve el contexto de la cita | — | — |
+| REQ-105 | Cada pregunta a la Comisión está dirigida a la Comisión (nunca al oferente) y dice qué requisito, qué conclusión y qué texto la motivan; no hay preguntas de texto fijo genérico | — | — |
+| REQ-106 | Todas las instrucciones al modelo (matriz, evaluación, contraste, visión, ficha, consulta) se revisan contra las decisiones vigentes y entre sí: sin reglas que empujen al error, con ejemplos representativos, razonamiento antes del veredicto y la versión registrada en cada pedido (P6) | — | — |
+| REQ-107 | Un modelo nuevo se adopta solo si, con el uso corregido, el mismo caso y la misma lista esperada, mejora las medidas de REQ-101 a REQ-105 sin empeorar contradicciones, citas, tiempo ni memoria, con cada cambio explicado | — | — |
