@@ -9,6 +9,7 @@ import pytest
 from django.urls import reverse
 
 from evaluon.audit.models import AuditEvent, EventType
+from evaluon.queries import services
 from evaluon.queries.models import Query
 from tests.conftest import TEST_PASSWORD
 from tests.journey.conftest import procedure  # noqa: F401  (fixture)
@@ -133,9 +134,11 @@ def test_history_lists_this_procedures_queries_only_and_reopens_them(
     log_in(client, operator_user)
     ask(client, procedure, "Primera pregunta sintética")
     ask(client, procedure, "Segunda pregunta sintética")
+    # Una consulta fuera de los procedimientos (la pantalla global ya no está en el menú) no
+    # pertenece a ninguno: se hace con la función de consulta, sin vínculo.
+    services.ask(operator_user, "Pregunta global", regimes.after_v)
     calls = len(fake_ai.generation.calls)
-    # Una consulta de la pantalla global no pertenece a ningún procedimiento.
-    client.post("/", {"question": "Pregunta global", "reference_date": regimes.after_v.isoformat()})
+    assert calls == 3
 
     html = client.get(tab(procedure)).content.decode()
     history = html[html.index('id="s5-consulta-historial"'):]
@@ -147,7 +150,7 @@ def test_history_lists_this_procedures_queries_only_and_reopens_them(
     first = Query.objects.get(question="Primera pregunta sintética")
     reopened = client.get(f"{tab(procedure)}?consulta={first.pk}").content.decode()
     assert "Primera pregunta sintética" in reopened and 'id="s5-consulta-respuesta"' in reopened
-    assert len(fake_ai.generation.calls) == calls + 1  # solo la global volvió a llamar al modelo
+    assert len(fake_ai.generation.calls) == calls  # reabrir no vuelve a llamar al modelo
 
 
 def test_each_query_leaves_its_link_to_the_procedure_in_the_audit_log(
