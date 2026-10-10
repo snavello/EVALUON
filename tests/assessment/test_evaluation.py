@@ -5,6 +5,7 @@ inventado (P4) y modelo simulado: las pruebas comprueban el contador, no al mode
 import dataclasses
 import json
 import re
+import types
 from io import StringIO
 
 import pytest
@@ -231,7 +232,9 @@ def test_a_model_that_follows_the_list_reaches_the_threshold(db, operator_user, 
     assert total["questions"] == {"ok": asked, "total": asked, "rate": 1.0}
     assert total["matrix"]["ok"] == 30
     assert total["discards"]["ok"] == 3
-    assert sorted(p.name for p in report.folder.iterdir()) == sorted(ev.RUN_FILE_NAMES)
+    # Los cuatro archivos y, con preguntas, la plantilla local para leerlas (T-238).
+    assert sorted(p.name for p in report.folder.iterdir()) == sorted(
+        (*ev.RUN_FILE_NAMES, ev.QUESTIONS_SAMPLE_FILE))
     assert report.folder.name.endswith("-abc1234")
     parameters = json.loads((report.folder / "parametros.json").read_text(encoding="utf-8"))
     assert parameters["caso"] == "caso-chico-evaluacion" and parameters["lista"]["pares"] == 30
@@ -806,3 +809,322 @@ def test_verify_decisions_rejects_a_failing_test_or_a_list_without_the_fields(
     path = _list_with(tmp_path, strip)
     with pytest.raises(CommandError, match="regla nueva"):
         _command(operator_user, monkeypatch, "--esperada", str(path))
+
+
+# --- Medidas de la 015 (T-238; REQ-103, REQ-104, REQ-105) -------------------------------------------
+
+
+def _stub_run(*cells):
+    """Una evaluación con resultados sin guardar: `(resultado, motivo)` por celda."""
+    results = [am.Result(outcome=outcome, doubt=doubt) for outcome, doubt in cells]
+    return types.SimpleNamespace(results=types.SimpleNamespace(all=lambda: results))
+
+
+def _t229_cells():
+    """Las 81 celdas de T-229 antes de las decisiones: 71 «no determinado» (18 del informe
+    técnico y 15 de la hoja de compliance, que no cuentan) y 10 con otro resultado."""
+    nd = am.Outcome.NO_DETERMINADO
+    cells = [(am.Outcome.CUMPLE, "")] * 6 + [(am.Outcome.SIN_DOCUMENTO, "")] * 4
+    for doubt, times in ((am.Doubt.PENDIENTE_INFORME_TECNICO, 18), (am.Doubt.EXTERNO, 15),
+                         (am.Doubt.EN_PORTAL, 17), (am.Doubt.SIN_CORROBORAR, 9),
+                         (am.Doubt.DUDA, 6), (am.Doubt.FALTA_COINCIDENCIA, 4),
+                         (am.Doubt.SIN_DATO, 2)):
+        cells += [(nd, doubt)] * times
+    return cells
+
+
+def test_undetermined_cells_do_not_count_the_ones_waiting_for_a_missing_document():
+    """REQ-104: «no determinado» sobre todas las celdas, sin contar las que esperan el informe
+    técnico o una hoja de compliance. Con las celdas de T-229 da 38 de 81 (47 %), la cifra del
+    diagnóstico; el umbral es 15 % (12 de 81) y solo rige en el caso-00."""
+    counts = ev.cell_counts(_stub_run(*_t229_cells()))
+    assert counts == {"total": 81, "undetermined": 71, "waiting_document": 33}
+    total = ev.aggregate_015([{"cells": counts}])
+    assert total["cells"]["counted"] == 38
+    assert total["cells"]["ratio"] == {"ok": 38, "total": 81, "rate": 38 / 81}
+    unmet = {name for name, _, ok in ev.thresholds_015(total, ev.CASE_00) if not ok}
+    assert unmet == {"«No determinado» sin las que esperan un documento ausente (REQ-104)"}
+    assert not [r for r in ev.thresholds_015(total, "caso-chico") if "«No determinado»" in r[0]]
+
+    better = ev.cell_counts(_stub_run(*(_t229_cells()[:10] + [
+        (am.Outcome.NO_DETERMINADO, am.Doubt.PENDIENTE_INFORME_TECNICO)] * 18 + [
+        (am.Outcome.NO_DETERMINADO, am.Doubt.EXTERNO)] * 15 + [
+        (am.Outcome.NO_DETERMINADO, am.Doubt.DUDA)] * 12 + [(am.Outcome.CUMPLE, "")] * 26)))
+    assert better["total"] == 81
+    ok = ev.aggregate_015([{"cells": better}])["cells"]["ratio"]
+    assert (ok["ok"], ok["total"]) == (12, 81)
+    assert all(ok_ for _, _, ok_ in ev.thresholds_015(ev.aggregate_015([{"cells": better}]),
+                                                      ev.CASE_00))
+
+
+class _Cite(types.SimpleNamespace):
+    pass
+
+
+def _portal_result(outcome, *texts, kind="garantia"):
+    result = am.Result(outcome=outcome, facts={"regla": "portal_cumple"})
+    return result, [_Cite(portal_kind=kind, text=t) for t in texts]
+
+
+@pytest.mark.parametrize("outcome, texts, matches, with_cite, distinct", [
+    # El dato coincide y el sistema propone «cumple» con la cita del Portal.
+    (am.Outcome.CUMPLE, ["Garantía: monto 5045030.00"], True, True, False),
+    # El dato coincide y el sistema no decide: no cuenta como «cumple» con la cita.
+    (am.Outcome.NO_DETERMINADO, ["Garantía: monto 5045030.00"], True, False, False),
+    # El dato no coincide y el sistema propone «cumple»: la falla que no puede haber.
+    (am.Outcome.CUMPLE, ["Garantía: monto 5045030.00"], False, True, True),
+    # El dato no coincide y el sistema no propone «cumple»: bien.
+    (am.Outcome.NO_CUMPLE, ["Garantía: monto 5045030.00"], False, False, False),
+    # «Cumple» con una cita del Portal que trae otro valor que el esperado.
+    (am.Outcome.CUMPLE, ["Garantía: monto 4819384.47"], True, False, True),
+    # «Cumple» sin cita del Portal (por el texto de la oferta): no es el caso medido.
+    (am.Outcome.CUMPLE, [], True, False, False),
+])
+def test_a_portal_cell_is_cumple_with_the_portal_cite_only_when_the_data_matches(
+        monkeypatch, outcome, texts, matches, with_cite, distinct):
+    """REQ-103: celda cuyo dato del Portal coincide: «cumple» con la cita del Portal; celda
+    «cumple» con un dato que no coincide: la falla (0)."""
+    result, cites = _portal_result(outcome, *texts)
+    monkeypatch.setattr(ev, "_portal_cites", lambda r: cites)
+
+    record = ev.portal_cell_record(result, "garantia", "5045030.00", matches)
+
+    assert record["cumple_con_cita_portal"] is with_cite
+    assert record["cumple_con_dato_distinto"] is distinct
+    assert record["regla"] == "portal_cumple"
+
+
+def test_portal_cells_aggregate_into_100_percent_and_zero_wrong():
+    """REQ-103: el umbral es 100 % de las celdas que coinciden con «cumple» y la cita del
+    Portal, y 0 «cumple» con un dato que no coincide."""
+    def cell(match, with_cite, distinct):
+        return {"coincide_dato": match, "cumple_con_cita_portal": with_cite,
+                "cumple_con_dato_distinto": distinct, "fila": 29}
+
+    good = ev.aggregate_015([{"offer_number": 1, "portal_cells": [
+        cell(True, True, False), cell(True, True, False), cell(False, False, False)]}])
+    assert good["portal_cumple"] == {"ok": 2, "total": 2, "rate": 1.0}
+    assert good["portal_cells"] == {"total": 3, "matching": 2} and good["portal_wrong"] == []
+    assert all(ok for _, _, ok in ev.thresholds_015(good))
+
+    bad = ev.aggregate_015([{"offer_number": 2, "portal_cells": [
+        cell(True, True, False), cell(True, False, False), cell(False, True, True)]}])
+    assert bad["portal_cumple"] == {"ok": 1, "total": 2, "rate": 0.5}
+    assert bad["portal_wrong"] == [(2, 29)]
+    assert [name for name, _, ok in ev.thresholds_015(bad) if not ok] == [
+        "Celdas del Portal que coinciden, propuestas «cumple» con la cita del Portal (REQ-103)",
+        "Celdas «cumple» con un dato del Portal que no coincide (REQ-103)"]
+
+
+def test_a_pair_with_portal_data_coincides_by_default_when_the_expected_result_is_cumple(rows):
+    """REQ-103: en un par de la lista con `portal`, el dato coincide si el resultado esperado es
+    «cumple»; `portal.coincide` lo fija de otro modo (y debe ser verdadero o falso)."""
+    result = _pair_on(rows, am.Outcome.CUMPLE)
+    portal = {"tipo": "garantia", "valor": "26750"}
+
+    def record(expected_result, **extra):
+        pair = ev.ExpectedPair(requirement="M-001", result=expected_result, base="oferta",
+                               portal=dict(portal, **extra))
+        return ev.measure_pair(pair, result, rows.requirement, result.offer, ev.PageFinder(),
+                               [], {})["portal_celda"]
+
+    assert record(am.Outcome.CUMPLE)["coincide_dato"] is True
+    assert record(am.Outcome.NO_CUMPLE)["coincide_dato"] is False
+    assert record(am.Outcome.NO_CUMPLE)["cumple_con_dato_distinto"] is True
+    assert record(am.Outcome.CUMPLE, coincide=False)["coincide_dato"] is False
+    plain = ev.ExpectedPair(requirement="M-001", result=am.Outcome.CUMPLE, base="oferta")
+    assert ev.measure_pair(plain, result, rows.requirement, result.offer, ev.PageFinder(),
+                           [], {})["portal_celda"] is None
+    with pytest.raises(ev.ExpectedError, match="coincide"):
+        ev._pair({"requisito": "M-001", "resultado": "cumple", "citas": [{}],
+                  "portal": {"tipo": "garantia", "valor": "1", "coincide": "si"}}, "oferta", "x")
+
+
+def _cells_file(tmp_path, cells, **fields):
+    data = {"caso": "caso-00", "procedimiento": "P-1",
+            "visto_bueno": "Coordinador sintético, 2026-10-10", "celdas": cells, **fields}
+    path = tmp_path / "celdas-portal.yaml"
+    path.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+    return path
+
+
+def test_the_portal_cells_file_is_read_checked_and_needs_approval(tmp_path, rows):
+    """REQ-103: el archivo aparte con las celdas del Portal (oferta, fila, tipo, valor,
+    coincide) se lee, necesita visto bueno y se comprueba contra el procedimiento."""
+    offer_number, row = rows.run.offer.number, rows.requirement.number
+    good = {"oferta": offer_number, "fila": row, "tipo": "garantia", "valor": "5045030.00",
+            "coincide": True}
+    loaded = ev.load_portal_cells(_cells_file(tmp_path, [good]))
+    assert [(c.offer, c.row, c.kind, c.value, c.matches) for c in loaded.cells] == [
+        (offer_number, row, "garantia", "5045030.00", True)]
+    lines, ok = ev.verify_portal_cells(loaded, rows.request.procedure)
+    assert ok and "1 (1 con el dato que coincide, 0 sin coincidir)" in lines[0]
+
+    absent = ev.load_portal_cells(_cells_file(tmp_path, [dict(good, fila=999)]))
+    lines, ok = ev.verify_portal_cells(absent, rows.request.procedure)
+    assert not ok and any("fila 999" in line for line in lines)
+
+    with pytest.raises(ev.ExpectedNotApproved):
+        ev.load_portal_cells(_cells_file(tmp_path, [good], visto_bueno="pendiente"))
+    assert ev.load_portal_cells(_cells_file(tmp_path, [good], visto_bueno=""),
+                                require_approval=False).approval == ""
+    for bad, message in (({"oferta": 1, "fila": 1, "tipo": "otro", "valor": "1",
+                           "coincide": True}, "tipo"),
+                         (dict(good, coincide="si"), "coincide"),
+                         (dict(good, valor=""), "valor")):
+        with pytest.raises(ev.ExpectedError, match=message):
+            ev.load_portal_cells(_cells_file(tmp_path, [bad]))
+    with pytest.raises(ev.ExpectedError, match="repetida"):
+        ev.load_portal_cells(_cells_file(tmp_path, [good, good]))
+
+
+def test_a_cell_of_the_portal_file_is_measured_on_the_result_of_its_row(rows, monkeypatch):
+    """REQ-103: una celda del archivo se mide sobre el resultado de su fila de la matriz; una
+    fila sin resultado cuenta como celda que no cumple la medida."""
+    monkeypatch.setattr(ev, "_portal_cites", lambda r: [
+        _Cite(portal_kind="garantia", text="Garantía: monto 5045030.00")])
+    entry = ev.ExpectedOffer(bidder="A", documents=[], pairs=[], discarded="no", discard={},
+                             unreadable_pages=[], total=None, copies={})
+    cells = [ev.PortalCell(rows.run.offer.number, rows.requirement.number, "garantia",
+                           "5045030.00", True),
+             ev.PortalCell(rows.run.offer.number, 999, "garantia", "1", True)]
+
+    measures = ev.measure_offer(entry, rows.run.offer, rows.run, {}, ev.PageFinder(), [], {},
+                                cells)
+
+    found, absent = measures["portal_cells"]
+    assert found["cumple_con_cita_portal"] is True and found["fila"] == rows.requirement.number
+    assert absent["obtenido"] is None and absent["cumple_con_cita_portal"] is False
+    assert measures["cells"] == {"total": 1, "undetermined": 0, "waiting_document": 0}
+    assert measures["offer_number"] == rows.run.offer.number
+
+
+# --- Forma de las preguntas (REQ-105) ----------------------------------------------------------------
+
+REQUIREMENT = "El oferente deberá presentar la garantía de mantenimiento de la oferta."
+OFFER_TEXT = "Se adjunta la póliza de caución número 123 por el monto indicado."
+
+
+def _form(text, offer_texts=(OFFER_TEXT,)):
+    return ev.question_form(
+        text, requirement_text=REQUIREMENT, requirement_number=29,
+        outcome_label="No determinado", doubt_label="Sin corroborar",
+        offer_texts=list(offer_texts))
+
+
+GOOD_QUESTION = (
+    f"Requisito: «{REQUIREMENT}» El sistema concluyó «no determinado» (sin corroborar) con este "
+    f"texto de la oferta (oferta.pdf, página 3): «{OFFER_TEXT}» ¿La Comisión confirma, corrige o "
+    "rechaza esa conclusión?")
+
+
+def test_a_question_with_requirement_conclusion_text_and_the_commission_is_conforming():
+    """REQ-105: la pregunta dice qué requisito, qué conclusión y qué texto la motivan, y se
+    dirige a la Comisión."""
+    form = _form(GOOD_QUESTION)
+    assert form == {"requisito_ok": True, "conclusion_ok": True, "texto_ok": True,
+                    "dirigida_ok": True, "nombra_comision": True, "conforme": True}
+
+
+@pytest.mark.parametrize("text, missing", [
+    # Los textos fijos de hoy (`combine.fixed_question`): sin requisito ni texto.
+    ("El sistema llegó a una conclusión con el texto de la oferta, pero no pudo corroborarla. "
+     "¿La Comisión la confirma, la corrige o la rechaza?", ["requisito_ok", "texto_ok"]),
+    ("Para este requisito falta un dato que no consta en la oferta ni en la normativa. ¿Qué "
+     "determina la Comisión?", ["requisito_ok", "conclusion_ok", "texto_ok"]),
+    # Dirigidas al oferente (las 3 de T-229) aunque traigan requisito y texto.
+    (f"Requisito: «{REQUIREMENT}» No determinado: «{OFFER_TEXT}» ¿Podría el oferente aclarar "
+     "si presentó la garantía?", ["dirigida_ok"]),
+    (f"Requisito: «{REQUIREMENT}» No determinado: «{OFFER_TEXT}» Solicitamos al oferente que "
+     "presente la póliza.", ["dirigida_ok"]),
+    (f"Requisito: «{REQUIREMENT}» No determinado: «{OFFER_TEXT}» El oferente deberá aclarar el "
+     "monto.", ["dirigida_ok"]),
+    # Sin conclusión.
+    (f"Requisito: «{REQUIREMENT}» Texto de la oferta: «{OFFER_TEXT}» ¿Cómo sigue?",
+     ["conclusion_ok"]),
+])
+def test_a_question_that_lacks_a_part_or_addresses_the_bidder_is_not_conforming(text, missing):
+    """REQ-105: los textos fijos genéricos, los dirigidos al oferente y los que no dicen la
+    conclusión no cumplen la forma, con el punto que falla."""
+    form = _form(text)
+    assert not form["conforme"]
+    assert sorted(k for k in ("requisito_ok", "conclusion_ok", "texto_ok", "dirigida_ok")
+                  if not form[k]) == sorted(missing)
+
+
+def test_a_question_without_offer_text_must_say_that_there_is_none():
+    """REQ-105: si el resultado no tiene cita de la oferta, la pregunta tiene que decir que no se
+    encontró texto; el requisito también se puede nombrar por su número."""
+    text = ("Requisito 29 de la matriz. El sistema no determinó el resultado (sin corroborar): "
+            "no se encontró texto de la oferta que lo trate. ¿La Comisión lo determina?")
+    assert _form(text, offer_texts=[])["conforme"] is True
+    assert _form(GOOD_QUESTION.replace(OFFER_TEXT, "algo"), offer_texts=[])["texto_ok"] is False
+
+
+def test_the_question_records_check_every_question_and_the_sample_lists_them_all(
+        rows, tmp_path):
+    """REQ-105: cada pregunta de la evaluación se comprueba y la plantilla local
+    `muestra-preguntas.md` las lista todas con el texto, para leerlas de a una; el resumen
+    público solo trae cifras."""
+    result = _pair_on(rows, am.Outcome.NO_DETERMINADO, doubt=am.Doubt.SIN_CORROBORAR)
+    first = rows.requirement.quotes.order_by("order").first()
+    citation = am.Citation.objects.create(
+        result=result, order=1, kind=am.CitationKind.OFERTA, document=rows.document,
+        reading=rows.reading, page=1, char_start=0, char_end=10,
+        text=rows.reading.canonical_text[:10])
+    am.Question.objects.create(
+        procedure=rows.request.procedure, requirement=rows.requirement, offer=result.offer,
+        result=result, text=(
+            f"Requisito: «{first.text}» El sistema concluyó «no determinado» (sin corroborar) "
+            f"con este texto de la oferta: «{citation.text}» ¿La Comisión lo confirma?"))
+
+    # La de `rows` (texto fijo viejo, de otra evaluación) y la nueva.
+    records = ev.question_records(rows.run) + ev.question_records(result.run)
+
+    assert len(records) == 2
+    old, new = records
+    assert old["conforme"] is False and new["conforme"] is True
+    assert new["detalle"]["requisito"] == first.text and new["fila"] == rows.requirement.number
+
+    total = ev.aggregate_015([{"offer_number": 1, "questions": records}])
+    assert total["questions_form"] == {"ok": 1, "total": 2, "rate": 0.5}
+    assert total["questions_nonconforming"] == [(1, rows.requirement.number)]
+    assert [name for name, _, ok in ev.thresholds_015(total) if not ok] == [
+        "Preguntas con la forma de REQ-105 (dirigida a la Comisión, con requisito, conclusión "
+        "y texto)"]
+
+    report = types.SimpleNamespace(
+        folder=tmp_path, offers=[{"measures": {"questions": records}}])
+    ev._write_questions_sample(report)
+    sample = (tmp_path / ev.QUESTIONS_SAMPLE_FILE).read_text(encoding="utf-8")
+    assert sample.count("\n| 1 |") == 2 and "¿La Comisión lo confirma?" in sample
+    assert "requisito NO" in sample and "dirigida sí" in sample
+
+
+# --- Del caso chico completo: las cifras de la 015 en el resumen y en el comando ---------------------
+
+
+def test_the_small_case_measure_carries_the_015_figures_and_keeps_the_text_out_of_the_public_summary(
+        operator_user, model, tmp_path, monkeypatch):
+    """REQ-103 a REQ-105: la medición del caso chico trae las celdas, el Portal, la forma de las
+    preguntas, la memoria de video registrada y el tiempo; el resumen público solo cifras y la
+    plantilla de preguntas, local."""
+    monkeypatch.setenv("MEASURE_VIDEO_MEMORY_COMMAND", "echo 21000, 24000")
+    report, _, _ = measured(operator_user, model, tmp_path)
+
+    total = report.total
+    assert total["cells"]["total"] == 30
+    assert total["cells"]["waiting_document"] == total["cells"]["undetermined"] - total[
+        "cells"]["counted"]
+    assert total["portal_cells"] == {"total": 1, "matching": 1}
+    assert total["questions_form"]["total"] == len(total["questions_nonconforming"]) + total[
+        "questions_form"]["ok"]
+    assert ev.max_video_mib(report.video) == 21000
+    saved = json.loads((report.folder / "parametros.json").read_text(encoding="utf-8"))
+    assert saved["memoria_de_video"]["after"]["used_mib"] == 21000
+    public = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "## Medidas de la 015" in public and "21000 MiB (umbral 22000 MiB)" in public
+    assert "Oferente A Sintético" not in public
+    if total["questions_form"]["total"]:
+        assert (report.folder / ev.QUESTIONS_SAMPLE_FILE).exists()
+    assert isinstance(report.unmet_015, list)

@@ -61,6 +61,21 @@ Decisiones fuera del plan (informadas en la entrega de T-077):
   literal.
 - Si el procedimiento ya tiene un borrador abierto, la medición se rechaza: la base admite a
   lo sumo uno por procedimiento.
+
+Medidas de la 015 (T-238; REQ-101, REQ-102; plan 015, "Criterio de aceptación numérico y
+umbrales"):
+
+- Filas conservadas: las filas firmes con pareja en la lista, sobre las filas firmes (70 % o
+  más). La pareja se busca contra la lista sin las entradas que excluyen las decisiones del
+  2026-10-10.
+- Pedazos sin sujeto: comprobación mecánica; la cita tiene que empezar donde empieza una
+  oración y terminar donde termina una oración (`piece_problem`, con las oraciones de
+  `proposal.filter`). Umbral: 0.
+- Recall sobre la lista sin las entradas excluidas (95 % o más). Las exclusiones están en un
+  archivo aparte (`exclusiones.yaml`), con la huella de la lista a la que se refieren y el
+  visto bueno del Coordinador; la lista esperada no se toca. La medida informa cuántas
+  entradas excluye cada caso.
+- Tiempo total y memoria de video máxima de lo registrado (22.000 MiB).
 """
 
 import hashlib
@@ -89,6 +104,7 @@ from evaluon.queries.evaluation import proportion_text  # usa el Wilson de la 00
 from evaluon.tenders import models as m
 from evaluon.tenders.proposal import quotes
 from evaluon.tenders.proposal import run as proposal
+from evaluon.tenders.proposal.filter import sentence_bounds
 from evaluon.tenders.services import matrix as matrix_service
 
 OPERATION = "evaluon.tenders.evaluation.measure"
@@ -106,6 +122,15 @@ SUGGESTION = m.RequirementState.SUGERIDO.value
 SAMPLE_FILE = "muestra-descartadas.md"
 SUGGESTIONS_SAMPLE_FILE = "muestra-sugerencias.md"
 EXTRAPOLATED_PAGES = 50
+
+# Umbrales de la 015 (plan 015), escritos antes de medir.
+KEPT_MINIMUM = 0.70
+RECALL_MINIMUM = 0.95
+PIECES_MAXIMUM = 0
+VIDEO_MAXIMUM_MIB = 22000
+# Motivos con que las decisiones del 2026-10-10 excluyen una entrada de la lista.
+EXCLUSION_MOTIVES = ("pago", "moneda_de_pago", "factura", "forma_de_presentar_por_el_portal",
+                     "compromiso_al_presentarse")
 
 # Causas de un faltante.
 GROUPED = "agrupado"
@@ -260,6 +285,12 @@ class Expected:
     annexes: list
     items: list
     scope: str = ""
+    exclusions: object = None  # `Exclusions` (T-238), o `None` si no se pasó el archivo
+
+    @property
+    def excluded(self):
+        """`{id: motivo}` de las entradas que excluyen las decisiones del 2026-10-10."""
+        return self.exclusions.motives if self.exclusions else {}
 
     @property
     def circulars_only(self):
@@ -368,6 +399,79 @@ def load_expected(path, *, require_approval=True):
         annexes=_refs(data.get("tramos_anexos"), default, "tramos_anexos"),
         items=items, scope=scope,
     )
+
+
+@dataclass
+class Exclusions:
+    """Las entradas de la lista que excluyen las decisiones del 2026-10-10 (T-238), leídas de un
+    archivo aparte: la lista esperada no se modifica. El archivo lleva la huella de la lista a la
+    que se refiere y el visto bueno del Coordinador."""
+
+    path: Path
+    sha256: str
+    list_sha256: str
+    approval: str
+    motives: dict  # id -> motivo
+
+    @property
+    def by_motive(self):
+        return dict(Counter(self.motives.values()))
+
+
+def load_exclusions(path, expected, *, require_approval=True):
+    """Lee el archivo de exclusiones de `expected`. Lanza `ExpectedError` si no se puede leer, si
+    la huella no es la de la lista (la lista cambió desde que se marcó), si una entrada no está en
+    la lista, es técnica o trae un motivo desconocido; sin visto bueno y con `require_approval`,
+    `ExpectedNotApproved`. No modifica `expected`."""
+    path = Path(path)
+    try:
+        raw = path.read_bytes()
+        data = yaml.safe_load(raw.decode("utf-8"))
+    except OSError as error:
+        raise ExpectedError(f"no se pueden leer las exclusiones: {error.__class__.__name__}")
+    except (yaml.YAMLError, UnicodeDecodeError) as error:
+        raise ExpectedError(
+            f"las exclusiones no se pueden leer como YAML ({error.__class__.__name__})")
+    if not isinstance(data, dict):
+        raise ExpectedError("las exclusiones no tienen la forma esperada")
+    listed = str(data.get("lista_sha256") or "").strip().lower()
+    if listed != expected.sha256:
+        raise ExpectedError("las exclusiones se marcaron sobre otra versión de la lista (la "
+                            "huella no coincide): se vuelven a marcar y a aprobar")
+    approval = str(data.get("visto_bueno") or "").strip()
+    if approval.lower().startswith("pendiente"):
+        approval = ""
+    if require_approval and not approval:
+        raise ExpectedNotApproved("las exclusiones no tienen visto bueno: no se usan")
+    items = {i.id: i for i in expected.items}
+    motives = {}
+    for entry in data.get("excluidas") or []:
+        if not isinstance(entry, dict) or not entry.get("id"):
+            raise ExpectedError("una exclusión no tiene la forma esperada (`id` y `motivo`)")
+        ident, motive = str(entry["id"]), str(entry.get("motivo") or "")
+        if ident not in items:
+            raise ExpectedError(f"{ident}: la exclusión nombra una entrada que no está en la lista")
+        if items[ident].technical:
+            raise ExpectedError(f"{ident}: una entrada técnica no se excluye")
+        if motive not in EXCLUSION_MOTIVES:
+            raise ExpectedError(f"{ident}: `motivo` debe ser uno de "
+                                f"{', '.join(EXCLUSION_MOTIVES)}")
+        if ident in motives:
+            raise ExpectedError(f"{ident}: exclusión repetida")
+        motives[ident] = motive
+    return Exclusions(path=path, sha256=hashlib.sha256(raw).hexdigest(), list_sha256=listed,
+                      approval=approval, motives=motives)
+
+
+def exclusion_lines(expected):
+    """Las cuentas de las exclusiones, sin texto del pliego (para `--verificar-esperada`)."""
+    exclusions = expected.exclusions
+    if exclusions is None:
+        return ["Exclusiones de la decisión del 2026-10-10: no se pasó el archivo"]
+    return [f"Exclusiones de la decisión del 2026-10-10: {len(exclusions.motives)} de "
+            f"{len(expected.items)} entradas ({_counter_text(exclusions.by_motive)}); huella de "
+            f"la lista {'coincide' if exclusions.list_sha256 == expected.sha256 else 'NO coincide'}"
+            f"; visto bueno: {exclusions.approval or 'pendiente'}"]
 
 
 # --- Comprobación de la lista contra la lectura --------------------------------------------
@@ -635,6 +739,41 @@ def _quote_state(reading, segment, quote):
     )
 
 
+def piece_problem(text, start, end):
+    """Si la cita `[start, end)` del `text` de su tramo es un pedazo (REQ-101, T-238).
+
+    Comprobación mecánica: una cita completa empieza donde empieza una oración y termina donde
+    termina una oración del tramo (si abarca varias, la primera empieza y la última termina en
+    su límite). Devuelve `None` si es completa, o `"empieza_en_medio"`, `"termina_en_medio"` o
+    `"vacia"`. Las oraciones se separan como en el filtro (`proposal.filter.sentence_bounds`:
+    abreviaturas e iniciales no terminan la oración)."""
+    chunk = text[start:end]
+    if not chunk.strip():
+        return "vacia"
+    first = start + len(chunk) - len(chunk.lstrip())
+    last = end - (len(chunk) - len(chunk.rstrip()))
+    if sentence_bounds(text, first)[0] != first:
+        return "empieza_en_medio"
+    if sentence_bounds(text, last - 1)[1] != last:
+        return "termina_en_medio"
+    return None
+
+
+def pieces_of(proposed):
+    """Los pedazos de las filas firmes: `[(fila, tramo, problema)]` y la cantidad de citas
+    revisadas. Una cita se revisa dentro del texto de su propio tramo."""
+    found, checked = [], 0
+    for row in proposed:
+        for quote in row.quotes:
+            segment = quote.segment
+            checked += 1
+            problem = piece_problem(segment.text, quote.char_start - segment.char_start,
+                                    quote.char_end - segment.char_start)
+            if problem:
+                found.append((row.number, segment.key, problem))
+    return found, checked
+
+
 @dataclass
 class Proposed:
     number: int
@@ -752,7 +891,10 @@ def measure_version(run, expected, verification):
     if expected.circulars_only:
         return _measure_circulars_only(run, expected, verification, fe_rows, tech_rows)
 
-    measured = [i for i in expected.items if not i.from_circular]
+    # T-238: las entradas que excluyen las decisiones del 2026-10-10 no se esperan: no entran en
+    # el emparejamiento ni en el denominador (una fila que solo las cubre es sobrante).
+    excluded = expected.excluded
+    measured = [i for i in expected.items if not i.from_circular and i.id not in excluded]
     circular_items = [i for i in expected.items if i.from_circular and not i.blocks]
     fe_items = [i for i in measured if not i.technical]
     tech_items = [i for i in measured if i.technical]
@@ -929,6 +1071,14 @@ def measure_version(run, expected, verification):
             if item.consequence in suggested:
                 consequences["entre_las_sugeridas"] += 1
 
+    # Medidas de la 015 (T-238): pedazos sin sujeto y entradas excluidas.
+    pieces, pieces_checked = pieces_of(proposed)
+    lines += [{"tipo": "pedazo", "numero": number, "tramo": key, "problema": problem}
+              for number, key, problem in pieces]
+    excluded_here = [i.id for i in expected.items if i.id in excluded]
+    lines += [{"tipo": "excluida", "id": ident, "motivo": excluded[ident]}
+              for ident in excluded_here]
+
     # Descartadas por el sistema (informe, REQ-033).
     discarded_report = _discarded_report(discarded, located, leftovers)
     lines += discarded_report.pop("lines")
@@ -977,6 +1127,14 @@ def measure_version(run, expected, verification):
         "consequences": dict(consequences),
         "coverage": _coverage(run, dispositions),
         "proposed_total": firm_total,
+        "kept": ratio(firm_total - leftovers, firm_total),
+        "pieces": {"count": len(pieces), "checked": pieces_checked,
+                   "rows": sorted({number for number, _, _ in pieces}),
+                   "by_problem": dict(Counter(problem for _, _, problem in pieces))},
+        "recall": found,
+        "excluded": {"count": len(excluded_here), "ids": excluded_here,
+                     "by_motive": dict(Counter(excluded[i] for i in excluded_here)),
+                     "applied": expected.exclusions is not None},
     }
 
 
@@ -1476,6 +1634,24 @@ class Report:
                 reasons.append(f"{result['process']}: hay tramos sin disposición")
         return reasons
 
+    @property
+    def unmet_015(self):
+        """Las medidas de la 015 que no llegan a su umbral (T-238)."""
+        return unmet_015(self)
+
+
+def unmet_015(report):
+    """Las medidas de la 015 que no llegan a su umbral, por proceso (se informan; el bloqueo de
+    la aceptación sigue siendo el de la 003)."""
+    unmet = []
+    for result in report.results:
+        if result.get("error") or result["measures"].get("scope") == SCOPE_CIRCULARS:
+            continue
+        for name, _, ok in thresholds_015(result["measures"], result.get("video_memory")):
+            if not ok:
+                unmet.append(f"{result['process']}: {name}")
+    return unmet
+
 
 def _discard(version, user, run):
     """Descarta la versión que creó la medición, con su hecho de registro."""
@@ -1507,6 +1683,35 @@ def video_memory():
     except (OSError, subprocess.SubprocessError, ValueError, IndexError) as error:
         return {"available": False, "reason": type(error).__name__}
     return {"available": True, "used_mib": used, "total_mib": total}
+
+
+def max_video_mib(video):
+    """La memoria de video máxima de las lecturas registradas (antes y después), en MiB, o
+    `None` si ninguna se pudo leer."""
+    seen = [moment["used_mib"] for moment in (video or {}).values()
+            if moment and moment.get("available")]
+    return max(seen) if seen else None
+
+
+def thresholds_015(measures, video=None):
+    """Las medidas de la 015 contra su umbral: `[(nombre, texto de lo medido, cumple)]`. Los
+    umbrales están escritos en el plan 015 (cuadro "Criterio de aceptación numérico y
+    umbrales") y arriba, en las constantes del módulo."""
+    kept, found, pieces = measures["kept"], measures["recall"], measures["pieces"]
+    rows = [
+        ("Filas conservadas (REQ-101, REQ-102)", kept, _at_least(kept, KEPT_MINIMUM)),
+        ("Pedazos sin sujeto (REQ-101)", pieces, pieces["count"] <= PIECES_MAXIMUM),
+        ("Requisitos de la lista que están, sin las excluidas (REQ-101, REQ-102)", found,
+         _at_least(found, RECALL_MINIMUM)),
+    ]
+    memory = max_video_mib(video)
+    if memory is not None:
+        rows.append(("Memoria de video máxima registrada", memory, memory <= VIDEO_MAXIMUM_MIB))
+    return rows
+
+
+def _at_least(value, minimum):
+    return value["total"] > 0 and value["ok"] / value["total"] >= minimum - 1e-9
 
 
 def measure_process(user, procedure, expected, clock=time.monotonic):
@@ -1655,6 +1860,12 @@ def _write(report, procedure, started_at, commit):
                   "visto_bueno": expected.approval,
                   "requisitos": len(expected.items)},
         "comprobacion": dict(report.verification.counts),
+        "exclusiones": ({"sha256": expected.exclusions.sha256,
+                         "lista_sha256": expected.exclusions.list_sha256,
+                         "visto_bueno": expected.exclusions.approval,
+                         "cantidad": len(expected.exclusions.motives),
+                         "por_motivo": expected.exclusions.by_motive}
+                        if expected.exclusions else None),
         "propuestas": [
             {k: r.get(k) for k in ("process", "run", "version", "parameters",
                                     "prompt_versions", "models", "corpus_version", "error",
@@ -1775,6 +1986,7 @@ def _summary(report, *, public):
             f"- Pendientes por motivo: {_counter_text(coverage['pending_by_reason'])}",
             f"- Tramos técnicos citados por renglón: "
             f"{proportion_text(measures['technical_tramos'])} (se informa; no bloquea)",
+            *_015_lines(measures, result),
             *_review_summary(measures),
             *_suggestion_review_summary(measures),
             *_elsewhere_lines(measures),
@@ -1810,6 +2022,39 @@ def _summary(report, *, public):
     out += [f"- {reason}" for reason in blocking] or ["- ninguno"]
     out.append("")
     return "\n".join(out)
+
+
+def _count_text(value):
+    """`x de y (z %)` de una proporción `{ok, total, rate}`."""
+    return f"{value['ok']} de {value['total']} ({_percent(value['rate'])})"
+
+
+def _015_lines(measures, result):
+    """Las medidas de la 015 (T-238) contra su umbral, solo con cifras."""
+    kept, pieces, found = measures["kept"], measures["pieces"], measures["recall"]
+    excluded = measures["excluded"]
+    verdict = {name: "cumple" if ok else "no cumple"
+               for name, _, ok in thresholds_015(measures, result.get("video_memory"))}
+    memory = max_video_mib(result.get("video_memory"))
+    total = result["timings"]["passes"].get("total")
+    return [
+        f"- Medidas de la 015, filas conservadas (con pareja en la lista): {_count_text(kept)}; "
+        f"umbral {_percent(KEPT_MINIMUM)} o más: "
+        f"{verdict['Filas conservadas (REQ-101, REQ-102)']}",
+        f"- Medidas de la 015, pedazos sin sujeto: {pieces['count']} de {pieces['checked']} "
+        f"citas ({_counter_text(pieces['by_problem'])}); umbral {PIECES_MAXIMUM}: "
+        f"{verdict['Pedazos sin sujeto (REQ-101)']}",
+        f"- Medidas de la 015, recall sobre la lista sin las excluidas: {_count_text(found)}; "
+        f"umbral {_percent(RECALL_MINIMUM)} o más: "
+        f"{verdict['Requisitos de la lista que están, sin las excluidas (REQ-101, REQ-102)']}",
+        "- Medidas de la 015, entradas de la lista excluidas por la decisión del 2026-10-10: "
+        + (f"{excluded['count']} ({_counter_text(excluded['by_motive'])})"
+           if excluded["applied"] else "no se aplicó el archivo de exclusiones"),
+        f"- Medidas de la 015, tiempo total de la propuesta: {_seconds(total)}; memoria de "
+        "video máxima registrada: "
+        + (f"{memory} MiB (umbral {VIDEO_MAXIMUM_MIB} MiB)" if memory is not None
+           else "no registrada"),
+    ]
 
 
 def _circular_lines(info, expected):

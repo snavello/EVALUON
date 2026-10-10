@@ -15,6 +15,11 @@ Opciones:
   ancla esté en su tramo, que cada tramo técnico exista y que cada bloque `circulares`
   (documento, fecha, ancla, texto original y vigente) esté en la lectura, e informa las
   cuentas.
+- `--exclusiones`: archivo aparte con las entradas de la lista que excluyen las decisiones del
+  2026-10-10 (pago, moneda de pago, factura, forma de presentar por el Portal, compromisos al
+  presentarse), con la huella de la lista y el visto bueno del Coordinador (T-238). La lista no
+  se modifica; sin este archivo el recall y las filas conservadas se miden contra la lista
+  entera. Con `--verificar-esperada` informa cuántas entradas excluye.
 - `--regenerar-resumen`: carpeta de una corrida ya hecha. No corre el modelo: vuelve a medir las
   propuestas que nombra `parametros.json` (siguen en la base) y reescribe `resumen.md` y
   `resumen-publico.md` (T-096).
@@ -51,6 +56,9 @@ class Command(BaseCommand):
         parser.add_argument("--corridas", default=None,
                             help="Carpeta donde se guarda la corrida (por omisión, "
                                  "corridas/ junto a esperado/).")
+        parser.add_argument("--exclusiones", default=None,
+                            help="Archivo con las entradas de la lista que excluyen las "
+                                 "decisiones del 2026-10-10 (huella de la lista y visto bueno).")
         parser.add_argument("--commit", default=None,
                             help="Commit del código con que se corre.")
         parser.add_argument("--regenerar-resumen", default=None, dest="regenerar_resumen",
@@ -71,12 +79,16 @@ class Command(BaseCommand):
         try:
             expected = evaluation.load_expected(options["esperada"],
                                                 require_approval=not verify_only)
+            if options["exclusiones"]:
+                expected.exclusions = evaluation.load_exclusions(
+                    options["exclusiones"], expected, require_approval=not verify_only)
         except evaluation.ExpectedError as error:
             raise CommandError(str(error)) from None
 
         if verify_only:
             verification = evaluation.verify_expected(expected, procedure)
-            self.stdout.write("\n".join(evaluation.verification_lines(verification)))
+            self.stdout.write("\n".join(evaluation.verification_lines(verification)
+                                        + evaluation.exclusion_lines(expected)))
             if not verification.ok:
                 raise CommandError("La comprobación de la lista encontró fallas.")
             return
@@ -123,6 +135,9 @@ class Command(BaseCommand):
                 f"{measures['suggestions']['count']} (a revisión obligatoria: "
                 f"{measures['suggestion_review']['count']}); tope de sobrantes "
                 f"{'cumple' if measures['cap']['met'] else 'no cumple'}")
+        unmet = report.unmet_015
+        lines.append("Umbrales de la 015 que no llegan: " + ("; ".join(unmet) if unmet
+                                                              else "ninguno"))
         blocking = report.blocking
         lines.append("Bloquea la aceptación: " + ("; ".join(blocking) if blocking
                                                   else "nada"))

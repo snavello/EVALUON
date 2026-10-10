@@ -52,6 +52,22 @@ Portal opuestos a la lista (se informan aparte). La opinión técnica no es el r
 compara con el dictamen y se informa. Sin contar quedan `duda`, `sin_dato`, `sin_corroborar`,
 `sin_cita` y «no se encontró el documento» donde el dictamen dice «cumple»; su residuo se
 informa aparte.
+
+Medidas de la 015 (T-238; REQ-103, REQ-104, REQ-105; plan 015, "Criterio de aceptación numérico
+y umbrales"):
+
+- «No determinado» que no espera un documento ausente: sobre todas las celdas de la corrida (no
+  sobre los pares de la lista), sin contar las que esperan el informe técnico o una hoja de
+  compliance. Umbral del caso-00: 15 % o menos.
+- Celdas del Portal: de las celdas cuyo dato del Portal coincide con lo que exige el pliego, las
+  propuestas «cumple» con la cita del Portal (100 %); y las «cumple» con un dato que no coincide
+  (0). Salen de los pares con `portal` de la lista (`coincide`: por omisión, si el resultado
+  esperado es «cumple») y de un archivo aparte de celdas (`--celdas-portal`, por oferta y fila de
+  la matriz validada).
+- Forma de las preguntas: dirigidas a la Comisión (nunca al oferente), con el requisito, la
+  conclusión y el texto de la oferta. Comprobación mecánica (`question_form`) más la plantilla
+  local `muestra-preguntas.md`, con todas las preguntas, para leerlas de a una.
+- Tiempo total y memoria de video máxima de lo registrado.
 """
 
 import hashlib
@@ -89,7 +105,12 @@ from evaluon.offers.services import offers as offers_service
 from evaluon.queries.evaluation import proportion_text
 from evaluon.tenders import jobs
 from evaluon.tenders import models as m
-from evaluon.tenders.evaluation import ratio
+from evaluon.tenders.evaluation import (
+    VIDEO_MAXIMUM_MIB,
+    max_video_mib,
+    ratio,
+    video_memory,
+)
 from evaluon.tenders.proposal import quotes
 from evaluon.tenders.services import procedures as tender_procedures
 from evaluon.tenders.services.validation import _copy as copy_version
@@ -132,6 +153,29 @@ THRESHOLDS_CASE_00 = {
     "fragments": (0.90, True), "matrix": (1.0, True), "portal_literal": (1.0, True),
 }
 MAXIMUMS = ("contradictions", "no_citation")
+
+# Umbrales de la 015 (plan 015), escritos antes de medir. `undetermined` rige en el caso-00.
+UNDETERMINED_MAXIMUM = 0.15
+PORTAL_CUMPLE_MINIMUM = 1.0
+PORTAL_WRONG_MAXIMUM = 0
+QUESTIONS_FORM_MINIMUM = 1.0
+# «No determinado» que espera un documento ausente: el informe técnico o la hoja de compliance.
+WAITING_DOCUMENT = (am.Doubt.PENDIENTE_INFORME_TECNICO, am.Doubt.EXTERNO)
+QUESTIONS_SAMPLE_FILE = "muestra-preguntas.md"
+# La pregunta se dirige al oferente si le pide algo («¿Podría el oferente…?», «solicitamos al
+# oferente…», «el oferente deberá aclarar…», o una orden que empieza la pregunta). Los patrones
+# son constantes del módulo: si la forma de las preguntas cambia, se ajustan acá.
+ADDRESSED_TO_BIDDER = re.compile(
+    r"\b(?:podr[ií]a|solicitamos|solicitar|pedimos|ruego|rogamos|favor\s+de"
+    r"|se\s+(?:le\s+)?(?:pide|solicita|ruega))\b[^.?!]{0,60}\boferente\b"
+    r"|\boferente\b\s+(?:deber[aá]|debe|tendr[aá]|podr[aá])\b"
+    r"|\b(?:al|a\s+la)\s+(?:oferente|firma|empresa)\b[^.?!]{0,40}\b(?:aclare|aclarar|"
+    r"presente|presentar|informe|informar|acompañe|acompañar|adjunte|adjuntar|indique|indicar)"
+    r"|^\W*(?:aclare|presente|informe|acompañe|adjunte|indique|env[ií]e|confirme)\b",
+    re.IGNORECASE)
+COMMISSION = re.compile(r"\bcomisi[oó]n\b", re.IGNORECASE)
+NO_OFFER_TEXT = re.compile(
+    r"no\s+(?:se\s+)?(?:encontr|consta|hay|figura)|sin\s+texto|ning[uú]n", re.IGNORECASE)
 # Mínimos que piden «más de» (la spec: coincidencia de más del 80 % en el caso-00).
 MORE_THAN = {CASE_00: ("match",)}
 
@@ -258,6 +302,8 @@ def _pair(entry, where, kind):
             and str(portal.get("valor") or "").strip()):
         raise ExpectedError(f"{where}: {ident}: `portal` lleva `tipo` "
                             f"({', '.join(am.PortalKind.values)}) y `valor`")
+    if portal is not None and not isinstance(portal.get("coincide", True), bool):
+        raise ExpectedError(f"{where}: {ident}: `portal.coincide` es verdadero o falso")
     dictamen = entry.get("dictamen") if entry.get("dictamen") in ("cumple", "no_cumple") else ""
     return ExpectedPair(
         requirement=ident, result=RESULTS[raw], base=base, doubt=MOTIVES.get(motive, ""),
@@ -682,6 +728,205 @@ def _portal_cite_is_literal(cite, offer):
     return any(v is not None and portal_value_in(kind, cite.text, v) for v in values)
 
 
+# --- Medidas de la 015 (T-238) --------------------------------------------------------------------
+
+
+@dataclass
+class PortalCell:
+    """Una celda cuyo dato está en el Portal: la oferta y la fila de la matriz validada, el tipo y
+    el valor del dato, y si ese dato coincide con lo que exige el pliego."""
+
+    offer: int
+    row: int
+    kind: str
+    value: str
+    matches: bool
+
+
+@dataclass
+class PortalCells:
+    path: Path
+    sha256: str
+    approval: str
+    procedure: str
+    cells: list
+
+
+def load_portal_cells(path, *, require_approval=True):
+    """Lee el archivo de celdas del Portal (`--celdas-portal`): `procedimiento`, `visto_bueno` y
+    `celdas` con `oferta`, `fila`, `tipo`, `valor` y `coincide`. Lanza `ExpectedError`; sin visto
+    bueno y con `require_approval`, `ExpectedNotApproved`."""
+    path = Path(path)
+    try:
+        raw = path.read_bytes()
+        data = yaml.safe_load(raw.decode("utf-8"))
+    except OSError as error:
+        raise ExpectedError(f"no se puede leer la lista de celdas: {error.__class__.__name__}")
+    except (yaml.YAMLError, UnicodeDecodeError) as error:
+        raise ExpectedError(
+            f"la lista de celdas no se puede leer como YAML ({error.__class__.__name__})")
+    if not isinstance(data, dict) or not isinstance(data.get("celdas"), list):
+        raise ExpectedError("la lista de celdas no tiene la forma esperada")
+    approval = str(data.get("visto_bueno") or "").strip()
+    if approval.lower().startswith("pendiente"):
+        approval = ""
+    if require_approval and not approval:
+        raise ExpectedNotApproved("la lista de celdas no tiene visto bueno: no se usa")
+    cells, seen = [], set()
+    for entry in data["celdas"]:
+        if not (isinstance(entry, dict) and isinstance(entry.get("oferta"), int)
+                and isinstance(entry.get("fila"), int)):
+            raise ExpectedError("una celda del Portal lleva `oferta` y `fila` numéricas")
+        where = f"oferta {entry['oferta']}, fila {entry['fila']}"
+        if entry.get("tipo") not in am.PortalKind.values or not str(entry.get("valor") or "").strip():
+            raise ExpectedError(f"{where}: lleva `tipo` ({', '.join(am.PortalKind.values)}) y "
+                                "`valor`")
+        if not isinstance(entry.get("coincide"), bool):
+            raise ExpectedError(f"{where}: `coincide` es verdadero o falso")
+        if (entry["oferta"], entry["fila"]) in seen:
+            raise ExpectedError(f"{where}: celda repetida")
+        seen.add((entry["oferta"], entry["fila"]))
+        cells.append(PortalCell(offer=entry["oferta"], row=entry["fila"], kind=entry["tipo"],
+                                value=str(entry["valor"]).strip(), matches=entry["coincide"]))
+    return PortalCells(path=path, sha256=hashlib.sha256(raw).hexdigest(), approval=approval,
+                       procedure=str(data.get("procedimiento") or ""), cells=cells)
+
+
+def verify_portal_cells(portal_cells, procedure):
+    """Comprueba, sin el modelo, que cada celda nombre una oferta del procedimiento y una fila
+    de su última matriz validada. Devuelve las líneas del informe y si no hay fallas."""
+    version = latest_validated(procedure)
+    offers = {o.number for o in procedure.offers.all()}
+    rows = {r.number for r in version.requirements.all()} if version else set()
+    problems = [f"oferta {c.offer}, fila {c.row}: no está en el procedimiento o en su matriz "
+                "validada" for c in portal_cells.cells
+                if c.offer not in offers or c.row not in rows]
+    matching = sum(c.matches for c in portal_cells.cells)
+    lines = [f"Celdas del Portal: {len(portal_cells.cells)} ({matching} con el dato que "
+             f"coincide, {len(portal_cells.cells) - matching} sin coincidir); visto bueno: "
+             f"{portal_cells.approval or 'pendiente'}"]
+    lines += [f"BLOQUEA: {p}" for p in problems]
+    return lines, not problems
+
+
+def cell_counts(run):
+    """Las celdas de una evaluación y cuántas son «no determinado»; de esas, cuántas esperan un
+    documento ausente (informe técnico u hoja de compliance) y no cuentan (REQ-104)."""
+    total = undetermined = waiting = 0
+    for result in run.results.all():
+        total += 1
+        if result.outcome == am.Outcome.NO_DETERMINADO:
+            undetermined += 1
+            waiting += result.doubt in WAITING_DOCUMENT
+    return {"total": total, "undetermined": undetermined, "waiting_document": waiting}
+
+
+def portal_cell_record(result, kind, value, matches):
+    """Una celda del Portal medida (REQ-103): si la propuesta es «cumple» con la cita del Portal
+    del dato esperado, y si es «cumple» con un dato que no coincide (el esperado no coincide con
+    el pliego, o la cita del Portal trae otro valor)."""
+    cites = [c for c in _portal_cites(result) if c.portal_kind == kind]
+    with_value = any(portal_value_in(kind, c.text, value) for c in cites)
+    cumple = result.outcome == am.Outcome.CUMPLE
+    return {"tipo_portal": kind, "coincide_dato": matches, "obtenido": result.outcome,
+            "motivo": result.doubt, "regla": (result.facts or {}).get("regla", ""),
+            "cumple_con_cita_portal": cumple and with_value,
+            "cumple_con_dato_distinto": cumple and (not matches or (bool(cites) and not with_value))}
+
+
+def _words(text):
+    return " ".join(re.findall(r"\w+", (text or "").casefold()))
+
+
+def _starts_with(snippet, text, size=6):
+    """Si las primeras `size` palabras de `snippet` están en `text` (sin mayúsculas ni signos)."""
+    head = " ".join(_words(snippet).split()[:size])
+    return bool(head) and head in _words(text)
+
+
+CONCLUSION = re.compile(r"conclu|propon|propus|no\s+pudo|no\s+se\s+pudo|sin\s+corroborar",
+                        re.IGNORECASE)
+
+
+def question_form(text, *, requirement_text, requirement_number, outcome_label, doubt_label,
+                  offer_texts):
+    """La forma de una pregunta a la Comisión (REQ-105), comprobación mecánica: dirige a la
+    Comisión (no al oferente), dice el requisito (su cita del pliego o su número), la conclusión
+    (el resultado o el motivo del sistema) y el texto de la oferta (o que no hay). Los patrones
+    son constantes del módulo. Devuelve cada punto y `conforme`; `nombra_comision` se informa."""
+    requirement_ok = _starts_with(requirement_text, text) or bool(re.search(
+        rf"\brequisito\s+(?:n\w*\s*)?{requirement_number}\b", text or "", re.IGNORECASE))
+    normal = _words(text)
+    conclusion_ok = any(label and _words(label) in normal
+                        for label in (outcome_label, doubt_label)) or bool(CONCLUSION.search(text))
+    text_ok = (any(_starts_with(t, text) for t in offer_texts) if offer_texts
+               else bool(NO_OFFER_TEXT.search(text or "")))
+    # Lo que la pregunta cita del pliego o de la oferta no cuenta: «El oferente deberá…» es del
+    # requisito, no un pedido de la pregunta.
+    own = re.sub(r"«[^»]*»", " ", text or "")
+    for quoted in [requirement_text, *offer_texts]:
+        own = own.replace(quoted, " ") if quoted else own
+    directed = not ADDRESSED_TO_BIDDER.search(own)
+    return {"requisito_ok": requirement_ok, "conclusion_ok": conclusion_ok, "texto_ok": text_ok,
+            "dirigida_ok": directed, "nombra_comision": bool(COMMISSION.search(text or "")),
+            "conforme": requirement_ok and conclusion_ok and text_ok and directed}
+
+
+def question_records(run):
+    """Las preguntas de una evaluación con su forma comprobada. El texto de la pregunta, del
+    requisito y de la oferta va en `detalle` (local, no al resumen público)."""
+    records = []
+    questions = am.Question.objects.filter(result__run=run).select_related(
+        "requirement", "result", "offer").order_by("result_id", "id")
+    for question in questions:
+        result = question.result
+        first = question.requirement.quotes.order_by("order").first()
+        requirement_text = first.text if first else ""
+        offer_texts = list(result.citations.filter(kind=am.CitationKind.OFERTA)
+                           .order_by("order").values_list("text", flat=True))
+        doubt = am.Doubt(result.doubt).label if result.doubt else ""
+        form = question_form(
+            question.text, requirement_text=requirement_text,
+            requirement_number=question.requirement.number,
+            outcome_label=am.Outcome(result.outcome).label, doubt_label=doubt,
+            offer_texts=offer_texts)
+        records.append({
+            "oferta": question.offer.number, "fila": question.requirement.number,
+            "resultado_pk": result.pk, "obtenido": result.outcome, "motivo": result.doubt,
+            **form, "detalle": {"pregunta": question.text, "requisito": requirement_text,
+                                "citas_oferta": offer_texts}})
+    return records
+
+
+def thresholds_015(total, case=None, video=None):
+    """Las medidas de la 015 contra su umbral: `[(nombre, medido, cumple)]`. Los umbrales están en
+    el plan 015 y en las constantes del módulo. Solo se evalúa lo que la corrida mide."""
+    rows = []
+    cells = total["cells"]
+    if case == CASE_00 and cells["total"]:
+        rows.append(("«No determinado» sin las que esperan un documento ausente (REQ-104)",
+                     proportion_text(cells["ratio"]),
+                     cells["ratio"]["rate"] <= UNDETERMINED_MAXIMUM + 1e-9))
+    portal = total["portal_cumple"]
+    if portal["total"] or total["portal_cells"]["total"]:
+        rows.append(("Celdas del Portal que coinciden, propuestas «cumple» con la cita del Portal "
+                     "(REQ-103)", proportion_text(portal),
+                     portal["total"] == 0 or portal["rate"] >= PORTAL_CUMPLE_MINIMUM - 1e-9))
+        rows.append(("Celdas «cumple» con un dato del Portal que no coincide (REQ-103)",
+                     str(len(total["portal_wrong"])),
+                     len(total["portal_wrong"]) <= PORTAL_WRONG_MAXIMUM))
+    forms = total["questions_form"]
+    if forms["total"]:
+        rows.append(("Preguntas con la forma de REQ-105 (dirigida a la Comisión, con requisito, "
+                     "conclusión y texto)", proportion_text(forms),
+                     forms["rate"] >= QUESTIONS_FORM_MINIMUM - 1e-9))
+    memory = max_video_mib(video)
+    if memory is not None:
+        rows.append(("Memoria de video máxima registrada", f"{memory} MiB",
+                     memory <= VIDEO_MAXIMUM_MIB))
+    return rows
+
+
 def measure_pair(pair, result, requirement, offer, finder, fragments, equivalents):
     """Mide un par. Devuelve el registro con lo contado y su detalle."""
     cites = list(result.citations.filter(kind=am.CitationKind.OFERTA)
@@ -725,6 +970,10 @@ def measure_pair(pair, result, requirement, offer, finder, fragments, equivalent
         "pregunta_esperada": pair.question, "pregunta_formulada": asked,
         "cita_pliego": pliego, "fragmento": fragment_ok,
         "anomalias": [], "resultado_pk": result.pk,
+        "portal_celda": (portal_cell_record(
+            result, pair.portal["tipo"], str(pair.portal["valor"]),
+            pair.portal.get("coincide", pair.result == am.Outcome.CUMPLE))
+            if pair.portal else None),
     }
 
 
@@ -742,8 +991,9 @@ def _steps_summary(run):
             "tokens_salida": sum(s.completion_tokens or 0 for s in steps)}
 
 
-def measure_offer(entry, offer, run, mapping, finder, fragments, equivalents):
-    """Mide una oferta contra su lista; `run` es la evaluación recién hecha."""
+def measure_offer(entry, offer, run, mapping, finder, fragments, equivalents, cells=()):
+    """Mide una oferta contra su lista; `run` es la evaluación recién hecha. `cells` son las
+    celdas del Portal del archivo aparte que corresponden a esta oferta (T-238)."""
     results = {r.requirement_id: r for r in run.results.select_related("requirement")}
     records = []
     for pair in entry.pairs:
@@ -764,6 +1014,21 @@ def measure_offer(entry, offer, run, mapping, finder, fragments, equivalents):
             continue
         records.append(measure_pair(pair, result, requirement, offer, finder,
                                     fragments, equivalents))
+    # Celdas del Portal (REQ-103): las de los pares de la lista y las del archivo aparte; si una
+    # celda está en las dos, vale la del archivo.
+    portal_cells = {r["resultado_pk"]: {"fila": None, **r["portal_celda"]}
+                    for r in records if r.get("portal_celda")}
+    by_row = {r.requirement.number: r for r in results.values()}
+    for cell in cells:
+        result = by_row.get(cell.row)
+        if result is None:
+            portal_cells[("sin", cell.row)] = {
+                "fila": cell.row, "tipo_portal": cell.kind, "coincide_dato": cell.matches,
+                "obtenido": None, "motivo": "", "regla": "", "cumple_con_cita_portal": False,
+                "cumple_con_dato_distinto": False}
+            continue
+        portal_cells[result.pk] = {"fila": cell.row, **portal_cell_record(
+            result, cell.kind, cell.value, cell.matches)}
     proposed = [r for r in records if r["obtenido"] == am.Outcome.NO_CUMPLE]
     proposed_ids = [r["requisito"] for r in proposed]
     discard_ok = None
@@ -788,7 +1053,9 @@ def measure_offer(entry, offer, run, mapping, finder, fragments, equivalents):
         "technical_discard": technical_discard,
         "counts": run.counts, "timings": run.timings, "anomalies": run.anomalies,
         "steps": _steps_summary(run), "run": run.pk, "number": run.number,
-        "unread_pages": run.counts.get("unread_pages", 0),
+        "offer_number": offer.number, "unread_pages": run.counts.get("unread_pages", 0),
+        "cells": cell_counts(run), "portal_cells": list(portal_cells.values()),
+        "questions": question_records(run),
     }
 
 
@@ -850,6 +1117,36 @@ def aggregate(measures):
         "tokens_prompt": sum(m_["steps"]["tokens_pedido"] for m_ in measures),
         "tokens_output": sum(m_["steps"]["tokens_salida"] for m_ in measures),
         "unread_pages": sum(m_["unread_pages"] for m_ in measures),
+        **aggregate_015(measures),
+    }
+
+
+def aggregate_015(measures):
+    """Las cuentas de la 015 de todas las ofertas (T-238)."""
+    counts = [m_.get("cells") or {"total": 0, "undetermined": 0, "waiting_document": 0}
+              for m_ in measures]
+    total = sum(c["total"] for c in counts)
+    undetermined = sum(c["undetermined"] for c in counts)
+    waiting = sum(c["waiting_document"] for c in counts)
+    portal = [dict(c, oferta=m_.get("offer_number")) for m_ in measures
+              for c in m_.get("portal_cells", [])]
+    matching = [c for c in portal if c["coincide_dato"]]
+    forms = [dict(q, oferta=m_.get("offer_number")) for m_ in measures
+             for q in m_.get("questions", [])]
+    return {
+        "cells": {"total": total, "undetermined": undetermined, "waiting_document": waiting,
+                  "counted": undetermined - waiting,
+                  "ratio": ratio(undetermined - waiting, total)},
+        "portal_cells": {"total": len(portal), "matching": len(matching)},
+        "portal_cumple": ratio(sum(c["cumple_con_cita_portal"] for c in matching),
+                               len(matching)),
+        "portal_wrong": [(c["oferta"], c["fila"]) for c in portal
+                         if c["cumple_con_dato_distinto"]],
+        "questions_form": ratio(sum(q["conforme"] for q in forms), len(forms)),
+        "questions_form_parts": {name: sum(q[name] for q in forms) for name in (
+            "requisito_ok", "conclusion_ok", "texto_ok", "dirigida_ok", "nombra_comision")},
+        "questions_nonconforming": [(q["oferta"], q["fila"]) for q in forms
+                                    if not q["conforme"]],
     }
 
 
@@ -888,10 +1185,18 @@ class Report:
     total: dict
     request: object = None
     seconds: float = 0.0
+    video: dict | None = None            # memoria de video antes y después (P6)
+    portal_cells: object = None          # `PortalCells` del archivo aparte, si se pasó
 
     @property
     def blocking(self):
         return blocking(self.total, self.expected.case)
+
+    @property
+    def unmet_015(self):
+        """Las medidas de la 015 que no llegan a su umbral (T-238)."""
+        return [name for name, _, ok in thresholds_015(self.total, self.expected.case,
+                                                       self.video) if not ok]
 
 
 def _requirement_mapping(version, expected, fichas):
@@ -943,7 +1248,7 @@ def run_evaluation(user, procedure, *, clock=time.monotonic):
 
 
 def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=None,
-            clock=time.monotonic):
+            clock=time.monotonic, portal_cells=None):
     """Comprueba la lista, evalúa todas las ofertas con el canal `eval`, las mide y guarda la
     carpeta de la corrida en `runs_dir`. Devuelve el `Report`."""
     require_commission_role(user, CommissionRole.OPERATOR, operation=OPERATION,
@@ -962,9 +1267,11 @@ def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=
         raise MeasurementRefused("El procedimiento no tiene una matriz validada.")
     mapping = _requirement_mapping(version, expected, fichas)
     started_at = timezone.now()
+    video = {"before": video_memory()}
     started = clock()
     request, runs = run_evaluation(user, procedure, clock=clock)
     elapsed = clock() - started
+    video["after"] = video_memory()
     by_offer = {run.offer_id: run for run in runs}
     finder = PageFinder()
     results = []
@@ -974,7 +1281,10 @@ def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=
         if run is None:
             raise MeasurementRefused(f"La oferta {offer.number} no quedó evaluada.")
         fragments, equivalents = _fragments_for(expected, entry, fichas)
-        measures = measure_offer(entry, offer, run, mapping, finder, fragments, equivalents)
+        own_cells = ([c for c in portal_cells.cells if c.offer == offer.number]
+                     if portal_cells else ())
+        measures = measure_offer(entry, offer, run, mapping, finder, fragments, equivalents,
+                                 own_cells)
         results.append({"offer": offer.pk, "number": offer.number, "bidder": entry.bidder,
                         "measures": measures, "parameters": run.parameters,
                         "prompt_versions": run.prompt_versions, "models": run.models_used})
@@ -986,7 +1296,7 @@ def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=
         suffix += 1
         folder = Path(runs_dir) / f"{base}-{suffix}"
     report = Report(folder, expected, verification, results, total, request,
-                    round(elapsed, 3))
+                    round(elapsed, 3), video=video, portal_cells=portal_cells)
     _write(report, procedure, version, started_at, commit, fichas)
     return report
 
@@ -1005,6 +1315,11 @@ def _write(report, procedure, version, started_at, commit, fichas):
         "umbrales": {name: {"limite": limit, "bloquea": blocks}
                      for name, (limit, blocks) in thresholds_for(expected.case).items()},
         "comprobacion": dict(report.verification.counts),
+        "memoria_de_video": report.video,
+        "celdas_portal": ({"sha256": report.portal_cells.sha256,
+                           "visto_bueno": report.portal_cells.approval,
+                           "celdas": len(report.portal_cells.cells)}
+                          if report.portal_cells else None),
         "evaluaciones": [{"oferta": r["number"], "evaluacion": r["measures"]["run"],
                           "parametros": r["parameters"],
                           "instrucciones": r["prompt_versions"], "modelos": r["models"]}
@@ -1019,6 +1334,62 @@ def _write(report, procedure, version, started_at, commit, fichas):
     (report.folder / "resumen.md").write_text(_summary(report, public=False), encoding="utf-8")
     (report.folder / "resumen-publico.md").write_text(_summary(report, public=True),
                                                       encoding="utf-8")
+    _write_questions_sample(report)
+
+
+def _cell(text):
+    return " ".join(str(text).split()).replace("|", "\\|")
+
+
+def _write_questions_sample(report):
+    """La plantilla local `muestra-preguntas.md`, con texto del pliego y de la oferta (no va al
+    repositorio): todas las preguntas, una fila cada una, con la comprobación mecánica y una
+    columna para que quien verifica diga si cumple REQ-105 (se leen de a una)."""
+    rows = [q for r in report.offers for q in r["measures"].get("questions", [])]
+    if not rows:
+        return
+    out = ["# Preguntas a la Comisión para leer una por una", "",
+           "Texto del pliego y de la oferta: no se copia al repositorio. La forma mecánica "
+           "(requisito, conclusión, texto, dirigida a la Comisión) es una ayuda: la lectura "
+           "decide. Completar la última columna con sí o no.", "",
+           "| Oferta | Fila | Resultado | Motivo | Forma | Pregunta | Requisito | "
+           "¿Cumple REQ-105? |",
+           "|---|---|---|---|---|---|---|---|"]
+    for q in rows:
+        form = ", ".join(f"{name} {'sí' if q[key] else 'NO'}" for name, key in (
+            ("requisito", "requisito_ok"), ("conclusión", "conclusion_ok"),
+            ("texto", "texto_ok"), ("dirigida", "dirigida_ok")))
+        out.append(f"| {q['oferta']} | {q['fila']} | {q['obtenido']} | {q['motivo'] or '—'} | "
+                   f"{form} | {_cell(q['detalle']['pregunta'])} | "
+                   f"{_cell(q['detalle']['requisito'])[:300]} | |")
+    (report.folder / QUESTIONS_SAMPLE_FILE).write_text("\n".join(out) + "\n", encoding="utf-8")
+
+
+def _summary_015(report):
+    """Las medidas de la 015 contra su umbral, solo con cifras."""
+    total = report.total
+    lines = ["", "## Medidas de la 015 (REQ-103 a REQ-105)", "", "| Medida | Medido | Cumple |",
+             "|---|---|---|"]
+    for name, measured, ok in thresholds_015(total, report.expected.case, report.video):
+        lines.append(f"| {name} | {measured} | {'sí' if ok else 'no'} |")
+    cells = total["cells"]
+    portal = total["portal_cells"]
+    forms = total["questions_form_parts"]
+    memory = max_video_mib(report.video)
+    lines += ["",
+              f"- Celdas de la evaluación: {cells['total']}; «no determinado»: "
+              f"{cells['undetermined']}, de ellas esperan el informe técnico o una hoja de "
+              f"compliance: {cells['waiting_document']}; las que cuentan: {cells['counted']}.",
+              f"- Celdas del Portal medidas: {portal['total']} ({portal['matching']} con el "
+              "dato que coincide con lo que exige el pliego).",
+              f"- Preguntas: {total['questions_form']['total']}; con el requisito "
+              f"{forms['requisito_ok']}, con la conclusión {forms['conclusion_ok']}, con el "
+              f"texto {forms['texto_ok']}, no dirigidas al oferente {forms['dirigida_ok']}, "
+              f"que nombran a la Comisión {forms['nombra_comision']}.",
+              f"- Tiempo de la evaluación completa: {report.seconds} s; memoria de video máxima "
+              "registrada: " + (f"{memory} MiB (umbral {VIDEO_MAXIMUM_MIB} MiB)"
+                                if memory is not None else "no registrada") + "."]
+    return lines
 
 
 def _summary(report, *, public):
@@ -1058,7 +1429,8 @@ def _summary(report, *, public):
               f"- Hechos o datos del Portal opuestos a la lista: "
               f"{len(total['fact_contradictions'])}.",
               "- Orden económico: lo muestra la matriz de la evaluación (T-152); no se mide acá.",
-              f"- Páginas sin leer en las ofertas: {total['unread_pages']}.", "",
+              f"- Páginas sin leer en las ofertas: {total['unread_pages']}.",
+              *_summary_015(report), "",
               "## Tiempo y tokens", "",
               f"- Evaluación completa: {report.seconds} s; {total['model_requests']} pedidos "
               f"al modelo; {total['tokens_prompt']} tokens de pedido y {total['tokens_output']} "
