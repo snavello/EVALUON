@@ -40,3 +40,8 @@
 .s3-of ol.historial li.retiro::before { background: var(--ev-rojo); }
 .s3-of ol.historial .cuando { color: var(--ev-texto-suave); font-size: var(--ev-t-xs); }
 .s3-of tr.retirado th, .s3-of tr.retirado td { color: var(--ev-texto-suave); }
+
+/* Tabla de ofertas: montos sin cortar y subidas plegadas en sus celdas. */
+.s3-of td.n { white-space: nowrap; }
+#t-ofertas details.acc[open] form { min-width: 16rem; }
+.s3-of .s3-anx form.subida.en-linea { flex-direction: column; align-items: flex-start; }

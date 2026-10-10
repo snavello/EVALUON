@@ -2,7 +2,7 @@
 {% if not part %}<div class="oferta-anexos" id="s3-anexos-oferta-{{ b.offer.number }}">{% endif %}
 {% if not part or part == "anexos" %}
   <div class="parte" id="s3-anexos-anexos-{{ b.offer.number }}">
-    {% if not part %}<h5>Anexos técnicos de la oferta <span class="cta">{{ b.annexes|length }}</span></h5>{% endif %}
+    {% if not part %}<h5>Anexos técnicos <span class="cta">{{ b.annexes|length }}</span></h5>{% endif %}
     {% if b.annexes %}
     {% if part %}
     <ul class="docs-anexos">{% for d in b.annexes %}<li><a href="{% url 'offers:document_original' d.document.pk %}" target="_blank" rel="noopener">{{ d.title }}</a> · {% if d.pages %}{{ d.pages }} pág{{ d.pages|pluralize:"s" }} · {% endif %}<span class="origen"><b>{{ d.origin }}</b> · {{ d.day }}</span> · <b>{{ d.state }}</b></li>{% endfor %}</ul>
@@ -20,10 +20,12 @@
     <p class="suave chica">{% if part %}Sin anexos técnicos.{% else %}Todavía no hay anexos técnicos de esta oferta. Son las fichas y folletos técnicos que presenta el oferente.{% endif %}</p>
     {% endif %}
     {% if b.can_upload_annex %}
+    {% if part %}<details class="acc"><summary class="btn secundario chico">Subir anexo técnico</summary>{% endif %}
     <form class="subida en-linea" method="post" enctype="multipart/form-data" action="{% url 'expedientes:s3_anexos_anexo' pid b.offer.pk %}">{% csrf_token %}
       <input type="file" name="file" aria-label="Anexo técnico de la oferta {{ b.offer.number }}" required>
-      <button class="btn secundario chico" type="submit">Subir anexo técnico</button>
+      <button class="btn secundario chico" type="submit">{% if part %}Subir{% else %}Subir anexo técnico{% endif %}</button>
     </form>
+    {% if part %}</details>{% endif %}
     {% endif %}
   </div>
 {% endif %}
@@ -36,10 +38,12 @@
     <p>{% include "journey/_icono.html" with icon="nocumple" name="Falta la hoja de compliance" %} <b>Falta</b>{% if not part %} <span class="suave">Mientras falte, los requisitos externos de esta oferta quedan «no determinado».</span>{% endif %}</p>
     {% endif %}
     {% if b.can_upload_sheet %}
+    {% if part %}<details class="acc"><summary class="btn {% if b.has_sheet %}secundario{% else %}primario{% endif %} chico">Subir hoja de compliance</summary>{% endif %}
     <form class="subida en-linea" method="post" enctype="multipart/form-data" action="{% url 'expedientes:s3_anexos_hoja' pid b.offer.pk %}">{% csrf_token %}
       <input type="file" name="file" aria-label="Hoja de compliance de la oferta {{ b.offer.number }}" required>
-      <button class="btn {% if b.has_sheet %}secundario{% else %}primario{% endif %} chico" type="submit">Subir hoja de compliance</button>
+      <button class="btn {% if b.has_sheet %}secundario{% else %}primario{% endif %} chico" type="submit">{% if part %}Subir{% else %}Subir hoja de compliance{% endif %}</button>
     </form>
+    {% if part %}</details>{% endif %}
     {% else %}
     <p class="ayuda">La sube un evaluador.</p>
     {% endif %}
