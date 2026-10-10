@@ -426,11 +426,11 @@ def test_unvalidated_norms_and_waiting_uploads_are_pending_and_amendments_are_mi
     texts = " ".join(item.text for item in section.pending_items)
     assert "espera la validación" in texts and "esperando.htm" in texts
     missing = [m for m in section.tema_missing if "Modificatoria sin cargar" in m.text]
-    assert len(missing) == 1 and "decreto 77/2020" in missing[0].text
+    assert len(missing) == 1 and "Decreto 77/2020" in missing[0].text
     assert missing[0].action == "Subir norma" and missing[0].url.endswith("#s5-subir")
     assert any("sin validar" in detail for _, detail in section.summary)
     html = page(client, procedure)
-    assert "Modificatorias sin cargar: decreto 77/2020" in html
+    assert "Modificatorias sin cargar: Decreto 77/2020" in html
 
 
 def test_validating_removes_the_pending_item(client, procedure, evaluator):

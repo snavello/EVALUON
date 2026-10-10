@@ -84,7 +84,7 @@
     <tbody>
     {% for row in t.rows %}
       <tr>
-        <th scope="row">{{ row.citation }}<small class="suave"> · {{ row.category }}{% if row.general %} · régimen general{% endif %}</small>
+        <th scope="row">{{ row.citation }}<small class="suave"> · {{ row.category }}</small>
           {% if row.amendments %}<p class="registro">Modificatorias sin cargar: {{ row.amendments|join:"; " }}.</p>{% endif %}</th>
         <td>{{ row.part }} · {{ row.version }}{% if row.in_use %} · en uso{% endif %}</td>
         <td class="e">{% include "journey/_icono.html" with icon=row.icon name=row.state %} {{ row.state }}</td>

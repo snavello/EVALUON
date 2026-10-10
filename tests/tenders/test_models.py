@@ -402,7 +402,8 @@ def test_valid_values_accepted(procedure, segments, draft, read_write_user):
         resolved_at=timezone.now(),
     )
     check_deferred()
-    assert len(m.ConsequenceType.values) == 7
+    # Los siete del plan 003 y «El pliego no indica consecuencia» (T-232).
+    assert len(m.ConsequenceType.values) == 8
 
 
 @pytest.mark.django_db

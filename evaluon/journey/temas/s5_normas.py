@@ -45,6 +45,7 @@ from evaluon.accounts.models import CommissionRole, Role
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
 from evaluon.journey.sections.base import Item, Missing, TemaStatus
+from evaluon.journey.temas import s5_rigen
 from evaluon.norms.models import (
     Category,
     Document,
@@ -215,13 +216,17 @@ def status(user, procedure):
     items += [Item(f"Norma subida «{one.file_name}»: faltan confirmar sus datos",
                    f"{url}#s5-subida-{one.pk}", 1, "Revisar", kind="subida",
                    noun="normas subidas con datos por confirmar", group_url=f"{url}#s5-subir") for one in waiting]
+    if procedure is None:  # la biblioteca es común: sin procedimiento no hay régimen que descartar
+        needed = (PendingAmendment.objects.filter(loaded_norm__isnull=True)
+                  .select_related("target_norm").order_by("pk"))
+    else:  # solo faltan las que hacen falta para este procedimiento (N-1 de la revisión C)
+        needed = s5_rigen.amendments_split(procedure)[0]
     missing = tuple(
-        Missing(f"Modificatoria sin cargar: {entry.norm_type} {entry.number}/{entry.year} "
-                f"({entry.issuer}), de {entry.target_norm.citation or entry.target_norm.title}",
+        Missing(f"Modificatoria sin cargar: {s5_rigen.amendment_name(entry)}, de "
+                f"{entry.target_norm.citation or entry.target_norm.title}",
                 f"{url}#s5-subir", "Subir norma", kind="modificatoria",
                 noun="modificatorias sin cargar")
-        for entry in PendingAmendment.objects.filter(loaded_norm__isnull=True)
-        .select_related("target_norm").order_by("pk"))
+        for entry in needed)
     return TemaStatus(pending=len(items), pending_items=tuple(items), missing=missing)
 
 
@@ -311,7 +316,9 @@ def _norm_rows(user):
                 where = f"Archivo cargado el {local_date(loaded[document.id])}"
             rows.append({
                 "citation": item.citation or item.title,
-                "category": Category(item.category).label,
+                # Una norma de régimen general no es «específica»: se rotula una sola vez.
+                "category": ("Régimen general de contrataciones" if item.general_regime
+                             else Category(item.category).label),
                 "part": document.part,
                 "version": (f"versión {document.version_number}" if document.version_number
                             else "sin versión"),
@@ -319,7 +326,7 @@ def _norm_rows(user):
                 "file_name": document.file_name, "origin": where,
                 "reading_id": document.reading_id,
                 "general": item.general_regime,
-                "amendments": [f"{a.norm_type} {a.number}/{a.year} ({a.issuer})"
+                "amendments": [s5_rigen.amendment_name(a)
                                for a in item.pending_amendments] if position == 0 else [],
             })
     return rows, items

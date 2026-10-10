@@ -63,6 +63,19 @@ KINDS = (("ley", "Ley", "ley"), ("decreto", "Decreto", "decreto"),
          ("res.", "Resolución", "resolucion"))
 TYPE_NAMES = {"ley": "Ley", "decreto": "Decreto", "disposicion": "Disposición",
               "resolucion": "Resolución", "decision": "Decisión"}
+# Los organismos se guardan en minúscula y sin tildes (la carga los normaliza); acá se escriben
+# como se leen. Lo que no está en la lista se muestra con mayúsculas iniciales.
+ISSUER_NAMES = {
+    "administracion federal de ingresos publicos": "Administración Federal de Ingresos Públicos",
+    "agencia de recaudacion y control aduanero": "Agencia de Recaudación y Control Aduanero",
+    "poder ejecutivo nacional": "Poder Ejecutivo Nacional",
+    "jefatura de gabinete de ministros": "Jefatura de Gabinete de Ministros",
+    "ministerio de economia": "Ministerio de Economía",
+    "congreso de la nacion": "Congreso de la Nación",
+    "oficina nacional de contrataciones": "Oficina Nacional de Contrataciones",
+    "secretaria de hacienda": "Secretaría de Hacienda",
+}
+SMALL_WORDS = {"de", "del", "la", "las", "los", "el", "y", "e"}
 
 
 @dataclass(frozen=True)
@@ -135,6 +148,27 @@ class _Index:
 
 def _type_name(norm_type):
     return TYPE_NAMES.get(norm_type.lower(), norm_type.capitalize())
+
+
+def issuer_name(issuer):
+    """El organismo como se lee: con tildes y mayúsculas si es uno conocido; una sigla, en
+    mayúsculas; el resto, con mayúscula inicial en cada palabra. Si ya trae mayúsculas, se deja."""
+    text = " ".join(issuer.split())
+    if not text or any(c.isupper() for c in text):
+        return text
+    if text in ISSUER_NAMES:
+        return ISSUER_NAMES[text]
+    if " " not in text and len(text) <= 6:
+        return text.upper()
+    return " ".join(w if i and w in SMALL_WORDS else w.capitalize()
+                    for i, w in enumerate(text.split()))
+
+
+def amendment_name(entry):
+    """«Disposición 393/2005 (Administración Federal de Ingresos Públicos)» de una modificatoria
+    (la carga la guarda en minúscula y sin tildes): la misma escritura en toda la pestaña."""
+    return (f"{_type_name(entry.norm_type)} {entry.number}/{entry.year} "
+            f"({issuer_name(entry.issuer)})")
 
 
 def _norm_info(norm):
@@ -250,11 +284,50 @@ def _amendment_rows(procedure, governs):
     """Las modificatorias registradas y sin cargar, solo de las normas que rigen."""
     entries = (PendingAmendment.objects.filter(loaded_norm__isnull=True, target_norm__in=governs)
                .select_related("target_norm").order_by("pk"))
-    return [Row(name=f"{_type_name(e.norm_type)} {e.number}/{e.year} ({e.issuer.upper()})",
+    return [Row(name=amendment_name(e),
                 why=f"Modifica a {e.target_norm.citation}", state=MISSING,
                 source=f"Registrada {_day(e.registered_at)}", upload_url=upload_url(procedure),
                 amendment=True)
             for e in entries]
+
+
+def regime_not_applying(procedure):
+    """Las normas del régimen general que no aplica a la fecha de autorización: la otra de la
+    247/2022 y la 297/03, la que la tabla marca «No aplica» (misma regla que `_regime_rows`)."""
+    applicable = [r["norm"] for r in applicable_regimes(procedure.authorization_date)]
+    if applicable:
+        applies = {(n.number, n.year) for n in Norm.objects.filter(pk__in=applicable)}
+    else:
+        number, year, _ = _expected_regime(procedure.authorization_date)
+        applies = {(number, year)}
+    other = next((r for r in (NEW_REGIME, OLD_REGIME) if (r[0], r[1]) not in applies), None)
+    if other is None:
+        return []
+    return list(Norm.objects.filter(number=other[0], year=other[1]).exclude(pk__in=applicable))
+
+
+def amendments_split(procedure):
+    """Las modificatorias registradas y sin cargar, en dos listas: `(faltan, no hacen falta)`.
+    No hacen falta las de la norma del régimen que no aplica al procedimiento (N-1 de la revisión
+    C); toda otra sigue faltando: no se oculta lo que no se sabe que sobra."""
+    def compute():
+        skip = {n.pk for n in regime_not_applying(procedure)}
+        pending = (PendingAmendment.objects.filter(loaded_norm__isnull=True)
+                   .select_related("target_norm").order_by("pk"))
+        needed, not_needed = [], []
+        for entry in pending:
+            (not_needed if entry.target_norm_id in skip else needed).append(entry)
+        return needed, not_needed
+    return memo.once((KEY, "split", procedure.pk), compute)
+
+
+def not_needed_by_norm(entries):
+    """`[{"norm": cita de la norma alcanzada, "count": cuántas}]`, en el orden de aparición."""
+    counts = {}
+    for entry in entries:
+        name = entry.target_norm.citation or entry.target_norm.title
+        counts[name] = counts.get(name, 0) + 1
+    return [{"norm": name, "count": count} for name, count in counts.items()]
 
 
 @dataclass(frozen=True)
@@ -340,6 +413,7 @@ def context(user, procedure, request):
     listed = rows(procedure)
     return {
         "pid": procedure.pk,
+        "not_needed": not_needed_by_norm(amendments_split(procedure)[1]),
         "date": f"{procedure.authorization_date:%d/%m/%Y}",
         "rows": [{"row": r, "icon": STATES.get(r.state, ("", ""))[0],
                   "state_name": STATES.get(r.state, ("", ""))[1]} for r in listed],
