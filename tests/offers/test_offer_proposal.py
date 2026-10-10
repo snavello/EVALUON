@@ -160,13 +160,15 @@ def test_a_cuit_without_hyphens_and_a_name_on_the_next_line(
     assert fields_of(draft)["bidder"]["proposed"] == NAME_A
 
 
-def test_the_name_comes_from_the_text_before_the_cuit(
+def test_a_name_before_the_cuit_without_a_label_is_not_proposed(
         operator_user, procedure, fake_generation):  # noqa: F811
-    """REQ-083: sin rótulo, el nombre es el texto que precede al CUIT cuando termina en un
-    tipo societario."""
+    """REQ-083 / P3: sin rótulo explícito del oferente, un nombre con tipo societario pegado
+    al CUIT no alcanza: queda «no determinado» y el CUIT sí se propone."""
+    fake_generation.respond(json.dumps({"bidder": {"valor": "", "cita": ""}}))
     files = [("o.pdf", pdf([f"Constancia de inscripción - {NAME_B} - CUIT {CUIT_B}"]))]
     draft = upload_and_read(operator_user, procedure, files)
-    assert fields_of(draft)["bidder"]["proposed"] == NAME_B
+    assert fields_of(draft)["bidder"]["state"] == "no_determinado"
+    assert fields_of(draft)["bidder"]["citation"] is None
     assert fields_of(draft)["cuit"]["proposed"] == CUIT_B
 
 
@@ -257,37 +259,84 @@ def test_a_third_party_with_a_company_suffix_does_not_win_the_name(
     assert "Banco" not in " ".join(fields_of(draft)["bidder"]["candidates"])
 
 
-def test_a_name_far_from_the_bidder_cuit_is_not_proposed(
+def test_a_labeled_name_far_from_the_bidder_cuit_is_not_proposed(
         operator_user, procedure, fake_generation):  # noqa: F811
-    """REQ-083 / P3: una línea con «S.A.» lejos del CUIT del oferente no se propone como su
-    nombre; queda «no determinado» antes que un valor equivocado."""
+    """REQ-083 / P3: un nombre rotulado lejos del CUIT del oferente no se propone."""
     filler = [f"Texto de relleno {n}" for n in range(8)]
-    files = [("o.pdf", pdf(["Estudio Contable Lejano S.A.", *filler, f"CUIT: {CUIT_A}"]))]
+    files = [("o.pdf", pdf([f"Razón social: {NAME_B}", *filler, f"CUIT: {CUIT_A}"]))]
     fake_generation.respond(json.dumps({"bidder": {"valor": "", "cita": ""}}))
     draft = upload_and_read(operator_user, procedure, files)
     assert fields_of(draft)["cuit"]["proposed"] == CUIT_A
     assert fields_of(draft)["bidder"]["state"] == "no_determinado"
 
 
-def test_a_human_person_is_recognised_next_to_the_cuit(
+def test_an_explicit_label_wins_for_a_company_and_for_a_person(
         operator_user, procedure, fake_generation):  # noqa: F811
-    """REQ-083: una persona humana (CUIT 27-/20-) se reconoce sin tipo societario: con
-    rótulo «Apellido y nombre», antes del DNI o en la línea vecina del CUIT; y la póliza de
-    una aseguradora con «S.A.» en la misma oferta no cambia el resultado."""
+    """REQ-083: con rótulo explícito («Razón social», «Denominación», «Oferente», «Apellido y
+    nombre», «Nombre y apellido»), en la misma línea o la siguiente, el nombre se propone con
+    su cita, también con la póliza de una aseguradora con «S.A.» en la misma oferta."""
     cases = [
-        [f"Apellido y nombre: {PERSON}", f"CUIT: {CUIT_PERSON}"],
-        [f"{PERSON}, DNI 21.345.679, CUIT {CUIT_PERSON}"],
-        ["CONSTANCIA DE INSCRIPCION", PERSON, f"CUIT: {CUIT_PERSON}",
-         "Impuesto al valor agregado: Monotributo"],
+        ([f"Razón social: {NAME_A}", f"CUIT: {CUIT_A}"], NAME_A, CUIT_A),
+        ([f"Denominación: {NAME_A}", f"CUIT: {CUIT_A}"], NAME_A, CUIT_A),
+        ([f"Oferente: {NAME_A}", f"CUIT: {CUIT_A}"], NAME_A, CUIT_A),
+        ([f"Apellido y nombre: {PERSON}", f"CUIT: {CUIT_PERSON}"], PERSON, CUIT_PERSON),
+        ([f"Nombre y apellido: {PERSON}", f"CUIT: {CUIT_PERSON}"], PERSON, CUIT_PERSON),
+        (["Apellido y nombre:", PERSON, f"CUIT: {CUIT_PERSON}"], PERSON, CUIT_PERSON),
+    ]
+    for lines, name, cuit in cases:
+        draft = upload_and_read(operator_user, procedure,
+                                [("o.pdf", pdf(lines)), policy_pages()])
+        assert fields_of(draft)["cuit"]["proposed"] == cuit, lines
+        assert fields_of(draft)["bidder"]["proposed"] == name, lines
+        assert fields_of(draft)["bidder"]["method"] == "regla"
+        assert name in fields_of(draft)["bidder"]["citation"]["text"]
+        om.OfferDraft.objects.filter(pk=draft.pk).update(state=ProposalState.RECHAZADO)
+
+
+def test_a_signatory_next_to_the_cuit_does_not_win_the_name(
+        operator_user, procedure, fake_generation):  # noqa: F811
+    """REQ-083 / P3: el nombre de un firmante, apoderado o representante junto al CUIT del
+    oferente no se propone, ni con rótulo («Nombre y apellido» del bloque de firma)."""
+    fake_generation.respond(json.dumps({"bidder": {"valor": "", "cita": ""}}))
+    cases = [
+        ["Firmante", f"Nombre y apellido: {PERSON}", f"CUIT: {CUIT_PERSON}"],
+        [f"Apoderado: {PERSON}", f"Apellido y nombre: {PERSON}", f"CUIT: {CUIT_PERSON}"],
+        [f"Representante legal - Apellido y nombre: {PERSON}", f"CUIT: {CUIT_PERSON}"],
+        [f"Se presenta {PERSON} en nombre de la empresa", f"CUIT: {CUIT_PERSON}"],
+        [PERSON, f"CUIT: {CUIT_PERSON}"],
     ]
     for lines in cases:
-        files = [("o.pdf", pdf(lines)), policy_pages()]
-        draft = upload_and_read(operator_user, procedure, files)
+        draft = upload_and_read(operator_user, procedure, [("o.pdf", pdf(lines))])
         assert fields_of(draft)["cuit"]["proposed"] == CUIT_PERSON, lines
-        assert fields_of(draft)["bidder"]["proposed"] == PERSON, lines
-        assert fields_of(draft)["bidder"]["method"] == "regla"
-        assert PERSON in fields_of(draft)["bidder"]["citation"]["text"]
+        assert fields_of(draft)["bidder"]["state"] == "no_determinado", lines
         om.OfferDraft.objects.filter(pk=draft.pk).update(state=ProposalState.RECHAZADO)
+
+
+def test_a_labeled_third_party_name_is_not_the_bidder(
+        operator_user, procedure, fake_generation):  # noqa: F811
+    """REQ-083 / P3: filtro de terceros en el nombre: «Razón social» de una aseguradora o un
+    banco junto al CUIT no se propone."""
+    fake_generation.respond(json.dumps({"bidder": {"valor": "", "cita": ""}}))
+    for third in ("Seguros Ficticios del Plata S.A.", "Banco Ficticio Central S.A.",
+                  "Ficticia del Plata S.A. Compañía Aseguradora"):
+        files = [("o.pdf", pdf([f"Razón social: {third}", f"CUIT: {CUIT_A}"]))]
+        draft = upload_and_read(operator_user, procedure, files)
+        assert fields_of(draft)["bidder"]["state"] == "no_determinado", third
+        assert not fields_of(draft)["bidder"]["candidates"]
+        om.OfferDraft.objects.filter(pk=draft.pk).update(state=ProposalState.RECHAZADO)
+
+
+def test_the_cuit_of_an_insurer_with_more_mentions_does_not_win(
+        operator_user, procedure, fake_generation):  # noqa: F811
+    """REQ-083 / P3: filtro de terceros en el CUIT: el de la aseguradora, con más menciones
+    que el del oferente, no se propone ni queda como candidato."""
+    files = [("o.pdf", pdf([f"Razón social: {NAME_A}", f"CUIT: {CUIT_A}"])),
+             ("poliza.pdf", pdf([f"Compañía aseguradora CUIT {CUIT_INSURER}",
+                                 f"Compañía aseguradora CUIT {CUIT_INSURER}",
+                                 f"Compañía aseguradora CUIT {CUIT_INSURER}"]))]
+    draft = upload_and_read(operator_user, procedure, files)
+    assert fields_of(draft)["cuit"]["proposed"] == CUIT_A
+    assert fields_of(draft)["cuit"]["candidates"] == [CUIT_A]
 
 
 def test_a_title_line_is_not_taken_as_a_person(
@@ -314,14 +363,36 @@ def test_two_different_names_next_to_the_cuit_with_the_same_support_give_no_name
     assert set(name["candidates"]) == {NAME_A, NAME_B}
 
 
+FILLER = [f"Texto de relleno {n}" for n in range(8)]
+
+
 def test_the_model_cannot_name_a_third_party(operator_user, procedure, fake_generation):  # noqa: F811
-    """REQ-083 / P3: aunque la cita sea literal, el modelo no puede proponer como oferente a
-    una aseguradora."""
-    line = "Emite la póliza Seguros Ficticios del Plata S.A. para esta oferta."
+    """REQ-083 / P3: aunque la cita sea literal y traiga rótulo, si habla de una aseguradora el
+    modelo no puede proponerla como oferente (filtro sobre la cita, no solo sobre el valor)."""
+    line = "Razón social: Ficticia del Plata S.A. aseguradora de la póliza"
     fake_generation.respond(json.dumps(
-        {"bidder": {"valor": "Seguros Ficticios del Plata S.A.", "cita": line}}))
+        {"bidder": {"valor": "Ficticia del Plata S.A.", "cita": line}}))
     draft = upload_and_read(operator_user, procedure,
-                            [("o.pdf", pdf([line, f"Número de CUIT: {CUIT_A}"]))])
+                            [("o.pdf", pdf([line, *FILLER, f"Número de CUIT: {CUIT_A}"]))])
+    assert fields_of(draft)["bidder"]["state"] == "no_determinado"
+
+
+def test_the_model_cannot_name_a_signatory(operator_user, procedure, fake_generation):  # noqa: F811
+    """REQ-083 / P3: la cita del modelo con un firmante o representante no vale."""
+    line = f"Representante legal - Apellido y nombre: {PERSON}"
+    fake_generation.respond(json.dumps({"bidder": {"valor": PERSON, "cita": line}}))
+    draft = upload_and_read(operator_user, procedure,
+                            [("o.pdf", pdf([line, *FILLER, f"Número de CUIT: {CUIT_A}"]))])
+    assert fields_of(draft)["bidder"]["state"] == "no_determinado"
+
+
+def test_the_model_needs_an_explicit_label_in_its_quote(
+        operator_user, procedure, fake_generation):  # noqa: F811
+    """REQ-083 / P3: una cita literal sin rótulo explícito del oferente no vale."""
+    line = f"Presenta esta oferta la firma {NAME_A} para el procedimiento."
+    fake_generation.respond(json.dumps({"bidder": {"valor": NAME_A, "cita": line}}))
+    draft = upload_and_read(operator_user, procedure,
+                            [("o.pdf", pdf([line, *FILLER, f"Número de CUIT: {CUIT_A}"]))])
     assert fields_of(draft)["bidder"]["state"] == "no_determinado"
 
 
@@ -332,9 +403,9 @@ def test_the_model_fills_the_name_only_with_a_verified_quote(
         operator_user, procedure, fake_generation):  # noqa: F811
     """REQ-083: si las reglas no hallan el nombre, el modelo lo propone con cita literal; el
     CUIT sigue siendo por regla; la traza queda en la auditoría."""
-    line = f"Presenta esta oferta la firma {NAME_A} para el procedimiento."
+    line = f"Razón social: {NAME_A}"
     fake_generation.respond(json.dumps({"bidder": {"valor": NAME_A, "cita": line}}))
-    files = [("o.pdf", pdf([line, f"Número de CUIT: {CUIT_A}"]))]
+    files = [("o.pdf", pdf([line, *FILLER, f"Número de CUIT: {CUIT_A}"]))]
     draft = upload_and_read(operator_user, procedure, files)
     name = fields_of(draft)["bidder"]
     assert name["proposed"] == NAME_A and name["method"] == "modelo"
