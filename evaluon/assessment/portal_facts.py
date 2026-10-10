@@ -1,9 +1,12 @@
-"""El Portal como fuente (REQ-062; plan 004, "El Portal como fuente"; ADR-0043; T-169).
+"""El Portal como fuente (REQ-062, REQ-103; plan 004, "El Portal como fuente"; ADR-0043,
+ADR-0053; T-169, T-233).
 
-Decisión literal del responsable: «Debiste informar que el doc esta en el portal o que falta
-coincidencia». Cuando el dato o el documento que pide un requisito está en el Portal, el sistema
-lo informa y lo cita como fuente; si el Portal y la oferta no coinciden, lo informa como falta de
-coincidencia. Todo sale de las tablas locales de la 012 (sin red, P4).
+Decisión literal del responsable (2026-10-10, «Propone cumple»): cuando el dato que pide un
+requisito está en el Portal, el sistema lo compara con lo que exige el pliego; si coincide propone
+"cumple" citando el dato del Portal, y si no coincide propone "no cumple" o la diferencia. La
+Comisión decide igual (P3, constitución 1.3: el Portal es fundamento). Reemplaza en eso al
+ADR-0043 (que citaba el Portal y no decidía). Todo sale de las tablas locales de la 012 (sin red,
+P4).
 
 Qué requisito pide un dato del Portal lo dice un catálogo corto sobre el texto vigente del
 pliego (como el de `externals.py`, con la misma versión `ASSESSMENT_RULES_VERSION`):
@@ -13,18 +16,28 @@ pliego (como el de `externals.py`, con la misma versión `ASSESSMENT_RULES_VERSI
 - `cotizacion`: la cotización de un renglón (`portal_quote`: precio y cantidad);
 - `total`: el total de la oferta (`portal_offer_data.total`).
 
-La regla (cuarta del orden, después de externo, técnico e ilegible):
+Qué exige el pliego, por clase de dato (`compare`): la garantía, el porcentaje (o el monto) que
+fija el requisito sobre el total cotizado del Portal, con la tolerancia de un centavo; la
+cotización por renglón, que todos los renglones del procedimiento (o los de la fila) tengan precio;
+el total, que esté cargado y, si el requisito fija la moneda, que coincida; el CUIT, los once
+dígitos. La regla (cuarta del orden, después de externo, técnico e ilegible):
 
-- el dato está en el Portal y **no** en la oferta (sin cita de la oferta ni `datos`):
-  "no determinado", `en_portal`, con la cita `portal`;
-- está en los dos: la cita del Portal se agrega y el resultado no cambia;
+- el dato coincide con lo que exige el pliego: "cumple" con la cita del Portal y la explicación
+  «Fuente: Portal», sin pasar por el contraste del modelo (`portal_cumple`);
+- no coincide: "no cumple" con la diferencia y la cita del Portal (`portal_no_cumple`);
+- el pliego no fija un valor que se pueda leer (no es comparable): "no determinado",
+  `falta_coincidencia`, con la diferencia a la vista (`portal_falta_coincidencia`); si la oferta ya
+  concluyó con su propio texto, la conclusión queda y se agrega la cita (`portal_cita_agregada`);
 - el modelo devolvió `datos` (texto **literal** de la oferta con el monto o el CUIT, ubicado como
   cualquier cita) y su valor, leído por regla y sin el modelo, difiere del Portal: "no
   determinado", `falta_coincidencia`, con la cita de la oferta y la del Portal;
+- el texto de la oferta y el Portal se contradicen (el Portal coincide y la oferta dice "no
+  cumple", o el Portal difiere y la oferta dice "cumple"): "no determinado",
+  `falta_coincidencia`: la Comisión verifica cuál rige;
 - un `datos` que no se ubicó, o del que no se lee un valor, no se compara: no se afirma nada.
 
 El texto de la cita lo escribe el sistema desde las columnas del Portal, tal cual están en la
-fila (nunca el modelo). Una cita del Portal no habilita "cumple" ni "no cumple" (P3).
+fila (nunca el modelo). Un "cumple" por esta regla nunca sale sin la cita del Portal (P3).
 """
 
 import re
@@ -35,14 +48,15 @@ from django.conf import settings
 
 from evaluon.assessment import combine
 from evaluon.assessment.externals import fold
-from evaluon.portal.models import PortalOfferData, PortalQuote
+from evaluon.portal.models import PortalLine, PortalOfferData, PortalQuote
 
-EN_PORTAL = "en_portal"
 FALTA_COINCIDENCIA = "falta_coincidencia"
 
-RULE_ONLY_PORTAL = "portal_en_portal"
-RULE_BOTH = "portal_cita_agregada"
+# T-233 (ADR-0053): `portal_en_portal` (ADR-0043) ya no se emite; el dato del Portal se compara.
+RULE_CUMPLE = "portal_cumple"
+RULE_NO_CUMPLE = "portal_no_cumple"
 RULE_MISMATCH = "portal_falta_coincidencia"
+RULE_BOTH = "portal_cita_agregada"
 
 GARANTIA = "garantia"
 COTIZACION = "cotizacion"
@@ -293,6 +307,210 @@ def _merge_offer(combined, located):
     return merged[:settings.ASSESSMENT_MAX_CITATIONS]
 
 
+# --- Lo que exige el pliego, por clase de dato (ADR-0053; T-233) -------------------------------
+
+COINCIDE = "coincide"
+DIFIERE = "difiere"
+NO_COMPARABLE = "no_comparable"
+
+# Porcentaje que fija el requisito: «5 %», «5%», «cinco por ciento», «cinco (5) por ciento».
+_PERCENT = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:\(\s*\d+\s*\)\s*)?(?:%|por\s*ciento)")
+_WORD_PERCENT = re.compile(r"\b([a-z]+)\s*(?:\(\s*\d+\s*\)\s*)?por\s*ciento")
+_NUMBER_WORDS = {
+    "uno": 1, "un": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7,
+    "ocho": 8, "nueve": 9, "diez": 10, "quince": 15, "veinte": 20, "treinta": 30,
+    "cincuenta": 50, "cien": 100,
+}
+
+
+# T-175: la garantía individualizada en el Portal («Paso 4 Ingreso de Garantía»).
+_INDIVIDUALIZED = re.compile(
+    r"ingreso de (?:la )?garantia|garantias? (?:\w+ ){0,3}individualizad"
+    r"|individualiz\w* (?:\w+ ){0,3}garantia")
+
+
+@dataclass(frozen=True)
+class Comparison:
+    """Qué exige el pliego, qué informa el Portal y cómo quedan frente a frente."""
+
+    state: str
+    detail: str
+    expected: str = ""
+    observed: str = ""
+    difference: str = ""
+
+    def facts(self):
+        return {"estado": self.state, "exigido": self.expected, "portal": self.observed,
+                "diferencia": self.difference}
+
+
+def required_percent(text):
+    """El porcentaje que fija el texto del requisito, o `None` si no hay uno o hay varios
+    distintos."""
+    folded = fold(text)
+    found = set()
+    for match in _PERCENT.finditer(folded):
+        found.add(Decimal(match.group(1).replace(",", ".")))
+    for match in _WORD_PERCENT.finditer(folded):
+        value = _NUMBER_WORDS.get(match.group(1))
+        if value is not None:
+            found.add(Decimal(value))
+    return found.pop() if len(found) == 1 else None
+
+
+def _plain(value):
+    """Un número para leer: sin ceros de más ni notación científica."""
+    text = f"{Decimal(value):f}"
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
+def _money(value):
+    return f"{Decimal(value):.2f}"
+
+
+def _guarantee_comparison(data, portal, text):
+    """La garantía del Portal contra el porcentaje (sobre el total del Portal) o el monto que
+    fija el requisito; coincide si la diferencia es de un centavo o menos."""
+    folded = fold(text)
+    percent = required_percent(text)
+    if percent is not None and "renglon" not in folded:
+        if data.total is None:
+            return Comparison(NO_COMPARABLE, "El pliego fija la garantía como un porcentaje del "
+                              "total cotizado y el Portal no informa el total de la oferta.")
+        expected = data.total * percent / 100
+        basis = f"el {_plain(percent)} % del total cotizado de {_money(data.total)}"
+    else:
+        absolute = set(amounts(text))
+        if len(absolute) != 1:
+            if _INDIVIDUALIZED.search(folded):
+                # «Paso 4 Ingreso de Garantía» (T-175): lo que el pliego pide es que la garantía
+                # esté individualizada en el Portal, y la fila de `portal_guarantee` lo muestra.
+                observed = ", ".join(_money(d.value) for d in portal)
+                return Comparison(
+                    COINCIDE, f"La garantía está individualizada en el Portal ({observed}), "
+                    "como pide el pliego.", "garantía individualizada", observed)
+            return Comparison(NO_COMPARABLE, "El pliego no fija para la garantía un porcentaje "
+                              "ni un monto que el sistema pueda leer.")
+        expected = absolute.pop()
+        basis = f"el monto de {_money(expected)}"
+    values = [d.value for d in portal]
+    observed = ", ".join(_money(v) for v in values)
+    best = min([*values, sum(values)], key=lambda v: abs(Decimal(v) - expected))
+    difference = abs(Decimal(best) - expected)
+    if difference <= TOLERANCE:
+        return Comparison(
+            COINCIDE, f"El Portal informa una garantía de {observed}; el pliego exige {basis}, "
+            f"es decir {_money(expected)}.", _money(expected), observed, _money(difference))
+    return Comparison(
+        DIFIERE, f"El Portal informa una garantía de {observed} y el pliego exige {basis}, es "
+        f"decir {_money(expected)} (diferencia de {_money(difference)}).",
+        _money(expected), observed, _money(difference))
+
+
+def _currency_wanted(text):
+    """La moneda que fija el requisito (`ARS` o `USD`), o `None` si no fija una sola."""
+    folded = fold(text)
+    pesos = bool(re.search(r"\bpesos?\b", folded))
+    dollars = bool(re.search(r"\bdolar(?:es)?\b|\busd\b|u\$s", folded))
+    if pesos == dollars:
+        return None
+    return "ARS" if pesos else "USD"
+
+
+def _currency_of(value):
+    folded = fold(value)
+    if folded in {"ars", "peso", "pesos", "pesos argentinos", "$"}:
+        return "ARS"
+    if folded in {"usd", "u$s", "dolar", "dolares", "dolar estadounidense", "us$"}:
+        return "USD"
+    return None
+
+
+def _total_comparison(data, portal, text):
+    """El total del Portal: tiene que estar cargado y, si el requisito fija la moneda, coincidir."""
+    shown = portal[0].shown
+    wanted = _currency_wanted(text)
+    if wanted is None:
+        return Comparison(COINCIDE, f"El Portal informa un total de la oferta de {shown}"
+                          + (f" {data.currency}" if data.currency else "")
+                          + "; el pliego no fija otra condición para el total.", "", shown)
+    have = _currency_of(data.currency)
+    if have is None:
+        return Comparison(
+            NO_COMPARABLE, f"El pliego pide el total en {wanted} y el Portal no informa una "
+            f"moneda que el sistema pueda leer ({data.currency or 'sin dato'}).", wanted, shown)
+    if have == wanted:
+        return Comparison(COINCIDE, f"El Portal informa un total de {shown} en {data.currency}, "
+                          f"la moneda que fija el pliego ({wanted}).", wanted, shown)
+    return Comparison(DIFIERE, f"El pliego pide el total en {wanted} y el Portal lo informa en "
+                      f"{data.currency}.", wanted, f"{shown} {data.currency}")
+
+
+def _quote_comparison(offer, items):
+    """Todos los renglones del procedimiento (o los de la fila) con precio en el Portal."""
+    lines = set(PortalLine.objects.filter(procedure_id=offer.procedure_id)
+                .values_list("number", flat=True))
+    wanted = set(items) if items else lines
+    if not wanted:
+        return Comparison(NO_COMPARABLE, "El Portal no informa los renglones del procedimiento.")
+    quoted = set(PortalQuote.objects.filter(
+        offer=offer, line__procedure_id=offer.procedure_id, price__isnull=False)
+        .values_list("line__number", flat=True))
+    missing = sorted(wanted - quoted)
+    names = ", ".join(str(n) for n in sorted(wanted))
+    if not missing:
+        return Comparison(COINCIDE, f"El Portal informa el precio de todos los renglones que "
+                          f"exige el pliego ({names}).", names, names, "")
+    return Comparison(
+        DIFIERE, f"El pliego exige el precio de los renglones {names} y el Portal no informa el "
+        f"de los renglones {', '.join(str(n) for n in missing)}.", names,
+        ", ".join(str(n) for n in sorted(wanted & quoted)) or "ninguno",
+        ", ".join(str(n) for n in missing))
+
+
+def _cuit_comparison(portal):
+    """El CUIT del Portal: once dígitos (la igualdad con el de la oferta la mira la regla)."""
+    shown = portal[0].shown
+    size = len(digits(shown))
+    if size == 11:
+        return Comparison(COINCIDE, f"El Portal informa el CUIT del oferente {shown}, de once "
+                          "dígitos.", "11 dígitos", shown)
+    return Comparison(DIFIERE, f"El CUIT que informa el Portal ({shown}) tiene {size} dígitos y "
+                      "el CUIT tiene once.", "11 dígitos", shown, f"{size} dígitos")
+
+
+def compare(kind, offer, data, portal, text, items):
+    """Lo que informa el Portal frente a lo que exige el pliego (`Comparison`)."""
+    if kind == GARANTIA:
+        return _guarantee_comparison(data, portal, text)
+    if kind == TOTAL:
+        return _total_comparison(data, portal, text)
+    if kind == COTIZACION:
+        return _quote_comparison(offer, items)
+    if kind == CUIT:
+        return _cuit_comparison(portal)
+    return Comparison(NO_COMPARABLE, "El requisito pide otro dato.")
+
+
+def _facts_of(combined, kind, portal, matching):
+    return {**combined.facts, "portal": {
+        "tipo": kind, "valor": (matching or portal)[0].shown,
+        "valores": [d.shown for d in portal],
+        "items": sorted({d.item for d in portal})}}
+
+
+def _merge_portal(combined, extra):
+    """Las citas del Portal que ya traía el par (las que el modelo citó con su alias) y las del
+    dato leído, sin repetir."""
+    cites, seen = [], set()
+    for cite in [*combined.portal, *extra]:
+        key = (cite["item"], cite["kind"], cite["text"])
+        if key not in seen:
+            seen.add(key)
+            cites.append(cite)
+    return cites
+
+
 def rule(pair, ctx):
     """La regla 4 de `rules.py`: devuelve el resultado nuevo del par o `None` si el requisito no
     pide un dato del Portal o el Portal no lo tiene para la oferta."""
@@ -303,7 +521,8 @@ def rule(pair, ctx):
     kind = kind_of(text, requirement)
     if kind is None:
         return None
-    portal = read(ctx.offer, kind, text, item_numbers(requirement))
+    items = item_numbers(requirement)
+    portal = read(ctx.offer, kind, text, items)
     if not portal:
         return None
     combined = pair.combined
@@ -311,11 +530,8 @@ def rule(pair, ctx):
                          _other_values(ctx.offer, kind) if kind in OTHER_KINDS else [])
     values = offered_values(kind, [found.text for found in located])
     matching = [d for d in portal if any(_equal(kind, v, d.value) for v in values)]
-    facts = {**combined.facts, "portal": {
-        "tipo": kind, "valor": (matching or portal)[0].shown,
-        "valores": [d.shown for d in portal],
-        "items": sorted({d.item for d in portal})}}
-    cites = [*combined.portal, *[d.citation() for d in portal]]
+    facts = _facts_of(combined, kind, portal, matching)
+    cites = _merge_portal(combined, [d.citation() for d in portal])
     if values and not matching:
         offered = ", ".join(sorted({str(v) for v in values}))
         shown = ", ".join(d.shown for d in portal)
@@ -337,15 +553,45 @@ def rule(pair, ctx):
             exigence=combined.exigence, citations=_merge_offer(combined, located),
             portal=cites, question="", explanation=explanation,
             facts={**facts, "regla": RULE_MISMATCH, "oferta_valor": offered, **extra})
-    in_offer = bool(combined.citations) or bool(located)
-    if in_offer:
-        return replace(combined, portal=cites, facts={**facts, "regla": RULE_BOTH})
+
+    data = PortalOfferData.objects.filter(offer=ctx.offer).first()
+    comparison = compare(kind, ctx.offer, data, portal, text, items)
+    facts = {**facts, "comparacion": comparison.facts()}
+    from_offer = combined.outcome in (combine.OUT_CUMPLE, combine.OUT_NO_CUMPLE)
+
+    def undetermined(why):
+        return replace(
+            combined, outcome=combine.OUT_NO_DETERMINADO, doubt=FALTA_COINCIDENCIA,
+            citations=_merge_offer(combined, located), portal=cites, question="",
+            explanation=f"Falta coincidencia: {why} La Comisión verifica cuál rige.",
+            facts={**facts, "regla": RULE_MISMATCH})
+
+    if comparison.state == NO_COMPARABLE:
+        if from_offer:
+            # La oferta ya concluyó con su propio texto: queda y se agrega la cita del Portal.
+            return replace(combined, portal=cites, facts={**facts, "regla": RULE_BOTH})
+        informed = ", ".join(d.shown for d in portal)
+        return undetermined(f"el Portal informa {informed}. {comparison.detail} No se puede "
+                            "comparar con el pliego.")
+    if comparison.state == COINCIDE:
+        if combined.outcome == combine.OUT_NO_CUMPLE:
+            return undetermined(
+                comparison.detail + " El texto de la oferta concluyó que no cumple.")
+        note = (f"{combined.explanation} " if combined.outcome == combine.OUT_CUMPLE
+                and combined.explanation else "")
+        return replace(
+            combined, outcome=combine.OUT_CUMPLE, doubt="", portal=cites, question="",
+            explanation=f"{note}Fuente: Portal. {comparison.detail}",
+            facts={**facts, "regla": RULE_CUMPLE})
+    # El Portal difiere de lo que exige el pliego.
+    if combined.outcome == combine.OUT_CUMPLE and not matching:
+        return undetermined(comparison.detail + " El texto de la oferta concluyó que cumple.")
+    kept = combined.citations if combined.outcome == combine.OUT_NO_CUMPLE else []
     return replace(
-        combined, outcome=combine.OUT_NO_DETERMINADO, doubt=EN_PORTAL,
-        question="", portal=cites,
-        explanation=("El documento o el dato está en el Portal (fuente: Portal), no en los "
-                     "documentos de la oferta. " + "; ".join(d.text for d in portal) + "."),
-        facts={**facts, "regla": RULE_ONLY_PORTAL})
+        combined, outcome=combine.OUT_NO_CUMPLE, doubt="", citations=kept, portal=cites,
+        question="",
+        explanation=f"No cumple según el Portal (fuente: Portal). {comparison.detail}",
+        facts={**facts, "regla": RULE_NO_CUMPLE})
 
 
 def item_numbers(requirement):
