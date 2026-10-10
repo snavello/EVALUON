@@ -103,4 +103,6 @@ def test_only_a_dictamen_of_this_procedure_and_a_commission_role(
     assert AuditEvent.objects.filter(outcome=AuditOutcome.REJECTED).count() == before + 1
     assert document_history.state(document) == "vigente"
     wrong = reverse("expedientes:s4_dictamen_retirar", args=[procedure.pk + 999, document.pk])
+    client.logout()
+    log_in(client, operator_user)
     assert client.post(wrong, {"note": "x"}).status_code == 404

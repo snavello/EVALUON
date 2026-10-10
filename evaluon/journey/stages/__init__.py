@@ -16,6 +16,13 @@ from evaluon.journey.stages import (
 
 OPERATION = "evaluon.journey.stages.stages_for"
 
+
+def is_viewer(user):
+    """Un usuario identificado y activo: puede mirar las cinco secciones. Sus acciones siguen
+    exigiendo el rol de la Comisión en los servicios (403)."""
+    return bool(user is not None and getattr(user, "is_authenticated", False)
+                and user.is_active and getattr(user, "pk", None) is not None)
+
 STAGES = (portal, pliego, matriz, ofertas, evaluacion, matriz_evaluacion)
 
 
@@ -32,10 +39,13 @@ class Journey:
     suggestions: int
 
 
-def stages_for(user, procedure, *, channel=None):
-    """Calcula las seis etapas. Lanza `RoleRejected` sin rol de la Comisión (REQ-069)."""
-    require_commission_role(user, CommissionRole.OPERATOR, operation=OPERATION,
-                            channel=channel)
+def stages_for(user, procedure, *, channel=None, viewer=False):
+    """Calcula las seis etapas. Lanza `RoleRejected` sin rol de la Comisión (REQ-069), salvo
+    con `viewer`: la aplicación por secciones deja ver al usuario de lectura (decisión del
+    2026-10-10), que no recibe ninguna acción."""
+    if not viewer or not is_viewer(user):
+        require_commission_role(user, CommissionRole.OPERATOR, operation=OPERATION,
+                                channel=channel)
     stages = tuple(module.compute(user, procedure) for module in STAGES)
     current = next((s for s in stages
                     if s.state != base.LISTA
