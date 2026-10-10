@@ -287,3 +287,21 @@ def test_the_records_name_the_model_and_the_projector_of_the_batch_engine(settin
         assert models["generation_batch"]["sha256"] == "b" * 64
         assert models["generation_batch"]["mmproj_file"] == "lote-mmproj.gguf"
         assert models["generation_batch"]["mmproj_sha256"] == "c" * 64
+
+
+@pytest.mark.parametrize("name", ["qwen38-27b", "qwen36-35b"])
+def test_candidate_batch_engines_start_like_generation(compose, name):
+    """REQ-107 (ADR-0056, punto 1: todo igual salvo el modelo): `generation_batch` de cada
+    archivo de candidato arranca como `generation` salvo el contexto, el modelo, el alias y
+    el proyector (lo propio del lote) y las dos banderas de la caché de prefijo."""
+    candidate = yaml.safe_load(
+        (Path(settings.BASE_DIR) / f"docker-compose.{name}.yml").read_text(encoding="utf-8"))
+    command = candidate["services"]["generation_batch"]["command"]
+    interactive = compose["services"]["generation"]["command"]
+    stripped = _without_batch_own(command)
+    for flag in ("--ctx-checkpoints", "--checkpoint-min-step"):
+        position = stripped.index(flag)
+        del stripped[position:position + 2]
+    assert stripped == _without_batch_own(interactive)
+    command = [str(item) for item in command]
+    assert command[command.index("--ctx-size") + 1] == "${GENERATION_BATCH_CTX_SIZE:-32768}"

@@ -77,6 +77,8 @@ x-app: &app
     # usan los servicios de IA (y con el archivo de la comparación de modelos).
     - ./docker-compose.yml:/app/docker-compose.yml:ro
     - ./docker-compose.modelo-grande.yml:/app/docker-compose.modelo-grande.yml:ro
+    - ./docker-compose.qwen38-27b.yml:/app/docker-compose.qwen38-27b.yml:ro
+    - ./docker-compose.qwen36-35b.yml:/app/docker-compose.qwen36-35b.yml:ro
     - ./corpus:/app/corpus:ro
     - ./evals:/app/evals
   networks:
@@ -345,6 +347,8 @@ services:
       - ./pyproject.toml:/app/pyproject.toml:ro
       - ./docker-compose.yml:/app/docker-compose.yml:ro
       - ./docker-compose.modelo-grande.yml:/app/docker-compose.modelo-grande.yml:ro
+      - ./docker-compose.qwen38-27b.yml:/app/docker-compose.qwen38-27b.yml:ro
+      - ./docker-compose.qwen36-35b.yml:/app/docker-compose.qwen36-35b.yml:ro
       - ./corpus:/app/corpus:ro
       - ./corpus/casos:/app/corpus/casos
       - ./evals:/app/evals
