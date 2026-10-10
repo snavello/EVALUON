@@ -36,7 +36,8 @@ else
   P=evaluon-t$N-cierre
   docker compose -p $P --env-file "$COORD_DIR/coord.env" up -d db >/dev/null 2>&1
   set +e
-  docker compose -p $P --env-file "$COORD_DIR/coord.env" run --rm --no-deps app pytest -q > "$COORD_DIR/t$N-suite.log" 2>&1
+  # En paralelo (T-224, ver pyproject.toml): SUITE_WORKERS procesos, 8 por omisión.
+  docker compose -p $P --env-file "$COORD_DIR/coord.env" run --rm --no-deps -T app pytest -n "${SUITE_WORKERS:-8}" --dist worksteal -q > "$COORD_DIR/t$N-suite.log" 2>&1
   RC=$?
   docker compose -p $P --env-file "$COORD_DIR/coord.env" down -v >/dev/null 2>&1
   set -e

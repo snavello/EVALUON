@@ -18,9 +18,14 @@ from pgvector.django import L2Distance, VectorField
 STYLESHEET = "css/evaluon.css"
 
 
+@pytest.mark.django_db
 def test_project_starts():
     """REQ-013, REQ-016: la configuración pasa las comprobaciones de Django y la
-    aplicación WSGI que usa Gunicorn se carga."""
+    aplicación WSGI que usa Gunicorn se carga.
+
+    Las comprobaciones de los campos generados leen la versión de Postgres: en serie ya la
+    había leído una prueba anterior; en paralelo esta puede ser la primera del proceso
+    (T-224), por eso pide la base."""
     call_command("check", fail_level="WARNING")
 
     from evaluon.wsgi import application
