@@ -83,7 +83,7 @@ def test_the_same_place_is_not_cited_twice(text):
     assert anomalies[0]["type"] == citations.ANOMALY_REPEATED
 
 
-def test_the_page_is_found_with_the_lines_of_a_real_reading(db, operator_user, fake_ai):
+def test_the_page_is_found_with_the_lines_of_a_real_reading(evaluator_user, db, operator_user, fake_ai):
     """REQ-053: con la lectura real (páginas, líneas), la página sale de `pages_at`."""
     from evaluon.offers import evaluation as ev
     from tests.assessment.fakes import CASO_CHICO as DATA
@@ -94,7 +94,7 @@ def test_the_page_is_found_with_the_lines_of_a_real_reading(db, operator_user, f
     only_a = dataclasses.replace(expected, offers=expected.offers[:1])
     only_a.offers[0].documents = [d for d in only_a.offers[0].documents
                                   if d["archivo"].endswith("oferta-propuesta.pdf")]
-    _, offers = ev.build_case(operator_user, only_a)
+    _, offers = ev.build_case(evaluator_user, only_a)
     offer_text = documents.build_offer_text(offers["Oferente A Sintético"])
     entry = offer_text.documents[0]
     finder = citations.PageFinder()

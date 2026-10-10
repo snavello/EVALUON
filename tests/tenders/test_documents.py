@@ -487,7 +487,7 @@ def test_screen_hidden_for_user_without_commission_role(client, no_commission_us
     "acceso denegado"."""
     loaded = load(operator_user, procedure, annex_pdf())
     log_in(client, no_commission_user)
-    assert client.get(reverse("tenders:procedure", args=[procedure.pk]), follow=True).status_code == 403
+    assert client.get(reverse("tenders:procedure", args=[procedure.pk]), follow=True).status_code == 200  # el lector ve la pestaña (2026-10-10)
     original = reverse("tenders:document_original", args=[loaded.document.pk])
     assert client.get(original).status_code == 403
 
@@ -683,7 +683,7 @@ def test_roles_matrix(client, operator_user, evaluator_user, no_commission_user,
     assert m.Document.objects.count() == 2
     log_in(client, no_commission_user)
     url = reverse("tenders:procedure", args=[procedure.pk])
-    assert client.get(url, follow=True).status_code == 403
+    assert client.get(url, follow=True).status_code == 200  # el lector ve la pestaña (2026-10-10)
     assert client.post(url, {}).status_code == 403
     assert m.Document.objects.count() == 2
 

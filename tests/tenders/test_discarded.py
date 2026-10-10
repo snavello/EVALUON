@@ -79,7 +79,7 @@ def rejected(reason):
 # --- Listar --------------------------------------------------------------------------------------
 
 
-def test_the_list_shows_each_row_with_its_derived_state(operator_user, case):
+def test_the_list_shows_each_row_with_its_derived_state(evaluator_user, case):
     """REQ-033: la lista trae cada descartada y su estado, derivado de si hay un
     requisito devuelto en la versión."""
     first = add_row(case, "sec-i/3.1", order=1)
@@ -89,7 +89,7 @@ def test_the_list_shows_each_row_with_its_derived_state(operator_user, case):
     assert [(v.row.pk, v.state, v.requirement) for v in before] == [
         (first.pk, "descartada", None), (second.pk, "descartada", None)]
 
-    done = discarded.restore(operator_user, case.pk, [first.pk])
+    done = discarded.restore(evaluator_user, case.pk, [first.pk])
 
     after = discarded.list_discarded(case)
     assert [(v.row.pk, v.state) for v in after] == [
@@ -101,14 +101,14 @@ def test_the_list_shows_each_row_with_its_derived_state(operator_user, case):
 
 
 def test_restoring_creates_the_requirement_with_literal_quotes_and_the_record(
-        operator_user, case):
+        evaluator_user, case):
     """REQ-033/026: devolver crea el requisito propuesto con las citas literales de la
     descartada (la principal y las repetidas), `devuelto`, `restored_from`, y deja la fila
     `devolver` con el motivo y el indicio, y el hecho `requirement_change`."""
     row = add_row(case, "sec-i/3.1", extra_key="sec-i/4.1", category="economico",
                   items=[1, 2])
 
-    done = discarded.restore(operator_user, case.pk, [row.pk])
+    done = discarded.restore(evaluator_user, case.pk, [row.pk])
 
     requirement = done.requirements[0]
     requirement.refresh_from_db()
@@ -126,7 +126,7 @@ def test_restoring_creates_the_requirement_with_literal_quotes_and_the_record(
     assert requirement.proposed["quotes"][0]["text"] == row.text
 
     change = requirement.changes.get()
-    assert change.action == "devolver" and change.user == operator_user
+    assert change.action == "devolver" and change.user == evaluator_user
     assert change.before["reason"] == "consecuencia_sancion"
     assert change.before["evidence"]["text"] == row.evidence_text
     assert change.after["state"] == "propuesto"
@@ -148,41 +148,41 @@ def test_the_evaluator_can_restore_and_several_rows_go_together(evaluator_user, 
     assert m.RequirementChange.objects.filter(action="devolver").count() == 2
 
 
-def test_a_second_restore_in_the_same_version_is_rejected(operator_user, case):
+def test_a_second_restore_in_the_same_version_is_rejected(evaluator_user, case):
     """REQ-033: una descartada se devuelve una sola vez por versión."""
     row = add_row(case)
-    discarded.restore(operator_user, case.pk, [row.pk])
+    discarded.restore(evaluator_user, case.pk, [row.pk])
     total = m.Requirement.objects.count()
 
     with pytest.raises(ReviewRefused) as error:
-        discarded.restore(operator_user, case.pk, [row.pk])
+        discarded.restore(evaluator_user, case.pk, [row.pk])
 
     assert error.value.reason == "already_restored"
     assert m.Requirement.objects.count() == total
     assert rejected("already_restored").count() == 1
 
 
-def test_a_refused_row_leaves_the_others_unrestored(operator_user, case):
+def test_a_refused_row_leaves_the_others_unrestored(evaluator_user, case):
     """Todo o nada: si una fila no se puede devolver, ninguna se devuelve."""
     row = add_row(case)
-    discarded.restore(operator_user, case.pk, [row.pk])
+    discarded.restore(evaluator_user, case.pk, [row.pk])
     other = add_row(case, "sec-i/4.1", order=2)
     total = m.Requirement.objects.count()
 
     with pytest.raises(ReviewRefused):
-        discarded.restore(operator_user, case.pk, [other.pk, row.pk])
+        discarded.restore(evaluator_user, case.pk, [other.pk, row.pk])
 
     assert m.Requirement.objects.count() == total
     assert not other.restored_requirements.exists()
 
 
-def test_an_unknown_row_or_an_empty_selection_is_rejected(operator_user, case):
+def test_an_unknown_row_or_an_empty_selection_is_rejected(evaluator_user, case):
     """Solo se devuelven las descartadas de la versión (o de su cadena) y al menos una."""
     with pytest.raises(ReviewRefused) as error:
-        discarded.restore(operator_user, case.pk, [999999])
+        discarded.restore(evaluator_user, case.pk, [999999])
     assert error.value.reason == "discarded_not_found"
     with pytest.raises(ReviewRefused) as error:
-        discarded.restore(operator_user, case.pk, [])
+        discarded.restore(evaluator_user, case.pk, [])
     assert error.value.reason == "nothing_selected"
 
 
@@ -203,13 +203,13 @@ def validated(evaluator_user, version):
 
 
 def test_restoring_in_a_validated_version_is_rejected_but_the_list_can_be_seen(
-        operator_user, evaluator_user, case):
+        evaluator_user, case):
     """REQ-033: en una versión validada devolver se rechaza; la lista se puede ver."""
     row = add_row(case)
     version = validated(evaluator_user, case)
 
     with pytest.raises(ReviewRefused) as error:
-        discarded.restore(operator_user, version.pk, [row.pk])
+        discarded.restore(evaluator_user, version.pk, [row.pk])
 
     assert error.value.reason == "version_not_draft"
     assert rejected("version_not_draft").count() == 1
@@ -218,34 +218,34 @@ def test_restoring_in_a_validated_version_is_rejected_but_the_list_can_be_seen(
 
 
 def test_a_new_version_copies_what_was_restored_and_shows_the_chain(
-        operator_user, evaluator_user, case):
+        evaluator_user, case):
     """REQ-033: la versión nueva copia lo devuelto con su `restored_from`, muestra las
     descartadas de la cadena y no deja devolver otra vez la ya devuelta."""
     returned = add_row(case, "sec-i/3.1", order=1)
     pending = add_row(case, "sec-i/4.1", order=2)
-    discarded.restore(operator_user, case.pk, [returned.pk])
+    discarded.restore(evaluator_user, case.pk, [returned.pk])
     version = validated(evaluator_user, case)
 
-    new = validation_service.open_new_version(operator_user, version.procedure_id)
+    new = validation_service.open_new_version(evaluator_user, version.procedure_id)
 
     copy = new.requirements.get(restored_from=returned)
     assert copy.origin == "devuelto" and copy.previous.version == version
     assert [(v.row.pk, v.state) for v in discarded.list_discarded(new)] == [
         (returned.pk, "devuelta"), (pending.pk, "descartada")]
     with pytest.raises(ReviewRefused) as error:
-        discarded.restore(operator_user, new.pk, [returned.pk])
+        discarded.restore(evaluator_user, new.pk, [returned.pk])
     assert error.value.reason == "already_restored"
-    done = discarded.restore(operator_user, new.pk, [pending.pk])
+    done = discarded.restore(evaluator_user, new.pk, [pending.pk])
     assert done.requirements[0].restored_from == pending
 
 
 def test_the_validation_fact_counts_discarded_and_restored_rows(
-        operator_user, evaluator_user, case):
+        evaluator_user, case):
     """REQ-033: el hecho `matrix_validation` suma las descartadas totales y las devueltas."""
     first = add_row(case, "sec-i/3.1", order=1)
     add_row(case, "sec-i/4.1", order=2)
     add_row(case, "sec-ii/1.1", order=3)
-    discarded.restore(operator_user, case.pk, [first.pk])
+    discarded.restore(evaluator_user, case.pk, [first.pk])
 
     validated(evaluator_user, case)
 

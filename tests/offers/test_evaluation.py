@@ -48,9 +48,9 @@ def case_script(script, *, wrong=None, extra=None):
 
 
 @pytest.fixture
-def chico(db, operator_user, fake_ai, expected):
+def chico(evaluator_user, db, operator_user, fake_ai, expected):
     """El caso chico armado en la base, con la lectura real de sus tres PDF."""
-    procedure, offers = ev.build_case(operator_user, expected)
+    procedure, offers = ev.build_case(evaluator_user, expected)
     # el reranker puntúa alto lo que el guion va a elegir (con 13 pasajes y 8 candidatos,
     # sin puntajes el azar de los vectores del doble dejaría afuera algún pasaje)
     fake_ai.reranker.scores = {needle: 0.9 for _, needle in ANSWERS}
@@ -106,7 +106,7 @@ def test_a_badly_formed_list_is_refused(tmp_path, old, new, message):
         ev.load_expected(path)
 
 
-def test_a_document_that_does_not_match_its_fingerprint_is_refused(operator_user, expected,
+def test_a_document_that_does_not_match_its_fingerprint_is_refused(evaluator_user, operator_user, expected,
                                                                    tmp_path):
     """P6: el archivo debe ser el que la lista nombra, con su huella."""
     for name in ("pliego.pdf", "oferta-propuesta.pdf", "constancia-escaneada.pdf",
@@ -114,7 +114,7 @@ def test_a_document_that_does_not_match_its_fingerprint_is_refused(operator_user
         shutil.copy(DATA / name, tmp_path / name)
     (tmp_path / "oferta-propuesta.pdf").write_bytes(b"%PDF-1.4 cambiado")
     with pytest.raises(ev.MeasurementRefused, match="huella"):
-        ev.build_case(operator_user, expected, tmp_path)
+        ev.build_case(evaluator_user, expected, tmp_path)
 
 
 # --- Armado y comprobación ---------------------------------------------------------------------
@@ -133,9 +133,9 @@ def test_the_case_is_built_with_a_validated_matrix_and_a_read_offer(chico, expec
         .passages.first().text_origin == "ocr"
 
 
-def test_building_the_case_twice_does_not_duplicate_anything(chico, operator_user, expected):
+def test_building_the_case_twice_does_not_duplicate_anything(evaluator_user, chico, operator_user, expected):
     """El armado es idempotente: lo que existe no se vuelve a crear."""
-    procedure, offers = ev.build_case(operator_user, expected)
+    procedure, offers = ev.build_case(evaluator_user, expected)
     assert procedure.offers.count() == 1 and procedure.matrix_versions.count() == 1
     assert om.Reading.objects.count() == 5
 

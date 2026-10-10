@@ -163,10 +163,10 @@ GROUP_TEMPLATE = "tenders/group_confirm.html"
 GROUP_OPERATION = "evaluon.tenders.views.review.group"
 
 # Qué rol pide cada acción de grupo y qué servicio la aplica: confirmar es del evaluador;
-# quitar, del operador o el evaluador (igual que en la matriz).
+# quitar, también del evaluador (decisión del 2026-10-10).
 GROUP_ACTIONS = {
     "confirmar": (CommissionRole.EVALUATOR, service.confirm_group, "Confirmar"),
-    "quitar": (CommissionRole.OPERATOR, service.remove_group, "Quitar"),
+    "quitar": (CommissionRole.EVALUATOR, service.remove_group, "Quitar"),
 }
 
 

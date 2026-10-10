@@ -182,14 +182,14 @@ def test_a_dictamen_cumple_on_an_external_pair_matches_the_abstention():
 # --- El armado del caso -------------------------------------------------------------------------
 
 
-def test_a_technical_row_of_the_case_carries_the_clauses_of_its_renglon(db, operator_user,
+def test_a_technical_row_of_the_case_carries_the_clauses_of_its_renglon(evaluator_user, db, operator_user,
                                                                        fake_ai):
     """REQ-052: la fila técnica del caso lleva el encabezado del renglón y sus cláusulas (la de
     la 008 solo traía el encabezado)."""
     expected = ev.load_expected(LIST)
     only_a = dataclasses.replace(expected, offers=expected.offers[:1])
     only_a.offers[0].documents = []
-    procedure, _ = ev.build_case(operator_user, only_a)
+    procedure, _ = ev.build_case(evaluator_user, only_a)
     version = procedure.matrix_versions.get(number=1)
     row = version.requirements.get(category="tecnico", items=[1])
     texts = [q.text for q in row.quotes.order_by("order")]
@@ -200,11 +200,11 @@ def test_a_technical_row_of_the_case_carries_the_clauses_of_its_renglon(db, oper
 # --- La medición -------------------------------------------------------------------------------
 
 
-def test_the_list_is_checked_against_the_readings(db, operator_user, fake_ai):
+def test_the_list_is_checked_against_the_readings(evaluator_user, db, operator_user, fake_ai):
     """`--verificar-esperada`: huellas, anclas de las citas y páginas ilegibles contra las
     lecturas, sin el modelo; una ancla que no está en su página falla."""
     expected = ev.load_expected(LIST)
-    _, offers = ev.build_case(operator_user, expected)
+    _, offers = ev.build_case(evaluator_user, expected)
     verification = ev.verify_expected(expected, offers)
     assert verification.ok, verification.lines
     assert verification.counts["anchors"] == 15 and verification.counts["unreadable_pages"] == 1
@@ -666,7 +666,7 @@ def _list_with(tmp_path, mutate):
 
 
 @pytest.mark.decision_literal
-def test_a_list_pair_without_the_fields_of_its_type_refuses_the_measurement(
+def test_a_list_pair_without_the_fields_of_its_type_refuses_the_measurement(evaluator_user, 
         db, operator_user, fake_ai, tmp_path):
     """REQ-052, REQ-061, REQ-064: una fila técnica sin `documento_tecnico` o `renglon_ofertado`
     y un «no se pudo leer» sin `ilegible` rechazan la medición con el motivo (sin nombrar a los
@@ -684,7 +684,7 @@ def test_a_list_pair_without_the_fields_of_its_type_refuses_the_measurement(
         "oferta 1, M-009: fila técnica sin `renglon_ofertado`",
         "oferta 2, M-004: «no se pudo leer» sin `ilegible` (documento y página)"]
     assert all("Sintético" not in p for p in problems)
-    procedure, offers = ev.build_case(operator_user, expected, folder=CASO_CHICO)
+    procedure, offers = ev.build_case(evaluator_user, expected, folder=CASO_CHICO)
     with pytest.raises(ev.MeasurementRefused, match="campos de la regla nueva"):
         ev.measure(operator_user, procedure, expected, offers, tmp_path)
     for field, value in (("documento_tecnico", "quizas"), ("renglon_ofertado", "tal vez")):

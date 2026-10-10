@@ -161,7 +161,7 @@ def test_the_operator_sees_the_questions_but_cannot_answer(
     assert not am.Answer.objects.exists()
     client.logout()
     log_in(client, no_commission_user)
-    assert client.get(reverse("assessment:questions", args=[procedure.pk]), follow=True).status_code == 403
+    assert client.get(reverse("assessment:questions", args=[procedure.pk]), follow=True).status_code == 200  # el lector ve la pestaña, sin acciones (2026-10-10)
 
 
 def test_the_pair_page_links_the_open_question(client, asked, offer, evaluator_user,

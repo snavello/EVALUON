@@ -21,14 +21,14 @@ LIST = CASO_CHICO / "evaluacion-esperada.yaml"
 
 
 @pytest.fixture
-def header_only(operator_user, fake_ai):
+def header_only(evaluator_user, operator_user, fake_ai):
     """El procedimiento del caso chico con una última versión validada cuya fila técnica del
     renglón 1 trae solo el encabezado."""
     import dataclasses
     expected = ev.load_expected(LIST)
     only = dataclasses.replace(expected, offers=expected.offers[:1])
     only.offers[0].documents = []
-    procedure, _ = ev.build_case(operator_user, only)
+    procedure, _ = ev.build_case(evaluator_user, only)
     draft = validation.open_new_version(operator_user, procedure.pk)
     row = draft.requirements.get(category="tecnico", items=[1])
     row.quotes.filter(order__gt=1).delete()
@@ -38,12 +38,12 @@ def header_only(operator_user, fake_ai):
     return procedure, draft
 
 
-def test_the_rebuilt_matrix_is_a_new_version_with_all_the_clauses(operator_user, header_only):
+def test_the_rebuilt_matrix_is_a_new_version_with_all_the_clauses(evaluator_user, operator_user, header_only):
     """REQ-052: la fila técnica vuelve a tener encabezado y cláusulas; la versión anterior no
     se toca y el cambio queda registrado."""
     procedure, old = header_only
     assert old.requirements.get(category="tecnico", items=[1]).quotes.count() == 1
-    version, rows = ev.rebuild_matrix(operator_user, procedure)
+    version, rows = ev.rebuild_matrix(evaluator_user, procedure)
     assert rows == 1 and version.number == old.number + 1
     assert version.status == m.VersionStatus.VALIDATED and version.based_on == old
     row = version.requirements.get(category="tecnico", items=[1])
@@ -55,12 +55,12 @@ def test_the_rebuilt_matrix_is_a_new_version_with_all_the_clauses(operator_user,
     assert event.detail["action"] == "rebuilt" and event.detail["version"] == version.pk
 
 
-def test_a_matrix_that_already_has_the_clauses_is_not_rebuilt(operator_user, header_only):
+def test_a_matrix_that_already_has_the_clauses_is_not_rebuilt(evaluator_user, operator_user, header_only):
     """REQ-052: sin filas que cambiar no se crea una versión de más."""
     procedure, _ = header_only
-    ev.rebuild_matrix(operator_user, procedure)
+    ev.rebuild_matrix(evaluator_user, procedure)
     with pytest.raises(ev.MeasurementRefused):
-        ev.rebuild_matrix(operator_user, procedure)
+        ev.rebuild_matrix(evaluator_user, procedure)
     assert procedure.matrix_versions.count() == 3
 
 

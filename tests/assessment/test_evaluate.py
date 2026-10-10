@@ -899,7 +899,7 @@ def test_the_command_reports_a_refused_request_and_a_failed_run(logged_in, offer
 # --- El caso chico completo, con un modelo que sigue la lista esperada ---------------------------
 
 
-def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(
+def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(evaluator_user, 
         db, operator_user, fake_ai, model):
     """REQ-052 a REQ-055, REQ-059, REQ-060: tres ofertas leídas de verdad (con un escaneo y una
     página ilegible), una matriz validada y un modelo simulado que contesta lo que la lista
@@ -914,7 +914,7 @@ def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(
     from tests.assessment.fakes import CASO_CHICO
 
     expected = ev.load_expected(CASO_CHICO / "evaluacion-esperada.yaml")
-    procedure, offers = ev.build_case(operator_user, expected)
+    procedure, offers = ev.build_case(evaluator_user, expected)
     raw = yaml.safe_load((CASO_CHICO / "evaluacion-esperada.yaml").read_text(encoding="utf-8"))
     ids = [r["id"] for r in raw["matriz"]["requisitos"]]
     by_bidder = {o["oferente"]: {ids.index(e["requisito"]) + 1: e for e in o["requisitos"]}

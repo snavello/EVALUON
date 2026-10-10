@@ -21,7 +21,9 @@ KEYS = ("procedimiento", "pliego", "ofertas", "evaluacion", "normativas")
 DECISIONS = (
     r"/matriz/confirmar/", r"/matriz/requisito/\d+/(consecuencia|corregir|quitar)/",
     r"/matriz/validar/", r"/matriz/nueva-version/", r"/evaluacion/resultado/\d+/decidir/",
-    r"/evaluacion/descarte/decidir/", r"/informe/subir/")
+    r"/evaluacion/descarte/decidir/", r"/informe/subir/",
+    r"/matriz/agregar", r"/matriz/sugerencia/\d+/(pasar|quitar)/",
+    r"/matriz/requisito/\d+/restituir/")
 
 
 @pytest.fixture

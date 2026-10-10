@@ -6,8 +6,8 @@ versiones" y "Roles"; T-079).
 - `correct`: en un formal o económico cambia la clase, los renglones o la cita (un
   fragmento literal de un tramo, comprobado con la misma regla que la del modelo); en un
   técnico suma o quita tramos citados. Pasar un formal o económico a técnico une su cita a
-  la fila técnica de su renglón y deja quitado el requisito original. Lo corrige el
-  operador o el evaluador. Un requisito confirmado que se corrige vuelve a quedar
+  la fila técnica de su renglón y deja quitado el requisito original. Solo el
+  evaluador corrige, quita, restituye y agrega (decisión del 2026-10-10). Un requisito confirmado que se corrige vuelve a quedar
   propuesto: la confirmación valía para lo de antes.
 - `remove` y `restore`: el requisito queda `quitado`, visible y con su historia; restituirlo
   lo devuelve al estado que tenía.
@@ -354,7 +354,7 @@ def confirm_group(user, version_id, group, *, channel=Channel.SCREEN):
 def remove_group(user, version_id, group, *, state=RequirementState.PROPUESTO,
                  channel=Channel.SCREEN):
     """Quita las filas `propuesto` del grupo `group` o, con `state="sugerido"`, sus
-    sugerencias (T-110). El operador o el evaluador."""
+    sugerencias (T-110). Solo el evaluador."""
 
     def work():
         _lock_draft(version_id)
@@ -367,7 +367,7 @@ def remove_group(user, version_id, group, *, state=RequirementState.PROPUESTO,
             done.events.append(event)
         return done
 
-    return _run(user, CommissionRole.OPERATOR, GROUP_REMOVE_OPERATION,
+    return _run(user, CommissionRole.EVALUATOR, GROUP_REMOVE_OPERATION,
                 ChangeAction.QUITAR, channel,
                 {"version": version_id, "via_grupo": group}, work)
 
@@ -421,7 +421,7 @@ def correct(user, requirement_id, *, category=None, items=None, segment=None, qu
             requirements.append(target)
         return Reviewed(requirements=requirements, changes=changes, events=events)
 
-    return _run(user, CommissionRole.OPERATOR, CORRECT_OPERATION, ChangeAction.CORREGIR,
+    return _run(user, CommissionRole.EVALUATOR, CORRECT_OPERATION, ChangeAction.CORREGIR,
                 channel, detail, work)
 
 
@@ -549,7 +549,7 @@ def remove(user, requirement_id, *, channel=Channel.SCREEN):
         change, event = _remove_one(requirement, user, channel)
         return Reviewed([requirement], [change], [event])
 
-    return _run(user, CommissionRole.OPERATOR, REMOVE_OPERATION, ChangeAction.QUITAR,
+    return _run(user, CommissionRole.EVALUATOR, REMOVE_OPERATION, ChangeAction.QUITAR,
                 channel, {"requirement": requirement_id}, work)
 
 
@@ -613,7 +613,7 @@ def restore(user, requirement_id, *, channel=Channel.SCREEN):
             events.append(undone[1])
         return Reviewed([requirement], changes, events)
 
-    return _run(user, CommissionRole.OPERATOR, RESTORE_OPERATION,
+    return _run(user, CommissionRole.EVALUATOR, RESTORE_OPERATION,
                 ChangeAction.RESTITUIR, channel, {"requirement": requirement_id}, work)
 
 
@@ -683,7 +683,7 @@ def add_requirement(user, version_id, *, segment, quote, category, items=None,
                                    channel, {"requirement": requirement.pk}))
         return Reviewed([requirement], [change], events)
 
-    return _run(user, CommissionRole.OPERATOR, ADD_OPERATION, ChangeAction.AGREGAR,
+    return _run(user, CommissionRole.EVALUATOR, ADD_OPERATION, ChangeAction.AGREGAR,
                 channel, detail, work)
 
 
@@ -737,7 +737,7 @@ def add_technical_row(user, version_id, *, item, segments, channel=Channel.SCREE
                                 _snapshot(requirement), user, channel)
         return Reviewed([requirement], [change], [event])
 
-    return _run(user, CommissionRole.OPERATOR, ADD_TECHNICAL_OPERATION,
+    return _run(user, CommissionRole.EVALUATOR, ADD_TECHNICAL_OPERATION,
                 ChangeAction.AGREGAR, channel, detail, work)
 
 

@@ -82,11 +82,11 @@ def test_the_list_without_rows_says_so(client, operator_user, case):
 
 
 def test_returning_nothing_or_twice_shows_the_reason_and_changes_nothing(
-        client, operator_user, case):
+        client, evaluator_user, case):
     """REQ-033: sin filas marcadas, o una fila ya devuelta, vuelve a la página con el
     motivo."""
     row = add_row(case, "sec-i/3.1", order=1)
-    log_in(client, operator_user)
+    log_in(client, evaluator_user)
 
     none = client.post(restore_url(case), {})
     assert none.status_code == 400
@@ -116,13 +116,13 @@ def test_operator_and_evaluator_return_rows_and_a_user_without_role_cannot(
 
 
 def test_a_validated_version_shows_the_list_without_the_return_form(
-        client, operator_user, evaluator_user, case):
+        client, evaluator_user, case):
     """REQ-033: en una versión validada la lista se ve, pero sin casillas ni botón; y
     devolver se rechaza."""
     row = add_row(case, "sec-i/3.1", order=1)
     finish_review(evaluator_user, case)
     validation.validate(evaluator_user, case.pk)
-    log_in(client, operator_user)
+    log_in(client, evaluator_user)
 
     page = text_of(client.get(list_url(case)))
 

@@ -97,23 +97,23 @@ def test_a_user_without_commission_role_is_denied_and_the_attempt_is_recorded(
     assert client.post(accept_url(rows[0])).status_code == 403
     assert client.get(group_url(version), query).status_code == 403
     assert client.post(group_url(version), query).status_code == 403
-    assert client.get(matrix_url(version), follow=True).status_code == 403
+    assert client.get(matrix_url(version), follow=True).status_code == 200  # el lector ve la pestaña (2026-10-10)
 
     assert state(rows[0]) == "sugerido"
     assert AuditEvent.objects.filter(outcome=Outcome.REJECTED).count() >= 3
 
 
 def test_a_validated_version_refuses_to_decide_a_suggestion(
-        client, operator_user, evaluator_user, suggested):
+        client, evaluator_user, suggested):
     """REQ-035: solo en un borrador; en una versión ya validada la acción se rechaza con
     el motivo y no cambia nada."""
     version, rows, other = suggested
     for row in rows:
-        suggestions.accept_suggestion(operator_user, row.pk)
-    review.remove(operator_user, other.pk)
+        suggestions.accept_suggestion(evaluator_user, row.pk)
+    review.remove(evaluator_user, other.pk)
     finish(evaluator_user, version)
     validation.validate(evaluator_user, version.pk)
-    log_in(client, operator_user)
+    log_in(client, evaluator_user)
 
     response = client.post(accept_url(rows[0]))
 
@@ -125,12 +125,12 @@ def test_a_validated_version_refuses_to_decide_a_suggestion(
 
 
 def test_the_group_button_first_shows_the_rows_and_only_accept_applies(
-        client, operator_user, suggested):
+        client, evaluator_user, suggested):
     """REQ-034: "Pasar a requisito las 3" lleva a la página con las 3 filas y su texto
     literal; nada cambia hasta "Aceptar", que pasa cada fila con su historial y
     `via_grupo`; la fila de otro grupo no se toca."""
     version, rows, other = suggested
-    log_in(client, operator_user)
+    log_in(client, evaluator_user)
 
     page = text_of(client.get(group_url(version), {"group": "sec-i/3.1", "action": "pasar"}))
 
@@ -152,10 +152,10 @@ def test_the_group_button_first_shows_the_rows_and_only_accept_applies(
         assert change.event.detail["via_grupo"] == "sec-i/3.1"
 
 
-def test_the_group_remove_button_removes_only_that_group(client, operator_user, suggested):
+def test_the_group_remove_button_removes_only_that_group(client, evaluator_user, suggested):
     """REQ-034: "Quitar las 3" muestra primero las filas y después las quita."""
     version, rows, other = suggested
-    log_in(client, operator_user)
+    log_in(client, evaluator_user)
     query = {"group": "sec-i/3.1", "action": "quitar"}
 
     page = text_of(client.get(group_url(version), query))
@@ -166,11 +166,11 @@ def test_the_group_remove_button_removes_only_that_group(client, operator_user, 
 
 
 def test_an_unknown_group_action_or_empty_group_is_refused_without_changes(
-        client, operator_user, suggested):
+        client, evaluator_user, suggested):
     """REQ-034: una acción inventada o un grupo sin sugerencias se rechaza y no cambia
     nada."""
     version, rows, _other = suggested
-    log_in(client, operator_user)
+    log_in(client, evaluator_user)
 
     bad = client.post(group_url(version), {"group": "sec-i/3.1", "action": "confirmar"})
     empty = client.post(group_url(version), {"group": "sec-i/9", "action": "pasar"})
@@ -199,12 +199,12 @@ def test_the_validate_button_tells_how_many_suggestions_are_left(
     assert version.status == "draft"
 
 
-def test_the_coverage_shows_the_state_of_each_row(client, operator_user, suggested):
+def test_the_coverage_shows_the_state_of_each_row(client, evaluator_user, suggested):
     """REQ-035: la cobertura nombra cada fila de un tramo con su estado; la sugerencia
     figura como tal."""
     version, rows, other = suggested
-    suggestions.accept_suggestion(operator_user, rows[0].pk)
-    log_in(client, operator_user)
+    suggestions.accept_suggestion(evaluator_user, rows[0].pk)
+    log_in(client, evaluator_user)
 
     page = squash(text_of(client.get(reverse("tenders:coverage", args=[version.pk]))))
 

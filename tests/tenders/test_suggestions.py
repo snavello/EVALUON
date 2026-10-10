@@ -92,18 +92,18 @@ def refused(reason, event_type=EventType.REQUIREMENT_CHANGE):
 
 
 def test_accepting_a_suggestion_leaves_it_proposed_with_who_when_reason_and_support(
-        operator_user, case, norm_unit):
+        evaluator_user, case, norm_unit):
     """REQ-035/026: pasa de `sugerido` a `propuesto`; la fila de historial dice quién,
     cuándo, el motivo de la duda y el respaldo como estaban; hay hecho de auditoría."""
     row = make_suggestion(case, "sec-i/3.1")
     add_support(row, norm_unit, case.run)
 
-    done = suggestions.accept_suggestion(operator_user, row.pk)
+    done = suggestions.accept_suggestion(evaluator_user, row.pk)
 
     assert state_of(row) == "propuesto"
     change = row.changes.get()
     assert done.changes == [change] and len(done.events) == 1
-    assert change.action == "aceptar_sugerencia" and change.user == operator_user
+    assert change.action == "aceptar_sugerencia" and change.user == evaluator_user
     assert change.at is not None and change.event == done.events[0]
     assert change.before["state"] == "sugerido"
     assert change.before["doubt_reason"] == "no_coinciden"
@@ -117,13 +117,13 @@ def test_accepting_a_suggestion_leaves_it_proposed_with_who_when_reason_and_supp
     assert row.doubt_reason == "no_coinciden" and row.norm_supports.count() == 1
 
 
-def test_an_evaluator_can_accept_and_remove_too(evaluator_user, operator_user, case):
+def test_an_evaluator_can_accept_and_remove_too(evaluator_user, case):
     """REQ-035: el operador y el evaluador deciden."""
     first = make_suggestion(case, "sec-i/3.1")
     second = make_suggestion(case, "sec-i/4.1")
 
     suggestions.accept_suggestion(evaluator_user, first.pk)
-    review.remove(operator_user, second.pk)
+    review.remove(evaluator_user, second.pk)
 
     assert state_of(first) == "propuesto" and state_of(second) == "quitado"
 
@@ -144,12 +144,12 @@ def test_a_user_without_a_commission_role_cannot_decide(no_commission_user, case
     assert AuditEvent.objects.filter(outcome=Outcome.REJECTED).count() == before + 3
 
 
-def test_only_a_suggestion_can_be_accepted(operator_user, case):
+def test_only_a_suggestion_can_be_accepted(evaluator_user, case):
     """REQ-035: una fila que no es `sugerido` no se pasa a requisito."""
     row = make_suggestion(case, "sec-i/3.1", state="propuesto")
 
     with pytest.raises(review.ReviewRefused) as error:
-        suggestions.accept_suggestion(operator_user, row.pk)
+        suggestions.accept_suggestion(evaluator_user, row.pk)
 
     assert error.value.reason == "not_a_suggestion"
     assert refused("not_a_suggestion").count() == 1
@@ -159,20 +159,20 @@ def test_only_a_suggestion_can_be_accepted(operator_user, case):
 # --- Por grupo -----------------------------------------------------------------------------------
 
 
-def test_accepting_a_group_equals_five_individual_decisions(operator_user, case):
+def test_accepting_a_group_equals_five_individual_decisions(evaluator_user, case):
     """REQ-034/035: cinco sugerencias de una cláusula pasan a requisito con cinco filas de
     historial iguales a las de la decisión individual; `sec-i/1` no alcanza a `sec-i/11`;
     las filas ya decididas no se tocan."""
     rows = [make_suggestion(case, "sec-i/3.1", start=i * 6) for i in range(5)]
     other = make_suggestion(case, "sec-i/4.1")
     removed = make_suggestion(case, "sec-i/3.1", start=40)
-    review.remove(operator_user, removed.pk)
+    review.remove(evaluator_user, removed.pk)
     proposed = make_suggestion(case, "sec-i/3.1", state="propuesto", start=50)
     single = make_suggestion(case, "sec-i/4.1", start=20)
-    suggestions.accept_suggestion(operator_user, single.pk)
+    suggestions.accept_suggestion(evaluator_user, single.pk)
     individual = single.changes.get()
 
-    done = suggestions.accept_suggestions_group(operator_user, case.pk, "sec-i/3")
+    done = suggestions.accept_suggestions_group(evaluator_user, case.pk, "sec-i/3")
 
     assert {state_of(r) for r in rows} == {"propuesto"}
     assert len(done.changes) == 5 and len(done.events) == 5
@@ -182,43 +182,43 @@ def test_accepting_a_group_equals_five_individual_decisions(operator_user, case)
     for row in rows:
         change = row.changes.get()
         assert change.action == individual.action == "aceptar_sugerencia"
-        assert change.user == operator_user
+        assert change.user == evaluator_user
         assert change.before == individual.before and change.after == individual.after
         assert change.event.detail["via_grupo"] == "sec-i/3"
     assert "via_grupo" not in individual.event.detail
 
 
-def test_a_group_key_does_not_reach_a_longer_key(operator_user, case):
+def test_a_group_key_does_not_reach_a_longer_key(evaluator_user, case):
     """REQ-034: `sec-i/3` no alcanza a una sugerencia de `sec-i/30.1`; `sec-i/4` sí a
     `sec-i/4.1`."""
     assert not review.in_group("sec-i/30.1", "sec-i/3")
     near = make_suggestion(case, "sec-i/3.1")
     far = make_suggestion(case, "sec-i/4.1")
 
-    suggestions.accept_suggestions_group(operator_user, case.pk, "sec-i/3")
+    suggestions.accept_suggestions_group(evaluator_user, case.pk, "sec-i/3")
 
     assert state_of(near) == "propuesto" and state_of(far) == "sugerido"
 
 
-def test_a_group_without_suggestions_is_refused_and_nothing_changes(operator_user, case):
+def test_a_group_without_suggestions_is_refused_and_nothing_changes(evaluator_user, case):
     """REQ-035: un grupo sin sugerencias no hace nada y deja el hecho `rejected`."""
     make_suggestion(case, "sec-i/3.1", state="propuesto")
 
     with pytest.raises(review.ReviewRefused) as error:
-        suggestions.accept_suggestions_group(operator_user, case.pk, "sec-i/3.1")
+        suggestions.accept_suggestions_group(evaluator_user, case.pk, "sec-i/3.1")
 
     assert error.value.reason == "empty_group"
     assert refused("empty_group").count() == 1
 
 
 def test_removing_a_group_of_suggestions_removes_only_the_suggested(
-        operator_user, case):
+        evaluator_user, case):
     """REQ-034/035: quitar un grupo de sugerencias deja `quitado` solo las `sugerido`,
     cada una con su historial `quitar` y `via_grupo`."""
     rows = [make_suggestion(case, "sec-i/3.1", start=i * 6) for i in range(3)]
     proposed = make_suggestion(case, "sec-i/3.1", state="propuesto", start=30)
 
-    done = suggestions.remove_suggestions_group(operator_user, case.pk, "sec-i/3.1")
+    done = suggestions.remove_suggestions_group(evaluator_user, case.pk, "sec-i/3.1")
 
     assert {state_of(r) for r in rows} == {"quitado"}
     assert state_of(proposed) == "propuesto"
@@ -227,12 +227,12 @@ def test_removing_a_group_of_suggestions_removes_only_the_suggested(
     assert all(e.detail["via_grupo"] == "sec-i/3.1" for e in done.events)
 
 
-def test_the_group_of_proposed_rows_still_ignores_suggestions(operator_user, case):
+def test_the_group_of_proposed_rows_still_ignores_suggestions(evaluator_user, case):
     """REQ-034: quitar un grupo sin pedir sugerencias sigue quitando solo propuestas."""
     suggested = make_suggestion(case, "sec-i/3.1")
     proposed = make_suggestion(case, "sec-i/3.1", state="propuesto", start=10)
 
-    review.remove_group(operator_user, case.pk, "sec-i/3.1")
+    review.remove_group(evaluator_user, case.pk, "sec-i/3.1")
 
     assert state_of(suggested) == "sugerido" and state_of(proposed) == "quitado"
 
@@ -240,14 +240,14 @@ def test_the_group_of_proposed_rows_still_ignores_suggestions(operator_user, cas
 # --- Quitar y restituir --------------------------------------------------------------------------
 
 
-def test_removing_a_suggestion_and_restoring_it_leaves_it_proposed(operator_user, case):
+def test_removing_a_suggestion_and_restoring_it_leaves_it_proposed(evaluator_user, case):
     """REQ-035: quitar una sugerencia la deja `quitado`; restituirla la deja `propuesto`
     (la persona la quiere como requisito)."""
     row = make_suggestion(case, "sec-i/3.1")
 
-    review.remove(operator_user, row.pk)
+    review.remove(evaluator_user, row.pk)
     assert state_of(row) == "quitado"
-    review.restore(operator_user, row.pk)
+    review.restore(evaluator_user, row.pk)
 
     assert state_of(row) == "propuesto"
     assert [c.action for c in row.changes.order_by("id")] == ["quitar", "restituir"]
@@ -266,20 +266,20 @@ def test_confirming_a_suggestion_is_refused_even_for_an_evaluator(evaluator_user
 
 
 def test_in_a_validated_version_nothing_about_suggestions_can_be_done(
-        operator_user, evaluator_user, case):
+        evaluator_user, case):
     """REQ-035/027: en una versión validada las funciones rechazan, y la base también."""
     row = make_suggestion(case, "sec-i/3.1")
     other = make_suggestion(case, "sec-i/4.1")
-    suggestions.accept_suggestion(operator_user, row.pk)
-    suggestions.accept_suggestion(operator_user, other.pk)
+    suggestions.accept_suggestion(evaluator_user, row.pk)
+    suggestions.accept_suggestion(evaluator_user, other.pk)
     finish(evaluator_user, case)
     validation.validate(evaluator_user, case.pk)
 
-    for call in (lambda: suggestions.accept_suggestion(operator_user, row.pk),
+    for call in (lambda: suggestions.accept_suggestion(evaluator_user, row.pk),
                  lambda: suggestions.accept_suggestions_group(
-                     operator_user, case.pk, "sec-i/3.1"),
+                     evaluator_user, case.pk, "sec-i/3.1"),
                  lambda: suggestions.remove_suggestions_group(
-                     operator_user, case.pk, "sec-i/3.1")):
+                     evaluator_user, case.pk, "sec-i/3.1")):
         with pytest.raises(review.ReviewRefused) as error:
             call()
         assert error.value.reason == "version_not_draft"
@@ -320,14 +320,14 @@ def test_validating_with_one_undecided_suggestion_is_refused_saying_how_many_and
 
 
 def test_validating_with_every_suggestion_decided_works_and_counts_them(
-        operator_user, evaluator_user, case):
+        evaluator_user, case):
     """REQ-035: con todas decididas se valida; el hecho `matrix_validation` suma las
     aceptadas y las quitadas."""
     accepted = [make_suggestion(case, "sec-i/3.1", start=i * 6) for i in range(2)]
     removed = make_suggestion(case, "sec-i/4.1")
     for row in accepted:
-        suggestions.accept_suggestion(operator_user, row.pk)
-    review.remove(operator_user, removed.pk)
+        suggestions.accept_suggestion(evaluator_user, row.pk)
+    review.remove(evaluator_user, removed.pk)
     finish(evaluator_user, case)
 
     version = validation.validate(evaluator_user, case.pk)
@@ -364,13 +364,13 @@ def test_discarding_a_draft_with_undecided_suggestions_is_allowed(evaluator_user
 
 
 def test_the_new_version_copies_the_suggestion_origin_reason_support_and_process(
-        operator_user, evaluator_user, case, norm_unit):
+        evaluator_user, case, norm_unit):
     """REQ-035/036/027: la versión nueva copia el requisito venido de una sugerencia con su
     motivo, su duda y su respaldo; también `doubt_reason`, `doubt` y `restored_from` de
     cualquier fila, y el proceso de la versión (aviso de T-104 y T-100)."""
     row = make_suggestion(case, "sec-i/3.1")
     add_support(row, norm_unit, case.run)
-    suggestions.accept_suggestion(operator_user, row.pk)
+    suggestions.accept_suggestion(evaluator_user, row.pk)
     restored = m.DiscardedRow.objects.create(
         run=case.run, version=case, order=1, segment=row.quotes.get().segment,
         char_start=0, char_end=3, text="abc", category="formal", items=[],
@@ -385,7 +385,7 @@ def test_the_new_version_copies_the_suggestion_origin_reason_support_and_process
     validated = validation.validate(evaluator_user, case.pk)
     assert validated.process == "completo"
 
-    new = validation.open_new_version(operator_user, validated.procedure_id)
+    new = validation.open_new_version(evaluator_user, validated.procedure_id)
 
     copy = new.requirements.get(number=row.number)
     assert copy.state == "confirmado"

@@ -221,7 +221,7 @@ def test_user_without_commission_role_is_refused(client, no_commission_user, cas
     procedure, _, version, _ = case
     log_in(client, no_commission_user)
 
-    assert client.get(matrix_url(version), follow=True).status_code == 403
+    assert client.get(matrix_url(version), follow=True).status_code == 200  # el lector ve la pestaña (2026-10-10)
     assert client.get(reverse("tenders:coverage", args=[version.pk])).status_code == 403
     assert client.post(request_url(procedure), {}).status_code == 403
 

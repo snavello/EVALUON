@@ -370,6 +370,50 @@ def test_the_operator_cannot_validate_or_confirm(client, procedure, board, opera
     assert AuditEvent.objects.filter(event_type=EventType.REJECTED).count() >= 1
 
 
+def test_only_the_evaluator_corrects_adds_removes_and_decides_suggestions(
+        client, procedure, board, operator_user, evaluator_user):
+    """REQ-081 (decisión del 2026-10-10): corregir, agregar, quitar, restituir y decidir una
+    sugerencia son del evaluador; con el operador, cada una da 403 con el rechazo registrado y
+    no cambia nada. El evaluador sí puede."""
+    segment = board.segments[0]
+    row = board.rows[0]
+    targets = [
+        (url("s2_corregir", procedure, row.pk), {"reason": "x", "category": "formal"}),
+        (url("s2_quitar", procedure, row.pk), {"reason": "x"}),
+        (url("s2_restituir", procedure, row.pk), {"reason": "x"}),
+        (url("s2_agregar", procedure), {"segment": segment.pk, "quote": "x", "reason": "x",
+                                        "category": "formal"}),
+        (url("s2_agregar_tecnico", procedure), {"item": "9", "segment": segment.pk}),
+        (url("s2_sugerencia_pasar", procedure, board.suggestion.pk), {}),
+        (url("s2_sugerencia_quitar", procedure, board.suggestion.pk), {}),
+    ]
+    log_in(client, operator_user)
+    before = AuditEvent.objects.filter(event_type=EventType.REJECTED).count()
+    state = (m.Requirement.objects.filter(version=board.draft).count(),
+             m.Requirement.objects.get(pk=board.suggestion.pk).state, row.state)
+    for target, data in targets:
+        assert client.post(target, data).status_code == 403, target
+    assert AuditEvent.objects.filter(event_type=EventType.REJECTED).count() == before + len(
+        targets)
+    assert state == (m.Requirement.objects.filter(version=board.draft).count(),
+                     m.Requirement.objects.get(pk=board.suggestion.pk).state,
+                     m.Requirement.objects.get(pk=row.pk).state)
+    client.logout()
+    log_in(client, evaluator_user)
+    assert client.post(targets[5][0], {}).status_code == 302
+    assert m.Requirement.objects.get(pk=board.suggestion.pk).state == "propuesto"
+
+
+def test_the_operator_still_uploads_files_and_takes_from_the_portal(
+        client, procedure, board, operator_user):
+    """REQ-097: el operador sigue subiendo archivos y tomando del Portal: sus rutas no lo
+    rechazan por rol."""
+    log_in(client, operator_user)
+    for name in ("s2_documentos_subir", "s2_proponer"):
+        target = url(name, procedure)
+        assert client.post(target, {}).status_code != 403, name
+
+
 # --- Imprimir, exportar, límites ------------------------------------------------------------------
 
 

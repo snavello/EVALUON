@@ -56,11 +56,11 @@ def test_the_original_is_served_as_a_pdf(client, operator_user, offer):
 def test_a_user_without_commission_role_gets_403(client, no_commission_user, offer):
     """Sin rol de la Comisión no se ve nada de ofertas, y el rechazo queda registrado."""
     log_in(client, no_commission_user)
-    assert client.get(reverse("offers:offer", args=[offer.pk]), follow=True).status_code == 403
+    assert client.get(reverse("offers:offer", args=[offer.pk]), follow=True).status_code == 200  # el lector ve la pestaña (2026-10-10)
     assert client.get(reverse("offers:procedure_offers",
-                              args=[offer.procedure_id]), follow=True).status_code == 403
+                              args=[offer.procedure_id]), follow=True).status_code == 200
     assert client.post(reverse("offers:build_sheet", args=[offer.pk])).status_code == 403
-    assert AuditEvent.objects.filter(event_type=EventType.REJECTED).count() == 3
+    assert AuditEvent.objects.filter(event_type=EventType.REJECTED).count() == 1
 
 
 def test_the_notice_of_a_finished_reading_links_to_the_offers(client, operator_user,

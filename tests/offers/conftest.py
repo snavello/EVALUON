@@ -47,11 +47,11 @@ def expected():
 
 
 @pytest.fixture
-def matrix(db, operator_user, expected):
+def matrix(evaluator_user, db, operator_user, expected):
     """El procedimiento del caso chico con su pliego leído y su matriz validada (sin
     ofertas). Devuelve `SimpleNamespace(procedure, version, expected)`."""
     bare = dataclasses.replace(expected, offers=[])
-    procedure, _ = evaluation.build_case(operator_user, bare)
+    procedure, _ = evaluation.build_case(evaluator_user, bare)
     version = procedure.matrix_versions.get(number=1)
     return SimpleNamespace(procedure=procedure, version=version, expected=expected)
 
