@@ -66,7 +66,7 @@ flowchart LR
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
-| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 32/39 | ████████░░ 82% |
+| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 33/39 | ████████░░ 85% |
 
 <a id="001"></a>
 
@@ -1052,8 +1052,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 7 tareas sin terminar.
-- ○ T-217 · Los cinco momentos y los roles con el caso chico: estados y cuentas de las cinco secciones, 25 de 25 celdas (reemplaza a T-185 de la 013) (pendiente)
+- **Próximo paso:** Desarrollar: 6 tareas sin terminar.
 - ○ T-218 · Comprobación final con el caso chico y el caso-00 (Coordinador y testeador): 26 de 26 requisitos en pantalla, 0 datos tipeados, carga menor a 2 s y guía visual (reemplaza a T-186 de la 013) (pendiente)
 - ○ T-223 · Menos consultas en los servicios de la evaluación y de la matriz (N+1 en matrix_page, external_results, question_list y quote_rows), sin cambiar resultados (pendiente)
 - ○ T-185 · T-217 (con sus avisos: pausa del sondeo con la pestaña oculta, `Stage.suggestions`, motivo de falla con `plain_reason`, foco del ícono tras el sondeo) (pendiente)
@@ -1089,6 +1088,7 @@ flowchart LR
 - ✓ T-214 · Sección 5: subir una norma, ver el informe de lectura y validarla desde la pantalla (`4e46b05` 2026-10-08, `80230c0` 2026-10-08)
 - ✓ T-215 · Sección 5: normas que rigen al procedimiento según su fecha de autorización y cuáles faltan cargar (`7b1883e` 2026-10-08, `1affbcc` 2026-10-08, `a331470` 2026-10-08, `4a3aefa` 2026-10-08)
 - ✓ T-216 · Sección 5: consulta de normativa con citas literales (`5e9b3c8` 2026-10-09, `a90f04c` 2026-10-08)
+- ✓ T-217 · Los cinco momentos y los roles con el caso chico: estados y cuentas de las cinco secciones, 25 de 25 celdas (reemplaza a T-185 de la 013) (`ccec308` 2026-10-10)
 - ✓ T-219 · Las pantallas anteriores redirigen a su sección y el menú queda con la entrada nueva (`13eb6dc` 2026-10-08)
 - ✓ T-220 · Propuesta de nombre y CUIT del oferente desde los archivos de una oferta: borrador, pedido en segundo plano, citas, corrección con valor y motivo y aprobación que crea la oferta (sin pantalla) (`221e2c3` 2026-10-09, `8575447` 2026-10-08, `2e1ed01` 2026-10-08)
 - ✓ T-221 · Rendimiento de las pestañas con datos reales: Pliego y matriz, Ofertas y Evaluación cargan en menos de 2 s con el procedimiento real del sistema principal (medido en una base aparte restaurada del respaldo) (`73bfe16` 2026-10-08, `dd680b9` 2026-10-08)
@@ -1126,7 +1126,7 @@ flowchart TD
   T214["✓ T-214 · Sección 5: subir una norma, ver el informe…"]:::done
   T215["✓ T-215 · Sección 5: normas que rigen al procedimient…"]:::done
   T216["✓ T-216 · Sección 5: consulta de normativa con citas…"]:::done
-  T217["○ T-217 · Los cinco momentos y los roles con el caso…"]:::todo
+  T217["✓ T-217 · Los cinco momentos y los roles con el caso…"]:::done
   T218["○ T-218 · Comprobación final con el caso chico y el c…"]:::todo
   T219["✓ T-219 · Las pantallas anteriores redirigen a su sec…"]:::done
   T220["✓ T-220 · Propuesta de nombre y CUIT del oferente des…"]:::done
