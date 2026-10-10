@@ -15,8 +15,10 @@ el modelo"; ADR-0019, decisiones 2 y 3).
 3. Se valida tramo por tramo:
    - sin requisitos, sin marca técnica y sin descarte, o con descarte y algo más, o con la
      forma rota: el tramo queda sin disposición;
-   - cada `cita` se busca exacta dentro del tramo (`quotes.locate`); dos requisitos del
-     mismo tramo con la misma cita se unen;
+   - cada `cita` se busca exacta dentro del tramo (`quotes.locate_unit`) y se amplía por
+     código a su unidad de sentido: la oración completa y las oraciones cortas contiguas del
+     mismo asunto (T-234, REQ-101; ADR-0054, reglas 1 y 3). Dos requisitos del mismo tramo
+     con la misma cita, o con fragmentos de la misma unidad, se unen en una fila;
    - si la salida se cortó por el máximo de salida, el lote se parte en dos y se repite
      cada mitad.
 4. Los tramos sin disposición y los que tienen una cita que no está en el tramo se vuelven
@@ -24,6 +26,11 @@ el modelo"; ADR-0019, decisiones 2 y 3).
    deja pendiente) y la cita que no se pudo ubicar queda con el tramo entero como cita y la
    marca `cita_amplia` (una por clase y tramo). Un requisito nunca se pierde por una cita
    mal copiada.
+
+El fragmento que señaló el modelo y la unidad a la que se amplió quedan en el `parsed` del
+pedido, cada uno con sus posiciones (P6). Un tramo que no se entiende solo (un inciso de una
+lista, una oración que sigue a la anterior) lleva a la vista el encabezado de su punto en la
+línea `Encabezado:`; es contexto y no se cita.
 
 La clase de un requisito cuyo tramo está en una sección que nombra una clase (`section_class`
 formal o economico) la pone la regla, no el modelo. Los renglones de un requisito son los
@@ -43,7 +50,13 @@ from pathlib import Path
 from django.conf import settings
 
 from evaluon.ai import AIServiceError, generation
-from evaluon.tenders.models import DiscardReason, PassName, RequirementClass, RunStep
+from evaluon.tenders.models import (
+    DiscardReason,
+    PassName,
+    RequirementClass,
+    RunStep,
+    SegmentType,
+)
 from evaluon.tenders.proposal import quotes
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
@@ -65,6 +78,7 @@ ANOMALY_EXTRA_ALIAS = "propiedad_de_mas"
 ANOMALY_NO_DISPOSITION = "sin_disposicion"
 ANOMALY_QUOTE_NOT_FOUND = "cita_no_encontrada"
 ANOMALY_QUOTES_JOINED = "citas_unidas"
+ANOMALY_UNIT_TOO_LONG = "unidad_demasiado_larga"
 ANOMALY_SERVICE = "servicio"
 
 
@@ -75,22 +89,36 @@ class InvalidItem(ValueError):
 @dataclass(frozen=True)
 class Unit:
     """Un tramo con lo que hace falta para pedirlo: el tramo (`Segment`), el título de su
-    documento y su lugar en el pliego (el orden en que se muestran y se numeran)."""
+    documento y su lugar en el pliego (el orden en que se muestran y se numeran). `heading`
+    es el encabezado de su punto cuando la oración sola no se entiende (`sentences.heading_of`):
+    viaja en el pedido como contexto y no se cita."""
 
     segment: object
     document_title: str
     position: int
+    heading: str = ""
 
 
 @dataclass
 class Found:
     """Un requisito ubicado: su clase y sus posiciones relativas al tramo. `flag` es
-    `cita_amplia` si no se pudo ubicar el fragmento; `step`, el pedido que lo produjo."""
+    `cita_amplia` si no se pudo ubicar el fragmento; `step`, el pedido que lo produjo.
+
+    `span` es la unidad de sentido (T-234, REQ-101): la oración completa y las oraciones
+    cortas contiguas del mismo asunto. Lo que el sistema sabe de cómo se llegó a ella se
+    guarda aparte (P6): `fragments`, los fragmentos que señaló el modelo (`[(inicio, fin)]`,
+    más de uno si dos fragmentos eran de la misma unidad y se unieron en una fila); `unit`, la
+    unidad que calculó el sistema; `too_long`, verdadero si esa unidad pasa del largo máximo de
+    una cita: entonces `span` es el fragmento del modelo y la cita se guarda con la marca
+    `cita_amplia` para revisión."""
 
     category: str
     span: tuple
     flag: str = ""
     step: object = None
+    fragments: list = field(default_factory=list)
+    unit: tuple | None = None
+    too_long: bool = False
 
 
 @dataclass
@@ -186,11 +214,14 @@ def build_schema(aliases, numbers):
 
 
 def render_block(alias, unit):
-    """El tramo tal como lo ve el modelo: alias, documento, ruta, renglones, clase de la
-    sección y texto literal, entre `[alias]` y `[/alias]`."""
+    """El tramo tal como lo ve el modelo: alias, documento, ruta, encabezado del punto (si la
+    oración sola no se entiende), renglones, clase de la sección y texto literal, entre
+    `[alias]` y `[/alias]`."""
     segment = unit.segment
     lines = [f"[{alias}]", f"Documento: {unit.document_title}"]
     lines.append(f"Ruta: {segment.path or segment.label or segment.key}")
+    if unit.heading:
+        lines.append(f"Encabezado: {unit.heading}")
     if segment.items:
         lines.append("Renglones: " + ", ".join(str(n) for n in segment.items))
     if segment.section_class in _CLASS_LABELS:
@@ -280,9 +311,44 @@ def _category(unit, kind):
     return section if section in BODY_CLASSES else kind
 
 
+def expands(unit):
+    """Si la cita de un tramo se amplía a su unidad de sentido: el texto de una tabla no tiene
+    oraciones (sus celdas son líneas) y la cita queda en el fragmento del modelo."""
+    return getattr(unit.segment, "segment_type", None) != SegmentType.TABLA
+
+
+def found_from(category, fragment, expansion):
+    """El requisito ubicado de un fragmento del modelo y su ampliación (`quotes.locate_unit`)."""
+    return Found(category=category, span=expansion.span, fragments=[fragment],
+                 unit=expansion.unit, too_long=expansion.too_long)
+
+
+def _overlap(first, second):
+    return min(first[1], second[1]) > max(first[0], second[0])
+
+
+def merge_into(found, new):
+    """Suma `new` a la lista `found` de un tramo. Si su unidad de sentido toca la de otro
+    requisito, son la misma fila (una fila por unidad, ADR-0054): el otro queda con la unión
+    de las dos unidades y los fragmentos de ambos, y se devuelve. Si no, se agrega y se
+    devuelve `None`. Una cita amplia o una unidad demasiado larga (queda el fragmento del
+    modelo) no se une con ninguna."""
+    if new.flag != quotes.WIDE and not new.too_long and new.unit is not None:
+        for twin in found:
+            if (twin.flag != quotes.WIDE and not twin.too_long and twin.unit is not None
+                    and _overlap(twin.span, new.span)):
+                twin.span = (min(twin.span[0], new.span[0]), max(twin.span[1], new.span[1]))
+                twin.unit = twin.span
+                twin.fragments = [*twin.fragments, *new.fragments]
+                return twin
+    found.append(new)
+    return None
+
+
 def _resolve(unit, item, anomalies):
-    """Ubica las citas de `item` dentro del tramo. Devuelve `(found, unfound)`: los
-    requisitos ubicados y las clases de los que no. Dos citas iguales se unen."""
+    """Ubica las citas de `item` dentro del tramo y las amplía a su unidad de sentido.
+    Devuelve `(found, unfound)`: los requisitos ubicados y las clases de los que no. Dos citas
+    iguales, o dos fragmentos de la misma unidad, se unen en un solo requisito."""
     text = unit.segment.text
     seen, used = set(), set()
     found, unfound = [], []
@@ -293,13 +359,19 @@ def _resolve(unit, item, anomalies):
                               "key": unit.segment.key})
             continue
         seen.add(key)
-        span = quotes.locate(text, key, used)
+        located = quotes.locate_unit(text, key, used, expand=expands(unit))
         category = _category(unit, kind)
-        if span is None:
+        if located is None:
             unfound.append(category)
-        else:
-            used.add(span)
-            found.append(Found(category=category, span=span))
+            continue
+        fragment, expansion = located
+        used.add(fragment)
+        if expansion.too_long:
+            anomalies.append({"type": ANOMALY_UNIT_TOO_LONG, "segment": unit.segment.pk,
+                              "key": unit.segment.key, "clase": category})
+        if merge_into(found, found_from(category, fragment, expansion)) is not None:
+            anomalies.append({"type": ANOMALY_QUOTES_JOINED, "segment": unit.segment.pk,
+                              "key": unit.segment.key, "unidad": True})
     return found, unfound
 
 
@@ -317,16 +389,32 @@ def wide_quotes(unit, categories, existing=()):
     return wide
 
 
+def found_record(found, text):
+    """Lo que se registra de un requisito ubicado en el `parsed` de su pedido (P6): la clase,
+    la cita (`inicio` y `fin`, posiciones relativas al tramo), el fragmento o los fragmentos
+    que señaló el modelo, y la unidad de sentido a la que se amplió. `cita_larga` avisa que
+    la unidad pasó del largo de una cita y quedó el fragmento del modelo."""
+    record = {"clase": found.category, "inicio": found.span[0], "fin": found.span[1]}
+    if found.fragments:
+        record["fragmentos"] = [{"texto": text[start:end], "inicio": start, "fin": end}
+                                for start, end in found.fragments]
+    if found.unit is not None:
+        record["oracion"] = {"inicio": found.unit[0], "fin": found.unit[1]}
+    if found.too_long:
+        record["cita_larga"] = True
+    return record
+
+
 def _parsed(outcome):
     """Lo interpretado de un tramo, para `tenders_run_step.parsed`."""
     if outcome.item is None:
         return {"segmento": outcome.unit.segment.pk, "valida": False}
+    text = outcome.unit.segment.text
     return {
         "segmento": outcome.unit.segment.pk,
         "valida": outcome.valid,
         KEY_REQUIREMENTS: [
-            {"clase": found.category, "inicio": found.span[0], "fin": found.span[1]}
-            for found in outcome.found
+            found_record(found, text) for found in outcome.found
         ] + [{"clase": category, "inicio": None, "fin": None}
              for category in outcome.unfound],
         KEY_TECHNICAL: list(outcome.item.technical),
@@ -355,7 +443,7 @@ class Extractor:
         self.steps = []
         self.anomalies = []
         self.stats = {"requests": 0, "split_batches": 0, "segments_retried": 0,
-                      "quotes_retried": 0, "wide_quotes": 0}
+                      "quotes_retried": 0, "wide_quotes": 0, "long_units": 0}
         self._batch = 0
 
     def _record(self, units, result, *, parsed, anomalies, retry_of, seconds):
@@ -496,9 +584,10 @@ class Extractor:
                 outcome.discard = again.discard
                 outcome.step = again.step
         elif again.valid and (again.found or again.unfound):
-            # Lo que vuelve reemplaza a las citas que no se ubicaron; lo ya ubicado queda.
-            known = {found.span for found in outcome.found}
-            outcome.found += [f for f in again.found if f.span not in known]
+            # Lo que vuelve reemplaza a las citas que no se ubicaron; lo ya ubicado queda. Lo
+            # que cae en una unidad ya ubicada es la misma fila.
+            for again_found in again.found:
+                merge_into(outcome.found, again_found)
             outcome.unfound = again.unfound
             outcome.technical = _union(outcome.technical, again.technical)
         elif again.valid:
@@ -527,6 +616,9 @@ class Extractor:
                 self._retry(outcome)
         self.stats["wide_quotes"] = sum(
             1 for o in outcomes.values() for f in o.found if f.flag == quotes.WIDE
+        )
+        self.stats["long_units"] = sum(
+            1 for o in outcomes.values() for f in o.found if f.too_long
         )
         self.stats["steps"] = len(self.steps)
         step_anomalies = [anomaly for step in self.steps for anomaly in step.anomalies]

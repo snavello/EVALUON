@@ -92,7 +92,7 @@
         <tr class="fila-req" data-numero="{{ row.number }}" id="req-{{ row.number }}">
           <td><button type="button" class="abrir" aria-expanded="false" aria-controls="detalle-{{ row.number }}" aria-label="Ver la cita del requisito {{ row.number }}">▸</button></td>
           <th scope="row" class="num">{{ row.number }}</th>
-          <td>{{ row.text }}</td>
+          <td>{% with head=row.page_row.quotes.0.heading %}{% if head %}<span class="suave">Encabezado del punto: {{ head|truncatechars:200 }}</span><br>{% endif %}{% endwith %}{{ row.text }}</td>
           <td class="chica suave">{% if row.place %}{% include "tenders/_place.html" with place=row.place %}{% endif %}</td>
           <td class="chica">{{ row.consequence }}</td>
           <td class="chica suave">{{ row.marks|join:" · " }}</td>

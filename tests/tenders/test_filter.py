@@ -229,7 +229,7 @@ def test_a_discarded_row_keeps_its_quote_reason_clue_and_both_votes(operator_use
 
     row = m.DiscardedRow.objects.get(run=run)
     canonical = row.segment.reading.canonical_text
-    assert row.text == FRAG_1 and canonical[row.char_start:row.char_end] == FRAG_1
+    assert row.text == SENT_1 and canonical[row.char_start:row.char_end] == SENT_1
     assert row.version == run.version and row.category == "formal" and row.order == 1
     assert row.reason == "ejecucion_contrato"
     assert row.evidence_segment == row.segment and row.evidence_text == SENT_1
@@ -261,8 +261,8 @@ def test_a_discarded_row_stores_the_repeated_quotes_as_segment_and_positions(
     assert set(extra) == {"segment", "char_start", "char_end", "text"}
     other = m.Segment.objects.get(pk=extra["segment"])
     assert other.key == "sec-i/2.1" and other.pk != row.segment_id
-    assert other.reading.canonical_text[extra["char_start"]:extra["char_end"]] == FRAG_1
-    assert extra["text"] == FRAG_1
+    assert other.reading.canonical_text[extra["char_start"]:extra["char_end"]] == SENT_1
+    assert extra["text"] == SENT_1
 
 
 def test_a_suggestion_is_a_requirement_with_quote_class_items_and_doubt(
@@ -279,7 +279,7 @@ def test_a_suggestion_is_a_requirement_with_quote_class_items_and_doubt(
     assert (row.state, row.doubt_reason, row.origin) == ("sugerido", "duda", "propuesto")
     assert row.category == "formal" and row.items == []
     assert [(q.scope, q.text) for q in row.quotes.order_by("order")] == [
-        ("", FRAG_1), ("repetida", FRAG_1)]
+        ("", SENT_1), ("repetida", SENT_1)]
     assert [q["scope"] for q in row.proposed["quotes"]] == ["", "repetida"]
     doubt = row.doubt
     assert doubt["vote_a"] == {"decision": "descartar", "motivo": "formulario",
@@ -434,7 +434,7 @@ def test_a_circular_row_is_never_filtered_and_a_suggestion_is_reached_by_circula
     assert all("declaración jurada" not in fragment for fragment in filt.fragments("a"))
     new = version.requirements.get(origin="circular")
     assert new.state == "propuesto" and new.doubt_reason == ""
-    visit = version.requirements.get(quotes__text=VISITA_QUOTE)
+    visit = version.requirements.get(quotes__text=VISITA)  # la oración (REQ-101)
     assert visit.state == "quitado" and visit.doubt_reason == "duda"
     assert visit.sources.get().effect == "suprime"
 
@@ -731,50 +731,68 @@ DEPOSIT_HEAD = "Los depósitos se abonarán en pesos"
 DEPOSIT_TAIL = "y conforme a lo dispuesto por el reglamento de alquileres"
 
 
-def test_a_row_that_shares_a_sentence_with_a_firm_row_cannot_be_discarded(
-        operator_user, script, filt):
+def verdict(text, fragment, destination, *, pk=1, key="sec-i/1.1"):
+    """Un veredicto del filtro de la fila `fragment` dentro de `text` (un tramo), armado sin
+    pasar por el modelo: la guarda mira posiciones del texto del tramo."""
+    start = text.index(fragment)
+    segment = SimpleNamespace(pk=pk, key=key, text=text)
+    unit = SimpleNamespace(segment=segment, document_title="d")
+    row = row_filter.Row(unit, Found("formal", (start, start + len(fragment))), order=1)
+    return row_filter.Verdict(
+        row, destination, reason="norma_aplicable" if destination == row_filter.DESCARTADA
+        else "")
+
+
+def test_a_row_that_shares_a_sentence_with_a_firm_row_cannot_be_discarded():
     """REQ-024, REQ-033: un fragmento que es la cola de la misma oración que otra fila firme
     del tramo no se descarta aunque se cumplan las cuatro condiciones: queda como sugerencia
-    con la duda `duda`, con sus dos respuestas, y el descarte no se guarda."""
-    script.when(DEPOSIT, item([(DEPOSIT_HEAD, "economico"), (DEPOSIT_TAIL, "formal")]))
-    filt.when(DEPOSIT_HEAD, KEEP, "si")
-    filt.when(DEPOSIT_TAIL, discard("norma_aplicable", DEPOSIT), "no")
+    con la duda `duda`. La guarda sigue en el código: protege lo que la ampliación a la unidad
+    de sentido no junta (por ejemplo, una unidad demasiado larga)."""
+    head = verdict(DEPOSIT, DEPOSIT_HEAD, row_filter.FIRME)
+    tail = verdict(DEPOSIT, DEPOSIT_TAIL, row_filter.DESCARTADA)
 
-    run = run_with(operator_user, pliego(DEPOSIT))
+    row_filter.protect_shared_sentences([head, tail])
 
-    assert not m.DiscardedRow.objects.filter(run=run).exists()
-    rows = formal_rows(run)
-    assert [(r.state, r.doubt_reason) for r in rows] == [
-        ("propuesto", ""), ("sugerido", "duda")]
-    assert rows[1].doubt["vote_a"]["decision"] == "descartar"
-    assert rows[1].doubt["vote_b"] == {"respuesta": "no"}
+    assert head.destination == row_filter.FIRME
+    assert (tail.destination, tail.doubt_reason, tail.reason) == (
+        row_filter.SUGERENCIA, "duda", "")
+    assert tail.anomaly == row_filter.ANOMALY_SHARED_SENTENCE
 
 
-def test_the_sentence_guard_does_not_protect_a_row_from_another_sentence(
-        operator_user, script, filt):
+def test_the_sentence_guard_does_not_protect_a_row_from_another_sentence():
     """REQ-033: dos filas del mismo tramo en oraciones distintas: la descartada sigue
     descartada (la guarda mira posiciones, no el tramo entero)."""
-    script.when(SENT_1, item([(FRAG_1, "formal"), (FRAG_2, "formal")]))
-    filt.when(FRAG_2, KEEP, "si")
-    filt.when(FRAG_1, discard(), "no")
+    firm = verdict(CLAUSE, FRAG_2, row_filter.FIRME)
+    dropped = verdict(CLAUSE, FRAG_1, row_filter.DESCARTADA)
 
-    run = run_with(operator_user, pliego(CLAUSE))
+    row_filter.protect_shared_sentences([firm, dropped])
 
-    assert [d.text for d in m.DiscardedRow.objects.filter(run=run)] == [FRAG_1]
-    assert [r.state for r in formal_rows(run)] == ["propuesto"]
+    assert dropped.destination == row_filter.DESCARTADA
 
 
-def test_a_row_sharing_a_sentence_with_another_discarded_row_is_still_discarded(
-        operator_user, script, filt):
+def test_a_row_sharing_a_sentence_with_another_discarded_row_is_still_discarded():
     """REQ-033: la guarda protege solo cuando la otra fila es firme; si las dos partes de la
     oración se descartan, se descartan."""
+    head = verdict(DEPOSIT, DEPOSIT_HEAD, row_filter.DESCARTADA)
+    tail = verdict(DEPOSIT, DEPOSIT_TAIL, row_filter.DESCARTADA)
+
+    row_filter.protect_shared_sentences([head, tail])
+
+    assert [head.destination, tail.destination] == [row_filter.DESCARTADA] * 2
+
+
+def test_a_head_and_a_tail_of_one_sentence_reach_the_filter_as_one_row(
+        operator_user, script, filt):
+    """REQ-101, REQ-033: la cabeza y la cola de una misma oración son una sola fila (la
+    oración completa): el filtro la ve una vez y no puede descartar solo la cola."""
     script.when(DEPOSIT, item([(DEPOSIT_HEAD, "economico"), (DEPOSIT_TAIL, "formal")]))
-    filt.when(DEPOSIT_HEAD, discard("ejecucion_contrato", DEPOSIT), "no")
-    filt.when(DEPOSIT_TAIL, discard("norma_aplicable", DEPOSIT), "no")
+    filt.when(DEPOSIT, KEEP, "si")
 
     run = run_with(operator_user, pliego(DEPOSIT))
 
-    assert m.DiscardedRow.objects.filter(run=run).count() == 2
+    assert filt.fragments("a") == [DEPOSIT]
+    assert not m.DiscardedRow.objects.filter(run=run).exists()
+    assert [r.quotes.get().text for r in formal_rows(run)] == [DEPOSIT]
 
 
 def test_the_v2_instructions_state_the_two_general_rules_in_both_questions(settings):
@@ -803,46 +821,37 @@ def test_an_abbreviation_does_not_end_the_sentence(abbr):
     assert row_filter.sentence_range(text, (cut, cut + 4)) == (1, 1)
 
 
-def test_a_tail_split_by_an_abbreviation_is_still_protected(operator_user, script, filt):
+def test_a_tail_split_by_an_abbreviation_is_still_protected():
     """REQ-024, REQ-033: "conforme al art. 5 ..." en el hueco de una oración: la cola sigue
     siendo de la misma oración que la cabeza firme y no se descarta."""
-    script.when(ART, item([(DEPOSIT_HEAD, "economico"), (ART_TAIL, "formal")]))
-    filt.when(DEPOSIT_HEAD, KEEP, "si")
-    filt.when(ART_TAIL, discard("norma_aplicable", ART), "no")
+    head = verdict(ART, DEPOSIT_HEAD, row_filter.FIRME)
+    tail = verdict(ART, ART_TAIL, row_filter.DESCARTADA)
 
-    run = run_with(operator_user, pliego(ART))
+    row_filter.protect_shared_sentences([head, tail])
 
-    assert not m.DiscardedRow.objects.filter(run=run).exists()
-    assert [(r.state, r.doubt_reason) for r in formal_rows(run)] == [
-        ("propuesto", ""), ("sugerido", "duda")]
+    assert (tail.destination, tail.doubt_reason) == (row_filter.SUGERENCIA, "duda")
 
 
-def test_rows_of_two_different_tramos_do_not_protect_each_other(operator_user, script, filt):
+def test_rows_of_two_different_tramos_do_not_protect_each_other():
     """REQ-033: la misma posición en dos tramos distintos no cuenta como oración compartida:
     la descartada de un tramo sigue descartada aunque en otro haya una firme."""
-    script.when(SENT_1, item([(FRAG_1, "formal")]))
-    script.when(SENT_2, item([(FRAG_2, "formal")]))
-    filt.when(FRAG_2, KEEP, "si")
-    filt.when(FRAG_1, discard(), "no")
+    firm = verdict(SENT_2, FRAG_2, row_filter.FIRME, pk=2, key="sec-i/2.1")
+    dropped = verdict(SENT_1, FRAG_1, row_filter.DESCARTADA, pk=1)
 
-    run = run_with(operator_user, pliego(SENT_1, SENT_2))
+    row_filter.protect_shared_sentences([firm, dropped])
 
-    assert [d.text for d in m.DiscardedRow.objects.filter(run=run)] == [FRAG_1]
-    assert [r.state for r in formal_rows(run)] == ["propuesto"]
+    assert dropped.destination == row_filter.DESCARTADA
 
 
-@pytest.mark.parametrize("head", ["duda", "no"])
-def test_a_head_that_is_only_a_suggestion_does_not_protect(operator_user, script, filt, head):
+def test_a_head_that_is_only_a_suggestion_does_not_protect():
     """REQ-033: solo protege una fila firme; si la cabeza es sugerencia, la cola con las
     cuatro condiciones se descarta."""
-    script.when(DEPOSIT, item([(DEPOSIT_HEAD, "economico"), (DEPOSIT_TAIL, "formal")]))
-    filt.when(DEPOSIT_HEAD, KEEP, head)
-    filt.when(DEPOSIT_TAIL, discard("norma_aplicable", DEPOSIT), "no")
+    first = verdict(DEPOSIT, DEPOSIT_HEAD, row_filter.SUGERENCIA)
+    tail = verdict(DEPOSIT, DEPOSIT_TAIL, row_filter.DESCARTADA)
 
-    run = run_with(operator_user, pliego(DEPOSIT))
+    row_filter.protect_shared_sentences([first, tail])
 
-    assert [d.text for d in m.DiscardedRow.objects.filter(run=run)] == [DEPOSIT_TAIL]
-    assert [r.state for r in formal_rows(run)] == ["sugerido"]
+    assert tail.destination == row_filter.DESCARTADA
 
 
 # --- T-178: tablas de anexos, garantía de la oferta y obligaciones del adjudicatario ---------------

@@ -266,7 +266,7 @@ def test_suppressing_circular_leaves_the_requirement_removed_with_its_citation(
     assert requirement.state == "quitado"
     source = requirement.sources.get()
     assert source.effect == "suprime" and "sin efecto" in source.text
-    assert requirement.quotes.get().text == VISITA_QUOTE
+    assert requirement.quotes.get().text == VISITA  # la oración completa (REQ-101)
     page = matrix_page.matrix_page(operator_user, version.pk)
     removed = [r for r in page.removed if r.requirement == requirement]
     assert removed and [n.effect for n in removed[0].quotes[0].notes] == ["suprime"]
@@ -538,7 +538,7 @@ def test_consequences_are_asked_on_the_current_text_with_the_original(operator_u
     assert "Texto vigente (según una circular):\n60 días corridos" in pago
     assert "Texto original del pliego:\n" in pago and PAGO in pago
     visita = next(b for b in blocks.values() if VISITA_QUOTE in b)
-    assert "Texto:\n" + VISITA_QUOTE in visita and "vigente" not in visita
+    assert "Texto:\n" + VISITA in visita and "vigente" not in visita
     ram = next(b for b in blocks.values() if "Renglón 1, especificaciones" in b)
     assert "Texto vigente (según una circular):\n32 GB de RAM" in ram and "16 GB" in ram
 
@@ -606,12 +606,12 @@ def test_a_clarification_does_not_change_the_current_text(operator_user, case, s
     requirement = requirement_with(version, VISITA_QUOTE)
     page = matrix_page.matrix_page(operator_user, version.pk)
     row = next(r for g in page.groups for r in g.rows if r.requirement == requirement)
-    assert row.quotes[0].current is None and row.quotes[0].text == VISITA_QUOTE
+    assert row.quotes[0].current is None and row.quotes[0].text == VISITA
     block = next(body for messages in script.consequence_calls
                  for _, body in re.findall(r"\[(R\d+)\]\n(.*?)\n\[/\1\]",
                                            messages[-1]["content"], re.DOTALL)
                  if VISITA_QUOTE in body)
-    assert "vigente" not in block and "Texto:\n" + VISITA_QUOTE in block
+    assert "vigente" not in block and "Texto:\n" + VISITA in block
 
 
 def test_disposition_with_effects_and_a_reason_at_once_is_rejected():

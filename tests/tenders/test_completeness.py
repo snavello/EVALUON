@@ -52,13 +52,14 @@ def clause(number, text):
     return textwrap.wrap(f"{number} {text}", 78)
 
 
-def completeness_pdf():
+def completeness_pdf(docs=DOCS):
     """Condiciones con dos requisitos juntos, uno solo, un tramo con marcadores y otro sin;
-    especificaciones técnicas con marcadores, y dos renglones."""
+    especificaciones técnicas con marcadores, y dos renglones. `docs` es el texto de la
+    cláusula 1.1."""
     return tender_pdf([
         [
             para("SECCIÓN I - CONDICIONES PARTICULARES"),
-            para("1. PRESENTACIÓN", *clause("1.1.", DOCS), *clause("1.2.", MANT)),
+            para("1. PRESENTACIÓN", *clause("1.1.", docs), *clause("1.2.", MANT)),
             para("2. CONDICIONES", *clause("2.1.", NOALT), *clause("2.2.", OBJETO)),
         ],
         [
@@ -205,27 +206,51 @@ def step_passes(run):
 # --- Completitud ---------------------------------------------------------------------------
 
 
+DOMICILIO = "Los oferentes deberán acreditar un domicilio constituido en la ciudad."
+DOMICILIO_QUOTE = "acreditar un domicilio constituido"
+
+
 def test_alta_adds_the_missing_requirement_with_a_verified_quote(operator_user, script):
-    """REQ-024, REQ-025, REQ-030: un faltante que la completitud devuelve se suma al
-    tramo con su cita ubicada en el texto del pliego; el tramo se mandó con lo ya encontrado."""
+    """REQ-024, REQ-025, REQ-030, REQ-101: un faltante que la completitud devuelve se suma al
+    tramo con su cita ubicada en el texto del pliego, ampliada a su oración; el tramo se
+    mandó con lo ya encontrado (la oración completa que halló la extracción)."""
+    standard(script)
+    script.when(DOCS, item([(DJ, "formal")]))
+    script.complete_when("domicilio", fix(missing=[(DOMICILIO_QUOTE, "formal")]))
+
+    run = run_level(operator_user, completeness_pdf(docs=f"{DOCS} {DOMICILIO}"))
+
+    assert body(run)["sec-i/1.1"] == [
+        (DOCS, ["extraccion"], "formal"),
+        (DOMICILIO, ["completitud"], "formal"),
+    ]
+    check_quotes_are_canonical(run)
+    sent = next(call for call in script.completeness_calls
+                if any("domicilio" in b["text"] for b in call.values()))
+    assert f"1. {DOCS} (formal)" in next(iter(sent.values()))["raw"]
+    added = m.Requirement.objects.get(version=run.version, passes=["completitud"])
+    assert added.step.pass_name == "completitud"
+    assert run.counts["completeness"]["added"] == 1
+    assert disposition(run, "sec-i/1.1").outcome == "requisitos"
+    step = added.step
+    (record,) = step.parsed["tramos"]["T1"]["requisitos_agregados"]
+    assert record["fragmentos"][0]["texto"] == DOMICILIO_QUOTE
+    segment = added.quotes.get().segment
+    assert segment.text[record["oracion"]["inicio"]:record["oracion"]["fin"]] == DOMICILIO
+
+
+def test_a_missing_requirement_inside_a_sentence_already_found_is_not_added(
+        operator_user, script):
+    """REQ-101: la constancia es parte de la misma oración que la extracción ya halló: una
+    fila por oración, así que la completitud no suma otra."""
     standard(script)
     script.when(DOCS, item([(DJ, "formal")]))
     script.complete_when("constancia", fix(missing=[(CONSTANCIA, "formal")]))
 
     run = run_level(operator_user)
 
-    assert body(run)["sec-i/1.1"] == [
-        (DJ, ["extraccion"], "formal"),
-        (CONSTANCIA, ["completitud"], "formal"),
-    ]
-    check_quotes_are_canonical(run)
-    sent = next(call for call in script.completeness_calls
-                if any("constancia" in b["text"] for b in call.values()))
-    assert f"1. {DJ} (formal)" in next(iter(sent.values()))["raw"]
-    added = m.Requirement.objects.get(version=run.version, passes=["completitud"])
-    assert added.step.pass_name == "completitud"
-    assert run.counts["completeness"]["added"] == 1
-    assert disposition(run, "sec-i/1.1").outcome == "requisitos"
+    assert body(run)["sec-i/1.1"] == [(DOCS, ["extraccion"], "formal")]
+    assert run.counts["completeness"]["added"] == 0
 
 
 def test_alta_splits_a_requirement_that_joins_two_conditions(operator_user, script):
@@ -296,7 +321,7 @@ def test_an_invalid_completeness_answer_is_asked_again_once_and_then_leaves_it_p
     assert len(asked) == 2
     assert pending(run)["sec-i/2.1"] == "marcadores"
     assert disposition(run, "sec-i/2.1").outcome == "pendiente"
-    assert body(run)["sec-i/1.2"] == [(MANT_QUOTE, ["extraccion"], "formal")]
+    assert body(run)["sec-i/1.2"] == [(MANT, ["extraccion"], "formal")]
     assert "completitud_sin_resultado" in [a["type"] for a in run.anomalies]
 
 
@@ -534,6 +559,19 @@ def test_extraction_quote_across_line_breaks_and_double_spaces(operator_user, sc
     _, quote = table_requirement(run)
     assert "\n" in quote.text
     assert quote.text == TABLA_TEXT
+    assert quote.quote_flag == ""
+    check_quotes_are_canonical(run)
+
+
+def test_a_table_quote_stays_the_models_fragment(operator_user, script):
+    """REQ-101: el texto de una tabla no tiene oraciones (sus celdas son líneas): la cita de un
+    tramo `tabla` no se amplía y queda en el fragmento que señaló el modelo."""
+    script.when("CONCEPTO", item([("la oferta durante:", "formal")]))
+
+    run = run_level(operator_user, table_pdf())
+
+    _, quote = table_requirement(run)
+    assert quote.text == "la oferta durante:"
     assert quote.quote_flag == ""
     check_quotes_are_canonical(run)
 
@@ -827,15 +865,16 @@ def test_effect_markers_are_obligation_markers(text):
     assert proposal.has_obligation_markers(text)
 
 
-def test_extraction_gives_one_row_per_condition_of_an_enumeration(operator_user, script):
-    """REQ-024, REQ-025: la oración con tres condiciones que el modelo devuelve en tres filas
-    queda en tres requisitos, cada uno con su cita literal."""
+def test_extraction_gives_one_row_per_sentence_for_an_enumeration(operator_user, script):
+    """REQ-025, REQ-101 (decisión del 2026-10-10, «una fila por oración»): la oración con tres
+    condiciones que el modelo devuelve en tres fragmentos queda en un solo requisito, con la
+    oración completa como cita literal."""
     script.when(ENUM, item(ENUM_PARTS))
 
     run = run_level(operator_user, enumeration_pdf())
 
     rows = body(run)["sec-i/1.1"]
-    assert [text for text, _, _ in rows] == [quote for quote, _ in ENUM_PARTS]
+    assert [text for text, _, _ in rows] == [ENUM]
     check_quotes_are_canonical(run)
 
 

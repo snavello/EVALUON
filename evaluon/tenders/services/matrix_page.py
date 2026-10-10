@@ -7,6 +7,9 @@ REQ-032; plan 003, "Pantalla" y "Roles"; ADR-0005; T-074).
   sus requisitos formales y económicos agrupados por documento y sus filas técnicas por
   renglón. Cada cita lleva el texto literal que se guardó (igual al recorte del texto
   canónico), el documento, la página, la cláusula y los datos para el enlace al original.
+  Una cita de un tramo que no se entiende solo (un inciso de una lista, una oración que sigue
+  a la anterior) muestra además el encabezado de su punto, el texto de su tramo padre
+  (T-234, REQ-101; `sentences.heading_of`): es contexto y no es parte de la cita.
 - `coverage_page`: la disposición de cada tramo de la propuesta de esa versión.
 - `finished_notice`: los pedidos de la persona que terminaron sin que viera el aviso; al
   entregarlos los marca como vistos, así que cada aviso se muestra una sola vez.
@@ -16,8 +19,10 @@ escriben nada, salvo la marca de aviso visto.
 """
 
 from dataclasses import dataclass, field
+from functools import reduce
+from operator import or_
 
-from django.db.models import F, Prefetch
+from django.db.models import F, Prefetch, Q
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
@@ -47,6 +52,7 @@ from evaluon.tenders.models import (
     SourceEffect,
     VersionStatus,
 )
+from evaluon.tenders.proposal import sentences
 from evaluon.tenders.services.procedures import regime_for
 
 PANEL_OPERATION = "evaluon.tenders.services.matrix_page.panel"
@@ -88,6 +94,38 @@ class Pages:
 
     def __init__(self):
         self._canonical = {}
+        self._parents = {}
+
+    def prepare_headings(self, quotes):
+        """Trae de una vez, en una sola consulta, los tramos padre de las citas que podrían
+        necesitar el encabezado de su punto (`sentences.may_need_heading`)."""
+        wanted = {}
+        for quote in quotes:
+            segment = quote.segment
+            if sentences.may_need_heading(segment):
+                wanted.setdefault(segment.reading_id, set()).add(
+                    sentences.parent_key(segment.key))
+        if not wanted:
+            return
+        found = Segment.objects.filter(reduce(or_, (
+            Q(reading_id=reading, key__in=keys) for reading, keys in wanted.items())))
+        for parent in found:
+            self._parents[(parent.reading_id, parent.key)] = parent
+        for reading, keys in wanted.items():
+            for key in keys:
+                self._parents.setdefault((reading, key), None)
+
+    def heading(self, segment):
+        """El encabezado del punto del tramo si su oración sola no se entiende, o "". Busca
+        el tramo padre en la misma lectura (una consulta por padre que no se trajo antes)."""
+        def lookup(key):
+            index = (segment.reading_id, key)
+            if index not in self._parents:
+                self._parents[index] = Segment.objects.filter(
+                    reading_id=segment.reading_id, key=key).first()
+            return self._parents[index]
+
+        return sentences.heading_of(segment, lookup)
 
     def _canonical_of(self, reading):
         if reading.pk not in self._canonical:
@@ -175,6 +213,7 @@ class QuoteRow:
     quote_id: int | None = None
     segment_id: int | None = None
     covered: bool = False  # un cambio ya mostrado en una cita anterior también la alcanza
+    heading: str = ""  # el encabezado del punto, si la oración sola no se entiende (T-234)
 
 
 @dataclass
@@ -364,6 +403,7 @@ def quote_rows(requirement, pages):
             notes=[s for s in mine if s.effect != SourceEffect.MODIFICA],
             side_notes=[s for s in mine if s.effect == SourceEffect.ACLARA],
             covered=quote.pk in covered and not mine,
+            heading=pages.heading(quote.segment),
         ))
     return rows, loose
 
@@ -472,6 +512,7 @@ def matrix_page(user, version_id, *, channel=Channel.SCREEN):
     run = version.run
     pages = Pages()
     every = list(with_citations(version.requirements.order_by("number")))
+    pages.prepare_headings(q for r in every for q in getattr(r, "loaded_quotes", ()))
     review = _review_notes(run)
     suggested = [r for r in every if r.state == RequirementState.SUGERIDO]
     requirements = [r for r in every if r.state not in (RequirementState.QUITADO,

@@ -316,7 +316,7 @@ def test_the_same_fragment_in_two_segments_gives_one_row_with_two_quotes(
     mant = rows[0]
     assert [(q.segment.key, q.scope) for q in mant.quotes.order_by("order")] == [
         ("sec-i/1.1", ""), ("sec-i/3.1", "repetida")]
-    assert [q.text for q in mant.quotes.all()] == [MANT_QUOTE, MANT_QUOTE]
+    assert [q.text for q in mant.quotes.all()] == [MANT, MANT]  # la oración (REQ-101)
     assert [q["scope"] for q in mant.proposed["quotes"]] == ["", "repetida"]
     assert len(rows[1].quotes.all()) == 1
     check_literal(run)
@@ -386,7 +386,7 @@ def test_the_step_lists_the_pairs_and_the_threshold(operator_user, script):
     pair = step.parsed["pairs"][0]
     assert pair["queda"]["segment"] == "sec-i/1.1"
     assert pair["repetida"]["segment"] == "sec-i/3.1"
-    assert pair["repetida"]["text"] == MANT_QUOTE
+    assert pair["repetida"]["text"] == MANT
     assert run.parameters["dedup_min_similarity"] == 1.0
     assert run.parameters["dedup_containment"] is False
     assert "unificacion" in run.parameters["passes"]

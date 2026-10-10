@@ -13,6 +13,7 @@ from django.core.management import call_command
 
 from evaluon.tenders import evaluation as ev
 from evaluon.tenders import models as m
+from tests.tenders.pdfs import para, tender_pdf
 from tests.tenders.scripted import (
     ENTREGA,
     GARANTIA,
@@ -32,14 +33,14 @@ FIXTURE = Path(__file__).parent / "fixtures" / "matriz-esperada-sintetica.yaml"
 FILE = "Pliego sintético.pdf"
 
 
-@pytest.fixture
-def case(operator_user, script, tmp_path):
-    """El pliego leído, el guion del modelo y la lista esperada sintética escrita en
-    `tmp_path`. El modelo: la garantía como formal (la lista la espera económica), la multa
-    en una sola fila que junta dos condiciones, la entrega como técnica para todos los
-    renglones, y el resto descartado."""
+def make_case(operator_user, script, tmp_path, pdf=None):
+    """El pliego leído (por omisión, el de tres renglones), el guion del modelo y la lista
+    esperada sintética escrita en `tmp_path`. El modelo: la garantía como formal (la lista la
+    espera económica), la multa en una sola fila que junta dos condiciones, la entrega como
+    técnica para todos los renglones, y el resto descartado."""
     procedure = make_procedure(operator_user)
-    document = load_and_read(operator_user, procedure, three_items_pdf(), title="Pliego sintético")
+    document = load_and_read(operator_user, procedure, pdf or three_items_pdf(),
+                             title="Pliego sintético")
     script.when(GARANTIA, item(requirements=[("garantía del 5 % del monto", "formal")]))
     script.when(MULTA, item(requirements=[
         ("En caso de atraso se aplicará una multa del 1 % diario", "economico")]))
@@ -49,6 +50,11 @@ def case(operator_user, script, tmp_path):
     path.parent.mkdir()
     path.write_text(text, encoding="utf-8")
     return procedure, document, path, text
+
+
+@pytest.fixture
+def case(operator_user, script, tmp_path):
+    return make_case(operator_user, script, tmp_path)
 
 
 def write(path, text):
@@ -600,11 +606,36 @@ def test_discarded_or_with_requirements_segments_stay_missing_not_review(
 
 
 def test_expected_in_a_segment_with_requirements_stays_missing_not_review(
-        case, operator_user, script, tmp_path):
-    """REQ-024: un esperado en un tramo con requisitos, sin esta fila, sigue siendo faltante
-    (`tramo_con_requisitos_sin_este`); no pasa a revisión obligatoria."""
-    procedure, _, path, _ = case
-    script.when(PAGO, item(requirements=[("El pago se efectuará", "economico")]))
+        operator_user, script, tmp_path):
+    """REQ-024, REQ-101: un esperado en un tramo con requisitos, sin esta fila, sigue siendo
+    faltante (`tramo_con_requisitos_sin_este`); no pasa a revisión obligatoria. La fila es la
+    oración completa: el requisito tiene que ser otra oración del tramo (una cita que alcanza
+    la del esperado la encuentra, REQ-101)."""
+    partial = "Se admiten pagos parciales por entrega."
+    pdf = tender_pdf([
+        [
+            para("SECCIÓN I - CONDICIONES PARTICULARES"),
+            para("1. GARANTÍA", f"1.1. {GARANTIA}"),
+            para("2. PAGO", f"2.1. {PAGO} {partial}"),
+            para("3. ENTREGA", f"3.1. {ENTREGA}"),
+            para("4. MULTAS", f"4.1. {MULTA}"),
+        ],
+        [
+            para("SECCIÓN II - ESPECIFICACIONES TÉCNICAS GENERALES"),
+            para("1. CLÁUSULAS GENERALES",
+                 "1.1. Los bienes tienen vencimiento mayor a once meses."),
+        ],
+        [
+            para("SECCIÓN III - ESPECIFICACIONES TÉCNICAS PARTICULARES"),
+            para("1. RENGLÓN N° 1 - PRODUCTO SINTÉTICO A", "1.1. Bolsa de veinte kilogramos."),
+            para("2. RENGLÓN N° 2 - PRODUCTO SINTÉTICO B",
+                 "2.1. Bolsa de diez kilogramos.",
+                 "2.2. Rótulo sintético en idioma nacional."),
+            para("3. RENGLÓN N° 3 - PRODUCTO SINTÉTICO C"),
+        ],
+    ])
+    procedure, _, path, _ = make_case(operator_user, script, tmp_path, pdf)
+    script.when(PAGO, item(requirements=[("Se admiten pagos parciales", "economico")]))
 
     report = run_measure(operator_user, procedure, path, tmp_path)
 

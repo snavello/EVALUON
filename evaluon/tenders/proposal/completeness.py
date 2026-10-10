@@ -6,6 +6,11 @@ arma una regla. Solo trabaja con tramos que pasan por el modelo: los de una secc
 se disponen por regla y no llegan acá. La segunda extracción y la unión de las dos
 extracciones (nivel "exigente") dejaron de ser parte del proceso (T-100).
 
+Cada requisito que la completitud suma se ubica y se amplía a su unidad de sentido como los de
+la extracción (`quotes.locate_unit`; T-234, REQ-101): la oración completa y las oraciones
+cortas contiguas del mismo asunto. El fragmento que señaló el modelo y la unidad quedan en el
+`parsed` del pedido (P6).
+
 Un requisito de la completitud es el mismo que uno ya encontrado en el tramo solo si una de
 las dos citas queda contenida en la otra en al menos el 90 % de sus propios caracteres
 (`_same_requirement`); una cita amplia (tramo entero) nunca se reemplaza por un fragmento ni
@@ -369,15 +374,19 @@ def apply(unit, found_list, missing, splits, anomalies):
     unlocated = []
     for quote, kind in missing:
         category = _category(unit, kind)
-        span = quotes.locate(text, quote)
-        if span is None:
+        located = quotes.locate_unit(text, quote, expand=extraction.expands(unit))
+        if located is None:
             unlocated.append(category)
             anomalies.append({"type": ANOMALY_QUOTE_NOT_FOUND, "segment": segment.pk,
                               "key": segment.key, "clase": category})
             continue
-        new = Found(category=category, span=span)
+        fragment, expansion = located
+        new = extraction.found_from(category, fragment, expansion)
         if any(_same_requirement(new, old) for old in final):
             continue
+        if expansion.too_long:
+            anomalies.append({"type": extraction.ANOMALY_UNIT_TOO_LONG,
+                              "segment": segment.pk, "key": segment.key, "clase": category})
         new.passes = [PassName.COMPLETITUD.value]
         final.append(new)
         added += 1
@@ -485,7 +494,12 @@ class Completer:
                 unit, candidate.found, missing, splits, anomalies)
             parsed[alias] = {"segmento": unit.segment.pk, "valida": True,
                              KEY_MISSING: len(missing), KEY_SPLITS: len(splits),
-                             "agregados": outcome.added, "divididos": outcome.split}
+                             "agregados": outcome.added, "divididos": outcome.split,
+                             "requisitos_agregados": [
+                                 extraction.found_record(found, unit.segment.text)
+                                 for found in outcome.found
+                                 if found.fragments
+                                 and passes_of(found) == [PassName.COMPLETITUD.value]]}
         step = self._record(
             result, retry_of=retry_of, seconds=seconds, keys=keys, anomalies=anomalies,
             parsed={"tramos": parsed, "finish_reason": output.finish_reason})
