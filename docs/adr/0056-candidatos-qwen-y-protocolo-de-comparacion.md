@@ -1,6 +1,6 @@
 # ADR-0056 · Modelos candidatos para el motor de lotes: Qwen3.8-27B y Qwen3.6-35B-A3B, y protocolo de la comparación
 
-Estado: propuesto · Fecha: 2026-10-10 · Decidió: — (el responsable pidió el 2026-10-10 «evaluar probar otros modelos locales de IA como qwen 3.6 30B o el que sugieras» y aprobó bajar Qwen3.8-27B y Qwen3.6-35B-A3B; qué se elige es del Planificador y se somete a su aprobación)
+Estado: aceptado · Fecha: 2026-10-10 · Decidió: — (el responsable pidió el 2026-10-10 «evaluar probar otros modelos locales de IA como qwen 3.6 30B o el que sugieras» y aprobó bajar Qwen3.8-27B y Qwen3.6-35B-A3B; qué se elige es del Planificador y se somete a su aprobación)
 
 ## Contexto
 

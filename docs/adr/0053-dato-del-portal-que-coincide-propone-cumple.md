@@ -1,6 +1,6 @@
 # ADR-0053 · El dato del Portal que coincide con el pliego propone «cumple»
 
-Estado: propuesto · Fecha: 2026-10-10 · Decidió: — (la decisión de fondo es del responsable, 2026-10-10, «Propone cumple», registrada en la spec 015; este ADR fija cómo se aplica y reemplaza en parte al ADR-0043)
+Estado: aceptado · Fecha: 2026-10-10 · Decidió: — (la decisión de fondo es del responsable, 2026-10-10, «Propone cumple», registrada en la spec 015; este ADR fija cómo se aplica y reemplaza en parte al ADR-0043)
 
 **Enmienda de la constitución (2026-10-10).** El responsable decidió enmendar P3: «enmendar. considera al portal como oficial, porque es oficial». La constitución pasa a la versión 1.3 y P3 suma como fundamento el dato publicado en el Portal de Compras para ese procedimiento u oferta, con su enlace y la fecha en que se tomó.
 

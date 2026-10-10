@@ -1,6 +1,6 @@
 # ADR-0055 · Cómo se pide al modelo: razonamiento en el JSON antes del veredicto, ejemplos balanceados, contexto en lugar de volumen y registro de cada instrucción
 
-Estado: propuesto · Fecha: 2026-10-10 · Decidió: — (el responsable pidió revisar «exhaustivamente» cómo se promptea, 2026-10-10; el diseño, el Planificador)
+Estado: aceptado · Fecha: 2026-10-10 · Decidió: — (el responsable pidió revisar «exhaustivamente» cómo se promptea, 2026-10-10; el diseño, el Planificador)
 
 ## Contexto
 

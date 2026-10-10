@@ -1,6 +1,6 @@
 # Plan 015 · Uso y elección del modelo
 
-Estado: borrador · Fecha: 2026-10-10 · Aprobó: —
+Estado: aprobado · Fecha: 2026-10-10 · Aprobó: responsable del proyecto (2026-10-10, «ok a todo»), con la ejecución en cuatro tandas propuesta por el Coordinador
 
 Spec: `specs/015-uso-y-eleccion-del-modelo/spec.md` (aprobada el 2026-10-10)
 
