@@ -231,14 +231,56 @@ def offered_values(kind, texts):
     return values
 
 
+# T-231 (E-7): una diferencia de redondeo de un centavo no es falta de coincidencia (el Portal y la
+# oferta redondean el porcentaje de una garantía a veces distinto).
+TOLERANCE = Decimal("0.01")
+
+
 def _equal(kind, offered, portal):
     if kind == CUIT:
         return offered == portal
-    return Decimal(offered).quantize(Decimal("0.01")) == Decimal(portal).quantize(Decimal("0.01"))
+    return abs(Decimal(offered) - Decimal(portal)) <= TOLERANCE
 
 
-def _located_texts(pair):
-    return [found.text for found in getattr(pair, "datos", []) or []]
+# Qué otros datos del Portal se confunden con el pedido: una garantía no se compara con el total
+# ni con el precio de un renglón, ni el total con la garantía (T-231, E-5).
+OTHER_KINDS = {GARANTIA: (TOTAL, COTIZACION), TOTAL: (GARANTIA, COTIZACION),
+               COTIZACION: (TOTAL, GARANTIA)}
+
+
+def _other_values(offer, kind):
+    """Los valores del Portal de otra clase de dato para la misma oferta."""
+    values = []
+    for other in OTHER_KINDS.get(kind, ()):
+        values.extend(datum.value for datum in read(offer, other, "", []))
+    return values
+
+
+def _same_data(kind, located, portal, others):
+    """Los fragmentos `datos` que hablan del mismo dato que el requisito. Un fragmento cuyos
+    montos son todos de otra clase de dato del Portal (el total, cuando el requisito pide la
+    garantía) no se compara: se compara garantía con garantía y total con total."""
+    kept = []
+    for found in located:
+        values = amounts(found.text) if kind != CUIT else []
+        other = bool(values) and all(
+            any(_equal(kind, v, o) for o in others)
+            and not any(_equal(kind, v, d.value) for d in portal) for v in values)
+        if not other:
+            kept.append(found)
+    return kept
+
+
+def _flagged(ctx):
+    """Las diferencias ya señaladas en la oferta que se evalúa: la misma no se marca de nuevo."""
+    flagged = getattr(ctx, "portal_flagged", None)
+    if flagged is None:
+        flagged = {}
+        try:
+            ctx.portal_flagged = flagged
+        except AttributeError:
+            pass
+    return flagged
 
 
 def _merge_offer(combined, located):
@@ -265,8 +307,9 @@ def rule(pair, ctx):
     if not portal:
         return None
     combined = pair.combined
-    located = list(getattr(pair, "datos", []) or [])
-    values = offered_values(kind, _located_texts(pair))
+    located = _same_data(kind, list(getattr(pair, "datos", []) or []), portal,
+                         _other_values(ctx.offer, kind) if kind in OTHER_KINDS else [])
+    values = offered_values(kind, [found.text for found in located])
     matching = [d for d in portal if any(_equal(kind, v, d.value) for v in values)]
     facts = {**combined.facts, "portal": {
         "tipo": kind, "valor": (matching or portal)[0].shown,
@@ -276,13 +319,24 @@ def rule(pair, ctx):
     if values and not matching:
         offered = ", ".join(sorted({str(v) for v in values}))
         shown = ", ".join(d.shown for d in portal)
+        flagged = _flagged(ctx)
+        key = (kind, offered, shown)
+        first = flagged.setdefault(key, getattr(requirement, "number", None))
+        explanation = ("Falta coincidencia: el Portal informa " + shown + " y la oferta "
+                       + offered + ". La Comisión verifica cuál rige.")
+        extra = {}
+        if first != getattr(requirement, "number", None):
+            # La misma diferencia ya se señaló en otro requisito de esta oferta (T-231, D-1): la
+            # celda sigue en «falta coincidencia» y lo dice, sin repetir lo que ya se explicó.
+            explanation = (f"Falta coincidencia con el Portal: misma diferencia que en el "
+                           f"requisito {first} (el Portal informa {shown} y la oferta "
+                           f"{offered}).")
+            extra = {"diferencia_ya_senalada": first}
         return replace(
             combined, outcome=combine.OUT_NO_DETERMINADO, doubt=FALTA_COINCIDENCIA,
             exigence=combined.exigence, citations=_merge_offer(combined, located),
-            portal=cites, question="",
-            explanation=("Falta coincidencia: el Portal informa " + shown + " y la oferta "
-                         + offered + ". La Comisión verifica cuál rige."),
-            facts={**facts, "regla": RULE_MISMATCH, "oferta_valor": offered})
+            portal=cites, question="", explanation=explanation,
+            facts={**facts, "regla": RULE_MISMATCH, "oferta_valor": offered, **extra})
     in_offer = bool(combined.citations) or bool(located)
     if in_offer:
         return replace(combined, portal=cites, facts={**facts, "regla": RULE_BOTH})

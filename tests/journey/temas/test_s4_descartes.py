@@ -294,7 +294,7 @@ def test_the_missing_report_and_the_pending_list_name_the_same_offers(
     waiting = [i.text for i in section.pending_items if "informe técnico" in i.text]
     missing = [m.text for m in section.tema_missing if "informe técnico" in m.text]
     assert waiting == [f"Oferta {c.number}: falta subir el informe técnico"]
-    assert missing == [f"Oferta {c.number}: falta el informe técnico del área"]
+    assert missing == [f"Falta el informe técnico del área (oferta {c.number})"]
     log_in(client, operator_user)
     html = page(client, procedure)
     assert "Sugerencias del sistema:" not in html

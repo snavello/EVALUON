@@ -355,6 +355,8 @@ class Context:
         self.total = 0
         self.read_done = 0
         self.contrast_done = 0
+        # Diferencias con el Portal ya señaladas en esta oferta (`portal_facts`, T-231).
+        self.portal_flagged = {}
 
     def add(self, step):
         self.steps.append(step)

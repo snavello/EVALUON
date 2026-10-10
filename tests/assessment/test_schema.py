@@ -357,7 +357,7 @@ def test_a_result_opinion_and_facts_are_optional_and_validated(rows):
         run=run, offer=run.offer, requirement=rows.requirement,
         outcome=am.Outcome.NO_DETERMINADO, doubt="pendiente_informe_tecnico",
         opinion=am.Opinion.NO_CUMPLE,
-        facts={"regla": "tecnica_categoria", "version_reglas": "reglas-v7"})
+        facts={"regla": "tecnica_categoria", "version_reglas": "reglas-v8"})
     assert am.Result.objects.get(pk=result.pk).facts["regla"] == "tecnica_categoria"
     run = _new_run(rows, number=3)
     with pytest.raises(IntegrityError), transaction.atomic():
@@ -462,7 +462,7 @@ def test_the_rules_version_is_set():
     """REQ-063: la versión de las reglas existe para copiarla al registro de la evaluación."""
     from django.conf import settings
 
-    assert settings.ASSESSMENT_RULES_VERSION == "reglas-v7"
+    assert settings.ASSESSMENT_RULES_VERSION == "reglas-v8"
 
 
 def test_the_decision_literal_marker_is_registered(pytestconfig):
@@ -474,27 +474,38 @@ def test_the_decision_literal_marker_is_registered(pytestconfig):
 @pytest.mark.django_db(transaction=True)
 def test_the_migration_applies_over_existing_results_and_is_reversible(rows):
     """REQ-052: las migraciones 0003 y 0004 se revierten y se vuelven a aplicar con
-    resultados y citas guardados, que siguen siendo válidos (sin opinión ni hechos)."""
+    resultados y citas guardados, que siguen siendo válidos (sin opinión ni hechos). Al terminar,
+    aunque falle, la base vuelve al último estado de las migraciones: con `-n` la base de ese
+    proceso sigue sirviendo a los tests siguientes (T-231)."""
     from django.db.migrations.executor import MigrationExecutor
 
     def migrate(target):
         MigrationExecutor(connection).migrate([("assessment", target)])
 
+    def migrate_to_the_latest():
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+
     result_id, citation_id = rows.result.pk, rows.citation.pk
-    migrate("0002_triggers")
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT to_regclass('assessment_technical_ok')")
-        assert cursor.fetchone()[0] is None
-        cursor.execute("SELECT count(*) FROM assessment_result WHERE id = %s", [result_id])
-        assert cursor.fetchone()[0] == 1
-    migrate("0004_triggers")
-    result = am.Result.objects.get(pk=result_id)
-    assert (result.outcome, result.doubt, result.opinion, result.facts) == (
-        am.Outcome.CUMPLE, "", "", {})
-    citation = am.Citation.objects.get(pk=citation_id)
-    assert (citation.kind, citation.portal_item_id, citation.portal_kind) == (
-        am.CitationKind.OFERTA, None, "")
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT count(*) FROM pg_trigger "
-                       "WHERE tgname = 'assessment_technical_ok_append_only'")
-        assert cursor.fetchone()[0] == 1
+    try:
+        migrate("0002_triggers")
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT to_regclass('assessment_technical_ok')")
+            assert cursor.fetchone()[0] is None
+            cursor.execute("SELECT count(*) FROM assessment_result WHERE id = %s", [result_id])
+            assert cursor.fetchone()[0] == 1
+        migrate("0004_triggers")
+        result = am.Result.objects.get(pk=result_id)
+        assert (result.outcome, result.doubt, result.opinion, result.facts) == (
+            am.Outcome.CUMPLE, "", "", {})
+        citation = am.Citation.objects.get(pk=citation_id)
+        assert (citation.kind, citation.portal_item_id, citation.portal_kind) == (
+            am.CitationKind.OFERTA, None, "")
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT count(*) FROM pg_trigger "
+                           "WHERE tgname = 'assessment_technical_ok_append_only'")
+            assert cursor.fetchone()[0] == 1
+    finally:
+        migrate_to_the_latest()
+    executor = MigrationExecutor(connection)
+    assert not executor.migration_plan(executor.loader.graph.leaf_nodes())

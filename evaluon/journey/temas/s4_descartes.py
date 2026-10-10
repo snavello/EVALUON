@@ -26,7 +26,7 @@ from django.urls import path
 from django.views.decorators.http import require_POST
 
 from evaluon.accounts.models import CommissionRole
-from evaluon.assessment import ordering
+from evaluon.assessment import ordering, situation
 from evaluon.assessment.models import DiscardAction, Outcome
 from evaluon.assessment.services import discards as service
 from evaluon.assessment.services import matrix as matrix_service
@@ -198,7 +198,7 @@ def _results(page):
     return rows
 
 
-def _situation(units_of, questions, row_note):
+def _situation(units_of, questions, row_note, observed=()):
     """Qué pasa con una oferta que sigue en el orden: sus descartes y sus preguntas abiertas."""
     parts = []
     for unit in units_of:
@@ -211,6 +211,7 @@ def _situation(units_of, questions, row_note):
             parts.append(f"Renglón {unit.line} descartado")
         elif unit.state == service.PROPOSED:
             parts.append(f"Descarte propuesto del renglón {unit.line}, sin decidir")
+    parts.extend(observed)  # sin evaluar, no se encontró el documento, subsanación (T-231, E-9)
     if questions:
         parts.append(_plural(questions, "pregunta abierta", "preguntas abiertas"))
     if row_note:
@@ -227,6 +228,7 @@ def _economic(page, found):
     for unit in found:
         by_offer.setdefault(unit.offer.pk, []).append(unit)
     questions = {s.offer.pk: len(s.open_questions) for s in page.statuses}
+    observed = situation.observations(page)
     data = {d.offer_id: d for d in PortalOfferData.objects.filter(offer__in=page.offers)}
     quotes = {(q.offer_id, q.line.number): q for q in
               PortalQuote.objects.filter(offer__in=page.offers).select_related("line")}
@@ -248,7 +250,8 @@ def _economic(page, found):
             position=str(row.position) if row.position is not None else "—",
             label=f"{row.offer.number} · {row.offer.bidder}", lines=lines_text(row.offer),
             total=_money(row.amount, row.currency),
-            situation=_situation(mine, questions.get(row.offer.pk, 0), note), struck=struck))
+            situation=_situation(mine, questions.get(row.offer.pk, 0), note,
+                                 observed.get(row.offer.pk, ())), struck=struck))
     for offer in page.offers:
         whole = next((u for u in by_offer.get(offer.pk, [])
                       if u.is_whole and u.state == service.CONFIRMED), None)

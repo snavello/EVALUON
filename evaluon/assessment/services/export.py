@@ -29,7 +29,7 @@ from decimal import Decimal
 import xlsxwriter
 from django.utils import timezone
 
-from evaluon.assessment import ordering
+from evaluon.assessment import ordering, situation
 from evaluon.assessment.models import Decision, Outcome
 from evaluon.assessment.services import discards as discards_service
 from evaluon.assessment.services import matrix as matrix_service
@@ -275,6 +275,7 @@ def _economic(page, found, by_offer):
     def lines_text(offer):
         return f"{quoted.get(offer.pk, 0)} de {line_count}" if line_count else "—"
 
+    observed = situation.observations(page)
     totals = []
     for row in order.totals:
         mine = by_offer.get(row.offer.pk, [])
@@ -288,6 +289,7 @@ def _economic(page, found, by_offer):
                 notes.append(f"Renglón {unit.line} descartado")
             elif not unit.is_whole and unit.state == discards_service.PROPOSED:
                 notes.append(f"Descarte propuesto del renglón {unit.line}, sin decidir")
+        notes.extend(observed.get(row.offer.pk, ()))
         if row.position is None and row.note:
             notes.append(row.note)
         totals.append(Totals(
