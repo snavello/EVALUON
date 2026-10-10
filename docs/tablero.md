@@ -66,7 +66,7 @@ flowchart LR
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
-| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 36/40 | █████████░ 90% |
+| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 36/43 | ████████░░ 84% |
 
 <a id="001"></a>
 
@@ -1052,7 +1052,10 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 4 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 7 tareas sin terminar.
+- ○ T-228 · Evaluación legible: en cada celda, pendiente y pregunta se ve el punto completo del pliego con el fragmento del requisito resaltado; cada pregunta trae en el lugar el requisito, la oferta, el fragmento citado con página y el enlace al original; los requisitos que se cumplen con información externa se señalan aparte desde el principio con lo que falta; la explicación dice qué documentos y páginas se leyeron cuando no hay texto de la oferta. Umbral: 100 % de las celdas, pendientes y preguntas con el punto completo; 100 % de los requisitos externos agrupados y marcados (pendiente)
+- ○ T-229 · Rehacer el caso LPU25 en el sistema principal como lo haría la Comisión: respaldo, retiro de los datos de la carga de medición del 05/10, alta desde el Portal o el pliego, matriz propuesta por el sistema y revisada, ofertas, circulares, evaluación con la GPU y decisiones. Umbral: en la matriz validada, 0 requisitos que sean pedazos sin sujeto o que no exijan nada; en la evaluación, «no determinado» en 40 % o menos de las celdas; resultado por oferta igual al del dictamen publicado en 3 de 3. Solo cifras al repositorio (P4) (pendiente)
+- ○ T-230 · Revisión de errores gruesos del caso rehecho, pestaña por pestaña, como lo vería la Comisión (inconsistencias, textos sin sentido, falta de contexto); los gruesos se corrigen en una sola tarea dentro del límite de 3 horas y el resto pasa a la lista de revisión (pendiente)
 - ○ T-185 · T-217 (con sus avisos: pausa del sondeo con la pestaña oculta, `Stage.suggestions`, motivo de falla con `plain_reason`, foco del ícono tras el sondeo) (pendiente)
 - ○ T-186 · T-218 (con la nota de runbook: reconstruir la imagen con `docker compose build app` para servir los estáticos) (pendiente)
 - ○ T-188 · T-192 (base de la guía visual) y la aplicación en cada tarea de interfaz; revisión final en T-218 (pendiente)
@@ -1138,6 +1141,9 @@ flowchart TD
   T225["✓ T-225 · Huecos funcionales: no pedir subsanación, d…"]:::done
   T226["✓ T-226 · Encabezado y pestañas legibles en pantallas…"]:::done
   T227["✓ T-227 · Decisiones del 2026-10-10 y brechas de la c…"]:::done
+  T228["○ T-228 · Evaluación legible: en cada celda, pendient…"]:::todo
+  T229["○ T-229 · Rehacer el caso LPU25 en el sistema princip…"]:::todo
+  T230["○ T-230 · Revisión de errores gruesos del caso rehech…"]:::todo
   T185["○ T-185 · T-217 (con sus avisos: pausa del sondeo con…"]:::todo
   T186["○ T-186 · T-218 (con la nota de runbook: reconstruir…"]:::todo
   T188["○ T-188 · T-192 (base de la guía visual) y la aplicac…"]:::todo
@@ -1213,6 +1219,9 @@ flowchart TD
   T213 --> T225
   T219 --> T226
   T217 --> T227
+  T227 --> T228
+  T228 --> T230
+  T229 --> T230
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -1224,22 +1233,22 @@ flowchart TD
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-075 | T.1 | T-192, T-217, T-218, T-219, T-221 | ✓ cubierto |
+| REQ-075 | T.1 | T-192, T-217, T-218, T-219, T-221, T-229, T-230 | ▶ en proceso |
 | REQ-076 | 1.1 | T-195, T-197, T-218 | ✓ cubierto |
-| REQ-077 | 1.2, T.3 | T-193, T-196, T-197, T-218 | ✓ cubierto |
+| REQ-077 | 1.2, T.3 | T-193, T-196, T-197, T-218, T-229 | ▶ en proceso |
 | REQ-078 | 1.3 | T-194, T-218 | ✓ cubierto |
 | REQ-079 | 1.4 | T-195, T-218 | ✓ cubierto |
 | REQ-080 | 2.1 | T-198, T-218 | ✓ cubierto |
 | REQ-081 | 2.2 | T-192, T-201, T-218 | ✓ cubierto |
 | REQ-082 | 2.3 | T-192, T-201, T-218 | ✓ cubierto |
 | REQ-083 | 3.1 | T-193, T-202, T-218, T-220 | ✓ cubierto |
-| REQ-084 | 3.2 | T-202, T-218 | ✓ cubierto |
+| REQ-084 | 3.2 | T-202, T-218, T-229 | ▶ en proceso |
 | REQ-085 | 3.3 | T-205, T-218, T-227 | ✓ cubierto |
 | REQ-086 | 3.4 | T-203, T-218 | ✓ cubierto |
 | REQ-087 | 3.5 | T-193, T-204, T-218 | ✓ cubierto |
 | REQ-088 | 3.6 | T-204, T-218 | ✓ cubierto |
-| REQ-089 | 4.1 | T-207, T-209, T-218 | ✓ cubierto |
-| REQ-090 | 4.2 | T-208, T-218, T-225, T-227 | ✓ cubierto |
+| REQ-089 | 4.1 | T-207, T-209, T-218, T-228, T-229 | ▶ en proceso |
+| REQ-090 | 4.2 | T-208, T-218, T-225, T-227, T-228 | ▶ en proceso |
 | REQ-091 | 4.3 | T-193, T-210, T-218 | ✓ cubierto |
 | REQ-092 | 4.4 | T-193, T-211, T-218, T-225, T-227 | ✓ cubierto |
 | REQ-093 | 4.5 | T-212, T-218 | ✓ cubierto |
@@ -1247,6 +1256,6 @@ flowchart TD
 | REQ-095 | 5.2 | T-215, T-218 | ✓ cubierto |
 | REQ-096 | 5.3 | T-216, T-218 | ✓ cubierto |
 | REQ-097 | T.2 | T-192, T-194, T-195, T-197, T-198, T-200, T-202, T-204, T-205, T-207, T-209, T-211, T-214, T-215, T-217, T-218, T-227 | ✓ cubierto |
-| REQ-098 | T.4 | T-192, T-217, T-218, T-222, T-227 | ✓ cubierto |
+| REQ-098 | T.4 | T-192, T-217, T-218, T-222, T-227, T-228 | ▶ en proceso |
 | REQ-099 | T.5 | T-193, T-199, T-200, T-206, T-218, T-225 | ✓ cubierto |
-| REQ-100 | T.6 | T-192, T-218, T-219, T-221, T-222, T-223, T-224, T-226 | ✓ cubierto |
+| REQ-100 | T.6 | T-192, T-218, T-219, T-221, T-222, T-223, T-224, T-226, T-230 | ▶ en proceso |
