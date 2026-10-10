@@ -122,8 +122,8 @@ def test_a_new_procedure_says_what_is_missing_with_a_direct_action_in_every_sect
     overview = sections.sections_for(operator_user, case.procedure)
     for section in overview.sections:
         assert section.missing, section.key
-        assert section.upload_url and section.upload_url.startswith(
-            f"/expedientes/{case.procedure.pk}/"), section.key
+        # Dentro de la aplicación; la sección 1 sube el pliego en su propia pantalla de alta.
+        assert section.upload_url and section.upload_url.startswith("/expedientes/"), section.key
         page = client.get(section.url).content.decode()
         assert re.search(r"Falta|Faltan|Todavía no hay", page), section.key
         assert section.upload_url.split("#")[0] in page, section.key
@@ -167,10 +167,6 @@ def test_suggestions_count_in_the_stages_and_reach_the_sections(case, operator_u
     assert overview.get("ofertas").suggestions == 2 and overview.get("ofertas").pending == 0
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "Defecto D-1 (T-217): el aviso de fin de pedido muestra `notice.job.error` sin pasar por "
-    "`plain_reason` (evaluon/templates/tenders/_finished_notice.html, línea 12). Al corregirlo "
-    "este test pasa y `strict` obliga a quitar la marca."))
 def test_a_failure_shows_its_reason_in_plain_words_and_never_the_raw_error(
         client, case, operator_user):
     """013, aviso 3: la sección 4 con la evaluación fallida muestra el motivo en lenguaje llano
@@ -202,3 +198,13 @@ def test_the_icon_keeps_the_keyboard_focus_after_each_poll():
     assert "function focusIndex" in js and ".focus()" in js
     css = (STATIC / "recorrido.css").read_text(encoding="utf-8")
     assert ".pw-icon:focus::after" in css and "attr(data-nombre)" in css
+
+
+def test_section_1_is_never_ready_while_something_is_missing(case):
+    """REQ-097 (T-217, brecha 2): la sección 1 con faltantes a la vista (el expediente, el
+    cronograma, las garantías, los renglones con su cantidad) no queda «Lista»: queda pendiente."""
+    for moment in MOMENTS:
+        case.go_to(moment)
+        section = sections.sections_for(case.operator, case.procedure).get("procedimiento")
+        assert section.tema_missing, moment
+        assert section.state == "pendiente", moment

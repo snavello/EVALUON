@@ -10,7 +10,9 @@ desactiva y la pestaña muestra el estado de la espera (`s5_consulta.js`).
 Historial. La consulta guardada (`queries_query`) no sabe de procedimientos y no se modifica. Cada
 consulta hecha desde una pestaña deja además un hecho `query` de auditoría (P6) con el vínculo
 `{"kind": "procedure_query", "query_id", "procedure_id"}`; el historial del procedimiento sale de
-esos hechos. Como en la pantalla global, cada persona ve solo sus consultas.
+esos hechos. Los miembros de la Comisión (operador y evaluador) ven todas las consultas del
+procedimiento, cada una con quién la hizo (decisión del 2026-10-10); quien no es de la Comisión
+ve solo las suyas.
 """
 
 from django.core import signing
@@ -97,26 +99,38 @@ def status(user, procedure):
 # --- Historial -----------------------------------------------------------------------------------
 
 
+def _is_member(user):
+    return getattr(user, "commission_role", "") in (CommissionRole.OPERATOR,
+                                                    CommissionRole.EVALUATOR)
+
+
 def _linked_query_ids(user, procedure_id):
-    """Los números de las consultas de `user` hechas desde la pestaña de este procedimiento."""
-    ids = AuditEvent.objects.filter(
-        event_type=EventType.QUERY, user=user, detail__kind=LINK_KIND,
-        detail__procedure_id=procedure_id).values_list("detail__query_id", flat=True)
-    return [int(one) for one in ids]
+    """Los números de las consultas hechas desde la pestaña de este procedimiento: todas si
+    `user` es de la Comisión, las suyas si no."""
+    events = AuditEvent.objects.filter(event_type=EventType.QUERY, detail__kind=LINK_KIND,
+                                       detail__procedure_id=procedure_id)
+    if not _is_member(user):
+        events = events.filter(user=user)
+    return [int(one) for one in events.values_list("detail__query_id", flat=True)]
+
+
+def _visible(user, queries):
+    return queries if _is_member(user) else queries.filter(user=user)
 
 
 def _history(user, procedure_id):
-    """Las consultas del procedimiento de esta persona, la más nueva primero."""
+    """Las consultas del procedimiento, la más nueva primero, cada una con quién la hizo."""
     ids = _linked_query_ids(user, procedure_id)
     if not ids:
         return []
-    queries = (Query.objects.filter(pk__in=ids, user=user).order_by("-asked_at", "-pk")
-               .only("id", "asked_at", "question", "status")[:HISTORY_LIMIT])
+    queries = (_visible(user, Query.objects.filter(pk__in=ids)).select_related("user")
+               .order_by("-asked_at", "-pk")
+               [:HISTORY_LIMIT])
     rows = []
     for one in queries:
         icon, name = STATES.get(one.status, STATES[Status.ERROR])
         rows.append({"id": one.pk, "when": local(one.asked_at), "question": one.question,
-                     "icon": icon, "state": name,
+                     "icon": icon, "state": name, "by": one.user.username if one.user_id else "",
                      "url": f"{tab_url(procedure_id)}?consulta={one.pk}#s5-consulta-respuesta"})
     return rows
 
@@ -177,7 +191,7 @@ def context(user, procedure, request):
     base["history"] = history
     wanted = request.GET.get("consulta", "") if request else ""
     if wanted.isdigit() and int(wanted) in {row["id"] for row in history}:
-        query = Query.objects.filter(pk=int(wanted), user=user).first()
+        query = Query.objects.filter(pk=int(wanted)).first()
         base["answer"] = _answer(query) if query is not None else None
     return base
 

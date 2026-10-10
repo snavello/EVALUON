@@ -1,6 +1,8 @@
 """Las cinco secciones de la aplicación (REQ-075, REQ-097, REQ-098, REQ-100; plan 014).
 Todo el material es inventado (P4)."""
 
+import re
+
 import pytest
 from django.urls import reverse
 
@@ -72,16 +74,23 @@ def test_any_section_opens_directly_and_shows_the_five_tabs(client, procedure, o
     assert 'aria-current="page"' in html
 
 
-def test_the_user_without_commission_role_gets_403_and_a_recorded_rejection(
+def test_the_user_without_commission_role_reads_without_actions_and_is_refused_on_post(
         client, procedure, no_commission_user):
-    """REQ-075: sin rol de la Comisión, 403 y el rechazo queda registrado."""
+    """REQ-075: sin rol de la Comisión (usuario de lectura) se ven la portada, la lista y las
+    secciones sin formularios de acción; una acción (POST) da 403 y el rechazo queda
+    registrado."""
     log_in(client, no_commission_user)
-    before = AuditEvent.objects.filter(event_type="rejected").count()
     for url in (reverse("expedientes:portada", args=[procedure.pk]),
                 reverse("expedientes:pliego", args=[procedure.pk]),
                 reverse("expedientes:index")):
-        assert client.get(url).status_code == 403
-    assert AuditEvent.objects.filter(event_type="rejected").count() == before + 3
+        response = client.get(url)
+        assert response.status_code == 200
+        assert "/matriz/" not in "".join(re.findall(r'<form[^>]*action="([^"]+)"',
+                                                    response.content.decode()))
+    before = AuditEvent.objects.filter(event_type="rejected").count()
+    response = client.post(reverse("expedientes:s2_proponer", args=[procedure.pk]), {})
+    assert response.status_code == 403
+    assert AuditEvent.objects.filter(event_type="rejected").count() == before + 1
 
 
 def test_the_front_page_has_two_separate_blocks_for_pending_and_suggestions(

@@ -49,10 +49,10 @@ def test_without_commission_role_it_is_forbidden_and_recorded(client, procedure,
                                                               no_commission_user):
     """REQ-069/P3: sin rol de la Comisión, 403 en las vistas y el rechazo queda registrado."""
     log_in(client, no_commission_user)
-    for name, args in (("expedientes:index", []), ("expedientes:procedimiento", [procedure.pk]),
-                       ("journey:stages", [procedure.pk])):
-        assert client.get(reverse(name, args=args)).status_code == 403
-    assert AuditEvent.objects.filter(outcome="rejected").count() >= 3
+    # La pantalla vieja de las etapas sigue exigiendo el rol; la aplicación por secciones deja
+    # ver al usuario de lectura (decisión del 2026-10-10).
+    assert client.get(reverse("journey:stages", args=[procedure.pk])).status_code == 403
+    assert AuditEvent.objects.filter(outcome="rejected").count() >= 1
 
 
 def test_an_anonymous_visitor_is_sent_to_the_login(client, procedure):

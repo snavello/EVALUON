@@ -2,7 +2,7 @@
 grupo (REQ-035, REQ-034, REQ-026; plan 003, "Qué hace la Comisión con una sugerencia";
 ADR-0022; T-110).
 
-- `accept_suggestion`: el operador o el evaluador pasan una fila de `sugerido` a `propuesto`.
+- `accept_suggestion`: el evaluador pasa una fila de `sugerido` a `propuesto`.
   La fila `aceptar_sugerencia` del historial guarda quién, cuándo, el motivo de la duda y el
   respaldo normativo tal como estaban, y se registra el hecho `requirement_change`.
 - `accept_suggestions_group`: lo mismo para las filas `sugerido` de un grupo (la clave de
@@ -57,7 +57,7 @@ def _accept_one(requirement, user, channel, done, via_group=None):
 
 
 def accept_suggestion(user, requirement_id, *, channel=Channel.SCREEN):
-    """Pasa a requisito la sugerencia `requirement_id`. El operador o el evaluador."""
+    """Pasa a requisito la sugerencia `requirement_id`. Solo el evaluador."""
 
     def work():
         requirement, _ = review._lock_requirement(requirement_id)
@@ -65,7 +65,7 @@ def accept_suggestion(user, requirement_id, *, channel=Channel.SCREEN):
         _accept_one(requirement, user, channel, done)
         return done
 
-    return review._run(user, CommissionRole.OPERATOR, ACCEPT_OPERATION,
+    return review._run(user, CommissionRole.EVALUATOR, ACCEPT_OPERATION,
                        ChangeAction.ACEPTAR_SUGERENCIA, channel,
                        {"requirement": requirement_id}, work)
 
@@ -83,13 +83,13 @@ def accept_suggestions_group(user, version_id, group, *, channel=Channel.SCREEN)
             _accept_one(requirement, user, channel, done, via_group=key)
         return done
 
-    return review._run(user, CommissionRole.OPERATOR, ACCEPT_GROUP_OPERATION,
+    return review._run(user, CommissionRole.EVALUATOR, ACCEPT_GROUP_OPERATION,
                        ChangeAction.ACEPTAR_SUGERENCIA, channel,
                        {"version": version_id, "via_grupo": group}, work)
 
 
 def remove_suggestions_group(user, version_id, group, *, channel=Channel.SCREEN):
-    """Quita las sugerencias del grupo `group`. El operador o el evaluador."""
+    """Quita las sugerencias del grupo `group`. Solo el evaluador."""
     return review.remove_group(user, version_id, group,
                                state=RequirementState.SUGERIDO, channel=channel)
 

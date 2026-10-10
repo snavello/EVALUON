@@ -106,14 +106,14 @@ def test_a_group_key_continues_only_with_a_level_separator(evaluator_user, case)
 
 
 def test_a_group_does_not_touch_confirmed_removed_or_suggested_rows(
-        evaluator_user, operator_user, case):
+        evaluator_user, case):
     """REQ-034/035: solo las `propuesto`; una confirmada, una quitada y una sugerida no se
     tocan (las sugerencias se deciden aparte)."""
     proposed = make_row(case, "sec-i/3.1", start=0)
     confirmed = make_row(case, "sec-i/3.1", start=6)
     review.confirm(evaluator_user, [confirmed.pk])
     removed = make_row(case, "sec-i/3.1", start=12)
-    review.remove(operator_user, removed.pk)
+    review.remove(evaluator_user, removed.pk)
     suggested = make_row(case, "sec-i/3.1", start=18, state="sugerido")
     others = [confirmed, removed, suggested]
     before = m.RequirementChange.objects.filter(requirement__in=others).count()
@@ -164,22 +164,25 @@ def test_technical_rows_belong_to_a_group_by_their_own_segments(evaluator_user, 
 # --- Roles y versión -----------------------------------------------------------------------------
 
 
-def test_the_operator_can_remove_a_group_but_cannot_confirm_it(operator_user, case):
-    """REQ-034/026: quitar por grupo lo hace un operador; confirmar por grupo se rechaza."""
+def test_the_operator_can_neither_remove_nor_confirm_a_group_the_evaluator_removes_it(
+        operator_user, evaluator_user, case):
+    """REQ-034/026 (decisión del 2026-10-10): confirmar y quitar por grupo son del evaluador; con
+    el operador se rechazan y queda el hecho."""
     rows = [make_row(case, "sec-i/3.1", start=i * 6) for i in range(3)]
 
-    with pytest.raises(RoleRejected):
-        review.confirm_group(operator_user, case.pk, "sec-i/3.1")
+    for action in (review.confirm_group, review.remove_group):
+        with pytest.raises(RoleRejected):
+            action(operator_user, case.pk, "sec-i/3.1")
     assert set(states(rows).values()) == {"propuesto"}
-    assert AuditEvent.objects.filter(outcome=Outcome.REJECTED).exists()
+    assert AuditEvent.objects.filter(outcome=Outcome.REJECTED).count() >= 2
 
-    done = review.remove_group(operator_user, case.pk, "sec-i/3.1")
+    done = review.remove_group(evaluator_user, case.pk, "sec-i/3.1")
 
     assert set(states(rows).values()) == {"quitado"}
     assert len(done.changes) == 3
     for row in rows:
         change = row.changes.get()
-        assert change.action == "quitar" and change.user == operator_user
+        assert change.action == "quitar" and change.user == evaluator_user
         assert change.after == {"state": "quitado"}
         assert change.event.detail["via_grupo"] == "sec-i/3.1"
 

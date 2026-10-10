@@ -80,3 +80,58 @@ def test_declined_for_returns_the_decision_of_each_result_in_one_query(
     with django_assert_num_queries(1):
         found = remedy.declined_for([missing.pk, external.pk])
     assert found == {missing.pk: event}
+
+
+def reverts():
+    return AuditEvent.objects.filter(event_type=EventType.EVAL_DECISION,
+                                     detail__action=remedy.REVERT_DECLINE_ACTION)
+
+
+def test_a_decline_is_reverted_with_a_reason_and_leaves_who_when_and_why(
+        missing, evaluator_user):
+    """REQ-090, P6: «No pedir» se revierte con un motivo obligatorio; queda un hecho propio con
+    quién, cuándo y por qué, el hecho de «no pedir» se conserva y la subsanación vuelve a quedar
+    por decidir."""
+    declined = remedy.decline_remedy(evaluator_user, missing.pk, "No es esencial.")
+    with pytest.raises(remedy.RemedyRefused) as caught:
+        remedy.revert_decline(evaluator_user, missing.pk, " ")
+    assert caught.value.reason == "note_required"
+    assert not reverts().filter(outcome=EventOutcome.OK).exists()
+    event = remedy.revert_decline(evaluator_user, missing.pk, "El área técnica la considera esencial.")
+    assert (event.event_type, event.outcome) == (EventType.EVAL_DECISION, EventOutcome.OK)
+    assert event.user == evaluator_user and event.occurred_at is not None
+    assert event.detail["result"] == missing.pk and event.detail["declined_event"] == declined.pk
+    assert event.detail["note"] == "El área técnica la considera esencial."
+    assert remedy.state(missing).declined is None
+    assert declines().filter(outcome=EventOutcome.OK).count() == 1
+    assert not am.Decision.objects.exists()
+
+
+def test_a_reverted_decline_can_be_requested_or_declined_again_and_reverted_again(
+        missing, evaluator_user):
+    """REQ-090: después de revertir se puede pedir la subsanación o volver a no pedirla (y
+    revertir otra vez); cada cambio queda registrado."""
+    remedy.decline_remedy(evaluator_user, missing.pk, "Primera decisión.")
+    remedy.revert_decline(evaluator_user, missing.pk, "Me equivoqué.")
+    second = remedy.decline_remedy(evaluator_user, missing.pk, "Segunda decisión.")
+    assert remedy.state(missing).declined == second
+    remedy.revert_decline(evaluator_user, missing.pk, "Otra vez.")
+    assert remedy.state(missing).declined is None
+    remedy.request_remedy(evaluator_user, missing.pk, "Se pide el documento.")
+    assert remedy.state(missing).requested is not None
+    assert reverts().filter(outcome=EventOutcome.OK).count() == 2
+
+
+def test_only_a_declined_remedy_is_reverted_and_only_by_the_evaluator(
+        missing, evaluator_user, operator_user):
+    """REQ-090, P3: sin «no pedir» vigente no hay nada que revertir; el operador no revierte y
+    el rechazo queda registrado."""
+    with pytest.raises(remedy.RemedyRefused) as caught:
+        remedy.revert_decline(evaluator_user, missing.pk, "Nada que revertir.")
+    assert caught.value.reason == "not_declined"
+    remedy.decline_remedy(evaluator_user, missing.pk, "No es esencial.")
+    before = AuditEvent.objects.filter(outcome=EventOutcome.REJECTED).count()
+    with pytest.raises(RoleRejected):
+        remedy.revert_decline(operator_user, missing.pk, "Quiero revertir.")
+    assert AuditEvent.objects.filter(outcome=EventOutcome.REJECTED).count() == before + 1
+    assert remedy.state(missing).declined is not None

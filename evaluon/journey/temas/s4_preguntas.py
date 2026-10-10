@@ -64,6 +64,7 @@ class Line:
     can_answer: bool = False
     can_ask: bool = False  # pedir la subsanación
     can_decline: bool = False  # decidir no pedirla
+    can_revert: bool = False  # revertir «no pedir»
     can_add: bool = False  # agregar el documento
     can_reevaluate: bool = False
     reevaluate_waits: bool = False
@@ -112,6 +113,9 @@ def _remedy_lines(user, procedure, is_evaluator):
     declined = remedy_service.declined_for(
         cell.result.pk for cell in page.cells.values()
         if cell.result is not None and _is_remediable(cell.result, cell.effective_outcome))
+    reverted = remedy_service.reverted_for(
+        cell.result.pk for cell in page.cells.values()
+        if cell.result is not None and _is_remediable(cell.result, cell.effective_outcome))
     for requirement in page.requirements:
         for offer in page.offers:
             cell = page.cells[(offer.pk, requirement.pk)]
@@ -150,9 +154,17 @@ def _remedy_lines(user, procedure, is_evaluator):
                 line.registered.append(
                     f"Se decidió no pedirla: {who} el {when(state.declined.occurred_at)}"
                     f" · motivo: {state.declined.detail.get('note', '')}")
+            if result.pk in reverted:
+                undo = reverted[result.pk]
+                who = undo.user.username if undo.user_id else undo.username
+                line.registered.append(
+                    f"Se revirtió «no pedir»: {who} el {when(undo.occurred_at)}"
+                    f" · motivo: {undo.detail.get('note', '')}")
             undecided = state.requested is None and state.declined is None
             line.can_ask = is_evaluator and undecided
             line.can_decline = is_evaluator and undecided
+            line.can_revert = (is_evaluator and state.declined is not None
+                               and state.requested is None)
             line.can_add = is_evaluator and state.requested is not None
             lines.append(line)
     lines.extend(_closed_lines(procedure, live))

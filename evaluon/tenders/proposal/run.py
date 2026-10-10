@@ -113,6 +113,7 @@ from evaluon.tenders.models import (
 )
 from evaluon.tenders.proposal import (
     circulars,
+    carryover,
     completeness,
     consequences,
     dedup,
@@ -996,6 +997,8 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
         PendingItem(version=version, segment_id=pk, reason=reason)
         for pk, reason in sorted(pending.items(), key=lambda kv: by_pk[kv[0]].position)
     )
+    carried = (carryover.carry_over(version, created, anomalies, channel, user)
+               if circular_result is not None else None)
 
     # Cuentas, tiempos y resultado de la propuesta.
     outcomes = Counter(d.outcome for d in decisions.values())
@@ -1046,6 +1049,8 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
         counts["norm_support"] = {key: supported.stats[key] for key in (
             "suggestions", "consulted", "with_support", "supports", "no_regime",
             "failed_retrieval", "failed_requests", "requests", "invalid", "no_units")}
+    if carried is not None:
+        counts["carried_over"] = carried
     if circular_result is not None:
         counts["circulars"] = {
             "documents": circulars.circular_record(dated),

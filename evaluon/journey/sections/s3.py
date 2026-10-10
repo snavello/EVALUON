@@ -14,7 +14,7 @@ def legacy_links(procedure):
              reverse("expedientes:ofertas", args=[procedure.pk]))]
 
 
-def upload_url(procedure):
+def upload_url(procedure, user=None):
     """«Subir archivo» de la sección: el alta de una oferta subiendo sus archivos, dentro de la
     pestaña (T-202). Los documentos de una oferta ya cargada se suben en su fila."""
     return (reverse("expedientes:ofertas", args=[procedure.pk])

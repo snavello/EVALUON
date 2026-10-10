@@ -2,22 +2,27 @@
 procedimiento, las cinco secciones, y los bloques que pide el sondeo (la barra y la ventana del
 proceso). Solo traducen y llaman a `sections_for`: no tienen formularios de decisión (P3)."""
 
+import re
+from functools import wraps
+
 from django.http import Http404
 from django.shortcuts import render
 from django.urls import reverse
 from django.views.decorators.http import require_GET
 
 from evaluon.accounts.models import CommissionRole
-from evaluon.accounts.permissions import require_commission_role
+from evaluon.accounts.permissions import require_commission_role, viewing
 from evaluon.audit.models import Channel
 from evaluon.journey import memo
 from evaluon.journey.sections import sections_for
+from evaluon.journey.stages import is_viewer
 from evaluon.journey.views import inicio
 from evaluon.journey.window import window_for
 from evaluon.tenders.models import Procedure
 
 OPERATION = "evaluon.journey.views.portada.lista"
-ROLE_LABELS = {CommissionRole.OPERATOR: "Operador de la Comisión",
+ROLE_LABELS = {CommissionRole.NONE: "Solo lectura",
+               CommissionRole.OPERATOR: "Operador de la Comisión",
                CommissionRole.EVALUATOR: "Evaluador de la Comisión"}
 DROPDOWN_LIMIT = 25
 
@@ -44,10 +49,41 @@ def shell(request, overview, active=""):
     }
 
 
+# Un formulario de acción (POST), salvo el de salir. Las acciones del usuario de lectura no se
+# dibujan: el servicio igual lo rechazaría (403), pero un botón que no funciona confunde.
+_ACTION_FORM = re.compile(
+    r'<form(?=[\s>])(?=[^>]*method="post")(?![^>]*logout-form)[^>]*>.*?</form>', re.S | re.I)
+
+
+# Los enlaces «Subir …» llevan a un formulario que el usuario de lectura no tiene (D-3 de T-227).
+_UPLOAD_LINK = re.compile(r"<a\s[^>]*>\s*Subir[^<]*</a>", re.S | re.I)
+
+
+def without_actions(response):
+    """La respuesta HTML sin los formularios de acción ni los enlaces para subir."""
+    if response.status_code == 200 and "text/html" in response.get("Content-Type", ""):
+        html = _ACTION_FORM.sub("", response.content.decode())
+        response.content = _UPLOAD_LINK.sub("", html)
+    return response
+
+
+def reading(view):
+    """La vista solo lee: el usuario de lectura la ve entera y sin acciones."""
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        with viewing(request.user):
+            response = view(request, *args, **kwargs)
+        if not request.user.commission_role:
+            response = without_actions(response)
+        return response
+    return wrapper
+
+
 @require_GET
 def lista(request):
-    require_commission_role(request.user, CommissionRole.OPERATOR, operation=OPERATION,
-                            channel=Channel.SCREEN)
+    if not is_viewer(request.user):
+        require_commission_role(request.user, CommissionRole.OPERATOR, operation=OPERATION,
+                                channel=Channel.SCREEN)
     rows = [sections_for(request.user, p, channel=Channel.SCREEN)
             for p in Procedure.objects.order_by("-created_at", "-pk")]
     return render(request, "journey/expedientes.html", {"rows": rows})
@@ -55,6 +91,7 @@ def lista(request):
 
 @require_GET
 @memo.scoped
+@reading
 def portada(request, procedure_id):
     overview = overview_of(request, procedure_id)
     context = shell(request, overview)
@@ -70,6 +107,7 @@ def portada(request, procedure_id):
 
 @require_GET
 @memo.scoped
+@reading
 def seccion(request, procedure_id, key):
     overview = overview_of(request, procedure_id)
     section = overview.get(key)
@@ -88,6 +126,7 @@ def seccion(request, procedure_id, key):
 
 @require_GET
 @memo.scoped
+@reading
 def barra(request, procedure_id):
     """Solo la barra de las cinco secciones, lo que pide el sondeo (ADR-0045). Sin `base.html`:
     así no consume el aviso de fin de pedidos."""
@@ -101,6 +140,7 @@ def barra(request, procedure_id):
 
 @require_GET
 @memo.scoped
+@reading
 def ventana(request, procedure_id):
     """Solo la ventana del proceso, para el sondeo de la portada."""
     overview = overview_of(request, procedure_id)

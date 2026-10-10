@@ -166,17 +166,39 @@ def test_each_query_leaves_its_link_to_the_procedure_in_the_audit_log(
     assert link.user == operator_user
 
 
-def test_nobody_sees_someone_elses_query(client, operator_user, evaluator_user, procedure, regimes,
-                                         fake_ai):
-    """REQ-096: como en la pantalla global, cada persona ve solo sus consultas."""
+def test_the_commission_sees_every_query_of_the_procedure_with_who_made_it(
+        client, operator_user, evaluator_user, procedure, regimes, fake_ai, no_commission_user):
+    """REQ-096 (decisión del 2026-10-10, «La Comisión ve todo»): los miembros de la Comisión ven
+    todas las consultas del procedimiento, cada una con quién la hizo, y pueden abrirlas; las
+    consultas sin vínculo con el procedimiento no aparecen, y quien no es de la Comisión no ve
+    las de otros."""
     fake_ai.reranker.default = 0.9
     log_in(client, operator_user)
     ask(client, procedure, "Pregunta del operador")
-    query = Query.objects.get()
     client.logout()
     log_in(client, evaluator_user)
+    ask(client, procedure, "Pregunta del evaluador")
+    services.ask(operator_user, "Pregunta global", regimes.after_v)
+    query = Query.objects.get(question="Pregunta del operador")
+
+    for user in (evaluator_user, operator_user):
+        client.logout()
+        log_in(client, user)
+        html = client.get(tab(procedure)).content.decode()
+        history = html[html.index('id="s5-consulta-historial"'):]
+        assert "Pregunta del operador" in history and "Pregunta del evaluador" in history
+        assert "Pregunta global" not in history
+        assert re.search(r"Pregunta del operador</a><br><span class=\"registro\">[^<]*"
+                         r"· hecha por operador", history)
+        assert re.search(r"Pregunta del evaluador</a><br><span class=\"registro\">[^<]*"
+                         r"· hecha por evaluador", history)
+        opened = client.get(f"{tab(procedure)}?consulta={query.pk}").content.decode()
+        assert 'id="s5-consulta-respuesta"' in opened and "Pregunta del operador" in opened
+
+    client.logout()
+    log_in(client, no_commission_user)
     html = client.get(f"{tab(procedure)}?consulta={query.pk}").content.decode()
-    assert "Pregunta del operador" not in html
+    assert "Pregunta del operador" not in html and "Pregunta del evaluador" not in html
 
 
 def test_an_empty_question_is_refused_with_a_notice(client, operator_user, procedure, regimes,

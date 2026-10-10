@@ -61,7 +61,7 @@
   {% if t.history %}
   <ul class="lista">
     {% for h in t.history %}
-    <li>{% include "journey/_icono.html" with icon=h.icon name=h.state %}<span><a href="{{ h.url }}">{{ h.question }}</a><br><span class="registro">{{ h.when }} · {{ h.state }}</span></span></li>
+    <li>{% include "journey/_icono.html" with icon=h.icon name=h.state %}<span><a href="{{ h.url }}">{{ h.question }}</a><br><span class="registro">{{ h.when }} · {{ h.state }}{% if h.by %} · hecha por {{ h.by }}{% endif %}</span></span></li>
     {% endfor %}
   </ul>
   {% else %}

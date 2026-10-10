@@ -5,7 +5,7 @@ plan 003, "La lista de descartadas y cómo se devuelve"; ADR-0021; T-104).
   hay en esa versión un requisito con `restored_from` apuntando a ella, `descartada` si no.
   Una versión abierta sobre una validada ve las de su propuesta original, por la cadena
   `based_on`. Se puede ver en cualquier versión.
-- `restore`: el operador o el evaluador (devolver equivale a agregar un requisito). Crea el
+- `restore`: solo el evaluador (devolver equivale a agregar un requisito). Crea el
   requisito con la clase, los renglones y las citas de la descartada (la principal y las
   repetidas), origen `devuelto`, estado `propuesto`; deja la fila `devolver` del historial
   con el motivo y el indicio del descarte, y el hecho `requirement_change`. Solo en un
@@ -124,7 +124,7 @@ def restore(user, version_id, row_ids, *, channel=Channel.SCREEN):
             done.events.append(event)
         return done
 
-    return review._run(user, CommissionRole.OPERATOR, RESTORE_OPERATION,
+    return review._run(user, CommissionRole.EVALUATOR, RESTORE_OPERATION,
                        ChangeAction.DEVOLVER, channel, detail, work)
 
 

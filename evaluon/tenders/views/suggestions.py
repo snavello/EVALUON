@@ -74,7 +74,7 @@ def _group_rows(version, group):
 def _group_page(request, version, action, group):
     """La página de confirmación previa: las N sugerencias con su texto literal y su motivo."""
     _apply, verb = GROUP_ACTIONS[action]
-    require_commission_role(request.user, CommissionRole.OPERATOR,
+    require_commission_role(request.user, CommissionRole.EVALUATOR,
                             operation=GROUP_OPERATION, channel=Channel.SCREEN)
     if version.status != VersionStatus.DRAFT:
         raise service.ReviewRefused(

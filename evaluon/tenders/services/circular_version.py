@@ -16,8 +16,9 @@ circular modificatoria (REQ-085, REQ-097; plan 014, T-205; principios P3 y P6).
 - Los documentos usados quedan en `run.counts["circulars"]["documents"]` (con su `document`).
   De ahí se sabe en qué versión entró cada circular.
 - `validation.open_new_version` copia una versión validada con las decisiones de la Comisión,
-  pero no aplica circulares; la propuesta nueva no copia decisiones (la Comisión valida de
-  nuevo, como pide la spec). Un borrador abierto o un pedido en curso impiden el pedido
+  pero no aplica circulares. La propuesta nueva trae confirmado lo que la circular no tocó
+  (`proposal.carryover`, decisión del 2026-10-10) y deja sin confirmar solo lo que cambió y
+  sus consecuencias; la Comisión valida la versión completa. Un borrador abierto o un pedido en curso impiden el pedido
   (`draft_open`, `request_in_progress`).
 - Lo cambiado se marca con las fuentes (`RequirementSource`): `matrix_page` arma de ahí el
   texto anterior, el vigente y la circular; el origen `circular` marca los requisitos

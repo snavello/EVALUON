@@ -6,9 +6,14 @@ posterior a T-192 toca solo su módulo, su parcial y su test: el registro de rut
 acá y no se vuelve a tocar.
 """
 
+from functools import wraps
 from importlib import import_module
 
-from django.urls import include, path
+from django.urls import URLPattern, include, path
+
+from evaluon.accounts.models import CommissionRole
+from evaluon.accounts.permissions import require_commission_role
+from evaluon.audit.models import Channel
 
 NAMES = (
     "s1_datos", "s1_portal", "s1_pliego",
@@ -32,7 +37,24 @@ def for_section(section_key):
     return tuple(tema for tema in TEMAS if tema.SECTION == section_key)
 
 
+def _gated(pattern):
+    """Toda acción (POST) exige primero un rol de la Comisión: el usuario de lectura ve las
+    pestañas pero ninguna acción le responde, ni siquiera con el formulario vacío (403 y el
+    rechazo registrado). Las lecturas (GET) pasan; cada acción además exige su rol propio."""
+    view = pattern.callback
+    operation = f"{view.__module__}.{view.__name__}"
+
+    @wraps(view)
+    def gate(request, *args, **kwargs):
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            require_commission_role(request.user, CommissionRole.OPERATOR,
+                                    operation=operation, channel=Channel.SCREEN)
+        return view(request, *args, **kwargs)
+
+    return URLPattern(pattern.pattern, gate, pattern.default_args, pattern.name)
+
+
 def url_patterns():
     """Las rutas de acción de todos los temas, colgadas del procedimiento."""
-    return [path("<int:procedure_id>/", include(tema.urlpatterns))
+    return [path("<int:procedure_id>/", include([_gated(p) for p in tema.urlpatterns]))
             for tema in TEMAS if tema.urlpatterns]

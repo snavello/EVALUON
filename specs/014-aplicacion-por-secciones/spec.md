@@ -146,6 +146,7 @@ Material público: el caso chico de la 013 y el caso-00. Ningún caso reservado 
 
 - Renglones sin cantidad en el caso-00 (T-196, dos rondas): leer la tabla con el modelo local en lugar de reglas.
 - Nombre del oferente en ofertas subidas por archivos (T-220, dos rondas): ídem.
+- Pliego subido desde la pestaña Procedimiento de un procedimiento ya creado (T-227): se carga y se lee, pero no propone los datos iniciales con cita (solo el alta lo hace).
 
 ## Preguntas abiertas
 

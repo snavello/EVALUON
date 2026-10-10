@@ -22,6 +22,8 @@ de Django que recibe `evaluon.accounts.apps`, la misma del ingreso por pantalla.
 
 import getpass
 import sys
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from django.contrib.auth import authenticate
 from django.core.exceptions import PermissionDenied
@@ -144,12 +146,37 @@ def require_role(user, required, *, operation=None, channel=None):
         raise RoleRejected(_REJECTED_MESSAGE)
 
 
+# Quién está mirando, no actuando (decisión del 2026-10-10, «pestañas sin botones»): dentro de
+# `viewing(user)` los servicios de lectura que piden el nivel de operador dejan pasar a un
+# usuario identificado sin rol de la Comisión. Solo lo abren las vistas de lectura de las
+# secciones (GET); el nivel de evaluador y toda operación fuera de ese alcance siguen exigiendo
+# el rol y rechazando con el hecho `rejected`.
+_VIEWING: ContextVar = ContextVar("evaluon_viewing", default=None)
+
+
+@contextmanager
+def viewing(user):
+    """Abre el alcance de lectura para `user` (solo si está identificado y activo)."""
+    token = _VIEWING.set(user.pk if _is_identified(user) and user.is_active else None)
+    try:
+        yield
+    finally:
+        _VIEWING.reset(token)
+
+
 def require_commission_role(user, required, *, operation=None, channel=None):
     """Deja pasar si `user` es un usuario activo con el rol de la Comisión `required`
     o uno que lo incluye (el evaluador incluye al operador); si no, registra el hecho
     `rejected` y lanza `RoleRejected`, como `require_role`. El rol de la normativa no
     cuenta: un usuario sin rol de la Comisión se rechaza siempre."""
     allowed = _COMMISSION_ALLOWED[CommissionRole(required)]
+    if (
+        required == CommissionRole.OPERATOR
+        and _is_identified(user)
+        and _VIEWING.get() == user.pk
+        and user.is_active
+    ):
+        return
     if (
         user is None
         or not getattr(user, "is_authenticated", False)

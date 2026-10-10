@@ -38,6 +38,14 @@
               <button class="btn primario chico" type="submit">No pedir la subsanación</button>
             </form></details>
           {% endif %}
+          {% if line.can_revert %}
+          <details class="acc"><summary class="btn secundario chico">Revertir</summary>
+            <form method="post" action="{% url 'expedientes:s4_revertir_no_pedir' t.pid line.result_id %}">{% csrf_token %}
+              <label>Motivo para revertir (obligatorio) <textarea name="note" rows="2" required></textarea></label>
+              <p class="ayuda">La decisión de no pedir queda registrada; esta subsanación vuelve a estar por decidir. Queda quién, cuándo y por qué.</p>
+              <button class="btn primario chico" type="submit">Revertir «no pedir»</button>
+            </form></details>
+          {% endif %}
           {% if line.can_add %}
           <details class="acc"><summary class="btn secundario chico">{% if line.can_reevaluate %}Agregar otro documento{% else %}Agregar el documento{% endif %}</summary>
             <form method="post" enctype="multipart/form-data" action="{% url 'expedientes:s4_agregar_documento' t.pid line.result_id %}">{% csrf_token %}

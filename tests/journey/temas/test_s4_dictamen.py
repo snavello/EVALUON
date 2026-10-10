@@ -180,8 +180,8 @@ def test_a_bad_file_or_date_is_refused_with_its_reason(client, procedure, operat
 
 def test_without_a_commission_role_nothing_is_uploaded_or_taken(
         client, procedure, operator_user, no_commission_user):
-    """Sin rol de la Comisión, «acceso denegado» (403) en las dos acciones y en la pestaña, y no
-    cambia nada."""
+    """Sin rol de la Comisión, «acceso denegado» (403) en las dos acciones y no cambia nada; la
+    pestaña se ve, sin botones (decisión del 2026-10-10)."""
     item = portal_dictamen(procedure, operator_user)
     log_in(client, no_commission_user)
     assert post_upload(client, procedure).status_code == 403
@@ -189,7 +189,9 @@ def test_without_a_commission_role_nothing_is_uploaded_or_taken(
     item.refresh_from_db()
     assert item.state == pm.ItemState.PROPUESTO
     assert not tm.Document.objects.filter(kind=tm.DocumentKind.DICTAMEN).exists()
-    assert client.get(reverse("expedientes:evaluacion", args=[procedure.pk])).status_code == 403
+    response = client.get(reverse("expedientes:evaluacion", args=[procedure.pk]))
+    assert response.status_code == 200
+    assert "<form" not in dictamen_block(response.content.decode())
 
 
 def test_there_is_no_route_or_button_to_draft_the_dictamen(client, procedure, evaluator_user):

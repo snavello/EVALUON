@@ -247,13 +247,13 @@ def test_the_pages_with_changes_refer_to_no_external_address(client, operator_us
         assert not re.search(r"(https?:)?//[a-z0-9]", body.decode(), re.IGNORECASE), name
 
 
-def test_forms_of_the_matrix_with_changes_need_the_csrf_token(operator_user, case):
+def test_forms_of_the_matrix_with_changes_need_the_csrf_token(evaluator_user, case):
     """REQ-031: con la verificación de CSRF activa, el formulario de quitar un requisito de
     una fila con cambios falla sin la marca y funciona con la de la página."""
     with_everything(case)
     row = case["version"].requirements.filter(category="economico").first()
     client = Client(enforce_csrf_checks=True)
-    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
+    assert client.login(username=evaluator_user.username, password=TEST_PASSWORD)
     url = reverse("tenders:review_remove", args=[row.pk])
 
     assert client.post(url).status_code == 403

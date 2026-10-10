@@ -221,7 +221,7 @@ def test_user_without_commission_role_is_refused(client, no_commission_user, cas
     procedure, _, version, _ = case
     log_in(client, no_commission_user)
 
-    assert client.get(matrix_url(version), follow=True).status_code == 403
+    assert client.get(matrix_url(version), follow=True).status_code == 200  # el lector ve la pestaña (2026-10-10)
     assert client.get(reverse("tenders:coverage", args=[version.pk])).status_code == 403
     assert client.post(request_url(procedure), {}).status_code == 403
 
@@ -259,7 +259,8 @@ def test_failed_job_notice_says_it_failed_and_why(client, operator_user, script)
 
     page = text_of(client.get(reverse("tenders:procedures"), follow=True))
 
-    assert "falló" in page and job.error in page
+    assert "falló" in page and "el motor de IA no respondió a tiempo" in page
+    assert job.error not in page  # el motivo va en palabras, no el error técnico (D-1)
     assert "notice-failed" in page
     assert "Ver la matriz" not in page
 

@@ -2,7 +2,7 @@
 (REQ-090; plan 014, T-208).
 
 Las rutas de `assessment:*` vuelven a la pantalla vieja. Estas vistas llaman a los MISMOS servicios
-(`questions.answer`, `remedy.request_remedy`, `remedy.decline_remedy`, `remedy.add_document` y
+(`questions.answer`, `remedy.request_remedy`, `remedy.decline_remedy`, `remedy.revert_decline`, `remedy.add_document` y
 `remedy.reevaluate`: el mismo cambio, el mismo hecho de auditoría y el mismo rol) y vuelven a la
 pestaña con el aviso de lo hecho, que dibuja `s4_propuesta`. Si el servicio rechaza el pedido no cambia nada y el aviso dice
 por qué. Sin el rol de evaluador, «acceso denegado» (403) con el rechazo registrado por el
@@ -93,6 +93,22 @@ def decline_remedy(request, procedure_id, result_id):
 
 
 @require_POST
+def revert_decline(request, procedure_id, result_id):
+    """Revierte «no pedir», con su motivo (`remedy.revert_decline`)."""
+    procedure = _procedure(procedure_id)
+    result = _result(procedure, result_id)
+    try:
+        remedy.revert_decline(request.user, result.pk, request.POST.get("note", ""),
+                              channel=CHANNEL)
+    except remedy.RemedyRefused as error:
+        return _back(procedure, str(error), ok=False)
+    return _back(procedure, f"Se revirtió «no pedir» la subsanación de la oferta "
+                            f"{result.offer.number} para el requisito "
+                            f"{result.requirement.number}: vuelve a estar por decidir. Quedó "
+                            "registrado quién, cuándo y el motivo.")
+
+
+@require_POST
 def add_document(request, procedure_id, result_id):
     """Agrega a la oferta el documento de la subsanación (`remedy.add_document`)."""
     procedure = _procedure(procedure_id)
@@ -128,6 +144,8 @@ urlpatterns = [
          name="s4_pedir_subsanacion"),
     path("evaluacion/resultado/<int:result_id>/subsanar/no-pedir/", decline_remedy,
          name="s4_no_pedir_subsanacion"),
+    path("evaluacion/resultado/<int:result_id>/subsanar/revertir-no-pedir/", revert_decline,
+         name="s4_revertir_no_pedir"),
     path("evaluacion/resultado/<int:result_id>/subsanar/documento/", add_document,
          name="s4_agregar_documento"),
     path("evaluacion/resultado/<int:result_id>/subsanar/evaluar/", reevaluate,

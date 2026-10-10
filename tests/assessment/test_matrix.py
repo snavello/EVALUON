@@ -299,7 +299,7 @@ def test_the_matrix_page_and_the_request_need_a_commission_role(
     with pytest.raises(RoleRejected):
         service.request_all(no_commission_user, procedure)
     log_in(client, no_commission_user)
-    assert client.get(reverse("assessment:matrix", args=[procedure.pk]), follow=True).status_code == 403
+    assert client.get(reverse("assessment:matrix", args=[procedure.pk]), follow=True).status_code == 200  # el lector ve la pestaña, sin acciones (2026-10-10)
     assert not m.Job.objects.filter(kind=m.JobKind.EVALUATE_OFFERS).exists()
 
 

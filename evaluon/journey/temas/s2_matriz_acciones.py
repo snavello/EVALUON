@@ -11,6 +11,8 @@ El mensaje viaja firmado en la dirección (`?aviso=`), sin guardar nada en la se
 cinco minutos.
 """
 
+from functools import wraps
+
 from django.core import signing
 from django.http import Http404
 from django.shortcuts import redirect
@@ -18,6 +20,7 @@ from django.urls import path, reverse
 from django.views.decorators.http import require_POST
 
 from evaluon.accounts.models import CommissionRole
+from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType, Outcome
 from evaluon.tenders.models import (
@@ -166,6 +169,17 @@ def _no_draft(procedure):
                 "versión nueva.", ok=False)
 
 
+def evaluator_only(view):
+    """Corregir, agregar, quitar, restituir y decidir sugerencias son del evaluador (decisión del
+    2026-10-10): el operador recibe 403 y el rechazo queda registrado, antes de mirar el pedido."""
+    @wraps(view)
+    def gate(request, *args, **kwargs):
+        require_commission_role(request.user, CommissionRole.EVALUATOR,
+                                operation=f"{view.__module__}.{view.__name__}", channel=CHANNEL)
+        return view(request, *args, **kwargs)
+    return gate
+
+
 # --- Vistas --------------------------------------------------------------------------------------
 
 
@@ -183,6 +197,7 @@ def confirm(request, procedure_id):
 
 
 @require_POST
+@evaluator_only
 def correct(request, procedure_id, requirement_id):
     procedure = _procedure(procedure_id)
     requirement = _requirement(procedure, requirement_id)
@@ -208,6 +223,7 @@ def correct(request, procedure_id, requirement_id):
 
 
 @require_POST
+@evaluator_only
 def remove(request, procedure_id, requirement_id):
     procedure = _procedure(procedure_id)
     requirement = _requirement(procedure, requirement_id)
@@ -226,6 +242,7 @@ def remove(request, procedure_id, requirement_id):
 
 
 @require_POST
+@evaluator_only
 def restore(request, procedure_id, requirement_id):
     procedure = _procedure(procedure_id)
     requirement = _requirement(procedure, requirement_id)
@@ -235,6 +252,7 @@ def restore(request, procedure_id, requirement_id):
 
 
 @require_POST
+@evaluator_only
 def add(request, procedure_id):
     """Agrega un formal o económico desde un tramo del pliego. Sin fragmento escrito, toma el
     texto del tramo entero: no hace falta tipear nada."""
@@ -257,6 +275,7 @@ def add(request, procedure_id):
 
 
 @require_POST
+@evaluator_only
 def add_technical(request, procedure_id):
     procedure = _procedure(procedure_id)
     version = _draft(procedure)
@@ -270,6 +289,7 @@ def add_technical(request, procedure_id):
 
 
 @require_POST
+@evaluator_only
 def accept_suggestion(request, procedure_id, requirement_id):
     procedure = _procedure(procedure_id)
     requirement = _requirement(procedure, requirement_id)
@@ -279,6 +299,7 @@ def accept_suggestion(request, procedure_id, requirement_id):
 
 
 @require_POST
+@evaluator_only
 def remove_suggestion(request, procedure_id, requirement_id):
     procedure = _procedure(procedure_id)
     requirement = _requirement(procedure, requirement_id)
@@ -329,6 +350,7 @@ def validate(request, procedure_id, version_id):
 
 
 @require_POST
+@evaluator_only
 def open_new(request, procedure_id):
     procedure = _procedure(procedure_id)
     return _act(procedure, lambda: validation.open_new_version(

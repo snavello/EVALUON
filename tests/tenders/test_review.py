@@ -83,38 +83,38 @@ def counts():
 # --- Corregir (REQ-026) ---------------------------------------------------------------------------
 
 
-def test_a_correction_keeps_user_moment_before_after_and_the_proposal(operator_user, case):
+def test_a_correction_keeps_user_moment_before_after_and_the_proposal(evaluator_user, case):
     """REQ-026: una corrección queda con usuario, momento, antes y después, y lo propuesto
     se consulta en el historial."""
     requirement = req(case, PAGO)
     proposed = dict(requirement.proposed)
     started = timezone.now()
 
-    done = review.correct(operator_user, requirement.pk, category="formal", items="1, 2")
+    done = review.correct(evaluator_user, requirement.pk, category="formal", items="1, 2")
 
     requirement.refresh_from_db()
     assert requirement.category == "formal" and requirement.items == [1, 2]
     change = m.RequirementChange.objects.get(requirement=requirement)
-    assert change.action == "corregir" and change.user == operator_user
+    assert change.action == "corregir" and change.user == evaluator_user
     assert change.at >= started
     assert change.before["category"] == "economico" and change.after["category"] == "formal"
     assert change.before["items"] != change.after["items"]
     assert done.events[0].event_type == EventType.REQUIREMENT_CHANGE
     assert change.event == done.events[0]
     assert requirement.proposed == proposed != {}
-    page = review.history(operator_user, requirement.pk)
+    page = review.history(evaluator_user, requirement.pk)
     assert page.proposed["category"] == "economico"
     assert page.proposed["quotes"][0]["text"] == PAGO
 
 
-def test_a_corrected_quote_is_the_exact_cut_of_the_canonical_text(operator_user, case):
+def test_a_corrected_quote_is_the_exact_cut_of_the_canonical_text(evaluator_user, case):
     """REQ-025/026: la cita corregida se verifica en el tramo (tolera espacios y saltos de
     línea) y se guarda el recorte exacto del texto canónico."""
     requirement = req(case, PAGO)
     segment = segment_with(case, PAGO)
     messy = "a los 90   días\ncorridos de la factura"
 
-    review.correct(operator_user, requirement.pk, segment=segment.pk, quote=messy)
+    review.correct(evaluator_user, requirement.pk, segment=segment.pk, quote=messy)
 
     quote = requirement.quotes.get()
     canonical = segment.reading.canonical_text
@@ -123,14 +123,14 @@ def test_a_corrected_quote_is_the_exact_cut_of_the_canonical_text(operator_user,
     assert quote.quote_flag == "" and quote.segment_id == segment.pk
 
 
-def test_a_quote_not_in_the_segment_is_rejected_and_nothing_changes(operator_user, case):
+def test_a_quote_not_in_the_segment_is_rejected_and_nothing_changes(evaluator_user, case):
     """REQ-026: una cita corregida que no está en el tramo se rechaza, con su hecho."""
     requirement = req(case, PAGO)
     segment = segment_with(case, PAGO)
     before = counts()
 
     with pytest.raises(review.ReviewRefused) as error:
-        review.correct(operator_user, requirement.pk, segment=segment.pk,
+        review.correct(evaluator_user, requirement.pk, segment=segment.pk,
                        quote="un texto que el pliego no dice")
 
     assert error.value.reason == "quote_not_in_segment"
@@ -140,42 +140,42 @@ def test_a_quote_not_in_the_segment_is_rejected_and_nothing_changes(operator_use
 
 
 def test_a_quote_can_move_to_another_segment_of_the_tender_but_not_to_a_foreign_one(
-        operator_user, case):
+        evaluator_user, case):
     """La cita se puede llevar a otro tramo del mismo pliego; uno de otro pliego no."""
     requirement = req(case, PAGO)
     other = segment_with(case, "vencimiento mayor")
-    review.correct(operator_user, requirement.pk, segment=other.pk,
+    review.correct(evaluator_user, requirement.pk, segment=other.pk,
                    quote="vencimiento mayor a once meses")
     assert requirement.quotes.get().segment_id == other.pk
 
-    other_procedure = make_procedure(operator_user)
-    load_and_read(operator_user, other_procedure, three_items_pdf(), title="Otro pliego")
+    other_procedure = make_procedure(evaluator_user)
+    load_and_read(evaluator_user, other_procedure, three_items_pdf(), title="Otro pliego")
     foreign = m.Segment.objects.filter(
         reading__document__procedure=other_procedure, text__contains=PAGO).first()
     with pytest.raises(review.ReviewRefused) as error:
-        review.correct(operator_user, requirement.pk, segment=foreign.pk, quote=PAGO)
+        review.correct(evaluator_user, requirement.pk, segment=foreign.pk, quote=PAGO)
     assert error.value.reason == "segment_not_in_tender"
 
 
-def test_a_correction_that_changes_nothing_is_refused(operator_user, case):
+def test_a_correction_that_changes_nothing_is_refused(evaluator_user, case):
     requirement = req(case, PAGO)
     with pytest.raises(review.ReviewRefused) as error:
-        review.correct(operator_user, requirement.pk, category="economico")
+        review.correct(evaluator_user, requirement.pk, category="economico")
     assert error.value.reason == "nothing_to_change"
 
 
 def test_correcting_a_confirmed_requirement_makes_it_proposed_again(
-        operator_user, evaluator_user, case):
+        evaluator_user, case):
     requirement = req(case, PAGO)
     review.confirm(evaluator_user, [requirement.pk])
-    review.correct(operator_user, requirement.pk, category="formal")
+    review.correct(evaluator_user, requirement.pk, category="formal")
     requirement.refresh_from_db()
     assert requirement.state == "propuesto"
     last = requirement.changes.order_by("-id").first()
     assert last.before["state"] == "confirmado" and last.after["state"] == "propuesto"
 
 
-def test_a_formal_passed_to_technical_joins_the_row_of_its_item(operator_user, case):
+def test_a_formal_passed_to_technical_joins_the_row_of_its_item(evaluator_user, case):
     """Pasar un formal o económico a técnico lo une a la fila de su renglón."""
     row = tech(case, 2)
     assert row.items == [2]
@@ -183,7 +183,7 @@ def test_a_formal_passed_to_technical_joins_the_row_of_its_item(operator_user, c
     segment = segment_with(case, PAGO)
     quotes_before = row.quotes.count()
 
-    done = review.correct(operator_user, requirement.pk, category="tecnico", items="2")
+    done = review.correct(evaluator_user, requirement.pk, category="tecnico", items="2")
 
     requirement.refresh_from_db()
     assert requirement.state == "quitado"
@@ -195,44 +195,44 @@ def test_a_formal_passed_to_technical_joins_the_row_of_its_item(operator_user, c
     check_deferred()
 
 
-def test_passing_to_technical_without_a_row_for_the_item_is_refused(operator_user, case):
+def test_passing_to_technical_without_a_row_for_the_item_is_refused(evaluator_user, case):
     requirement = req(case, PAGO)
     with pytest.raises(review.ReviewRefused) as error:
-        review.correct(operator_user, requirement.pk, category="tecnico", items="9")
+        review.correct(evaluator_user, requirement.pk, category="tecnico", items="9")
     assert error.value.reason == "no_technical_row"
     requirement.refresh_from_db()
     assert requirement.state == "propuesto" and requirement.quotes.count() == 1
 
 
-def test_adding_a_segment_to_a_technical_row_is_recorded(operator_user, case):
+def test_adding_a_segment_to_a_technical_row_is_recorded(evaluator_user, case):
     """Sumar un tramo a una fila técnica queda registrado."""
     row = tech(case, 2)
     extra = segment_with(case, "multa del 1 %")
 
-    review.correct(operator_user, row.pk, add_segments=[extra.pk])
+    review.correct(evaluator_user, row.pk, add_segments=[extra.pk])
 
     quote = row.quotes.get(segment=extra)
     assert (quote.char_start, quote.char_end, quote.text) == (
         extra.char_start, extra.char_end, extra.text)
     change = row.changes.get()
-    assert change.action == "corregir" and change.user == operator_user
+    assert change.action == "corregir" and change.user == evaluator_user
     assert len(change.after["quotes"]) == len(change.before["quotes"]) + 1
     with pytest.raises(review.ReviewRefused) as error:
-        review.correct(operator_user, row.pk, add_segments=[extra.pk])
+        review.correct(evaluator_user, row.pk, add_segments=[extra.pk])
     assert error.value.reason == "quote_duplicate"
 
 
-def test_removing_a_segment_from_a_technical_row_but_never_the_last(operator_user, case):
+def test_removing_a_segment_from_a_technical_row_but_never_the_last(evaluator_user, case):
     row = tech(case, 2)
     extra = segment_with(case, "multa del 1 %")
-    review.correct(operator_user, row.pk, add_segments=[extra.pk])
+    review.correct(evaluator_user, row.pk, add_segments=[extra.pk])
     added = row.quotes.get(segment=extra)
 
-    review.correct(operator_user, row.pk, remove_quotes=[added.pk])
+    review.correct(evaluator_user, row.pk, remove_quotes=[added.pk])
     assert not row.quotes.filter(segment=extra).exists()
 
     with pytest.raises(review.ReviewRefused) as error:
-        review.correct(operator_user, row.pk,
+        review.correct(evaluator_user, row.pk,
                        remove_quotes=[q.pk for q in row.quotes.all()])
     assert error.value.reason == "last_quote"
     assert row.quotes.exists()
@@ -241,12 +241,12 @@ def test_removing_a_segment_from_a_technical_row_but_never_the_last(operator_use
 # --- Agregar --------------------------------------------------------------------------------------
 
 
-def test_a_second_technical_row_for_the_same_item_is_rejected(operator_user, case):
+def test_a_second_technical_row_for_the_same_item_is_rejected(evaluator_user, case):
     """Una segunda fila técnica para el mismo renglón se rechaza."""
     segment = segment_with(case, "vencimiento mayor")
     before = counts()
     with pytest.raises(review.ReviewRefused) as error:
-        review.add_technical_row(operator_user, case.pk, item=2, segments=[segment.pk])
+        review.add_technical_row(evaluator_user, case.pk, item=2, segments=[segment.pk])
     assert error.value.reason == "technical_row_exists"
     assert counts() == before
     assert m.Requirement.objects.filter(version=case, category="tecnico",
@@ -254,12 +254,12 @@ def test_a_second_technical_row_for_the_same_item_is_rejected(operator_user, cas
     assert rejected("technical_row_exists").count() == 1
 
 
-def test_a_technical_row_is_added_for_an_item_that_has_none(operator_user, case):
+def test_a_technical_row_is_added_for_an_item_that_has_none(evaluator_user, case):
     segment = segment_with(case, "multa del 1 %")
     tech(case, 3).quotes.all().delete()  # el renglón 3 queda sin fila: se arma de nuevo
     tech(case, 3).consequences.all().delete()
     tech(case, 3).delete()
-    done = review.add_technical_row(operator_user, case.pk, item=3, segments=[segment.pk])
+    done = review.add_technical_row(evaluator_user, case.pk, item=3, segments=[segment.pk])
     row = done.requirements[0]
     assert row.category == "tecnico" and row.items == [3] and row.origin == "agregado"
     assert row.quotes.get().segment_id == segment.pk
@@ -267,9 +267,9 @@ def test_a_technical_row_is_added_for_an_item_that_has_none(operator_user, case)
     check_deferred()
 
 
-def test_adding_a_requirement_from_a_segment_with_a_literal_fragment(operator_user, case):
+def test_adding_a_requirement_from_a_segment_with_a_literal_fragment(evaluator_user, case):
     segment = segment_with(case, "multa del 1 %")
-    done = review.add_requirement(operator_user, case.pk, segment=segment.pk,
+    done = review.add_requirement(evaluator_user, case.pk, segment=segment.pk,
                                   quote="una multa del 1 % diario", category="economico")
     added = done.requirements[0]
     assert added.origin == "agregado" and added.category == "economico"
@@ -280,11 +280,11 @@ def test_adding_a_requirement_from_a_segment_with_a_literal_fragment(operator_us
     assert change.action == "agregar" and change.before is None
     check_deferred()
     with pytest.raises(review.ReviewRefused) as error:
-        review.add_requirement(operator_user, case.pk, segment=segment.pk,
+        review.add_requirement(evaluator_user, case.pk, segment=segment.pk,
                                quote="un texto inventado", category="economico")
     assert error.value.reason == "quote_not_in_segment"
     with pytest.raises(review.ReviewRefused) as error:
-        review.add_requirement(operator_user, case.pk, segment=segment.pk,
+        review.add_requirement(evaluator_user, case.pk, segment=segment.pk,
                                quote="multa", category="tecnico")
     assert error.value.reason == "invalid_category"
 
@@ -292,19 +292,19 @@ def test_adding_a_requirement_from_a_segment_with_a_literal_fragment(operator_us
 # --- Quitar y restituir ---------------------------------------------------------------------------
 
 
-def test_remove_and_restore_keep_the_history(operator_user, evaluator_user, case):
+def test_remove_and_restore_keep_the_history(evaluator_user, case):
     requirement = req(case, PAGO)
     review.confirm(evaluator_user, [requirement.pk])
-    review.remove(operator_user, requirement.pk)
+    review.remove(evaluator_user, requirement.pk)
     requirement.refresh_from_db()
     assert requirement.state == "quitado" and requirement.quotes.count() == 1
     with pytest.raises(review.ReviewRefused):
-        review.remove(operator_user, requirement.pk)
+        review.remove(evaluator_user, requirement.pk)
     with pytest.raises(review.ReviewRefused) as error:
-        review.correct(operator_user, requirement.pk, category="formal")
+        review.correct(evaluator_user, requirement.pk, category="formal")
     assert error.value.reason == "requirement_removed"
 
-    review.restore(operator_user, requirement.pk)
+    review.restore(evaluator_user, requirement.pk)
     requirement.refresh_from_db()
     assert requirement.state == "confirmado"
     actions = list(requirement.changes.order_by("id").values_list("action", flat=True))
@@ -372,22 +372,22 @@ def test_the_evaluator_resolves_a_pending_without_requirements(evaluator_user, c
     assert error.value.reason == "pending_resolved"
 
 
-def test_adding_a_requirement_from_a_pending_resolves_it(operator_user, case):
+def test_adding_a_requirement_from_a_pending_resolves_it(evaluator_user, case):
     segment = segment_with(case, "multa del 1 %")
     pending = m.PendingItem.objects.create(version=case, segment=segment,
                                            reason="sin_disposicion")
-    done = review.add_requirement(operator_user, case.pk, segment=segment.pk,
+    done = review.add_requirement(evaluator_user, case.pk, segment=segment.pk,
                                   quote="multa del 1 % diario", category="economico",
                                   pending=pending.pk)
     pending.refresh_from_db()
     assert pending.resolution == "requisito_agregado"
-    assert pending.resolved_by == operator_user
+    assert pending.resolved_by == evaluator_user
     assert [e.event_type for e in done.events] == [EventType.REQUIREMENT_CHANGE,
                                                    EventType.SEGMENT_REVIEW]
     other = segment_with(case, PAGO)
     again = m.PendingItem.objects.create(version=case, segment=other, reason="marcadores")
     with pytest.raises(review.ReviewRefused) as error:
-        review.add_requirement(operator_user, case.pk, segment=segment.pk,
+        review.add_requirement(evaluator_user, case.pk, segment=segment.pk,
                                quote="multa", category="economico", pending=again.pk)
     assert error.value.reason == "pending_other_segment"
 
@@ -402,7 +402,7 @@ def validate(version, user):
     version.save()
 
 
-def test_nothing_changes_in_a_validated_version(operator_user, evaluator_user, case):
+def test_nothing_changes_in_a_validated_version(evaluator_user, case):
     """REQ-027: en una versión validada toda operación se rechaza antes de escribir."""
     requirement = req(case, PAGO)
     technical = tech(case, 2)
@@ -414,13 +414,13 @@ def test_nothing_changes_in_a_validated_version(operator_user, evaluator_user, c
 
     calls = [
         lambda: review.confirm(evaluator_user, [requirement.pk]),
-        lambda: review.correct(operator_user, requirement.pk, category="formal"),
-        lambda: review.correct(operator_user, technical.pk, add_segments=[segment.pk]),
-        lambda: review.remove(operator_user, requirement.pk),
-        lambda: review.restore(operator_user, requirement.pk),
-        lambda: review.add_requirement(operator_user, case.pk, segment=segment.pk,
+        lambda: review.correct(evaluator_user, requirement.pk, category="formal"),
+        lambda: review.correct(evaluator_user, technical.pk, add_segments=[segment.pk]),
+        lambda: review.remove(evaluator_user, requirement.pk),
+        lambda: review.restore(evaluator_user, requirement.pk),
+        lambda: review.add_requirement(evaluator_user, case.pk, segment=segment.pk,
                                        quote="multa", category="economico"),
-        lambda: review.add_technical_row(operator_user, case.pk, item=3,
+        lambda: review.add_technical_row(evaluator_user, case.pk, item=3,
                                          segments=[segment.pk]),
         lambda: review.resolve_pending(evaluator_user, pending.pk),
     ]
@@ -456,9 +456,9 @@ def page_text(response):
     return html.unescape(response.content.decode())
 
 
-def test_posting_a_correction_and_reading_the_history(client, operator_user, case):
+def test_posting_a_correction_and_reading_the_history(client, evaluator_user, case):
     requirement = req(case, PAGO)
-    log_in(client, operator_user)
+    log_in(client, evaluator_user)
     response = client.post(
         reverse("tenders:review_correct", args=[requirement.pk]),
         {"category": "formal", "items": "", "segment": segment_with(case, PAGO).pk,
@@ -470,13 +470,13 @@ def test_posting_a_correction_and_reading_the_history(client, operator_user, cas
 
     history = page_text(client.get(reverse("tenders:history", args=[requirement.pk])))
     assert "Propuesto originalmente" in history and "economico" in history
-    assert "Corregir" in history and operator_user.username in history
+    assert "Corregir" in history and evaluator_user.username in history
     assert PAGO in history
 
 
-def test_a_refused_post_shows_the_reason_and_changes_nothing(client, operator_user, case):
+def test_a_refused_post_shows_the_reason_and_changes_nothing(client, evaluator_user, case):
     requirement = req(case, PAGO)
-    log_in(client, operator_user)
+    log_in(client, evaluator_user)
     response = client.post(
         reverse("tenders:review_correct", args=[requirement.pk]),
         {"category": "formal", "segment": segment_with(case, PAGO).pk,
@@ -514,12 +514,12 @@ def test_get_on_an_action_is_not_allowed(client, operator_user, case):
                       ).status_code == 405
 
 
-def test_a_technical_row_for_an_item_not_in_the_tender_is_rejected(operator_user, case):
+def test_a_technical_row_for_an_item_not_in_the_tender_is_rejected(evaluator_user, case):
     """Un renglón que la lectura del pliego no reconoce se rechaza, con su hecho."""
     segment = segment_with(case, "multa del 1 %")
     before = counts()
     with pytest.raises(review.ReviewRefused) as error:
-        review.add_technical_row(operator_user, case.pk, item=9, segments=[segment.pk])
+        review.add_technical_row(evaluator_user, case.pk, item=9, segments=[segment.pk])
     assert error.value.reason == "item_unknown"
     assert counts() == before
     assert rejected("item_unknown").count() == 1
@@ -527,17 +527,17 @@ def test_a_technical_row_for_an_item_not_in_the_tender_is_rejected(operator_user
 
 
 def test_restoring_a_formal_passed_to_technical_takes_its_quote_out_of_the_row(
-        operator_user, case):
+        evaluator_user, case):
     """O1: restituir deshace el pase a técnico: la cita sale de la fila y queda registrado
     en el historial de la fila; no queda en dos lugares."""
     row = tech(case, 2)
     requirement = req(case, PAGO)
     segment = segment_with(case, PAGO)
     quotes_before = row.quotes.count()
-    review.correct(operator_user, requirement.pk, category="tecnico", items="2")
+    review.correct(evaluator_user, requirement.pk, category="tecnico", items="2")
     assert row.quotes.filter(segment=segment).exists()
 
-    done = review.restore(operator_user, requirement.pk)
+    done = review.restore(evaluator_user, requirement.pk)
 
     requirement.refresh_from_db()
     assert requirement.state == "propuesto" and requirement.category == "economico"
@@ -545,21 +545,21 @@ def test_restoring_a_formal_passed_to_technical_takes_its_quote_out_of_the_row(
     assert row.quotes.count() == quotes_before
     assert not row.quotes.filter(segment=segment, text=PAGO).exists()
     last = row.changes.order_by("-id").first()
-    assert last.action == "corregir" and last.user == operator_user
+    assert last.action == "corregir" and last.user == evaluator_user
     assert len(last.after["quotes"]) == len(last.before["quotes"]) - 1
     assert {c.requirement_id for c in done.changes} == {requirement.pk, row.pk}
     check_deferred()
 
 
-def test_restoring_a_plain_removal_does_not_touch_technical_rows(operator_user, case):
+def test_restoring_a_plain_removal_does_not_touch_technical_rows(evaluator_user, case):
     row = tech(case, 2)
     requirement = req(case, PAGO)
-    review.remove(operator_user, requirement.pk)
-    review.restore(operator_user, requirement.pk)
+    review.remove(evaluator_user, requirement.pk)
+    review.restore(evaluator_user, requirement.pk)
     assert not row.changes.exists()
 
 
-def test_correcting_a_wide_quote_removes_the_wide_mark(operator_user, case):
+def test_correcting_a_wide_quote_removes_the_wide_mark(evaluator_user, case):
     """O2: corregir una cita amplia le quita la marca `cita_amplia`."""
     requirement = req(case, PAGO)
     quote = requirement.quotes.get()
@@ -567,7 +567,7 @@ def test_correcting_a_wide_quote_removes_the_wide_mark(operator_user, case):
     quote.save()
     segment = segment_with(case, PAGO)
 
-    review.correct(operator_user, requirement.pk, segment=segment.pk,
+    review.correct(evaluator_user, requirement.pk, segment=segment.pk,
                    quote="a los 90 días corridos de la factura")
 
     quote.refresh_from_db()
@@ -576,3 +576,29 @@ def test_correcting_a_wide_quote_removes_the_wide_mark(operator_user, case):
     change = requirement.changes.get()
     assert change.before["quotes"][0]["flag"] == "cita_amplia"
     assert change.after["quotes"][0]["flag"] == ""
+
+
+def test_the_operator_cannot_correct_remove_restore_or_add_at_the_service(operator_user, case):
+    """REQ-081 (O-2, decisión del 2026-10-10): corregir, quitar, restituir y agregar requisitos
+    son del evaluador; con el operador el servicio rechaza, deja el hecho y no cambia nada."""
+    from evaluon.accounts.permissions import RoleRejected
+    from evaluon.audit.models import AuditEvent, Outcome
+
+    requirement = req(case)
+    segment = segment_with(case, "multa del 1 %")
+    before = counts()
+    rejected = AuditEvent.objects.filter(outcome=Outcome.REJECTED).count()
+    calls = (
+        lambda: review.correct(operator_user, requirement.pk, category="economico"),
+        lambda: review.remove(operator_user, requirement.pk),
+        lambda: review.restore(operator_user, requirement.pk),
+        lambda: review.add_requirement(operator_user, case.pk, segment=segment.pk,
+                                       quote="multa del 1 %", category="economico"),
+        lambda: review.add_technical_row(operator_user, case.pk, item=3,
+                                         segments=[segment.pk]),
+    )
+    for call in calls:
+        with pytest.raises(RoleRejected):
+            call()
+    assert counts() == before
+    assert AuditEvent.objects.filter(outcome=Outcome.REJECTED).count() == rejected + len(calls)

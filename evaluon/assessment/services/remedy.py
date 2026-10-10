@@ -21,7 +21,14 @@ de compliance" (no determinado, motivo `externo`): la hoja es un documento más 
    solo inserción (P6). `declined_for` y `state` lo leen de ahí. Una subsanación ya pedida o ya
    decidida no se vuelve a decidir.
 
-Solo el evaluador pide, agrega, reevalúa y decide no pedir (P3). El rol se comprueba antes de toda transacción.
+5. `revert_decline` (T-227, REQ-090; decisión del 2026-10-10, «Reversible con motivo»): el
+   evaluador, con un motivo obligatorio, revierte el «no pedir» vigente. Es otro hecho
+   `eval_decision` (acción `revertir_no_pedir_subsanacion`) con quién, cuándo, por qué y el hecho
+   que revierte; el hecho de «no pedir» no se borra ni se cambia (solo inserción, P6). Después de
+   revertir, la subsanación vuelve a estar por decidir: se puede pedir o no pedir de nuevo.
+   `declined_for` lee los dos hechos en orden y devuelve el «no pedir» que sigue vigente.
+
+Solo el evaluador pide, agrega, reevalúa y decide no pedir o revertirlo (P3). El rol se comprueba antes de toda transacción.
 Un resultado rechazado no rige (`effective_outcome` en `None`): no se subsana.
 """
 
@@ -44,6 +51,8 @@ REEVALUATE_OPERATION = "evaluon.assessment.services.remedy.reevaluate"
 DECLINE_OPERATION = "evaluon.assessment.services.remedy.decline_remedy"
 # La acción del hecho que deja `decline_remedy` (no es una `Action` de `Decision`).
 DECLINE_ACTION = "no_pedir_subsanacion"
+REVERT_OPERATION = "evaluon.assessment.services.remedy.revert_decline"
+REVERT_DECLINE_ACTION = "revertir_no_pedir_subsanacion"
 
 
 class RemedyRefused(ValueError):
@@ -83,14 +92,32 @@ def is_remediable(result):
 
 def declined_for(result_ids):
     """`{resultado: hecho}` de los resultados de `result_ids` para los que la Comisión decidió no
-    pedir la subsanación (el primer hecho `ok` de cada uno), en una sola consulta."""
+    pedir la subsanación y no lo revirtió (el primer hecho `ok` de cada uno, salvo que un hecho
+    posterior lo haya revertido), en una sola consulta."""
     found = {}
     events = (AuditEvent.objects.filter(
         event_type=EventType.EVAL_DECISION, outcome=EventOutcome.OK,
-        detail__action=DECLINE_ACTION, detail__result__in=list(result_ids))
+        detail__action__in=(DECLINE_ACTION, REVERT_DECLINE_ACTION),
+        detail__result__in=list(result_ids))
         .select_related("user").order_by("pk"))
     for event in events:
-        found.setdefault(event.detail["result"], event)
+        if event.detail["action"] == REVERT_DECLINE_ACTION:
+            found.pop(event.detail["result"], None)
+        else:
+            found.setdefault(event.detail["result"], event)
+    return found
+
+
+def reverted_for(result_ids):
+    """`{resultado: hecho}` con la última reversión de «no pedir» de cada resultado de
+    `result_ids` (para mostrar quién, cuándo y por qué), en una sola consulta."""
+    found = {}
+    events = (AuditEvent.objects.filter(
+        event_type=EventType.EVAL_DECISION, outcome=EventOutcome.OK,
+        detail__action=REVERT_DECLINE_ACTION, detail__result__in=list(result_ids))
+        .select_related("user").order_by("pk"))
+    for event in events:
+        found[event.detail["result"]] = event
     return found
 
 
@@ -200,6 +227,39 @@ def decline_remedy(user, result_id, note, *, channel=Channel.SCREEN):
                         "requirement": result.requirement_id,
                         "outcome_before": result.outcome, "doubt": result.doubt,
                         "note": note})
+    except RemedyRefused as error:
+        _refuse_record(error, user, channel, detail)
+        raise
+    return event
+
+
+def revert_decline(user, result_id, note, *, channel=Channel.SCREEN):
+    """El evaluador revierte el «no pedir» vigente del resultado `result_id`, con un motivo
+    obligatorio. Devuelve el hecho `eval_decision` que lo registra. Lanza `RemedyRefused` sin
+    motivo (`note_required`), si el resultado no se puede subsanar o si no hay un «no pedir»
+    vigente (`not_declined`); sin el rol de evaluador, `RoleRejected`."""
+    require_commission_role(user, CommissionRole.EVALUATOR, operation=REVERT_OPERATION,
+                            channel=channel)
+    detail = {"result": result_id, "action": REVERT_DECLINE_ACTION}
+    note = (note or "").strip()
+    try:
+        with transaction.atomic():
+            result = _result_for_remedy(result_id)
+            # Se bloquea el resultado para que dos decisiones simultáneas no se pisen.
+            Result.objects.select_for_update().filter(pk=result.pk).first()
+            if not note:
+                raise RemedyRefused("Escriba el motivo para revertir «no pedir».",
+                                    "note_required", "note")
+            declined = declined_for([result.pk]).get(result.pk)
+            if declined is None:
+                raise RemedyRefused("Este resultado no tiene una decisión de no pedir la "
+                                    "subsanación para revertir.", "not_declined", "result")
+            event = audit.record(
+                EventType.EVAL_DECISION, outcome=EventOutcome.OK, channel=channel, user=user,
+                detail={**detail, "result": result.pk, "offer": result.offer_id,
+                        "requirement": result.requirement_id, "declined_event": declined.pk,
+                        "declined_by": declined.user.username if declined.user_id else "",
+                        "declined_note": declined.detail.get("note", ""), "note": note})
     except RemedyRefused as error:
         _refuse_record(error, user, channel, detail)
         raise

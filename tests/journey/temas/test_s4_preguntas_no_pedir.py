@@ -79,3 +79,36 @@ def test_the_operator_cannot_decline_and_the_refusal_is_recorded(
     assert response.status_code == 403
     assert remedy.state(result).declined is None
     assert AuditEvent.objects.filter(outcome=AuditOutcome.REJECTED).count() == before + 1
+
+
+def revert_url(procedure, result):
+    return reverse("expedientes:s4_revertir_no_pedir", args=[procedure.pk, result.pk])
+
+
+def test_the_decline_is_reverted_from_the_tab_with_a_reason(
+        client, evaluated, procedure, evaluator_user, operator_user):
+    """REQ-090: la fila «No se pide» ofrece «Revertir» al evaluador, con motivo obligatorio; al
+    revertir vuelve a estar por decidir y queda quién, cuándo y por qué en la fila; el operador no
+    ve el botón y su pedido da 403."""
+    result = missing(evaluated, procedure)
+    log_in(client, evaluator_user)
+    client.post(decline_url(procedure, result), {"note": "No es esencial."})
+    html = block(client, procedure)
+    row = html[html.index(f'id="sub-{result.pk}"'):]
+    row = row[:row.index("</tr>")]
+    assert "Revertir" in row and revert_url(procedure, result) in row
+    ok, text = notice(client, client.post(revert_url(procedure, result), {"note": " "}))
+    assert not ok and "motivo" in text.lower()
+    ok, text = notice(client, client.post(revert_url(procedure, result),
+                                          {"note": "Era esencial."}))
+    assert ok and "revirtió" in text
+    html = block(client, procedure)
+    row = html[html.index(f'id="sub-{result.pk}"'):]
+    row = row[:row.index("</tr>")]
+    assert "Pedir que se subsane" in row and "No pedir" in row
+    assert f"Se revirtió «no pedir»: {evaluator_user.username} el " in row
+    assert "motivo: Era esencial." in row
+    client.logout()
+    log_in(client, operator_user)
+    assert revert_url(procedure, result) not in block(client, procedure)
+    assert client.post(revert_url(procedure, result), {"note": "x"}).status_code == 403

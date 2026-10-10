@@ -36,11 +36,7 @@
         <td class="num">{{ row.day }}</td>
         <td class="origen"><b>{{ row.origin }}</b> · {{ row.origin_date }}{% if row.origin_by %} · {{ row.origin_by }}{% endif %}</td>
         <td>{{ row.effect_text }}{% if row.version_url %} <a href="{{ row.version_url }}">Ver la versión {{ row.version.number }}</a>{% endif %}{% if row.needs_validation %} <b>Falta validarla.</b>{% endif %}</td>
-        <td class="acciones-doc"><a href="{% url 'tenders:document_original' row.document.pk %}">Ver el archivo</a>{% if row.can_open %}
-          <form method="post" action="{% url 'expedientes:s3_circulares_abrir' t.pid %}">{% csrf_token %}
-            <input type="hidden" name="document" value="{{ row.document.pk }}">
-            <button class="btn primario chico" type="submit">Abrir la versión nueva de la matriz</button>
-          </form>{% endif %}</td>
+        <td class="acciones-doc"><a href="{% url 'tenders:document_original' row.document.pk %}">Ver el archivo</a></td>
       </tr>
       {% endfor %}
       {% for miss in t.absent %}
@@ -54,6 +50,14 @@
       {% endfor %}
     </tbody>
   </table></div>
+  {% endif %}
+
+  {% if t.open_document %}
+  <form class="abrir-version" method="post" action="{% url 'expedientes:s3_circulares_abrir' t.pid %}">{% csrf_token %}
+    <input type="hidden" name="document" value="{{ t.open_document.pk }}">
+    <button class="btn primario" type="submit">Abrir la versión nueva de la matriz</button>
+    <span class="suave chica">Incorpora todas las circulares modificatorias ya leídas en una sola versión, en borrador.</span>
+  </form>
   {% endif %}
 
   <div class="bloque-pie"><span>Una circular modificatoria abre una versión nueva de la matriz de «Pliego y matriz», con lo cambiado marcado, y la Comisión la valida de nuevo. Una aclaratoria o una respuesta no la cambia.</span><a class="btn secundario" href="{{ t.matrix_url }}">Ver la matriz y sus versiones</a></div>

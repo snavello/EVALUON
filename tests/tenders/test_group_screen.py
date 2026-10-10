@@ -97,11 +97,11 @@ def test_the_group_button_first_shows_the_rows_and_only_accept_applies(
     assert all(r.changes.filter(action="confirmar").exists() for r in rows)
 
 
-def test_removing_a_group_follows_the_same_two_steps(client, operator_user, grouped):
+def test_removing_a_group_follows_the_same_two_steps(client, evaluator_user, grouped):
     """REQ-034/026: "Quitar las N propuestas" también pide confirmación y lo puede hacer el
     operador; las filas quedan `quitado`."""
     version, rows, other = grouped
-    log_in(client, operator_user)
+    log_in(client, evaluator_user)
 
     page = squash(text_of(client.get(group_url(version),
                                      {"group": "sec-i/3.1", "action": "quitar"})))
