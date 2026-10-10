@@ -18,8 +18,8 @@
 {% endif %}
 {% else %}
 <div class="bloque" id="s1-pliego">
-  <div class="bloque-cab"><h3>Alta desde el pliego</h3>
-    {% if t.upload %}<span class="barra-cargas"><a class="btn secundario chico" href="{{ t.new_url }}">Subir el pliego</a></span>{% endif %}</div>
+  <div class="bloque-cab"><h3>Pliego del procedimiento</h3>
+    {% if t.upload %}<span class="barra-cargas"><a class="btn secundario chico" href="#s1-pliego-subir">Subir el pliego</a></span>{% endif %}</div>
   {% if t.messages %}
   <div class="aviso aviso-ok" id="pliego-resultado" role="status">
     <ul class="resultado-subida">{% for m in t.messages %}<li class="{% if m.ok %}ok{% else %}rechazado{% endif %}">{{ m.text }}</li>{% endfor %}</ul>

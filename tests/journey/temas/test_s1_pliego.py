@@ -376,12 +376,14 @@ def test_a_reader_cannot_see_or_upload(client, evaluator_user, no_commission_use
 def test_section_one_of_a_procedure_without_a_pliego_origin_offers_the_upload(
         client, operator_user, procedure):
     """REQ-097: en la sección 1 de un procedimiento que no nació del pliego está «Subir el
-    pliego», que lleva al alta; no hay origen que mostrar."""
+    pliego», que lleva al formulario de la propia pestaña (no al alta de otro procedimiento,
+    D-2 de T-227); no hay origen que mostrar."""
     log_in(client, operator_user)
     html = client.get(reverse("expedientes:procedimiento", args=[procedure.pk])).content.decode()
     block = html[html.index('id="s1-pliego"'):]
     assert "Subir el pliego" in block
-    assert reverse("expedientes:nuevo") in block
+    assert 'href="#s1-pliego-subir"' in block
+    assert reverse("expedientes:nuevo") not in block.split("</form>", 1)[0]
     assert "subido por" not in block
 
 
