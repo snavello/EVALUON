@@ -67,7 +67,7 @@ def test_a_citation_on_a_vision_page_is_equal_to_the_canonical_slice_of_the_visi
     reading = scanned.documents.get().readings.order_by("-sequence").first()
     assert reading.sequence == 2 and citation.reading == reading and citation.page == 2
     assert citation.text == reading.canonical_text[citation.char_start:citation.char_end]
-    assert citation.text == DECLARATION
+    assert DECLARATION in citation.text  # T-235: la oración completa
     assert vision.vision_pages(reading) == {2}
 
 
@@ -188,8 +188,8 @@ def test_a_photo_of_a_table_is_read_by_vision_and_its_rows_can_be_cited(
     _, runs = run_all(operator_user, procedure)
     result = declaration_result(runs[0], procedure)
     citation = offer_cites(result)[0]
-    assert citation.text == row
-    assert citation.reading.canonical_text[citation.char_start:citation.char_end] == row
+    assert row in citation.text  # T-235: la oración completa
+    assert citation.reading.canonical_text[citation.char_start:citation.char_end] == citation.text
     assert model.vision_calls[0].size[0] > 500
 
 

@@ -49,8 +49,13 @@ def test_an_unreadable_page_is_reported_with_document_and_page_for_the_commissio
     assert (result.facts["ilegible"]["documento"], result.facts["ilegible"]["pagina"]) == (
         "pagare.pdf", 2)
     question = am.Question.objects.get(requirement__number=number)
-    assert question.text == ("¿Lo que exige este requisito está en la página 2 de «pagare.pdf»? "
-                             "Hay que revisar el original.")
+    # T-235 (REQ-105): la pregunta de la regla va al final, con el requisito, la conclusión y
+    # el texto de la oferta delante.
+    assert question.text.splitlines()[-1] == (
+        "¿Lo que exige este requisito está en la página 2 de «pagare.pdf»? "
+        "Hay que revisar el original.")
+    assert question.text.startswith("Requisito ") and "Conclusión del sistema:" in question.text
+    assert "Texto de la oferta:" in question.text
     assert question.reason == "no_se_pudo_leer"
     assert runs[0].counts["by_rule"]["ilegible_informe"] == 1
 
