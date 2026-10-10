@@ -1,6 +1,6 @@
 # Spec 015 · Uso y elección del modelo
 
-Estado: borrador · Fecha: 2026-10-10 · Aprobó: —
+Estado: aprobada · Fecha: 2026-10-10 · Aprobó: responsable del proyecto (2026-10-10, «ok apruebo»)
 
 ## Problema
 
