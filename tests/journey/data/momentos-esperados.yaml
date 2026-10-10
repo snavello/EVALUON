@@ -17,31 +17,31 @@
 # Régimen del caso: autorizado el 2026-01-15, rige la Disp. 247/2022 (REQ-078, REQ-095).
 momentos:
   antes_de_importar:
-    procedimiento: {estado: lista, pendientes: 0, sugerencias: 0, falta: ["Falta el expediente", "Faltan los renglones"], origen: ["A mano"]}
+    procedimiento: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Falta el expediente", "Faltan los renglones"], origen: ["A mano"]}
     pliego: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Faltan los documentos del pliego"], origen: []}
     ofertas: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Todavía no hay ofertas"], origen: []}
     evaluacion: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Falta una matriz validada", "Dictamen: no se cargó"], origen: []}
     normativas: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Falta cargar Disp. AFIP 247/2022"], origen: ["15/01/2026"]}
   importado:
-    procedimiento: {estado: lista, pendientes: 0, sugerencias: 0, falta: ["Faltan los renglones"], origen: ["A mano"]}
+    procedimiento: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Faltan los renglones"], origen: ["A mano"]}
     pliego: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Todavía no se pidió la propuesta de la matriz"], origen: ["1 subido como archivo"]}
     ofertas: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Todavía no hay ofertas"], origen: []}
     evaluacion: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Falta una matriz validada"], origen: []}
     normativas: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Falta cargar Disp. AFIP 247/2022"], origen: ["15/01/2026"]}
   matriz_propuesta:
-    procedimiento: {estado: lista, pendientes: 0, sugerencias: 0, falta: ["Faltan los renglones"], origen: ["A mano"]}
+    procedimiento: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Faltan los renglones"], origen: ["A mano"]}
     pliego: {estado: a_decidir, pendientes: 13, sugerencias: 0, falta: [], origen: ["1 subido como archivo", "versión 1 en revisión"]}
     ofertas: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Todavía no hay ofertas"], origen: []}
     evaluacion: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Falta una matriz validada"], origen: []}
     normativas: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Falta cargar Disp. AFIP 247/2022"], origen: ["15/01/2026"]}
   matriz_validada:
-    procedimiento: {estado: lista, pendientes: 0, sugerencias: 0, falta: ["Faltan los renglones"], origen: ["A mano"]}
+    procedimiento: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Faltan los renglones"], origen: ["A mano"]}
     pliego: {estado: lista, pendientes: 0, sugerencias: 0, falta: [], origen: ["1 subido como archivo", "versión 1 validada"]}
     ofertas: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Todavía no hay ofertas"], origen: []}
     evaluacion: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Faltan ofertas con documentos cargados"], origen: []}
     normativas: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Falta cargar Disp. AFIP 247/2022"], origen: ["15/01/2026"]}
   evaluacion_terminada:
-    procedimiento: {estado: lista, pendientes: 0, sugerencias: 0, falta: ["Faltan los renglones"], origen: ["A mano"]}
+    procedimiento: {estado: pendiente, pendientes: 0, sugerencias: 0, falta: ["Faltan los renglones"], origen: ["A mano"]}
     pliego: {estado: lista, pendientes: 0, sugerencias: 0, falta: [], origen: ["1 subido como archivo", "versión 1 validada"]}
     ofertas: {estado: lista, pendientes: 0, sugerencias: 2, falta: ["falta la hoja de compliance"], origen: ["2 de la carga anterior"]}
     evaluacion: {estado: a_decidir, pendientes: 5, sugerencias: 0, falta: ["Dictamen: no se cargó"], origen: ["2 de 2 ofertas evaluadas"]}

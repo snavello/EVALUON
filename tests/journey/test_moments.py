@@ -198,3 +198,13 @@ def test_the_icon_keeps_the_keyboard_focus_after_each_poll():
     assert "function focusIndex" in js and ".focus()" in js
     css = (STATIC / "recorrido.css").read_text(encoding="utf-8")
     assert ".pw-icon:focus::after" in css and "attr(data-nombre)" in css
+
+
+def test_section_1_is_never_ready_while_something_is_missing(case):
+    """REQ-097 (T-217, brecha 2): la sección 1 con faltantes a la vista (el expediente, el
+    cronograma, las garantías, los renglones con su cantidad) no queda «Lista»: queda pendiente."""
+    for moment in MOMENTS:
+        case.go_to(moment)
+        section = sections.sections_for(case.operator, case.procedure).get("procedimiento")
+        assert section.tema_missing, moment
+        assert section.state == "pendiente", moment

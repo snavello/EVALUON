@@ -9,7 +9,8 @@ Estado de la sección, con las reglas comunes de la 013 adaptadas a secciones si
 orden: un pedido activo la deja en curso; la última falla sin un resultado posterior, con error;
 si algo espera una decisión (cuenta o etapa a decidir), a decidir; si todo está listo, lista; si
 no, pendiente. Una sección sin etapa de la 013 (Normativas) sale de sus temas y, sin
-cuentas, queda pendiente. Una etapa opcional pendiente (el Portal en un procedimiento cargado a mano) no
+cuentas, queda pendiente. Una sección que lo pide (`MISSING_BLOCKS_READY`, la 1) tampoco queda
+lista con faltantes de sus temas a la vista. Una etapa opcional pendiente (el Portal en un procedimiento cargado a mano) no
 cuenta como falta.
 """
 
@@ -200,10 +201,14 @@ def build_section(module, user, procedure, stages_by_key):
     tema_missing = group_missing(tema_missing)
     shown_missing = group_missing(shown_missing)
     failed = next((s for s in stages if s.state == stage_base.CON_ERROR), None)
+    state = combine(stages, pending)
+    if (state == stage_base.LISTA and tema_missing
+            and getattr(module, "MISSING_BLOCKS_READY", False)):
+        state = stage_base.PENDIENTE
     return Section(
         key=module.KEY, label=module.LABEL, slug=module.SLUG,
         url=reverse(f"expedientes:{module.KEY}", args=[procedure.pk]),
-        state=combine(stages, pending), pending=pending, suggestions=suggestions,
+        state=state, pending=pending, suggestions=suggestions,
         summary=summary,
         missing=tuple(missing), tema_missing=tuple(shown_missing),
         sources=tuple(source for status in statuses for source in status.sources),
