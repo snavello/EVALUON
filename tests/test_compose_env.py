@@ -445,3 +445,160 @@ def test_fetch_script_lists_every_model_file_with_a_pinned_revision():
     checksums = _checksums()
     for name in list(normal) + list(large):
         assert name in checksums, f"{name} no figura en scripts/models.sha256"
+
+
+# --- Modelos candidatos de la 015 (ADR-0056, T-242) ---------------------------------------
+
+CANDIDATES = {
+    "qwen38-27b": {
+        "option": "--qwen38-27b",
+        "sources": "QWEN38_SOURCES",
+        "alias": "qwen3.8-27b-ud-q4_k_m",
+        "model": "Qwen3.8-27B-UD-Q4_K_M.gguf",
+        "model_sha256": "322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50f122b39123482",
+        "mmproj": "mmproj-Qwen3.8-27B-F16.gguf",
+        "mmproj_sha256": "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e",
+        "repo": "unsloth/Qwen3.8-27B-GGUF",
+        "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+    },
+    "qwen36-35b": {
+        "option": "--qwen36-35b",
+        "sources": "QWEN36_SOURCES",
+        "alias": "qwen3.6-35b-a3b-ud-iq4_xs",
+        "model": "Qwen3.6-35B-A3B-UD-IQ4_XS.gguf",
+        "model_sha256": "649d7508507b84638732c4f52c24c8b15843c6dca2f3ff793ae07c14a67ebbb3",
+        "mmproj": "mmproj-Qwen3.6-35B-A3B-F16.gguf",
+        "mmproj_sha256": "8971ee4f331ff0a4c609374f32984b3d4e6dc086c0aa35f1d637fad1829e887f",
+        "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+        "revision": "a483e9e6cbd595906af30beda3187c2663a1118c",
+    },
+}
+
+# Banderas de la caché de prefijo que declaran los candidatos (ADR-0056, punto 4): lo único,
+# además del modelo, el alias y el proyector, que los distingue del compose base.
+PREFIX_CACHE_FLAGS = {"--ctx-checkpoints": "32", "--checkpoint-min-step": "1024"}
+
+
+def _candidate_compose(name):
+    path = REPO / f"docker-compose.{name}.yml"
+    assert path.is_file(), f"No se encuentra {path}: tiene que estar montado en app"
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def _without(command, flags):
+    """El `command` sin las banderas dadas y sus valores."""
+    out = [str(item) for item in command]
+    for flag in flags:
+        if flag in out:
+            position = out.index(flag)
+            del out[position:position + 2]
+    return out
+
+
+@pytest.mark.parametrize("name", sorted(CANDIDATES))
+def test_candidate_file_only_replaces_the_batch_engine(compose, name):
+    """REQ-107 (ADR-0056, P4): el archivo de cada candidato sobrescribe solo el `command`
+    de `generation_batch` y el `environment` de `app` y `worker`; no toca la imagen, las
+    redes (el motor sigue en la red interna, sin salida) ni los puertos. Su `command` es el
+    del compose base salvo el modelo, el alias, el proyector y las banderas de la caché de
+    prefijo; sigue con `--parallel 1`, `--offline`, sin pensamiento y con el mismo
+    contexto y el mismo tope de caché de pedidos."""
+    spec = CANDIDATES[name]
+    candidate = _candidate_compose(name)
+    assert set(candidate["services"]) == {"generation_batch", "worker", "app"}
+    assert set(candidate["services"]["generation_batch"]) == {"command"}
+    for service in ("worker", "app"):
+        assert set(candidate["services"][service]) == {"environment"}
+
+    base = [str(item) for item in compose["services"]["generation_batch"]["command"]]
+    command = [str(item) for item in candidate["services"]["generation_batch"]["command"]]
+    assert _argument(command, "--model") == "/models/" + spec["model"]
+    assert _argument(command, "--mmproj") == "/models/" + spec["mmproj"]
+    assert _argument(command, "--alias") == spec["alias"]
+    assert _argument(command, "--alias") != resolve(_argument(base, "--alias"), {})
+    own = ("--model", "--alias", "--mmproj")
+    assert _without(command, own + tuple(PREFIX_CACHE_FLAGS)) == _without(base, own)
+    for flag, value in PREFIX_CACHE_FLAGS.items():
+        assert _argument(command, flag) == value
+        assert flag not in base
+    assert _argument(command, "--parallel") == "1"
+    assert _argument(command, "--reasoning") == "off"
+    assert _argument(command, "--reasoning-budget") == "0"
+    assert "--offline" in command
+    assert "--no-context-shift" in command
+
+
+@pytest.mark.parametrize("name", sorted(CANDIDATES))
+def test_candidate_environment_names_what_the_engine_loads(name):
+    """REQ-107 (P6): `app` y `worker` reciben el alias, el archivo, el proyector y las
+    huellas del candidato, los mismos que carga el motor y que figuran en
+    `scripts/models.sha256`; con ellos se registra el modelo de cada evaluación."""
+    spec = CANDIDATES[name]
+    candidate = _candidate_compose(name)
+    command = [str(item) for item in candidate["services"]["generation_batch"]["command"]]
+    checksums = _checksums()
+    assert candidate["services"]["app"]["environment"] == (
+        candidate["services"]["worker"]["environment"])
+    environment = candidate["services"]["app"]["environment"]
+    assert set(environment) == set(BATCH_MODEL_VARIABLES)
+    assert environment["GENERATION_BATCH_MODEL_ALIAS"] == _argument(command, "--alias")
+    assert "/models/" + environment["GENERATION_BATCH_MODEL_FILE"] == _argument(
+        command, "--model")
+    assert "/models/" + environment["GENERATION_BATCH_MMPROJ_FILE"] == _argument(
+        command, "--mmproj")
+    assert environment["GENERATION_BATCH_MODEL_FILE"] == spec["model"]
+    assert environment["GENERATION_BATCH_MMPROJ_FILE"] == spec["mmproj"]
+    assert environment["GENERATION_BATCH_MODEL_SHA256"] == spec["model_sha256"]
+    assert environment["GENERATION_BATCH_MMPROJ_SHA256"] == spec["mmproj_sha256"]
+    assert checksums[spec["model"]] == spec["model_sha256"]
+    assert checksums[spec["mmproj"]] == spec["mmproj_sha256"]
+
+
+def test_candidate_files_are_mounted_in_the_app_for_these_tests():
+    """REQ-107: `docker-compose.yml` monta los archivos de los candidatos en la aplicación,
+    solo para que estas pruebas los lean (como el del 26B-A4B)."""
+    base = yaml.safe_load(COMPOSE_FILE.read_text(encoding="utf-8"))
+    for volumes in (base["x-app"]["volumes"], base["services"]["app"]["volumes"]):
+        for name in CANDIDATES:
+            assert (f"./docker-compose.{name}.yml:/app/docker-compose.{name}.yml:ro"
+                    in volumes)
+
+
+def _sources_block(text, variable):
+    """Las líneas `"nombre-local URL"` de la lista `variable=( ... )` de fetch_models.sh."""
+    block = text.split(variable + "=(", 1)[1].split("\n)\n", 1)[0]
+    pattern = re.compile(
+        r'"(\S+) https://huggingface\.co/(\S+)/resolve/([0-9a-f]{40})/(\S+)"')
+    return {m[1]: (m[2], m[3], m[4]) for m in pattern.finditer(block)}
+
+
+@pytest.mark.parametrize("name", sorted(CANDIDATES))
+def test_fetch_script_lists_each_candidate_with_a_pinned_revision(name):
+    """REQ-107 (ADR-0056, P5): `fetch_models.sh` baja cada candidato solo con su opción, en
+    una lista aparte con el repositorio de Unsloth, la revisión completa fijada y el
+    nombre local del proyector con el modelo (los dos se llaman `mmproj-F16.gguf` en su
+    repositorio); cada archivo tiene su huella en `scripts/models.sha256`."""
+    spec = CANDIDATES[name]
+    text = FETCH_SCRIPT.read_text(encoding="utf-8")
+    assert spec["option"] in text
+    listed = _sources_block(text, spec["sources"])
+    assert set(listed) == {spec["model"], spec["mmproj"]}
+    assert listed[spec["model"]] == (spec["repo"], spec["revision"], spec["model"])
+    assert listed[spec["mmproj"]] == (spec["repo"], spec["revision"], "mmproj-F16.gguf")
+    checksums = _checksums()
+    assert checksums[spec["model"]] == spec["model_sha256"]
+    assert checksums[spec["mmproj"]] == spec["mmproj_sha256"]
+    # Ninguna otra lista los repite: no se bajan en la instalación normal.
+    normal_block = text.split("LARGE_SOURCES=(", 1)[0]
+    assert spec["model"] not in normal_block and spec["mmproj"] not in normal_block
+
+
+def test_candidate_file_names_do_not_collide_with_the_other_models():
+    """REQ-107: los nombres locales de los cuatro archivos de los candidatos son distintos
+    entre sí y de los demás de `scripts/models.sha256` (los dos proyectores se llaman igual
+    en su repositorio)."""
+    names = [spec[key] for spec in CANDIDATES.values() for key in ("model", "mmproj")]
+    assert len(set(names)) == 4
+    checksums = _checksums()
+    assert len(checksums) == 10
+    assert all(name in checksums for name in names)
