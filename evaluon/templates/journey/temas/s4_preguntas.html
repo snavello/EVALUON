@@ -3,6 +3,12 @@
 <link rel="stylesheet" href="{% static 'journey/punto.css' %}">
 <div class="bloque s4-preg" id="s4-preguntas">
   <div class="bloque-cab"><h3>Preguntas a la Comisión y pedidos de subsanación <span class="cta">{{ t.to_decide }} por decidir · {{ t.resolved }} {% if t.resolved == 1 %}resuelto{% else %}resueltos{% endif %}</span></h3></div>
+  {% if t.is_evaluator and t.reevaluate_count %}
+  <form class="en-linea" id="preg-reevaluar" method="post" action="{% url 'expedientes:s4_evaluar_respondidas' t.pid %}">{% csrf_token %}
+    <button class="btn primario chico" type="submit">Evaluar de nuevo {% if t.reevaluate_count == 1 %}el par respondido{% else %}los {{ t.reevaluate_count }} pares respondidos{% endif %}</button>
+    <span class="suave">Un solo pedido. La evaluación nueva lee la respuesta de la Comisión como fundamento; no la toma como decisión.</span>
+  </form>
+  {% endif %}
   {% if t.only_open %}<p class="ayuda" id="preg-filtro">Se muestra solo lo abierto. <a href="{% url 'expedientes:evaluacion' t.pid %}#s4-preguntas">Ver todas</a></p>{% endif %}
   {% if t.lines %}
   <div class="tabla-scroll"><table class="matriz lectura">

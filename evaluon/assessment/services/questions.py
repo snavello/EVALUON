@@ -22,11 +22,20 @@ from django.db import transaction
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
-from evaluon.assessment.models import Answer, AnswerScope, Cause, Outcome, Question, Result
+from evaluon.assessment.models import (
+    Answer,
+    AnswerScope,
+    Cause,
+    Outcome,
+    Question,
+    Request,
+    Result,
+)
 from evaluon.assessment.services import evaluate, review
 from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType
 from evaluon.audit.models import Outcome as EventOutcome
+from evaluon.tenders.models import Job, JobKind, JobStatus
 
 ANSWER_OPERATION = "evaluon.assessment.services.questions.answer"
 LIST_OPERATION = "evaluon.assessment.services.questions.question_list"
@@ -218,3 +227,121 @@ def reevaluate(user, answer_id, *, offer_id=None, channel=Channel.SCREEN):
     return evaluate.request_evaluation(
         user, found.question.procedure, offers=offers, requirements=requirements,
         cause=Cause.RESPUESTA, answer=found, channel=channel)
+
+
+# --- Evaluar de nuevo los pares respondidos, de una vez (T-231, E-3) ----------------------------
+
+
+@dataclass(frozen=True)
+class AnsweredPairs:
+    """Los pares que la Comisión respondió y que siguen con el resultado de antes de la respuesta,
+    sin decisión de la Comisión encima: `pairs` son `(oferta, requisito, respuesta)`."""
+
+    pairs: list
+
+    def __len__(self):
+        return len(self.pairs)
+
+    @property
+    def offers(self):
+        return list(dict.fromkeys(o for o, _, _ in self.pairs))
+
+    @property
+    def requirements(self):
+        return list(dict.fromkeys(r for _, r, _ in self.pairs))
+
+    @property
+    def last_answer(self):
+        return max((a for _, _, a in self.pairs), key=lambda a: (a.answered_at, a.pk))
+
+
+def answered_pairs(procedure):
+    """Los pares alcanzados por la respuesta vigente de alguna pregunta cuyo resultado vigente es
+    anterior a esa respuesta (la evaluación nueva todavía no la tuvo) y que la Comisión no decidió.
+    Con pocas consultas: las respuestas, los resultados vigentes y sus decisiones."""
+    latest = {}
+    for found in (Answer.objects.filter(question__procedure=procedure)
+                  .select_related("question").order_by("answered_at", "pk")):
+        latest[found.question_id] = found
+    if not latest:
+        return AnsweredPairs([])
+    offers = list(procedure.offers.order_by("number"))
+    by_offer = {o.pk: o for o in offers}
+    results = evaluate.current_results(offers)
+    decisions = review.current_decisions(results.values())
+    requirements = {r.requirement_id: r.requirement for r in results.values()}
+    found = {}
+    for answer in sorted(latest.values(), key=lambda a: (a.answered_at, a.pk)):
+        question = answer.question
+        if answer.scope == AnswerScope.PAR:
+            keys = [(question.offer_id, question.requirement_id)]
+        elif answer.scope == AnswerScope.REQUISITO:
+            keys = [(o.pk, question.requirement_id) for o in offers]
+        else:
+            keys = [key for key, r in results.items() if r.outcome == Outcome.NO_DETERMINADO]
+        for key in keys:
+            result = results.get(key)
+            if (result is None or result.run.built_at >= answer.answered_at
+                    or review.state_from(decisions.get(result.pk)) != review.PROPOSED):
+                continue
+            found[key] = (by_offer[key[0]], requirements[key[1]], answer)
+    return AnsweredPairs(sorted(found.values(), key=lambda p: (p[0].number, p[1].number)))
+
+
+NOT_ANSWERED = "No hay respuestas de la Comisión pendientes de evaluar de nuevo."
+
+
+def _pending_job(procedure):
+    return Job.objects.filter(kind=JobKind.EVALUATE_OFFERS, procedure=procedure,
+                              status__in=[JobStatus.QUEUED, JobStatus.RUNNING]).first()
+
+
+def _waiting_covers(job, pairs):
+    """Si el pedido en espera (todavía sin empezar) evalúa los pares respondidos: la evaluación
+    lee las respuestas vigentes al armar cada oferta, así que los suma cuando corra."""
+    if job.status != JobStatus.QUEUED:
+        return False
+    request = Request.objects.filter(job=job).first()
+    if request is None:
+        return False
+    offers = set(request.offers)
+    wanted = None if request.requirements is None else set(request.requirements)
+    return all(o.pk in offers and (wanted is None or r.pk in wanted)
+               for o, r, _ in pairs.pairs)
+
+
+def reevaluate_answered(user, procedure, *, channel=Channel.SCREEN):
+    """Pide, en un solo pedido, evaluar de nuevo todos los pares respondidos (`answered_pairs`),
+    con la causa `respuesta`. Lo pide el evaluador. Si ya hay un pedido en espera o en curso,
+    no pide nada y dice qué pasa con los pares respondidos. El pedido es por ofertas y requisitos:
+    si alcanzara un par que la Comisión ya decidió, se rechaza para no ponerle una evaluación
+    nueva encima. Todo rechazo queda registrado (P6)."""
+    require_commission_role(user, CommissionRole.EVALUATOR, operation=REEVALUATE_OPERATION,
+                            channel=channel)
+    detail = {"procedure": procedure.pk, "operation": "reevaluate_answered"}
+    pairs = answered_pairs(procedure)
+    if not len(pairs):
+        _refuse(user, channel, AnswerRefused(NOT_ANSWERED, "no_affected_pairs", "answer"), detail)
+    job = _pending_job(procedure)
+    if job is not None:
+        if _waiting_covers(job, pairs):
+            message = ("Ya hay una evaluación en espera; los pares respondidos se suman cuando "
+                       "termine.")
+        else:
+            message = ("Ya hay una evaluación en curso; evaluá de nuevo los pares respondidos "
+                       "cuando termine.")
+        _refuse(user, channel, AnswerRefused(message, "request_in_progress", "answer"), detail)
+    offers, requirements = pairs.offers, pairs.requirements
+    covered = {(o.pk, r.pk) for o, r, _ in pairs.pairs}
+    results = evaluate.current_results(offers, requirements)
+    decisions = review.current_decisions(results.values())
+    decided = [key for key, result in results.items() if key not in covered
+               and review.state_from(decisions.get(result.pk)) != review.PROPOSED]
+    if decided:
+        _refuse(user, channel, AnswerRefused(
+            f"El pedido evaluaría también {len(decided)} pares que la Comisión ya decidió. "
+            "Pedí la evaluación de nuevo desde la respuesta de cada pregunta, oferta por oferta.",
+            "decided_pairs_included", "answer"), detail)
+    return evaluate.request_evaluation(
+        user, procedure, offers=[o.pk for o in offers], requirements=[r.pk for r in requirements],
+        cause=Cause.RESPUESTA, answer=pairs.last_answer, channel=channel)

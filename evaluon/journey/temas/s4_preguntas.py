@@ -268,8 +268,10 @@ def context(user, procedure, request):
             for q in status.open_questions}
         lines = [line for line in lines
                  if line.kind == "pregunta" and line.question_id in counted]
+    # T-231 (E-3): los pares respondidos que se pueden evaluar de nuevo, de una vez.
+    answered = questions_service.answered_pairs(procedure)
     return {
-        "only_open": only_open,
+        "only_open": only_open, "reevaluate_count": len(answered),
         "pid": procedure.pk, "lines": lines, "to_decide": to_decide,
         "resolved": total - to_decide, "is_evaluator": is_evaluator,
         "scopes": AnswerScope.choices, "default_scope": AnswerScope.REQUISITO,
