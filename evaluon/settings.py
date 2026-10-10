@@ -318,11 +318,14 @@ CIRCULAR_EXTRACTION_REPEATS = 1
 FILTER_ENABLED = True
 # Filas formales o económicas por pedido del filtro.
 FILTER_BATCH_ROWS = 15
-# Motivos de descarte: lista cerrada (los del ADR-0019 más dos del ADR-0021).
+# Motivos de descarte: lista cerrada (los del ADR-0019, dos del ADR-0021 y cuatro del
+# ADR-0054: condición opcional, pago o factura, forma de presentar por el Portal y compromiso
+# al presentarse). Coincide con `FilterMotive.values`; lo comprueba tests/tenders/test_models.py.
 FILTER_MOTIVES = [
     "titulo", "dato_procedimiento", "norma_aplicable", "obligacion_organismo",
     "ejecucion_contrato", "formulario", "indice_caratula", "consecuencia_sancion",
-    "derecho_posterior",
+    "derecho_posterior", "condicion_opcional", "pago_factura", "forma_presentacion_portal",
+    "compromiso_presentacion",
 ]
 # Similitud de palabras desde la que dos filas se unifican como repetidas.
 DEDUP_MIN_SIMILARITY = 0.9

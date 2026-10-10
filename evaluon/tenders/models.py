@@ -571,7 +571,9 @@ class DispositionOutcome(models.TextChoices):
 
 
 class DiscardReason(models.TextChoices):
-    """Motivos de descarte de un tramo: la lista cerrada del ADR-0019."""
+    """Motivos de descarte de un tramo: la lista cerrada del ADR-0019, ampliada por el
+    ADR-0054 (regla 5; T-250) con lo que la Comisión decidió el 2026-10-10 que no es requisito
+    de la oferta. Los valores nuevos tienen el mismo nombre que en `FilterMotive`."""
 
     TITULO = "titulo", "Título"
     DATO_PROCEDIMIENTO = "dato_procedimiento", "Definición o dato del procedimiento"
@@ -583,6 +585,20 @@ class DiscardReason(models.TextChoices):
     EJECUCION_CONTRATO = "ejecucion_contrato", "Obligación de la ejecución del contrato"
     FORMULARIO = "formulario", "Formulario a completar"
     INDICE_CARATULA = "indice_caratula", "Índice o carátula"
+    CONSECUENCIA_SANCION = "consecuencia_sancion", "Consecuencia o sanción"
+    CONDICION_OPCIONAL = (
+        "condicion_opcional",
+        "Condición que solo vale si el oferente elige esa opción",
+    )
+    PAGO_FACTURA = "pago_factura", "Pago, moneda de pago o factura"
+    FORMA_PRESENTACION_PORTAL = (
+        "forma_presentacion_portal",
+        "Forma de presentar la oferta por el Portal",
+    )
+    COMPROMISO_PRESENTACION = (
+        "compromiso_presentacion",
+        "Compromiso que se cumple al presentarse",
+    )
 
 
 class DispositionSource(models.TextChoices):
@@ -759,7 +775,9 @@ class DoubtReason(models.TextChoices):
 
 class FilterMotive(models.TextChoices):
     """Motivos de descarte de una fila: la lista cerrada del ADR-0021 (los del ADR-0019
-    más consecuencia o sanción y derecho posterior a la oferta)."""
+    más consecuencia o sanción y derecho posterior a la oferta), ampliada por el ADR-0054
+    (regla 5; T-250) con condición opcional, pago o factura, forma de presentar por el Portal
+    y compromiso al presentarse."""
 
     TITULO = "titulo", "Título"
     DATO_PROCEDIMIENTO = "dato_procedimiento", "Definición o dato del procedimiento"
@@ -770,6 +788,16 @@ class FilterMotive(models.TextChoices):
     INDICE_CARATULA = "indice_caratula", "Índice o carátula"
     CONSECUENCIA_SANCION = "consecuencia_sancion", "Consecuencia o sanción"
     DERECHO_POSTERIOR = "derecho_posterior", "Derecho posterior a la oferta"
+    CONDICION_OPCIONAL = "condicion_opcional", "Condición opcional del oferente"
+    PAGO_FACTURA = "pago_factura", "Pago, moneda de pago o factura"
+    FORMA_PRESENTACION_PORTAL = (
+        "forma_presentacion_portal",
+        "Forma de presentar la oferta por el Portal",
+    )
+    COMPROMISO_PRESENTACION = (
+        "compromiso_presentacion",
+        "Compromiso que se cumple al presentarse",
+    )
 
 
 class Requirement(models.Model):
