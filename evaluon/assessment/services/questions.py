@@ -233,9 +233,9 @@ def reevaluate(user, answer_id, *, offer_id=None, channel=Channel.SCREEN):
 
 
 @dataclass(frozen=True)
-class AnsweredPairs:
-    """Los pares que la Comisión respondió y que siguen con el resultado de antes de la respuesta,
-    sin decisión de la Comisión encima: `pairs` son `(oferta, requisito, respuesta)`."""
+class AnsweredGroup:
+    """Un conjunto de pares respondidos que forma un rectángulo exacto (ofertas × requisitos): el
+    pedido de evaluación lo evalúa sin un par de más (T-231, D-2)."""
 
     pairs: list
 
@@ -253,6 +253,32 @@ class AnsweredPairs:
     @property
     def last_answer(self):
         return max((a for _, _, a in self.pairs), key=lambda a: (a.answered_at, a.pk))
+
+
+@dataclass(frozen=True)
+class AnsweredPairs:
+    """Los pares que la Comisión respondió y que siguen con el resultado de antes de la respuesta,
+    sin decisión de la Comisión encima: `pairs` son `(oferta, requisito, respuesta)`."""
+
+    pairs: list
+
+    def __len__(self):
+        return len(self.pairs)
+
+    @property
+    def groups(self):
+        """Los pares agrupados en rectángulos exactos: los requisitos que alcanzan las mismas
+        ofertas van juntos. El pedido evalúa ofertas × requisitos, así que un grupo así no evalúa
+        un par de más (ni uno que la Comisión ya decidió). El más grande va primero."""
+        by_requirement = {}
+        for offer, requirement, answer in self.pairs:
+            by_requirement.setdefault(requirement.pk, []).append((offer, requirement, answer))
+        merged = {}
+        for pairs in by_requirement.values():
+            merged.setdefault(frozenset(o.pk for o, _, _ in pairs), []).extend(pairs)
+        groups = [AnsweredGroup(sorted(pairs, key=lambda p: (p[0].number, p[1].number)))
+                  for pairs in merged.values()]
+        return sorted(groups, key=lambda g: (-len(g), g.pairs[0][1].number))
 
 
 def answered_pairs(procedure):
@@ -296,7 +322,7 @@ def _pending_job(procedure):
                               status__in=[JobStatus.QUEUED, JobStatus.RUNNING]).first()
 
 
-def _waiting_covers(job, pairs):
+def _waiting_covers(job, group):
     """Si el pedido en espera (todavía sin empezar) evalúa los pares respondidos: la evaluación
     lee las respuestas vigentes al armar cada oferta, así que los suma cuando corra."""
     if job.status != JobStatus.QUEUED:
@@ -307,41 +333,42 @@ def _waiting_covers(job, pairs):
     offers = set(request.offers)
     wanted = None if request.requirements is None else set(request.requirements)
     return all(o.pk in offers and (wanted is None or r.pk in wanted)
-               for o, r, _ in pairs.pairs)
+               for o, r, _ in group.pairs)
+
+
+def blocked_notice(procedure, pairs=None):
+    """Por qué no se puede pedir ahora evaluar de nuevo los pares respondidos, o vacío si se puede.
+    Con un pedido en espera o en curso, dice qué pasa con los pares respondidos (T-231, E-3)."""
+    pairs = pairs if pairs is not None else answered_pairs(procedure)
+    if not len(pairs):
+        return NOT_ANSWERED
+    job = _pending_job(procedure)
+    if job is None:
+        return ""
+    if all(_waiting_covers(job, group) for group in pairs.groups):
+        return ("Ya hay una evaluación en espera; los pares respondidos se suman cuando "
+                "termine.")
+    return ("Ya hay una evaluación en curso; evaluá de nuevo los pares respondidos cuando "
+            "termine.")
 
 
 def reevaluate_answered(user, procedure, *, channel=Channel.SCREEN):
-    """Pide, en un solo pedido, evaluar de nuevo todos los pares respondidos (`answered_pairs`),
-    con la causa `respuesta`. Lo pide el evaluador. Si ya hay un pedido en espera o en curso,
-    no pide nada y dice qué pasa con los pares respondidos. El pedido es por ofertas y requisitos:
-    si alcanzara un par que la Comisión ya decidió, se rechaza para no ponerle una evaluación
-    nueva encima. Todo rechazo queda registrado (P6)."""
+    """Pide evaluar de nuevo los pares respondidos (`answered_pairs`), con la causa `respuesta`.
+    Lo pide el evaluador. El pedido es por ofertas y requisitos: se pide un grupo que es un
+    rectángulo exacto (el más grande), así no se evalúa ningún par de más ni uno que la Comisión ya
+    decidió; los demás grupos se piden cuando termine esa evaluación (hay un solo pedido a la
+    vez). Si ya hay un pedido en espera o en curso, no pide nada y dice qué pasa con los pares
+    respondidos. Todo rechazo queda registrado (P6)."""
     require_commission_role(user, CommissionRole.EVALUATOR, operation=REEVALUATE_OPERATION,
                             channel=channel)
     detail = {"procedure": procedure.pk, "operation": "reevaluate_answered"}
     pairs = answered_pairs(procedure)
-    if not len(pairs):
-        _refuse(user, channel, AnswerRefused(NOT_ANSWERED, "no_affected_pairs", "answer"), detail)
-    job = _pending_job(procedure)
-    if job is not None:
-        if _waiting_covers(job, pairs):
-            message = ("Ya hay una evaluación en espera; los pares respondidos se suman cuando "
-                       "termine.")
-        else:
-            message = ("Ya hay una evaluación en curso; evaluá de nuevo los pares respondidos "
-                       "cuando termine.")
-        _refuse(user, channel, AnswerRefused(message, "request_in_progress", "answer"), detail)
-    offers, requirements = pairs.offers, pairs.requirements
-    covered = {(o.pk, r.pk) for o, r, _ in pairs.pairs}
-    results = evaluate.current_results(offers, requirements)
-    decisions = review.current_decisions(results.values())
-    decided = [key for key, result in results.items() if key not in covered
-               and review.state_from(decisions.get(result.pk)) != review.PROPOSED]
-    if decided:
-        _refuse(user, channel, AnswerRefused(
-            f"El pedido evaluaría también {len(decided)} pares que la Comisión ya decidió. "
-            "Pedí la evaluación de nuevo desde la respuesta de cada pregunta, oferta por oferta.",
-            "decided_pairs_included", "answer"), detail)
+    notice = blocked_notice(procedure, pairs)
+    if notice:
+        reason = "no_affected_pairs" if notice == NOT_ANSWERED else "request_in_progress"
+        _refuse(user, channel, AnswerRefused(notice, reason, "answer"), detail)
+    group = pairs.groups[0]
     return evaluate.request_evaluation(
-        user, procedure, offers=[o.pk for o in offers], requirements=[r.pk for r in requirements],
-        cause=Cause.RESPUESTA, answer=pairs.last_answer, channel=channel)
+        user, procedure, offers=[o.pk for o in group.offers],
+        requirements=[r.pk for r in group.requirements], cause=Cause.RESPUESTA,
+        answer=group.last_answer, channel=channel)

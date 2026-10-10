@@ -99,6 +99,11 @@ def test_a_second_request_while_one_is_waiting_gives_a_clear_notice_not_a_422(
     assert not ok
     assert "Ya hay una evaluación en espera; los pares respondidos se suman cuando termine" in text
     assert am.Request.objects.count() == before
+    # D-2: con el pedido en espera no se ofrece el botón; el texto remite al avance de la pestaña.
+    html = client.get(tab(procedure)).content.decode()
+    assert "pares respondidos</button>" not in html and evaluate_again_url(procedure) not in html
+    assert 'id="preg-reevaluar-motivo"' in html and 'href="#s4-avance"' in html
+    assert 'id="s4-avance"' in html  # el enlace existe en la pestaña
 
 
 def test_with_a_request_running_the_notice_says_to_evaluate_again_when_it_ends(
@@ -212,3 +217,53 @@ def test_the_export_says_the_same_situation(ordered, procedure, operator_user):
     assert "Sin observaciones" not in by_offer[f"{c.number} · {c.bidder}"]
     assert "No se encontró el documento" in by_offer[f"{c.number} · {c.bidder}"]
     assert by_offer[f"{a.number} · {a.bidder}"] == "Sin observaciones"
+
+
+# --- D-2: el botón solo se ofrece si el pedido se puede hacer -----------------------------------------
+
+
+@pytest.fixture
+def answered_with_a_decided_pair(answered, procedure, evaluator_user):
+    """Además de la respuesta sobre la declaración (tres ofertas), una respuesta por par sobre la
+    garantía de la oferta C, y la Comisión ya decidió el par de la oferta A en la declaración."""
+    from evaluon.assessment.services import review
+
+    (a, b, c), declaration, _ = answered
+    guarantee = requirement(procedure, "garantía de mantenimiento")
+    question = am.Question.objects.create(
+        procedure=procedure, requirement=guarantee, offer=c,
+        result=am.Result.objects.get(offer=c, requirement=guarantee),
+        text="¿La garantía está vigente?")
+    questions.answer(evaluator_user, question.pk, "Está vigente.", am.AnswerScope.PAR)
+    review.confirm(evaluator_user, am.Result.objects.get(offer=a, requirement=declaration).pk)
+    return (a, b, c), declaration, guarantee
+
+
+def test_the_request_never_includes_a_decided_pair_and_the_button_says_what_it_asks(
+        client, answered_with_a_decided_pair, procedure, evaluator_user):
+    """REQ-090, D-2: con un par decidido entre los respondidos, el botón ofrece el grupo que se
+    puede pedir sin un par de más (los 2 pares sin decidir de la declaración) y avisa lo que
+    queda; al apretarlo, el pedido se hace y no se rechaza."""
+    (a, b, c), declaration, guarantee = answered_with_a_decided_pair
+    log_in(client, evaluator_user)
+    html = client.get(tab(procedure)).content.decode()
+    assert "Evaluar de nuevo los 2 pares respondidos" in html
+    assert "Quedan 1 par respondido que se piden después" in html
+    before = am.Request.objects.count()
+    ok, text = notice(client, client.post(evaluate_again_url(procedure)))
+    assert ok and "2 pares respondidos" in text and "Quedan 1 par respondido" in text
+    assert am.Request.objects.count() == before + 1
+    request = am.Request.objects.latest("pk")
+    assert sorted(request.offers) == sorted([b.pk, c.pk])
+    assert request.requirements == [declaration.pk]
+
+
+def test_the_answered_pairs_are_grouped_in_exact_rectangles(answered_with_a_decided_pair,
+                                                            procedure):
+    """REQ-090, D-2: los requisitos que alcanzan las mismas ofertas van juntos; ningún grupo
+    evalúa un par de más."""
+    (a, b, c), declaration, guarantee = answered_with_a_decided_pair
+    groups = questions.answered_pairs(procedure).groups
+    assert [len(g) for g in groups] == [2, 1]
+    for group in groups:
+        assert len(group) == len(group.offers) * len(group.requirements)

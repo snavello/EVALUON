@@ -270,8 +270,13 @@ def context(user, procedure, request):
                  if line.kind == "pregunta" and line.question_id in counted]
     # T-231 (E-3): los pares respondidos que se pueden evaluar de nuevo, de una vez.
     answered = questions_service.answered_pairs(procedure)
+    blocked = questions_service.blocked_notice(procedure, answered) if len(answered) else ""
+    first = len(answered.groups[0]) if len(answered) else 0
     return {
-        "only_open": only_open, "reevaluate_count": len(answered),
+        "only_open": only_open,
+        # El botón solo si el pedido no se va a rechazar; si no, el aviso dice qué hacer (D-2).
+        "reevaluate_count": 0 if blocked else first, "reevaluate_blocked": blocked,
+        "reevaluate_rest": len(answered) - first,
         "pid": procedure.pk, "lines": lines, "to_decide": to_decide,
         "resolved": total - to_decide, "is_evaluator": is_evaluator,
         "scopes": AnswerScope.choices, "default_scope": AnswerScope.REQUISITO,

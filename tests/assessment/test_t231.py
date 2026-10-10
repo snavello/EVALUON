@@ -78,29 +78,35 @@ def test_two_cents_are_still_a_lack_of_coincidence(offer, portal):
     assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_falta_coincidencia"
 
 
-def test_the_same_difference_is_marked_once_in_the_offer(offer, portal):
-    """REQ-062, E-7: la misma diferencia en tres requisitos de la misma oferta se marca en el
-    primero; los otros dos conservan su resultado con la cita del Portal y dicen cuál la marcó."""
+def test_the_same_difference_keeps_the_lack_of_coincidence_and_says_which_requirement_has_it(
+        offer, portal):
+    """REQ-062, E-7, D-1: la misma diferencia en tres requisitos de la misma oferta sigue siendo
+    «falta coincidencia» en los tres; el segundo y el tercero explican «misma diferencia que en
+    el requisito 29» y no repiten la pregunta (no hay ninguna)."""
     portal_data(portal, offer, amount="4819384.47", total="96387689.50")
     ctx = SimpleNamespace(offer=offer)
     fragment = "garantiza hasta la suma de $ 3.000.000,00"
     pairs = [guarantee_pair(number, fragment) for number in (29, 32, 39)]
-    assert [rules.apply(pair, ctx) for pair in pairs] == [
-        "portal_falta_coincidencia", "portal_cita_agregada", "portal_cita_agregada"]
-    assert [p.combined.doubt for p in pairs] == ["falta_coincidencia", "", ""]
-    assert pairs[1].combined.facts["diferencia_ya_senalada"] == 29
-    assert pairs[2].combined.portal  # la cita del Portal sigue
+    assert [rules.apply(pair, ctx) for pair in pairs] == ["portal_falta_coincidencia"] * 3
+    assert [p.combined.doubt for p in pairs] == ["falta_coincidencia"] * 3
+    assert "misma diferencia que en el requisito" not in pairs[0].combined.explanation
+    for repeated in pairs[1:]:
+        assert "misma diferencia que en el requisito 29" in repeated.combined.explanation
+        assert repeated.combined.question == ""
+        assert repeated.combined.facts["diferencia_ya_senalada"] == 29
+        assert repeated.combined.portal  # la cita del Portal sigue
 
 
-def test_a_difference_in_another_offer_is_marked_again(offer, portal, procedure, operator_user):
-    """REQ-062, E-7: el contexto es el de la oferta: otra oferta con la misma diferencia la
-    marca otra vez."""
+def test_a_difference_in_another_offer_is_explained_from_scratch(offer, portal):
+    """REQ-062, E-7: el contexto es el de la oferta: en otra evaluación la primera vez no remite a
+    ningún otro requisito."""
     portal_data(portal, offer, amount="4819384.47", total="96387689.50")
     fragment = "garantiza hasta la suma de $ 3.000.000,00"
     first = guarantee_pair(29, fragment)
     assert rules.apply(first, SimpleNamespace(offer=offer)) == "portal_falta_coincidencia"
     again = guarantee_pair(29, fragment)
     assert rules.apply(again, SimpleNamespace(offer=offer)) == "portal_falta_coincidencia"
+    assert "misma diferencia que en el requisito" not in again.combined.explanation
 
 
 # --- E-6: la declaración jurada que la oferta trae no es externa -----------------------------------

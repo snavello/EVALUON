@@ -321,20 +321,22 @@ def rule(pair, ctx):
         shown = ", ".join(d.shown for d in portal)
         flagged = _flagged(ctx)
         key = (kind, offered, shown)
-        if key in flagged:
-            # La misma diferencia ya se señaló en otro requisito de esta oferta: no se marca de
-            # nuevo (T-231, E-7); se agrega la cita del Portal y el resultado no cambia.
-            return replace(combined, portal=cites, citations=_merge_offer(combined, located),
-                           facts={**facts, "regla": RULE_BOTH, "oferta_valor": offered,
-                                  "diferencia_ya_senalada": flagged[key]})
-        flagged[key] = getattr(requirement, "number", None)
+        first = flagged.setdefault(key, getattr(requirement, "number", None))
+        explanation = ("Falta coincidencia: el Portal informa " + shown + " y la oferta "
+                       + offered + ". La Comisión verifica cuál rige.")
+        extra = {}
+        if first != getattr(requirement, "number", None):
+            # La misma diferencia ya se señaló en otro requisito de esta oferta (T-231, D-1): la
+            # celda sigue en «falta coincidencia» y lo dice, sin repetir lo que ya se explicó.
+            explanation = (f"Falta coincidencia con el Portal: misma diferencia que en el "
+                           f"requisito {first} (el Portal informa {shown} y la oferta "
+                           f"{offered}).")
+            extra = {"diferencia_ya_senalada": first}
         return replace(
             combined, outcome=combine.OUT_NO_DETERMINADO, doubt=FALTA_COINCIDENCIA,
             exigence=combined.exigence, citations=_merge_offer(combined, located),
-            portal=cites, question="",
-            explanation=("Falta coincidencia: el Portal informa " + shown + " y la oferta "
-                         + offered + ". La Comisión verifica cuál rige."),
-            facts={**facts, "regla": RULE_MISMATCH, "oferta_valor": offered})
+            portal=cites, question="", explanation=explanation,
+            facts={**facts, "regla": RULE_MISMATCH, "oferta_valor": offered, **extra})
     in_offer = bool(combined.citations) or bool(located)
     if in_offer:
         return replace(combined, portal=cites, facts={**facts, "regla": RULE_BOTH})

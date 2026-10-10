@@ -143,13 +143,13 @@ def test_a_catalog_requirement_is_a_missing_compliance_sheet_even_if_the_offer_d
     result = results_of(runs[0])[number]
     assert (result.outcome, result.doubt) == ("no_determinado", "externo")
     assert result.facts["regla"] == "externo_catalogo"
-    assert result.facts["version_reglas"] == "reglas-v7"
+    assert result.facts["version_reglas"] == "reglas-v8"
     assert result.facts["externo"]["tipos"] == ["libre_deuda"]
     assert "constancia fiscal de deuda" in result.explanation
     assert "hoja de compliance" in result.explanation
     assert not am.Question.objects.filter(requirement__number=number).exists()
     assert runs[0].counts["by_rule"]["externo_catalogo"] == 1
-    assert runs[0].prompt_versions["reglas"] == "reglas-v7"
+    assert runs[0].prompt_versions["reglas"] == "reglas-v8"
 
 
 @pytest.mark.decision_literal
@@ -236,5 +236,5 @@ def test_external_is_the_first_rule_and_wins_over_a_missing_document():
     ctx = SimpleNamespace(offer=0)
     assert rules.apply(pair, ctx) == "externo_catalogo"
     assert pair.combined.doubt == "externo" and pair.combined.question == ""
-    assert pair.combined.facts["version_reglas"] == "reglas-v7"
+    assert pair.combined.facts["version_reglas"] == "reglas-v8"
     assert pair.combined.facts["externo"]["tipos"] == ["seguros"]

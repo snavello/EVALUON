@@ -66,7 +66,7 @@ def test_a_guarantee_in_the_portal_and_not_in_the_offer_is_reported_as_in_the_po
     assert "21750.00" in cite.text and "Póliza de caución" in cite.text
     assert cite.label == "Portal: acta de apertura"
     assert result.facts["regla"] == "portal_en_portal"
-    assert result.facts["version_reglas"] == "reglas-v7"
+    assert result.facts["version_reglas"] == "reglas-v8"
     assert result.facts["portal"]["tipo"] == "garantia"
     assert result.facts["portal"]["valor"] == "21750.00"
     assert not result.citations.filter(kind="oferta").exists()
