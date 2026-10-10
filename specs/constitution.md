@@ -1,6 +1,6 @@
 # Constitución de EVALUON
 
-Versión 1.2 · 2026-10-03 · Estado: aprobada por el responsable del proyecto. La versión 1.1 ajustó el propósito según el ADR-0006; la 1.2 enmienda P3 según el ADR-0009.
+Versión 1.3 · 2026-10-10 · Estado: aprobada por el responsable del proyecto. La versión 1.1 ajustó el propósito según el ADR-0006; la 1.2 enmienda P3 según el ADR-0009; la 1.3 enmienda P3 según el ADR-0053 (el dato del Portal de Compras como fundamento).
 
 Este documento fija los principios que ninguna spec, plan o tarea puede contradecir. Todos los agentes lo leen antes de actuar. Se modifica solo mediante un ADR aprobado por el responsable.
 
@@ -17,7 +17,7 @@ El código se deriva de la spec. Si el código y la spec difieren, se corrige un
 Cada requisito tiene un identificador (`REQ-NNN`) que aparece en la tarea (`T-NNN`), en el test y en el commit. Los requisitos de origen normativo citan norma y artículo. Un requisito sin test, o un commit sin requisito, es un hallazgo de auditoría.
 
 ### P3. El sistema recomienda, la Comisión decide
-Toda conclusión del sistema muestra su fundamento: el fragmento del pliego o de la oferta y la cita normativa que la sostiene, o la respuesta de la Comisión a una pregunta del sistema, registrada con quién respondió y cuándo, y mostrada como tal. Si no hay fundamento recuperable, el resultado es "no determinado", nunca una afirmación. Una pregunta sin responder no es fundamento. La decisión final es siempre de una persona y queda registrada como tal.
+Toda conclusión del sistema muestra su fundamento: el fragmento del pliego o de la oferta y la cita normativa que la sostiene, el dato publicado en el Portal de Compras para ese procedimiento u oferta (fuente oficial), con su enlace y la fecha en que se tomó, o la respuesta de la Comisión a una pregunta del sistema, registrada con quién respondió y cuándo, y mostrada como tal. Si no hay fundamento recuperable, el resultado es "no determinado", nunca una afirmación. Una pregunta sin responder no es fundamento. La decisión final es siempre de una persona y queda registrada como tal.
 
 ### P4. Clasificación de datos
 - **Fase de construcción (actual):** se trabaja únicamente con normas, pliegos, ofertas y evaluaciones públicos. Ese material puede estar en GitHub y pasar por servicios de IA en la nube. No se incorpora material reservado al repositorio, a las pruebas ni a las conversaciones con agentes.

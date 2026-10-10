@@ -18,6 +18,9 @@ El diagnóstico del 2026-10-10 (fuera del repositorio, en la carpeta local del C
 | 2026-10-10 | Dato del Portal que coincide | «Propone cumple»: el sistema propone «cumple» citando el dato del Portal cuando coincide con lo que exige el pliego, y «no cumple» o diferencia cuando no coincide; la Comisión decide igual. Reemplaza en eso al ADR-0043. |
 | 2026-10-10 | Qué entra en la matriz | «no entran ninguno de los 3. una salvedad la moneda de la oferta si es un requisito.»: no son requisitos de la oferta el pago, la moneda de pago y la factura; la forma de presentar por el Portal (por ejemplo, la confirmación por el Administrador Legitimado), ni los compromisos que se cumplen al presentarse (por ejemplo, «la mera presentación implicará el conocimiento y aceptación del pliego»). La moneda en que se cotiza la oferta sí es requisito. |
 | 2026-10-10 | Descarga de modelos | «Sí, ya en segundo plano»: se bajan Qwen3.8-27B y Qwen3.6-35B-A3B mientras se corrige el uso. |
+| 2026-10-10 | Forma de garantía que elige el oferente | «Requisito de la forma elegida»: las condiciones de cada forma de garantía (por ejemplo, el límite del pagaré o la póliza según la norma de la Superintendencia) entran en la matriz y se evalúan solo en la oferta que eligió esa forma; para las demás no aplican. |
+| 2026-10-10 | El Portal como fundamento (P3) | «enmendar. considera al portal como oficial, porque es oficial»: P3 suma el dato publicado en el Portal de Compras como fundamento (constitución 1.3, ADR-0053). |
+| 2026-10-10 | Filas de la matriz | «Una fila por oración»: una fila con la oración completa; la evaluación revisa cada condición con su dato y lo muestra por separado dentro de la celda. Cambia «una fila por condición» de la spec 003. |
 
 ## Usuarios y escenarios
 
