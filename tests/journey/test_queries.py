@@ -163,3 +163,19 @@ def test_a_big_case_stays_under_the_limit_and_does_not_grow_with_requirements(
     grow_case(procedure, operator_user, offers, runs, 100)
     big = count_queries(client, procedure, slug)
     assert big <= small * SCALE_GROWTH, f"{slug}: {small} con 50 y {big} con 100 requisitos"
+
+
+def test_the_quotes_of_the_pliego_do_not_load_the_whole_reading(procedure, matrix):
+    """REQ-100, T-231 (E-11): las citas traen el tramo y el título del documento, no el texto
+    canónico ni las páginas enteras de la lectura (una carga por cita multiplicaba cientos de
+    miles de caracteres por cada requisito)."""
+    from evaluon.journey import points
+
+    ids = [r.pk for r in matrix.version.requirements.all()]
+    found = points.quotes_of(ids)
+    quotes = [q for group in found.values() for q in group]
+    assert quotes
+    for quote in quotes:
+        deferred = quote.segment.reading.get_deferred_fields()
+        assert {"canonical_text", "pages", "tables", "report"} <= deferred
+        assert quote.segment.reading.document.title  # lo que sí se necesita

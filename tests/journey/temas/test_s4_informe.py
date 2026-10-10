@@ -150,10 +150,10 @@ def test_an_offer_with_technical_rows_and_no_report_is_missing_with_its_button(
     con su botón; al subirlo deja de faltar."""
     a, b = offers
     section = sections_for(operator_user, procedure).get("evaluacion")
-    texts = [m.text for m in section.tema_missing]
-    assert f"Oferta {a.number}: falta el informe técnico del área" in texts
-    assert f"Oferta {b.number}: falta el informe técnico del área" in texts
-    missing = next(m for m in section.tema_missing if f"Oferta {a.number}:" in m.text)
+    texts = [m.text for m in section.tema_missing if "informe técnico" in m.text]
+    # T-231 (E-12): una sola vez por procedimiento, con las ofertas a las que falta.
+    assert texts == [f"Falta el informe técnico del área (ofertas {a.number} y {b.number})"]
+    missing = next(m for m in section.tema_missing if "informe técnico" in m.text)
     assert missing.url == tab(procedure) + "#s4-informe" and "informe técnico" in missing.action
     log_in(client, evaluator_user)
     html = informe_block(page(client, procedure))
@@ -161,9 +161,8 @@ def test_an_offer_with_technical_rows_and_no_report_is_missing_with_its_button(
     assert html.count('name="offer" value="') == 2  # el botón de cada oferta que falta
     notice(client, post_upload(client, procedure, a))
     section = sections_for(operator_user, procedure).get("evaluacion")
-    texts = [m.text for m in section.tema_missing]
-    assert f"Oferta {a.number}: falta el informe técnico del área" not in texts
-    assert f"Oferta {b.number}: falta el informe técnico del área" in texts
+    texts = [m.text for m in section.tema_missing if "informe técnico" in m.text]
+    assert texts == [f"Falta el informe técnico del área (oferta {b.number})"]
 
 
 def test_the_tab_shows_the_proposal_per_item_with_the_quote_of_the_report(

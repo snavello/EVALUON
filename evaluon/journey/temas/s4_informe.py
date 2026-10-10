@@ -87,6 +87,14 @@ def _is_evaluator(user):
     return getattr(user, "commission_role", "") == CommissionRole.EVALUATOR
 
 
+def _offers_text(offers):
+    """«oferta 3» o «ofertas 1, 2 y 3»."""
+    numbers = [str(o.number) for o in offers]
+    if len(numbers) == 1:
+        return f"oferta {numbers[0]}"
+    return f"ofertas {', '.join(numbers[:-1])} y {numbers[-1]}"
+
+
 def _tab(procedure):
     return reverse("expedientes:evaluacion", args=[procedure.pk])
 
@@ -128,11 +136,11 @@ def status(user, procedure):
     # Mismas ofertas que los pendientes «falta subir el informe»: con filas técnicas ya
     # evaluadas y sin informe.
     waiting = {offer.pk for offer in _pending_ok_offers(page)}
-    missing = tuple(
-        Missing(f"Oferta {s.offer.number}: falta el informe técnico del área",
-                f"{base}{ANCHOR}", "Subir informe técnico", kind="informe_falta",
-                noun="ofertas sin informe técnico del área")
-        for s in with_rows if not s.reports and s.offer.pk in waiting)
+    # T-231 (E-12): el informe es por procedimiento; su falta se avisa una vez, no una por oferta.
+    absent = [s.offer for s in with_rows if not s.reports and s.offer.pk in waiting]
+    missing = (Missing(f"Falta el informe técnico del área ({_offers_text(absent)})",
+                       f"{base}{ANCHOR}", "Subir informe técnico", kind="informe_falta",
+                       noun="ofertas sin informe técnico del área"),) if absent else ()
     sources = []
     uploaded = [d for s in with_rows for d in s.reports]
     if uploaded:
