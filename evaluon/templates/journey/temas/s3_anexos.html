@@ -1,15 +1,1 @@
-{% load static %}{% comment %}Tema s3_anexos (T-204, REQ-087, REQ-088, REQ-097): anexos técnicos y hoja de compliance de cada oferta, dentro de la pestaña «Ofertas». Cada oferta tiene su bloque (_s3_anexos_oferta.html). Las acciones son formularios POST a las rutas de s3_anexos, que llaman a los mismos servicios que las pantallas viejas y vuelven a esta pestaña. Recibe `t` (ver evaluon/journey/temas/s3_anexos.py).{% endcomment %}
-<link rel="stylesheet" href="{% static 'journey/s3_anexos.css' %}">
-<div class="s3-anx">
-{% if t.aviso %}<p class="aviso {% if t.aviso.ok %}aviso-ok{% else %}aviso-error{% endif %}" id="s3-aviso-anexos" role="{% if t.aviso.ok %}status{% else %}alert{% endif %}">{{ t.aviso.text }}</p>{% else %}<span id="s3-aviso-anexos"></span>{% endif %}
-<div class="bloque" id="s3-anexos">
-  <div class="bloque-cab"><h3>Anexos técnicos y hoja de compliance <span class="cta">hoja de compliance: {{ t.with_sheet }} de {{ t.blocks|length }}</span></h3></div>
-  {% if not t.blocks %}
-  <p class="suave">Todavía no hay ofertas: los anexos técnicos y la hoja de compliance se suben dentro de cada oferta.</p>
-  {% else %}
-  <p class="resumen-linea">{{ t.annex_count }} anexo{{ t.annex_count|pluralize }} técnico{{ t.annex_count|pluralize }} · hoja de compliance: <b>{{ t.with_sheet }} de {{ t.blocks|length }}</b>{% if t.without_sheet %}. Falta en {{ t.without_sheet }} oferta{{ t.without_sheet|pluralize }}{% endif %}.</p>
-  {% for b in t.blocks %}{% include "journey/temas/_s3_anexos_oferta.html" with b=b pid=t.pid %}{% endfor %}
-  <div class="bloque-pie"><span>La hoja de compliance se sube una vez por oferta y rige para todos sus requisitos externos. Los anexos técnicos son del oferente.</span></div>
-  {% endif %}
-</div>
-</div>
+{% comment %}Tema s3_anexos (T-204, REQ-087, REQ-088, REQ-097). Desde T-202 el bloque de cada oferta (_s3_anexos_oferta.html) va dentro de la tabla de ofertas del tema s3_ofertas, en las columnas «Anexos técnicos» y «Hoja de compliance», y en el detalle de la oferta; el mensaje de lo hecho (#s3-aviso-anexos) lo muestra ese tema arriba de la tabla. Este parcial queda vacío para no repetirlo.{% endcomment %}

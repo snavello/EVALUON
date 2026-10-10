@@ -12,8 +12,10 @@
 
 Cada acción es un POST que vuelve a la pestaña con el mensaje de lo hecho (firmado en la
 dirección, `?aviso_anexos=`, sin guardar nada en la sesión). El bloque de cada oferta
-(`offer_block` y el parcial `_s3_anexos_oferta.html`) está listo para que la tabla general de
-ofertas (T-202) lo incluya; mientras tanto la pestaña lo muestra como bloque propio.
+(`offer_block` y el parcial `_s3_anexos_oferta.html`) lo incluye la tabla de ofertas del tema
+s3_ofertas (T-202), en sus columnas «Anexos técnicos» y «Hoja de compliance», y el detalle de la
+oferta; el mensaje de lo hecho lo muestra ese mismo tema, arriba de la tabla. Los anexos que
+figuran son los vigentes (lo retirado o reemplazado va al historial de la oferta, T-206).
 """
 
 from dataclasses import dataclass, field
@@ -30,6 +32,7 @@ from evaluon.assessment.services import compliance
 from evaluon.audit.models import Channel
 from evaluon.journey.sections.base import Missing, TemaStatus
 from evaluon.offers.models import DocumentKind, Offer
+from evaluon.offers.services import document_history
 from evaluon.offers.services import offers as offers_service
 from evaluon.tenders.models import Procedure
 
@@ -90,8 +93,9 @@ def _day(moment):
 
 
 def _annexes(offer):
-    return list(offer.documents.filter(kind=DocumentKind.ANEXO_TECNICO)
-                .order_by("loaded_at", "id"))
+    """Los anexos técnicos vigentes de la oferta, en orden de carga."""
+    return list(document_history.current_documents(offer)
+                .filter(kind=DocumentKind.ANEXO_TECNICO).select_related("loaded_by"))
 
 
 def status(user, procedure):
@@ -125,6 +129,9 @@ class DocView:
     loaded: str
     state: str
     by: str
+    pages: object = None  # páginas leídas, o `None` mientras no hay lectura
+    origin: str = "Archivo"  # de dónde vino: los anexos y la hoja los sube la Comisión
+    day: str = ""
 
 
 @dataclass
@@ -148,9 +155,12 @@ class OfferBlock:
 
 def _view(document):
     row = offers_service.document_row(document)
+    report = row.reading.report if row.reading is not None else None
     return DocView(document=document, title=document.title, loaded=_when(document.loaded_at),
                    state=READING_TEXT.get(row.state, row.state),
-                   by=document.loaded_by.get_username() if document.loaded_by_id else "—")
+                   by=document.loaded_by.get_username() if document.loaded_by_id else "—",
+                   pages=report.get("pages") if isinstance(report, dict) else None,
+                   day=_day(document.loaded_at))
 
 
 def offer_block(user, offer):
@@ -164,11 +174,9 @@ def offer_block(user, offer):
 
 
 def context(user, procedure, request):
-    blocks = [offer_block(user, o) for o in procedure.offers.order_by("number")]
-    return {"pid": procedure.pk, "aviso": unpack(request.GET.get(PARAM)), "blocks": blocks,
-            "without_sheet": sum(1 for b in blocks if not b.has_sheet),
-            "with_sheet": sum(1 for b in blocks if b.has_sheet),
-            "annex_count": sum(len(b.annexes) for b in blocks)}
+    """El bloque de cada oferta y el mensaje de lo hecho los muestra la tabla de ofertas
+    (s3_ofertas, T-202): el parcial propio ya no repite nada."""
+    return {}
 
 
 # --- Acciones ------------------------------------------------------------------------------------

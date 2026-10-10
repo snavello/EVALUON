@@ -1,1 +1,34 @@
-/* Estilos propios de la sección 3 (T-192). Usa los tokens de la guía visual; sin recursos externos. */
+/* Estilos propios de la sección 3 (T-192; tabla de ofertas, alta y detalle de la oferta, T-202 y
+   T-206). Usa los tokens de la guía visual; sin recursos externos. */
+
+/* Con el detalle de una oferta, su historial o la propuesta de una oferta subida abiertos, la
+   pestaña muestra solo eso. */
+#seccion-detalle:has(#s3-oferta-abierta) > :not(.s3-of) { display: none; }
+
+.s3-of details.acc { display: inline-block; vertical-align: top; margin: 4px 6px 4px 0; }
+.s3-of details.acc > summary { list-style: none; cursor: pointer; display: inline-block; }
+.s3-of details.acc > summary::-webkit-details-marker { display: none; }
+.s3-of details.acc[open] { display: block; max-width: 44rem; }
+.s3-of details.acc form { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-btn); background: var(--ev-superficie); }
+.s3-of details.acc label, .s3-of form.subida label { display: block; margin-top: 6px; font-weight: 600; font-size: var(--ev-t-sm); }
+.s3-of details.acc textarea, .s3-of details.acc input[type=text] { width: 100%; font: inherit; font-size: var(--ev-t-ctl); border: 1px solid var(--ev-borde-campo); border-radius: var(--ev-radio-btn); padding: 6px 8px; }
+.s3-of form.subida { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.s3-of input[type=file] { font: inherit; font-size: var(--ev-t-ctl); max-width: 100%; }
+.s3-of .bloque-pie { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.s3-of form.en-linea { display: inline-flex; gap: 8px; align-items: center; margin: 0; }
+
+/* Alta de ofertas: los dos paneles que abren los botones de «Ofertas presentadas». */
+.s3-of details.alta > summary { list-style: none; cursor: pointer; }
+.s3-of details.alta > summary::-webkit-details-marker { display: none; }
+.s3-of details.alta > summary h3 { display: inline-flex; gap: 8px; align-items: center; margin: 0; }
+.s3-of details.alta > summary h3::before { content: "▸"; color: var(--ev-texto-suave); }
+.s3-of details.alta[open] > summary h3::before { content: "▾"; }
+
+#t-ofertas td, #t-ofertas th { vertical-align: top; }
+#t-ofertas .docs-anexos { padding-left: 1rem; }
+.s3-of .cita { display: block; color: var(--ev-texto-suave); font-size: var(--ev-t-xs); }
+.s3-of .no-determinado { font-weight: 600; }
+.s3-of ul.corregido { margin: 6px 0; padding-left: 1rem; font-size: var(--ev-t-xs); }
+
+.s3-of .btn.acento { background: var(--ev-rojo); color: #fff; border-color: var(--ev-rojo); }
+.s3-of .btn.acento:hover { background: var(--ev-rojo-hover); }
