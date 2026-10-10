@@ -1,1 +1,72 @@
-{% comment %}Parcial del tema s5_consulta (Consulta de normativa con citas). Vacío en el corte vertical; lo completa T-216.{% endcomment %}
+{% load static %}{% comment %}Tema s5_consulta (T-216, REQ-096): consulta de normativa con citas literales dentro de la pestaña Normativas. La fecha de autorización es la del procedimiento (no se escribe). La respuesta muestra cada afirmación con sus referencias [1] [2] y, debajo, el texto literal de cada cita con su norma y su parte; «no determinado» y la falla técnica se dicen en llano. Debajo, el historial de consultas de este procedimiento. Recibe `t` (ver evaluon/journey/temas/s5_consulta.py).{% endcomment %}
+<link rel="stylesheet" href="{% static 'journey/s5_consulta.css' %}">
+<div class="s5-cons" id="s5-consulta">
+<div class="bloque">
+  <div class="bloque-cab"><h3>Consulta de normativa</h3><span class="linea-portal">Responde con citas literales de las normas validadas</span></div>
+  {% if t.aviso %}<p class="aviso {% if t.aviso.ok %}aviso-ok{% else %}aviso-error{% endif %}" role="{% if t.aviso.ok %}status{% else %}alert{% endif %}">{{ t.aviso.text }}</p>{% endif %}
+  {% if t.can_ask %}
+  <form method="post" action="{% url 'expedientes:s5_consultar' t.pid %}" id="s5-consulta-form">{% csrf_token %}
+    <label for="s5-consulta-pregunta">Pregunta</label>
+    <div class="fila-consulta">
+      <input id="s5-consulta-pregunta" type="search" name="question" required placeholder="Por ejemplo: ¿qué garantía se exige para ofertar?">
+      <button class="btn primario" type="submit" id="s5-consulta-enviar">Consultar</button>
+    </div>
+    <p class="ayuda">Se consulta con la fecha de autorización de este procedimiento, {{ t.authorization_date|date:"d/m/Y" }}, para aplicar el régimen que correspondía ese día.</p>
+    <p class="espera" id="s5-consulta-espera" role="status" hidden>{% include "journey/_icono.html" with icon="pend" name="En curso" %} Buscando en la normativa. Puede tardar hasta medio minuto; no cierre la pestaña.</p>
+  </form>
+  {% else %}
+  <p class="ayuda">Para consultar la normativa hace falta un rol de la Comisión (operador o evaluador). Pídaselo a quien administra los usuarios.</p>
+  {% endif %}
+</div>
+
+{% if t.answer %}
+{% with a=t.answer %}
+<div class="bloque respuesta" id="s5-consulta-respuesta" tabindex="-1">
+  <div class="bloque-cab"><h3>{% include "journey/_icono.html" with icon=a.icon name=a.state_name %} {{ a.state_name }}</h3><span class="linea-portal">{{ a.when }}</span></div>
+  <p class="pregunta"><b>Pregunta:</b> {{ a.question }}</p>
+  <p class="registro">Fecha de autorización {{ a.reference_date|date:"d/m/Y" }} · {% if not a.regime %}sin régimen específico cargado para esa fecha{% elif a.regime|length == 1 %}régimen aplicado: {{ a.regime.0 }}{% else %}regímenes aplicados: {{ a.regime|join:", " }}{% endif %}</p>
+  {% for notice in a.notices %}<p class="nota" role="note">{% if notice.count == 1 %}{{ notice.name }} tiene 1 modificatoria que todavía no está cargada en el sistema.{% else %}{{ notice.name }} tiene {{ notice.count }} modificatorias que todavía no están cargadas en el sistema.{% endif %} Puede haber cambios en este texto que el sistema no conoce.</p>{% endfor %}
+
+  {% if a.state == "grounded" %}
+  <p><b>Respuesta del sistema</b></p>
+  {% for s in a.statements %}
+  <p class="afirmacion">{{ s.text }}{% for n in s.refs %}<sup class="ref"><a href="#s5-cita-{{ n }}">[{{ n }}]</a></sup>{% endfor %}</p>
+  {% if s.regimes_differ %}<p class="nota" role="note">El régimen específico y el marco nacional tratan este punto de manera distinta. Se aplica el régimen específico.</p>{% endif %}
+  {% endfor %}
+  {% for src in a.sources %}{% with c=src.citation %}
+  <div class="cita-bloque" id="s5-cita-{{ src.n }}">
+    {% if c.unavailable %}
+    <p class="registro">[{{ src.n }}] Esta cita no está disponible.</p>
+    {% else %}
+    {% if c.text and c.text.literal is not None %}<blockquote class="cita">«{{ c.text.literal }}»</blockquote>{% else %}<p class="suave">El texto de esta cita no está disponible.</p>{% endif %}
+    <p class="registro">[{{ src.n }}] {{ c.norm }} · parte: {{ c.path }}{% if c.role %} · {{ c.role }}{% endif %}{% if c.applicable %} · <b>Texto aplicable</b>{% endif %}</p>
+    {% if c.text.ocr %}<p class="registro">Texto obtenido por reconocimiento sobre la imagen de un documento escaneado: puede tener errores. Compárelo con el original.</p>{% endif %}
+    {% for ch in c.changes %}<p class="registro">{{ ch.name }}{% if ch.part %} de «{{ ch.part }}»{% endif %}{% if ch.date %} desde el {{ ch.date|date:"d/m/Y" }}{% endif %}{% if ch.source %}, por {{ ch.source.norm }} · {{ ch.source.path }}{% endif %}.</p>{% if ch.source.text and ch.source.text.literal is not None %}<blockquote class="cita">«{{ ch.source.text.literal }}»</blockquote>{% endif %}{% endfor %}
+    {% if c.text.original_url %}<p class="registro"><a href="{{ c.text.original_url }}" target="_blank" rel="noopener">Abrir el documento original</a></p>{% endif %}
+    {% endif %}
+  </div>
+  {% endwith %}{% endfor %}
+  {% elif a.state == "undetermined" %}
+  <p class="afirmacion"><b>No determinado.</b> La normativa cargada no permite responder esta pregunta.</p>
+  <p class="registro">{{ a.why }}</p>
+  {% else %}
+  <p class="afirmacion"><b>No se pudo completar la consulta.</b> Hubo una falla técnica y no hay respuesta. Puede volver a hacer la pregunta.</p>
+  {% endif %}
+</div>
+{% endwith %}
+{% endif %}
+
+<div class="bloque" id="s5-consulta-historial">
+  <div class="bloque-cab"><h3>Consultas de este procedimiento{% if t.history %} <span class="cta">{{ t.history|length }}</span>{% endif %}</h3></div>
+  {% if t.history %}
+  <ul class="lista">
+    {% for h in t.history %}
+    <li>{% include "journey/_icono.html" with icon=h.icon name=h.state %}<span><a href="{{ h.url }}">{{ h.question }}</a><br><span class="registro">{{ h.when }} · {{ h.state }}</span></span></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="ayuda">Todavía no se hizo ninguna consulta desde este procedimiento.</p>
+  {% endif %}
+</div>
+</div>
+<script src="{% static 'journey/s5_consulta.js' %}" defer></script>
