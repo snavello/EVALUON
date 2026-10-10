@@ -30,6 +30,8 @@ dependencies = [
     "pillow==12.3.0",
     # PDF de la matriz generado en el equipo (ADR-0020, REQ-032)
     "weasyprint==70.0",
+    # Excel de la planilla y del cuadro de la evaluación (ADR-0050, REQ-093); solo escribe, BSD-2
+    "XlsxWriter==3.2.9",
     # Casos de las evals en YAML (evals/casos/EV-NNN.yaml); la biblioteca estándar
     # no lee YAML. Los clientes HTTP de evaluon/ai/ usan urllib de la biblioteca
     # estándar, por eso no hay biblioteca de cliente HTTP.
