@@ -93,3 +93,24 @@ Estado: desplegado (autorizado: «desplega 8000 también es un piloto»). Cumple
 
 ## Volver atrás
 Sin migraciones nuevas: no hace falta restaurar la base. Llevar la raíz al commit del lote anterior (27e641f; pedir confirmación, cambia el árbol de trabajo), `docker tag evaluon-app:previo-014-lote4 evaluon-app:local` y `docker compose up -d --no-build --force-recreate app worker portal_worker`. El respaldo del lote 4 queda por si acaso.
+
+# Lote 5 · 2026-10-10
+
+Estado: desplegado (autorizado: «desplega 8000 también es un piloto»). Cumple el umbral de tiempo (< 2 s).
+
+## Qué
+- Raíz en `main` cd26173 (suma lote 3 de la 014: T-202 y T-206 de ofertas, T-220 oferente propuesto, T-226 pantalla angosta). Imagen `app` reconstruida: `evaluon-app:local` = 45a68a5ac44c; la anterior quedó como `evaluon-app:previo-014-lote5` (598e46a3c04b).
+- `migrate`: sin migraciones nuevas.
+- Se reiniciaron `app`, `worker` y `portal_worker`; los tres sanos.
+
+## Respaldo previo
+`backups/evaluon-2026-10-10-previo-014-lote5.dump` (pg_dump -Fc, 126.117.679 bytes, 861 líneas con `pg_restore -l`).
+
+## Humo (entrando como el usuario, por `/ingresar/`, 1280×800)
+- El ingreso lleva a la pestaña Procedimiento del último procedimiento abierto; encabezado único, sin el menú viejo.
+- Procedimiento 9, las cinco pestañas en 200: procedimiento 0,89 s; pliego 1,29 s; ofertas 0,90 s; evaluación 1,38 s; normativas 0,85 s. `/expedientes/normativas/` 0,04 s.
+- Ofertas: 3 ofertas, 26 documentos, marca la hoja de compliance faltante de cada una y ofrece subirla.
+- No probado: caso de punta a punta con la GPU.
+
+## Volver atrás
+Sin migraciones nuevas: no hace falta restaurar la base. Llevar la raíz al commit del lote anterior (bf8c4a2; pedir confirmación, cambia el árbol de trabajo), `docker tag evaluon-app:previo-014-lote5 evaluon-app:local` y `docker compose up -d --no-build --force-recreate app worker portal_worker`.
