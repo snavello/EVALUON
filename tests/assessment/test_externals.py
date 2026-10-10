@@ -50,10 +50,13 @@ ENTRIES = {
 # Otras formas del mismo tipo (hallazgo 1 de la verificación): el texto que se reconoce y un
 # parecido que sigue siendo un documento de la oferta.
 EXTRA_FORMS = [
+    # T-231 (E-6): la declaración que el oferente completa y adjunta ya no es externa; lo externo
+    # es la verificación de la habilidad por la Comisión.
     ("habilidad_contratar",
+     "La Comisión verificará la habilidad para contratar del oferente (causales del artículo "
+     "18, causas penales) en la etapa de evaluación.",
      "Declaración jurada de habilidad para contratar: no estar comprendido en las causales "
-     "del artículo 18 ni tener causas penales.",
-     "Adjuntar la declaración jurada de habilidad para contratar, firmada y fechada."),
+     "del artículo 18 ni tener causas penales, completada y firmada por el oferente."),
     ("registro_proveedores",
      "El oferente deberá haber culminado el trámite de inscripción en el Registro de "
      "Proveedores antes de la adjudicación.",
@@ -140,13 +143,13 @@ def test_a_catalog_requirement_is_a_missing_compliance_sheet_even_if_the_offer_d
     result = results_of(runs[0])[number]
     assert (result.outcome, result.doubt) == ("no_determinado", "externo")
     assert result.facts["regla"] == "externo_catalogo"
-    assert result.facts["version_reglas"] == "reglas-v7"
+    assert result.facts["version_reglas"] == "reglas-v8"
     assert result.facts["externo"]["tipos"] == ["libre_deuda"]
     assert "constancia fiscal de deuda" in result.explanation
     assert "hoja de compliance" in result.explanation
     assert not am.Question.objects.filter(requirement__number=number).exists()
     assert runs[0].counts["by_rule"]["externo_catalogo"] == 1
-    assert runs[0].prompt_versions["reglas"] == "reglas-v7"
+    assert runs[0].prompt_versions["reglas"] == "reglas-v8"
 
 
 @pytest.mark.decision_literal
@@ -233,5 +236,5 @@ def test_external_is_the_first_rule_and_wins_over_a_missing_document():
     ctx = SimpleNamespace(offer=0)
     assert rules.apply(pair, ctx) == "externo_catalogo"
     assert pair.combined.doubt == "externo" and pair.combined.question == ""
-    assert pair.combined.facts["version_reglas"] == "reglas-v7"
+    assert pair.combined.facts["version_reglas"] == "reglas-v8"
     assert pair.combined.facts["externo"]["tipos"] == ["seguros"]

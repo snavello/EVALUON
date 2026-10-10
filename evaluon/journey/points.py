@@ -196,12 +196,19 @@ def build(segment, quote_texts):
                  chars=len(text), segment_id=segment.pk, changes=tuple(changes))
 
 
+# T-231 (E-11): la lectura del documento trae el texto canónico y las páginas enteras del pliego
+# (cientos de miles de caracteres de JSON); cada cita las traería de nuevo. Se necesita el tramo y
+# el título del documento, nada de eso.
+HEAVY_READING = tuple(f"segment__reading__{name}" for name in (
+    "pages", "tables", "canonical_text", "items", "tool_versions", "report"))
+
+
 def quotes_of(requirement_ids):
     """`{id del requisito: [citas]}` en su orden, con el tramo y su documento cargados (una sola
-    consulta)."""
+    consulta, sin el texto completo de la lectura)."""
     found = defaultdict(list)
     for quote in (RequirementQuote.objects.filter(requirement_id__in=requirement_ids)
-                  .select_related("segment__reading__document")
+                  .select_related("segment__reading__document").defer(*HEAVY_READING)
                   .order_by("requirement_id", "order")):
         found[quote.requirement_id].append(quote)
     return found
@@ -219,7 +226,7 @@ def sources_of(requirement_ids):
     found = defaultdict(list)
     for source in (RequirementSource.objects.filter(requirement_id__in=requirement_ids)
                    .exclude(quote=None).select_related("segment__reading__document")
-                   .order_by("issued_on", "pk")):
+                   .defer(*HEAVY_READING).order_by("issued_on", "pk")):
         found[source.requirement_id].append(source)
     return found
 

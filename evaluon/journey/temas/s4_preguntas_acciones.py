@@ -138,7 +138,35 @@ def reevaluate(request, procedure_id, result_id):
                             f" de la oferta {result.offer.number}.")
 
 
+@require_POST
+def reevaluate_answered(request, procedure_id):
+    """Pide evaluar de nuevo los pares respondidos (`questions.reevaluate_answered`): el grupo más
+    grande que forma un pedido exacto; lo que queda se pide después. Si ya hay un pedido en espera
+    o en curso, el aviso dice qué pasa con los pares respondidos (T-231, E-3); no hay un error
+    mudo."""
+    procedure = _procedure(procedure_id)
+    pairs = questions.answered_pairs(procedure)
+    try:
+        done = questions.reevaluate_answered(request.user, procedure, channel=CHANNEL)
+    except (questions.AnswerRefused, evaluate.EvaluationRefused) as error:
+        return _back(procedure, str(error), ok=False)
+    count = len(pairs.groups[0])
+    rest = len(pairs) - count
+    offers, requirements = len(done.request.offers), len(done.request.requirements or [])
+    text = (
+        f"Se pidió evaluar de nuevo {count} {'par respondido' if count == 1 else 'pares respondidos'}"
+        f" ({offers} {'oferta' if offers == 1 else 'ofertas'}, {requirements} "
+        f"{'requisito' if requirements == 1 else 'requisitos'}). El avance se ve acá; le avisamos "
+        "cuando termine.")
+    if rest:
+        text += (f" Quedan {rest} {'par respondido' if rest == 1 else 'pares respondidos'} que "
+                 "se piden después: el sistema evalúa un pedido por vez.")
+    return _back(procedure, text)
+
+
 urlpatterns = [
+    path("evaluacion/preguntas/evaluar-respondidas/", reevaluate_answered,
+         name="s4_evaluar_respondidas"),
     path("evaluacion/pregunta/<int:question_id>/responder/", answer, name="s4_responder"),
     path("evaluacion/resultado/<int:result_id>/subsanar/pedir/", ask_remedy,
          name="s4_pedir_subsanacion"),

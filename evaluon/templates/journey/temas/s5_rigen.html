@@ -20,4 +20,5 @@
       {% endwith %}{% endfor %}
     </tbody>
   </table></div>
+  {% if t.not_needed %}<p class="ayuda" id="s5-no-hace-falta"><b>No hace falta para este procedimiento:</b> {% for n in t.not_needed %}{{ n.count }} modificatoria{{ n.count|pluralize }} de la {{ n.norm }}{% if not forloop.last %}; {% endif %}{% endfor %}. Esas modificatorias no hacen falta para este procedimiento porque su norma no lo rige por su fecha de autorización; no figuran entre lo que falta.</p>{% endif %}
 </div>

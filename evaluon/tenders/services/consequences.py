@@ -14,6 +14,11 @@ y su momento registrados.
     aprobación condicionada, la condición, que ocupa el lugar del motivo en `chosen_note`;
     en `consultar_oferente` u `otra_pliego` sin sugerencia, el tramo del pliego y un
     fragmento literal con cita verificada, que queda como su fundamento.
+  * «El pliego no indica consecuencia» (`sin_consecuencia`, T-232): lo elige la Comisión cuando
+    el pliego no dice ninguna; no lleva motivo ni cita (`note` es optativa). La pantalla de la
+    matriz la ofrece siempre y la deja marcada cuando lo único que propuso el sistema es «no
+    determinada»; llega como `option="sin_consecuencia"` y, si a la vez se elige otro tipo
+    explícitamente, vale el tipo elegido.
   Elegir de nuevo reemplaza la elección anterior; la historia queda en el historial del
   requisito (`elegir_consecuencia`) y en el hecho `consequence_choice`.
 
@@ -51,6 +56,7 @@ CHOOSABLE_TYPES = [t for t in ConsequenceType.values
 NEED_PLIEGO_QUOTE = (ConsequenceType.CONSULTAR_OFERENTE.value,
                      ConsequenceType.OTRA_PLIEGO.value)
 CONDITIONAL = ConsequenceType.APROBACION_CONDICIONADA.value
+NO_CONSEQUENCE = ConsequenceType.SIN_CONSECUENCIA.value
 
 
 class ChoiceRefused(review.ReviewRefused):
@@ -147,6 +153,12 @@ def choose(user, requirement_id, *, option=None, consequence_type=None, note="",
     sistema ya lo sugirió, es esa sugerencia). Devuelve la consecuencia elegida."""
     detail = {"requirement": requirement_id}
     note = (note or "").strip()
+    if option == NO_CONSEQUENCE:
+        # La opción «El pliego no indica consecuencia» no es una fila del requisito hasta que
+        # se elige: llega por su tipo. Si a la vez se eligió otro tipo, vale ese.
+        option = None
+        if consequence_type in (None, ""):
+            consequence_type = NO_CONSEQUENCE
 
     def work():
         try:
@@ -201,7 +213,9 @@ def choose(user, requirement_id, *, option=None, consequence_type=None, note="",
             grounds = None
         else:
             kind = picked.consequence_type if picked else consequence_type
-            if kind == CONDITIONAL:
+            if kind == NO_CONSEQUENCE:
+                final_note = note  # no hace falta motivo: el pliego no dice nada que citar
+            elif kind == CONDITIONAL:
                 if not note:
                     raise ChoiceRefused(
                         "Una aprobación condicionada exige escribir la condición.",

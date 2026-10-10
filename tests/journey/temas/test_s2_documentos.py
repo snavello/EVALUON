@@ -229,7 +229,8 @@ def test_what_the_portal_lists_and_was_not_taken_shows_as_missing(client, bare, 
     assert "Anexo III inventado" in page
     assert "Circular inventada" not in page
     assert "1 falta" in page
-    assert f'{reverse("expedientes:nuevo_enlace", args=[link.pk])}#group-documento' in page
+    assert f'{reverse("expedientes:procedimiento", args=[bare.pk])}#s1-portal' in page
+    assert "#group-documento" not in page
     assert "El Portal lista 1 documento del pliego que no se tomaron" in page
 
 

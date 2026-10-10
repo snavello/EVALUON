@@ -154,6 +154,7 @@
             <details class="acc"><summary class="btn secundario chico">Elegir la consecuencia</summary>
               <form method="post" action="{% url 'expedientes:s2_consecuencia' t.pid row.page_row.requirement.pk %}">{% csrf_token %}
                 {% for option in row.options %}<label class="chk"><input type="radio" name="option" value="{{ option.consequence.pk }}"{% if option.chosen %} checked{% endif %}> {{ option.label }} · {% if option.from_system %}sugerida por el sistema{% else %}propuesta por una persona{% endif %}{% if option.chosen %} · elegida{% endif %}</label>{% endfor %}
+                <label class="chk"><input type="radio" name="option" value="sin_consecuencia"{% if row.no_indica.checked %} checked{% endif %}> El pliego no indica consecuencia · {% if row.no_indica.chosen %}elegida{% elif row.no_indica.proposed %}propuesta del sistema: no halló una consecuencia en el pliego; confírmela si es así{% else %}la elige la Comisión, sin motivo{% endif %}</label>
                 <p class="ayuda">O elija otro tipo y escriba su motivo (en una aprobación condicionada, la condición):</p>
                 <label>Otro tipo <select name="consequence_type"><option value="">(una de las de arriba)</option>{% for value, label in t.consequence_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
                 <label>Motivo <textarea name="note" rows="2"></textarea></label>

@@ -238,12 +238,15 @@ def _check(file_name, data):
     return LOADABLE_FORMATS[detected].value
 
 
-def _duplicate(offer, sha256):
+def _duplicate(offer, sha256, file_name=""):
+    """El rechazo por archivo repetido. El mensaje empieza con el nombre del archivo que se
+    rechaza (T-232, O-1): así se entiende solo, sin depender de quien lo muestre."""
     loaded = offer.documents.filter(file_sha256=sha256).order_by("id").first()
     if loaded is None:
         return None
+    seen = f"«{file_name.strip()}»" if (file_name or "").strip() else "Ese archivo"
     return DuplicateFile(
-        f"Ese archivo ya está cargado en esta oferta, como «{loaded.title}» "
+        f"{seen} ya está cargado en esta oferta, como «{loaded.title}» "
         f"({loaded.file_name}). No se cargó de nuevo.", loaded.pk)
 
 
@@ -279,7 +282,7 @@ def load_document(user, offer, *, data, file_name, title="", kind="",
     try:
         file_format = _check(file_name, data)
         detail["file"]["format"] = file_format
-        duplicate = _duplicate(offer, sha256)
+        duplicate = _duplicate(offer, sha256, file_name)
         if duplicate is not None:
             raise duplicate
         with transaction.atomic():
@@ -296,7 +299,7 @@ def load_document(user, offer, *, data, file_name, title="", kind="",
         # Otra carga del mismo archivo se confirmó entre el control y el alta.
         if _violated_constraint(error) != _UNIQUE_FILE:
             raise
-        refusal = _duplicate(offer, sha256)
+        refusal = _duplicate(offer, sha256, file_name)
         if refusal is None:
             raise
         _record_load_refusal(user, channel, detail, refusal)

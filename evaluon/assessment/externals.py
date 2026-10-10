@@ -97,24 +97,13 @@ CATALOG = (
            r"|\bresolucion\s*(?:(?:n|no|nro|ssn)\b\W{0,3}\s*)*219\s*/\s*(?:20)?18\b"
            r"|validacion de (?:la |las )?polizas?|validez de (?:la |las )?polizas?"
            rf"|polizas?.{{0,80}}{_POLICY_VERB}|{_POLICY_VERB}\w*.{{0,80}}polizas?"),
+    # T-231 (E-6): la declaración jurada de habilidad que el oferente completa, suscribe y adjunta
+    # a su oferta es un documento de la oferta, no una verificación externa. Lo externo es la
+    # consulta que hace la Comisión (al Registro de Proveedores, a los sancionados, a la deuda):
+    # solo se reconoce el pliego que dice que la habilidad para contratar se verifica.
     _check("habilidad_contratar", "habilidad para contratar",
            rf"habilidad para contratar.{{0,120}}{_VERIFIED}"
-           rf"|{_VERIFIED}\w*.{{0,120}}habilidad para contratar"
-           r"|habilidad para contratar.{0,120}(?:articulo 18|art\. ?18|causas? penal"
-           r"|causales? de inhabilidad|sanciones)"
-           r"|(?:articulo 18|art\. ?18|causas? penal|causales? de inhabilidad).{0,120}"
-           r"habilidad para contratar"
-           # T-172 (H-C): la declaración jurada de habilidad se reconoce por la palabra
-           # «habilidad» o por los supuestos del artículo 18 junto a la declaración, en la forma
-           # del pliego (completar o anexo); otra declaración jurada «que se agrega como Anexo»
-           # no lo es, y «adjuntar la declaración de habilidad firmada» sigue siendo un
-           # documento de la oferta.
-           r"|(?=.*(?:completar|anexo))(?:.*declaracion jurada.{0,120}habilidad"
-           r"|.*habilidad.{0,120}declaracion jurada)"
-           r"|declaracion jurada.{0,200}(?:articulo 18|art\. ?18|causas? penal|inhabilidad"
-           r"|sanciones)"
-           r"|(?:articulo 18|art\. ?18|causas? penal|inhabilidad|sanciones).{0,200}"
-           r"declaracion jurada"),
+           rf"|{_VERIFIED}\w*.{{0,120}}habilidad para contratar"),
 )
 
 
