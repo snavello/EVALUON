@@ -1,1 +1,13 @@
-{% comment %}Parcial del tema s4_exportar (Exportaciones de la evaluación). Vacío en el corte vertical; lo completa T-212.{% endcomment %}
+{% comment %}Tema s4_exportar (T-212, REQ-093): bloque «Exportar» al pie de la pestaña Evaluación. Cuatro enlaces de descarga (planilla por oferta y cuadro comparativo, cada uno en Excel y en PDF) a s4_exportar_archivo. Recibe `t` (ver evaluon/journey/temas/s4_exportar.py).{% endcomment %}
+<div class="bloque" id="s4-exportar">
+  <div class="bloque-cab"><h3>Exportar</h3></div>
+  <div class="tabla-scroll"><table class="matriz lectura">
+    <thead><tr><th scope="col">Documento</th><th scope="col">Formato</th></tr></thead>
+    <tbody>
+    {% for row in t.rows %}
+      <tr><th scope="row">{{ row.label }}</th><td class="tdgap">{% for label, url in row.links %}<a class="btn secundario chico" href="{{ url }}" download>{{ label }}</a> {% endfor %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="ayuda">Los archivos llevan la propuesta de evaluación del sistema y la decisión de la Comisión, con los mismos números de esta pantalla. Cada descarga queda registrada.{% if not t.has_offers %} El procedimiento todavía no tiene ofertas cargadas.{% endif %}</p>
+</div>

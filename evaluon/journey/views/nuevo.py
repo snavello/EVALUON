@@ -46,8 +46,8 @@ def _shell(request):
         "procedures": latest[:DROPDOWN_LIMIT],
         "role_label": ROLE_LABELS.get(request.user.commission_role, ""),
         "login_url": reverse("accounts:login"),
-        # Sin procedimiento, Normativas es la consulta general, que no depende de ninguno.
-        "normativas_url": reverse("queries:screen"),
+        # Sin procedimiento, Normativas es la página general, que no depende de ninguno (T-225).
+        "normativas_url": reverse("expedientes:normativas_general"),
     }
 
 

@@ -229,62 +229,6 @@ def test_list_shows_regime_and_matrix_status(operator_user, evaluator_user,
 # --- Pantalla ---------------------------------------------------------------------------
 
 
-def test_screen_registers_and_shows_297_03(client, operator_user, two_regimes):
-    """REQ-022: al registrar por pantalla autorizado el 2022-12-15 se muestra la línea
-    de régimen con el texto fijo de la 001 y la Disposición 297/03."""
-    log_in(client, operator_user)
-
-    response = post_form(client, authorization_date="2022-12-15")
-
-    procedure = Procedure.objects.get()
-    assert response.status_code == 302
-    assert response["Location"] == (
-        reverse("tenders:procedures") + f"?registrado={procedure.pk}"
-    )
-    page = page_text(client.get(response["Location"]))
-    assert OLD_LINE in page
-    assert "SINT-0001-LPU22" in page
-    assert procedure_events().get().channel == Channel.SCREEN
-
-
-def test_screen_registers_and_shows_247_2022(client, operator_user, two_regimes):
-    """REQ-022: autorizado el 2023-01-02, la línea muestra la Disposición 247/2022."""
-    log_in(client, operator_user)
-
-    response = post_form(client, authorization_date="2023-01-02")
-
-    page = page_text(client.get(response["Location"]))
-    assert NEW_LINE in page
-
-
-def test_screen_without_regime_says_so(client, operator_user, two_regimes):
-    """REQ-022: sin régimen a la fecha, la línea lo dice con el texto de la 001."""
-    log_in(client, operator_user)
-
-    response = post_form(client, authorization_date="2001-01-10")
-
-    assert NO_REGIME_TEXT in page_text(client.get(response["Location"]))
-
-
-def test_screen_list_shows_each_procedure_with_its_regime(client, operator_user,
-                                                          two_regimes):
-    """REQ-022: la lista muestra número, objeto, fecha, régimen y estado de la matriz."""
-    register(operator_user, number="SINT-0006-LPU22", authorization_date=date(2022, 12, 15),
-             subject="Objeto sintético viejo")
-    register(operator_user, number="SINT-0007-LPU23", authorization_date=date(2023, 1, 2),
-             subject="Objeto sintético nuevo")
-    log_in(client, operator_user)
-
-    page = page_text(client.get(reverse("tenders:procedures")))
-
-    for text in ("SINT-0006-LPU22", "Objeto sintético viejo", "15/12/2022",
-                 "Disposición AFIP 297/03", "SINT-0007-LPU23", "Objeto sintético nuevo",
-                 "02/01/2023", "Disposición AFIP 247/2022", "Sin matriz"):
-        assert text in page
-    # Sin registro recién hecho no hay línea de régimen suelta.
-    assert "Procedimiento autorizado el" not in page
-
-
 def test_screen_refuses_future_date(client, operator_user, two_regimes):
     """REQ-022: una fecha futura vuelve marcada en el formulario y no registra."""
     log_in(client, operator_user)
@@ -308,37 +252,3 @@ def test_screen_refuses_repeated_number(client, operator_user, two_regimes):
     assert response.status_code == 200
     assert procedures.DUPLICATE_NUMBER_MESSAGE in page_text(response)
     assert Procedure.objects.count() == 1
-
-
-def test_screen_hidden_for_user_without_commission_role(client, no_commission_user,
-                                                        two_regimes):
-    """REQ-022 (plan 003, "Roles"): un usuario sin rol de la Comisión no ve la página ni
-    puede registrar, aunque escriba en la normativa; el rechazo queda registrado."""
-    log_in(client, no_commission_user)
-
-    assert client.get(reverse("tenders:procedures")).status_code == 403
-    assert post_form(client).status_code == 403
-
-    assert not Procedure.objects.exists()
-    assert AuditEvent.objects.filter(event_type=EventType.REJECTED,
-                                     user=no_commission_user).count() == 2
-
-
-def test_screen_requires_session(client):
-    """REQ-022: sin sesión, la página lleva al ingreso."""
-    response = client.get(reverse("tenders:procedures"))
-
-    assert response.status_code == 302
-    assert reverse("accounts:login") in response["Location"]
-
-
-def test_navigation_link_only_for_commission_roles(client, operator_user, evaluator_user,
-                                                   no_commission_user):
-    """REQ-022: la navegación lleva a "Procedimientos" solo a quien tiene rol de la
-    Comisión."""
-    for user, shown in ((operator_user, True), (evaluator_user, True),
-                        (no_commission_user, False)):
-        client.logout()
-        log_in(client, user)
-        page = page_text(client.get(reverse("queries:screen")))
-        assert (NAV_LINK in page) is shown, user.username

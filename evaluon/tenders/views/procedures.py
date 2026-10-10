@@ -25,6 +25,7 @@ from evaluon.audit.models import Channel
 from evaluon.queries.forms import DATE_INPUT_FORMATS, INVALID_DATE_ERROR
 from evaluon.tenders.models import Procedure
 from evaluon.tenders.services import procedures as services
+from evaluon.journey.legacy import section_url, to_section
 
 TEMPLATE = "tenders/procedures.html"
 
@@ -62,6 +63,7 @@ def _registered_id(request):
         return None
 
 
+@to_section(lambda request: reverse("inicio"))
 @require_http_methods(["GET", "POST"])
 def procedures(request):
     """Lista y formulario. Al enviar, se valida el formulario y se llama a la función de

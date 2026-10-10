@@ -249,38 +249,6 @@ def test_once_validated_the_database_refuses_every_change(evaluator_user, ready)
 # --- La página de una validada -------------------------------------------------------------------
 
 
-def test_the_page_of_a_validated_version_has_no_draft_banner_and_shows_who_and_when(
-        client, evaluator_user, ready):
-    """REQ-032: la validada no muestra «BORRADOR INCOMPLETO» y sí su número, la fecha y el
-    evaluador; el borrador sí lo muestra."""
-    log_in(client, evaluator_user)
-    draft_text = page_text(client.get(reverse("tenders:matrix", args=[ready.pk])))
-    assert "BORRADOR INCOMPLETO" in draft_text
-    assert "Consecuencias sin elegir: 0" in draft_text
-
-    service.validate(evaluator_user, ready.pk)
-    ready.refresh_from_db()
-    text = page_text(client.get(reverse("tenders:matrix", args=[ready.pk])))
-
-    assert "BORRADOR INCOMPLETO" not in text
-    assert f"versión {ready.number}" in text
-    assert timezone.localtime(ready.validated_at).strftime("%d/%m/%Y") in text
-    assert evaluator_user.username in text
-
-
-def test_the_summary_counts_the_consequences_not_yet_chosen(client, evaluator_user, case):
-    """La página resume cuántos requisitos no quitados siguen sin consecuencia elegida."""
-    total = case.requirements.count()
-    pago = requirement_with(case, PAGO)
-    consequences.choose(evaluator_user, pago.pk, consequence_type="aprobar_igual",
-                        note="Motivo")
-    log_in(client, evaluator_user)
-
-    text = page_text(client.get(reverse("tenders:matrix", args=[case.pk])))
-
-    assert f"Consecuencias sin elegir: {total - 1}" in text
-
-
 # --- Descartar -----------------------------------------------------------------------------------
 
 
@@ -369,30 +337,6 @@ def test_a_new_version_copies_everything_and_the_previous_stays_the_same(
     assert event.detail["copied"]["requirements"] == new.requirements.count()
 
 
-def test_the_new_version_is_a_working_draft_and_can_be_validated_again(
-        client, operator_user, evaluator_user, ready):
-    """La versión nueva es un borrador editable; se la corrige, se valida y la anterior
-    sigue como estaba."""
-    validated = service.validate(evaluator_user, ready.pk)
-    before = snapshot(validated)
-    new = service.open_new_version(evaluator_user, validated.procedure_id)
-    pago = new.requirements.get(number=requirement_with(validated, PAGO).number)
-
-    review.correct(operator_user, pago.pk, category="formal")
-    pago.refresh_from_db()
-    assert pago.state == "propuesto" and pago.category == "formal"
-    log_in(client, evaluator_user)
-    text = page_text(client.get(reverse("tenders:matrix", args=[new.pk])))
-    assert "BORRADOR INCOMPLETO" in text
-    assert "<option" in text  # los tramos del pliego de origen se pueden elegir
-    second = service.validate(evaluator_user, new.pk)
-
-    assert second.status == "validated"
-    assert snapshot(validated) == before
-    assert requirement_with(validated, PAGO).category == "economico"
-    assert m.RequirementChange.objects.filter(requirement=pago, action="confirmar").exists()
-
-
 def test_a_new_version_needs_a_validated_one_and_no_open_draft(
         operator_user, evaluator_user, case):
     """Sin validada no hay sobre qué abrir; con un borrador abierto, tampoco."""
@@ -431,26 +375,6 @@ def test_a_user_without_a_commission_role_cannot_open_one(no_commission_user, re
 
 
 # --- Pantalla ------------------------------------------------------------------------------------
-
-
-def test_the_buttons_by_state_and_role(client, operator_user, evaluator_user, ready):
-    """Botones: el evaluador ve «Validar» y «Descartar» en el borrador; el operador no;
-    la validada ofrece la versión nueva a ambos."""
-    url = reverse("tenders:matrix", args=[ready.pk])
-    validate_url = reverse("tenders:validate", args=[ready.pk])
-    log_in(client, operator_user)
-    assert validate_url not in page_text(client.get(url))
-    log_in(client, evaluator_user)
-    text = page_text(client.get(url))
-    assert validate_url in text and reverse("tenders:discard", args=[ready.pk]) in text
-
-    service.validate(evaluator_user, ready.pk)
-    new_url = reverse("tenders:open_new_version", args=[ready.procedure_id])
-    assert new_url in page_text(client.get(url))
-    assert new_url in page_text(client.get(
-        reverse("tenders:procedure", args=[ready.procedure_id])))
-    log_in(client, operator_user)
-    assert new_url in page_text(client.get(url))
 
 
 def test_validating_from_the_screen_and_the_refusal_with_its_reason(
@@ -526,24 +450,6 @@ def test_a_matrix_with_no_current_requirement_is_not_validated(evaluator_user, c
     assert rejected("empty_matrix").count() == 1
     case.refresh_from_db()
     assert case.status == "draft"
-
-
-def test_the_validated_page_says_when_and_by_whom_as_another_user_sees_it(
-        client, operator_user, evaluator_user, ready):
-    """O1, REQ-032: la página de la validada dice «validada el DD/MM/AAAA por <usuario>»,
-    también para quien no la validó."""
-    version = service.validate(evaluator_user, ready.pk)
-    version.refresh_from_db()
-    day = timezone.localtime(version.validated_at).strftime("%d/%m/%Y")
-    expected = (f"versión {version.number} · validada el {day} por "
-                f"{evaluator_user.username}")
-    log_in(client, operator_user)
-
-    text = page_text(client.get(reverse("tenders:matrix", args=[version.pk])))
-
-    assert expected in text
-    header = text.split("Encabezado")[1].split("Resumen")[0]
-    assert f"el {day} por {evaluator_user.username}" in header
 
 
 def test_the_new_version_copies_the_removed_requirements_too(
@@ -624,22 +530,6 @@ def test_the_new_version_offers_the_tender_segments_to_choose(
     second = service.validate(evaluator_user, new.pk)
     newer = service.open_new_version(operator_user, second.procedure_id)
     assert matrix_page.matrix_page(operator_user, newer.pk).segment_options == options
-
-
-def test_the_new_version_button_is_only_on_the_last_validated(
-        client, operator_user, evaluator_user, ready):
-    """A29: el botón de versión nueva aparece solo en la última validada y sin borrador."""
-    first = service.validate(evaluator_user, ready.pk)
-    second = service.open_new_version(operator_user, first.procedure_id)
-    url = reverse("tenders:open_new_version", args=[first.procedure_id])
-    log_in(client, operator_user)
-    assert url not in page_text(client.get(reverse("tenders:matrix", args=[first.pk])))
-    assert not matrix_page.matrix_page(operator_user, first.pk).can_open_new
-
-    second = service.validate(evaluator_user, second.pk)
-
-    assert url not in page_text(client.get(reverse("tenders:matrix", args=[first.pk])))
-    assert url in page_text(client.get(reverse("tenders:matrix", args=[second.pk])))
 
 
 def test_the_new_version_copies_the_reference_to_the_original(

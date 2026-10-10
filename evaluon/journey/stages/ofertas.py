@@ -87,7 +87,7 @@ def _pending_sheets(offers):
 
 
 def compute(user, procedure):
-    view_url = reverse("offers:procedure_offers", args=[procedure.pk])
+    view_url = reverse("expedientes:ofertas", args=[procedure.pk])
     common = {"key": KEY, "label": LABEL, "view_url": view_url}
 
     offers = list(procedure.offers.order_by("number"))

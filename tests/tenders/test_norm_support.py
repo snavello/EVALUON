@@ -619,29 +619,6 @@ REAL_EVIDENCE = {"segment": 1, "char_start": 10, "char_end": 40,
                  "text": "indicio literal del tramo"}
 
 
-@pytest.mark.parametrize("evidence, shown", [(REAL_EVIDENCE, True), (None, False)],
-                         ids=["formato real del filtro", "sin indicio"])
-def test_the_screen_and_the_print_take_the_evidence_in_the_real_format_or_none(
-        client, operator_user, case, evidence, shown):  # noqa: F811
-    """REQ-035, REQ-036 (aviso de T-112): `doubt.evidence` llega del filtro como
-    `{segment, char_start, char_end, text}` o `None`; la pantalla y la impresión muestran el
-    texto del indicio en el primer caso y no lo inventan en el segundo."""
-    case.requirements.update(state="quitado")
-    row = make_suggestion(case, "sec-i/3.1")
-    row.doubt = {"vote_a": {"decision": KEEP}, "vote_b": {"respuesta": "duda"},
-                 "evidence": evidence, "step_a": None, "step_b": None}
-    row.save(update_fields=["doubt"])
-    assert client.login(username=operator_user.username, password=TEST_PASSWORD)
-
-    for url in (reverse("tenders:matrix", args=[case.pk]),
-                reverse("tenders:print", args=[case.pk])):
-        response = client.get(url)
-        page = response.content.decode()
-        assert response.status_code == 200
-        assert "Indicio en el pliego" in page if shown else "Indicio en el pliego" not in page
-        assert ("indicio literal del tramo" in page) is shown
-
-
 # --- Largo mínimo de la cita -----------------------------------------------------------------
 
 LARGA = "los oferentes deberán acompañar el certificado de calibración de cada balanza ofrecida"

@@ -12,6 +12,7 @@ from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
 from evaluon.journey import memo
 from evaluon.journey.sections import sections_for
+from evaluon.journey.views import inicio
 from evaluon.journey.window import window_for
 from evaluon.tenders.models import Procedure
 
@@ -63,7 +64,8 @@ def portada(request, procedure_id):
         "pending_items": [(s, i) for s in overview.sections for i in s.pending_items],
         "suggestion_items": [(s, i) for s in overview.sections for i in s.suggestion_items],
     })
-    return render(request, "journey/portada.html", context)
+    return inicio.remember(render(request, "journey/portada.html", context), request.user,
+                           procedure_id)
 
 
 @require_GET
@@ -80,7 +82,8 @@ def seccion(request, procedure_id, key):
         "pending_rows": [(section, item) for item in section.pending_items],
         "suggestion_rows": [(section, item) for item in section.suggestion_items],
     })
-    return render(request, "journey/seccion.html", context)
+    return inicio.remember(render(request, "journey/seccion.html", context), request.user,
+                           procedure_id)
 
 
 @require_GET

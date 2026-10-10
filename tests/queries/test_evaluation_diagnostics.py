@@ -417,11 +417,21 @@ def test_changed_conditions_are_named(read_user, two_regimes, scripted, tmp_path
 
 
 def test_ablation_produces_the_four_configurations(read_user, two_regimes, scripted,
-                                                   tmp_path, monkeypatch, settings):
+                                                   tmp_path, monkeypatch, settings,
+                                                   fake_ai):
     """REQ-008, REQ-009 (ADR-0003): la comparación quitando piezas corre cada caso con
     las cuatro configuraciones (solo vectores, solo palabras, combinada sin reranker,
     completa) con los parámetros públicos de la recuperación, sin pasar por la función
-    de consulta, y la informa en `resumen.md`."""
+    de consulta, y la informa en `resumen.md`.
+
+    Los pasajes llevan `unit_vector(unit.pk)` y la pregunta un vector que sale de su
+    huella: cuando el número de la unidad coincide (módulo 1024) con el de la pregunta, ese
+    pasaje sube al primer puesto por vectores y los puestos de abajo cambian. El número
+    depende de qué corrió antes en la misma base (T-224, suite en paralelo). La pregunta
+    lleva aquí un vector a la misma distancia de todos los pasajes: el orden por vectores
+    queda siempre por número de pasaje, que es lo que suponen los puestos de abajo."""
+    uniform = [1.0] * settings.EMBEDDINGS_DIMENSIONS
+    monkeypatch.setattr(fake_ai.embeddings, "vector_for", lambda text: list(uniform))
     settings.RERANK_THRESHOLD = 0.368  # el umbral que supone el test, no el calibrado
     diagnostic_marks(scripted)
     calls = []

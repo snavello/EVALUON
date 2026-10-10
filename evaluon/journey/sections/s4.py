@@ -14,7 +14,7 @@ TEMA_KEYS = ("s4_descartes", "s4_propuesta", "s4_preguntas", "s4_informe", "s4_d
 
 
 def legacy_links(procedure):
-    return [("Matriz de evaluación", reverse("assessment:matrix", args=[procedure.pk]))]
+    return [("Matriz de evaluación", reverse("expedientes:evaluacion", args=[procedure.pk]))]
 
 
 def upload_url(procedure):

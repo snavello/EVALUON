@@ -149,34 +149,11 @@ def asked(offer, operator_user, procedure, model):
     return am.Question.objects.get(requirement__number=number_of(procedure, "sesenta días"))
 
 
-def test_the_questions_page_lists_open_questions_and_the_evaluator_answers(
-        client, asked, procedure, evaluator_user, offer):
-    """REQ-055, REQ-056: la lista muestra la pregunta sin responder; el evaluador responde con
-    el alcance; la respuesta queda con quién y cuándo y se ofrece evaluar de nuevo."""
-    log_in(client, evaluator_user)
-    url = reverse("assessment:questions", args=[procedure.pk])
-    page = text_of(client.get(url))
-    assert "¿Desde cuándo corre el plazo?" in page and "Sin responder" in page
-    response = client.post(reverse("assessment:answer", args=[asked.pk]),
-                           {"text": "Desde la apertura.", "scope": "procedimiento"})
-    assert response.status_code == 302
-    page = text_of(client.get(response["Location"]))
-    assert "Desde la apertura." in page and evaluator_user.username in page
-    assert "Todo el procedimiento" in page and "Evaluar de nuevo esos requisitos" in page
-    refused = client.post(reverse("assessment:answer", args=[asked.pk]),
-                          {"text": "", "scope": "requisito"})
-    assert refused.status_code == 422 and "Escriba la respuesta" in text_of(refused)
-    again = client.post(reverse("assessment:reevaluate_answer",
-                                args=[asked.answers.get().pk]))
-    assert again.status_code == 302
-    assert am.Request.objects.filter(cause="respuesta").count() == 1
-
-
 def test_the_operator_sees_the_questions_but_cannot_answer(
         client, asked, procedure, operator_user, no_commission_user):
     """P3: el operador ve la lista sin formulario y su POST es 403; sin rol, 403 también."""
     log_in(client, operator_user)
-    page = text_of(client.get(reverse("assessment:questions", args=[procedure.pk])))
+    page = text_of(client.get(reverse("assessment:questions", args=[procedure.pk]), follow=True))
     assert "¿Desde cuándo corre el plazo?" in page and "Responder" not in page.replace(
         "Respuesta", "")
     assert client.post(reverse("assessment:answer", args=[asked.pk]),
@@ -184,7 +161,7 @@ def test_the_operator_sees_the_questions_but_cannot_answer(
     assert not am.Answer.objects.exists()
     client.logout()
     log_in(client, no_commission_user)
-    assert client.get(reverse("assessment:questions", args=[procedure.pk])).status_code == 403
+    assert client.get(reverse("assessment:questions", args=[procedure.pk]), follow=True).status_code == 403
 
 
 def test_the_pair_page_links_the_open_question(client, asked, offer, evaluator_user,

@@ -32,20 +32,6 @@ def text_of(response):
     return re.sub(r"\s+(?=[.,;:])", "", " ".join(text.split()))
 
 
-def test_the_offers_page_lists_the_offers_and_registers_one(client, operator_user, procedure,
-                                                            offer):
-    """REQ-037: la lista de ofertas del procedimiento y el alta de una oferta."""
-    log_in(client, operator_user)
-    url = reverse("offers:procedure_offers", args=[procedure.pk])
-    page = text_of(client.get(url))
-    assert "Ofertas del procedimiento CASO-CHICO-SINTETICO" in page
-    assert "Oferente de prueba" in page and "Sin ficha" in page
-    response = client.post(url, {"bidder": "Segundo oferente"})
-    created = procedure.offers.get(bidder="Segundo oferente")
-    assert response.status_code == 302
-    assert response.url == reverse("offers:offer", args=[created.pk])
-
-
 def test_a_repeated_bidder_is_shown_with_its_reason(client, operator_user, procedure, offer):
     """REQ-037: el oferente repetido se rechaza con aviso, sin crear otra oferta."""
     log_in(client, operator_user)
@@ -54,39 +40,6 @@ def test_a_repeated_bidder_is_shown_with_its_reason(client, operator_user, proce
     assert response.status_code == 200
     assert "ya tiene una oferta en este procedimiento" in text_of(response)
     assert procedure.offers.count() == 1
-
-
-def test_the_offer_page_shows_documents_state_kind_and_original(client, operator_user, offer):
-    """REQ-037, REQ-038: documentos con su tipo, su estado y el enlace al original."""
-    log_in(client, operator_user)
-    page = text_of(client.get(reverse("offers:offer", args=[offer.pk])))
-    assert "Oferta 1 · Oferente de prueba" in page
-    assert "oferta.pdf" in page and "Leído · 2 páginas" in page
-    original = reverse("offers:document_original",
-                       args=[offer.documents.get(file_name="oferta.pdf").pk])
-    assert original in client.get(reverse("offers:offer", args=[offer.pk])).content.decode()
-    assert "Armar ficha" in page and "matriz versión 1" in page
-
-
-def test_several_documents_are_loaded_at_once_and_a_repeated_one_is_refused(
-        client, operator_user, procedure, fake_ai):
-    """REQ-037: se cargan varios documentos a la vez; el repetido se rechaza con aviso."""
-    from evaluon.offers.services import offers as service
-
-    offer = service.register_offer(operator_user, procedure, bidder="Por pantalla")
-    log_in(client, operator_user)
-    url = reverse("offers:offer", args=[offer.pk])
-    files = [SimpleUploadedFile(name, (DATA / name).read_bytes(), "application/pdf")
-             for name in ("oferta-propuesta.pdf", "constancia-escaneada.pdf")]
-    response = client.post(url, {"file": files})
-    assert response.status_code == 302 and response.url.endswith("?cargados=2")
-    assert offer.documents.count() == 2
-    assert "Se cargaron 2 documentos" in text_of(client.get(response.url))
-    repeated = SimpleUploadedFile("otra.pdf", (DATA / "oferta-propuesta.pdf").read_bytes())
-    response = client.post(url, {"file": [repeated]})
-    assert response.status_code == 200
-    assert "ya está cargado en esta oferta" in text_of(response)
-    assert offer.documents.count() == 2
 
 
 def test_the_original_is_served_as_a_pdf(client, operator_user, offer):
@@ -100,40 +53,14 @@ def test_the_original_is_served_as_a_pdf(client, operator_user, offer):
     assert client.get(reverse("offers:document_original", args=[99999])).status_code == 404
 
 
-def test_the_unread_pages_are_listed_in_the_offer_page(client, operator_user, procedure,
-                                                       fake_ai):
-    """REQ-038, escenario 3: las páginas no leídas se muestran con su documento y página."""
-    offer = make_offer(procedure, operator_user, "Con hoja ilegible",
-                       {"a.pdf": ["Texto.", ""]}, unread=[("a.pdf", 2)])
-    log_in(client, operator_user)
-    page = text_of(client.get(reverse("offers:offer", args=[offer.pk])))
-    assert "Páginas no leídas" in page and "a.pdf · página 2" in page
-
-
 def test_a_user_without_commission_role_gets_403(client, no_commission_user, offer):
     """Sin rol de la Comisión no se ve nada de ofertas, y el rechazo queda registrado."""
     log_in(client, no_commission_user)
-    assert client.get(reverse("offers:offer", args=[offer.pk])).status_code == 403
+    assert client.get(reverse("offers:offer", args=[offer.pk]), follow=True).status_code == 403
     assert client.get(reverse("offers:procedure_offers",
-                              args=[offer.procedure_id])).status_code == 403
+                              args=[offer.procedure_id]), follow=True).status_code == 403
     assert client.post(reverse("offers:build_sheet", args=[offer.pk])).status_code == 403
     assert AuditEvent.objects.filter(event_type=EventType.REJECTED).count() == 3
-
-
-def test_build_sheet_queues_the_request_and_shows_the_notice(client, operator_user, offer,
-                                                             script):
-    """REQ-039: "Armar ficha" encola el pedido; al terminar, el aviso de fin lo cuenta y
-    enlaza a la oferta."""
-    log_in(client, operator_user)
-    response = client.post(reverse("offers:build_sheet", args=[offer.pk]))
-    assert response.status_code == 302 and "?ficha=" in response.url
-    page = text_of(client.get(response.url))
-    assert "Se pidió la ficha" in page and "Ficha en preparación (en espera)" in page
-    jobs.run_next()
-    page = text_of(client.get(reverse("offers:offer", args=[offer.pk])))
-    assert "La ficha de la oferta del procedimiento CASO-CHICO-SINTETICO terminó" in page
-    assert "Ficha 1" in page
-    assert "terminó" not in text_of(client.get(reverse("offers:offer", args=[offer.pk])))
 
 
 def test_the_notice_of_a_finished_reading_links_to_the_offers(client, operator_user,
@@ -146,23 +73,9 @@ def test_the_notice_of_a_finished_reading_links_to_the_offers(client, operator_u
                           file_name="oferta-propuesta.pdf")
     jobs.run_next()
     log_in(client, operator_user)
-    page = text_of(client.get(reverse("offers:offer", args=[offer.pk])))
+    page = text_of(client.get(reverse("offers:offer", args=[offer.pk]), follow=True))
     assert "La lectura de un documento de una oferta del procedimiento " \
            "CASO-CHICO-SINTETICO terminó" in page
-
-
-def test_a_refused_request_is_shown_with_its_reason(client, operator_user, procedure):
-    """REQ-043: sin matriz validada, "Armar ficha" muestra el motivo y no encola nada."""
-    other = m.Procedure.objects.create(
-        number="SIN-MATRIZ", procedure_type="x", subject="x",
-        authorization_date="2026-01-01", created_by=operator_user)
-    offer = make_offer(other, operator_user, "Oferente", {"a.pdf": ["texto"]})
-    log_in(client, operator_user)
-    page = text_of(client.get(reverse("offers:offer", args=[offer.pk])))
-    assert "no tiene una matriz validada" in page and "Armar ficha" not in page
-    response = client.post(reverse("offers:build_sheet", args=[offer.pk]))
-    assert response.status_code == 200 and "no tiene una matriz validada" in text_of(response)
-    assert not m.Job.objects.filter(kind=m.JobKind.BUILD_SHEET).exists()
 
 
 def build_sheet(offer, user, script):
@@ -239,7 +152,7 @@ def test_the_sheet_lists_the_unread_pages_and_marks_unreadable_items(
 
 def test_an_unknown_offer_or_sheet_is_a_404(client, operator_user):
     log_in(client, operator_user)
-    assert client.get(reverse("offers:offer", args=[999])).status_code == 404
+    assert client.get(reverse("offers:offer", args=[999]), follow=True).status_code == 404
     assert client.get(reverse("offers:sheet", args=[999])).status_code == 404
-    assert client.get(reverse("offers:procedure_offers", args=[999])).status_code == 404
+    assert client.get(reverse("offers:procedure_offers", args=[999]), follow=True).status_code == 404
     assert om.Sheet.objects.count() == 0

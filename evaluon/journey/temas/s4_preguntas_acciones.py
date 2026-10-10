@@ -2,9 +2,9 @@
 (REQ-090; plan 014, T-208).
 
 Las rutas de `assessment:*` vuelven a la pantalla vieja. Estas vistas llaman a los MISMOS servicios
-(`questions.answer`, `remedy.request_remedy`, `remedy.add_document` y `remedy.reevaluate`: el mismo
-cambio, el mismo hecho de auditoría y el mismo rol) y vuelven a la pestaña con el aviso de lo
-hecho, que dibuja `s4_propuesta`. Si el servicio rechaza el pedido no cambia nada y el aviso dice
+(`questions.answer`, `remedy.request_remedy`, `remedy.decline_remedy`, `remedy.add_document` y
+`remedy.reevaluate`: el mismo cambio, el mismo hecho de auditoría y el mismo rol) y vuelven a la
+pestaña con el aviso de lo hecho, que dibuja `s4_propuesta`. Si el servicio rechaza el pedido no cambia nada y el aviso dice
 por qué. Sin el rol de evaluador, «acceso denegado» (403) con el rechazo registrado por el
 servicio (P6). El sistema no decide nada: cada botón es de una persona (P3).
 """
@@ -77,6 +77,22 @@ def ask_remedy(request, procedure_id, result_id):
 
 
 @require_POST
+def decline_remedy(request, procedure_id, result_id):
+    """Decide no pedir la subsanación del resultado, con su motivo (`remedy.decline_remedy`)."""
+    procedure = _procedure(procedure_id)
+    result = _result(procedure, result_id)
+    try:
+        remedy.decline_remedy(request.user, result.pk, request.POST.get("note", ""),
+                              channel=CHANNEL)
+    except remedy.RemedyRefused as error:
+        return _back(procedure, str(error), ok=False)
+    return _back(procedure, f"Se decidió no pedir la subsanación de la oferta "
+                            f"{result.offer.number} para el requisito "
+                            f"{result.requirement.number}. Quedó registrado quién, cuándo y el "
+                            "motivo.")
+
+
+@require_POST
 def add_document(request, procedure_id, result_id):
     """Agrega a la oferta el documento de la subsanación (`remedy.add_document`)."""
     procedure = _procedure(procedure_id)
@@ -110,6 +126,8 @@ urlpatterns = [
     path("evaluacion/pregunta/<int:question_id>/responder/", answer, name="s4_responder"),
     path("evaluacion/resultado/<int:result_id>/subsanar/pedir/", ask_remedy,
          name="s4_pedir_subsanacion"),
+    path("evaluacion/resultado/<int:result_id>/subsanar/no-pedir/", decline_remedy,
+         name="s4_no_pedir_subsanacion"),
     path("evaluacion/resultado/<int:result_id>/subsanar/documento/", add_document,
          name="s4_agregar_documento"),
     path("evaluacion/resultado/<int:result_id>/subsanar/evaluar/", reevaluate,

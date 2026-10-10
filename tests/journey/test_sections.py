@@ -147,11 +147,12 @@ def test_an_unknown_procedure_is_404(client, operator_user):
     assert client.get(reverse("expedientes:portada", args=[999999])).status_code == 404
 
 
-def test_the_site_menu_has_the_new_entry(client, operator_user):
-    """El menú de `base.html` suma «Expedientes»."""
+def test_the_header_lists_the_procedures_to_switch(client, procedure, operator_user):
+    """El encabezado único trae el desplegable con los procedimientos y el alta, sin menú."""
     log_in(client, operator_user)
     html = client.get(reverse("queries:screen")).content.decode()
-    assert reverse("expedientes:index") in html and "Expedientes" in html
+    assert reverse("expedientes:procedimiento", args=[procedure.pk]) in html
+    assert reverse("expedientes:nuevo") in html and 'class="site-nav"' not in html
 
 
 def test_no_demo_elements_reach_the_application(client, procedure, operator_user):

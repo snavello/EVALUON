@@ -55,7 +55,7 @@ def _moment(value):
 def _portal_origin(item):
     link = item.proposal.link
     return Origin("Portal", _moment(item.proposal.created_at),
-                  reverse("portal:proposal", args=[link.pk]))
+                  reverse("expedientes:nuevo_enlace", args=[link.pk]))
 
 
 def _origin(item=None, document=None):
@@ -286,7 +286,7 @@ def _portal_link_url(procedure):
     """Dónde tomar los datos del Portal: el proceso seguido o, si no hay, el alta de enlaces.
     Es la pantalla actual de la 012 hasta que exista el explorador de la sección (T-195)."""
     link = procedure.portal_links.order_by("-pk").first()
-    return reverse("portal:proposal", args=[link.pk]) if link else reverse("portal:links")
+    return reverse("expedientes:nuevo_enlace", args=[link.pk]) if link else reverse("expedientes:nuevo")
 
 
 def status(user, procedure):

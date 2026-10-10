@@ -362,9 +362,20 @@ def via_commands(user, name):
 
 
 def test_uploading_and_validating_from_the_screen_gives_the_same_result_as_the_commands(
-        client, procedure, evaluator):
+        client, procedure, evaluator, monkeypatch):
     """REQ-094: el resultado de subir y validar desde la pantalla es el mismo que con los
-    comandos, que llaman a `load_norm` y `validate_reading` con estos mismos datos."""
+    comandos, que llaman a `load_norm` y `validate_reading` con estos mismos datos.
+
+    El informe de lectura lleva la fecha de lectura al segundo (`read_at`): si las dos
+    cargas caen en segundos distintos, `report_text` difiere sin que difiera la carga. Las
+    dos leen aquí la hora de un mismo reloj detenido (T-224); `localtime` con un valor
+    sigue igual."""
+    real_localtime = loading.timezone.localtime
+    frozen = real_localtime()
+    monkeypatch.setattr(
+        loading.timezone, "localtime",
+        lambda value=None, timezone=None: real_localtime(
+            frozen if value is None else value, timezone))
     name = "rg-9999-2024.htm"
     from_commands = via_commands(evaluator, name)
     assert not Norm.objects.exists()

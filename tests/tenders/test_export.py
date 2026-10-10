@@ -182,7 +182,7 @@ def test_matrix_page_has_the_print_and_pdf_buttons(client, operator_user, case):
     log_in(client, operator_user)
 
     page = html.unescape(
-        client.get(reverse("tenders:matrix", args=[case.pk])).content.decode())
+        client.get(reverse("tenders:matrix", args=[case.pk]), follow=True).content.decode())
 
     assert reverse("tenders:print", args=[case.pk]) in page and "Vista de impresión" in page
     assert reverse("tenders:pdf", args=[case.pk]) in page and "Exportar PDF" in page
@@ -371,19 +371,3 @@ def test_print_with_a_chosen_consequence_shows_only_that_one_with_who_when_and_w
     assert "Motivo: Motivo elegido de prueba" in block
     assert "Desestimación sin posibilidad" not in block
     assert "Consultar al oferente" not in block
-
-
-def test_the_screen_still_shows_all_the_options_and_the_choice_form(
-        client, evaluator_user, case):
-    """La pantalla de la matriz no cambia: todas las opciones y el formulario de elección."""
-    requirement = _first_requirement(case)
-    _suggest(requirement, "desestimacion")
-    _suggest(requirement, "consultar_oferente")
-    log_in(client, evaluator_user)
-
-    page = html.unescape(
-        client.get(reverse("tenders:matrix", args=[case.pk])).content.decode())
-
-    assert "Desestimación sin posibilidad de subsanar" in page
-    assert "Consultar al oferente" in page
-    assert "Aceptar esta sugerencia" in page and "Elegir la consecuencia" in page

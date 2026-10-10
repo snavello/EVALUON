@@ -66,7 +66,7 @@ def test_without_a_version_and_without_the_pliego_it_is_pending(bare, operator_u
     """REQ-066: sin versión ni pliego leído, pendiente y lo dice."""
     stage = matriz.compute(operator_user, bare)
     assert stage.state == base.PENDIENTE and "pliego" in stage.detail
-    assert resolve(stage.view_url).view_name == "tenders:procedure"
+    assert resolve(stage.view_url).view_name == "expedientes:pliego"
 
 
 def test_the_ready_pliego_without_a_version_is_pending_for_lack_of_a_request(
@@ -110,8 +110,8 @@ def test_a_validated_version_is_ready(procedure, matrix, operator_user):
     """REQ-066: versión validada, lista, sin pendientes ni sugerencias."""
     stage = matriz.compute(operator_user, procedure)
     assert stage.state == base.LISTA and stage.pending == 0 and stage.suggestions == 0
-    assert resolve(stage.view_url).view_name == "tenders:matrix"
-    assert resolve(stage.view_url).kwargs == {"version_id": matrix.version.pk}
+    assert resolve(stage.view_url).view_name == "expedientes:pliego"
+    assert resolve(stage.view_url).kwargs == {"procedure_id": procedure.pk, "key": "pliego"}
 
 
 def test_a_draft_with_proposed_requirements_and_open_segments_counts_both(
@@ -164,8 +164,8 @@ def test_only_the_evaluator_gets_the_decide_link_on_a_draft(procedure, draft, op
     as_evaluator = matriz.compute(evaluator_user, procedure)
     assert as_operator.decide_url is None
     assert as_evaluator.decide_url == as_evaluator.view_url
-    assert resolve(as_evaluator.view_url).view_name == "tenders:matrix"
-    assert resolve(as_evaluator.view_url).kwargs == {"version_id": draft.pk}
+    assert resolve(as_evaluator.view_url).view_name == "expedientes:pliego"
+    assert resolve(as_evaluator.view_url).kwargs == {"procedure_id": procedure.pk, "key": "pliego"}
 
 
 def test_no_decide_link_on_a_validated_matrix(procedure, matrix, evaluator_user):

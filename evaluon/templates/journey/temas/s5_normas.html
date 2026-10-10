@@ -1,4 +1,4 @@
-{% load static %}{% comment %}Tema s5_normas (T-214, REQ-094): subir el archivo de una norma, ver los datos que propone el sistema con su evidencia, corregirlos escribiendo valor y motivo, cargarla, ver su informe de lectura dentro de la pestaña y validarla (solo el evaluador). Las acciones son formularios POST a las rutas de s5_normas, que llaman a los mismos servicios que los comandos y vuelven a esta pestaña. Recibe `t` (ver evaluon/journey/temas/s5_normas.py).{% endcomment %}
+{% load static %}{% comment %}Tema s5_normas (T-214, REQ-094): subir el archivo de una norma, ver los datos que propone el sistema con su evidencia, corregirlos escribiendo valor y motivo, cargarla, ver su informe de lectura dentro de la pestaña y validarla (solo el evaluador). Las acciones son formularios POST a las rutas de s5_normas (las de la pestaña del procedimiento o, en la página general, las `_general`), que llaman a los mismos servicios que los comandos y vuelven a esta pestaña. Recibe `t` (ver evaluon/journey/temas/s5_normas.py).{% endcomment %}
 <link rel="stylesheet" href="{% static 'journey/s5_normas.css' %}">
 <div class="s5-norm">
 {% if t.aviso %}<p class="aviso {% if t.aviso.ok %}aviso-ok{% else %}aviso-error{% endif %}" id="s5-aviso" role="{% if t.aviso.ok %}status{% else %}alert{% endif %}">{{ t.aviso.text }}</p>{% else %}<span id="s5-aviso"></span>{% endif %}
@@ -6,7 +6,7 @@
 <div class="bloque" id="s5-subir">
   <div class="bloque-cab"><h3>Subir una norma</h3></div>
   {% if t.can_upload %}
-  <form method="post" enctype="multipart/form-data" action="{% url 'expedientes:s5_subir' t.pid %}">{% csrf_token %}
+  <form method="post" enctype="multipart/form-data" action="{{ t.upload_action }}">{% csrf_token %}
     <label for="s5-archivo">Archivo de la norma (PDF o página web guardada)</label>
     <input id="s5-archivo" type="file" name="file" required>
     <p class="ayuda">Solo el archivo: el sistema lo lee, propone los datos de la norma con el lugar del texto que los respalda y usted los confirma o los corrige. Las normas cargadas sirven para todos los procedimientos.</p>
@@ -31,7 +31,7 @@
           <td>{% if f.evidence and not f.corrected %}<p class="evidencia">{% if f.evidence.page %}Página {{ f.evidence.page }}: {% else %}Del texto: {% endif %}«{{ f.evidence.text }}»</p>{% elif f.corrected %}<span class="suave">Escrito por la Comisión</span>{% else %}<span class="suave">—</span>{% endif %}</td>
           {% if t.can_upload %}<td>
             <details class="acc"><summary class="btn secundario chico">{% if f.empty %}Completar{% else %}Corregir{% endif %}</summary>
-              <form method="post" action="{% url 'expedientes:s5_corregir' t.pid up.id %}">{% csrf_token %}
+              <form method="post" action="{{ up.correct_action }}">{% csrf_token %}
                 <input type="hidden" name="field" value="{{ f.name }}">
                 <label for="v-{{ up.id }}-{{ f.name }}">Valor de «{{ f.label }}»</label>
                 {% if f.kind == "select" %}<select id="v-{{ up.id }}-{{ f.name }}" name="value" required>{% for value, label in t.categories %}<option value="{{ value }}"{% if value == f.raw %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
@@ -50,7 +50,7 @@
       </tbody>
     </table></div>
     {% if t.can_upload %}
-    <form class="confirmar" method="post" action="{% url 'expedientes:s5_cargar' t.pid up.id %}">{% csrf_token %}
+    <form class="confirmar" method="post" action="{{ up.load_action }}">{% csrf_token %}
       <label for="tipo-{{ up.id }}">Qué es este archivo</label>
       <select id="tipo-{{ up.id }}" name="kind"><option value="texto">Texto de la norma</option><option value="anexo">Anexo</option></select>
       <label for="anexo-{{ up.id }}">Si es un anexo, su nombre (por ejemplo I o A)</label>
@@ -62,6 +62,15 @@
       <button class="btn primario" type="submit"{% if up.to_check %} disabled{% endif %}>Cargar la norma</button>
       {% if up.to_check %}<span class="suave">Complete primero los datos obligatorios.</span>{% endif %}
     </form>
+    {% endif %}
+    {% if up.can_reject %}
+    <details class="acc"><summary class="btn secundario chico">Descartar esta subida</summary>
+      <form method="post" action="{{ up.discard_action }}">{% csrf_token %}
+        <label for="d-{{ up.id }}">Motivo para descartarla (obligatorio)</label>
+        <textarea id="d-{{ up.id }}" name="reason" rows="2" required></textarea>
+        <p class="ayuda">No se borra: queda en el registro con el motivo, quién y cuándo, y no se carga ninguna norma. El mismo archivo se puede volver a subir.</p>
+        <button class="btn acento chico" type="submit">Descartar esta subida</button>
+      </form></details>
     {% endif %}
   </div>
   {% endfor %}
@@ -103,7 +112,7 @@
   {% if t.report.pending %}
   <div class="bloque-pie">
     {% if t.can_validate %}
-    <form method="post" action="{% url 'expedientes:s5_validar' t.pid t.report.id %}">{% csrf_token %}<button class="btn primario" type="submit">Validar la norma</button></form>
+    <form method="post" action="{{ t.report.validate_action }}">{% csrf_token %}<button class="btn primario" type="submit">Validar la norma</button></form>
     <span class="suave">Al validar, la norma queda disponible para las consultas. Queda quién y cuándo.</span>
     {% else %}
     <span class="suave">La validación la hace un evaluador de la Comisión{% if t.validate_blocked %}; a su usuario le falta {{ t.validate_blocked }}{% endif %}.</span>

@@ -123,7 +123,7 @@ def test_the_section_no_longer_points_to_the_old_offers_screen(procedure, operat
     vieja de ofertas."""
     section = sections_for(operator_user, procedure).get("ofertas")
     assert "/ofertas/procedimiento/" not in (section.upload_url or "")
-    assert section.legacy_links == ()
+    assert all(url.startswith("/expedientes/") for _, url in section.legacy_links)
 
 
 # --- La tabla de ofertas -------------------------------------------------------------------------

@@ -83,7 +83,7 @@ def compute(user, procedure):
     common = {"key": KEY, "label": LABEL, "optional": True}
     if not links:
         return base.Stage(
-            state=base.PENDIENTE, view_url=reverse("portal:links"),
+            state=base.PENDIENTE, view_url=reverse("expedientes:nuevo"),
             detail=f"Sin enlace del Portal. {origin}", **common)
 
     ids = [link.pk for link in links]
@@ -99,7 +99,7 @@ def compute(user, procedure):
     # Para ver y decidir: el enlace con propuestas sin decidir; si no, el último.
     target = next((link for link in links if open_by_link[link.pk]), links[-1])
     if pending or latest[target.pk] is None:
-        view_url = reverse("portal:proposal", args=[target.pk])
+        view_url = reverse("expedientes:nuevo_enlace", args=[target.pk])
     else:
         view_url = reverse("portal:imported", args=[target.pk])
     decide_url = view_url if pending and base.is_evaluator(user) else None

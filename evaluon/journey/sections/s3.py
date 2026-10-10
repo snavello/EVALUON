@@ -10,8 +10,8 @@ TEMA_KEYS = ("s3_ofertas", "s3_ficha", "s3_anexos", "s3_circulares")
 
 
 def legacy_links(procedure):
-    """Desde T-202 el alta de ofertas y sus documentos están en la propia pestaña."""
-    return []
+    return [("Ofertas y sus documentos",
+             reverse("expedientes:ofertas", args=[procedure.pk]))]
 
 
 def upload_url(procedure):

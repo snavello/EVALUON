@@ -377,70 +377,6 @@ def test_a_second_report_does_not_erase_what_the_first_one_said(
 # --- Pantalla ----------------------------------------------------------------------------------
 
 
-def test_the_matrix_shows_the_proposal_next_to_the_ok_and_preloads_it(
-        client, offers, procedure, evaluator_user, model):
-    """REQ-074: la matriz muestra la propuesta con su cita junto al ok técnico y la precarga en
-    el dictamen; lo que el informe no trata figura como tal y queda sin precargar."""
-    a, _ = offers
-    report.upload_report(evaluator_user, offer_id=a.pk,
-                         data=report_pdf(line("Oferente A", 1), line("Oferente A", 2, NO_APTO)),
-                         file_name="informe.pdf")
-    read_queue()
-    log_in(client, evaluator_user)
-    response = client.get(reverse("assessment:matrix", args=[procedure.pk]))
-    page = text_of(response)
-    assert "Propone Apto. El informe dice: «Oferente A - Renglón 1:" in page
-    assert "Propone No apto. El informe dice: «Oferente A - Renglón 2:" in page
-    assert "No propone: El informe no trata este renglón de esta oferta." in page
-    assert "Falta el informe técnico del área de esta oferta" in page  # la oferta B
-    html = response.content.decode()
-    select_1 = re.search(r'<select name="verdict_1".*?</select>', html, re.DOTALL).group(0)
-    select_2 = re.search(r'<select name="verdict_2".*?</select>', html, re.DOTALL).group(0)
-    assert 'value="apto" selected' in select_1 and 'value="no_apto" selected' in select_2
-
-
-def test_the_upload_buttons_are_only_for_the_evaluator(
-        client, offers, procedure, evaluator_user, operator_user):
-    """REQ-074: «Subir informe técnico» (por oferta y por procedimiento) solo lo ve el
-    evaluador."""
-    url = reverse("assessment:matrix", args=[procedure.pk])
-    log_in(client, evaluator_user)
-    page = text_of(client.get(url))
-    assert page.count("Subir informe técnico") == 3  # una por oferta y la del procedimiento
-    client.logout()
-    log_in(client, operator_user)
-    page = text_of(client.get(url))
-    assert "Subir informe técnico" not in page
-    assert "Solo el evaluador de la Comisión sube el informe técnico del área" in page
-
-
-def test_the_upload_from_the_matrix_loads_the_report_and_shows_it(
-        client, offers, procedure, evaluator_user, operator_user, model):
-    """REQ-074: el informe se sube desde la matriz (por oferta o por procedimiento); vuelve a la
-    matriz con el informe y su huella; un archivo que no se lee vuelve con el motivo (422); el
-    operador recibe 403."""
-    a, b = offers
-    sent = report_pdf(*FULL)
-    one = reverse("assessment:report_upload", args=[a.pk])
-    every = reverse("assessment:report_upload_procedure", args=[procedure.pk])
-    log_in(client, operator_user)
-    assert client.post(one, {"file": SimpleUploadedFile("i.pdf", sent)}).status_code == 403
-    assert client.post(every, {"file": SimpleUploadedFile("i.pdf", sent)}).status_code == 403
-    client.logout()
-    log_in(client, evaluator_user)
-    assert client.post(one, {"file": SimpleUploadedFile("i.txt", b"nada")}).status_code == 422
-    good = client.post(one, {"file": SimpleUploadedFile("informe-a.pdf", sent)})
-    assert good.status_code == 302 and good["Location"].endswith(f"#oferta-{a.number}")
-    assert client.post(every, {"file": SimpleUploadedFile("informe-a.pdf", sent)}).status_code \
-        == 302  # la oferta A ya lo tenía: se carga en la B
-    assert len(report.reports_of(a)) == 1 and len(report.reports_of(b)) == 1
-    again = client.post(every, {"file": SimpleUploadedFile("informe-a.pdf", sent)})
-    assert again.status_code == 422  # ya está en todas
-    page = text_of(client.get(reverse("assessment:matrix", args=[procedure.pk])))
-    assert report.reports_of(a)[0].file_sha256 in page
-    assert "El informe se está leyendo" in page
-
-
 def test_the_propose_button_asks_again_and_shows_the_reason_when_refused(
         client, offers, procedure, evaluator_user, model):
     """REQ-074: «Proponer de nuevo desde el informe» aparece con el informe leído y propone."""
@@ -452,7 +388,7 @@ def test_the_propose_button_asks_again_and_shows_the_reason_when_refused(
     model.fail = False
     log_in(client, evaluator_user)
     url = reverse("assessment:matrix", args=[procedure.pk])
-    assert "Proponer de nuevo desde el informe" in text_of(client.get(url))
+    assert "Proponer de nuevo desde el informe" in text_of(client.get(url, follow=True))
     assert client.post(reverse("assessment:report_propose", args=[a.pk])).status_code == 302
     assert verdicts(a) == {1: "apto", 2: "apto", 3: "apto"}
 
