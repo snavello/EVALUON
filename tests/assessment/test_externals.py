@@ -50,10 +50,13 @@ ENTRIES = {
 # Otras formas del mismo tipo (hallazgo 1 de la verificación): el texto que se reconoce y un
 # parecido que sigue siendo un documento de la oferta.
 EXTRA_FORMS = [
+    # T-231 (E-6): la declaración que el oferente completa y adjunta ya no es externa; lo externo
+    # es la verificación de la habilidad por la Comisión.
     ("habilidad_contratar",
+     "La Comisión verificará la habilidad para contratar del oferente (causales del artículo "
+     "18, causas penales) en la etapa de evaluación.",
      "Declaración jurada de habilidad para contratar: no estar comprendido en las causales "
-     "del artículo 18 ni tener causas penales.",
-     "Adjuntar la declaración jurada de habilidad para contratar, firmada y fechada."),
+     "del artículo 18 ni tener causas penales, completada y firmada por el oferente."),
     ("registro_proveedores",
      "El oferente deberá haber culminado el trámite de inscripción en el Registro de "
      "Proveedores antes de la adjudicación.",

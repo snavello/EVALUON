@@ -202,8 +202,10 @@ def test_the_heading_of_the_segment_is_its_title_and_the_text_before_the_quote()
 def test_the_title_of_the_segment_makes_a_quote_external_that_alone_was_not():
     """REQ-063: la cita sola («completar, suscribir y adjuntar la declaración jurada») no dice
     de qué es la declaración; con el título del tramo, sí."""
-    quote = "El oferente deberá completar, suscribir y adjuntar la declaración jurada."
-    title = "Declaración jurada de habilidad para contratar"
+    # T-231 (E-6): la declaración que el oferente adjunta no es externa; sí lo es la verificación
+    # de la habilidad, que la cita sola («se verificará…») no nombra y el título sí.
+    quote = "Se verificará en la etapa de evaluación."
+    title = "Habilidad para contratar del oferente"
     assert externals.match(quote) == []
     assert [c.key for c in externals.match(f"{title} {quote}")] == ["habilidad_contratar"]
 

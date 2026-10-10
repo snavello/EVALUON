@@ -226,11 +226,9 @@ HABILITY = ("El Oferente deberá completar, suscribir y adjuntar la Declaración
 
 @pytest.mark.decision_literal
 @pytest.mark.parametrize("text,key", [
-    ("ANEXO I o II - DECLARACIÓN JURADA HABILIDAD PARA CONTRATAR: completar, suscribir y "
-     "adjuntar.", "habilidad_contratar"),
-    ("Presentar la declaración jurada de habilidad para el Estado, anexo B.",
-     "habilidad_contratar"),
-    ("Declaración jurada sobre causas penales, sanciones o inhabilidad del artículo 18.",
+    # T-231 (E-6): la declaración de habilidad que la oferta trae dejó de ser externa (ver
+    # tests/assessment/test_t231.py); queda la verificación de la habilidad por la Comisión.
+    ("La Comisión verificará la habilidad para contratar del oferente en la evaluación.",
      "habilidad_contratar"),
     ("La póliza de caución debe estar emitida según los requisitos de la Resolución N° 10/2020 "
      "de la Superintendencia de Seguros de la Nación.", "seguros"),
