@@ -212,3 +212,62 @@ def test_upload_file_leads_to_a_form_of_its_own_in_every_section_and_for_both_ro
     assert href.endswith("#dictamen-subir")
     href, _ = upload_target(client, evaluator_user, case.procedure, "evaluacion")
     assert href.endswith("#s4-informe")
+
+
+def test_section_1_upload_adds_the_tender_to_the_open_procedure_and_creates_no_other(
+        client, case, operator_user, reader):
+    """REQ-097 (D-2): «Subir archivo» de la sección 1 lleva a un formulario de la propia pestaña
+    que agrega el pliego al procedimiento abierto: no se crea otro procedimiento ni un borrador
+    de alta; el lector no ve el enlace ni el formulario y su POST da 403."""
+    from evaluon.tenders.models import Document, Procedure, ProcedureDraft
+    from tests.tenders.pdfs import para, tender_pdf
+
+    case.go_to("antes_de_importar")
+    href, page = upload_target(client, operator_user, case.procedure, "procedimiento")
+    own = reverse("expedientes:procedimiento", args=[case.procedure.pk])
+    assert href == own + "#s1-pliego-subir"
+    assert 'id="s1-pliego-subir"' in page
+    action = reverse("expedientes:s1_pliego_agregar", args=[case.procedure.pk])
+    assert action in page
+    before = Procedure.objects.count()
+    data = tender_pdf([[para("Pliego sintético de la sección 1.")]])
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    response = client.post(action, {"file": SimpleUploadedFile("pliego.pdf", data)})
+    assert response.status_code == 302 and response["Location"].startswith(own)
+    assert Procedure.objects.count() == before and not ProcedureDraft.objects.exists()
+    document = Document.objects.get(procedure=case.procedure, file_name="pliego.pdf")
+    assert document.kind == "pliego" and document.loaded_by == operator_user
+
+    client.logout()
+    log_in(client, reader)
+    html = client.get(own).content.decode()
+    assert "s1-pliego-subir" not in html and "Subir archivo" not in html
+    assert client.post(action, {}).status_code == 403
+    assert Document.objects.filter(procedure=case.procedure).count() == 1
+
+
+def test_the_reader_is_offered_no_upload_link_in_any_section(client, case, reader):
+    """REQ-097 (D-3): el lector no ve ningún enlace «Subir …» (ni el de una norma que falta)."""
+    case.go_to("evaluacion_terminada")
+    log_in(client, reader)
+    pages = [reverse("expedientes:portada", args=[case.procedure.pk])] + [
+        reverse(f"expedientes:{key}", args=[case.procedure.pk]) for key in KEYS]
+    for url in pages:
+        html = client.get(url).content.decode()
+        assert not re.search(r"<a\s[^>]*>\s*Subir", html, re.I), url
+
+
+def test_the_operator_cannot_open_a_new_matrix_version_by_post(client, case, operator_user,
+                                                               evaluator_user):
+    """REQ-081 (O-1): abrir una versión nueva de la matriz es del evaluador: el POST del operador
+    da 403 y no crea la versión; el del evaluador la abre."""
+    case.go_to("matriz_validada")
+    target = reverse("expedientes:s2_nueva_version", args=[case.procedure.pk])
+    versions = case.procedure.matrix_versions.count()
+    log_in(client, operator_user)
+    assert client.post(target).status_code == 403
+    assert case.procedure.matrix_versions.count() == versions
+    client.logout()
+    log_in(client, evaluator_user)
+    assert client.post(target).status_code == 302
+    assert case.procedure.matrix_versions.count() == versions + 1

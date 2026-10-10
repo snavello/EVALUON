@@ -400,3 +400,18 @@ def test_the_new_version_copies_the_suggestion_origin_reason_support_and_process
         "Régimen sintético", 1, 0, 10, row.norm_supports.get().step_id)
     assert new.process == "completo"
     assert row.norm_supports.count() == 1  # el de la versión de origen no cambia
+
+
+def test_the_operator_cannot_accept_a_suggestion_at_the_service(operator_user, case):
+    """REQ-035 (O-2, decisión del 2026-10-10): decidir una sugerencia es del evaluador; con el
+    operador el servicio rechaza, deja el hecho y la fila sigue sugerida."""
+    from evaluon.accounts.permissions import RoleRejected
+
+    row = make_suggestion(case, "sec-i/3.1")
+    before = AuditEvent.objects.filter(outcome=Outcome.REJECTED).count()
+    with pytest.raises(RoleRejected):
+        suggestions.accept_suggestion(operator_user, row.pk)
+    with pytest.raises(RoleRejected):
+        suggestions.accept_suggestions_group(operator_user, case.pk, "sec-i/3.1")
+    assert state_of(row) == "sugerido"
+    assert AuditEvent.objects.filter(outcome=Outcome.REJECTED).count() == before + 2

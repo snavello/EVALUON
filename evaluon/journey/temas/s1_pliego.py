@@ -30,17 +30,19 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from evaluon.accounts.models import CommissionRole
-from evaluon.audit.models import AuditEvent, EventType, Outcome
+from evaluon.accounts.permissions import require_commission_role
+from evaluon.audit.models import AuditEvent, Channel, EventType, Outcome
 from evaluon.journey.sections.base import TemaStatus
 from evaluon.journey.temas import s1_portal
 from evaluon.journey.window import plain_reason
 from evaluon.norms.models import ProposalState
-from evaluon.tenders.models import JobStatus, ProcedureDraft
+from evaluon.tenders.models import DocumentKind, JobStatus, Procedure, ProcedureDraft
 from evaluon.tenders.proposal.procedure_fields import (
     DEDUCED_FROM_NUMBER,
     FIELDS,
     REQUIRED_FIELDS,
 )
+from evaluon.tenders.services import documents
 from evaluon.tenders.services import procedure_proposal as service
 from evaluon.tenders.services import procedures
 
@@ -48,6 +50,7 @@ KEY = "s1_pliego"
 SECTION = "procedimiento"
 PARTIAL = "journey/temas/s1_pliego.html"
 ANCHOR = "#s1-pliego"
+ADD_OPERATION = "evaluon.journey.temas.s1_pliego.add_to_procedure"
 REFRESH_SECONDS = 5
 OPEN_STATES = (ProposalState.LEYENDO, ProposalState.PROPUESTO, ProposalState.FALLIDO)
 WAITING_LIMIT = 10
@@ -296,6 +299,7 @@ def context(user, procedure, request):
     return {
         "upload": loads, "procedure": procedure is not None,
         "upload_url": reverse("expedientes:s1_pliego_subir"),
+        "pid": procedure.pk if procedure is not None else None,
         "new_url": reverse("expedientes:nuevo") + "#entrada-pliego",
         "messages": messages, "waiting": waiting_drafts() if loads else [],
         "origin": origin_of(procedure) if procedure is not None else None,
@@ -338,6 +342,32 @@ def upload(request):
     except service.ProposalRefused as refused:
         return _to_entry(str(refused), ok=False)
     return _to_draft(draft.pk, "Se subió el pliego: el sistema lo está leyendo.")
+
+
+@require_POST
+def add_to_procedure(request, procedure_id):
+    """«Subir archivo» de la sección 1 de un procedimiento ya creado: agrega el pliego al
+    procedimiento abierto con el mismo servicio de carga de la sección 2 (`load_document`); no
+    da de alta otro procedimiento (T-227, D-2). El archivo queda en espera de lectura y, leído,
+    la Comisión lo ve en la sección 2. Sin el rol de la Comisión, 403 con el rechazo registrado."""
+    try:
+        procedure = Procedure.objects.get(pk=procedure_id)
+    except Procedure.DoesNotExist:
+        raise Http404("No hay un procedimiento con ese número.")
+    sent = request.FILES.get("file")
+    url = reverse("expedientes:procedimiento", args=[procedure.pk])
+    try:
+        if sent is None:
+            require_commission_role(request.user, CommissionRole.OPERATOR,
+                                    operation=ADD_OPERATION, channel=Channel.SCREEN)
+            raise documents.DocumentRefused("Elija el archivo del pliego.", "missing_data")
+        documents.load_document(request.user, procedure, data=sent.read(), file_name=sent.name,
+                                kind=DocumentKind.PLIEGO, title=sent.name.rsplit(".", 1)[0],
+                                channel=Channel.SCREEN)
+    except documents.DocumentRefused as refused:
+        return redirect(f"{url}?pliego={_pack(str(refused), ok=False)}#s1-pliego-subir")
+    return redirect(f"{url}?pliego={_pack('Se subió el pliego a este procedimiento: queda en '
+                                          'espera de lectura.')}#s1-pliego")
 
 
 @require_GET
@@ -411,4 +441,6 @@ draft_urlpatterns = [
     path("<int:draft_id>/rechazar/", reject, name="s1_pliego_rechazar"),
 ]
 # Las del procedimiento: el tema no tiene ninguna (el alta no cuelga de un procedimiento).
-urlpatterns = []
+urlpatterns = [
+    path("procedimiento/pliego/subir/", add_to_procedure, name="s1_pliego_agregar"),
+]

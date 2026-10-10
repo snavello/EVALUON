@@ -252,3 +252,15 @@ def test_the_validation_fact_counts_discarded_and_restored_rows(
     fact = AuditEvent.objects.get(event_type=EventType.MATRIX_VALIDATION,
                                   outcome=Outcome.OK)
     assert fact.detail["discarded"] == 3 and fact.detail["restored"] == 1
+
+
+def test_the_operator_cannot_return_a_discarded_row_at_the_service(operator_user, case):
+    """REQ-033 (O-2, decisión del 2026-10-10): devolver una descartada es del evaluador; con el
+    operador el servicio rechaza, deja el hecho y no crea el requisito."""
+    row = add_row(case, "sec-i/3.1")
+    requirements = m.Requirement.objects.filter(version=case).count()
+    before = AuditEvent.objects.filter(outcome=Outcome.REJECTED).count()
+    with pytest.raises(RoleRejected):
+        discarded.restore(operator_user, case.pk, [row.pk])
+    assert m.Requirement.objects.filter(version=case).count() == requirements
+    assert AuditEvent.objects.filter(outcome=Outcome.REJECTED).count() == before + 1

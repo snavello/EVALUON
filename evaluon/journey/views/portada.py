@@ -55,10 +55,15 @@ _ACTION_FORM = re.compile(
     r'<form(?=[\s>])(?=[^>]*method="post")(?![^>]*logout-form)[^>]*>.*?</form>', re.S | re.I)
 
 
+# Los enlaces «Subir …» llevan a un formulario que el usuario de lectura no tiene (D-3 de T-227).
+_UPLOAD_LINK = re.compile(r"<a\s[^>]*>\s*Subir[^<]*</a>", re.S | re.I)
+
+
 def without_actions(response):
-    """La respuesta HTML sin los formularios de acción."""
+    """La respuesta HTML sin los formularios de acción ni los enlaces para subir."""
     if response.status_code == 200 and "text/html" in response.get("Content-Type", ""):
-        response.content = _ACTION_FORM.sub("", response.content.decode())
+        html = _ACTION_FORM.sub("", response.content.decode())
+        response.content = _UPLOAD_LINK.sub("", html)
     return response
 
 

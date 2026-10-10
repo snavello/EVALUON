@@ -20,6 +20,17 @@
 <div class="bloque" id="s1-pliego">
   <div class="bloque-cab"><h3>Alta desde el pliego</h3>
     {% if t.upload %}<span class="barra-cargas"><a class="btn secundario chico" href="{{ t.new_url }}">Subir el pliego</a></span>{% endif %}</div>
+  {% if t.messages %}
+  <div class="aviso aviso-ok" id="pliego-resultado" role="status">
+    <ul class="resultado-subida">{% for m in t.messages %}<li class="{% if m.ok %}ok{% else %}rechazado{% endif %}">{{ m.text }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+  {% if t.upload %}
+  <form class="subida" id="s1-pliego-subir" method="post" enctype="multipart/form-data" action="{% url 'expedientes:s1_pliego_agregar' t.pid %}">{% csrf_token %}
+    <div class="campo"><label for="in-pliego-abierto">Archivo del pliego de este procedimiento (PDF o página web guardada)</label><input id="in-pliego-abierto" type="file" name="file" accept=".pdf,.html,.htm,application/pdf,text/html" required></div>
+    <button class="btn secundario" type="submit">Subir el pliego a este procedimiento</button>
+  </form>
+  {% endif %}
   {% if t.origin %}
   {% with o=t.origin %}
   <p class="resumen-linea">Se creó desde el pliego subido <b>{{ o.file_name }}</b> · subido por {{ o.by }} el {{ o.at }}{% if o.approved_by %} · aprobado por {{ o.approved_by }} el {{ o.approved_at }}{% endif %}.{% if o.lines is not None %} Se cargaron {{ o.lines }} renglones{% if o.discarded %} (se descartaron los renglones {{ o.discarded|join:", " }}){% endif %}.{% endif %}</p>

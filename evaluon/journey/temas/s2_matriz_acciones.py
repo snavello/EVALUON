@@ -350,6 +350,7 @@ def validate(request, procedure_id, version_id):
 
 
 @require_POST
+@evaluator_only
 def open_new(request, procedure_id):
     procedure = _procedure(procedure_id)
     return _act(procedure, lambda: validation.open_new_version(

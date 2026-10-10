@@ -576,3 +576,29 @@ def test_correcting_a_wide_quote_removes_the_wide_mark(evaluator_user, case):
     change = requirement.changes.get()
     assert change.before["quotes"][0]["flag"] == "cita_amplia"
     assert change.after["quotes"][0]["flag"] == ""
+
+
+def test_the_operator_cannot_correct_remove_restore_or_add_at_the_service(operator_user, case):
+    """REQ-081 (O-2, decisión del 2026-10-10): corregir, quitar, restituir y agregar requisitos
+    son del evaluador; con el operador el servicio rechaza, deja el hecho y no cambia nada."""
+    from evaluon.accounts.permissions import RoleRejected
+    from evaluon.audit.models import AuditEvent, Outcome
+
+    requirement = req(case)
+    segment = segment_with(case, "multa del 1 %")
+    before = counts()
+    rejected = AuditEvent.objects.filter(outcome=Outcome.REJECTED).count()
+    calls = (
+        lambda: review.correct(operator_user, requirement.pk, category="economico"),
+        lambda: review.remove(operator_user, requirement.pk),
+        lambda: review.restore(operator_user, requirement.pk),
+        lambda: review.add_requirement(operator_user, case.pk, segment=segment.pk,
+                                       quote="multa del 1 %", category="economico"),
+        lambda: review.add_technical_row(operator_user, case.pk, item=3,
+                                         segments=[segment.pk]),
+    )
+    for call in calls:
+        with pytest.raises(RoleRejected):
+            call()
+    assert counts() == before
+    assert AuditEvent.objects.filter(outcome=Outcome.REJECTED).count() == rejected + len(calls)

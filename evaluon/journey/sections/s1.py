@@ -20,6 +20,6 @@ def legacy_links(procedure):
 
 
 def upload_url(procedure, user=None):
-    """«Subir archivo» de la sección 1: la subida del pliego, con su formulario de archivo, que
-    arma el procedimiento sin tipear nada (T-197). Ya no manda a la sección 2 (T-227)."""
-    return reverse("expedientes:nuevo") + "#entrada-pliego"
+    """«Subir archivo» de la sección 1: el formulario de la propia pestaña que agrega el pliego
+    al procedimiento abierto (T-227, D-2). No da de alta otro procedimiento ni manda a la 2."""
+    return reverse("expedientes:procedimiento", args=[procedure.pk]) + "#s1-pliego-subir"
