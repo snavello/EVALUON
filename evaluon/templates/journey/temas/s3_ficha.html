@@ -1,4 +1,4 @@
-{% load static %}{% comment %}Tema s3_ficha (T-203, REQ-086): «Lo que presentó cada oferta». La ficha de una oferta se abre dentro de la pestaña «Ofertas» (?ficha=<oferta>) con «Volver a Ofertas». Las acciones son formularios POST a las rutas de s3_ficha; el operador no ve el botón de confirmar. Recibe `t` (ver evaluon/journey/temas/s3_ficha.py).{% endcomment %}
+{% load static %}{% comment %}Tema s3_ficha (T-203, REQ-086): «Lo que presentó cada oferta». La ficha de una oferta se abre dentro de la pestaña «Ofertas» (?ficha=<oferta>) con «Volver a Ofertas». Sin una ficha abierta no muestra nada: el enlace «Ficha (opcional)» de cada oferta está en la tabla de ofertas (s3_ofertas, T-202). Las acciones son formularios POST a las rutas de s3_ficha; el operador no ve el botón de confirmar. Recibe `t` (ver evaluon/journey/temas/s3_ficha.py).{% endcomment %}
 <link rel="stylesheet" href="{% static 'journey/s3_ficha.css' %}">
 <div class="ficha">
 {% if t.aviso %}<p class="aviso {% if t.aviso.ok %}aviso-ok{% else %}aviso-error{% endif %}" id="s3-aviso-ficha" role="{% if t.aviso.ok %}status{% else %}alert{% endif %}">{{ t.aviso.text }}</p>{% else %}<span id="s3-aviso-ficha"></span>{% endif %}
@@ -112,27 +112,5 @@
   <div class="bloque-pie"><a class="btn secundario" href="{{ d.back_url }}">Volver a Ofertas</a></div>
 </div>
 {% endwith %}
-
-{% else %}
-<div class="bloque" id="s3-fichas">
-  <div class="bloque-cab"><h3>Lo que presentó cada oferta <span class="cta">{{ t.offers|length }}</span></h3><span class="linea-portal">La ficha es opcional: sirve para revisar con el original a mano.</span></div>
-  {% if not t.offers %}
-  <div class="estado-vacio"><h3>Todavía no hay ofertas</h3><p>Cuando haya ofertas cargadas, acá se abre la ficha de cada una.</p></div>
-  {% else %}
-  <div class="tabla-scroll"><table class="matriz lectura">
-    <caption class="sr-only">Ficha de cada oferta</caption>
-    <thead><tr><th scope="col">Oferta</th><th scope="col">Ficha</th><th scope="col">Lo que presentó</th></tr></thead>
-    <tbody>
-      {% for row in t.offers %}
-      <tr>
-        <th scope="row">{{ row.offer.number }} · {{ row.offer.bidder }}</th>
-        <td>{% if row.sheet %}Armada, {{ row.total }} fila{{ row.total|pluralize }}{% if row.proposed %} · {{ row.proposed }} sin confirmar{% endif %}{% else %}<span class="suave">Sin ficha</span>{% endif %}</td>
-        <td><a href="{{ row.url }}">Ficha (opcional)</a></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table></div>
-  {% endif %}
-</div>
 {% endif %}
 </div>

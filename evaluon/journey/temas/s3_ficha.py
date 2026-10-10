@@ -7,7 +7,8 @@ oferta». No juzga si cumple: eso es la sección 4 (P3). La ficha es opcional: u
 no cuenta como faltante, es una sugerencia; las filas propuestas de una ficha cuentan como
 pendientes de decidir.
 
-Se abre dentro de la pestaña con `?ficha=<oferta>` y vuelve con «Volver a Ofertas». Cada acción
+Se abre dentro de la pestaña con `?ficha=<oferta>` y vuelve con «Volver a Ofertas». El enlace a
+la ficha de cada oferta está en la tabla de ofertas (s3_ofertas, T-202). Cada acción
 (armar la ficha, confirmar filas, corregir, quitar, restituir o agregar un fragmento) es un POST
 que llama al mismo servicio de `evaluon.offers.services` que la pantalla vieja (el mismo cambio,
 el mismo rol y el mismo hecho de auditoría) y vuelve a la pestaña con el mensaje de lo hecho. El
@@ -250,24 +251,10 @@ def _sheet_detail(user, offer, request):
     }
 
 
-def _offers_list(procedure):
-    rows = []
-    for offer in procedure.offers.order_by("number"):
-        sheet = _latest_sheet(offer)
-        total = proposed = 0
-        if sheet is not None:
-            total = sheet.entries.count()
-            proposed = sheet.entries.filter(state="propuesto").count()
-        rows.append({"offer": offer, "sheet": sheet, "total": total, "proposed": proposed,
-                     "url": tab_url(procedure.pk, offer.pk) + "#s3-ficha"})
-    return rows
-
-
 def context(user, procedure, request):
     wanted = request.GET.get("ficha", "")
     offer = procedure.offers.filter(pk=wanted).first() if wanted.isdigit() else None
     return {"pid": procedure.pk, "aviso": unpack(request.GET.get(PARAM)),
-            "offers": _offers_list(procedure),
             "detail": _sheet_detail(user, offer, request) if offer else None,
             "is_evaluator": user.commission_role == CommissionRole.EVALUATOR}
 
