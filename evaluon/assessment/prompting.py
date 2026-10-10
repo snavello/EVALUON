@@ -92,10 +92,12 @@ def render_norms(grounds):
 
 
 def build_evaluation_messages(system, documents_text, answers_text, norms_text,
-                              requirement_block, correction=""):
-    """Mensajes del pedido de un grupo: documentos, respuestas, normas y, al final, el
-    requisito. `correction` suma el aviso del reintento, después del requisito."""
-    parts = [documents_text, answers_text, norms_text, requirement_block,
+                              requirement_block, correction="", portal_text=""):
+    """Mensajes del pedido de un grupo: documentos, datos del Portal (`P…`, T-235), respuestas,
+    normas y, al final, el requisito. `correction` suma el aviso del reintento, después del
+    requisito. El bloque del Portal es de la oferta, no del requisito: va justo después de los
+    documentos para no romper el prefijo que el servidor reutiliza."""
+    parts = [documents_text, portal_text, answers_text, norms_text, requirement_block,
              "Devolvé un objeto JSON con los campos pedidos."]
     if correction:
         parts.append(correction)
@@ -103,14 +105,18 @@ def build_evaluation_messages(system, documents_text, answers_text, norms_text,
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
-def evaluation_schema(doc_aliases, support_aliases):
-    """Esquema del resultado de un grupo: resultado, exigencia, citas (alias de documento y
-    texto), fundamentos (alias N y R), explicación, externo y pregunta."""
+def evaluation_schema(doc_aliases, support_aliases, portal_aliases=()):
+    """Esquema del resultado de un grupo: resultado, exigencia, citas (alias de documento o del
+    Portal, y texto), fundamentos (alias N y R), explicación, externo y pregunta."""
     citation = {
         "type": "object",
         "properties": {"documento": {"type": "string", "enum": list(doc_aliases)},
                        "texto": {"type": "string"}},
         "required": ["documento", "texto"], "additionalProperties": False}
+    # T-235: una cita puede ser de un dato del Portal (alias `P…`); `datos` es solo de documentos.
+    portal_citation = {
+        **citation, "properties": {**citation["properties"], "documento": {
+            "type": "string", "enum": [*doc_aliases, *portal_aliases]}}}
     if support_aliases:
         fundamentos = {"type": "array", "items": {"type": "string", "enum": list(support_aliases)}}
     else:
@@ -120,7 +126,7 @@ def evaluation_schema(doc_aliases, support_aliases):
         "properties": {
             "resultado": {"type": "string", "enum": list(RESULTS)},
             "exigencia": {"type": "string", "enum": list(EXIGENCES)},
-            "citas": {"type": "array", "items": citation,
+            "citas": {"type": "array", "items": portal_citation,
                       "maxItems": settings.ASSESSMENT_MAX_CITATIONS},
             "fundamentos": fundamentos,
             "explicacion": {"type": "string"},
@@ -242,13 +248,21 @@ CONTRAST_SCHEMA = {
 
 
 def build_contrast_messages(system, requirement_block, conclusion, cited, supports_text="",
-                            correction=""):
-    """El pedido corto del contraste: el requisito, la conclusión, el texto literal citado
-    (`cited`: lista de `(título, página, texto)`) y los fundamentos."""
-    quotes = "\n".join(f"- {title}, página {page}: «{text}»" for title, page, text in cited)
-    parts = [requirement_block, f"Conclusión propuesta: {conclusion}",
-             "Texto citado de la oferta:\n" + quotes, supports_text,
-             "Devolvé un objeto JSON con los campos pedidos.", correction]
+                            correction="", portal_cites=()):
+    """El pedido corto del contraste: el requisito, la conclusión, la oración citada de la oferta
+    con su contexto (`cited`: lista de `(título, página, texto, contexto)`, T-235), los datos del
+    Portal citados (`portal_cites`: textos escritos por el sistema) y los fundamentos."""
+    lines = []
+    for title, page, text, context in cited:
+        lines.append(f"- {title}, página {page}: «{text}»")
+        if context:
+            lines.append(f"  Contexto en la misma página (no es la cita): {context}")
+    quotes = "Texto citado de la oferta (la oración completa y su contexto):\n" + "\n".join(
+        lines) if lines else ""
+    portal = ("Datos del Portal citados (fuente oficial):\n"
+              + "\n".join(f"- {text}" for text in portal_cites)) if portal_cites else ""
+    parts = [requirement_block, f"Conclusión propuesta: {conclusion}", quotes, portal,
+             supports_text, "Devolvé un objeto JSON con los campos pedidos.", correction]
     user = "\n\n".join(part for part in parts if part)
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 

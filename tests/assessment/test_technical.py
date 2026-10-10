@@ -54,7 +54,7 @@ def test_a_technical_row_with_document_and_portal_quote_is_pending_the_technical
     result = row_result(procedure, runs)
     assert (result.outcome, result.doubt) == ("no_determinado", "pendiente_informe_tecnico")
     assert result.facts["regla"] == "tecnico_hechos"
-    assert result.facts["version_reglas"] == "reglas-v8"
+    assert result.facts["version_reglas"] == "reglas-v9"
     assert result.facts["documento_tecnico"] == "hay"
     assert result.facts["renglon_ofertado"] == "si"
     assert result.facts["renglon"] == 1
@@ -74,7 +74,7 @@ def test_the_opinion_is_information_and_never_the_result(
     _, runs = run_all(operator_user, procedure, offers=[offer])
     result = row_result(procedure, runs)
     assert result.opinion == "cumple" and result.outcome == "no_determinado"
-    assert offer_cites(result)[0].text == ROW_ONE
+    assert offer_cites(result)[0].text.startswith(ROW_ONE)
     assert result.citations.filter(kind="pliego").exists()
 
 

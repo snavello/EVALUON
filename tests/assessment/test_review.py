@@ -134,9 +134,9 @@ def test_history_lists_the_whole_path_with_grounds_by_kind(
     assert stages[0].decisions[0].user == evaluator_user
     assert stages[0].decisions[0].note == "Motivo uno."
     first = stages[0].citations
-    assert [c.text for c in first["oferta"]] == [DECLARATION]
+    assert [c.text for c in first["oferta"]] == [DECLARATION + "."]
     assert first["pliego"] and all(c.kind == "pliego" for c in first["pliego"])
-    assert DECLARATION not in [c.text for c in first["pliego"]]
+    assert DECLARATION + "." not in [c.text for c in first["pliego"]]
     assert stages[0].result.explanation not in [c.text for c in first["oferta"]]
 
 

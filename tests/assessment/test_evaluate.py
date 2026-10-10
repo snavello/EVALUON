@@ -206,7 +206,8 @@ def test_the_page_and_the_text_are_the_systems_not_the_models(offer, operator_us
     model.evaluates(function)
     _, runs = run_all(operator_user, procedure)
     result = results_of(runs[0])[number_of(procedure, "declaración jurada")]
-    assert offer_cites(result)[0].text == DECLARATION
+    # T-235: la cita es la oración completa del texto canónico (REQ-104).
+    assert offer_cites(result)[0].text == DECLARATION + "."
 
 
 def test_a_citation_that_cannot_be_located_lowers_the_cumple_to_undetermined(
@@ -247,7 +248,7 @@ def test_a_citation_with_the_wrong_alias_is_located_in_the_document_that_has_it(
     result = results_of(runs[0])[number_of(procedure, "declaración jurada")]
     assert result.outcome == "cumple"
     cite = offer_cites(result)[0]
-    assert cite.document.file_name == "oferta.pdf" and cite.text == DECLARATION
+    assert cite.document.file_name == "oferta.pdf" and cite.text == DECLARATION + "."
     assert any(a["type"] == "cita_en_otro_documento" for a in runs[0].anomalies)
 
 
@@ -342,7 +343,11 @@ def test_no_consta_in_a_condition_is_undetermined_with_a_question(offer, operato
     result = results_of(runs[0])[number]
     assert result.outcome == "no_determinado" and result.doubt == "sin_dato"
     question = am.Question.objects.get(requirement__number=number)
-    assert question.text == "¿Desde cuándo corre el plazo de sesenta días?"
+    # T-235 (REQ-105): la pregunta del modelo va al final, con el requisito, la conclusión y el
+    # texto delante.
+    assert question.text.splitlines()[-1] == "¿Desde cuándo corre el plazo de sesenta días?"
+    assert question.text.startswith("Requisito ") and "sesenta días" in question.text
+    assert "Conclusión del sistema:" in question.text and "Texto de la oferta:" in question.text
     assert question.result == result and question.offer == offer
     assert not am.Answer.objects.exists()
 
@@ -662,7 +667,7 @@ def test_a_technical_row_is_evaluated_per_renglon_with_the_quotes_of_the_pliego(
     result = results_of(runs[0])[row.number]
     # T-167: lo que el modelo concluye es la opinión; el resultado espera el informe técnico.
     assert result.opinion == "cumple" and result.doubt == "pendiente_informe_tecnico"
-    assert offer_cites(result)[0].text == "Renglón 1: resma de papel A4"
+    assert offer_cites(result)[0].text.startswith("Renglón 1: resma de papel A4")
     assert result.citations.filter(kind="pliego").count() == row.quotes.count()
 
 
@@ -716,8 +721,8 @@ def test_everything_the_model_was_asked_is_recorded(offer, operator_user, proced
     assert run.models_used["generation_batch"]["context_tokens"] == 32768
     assert run.prompt_versions == {
         "evaluacion": "evaluacion-v5", "contraste": "contraste-v2", "clausulas": "clausulas-v2",
-        "reglas": "reglas-v8"}
-    assert run.parameters["rules_version"] == "reglas-v8"
+        "reglas": "reglas-v9"}
+    assert run.parameters["rules_version"] == "reglas-v9"
     assert run.parameters["group_tokens"] == 20000
     assert run.norms["matrix_version"] == 1 and run.norms["authorization_date"]
     assert run.matrix_version == request.matrix_version and run.channel == "eval"
@@ -1063,7 +1068,7 @@ def test_a_contradicted_clause_turns_the_technical_cumple_into_no_cumple(
     result = results_of(runs[0])[row.number]
     cites = offer_cites(result)
     assert result.opinion == "no_cumple"
-    assert cites[0].text == "resma de papel A4, 100 unidades"
+    assert "resma de papel A4, 100 unidades" in cites[0].text
     assert cites[0].text == cites[0].reading.canonical_text[cites[0].char_start:cites[0].char_end]
     assert "Ofrece otra presentación" in result.explanation
 

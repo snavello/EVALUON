@@ -92,13 +92,14 @@ def test_the_portal_quote_cite_is_compared_only_by_its_price():
 @pytest.mark.decision_literal
 def test_the_per_line_quote_in_the_portal_is_cited_when_the_offer_does_not_bring_it(
         offer, procedure, portal):
-    """REQ-062, decisión 4: la cotización por renglón está en las tablas del Portal y la oferta
-    no la trae: «no determinado», «en el Portal», con una cita `portal` por cada fila de
-    `portal_quote` de esa oferta y el texto de la fila."""
+    """REQ-062, REQ-103 (ADR-0053, reemplaza la decisión 4 del ADR-0043): la cotización por
+    renglón está en las tablas del Portal con precio en todos los renglones y la oferta no la
+    trae: «cumple», con una cita `portal` por cada fila de `portal_quote` de esa oferta y el
+    texto de la fila."""
     quotes_of(portal, offer, procedure)
     pair = pair_of(PER_LINE, combine.Combined(outcome="sin_documento"))
-    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_en_portal"
-    assert pair.combined.doubt == "en_portal"
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
+    assert (pair.combined.outcome, pair.combined.doubt) == ("cumple", "")
     cites = pair.combined.portal
     assert [c["kind"] for c in cites] == ["cotizacion", "cotizacion"]
     assert cites[0]["text"] == "Renglón 1: precio 100.0000, cantidad 10.0000"
@@ -108,13 +109,13 @@ def test_the_per_line_quote_in_the_portal_is_cited_when_the_offer_does_not_bring
 
 @pytest.mark.decision_literal
 def test_the_per_line_quote_that_coincides_adds_the_portal_citations(offer, procedure, portal):
-    """REQ-062, decisión 4: la oferta trae el precio y coincide con el Portal: se suman las
-    citas del Portal y el resultado no cambia."""
+    """REQ-062, REQ-103: la oferta trae el precio, coincide con el Portal y el Portal tiene todos
+    los renglones: «cumple» con las citas del Portal sumadas a la de la oferta."""
     quotes_of(portal, offer, procedure)
     text = "Renglón 2: precio unitario $ 250,50"
     pair = pair_of(PER_LINE, combine.Combined(outcome="cumple", citations=[located(text)]),
                    datos=[text])
-    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cita_agregada"
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
     assert pair.combined.outcome == "cumple"
     assert len(pair.combined.portal) == 2
 
@@ -138,7 +139,7 @@ def test_a_named_line_still_cites_only_that_line(offer, procedure, portal):
     quotes_of(portal, offer, procedure)
     pair = pair_of("Cotizar el renglón 2.", combine.Combined(outcome="sin_documento"),
                    items=[2])
-    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_en_portal"
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
     assert [c["text"][:9] for c in pair.combined.portal] == ["Renglón 2"]
 
 
@@ -155,12 +156,14 @@ def test_without_quotes_in_the_portal_a_per_line_requirement_is_untouched(offer,
 @pytest.mark.decision_literal
 def test_the_guarantee_entered_in_the_portal_is_cited_when_the_offer_does_not_bring_it(
         offer, portal):
-    """REQ-062, decisión 4: «Paso 4 Ingreso de Garantía» pide un dato que el Portal tiene: se
-    cita la garantía del Portal aunque la oferta no la traiga."""
+    """REQ-062, REQ-103: «Paso 4 Ingreso de Garantía» pide que la garantía esté individualizada en
+    el Portal, que la tiene: «cumple» con la cita de la garantía del Portal aunque la oferta no
+    la traiga."""
     data = portal_data(portal, offer, amount="21750.00")
     assert portal_facts.kind_of(INDIVIDUALIZED) == "garantia"
     pair = pair_of(INDIVIDUALIZED, combine.Combined(outcome="sin_documento"))
-    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_en_portal"
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
+    assert pair.combined.outcome == "cumple"
     cite = pair.combined.portal[0]
     guarantee = data.guarantees.get()
     assert cite["kind"] == "garantia" and "21750.00" in cite["text"]
@@ -266,7 +269,7 @@ def test_the_opening_of_the_quote_lets_the_portal_recognize_a_cut_condition(offe
     assert rules.apply(pair, SimpleNamespace(offer=offer)) is None
     pair.text = SimpleNamespace(text=quote, opening=grounds.segment_heading(q, titles=False)
                                 + " " + quote)
-    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_en_portal"
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
     assert pair.combined.portal[0]["kind"] == "garantia"
 
 

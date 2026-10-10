@@ -39,6 +39,8 @@ from evaluon.tenders.services.procedures import regime_for
 NORM_UNIT_MAX_CHARS = 1500
 
 
+# Cuánto del punto del pliego (el tramo de la cita) se le muestra al modelo (T-235).
+POINT_MAX_CHARS = 1500
 # Cuánto del texto del tramo anterior a la cita se mira como encabezado (T-175).
 LEAD_MAX_CHARS = 200
 _PATH_SEPARATOR = " › "
@@ -89,6 +91,31 @@ class QuoteText:
     def scope_label(self):
         return QuoteScope(self.quote.scope).label if self.quote.scope else ""
 
+    def marked_point(self):
+        """El punto completo del pliego del que sale la cita, con la oración citada entre
+        `<<< >>>` (T-235; REQ-104), o `None` si el punto es la cita misma o si una circular
+        cambió el texto. Hasta `POINT_MAX_CHARS`, sin partir la cita."""
+        segment = getattr(self.quote, "segment", None)
+        cited = self.quote.text
+        if segment is None or self.text != cited:
+            return None
+        whole = segment.text or ""
+        start = self.quote.char_start - segment.char_start
+        if whole[start:start + len(cited)] != cited:
+            start = whole.find(cited)
+            if start < 0:
+                return None
+        before, after = whole[:start], whole[start + len(cited):]
+        if not before.strip() and not after.strip():
+            return None
+        budget = max(POINT_MAX_CHARS - len(cited), 0)
+        if len(before) + len(after) > budget:
+            keep_after = min(len(after), budget - min(len(before), budget // 2))
+            keep_before = min(len(before), budget - keep_after)
+            before = ("…" if keep_before < len(before) else "") + before[len(before) - keep_before:]
+            after = after[:keep_after] + ("…" if keep_after < len(after) else "")
+        return f"{before}<<<{cited}>>>{after}"
+
 
 @dataclass
 class RequirementText:
@@ -134,13 +161,19 @@ class RequirementText:
         if self.item is not None:
             head = f"Renglón {self.item} del pliego ({self.label})"
         lines = [head + ":"]
+        marked = False
         for q in self.quotes:
             tag = f" [{q.scope_label}]" if q.scope_label and len(self.quotes) > 1 else ""
-            lines.append(f"«{q.text}»{tag}")
+            point = q.marked_point()
+            marked = marked or point is not None
+            lines.append(f"«{point or q.text}»{tag}")
             if q.original:
                 lines.append(f"(Texto original, antes de la circular: «{q.original}»)")
             if q.suppressed:
                 lines.append("(Una circular posterior suprimió este texto.)")
+        if marked:
+            lines.append("(Es el punto completo del pliego: lo que exige el requisito es la "
+                         "oración entre <<< >>>; el resto es su contexto.)")
         return "\n".join(lines)
 
 

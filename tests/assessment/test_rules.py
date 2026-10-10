@@ -55,7 +55,7 @@ def test_an_unreadable_page_applies_to_an_undetermined_pair_and_stamps_the_versi
                      group)
     assert rules.apply(pair, CTX) == "ilegible_informe"
     facts = pair.combined.facts
-    assert facts["regla"] == "ilegible_informe" and facts["version_reglas"] == "reglas-v8"
+    assert facts["regla"] == "ilegible_informe" and facts["version_reglas"] == "reglas-v9"
     assert (facts["ilegible"]["documento"], facts["ilegible"]["pagina"]) == ("pagare.pdf", 2)
     assert "página 2" in pair.combined.question and "«pagare.pdf»" in pair.combined.question
 

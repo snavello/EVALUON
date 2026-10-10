@@ -1,5 +1,9 @@
-"""El Portal como fuente (REQ-062; plan 004, "El Portal como fuente"; ADR-0043; T-169).
-Decisión literal: «Debiste informar que el doc esta en el portal o que falta coincidencia».
+"""El Portal como fuente (REQ-062, REQ-103; plan 004, "El Portal como fuente"; ADR-0043,
+ADR-0053; T-169, T-233).
+Decisión literal del 2026-10-10 (ADR-0053, «Propone cumple»): el dato del Portal que coincide con
+lo que exige el pliego propone «cumple» con la cita del Portal; si difiere, «no cumple» o la
+diferencia. Reemplaza en eso al ADR-0043 («Debiste informar que el doc esta en el portal o que
+falta coincidencia»), que citaba el Portal y no decidía.
 Datos inventados (P4); el modelo es un guion y no hay red."""
 
 import socket
@@ -24,7 +28,7 @@ POLICY = ("Aseguradora Ejemplo S.A. garantiza, hasta la suma de $ 21.750, el cum
 AMOUNT = "hasta la suma de $ 21.750"
 
 
-def portal_data(portal, offer, *, amount="21750.00", cuit="30-00000000-0", total="90000.00"):
+def portal_data(portal, offer, *, amount="21750.00", cuit="30-00000000-0", total="435000.00"):
     """Los datos del Portal de la oferta con una garantía de mantenimiento."""
     data = pm.PortalOfferData.objects.create(
         offer=offer, cuit=cuit, currency="ARS", total=Decimal(total), item=portal)
@@ -53,33 +57,39 @@ def guarantee_result(procedure, runs):
 
 
 @pytest.mark.decision_literal
-def test_a_guarantee_in_the_portal_and_not_in_the_offer_is_reported_as_in_the_portal(
+def test_a_guarantee_that_is_five_percent_of_the_portal_total_proposes_cumple_with_the_portal_citation(
         offer, operator_user, procedure, model, portal):
-    """REQ-062, decisión 4: el dato está en el Portal y no en la oferta: «no determinado», «el
-    documento está en el Portal», con la cita `portal` de la fila de origen, sin pregunta."""
+    """REQ-103, ADR-0053: el pliego exige el 5 % del total cotizado, el Portal informa exactamente
+    el 5 % del total y la oferta no lo trae: «cumple» con la cita del Portal escrita por el
+    sistema, «Fuente: Portal», sin contraste del modelo y sin pregunta."""
     portal_data(portal, offer)
     _, runs = run_all(operator_user, procedure)
     result = guarantee_result(procedure, runs)
-    assert (result.outcome, result.doubt) == ("no_determinado", "en_portal")
+    assert (result.outcome, result.doubt) == ("cumple", "")
     cite = result.citations.get(kind="portal")
     assert cite.portal_kind == "garantia" and cite.portal_item_id == portal.pk
     assert "21750.00" in cite.text and "Póliza de caución" in cite.text
     assert cite.label == "Portal: acta de apertura"
-    assert result.facts["regla"] == "portal_en_portal"
-    assert result.facts["version_reglas"] == "reglas-v8"
+    assert result.facts["regla"] == "portal_cumple"
+    assert result.facts["version_reglas"] == "reglas-v9"
     assert result.facts["portal"]["tipo"] == "garantia"
     assert result.facts["portal"]["valor"] == "21750.00"
+    assert result.facts["comparacion"]["exigido"] == "21750.00"
+    assert result.facts["comparacion"]["estado"] == "coincide"
+    assert "Fuente: Portal" in result.explanation
     assert not result.citations.filter(kind="oferta").exists()
+    assert result.citations.filter(kind="pliego").exists()
     assert not result.questions.exists()
-    assert runs[0].counts["by_rule"]["portal_en_portal"] == 1
+    assert not [c for c in model.contrast_calls if "garantía" in c.user]
+    assert runs[0].counts["by_rule"]["portal_cumple"] == 1
     assert runs[0].counts["portal"] == {"citations": 1, "items": [portal.pk]}
 
 
 @pytest.mark.decision_literal
-def test_the_same_amount_in_both_adds_the_portal_citation_and_keeps_the_result(
+def test_the_same_amount_in_both_proposes_cumple_with_the_offer_and_the_portal_citations(
         with_policy, operator_user, procedure, model, portal):
-    """REQ-062, decisión 4: el Portal y la oferta dicen lo mismo: la cita del Portal se agrega
-    y el resultado de la oferta no cambia."""
+    """REQ-103: el Portal y la oferta dicen lo mismo y coincide con el pliego: «cumple» con la
+    cita de la oferta y la del Portal."""
     portal_data(portal, with_policy)
     reads_policy(model)
     _, runs = run_all(operator_user, procedure)
@@ -87,7 +97,7 @@ def test_the_same_amount_in_both_adds_the_portal_citation_and_keeps_the_result(
     assert result.outcome == "cumple" and result.doubt == ""
     assert result.citations.filter(kind="oferta").exists()
     assert result.citations.get(kind="portal").portal_item_id == portal.pk
-    assert result.facts["regla"] == "portal_cita_agregada"
+    assert result.facts["regla"] == "portal_cumple"
     assert result.facts["portal"]["valor"] == "21750.00"
 
 
@@ -125,7 +135,8 @@ def test_without_portal_data_for_the_offer_nothing_is_said(
     """REQ-062: si el Portal no tiene el dato de esa oferta, el resultado no cambia."""
     _, runs = run_all(operator_user, procedure)
     result = guarantee_result(procedure, runs)
-    assert result.doubt != "en_portal" and not result.citations.filter(kind="portal").exists()
+    assert result.outcome != "cumple" or result.facts.get("regla") != "portal_cumple"
+    assert not result.citations.filter(kind="portal").exists()
 
 
 def test_data_that_cannot_be_located_is_not_compared(
@@ -136,18 +147,21 @@ def test_data_that_cannot_be_located_is_not_compared(
     reads_policy(model, datos="la suma de $ 99.999")
     _, runs = run_all(operator_user, procedure)
     result = guarantee_result(procedure, runs)
-    assert result.outcome == "cumple" and result.doubt == ""
-    assert result.facts["regla"] == "portal_cita_agregada"
+    # El Portal informa 25000.00 y el pliego exige el 5 % de 435000.00: no coinciden y la oferta
+    # concluyó «cumple» con otro texto: la Comisión verifica cuál rige.
+    assert (result.outcome, result.doubt) == ("no_determinado", "falta_coincidencia")
+    assert result.facts["regla"] == "portal_falta_coincidencia"
     assert result.citations.filter(kind="portal").count() == 1
     assert any(a["type"] == ANOMALY_NOT_FOUND for a in runs[0].anomalies)
 
 
-def test_a_portal_citation_does_not_enable_a_conclusion(
+def test_a_cumple_by_the_portal_never_comes_without_the_portal_citation(
         offer, operator_user, procedure, model, portal):
-    """P3, REQ-062: con la garantía solo en el Portal, el resultado no es «cumple»."""
+    """P3, REQ-103: un «cumple» por la regla del Portal siempre lleva la cita del Portal."""
     portal_data(portal, offer)
     _, runs = run_all(operator_user, procedure)
-    assert guarantee_result(procedure, runs).outcome == "no_determinado"
+    result = guarantee_result(procedure, runs)
+    assert result.outcome == "cumple" and result.citations.filter(kind="portal").count() == 1
 
 
 def test_the_portal_citation_text_is_the_row_as_it_is(
@@ -172,7 +186,7 @@ def test_the_evaluation_makes_no_network_call(
 
     monkeypatch.setattr(socket.socket, "connect", refuse)
     _, runs = run_all(operator_user, procedure)
-    assert guarantee_result(procedure, runs).doubt == "en_portal"
+    assert guarantee_result(procedure, runs).outcome == "cumple"
 
 
 # --- La regla sobre un par armado a mano: CUIT, total y cotización --------------------------------
@@ -211,18 +225,19 @@ def test_the_same_cuit_in_another_format_coincides(offer, portal):
     pair = pair_of("Informar el CUIT del oferente.", combine.Combined(
         outcome="cumple", citations=[located("CUIT 30000000000")]),
         datos=["CUIT 30000000000"])
-    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cita_agregada"
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
     assert pair.combined.outcome == "cumple"
 
 
 def test_the_total_of_the_offer_comes_from_the_portal_row(offer, portal):
-    """REQ-062: el total de la oferta se cita desde `portal_offer_data`, y un total distinto
-    en la oferta es falta de coincidencia."""
+    """REQ-062, REQ-103: el total de la oferta se cita desde `portal_offer_data` y, cargado,
+    cumple; un total distinto en la oferta es falta de coincidencia."""
     portal_data(portal, offer, total="90000.00")
     ctx = SimpleNamespace(offer=offer)
     only = pair_of("Indicar el precio total de la oferta.",
                    combine.Combined(outcome="sin_documento"))
-    assert rules.apply(only, ctx) == "portal_en_portal"
+    assert rules.apply(only, ctx) == "portal_cumple"
+    assert only.combined.outcome == "cumple"
     assert "90000.00" in only.combined.portal[0]["text"]
     other = pair_of("Indicar el precio total de la oferta.", combine.Combined(
         outcome="cumple", citations=[located("Total: $ 80.000,00")]),
@@ -240,10 +255,203 @@ def test_a_quote_per_line_comes_from_the_portal_quote(offer, procedure, portal):
                                   quantity=Decimal("10.0000"))
     pair = pair_of("Cotizar el renglón 2.", combine.Combined(outcome="sin_documento"),
                    items=[2])
-    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_en_portal"
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
     cite = pair.combined.portal[0]
     assert cite["kind"] == "cotizacion" and cite["label"] == "Portal: cuadro comparativo"
     assert "120.5000" in cite["text"] and "10.0000" in cite["text"]
+
+
+# --- Qué exige el pliego, por clase de dato (ADR-0053; T-233) --------------------------------------
+
+GUARANTEE_REQ = ("Constituir una garantía de mantenimiento de la oferta del cinco por ciento "
+                 "(5 %) del monto cotizado.")
+CTX_TOTAL = "435000.00"
+PER_LINE_REQ = ("El oferente deberá cotizar el valor unitario de cada uno de los renglones "
+                "ofrecidos.")
+
+
+@pytest.mark.decision_literal
+@pytest.mark.parametrize("amount, regla, outcome", [
+    ("21750.00", "portal_cumple", "cumple"),        # exactamente el 5 % del total
+    ("21750.01", "portal_cumple", "cumple"),        # un centavo de diferencia: tolerancia
+    ("21749.99", "portal_cumple", "cumple"),
+    ("21750.02", "portal_no_cumple", "no_cumple"),  # dos centavos: ya difiere
+    ("20000.00", "portal_no_cumple", "no_cumple"),  # una diferencia mayor
+])
+def test_the_guarantee_is_compared_with_the_percentage_of_the_portal_total(
+        offer, portal, amount, regla, outcome):
+    """REQ-103, ADR-0053: garantía contra el porcentaje del total del Portal, con la tolerancia de
+    un centavo: coincide, «cumple»; no coincide, «no cumple» con la diferencia y la cita del
+    Portal."""
+    portal_data(portal, offer, amount=amount, total=CTX_TOTAL)
+    pair = pair_of(GUARANTEE_REQ, combine.Combined(outcome="sin_documento"))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == regla
+    assert pair.combined.outcome == outcome and pair.combined.doubt == ""
+    assert pair.combined.portal and pair.combined.portal[0]["kind"] == "garantia"
+    assert pair.combined.facts["comparacion"]["exigido"] == "21750.00"
+    assert pair.combined.facts["version_reglas"] == "reglas-v9"
+    if outcome == "no_cumple":
+        assert amount in pair.combined.explanation and "21750.00" in pair.combined.explanation
+        assert "diferencia" in pair.combined.explanation
+    else:
+        assert pair.combined.explanation.startswith("Fuente: Portal")
+    assert pair.combined.question == ""
+
+
+def test_a_guarantee_that_adds_up_in_two_instruments_coincides(offer, portal):
+    """REQ-103: la garantía en dos instrumentos que suman el 5 % del total coincide."""
+    data = portal_data(portal, offer, amount="10000.00", total=CTX_TOTAL)
+    pm.PortalGuarantee.objects.create(
+        offer_data=data, guarantee_type="Garantía de mantenimiento de oferta",
+        guarantee_form="Pagaré", amount=Decimal("11750.00"), item=portal)
+    pair = pair_of(GUARANTEE_REQ, combine.Combined(outcome="sin_documento"))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
+
+
+@pytest.mark.parametrize("text", [
+    "Constituir una garantía de mantenimiento de la oferta.",
+    "La garantía de mantenimiento de la oferta será del 5 % y del 10 % según el caso.",
+])
+def test_a_guarantee_without_one_readable_amount_is_not_comparable(offer, portal, text):
+    """REQ-103, ADR-0053 (regla 3): sin un valor exigido que se pueda leer no se compara:
+    «no determinado», «falta coincidencia», con el dato del Portal a la vista y sin «cumple»."""
+    portal_data(portal, offer)
+    pair = pair_of(text, combine.Combined(outcome="sin_documento"))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_falta_coincidencia"
+    assert (pair.combined.outcome, pair.combined.doubt) == ("no_determinado", "falta_coincidencia")
+    assert "21750.00" in pair.combined.explanation and pair.combined.portal
+
+
+def test_a_guarantee_without_the_portal_total_is_not_comparable(offer, portal):
+    """REQ-103: el porcentaje se calcula sobre el total del Portal; sin total no se compara."""
+    data = portal_data(portal, offer)
+    pm.PortalOfferData.objects.filter(pk=data.pk).update(total=None)
+    pair = pair_of(GUARANTEE_REQ, combine.Combined(outcome="sin_documento"))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_falta_coincidencia"
+    assert pair.combined.outcome == "no_determinado"
+
+
+def test_a_guarantee_with_a_fixed_amount_is_compared_with_that_amount(offer, portal):
+    """REQ-103: el pliego puede fijar un monto en lugar de un porcentaje."""
+    portal_data(portal, offer, amount="21750.00")
+    exact = pair_of("Constituir una garantía de oferta por $ 21.750,00.",
+                    combine.Combined(outcome="sin_documento"))
+    assert rules.apply(exact, SimpleNamespace(offer=offer)) == "portal_cumple"
+    other = pair_of("Constituir una garantía de oferta por $ 30.000,00.",
+                    combine.Combined(outcome="sin_documento"))
+    assert rules.apply(other, SimpleNamespace(offer=offer)) == "portal_no_cumple"
+
+
+@pytest.mark.parametrize("word", ["cinco por ciento", "5%", "5 %", "cinco (5) por ciento",
+                                  "5,0 por ciento"])
+def test_the_percentage_is_read_in_words_and_figures(word):
+    """REQ-103: el porcentaje que fija el requisito se lee de «cinco por ciento», «5 %»…"""
+    assert portal_facts.required_percent(f"garantía de oferta del {word} del monto") == 5
+
+
+def test_two_different_percentages_are_not_read():
+    """REQ-103: con dos porcentajes distintos no se supone ninguno."""
+    assert portal_facts.required_percent("el 5 % o el 10 % del monto") is None
+
+
+def line_quotes(offer, procedure, portal, numbers=(1, 2, 3), quoted=(1, 2, 3)):
+    """Renglones del procedimiento y los que el Portal tiene cotizados para la oferta."""
+    portal_data(portal, offer)
+    for number in numbers:
+        line = pm.PortalLine.objects.create(procedure=procedure, number=number,
+                                            description="x", item=portal)
+        if number in quoted:
+            pm.PortalQuote.objects.create(offer=offer, line=line, price=Decimal("100.0000"),
+                                          quantity=Decimal("10.0000"))
+
+
+@pytest.mark.decision_literal
+def test_the_per_line_quote_with_every_line_quoted_proposes_cumple(offer, procedure, portal):
+    """REQ-103, ADR-0053: todos los renglones del procedimiento tienen precio en el Portal:
+    «cumple» con una cita del Portal por renglón."""
+    line_quotes(offer, procedure, portal)
+    pair = pair_of(PER_LINE_REQ, combine.Combined(outcome="sin_documento"))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
+    assert pair.combined.outcome == "cumple"
+    assert [c["kind"] for c in pair.combined.portal] == ["cotizacion"] * 3
+
+
+@pytest.mark.decision_literal
+def test_the_per_line_quote_with_missing_lines_proposes_no_cumple_with_the_difference(
+        offer, procedure, portal):
+    """REQ-103, ADR-0053: faltan los precios de algunos renglones: «no cumple» y dice cuáles."""
+    line_quotes(offer, procedure, portal, quoted=(1,))
+    pair = pair_of(PER_LINE_REQ, combine.Combined(outcome="sin_documento"))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_no_cumple"
+    assert pair.combined.outcome == "no_cumple"
+    assert "2, 3" in pair.combined.explanation
+    assert pair.combined.facts["comparacion"]["diferencia"] == "2, 3"
+
+
+@pytest.mark.decision_literal
+@pytest.mark.parametrize("cuit, regla, outcome", [
+    ("30-00000000-0", "portal_cumple", "cumple"),
+    ("30-0000000", "portal_no_cumple", "no_cumple"),   # le faltan dígitos
+])
+def test_the_cuit_needs_eleven_digits(offer, portal, cuit, regla, outcome):
+    """REQ-103, ADR-0053: el CUIT del Portal cumple con los once dígitos; con menos no cumple."""
+    portal_data(portal, offer, cuit=cuit)
+    pair = pair_of("Informar el CUIT del oferente.", combine.Combined(outcome="sin_documento"))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == regla
+    assert pair.combined.outcome == outcome and pair.combined.portal[0]["kind"] == "cuit"
+
+
+@pytest.mark.parametrize("text, currency, regla", [
+    ("Indicar el precio total de la oferta.", "ARS", "portal_cumple"),
+    ("Indicar el precio total de la oferta en pesos.", "ARS", "portal_cumple"),
+    ("Indicar el precio total de la oferta en pesos.", "USD", "portal_no_cumple"),
+    ("Indicar el precio total de la oferta en dólares.", "USD", "portal_cumple"),
+    ("Indicar el precio total de la oferta en pesos.", "", "portal_falta_coincidencia"),
+])
+def test_the_total_is_loaded_and_has_the_currency_the_requirement_fixes(
+        offer, portal, text, currency, regla):
+    """REQ-103, ADR-0053: el total cargado cumple; si el requisito fija la moneda, tiene que
+    coincidir; sin moneda legible en el Portal no se compara."""
+    portal_data(portal, offer, total="90000.00")
+    pm.PortalOfferData.objects.filter(offer=offer).update(currency=currency)
+    pair = pair_of(text, combine.Combined(outcome="sin_documento"))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == regla
+
+
+# --- Texto de la oferta y Portal juntos ---------------------------------------------------------
+
+
+def test_an_offer_that_says_no_cumple_against_a_portal_that_coincides_is_a_lack_of_coincidence(
+        offer, portal):
+    """REQ-103, ADR-0053 (regla 4): si el Portal coincide con el pliego y el texto de la oferta
+    concluyó «no cumple», las fuentes se contradicen: nunca se pisa con «cumple»."""
+    portal_data(portal, offer)
+    pair = pair_of(GUARANTEE_REQ, combine.Combined(
+        outcome="no_cumple", citations=[located("la garantía no se acompaña")]))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_falta_coincidencia"
+    assert pair.combined.outcome == "no_determinado"
+    assert pair.combined.citations and pair.combined.portal
+
+
+def test_an_offer_that_says_cumple_against_a_portal_that_differs_is_a_lack_of_coincidence(
+        offer, portal):
+    """REQ-103: el Portal difiere del pliego y la oferta concluyó «cumple» con otro texto: la
+    Comisión verifica cuál rige; ningún «cumple» con un dato que no coincide."""
+    portal_data(portal, offer, amount="20000.00")
+    pair = pair_of(GUARANTEE_REQ, combine.Combined(
+        outcome="cumple", citations=[located("garantiza hasta $ 21.750")]))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_falta_coincidencia"
+    assert pair.combined.outcome == "no_determinado"
+
+
+def test_a_portal_citation_the_model_already_brought_is_not_repeated(offer, portal):
+    """REQ-103: la cita del Portal que el modelo ya trajo con su alias no se duplica."""
+    portal_data(portal, offer)
+    guarantee = portal_facts.read(offer, "garantia", GUARANTEE_REQ, [])[0]
+    pair = pair_of(GUARANTEE_REQ, combine.Combined(outcome="cumple",
+                                                   portal=[guarantee.citation()]))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
+    assert len(pair.combined.portal) == 1
 
 
 # --- Catálogo, valores e instrucción ------------------------------------------------------------
