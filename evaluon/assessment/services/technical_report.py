@@ -86,9 +86,16 @@ def reports_of(offer):
                 .order_by("loaded_at", "id"))
 
 
-def reading_reports(offer):
-    """Los informes de la oferta que todavía se están leyendo (o no se pudieron leer)."""
-    return [d for d in reports_of(offer)
+def reports_by_offer(offers):
+    """`{id de la oferta: sus informes técnicos}` con una sola consulta (T-223)."""
+    found = offers_service.documents_of_kind(offers, DocumentKind.INFORME_TECNICO)
+    return {offer.pk: found.get(offer.pk, []) for offer in offers}
+
+
+def reading_reports(offer, reports=None):
+    """Los informes de la oferta que todavía se están leyendo (o no se pudieron leer).
+    `reports` son los de `reports_of` si quien llama ya los tiene."""
+    return [d for d in (reports_of(offer) if reports is None else reports)
             if offers_service.document_row(d).state != offers_service.STATE_READ]
 
 

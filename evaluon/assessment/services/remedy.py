@@ -124,14 +124,30 @@ def reverted_for(result_ids):
 _LOOK_UP = object()
 
 
-def state(result, *, declined=_LOOK_UP):
+def path_decisions_for(result_ids):
+    """`{resultado: [decisiones del recorrido]}` (pedir la subsanación y subsanar, de la más
+    vieja a la más nueva) de varios resultados, en una sola consulta (T-223)."""
+    found = {}
+    for decision in (Decision.objects.filter(
+            result__in=list(result_ids),
+            action__in=(Action.PEDIR_SUBSANACION, Action.SUBSANAR))
+            .select_related("document", "user").order_by("at", "pk")):
+        found.setdefault(decision.result_id, []).append(decision)
+    return found
+
+
+def state(result, *, declined=_LOOK_UP, applicable=None, decisions=None):
     """El estado de la subsanación de `result` (sin comprobar roles: lo usa la pantalla).
-    `declined` es el hecho de «no pedir» si quien llama ya lo buscó con `declined_for`."""
-    is_current = evaluate.current_result(result.offer, result.requirement).pk == result.pk
-    applicable = is_current and is_remediable(result)
-    decisions = list(Decision.objects.filter(
-        result=result, action__in=(Action.PEDIR_SUBSANACION, Action.SUBSANAR))
-        .select_related("document", "user").order_by("at", "pk"))
+    `declined` es el hecho de «no pedir» si quien llama ya lo buscó con `declined_for`.
+    `applicable` (resultado vigente y subsanable) y `decisions` (`path_decisions_for`) los pasa
+    quien ya los conoce, para no consultar por cada par."""
+    if applicable is None:
+        is_current = evaluate.current_result(result.offer, result.requirement).pk == result.pk
+        applicable = is_current and is_remediable(result)
+    if decisions is None:
+        decisions = list(Decision.objects.filter(
+            result=result, action__in=(Action.PEDIR_SUBSANACION, Action.SUBSANAR))
+            .select_related("document", "user").order_by("at", "pk"))
     requested = next((d for d in decisions if d.action == Action.PEDIR_SUBSANACION), None)
     added = next((d for d in reversed(decisions) if d.action == Action.SUBSANAR), None)
     reading = ""

@@ -31,6 +31,7 @@ from evaluon.journey import memo
 from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.journey.stages import base as stage_base
 from evaluon.journey.stages import evaluacion as evaluation_stage
+from evaluon.journey.stages import stage_of
 from evaluon.journey.temas import s4_propuesta_acciones as acciones
 from evaluon.journey.window import plain_reason
 from evaluon.tenders.models import RequirementClass, RequirementQuote
@@ -311,7 +312,7 @@ def _groups(rows):
 
 def _progress(user, procedure):
     """El avance del pedido en curso o la falla del último, desde la etapa de la 013."""
-    stage = evaluation_stage.compute(user, procedure)
+    stage = stage_of(evaluation_stage, user, procedure)
     return {
         "running": stage.state == stage_base.EN_CURSO,
         "failed": stage.state == stage_base.CON_ERROR,

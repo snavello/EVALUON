@@ -17,7 +17,7 @@ escriben nada, salvo la marca de aviso visto.
 
 from dataclasses import dataclass, field
 
-from django.db.models import F
+from django.db.models import F, Prefetch
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
@@ -41,6 +41,7 @@ from evaluon.tenders.models import (
     RequirementClass,
     RequirementOrigin,
     RequirementQuote,
+    RequirementSource,
     RequirementState,
     Segment,
     SourceEffect,
@@ -293,16 +294,31 @@ def _original_row(pages, source, procedure_id):
                        text=reading.canonical_text[start:end])
 
 
+def with_citations(requirements):
+    """`requirements` (un queryset) con sus citas y fuentes cargadas en dos consultas más, en vez
+    de dos por requisito (T-223). `quote_rows` las usa si están."""
+    return requirements.prefetch_related(
+        Prefetch("quotes", queryset=RequirementQuote.objects.select_related(
+            "segment__reading__document").order_by("order"), to_attr="loaded_quotes"),
+        Prefetch("sources", queryset=RequirementSource.objects.select_related(
+            "segment__reading__document", "original_segment__reading__document"),
+            to_attr="loaded_sources"))
+
+
 def quote_rows(requirement, pages):
     """Las citas del requisito con lo que las cambia. Una circular que cambia varias citas
     del mismo requisito deja una fuente por cita; el cambio se muestra una vez, en la primera
     cita que alcanza, y las demás lo indican (`covered`)."""
     procedure_id = requirement.version.procedure_id
-    quotes = list(requirement.quotes.select_related(
-        "segment__reading__document").order_by("order"))
+    # Con `with_citations` (T-223) las citas y fuentes ya vienen cargadas de una vez.
+    quotes = getattr(requirement, "loaded_quotes", None)
+    if quotes is None:
+        quotes = list(requirement.quotes.select_related(
+            "segment__reading__document").order_by("order"))
+    loaded_sources = getattr(requirement, "loaded_sources", None)
     order_of = {quote.pk: index for index, quote in enumerate(quotes)}
     sources = sorted(
-        requirement.sources.select_related(
+        loaded_sources if loaded_sources is not None else requirement.sources.select_related(
             "segment__reading__document", "original_segment__reading__document"),
         key=lambda s: (s.issued_on, order_of.get(s.quote_id, -1), s.pk))
     shown, by_quote, loose, covered = {}, {}, [], set()
@@ -407,6 +423,15 @@ def _review_notes(run):
     return notes
 
 
+def quotes_first(requirement):
+    """La primera cita del requisito (la cargada de antemano, si está)."""
+    loaded = getattr(requirement, "loaded_quotes", None)
+    if loaded is not None:
+        return loaded[0]
+    return requirement.quotes.select_related("segment__reading__document").order_by(
+        "order").first()
+
+
 def requirement_row(requirement, pages, review=None):
     """Una fila de la matriz: sus citas y, si es o fue una sugerencia, su motivo, el indicio y
     el respaldo normativo (REQ-035, REQ-036)."""
@@ -414,8 +439,7 @@ def requirement_row(requirement, pages, review=None):
     row = RequirementRow(requirement=requirement, quotes=quotes, sources=loose)
     row.review_notes = (review or {}).get(requirement.number, [])
     if requirement.origin == RequirementOrigin.CIRCULAR and quotes:
-        document = requirement.quotes.select_related("segment__reading__document").order_by(
-            "order").first().segment.reading.document
+        document = quotes_first(requirement).segment.reading.document
         row.added_by = AddedBy(document_title=document.title, issued_on=document.issued_on)
     if requirement.doubt_reason:
         row.doubt_phrase = DOUBT_PHRASES.get(requirement.doubt_reason, "")
@@ -447,7 +471,7 @@ def matrix_page(user, version_id, *, channel=Channel.SCREEN):
         "procedure", "run", "validated_by").get(pk=version_id)
     run = version.run
     pages = Pages()
-    every = list(version.requirements.order_by("number"))
+    every = list(with_citations(version.requirements.order_by("number")))
     review = _review_notes(run)
     suggested = [r for r in every if r.state == RequirementState.SUGERIDO]
     requirements = [r for r in every if r.state not in (RequirementState.QUITADO,

@@ -73,6 +73,21 @@ def current_documents(offer):
             .order_by("loaded_at", "id"))
 
 
+def current_documents_by_offer(offers, kind):
+    """`{id de la oferta: sus documentos vigentes de ese tipo, en el orden de carga}` con una
+    sola consulta (T-223)."""
+    last = (DocumentChange.objects.filter(document=OuterRef("pk")).order_by("-id")
+            .values("action")[:1])
+    found = {}
+    for document in (Document.objects.filter(offer__in=list(offers), kind=kind)
+                     .annotate(last_action=Subquery(last))
+                     .filter(Q(last_action__isnull=True)
+                             | Q(last_action=DocumentChangeAction.RESTITUIR))
+                     .select_related("loaded_by").order_by("loaded_at", "id")):
+        found.setdefault(document.offer_id, []).append(document)
+    return found
+
+
 def withdrawn_documents(offer):
     """Los documentos retirados de la oferta (se pueden restituir)."""
     return (_with_last_action(offer).filter(last_action=DocumentChangeAction.RETIRAR)

@@ -58,18 +58,29 @@ def sheets_of(offer):
                 .order_by("loaded_at", "id"))
 
 
+def sheets_by_offer(offers):
+    """`{id de la oferta: sus hojas de compliance}` con una sola consulta (T-223)."""
+    found = offers_service.documents_of_kind(offers, DocumentKind.COMPLIANCE)
+    return {offer.pk: found.get(offer.pk, []) for offer in offers}
+
+
 def external_results(offer):
     """Los resultados vigentes de la oferta que rigen como «falta la hoja de compliance»
     (no determinado `externo`, no rechazados): lo que la hoja deja por resolver."""
-    requirements = {r.requirement_id: r.requirement for r in
-                    Result.objects.filter(offer=offer).select_related("requirement")}
-    found = []
-    for requirement in requirements.values():
-        result = evaluate.current_result(offer, requirement)
-        if (result.outcome == Outcome.NO_DETERMINADO and result.doubt == Doubt.EXTERNO
-                and review.effective_outcome(result) == Outcome.NO_DETERMINADO):
-            found.append(result)
-    return sorted(found, key=lambda r: r.requirement.number)
+    return external_results_by_offer([offer])[offer.pk]
+
+
+def external_results_by_offer(offers):
+    """`{id de la oferta: external_results(oferta)}` con dos consultas en total (T-223)."""
+    candidates = [r for r in evaluate.current_results(offers).values()
+                  if r.outcome == Outcome.NO_DETERMINADO and r.doubt == Doubt.EXTERNO]
+    decisions = review.current_decisions(candidates)
+    found = {offer.pk: [] for offer in offers}
+    for r in candidates:
+        if review.outcome_from(r, decisions.get(r.pk)) == Outcome.NO_DETERMINADO:
+            found[r.offer_id].append(r)
+    return {pk: sorted(rows, key=lambda r: r.requirement.number)
+            for pk, rows in found.items()}
 
 
 def _offer(offer_id):

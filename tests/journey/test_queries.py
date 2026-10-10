@@ -10,7 +10,11 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
+from evaluon.assessment import models as am
 from evaluon.assessment.services import matrix as matrix_service
+from evaluon.audit import services as audit
+from evaluon.audit.models import Channel, EventType
+from evaluon.audit.models import Outcome as EventOutcome
 from evaluon.journey import memo, sections
 from evaluon.tenders.models import JobStatus
 from tests.accounts.test_session import TEST_PASSWORD
@@ -18,12 +22,10 @@ from tests.accounts.test_session import TEST_PASSWORD
 pytestmark = pytest.mark.django_db
 
 # Máximo de consultas por pestaña con el caso chico (dos ofertas, un requisito firme): lo medido
-# el 2026-10-08 sobre main con T-205, T-210 y T-211 integrados (procedimiento 145, pliego 175,
-# ofertas 142, evaluación 145, normativas 136) más un 15 % de margen, redondeado. Los topes de
-# T-221 se habían quedado sin margen. Se bajan con T-223 (consultas repetidas en los servicios).
-# Subirlo exige explicar por qué una pestaña consulta más.
-LIMITS = {"procedimiento": 167, "pliego": 201, "ofertas": 163, "evaluacion": 167,
-          "normativas": 156}
+# el 2026-10-10 con T-223 (procedimiento 106, pliego 120, ofertas 112, evaluación 100,
+# normativas 98) más un 15 %, redondeado. Subirlo exige explicar por qué una pestaña consulta más.
+LIMITS = {"procedimiento": 122, "pliego": 138, "ofertas": 129, "evaluacion": 115,
+          "normativas": 113}
 
 
 @pytest.fixture
@@ -75,3 +77,89 @@ def test_the_memo_does_not_survive_the_request(procedure, evaluated, operator_us
         assert memo.matrix_page(operator_user, procedure.pk) is memo.matrix_page(
             operator_user, procedure.pk)
     assert first.sections
+
+
+# --- Un caso con muchos requisitos (T-223) ------------------------------------------------------
+# Umbral escrito antes de medir: con 3 ofertas y 50 requisitos o más, cada pestaña hace menos de
+# 150 consultas, y con el doble de requisitos hace como máximo un 10 % más.
+SCALE_LIMIT = 150
+SCALE_GROWTH = 1.10
+
+
+def make_case(procedure, operator_user, simulate):
+    """Tres ofertas evaluadas (una evaluación terminada de cada una); devuelve sus evaluaciones
+    por oferta."""
+    from tests.offers.conftest import make_offer
+    offers = list(procedure.offers.order_by("number"))
+    while len(offers) < 3:
+        offers.append(make_offer(procedure, operator_user, f"Oferente {len(offers) + 1}", {
+            "oferta.pdf": ["Declaro estar habilitado para contratar con el Estado."]}))
+    job = simulate(offers, JobStatus.DONE, done=3)
+    return offers, {run.offer_id: run for run in job.runs}
+
+
+def grow_case(procedure, operator_user, offers, runs, total):
+    """Deja `total` requisitos firmes (copias de los del caso chico, con sus citas) y cada par
+    evaluado: cumple, falta la hoja de compliance, falta el documento o no cumple; algunos con
+    decisión de la Comisión y algunas preguntas. Todo inventado (P4)."""
+    version = procedure.matrix_versions.get(number=1)
+    base = list(version.requirements.order_by("number"))
+    number = max(r.number for r in base)
+    # Las filas de una matriz validada son de solo inserción en un borrador (disparador de la
+    # base): para armar el caso grande se las deja pasar mientras dura esta carga.
+    with connection.cursor() as cursor:
+        cursor.execute("SET LOCAL session_replication_role = replica")
+    while version.requirements.count() < total:
+        source = base[number % len(base)]
+        quotes = list(source.quotes.all())
+        number += 1
+        source.pk, source.number, source.previous = None, number, None
+        source.restored_from = None
+        source.save()
+        for quote in quotes:
+            quote.pk, quote.requirement = None, source
+            quote.save()
+    with connection.cursor() as cursor:
+        cursor.execute("SET LOCAL session_replication_role = origin")
+    event = audit.record(EventType.EVAL_DECISION, outcome=EventOutcome.OK,
+                         channel=Channel.SCREEN, user=operator_user)
+    kinds = [(am.Outcome.CUMPLE, ""), (am.Outcome.NO_DETERMINADO, am.Doubt.EXTERNO),
+             (am.Outcome.SIN_DOCUMENTO, ""), (am.Outcome.NO_CUMPLE, "")]
+    for index, requirement in enumerate(version.requirements.order_by("number")):
+        for offer in offers:
+            if am.Result.objects.filter(offer=offer, requirement=requirement).exists():
+                continue
+            outcome, doubt = kinds[(index + offer.pk) % len(kinds)]
+            result = am.Result.objects.create(
+                run=runs[offer.pk], offer=offer, requirement=requirement, outcome=outcome,
+                doubt=doubt, exigence=am.Exigence.CONDICION, explanation="Inventado.")
+            if index % 3 == 0:
+                am.Decision.objects.create(result=result, action=am.Action.CONFIRMAR,
+                                           user=operator_user, event=event)
+            if outcome == am.Outcome.NO_DETERMINADO and index % 2 == 0:
+                am.Question.objects.create(
+                    procedure=procedure, requirement=requirement, offer=offer, result=result,
+                    text="¿Está vigente la constancia?", reason="externo")
+
+
+def count_queries(client, procedure, slug):
+    client.get(reverse(f"expedientes:{slug}", args=[procedure.pk]))  # calienta cachés
+    with CaptureQueriesContext(connection) as queries:
+        response = client.get(reverse(f"expedientes:{slug}", args=[procedure.pk]))
+    assert response.status_code == 200
+    return len(queries)
+
+
+@pytest.mark.parametrize("slug", sorted(LIMITS))
+def test_a_big_case_stays_under_the_limit_and_does_not_grow_with_requirements(
+        client, procedure, operator_user, simulate, slug):
+    """REQ-100: con 3 ofertas y 50 requisitos cada pestaña hace menos de 150 consultas; con el
+    doble de requisitos, como máximo un 10 % más (no hay consultas por requisito ni por par)."""
+    log_in(client, operator_user)
+    offers, runs = make_case(procedure, operator_user, simulate)
+    grow_case(procedure, operator_user, offers, runs, 50)
+    small = count_queries(client, procedure, slug)
+    assert small < SCALE_LIMIT, f"{slug}: {small} consultas con 50 requisitos"
+    grow_case(procedure, operator_user, offers, runs, 100)
+    big = count_queries(client, procedure, slug)
+    assert big <= small * SCALE_GROWTH, f"{slug}: {small} con 50 y {big} con 100 requisitos"

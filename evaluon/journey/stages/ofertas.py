@@ -25,7 +25,7 @@ from evaluon.journey.progress import progress_of
 from evaluon.journey.stages import base
 from evaluon.offers.models import (
     Document, DocumentKind, EntryState, Reading, Sheet, SheetChannel)
-from evaluon.offers.services.offers import own_documents
+from evaluon.offers.services.offers import offer_ids_with_documents
 from evaluon.tenders.models import Job, JobKind, JobStatus
 from evaluon.tenders.services.validation import latest_validated
 
@@ -76,11 +76,13 @@ def _pending_sheets(offers):
     """Por oferta, la última ficha de pantalla con filas `propuesto`: `[(oferta, ficha,
     filas)]`, en el orden de las ofertas."""
     rows = []
+    latest = {}  # una consulta para todas las ofertas (T-223): la ficha de mayor número
+    for sheet in (Sheet.objects.filter(offer__in=list(offers), channel=SheetChannel.SCREEN)
+                  .order_by("number", "pk").annotate(
+                      proposed=Count("entries", filter=Q(entries__state=EntryState.PROPUESTO)))):
+        latest[sheet.offer_id] = sheet
     for offer in offers:
-        sheet = (Sheet.objects.filter(offer=offer, channel=SheetChannel.SCREEN)
-                 .order_by("-number").annotate(
-                     proposed=Count("entries", filter=Q(entries__state=EntryState.PROPUESTO)))
-                 .first())
+        sheet = latest.get(offer.pk)
         if sheet is not None and sheet.proposed:
             rows.append((offer, sheet, sheet.proposed))
     return rows
@@ -91,7 +93,8 @@ def compute(user, procedure):
     common = {"key": KEY, "label": LABEL, "view_url": view_url}
 
     offers = list(procedure.offers.order_by("number"))
-    with_documents = [o for o in offers if own_documents(o).exists()]
+    having = offer_ids_with_documents(offers)
+    with_documents = [o for o in offers if o.pk in having]
     documents = list(Document.objects.filter(offer__in=with_documents)
                      .exclude(kind=DocumentKind.INFORME_TECNICO)
                      .annotate(has_reading=Exists(Reading.objects.filter(document=OuterRef("pk")))))
@@ -102,8 +105,10 @@ def compute(user, procedure):
     pending = sum(count for _, _, count in pending_sheets)
     suggestions = 0
     if all_read and latest_validated(procedure) is not None:
-        suggestions = sum(1 for o in with_documents
-                          if not o.sheets.filter(channel=SheetChannel.SCREEN).exists())
+        with_sheet = set(Sheet.objects.filter(offer__in=with_documents,
+                                              channel=SheetChannel.SCREEN)
+                         .values_list("offer_id", flat=True))
+        suggestions = sum(1 for o in with_documents if o.pk not in with_sheet)
     counts = {"pending": pending, "suggestions": suggestions}
 
     decide_url = None

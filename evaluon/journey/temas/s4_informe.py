@@ -113,8 +113,9 @@ def status(user, procedure):
     base = _tab(procedure)
     with_rows = _with_rows(page)
     pending = []
+    reports_of = {s.offer.pk: s.reports for s in page.statuses}  # ya cargados por la matriz
     for offer in _pending_ok_offers(page):
-        if technical_report.reports_of(offer):
+        if reports_of[offer.pk]:
             pending.append(Item(f"Oferta {offer.number}: falta el ok del informe técnico",
                                 f"{base}{ANCHOR}", 1, "Resolver", kind="informe_ok", limit=3,
                                 noun="ofertas sin el ok del informe técnico",

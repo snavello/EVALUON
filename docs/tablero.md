@@ -66,7 +66,7 @@ flowchart LR
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
-| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 35/40 | █████████░ 88% |
+| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 36/40 | █████████░ 90% |
 
 <a id="001"></a>
 
@@ -1052,8 +1052,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 5 tareas sin terminar.
-- ○ T-223 · Menos consultas en los servicios de la evaluación y de la matriz (N+1 en matrix_page, external_results, question_list y quote_rows), sin cambiar resultados (pendiente)
+- **Próximo paso:** Desarrollar: 4 tareas sin terminar.
 - ○ T-185 · T-217 (con sus avisos: pausa del sondeo con la pestaña oculta, `Stage.suggestions`, motivo de falla con `plain_reason`, foco del ícono tras el sondeo) (pendiente)
 - ○ T-186 · T-218 (con la nota de runbook: reconstruir la imagen con `docker compose build app` para servir los estáticos) (pendiente)
 - ○ T-188 · T-192 (base de la guía visual) y la aplicación en cada tarea de interfaz; revisión final en T-218 (pendiente)
@@ -1093,10 +1092,11 @@ flowchart LR
 - ✓ T-220 · Propuesta de nombre y CUIT del oferente desde los archivos de una oferta: borrador, pedido en segundo plano, citas, corrección con valor y motivo y aprobación que crea la oferta (sin pantalla) (`221e2c3` 2026-10-09, `8575447` 2026-10-08, `2e1ed01` 2026-10-08)
 - ✓ T-221 · Rendimiento de las pestañas con datos reales: Pliego y matriz, Ofertas y Evaluación cargan en menos de 2 s con el procedimiento real del sistema principal (medido en una base aparte restaurada del respaldo) (`73bfe16` 2026-10-08, `dd680b9` 2026-10-08)
 - ✓ T-222 · Pendientes y sugerencias agrupados cuando son muchos: con el procedimiento real la pestaña Evaluación lista 258 pendientes uno por uno (página de 32.000 px); agrupar por tipo con su cuenta y acceso al bloque filtrado, y detallar uno por uno solo cuando son pocos (`571df64` 2026-10-08, `4277fac` 2026-10-08, `524b38a` 2026-10-08)
+- ✓ T-223 · Menos consultas en los servicios de la evaluación y de la matriz (N+1 en matrix_page, external_results, question_list y quote_rows), sin cambiar resultados (`59ac612` 2026-10-10)
 - ✓ T-224 · Suite en paralelo con pytest-xdist (8 procesos, de 35 a 8 min) y tests inestables corregidos (`ed8a904` 2026-10-09, `e86384d` 2026-10-09)
 - ✓ T-225 · Huecos funcionales: no pedir subsanación, descartar una subida de norma, Normativas general sin procedimiento, reemplazar o retirar el dictamen (`21d4925` 2026-10-09, `9eb0e00` 2026-10-09, `a9d361c` 2026-10-09, `36759ba` 2026-10-08)
 - ✓ T-226 · Encabezado y pestañas legibles en pantallas angostas (reglas de la maqueta para 900 y 1100 px) (`012ef8c` 2026-10-09)
-- ✓ T-227 · Decisiones del 2026-10-10 y brechas de la comprobación final: lo que la circular no tocó viene confirmado en la versión nueva; la versión nueva se abre con el botón «Abrir la versión nueva»; el usuario de lectura ve las cinco pestañas sin botones; solo el evaluador corrige la matriz (el operador no); «No pedir» se revierte con motivo y queda registrado; la Comisión ve todas las consultas del procedimiento con quién las hizo; aviso de pedido fallido con motivo en palabras (D-1); sección 1 no queda «Lista» con faltantes; «Subir archivo» de las secciones 1 y 4 lleva a su propio formulario (`5d1e06f` 2026-10-10, `c13d78c` 2026-10-10, `81c9616` 2026-10-10, `ffe9508` 2026-10-10, `feab80a` 2026-10-10, `792784e` 2026-10-10, `161dca3` 2026-10-10, `07a0461` 2026-10-10, `bf6a07f` 2026-10-10)
+- ✓ T-227 · Decisiones del 2026-10-10 y brechas de la comprobación final: lo que la circular no tocó viene confirmado en la versión nueva; la versión nueva se abre con el botón «Abrir la versión nueva»; el usuario de lectura ve las cinco pestañas sin botones; solo el evaluador corrige la matriz (el operador no); «No pedir» se revierte con motivo y queda registrado; la Comisión ve todas las consultas del procedimiento con quién las hizo; aviso de pedido fallido con motivo en palabras (D-1); sección 1 no queda «Lista» con faltantes; «Subir archivo» de las secciones 1 y 4 lleva a su propio formulario (`be990b4` 2026-10-10, `5d1e06f` 2026-10-10, `c13d78c` 2026-10-10, `81c9616` 2026-10-10, `ffe9508` 2026-10-10, `feab80a` 2026-10-10, `792784e` 2026-10-10, `161dca3` 2026-10-10, `07a0461` 2026-10-10, `bf6a07f` 2026-10-10)
 
 ### Mapa de tareas
 
@@ -1133,7 +1133,7 @@ flowchart TD
   T220["✓ T-220 · Propuesta de nombre y CUIT del oferente des…"]:::done
   T221["✓ T-221 · Rendimiento de las pestañas con datos reale…"]:::done
   T222["✓ T-222 · Pendientes y sugerencias agrupados cuando s…"]:::done
-  T223["○ T-223 · Menos consultas en los servicios de la eval…"]:::todo
+  T223["✓ T-223 · Menos consultas en los servicios de la eval…"]:::done
   T224["✓ T-224 · Suite en paralelo con pytest-xdist (8 proce…"]:::done
   T225["✓ T-225 · Huecos funcionales: no pedir subsanación, d…"]:::done
   T226["✓ T-226 · Encabezado y pestañas legibles en pantallas…"]:::done
@@ -1249,4 +1249,4 @@ flowchart TD
 | REQ-097 | T.2 | T-192, T-194, T-195, T-197, T-198, T-200, T-202, T-204, T-205, T-207, T-209, T-211, T-214, T-215, T-217, T-218, T-227 | ✓ cubierto |
 | REQ-098 | T.4 | T-192, T-217, T-218, T-222, T-227 | ✓ cubierto |
 | REQ-099 | T.5 | T-193, T-199, T-200, T-206, T-218, T-225 | ✓ cubierto |
-| REQ-100 | T.6 | T-192, T-218, T-219, T-221, T-222, T-223, T-224, T-226 | ▶ en proceso |
+| REQ-100 | T.6 | T-192, T-218, T-219, T-221, T-222, T-223, T-224, T-226 | ✓ cubierto |

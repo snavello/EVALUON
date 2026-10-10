@@ -518,6 +518,24 @@ def own_documents(offer):
     return offer.documents.exclude(kind=DocumentKind.INFORME_TECNICO)
 
 
+def offer_ids_with_documents(offers):
+    """Los ids de las ofertas de `offers` que tienen algún documento propio (`own_documents`),
+    con una sola consulta (T-223)."""
+    return set(Document.objects.filter(offer__in=list(offers))
+               .exclude(kind=DocumentKind.INFORME_TECNICO)
+               .values_list("offer_id", flat=True))
+
+
+def documents_of_kind(offers, kind):
+    """`{id de la oferta: [documentos de ese tipo, del más viejo al más nuevo]}` con una sola
+    consulta (T-223)."""
+    found = {}
+    for document in (Document.objects.filter(offer__in=list(offers), kind=kind)
+                     .order_by("loaded_at", "id")):
+        found.setdefault(document.offer_id, []).append(document)
+    return found
+
+
 def latest_readings(offer):
     """La última lectura de cada documento de la oferta que ya se leyó."""
     readings = []
