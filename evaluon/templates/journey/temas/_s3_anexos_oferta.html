@@ -35,7 +35,7 @@
     {% if b.has_sheet %}
     <p>{% include "journey/_icono.html" with icon="cumple" name="Hoja cargada" %} Cargada el {{ b.sheet.loaded }} por {{ b.sheet.by }} · <a href="{% url 'offers:document_original' b.sheet.document.pk %}" target="_blank" rel="noopener">{{ b.sheet.title }}</a> · <b>{{ b.sheet.state }}</b></p>
     {% else %}
-    <p>{% include "journey/_icono.html" with icon="nocumple" name="Falta la hoja de compliance" %} <b>Falta</b>{% if not part %} <span class="suave">Mientras falte, los requisitos externos de esta oferta quedan «no determinado».</span>{% endif %}</p>
+    <p>{% include "journey/_icono.html" with icon="nocumple" name="Falta la hoja de compliance" %} <b>Falta la hoja de compliance de la oferta {{ b.offer.number }}</b>{% if b.externals %}<br><span class="marca-externa">Externo</span> <span class="suave chica">{% if b.externals|length == 1 %}1 requisito externo espera{% else %}{{ b.externals|length }} requisitos externos esperan{% endif %} esta hoja ({% for n in b.externals %}requisito {{ n }}{% if not forloop.last %}, {% endif %}{% endfor %}): mientras falte, quedan «no determinado».</span>{% elif not part %} <span class="suave">Mientras falte, los requisitos externos de esta oferta quedan «no determinado».</span>{% endif %}</p>
     {% endif %}
     {% if b.can_upload_sheet %}
     {% if part %}<details class="acc"><summary class="btn {% if b.has_sheet %}secundario{% else %}primario{% endif %} chico">Subir hoja de compliance</summary>{% endif %}

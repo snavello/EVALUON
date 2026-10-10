@@ -1,14 +1,15 @@
 {% load static %}{% comment %}Tema s4_preguntas (T-208, REQ-090): preguntas a la Comisión y pedidos de subsanación, con su respuesta registrada, quién y cuándo. Las acciones del evaluador son formularios POST a las rutas de s4_preguntas_acciones, que llaman a los mismos servicios que la pantalla vieja y vuelven a esta pestaña; un operador no ve los botones. Recibe `t` (ver evaluon/journey/temas/s4_preguntas.py).{% endcomment %}
 <link rel="stylesheet" href="{% static 'journey/s4_preguntas.css' %}">
+<link rel="stylesheet" href="{% static 'journey/punto.css' %}">
 <div class="bloque s4-preg" id="s4-preguntas">
   <div class="bloque-cab"><h3>Preguntas a la Comisión y pedidos de subsanación <span class="cta">{{ t.to_decide }} por decidir · {{ t.resolved }} {% if t.resolved == 1 %}resuelto{% else %}resueltos{% endif %}</span></h3></div>
   {% if t.only_open %}<p class="ayuda" id="preg-filtro">Se muestra solo lo abierto. <a href="{% url 'expedientes:evaluacion' t.pid %}#s4-preguntas">Ver todas</a></p>{% endif %}
   {% if t.lines %}
   <div class="tabla-scroll"><table class="matriz lectura">
     <thead><tr><th scope="col">Asunto</th><th scope="col">Oferta · requisito</th><th scope="col">Estado</th><th scope="col">Respuesta registrada / acción</th></tr></thead>
-    <tbody>
     {% for line in t.lines %}
-      <tr id="{{ line.anchor }}">
+    <tbody class="linea" id="{{ line.anchor }}">
+      <tr>
         <th scope="row">{{ line.subject }}{% if line.reason %}<small class="suave"> · {{ line.reason }}</small>{% endif %}</th>
         <td>{{ line.where }}</td>
         <td>{% include "journey/_icono.html" with icon=line.icon name=line.name %} {{ line.name }}</td>
@@ -61,8 +62,18 @@
           {% if not t.is_evaluator and line.icon == "nodet" %}<span class="suave">Lo decide un evaluador.</span>{% endif %}
         </td>
       </tr>
-    {% endfor %}
+      <tr class="contexto"><td colspan="4">
+        <div class="ctx-grid">
+          <div><p class="ctx-tit">Requisito {{ line.requirement.number }}</p>
+            {% include "journey/_punto_pliego.html" with points=line.points %}</div>
+          <div><p class="ctx-tit">Oferta {{ line.offer.number }} · {{ line.offer.bidder }}</p>
+            {% for c in line.citations %}<blockquote class="cita">{{ c.text }}</blockquote>
+            <p class="registro"><a href="{% url 'offers:document_original' c.document.pk %}#page={{ c.page }}" target="_blank" rel="noopener">{{ c.document.title }} · página {{ c.page }}</a> · ver el original</p>
+            {% empty %}<p class="suave">Sin texto de la oferta que respalde una conclusión.{% if line.read_note %} <span class="lectura">{{ line.read_note }}</span>{% endif %}</p>{% endfor %}</div>
+        </div>
+      </td></tr>
     </tbody>
+    {% endfor %}
   </table></div>
   {% else %}
   <p class="ayuda">No hay preguntas ni pedidos de subsanación.</p>

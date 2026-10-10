@@ -15,3 +15,14 @@
 .s4-preg details.acc[open] { display: block; max-width: 36rem; }
 .s4-preg details.acc form { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--ev-borde); border-radius: var(--ev-radio-btn); background: var(--ev-superficie); }
 .s4-preg details.acc label { margin-top: 6px; }
+
+/* Contexto de cada pregunta o subsanación (T-228): el requisito con su punto del pliego y lo citado
+   de la oferta, en el mismo lugar. */
+.s4-preg tbody.linea { scroll-margin-top: 5rem; }
+.s4-preg tr.contexto > td { background: var(--ev-superficie); padding: 6px 12px 12px; }
+.s4-preg .ctx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; }
+.s4-preg .ctx-grid > div { min-width: 0; }
+.s4-preg .ctx-tit { margin: 0 0 2px; font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-xs); letter-spacing: var(--ev-espaciado-etiqueta); text-transform: uppercase; color: var(--ev-texto-suave); }
+.s4-preg blockquote.cita { white-space: pre-wrap; overflow-wrap: anywhere; border-left: 3px solid var(--ev-azul-300); padding: 4px 12px; margin: 6px 0; font-size: var(--ev-t-sm); max-width: 80ch; }
+.s4-preg .lectura { color: var(--ev-texto-suave); display: block; margin-top: 2px; }
+@media (max-width: 900px) { .s4-preg .ctx-grid { grid-template-columns: 1fr; } }

@@ -42,6 +42,7 @@ from django.views.decorators.http import require_POST
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
+from evaluon.journey import external, memo
 from evaluon.journey.sections.base import Item, Missing, TemaStatus
 from evaluon.journey.temas import s3_anexos
 from evaluon.journey.window import plain_reason
@@ -251,7 +252,14 @@ class OfferRow:
     stale: bool = False
 
 
-def _row(user, procedure, offer):
+def _external_numbers(user, procedure):
+    """Los números de los requisitos externos del procedimiento: esperan la hoja de compliance
+    de cada oferta (T-228)."""
+    page = memo.matrix_page(user, procedure.pk, channel=Channel.SCREEN)
+    return tuple(e.number for e in external.requirements_of_page(page))
+
+
+def _row(user, procedure, offer, externals=()):
     origin, detail = _origin(offer)
     data = _portal_data(offer)
     documents = own_current(offer)
@@ -259,7 +267,7 @@ def _row(user, procedure, offer):
     return OfferRow(
         offer=offer, origin=origin, origin_detail=detail,
         total=_money(data.total) if data is not None and data.total is not None else "",
-        documents=len(documents), unread=unread, block=s3_anexos.offer_block(user, offer),
+        documents=len(documents), unread=unread, block=s3_anexos.offer_block(user, offer, externals),
         detail_url=offer_url(procedure.pk, offer.pk),
         card_url=tab_url(procedure.pk, f"ficha={offer.pk}") + "#s3-ficha",
         stale=bool(history_service.runs_with_withdrawn(offer)))
@@ -545,7 +553,7 @@ def _offer_detail(user, procedure, offer, request):
         "cuit": data.cuit if data is not None else "", "guarantees": guarantees,
         "lines": ", ".join(str(n) for n in lines),
         "pending": [r for r in rows if r.icon in ("nodet", "nocumple")],
-        "block": s3_anexos.offer_block(user, offer),
+        "block": s3_anexos.offer_block(user, offer, _external_numbers(user, procedure)),
         "url": offer_url(procedure.pk, offer.pk),
         "card_url": tab_url(procedure.pk, f"ficha={offer.pk}") + "#s3-ficha",
     }
@@ -572,7 +580,8 @@ def context(user, procedure, request):
             view = draft_view(user, draft)
             return {**common, "mode": "borrador", "v": view,
                     "refresh": REFRESH_SECONDS if view["reading"] else 0}
-    rows = [_row(user, procedure, o) for o in offers_of(procedure)]
+    waiting = _external_numbers(user, procedure)
+    rows = [_row(user, procedure, o, waiting) for o in offers_of(procedure)]
     link = procedure.portal_links.order_by("-pk").first()
     alta = request.GET.get("alta", "")
     return {

@@ -50,3 +50,16 @@
 .s4-prop .avance progress { width: 14rem; vertical-align: middle; margin-right: 8px; }
 .s4-prop ol.historial { list-style: none; padding: 0; margin: 0; }
 .s4-prop ol.historial > li { border-left: 3px solid var(--ev-azul-300); padding: 2px 0 6px 12px; margin-bottom: 8px; font-size: var(--ev-t-sm); }
+
+/* Requisitos con información externa (T-228): grupo aparte, con la marca violeta de la guía visual. */
+.s4-prop .externos { background: var(--ev-externo-fondo); border: 1px solid var(--ev-externo-marca); border-left-width: 4px; border-radius: 0 var(--ev-radio-btn) var(--ev-radio-btn) 0; padding: 10px 14px 12px; margin: 12px 0; color: var(--ev-externo); }
+.s4-prop .externos h4 { margin: 0 0 4px; font-family: var(--ev-fuente-titulo); font-size: var(--ev-t-lg); letter-spacing: var(--ev-espaciado-titulo); }
+.s4-prop .externos .ayuda, .s4-prop .externos .suave { color: var(--ev-texto-suave); }
+.s4-prop .externos ul { list-style: none; padding: 0; margin: 6px 0 0; }
+.s4-prop .externos-req > li { padding: 6px 0; border-top: 1px solid var(--ev-externo-marca); font-size: var(--ev-t-sm); color: var(--ev-texto); }
+.s4-prop .externos-req > li:first-child { border-top: 0; }
+.s4-prop .externos-ofertas > li { padding: 4px 0; font-size: var(--ev-t-sm); color: var(--ev-texto); }
+.s4-prop .externos .subida { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.s4-prop .matriz tr.grupo-externo th { background: var(--ev-externo-fondo); color: var(--ev-externo); border-left: 4px solid var(--ev-externo-marca); }
+.s4-prop .matriz tr.fila-externa > :first-child { border-left: 4px solid var(--ev-externo-marca); }
+.s4-prop .lectura { color: var(--ev-texto-suave); display: block; margin-top: 2px; }

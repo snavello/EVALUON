@@ -94,6 +94,20 @@ Componente gráfico (WCAG 1.4.11): el círculo debe superar 3:1 contra el fondo 
 
 Justificación de la gama: "pendiente" queda dentro de la gama azul. "Cumple" lleva un verde apagado y "no determinado" un ámbar apagado, porque con solo azules y rojo no se distinguen cuatro estados en una matriz. "No cumple" usa su rojo propio, más claro y frío que el acento `#8B1E2D`, para no mezclar un resultado de evaluación con una acción destructiva.
 
+#### Requisitos con información externa (T-228)
+
+Los requisitos que se cumplen con información externa (la hoja de compliance de cada oferta, no el texto de la oferta) se muestran **aparte desde el principio**, con una marca propia que no es un estado de cumplimiento sino una clase de requisito. Por eso lleva su gama, un violeta apagado que no se parece a ningún estado: `--ev-externo` (texto, `#4B2E83`), `--ev-externo-fondo` (`#ECE7F5`) y `--ev-externo-marca` (`#6B4BA3`: filete lateral, borde de la insignia y encabezado del grupo). Se usa con texto («Externo», «Requisitos que se cumplen con información externa»), nunca solo el color.
+
+| Par | Colores | Razón | Cumple |
+|---|---|---|---|
+| Texto / fondo del grupo | `#4B2E83` / `#ECE7F5` | 8,58 | AA |
+| Texto / superficie | `#4B2E83` / `#FCFAF5` | 9,98 | AA |
+| Texto / cebra | `#4B2E83` / `#F3EFE4` | 9,06 | AA |
+| Marca / superficie (componente, mínimo 3:1) | `#6B4BA3` / `#FCFAF5` | 6,37 | sí |
+| Marca / cebra | `#6B4BA3` / `#F3EFE4` | 5,78 | sí |
+
+Calculado con el mismo método de la sección 2.6.
+
 ### 2.3 Tipografía
 
 - **Texto:** pila del sistema `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`. No requiere archivos, es rápida y se ve nativa en el equipo de la Comisión.
