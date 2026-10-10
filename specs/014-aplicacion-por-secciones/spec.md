@@ -28,6 +28,13 @@ Sin esta reorganización no se puede mostrar el producto ni operarlo en el pilot
 | 2026-10-07 | Alta de oferta sin Portal: nombre y CUIT del oferente | «El sistema lo propone»: lee los archivos de la oferta y propone nombre y CUIT con su cita; la Comisión aprueba o corrige. |
 | 2026-10-07 | Corregir un dato propuesto (pliego, oferta, norma) | «Escribe el valor y motivo»: corrige lo propuesto, motivo obligatorio, queda registrado quién y cuándo; nada se escribe desde cero. |
 | 2026-10-07 | Exportación de la planilla por oferta y el cuadro comparativo | «Excel y PDF». |
+| 2026-10-10 | Mediciones de T-196 (renglones sin cantidad en el caso-00) y T-220 (nombre del oferente no determinado) | «ok acepto la recomendacion en esta pregunta y anotalo para revisar mas adelante»: se aceptan así para el piloto; el evaluador escribe el dato con motivo. Pasan a la lista de revisión con el primer producto. |
+| 2026-10-10 | Circular que cambia parte de la matriz | «Lo no tocado confirmado»: solo se decide lo que cambió la circular; la Comisión valida igual la versión completa. |
+| 2026-10-10 | Apertura de la versión nueva | «Con botón»: la Comisión decide cuándo abrirla; varias circulares juntas dan una sola versión. |
+| 2026-10-10 | Usuario de lectura | «Pestañas sin botones»: ve las cinco secciones sin poder subir, corregir ni decidir. |
+| 2026-10-10 | Quién corrige la matriz | «Solo el evaluador»: el operador sube y toma del Portal; corregir la matriz y decidir queda para la Comisión. |
+| 2026-10-10 | «No pedir» una subsanación | «Reversible con motivo»: queda registrado quién cambió la decisión, cuándo y por qué. |
+| 2026-10-10 | Historial de la Consulta | «La Comisión ve todo»: cada consulta con quién la hizo. |
 
 Decisiones anteriores que siguen vigentes: el Portal es la primera fuente y lo que no publica se sube como complemento (REQ-071, spec 013); los pendientes y las sugerencias se ven separados y los dos visibles (REQ-072, spec 013); la ficha de la oferta es opcional (plan 013); los cuatro íconos de estado tienen el nombre propio de cada pantalla al pasar el mouse (ADR-0046, punto 7).
 
@@ -134,6 +141,11 @@ Material público: el caso chico de la 013 y el caso-00. Ningún caso reservado 
 1. La maqueta se rehace con estas cinco secciones y el responsable la aprueba antes de programar cualquier pantalla.
 2. Corte vertical: el esqueleto (cinco secciones, portada del procedimiento, jerarquía común) y la sección 2 con la matriz de cumplimiento.
 3. Después, sección por sección. Las tareas abiertas de la 013 (T-185, T-186, T-188 y T-191) se absorben en esta feature.
+
+## Lista de revisión con el primer producto
+
+- Renglones sin cantidad en el caso-00 (T-196, dos rondas): leer la tabla con el modelo local en lugar de reglas.
+- Nombre del oferente en ofertas subidas por archivos (T-220, dos rondas): ídem.
 
 ## Preguntas abiertas
 
