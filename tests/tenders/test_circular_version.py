@@ -210,3 +210,41 @@ def test_the_request_leaves_the_audit_trail_with_the_circular(operator_user, val
     assert AuditEvent.objects.filter(event_type=EventType.MATRIX_REQUEST,
                                      detail__run=requested.run.pk).exists()
     assert m.Document.objects.get(pk=circular.pk).issued_on == date(2025, 12, 1)
+
+
+def test_the_new_version_brings_confirmed_what_the_circular_did_not_touch(
+        operator_user, evaluator_user, validated, script):  # noqa: F811
+    """REQ-085: la versión nueva trae confirmado, con su consecuencia elegida y sus pendientes
+    resueltos, lo que la circular no tocó; queda sin confirmar solo lo que cambió. La Comisión
+    sigue validando la versión completa."""
+    circular = modifying(operator_user, validated.procedure)
+    script.c_when("por 32 GB", efectos=[("16 GB de RAM", "modifica", "32 GB de RAM")])
+    service.open_for_circular(operator_user, validated.procedure, circular)
+    run_jobs()
+    new = validated.procedure.matrix_versions.get(number=validated.number + 1)
+
+    changed = new.requirements.get(category="tecnico", items=[1])
+    untouched = new.requirements.exclude(pk=changed.pk).exclude(state="quitado")
+    assert untouched.count() >= 3
+    assert changed.state == "propuesto"
+    assert not changed.consequences.filter(chosen=True).exists()
+    for requirement in untouched.filter(sources__isnull=True):
+        assert requirement.state == "confirmado", requirement.number
+        assert requirement.previous is not None and requirement.previous.version == validated
+        chosen = requirement.consequences.get(chosen=True)
+        before = requirement.previous.consequences.get(chosen=True)
+        assert (chosen.consequence_type, chosen.chosen_by, chosen.chosen_at) == (
+            before.consequence_type, before.chosen_by, before.chosen_at)
+        assert requirement.changes.filter(action="confirmar",
+                                          after__state="confirmado").exists()
+    # Lo pendiente que la Comisión ya había resuelto sigue resuelto.
+    assert not new.pending_items.filter(resolved_at__isnull=True).exclude(
+        segment__reading__document=circular).exists()
+
+    # Para validar la versión completa solo falta decidir lo que cambió.
+    for pending in new.pending_items.filter(resolved_at__isnull=True):
+        review.resolve_pending(evaluator_user, pending.pk)
+    consequences.choose(evaluator_user, changed.pk, consequence_type="aprobar_igual",
+                        note="Motivo de prueba")
+    done = validation_service.validate(evaluator_user, new.pk)
+    assert done.status == "validated"

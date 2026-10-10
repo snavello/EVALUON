@@ -394,4 +394,6 @@ def context(user, procedure, request):
         "results": unpack(request.GET.get(PARAM)),
         "loaded_count": len(rows), "missing_count": len(absent),
         "matrix_url": matrix_url(procedure.pk),
+        # Un solo botón: abre una sola versión con todas las modificatorias leídas.
+        "open_document": next((row.document for row in rows if row.can_open), None),
     }

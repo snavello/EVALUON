@@ -267,3 +267,35 @@ def test_what_the_portal_lists_and_was_not_taken_shows_as_missing(client, bare, 
     assert "1 detectada en el Portal" in page
     assert "El Portal lista 1 circular o aclaración que no se tomaron" in page
     assert f'{reverse("portal:proposal", args=[link.pk])}#group-documento' in page
+
+
+def test_the_new_version_is_not_opened_by_reading_and_several_circulars_give_one_version(
+        client, operator_user, validated, script):  # noqa: F811
+    """REQ-085: leer las circulares no abre la versión; el botón «Abrir la versión nueva» la abre
+    y dos circulares leídas juntas dan una sola versión con las dos."""
+    procedure = validated.procedure
+    log_in(client, operator_user)
+    proposals = Job.objects.filter(procedure=procedure, kind=JobKind.PROPOSE_MATRIX).count()
+    script.c_when("por 32 GB", efectos=[("16 GB de RAM", "modifica", "32 GB de RAM")])
+    client.post(upload_url(procedure), {
+        "files": [SimpleUploadedFile("c1.pdf", circular_pdf(RAM_CHANGE)),
+                  SimpleUploadedFile("c2.pdf", circular_pdf(RAM_CHANGE + " (reiteración)"))],
+        "kind": "circular_modificatoria", "issued_on": "2026-12-01"})
+    run_jobs()
+
+    assert procedure.matrix_versions.count() == 1
+    assert Job.objects.filter(procedure=procedure,
+                             kind=JobKind.PROPOSE_MATRIX).count() == proposals
+    page = text_of(client.get(tab(procedure)))
+    assert page.count("Abrir la versión nueva de la matriz</button>") == 1
+
+    document = procedure.documents.filter(kind="circular_modificatoria").order_by("pk").first()
+    response = client.post(open_url(procedure), {"document": document.pk})
+    assert "Se pidió la versión nueva de la matriz" in text_of(follow(client, response))
+    run_jobs()
+    assert procedure.matrix_versions.count() == 2
+    new = procedure.matrix_versions.get(number=2)
+    states = circular_version.states(procedure)
+    assert [(s.state, s.version) for s in states] == [(circular_version.EN_BORRADOR, new)] * 2
+    assert "Abrir la versión nueva de la matriz</button>" not in text_of(
+        client.get(tab(procedure)))
