@@ -8,13 +8,33 @@
 </div>
 {% endif %}
 
-{% if t.mode == "oferta" %}{% with d=t.d %}
+{% if t.mode == "oferta" and t.d.history %}{% with d=t.d %}
+<div class="bloque" id="s3-oferta">
+  <span id="s3-oferta-abierta"></span>
+  <p class="volver"><a href="{{ d.url }}">← Volver a la oferta</a></p>
+  <div class="encab-parte"><h2>Historial · {{ d.history.title }}</h2>
+    {% if t.can_load and d.history_current %}<span class="barra-cargas">{% include "journey/temas/_s3_ofertas_cambiar.html" with doc=d.history %}</span>{% endif %}</div>
+  <p class="resumen-linea">Oferta {{ d.offer.number }} · {{ d.offer.bidder }}. Reemplazar o retirar no borra nada: la versión anterior y lo retirado quedan acá y se pueden ver. <b>{{ d.versions }}</b> versi{{ d.versions|pluralize:"ón,ones" }}.</p>
+  <ol class="historial">
+    {% for e in d.timeline %}
+    <li class="{{ e.css }}"><b>{{ e.title }}</b><br><span class="cuando">{{ e.when }} · {{ e.who }}</span><br>{{ e.text }}{% if e.document %} <a href="{% url 'offers:document_original' e.document.pk %}" target="_blank" rel="noopener">Ver el archivo</a>{% endif %}</li>
+    {% endfor %}
+  </ol>
+  <div class="bloque-pie"><a class="btn secundario" href="{{ d.url }}">Volver a la oferta</a></div>
+</div>
+{% endwith %}
+
+{% elif t.mode == "oferta" %}{% with d=t.d %}
 <div class="bloque" id="s3-oferta">
   <span id="s3-oferta-abierta"></span>
   <p class="volver"><a href="{{ t.tab_url }}#s3-ofertas">← Volver a Ofertas</a></p>
   <div class="encab-parte"><h2>Oferta {{ d.offer.number }} · {{ d.offer.bidder }}</h2>
     <span class="barra-cargas">{% if t.can_load %}<a class="btn primario chico" href="#s3-subir-documentos">Subir documentos</a>{% endif %}<a class="btn secundario chico" href="{{ d.card_url }}">Ficha (opcional)</a></span></div>
   <p class="resumen-linea">{% if d.total %}Total <b class="num">{{ d.total }}</b> · {% endif %}{% if d.cuit %}CUIT <span class="num">{{ d.cuit }}</span> · {% endif %}{% if d.guarantees %}garantía: {{ d.guarantees|join:"; " }} · {% endif %}{% if d.lines %}cotiza los renglones {{ d.lines }} · {% endif %}datos: <b>{{ d.origin }}</b> ({{ d.origin_detail }}). Los documentos se suben varios a la vez.</p>
+
+  {% for text in d.stale %}
+  <p class="aviso aviso-error" role="alert">{{ text }} <a href="{{ d.evaluation_url }}">Ir a Evaluación y dictamen</a></p>
+  {% endfor %}
 
   {% if d.pending %}
   <div class="bloque">
@@ -38,7 +58,8 @@
           <td class="e">{% include "journey/_icono.html" with icon=row.icon name=row.icon_name %}</td>
           <td>{{ row.reading_text }}</td>
           <td class="origen"><b>{{ row.origin }}</b> · {{ row.origin_date }}{% if row.origin_by %} · {{ row.origin_by }}{% endif %}</td>
-          <td class="acciones-doc"><a href="{% url 'offers:document_original' row.document.pk %}" target="_blank" rel="noopener">Ver el archivo</a></td>
+          <td class="acciones-doc"><a href="{% url 'offers:document_original' row.document.pk %}" target="_blank" rel="noopener">Ver el archivo</a> · <a href="{{ d.history_url }}&amp;historial={{ row.document.pk }}#s3-oferta">Historial</a>{% if t.can_load %}
+            {% include "journey/temas/_s3_ofertas_cambiar.html" with doc=row.document %}{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -53,6 +74,32 @@
       <input type="file" name="files" id="s3-docs-{{ d.offer.pk }}" multiple required>
       <button class="btn primario chico" type="submit">Subir documentos</button>
     </form>
+    {% endif %}
+  </div>
+
+  <div class="bloque" id="s3-retirados">
+    <div class="bloque-cab"><h3>Retirados <span class="cta">{{ d.withdrawn|length }}</span></h3></div>
+    {% if d.withdrawn %}
+    <div class="tabla-scroll"><table class="matriz lectura">
+      <caption class="sr-only">Documentos retirados de la oferta, con quién, cuándo y por qué</caption>
+      <thead><tr><th scope="col">Documento</th><th scope="col">Tipo</th><th scope="col">Retirado</th><th scope="col">Quién</th><th scope="col">Motivo</th><th scope="col">Acciones</th></tr></thead>
+      <tbody>{% for row in d.withdrawn %}
+        <tr class="retirado" id="retirado-{{ row.document.pk }}">
+          <th scope="row">{{ row.document.title }}<br><span class="suave chica">{{ row.document.file_name }}</span></th>
+          <td>{{ row.kind_label }}</td><td class="num">{{ row.origin_date }}</td><td>{{ row.origin_by }}</td><td>{{ row.note|default:"—" }}</td>
+          <td class="acciones-doc"><a href="{% url 'offers:document_original' row.document.pk %}" target="_blank" rel="noopener">Ver el archivo</a> · <a href="{{ d.history_url }}&amp;historial={{ row.document.pk }}#s3-oferta">Historial</a>{% if t.can_load %}
+            <details class="acc"><summary class="btn secundario chico">Restituir</summary>
+              <form method="post" action="{% url 'expedientes:s3_ofertas_restituir' t.pid row.document.pk %}">{% csrf_token %}
+                <p class="ayuda">Vuelve a la oferta; queda registrado.</p>
+                <label for="restituir-{{ row.document.pk }}">Motivo (obligatorio)</label>
+                <textarea name="note" id="restituir-{{ row.document.pk }}" rows="2" required></textarea>
+                <button class="btn primario chico" type="submit">Restituir</button>
+              </form></details>{% endif %}</td>
+        </tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}
+    <p class="ayuda">No hay documentos retirados. Retirar no borra: el documento queda acá, con su motivo, y se puede restituir.</p>
     {% endif %}
   </div>
 

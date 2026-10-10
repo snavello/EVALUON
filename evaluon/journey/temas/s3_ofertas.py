@@ -1,5 +1,5 @@
 """Tema s3_ofertas: las ofertas presentadas y sus documentos, en la pestaña «Ofertas» (REQ-083,
-REQ-084, REQ-097; plan 014, T-202).
+REQ-084, REQ-097, REQ-099; plan 014, T-202 y T-206).
 
 - **Tabla de ofertas.** Una fila por oferta, con su origen (el acta de apertura del Portal, los
   archivos de la oferta o la carga anterior a la 014), su total, sus documentos con «Subir
@@ -14,7 +14,13 @@ REQ-084, REQ-097; plan 014, T-202).
   motivo») o descarta con motivo. El operador sube y ve la propuesta sin esos botones; si manda
   el formulario, el servicio lo rechaza (403) y deja el hecho. Nada se tipea desde cero.
 - **Detalle de la oferta** dentro de la pestaña (`?oferta=`): sus datos, sus documentos con su
-  lectura y su origen, la subida múltiple y los anexos y la hoja (T-204).
+  lectura y su origen, la subida múltiple, los anexos y la hoja (T-204) y, por documento,
+  «Historial», «Reemplazar», «Retirar» y «Restituir» (T-206) con
+  `offers.services.document_history`: nada se borra; lo retirado queda en «Retirados» y la
+  versión anterior en el historial (`?oferta=&historial=`), con quién, cuándo y el motivo
+  (obligatorio). Si una evaluación se hizo con un documento que hoy no está vigente, la oferta lo
+  avisa y pide evaluar de nuevo (no se recalcula sola). Cambian el operador y el evaluador; sin
+  rol, 403 con el rechazo registrado.
 - **Propuesta de una oferta subida** dentro de la pestaña (`?borrador=`): el avance de la
   lectura y, al terminar, nombre y CUIT con dónde los leyó.
 
@@ -34,6 +40,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from evaluon.accounts.models import CommissionRole
+from evaluon.accounts.permissions import require_commission_role
 from evaluon.audit.models import Channel
 from evaluon.journey.sections.base import Item, Missing, TemaStatus
 from evaluon.journey.temas import s3_anexos
@@ -254,7 +261,8 @@ def _row(user, procedure, offer):
         total=_money(data.total) if data is not None and data.total is not None else "",
         documents=len(documents), unread=unread, block=s3_anexos.offer_block(user, offer),
         detail_url=offer_url(procedure.pk, offer.pk),
-        card_url=tab_url(procedure.pk, f"ficha={offer.pk}") + "#s3-ficha")
+        card_url=tab_url(procedure.pk, f"ficha={offer.pk}") + "#s3-ficha",
+        stale=bool(history_service.runs_with_withdrawn(offer)))
 
 
 def offers_of(procedure):
@@ -379,6 +387,82 @@ def _draft_summary(procedure, draft):
             "at": _moment(draft.created_at), "url": draft_url(procedure.pk, draft.pk)}
 
 
+# --- Historial de un documento (T-206) --------------------------------------------------------
+
+
+@dataclass
+class Entry:
+    """Un renglón de la línea de tiempo de un documento."""
+
+    at: object
+    when: str
+    who: str
+    title: str
+    text: str
+    css: str = ""
+    document: object = None
+
+
+def timeline(document):
+    """Cada versión del documento (quién la subió, cuándo y el motivo del reemplazo) y cada
+    retiro o restitución, de lo más nuevo a lo más viejo."""
+    changes = history_service.history(document)
+    versions = {document.pk: document}
+    for change in changes:
+        versions[change.document_id] = change.document
+        if change.new_document is not None:
+            versions[change.new_document_id] = change.new_document
+    ordered = sorted(versions.values(), key=lambda d: (d.loaded_at, d.pk))
+    replaced_by = {c.new_document_id: c for c in changes
+                   if c.action == "reemplazar" and c.new_document_id}
+    entries = []
+    for number, version in enumerate(ordered, start=1):
+        change = replaced_by.get(version.pk)
+        if change is not None:
+            at, who, how = change.at, change.user, "reemplazo"
+            note = f"Motivo: «{change.note}»." if change.note else "Sin motivo escrito."
+        else:
+            at, who, how, note = version.loaded_at, version.loaded_by, "subido como archivo", ""
+        entries.append(Entry(
+            at=at, when=_moment(at), who=_who(who),
+            title=f"Versión {number} · {history_service.state(version)}",
+            text=f"{how} · {version.file_name}" + (f" · {note}" if note else ""),
+            document=version))
+    for change in changes:
+        if change.action in ("retirar", "restituir"):
+            retired = change.action == "retirar"
+            entries.append(Entry(
+                at=change.at, when=_moment(change.at), who=_who(change.user),
+                title="Retirado" if retired else "Restituido",
+                text=f"Motivo: «{change.note}»." if change.note else "Sin motivo escrito.",
+                css="retiro" if retired else ""))
+    entries.sort(key=lambda e: e.at, reverse=True)
+    return entries
+
+
+def withdrawn_rows(offer):
+    """Los documentos retirados de la oferta, con quién, cuándo y el motivo del retiro."""
+    rows = []
+    for document in history_service.withdrawn_documents(offer).select_related("loaded_by"):
+        change = document.changes.filter(action="retirar").order_by("-id").first()
+        rows.append(DocRow(document=document, kind_label=_kind_label(document), icon="",
+                           icon_name="", reading_text="", pages=None, origin="",
+                           origin_date=_moment(change.at), origin_by=_who(change.user),
+                           note=change.note))
+    return rows
+
+
+def stale_warnings(offer):
+    """Un aviso por cada evaluación de la oferta hecha con un documento que hoy no está vigente:
+    el resultado no cambia solo, se pide evaluar de nuevo."""
+    warnings = []
+    for run, gone in history_service.runs_with_withdrawn(offer):
+        names = ", ".join(f"«{d.title}» ({history_service.state(d)})" for d in gone)
+        warnings.append(f"La evaluación {run.number} de esta oferta se hizo con {names}. El "
+                        "resultado no cambia solo: hay que evaluar de nuevo la oferta.")
+    return warnings
+
+
 # --- Estado del tema ----------------------------------------------------------------------------
 
 
@@ -445,7 +529,17 @@ def _offer_detail(user, procedure, offer, request):
                       for g in data.guarantees.all()]
         lines = list(PortalQuote.objects.filter(offer=offer).order_by("line__number")
                      .values_list("line__number", flat=True))
+    wanted = request.GET.get("historial", "")
+    opened = (offer.documents.select_related("loaded_by").filter(pk=int(wanted)).first()
+              if wanted.isdigit() else None)
+    entries = timeline(opened) if opened is not None else []
     return {
+        "history": opened, "timeline": entries,
+        "history_current": opened is not None and history_service.state(opened) == "vigente",
+        "versions": sum(1 for e in entries if e.document is not None),
+        "withdrawn": withdrawn_rows(offer), "stale": stale_warnings(offer),
+        "history_url": tab_url(procedure.pk, f"oferta={offer.pk}"),
+        "evaluation_url": reverse("expedientes:evaluacion", args=[procedure.pk]),
         "offer": offer, "rows": rows, "origin": origin, "origin_detail": origin_detail,
         "total": _money(data.total) if data is not None and data.total is not None else "",
         "cuit": data.cuit if data is not None else "", "guarantees": guarantees,
@@ -633,6 +727,66 @@ def upload_documents(request, procedure_id, offer_id):
     return back(procedure, results, query=query, anchor=anchor)
 
 
+def _document(procedure, document_id):
+    try:
+        return Document.objects.select_related("offer").get(pk=document_id,
+                                                            offer__procedure=procedure)
+    except Document.DoesNotExist:
+        raise Http404("No hay un documento con ese número en las ofertas de este procedimiento.")
+
+
+def _change(request, procedure_id, document_id, operation, done, call, needs_file=False):
+    """Valida rol, motivo (y archivo) y llama al servicio; vuelve al detalle de la oferta con lo
+    hecho o con el motivo del rechazo."""
+    procedure = _procedure(procedure_id)
+    document = _document(procedure, document_id)
+    require_commission_role(request.user, CommissionRole.OPERATOR, operation=operation,
+                            channel=CHANNEL)
+    query, anchor = f"oferta={document.offer_id}", "#s3-oferta"
+    note = " ".join(request.POST.get("note", "").split())
+    if not note:
+        return back(procedure, [_result(document.title, False, "Escriba el motivo: es "
+                                        "obligatorio y queda registrado.")], query, anchor)
+    upload_file = request.FILES.get("file")
+    if needs_file and upload_file is None:
+        return back(procedure, [_result(document.title, False,
+                                        "Elija el archivo que reemplaza al documento.")],
+                    query, anchor)
+    try:
+        call(request.user, document, note, upload_file)
+    except (history_service.HistoryRefused, offers_service.OfferRefused) as error:
+        return back(procedure, [_result(document.title, False, str(error))], query, anchor)
+    return back(procedure, [_result(document.title, True, done)], query, anchor)
+
+
+@require_POST
+def withdraw(request, procedure_id, document_id):
+    return _change(
+        request, procedure_id, document_id, history_service.WITHDRAW_OPERATION,
+        "Retirado: no se borra, queda en «Retirados» y se puede restituir.",
+        lambda user, doc, note, f: history_service.withdraw(user, doc, note, channel=CHANNEL))
+
+
+@require_POST
+def restore(request, procedure_id, document_id):
+    return _change(
+        request, procedure_id, document_id, history_service.RESTORE_OPERATION,
+        "Restituido: vuelve a estar vigente.",
+        lambda user, doc, note, f: history_service.restore(user, doc, note=note,
+                                                           channel=CHANNEL))
+
+
+@require_POST
+def replace(request, procedure_id, document_id):
+    return _change(
+        request, procedure_id, document_id, history_service.REPLACE_OPERATION,
+        "Reemplazado: la versión anterior queda en el historial y la nueva queda en espera de "
+        "lectura.",
+        lambda user, doc, note, f: history_service.replace(
+            user, doc, data=f.read(), file_name=f.name, note=note, channel=CHANNEL),
+        needs_file=True)
+
+
 urlpatterns = [
     path("ofertas/alta/portal/<int:item_id>/", take_portal, name="s3_ofertas_portal"),
     path("ofertas/alta/archivos/", upload_offer, name="s3_ofertas_alta"),
@@ -641,4 +795,9 @@ urlpatterns = [
     path("ofertas/alta/<int:draft_id>/rechazar/", reject, name="s3_ofertas_rechazar"),
     path("ofertas/<int:offer_id>/documentos/subir/", upload_documents,
          name="s3_ofertas_documentos"),
+    path("ofertas/documentos/<int:document_id>/reemplazar/", replace,
+         name="s3_ofertas_reemplazar"),
+    path("ofertas/documentos/<int:document_id>/retirar/", withdraw, name="s3_ofertas_retirar"),
+    path("ofertas/documentos/<int:document_id>/restituir/", restore,
+         name="s3_ofertas_restituir"),
 ]

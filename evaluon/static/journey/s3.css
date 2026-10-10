@@ -32,3 +32,11 @@
 
 .s3-of .btn.acento { background: var(--ev-rojo); color: #fff; border-color: var(--ev-rojo); }
 .s3-of .btn.acento:hover { background: var(--ev-rojo-hover); }
+
+/* Historial de los documentos de la oferta (T-206). */
+.s3-of ol.historial { list-style: none; padding: 0; margin: 8px 0 0 8px; border-left: 2px solid var(--ev-azul-300); }
+.s3-of ol.historial li { position: relative; padding: 0 0 16px 20px; font-size: var(--ev-t-sm); }
+.s3-of ol.historial li::before { content: ""; position: absolute; left: -8px; top: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--ev-azul-700); border: 2px solid var(--ev-fondo); }
+.s3-of ol.historial li.retiro::before { background: var(--ev-rojo); }
+.s3-of ol.historial .cuando { color: var(--ev-texto-suave); font-size: var(--ev-t-xs); }
+.s3-of tr.retirado th, .s3-of tr.retirado td { color: var(--ev-texto-suave); }
