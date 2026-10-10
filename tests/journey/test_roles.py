@@ -227,6 +227,7 @@ def test_section_1_upload_adds_the_tender_to_the_open_procedure_and_creates_no_o
     own = reverse("expedientes:procedimiento", args=[case.procedure.pk])
     assert href == own + "#s1-pliego-subir"
     assert 'id="s1-pliego-subir"' in page
+    assert reverse("expedientes:nuevo") not in page.split('id="s1-pliego"', 1)[1].split("</form>", 1)[0]
     action = reverse("expedientes:s1_pliego_agregar", args=[case.procedure.pk])
     assert action in page
     before = Procedure.objects.count()
