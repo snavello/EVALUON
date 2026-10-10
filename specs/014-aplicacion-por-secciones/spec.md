@@ -148,6 +148,7 @@ Material público: el caso chico de la 013 y el caso-00. Ningún caso reservado 
 - Renglones sin cantidad en el caso-00 (T-196, dos rondas): leer la tabla con el modelo local en lugar de reglas.
 - Nombre del oferente en ofertas subidas por archivos (T-220, dos rondas): ídem.
 - Pliego subido desde la pestaña Procedimiento de un procedimiento ya creado (T-227): se carga y se lee, pero no propone los datos iniciales con cita (solo el alta lo hace).
+- Calidad de lo que propone el modelo (T-229, caso LPU25 rehecho): matriz con 78 % de filas que la Comisión quitó (pedazos de frase, consecuencias y condiciones opcionales como requisitos); preguntas genéricas o dirigidas al oferente; explicaciones que contradicen lo que muestra la pantalla; «no determinado» 87,7 % (umbral 40 %) y resultado igual al dictamen en 2 de 3. Requiere cambiar instrucciones al modelo y medir con la GPU: tarea propia con umbral, fuera del límite de 3 horas del 2026-10-10.
 
 ## Preguntas abiertas
 
