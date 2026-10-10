@@ -94,12 +94,15 @@ class Cell:
         return self.state == CORRECTED
 
 
-def _cell(offer, requirement, result):
-    """El estado y el resultado efectivo salen de `review` (T-153): una sola definición."""
+def _cell(offer, requirement, result, decision=None):
+    """El estado y el resultado efectivo salen de `review` (T-153): una sola definición. La
+    última decisión de estado del resultado la trae quien arma la grilla (T-223)."""
     if result is None:
         return Cell(offer=offer, requirement=requirement, result=None)
-    return Cell(offer, requirement, result, review.state_of(result),
-                review.effective_outcome(result))
+    return Cell(offer, requirement, result, review.state_from(decision),
+                review.outcome_from(result, decision))
+
+
 @dataclass
 class OfferStatus:
     """El estado de la evaluación de una oferta (REQ-058)."""
@@ -171,10 +174,13 @@ class MatrixPage:
                 for r in self.requirements]
 
 
-def offers_without_documents(procedure):
-    """Las ofertas del procedimiento que no tienen ningún documento cargado."""
-    return [o for o in procedure.offers.order_by("number")
-            if not offers_service.own_documents(o).exists()]
+def offers_without_documents(procedure, offers=None):
+    """Las ofertas del procedimiento que no tienen ningún documento cargado. `offers` son las
+    del procedimiento, por número, si quien llama ya las tiene."""
+    if offers is None:
+        offers = list(procedure.offers.order_by("number"))
+    with_documents = offers_service.offer_ids_with_documents(offers)
+    return [o for o in offers if o.pk not in with_documents]
 
 
 def _grid_version(procedure, offers):
@@ -196,19 +202,32 @@ def matrix_page(user, procedure_id, *, channel=Channel.SCREEN):
     version = _grid_version(procedure, offers)
     requirements = sheets.firm_requirements(version) if version else []
 
-    results = {(o.pk, r.pk): evaluate.current_result(o, r)
-               for o in offers for r in requirements}
-    cells = {(o.pk, r.pk): _cell(o, r, results[(o.pk, r.pk)])
-             for o in offers for r in requirements}
+    # Una consulta para los resultados vigentes y otra para sus decisiones (T-223): antes era
+    # una por par y dos por resultado.
+    results = evaluate.current_results(offers, requirements)
+    decisions = review.current_decisions(results.values())
+    cells = {}
+    for o in offers:
+        for r in requirements:
+            result = results.get((o.pk, r.pk))
+            cells[(o.pk, r.pk)] = _cell(o, r, result,
+                                        decisions.get(result.pk) if result else None)
 
     newer = validated if (validated is not None and version is not None
                           and validated.number > version.number) else None
-    statuses = [_status(o, requirements, cells, validated, version) for o in offers]
+    without = offers_without_documents(procedure, offers)
+    # Lo que cada oferta pide a la base, de una vez para todas (T-223).
+    loaded = _Loaded(
+        sheets=compliance.sheets_by_offer(offers),
+        reports=technical_report.reports_by_offer(offers),
+        externals=compliance.external_results_by_offer(offers),
+        questions=_open_questions(offers, requirements),
+        without={o.pk for o in without})
+    statuses = [_status(o, requirements, cells, validated, version, loaded) for o in offers]
     discards = ordering.propose_discards(offers, requirements, cells)
     pending = (Job.objects.filter(kind=JobKind.EVALUATE_OFFERS, procedure=procedure,
                                   status__in=[JobStatus.QUEUED, JobStatus.RUNNING])
                .order_by("-requested_at").first())
-    without = offers_without_documents(procedure)
     return MatrixPage(
         procedure=procedure, version=version, newer_version=newer, requirements=requirements,
         offers=offers, cells=cells, statuses=statuses,
@@ -220,11 +239,32 @@ def matrix_page(user, procedure_id, *, channel=Channel.SCREEN):
             getattr(user, "commission_role", "") == CommissionRole.EVALUATOR))
 
 
-def _status(offer, requirements, cells, validated, version=None):
+@dataclass
+class _Loaded:
+    """Lo que el estado de cada oferta necesita y se carga una vez para todas las ofertas."""
+
+    sheets: dict
+    reports: dict
+    externals: dict
+    questions: dict
+    without: set
+
+
+def _open_questions(offers, requirements):
+    """`{id de la oferta: preguntas abiertas de esos requisitos}` con una sola consulta."""
+    found = {offer.pk: [] for offer in offers}
+    for question in (Question.objects.filter(offer__in=offers, requirement__in=requirements,
+                                             answers__isnull=True)
+                     .select_related("requirement").order_by("requirement__number", "pk")):
+        found[question.offer_id].append(question)
+    return found
+
+
+def _status(offer, requirements, cells, validated, version, loaded):
     own = [cells[(offer.pk, r.pk)] for r in requirements]
     evaluated = [c for c in own if c.result is not None]
     status = OfferStatus(offer=offer, evaluated=bool(evaluated),
-                         has_documents=offers_service.own_documents(offer).exists())
+                         has_documents=offer.pk not in loaded.without)
     for state in STATES:
         status.by_state[state] = sum(1 for c in own if c.state == state)
     for cell in evaluated:
@@ -237,18 +277,15 @@ def _status(offer, requirements, cells, validated, version=None):
         status.run = max((c.result.run for c in evaluated), key=lambda r: (r.number, r.pk))
         if validated is not None and validated.number > status.run.matrix_version.number:
             status.newer_version = validated
-    status.technical = technical.status_of(offer, version)
-    status.sheets = compliance.sheets_of(offer)
-    status.externals_pending = len(compliance.external_results(offer))
+    status.technical = technical.status_of(offer, version, requirements)
+    status.sheets = loaded.sheets[offer.pk]
+    status.externals_pending = len(loaded.externals[offer.pk])
     status.sheet_reading = any(
         offers_service.document_row(d).state != offers_service.STATE_READ
         for d in status.sheets)
-    status.reports = technical_report.reports_of(offer)
-    status.report_reading = bool(technical_report.reading_reports(offer))
-    status.open_questions = list(
-        Question.objects.filter(offer=offer, requirement__in=requirements,
-                                answers__isnull=True)
-        .select_related("requirement").order_by("requirement__number", "pk"))
+    status.reports = loaded.reports[offer.pk]
+    status.report_reading = bool(technical_report.reading_reports(offer, status.reports))
+    status.open_questions = loaded.questions[offer.pk]
     return status
 
 

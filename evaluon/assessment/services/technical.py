@@ -125,11 +125,14 @@ def _version_of(offer):
     return latest.run.matrix_version if latest else latest_validated(offer.procedure)
 
 
-def item_rows(offer, version=None):
-    """`{renglón: requisito}` de las filas técnicas por renglón de la matriz de la oferta."""
-    version = version or _version_of(offer)
+def item_rows(offer, version=None, requirements=None):
+    """`{renglón: requisito}` de las filas técnicas por renglón de la matriz de la oferta.
+    `requirements` son los requisitos firmes de la matriz si quien llama ya los tiene."""
+    if requirements is None:
+        version = version or _version_of(offer)
+        requirements = sheets.firm_requirements(version) if version else []
     rows = {}
-    for requirement in (sheets.firm_requirements(version) if version else []):
+    for requirement in requirements:
         if sheets.is_item_row(requirement):
             try:
                 rows[int(requirement.items[0])] = requirement
@@ -174,19 +177,33 @@ def ok_of(offer, item):
     return None
 
 
+def _oks_of(offer, items):
+    """`{renglón: ok_of(offer, renglón)}` con una sola consulta (T-223)."""
+    found = {}
+    for row in TechnicalOk.objects.filter(offer=offer).select_related("user")             .order_by("-at", "-pk"):
+        mine = None if row.items is None else {int(i) for i in row.items}
+        for item in items:
+            if item not in found and (mine is None or item in mine):
+                found[item] = row
+    return {item: found.get(item) for item in items}
+
+
 def has_ok(offer, item):
     """El renglón tiene hoy un ok vigente (el último que lo nombra es "dar el ok")."""
     row = ok_of(offer, item)
     return row is not None and row.action == TechnicalAction.DAR_OK
 
 
-def status_of(offer, version=None):
+def status_of(offer, version=None, requirements=None):
     """Las filas técnicas por renglón de la oferta con su ok vigente y la propuesta del informe
-    del área, en orden de renglón."""
+    del área, en orden de renglón. `requirements` son los de la matriz (`firm_requirements`)
+    si quien llama ya los tiene."""
     proposals = proposals_of(offer)
-    return [TechnicalRow(item=item, requirement=requirement, ok=ok_of(offer, item),
+    rows = sorted(item_rows(offer, version, requirements).items())
+    oks = _oks_of(offer, [item for item, _ in rows])
+    return [TechnicalRow(item=item, requirement=requirement, ok=oks[item],
                          proposal=proposals.get(item))
-            for item, requirement in sorted(item_rows(offer, version).items())]
+            for item, requirement in rows]
 
 
 # --- Propuesta del informe del área --------------------------------------------------------------

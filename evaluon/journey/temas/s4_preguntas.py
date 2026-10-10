@@ -110,12 +110,12 @@ def _remedy_lines(user, procedure, is_evaluator):
     lines = []
     live = set()
     # Las decisiones de «no pedir» de todos los resultados subsanables, en una sola consulta.
-    declined = remedy_service.declined_for(
-        cell.result.pk for cell in page.cells.values()
-        if cell.result is not None and _is_remediable(cell.result, cell.effective_outcome))
-    reverted = remedy_service.reverted_for(
-        cell.result.pk for cell in page.cells.values()
-        if cell.result is not None and _is_remediable(cell.result, cell.effective_outcome))
+    remediable = [cell.result.pk for cell in page.cells.values()
+                  if cell.result is not None
+                  and _is_remediable(cell.result, cell.effective_outcome)]
+    declined = remedy_service.declined_for(remediable)
+    reverted = remedy_service.reverted_for(remediable)
+    path = remedy_service.path_decisions_for(remediable)
     for requirement in page.requirements:
         for offer in page.offers:
             cell = page.cells[(offer.pk, requirement.pk)]
@@ -124,7 +124,9 @@ def _remedy_lines(user, procedure, is_evaluator):
             # matriz: así no se consulta la decisión de nuevo por cada par (T-221).
             if result is None or not _is_remediable(result, cell.effective_outcome):
                 continue
-            state = remedy_service.state(result, declined=declined.get(result.pk))
+            # El resultado de la celda es el vigente (T-223): no se vuelve a buscar.
+            state = remedy_service.state(result, declined=declined.get(result.pk),
+                                         applicable=True, decisions=path.get(result.pk, []))
             if not state.applicable:
                 continue
             live.add(result.pk)

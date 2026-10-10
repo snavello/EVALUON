@@ -16,7 +16,7 @@ from django.urls import reverse
 from evaluon.assessment.models import Run
 from evaluon.journey.progress import progress_of
 from evaluon.journey.stages import base
-from evaluon.offers.services.offers import own_documents
+from evaluon.offers.services.offers import offer_ids_with_documents
 from evaluon.tenders.models import JobKind, JobStatus
 from evaluon.tenders.services.validation import latest_validated
 
@@ -50,13 +50,15 @@ def compute(user, procedure):
     version = latest_validated(procedure)
     if version is None:
         return base.Stage(state=base.PENDIENTE, detail="Falta una matriz validada.", **common)
-    offers = [o for o in procedure.offers.order_by("number")
-              if own_documents(o).exists()]
+    every = list(procedure.offers.order_by("number"))
+    having = offer_ids_with_documents(every)
+    offers = [o for o in every if o.pk in having]
     if not offers:
         return base.Stage(state=base.PENDIENTE,
                           detail="Faltan ofertas con documentos cargados.", **common)
-    evaluated = [o for o in offers
-                 if Run.objects.filter(offer=o, matrix_version=version).exists()]
+    done = set(Run.objects.filter(offer__in=offers, matrix_version=version)
+               .values_list("offer_id", flat=True))
+    evaluated = [o for o in offers if o.pk in done]
     if len(evaluated) < len(offers):
         detail = ("Todavía no se evaluó ninguna oferta." if not evaluated else
                   f"Se evaluaron {len(evaluated)} de {len(offers)} ofertas con la matriz vigente.")

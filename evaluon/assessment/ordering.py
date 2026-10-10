@@ -21,10 +21,10 @@ Todo lo que sale de acá es una **propuesta**: la decisión es de la Comisión (
 from dataclasses import dataclass, field
 from decimal import Decimal
 
-from evaluon.assessment.models import CitationKind, Outcome
+from evaluon.assessment.models import Citation, CitationKind, Outcome
 from evaluon.offers.services import sheets
 from evaluon.portal.models import PortalLine, PortalOfferData, PortalQuote
-from evaluon.tenders.models import Consequence, RequirementClass
+from evaluon.tenders.models import Consequence, RequirementClass, RequirementQuote
 
 # El alcance del descarte propuesto: las clases de requisito cuyo "no cumple" descarta. El
 # responsable decidió que también lo hace uno económico (por ejemplo, la garantía que el pliego
@@ -88,25 +88,58 @@ def _item_of(requirement):
     return None
 
 
-def _consequences_of(requirement):
+def _consequence_labels(rows):
     """La consecuencia prevista en la matriz: las elegidas, o todas las propuestas si todavía no
-    se eligió ninguna (entonces se aclara)."""
-    rows = list(Consequence.objects.filter(requirement=requirement).order_by("pk"))
+    se eligió ninguna (entonces se aclara). `rows` son las del requisito, por `pk`."""
     chosen = [c for c in rows if c.chosen]
     if chosen:
         return [c.get_consequence_type_display() for c in chosen]
     return [f"{c.get_consequence_type_display()} (sin elegir)" for c in rows]
 
 
-def _ground(cell):
-    citations = list(cell.result.citations.order_by("order"))
+@dataclass
+class _Loaded:
+    """Lo que los fundamentos de varias celdas piden a la base, cargado de una vez (T-223)."""
+
+    citations: dict
+    quotes: dict
+    consequences: dict
+
+
+def _load(cells):
+    results = [c.result.pk for c in cells]
+    requirements = {c.requirement.pk for c in cells}
+    citations, quotes, consequences = {}, {}, {}
+    for citation in Citation.objects.filter(result__in=results).order_by("order", "pk"):
+        citations.setdefault(citation.result_id, []).append(citation)
+    for quote in RequirementQuote.objects.filter(requirement__in=requirements).order_by("order"):
+        quotes.setdefault(quote.requirement_id, []).append(quote)
+    for row in Consequence.objects.filter(requirement__in=requirements).order_by("pk"):
+        consequences.setdefault(row.requirement_id, []).append(row)
+    return _Loaded(citations, quotes, consequences)
+
+
+def _ground(cell, loaded):
+    citations = loaded.citations.get(cell.result.pk, [])
     pliego = [c for c in citations if c.kind == CitationKind.PLIEGO]
     return Ground(
         requirement=cell.requirement, result=cell.result, outcome=cell.effective_outcome,
         item=_item_of(cell.requirement),
-        requirement_text=pliego[0].text if pliego else sheets.requirement_text(cell.requirement),
+        requirement_text=(pliego[0].text if pliego else sheets.requirement_text(
+            cell.requirement, loaded.quotes.get(cell.requirement.pk, []))),
         offer_quotes=[c for c in citations if c.kind == CitationKind.OFERTA],
-        consequences=_consequences_of(cell.requirement))
+        consequences=_consequence_labels(loaded.consequences.get(cell.requirement.pk, [])))
+
+
+def _discarding(offers, requirements, cells):
+    """Las celdas que son motivo de descarte, por oferta."""
+    return {offer.pk: [cells[(offer.pk, requirement.pk)] for requirement in requirements
+                       if (cells.get((offer.pk, requirement.pk)) is not None
+                           and cells[(offer.pk, requirement.pk)].result is not None
+                           and cells[(offer.pk, requirement.pk)].effective_outcome
+                           == Outcome.NO_CUMPLE
+                           and requirement.category in DISCARD_CATEGORIES)]
+            for offer in offers}
 
 
 def propose_discards(offers, requirements, cells):
@@ -114,15 +147,13 @@ def propose_discards(offers, requirements, cells):
     `{(id de la oferta, id del requisito): celda}`; una celda trae `requirement`, `result` y
     `effective_outcome`."""
     found = {}
+    mine = _discarding(offers, requirements, cells)
+    every = [cell for group in mine.values() for cell in group]
+    loaded = _load(every) if every else _Loaded({}, {}, {})
     for offer in offers:
         discard = Discard(offer=offer)
-        for requirement in requirements:
-            cell = cells.get((offer.pk, requirement.pk))
-            if (cell is None or cell.result is None
-                    or cell.effective_outcome != Outcome.NO_CUMPLE
-                    or requirement.category not in DISCARD_CATEGORIES):
-                continue
-            ground = _ground(cell)
+        for cell in mine[offer.pk]:
+            ground = _ground(cell, loaded)
             if ground.item is None:
                 discard.whole.append(ground)
             else:

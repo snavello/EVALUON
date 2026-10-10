@@ -85,6 +85,29 @@ def current_decision(result):
             .select_related("user").order_by("-at", "-pk").first())
 
 
+def current_decisions(results):
+    """`{id del resultado: última decisión de estado}` de varios resultados con una consulta; los
+    que no tienen decisión no figuran. Misma definición que `current_decision`."""
+    found = {}
+    for decision in (Decision.objects.filter(result__in=[r.pk for r in results],
+                                             action__in=STATE_ACTIONS)
+                     .order_by("at", "pk")):
+        found[decision.result_id] = decision
+    return found
+
+
+def state_from(decision):
+    """El estado que resulta de `decision` (la de `current_decision`) o `None`."""
+    return PROPOSED if decision is None else _STATES[decision.action]
+
+
+def outcome_from(result, decision):
+    """El resultado efectivo de `result` dada su última decisión de estado (o `None`)."""
+    if decision is None or decision.action == Action.CONFIRMAR:
+        return result.outcome
+    return decision.outcome_after or None
+
+
 def state_of(result):
     """«propuesto» (sin decisión), «confirmado», «corregido» o «rechazado»."""
     decision = current_decision(result)

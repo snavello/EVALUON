@@ -119,6 +119,19 @@ def current_result(offer, requirement):
             .select_related("run").order_by("-run__number", "-pk").first())
 
 
+def current_results(offers, requirements=None):
+    """`{(oferta, requisito): resultado vigente}` de varios pares con una sola consulta. Es la
+    misma definición que `current_result` (la evaluación más reciente del par); los pares sin
+    resultado no figuran. Con `requirements=None` toma todos los requisitos evaluados."""
+    results = Result.objects.filter(offer__in=offers).select_related("run__matrix_version", "requirement")
+    if requirements is not None:
+        results = results.filter(requirement__in=requirements)
+    found = {}
+    for result in results.order_by("run__number", "pk"):
+        found[(result.offer_id, result.requirement_id)] = result
+    return found
+
+
 # --- Pedido ------------------------------------------------------------------------------------
 
 

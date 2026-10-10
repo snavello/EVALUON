@@ -74,13 +74,15 @@ def question_list(user, procedure, *, channel=Channel.SCREEN):
     for answer in (Answer.objects.filter(question__in=questions)
                    .select_related("answered_by").order_by("answered_at", "pk")):
         by_question.setdefault(answer.question_id, []).append(answer)
+    currents = evaluate.current_results({q.offer_id for q in questions},
+                                        {q.requirement_id for q in questions})
     rows = []
     for question in questions:
         given = by_question.get(question.pk, [])
         rows.append(QuestionRow(
             question=question, answer=given[-1] if given else None,
             previous_answers=list(reversed(given[:-1])),
-            current=evaluate.current_result(question.offer, question.requirement)))
+            current=currents.get((question.offer_id, question.requirement_id))))
     return sorted(rows, key=lambda row: not row.is_open)
 
 

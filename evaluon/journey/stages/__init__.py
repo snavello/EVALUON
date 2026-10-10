@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
+from evaluon.journey import memo
 from evaluon.journey.stages import (
     base,
     evaluacion,
@@ -39,6 +40,13 @@ class Journey:
     suggestions: int
 
 
+def stage_of(module, user, procedure):
+    """La etapa de `module`, calculada una vez por carga (T-223): la piden las secciones y
+    algunos temas con el mismo usuario y procedimiento."""
+    return memo.once(("stage", module.KEY, getattr(user, "pk", None), procedure.pk),
+                     lambda: module.compute(user, procedure))
+
+
 def stages_for(user, procedure, *, channel=None, viewer=False):
     """Calcula las seis etapas. Lanza `RoleRejected` sin rol de la Comisión (REQ-069), salvo
     con `viewer`: la aplicación por secciones deja ver al usuario de lectura (decisión del
@@ -46,7 +54,7 @@ def stages_for(user, procedure, *, channel=None, viewer=False):
     if not viewer or not is_viewer(user):
         require_commission_role(user, CommissionRole.OPERATOR, operation=OPERATION,
                                 channel=channel)
-    stages = tuple(module.compute(user, procedure) for module in STAGES)
+    stages = tuple(stage_of(module, user, procedure) for module in STAGES)
     current = next((s for s in stages
                     if s.state != base.LISTA
                     and not (s.optional and s.state == base.PENDIENTE)), None)

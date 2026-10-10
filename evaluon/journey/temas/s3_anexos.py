@@ -103,8 +103,11 @@ def status(user, procedure):
     cuentas de la sección y de la portada. Los anexos no son obligatorios: no cuentan."""
     base = tab_url(procedure.pk)
     missing, sources = [], []
-    for offer in procedure.offers.order_by("number"):
-        sheets = compliance.sheets_of(offer)
+    offers = list(procedure.offers.order_by("number"))
+    sheets_of = compliance.sheets_by_offer(offers)
+    annexes_of = document_history.current_documents_by_offer(offers, DocumentKind.ANEXO_TECNICO)
+    for offer in offers:
+        sheets = sheets_of[offer.pk]
         if not sheets:
             missing.append(Missing(
                 f"Oferta {offer.number} ({offer.bidder}): falta la hoja de compliance",
@@ -112,7 +115,7 @@ def status(user, procedure):
         else:
             sources.append(f"Hoja de compliance de la oferta {offer.number}: cargada el "
                            f"{_day(sheets[-1].loaded_at)}.")
-        annexes = _annexes(offer)
+        annexes = annexes_of.get(offer.pk, [])
         if annexes:
             sources.append(f"Anexos técnicos de la oferta {offer.number}: {len(annexes)} "
                            f"{'subido' if len(annexes) == 1 else 'subidos'} por la Comisión.")

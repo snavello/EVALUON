@@ -39,13 +39,14 @@ from evaluon.offers.models import (
     Fragment,
     Offer,
     Passage,
+    Sheet as SheetModel,
     SheetChannel,
     SheetEntry,
 )
 from evaluon.offers.models import Outcome as EntryOutcome
 from evaluon.offers.services import review
 from evaluon.offers.services import sheets as sheets_service
-from evaluon.offers.services.offers import own_documents
+from evaluon.offers.services.offers import offer_ids_with_documents
 from evaluon.tenders.models import Procedure
 from evaluon.tenders.services.validation import latest_validated
 
@@ -110,6 +111,15 @@ def _latest_sheet(offer):
     return offer.sheets.filter(channel=SheetChannel.SCREEN).order_by("-number").first()
 
 
+def _latest_sheets(offers):
+    """`{id de la oferta: su última ficha de pantalla}` con una sola consulta (T-223)."""
+    found = {}
+    for sheet in (SheetModel.objects.filter(offer__in=list(offers), channel=SheetChannel.SCREEN)
+                  .select_related("matrix_version").order_by("number", "pk")):
+        found[sheet.offer_id] = sheet
+    return found
+
+
 def _all_read(offers):
     documents = Document.objects.filter(offer__in=offers).exclude(kind="informe_tecnico")
     return documents.exists() and not documents.filter(readings__isnull=True).exists()
@@ -120,7 +130,9 @@ def status(user, procedure):
     faltante (la ficha es opcional). Las cuentas las suma la etapa de ofertas de la 013; acá se
     reemplazan sus renglones genéricos por uno por oferta, con su enlace dentro de la pestaña."""
     offers = list(procedure.offers.order_by("number"))
-    with_documents = [o for o in offers if own_documents(o).exists()]
+    having = offer_ids_with_documents(offers)
+    with_documents = [o for o in offers if o.pk in having]
+    latest = _latest_sheets(offers)
     pending = [Item(f"Oferta {offer.number} ({offer.bidder}): {count} "
                     f"{'fila' if count == 1 else 'filas'} de la ficha por confirmar",
                     tab_url(procedure.pk, offer.pk) + "#s3-ficha", count, "Resolver",
@@ -134,10 +146,10 @@ def status(user, procedure):
                             "Ver", kind="ficha_arma",
                             noun="ofertas donde se puede armar la ficha (opcional)",
                             group_url=tab_url(procedure.pk) + "#s3-ficha")
-                       for o in with_documents if _latest_sheet(o) is None]
+                       for o in with_documents if o.pk not in latest]
     sources = []
     for offer in offers:
-        sheet = _latest_sheet(offer)
+        sheet = latest.get(offer.pk)
         if sheet is not None:
             sources.append(f"Ficha de la oferta {offer.number}: armada el "
                            f"{timezone.localtime(sheet.built_at):%d/%m/%Y} sobre la versión "

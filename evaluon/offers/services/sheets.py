@@ -257,10 +257,11 @@ def is_item_row(requirement):
     return requirement.category == RequirementClass.TECNICO and bool(requirement.items)
 
 
-def requirement_text(requirement):
+def requirement_text(requirement, quotes=None):
     """El texto del requisito que se busca y se le muestra al modelo: la cita del pliego
-    (de una fila por renglón, la del renglón con su encabezado). Vacío si no tiene cita."""
-    quotes = _quotes(requirement)
+    (de una fila por renglón, la del renglón con su encabezado). Vacío si no tiene cita.
+    `quotes` son sus citas en orden si quien llama ya las cargó (T-223)."""
+    quotes = _quotes(requirement) if quotes is None else quotes
     if not quotes:
         return ""
     if is_item_row(requirement):
