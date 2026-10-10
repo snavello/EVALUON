@@ -122,8 +122,8 @@ def test_a_new_procedure_says_what_is_missing_with_a_direct_action_in_every_sect
     overview = sections.sections_for(operator_user, case.procedure)
     for section in overview.sections:
         assert section.missing, section.key
-        assert section.upload_url and section.upload_url.startswith(
-            f"/expedientes/{case.procedure.pk}/"), section.key
+        # Dentro de la aplicación; la sección 1 sube el pliego en su propia pantalla de alta.
+        assert section.upload_url and section.upload_url.startswith("/expedientes/"), section.key
         page = client.get(section.url).content.decode()
         assert re.search(r"Falta|Faltan|Todavía no hay", page), section.key
         assert section.upload_url.split("#")[0] in page, section.key

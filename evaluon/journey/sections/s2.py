@@ -22,7 +22,7 @@ def summary(user, procedure, stages):
     return tuple((s.label, s.detail) for s in stages if s.detail)
 
 
-def upload_url(procedure):
+def upload_url(procedure, user=None):
     """Dónde se sube un archivo a esta sección hoy (T-192); las tareas de cada sección lo
     reemplazan por su propio componente. En la sección 2 es la subida de varios archivos de la
     propia pestaña (T-198)."""

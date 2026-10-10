@@ -216,5 +216,7 @@ def build_section(module, user, procedure, stages_by_key):
         suggestion_items=tuple(group_items(suggestion_items)),
         error=plain_reason(failed.error) if failed else "",
         legacy_links=tuple(module.legacy_links(procedure)),
-        upload_url=module.upload_url(procedure),
+        # Sin rol de la Comisión (usuario de lectura) no hay dónde subir: no se ofrece.
+        upload_url=(module.upload_url(procedure, user)
+                    if getattr(user, "commission_role", "") else None),
         css=f"journey/{module.__name__.rsplit('.', 1)[-1]}.css", temas=tuple(tema_modules))

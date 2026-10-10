@@ -15,7 +15,7 @@ def legacy_links(procedure):
     return [("Consulta de normativa", reverse("queries:screen"))]
 
 
-def upload_url(procedure):
+def upload_url(procedure, user=None):
     """«Subir archivo» de la sección: lleva al formulario de subir una norma (T-214)."""
     return f"{reverse('expedientes:normativas', args=[procedure.pk])}#s5-subir"
 

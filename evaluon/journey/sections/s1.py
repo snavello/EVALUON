@@ -19,7 +19,7 @@ def legacy_links(procedure):
             ("Importar del Portal", reverse("expedientes:nuevo"))]
 
 
-def upload_url(procedure):
-    """Dónde se sube un archivo a esta sección hoy (T-192); las tareas de cada sección lo
-    reemplazan por su propio componente."""
-    return reverse("expedientes:pliego", args=[procedure.pk])
+def upload_url(procedure, user=None):
+    """«Subir archivo» de la sección 1: la subida del pliego, con su formulario de archivo, que
+    arma el procedimiento sin tipear nada (T-197). Ya no manda a la sección 2 (T-227)."""
+    return reverse("expedientes:nuevo") + "#entrada-pliego"

@@ -3,6 +3,8 @@ evaluación."""
 
 from django.urls import reverse
 
+from evaluon.accounts.models import CommissionRole
+
 KEY = "evaluacion"
 LABEL = "Evaluación y dictamen"
 SLUG = "evaluacion"
@@ -17,7 +19,11 @@ def legacy_links(procedure):
     return [("Matriz de evaluación", reverse("expedientes:evaluacion", args=[procedure.pk]))]
 
 
-def upload_url(procedure):
-    """«Subir archivo» del encabezado lleva a la subida del informe técnico del área, en esta
-    misma pestaña (T-209)."""
-    return reverse("expedientes:evaluacion", args=[procedure.pk]) + "#s4-informe"
+def upload_url(procedure, user=None):
+    """«Subir archivo» del encabezado lleva a un formulario que quien lo toca puede usar, en esta
+    misma pestaña: el evaluador, a la subida del informe técnico del área (T-209); el operador,
+    que no sube el informe, a la subida del dictamen (T-227)."""
+    anchor = ("#s4-informe"
+              if getattr(user, "commission_role", "") == CommissionRole.EVALUATOR
+              else "#dictamen-subir")
+    return reverse("expedientes:evaluacion", args=[procedure.pk]) + anchor

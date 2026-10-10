@@ -173,3 +173,42 @@ def test_a_reader_sees_the_five_tabs_without_action_buttons_and_every_post_is_re
             response = client.post(action, {})
             assert response.status_code == 403, (moment, action, response.status_code)
         client.logout()
+
+
+def upload_target(client, user, procedure, key):
+    """A dónde lleva «Subir archivo» de la sección `key` y lo que hay ahí: (dirección, página)."""
+    client.logout()
+    log_in(client, user)
+    html = client.get(reverse(f"expedientes:{key}", args=[procedure.pk])).content.decode()
+    found = re.search(r'<a class="btn secundario" href="([^"]+)">Subir archivo</a>', html)
+    if found is None:
+        return None, ""
+    href = found.group(1).replace("&amp;", "&")
+    response = client.get(href.split("#")[0], follow=True)
+    assert response.status_code == 200, (key, href)
+    return href, response.content.decode()
+
+
+def test_upload_file_leads_to_a_form_of_its_own_in_every_section_and_for_both_roles(
+        client, case, operator_user, evaluator_user):
+    """REQ-097 (T-217, brecha 4): «Subir archivo» de cada sección lleva a un formulario con un
+    campo de archivo que puede usar quien lo toca: la sección 1 no manda a la 2 y, en la 4, el
+    operador va a la subida del dictamen y no a un bloque sin formulario."""
+    for moment in ("antes_de_importar", "evaluacion_terminada"):
+        case.go_to(moment)
+        for user in (operator_user, evaluator_user):
+            for key in KEYS:
+                href, page = upload_target(client, user, case.procedure, key)
+                assert href, (moment, user.username, key)
+                fragment = href.split("#")[1]
+                start = page.index(f'id="{fragment}"')
+                block = page[start:start + 6000]
+                if key != "normativas":  # subir normas pide además el rol de normativa de escritura
+                    assert 'type="file"' in block, (moment, user.username, key, href)
+            href, _ = upload_target(client, user, case.procedure, "procedimiento")
+            assert f"/expedientes/{case.procedure.pk}/pliego/" not in href
+    case.go_to("evaluacion_terminada")
+    href, _ = upload_target(client, operator_user, case.procedure, "evaluacion")
+    assert href.endswith("#dictamen-subir")
+    href, _ = upload_target(client, evaluator_user, case.procedure, "evaluacion")
+    assert href.endswith("#s4-informe")
