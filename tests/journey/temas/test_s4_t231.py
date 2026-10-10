@@ -132,3 +132,83 @@ def test_a_pair_the_commission_already_decided_is_not_offered(answered, procedur
     review.confirm(evaluator_user, result.pk)
     assert [offer.pk for offer, _, _ in questions.answered_pairs(procedure).pairs] == [
         b.pk, c.pk]
+
+
+# --- E-9: la situación del orden económico es la verdadera ---------------------------------------
+
+from decimal import Decimal  # noqa: E402
+
+from evaluon.assessment.services import discards, export, remedy  # noqa: E402,F401
+from tests.assessment.test_ordering import portal, quote_data  # noqa: E402,F401,F811
+
+
+def situations(client, procedure):
+    html = client.get(tab(procedure)).content.decode()
+    block = html.split('id="s4-resultado"', 1)[1]
+    return re.findall(r"<tr[^>]*>\s*<td[^>]*>.*?</tr>", block, re.S)
+
+
+@pytest.fixture
+def ordered(evaluated, portal, procedure):  # noqa: F811
+    """Las tres ofertas del caso chico con total en el Portal (entran al orden)."""
+    a, b, c = evaluated
+    for offer, total in ((a, 900), (b, 100), (c, 500)):
+        quote_data(portal, procedure, offer, total=Decimal(total))
+    return evaluated
+
+
+def situation_of(client, procedure, offer):
+    html = client.get(tab(procedure)).content.decode()
+    block = html.split('id="s4-resultado"', 1)[1].split('id="s4-descartes"', 1)[0]
+    rows = [r for r in re.findall(r"<tr.*?</tr>", block, re.S)
+            if f"{offer.number} · {offer.bidder}" in r]
+    row = rows[-1]  # la tabla del orden económico (la primera es la de resultados)
+    return htmllib.unescape(re.sub(r"<[^>]+>", " ", row))
+
+
+def test_an_offer_with_a_missing_document_and_no_decision_is_not_without_observations(
+        client, ordered, procedure, operator_user):
+    """REQ-091, E-9: la oferta C no encontró la constancia de inscripción y la subsanación está
+    por decidir: la situación lo dice, no «Sin observaciones»; A y B, sin nada, sí."""
+    a, b, c = ordered
+    log_in(client, operator_user)
+    text = situation_of(client, procedure, c)
+    assert "Sin observaciones" not in text
+    assert "No se encontró el documento (requisito" in text
+    assert "Subsanación por decidir" in text
+    assert "Sin observaciones" in situation_of(client, procedure, a)
+
+
+def test_a_requested_remedy_is_in_the_situation(client, ordered, procedure, evaluator_user):
+    """REQ-091, E-9: con la subsanación pedida, la situación dice «Subsanación pedida»."""
+    a, b, c = ordered
+    registry = requirement(procedure, "constancia de inscripción")
+    result = am.Result.objects.get(offer=c, requirement=registry)
+    remedy.request_remedy(evaluator_user, result.pk, "Falta la constancia del registro.")
+    log_in(client, evaluator_user)
+    text = situation_of(client, procedure, c)
+    assert "Subsanación pedida" in text and "Subsanación por decidir" not in text
+    assert "Sin observaciones" not in text
+
+
+def test_an_offer_not_evaluated_is_without_evaluating_not_without_observations(
+        client, ordered, procedure, operator_user, portal):  # noqa: F811
+    """REQ-091, E-9: una oferta que no se evaluó figura «Sin evaluar»."""
+    from tests.offers.conftest import make_offer
+
+    fourth = make_offer(procedure, operator_user, "Oferente D",
+                        {"oferta.pdf": ["Texto de la oferta D."]})
+    quote_data(portal, procedure, fourth, total=Decimal(700))
+    log_in(client, operator_user)
+    text = situation_of(client, procedure, fourth)
+    assert "Sin evaluar" in text and "Sin observaciones" not in text
+
+
+def test_the_export_says_the_same_situation(ordered, procedure, operator_user):
+    """REQ-091, E-9: la exportación del orden usa la misma situación que la pantalla."""
+    a, b, c = ordered
+    data = export.collect(operator_user, procedure.pk)
+    by_offer = {t.offer: t.situation for t in data.totals}
+    assert "Sin observaciones" not in by_offer[f"{c.number} · {c.bidder}"]
+    assert "No se encontró el documento" in by_offer[f"{c.number} · {c.bidder}"]
+    assert by_offer[f"{a.number} · {a.bidder}"] == "Sin observaciones"
