@@ -39,6 +39,12 @@ dígitos. La regla (cuarta del orden, después de externo, técnico e ilegible):
   `falta_coincidencia`: la Comisión verifica cuál rige;
 - un `datos` que no se ubicó, o del que no se lee un valor, no se compara: no se afirma nada.
 
+T-240 (ronda de ajuste): el número de una cláusula no es un monto (`amounts`); «hasta» es un tope
+solo si lo sigue un valor, y un porcentaje fija el total o la cotización solo si modifica el precio
+(descuento, recargo); un requisito sobre el documento de la garantía (copia, original, Mesa de
+Entrada) no pide un monto y el Portal no lo decide (`NO_PIDE`); «cargar el documento de la póliza
+en el Portal» coincide si el Portal informa una garantía en esa forma.
+
 El texto de la cita lo escribe el sistema desde las columnas del Portal, tal cual están en la
 fila (nunca el modelo). Un "cumple" por esta regla nunca sale sin la cita del Portal (P3).
 """
@@ -74,7 +80,7 @@ CUADRO = "Portal: cuadro comparativo"
 CATALOG = (
     (GARANTIA, re.compile(
         r"garantia de (?:mantenimiento|oferta)|mantenimiento de (?:la )?oferta"
-        r"|garantia de (?:la )?oferta|poliza de caucion|pagare"
+        r"|garantia de (?:la )?oferta|poliza de (?:seguro de )?caucion|seguro de caucion|pagare"
         # T-175: la garantía individualizada en el Portal («Paso 4 Ingreso de Garantía»).
         r"|ingreso de (?:la )?garantia|garantias? (?:\w+ ){0,3}individualizad"
         r"|individualiz\w* (?:\w+ ){0,3}garantia")),
@@ -94,7 +100,10 @@ CATALOG = (
 _LIMIT = re.compile(
     r"\bsuper(?:ar|a|e|en|ara|aran|ando)\b|\bexced\w+|\bmayor(?:es)?\b|\bmenor(?:es)?\b|\bmaxim\w+|\bminim\w+"
     r"|\binferior\w*|\bsuperior\w*|\bal menos\b|\bpor lo menos\b|\btope\b|\blimite\w*"
-    r"|\bhasta\b|\bno (?:podra|puede|debera|debe|menos|mas)\b")
+    # T-240: «hasta» es un tope si lo sigue un valor («hasta $ 500», «hasta 260 módulos»), no si es
+    # un «hasta los cuales» que habla de otra cosa.
+    r"|\bhasta\b(?:\W+\w+){0,6}?\W*[\d$]"
+    r"|\bno (?:podra|puede|debera|debe|menos|mas)\b")
 # La base del porcentaje de una garantía: lo que se busca después del porcentaje.
 _OFFER_BASE = re.compile(
     r"\b(?:cotizad\w*|ofertad\w*)\b"
@@ -110,6 +119,23 @@ def _mentions_percent(text):
     folded = fold(text)
     return bool(_PERCENT.search(folded)) or any(
         m.group(1) in _NUMBER_WORDS for m in _WORD_PERCENT.finditer(folded))
+
+
+# T-240: un porcentaje fija el valor del total o de la cotización solo si modifica el precio
+# («descuento del 10 %», «recargo de hasta 5 % sobre el total»); «oferta alternativa del 60 %» o un
+# porcentaje de adjudicación hablan de otra cosa.
+_PRICE_MODIFIER = re.compile(
+    r"descuento|recargo|bonificaci|rebaja|incremento|aumento|reduccion|margen|variacion"
+    r"|\b(?:sobre|del|al) (?:el |la |los |las )?(?:precio|total|monto|importe|valor)")
+PERCENT_WINDOW = 50
+
+
+def _percent_on_price(text):
+    folded = fold(text)
+    spans = [m.span() for m in _PERCENT.finditer(folded)] + [
+        m.span() for m in _WORD_PERCENT.finditer(folded) if m.group(1) in _NUMBER_WORDS]
+    return any(_PRICE_MODIFIER.search(folded[max(a - PERCENT_WINDOW, 0):b + PERCENT_WINDOW])
+               for a, b in spans)
 
 
 def _percent_base(text):
@@ -377,6 +403,9 @@ def _merge_offer(combined, located):
 COINCIDE = "coincide"
 DIFIERE = "difiere"
 NO_COMPARABLE = "no_comparable"
+# T-240: el requisito no pide un dato que el Portal pueda comparar (pide un documento de la
+# garantía, no un monto): el Portal no decide y queda lo que concluyó el modelo.
+NO_PIDE = "no_pide"
 
 # Porcentaje que fija el requisito: «5 %», «5%», «cinco por ciento», «cinco (5) por ciento».
 _PERCENT = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:\(\s*\d+\s*\)\s*)?(?:%|por\s*ciento)")
@@ -558,11 +587,44 @@ def _cuit_comparison(portal, text=""):
                       "el CUIT tiene once.", "11 dígitos", shown, f"{size} dígitos")
 
 
+# T-240: lo que pide un requisito sobre el documento de una garantía (no sobre su monto).
+_PORTAL_LOAD = re.compile(
+    r"\b(?:cargar|cargue|cargado|ingresar|ingrese|consignar|consigne|subir)\b")
+_GUARANTEE_DOCUMENT = re.compile(
+    r"\bcopias?\b|\boriginal(?:es)?\b|\bmesa de entradas?\b|\bcargar\b|\badjunt\w+")
+
+
+def _guarantee_document(data, portal, text):
+    """El requisito de una garantía que no fija porcentaje ni monto y trata de su documento: si pide
+    cargar el documento de una forma de garantía en el Portal y el Portal informa una garantía en
+    esa forma, coincide; si pide la copia, el original o la Mesa de Entrada, el Portal no lo
+    resuelve (`NO_PIDE`). `None` si no es ese caso (T-240)."""
+    from evaluon.assessment import guarantee_form
+
+    folded = fold(text)
+    forms = guarantee_form.required_forms(text)
+    if (forms and _PORTAL_LOAD.search(folded) and re.search(r"\bportal\b", folded)
+            and not re.search(r"\boriginal(?:es)?\b|\bmesa de entradas?\b", folded)
+            and guarantee_form.chosen_forms(list(data.guarantees.all())) & forms):
+        observed = ", ".join(d.shown for d in portal)
+        return Comparison(
+            COINCIDE, f"El Portal informa una garantía en la forma que el pliego pide cargar "
+            f"(monto {observed}).", "garantía cargada en el Portal", observed)
+    if _GUARANTEE_DOCUMENT.search(folded):
+        return Comparison(NO_PIDE, "El requisito trata del documento de la garantía y no fija un "
+                          "monto ni un porcentaje que el Portal pueda comparar.")
+    return None
+
+
 def compare(kind, offer, data, portal, text, items):
     """Lo que informa el Portal frente a lo que exige el pliego (`Comparison`). «Cumple» solo si el
     valor del Portal coincide con lo que el pliego fija, sobre la base que el pliego dice; si el
     pliego fija algo que no se compara, `NO_COMPARABLE` (T-233b, D-233-1)."""
     folded = fold(text)
+    if kind == GARANTIA and required_percent(text) is None and not amounts(text):
+        document = _guarantee_document(data, portal, text)
+        if document is not None:
+            return document
     if _LIMIT.search(folded):
         return Comparison(NO_COMPARABLE, "El pliego fija un tope o un mínimo que el sistema no "
                           "compara con el dato del Portal.")
@@ -570,7 +632,7 @@ def compare(kind, offer, data, portal, text, items):
         return _guarantee_comparison(data, portal, text)
     if kind == CUIT:
         return _cuit_comparison(portal, text)
-    if kind in (TOTAL, COTIZACION) and (amounts(text) or _mentions_percent(text)):
+    if kind in (TOTAL, COTIZACION) and (amounts(text) or _percent_on_price(text)):
         return Comparison(NO_COMPARABLE, "El pliego fija un monto o un porcentaje para este dato "
                           "y el sistema no lo compara con el Portal.")
     if kind == TOTAL:
@@ -644,6 +706,8 @@ def rule(pair, ctx):
 
     data = PortalOfferData.objects.filter(offer=ctx.offer).first()
     comparison = compare(kind, ctx.offer, data, portal, text, items)
+    if comparison.state == NO_PIDE:
+        return None
     facts = {**facts, "comparacion": comparison.facts()}
     from_offer = combined.outcome in (combine.OUT_CUMPLE, combine.OUT_NO_CUMPLE)
 
