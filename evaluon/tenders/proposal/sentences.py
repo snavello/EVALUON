@@ -130,7 +130,12 @@ SHORT_SENTENCE_CHARS = 300
 
 # Anáforas: la oración remite de manera explícita a la anterior.
 _ANAPHORA = re.compile(
-    r"(?:la\s+misma|los\s+mismos|las\s+mismas|dicho|dicha|este|esto|ello)\b", re.IGNORECASE)
+    r"(?:la\s+misma|los\s+mismos|las\s+mismas|dich[oa]s?|este|esto|ello"
+    # T-240 (H-6): «Tal manifestación…», «Tales documentos…»; no «Tal como…», «Tal vez…».
+    r"|tal(?:es)?\b(?!\s+(?:como|cual|vez|que)\b))\b", re.IGNORECASE)
+# T-240 (H-6): «dicho», «dicha», «dichos» o «dichas» en las primeras palabras («El porcentaje de
+# dicha cotización…») remiten a la oración anterior aunque no abran la oración.
+_EARLY_DICHO = re.compile(r"^(?:\S+\s+){0,5}?dich[oa]s?\b", re.IGNORECASE)
 # La letra de un inciso en línea («b)», «c.», «ii)») no es una oración que continúa.
 _INLINE_LABEL = re.compile(r"(?:[a-zñ]|[ivxlcdm]{2,4})[).](?=\s|$)")
 # Una oración que empieza con un verbo de obligación no tiene sujeto propio, pero no se une
@@ -149,7 +154,7 @@ def is_continuation(sentence):
     first = sentence[0]
     if first.isalpha() and first.islower():
         return True
-    return bool(_ANAPHORA.match(sentence))
+    return bool(_ANAPHORA.match(sentence) or _EARLY_DICHO.match(sentence))
 
 
 def lacks_subject(sentence):
@@ -262,16 +267,49 @@ def needs_heading(segment, parent_text):
     return _starts_without_subject(segment.text)
 
 
+# T-240: la letra de un inciso que abre un párrafo («b) …»), y el número de un párrafo hermano.
+_INCISO_PARAGRAPH = re.compile(r"\s*[a-zñ]\)(?=\s)")
+_PARAGRAPH_KEY = re.compile(r"^(.*/p-)(\d+)$")
+# Cuántos párrafos hacia atrás se busca el que introduce una lista de incisos.
+INTRO_LOOKBACK = 40
+
+
+def _sibling_intro(segment, lookup):
+    """El párrafo que introduce la lista de incisos a la que pertenece `segment` (T-240): el
+    primero hacia atrás, entre sus hermanos (`…/p-N`), que no es otro inciso. Es lo que pasa en los
+    formularios y anexos, donde la oración que introduce la lista («No podrán contratar:») es un
+    párrafo hermano y no el tramo padre. `None` si el tramo no es un inciso o no hay."""
+    if not _INCISO_PARAGRAPH.match(segment.text):
+        return None
+    mark = _PARAGRAPH_KEY.match(segment.key)
+    if not mark:
+        return None
+    prefix, number = mark.group(1), int(mark.group(2))
+    for previous in range(number - 1, max(number - INTRO_LOOKBACK, 0), -1):
+        sibling = lookup(f"{prefix}{previous}")
+        if sibling is None:
+            return None
+        if not _INCISO_PARAGRAPH.match(sibling.text):
+            return sibling if sibling.text.strip() else None
+    return None
+
+
+def may_need_sibling_intro(segment):
+    """Si el tramo es un inciso en un párrafo hermano de la lista (T-240, `_sibling_intro`)."""
+    return bool(_INCISO_PARAGRAPH.match(segment.text) and _PARAGRAPH_KEY.match(segment.key))
+
+
 def heading_of(segment, lookup):
     """El encabezado del punto de `segment` (el texto de su tramo padre, sin el número de
     la cláusula y en una línea) si la oración sola no se entiende, o "". `lookup(clave)`
     devuelve el tramo de esa clave en la misma lectura o `None`; solo se llama si el tramo
-    podría necesitar el encabezado (`may_need_heading`). No se cita: es contexto."""
-    if not may_need_heading(segment):
+    podría necesitar el encabezado (`may_need_heading`). Un inciso («b) …») cuyo padre no lo
+    introduce toma el párrafo hermano que abre la lista (T-240). No se cita: es contexto."""
+    if may_need_heading(segment):
+        parent = lookup(parent_key(segment.key))
+        if parent is not None and parent.text.strip() and needs_heading(segment, parent.text):
+            return _shortened(parent.text[label_end(parent.text):])
+    intro = _sibling_intro(segment, lookup)
+    if intro is None:
         return ""
-    parent = lookup(parent_key(segment.key))
-    if parent is None or not parent.text.strip():
-        return ""
-    if not needs_heading(segment, parent.text):
-        return ""
-    return _shortened(parent.text[label_end(parent.text):])
+    return _shortened(intro.text[label_end(intro.text):])

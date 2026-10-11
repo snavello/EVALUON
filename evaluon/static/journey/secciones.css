@@ -115,6 +115,7 @@ nav.tabs .est::after { display: none; }
 .est.nocumple { color: var(--ev-icono-nocumple); }
 .est.nodet { color: var(--ev-icono-nodeterminado); }
 .est.pend { color: var(--ev-icono-pendiente); }
+.est.na { color: var(--ev-icono-pendiente); }
 .est::after {
   content: attr(data-nombre); position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%);
   z-index: 30; background: var(--ev-tooltip-fondo); color: var(--ev-tooltip-texto);

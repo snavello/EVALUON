@@ -252,6 +252,14 @@ class Result(models.Model):
     def __str__(self):
         return f"{self.offer} · {self.requirement} · {self.outcome}"
 
+    def get_outcome_display(self):
+        """El texto del resultado propuesto: un requisito que no aplica a la oferta (forma de garantía
+        no elegida) dice «No aplica (forma de garantía no elegida)» y nunca «Cumple» (T-240;
+        `not_applicable`)."""
+        from evaluon.assessment import not_applicable
+
+        return not_applicable.result_label(self)
+
 
 class CitationKind(models.TextChoices):
     OFERTA = "oferta", "Texto de la oferta"

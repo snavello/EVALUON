@@ -839,7 +839,7 @@ def test_undetermined_cells_do_not_count_the_ones_waiting_for_a_missing_document
     técnico o una hoja de compliance. Con las celdas de T-229 da 38 de 81 (47 %), la cifra del
     diagnóstico; el umbral es 15 % (12 de 81) y solo rige en el caso-00."""
     counts = ev.cell_counts(_stub_run(*_t229_cells()))
-    assert counts == {"total": 81, "undetermined": 71, "waiting_document": 33}
+    assert counts == {"total": 81, "undetermined": 71, "waiting_document": 33, "not_applicable": 0}
     total = ev.aggregate_015([{"cells": counts}])
     assert total["cells"]["counted"] == 38
     assert total["cells"]["ratio"] == {"ok": 38, "total": 81, "rate": 38 / 81}
@@ -905,7 +905,7 @@ def test_portal_cells_aggregate_into_100_percent_and_zero_wrong():
     good = ev.aggregate_015([{"offer_number": 1, "portal_cells": [
         cell(True, True, False), cell(True, True, False), cell(False, False, False)]}])
     assert good["portal_cumple"] == {"ok": 2, "total": 2, "rate": 1.0}
-    assert good["portal_cells"] == {"total": 3, "matching": 2} and good["portal_wrong"] == []
+    assert good["portal_cells"] == {"total": 3, "matching": 2, "not_applicable": 0} and good["portal_wrong"] == []
     assert all(ok for _, _, ok in ev.thresholds_015(good))
 
     bad = ev.aggregate_015([{"offer_number": 2, "portal_cells": [
@@ -996,7 +996,8 @@ def test_a_cell_of_the_portal_file_is_measured_on_the_result_of_its_row(rows, mo
     found, absent = measures["portal_cells"]
     assert found["cumple_con_cita_portal"] is True and found["fila"] == rows.requirement.number
     assert absent["obtenido"] is None and absent["cumple_con_cita_portal"] is False
-    assert measures["cells"] == {"total": 1, "undetermined": 0, "waiting_document": 0}
+    assert measures["cells"] == {"total": 1, "undetermined": 0, "waiting_document": 0,
+                                "not_applicable": 0}
     assert measures["offer_number"] == rows.run.offer.number
 
 
@@ -1162,7 +1163,7 @@ def test_the_small_case_measure_carries_the_015_figures_and_keeps_the_text_out_o
     assert total["cells"]["total"] == 30
     assert total["cells"]["waiting_document"] == total["cells"]["undetermined"] - total[
         "cells"]["counted"]
-    assert total["portal_cells"] == {"total": 1, "matching": 1}
+    assert total["portal_cells"] == {"total": 1, "matching": 1, "not_applicable": 0}
     assert total["questions_form"]["total"] == len(total["questions_nonconforming"]) + total[
         "questions_form"]["ok"]
     assert ev.max_video_mib(report.video) == 21000
