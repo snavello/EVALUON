@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
-from evaluon.assessment import ordering
+from evaluon.assessment import not_applicable, ordering
 from evaluon.assessment.models import Doubt, Outcome, Question, Result
 from evaluon.assessment.services import (
     compliance,
@@ -68,7 +68,18 @@ class Cell:
 
     @property
     def effective_label(self):
-        return Outcome(self.effective_outcome).label if self.effective_outcome else ""
+        """El texto del resultado vigente; «No aplica (forma de garantía no elegida)» si es el
+        propuesto de un requisito que no aplica (`not_applicable`)."""
+        if not self.effective_outcome:
+            return ""
+        return not_applicable.result_label(self.result, self.effective_outcome)
+
+    @property
+    def effective_key(self):
+        """La clave con que se cuenta el resultado vigente: los cuatro resultados y `no_aplica`."""
+        if not self.effective_outcome:
+            return None
+        return not_applicable.outcome_key(self.result, self.effective_outcome)
 
     @property
     def reason(self):
@@ -132,7 +143,9 @@ class OfferStatus:
 
     @property
     def by_outcome_rows(self):
-        return [(o.label, self.by_outcome.get(o.value, 0)) for o in Outcome]
+        """Los cuatro resultados y, aparte, los requisitos que no aplican a la oferta (T-240)."""
+        rows = [(o.label, self.by_outcome.get(o.value, 0)) for o in Outcome]
+        return rows + [(not_applicable.LABEL, self.by_outcome.get(not_applicable.KEY, 0))]
 
     @property
     def by_reason_rows(self):
@@ -269,8 +282,8 @@ def _status(offer, requirements, cells, validated, version, loaded):
         status.by_state[state] = sum(1 for c in own if c.state == state)
     for cell in evaluated:
         if cell.effective_outcome:
-            status.by_outcome[cell.effective_outcome] = \
-                status.by_outcome.get(cell.effective_outcome, 0) + 1
+            key = cell.effective_key
+            status.by_outcome[key] = status.by_outcome.get(key, 0) + 1
         if cell.reason:
             status.by_reason[cell.reason] = status.by_reason.get(cell.reason, 0) + 1
     if evaluated:

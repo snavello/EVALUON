@@ -7,9 +7,11 @@ solo en la oferta que eligió esa forma; para las demás no aplican.
 
 La regla (primera del orden de `rules.py`): si el requisito es de **una** forma de garantía y la
 forma que el Portal informa para la oferta es otra, el requisito **no aplica** a esa oferta. Se
-propone «cumple» con la explicación «No aplica: …», la cita del Portal que muestra la forma elegida
-y sin pregunta; `facts.aplica` queda en falso. El esquema no tiene un resultado «no aplica»:
-sumarlo es una migración y la decide el responsable (se dejó dicho en el informe de T-240).
+guarda el par con la explicación «No aplica: …», la cita del Portal que muestra la forma elegida
+y sin pregunta; `facts.aplica` queda en falso. El esquema no tiene un resultado «no aplica» (sumarlo
+es una migración y la decide el responsable): el valor guardado es «cumple», pero **nunca se muestra ni
+se cuenta como «cumple»**: `not_applicable.py` es la única definición del texto «No aplica (forma de
+garantía no elegida)» y de la cuenta aparte (decisión del Coordinador sobre T-240).
 
 Cuándo un requisito es de una forma (texto sin acentos): nombra una sola forma de garantía
 (pagaré, póliza o seguro de caución, fianza, aval; `unreadable.FORMS`) **y** la condiciona («si se

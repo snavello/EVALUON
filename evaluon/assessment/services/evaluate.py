@@ -40,7 +40,7 @@ from evaluon.accounts.permissions import require_commission_role
 from evaluon.ai import generation
 from evaluon.assessment import citations as citing
 from evaluon.assessment import combine, documents, externals, grounds, portal_block
-from evaluon.assessment import prompting, rules
+from evaluon.assessment import not_applicable, prompting, rules
 from evaluon.assessment import unreadable
 from evaluon.assessment.models import (
     Answer,
@@ -898,7 +898,9 @@ def _counts(pairs, steps):
     for pair in pairs:
         key = pair.rule or "sin_regla"
         by_rule[key] = by_rule.get(key, 0) + 1
-        by_outcome[pair.combined.outcome] = by_outcome.get(pair.combined.outcome, 0) + 1
+        # Un requisito que no aplica a la oferta no es «cumple»: se cuenta aparte (T-240).
+        key = not_applicable.outcome_key(pair.combined)
+        by_outcome[key] = by_outcome.get(key, 0) + 1
         if pair.combined.doubt:
             by_doubt[pair.combined.doubt] = by_doubt.get(pair.combined.doubt, 0) + 1
     return {"pairs": len(pairs), "by_outcome": by_outcome, "by_doubt": by_doubt,

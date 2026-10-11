@@ -88,7 +88,7 @@ from django.utils import timezone
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
-from evaluon.assessment import combine
+from evaluon.assessment import combine, not_applicable
 from evaluon.assessment import models as am
 from evaluon.assessment.citations import PageFinder
 from evaluon.assessment.models import Channel as RunChannel
@@ -809,13 +809,17 @@ def verify_portal_cells(portal_cells, procedure):
 def cell_counts(run):
     """Las celdas de una evaluación y cuántas son «no determinado»; de esas, cuántas esperan un
     documento ausente (informe técnico u hoja de compliance) y no cuentan (REQ-104)."""
-    total = undetermined = waiting = 0
+    total = undetermined = waiting = inapplicable = 0
     for result in run.results.all():
+        if not_applicable.is_not_applicable(result):
+            inapplicable += 1   # se cuentan aparte: ni «cumple» ni «no determinado» (T-240)
+            continue
         total += 1
         if result.outcome == am.Outcome.NO_DETERMINADO:
             undetermined += 1
             waiting += result.doubt in WAITING_DOCUMENT
-    return {"total": total, "undetermined": undetermined, "waiting_document": waiting}
+    return {"total": total, "undetermined": undetermined, "waiting_document": waiting,
+            "not_applicable": inapplicable}
 
 
 def portal_cell_record(result, kind, value, matches):
@@ -824,8 +828,10 @@ def portal_cell_record(result, kind, value, matches):
     el pliego, o la cita del Portal trae otro valor)."""
     cites = [c for c in _portal_cites(result) if c.portal_kind == kind]
     with_value = any(portal_value_in(kind, c.text, value) for c in cites)
-    cumple = result.outcome == am.Outcome.CUMPLE
-    return {"tipo_portal": kind, "coincide_dato": matches, "obtenido": result.outcome,
+    inapplicable = not_applicable.is_not_applicable(result)
+    cumple = result.outcome == am.Outcome.CUMPLE and not inapplicable
+    return {"tipo_portal": kind, "coincide_dato": matches,
+            "obtenido": not_applicable.outcome_key(result), "no_aplica": inapplicable,
             "motivo": result.doubt, "regla": (result.facts or {}).get("regla", ""),
             "cumple_con_cita_portal": cumple and with_value,
             "cumple_con_dato_distinto": cumple and (not matches or (bool(cites) and not with_value))}
@@ -890,7 +896,7 @@ def question_records(run):
         form = question_form(
             question.text, requirement_text=requirement_text,
             requirement_number=question.requirement.number,
-            outcome_label=am.Outcome(result.outcome).label, doubt_label=doubt,
+            outcome_label=not_applicable.result_label(result), doubt_label=doubt,
             offer_texts=offer_texts)
         records.append({
             "oferta": question.offer.number, "fila": question.requirement.number,
@@ -939,7 +945,8 @@ def measure_pair(pair, result, requirement, offer, finder, fragments, equivalent
         literal += (cite.char_start is not None and cite.text != ""
                     and reading.canonical_text[cite.char_start:cite.char_end] == cite.text
                     and finder.page_of(reading, cite.char_start, cite.char_end) == cite.page)
-    concluded = result.outcome in (am.Outcome.CUMPLE, am.Outcome.NO_CUMPLE)
+    concluded = (result.outcome in (am.Outcome.CUMPLE, am.Outcome.NO_CUMPLE)
+                 and not not_applicable.is_not_applicable(result))
     asked = am.Question.objects.filter(result=result).exists()
     wanted = [f for f in fragments if f["requisito"] == pair.requirement]
     fragment_ok = None
@@ -957,7 +964,8 @@ def measure_pair(pair, result, requirement, offer, finder, fragments, equivalent
     return {
         "requisito": pair.requirement, "base": pair.base, "via": pair.via, "tipo": kind,
         "esperado": pair.result, "motivo_esperado": pair.doubt,
-        "obtenido": result.outcome, "motivo": result.doubt,
+        "obtenido": not_applicable.outcome_key(result), "motivo": result.doubt,
+        "no_aplica": not_applicable.is_not_applicable(result),
         "coincide": _match(pair, result), "contradiccion": _contradiction(pair, result),
         "contradicciones_hecho": _fact_contradictions(pair, result),
         "hechos": {k: facts.get(k) for k in ("regla", "documento_tecnico", "renglon_ofertado",
@@ -1111,7 +1119,8 @@ def aggregate(measures):
         "discards": ratio(sum(1 for m_ in measures if m_["discard_ok"]),
                           sum(1 for m_ in measures if m_["discard_ok"] is not None)),
         "by_outcome": {o: sum(1 for r in records if r["obtenido"] == o)
-                       for o in am.Outcome.values},
+                       for o in [*am.Outcome.values, not_applicable.KEY]},
+        "not_applicable": sum(1 for r in records if r.get("no_aplica")),
         "mismatches": [(r["requisito"], r["esperado"], r["obtenido"], r["motivo"])
                        for r in records if not r["coincide"]],
         "seconds": round(sum(m_["timings"].get("total_seconds", 0) for m_ in measures), 3),
@@ -1125,21 +1134,24 @@ def aggregate(measures):
 
 def aggregate_015(measures):
     """Las cuentas de la 015 de todas las ofertas (T-238)."""
-    counts = [m_.get("cells") or {"total": 0, "undetermined": 0, "waiting_document": 0}
+    counts = [m_.get("cells") or {"total": 0, "undetermined": 0, "waiting_document": 0,
+                                  "not_applicable": 0}
               for m_ in measures]
     total = sum(c["total"] for c in counts)
     undetermined = sum(c["undetermined"] for c in counts)
     waiting = sum(c["waiting_document"] for c in counts)
+    inapplicable = sum(c.get("not_applicable", 0) for c in counts)
     portal = [dict(c, oferta=m_.get("offer_number")) for m_ in measures
               for c in m_.get("portal_cells", [])]
-    matching = [c for c in portal if c["coincide_dato"]]
+    matching = [c for c in portal if c["coincide_dato"] and not c.get("no_aplica")]
     forms = [dict(q, oferta=m_.get("offer_number")) for m_ in measures
              for q in m_.get("questions", [])]
     return {
         "cells": {"total": total, "undetermined": undetermined, "waiting_document": waiting,
-                  "counted": undetermined - waiting,
+                  "not_applicable": inapplicable, "counted": undetermined - waiting,
                   "ratio": ratio(undetermined - waiting, total)},
-        "portal_cells": {"total": len(portal), "matching": len(matching)},
+        "portal_cells": {"total": len(portal), "matching": len(matching),
+                         "not_applicable": sum(1 for c in portal if c.get("no_aplica"))},
         "portal_cumple": ratio(sum(c["cumple_con_cita_portal"] for c in matching),
                                len(matching)),
         "portal_wrong": [(c["oferta"], c["fila"]) for c in portal
@@ -1381,9 +1393,12 @@ def _summary_015(report):
     lines += ["",
               f"- Celdas de la evaluación: {cells['total']}; «no determinado»: "
               f"{cells['undetermined']}, de ellas esperan el informe técnico o una hoja de "
-              f"compliance: {cells['waiting_document']}; las que cuentan: {cells['counted']}.",
+              f"compliance: {cells['waiting_document']}; las que cuentan: {cells['counted']}. "
+              f"Aparte, sin contar en esas cifras, «{not_applicable.LABEL}»: "
+              f"{cells.get('not_applicable', 0)}.",
               f"- Celdas del Portal medidas: {portal['total']} ({portal['matching']} con el "
-              "dato que coincide con lo que exige el pliego).",
+              "dato que coincide con lo que exige el pliego; "
+              f"{portal.get('not_applicable', 0)} «{not_applicable.LABEL}», aparte).",
               f"- Preguntas: {total['questions_form']['total']}; con el requisito "
               f"{forms['requisito_ok']}, con la conclusión {forms['conclusion_ok']}, con el "
               f"texto {forms['texto_ok']}, no dirigidas al oferente {forms['dirigida_ok']}, "

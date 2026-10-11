@@ -292,3 +292,126 @@ def test_the_new_evaluation_examples_are_the_three_cases_and_follow_the_schema()
     for example in sum(by_kind.values(), []):
         parsed = prompting.parse_evaluation(json.dumps(example), ["D1", "D2", "D3", "P1"], [])
         assert prompting.derive_result(parsed.conditions) == example["resultado"]
+
+
+# --- «No aplica (forma de garantía no elegida)»: nunca «cumple» donde se muestra ni se cuenta -----------
+
+from evaluon.assessment import guarantee_form, not_applicable  # noqa: E402
+from evaluon.assessment.models import Outcome  # noqa: E402
+from evaluon.assessment.services import export as export_service  # noqa: E402
+from evaluon.assessment.services import matrix as matrix_service  # noqa: E402
+from tests.assessment.fakes import model, says  # noqa: E402,F401 - `model` es una fixture
+from tests.assessment.test_evaluate import number_of, results_of, run_all  # noqa: E402
+
+NA_LABEL = "No aplica (forma de garantía no elegida)"
+
+
+def facts_of(applies=None):
+    return SimpleNamespace(outcome="cumple", facts={} if applies is None else {"aplica": applies})
+
+
+def test_a_single_function_decides_how_a_not_applicable_result_is_shown_and_counted():
+    """REQ-103, T-240 (decisión del Coordinador): `not_applicable` es la única definición: un
+    resultado con `facts.aplica` falso se muestra «No aplica (forma de garantía no elegida)» y se
+    cuenta aparte; una corrección de la persona rige sobre la propuesta."""
+    result = facts_of(False)
+    assert not_applicable.is_not_applicable(result)
+    assert not_applicable.result_label(result) == NA_LABEL
+    assert not_applicable.result_label(result, "cumple") == NA_LABEL
+    assert not_applicable.outcome_key(result) == not_applicable.KEY == "no_aplica"
+    # corregido por la Comisión: rige su resultado
+    assert not_applicable.result_label(result, "no_cumple") == "No cumple"
+    assert not_applicable.outcome_key(result, "no_cumple") == "no_cumple"
+    # un «cumple» común sigue siendo «Cumple»
+    assert not_applicable.result_label(facts_of()) == "Cumple"
+    assert not_applicable.outcome_key(facts_of()) == "cumple"
+
+
+@pytest.fixture
+def not_applicable_guarantee(monkeypatch):
+    """El requisito de la garantía de la matriz se toma como el de una sola forma (pagaré) y el
+    Portal informa una póliza de caución: no aplica."""
+    monkeypatch.setattr(guarantee_form, "required_forms", lambda text: (
+        {"pagare"} if "garantía de mantenimiento" in text else set()))
+
+
+def evaluated_with_not_applicable(offer, operator_user, procedure, portal):
+    portal_data(portal, offer)
+    _, runs = run_all(operator_user, procedure)
+    return runs[0], results_of(runs[0])[number_of(procedure, "garantía de mantenimiento")]
+
+
+def test_the_cell_the_pair_and_the_run_counts_never_say_cumple_for_a_not_applicable_requirement(
+        offer, operator_user, procedure, model, portal, not_applicable_guarantee):
+    """REQ-103, T-240: la regla deja el par «cumple» con `aplica` falso; el detalle del par (texto del
+    resultado), la celda de la matriz y las cuentas de la corrida dicen «No aplica (forma de
+    garantía no elegida)», no «Cumple»; la cuenta va aparte de «cumple»."""
+    run, result = evaluated_with_not_applicable(offer, operator_user, procedure, portal)
+    assert result.facts["regla"] == "forma_garantia_no_elegida" and result.facts["aplica"] is False
+    assert result.outcome == "cumple"                       # el valor guardado (sin migración)
+    assert result.get_outcome_display() == NA_LABEL         # detalle del par
+    assert result.citations.filter(kind="portal").exists() and not result.questions.exists()
+    assert run.counts["by_outcome"].get("no_aplica") == 1
+    others = sum(v for k, v in run.counts["by_outcome"].items() if k != "no_aplica")
+    assert others == run.counts["pairs"] - 1               # no está contada como «cumple»
+    page = matrix_service.matrix_page(operator_user, procedure.pk)
+    cell = page.cells[(offer.pk, result.requirement_id)]
+    assert cell.effective_label == NA_LABEL and cell.effective_key == "no_aplica"
+
+
+def test_the_summary_by_offer_the_economic_page_and_the_exports_count_it_apart(
+        offer, operator_user, procedure, model, portal, not_applicable_guarantee):
+    """REQ-103, T-240: el resumen por oferta (cuentas y fila aparte), el resumen del recorrido
+    («Resultado propuesto por oferta»), la planilla y el cuadro (datos de Excel y PDF) muestran «No
+    aplica (forma de garantía no elegida)»; no suma a «cumple» ni a «no determinado»."""
+    _, result = evaluated_with_not_applicable(offer, operator_user, procedure, portal)
+    page = matrix_service.matrix_page(operator_user, procedure.pk)
+    status = next(s for s in page.statuses if s.offer.pk == offer.pk)
+    assert status.by_outcome.get("no_aplica") == 1
+    counted_cumple = sum(1 for c in page.cells.values()
+                         if c.result is not None and c.offer.pk == offer.pk
+                         and c.effective_key == "cumple")
+    assert status.by_outcome.get("cumple", 0) == counted_cumple
+    assert (NA_LABEL, 1) in status.by_outcome_rows
+    assert dict(status.by_outcome_rows)["Cumple"] == counted_cumple
+    # resumen del recorrido
+    from evaluon.journey.temas import s4_descartes
+
+    row = next(r for r in s4_descartes._results(page) if r.get("evaluated"))
+    assert row["not_applicable"] == 1 and row["meets"] == counted_cumple
+    # planilla y cuadro: los datos que arman el Excel y el PDF
+    data = export_service.collect(operator_user, procedure.pk)
+    sheet = next(s for s in data.sheets if s.offer.pk == offer.pk)
+    requirement_row = next(r for r in sheet.rows if r.number == result.requirement.number)
+    assert requirement_row.proposed == NA_LABEL and requirement_row.effective == NA_LABEL
+    grid_row = next(cells for r, _, cells in data.grid if r.number == result.requirement.number)
+    assert grid_row[0].startswith(NA_LABEL) and "Cumple" not in grid_row[0]
+    html = export_service.build_html(data, "planilla")
+    assert NA_LABEL in html
+
+
+def test_the_proposal_screen_shows_it_with_its_own_icon_and_never_as_cumple(
+        offer, operator_user, procedure, model, portal, not_applicable_guarantee):
+    """REQ-103, T-240: la grilla del recorrido muestra el ícono y el nombre de «No aplica (forma de
+    garantía no elegida)» en la celda."""
+    from evaluon.journey.temas import s4_propuesta
+
+    _, result = evaluated_with_not_applicable(offer, operator_user, procedure, portal)
+    page = matrix_service.matrix_page(operator_user, procedure.pk)
+    view = s4_propuesta._cell_views(page, operator_user)[(offer.pk, result.requirement_id)]
+    assert view.name == NA_LABEL and view.icon == "na"
+
+
+def test_the_measurement_counts_these_cells_apart(offer, operator_user, procedure, model, portal,
+                                                  not_applicable_guarantee):
+    """REQ-103, REQ-104, T-240: `medir_evaluacion` no cuenta estas celdas como «cumple» ni como «no
+    determinado»: las informa aparte (cuentas de celdas, celdas del Portal y resultado por par)."""
+    from evaluon.assessment import evaluation
+
+    run, result = evaluated_with_not_applicable(offer, operator_user, procedure, portal)
+    counts = evaluation.cell_counts(run)
+    assert counts["not_applicable"] == 1 and counts["total"] == run.results.count() - 1
+    record = evaluation.portal_cell_record(result, "garantia", "21750.00", True)
+    assert record["no_aplica"] is True and record["obtenido"] == "no_aplica"
+    assert record["cumple_con_cita_portal"] is False and record["cumple_con_dato_distinto"] is False
+    assert Outcome.CUMPLE == "cumple"

@@ -23,6 +23,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET
 
 from evaluon.accounts.models import CommissionRole
+from evaluon.assessment import not_applicable
 from evaluon.assessment.models import Citation, CitationKind, Decision, Outcome, Result
 from evaluon.assessment.services import evaluate, review
 from evaluon.assessment.services import matrix as matrix_service
@@ -71,6 +72,8 @@ CONDITION_ICONS = {
     "no_determinado": ("nodet", "No determinado"),
 }
 PENDING_ICON = ("pend", "Pendiente del informe técnico")
+# Un requisito que no aplica a la oferta (forma de garantía no elegida): nunca «Cumple» (T-240).
+NOT_APPLICABLE_ICON = ("na", not_applicable.LABEL)
 REJECTED_ICON = ("pend", "Propuesta rechazada: sin resultado hasta que se evalúe de nuevo")
 STATE_TEXT = {
     matrix_service.PENDING: "Propuesto, sin decidir",
@@ -265,6 +268,8 @@ def _cell_views(page, user):
             view.icon, view.name = REJECTED_ICON
         elif cell.reason == "pendiente_informe_tecnico":
             view.icon, view.name = PENDING_ICON
+        elif cell.effective_key == not_applicable.KEY:
+            view.icon, view.name = NOT_APPLICABLE_ICON
         else:
             view.icon, view.name = OUTCOME_ICONS[cell.effective_outcome]
             if cell.reason_label:
