@@ -104,7 +104,7 @@ from evaluon.queries.evaluation import proportion_text  # usa el Wilson de la 00
 from evaluon.tenders import models as m
 from evaluon.tenders.proposal import quotes
 from evaluon.tenders.proposal import run as proposal
-from evaluon.tenders.proposal.sentences import expand_to_sentence, sentence_spans
+from evaluon.tenders.proposal.sentences import expand_to_sentence, lacks_subject, sentence_spans
 from evaluon.tenders.services import matrix as matrix_service
 
 OPERATION = "evaluon.tenders.evaluation.measure"
@@ -745,12 +745,12 @@ def piece_problem(text, start, end):
     Comprobación mecánica con la unidad de sentido de T-234 (`proposal.sentences`): una cita
     completa empieza donde empieza una oración (o al comienzo del tramo, con su número de
     cláusula), termina donde termina una oración y es la unidad que calcula el sistema: ni
-    arranca con una oración que continúa a la anterior («Deberán…», «La misma…») ni deja
-    afuera la corta que la continúa. Devuelve `None` si es completa o el problema:
-    `"empieza_en_medio"`, `"termina_en_medio"`, `"sin_sujeto"` (empieza con una oración que
-    sigue el asunto de la anterior), `"separa_condiciones"` (deja afuera la oración corta que
-    sigue el asunto) o `"vacia"`. Un texto sin oraciones (una tabla) no tiene límites que
-    comprobar."""
+    arranca con una oración sin sujeto propio que tiene la anterior en el tramo («Deberán…»,
+    «La misma…», una minúscula) ni deja afuera la oración corta que la continúa de manera
+    explícita («La misma…», «Esto…»). Devuelve `None` si es completa o el problema:
+    `"empieza_en_medio"`, `"termina_en_medio"`, `"sin_sujeto"` (empieza con una oración sin
+    sujeto propio), `"separa_condiciones"` (deja afuera la oración corta que la continúa) o
+    `"vacia"`. Un texto sin oraciones (una tabla) no tiene límites que comprobar."""
     chunk = text[start:end]
     if not chunk.strip():
         return "vacia"
@@ -763,6 +763,9 @@ def piece_problem(text, start, end):
         return "empieza_en_medio"
     if last not in {finish for _, finish in spans}:
         return "termina_en_medio"
+    opening = next((span for span in spans if span[0] == first), None)
+    if opening is not None and opening != spans[0] and lacks_subject(text[opening[0]:opening[1]]):
+        return "sin_sujeto"
     unit = expand_to_sentence(text, (first, last), max_chars=len(text)).unit
     if unit is None:
         return None
@@ -774,21 +777,31 @@ def piece_problem(text, start, end):
 
 
 def pieces_of(proposed):
-    """Los pedazos de las filas firmes: `[(fila, tramo, problema)]` y la cantidad de citas
-    revisadas (las de un tramo de tabla no se revisan). Una cita se revisa dentro del texto de
-    su propio tramo."""
-    found, checked = [], 0
+    """Los pedazos de las filas firmes y las unidades largas sin ampliar.
+
+    Devuelve `(pedazos, revisadas, largas)`: `pedazos` es `[(fila, tramo, problema)]`;
+    `revisadas`, la cantidad de citas revisadas; `largas`, `[(fila, tramo)]` de las citas que
+    quedaron como fragmento del modelo porque su unidad pasa del tope (marca `cita_amplia`,
+    T-234): no son un pedazo sin sujeto sino una cita a revisar, y no cuentan contra el umbral
+    de 0 pedazos. No se revisan las citas de un tramo de tabla (no tiene oraciones) ni las
+    largas. Una cita amplia que es el tramo entero sí se revisa. Una cita se revisa dentro del
+    texto de su propio tramo."""
+    found, checked, long_units = [], 0, []
     for row in proposed:
         for quote in row.quotes:
             segment = quote.segment
             if segment.segment_type == m.SegmentType.TABLA:
                 continue  # el texto de una tabla no tiene oraciones: la cita queda en la celda
+            whole = quote.char_start == segment.char_start and quote.char_end == segment.char_end
+            if quote.quote_flag == m.QuoteFlag.CITA_AMPLIA and not whole:
+                long_units.append((row.number, segment.key))
+                continue
             checked += 1
             problem = piece_problem(segment.text, quote.char_start - segment.char_start,
                                     quote.char_end - segment.char_start)
             if problem:
                 found.append((row.number, segment.key, problem))
-    return found, checked
+    return found, checked, long_units
 
 
 @dataclass
@@ -1088,10 +1101,13 @@ def measure_version(run, expected, verification):
             if item.consequence in suggested:
                 consequences["entre_las_sugeridas"] += 1
 
-    # Medidas de la 015 (T-238): pedazos sin sujeto y entradas excluidas.
-    pieces, pieces_checked = pieces_of(proposed)
+    # Medidas de la 015 (T-238): pedazos sin sujeto, unidades largas sin ampliar y entradas
+    # excluidas.
+    pieces, pieces_checked, long_units = pieces_of(proposed)
     lines += [{"tipo": "pedazo", "numero": number, "tramo": key, "problema": problem}
               for number, key, problem in pieces]
+    lines += [{"tipo": "unidad_larga", "numero": number, "tramo": key}
+              for number, key in long_units]
     excluded_here = [i.id for i in expected.items if i.id in excluded]
     lines += [{"tipo": "excluida", "id": ident, "motivo": excluded[ident]}
               for ident in excluded_here]
@@ -1148,6 +1164,8 @@ def measure_version(run, expected, verification):
         "pieces": {"count": len(pieces), "checked": pieces_checked,
                    "rows": sorted({number for number, _, _ in pieces}),
                    "by_problem": dict(Counter(problem for _, _, problem in pieces))},
+        "long_units": {"count": len(long_units),
+                       "rows": sorted({number for number, _ in long_units})},
         "recall": found,
         "excluded": {"count": len(excluded_here), "ids": excluded_here,
                      "by_motive": dict(Counter(excluded[i] for i in excluded_here)),
@@ -2061,6 +2079,9 @@ def _015_lines(measures, result):
         f"- Medidas de la 015, pedazos sin sujeto: {pieces['count']} de {pieces['checked']} "
         f"citas ({_counter_text(pieces['by_problem'])}); umbral {PIECES_MAXIMUM}: "
         f"{verdict['Pedazos sin sujeto (REQ-101)']}",
+        f"- Medidas de la 015, unidades largas sin ampliar (cita_amplia, se revisan aparte y "
+        f"no cuentan como pedazos): {measures['long_units']['count']} "
+        f"de {pieces['checked'] + measures['long_units']['count']} citas",
         f"- Medidas de la 015, recall sobre la lista sin las excluidas: {_count_text(found)}; "
         f"umbral {_percent(RECALL_MINIMUM)} o más: "
         f"{verdict['Requisitos de la lista que están, sin las excluidas (REQ-101, REQ-102)']}",

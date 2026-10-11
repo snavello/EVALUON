@@ -802,12 +802,12 @@ def test_the_pieces_of_one_sentence_make_a_single_row(operator_user, script):
 
 def test_a_short_sentence_that_continues_the_previous_one_is_in_the_same_row(
         operator_user, script):
-    """REQ-101: «Deberán incluir impuestos y tasas.» sigue a la oración anterior: una sola
+    """REQ-101: «La misma incluye impuestos y tasas.» remite a la oración anterior: una sola
     fila con las dos, aunque el modelo haya señalado solo un pedazo de la segunda."""
     first = "Los precios se expresarán en pesos argentinos por renglón."
-    second = "Deberán incluir impuestos y tasas."
+    second = "La misma incluye impuestos y tasas."
     procedure, _ = one_clause(operator_user, *wrapped("1.1.", f"{first} {second}"))
-    script.when("pesos argentinos", item([("incluir impuestos y tasas", "economico")]))
+    script.when("pesos argentinos", item([("incluye impuestos y tasas", "economico")]))
 
     requested, _ = propose(operator_user, procedure)
 
@@ -815,6 +815,38 @@ def test_a_short_sentence_that_continues_the_previous_one_is_in_the_same_row(
     assert len(rows) == 1
     assert rows[0].quotes.get().text == f"{first} {second}"
     assert rows[0].category == "economico"
+
+
+def test_a_deberan_sentence_without_anaphora_is_not_joined_by_code(operator_user, script):
+    """REQ-101 (decisión del Coordinador, verificación de T-234): «Deberá acompañarse el
+    certificado de visita…» abre otro asunto que «…en pesos argentinos.»: el sistema no las
+    une. Si el modelo cita las dos, son dos filas, cada una con su oración."""
+    first = "La oferta deberá presentarse en pesos argentinos."
+    second = "Deberá acompañarse el certificado de visita al lugar de obra."
+    procedure, _ = one_clause(operator_user, *wrapped("1.1.", f"{first} {second}"))
+    script.when("pesos argentinos", item([("presentarse en pesos argentinos", "economico"),
+                                          ("acompañarse el certificado", "formal")]))
+
+    requested, _ = propose(operator_user, procedure)
+
+    rows = list(m.Requirement.objects.filter(version=requested.run.version)
+                .order_by("number"))
+    assert [r.quotes.get().text for r in rows] == [first, second]
+    assert [r.category for r in rows] == ["economico", "formal"]
+
+
+def test_the_models_single_fragment_keeps_only_its_own_sentence(operator_user, script):
+    """REQ-101: si el modelo señala solo la primera oración, la cita es esa oración: la que
+    abre otro asunto no se suma."""
+    first = "La oferta deberá presentarse en pesos argentinos."
+    second = "Deberá acompañarse el certificado de visita al lugar de obra."
+    procedure, _ = one_clause(operator_user, *wrapped("1.1.", f"{first} {second}"))
+    script.when("pesos argentinos", item([("presentarse en pesos argentinos", "economico")]))
+
+    requested, _ = propose(operator_user, procedure)
+
+    (row,) = m.Requirement.objects.filter(version=requested.run.version)
+    assert row.quotes.get().text == first
 
 
 def test_two_sentences_with_their_own_subject_stay_two_rows(operator_user, script):

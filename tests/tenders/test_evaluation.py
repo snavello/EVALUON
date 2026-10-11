@@ -2242,20 +2242,32 @@ def write_exclusions(path, expected, entries, *, approval="Coordinador sintétic
     return target
 
 
+ANAPHORA = ("La garantía será del 5 % del monto adjudicado. La misma se presenta dentro de "
+            "3 días. Ver art. 12 del reglamento.")
+
+
 def test_a_quote_is_a_piece_unless_it_is_the_unit_of_sense_of_t234():
     """REQ-101: la comprobación mecánica de pedazos sin sujeto usa la unidad de sentido de T-234
     (`proposal.sentences`). Una cita completa empieza donde empieza una oración, termina donde
-    termina una y es la unidad que calcula el sistema: «Deberán…» continúa a la anterior, así que
-    la oración sola es un pedazo; la abreviatura y la inicial no cortan."""
+    termina una y es la unidad que calcula el sistema: «La misma…» continúa a la anterior, así
+    que la oración sola es un pedazo; «Deberán…» sin anáfora no se une, pero una cita que
+    empieza con ella queda sin sujeto; la abreviatura y la inicial no cortan."""
     first = len("La garantía será del 5 % del monto adjudicado.")
     second = TEXT.index("Deberán")
     third = TEXT.index("Ver art.")
 
-    assert ev.piece_problem(TEXT, 0, third - 1) is None       # las dos oraciones del mismo asunto
+    assert ev.piece_problem(TEXT, 0, third - 1) is None       # las dos oraciones
     assert ev.piece_problem(TEXT, 0, len(TEXT)) is None       # y la tercera, que es otro asunto
     assert ev.piece_problem(TEXT, third, len(TEXT)) is None   # "art." no corta la oración
-    assert ev.piece_problem(TEXT, 0, first) == "separa_condiciones"   # deja afuera «Deberán…»
+    assert ev.piece_problem(TEXT, 0, first) is None           # «Deberán…» no se une por código
     assert ev.piece_problem(TEXT, second, third - 1) == "sin_sujeto"   # empieza con «Deberán…»
+    # Con una anáfora («La misma…») la oración siguiente es parte de la unidad.
+    one = len("La garantía será del 5 % del monto adjudicado.")
+    same = ANAPHORA.index("La misma")
+    last = ANAPHORA.index("Ver art.")
+    assert ev.piece_problem(ANAPHORA, 0, last - 1) is None
+    assert ev.piece_problem(ANAPHORA, 0, one) == "separa_condiciones"   # deja afuera «La misma…»
+    assert ev.piece_problem(ANAPHORA, same, last - 1) == "sin_sujeto"   # empieza con «La misma…»
     assert ev.piece_problem(TEXT, TEXT.index("del 5 %"), first) == "empieza_en_medio"
     assert ev.piece_problem(TEXT, 0, TEXT.index("monto")) == "termina_en_medio"
     assert ev.piece_problem(TEXT, third, TEXT.index("del reglamento")) == "termina_en_medio"
@@ -2290,32 +2302,72 @@ def test_the_measure_reports_kept_rows_pieces_recall_and_no_exclusions(
     assert "no se aplicó el archivo de exclusiones" in summary
 
 
-def test_a_complete_unit_is_not_a_piece_and_a_fragment_is(case, operator_user, tmp_path,
-                                                        settings):
+def test_a_complete_unit_is_not_a_piece_and_a_long_unit_is_reported_apart(
+        case, operator_user, tmp_path, settings):
     """REQ-101: con T-234 la cita de la matriz ya es la unidad de sentido: la medición no cuenta
-    pedazos. Si la unidad pasa del largo máximo de una cita queda el fragmento del modelo (a
-    revisar) y entonces sí es un pedazo: se cuenta, la línea nombra la fila y el tramo sin texto
-    y el resumen público solo trae la cifra."""
+    pedazos. Si la unidad pasa del largo máximo de una cita queda el fragmento del modelo con la
+    marca `cita_amplia` (a revisar): no es un pedazo sin sujeto, se informa aparte como
+    «unidades largas sin ampliar» con su cantidad, la línea nombra la fila y el tramo sin texto
+    y el resumen público solo trae la cifra. El umbral de 0 pedazos no se toca."""
     procedure, _, path, _ = case
 
     whole = run_measure(operator_user, procedure, path, tmp_path / "a")
 
     assert measures_of(whole)["pieces"]["count"] == 0
+    assert measures_of(whole)["long_units"] == {"count": 0, "rows": []}
     assert not any("Pedazos sin sujeto" in reason for reason in whole.unmet_015)
 
     settings.ASSESSMENT_CITATION_MAX_CHARS = 15
     report = run_measure(operator_user, procedure, path, tmp_path / "b")
 
-    pieces = measures_of(report)["pieces"]
-    assert pieces["count"] >= 1 and pieces["rows"]
-    detail = [line for line in measures_of(report)["lines"] if line["tipo"] == "pedazo"]
-    assert len(detail) == pieces["count"]
-    assert set(detail[0]) == {"tipo", "numero", "tramo", "problema"}
+    measures = measures_of(report)
+    assert measures["pieces"]["count"] == 0 and not measures["pieces"]["rows"]
+    long_units = measures["long_units"]
+    assert long_units["count"] >= 1 and long_units["rows"]
+    detail = [line for line in measures["lines"] if line["tipo"] == "unidad_larga"]
+    assert len(detail) == long_units["count"]
+    assert set(detail[0]) == {"tipo", "numero", "tramo"}
+    assert not [line for line in measures["lines"] if line["tipo"] == "pedazo"]
     summary = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
     assert "garantía del 5 %" not in summary
-    assert "no cumple" in next(line for line in summary.splitlines()
-                               if "pedazos sin sujeto" in line)
-    assert any("Pedazos sin sujeto" in reason for reason in report.unmet_015)
+    pieces_line = next(line for line in summary.splitlines() if "pedazos sin sujeto" in line)
+    assert "cumple" in pieces_line and "no cumple" not in pieces_line
+    long_line = next(line for line in summary.splitlines()
+                     if "unidades largas sin ampliar" in line)
+    assert f": {long_units['count']} " in long_line
+    assert not any("Pedazos sin sujeto" in reason for reason in report.unmet_015)
+
+
+def fake_row(number, start, end, flag="", text=TEXT):
+    """Una fila firme con una sola cita `[start, end)` de `text`, sin pasar por la base."""
+    from types import SimpleNamespace
+
+    segment = SimpleNamespace(key=f"sec-i/{number}", text=text, segment_type="clausula",
+                              char_start=1000, char_end=1000 + len(text))
+    quote = SimpleNamespace(segment=segment, char_start=1000 + start, char_end=1000 + end,
+                            quote_flag=flag)
+    return SimpleNamespace(number=number, quotes=[quote])
+
+
+def test_a_real_piece_is_still_counted_when_the_flagged_quotes_are_set_apart():
+    """REQ-101: las citas con `cita_amplia` que son un fragmento (la unidad pasó del tope) salen
+    de la cuenta de pedazos y se informan aparte; un pedazo real, sin la marca, se sigue
+    contando contra el umbral de 0; y la cita amplia que es el tramo entero no es ninguna de
+    las dos cosas."""
+    first = len("La garantía será del 5 % del monto adjudicado.")
+    middle = TEXT.index("del 5 %")
+    rows = [
+        fake_row(1, 0, first),                              # completa
+        fake_row(2, middle, first),                         # pedazo real: empieza en medio
+        fake_row(3, middle, first, flag="cita_amplia"),     # unidad larga: queda el fragmento
+        fake_row(4, 0, len(TEXT), flag="cita_amplia"),      # el tramo entero: no es pedazo
+    ]
+
+    found, checked, long_units = ev.pieces_of(rows)
+
+    assert found == [(2, "sec-i/2", "empieza_en_medio")]
+    assert long_units == [(3, "sec-i/3")]
+    assert checked == 3   # las marcadas por unidad larga no se revisan como pedazos
 
 
 def test_excluded_entries_leave_the_denominator_and_their_row_becomes_a_leftover(

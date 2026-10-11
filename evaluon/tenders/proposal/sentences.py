@@ -12,10 +12,13 @@ son parte de la primera oración.
 
 **Unidad de sentido** (`expand_to_sentence`). El modelo señala un fragmento; el sistema lo
 amplía a la oración completa (a las que toca, si cruza varias) y le suma las oraciones cortas
-contiguas que siguen el mismo asunto: las que empiezan sin sujeto propio (en minúscula, o con
-«y», «e», «o», «ni»), con «Deberá», «Deberán», «La misma…» o «Esto…» (`is_continuation`).
-La oración que el modelo señaló puede ser la continuadora; entonces la unidad incluye la
-anterior. Una unidad que pasa de `ASSESSMENT_CITATION_MAX_CHARS` caracteres no se usa: queda el
+contiguas que son una continuación explícita (`is_continuation`): las que empiezan con una
+anáfora («La misma», «Los mismos», «Las mismas», «Dicho», «Dicha», «Este», «Esto», «Ello») o en
+minúscula sin ser la letra de un inciso («b)», «c.», «ii)»). Una oración que empieza con
+«Deberá…» sin anáfora ya no se une por código (decisión del Coordinador, verificación de
+T-234): puede abrir otro asunto, y la instrucción de extracción le pide al modelo citar juntas
+las del mismo asunto. La oración que el modelo señaló puede ser la continuadora; entonces la
+unidad incluye la anterior. Una unidad que pasa de `ASSESSMENT_CITATION_MAX_CHARS` caracteres no se usa: queda el
 fragmento del modelo y se avisa (`Expansion.too_long`) para que la Comisión lo revise. Así una
 enumeración, "cuatro patas, dos ojos y de color marrón", es una sola fila.
 
@@ -125,25 +128,35 @@ def sentence_spans(text):
 # Una oración corta que sigue el asunto de la anterior: el largo máximo de la continuadora.
 SHORT_SENTENCE_CHARS = 300
 
-_CONTINUES = re.compile(
-    r"(?:(?:y|e|o|u|ni)\b"                          # conjunción: sin sujeto propio
-    r"|deb(?:e|en|er[aá]|er[aá]n)\b"               # «Deberán…»: el sujeto es el de antes
-    r"|(?:la|las|el|los)\s+mism[oa]s?\b"            # «La misma…»
-    r"|lo\s+mismo\b|(?:esto|ello)\b)",              # «Esto…»
-    re.IGNORECASE)
+# Anáforas: la oración remite de manera explícita a la anterior.
+_ANAPHORA = re.compile(
+    r"(?:la\s+misma|los\s+mismos|las\s+mismas|dicho|dicha|este|esto|ello)\b", re.IGNORECASE)
+# La letra de un inciso en línea («b)», «c.», «ii)») no es una oración que continúa.
+_INLINE_LABEL = re.compile(r"(?:[a-zñ]|[ivxlcdm]{2,4})[).](?=\s|$)")
+# Una oración que empieza con un verbo de obligación no tiene sujeto propio, pero no se une
+# sola: puede abrir otro asunto.
+_VERB_FIRST = re.compile(r"deb(?:e|en|er[aá]|er[aá]n)\b", re.IGNORECASE)
 
 
 def is_continuation(sentence):
-    """Si la oración empieza sin sujeto propio y sigue el asunto de la anterior: en
-    minúscula, con «y», «e», «o», «u», «ni», con «Deberá» o «Deberán», con «La misma…» o con
-    «Esto…»."""
+    """Si la oración es una continuación explícita de la anterior: empieza con una anáfora
+    («La misma», «Los mismos», «Las mismas», «Dicho», «Dicha», «Este», «Esto», «Ello») o en
+    minúscula sin ser la letra de un inciso («b)», «c.», «ii)»). «Deberá…» sin anáfora no lo
+    es (`lacks_subject`)."""
     sentence = sentence.lstrip()
-    if not sentence:
+    if not sentence or _INLINE_LABEL.match(sentence):
         return False
     first = sentence[0]
     if first.isalpha() and first.islower():
         return True
-    return bool(_CONTINUES.match(sentence))
+    return bool(_ANAPHORA.match(sentence))
+
+
+def lacks_subject(sentence):
+    """Si la oración empieza sin sujeto propio: una continuación explícita
+    (`is_continuation`) o un verbo de obligación («Deberá…»), que no se une por código pero
+    tampoco se entiende sola. Lo usan el encabezado del punto y la medida de pedazos."""
+    return is_continuation(sentence) or bool(_VERB_FIRST.match(sentence.lstrip()))
 
 
 def _is_short_continuation(text, span):
@@ -227,14 +240,15 @@ def _shortened(text):
 
 
 def _starts_without_subject(text):
-    """Si la primera oración del texto empieza sin sujeto propio (`is_continuation`)."""
+    """Si la primera oración del texto empieza sin sujeto propio (`lacks_subject`)."""
     spans = sentence_spans(text)
-    return bool(spans) and is_continuation(text[spans[0][0]:spans[0][1]])
+    return bool(spans) and lacks_subject(text[spans[0][0]:spans[0][1]])
 
 
 def may_need_heading(segment):
     """Si el tramo podría necesitar el encabezado de su punto, sin mirar a su padre: tiene
-    padre y es una viñeta o un inciso, o su primera oración empieza sin sujeto propio."""
+    padre y es una viñeta o un inciso, o su primera oración empieza sin sujeto propio
+    (`lacks_subject`)."""
     return bool(parent_key(segment.key)) and (
         segment.segment_type == "vineta" or _starts_without_subject(segment.text))
 
@@ -242,7 +256,7 @@ def may_need_heading(segment):
 def needs_heading(segment, parent_text):
     """Si la oración del tramo sola no se entiende: es un inciso o una viñeta de una lista
     cuyo encabezado (`parent_text`) termina en «:», o su primera oración empieza sin sujeto
-    propio (`is_continuation`)."""
+    propio (`lacks_subject`)."""
     if segment.segment_type == "vineta" and parent_text.rstrip().endswith(":"):
         return True
     return _starts_without_subject(segment.text)
