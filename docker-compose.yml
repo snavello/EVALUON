@@ -81,6 +81,9 @@ x-app: &app
     - ./docker-compose.qwen36-35b.yml:/app/docker-compose.qwen36-35b.yml:ro
     - ./corpus:/app/corpus:ro
     - ./evals:/app/evals
+    # Solo para tests/test_instrucciones_revisadas.py (REQ-106): el informe de revisión de las
+    # instrucciones vive en specs/.
+    - ./specs:/app/specs:ro
   networks:
     - internal
 
