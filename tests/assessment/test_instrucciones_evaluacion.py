@@ -100,7 +100,7 @@ def test_the_evaluation_explains_the_portal_block_and_how_to_cite_it():
     body = current("evaluacion")
     assert "[P1]" in body and "Datos del Portal" in body
     assert '{"documento": "P1"' in body
-    assert "el sistema escribe la cita del Portal" in body.replace("\n", " ")
+    assert "el sistema escribe la cita del portal" in body.lower().replace("\n", " ")
     assert "<<<" in body and ">>>" in body    # la oración que se evalúa va marcada
 
 

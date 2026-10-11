@@ -63,6 +63,13 @@ OUTCOME_ICONS = {
     Outcome.SIN_DOCUMENTO: ("nocumple", "No se encontró el documento"),
     Outcome.NO_DETERMINADO: ("nodet", "No determinado"),
 }
+# Resultado de cada condición del requisito -> (ícono, nombre) (T-237, REQ-104).
+CONDITION_ICONS = {
+    "cumple": ("cumple", "Cumple"),
+    "no_cumple": ("nocumple", "No cumple"),
+    "no_consta": ("nodet", "No consta"),
+    "no_determinado": ("nodet", "No determinado"),
+}
 PENDING_ICON = ("pend", "Pendiente del informe técnico")
 REJECTED_ICON = ("pend", "Propuesta rechazada: sin resultado hasta que se evalúe de nuevo")
 STATE_TEXT = {
@@ -72,6 +79,25 @@ STATE_TEXT = {
     matrix_service.REJECTED: "Rechazado",
 }
 VERBS = {"confirmar": "Confirmado", "corregir": "Corregido", "rechazar": "Rechazado"}
+
+
+def condition_views(facts):
+    """Las condiciones del requisito que revisó el modelo, una por una, para la celda (T-237,
+    REQ-104): lo que exige cada una, su dato, su resultado y dónde está su cita. Vacía si el
+    resultado no las trae (lo decidió una regla, o es anterior a `evaluacion-v6`)."""
+    views = []
+    for item in (facts or {}).get("condiciones") or []:
+        icon, name = CONDITION_ICONS.get(item.get("resultado"), CONDITION_ICONS["no_determinado"])
+        cite = item.get("cita") or {}
+        if cite.get("tipo") == "oferta":
+            where = f"{cite.get('documento', '')} · página {cite.get('pagina', '')}"
+        elif cite.get("tipo") == "portal":
+            where = "dato del Portal de Compras"
+        else:
+            where = ""
+        views.append({"text": item.get("condicion", ""), "datum": item.get("dato", ""),
+                      "icon": icon, "name": name, "where": where})
+    return views
 
 
 @dataclass
@@ -85,6 +111,7 @@ class CellView:
     state_text: str = ""
     decided: str = ""  # «Corregido por … el 07/10/2026 16:40 · motivo: …»
     explanation: str = ""
+    conditions: list = field(default_factory=list)  # cada condición con su dato y su resultado
     quotes: list = field(default_factory=list)  # citas de la oferta (texto, documento, página)
     read_note: str = ""  # sin cita de la oferta: qué documentos y páginas se leyeron (T-228)
     technical: bool = False
@@ -245,6 +272,7 @@ def _cell_views(page, user):
         decision = last.get(result.pk)
         view.decided = decision_line(decision) if decision else ""
         view.explanation = result.explanation
+        view.conditions = condition_views(result.facts)
         view.quotes = offer_quotes.get(result.pk, [])
         if not view.quotes:
             unquoted.append(result)
@@ -440,6 +468,7 @@ def pair(request, procedure_id, offer_id, requirement_id):
         "state_text": STATE_TEXT.get(pair_review.state, pair_review.state),
         "points": points.points_of([page.requirement])[page.requirement.pk],
         "read_note": notes.get(page.result.pk, ""),
+        "conditions": condition_views(page.result.facts),
     })
     return render(request, "journey/temas/s4_propuesta_par.html", context)
 
