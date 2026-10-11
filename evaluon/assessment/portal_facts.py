@@ -259,14 +259,38 @@ def _parse_amount(token):
         return None
 
 
+# T-240 (H-1): el número de una cláusula («11.10.») se parece a un monto con dos decimales. Es un
+# número de cláusula el que, sin `$`, tiene la forma «N.NN» y abre una cláusula («11.10. Texto») o
+# sigue a una palabra de referencia («punto 11.10», «puntos 11.9, 11.10 y 11.11», «artículo 18.10»).
+_CLAUSE_TOKEN = re.compile(r"\d{1,2}\.\d{1,2}")
+_CLAUSE_OPENS = re.compile(r"\.\s+[A-ZÁÉÍÓÚÑ\"“(¿¡]")
+_CLAUSE_REFERENCE = re.compile(
+    r"\b(?:punto|puntos|clausula|clausulas|articulo|articulos|art|arts|inciso|incisos|apartado"
+    r"|apartados|numeral|numerales|item|items|capitulo|seccion|titulo|anexo|anexos|pto)\b\.?\s*"
+    r"(?:n[°ºo]\.?\s*|nro\.?\s*)?(?:[\d.]+\s*(?:,|;|\by\b|\be\b|\bo\b|\bal\b|-)\s*)*$")
+
+
+def _is_clause_number(text, match):
+    """`True` si el número que leyó `_MONEY` en `match` es el de una cláusula y no un monto."""
+    sign, token = match.groups()
+    if sign or not _CLAUSE_TOKEN.fullmatch(token):
+        return False
+    if _CLAUSE_OPENS.match(text[match.end():match.end() + 3]):
+        return True
+    return bool(_CLAUSE_REFERENCE.search(fold(text[max(match.start() - 60, 0):match.start()])))
+
+
 def amounts(text):
     """Los montos que se leen en `text`: los que llevan `$`, separador de miles o dos decimales
-    (un número suelto, como un día o un porcentaje, no es un monto). Argentina: punto de miles
-    y coma decimal."""
+    (un número suelto, como un día o un porcentaje, no es un monto, ni lo es el número de una
+    cláusula como «11.10.»; T-240, H-1). Argentina: punto de miles y coma decimal."""
     found = []
-    for match in _MONEY.finditer(text or ""):
+    text = text or ""
+    for match in _MONEY.finditer(text):
         sign, token = match.groups()
         money = bool(sign) or re.search(r"\.\d{3}|[.,]\d{2}$", token)
+        if money and _is_clause_number(text, match):
+            continue
         value = _parse_amount(token) if money else None
         if value is not None:
             found.append(value)
