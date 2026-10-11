@@ -657,6 +657,10 @@ def _match(pair, result):
     no es una igualdad exacta del resultado)."""
     kind = pair.kind
     facts = result.facts or {}
+    if not_applicable.is_not_applicable(result):
+        # «No aplica» no es «cumple»: no coincide con un dictamen que espera «cumple»; se informa
+        # aparte y queda fuera de la cuenta de coincidencias (T-240, O-240-4).
+        return False
     if kind == "ilegible":
         return (result.outcome == am.Outcome.NO_DETERMINADO
                 and result.doubt == am.Doubt.NO_SE_PUDO_LEER and _unreadable_equal(pair, facts))
@@ -1077,6 +1081,9 @@ def _sum(records, predicate, universe=None):
 def aggregate(measures):
     """Reúne las cuentas de todas las ofertas."""
     records = [r for m_ in measures for r in m_["records"]]
+    # Los pares «No aplica» (forma de garantía no elegida) no cuentan como «cumple» ni como diferencia
+    # con la lista: se informan aparte (`not_applicable`).
+    applicable = [r for r in records if not r.get("no_aplica")]
     concluded = [r for r in records if r["obtenido"] in (am.Outcome.CUMPLE, am.Outcome.NO_CUMPLE)]
     expected_missing = [r for r in records if r["esperado"] == am.Outcome.SIN_DOCUMENTO]
     expected_questions = [r for r in records if r["pregunta_esperada"]]
@@ -1088,8 +1095,8 @@ def aggregate(measures):
                            for c in r.get("contradicciones_hecho", [])]
     return {
         "pairs": len(records),
-        "match": _sum(records, lambda r: r["coincide"]),
-        "match_by_type": {t: _sum([r for r in records if r.get("tipo", "oferta") == t],
+        "match": _sum(applicable, lambda r: r["coincide"]),
+        "match_by_type": {t: _sum([r for r in applicable if r.get("tipo", "oferta") == t],
                                   lambda r: r["coincide"])
                           for t in PAIR_TYPES},
         "contradictions": [(r["requisito"], r["esperado"], r["obtenido"])
@@ -1122,7 +1129,7 @@ def aggregate(measures):
                        for o in [*am.Outcome.values, not_applicable.KEY]},
         "not_applicable": sum(1 for r in records if r.get("no_aplica")),
         "mismatches": [(r["requisito"], r["esperado"], r["obtenido"], r["motivo"])
-                       for r in records if not r["coincide"]],
+                       for r in applicable if not r["coincide"]],
         "seconds": round(sum(m_["timings"].get("total_seconds", 0) for m_ in measures), 3),
         "model_requests": sum(m_["steps"]["pedidos"] for m_ in measures),
         "tokens_prompt": sum(m_["steps"]["tokens_pedido"] for m_ in measures),

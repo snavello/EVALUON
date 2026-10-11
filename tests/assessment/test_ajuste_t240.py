@@ -254,41 +254,100 @@ from django.conf import settings  # noqa: E402
 from evaluon.assessment import prompting  # noqa: E402
 
 
-def test_the_evaluation_instruction_v9_covers_the_cases_the_measurement_left_undetermined():
-    """REQ-104, REQ-106, T-240: `evaluacion-v9` dice qué hacer con el requisito de referencia, el
-    negativo, el mantenimiento de la oferta y la forma u opción que la oferta no eligió, y exige que
-    la explicación y la pregunta digan lo mismo que las condiciones y el Portal (antes: 8 celdas
-    «no determinado» por instrucción y 3 preguntas que contradecían su conclusión)."""
-    assert settings.ASSESSMENT_PROMPT_VERSIONS["evaluacion"] == "evaluacion-v9"
+def test_the_evaluation_instruction_v10_covers_the_cases_and_asks_for_the_citation_that_says_it():
+    """REQ-104, REQ-106, T-240 (O-240-2): `evaluacion-v10` dice qué hacer con el requisito de
+    referencia, el negativo, el mantenimiento de la oferta y la forma u opción que la oferta no eligió;
+    «cumple» solo con la oración de la oferta que dice lo afirmado (P3) y, si no la hay, «no
+    determinado»; y la explicación y la pregunta dicen lo mismo que las condiciones y el Portal."""
+    assert settings.ASSESSMENT_PROMPT_VERSIONS["evaluacion"] == "evaluacion-v10"
     body = prompting.load_prompt("evaluacion")
     for phrase in ("Requisito de referencia", "no pide un documento propio",
-                   "Requisito negativo", "se cumple cuando la oferta no trae lo prohibido",
-                   "Mantenimiento de la oferta", "rige por la presentación de la oferta",
-                   "Forma u opción que la oferta no eligió", "esa condición no aplica",
+                   "Requisito negativo", "Mantenimiento de la oferta",
+                   "Forma u opción que la oferta no eligió", "no la des por cumplida",
                    "Coherencia", "No afirmes en la explicación que una condición se cumple",
                    "No digas que el Portal no informa algo que el bloque",
                    "si todas cumplen, la pregunta va vacía"):
         assert phrase in body, phrase
-    # lo que ya decían las versiones anteriores sigue (v8 y los tests de forma)
+    # P3: «cumple» solo con la oración que lo dice; sin ella, «no determinado»
+    assert body.count("solo si una oración de la oferta") >= 3
+    assert body.count('es "no_determinado"') >= 3
+    assert "lo da por cumplido" not in body and 'es "cumple", el dato dice "no aplica' not in body
+    # lo que ya decían las versiones anteriores sigue
     assert "solo con su propio dato (no vacío) y su propia cita" in body
 
 
-def test_the_new_evaluation_examples_are_the_three_cases_and_follow_the_schema():
-    """REQ-104, REQ-106, T-240: hay un ejemplo de requisito de referencia que cumple, uno negativo
-    que no cumple y uno de mantenimiento de la oferta que cumple; todos se leen con el código y su
-    resultado es el que se deriva de sus condiciones."""
+def test_the_evaluation_instruction_v10_does_not_repeat_the_currency_and_tax_scenario():
+    """REQ-106, T-240 (D-240-3): el escenario «pesos e IVA» es el del requisito 10 del caso-00 que se
+    mide: `evaluacion-v10` no lo trae (ni «IVA» ni «pesos»), como `evaluacion-v7` y `-v8`; su ejemplo de
+    dos condiciones es de otro rubro (vigilancia: dólares y turnos)."""
+    body = prompting.load_prompt("evaluacion")
+    assert "IVA" not in body and "pesos" not in body and "impuesto" not in body.lower()
+    assert "turnos de ocho horas" in body and "USD" in body
+    for old in ("evaluacion-v7", "evaluacion-v8"):
+        older = (prompting.PROMPTS_DIR / f"{old}.md").read_text(encoding="utf-8")
+        assert "IVA" not in older and "pesos" not in older
+
+
+def test_the_new_evaluation_examples_cite_the_sentence_that_says_what_they_affirm():
+    """REQ-104, REQ-106, T-240: hay un ejemplo de requisito de referencia que cumple, uno negativo que
+    cumple y uno que no cumple, y uno de mantenimiento de la oferta que cumple; todos se leen con el
+    código, su resultado es el que se deriva de sus condiciones y la cita de cada «cumple» dice lo
+    afirmado (formularios acompañados, sin reservas, el plazo)."""
     body = prompting.load_prompt("evaluacion")
     section = body[body.index("EJEMPLOS"):]
     examples = [json.loads(line) for line in section.splitlines() if line.startswith("{")]
-    by_kind = {name: [e for e in examples if keyword in e["condiciones"][0]["condicion"].lower()]
-               for name, keyword in (("referencia", "formularios"), ("negativo", "anticipo"),
-                                     ("mantenimiento", "mantener la oferta"))}
-    assert [e["resultado"] for e in by_kind["referencia"]] == ["cumple"]
-    assert [e["resultado"] for e in by_kind["negativo"]] == ["no_cumple"]
-    assert [e["resultado"] for e in by_kind["mantenimiento"]] == ["cumple"]
-    for example in sum(by_kind.values(), []):
-        parsed = prompting.parse_evaluation(json.dumps(example), ["D1", "D2", "D3", "P1"], [])
-        assert prompting.derive_result(parsed.conditions) == example["resultado"]
+
+    def of(keyword):
+        return [e for e in examples if keyword in e["condiciones"][0]["condicion"].lower()]
+
+    reference, maintenance = of("formularios"), of("mantener la oferta")
+    negative = of("reservas") + of("anticipo")
+    assert [e["resultado"] for e in reference] == ["cumple"]
+    assert sorted(e["resultado"] for e in negative) == ["cumple", "no_cumple"]
+    assert [e["resultado"] for e in maintenance] == ["cumple"]
+    says = {"formularios": "formularios 1 a 3", "reservas": "sin reservas",
+            "mantener la oferta": "cuarenta días corridos"}
+    for keyword, found in (("formularios", reference), ("reservas", negative),
+                           ("mantener la oferta", maintenance)):
+        for example in found:
+            parsed = prompting.parse_evaluation(json.dumps(example), ["D1", "D2", "D3", "P1"], [])
+            assert prompting.derive_result(parsed.conditions) == example["resultado"]
+            if example["resultado"] == "cumple":
+                assert says[keyword] in example["citas"][0]["texto"]
+
+
+def test_a_cumple_condition_whose_datum_says_no_aplica_goes_down_to_no_determinado():
+    """REQ-103, T-240 (observación de la verificación): si el modelo da por «cumple» una condición con
+    el dato «no aplica…», la celda no dice «Cumple»: baja a «no determinado» y queda la anomalía; solo
+    la regla de la forma de garantía (`guarantee_form`) decide que un requisito no aplica."""
+    from evaluon.assessment.services import evaluate as evaluate_service
+
+    cited = SimpleNamespace(text="Texto de la oferta.", document=SimpleNamespace(title="D"), page=1)
+    evidence = {1: ("oferta", cited)}
+    conditions = [
+        prompting.Condition("Entregar la copia del pagaré", "No aplica: la oferta eligió póliza", 1,
+                            "cumple"),
+        prompting.Condition("Entregar la nota firmada", "nota firmada", 1, "cumple"),
+        prompting.Condition("Entregar el formulario", "no aplica: otra forma", 1, "no_cumple"),
+    ]
+    anomalies = []
+    effective, records = evaluate_service._check_conditions(conditions, evidence, 1, anomalies)
+    assert [c.result for c in effective] == ["no_determinado", "cumple", "no_cumple"]
+    assert [a["type"] for a in anomalies] == ["condicion_no_aplica"]
+    assert prompting.derive_result(effective) == "no_cumple"
+    assert prompting.derive_result(effective[:2]) == "no_determinado"
+
+
+def test_the_measurement_match_does_not_count_not_applicable_as_cumple():
+    """REQ-103, T-240 (O-240-4): `_match` no cuenta «No aplica» (guardado como «cumple») como «cumple»
+    frente a un dictamen que espera «cumple»: no coincide, y se informa aparte."""
+    from evaluon.assessment import evaluation
+
+    pair = SimpleNamespace(kind="oferta", result="cumple", doubt="")
+    plain = SimpleNamespace(outcome="cumple", doubt="", facts={})
+    inapplicable = SimpleNamespace(outcome="cumple", doubt="", facts={"aplica": False})
+    assert evaluation._match(pair, plain) is True
+    assert evaluation._match(pair, inapplicable) is False
 
 
 # --- «No aplica (forma de garantía no elegida)»: nunca «cumple» donde se muestra ni se cuenta -----------

@@ -458,7 +458,7 @@ ASSESSMENT_TECHNICAL_OPINION = True
 ASSESSMENT_RULES_VERSION = "reglas-v11"
 # Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150).
 ASSESSMENT_PROMPT_VERSIONS = {
-    "evaluacion": "evaluacion-v9",
+    "evaluacion": "evaluacion-v10",
     "contraste": "contraste-v4",
     "clausulas": "clausulas-v5",
 }
