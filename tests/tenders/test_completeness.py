@@ -506,7 +506,10 @@ def test_the_process_records_its_process_and_the_instructions_it_used(operator_u
     run = run_level(operator_user)
 
     assert run.process == "completo" and run.version.process == "completo"
-    assert set(run.prompt_versions) == {"extraccion", "completitud", "filtro", "consecuencias"}
+    assert set(run.prompt_versions) == {"extraccion", "completitud", "filtro", "consecuencias",
+                                        "huellas"}
+    assert set(run.prompt_versions["huellas"]) == {"extraccion", "completitud", "filtro",
+                                                   "consecuencias"}
 
 
 def test_technical_rows_come_from_the_rule_and_a_marked_segment_joins_them(
