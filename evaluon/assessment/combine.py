@@ -171,22 +171,63 @@ def _plain(text):
     return "".join(ch for ch in decomposed if not unicodedata.combining(ch)).lower()
 
 
-_ROLE = r"(?:oferentes?|proveedor(?:es)?|empresas?|firmas?|licitantes?|participantes?)"
-_MODAL = (r"(?:podr\w+|pued\w+|deb\w+|aclare\w*|informe\w*|presente\w*|confirme\w*|indique\w*"
-          r"|adjunte\w*|envie\w*|aporte\w*|explique\w*|detalle\w*|especifique\w*|complete\w*"
-          r"|subsane\w*)")
-# Una pregunta dirigida al oferente: le pide algo («solicitamos al oferente…»), le habla de usted o
-# le da una orden o un permiso («¿Podría el oferente aclarar…?», «el oferente deberá informar…»).
-_TO_OFFEROR = re.compile(
-    rf"\b(?:solicit\w*|pid\w*|requer\w*|ruego|rogamos|invit\w*|instamos)\b[^.?!]{{0,40}}?\b{_ROLE}"
-    rf"|\b{_MODAL}\s+(?:el|la|los|las)\s+{_ROLE}\b"
-    rf"|\b(?:el|la|los|las)\s+{_ROLE}\s+{_MODAL}\b"
-    r"|\busted(?:es)?\b|\bpor favor\b|\bsirva(?:se|n)?\b")
+_ROLE = (r"(?:oferentes?|proveedor(?:es)?|empresas?|firmas?|licitantes?|participantes?"
+         r"|cotizantes?|postor(?:es)?|adjudicatari[oa]s?|adjudicad[oa]s?|contratistas?"
+         r"|concursantes?|vendedor(?:es)?|presentantes?)")
+# Formas del imperativo o del subjuntivo con que se le da una orden a alguien («aclare», «presenten»).
+_SUBJ = (r"(?:aclare|informe|presente|indique|confirme|adjunte|envie|aporte|explique|detalle"
+         r"|especifique|complete|subsane|acompane|remita|justifique|acredite|proporcione"
+         r"|manifieste|declare|certifique|precise|amplie|ratifique|rectifique|responda|conteste"
+         r"|diga|haga)n?")
+# Verbos con que se le pide u ordena algo a alguien: modales, de pedido, de obligación y las
+# formas de la orden. No entran las formas del indicativo («presentó», «presentada»): «¿El
+# oferente presentó la garantía?» es una pregunta de hecho.
+_ASK = (r"(?:podr\w+|pued\w+|deb\w+|tendr\w+|tenga\w*|requer\w+|solicit\w*|pid\w+|ruego"
+        rf"|rogamos|exig\w+|invit\w+|intim\w+|emplaz\w+|notific\w+|oblig\w+|{_SUBJ})")
+# Verbos sin sujeto con que una pregunta le habla a alguien: «¿Puede aclarar…?», «¿Cuenta con…?».
+_ADDRESSING_START = (r"(?:pued[eo]\w*|podr\w+|deb[eo]\w*|deber\w+|tien[ea]\w*|tendr\w+"
+                     r"|cuent[ae]\w*|dispon[ge]\w*|poseen?|conoc[ea]\w*|sab[eo]\w*"
+                     r"|desea\w*|quisier\w+)")
+
+_TO_OFFEROR = [
+    # 1. Un destinatario nombrado: «al oferente», «a la empresa», «para el adjudicatario».
+    re.compile(rf"\b(?:a|al|para)\s+(?:(?:el|la|los|las)\s+)?{_ROLE}\b"),
+    # 2. Un rol junto a un verbo de pedido u obligación: «el oferente deberá…», «podría el
+    #    cotizante aclarar…», «queda obligado el adjudicatario».
+    re.compile(rf"\b{_ROLE}\W+(?:\w+\W+){{0,3}}?{_ASK}\b"),
+    re.compile(rf"\b{_ASK}\W+(?:\w+\W+){{0,3}}?{_ROLE}\b"),
+    # 3. Un pedido impersonal o en primera persona: «se requiere…», «solicitamos…», «favor de…».
+    re.compile(r"\bse\s+(?:le\s+|les\s+|lo\s+)?(?:requier\w+|solicit\w+|pid\w+|ruega\w*|exig\w+"
+               r"|invit\w+|intim\w+|notific\w+|emplaz\w+|necesit\w+)\b"),
+    re.compile(r"\b(?:solicitamos|pedimos|requerimos|rogamos|invitamos|instamos|exigimos"
+               r"|necesitamos|agradec\w+|agradeceremos|apreciar\w+)\b"),
+    # 4. Segunda persona y cortesía: «usted», «por favor», «sírvase», «favor de».
+    re.compile(r"\busted(?:es)?\b|\bvos\b|\bpor\s+favor\b|\bfavor\s+de\b|\bsirva\w*\b"
+               r"|\b(?:puedes|podes|podrias|tienes|tenes|sabes|conoces|nos\s+informe|nos\s+"
+               r"remita|nos\s+confirme)\b"),
+]
+# 5. Una orden o un verbo que le habla a alguien, al empezar la oración.
+_SENTENCE_START = re.compile(
+    rf"^(?:{_SUBJ}|sirva\w*|favor|{_ADDRESSING_START}"
+    r"(?!\s+(?:la|el)\s+(?:comision|comite|evaluador|sistema)))\b")
 
 
 def addresses_offeror(text):
-    """Si la pregunta se dirige al oferente en lugar de a la Comisión (REQ-105)."""
-    return bool(_TO_OFFEROR.search(_plain(text)))
+    """Si la pregunta se dirige al oferente (o a otro tercero: el adjudicatario, la empresa, el
+    cotizante…) en lugar de a la Comisión (REQ-105). Es la única definición: la usan
+    `compose_question` y la medida de la forma de las preguntas (`evaluation.question_form`).
+    Rechaza el imperativo dirigido a otro, la segunda persona, el pedido impersonal y cualquier
+    mención de un rol como destinatario; acepta una pregunta de hecho o una dirigida a la Comisión
+    («¿La Comisión confirma…?», «¿El oferente presentó la garantía?»). Ante la duda rechaza: el
+    código arma entonces la pregunta."""
+    plain = _plain(text)
+    if any(pattern.search(plain) for pattern in _TO_OFFEROR):
+        return True
+    for sentence in re.split(r"(?<=[.?!:;])\s+|\n+", plain):
+        sentence = re.sub(r"^[\W_]+", "", sentence)
+        if _SENTENCE_START.search(sentence):
+            return True
+    return False
 
 
 def _clip(text, size):

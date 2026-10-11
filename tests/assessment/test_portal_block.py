@@ -237,26 +237,58 @@ def undetermined(**kwargs):
     return combine.Combined(**{**base, **kwargs})
 
 
-@pytest.mark.parametrize("asked", [
+# Las preguntas dirigidas al oferente o a un tercero que el registro de la verificación (D-235-1)
+# mostró: 21 que el control tiene que rechazar.
+TO_THE_OFFEROR = [
+    "Se requiere al oferente que presente el certificado fiscal.",
+    "¿Puede aclarar si cuenta con el certificado fiscal vigente?",
+    "Aclare si el monto de la garantía es el 5 %.",
+    "Se solicita aclarar la garantía presentada.",
+    "¿Podría confirmar si la garantía fue constituida en pagaré?",
+    "¿Podría el cotizante aclarar el monto?",
+    "El adjudicatario deberá presentar el certificado.",
+    "Favor de indicar el monto de la garantía.",
+    "Agradeceremos nos informe el monto de la garantía.",
     "¿Podría el oferente aclarar el plazo de entrega?",
+    "Se solicita al oferente que aclare la garantía.",
+    "Sírvase aclarar el monto de la garantía.",
+    "Solicitamos a la empresa que aclare el plazo.",
+    "Los oferentes deberán informar el domicilio.",
+    "Por favor, adjunte la póliza.",
+    "¿Podría usted indicar el plazo de validez?",
     "Solicitamos al oferente que informe el plazo.",
-    "El oferente deberá informar el plazo de mantenimiento.",
-    "Por favor, indique usted el plazo.",
     "Se solicita al proveedor la constancia.",
-])
+    "Presente la constancia de inscripción en el registro.",
+    "¿Cuenta con la póliza de caución emitida por una aseguradora autorizada?",
+    "La firma tendrá que acompañar el certificado.",
+]
+
+# Preguntas dirigidas a la Comisión o de hecho, que se tienen que aceptar.
+TO_THE_COMMISSION = [
+    "¿Desde cuándo corre el plazo de sesenta días?",
+    "¿La Comisión acepta la póliza presentada por el oferente?",
+    "¿El oferente presentó la garantía en el Portal?",
+    "¿La garantía fue constituida en pagaré o en póliza de caución?",
+    "¿Qué determina la Comisión sobre el monto de la garantía?",
+    "¿Corresponde aplicar el plazo del artículo 15 al renglón 3?",
+    "¿La Comisión confirma, corrige o rechaza la conclusión «cumple»?",
+    "¿Cuál de los dos textos citados rige para este requisito?",
+    "¿Podría la Comisión confirmar si el certificado fiscal está vigente a la fecha de apertura?",
+    "¿El precio informado en el Portal es el que rige para el renglón 2?",
+]
+
+
+@pytest.mark.parametrize("asked", TO_THE_OFFEROR)
 def test_a_question_addressed_to_the_offeror_is_rejected(asked):
-    """REQ-105: una pregunta dirigida al oferente se rechaza (T-229: 3 de las 17)."""
+    """REQ-105, D-235-1: una pregunta dirigida al oferente o a otro tercero (imperativo, segunda
+    persona, pedido impersonal, un rol como destinatario) se rechaza y la arma el código."""
     assert combine.addresses_offeror(asked)
     final = combine.compose_question(5, "Mantener la oferta por sesenta días.",
                                      undetermined(question=asked))
     assert asked not in final and "Comisión" in final.splitlines()[-1]
 
 
-@pytest.mark.parametrize("asked", [
-    "¿Desde cuándo corre el plazo de sesenta días?",
-    "¿La Comisión acepta la póliza presentada por el oferente?",
-    "¿El oferente presentó la garantía en el Portal?",
-])
+@pytest.mark.parametrize("asked", TO_THE_COMMISSION)
 def test_a_question_to_the_commission_is_kept_with_the_information_in_front(asked):
     """REQ-105: la pregunta del modelo dirigida a la Comisión se acepta y se le antepone el
     requisito, la conclusión y el texto."""
@@ -267,6 +299,33 @@ def test_a_question_to_the_commission_is_kept_with_the_information_in_front(aske
     assert lines[0].startswith("Requisito 5: «Mantener la oferta por sesenta días.»")
     assert lines[1].startswith("Conclusión del sistema:") and "falta un dato" in lines[1]
     assert lines[2].startswith("Texto de la oferta:") and lines[-1] == asked
+
+
+def test_the_measure_of_the_form_uses_the_same_definition_as_the_product():
+    """REQ-105, D-235-1: la medida de la forma de las preguntas (T-238) y el producto usan una
+    sola definición de «dirigida al oferente»: ninguna pregunta de las dos listas da distinto."""
+    from evaluon.assessment import evaluation
+
+    def form(text):
+        return evaluation.question_form(
+            "Requisito 1: «x».\nConclusión del sistema: no determinado (falta un dato).\n"
+            f"Texto de la oferta: no hay un texto de la oferta.\n{text}",
+            requirement_text="x", requirement_number=1, outcome_label="No determinado",
+            doubt_label="Falta un dato", offer_texts=[])
+
+    for asked in TO_THE_OFFEROR:
+        assert form(asked)["dirigida_ok"] is False, asked
+    for asked in TO_THE_COMMISSION:
+        assert form(asked)["dirigida_ok"] is True, asked
+    assert not hasattr(evaluation, "ADDRESSED_TO_BIDDER")
+
+
+def test_the_questions_the_code_writes_are_never_addressed_to_the_offeror():
+    """REQ-105: las preguntas de cierre que arma el código pasan la misma definición."""
+    for doubt in ("sin_corroborar", "lectura_incompleta", "sin_dato", "duda"):
+        final = combine.compose_question(1, "x", undetermined(doubt=doubt, proposed="cumple"))
+        if doubt != "duda":
+            assert final and not combine.addresses_offeror(final.splitlines()[-1]), doubt
 
 
 def test_every_question_names_the_requirement_the_conclusion_and_the_text():
