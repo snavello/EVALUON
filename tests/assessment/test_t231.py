@@ -13,7 +13,8 @@ from tests.assessment.test_portal_facts import located, pair_of, portal_data
 
 pytestmark = pytest.mark.django_db
 
-GUARANTEE_REQ = "Constituir la garantía de mantenimiento de la oferta del 5 % del monto total."
+GUARANTEE_REQ = ("Constituir la garantía de mantenimiento de la oferta del 5 % del monto total de "
+                 "la oferta.")
 
 
 def numbered(pair, number):

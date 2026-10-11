@@ -418,6 +418,114 @@ def test_the_total_is_loaded_and_has_the_currency_the_requirement_fixes(
     assert rules.apply(pair, SimpleNamespace(offer=offer)) == regla
 
 
+# --- D-233-1: «cumple» solo si coincide con lo que fija el pliego, sobre su base ----------------------
+
+
+def not_cumple(offer, text, *, items=(), outcome="sin_documento"):
+    pair = pair_of(text, combine.Combined(outcome=outcome), items=items)
+    rules.apply(pair, SimpleNamespace(offer=offer))
+    assert pair.combined.outcome != "cumple", text
+    assert pair.combined.facts["regla"] != "portal_cumple"
+    return pair.combined
+
+
+@pytest.mark.decision_literal
+def test_a_total_over_the_ceiling_the_pliego_fixes_is_not_a_cumple(offer, portal):
+    """REQ-103, D-233-1: el pliego fija un tope de $ 1.000.000 y el Portal informa un total de
+    $ 5.000.000: nunca «cumple»; queda «no determinado» con la diferencia a la vista."""
+    portal_data(portal, offer, total="5000000.00")
+    combined = not_cumple(offer, "El total de la oferta no podrá superar los $ 1.000.000,00.")
+    assert (combined.outcome, combined.doubt) == ("no_determinado", "falta_coincidencia")
+    assert "5000000.00" in combined.explanation
+
+
+@pytest.mark.decision_literal
+def test_a_line_price_over_the_ceiling_the_pliego_fixes_is_not_a_cumple(
+        offer, procedure, portal):
+    """REQ-103, D-233-1: el precio del renglón 2 es 900 y el pliego fija un tope de $ 500."""
+    portal_data(portal, offer)
+    line = pm.PortalLine.objects.create(procedure=procedure, number=2, description="x",
+                                        item=portal)
+    pm.PortalQuote.objects.create(offer=offer, line=line, price=Decimal("900.0000"),
+                                  quantity=Decimal("1.0000"))
+    combined = not_cumple(
+        offer, "El precio unitario del renglón 2 no podrá superar $ 500,00.", items=[2])
+    assert combined.doubt == "falta_coincidencia"
+
+
+@pytest.mark.decision_literal
+def test_a_cuit_that_is_not_the_one_the_pliego_fixes_is_not_a_cumple(offer, portal):
+    """REQ-103, D-233-1: el Portal informa 30-11111111-1 y el pliego fija el CUIT 20-22222222-2."""
+    portal_data(portal, offer, cuit="30-11111111-1")
+    combined = not_cumple(offer, "El CUIT del oferente deberá ser 20-22222222-2.")
+    assert combined.outcome == "no_cumple" and "20222222222" in combined.explanation
+
+
+def test_the_cuit_the_pliego_fixes_coincides_with_the_portal(offer, portal):
+    """REQ-103: si el CUIT del Portal es el que fija el pliego (con otro formato), «cumple»."""
+    portal_data(portal, offer, cuit="30-11111111-1")
+    pair = pair_of("El CUIT del oferente deberá ser 30111111111.",
+                   combine.Combined(outcome="sin_documento"))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
+
+
+@pytest.mark.decision_literal
+def test_five_percent_of_another_base_is_not_five_percent_of_the_total(offer, portal):
+    """REQ-103, D-233-1: la garantía es el 5 % del total cotizado (21.750,00 de 435.000,00) pero
+    el pliego fija el 5 % del presupuesto oficial: la base no es la que usa el código, así que
+    no es «cumple» y queda «falta coincidencia»."""
+    portal_data(portal, offer)
+    combined = not_cumple(
+        offer, "Constituir una garantía de mantenimiento de la oferta del 5 % del presupuesto "
+        "oficial.")
+    assert (combined.outcome, combined.doubt) == ("no_determinado", "falta_coincidencia")
+
+
+@pytest.mark.parametrize("text", [
+    "Constituir una garantía de mantenimiento de la oferta del 5 % del monto adjudicado.",
+    "Constituir una garantía de mantenimiento de la oferta del 5 % del valor del renglón.",
+    "Constituir una garantía de mantenimiento de la oferta del 5 %.",
+    "Constituir una garantía de mantenimiento de la oferta de no menos del 5 % del monto "
+    "cotizado.",
+    "Constituir una garantía de mantenimiento de la oferta del 5 % del monto cotizado, con un "
+    "mínimo de $ 10.000,00.",
+])
+def test_a_guarantee_whose_base_cannot_be_read_is_not_compared(offer, portal, text):
+    """REQ-103, D-233-1: otra base, ninguna base, un mínimo o un monto sumado: no se compara y no
+    es «cumple»."""
+    portal_data(portal, offer)
+    combined = not_cumple(offer, text)
+    assert combined.doubt == "falta_coincidencia"
+
+
+@pytest.mark.parametrize("text", [
+    "Constituir una garantía de mantenimiento de la oferta del 5 % del monto total de la oferta.",
+    "Constituir una garantía de mantenimiento de la oferta del cinco por ciento (5 %) del monto "
+    "cotizado.",
+    "Constituir una garantía de mantenimiento de la oferta del 5 % del total ofertado.",
+    "Constituir una garantía de mantenimiento de la oferta equivalente al 5 % de la oferta "
+    "económica.",
+])
+def test_a_guarantee_on_the_offer_total_is_compared(offer, portal, text):
+    """REQ-103: si el pliego dice que la base es el total cotizado u ofertado, se compara."""
+    portal_data(portal, offer)
+    pair = pair_of(text, combine.Combined(outcome="sin_documento"))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
+
+
+def test_a_total_or_a_quote_with_a_value_fixed_by_the_pliego_is_not_compared(
+        offer, procedure, portal):
+    """REQ-103, D-233-1: un monto o un porcentaje fijado para el total o la cotización no se
+    compara; sin ese valor, el total cargado cumple."""
+    portal_data(portal, offer, total="90000.00")
+    for text in ("El total de la oferta deberá ser de $ 90.000,00.",
+                 "El total de la oferta incluirá un descuento del 10 %."):
+        assert not_cumple(offer, text).doubt == "falta_coincidencia"
+    pair = pair_of("Indicar el precio total de la oferta.",
+                   combine.Combined(outcome="sin_documento"))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
+
+
 # --- Texto de la oferta y Portal juntos ---------------------------------------------------------
 
 
