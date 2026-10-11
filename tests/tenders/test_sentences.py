@@ -18,6 +18,7 @@ from evaluon.tenders.proposal.sentences import (
     expand_to_sentence,
     heading_of,
     is_continuation,
+    lacks_subject,
     parent_key,
     sentence_spans,
 )
@@ -131,28 +132,61 @@ def test_fragments_of_the_diagnosis_without_subject_expand_to_their_sentence():
 # --- Las oraciones cortas contiguas del mismo asunto van juntas -------------------------------
 
 
-def test_a_short_sentence_that_starts_with_deberan_joins_the_previous_one():
-    """REQ-101: «Deberán incluir impuestos.» no tiene sujeto propio y sigue a la anterior: si
-    el modelo señala la primera, la unidad incluye la segunda."""
+def test_a_short_sentence_that_starts_with_an_anaphora_joins_the_previous_one():
+    """REQ-101: «La misma…», «Dicha…», «Esto…» remiten a la oración anterior: si el modelo
+    señala la primera, la unidad incluye la segunda."""
     first = "Los precios se expresarán en pesos argentinos por renglón."
-    second = "Deberán incluir impuestos y tasas."
-    text = f"{first} {second}"
+    for second in ("La misma incluirá impuestos y tasas.", "Dicha cotización incluirá tasas.",
+                   "Esto incluye impuestos y tasas."):
+        text = f"{first} {second}"
 
-    result = expand_to_sentence(text, (0, 20))
+        result = expand_to_sentence(text, (0, 20))
 
-    assert cut(text, result.span) == text
+        assert cut(text, result.span) == text, second
 
 
 def test_the_pointed_sentence_may_be_the_one_that_continues():
     """REQ-101: si el modelo señala la oración que continúa, la unidad incluye la anterior."""
     first = "Los precios se expresarán en pesos argentinos por renglón."
-    second = "Deberán incluir impuestos y tasas."
+    second = "La misma incluirá impuestos y tasas."
     text = f"{first} {second}"
     start = text.index("impuestos")
 
     result = expand_to_sentence(text, (start, start + 9))
 
     assert cut(text, result.span) == text
+
+
+@pytest.mark.parametrize("second", [
+    "Deberá acompañarse el certificado de visita al lugar de obra.",
+    "Deberán incluir impuestos y tasas.",
+    "El mismo día se labrará el acta de recepción de muestras.",
+    "Ni siquiera con prórroga se admite otra moneda.",
+])
+def test_a_sentence_without_an_explicit_anaphora_is_another_matter_and_does_not_join(second):
+    """REQ-101 (decisión del Coordinador, verificación de T-234): «Deberá…» sin anáfora, «El
+    mismo día…» o una conjunción con mayúscula no continúan por código: la unidad es la
+    oración que el modelo señaló. Citar juntas las del mismo asunto es cosa del modelo (la
+    instrucción de extracción se lo pide)."""
+    first = "La oferta deberá presentarse en pesos argentinos."
+    text = f"{first} {second}"
+
+    before = expand_to_sentence(text, (0, 20))
+    after = expand_to_sentence(text, (text.index(second), text.index(second) + 12))
+
+    assert cut(text, before.span) == first
+    assert cut(text, after.span) == second
+
+
+def test_the_dog_is_one_row_and_a_different_matter_is_not_joined():
+    """REQ-101 (el perro del responsable): la enumeración de una oración es una sola unidad,
+    con las oraciones que la continúan de manera explícita; «Deberá…» sin anáfora, que abre
+    otro asunto, queda afuera."""
+    anaphora = f"{DOG} Esto no admite excepciones."
+    other = f"{DOG} Deberá ser de raza chica."
+
+    assert cut(anaphora, expand_to_sentence(anaphora, (0, 20)).span) == anaphora
+    assert cut(other, expand_to_sentence(other, (0, 20)).span) == DOG
 
 
 def test_la_misma_and_esto_and_lowercase_continue_the_previous_sentence():
@@ -181,7 +215,7 @@ def test_a_sentence_with_its_own_subject_does_not_join():
 def test_a_long_continuation_does_not_join():
     """REQ-101: solo se unen oraciones cortas: una continuadora larga abre su propia unidad."""
     first = "La garantía se constituye en pesos."
-    second = "Deberá " + "ser presentada y mantenida en las condiciones que fije el organismo " * 6
+    second = "La misma " + "será presentada y mantenida en las condiciones que fije el organismo " * 6
     text = f"{first} {second.strip()}."
 
     result = expand_to_sentence(text, (0, 10))
@@ -231,7 +265,7 @@ def test_a_unit_longer_than_a_citation_keeps_the_models_fragment_for_review():
 def test_when_only_the_continuation_makes_it_too_long_the_sentence_is_kept():
     """REQ-101: si la oración sola cabe y con las continuadoras no, la cita es la oración."""
     first = "Los precios se expresarán en pesos."
-    second = "Deberán incluir impuestos, tasas y contribuciones de toda clase."
+    second = "Esto incluye impuestos, tasas y contribuciones de toda clase."
     text = f"{first} {second}"
 
     result = expand_to_sentence(text, (0, 10), max_chars=len(first) + 5)
@@ -258,25 +292,69 @@ def test_a_fragment_outside_any_sentence_stays_as_it_is():
 
 
 @pytest.mark.parametrize("sentence, expected", [
+    # Continuación explícita: una anáfora o la minúscula.
+    ("La misma deberá ser en pesos", True),
+    ("Los mismos se presentan firmados", True),
+    ("Las mismas se presentan firmadas", True),
+    ("Dicho plazo es corrido", True),
+    ("Dicha garantía se devuelve", True),
+    ("Este plazo es corrido", True),
+    ("Esto no admite excepciones", True),
+    ("Ello no admite excepciones", True),
     ("y la Compañía en el campo", True),
     ("e incluir IVA", True),
-    ("Ni siquiera con prórroga", True),
-    ("Deberán incluir impuestos", True),
-    ("Deberá ser en pesos", True),
-    ("La misma deberá ser en pesos", True),
-    ("Las mismas se presentan firmadas", True),
-    ("Esto no admite excepciones", True),
     ("de color marrón", True),
+    # Sin anáfora ni minúscula: otro asunto, aunque no tenga sujeto propio.
+    ("Deberán incluir impuestos", False),
+    ("Deberá ser en pesos", False),
+    ("Deberá acompañarse el certificado de visita", False),
+    ("Ni siquiera con prórroga", False),
+    ("Y la Compañía en el campo", False),
+    ("El mismo día se labrará el acta", False),
     ("Los oferentes deberán cotizar", False),
     ("La entrega se hará en quince días", False),
     ("Estos plazos son corridos", False),
     ("Debidamente firmada", False),
     ("Entregarán la muestra", False),
+    # La letra de un inciso en línea no es una continuación.
+    ("b) Acompañar el certificado fiscal", False),
+    ("c. Constancia de CUIT", False),
+    ("ii) Copia del estatuto", False),
+    ("iv. Poder del firmante", False),
 ])
-def test_which_sentences_start_without_their_own_subject(sentence, expected):
-    """REQ-101: se reconocen las que empiezan en minúscula, con una conjunción, con «Deberá»
-    o «Deberán», con «La misma» o con «Esto»; las demás tienen sujeto propio."""
+def test_which_sentences_continue_the_previous_one(sentence, expected):
+    """REQ-101: solo continúa a la anterior la oración que empieza con una anáfora («La
+    misma», «Los mismos», «Las mismas», «Dicho», «Dicha», «Este», «Esto», «Ello») o en
+    minúscula sin ser la letra de un inciso («b)», «c.», «ii)»)."""
     assert is_continuation(sentence) is expected
+
+
+@pytest.mark.parametrize("sentence, expected", [
+    ("Deberán incluir impuestos", True),
+    ("Deberá ser en pesos", True),
+    ("Debe estar firmado", True),
+    ("Esto no admite excepciones", True),
+    ("de color marrón", True),
+    ("b) Acompañar el certificado fiscal", False),
+    ("Los oferentes deberán cotizar", False),
+    ("Debidamente firmada", False),
+])
+def test_which_sentences_lack_their_own_subject(sentence, expected):
+    """REQ-101: la oración que empieza con «Deberá…» no se une por código, pero sí está sin
+    sujeto propio: se usa para el encabezado del punto y para la medida de pedazos."""
+    assert lacks_subject(sentence) is expected
+
+
+def test_the_letter_of_an_inline_item_does_not_join_the_previous_one():
+    """REQ-101 (D-234-2): «b)» en el mismo tramo, después de un punto, abre otro inciso y otro
+    requisito: la unidad de «a)» no lo incluye."""
+    text = ("a) Constituir garantía de oferta del 5 % del total cotizado. "
+            "b) Acompañar el certificado fiscal para contratar vigente.")
+    start = text.index("garantía de oferta")
+
+    result = expand_to_sentence(text, (start, start + 18))
+
+    assert cut(text, result.span) == "Constituir garantía de oferta del 5 % del total cotizado."
 
 
 # --- Encabezado del punto ------------------------------------------------------------------------
