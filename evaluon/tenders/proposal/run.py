@@ -349,7 +349,7 @@ def _begin(run, with_circulars=False):
              + (["circulares_cambios"]
                 if with_circulars and settings.CIRCULAR_EXTRACTION_ENABLED else [])
              + ["consecuencias"])
-    run.prompt_versions = {name: settings.MATRIX_PROMPT_VERSIONS[name] for name in names}
+    run.prompt_versions = extraction.instruction_registry(names)
     run.save(update_fields=["process", "authorization_date", "corpus_version", "regime",
                             "models",
                             "parameters", "prompt_versions"])
@@ -563,8 +563,11 @@ def _record_support_pass(run):
     if "respaldo_normativo" not in passes:
         passes.insert(passes.index("filtro") + 1, "respaldo_normativo")
     run.parameters = {**run.parameters, "passes": passes}
+    registry = extraction.instruction_registry(["respaldo"])
     run.prompt_versions = {**run.prompt_versions,
-                           "respaldo": settings.MATRIX_PROMPT_VERSIONS["respaldo"]}
+                           "respaldo": registry["respaldo"],
+                           "huellas": {**run.prompt_versions.get("huellas", {}),
+                                       **registry["huellas"]}}
     run.save(update_fields=["parameters", "prompt_versions"])
 
 

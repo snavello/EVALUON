@@ -293,7 +293,10 @@ MATRIX_CONSEQUENCES_PER_REQUEST = 25
 # Citas candidatas que el reranker suma para cada tramo de una circular o respuesta.
 MATRIX_CIRCULAR_CANDIDATES = 8
 # Versión de cada instrucción de la matriz: archivo `evaluon/tenders/prompts/<versión>.md`.
+# `definiciones` es el bloque común de las definiciones del responsable (T-236, ADR-0054): el
+# código lo incluye en las instrucciones que llevan su marca y registra su versión y su huella.
 MATRIX_PROMPT_VERSIONS = {
+    "definiciones": "matriz-definiciones-v1",
     "extraccion": "matriz-extraccion-v3",
     "completitud": "matriz-completitud-v3",
     "consecuencias": "matriz-consecuencias-v1",
