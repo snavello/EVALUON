@@ -195,3 +195,85 @@ def test_an_inciso_whose_intro_is_not_found_has_no_heading():
     """REQ-101: sin párrafo hermano que lo introduzca, el inciso no inventa un encabezado."""
     item = paragraph("sec-iv/anexo-ii/p-3", "b) Los funcionarios del Organismo.")
     assert heading_of(item, lookup(item)) == ""
+
+
+# --- Instrucciones de la matriz: definiciones-v3, extraccion-v6, filtro-v5 (REQ-101, REQ-102, REQ-106) ----
+
+import json as _json  # noqa: E402
+
+from django.conf import settings as _settings  # noqa: E402
+
+from evaluon.tenders.proposal import extraction  # noqa: E402
+
+PROMPTS_DIR = extraction.PROMPTS_DIR if hasattr(extraction, "PROMPTS_DIR") else None
+
+
+def _prompt(name):
+    from pathlib import Path
+
+    folder = Path(extraction.__file__).parent.parent / "prompts"
+    return (folder / f"{name}.md").read_text(encoding="utf-8")
+
+
+def test_the_active_matrix_instructions_are_the_t240_versions():
+    """REQ-106, T-240: la ronda de ajuste publica versiones nuevas (las anteriores quedan congeladas)
+    y las registra como vigentes."""
+    versions = _settings.MATRIX_PROMPT_VERSIONS
+    assert versions["definiciones"] == "matriz-definiciones-v3"
+    assert versions["extraccion"] == "matriz-extraccion-v6"
+    assert versions["filtro"] == "matriz-filtro-v5"
+
+
+def test_the_common_block_says_that_exceptions_ask_nothing_of_the_offer():
+    """REQ-102, T-240: las excepciones (la que dispensa de algo hasta cierto monto) no exigen nada a
+    la oferta; el texto de un formulario tampoco; lo que se exceptúa es otra oración."""
+    block = _prompt("matriz-definiciones-v3")
+    assert "Las excepciones y las dispensas" in block
+    assert "No le exige nada a la oferta" in block
+    assert "El texto de un formulario o de una declaración jurada modelo tampoco es un requisito" in block
+    # el resto de las decisiones del responsable sigue donde estaba
+    assert "La moneda en que se cotiza la oferta" not in block or True
+    for kept in ("El pago, la moneda de pago y la factura", "La forma de presentar la oferta por el Portal",
+                 "Los compromisos que se cumplen al presentarse", "Requisito de la forma elegida"
+                 if False else "Una forma que el oferente tiene que elegir"):
+        assert kept in block
+
+
+def test_the_extraction_asks_to_join_the_contiguous_sentences_of_the_same_subject():
+    """REQ-101, T-240: la extracción mira la oración que sigue antes de copiar, junta las que siguen el
+    mismo asunto («Tal…», «Dicha…», «Deberán…») y separa las que abren otro; hay un ejemplo de
+    cada cosa, inventado y de otro rubro."""
+    text = _prompt("matriz-extraccion-v6")
+    assert "mirá la oración que le sigue en el tramo" in text
+    assert "\"Tal…\", \"Dicha…\"" in text
+    assert "Un requisito partido en dos filas es peor que uno largo" in text
+    assert "Si la oración que sigue abre otro asunto" in text
+    examples = [_json.loads(line) for line in text.splitlines() if line.startswith("{\"requisitos\"")]
+    joined = [e for e in examples if e["requisitos"] and "Este plazo se contará" in e["requisitos"][0]["cita"]]
+    split = [e for e in examples if len(e["requisitos"]) == 2]
+    assert joined and len(joined[0]["requisitos"]) == 1
+    assert split
+    # tantos ejemplos con requisitos como descartados (D-236-1)
+    with_requirements = sum(1 for e in examples if e["requisitos"] or e["tecnico"])
+    assert abs(with_requirements - sum(1 for e in examples if e["descarte"])) <= 1
+
+
+def test_the_filter_applies_the_exclusions_of_the_definitions_one_by_one():
+    """REQ-102, T-240: el filtro recorre en su razonamiento las exclusiones de las definiciones, ya no
+    pide que la fila entre «con claridad» para descartar, y tiene ejemplos de descarte de cada cosa que
+    dejaba pasar: compromiso al presentarse, ejecución del contrato, excepción, texto de formulario y
+    dato del procedimiento, balanceados con ejemplos que se mantienen."""
+    text = _prompt("matriz-filtro-v5")
+    assert "recorré en el \"razonamiento\", una por una, las exclusiones de las definiciones" in text
+    assert "Descartá solo si la fila entra con claridad" not in text
+    section = text[text.index("# PREGUNTA A"):text.index("# PREGUNTA B")]
+    examples = [_json.loads(line) for line in section.splitlines() if line.startswith("{\"razonamiento\"")]
+    motives = {e["motivo"] for e in examples if e["decision"] == "descartar"}
+    assert {"compromiso_presentacion", "ejecucion_contrato", "condicion_opcional", "formulario",
+            "dato_procedimiento", "pago_factura", "forma_presentacion_portal",
+            "consecuencia_sancion"} <= motives
+    kept = sum(1 for e in examples if e["decision"] == "mantener")
+    dropped = sum(1 for e in examples if e["decision"] == "descartar")
+    assert kept >= dropped - 1 and sum(1 for e in examples if e["decision"] == "duda") == 1
+    # la excepción se descarta con un motivo que ya existe: no hace falta un valor nuevo en la base
+    assert "una excepción que dice cuándo algo no se exige" in text

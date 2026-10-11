@@ -213,9 +213,9 @@ def test_proposal_records_models_parameters_prompts_regime_and_corpus_version(
     assert run.corpus_version == version_event.corpus_version
     assert {name: run.prompt_versions[name] for name in (
         "extraccion", "completitud", "filtro", "consecuencias", "definiciones")} == {
-        "extraccion": "matriz-extraccion-v5", "completitud": "matriz-completitud-v5",
-        "filtro": "matriz-filtro-v4", "consecuencias": "matriz-consecuencias-v1",
-        "definiciones": "matriz-definiciones-v2"}
+        "extraccion": "matriz-extraccion-v6", "completitud": "matriz-completitud-v5",
+        "filtro": "matriz-filtro-v5", "consecuencias": "matriz-consecuencias-v1",
+        "definiciones": "matriz-definiciones-v3"}
     assert set(run.models) == {"generation_batch", "embeddings", "reranker"}
     for model in run.models.values():
         assert len(model["sha256"]) == 64 and model["model"] and model["file"]

@@ -32,6 +32,7 @@ FROZEN = {
     "clausulas-v4": "96e9e2b445205ec192ecef944c167d99fc2d8157eed0255bb99a552e3562721f",
     "evaluacion-v8": "e2242a56f4e449f9fd88e02de1ffa0781817a390b604343fa469467579434951",
     "clausulas-v5": "a5d31f046c157bb4f7fc4f90be5153b5355bec316d15e9528b3faafe061d10cc",
+    "evaluacion-v9": "5cff8082a2dc41fea7c45a5dccf19d9ecd16afda90a90c22e57208ab8b6d585c",
 }
 
 # Reglas que empujaban al error (informe de revisión, 4.7 a 4.9).
@@ -57,7 +58,7 @@ def examples_of(name):
 def test_the_current_versions_are_the_new_ones_and_exist():
     """REQ-106: `ASSESSMENT_PROMPT_VERSIONS` apunta a las versiones nuevas y los archivos existen."""
     assert settings.ASSESSMENT_PROMPT_VERSIONS == {
-        "evaluacion": "evaluacion-v8", "contraste": "contraste-v4", "clausulas": "clausulas-v5"}
+        "evaluacion": "evaluacion-v9", "contraste": "contraste-v4", "clausulas": "clausulas-v5"}
     for name in settings.ASSESSMENT_PROMPT_VERSIONS:
         assert prompting.load_prompt(name)
 
@@ -150,12 +151,12 @@ def parse(example):
 
 
 def test_the_evaluation_examples_are_balanced():
-    """REQ-106, ADR-0055 regla 4: 3 «cumple» (uno con el Portal), 2 «no cumple», 2 «no consta» y 3
+    """REQ-106, ADR-0055 regla 4 (T-240): 6 «cumple» (uno con el Portal), 3 «no cumple», 2 «no consta» y 4
     «no determinado»; ningún resultado pasa del 40 % del total; el Portal se cita en uno que
     cumple."""
     examples = examples_of("evaluacion")
     counts = Counter(e["resultado"] for e in examples)
-    assert counts == {"cumple": 3, "no_cumple": 2, "no_consta": 2, "no_determinado": 3}
+    assert counts == {"cumple": 6, "no_cumple": 3, "no_consta": 2, "no_determinado": 4}
     assert max(counts.values()) / len(examples) <= 0.4
     with_portal = [e for e in examples if any(c["documento"] == "P1" for c in e["citas"])]
     assert any(e["resultado"] == "cumple" for e in with_portal)

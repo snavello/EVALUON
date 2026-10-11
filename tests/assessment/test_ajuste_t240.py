@@ -246,3 +246,49 @@ def test_a_requirement_about_a_guarantee_document_is_not_decided_by_the_portal_a
     pair = pair_of(text, combine.Combined(outcome="sin_documento"))
     assert rules.apply(pair, SimpleNamespace(offer=offer)) is None
     assert pair.combined.outcome == "sin_documento"
+
+
+# --- Instrucciones de la evaluación: evaluacion-v9 (REQ-104, REQ-105, REQ-106) ---------------------
+
+import json  # noqa: E402
+
+from django.conf import settings  # noqa: E402
+
+from evaluon.assessment import prompting  # noqa: E402
+
+
+def test_the_evaluation_instruction_v9_covers_the_cases_the_measurement_left_undetermined():
+    """REQ-104, REQ-106, T-240: `evaluacion-v9` dice qué hacer con el requisito de referencia, el
+    negativo, el mantenimiento de la oferta y la forma u opción que la oferta no eligió, y exige que
+    la explicación y la pregunta digan lo mismo que las condiciones y el Portal (antes: 8 celdas
+    «no determinado» por instrucción y 3 preguntas que contradecían su conclusión)."""
+    assert settings.ASSESSMENT_PROMPT_VERSIONS["evaluacion"] == "evaluacion-v9"
+    body = prompting.load_prompt("evaluacion")
+    for phrase in ("Requisito de referencia", "no pide un documento propio",
+                   "Requisito negativo", "se cumple cuando la oferta no trae lo prohibido",
+                   "Mantenimiento de la oferta", "rige por la presentación de la oferta",
+                   "Forma u opción que la oferta no eligió", "esa condición no aplica",
+                   "Coherencia", "No afirmes en la explicación que una condición se cumple",
+                   "No digas que el Portal no informa algo que el bloque",
+                   "si todas cumplen, la pregunta va vacía"):
+        assert phrase in body, phrase
+    # lo que ya decían las versiones anteriores sigue (v8 y los tests de forma)
+    assert "solo con su propio dato (no vacío) y su propia cita" in body
+
+
+def test_the_new_evaluation_examples_are_the_three_cases_and_follow_the_schema():
+    """REQ-104, REQ-106, T-240: hay un ejemplo de requisito de referencia que cumple, uno negativo
+    que no cumple y uno de mantenimiento de la oferta que cumple; todos se leen con el código y su
+    resultado es el que se deriva de sus condiciones."""
+    body = prompting.load_prompt("evaluacion")
+    section = body[body.index("EJEMPLOS"):]
+    examples = [json.loads(line) for line in section.splitlines() if line.startswith("{")]
+    by_kind = {name: [e for e in examples if keyword in e["condiciones"][0]["condicion"].lower()]
+               for name, keyword in (("referencia", "formularios"), ("negativo", "anticipo"),
+                                     ("mantenimiento", "mantener la oferta"))}
+    assert [e["resultado"] for e in by_kind["referencia"]] == ["cumple"]
+    assert [e["resultado"] for e in by_kind["negativo"]] == ["no_cumple"]
+    assert [e["resultado"] for e in by_kind["mantenimiento"]] == ["cumple"]
+    for example in sum(by_kind.values(), []):
+        parsed = prompting.parse_evaluation(json.dumps(example), ["D1", "D2", "D3", "P1"], [])
+        assert prompting.derive_result(parsed.conditions) == example["resultado"]
