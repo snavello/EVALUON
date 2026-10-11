@@ -356,15 +356,20 @@ def test_the_contrast_retry_keeps_the_previous_answer(offer, operator_user, proc
 
 
 def test_the_citation_widens_with_the_sentences_module_of_the_matrix():
-    """REQ-104: la cita se amplía a la oración completa con `sentences.py` (T-234): incluye las
-    oraciones cortas contiguas que siguen el mismo asunto y no corta en las abreviaturas."""
+    """REQ-104: la cita se amplía a la oración completa con `sentences.py` (T-234): incluye la
+    oración corta contigua que continúa con una anáfora y no corta en las abreviaturas. Una
+    oración que empieza con «Deberá…» sin anáfora no se une por código (regla del Coordinador
+    del 2026-10-11, T-234b): la junta el modelo si es del mismo asunto."""
     text = ("Cláusula primera. La garantía se constituye según el art. 5 del pliego. "
-            "Deberá ser por el cinco por ciento del total. Otra cosa distinta.")
+            "La misma será por el cinco por ciento del total. Otra cosa distinta.")
     start = text.index("del pliego")
     begin, end, unit, too_long = citations.widen(text, (start, start + 10))
     assert text[begin:end] == ("La garantía se constituye según el art. 5 del pliego. "
-                               "Deberá ser por el cinco por ciento del total.")
+                               "La misma será por el cinco por ciento del total.")
     assert not too_long and unit == (begin, end)
+    plain = text.replace("La misma será", "Deberá ser")
+    begin, end, _, _ = citations.widen(plain, (start, start + 10))
+    assert plain[begin:end] == "La garantía se constituye según el art. 5 del pliego."
 
 
 def test_a_very_long_sentence_stays_as_the_fragment(settings):
