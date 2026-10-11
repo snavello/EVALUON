@@ -78,3 +78,10 @@ Consultadas el 2026-10-10 (las de Hugging Face, por una herramienta que resume y
 - **Las huellas y los tamaños** se leyeron por una herramienta que resume y por el proxy del informe local: el descargador falla si la huella no coincide con `scripts/models.sha256`; esa es la comprobación real.
 - **Las revisiones exactas** de los repositorios (por ejemplo `4ca72078…` para Qwen3.8-27B) se fijan completas al fijar las URL en T-242.
 - **La velocidad de los modelos densos de 27.000 M** en esta GPU: por eso el límite de 60 minutos puede dejar fuera a A.
+
+## Enmienda del 2026-10-11 (decisiones del responsable, literales en la spec 015)
+
+- **Topes:** 22.000 MiB y el caso-00 completo en 90 minutos sin razonamiento; con razonamiento, 180 minutos («si es necesario duplica el tiempo»). La calidad pesa más que la velocidad («Entre rapido y mal y lento y bien elijo lo segundo»).
+- **Variantes con razonamiento:** además de cada modelo con el razonamiento apagado (todo igual salvo el modelo), se mide el mismo modelo con su razonamiento propio encendido en los pasos que deciden (extracción, filtro, evaluación y contraste), en nivel bajo, con el resto igual; el texto del razonamiento queda en el registro de cada pedido (P6). Orden: 12B con razonamiento (si el modelo lo admite), Qwen3.8-27B sin y con razonamiento, después Qwen3.6-35B-A3B sin y con.
+- **Motor de la Consulta:** puede apagarse mientras corre un modelo que no entra junto con él («no es necesario que este siempre activo en principio»).
+
