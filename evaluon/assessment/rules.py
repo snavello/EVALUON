@@ -11,6 +11,9 @@ su motivo).
 Orden (cada regla es una función `(pair, ctx) -> Combined | None` en su módulo):
 
 1. externo (`externals.py`, REQ-063): siempre "falta la hoja de compliance";
+1 bis. forma de garantía no elegida (`guarantee_form.py`, T-240): el requisito de una forma de
+   garantía no aplica a la oferta que eligió otra («Requisito de la forma elegida», decisión del
+   2026-10-10);
 2. técnico (`technical.py`, REQ-061): hechos y «pendiente del informe técnico» (T-167);
 3. no se pudo leer (`unreadable.py`, REQ-064);
 4. Portal (`portal_facts.py`, REQ-062): T-169.
@@ -20,10 +23,11 @@ Una regla nueva se suma en su lugar de la lista, nada más.
 
 from django.conf import settings
 
-from evaluon.assessment import externals, portal_facts, technical, unreadable
+from evaluon.assessment import externals, guarantee_form, portal_facts, technical, unreadable
 
 RULES = (
     externals.rule,
+    guarantee_form.rule,
     technical.rule,
     unreadable.rule,
     portal_facts.rule,

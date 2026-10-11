@@ -299,14 +299,14 @@ MATRIX_CIRCULAR_CANDIDATES = 8
 # `definiciones` es el bloque común de las definiciones del responsable (T-236, ADR-0054): el
 # código lo incluye en las instrucciones que llevan su marca y registra su versión y su huella.
 MATRIX_PROMPT_VERSIONS = {
-    "definiciones": "matriz-definiciones-v2",
-    "extraccion": "matriz-extraccion-v5",
+    "definiciones": "matriz-definiciones-v3",
+    "extraccion": "matriz-extraccion-v6",
     "completitud": "matriz-completitud-v5",
     "consecuencias": "matriz-consecuencias-v1",
     "circulares": "matriz-circulares-v7",
     "circulares_cambios": "matriz-circulares-v6",
     "unificacion": "matriz-unificacion-v1",
-    "filtro": "matriz-filtro-v4",
+    "filtro": "matriz-filtro-v5",
     "respaldo": "matriz-respaldo-v1",
 }
 
@@ -455,10 +455,10 @@ ASSESSMENT_ANSWERS_MAX = 20
 ASSESSMENT_TECHNICAL_OPINION = True
 # Versión de las reglas que deciden sin el modelo (externos, técnico, ilegible, Portal); se
 # copia al registro de cada evaluación (ADR-0043; T-165). Cambia cuando cambia una regla.
-ASSESSMENT_RULES_VERSION = "reglas-v9"
+ASSESSMENT_RULES_VERSION = "reglas-v11"
 # Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150).
 ASSESSMENT_PROMPT_VERSIONS = {
-    "evaluacion": "evaluacion-v8",
+    "evaluacion": "evaluacion-v10",
     "contraste": "contraste-v4",
     "clausulas": "clausulas-v5",
 }

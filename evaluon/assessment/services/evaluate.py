@@ -40,7 +40,7 @@ from evaluon.accounts.permissions import require_commission_role
 from evaluon.ai import generation
 from evaluon.assessment import citations as citing
 from evaluon.assessment import combine, documents, externals, grounds, portal_block
-from evaluon.assessment import prompting, rules
+from evaluon.assessment import not_applicable, prompting, rules
 from evaluon.assessment import unreadable
 from evaluon.assessment.models import (
     Answer,
@@ -434,8 +434,16 @@ def _plan_for(ctx, pair):
 
 ANOMALY_CONDITION_NO_CITATION = "condicion_sin_cita"
 ANOMALY_CONDITION_NO_DATUM = "condicion_sin_dato"
+# T-240: el modelo dio por «cumple» una condición con el dato «no aplica…». Un requisito que no aplica
+# a la oferta lo decide la regla del sistema (`guarantee_form`), no el modelo: la celda no dice «Cumple».
+ANOMALY_CONDITION_NOT_APPLICABLE = "condicion_no_aplica"
 ANOMALY_RESULT_DERIVED = "resultado_derivado"
 ANOMALY_RESULT_CONTRADICTED = "resultado_no_sostenido"
+
+
+def _says_not_applicable(datum):
+    """Si el dato de una condición dice que no aplica («no aplica: la oferta eligió…»)."""
+    return externals.fold(datum).strip().lstrip("«\"'(").startswith("no aplica")
 
 
 def _check_conditions(conditions, evidence, cited, anomalies):
@@ -458,6 +466,9 @@ def _check_conditions(conditions, evidence, cited, anomalies):
             if not condition.datum.strip():
                 result = prompting.NO_DETERMINADO
                 anomalies.append({"type": ANOMALY_CONDITION_NO_DATUM, "condition": index})
+            elif condition.result == prompting.CUMPLE and _says_not_applicable(condition.datum):
+                result = prompting.NO_DETERMINADO
+                anomalies.append({"type": ANOMALY_CONDITION_NOT_APPLICABLE, "condition": index})
             elif found is None:
                 result = prompting.NO_DETERMINADO
                 anomalies.append({"type": ANOMALY_CONDITION_NO_CITATION, "condition": index})
@@ -898,7 +909,9 @@ def _counts(pairs, steps):
     for pair in pairs:
         key = pair.rule or "sin_regla"
         by_rule[key] = by_rule.get(key, 0) + 1
-        by_outcome[pair.combined.outcome] = by_outcome.get(pair.combined.outcome, 0) + 1
+        # Un requisito que no aplica a la oferta no es «cumple»: se cuenta aparte (T-240).
+        key = not_applicable.outcome_key(pair.combined)
+        by_outcome[key] = by_outcome.get(key, 0) + 1
         if pair.combined.doubt:
             by_doubt[pair.combined.doubt] = by_doubt.get(pair.combined.doubt, 0) + 1
     return {"pairs": len(pairs), "by_outcome": by_outcome, "by_doubt": by_doubt,

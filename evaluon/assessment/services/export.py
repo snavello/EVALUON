@@ -29,7 +29,7 @@ from decimal import Decimal
 import xlsxwriter
 from django.utils import timezone
 
-from evaluon.assessment import ordering, situation
+from evaluon.assessment import not_applicable, ordering, situation
 from evaluon.assessment.models import Decision, Outcome
 from evaluon.assessment.services import discards as discards_service
 from evaluon.assessment.services import matrix as matrix_service
@@ -234,7 +234,7 @@ def collect(user, procedure_id, *, channel=Channel.SCREEN):
             sheet.rows.append(RequirementRow(
                 number=requirement.number, category=requirement.get_category_display(),
                 text=texts[requirement.pk],
-                proposed=Outcome(result.outcome).label if result else "Sin evaluar",
+                proposed=not_applicable.result_label(result) if result else "Sin evaluar",
                 effective=(cell.effective_label if result and cell.effective_outcome else "—"),
                 state=cell.state_label, basis=_clean(result.explanation) if result else "",
                 decision=_decision_line(decisions.get(result.pk)) if result else ""))

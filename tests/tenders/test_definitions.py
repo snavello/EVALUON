@@ -1,7 +1,7 @@
 """Bloque común de definiciones del responsable y registro de la versión y la huella de cada
 instrucción de la matriz (T-236; REQ-102, REQ-106; ADR-0054, regla 4; ADR-0055, regla 8).
 
-El bloque `matriz-definiciones-v2.md` copia las decisiones del responsable del 2026-10-10
+El bloque `matriz-definiciones-v3.md` copia las decisiones del responsable del 2026-10-10
 (spec 015) y el código lo incluye en las instrucciones que llevan su marca. Los textos son
 inventados o propios de las instrucciones (P4).
 """
@@ -14,13 +14,13 @@ import pytest
 from evaluon.tenders.proposal import extraction
 
 PROMPTS = Path(extraction.PROMPTS_DIR)
-BLOCK = (PROMPTS / "matriz-definiciones-v2.md").read_text(encoding="utf-8")
+BLOCK = (PROMPTS / "matriz-definiciones-v3.md").read_text(encoding="utf-8")
 
 
 def test_the_common_block_is_a_published_version_of_the_settings(settings):
     """REQ-102: el bloque común tiene su versión en `MATRIX_PROMPT_VERSIONS` y su archivo."""
-    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v2"
-    assert (PROMPTS / "matriz-definiciones-v2.md").is_file()
+    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v3"
+    assert (PROMPTS / "matriz-definiciones-v3.md").is_file()
 
 
 @pytest.mark.parametrize("literal", [
@@ -136,7 +136,8 @@ def test_a_request_without_parsed_output_still_carries_its_instruction(prompt_di
 # --- Generalidad: ninguna ancla de los casos ---------------------------------------------------
 
 HASHES = Path(__file__).parent / "fixtures" / "case_anchor_hashes.txt"
-NEW_INSTRUCTIONS = ["matriz-definiciones-v2", "matriz-extraccion-v5", "matriz-completitud-v5",
+NEW_INSTRUCTIONS = ["matriz-definiciones-v2", "matriz-definiciones-v3", "matriz-extraccion-v5",
+                    "matriz-extraccion-v6", "matriz-filtro-v5", "matriz-completitud-v5",
                     "matriz-filtro-v4", "matriz-circulares-v6", "matriz-circulares-v7"]
 
 
@@ -166,7 +167,8 @@ def test_no_new_instruction_repeats_five_words_of_a_case_anchor(name):
 
 # --- D-236-1 y O-236-1 (verificación de la tanda 2) -------------------------------------------------
 
-INSTRUCTIONS_WITH_EXAMPLES = ["matriz-extraccion-v5", "matriz-completitud-v5", "matriz-filtro-v4"]
+INSTRUCTIONS_WITH_EXAMPLES = ["matriz-extraccion-v5", "matriz-completitud-v5", "matriz-filtro-v4",
+                               "matriz-extraccion-v6", "matriz-filtro-v5"]
 
 
 @pytest.mark.parametrize("name", INSTRUCTIONS_WITH_EXAMPLES)
@@ -190,7 +192,8 @@ def test_the_examples_do_not_paraphrase_the_clauses_of_the_measurement_cases(nam
         assert paraphrase not in example, (name, paraphrase)
 
 
-@pytest.mark.parametrize("name", ["matriz-extraccion-v5", "matriz-filtro-v4"])
+@pytest.mark.parametrize("name", ["matriz-extraccion-v5", "matriz-filtro-v4", "matriz-extraccion-v6",
+                                  "matriz-filtro-v5"])
 def test_an_option_the_offeror_may_not_use_is_kept_as_a_condition_of_that_option(name):
     """REQ-102 (O-236-1): el bloque dice que la condición de una opción «entra solo como condición
     de esa opción»; hay un ejemplo donde la oración que le exige algo a quien usa la opción se
@@ -214,4 +217,4 @@ def test_an_option_the_offeror_may_not_use_is_kept_as_a_condition_of_that_option
 def test_the_previous_block_is_still_published_but_not_active(settings):
     """REQ-106: la v1 del bloque queda como estaba (congelada) y la activa es la v2."""
     assert (PROMPTS / "matriz-definiciones-v1.md").is_file()
-    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v2"
+    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v3"

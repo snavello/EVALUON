@@ -7,11 +7,11 @@
   {% else %}
   <div class="tabla-scroll"><table class="matriz lectura">
     <caption>Resultado propuesto por oferta (sobre {{ t.requirements }} requisitos)</caption>
-    <thead><tr><th scope="col">Oferta</th><th scope="col" class="n">Cumple</th><th scope="col" class="n">No cumple</th><th scope="col" class="n">No determinado</th><th scope="col" class="n">Pendiente</th><th scope="col" class="n">Confirmados</th></tr></thead>
+    <thead><tr><th scope="col">Oferta</th><th scope="col" class="n">Cumple</th><th scope="col" class="n">No cumple</th><th scope="col" class="n">No determinado</th><th scope="col" class="n">No aplica</th><th scope="col" class="n">Pendiente</th><th scope="col" class="n">Confirmados</th></tr></thead>
     <tbody>
     {% for r in t.results %}
-      {% if r.evaluated %}<tr><th scope="row">{{ r.offer.number }} · {{ r.offer.bidder }}</th><td class="n">{{ r.meets }}</td><td class="n">{{ r.fails }}</td><td class="n">{{ r.undetermined }}</td><td class="n">{{ r.pending }}</td><td class="n">{{ r.confirmed }}</td></tr>
-      {% else %}<tr><th scope="row">{{ r.offer.number }} · {{ r.offer.bidder }}</th><td colspan="5" class="suave">Sin evaluar</td></tr>{% endif %}
+      {% if r.evaluated %}<tr><th scope="row">{{ r.offer.number }} · {{ r.offer.bidder }}</th><td class="n">{{ r.meets }}</td><td class="n">{{ r.fails }}</td><td class="n">{{ r.undetermined }}</td><td class="n">{{ r.not_applicable }}</td><td class="n">{{ r.pending }}</td><td class="n">{{ r.confirmed }}</td></tr>
+      {% else %}<tr><th scope="row">{{ r.offer.number }} · {{ r.offer.bidder }}</th><td colspan="6" class="suave">Sin evaluar</td></tr>{% endif %}
     {% endfor %}
     </tbody>
   </table></div>

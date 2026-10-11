@@ -26,7 +26,7 @@ from django.urls import path
 from django.views.decorators.http import require_POST
 
 from evaluon.accounts.models import CommissionRole
-from evaluon.assessment import ordering, situation
+from evaluon.assessment import not_applicable, ordering, situation
 from evaluon.assessment.models import DiscardAction, Outcome
 from evaluon.assessment.services import discards as service
 from evaluon.assessment.services import matrix as matrix_service
@@ -191,6 +191,9 @@ def _results(page):
             "meets": outcomes.get(Outcome.CUMPLE, 0),
             "fails": outcomes.get(Outcome.NO_CUMPLE, 0) + outcomes.get(Outcome.SIN_DOCUMENTO, 0),
             "undetermined": outcomes.get(Outcome.NO_DETERMINADO, 0),
+            # Los requisitos que no aplican a la oferta (forma de garantía no elegida) no son
+            # «cumple» ni «no determinado»: se informan aparte (T-240).
+            "not_applicable": outcomes.get(not_applicable.KEY, 0),
             "pending": status_.by_state.get(matrix_service.PENDING, 0),
             "confirmed": (status_.by_state.get(matrix_service.CONFIRMED, 0)
                           + status_.by_state.get(matrix_service.CORRECTED, 0)),
