@@ -379,6 +379,20 @@ def missing_note(conditions):
     return f"Falta el dato de {word}: {names}."
 
 
+def missing_question(conditions):
+    """Una pregunta a la Comisión que nombra la condición que falta (REQ-105), para cuando el
+    modelo no escribió una o la dirigió al oferente. Vacía si ninguna condición falta."""
+    missing = [c.text for c in conditions if c.result in (NO_CONSTA, NO_DETERMINADO)]
+    if not missing:
+        return ""
+    names = " y ".join(f"«{text.strip(' .')}»" for text in missing)
+    if len(missing) == 1:
+        return (f"¿Cómo resuelve la Comisión la condición {names}, de la que no hay dato en la "
+                "oferta ni en el Portal?")
+    return (f"¿Cómo resuelve la Comisión las condiciones {names}, de las que no hay dato en la "
+            "oferta ni en el Portal?")
+
+
 def correction_for(problem, unlocated=()):
     """El aviso del reintento según lo que falló: una salida inválida o una conclusión sin cita
     ubicada. `unlocated` son las citas que el sistema no encontró en los documentos (se las

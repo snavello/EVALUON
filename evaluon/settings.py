@@ -452,9 +452,9 @@ ASSESSMENT_TECHNICAL_OPINION = True
 ASSESSMENT_RULES_VERSION = "reglas-v9"
 # Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150).
 ASSESSMENT_PROMPT_VERSIONS = {
-    "evaluacion": "evaluacion-v5",
-    "contraste": "contraste-v2",
-    "clausulas": "clausulas-v2",
+    "evaluacion": "evaluacion-v6",
+    "contraste": "contraste-v3",
+    "clausulas": "clausulas-v3",
 }
 
 # Lectura con visión de las páginas dudosas (T-160; ADR-0041). Páginas por oferta que se mandan

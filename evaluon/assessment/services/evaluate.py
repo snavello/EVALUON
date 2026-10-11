@@ -597,12 +597,16 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             exigence=evaluation.exigence, supports=supports,
             explanation=evaluation.explanation, question=evaluation.question,
             external=evaluation.external, unreadable=backed)
-    explanation = evaluation.explanation
-    if derived == prompting.NO_DETERMINADO and not evaluation.external:
-        # «No determinado» dice qué condición no se pudo determinar (REQ-104).
-        note = prompting.missing_note(effective)
-        if note and note not in explanation:
+    explanation, question, doubt = evaluation.explanation, evaluation.question, combine.DOUBT
+    note = prompting.missing_note(effective)
+    if derived == prompting.NO_DETERMINADO and note and not evaluation.external:
+        # «No determinado» dice qué condición no se pudo determinar (REQ-104) y se lo pregunta a
+        # la Comisión (REQ-105): falta el dato de una condición, que no es una duda sin razón.
+        doubt = combine.NO_DATA
+        if note not in explanation:
             explanation = f"{explanation} {note}".strip()
+        if not question or combine.addresses_offeror(question):
+            question = prompting.missing_question(effective)
     portal_record = [] if derived == prompting.NO_CONSTA else [
         d.citation() for d in portal_cited]
     if (derived == prompting.NO_CUMPLE
@@ -614,13 +618,13 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             group_index, prompting.NO_DETERMINADO, doubt=combine.NO_DATA,
             exigence=evaluation.exigence, citations=located, supports=supports,
             explanation=f"{explanation} {combine.NO_CLAUSE_NOTE}".strip(),
-            question=evaluation.question, external=evaluation.external, unreadable=backed)
+            question=question, external=evaluation.external, unreadable=backed)
     keep = [] if derived == prompting.NO_CONSTA else located
     return combine.GroupResult(
         group_index, derived,
-        doubt=combine.DOUBT if derived == prompting.NO_DETERMINADO else "",
+        doubt=doubt if derived == prompting.NO_DETERMINADO else "",
         exigence=evaluation.exigence, citations=keep, supports=supports,
-        explanation=explanation, question=evaluation.question,
+        explanation=explanation, question=question,
         external=evaluation.external, unreadable=backed, portal=portal_record)
 
 
