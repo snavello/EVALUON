@@ -368,6 +368,24 @@ def derive_result(conditions):
     return NO_DETERMINADO
 
 
+def reconcile_result(model_result, derived):
+    """El resultado del grupo cuando el que escribió el modelo y el que se deriva de sus
+    condiciones (`derive_result`) no coinciden (D-237-2): gana el más conservador. Sin condiciones
+    (`derived` es `None`) vale el del modelo. Un resultado derivado que concluye («cumple» o «no
+    cumple») no pisa a un modelo que no concluyó (dijo «no determinado» o «no consta»); «cumple»
+    derivado tampoco pisa un «no cumple» del modelo; un «no cumple» derivado sí pisa un «cumple»:
+    una condición que falla alcanza. Lo que el modelo concluyó y las condiciones no sostienen es
+    «no determinado»."""
+    if derived is None or derived == model_result:
+        return model_result if derived is None else derived
+    conclusions = (CUMPLE, NO_CUMPLE)
+    if derived in conclusions and model_result not in conclusions:
+        return NO_DETERMINADO
+    if derived == CUMPLE and model_result == NO_CUMPLE:
+        return NO_DETERMINADO
+    return derived
+
+
 def missing_note(conditions):
     """La frase que dice qué condición no se pudo determinar, o `""` si todas tienen resultado.
     Se agrega a la explicación de un «no determinado» (REQ-104)."""

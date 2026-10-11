@@ -151,7 +151,8 @@ def two_conditions(call, *, second="no_determinado", second_cite=0, first="cumpl
         "cumple", (alias, DECLARATION),
         conditions=[("El oferente declara que está habilitado para contratar.", DECLARATION, 1,
                      first),
-                    ("La declaración está firmada por el representante.", "", second_cite,
+                    ("La declaración está firmada por el representante.",
+                     "firmada" if second in ("cumple", "no_cumple") else "", second_cite,
                      second)])
 
 
@@ -222,6 +223,114 @@ def test_a_condition_without_a_located_citation_is_not_met(offer, operator_user,
     assert second["resultado_modelo"] == "cumple" and second["cita"] is None
     assert "Presenta la constancia" in result.explanation
     assert any(a["type"] == "condicion_sin_cita" for a in runs[0].anomalies)
+
+
+SIGNED = "El documento está firmado por el representante."
+
+
+@pytest.mark.parametrize("second, wanted", [
+    # una sola cita ubicada: es de la primera condición, no de la segunda (D-237-2)
+    (("cumple", "", 0), "no_determinado"),               # sin dato y sin cita
+    (("cumple", "", 1), "no_determinado"),               # sin dato aunque apunte a la cita
+    (("cumple", SIGNED, 5), "no_determinado"),           # la cita que dice no existe
+    (("cumple", SIGNED, 0), "no_determinado"),           # tiene dato pero no su cita: no se presta
+    (("no_cumple", "", 0), "no_determinado"),            # «no cumple» sin dato tampoco vale
+    (("no_cumple", SIGNED, 3), "no_determinado"),        # ni con una cita que no existe
+    (("no_consta", "", 0), "no_determinado"),            # lo correcto desde antes
+    (("cumple", SIGNED, 1), "cumple"),                   # con su dato y su cita, sí
+])
+def test_a_condition_needs_its_own_datum_and_its_own_located_citation(
+        offer, operator_user, procedure, model, second, wanted):
+    """REQ-104, P3 (D-237-2): con una sola cita ubicada, la condición «cumple» o «no cumple» sin su
+    dato, o sin su cita propia ubicada, es «no determinado» y el sistema dice cuál falta; la cita de
+    otra condición no se le presta."""
+    result_2, datum, cite = second
+
+    def function(call):
+        if not declaration_call(call):
+            return None
+        alias = call.alias_with(DECLARATION)
+        return says("cumple", (alias, DECLARATION), conditions=[
+            ("El oferente declara que está habilitado.", DECLARATION, 1, "cumple"),
+            ("La declaración está firmada.", datum, cite, result_2)])
+
+    model.evaluates(function)
+    _, runs = run_all(operator_user, procedure)
+    result = declaration_result(runs, procedure)
+    assert result.outcome == wanted
+    first, second_record = result.facts["condiciones"]
+    assert first["resultado"] == "cumple"
+    if wanted == "no_determinado":
+        assert second_record["resultado"] in ("no_determinado", "no_consta")
+        assert "La declaración está firmada" in result.explanation   # dice cuál falta
+        question = am.Question.objects.get(result=result)
+        assert "La declaración está firmada" in question.text and "Comisión" in question.text
+    else:
+        assert second_record["resultado"] == "cumple" and second_record["cita"] is not None
+
+
+def test_the_missing_datum_and_the_missing_citation_leave_their_anomaly(
+        offer, operator_user, procedure, model):
+    """REQ-104 (D-237-2): cada baja deja la anomalía de lo que faltó, para el registro (P6)."""
+    def function(call):
+        if declaration_call(call):
+            alias = call.alias_with(DECLARATION)
+            return says("cumple", (alias, DECLARATION), conditions=[
+                ("Habilitado.", DECLARATION, 1, "cumple"), ("Firmada.", "", 1, "cumple"),
+                ("Con sello.", "sello", 0, "cumple")])
+
+    model.evaluates(function)
+    _, runs = run_all(operator_user, procedure)
+    kinds = [(a["type"], a["condition"]) for a in runs[0].anomalies if "condition" in a]
+    assert ("condicion_sin_dato", 2) in kinds and ("condicion_sin_cita", 3) in kinds
+
+
+@pytest.mark.parametrize("model_result, by_conditions, expected", [
+    ("no_determinado", "cumple", "no_determinado"),      # más conservador el modelo
+    ("no_consta", "cumple", "no_determinado"),
+    ("no_determinado", "no_cumple", "no_determinado"),
+    ("no_cumple", "cumple", "no_determinado"),            # el modelo contradice a sus condiciones
+    ("cumple", "no_cumple", "no_cumple"),                 # una condición que falla alcanza
+    ("cumple", "no_determinado", "no_determinado"),       # lo derivado abstiene
+    ("cumple", "no_consta", "no_consta"),
+    ("cumple", "cumple", "cumple"),
+    ("no_determinado", None, "no_determinado"),           # sin condiciones vale el del modelo
+    ("cumple", None, "cumple"),
+])
+def test_the_more_conservative_result_wins(model_result, by_conditions, expected):
+    """REQ-104 (D-237-2): entre el resultado del modelo y el de sus condiciones queda el más
+    conservador; un «no determinado» del modelo no se pisa con «cumple»."""
+    assert prompting.reconcile_result(model_result, by_conditions) == expected
+
+
+def test_a_model_that_says_undetermined_is_not_overridden_by_its_conditions(
+        offer, operator_user, procedure, model):
+    """REQ-104 (D-237-2): el modelo dice «no determinado» pero lista una sola condición «cumple»
+    (omitió las demás): queda «no determinado», con la anomalía y la pregunta a la Comisión."""
+    def function(call):
+        if declaration_call(call):
+            alias = call.alias_with(DECLARATION)
+            return says("no_determinado", (alias, DECLARATION), conditions=[
+                ("El oferente declara que está habilitado.", DECLARATION, 1, "cumple")])
+
+    model.evaluates(function)
+    _, runs = run_all(operator_user, procedure)
+    result = declaration_result(runs, procedure)
+    assert result.outcome == "no_determinado"
+    assert "no coincide con el de sus condiciones" in result.explanation
+    assert any(a["type"] == "resultado_no_sostenido" for a in runs[0].anomalies)
+    assert am.Question.objects.filter(result=result).exists()
+
+
+def test_a_model_that_says_undetermined_and_omits_the_conditions_keeps_its_result(
+        offer, operator_user, procedure, model):
+    """REQ-104 (D-237-2): sin condiciones, el resultado del modelo no se pisa."""
+    model.evaluates(lambda call: says(
+        "no_determinado", (call.alias_with(DECLARATION), DECLARATION), conditions=[],
+        question="Requisito 3: el texto no alcanza; ¿la Comisión lo da por cumplido?")
+        if declaration_call(call) else None)
+    _, runs = run_all(operator_user, procedure)
+    assert declaration_result(runs, procedure).outcome == "no_determinado"
 
 
 def test_an_output_without_conditions_keeps_the_models_result(offer, operator_user, procedure,

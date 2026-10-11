@@ -635,9 +635,9 @@ def test_the_proposal_records_the_filter_in_parameters_and_counts(operator_user,
     assert run.parameters["filter_batch_rows"] == 6
     assert run.parameters["filter_rule_version"] == "filtro-v4"
     assert "consecuencia_sancion" in run.parameters["filter_motives"]
-    assert run.prompt_versions["filtro"] == "matriz-filtro-v3"
+    assert run.prompt_versions["filtro"] == "matriz-filtro-v4"
     step = m.RunStep.objects.filter(run=run, pass_name="filtro").first()
-    assert step.parsed["instruccion"]["version"] == "matriz-filtro-v3"
+    assert step.parsed["instruccion"]["version"] == "matriz-filtro-v4"
     assert step.parsed["instruccion"]["sha256"] == run.prompt_versions["huellas"]["filtro"]
     assert run.parameters["passes"].index("filtro") == run.parameters["passes"].index(
         "unificacion") + 1
@@ -671,7 +671,7 @@ def test_no_instruction_test_or_example_of_the_filter_repeats_five_words_of_a_ca
     known = set(HASHES.read_text(encoding="utf-8").split())
     assert len(known) > 100
     files = [Path(__file__), Path(row_filter.__file__),
-             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v3.md"]
+             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v4.md"]
     hits = []
     for path in files:
         for shingle in _shingles(path.read_text(encoding="utf-8")):
@@ -815,7 +815,7 @@ def test_the_v3_instructions_state_the_two_general_rules_in_both_questions(setti
     """REQ-033, REQ-101: las instrucciones activas son la v3 y cada pregunta lleva la regla de lo
     verificado del oferente (aunque el sujeto sea el organismo) y la de la oración completa (la
     fila se evalúa entera), con ejemplos de otro objeto."""
-    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v3"
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v4"
     for prompt in row_filter.load_prompts():
         assert "no quién lo verifica" in prompt
         assert "Una fila es una oración completa o varias oraciones cortas del mismo asunto" in prompt
@@ -918,8 +918,8 @@ def test_the_v4_instructions_leave_the_adjudicatario_duties_out_of_the_offer(set
     from evaluon.tenders.proposal import extraction
 
     versions = settings.MATRIX_PROMPT_VERSIONS
-    assert versions["extraccion"] == "matriz-extraccion-v4"
-    assert versions["completitud"] == "matriz-completitud-v4"
+    assert versions["extraccion"] == "matriz-extraccion-v5"
+    assert versions["completitud"] == "matriz-completitud-v5"
     texts = [extraction.load_prompt("extraccion"), extraction.load_prompt("completitud")]
     for text in texts:
         assert "adjudicatari" in text and "durante la prestación" in text
@@ -1129,7 +1129,7 @@ def test_every_request_of_the_filter_records_its_instruction(operator_user, scri
     run = run_with(operator_user, pliego(CLAUSE))
 
     expected = extraction.load_instruction("filtro").record
-    assert expected["version"] == "matriz-filtro-v3" and "definiciones" in expected
+    assert expected["version"] == "matriz-filtro-v4" and "definiciones" in expected
     steps = m.RunStep.objects.filter(run=run, pass_name__in=["filtro", "filtro_2"])
     assert steps.count() == 2
     assert all(step.parsed["instruccion"] == expected for step in steps)

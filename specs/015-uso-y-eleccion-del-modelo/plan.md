@@ -47,7 +47,7 @@ No hay componentes nuevos. Cada tarea toca solo estas partes.
 
 | Parte | Cambia | Qué cambia | Tarea |
 |---|---|---|---|
-| `evaluon/assessment/portal_facts.py`, `rules.py` | Sí | La regla del Portal compara con lo que exige el pliego y propone «cumple» o «no cumple» con la cita del Portal; versión de reglas `reglas-v8` | T-233 |
+| `evaluon/assessment/portal_facts.py`, `rules.py` | Sí | La regla del Portal compara con lo que exige el pliego y propone «cumple» o «no cumple» con la cita del Portal; versión de reglas `reglas-v9 (la v8 la usó T-231 de la 014)` | T-233 |
 | `evaluon/tenders/proposal/sentences.py` (nuevo), `quotes.py`, `extraction.py`, `completeness.py`, `run.py`, `filter.py` | Sí | La ampliación a la oración se hace en un módulo que comparten la matriz y la evaluación (las funciones de oración salen de `filter.py`); el encabezado del inciso entra en el pedido de extracción y se ve en la fila | T-234 |
 | `evaluon/tenders/models.py`, `evaluon/tenders/migrations/`, `FILTER_MOTIVES` | Sí | Motivos de descarte nuevos en `DiscardReason` y `FilterMotive` (una migración, un solo agente) | T-250 |
 | `evaluon/assessment/citations.py`, `grounds.py`, `portal_block.py` (nuevo), `combine.py`, `prompting.py`, `services/evaluate.py`, `services/questions.py` | Sí | Las citas de la oferta se amplían a la oración; el requisito llega con su punto; el Portal llega al modelo como bloque citable; el contraste recibe el contexto; las preguntas se arman con requisito, conclusión y texto | T-235 |
@@ -68,7 +68,7 @@ Cómo se comunican: igual que hoy. El `worker` atiende los pedidos largos con `g
 Lo demás va en columnas JSON existentes:
 
 - `tenders_run_step.parsed` y `assessment_step.parsed`: `razonamiento`, la versión y la huella de la instrucción, y en la extracción el fragmento que señaló el modelo junto con la oración a la que se amplió.
-- `assessment_result.facts`: `regla` (`portal_cumple`, `portal_no_cumple`, `portal_falta_coincidencia`), `version_reglas` (`reglas-v8`), los valores comparados.
+- `assessment_result.facts`: `regla` (`portal_cumple`, `portal_no_cumple`, `portal_falta_coincidencia`), `version_reglas` (`reglas-v9`), los valores comparados.
 - `assessment_question.text`: el texto de la pregunta, que ahora lleva requisito, conclusión y texto.
 - `prompt_versions` de cada corrida: nombre y huella SHA-256 de cada instrucción.
 

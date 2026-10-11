@@ -497,6 +497,10 @@ def test_the_proposal_records_the_circulars_and_the_instructions_used(operator_u
     assert used[0]["issued_on"] == "2025-12-01" and len(used[0]["sha256"]) == 64
     step = step_for("por 32 GB")
     assert step.request and step.raw_output and step.parsed["valida"] is True
+    # T-236 (REQ-102): el pedido de efectos de la circular lleva el bloque común de definiciones.
+    assert "QUÉ ES UN REQUISITO DE LA OFERTA" in step.request["messages"][0]["content"]
+    assert step.parsed["instruccion"]["version"] == "matriz-circulares-v7"
+    assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v2"
     event = AuditEvent.objects.get(event_type=EventType.MATRIX_PROPOSAL)
     assert event.detail["circulars"] == used
     assert event.detail["counts"]["circulars"]["effects"] == 1
@@ -874,3 +878,23 @@ def test_a_suppression_said_with_a_noun_or_an_infinitive_is_recognized(text):
 def test_a_noun_without_a_tender_object_is_not_a_suppression(text):
     """REQ-031 (T-129): un sustantivo de supresión sin objeto de pliego no cuenta."""
     assert not circulars.has_suppression_phrase(text)
+
+
+@pytest.mark.parametrize("name", ["circulares", "circulares_cambios"])
+def test_both_circular_instructions_include_the_common_definitions(name, settings):
+    """REQ-102, REQ-106 (verificación de T-236): las dos instrucciones de circulares llevan la marca
+    del bloque común en su archivo y el bloque en lo que ve el modelo; si una versión nueva se
+    publica sin la marca, esta prueba lo detecta."""
+    from evaluon.tenders.proposal import extraction
+
+    version = settings.MATRIX_PROMPT_VERSIONS[name]
+    raw = (extraction.PROMPTS_DIR / f"{version}.md").read_text(encoding="utf-8")
+    assert extraction.DEFINITIONS_MARK in raw, f"{version} no lleva la marca del bloque común"
+
+    instruction = extraction.load_instruction(name)
+
+    assert extraction.DEFINITIONS_MARK not in instruction.text
+    assert "QUÉ ES UN REQUISITO DE LA OFERTA" in instruction.text
+    assert "la moneda en que se cotiza la oferta" in instruction.text
+    assert instruction.definitions[0] == settings.MATRIX_PROMPT_VERSIONS["definiciones"]
+    assert instruction.record["definiciones"]["version"] == "matriz-definiciones-v2"
