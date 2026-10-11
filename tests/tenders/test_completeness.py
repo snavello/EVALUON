@@ -526,7 +526,7 @@ def test_prompts_v4_are_active_and_teach_sentences_effects_and_the_definitions(n
     enumeraciones) y reconocen las condiciones dichas como efecto. Las v1 siguen como estaban."""
     from django.conf import settings
 
-    assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v4"
+    assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v5"
     text = extraction.load_prompt(name)
     assert extraction.DEFINITIONS_MARK not in text
     for phrase in ("QUÉ ES UN REQUISITO DE LA OFERTA", "Una fila es una unidad de sentido",
@@ -643,7 +643,7 @@ def test_every_request_of_the_completeness_records_its_instruction(operator_user
     found = list(m.RunStep.objects.filter(run=run, pass_name="completitud"))
     assert found
     expected = extraction.load_instruction("completitud").record
-    assert expected["version"] == "matriz-completitud-v4"
+    assert expected["version"] == "matriz-completitud-v5"
     for step in found:
         assert step.parsed["instruccion"] == expected
-        assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v1"
+        assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v2"

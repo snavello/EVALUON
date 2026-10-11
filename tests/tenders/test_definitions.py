@@ -1,7 +1,7 @@
 """Bloque común de definiciones del responsable y registro de la versión y la huella de cada
 instrucción de la matriz (T-236; REQ-102, REQ-106; ADR-0054, regla 4; ADR-0055, regla 8).
 
-El bloque `matriz-definiciones-v1.md` copia las decisiones del responsable del 2026-10-10
+El bloque `matriz-definiciones-v2.md` copia las decisiones del responsable del 2026-10-10
 (spec 015) y el código lo incluye en las instrucciones que llevan su marca. Los textos son
 inventados o propios de las instrucciones (P4).
 """
@@ -14,13 +14,13 @@ import pytest
 from evaluon.tenders.proposal import extraction
 
 PROMPTS = Path(extraction.PROMPTS_DIR)
-BLOCK = (PROMPTS / "matriz-definiciones-v1.md").read_text(encoding="utf-8")
+BLOCK = (PROMPTS / "matriz-definiciones-v2.md").read_text(encoding="utf-8")
 
 
 def test_the_common_block_is_a_published_version_of_the_settings(settings):
     """REQ-102: el bloque común tiene su versión en `MATRIX_PROMPT_VERSIONS` y su archivo."""
-    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v1"
-    assert (PROMPTS / "matriz-definiciones-v1.md").is_file()
+    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v2"
+    assert (PROMPTS / "matriz-definiciones-v2.md").is_file()
 
 
 @pytest.mark.parametrize("literal", [
@@ -38,6 +38,8 @@ def test_the_common_block_is_a_published_version_of_the_settings(settings):
     # Opciones y formas elegidas («Requisito de la forma elegida»).
     "que puede no usar",
     "entra solo como condición de esa opción",
+    "se evalúa solo en la oferta que usa la opción",
+    "únicamente la oración que no le exige nada ni a la oferta que usa la opción ni a la que no",
     "que el oferente tiene que elegir",
     "el límite del pagaré o la póliza según la norma de la Superintendencia",
     "se evalúan solo en la oferta que eligió esa forma",
@@ -134,8 +136,8 @@ def test_a_request_without_parsed_output_still_carries_its_instruction(prompt_di
 # --- Generalidad: ninguna ancla de los casos ---------------------------------------------------
 
 HASHES = Path(__file__).parent / "fixtures" / "case_anchor_hashes.txt"
-NEW_INSTRUCTIONS = ["matriz-definiciones-v1", "matriz-extraccion-v4", "matriz-completitud-v4",
-                    "matriz-circulares-v6", "matriz-circulares-v7"]
+NEW_INSTRUCTIONS = ["matriz-definiciones-v2", "matriz-extraccion-v5", "matriz-completitud-v5",
+                    "matriz-filtro-v4", "matriz-circulares-v6", "matriz-circulares-v7"]
 
 
 def _shingles(text, size=5):
@@ -160,3 +162,56 @@ def test_no_new_instruction_repeats_five_words_of_a_case_anchor(name):
     hits = [shingle for shingle in _shingles(text)
             if hashlib.sha256(shingle.encode()).hexdigest() in known]
     assert not hits, [hashlib.sha256(h.encode()).hexdigest()[:12] for h in hits]
+
+
+# --- D-236-1 y O-236-1 (verificación de la tanda 2) -------------------------------------------------
+
+INSTRUCTIONS_WITH_EXAMPLES = ["matriz-extraccion-v5", "matriz-completitud-v5", "matriz-filtro-v4"]
+
+
+@pytest.mark.parametrize("name", INSTRUCTIONS_WITH_EXAMPLES)
+@pytest.mark.parametrize("paraphrase", [
+    # Paráfrasis de cláusulas de los casos de medición (D-236-1): moneda e IVA, límite del pagaré,
+    # conocimiento del pliego, desestimación por documentación, plazo de mantenimiento, pago.
+    "pesos argentinos", "incluirán el iva", "pagaré", "euros", "conocimiento y la aceptación",
+    "documentación solicitada determinará", "durante 60 días", "sesenta", "presentación de la factura",
+    "administrador", "habilidad para contratar", "certificado de visita", "oferta alternativa",
+    "descuento",
+])
+def test_the_examples_do_not_paraphrase_the_clauses_of_the_measurement_cases(name, paraphrase):
+    """REQ-106 (D-236-1, P7): los ejemplos de las instrucciones de la matriz son de otro rubro y
+    de otra redacción: no repiten la moneda, el pagaré, la desestimación ni el pago de los casos
+    de medición (la coincidencia de cinco palabras no alcanza para ver una paráfrasis). Se
+    comprueba el archivo de la instrucción, sin el bloque común, que copia las decisiones del
+    responsable."""
+    text = (PROMPTS / f"{name}.md").read_text(encoding="utf-8").lower()
+    for example in [line for line in text.splitlines()
+                    if line.startswith(("tramo", "fila", "requisitos ya", "{"))]:
+        assert paraphrase not in example, (name, paraphrase)
+
+
+@pytest.mark.parametrize("name", ["matriz-extraccion-v5", "matriz-filtro-v4"])
+def test_an_option_the_offeror_may_not_use_is_kept_as_a_condition_of_that_option(name):
+    """REQ-102 (O-236-1): el bloque dice que la condición de una opción «entra solo como condición
+    de esa opción»; hay un ejemplo donde la oración que le exige algo a quien usa la opción se
+    mantiene, y el descarte por condición opcional queda para la que no exige nada."""
+    text = extraction.load_prompt(name.removeprefix("matriz-").split("-v")[0])
+    lines = text.splitlines()
+
+    def answer_to(fragment):
+        """La línea de respuesta del ejemplo cuya pregunta (Tramo o Fila) trae `fragmento`."""
+        at = next(n for n, line in enumerate(lines)
+                  if line.startswith(("Tramo", "Fila")) and fragment in line)
+        return lines[at + 1]
+
+    kept = answer_to("subcontrata la encuadernación")
+    assert '"descarte": ""' in kept or '"decision": "mantener"' in kept
+    assert "condicion_opcional" in answer_to("proponer una encuadernación especial")
+    assert "no le exige nada a ninguna oferta" in text
+    assert "vale solo para esa opción" in text
+
+
+def test_the_previous_block_is_still_published_but_not_active(settings):
+    """REQ-106: la v1 del bloque queda como estaba (congelada) y la activa es la v2."""
+    assert (PROMPTS / "matriz-definiciones-v1.md").is_file()
+    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v2"
