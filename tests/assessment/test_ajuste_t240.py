@@ -63,18 +63,16 @@ def test_the_clause_number_is_not_the_amount_the_pliego_requires(offer, portal):
 
 # --- H-2: el requisito de una forma de garantía solo se evalúa en la oferta que la eligió -----------
 
-PAGARE_LIMIT = ("Si se trata de pagaré, el oferente deberá tener en cuenta que el mismo no podrá "
-                "superar los DOSCIENTOS SESENTA (260) MÓDULOS y no será combinable con otra forma "
-                "de garantía.")
-PAGARE_COPY = ("Será requisito no susceptible de subsanación adjuntar con la oferta copia del "
-               "pagaré.")
-POLICY_UPLOAD = ("Adicionalmente, el oferente deberá cargar el documento electrónico de la póliza "
-                 "de seguro de caución electrónica en el Portal de Compras: “Paso 3 Requisitos "
-                 "mínimos administrativos”. En su defecto y de contarse en la oferta con constancias de la "
-                 "constitución o la individualización de la garantía de mantenimiento de la oferta, el "
-                 "Organismo requerirá su presentación.")
-NOT_ELECTRONIC = ("En el caso de optar por garantías no electrónicas, el original de la garantía "
-                  "deberá ser presentado en la Mesa de Entrada.")
+PAGARE_LIMIT = ("Si se opta por el pagaré, el oferente tendrá presente que su importe no excederá las CIEN "
+                "(100) UNIDADES TASADAS y que no podrá combinarse con otra forma de garantía.")
+PAGARE_COPY = ("Será requisito insubsanable acompañar con la oferta la copia del pagaré, sin perjuicio "
+               "de su posterior entrega.")
+POLICY_UPLOAD = ("Además, el oferente deberá cargar el documento electrónico de la póliza de seguro de "
+                 "caución en el Portal de Contrataciones: «Etapa 5 Datos mínimos de la garantía». De no "
+                 "contarse con la constancia de constitución de la garantía de mantenimiento de la "
+                 "oferta, el organismo la requerirá.")
+NOT_ELECTRONIC = ("Cuando se opte por garantías no electrónicas, el original de la garantía deberá "
+                  "entregarse en la ventanilla de recepción de la sede central.")
 
 
 def chosen_form(portal, offer, form, amount="21750.00"):
@@ -110,7 +108,7 @@ def test_the_requirement_of_a_form_not_chosen_does_not_apply(offer, portal, text
     assert (combined.outcome, combined.doubt) == ("cumple", "")
     assert combined.explanation.startswith("No aplica:") and form in combined.explanation
     assert combined.facts["aplica"] is False and combined.facts["regla"] == name
-    assert combined.facts["version_reglas"] == "reglas-v10"
+    assert combined.facts["version_reglas"] == "reglas-v11"
     assert combined.question == "" and not combined.ask
     assert combined.citations == [] and len(combined.portal) == 1
     assert combined.portal[0]["kind"] == "garantia" and form in combined.portal[0]["text"]
@@ -172,12 +170,11 @@ def test_the_guarantee_of_another_obligation_is_not_the_form_chosen(offer, porta
 
 # --- La regla del Portal no compara lo que el requisito no pide (T-239: 8 «no determinado» de código) --
 
-QUOTE_PER_LINE = ("Cuando se admita la cotización parcial para las cooperativas, el resto de los "
-                  "oferentes podrá cotizar en el apartado «oferta alternativa del SESENTA POR "
-                  "CIENTO (60 %)» del Portal diferentes precios según los porcentajes de "
-                  "adjudicación posibles hasta los cuales el organismo podrá adjudicar, sin "
-                  "perjuicio de que deberán presentar la cotización por la cantidad total de "
-                  "cada renglón.")
+QUOTE_PER_LINE = ("Si se habilita la cotización parcial para las cooperativas, el resto de los oferentes "
+                  "podrá cotizar en el apartado «oferta alternativa del SESENTA POR CIENTO (60 %)» del "
+                  "Portal distintos precios según los porcentajes de adjudicación posibles hasta los "
+                  "cuales el organismo podrá adjudicar, sin perjuicio de que deberá presentar la "
+                  "cotización por la cantidad total de cada renglón.")
 
 
 def quoted_lines(offer, procedure, portal, numbers=(1, 2, 3)):
@@ -415,3 +412,111 @@ def test_the_measurement_counts_these_cells_apart(offer, operator_user, procedur
     assert record["no_aplica"] is True and record["obtenido"] == "no_aplica"
     assert record["cumple_con_cita_portal"] is False and record["cumple_con_dato_distinto"] is False
     assert Outcome.CUMPLE == "cumple"
+
+
+# --- D-240-1: el número de cláusula sin punto final, con paréntesis, guion o dos puntos -------------------
+
+
+@pytest.mark.parametrize("text", [
+    "3.15 Texto del punto sin importe alguno.",
+    "3.15) Texto del punto sin importe alguno.",
+    "3.15- Texto del punto sin importe alguno.",
+    "11.10: Texto del punto sin importe alguno.",
+    "(11.10) Texto del punto sin importe alguno.",
+    "Lo dispuesto en 11.10 se aplicará a todos los oferentes.",
+    "Los apartados 7.5.1 y 7.5.2 y el 11.10 rigen de igual modo.",
+    "Primera oración. 4.20 Texto de otro punto.",
+])
+def test_a_clause_number_in_any_numbering_form_is_not_an_amount(text):
+    """REQ-103, T-240 (D-240-1): el número «N.NN» sin `$` ni señal de dinero no es un monto aunque no
+    lleve punto final: «3.15 Texto», «3.15) Texto», «3.15- Texto», «11.10: Texto», «(11.10) Texto» o
+    «lo dispuesto en 11.10»."""
+    assert portal_facts.amounts(text) == []
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("3.15 El monto de la caución será de $2500,50 por unidad.", [Decimal("2500.50")]),
+    ("(11.10) La garantía será de $ 21.750,00.", [Decimal("21750.00")]),
+    ("El monto de 11.10 se pagará en cuotas.", [Decimal("11.10")]),
+    ("La garantía será de 11.10 pesos.", [Decimal("11.10")]),
+    ("Precio total 15.50.", [Decimal("15.50")]),
+    ("11.10: el importe asciende a 5045030.00", [Decimal("5045030.00")]),
+])
+def test_an_amount_with_a_sign_of_money_is_still_read_next_to_a_clause_number(text, expected):
+    """REQ-103, T-240 (D-240-1): un «N.NN» con `$`, con una palabra de monto antes o con la moneda
+    después sigue siendo un monto; el número de cláusula que lo acompaña no."""
+    assert portal_facts.amounts(text) == expected
+
+
+# --- D-240-2: las relajaciones de la regla del Portal no dan «cumple» sin respaldo --------------------
+
+
+def apply_portal(offer, text, *, items=()):
+    pair = pair_of(text, combine.Combined(outcome="sin_documento"), items=items)
+    name = rules.apply(pair, SimpleNamespace(offer=offer))
+    return name, pair.combined
+
+
+@pytest.mark.decision_literal
+def test_a_ceiling_written_in_words_is_not_a_cumple(offer, portal):
+    """REQ-103, T-240 (D-240-2): «hasta pesos un millón» es un tope escrito en letras: con un total de
+    5.000.000 en el Portal nunca «cumple» (queda «no determinado» con la diferencia)."""
+    portal_data(portal, offer, total="5000000.00")
+    for text in ("El total de la oferta será de hasta pesos un millón.",
+                 "El total de la oferta no excederá de pesos un millón.",
+                 "El importe total ofertado llegará hasta cien mil pesos."):
+        name, combined = apply_portal(offer, text)
+        assert name != "portal_cumple" and combined.outcome != "cumple", text
+        assert combined.doubt == "falta_coincidencia", text
+
+
+@pytest.mark.decision_literal
+def test_a_tax_rate_is_not_a_fact_the_portal_confirms(offer, procedure, portal):
+    """REQ-103, T-240 (D-240-2): «el IVA se calculará al 21 %» fija una alícuota que el Portal no
+    informa: aunque el precio esté cargado, nunca «cumple»."""
+    quoted_lines(offer, procedure, portal, numbers=(1,))
+    for text in ("En la cotización el IVA se calculará al 21 %.",
+                 "La cotización del renglón incluirá el impuesto al valor agregado, con alícuota general."):
+        name, combined = apply_portal(offer, text, items=[1])
+        assert name != "portal_cumple" and combined.outcome != "cumple", text
+
+
+GUARANTEE_BASE = "Constituir una garantía de mantenimiento de la oferta"
+PROBES = [
+    # (texto, resultado esperado de la regla: cumple / no_cumple / sin_cumple)
+    (f"{GUARANTEE_BASE} del 5 % del total cotizado.", "cumple"),
+    (f"{GUARANTEE_BASE} del 5 % del monto total ofertado.", "cumple"),
+    (f"{GUARANTEE_BASE} del 5 % del valor total de la oferta.", "cumple"),
+    (f"{GUARANTEE_BASE} del 5 % del importe total de la oferta.", "cumple"),
+    (f"{GUARANTEE_BASE} del 5 % del total cotizado. Se presentará en la plataforma de compras.",
+     "cumple"),
+    ("Indicar el precio total de la oferta.", "cumple"),
+    (f"{GUARANTEE_BASE} por $ 21.750,00.", "no_cumple"),   # el Portal informa 21.749
+    ("El CUIT del oferente deberá ser 20-22222222-2.", "no_cumple"),
+    (f"{GUARANTEE_BASE} del 5 % del presupuesto oficial.", "sin_cumple"),
+    (f"{GUARANTEE_BASE} del 5 % del presupuesto oficial del renglón.", "sin_cumple"),
+    (f"{GUARANTEE_BASE} del 5 % de la oferta de mayor monto.", "sin_cumple"),
+    (f"{GUARANTEE_BASE} de como mínimo el 5 % del total cotizado.", "sin_cumple"),
+    (f"{GUARANTEE_BASE} de al menos el 5 % del total cotizado.", "sin_cumple"),
+    (f"{GUARANTEE_BASE} que no podrá superar el 5 % del total cotizado.", "sin_cumple"),
+    (f"{GUARANTEE_BASE} hasta $ 25.000,00.", "sin_cumple"),
+    (f"{GUARANTEE_BASE} del 5 % del monto adjudicado.", "sin_cumple"),
+    (f"{GUARANTEE_BASE} en un importe superior a pesos veinte mil.", "sin_cumple"),
+]
+
+
+@pytest.mark.decision_literal
+@pytest.mark.parametrize("text, want", PROBES)
+def test_the_17_probes_of_d_233_1_still_give_no_cumple_without_support(offer, portal, text, want):
+    """REQ-103, D-233-1, T-240 (D-240-2): las 17 sondas de la verificación de T-233 (tope, mínimo,
+    base distinta del total cotizado, monto adjudicado, CUIT distinto, monto distinto) siguen sin dar
+    «cumple» donde el pliego fija algo que el Portal no confirma, y dan «cumple» solo cuando coincide."""
+    portal_data(portal, offer, amount="21749.00" if "21.750,00" in text else "21750.00",
+                total="435000.00", cuit="30-11111111-1")
+    name, combined = apply_portal(offer, text)
+    if want == "cumple":
+        assert name == "portal_cumple" and combined.outcome == "cumple"
+    elif want == "no_cumple":
+        assert name == "portal_no_cumple" and combined.outcome == "no_cumple"
+    else:
+        assert name != "portal_cumple" and combined.outcome != "cumple", (name, combined.outcome)

@@ -722,8 +722,8 @@ def test_everything_the_model_was_asked_is_recorded(offer, operator_user, proced
     assert run.models_used["generation_batch"]["context_tokens"] == 32768
     versions = dict(run.prompt_versions)
     assert set(versions.pop("huellas")) == {"evaluacion", "contraste", "clausulas"}  # T-237
-    assert versions == {**settings.ASSESSMENT_PROMPT_VERSIONS, "reglas": "reglas-v10"}
-    assert run.parameters["rules_version"] == "reglas-v10"
+    assert versions == {**settings.ASSESSMENT_PROMPT_VERSIONS, "reglas": "reglas-v11"}
+    assert run.parameters["rules_version"] == "reglas-v11"
     assert run.parameters["group_tokens"] == 20000
     assert run.norms["matrix_version"] == 1 and run.norms["authorization_date"]
     assert run.matrix_version == request.matrix_version and run.channel == "eval"

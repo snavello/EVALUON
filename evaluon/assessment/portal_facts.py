@@ -100,9 +100,12 @@ CATALOG = (
 _LIMIT = re.compile(
     r"\bsuper(?:ar|a|e|en|ara|aran|ando)\b|\bexced\w+|\bmayor(?:es)?\b|\bmenor(?:es)?\b|\bmaxim\w+|\bminim\w+"
     r"|\binferior\w*|\bsuperior\w*|\bal menos\b|\bpor lo menos\b|\btope\b|\blimite\w*"
-    # T-240: «hasta» es un tope si lo sigue un valor («hasta $ 500», «hasta 260 módulos»), no si es
-    # un «hasta los cuales» que habla de otra cosa.
-    r"|\bhasta\b(?:\W+\w+){0,6}?\W*[\d$]"
+    # T-240: «hasta» es un tope si lo sigue un valor («hasta $ 500», «hasta 260 módulos», «hasta pesos
+    # un millón»: cifra, `$`, moneda o número escrito en letras), no si es un «hasta los cuales» que
+    # habla de otra cosa.
+    r"|\bhasta\b(?:\W+\w+){0,6}?\W*(?:[\d$]|(?:pesos|dolares|usd|ars|mil|millon\w*|cien\w*|dos|tres"
+    r"|cuatro|cinco|seis|siete|ocho|nueve|diez|veinte\w*|treinta|cuarenta|cincuenta|sesenta|setenta"
+    r"|ochenta|noventa|doscientos|trescientos|cuatrocientos|quinientos)\b)"
     r"|\bno (?:podra|puede|debera|debe|menos|mas)\b")
 # La base del porcentaje de una garantía: lo que se busca después del porcentaje.
 _OFFER_BASE = re.compile(
@@ -126,8 +129,11 @@ def _mentions_percent(text):
 # porcentaje de adjudicación hablan de otra cosa.
 _PRICE_MODIFIER = re.compile(
     r"descuento|recargo|bonificaci|rebaja|incremento|aumento|reduccion|margen|variacion"
+    r"|\biva\b|alicuota|impuesto|\bcotizacion\b"
     r"|\b(?:sobre|del|al) (?:el |la |los |las )?(?:precio|total|monto|importe|valor)")
 PERCENT_WINDOW = 50
+# T-240 (D-240-2): el impuesto (IVA, alícuota) no es un dato que el Portal confirme.
+_TAX = re.compile(r"\biva\b|alicuotas?|impuestos?")
 
 
 def _percent_on_price(text):
@@ -285,15 +291,20 @@ def _parse_amount(token):
         return None
 
 
-# T-240 (H-1): el número de una cláusula («11.10.») se parece a un monto con dos decimales. Es un
-# número de cláusula el que, sin `$`, tiene la forma «N.NN» y abre una cláusula («11.10. Texto») o
-# sigue a una palabra de referencia («punto 11.10», «puntos 11.9, 11.10 y 11.11», «artículo 18.10»).
+# T-240 (H-1, D-240-1): el número de una cláusula («11.10.», «3.15 Texto», «(11.10)», «11.10:») se parece a
+# un monto con dos decimales. Un «N.NN» sin `$` es un número de cláusula salvo que haya una señal de
+# dinero: una palabra de monto antes («el monto de 11.10») o la moneda después («11.10 pesos»). Es
+# también número de cláusula, con señal o sin ella, el que sigue a una palabra de referencia («punto
+# 11.10», «puntos 3.10, 3.11 y 3.12», «artículo 18.10»).
 _CLAUSE_TOKEN = re.compile(r"\d{1,2}\.\d{1,2}")
-_CLAUSE_OPENS = re.compile(r"\.\s+[A-ZÁÉÍÓÚÑ\"“(¿¡]")
 _CLAUSE_REFERENCE = re.compile(
     r"\b(?:punto|puntos|clausula|clausulas|articulo|articulos|art|arts|inciso|incisos|apartado"
     r"|apartados|numeral|numerales|item|items|capitulo|seccion|titulo|anexo|anexos|pto)\b\.?\s*"
     r"(?:n[°ºo]\.?\s*|nro\.?\s*)?(?:[\d.]+\s*(?:,|;|\by\b|\be\b|\bo\b|\bal\b|-)\s*)*$")
+_MONEY_WORD_BEFORE = re.compile(
+    r"\b(?:monto|montos|importe|importes|suma|total|valor|precio|pesos|ars|usd|dolares)\b")
+_MONEY_WORD_AFTER = re.compile(r"^\W{0,3}(?:pesos|ars|usd|dolares|u\$s)\b")
+MONEY_WINDOW = 25
 
 
 def _is_clause_number(text, match):
@@ -301,9 +312,14 @@ def _is_clause_number(text, match):
     sign, token = match.groups()
     if sign or not _CLAUSE_TOKEN.fullmatch(token):
         return False
-    if _CLAUSE_OPENS.match(text[match.end():match.end() + 3]):
+    before = fold(text[max(match.start() - 60, 0):match.start()])
+    if _CLAUSE_REFERENCE.search(before):
         return True
-    return bool(_CLAUSE_REFERENCE.search(fold(text[max(match.start() - 60, 0):match.start()])))
+    # La señal de dinero se busca en la misma oración, cerca del número.
+    sentence = re.split(r"[.;:]\s", before[-MONEY_WINDOW:])[-1]
+    if _MONEY_WORD_BEFORE.search(sentence):
+        return False
+    return not _MONEY_WORD_AFTER.match(fold(text[match.end():match.end() + 12]))
 
 
 def amounts(text):
@@ -632,6 +648,9 @@ def compare(kind, offer, data, portal, text, items):
         return _guarantee_comparison(data, portal, text)
     if kind == CUIT:
         return _cuit_comparison(portal, text)
+    if kind in (TOTAL, COTIZACION) and _TAX.search(folded):
+        return Comparison(NO_COMPARABLE, "El pliego nombra un impuesto (IVA o alícuota) y el Portal no "
+                          "lo informa: el sistema no lo compara.")
     if kind in (TOTAL, COTIZACION) and (amounts(text) or _percent_on_price(text)):
         return Comparison(NO_COMPARABLE, "El pliego fija un monto o un porcentaje para este dato "
                           "y el sistema no lo compara con el Portal.")
