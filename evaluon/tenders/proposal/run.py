@@ -82,6 +82,7 @@ cita por tramo, con su alcance (`propia` o `general`). El texto de toda cita es 
 recorte del texto canónico de la lectura.
 """
 
+import re
 import time
 import unicodedata
 from collections import Counter
@@ -100,6 +101,7 @@ from evaluon.tenders.models import (
     Disposition,
     DispositionOutcome,
     DispositionSource,
+    DocumentKind,
     DoubtReason,
     MatrixVersion,
     NormSupport,
@@ -174,6 +176,24 @@ def _fold(text):
 _FOLDED_MARKERS = tuple(_fold(marker) for marker in OBLIGATION_MARKERS)
 
 
+# T-240 (H-7): un documento técnico anexo (manual, plano, croquis, especificaciones) no aporta
+# requisitos formales: sus tramos van a las filas técnicas por renglón, como manda la regla técnica.
+_TECHNICAL_ANNEX = re.compile(
+    r"\b(?:manual(?:es)?|planos?|croquis|especificaciones tecnicas|memoria descriptiva)\b")
+
+
+def is_technical_annex(document):
+    """Si el documento base es un anexo técnico: de tipo `especificaciones`, o un `anexo` cuyo
+    título o archivo nombra un manual, un plano, un croquis o unas especificaciones técnicas.
+    El pliego no lo es nunca (sus secciones técnicas las marca `section_class`)."""
+    if document.kind == DocumentKind.ESPECIFICACIONES:
+        return True
+    if document.kind != DocumentKind.ANEXO:
+        return False
+    named = _fold(f"{document.title} {document.file_name}").replace("_", " ")
+    return bool(_TECHNICAL_ANNEX.search(named))
+
+
 def has_obligation_markers(text):
     """Si el texto tiene algún marcador de obligación."""
     folded = _fold(text)
@@ -208,14 +228,18 @@ def rule_decision(segment, is_item_header):
     return None
 
 
-def model_decision(unit, outcome, anomalies):
+def model_decision(unit, outcome, anomalies, technical_annex=False):
     """La disposición de un tramo según lo que el modelo devolvió (`extraction.Outcome`).
-    Un descartado con marcadores de obligación queda descartado: la completitud lo revisa."""
+    Un descartado con marcadores de obligación queda descartado: la completitud lo revisa.
+    Con `technical_annex` (el tramo es de un documento técnico anexo, T-240), un tramo con
+    requisitos queda `tecnico`: va a las filas técnicas, no a la matriz formal."""
     segment = unit.segment
     base = {"source": DispositionSource.MODELO.value, "step": outcome.step}
     if not outcome.valid:
         return Decision(DispositionOutcome.PENDIENTE.value,
                         pending_reason=PendingReason.SIN_DISPOSICION.value, **base)
+    if outcome.found and technical_annex:
+        return Decision(DispositionOutcome.TECNICO.value, marks=list(outcome.technical), **base)
     if outcome.found:
         return Decision(DispositionOutcome.REQUISITOS.value, found=outcome.found,
                         marks=list(outcome.technical), **base)
@@ -432,7 +456,9 @@ def propose(run, *, user, channel=Channel.COMMAND):
         # 3. Disposición según el modelo.
         by_pk = {unit.segment.pk: unit for unit in loaded.units}
         for pk, outcome in outcomes.items():
-            decisions[pk] = model_decision(by_pk[pk], outcome, anomalies)
+            decisions[pk] = model_decision(
+                by_pk[pk], outcome, anomalies,
+                technical_annex=is_technical_annex(loaded.reading_of[pk].document))
 
         # 3 bis. Completitud.
         started = time.monotonic()
