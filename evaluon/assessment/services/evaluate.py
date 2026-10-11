@@ -602,7 +602,8 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
     if derived == prompting.NO_DETERMINADO and note and not evaluation.external:
         # «No determinado» dice qué condición no se pudo determinar (REQ-104) y se lo pregunta a
         # la Comisión (REQ-105): falta el dato de una condición, que no es una duda sin razón.
-        doubt = combine.NO_DATA
+        # Con partes de la oferta sin leer vale lo de `combine`: la duda pasa a lectura incompleta.
+        doubt = combine.DOUBT if ctx.offer_text.has_unread else combine.NO_DATA
         if note not in explanation:
             explanation = f"{explanation} {note}".strip()
         if not question or combine.addresses_offeror(question):

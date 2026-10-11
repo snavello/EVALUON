@@ -95,7 +95,7 @@ def test_without_the_alias_the_pair_is_an_incomplete_reading(
     _, runs = run_all(operator_user, procedure, offers=[pagare])
     result = results_of(runs[0])[number_of(procedure, GUARANTEE)]
     assert (result.outcome, result.doubt) == ("no_determinado", "lectura_incompleta")
-    assert result.facts == {}
+    assert set(result.facts) <= {"condiciones"}   # ningún hecho de regla (T-237 suma las condiciones)
 
 
 def test_a_conclusion_with_a_located_citation_is_not_overridden(
@@ -128,8 +128,9 @@ def test_the_resolution_prefers_a_page_of_the_window_shown_to_the_model():
 
 
 def test_the_ilegible_field_is_optional_in_the_models_output():
-    """El campo `ilegible` es opcional: una salida de la versión anterior sigue siendo válida,
-    y el esquema lo limita a los alias del grupo (o vacío)."""
+    """Al leer, el campo `ilegible` es opcional: una salida de la versión anterior sigue siendo
+    válida. El esquema lo limita a los alias del grupo (o vacío) y, desde `evaluacion-v6` (T-237,
+    ADR-0055), lo exige: va antes de las condiciones, con `externo`."""
     base = ('{"resultado": "no_consta", "exigencia": "documento", "citas": [], '
             '"fundamentos": [], "explicacion": "x", "externo": false, "pregunta": ""')
     assert prompting.parse_evaluation(base + "}", ["D1"], []).unreadable == ""
@@ -139,4 +140,6 @@ def test_the_ilegible_field_is_optional_in_the_models_output():
         prompting.parse_evaluation(base + ', "ilegible": 3}', ["D1"], [])
     schema = prompting.evaluation_schema(["D1", "D2"], [])
     assert schema["properties"]["ilegible"]["enum"] == ["", "D1", "D2"]
-    assert "ilegible" not in schema["required"]
+    assert "ilegible" in schema["required"]
+    assert list(schema["properties"]).index("externo") < list(schema["properties"]).index(
+        "ilegible") < list(schema["properties"]).index("condiciones")
