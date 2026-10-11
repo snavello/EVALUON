@@ -433,28 +433,34 @@ def _plan_for(ctx, pair):
 
 
 ANOMALY_CONDITION_NO_CITATION = "condicion_sin_cita"
+ANOMALY_CONDITION_NO_DATUM = "condicion_sin_dato"
 ANOMALY_RESULT_DERIVED = "resultado_derivado"
+ANOMALY_RESULT_CONTRADICTED = "resultado_no_sostenido"
 
 
 def _check_conditions(conditions, evidence, cited, anomalies):
     """Las condiciones que escribió el modelo, controladas contra lo que el sistema ubicó
-    (REQ-104; P3). `evidence`: `{número de la cita: ("oferta", Located) | ("portal", Datum)}`, solo
-    de las citas que se ubicaron; `cited`: cuántas citas escribió el modelo. Una condición «cumple» o «no cumple» sin una cita ubicada que la
-    sostenga no vale: pasa a «no determinado». Devuelve `(condiciones efectivas, registros)`: las
+    (REQ-104; P3; D-237-2). `evidence`: `{número de la cita: ("oferta", Located) | ("portal",
+    Datum)}`, solo de las citas que se ubicaron; `cited`: cuántas citas escribió el modelo.
+
+    Una condición «cumple» o «no cumple» vale solo con **su** dato (no vacío) y **su** cita:
+    `1 <= cita <= cited` y ubicada. Sin dato, con la cita 0, con una cita que no existe o que no se
+    ubicó, pasa a «no determinado» y queda la anomalía; no se le presta la cita de otra condición
+    aunque sea la única que se ubicó. Devuelve `(condiciones efectivas, registros)`: las
     `prompting.Condition` con el resultado que cuenta y, para el registro y la pantalla, un dict
     por condición con su dato, su cita y su resultado."""
-    only = next(iter(evidence.values())) if len(evidence) == 1 else None
     effective, records = [], []
     for index, condition in enumerate(conditions, start=1):
         pointed = 1 <= condition.cite <= cited
         found = evidence.get(condition.cite) if pointed else None
-        concluding = condition.result in (prompting.CUMPLE, prompting.NO_CUMPLE)
-        if found is None and concluding and not pointed:
-            found = only   # no apunta a ninguna cita y hay una sola ubicada: es la de todas
         result = condition.result
-        if concluding and found is None:
-            result = prompting.NO_DETERMINADO
-            anomalies.append({"type": ANOMALY_CONDITION_NO_CITATION, "condition": index})
+        if result in (prompting.CUMPLE, prompting.NO_CUMPLE):
+            if not condition.datum.strip():
+                result = prompting.NO_DETERMINADO
+                anomalies.append({"type": ANOMALY_CONDITION_NO_DATUM, "condition": index})
+            elif found is None:
+                result = prompting.NO_DETERMINADO
+                anomalies.append({"type": ANOMALY_CONDITION_NO_CITATION, "condition": index})
         cite = None
         if found is not None:
             kind, item = found
@@ -495,7 +501,7 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
                            max_tokens=prompting.evaluation_max_tokens())
         problem, evaluation, located, backed, data_located = None, None, [], None, []
         portal_cited, evidence, unlocated = [], {}, []
-        effective, records, derived = [], [], None
+        effective, records, derived, unsupported = [], [], None, False
         try:
             evaluation = prompting.parse_evaluation(
                 result.content, list(doc_map), list(support_map))
@@ -553,10 +559,17 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             # que escribió el modelo.
             effective, records = _check_conditions(
                 evaluation.conditions, evidence, len(evaluation.citations), step.anomalies)
-            derived = prompting.derive_result(effective) or evaluation.result
+            by_conditions = prompting.derive_result(effective)
+            # El más conservador entre el que dijo el modelo y el de sus condiciones (D-237-2).
+            derived = prompting.reconcile_result(evaluation.result, by_conditions)
             if derived != evaluation.result:
                 step.anomalies.append({"type": ANOMALY_RESULT_DERIVED,
                                        "modelo": evaluation.result, "derivado": derived})
+            unsupported = (derived == prompting.NO_DETERMINADO
+                           and by_conditions in (prompting.CUMPLE, prompting.NO_CUMPLE))
+            if unsupported:
+                step.anomalies.append({"type": ANOMALY_RESULT_CONTRADICTED,
+                                       "modelo": evaluation.result, "condiciones": by_conditions})
             step.parsed = {**evaluation.as_json(conditions=records),
                            "resultado_derivado": derived,
                            "instruccion": instruction,
@@ -608,6 +621,14 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             explanation = f"{explanation} {note}".strip()
         if not question or combine.addresses_offeror(question):
             question = prompting.missing_question(effective)
+    if unsupported and not evaluation.external:
+        # El modelo y sus condiciones no concluyen lo mismo: no se da por concluido (D-237-2).
+        explanation = (f"{explanation} El resultado que propuso el modelo («{evaluation.result}») "
+                       "no coincide con el de sus condiciones: el sistema no lo da por "
+                       "concluido.").strip()
+        if not question or combine.addresses_offeror(question):
+            question = ("¿Cómo resuelve la Comisión este requisito? El resultado que propuso el "
+                        "modelo no coincide con el de sus condiciones.")
     portal_record = [] if derived == prompting.NO_CONSTA else [
         d.citation() for d in portal_cited]
     if (derived == prompting.NO_CUMPLE

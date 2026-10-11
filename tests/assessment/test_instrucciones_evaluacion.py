@@ -27,6 +27,9 @@ FROZEN = {
     "evaluacion-v6": "a21614b9f64e6bd5455ed1990b0a358303420b313ab267cadcdde1bfeb363f16",
     "contraste-v3": "48533ad102f79ffe3cb3c1b872d1d42b2eba73a69b6dbd60139031068d9ca787",
     "clausulas-v3": "c352ed616e33cfc9e039625e44ddcccf58fd4dd8b95daf9636af7aeab5cf189c",
+    "evaluacion-v7": "621dfb1c6c01d1e90fec301723f396881e55d0bf2c1d7a38a1507a4f6a41352c",
+    "contraste-v4": "cb9b4a7aa7eb1b1d326ea8ba50c475ef548d9ba1c990b6c25d78e048c7e49fdc",
+    "clausulas-v4": "96e9e2b445205ec192ecef944c167d99fc2d8157eed0255bb99a552e3562721f",
 }
 
 # Reglas que empujaban al error (informe de revisión, 4.7 a 4.9).
@@ -52,7 +55,7 @@ def examples_of(name):
 def test_the_current_versions_are_the_new_ones_and_exist():
     """REQ-106: `ASSESSMENT_PROMPT_VERSIONS` apunta a las versiones nuevas y los archivos existen."""
     assert settings.ASSESSMENT_PROMPT_VERSIONS == {
-        "evaluacion": "evaluacion-v6", "contraste": "contraste-v3", "clausulas": "clausulas-v3"}
+        "evaluacion": "evaluacion-v7", "contraste": "contraste-v4", "clausulas": "clausulas-v4"}
     for name in settings.ASSESSMENT_PROMPT_VERSIONS:
         assert prompting.load_prompt(name)
 
@@ -82,6 +85,15 @@ def test_the_instructions_have_none_of_the_rules_that_push_to_error(name):
         assert phrase not in body, phrase
 
 
+def test_the_instruction_states_the_limit_of_six_conditions():
+    """O-237-1: la instrucción dice el tope de condiciones del esquema y qué hacer con las que
+    sobran: se juntan en la última y valen con la misma regla."""
+    body = current("evaluacion")
+    assert prompting.CONDITIONS_MAX == 6 and "hasta seis" in body
+    assert "juntá las que sobran en la sexta" in body
+    assert prompting.evaluation_schema(["D1"], [])["properties"]["condiciones"]["maxItems"] == 6
+
+
 def test_the_evaluation_asks_for_the_whole_sentence_and_each_condition():
     """REQ-104: la cita es la oración completa; se revisa cada condición con su dato, su cita y su
     resultado; «cumple» solo si todas; la duda se declara con su razón."""
@@ -93,6 +105,8 @@ def test_the_evaluation_asks_for_the_whole_sentence_and_each_condition():
     assert 'si falta el dato de alguna condición' in body
     assert "La duda no es un motivo" in body and "qué dato falta o qué texto contradice" in body
     assert "No supongas el dato de una condición" in body
+    # D-237-2: cada condición cumple o no cumple con su propio dato y su propia cita
+    assert "solo con su propio dato (no vacío) y su propia cita" in body
 
 
 def test_the_evaluation_explains_the_portal_block_and_how_to_cite_it():
@@ -201,6 +215,9 @@ def test_the_clauses_examples_put_the_motive_before_the_state_and_ask_the_commis
     asked = [e["pregunta"] for e in examples if e["pregunta"]]
     assert asked and all("Comisión" in q for q in asked)
     assert all(re.search(r"Renglón \d", q) for q in asked)
+    # O-237-2: el motivo nunca va vacío, ni en el texto ni en los ejemplos
+    assert "Nunca va vacío" in current("clausulas") and "(vacío si" not in current("clausulas")
+    assert all(clause["motivo"] for e in examples for clause in e["clausulas"])
 
 
 def test_a_retry_message_has_no_the_old_suggestion():
