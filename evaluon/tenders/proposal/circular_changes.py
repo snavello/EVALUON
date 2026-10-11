@@ -384,7 +384,7 @@ class Extractor:
         processor = self.processor
         processor._batch += 1
         if output is None:
-            request = generation.build_request(messages, schema, max_tokens)
+            request = generation.build_batch_request(messages, schema, max_tokens)
             content, prompt_tokens, completion_tokens = "", None, None
         else:
             request, content = output.request, output.content
@@ -462,7 +462,7 @@ class Extractor:
         text = units.unit_text(change_unit, document)
         messages = build_messages(self.prompt, render_unit(document, change_unit, text))
         space = (processor._space()
-                 - generation.count_tokens(messages[-1]["content"]))
+                 - generation.count_tokens_batch(messages[-1]["content"]))
         if space < 0:
             processor.anomalies.append({"type": ANOMALY_NO_FIT, "tramos": change_unit.keys})
             self.loss.append(circulars.REVIEW_NO_FIT)

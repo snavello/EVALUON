@@ -377,19 +377,19 @@ class Suggester:
     def _space(self):
         """Tokens para lo que cambia en cada pedido: el contexto, menos la salida, el margen
         de la plantilla y las instrucciones con la fecha."""
-        head = generation.count_tokens(
+        head = generation.count_tokens_batch(
             f"Fecha de autorización del procedimiento: "
             f"{self.run.authorization_date.strftime('%d/%m/%Y')}")
         return (settings.GENERATION_CONTEXT_TOKENS - settings.MATRIX_MAX_OUTPUT_TOKENS
                 - settings.PROMPT_TEMPLATE_MARGIN_TOKENS
-                - generation.count_tokens(self.prompt) - head)
+                - generation.count_tokens_batch(self.prompt) - head)
 
     def _build(self, subjects):
         """Arma el pedido de `subjects`, o devuelve `None` si no entra en el contexto."""
         space = self._space()
         aliases = {f"R{n}": s for n, s in enumerate(subjects, start=1)}
         subject_blocks = [render_subject(a, s) for a, s in aliases.items()]
-        used = sum(generation.count_tokens(b) for b in subject_blocks)
+        used = sum(generation.count_tokens_batch(b) for b in subject_blocks)
 
         by_pk = {unit.segment.pk: unit for unit in self.loaded.units}
         own_pks = []
@@ -398,14 +398,14 @@ class Suggester:
                 if segment.pk not in own_pks:
                     own_pks.append(segment.pk)
         chosen = {pk: by_pk[pk] for pk in own_pks}
-        used += sum(generation.count_tokens(render_pliego("P0", u))
+        used += sum(generation.count_tokens_batch(render_pliego("P0", u))
                     for u in chosen.values())
         if used > space:
             return None
 
         extra = [u for u in self._candidates if u.segment.pk not in chosen]
         budget = (space - used) // 2
-        sizes = {u.segment.pk: generation.count_tokens(render_pliego("P0", u))
+        sizes = {u.segment.pk: generation.count_tokens_batch(render_pliego("P0", u))
                  for u in extra}
         if sum(sizes.values()) <= budget:
             picked = extra
@@ -508,7 +508,7 @@ class Suggester:
                                                max_tokens=max_tokens)
         except AIServiceError as error:
             self._record(
-                lot, {"request": generation.build_request(lot.messages, lot.schema,
+                lot, {"request": generation.build_batch_request(lot.messages, lot.schema,
                                                           max_tokens),
                       "content": "", "prompt_tokens": None, "completion_tokens": None},
                 parsed=None, retry_of=retry_of, seconds=time.monotonic() - started,

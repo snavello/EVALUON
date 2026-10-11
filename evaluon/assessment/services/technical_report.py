@@ -230,7 +230,7 @@ def _locate(entry, quote, finder, anomalies):
 def _read_report(document, offer, rows):
     """Lee el informe para la oferta: `({renglón: entrada}, pasos, anomalías)`. La entrada trae
     `verdict`, `quote`, `page`, posiciones y `motive`, o el `reason` por el que no se propone."""
-    entry = documents.read_document(document, generation.count_tokens)
+    entry = documents.read_document(document, generation.count_tokens_batch)
     anomalies = []
     if entry.reading is None:
         return ({i: {"reason": "sin_lectura"} for i in rows}, [], anomalies)

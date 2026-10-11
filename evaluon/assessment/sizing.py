@@ -2,7 +2,7 @@
 T-148).
 
 Para cada oferta: páginas, tokens por documento y por página con el tokenizador del modelo
-(`generation.count_tokens`), los documentos de texto idéntico (se cuentan una vez) y cuántos
+(`generation.count_tokens_batch`), los documentos de texto idéntico (se cuentan una vez) y cuántos
 grupos salen con `ASSESSMENT_GROUP_TOKENS`, en el orden de carga. Es la medida con la que se
 confirma la estimación del plan y el contexto del motor de lotes; T-150 reutiliza el armado de
 texto por página y el empaquetado (`render_page`, `pack`, `windows`).
@@ -104,7 +104,7 @@ def measure_offer(offer, count=None, budget=None):
     """Medida de una oferta: sus documentos (los de texto idéntico, una vez), el total de
     páginas y tokens, y cuántos grupos salen con `budget` en el orden de carga. Un documento
     mayor que `budget` se parte en ventanas y cada ventana es un item."""
-    count = count or generation.count_tokens
+    count = count or generation.count_tokens_batch
     budget = budget or settings.ASSESSMENT_GROUP_TOKENS
     documents, first_seen = [], {}
     for document in offer.documents.order_by("pk"):

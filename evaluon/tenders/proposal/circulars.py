@@ -742,7 +742,7 @@ class Processor:
     def _space(self):
         return (settings.GENERATION_CONTEXT_TOKENS - settings.MATRIX_MAX_OUTPUT_TOKENS
                 - settings.PROMPT_TEMPLATE_MARGIN_TOKENS
-                - generation.count_tokens(self.prompt))
+                - generation.count_tokens_batch(self.prompt))
 
     def _choose(self, circular, unit, candidates, anomalies, heading="", rendered="",
                 scope_items=()):
@@ -775,11 +775,11 @@ class Processor:
             rest = sorted(rest, key=lambda c: -scores[c.key])[:limit]
         ordered = named + referred + rest
 
-        space = (self._space() - generation.count_tokens(render_circular(circular, unit))
-                 - (generation.count_tokens(rendered) if rendered else 0))
+        space = (self._space() - generation.count_tokens_batch(render_circular(circular, unit))
+                 - (generation.count_tokens_batch(rendered) if rendered else 0))
         chosen, used = [], 0
         for candidate in ordered:
-            size = generation.count_tokens(render_candidate("Q00", candidate))
+            size = generation.count_tokens_batch(render_candidate("Q00", candidate))
             if used + size > space:
                 anomalies.append({"type": ANOMALY_CANDIDATES_CUT,
                                   "segment": segment.pk, "key": segment.key})
@@ -812,7 +812,7 @@ class Processor:
             output = generation.generate_batch(messages, schema, max_tokens=max_tokens)
         except AIServiceError as error:
             self._record(
-                unit, {"request": generation.build_request(messages, schema, max_tokens),
+                unit, {"request": generation.build_batch_request(messages, schema, max_tokens),
                        "content": "", "prompt_tokens": None, "completion_tokens": None},
                 parsed=None, retry_of=retry_of, seconds=time.monotonic() - started,
                 anomalies=[{"type": ANOMALY_SERVICE, "reason": error.reason,

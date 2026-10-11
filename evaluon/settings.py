@@ -240,8 +240,9 @@ GENERATION_TEMPERATURE = 0
 # Semilla fija; 42 es la usada en las pruebas de la etapa 0 (entorno.md, T-002).
 GENERATION_SEED = 42
 # Pensamiento apagado. El servidor ya arranca con --reasoning off; además cada pedido lo
-# pide a la plantilla de conversación. `enable_thinking` es la variable de la plantilla
-# de Gemma 4: es propia del modelo y cambia con él (ADR-0002, "Consecuencias").
+# pide a la plantilla de conversación. `enable_thinking` es la variable de la plantilla; la
+# usan Gemma 4 y también Qwen3.x, así que sirve con los modelos candidatos sin cambios; hay que
+# verificar `/props` con cada archivo nuevo (ADR-0002, "Consecuencias"; T-251).
 GENERATION_THINKING = False
 GENERATION_CHAT_TEMPLATE_KWARGS = {"enable_thinking": GENERATION_THINKING}
 # Máximo de tokens de salida: el del pedido largo con que se midió el tiempo en la etapa

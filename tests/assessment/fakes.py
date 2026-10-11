@@ -208,7 +208,8 @@ class ScriptedModel:
         elif not isinstance(answer, Raw):
             answer = f"{answer}\n{settings.ASSESSMENT_VISION_END_MARKER}"
         content = str(answer)
-        request = generation_client.build_text_request(messages, max_tokens, repeat_penalty)
+        request = generation_client.build_text_request(
+            messages, max_tokens, repeat_penalty, base_url)
         prompt_tokens = sum(len(str(m.get("content", "")).split()) for m in messages)
         completion_tokens = len(content.split())
         response = {"choices": [{"index": 0, "finish_reason": finish,

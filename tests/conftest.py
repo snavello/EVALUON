@@ -495,7 +495,7 @@ class FakeGeneration:
             content, finish_reason = value, "length"
         else:
             content = value
-        request = generation_client.build_request(messages, schema, max_tokens)
+        request = generation_client.build_request(messages, schema, max_tokens, base_url)
         prompt_tokens = sum(count_words(str(m.get("content", ""))) for m in messages)
         completion_tokens = count_words(content)
         response = {
@@ -604,11 +604,12 @@ class FakeReranker(_FailureModes):
 
 @pytest.fixture
 def fake_generation(monkeypatch):
-    """Doble del cliente de generación (`evaluon.ai.generation`): reemplaza `generate` y
-    `count_tokens`. Ver `FakeGeneration`."""
+    """Doble del cliente de generación (`evaluon.ai.generation`): reemplaza `generate`,
+    `count_tokens` y `count_tokens_batch`. Ver `FakeGeneration`."""
     double = FakeGeneration()
     monkeypatch.setattr(generation_client, "generate", double.generate)
     monkeypatch.setattr(generation_client, "count_tokens", double.count_tokens)
+    monkeypatch.setattr(generation_client, "count_tokens_batch", double.count_tokens)
     return double
 
 

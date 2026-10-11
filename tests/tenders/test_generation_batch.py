@@ -149,6 +149,112 @@ def test_double_records_max_output_url_and_timeout(fake_generation, settings):
     assert len(fake_generation.calls) == 2
 
 
+# --- T-251: el modelo que atiende el pedido de lotes y el motor con que se cuentan sus tokens ------
+
+
+@pytest.fixture
+def two_engines(settings):
+    """Un motor de lotes con otro modelo que el de `generation` (como en una comparación)."""
+    settings.GENERATION_MODEL = "modelo-consulta"
+    settings.GENERATION_BATCH_MODEL = "modelo-de-lotes"
+    settings.GENERATION_URL = "http://generation:8080"
+    settings.GENERATION_BATCH_URL = "http://generation_batch:8080"
+    return settings
+
+
+def test_a_batch_request_body_names_the_batch_model(two_engines):
+    """REQ-107, P6: el cuerpo registrado de un pedido de lotes dice el alias del modelo del
+    motor que lo atiende (`GENERATION_BATCH_MODEL`), no el de `generation`."""
+    batch = generation.build_batch_request(MESSAGES, SCHEMA, 512)
+    assert batch["model"] == "modelo-de-lotes" and batch["max_tokens"] == 512
+    assert generation.build_request(MESSAGES, SCHEMA)["model"] == "modelo-consulta"
+    assert generation.build_request(
+        MESSAGES, SCHEMA, base_url=two_engines.GENERATION_BATCH_URL)["model"] == "modelo-de-lotes"
+
+
+def test_a_query_request_body_keeps_the_generation_model(two_engines):
+    """REQ-107: la consulta de normativa sigue registrando el modelo de `generation`."""
+    for body in (generation.build_request(MESSAGES, SCHEMA, 800),
+                 generation.build_request(MESSAGES, SCHEMA, 800,
+                                          base_url=two_engines.GENERATION_URL)):
+        assert body["model"] == "modelo-consulta"
+
+
+def test_with_a_single_engine_the_model_is_the_one_of_generation(two_engines):
+    """REQ-107: si `GENERATION_BATCH_URL` apunta a `GENERATION_URL` (un solo motor), el alias es
+    el de ese motor."""
+    two_engines.GENERATION_BATCH_URL = two_engines.GENERATION_URL
+    assert generation.build_batch_request(MESSAGES, SCHEMA)["model"] == "modelo-consulta"
+
+
+def test_what_goes_to_the_batch_engine_sends_the_batch_alias(engine, settings):
+    """REQ-107: el pedido que de verdad va a `GENERATION_BATCH_URL` (con `generate_batch` o con
+    `generate(base_url=…)`, como la evaluación) lleva el alias del lote en el cuerpo enviado, y el
+    texto libre de la visión también."""
+    url, server = engine
+    settings.GENERATION_URL = "http://127.0.0.1:9"
+    settings.GENERATION_BATCH_URL = url
+    settings.GENERATION_MODEL = "modelo-consulta"
+    settings.GENERATION_BATCH_MODEL = "modelo-de-lotes"
+    generation.generate_batch(MESSAGES, SCHEMA, max_tokens=64)
+    generation.generate(MESSAGES, SCHEMA, base_url=url, timeout=5)
+    generation.generate_text(MESSAGES, max_tokens=64, repeat_penalty=1.0, base_url=url, timeout=5)
+    assert [b["model"] for b in server.bodies] == ["modelo-de-lotes"] * 3
+
+
+def test_the_double_records_the_model_of_the_engine_it_was_asked(fake_generation, two_engines):
+    """REQ-107: el doble arma el pedido registrado con el mismo criterio que el cliente."""
+    consulta = generation.generate(MESSAGES, SCHEMA, max_tokens=10)
+    lote = generation.generate_batch(MESSAGES, SCHEMA, max_tokens=10)
+    assert consulta.request["model"] == "modelo-consulta"
+    assert lote.request["model"] == "modelo-de-lotes"
+
+
+def test_count_tokens_batch_asks_the_batch_engine(engine, settings, monkeypatch):
+    """REQ-107: `count_tokens_batch` pide `/tokenize` a `GENERATION_BATCH_URL`; `count_tokens`,
+    a `GENERATION_URL`. Misma interfaz."""
+    settings.GENERATION_URL = "http://consulta:8080"
+    settings.GENERATION_BATCH_URL = "http://lotes:8080"
+    seen = []
+
+    def spy(service, base_url, path, body, *, timeout=None):
+        seen.append((base_url, path, body["content"]))
+        return {"tokens": [1, 2, 3, 4]}
+
+    import evaluon.ai as ai
+
+    monkeypatch.setattr(ai, "post_json", spy)
+    assert generation.count_tokens_batch("un texto") == 4
+    assert generation.count_tokens("otro texto") == 4
+    assert seen == [("http://lotes:8080", "/tokenize", "un texto"),
+                    ("http://consulta:8080", "/tokenize", "otro texto")]
+
+
+def test_batch_callers_count_with_the_batch_engine(fake_generation, monkeypatch):
+    """REQ-107: los llamadores de los lotes (matriz, circulares, respaldo, evaluación) cuentan
+    con `count_tokens_batch`, no con `count_tokens`. Se comprueba sobre el código."""
+    import re
+
+    root = Path(settings.BASE_DIR) / "evaluon"
+    callers = [
+        "tenders/proposal/extraction.py", "tenders/proposal/completeness.py",
+        "tenders/proposal/consequences.py", "tenders/proposal/circulars.py",
+        "tenders/proposal/circular_changes.py", "tenders/proposal/norm_support.py",
+        "assessment/documents.py", "assessment/sizing.py",
+        "assessment/services/technical_report.py"]
+    for name in callers:
+        source = (root / name).read_text(encoding="utf-8")
+        code = re.sub(r'""".*?"""', "", source, flags=re.DOTALL)
+        assert "generation.count_tokens(" not in code and "generation.count_tokens)" not in code, name
+        assert "count_tokens_batch" in code, name
+        assert "build_request(" not in code.replace("build_batch_request(", ""), name
+
+
+def test_the_double_replaces_the_new_counter_too(fake_generation):
+    """REQ-107: el doble de `tests/conftest.py` reemplaza también `count_tokens_batch`."""
+    assert generation.count_tokens_batch("uno dos tres") == 3
+
+
 # --- docker-compose.yml ------------------------------------------------------------------
 
 COMPOSE_FILE = Path(settings.BASE_DIR) / "docker-compose.yml"

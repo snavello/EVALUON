@@ -71,7 +71,7 @@ def test_tokens_are_counted_once_per_document_and_page(procedure, operator_user,
     offer = make_offer(procedure, operator_user, "Oferente A", {
         "a.pdf": ["Uno dos tres.", "Cuatro cinco."]})
     seen = []
-    monkeypatch.setattr(documents.generation, "count_tokens",
+    monkeypatch.setattr(documents.generation, "count_tokens_batch",
                         lambda text: seen.append(text) or len(text.split()))
     text = build(offer)
     assert len(seen) == 3  # el encabezado y las dos páginas
