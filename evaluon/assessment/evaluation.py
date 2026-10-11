@@ -88,6 +88,7 @@ from django.utils import timezone
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
+from evaluon.assessment import combine
 from evaluon.assessment import models as am
 from evaluon.assessment.citations import PageFinder
 from evaluon.assessment.models import Channel as RunChannel
@@ -162,18 +163,8 @@ QUESTIONS_FORM_MINIMUM = 1.0
 # «No determinado» que espera un documento ausente: el informe técnico o la hoja de compliance.
 WAITING_DOCUMENT = (am.Doubt.PENDIENTE_INFORME_TECNICO, am.Doubt.EXTERNO)
 QUESTIONS_SAMPLE_FILE = "muestra-preguntas.md"
-# La pregunta se dirige al oferente si le pide algo («¿Podría el oferente…?», «solicitamos al
-# oferente…», «el oferente deberá aclarar…», o una orden que empieza la pregunta). Los patrones
-# son constantes del módulo: si la forma de las preguntas cambia, se ajustan acá.
-ADDRESSED_TO_BIDDER = re.compile(
-    r"\b(?:podr[ií]a|solicitamos|solicitar|pedimos|ruego|rogamos|favor\s+de"
-    r"|se\s+(?:le\s+)?(?:pide|solicita|ruega))\b[^.?!]{0,60}\boferente\b"
-    r"|\boferente\b\s+(?:deber[aá]|debe|tendr[aá]|podr[aá])\b"
-    r"|\b(?:al|a\s+la)\s+(?:oferente|firma|empresa)\b[^.?!]{0,40}\b(?:aclare|aclarar|"
-    r"presente|presentar|informe|informar|acompañe|acompañar|adjunte|adjuntar|indique|indicar)"
-    r"|^\W*(?:aclare|presente|informe|acompañe|adjunte|indique|env[ií]e|confirme)\b"
-    r"|\busted(?:es)?\b|\bpor\s+favor\b",
-    re.IGNORECASE)
+# La pregunta se dirige al oferente según `combine.addresses_offeror`: una sola definición para el
+# producto y para la medida (T-233b, D-235-1).
 COMMISSION = re.compile(r"\bcomisi[oó]n\b", re.IGNORECASE)
 # Las líneas que `combine.compose_question` rotula (T-235): el requisito, la conclusión del
 # sistema y el texto de la oferta. Lo que dicen es del pliego, del sistema o de la oferta; lo que
@@ -874,7 +865,7 @@ def question_form(text, *, requirement_text, requirement_number, outcome_label, 
     own = re.sub(r"«[^»]*»", " ", own)
     for quoted in [requirement_text, *offer_texts]:
         own = own.replace(quoted, " ") if quoted else own
-    directed = not ADDRESSED_TO_BIDDER.search(own)
+    directed = not combine.addresses_offeror(own)
     return {"requisito_ok": requirement_ok, "conclusion_ok": conclusion_ok, "texto_ok": text_ok,
             "dirigida_ok": directed, "nombra_comision": bool(COMMISSION.search(text or "")),
             "conforme": requirement_ok and conclusion_ok and text_ok and directed}

@@ -22,7 +22,10 @@ cotización por renglón, que todos los renglones del procedimiento (o los de la
 el total, que esté cargado y, si el requisito fija la moneda, que coincida; el CUIT, los once
 dígitos. La regla (cuarta del orden, después de externo, técnico e ilegible):
 
-- el dato coincide con lo que exige el pliego: "cumple" con la cita del Portal y la explicación
+- el dato coincide con lo que exige el pliego, sobre la base que el pliego dice (T-233b: el
+  porcentaje de la garantía es sobre el total cotizado solo si el pliego lo dice; un tope, un
+  mínimo, un monto o un CUIT fijados por el pliego se comparan o dejan el par sin comparar):
+  "cumple" con la cita del Portal y la explicación
   «Fuente: Portal», sin pasar por el contraste del modelo (`portal_cumple`);
 - no coincide: "no cumple" con la diferencia y la cita del Portal (`portal_no_cumple`);
 - el pliego no fija un valor que se pueda leer (no es comparable): "no determinado",
@@ -82,6 +85,44 @@ CATALOG = (
         r"(?:precio|monto|importe|valor) total|total de la oferta|oferta economica"
         r"|propuesta economica")),
 )
+
+
+# T-233b (D-233-1): lo que el pliego fija y la regla no compara. Un tope o un mínimo («no podrá
+# superar», «como mínimo», «hasta»), un monto o un porcentaje fijado para el total, la cotización o
+# el CUIT, y una base del porcentaje que no es el total cotizado de la oferta dejan el par sin
+# comparar: nunca «cumple».
+_LIMIT = re.compile(
+    r"\bsuper(?:ar|a|e|en|ara|aran|ando)\b|\bexced\w+|\bmayor(?:es)?\b|\bmenor(?:es)?\b|\bmaxim\w+|\bminim\w+"
+    r"|\binferior\w*|\bsuperior\w*|\bal menos\b|\bpor lo menos\b|\btope\b|\blimite\w*"
+    r"|\bhasta\b|\bno (?:podra|puede|debera|debe|menos|mas)\b")
+# La base del porcentaje de una garantía: lo que se busca después del porcentaje.
+_OFFER_BASE = re.compile(
+    r"\b(?:cotizad\w*|ofertad\w*)\b"
+    r"|\b(?:monto|total|importe|valor|precio|suma)\s+(?:total\s+)?(?:de|del)\s+(?:la\s+|su\s+)?"
+    r"(?:oferta|cotizacion)\b|\boferta\s+economica\b")
+_OTHER_BASE = re.compile(
+    r"presupuesto|adjudic|contrat|renglon|estimad|referencia|oficial|orden de compra|licitad"
+    r"|\bbase\b|\bcanon\b|\bpedido\b")
+BASE_WINDOW = 90
+
+
+def _mentions_percent(text):
+    folded = fold(text)
+    return bool(_PERCENT.search(folded)) or any(
+        m.group(1) in _NUMBER_WORDS for m in _WORD_PERCENT.finditer(folded))
+
+
+def _percent_base(text):
+    """`True` si el pliego dice que el porcentaje es sobre el total cotizado de la oferta; `False`
+    si nombra otra base o no se puede leer (T-233b)."""
+    folded = fold(text)
+    ends = [m.end() for m in _PERCENT.finditer(folded)] + [
+        m.end() for m in _WORD_PERCENT.finditer(folded) if m.group(1) in _NUMBER_WORDS]
+    if not ends:
+        return False
+    after = folded[max(ends):max(ends) + BASE_WINDOW]
+    after = re.split(r"[.;]\s", after)[0]
+    return bool(_OFFER_BASE.search(after)) and not _OTHER_BASE.search(after)
 
 
 # T-175: un requisito que pide cotizar por renglón (todos o algunos, el valor unitario de cada
@@ -373,7 +414,12 @@ def _guarantee_comparison(data, portal, text):
     fija el requisito; coincide si la diferencia es de un centavo o menos."""
     folded = fold(text)
     percent = required_percent(text)
-    if percent is not None and "renglon" not in folded:
+    if percent is not None and (amounts(text) or not _percent_base(text)):
+        return Comparison(
+            NO_COMPARABLE, "El pliego fija el porcentaje de la garantía sobre una base que no es "
+            "el total cotizado de la oferta, o la base no se puede leer, o suma un monto: el "
+            "sistema no lo compara con el Portal.")
+    if percent is not None:
         if data.total is None:
             return Comparison(NO_COMPARABLE, "El pliego fija la garantía como un porcentaje del "
                               "total cotizado y el Portal no informa el total de la oferta.")
@@ -468,9 +514,18 @@ def _quote_comparison(offer, items):
         ", ".join(str(n) for n in missing))
 
 
-def _cuit_comparison(portal):
-    """El CUIT del Portal: once dígitos (la igualdad con el de la oferta la mira la regla)."""
+def _cuit_comparison(portal, text=""):
+    """El CUIT del Portal: si el pliego nombra un CUIT, que sea ese; si no, once dígitos (la
+    igualdad con el de la oferta la mira la regla)."""
     shown = portal[0].shown
+    required = set(cuits(text))
+    if required:
+        wanted = ", ".join(sorted(required))
+        if digits(shown) in required:
+            return Comparison(COINCIDE, f"El Portal informa el CUIT {shown}, el que fija el "
+                              "pliego.", wanted, shown)
+        return Comparison(DIFIERE, f"El pliego fija el CUIT {wanted} y el Portal informa {shown}.",
+                          wanted, shown, "distinto")
     size = len(digits(shown))
     if size == 11:
         return Comparison(COINCIDE, f"El Portal informa el CUIT del oferente {shown}, de once "
@@ -480,15 +535,24 @@ def _cuit_comparison(portal):
 
 
 def compare(kind, offer, data, portal, text, items):
-    """Lo que informa el Portal frente a lo que exige el pliego (`Comparison`)."""
+    """Lo que informa el Portal frente a lo que exige el pliego (`Comparison`). «Cumple» solo si el
+    valor del Portal coincide con lo que el pliego fija, sobre la base que el pliego dice; si el
+    pliego fija algo que no se compara, `NO_COMPARABLE` (T-233b, D-233-1)."""
+    folded = fold(text)
+    if _LIMIT.search(folded):
+        return Comparison(NO_COMPARABLE, "El pliego fija un tope o un mínimo que el sistema no "
+                          "compara con el dato del Portal.")
     if kind == GARANTIA:
         return _guarantee_comparison(data, portal, text)
+    if kind == CUIT:
+        return _cuit_comparison(portal, text)
+    if kind in (TOTAL, COTIZACION) and (amounts(text) or _mentions_percent(text)):
+        return Comparison(NO_COMPARABLE, "El pliego fija un monto o un porcentaje para este dato "
+                          "y el sistema no lo compara con el Portal.")
     if kind == TOTAL:
         return _total_comparison(data, portal, text)
     if kind == COTIZACION:
         return _quote_comparison(offer, items)
-    if kind == CUIT:
-        return _cuit_comparison(portal)
     return Comparison(NO_COMPARABLE, "El requisito pide otro dato.")
 
 
