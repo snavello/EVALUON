@@ -305,7 +305,7 @@ MATRIX_PROMPT_VERSIONS = {
     "circulares": "matriz-circulares-v7",
     "circulares_cambios": "matriz-circulares-v6",
     "unificacion": "matriz-unificacion-v1",
-    "filtro": "matriz-filtro-v2",
+    "filtro": "matriz-filtro-v3",
     "respaldo": "matriz-respaldo-v1",
 }
 
@@ -321,8 +321,9 @@ CIRCULAR_EXTRACTION_REPEATS = 1
 
 # --- Filtro de sobrantes, unificación y descartadas (ADR-0021, REQ-033) ----------------
 FILTER_ENABLED = True
-# Filas formales o económicas por pedido del filtro.
-FILTER_BATCH_ROWS = 15
+# Filas formales o económicas por pedido del filtro: de 15 a 6, dentro de las 5 a 8 del ADR-0054
+# (regla 8): con 15 el modelo contestaba lo mismo a todas. Se mide en T-239.
+FILTER_BATCH_ROWS = 6
 # Motivos de descarte: lista cerrada (los del ADR-0019, dos del ADR-0021 y cuatro del
 # ADR-0054: condición opcional, pago o factura, forma de presentar por el Portal y compromiso
 # al presentarse). Coincide con `FilterMotive.values`; lo comprueba tests/tenders/test_models.py.

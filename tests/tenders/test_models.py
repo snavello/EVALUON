@@ -950,7 +950,7 @@ def test_enmienda_parameters_in_settings():
     están en la configuración con los valores del plan, y las listas cerradas coinciden
     con los valores que acepta la base."""
     assert settings.FILTER_ENABLED is True
-    assert settings.FILTER_BATCH_ROWS == 15
+    assert settings.FILTER_BATCH_ROWS == 6
     assert set(settings.FILTER_MOTIVES) == set(m.FilterMotive.values)
     assert settings.DEDUP_MIN_SIMILARITY == 0.9
     assert settings.MATRIX_SAMPLE_DISCARDED == {"every": 3, "minimum": 20}
@@ -963,7 +963,7 @@ def test_enmienda_parameters_in_settings():
     assert settings.NORM_SUPPORT_MIN_SCORE == settings.RERANK_THRESHOLD == 0.219
     assert settings.NORM_SUPPORT_MAX_UNITS == 4
     assert settings.NORM_SUPPORT_QUERY_MAX_CHARS == 800
-    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v2"
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v3"
     for name in ("unificacion", "respaldo"):
         assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v1"
 
