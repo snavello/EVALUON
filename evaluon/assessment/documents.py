@@ -6,7 +6,7 @@ de la lectura (`sizing.render_page`: una página ilegible figura "no se pudo lee
 visión transcribió cuenta como leída, `offers/vision.py`). Los
 documentos de texto canónico idéntico se cuentan una vez: el resto figura como copia de otro
 documento y la cita se hace sobre el que quedó. Los tokens se cuentan una vez por documento y
-por página (`generation.count_tokens`), no por requisito.
+por página (`generation.count_tokens_batch`), no por requisito.
 
 El empaquetado reutiliza `sizing.pack` y `sizing.windows`:
 
@@ -156,7 +156,7 @@ def read_document(document, count):
 def build_offer_text(offer, count=None, budget=None):
     """Los documentos de `offer` como texto por página, con las copias omitidas y las piezas
     (documentos enteros o ventanas) en el orden de carga."""
-    count = count or generation.count_tokens
+    count = count or generation.count_tokens_batch
     budget = budget or settings.ASSESSMENT_GROUP_TOKENS
     documents, first_seen = [], {}
     # El informe técnico del área no es un documento de la oferta: no se lee para evaluarla

@@ -172,7 +172,11 @@ def test_the_request_records_model_parameters_instructions_version_and_unit(
     assert request["temperature"] == settings.GENERATION_TEMPERATURE
     assert request["seed"] == settings.GENERATION_SEED
     assert request["max_tokens"] == settings.MATRIX_MAX_OUTPUT_TOKENS
-    assert request["instrucciones"] == "matriz-circulares-v5"
+    assert request["instrucciones"] == "matriz-circulares-v6"
+    assert request["huella_instrucciones"] == extraction.load_instruction(
+        "circulares_cambios").sha256
+    assert step.parsed["instruccion"]["version"] == "matriz-circulares-v6"
+    assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v2"
     assert request["unidad"]["tipo"] == "clausula" and len(request["unidad"]["tramos"]) == 1
     assert step.segment_keys == request["unidad"]["tramos"]
     assert step.parsed["valida"] is True
@@ -491,10 +495,11 @@ def test_the_v5_instructions_and_the_module_repeat_no_case_anchor():
     assert not hits, hits
 
 
-def test_the_active_extraction_instructions_are_v5_with_synthetic_examples(settings):
-    """REQ-031: la versión activa de `circulares_cambios` es la v5, con ejemplos de la forma
-    de la salida y de cada tipo."""
-    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v5"
+def test_the_active_extraction_instructions_are_v6_with_synthetic_examples(settings):
+    """REQ-031, REQ-102: la versión activa de `circulares_cambios` es la v6 (T-236: lleva el
+    bloque común de definiciones y pide la oración completa), con ejemplos de la forma de la
+    salida y de cada tipo."""
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v6"
     prompt = extraction.load_prompt("circulares_cambios")
     for word in ("reemplaza", "suprime", "agrega", "aclara", "dato_del_tramite",
                  "Donde dice", "Debe decir", "No ves el pliego"):

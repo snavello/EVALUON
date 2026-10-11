@@ -52,13 +52,14 @@ def clause(number, text):
     return textwrap.wrap(f"{number} {text}", 78)
 
 
-def completeness_pdf():
+def completeness_pdf(docs=DOCS):
     """Condiciones con dos requisitos juntos, uno solo, un tramo con marcadores y otro sin;
-    especificaciones técnicas con marcadores, y dos renglones."""
+    especificaciones técnicas con marcadores, y dos renglones. `docs` es el texto de la
+    cláusula 1.1."""
     return tender_pdf([
         [
             para("SECCIÓN I - CONDICIONES PARTICULARES"),
-            para("1. PRESENTACIÓN", *clause("1.1.", DOCS), *clause("1.2.", MANT)),
+            para("1. PRESENTACIÓN", *clause("1.1.", docs), *clause("1.2.", MANT)),
             para("2. CONDICIONES", *clause("2.1.", NOALT), *clause("2.2.", OBJETO)),
         ],
         [
@@ -73,16 +74,10 @@ def completeness_pdf():
     ])
 
 
-def fix(missing=(), splits=()):
-    """Lo que la completitud devuelve para un tramo."""
-    return {
-        "faltantes": [{"cita": quote, "clase": kind} for quote, kind in missing],
-        "divisiones": [
-            {"original": original,
-             "partes": [{"cita": quote, "clase": kind} for quote, kind in parts]}
-            for original, parts in splits
-        ],
-    }
+def fix(missing=()):
+    """Lo que la completitud devuelve para un tramo (T-236: solo los faltantes; ya no hay
+    divisiones)."""
+    return {"faltantes": [{"cita": quote, "clase": kind} for quote, kind in missing]}
 
 
 class LevelScript(Script):
@@ -205,45 +200,51 @@ def step_passes(run):
 # --- Completitud ---------------------------------------------------------------------------
 
 
+DOMICILIO = "Los oferentes deberán acreditar un domicilio constituido en la ciudad."
+DOMICILIO_QUOTE = "acreditar un domicilio constituido"
+
+
 def test_alta_adds_the_missing_requirement_with_a_verified_quote(operator_user, script):
-    """REQ-024, REQ-025, REQ-030: un faltante que la completitud devuelve se suma al
-    tramo con su cita ubicada en el texto del pliego; el tramo se mandó con lo ya encontrado."""
+    """REQ-024, REQ-025, REQ-030, REQ-101: un faltante que la completitud devuelve se suma al
+    tramo con su cita ubicada en el texto del pliego, ampliada a su oración; el tramo se
+    mandó con lo ya encontrado (la oración completa que halló la extracción)."""
+    standard(script)
+    script.when(DOCS, item([(DJ, "formal")]))
+    script.complete_when("domicilio", fix(missing=[(DOMICILIO_QUOTE, "formal")]))
+
+    run = run_level(operator_user, completeness_pdf(docs=f"{DOCS} {DOMICILIO}"))
+
+    assert body(run)["sec-i/1.1"] == [
+        (DOCS, ["extraccion"], "formal"),
+        (DOMICILIO, ["completitud"], "formal"),
+    ]
+    check_quotes_are_canonical(run)
+    sent = next(call for call in script.completeness_calls
+                if any("domicilio" in b["text"] for b in call.values()))
+    assert f"1. {DOCS} (formal)" in next(iter(sent.values()))["raw"]
+    added = m.Requirement.objects.get(version=run.version, passes=["completitud"])
+    assert added.step.pass_name == "completitud"
+    assert run.counts["completeness"]["added"] == 1
+    assert disposition(run, "sec-i/1.1").outcome == "requisitos"
+    step = added.step
+    (record,) = step.parsed["tramos"]["T1"]["requisitos_agregados"]
+    assert record["fragmentos"][0]["texto"] == DOMICILIO_QUOTE
+    segment = added.quotes.get().segment
+    assert segment.text[record["oracion"]["inicio"]:record["oracion"]["fin"]] == DOMICILIO
+
+
+def test_a_missing_requirement_inside_a_sentence_already_found_is_not_added(
+        operator_user, script):
+    """REQ-101: la constancia es parte de la misma oración que la extracción ya halló: una
+    fila por oración, así que la completitud no suma otra."""
     standard(script)
     script.when(DOCS, item([(DJ, "formal")]))
     script.complete_when("constancia", fix(missing=[(CONSTANCIA, "formal")]))
 
     run = run_level(operator_user)
 
-    assert body(run)["sec-i/1.1"] == [
-        (DJ, ["extraccion"], "formal"),
-        (CONSTANCIA, ["completitud"], "formal"),
-    ]
-    check_quotes_are_canonical(run)
-    sent = next(call for call in script.completeness_calls
-                if any("constancia" in b["text"] for b in call.values()))
-    assert f"1. {DJ} (formal)" in next(iter(sent.values()))["raw"]
-    added = m.Requirement.objects.get(version=run.version, passes=["completitud"])
-    assert added.step.pass_name == "completitud"
-    assert run.counts["completeness"]["added"] == 1
-    assert disposition(run, "sec-i/1.1").outcome == "requisitos"
-
-
-def test_alta_splits_a_requirement_that_joins_two_conditions(operator_user, script):
-    """REQ-024: un requisito agrupado (dos condiciones en una fila) se divide en las dos
-    partes, cada una con su cita ubicada; la fila agrupada deja de estar."""
-    standard(script)
-    script.when(DOCS, item([(DOCS, "formal")]))
-    script.complete_when("constancia", fix(splits=[
-        (DOCS, [(DJ_FULL, "formal"), (CONSTANCIA, "formal")])]))
-
-    run = run_level(operator_user)
-
-    assert body(run)["sec-i/1.1"] == [
-        (DJ_FULL, ["completitud"], "formal"),
-        (CONSTANCIA, ["completitud"], "formal"),
-    ]
-    check_quotes_are_canonical(run)
-    assert run.counts["completeness"]["split"] == 1
+    assert body(run)["sec-i/1.1"] == [(DOCS, ["extraccion"], "formal")]
+    assert run.counts["completeness"]["added"] == 0
 
 
 def test_alta_discarded_with_markers_goes_to_completeness_and_is_not_pending(
@@ -296,7 +297,7 @@ def test_an_invalid_completeness_answer_is_asked_again_once_and_then_leaves_it_p
     assert len(asked) == 2
     assert pending(run)["sec-i/2.1"] == "marcadores"
     assert disposition(run, "sec-i/2.1").outcome == "pendiente"
-    assert body(run)["sec-i/1.2"] == [(MANT_QUOTE, ["extraccion"], "formal")]
+    assert body(run)["sec-i/1.2"] == [(MANT, ["extraccion"], "formal")]
     assert "completitud_sin_resultado" in [a["type"] for a in run.anomalies]
 
 
@@ -323,10 +324,10 @@ def test_a_missing_requirement_that_repeats_a_found_one_is_not_added():
     found = [Found("formal", (22, 64))]
     anomalies = []
 
-    final, added, divided = completeness.apply(
-        unit, found, [("la oferta durante 60 días corridos", "formal")], [], anomalies)
+    final, added = completeness.apply(
+        unit, found, [("la oferta durante 60 días corridos", "formal")], anomalies)
 
-    assert final == found and (added, divided) == (0, 0)
+    assert final == found and added == 0
 
 
 def test_a_missing_quote_that_is_not_in_the_segment_is_kept_as_a_wide_quote():
@@ -335,30 +336,14 @@ def test_a_missing_quote_that_is_not_in_the_segment_is_kept_as_a_wide_quote():
     unit = unit_of("El pago se efectuará a los 90 días.")
     anomalies = []
 
-    final, added, _ = completeness.apply(
+    final, added = completeness.apply(
         unit, [], [("texto que no está", "economico"), ("otro que tampoco", "economico")],
-        [], anomalies)
+        anomalies)
 
     assert [(f.category, f.span, f.flag) for f in final] == [
         ("economico", (0, len(unit.segment.text)), WIDE)]
     assert completeness.passes_of(final[0]) == ["completitud"] and added == 1
     assert [a["type"] for a in anomalies] == ["completitud_cita_no_encontrada"] * 2
-
-
-def test_a_split_with_a_part_outside_the_segment_leaves_the_requirement_as_it_was():
-    """REQ-024, REQ-025: si no se ubican todas las partes de una división, el requisito queda
-    como estaba, sin perder nada."""
-    text = "Presentar la constancia y la declaración."
-    unit = unit_of(text)
-    found = [Found("formal", (0, len(text)))]
-    anomalies = []
-
-    final, _, divided = completeness.apply(
-        unit, found, [], [(text, [("la constancia", "formal"), ("algo inventado", "formal")])],
-        anomalies)
-
-    assert final == found and divided == 0
-    assert [a["type"] for a in anomalies] == ["completitud_division_no_aplicada"]
 
 
 def test_a_missing_requirement_is_added_next_to_a_wide_quote_of_its_class():
@@ -367,62 +352,10 @@ def test_a_missing_requirement_is_added_next_to_a_wide_quote_of_its_class():
     unit = unit_of("Los oferentes deberán mantener la oferta durante 60 días corridos.")
     wide = Found("formal", (0, len(unit.segment.text)), flag=WIDE)
 
-    final, added, _ = completeness.apply(
-        unit, [wide], [("mantener la oferta durante 60 días corridos", "formal")], [], [])
+    final, added = completeness.apply(
+        unit, [wide], [("mantener la oferta durante 60 días corridos", "formal")], [])
 
     assert added == 1 and [f.flag for f in final] == [WIDE, ""]
-
-
-def test_a_valid_split_is_applied_when_the_parts_cover_the_original():
-    """REQ-024: una división cuyas partes están dentro del original y lo cubren (salvo
-    espacios, puntuación y "y") reemplaza al requisito."""
-    text = "Presentar la declaración jurada y la constancia de inscripción."
-    unit = unit_of(text)
-    found = [Found("formal", (0, len(text)))]
-
-    final, _, divided = completeness.apply(
-        unit, found, [], [(text, [("Presentar la declaración jurada", "formal"),
-                                  ("la constancia de inscripción", "formal")])], [])
-
-    assert divided == 1
-    assert [text[f.span[0]:f.span[1]] for f in final] == [
-        "Presentar la declaración jurada", "la constancia de inscripción"]
-
-
-def test_a_split_that_does_not_cover_the_original_leaves_it_as_it_was():
-    """REQ-024: si las partes no cubren el original (queda sin fila una condición), el
-    requisito queda como estaba y la anomalía lo dice (F1)."""
-    text = "Presentar la declaración jurada y la constancia de inscripción."
-    unit = unit_of(text)
-    found = [Found("formal", (0, len(text)))]
-    anomalies = []
-
-    final, _, divided = completeness.apply(
-        unit, found, [], [(text, [("la declaración jurada", "formal"),
-                                  ("Presentar", "formal")])], anomalies)
-
-    assert final == found and divided == 0
-    assert [a["type"] for a in anomalies] == ["completitud_division_no_aplicada"]
-
-
-def test_a_split_with_parts_outside_the_original_leaves_it_as_it_was():
-    """REQ-024: las partes se buscan dentro del recorte del original, no en todo el tramo:
-    si están en otro requisito, el original queda como estaba (F2)."""
-    text = ("Presentar la declaración jurada. Mantener la oferta durante sesenta días. "
-            "Cotizar en pesos.")
-    unit = unit_of(text)
-    first_end = text.index(".") + 1
-    second = text.index("Mantener")
-    found = [Found("formal", (0, first_end)),
-             Found("formal", (second, text.index("días.") + 5))]
-    anomalies = []
-
-    final, _, divided = completeness.apply(
-        unit, found, [], [(text[:first_end], [("Cotizar", "economico"),
-                                              ("en pesos", "economico")])], anomalies)
-
-    assert final == found and divided == 0
-    assert [a["type"] for a in anomalies] == ["completitud_division_no_aplicada"]
 
 
 def test_only_model_dispositions_reach_the_completeness():
@@ -441,16 +374,15 @@ def test_only_model_dispositions_reach_the_completeness():
 
 def test_the_class_of_every_requirement_is_validated_in_the_answer():
     """REQ-028: una clase fuera de formal y económico (por ejemplo, técnico) invalida la salida
-    de la completitud, en los faltantes y en las partes de una división."""
+    de la completitud, y una salida con `divisiones` (que ya no existen) tampoco vale."""
     good = {"cita": "x", "clase": "formal"}
     bad = {"cita": "x", "clase": "tecnico"}
 
-    assert completeness.shape_item({"faltantes": [good], "divisiones": []})
+    assert completeness.shape_item({"faltantes": [good]})
     with pytest.raises(completeness.InvalidItem):
-        completeness.shape_item({"faltantes": [bad], "divisiones": []})
+        completeness.shape_item({"faltantes": [bad]})
     with pytest.raises(completeness.InvalidItem):
-        completeness.shape_item({"faltantes": [], "divisiones": [
-            {"original": "x", "partes": [good, bad]}]})
+        completeness.shape_item({"faltantes": [], "divisiones": []})
 
 
 # --- Proceso único: pasadas y filas técnicas ---------------------------------------------------
@@ -481,7 +413,10 @@ def test_the_process_records_its_process_and_the_instructions_it_used(operator_u
     run = run_level(operator_user)
 
     assert run.process == "completo" and run.version.process == "completo"
-    assert set(run.prompt_versions) == {"extraccion", "completitud", "filtro", "consecuencias"}
+    assert set(run.prompt_versions) == {"extraccion", "completitud", "filtro", "consecuencias",
+                                        "definiciones", "huellas"}
+    assert set(run.prompt_versions["huellas"]) == {"extraccion", "completitud", "filtro",
+                                                   "consecuencias", "definiciones"}
 
 
 def test_technical_rows_come_from_the_rule_and_a_marked_segment_joins_them(
@@ -538,6 +473,19 @@ def test_extraction_quote_across_line_breaks_and_double_spaces(operator_user, sc
     check_quotes_are_canonical(run)
 
 
+def test_a_table_quote_stays_the_models_fragment(operator_user, script):
+    """REQ-101: el texto de una tabla no tiene oraciones (sus celdas son líneas): la cita de un
+    tramo `tabla` no se amplía y queda en el fragmento que señaló el modelo."""
+    script.when("CONCEPTO", item([("la oferta durante:", "formal")]))
+
+    run = run_level(operator_user, table_pdf())
+
+    _, quote = table_requirement(run)
+    assert quote.text == "la oferta durante:"
+    assert quote.quote_flag == ""
+    check_quotes_are_canonical(run)
+
+
 def test_completeness_quote_across_line_breaks_and_double_spaces(operator_user, script):
     """REQ-025: lo mismo para la cita de un requisito que suma la completitud sobre un tramo
     de tabla descartado con marcadores: se ubica pese a los espacios y se guarda literal."""
@@ -551,236 +499,6 @@ def test_completeness_quote_across_line_breaks_and_double_spaces(operator_user, 
     assert quote.text == TABLA_TEXT and "\n" in quote.text
     assert quote.quote_flag == ""
     check_quotes_are_canonical(run)
-
-
-def test_completeness_split_across_line_breaks(operator_user, script):
-    """REQ-025: una división cuyas partes cruzan el salto de línea del tramo también queda con
-    citas literales."""
-    script.when("CONCEPTO", item([("deberá mantener la oferta durante: 60 días corridos",
-                                   "formal")]))
-    script.complete_when("CONCEPTO", fix(splits=[(
-        "deberá mantener la oferta durante: 60 días corridos",
-        [("deberá mantener la oferta", "formal"), ("durante: 60  días corridos", "formal")],
-    )]))
-
-    run = run_level(operator_user, table_pdf())
-
-    texts = [q.text for q in m.RequirementQuote.objects.filter(
-        requirement__version=run.version).order_by("char_start")]
-    assert texts == ["deberá mantener la oferta", "durante:\n60 días corridos"]
-    check_quotes_are_canonical(run)
-
-
-# --- T-092: el original de una división no coincide letra por letra ----------------------------
-
-SPLIT_TEXT = "Presentar la declaración jurada y la constancia de inscripción."
-SPLIT_PARTS = [("Presentar la declaración jurada", "formal"),
-               ("la constancia de inscripción", "formal")]
-
-
-def split_with(original, parts=SPLIT_PARTS, found=None):
-    unit = unit_of(SPLIT_TEXT)
-    found = found if found is not None else [Found("formal", (0, len(SPLIT_TEXT)))]
-    anomalies = []
-    final, _, divided = completeness.apply(unit, found, [], [(original, parts)], anomalies)
-    return final, divided, anomalies
-
-
-@pytest.mark.parametrize("original", [
-    SPLIT_TEXT + " (formal)",
-    "(formal) " + SPLIT_TEXT,
-    "Presentar  la declaración jurada\ny la constancia de inscripción",
-    "Presentar la declaración jurada y la constancia",
-    "declaración jurada y la constancia de inscripción.",
-])
-def test_a_split_is_applied_although_the_original_is_not_letter_for_letter(original):
-    """REQ-024: el original se reconoce por superposición con la cita de la fila, tolerando
-    la etiqueta de clase, los espacios y los recortes; sin duplicar filas."""
-    final, divided, anomalies = split_with(original)
-
-    assert divided == 1 and anomalies == []
-    assert [SPLIT_TEXT[f.span[0]:f.span[1]] for f in final] == [p for p, _ in SPLIT_PARTS]
-
-
-def test_a_split_whose_parts_carry_the_class_label_is_applied():
-    """REQ-024: la etiqueta de clase pegada en una parte tampoco impide la división."""
-    final, divided, _ = split_with(SPLIT_TEXT, [
-        ("Presentar la declaración jurada (formal)", "formal"),
-        ("la constancia de inscripción (formal)", "formal")])
-
-    assert divided == 1 and len(final) == 2
-
-
-def test_a_split_with_an_original_that_matches_no_row_is_ignored_with_an_anomaly():
-    """REQ-024: un original que no corresponde a ninguna fila se ignora y la anomalía lo dice."""
-    text = "Presentar la declaración jurada. Cotizar en pesos y en dólares."
-    unit = unit_of(text)
-    found = [Found("formal", (0, text.index(".") + 1))]
-    anomalies = []
-
-    final, _, divided = completeness.apply(
-        unit, found, [], [("Cotizar en pesos y en dólares.", [("Cotizar en pesos", "economico"),
-                                                             ("en dólares", "economico")])],
-        anomalies)
-
-    assert final == found and divided == 0
-    assert [a["type"] for a in anomalies] == ["completitud_division_no_aplicada"]
-
-
-def test_a_tolerant_original_never_accepts_parts_that_do_not_cover_it():
-    """REQ-024: con el original en otra forma, las partes siguen teniendo que cubrirlo (F1)."""
-    found = [Found("formal", (0, len(SPLIT_TEXT)))]
-    final, divided, anomalies = split_with(
-        SPLIT_TEXT + " (formal)", [("la declaración jurada", "formal"),
-                                   ("Presentar", "formal")], found)
-
-    assert final == found and divided == 0
-    assert [a["type"] for a in anomalies] == ["completitud_division_no_aplicada"]
-
-
-def test_a_part_that_is_already_another_row_is_not_duplicated():
-    """REQ-024: una fila contenida en el original se reemplaza por las partes y no queda
-    repetida (sin duplicados)."""
-    text = "Presentar la declaración jurada y la constancia de inscripción. Cotizar en pesos."
-    unit = unit_of(text)
-    end = text.index("inscripción.") + len("inscripción.")
-    part_two = text.index("la constancia")
-    found = [Found("formal", (0, end)), Found("formal", (part_two, end))]
-
-    final, _, divided = completeness.apply(
-        unit, found, [], [(text[:end] + " (formal)", SPLIT_PARTS)], [])
-
-    assert divided == 1
-    assert [text[f.span[0]:f.span[1]] for f in final] == [
-        "Presentar la declaración jurada", "la constancia de inscripción"]
-
-
-# --- T-092: el original es más largo que la fila encontrada --------------------------------
-
-LONG_TEXT = "Pagar en pesos y en un todo de acuerdo al reglamento vigente. Otra cláusula distinta."
-LONG_PARTS = [("Pagar en pesos", "economico"),
-              ("en un todo de acuerdo al reglamento vigente", "economico")]
-
-
-def long_case(original, found, parts=LONG_PARTS, text=LONG_TEXT):
-    anomalies = []
-    final, _, divided = completeness.apply(unit_of(text), found, [], [(original, parts)],
-                                           anomalies)
-    return final, divided, anomalies
-
-
-def test_a_split_of_the_whole_sentence_replaces_the_fragment_that_was_found():
-    """REQ-024: el original es la oración entera y la fila encontrada es solo un fragmento:
-    las partes se buscan dentro del original, no de la fila, y reemplazan a la fila."""
-    sentence = LONG_TEXT[:LONG_TEXT.index(".") + 1]
-    found = [Found("economico", (0, len("Pagar en pesos")))]
-
-    final, divided, anomalies = long_case(sentence + " (economico)", found)
-
-    assert divided == 1 and anomalies == []
-    assert [LONG_TEXT[f.span[0]:f.span[1]] for f in final] == [p for p, _ in LONG_PARTS]
-
-
-def test_a_split_replaces_every_row_contained_in_the_original_and_keeps_the_others():
-    """REQ-024: las filas contenidas en el original se reemplazan todas; las de otra
-    oración quedan; una parte que coincide con una fila existente no se duplica."""
-    sentence = LONG_TEXT[:LONG_TEXT.index(".") + 1]
-    other = LONG_TEXT.index("Otra")
-    found = [Found("economico", (0, 14)), Found("economico", (18, 30)),
-             Found("formal", (other, len(LONG_TEXT)))]
-
-    final, divided, _ = long_case(sentence, found)
-
-    assert divided == 1
-    assert [LONG_TEXT[f.span[0]:f.span[1]] for f in final] == [
-        "Pagar en pesos", "en un todo de acuerdo al reglamento vigente",
-        "Otra cláusula distinta."]
-
-
-def test_a_split_of_the_whole_sentence_still_needs_the_parts_to_cover_it():
-    """REQ-024: aunque el original sea más largo que la fila, si las partes no lo cubren
-    las filas quedan como estaban y la anomalía lo dice (F1 de T-078)."""
-    sentence = LONG_TEXT[:LONG_TEXT.index(".") + 1]
-    found = [Found("economico", (0, 14))]
-
-    final, divided, anomalies = long_case(
-        sentence, found, [("Pagar en pesos", "economico"), ("reglamento", "economico")])
-
-    assert final == found and divided == 0
-    assert [a["detail"] for a in anomalies] == ["las partes no cubren el original"]
-
-
-def test_an_original_in_the_segment_that_overlaps_no_row_is_ignored():
-    """REQ-024: un original que se ubica pero no se superpone con ninguna fila se ignora."""
-    other = LONG_TEXT.index("Otra")
-    found = [Found("formal", (other, len(LONG_TEXT)))]
-
-    final, divided, anomalies = long_case(
-        "Pagar en pesos y en un todo de acuerdo al reglamento vigente.", found)
-
-    assert final == found and divided == 0
-    assert [a["detail"] for a in anomalies] == ["el original no coincide con un requisito"]
-
-
-# El original que no aparece en el tramo se busca por parecido con una fila (último recurso).
-LIKE_TEXT = "Presentar la declaración jurada y la constancia de inscripción vigente."
-LIKE_PARTS = [("Presentar la declaración jurada", "formal"),
-              ("la constancia de inscripción vigente", "formal")]
-
-
-def like_case(original, found):
-    anomalies = []
-    final, _, divided = completeness.apply(unit_of(LIKE_TEXT), found, [], [(original, LIKE_PARTS)],
-                                           anomalies)
-    return final, divided, anomalies
-
-
-def test_an_original_not_in_the_segment_is_matched_to_the_most_alike_row():
-    """REQ-024: si el original no aparece en el tramo (el modelo cambió una palabra), se lo
-    reconoce por parecido con la fila y la división se aplica."""
-    found = [Found("formal", (0, len(LIKE_TEXT)))]
-
-    final, divided, anomalies = like_case(
-        "Presentar la declaración jurada y la constancia de inscripción vigente en el país.",
-        found)
-
-    assert divided == 1 and anomalies == []
-    assert [LIKE_TEXT[f.span[0]:f.span[1]] for f in final] == [p for p, _ in LIKE_PARTS]
-
-
-def test_an_original_not_in_the_segment_and_unlike_any_row_is_ignored():
-    """REQ-024: sin parecido suficiente con ninguna fila, el original se ignora."""
-    found = [Found("formal", (0, len(LIKE_TEXT)))]
-
-    final, divided, anomalies = like_case(
-        "Constituir una garantía de mantenimiento de oferta del cinco por ciento.", found)
-
-    assert final == found and divided == 0
-    assert [a["detail"] for a in anomalies] == ["el original no está en el tramo"]
-
-
-def test_an_invented_original_that_only_contains_a_short_row_is_ignored():
-    """REQ-024: un original inventado, mucho más largo que una fila corta que contiene, no
-    se toma por esa fila (el parecido también pesa el largo del original)."""
-    found = [Found("formal", (0, 9))]
-
-    final, divided, anomalies = like_case(
-        "Presentar la garantía de cumplimiento del contrato y además el seguro de caución "
-        "por el total adjudicado en cada renglón", found)
-
-    assert final == found and divided == 0
-    assert [a["type"] for a in anomalies] == ["completitud_division_no_aplicada"]
-
-
-def test_the_likeness_never_takes_a_wide_quote_for_the_row():
-    """REQ-024: una cita amplia (el tramo entero) no se toma por parecido."""
-    found = [Found("formal", (0, len(LIKE_TEXT)), flag=WIDE)]
-
-    final, divided, _ = like_case(
-        "Presentar la declaración jurada y la constancia de inscripción vigente en el país.",
-        found)
-
-    assert final == found and divided == 0
 
 
 # --- T-093: instrucciones v2, marcadores nuevos y tablas que no se descartan ----------------------
@@ -802,19 +520,41 @@ def enumeration_pdf():
 
 
 @pytest.mark.parametrize("name", ["extraccion", "completitud"])
-def test_prompts_v3_are_active_and_teach_enumerations_and_effects(name):
-    """REQ-024: las instrucciones activas son las v3 (T-178: suman las obligaciones del
-    adjudicatario) y conservan lo de la v2; piden una fila por condición en las
-    enumeraciones y reconocen las condiciones dichas como efecto, con ejemplos inventados.
-    Las v1 siguen como estaban."""
+def test_prompts_v4_are_active_and_teach_sentences_effects_and_the_definitions(name):
+    """REQ-101, REQ-102: las instrucciones activas son las v4 (T-236): llevan el bloque común de
+    definiciones, piden la oración completa (una fila por unidad de sentido, sin dividir
+    enumeraciones) y reconocen las condiciones dichas como efecto. Las v1 siguen como estaban."""
     from django.conf import settings
 
-    assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v3"
+    assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v5"
     text = extraction.load_prompt(name)
-    for phrase in ("comas o por \"y\"", "se considerará", "se entenderá", "quedará"):
+    assert extraction.DEFINITIONS_MARK not in text
+    for phrase in ("QUÉ ES UN REQUISITO DE LA OFERTA", "Una fila es una unidad de sentido",
+                   "se considerará", "se entenderá", "quedará", "oración completa"):
         assert phrase in text
     old = (extraction.PROMPTS_DIR / f"matriz-{name}-v1.md").read_text(encoding="utf-8")
     assert "se entenderá" not in old and "comas o por" not in old
+
+
+@pytest.mark.parametrize("name", ["extraccion", "completitud"])
+def test_prompts_v4_have_none_of_the_rules_that_push_to_the_error(name):
+    """REQ-101, REQ-102 (ADR-0054, reglas 3 y 7): ni «dividí», ni «fragmento más corto», ni
+    «divisiones»; «ante la duda, proponé de más» queda solo en la extracción y limitado a lo
+    que le exige algo a todas las ofertas."""
+    text = extraction.load_prompt(name).lower()
+    for phrase in ("dividí", "fragmento más corto", "divisiones", "ante la duda, proponé de más",
+                   "forma y plazo de pago", "forma de presentar la oferta)", "mantené"):
+        assert phrase not in text
+    if name == "extraccion":
+        assert "ante la duda de si una oración le exige algo a todas las ofertas" in text
+
+
+def test_the_completeness_asks_only_for_missing_requirements():
+    """REQ-101 (ADR-0054, regla 3): la completitud no divide: su esquema solo trae `faltantes`."""
+    schema = completeness.build_schema(["T1"])
+
+    assert list(schema["properties"]["T1"]["properties"]) == ["faltantes"]
+    assert schema["properties"]["T1"]["required"] == ["faltantes"]
 
 
 @pytest.mark.parametrize("text", [
@@ -827,28 +567,16 @@ def test_effect_markers_are_obligation_markers(text):
     assert proposal.has_obligation_markers(text)
 
 
-def test_extraction_gives_one_row_per_condition_of_an_enumeration(operator_user, script):
-    """REQ-024, REQ-025: la oración con tres condiciones que el modelo devuelve en tres filas
-    queda en tres requisitos, cada uno con su cita literal."""
+def test_extraction_gives_one_row_per_sentence_for_an_enumeration(operator_user, script):
+    """REQ-025, REQ-101 (decisión del 2026-10-10, «una fila por oración»): la oración con tres
+    condiciones que el modelo devuelve en tres fragmentos queda en un solo requisito, con la
+    oración completa como cita literal."""
     script.when(ENUM, item(ENUM_PARTS))
 
     run = run_level(operator_user, enumeration_pdf())
 
     rows = body(run)["sec-i/1.1"]
-    assert [text for text, _, _ in rows] == [quote for quote, _ in ENUM_PARTS]
-    check_quotes_are_canonical(run)
-
-
-def test_completeness_splits_an_enumeration_found_as_one_row(operator_user, script):
-    """REQ-024: si la primera lectura dejó la enumeración en una fila, la división de la
-    completitud la separa en una fila por condición."""
-    script.when(ENUM, item([(ENUM, "economico")]))
-    script.complete_when(ENUM, fix(splits=[(ENUM, ENUM_PARTS)]))
-
-    run = run_level(operator_user, enumeration_pdf())
-
-    rows = body(run)["sec-i/1.1"]
-    assert [text for text, _, _ in rows] == [quote for quote, _ in ENUM_PARTS]
+    assert [text for text, _, _ in rows] == [ENUM]
     check_quotes_are_canonical(run)
 
 
@@ -903,3 +631,19 @@ def test_a_table_with_rows_proposed_by_completeness_stays_a_requirement(operator
         reading__document__procedure=run.procedure, segment_type="tabla").key
     assert disposition(run, key).outcome == "requisitos"
     assert pending(run)[key] == "tabla"
+
+
+def test_every_request_of_the_completeness_records_its_instruction(operator_user, script):
+    """REQ-106, P6: el `parsed` de cada pedido de la completitud trae el nombre, la versión y la
+    huella de su instrucción y la versión y la huella del bloque común."""
+    standard(script)
+
+    run = run_level(operator_user)
+
+    found = list(m.RunStep.objects.filter(run=run, pass_name="completitud"))
+    assert found
+    expected = extraction.load_instruction("completitud").record
+    assert expected["version"] == "matriz-completitud-v5"
+    for step in found:
+        assert step.parsed["instruccion"] == expected
+        assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v2"

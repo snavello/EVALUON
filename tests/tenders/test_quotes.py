@@ -87,3 +87,38 @@ def test_collapsed_search_keeps_the_rule_for_repeated_quotes():
     assert first[0] < second[0]
     assert TEXT[second[0]:second[1]].startswith("La oferta deberá presentarse")
     assert quotes.locate(TEXT, quote, used={first, second}) is None
+
+
+# --- T-234: la cita se amplía a la unidad de sentido (REQ-101) ----------------------------------
+
+
+def test_locate_unit_returns_the_models_fragment_and_its_sentence():
+    """REQ-101, REQ-025: el fragmento se ubica como siempre y se amplía a la oración; la
+    ampliación sigue siendo un recorte contiguo del tramo."""
+    fragment, expansion = quotes.locate_unit(TEXT, "presentarse con firma")
+
+    assert TEXT[fragment[0]:fragment[1]] == "presentarse con firma"
+    assert TEXT[expansion.span[0]:expansion.span[1]] == "La oferta deberá presentarse con firma."
+    assert expansion.span == expansion.unit and expansion.too_long is False
+
+
+def test_locate_unit_does_not_find_what_locate_does_not_find():
+    """REQ-025: un fragmento que no está en el tramo no se ubica, ni se amplía."""
+    assert quotes.locate_unit(TEXT, "La oferta debera presentarse en pesos.") is None
+
+
+def test_locate_unit_keeps_the_used_positions_rule():
+    """REQ-025: con el mismo fragmento dos veces, la segunda es otra aparición."""
+    quote = "La oferta deberá presentarse"
+    first, _ = quotes.locate_unit(TEXT, quote)
+    second, _ = quotes.locate_unit(TEXT, quote, used={first})
+
+    assert first[0] < second[0]
+
+
+def test_locate_unit_without_expansion_leaves_the_fragment():
+    """REQ-101: el texto de una tabla no tiene oraciones: con `expand=False` la cita queda en
+    el fragmento y no hay unidad."""
+    fragment, expansion = quotes.locate_unit(TEXT, "presentarse con firma", expand=False)
+
+    assert expansion.span == fragment and expansion.unit is None

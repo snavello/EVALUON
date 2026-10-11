@@ -240,8 +240,9 @@ GENERATION_TEMPERATURE = 0
 # Semilla fija; 42 es la usada en las pruebas de la etapa 0 (entorno.md, T-002).
 GENERATION_SEED = 42
 # Pensamiento apagado. El servidor ya arranca con --reasoning off; además cada pedido lo
-# pide a la plantilla de conversación. `enable_thinking` es la variable de la plantilla
-# de Gemma 4: es propia del modelo y cambia con él (ADR-0002, "Consecuencias").
+# pide a la plantilla de conversación. `enable_thinking` es la variable de la plantilla; la
+# usan Gemma 4 y también Qwen3.x, así que sirve con los modelos candidatos sin cambios; hay que
+# verificar `/props` con cada archivo nuevo (ADR-0002, "Consecuencias"; T-251).
 GENERATION_THINKING = False
 GENERATION_CHAT_TEMPLATE_KWARGS = {"enable_thinking": GENERATION_THINKING}
 # Máximo de tokens de salida: el del pedido largo con que se midió el tiempo en la etapa
@@ -282,8 +283,10 @@ PROMPT_TEMPLATE_MARGIN_TOKENS = 512
 # Valores iniciales. Se copian en cada propuesta de matriz (`tenders_matrix_run`);
 # cambiarlos exige volver a medir (P7).
 
-# Tokens de entrada de los tramos de un lote de extracción.
-MATRIX_BATCH_INPUT_TOKENS = 1500
+# Tokens de entrada de los tramos de un lote de extracción: de 1.500 a 3.500, dentro de los 3.000
+# a 4.000 del ADR-0054 (regla 8) y del ADR-0055 (regla 5); la matriz usaba de 4.000 a 5.000
+# tokens de un contexto de 32.768. Se mide en T-239.
+MATRIX_BATCH_INPUT_TOKENS = 3500
 # Máximo de tokens de salida de cada pedido de la matriz.
 MATRIX_MAX_OUTPUT_TOKENS = 4096
 # Largo de un tramo, en caracteres, a partir del cual se parte en límites de oración.
@@ -293,14 +296,17 @@ MATRIX_CONSEQUENCES_PER_REQUEST = 25
 # Citas candidatas que el reranker suma para cada tramo de una circular o respuesta.
 MATRIX_CIRCULAR_CANDIDATES = 8
 # Versión de cada instrucción de la matriz: archivo `evaluon/tenders/prompts/<versión>.md`.
+# `definiciones` es el bloque común de las definiciones del responsable (T-236, ADR-0054): el
+# código lo incluye en las instrucciones que llevan su marca y registra su versión y su huella.
 MATRIX_PROMPT_VERSIONS = {
-    "extraccion": "matriz-extraccion-v3",
-    "completitud": "matriz-completitud-v3",
+    "definiciones": "matriz-definiciones-v2",
+    "extraccion": "matriz-extraccion-v5",
+    "completitud": "matriz-completitud-v5",
     "consecuencias": "matriz-consecuencias-v1",
-    "circulares": "matriz-circulares-v2",
-    "circulares_cambios": "matriz-circulares-v5",
+    "circulares": "matriz-circulares-v7",
+    "circulares_cambios": "matriz-circulares-v6",
     "unificacion": "matriz-unificacion-v1",
-    "filtro": "matriz-filtro-v2",
+    "filtro": "matriz-filtro-v4",
     "respaldo": "matriz-respaldo-v1",
 }
 
@@ -316,13 +322,17 @@ CIRCULAR_EXTRACTION_REPEATS = 1
 
 # --- Filtro de sobrantes, unificación y descartadas (ADR-0021, REQ-033) ----------------
 FILTER_ENABLED = True
-# Filas formales o económicas por pedido del filtro.
-FILTER_BATCH_ROWS = 15
-# Motivos de descarte: lista cerrada (los del ADR-0019 más dos del ADR-0021).
+# Filas formales o económicas por pedido del filtro: de 15 a 6, dentro de las 5 a 8 del ADR-0054
+# (regla 8): con 15 el modelo contestaba lo mismo a todas. Se mide en T-239.
+FILTER_BATCH_ROWS = 6
+# Motivos de descarte: lista cerrada (los del ADR-0019, dos del ADR-0021 y cuatro del
+# ADR-0054: condición opcional, pago o factura, forma de presentar por el Portal y compromiso
+# al presentarse). Coincide con `FilterMotive.values`; lo comprueba tests/tenders/test_models.py.
 FILTER_MOTIVES = [
     "titulo", "dato_procedimiento", "norma_aplicable", "obligacion_organismo",
     "ejecucion_contrato", "formulario", "indice_caratula", "consecuencia_sancion",
-    "derecho_posterior",
+    "derecho_posterior", "condicion_opcional", "pago_factura", "forma_presentacion_portal",
+    "compromiso_presentacion",
 ]
 # Similitud de palabras desde la que dos filas se unifican como repetidas.
 DEDUP_MIN_SIMILARITY = 0.9
@@ -445,12 +455,12 @@ ASSESSMENT_ANSWERS_MAX = 20
 ASSESSMENT_TECHNICAL_OPINION = True
 # Versión de las reglas que deciden sin el modelo (externos, técnico, ilegible, Portal); se
 # copia al registro de cada evaluación (ADR-0043; T-165). Cambia cuando cambia una regla.
-ASSESSMENT_RULES_VERSION = "reglas-v8"
+ASSESSMENT_RULES_VERSION = "reglas-v9"
 # Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150).
 ASSESSMENT_PROMPT_VERSIONS = {
-    "evaluacion": "evaluacion-v5",
-    "contraste": "contraste-v2",
-    "clausulas": "clausulas-v2",
+    "evaluacion": "evaluacion-v8",
+    "contraste": "contraste-v4",
+    "clausulas": "clausulas-v5",
 }
 
 # Lectura con visión de las páginas dudosas (T-160; ADR-0041). Páginas por oferta que se mandan

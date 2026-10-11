@@ -44,6 +44,7 @@ FRAG_2 = "cotizar el alquiler por jornada"
 CLAUSE = f"{SENT_1} {SENT_2}"
 
 KEEP = "mantener"
+REASON = "Razonamiento de prueba."  # lo que el doble del modelo escribe antes de decidir (T-252)
 
 
 def discard(motive="ejecucion_contrato", clue=SENT_1):
@@ -89,13 +90,14 @@ class FilterScript:
                 a, b = rule_a, rule_b
                 break
         if kind == "b":
-            return {"respuesta": "quizá" if b == "invalida" else b}
+            return {"razonamiento": REASON, "respuesta": "quizá" if b == "invalida" else b}
         if a == "invalida":
-            return {"decision": "quizá", "motivo": "", "indicio": ""}
-        if a == KEEP:
-            return {"decision": KEEP, "motivo": "", "indicio": ""}
+            return {"razonamiento": REASON, "decision": "quizá", "motivo": "", "indicio": ""}
+        if a in (KEEP, "duda"):
+            return {"razonamiento": REASON, "decision": a, "motivo": "", "indicio": ""}
         decision, motive, clue = a
-        return {"decision": decision, "motivo": motive, "indicio": clue}
+        return {"razonamiento": REASON, "decision": decision, "motivo": motive,
+                "indicio": clue}
 
     def _generate(self, messages, schema, **options):
         first = next(iter(schema.get("properties", {}).values()), {}).get("properties", {})
@@ -185,6 +187,10 @@ TABLE = [
     ("mantener y si", KEEP, "si", ("firme",)),
     ("mantener y duda", KEEP, "duda", ("sugerencia", "duda")),
     ("mantener y no", KEEP, "no", ("sugerencia", "no_coinciden")),
+    ("duda y si", "duda", "si", ("sugerencia", "duda")),
+    ("duda y no", "duda", "no", ("sugerencia", "duda")),
+    ("duda y duda", "duda", "duda", ("sugerencia", "duda")),
+    ("unica opinion: duda de A", "duda", "invalida", ("sugerencia", "opinion_incompleta")),
     ("descartar valido y si", discard(), "si", ("sugerencia", "no_coinciden")),
     ("descartar valido y duda", discard(), "duda", ("sugerencia", "duda")),
     ("indicio que no esta, no", discard(clue="Texto que el tramo no tiene."), "no",
@@ -229,14 +235,14 @@ def test_a_discarded_row_keeps_its_quote_reason_clue_and_both_votes(operator_use
 
     row = m.DiscardedRow.objects.get(run=run)
     canonical = row.segment.reading.canonical_text
-    assert row.text == FRAG_1 and canonical[row.char_start:row.char_end] == FRAG_1
+    assert row.text == SENT_1 and canonical[row.char_start:row.char_end] == SENT_1
     assert row.version == run.version and row.category == "formal" and row.order == 1
     assert row.reason == "ejecucion_contrato"
     assert row.evidence_segment == row.segment and row.evidence_text == SENT_1
     assert canonical[row.evidence_start:row.evidence_end] == SENT_1
-    assert row.vote_a == {"decision": "descartar", "motivo": "ejecucion_contrato",
-                          "indicio": SENT_1}
-    assert row.vote_b == {"respuesta": "no"}
+    assert row.vote_a == {"razonamiento": REASON, "decision": "descartar",
+                          "motivo": "ejecucion_contrato", "indicio": SENT_1}
+    assert row.vote_b == {"razonamiento": REASON, "respuesta": "no"}
     assert (row.step_a.pass_name, row.step_b.pass_name) == ("filtro", "filtro_2")
     assert row.source_pass == "extraccion" and row.passes == ["extraccion"]
     assert row.extra_quotes == []
@@ -261,8 +267,8 @@ def test_a_discarded_row_stores_the_repeated_quotes_as_segment_and_positions(
     assert set(extra) == {"segment", "char_start", "char_end", "text"}
     other = m.Segment.objects.get(pk=extra["segment"])
     assert other.key == "sec-i/2.1" and other.pk != row.segment_id
-    assert other.reading.canonical_text[extra["char_start"]:extra["char_end"]] == FRAG_1
-    assert extra["text"] == FRAG_1
+    assert other.reading.canonical_text[extra["char_start"]:extra["char_end"]] == SENT_1
+    assert extra["text"] == SENT_1
 
 
 def test_a_suggestion_is_a_requirement_with_quote_class_items_and_doubt(
@@ -279,12 +285,12 @@ def test_a_suggestion_is_a_requirement_with_quote_class_items_and_doubt(
     assert (row.state, row.doubt_reason, row.origin) == ("sugerido", "duda", "propuesto")
     assert row.category == "formal" and row.items == []
     assert [(q.scope, q.text) for q in row.quotes.order_by("order")] == [
-        ("", FRAG_1), ("repetida", FRAG_1)]
+        ("", SENT_1), ("repetida", SENT_1)]
     assert [q["scope"] for q in row.proposed["quotes"]] == ["", "repetida"]
     doubt = row.doubt
-    assert doubt["vote_a"] == {"decision": "descartar", "motivo": "formulario",
-                               "indicio": SENT_1}
-    assert doubt["vote_b"] == {"respuesta": "duda"}
+    assert doubt["vote_a"] == {"razonamiento": REASON, "decision": "descartar",
+                               "motivo": "formulario", "indicio": SENT_1}
+    assert doubt["vote_b"] == {"razonamiento": REASON, "respuesta": "duda"}
     assert doubt["evidence"]["text"] == SENT_1
     steps = m.RunStep.objects.filter(run=run)
     assert steps.get(pk=doubt["step_a"]).pass_name == "filtro"
@@ -336,9 +342,10 @@ def test_the_whole_tramo_is_discarded_only_if_every_row_was(operator_user, scrip
 
 
 def test_the_disposition_reason_for_motives_the_tramo_list_lacks(operator_user, script, filt):
-    """REQ-033: `consecuencia_sancion` está en la lista del filtro; la disposición del tramo
-    (lista del ADR-0019) lo registra con el motivo más cercano y la fila descartada conserva
-    el exacto."""
+    """REQ-033: `consecuencia_sancion` está en la lista del filtro y, desde T-250, en la de los
+    tramos: la disposición lo registra tal cual (antes lo registraba como obligación del
+    organismo). `derecho_posterior`, que la lista de los tramos no tiene, sigue registrándose
+    con el motivo más cercano; la fila descartada conserva el exacto."""
     one_row(script)
     clue = SENT_1
     filt.when(FRAG_1, discard("consecuencia_sancion", clue), "no")
@@ -346,7 +353,9 @@ def test_the_disposition_reason_for_motives_the_tramo_list_lacks(operator_user, 
     run = run_with(operator_user, pliego(CLAUSE))
 
     assert m.DiscardedRow.objects.get(run=run).reason == "consecuencia_sancion"
-    assert m.Disposition.objects.get(run=run, segment__key="sec-i/1.1").outcome == "descartado"
+    disposition = m.Disposition.objects.get(run=run, segment__key="sec-i/1.1")
+    assert (disposition.outcome, disposition.discard_reason) == (
+        "descartado", "consecuencia_sancion")
 
 
 # --- Lo que no se filtra ---------------------------------------------------------------------
@@ -434,7 +443,7 @@ def test_a_circular_row_is_never_filtered_and_a_suggestion_is_reached_by_circula
     assert all("declaración jurada" not in fragment for fragment in filt.fragments("a"))
     new = version.requirements.get(origin="circular")
     assert new.state == "propuesto" and new.doubt_reason == ""
-    visit = version.requirements.get(quotes__text=VISITA_QUOTE)
+    visit = version.requirements.get(quotes__text=VISITA)  # la oración (REQ-101)
     assert visit.state == "quitado" and visit.doubt_reason == "duda"
     assert visit.sources.get().effect == "suprime"
 
@@ -495,7 +504,7 @@ def test_a_cut_batch_is_split_in_two(operator_user, script, filt, settings):
     script.when(SENT_1, item([(FRAG_1, "formal")]))
     script.when(SENT_2, item([(FRAG_2, "formal")]))
     filt.when(FRAG_1, discard(), "no")
-    filt.raw("a", [("corte", '{"F1": {"decision": "desc')])
+    filt.raw("a", [("corte", '{"F1": {"razonamiento": "x", "decision": "desc')])
 
     run = run_with(operator_user, pliego(SENT_1, SENT_2))
 
@@ -623,9 +632,13 @@ def test_the_proposal_records_the_filter_in_parameters_and_counts(operator_user,
     run = run_with(operator_user, pliego(CLAUSE))
 
     assert run.parameters["filter_enabled"] is True
-    assert run.parameters["filter_batch_rows"] == 15
+    assert run.parameters["filter_batch_rows"] == 6
+    assert run.parameters["filter_rule_version"] == "filtro-v4"
     assert "consecuencia_sancion" in run.parameters["filter_motives"]
-    assert run.prompt_versions["filtro"] == "matriz-filtro-v2"
+    assert run.prompt_versions["filtro"] == "matriz-filtro-v4"
+    step = m.RunStep.objects.filter(run=run, pass_name="filtro").first()
+    assert step.parsed["instruccion"]["version"] == "matriz-filtro-v4"
+    assert step.parsed["instruccion"]["sha256"] == run.prompt_versions["huellas"]["filtro"]
     assert run.parameters["passes"].index("filtro") == run.parameters["passes"].index(
         "unificacion") + 1
     stats = run.counts["filter"]
@@ -658,7 +671,7 @@ def test_no_instruction_test_or_example_of_the_filter_repeats_five_words_of_a_ca
     known = set(HASHES.read_text(encoding="utf-8").split())
     assert len(known) > 100
     files = [Path(__file__), Path(row_filter.__file__),
-             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v2.md"]
+             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v4.md"]
     hits = []
     for path in files:
         for shingle in _shingles(path.read_text(encoding="utf-8")):
@@ -669,12 +682,14 @@ def test_no_instruction_test_or_example_of_the_filter_repeats_five_words_of_a_ca
 
 
 def test_the_instructions_use_the_motives_of_the_settings(settings):
-    """REQ-033: las instrucciones nombran cada motivo de `FILTER_MOTIVES` y ningún otro
-    nombre de motivo."""
+    """REQ-033, REQ-102: las instrucciones nombran cada motivo de `FILTER_MOTIVES` y ningún otro
+    nombre de motivo (T-252 levanta el `xfail` de T-250: la v3 nombra los cuatro motivos nuevos)."""
     first, second = row_filter.load_prompts()
     for motive in settings.FILTER_MOTIVES:
         assert f'"{motive}"' in first
     assert "consecuencia_o_sancion" not in first + second
+    named = set(re.findall(r'^ +- "([a-z_]+)":', first, re.MULTILINE))
+    assert named == set(settings.FILTER_MOTIVES)
 
 
 # --- Bordes que no pueden perder una fila ---------------------------------------------------------
@@ -686,8 +701,9 @@ def test_a_repeated_id_in_the_output_is_invalid_for_that_row(operator_user, scri
     queda como sugerencia por opinión incompleta."""
     one_row(script)
     filt.when(FRAG_1, discard(), "no")
-    keep = {"decision": KEEP, "motivo": "", "indicio": ""}
-    drop = {"decision": "descartar", "motivo": "ejecucion_contrato", "indicio": SENT_1}
+    keep = {"razonamiento": REASON, "decision": KEEP, "motivo": "", "indicio": ""}
+    drop = {"razonamiento": REASON, "decision": "descartar", "motivo": "ejecucion_contrato",
+            "indicio": SENT_1}
     filt.raw("a", [f'{{"F1": {json.dumps(keep)}, "F1": {json.dumps(drop)}}}'])
 
     run = run_with(operator_user, pliego(CLAUSE))
@@ -702,7 +718,7 @@ def test_a_repeated_field_inside_a_row_is_invalid(operator_user, script, filt):
     """REQ-033: un campo repetido dentro de la respuesta de una fila también la invalida."""
     one_row(script)
     filt.when(FRAG_1, discard(), "no")
-    filt.raw("a", ['{"F1": {"decision": "mantener", "decision": "descartar", '
+    filt.raw("a", ['{"F1": {"razonamiento": "x", "decision": "mantener", "decision": "descartar", '
                    f'"motivo": "ejecucion_contrato", "indicio": "{SENT_1}"}}}}'])
 
     assert destination(run_with(operator_user, pliego(CLAUSE))) == (
@@ -731,61 +747,80 @@ DEPOSIT_HEAD = "Los depósitos se abonarán en pesos"
 DEPOSIT_TAIL = "y conforme a lo dispuesto por el reglamento de alquileres"
 
 
-def test_a_row_that_shares_a_sentence_with_a_firm_row_cannot_be_discarded(
-        operator_user, script, filt):
+def verdict(text, fragment, destination, *, pk=1, key="sec-i/1.1"):
+    """Un veredicto del filtro de la fila `fragment` dentro de `text` (un tramo), armado sin
+    pasar por el modelo: la guarda mira posiciones del texto del tramo."""
+    start = text.index(fragment)
+    segment = SimpleNamespace(pk=pk, key=key, text=text)
+    unit = SimpleNamespace(segment=segment, document_title="d")
+    row = row_filter.Row(unit, Found("formal", (start, start + len(fragment))), order=1)
+    return row_filter.Verdict(
+        row, destination, reason="norma_aplicable" if destination == row_filter.DESCARTADA
+        else "")
+
+
+def test_a_row_that_shares_a_sentence_with_a_firm_row_cannot_be_discarded():
     """REQ-024, REQ-033: un fragmento que es la cola de la misma oración que otra fila firme
     del tramo no se descarta aunque se cumplan las cuatro condiciones: queda como sugerencia
-    con la duda `duda`, con sus dos respuestas, y el descarte no se guarda."""
-    script.when(DEPOSIT, item([(DEPOSIT_HEAD, "economico"), (DEPOSIT_TAIL, "formal")]))
-    filt.when(DEPOSIT_HEAD, KEEP, "si")
-    filt.when(DEPOSIT_TAIL, discard("norma_aplicable", DEPOSIT), "no")
+    con la duda `duda`. La guarda sigue en el código: protege lo que la ampliación a la unidad
+    de sentido no junta (por ejemplo, una unidad demasiado larga)."""
+    head = verdict(DEPOSIT, DEPOSIT_HEAD, row_filter.FIRME)
+    tail = verdict(DEPOSIT, DEPOSIT_TAIL, row_filter.DESCARTADA)
 
-    run = run_with(operator_user, pliego(DEPOSIT))
+    row_filter.protect_shared_sentences([head, tail])
 
-    assert not m.DiscardedRow.objects.filter(run=run).exists()
-    rows = formal_rows(run)
-    assert [(r.state, r.doubt_reason) for r in rows] == [
-        ("propuesto", ""), ("sugerido", "duda")]
-    assert rows[1].doubt["vote_a"]["decision"] == "descartar"
-    assert rows[1].doubt["vote_b"] == {"respuesta": "no"}
+    assert head.destination == row_filter.FIRME
+    assert (tail.destination, tail.doubt_reason, tail.reason) == (
+        row_filter.SUGERENCIA, "duda", "")
+    assert tail.anomaly == row_filter.ANOMALY_SHARED_SENTENCE
 
 
-def test_the_sentence_guard_does_not_protect_a_row_from_another_sentence(
-        operator_user, script, filt):
+def test_the_sentence_guard_does_not_protect_a_row_from_another_sentence():
     """REQ-033: dos filas del mismo tramo en oraciones distintas: la descartada sigue
     descartada (la guarda mira posiciones, no el tramo entero)."""
-    script.when(SENT_1, item([(FRAG_1, "formal"), (FRAG_2, "formal")]))
-    filt.when(FRAG_2, KEEP, "si")
-    filt.when(FRAG_1, discard(), "no")
+    firm = verdict(CLAUSE, FRAG_2, row_filter.FIRME)
+    dropped = verdict(CLAUSE, FRAG_1, row_filter.DESCARTADA)
 
-    run = run_with(operator_user, pliego(CLAUSE))
+    row_filter.protect_shared_sentences([firm, dropped])
 
-    assert [d.text for d in m.DiscardedRow.objects.filter(run=run)] == [FRAG_1]
-    assert [r.state for r in formal_rows(run)] == ["propuesto"]
+    assert dropped.destination == row_filter.DESCARTADA
 
 
-def test_a_row_sharing_a_sentence_with_another_discarded_row_is_still_discarded(
-        operator_user, script, filt):
+def test_a_row_sharing_a_sentence_with_another_discarded_row_is_still_discarded():
     """REQ-033: la guarda protege solo cuando la otra fila es firme; si las dos partes de la
     oración se descartan, se descartan."""
+    head = verdict(DEPOSIT, DEPOSIT_HEAD, row_filter.DESCARTADA)
+    tail = verdict(DEPOSIT, DEPOSIT_TAIL, row_filter.DESCARTADA)
+
+    row_filter.protect_shared_sentences([head, tail])
+
+    assert [head.destination, tail.destination] == [row_filter.DESCARTADA] * 2
+
+
+def test_a_head_and_a_tail_of_one_sentence_reach_the_filter_as_one_row(
+        operator_user, script, filt):
+    """REQ-101, REQ-033: la cabeza y la cola de una misma oración son una sola fila (la
+    oración completa): el filtro la ve una vez y no puede descartar solo la cola."""
     script.when(DEPOSIT, item([(DEPOSIT_HEAD, "economico"), (DEPOSIT_TAIL, "formal")]))
-    filt.when(DEPOSIT_HEAD, discard("ejecucion_contrato", DEPOSIT), "no")
-    filt.when(DEPOSIT_TAIL, discard("norma_aplicable", DEPOSIT), "no")
+    filt.when(DEPOSIT, KEEP, "si")
 
     run = run_with(operator_user, pliego(DEPOSIT))
 
-    assert m.DiscardedRow.objects.filter(run=run).count() == 2
+    assert filt.fragments("a") == [DEPOSIT]
+    assert not m.DiscardedRow.objects.filter(run=run).exists()
+    assert [r.quotes.get().text for r in formal_rows(run)] == [DEPOSIT]
 
 
-def test_the_v2_instructions_state_the_two_general_rules_in_both_questions(settings):
-    """REQ-033: las instrucciones activas son la v2 y cada pregunta lleva la regla de lo
-    verificado del oferente (aunque el sujeto sea el organismo) y la de la oración
-    continuada, con ejemplos de otro objeto."""
-    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v2"
+def test_the_v3_instructions_state_the_two_general_rules_in_both_questions(settings):
+    """REQ-033, REQ-101: las instrucciones activas son la v3 y cada pregunta lleva la regla de lo
+    verificado del oferente (aunque el sujeto sea el organismo) y la de la oración completa (la
+    fila se evalúa entera), con ejemplos de otro objeto."""
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v4"
     for prompt in row_filter.load_prompts():
         assert "no quién lo verifica" in prompt
-        assert "continúa una oración" in prompt
-        assert "multas pendientes" in prompt
+        assert "Una fila es una oración completa o varias oraciones cortas del mismo asunto" in prompt
+        assert "sujeto de la oración sea el organismo" in prompt
+        assert "condición del oferente" in prompt
 
 
 ART = "Los depósitos se abonarán en pesos y conforme al art. 5 del reglamento de alquileres."
@@ -803,46 +838,37 @@ def test_an_abbreviation_does_not_end_the_sentence(abbr):
     assert row_filter.sentence_range(text, (cut, cut + 4)) == (1, 1)
 
 
-def test_a_tail_split_by_an_abbreviation_is_still_protected(operator_user, script, filt):
+def test_a_tail_split_by_an_abbreviation_is_still_protected():
     """REQ-024, REQ-033: "conforme al art. 5 ..." en el hueco de una oración: la cola sigue
     siendo de la misma oración que la cabeza firme y no se descarta."""
-    script.when(ART, item([(DEPOSIT_HEAD, "economico"), (ART_TAIL, "formal")]))
-    filt.when(DEPOSIT_HEAD, KEEP, "si")
-    filt.when(ART_TAIL, discard("norma_aplicable", ART), "no")
+    head = verdict(ART, DEPOSIT_HEAD, row_filter.FIRME)
+    tail = verdict(ART, ART_TAIL, row_filter.DESCARTADA)
 
-    run = run_with(operator_user, pliego(ART))
+    row_filter.protect_shared_sentences([head, tail])
 
-    assert not m.DiscardedRow.objects.filter(run=run).exists()
-    assert [(r.state, r.doubt_reason) for r in formal_rows(run)] == [
-        ("propuesto", ""), ("sugerido", "duda")]
+    assert (tail.destination, tail.doubt_reason) == (row_filter.SUGERENCIA, "duda")
 
 
-def test_rows_of_two_different_tramos_do_not_protect_each_other(operator_user, script, filt):
+def test_rows_of_two_different_tramos_do_not_protect_each_other():
     """REQ-033: la misma posición en dos tramos distintos no cuenta como oración compartida:
     la descartada de un tramo sigue descartada aunque en otro haya una firme."""
-    script.when(SENT_1, item([(FRAG_1, "formal")]))
-    script.when(SENT_2, item([(FRAG_2, "formal")]))
-    filt.when(FRAG_2, KEEP, "si")
-    filt.when(FRAG_1, discard(), "no")
+    firm = verdict(SENT_2, FRAG_2, row_filter.FIRME, pk=2, key="sec-i/2.1")
+    dropped = verdict(SENT_1, FRAG_1, row_filter.DESCARTADA, pk=1)
 
-    run = run_with(operator_user, pliego(SENT_1, SENT_2))
+    row_filter.protect_shared_sentences([firm, dropped])
 
-    assert [d.text for d in m.DiscardedRow.objects.filter(run=run)] == [FRAG_1]
-    assert [r.state for r in formal_rows(run)] == ["propuesto"]
+    assert dropped.destination == row_filter.DESCARTADA
 
 
-@pytest.mark.parametrize("head", ["duda", "no"])
-def test_a_head_that_is_only_a_suggestion_does_not_protect(operator_user, script, filt, head):
+def test_a_head_that_is_only_a_suggestion_does_not_protect():
     """REQ-033: solo protege una fila firme; si la cabeza es sugerencia, la cola con las
     cuatro condiciones se descarta."""
-    script.when(DEPOSIT, item([(DEPOSIT_HEAD, "economico"), (DEPOSIT_TAIL, "formal")]))
-    filt.when(DEPOSIT_HEAD, KEEP, head)
-    filt.when(DEPOSIT_TAIL, discard("norma_aplicable", DEPOSIT), "no")
+    first = verdict(DEPOSIT, DEPOSIT_HEAD, row_filter.SUGERENCIA)
+    tail = verdict(DEPOSIT, DEPOSIT_TAIL, row_filter.DESCARTADA)
 
-    run = run_with(operator_user, pliego(DEPOSIT))
+    row_filter.protect_shared_sentences([first, tail])
 
-    assert [d.text for d in m.DiscardedRow.objects.filter(run=run)] == [DEPOSIT_TAIL]
-    assert [r.state for r in formal_rows(run)] == ["sugerido"]
+    assert tail.destination == row_filter.DESCARTADA
 
 
 # --- T-178: tablas de anexos, garantía de la oferta y obligaciones del adjudicatario ---------------
@@ -885,17 +911,15 @@ def test_the_offer_guarantee_sentence_is_a_suggestion_in_the_matrix(operator_use
     assert [(r.state, r.doubt_reason) for r in formal_rows(run)] == [("sugerido", "duda")]
 
 
-def test_the_v3_instructions_leave_the_adjudicatario_duties_out_of_the_offer(settings):
-    """REQ-033, REQ-024: las instrucciones activas de extracción y completitud dicen que lo
-    que el adjudicatario hace durante la prestación es ejecución del contrato, y que lo que
-    se acredita al ofertar sigue siendo requisito. El filtro conserva su v2: con la v3 de
-    prueba se perdió un requisito esperado del caso de ajuste."""
+def test_the_v4_instructions_leave_the_adjudicatario_duties_out_of_the_offer(settings):
+    """REQ-033, REQ-024, REQ-102: las instrucciones activas de extracción y completitud dicen
+    que lo que el adjudicatario hace durante la prestación es ejecución del contrato, y que lo
+    que se acredita al ofertar sigue siendo requisito (T-236: lo dice el bloque común)."""
     from evaluon.tenders.proposal import extraction
 
     versions = settings.MATRIX_PROMPT_VERSIONS
-    assert versions["extraccion"] == "matriz-extraccion-v3"
-    assert versions["completitud"] == "matriz-completitud-v3"
-    assert versions["filtro"] == "matriz-filtro-v2"
+    assert versions["extraccion"] == "matriz-extraccion-v5"
+    assert versions["completitud"] == "matriz-completitud-v5"
     texts = [extraction.load_prompt("extraccion"), extraction.load_prompt("completitud")]
     for text in texts:
         assert "adjudicatari" in text and "durante la prestación" in text
@@ -965,3 +989,163 @@ def test_a_row_in_another_sentence_of_the_same_tramo_does_not_cover_the_guarante
     rows = formal_rows(run)
     assert [(r.state, r.quotes.get().text) for r in rows] == [
         ("propuesto", other), ("sugerido", GUARANTEE)]
+
+
+# --- T-252: instrucciones v3 del filtro (ADR-0054, reglas 4 a 8; ADR-0055) ---------------------------
+
+
+def test_the_filter_instructions_include_the_common_block_in_both_questions():
+    """REQ-102: la pregunta A y la B llevan el bloque común de definiciones (sin la marca) y
+    cada una solo su parte: el motivo de descarte va solo en A."""
+    first, second = row_filter.load_prompts()
+
+    for text in (first, second):
+        assert "{{DEFINICIONES}}" not in text
+        assert "QUÉ ES UN REQUISITO DE LA OFERTA" in text
+        assert "la moneda en que se cotiza la oferta" in text
+        assert "Una fila es una unidad de sentido" in text
+    assert "PREGUNTA: CLASIFICACIÓN" in first and "PREGUNTA: CLASIFICACIÓN" not in second
+    assert "PREGUNTA: ¿ES UN REQUISITO DE LA OFERTA?" in second
+    assert '"motivo"' in first and '"motivo"' not in second
+
+
+@pytest.mark.parametrize("phrase", [
+    "ante la duda", "mantené ante", "mantenés ante", "se mantiene", "dividí",
+    "fragmento más corto", "podría aceptar o contradecir",
+])
+def test_the_filter_instructions_have_none_of_the_rules_that_push_to_keep(phrase):
+    """REQ-102 (ADR-0054, regla 6): ni «ante la duda, mantené» (tres veces antes) ni el criterio de
+    la pregunta B que hacía decir «sí» a casi todo («la oferta podría aceptarlo o
+    contradecirlo»), salvo para negarlo."""
+    first, second = row_filter.load_prompts()
+    for text in (first.lower(), second.lower()):
+        for found in re.finditer(re.escape(phrase), text):
+            before = text[max(0, found.start() - 12):found.start()].strip()
+            assert before.endswith(("que", "no")), (phrase, text[found.start() - 40:found.end() + 40])
+
+
+def test_the_examples_of_the_filter_are_balanced_between_keep_and_discard():
+    """REQ-102, REQ-106 (ADR-0055, regla 4): ni «mantener» ni «descartar» salen del 40 al 60 % de
+    los ejemplos de A, y uno por cada exclusión nueva; B tiene tantos «si» como «no»."""
+    first, second = row_filter.load_prompts()
+    examples = [line for line in first.splitlines() if line.startswith('{"razonamiento"')]
+    kept = sum('"decision": "mantener"' in line for line in examples)
+    discarded = sum('"decision": "descartar"' in line for line in examples)
+    doubts = sum('"decision": "duda"' in line for line in examples)
+    total = kept + discarded + doubts
+    assert kept == discarded == 4 and doubts >= 1
+    assert 0.4 <= kept / total <= 0.6 and 0.4 <= discarded / total <= 0.6
+    for motive in ("pago_factura", "forma_presentacion_portal", "consecuencia_sancion",
+                   "condicion_opcional"):
+        assert f'"motivo": "{motive}"' in first
+    answers = [line for line in second.splitlines() if line.startswith('{"razonamiento"')]
+    yes = sum('"respuesta": "si"' in line for line in answers)
+    no = sum('"respuesta": "no"' in line for line in answers)
+    assert yes == no == 4 and sum('"respuesta": "duda"' in line for line in answers) >= 1
+
+
+def test_the_examples_of_the_filter_do_not_teach_continuation_fragments():
+    """REQ-101: sin el ejemplo del fragmento de continuación («y conforme a…»): la oración
+    completa lo resuelve."""
+    first, second = row_filter.load_prompts()
+    assert "continúa una oración" not in first + second
+    assert "y conforme a" not in first + second
+
+
+def test_the_reasoning_is_the_first_property_of_both_questions():
+    """REQ-106 (ADR-0055, reglas 1 y 2): el esquema de A y el de B ponen `razonamiento` antes del
+    veredicto, con un largo máximo; el modelo escribe en el orden del esquema."""
+    for schema in (row_filter.schema_a(["F1"]), row_filter.schema_b(["F1"])):
+        item = schema["properties"]["F1"]
+        assert list(item["properties"])[0] == "razonamiento"
+        assert item["required"][0] == "razonamiento"
+        assert item["properties"]["razonamiento"]["maxLength"] == row_filter.REASONING_MAX_CHARS
+    assert list(row_filter.schema_a(["F1"])["properties"]["F1"]["properties"]) == [
+        "razonamiento", "decision", "motivo", "indicio"]
+    assert row_filter.schema_a(["F1"])["properties"]["F1"]["properties"]["decision"]["enum"] == [
+        "mantener", "descartar", "duda"]
+    first, second = row_filter.load_prompts()
+    assert "400 caracteres" in first and "400 caracteres" in second
+
+
+def test_an_answer_without_the_reasoning_is_invalid_for_that_row():
+    """REQ-106: una respuesta sin `razonamiento` (o con otro tipo) no vale: la forma cambió."""
+    with pytest.raises(row_filter.InvalidItem):
+        row_filter.shape_a({"decision": KEEP, "motivo": "", "indicio": ""})
+    with pytest.raises(row_filter.InvalidItem):
+        row_filter.shape_b({"respuesta": "si"})
+    with pytest.raises(row_filter.InvalidItem):
+        row_filter.shape_b({"razonamiento": 1, "respuesta": "si"})
+    assert row_filter.shape_a({"razonamiento": "x", "decision": "duda", "motivo": "",
+                               "indicio": ""})["decision"] == "duda"
+
+
+def test_the_batches_have_between_five_and_eight_rows(settings):
+    """REQ-102 (ADR-0054, regla 8): el filtro pregunta de 5 a 8 filas por pedido, no 15."""
+    assert 5 <= settings.FILTER_BATCH_ROWS <= 8
+
+
+def test_the_row_carries_its_heading_when_the_sentence_alone_is_not_understood():
+    """REQ-101: la fila lleva la línea `Encabezado:` cuando su unidad la tiene (contexto que no se
+    cita) y el punto completo del tramo con el fragmento marcado."""
+    segment = SimpleNamespace(pk=1, key="sec-i/3.1", text="Antes. a) Una sola cosa. Después.",
+                              path="Sección I > 3", label="", section_class="")
+    unit = SimpleNamespace(segment=segment, document_title="Pliego", heading="Se exigirá:")
+    row = row_filter.Row(unit, Found("formal", (7, 24)), 1)
+
+    shown = row_filter.render_block("F1", row)
+
+    assert "Encabezado: Se exigirá:" in shown
+    assert "a) Una sola cosa." in shown and "<<<" in shown and ">>>" in shown
+    assert shown.index("Encabezado:") < shown.index("Clase propuesta:")
+    plain = SimpleNamespace(segment=segment, document_title="Pliego")
+    assert "Encabezado:" not in row_filter.render_block("F1", row_filter.Row(
+        plain, Found("formal", (7, 24)), 1))
+
+
+def test_a_doubt_of_the_filter_is_a_suggestion_and_never_stays_firm_on_its_own(
+        operator_user, script, filt):
+    """REQ-102 (ADR-0054, regla 6): con la duda de A y la mantención de B la fila no queda firme
+    por «ante la duda»: va a sugerencia con la duda `duda`, y el razonamiento queda guardado."""
+    one_row(script)
+    filt.when(FRAG_1, "duda", "si")
+
+    run = run_with(operator_user, pliego(CLAUSE))
+
+    assert destination(run) == ("sugerencia", "duda")
+    row = formal_rows(run)[0]
+    assert row.doubt["vote_a"]["razonamiento"] == REASON
+    assert row.doubt["vote_a"]["decision"] == "duda"
+
+
+def test_every_request_of_the_filter_records_its_instruction(operator_user, script, filt):
+    """REQ-106, P6: cada pedido del filtro (A y B) guarda la versión y la huella de su
+    instrucción y la del bloque común."""
+    from evaluon.tenders.proposal import extraction
+
+    one_row(script)
+    filt.when(FRAG_1, discard(), "no")
+
+    run = run_with(operator_user, pliego(CLAUSE))
+
+    expected = extraction.load_instruction("filtro").record
+    assert expected["version"] == "matriz-filtro-v4" and "definiciones" in expected
+    steps = m.RunStep.objects.filter(run=run, pass_name__in=["filtro", "filtro_2"])
+    assert steps.count() == 2
+    assert all(step.parsed["instruccion"] == expected for step in steps)
+    assert row_filter.RULE_VERSION == "filtro-v4"
+
+
+def test_a_failed_filter_request_still_carries_its_instruction(operator_user, script, filt):
+    """REQ-106, P6: la falla del servicio deja el pedido con su instrucción."""
+    from evaluon.tenders.proposal import extraction
+
+    one_row(script)
+    filt.failing = True
+
+    run = run_with(operator_user, pliego(CLAUSE))
+
+    expected = extraction.load_instruction("filtro").record
+    steps = m.RunStep.objects.filter(run=run, pass_name__in=["filtro", "filtro_2"])
+    assert steps.count() == 2
+    assert all(step.parsed == {"instruccion": expected} for step in steps)

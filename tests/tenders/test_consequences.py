@@ -93,7 +93,7 @@ class ConsequenceScript(Script):
     def _generate(self, messages, schema, **options):
         first = next(iter(schema["properties"].values()))["properties"]
         if "faltantes" in first:
-            answer = {alias: {"faltantes": [], "divisiones": []}
+            answer = {alias: {"faltantes": []}
                       for alias in schema["properties"]}
             self.fake.respond(json.dumps(answer))
             return self.fake.generate(messages, schema, **options)

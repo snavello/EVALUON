@@ -45,12 +45,17 @@ def test_an_unreadable_page_is_reported_with_document_and_page_for_the_commissio
     result = results_of(runs[0])[number]
     assert (result.outcome, result.doubt) == ("no_determinado", "no_se_pudo_leer")
     assert result.facts["regla"] == "ilegible_informe"
-    assert result.facts["version_reglas"] == "reglas-v8"
+    assert result.facts["version_reglas"] == "reglas-v9"
     assert (result.facts["ilegible"]["documento"], result.facts["ilegible"]["pagina"]) == (
         "pagare.pdf", 2)
     question = am.Question.objects.get(requirement__number=number)
-    assert question.text == ("¿Lo que exige este requisito está en la página 2 de «pagare.pdf»? "
-                             "Hay que revisar el original.")
+    # T-235 (REQ-105): la pregunta de la regla va al final, con el requisito, la conclusión y
+    # el texto de la oferta delante.
+    assert question.text.splitlines()[-1] == (
+        "¿Lo que exige este requisito está en la página 2 de «pagare.pdf»? "
+        "Hay que revisar el original.")
+    assert question.text.startswith("Requisito ") and "Conclusión del sistema:" in question.text
+    assert "Texto de la oferta:" in question.text
     assert question.reason == "no_se_pudo_leer"
     assert runs[0].counts["by_rule"]["ilegible_informe"] == 1
 
@@ -90,7 +95,7 @@ def test_without_the_alias_the_pair_is_an_incomplete_reading(
     _, runs = run_all(operator_user, procedure, offers=[pagare])
     result = results_of(runs[0])[number_of(procedure, GUARANTEE)]
     assert (result.outcome, result.doubt) == ("no_determinado", "lectura_incompleta")
-    assert result.facts == {}
+    assert set(result.facts) <= {"condiciones"}   # ningún hecho de regla (T-237 suma las condiciones)
 
 
 def test_a_conclusion_with_a_located_citation_is_not_overridden(
@@ -123,8 +128,9 @@ def test_the_resolution_prefers_a_page_of_the_window_shown_to_the_model():
 
 
 def test_the_ilegible_field_is_optional_in_the_models_output():
-    """El campo `ilegible` es opcional: una salida de la versión anterior sigue siendo válida,
-    y el esquema lo limita a los alias del grupo (o vacío)."""
+    """Al leer, el campo `ilegible` es opcional: una salida de la versión anterior sigue siendo
+    válida. El esquema lo limita a los alias del grupo (o vacío) y, desde `evaluacion-v6` (T-237,
+    ADR-0055), lo exige: va antes de las condiciones, con `externo`."""
     base = ('{"resultado": "no_consta", "exigencia": "documento", "citas": [], '
             '"fundamentos": [], "explicacion": "x", "externo": false, "pregunta": ""')
     assert prompting.parse_evaluation(base + "}", ["D1"], []).unreadable == ""
@@ -134,4 +140,6 @@ def test_the_ilegible_field_is_optional_in_the_models_output():
         prompting.parse_evaluation(base + ', "ilegible": 3}', ["D1"], [])
     schema = prompting.evaluation_schema(["D1", "D2"], [])
     assert schema["properties"]["ilegible"]["enum"] == ["", "D1", "D2"]
-    assert "ilegible" not in schema["required"]
+    assert "ilegible" in schema["required"]
+    assert list(schema["properties"]).index("externo") < list(schema["properties"]).index(
+        "ilegible") < list(schema["properties"]).index("condiciones")

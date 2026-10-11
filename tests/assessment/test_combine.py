@@ -82,7 +82,7 @@ def test_no_consta_with_unread_pages_is_not_a_missing_document():
     combined = run(group(0, "no_consta", exigence="documento"), unread=UNREAD)
     assert combined.outcome == "no_determinado" and combined.doubt == "lectura_incompleta"
     assert combined.unread_warning
-    assert "doc.pdf, página 2" in combined.question
+    assert combined.ask  # la pregunta la arma `compose_question` (REQ-105)
 
 
 def test_no_consta_with_a_group_that_was_not_read_is_incomplete():
@@ -104,7 +104,7 @@ def test_no_consta_for_a_condition_is_a_missing_data_with_a_question():
     assert asked.outcome == "no_determinado" and asked.doubt == "sin_dato"
     assert asked.question == "¿Qué plazo de entrega se aceptó?"
     fixed = run(group(0, "no_consta", exigence="condicion"))
-    assert fixed.doubt == "sin_dato" and fixed.question
+    assert fixed.doubt == "sin_dato" and fixed.ask
 
 
 @pytest.mark.decision_literal
@@ -152,17 +152,27 @@ def test_the_contrast_that_does_not_say_yes_downgrades_and_keeps_the_citations()
     assert combine.apply_contrast(undetermined, "no") is undetermined
 
 
-@pytest.mark.parametrize("doubt", ["sin_dato", "lectura_incompleta"])
+@pytest.mark.parametrize("doubt", ["sin_dato", "lectura_incompleta", "sin_corroborar"])
 def test_these_doubts_always_carry_a_question(doubt):
-    """REQ-055: sin dato y lectura incompleta siempre llevan una pregunta."""
-    assert combine.fixed_question(doubt, UNREAD, "algo")
-    assert not combine.fixed_question("duda")
+    """REQ-055, REQ-105: sin dato, lectura incompleta y conclusión sin corroborar siempre llevan
+    una pregunta, y la arma el código (`compose_question`) con el requisito, la conclusión y el
+    texto; una duda común no la lleva si el modelo no la escribió."""
+    assert doubt in combine.ASKED_DOUBTS
+    asked = combine.compose_question(7, "Presentar el pagaré.", combine.Combined(
+        outcome="no_determinado", doubt=doubt, ask=True, proposed="cumple", explanation="algo",
+        citations=[cite()]), documents=["doc.pdf"], unread=UNREAD)
+    assert "Requisito 7: «Presentar el pagaré.»" in asked
+    assert "Conclusión del sistema:" in asked and "Texto de la oferta:" in asked
+    assert "Comisión" in asked.splitlines()[-1]
+    assert combine.compose_question(7, "x", combine.Combined(
+        outcome="no_determinado", doubt="duda", ask=False)) == ""
 
 
 @pytest.mark.decision_literal
 def test_external_has_no_fixed_question():
     """REQ-063: «falta la hoja de compliance» no pregunta nada a la Comisión."""
-    assert not combine.fixed_question("externo", UNREAD, "algo")
+    assert not combine.compose_question(7, "x", combine.Combined(
+        outcome="no_determinado", doubt="externo", question="¿Algo?", ask=True))
     assert "externo" not in combine.ALWAYS_ASK
 
 
@@ -173,7 +183,7 @@ def test_a_doubt_with_unread_pages_is_an_incomplete_reading_with_a_question():
                          explanation="Anuncia el documento, pero su página es ilegible."),
                    unread=UNREAD)
     assert combined.outcome == "no_determinado" and combined.doubt == "lectura_incompleta"
-    assert combined.unread_warning and "doc.pdf, página 2" in combined.question
+    assert combined.unread_warning and combined.ask
     assert len(combined.citations) == 1
 
 
@@ -191,7 +201,8 @@ def test_a_downgraded_conclusion_carries_the_question_for_the_commission():
     combined = run(group(0, "cumple", cites=[cite()], explanation="Lo dice."))
     assert combined.question == ""
     downgraded = combine.apply_contrast(combined, "parcial", "solo lo anuncia")
-    assert downgraded.doubt == "sin_corroborar" and downgraded.question
+    assert downgraded.doubt == "sin_corroborar" and downgraded.ask
+    assert downgraded.proposed == "cumple"
 
 
 def test_external_wins_over_a_doubt_and_over_a_missing_document():
@@ -231,7 +242,7 @@ def test_a_group_without_data_for_a_technical_no_cumple_is_undetermined_without_
     lleva siempre una pregunta; no se vuelve "duda"."""
     combined = run(group(0, "no_determinado", doubt="sin_dato", cites=[cite()]))
     assert combined.outcome == "no_determinado" and combined.doubt == "sin_dato"
-    assert combined.question and not combined.needs_contrast
+    assert combined.ask and not combined.needs_contrast
 
 
 # --- Contraste por cláusula (T-158) ------------------------------------------------------------
@@ -266,7 +277,7 @@ def test_a_contradiction_without_a_quote_of_the_offer_stays_undetermined():
                  [(PUPPY, "contradice", "La oferta es para adultos.", None)]):
         combined = combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW)
         assert combined.outcome == "no_determinado" and combined.doubt == "sin_dato"
-        assert combined.question and PUPPY in combined.explanation
+        assert combined.ask and PUPPY in combined.explanation
 
 
 def test_a_contradiction_that_is_about_the_quality_of_the_reading_is_not_a_no_cumple():
@@ -276,7 +287,7 @@ def test_a_contradiction_that_is_about_the_quality_of_the_reading_is_not_a_no_cu
                 "El escaneo tiene un OCR deficiente.", "Texto ilegible."):
         rows = [(PUPPY, "contradice", why, ADULTS)]
         combined = combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW)
-        assert combined.outcome == "no_determinado" and combined.question, why
+        assert combined.outcome == "no_determinado" and combined.ask, why
     combined = combine.apply_clauses(a_cumple(), [(PUPPY, "no_legible", "")], "", PUPPY_ROW)
     assert combined.outcome == "no_determinado" and combined.doubt == "sin_dato"
 
@@ -286,16 +297,17 @@ def test_a_clause_that_does_not_appear_makes_it_undetermined_with_a_question():
     rows = [(PUPPY, "coincide", "para cachorros"), (BAG, "no_aparece", "")]
     combined = combine.apply_clauses(a_cumple(), rows, "¿Qué bolsa ofrece?", PUPPY_ROW)
     assert combined.outcome == "no_determinado" and combined.doubt == "sin_dato"
-    assert combined.question == "¿Qué bolsa ofrece?" and BAG in combined.explanation
+    assert combined.question == "¿Qué bolsa ofrece?" and combined.ask
+    assert BAG in combined.explanation
     # sin pregunta del modelo, el sistema pone la suya
-    assert combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW).question
+    assert combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW).ask
 
 
 def test_a_contradiction_without_a_real_clause_does_not_become_a_no_cumple():
     """REQ-052: "contradice" con una cláusula inventada no alcanza para "no cumple"."""
     rows = [("5.9 Una cláusula que no existe.", "contradice", "otro valor", ADULTS)]
     combined = combine.apply_clauses(a_cumple(), rows, "", PUPPY_ROW)
-    assert combined.outcome == "no_determinado" and combined.question
+    assert combined.outcome == "no_determinado" and combined.ask
 
 
 def test_only_when_every_clause_matches_the_cumple_stands():

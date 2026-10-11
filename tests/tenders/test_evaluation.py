@@ -13,6 +13,7 @@ from django.core.management import call_command
 
 from evaluon.tenders import evaluation as ev
 from evaluon.tenders import models as m
+from tests.tenders.pdfs import para, tender_pdf
 from tests.tenders.scripted import (
     ENTREGA,
     GARANTIA,
@@ -32,14 +33,14 @@ FIXTURE = Path(__file__).parent / "fixtures" / "matriz-esperada-sintetica.yaml"
 FILE = "Pliego sintético.pdf"
 
 
-@pytest.fixture
-def case(operator_user, script, tmp_path):
-    """El pliego leído, el guion del modelo y la lista esperada sintética escrita en
-    `tmp_path`. El modelo: la garantía como formal (la lista la espera económica), la multa
-    en una sola fila que junta dos condiciones, la entrega como técnica para todos los
-    renglones, y el resto descartado."""
+def make_case(operator_user, script, tmp_path, pdf=None):
+    """El pliego leído (por omisión, el de tres renglones), el guion del modelo y la lista
+    esperada sintética escrita en `tmp_path`. El modelo: la garantía como formal (la lista la
+    espera económica), la multa en una sola fila que junta dos condiciones, la entrega como
+    técnica para todos los renglones, y el resto descartado."""
     procedure = make_procedure(operator_user)
-    document = load_and_read(operator_user, procedure, three_items_pdf(), title="Pliego sintético")
+    document = load_and_read(operator_user, procedure, pdf or three_items_pdf(),
+                             title="Pliego sintético")
     script.when(GARANTIA, item(requirements=[("garantía del 5 % del monto", "formal")]))
     script.when(MULTA, item(requirements=[
         ("En caso de atraso se aplicará una multa del 1 % diario", "economico")]))
@@ -49,6 +50,11 @@ def case(operator_user, script, tmp_path):
     path.parent.mkdir()
     path.write_text(text, encoding="utf-8")
     return procedure, document, path, text
+
+
+@pytest.fixture
+def case(operator_user, script, tmp_path):
+    return make_case(operator_user, script, tmp_path)
 
 
 def write(path, text):
@@ -600,11 +606,36 @@ def test_discarded_or_with_requirements_segments_stay_missing_not_review(
 
 
 def test_expected_in_a_segment_with_requirements_stays_missing_not_review(
-        case, operator_user, script, tmp_path):
-    """REQ-024: un esperado en un tramo con requisitos, sin esta fila, sigue siendo faltante
-    (`tramo_con_requisitos_sin_este`); no pasa a revisión obligatoria."""
-    procedure, _, path, _ = case
-    script.when(PAGO, item(requirements=[("El pago se efectuará", "economico")]))
+        operator_user, script, tmp_path):
+    """REQ-024, REQ-101: un esperado en un tramo con requisitos, sin esta fila, sigue siendo
+    faltante (`tramo_con_requisitos_sin_este`); no pasa a revisión obligatoria. La fila es la
+    oración completa: el requisito tiene que ser otra oración del tramo (una cita que alcanza
+    la del esperado la encuentra, REQ-101)."""
+    partial = "Se admiten pagos parciales por entrega."
+    pdf = tender_pdf([
+        [
+            para("SECCIÓN I - CONDICIONES PARTICULARES"),
+            para("1. GARANTÍA", f"1.1. {GARANTIA}"),
+            para("2. PAGO", f"2.1. {PAGO} {partial}"),
+            para("3. ENTREGA", f"3.1. {ENTREGA}"),
+            para("4. MULTAS", f"4.1. {MULTA}"),
+        ],
+        [
+            para("SECCIÓN II - ESPECIFICACIONES TÉCNICAS GENERALES"),
+            para("1. CLÁUSULAS GENERALES",
+                 "1.1. Los bienes tienen vencimiento mayor a once meses."),
+        ],
+        [
+            para("SECCIÓN III - ESPECIFICACIONES TÉCNICAS PARTICULARES"),
+            para("1. RENGLÓN N° 1 - PRODUCTO SINTÉTICO A", "1.1. Bolsa de veinte kilogramos."),
+            para("2. RENGLÓN N° 2 - PRODUCTO SINTÉTICO B",
+                 "2.1. Bolsa de diez kilogramos.",
+                 "2.2. Rótulo sintético en idioma nacional."),
+            para("3. RENGLÓN N° 3 - PRODUCTO SINTÉTICO C"),
+        ],
+    ])
+    procedure, _, path, _ = make_case(operator_user, script, tmp_path, pdf)
+    script.when(PAGO, item(requirements=[("Se admiten pagos parciales", "economico")]))
 
     report = run_measure(operator_user, procedure, path, tmp_path)
 
@@ -2191,3 +2222,249 @@ def test_each_measurement_records_the_video_memory(case, operator_user, monkeypa
     assert recorded["before"]["used_mib"] == 1000 and recorded["after"]["total_mib"] == 24000
     summary = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
     assert "Memoria de video" in summary and "1000" in summary
+
+
+# --- Medidas de la 015 (T-238; REQ-101, REQ-102) -------------------------------------------------
+
+TEXT = ("La garantía será del 5 % del monto adjudicado. Deberán presentarla dentro de 3 días. "
+        "Ver art. 12 del reglamento.")
+
+
+def write_exclusions(path, expected, entries, *, approval="Coordinador sintético, 2026-10-10",
+                     list_sha256=None):
+    """Un archivo de exclusiones junto a la lista, con su huella y su visto bueno."""
+    import yaml
+    target = path.parent / "exclusiones.yaml"
+    target.write_text(yaml.safe_dump({
+        "lista_sha256": list_sha256 or expected.sha256, "visto_bueno": approval,
+        "excluidas": [{"id": i, "motivo": mo} for i, mo in entries]}, allow_unicode=True),
+        encoding="utf-8")
+    return target
+
+
+ANAPHORA = ("La garantía será del 5 % del monto adjudicado. La misma se presenta dentro de "
+            "3 días. Ver art. 12 del reglamento.")
+
+
+def test_a_quote_is_a_piece_unless_it_is_the_unit_of_sense_of_t234():
+    """REQ-101: la comprobación mecánica de pedazos sin sujeto usa la unidad de sentido de T-234
+    (`proposal.sentences`). Una cita completa empieza donde empieza una oración, termina donde
+    termina una y es la unidad que calcula el sistema: «La misma…» continúa a la anterior, así
+    que la oración sola es un pedazo; «Deberán…» sin anáfora no se une, pero una cita que
+    empieza con ella queda sin sujeto; la abreviatura y la inicial no cortan."""
+    first = len("La garantía será del 5 % del monto adjudicado.")
+    second = TEXT.index("Deberán")
+    third = TEXT.index("Ver art.")
+
+    assert ev.piece_problem(TEXT, 0, third - 1) is None       # las dos oraciones
+    assert ev.piece_problem(TEXT, 0, len(TEXT)) is None       # y la tercera, que es otro asunto
+    assert ev.piece_problem(TEXT, third, len(TEXT)) is None   # "art." no corta la oración
+    assert ev.piece_problem(TEXT, 0, first) is None           # «Deberán…» no se une por código
+    assert ev.piece_problem(TEXT, second, third - 1) == "sin_sujeto"   # empieza con «Deberán…»
+    # Con una anáfora («La misma…») la oración siguiente es parte de la unidad.
+    one = len("La garantía será del 5 % del monto adjudicado.")
+    same = ANAPHORA.index("La misma")
+    last = ANAPHORA.index("Ver art.")
+    assert ev.piece_problem(ANAPHORA, 0, last - 1) is None
+    assert ev.piece_problem(ANAPHORA, 0, one) == "separa_condiciones"   # deja afuera «La misma…»
+    assert ev.piece_problem(ANAPHORA, same, last - 1) == "sin_sujeto"   # empieza con «La misma…»
+    assert ev.piece_problem(TEXT, TEXT.index("del 5 %"), first) == "empieza_en_medio"
+    assert ev.piece_problem(TEXT, 0, TEXT.index("monto")) == "termina_en_medio"
+    assert ev.piece_problem(TEXT, third, TEXT.index("del reglamento")) == "termina_en_medio"
+    assert ev.piece_problem(TEXT, 5, 5) == "vacia"
+    assert ev.piece_problem(TEXT, 0, 0) == "vacia"
+    # El número de la cláusula que abre el tramo no es parte de la primera oración.
+    numbered = "1.1. Presentar la garantía. Será del 5 %."
+    assert ev.piece_problem(numbered, 0, len(numbered)) is None
+    assert ev.piece_problem(numbered, 5, len("1.1. Presentar la garantía.")) is None
+    # Un texto sin oraciones (una tabla) no tiene límites que comprobar.
+    assert ev.piece_problem("   ", 0, 3) == "vacia"
+
+
+def test_the_measure_reports_kept_rows_pieces_recall_and_no_exclusions(
+        case, operator_user, tmp_path):
+    """REQ-101, REQ-102: sin archivo de exclusiones se miden las filas conservadas (firmes con
+    pareja sobre firmes), los pedazos y el recall contra la lista entera, y se dice que no se
+    aplicó ninguna exclusión."""
+    procedure, _, path, _ = case
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    measures = measures_of(report)
+    firm, leftovers = measures["proposed_total"], measures["leftovers"]
+    assert measures["kept"] == {"ok": firm - leftovers, "total": firm,
+                                "rate": (firm - leftovers) / firm}
+    assert measures["recall"] == measures["found"]
+    assert measures["excluded"] == {"count": 0, "ids": [], "by_motive": {}, "applied": False}
+    assert measures["pieces"]["checked"] >= firm
+    summary = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "filas conservadas" in summary and "pedazos sin sujeto" in summary
+    assert "no se aplicó el archivo de exclusiones" in summary
+
+
+def test_a_complete_unit_is_not_a_piece_and_a_long_unit_is_reported_apart(
+        case, operator_user, tmp_path, settings):
+    """REQ-101: con T-234 la cita de la matriz ya es la unidad de sentido: la medición no cuenta
+    pedazos. Si la unidad pasa del largo máximo de una cita queda el fragmento del modelo con la
+    marca `cita_amplia` (a revisar): no es un pedazo sin sujeto, se informa aparte como
+    «unidades largas sin ampliar» con su cantidad, la línea nombra la fila y el tramo sin texto
+    y el resumen público solo trae la cifra. El umbral de 0 pedazos no se toca."""
+    procedure, _, path, _ = case
+
+    whole = run_measure(operator_user, procedure, path, tmp_path / "a")
+
+    assert measures_of(whole)["pieces"]["count"] == 0
+    assert measures_of(whole)["long_units"] == {"count": 0, "rows": []}
+    assert not any("Pedazos sin sujeto" in reason for reason in whole.unmet_015)
+
+    settings.ASSESSMENT_CITATION_MAX_CHARS = 15
+    report = run_measure(operator_user, procedure, path, tmp_path / "b")
+
+    measures = measures_of(report)
+    assert measures["pieces"]["count"] == 0 and not measures["pieces"]["rows"]
+    long_units = measures["long_units"]
+    assert long_units["count"] >= 1 and long_units["rows"]
+    detail = [line for line in measures["lines"] if line["tipo"] == "unidad_larga"]
+    assert len(detail) == long_units["count"]
+    assert set(detail[0]) == {"tipo", "numero", "tramo"}
+    assert not [line for line in measures["lines"] if line["tipo"] == "pedazo"]
+    summary = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "garantía del 5 %" not in summary
+    pieces_line = next(line for line in summary.splitlines() if "pedazos sin sujeto" in line)
+    assert "cumple" in pieces_line and "no cumple" not in pieces_line
+    long_line = next(line for line in summary.splitlines()
+                     if "unidades largas sin ampliar" in line)
+    assert f": {long_units['count']} " in long_line
+    assert not any("Pedazos sin sujeto" in reason for reason in report.unmet_015)
+
+
+def fake_row(number, start, end, flag="", text=TEXT):
+    """Una fila firme con una sola cita `[start, end)` de `text`, sin pasar por la base."""
+    from types import SimpleNamespace
+
+    segment = SimpleNamespace(key=f"sec-i/{number}", text=text, segment_type="clausula",
+                              char_start=1000, char_end=1000 + len(text))
+    quote = SimpleNamespace(segment=segment, char_start=1000 + start, char_end=1000 + end,
+                            quote_flag=flag)
+    return SimpleNamespace(number=number, quotes=[quote])
+
+
+def test_a_real_piece_is_still_counted_when_the_flagged_quotes_are_set_apart():
+    """REQ-101: las citas con `cita_amplia` que son un fragmento (la unidad pasó del tope) salen
+    de la cuenta de pedazos y se informan aparte; un pedazo real, sin la marca, se sigue
+    contando contra el umbral de 0; y la cita amplia que es el tramo entero no es ninguna de
+    las dos cosas."""
+    first = len("La garantía será del 5 % del monto adjudicado.")
+    middle = TEXT.index("del 5 %")
+    rows = [
+        fake_row(1, 0, first),                              # completa
+        fake_row(2, middle, first),                         # pedazo real: empieza en medio
+        fake_row(3, middle, first, flag="cita_amplia"),     # unidad larga: queda el fragmento
+        fake_row(4, 0, len(TEXT), flag="cita_amplia"),      # el tramo entero: no es pedazo
+    ]
+
+    found, checked, long_units = ev.pieces_of(rows)
+
+    assert found == [(2, "sec-i/2", "empieza_en_medio")]
+    assert long_units == [(3, "sec-i/3")]
+    assert checked == 3   # las marcadas por unidad larga no se revisan como pedazos
+
+
+def test_excluded_entries_leave_the_denominator_and_their_row_becomes_a_leftover(
+        case, operator_user, tmp_path):
+    """REQ-102: una entrada que excluye la decisión no se espera. Sale del recall y la fila que
+    solo la cubría es sobrante (la Comisión la quitaría). La cuenta de excluidas se informa por
+    motivo y la lista esperada no se modifica."""
+    procedure, _, path, text = case
+    plain = run_measure(operator_user, procedure, path, tmp_path / "a")
+    expected = ev.load_expected(path)
+    exclusions = ev.load_exclusions(
+        write_exclusions(path, expected, [("S-001", "pago"), ("S-002", "factura")]), expected)
+    expected.exclusions = exclusions
+
+    report = ev.measure(operator_user, procedure, expected, tmp_path / "b", commit="abc1234")
+
+    before, after = measures_of(plain), measures_of(report)
+    assert after["found"]["total"] == before["found"]["total"] - 2
+    assert after["excluded"] == {"count": 2, "ids": ["S-001", "S-002"],
+                                 "by_motive": {"pago": 1, "factura": 1}, "applied": True}
+    assert after["leftovers"] == before["leftovers"] + 1   # la fila de S-001 ya no tiene pareja
+    assert after["kept"]["ok"] == before["kept"]["ok"] - 1
+    assert after["kept"]["total"] == before["kept"]["total"]
+    assert path.read_text(encoding="utf-8") == text        # la lista no se tocó
+    saved = json.loads((report.folder / "parametros.json").read_text(encoding="utf-8"))
+    assert saved["exclusiones"]["cantidad"] == 2
+    assert saved["exclusiones"]["lista_sha256"] == expected.sha256
+    summary = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "excluidas por la decisión del 2026-10-10: 2 (factura: 1, pago: 1)" in summary
+    excluded_lines = [line for line in after["lines"] if line["tipo"] == "excluida"]
+    assert [(line["id"], line["motivo"]) for line in excluded_lines] == [
+        ("S-001", "pago"), ("S-002", "factura")]
+
+
+def test_exclusions_need_the_hash_of_the_list_and_the_coordinators_approval(case):
+    """REQ-102: las exclusiones valen para la versión de la lista que se marcó (la huella) y
+    sin visto bueno no se usan; una entrada desconocida, técnica, repetida o con un motivo
+    fuera de la decisión se rechaza."""
+    _, _, path, _ = case
+    expected = ev.load_expected(path)
+
+    with pytest.raises(ev.ExpectedError, match="otra versión de la lista"):
+        ev.load_exclusions(write_exclusions(path, expected, [("S-001", "pago")],
+                                            list_sha256="0" * 64), expected)
+    with pytest.raises(ev.ExpectedNotApproved):
+        ev.load_exclusions(write_exclusions(path, expected, [("S-001", "pago")],
+                                            approval="pendiente: falta el Coordinador"),
+                           expected)
+    verify = ev.load_exclusions(write_exclusions(path, expected, [("S-001", "pago")],
+                                                 approval=""), expected, require_approval=False)
+    assert verify.approval == "" and verify.motives == {"S-001": "pago"}
+    for entries, message in (([("S-999", "pago")], "no está en la lista"),
+                             ([("S-T1", "pago")], "técnica"),
+                             ([("S-001", "multa")], "motivo"),
+                             ([("S-001", "pago"), ("S-001", "factura")], "repetida")):
+        with pytest.raises(ev.ExpectedError, match=message):
+            ev.load_exclusions(write_exclusions(path, expected, entries), expected)
+
+
+def test_command_verifies_and_counts_the_exclusions_per_case(case, operator_user, monkeypatch,
+                                                            capsys):
+    """REQ-102: `--verificar-esperada --exclusiones` informa cuántas entradas marca y por qué
+    motivo, para que el Coordinador dé su visto bueno; el comando mide con ellas y muestra los
+    umbrales de la 015 que no llegan."""
+    procedure, _, path, _ = case
+    expected = ev.load_expected(path)
+    target = write_exclusions(path, expected, [("S-001", "pago"), ("S-002", "moneda_de_pago")])
+    monkeypatch.setattr("evaluon.accounts.permissions.authenticate_command",
+                        lambda username: operator_user)
+
+    call_command("medir_matriz", usuario="operador", procedimiento=procedure.number,
+                 esperada=str(path), exclusiones=str(target), verificar_esperada=True)
+    out = capsys.readouterr().out
+    assert "2 de" in out and "moneda_de_pago: 1, pago: 1" in out
+    assert "coincide" in out and "NO coincide" not in out
+
+    call_command("medir_matriz", usuario="operador", procedimiento=procedure.number,
+                 esperada=str(path), exclusiones=str(target))
+    out = capsys.readouterr().out
+    assert "Umbrales de la 015 que no llegan:" in out
+    assert "Pedazos sin sujeto" not in out   # con T-234 la cita es la unidad de sentido
+
+
+def test_video_memory_maximum_is_the_largest_registered_reading(case, operator_user,
+                                                                monkeypatch, tmp_path):
+    """Requisito no funcional: la memoria de video máxima de lo registrado, contra los 22.000
+    MiB; sin lectura se dice que no está registrada."""
+    assert ev.max_video_mib({"before": {"available": True, "used_mib": 900, "total_mib": 24000},
+                             "after": {"available": True, "used_mib": 21500, "total_mib": 24000}}
+                            ) == 21500
+    assert ev.max_video_mib({"before": {"available": False}, "after": None}) is None
+    assert ev.max_video_mib(None) is None
+    procedure, _, path, _ = case
+    monkeypatch.setenv("MEASURE_VIDEO_MEMORY_COMMAND", "echo 23000, 24000")
+
+    report = run_measure(operator_user, procedure, path, tmp_path)
+
+    summary = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "memoria de video máxima registrada: 23000 MiB (umbral 22000 MiB)" in summary
+    assert any("Memoria de video máxima" in reason for reason in report.unmet_015)

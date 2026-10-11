@@ -153,11 +153,11 @@ class Script:
                     {alias: {"opciones": []} for alias in schema["properties"]}))
             return self.fake.generate(messages, schema, **options)
         if "faltantes" in first:
-            # Pedido de completitud (T-078): el guion no encuentra faltantes ni divisiones.
+            # Pedido de completitud (T-078): el guion no encuentra faltantes.
             self.completeness_default_calls.append(messages)
             if not self._failing:
                 self.fake.respond(json.dumps(
-                    {alias: {"faltantes": [], "divisiones": []}
+                    {alias: {"faltantes": []}
                      for alias in schema["properties"]}))
             return self.fake.generate(messages, schema, **options)
         blocks = parse_blocks(messages[-1]["content"])

@@ -17,8 +17,7 @@ Pasadas, en orden:
    económicos, marca técnica, o motivo de descarte; con reintento único.
 3. **Completitud** (`completeness.py`; solo formales y económicos): revisa cada tramo con
    requisitos y cada tramo que el modelo descartó teniendo marcadores de obligación
-   ("deberá", "mín.", "desestim", …): suma los que faltan y divide los que juntan dos
-   condiciones. Un descartado con marcadores queda pendiente solo si la completitud no dio
+   ("deberá", "mín.", "no se aceptarán", …): suma los que faltan. Un descartado con marcadores queda pendiente solo si la completitud no dio
    resultado.
 4. **Unificación** (`dedup.py`; solo formales y económicos): por regla, junta las filas
    que repiten la misma condición; queda la primera en el orden del pliego, con las citas
@@ -37,6 +36,13 @@ Pasadas, en orden:
    completitud.
 
 Cada requisito formal o económico guarda en `passes` las pasadas que lo encontraron.
+
+**Una fila por unidad de sentido** (T-234, REQ-101; ADR-0054): la cita de un requisito es la
+oración completa y las oraciones cortas contiguas del mismo asunto, ampliada por código a
+partir del fragmento que señaló el modelo (`quotes.locate_unit`); dos fragmentos de la misma
+unidad son una fila. Si la unidad pasa del largo de una cita queda el fragmento del modelo con
+la marca `cita_amplia` para revisión. Un tramo que no se entiende solo viaja al modelo con el
+encabezado de su punto (`Unit.heading`).
 
 **Consecuencias** (`consequences.py`; T-080), la última pasada: para cada
 requisito, ya numerado como lo va a quedar en la versión, sugiere hasta tres consecuencias
@@ -120,6 +126,7 @@ from evaluon.tenders.proposal import (
     extraction,
     norm_support,
     quotes,
+    sentences,
     technical,
 )
 from evaluon.tenders.proposal import filter as row_filter
@@ -140,7 +147,6 @@ OBLIGATION_MARKERS = (
     "máx.",
     "no se aceptarán",
     "bajo apercibimiento",
-    "desestim",
     # Condiciones dichas como efecto (T-093); sin tildes también valen los plurales.
     "se considerará",
     "se entenderá",
@@ -248,12 +254,15 @@ def load(run):
         reading = Reading.objects.select_related("document").get(pk=entry["reading"])
         readings[reading.pk] = reading
         by_key = {}
-        for segment in reading.segments.order_by("order"):
+        segments = list(reading.segments.order_by("order"))
+        for segment in segments:
             segment.reading = reading
-            position += 1
-            units.append(extraction.Unit(segment, reading.document.title, position))
-            reading_of[segment.pk] = reading
             by_key[segment.key] = segment
+        for segment in segments:
+            position += 1
+            units.append(extraction.Unit(segment, reading.document.title, position,
+                                         heading=sentences.heading_of(segment, by_key.get)))
+            reading_of[segment.pk] = reading
         keyed.append((reading, by_key))
     items = technical.reading_items(keyed)
     header_pks = {segment.pk for _, segment in items if segment is not None}
@@ -338,7 +347,7 @@ def _begin(run, with_circulars=False):
              + (["circulares_cambios"]
                 if with_circulars and settings.CIRCULAR_EXTRACTION_ENABLED else [])
              + ["consecuencias"])
-    run.prompt_versions = {name: settings.MATRIX_PROMPT_VERSIONS[name] for name in names}
+    run.prompt_versions = extraction.instruction_registry(names)
     run.save(update_fields=["process", "authorization_date", "corpus_version", "regime",
                             "models",
                             "parameters", "prompt_versions"])
@@ -362,6 +371,12 @@ def _wide_or_span(segment, found):
     else:
         start, end = quotes.absolute(segment, found.span)
     return start, end
+
+
+def _quote_flag(found):
+    """La marca de la cita de un requisito: `cita_amplia` si se citó el tramo entero o si la
+    unidad de sentido pasó del largo de una cita y quedó el fragmento del modelo (revisar)."""
+    return found.flag or (quotes.WIDE if found.too_long else "")
 
 
 def _check_quote(reading, start, end, text):
@@ -429,7 +444,7 @@ def propose(run, *, user, channel=Channel.COMMAND):
             apply_completeness(decisions, completion)
             anomalies.extend(completion.anomalies)
         completion_stats = {key: completer.stats[key] for key in
-                            ("segments", "added", "split", "invalid")}
+                            ("segments", "added", "invalid")}
         requests[PassName.COMPLETITUD.value] = completer.stats["requests"]
         timings["completitud"] = round(time.monotonic() - started, 3)
 
@@ -546,8 +561,11 @@ def _record_support_pass(run):
     if "respaldo_normativo" not in passes:
         passes.insert(passes.index("filtro") + 1, "respaldo_normativo")
     run.parameters = {**run.parameters, "passes": passes}
+    registry = extraction.instruction_registry(["respaldo"])
     run.prompt_versions = {**run.prompt_versions,
-                           "respaldo": settings.MATRIX_PROMPT_VERSIONS["respaldo"]}
+                           "respaldo": registry["respaldo"],
+                           "huellas": {**run.prompt_versions.get("huellas", {}),
+                                       **registry["huellas"]}}
     run.save(update_fields=["parameters", "prompt_versions"])
 
 
@@ -583,10 +601,11 @@ def unify_decisions(run, loaded, decisions):
     return result
 
 
-# Los motivos del filtro que la disposición de un tramo no tiene (su lista es la del
-# ADR-0019): se registran con el más cercano. El motivo exacto queda en la fila descartada.
-_DISPOSITION_REASON = {"consecuencia_sancion": "obligacion_organismo",
-                       "derecho_posterior": "obligacion_organismo"}
+# Los motivos del filtro que la disposición de un tramo no tiene (`DiscardReason`): se
+# registran con el más cercano. El motivo exacto queda en la fila descartada. La consecuencia
+# y los motivos que sumó el ADR-0054 (T-250) sí están en `DiscardReason`: se registran tal
+# cual (antes la consecuencia se registraba como obligación del organismo).
+_DISPOSITION_REASON = {"derecho_posterior": "obligacion_organismo"}
 
 
 def filter_decisions(row_pass, loaded, decisions, unification):
@@ -637,7 +656,7 @@ def protect_offer_guarantee(loaded, decisions, result):
         segment = unit.segment
         decision = decisions[segment.pk]
         for match in guarantee.finditer(segment.text):
-            start, end = row_filter.sentence_bounds(segment.text, match.start())
+            start, end = sentences.sentence_bounds(segment.text, match.start())
             if any(id(f) not in discarded and f.span[0] < end and f.span[1] > start
                    for f in decision.found):
                 return
@@ -888,7 +907,7 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
         start, end = _wide_or_span(segment, found)
         text = _found_text(segment, found)
         _check_quote(reading, start, end, text)
-        record = _quote_record(segment, start, end, text, flag=found.flag)
+        record = _quote_record(segment, start, end, text, flag=_quote_flag(found))
         # Citas adicionales de las filas que repiten esta condición (REQ-025, REQ-033).
         extra = _repeated_quotes(loaded, segment, start, end, repeated.get(id(found), ()))
         # Una sugerencia (REQ-035) es un requisito en estado `sugerido` con su duda.
@@ -908,7 +927,7 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
         )
         quote_of[(counter, 1)] = RequirementQuote.objects.create(
             requirement=requirement, order=1, segment=segment, char_start=start,
-            char_end=end, text=text, scope="", quote_flag=found.flag,
+            char_end=end, text=text, scope="", quote_flag=_quote_flag(found),
         )
         for order, (s, a, b, t) in enumerate(extra, start=2):
             RequirementQuote.objects.create(

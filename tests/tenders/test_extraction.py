@@ -6,6 +6,8 @@ El modelo es el doble de `tests/conftest.py` con el guion de `tests/tenders/scri
 los pliegos son sintéticos (P4). La corrida real con el caso-00 es T-075.
 """
 
+import textwrap
+
 import pytest
 from django.conf import settings
 
@@ -158,7 +160,7 @@ def test_requirements_are_literal_fragments_in_the_order_of_the_pliego(operator_
         "economico", "economico", "tecnico", "tecnico", "tecnico"]
     first, second = requirements[:2]
     quote = first.quotes.get()
-    assert quote.text == GARANTIA_QUOTE
+    assert quote.text == GARANTIA  # la oración completa, no el fragmento del modelo (REQ-101)
     assert quote.segment.key == "sec-i/1.1"
     assert quote.scope == "" and quote.quote_flag == ""
     assert second.quotes.get().text == PAGO
@@ -171,7 +173,7 @@ def test_requirements_are_literal_fragments_in_the_order_of_the_pliego(operator_
     assert first.passes == ["extraccion"]
     assert first.step in steps(requested.run)
     assert first.proposed["category"] == "economico"
-    assert first.proposed["quotes"][0]["text"] == GARANTIA_QUOTE
+    assert first.proposed["quotes"][0]["text"] == GARANTIA
 
 
 def test_requirement_items_are_those_of_the_segment_not_the_models(operator_user, script):
@@ -464,7 +466,7 @@ def test_cut_output_splits_the_batch_in_two(operator_user, case, script):
     assert job.status == "done", job.error
     assert [len(blocks) for blocks in script.calls] == [4, 2, 2]
     cut, first, second = steps(requested.run)
-    assert cut.parsed is None
+    assert set(cut.parsed) == {"instruccion"}  # sin lo interpretado, pero con su instrucción
     assert [a["type"] for a in cut.anomalies] == ["salida_cortada"]
     assert first.retry_of == cut and second.retry_of == cut
     assert first.segment_keys == ["sec-i/1.1", "sec-i/2.1"]
@@ -497,7 +499,7 @@ def test_batches_follow_the_token_limit(operator_user, case, script, settings):
 @pytest.mark.parametrize("text", [
     "El oferente Deberá firmar", "DEBERÁN presentarse", "valor mín. de 5", "Máx. 10 días",
     "BAJO APERCIBIMIENTO de rechazo", "será requisito la firma", "no se aceptarán copias",
-    "la desestimación de la oferta", "valor min. de 5",
+    "valor min. de 5",
 ])
 def test_obligation_markers_are_found_without_accents_or_case(text):
     """REQ-028: los marcadores de obligación se reconocen sin tildes ni mayúsculas."""
@@ -577,7 +579,7 @@ def test_two_documents_with_the_same_keys_keep_their_own_segments(operator_user,
     assert cited.segment.key == "sec-i/1.1"
     assert cited.segment.reading.document == second
     assert second.readings.get().canonical_text[cited.char_start:cited.char_end] == \
-        "se mantiene por sesenta días corridos"
+        "La oferta se mantiene por sesenta días corridos."  # la oración completa (REQ-101)
     assert m.Disposition.objects.filter(run=run).count() == (
         first.readings.get().segments.count() + second.readings.get().segments.count())
     assert "Anexo de condiciones" in script.calls[0]["T5"]["document"]
@@ -603,7 +605,7 @@ def test_service_failure_leaves_the_job_failed_and_the_step_recorded(operator_us
     assert not m.Disposition.objects.exists()
     assert not m.PendingItem.objects.exists()
     step = steps(requested.run)[0]
-    assert step.raw_output == "" and step.parsed is None
+    assert step.raw_output == "" and set(step.parsed) == {"instruccion"}
     assert step.anomalies[0]["type"] == "servicio" and step.anomalies[0]["reason"] == "timeout"
     assert step.request["max_tokens"] == 4096
     event = AuditEvent.objects.get(event_type=EventType.MATRIX_PROPOSAL)
@@ -717,3 +719,266 @@ def test_quote_with_a_changed_letter_is_not_found_and_stays_wide(operator_user, 
     cited = requirement_for(requested.run.version, "sec-i/1.1").quotes.get()
     assert cited.quote_flag == "cita_amplia"
     assert len(script.calls) == 2
+
+
+# --- T-234: la cita es la unidad de sentido y el inciso lleva su encabezado (REQ-101) -------------
+
+
+def wrapped(number, text):
+    """Las líneas de una cláusula, cortadas como en una página."""
+    return textwrap.wrap(f"{number} {text}", 78)
+
+
+def one_clause(operator_user, *lines):
+    """Un procedimiento con un pliego de una cláusula (`sec-i/1.1`) y su documento."""
+    procedure = make_procedure(operator_user)
+    document = load_and_read(operator_user, procedure, tender_pdf([[
+        para("SECCIÓN I - CONDICIONES PARTICULARES"),
+        para("1. CONDICIONES", *lines),
+    ]], header=None))
+    return procedure, document
+
+
+def parsed_requirements(run, key):
+    """Lo registrado en el pedido de extracción para el tramo `key`: la lista de requisitos."""
+    step = steps(run)[0]
+    segment = m.Segment.objects.get(reading__document__procedure=run.procedure, key=key)
+    for entry in step.parsed["tramos"].values():
+        if entry["segmento"] == segment.pk:
+            return entry["requisitos"]
+    raise AssertionError(f"el pedido no registra el tramo {key}")
+
+
+DOG = "Se adquirirá un perro que tenga cuatro patas, dos ojos y de color marrón."
+
+
+def test_the_quote_is_the_whole_sentence_and_the_models_fragment_is_recorded(
+        operator_user, case):
+    """REQ-101, P6: el modelo señala un fragmento; la cita guardada es la oración completa
+    (un recorte contiguo del texto canónico) y el pedido registra aparte el fragmento del
+    modelo y la oración, con sus posiciones."""
+    procedure, document = case
+
+    requested, _ = propose(operator_user, procedure)
+
+    cited = requirement_for(requested.run.version, "sec-i/1.1").quotes.get()
+    reading = document.readings.get()
+    assert cited.text == GARANTIA
+    assert cited.quote_flag == ""
+    assert reading.canonical_text[cited.char_start:cited.char_end] == cited.text
+    segment = cited.segment
+    (record,) = parsed_requirements(requested.run, "sec-i/1.1")
+    fragment = record["fragmentos"][0]
+    assert fragment["texto"] == GARANTIA_QUOTE
+    assert segment.text[fragment["inicio"]:fragment["fin"]] == GARANTIA_QUOTE
+    sentence = record["oracion"]
+    assert segment.text[sentence["inicio"]:sentence["fin"]] == GARANTIA
+    assert (record["inicio"], record["fin"]) == (sentence["inicio"], sentence["fin"])
+    assert "cita_larga" not in record
+
+
+def test_the_pieces_of_one_sentence_make_a_single_row(operator_user, script):
+    """REQ-101 (el perro del responsable): «cuatro patas», «dos ojos» y «de color marrón» son
+    parte de una misma oración: una sola fila con la oración completa, y el pedido registra
+    los tres fragmentos del modelo."""
+    procedure, document = one_clause(operator_user, *wrapped("1.1.", DOG))
+    script.when("perro", item([("cuatro patas", "formal"), ("dos ojos", "formal"),
+                               ("de color marrón", "formal")]))
+
+    requested, job = propose(operator_user, procedure)
+
+    assert job.status == "done", job.error
+    rows = list(m.Requirement.objects.filter(version=requested.run.version))
+    assert len(rows) == 1
+    cited = rows[0].quotes.get()
+    assert cited.text == DOG
+    assert document.readings.get().canonical_text[cited.char_start:cited.char_end] == DOG
+    (record,) = parsed_requirements(requested.run, "sec-i/1.1")
+    assert [f["texto"] for f in record["fragmentos"]] == [
+        "cuatro patas", "dos ojos", "de color marrón"]
+    assert any(a["type"] == "citas_unidas" and a.get("unidad")
+               for a in steps(requested.run)[0].anomalies)
+
+
+def test_a_short_sentence_that_continues_the_previous_one_is_in_the_same_row(
+        operator_user, script):
+    """REQ-101: «La misma incluye impuestos y tasas.» remite a la oración anterior: una sola
+    fila con las dos, aunque el modelo haya señalado solo un pedazo de la segunda."""
+    first = "Los precios se expresarán en pesos argentinos por renglón."
+    second = "La misma incluye impuestos y tasas."
+    procedure, _ = one_clause(operator_user, *wrapped("1.1.", f"{first} {second}"))
+    script.when("pesos argentinos", item([("incluye impuestos y tasas", "economico")]))
+
+    requested, _ = propose(operator_user, procedure)
+
+    rows = list(m.Requirement.objects.filter(version=requested.run.version))
+    assert len(rows) == 1
+    assert rows[0].quotes.get().text == f"{first} {second}"
+    assert rows[0].category == "economico"
+
+
+def test_a_deberan_sentence_without_anaphora_is_not_joined_by_code(operator_user, script):
+    """REQ-101 (decisión del Coordinador, verificación de T-234): «Deberá acompañarse el
+    certificado de visita…» abre otro asunto que «…en pesos argentinos.»: el sistema no las
+    une. Si el modelo cita las dos, son dos filas, cada una con su oración."""
+    first = "La oferta deberá presentarse en pesos argentinos."
+    second = "Deberá acompañarse el certificado de visita al lugar de obra."
+    procedure, _ = one_clause(operator_user, *wrapped("1.1.", f"{first} {second}"))
+    script.when("pesos argentinos", item([("presentarse en pesos argentinos", "economico"),
+                                          ("acompañarse el certificado", "formal")]))
+
+    requested, _ = propose(operator_user, procedure)
+
+    rows = list(m.Requirement.objects.filter(version=requested.run.version)
+                .order_by("number"))
+    assert [r.quotes.get().text for r in rows] == [first, second]
+    assert [r.category for r in rows] == ["economico", "formal"]
+
+
+def test_the_models_single_fragment_keeps_only_its_own_sentence(operator_user, script):
+    """REQ-101: si el modelo señala solo la primera oración, la cita es esa oración: la que
+    abre otro asunto no se suma."""
+    first = "La oferta deberá presentarse en pesos argentinos."
+    second = "Deberá acompañarse el certificado de visita al lugar de obra."
+    procedure, _ = one_clause(operator_user, *wrapped("1.1.", f"{first} {second}"))
+    script.when("pesos argentinos", item([("presentarse en pesos argentinos", "economico")]))
+
+    requested, _ = propose(operator_user, procedure)
+
+    (row,) = m.Requirement.objects.filter(version=requested.run.version)
+    assert row.quotes.get().text == first
+
+
+def test_two_sentences_with_their_own_subject_stay_two_rows(operator_user, script):
+    """REQ-101: una oración con sujeto propio abre otro asunto: son dos filas, cada una con
+    su oración completa."""
+    first = "Los oferentes deberán cotizar en pesos."
+    second = "La entrega se hará dentro de los quince días hábiles."
+    procedure, _ = one_clause(operator_user, *wrapped("1.1.", f"{first} {second}"))
+    script.when("cotizar", item([("cotizar en pesos", "economico"),
+                                 ("quince días", "formal")]))
+
+    requested, _ = propose(operator_user, procedure)
+
+    rows = list(m.Requirement.objects.filter(version=requested.run.version)
+                .order_by("number"))
+    assert [r.quotes.get().text for r in rows] == [first, second]
+
+
+def test_a_unit_longer_than_a_citation_keeps_the_fragment_marked_for_review(
+        operator_user, script, settings):
+    """REQ-101: si la unidad pasa del largo máximo de una cita queda el fragmento del modelo,
+    con la marca `cita_amplia` para revisión y el aviso en el pedido."""
+    settings.ASSESSMENT_CITATION_MAX_CHARS = 60
+    sentence = "Los oferentes deberán constituir una garantía del 5 % del monto total ofertado."
+    procedure, _ = one_clause(operator_user, *wrapped("1.1.", sentence))
+    script.when("garantía", item([("constituir una garantía", "economico")]))
+
+    requested, _ = propose(operator_user, procedure)
+
+    cited = requirement_for(requested.run.version, "sec-i/1.1").quotes.get()
+    assert cited.text == "constituir una garantía"
+    assert cited.quote_flag == "cita_amplia"
+    (record,) = parsed_requirements(requested.run, "sec-i/1.1")
+    assert record["cita_larga"] is True
+    assert any(a["type"] == "unidad_demasiado_larga" for a in steps(requested.run)[0].anomalies)
+
+
+def test_the_request_carries_the_heading_of_the_inciso_and_the_quote_does_not(
+        operator_user, script):
+    """REQ-101: un inciso de una lista llega al modelo con la línea `Encabezado:` del punto
+    (contexto) y la cita guardada es el inciso, sin el encabezado."""
+    procedure, document = one_clause(
+        operator_user, *wrapped("1.1.", "La oferta deberá incluir:"),
+        "a) copia certificada del estatuto social;",
+        "b) constancia de inscripción impositiva.")
+    script.when("copia certificada", item([("copia certificada del estatuto", "formal")]))
+
+    requested, _ = propose(operator_user, procedure)
+
+    content = steps(requested.run)[0].request["messages"][-1]["content"]
+    assert "Encabezado: La oferta deberá incluir:" in content
+    heading_lines = [line for line in content.split("\n") if line.startswith("Encabezado:")]
+    assert len(heading_lines) == 2  # los dos incisos; la cláusula y los títulos no
+    cited = requirement_for(requested.run.version, "sec-i/1.1/inc-a").quotes.get()
+    assert cited.text == "copia certificada del estatuto social;"
+    assert "La oferta deberá incluir" not in cited.text
+    assert document.readings.get().canonical_text[cited.char_start:cited.char_end] == cited.text
+
+
+def test_a_clause_that_stands_alone_travels_without_heading(operator_user, case):
+    """REQ-101: un tramo con sujeto propio, que no es un inciso de lista, no lleva
+    `Encabezado:`."""
+    procedure, _ = case
+
+    requested, _ = propose(operator_user, procedure)
+
+    assert "Encabezado:" not in steps(requested.run)[0].request["messages"][-1]["content"]
+
+
+# --- T-236: instrucciones v4, registro de la versión y la huella, marcadores y lotes -------------
+
+
+def test_every_request_of_the_extraction_records_its_instruction(
+        operator_user, case, script):
+    """REQ-106, P6: el `parsed` de cada pedido de la extracción trae el nombre, la versión y la
+    huella SHA-256 de su instrucción y la versión y la huella del bloque común."""
+    from evaluon.tenders.proposal import extraction
+
+    procedure, _ = case
+    script.when(GARANTIA, item(requirements=[(GARANTIA_QUOTE, "economico")]))
+
+    requested, job = propose(operator_user, procedure)
+
+    assert job.status == "done", job.error
+    found = list(m.RunStep.objects.filter(run=requested.run, pass_name="extraccion"))
+    assert found
+    expected = extraction.load_instruction("extraccion").record
+    for step in found:
+        assert step.parsed["instruccion"] == expected
+        assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v2"
+        assert len(step.parsed["instruccion"]["sha256"]) == 64
+    # La huella de la corrida es la misma que la del pedido.
+    assert requested.run.prompt_versions["huellas"]["extraccion"] == expected["sha256"]
+
+
+def test_the_extraction_request_carries_the_common_block_and_the_heading_line(
+        operator_user, case, script):
+    """REQ-102, REQ-101: lo que ve el modelo es la instrucción con el bloque común dentro (sin
+    la marca) y los tramos; el cuerpo guardado trae las dos."""
+    procedure, _ = case
+
+    requested, job = propose(operator_user, procedure)
+
+    assert job.status == "done", job.error
+    system = steps(requested.run)[0].request["messages"][0]["content"]
+    assert "{{DEFINICIONES}}" not in system
+    assert "QUÉ ES UN REQUISITO DE LA OFERTA" in system
+    assert "la moneda en que se cotiza la oferta" in system
+
+
+def test_the_extraction_instruction_names_every_discard_reason_of_the_schema():
+    """REQ-102 (ADR-0054, regla 5): la instrucción de extracción nombra cada motivo de
+    descarte que admite el esquema y ningún otro con forma de motivo."""
+    from evaluon.tenders.models import DiscardReason
+    from evaluon.tenders.proposal import extraction
+
+    text = extraction.load_prompt("extraccion")
+    for reason in DiscardReason.values:
+        assert f"- {reason}:" in text, reason
+    listed = {line[2:].split(":")[0] for line in text.splitlines()
+              if line.startswith("- ") and line[2:].split(":")[0] in set(DiscardReason.values)}
+    assert listed == set(DiscardReason.values)
+
+
+def test_a_consequence_is_not_a_marker_of_obligation_and_goes_to_its_own_motive():
+    """REQ-102 (corrección 4 de la revisión): «desestim» ya no es marcador de obligación; la
+    desestimación es una consecuencia."""
+    assert "desestim" not in proposal.OBLIGATION_MARKERS
+    assert not proposal.has_obligation_markers("la desestimación de la oferta")
+    assert proposal.has_obligation_markers("no se aceptarán copias")
+
+
+def test_the_batches_are_between_three_and_four_thousand_tokens(settings):
+    """REQ-101 (ADR-0054, regla 8): los lotes de extracción son de 3.000 a 4.000 tokens."""
+    assert 3000 <= settings.MATRIX_BATCH_INPUT_TOKENS <= 4000

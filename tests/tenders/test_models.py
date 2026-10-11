@@ -935,12 +935,12 @@ def test_unknown_event_type_still_rejected():
 def test_matrix_parameters_in_settings():
     """REQ-030, REQ-024: los parámetros de la 003 están en la configuración con los
     valores iniciales del plan."""
-    assert settings.MATRIX_BATCH_INPUT_TOKENS == 1500
+    assert settings.MATRIX_BATCH_INPUT_TOKENS == 3500
     assert settings.MATRIX_MAX_OUTPUT_TOKENS == 4096
     assert settings.SEGMENT_MAX_CHARS == 4000
     assert settings.MATRIX_CONSEQUENCES_PER_REQUEST == 25
     assert settings.MATRIX_CIRCULAR_CANDIDATES == 8
-    assert settings.MATRIX_PROMPT_VERSIONS["extraccion"] == "matriz-extraccion-v3"
+    assert settings.MATRIX_PROMPT_VERSIONS["extraccion"] == "matriz-extraccion-v5"
     assert settings.GENERATION_BATCH_TIMEOUT_SECONDS == 180
     assert settings.WORKER_POLL_SECONDS == 5
 
@@ -950,7 +950,7 @@ def test_enmienda_parameters_in_settings():
     están en la configuración con los valores del plan, y las listas cerradas coinciden
     con los valores que acepta la base."""
     assert settings.FILTER_ENABLED is True
-    assert settings.FILTER_BATCH_ROWS == 15
+    assert settings.FILTER_BATCH_ROWS == 6
     assert set(settings.FILTER_MOTIVES) == set(m.FilterMotive.values)
     assert settings.DEDUP_MIN_SIMILARITY == 0.9
     assert settings.MATRIX_SAMPLE_DISCARDED == {"every": 3, "minimum": 20}
@@ -963,7 +963,7 @@ def test_enmienda_parameters_in_settings():
     assert settings.NORM_SUPPORT_MIN_SCORE == settings.RERANK_THRESHOLD == 0.219
     assert settings.NORM_SUPPORT_MAX_UNITS == 4
     assert settings.NORM_SUPPORT_QUERY_MAX_CHARS == 800
-    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v2"
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v4"
     for name in ("unificacion", "respaldo"):
         assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v1"
 
@@ -1473,5 +1473,5 @@ def test_circular_extraction_parameters_in_settings():
     omisión y la pasada tiene su versión de instrucciones."""
     assert settings.CIRCULAR_EXTRACTION_ENABLED is True
     assert settings.CIRCULAR_EXTRACTION_REPEATS == 1
-    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v5"
-    assert settings.MATRIX_PROMPT_VERSIONS["circulares"] == "matriz-circulares-v2"
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v6"
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares"] == "matriz-circulares-v7"

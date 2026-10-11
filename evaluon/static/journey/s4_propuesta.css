@@ -63,3 +63,5 @@
 .s4-prop .matriz tr.grupo-externo th { background: var(--ev-externo-fondo); color: var(--ev-externo); border-left: 4px solid var(--ev-externo-marca); }
 .s4-prop .matriz tr.fila-externa > :first-child { border-left: 4px solid var(--ev-externo-marca); }
 .s4-prop .lectura { color: var(--ev-texto-suave); display: block; margin-top: 2px; }
+.s4-prop .lista-condiciones { margin: 4px 0 6px; padding-left: 18px; }
+.s4-prop .lista-condiciones li { margin: 3px 0; }

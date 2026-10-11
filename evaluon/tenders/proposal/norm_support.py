@@ -252,7 +252,7 @@ class Supporter:
     def _ask(self, row, question, context, result, units, started):
         key = row.segment.key
         head = build_head(self.run.authorization_date, question)
-        prompt_tokens = generation.count_tokens(self.prompt) + generation.count_tokens(head)
+        prompt_tokens = generation.count_tokens_batch(self.prompt) + generation.count_tokens_batch(head)
         narrowed = dataclasses.replace(result, selected=list(units))
         selection = retrieval.select_units(narrowed, prompt_tokens)
         context["selection"] = selection.as_record()
@@ -281,7 +281,7 @@ class Supporter:
         except AIServiceError as error:
             self.stats["failed_requests"] += 1
             self._record(
-                {**context, "request": generation.build_request(
+                {**context, "request": generation.build_batch_request(
                     messages, schema, MAX_OUTPUT_TOKENS)},
                 "", parsed=None, seconds=time.monotonic() - started,
                 anomalies=[{"type": ANOMALY_SERVICE, "reason": error.reason,

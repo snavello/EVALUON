@@ -126,6 +126,8 @@
                   <dd>{% include "journey/_icono.html" with icon=c.icon name=c.name %} <b>{{ c.name }}</b> · {{ c.state_text }}</dd>
                   {% if c.decided %}<dd class="registro">{{ c.decided }}</dd>{% endif %}
                   {% if c.explanation %}<dd><span class="suave">Explicación del sistema (no es texto de la oferta ni del pliego):</span> {{ c.explanation }}</dd>{% endif %}
+                  {% if c.conditions %}<dd class="condiciones"><span class="suave">Condiciones del requisito, una por una:</span>
+                    <ul class="lista-condiciones">{% for k in c.conditions %}<li>{% include "journey/_icono.html" with icon=k.icon name=k.name %} <b>{{ k.name }}</b> · {{ k.text }} <span class="suave">· {% if k.datum %}dato: {{ k.datum }}{% else %}sin dato{% endif %}</span>{% if k.where %} <span class="registro">({{ k.where }})</span>{% endif %}</li>{% endfor %}</ul></dd>{% endif %}
                   {% for q in c.quotes %}<dd><blockquote class="cita">{{ q.text }}</blockquote><span class="registro">{{ q.document.title }} · página {{ q.page }}</span></dd>
                   {% empty %}<dd class="suave">Sin texto de la oferta que respalde una conclusión.{% if c.read_note %} <span class="lectura">{{ c.read_note }}</span>{% endif %}</dd>{% endfor %}
                   {% else %}

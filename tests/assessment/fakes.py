@@ -102,6 +102,12 @@ class Seen:
         return Image.open(io.BytesIO(self.image)).size
 
 
+def first_user(messages):
+    """El primer mensaje del usuario del pedido: el reintento deja intacto ese mensaje y suma dos
+    turnos (la salida anterior y la corrección), así que el último no es siempre el del pedido."""
+    return next(m["content"] for m in messages if m["role"] == "user")
+
+
 def sees_message(messages):
     """Los bytes de la imagen del último mensaje, o `b""` si no trae."""
     content = messages[-1]["content"]
@@ -114,18 +120,24 @@ def sees_message(messages):
 
 
 def says(result, *citations, exigence="condicion", explanation="Porque lo dice el texto.",
-         question="", external=False, supports=(), ilegible=None, datos=None):
-    """La salida de un grupo como la devolvería el modelo. `ilegible` (alias de un documento
-    con una página «no se pudo leer») es el campo de `evaluacion-v4`: solo se manda si se pide."""
-    answer = {"resultado": result, "exigencia": exigence,
-              "citas": [{"documento": a, "texto": t} for a, t in citations if a],
-              "fundamentos": list(supports), "explicacion": explanation, "externo": external,
-              "pregunta": question}
-    if ilegible is not None:
-        answer["ilegible"] = ilegible
-    if datos is not None:
-        answer["datos"] = [{"documento": a, "texto": t} for a, t in datos if a]
-    return answer
+         question="", external=False, supports=(), ilegible=None, datos=None, conditions=None,
+         reasoning="Razonamiento sintético del doble."):
+    """La salida de un grupo como la devolvería el modelo con `evaluacion-v6` (T-237): en el orden
+    del esquema, con `razonamiento` y `condiciones`. Sin `conditions` hay una sola condición con el
+    `result` pedido, apoyada en la primera cita (si hay). `conditions`: lista de
+    `(condición, dato, número de cita, resultado)`. `ilegible` es el alias de un documento con una
+    página «no se pudo leer»."""
+    cites = [{"documento": a, "texto": t} for a, t in citations if a]
+    if conditions is None:
+        conditions = [("Lo que exige el requisito.", cites[0]["texto"] if cites else "",
+                       1 if cites else 0, result)]
+    return {"razonamiento": reasoning, "citas": cites, "fundamentos": list(supports),
+            "externo": external, "ilegible": ilegible or "",
+            "datos": [{"documento": a, "texto": t} for a, t in (datos or []) if a],
+            "exigencia": exigence,
+            "condiciones": [{"condicion": c, "dato": d, "cita": n, "resultado": r}
+                            for c, d, n, r in conditions],
+            "resultado": result, "explicacion": explanation, "pregunta": question}
 
 
 class ScriptedModel:
@@ -180,7 +192,7 @@ class ScriptedModel:
         return self.fake.generate(messages, schema, **kwargs)
 
     def _respond_evaluation(self, messages, schema, **kwargs):
-        user = messages[-1]["content"]
+        user = first_user(messages)
         match = _REQUIREMENT.search(user)
         call = Call(
             number=len(self.calls) + 1, messages=messages, schema=schema, kwargs=kwargs,
@@ -208,7 +220,8 @@ class ScriptedModel:
         elif not isinstance(answer, Raw):
             answer = f"{answer}\n{settings.ASSESSMENT_VISION_END_MARKER}"
         content = str(answer)
-        request = generation_client.build_text_request(messages, max_tokens, repeat_penalty)
+        request = generation_client.build_text_request(
+            messages, max_tokens, repeat_penalty, base_url)
         prompt_tokens = sum(len(str(m.get("content", "")).split()) for m in messages)
         completion_tokens = len(content.split())
         response = {"choices": [{"index": 0, "finish_reason": finish,
@@ -221,21 +234,22 @@ class ScriptedModel:
 
     def _respond_contrast(self, messages, schema, **kwargs):
         call = Contrast(number=len(self.contrast_calls) + 1, messages=messages,
-                        user=messages[-1]["content"])
+                        user=first_user(messages))
         self.contrast_calls.append(call)
         answer = self._contrast(call) if self._contrast else None
         if answer is None:
-            answer = {"respuesta": "si", "motivo": "El texto lo demuestra."}
+            answer = {"razonamiento": "El texto lo demuestra.", "respuesta": "si"}
         return self._answer(answer, messages, schema, kwargs)
 
     def _respond_clauses(self, messages, schema, **kwargs):
         call = Contrast(number=len(self.clause_calls) + 1, messages=messages,
-                        user=messages[-1]["content"])
+                        user=first_user(messages))
         self.clause_calls.append(call)
         answer = self._clauses(call) if self._clauses else None
         if answer is None:
-            answer = {"clausulas": [{"clausula": "x", "estado": "coincide", "motivo": ""}],
-                      "pregunta": ""}
+            answer = {"razonamiento": "Coinciden.",
+                      "clausulas": [{"clausula": "x", "motivo": "", "estado": "coincide",
+                                     "cita": ""}], "pregunta": ""}
         return self._answer(answer, messages, schema, kwargs)
 
     def _respond_rewrite(self, messages, schema, **kwargs):

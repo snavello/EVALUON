@@ -24,7 +24,7 @@ tramo común a todos los renglones alcanza la fila de cada uno. Si no entran en 
 se descartan las de menor puntaje; las que el tramo nombra no se descartan salvo que ellas
 solas no quepan.
 
-**Qué devuelve el modelo** (instrucciones `prompts/matriz-circulares-v2.md`): `efectos`
+**Qué devuelve el modelo** (instrucciones `prompts/matriz-circulares-v7.md`): `efectos`
 (`modifica`, `aclara` o `suprime` sobre una candidata, con el fragmento de la circular que lo
 produce), `nuevos` (requisitos formales o económicos que la circular agrega, con su
 fragmento) o un motivo de `sin_efecto` (la lista cerrada de descartes del ADR-0019).
@@ -712,7 +712,8 @@ class Processor:
 
     def __init__(self, run):
         self.run = run
-        self.prompt = extraction.load_prompt("circulares")
+        self.instruction = extraction.load_instruction("circulares")
+        self.prompt = self.instruction.text
         self.steps = []
         self.anomalies = []
         self.stats = {"requests": 0, "segments": 0, "retried": 0, "effects": 0,
@@ -730,8 +731,9 @@ class Processor:
         step = RunStep.objects.create(
             run=self.run, pass_name=self.pass_name, batch=self._batch,
             segment_keys=[unit.segment.key], request=result["request"],
-            raw_output=result["content"], parsed=parsed, anomalies=anomalies,
-            retry_of=retry_of,
+            raw_output=result["content"],
+            parsed=extraction.with_instruction(parsed, self.instruction),
+            anomalies=anomalies, retry_of=retry_of,
             timings={"seconds": round(seconds, 3),
                      "prompt_tokens": result["prompt_tokens"],
                      "completion_tokens": result["completion_tokens"]},
@@ -742,7 +744,7 @@ class Processor:
     def _space(self):
         return (settings.GENERATION_CONTEXT_TOKENS - settings.MATRIX_MAX_OUTPUT_TOKENS
                 - settings.PROMPT_TEMPLATE_MARGIN_TOKENS
-                - generation.count_tokens(self.prompt))
+                - generation.count_tokens_batch(self.prompt))
 
     def _choose(self, circular, unit, candidates, anomalies, heading="", rendered="",
                 scope_items=()):
@@ -775,11 +777,11 @@ class Processor:
             rest = sorted(rest, key=lambda c: -scores[c.key])[:limit]
         ordered = named + referred + rest
 
-        space = (self._space() - generation.count_tokens(render_circular(circular, unit))
-                 - (generation.count_tokens(rendered) if rendered else 0))
+        space = (self._space() - generation.count_tokens_batch(render_circular(circular, unit))
+                 - (generation.count_tokens_batch(rendered) if rendered else 0))
         chosen, used = [], 0
         for candidate in ordered:
-            size = generation.count_tokens(render_candidate("Q00", candidate))
+            size = generation.count_tokens_batch(render_candidate("Q00", candidate))
             if used + size > space:
                 anomalies.append({"type": ANOMALY_CANDIDATES_CUT,
                                   "segment": segment.pk, "key": segment.key})
@@ -812,7 +814,7 @@ class Processor:
             output = generation.generate_batch(messages, schema, max_tokens=max_tokens)
         except AIServiceError as error:
             self._record(
-                unit, {"request": generation.build_request(messages, schema, max_tokens),
+                unit, {"request": generation.build_batch_request(messages, schema, max_tokens),
                        "content": "", "prompt_tokens": None, "completion_tokens": None},
                 parsed=None, retry_of=retry_of, seconds=time.monotonic() - started,
                 anomalies=[{"type": ANOMALY_SERVICE, "reason": error.reason,

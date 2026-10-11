@@ -14,6 +14,9 @@ Opciones:
   ofertas leídas (el caso-00).
 - `--fichas`: `fichas-esperadas.yaml` del caso. Da los fragmentos y las copias equivalentes
   para REQ-054 y, con el dictamen, el mapeo de `M-NNN` a la matriz.
+- `--celdas-portal`: archivo aparte con las celdas cuyo dato está en el Portal (oferta, fila de la
+  matriz validada, tipo, valor y si el dato coincide con lo que exige el pliego; T-238, REQ-103).
+  Se suman a los pares de la lista que traen `portal`.
 - `--corridas`: carpeta donde se guarda la corrida (por omisión, `corridas/` junto a la lista).
 - `--commit`: commit del código con que se corre (dentro del contenedor no hay `.git`).
 - `--verificar-esperada`: no usa el modelo. Comprueba la huella de cada documento, que cada
@@ -52,6 +55,9 @@ class Command(BaseCommand):
         parser.add_argument("--esperada", default=None,
                             help="evaluacion-esperada.yaml o dictamen-esperado.yaml.")
         parser.add_argument("--fichas", default=None, help="fichas-esperadas.yaml del caso.")
+        parser.add_argument("--celdas-portal", default=None, dest="celdas_portal",
+                            help="Archivo con las celdas del Portal (oferta, fila, tipo, valor "
+                                 "y si coincide), con visto bueno.")
         parser.add_argument("--corridas", default=None,
                             help="Carpeta donde se guarda la corrida (por omisión, "
                                  "corridas/ junto a la lista).")
@@ -80,6 +86,9 @@ class Command(BaseCommand):
                 self._verify_decisions(expected)
                 return
             fichas = evaluation.load_fichas(options["fichas"]) if options["fichas"] else None
+            portal_cells = (evaluation.load_portal_cells(
+                options["celdas_portal"], require_approval=not verify_only)
+                if options["celdas_portal"] else None)
             if options["caso_chico"]:
                 procedure, offers = evaluation.build_case(user, expected)
             else:
@@ -92,14 +101,20 @@ class Command(BaseCommand):
 
             if verify_only:
                 verification = evaluation.verify_expected(expected, offers)
-                self.stdout.write("\n".join(verification.lines))
-                if not verification.ok:
+                lines = list(verification.lines)
+                cells_ok = True
+                if portal_cells:
+                    cell_lines, cells_ok = evaluation.verify_portal_cells(portal_cells, procedure)
+                    lines += cell_lines
+                self.stdout.write("\n".join(lines))
+                if not (verification.ok and cells_ok):
                     raise CommandError("La comprobación de la lista encontró fallas.")
                 return
 
             runs_dir = options["corridas"] or str(Path(esperada).resolve().parent / "corridas")
             report = evaluation.measure(user, procedure, expected, offers, runs_dir,
-                                        fichas=fichas, commit=options["commit"])
+                                        fichas=fichas, commit=options["commit"],
+                                        portal_cells=portal_cells)
         except (RoleRejected, evaluation.ExpectedError, evaluation.MeasurementRefused) as error:
             raise CommandError(str(error)) from None
 
@@ -133,6 +148,9 @@ class Command(BaseCommand):
             lines.append(f"{evaluation.LABELS[name]}: {shown}")
         lines.append(f"Por resultado: {total['by_outcome']}; evaluación completa "
                      f"{report.seconds} s, {total['model_requests']} pedidos al modelo")
+        for name, measured, ok in evaluation.thresholds_015(total, report.expected.case,
+                                                            report.video):
+            lines.append(f"{name} (015): {measured} · {'cumple' if ok else 'no cumple'}")
         failed = report.blocking
         lines.append("Bloquea la aceptación: " + ("; ".join(failed) if failed else "nada"))
         self.stdout.write("\n".join(lines))

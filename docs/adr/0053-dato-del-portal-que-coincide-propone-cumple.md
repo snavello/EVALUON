@@ -34,7 +34,7 @@ Se propone **B**, con estas reglas (el detalle de cada comparación lo fija T-23
 3. **Coincide:** «cumple», con la cita del Portal escrita por el sistema (`citation kind portal`) y la explicación «Fuente: Portal», sin pasar por el contraste del modelo. **No coincide, y los dos valores son comparables:** «no cumple», con la diferencia en la explicación y las dos citas. **No coincide pero no son comparables** (no hay un valor exigido que se pueda leer, o el requisito pide otro dato): «no determinado» con motivo `falta_coincidencia` y la diferencia a la vista.
 4. Si el Portal no tiene el dato, o el requisito no pide un dato del Portal, no rige esta regla y sigue el flujo de la 004. Si el texto de la oferta trae un valor distinto del Portal, sigue siendo «no determinado» `falta_coincidencia` (la Comisión verifica cuál rige): eso se mantiene del ADR-0043.
 4 bis. **El Portal también le llega al modelo.** Hoy el modelo recibe solo los PDF (la revisión de las instrucciones lo mostró en la oferta 1: «la oferta no incluye una cotización de precios», con el precio en el Portal). La evaluación le agrega un bloque `[P…]` con los datos del Portal de esa oferta (moneda, total, garantías, precios por renglón), citable: el sistema escribe el texto de la cita desde las columnas, nunca el modelo. Lo que se puede comparar por regla (montos, centavos, CUIT) lo decide el código; al modelo se le pide evidencia. Un requisito de dos condiciones no es «cumple» si a una le falta el dato.
-5. Sigue valiendo P3: la Comisión confirma, corrige o rechaza cada celda; la decisión queda registrada como suya. La regla deja en `facts` la `regla` (`portal_cumple`, `portal_no_cumple` o `portal_falta_coincidencia`), los valores comparados y `version_reglas` (`reglas-v8`).
+5. Sigue valiendo P3: la Comisión confirma, corrige o rechaza cada celda; la decisión queda registrada como suya. La regla deja en `facts` la `regla` (`portal_cumple`, `portal_no_cumple` o `portal_falta_coincidencia`), los valores comparados y `version_reglas` (`reglas-v9 (la v8 la usó T-231 de la 014)`).
 
 **Lectura de P3 que este ADR necesita que el responsable confirme.** P3 pide como fundamento «el fragmento del pliego o de la oferta y la cita normativa», o la respuesta de la Comisión. El Portal es el lugar donde el oferente presenta su oferta (ADR-0029): sus datos son datos de la oferta cargados por el oferente. Este ADR los trata así, como cita de la oferta con otra fuente. Si el responsable prefiere la lectura estricta (solo texto de documentos), hace falta una enmienda de la constitución por ADR (como el ADR-0009) antes de integrar T-233.
 
@@ -44,7 +44,7 @@ Más fácil: hasta unas 20 celdas del caso LPU25 pasan de «no determinado» a u
 
 Más difícil: hay que mantener las comparaciones por clase de dato y sus tests (marca `decision_literal`: los tests del ADR-0043 que afirmaban «no determinado» se reescriben con la decisión nueva); el sistema puede proponer «cumple» sobre un dato de Portal equivocado, por eso la celda siempre muestra la cita del Portal con el ítem de origen.
 
-Para revertir: volver a la versión de reglas `reglas-v7` (la regla `portal_en_portal` del ADR-0043). Los resultados guardados con `reglas-v8` conservan su regla y su versión; no se reescriben.
+Para revertir: volver a la versión de reglas `reglas-v7` (la regla `portal_en_portal` del ADR-0043). Los resultados guardados con `reglas-v9` conservan su regla y su versión; no se reescriben.
 
 ## Sin verificar
 

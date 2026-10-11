@@ -26,12 +26,18 @@ Reglas, en este orden:
 
 Un "cumple" o "no cumple" va después al contraste (`apply_contrast`): si no contesta `si`, es
 "no determinado" `sin_corroborar` con las mismas citas. Un "no determinado" que falta un dato
-(`sin_dato`, `lectura_incompleta`) siempre lleva una pregunta para la Comisión: la del modelo o
-una fija del sistema. `externo` no lleva ninguna. Lo que se decide por regla (externos del
+(`sin_dato`, `lectura_incompleta`) siempre lleva una pregunta para la Comisión. `externo` no lleva ninguna. Lo que se decide por regla (externos del
 catálogo y páginas ilegibles) lo aplica `rules.py` después de esta unión (T-166).
+
+Preguntas (REQ-105; T-235): este módulo no escribe el texto de ninguna. Deja en `Combined.question`
+la pregunta que escribió el modelo (o la de una regla) y en `Combined.ask` si el caso exige una;
+`compose_question` arma la pregunta final, con el requisito, la conclusión y el texto de la oferta
+(documento y página), dirigida a la Comisión. La pregunta del modelo se acepta solo si no se dirige
+al oferente; si no, la arma el código. No hay preguntas de texto fijo genérico.
 """
 
 import re
+import unicodedata
 from dataclasses import dataclass, field, replace
 
 from django.conf import settings
@@ -81,6 +87,8 @@ class GroupResult:
     # El documento que el modelo señaló como ilegible y el informe de lectura avala
     # (`unreadable.resolve`), o `None` (REQ-064).
     unreadable: dict | None = None
+    # Datos del Portal que el modelo citó con su alias `P…` (T-235): `Datum.citation()`.
+    portal: list = field(default_factory=list)
 
 
 @dataclass
@@ -102,6 +110,10 @@ class Combined:
     # Datos del Portal que se citan (`portal_facts.py`, `technical.py`): cada uno es
     # `{"item": id del ítem, "kind": clase, "text": texto, "label": rótulo}`.
     portal: list = field(default_factory=list)
+    # El caso exige una pregunta a la Comisión aunque el modelo no la haya escrito (T-235).
+    ask: bool = False
+    # Lo que el sistema había concluido antes de que el contraste no lo corroborara.
+    proposed: str = ""
 
     @property
     def needs_contrast(self):
@@ -124,6 +136,20 @@ def _merge(groups, only=None):
     return citations[:settings.ASSESSMENT_MAX_CITATIONS], supports
 
 
+def _merge_portal(groups, only=None):
+    """Los datos del Portal que citaron los grupos, sin repetir."""
+    cites, seen = [], set()
+    for group in groups:
+        if only is not None and group.result not in only:
+            continue
+        for cite in group.portal:
+            key = (cite["item"], cite["kind"], cite["text"])
+            if key not in seen:
+                seen.add(key)
+                cites.append(cite)
+    return cites
+
+
 def _first(groups, name):
     return next((getattr(g, name) for g in groups if getattr(g, name)), "")
 
@@ -133,21 +159,148 @@ def unread_text(unread):
     return "; ".join(f"{u['title']}, página {u['page']}" for u in unread)
 
 
-def fixed_question(doubt, unread=(), explanation=""):
-    """La pregunta del sistema cuando el modelo no formuló una (REQ-055)."""
-    if doubt == INCOMPLETE:
-        where = unread_text(unread)
-        suffix = f" ({where})" if where else ""
-        return ("Hay partes de la oferta que no se pudieron leer" + suffix + ". ¿Lo que "
-                "exige este requisito está ahí? Se necesita revisar el original.")
-    if doubt == NO_DATA:
-        detail = f" {explanation}" if explanation else ""
-        return ("Para este requisito falta un dato que no consta en la oferta ni en la "
-                "normativa." + detail + " ¿Qué determina la Comisión?")
-    if doubt == UNCORROBORATED:
-        return ("El sistema llegó a una conclusión con el texto de la oferta, pero no pudo "
-                "corroborarla. ¿La Comisión la confirma, la corrige o la rechaza?")
-    return ""
+# Dudas que llevan pregunta aunque el modelo no la escriba (REQ-055): las dos de siempre y la
+# conclusión que el contraste no corroboró.
+ASKED_DOUBTS = (NO_DATA, INCOMPLETE, UNCORROBORATED)
+
+QUESTION_CLIP = 280
+
+
+def _plain(text):
+    decomposed = unicodedata.normalize("NFKD", text or "")
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch)).lower()
+
+
+_ROLE = (r"(?:oferentes?|proveedor(?:es)?|empresas?|firmas?|licitantes?|participantes?"
+         r"|cotizantes?|postor(?:es)?|adjudicatari[oa]s?|adjudicad[oa]s?|contratistas?"
+         r"|concursantes?|vendedor(?:es)?|presentantes?)")
+# Formas del imperativo o del subjuntivo con que se le da una orden a alguien («aclare», «presenten»).
+_SUBJ = (r"(?:aclare|informe|presente|indique|confirme|adjunte|envie|aporte|explique|detalle"
+         r"|especifique|complete|subsane|acompane|remita|justifique|acredite|proporcione"
+         r"|manifieste|declare|certifique|precise|amplie|ratifique|rectifique|responda|conteste"
+         r"|diga|haga)n?")
+# Verbos con que se le pide u ordena algo a alguien: modales, de pedido, de obligación y las
+# formas de la orden. No entran las formas del indicativo («presentó», «presentada»): «¿El
+# oferente presentó la garantía?» es una pregunta de hecho.
+_ASK = (r"(?:podr\w+|pued\w+|deb\w+|tendr\w+|tenga\w*|requer\w+|solicit\w*|pid\w+|ruego"
+        rf"|rogamos|exig\w+|invit\w+|intim\w+|emplaz\w+|notific\w+|oblig\w+|{_SUBJ})")
+# Verbos sin sujeto con que una pregunta le habla a alguien: «¿Puede aclarar…?», «¿Cuenta con…?».
+_ADDRESSING_START = (r"(?:pued[eo]\w*|podr\w+|deb[eo]\w*|deber\w+|tien[ea]\w*|tendr\w+"
+                     r"|cuent[ae]\w*|dispon[ge]\w*|poseen?|conoc[ea]\w*|sab[eo]\w*"
+                     r"|desea\w*|quisier\w+)")
+
+_TO_OFFEROR = [
+    # 1. Un destinatario nombrado: «al oferente», «a la empresa», «para el adjudicatario».
+    re.compile(rf"\b(?:a|al|para)\s+(?:(?:el|la|los|las)\s+)?{_ROLE}\b"),
+    # 2. Un rol junto a un verbo de pedido u obligación: «el oferente deberá…», «podría el
+    #    cotizante aclarar…», «queda obligado el adjudicatario».
+    re.compile(rf"\b{_ROLE}\W+(?:\w+\W+){{0,3}}?{_ASK}\b"),
+    re.compile(rf"\b{_ASK}\W+(?:\w+\W+){{0,3}}?{_ROLE}\b"),
+    # 3. Un pedido impersonal o en primera persona: «se requiere…», «solicitamos…», «favor de…».
+    re.compile(r"\bse\s+(?:le\s+|les\s+|lo\s+)?(?:requier\w+|solicit\w+|pid\w+|ruega\w*|exig\w+"
+               r"|invit\w+|intim\w+|notific\w+|emplaz\w+|necesit\w+)\b"),
+    re.compile(r"\b(?:solicitamos|pedimos|requerimos|rogamos|invitamos|instamos|exigimos"
+               r"|necesitamos|agradec\w+|agradeceremos|apreciar\w+)\b"),
+    # 4. Segunda persona y cortesía: «usted», «por favor», «sírvase», «favor de».
+    re.compile(r"\busted(?:es)?\b|\bvos\b|\bpor\s+favor\b|\bfavor\s+de\b|\bsirva\w*\b"
+               r"|\b(?:puedes|podes|podrias|tienes|tenes|sabes|conoces|nos\s+informe|nos\s+"
+               r"remita|nos\s+confirme)\b"),
+]
+# 5. Una orden o un verbo que le habla a alguien, al empezar la oración.
+_SENTENCE_START = re.compile(
+    rf"^(?:{_SUBJ}|sirva\w*|favor|{_ADDRESSING_START}"
+    r"(?!\s+(?:la|el)\s+(?:comision|comite|evaluador|sistema)))\b")
+
+
+def addresses_offeror(text):
+    """Si la pregunta se dirige al oferente (o a otro tercero: el adjudicatario, la empresa, el
+    cotizante…) en lugar de a la Comisión (REQ-105). Es la única definición: la usan
+    `compose_question` y la medida de la forma de las preguntas (`evaluation.question_form`).
+    Rechaza el imperativo dirigido a otro, la segunda persona, el pedido impersonal y cualquier
+    mención de un rol como destinatario; acepta una pregunta de hecho o una dirigida a la Comisión
+    («¿La Comisión confirma…?», «¿El oferente presentó la garantía?»). Ante la duda rechaza: el
+    código arma entonces la pregunta."""
+    plain = _plain(text)
+    if any(pattern.search(plain) for pattern in _TO_OFFEROR):
+        return True
+    for sentence in re.split(r"(?<=[.?!:;])\s+|\n+", plain):
+        sentence = re.sub(r"^[\W_]+", "", sentence)
+        if _SENTENCE_START.search(sentence):
+            return True
+    return False
+
+
+def _clip(text, size):
+    text = " ".join((text or "").split())
+    if len(text) <= size:
+        return text
+    return text[:size].rsplit(" ", 1)[0].rstrip(" ,;:") + "…"
+
+
+def _sentence(text):
+    return text.rstrip(" .") + "."
+
+
+def _conclusion(combined):
+    from evaluon.assessment.models import Doubt
+
+    if combined.doubt == UNCORROBORATED and combined.proposed:
+        word = "cumple" if combined.proposed == OUT_CUMPLE else "no cumple"
+        base = f"el sistema propuso «{word}», pero el contraste no lo corroboró"
+    else:
+        label = Doubt(combined.doubt).label.lower() if combined.doubt else "sin motivo"
+        base = f"no determinado ({label})"
+    detail = _clip(combined.explanation, 240)
+    return _sentence(f"{base}: {detail}" if detail else base)
+
+
+def _evidence(combined, documents, unread):
+    if combined.citations:
+        first = combined.citations[0]
+        more = len(combined.citations) - 1
+        text = (f"«{_clip(first.text, QUESTION_CLIP)}» ({first.document.title}, página "
+                f"{first.page})" + (f" y {more} cita{'s' if more > 1 else ''} más" if more else ""))
+        return _sentence(text)
+    if combined.portal:
+        return _sentence("dato del Portal: «" + _clip(combined.portal[0]["text"], QUESTION_CLIP)
+                         + "»")
+    where = f" en los documentos leídos ({', '.join(documents)})" if documents else ""
+    parts = f"no hay un texto de la oferta que responda al requisito{where}"
+    if unread:
+        parts += f"; partes sin leer: {unread_text(unread)}"
+    return _sentence(parts)
+
+
+def _default_ask(combined):
+    if combined.doubt == UNCORROBORATED:
+        word = {OUT_CUMPLE: "cumple", OUT_NO_CUMPLE: "no cumple"}.get(combined.proposed)
+        what = f"la conclusión «{word}»" if word else "la conclusión del sistema"
+        return f"¿La Comisión confirma, corrige o rechaza {what}?"
+    if combined.doubt == INCOMPLETE:
+        return ("¿Lo que exige este requisito consta en las partes sin leer? La Comisión debe "
+                "revisar el original.")
+    if combined.doubt == NO_DATA:
+        return "¿Qué determina la Comisión sobre este requisito, con el dato que falta?"
+    return "¿Cómo resuelve la Comisión este requisito con el texto citado?"
+
+
+def compose_question(number, requirement, combined, *, documents=(), unread=()):
+    """La pregunta final a la Comisión por un par "no determinado" (REQ-105; T-235), o `""` si no
+    corresponde. Lleva el requisito (cita del pliego), la conclusión del sistema y el texto de la
+    oferta (documento y página); cierra con la pregunta del modelo si no se dirige al oferente, y
+    si no, con una que arma el código. `documents`: títulos de los documentos leídos; `unread`:
+    las partes sin leer (`{"title", "page"}`)."""
+    if combined.outcome != OUT_NO_DETERMINADO or combined.doubt == EXTERNAL:
+        return ""
+    asked = " ".join((combined.question or "").split())
+    if not asked and not (combined.ask and combined.doubt in ASKED_DOUBTS):
+        return ""
+    closing = asked if asked and not addresses_offeror(asked) else _default_ask(combined)
+    return "\n".join([
+        _sentence(f"Requisito {number}: «{_clip(requirement, QUESTION_CLIP)}»"),
+        f"Conclusión del sistema: {_conclusion(combined)}",
+        f"Texto de la oferta: {_evidence(combined, documents, unread)}",
+        closing])
 
 
 MIN_CLAUSE_WORDS = 2   # palabras de tres letras o más que debe tener una cláusula citada
@@ -187,14 +340,14 @@ def combine(groups, *, unread, without_reading=(), unread_groups=0):
             pool if pool is not None else groups, "explanation")
         # Una conclusión no lleva pregunta: solo la lleva un "no determinado".
         # Falta la hoja de compliance: no hay nada que preguntar, hay que subirla (REQ-063).
-        asked = question if outcome == OUT_NO_DETERMINADO and doubt != EXTERNAL else ""
-        if not asked and ask and doubt in ALWAYS_ASK:
-            asked = fixed_question(doubt, unread, text)
+        asking = outcome == OUT_NO_DETERMINADO and doubt != EXTERNAL
+        asked = question if asking else ""
         return Combined(
             outcome=outcome, doubt=doubt,
             exigence=exigence if exigence is not None else _first(groups, "exigence"),
             citations=citations, supports=supports, explanation=text, question=asked,
-            unread_warning=warning)
+            unread_warning=warning, ask=asking and ask and doubt in ALWAYS_ASK,
+            portal=_merge_portal(pool if pool is not None else groups, only))
 
     if not groups:
         return done(OUT_NO_DETERMINADO, INCOMPLETE, explanation=(
@@ -244,8 +397,7 @@ def apply_contrast(combined, answer, reason=""):
     note = f"El contraste no corroboró la conclusión ({answer}): {reason}".rstrip(": ")
     explanation = f"{combined.explanation} {note}".strip()
     return replace(combined, outcome=OUT_NO_DETERMINADO, doubt=UNCORROBORATED,
-                   explanation=explanation,
-                   question=fixed_question(UNCORROBORATED))
+                   explanation=explanation, question="", ask=True, proposed=combined.outcome)
 
 
 # Un motivo que habla de la calidad de la lectura no es una contradicción de la oferta (T-164).
@@ -284,6 +436,5 @@ def apply_clauses(combined, rows, question, requirement_text):
         note = f"El sistema no pudo confirmar estas cláusulas con la oferta: {names}."
         explanation = f"{combined.explanation} {note}".strip()
         return replace(combined, outcome=OUT_NO_DETERMINADO, doubt=NO_DATA,
-                       explanation=explanation,
-                       question=question or fixed_question(NO_DATA, note))
+                       explanation=explanation, question=question, ask=True)
     return combined

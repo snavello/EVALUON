@@ -13,7 +13,8 @@ from tests.assessment.test_portal_facts import located, pair_of, portal_data
 
 pytestmark = pytest.mark.django_db
 
-GUARANTEE_REQ = "Constituir la garantía de mantenimiento de la oferta del 5 % del monto total."
+GUARANTEE_REQ = ("Constituir la garantía de mantenimiento de la oferta del 5 % del monto total de "
+                 "la oferta.")
 
 
 def numbered(pair, number):
@@ -36,7 +37,7 @@ def test_the_guarantee_is_not_compared_with_the_total_of_the_offer(offer, portal
     garantía del Portal: no hay «falta coincidencia» entre garantía y total."""
     portal_data(portal, offer, amount="4620585.50", total="92411710.00")
     pair = guarantee_pair(29, "Total de la oferta: $ 92.411.710,00")
-    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cita_agregada"
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
     assert pair.combined.doubt != "falta_coincidencia"
     assert pair.combined.outcome == "cumple"
 
@@ -57,7 +58,7 @@ def test_the_total_is_not_compared_with_the_guarantee(offer, portal):
     pair = numbered(pair_of("Indicar el precio total de la oferta.", combine.Combined(
         outcome="cumple", citations=[located("garantiza hasta $ 4.620.585,50")]),
         datos=["garantiza hasta $ 4.620.585,50"]), 5)
-    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cita_agregada"
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
 
 
 # --- E-7: un centavo de redondeo y una sola vez por oferta ------------------------------------------
@@ -67,7 +68,7 @@ def test_a_difference_of_one_cent_is_rounding_not_a_lack_of_coincidence(offer, p
     """REQ-062, E-7: el Portal informa 4819384.47 y la oferta 4819384.48: coinciden."""
     portal_data(portal, offer, amount="4819384.47", total="96387689.50")
     pair = guarantee_pair(29, "garantiza hasta la suma de $ 4.819.384,48")
-    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cita_agregada"
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
     assert pair.combined.outcome == "cumple"
 
 

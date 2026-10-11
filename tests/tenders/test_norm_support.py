@@ -175,7 +175,7 @@ def assert_untouched(run):
     """La sugerencia sigue siendo la que el filtro dejó: mismo estado y mismo motivo."""
     [row] = formal(run)
     assert row.state == "sugerido" and row.doubt_reason == "duda"
-    assert row.origin == "propuesto" and row.quotes.get().text == FRAG_1
+    assert row.origin == "propuesto" and row.quotes.get().text == SENT_1  # la oración (REQ-101)
 
 
 # --- Respaldo encontrado ---------------------------------------------------------------------

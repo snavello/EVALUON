@@ -39,7 +39,8 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.ai import generation
 from evaluon.assessment import citations as citing
-from evaluon.assessment import combine, documents, externals, grounds, prompting, rules
+from evaluon.assessment import combine, documents, externals, grounds, portal_block
+from evaluon.assessment import prompting, rules
 from evaluon.assessment import unreadable
 from evaluon.assessment.models import (
     Answer,
@@ -278,6 +279,9 @@ def _parameters():
         "group_tokens": settings.ASSESSMENT_GROUP_TOKENS,
         "max_groups": settings.ASSESSMENT_MAX_GROUPS,
         "max_output_tokens": settings.ASSESSMENT_MAX_OUTPUT_TOKENS,
+        # Lo que suman el razonamiento y las condiciones al máximo de un pedido de lectura (T-237).
+        "evaluation_max_output_tokens": prompting.evaluation_max_tokens(),
+        "reasoning_max_chars": prompting.REASONING_MAX_CHARS,
         "max_citations": settings.ASSESSMENT_MAX_CITATIONS,
         "citation_max_chars": settings.ASSESSMENT_CITATION_MAX_CHARS,
         "request_timeout_seconds": settings.ASSESSMENT_REQUEST_TIMEOUT_SECONDS,
@@ -335,6 +339,9 @@ class PairData:
     # El modelo marcó el requisito como externo (aunque la hoja ya esté subida y deje de regir
     # la marca): `externals.py` lo usa para decir que la hoja no trata el chequeo (REQ-073).
     external_flagged: bool = False
+    # Las condiciones del requisito que revisó el modelo en cada grupo, ya controladas por el
+    # sistema (T-237, REQ-104): `{índice del grupo: [dict]}`.
+    conditions: dict = field(default_factory=dict)
 
 
 class Context:
@@ -357,6 +364,13 @@ class Context:
         self.contrast_done = 0
         # Diferencias con el Portal ya señaladas en esta oferta (`portal_facts`, T-231).
         self.portal_flagged = {}
+        self._portal_block = None
+
+    def portal_block(self):
+        """`(texto, {alias: dato})` del Portal de esta oferta, armado una sola vez (T-235)."""
+        if self._portal_block is None:
+            self._portal_block = portal_block.build(self.offer)
+        return self._portal_block
 
     def add(self, step):
         self.steps.append(step)
@@ -418,47 +432,108 @@ def _plan_for(ctx, pair):
                   "query": found.query, "rewrite": found.rewrite}
 
 
+ANOMALY_CONDITION_NO_CITATION = "condicion_sin_cita"
+ANOMALY_CONDITION_NO_DATUM = "condicion_sin_dato"
+ANOMALY_RESULT_DERIVED = "resultado_derivado"
+ANOMALY_RESULT_CONTRADICTED = "resultado_no_sostenido"
+
+
+def _check_conditions(conditions, evidence, cited, anomalies):
+    """Las condiciones que escribió el modelo, controladas contra lo que el sistema ubicó
+    (REQ-104; P3; D-237-2). `evidence`: `{número de la cita: ("oferta", Located) | ("portal",
+    Datum)}`, solo de las citas que se ubicaron; `cited`: cuántas citas escribió el modelo.
+
+    Una condición «cumple» o «no cumple» vale solo con **su** dato (no vacío) y **su** cita:
+    `1 <= cita <= cited` y ubicada. Sin dato, con la cita 0, con una cita que no existe o que no se
+    ubicó, pasa a «no determinado» y queda la anomalía; no se le presta la cita de otra condición
+    aunque sea la única que se ubicó. Devuelve `(condiciones efectivas, registros)`: las
+    `prompting.Condition` con el resultado que cuenta y, para el registro y la pantalla, un dict
+    por condición con su dato, su cita y su resultado."""
+    effective, records = [], []
+    for index, condition in enumerate(conditions, start=1):
+        pointed = 1 <= condition.cite <= cited
+        found = evidence.get(condition.cite) if pointed else None
+        result = condition.result
+        if result in (prompting.CUMPLE, prompting.NO_CUMPLE):
+            if not condition.datum.strip():
+                result = prompting.NO_DETERMINADO
+                anomalies.append({"type": ANOMALY_CONDITION_NO_DATUM, "condition": index})
+            elif found is None:
+                result = prompting.NO_DETERMINADO
+                anomalies.append({"type": ANOMALY_CONDITION_NO_CITATION, "condition": index})
+        cite = None
+        if found is not None:
+            kind, item = found
+            cite = ({"tipo": "oferta", "documento": item.document.title, "pagina": item.page,
+                     "texto": item.text} if kind == "oferta"
+                    else {"tipo": "portal", "texto": item.text})
+        effective.append(replace(condition, result=result))
+        records.append({"condicion": condition.text, "dato": condition.datum,
+                        "resultado": result, "resultado_modelo": condition.result,
+                        "cita": cite})
+    return effective, records
+
+
 def _group_result(ctx, pair, group_index, pieces, relevance_note):
     """Pide un grupo (con un reintento si hace falta) y devuelve su `GroupResult`."""
     docs_text, doc_map = prompting.render_documents(pieces)
     answers_text, answer_map = prompting.render_answers(pair.answers)
     norms_text, norm_map = prompting.render_norms(pair.norms)
+    portal_text, portal_map = ctx.portal_block()
     support_map = {**answer_map, **norm_map}
-    schema = prompting.evaluation_schema(list(doc_map), list(support_map))
+    schema = prompting.evaluation_schema(list(doc_map), list(support_map), list(portal_map))
     system = prompting.load_prompt("evaluacion")
+    instruction = prompting.prompt_record("evaluacion")
     requirement_block = pair.text.render()
     pieces_record = [p.record() for p in pieces]
     if relevance_note:
         pieces_record.append(relevance_note)
 
-    correction, previous = "", None
+    correction, previous, previous_output = "", None, ""
     for attempt in range(2):
         step = StepData(Purpose.GRUPO, pair.requirement, group_index=group_index,
                         documents=pieces_record, retry_of=previous)
         position = ctx.add(step)
         messages = prompting.build_evaluation_messages(
-            system, docs_text, answers_text, norms_text, requirement_block, correction)
-        result = _generate(messages, schema, step, ctx)
+            system, docs_text, answers_text, norms_text, requirement_block, correction,
+            portal_text=portal_text, previous=previous_output)
+        result = _generate(messages, schema, step, ctx,
+                           max_tokens=prompting.evaluation_max_tokens())
         problem, evaluation, located, backed, data_located = None, None, [], None, []
+        portal_cited, evidence, unlocated = [], {}, []
+        effective, records, derived, unsupported = [], [], None, False
         try:
             evaluation = prompting.parse_evaluation(
                 result.content, list(doc_map), list(support_map))
         except prompting.InvalidOutput as error:
             step.anomalies.append({"type": error.kind, "message": str(error)})
+            step.parsed = {"instruccion": instruction}
             problem = prompting.ANOMALY_INVALID_OUTPUT
         else:
             used = {c.span for c in located}
-            for alias, quote in evaluation.citations:
+            for number, (alias, quote) in enumerate(evaluation.citations, start=1):
                 piece = doc_map.get(alias)
                 if piece is None:
-                    step.anomalies.append({"type": ANOMALY_UNKNOWN_ALIAS, "alias": alias})
+                    datum = portal_map.get(alias)
+                    if datum is not None:
+                        # T-235: una cita del Portal. El texto lo escribe el sistema desde las
+                        # columnas (`Datum.citation()`), nunca el modelo.
+                        if datum not in portal_cited:
+                            portal_cited.append(datum)
+                        evidence[number] = ("portal", datum)
+                    else:
+                        step.anomalies.append({"type": ANOMALY_UNKNOWN_ALIAS, "alias": alias})
                     continue
                 found = citing.locate_quote(piece.doc, quote, ctx.finder, used,
                                             step.anomalies,
-                                            others=[p.doc for p in pieces if p is not piece])
+                                            others=[p.doc for p in pieces if p is not piece],
+                                            expand=True)
                 if found is not None:
                     located.append(found)
                     used.add(found.span)
+                    evidence[number] = ("oferta", found)
+                else:
+                    unlocated.append(quote)
             for alias, quote in evaluation.data:
                 # `datos`: texto literal con el monto o el CUIT; se ubica como cualquier cita
                 # y solo lo que se ubicó se compara con el Portal (REQ-062).
@@ -479,14 +554,37 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
                 if backed is None:
                     step.anomalies.append({"type": ANOMALY_UNREADABLE_NOT_BACKED,
                                            "alias": evaluation.unreadable})
-            step.parsed = {**evaluation.as_json(),
+            # T-237 (REQ-104): el resultado del grupo sale de las condiciones, cada una con su
+            # dato y su cita ubicada; sin condiciones (salida anterior a `evaluacion-v6`) vale el
+            # que escribió el modelo.
+            effective, records = _check_conditions(
+                evaluation.conditions, evidence, len(evaluation.citations), step.anomalies)
+            by_conditions = prompting.derive_result(effective)
+            # El más conservador entre el que dijo el modelo y el de sus condiciones (D-237-2).
+            derived = prompting.reconcile_result(evaluation.result, by_conditions)
+            if derived != evaluation.result:
+                step.anomalies.append({"type": ANOMALY_RESULT_DERIVED,
+                                       "modelo": evaluation.result, "derivado": derived})
+            unsupported = (derived == prompting.NO_DETERMINADO
+                           and by_conditions in (prompting.CUMPLE, prompting.NO_CUMPLE))
+            if unsupported:
+                step.anomalies.append({"type": ANOMALY_RESULT_CONTRADICTED,
+                                       "modelo": evaluation.result, "condiciones": by_conditions})
+            step.parsed = {**evaluation.as_json(conditions=records),
+                           "resultado_derivado": derived,
+                           "instruccion": instruction,
                            "citas_ubicadas": [{"documento": c.document.pk, "pagina": c.page,
-                                               "inicio": c.char_start, "fin": c.char_end}
+                                               "inicio": c.char_start, "fin": c.char_end,
+                                               "fragmento_inicio": c.fragment_start,
+                                               "fragmento_fin": c.fragment_end}
                                               for c in located],
+                           "citas_portal": [{"item": d.item, "tipo": d.kind, "texto": d.text}
+                                            for d in portal_cited],
                            "datos_ubicados": [{"documento": c.document.pk, "pagina": c.page,
                                                "inicio": c.char_start, "fin": c.char_end}
                                               for c in data_located]}
-            if evaluation.result in (prompting.CUMPLE, prompting.NO_CUMPLE) and not located:
+            if ({evaluation.result, derived} & {prompting.CUMPLE, prompting.NO_CUMPLE}
+                    and not located and not portal_cited):
                 step.anomalies.append({"type": prompting.ANOMALY_NO_CITATION})
                 problem = prompting.ANOMALY_NO_CITATION
         pair.anomalies.extend({**a, "requirement": pair.requirement.number, "step": position}
@@ -494,7 +592,9 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
         if problem is None:
             break
         if attempt == 0:
-            correction = prompting.correction_for(problem)
+            # El reintento le muestra su respuesta anterior y la cita que no se ubicó.
+            correction = prompting.correction_for(problem, unlocated)
+            previous_output = result.content
             previous = position
 
     known = {c.span for c in pair.datos}
@@ -502,6 +602,7 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
     if problem == prompting.ANOMALY_INVALID_OUTPUT:
         return combine.GroupResult(group_index, prompting.NO_DETERMINADO, doubt=combine.DOUBT,
                                    explanation="El modelo no devolvió una salida válida.")
+    pair.conditions[group_index] = records
     supports = [support_map[a] for a in evaluation.supports]
     if problem == prompting.ANOMALY_NO_CITATION:
         return combine.GroupResult(
@@ -509,7 +610,28 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             exigence=evaluation.exigence, supports=supports,
             explanation=evaluation.explanation, question=evaluation.question,
             external=evaluation.external, unreadable=backed)
-    if (evaluation.result == prompting.NO_CUMPLE
+    explanation, question, doubt = evaluation.explanation, evaluation.question, combine.DOUBT
+    note = prompting.missing_note(effective)
+    if derived == prompting.NO_DETERMINADO and note and not evaluation.external:
+        # «No determinado» dice qué condición no se pudo determinar (REQ-104) y se lo pregunta a
+        # la Comisión (REQ-105): falta el dato de una condición, que no es una duda sin razón.
+        # Con partes de la oferta sin leer vale lo de `combine`: la duda pasa a lectura incompleta.
+        doubt = combine.DOUBT if ctx.offer_text.has_unread else combine.NO_DATA
+        if note not in explanation:
+            explanation = f"{explanation} {note}".strip()
+        if not question or combine.addresses_offeror(question):
+            question = prompting.missing_question(effective)
+    if unsupported and not evaluation.external:
+        # El modelo y sus condiciones no concluyen lo mismo: no se da por concluido (D-237-2).
+        explanation = (f"{explanation} El resultado que propuso el modelo («{evaluation.result}») "
+                       "no coincide con el de sus condiciones: el sistema no lo da por "
+                       "concluido.").strip()
+        if not question or combine.addresses_offeror(question):
+            question = ("¿Cómo resuelve la Comisión este requisito? El resultado que propuso el "
+                        "modelo no coincide con el de sus condiciones.")
+    portal_record = [] if derived == prompting.NO_CONSTA else [
+        d.citation() for d in portal_cited]
+    if (derived == prompting.NO_CUMPLE
             and pair.requirement.category == RequirementClass.TECNICO
             and not combine.clause_supported(evaluation.clause, pair.text.text)):
         pair.anomalies.append({"type": ANOMALY_NO_CLAUSE, "requirement": pair.requirement.number,
@@ -517,15 +639,15 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
         return combine.GroupResult(
             group_index, prompting.NO_DETERMINADO, doubt=combine.NO_DATA,
             exigence=evaluation.exigence, citations=located, supports=supports,
-            explanation=f"{evaluation.explanation} {combine.NO_CLAUSE_NOTE}".strip(),
-            question=evaluation.question, external=evaluation.external, unreadable=backed)
-    keep = [] if evaluation.result == prompting.NO_CONSTA else located
+            explanation=f"{explanation} {combine.NO_CLAUSE_NOTE}".strip(),
+            question=question, external=evaluation.external, unreadable=backed)
+    keep = [] if derived == prompting.NO_CONSTA else located
     return combine.GroupResult(
-        group_index, evaluation.result,
-        doubt=combine.DOUBT if evaluation.result == prompting.NO_DETERMINADO else "",
+        group_index, derived,
+        doubt=doubt if derived == prompting.NO_DETERMINADO else "",
         exigence=evaluation.exigence, citations=keep, supports=supports,
-        explanation=evaluation.explanation, question=evaluation.question,
-        external=evaluation.external, unreadable=backed)
+        explanation=explanation, question=question,
+        external=evaluation.external, unreadable=backed, portal=portal_record)
 
 
 def _read_pair(ctx, pair):
@@ -616,7 +738,8 @@ def _locate_evidence(ctx, shown, rows):
     for clause, state, why, quote in rows:
         located = None
         if state == "contradice" and quote and shown:
-            located = citing.locate_quote(shown[0], quote, ctx.finder, others=shown[1:])
+            located = citing.locate_quote(shown[0], quote, ctx.finder, others=shown[1:],
+                                          expand=True)
         out.append((clause, state, why, located))
     return out
 
@@ -628,21 +751,28 @@ def _clauses_request(ctx, pair, quotes, shown, documents, cited, system, state, 
     step = StepData(Purpose.CONTRASTE, pair.requirement, retry_of=retry_of)
     position = ctx.add(step)
     block = replace(pair.text, quotes=quotes).render()
-    messages = prompting.build_clauses_messages(system, block, cited, correction, documents)
+    # El reintento le muestra al modelo su salida anterior (T-237, ADR-0055, regla 7).
+    previous = ctx.steps[retry_of].raw_output if correction and retry_of is not None else ""
+    messages = prompting.build_clauses_messages(system, block, cited, correction, documents,
+                                                previous=previous)
     result = _generate(messages, prompting.CLAUSES_SCHEMA, step, ctx,
                        max_tokens=settings.ASSESSMENT_CLAUSES_MAX_OUTPUT_TOKENS)
+    instruction = prompting.prompt_record("clausulas")
     try:
         rows, question = prompting.parse_clauses(result.content)
     except prompting.InvalidOutput as error:
         step.anomalies.append({"type": error.kind, "message": str(error)})
+        step.parsed = {"instruccion": instruction}
         pair.anomalies.append({"type": ANOMALY_CONTRAST_INVALID,
                                "requirement": pair.requirement.number, "step": position})
         state["last"] = position
         return None
     rows = _locate_evidence(ctx, shown, rows)
-    step.parsed = {"clausulas": [{"clausula": c, "estado": s, "motivo": m,
+    step.parsed = {"razonamiento": prompting.clauses_reasoning(result.content),
+                   "clausulas": [{"clausula": c, "estado": s, "motivo": m,
                                   "cita_ubicada": located is not None}
-                                 for c, s, m, located in rows], "pregunta": question}
+                                 for c, s, m, located in rows], "pregunta": question,
+                   "instruccion": instruction}
     return rows, question
 
 
@@ -710,26 +840,43 @@ def _contrast_pair(ctx, pair):
             pair.seconds += ctx.clock() - started
             return
     system = prompting.load_prompt("contraste")
-    cited = [(c.document.title, c.page, c.text) for c in combined.citations]
+    # T-235: el contraste recibe la oración citada y su contexto (las oraciones vecinas de la misma
+    # página) y, si la hay, la cita del Portal.
+    cited, contexts = [], []
+    for c in combined.citations:
+        before, after = citing.context_of(c, ctx.finder)
+        context = " ".join(part for part in (
+            f"antes: «{before}»" if before else "", f"después: «{after}»" if after else "")
+            if part)
+        cited.append((c.document.title, c.page, c.text, context))
+        contexts.append(context)
+    portal_cites = [d["text"] for d in combined.portal]
     conclusion = "cumple" if combined.outcome == combine.OUT_CUMPLE else "no cumple"
-    answer, reason, previous, correction = None, "", None, ""
+    instruction = prompting.prompt_record("contraste")
+    answer, reason, previous, correction, previous_output = None, "", None, "", ""
     for attempt in range(2):
         step = StepData(Purpose.CONTRASTE, pair.requirement, retry_of=previous)
         position = ctx.add(step)
         messages = prompting.build_contrast_messages(
             system, pair.text.render(), conclusion, cited, _supports_text(combined),
-            correction)
+            correction, portal_cites=portal_cites, previous=previous_output)
         result = _generate(messages, prompting.CONTRAST_SCHEMA, step, ctx)
         try:
             answer, reason = prompting.parse_contrast(result.content)
         except prompting.InvalidOutput as error:
             step.anomalies.append({"type": error.kind, "message": str(error)})
+            step.parsed = {"instruccion": instruction}
             pair.anomalies.append({"type": ANOMALY_CONTRAST_INVALID,
                                    "requirement": pair.requirement.number, "step": position})
             previous = position
+            # El reintento le muestra su respuesta anterior (T-237, ADR-0055, regla 7).
+            previous_output = result.content
             correction = prompting.correction_for(prompting.ANOMALY_INVALID_OUTPUT)
             continue
-        step.parsed = {"respuesta": answer, "motivo": reason}
+        step.parsed = {"respuesta": answer, "razonamiento": reason, "motivo": reason,
+                       "contexto": contexts,
+                       "contexto_max_caracteres": citing.CONTEXT_MAX_CHARS,
+                       "citas_portal": portal_cites, "instruccion": instruction}
         break
     if answer is None:
         answer, reason = "parcial", "el contraste no devolvió una salida válida"
@@ -772,12 +919,34 @@ def _open_question(offer, requirement):
             .order_by("-pk").first())
 
 
+def _pair_conditions(pair):
+    """Las condiciones del grupo que sostiene el resultado del par (el que concluyó lo mismo que
+    el par, antes del contraste) o, si ninguno, las del primer grupo que las tiene."""
+    wanted = pair.combined.proposed or pair.combined.outcome
+    first = []
+    for group in pair.groups:
+        records = pair.conditions.get(group.index) or []
+        if not records:
+            continue
+        if group.result == wanted:
+            return records
+        first = first or records
+    return first
+
+
 def _save_pair(run, offer, pair, procedure):
     combined = pair.combined
+    facts = combined.facts
+    conditions = _pair_conditions(pair)
+    if conditions and pair.rule is None:
+        # Las condiciones del requisito, cada una con su dato, su cita y su resultado, para
+        # mostrarlas por separado en la celda (REQ-104). Si decidió una regla, no se muestran:
+        # la celda dice la regla.
+        facts = {**facts, "condiciones": conditions}
     result = Result.objects.create(
         run=run, offer=offer, requirement=pair.requirement, outcome=combined.outcome,
         doubt=combined.doubt, exigence=combined.exigence, explanation=combined.explanation,
-        unread_pages_warning=combined.unread_warning, facts=combined.facts,
+        unread_pages_warning=combined.unread_warning, facts=facts,
         opinion=combined.opinion, previous=pair.previous)
     order = 0
 
@@ -861,6 +1030,13 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
             if pair.rule:
                 ctx.report(f"Una regla fija decidió el requisito {pair.requirement.number}",
                            ctx.total, ctx.total)
+        # T-235 (REQ-105): la pregunta a la Comisión la arma el código con el requisito, la
+        # conclusión y el texto de la oferta, y la dirige a la Comisión.
+        titles = [d.document.title for d in offer_text.documents]
+        for pair in pairs:
+            pair.combined = replace(pair.combined, question=combine.compose_question(
+                pair.requirement.number, pair.text.text, pair.combined, documents=titles,
+                unread=offer_text.unread))
         ctx.report("Guardando la evaluación de la oferta", ctx.total, ctx.total)
         anomalies = [a for pair in pairs for a in pair.anomalies]
         if seen.errors:
@@ -890,8 +1066,10 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
                 channel=channel, documents=offer_text.record(),
                 norms=grounds.norms_record(version), models_used=_models(),
                 parameters=_parameters(),
+                # La versión de cada instrucción y la huella SHA-256 de su texto (P6, REQ-106).
                 prompt_versions={**settings.ASSESSMENT_PROMPT_VERSIONS,
-                                 "reglas": settings.ASSESSMENT_RULES_VERSION},
+                                 "reglas": settings.ASSESSMENT_RULES_VERSION,
+                                 "huellas": prompting.prompt_hashes()},
                 counts=counts,
                 timings=timings, anomalies=anomalies, built_at=timezone.now())
             saved = []

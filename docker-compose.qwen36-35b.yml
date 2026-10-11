@@ -1,0 +1,102 @@
+# Comparación de modelos de la 015 (ADR-0056, T-242): reemplaza TEMPORALMENTE el modelo de
+# `generation_batch` (el motor de las evaluaciones y las matrices) por Qwen3.6-35B-A3B
+# (mezcla de expertos), UD-IQ4_XS de Unsloth, con su proyector de imagen. No se usa
+# salvo en la comparación; el compose base sigue con el 12B. `generation`, `embeddings` y
+# `reranker` no cambian.
+#
+# Los archivos se bajan con `scripts/fetch_models.sh --qwen36-35b` (18,6 GB, revisión fijada y
+# huella verificada contra scripts/models.sha256). Detalle y cómo volver atrás:
+# specs/015-uso-y-eleccion-del-modelo/entorno.md.
+#
+# Uso (de a una medición, sin otra carga de la GPU; el Qwen3.6-35B-A3B no entra junto con el
+# `generation_batch` del 12B):
+#   docker compose -f docker-compose.yml -f docker-compose.qwen36-35b.yml up -d --no-deps generation_batch worker app
+# `app` y `worker` registran el modelo del lote (alias, archivo, huella y proyector) con las
+# variables `GENERATION_BATCH_*`; con este archivo las reciben del Qwen3.6-35B-A3B, así que hay que
+# recrearlos con los dos archivos para que lo registren (P6).
+# Para volver al 12B: recrear los mismos servicios solo con el compose base.
+#
+# Es igual al compose base salvo el modelo, el alias, el proyector y las dos banderas de la
+# caché de prefijo de abajo (tests/test_compose_env.py lo comprueba). El contexto sigue
+# siendo `GENERATION_BATCH_CTX_SIZE` (32.768), igual que en la medición del 12B. Sin
+# pensamiento (`--reasoning off`, `--reasoning-budget 0`) y con `--offline` (P4: el camino de
+# pliegos y ofertas no sale del equipo).
+
+x-qwen36-35b: &qwen36-35b
+  GENERATION_BATCH_MODEL_ALIAS: qwen3.6-35b-a3b-ud-iq4_xs
+  GENERATION_BATCH_MODEL_FILE: Qwen3.6-35B-A3B-UD-IQ4_XS.gguf
+  GENERATION_BATCH_MODEL_SHA256: 649d7508507b84638732c4f52c24c8b15843c6dca2f3ff793ae07c14a67ebbb3
+  GENERATION_BATCH_MMPROJ_FILE: mmproj-Qwen3.6-35B-A3B-F16.gguf
+  GENERATION_BATCH_MMPROJ_SHA256: 8971ee4f331ff0a4c609374f32984b3d4e6dc086c0aa35f1d637fad1829e887f
+
+services:
+  generation_batch:
+    # El `command` se escribe entero aquí (no depende de `.env`): usar este archivo es
+    # siempre el Qwen3.6-35B-A3B. Es el del compose base con el modelo, el alias y el
+    # proyector, más las banderas de la caché de prefijo.
+    command:
+      - --model
+      - /models/Qwen3.6-35B-A3B-UD-IQ4_XS.gguf
+      - --alias
+      - qwen3.6-35b-a3b-ud-iq4_xs
+      - --mmproj
+      - /models/mmproj-Qwen3.6-35B-A3B-F16.gguf
+      - --ctx-size
+      - "${GENERATION_BATCH_CTX_SIZE:-32768}"
+      - --parallel
+      - "1"
+      - --n-gpu-layers
+      - all
+      - --fit
+      - "off"
+      - --reasoning
+      - "off"
+      - --reasoning-budget
+      - "0"
+      # Caché de prefijo (ADR-0056, punto 4). el Qwen3.6-35B-A3B es un modelo híbrido
+      # (atención lineal con estado recurrente y mezcla de expertos): el servidor no puede recortar su
+      # memoria hasta el final de un prefijo común, solo volver a un punto de control
+      # guardado. En la compilación b11347 los puntos de control se crean al empezar un
+      # mensaje de usuario y 4 y 4 + `--ubatch-size` tokens antes del final del prompt; con
+      # un pedido de igual prefijo se vuelve al último punto de control que no pasa del
+      # prefijo común, y si no hay ninguno se reprocesa todo el prompt (incidencias 21831 y
+      # 23030 de llama.cpp). Lo que se declara aquí:
+      #  - `--ctx-checkpoints`: cuántos puntos de control guarda el servidor (por omisión
+      #    32). Ocupan memoria del equipo, no de video; T-245 mide cuánto.
+      #  - `--checkpoint-min-step`: separación mínima entre puntos de control, en tokens
+      #    (por omisión 8192). 1024 es el paliativo que usan para estos modelos, con otro
+      #    nombre (`--checkpoint-every-n-tokens`), los usuarios de llama.cpp; b11347 ya no
+      #    tiene esa bandera ni el 256 de `--ctx-checkpoints` que lo acompañaba, que aquí
+      #    guardaría decenas de GiB en la memoria del equipo.
+      # Si T-245 no llega al 90 % de reuso del prefijo, la palanca es `--ubatch-size`
+      # (mueve de lugar el punto de control del final, a costa de memoria de video): se
+      # prueba allí, se fija igual en la prueba y la comparación y se registra.
+      - --ctx-checkpoints
+      - "32"
+      - --checkpoint-min-step
+      - "1024"
+      # Tipo de la caché de claves y valores (por omisión f16): es la única variable de
+      # servicio que el ADR-0056 permite mover, y solo si el candidato no entra en 22.000
+      # MiB. Se descomenta en T-245 si hace falta, igual en la prueba y la comparación, y
+      # se registra:
+      # - --cache-type-k
+      # - q8_0
+      # - --cache-type-v
+      # - q8_0
+      # Tope del caché de pedidos en la memoria del equipo (T-090). Por omisión es 8192 MiB
+      # por servidor: dos servidores de generación lo llenan y el núcleo de WSL2 mata uno
+      # por falta de memoria, sin dejar error en el registro.
+      - --cache-ram
+      - "${GENERATION_CACHE_RAM:-2048}"
+      - --no-context-shift
+      - --offline
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+
+  worker:
+    environment: *qwen36-35b
+
+  app:
+    environment: *qwen36-35b

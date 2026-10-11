@@ -266,7 +266,7 @@ def test_suppressing_circular_leaves_the_requirement_removed_with_its_citation(
     assert requirement.state == "quitado"
     source = requirement.sources.get()
     assert source.effect == "suprime" and "sin efecto" in source.text
-    assert requirement.quotes.get().text == VISITA_QUOTE
+    assert requirement.quotes.get().text == VISITA  # la oración completa (REQ-101)
     page = matrix_page.matrix_page(operator_user, version.pk)
     removed = [r for r in page.removed if r.requirement == requirement]
     assert removed and [n.effect for n in removed[0].quotes[0].notes] == ["suprime"]
@@ -486,15 +486,21 @@ def test_the_proposal_records_the_circulars_and_the_instructions_used(operator_u
 
     version, run = run_proposal(operator_user, case)
 
-    assert run.prompt_versions["circulares"] == "matriz-circulares-v2"
+    assert run.prompt_versions["circulares"] == "matriz-circulares-v7"
     # T-127 (P6): la instrucción de la extracción de cambios también queda registrada.
-    assert run.prompt_versions["circulares_cambios"] == "matriz-circulares-v5"
+    assert run.prompt_versions["circulares_cambios"] == "matriz-circulares-v6"
+    assert set(run.prompt_versions["huellas"]) >= {"circulares", "circulares_cambios",
+                                                   "definiciones"}
     assert "circulares" in run.parameters["passes"]
     used = run.counts["circulars"]["documents"]
     assert [d["document"] for d in used] == [document.pk]
     assert used[0]["issued_on"] == "2025-12-01" and len(used[0]["sha256"]) == 64
     step = step_for("por 32 GB")
     assert step.request and step.raw_output and step.parsed["valida"] is True
+    # T-236 (REQ-102): el pedido de efectos de la circular lleva el bloque común de definiciones.
+    assert "QUÉ ES UN REQUISITO DE LA OFERTA" in step.request["messages"][0]["content"]
+    assert step.parsed["instruccion"]["version"] == "matriz-circulares-v7"
+    assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v2"
     event = AuditEvent.objects.get(event_type=EventType.MATRIX_PROPOSAL)
     assert event.detail["circulars"] == used
     assert event.detail["counts"]["circulars"]["effects"] == 1
@@ -538,7 +544,7 @@ def test_consequences_are_asked_on_the_current_text_with_the_original(operator_u
     assert "Texto vigente (según una circular):\n60 días corridos" in pago
     assert "Texto original del pliego:\n" in pago and PAGO in pago
     visita = next(b for b in blocks.values() if VISITA_QUOTE in b)
-    assert "Texto:\n" + VISITA_QUOTE in visita and "vigente" not in visita
+    assert "Texto:\n" + VISITA in visita and "vigente" not in visita
     ram = next(b for b in blocks.values() if "Renglón 1, especificaciones" in b)
     assert "Texto vigente (según una circular):\n32 GB de RAM" in ram and "16 GB" in ram
 
@@ -606,12 +612,12 @@ def test_a_clarification_does_not_change_the_current_text(operator_user, case, s
     requirement = requirement_with(version, VISITA_QUOTE)
     page = matrix_page.matrix_page(operator_user, version.pk)
     row = next(r for g in page.groups for r in g.rows if r.requirement == requirement)
-    assert row.quotes[0].current is None and row.quotes[0].text == VISITA_QUOTE
+    assert row.quotes[0].current is None and row.quotes[0].text == VISITA
     block = next(body for messages in script.consequence_calls
                  for _, body in re.findall(r"\[(R\d+)\]\n(.*?)\n\[/\1\]",
                                            messages[-1]["content"], re.DOTALL)
                  if VISITA_QUOTE in body)
-    assert "vigente" not in block and "Texto:\n" + VISITA_QUOTE in block
+    assert "vigente" not in block and "Texto:\n" + VISITA in block
 
 
 def test_disposition_with_effects_and_a_reason_at_once_is_rejected():
@@ -838,7 +844,7 @@ def test_the_active_circular_instructions_are_v2_and_v1_is_kept(settings):
     inventados (sin texto del caso de medición)."""
     from evaluon.tenders.proposal import extraction
 
-    assert settings.MATRIX_PROMPT_VERSIONS["circulares"] == "matriz-circulares-v2"
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares"] == "matriz-circulares-v7"
     v2 = extraction.load_prompt("circulares")
     assert "Donde dice" in v2 and "Debe decir" in v2
     assert "Contexto de la circular" in v2
@@ -872,3 +878,23 @@ def test_a_suppression_said_with_a_noun_or_an_infinitive_is_recognized(text):
 def test_a_noun_without_a_tender_object_is_not_a_suppression(text):
     """REQ-031 (T-129): un sustantivo de supresión sin objeto de pliego no cuenta."""
     assert not circulars.has_suppression_phrase(text)
+
+
+@pytest.mark.parametrize("name", ["circulares", "circulares_cambios"])
+def test_both_circular_instructions_include_the_common_definitions(name, settings):
+    """REQ-102, REQ-106 (verificación de T-236): las dos instrucciones de circulares llevan la marca
+    del bloque común en su archivo y el bloque en lo que ve el modelo; si una versión nueva se
+    publica sin la marca, esta prueba lo detecta."""
+    from evaluon.tenders.proposal import extraction
+
+    version = settings.MATRIX_PROMPT_VERSIONS[name]
+    raw = (extraction.PROMPTS_DIR / f"{version}.md").read_text(encoding="utf-8")
+    assert extraction.DEFINITIONS_MARK in raw, f"{version} no lleva la marca del bloque común"
+
+    instruction = extraction.load_instruction(name)
+
+    assert extraction.DEFINITIONS_MARK not in instruction.text
+    assert "QUÉ ES UN REQUISITO DE LA OFERTA" in instruction.text
+    assert "la moneda en que se cotiza la oferta" in instruction.text
+    assert instruction.definitions[0] == settings.MATRIX_PROMPT_VERSIONS["definiciones"]
+    assert instruction.record["definiciones"]["version"] == "matriz-definiciones-v2"

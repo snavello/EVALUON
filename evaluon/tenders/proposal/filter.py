@@ -2,9 +2,10 @@
 REQ-033, REQ-035; plan 003, "Filtro de precisión" y "Tres destinos en vez de dos";
 ADR-0021 y ADR-0022).
 
-Principio de la spec: un requisito que falta no lo evalúa nadie; ante la duda la fila se
-queda. Por eso el filtro nunca pierde una fila por una falla técnica ni por una sola
-respuesta del modelo.
+Principio de la spec: un requisito que falta no lo evalúa nadie. Por eso el filtro nunca pierde
+una fila por una falla técnica ni por una sola respuesta del modelo. Desde T-252 (ADR-0054,
+regla 6) la duda real **no mantiene la fila**: va a sugerencia, donde la Comisión la resuelve
+a la vista; el modelo ya no recibe un «ante la duda, mantené».
 
 **Qué filas.** Las formales y económicas que propuso el modelo, después de la unificación.
 No pasan por el filtro y quedan firmes: las filas técnicas y las de circulares (no están
@@ -14,10 +15,15 @@ de un tramo cuya sección el pliego titula como formal o económica (`section_cl
 **Dos preguntas, cada una en su pedido** (temperatura 0, salida estructurada con una
 propiedad obligatoria por alias; la segunda no ve la respuesta de la primera):
 
-- A (`filtro`): `mantener` o `descartar`; si descarta, un motivo de `FILTER_MOTIVES` y un
-  indicio, un fragmento literal del tramo que lo sostiene.
-- B (`filtro_2`): si la oferta puede presentar, ofrecer, comprometer, contradecir o
-  condicionar lo que dice el fragmento: `si`, `no` o `duda`.
+- A (`filtro`): `mantener`, `descartar` o `duda`; si descarta, un motivo de `FILTER_MOTIVES`
+  y un indicio, un fragmento literal del tramo que lo sostiene.
+- B (`filtro_2`): si lo que dice la fila es un requisito de la oferta según las definiciones del
+  responsable (bloque común), sin elegir un motivo: `si`, `no` o `duda`.
+
+Las dos respuestas empiezan con `razonamiento` (una oración, de hasta `REASONING_MAX_CHARS`
+caracteres): el modelo escribe en el orden del esquema, así que razona antes de decidir
+(ADR-0055) y el razonamiento queda guardado con la respuesta (P6) y a la vista de la Comisión
+(P3).
 
 **Destino** (`decide`, la tabla del plan; se aplica en código a las respuestas validadas):
 
@@ -26,11 +32,12 @@ propiedad obligatoria por alias; la segunda no ve la respuesta de la primera):
 | mantener | `si` | firme | |
 | mantener | `no` | sugerencia | `no_coinciden` |
 | mantener | `duda` | sugerencia | `duda` |
+| `duda` | cualquiera | sugerencia | `duda` |
 | descartar con motivo de la lista e indicio hallado | `no` | descartada | |
 | descartar con motivo de la lista e indicio hallado | `si` | sugerencia | `no_coinciden` |
 | descartar con motivo de la lista e indicio hallado | `duda` | sugerencia | `duda` |
 | descartar con motivo fuera de la lista o indicio que no está | cualquiera | sugerencia | `descarte_sin_sustento` |
-| una sola respuesta válida: `descartar`, `no` o `duda` | | sugerencia | `opinion_incompleta` |
+| una sola respuesta válida: `descartar`, `duda` (A) o `no`, `duda` (B) | | sugerencia | `opinion_incompleta` |
 | una sola respuesta válida: `mantener` o `si`; o ninguna válida | | firme, con la anomalía | |
 
 Guarda en código (T-125, REQ-024): una fila descartada que comparte oración con una fila
@@ -62,7 +69,17 @@ from evaluon.tenders.proposal import dedup, extraction, quotes
 from evaluon.tenders.proposal.completeness import passes_of
 from evaluon.tenders.proposal.extraction import BODY_CLASSES
 
-RULE_VERSION = "filtro-v3"
+# Las funciones de oración viven en `sentences.py` (T-234); acá se importan con los mismos
+# nombres para quien las llamaba desde este módulo.
+from evaluon.tenders.proposal.sentences import (  # noqa: F401
+    ABBREVIATIONS,
+    SENTENCE_END,
+    _sentence_ends,
+    sentence_bounds,
+    sentence_range,
+)
+
+RULE_VERSION = "filtro-v4"
 
 FIRME = "firme"
 SUGERENCIA = "sugerencia"
@@ -70,6 +87,10 @@ DESCARTADA = "descartada"
 
 KEEP, DISCARD = "mantener", "descartar"
 YES, NO, DOUBT = "si", "no", "duda"
+
+# Largo máximo del razonamiento de cada respuesta (ADR-0055, regla 2): lo fija el esquema y lo dice
+# la instrucción.
+REASONING_MAX_CHARS = 400
 
 ANOMALY_CUT = "filtro_salida_cortada"
 ANOMALY_INVALID = "filtro_salida_invalida"
@@ -173,10 +194,9 @@ def candidates(body, repeated=None):
 # --- Instrucciones, esquemas y pedido -------------------------------------------------------------
 
 
-def load_prompts():
-    """`(instrucciones de A, instrucciones de B)`: la parte común más la de cada pregunta,
-    del archivo de la versión que fija `MATRIX_PROMPT_VERSIONS["filtro"]`."""
-    text = extraction.load_prompt("filtro")
+def split_prompts(text):
+    """`(instrucciones de A, instrucciones de B)` de un texto con las partes `# COMÚN`,
+    `# PREGUNTA A` y `# PREGUNTA B`: la parte común más la de cada pregunta."""
     marks = list(_PART.finditer(text))
     parts = {}
     for index, mark in enumerate(marks):
@@ -186,15 +206,26 @@ def load_prompts():
     return (f"{common}\n\n{parts['PREGUNTA A']}", f"{common}\n\n{parts['PREGUNTA B']}")
 
 
+def load_prompts():
+    """`(instrucciones de A, instrucciones de B)` del archivo de la versión que fija
+    `MATRIX_PROMPT_VERSIONS["filtro"]`, con el bloque común de definiciones incluido."""
+    return split_prompts(extraction.load_prompt("filtro"))
+
+
+# El razonamiento es la primera propiedad de cada respuesta (ADR-0055, regla 1).
+_REASONING = {"type": "string", "maxLength": REASONING_MAX_CHARS}
+
+
 def schema_a(aliases):
     item = {
         "type": "object",
         "properties": {
-            "decision": {"type": "string", "enum": [KEEP, DISCARD]},
+            "razonamiento": _REASONING,
+            "decision": {"type": "string", "enum": [KEEP, DISCARD, DOUBT]},
             "motivo": {"type": "string", "enum": ["", *settings.FILTER_MOTIVES]},
             "indicio": {"type": "string"},
         },
-        "required": ["decision", "motivo", "indicio"],
+        "required": ["razonamiento", "decision", "motivo", "indicio"],
         "additionalProperties": False,
     }
     return _schema(aliases, item)
@@ -203,8 +234,11 @@ def schema_a(aliases):
 def schema_b(aliases):
     item = {
         "type": "object",
-        "properties": {"respuesta": {"type": "string", "enum": [YES, NO, DOUBT]}},
-        "required": ["respuesta"],
+        "properties": {
+            "razonamiento": _REASONING,
+            "respuesta": {"type": "string", "enum": [YES, NO, DOUBT]},
+        },
+        "required": ["razonamiento", "respuesta"],
         "additionalProperties": False,
     }
     return _schema(aliases, item)
@@ -222,21 +256,24 @@ def _schema(aliases, item):
 def shape_a(raw):
     """La respuesta de A con la forma comprobada. Lanza `InvalidItem`. El motivo y el
     indicio se comprueban después (`decide`): uno fuera de lista no invalida la respuesta."""
-    if not isinstance(raw, dict) or set(raw) != {"decision", "motivo", "indicio"}:
-        raise InvalidItem("no es un objeto con decision, motivo e indicio")
-    if raw["decision"] not in (KEEP, DISCARD):
-        raise InvalidItem("decision no es mantener ni descartar")
-    if not isinstance(raw["motivo"], str) or not isinstance(raw["indicio"], str):
-        raise InvalidItem("motivo e indicio tienen que ser texto")
-    return {"decision": raw["decision"], "motivo": raw["motivo"], "indicio": raw["indicio"]}
+    if not isinstance(raw, dict) or set(raw) != {"razonamiento", "decision", "motivo", "indicio"}:
+        raise InvalidItem("no es un objeto con razonamiento, decision, motivo e indicio")
+    if raw["decision"] not in (KEEP, DISCARD, DOUBT):
+        raise InvalidItem("decision no es mantener, descartar ni duda")
+    if not all(isinstance(raw[key], str) for key in ("razonamiento", "motivo", "indicio")):
+        raise InvalidItem("razonamiento, motivo e indicio tienen que ser texto")
+    return {"razonamiento": raw["razonamiento"], "decision": raw["decision"],
+            "motivo": raw["motivo"], "indicio": raw["indicio"]}
 
 
 def shape_b(raw):
-    if not isinstance(raw, dict) or set(raw) != {"respuesta"}:
-        raise InvalidItem("no es un objeto con respuesta")
+    if not isinstance(raw, dict) or set(raw) != {"razonamiento", "respuesta"}:
+        raise InvalidItem("no es un objeto con razonamiento y respuesta")
     if raw["respuesta"] not in (YES, NO, DOUBT):
         raise InvalidItem("respuesta no es si, no ni duda")
-    return {"respuesta": raw["respuesta"]}
+    if not isinstance(raw["razonamiento"], str):
+        raise InvalidItem("razonamiento tiene que ser texto")
+    return {"razonamiento": raw["razonamiento"], "respuesta": raw["respuesta"]}
 
 
 def marked_text(row):
@@ -247,13 +284,16 @@ def marked_text(row):
 
 
 def render_block(alias, row):
-    """La fila tal como la ve el modelo: alias, documento, ruta, clase propuesta, fragmento
-    y texto del tramo con el fragmento marcado."""
+    """La fila tal como la ve el modelo: alias, documento, ruta, encabezado del punto (si la
+    oración sola no se entiende), clase propuesta, fragmento y el punto completo, el texto del
+    tramo, con el fragmento marcado."""
     segment = row.segment
+    heading = getattr(row.unit, "heading", "")
     return "\n".join([
         f"[{alias}]",
         f"Documento: {row.unit.document_title}",
         f"Ruta: {segment.path or segment.label or segment.key}",
+        *([f"Encabezado: {heading}"] if heading else []),
         f"Clase propuesta: {_CLASS_LABELS.get(row.found.category, row.found.category)}",
         "Fragmento:",
         row.text,
@@ -335,7 +375,7 @@ def decide(row, a, b):
         verdict.anomaly = ANOMALY_NO_OPINION
         return verdict
     if a is None or b is None:
-        only = a["decision"] if a is not None else b["respuesta"]
+        only = a["decision"] if a is not None else b["respuesta"]  # mantener, descartar, duda, si, no
         if only in (KEEP, YES):
             verdict.anomaly = ANOMALY_ONE_OPINION
             return verdict
@@ -345,6 +385,11 @@ def decide(row, a, b):
         return verdict
 
     answer = b["respuesta"]
+    if a["decision"] == DOUBT:
+        # La duda real de A no mantiene la fila: va a sugerencia (ADR-0054, regla 6).
+        verdict.destination = SUGERENCIA
+        verdict.doubt_reason = "duda"
+        return verdict
     if a["decision"] == KEEP:
         if answer != YES:
             verdict.destination = SUGERENCIA
@@ -364,56 +409,7 @@ def decide(row, a, b):
     return verdict
 
 
-SENTENCE_END = re.compile(r"[.!?]\s+")
-_WORD_BEFORE = re.compile(r"([^\W\d_]+(?:\.[^\W\d_]+)*)\.$")
-
-# Abreviaturas que no terminan la oración aunque lleven punto y espacio detrás (en
-# minúscula y sin el punto final); una inicial suelta ("S.A.", "J. Pérez") tampoco la termina.
-ABBREVIATIONS = frozenset({
-    "art", "arts", "inc", "incs", "dec", "decs", "res", "disp", "nro", "nros", "núm", "num",
-    "cap", "apdo", "pto", "ptos", "pág", "pag", "págs", "ap", "cód", "cod", "ej", "dto",
-    "lic", "dr", "dra", "ing", "sr", "sra", "ref", "vs", "s.a", "s.r.l", "s.a.s", "c.u.i.t",
-    "cons", "pár", "par", "anex", "exp", "expte", "fs", "tít", "tit", "sec", "ss", "cfr",
-})
 ANOMALY_SHARED_SENTENCE = "filtro_comparte_oracion"
-
-
-def _sentence_ends(text):
-    """Las posiciones donde empieza una oración nueva: tras `.`, `!` o `?` y espacio,
-    salvo cuando el punto cierra una abreviatura conocida o una inicial."""
-    ends = []
-    for mark in SENTENCE_END.finditer(text):
-        if text[mark.start()] == ".":
-            word = _WORD_BEFORE.search(text[:mark.start() + 1])
-            if word:
-                lower = word.group(1).lower()
-                if lower in ABBREVIATIONS or all(len(p) == 1 for p in lower.split(".")):
-                    continue
-        ends.append(mark.end())
-    return ends
-
-
-def sentence_range(text, span):
-    """Las oraciones del texto canónico del tramo que toca `span`, como `(primera, última)`.
-    Una oración termina en un punto, un cierre de exclamación o de pregunta seguido de
-    espacio, salvo tras una abreviatura (`ABBREVIATIONS`) o una inicial; las posiciones son
-    las del texto del tramo."""
-    ends = _sentence_ends(text)
-    first = sum(1 for end in ends if end <= span[0])
-    last = sum(1 for end in ends if end < span[1])
-    return first, last
-
-
-def sentence_bounds(text, position):
-    """`(inicio, fin)` de la oración del tramo que contiene `position`, sin los espacios de
-    los bordes."""
-    ends = _sentence_ends(text)
-    start = max([end for end in ends if end <= position], default=0)
-    stop = min([end for end in ends if end > position], default=len(text))
-    chunk = text[start:stop]
-    start += len(chunk) - len(chunk.lstrip())
-    stop -= len(chunk) - len(chunk.rstrip())
-    return start, stop
 
 
 def protect_shared_sentences(verdicts):
@@ -469,7 +465,8 @@ class Filter:
 
     def __init__(self, run):
         self.run = run
-        self.prompt_a, self.prompt_b = load_prompts()
+        self.instruction = extraction.load_instruction("filtro")
+        self.prompt_a, self.prompt_b = split_prompts(self.instruction.text)
         self.steps = []
         self.anomalies = []
         self.stats = {"requests": 0, "requests_a": 0, "requests_b": 0, "split_batches": 0,
@@ -480,7 +477,8 @@ class Filter:
         self._batch[name] += 1
         step = RunStep.objects.create(
             run=self.run, pass_name=name, batch=self._batch[name], segment_keys=keys,
-            request=result["request"], raw_output=result["content"], parsed=parsed,
+            request=result["request"], raw_output=result["content"],
+            parsed=extraction.with_instruction(parsed, self.instruction),
             anomalies=anomalies, retry_of=retry_of,
             timings={"seconds": round(seconds, 3),
                      "prompt_tokens": result["prompt_tokens"],
@@ -509,7 +507,7 @@ class Filter:
             self.stats["failed_requests"] += 1
             step = self._record(
                 name,
-                {"request": generation.build_request(messages, schema, max_tokens),
+                {"request": generation.build_batch_request(messages, schema, max_tokens),
                  "content": "", "prompt_tokens": None, "completion_tokens": None},
                 parsed=None, retry_of=retry_of, seconds=time.monotonic() - started,
                 keys=keys,
@@ -568,8 +566,9 @@ class Filter:
         return [(answer, step) for answer in answers]
 
     def filter_rows(self, rows):
-        """Pregunta A y pregunta B de cada lote de `FILTER_BATCH_ROWS` filas, y reparte
-        cada fila. Devuelve el `Result`."""
+        """Pregunta A y pregunta B de cada lote de `FILTER_BATCH_ROWS` filas (de 5 a 8: con
+        lotes de 15 el modelo contestaba lo mismo a todas), y reparte cada fila. Devuelve el
+        `Result`."""
         size = max(settings.FILTER_BATCH_ROWS, 1)
         verdicts = []
         for at in range(0, len(rows), size):
