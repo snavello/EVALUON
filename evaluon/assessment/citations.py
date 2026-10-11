@@ -14,9 +14,11 @@ oración supera `ASSESSMENT_CITATION_MAX_CHARS` queda el fragmento con la anomal
 La cita guardada sigue siendo un recorte contiguo del texto canónico. Las oraciones vecinas de la
 misma página (`context_of`) son el contexto que ve el contraste.
 
-NOTA (T-235): la lectura de oraciones de este módulo es mínima y propia (`_boundaries`) porque
-`evaluon/tenders/proposal/sentences.py` (T-234) todavía no está en esta rama; al integrar, se
-reemplaza por `sentences.expand_to_sentence` y se borra `_boundaries`.
+T-237: la oración y su unidad de sentido (las oraciones cortas contiguas que siguen el mismo
+asunto) las lee `evaluon/tenders/proposal/sentences.py`, el mismo módulo que usa la matriz (T-234):
+`expand_to_sentence` para la cita y `sentence_bounds` para el contexto. Se aplican sobre una
+ventana de texto alrededor de la cita (`WINDOW_CHARS`) y no sobre el documento entero: leer las
+oraciones de un documento de cien mil caracteres cada vez que se ubica una cita sería muy lento.
 
 El texto canónico se arma de nuevo desde la lectura guardada una vez por lectura (como la
 pantalla de la matriz); si no coincide con el guardado, la página sale de los pasajes, que
@@ -31,7 +33,7 @@ from django.conf import settings
 from evaluon.norms.splitting.canonical import build_canonical_text
 from evaluon.offers.models import Passage
 from evaluon.offers.reading import rebuild_reading
-from evaluon.tenders.proposal import quotes
+from evaluon.tenders.proposal import quotes, sentences
 
 ANOMALY_NOT_FOUND = "cita_no_ubicada"
 ANOMALY_UNKNOWN_ALIAS = "alias_inexistente"
@@ -145,56 +147,34 @@ class PageFinder:
         return min(pages) if pages else None
 
 
-# --- Oraciones (T-235; ver la nota del módulo) --------------------------------------------------
+# --- Oraciones (T-235, T-237; ver la nota del módulo) -------------------------------------------
 
-_SENTENCE_END = re.compile(r"[.!?]\s+")
-_WORD_BEFORE = re.compile(r"([^\W\d_]+(?:\.[^\W\d_]+)*)\.$")
-_NEW_SENTENCE = re.compile(r"[A-ZÁÉÍÓÚÑÜ0-9¿¡«\"(\[]")
-_ABBREVIATIONS = frozenset({
-    "art", "arts", "inc", "incs", "dec", "decs", "res", "disp", "nro", "nros", "núm", "num",
-    "cap", "apdo", "pto", "ptos", "pág", "pag", "págs", "ap", "cód", "cod", "ej", "dto",
-    "lic", "dr", "dra", "ing", "sr", "sra", "ref", "vs", "s.a", "s.r.l", "s.a.s", "c.u.i.t",
-    "cons", "pár", "par", "anex", "exp", "expte", "fs", "tít", "tit", "sec", "ss", "cfr",
-})
-
-
-def _boundaries(text):
-    """Las posiciones donde empieza una oración nueva: tras `.`, `!` o `?` y espacio, si lo que
-    sigue empieza como una oración (mayúscula, número o apertura) y el punto no cierra una
-    abreviatura conocida ni una inicial."""
-    found = []
-    for mark in _SENTENCE_END.finditer(text):
-        if mark.end() < len(text) and not _NEW_SENTENCE.match(text[mark.end()]):
-            continue
-        if text[mark.start()] == ".":
-            word = _WORD_BEFORE.search(text[:mark.start() + 1])
-            if word:
-                lower = word.group(1).lower()
-                if lower in _ABBREVIATIONS or all(len(p) == 1 for p in lower.split(".")):
-                    continue
-        found.append(mark.end())
-    return found
-
-
-def _trim(text, start, end):
-    chunk = text[start:end]
-    return start + len(chunk) - len(chunk.lstrip()), end - (len(chunk) - len(chunk.rstrip()))
+# Cuántos caracteres a cada lado de la cita se leen para encontrar sus oraciones. Una oración que
+# pasa de `ASSESSMENT_CITATION_MAX_CHARS` no se usa, así que alcanza de sobra.
+WINDOW_CHARS = 3000
 
 
 def widen(text, span):
-    """`(inicio, fin)` de las oraciones del texto canónico que toca `span`, sin los espacios de
-    los bordes: la oración entera de cada punta."""
-    bounds = _boundaries(text)
-    start = max([b for b in bounds if b <= span[0]], default=0)
-    end = min([b for b in bounds if b >= span[1]], default=len(text))
-    return _trim(text, start, end)
+    """`(inicio, fin, unidad, demasiado_larga)` de la unidad de sentido del texto canónico que
+    contiene `span`: sus oraciones completas y las oraciones cortas contiguas que siguen el mismo
+    asunto (`sentences.expand_to_sentence`), sin los espacios de los bordes. `unidad` es la que
+    calculó el sistema (o `None`); `demasiado_larga` es verdadero si pasa del largo máximo de una
+    cita y quedan el inicio y el fin del fragmento."""
+    low = max(0, span[0] - WINDOW_CHARS)
+    high = min(len(text), span[1] + WINDOW_CHARS)
+    found = sentences.expand_to_sentence(text[low:high], (span[0] - low, span[1] - low))
+    unit = None if found.unit is None else (found.unit[0] + low, found.unit[1] + low)
+    return found.span[0] + low, found.span[1] + low, unit, found.too_long
 
 
 def _sentence_at(text, position):
     """`(inicio, fin)` de la oración que contiene `position`, o `None` si es un espacio."""
     if not 0 <= position < len(text) or text[position].isspace():
         return None
-    return widen(text, (position, position + 1))
+    low = max(0, position - WINDOW_CHARS)
+    high = min(len(text), position + WINDOW_CHARS)
+    start, stop = sentences.sentence_bounds(text[low:high], position - low)
+    return start + low, stop + low
 
 
 def context_of(found, finder, max_chars=CONTEXT_MAX_CHARS):
@@ -235,15 +215,15 @@ def _make(document, reading, span, finder, anomalies, used, expand=False):
     decir su página. Con `expand`, `span` se amplía a la oración completa (T-235)."""
     fragment = span
     if expand:
-        wide = widen(reading.canonical_text, span)
-        if wide[1] - wide[0] > settings.ASSESSMENT_CITATION_MAX_CHARS:
+        start, end, unit, too_long = widen(reading.canonical_text, span)
+        if too_long:
             anomalies.append({"type": ANOMALY_WIDE_SENTENCE, "document": document.pk,
-                              "chars": wide[1] - wide[0]})
-        elif (finder.page_of(reading, wide[0], wide[0] + 1)
+                              "chars": (unit[1] - unit[0]) if unit else end - start})
+        elif (finder.page_of(reading, start, start + 1)
               == finder.page_of(reading, span[0], span[0] + 1)):
             # Una oración que arranca en otra página (un título o un pie sin punto antes) no se
             # une al fragmento: la cita sigue en la página donde el modelo la señaló.
-            span = wide
+            span = (start, end)
     if (document.pk, *span) in used:
         anomalies.append({"type": ANOMALY_REPEATED, "document": document.pk})
         return None

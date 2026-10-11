@@ -7,6 +7,7 @@ import sys
 from io import StringIO
 
 import pytest
+from django.conf import settings
 from django.core.management import call_command
 from django.db import connection
 from django.core.management.base import CommandError
@@ -719,9 +720,9 @@ def test_everything_the_model_was_asked_is_recorded(offer, operator_user, proced
     assert step.documents[0]["tokens"] > 0 and step.prompt_tokens is not None
     assert step.request["response_format"]["type"] == "json_schema"
     assert run.models_used["generation_batch"]["context_tokens"] == 32768
-    assert run.prompt_versions == {
-        "evaluacion": "evaluacion-v5", "contraste": "contraste-v2", "clausulas": "clausulas-v2",
-        "reglas": "reglas-v9"}
+    versions = dict(run.prompt_versions)
+    assert set(versions.pop("huellas")) == {"evaluacion", "contraste", "clausulas"}  # T-237
+    assert versions == {**settings.ASSESSMENT_PROMPT_VERSIONS, "reglas": "reglas-v9"}
     assert run.parameters["rules_version"] == "reglas-v9"
     assert run.parameters["group_tokens"] == 20000
     assert run.norms["matrix_version"] == 1 and run.norms["authorization_date"]

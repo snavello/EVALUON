@@ -318,7 +318,7 @@ def batches(units):
     limit = settings.MATRIX_BATCH_INPUT_TOKENS
     result, current, total = [], [], 0
     for unit in units:
-        tokens = generation.count_tokens(render_block("T00", unit))
+        tokens = generation.count_tokens_batch(render_block("T00", unit))
         if current and total + tokens > limit:
             result.append(current)
             current, total = [], 0
@@ -562,7 +562,7 @@ class Extractor:
         except AIServiceError as error:
             self._record(
                 units,
-                {"request": generation.build_request(messages, schema, max_tokens),
+                {"request": generation.build_batch_request(messages, schema, max_tokens),
                  "content": "", "prompt_tokens": None, "completion_tokens": None},
                 parsed=None,
                 anomalies=[{"type": ANOMALY_SERVICE, "reason": error.reason,

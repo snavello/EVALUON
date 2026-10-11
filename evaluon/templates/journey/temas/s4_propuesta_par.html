@@ -44,6 +44,8 @@
   <div class="bloque">
     <div class="bloque-cab"><h3>Propuesta del sistema</h3></div>
     <p><span class="suave">Explicación del sistema (no es texto de la oferta ni del pliego):</span> {{ page.result.explanation|default:"sin explicación" }}</p>
+    {% if conditions %}<div class="condiciones"><span class="suave">Condiciones del requisito, una por una (cada una con su dato y su resultado):</span>
+      <ul class="lista-condiciones">{% for k in conditions %}<li>{% include "journey/_icono.html" with icon=k.icon name=k.name %} <b>{{ k.name }}</b> · {{ k.text }} <span class="suave">· {% if k.datum %}dato: {{ k.datum }}{% else %}sin dato{% endif %}</span>{% if k.where %} <span class="registro">({{ k.where }})</span>{% endif %}</li>{% endfor %}</ul></div>{% endif %}
     {% if technical %}
     <div class="bloque-pie"><span class="suave">Esta fila se decide con el ok del informe técnico del área.</span></div>
     {% elif can_decide %}

@@ -202,7 +202,7 @@ def batches(candidates):
     limit = settings.MATRIX_BATCH_INPUT_TOKENS
     result, current, total = [], [], 0
     for candidate in candidates:
-        tokens = generation.count_tokens(render_block("T00", candidate))
+        tokens = generation.count_tokens_batch(render_block("T00", candidate))
         if current and total + tokens > limit:
             result.append(current)
             current, total = [], 0
@@ -291,7 +291,7 @@ class Completer:
             output = generation.generate_batch(messages, schema, max_tokens=max_tokens)
         except AIServiceError as error:
             self._record(
-                {"request": generation.build_request(messages, schema, max_tokens),
+                {"request": generation.build_batch_request(messages, schema, max_tokens),
                  "content": "", "prompt_tokens": None, "completion_tokens": None},
                 parsed=None, retry_of=retry_of, seconds=time.monotonic() - started,
                 keys=keys,
