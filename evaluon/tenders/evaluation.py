@@ -70,7 +70,7 @@ umbrales"):
   2026-10-10.
 - Pedazos sin sujeto: comprobación mecánica; la cita tiene que empezar donde empieza una
   oración y terminar donde termina una oración (`piece_problem`, con las oraciones de
-  `proposal.filter`). Umbral: 0.
+  `proposal.sentences`). Umbral: 0.
 - Recall sobre la lista sin las entradas excluidas (95 % o más). Las exclusiones están en un
   archivo aparte (`exclusiones.yaml`), con la huella de la lista a la que se refieren y el
   visto bueno del Coordinador; la lista esperada no se toca. La medida informa cuántas
@@ -104,7 +104,7 @@ from evaluon.queries.evaluation import proportion_text  # usa el Wilson de la 00
 from evaluon.tenders import models as m
 from evaluon.tenders.proposal import quotes
 from evaluon.tenders.proposal import run as proposal
-from evaluon.tenders.proposal.filter import sentence_bounds
+from evaluon.tenders.proposal.sentences import expand_to_sentence, sentence_spans
 from evaluon.tenders.services import matrix as matrix_service
 
 OPERATION = "evaluon.tenders.evaluation.measure"
@@ -742,30 +742,47 @@ def _quote_state(reading, segment, quote):
 def piece_problem(text, start, end):
     """Si la cita `[start, end)` del `text` de su tramo es un pedazo (REQ-101, T-238).
 
-    Comprobación mecánica: una cita completa empieza donde empieza una oración y termina donde
-    termina una oración del tramo (si abarca varias, la primera empieza y la última termina en
-    su límite). Devuelve `None` si es completa, o `"empieza_en_medio"`, `"termina_en_medio"` o
-    `"vacia"`. Las oraciones se separan como en el filtro (`proposal.filter.sentence_bounds`:
-    abreviaturas e iniciales no terminan la oración)."""
+    Comprobación mecánica con la unidad de sentido de T-234 (`proposal.sentences`): una cita
+    completa empieza donde empieza una oración (o al comienzo del tramo, con su número de
+    cláusula), termina donde termina una oración y es la unidad que calcula el sistema: ni
+    arranca con una oración que continúa a la anterior («Deberán…», «La misma…») ni deja
+    afuera la corta que la continúa. Devuelve `None` si es completa o el problema:
+    `"empieza_en_medio"`, `"termina_en_medio"`, `"sin_sujeto"` (empieza con una oración que
+    sigue el asunto de la anterior), `"separa_condiciones"` (deja afuera la oración corta que
+    sigue el asunto) o `"vacia"`. Un texto sin oraciones (una tabla) no tiene límites que
+    comprobar."""
     chunk = text[start:end]
     if not chunk.strip():
         return "vacia"
     first = start + len(chunk) - len(chunk.lstrip())
     last = end - (len(chunk) - len(chunk.rstrip()))
-    if sentence_bounds(text, first)[0] != first:
+    spans = sentence_spans(text)
+    if not spans:
+        return None
+    if first != 0 and first not in {begin for begin, _ in spans}:
         return "empieza_en_medio"
-    if sentence_bounds(text, last - 1)[1] != last:
+    if last not in {finish for _, finish in spans}:
         return "termina_en_medio"
+    unit = expand_to_sentence(text, (first, last), max_chars=len(text)).unit
+    if unit is None:
+        return None
+    if unit[0] < first:
+        return "sin_sujeto"
+    if unit[1] > last:
+        return "separa_condiciones"
     return None
 
 
 def pieces_of(proposed):
     """Los pedazos de las filas firmes: `[(fila, tramo, problema)]` y la cantidad de citas
-    revisadas. Una cita se revisa dentro del texto de su propio tramo."""
+    revisadas (las de un tramo de tabla no se revisan). Una cita se revisa dentro del texto de
+    su propio tramo."""
     found, checked = [], 0
     for row in proposed:
         for quote in row.quotes:
             segment = quote.segment
+            if segment.segment_type == m.SegmentType.TABLA:
+                continue  # el texto de una tabla no tiene oraciones: la cita queda en la celda
             checked += 1
             problem = piece_problem(segment.text, quote.char_start - segment.char_start,
                                     quote.char_end - segment.char_start)

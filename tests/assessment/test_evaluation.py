@@ -14,6 +14,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 
 from evaluon.accounts import permissions
+from evaluon.assessment import combine
 from evaluon.assessment import evaluation as ev
 from evaluon.assessment import models as am
 from tests.assessment.fakes import (  # noqa: F401 - `model` es fixture
@@ -1016,6 +1017,51 @@ GOOD_QUESTION = (
     f"Requisito: «{REQUIREMENT}» El sistema concluyó «no determinado» (sin corroborar) con este "
     f"texto de la oferta (oferta.pdf, página 3): «{OFFER_TEXT}» ¿La Comisión confirma, corrige o "
     "rechaza esa conclusión?")
+
+
+def _composed(doubt, *, with_cite=True, question="", **fields):
+    """La pregunta tal como la arma `combine.compose_question` (T-235), con su texto real."""
+    cite = types.SimpleNamespace(text=OFFER_TEXT, page=3,
+                                 document=types.SimpleNamespace(title="oferta.pdf"))
+    combined = combine.Combined(
+        outcome="no_determinado", doubt=doubt, ask=True, question=question,
+        explanation="El contraste no pudo confirmarlo con el texto citado.",
+        citations=[cite] if with_cite else [], **fields)
+    return combine.compose_question(29, REQUIREMENT, combined, documents=["oferta.pdf"],
+                                    unread=[{"title": "oferta.pdf", "page": 2}])
+
+
+@pytest.mark.parametrize("doubt, fields, with_cite, question", [
+    ("sin_corroborar", {"proposed": "cumple"}, True, ""),
+    ("sin_corroborar", {"proposed": "no_cumple"}, True, ""),
+    ("sin_dato", {}, True, ""),
+    ("lectura_incompleta", {}, False, ""),
+    ("sin_dato", {}, False, ""),
+    ("duda", {}, True, "¿Desde cuándo corre el plazo de sesenta días?"),
+    ("duda", {}, True, "¿La Comisión acepta la póliza presentada por el oferente?"),
+])
+def test_the_questions_that_the_system_composes_are_conforming(doubt, fields, with_cite,
+                                                               question):
+    """REQ-105: la forma comprobada coincide con la que arma `combine.compose_question` (T-235):
+    Requisito, Conclusión del sistema, Texto de la oferta y el cierre, con o sin cita. Lo que el
+    pliego y la oferta dicen del oferente («el oferente deberá…») no cuenta como dirigido a él."""
+    text = _composed(doubt, with_cite=with_cite, question=question, **fields)
+    assert len(text.splitlines()) == 4
+
+    form = _form(text, offer_texts=[OFFER_TEXT] if with_cite else [])
+
+    assert form["conforme"] is True, (text, form)
+
+
+def test_a_composed_question_closed_with_a_request_to_the_bidder_is_not_conforming():
+    """REQ-105: el control mecánico no depende del que usa `compose_question`: una pregunta de
+    ese formato cuya línea de cierre le pide algo al oferente no es conforme."""
+    lines = _composed("sin_corroborar", proposed="cumple").splitlines()
+    for closing in ("¿Podría el oferente aclarar el monto de la póliza?",
+                    "Solicitamos al oferente que presente la póliza.",
+                    "Por favor, indique usted el monto."):
+        form = _form("\n".join([*lines[:3], closing]))
+        assert form["dirigida_ok"] is False and form["conforme"] is False
 
 
 def test_a_question_with_requirement_conclusion_text_and_the_commission_is_conforming():

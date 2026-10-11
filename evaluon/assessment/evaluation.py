@@ -171,9 +171,15 @@ ADDRESSED_TO_BIDDER = re.compile(
     r"|\boferente\b\s+(?:deber[aá]|debe|tendr[aá]|podr[aá])\b"
     r"|\b(?:al|a\s+la)\s+(?:oferente|firma|empresa)\b[^.?!]{0,40}\b(?:aclare|aclarar|"
     r"presente|presentar|informe|informar|acompañe|acompañar|adjunte|adjuntar|indique|indicar)"
-    r"|^\W*(?:aclare|presente|informe|acompañe|adjunte|indique|env[ií]e|confirme)\b",
+    r"|^\W*(?:aclare|presente|informe|acompañe|adjunte|indique|env[ií]e|confirme)\b"
+    r"|\busted(?:es)?\b|\bpor\s+favor\b",
     re.IGNORECASE)
 COMMISSION = re.compile(r"\bcomisi[oó]n\b", re.IGNORECASE)
+# Las líneas que `combine.compose_question` rotula (T-235): el requisito, la conclusión del
+# sistema y el texto de la oferta. Lo que dicen es del pliego, del sistema o de la oferta; lo que
+# la pregunta le pide a alguien es el resto (la línea de cierre).
+LABELED_LINE = re.compile(
+    r"^\s*(?:requisito\s+\d+|conclusi[oó]n del sistema|texto de la oferta)\s*:", re.IGNORECASE)
 NO_OFFER_TEXT = re.compile(
     r"no\s+(?:se\s+)?(?:encontr|consta|hay|figura)|sin\s+texto|ning[uú]n", re.IGNORECASE)
 # Mínimos que piden «más de» (la spec: coincidencia de más del 80 % en el caso-00).
@@ -863,7 +869,9 @@ def question_form(text, *, requirement_text, requirement_number, outcome_label, 
                else bool(NO_OFFER_TEXT.search(text or "")))
     # Lo que la pregunta cita del pliego o de la oferta no cuenta: «El oferente deberá…» es del
     # requisito, no un pedido de la pregunta.
-    own = re.sub(r"«[^»]*»", " ", text or "")
+    own = "\n".join(line for line in (text or "").splitlines()
+                    if not LABELED_LINE.match(line))
+    own = re.sub(r"«[^»]*»", " ", own)
     for quoted in [requirement_text, *offer_texts]:
         own = own.replace(quoted, " ") if quoted else own
     directed = not ADDRESSED_TO_BIDDER.search(own)
@@ -882,8 +890,11 @@ def question_records(run):
         result = question.result
         first = question.requirement.quotes.order_by("order").first()
         requirement_text = first.text if first else ""
-        offer_texts = list(result.citations.filter(kind=am.CitationKind.OFERTA)
-                           .order_by("order").values_list("text", flat=True))
+        # El texto que motiva la pregunta: lo citado de la oferta o, si solo hay, el dato del
+        # Portal (`combine._evidence`).
+        offer_texts = list(result.citations.filter(
+            kind__in=(am.CitationKind.OFERTA, am.CitationKind.PORTAL))
+            .order_by("kind", "order").values_list("text", flat=True))
         doubt = am.Doubt(result.doubt).label if result.doubt else ""
         form = question_form(
             question.text, requirement_text=requirement_text,

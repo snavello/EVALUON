@@ -2242,22 +2242,31 @@ def write_exclusions(path, expected, entries, *, approval="Coordinador sintétic
     return target
 
 
-def test_a_quote_is_a_piece_unless_it_starts_and_ends_on_sentence_limits():
-    """REQ-101: la comprobación mecánica de pedazos sin sujeto. Una cita completa empieza donde
-    empieza una oración y termina donde termina una; la abreviatura y la inicial no cortan."""
+def test_a_quote_is_a_piece_unless_it_is_the_unit_of_sense_of_t234():
+    """REQ-101: la comprobación mecánica de pedazos sin sujeto usa la unidad de sentido de T-234
+    (`proposal.sentences`). Una cita completa empieza donde empieza una oración, termina donde
+    termina una y es la unidad que calcula el sistema: «Deberán…» continúa a la anterior, así que
+    la oración sola es un pedazo; la abreviatura y la inicial no cortan."""
     first = len("La garantía será del 5 % del monto adjudicado.")
     second = TEXT.index("Deberán")
     third = TEXT.index("Ver art.")
 
-    assert ev.piece_problem(TEXT, 0, first) is None
-    assert ev.piece_problem(TEXT, second, third - 1) is None  # sin el espacio del final
-    assert ev.piece_problem(TEXT, 0, third - 1) is None       # dos oraciones contiguas
+    assert ev.piece_problem(TEXT, 0, third - 1) is None       # las dos oraciones del mismo asunto
+    assert ev.piece_problem(TEXT, 0, len(TEXT)) is None       # y la tercera, que es otro asunto
     assert ev.piece_problem(TEXT, third, len(TEXT)) is None   # "art." no corta la oración
+    assert ev.piece_problem(TEXT, 0, first) == "separa_condiciones"   # deja afuera «Deberán…»
+    assert ev.piece_problem(TEXT, second, third - 1) == "sin_sujeto"   # empieza con «Deberán…»
     assert ev.piece_problem(TEXT, TEXT.index("del 5 %"), first) == "empieza_en_medio"
     assert ev.piece_problem(TEXT, 0, TEXT.index("monto")) == "termina_en_medio"
     assert ev.piece_problem(TEXT, third, TEXT.index("del reglamento")) == "termina_en_medio"
     assert ev.piece_problem(TEXT, 5, 5) == "vacia"
     assert ev.piece_problem(TEXT, 0, 0) == "vacia"
+    # El número de la cláusula que abre el tramo no es parte de la primera oración.
+    numbered = "1.1. Presentar la garantía. Será del 5 %."
+    assert ev.piece_problem(numbered, 0, len(numbered)) is None
+    assert ev.piece_problem(numbered, 5, len("1.1. Presentar la garantía.")) is None
+    # Un texto sin oraciones (una tabla) no tiene límites que comprobar.
+    assert ev.piece_problem("   ", 0, 3) == "vacia"
 
 
 def test_the_measure_reports_kept_rows_pieces_recall_and_no_exclusions(
@@ -2281,13 +2290,21 @@ def test_the_measure_reports_kept_rows_pieces_recall_and_no_exclusions(
     assert "no se aplicó el archivo de exclusiones" in summary
 
 
-def test_a_fragment_cited_inside_a_sentence_is_a_piece_and_the_detail_goes_to_the_lines(
-        case, operator_user, tmp_path):
-    """REQ-101: el guion del modelo cita un fragmento de una oración: se cuenta como pedazo, la
-    línea nombra la fila y el tramo sin texto, y el resumen público solo trae la cifra."""
+def test_a_complete_unit_is_not_a_piece_and_a_fragment_is(case, operator_user, tmp_path,
+                                                        settings):
+    """REQ-101: con T-234 la cita de la matriz ya es la unidad de sentido: la medición no cuenta
+    pedazos. Si la unidad pasa del largo máximo de una cita queda el fragmento del modelo (a
+    revisar) y entonces sí es un pedazo: se cuenta, la línea nombra la fila y el tramo sin texto
+    y el resumen público solo trae la cifra."""
     procedure, _, path, _ = case
 
-    report = run_measure(operator_user, procedure, path, tmp_path)
+    whole = run_measure(operator_user, procedure, path, tmp_path / "a")
+
+    assert measures_of(whole)["pieces"]["count"] == 0
+    assert not any("Pedazos sin sujeto" in reason for reason in whole.unmet_015)
+
+    settings.ASSESSMENT_CITATION_MAX_CHARS = 15
+    report = run_measure(operator_user, procedure, path, tmp_path / "b")
 
     pieces = measures_of(report)["pieces"]
     assert pieces["count"] >= 1 and pieces["rows"]
@@ -2379,7 +2396,7 @@ def test_command_verifies_and_counts_the_exclusions_per_case(case, operator_user
                  esperada=str(path), exclusiones=str(target))
     out = capsys.readouterr().out
     assert "Umbrales de la 015 que no llegan:" in out
-    assert "Pedazos sin sujeto" in out
+    assert "Pedazos sin sujeto" not in out   # con T-234 la cita es la unidad de sentido
 
 
 def test_video_memory_maximum_is_the_largest_registered_reading(case, operator_user,
