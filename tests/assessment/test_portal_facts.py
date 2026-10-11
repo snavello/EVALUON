@@ -71,7 +71,7 @@ def test_a_guarantee_that_is_five_percent_of_the_portal_total_proposes_cumple_wi
     assert "21750.00" in cite.text and "Póliza de caución" in cite.text
     assert cite.label == "Portal: acta de apertura"
     assert result.facts["regla"] == "portal_cumple"
-    assert result.facts["version_reglas"] == "reglas-v9"
+    assert result.facts["version_reglas"] == "reglas-v10"
     assert result.facts["portal"]["tipo"] == "garantia"
     assert result.facts["portal"]["valor"] == "21750.00"
     assert result.facts["comparacion"]["exigido"] == "21750.00"
@@ -289,7 +289,7 @@ def test_the_guarantee_is_compared_with_the_percentage_of_the_portal_total(
     assert pair.combined.outcome == outcome and pair.combined.doubt == ""
     assert pair.combined.portal and pair.combined.portal[0]["kind"] == "garantia"
     assert pair.combined.facts["comparacion"]["exigido"] == "21750.00"
-    assert pair.combined.facts["version_reglas"] == "reglas-v9"
+    assert pair.combined.facts["version_reglas"] == "reglas-v10"
     if outcome == "no_cumple":
         assert amount in pair.combined.explanation and "21750.00" in pair.combined.explanation
         assert "diferencia" in pair.combined.explanation
