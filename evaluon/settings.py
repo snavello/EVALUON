@@ -282,8 +282,10 @@ PROMPT_TEMPLATE_MARGIN_TOKENS = 512
 # Valores iniciales. Se copian en cada propuesta de matriz (`tenders_matrix_run`);
 # cambiarlos exige volver a medir (P7).
 
-# Tokens de entrada de los tramos de un lote de extracción.
-MATRIX_BATCH_INPUT_TOKENS = 1500
+# Tokens de entrada de los tramos de un lote de extracción: de 1.500 a 3.500, dentro de los 3.000
+# a 4.000 del ADR-0054 (regla 8) y del ADR-0055 (regla 5); la matriz usaba de 4.000 a 5.000
+# tokens de un contexto de 32.768. Se mide en T-239.
+MATRIX_BATCH_INPUT_TOKENS = 3500
 # Máximo de tokens de salida de cada pedido de la matriz.
 MATRIX_MAX_OUTPUT_TOKENS = 4096
 # Largo de un tramo, en caracteres, a partir del cual se parte en límites de oración.
@@ -293,14 +295,17 @@ MATRIX_CONSEQUENCES_PER_REQUEST = 25
 # Citas candidatas que el reranker suma para cada tramo de una circular o respuesta.
 MATRIX_CIRCULAR_CANDIDATES = 8
 # Versión de cada instrucción de la matriz: archivo `evaluon/tenders/prompts/<versión>.md`.
+# `definiciones` es el bloque común de las definiciones del responsable (T-236, ADR-0054): el
+# código lo incluye en las instrucciones que llevan su marca y registra su versión y su huella.
 MATRIX_PROMPT_VERSIONS = {
-    "extraccion": "matriz-extraccion-v3",
-    "completitud": "matriz-completitud-v3",
+    "definiciones": "matriz-definiciones-v1",
+    "extraccion": "matriz-extraccion-v4",
+    "completitud": "matriz-completitud-v4",
     "consecuencias": "matriz-consecuencias-v1",
-    "circulares": "matriz-circulares-v2",
-    "circulares_cambios": "matriz-circulares-v5",
+    "circulares": "matriz-circulares-v7",
+    "circulares_cambios": "matriz-circulares-v6",
     "unificacion": "matriz-unificacion-v1",
-    "filtro": "matriz-filtro-v2",
+    "filtro": "matriz-filtro-v3",
     "respaldo": "matriz-respaldo-v1",
 }
 
@@ -316,8 +321,9 @@ CIRCULAR_EXTRACTION_REPEATS = 1
 
 # --- Filtro de sobrantes, unificación y descartadas (ADR-0021, REQ-033) ----------------
 FILTER_ENABLED = True
-# Filas formales o económicas por pedido del filtro.
-FILTER_BATCH_ROWS = 15
+# Filas formales o económicas por pedido del filtro: de 15 a 6, dentro de las 5 a 8 del ADR-0054
+# (regla 8): con 15 el modelo contestaba lo mismo a todas. Se mide en T-239.
+FILTER_BATCH_ROWS = 6
 # Motivos de descarte: lista cerrada (los del ADR-0019, dos del ADR-0021 y cuatro del
 # ADR-0054: condición opcional, pago o factura, forma de presentar por el Portal y compromiso
 # al presentarse). Coincide con `FilterMotive.values`; lo comprueba tests/tenders/test_models.py.

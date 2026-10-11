@@ -7,7 +7,8 @@ el modelo"; ADR-0019, decisiones 2 y 3).
    lote.
 2. `Extractor.ask` hace un pedido al motor de los pedidos largos
    (`generation.generate_batch`, con `MATRIX_MAX_OUTPUT_TOKENS`) con las instrucciones
-   versionadas (`prompts/matriz-extraccion-v1.md`) y los tramos del lote. El esquema de la
+   versionadas (`prompts/matriz-extraccion-v4.md`, con el bloque común de definiciones) y los
+   tramos del lote. El esquema de la
    salida tiene una propiedad obligatoria por alias; cada una trae `requisitos` (lista de
    `{cita, clase}`, con `clase` formal o economico), `tecnico` (vacía, o los renglones a
    los que se aplica el tramo, o `todos`) y `descarte` (un motivo de la lista cerrada del
@@ -42,6 +43,7 @@ pedido con su motivo y se vuelve a lanzar. Las filas de `tenders_run_step` solo 
 por eso se crean con todo lo que se sabe del pedido, después de validarlo.
 """
 
+import hashlib
 import json
 import time
 from dataclasses import dataclass, field
@@ -166,10 +168,75 @@ class Extraction:
 # --- Pedido ------------------------------------------------------------------------------
 
 
+# Las instrucciones de la matriz que usan las definiciones del responsable traen esta marca en
+# el lugar donde va el bloque común (`matriz-definiciones-vN.md`, T-236; ADR-0054, regla 4).
+DEFINITIONS_NAME = "definiciones"
+DEFINITIONS_MARK = "{{DEFINICIONES}}"
+
+
+def text_sha256(text):
+    """Huella SHA-256 de un texto de instrucción, con los fines de línea normalizados a LF para
+    que sea la misma en cualquier equipo (P6)."""
+    return hashlib.sha256(text.replace("\r\n", "\n").encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True)
+class Instruction:
+    """Una instrucción de la matriz tal como la ve el modelo (REQ-106, P6): su `text` ya lleva
+    el bloque común de definiciones donde tenía la marca. `sha256` es la huella del archivo de
+    la instrucción y `definitions` la versión y la huella del bloque común (vacío si no lo
+    usa): con la versión y las dos huellas se reconstruye el texto exacto del pedido."""
+
+    name: str
+    version: str
+    text: str
+    sha256: str
+    definitions: tuple = ()
+
+    @property
+    def record(self):
+        """Lo que se guarda en el `parsed` de cada pedido."""
+        data = {"nombre": self.name, "version": self.version, "sha256": self.sha256}
+        if self.definitions:
+            data["definiciones"] = {"version": self.definitions[0],
+                                    "sha256": self.definitions[1]}
+        return data
+
+
+def load_instruction(name="extraccion"):
+    """La `Instruction` de la versión que fija `MATRIX_PROMPT_VERSIONS[name]`."""
+    version = settings.MATRIX_PROMPT_VERSIONS[name]
+    raw = (PROMPTS_DIR / f"{version}.md").read_text(encoding="utf-8")
+    if DEFINITIONS_MARK not in raw:
+        return Instruction(name, version, raw, text_sha256(raw))
+    block_version = settings.MATRIX_PROMPT_VERSIONS[DEFINITIONS_NAME]
+    block = (PROMPTS_DIR / f"{block_version}.md").read_text(encoding="utf-8")
+    return Instruction(name, version, raw.replace(DEFINITIONS_MARK, block.strip()),
+                       text_sha256(raw), (block_version, text_sha256(block)))
+
+
 def load_prompt(name="extraccion"):
     """Texto de las instrucciones de la versión que fija `MATRIX_PROMPT_VERSIONS`."""
-    version = settings.MATRIX_PROMPT_VERSIONS[name]
-    return (PROMPTS_DIR / f"{version}.md").read_text(encoding="utf-8")
+    return load_instruction(name).text
+
+
+def with_instruction(parsed, instruction):
+    """El `parsed` de un pedido con la versión y la huella de su instrucción (P6). Un pedido
+    sin lo interpretado (salida cortada, falla del servicio) también las lleva."""
+    return {**(parsed or {}), "instruccion": instruction.record}
+
+
+def instruction_registry(names):
+    """Lo que la propuesta guarda en `prompt_versions` (P6): la versión de cada instrucción
+    en `names`, la del bloque común si alguna lo usa, y en `huellas` la huella de cada archivo."""
+    versions, hashes = {}, {}
+    for name in names:
+        instruction = load_instruction(name)
+        versions[name] = instruction.version
+        hashes[name] = instruction.sha256
+        if instruction.definitions:
+            versions[DEFINITIONS_NAME], hashes[DEFINITIONS_NAME] = instruction.definitions
+    return {**versions, "huellas": hashes}
 
 
 def build_schema(aliases, numbers):
@@ -439,7 +506,8 @@ class Extractor:
         self.run = run
         self.numbers = list(numbers)
         self.pass_name = pass_name
-        self.prompt = load_prompt("extraccion")
+        self.instruction = load_instruction("extraccion")
+        self.prompt = self.instruction.text
         self.steps = []
         self.anomalies = []
         self.stats = {"requests": 0, "split_batches": 0, "segments_retried": 0,
@@ -455,7 +523,7 @@ class Extractor:
             segment_keys=[unit.segment.key for unit in units],
             request=result["request"],
             raw_output=result["content"],
-            parsed=parsed,
+            parsed=with_instruction(parsed, self.instruction),
             anomalies=anomalies,
             retry_of=retry_of,
             timings={"seconds": round(seconds, 3),

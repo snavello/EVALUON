@@ -1,0 +1,62 @@
+# Revisión de las instrucciones al modelo · resumen para el repositorio
+
+Spec 015, REQ-106 · ADR-0054 y ADR-0055 · Tareas T-236, T-252 (matriz), T-237 (evaluación) y T-248 (el resto).
+
+Este archivo es el resumen de la revisión exhaustiva del 2026-10-10: por instrucción vigente, qué se encontró, con qué gravedad y en qué estado quedó. **No lleva texto ni cifras de los casos** (P4): el informe completo, con los fragmentos de los casos y los pedidos de prueba a la GPU, queda fuera del repositorio, en la carpeta local del Coordinador. Lo prueba `tests/test_instrucciones_revisadas.py`: el informe nombra el 100 % de las instrucciones vigentes y las versiones publicadas están congeladas con su huella (`tests/fixtures/instrucciones.sha256`). Una instrucción vigente nueva obliga a sumar su fila a este archivo y su huella a esa lista.
+
+Gravedad: alta (empuja al error o contradice una decisión del responsable), media, baja. Estado: **corregido** (con la tarea), **pendiente** (con la tarea que lo corrige) o **justificado** (por qué no se cambia).
+
+## Hallazgos comunes a todas las instrucciones
+
+| Hallazgo | Gravedad | Estado |
+|---|---|---|
+| El veredicto se escribe antes que lo que lo sostiene (llama.cpp genera los campos en el orden del esquema) | Alta | Corregido en el filtro (`razonamiento` primero, T-252); pendiente en evaluación, contraste y cláusulas (T-237) y en informe técnico y consulta (T-248) |
+| Cinco instrucciones de la matriz definen como requisito lo que el responsable decidió el 2026-10-10 que no lo es (pago, moneda de pago, factura, forma de presentar por el Portal, compromisos al presentarse) | Alta | Corregido: bloque común `matriz-definiciones-v1`, copiado de las decisiones de la spec, en extracción, completitud, filtro y circulares (T-236, T-252) |
+| Tres capas seguidas de «ante la duda, de más» más una regla de código que mantiene la fila | Alta | Corregido: queda solo en la extracción, limitado a oraciones que exigen algo a todas las ofertas; la duda del filtro va a sugerencia (T-236, T-252) |
+| Ejemplos desbalanceados por clase de salida y con ejemplos de lo que hay que dejar de hacer | Media | Corregido en la matriz: extracción 9 y 9, completitud 4 y 4, filtro 4 y 4 más una duda (T-236, T-252); pendiente en el resto (T-237, T-248) |
+| Contexto ocioso: lotes chicos y el requisito sin su punto ni su encabezado | Media | Corregido en la matriz: lotes de extracción de 3.500 tokens, filtro de 6 filas, línea `Encabezado:` (T-234, T-236, T-252); la evaluación recibe el punto completo (T-235) |
+| La versión y la huella de la instrucción no quedaban en cada pedido | Media | Corregido en la matriz: `parsed.instruccion` de cada pedido y `prompt_versions.huellas` de la propuesta (T-236, T-252); pendiente en el resto (T-237, T-248) |
+| Los tokens de los lotes se cuentan con el servidor equivocado y el pedido registra el alias de otro modelo | Media | Pendiente: T-251 |
+| Temperatura 0 y semilla 42, sin otros parámetros | Baja | Justificado: valen para las citas literales y para reproducir (ADR-0055, regla 9) |
+
+## Instrucciones de la matriz
+
+| Instrucción vigente | Hallazgos de la revisión | Gravedad | Estado |
+|---|---|---|---|
+| `matriz-definiciones-v1` (bloque común) | No existía: la definición estaba escrita cinco veces, con diferencias | Alta | Corregido (T-236): decisiones del 2026-10-10 copiadas, con la regla de la opción y de la forma elegida |
+| `matriz-extraccion-v4` (reemplaza a v3) | Definición contraria a la decisión; «dividí» y «fragmento más corto» enseñan filas sin sujeto; condiciones dichas como efecto mezcladas con consecuencias; sin motivos de descarte para consecuencia, opcional, pago, Portal y compromiso; «ante la duda» sin límite; el tramo llegaba sin su encabezado; lote de 1.500 tokens | Alta (4), media (2), baja (1) | Corregido (T-236, T-250, T-234) |
+| `matriz-completitud-v4` (reemplaza a v3) | Parte las oraciones ya encontradas; definiciones viejas; los descartados con marcadores vuelven como faltantes; «ante la duda»; «fragmento más corto» | Alta (3), media (2) | Corregido (T-236): solo suma oraciones completas que faltan; sin divisiones en la instrucción ni en el esquema; «desestim» sale de los marcadores |
+| `matriz-filtro-v3` (reemplaza a v2) | Definición contraria; «ante la duda, mantené» tres veces; la regla de destino exigía el acuerdo de A y B; B respondía «sí» a casi todo; ejemplos 5 de 7 «mantener»; motivos sin lugar para lo nuevo; veredicto primero; lotes de 15 | Alta (2), media (6) | Corregido (T-252): `razonamiento` primero, duda a sugerencia, B rehecha, ejemplos 4 y 4 más una duda, lotes de 6 |
+| `matriz-circulares-v7` (efecto sobre citas; reemplaza a v2) | Un ejemplo enseñaba un motivo equivocado; la clase económica incluía la forma y el plazo de pago; «fragmento más corto» | Media (2), baja (1) | Corregido (T-236) |
+| `matriz-circulares-v6` (cambios; reemplaza a v5) | «Oraciones completas» junto a «fragmento más corto» | Baja | Corregido (T-236) |
+| Ambas de circulares | «Ante la duda entre modificar y aclarar, elegí aclara» | Baja | Justificado: se mide con los casos 03 y 04 (T-239, T-249); el caso-00 no tiene circulares |
+| `matriz-consecuencias-v1` | No dice que una cláusula general alcanza a todos los requisitos de su punto; 25 requisitos por pedido contra una sola lista de fundamentos | Media (sin medir), baja | Pendiente: T-248 |
+| `matriz-respaldo-v1` | La cita va «lo más corta que alcance»; «ante la duda, no» es coherente con P3 | Baja | Pendiente: T-248 (la segunda observación, sin cambio) |
+| `matriz-unificacion-v1` | Figura en la configuración pero no tiene archivo: la pasada es de código, no una instrucción | Baja | Justificado: no es una instrucción al modelo; no entra en las congeladas |
+
+## Instrucciones de la evaluación y de las lecturas
+
+| Instrucción vigente | Hallazgos de la revisión | Gravedad | Estado |
+|---|---|---|---|
+| `evaluacion-v5` | El veredicto va antes que las citas, y `externo` e `ilegible` salen después del resultado; «fragmento mínimo» contradice el límite de caracteres de la misma línea; no recibe los datos del Portal; no dice a quién va la pregunta; el requisito llega sin su punto; ejemplos cargados a «no determinado»; el tipo 5 de externo induce a un error; «datos» sin el mismo concepto; un requisito de varias condiciones se da por cumplido con una; «ante la duda» sin definirla | Alta (4), media (6) | Pendiente: T-237 (con T-233 y T-235 ya integradas para el Portal, el punto completo y las preguntas) |
+| `contraste-v2` | Juzga la cita sola, sin su contexto; responde antes del motivo; toda respuesta que no es «sí» lleva la pregunta fija; ejemplos 5 «sí», 1 «parcial», 1 «no» | Alta (3), baja | Pendiente: T-237 (el contexto y las preguntas ya los arma el código, T-235) |
+| `clausulas-v2` | El ejemplo pregunta lo que ofrece el oferente; abstención doble | Media, baja | Pendiente: T-237 (la abstención, justificada para lo técnico: el resultado lo da el informe del área) |
+| `vision-v3` | Penalización de repetición alta con temperatura 0, que puede cambiar dígitos repetidos; el texto va antes que la imagen | Media, baja | Pendiente: T-248 (se mide en T-249 con los documentos de la oferta) |
+| `informe-tecnico-v1` | Sin ejemplos; el dictamen va antes que la cita | Media, baja | Pendiente: T-248 |
+| `ficha-v2` | «Ante la duda, lista vacía» | Baja | Justificado: la ficha es opcional |
+| `ficha-renglon-v4` | «sin_precio» mezcla «sin precio», «no estoy seguro» y «nada del renglón»; se usa solo la primera cita de un requisito | Media (2) | Pendiente: T-248 |
+| `reescritura-v1` | Sin hallazgos | — | Sin cambio |
+
+## Consulta de normativa y datos dentro del código
+
+| Instrucción vigente | Hallazgos de la revisión | Gravedad | Estado |
+|---|---|---|---|
+| `consulta-v3` | La pregunta va al principio, antes de hasta 16.000 tokens de unidades, y no se repite al final; `status` antes que las afirmaciones | Media, baja | Pendiente: T-248 (se mide con el conjunto dorado de la 001) |
+| `consulta-v1` | Sigue cargada para el camino sin fecha | Baja | Pendiente: T-248 (retirarla si ningún camino la usa) |
+| `oferente-nombre-v1` | El valor va antes que la cita; registra versión y huella (es el mejor patrón del repositorio) | Baja | Pendiente: T-248 |
+| `procedimiento-datos-v1` | Ídem | Baja | Pendiente: T-248 |
+
+## Cómo se mantiene este informe
+
+- Una instrucción cambia solo creando su versión siguiente (archivo nuevo y línea nueva en `tests/fixtures/instrucciones.sha256`). La versión vigente, con su nombre, figura en la tabla de su grupo; al cambiarla se actualiza la fila.
+- Cada hallazgo de gravedad alta queda corregido o justificado por escrito antes de cerrar la feature (REQ-106). Los de gravedad media y baja que no entren pasan a la lista de revisión con el primer producto (ADR-0024).

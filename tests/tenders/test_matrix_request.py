@@ -126,9 +126,11 @@ def test_the_proposal_records_the_version_of_every_instruction(operator_user, re
 
     assert job.status == "done", job.error
     versions = settings.MATRIX_PROMPT_VERSIONS
-    assert requested.run.prompt_versions == {
-        name: versions[name]
-        for name in ("extraccion", "completitud", "filtro", "consecuencias")}
+    registered = requested.run.prompt_versions
+    names = ("extraccion", "completitud", "filtro", "consecuencias", "definiciones")
+    assert {name: registered[name] for name in names} == {name: versions[name] for name in names}
+    assert set(registered["huellas"]) == set(names)
+    assert all(len(sha) == 64 for sha in registered["huellas"].values())
 
 
 def test_the_settings_have_no_levels_and_name_the_process(settings):
@@ -209,10 +211,11 @@ def test_proposal_records_models_parameters_prompts_regime_and_corpus_version(
     assert run.authorization_date == date(2022, 12, 15)
     assert run.regime == [{"norm": two_regimes.old.pk, "name": "Disposición AFIP 297/03"}]
     assert run.corpus_version == version_event.corpus_version
-    assert run.prompt_versions == {"extraccion": "matriz-extraccion-v3",
-                                    "completitud": "matriz-completitud-v3",
-                                    "filtro": "matriz-filtro-v2",
-                                    "consecuencias": "matriz-consecuencias-v1"}
+    assert {name: run.prompt_versions[name] for name in (
+        "extraccion", "completitud", "filtro", "consecuencias", "definiciones")} == {
+        "extraccion": "matriz-extraccion-v4", "completitud": "matriz-completitud-v4",
+        "filtro": "matriz-filtro-v3", "consecuencias": "matriz-consecuencias-v1",
+        "definiciones": "matriz-definiciones-v1"}
     assert set(run.models) == {"generation_batch", "embeddings", "reranker"}
     for model in run.models.values():
         assert len(model["sha256"]) == 64 and model["model"] and model["file"]
@@ -221,7 +224,7 @@ def test_proposal_records_models_parameters_prompts_regime_and_corpus_version(
     assert parameters["temperature"] == 0 and parameters["seed"] == 42
     assert parameters["thinking"] is False
     assert parameters["max_output_tokens"] == 4096
-    assert parameters["batch_input_tokens"] == 1500
+    assert parameters["batch_input_tokens"] == 3500
     assert parameters["generation_batch_timeout_seconds"] == 180
     assert parameters["rules_version"] == "tramos-2"
     event = proposal_events().get()

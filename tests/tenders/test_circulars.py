@@ -486,9 +486,11 @@ def test_the_proposal_records_the_circulars_and_the_instructions_used(operator_u
 
     version, run = run_proposal(operator_user, case)
 
-    assert run.prompt_versions["circulares"] == "matriz-circulares-v2"
+    assert run.prompt_versions["circulares"] == "matriz-circulares-v7"
     # T-127 (P6): la instrucción de la extracción de cambios también queda registrada.
-    assert run.prompt_versions["circulares_cambios"] == "matriz-circulares-v5"
+    assert run.prompt_versions["circulares_cambios"] == "matriz-circulares-v6"
+    assert set(run.prompt_versions["huellas"]) >= {"circulares", "circulares_cambios",
+                                                   "definiciones"}
     assert "circulares" in run.parameters["passes"]
     used = run.counts["circulars"]["documents"]
     assert [d["document"] for d in used] == [document.pk]
@@ -838,7 +840,7 @@ def test_the_active_circular_instructions_are_v2_and_v1_is_kept(settings):
     inventados (sin texto del caso de medición)."""
     from evaluon.tenders.proposal import extraction
 
-    assert settings.MATRIX_PROMPT_VERSIONS["circulares"] == "matriz-circulares-v2"
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares"] == "matriz-circulares-v7"
     v2 = extraction.load_prompt("circulares")
     assert "Donde dice" in v2 and "Debe decir" in v2
     assert "Contexto de la circular" in v2
