@@ -7,7 +7,8 @@ el modelo"; ADR-0019, decisiones 2 y 3).
    lote.
 2. `Extractor.ask` hace un pedido al motor de los pedidos largos
    (`generation.generate_batch`, con `MATRIX_MAX_OUTPUT_TOKENS`) con las instrucciones
-   versionadas (`prompts/matriz-extraccion-v1.md`) y los tramos del lote. El esquema de la
+   versionadas (`prompts/matriz-extraccion-v4.md`, con el bloque común de definiciones) y los
+   tramos del lote. El esquema de la
    salida tiene una propiedad obligatoria por alias; cada una trae `requisitos` (lista de
    `{cita, clase}`, con `clase` formal o economico), `tecnico` (vacía, o los renglones a
    los que se aplica el tramo, o `todos`) y `descarte` (un motivo de la lista cerrada del
@@ -505,7 +506,8 @@ class Extractor:
         self.run = run
         self.numbers = list(numbers)
         self.pass_name = pass_name
-        self.prompt = load_prompt("extraccion")
+        self.instruction = load_instruction("extraccion")
+        self.prompt = self.instruction.text
         self.steps = []
         self.anomalies = []
         self.stats = {"requests": 0, "split_batches": 0, "segments_retried": 0,
@@ -521,7 +523,7 @@ class Extractor:
             segment_keys=[unit.segment.key for unit in units],
             request=result["request"],
             raw_output=result["content"],
-            parsed=parsed,
+            parsed=with_instruction(parsed, self.instruction),
             anomalies=anomalies,
             retry_of=retry_of,
             timings={"seconds": round(seconds, 3),

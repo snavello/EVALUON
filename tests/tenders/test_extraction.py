@@ -466,7 +466,7 @@ def test_cut_output_splits_the_batch_in_two(operator_user, case, script):
     assert job.status == "done", job.error
     assert [len(blocks) for blocks in script.calls] == [4, 2, 2]
     cut, first, second = steps(requested.run)
-    assert cut.parsed is None
+    assert set(cut.parsed) == {"instruccion"}  # sin lo interpretado, pero con su instrucción
     assert [a["type"] for a in cut.anomalies] == ["salida_cortada"]
     assert first.retry_of == cut and second.retry_of == cut
     assert first.segment_keys == ["sec-i/1.1", "sec-i/2.1"]
@@ -499,7 +499,7 @@ def test_batches_follow_the_token_limit(operator_user, case, script, settings):
 @pytest.mark.parametrize("text", [
     "El oferente Deberá firmar", "DEBERÁN presentarse", "valor mín. de 5", "Máx. 10 días",
     "BAJO APERCIBIMIENTO de rechazo", "será requisito la firma", "no se aceptarán copias",
-    "la desestimación de la oferta", "valor min. de 5",
+    "valor min. de 5",
 ])
 def test_obligation_markers_are_found_without_accents_or_case(text):
     """REQ-028: los marcadores de obligación se reconocen sin tildes ni mayúsculas."""
@@ -605,7 +605,7 @@ def test_service_failure_leaves_the_job_failed_and_the_step_recorded(operator_us
     assert not m.Disposition.objects.exists()
     assert not m.PendingItem.objects.exists()
     step = steps(requested.run)[0]
-    assert step.raw_output == "" and step.parsed is None
+    assert step.raw_output == "" and set(step.parsed) == {"instruccion"}
     assert step.anomalies[0]["type"] == "servicio" and step.anomalies[0]["reason"] == "timeout"
     assert step.request["max_tokens"] == 4096
     event = AuditEvent.objects.get(event_type=EventType.MATRIX_PROPOSAL)
@@ -882,3 +882,71 @@ def test_a_clause_that_stands_alone_travels_without_heading(operator_user, case)
     requested, _ = propose(operator_user, procedure)
 
     assert "Encabezado:" not in steps(requested.run)[0].request["messages"][-1]["content"]
+
+
+# --- T-236: instrucciones v4, registro de la versión y la huella, marcadores y lotes -------------
+
+
+def test_every_request_of_the_extraction_records_its_instruction(
+        operator_user, case, script):
+    """REQ-106, P6: el `parsed` de cada pedido de la extracción trae el nombre, la versión y la
+    huella SHA-256 de su instrucción y la versión y la huella del bloque común."""
+    from evaluon.tenders.proposal import extraction
+
+    procedure, _ = case
+    script.when(GARANTIA, item(requirements=[(GARANTIA_QUOTE, "economico")]))
+
+    requested, job = propose(operator_user, procedure)
+
+    assert job.status == "done", job.error
+    found = list(m.RunStep.objects.filter(run=requested.run, pass_name="extraccion"))
+    assert found
+    expected = extraction.load_instruction("extraccion").record
+    for step in found:
+        assert step.parsed["instruccion"] == expected
+        assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v1"
+        assert len(step.parsed["instruccion"]["sha256"]) == 64
+    # La huella de la corrida es la misma que la del pedido.
+    assert requested.run.prompt_versions["huellas"]["extraccion"] == expected["sha256"]
+
+
+def test_the_extraction_request_carries_the_common_block_and_the_heading_line(
+        operator_user, case, script):
+    """REQ-102, REQ-101: lo que ve el modelo es la instrucción con el bloque común dentro (sin
+    la marca) y los tramos; el cuerpo guardado trae las dos."""
+    procedure, _ = case
+
+    requested, job = propose(operator_user, procedure)
+
+    assert job.status == "done", job.error
+    system = steps(requested.run)[0].request["messages"][0]["content"]
+    assert "{{DEFINICIONES}}" not in system
+    assert "QUÉ ES UN REQUISITO DE LA OFERTA" in system
+    assert "la moneda en que se cotiza la oferta" in system
+
+
+def test_the_extraction_instruction_names_every_discard_reason_of_the_schema():
+    """REQ-102 (ADR-0054, regla 5): la instrucción de extracción nombra cada motivo de
+    descarte que admite el esquema y ningún otro con forma de motivo."""
+    from evaluon.tenders.models import DiscardReason
+    from evaluon.tenders.proposal import extraction
+
+    text = extraction.load_prompt("extraccion")
+    for reason in DiscardReason.values:
+        assert f"- {reason}:" in text, reason
+    listed = {line[2:].split(":")[0] for line in text.splitlines()
+              if line.startswith("- ") and line[2:].split(":")[0] in set(DiscardReason.values)}
+    assert listed == set(DiscardReason.values)
+
+
+def test_a_consequence_is_not_a_marker_of_obligation_and_goes_to_its_own_motive():
+    """REQ-102 (corrección 4 de la revisión): «desestim» ya no es marcador de obligación; la
+    desestimación es una consecuencia."""
+    assert "desestim" not in proposal.OBLIGATION_MARKERS
+    assert not proposal.has_obligation_markers("la desestimación de la oferta")
+    assert proposal.has_obligation_markers("no se aceptarán copias")
+
+
+def test_the_batches_are_between_three_and_four_thousand_tokens(settings):
+    """REQ-101 (ADR-0054, regla 8): los lotes de extracción son de 3.000 a 4.000 tokens."""
+    assert 3000 <= settings.MATRIX_BATCH_INPUT_TOKENS <= 4000

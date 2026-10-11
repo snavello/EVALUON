@@ -19,27 +19,21 @@ al revés: solo es la misma que otra cita amplia de su clase. Cada requisito lle
 
 **Completitud.** `Completer.complete` recibe, solo para tramos formales y
 económicos, cada tramo con sus requisitos ya encontrados (o ninguno, si el modelo lo
-descartó y tiene marcadores de obligación) y devuelve los que faltan y las divisiones de los
-que juntan dos condiciones (`prompts/matriz-completitud-v1.md`). El sistema ubica cada cita
+descartó y tiene marcadores de obligación) y devuelve los que faltan
+(`prompts/matriz-completitud-v4.md`). Ya no divide los requisitos que juntan dos condiciones
+(T-236, ADR-0054, regla 3): una fila es una unidad de sentido y las condiciones de una oración
+se evalúan juntas. El sistema ubica cada cita
 con `quotes.locate`, que tolera espacios y saltos de línea distintos y devuelve posiciones
 relativas al tramo; un faltante que es el mismo que un requisito ya encontrado (misma regla de
 `_same_requirement`) no se suma; una cita que no se ubica queda con el tramo entero como cita
-(`cita_amplia`), porque un requisito nunca se pierde por una cita mal copiada; una división
-solo se acepta si cada parte se ubica dentro del original (ubicado en el tramo, sin la etiqueta
-de clase que el modelo a veces copia; reemplaza a las filas del tramo que contiene o que se
-superponen en más de la mitad; si no aparece, se lo reconoce por parecido con una fila) y las
-partes juntas lo
-cubren, salvo espacios, puntuación y conectores ("y", "e"); si no, el requisito queda como
-estaba, con la anomalía `completitud_division_no_aplicada`. Un tramo cuya salida es
-inválida se vuelve a pedir una vez, solo; si sigue inválido no cambia y quien llama decide
-(un descartado con marcadores queda pendiente).
+(`cita_amplia`), porque un requisito nunca se pierde por una cita mal copiada. Un tramo cuya
+salida es inválida se vuelve a pedir una vez, solo; si sigue inválido no cambia y quien llama
+decide (un descartado con marcadores queda pendiente).
 """
 
 import json
-import re
 import time
 from dataclasses import dataclass
-from difflib import SequenceMatcher
 
 from django.conf import settings
 
@@ -49,19 +43,15 @@ from evaluon.tenders.proposal import extraction, quotes
 from evaluon.tenders.proposal.extraction import BODY_CLASSES, Found
 
 KEY_MISSING = "faltantes"
-KEY_SPLITS = "divisiones"
 
 ANOMALY_CUT = "completitud_salida_cortada"
 ANOMALY_INVALID = "completitud_salida_invalida"
 ANOMALY_MISSING_ALIAS = "completitud_tramo_sin_propiedad"
 ANOMALY_QUOTE_NOT_FOUND = "completitud_cita_no_encontrada"
-ANOMALY_SPLIT_NOT_APPLIED = "completitud_division_no_aplicada"
 ANOMALY_NO_RESULT = "completitud_sin_resultado"
 ANOMALY_SERVICE = "servicio"
 
-MORE_THAN_HALF = 0.5
 CONTAINED = 0.9  # fracción de una cita que tiene que estar dentro de la otra para ser la misma
-CONNECTORS = frozenset({"y", "e"})
 
 
 class InvalidItem(ValueError):
@@ -115,7 +105,6 @@ class Result:
     found: list
     valid: bool = False
     added: int = 0
-    split: int = 0
     step: object = None
 
 
@@ -128,7 +117,7 @@ class Completion:
 
 
 def build_schema(aliases):
-    """Esquema de la salida: una propiedad obligatoria por alias."""
+    """Esquema de la salida: una propiedad obligatoria por alias, con la lista de faltantes."""
     requirement = {
         "type": "object",
         "properties": {
@@ -140,22 +129,8 @@ def build_schema(aliases):
     }
     item = {
         "type": "object",
-        "properties": {
-            KEY_MISSING: {"type": "array", "items": requirement},
-            KEY_SPLITS: {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "original": {"type": "string", "minLength": 1},
-                        "partes": {"type": "array", "items": requirement, "minItems": 2},
-                    },
-                    "required": ["original", "partes"],
-                    "additionalProperties": False,
-                },
-            },
-        },
-        "required": [KEY_MISSING, KEY_SPLITS],
+        "properties": {KEY_MISSING: {"type": "array", "items": requirement}},
+        "required": [KEY_MISSING],
         "additionalProperties": False,
     }
     return {
@@ -178,25 +153,13 @@ def _shape_requirement(entry):
 
 
 def shape_item(raw):
-    """Comprueba la forma de lo que el modelo devolvió para un tramo y devuelve
-    `(faltantes, divisiones)`: pares `(cita, clase)` y pares `(original, [(cita, clase)])`.
-    Lanza `InvalidItem`."""
-    if not isinstance(raw, dict) or set(raw) != {KEY_MISSING, KEY_SPLITS}:
-        raise InvalidItem("no es un objeto con faltantes y divisiones")
-    if not isinstance(raw[KEY_MISSING], list) or not isinstance(raw[KEY_SPLITS], list):
-        raise InvalidItem("faltantes y divisiones tienen que ser listas")
-    missing = [_shape_requirement(entry) for entry in raw[KEY_MISSING]]
-    splits = []
-    for entry in raw[KEY_SPLITS]:
-        if (
-            not isinstance(entry, dict)
-            or set(entry) != {"original", "partes"}
-            or not isinstance(entry["original"], str)
-            or not isinstance(entry["partes"], list)
-        ):
-            raise InvalidItem("una división no es {original, partes}")
-        splits.append((entry["original"], [_shape_requirement(p) for p in entry["partes"]]))
-    return missing, splits
+    """Comprueba la forma de lo que el modelo devolvió para un tramo y devuelve los
+    faltantes, pares `(cita, clase)`. Lanza `InvalidItem`."""
+    if not isinstance(raw, dict) or set(raw) != {KEY_MISSING}:
+        raise InvalidItem("no es un objeto con faltantes")
+    if not isinstance(raw[KEY_MISSING], list):
+        raise InvalidItem("faltantes tiene que ser una lista")
+    return [_shape_requirement(entry) for entry in raw[KEY_MISSING]]
 
 
 def _category(unit, kind):
@@ -250,126 +213,13 @@ def batches(candidates):
     return result
 
 
-_CLASS_LABEL = re.compile(r"\(\s*(?:formal|econ[oó]mic[oa]|t[eé]cnic[oa])\s*\)", re.IGNORECASE)
-SAME_TEXT = 0.8  # fracción del más corto de dos textos que tiene que coincidir en un bloque
-
-
-def _clean(quote):
-    """La cita del modelo sin la etiqueta de clase que a veces copia, "(formal)"."""
-    return " ".join(_CLASS_LABEL.sub(" ", quote or "").split())
-
-
-def _by_likeness(text, original, final):
-    """Último recurso, cuando el original no aparece en el tramo: la fila de `final` cuyo
-    texto más se le parece (un bloque común de al menos `SAME_TEXT` del más corto y la
-    mitad del más largo), o None."""
-    wanted = _clean(original).lower()
-    best, best_score = None, 0.0
-    for candidate in final:
-        if candidate.flag == quotes.WIDE:
-            continue
-        shown = " ".join(text[candidate.span[0]:candidate.span[1]].split()).lower()
-        if not shown or not wanted:
-            continue
-        block = SequenceMatcher(None, shown, wanted, autojunk=False).find_longest_match(
-            0, len(shown), 0, len(wanted))
-        score = block.size / min(len(shown), len(wanted))
-        if (score >= SAME_TEXT and block.size / max(len(shown), len(wanted)) >= MORE_THAN_HALF
-                and score > best_score):
-            best, best_score = candidate, score
-    return best
-
-
-def _resolve_original(text, original, final):
-    """El original de una división: `(tramo (inicio, fin), filas que reemplaza, detalle)`.
-    Se ubica en el tramo, sin la etiqueta de clase y tolerando espacios. Reemplaza a las filas
-    del tramo cuya cita queda contenida en él o se superpone en más de la mitad de su largo.
-    Si no se ubica, se busca por parecido con una fila. Sin filas, `filas` es vacío."""
-    span = quotes.locate(text, _clean(original)) or quotes.locate(text, original)
-    if span is None:
-        row = _by_likeness(text, original, final)
-        if row is None:
-            return None, [], "el original no está en el tramo"
-        return row.span, [row], ""
-    rows = [f for f in final
-            if f.flag != quotes.WIDE and containment(f.span, span) > MORE_THAN_HALF]
-    if not rows:
-        return span, [], "el original no coincide con un requisito"
-    return span, rows, ""
-
-
-_LEADING_NUMBER = re.compile(r"^\s*(?:[•−–-]\s*|[A-Za-z]\)\s*)?(?:\d+\.)*\s*")
-
-
-def covers(text, base, spans):
-    """Si `spans` cubren `text[base[0]:base[1]]`, salvo espacios, puntuación, conectores
-    ("y", "e") y, al comienzo del tramo, el número de la cláusula."""
-    inner = text[base[0]:base[1]]
-    covered = [False] * len(inner)
-    for start, end in spans:
-        for index in range(max(start - base[0], 0), min(end - base[0], len(inner))):
-            covered[index] = True
-    rest = "".join(" " if covered[i] else inner[i] for i in range(len(inner)))
-    if base[0] == 0:
-        rest = _LEADING_NUMBER.sub("", rest, count=1)
-    return all(word.lower() in CONNECTORS for word in re.findall(r"\w+", rest))
-
-
-def apply(unit, found_list, missing, splits, anomalies):
+def apply(unit, found_list, missing, anomalies):
     """Aplica la salida validada de un tramo a sus requisitos ya encontrados. Devuelve
-    `(requisitos finales, agregados, divididos)`. No modifica `found_list`."""
+    `(requisitos finales, agregados)`. No modifica `found_list`."""
     segment = unit.segment
     text = segment.text
     final = list(found_list)
-    added = divided = 0
-
-    def refuse(detail):
-        anomalies.append({"type": ANOMALY_SPLIT_NOT_APPLIED, "segment": segment.pk,
-                          "key": segment.key, "detail": detail})
-
-    for original, parts in splits:
-        base, targets, detail = _resolve_original(text, original, final)
-        if not targets:
-            refuse(detail)
-            continue
-        # El recorte a cubrir: el original y las filas que reemplaza (si el modelo recortó
-        # el original más corto que la fila, la fila no se pierde).
-        base = (min([base[0]] + [t.span[0] for t in targets]),
-                max([base[1]] + [t.span[1] for t in targets]))
-        inner = text[base[0]:base[1]]
-        located = []
-        for quote, kind in parts:
-            taken = {(s - base[0], e - base[0]) for (s, e), _ in located}
-            relative = (quotes.locate(inner, _clean(quote), taken)
-                        or quotes.locate(inner, quote, taken))
-            if relative is None:
-                located = None
-                break
-            located.append(((base[0] + relative[0], base[0] + relative[1]),
-                            _category(unit, kind)))
-        if located is None:
-            refuse("las partes no se ubican todas dentro del original")
-            continue
-        if len({part_span for part_span, _ in located}) < 2:
-            refuse("la división no tiene dos partes distintas")
-            continue
-        if not covers(text, base, [part_span for part_span, _ in located]):
-            refuse("las partes no cubren el original")
-            continue
-        pieces = []
-        gone = {id(t) for t in targets}
-        others = [f for f in final if id(f) not in gone]
-        for part_span, category in located:
-            piece = Found(category=category, span=part_span)
-            piece.passes = [PassName.COMPLETITUD.value]
-            # Una parte que ya es otra fila del tramo no se repite: esa fila la cubre.
-            if any(_same_requirement(piece, old) for old in others + pieces):
-                continue
-            pieces.append(piece)
-        at = min(i for i, f in enumerate(final) if id(f) in gone)
-        final = others
-        final[at:at] = pieces
-        divided += 1
+    added = 0
 
     unlocated = []
     for quote, kind in missing:
@@ -395,7 +245,7 @@ def apply(unit, found_list, missing, splits, anomalies):
         final.append(wide)
         added += 1
     final.sort(key=lambda f: f.span[0])
-    return final, added, divided
+    return final, added
 
 
 class Completer:
@@ -406,18 +256,20 @@ class Completer:
 
     def __init__(self, run):
         self.run = run
-        self.prompt = extraction.load_prompt("completitud")
+        self.instruction = extraction.load_instruction("completitud")
+        self.prompt = self.instruction.text
         self.steps = []
         self.anomalies = []
         self.stats = {"requests": 0, "split_batches": 0, "segments_retried": 0,
-                      "segments": 0, "added": 0, "split": 0, "invalid": 0}
+                      "segments": 0, "added": 0, "invalid": 0}
         self._batch = 0
 
     def _record(self, result, *, parsed, anomalies, retry_of, seconds, keys):
         self._batch += 1
         step = RunStep.objects.create(
             run=self.run, pass_name=self.pass_name, batch=self._batch, segment_keys=keys,
-            request=result["request"], raw_output=result["content"], parsed=parsed,
+            request=result["request"], raw_output=result["content"],
+            parsed=extraction.with_instruction(parsed, self.instruction),
             anomalies=anomalies, retry_of=retry_of,
             timings={"seconds": round(seconds, 3),
                      "prompt_tokens": result["prompt_tokens"],
@@ -484,17 +336,15 @@ class Completer:
                                       "segment": unit.segment.pk})
                 continue
             try:
-                missing, splits = shape_item(data[alias])
+                missing = shape_item(data[alias])
             except InvalidItem as error:
                 anomalies.append({"type": ANOMALY_INVALID, "alias": alias,
                                   "segment": unit.segment.pk, "detail": str(error)})
                 continue
             outcome.valid = True
-            outcome.found, outcome.added, outcome.split = apply(
-                unit, candidate.found, missing, splits, anomalies)
+            outcome.found, outcome.added = apply(unit, candidate.found, missing, anomalies)
             parsed[alias] = {"segmento": unit.segment.pk, "valida": True,
-                             KEY_MISSING: len(missing), KEY_SPLITS: len(splits),
-                             "agregados": outcome.added, "divididos": outcome.split,
+                             KEY_MISSING: len(missing), "agregados": outcome.added,
                              "requisitos_agregados": [
                                  extraction.found_record(found, unit.segment.text)
                                  for found in outcome.found
@@ -533,7 +383,6 @@ class Completer:
                     "detail": "sin resultado de la completitud después del reintento"})
         self.stats["segments"] = len(candidates)
         self.stats["added"] = sum(r.added for r in results.values())
-        self.stats["split"] = sum(r.split for r in results.values())
         self.stats["steps"] = len(self.steps)
         step_anomalies = [a for step in self.steps for a in step.anomalies]
         return Completion(results=results, steps=self.steps,

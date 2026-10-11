@@ -129,3 +129,34 @@ def test_a_request_without_parsed_output_still_carries_its_instruction(prompt_di
     assert extraction.with_instruction(None, instruction) == {"instruccion": instruction.record}
     assert extraction.with_instruction({"tramos": {}}, instruction) == {
         "tramos": {}, "instruccion": instruction.record}
+
+
+# --- Generalidad: ninguna ancla de los casos ---------------------------------------------------
+
+HASHES = Path(__file__).parent / "fixtures" / "case_anchor_hashes.txt"
+NEW_INSTRUCTIONS = ["matriz-definiciones-v1", "matriz-extraccion-v4", "matriz-completitud-v4",
+                    "matriz-circulares-v6", "matriz-circulares-v7"]
+
+
+def _shingles(text, size=5):
+    import re
+    import unicodedata
+
+    folded = "".join(c for c in unicodedata.normalize("NFD", text.lower())
+                     if not unicodedata.combining(c))
+    words = re.findall(r"[a-z0-9]+", folded)
+    for i in range(len(words) - size + 1):
+        yield " ".join(words[i:i + size])
+
+
+@pytest.mark.parametrize("name", NEW_INSTRUCTIONS)
+def test_no_new_instruction_repeats_five_words_of_a_case_anchor(name):
+    """REQ-106 (generalidad, P4): ni el bloque común ni las instrucciones nuevas de la matriz
+    repiten cinco palabras seguidas de las anclas de los casos (solo se guarda la huella SHA-256
+    de cada secuencia, en `fixtures/case_anchor_hashes.txt`)."""
+    known = set(HASHES.read_text(encoding="utf-8").split())
+    assert len(known) > 100
+    text = (PROMPTS / f"{name}.md").read_text(encoding="utf-8")
+    hits = [shingle for shingle in _shingles(text)
+            if hashlib.sha256(shingle.encode()).hexdigest() in known]
+    assert not hits, [hashlib.sha256(h.encode()).hexdigest()[:12] for h in hits]

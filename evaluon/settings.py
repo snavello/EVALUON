@@ -282,8 +282,10 @@ PROMPT_TEMPLATE_MARGIN_TOKENS = 512
 # Valores iniciales. Se copian en cada propuesta de matriz (`tenders_matrix_run`);
 # cambiarlos exige volver a medir (P7).
 
-# Tokens de entrada de los tramos de un lote de extracción.
-MATRIX_BATCH_INPUT_TOKENS = 1500
+# Tokens de entrada de los tramos de un lote de extracción: de 1.500 a 3.500, dentro de los 3.000
+# a 4.000 del ADR-0054 (regla 8) y del ADR-0055 (regla 5); la matriz usaba de 4.000 a 5.000
+# tokens de un contexto de 32.768. Se mide en T-239.
+MATRIX_BATCH_INPUT_TOKENS = 3500
 # Máximo de tokens de salida de cada pedido de la matriz.
 MATRIX_MAX_OUTPUT_TOKENS = 4096
 # Largo de un tramo, en caracteres, a partir del cual se parte en límites de oración.
@@ -297,11 +299,11 @@ MATRIX_CIRCULAR_CANDIDATES = 8
 # código lo incluye en las instrucciones que llevan su marca y registra su versión y su huella.
 MATRIX_PROMPT_VERSIONS = {
     "definiciones": "matriz-definiciones-v1",
-    "extraccion": "matriz-extraccion-v3",
-    "completitud": "matriz-completitud-v3",
+    "extraccion": "matriz-extraccion-v4",
+    "completitud": "matriz-completitud-v4",
     "consecuencias": "matriz-consecuencias-v1",
-    "circulares": "matriz-circulares-v2",
-    "circulares_cambios": "matriz-circulares-v5",
+    "circulares": "matriz-circulares-v7",
+    "circulares_cambios": "matriz-circulares-v6",
     "unificacion": "matriz-unificacion-v1",
     "filtro": "matriz-filtro-v2",
     "respaldo": "matriz-respaldo-v1",

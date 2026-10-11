@@ -336,9 +336,10 @@ def test_the_whole_tramo_is_discarded_only_if_every_row_was(operator_user, scrip
 
 
 def test_the_disposition_reason_for_motives_the_tramo_list_lacks(operator_user, script, filt):
-    """REQ-033: `consecuencia_sancion` está en la lista del filtro; la disposición del tramo
-    (lista del ADR-0019) lo registra con el motivo más cercano y la fila descartada conserva
-    el exacto."""
+    """REQ-033: `consecuencia_sancion` está en la lista del filtro y, desde T-250, en la de los
+    tramos: la disposición lo registra tal cual (antes lo registraba como obligación del
+    organismo). `derecho_posterior`, que la lista de los tramos no tiene, sigue registrándose
+    con el motivo más cercano; la fila descartada conserva el exacto."""
     one_row(script)
     clue = SENT_1
     filt.when(FRAG_1, discard("consecuencia_sancion", clue), "no")
@@ -346,7 +347,9 @@ def test_the_disposition_reason_for_motives_the_tramo_list_lacks(operator_user, 
     run = run_with(operator_user, pliego(CLAUSE))
 
     assert m.DiscardedRow.objects.get(run=run).reason == "consecuencia_sancion"
-    assert m.Disposition.objects.get(run=run, segment__key="sec-i/1.1").outcome == "descartado"
+    disposition = m.Disposition.objects.get(run=run, segment__key="sec-i/1.1")
+    assert (disposition.outcome, disposition.discard_reason) == (
+        "descartado", "consecuencia_sancion")
 
 
 # --- Lo que no se filtra ---------------------------------------------------------------------
@@ -899,17 +902,15 @@ def test_the_offer_guarantee_sentence_is_a_suggestion_in_the_matrix(operator_use
     assert [(r.state, r.doubt_reason) for r in formal_rows(run)] == [("sugerido", "duda")]
 
 
-def test_the_v3_instructions_leave_the_adjudicatario_duties_out_of_the_offer(settings):
-    """REQ-033, REQ-024: las instrucciones activas de extracción y completitud dicen que lo
-    que el adjudicatario hace durante la prestación es ejecución del contrato, y que lo que
-    se acredita al ofertar sigue siendo requisito. El filtro conserva su v2: con la v3 de
-    prueba se perdió un requisito esperado del caso de ajuste."""
+def test_the_v4_instructions_leave_the_adjudicatario_duties_out_of_the_offer(settings):
+    """REQ-033, REQ-024, REQ-102: las instrucciones activas de extracción y completitud dicen
+    que lo que el adjudicatario hace durante la prestación es ejecución del contrato, y que lo
+    que se acredita al ofertar sigue siendo requisito (T-236: lo dice el bloque común)."""
     from evaluon.tenders.proposal import extraction
 
     versions = settings.MATRIX_PROMPT_VERSIONS
-    assert versions["extraccion"] == "matriz-extraccion-v3"
-    assert versions["completitud"] == "matriz-completitud-v3"
-    assert versions["filtro"] == "matriz-filtro-v2"
+    assert versions["extraccion"] == "matriz-extraccion-v4"
+    assert versions["completitud"] == "matriz-completitud-v4"
     texts = [extraction.load_prompt("extraccion"), extraction.load_prompt("completitud")]
     for text in texts:
         assert "adjudicatari" in text and "durante la prestación" in text

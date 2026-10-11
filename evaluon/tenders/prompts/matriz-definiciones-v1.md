@@ -11,7 +11,7 @@ No entran en la matriz, aunque el pliego los diga con "deberá":
 - Los compromisos que se cumplen al presentarse (por ejemplo, "la mera presentación implicará el conocimiento y aceptación del pliego").
 - Las consecuencias: lo que el organismo hace si la oferta no cumple (descalificar, desestimar, intimar a subsanar, ejecutar la garantía, aplicar una sanción). La condición que origina la consecuencia sí es un requisito; la consecuencia, no.
 - Las obligaciones del organismo, lo que hace el organismo una vez que recibe las ofertas y lo que la oferta no puede contradecir ni condicionar.
-- La ejecución y el control del contrato una vez adjudicado: lo que el adjudicatario o contratista tiene que hacer, entregar o responder durante la prestación.
+- La ejecución y el control del contrato una vez adjudicado: las multas por atraso, la forma de recibir los bienes y lo que el adjudicatario o contratista tiene que hacer, entregar o responder durante la prestación (informes, capacitaciones, uniformes, nómina y seguros del personal, responsabilidad por daños). Se reconoce porque el sujeto es "el adjudicatario", "la adjudicataria" o "el contratista" y el texto no habla de la oferta, de los oferentes ni de algo que se presente o acredite al ofertar. Lo que se acredita al ofertar sigue siendo un requisito, aunque se parezca.
 - Las definiciones, los datos del procedimiento, la cita de normas, los títulos, los índices y los formularios en blanco.
 
 Opciones y formas que el oferente elige:

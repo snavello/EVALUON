@@ -17,8 +17,7 @@ Pasadas, en orden:
    económicos, marca técnica, o motivo de descarte; con reintento único.
 3. **Completitud** (`completeness.py`; solo formales y económicos): revisa cada tramo con
    requisitos y cada tramo que el modelo descartó teniendo marcadores de obligación
-   ("deberá", "mín.", "desestim", …): suma los que faltan y divide los que juntan dos
-   condiciones. Un descartado con marcadores queda pendiente solo si la completitud no dio
+   ("deberá", "mín.", "no se aceptarán", …): suma los que faltan. Un descartado con marcadores queda pendiente solo si la completitud no dio
    resultado.
 4. **Unificación** (`dedup.py`; solo formales y económicos): por regla, junta las filas
    que repiten la misma condición; queda la primera en el orden del pliego, con las citas
@@ -148,7 +147,6 @@ OBLIGATION_MARKERS = (
     "máx.",
     "no se aceptarán",
     "bajo apercibimiento",
-    "desestim",
     # Condiciones dichas como efecto (T-093); sin tildes también valen los plurales.
     "se considerará",
     "se entenderá",
@@ -446,7 +444,7 @@ def propose(run, *, user, channel=Channel.COMMAND):
             apply_completeness(decisions, completion)
             anomalies.extend(completion.anomalies)
         completion_stats = {key: completer.stats[key] for key in
-                            ("segments", "added", "split", "invalid")}
+                            ("segments", "added", "invalid")}
         requests[PassName.COMPLETITUD.value] = completer.stats["requests"]
         timings["completitud"] = round(time.monotonic() - started, 3)
 
@@ -603,10 +601,11 @@ def unify_decisions(run, loaded, decisions):
     return result
 
 
-# Los motivos del filtro que la disposición de un tramo no tiene (su lista es la del
-# ADR-0019): se registran con el más cercano. El motivo exacto queda en la fila descartada.
-_DISPOSITION_REASON = {"consecuencia_sancion": "obligacion_organismo",
-                       "derecho_posterior": "obligacion_organismo"}
+# Los motivos del filtro que la disposición de un tramo no tiene (`DiscardReason`): se
+# registran con el más cercano. El motivo exacto queda en la fila descartada. La consecuencia
+# y los motivos que sumó el ADR-0054 (T-250) sí están en `DiscardReason`: se registran tal
+# cual (antes la consecuencia se registraba como obligación del organismo).
+_DISPOSITION_REASON = {"derecho_posterior": "obligacion_organismo"}
 
 
 def filter_decisions(row_pass, loaded, decisions, unification):

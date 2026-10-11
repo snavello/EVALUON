@@ -998,14 +998,14 @@ def test_a_heading_with_dot_and_dash_keeps_the_question_and_answer_in_one_unit()
     ]
 
 
-def test_the_v5_circular_instructions_load_and_carry_the_round_one_rules():
-    """REQ-031 (T-120, causa F): la versión activa del pedido `circulares_cambios` es la v5 y
-    trae las cinco reglas nuevas con sus ejemplos."""
+def test_the_v6_circular_instructions_load_and_carry_the_round_one_rules():
+    """REQ-031 (T-120, causa F; T-236): la versión activa del pedido `circulares_cambios` es la
+    v6 y trae las cinco reglas nuevas con sus ejemplos."""
     from django.conf import settings
 
     from evaluon.tenders.proposal import extraction
 
-    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v5"
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v6"
     prompt = extraction.load_prompt("circulares_cambios")
     for phrase in ('"Ítem" vale como renglón', "Un cambio por renglón",
                    "Un cambio por cada objeto nombrado", "oraciones completas",

@@ -372,8 +372,9 @@ class Extractor:
 
     def __init__(self, processor):
         self.processor = processor
-        self.prompt = extraction.load_prompt("circulares_cambios")
-        self.version = settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"]
+        self.instruction = extraction.load_instruction("circulares_cambios")
+        self.prompt = self.instruction.text
+        self.version = self.instruction.version
         # T-137: por qué la unidad que se acaba de extraer pudo perder un cambio.
         self.loss = []
 
@@ -389,12 +390,14 @@ class Extractor:
         else:
             request, content = output.request, output.content
             prompt_tokens, completion_tokens = output.prompt_tokens, output.completion_tokens
-        request = dict(request, instrucciones=self.version, repeticion=repetition,
+        request = dict(request, instrucciones=self.version,
+                       huella_instrucciones=self.instruction.sha256, repeticion=repetition,
                        unidad={"tipo": change_unit.kind, "tramos": change_unit.keys})
         step = RunStep.objects.create(
             run=processor.run, pass_name=self.pass_name, batch=processor._batch,
             segment_keys=change_unit.keys, request=request, raw_output=content,
-            parsed=parsed, anomalies=anomalies, retry_of=retry_of,
+            parsed=extraction.with_instruction(parsed, self.instruction),
+            anomalies=anomalies, retry_of=retry_of,
             timings={"seconds": round(seconds, 3), "prompt_tokens": prompt_tokens,
                      "completion_tokens": completion_tokens})
         processor.steps.append(step)
