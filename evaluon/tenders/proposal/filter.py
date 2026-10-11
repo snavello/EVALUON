@@ -507,7 +507,7 @@ class Filter:
             self.stats["failed_requests"] += 1
             step = self._record(
                 name,
-                {"request": generation.build_request(messages, schema, max_tokens),
+                {"request": generation.build_batch_request(messages, schema, max_tokens),
                  "content": "", "prompt_tokens": None, "completion_tokens": None},
                 parsed=None, retry_of=retry_of, seconds=time.monotonic() - started,
                 keys=keys,
