@@ -463,8 +463,8 @@ OFFERS_REQUEST_TIMEOUT_SECONDS = GENERATION_BATCH_TIMEOUT_SECONDS
 OFFERS_QUERY_MAX_CHARS = 800
 # Versión de cada instrucción: archivo `evaluon/offers/prompts/<versión>.md`.
 OFFERS_PROMPT_VERSIONS = {
-    "ficha": "ficha-v2",
-    "ficha_renglon": "ficha-renglon-v4",
+    "ficha": "ficha-v3",
+    "ficha_renglon": "ficha-renglon-v5",
     # Reescritura del requisito como lo diría una oferta, para buscar (T-146).
     "reescritura": "reescritura-v1",
 }

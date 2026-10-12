@@ -72,6 +72,7 @@ from evaluon.tenders.models import (
     RequirementClass,
     RequirementState,
 )
+from evaluon.tenders.proposal import extraction
 from evaluon.tenders.services.validation import latest_validated
 
 REQUEST_OPERATION = "evaluon.offers.services.sheets.request_sheet"
@@ -92,6 +93,9 @@ ANOMALY_NO_QUOTE = "requisito_sin_cita"
 ANOMALY_REWRITE = "reescritura_descartada"
 
 MAX_PASSAGES_PER_ANSWER = 3
+# Respuestas de `cotizado` en una fila por renglón (`ficha-renglon-v5`): `no_aparece` es «ningún
+# pasaje es de ese renglón», separado de `sin_precio` («es del renglón y no trae precio»).
+QUOTED_ANSWERS = ("si", "sin_precio", "no_aparece", "no")
 
 # Palabras de juicio de cumplimiento (REQ-041), con sus formas, sobre el texto sin tildes y en
 # minúsculas. La síntesis describe lo que dice la oferta: no la juzga.
@@ -201,6 +205,21 @@ def load_prompt(name):
     return (PROMPTS_DIR / f"{version}.md").read_text(encoding="utf-8")
 
 
+def prompt_record(name):
+    """`{"nombre", "version", "sha256"}` de la instrucción vigente `name`: lo que cada pedido deja
+    anotado de su instrucción (P6, REQ-106; T-248)."""
+    return {"nombre": name, "version": settings.OFFERS_PROMPT_VERSIONS[name],
+            "sha256": extraction.text_sha256(load_prompt(name))}
+
+
+def prompt_versions():
+    """Lo que la ficha guarda en `prompt_versions` (P6): la versión de cada instrucción y, en
+    `huellas`, la huella de cada archivo."""
+    return {**settings.OFFERS_PROMPT_VERSIONS,
+            "huellas": {name: prompt_record(name)["sha256"]
+                        for name in settings.OFFERS_PROMPT_VERSIONS}}
+
+
 def _models():
     return {
         "generation_batch": {
@@ -258,16 +277,17 @@ def is_item_row(requirement):
 
 
 def requirement_text(requirement, quotes=None):
-    """El texto del requisito que se busca y se le muestra al modelo: la cita del pliego
-    (de una fila por renglón, la del renglón con su encabezado). Vacío si no tiene cita.
-    `quotes` son sus citas en orden si quien llama ya las cargó (T-223)."""
+    """El texto del requisito que se busca y se le muestra al modelo: todas las citas del pliego,
+    en orden, una a continuación de la otra (T-248: antes era solo la primera); de una fila por
+    renglón, la del renglón con su encabezado. Vacío si no tiene cita. `quotes` son sus citas en
+    orden si quien llama ya las cargó (T-223)."""
     quotes = _quotes(requirement) if quotes is None else quotes
     if not quotes:
         return ""
     if is_item_row(requirement):
         own = [q for q in quotes if q.scope == "propia"]
         return " ".join(q.text for q in (own or quotes[:1]))
-    return quotes[0].text
+    return " ".join(q.text for q in quotes)
 
 
 def retrieval_query(requirement, text):
@@ -295,6 +315,8 @@ def build_messages(prompt, requirement, text, aliased, correction=""):
 
 
 def build_schema(aliases, item_row):
+    """Esquema de la salida. En una fila por renglón la cotización va al final: el motor genera
+    los campos en el orden del esquema y la cotización se apoya en los pasajes (ADR-0055)."""
     properties = {
         "pasajes": {"type": "array", "items": {"type": "string", "enum": list(aliases)},
                     "maxItems": MAX_PASSAGES_PER_ANSWER},
@@ -302,9 +324,8 @@ def build_schema(aliases, item_row):
     }
     required = ["pasajes", "sintesis"]
     if item_row:
-        properties = {"cotizado": {"type": "string", "enum": ["si", "sin_precio", "no"]},
-                      **properties}
-        required = ["cotizado", *required]
+        properties = {**properties, "cotizado": {"type": "string", "enum": list(QUOTED_ANSWERS)}}
+        required = [*required, "cotizado"]
     return {"type": "object", "properties": properties, "required": required,
             "additionalProperties": False}
 
@@ -338,8 +359,8 @@ def parse_answer(content, aliases, item_row):
     quoted = None
     if item_row:
         quoted = data["cotizado"]
-        if quoted not in ("si", "sin_precio", "no"):
-            raise InvalidAnswer("cotizado no es si ni no")
+        if quoted not in QUOTED_ANSWERS:
+            raise InvalidAnswer("cotizado no es una de las respuestas pedidas")
     unique = list(dict.fromkeys(chosen))
     return unique, synthesis.strip(), quoted
 
@@ -416,7 +437,7 @@ def rewrite_requirement(text, clock=time.monotonic):
         messages, REWRITE_SCHEMA, max_tokens=settings.OFFERS_MAX_OUTPUT_TOKENS,
         base_url=settings.GENERATION_BATCH_URL, timeout=settings.OFFERS_REQUEST_TIMEOUT_SECONDS)
     record = {"prompt_version": settings.OFFERS_PROMPT_VERSIONS["reescritura"],
-              "request": result.request, "raw_output": result.content, "query": "",
+              "instruccion": prompt_record("reescritura"), "request": result.request, "raw_output": result.content, "query": "",
               "seconds": round(clock() - started, 3)}
     try:
         data = json.loads(result.content)
@@ -460,7 +481,7 @@ def _answer_entry(offer, requirement, unread, clock):
             candidates={"pool": pool_json, "sent": sent, "query": found.query, **extra},
             timings={"retrieval_seconds": round(retrieval_seconds, 3)}))
         if item_row:
-            entry.quoted = item_state("sin_precio", [], unread)
+            entry.quoted = item_state("no_aparece", [], unread)
         return entry
 
     aliased = [(f"P{i}", passages[c.passage_id].reading.document.title,
@@ -469,7 +490,9 @@ def _answer_entry(offer, requirement, unread, clock):
     alias_to_passage = {f"P{i}": passages[c.passage_id]
                         for i, c in enumerate(found.chosen, start=1)}
     aliases = list(alias_to_passage)
-    prompt = load_prompt("ficha_renglon" if item_row else "ficha")
+    prompt_name = "ficha_renglon" if item_row else "ficha"
+    prompt = load_prompt(prompt_name)
+    instruction = prompt_record(prompt_name)
     schema = build_schema(aliases, item_row)
     candidates = {"pool": pool_json, "sent": sent, "query": found.query, **extra,
                   "aliases": {alias: p.pk for alias, p in alias_to_passage.items()}}
@@ -489,6 +512,7 @@ def _answer_entry(offer, requirement, unread, clock):
         step.timings["generation_seconds"] = round(clock() - started, 3)
         step.request = result.request
         step.raw_output = result.content
+        step.parsed = {"instruccion": instruction}
         problem = None
         try:
             chosen, synthesis, quoted = parse_answer(result.content, aliases, item_row)
@@ -496,7 +520,8 @@ def _answer_entry(offer, requirement, unread, clock):
             step.anomalies.append({"type": error.kind, "message": str(error)})
             problem = ("invalid", str(error), error.kind)
         else:
-            step.parsed = {"pasajes": chosen, "sintesis": synthesis, "cotizado": quoted}
+            step.parsed = {**step.parsed, "pasajes": chosen, "sintesis": synthesis,
+                           "cotizado": quoted}
             words = judgment_words(synthesis)
             if words:
                 step.anomalies.append({"type": ANOMALY_JUDGMENT, "words": words})
@@ -528,8 +553,8 @@ def _answer_entry(offer, requirement, unread, clock):
 
 def item_state(quoted, passages, unread):
     """El estado de cotización de una fila por renglón (REQ-044), separado de los pasajes que
-    la fila muestra (T-136). `quoted` es lo que contestó el modelo (`si`, `sin_precio` o
-    `no`), `passages` los pasajes de la fila y `unread` las páginas sin leer de la oferta.
+    la fila muestra (T-136). `quoted` es lo que contestó el modelo (`si`, `sin_precio`,
+    `no_aparece` o `no`), `passages` los pasajes de la fila y `unread` las páginas sin leer de la oferta.
 
     - "cotizado": solo si algún pasaje trae el precio o la cantidad ofrecida. Una hoja técnica
       o las especificaciones solas no alcanzan, aunque el modelo diga `si`: la fila las sigue
@@ -537,7 +562,8 @@ def item_state(quoted, passages, unread):
     - "no cotizado": la oferta dice expresamente que no lo cotiza, o su tabla de precios no lo
       trae (el modelo contestó `no`). Sin pasajes y con páginas sin leer, "no se pudo leer".
     - sin cotización a la vista (`Quoted` en blanco): hay pasajes que describen lo ofrecido, o
-      ninguno, pero ni precio ni cantidad ni una negativa expresa. Con páginas sin leer y sin
+      ninguno (`sin_precio` y `no_aparece` valen lo mismo para lo que se guarda: la diferencia
+      queda en el `parsed` del pedido), pero ni precio ni cantidad ni una negativa expresa. Con páginas sin leer y sin
       pasajes, "no se pudo leer": no se afirma lo que quizás está en una página ilegible."""
     if quoted == "si" and passages and not _only_technical(passages):
         return Quoted.COTIZADO
@@ -614,7 +640,7 @@ def build_sheet(offer, user, *, channel=SheetChannel.SCREEN, job=None,
             sheet = Sheet.objects.create(
                 offer=offer, matrix_version=version, number=last + 1, channel=channel,
                 readings=_readings_summary(offer), models_used=_models(),
-                parameters=_parameters(), prompt_versions=dict(settings.OFFERS_PROMPT_VERSIONS),
+                parameters=_parameters(), prompt_versions=prompt_versions(),
                 counts=counts, timings=timings, anomalies=anomalies,
                 technical_documents=technical, requested_by=user, job=job)
             for data in entries:
