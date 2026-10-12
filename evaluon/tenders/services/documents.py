@@ -18,7 +18,8 @@
 - `run_read_document`: el manejador del pedido `read_document` (lo registra
   `jobs.HANDLERS`). Comprueba la huella del original guardado, lo lee con la lectura de
   la 001 (`read_document`: PDF con texto o escaneado, página por página, o página web),
-  busca las zonas de tabla (`tables.table_zones`) y lo parte en tramos
+  busca las zonas de tabla con sus celdas (`tables.read_tables`), escribe cada tabla
+  celda por celda en la lectura (`tables.with_cells`, T-259) y lo parte en tramos
   (`segmenting.split_tender`). Guarda la lectura (número siguiente del documento), sus
   tramos y el informe, y deja el hecho `tender_read`, en una sola transacción: una
   lectura cortada no queda a medias. No modifica una lectura ni sus tramos ya guardados.
@@ -66,7 +67,7 @@ from evaluon.tenders.models import (
 )
 from evaluon.tenders.segmenting import RULES_VERSION, split_tender
 from evaluon.tenders.services.procedures import regime_for
-from evaluon.tenders.tables import table_zones
+from evaluon.tenders.tables import CELLS_VERSION, read_tables, with_cells
 
 LOAD_OPERATION = "evaluon.tenders.services.documents.load_document"
 PAGE_OPERATION = "evaluon.tenders.services.documents.procedure_page"
@@ -313,12 +314,12 @@ def run_read_document(job):
                 "El original guardado no coincide con la huella con que se cargó: no se "
                 "leyó."
             )
-        reading = read_document(data)
-        zones = table_zones(data)
+        reading, zones = with_cells(read_document(data), read_tables(data))
         split = split_tender(reading, zones)
         canonical_text = split.canonical.text
         canonical_sha256 = hashlib.sha256(canonical_text.encode("utf-8")).hexdigest()
-        tool_versions = {**reading.tool_versions, "rules_version": RULES_VERSION}
+        tool_versions = {**reading.tool_versions, "rules_version": RULES_VERSION,
+                         "table_cells": CELLS_VERSION}
         report = split.report
 
         with transaction.atomic():

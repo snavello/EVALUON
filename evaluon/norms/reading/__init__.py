@@ -46,7 +46,11 @@ IA y sin conexión (P4).
      por el escáner. Se reconoce con `ocr.py`.
    - *con texto inservible* (`texto_inservible`): la capa de texto trae caracteres sin
      letra (reemplazo, `(cid:N)`, uso privado, control) en una proporción de
-     `UNUSABLE_TEXT_SHARE` o más. Se reconoce con `ocr.py`.
+     `UNUSABLE_TEXT_SHARE` o más. Se reconoce con `ocr.py`. La proporción se mira dos veces:
+     en la capa que da pypdfium2 y, en una página que pasó como *con texto*, en lo que lee
+     pdfplumber (`extracted_kind`, T-259). Una fuente sin correspondencia de caracteres
+     (los croquis del caso-01) le da a pypdfium2 los códigos crudos como letras («',5(&&»)
+     y a pdfplumber `(cid:39)(cid:44)…`: solo la segunda mirada la reconoce.
    - *en blanco* (`en_blanco`): sin texto y sin tinta. Estado `en_blanco`: se informa y
      no cuenta como no leída.
    - *solo campos* (`solo_campos`): sin texto ni tinta, pero con anotaciones o campos de
@@ -307,6 +311,19 @@ def page_kind(facts: PageFacts) -> str:
     return PAGE_KIND_BLANK
 
 
+def extracted_kind(kind: str, page: Page) -> str:
+    """La clasificación de una página *con texto* después de leerla con pdfplumber: si su
+    texto trae caracteres sin letra (`(cid:N)`, como los escribe pdfminer) en una proporción
+    de `UNUSABLE_TEXT_SHARE` o más, la capa no sirve aunque pypdfium2 la diera por buena
+    (T-259). Las demás clasificaciones no cambian."""
+    if kind != PAGE_KIND_TEXT:
+        return kind
+    chars, unusable = unusable_text_share("\n".join(line.text for line in page.lines))
+    if chars and unusable / chars >= UNUSABLE_TEXT_SHARE:
+        return PAGE_KIND_UNUSABLE_TEXT
+    return kind
+
+
 def classify_page(page) -> str:
     """Clasifica una página de PDF (`pypdfium2.PdfPage`) antes de leerla."""
     return page_kind(page_facts(page))
@@ -367,6 +384,8 @@ def _read_pdf(data):
                 raise UnsupportedFormatError(_DAMAGED_MESSAGE) from error
             if len(text_pages) != len(kinds):
                 raise UnsupportedFormatError(_DAMAGED_MESSAGE)
+            kinds = [extracted_kind(kind, text_pages[index])
+                     for index, kind in enumerate(kinds)]
 
         pages = []
         for index, kind in enumerate(kinds):

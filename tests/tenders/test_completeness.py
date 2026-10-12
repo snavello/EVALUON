@@ -438,7 +438,9 @@ def test_technical_rows_come_from_the_rule_and_a_marked_segment_joins_them(
 
 # --- Citas sobre tramos con saltos de línea y espacios distintos (O1 de T-073) -----------------------
 
-TABLA_TEXT = "deberá mantener la oferta durante:\n60 días corridos"
+# Las celdas de una fila van separadas por una tabulación (T-259, `tables.with_cells`): la cita
+# que el modelo copia con espacios se ubica igual y su recorte literal trae la tabulación.
+TABLA_TEXT = "deberá mantener\tla oferta durante:\n60 días corridos"
 
 
 def table_pdf():
