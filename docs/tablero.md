@@ -71,7 +71,7 @@ flowchart LR
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 40/45 | █████████░ 89% |
-| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 17/22 | ████████░░ 77% |
+| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 19/22 | █████████░ 86% |
 
 <a id="001"></a>
 
@@ -1289,9 +1289,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 5 tareas sin terminar.
-- ▶ T-245 · Qwen3.6-35B-A3B en servicio: las mismas comprobaciones que T-243 con los mismos umbrales (en curso)
-- ▶ T-246 · Comparación de Qwen3.6-35B-A3B con el 12B, con el mismo protocolo y los mismos umbrales (en curso)
+- **Próximo paso:** Desarrollar: 3 tareas sin terminar.
 - ○ T-247 · ADR de resultado (reservado ADR-0057): adopta o descarta cada candidato con las corridas como evidencia; si adopta, deja preparados sin integrar los cambios de compose base y `entorno.md` para la aprobación del responsable (pendiente)
 - ○ T-248 · Resto de las instrucciones (consecuencias, respaldo, ficha, ficha por renglón, reescritura, visión, informe técnico, consulta, nombre del oferente, datos del procedimiento) y hallazgos pendientes del informe de revisión; huella de cada una; el informe queda con todo corregido o justificado (pendiente)
 - ○ T-249 · Medición de lo que cambió T-248, solo en las áreas que cambió, con el umbral de que ninguna medida empeore (P7): evals de la 001, fichas, lectura con visión, propuestas de datos y matriz con circulares (pendiente)
@@ -1316,6 +1314,8 @@ flowchart LR
 - ✓ T-242 · Servicio de los candidatos: un archivo de compose por modelo (Qwen3.8-27B y Qwen3.6-35B-A3B) a la manera del ADR-0042, opciones de descarga con revisión fijada, huellas en `scripts/models.sha256` y tests de coherencia con el compose base (`dd1f0f6` 2026-10-10)
 - ✓ T-243 · Qwen3.8-27B en servicio: prueba de humo con texto e imagen, memoria máxima (22.000 MiB), reuso de la caché de prefijo (90 % o más del prefijo), razonamiento nativo apagado (0 tokens de pensamiento) y orden del esquema respetado; velocidad medida
 - ✓ T-244 · Comparación de Qwen3.8-27B con el 12B, con el protocolo del ADR-0042 y el uso corregido: caso-00 completo primero (compuerta de salida temprana), después los casos 01 a 06; cada par que cambia se revisa y se clasifica
+- ✓ T-245 · Qwen3.6-35B-A3B en servicio: las mismas comprobaciones que T-243 con los mismos umbrales
+- ✓ T-246 · Comparación de Qwen3.6-35B-A3B con el 12B, con el mismo protocolo y los mismos umbrales
 
 ### Mapa de tareas
 
@@ -1338,8 +1338,8 @@ flowchart TD
   T242["✓ T-242 · Servicio de los candidatos: un archivo de c…"]:::done
   T243["✓ T-243 · Qwen3.8-27B en servicio: prueba de humo con…"]:::done
   T244["✓ T-244 · Comparación de Qwen3.8-27B con el 12B, con…"]:::done
-  T245["▶ T-245 · Qwen3.6-35B-A3B en servicio: las mismas com…"]:::active
-  T246["▶ T-246 · Comparación de Qwen3.6-35B-A3B con el 12B,…"]:::active
+  T245["✓ T-245 · Qwen3.6-35B-A3B en servicio: las mismas com…"]:::done
+  T246["✓ T-246 · Comparación de Qwen3.6-35B-A3B con el 12B,…"]:::done
   T247["○ T-247 · ADR de resultado (reservado ADR-0057): adop…"]:::todo
   T248["○ T-248 · Resto de las instrucciones (consecuencias,…"]:::todo
   T249["○ T-249 · Medición de lo que cambió T-248, solo en la…"]:::todo
