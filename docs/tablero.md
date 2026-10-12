@@ -71,7 +71,7 @@ flowchart LR
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 40/45 | █████████░ 89% |
-| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 10/20 | █████░░░░░ 50% |
+| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 13/21 | ██████░░░░ 62% |
 
 <a id="001"></a>
 
@@ -1289,11 +1289,9 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 10 tareas sin terminar.
-- ▶ T-239 · Medición del 12B con el uso corregido: caso chico como corte vertical, caso-00 (matriz, revisión como en T-229 y evaluación de las 3 ofertas) y casos 01 a 06 (matriz), contra los umbrales del plan: 70 % de filas conservadas, 0 pedazos sin sujeto, 95 % de la lista esperada, Portal 100 % y 0, 12 de 81 «no determinado» o menos, 0 contradicciones, 100 % literal, 100 % de preguntas conformes, 60 minutos y 22.000 MiB (en curso)
-- ○ T-240 · Ronda de ajuste única, solo si T-239 no llega a algún umbral: todos los hallazgos en una sola tarea, un commit por hallazgo; se cierra sin cambios si T-239 cumple todo (pendiente)
+- **Próximo paso:** Desarrollar: 8 tareas sin terminar.
+- ▶ T-253 · Razonamiento propio del modelo encendible por paso (extracción, completitud, filtro, evaluación, contraste) con nivel, solo en el motor de lotes, apagado por omisión e idéntico a hoy cuando está apagado; texto y tokens del razonamiento en el registro de cada pedido; compose adicional para el servidor; averiguar si el 12B lo admite (decisión del 2026-10-11) (en curso)
 - ○ T-241 · Repetición completa de la medición de T-239 sobre el commit ajustado; es la referencia del 12B para la comparación. Solo si hubo T-240; sin una segunda ronda de ajuste (pendiente)
-- ○ T-243 · Qwen3.8-27B en servicio: prueba de humo con texto e imagen, memoria máxima (22.000 MiB), reuso de la caché de prefijo (90 % o más del prefijo), razonamiento nativo apagado (0 tokens de pensamiento) y orden del esquema respetado; velocidad medida (pendiente)
 - ○ T-244 · Comparación de Qwen3.8-27B con el 12B, con el protocolo del ADR-0042 y el uso corregido: caso-00 completo primero (compuerta de salida temprana), después los casos 01 a 06; cada par que cambia se revisa y se clasifica (pendiente)
 - ○ T-245 · Qwen3.6-35B-A3B en servicio: las mismas comprobaciones que T-243 con los mismos umbrales (pendiente)
 - ○ T-246 · Comparación de Qwen3.6-35B-A3B con el 12B, con el mismo protocolo y los mismos umbrales (pendiente)
@@ -1313,7 +1311,10 @@ flowchart LR
 - ✓ T-237 · Instrucciones de la evaluación (evaluación, contraste, cláusulas): `razonamiento`, citas y externo antes del veredicto en el esquema, cita de la oración completa en lugar del «fragmento mínimo», «cada condición con su dato» con el resultado de cada una visible por separado y el de la celda derivado de todas (REQ-104), definición de la duda, ejemplos balanceados, pregunta dirigida a la Comisión, reintento con memoria, versión y huella en cada pedido (`4006149` 2026-10-11, `eb82337` 2026-10-11, `12a87b8` 2026-10-11, `9f22363` 2026-10-11, `3a4234f` 2026-10-11, `8a06a96` 2026-10-11, `08d79ac` 2026-10-11)
 - ✓ T-251 · Código listo para medir otro modelo: el cuerpo del pedido de lotes dice el modelo que lo atiende y los tokens de los lotes se cuentan con ese motor (hoy con `generation`, que es Gemma) (`70b4a61` 2026-10-11, `32aa9ae` 2026-10-11, `a1aa7c2` 2026-10-11)
 - ✓ T-238 · Medidas de la 015 en `medir_matriz` y `medir_evaluacion` (filas conservadas, pedazos sin sujeto, recall sin las entradas excluidas, celdas del Portal, «no determinado» que no espera un documento ausente, forma de las preguntas) y listas esperadas ajustadas con huella y visto bueno del Coordinador (`df43d49` 2026-10-11, `2ebdf6a` 2026-10-10)
+- ✓ T-239 · Medición del 12B con el uso corregido: caso chico como corte vertical, caso-00 (matriz, revisión como en T-229 y evaluación de las 3 ofertas) y casos 01 a 06 (matriz), contra los umbrales del plan: 70 % de filas conservadas, 0 pedazos sin sujeto, 95 % de la lista esperada, Portal 100 % y 0, 12 de 81 «no determinado» o menos, 0 contradicciones, 100 % literal, 100 % de preguntas conformes, 60 minutos y 22.000 MiB
+- ✓ T-240 · Ronda de ajuste única, solo si T-239 no llega a algún umbral: todos los hallazgos en una sola tarea, un commit por hallazgo; se cierra sin cambios si T-239 cumple todo (`850b5ca` 2026-10-11, `392f9ce` 2026-10-11, `22d509c` 2026-10-11, `0e57239` 2026-10-11, `0768320` 2026-10-11, `1b26bd5` 2026-10-11, `3990e9e` 2026-10-11, `d0e2139` 2026-10-11, `037ad17` 2026-10-11, `ab57958` 2026-10-11)
 - ✓ T-242 · Servicio de los candidatos: un archivo de compose por modelo (Qwen3.8-27B y Qwen3.6-35B-A3B) a la manera del ADR-0042, opciones de descarga con revisión fijada, huellas en `scripts/models.sha256` y tests de coherencia con el compose base (`dd1f0f6` 2026-10-10)
+- ✓ T-243 · Qwen3.8-27B en servicio: prueba de humo con texto e imagen, memoria máxima (22.000 MiB), reuso de la caché de prefijo (90 % o más del prefijo), razonamiento nativo apagado (0 tokens de pensamiento) y orden del esquema respetado; velocidad medida
 
 ### Mapa de tareas
 
@@ -1325,14 +1326,15 @@ flowchart TD
   T235["✓ T-235 · Evaluación: la cita de la oferta se amplía…"]:::done
   T236["✓ T-236 · Instrucciones de la matriz, parte 1: bloque…"]:::done
   T252["✓ T-252 · Instrucciones de la matriz, parte 2: filtro…"]:::done
+  T253["▶ T-253 · Razonamiento propio del modelo encendible p…"]:::active
   T237["✓ T-237 · Instrucciones de la evaluación (evaluación,…"]:::done
   T251["✓ T-251 · Código listo para medir otro modelo: el cue…"]:::done
   T238["✓ T-238 · Medidas de la 015 en medir_matriz y medir_e…"]:::done
-  T239["▶ T-239 · Medición del 12B con el uso corregido: caso…"]:::active
-  T240["○ T-240 · Ronda de ajuste única, solo si T-239 no lle…"]:::todo
+  T239["✓ T-239 · Medición del 12B con el uso corregido: caso…"]:::done
+  T240["✓ T-240 · Ronda de ajuste única, solo si T-239 no lle…"]:::done
   T241["○ T-241 · Repetición completa de la medición de T-239…"]:::todo
   T242["✓ T-242 · Servicio de los candidatos: un archivo de c…"]:::done
-  T243["○ T-243 · Qwen3.8-27B en servicio: prueba de humo con…"]:::todo
+  T243["✓ T-243 · Qwen3.8-27B en servicio: prueba de humo con…"]:::done
   T244["○ T-244 · Comparación de Qwen3.8-27B con el 12B, con…"]:::todo
   T245["○ T-245 · Qwen3.6-35B-A3B en servicio: las mismas com…"]:::todo
   T246["○ T-246 · Comparación de Qwen3.6-35B-A3B con el 12B,…"]:::todo
@@ -1345,6 +1347,7 @@ flowchart TD
   T234 --> T236
   T250 --> T236
   T236 --> T252
+  T240 --> T253
   T235 --> T237
   T252 --> T237
   T236 --> T251
@@ -1386,4 +1389,4 @@ flowchart TD
 | REQ-104 | En la evaluación, el sistema razona antes de dar el veredicto, revisa todas las condiciones del requisito, cada una con su dato y su resultado visible por separado («cumple» solo si se cumplen todas; «no cumple» si falla alguna; si falta el dato de alguna, «no determinado» diciendo cuál), cita la oración completa de la oferta y del pliego, y el contraste ve el contexto de la cita | T-235, T-237, T-238, T-239, T-240, T-241 | ▶ en proceso |
 | REQ-105 | Cada pregunta a la Comisión está dirigida a la Comisión (nunca al oferente) y dice qué requisito, qué conclusión y qué texto la motivan; no hay preguntas de texto fijo genérico | T-235, T-237, T-238, T-239, T-240, T-241 | ▶ en proceso |
 | REQ-106 | Todas las instrucciones al modelo (matriz, evaluación, contraste, visión, ficha, consulta) se revisan contra las decisiones vigentes y entre sí: sin reglas que empujen al error, con ejemplos representativos, razonamiento antes del veredicto y la versión registrada en cada pedido (P6) | T-236, T-252, T-237, T-248, T-249 | ▶ en proceso |
-| REQ-107 | Un modelo nuevo se adopta solo si, con el uso corregido, el mismo caso y la misma lista esperada, mejora las medidas de REQ-101 a REQ-105 sin empeorar contradicciones, citas, tiempo ni memoria, con cada cambio explicado | T-251, T-242, T-243, T-244, T-245, T-246, T-247 | ▶ en proceso |
+| REQ-107 | Un modelo nuevo se adopta solo si, con el uso corregido, el mismo caso y la misma lista esperada, mejora las medidas de REQ-101 a REQ-105 sin empeorar contradicciones, citas, tiempo ni memoria, con cada cambio explicado | T-253, T-251, T-242, T-243, T-244, T-245, T-246, T-247 | ▶ en proceso |
