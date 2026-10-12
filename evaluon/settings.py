@@ -518,7 +518,7 @@ ASSESSMENT_VISION_MAX_SIDE = 1800
 ASSESSMENT_VISION_IMAGE_TOKENS = 280
 ASSESSMENT_VISION_MAX_OUTPUT_TOKENS = 3000
 ASSESSMENT_VISION_MAX_ILLEGIBLE_SHARE = 0.30
-ASSESSMENT_VISION_PROMPT_VERSION = "vision-v3"
+ASSESSMENT_VISION_PROMPT_VERSION = "vision-v4"
 # T-177 (REQ-064): cómo se le pide al modelo. Salida en texto plano que termina con un
 # marcador de fin (sin él, la salida se descarta: no se aceptan transcripciones parciales);
 # penalización de repetición del motor; orientación (confianza mínima de OSD de Tesseract para
@@ -526,6 +526,9 @@ ASSESSMENT_VISION_PROMPT_VERSION = "vision-v3"
 # solapadas a 300 puntos por pulgada para páginas apaisadas o de lectura dudosa (cantidad,
 # solape como proporción del alto de la franja y lado mayor de cada franja).
 ASSESSMENT_VISION_END_MARKER = "<<FIN>>"
+# La penalización de 1,15 con temperatura 0 puede cambiar dígitos repetidos (CUIT, montos con
+# «000»): la revisión de las instrucciones pidió medirla contra 1,05 o ninguna (T-248). El valor no
+# cambia sin esa medición (T-249): se compara con la variable de entorno, sin tocar el código.
 ASSESSMENT_VISION_REPEAT_PENALTY = float(env_str("ASSESSMENT_VISION_REPEAT_PENALTY", "1.15"))
 ASSESSMENT_VISION_OSD_MIN_CONFIDENCE = 5.0
 ASSESSMENT_VISION_ORIENTATION_MAX_SIDE = 1400

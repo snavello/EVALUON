@@ -91,7 +91,8 @@ class Seen:
 
     @property
     def user_text(self):
-        return self.messages[-1]["content"][0]["text"]
+        return next(part["text"] for part in self.messages[-1]["content"]
+                    if part.get("type") == "text")
 
     @property
     def sha256(self):
