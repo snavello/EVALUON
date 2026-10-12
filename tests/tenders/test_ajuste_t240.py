@@ -215,19 +215,19 @@ def _prompt(name):
     return (folder / f"{name}.md").read_text(encoding="utf-8")
 
 
-def test_the_active_matrix_instructions_are_the_t240_versions():
-    """REQ-106, T-240: la ronda de ajuste publica versiones nuevas (las anteriores quedan congeladas)
-    y las registra como vigentes."""
+def test_the_active_matrix_instructions_are_the_t254_versions():
+    """REQ-106, T-254: la ronda extra publica versiones nuevas (las de T-240 quedan congeladas) y las
+    registra como vigentes; siguen diciendo lo que T-240 pidió (los tests de abajo leen las vigentes)."""
     versions = _settings.MATRIX_PROMPT_VERSIONS
-    assert versions["definiciones"] == "matriz-definiciones-v3"
-    assert versions["extraccion"] == "matriz-extraccion-v6"
-    assert versions["filtro"] == "matriz-filtro-v5"
+    assert versions["definiciones"] == "matriz-definiciones-v4"
+    assert versions["extraccion"] == "matriz-extraccion-v7"
+    assert versions["filtro"] == "matriz-filtro-v6"
 
 
 def test_the_common_block_says_that_exceptions_ask_nothing_of_the_offer():
     """REQ-102, T-240: las excepciones (la que dispensa de algo hasta cierto monto) no exigen nada a
     la oferta; el texto de un formulario tampoco; lo que se exceptúa es otra oración."""
-    block = _prompt("matriz-definiciones-v3")
+    block = _prompt("matriz-definiciones-v4")
     assert "Las excepciones y las dispensas" in block
     assert "No le exige nada a la oferta" in block
     assert "El texto de un formulario o de una declaración jurada modelo tampoco es un requisito" in block
@@ -243,7 +243,7 @@ def test_the_extraction_asks_to_join_the_contiguous_sentences_of_the_same_subjec
     """REQ-101, T-240: la extracción mira la oración que sigue antes de copiar, junta las que siguen el
     mismo asunto («Tal…», «Dicha…», «Deberán…») y separa las que abren otro; hay un ejemplo de
     cada cosa, inventado y de otro rubro."""
-    text = _prompt("matriz-extraccion-v6")
+    text = _prompt("matriz-extraccion-v7")
     assert "mirá la oración que le sigue en el tramo" in text
     assert "\"Tal…\", \"Dicha…\"" in text
     assert "Un requisito partido en dos filas es peor que uno largo" in text
@@ -263,7 +263,7 @@ def test_the_filter_applies_the_exclusions_of_the_definitions_one_by_one():
     pide que la fila entre «con claridad» para descartar, y tiene ejemplos de descarte de cada cosa que
     dejaba pasar: compromiso al presentarse, ejecución del contrato, excepción, texto de formulario y
     dato del procedimiento, balanceados con ejemplos que se mantienen."""
-    text = _prompt("matriz-filtro-v5")
+    text = _prompt("matriz-filtro-v6")
     assert "recorré en el \"razonamiento\", una por una, las exclusiones de las definiciones" in text
     assert "Descartá solo si la fila entra con claridad" not in text
     section = text[text.index("# PREGUNTA A"):text.index("# PREGUNTA B")]

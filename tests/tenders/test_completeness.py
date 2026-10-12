@@ -527,7 +527,7 @@ def test_prompts_v4_are_active_and_teach_sentences_effects_and_the_definitions(n
     from django.conf import settings
 
     assert settings.MATRIX_PROMPT_VERSIONS[name] == {
-        "extraccion": "matriz-extraccion-v6", "completitud": "matriz-completitud-v5"}[name]
+        "extraccion": "matriz-extraccion-v7", "completitud": "matriz-completitud-v5"}[name]
     text = extraction.load_prompt(name)
     assert extraction.DEFINITIONS_MARK not in text
     for phrase in ("QUÉ ES UN REQUISITO DE LA OFERTA", "Una fila es una unidad de sentido",
@@ -647,4 +647,4 @@ def test_every_request_of_the_completeness_records_its_instruction(operator_user
     assert expected["version"] == "matriz-completitud-v5"
     for step in found:
         assert step.parsed["instruccion"] == expected
-        assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v3"
+        assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v4"
