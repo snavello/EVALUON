@@ -6,8 +6,8 @@ renglones (número, descripción, cantidad). Cada dato propuesto lleva su cita: 
 texto literal donde se encontró. Sin cita verificable, el dato queda «no determinado» y no se
 propone.
 
-El modelo local entra solo para el tipo y el objeto que las reglas no hallaron, pidiéndole la
-cita literal; la cita se verifica contra el texto de la página y el valor tiene que estar dentro
+El modelo local (el del motor de lotes, `generation_batch`; T-247) entra solo para el tipo y el
+objeto que las reglas no hallaron, pidiéndole la cita literal; la cita se verifica contra el texto de la página y el valor tiene que estar dentro
 de ella (mismo patrón que la matriz). Una falla del modelo deja el dato sin determinar; nunca
 hace fallar la propuesta. Todo corre en local (P4) y el pedido, con sus instrucciones, parámetros
 y fragmentos, queda en la traza que devuelve `propose` (P6).
@@ -23,6 +23,8 @@ import unicodedata
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal, InvalidOperation
+
+from django.conf import settings
 
 from evaluon.ai import AIServiceError, generation
 from evaluon.norms.reading import FORMAT_PDF, detect_format, read_document
@@ -345,7 +347,10 @@ def ask_model(front, missing):
     }
     result = {}
     try:
-        answer = generation.generate(messages, MODEL_SCHEMA)
+        # El motor de los pedidos del `worker` (T-247): con el Qwen3.8-27B en `generation_batch`
+        # el motor de la Consulta está apagado, y esta propuesta corre en el `worker`.
+        answer = generation.generate_batch(messages, MODEL_SCHEMA,
+                                           max_tokens=settings.GENERATION_MAX_OUTPUT_TOKENS)
     except AIServiceError as error:
         trace["error"] = f"{error.reason}: {error}"
         return result, trace

@@ -602,3 +602,82 @@ def test_candidate_file_names_do_not_collide_with_the_other_models():
     checksums = _checksums()
     assert len(checksums) == 10
     assert all(name in checksums for name in names)
+
+
+# --- T-247 · configuración de uso por omisión: el Qwen3.8-27B, razonamiento en el contraste, sin
+# el motor de la Consulta (ADR-0057) --------------------------------------------------------------
+
+ENV_EXAMPLE = REPO / ".env.example"
+NO_QUERY_ENGINE_FILE = REPO / "docker-compose.sin-consulta.yml"
+DEFAULT_FILES = ("docker-compose.yml", "docker-compose.qwen38-27b.yml",
+                 "docker-compose.razonamiento.yml", "docker-compose.sin-consulta.yml")
+
+
+def _env_example():
+    """Las asignaciones sin comentar de `.env.example`: `{variable: valor}`."""
+    values = {}
+    for line in ENV_EXAMPLE.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            name, _, value = line.partition("=")
+            values[name] = value
+    return values
+
+
+def test_the_default_install_is_the_27b_with_reasoning_only_in_the_contrast():
+    """REQ-107 (T-247): `.env.example` trae lo que hace que `docker compose up` desde cero levante
+    el Qwen3.8-27B con el razonamiento solo en el contraste y sin el motor de la Consulta:
+    `COMPOSE_FILE` con los cuatro archivos en ese orden (el de razonamiento después del que fija el
+    modelo), el separador `:` explícito (en Windows el de Compose es `;`) y una sola variable de
+    razonamiento encendida."""
+    env = _env_example()
+    assert env["COMPOSE_PATH_SEPARATOR"] == ":"
+    assert tuple(env["COMPOSE_FILE"].split(":")) == DEFAULT_FILES
+    for name in DEFAULT_FILES:
+        assert (REPO / name).is_file(), name
+    on = {name: value for name, value in env.items()
+          if name.startswith("GENERATION_BATCH_REASONING") and value not in ("", "off")}
+    assert on == {"GENERATION_BATCH_REASONING_CONTRAST": "low"}
+    # la clave y la contraseña siguen vacías: ningún secreto va al repositorio
+    assert env["POSTGRES_PASSWORD"] == "" and env["DJANGO_SECRET_KEY"] == ""
+
+
+def test_the_default_files_are_mounted_in_the_app_for_these_tests():
+    """REQ-107 (T-247): `docker-compose.yml` monta el archivo que apaga la Consulta y
+    `.env.example` en la aplicación, solo para que estas pruebas los lean."""
+    base = yaml.safe_load(COMPOSE_FILE.read_text(encoding="utf-8"))
+    for volumes in (base["x-app"]["volumes"], base["services"]["app"]["volumes"]):
+        assert "./docker-compose.sin-consulta.yml:/app/docker-compose.sin-consulta.yml:ro" in volumes
+        assert "./.env.example:/app/.env.example:ro" in volumes
+
+
+def test_the_file_without_the_query_engine_only_switches_it_off():
+    """REQ-107 (T-247): `docker-compose.sin-consulta.yml` pone `generation` en un perfil (no
+    arranca con `docker compose up`) y hace que `app` no lo espere (`required: false`); no
+    toca redes, puertos, imágenes, volúmenes ni a los demás servicios. Con perfil y sin la
+    dependencia opcional, Compose rechazaría el proyecto o `app` esperaría para siempre."""
+    file = yaml.safe_load(NO_QUERY_ENGINE_FILE.read_text(encoding="utf-8"))
+    assert set(file) == {"services"}
+    assert set(file["services"]) == {"generation", "app"}
+    assert file["services"]["generation"] == {"profiles": ["consulta-12b"]}
+    assert file["services"]["app"] == {"depends_on": {"generation": {
+        "condition": "service_healthy", "required": False}}}
+    # el servicio y su dependencia existen en el compose base, con la misma condición
+    base = yaml.safe_load(COMPOSE_FILE.read_text(encoding="utf-8"))
+    assert base["services"]["app"]["depends_on"]["generation"] == {
+        "condition": "service_healthy"}
+    assert "profiles" not in base["services"]["generation"]  # el base sigue levantando la Consulta
+
+
+def test_the_default_install_keeps_the_batch_engine_off_the_internet(compose):
+    """P4 (T-247): ningún archivo de la configuración de uso agrega redes, puertos ni salida a
+    `generation_batch`: sigue solo en la red interna, sin puertos, y la red interna no tiene
+    salida a internet."""
+    assert compose["networks"]["internal"]["internal"] is True
+    batch = compose["services"]["generation_batch"]
+    assert batch["networks"] == ["internal"] and "ports" not in batch
+    for name in DEFAULT_FILES[1:]:
+        file = yaml.safe_load((REPO / name).read_text(encoding="utf-8"))
+        for service, body in (file.get("services") or {}).items():
+            assert not {"networks", "ports", "image", "extra_hosts", "network_mode"} & set(body),                 (name, service)
+        assert "networks" not in file, name

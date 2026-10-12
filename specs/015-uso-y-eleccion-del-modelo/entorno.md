@@ -165,8 +165,8 @@ GENERATION_BATCH_REASONING_CONTRAST=low docker compose -f docker-compose.yml -f 
 - **Esperar a `/health`** antes de pedir nada: la carga tarda de 4 a 10 minutos (10 en T-244, 7,5 en T-244b; en T-254, 4,5 minutos la primera vez y 5 la segunda, de `up` a `/health` `ok`) (`docker compose exec generation_batch curl -s localhost:8080/health` devuelve `{"status":"ok"}`). Con `--no-deps` el `up` no espera.
 - **Qué comprobar:** `/props` de `generation_batch` con el alias `qwen3.8-27b-ud-q4_k_m`, `n_ctx` 32.768 y visión verdadera; en cada corrida, `parameters.reasoning` con `contrast: low` y los demás pasos en `off`, y `razonamiento_propio` (nivel, texto y tokens) en cada pedido del contraste y en ningún otro (P6).
 - **Memoria:** unos 20.960 MiB de 24.463 con `embeddings` y `reranker` encendidos y `generation` apagado (T-244, T-244b); el tope es 22.000 MiB. Con `generation` encendido no entra.
-- **La propuesta de datos del procedimiento usa `generation`** (`procedure_fields`, con `generation.generate`): con el 27B levantado no corre. Cargar esos datos antes de apagar `generation`; la propuesta de la matriz y el respaldo normativo sí corren, porque cuentan y piden al motor de lotes (T-254, H-244-1).
-- **Mientras esté levantado**, la Consulta de normativa no responde (el motor `generation` está apagado) y todo lo que usa ese motor (fichas, lectura con visión, propuestas de datos, informe técnico) tampoco; el motor de lotes sí atiende la matriz y la evaluación.
+- **La propuesta de datos del procedimiento** (`procedure_fields`, el alta desde el pliego) usaba `generation` y con el 27B levantado no corría; desde T-247 pide al motor de lotes y funciona con el 27B (ADR-0057). La propuesta de la matriz y el respaldo normativo también cuentan y piden al motor de lotes (T-254, H-244-1).
+- **Mientras esté levantado**, la Consulta de normativa no responde (el motor `generation` está apagado; desde T-247 su pantalla lo dice en lugar de fallar) y la propuesta de datos del oferente (`offers/proposal_fields.py`, el nombre) tampoco, sin fallar: el dato queda «no determinado». Fichas, lectura con visión, informe técnico, matriz y evaluación piden al motor de lotes y funcionan.
 
 ### Cómo se vuelve al 12B
 
@@ -176,3 +176,55 @@ docker compose start generation
 ```
 
 Recrea `generation_batch`, `worker` y `app` solo con el compose base (12B, sin razonamiento: `--reasoning off --reasoning-budget 0`) y enciende de nuevo la Consulta. Comprobar: `/health` `ok` en los dos motores, el alias del 12B en `/props` de cada uno, `n_ctx` 32.768 en el de lotes y 16.384 en el de la Consulta, y un pedido de prueba a cada uno sin razonamiento.
+
+## Uso por omisión: el Qwen3.8-27B con razonamiento solo en el contraste (T-247, ADR-0057)
+
+Preparado por T-247 (2026-10-12), **sin desplegar**: el responsable adoptó el modelo el mismo día («Sí; Consulta con el 27B») y el despliegue en el equipo de uso (8000) lo hace el Coordinador después de verificar (P11).
+
+### Qué cambia respecto del compose base
+
+Un `.env` copiado de `.env.example` trae tres líneas nuevas y `docker compose up -d` (sin `-f`) arma el proyecto con cuatro archivos:
+
+| Línea de `.env.example` | Efecto |
+|---|---|
+| `COMPOSE_FILE=docker-compose.yml:docker-compose.qwen38-27b.yml:docker-compose.razonamiento.yml:docker-compose.sin-consulta.yml` y `COMPOSE_PATH_SEPARATOR=:` | `generation_batch` es el Qwen3.8-27B, el servidor permite pensar (`--reasoning auto --reasoning-budget -1`) y `generation` no arranca (perfil `consulta-12b`; `app` no lo espera). El separador `:` es explícito porque el de Compose en Windows es `;` |
+| `GENERATION_BATCH_REASONING_CONTRAST=low` | Solo el contraste piensa, con tope de 1.024 tokens de razonamiento por pedido; extracción, completitud, filtro y evaluación no (T-244b y T-244c: con razonamiento empeoran) |
+
+Los archivos del 12B, del 27B, de razonamiento y del 35B no cambian de contenido. Los comandos con `-f archivo` explícito (las secciones de arriba, las mediciones y los runbooks anteriores) no leen `COMPOSE_FILE` y siguen valiendo tal cual.
+
+### Instalación desde cero (P5)
+
+```
+cp .env.example .env            # completar POSTGRES_PASSWORD y DJANGO_SECRET_KEY (ver .env.example)
+bash scripts/fetch_models.sh               # 12B, bge-m3 y reranker (el 12B es el camino de vuelta)
+bash scripts/fetch_models.sh --qwen38-27b  # 27B y su proyector, 17,4 GB; verifica la huella
+docker compose up -d
+```
+
+La carga del 27B tarda de 3 a 10 minutos (3 min 4 s en T-244d; 4,5 a 10 min en otras corridas). Con `docker compose up` (con dependencias), el `worker` espera la salud de `generation_batch`; el `start_period` del compose base es de 120 s y puede vencer durante la carga, y entonces el `up` termina con «unhealthy». No es una falla: esperar a que `docker compose exec generation_batch curl -s localhost:8080/health` devuelva `{"status":"ok"}` y repetir `docker compose up -d`. Comprobar: `/props` de `generation_batch` con el alias `qwen3.8-27b-ud-q4_k_m`, `n_ctx` 32.768 y visión verdadera; `docker compose ps` sin `generation`; en cada corrida, `parameters.reasoning` con `contrast: low` y los demás pasos en `off`.
+
+### Memoria, tiempos y carga
+
+| | Medido | Registro |
+|---|---|---|
+| Memoria de video máxima, con `embeddings` y `reranker` y sin `generation` | 20.956 MiB de 24.463 (tope 22.000; margen 1.044) | T-244d |
+| Caso-00 completo (matriz y evaluación de 3 ofertas) | 72,9 min (12,3 + 60,6); el 12B, 31,6 min | T-244d, T-241 |
+| Carga del modelo hasta `/health` | 3 min 4 s a 10 min | T-244d, T-244 |
+| Con `generation` encendido | no entra (unos 7.800 MiB más) | T-243, T-244 |
+
+Mientras una evaluación o una matriz corre, el motor de lotes está ocupado: los pedidos del `worker` van de a uno. La GPU no admite otra carga.
+
+### La Consulta y las propuestas de datos
+
+- La Consulta de normativa queda **apagada** hasta T-255: su pantalla (`/consulta/`) y la pestaña de Normativas dicen «La consulta de normativa no está disponible por ahora…», con el botón desactivado, y no ejecutan ni guardan la pregunta. Lo decide `generation.is_available()` (`GET /health` de `generation`, 2 s de espera): si el motor se enciende, la Consulta vuelve sola. La búsqueda directa sigue.
+- El alta del procedimiento desde el pliego usa el motor de lotes (T-247).
+- La propuesta de datos del oferente (`offers/proposal_fields.py`) sigue pidiendo a `generation`: sin ese motor, el nombre queda «no determinado» sin fallar (pendiente para T-248).
+
+### Cómo se vuelve al 12B (con la Consulta)
+
+```
+# 1. en .env: borrar o comentar COMPOSE_FILE, COMPOSE_PATH_SEPARATOR y GENERATION_BATCH_REASONING_CONTRAST
+docker compose up -d --no-deps generation_batch worker app generation
+```
+
+Recrea `generation_batch`, `worker` y `app` con el compose base (12B, sin razonamiento) y enciende `generation`. Comprobar: `/health` `ok` en los dos motores, el alias del 12B en `/props` de cada uno, `n_ctx` 32.768 en el de lotes y 16.384 en el de la Consulta, y la pantalla de la Consulta sin el aviso. No cambia ningún dato ni la base. Los archivos del 27B quedan en `models/`; borrarlos (17,4 GB) lo decide el responsable. Una vuelta puntual, sin tocar `.env`: `docker compose -f docker-compose.yml up -d --no-deps generation_batch worker app generation`.

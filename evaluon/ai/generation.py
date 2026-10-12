@@ -37,6 +37,7 @@ Errores: `InputTooLongError` si el pedido no entra en el contexto (HTTP 400
 `evaluon.ai`).
 """
 
+import urllib.request
 from dataclasses import dataclass
 
 from django.conf import settings
@@ -251,6 +252,25 @@ def count_tokens(text):
     incluye lo que agrega la plantilla de conversación (lo cubre
     `PROMPT_TEMPLATE_MARGIN_TOKENS`)."""
     return count_tokens_with(SERVICE, settings.GENERATION_URL, text)
+
+
+# Espera del chequeo de salud: la pantalla de la Consulta lo hace al mostrarse, así que no puede
+# esperar lo que un pedido.
+HEALTH_TIMEOUT_SECONDS = 2
+
+
+def is_available(timeout=None):
+    """¿Responde el motor de la Consulta (`generation`)? Verdadero si `GET /health` de
+    `GENERATION_URL` contesta 200 dentro de la espera (T-247). Falso si el servicio no existe,
+    está apagado, está cargando el modelo (HTTP 503) o no contesta a tiempo. Con el Qwen3.8-27B en
+    el motor de lotes `generation` queda apagado (ADR-0057) y la pantalla de la Consulta usa esto
+    para decirlo en lugar de fallar. No lanza: cualquier falla es «no disponible»."""
+    url = settings.GENERATION_URL.rstrip("/") + "/health"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout or HEALTH_TIMEOUT_SECONDS) as response:
+            return response.status == 200
+    except (OSError, ValueError):  # URLError, HTTPError y la espera agotada son OSError
+        return False
 
 
 def count_tokens_batch(text):

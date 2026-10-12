@@ -100,6 +100,16 @@ class FakeService:
                 except OSError:
                     pass  # el cliente ya cortó
 
+            def do_GET(self):
+                # `/health` de llama-server: la pantalla de la Consulta lo pregunta antes de
+                # aceptar la pregunta (T-247).
+                data = b'{"status": "ok"}'
+                self.send_response(200 if self.path == "/health" else 404)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
             def log_message(self, *args):
                 pass
 
