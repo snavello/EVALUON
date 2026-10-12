@@ -151,3 +151,6 @@ def test_the_candidate_configuration_is_documented_and_its_files_exist():
     for name in ("docker-compose.qwen38-27b.yml", "docker-compose.razonamiento.yml"):
         assert (REPO / name).is_file()
     assert "contrast" in settings.GENERATION_BATCH_REASONING_STEPS
+    # lo que se pierde mientras está levantado y el tiempo de carga medido
+    assert "propuesta de datos del procedimiento" in section and "con el 27B levantado no corre" in section
+    assert "4,5 minutos" in section

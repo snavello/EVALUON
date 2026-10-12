@@ -138,7 +138,7 @@ def test_a_request_without_parsed_output_still_carries_its_instruction(prompt_di
 HASHES = Path(__file__).parent / "fixtures" / "case_anchor_hashes.txt"
 NEW_INSTRUCTIONS = ["matriz-definiciones-v2", "matriz-definiciones-v3", "matriz-definiciones-v4",
                     "matriz-extraccion-v5", "matriz-extraccion-v6", "matriz-extraccion-v7",
-                    "matriz-filtro-v5", "matriz-filtro-v6", "matriz-completitud-v5",
+                    "matriz-filtro-v5", "matriz-filtro-v6", "matriz-filtro-v7", "matriz-completitud-v5",
                     "matriz-filtro-v4", "matriz-circulares-v6", "matriz-circulares-v7"]
 
 
@@ -170,7 +170,7 @@ def test_no_new_instruction_repeats_five_words_of_a_case_anchor(name):
 
 INSTRUCTIONS_WITH_EXAMPLES = ["matriz-extraccion-v5", "matriz-completitud-v5", "matriz-filtro-v4",
                                "matriz-extraccion-v6", "matriz-filtro-v5", "matriz-extraccion-v7",
-                               "matriz-filtro-v6"]
+                               "matriz-filtro-v6", "matriz-filtro-v7"]
 
 
 @pytest.mark.parametrize("name", INSTRUCTIONS_WITH_EXAMPLES)
@@ -195,7 +195,8 @@ def test_the_examples_do_not_paraphrase_the_clauses_of_the_measurement_cases(nam
 
 
 @pytest.mark.parametrize("name", ["matriz-extraccion-v5", "matriz-filtro-v4", "matriz-extraccion-v6",
-                                  "matriz-filtro-v5", "matriz-extraccion-v7", "matriz-filtro-v6"])
+                                  "matriz-filtro-v5", "matriz-extraccion-v7", "matriz-filtro-v6",
+                                  "matriz-filtro-v7"])
 def test_an_option_the_offeror_may_not_use_is_kept_as_a_condition_of_that_option(name):
     """REQ-102 (O-236-1): el bloque dice que la condición de una opción «entra solo como condición
     de esa opción»; hay un ejemplo donde la oración que le exige algo a quien usa la opción se

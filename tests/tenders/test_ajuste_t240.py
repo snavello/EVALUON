@@ -217,11 +217,11 @@ def _prompt(name):
 
 def test_the_active_matrix_instructions_are_the_t254_versions():
     """REQ-106, T-254: la ronda extra publica versiones nuevas (las de T-240 quedan congeladas) y las
-    registra como vigentes; siguen diciendo lo que T-240 pidió (los tests de abajo leen las vigentes)."""
+    registra como vigentes (la verificación cambió el ejemplo de opción del filtro: v7); siguen diciendo lo que T-240 pidió (los tests de abajo leen las vigentes)."""
     versions = _settings.MATRIX_PROMPT_VERSIONS
     assert versions["definiciones"] == "matriz-definiciones-v4"
     assert versions["extraccion"] == "matriz-extraccion-v7"
-    assert versions["filtro"] == "matriz-filtro-v6"
+    assert versions["filtro"] == "matriz-filtro-v7"
 
 
 def test_the_common_block_says_that_exceptions_ask_nothing_of_the_offer():
@@ -263,7 +263,7 @@ def test_the_filter_applies_the_exclusions_of_the_definitions_one_by_one():
     pide que la fila entre «con claridad» para descartar, y tiene ejemplos de descarte de cada cosa que
     dejaba pasar: compromiso al presentarse, ejecución del contrato, excepción, texto de formulario y
     dato del procedimiento, balanceados con ejemplos que se mantienen."""
-    text = _prompt("matriz-filtro-v6")
+    text = _prompt("matriz-filtro-v7")
     assert "recorré en el \"razonamiento\", una por una, las exclusiones de las definiciones" in text
     assert "Descartá solo si la fila entra con claridad" not in text
     section = text[text.index("# PREGUNTA A"):text.index("# PREGUNTA B")]

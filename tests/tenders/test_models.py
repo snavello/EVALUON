@@ -963,7 +963,7 @@ def test_enmienda_parameters_in_settings():
     assert settings.NORM_SUPPORT_MIN_SCORE == settings.RERANK_THRESHOLD == 0.219
     assert settings.NORM_SUPPORT_MAX_UNITS == 4
     assert settings.NORM_SUPPORT_QUERY_MAX_CHARS == 800
-    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v6"
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v7"
     for name in ("unificacion", "respaldo"):
         assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v1"
 

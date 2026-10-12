@@ -306,7 +306,7 @@ MATRIX_PROMPT_VERSIONS = {
     "circulares": "matriz-circulares-v7",
     "circulares_cambios": "matriz-circulares-v6",
     "unificacion": "matriz-unificacion-v1",
-    "filtro": "matriz-filtro-v6",
+    "filtro": "matriz-filtro-v7",
     "respaldo": "matriz-respaldo-v1",
 }
 
