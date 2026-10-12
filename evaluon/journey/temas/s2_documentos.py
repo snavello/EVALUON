@@ -3,7 +3,9 @@ la pestaña «Pliego y matriz» (REQ-080, REQ-097; plan 014, T-198).
 
 Lista cada documento con su tipo, de dónde vino (el Portal o un archivo subido, con la fecha en
 hora local) y el estado de su lectura, y muestra como «Falta» lo que el Portal lista y todavía no
-se tomó. Las circulares y aclaraciones no van acá: van en la pestaña Ofertas (REQ-085).
+se tomó, y también lo que lista y no se pudo bajar (T-259, informe del comité H7: el Pliego de
+Bases y Condiciones Generales y su Disposición Aprobatoria, que el Portal responde con su
+pantalla de error), con el motivo, hasta que se suba a mano un documento con ese título. Las circulares y aclaraciones no van acá: van en la pestaña Ofertas (REQ-085).
 
 «Subir archivo» sube varios archivos a la vez: cada uno con su tipo (y su fecha, que solo exigen
 los tipos fechados) pasa por `load_document` por separado, así que cada uno deja su propio hecho
@@ -24,6 +26,7 @@ El resultado de la subida viaja firmado en la dirección (`?docs=`), sin guardar
 sesión, y vale cinco minutos.
 """
 
+import re
 from dataclasses import dataclass
 
 from django.core import signing
@@ -171,6 +174,35 @@ def missing_from_portal(procedure):
             for key, item in listed.items() if key not in taken]
 
 
+# La parte de una anomalía de la exploración que es un documento: `documento «nombre»`
+# (`portal/importers/documents.py`, `_anomaly`).
+_ANOMALY_DOCUMENT = re.compile(r"documento «(?P<name>.+)»")
+
+
+def not_downloaded(procedure):
+    """Los documentos que el Portal lista para el procedimiento y no se pudieron bajar:
+    `[(nombre, motivo)]`, de las anomalías de la última propuesta de cada enlace, sin los que ya
+    tienen en el procedimiento un documento con el mismo título (subido a mano)."""
+    titles = {" ".join(title.casefold().split())
+              for title in procedure.documents.values_list("title", flat=True)}
+    found = {}
+    for link in procedure.portal_links.order_by("created_at", "pk"):
+        proposal = link.proposals.order_by("-exploration", "-pk").first()
+        for anomaly in (proposal.anomalies or []) if proposal is not None else []:
+            match = _ANOMALY_DOCUMENT.fullmatch(anomaly.get("parte", ""))
+            if match and " ".join(match["name"].casefold().split()) not in titles:
+                found.setdefault(match["name"], anomaly.get("motivo", ""))
+    return list(found.items())
+
+
+def not_downloaded_text(name, reason):
+    """El aviso de un documento del Portal que no se pudo bajar, con su motivo."""
+    reason = reason.strip()
+    if reason:
+        reason = reason[0].lower() + reason[1:]
+    return f"«{name}», que lista el Portal, no se pudo bajar: {reason or 'sin motivo registrado.'}"
+
+
 def portal_url(procedure):
     """Al bloque del Portal de este procedimiento, en su pestaña «Procedimiento» (T-232, P-8):
     ahí se ve la propuesta de documentos y se aprueba, o se da de alta el proceso; no a la
@@ -196,6 +228,9 @@ def status(user, procedure):
         missing.append(Missing(
             f"El Portal lista {count} {'documento' if count == 1 else 'documentos'} "
             "del pliego que no se tomaron", portal_url(procedure), "Tomar del Portal"))
+    upload = reverse("expedientes:pliego", args=[procedure.pk]) + "#s2-subir"
+    for name, reason in not_downloaded(procedure):
+        missing.append(Missing(not_downloaded_text(name, reason), upload, "Subir archivo"))
     return TemaStatus(missing=tuple(missing), sources=tuple(sources))
 
 
