@@ -163,6 +163,10 @@ def test_the_model_step_asks_the_batch_engine_not_the_query_engine(
     modelo que lo atiende (P6)."""
     settings.GENERATION_BATCH_URL = "http://generation_batch:8080"
     settings.GENERATION_BATCH_MODEL = "qwen3.8-27b-ud-q4_k_m"
+    settings.GENERATION_BATCH_MODEL_FILE = "Qwen3.8-27B-UD-Q4_K_M.gguf"
+    settings.GENERATION_BATCH_MODEL_SHA256 = "322e194f" + "0" * 56
+    settings.GENERATION_BATCH_MMPROJ_FILE = "mmproj-Qwen3.8-27B-F16.gguf"
+    settings.GENERATION_BATCH_MMPROJ_SHA256 = "cbb841a9" + "0" * 56
     fake_generation.respond(json.dumps({
         "procedure_type": {"valor": "", "cita": ""},
         "subject": {"valor": "mantenimiento de equipos",
@@ -177,7 +181,32 @@ def test_the_model_step_asks_the_batch_engine_not_the_query_engine(
     assert options["max_tokens"] == settings.GENERATION_MAX_OUTPUT_TOKENS
     event = AuditEvent.objects.filter(event_type=EventType.PROCEDURE_PROPOSAL,
                                       detail__action="propose").get()
-    assert event.detail["model"][0]["request"]["model"] == "qwen3.8-27b-ud-q4_k_m"
+    trace = event.detail["model"][0]
+    assert trace["request"]["model"] == "qwen3.8-27b-ud-q4_k_m"
+    # P6: la traza nombra el motor y el modelo que atendieron el pedido, como la matriz y la
+    # evaluación (`models.generation_batch`): alias, archivo y huella del modelo, proyector, motor
+    assert trace["models"] == {"generation_batch": {
+        "model": "qwen3.8-27b-ud-q4_k_m", "file": "Qwen3.8-27B-UD-Q4_K_M.gguf",
+        "sha256": "322e194f" + "0" * 56, "mmproj_file": "mmproj-Qwen3.8-27B-F16.gguf",
+        "mmproj_sha256": "cbb841a9" + "0" * 56, "engine_build": settings.GENERATION_ENGINE_BUILD,
+        "context_tokens": settings.GENERATION_BATCH_CONTEXT_TOKENS}}
+
+
+def test_the_trace_names_the_engine_and_model_also_when_the_request_fails(
+        operator_user, fake_generation, settings):
+    """P6 (T-247): una falla del motor de lotes deja la traza con el motor y el modelo que se
+    intentaron, sin pedido ni salida."""
+    settings.GENERATION_BATCH_MODEL = "qwen3.8-27b-ud-q4_k_m"
+    fake_generation.unavailable()
+    upload_and_read(operator_user, case_pdf(cover=["PROCESO Nº: SINT-0304-PRUEBA"]))
+    event = AuditEvent.objects.filter(event_type=EventType.PROCEDURE_PROPOSAL,
+                                      detail__action="propose").get()
+    trace = event.detail["model"][0]
+    assert "error" in trace and "request" not in trace
+    assert trace["models"]["generation_batch"]["model"] == "qwen3.8-27b-ud-q4_k_m"
+    assert set(trace["models"]["generation_batch"]) == {
+        "model", "file", "sha256", "mmproj_file", "mmproj_sha256", "engine_build",
+        "context_tokens"}
 
 
 def test_a_model_failure_does_not_fail_the_proposal(operator_user, fake_generation):

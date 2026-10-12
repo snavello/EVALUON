@@ -216,8 +216,8 @@ Mientras una evaluación o una matriz corre, el motor de lotes está ocupado: lo
 
 ### La Consulta y las propuestas de datos
 
-- La Consulta de normativa queda **apagada** hasta T-255: su pantalla (`/consulta/`) y la pestaña de Normativas dicen «La consulta de normativa no está disponible por ahora…», con el botón desactivado, y no ejecutan ni guardan la pregunta. Lo decide `generation.is_available()` (`GET /health` de `generation`, 2 s de espera): si el motor se enciende, la Consulta vuelve sola. La búsqueda directa sigue.
-- El alta del procedimiento desde el pliego usa el motor de lotes (T-247).
+- La Consulta de normativa queda **apagada** hasta T-255: su pantalla (`/consulta/`) y la pestaña de Normativas dicen «La consulta de normativa no está disponible por ahora…», con el botón desactivado, y no ejecutan ni guardan la pregunta. Lo decide `generation.is_available()` (`GET /health` de `generation`, 2 s de espera; cualquier falla, incluso una respuesta que no es HTTP, es «no disponible»): si el motor se enciende, la Consulta vuelve sola. La búsqueda directa sigue.
+- El alta del procedimiento desde el pliego usa el motor de lotes (T-247) y su traza de auditoría nombra el motor y el modelo que atendieron el pedido (`models.generation_batch`: alias, archivo y huella del modelo, proyector, compilación y contexto), como la matriz y la evaluación (P6).
 - La propuesta de datos del oferente (`offers/proposal_fields.py`) sigue pidiendo a `generation`: sin ese motor, el nombre queda «no determinado» sin fallar (pendiente para T-248).
 
 ### Cómo se vuelve al 12B (con la Consulta)

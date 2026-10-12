@@ -329,10 +329,24 @@ def _verified(answer, page_texts):
     return None
 
 
+def batch_model():
+    """El modelo del motor que atiende el pedido, como lo registran la matriz, la evaluación y la
+    lectura con visión (P6): el alias, el archivo y la huella del modelo, el proyector, la
+    compilación del motor y el contexto."""
+    return {"model": settings.GENERATION_BATCH_MODEL,
+            "file": settings.GENERATION_BATCH_MODEL_FILE,
+            "sha256": settings.GENERATION_BATCH_MODEL_SHA256,
+            "mmproj_file": settings.GENERATION_BATCH_MMPROJ_FILE,
+            "mmproj_sha256": settings.GENERATION_BATCH_MMPROJ_SHA256,
+            "engine_build": settings.GENERATION_ENGINE_BUILD,
+            "context_tokens": settings.GENERATION_BATCH_CONTEXT_TOKENS}
+
+
 def ask_model(front, missing):
     """Pregunta al modelo local por los datos de `missing` (`procedure_type`, `subject`).
-    Devuelve `({dato: Datum}, traza)`; la traza (instrucciones, parámetros, fragmento, pedido
-    y salida) va al registro de auditoría (P6)."""
+    Devuelve `({dato: Datum}, traza)`; la traza (instrucciones, parámetros, fragmento, pedido,
+    salida y el motor y el modelo que atienden, `models.generation_batch`) va al registro de
+    auditoría (P6)."""
     page_texts = [(page, _fold(" ".join(lines))) for page, lines in front]
     fragment = "\n\n".join(f"[Página {page}]\n" + "\n".join(lines) for page, lines in front)
     fragment = fragment[:MODEL_MAX_CHARS]
@@ -344,6 +358,8 @@ def ask_model(front, missing):
         "asked": list(missing),
         "fragment_sha256": hashlib.sha256(fragment.encode()).hexdigest(),
         "fragment_chars": len(fragment),
+        # Qué motor y qué modelo atienden el pedido (T-247, P6), también si el pedido falla.
+        "models": {"generation_batch": batch_model()},
     }
     result = {}
     try:

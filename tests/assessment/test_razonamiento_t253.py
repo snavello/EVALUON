@@ -24,6 +24,14 @@ STEPS = ("extraction", "completeness", "filter", "evaluation", "contrast")
 OFF = {step: "off" for step in STEPS}
 
 
+@pytest.fixture(autouse=True)
+def reasoning_off_whatever_the_process_environment_says(settings):
+    """El entorno del proceso puede traer variables `GENERATION_BATCH_REASONING_*` (el `.env` de uso,
+    T-247, enciende el contraste en `app`) y `settings.py` las lee al importarse. Cada prueba
+    parte de todo apagado y enciende solo lo que prueba."""
+    settings.GENERATION_BATCH_REASONING = dict(OFF)
+
+
 def test_evaluation_and_contrast_with_reasoning_on_record_it(offer, operator_user, procedure,
                                                               model, settings):
     """REQ-107, P6: con evaluación en `medium` y contraste en `low`, cada pedido de lectura y de
