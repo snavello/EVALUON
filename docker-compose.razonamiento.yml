@@ -1,0 +1,48 @@
+# Razonamiento propio del modelo en el motor de lotes (T-253, REQ-107; ADR-0056, enmienda del
+# 2026-10-11). No se usa salvo en las mediciones y en los usos que lo pidan; el compose base
+# arranca `generation_batch` sin razonamiento (`--reasoning off --reasoning-budget 0`) y sigue así.
+#
+# Se SUMA a cualquiera de los otros archivos, al final:
+#   docker compose -f docker-compose.yml -f docker-compose.razonamiento.yml up -d --no-deps generation_batch worker app
+#   docker compose -f docker-compose.yml -f docker-compose.qwen38-27b.yml -f docker-compose.razonamiento.yml up -d --no-deps generation_batch worker app
+# y se enciende por paso con una variable (extraction, completeness, filter, evaluation, contrast):
+#   GENERATION_BATCH_REASONING_FILTER=low GENERATION_BATCH_REASONING_EVALUATION=low docker compose ... up -d ...
+# Niveles: low, medium o high; sin la variable o con `off`, el paso no piensa. Cada nivel tiene su
+# tope de tokens de razonamiento (`GENERATION_BATCH_REASONING_BUDGET_LOW|MEDIUM|HIGH`) y la espera
+# extra de un pedido que piensa es `GENERATION_BATCH_REASONING_EXTRA_TIMEOUT_SECONDS`.
+# Detalle: specs/015-uso-y-eleccion-del-modelo/entorno.md.
+#
+# Qué cambia en `generation_batch`: nada del modelo, el contexto ni las redes. Un `command` de
+# Compose no se puede combinar con el de otro archivo (lo reemplaza), así que este archivo no lo
+# repite: cambia el `entrypoint` para que `llama-server` reciba, DESPUÉS de todas las banderas del
+# `command` del archivo que se suma, `--reasoning auto --reasoning-budget -1`. Con una bandera
+# repetida vale la última, así que el servidor permite pensar y el tope de cada pedido lo pone el
+# propio pedido (`thinking_budget_tokens`); un pedido de un paso apagado manda
+# `enable_thinking: false` y no piensa. Con `--reasoning off` el servidor ignora el pedido de pensar.
+# Un test (tests/test_compose_env.py) comprueba que la bandera final gane en cada archivo.
+#
+# `app` y `worker` reciben las variables de arriba; sin este archivo no las reciben, así que el
+# razonamiento no se puede encender con un servidor que no lo permite.
+
+services:
+  generation_batch:
+    entrypoint:
+      - /bin/sh
+      - -c
+      - exec /app/llama-server "$$@" --reasoning auto --reasoning-budget -1
+      - llama-server
+
+  worker:
+    environment: &reasoning-environment
+      GENERATION_BATCH_REASONING_EXTRACTION: ${GENERATION_BATCH_REASONING_EXTRACTION:-}
+      GENERATION_BATCH_REASONING_COMPLETENESS: ${GENERATION_BATCH_REASONING_COMPLETENESS:-}
+      GENERATION_BATCH_REASONING_FILTER: ${GENERATION_BATCH_REASONING_FILTER:-}
+      GENERATION_BATCH_REASONING_EVALUATION: ${GENERATION_BATCH_REASONING_EVALUATION:-}
+      GENERATION_BATCH_REASONING_CONTRAST: ${GENERATION_BATCH_REASONING_CONTRAST:-}
+      GENERATION_BATCH_REASONING_BUDGET_LOW: ${GENERATION_BATCH_REASONING_BUDGET_LOW:-}
+      GENERATION_BATCH_REASONING_BUDGET_MEDIUM: ${GENERATION_BATCH_REASONING_BUDGET_MEDIUM:-}
+      GENERATION_BATCH_REASONING_BUDGET_HIGH: ${GENERATION_BATCH_REASONING_BUDGET_HIGH:-}
+      GENERATION_BATCH_REASONING_EXTRA_TIMEOUT_SECONDS: ${GENERATION_BATCH_REASONING_EXTRA_TIMEOUT_SECONDS:-}
+
+  app:
+    environment: *reasoning-environment

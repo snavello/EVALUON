@@ -290,6 +290,10 @@ def _parameters():
         "temperature": settings.GENERATION_TEMPERATURE,
         "seed": settings.GENERATION_SEED,
         "thinking": settings.GENERATION_THINKING,
+        # El razonamiento propio del modelo por paso, su tope y su espera extra (T-253, P6).
+        "reasoning": dict(settings.GENERATION_BATCH_REASONING),
+        "reasoning_budget_tokens": dict(settings.GENERATION_BATCH_REASONING_BUDGET_TOKENS),
+        "reasoning_extra_timeout_seconds": settings.GENERATION_BATCH_REASONING_EXTRA_TIMEOUT_SECONDS,
         "generation_batch_url": settings.GENERATION_BATCH_URL,
         "passage_max_chars": settings.OFFERS_PASSAGE_MAX_CHARS,
         "passage_min_chars": settings.OFFERS_PASSAGE_MIN_CHARS,
@@ -314,6 +318,8 @@ class StepData:
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     timings: dict = field(default_factory=dict)
+    # El razonamiento propio del modelo de este pedido, si su paso lo tenía encendido (T-253).
+    reasoning: dict | None = None
 
 
 @dataclass
@@ -382,19 +388,29 @@ class Context:
             jobs.report(self.job, step, done, total, self.scope)
 
 
-def _generate(messages, schema, step, ctx, max_tokens=None):
-    """El pedido al motor de lotes; anota en `step` lo que se envió y lo que volvió."""
+def _generate(messages, schema, step, ctx, max_tokens=None, reasoning_step=None):
+    """El pedido al motor de lotes; anota en `step` lo que se envió y lo que volvió.
+    `reasoning_step` es el paso (`evaluation` o `contrast`) cuyo razonamiento propio del modelo se
+    enciende en `settings.GENERATION_BATCH_REASONING` (T-253)."""
     started = ctx.clock()
-    result = generation.generate(
+    result = generation.generate_batch(
         messages, schema, max_tokens=max_tokens or settings.ASSESSMENT_MAX_OUTPUT_TOKENS,
-        base_url=settings.GENERATION_BATCH_URL,
-        timeout=settings.ASSESSMENT_REQUEST_TIMEOUT_SECONDS)
+        timeout=settings.ASSESSMENT_REQUEST_TIMEOUT_SECONDS, step=reasoning_step)
     step.timings["generation_seconds"] = round(ctx.clock() - started, 3)
     step.request = result.request
     step.raw_output = result.content
     step.prompt_tokens = result.prompt_tokens
     step.completion_tokens = result.completion_tokens
+    step.reasoning = result.reasoning_record()
     return result
+
+
+def _with_reasoning(parsed, reasoning):
+    """El `parsed` de un pedido con el razonamiento propio del modelo, si lo hubo (T-253, P6).
+    Sin razonamiento, el `parsed` queda como está."""
+    if not reasoning:
+        return parsed
+    return {**(parsed or {}), "razonamiento_propio": reasoning}
 
 
 def _plan_for(ctx, pair):
@@ -509,7 +525,8 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             system, docs_text, answers_text, norms_text, requirement_block, correction,
             portal_text=portal_text, previous=previous_output)
         result = _generate(messages, schema, step, ctx,
-                           max_tokens=prompting.evaluation_max_tokens())
+                           max_tokens=prompting.evaluation_max_tokens(),
+                           reasoning_step="evaluation")
         problem, evaluation, located, backed, data_located = None, None, [], None, []
         portal_cited, evidence, unlocated = [], {}, []
         effective, records, derived, unsupported = [], [], None, False
@@ -767,7 +784,8 @@ def _clauses_request(ctx, pair, quotes, shown, documents, cited, system, state, 
     messages = prompting.build_clauses_messages(system, block, cited, correction, documents,
                                                 previous=previous)
     result = _generate(messages, prompting.CLAUSES_SCHEMA, step, ctx,
-                       max_tokens=settings.ASSESSMENT_CLAUSES_MAX_OUTPUT_TOKENS)
+                       max_tokens=settings.ASSESSMENT_CLAUSES_MAX_OUTPUT_TOKENS,
+                       reasoning_step="contrast")
     instruction = prompting.prompt_record("clausulas")
     try:
         rows, question = prompting.parse_clauses(result.content)
@@ -871,7 +889,8 @@ def _contrast_pair(ctx, pair):
         messages = prompting.build_contrast_messages(
             system, pair.text.render(), conclusion, cited, _supports_text(combined),
             correction, portal_cites=portal_cites, previous=previous_output)
-        result = _generate(messages, prompting.CONTRAST_SCHEMA, step, ctx)
+        result = _generate(messages, prompting.CONTRAST_SCHEMA, step, ctx,
+                           reasoning_step="contrast")
         try:
             answer, reason = prompting.parse_contrast(result.content)
         except prompting.InvalidOutput as error:
@@ -1090,7 +1109,8 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
                 saved.append(Step.objects.create(
                     run=run, offer=offer, requirement=step.requirement, purpose=step.purpose,
                     group_index=step.group_index, documents=step.documents,
-                    request=step.request, raw_output=step.raw_output, parsed=step.parsed,
+                    request=step.request, raw_output=step.raw_output,
+                    parsed=_with_reasoning(step.parsed, step.reasoning),
                     anomalies=step.anomalies,
                     retry_of=None if step.retry_of is None else saved[step.retry_of],
                     prompt_tokens=step.prompt_tokens,

@@ -363,6 +363,47 @@ GENERATION_BATCH_URL = env_str("GENERATION_BATCH_URL", "http://generation_batch:
 GENERATION_BATCH_CONTEXT_TOKENS = int(env_str("GENERATION_BATCH_CTX_SIZE", "32768"))
 # Espera máxima de cada pedido del `worker` al modelo.
 GENERATION_BATCH_TIMEOUT_SECONDS = 180
+
+# --- Razonamiento propio del modelo, por paso (T-253, REQ-107; ADR-0056, enmienda del 2026-10-11) ---
+# Los pasos del motor de lotes donde se puede encender el razonamiento propio del modelo (el que
+# trae entrenado: `enable_thinking` en la plantilla de conversación). Encendido, el pedido pide
+# pensar con un nivel y un tope de tokens de razonamiento, suma ese tope al máximo de salida y
+# suma tiempo de espera; la salida sigue obligada por el esquema (la gramática vale para el
+# contenido, no para el razonamiento, que `llama-server` devuelve aparte en `reasoning_content`).
+# Cada pedido guarda el texto del razonamiento y sus tokens en su `parsed`, y la corrida registra
+# qué pasos lo tenían encendido (P6). Cambiarlo exige volver a medir (P7). El servidor tiene que
+# arrancar con el razonamiento permitido (docker-compose.razonamiento.yml, entorno.md de la 015).
+GENERATION_BATCH_REASONING_STEPS = (
+    "extraction", "completeness", "filter", "evaluation", "contrast")
+GENERATION_BATCH_REASONING_LEVELS = ("low", "medium", "high")
+
+
+def reasoning_levels(environ):
+    """El nivel de razonamiento de cada paso según `environ`: una variable por paso,
+    `GENERATION_BATCH_REASONING_<PASO>` (por ejemplo `GENERATION_BATCH_REASONING_FILTER`), con
+    `low`, `medium` o `high`; sin la variable o con `off`, el paso queda apagado."""
+    levels = {}
+    for step in GENERATION_BATCH_REASONING_STEPS:
+        name = f"GENERATION_BATCH_REASONING_{step.upper()}"
+        value = (environ.get(name) or "off").strip().lower()
+        if value not in ("off", *GENERATION_BATCH_REASONING_LEVELS):
+            raise ImproperlyConfigured(
+                f"La variable de entorno {name} tiene que ser off, low, medium o high.")
+        levels[step] = value
+    return levels
+
+
+# Apagado por omisión: con todo apagado, el pedido es el de siempre.
+GENERATION_BATCH_REASONING = reasoning_levels(os.environ)
+# Tope de tokens de razonamiento por nivel (`thinking_budget_tokens` del pedido); se suma al
+# máximo de salida del paso. Valores iniciales; T-253 midió que 1.024 corta el razonamiento de
+# un lote de filtro de 11 filas y 2.048 el de una lectura de oferta (specs/015…/entorno.md).
+GENERATION_BATCH_REASONING_BUDGET_TOKENS = {
+    level: int(env_str(f"GENERATION_BATCH_REASONING_BUDGET_{level.upper()}", default))
+    for level, default in (("low", "1024"), ("medium", "2048"), ("high", "4096"))}
+# Segundos que se suman a la espera de un pedido cuyo paso piensa.
+GENERATION_BATCH_REASONING_EXTRA_TIMEOUT_SECONDS = int(
+    env_str("GENERATION_BATCH_REASONING_EXTRA_TIMEOUT_SECONDS", "900"))
 # Segundos entre consultas a la cola de pedidos cuando está vacía.
 WORKER_POLL_SECONDS = 5
 

@@ -96,6 +96,8 @@ ANOMALY_CUT = "filtro_salida_cortada"
 ANOMALY_INVALID = "filtro_salida_invalida"
 ANOMALY_MISSING_ALIAS = "filtro_fila_sin_propiedad"
 ANOMALY_SERVICE = "servicio"
+# El paso cuyo razonamiento propio del modelo se enciende en `settings.GENERATION_BATCH_REASONING` (T-253).
+REASONING_STEP = "filter"
 ANOMALY_NO_OPINION = "filtro_sin_opinion"
 ANOMALY_ONE_OPINION = "filtro_una_opinion"
 ANOMALY_NOT_SUPPORTED = "filtro_descarte_sin_sustento"
@@ -478,7 +480,8 @@ class Filter:
         step = RunStep.objects.create(
             run=self.run, pass_name=name, batch=self._batch[name], segment_keys=keys,
             request=result["request"], raw_output=result["content"],
-            parsed=extraction.with_instruction(parsed, self.instruction),
+            parsed=extraction.with_instruction(parsed, self.instruction,
+                                               result.get("reasoning")),
             anomalies=anomalies, retry_of=retry_of,
             timings={"seconds": round(seconds, 3),
                      "prompt_tokens": result["prompt_tokens"],
@@ -500,14 +503,16 @@ class Filter:
         max_tokens = settings.MATRIX_MAX_OUTPUT_TOKENS
         started = time.monotonic()
         try:
-            output = generation.generate_batch(messages, schema, max_tokens=max_tokens)
+            output = generation.generate_batch(messages, schema, max_tokens=max_tokens,
+                                               step=REASONING_STEP)
         except AIServiceError as error:
             # Una falla técnica no pierde la fila: el pedido queda registrado y la fila
             # sigue sin esa opinión.
             self.stats["failed_requests"] += 1
             step = self._record(
                 name,
-                {"request": generation.build_batch_request(messages, schema, max_tokens),
+                {"request": generation.build_batch_request(messages, schema, max_tokens,
+                                                           step=REASONING_STEP),
                  "content": "", "prompt_tokens": None, "completion_tokens": None},
                 parsed=None, retry_of=retry_of, seconds=time.monotonic() - started,
                 keys=keys,
@@ -517,7 +522,8 @@ class Filter:
         seconds = time.monotonic() - started
         result = {"request": output.request, "content": output.content,
                   "prompt_tokens": output.prompt_tokens,
-                  "completion_tokens": output.completion_tokens}
+                  "completion_tokens": output.completion_tokens,
+                  "reasoning": output.reasoning_record()}
         self.stats["requests"] += 1
         self.stats["requests_a" if first else "requests_b"] += 1
 
