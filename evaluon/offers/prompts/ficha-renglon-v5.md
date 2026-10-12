@@ -68,7 +68,7 @@ Renglón 6: Carpeta de cartón.
 Documento: Constancia
 Página: 1
 Texto:
-Constancia de inscripción en el registro de proveedores, número 000123.
+Nota de presentación de la empresa, firmada por su representante.
 [/P1]
 
 Respuesta (ningún pasaje habla del renglón):

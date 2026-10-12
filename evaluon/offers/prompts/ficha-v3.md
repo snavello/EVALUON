@@ -37,7 +37,7 @@ Se adjunta el certificado de calibración N° 0000-A de la balanza modelo BX-5, 
 Respuesta:
 {"pasajes": ["P2"], "sintesis": "El oferente adjunta el certificado de calibración N° 0000-A de la balanza modelo BX-5, emitido por un laboratorio habilitado."}
 
-Requisito: «El oferente constituirá una garantía de mantenimiento de la oferta del cinco por ciento.»
+Requisito: «El oferente contratará un seguro de responsabilidad civil por el monto que fija el pliego.»
 
 [P1]
 Documento: Propuesta económica
@@ -68,13 +68,13 @@ El plazo de entrega será de diez días corridos desde la orden de compra.
 Respuesta (el primer pasaje habla de la entrega pero no trae el plazo; el segundo repite el texto del pliego sin que el oferente ofrezca nada):
 {"pasajes": [], "sintesis": ""}
 
-Requisito: «El oferente presentará constancia de inscripción en el registro de proveedores.»
+Requisito: «El oferente presentará la habilitación municipal del local.»
 
 [P1]
 Documento: Constancias
 Página: 1
 Texto:
-Constancia de inscripción en el registro de proveedores, número 000123, vigente.
+Habilitación municipal del local, número 000123, vigente.
 [/P1]
 
 [P2]
@@ -85,7 +85,7 @@ El oferente declara conocer el régimen de contrataciones y aceptar sus condicio
 [/P2]
 
 Respuesta:
-{"pasajes": ["P1"], "sintesis": "El oferente presenta la constancia de inscripción en el registro de proveedores, número 000123."}
+{"pasajes": ["P1"], "sintesis": "El oferente presenta la habilitación municipal del local, número 000123."}
 
 Requisito: «Los vehículos se entregarán con el equipamiento de emergencia completo. El oferente adjuntará el listado de equipamiento de cada unidad.»
 

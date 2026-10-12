@@ -34,9 +34,9 @@ PROMPT_DIRS = [
     ROOT / "evaluon" / "assessment" / "prompts",
     ROOT / "evaluon" / "queries" / "prompts",
 ]
-# Las instrucciones que viven dentro del código: su nombre de versión y su texto.
+# Las instrucciones que viven dentro del código: su nombre de versión y su texto. La del nombre del
+# oferente pasó a ser un archivo (`offers/prompts/oferente-nombre-v2.md`, T-248).
 INLINE = {
-    proposal_fields.PROMPT_VERSION: proposal_fields.MODEL_INSTRUCTIONS,
     procedure_fields.PROMPT_VERSION: procedure_fields.MODEL_INSTRUCTIONS,
 }
 
@@ -50,6 +50,7 @@ def current_versions():
     names |= set(settings.ASSESSMENT_PROMPT_VERSIONS.values())
     names.add(settings.ASSESSMENT_VISION_PROMPT_VERSION)
     names.add(technical_report.PROMPT_VERSION)
+    names.add(proposal_fields.PROMPT_VERSION)
     names |= {answering.PROMPT_VERSION_WITH_DATE, answering.PROMPT_VERSION_WITHOUT_DATE}
     names |= set(INLINE)
     return sorted(names)

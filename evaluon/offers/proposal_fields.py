@@ -32,12 +32,13 @@ import json
 import re
 import unicodedata
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from evaluon.ai import AIServiceError, generation
 from evaluon.tenders.proposal.procedure_fields import page_lines
 
 RULES_VERSION = "oferente-reglas-v1"
-PROMPT_VERSION = "oferente-nombre-v1"
+PROMPT_VERSION = "oferente-nombre-v2"
 
 FIELDS = ("bidder", "cuit")
 
@@ -63,22 +64,17 @@ ORGANISM_CUITS = frozenset({"33693450239"})
 _ORGANISM_NAMES = ("afip", "arca", "administracion federal de ingresos publicos",
                    "agencia de recaudacion y control aduanero")
 
-MODEL_INSTRUCTIONS = (
-    "Sos un lector de ofertas presentadas a un procedimiento de compras. Del texto que sigue, "
-    "que es el comienzo de los archivos de una oferta, indicá el nombre o razón social del "
-    "oferente (quien presenta la oferta; no el organismo que contrata ni una aseguradora o "
-    "un banco). Devolvé el valor y la cita: un fragmento copiado literal del texto, sin "
-    "cambiar ni una letra, que empiece con el rótulo explícito (por ejemplo «Razón social:») y "
-    "contenga el valor; no sirven los nombres de firmantes ni de representantes. Si el texto no lo dice, devolvé el valor y "
-    "la cita vacíos. No inventes."
-)
+# La instrucción es un archivo versionado, como las demás (T-248): la v1 sigue publicada y
+# congelada en `prompts/oferente-nombre-v1.md`.
+PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
+MODEL_INSTRUCTIONS = (PROMPTS_DIR / f"{PROMPT_VERSION}.md").read_text(encoding="utf-8")
 MODEL_SCHEMA = {
     "type": "object",
     "properties": {
         "bidder": {
             "type": "object",
-            "properties": {"valor": {"type": "string"}, "cita": {"type": "string"}},
-            "required": ["valor", "cita"],
+            "properties": {"cita": {"type": "string"}, "valor": {"type": "string"}},
+            "required": ["cita", "valor"],
             "additionalProperties": False,
         }
     },

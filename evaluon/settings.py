@@ -466,7 +466,7 @@ OFFERS_PROMPT_VERSIONS = {
     "ficha": "ficha-v3",
     "ficha_renglon": "ficha-renglon-v5",
     # Reescritura del requisito como lo diría una oferta, para buscar (T-146).
-    "reescritura": "reescritura-v1",
+    "reescritura": "reescritura-v2",
 }
 
 # --- Evaluación asistida de ofertas (plan 004, "Parámetros"; ADR-0037 a ADR-0040) ---------

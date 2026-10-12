@@ -366,7 +366,7 @@ def test_every_model_request_is_recorded(offer, operator_user, script):
     assert detail["parameters"]["candidates_to_model"] == 8
     versions = detail["prompt_versions"]
     assert {k: v for k, v in versions.items() if k != "huellas"} == {
-        "ficha": "ficha-v3", "ficha_renglon": "ficha-renglon-v5", "reescritura": "reescritura-v1"}
+        "ficha": "ficha-v3", "ficha_renglon": "ficha-renglon-v5", "reescritura": "reescritura-v2"}
     assert set(versions["huellas"]) == {"ficha", "ficha_renglon", "reescritura"}
     assert versions["huellas"]["ficha"] == step.parsed["instruccion"]["sha256"]
     assert detail["counts"]["model_requests"] == sheet.steps.count()
@@ -906,10 +906,10 @@ def test_the_rewritten_requirement_finds_the_passage_the_pliego_wording_misses(
     assert (candidate["score_original"], candidate["score_rewrite"], candidate["score"]) == (
         0.092, 0.994, 0.994)
     rewrite = step.candidates["rewrite"]
-    assert rewrite["query"] == POLICY_QUERY and rewrite["prompt_version"] == "reescritura-v1"
+    assert rewrite["query"] == POLICY_QUERY and rewrite["prompt_version"] == "reescritura-v2"
     assert rewrite["raw_output"] and rewrite["request"]["messages"][0]["content"] == (
         sheets.load_prompt("reescritura"))
-    assert sheet.prompt_versions["reescritura"] == "reescritura-v1"
+    assert sheet.prompt_versions["reescritura"] == "reescritura-v2"
 
 
 def test_the_original_score_still_counts_when_it_is_the_better_one(
@@ -962,9 +962,9 @@ def test_the_rewrite_instructions_are_versioned_and_teach_the_form_of_real_offer
     el formato y sus ejemplos (inventados) usan la forma de lo que responde una oferta."""
     from evaluon import settings as defaults
 
-    assert defaults.OFFERS_PROMPT_VERSIONS["reescritura"] == "reescritura-v1"
+    assert defaults.OFFERS_PROMPT_VERSIONS["reescritura"] == "reescritura-v2"
     text = sheets.load_prompt("reescritura")
-    for form in ("póliza de seguro de caución", "nota de la empresa", "declaro bajo juramento",
+    for form in ("póliza de seguro", "nota de la empresa", "declaro bajo juramento",
                  "constancia", "formulario"):
         assert form in text
     assert '{"consulta"' in text
@@ -1064,3 +1064,22 @@ def test_the_calibrated_minimum_lets_through_what_answers_and_nothing_else(
     answers = {t for k, t, _, _ in CALIBRATION if k == "responde"}
     assert sent and sent <= answers
     assert len(sent) == min(8, len(answers))
+
+
+def test_the_rewrite_instruction_v2_changes_the_examples_and_records_its_hash(
+        offer, matrix, operator_user, script):
+    """REQ-106 (T-248): la v2 de la reescritura cambia los ejemplos que repetían el rubro de los
+    casos de medición (la v1, publicada, no se toca) y cada reescritura guarda la versión y la
+    huella; la ficha, las huellas de todas sus instrucciones."""
+    v1 = sheets.PROMPTS_DIR.joinpath("reescritura-v1.md").read_text(encoding="utf-8")
+    v2 = sheets.load_prompt("reescritura")
+    assert "garantía de mantenimiento de oferta" in v1 and "garantía de mantenimiento" not in v2
+    assert "responsabilidad civil" in v2 and '{"consulta"' in v2
+    script.choose(pick(VALIDITY, when="validez"))
+
+    sheet = build(offer, operator_user)
+
+    record = sheets.prompt_record("reescritura")
+    assert record["version"] == "reescritura-v2"
+    assert record["sha256"] == sheets.extraction.text_sha256(v2)
+    assert sheet.prompt_versions["huellas"]["reescritura"] == record["sha256"]

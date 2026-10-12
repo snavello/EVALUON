@@ -749,3 +749,51 @@ def test_a_failed_draft_can_be_closed_with_a_reason(
     om.OfferDraft.objects.filter(pk=draft.pk).update(state=ProposalState.FALLIDO)
     done = service.reject(evaluator_user, draft.pk, "Falló la lectura")
     assert done.state == ProposalState.RECHAZADO
+
+
+# --- Instrucción del nombre del oferente (T-248; REQ-106) ---------------------------------------
+
+
+def test_the_bidder_name_instruction_is_a_versioned_file_with_balanced_examples():
+    """REQ-106 (T-248, hallazgo de gravedad baja): la instrucción del nombre del oferente es un
+    archivo versionado (v2) con la cita antes que el valor y ejemplos de otro rubro: dos que
+    devuelven un nombre y dos que no devuelven nada; la v1 sigue publicada."""
+    import json
+    from pathlib import Path
+
+    from evaluon.offers import proposal_fields as fields
+
+    folder = Path(fields.PROMPTS_DIR)
+    text = (folder / f"{fields.PROMPT_VERSION}.md").read_text(encoding="utf-8")
+
+    assert fields.PROMPT_VERSION == "oferente-nombre-v2" and fields.MODEL_INSTRUCTIONS == text
+    assert (folder / "oferente-nombre-v1.md").is_file()
+    answers = [json.loads(line)["bidder"] for line in text.splitlines() if line.startswith("{\"bidder")]
+    assert [bool(a["valor"]) for a in answers].count(True) == 2
+    assert [bool(a["valor"]) for a in answers].count(False) == 2
+    assert all(list(a) == ["cita", "valor"] and bool(a["cita"]) == bool(a["valor"]) for a in answers)
+    assert text.index("primero la cita y después el valor") < text.index("EJEMPLOS")
+
+
+def test_the_bidder_name_schema_asks_for_the_quote_before_the_value():
+    """REQ-106 (ADR-0055, regla 3): el motor genera los campos en el orden del esquema: la cita
+    literal va antes que el valor que ella sostiene."""
+    from evaluon.offers import proposal_fields as fields
+
+    bidder = fields.MODEL_SCHEMA["properties"]["bidder"]
+
+    assert list(bidder["properties"]) == ["cita", "valor"]
+    assert bidder["required"] == ["cita", "valor"]
+
+
+def test_the_published_v1_of_the_bidder_instruction_keeps_its_hash():
+    """REQ-106, P6: la v1, que vivía en el código, quedó como archivo con los mismos bytes: su
+    huella es la que se congeló cuando era una instrucción del código."""
+    from evaluon.offers import proposal_fields as fields
+    from evaluon.tenders.proposal import extraction
+
+    v1 = (fields.PROMPTS_DIR / "oferente-nombre-v1.md").read_text(encoding="utf-8")
+
+    assert extraction.text_sha256(v1) == (
+        "670d1b8ae0262d3f62a6cff247a4e95af6dba6b1f82af67bc0c01c486d77dade")
+    assert "Sos un lector de ofertas" in v1 and "Devolvé el valor y la cita" in v1
