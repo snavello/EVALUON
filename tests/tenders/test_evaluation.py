@@ -2468,3 +2468,47 @@ def test_video_memory_maximum_is_the_largest_registered_reading(case, operator_u
     summary = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
     assert "memoria de video máxima registrada: 23000 MiB (umbral 22000 MiB)" in summary
     assert any("Memoria de video máxima" in reason for reason in report.unmet_015)
+
+
+# --- T-254 · H-244-6: el motivo «no exige nada» --------------------------------------------------
+
+
+def test_an_exclusion_with_the_motive_no_exige_nada_is_accepted_and_leaves_the_denominator(
+        case, operator_user, tmp_path):
+    """REQ-102 (H-244-6): los archivos de exclusiones de los casos 01, 02 y 05 marcan con el motivo
+    `no_exige_nada` la entrada cuya oración no le exige nada a ninguna oferta (una excepción, una
+    dispensa). `medir_matriz` lo acepta como los otros cinco, la entrada sale del recall y el
+    resumen lo cuenta por motivo; un motivo fuera de la lista se sigue rechazando."""
+    assert "no_exige_nada" in ev.EXCLUSION_MOTIVES
+    procedure, _, path, _ = case
+    plain = run_measure(operator_user, procedure, path, tmp_path / "a")
+    expected = ev.load_expected(path)
+    expected.exclusions = ev.load_exclusions(
+        write_exclusions(path, expected, [("S-001", "no_exige_nada"), ("S-002", "pago")]), expected)
+
+    report = ev.measure(operator_user, procedure, expected, tmp_path / "b", commit="abc1234")
+
+    after = measures_of(report)
+    assert after["found"]["total"] == measures_of(plain)["found"]["total"] - 2
+    assert after["excluded"]["by_motive"] == {"no_exige_nada": 1, "pago": 1}
+    summary = (report.folder / "resumen-publico.md").read_text(encoding="utf-8")
+    assert "excluidas por la decisión del 2026-10-10: 2 (no_exige_nada: 1, pago: 1)" in summary
+    with pytest.raises(ev.ExpectedError, match="no_exige_nada"):
+        ev.load_exclusions(write_exclusions(path, expected, [("S-001", "multa")]), expected)
+
+
+def test_the_command_verifies_an_exclusions_file_with_no_exige_nada(case, operator_user,
+                                                                   monkeypatch, capsys):
+    """REQ-102 (H-244-6): `--verificar-esperada --exclusiones` ya no rechaza el archivo con el
+    motivo `no_exige_nada` y lo cuenta por motivo."""
+    procedure, _, path, _ = case
+    expected = ev.load_expected(path)
+    target = write_exclusions(path, expected, [("S-001", "no_exige_nada")])
+    monkeypatch.setattr("evaluon.accounts.permissions.authenticate_command",
+                        lambda username: operator_user)
+
+    call_command("medir_matriz", usuario="operador", procedimiento=procedure.number,
+                 esperada=str(path), exclusiones=str(target), verificar_esperada=True)
+
+    out = capsys.readouterr().out
+    assert "1 de" in out and "no_exige_nada: 1" in out and "NO coincide" not in out

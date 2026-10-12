@@ -128,9 +128,11 @@ KEPT_MINIMUM = 0.70
 RECALL_MINIMUM = 0.95
 PIECES_MAXIMUM = 0
 VIDEO_MAXIMUM_MIB = 22000
-# Motivos con que las decisiones del 2026-10-10 excluyen una entrada de la lista.
+# Motivos con que las decisiones del 2026-10-10 excluyen una entrada de la lista. `no_exige_nada`
+# (T-254, H-244-6): la oración no le exige nada a ninguna oferta (una excepción o una dispensa);
+# lo usan los archivos de exclusiones ampliados de los casos 01, 02 y 05.
 EXCLUSION_MOTIVES = ("pago", "moneda_de_pago", "factura", "forma_de_presentar_por_el_portal",
-                     "compromiso_al_presentarse")
+                     "compromiso_al_presentarse", "no_exige_nada")
 
 # Causas de un faltante.
 GROUPED = "agrupado"
