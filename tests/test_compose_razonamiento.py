@@ -171,6 +171,7 @@ def test_the_default_use_is_documented_with_the_way_back():
             "COMPOSE_FILE=docker-compose.yml:docker-compose.qwen38-27b.yml:docker-compose.razonamiento.yml"
             ":docker-compose.sin-consulta.yml", "COMPOSE_PATH_SEPARATOR=:",
             "GENERATION_BATCH_REASONING_CONTRAST=low", "20.956 MiB", "72,9 min", "3 min 4 s",
+            "`start_period` del chequeo a 900 s",
             "no está disponible por ahora", "Cómo se vuelve al 12B",
             "docker compose -f docker-compose.yml up -d --no-deps generation_batch worker app generation"):
         assert needed in section, needed

@@ -39,7 +39,7 @@ docker compose -f docker-compose.yml -f docker-compose.qwen36-35b.yml up -d --no
 
 Con el candidato, `/props` de `generation_batch` tiene que mostrar `model_alias` `qwen3.8-27b-ud-q4_k_m` o `qwen3.6-35b-a3b-ud-iq4_xs`, `n_ctx` 32.768 y `modalities.vision` verdadero.
 
-**La carga es lenta.** El 27B tardó unos 6 minutos en cargar y quedar listo en CPU desde el disco compartido (el 12B tarda de 1 a 3 minutos), así que durante la carga Docker puede mostrar el contenedor como `unhealthy` (el `start_period` del compose base es de 120 s) y pasa a `healthy` al terminar. Con `--no-deps` el `up` no espera la salud; esperar a `/health` antes de pedir nada: `docker compose ... exec generation_batch curl -s localhost:8080/health` devuelve `{"status":"ok"}`.
+**La carga es lenta.** El 27B tardó unos 6 minutos en cargar y quedar listo en CPU desde el disco compartido (el 12B tarda de 1 a 3 minutos), así que durante la carga Docker puede mostrar el contenedor como `unhealthy` (el `start_period` del compose base es de 120 s; el archivo del 27B lo sube a 900 s desde T-247, el del 35B-A3B no) y pasa a `healthy` al terminar. Con `--no-deps` el `up` no espera la salud; esperar a `/health` antes de pedir nada: `docker compose ... exec generation_batch curl -s localhost:8080/health` devuelve `{"status":"ok"}`.
 
 **No entra junto con el 12B de lotes.** Con el entorno de uso levantado (los cuatro motores) la GPU ocupa 10.968 MiB de 24.463 (medido el 2026-10-10 a las 19:45, sin pedidos en curso). El motor de lotes del 12B ocupa unos 8.075 MiB (ADR-0042); el candidato lo reemplaza, no se suma. El tope de la comparación es 22.000 MiB (ADR-0042 y ADR-0056).
 
@@ -190,7 +190,7 @@ Un `.env` copiado de `.env.example` trae tres líneas nuevas y `docker compose u
 | `COMPOSE_FILE=docker-compose.yml:docker-compose.qwen38-27b.yml:docker-compose.razonamiento.yml:docker-compose.sin-consulta.yml` y `COMPOSE_PATH_SEPARATOR=:` | `generation_batch` es el Qwen3.8-27B, el servidor permite pensar (`--reasoning auto --reasoning-budget -1`) y `generation` no arranca (perfil `consulta-12b`; `app` no lo espera). El separador `:` es explícito porque el de Compose en Windows es `;` |
 | `GENERATION_BATCH_REASONING_CONTRAST=low` | Solo el contraste piensa, con tope de 1.024 tokens de razonamiento por pedido; extracción, completitud, filtro y evaluación no (T-244b y T-244c: con razonamiento empeoran) |
 
-Los archivos del 12B, del 27B, de razonamiento y del 35B no cambian de contenido. Los comandos con `-f archivo` explícito (las secciones de arriba, las mediciones y los runbooks anteriores) no leen `COMPOSE_FILE` y siguen valiendo tal cual.
+Los archivos del 12B, de razonamiento y del 35B no cambian de contenido; el del 27B suma la espera de la carga (`start_period` de 900 s en el chequeo de `generation_batch`). Los comandos con `-f archivo` explícito (las secciones de arriba, las mediciones y los runbooks anteriores) no leen `COMPOSE_FILE` y siguen valiendo tal cual.
 
 ### Instalación desde cero (P5)
 
@@ -201,7 +201,7 @@ bash scripts/fetch_models.sh --qwen38-27b  # 27B y su proyector, 17,4 GB; verifi
 docker compose up -d
 ```
 
-La carga del 27B tarda de 3 a 10 minutos (3 min 4 s en T-244d; 4,5 a 10 min en otras corridas). Con `docker compose up` (con dependencias), el `worker` espera la salud de `generation_batch`; el `start_period` del compose base es de 120 s y puede vencer durante la carga, y entonces el `up` termina con «unhealthy». No es una falla: esperar a que `docker compose exec generation_batch curl -s localhost:8080/health` devuelva `{"status":"ok"}` y repetir `docker compose up -d`. Comprobar: `/props` de `generation_batch` con el alias `qwen3.8-27b-ud-q4_k_m`, `n_ctx` 32.768 y visión verdadera; `docker compose ps` sin `generation`; en cada corrida, `parameters.reasoning` con `contrast: low` y los demás pasos en `off`.
+La carga del 27B tarda de 3 a 10 minutos (3 min 4 s en T-244d; 4,5 a 10 min en otras corridas). Con `docker compose up -d` (con dependencias), el `worker` espera la salud de `generation_batch`: el archivo del 27B sube el `start_period` del chequeo a 900 s (el del compose base es de 120 s), así que el servicio no pasa a «unhealthy» mientras carga y el `up` termina con todo arriba, unos minutos después. Si pasan más de 15 minutos sin salud, mirar `docker compose logs generation_batch` (archivo o huella del modelo, memoria de video ocupada por otro proceso). Comprobar: `/props` de `generation_batch` con el alias `qwen3.8-27b-ud-q4_k_m`, `n_ctx` 32.768 y visión verdadera; `docker compose ps` sin `generation`; en cada corrida, `parameters.reasoning` con `contrast: low` y los demás pasos en `off`.
 
 ### Memoria, tiempos y carga
 

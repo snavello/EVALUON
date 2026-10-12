@@ -460,6 +460,9 @@ CANDIDATES = {
         "mmproj_sha256": "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e",
         "repo": "unsloth/Qwen3.8-27B-GGUF",
         "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+        # La espera de la carga que suma su archivo (T-247): lo único, además del `command`, que
+        # sobrescribe en `generation_batch`.
+        "healthcheck": {"start_period": "900s"},
     },
     "qwen36-35b": {
         "option": "--qwen36-35b",
@@ -499,14 +502,17 @@ def _without(command, flags):
 def test_candidate_file_only_replaces_the_batch_engine(compose, name):
     """REQ-107 (ADR-0056, P4): el archivo de cada candidato sobrescribe solo el `command`
     de `generation_batch` y el `environment` de `app` y `worker`; no toca la imagen, las
-    redes (el motor sigue en la red interna, sin salida) ni los puertos. Su `command` es el
+    redes (el motor sigue en la red interna, sin salida) ni los puertos; el del 27B suma además
+    la espera de la carga (`start_period`, T-247). Su `command` es el
     del compose base salvo el modelo, el alias, el proyector y las banderas de la caché de
     prefijo; sigue con `--parallel 1`, `--offline`, sin pensamiento y con el mismo
     contexto y el mismo tope de caché de pedidos."""
     spec = CANDIDATES[name]
     candidate = _candidate_compose(name)
     assert set(candidate["services"]) == {"generation_batch", "worker", "app"}
-    assert set(candidate["services"]["generation_batch"]) == {"command"}
+    engine = candidate["services"]["generation_batch"]
+    assert set(engine) == {"command"} | ({"healthcheck"} if "healthcheck" in spec else set())
+    assert engine.get("healthcheck") == spec.get("healthcheck")
     for service in ("worker", "app"):
         assert set(candidate["services"][service]) == {"environment"}
 
@@ -681,3 +687,30 @@ def test_the_default_install_keeps_the_batch_engine_off_the_internet(compose):
         for service, body in (file.get("services") or {}).items():
             assert not {"networks", "ports", "image", "extra_hosts", "network_mode"} & set(body),                 (name, service)
         assert "networks" not in file, name
+
+
+def _seconds(duration):
+    """Los segundos de una duración de Compose como `120s` o `900s`."""
+    assert re.fullmatch(r"\d+s", str(duration)), duration
+    return int(str(duration)[:-1])
+
+
+def test_the_27b_file_waits_for_the_model_load_before_counting_failed_health_checks(compose):
+    """REQ-107 (T-247, P5): el 27B tarda de 3 a 10 minutos en cargar (T-244, T-244d); con los
+    120 s del compose base `generation_batch` pasaba a `unhealthy` durante la carga y
+    `docker compose up -d` desde cero (el `worker` espera su salud) terminaba con error. El archivo
+    del 27B sube solo el `start_period` a 900 s, más que la carga más lenta medida (600 s), y
+    deja el comando, el intervalo, la espera y los reintentos del chequeo a los del compose base
+    (Compose fusiona el chequeo campo por campo)."""
+    base = compose["services"]["generation_batch"]["healthcheck"]
+    assert _seconds(base["start_period"]) == 120
+    assert {"test", "interval", "timeout", "retries"} <= set(base)
+
+    override = _candidate_compose("qwen38-27b")["services"]["generation_batch"]["healthcheck"]
+    assert override == {"start_period": "900s"}
+    assert _seconds(override["start_period"]) > 600  # la carga más lenta medida: 10 minutos (T-244)
+
+    # el del 35B-A3B no cambia: sigue con los 120 s del base
+    assert "healthcheck" not in _candidate_compose("qwen36-35b")["services"]["generation_batch"]
+    # el motor de la Consulta y los demás servicios conservan su chequeo
+    assert _seconds(compose["services"]["generation"]["healthcheck"]["start_period"]) == 120
