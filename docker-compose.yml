@@ -80,6 +80,8 @@ x-app: &app
     - ./docker-compose.qwen38-27b.yml:/app/docker-compose.qwen38-27b.yml:ro
     - ./docker-compose.qwen36-35b.yml:/app/docker-compose.qwen36-35b.yml:ro
     - ./docker-compose.razonamiento.yml:/app/docker-compose.razonamiento.yml:ro
+    - ./docker-compose.sin-consulta.yml:/app/docker-compose.sin-consulta.yml:ro
+    - ./.env.example:/app/.env.example:ro
     - ./corpus:/app/corpus:ro
     - ./evals:/app/evals
     # Solo para tests/test_instrucciones_revisadas.py (REQ-106): el informe de revisión de las
@@ -354,6 +356,8 @@ services:
       - ./docker-compose.qwen38-27b.yml:/app/docker-compose.qwen38-27b.yml:ro
       - ./docker-compose.qwen36-35b.yml:/app/docker-compose.qwen36-35b.yml:ro
       - ./docker-compose.razonamiento.yml:/app/docker-compose.razonamiento.yml:ro
+      - ./docker-compose.sin-consulta.yml:/app/docker-compose.sin-consulta.yml:ro
+      - ./.env.example:/app/.env.example:ro
       - ./corpus:/app/corpus:ro
       - ./corpus/casos:/app/corpus/casos
       - ./evals:/app/evals

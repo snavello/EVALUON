@@ -1,0 +1,26 @@
+# Motor de la Consulta apagado (T-247, ADR-0057): `generation` (el 12B de la Consulta de
+# normativa) no se levanta con `docker compose up`. Se SUMA a los de la configuración de uso:
+#   docker-compose.yml + docker-compose.qwen38-27b.yml + docker-compose.razonamiento.yml
+# (así lo deja `COMPOSE_FILE` en `.env.example`).
+#
+# Por qué: con el Qwen3.8-27B en `generation_batch` la GPU ocupa unos 20.960 MiB de 24.463; el
+# 12B de la Consulta (unos 7.800 MiB más) no entra (T-244, T-244d). El responsable aprobó el
+# 2026-10-12 «Consulta con el 27B»: un solo motor para evaluaciones y Consulta; hasta que T-255 mida
+# las evals de la 001 con el 27B (P7), la Consulta queda apagada y su pantalla lo dice (no falla).
+#
+# Qué cambia: `generation` pasa al perfil `consulta-12b` (un servicio con perfil no arranca salvo que
+# se pida) y `app` deja de esperarlo (`required: false`). Nada más: ni redes, ni puertos, ni
+# imágenes (tests/test_compose_env.py lo comprueba; P4).
+#
+# Para volver al 12B con la Consulta: no usar nada de esto (ver
+# specs/015-uso-y-eleccion-del-modelo/entorno.md, «Cómo se vuelve al 12B»).
+
+services:
+  generation:
+    profiles: ["consulta-12b"]
+
+  app:
+    depends_on:
+      generation:
+        condition: service_healthy
+        required: false

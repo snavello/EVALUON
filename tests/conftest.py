@@ -642,6 +642,19 @@ def fake_reranker(monkeypatch):
     return double
 
 
+# El chequeo de salud real de `generation` (T-247), para probarlo; las demás pruebas lo reemplazan.
+REAL_IS_AVAILABLE = generation_client.is_available
+
+
+@pytest.fixture(autouse=True)
+def consulta_engine_up(monkeypatch):
+    """Las pruebas dan por encendido el motor de la Consulta (T-247): las pantallas de la Consulta
+    preguntan `generation.is_available()`, que sin esto llamaría a la red del entorno. Una prueba
+    que necesita el motor apagado lo reemplaza con `monkeypatch.setattr(generation_client,
+    "is_available", lambda timeout=None: False)`."""
+    monkeypatch.setattr(generation_client, "is_available", lambda timeout=None: True)
+
+
 @pytest.fixture
 def fake_ai(fake_generation, fake_embeddings, fake_reranker):
     """Los tres dobles a la vez, en `.generation`, `.embeddings` y `.reranker`."""

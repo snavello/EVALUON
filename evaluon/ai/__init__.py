@@ -155,6 +155,21 @@ def unexpected(service, what, error=None):
                                    detail=repr(error) if error else None)
 
 
+def health_ok(base_url, timeout):
+    """¿Contesta 200 `GET /health` de `base_url` dentro de `timeout`? Falso ante cualquier falla:
+    el servicio no existe, está apagado o cargando (503), no contesta a tiempo o responde algo
+    que no es HTTP. No lanza. Vive acá porque este módulo es el único cliente de red de los
+    servicios de IA (P4, `tests/portal/test_no_outbound.py`)."""
+    import http.client
+    try:
+        with urllib.request.urlopen(base_url.rstrip("/") + "/health", timeout=timeout) as response:
+            return response.status == 200
+    except (OSError, ValueError, http.client.HTTPException):
+        # OSError: URLError, HTTPError, la conexión rechazada o cortada y la espera agotada.
+        # HTTPException: la respuesta no es HTTP. ValueError: la dirección no es una URL.
+        return False
+
+
 def count_tokens_with(service, base_url, text):
     """Cuenta los tokens de `text` con `POST /tokenize` del servidor del modelo: la cantidad
     es el largo de la lista que devuelve, sin los tokens especiales del modelo (plan 001,

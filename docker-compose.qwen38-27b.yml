@@ -16,8 +16,9 @@
 # recrearlos con los dos archivos para que lo registren (P6).
 # Para volver al 12B: recrear los mismos servicios solo con el compose base.
 #
-# Es igual al compose base salvo el modelo, el alias, el proyector y las dos banderas de la
-# caché de prefijo de abajo (tests/test_compose_env.py lo comprueba). El contexto sigue
+# Es igual al compose base salvo el modelo, el alias, el proyector, las dos banderas de la
+# caché de prefijo de abajo y la espera de la carga del modelo (`start_period` del chequeo de
+# salud; tests/test_compose_env.py lo comprueba). El contexto sigue
 # siendo `GENERATION_BATCH_CTX_SIZE` (32.768), igual que en la medición del 12B. Sin
 # pensamiento (`--reasoning off`, `--reasoning-budget 0`) y con `--offline` (P4: el camino de
 # pliegos y ofertas no sale del equipo).
@@ -94,6 +95,13 @@ services:
       - 0.0.0.0
       - --port
       - "8080"
+    # Espera de la carga (T-247, ADR-0057). El 27B tarda de 3 a 10 minutos en cargar y quedar
+    # listo (T-244 y T-244d). Con los 120 s del compose base el servicio pasaba a `unhealthy`
+    # mientras cargaba y `docker compose up -d` (el `worker` espera su salud) terminaba con error.
+    # Durante `start_period` los fallos del chequeo no cuentan y el primer éxito lo da por sano;
+    # el comando, el intervalo y los reintentos del chequeo siguen siendo los del compose base.
+    healthcheck:
+      start_period: 900s
 
   worker:
     environment: *qwen38-27b
