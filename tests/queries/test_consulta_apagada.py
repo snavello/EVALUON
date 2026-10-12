@@ -19,6 +19,7 @@ from django.urls import reverse
 from evaluon.ai import generation
 from evaluon.queries.models import Query
 from tests.conftest import REAL_IS_AVAILABLE, TEST_PASSWORD
+import evaluon.ai as ai_client
 
 pytestmark = pytest.mark.django_db
 
@@ -58,7 +59,7 @@ def test_availability_asks_the_health_of_the_generation_engine(monkeypatch, sett
         asked.append((url, timeout))
         return _Response(200)
 
-    monkeypatch.setattr(generation.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(ai_client.urllib.request, "urlopen", urlopen)
     settings.GENERATION_URL = "http://generation:8080/"
 
     assert REAL_IS_AVAILABLE() is True
@@ -87,7 +88,7 @@ def test_availability_is_false_when_the_engine_does_not_answer(monkeypatch, fail
     def urlopen(url, timeout=None):
         raise failure
 
-    monkeypatch.setattr(generation.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(ai_client.urllib.request, "urlopen", urlopen)
     assert REAL_IS_AVAILABLE() is False
 
 
@@ -158,7 +159,7 @@ def test_availability_is_true_for_a_real_200(settings):
 
 def test_availability_is_false_for_an_answer_that_is_not_200(monkeypatch):
     """REQ-107: una respuesta que no es 200 (sin excepción) tampoco es «disponible»."""
-    monkeypatch.setattr(generation.urllib.request, "urlopen",
+    monkeypatch.setattr(ai_client.urllib.request, "urlopen",
                         lambda url, timeout=None: _Response(503))
     assert REAL_IS_AVAILABLE() is False
 

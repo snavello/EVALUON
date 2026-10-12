@@ -37,13 +37,11 @@ Errores: `InputTooLongError` si el pedido no entra en el contexto (HTTP 400
 `evaluon.ai`).
 """
 
-import http.client
-import urllib.request
 from dataclasses import dataclass
 
 from django.conf import settings
 
-from evaluon.ai import AIServiceError, count_tokens_with, post_json, unexpected
+from evaluon.ai import AIServiceError, count_tokens_with, health_ok, post_json, unexpected
 
 SERVICE = "generation"
 
@@ -268,14 +266,7 @@ def is_available(timeout=None):
     para decirlo en lugar de fallar. No lanza: cualquier falla es «no disponible», también una
     respuesta que no es HTTP (`BadStatusLine`, `IncompleteRead`, `LineTooLong`: son
     `http.client.HTTPException` y no `OSError`)."""
-    url = settings.GENERATION_URL.rstrip("/") + "/health"
-    try:
-        with urllib.request.urlopen(url, timeout=timeout or HEALTH_TIMEOUT_SECONDS) as response:
-            return response.status == 200
-    except (OSError, ValueError, http.client.HTTPException):
-        # OSError: URLError, HTTPError, la conexión rechazada o cortada y la espera agotada.
-        # HTTPException: la respuesta no es HTTP. ValueError: la dirección no es una URL.
-        return False
+    return health_ok(settings.GENERATION_URL, timeout or HEALTH_TIMEOUT_SECONDS)
 
 
 def count_tokens_batch(text):
