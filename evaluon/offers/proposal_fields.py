@@ -18,11 +18,12 @@ Primera ronda, por reglas (mismo patrón que `tenders/proposal/procedure_fields.
 Cada dato lleva su cita: documento (nombre y huella), página y texto de la línea. Sin cita
 verificable queda «no determinado» y no se propone (P3).
 
-El modelo local entra solo para el nombre cuando las reglas no lo hallaron, pidiéndole la
-cita literal; la cita se verifica contra el texto de la página y el valor tiene que estar
-dentro de ella. Una falla del modelo deja el nombre sin determinar; nunca hace fallar la
-propuesta. El CUIT nunca lo propone el modelo. Todo corre en local (P4) y el pedido, con sus
-instrucciones, parámetros y fragmentos, queda en la traza que devuelve `propose` (P6).
+El modelo local (el del motor de lotes, `generation_batch`; ADR-0057, T-248) entra solo para el
+nombre cuando las reglas no lo hallaron, pidiéndole la cita literal; la cita se verifica contra
+el texto de la página y el valor tiene que estar dentro de ella. Una falla del modelo deja el
+nombre sin determinar; nunca hace fallar la propuesta. El CUIT nunca lo propone el modelo. Todo
+corre en local (P4) y el pedido, con sus instrucciones, parámetros y fragmentos, queda en la traza
+que devuelve `propose` (P6).
 
 Este módulo no toca la base: recibe las lecturas y devuelve datos.
 """
@@ -34,8 +35,10 @@ import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from django.conf import settings
+
 from evaluon.ai import AIServiceError, generation
-from evaluon.tenders.proposal.procedure_fields import page_lines
+from evaluon.tenders.proposal.procedure_fields import batch_model, page_lines
 
 RULES_VERSION = "oferente-reglas-v1"
 PROMPT_VERSION = "oferente-nombre-v2"
@@ -433,8 +436,9 @@ def _verified(answer, page_texts):
 
 def ask_model(sources):
     """Pregunta al modelo local por el nombre del oferente. Devuelve `(Datum, traza)`; la
-    traza (instrucciones, parámetros, fragmento, pedido y salida) va al registro de
-    auditoría (P6). `Datum` vacío si el modelo no responde o su cita no se verifica."""
+    traza (instrucciones, parámetros, fragmento, pedido, salida y el motor y el modelo que
+    atienden, `models.generation_batch`) va al registro de auditoría (P6). `Datum` vacío si el
+    modelo no responde o su cita no se verifica."""
     page_texts = [(source, page, _fold(" ".join(lines)))
                   for source in sources for page, lines in source.pages[:SCAN_PAGES]]
     fragment = "\n\n".join(
@@ -449,12 +453,17 @@ def ask_model(sources):
         "asked": ["bidder"],
         "fragment_sha256": hashlib.sha256(fragment.encode()).hexdigest(),
         "fragment_chars": len(fragment),
+        # Qué motor y qué modelo atienden el pedido, también si falla (T-248, H-248-5; P6).
+        "models": {"generation_batch": batch_model()},
     }
     if not fragment.strip():
         trace["error"] = "sin_texto"
         return Datum(), trace
     try:
-        answer = generation.generate(messages, MODEL_SCHEMA)
+        # El motor de los pedidos del `worker`, como el alta desde el pliego (ADR-0057): con el
+        # Qwen3.8-27B por omisión el motor de la Consulta está apagado.
+        answer = generation.generate_batch(messages, MODEL_SCHEMA,
+                                           max_tokens=settings.GENERATION_MAX_OUTPUT_TOKENS)
     except AIServiceError as error:
         trace["error"] = f"{error.reason}: {error}"
         return Datum(), trace

@@ -797,3 +797,56 @@ def test_the_published_v1_of_the_bidder_instruction_keeps_its_hash():
     assert extraction.text_sha256(v1) == (
         "670d1b8ae0262d3f62a6cff247a4e95af6dba6b1f82af67bc0c01c486d77dade")
     assert "Sos un lector de ofertas" in v1 and "Devolvé el valor y la cita" in v1
+
+
+def test_the_model_step_of_the_bidder_name_asks_the_batch_engine_and_records_it(
+        operator_user, procedure, fake_generation, settings):  # noqa: F811
+    """REQ-106 (verificación de T-248, H-248-5; ADR-0057): con el Qwen3.8-27B por omisión el motor
+    de la Consulta está apagado; la propuesta del nombre pide al motor de lotes, como el alta desde
+    el pliego, y su traza nombra el motor y el modelo que la atienden (`models.generation_batch`)
+    junto a la versión y la huella de la instrucción (P6)."""
+    from evaluon.offers import proposal_fields as fields
+    from evaluon.tenders.proposal import extraction
+
+    settings.GENERATION_BATCH_URL = "http://generation_batch:8080"
+    settings.GENERATION_BATCH_MODEL = "qwen3.8-27b-ud-q4_k_m"
+    settings.GENERATION_BATCH_MODEL_FILE = "Qwen3.8-27B-UD-Q4_K_M.gguf"
+    settings.GENERATION_BATCH_MODEL_SHA256 = "322e194f" + "0" * 56
+    line = f"Razón social: {NAME_A}"
+    fake_generation.respond(json.dumps({"bidder": {"cita": line, "valor": NAME_A}}))
+    files = [("o.pdf", pdf([line, *FILLER, f"Número de CUIT: {CUIT_A}"]))]
+
+    draft = upload_and_read(operator_user, procedure, files)
+
+    assert fields_of(draft)["bidder"]["proposed"] == NAME_A
+    (options,) = fake_generation.options
+    assert options["base_url"] == "http://generation_batch:8080"
+    assert options["max_tokens"] == settings.GENERATION_MAX_OUTPUT_TOKENS
+    event = AuditEvent.objects.get(event_type=EventType.OFFER_PROPOSAL, detail__action="propose")
+    trace = event.detail["model"][0]
+    assert trace["request"]["model"] == "qwen3.8-27b-ud-q4_k_m"
+    assert trace["models"]["generation_batch"]["model"] == "qwen3.8-27b-ud-q4_k_m"
+    assert trace["models"]["generation_batch"]["sha256"] == "322e194f" + "0" * 56
+    assert set(trace["models"]["generation_batch"]) == {
+        "model", "file", "sha256", "mmproj_file", "mmproj_sha256", "engine_build",
+        "context_tokens"}
+    assert trace["prompt_version"] == "oferente-nombre-v2"
+    assert trace["instructions_sha256"] == extraction.text_sha256(fields.MODEL_INSTRUCTIONS)
+
+
+def test_the_bidder_name_trace_names_the_engine_also_when_the_request_fails(
+        operator_user, procedure, fake_generation, settings):  # noqa: F811
+    """P6 (H-248-5): una falla del motor de lotes deja el nombre sin determinar y la traza con el
+    motor y el modelo que se intentaron, sin pedido ni salida."""
+    settings.GENERATION_BATCH_MODEL = "qwen3.8-27b-ud-q4_k_m"
+    fake_generation.unavailable()
+    line = f"Razón social: {NAME_A}"
+    files = [("o.pdf", pdf([line, *FILLER, f"Número de CUIT: {CUIT_A}"]))]
+
+    draft = upload_and_read(operator_user, procedure, files)
+
+    assert fields_of(draft)["bidder"]["state"] == "no_determinado"
+    event = AuditEvent.objects.get(event_type=EventType.OFFER_PROPOSAL, detail__action="propose")
+    trace = event.detail["model"][0]
+    assert "error" in trace and "request" not in trace
+    assert trace["models"]["generation_batch"]["model"] == "qwen3.8-27b-ud-q4_k_m"
