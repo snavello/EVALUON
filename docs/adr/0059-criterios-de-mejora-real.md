@@ -8,14 +8,26 @@ La mesa de comité del 2026-10-12 revisó si lo que se mide dice cuánto sirve E
 
 Con la medida corregida quedan cuatro hechos:
 
-- La coincidencia con el dictamen y «0 contradicciones» casi no pueden ver un «cumple» falso. De 49 pares, 32 se ganan absteniéndose y ninguno decidible es «no cumple».
-- La verdad por celda que existe hoy son las 51 decisiones de la Comisión de prueba de T-229. Las 8 corridas aciertan entre 24 y 28. Entre configuraciones vecinas cambian de 1 a 4 celdas. Las celdas van de a 3 por fila, así que la muestra efectiva es de unas 17 filas.
+- La coincidencia con el dictamen y «0 contradicciones» casi no pueden ver un «cumple» falso. La mayoría de los pares de la lista se ganan absteniéndose y ninguno decidible es «no cumple».
+- La única verdad por celda que existe hoy son las decisiones de la Comisión de prueba de T-229, en un solo caso. Entre configuraciones vecinas cambian pocas celdas, menos que lo que hace falta para distinguir una mejora del ruido. Las celdas de una misma fila se mueven juntas (una por oferta), así que la muestra efectiva es la cantidad de filas, no la de celdas.
 - Con la misma configuración la salida sale idéntica: repetir una corrida no mide el ruido.
 - Toda la evaluación sale de un solo caso, el mismo con que se diagnosticó y se ajustó.
 
 Hacen falta criterios escritos antes de la próxima medición (T-260) para decir si un cambio mejora o empata. Sin ellos se adopta por cifras que están dentro del ruido.
 
 ## Decisión propuesta
+
+### 0. Relación con los umbrales de la spec 015
+
+- Este ADR **complementa** los umbrales de la spec 015 y de su plan; no los reemplaza ni los cambia:
+  - filas conservadas ≥ 70 %, 0 pedazos sin sujeto y lista presente ≥ 95 %;
+  - Portal: 100 % «cumple» con su cita y 0 «cumple» con un dato que no coincide;
+  - «no determinado» que cuenta ≤ 15 %, 0 contradicciones y 100 % de citas literales;
+  - 100 % de preguntas conformes.
+- Las dos cosas responden preguntas distintas. Los umbrales dicen si una configuración llega a la meta de la spec. Este ADR dice si un cambio mejora frente a la configuración de referencia.
+- Los umbrales se miden con la medida corregida de T-256. Lo que cambia es la forma de contar, no el número de la meta. Por ejemplo, la lista presente ya no suma lo que está a revisión obligatoria.
+- El 15 % de «no determinado» se compara con la cifra sobre todas las celdas, como lo escribió el plan. La cifra sobre las celdas decidibles se informa al lado.
+- Cambiar un umbral sigue pidiendo enmendar la spec, con la aprobación del responsable (P11).
 
 ### 1. Medidas principales
 
@@ -24,24 +36,28 @@ Hacen falta criterios escritos antes de la próxima medición (T-260) para decir
    - Hasta que exista el archivo de unidades (con huella y visto bueno, como el de exclusiones), rigen dos cifras. La lista presente sin lo que está a revisión obligatoria (T-256, D5), con las suprimidas por una circular que están en otra fila como encontradas (D7). Y las filas conservadas.
    - Las dos se informan también sin las filas técnicas que arma una regla (D9).
 2. **Evaluación.**
-   - La principal es la exactitud por celda contra la Comisión: exactas con fundamento, abstenciones y erradas. Que la cita sostenga lo afirmado se lee celda por celda en `muestra-exactas.md`.
+   - La principal es la exactitud por celda contra la Comisión: exactas con fundamento, abstenciones y erradas. Que el fundamento sostenga lo afirmado se lee celda por celda en `muestra-exactas.md`.
    - Al lado va la coincidencia con el dictamen corregida (D1 y D2).
    - El «no determinado» se informa sobre todas las celdas y sobre las decidibles. Lo que el modelo marca «externo» no se descuenta (D3).
-   - Las filas agregadas solo para la medida no se evalúan: van en un archivo de exclusión de celdas, con su motivo.
-3. **P3, bloqueante, en cero.** Se cuentan tres fallas y ninguna puede aparecer:
-   - un «cumple» sin respaldo, que se ve leyendo la celda;
-   - un «no se encontró el documento» donde la Comisión dijo «cumple» o «no aplica»;
-   - una contradicción.
+   - Las filas que el archivo de exclusión de celdas saca de la medida no se evalúan; cada una lleva su motivo.
+3. **Fundamento (P3, constitución 1.4).** Una conclusión tiene fundamento si muestra alguna de estas cosas:
+   - el fragmento de la oferta o del pliego, con su cita normativa;
+   - el dato del Portal, con su enlace y su fecha (D8);
+   - la ausencia verificada en la lectura completa de la oferta, para un requisito negativo o supletorio: nombra los documentos leídos y dice que ninguno lo contradice;
+   - la respuesta de la Comisión a una pregunta del sistema, registrada con quién respondió y cuándo.
 
-   El «cumple» citado al Portal tiene respaldo (D8, constitución 1.3).
+   La medida cuenta el «cumple» por ausencia verificada como una conclusión con fundamento, no como «sin cita». T-257 registra en el resultado la regla de la ausencia, y la medida la reconoce igual que reconoce la cita del Portal. Un «cumple» por ausencia que no nombra los documentos leídos no tiene fundamento.
+4. **P3, bloqueante.** Hay dos criterios, según la falla:
+   - **En cero:** un «cumple» sin fundamento (se ve leyendo la celda) o una contradicción, es decir, «cumple» por «no cumple».
+   - **Que no suba respecto de la referencia:** un «no se encontró el documento» donde la Comisión dijo «cumple» o «no aplica». Cuenta como conclusión errada y se informa siempre. Bloquea la adopción de un cambio solo si sube respecto de la configuración de referencia: la referencia actual, V1, ya tiene 3.
 
 ### 2. Tamaño mínimo del efecto
 
 | Medida | Mejora real si… | Por qué ese tamaño |
 |---|---|---|
-| Unidades completas (o, mientras no haya archivo de unidades, lista presente sin revisión) | +2 unidades netas en al menos 2 de los 3 casos de prueba, sin perder ninguna unidad del dictamen | Una unidad es una decisión de la Comisión; con unas 25 por caso, 1 sola puede ser ruido de agrupamiento (D7) |
-| Filas conservadas (revisión a ciegas) | +10 puntos en al menos 2 casos | La diferencia entre la medida mecánica y la revisión ya es de 6 puntos en el caso-00 (D6) |
-| Exactitud por celda | +6 celdas netas en al menos 2 filas distintas, sin ninguna errada nueva | Con 51 celdas, McNemar exacto pide unas 6 discordancias en un solo sentido para p < 0,05; hoy las variantes difieren en 1 a 4 |
+| Unidades completas (o, mientras no haya archivo de unidades, lista presente sin revisión) | +2 unidades netas en al menos 2 de los 3 casos de prueba, sin perder ninguna unidad del dictamen | Una unidad es una decisión de la Comisión. Con decenas de unidades por caso, una sola puede ser ruido de agrupamiento (D7) |
+| Filas conservadas (revisión a ciegas) | +10 puntos en al menos 2 casos | La diferencia entre la medida mecánica y la revisión ya llega a varios puntos (D6) |
+| Exactitud por celda | Las celdas discordantes entre el cambio y la referencia dan p < 0,05 con McNemar exacto a favor del cambio, en al menos 2 filas distintas, y sin ninguna errada nueva | Con todas las discordancias a favor hacen falta al menos 6 (p ≈ 0,031). Con alguna en contra hacen falta más: 7 a favor y 1 en contra da p ≈ 0,07 |
 | Cualquier cambio de instrucciones | Explicado par por par (REQ-107), y sin empeorar en el conjunto de validación más de 1 unidad por caso | Evita aceptar un ajuste que solo sirve al caso-00 |
 
 - Por debajo de esos tamaños, el resultado es **empate**. En un empate se elige por tiempo y simplicidad, no por la cifra.
@@ -52,11 +68,15 @@ Hacen falta criterios escritos antes de la próxima medición (T-260) para decir
 - **Matriz.** Una mejora vale si se ve en al menos 2 de los 3 casos de prueba y no empeora en el conjunto de validación.
 - **Evaluación.** Hoy hay un solo caso con verdad por celda, el caso-00, que además es de desarrollo. Una mejora de evaluación medida solo ahí se informa como «en desarrollo», no como general. Para decir que generaliza hace falta un caso público con ofertas y dictamen, revisado como Comisión antes de mirar la salida del sistema. Lo consigue el Coordinador.
 
-### 4. Estabilidad
+### 4. Estabilidad: la corrida alterada es obligatoria
 
 - No se repite una corrida igual: sale idéntica.
-- Se hace **una corrida alterada** de la configuración adoptada, sin cambiar el modelo ni las instrucciones. Por ejemplo: el orden de las ofertas invertido, la semilla 43 en lugar de 42 y `group_tokens` movido un 5 % para correr los bordes de los lotes.
-- Se cuentan las filas y las celdas que cambian. Se hace una sola vez, antes de cerrar la medición.
+- Toda medición que decide una adopción incluye **una corrida alterada** de la configuración candidata, fijada desde ahora y no elegida después de medir:
+  - mismo modelo, mismas instrucciones y **misma semilla**;
+  - **el orden de las ofertas invertido**;
+  - **los lotes desplazados**: el tope de tokens por grupo (`ASSESSMENT_GROUP_TOKENS`) un 5 % menor, lo que corre los bordes de cada lote.
+- Se cuentan las filas y las celdas que cambian respecto de la corrida sin alterar. Esa cifra fija el ruido del punto 2.
+- Sin la corrida alterada no hay veredicto de mejora: el resultado queda pendiente.
 
 ### 5. Conjuntos
 
@@ -69,12 +89,13 @@ Hacen falta criterios escritos antes de la próxima medición (T-260) para decir
 
 ## Alternativas
 
-- **Seguir con las medidas de la spec 015 tal como estaban.** Se pierde la posibilidad de ver un «cumple» falso o un «no se encontró» errado, y se adopta por diferencias de 1 a 4 celdas que están dentro de lo que cambia una variante vecina.
+- **Seguir con las medidas de la spec 015 tal como estaban.** Se pierde la posibilidad de ver un «cumple» falso o un «no se encontró» errado, y se adopta por diferencias de pocas celdas que están dentro de lo que cambia una variante vecina.
 - **Repetir cada corrida para medir el ruido.** No sirve: con la misma configuración la salida es idéntica. La corrida alterada mide lo que sí varía.
 - **Usar todos los casos para ajustar.** Más datos para el ajuste, pero ninguna cifra que diga si generaliza.
 
 ## Consecuencias
 
-- T-260 mide con estos criterios y lo dice en su registro. Cada cifra trae su tamaño mínimo y su veredicto: mejora, empate o empeora.
+- T-260 mide con estos criterios y lo dice en su registro. Cada cifra trae su tamaño mínimo y su veredicto: mejora, empate o empeora. Al lado van los umbrales de la spec 015, que siguen vigentes.
+- La medida reconoce como fundamento la ausencia verificada en cuanto T-257 la registre en el resultado; hasta entonces, ningún resultado la usa.
 - Los casos 03, 04 y 05 quedan congelados desde que se aprueba este ADR. Sus listas y exclusiones no se tocan mirando sus resultados.
 - El archivo de unidades de la matriz y el caso público con ofertas y dictamen quedan como trabajo pendiente. Mientras no existan, la matriz se mide con la lista presente sin revisión y la evaluación generaliza solo dentro del caso-00.
