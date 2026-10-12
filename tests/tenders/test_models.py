@@ -964,8 +964,8 @@ def test_enmienda_parameters_in_settings():
     assert settings.NORM_SUPPORT_MAX_UNITS == 4
     assert settings.NORM_SUPPORT_QUERY_MAX_CHARS == 800
     assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v7"
-    for name in ("unificacion", "respaldo"):
-        assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v1"
+    assert settings.MATRIX_PROMPT_VERSIONS["unificacion"] == "matriz-unificacion-v1"
+    assert settings.MATRIX_PROMPT_VERSIONS["respaldo"] == "matriz-respaldo-v2"  # T-248
 
 
 def test_generation_batch_url_default(monkeypatch):
