@@ -254,7 +254,10 @@ class Supporter:
         head = build_head(self.run.authorization_date, question)
         prompt_tokens = generation.count_tokens_batch(self.prompt) + generation.count_tokens_batch(head)
         narrowed = dataclasses.replace(result, selected=list(units))
-        selection = retrieval.select_units(narrowed, prompt_tokens)
+        # Los bloques de norma también se cuentan con el motor de lotes, que es el que responde
+        # este pedido: con el de la Consulta apagado la propuesta de la matriz sigue (H-244-1).
+        selection = retrieval.select_units(narrowed, prompt_tokens,
+                                           count=generation.count_tokens_batch)
         context["selection"] = selection.as_record()
         score_of = {u.unit_id: u.score for u in result.units}
         if not selection.unit_ids:

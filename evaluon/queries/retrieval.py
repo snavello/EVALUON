@@ -555,13 +555,18 @@ class _Layout:
 
 
 class _Counter:
-    """Cuenta los tokens del pedido con `generation.count_tokens`, una vez por texto
-    distinto, sobre los mismos bloques que arma `answering`.
+    """Cuenta los tokens del pedido con `count` (por omisión `generation.count_tokens`, el
+    tokenizador del motor de la Consulta), una vez por texto distinto, sobre los mismos
+    bloques que arma `answering`. Quien arma un pedido para el motor de lotes pasa su propio
+    contador (`generation.count_tokens_batch`, T-254): así no depende de que la Consulta esté
+    encendida.
 
     Los alias se cuentan con el de mayor ancho posible (`U` y tantos 9 como cifras tiene
     la cantidad de unidades que podrían mostrarse): el alias real nunca es más largo."""
 
-    def __init__(self, units, changes, modifiers, target_paths, source_norms, spans):
+    def __init__(self, units, changes, modifiers, target_paths, source_norms, spans,
+                 count=None):
+        self._count = count
         self._changes = changes
         self.modifiers = modifiers
         self._target_paths = target_paths
@@ -573,7 +578,7 @@ class _Counter:
 
     def count(self, text):
         if text not in self._cache:
-            self._cache[text] = generation.count_tokens(text)
+            self._cache[text] = (self._count or generation.count_tokens)(text)
         return self._cache[text]
 
     def spans_for(self, unit):
@@ -637,12 +642,17 @@ class _Counter:
         return block
 
 
-def select_units(result, prompt_tokens):
+def select_units(result, prompt_tokens, count=None):
     """Selección de las unidades que se le muestran al modelo, a partir de un
     `RetrievalResult` (plan 001, "Reordenamiento", pasos 4 a 7, y "Conteo de tokens").
     `prompt_tokens` son los tokens de las instrucciones y del comienzo del mensaje
     (`answering.request_head`: fecha, pregunta y "Unidades:"), contados por quien llama
     con `generation.count_tokens`. Devuelve una `Selection`.
+
+    `count` es la función que cuenta los tokens de cada bloque (texto a cantidad). Por omisión,
+    `generation.count_tokens`: la Consulta la responde `generation`. El respaldo normativo de la
+    matriz, que responde el motor de lotes, pasa `generation.count_tokens_batch` (T-254,
+    H-244-1): la propuesta de la matriz no necesita el motor de la Consulta para contar.
 
     1. Cupos: de `result.selected` (las que alcanzaron el umbral, de mayor a menor
        puntaje; sin reranker, todas en el orden de la unión), hasta
@@ -692,7 +702,7 @@ def select_units(result, prompt_tokens):
         [unit.unit_id for unit in result.selected])
     chosen, over_quota = _apply_quotas([found[u.unit_id] for u in result.selected])
     counter = _Counter(chosen, *answering.load_changes(result.reference_date, chosen),
-                       spans=_passing_spans(result))
+                       spans=_passing_spans(result), count=count)
 
     included = []
     layout = _Layout()

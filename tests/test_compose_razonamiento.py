@@ -113,3 +113,44 @@ def test_the_file_is_mounted_in_the_app_for_these_tests():
     line = "./docker-compose.razonamiento.yml:/app/docker-compose.razonamiento.yml:ro"
     for volumes in (base["x-app"]["volumes"], base["services"]["app"]["volumes"]):
         assert line in volumes
+
+
+# --- T-254 · configuración candidata: el 27B con razonamiento solo en el contraste ---------------
+
+ENTORNO = REPO / "specs" / "015-uso-y-eleccion-del-modelo" / "entorno.md"
+CANDIDATE_COMMAND = ("GENERATION_BATCH_REASONING_CONTRAST=low docker compose "
+                     "-f docker-compose.yml -f docker-compose.qwen38-27b.yml "
+                     "-f docker-compose.razonamiento.yml up -d --no-deps generation_batch worker app")
+
+
+def test_only_the_contrast_thinks_with_the_candidate_variable():
+    """REQ-107: con `GENERATION_BATCH_REASONING_CONTRAST=low` y nada más, solo el contraste de la
+    evaluación piensa, con nivel `low`; los otros cuatro pasos quedan apagados."""
+    from evaluon import settings as project_settings
+
+    levels = project_settings.reasoning_levels({"GENERATION_BATCH_REASONING_CONTRAST": "low"})
+
+    assert levels == {"extraction": "off", "completeness": "off", "filter": "off",
+                      "evaluation": "off", "contrast": "low"}
+
+
+def test_the_candidate_configuration_is_documented_and_its_files_exist():
+    """REQ-107 (T-254): `entorno.md` dice cómo se levanta el Qwen3.8-27B con razonamiento solo en
+    el contraste: el compose del 27B, más el de razonamiento, más la variable del contraste en
+    `low`, y cómo volver al 12B; los archivos y los pasos que nombra existen. Sin esos
+    comandos escritos, la configuración candidata no se puede reproducir (P5)."""
+    if not ENTORNO.is_file():
+        pytest.skip("specs/ no está montada en este entorno: montarla para comprobar el documento")
+    text = ENTORNO.read_text(encoding="utf-8")
+
+    assert "## Configuración candidata" in text
+    section = text[text.index("## Configuración candidata"):]
+    assert CANDIDATE_COMMAND in section
+    assert "docker compose -f docker-compose.yml up -d --no-deps generation_batch worker app" in section
+    assert "docker compose stop generation" in section
+    for name in ("docker-compose.qwen38-27b.yml", "docker-compose.razonamiento.yml"):
+        assert (REPO / name).is_file()
+    assert "contrast" in settings.GENERATION_BATCH_REASONING_STEPS
+    # lo que se pierde mientras está levantado y el tiempo de carga medido
+    assert "propuesta de datos del procedimiento" in section and "con el 27B levantado no corre" in section
+    assert "4,5 minutos" in section

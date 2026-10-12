@@ -828,3 +828,34 @@ def test_record_is_json_with_parameters(settings, norm_units, fake_embeddings,
         "max_output_tokens": 0, "template_margin_tokens": 0,
         "unit_by_passages_from_tokens": settings.UNIT_BY_PASSAGES_FROM_TOKENS,
     }
+
+
+# --- T-254 · H-244-1: quien llama elige con qué motor se cuentan los tokens ----------------------
+
+
+@pytest.mark.django_db
+def test_select_units_counts_with_the_counter_it_is_given_and_by_default_with_generation(
+        norm_units, fake_embeddings, fake_reranker, monkeypatch):
+    """REQ-107 (H-244-1): `select_units(…, count=f)` cuenta todo con `f` y no llama a
+    `generation.count_tokens` (la matriz cuenta con el motor de lotes, aunque la Consulta esté
+    apagada); sin `count`, cuenta con `generation.count_tokens`, como la Consulta."""
+    from evaluon.ai import ServiceUnavailableError, generation
+
+    units = norm_units("regimen_especifico", [("art-1", "ARTICULO 1.- Garantía sintética [m1].")])
+    scored(fake_reranker, m1=0.9)
+    result = retrieval.retrieve(QUESTION, DATE)
+    seen = []
+
+    def batch(text):
+        seen.append(text)
+        return count_words(text)
+
+    def down(text):
+        raise ServiceUnavailableError("generation: no responde", service="generation")
+
+    monkeypatch.setattr(generation, "count_tokens", down)
+    selection = retrieval.select_units(result, PROMPT_TOKENS, count=batch)
+
+    assert selection.unit_ids == [units["art-1"].pk] and seen
+    with pytest.raises(ServiceUnavailableError):
+        retrieval.select_units(result, PROMPT_TOKENS)  # sin `count`: el de la Consulta

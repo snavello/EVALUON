@@ -71,7 +71,7 @@ flowchart LR
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 40/45 | █████████░ 89% |
-| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 16/22 | ███████░░░ 73% |
+| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 17/22 | ████████░░ 77% |
 
 <a id="001"></a>
 
@@ -1289,10 +1289,9 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 6 tareas sin terminar.
-- ▶ T-254 · Ronda extra (se perdían requisitos, ADR-0024): las verificaciones externas del oferente (REPSAL, deuda, registro, sanciones) entran como requisito externo y no como obligación del organismo; las condiciones de una opción se mantienen como condición de esa opción; la matriz no depende del motor de la Consulta para contar tokens (H-244-1); `medir_matriz` acepta el motivo «no exige nada» (H-244-6); configuración candidata del 27B con razonamiento solo en el contraste (en curso)
-- ○ T-245 · Qwen3.6-35B-A3B en servicio: las mismas comprobaciones que T-243 con los mismos umbrales (pendiente)
-- ○ T-246 · Comparación de Qwen3.6-35B-A3B con el 12B, con el mismo protocolo y los mismos umbrales (pendiente)
+- **Próximo paso:** Desarrollar: 5 tareas sin terminar.
+- ▶ T-245 · Qwen3.6-35B-A3B en servicio: las mismas comprobaciones que T-243 con los mismos umbrales (en curso)
+- ▶ T-246 · Comparación de Qwen3.6-35B-A3B con el 12B, con el mismo protocolo y los mismos umbrales (en curso)
 - ○ T-247 · ADR de resultado (reservado ADR-0057): adopta o descarta cada candidato con las corridas como evidencia; si adopta, deja preparados sin integrar los cambios de compose base y `entorno.md` para la aprobación del responsable (pendiente)
 - ○ T-248 · Resto de las instrucciones (consecuencias, respaldo, ficha, ficha por renglón, reescritura, visión, informe técnico, consulta, nombre del oferente, datos del procedimiento) y hallazgos pendientes del informe de revisión; huella de cada una; el informe queda con todo corregido o justificado (pendiente)
 - ○ T-249 · Medición de lo que cambió T-248, solo en las áreas que cambió, con el umbral de que ninguna medida empeore (P7): evals de la 001, fichas, lectura con visión, propuestas de datos y matriz con circulares (pendiente)
@@ -1307,6 +1306,7 @@ flowchart LR
 - ✓ T-236 · Instrucciones de la matriz, parte 1: bloque común de definiciones (literal de la spec) con versión y huella, extracción, completitud y circulares sin «dividí», «fragmento más corto» ni divisiones, con encabezado del punto, ejemplos balanceados, motivos nuevos, lotes de 3.000 a 4.000 tokens y la versión y la huella registradas en cada pedido; el informe de revisión entra al repositorio con su test de cobertura y de versiones congeladas (`0a0f9fb` 2026-10-11, `4c8d506` 2026-10-11, `5c72f50` 2026-10-11, `93677fd` 2026-10-11, `4b8d3f1` 2026-10-11)
 - ✓ T-252 · Instrucciones de la matriz, parte 2: filtro A y B con el bloque común, sin «mantené ante la duda» (la duda va a sugerencia), `razonamiento` antes de la decisión, B rehecha, `decide()` revisada, ejemplos 4 y 4 y lotes de 5 a 8 filas (`13c2c9b` 2026-10-11, `10cf1b4` 2026-10-11)
 - ✓ T-253 · Razonamiento propio del modelo encendible por paso (extracción, completitud, filtro, evaluación, contraste) con nivel, solo en el motor de lotes, apagado por omisión e idéntico a hoy cuando está apagado; texto y tokens del razonamiento en el registro de cada pedido; compose adicional para el servidor; averiguar si el 12B lo admite (decisión del 2026-10-11) (`0ba68cc` 2026-10-11, `821d9b4` 2026-10-11)
+- ✓ T-254 · Ronda extra (se perdían requisitos, ADR-0024): las verificaciones externas del oferente (REPSAL, deuda, registro, sanciones) entran como requisito externo y no como obligación del organismo; las condiciones de una opción se mantienen como condición de esa opción; la matriz no depende del motor de la Consulta para contar tokens (H-244-1); `medir_matriz` acepta el motivo «no exige nada» (H-244-6); configuración candidata del 27B con razonamiento solo en el contraste (`e97c4e2` 2026-10-12, `90515af` 2026-10-12, `7173bf9` 2026-10-12, `0909bf0` 2026-10-12, `b7874d1` 2026-10-12, `320f50e` 2026-10-12)
 - ✓ T-237 · Instrucciones de la evaluación (evaluación, contraste, cláusulas): `razonamiento`, citas y externo antes del veredicto en el esquema, cita de la oración completa en lugar del «fragmento mínimo», «cada condición con su dato» con el resultado de cada una visible por separado y el de la celda derivado de todas (REQ-104), definición de la duda, ejemplos balanceados, pregunta dirigida a la Comisión, reintento con memoria, versión y huella en cada pedido (`4006149` 2026-10-11, `eb82337` 2026-10-11, `12a87b8` 2026-10-11, `9f22363` 2026-10-11, `3a4234f` 2026-10-11, `8a06a96` 2026-10-11, `08d79ac` 2026-10-11)
 - ✓ T-251 · Código listo para medir otro modelo: el cuerpo del pedido de lotes dice el modelo que lo atiende y los tokens de los lotes se cuentan con ese motor (hoy con `generation`, que es Gemma) (`70b4a61` 2026-10-11, `32aa9ae` 2026-10-11, `a1aa7c2` 2026-10-11)
 - ✓ T-238 · Medidas de la 015 en `medir_matriz` y `medir_evaluacion` (filas conservadas, pedazos sin sujeto, recall sin las entradas excluidas, celdas del Portal, «no determinado» que no espera un documento ausente, forma de las preguntas) y listas esperadas ajustadas con huella y visto bueno del Coordinador (`df43d49` 2026-10-11, `2ebdf6a` 2026-10-10)
@@ -1328,7 +1328,7 @@ flowchart TD
   T236["✓ T-236 · Instrucciones de la matriz, parte 1: bloque…"]:::done
   T252["✓ T-252 · Instrucciones de la matriz, parte 2: filtro…"]:::done
   T253["✓ T-253 · Razonamiento propio del modelo encendible p…"]:::done
-  T254["▶ T-254 · Ronda extra (se perdían requisitos, ADR-002…"]:::active
+  T254["✓ T-254 · Ronda extra (se perdían requisitos, ADR-002…"]:::done
   T237["✓ T-237 · Instrucciones de la evaluación (evaluación,…"]:::done
   T251["✓ T-251 · Código listo para medir otro modelo: el cue…"]:::done
   T238["✓ T-238 · Medidas de la 015 en medir_matriz y medir_e…"]:::done
@@ -1338,8 +1338,8 @@ flowchart TD
   T242["✓ T-242 · Servicio de los candidatos: un archivo de c…"]:::done
   T243["✓ T-243 · Qwen3.8-27B en servicio: prueba de humo con…"]:::done
   T244["✓ T-244 · Comparación de Qwen3.8-27B con el 12B, con…"]:::done
-  T245["○ T-245 · Qwen3.6-35B-A3B en servicio: las mismas com…"]:::todo
-  T246["○ T-246 · Comparación de Qwen3.6-35B-A3B con el 12B,…"]:::todo
+  T245["▶ T-245 · Qwen3.6-35B-A3B en servicio: las mismas com…"]:::active
+  T246["▶ T-246 · Comparación de Qwen3.6-35B-A3B con el 12B,…"]:::active
   T247["○ T-247 · ADR de resultado (reservado ADR-0057): adop…"]:::todo
   T248["○ T-248 · Resto de las instrucciones (consecuencias,…"]:::todo
   T249["○ T-249 · Medición de lo que cambió T-248, solo en la…"]:::todo
@@ -1387,7 +1387,7 @@ flowchart TD
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
 | REQ-101 | Cada requisito propuesto en la matriz cita su unidad de sentido completa: la oración entera, junto con las oraciones cortas contiguas que siguen el mismo asunto, y el encabezado del punto o del inciso cuando la oración sola no se entiende; nunca un pedazo sin sujeto ni condiciones de una misma oración separadas en filas distintas | T-234, T-236, T-238, T-239, T-240, T-241 | ✓ cubierto |
-| REQ-102 | La matriz propuesta no incluye consecuencias, obligaciones del organismo, condiciones que solo valen si el oferente elige una opción (salvo como condición de esa opción), pago, moneda de pago, factura, forma de presentar por el Portal ni compromisos que se cumplen al presentarse; sí incluye la moneda en que se cotiza la oferta | T-250, T-236, T-252, T-254, T-238, T-239, T-240, T-241 | ▶ en proceso |
+| REQ-102 | La matriz propuesta no incluye consecuencias, obligaciones del organismo, condiciones que solo valen si el oferente elige una opción (salvo como condición de esa opción), pago, moneda de pago, factura, forma de presentar por el Portal ni compromisos que se cumplen al presentarse; sí incluye la moneda en que se cotiza la oferta | T-250, T-236, T-252, T-254, T-238, T-239, T-240, T-241 | ✓ cubierto |
 | REQ-103 | Cuando el dato de la oferta está en el Portal y coincide con lo que exige el pliego, la evaluación propone «cumple» citando el dato del Portal; cuando no coincide, propone «no cumple» o la diferencia | T-233, T-235, T-238, T-239, T-240, T-241 | ✓ cubierto |
 | REQ-104 | En la evaluación, el sistema razona antes de dar el veredicto, revisa todas las condiciones del requisito, cada una con su dato y su resultado visible por separado («cumple» solo si se cumplen todas; «no cumple» si falla alguna; si falta el dato de alguna, «no determinado» diciendo cuál), cita la oración completa de la oferta y del pliego, y el contraste ve el contexto de la cita | T-235, T-237, T-238, T-239, T-240, T-241 | ✓ cubierto |
 | REQ-105 | Cada pregunta a la Comisión está dirigida a la Comisión (nunca al oferente) y dice qué requisito, qué conclusión y qué texto la motivan; no hay preguntas de texto fijo genérico | T-235, T-237, T-238, T-239, T-240, T-241 | ✓ cubierto |

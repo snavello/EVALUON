@@ -764,3 +764,33 @@ def test_the_offer_guarantee_a_pliego_takes_for_granted_is_consulted_by_the_cond
     assert phrase in question and "falta de presentación" not in question
     [row] = formal(requested.run)
     assert row.state == "sugerido" and row.quotes.get().text == sentence
+
+
+# --- T-254 · H-244-1: la matriz no depende del motor de la Consulta para contar tokens ----------
+
+
+def test_the_support_counts_tokens_with_the_batch_engine_and_works_with_generation_down(
+        operator_user, script, filt, support, regimes, marks, corpus, spy, monkeypatch):  # noqa: F811
+    """REQ-107 (H-244-1): con el motor de la Consulta (`generation`) apagado, la pasada de
+    respaldo normativo de la propuesta de la matriz sigue funcionando: la selección de las
+    unidades de norma cuenta los tokens con el motor de lotes (`count_tokens_batch`) y nunca
+    llama a `count_tokens`, que usa `GENERATION_URL`."""
+    from evaluon.ai import ServiceUnavailableError
+
+    def down(text):
+        raise ServiceUnavailableError("generation: no responde (apagado)", service="generation")
+
+    support.says(GARANTIAS)
+    monkeypatch.setattr(generation_client, "count_tokens", down)
+    counted = []
+    real_batch = generation_client.count_tokens_batch
+    monkeypatch.setattr(generation_client, "count_tokens_batch",
+                        lambda text: counted.append(text) or real_batch(text))
+
+    run = run_case(operator_user, script, filt)
+
+    [saved] = supports(run)
+    assert saved.text == GARANTIAS
+    assert steps(run)[0].anomalies == []
+    # contó el pedido y las unidades de norma con el motor de lotes
+    assert any(GARANTIAS in text for text in counted)
