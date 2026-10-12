@@ -8,11 +8,21 @@ páginas de lectura dudosa, por un criterio objetivo que ya está en el informe 
 - las `dudosa` (`low_confidence`), las ilegibles y casi sin texto (`unread`) y las de
   `without_text_unlisted`;
 - toda página de un documento en formato imagen (foto JPG o PNG): el reconocimiento de texto
-  falla ahí.
+  falla ahí;
+- la página que tiene un pasaje reconocido con confianza mínima menor que
+  `MIN_PASSAGE_CONFIDENCE` (`low_confidence_passage`, T-259, informe del comité H2), aunque
+  en promedio haya salido legible: son los campos escritos a mano de un formulario impreso
+  (firma, aclaración, fecha, número de proceso), que el reconocimiento lee mal y la visión
+  por página no veía.
 
 Hasta `ASSESSMENT_VISION_MAX_PAGES` páginas por oferta (con las ya intentadas antes); las que
 pasan del tope siguen como están y quedan contadas. Una página legible de un documento con
-texto nunca se manda a visión.
+texto, sin un pasaje reconocido de confianza baja, nunca se manda a visión.
+
+El motor es el de lotes (`generation_batch`) con el modelo que tenga cargado: con el adoptado
+(ADR-0057, Qwen3.8-27B con su proyector) la visión la hace el 27B. El pedido lleva el alias de
+ese modelo (`generation.model_for`) y el registro guarda, además de los datos del modelo
+configurado, el que dice la respuesta del motor que lo atendió (`served_model`, P6).
 
 Cada página va en un pedido aparte al motor de lotes (`generation_batch`, con su proyector de
 imagen), con la imagen dibujada con pypdfium2 y la instrucción `vision-v3`: el modelo
@@ -69,7 +79,7 @@ from evaluon.accounts.permissions import require_commission_role
 from evaluon.ai import AIServiceError, generation
 from evaluon.audit import services as audit
 from evaluon.audit.models import Channel, EventType, Outcome
-from evaluon.norms.reading import PAGE_READ, Line
+from evaluon.norms.reading import ORIGIN_OCR, PAGE_READ, Line
 from evaluon.norms.splitting.canonical import build_canonical_text
 from evaluon.offers import orientation
 from evaluon.offers import passages as passage_rules
@@ -85,6 +95,12 @@ REASON_UNREAD = "unread"
 REASON_LOW_CONFIDENCE = "low_confidence"
 REASON_WITHOUT_TEXT = "without_text_unlisted"
 REASON_IMAGE_FORMAT = "image_format"
+REASON_LOW_PASSAGE = "low_confidence_passage"
+
+# Confianza mínima (0 a 100) de un pasaje reconocido por debajo de la cual su página va a
+# visión aunque haya salido legible (T-259): el comité contó 24 pasajes así en las ofertas del
+# caso-00, todos campos escritos a mano. Valor de partida, sin medición detrás.
+MIN_PASSAGE_CONFIDENCE = 40
 
 # Resultado de una página.
 OUTCOME_READ = "read"
@@ -114,7 +130,7 @@ RULE_LINE = re.compile(r"^[\s._\-–—·]{4,}$")
 # Cuántas líneas como máximo se comparan para quitar el solape entre dos franjas.
 MAX_OVERLAP_LINES = 6
 # Motivos por los que la lectura del reconocimiento fue dudosa (la letra manuscrita cae acá).
-HARD_REASONS = (REASON_UNREAD, REASON_LOW_CONFIDENCE)
+HARD_REASONS = (REASON_UNREAD, REASON_LOW_CONFIDENCE, REASON_LOW_PASSAGE)
 
 
 def load_prompt():
@@ -170,11 +186,28 @@ def candidate_pages(document, reading):
     if document.file_format in IMAGE_FORMATS:
         for page in range(1, report.get("pages", 0) + 1):
             add(page, REASON_IMAGE_FORMAT)
+    by_number = {page.get("number"): page for page in (reading.pages or {}).get("pages", [])}
+    for page, lowest in sorted(low_confidence_passages(reading).items()):
+        read = by_number.get(page, {})
+        add(page, REASON_LOW_PASSAGE, read.get("status"), read.get("confidence"))
+        found[page].setdefault("passage_confidence", lowest)
     done = attempted_pages(reading)
     chosen = [found[p] for p in sorted(found) if p not in done]
     for entry in chosen:
         entry["reason"] = entry["reasons"][0]
     return chosen
+
+
+def low_confidence_passages(reading):
+    """`{página: confianza}` de las páginas de `reading` con algún pasaje reconocido cuya
+    confianza mínima es menor que `MIN_PASSAGE_CONFIDENCE`, con la menor de ellas."""
+    pages = {}
+    rows = reading.passages.filter(
+        text_origin=ORIGIN_OCR, ocr_confidence_min__lt=MIN_PASSAGE_CONFIDENCE,
+    ).values_list("page", "ocr_confidence_min")
+    for page, confidence in rows:
+        pages[page] = min(confidence, pages.get(page, confidence))
+    return pages
 
 
 # --- Imagen y pedido --------------------------------------------------------------------------
@@ -319,7 +352,9 @@ def request_part(image, *, user_text, clock):
         base_url=settings.GENERATION_BATCH_URL,
         timeout=settings.ASSESSMENT_REQUEST_TIMEOUT_SECONDS)
     return {"image_sha256": sha256, "image_size": [image.width, image.height],
-            "request": _without_image(result.request, sha256), "raw_output": result.content,
+            "request": _without_image(result.request, sha256),
+            "served_model": (result.response or {}).get("model"),
+            "raw_output": result.content,
             "finish_reason": result.finish_reason, "prompt_tokens": result.prompt_tokens,
             "completion_tokens": result.completion_tokens,
             "seconds": round(clock() - started, 3)}
@@ -560,6 +595,8 @@ def read_offer(offer, *, user, channel=Channel.COMMAND, job=None, clock=time.mon
                 continue
             entry.update(reason=candidate["reason"], reasons=candidate["reasons"],
                          status=candidate["status"], confidence=candidate["confidence"])
+            if "passage_confidence" in candidate:
+                entry["passage_confidence"] = candidate["passage_confidence"]
             entries.append(entry)
         summary.attempted += len(entries)
         summary.read += sum(1 for e in entries if e["outcome"] == OUTCOME_READ)
