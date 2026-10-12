@@ -146,3 +146,32 @@ Pedidos reales del caso-00 (LPU25) reproducidos desde la base con el razonamient
 | El mismo, nivel `low` | Qwen3.8-27B | 2.048 | sin base | 2.187 (2.048), 91,7 s a 24 tokens por segundo | sí |
 
 Lecturas: en los tres el modelo quiso pensar más que el tope, así que el costo observado es el tope (con el 12B, 13 s más por pedido de filtro y 42 s más por pedido de evaluación; el 27B tardó 91,7 s en la evaluación, contra 8,7 s del 12B sin razonamiento). El tiempo del 27B no incluye leer el prompt de 13.600 tokens, que ya estaba en la caché de prefijo por un intento previo del mismo pedido que se cortó. Extrapolación de una sola muestra, a confirmar en T-244: con el 12B y un tope de 2.048, unos 243 pedidos de lectura de evaluación suman cerca de 2,8 horas más, casi todo el tope de 180 minutos del caso-00 completo; conviene medir la evaluación con tope de 1.024 o encender solo el contraste y el filtro. La GPU marcó 20.948 MiB en total con el 27B generando el primer intento de ese pedido (contexto 32.768, caché f16, con embeddings y reranker y sin los otros dos motores de generación), dentro de 22.000.
+
+## Configuración candidata: Qwen3.8-27B con razonamiento solo en el contraste (T-254, 2026-10-12)
+
+Decisión del responsable del 2026-10-12 («1 y luego 3 para no dejarlo sin probar», spec 015): el candidato es el Qwen3.8-27B con el razonamiento propio encendido **solo en el contraste** de la evaluación. Es la parte de la variante 3 de T-244b que frena el único «cumple» sin respaldo del 27B sin cambiar nada más; el razonamiento en el filtro (que dejaba pasar incisos de formularios) y en la extracción y la evaluación (que dio una contradicción con el dictamen, T-244c) quedan apagados. Esta configuración todavía no se midió entera: se mide una vez, junto con el 12B, con el código de T-254.
+
+### Cómo se levanta
+
+El 27B no entra con el motor de la Consulta (`generation`) encendido: se apaga antes. La propuesta de la matriz ya no lo necesita para contar tokens (H-244-1, T-254).
+
+```
+docker compose stop generation
+GENERATION_BATCH_REASONING_CONTRAST=low docker compose -f docker-compose.yml -f docker-compose.qwen38-27b.yml -f docker-compose.razonamiento.yml up -d --no-deps generation_batch worker app
+```
+
+- **Los tres archivos, en ese orden.** El del 27B cambia el modelo, el alias y el proyector de `generation_batch`; el de razonamiento va **al final** y agrega al servidor `--reasoning auto --reasoning-budget -1` (si no, el servidor ignora el pedido de pensar) y pasa a `app` y `worker` las variables de cada paso.
+- **Solo el contraste piensa.** `GENERATION_BATCH_REASONING_CONTRAST=low` y ninguna otra variable de razonamiento: la extracción, la completitud, el filtro y la evaluación quedan apagados (cada pedido manda `enable_thinking: false`). El tope del nivel `low` es de 1.024 tokens de razonamiento por pedido (`GENERATION_BATCH_REASONING_BUDGET_LOW`); en T-244b el contraste usó 905 en promedio. Un test (`tests/test_compose_razonamiento.py`) comprueba que esa variable deja solo ese paso encendido.
+- **Esperar a `/health`** antes de pedir nada: la carga tarda de 7 a 10 minutos (`docker compose exec generation_batch curl -s localhost:8080/health` devuelve `{"status":"ok"}`). Con `--no-deps` el `up` no espera.
+- **Qué comprobar:** `/props` de `generation_batch` con el alias `qwen3.8-27b-ud-q4_k_m`, `n_ctx` 32.768 y visión verdadera; en cada corrida, `parameters.reasoning` con `contrast: low` y los demás pasos en `off`, y `razonamiento_propio` (nivel, texto y tokens) en cada pedido del contraste y en ningún otro (P6).
+- **Memoria:** unos 20.960 MiB de 24.463 con `embeddings` y `reranker` encendidos y `generation` apagado (T-244, T-244b); el tope es 22.000 MiB. Con `generation` encendido no entra.
+- **Mientras esté levantado**, la Consulta de normativa no responde (el motor `generation` está apagado) y todo lo que usa ese motor (fichas, lectura con visión, propuestas de datos, informe técnico) tampoco; el motor de lotes sí atiende la matriz y la evaluación.
+
+### Cómo se vuelve al 12B
+
+```
+docker compose -f docker-compose.yml up -d --no-deps generation_batch worker app
+docker compose start generation
+```
+
+Recrea `generation_batch`, `worker` y `app` solo con el compose base (12B, sin razonamiento: `--reasoning off --reasoning-budget 0`) y enciende de nuevo la Consulta. Comprobar: `/health` `ok` en los dos motores, el alias del 12B en `/props` de cada uno, `n_ctx` 32.768 en el de lotes y 16.384 en el de la Consulta, y un pedido de prueba a cada uno sin razonamiento.
