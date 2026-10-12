@@ -440,7 +440,9 @@ class Suggester:
             prompt_tokens = (settings.GENERATION_CONTEXT_TOKENS
                              - settings.PROMPT_TEMPLATE_MARGIN_TOKENS
                              - settings.GENERATION_MAX_OUTPUT_TOKENS - space + used)
-            selection = retrieval.select_units(found, prompt_tokens)
+            # Se cuenta con el motor de lotes, que responde este pedido (T-254, H-244-1).
+            selection = retrieval.select_units(found, prompt_tokens,
+                                               count=generation.count_tokens_batch)
             units = NormUnit.objects.select_related("reading__document__norm").in_bulk(
                 selection.unit_ids)
             score_of = {u.unit_id: u.score for u in found.units}

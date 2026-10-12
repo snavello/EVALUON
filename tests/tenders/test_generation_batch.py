@@ -250,6 +250,31 @@ def test_batch_callers_count_with_the_batch_engine(fake_generation, monkeypatch)
         assert "build_request(" not in code.replace("build_batch_request(", ""), name
 
 
+def test_every_batch_selection_of_norm_units_counts_with_the_batch_engine():
+    """REQ-107 (H-244-1, T-254): todo `select_units` que arma un pedido para el motor de lotes
+    (respaldo normativo y consecuencias de la matriz) pasa `count=generation.count_tokens_batch`;
+    solo la Consulta (`queries/`) cuenta con el motor de la Consulta. Sin esto, la propuesta de
+    la matriz falla con `generation` apagado. Se comprueba sobre el código."""
+    import re
+
+    root = Path(settings.BASE_DIR) / "evaluon"
+    found = 0
+    for folder in ("tenders", "assessment", "offers"):
+        for path in sorted((root / folder).rglob("*.py")):
+            code = re.sub(r'""".*?"""', "", path.read_text(encoding="utf-8"), flags=re.DOTALL)
+            for call in re.finditer(r"retrieval\.select_units\(", code):
+                # el paréntesis de cierre de la llamada: se cuentan los que abre y cierra
+                depth, at = 0, call.end() - 1
+                while True:
+                    depth += {"(": 1, ")": -1}.get(code[at], 0)
+                    if depth == 0:
+                        break
+                    at += 1
+                found += 1
+                assert "count=generation.count_tokens_batch" in code[call.start():at], str(path)
+    assert found >= 2  # el respaldo normativo y las consecuencias
+
+
 def test_the_double_replaces_the_new_counter_too(fake_generation):
     """REQ-107: el doble de `tests/conftest.py` reemplaza también `count_tokens_batch`."""
     assert generation.count_tokens_batch("uno dos tres") == 3
