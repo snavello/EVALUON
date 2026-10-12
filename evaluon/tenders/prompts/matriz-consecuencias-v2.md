@@ -51,16 +51,16 @@ EJEMPLOS
 
 Los textos son inventados y sirven solo para mostrar la forma.
 
-Requisito [R1] (ruta: Capítulo 3 › 3.1): "Los oferentes acompañarán el certificado de calibración de las balanzas ofrecidas." Fundamento [P1] (ruta: Capítulo 3 › 3.1): "La falta del certificado de calibración será causal de desestimación de la oferta."
+Requisito [R1] (ruta: Capítulo 3 › 3.1): "Los oferentes acompañarán el certificado de calibración de las balanzas ofrecidas." Fundamento [P1] (ruta: Capítulo 3 › 3.1): "Toda oferta de balanzas que llegue sin ese certificado se desestima."
 {"R1": {"opciones": [{"fundamentos": ["P1"], "tipo": "desestimacion"}]}}
 
-Requisito [R2] (ruta: Capítulo 3 › 3.2): "Presentar la habilitación del local de fabricación." Fundamento [P2] (ruta: Capítulo 9 › 9.4): "La Comisión podrá solicitar aclaraciones a los oferentes sobre la documentación presentada." Fundamento [N1]: "Los errores u omisiones subsanables se intimarán al oferente."
+Requisito [R2] (ruta: Capítulo 3 › 3.2): "Presentar la habilitación del local de fabricación." Fundamento [P2] (ruta: Capítulo 9 › 9.4): "Sobre cualquier documento que este pliego pida, la Comisión podrá requerir al oferente las aclaraciones que necesite." La cláusula está en otro capítulo, pero dice alcanzar a todo lo que el pliego pide. Fundamento [N1]: "Los errores u omisiones subsanables se intimarán al oferente."
 {"R2": {"opciones": [{"fundamentos": ["P2"], "tipo": "consultar_oferente"}, {"fundamentos": ["N1"], "tipo": "intimacion_subsanar"}]}}
 
-Requisito [R3] (ruta: Capítulo 4 › 4.2 › 4.2.3): "Se adjuntará la hoja de datos de cada luminaria." Fundamento [P3] (ruta: Capítulo 4 › 4.2): "La omisión de presentar oportunamente la documentación solicitada en este punto será causal de desestimación." La cláusula es general del punto 4.2, que contiene al requisito.
+Requisito [R3] (ruta: Capítulo 4 › 4.2 › 4.2.3): "Se adjuntará la ficha de seguridad de cada producto de fumigación." Fundamento [P3] (ruta: Capítulo 4 › 4.2): "Quedará fuera de la evaluación la propuesta a la que le falte alguno de los papeles que enumeran los apartados de este punto." La cláusula es general del punto 4.2, que contiene al requisito, aunque no lo nombre.
 {"R3": {"opciones": [{"fundamentos": ["P3"], "tipo": "desestimacion"}]}}
 
-Requisito [R4] (ruta: Capítulo 4 › 4.3 › 4.3.1): "El plazo de garantía de los equipos será de veinticuatro meses." Fundamento [P4] (ruta: Capítulo 7 › 7.1): "La falta de cualquier documento de este capítulo será causal de desestimación." La cláusula es del capítulo 7, que no contiene al requisito.
+Requisito [R4] (ruta: Capítulo 4 › 4.3 › 4.3.1): "El plazo de garantía de los equipos será de veinticuatro meses." Fundamento [P4] (ruta: Capítulo 7 › 7.1): "Si a una propuesta le falta uno de los papeles de este capítulo, se la deja de lado." La cláusula es del capítulo 7, que no contiene al requisito, y dice alcanzar solo a lo de su capítulo.
 {"R4": {"opciones": []}}
 
 Requisito [R5] (ruta: Capítulo 5 › 5.1): "Los oferentes entregarán una muestra de cada uniforme ofrecido." Fundamento [P5] (ruta: Capítulo 5 › 5.1): "El oferente que no entregue la muestra en el plazo fijado será evaluado sin el renglón respectivo."

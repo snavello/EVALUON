@@ -611,6 +611,27 @@ def test_the_instructions_have_the_two_fields_and_synthetic_examples():
     assert schema["properties"]["N1"]["properties"]["exige"]["enum"] == ["si", "no"]
 
 
+def test_the_schema_and_the_instruction_put_the_quote_before_the_verdict():
+    """REQ-106 (verificación de T-248, H-248-3; ADR-0055, regla 3): el motor genera los campos en
+    el orden del esquema: primero la oración que impone la condición (`cita`) y después el
+    veredicto que ella sostiene (`exige`), en el esquema, en lo que pide la instrucción y en
+    cada ejemplo."""
+    import json
+
+    from evaluon.tenders.proposal import extraction
+
+    item = norm_support.build_schema(["N1"])["properties"]["N1"]
+    assert list(item["properties"]) == ["cita", "exige"]
+    assert item["required"] == ["cita", "exige"]
+
+    prompt = extraction.load_prompt("respaldo")
+    asked = prompt[prompt.index("QUÉ SE PREGUNTA"):prompt.index("FORMATO DE LA SALIDA")]
+    assert asked.index('"cita":') < asked.index('"exige":')
+    answers = [json.loads(line) for line in prompt.splitlines() if line.startswith('{"N1"')]
+    assert len(answers) >= 5
+    assert all(list(unit) == ["cita", "exige"] for answer in answers for unit in answer.values())
+
+
 # --- Generalidad: ninguna ancla de los casos -------------------------------------------------
 
 HASHES = Path(__file__).parent / "fixtures" / "case_anchor_hashes.txt"

@@ -24,11 +24,11 @@ Requisito: «El oferente contratará un seguro de responsabilidad civil por el m
 Requisito: «El oferente presentará la habilitación municipal vigente del local.»
 {"consulta": "habilitación municipal del local, número, domicilio, estado vigente, fecha de emisión"}
 
-Requisito: «Los oferentes deberán manifestar que no se encuentran comprendidos en las causales de inhabilidad para contratar.»
-{"consulta": "declaración jurada: declaro bajo juramento que no me encuentro comprendido en las causales de inhabilidad para contratar, firma y aclaración"}
+Requisito: «El oferente declarará la antigüedad de cada vehículo que ofrezca para el traslado de muebles.»
+{"consulta": "declaración jurada: declaro bajo juramento la antigüedad de los vehículos ofrecidos, modelo y año de fabricación de cada unidad, firma y aclaración"}
 
-Requisito: «El plazo de entrega será de diez días corridos desde la orden de compra.»
-{"consulta": "nota de la empresa: plazo de entrega en días corridos desde la recepción de la orden de compra, lugar de entrega"}
+Requisito: «La fumigación de los depósitos se hará una vez por mes, en el horario que fije el organismo.»
+{"consulta": "nota de la empresa: frecuencia mensual de la fumigación de los depósitos, días y horario de cada visita, cronograma"}
 
-Requisito: «La oferta deberá mantenerse por sesenta días corridos.»
-{"consulta": "la oferta mantiene su validez por días corridos desde la fecha de apertura, formulario de la oferta"}
+Requisito: «Cada propuesta indicará la marca y el modelo de los bebederos que cotiza.»
+{"consulta": "planilla de cotización o folleto del fabricante: marca y modelo de cada bebedero ofrecido, renglón, fotografía"}

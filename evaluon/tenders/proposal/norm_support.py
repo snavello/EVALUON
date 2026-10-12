@@ -99,11 +99,13 @@ def build_question(fragment):
 
 
 def build_schema(aliases):
+    # El motor genera los campos en el orden del esquema: primero la oración que impone la
+    # condición y después el veredicto que ella sostiene (ADR-0055, regla 3; T-248, H-248-3).
     item = {
         "type": "object",
-        "properties": {"exige": {"type": "string", "enum": ["si", "no"]},
-                       "cita": {"type": "string"}},
-        "required": ["exige", "cita"],
+        "properties": {"cita": {"type": "string"},
+                       "exige": {"type": "string", "enum": ["si", "no"]}},
+        "required": ["cita", "exige"],
         "additionalProperties": False,
     }
     return {"type": "object", "properties": {alias: item for alias in aliases},

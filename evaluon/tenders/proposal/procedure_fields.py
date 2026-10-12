@@ -23,6 +23,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 
 from django.conf import settings
 
@@ -30,7 +31,7 @@ from evaluon.ai import AIServiceError, generation
 from evaluon.norms.reading import FORMAT_PDF, detect_format, read_document
 
 RULES_VERSION = "procedimiento-reglas-v1"
-PROMPT_VERSION = "procedimiento-datos-v1"
+PROMPT_VERSION = "procedimiento-datos-v2"
 
 # Páginas del comienzo donde se buscan los datos de la carátula.
 FRONT_PAGES = 3
@@ -48,20 +49,19 @@ DEDUCED_FROM_NUMBER = "numero_de_proceso"
 METHOD_RULE = "regla"
 METHOD_MODEL = "modelo"
 
-MODEL_INSTRUCTIONS = (
-    "Sos un lector de pliegos de bases y condiciones. Del texto que sigue, que es el comienzo "
-    "de un pliego, indicá el tipo de procedimiento (por ejemplo, licitación pública, "
-    "contratación directa) y el objeto de la contratación. Para cada uno devolvé el valor y la "
-    "cita: un fragmento copiado literal del texto, sin cambiar ni una letra, que contenga el "
-    "valor. Si el texto no lo dice, devolvé el valor y la cita vacíos. No inventes."
-)
+# La instrucción es un archivo versionado, como las demás (T-248): la v1, que vivía acá, sigue
+# publicada y congelada en `prompts/procedimiento-datos-v1.md`, con los mismos bytes.
+PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
+MODEL_INSTRUCTIONS = (PROMPTS_DIR / f"{PROMPT_VERSION}.md").read_text(encoding="utf-8")
+# El motor genera los campos en el orden del esquema: la cita va antes que el valor que ella
+# sostiene (ADR-0055, regla 3).
 MODEL_SCHEMA = {
     "type": "object",
     "properties": {
         key: {
             "type": "object",
-            "properties": {"valor": {"type": "string"}, "cita": {"type": "string"}},
-            "required": ["valor", "cita"],
+            "properties": {"cita": {"type": "string"}, "valor": {"type": "string"}},
+            "required": ["cita", "valor"],
             "additionalProperties": False,
         }
         for key in ("procedure_type", "subject")

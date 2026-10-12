@@ -49,23 +49,23 @@ La oferta tiene una validez de sesenta días corridos.
 Respuesta:
 {"pasajes": [], "sintesis": ""}
 
-Requisito: «El plazo de entrega será de diez días corridos desde la orden de compra.»
+Requisito: «Las podas se harán en los meses de otoño, con un aviso previo de cinco días.»
 
 [P1]
-Documento: Propuesta económica
+Documento: Propuesta técnica
 Página: 1
 Texto:
-La entrega se realizará en el depósito indicado por el organismo, en horario de atención.
+Las podas se harán con personal propio y con equipos de altura.
 [/P1]
 
 [P2]
 Documento: Condiciones
 Página: 3
 Texto:
-El plazo de entrega será de diez días corridos desde la orden de compra.
+Las podas se harán en los meses de otoño, con un aviso previo de cinco días.
 [/P2]
 
-Respuesta (el primer pasaje habla de la entrega pero no trae el plazo; el segundo repite el texto del pliego sin que el oferente ofrezca nada):
+Respuesta (el primer pasaje habla de las podas pero no dice cuándo; el segundo repite el texto del pliego sin que el oferente ofrezca nada):
 {"pasajes": [], "sintesis": ""}
 
 Requisito: «El oferente presentará la habilitación municipal del local.»
