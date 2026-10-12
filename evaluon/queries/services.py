@@ -185,6 +185,20 @@ class FutureDate(QueryRefused):
     """La fecha de autorización es posterior al día."""
 
 
+# Lo que dicen las pantallas de la Consulta cuando su motor (`generation`) está apagado (T-247,
+# ADR-0057): con el Qwen3.8-27B en el motor de lotes, el 12B de la Consulta no entra en la GPU y
+# queda apagado hasta que T-255 pase la Consulta al 27B. Sin este aviso la pregunta recorría la
+# recuperación y terminaba en «falla técnica» (y en una consulta fallida guardada).
+UNAVAILABLE_NOTICE = ("La consulta de normativa no está disponible por ahora: el equipo usa el "
+                      "modelo grande para las evaluaciones y deja apagado el motor de la consulta. "
+                      "Vuelva a intentarlo más tarde.")
+
+
+def consulta_available():
+    """¿Puede la Consulta responder ahora? Es que el motor `generation` responda (T-247)."""
+    return generation.is_available()
+
+
 def today():
     """Fecha del día en hora de Buenos Aires (`TIME_ZONE`)."""
     return timezone.localdate()

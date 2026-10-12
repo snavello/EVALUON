@@ -6,8 +6,8 @@ renglones (número, descripción, cantidad). Cada dato propuesto lleva su cita: 
 texto literal donde se encontró. Sin cita verificable, el dato queda «no determinado» y no se
 propone.
 
-El modelo local entra solo para el tipo y el objeto que las reglas no hallaron, pidiéndole la
-cita literal; la cita se verifica contra el texto de la página y el valor tiene que estar dentro
+El modelo local (el del motor de lotes, `generation_batch`; T-247) entra solo para el tipo y el
+objeto que las reglas no hallaron, pidiéndole la cita literal; la cita se verifica contra el texto de la página y el valor tiene que estar dentro
 de ella (mismo patrón que la matriz). Una falla del modelo deja el dato sin determinar; nunca
 hace fallar la propuesta. Todo corre en local (P4) y el pedido, con sus instrucciones, parámetros
 y fragmentos, queda en la traza que devuelve `propose` (P6).
@@ -23,6 +23,8 @@ import unicodedata
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal, InvalidOperation
+
+from django.conf import settings
 
 from evaluon.ai import AIServiceError, generation
 from evaluon.norms.reading import FORMAT_PDF, detect_format, read_document
@@ -327,10 +329,24 @@ def _verified(answer, page_texts):
     return None
 
 
+def batch_model():
+    """El modelo del motor que atiende el pedido, como lo registran la matriz, la evaluación y la
+    lectura con visión (P6): el alias, el archivo y la huella del modelo, el proyector, la
+    compilación del motor y el contexto."""
+    return {"model": settings.GENERATION_BATCH_MODEL,
+            "file": settings.GENERATION_BATCH_MODEL_FILE,
+            "sha256": settings.GENERATION_BATCH_MODEL_SHA256,
+            "mmproj_file": settings.GENERATION_BATCH_MMPROJ_FILE,
+            "mmproj_sha256": settings.GENERATION_BATCH_MMPROJ_SHA256,
+            "engine_build": settings.GENERATION_ENGINE_BUILD,
+            "context_tokens": settings.GENERATION_BATCH_CONTEXT_TOKENS}
+
+
 def ask_model(front, missing):
     """Pregunta al modelo local por los datos de `missing` (`procedure_type`, `subject`).
-    Devuelve `({dato: Datum}, traza)`; la traza (instrucciones, parámetros, fragmento, pedido
-    y salida) va al registro de auditoría (P6)."""
+    Devuelve `({dato: Datum}, traza)`; la traza (instrucciones, parámetros, fragmento, pedido,
+    salida y el motor y el modelo que atienden, `models.generation_batch`) va al registro de
+    auditoría (P6)."""
     page_texts = [(page, _fold(" ".join(lines))) for page, lines in front]
     fragment = "\n\n".join(f"[Página {page}]\n" + "\n".join(lines) for page, lines in front)
     fragment = fragment[:MODEL_MAX_CHARS]
@@ -342,10 +358,15 @@ def ask_model(front, missing):
         "asked": list(missing),
         "fragment_sha256": hashlib.sha256(fragment.encode()).hexdigest(),
         "fragment_chars": len(fragment),
+        # Qué motor y qué modelo atienden el pedido (T-247, P6), también si el pedido falla.
+        "models": {"generation_batch": batch_model()},
     }
     result = {}
     try:
-        answer = generation.generate(messages, MODEL_SCHEMA)
+        # El motor de los pedidos del `worker` (T-247): con el Qwen3.8-27B en `generation_batch`
+        # el motor de la Consulta está apagado, y esta propuesta corre en el `worker`.
+        answer = generation.generate_batch(messages, MODEL_SCHEMA,
+                                           max_tokens=settings.GENERATION_MAX_OUTPUT_TOKENS)
     except AIServiceError as error:
         trace["error"] = f"{error.reason}: {error}"
         return result, trace

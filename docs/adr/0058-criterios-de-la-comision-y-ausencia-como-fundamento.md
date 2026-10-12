@@ -1,0 +1,24 @@
+# ADR-0058 · Criterios de la Comisión para la evaluación y la ausencia verificada como fundamento
+
+Estado: aceptado · Fecha: 2026-10-12 · Decidió: responsable del proyecto (decisiones literales en la spec 015)
+
+## Contexto
+
+La mesa de comité del 2026-10-12, que hizo el análisis final de calidad tras adoptar el Qwen3.8-27B, mostró dos cosas:
+
+- 12 de las 18 celdas «no determinado» que cuentan en el caso-00 son cuatro filas que dependen de criterios que la Comisión de prueba aplicó y el sistema no tenía: el IVA incluido en el precio del Portal y los requisitos que se cumplen si la oferta no dice algo en contra.
+- La prórroga automática del mantenimiento se perdía en los 4 casos medidos, y la presentación física en Mesa de Entrada se descartaba como forma de presentar por el Portal.
+
+## Decisión
+
+Las decisiones literales están en la spec 015.
+
+1. **IVA.** «Precio del Portal = final con IVA»: salvo que la oferta diga lo contrario, el precio cotizado en el Portal es precio final con IVA incluido. El sistema propone «cumple» citando el Portal y este criterio.
+2. **Ausencia verificada.** «Cumple por ausencia, con fundamento»: un requisito negativo o supletorio se propone «cumple» nombrando los documentos leídos y diciendo que ninguno lo contradice. Si alguno lo contradice, se propone «no cumple» con la cita. **Enmienda P3** (constitución 1.4).
+3. **Prórroga.** «En la misma fila del plazo»: el mantenimiento y su prórroga automática son una sola fila, porque tratan el mismo asunto. Se evalúa por ausencia, salvo que la oferta limite el plazo o rechace la prórroga.
+4. **Presentación física.** Presentar en Mesa de Entrada lo que el Portal marca como «Requiere presentar» es requisito. Si no consta entre los documentos ni en la hoja de compliance, es «no cumple», con un texto que avisa que puede faltar cargarlo. La cláusula de completar la oferta económica por el formulario del Portal no es fila propia.
+
+## Consecuencias
+
+- Las tareas T-257 (evaluación) y T-258 (matriz) aplican estos criterios. T-256 corrige la medida antes de medir, y T-260 mide una sola vez.
+- El criterio del IVA y el de la ausencia quedan registrados en cada resultado, con su regla y su versión (P6).

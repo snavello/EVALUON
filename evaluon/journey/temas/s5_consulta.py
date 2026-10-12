@@ -181,12 +181,16 @@ def _answer(query):
 def context(user, procedure, request):
     pid = procedure.pk if procedure is not None else None
     base = {"pid": pid, "aviso": unpack(request.GET.get("aviso")) if request else None,
-            "can_ask": False, "answer": None, "history": [], "authorization_date": None}
+            "can_ask": False, "unavailable": "", "answer": None, "history": [],
+            "authorization_date": None}
     if procedure is None:
         return base
     base["authorization_date"] = procedure.authorization_date
     base["can_ask"] = (getattr(user, "commission_role", "")
                        in (CommissionRole.OPERATOR, CommissionRole.EVALUATOR))
+    # Motor de la Consulta apagado (T-247, ADR-0057): la pestaña lo dice y no deja preguntar.
+    base["unavailable"] = (services.UNAVAILABLE_NOTICE
+                           if base["can_ask"] and not services.consulta_available() else "")
     history = _history(user, pid)
     base["history"] = history
     wanted = request.GET.get("consulta", "") if request else ""
@@ -220,6 +224,9 @@ def ask(request, procedure_id):
     require_commission_role(request.user, CommissionRole.OPERATOR,
                             operation="evaluon.journey.temas.s5_consulta.ask", channel=CHANNEL)
     question = request.POST.get("question", "")
+    if not services.consulta_available():
+        # Sin el motor de la Consulta no se consulta ni se guarda una consulta fallida (T-247).
+        return _back(procedure, services.UNAVAILABLE_NOTICE, ok=False)
     try:
         query = services.ask(request.user, question, procedure.authorization_date,
                              channel=CHANNEL)

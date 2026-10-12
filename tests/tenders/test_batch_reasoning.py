@@ -91,12 +91,23 @@ def reasoning_on(settings, **levels):
     settings.GENERATION_BATCH_REASONING = {**OFF, **levels}
 
 
+@pytest.fixture(autouse=True)
+def reasoning_off_whatever_the_process_environment_says(settings):
+    """El entorno del proceso puede traer variables `GENERATION_BATCH_REASONING_*`: el `.env` de uso
+    (T-247) deja `GENERATION_BATCH_REASONING_CONTRAST=low` en `app`, y `settings.py` las lee al
+    importarse. Cada prueba parte de todo apagado y enciende solo lo que prueba (`reasoning_on`)."""
+    settings.GENERATION_BATCH_REASONING = dict(OFF)
+
+
 # --- Apagado por omisión: el pedido es el de hoy -----------------------------------------------
 
 
 def test_the_five_steps_are_off_by_default(settings):
-    """REQ-107: por omisión el razonamiento propio está apagado en los cinco pasos."""
-    assert settings.GENERATION_BATCH_REASONING == OFF
+    """REQ-107: por omisión, sin ninguna variable `GENERATION_BATCH_REASONING_*` en el entorno, el
+    razonamiento propio está apagado en los cinco pasos. No depende del entorno del proceso (el
+    `.env` de uso enciende el contraste): se prueba la lectura de `settings.py` con un entorno
+    vacío."""
+    assert project_settings.reasoning_levels({}) == OFF
     assert settings.GENERATION_BATCH_REASONING_STEPS == STEPS
 
 

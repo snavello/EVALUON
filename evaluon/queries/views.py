@@ -58,6 +58,9 @@ from evaluon.queries.models import Query, Status
 
 TEMPLATE = "queries/consulta.html"
 
+# El aviso de la Consulta apagada (T-247) vive con el servicio, que lo comparten las pantallas.
+UNAVAILABLE_NOTICE = services.UNAVAILABLE_NOTICE
+
 # Papel de un considerando en la pantalla (REQ-018).
 CONSIDERANDO_ROLE = "Considerando · contexto"
 
@@ -73,9 +76,14 @@ def screen(request):
     válida va a la función de consulta con la fecha del formulario (vacía, la del día) y
     la página redirige al resultado guardado, de modo que recargar no vuelve a consultar
     (T-019)."""
+    unavailable = not services.consulta_available()
     if request.method == "POST":
         form = QueryForm(request.POST)
-        if form.is_valid():
+        if form.is_valid() and unavailable:
+            # Motor de la Consulta apagado (T-247): no se consulta ni se guarda una consulta
+            # fallida; la pantalla lo dice y conserva lo escrito.
+            pass
+        elif form.is_valid():
             try:
                 query = services.ask(
                     request.user,
@@ -95,6 +103,7 @@ def screen(request):
     return render(request, TEMPLATE, {
         "form": form,
         "search_form": SearchForm(initial={"reference_date": today()}),
+        **_availability(unavailable),
     })
 
 
@@ -120,6 +129,7 @@ def query_detail(request, pk):
         "regime": result.get("regime") or [],
         "statements": _statements(result) if status == Status.GROUNDED else [],
         "notices": _notices(result) if status == Status.GROUNDED else [],
+        **_availability(),
     }
     return render(request, TEMPLATE, context)
 
@@ -172,8 +182,17 @@ def search(request):
     context.update(
         form=QueryForm(initial={"reference_date": query_date}),
         search_form=search_form,
+        **_availability(),
     )
     return render(request, TEMPLATE, context)
+
+
+def _availability(unavailable=None):
+    """Lo que la plantilla necesita para decir que la Consulta está apagada (T-247): el aviso y
+    si el formulario de la pregunta se desactiva. Sin argumento, consulta el motor."""
+    if unavailable is None:
+        unavailable = not services.consulta_available()
+    return {"consulta_no_disponible": UNAVAILABLE_NOTICE if unavailable else ""}
 
 
 # --- Avisos de modificatorias sin cargar -------------------------------------------------

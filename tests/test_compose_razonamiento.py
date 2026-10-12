@@ -152,5 +152,26 @@ def test_the_candidate_configuration_is_documented_and_its_files_exist():
         assert (REPO / name).is_file()
     assert "contrast" in settings.GENERATION_BATCH_REASONING_STEPS
     # lo que se pierde mientras está levantado y el tiempo de carga medido
-    assert "propuesta de datos del procedimiento" in section and "con el 27B levantado no corre" in section
+    assert "propuesta de datos del procedimiento" in section and "desde T-247 pide al motor de lotes" in section
     assert "4,5 minutos" in section
+
+
+def test_the_default_use_is_documented_with_the_way_back():
+    """REQ-107 (T-247): `entorno.md` dice cómo se instala desde cero con el 27B por omisión
+    (`.env`, descarga de los modelos, `docker compose up -d`), la memoria, los tiempos y la carga
+    medidos, qué pasa con la Consulta y con el alta desde el pliego, y cómo se vuelve al 12B."""
+    if not ENTORNO.is_file():
+        pytest.skip("specs/ no está montada en este entorno: montarla para comprobar el documento")
+    text = ENTORNO.read_text(encoding="utf-8")
+
+    assert "## Uso por omisión" in text
+    section = text[text.index("## Uso por omisión"):]
+    for needed in (
+            "cp .env.example .env", "bash scripts/fetch_models.sh --qwen38-27b", "docker compose up -d",
+            "COMPOSE_FILE=docker-compose.yml:docker-compose.qwen38-27b.yml:docker-compose.razonamiento.yml"
+            ":docker-compose.sin-consulta.yml", "COMPOSE_PATH_SEPARATOR=:",
+            "GENERATION_BATCH_REASONING_CONTRAST=low", "20.956 MiB", "72,9 min", "3 min 4 s",
+            "`start_period` del chequeo a 900 s",
+            "no está disponible por ahora", "Cómo se vuelve al 12B",
+            "docker compose -f docker-compose.yml up -d --no-deps generation_batch worker app generation"):
+        assert needed in section, needed
