@@ -1194,6 +1194,18 @@ def write_exact_sample(folder, accuracy):
     return path
 
 
+def excluded_rows_line(excluded):
+    """La línea del resumen con las filas que la medida excluye de la evaluación, cada una con el
+    motivo de su archivo (H-256-3): no todas se agregaron para la medida."""
+    rows = list(excluded.get("rows") or [])
+    motives = excluded.get("motives") or {}
+    detail = "; ".join(f"fila {row}: {motives.get(row) or 'sin motivo'}" for row in rows)
+    return (f"- Filas excluidas de la evaluación (motivo del archivo de exclusión de celdas): "
+            f"{len(rows)}" + (f" ({detail})" if rows else "")
+            + f"; {excluded.get('cells', 0)} celdas y {excluded.get('pairs', 0)} pares de la "
+            "lista.")
+
+
 def accuracy_lines(accuracy):
     """Las líneas del resumen con la exactitud por celda (solo cifras)."""
     if not accuracy:
@@ -1786,8 +1798,10 @@ def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=
     observed = [c for r in results for c in r["measures"].get("observed", [])]
     total["accuracy"] = (cell_accuracy(observed, commission_cells, excluded_rows)
                          if commission_cells else None)
-    total["excluded_rows"] = {"rows": sorted(excluded_rows), "pairs": sum(
-        len(r["measures"].get("excluded_pairs", [])) for r in results)}
+    total["excluded_rows"] = {
+        "rows": sorted(excluded_rows),
+        "motives": dict(cell_exclusions.rows) if cell_exclusions else {},
+        "pairs": sum(len(r["measures"].get("excluded_pairs", [])) for r in results)}
     base = f"{started_at:%Y%m%d-%H%M%S}-{commit or 'sin-commit'}"
     folder = Path(runs_dir) / base
     suffix = 1
@@ -1895,10 +1909,8 @@ def _summary_015(report):
               f"- «No determinado» que cuenta sobre las celdas decidibles (sin las que esperan "
               f"un documento ausente): {proportion_text(cells['ratio_decidable'])}; «externo» "
               f"que marcó el modelo, que ya no se descuenta: {cells.get('model_external', 0)}.",
-              f"- Filas excluidas de la evaluación (agregadas solo para la medida): "
-              f"{len(total.get('excluded_rows', {}).get('rows', []))} "
-              f"({cells.get('excluded', 0)} celdas, "
-              f"{total.get('excluded_rows', {}).get('pairs', 0)} pares de la lista).",
+              excluded_rows_line(dict(total.get("excluded_rows") or {},
+                                      cells=cells.get("excluded", 0))),
               *accuracy_lines(total.get("accuracy")),
               f"- Celdas del Portal medidas: {portal['total']} ({portal['matching']} con el "
               "dato que coincide con lo que exige el pliego; "

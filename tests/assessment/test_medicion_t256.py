@@ -341,3 +341,100 @@ def test_the_command_recomputes_a_saved_run_without_the_model(
     assert "antes" in text and "después" in text
     assert "«No determinado» sobre las decidibles: 3 de 5" in text
     assert "Exactitud por celda" in text and "visto bueno pendiente" in text
+
+
+# --- Cierre de la verificación (H-256-1 a H-256-4) ---------------------------------------------------
+
+
+def test_the_three_portal_citations_rule_only_trusts_the_portal_rule_with_three_shown():
+    """REQ-103 (T-256, H-256-1): `celdas-todas.txt` muestra hasta tres citas del Portal por celda.
+    Si las tres no traen el valor, la celda de la regla del Portal cuenta como citada (la regla
+    propone «cumple» citando el dato que coincide); con menos de tres, o con otra regla, no."""
+    portal = ev.PortalCell(1, 46, "total", "1000.00", True)
+    rows = ["Renglón 1: precio 10.0000, cantidad 1", "Renglón 2: precio 20.0000, cantidad 1",
+            "Renglón 3: precio 30.0000, cantidad 1"]
+
+    def record(cites, rule):
+        cell = ev.observed_cell(1, 46, am.Outcome.CUMPLE, rule=rule, portal_cites=cites)
+        return ev._offline_portal_record(cell, portal)
+
+    assert record(rows, "portal_cumple")["cumple_con_cita_portal"] is True
+    assert record(rows[:2], "portal_cumple")["cumple_con_cita_portal"] is False
+    assert record(rows, "")["cumple_con_cita_portal"] is False
+    assert record(rows, "")["cumple_con_dato_distinto"] is True
+    assert record(["Total de la oferta: 1000.00 ARS"], "")["cumple_con_cita_portal"] is True
+
+
+def test_the_command_recomputes_without_asking_for_a_user_or_a_password(tmp_path, monkeypatch):
+    """REQ-107 (T-256, H-256-2): `--recalcular` solo lee archivos: no pide usuario ni clave ni usa
+    la base (la prueba no tiene acceso a la base). Sin `--recalcular`, `--usuario` sigue siendo
+    obligatorio."""
+    from django.core.management.base import CommandError
+
+    folder = _saved_run(tmp_path)
+    exclusions, portal, commission = _recompute_inputs(tmp_path)
+    monkeypatch.setattr(permissions, "read_password", lambda prompt: pytest.fail("pidió la clave"))
+    out = StringIO()
+    call_command("medir_evaluacion", "--recalcular", str(folder), "--celdas-portal", str(portal),
+                 "--celdas-comision", str(commission), "--exclusiones-celdas", str(exclusions),
+                 stdout=out)
+    text = out.getvalue()
+    assert "[después]" in text
+    # H-256-3: las filas excluidas, con el motivo de su archivo.
+    assert "fila 123: agregada solo para la medida" in text
+    with pytest.raises(CommandError, match="--usuario"):
+        call_command("medir_evaluacion", "--esperada", str(tmp_path / "x.yaml"))
+
+
+def test_the_summary_line_of_excluded_rows_takes_the_motive_from_the_file():
+    """REQ-103 a REQ-105 (T-256, H-256-3): la línea del resumen con las filas excluidas dice el
+    motivo de cada una tal como está en el archivo; no todas se agregaron para la medida."""
+    line = ev.excluded_rows_line({
+        "rows": [39, 123], "cells": 6, "pairs": 4,
+        "motives": {39: "forma de presentar por el Portal (decisión del 2026-10-10)",
+                    123: "agregada solo para la medida"}})
+    assert "fila 39: forma de presentar por el Portal (decisión del 2026-10-10)" in line
+    assert "fila 123: agregada solo para la medida" in line
+    assert line.count("agregada solo para la medida") == 1
+    assert "6 celdas y 4 pares de la lista" in line
+    assert ev.excluded_rows_line({}).startswith("- Filas excluidas de la evaluación")
+
+
+@pytest.mark.django_db
+def test_the_live_measure_leaves_out_the_pairs_questions_and_cells_of_an_excluded_row(rows):
+    """REQ-103 a REQ-105 (T-256, H-256-4): en la medición en vivo, la fila excluida no entra en
+    los pares de la lista, las preguntas, las celdas del Portal, las celdas que se comparan con
+    la Comisión ni el «no determinado»; los pares que salen se nombran aparte. Sin exclusiones,
+    la misma fila sí entra."""
+    other = rows.version.requirements.exclude(pk=rows.requirement.pk).order_by("number").first()
+    assert other is not None
+    offer = rows.run.offer
+    result = am.Result.objects.create(run=rows.run, offer=offer, requirement=other,
+                                      outcome=am.Outcome.NO_DETERMINADO, doubt=am.Doubt.SIN_DATO,
+                                      exigence=am.Exigence.CONDICION)
+    am.Question.objects.create(procedure=rows.request.procedure, requirement=other, offer=offer,
+                               result=result, text="¿Consta el dato en la oferta?",
+                               reason="sin_dato")
+    pairs = [ev.ExpectedPair(requirement="M-001", result=am.Outcome.CUMPLE, base="oferta"),
+             ev.ExpectedPair(requirement="M-002", result=am.Outcome.CUMPLE, base="oferta")]
+    entry = ev.ExpectedOffer(bidder="A", documents=[], pairs=pairs, discarded="no", discard={},
+                             unreadable_pages=[], total=None, copies={})
+    mapping = {"M-001": rows.requirement, "M-002": other}
+    cells = [ev.PortalCell(offer.number, other.number, "garantia", "1", True)]
+
+    def measured(excluded):
+        return ev.measure_offer(entry, offer, rows.run, mapping, ev.PageFinder(), [], {},
+                                cells, excluded)
+
+    plain, left = measured(frozenset()), measured(frozenset({other.number}))
+
+    assert [r["requisito"] for r in plain["records"]] == ["M-001", "M-002"]
+    assert [r["requisito"] for r in left["records"]] == ["M-001"]
+    assert left["excluded_pairs"] == ["M-002"] and plain["excluded_pairs"] == []
+    assert other.number in {q["fila"] for q in plain["questions"]}
+    assert other.number not in {q["fila"] for q in left["questions"]}
+    assert len(plain["portal_cells"]) == 1 and left["portal_cells"] == []
+    assert other.number in {c["fila"] for c in plain["observed"]}
+    assert other.number not in {c["fila"] for c in left["observed"]}
+    assert (plain["cells"]["undetermined"], left["cells"]["undetermined"]) == (1, 0)
+    assert left["cells"]["excluded"] == 1

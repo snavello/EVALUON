@@ -21,7 +21,7 @@ Opciones:
   se modifica; sin este archivo el recall y las filas conservadas se miden contra la lista
   entera. Con `--verificar-esperada` informa cuántas entradas excluye.
 - `--recalcular`: carpeta de una corrida ya hecha (T-256). No usa el modelo, la GPU ni la base
-  (no pide `--procedimiento`): vuelve a contar desde su `resultados.jsonl` con las reglas de antes
+  (no pide `--procedimiento`, ni usuario ni clave: solo lee archivos y no escribe nada): vuelve a contar desde su `resultados.jsonl` con las reglas de antes
   y con las de T-256 (lo que está a revisión aparte, las suprimidas por una circular en otra fila,
   las filas técnicas aparte) y con el archivo de `--exclusiones`, y escribe las dos cifras.
 - `--regenerar-resumen`: carpeta de una corrida ya hecha. No corre el modelo: vuelve a medir las
@@ -52,7 +52,10 @@ class Command(BaseCommand):
     help = "Mide la propuesta de la matriz contra la lista de requisitos esperada."
 
     def add_arguments(self, parser):
-        permissions.add_user_argument(parser)
+        parser.add_argument(
+            "--usuario", default=None,
+            help="Su nombre de usuario en EVALUON (la clave se pide después, por teclado). "
+                 "Obligatorio salvo con --recalcular, que solo lee archivos y no escribe nada.")
         parser.add_argument("--procedimiento", default=None,
                             help="Número del procedimiento (no hace falta con --recalcular).")
         parser.add_argument("--esperada", required=True,
@@ -77,10 +80,13 @@ class Command(BaseCommand):
                                  "modelo.")
 
     def handle(self, *args, **options):
-        user = permissions.authenticate_command(options["usuario"])
         if options["recalcular"]:
+            # Solo lee archivos y escribe en la pantalla: no entra al sistema (H-256-2).
             self._recompute(options)
             return
+        if not options["usuario"]:
+            raise CommandError("Falta --usuario.")
+        user = permissions.authenticate_command(options["usuario"])
         if not options["procedimiento"]:
             raise CommandError("Falta --procedimiento.")
         try:

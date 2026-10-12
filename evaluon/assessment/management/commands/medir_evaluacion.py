@@ -2,7 +2,9 @@
 esperada (REQ-052 a REQ-055, REQ-059, REQ-060; plan 004, "Medición"; ADR-0025; T-151).
 
 Rol: operador de la Comisión (el evaluador lo incluye). Recibe `--usuario`; la clave se pide
-por teclado. Solo traduce y llama a `evaluon.assessment.evaluation`.
+por teclado. Con `--recalcular` no pide usuario ni clave: solo lee archivos de una corrida ya
+guardada y escribe en la pantalla, sin la base (T-256, H-256-2). Solo traduce y llama a
+`evaluon.assessment.evaluation`.
 
 Opciones:
 
@@ -58,7 +60,10 @@ class Command(BaseCommand):
     help = "Mide la evaluación asistida de las ofertas contra una lista esperada."
 
     def add_arguments(self, parser):
-        permissions.add_user_argument(parser)
+        parser.add_argument(
+            "--usuario", default=None,
+            help="Su nombre de usuario en EVALUON (la clave se pide después, por teclado). "
+                 "Obligatorio salvo con --recalcular, que solo lee archivos y no escribe nada.")
         parser.add_argument("--caso-chico", action="store_true", dest="caso_chico",
                             help="Arma y mide el caso chico y público.")
         parser.add_argument("--procedimiento", default=None, help="Número del procedimiento.")
@@ -90,13 +95,16 @@ class Command(BaseCommand):
                                  "la lista; rechaza la medición si algo falla.")
 
     def handle(self, *args, **options):
+        if options["recalcular"]:
+            # Solo lee archivos y escribe en la pantalla: no entra al sistema (H-256-2).
+            self._recompute(options)
+            return
+        if not options["usuario"]:
+            raise CommandError("Falta --usuario.")
         user = permissions.authenticate_command(options["usuario"])
         verify_only = options["verificar_esperada"]
         verify_decisions = options["verificar_decisiones"]
         esperada = options["esperada"]
-        if options["recalcular"]:
-            self._recompute(options)
-            return
         if options["caso_chico"] and not esperada:
             esperada = str(CASO_CHICO / "evaluacion-esperada.yaml")
         if not esperada:
@@ -181,6 +189,11 @@ class Command(BaseCommand):
                 f"«cumple» con un dato que no coincide: {figures['portal_wrong']}",
                 f"[{label}] Filas excluidas: {figures['excluded_cells']} celdas y "
                 f"{figures['excluded_pairs']} pares"]
+        if exclusions is not None:
+            lines.append(evaluation.excluded_rows_line({
+                "rows": sorted(exclusions.rows), "motives": exclusions.rows,
+                "cells": result["after"]["excluded_cells"],
+                "pairs": result["after"]["excluded_pairs"]}).lstrip("- "))
         if commission is not None:
             approval = commission.approval or "visto bueno pendiente"
             for moment, label in (("accuracy_before", "antes"), ("accuracy_after", "después")):

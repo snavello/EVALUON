@@ -194,3 +194,34 @@ def test_the_command_recomputes_a_saved_matrix_run_without_the_model(
     assert "[antes] lista presente 100,0 % (1 de 1" in text
     assert "[después]" in text and "filas conservadas 50,0 % (1 de 2" in text
     assert not m.MatrixRun.objects.exists()
+
+
+
+def test_the_matrix_command_recomputes_without_asking_for_a_user_or_a_password(
+        tmp_path, monkeypatch):
+    """REQ-107 (T-256, H-256-2): `medir_matriz --recalcular` solo lee archivos: no pide usuario
+    ni clave. Sin `--recalcular`, `--usuario` sigue siendo obligatorio."""
+    from io import StringIO
+    from pathlib import Path
+
+    from django.core.management import call_command
+    from django.core.management.base import CommandError
+
+    from evaluon.accounts import permissions
+
+    fixture = Path(__file__).parent / "fixtures" / "matriz-esperada-sintetica.yaml"
+    path = tmp_path / "matriz-esperada.yaml"
+    path.write_text(fixture.read_text(encoding="utf-8").replace("__SHA256__", "a" * 64),
+                    encoding="utf-8")
+    first = ev.load_expected(path).items[0].id
+    folder = _saved_lines(tmp_path, [
+        {"tipo": "esperado", "id": first, "clase": "formal", "estado": "encontrado",
+         "propuesto": 1},
+        {"tipo": "propuesto", "numero": 1, "clase": "formal", "estado": "emparejado",
+         "esperado": first}])
+    monkeypatch.setattr(permissions, "read_password", lambda prompt: pytest.fail("pidió la clave"))
+    out = StringIO()
+    call_command("medir_matriz", "--esperada", str(path), "--recalcular", str(folder), stdout=out)
+    assert "[después] lista presente 100,0 % (1 de 1" in out.getvalue()
+    with pytest.raises(CommandError, match="--usuario"):
+        call_command("medir_matriz", "--esperada", str(path))
