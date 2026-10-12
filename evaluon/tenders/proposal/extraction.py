@@ -82,6 +82,8 @@ ANOMALY_QUOTE_NOT_FOUND = "cita_no_encontrada"
 ANOMALY_QUOTES_JOINED = "citas_unidas"
 ANOMALY_UNIT_TOO_LONG = "unidad_demasiado_larga"
 ANOMALY_SERVICE = "servicio"
+# El paso cuyo razonamiento propio del modelo se enciende en `settings.GENERATION_BATCH_REASONING` (T-253).
+REASONING_STEP = "extraction"
 
 
 class InvalidItem(ValueError):
@@ -220,10 +222,13 @@ def load_prompt(name="extraccion"):
     return load_instruction(name).text
 
 
-def with_instruction(parsed, instruction):
+def with_instruction(parsed, instruction, reasoning=None):
     """El `parsed` de un pedido con la versión y la huella de su instrucción (P6). Un pedido
-    sin lo interpretado (salida cortada, falla del servicio) también las lleva."""
-    return {**(parsed or {}), "instruccion": instruction.record}
+    sin lo interpretado (salida cortada, falla del servicio) también las lleva. Si el paso tenía
+    el razonamiento propio del modelo encendido, `reasoning` (`GenerationResult.reasoning_record`)
+    suma el nivel, el texto y los tokens de ese razonamiento (T-253); apagado, no suma nada."""
+    extra = {"razonamiento_propio": reasoning} if reasoning else {}
+    return {**(parsed or {}), "instruccion": instruction.record, **extra}
 
 
 def instruction_registry(names):
@@ -523,7 +528,7 @@ class Extractor:
             segment_keys=[unit.segment.key for unit in units],
             request=result["request"],
             raw_output=result["content"],
-            parsed=with_instruction(parsed, self.instruction),
+            parsed=with_instruction(parsed, self.instruction, result.get("reasoning")),
             anomalies=anomalies,
             retry_of=retry_of,
             timings={"seconds": round(seconds, 3),
@@ -558,11 +563,13 @@ class Extractor:
         max_tokens = settings.MATRIX_MAX_OUTPUT_TOKENS
         started = time.monotonic()
         try:
-            output = generation.generate_batch(messages, schema, max_tokens=max_tokens)
+            output = generation.generate_batch(messages, schema, max_tokens=max_tokens,
+                                               step=REASONING_STEP)
         except AIServiceError as error:
             self._record(
                 units,
-                {"request": generation.build_batch_request(messages, schema, max_tokens),
+                {"request": generation.build_batch_request(messages, schema, max_tokens,
+                                                           step=REASONING_STEP),
                  "content": "", "prompt_tokens": None, "completion_tokens": None},
                 parsed=None,
                 anomalies=[{"type": ANOMALY_SERVICE, "reason": error.reason,
@@ -574,7 +581,8 @@ class Extractor:
         seconds = time.monotonic() - started
         result = {"request": output.request, "content": output.content,
                   "prompt_tokens": output.prompt_tokens,
-                  "completion_tokens": output.completion_tokens}
+                  "completion_tokens": output.completion_tokens,
+                  "reasoning": output.reasoning_record()}
         self.stats["requests"] += 1
 
         if output.finish_reason == "length" and len(units) > 1:

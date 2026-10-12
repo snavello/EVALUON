@@ -476,10 +476,13 @@ class FakeGeneration:
     def unavailable(self):
         self._mode = ("raise", ServiceUnavailableError)
 
-    def generate(self, messages, schema, *, max_tokens=None, base_url=None, timeout=None):
+    def generate(self, messages, schema, *, max_tokens=None, base_url=None, timeout=None,
+                 reasoning=None):
         self.calls.append((messages, schema))
-        self.options.append({"max_tokens": max_tokens, "base_url": base_url,
-                             "timeout": timeout})
+        options = {"max_tokens": max_tokens, "base_url": base_url, "timeout": timeout}
+        if reasoning:  # solo si el paso piensa (T-253): apagado, `options` es el de siempre
+            options["reasoning"] = reasoning
+        self.options.append(options)
         kind, value = self._mode
         if kind == "raise":
             raise value("generation: falla simulada por el doble", service="generation")
@@ -495,12 +498,17 @@ class FakeGeneration:
             content, finish_reason = value, "length"
         else:
             content = value
-        request = generation_client.build_request(messages, schema, max_tokens, base_url)
+        request = generation_client.build_request(messages, schema, max_tokens, base_url,
+                                                  reasoning)
         prompt_tokens = sum(count_words(str(m.get("content", ""))) for m in messages)
         completion_tokens = count_words(content)
+        message = {"role": "assistant", "content": content}
+        thought = ""
+        if reasoning:  # el razonamiento propio del modelo, como lo devuelve `llama-server`
+            thought = f"Razonamiento propio sintético del doble ({reasoning})."
+            message["reasoning_content"] = thought
         response = {
-            "choices": [{"index": 0, "finish_reason": finish_reason,
-                         "message": {"role": "assistant", "content": content}}],
+            "choices": [{"index": 0, "finish_reason": finish_reason, "message": message}],
             "model": request["model"],
             "usage": {"prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,
                       "total_tokens": prompt_tokens + completion_tokens},
@@ -508,6 +516,8 @@ class FakeGeneration:
         return generation_client.GenerationResult(
             content=content, finish_reason=finish_reason, prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens, request=request, response=response,
+            reasoning=thought, reasoning_tokens=count_words(thought) if reasoning else None,
+            reasoning_level=reasoning or None,
         )
 
     def count_tokens(self, text):

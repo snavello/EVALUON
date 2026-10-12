@@ -50,6 +50,8 @@ ANOMALY_MISSING_ALIAS = "completitud_tramo_sin_propiedad"
 ANOMALY_QUOTE_NOT_FOUND = "completitud_cita_no_encontrada"
 ANOMALY_NO_RESULT = "completitud_sin_resultado"
 ANOMALY_SERVICE = "servicio"
+# El paso cuyo razonamiento propio del modelo se enciende en `settings.GENERATION_BATCH_REASONING` (T-253).
+REASONING_STEP = "completeness"
 
 CONTAINED = 0.9  # fracción de una cita que tiene que estar dentro de la otra para ser la misma
 
@@ -269,7 +271,8 @@ class Completer:
         step = RunStep.objects.create(
             run=self.run, pass_name=self.pass_name, batch=self._batch, segment_keys=keys,
             request=result["request"], raw_output=result["content"],
-            parsed=extraction.with_instruction(parsed, self.instruction),
+            parsed=extraction.with_instruction(parsed, self.instruction,
+                                               result.get("reasoning")),
             anomalies=anomalies, retry_of=retry_of,
             timings={"seconds": round(seconds, 3),
                      "prompt_tokens": result["prompt_tokens"],
@@ -288,10 +291,12 @@ class Completer:
         max_tokens = settings.MATRIX_MAX_OUTPUT_TOKENS
         started = time.monotonic()
         try:
-            output = generation.generate_batch(messages, schema, max_tokens=max_tokens)
+            output = generation.generate_batch(messages, schema, max_tokens=max_tokens,
+                                               step=REASONING_STEP)
         except AIServiceError as error:
             self._record(
-                {"request": generation.build_batch_request(messages, schema, max_tokens),
+                {"request": generation.build_batch_request(messages, schema, max_tokens,
+                                                           step=REASONING_STEP),
                  "content": "", "prompt_tokens": None, "completion_tokens": None},
                 parsed=None, retry_of=retry_of, seconds=time.monotonic() - started,
                 keys=keys,
@@ -302,7 +307,8 @@ class Completer:
         seconds = time.monotonic() - started
         result = {"request": output.request, "content": output.content,
                   "prompt_tokens": output.prompt_tokens,
-                  "completion_tokens": output.completion_tokens}
+                  "completion_tokens": output.completion_tokens,
+                  "reasoning": output.reasoning_record()}
         self.stats["requests"] += 1
 
         if output.finish_reason == "length" and len(candidates) > 1:

@@ -21,6 +21,17 @@ Operaciones (plan 001, "Generación" y "Conteo de tokens"; plan 003, "Pedido"):
 El cuerpo registrado de un pedido dice el alias del modelo del motor al que va (`model_for`): el
 de `generation` por omisión, el de `generation_batch` si va a `GENERATION_BATCH_URL` (T-251, P6).
 
+Razonamiento propio del modelo (T-253, REQ-107): `generate_batch(..., step=…)` pide pensar si el
+paso (`settings.GENERATION_BATCH_REASONING_STEPS`) está encendido en
+`settings.GENERATION_BATCH_REASONING`; solo el motor de lotes lo hace. Encendido, el pedido lleva
+`chat_template_kwargs.enable_thinking`, el nivel (`reasoning_effort`), el tope de tokens de
+razonamiento (`thinking_budget_tokens`), el máximo de salida más ese tope y más espera. El
+servidor tiene que permitir pensar (`--reasoning auto --reasoning-budget -1`;
+docker-compose.razonamiento.yml): con `--reasoning off` ignora el pedido. El esquema JSON obliga
+al contenido, no al razonamiento (que vuelve aparte en `reasoning_content`). El resultado guarda
+el texto y los tokens del razonamiento (`GenerationResult.reasoning_record`). Apagado, el pedido
+es el de siempre.
+
 Errores: `InputTooLongError` si el pedido no entra en el contexto (HTTP 400
 `exceed_context_size_error`); `ServiceTimeoutError` y `ServiceUnavailableError` (ver
 `evaluon.ai`).
@@ -30,7 +41,7 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
-from evaluon.ai import count_tokens_with, post_json, unexpected
+from evaluon.ai import AIServiceError, count_tokens_with, post_json, unexpected
 
 SERVICE = "generation"
 
@@ -48,6 +59,9 @@ class GenerationResult:
     - `prompt_tokens`, `completion_tokens`: cuentas que informa el servidor.
     - `request`: el cuerpo del pedido tal como se envió, para el registro.
     - `response`: la respuesta del servidor completa, para el registro.
+    - `reasoning`, `reasoning_tokens`, `reasoning_level`: el razonamiento propio del modelo
+      (`reasoning_content`), su cantidad de tokens según el servidor y el nivel con que se pidió;
+      `reasoning_level` es `None` si el pedido no pidió pensar (T-253).
     """
 
     content: str
@@ -56,6 +70,18 @@ class GenerationResult:
     completion_tokens: int | None
     request: dict
     response: dict
+    reasoning: str = ""
+    reasoning_tokens: int | None = None
+    reasoning_level: str | None = None
+
+    def reasoning_record(self):
+        """Lo que se guarda del razonamiento en el `parsed` del pedido (P6): `None` si el pedido no
+        pidió pensar; si lo pidió, el nivel, el texto (vacío si el modelo no devolvió ninguno) y
+        sus tokens (`None` si el servidor no pudo contarlos)."""
+        if self.reasoning_level is None:
+            return None
+        return {"nivel": self.reasoning_level, "texto": self.reasoning,
+                "tokens": self.reasoning_tokens}
 
 
 def _same_url(a, b):
@@ -73,14 +99,18 @@ def model_for(base_url=None):
     return settings.GENERATION_MODEL
 
 
-def build_request(messages, schema, max_tokens=None, base_url=None):
+def build_request(messages, schema, max_tokens=None, base_url=None, reasoning=None):
     """Cuerpo del pedido a `/v1/chat/completions` con los parámetros fijos de
     `settings.py` y el máximo de salida indicado (sin indicarlo, el de la 001). El `model` es
     el del motor al que va (`base_url`, ver `model_for`). Lo usan el cliente y su doble, así el
-    pedido registrado es el mismo."""
+    pedido registrado es el mismo.
+
+    `reasoning` es el nivel (`low`, `medium` o `high`) con que se pide al modelo que piense
+    (T-253): enciende `enable_thinking`, manda el nivel y el tope de tokens de razonamiento de ese
+    nivel, y suma ese tope al máximo de salida. Sin `reasoning`, el pensamiento va apagado."""
     if max_tokens is None:
         max_tokens = settings.GENERATION_MAX_OUTPUT_TOKENS
-    return {
+    body = {
         "model": model_for(base_url),
         "messages": messages,
         "stream": False,
@@ -93,23 +123,45 @@ def build_request(messages, schema, max_tokens=None, base_url=None):
             "json_schema": {"name": SCHEMA_NAME, "strict": True, "schema": schema},
         },
     }
+    if reasoning:
+        budget = settings.GENERATION_BATCH_REASONING_BUDGET_TOKENS[reasoning]
+        body["chat_template_kwargs"]["enable_thinking"] = True
+        body["reasoning_effort"] = reasoning
+        body["thinking_budget_tokens"] = budget
+        body["max_tokens"] = max_tokens + budget
+    return body
 
 
-def generate(messages, schema, *, max_tokens=None, base_url=None, timeout=None):
+def reasoning_level(step):
+    """El nivel de razonamiento propio encendido para `step` en el motor de lotes (`low`,
+    `medium` o `high`), o `None` si está apagado o no hay paso. Un paso que no es uno de
+    `settings.GENERATION_BATCH_REASONING_STEPS` es un error de quien llama."""
+    if step is None:
+        return None
+    if step not in settings.GENERATION_BATCH_REASONING_STEPS:
+        raise ValueError(f"paso de razonamiento desconocido: {step!r}")
+    level = settings.GENERATION_BATCH_REASONING.get(step, "off")
+    return None if level == "off" else level
+
+
+def generate(messages, schema, *, max_tokens=None, base_url=None, timeout=None, reasoning=None):
     """Pide al motor una respuesta que cumpla `schema` y la devuelve sin tocar.
 
     `max_tokens`, `base_url` y `timeout` cambian el máximo de salida, el servicio y la
-    espera de este pedido; sin indicarlos, los de la 001."""
-    body = build_request(messages, schema, max_tokens, base_url)
+    espera de este pedido; sin indicarlos, los de la 001. `reasoning` pide al modelo que piense
+    con ese nivel (ver `build_request`); lo manda `generate_batch`, no la consulta de normativa."""
+    body = build_request(messages, schema, max_tokens, base_url, reasoning)
     data = post_json(SERVICE, base_url or settings.GENERATION_URL, "/v1/chat/completions",
                      body, timeout=timeout)
-    return _result(data, body)
+    return _result(data, body, reasoning, base_url)
 
 
-def build_batch_request(messages, schema, max_tokens=None):
-    """`build_request` de un pedido al motor de lotes: lleva el alias de su modelo. Lo usan
-    los llamadores de los lotes para registrar el pedido que no llegó a salir (T-251)."""
-    return build_request(messages, schema, max_tokens, settings.GENERATION_BATCH_URL)
+def build_batch_request(messages, schema, max_tokens=None, step=None):
+    """`build_request` de un pedido al motor de lotes: lleva el alias de su modelo y, si el
+    razonamiento de `step` está encendido, lo que pide pensar. Lo usan los llamadores de los
+    lotes para registrar el pedido que no llegó a salir (T-251, T-253)."""
+    return build_request(messages, schema, max_tokens, settings.GENERATION_BATCH_URL,
+                         reasoning_level(step))
 
 
 def build_text_request(messages, max_tokens, repeat_penalty, base_url=None):
@@ -131,7 +183,18 @@ def generate_text(messages, *, max_tokens, repeat_penalty, base_url=None, timeou
     return _result(data, body)
 
 
-def _result(data, body):
+def _reasoning_tokens(text, base_url):
+    """Tokens del razonamiento según `/tokenize` del servidor que lo generó; `None` si no puede
+    contarlos (la respuesta ya generada no se pierde por eso)."""
+    if not text:
+        return 0
+    try:
+        return count_tokens_with(SERVICE, base_url or settings.GENERATION_URL, text)
+    except AIServiceError:
+        return None
+
+
+def _result(data, body, reasoning=None, base_url=None):
     try:
         choice = data["choices"][0]
         content = choice["message"]["content"]
@@ -140,6 +203,11 @@ def _result(data, body):
     except (KeyError, IndexError, TypeError) as error:
         raise unexpected(SERVICE, "sin choices[0].message.content", error) from error
     usage = data.get("usage") or {}
+    thought = ""
+    if reasoning:
+        thought = choice["message"].get("reasoning_content") or ""
+        if not isinstance(thought, str):
+            thought = ""
     return GenerationResult(
         content=content,
         finish_reason=choice.get("finish_reason"),
@@ -147,19 +215,34 @@ def _result(data, body):
         completion_tokens=usage.get("completion_tokens"),
         request=body,
         response=data,
+        reasoning=thought,
+        reasoning_tokens=_reasoning_tokens(thought, base_url) if reasoning else None,
+        reasoning_level=reasoning or None,
     )
 
 
-def generate_batch(messages, schema, *, max_tokens):
+def generate_batch(messages, schema, *, max_tokens, timeout=None, step=None):
     """`generate` en el motor de los pedidos del `worker` (ADR-0018): `generation_batch`,
-    o el que indique `GENERATION_BATCH_URL`, con su espera y el máximo de salida
-    indicado."""
+    o el que indique `GENERATION_BATCH_URL`, con su espera (`timeout`, o la de los pedidos del
+    `worker`) y el máximo de salida indicado.
+
+    `step` es uno de `settings.GENERATION_BATCH_REASONING_STEPS`: si su razonamiento propio está
+    encendido (`settings.GENERATION_BATCH_REASONING`), el pedido pide pensar y espera
+    `GENERATION_BATCH_REASONING_EXTRA_TIMEOUT_SECONDS` más (T-253). Sin `step`, o apagado, el
+    pedido es el de siempre."""
+    level = reasoning_level(step)
+    timeout = timeout or settings.GENERATION_BATCH_TIMEOUT_SECONDS
+    options = {}
+    if level:
+        timeout += settings.GENERATION_BATCH_REASONING_EXTRA_TIMEOUT_SECONDS
+        options["reasoning"] = level
     return generate(
         messages,
         schema,
         max_tokens=max_tokens,
         base_url=settings.GENERATION_BATCH_URL,
-        timeout=settings.GENERATION_BATCH_TIMEOUT_SECONDS,
+        timeout=timeout,
+        **options,
     )
 
 

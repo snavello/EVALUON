@@ -332,6 +332,10 @@ def _parameters(run, with_circulars=False):
         "temperature": settings.GENERATION_TEMPERATURE,
         "seed": settings.GENERATION_SEED,
         "thinking": settings.GENERATION_THINKING,
+        # El razonamiento propio del modelo por paso, su tope y su espera extra (T-253, P6).
+        "reasoning": dict(settings.GENERATION_BATCH_REASONING),
+        "reasoning_budget_tokens": dict(settings.GENERATION_BATCH_REASONING_BUDGET_TOKENS),
+        "reasoning_extra_timeout_seconds": settings.GENERATION_BATCH_REASONING_EXTRA_TIMEOUT_SECONDS,
         "batch_input_tokens": settings.MATRIX_BATCH_INPUT_TOKENS,
         "max_output_tokens": settings.MATRIX_MAX_OUTPUT_TOKENS,
         "segment_max_chars": settings.SEGMENT_MAX_CHARS,
