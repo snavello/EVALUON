@@ -291,8 +291,10 @@ MATRIX_BATCH_INPUT_TOKENS = 3500
 MATRIX_MAX_OUTPUT_TOKENS = 4096
 # Largo de un tramo, en caracteres, a partir del cual se parte en límites de oración.
 SEGMENT_MAX_CHARS = 4000
-# Requisitos por pedido de consecuencias.
-MATRIX_CONSEQUENCES_PER_REQUEST = 25
+# Requisitos por pedido de consecuencias: de 25 a 10, dentro de los 8 a 10 de la revisión de las
+# instrucciones (T-248): con 25 requisitos contra una sola lista de fundamentos el modelo no
+# distinguía el alcance de cada cláusula. Se mide en T-249.
+MATRIX_CONSEQUENCES_PER_REQUEST = 10
 # Citas candidatas que el reranker suma para cada tramo de una circular o respuesta.
 MATRIX_CIRCULAR_CANDIDATES = 8
 # Versión de cada instrucción de la matriz: archivo `evaluon/tenders/prompts/<versión>.md`.
@@ -302,12 +304,12 @@ MATRIX_PROMPT_VERSIONS = {
     "definiciones": "matriz-definiciones-v4",
     "extraccion": "matriz-extraccion-v7",
     "completitud": "matriz-completitud-v5",
-    "consecuencias": "matriz-consecuencias-v1",
+    "consecuencias": "matriz-consecuencias-v2",
     "circulares": "matriz-circulares-v7",
     "circulares_cambios": "matriz-circulares-v6",
     "unificacion": "matriz-unificacion-v1",
     "filtro": "matriz-filtro-v7",
-    "respaldo": "matriz-respaldo-v1",
+    "respaldo": "matriz-respaldo-v2",
 }
 
 # Proceso único de la propuesta (REQ-030 enmendado): el más completo, sin niveles. Se

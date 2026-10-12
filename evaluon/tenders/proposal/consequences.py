@@ -13,17 +13,17 @@ entran mientras quepan en la mitad del espacio que queda, y si no caben todos lo
 reranker contra una pregunta fija (`PLIEGO_QUESTION`).
 
 **Fundamentos de la norma** (`N1…`). Las preguntas fijas (`NORM_QUESTIONS`, las mismas que
-nombra `prompts/matriz-consecuencias-v1.md`) pasan por `retrieve` de la 001 con la fecha de
+nombra `prompts/matriz-consecuencias-v2.md`) pasan por `retrieve` de la 001 con la fecha de
 autorización del procedimiento; se juntan sus resultados (por unidad, el mejor puntaje) y
 `select_units` elige las que entran en el espacio que queda. Sin régimen a esa fecha
 (`run.regime` vacío) no se busca nada: solo hay fundamentos del pliego.
 
-**Pedidos.** De a `MATRIX_CONSEQUENCES_PER_REQUEST` requisitos (25). Un pedido que no entra en
-el contexto se parte por la mitad; un requisito que no entra solo queda "no determinada" con
+**Pedidos.** De a `MATRIX_CONSEQUENCES_PER_REQUEST` requisitos (10; eran 25, T-248). Un pedido
+que no entra en el contexto se parte por la mitad; un requisito que no entra solo queda "no determinada" con
 la anomalía `consecuencias_requisito_no_entra`. Una salida cortada por el máximo se parte y se
 vuelve a pedir. Cada pedido queda en `tenders_run_step` con las unidades de la norma
 mostradas (con su puntaje), la selección, la versión de la normativa y el fundamento de cada
-alias (P6).
+alias, y la versión y la huella de la instrucción (`parsed.instruccion`, REQ-106, P6).
 
 **Validación**, como en la 001. El modelo devuelve por requisito hasta tres opciones
 `{tipo, fundamentos}`. Una opción se descarta si su tipo no es uno de los que el sistema puede
@@ -205,14 +205,16 @@ def render_norm(alias, unit, spans):
 def build_schema(subject_aliases, ground_aliases):
     """Esquema de la salida: una propiedad obligatoria por requisito; los fundamentos, solo
     entre los alias mostrados."""
+    # Los fundamentos van antes que el tipo: el motor genera los campos en el orden del esquema y
+    # la opción se apoya primero en lo que dice un texto, después en la consecuencia (ADR-0055).
     option = {
         "type": "object",
         "properties": {
-            "tipo": {"type": "string", "enum": list(SYSTEM_TYPES)},
             "fundamentos": {"type": "array", "minItems": 1,
                             "items": {"type": "string", "enum": list(ground_aliases)}},
+            "tipo": {"type": "string", "enum": list(SYSTEM_TYPES)},
         },
-        "required": ["tipo", "fundamentos"],
+        "required": ["fundamentos", "tipo"],
         "additionalProperties": False,
     }
     item = {
@@ -332,7 +334,8 @@ class Suggester:
     def __init__(self, run, loaded):
         self.run = run
         self.loaded = loaded
-        self.prompt = extraction.load_prompt("consecuencias")
+        self.instruction = extraction.load_instruction("consecuencias")
+        self.prompt = self.instruction.text
         self.steps = []
         self.anomalies = []
         self.stats = {"requests": 0, "split_batches": 0, "requirements": 0,
@@ -474,8 +477,9 @@ class Suggester:
         step = RunStep.objects.create(
             run=self.run, pass_name=self.pass_name, batch=self._batch,
             segment_keys=lot.segment_keys, request=output["request"],
-            raw_output=output["content"], parsed=parsed, anomalies=anomalies,
-            retry_of=retry_of,
+            raw_output=output["content"],
+            parsed=extraction.with_instruction(parsed, self.instruction),
+            anomalies=anomalies, retry_of=retry_of,
             timings={"seconds": round(seconds, 3),
                      "prompt_tokens": output["prompt_tokens"],
                      "completion_tokens": output["completion_tokens"]},

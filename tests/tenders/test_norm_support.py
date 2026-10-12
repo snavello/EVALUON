@@ -225,7 +225,7 @@ def test_the_consultation_is_recorded_with_question_units_scores_answer_and_vers
     assert json.loads(step.raw_output)[shown[unit.pk]["alias"]]["exige"] == "si"
     assert step.parsed["respaldos"] == 1
     assert step.request["request"]["messages"][0]["role"] == "system"
-    assert run.prompt_versions["respaldo"] == "matriz-respaldo-v1"
+    assert run.prompt_versions["respaldo"] == "matriz-respaldo-v2"
     assert "respaldo_normativo" in run.parameters["passes"]
     assert run.parameters["norm_support_min_score"] == norm_support.settings.NORM_SUPPORT_MIN_SCORE
     assert "respaldo_normativo" in run.timings
@@ -564,6 +564,37 @@ def test_the_question_carries_the_trimmed_fragment(
     assert "constancia" not in question
 
 
+def test_every_consultation_records_the_version_and_the_sha256_of_its_instruction(
+        operator_user, script, filt, support, regimes, marks, corpus):  # noqa: F811
+    """REQ-106, P6: cada consulta del respaldo guarda en su `parsed` el nombre, la versión y la
+    huella de la instrucción (T-248), y la corrida la copia en `prompt_versions`."""
+    from evaluon.tenders.proposal import extraction
+
+    support.says(GARANTIAS)
+
+    run = run_case(operator_user, script, filt)
+
+    expected = extraction.load_instruction("respaldo").record
+    assert expected["version"] == "matriz-respaldo-v2"
+    steps_ = steps(run)
+    assert steps_ and all(step.parsed["instruccion"] == expected for step in steps_)
+    assert run.prompt_versions["huellas"]["respaldo"] == expected["sha256"]
+
+
+def test_the_citation_asked_of_the_model_is_the_whole_sentence():
+    """REQ-106 (hallazgo de gravedad baja de la revisión): la instrucción pide la oración
+    completa para que la cita se lea sola, y no «lo más corta que alcance»; la duda se define
+    con algo verificable (poder copiar la oración que impone la condición)."""
+    from evaluon.tenders.proposal import extraction
+
+    prompt = extraction.load_prompt("respaldo")
+
+    assert "la oración completa de la unidad" in prompt
+    assert "más corto" not in prompt.lower() and "más corta" not in prompt.lower()
+    assert "ante la duda" not in prompt.lower()
+    assert "podés copiar de la unidad la oración que la impone" in prompt
+
+
 def test_the_instructions_have_the_two_fields_and_synthetic_examples():
     """REQ-036: las instrucciones piden `exige` (`si` o `no`) y `cita` literal, con ejemplos
     inventados; la versión es la que fija `MATRIX_PROMPT_VERSIONS`."""
@@ -572,7 +603,7 @@ def test_the_instructions_have_the_two_fields_and_synthetic_examples():
     from evaluon.tenders.proposal import extraction
 
     prompt = extraction.load_prompt("respaldo")
-    assert django_settings.MATRIX_PROMPT_VERSIONS["respaldo"] == "matriz-respaldo-v1"
+    assert django_settings.MATRIX_PROMPT_VERSIONS["respaldo"] == "matriz-respaldo-v2"
     assert '"exige"' in prompt and '"cita"' in prompt
     assert "letra por letra" in prompt and "inventados" in prompt
     schema = norm_support.build_schema(["N1", "N2"])
@@ -603,7 +634,7 @@ def test_no_instruction_module_or_test_of_the_support_repeats_five_words_of_a_ca
     known = set(HASHES.read_text(encoding="utf-8").split())
     assert len(known) > 100
     files = [Path(__file__), Path(norm_support.__file__),
-             Path(norm_support.__file__).parent.parent / "prompts" / "matriz-respaldo-v1.md"]
+             Path(norm_support.__file__).parent.parent / "prompts" / "matriz-respaldo-v2.md"]
     hits = []
     for path in files:
         for shingle in _shingles(path.read_text(encoding="utf-8")):

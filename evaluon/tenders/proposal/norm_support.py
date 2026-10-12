@@ -30,7 +30,8 @@ Para cada sugerencia, una consulta:
    texto guardado es el recorte de la unidad, no lo que escribió el modelo.
 
 Cada consulta queda en `tenders_run_step` (`respaldo_normativo`): pregunta, unidades,
-puntajes, respuesta y versión de la normativa. Una falla de la recuperación o del pedido deja
+puntajes, respuesta, versión de la normativa y versión y huella de la instrucción
+(`parsed.instruccion`, T-248, REQ-106). Una falla de la recuperación o del pedido deja
 la sugerencia sin respaldo, con su anomalía; nunca detiene la propuesta.
 """
 
@@ -149,7 +150,8 @@ class Supporter:
 
     def __init__(self, run):
         self.run = run
-        self.prompt = extraction.load_prompt("respaldo")
+        self.instruction = extraction.load_instruction("respaldo")
+        self.prompt = self.instruction.text
         self.steps = []
         self.anomalies = []
         self.stats = {"suggestions": 0, "consulted": 0, "with_support": 0, "supports": 0,
@@ -164,7 +166,8 @@ class Supporter:
         self._carry = []
         step = RunStep.objects.create(
             run=self.run, pass_name=self.pass_name, batch=self._batch, segment_keys=[],
-            request=request, raw_output=content, parsed=parsed, anomalies=anomalies,
+            request=request, raw_output=content,
+            parsed=extraction.with_instruction(parsed, self.instruction), anomalies=anomalies,
             timings={"seconds": round(seconds, 3), "prompt_tokens": tokens[0],
                      "completion_tokens": tokens[1]},
         )
