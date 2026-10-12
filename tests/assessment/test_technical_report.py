@@ -20,7 +20,7 @@ from django.urls import reverse
 from evaluon.accounts.permissions import RoleRejected
 from evaluon.ai import ServiceUnavailableError
 from evaluon.ai import generation as generation_client
-from evaluon.assessment import documents
+from evaluon.assessment import documents, prompting
 from evaluon.assessment import models as am
 from evaluon.assessment.services import evaluate, technical
 from evaluon.assessment.services import technical_report as report
@@ -159,7 +159,10 @@ def test_one_report_per_offer_gets_a_proposal_with_the_literal_quote(
     built = AuditEvent.objects.get(event_type=EventType.EVAL_BUILD, detail__kind="technical_proposal",
                                    detail__offer=a.pk)
     assert built.outcome == EventOutcome.OK and built.detail["document"] == document.pk
-    assert built.detail["models"]["prompt"] == "informe-tecnico-v1"
+    assert built.detail["models"]["prompt"] == "informe-tecnico-v2"
+    assert built.detail["models"]["instruccion"] == report.prompt_record()
+    assert built.detail["models"]["instruccion"]["sha256"] == prompting.prompt_hash(
+        report.load_prompt())
     assert built.detail["items"]["1"]["char_start"] < built.detail["items"]["1"]["char_end"]
     document.refresh_from_db()
     assert document.kind == om.DocumentKind.INFORME_TECNICO  # la lectura no lo reclasifica
@@ -477,3 +480,46 @@ def test_the_report_does_not_enter_the_retrieval_of_the_offer(
     found = retrieval.retrieve(offer, "gramaje apto")
     kinds = {om.Passage.objects.get(pk=c.passage_id).reading.document.kind for c in found.pool}
     assert found.pool and om.DocumentKind.INFORME_TECNICO not in kinds
+
+
+def test_the_schema_puts_the_quote_and_the_reason_before_the_verdict():
+    """REQ-106 (T-248; ADR-0055, regla 1): el motor genera los campos en el orden del esquema: la
+    cita y el motivo van antes que el dictamen que se apoya en ellos."""
+    entry = report._schema({1, 2})["properties"]["renglones"]["items"]
+
+    assert list(entry["properties"]) == ["renglon", "cita", "motivo", "dictamen"]
+    assert entry["required"] == ["renglon", "cita", "motivo", "dictamen"]
+    assert entry["properties"]["dictamen"]["enum"] == ["apto", "no_apto", "no_trata"]
+
+
+def test_the_instruction_v2_has_three_kinds_of_example_and_asks_for_the_quote_first():
+    """REQ-106 (T-248, hallazgo de gravedad media): la v2 trae ejemplos de apto con cita, no apto
+    y no trata (con la misma cantidad de los dos primeros), pide la cita antes que el dictamen y
+    permite copiar la frase condicional con «no_trata»; la v1 no cambió."""
+    text = report.load_prompt()
+    old = prompting.PROMPTS_DIR.joinpath("informe-tecnico-v1.md").read_text(encoding="utf-8")
+
+    assert report.PROMPT_VERSION == "informe-tecnico-v2"
+    assert "EJEMPLOS" in text and "EJEMPLOS" not in old
+    assert text.count('"dictamen": "apto"') == 2 and text.count('"dictamen": "no_apto"') == 2
+    assert text.count('"dictamen": "no_trata"') >= 2
+    assert text.index('"cita"') < text.index('"dictamen"')
+    assert 'en este orden: primero lo que el informe dice y después el dictamen' in text
+    assert "podés copiar la frase en \"cita\"" in text
+    assert "LETRA POR LETRA" in text and "No juzgás lo técnico" in text
+
+
+def test_the_examples_of_the_instruction_are_valid_outputs_of_its_own_schema():
+    """REQ-106 (T-248): cada salida de ejemplo de la instrucción tiene la forma de su esquema y
+    se interpreta con `_parse`, sin renglones de más."""
+    text = report.load_prompt()
+    outputs = [json.loads(m) for m in re.findall(r'^(\{"renglones".*\})$', text, re.MULTILINE)]
+
+    assert len(outputs) == 3
+    for output in outputs:
+        items = {entry["renglon"] for entry in output["renglones"]}
+        entry_schema = report._schema(items)["properties"]["renglones"]["items"]
+        for entry in output["renglones"]:
+            assert list(entry) == list(entry_schema["properties"])
+            assert entry["dictamen"] in entry_schema["properties"]["dictamen"]["enum"]
+        assert set(report._parse(json.dumps(output), items)) == items
