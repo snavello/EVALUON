@@ -66,8 +66,8 @@ Gravedad: alta (empuja al error o contradice una decisión del responsable), med
 
 | Instrucción vigente | Hallazgos de la revisión | Gravedad | Estado |
 |---|---|---|---|
-| `consulta-v3` | La pregunta va al principio, antes de hasta 16.000 tokens de unidades, y no se repite al final; `status` antes que las afirmaciones | Media, baja | Pendiente: T-248 (se mide con el conjunto dorado de la 001) |
-| `consulta-v1` | Sigue cargada para el camino sin fecha | Baja | Pendiente: T-248 (retirarla si ningún camino la usa) |
+| `consulta-v4` (reemplaza a v3) | La pregunta va al principio, antes de hasta 16.000 tokens de unidades, y no se repite al final; `status` antes que las afirmaciones | Media, baja | Corregido en parte (T-248): `statements` antes que `status` en el esquema y en la instrucción; ejemplos de otra clase de salida con la situación que muestran (3 con afirmaciones y 2 sin ellas); todas las reglas de la v3 se conservan palabra por palabra. Justificado, no se hace: repetir la pregunta al final del mensaje cambia la cuenta de tokens del pedido que comparten `services.py`, `evaluation.py` y `retrieval.py` (los tests que comprueban que la selección cuenta todo lo que no son unidades dependen de ella), archivos que la T-255 (Consulta con el 27B) reabre; pasa a la T-255, que mide la Consulta con el conjunto dorado de la 001 (P7). Se mide el cambio de orden en T-249 |
+| `consulta-v1` | Sigue cargada para el camino sin fecha | Baja | Justificado: ningún llamador de producción pasa sin fecha (la consulta y `correr_evals` siempre la pasan), pero `answering.answer` y `build_request` aceptan ese camino y lo cubren pruebas de la 001; la v1 es una versión publicada congelada (su archivo no se borra, lo prueba `tests/test_instrucciones_revisadas.py`) y no cambia lo que ve el modelo. Retirar el camino sin fecha es una limpieza del módulo que la T-255 reabre: pasa a la lista de revisión |
 | `oferente-nombre-v1` | El valor va antes que la cita; registra versión y huella (es el mejor patrón del repositorio) | Baja | Pendiente: T-248 |
 | `procedimiento-datos-v1` | Ídem | Baja | Pendiente: T-248 |
 
