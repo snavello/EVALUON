@@ -71,7 +71,7 @@ flowchart LR
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 40/45 | █████████░ 89% |
-| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 29/32 | █████████░ 91% |
+| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 29/34 | █████████░ 85% |
 
 <a id="001"></a>
 
@@ -1289,9 +1289,11 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 3 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 5 tareas sin terminar.
+- ▶ T-255 · Consulta de normativa con el 27B: la Consulta usa el mismo motor del 27B (sin `generation` aparte), con las evals de la 001 medidas antes de pasarla (P7) y el umbral de que ninguna medida empeore frente al 12B; mientras no pase, la Consulta queda apagada cuando corre una evaluación (en curso)
 - ▶ T-263 · Medición de cierre de la 015 con T-261 y T-262: evaluación del caso-00 con la configuración normal (y la corrida alterada para la estabilidad), matrices de los casos 00, 01, 02 y 06 (validación) y 03, 04 y 05 (prueba, con las listas re-ancladas del 03 y el 04), contra la spec 015 y el ADR-0059 (en curso)
-- ○ T-255 · Consulta de normativa con el 27B: la Consulta usa el mismo motor del 27B (sin `generation` aparte), con las evals de la 001 medidas antes de pasarla (P7) y el umbral de que ninguna medida empeore frente al 12B; mientras no pase, la Consulta queda apagada cuando corre una evaluación (pendiente)
+- ▶ T-265 · Extracción sin descartar la nota de un anexo que obliga (D-263-1): la `matriz-extraccion-v11` descarta como «formulario» la nota de un anexo que en la v10 daba requisitos (caso-01: las filas que suprime la circular 1, REQ-031 de 13 a 7 de 15); `matriz-extraccion-v12` sin perder la presentación física de T-262 ni sumar la cláusula del formulario del Portal, y sin calcar textos del caso-01 (validación, ADR-0059) (en curso)
+- ○ T-266 · Medición final de la 015 (una sola tanda de GPU): matrices del caso-00, de validación (01, 02 y 06) y de prueba (03, 04 y 05, una corrida con la configuración final) con T-265; en la misma tanda, T-249 (lo que cambió T-248) y las evals de la 001 con la Consulta en el 27B (T-255), contra la spec 015 y el ADR-0059 (pendiente)
 - ○ T-249 · Medición de lo que cambió T-248, solo en las áreas que cambió, con el umbral de que ninguna medida empeore (P7): evals de la 001, fichas, lectura con visión, propuestas de datos y matriz con circulares (pendiente)
 
 ### Qué se hizo
@@ -1339,7 +1341,7 @@ flowchart TD
   T252["✓ T-252 · Instrucciones de la matriz, parte 2: filtro…"]:::done
   T253["✓ T-253 · Razonamiento propio del modelo encendible p…"]:::done
   T254["✓ T-254 · Ronda extra (se perdían requisitos, ADR-002…"]:::done
-  T255["○ T-255 · Consulta de normativa con el 27B: la Consul…"]:::todo
+  T255["▶ T-255 · Consulta de normativa con el 27B: la Consul…"]:::active
   T256["✓ T-256 · Medición honesta (sin GPU): corregir los de…"]:::done
   T257["✓ T-257 · Frente evaluación: «no aplica» para la opci…"]:::done
   T258["✓ T-258 · Frente matriz: definiciones del 2026-10-12,…"]:::done
@@ -1349,6 +1351,8 @@ flowchart TD
   T262["✓ T-262 · Presentación física en la matriz (decisión…"]:::done
   T263["▶ T-263 · Medición de cierre de la 015 con T-261 y T-…"]:::active
   T264["✓ T-264 · Fundamento visible en las pantallas del exp…"]:::done
+  T265["▶ T-265 · Extracción sin descartar la nota de un anex…"]:::active
+  T266["○ T-266 · Medición final de la 015 (una sola tanda de…"]:::todo
   T237["✓ T-237 · Instrucciones de la evaluación (evaluación,…"]:::done
   T251["✓ T-251 · Código listo para medir otro modelo: el cue…"]:::done
   T238["✓ T-238 · Medidas de la 015 en medir_matriz y medir_e…"]:::done
@@ -1383,6 +1387,9 @@ flowchart TD
   T260 --> T262
   T261 --> T263
   T262 --> T263
+  T263 --> T265
+  T265 --> T266
+  T255 --> T266
   T235 --> T237
   T252 --> T237
   T236 --> T251
@@ -1418,10 +1425,10 @@ flowchart TD
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-101 | Cada requisito propuesto en la matriz cita su unidad de sentido completa: la oración entera, junto con las oraciones cortas contiguas que siguen el mismo asunto, y el encabezado del punto o del inciso cuando la oración sola no se entiende; nunca un pedazo sin sujeto ni condiciones de una misma oración separadas en filas distintas | T-234, T-236, T-256, T-258, T-260, T-262, T-263, T-238, T-239, T-240, T-241 | ▶ en proceso |
-| REQ-102 | La matriz propuesta no incluye consecuencias, obligaciones del organismo, condiciones que solo valen si el oferente elige una opción (salvo como condición de esa opción), pago, moneda de pago, factura, forma de presentar por el Portal ni compromisos que se cumplen al presentarse; sí incluye la moneda en que se cotiza la oferta | T-250, T-236, T-252, T-254, T-256, T-258, T-260, T-262, T-263, T-238, T-239, T-240, T-241 | ▶ en proceso |
+| REQ-101 | Cada requisito propuesto en la matriz cita su unidad de sentido completa: la oración entera, junto con las oraciones cortas contiguas que siguen el mismo asunto, y el encabezado del punto o del inciso cuando la oración sola no se entiende; nunca un pedazo sin sujeto ni condiciones de una misma oración separadas en filas distintas | T-234, T-236, T-256, T-258, T-260, T-262, T-263, T-265, T-266, T-238, T-239, T-240, T-241 | ▶ en proceso |
+| REQ-102 | La matriz propuesta no incluye consecuencias, obligaciones del organismo, condiciones que solo valen si el oferente elige una opción (salvo como condición de esa opción), pago, moneda de pago, factura, forma de presentar por el Portal ni compromisos que se cumplen al presentarse; sí incluye la moneda en que se cotiza la oferta | T-250, T-236, T-252, T-254, T-256, T-258, T-260, T-262, T-263, T-265, T-266, T-238, T-239, T-240, T-241 | ▶ en proceso |
 | REQ-103 | Cuando el dato de la oferta está en el Portal y coincide con lo que exige el pliego, la evaluación propone «cumple» citando el dato del Portal; cuando no coincide, propone «no cumple» o la diferencia | T-233, T-235, T-256, T-257, T-260, T-263, T-264, T-238, T-239, T-240, T-241 | ▶ en proceso |
 | REQ-104 | En la evaluación, el sistema razona antes de dar el veredicto, revisa todas las condiciones del requisito, cada una con su dato y su resultado visible por separado («cumple» solo si se cumplen todas; «no cumple» si falla alguna; si falta el dato de alguna, «no determinado» diciendo cuál), cita la oración completa de la oferta y del pliego, y el contraste ve el contexto de la cita | T-235, T-256, T-257, T-259, T-260, T-261, T-263, T-264, T-237, T-238, T-239, T-240, T-241 | ▶ en proceso |
 | REQ-105 | Cada pregunta a la Comisión está dirigida a la Comisión (nunca al oferente) y dice qué requisito, qué conclusión y qué texto la motivan; no hay preguntas de texto fijo genérico | T-235, T-256, T-257, T-260, T-263, T-237, T-238, T-239, T-240, T-241 | ▶ en proceso |
-| REQ-106 | Todas las instrucciones al modelo (matriz, evaluación, contraste, visión, ficha, consulta) se revisan contra las decisiones vigentes y entre sí: sin reglas que empujen al error, con ejemplos representativos, razonamiento antes del veredicto y la versión registrada en cada pedido (P6) | T-236, T-252, T-237, T-248, T-249 | ▶ en proceso |
-| REQ-107 | Un modelo nuevo se adopta solo si, con el uso corregido, el mismo caso y la misma lista esperada, mejora las medidas de REQ-101 a REQ-105 sin empeorar contradicciones, citas, tiempo ni memoria, con cada cambio explicado | T-253, T-254, T-255, T-256, T-260, T-263, T-251, T-242, T-243, T-244, T-245, T-246, T-247 | ▶ en proceso |
+| REQ-106 | Todas las instrucciones al modelo (matriz, evaluación, contraste, visión, ficha, consulta) se revisan contra las decisiones vigentes y entre sí: sin reglas que empujen al error, con ejemplos representativos, razonamiento antes del veredicto y la versión registrada en cada pedido (P6) | T-236, T-252, T-266, T-237, T-248, T-249 | ▶ en proceso |
+| REQ-107 | Un modelo nuevo se adopta solo si, con el uso corregido, el mismo caso y la misma lista esperada, mejora las medidas de REQ-101 a REQ-105 sin empeorar contradicciones, citas, tiempo ni memoria, con cada cambio explicado | T-253, T-254, T-255, T-256, T-260, T-263, T-266, T-251, T-242, T-243, T-244, T-245, T-246, T-247 | ▶ en proceso |
