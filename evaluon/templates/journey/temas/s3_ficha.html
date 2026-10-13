@@ -42,7 +42,7 @@
           <th scope="row">{{ r.number }} · {{ r.category }}{% if r.item %}, renglón {{ r.item }}{% endif %}<br><span class="suave chica">{{ r.text }}</span></th>
           <td>{% if r.found %}{% if r.presented %}{{ r.presented }}{% else %}<span class="suave">Sin síntesis</span>{% endif %}{% else %}<span class="suave">No se encontró en la oferta</span>{% endif %}</td>
           <td class="frag-celda">{% for view in r.fragments|slice:":1" %}«{{ view.fragment.text|truncatechars:160 }}»{% if r.fragments|length > 1 %}<br><span class="suave chica">y {{ r.fragments|length|add:"-1" }} más</span>{% endif %}{% empty %}—{% endfor %}</td>
-          <td class="chica">{% for view in r.fragments|slice:":1" %}<a href="{% url 'offers:document_original' view.document.pk %}#page={{ view.page }}" target="_blank" rel="noopener">{{ view.document.title }}, pág. {{ view.page }}</a>{% empty %}—{% endfor %}</td>
+          <td class="chica">{% for view in r.fragments|slice:":1" %}<a href="{% url 'offers:document_original' view.document.pk %}#page={{ view.page }}" target="_blank" rel="noopener">{{ view.document.title }}, pág. {{ view.page }}</a>{% if view.by_vision %} <span class="marca-vision">leída por visión</span>{% endif %}{% empty %}—{% endfor %}</td>
           <td class="e">{% include "journey/_icono.html" with icon=r.icon name=r.state_name %}</td>
         </tr>
         <tr class="detalle" id="detalle-ficha-{{ r.entry.pk }}"{% if not r.active %} hidden{% endif %}>
@@ -57,6 +57,7 @@
                 {% for view in r.fragments %}
                 <li><blockquote class="cita">{{ view.fragment.text }}</blockquote>
                   <span class="chica"><a href="{% url 'offers:document_original' view.document.pk %}#page={{ view.page }}" target="_blank" rel="noopener">{{ view.document.title }}, pág. {{ view.page }}</a>{% if view.fragment.state == "confirmado" %} · confirmado{% endif %}{% if view.fragment.origin == "persona" %} · agregado por una persona{% endif %}</span>
+                  {% if view.by_vision %}{% include "journey/_cita_vision.html" with document_id=view.document.pk page=view.page %}{% endif %}
                   <div class="acciones-fila">
                     <details class="acc"><summary class="btn secundario chico">Quitar</summary>
                       <form method="post" action="{% url 'expedientes:s3_ficha_fragmento' t.pid view.fragment.pk 'quitar' %}">{% csrf_token %}
@@ -82,6 +83,7 @@
               {% if r.removed %}
               <dt>Fragmentos quitados</dt>
               <dd><ul class="frag">{% for view in r.removed %}<li><blockquote class="cita vieja">{{ view.fragment.text }}</blockquote><span class="chica">{{ view.document.title }}, pág. {{ view.page }}</span>
+                {% if view.by_vision %}{% include "journey/_cita_vision.html" with document_id=view.document.pk page=view.page %}{% endif %}
                 <form class="en-linea" method="post" action="{% url 'expedientes:s3_ficha_fragmento' t.pid view.fragment.pk 'restituir' %}">{% csrf_token %}<button class="btn secundario chico" type="submit">Restituir</button></form></li>{% endfor %}</ul></dd>
               {% endif %}
               {% if r.motives %}<dt>Cambios con motivo</dt>{% for line in r.motives %}<dd>{{ line }}</dd>{% endfor %}{% endif %}
