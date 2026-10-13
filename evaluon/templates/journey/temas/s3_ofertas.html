@@ -57,7 +57,9 @@
           <td>{{ row.kind_label }}</td>
           <td class="n">{{ row.pages|default:"—" }}</td>
           <td class="e">{% include "journey/_icono.html" with icon=row.icon name=row.icon_name %}</td>
-          <td>{{ row.reading_text }}</td>
+          <td>{{ row.reading_text }}{% if row.suggestion %}
+            <p class="aviso chica" role="status" id="sugerencia-{{ row.document.pk }}"><b>Sugerencia del sistema:</b> {{ row.suggestion.reason }} {% if row.suggestion.kind == "compliance" %}Si lo es, confírmelo; el documento no se borra.{% if not t.can_decide %} Lo confirma un evaluador.{% endif %}{% else %}No se quita nada: si lo es, puede retirarlo con «Retirar», que lo deja en el historial.{% endif %}</p>
+            {% if row.suggestion.kind == "compliance" and t.can_decide %}<form method="post" action="{% url 'expedientes:s3_ofertas_es_compliance' t.pid row.document.pk %}">{% csrf_token %}<button class="btn secundario chico" type="submit">Confirmar: es la hoja de compliance</button></form>{% endif %}{% endif %}</td>
           <td class="origen"><b>{{ row.origin }}</b> · {{ row.origin_date }}{% if row.origin_by %} · {{ row.origin_by }}{% endif %}</td>
           <td class="acciones-doc"><a href="{% url 'offers:document_original' row.document.pk %}" target="_blank" rel="noopener">Ver el archivo</a> · <a href="{{ d.history_url }}&amp;historial={{ row.document.pk }}#s3-oferta">Historial</a>{% if t.can_load %}
             {% include "journey/temas/_s3_ofertas_cambiar.html" with doc=row.document %}{% endif %}</td>

@@ -212,6 +212,8 @@ class DocRow:
     origin_date: str
     origin_by: str
     note: str = ""
+    # La clase que el sistema sugiere al leerlo (T-259): hoja de compliance o copia de otro.
+    suggestion: dict | None = None
 
 
 def _kind_label(document):
@@ -235,7 +237,8 @@ def _doc_row(document):
                   icon_name=name, reading_text=text,
                   pages=report.get("pages") if isinstance(report, dict) else None,
                   origin="Archivo", origin_date=_day(document.loaded_at),
-                  origin_by=_who(document.loaded_by) if document.loaded_by_id else "")
+                  origin_by=_who(document.loaded_by) if document.loaded_by_id else "",
+                  suggestion=offers_service.suggestion_of(document))
 
 
 @dataclass
@@ -772,6 +775,23 @@ def _change(request, procedure_id, document_id, operation, done, call, needs_fil
 
 
 @require_POST
+def confirm_compliance(request, procedure_id, document_id):
+    """El evaluador confirma la sugerencia del sistema: el documento es la hoja de compliance de
+    la oferta (T-259; P9). Sin rol de evaluador, 403 con el rechazo registrado."""
+    procedure = _procedure(procedure_id)
+    document = _document(procedure, document_id)
+    query, anchor = f"oferta={document.offer_id}", "#s3-oferta"
+    try:
+        offers_service.confirm_compliance(request.user, document, channel=CHANNEL)
+    except offers_service.OfferRefused as error:
+        return back(procedure, [_result(document.title, False, str(error))], query, anchor)
+    return back(procedure, [_result(
+        document.title, True, f"Confirmado: queda como hoja de compliance de la oferta "
+        f"{document.offer.number}. No se borró nada; la próxima evaluación la usa.")],
+        query, anchor)
+
+
+@require_POST
 def withdraw(request, procedure_id, document_id):
     return _change(
         request, procedure_id, document_id, history_service.WITHDRAW_OPERATION,
@@ -810,6 +830,8 @@ urlpatterns = [
     path("ofertas/documentos/<int:document_id>/reemplazar/", replace,
          name="s3_ofertas_reemplazar"),
     path("ofertas/documentos/<int:document_id>/retirar/", withdraw, name="s3_ofertas_retirar"),
+    path("ofertas/documentos/<int:document_id>/es-compliance/", confirm_compliance,
+         name="s3_ofertas_es_compliance"),
     path("ofertas/documentos/<int:document_id>/restituir/", restore,
          name="s3_ofertas_restituir"),
 ]
