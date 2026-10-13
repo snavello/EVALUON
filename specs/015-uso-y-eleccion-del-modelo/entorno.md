@@ -228,3 +228,13 @@ docker compose up -d --no-deps generation_batch worker app generation
 ```
 
 Recrea `generation_batch`, `worker` y `app` con el compose base (12B, sin razonamiento) y enciende `generation`. Comprobar: `/health` `ok` en los dos motores, el alias del 12B en `/props` de cada uno, `n_ctx` 32.768 en el de lotes y 16.384 en el de la Consulta, y la pantalla de la Consulta sin el aviso. No cambia ningún dato ni la base. Los archivos del 27B quedan en `models/`; borrarlos (17,4 GB) lo decide el responsable. Una vuelta puntual, sin tocar `.env`: `docker compose -f docker-compose.yml up -d --no-deps generation_batch worker app generation`.
+
+## Despliegue del 27B en 8000 · 2026-10-12
+
+Estado: desplegado (decisión del responsable del 2026-10-12, «Sí; Consulta con el 27B»; ADR-0057).
+
+- Raíz en `main` e6432b6. Respaldo previo `backups/evaluon-2026-10-12-previo-015-27b.dump` (861 entradas con `pg_restore -l`); `.env` anterior guardado fuera del repositorio; imagen anterior `evaluon-app:previo-015-27b`.
+- Se detuvieron `generation` y `generation_batch`, se sumaron al `.env` las tres líneas de «Uso por omisión» (`COMPOSE_FILE`, `COMPOSE_PATH_SEPARATOR`, `GENERATION_BATCH_REASONING_CONTRAST=low`) y se levantó con `docker compose up -d`.
+- Comprobado: `generation_batch` sano con `Qwen3.8-27B-UD-Q4_K_M.gguf`, su proyector y `--reasoning auto`; `app` con `GENERATION_BATCH_MODEL_ALIAS=qwen3.8-27b-ud-q4_k_m` y el razonamiento solo en el contraste; `generation` fuera; GPU en 18.458 MiB en reposo; `/ingresar/` 200; cola sin pedidos en curso.
+- Volver al 12B: «Cómo se vuelve al 12B» de este archivo (borrar las tres líneas del `.env` y recrear).
+

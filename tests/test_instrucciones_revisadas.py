@@ -4,8 +4,9 @@ Dos garantías, como `scripts/models.sha256` con los modelos:
 
 1. **Cobertura.** El informe de revisión (`specs/015-uso-y-eleccion-del-modelo/revision-instrucciones.md`,
    un resumen sin texto de casos) nombra el 100 % de las instrucciones vigentes: las de la
-   matriz, las de la evaluación, la visión, la ficha, el informe técnico, la consulta y las dos
-   que viven en el código (`oferente-nombre`, `procedimiento-datos`).
+   matriz, las de la evaluación, la visión, la ficha, el informe técnico, la consulta, el nombre
+   del oferente y los datos del procedimiento (las dos últimas vivían en el código y son archivos
+   desde T-248).
 2. **Versiones congeladas.** Cada versión publicada de una instrucción (cada archivo de las
    carpetas `prompts/` y cada instrucción dentro del código) tiene su huella SHA-256 en
    `tests/fixtures/instrucciones.sha256`, y el archivo no cambió. Una instrucción nueva es una
@@ -34,11 +35,11 @@ PROMPT_DIRS = [
     ROOT / "evaluon" / "assessment" / "prompts",
     ROOT / "evaluon" / "queries" / "prompts",
 ]
-# Las instrucciones que viven dentro del código: su nombre de versión y su texto.
-INLINE = {
-    proposal_fields.PROMPT_VERSION: proposal_fields.MODEL_INSTRUCTIONS,
-    procedure_fields.PROMPT_VERSION: procedure_fields.MODEL_INSTRUCTIONS,
-}
+# Las instrucciones que viven dentro del código: su nombre de versión y su texto. Hoy ninguna: la
+# del nombre del oferente y la de los datos del procedimiento pasaron a ser archivos
+# (`offers/prompts/oferente-nombre-v2.md` y `tenders/prompts/procedimiento-datos-v2.md`, T-248),
+# y sus v1 quedaron publicadas como archivos con los mismos bytes y la misma huella.
+INLINE = {}
 
 
 def current_versions():
@@ -50,6 +51,8 @@ def current_versions():
     names |= set(settings.ASSESSMENT_PROMPT_VERSIONS.values())
     names.add(settings.ASSESSMENT_VISION_PROMPT_VERSION)
     names.add(technical_report.PROMPT_VERSION)
+    names.add(proposal_fields.PROMPT_VERSION)
+    names.add(procedure_fields.PROMPT_VERSION)
     names |= {answering.PROMPT_VERSION_WITH_DATE, answering.PROMPT_VERSION_WITHOUT_DATE}
     names |= set(INLINE)
     return sorted(names)

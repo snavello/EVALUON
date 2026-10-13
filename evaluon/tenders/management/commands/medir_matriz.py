@@ -20,6 +20,10 @@ Opciones:
   presentarse), con la huella de la lista y el visto bueno del Coordinador (T-238). La lista no
   se modifica; sin este archivo el recall y las filas conservadas se miden contra la lista
   entera. Con `--verificar-esperada` informa cuántas entradas excluye.
+- `--recalcular`: carpeta de una corrida ya hecha (T-256). No usa el modelo ni la GPU, no pide
+  `--procedimiento` y no escribe nada; pide usuario y clave como todo comando (REQ-016): vuelve a contar desde su `resultados.jsonl` con las reglas de antes
+  y con las de T-256 (lo que está a revisión aparte, las suprimidas por una circular en otra fila,
+  las filas técnicas aparte) y con el archivo de `--exclusiones`, y escribe las dos cifras.
 - `--regenerar-resumen`: carpeta de una corrida ya hecha. No corre el modelo: vuelve a medir las
   propuestas que nombra `parametros.json` (siguen en la base) y reescribe `resumen.md` y
   `resumen-publico.md` (T-096).
@@ -49,8 +53,8 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         permissions.add_user_argument(parser)
-        parser.add_argument("--procedimiento", required=True,
-                            help="Número del procedimiento.")
+        parser.add_argument("--procedimiento", default=None,
+                            help="Número del procedimiento (no hace falta con --recalcular).")
         parser.add_argument("--esperada", required=True,
                             help="Archivo matriz-esperada.yaml.")
         parser.add_argument("--corridas", default=None,
@@ -61,6 +65,9 @@ class Command(BaseCommand):
                                  "decisiones del 2026-10-10 (huella de la lista y visto bueno).")
         parser.add_argument("--commit", default=None,
                             help="Commit del código con que se corre.")
+        parser.add_argument("--recalcular", default=None,
+                            help="Carpeta de una corrida ya hecha: recalcula sin el modelo ni la "
+                                 "base, antes y después de las correcciones de T-256.")
         parser.add_argument("--regenerar-resumen", default=None, dest="regenerar_resumen",
                             help="Carpeta de una corrida ya hecha: reescribe sus resúmenes "
                                  "sin usar el modelo.")
@@ -71,6 +78,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         user = permissions.authenticate_command(options["usuario"])
+        if options["recalcular"]:
+            self._recompute(options)
+            return
+        if not options["procedimiento"]:
+            raise CommandError("Falta --procedimiento.")
         try:
             procedure = Procedure.objects.get(number=options["procedimiento"])
         except Procedure.DoesNotExist:
@@ -141,4 +153,29 @@ class Command(BaseCommand):
         blocking = report.blocking
         lines.append("Bloquea la aceptación: " + ("; ".join(blocking) if blocking
                                                   else "nada"))
+        self.stdout.write("\n".join(lines))
+
+    def _recompute(self, options):
+        """`--recalcular`: las cifras de la 015 de una corrida guardada, antes y después."""
+        try:
+            expected = evaluation.load_expected(options["esperada"], require_approval=False)
+            exclusions = (evaluation.load_exclusions(options["exclusiones"], expected)
+                          if options["exclusiones"] else None)
+            result = evaluation.recompute_matrix_run(options["recalcular"], expected, exclusions)
+        except (evaluation.ExpectedError, evaluation.MeasurementRefused) as error:
+            raise CommandError(str(error)) from None
+        text = evaluation.proportion_text
+        lines = [f"Corrida recalculada sin el modelo: {Path(result['folder']).name}"]
+        for moment, label in (("before", "antes"), ("after", "después")):
+            figures = result[moment]
+            lines.append(
+                f"[{label}] lista presente {text(figures['recall'])} (con lo que está a revisión "
+                f"{text(figures['found_with_review'])}); filas conservadas "
+                f"{text(figures['kept'])}; sin las técnicas: lista "
+                f"{text(figures['found_without_technical'])}, conservadas "
+                f"{text(figures['kept_without_technical'])}; excluidas {figures['excluded']}")
+        after = result["after"]
+        lines.append(f"Suprimidas por una circular en otra fila: {after['suppressed_elsewhere']}; "
+                     "entradas que el archivo ya no excluye y no se pueden medir sin la base: "
+                     + (", ".join(after["without_line"]) or "ninguna"))
         self.stdout.write("\n".join(lines))
