@@ -19,6 +19,11 @@ T-150).
   antes de concluir "cumple" o "no cumple" (`combine.py`, ADR-0038). Sin cita ubicada no hay
   conclusión (P3). Cada pedido al modelo queda en `assessment_step` y el armado deja el hecho
   `eval_build` (P6).
+  El tope de los documentos de cada grupo es lo que realmente entra en el contexto del motor de
+  lotes para ese requisito (`sizing.documents_budget`, T-261); antes de mandar un pedido se cuenta
+  armado (`sizing.request_fits`). Un pedido que igual no entra se parte en dos (hasta
+  `sizing.MAX_SPLITS` veces); lo que ni así entra queda «no determinado» con el motivo «el pedido no
+  entra en el contexto» y su anomalía, y la oferta sigue con los demás requisitos.
 - `current_result`: **la función única** del resultado vigente de un par: el de la evaluación
   más reciente de esa oferta (ADR-0039).
 - `pair_page`: la página de un par, en solo lectura.
@@ -37,10 +42,10 @@ from django.utils import timezone
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
-from evaluon.ai import generation
+from evaluon.ai import InputTooLongError, generation
 from evaluon.assessment import citations as citing
 from evaluon.assessment import combine, documents, externals, grounds, portal_block
-from evaluon.assessment import not_applicable, prompting, rules
+from evaluon.assessment import not_applicable, prompting, rules, sizing
 from evaluon.assessment import unreadable
 from evaluon.assessment.models import (
     Answer,
@@ -86,6 +91,15 @@ ANOMALY_UNREAD_GROUPS = "grupos_sin_leer"
 ANOMALY_VISION_ERRORS = "vision_con_errores"
 ANOMALY_VISION_OVER_LIMIT = "vision_sobre_el_tope"
 ANOMALY_UNREADABLE_NOT_BACKED = unreadable.ANOMALY_NOT_BACKED
+# T-261 (D-260-1): un pedido que no entra en el contexto del motor de lotes. `pedido_partido`: el
+# grupo se partió en dos; `pedido_fuera_de_contexto`: ni partido entra (o el motor lo rechazó) y esa
+# parte de la oferta no se leyó; `reintento_fuera_de_contexto`: el reintento no entra y no se hace.
+ANOMALY_SPLIT = "pedido_partido"
+ANOMALY_TOO_LONG = "pedido_fuera_de_contexto"
+ANOMALY_RETRY_TOO_LONG = "reintento_fuera_de_contexto"
+# El motivo del «no determinado» de un requisito con una parte que no se pudo pedir.
+TOO_LONG_NOTE = ("El pedido no entra en el contexto del modelo: una parte de los documentos de la "
+                 "oferta no se pudo leer para este requisito.")
 
 
 class EvaluationRefused(ValueError):
@@ -98,6 +112,16 @@ class EvaluationRefused(ValueError):
 
 class EvaluationFailed(RuntimeError):
     """El pedido terminó, pero alguna oferta no se pudo evaluar. Las que sí, quedaron."""
+
+
+class RequestTooLong(Exception):
+    """El pedido de un grupo no entra en el contexto del motor de lotes (T-261): `tokens` son los
+    de sus mensajes (o `None` si lo rechazó el motor) y `output` la salida reservada."""
+
+    def __init__(self, tokens, output, message=""):
+        super().__init__(message or f"{tokens} tokens más {output} de salida")
+        self.tokens = tokens
+        self.output = output
 
 
 @dataclass(frozen=True)
@@ -278,6 +302,11 @@ def _parameters():
     return {
         "group_tokens": settings.ASSESSMENT_GROUP_TOKENS,
         "max_groups": settings.ASSESSMENT_MAX_GROUPS,
+        # Lo que entra en un pedido de lectura (T-261): el tope de cada grupo sale del contexto.
+        "context_tokens": settings.GENERATION_BATCH_CONTEXT_TOKENS,
+        "request_margin_tokens": sizing.REQUEST_MARGIN_TOKENS,
+        "template_tokens": sizing.TEMPLATE_TOKENS,
+        "max_splits": sizing.MAX_SPLITS,
         "max_output_tokens": settings.ASSESSMENT_MAX_OUTPUT_TOKENS,
         # Lo que suman el razonamiento y las condiciones al máximo de un pedido de lectura (T-237).
         "evaluation_max_output_tokens": prompting.evaluation_max_tokens(),
@@ -373,12 +402,28 @@ class Context:
         # Diferencias con el Portal ya señaladas en esta oferta (`portal_facts`, T-231).
         self.portal_flagged = {}
         self._portal_block = None
+        # T-261: los tokens de la instrucción y del Portal (los mismos en todos los pedidos de
+        # lectura de la oferta), el tope de documentos de cada requisito y la oferta en ventanas
+        # para un tope menor que el de su armado.
+        self._fixed_tokens = None
+        self.budgets = {}
+        self.within = {}
 
     def portal_block(self):
         """`(texto, {alias: dato})` del Portal de esta oferta, armado una sola vez (T-235)."""
         if self._portal_block is None:
             self._portal_block = portal_block.build(self.offer)
         return self._portal_block
+
+    def fixed_tokens(self):
+        """Tokens de la instrucción de la evaluación y del bloque del Portal de la oferta, contados
+        una vez con el tokenizador del motor de lotes (T-261)."""
+        if self._fixed_tokens is None:
+            portal_text, _ = self.portal_block()
+            self._fixed_tokens = (
+                generation.count_tokens_batch(prompting.load_prompt("evaluacion"))
+                + (generation.count_tokens_batch(portal_text) if portal_text else 0))
+        return self._fixed_tokens
 
     def add(self, step):
         self.steps.append(step)
@@ -415,13 +460,74 @@ def _with_reasoning(parsed, reasoning):
     return {**(parsed or {}), "razonamiento_propio": reasoning}
 
 
-def _plan_for(ctx, pair):
-    """Los grupos con que se lee la oferta para este requisito."""
+def _pair_budget(ctx, pair):
+    """El tope de tokens de los documentos de cada grupo para este requisito (T-261): lo que entra
+    en el contexto del motor de lotes después de la instrucción, el Portal, el requisito con su
+    punto, las respuestas y las normas que van al pedido, la salida reservada (con el razonamiento
+    de la lectura si está encendido) y el margen; `ASSESSMENT_GROUP_TOKENS` es el techo."""
+    answers_text, _ = prompting.render_answers(pair.answers)
+    norms_text, _ = prompting.render_norms(pair.norms)
+    own = "\n\n".join(part for part in (answers_text, norms_text, pair.text.render(),
+                                         prompting.CLOSING) if part)
+    fixed = ctx.fixed_tokens() + generation.count_tokens_batch(own)
+    budget = sizing.documents_budget(
+        fixed, sizing.reserved_output(prompting.evaluation_max_tokens(), "evaluation"))
+    ctx.budgets[pair.requirement.number] = budget
+    return budget
+
+
+def _within(ctx, budget):
+    """La oferta con sus piezas dentro de `budget`: la misma si ya lo están (o si el tope no es
+    menor que el de su armado); si no, los documentos mayores que el tope en ventanas de ese tope,
+    como en `documents.build_offer_text` y sin volver a contar."""
     offer_text = ctx.offer_text
-    if offer_text.fits:
+    if budget >= offer_text.budget or all(p.tokens <= budget for p in offer_text.pieces):
+        return offer_text
+    if budget not in ctx.within:
+        pieces = []
+        for entry in offer_text.documents:
+            if entry.reading is None or entry.copy_of is not None:
+                continue
+            if entry.tokens <= budget:
+                pieces.append(documents.Piece(entry, entry.tokens))
+                continue
+            for part in sizing.windows(entry.page_tokens, budget):
+                pieces.append(_window(entry, part[0] + 1, part[-1] + 1))
+        ctx.within[budget] = replace(offer_text, pieces=pieces, budget=budget)
+    return ctx.within[budget]
+
+
+def _window(entry, first, last):
+    """La ventana de las páginas `first` a `last` (desde 1) del documento `entry`."""
+    return documents.Piece(entry, entry.header_tokens + sum(entry.page_tokens[first - 1:last]),
+                           first_page=first, last_page=last)
+
+
+def _halves(pieces):
+    """El grupo partido en dos (T-261): las piezas en dos mitades o, si es una sola pieza de
+    varias páginas, sus páginas en dos ventanas. `None` si es una sola página."""
+    if len(pieces) > 1:
+        middle = len(pieces) // 2
+        return [pieces[:middle], pieces[middle:]]
+    piece = pieces[0]
+    first = piece.first_page or 1
+    last = piece.last_page or len(piece.doc.pages)
+    if last <= first:
+        return None
+    middle = (first + last) // 2
+    return [[_window(piece.doc, first, middle)], [_window(piece.doc, middle + 1, last)]]
+
+
+def _plan_for(ctx, pair, budget):
+    """Los grupos con que se lee la oferta para este requisito, con el tope `budget`. Si la
+    oferta entera entra en el tope, es el grupo único de siempre (el mismo para todos los
+    requisitos)."""
+    offer_text = ctx.offer_text
+    if offer_text.tokens <= budget:
         if ctx.single_plan is None:
             ctx.single_plan = documents.plan_groups(offer_text)
         return ctx.single_plan, None
+    offer_text = _within(ctx, budget)
     requirement = pair.requirement
     item_row = sheets.is_item_row(requirement)
     text = pair.text.text
@@ -445,7 +551,7 @@ def _plan_for(ctx, pair):
     query = sheets.retrieval_query(requirement, text)
     scores, found = documents.relevance(
         offer_text, query, rewrite["query"] if rewrite else "")
-    plan = documents.plan_groups(offer_text, scores)
+    plan = documents.plan_groups(offer_text, scores, budget=budget)
     return plan, {"relevance": {str(k): round(v, 6) for k, v in scores.items()},
                   "query": found.query, "rewrite": found.rewrite}
 
@@ -518,17 +624,46 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
     if relevance_note:
         pieces_record.append(relevance_note)
 
+    # T-261: la salida que se reserva en el contexto (con el razonamiento de la lectura, si está
+    # encendido) y la cuenta del pedido armado antes de mandarlo.
+    output = sizing.reserved_output(prompting.evaluation_max_tokens(), "evaluation")
     correction, previous, previous_output = "", None, ""
     for attempt in range(2):
-        step = StepData(Purpose.GRUPO, pair.requirement, group_index=group_index,
-                        documents=pieces_record, retry_of=previous)
-        position = ctx.add(step)
         messages = prompting.build_evaluation_messages(
             system, docs_text, answers_text, norms_text, requirement_block, correction,
             portal_text=portal_text, previous=previous_output)
-        result = _generate(messages, schema, step, ctx,
-                           max_tokens=prompting.evaluation_max_tokens(),
-                           reasoning_step="evaluation")
+        fits, tokens = sizing.request_fits(messages, output)
+        if not fits and attempt == 0:
+            # No se manda: el grupo se parte (`_read_group`).
+            raise RequestTooLong(tokens, output)
+        if not fits:
+            # El reintento suma la salida anterior y la corrección: si no entra, no se hace y
+            # queda lo del primer pedido.
+            pair.anomalies.append({"type": ANOMALY_RETRY_TOO_LONG,
+                                   "requirement": pair.requirement.number, "step": previous,
+                                   "tokens": tokens, "output": output,
+                                   "context": settings.GENERATION_BATCH_CONTEXT_TOKENS})
+            break
+        step = StepData(Purpose.GRUPO, pair.requirement, group_index=group_index,
+                        documents=pieces_record, retry_of=previous)
+        position = ctx.add(step)
+        try:
+            result = _generate(messages, schema, step, ctx,
+                               max_tokens=prompting.evaluation_max_tokens(),
+                               reasoning_step="evaluation")
+        except InputTooLongError as error:
+            # El motor lo rechazó aunque la cuenta diera que entraba: queda el pedido que no
+            # salió (P6) y se trata como uno que no entra.
+            step.request = generation.build_batch_request(
+                messages, schema, prompting.evaluation_max_tokens(), "evaluation")
+            step.anomalies.append({"type": ANOMALY_TOO_LONG, "message": str(error),
+                                   "tokens": tokens, "output": output})
+            pair.anomalies.append({"type": ANOMALY_TOO_LONG,
+                                   "requirement": pair.requirement.number, "step": position,
+                                   "message": str(error)})
+            if attempt == 0:
+                raise RequestTooLong(None, output, str(error)) from error
+            break
         problem, evaluation, located, backed, data_located = None, None, [], None, []
         portal_cited, evidence, unlocated = [], {}, []
         effective, records, derived, unsupported = [], [], None, False
@@ -692,16 +827,28 @@ def _read_pair(ctx, pair):
             explanation="El requisito no tiene texto citado del pliego: no se puede evaluar.",
             unread_warning=offer_text.has_unread)
         return
-    plan, note = _plan_for(ctx, pair)
+    budget = _pair_budget(ctx, pair)
+    if budget <= 0:
+        # Ni sin documentos entra el pedido (T-261): no se pide nada y el requisito sigue.
+        pair.anomalies.append({"type": ANOMALY_TOO_LONG, "requirement": pair.requirement.number,
+                               "budget": budget,
+                               "context": settings.GENERATION_BATCH_CONTEXT_TOKENS})
+        pair.combined = combine.Combined(
+            outcome=combine.OUT_NO_DETERMINADO, doubt=combine.INCOMPLETE,
+            explanation=TOO_LONG_NOTE, unread_warning=True, ask=True)
+        pair.seconds = ctx.clock() - started
+        return
+    plan, note = _plan_for(ctx, pair, budget)
     if plan.unread_groups:
         pair.anomalies.append({"type": ANOMALY_UNREAD_GROUPS,
                                "requirement": pair.requirement.number,
                                "groups": plan.unread_groups})
+    too_long = 0
     for index, pieces in enumerate(plan.groups):
         if len(plan.groups) > 1:
             ctx.report(f"Leyendo el requisito {pair.requirement.number}: grupo de documentos "
                        f"{index + 1} de {len(plan.groups)}", ctx.read_done, ctx.total)
-        pair.groups.append(_group_result(ctx, pair, index, pieces, note if index == 0 else None))
+        too_long += _read_group(ctx, pair, pieces, note if index == 0 else None, budget)
     pair.external_flagged = any(group.external for group in pair.groups)
     if externals.remedied(ctx.offer, pair.requirement):
         # La Comisión ya subió la hoja: es un documento más y se evalúa por lectura (REQ-063).
@@ -709,8 +856,36 @@ def _read_pair(ctx, pair):
             group.external = False
     pair.combined = combine.combine(
         pair.groups, unread=offer_text.unread, without_reading=offer_text.without_reading,
-        unread_groups=plan.unread_groups)
+        unread_groups=plan.unread_groups + too_long)
+    if too_long and TOO_LONG_NOTE not in pair.combined.explanation:
+        pair.combined = replace(pair.combined, explanation=(
+            f"{pair.combined.explanation} {TOO_LONG_NOTE}".strip()))
     pair.seconds = ctx.clock() - started
+
+
+def _read_group(ctx, pair, pieces, note, budget, splits=0):
+    """Lee un grupo y suma su resultado a `pair.groups`. Si su pedido no entra en el contexto
+    (T-261), lo parte en dos y lee cada mitad, hasta `sizing.MAX_SPLITS` veces; lo que ni así
+    entra queda como un grupo «no determinado» por lectura incompleta, con su anomalía (P6).
+    Devuelve cuántas partes quedaron sin leer."""
+    index = len(pair.groups)
+    try:
+        pair.groups.append(_group_result(ctx, pair, index, pieces, note))
+        return 0
+    except RequestTooLong as error:
+        tokens, output = error.tokens, error.output
+    record = {"requirement": pair.requirement.number, "group": index, "tokens": tokens,
+              "output": output, "context": settings.GENERATION_BATCH_CONTEXT_TOKENS,
+              "budget": budget, "documents": [p.record() for p in pieces], "splits": splits}
+    halves = _halves(pieces) if splits < sizing.MAX_SPLITS else None
+    if halves:
+        pair.anomalies.append({"type": ANOMALY_SPLIT, **record})
+        return sum(_read_group(ctx, pair, half, note if number == 0 else None, budget,
+                               splits + 1) for number, half in enumerate(halves))
+    pair.anomalies.append({"type": ANOMALY_TOO_LONG, **record})
+    pair.groups.append(combine.GroupResult(
+        index, prompting.NO_DETERMINADO, doubt=combine.INCOMPLETE, explanation=TOO_LONG_NOTE))
+    return 1
 
 
 def _supports_text(combined):
@@ -786,10 +961,22 @@ def _clauses_request(ctx, pair, quotes, shown, documents, cited, system, state, 
     previous = ctx.steps[retry_of].raw_output if correction and retry_of is not None else ""
     messages = prompting.build_clauses_messages(system, block, cited, correction, documents,
                                                 previous=previous)
-    result = _generate(messages, prompting.CLAUSES_SCHEMA, step, ctx,
-                       max_tokens=settings.ASSESSMENT_CLAUSES_MAX_OUTPUT_TOKENS,
-                       reasoning_step="contrast")
     instruction = prompting.prompt_record("clausulas")
+    try:
+        result = _generate(messages, prompting.CLAUSES_SCHEMA, step, ctx,
+                           max_tokens=settings.ASSESSMENT_CLAUSES_MAX_OUTPUT_TOKENS,
+                           reasoning_step="contrast")
+    except InputTooLongError as error:
+        # T-261: como una salida inválida (el contraste se parte o queda sin corroborar).
+        step.request = generation.build_batch_request(
+            messages, prompting.CLAUSES_SCHEMA, settings.ASSESSMENT_CLAUSES_MAX_OUTPUT_TOKENS,
+            "contrast")
+        step.anomalies.append({"type": ANOMALY_TOO_LONG, "message": str(error)})
+        step.parsed = {"instruccion": instruction}
+        pair.anomalies.append({"type": ANOMALY_TOO_LONG, "requirement": pair.requirement.number,
+                               "step": position})
+        state["last"] = position
+        return None
     try:
         rows, question = prompting.parse_clauses(result.content)
     except prompting.InvalidOutput as error:
@@ -897,8 +1084,21 @@ def _contrast_pair(ctx, pair):
             system, pair.text.render(), conclusion, cited, _supports_text(combined),
             correction, portal_cites=portal_cites, previous=previous_output,
             portal_offer=portal_offer)
-        result = _generate(messages, prompting.CONTRAST_SCHEMA, step, ctx,
-                           reasoning_step="contrast")
+        try:
+            result = _generate(messages, prompting.CONTRAST_SCHEMA, step, ctx,
+                               reasoning_step="contrast")
+        except InputTooLongError as error:
+            # T-261: el contraste no se pudo pedir; el «cumple» o «no cumple» queda sin
+            # corroborar y la oferta sigue.
+            step.request = generation.build_batch_request(
+                messages, prompting.CONTRAST_SCHEMA, settings.ASSESSMENT_MAX_OUTPUT_TOKENS,
+                "contrast")
+            step.anomalies.append({"type": ANOMALY_TOO_LONG, "message": str(error)})
+            step.parsed = {"instruccion": instruction}
+            pair.anomalies.append({"type": ANOMALY_TOO_LONG,
+                                   "requirement": pair.requirement.number, "step": position})
+            answer, reason = None, "el pedido no entra en el contexto"
+            break
         try:
             answer, reason = prompting.parse_contrast(result.content)
         except prompting.InvalidOutput as error:
@@ -918,7 +1118,7 @@ def _contrast_pair(ctx, pair):
                        "instruccion": instruction}
         break
     if answer is None:
-        answer, reason = "parcial", "el contraste no devolvió una salida válida"
+        answer, reason = "parcial", reason or "el contraste no devolvió una salida válida"
     pair.contrast = (answer, reason)
     pair.combined = combine.apply_contrast(combined, answer, reason)
     pair.seconds += ctx.clock() - started
@@ -1093,7 +1293,10 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
                   "pieces": len(offer_text.pieces), "tokens": offer_text.tokens,
                   "unread_pages": len(offer_text.unread),
                   "without_reading": len(offer_text.without_reading),
-                  "vision": {**seen.record(), "citations": vision_cited}}
+                  "vision": {**seen.record(), "citations": vision_cited},
+                  # T-261: el tope de documentos por grupo de cada requisito (P6).
+                  "group_budgets": {str(number): budget
+                                    for number, budget in ctx.budgets.items()}}
         timings = {"total_seconds": round(clock() - started, 3), "pairs": len(pairs),
                    "model_requests": len(ctx.steps),
                    "pair_seconds": {str(p.requirement.number): round(p.seconds, 3)

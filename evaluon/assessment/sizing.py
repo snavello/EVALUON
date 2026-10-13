@@ -13,6 +13,14 @@ la dio por ilegible.
 
 No guarda nada en la base ni en el repositorio: devuelve diccionarios. Los números por
 documento los guarda el comando fuera del repositorio.
+
+Lo que entra en un pedido de lectura (T-261, D-260-1): el tope de los documentos de un grupo es lo
+que queda del contexto del motor de lotes (`GENERATION_BATCH_CONTEXT_TOKENS`) después de la
+instrucción, el bloque del Portal, el requisito con su punto, las respuestas de la Comisión y las
+normas que van al pedido, la salida máxima, el tope de razonamiento del paso si está encendido y un
+margen (`documents_budget`); `ASSESSMENT_GROUP_TOKENS` queda como techo. Antes de mandar un pedido
+se cuentan sus mensajes tal como salen (`request_fits`). Todas las cuentas son con el tokenizador
+del motor de lotes (`generation.count_tokens_batch`).
 """
 
 from django.conf import settings
@@ -21,6 +29,19 @@ from evaluon.ai import generation
 
 # Estados del informe de lectura que marcan una página como no leída.
 UNREAD_KEYS = ("unread",)
+
+# Lo que agrega la plantilla de conversación a los mensajes contados uno por uno: con Qwen3, unos
+# 5 tokens por mensaje y el comienzo de la respuesta (`/tokenize` no los ve). Es el margen de la
+# cuenta de un pedido ya armado (`request_fits`).
+TEMPLATE_TOKENS = 64
+# Margen del tope de documentos de un grupo (`documents_budget`): la plantilla, el marco de cada
+# documento en el pedido («[D1]» … «[/D1]», el aviso de ventana, el salto entre páginas) y lo que
+# difiere contar el texto por página del texto entero; en un grupo de 15 documentos y 80 páginas,
+# unos 450 tokens. Con lo que sobra, un pedido planeado al tope entra al contarlo armado.
+REQUEST_MARGIN_TOKENS = 1024
+# Cuántas veces se parte en dos un grupo cuyo pedido no entra en el contexto: hasta 8 pedidos por
+# grupo planeado. Lo que ni así entra queda «no determinado» (`services/evaluate.py`).
+MAX_SPLITS = 3
 
 
 def document_pages(reading):
@@ -151,3 +172,43 @@ def measure_offer(offer, count=None, budget=None):
         "groups": len(groups),
         "group_tokens": [sum(item["tokens"] for item in group) for group in groups],
     }
+
+
+# --- Lo que entra en un pedido de lectura (T-261, D-260-1) -----------------------------------
+
+
+def reserved_output(max_tokens, step=None):
+    """Los tokens de salida que se reservan en el contexto para un pedido: su máximo de salida y,
+    si el razonamiento propio del paso `step` está encendido, su tope de razonamiento (el que
+    `generation.build_request` suma al máximo del pedido)."""
+    level = generation.reasoning_level(step)
+    if level is None:
+        return max_tokens
+    return max_tokens + settings.GENERATION_BATCH_REASONING_BUDGET_TOKENS[level]
+
+
+def documents_budget(fixed_tokens, output_tokens, *, context=None, ceiling=None, margin=None):
+    """El tope de tokens de los documentos de un grupo: el contexto del motor de lotes menos lo
+    que lleva el pedido además de los documentos (`fixed_tokens`: la instrucción, el bloque del
+    Portal, el requisito con su punto, las respuestas y las normas), la salida reservada
+    (`reserved_output`) y el margen, con `ASSESSMENT_GROUP_TOKENS` como techo. Nunca negativo:
+    0 si ni sin documentos entra el pedido."""
+    context = context or settings.GENERATION_BATCH_CONTEXT_TOKENS
+    ceiling = ceiling or settings.ASSESSMENT_GROUP_TOKENS
+    margin = REQUEST_MARGIN_TOKENS if margin is None else margin
+    return max(0, min(ceiling, context - fixed_tokens - output_tokens - margin))
+
+
+def messages_tokens(messages, count=None):
+    """Los tokens de los mensajes de un pedido tal como salen: el contenido de cada uno con el
+    tokenizador del motor de lotes, más lo que agrega la plantilla (`TEMPLATE_TOKENS`)."""
+    count = count or generation.count_tokens_batch
+    return sum(count(m["content"]) for m in messages if m.get("content")) + TEMPLATE_TOKENS
+
+
+def request_fits(messages, output_tokens, *, count=None, context=None):
+    """`(entra, tokens)`: si los mensajes y la salida reservada entran en el contexto del motor
+    de lotes, y los tokens de los mensajes (`messages_tokens`)."""
+    context = context or settings.GENERATION_BATCH_CONTEXT_TOKENS
+    tokens = messages_tokens(messages, count)
+    return tokens + output_tokens <= context, tokens
