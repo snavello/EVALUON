@@ -71,7 +71,7 @@ flowchart LR
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 40/45 | █████████░ 89% |
-| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 26/30 | █████████░ 87% |
+| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 28/31 | █████████░ 90% |
 
 <a id="001"></a>
 
@@ -98,70 +98,70 @@ flowchart LR
 ### Qué se hizo
 
 - Etapas completas: Spec, Plan, Tareas.
-- ✓ T-001 · Comprobar la GPU dentro de un contenedor (`3b7a8a7` 2026-10-02)
-- ✓ T-002 · Levantar el motor de generación y medir su velocidad (`5fdf016` 2026-10-02)
-- ✓ T-003 · Levantar embeddings y reranker y medir la memoria de video (`d1eaa07` 2026-10-02)
-- ✓ T-004 · Fijar Postgres con sus extensiones y búsqueda en español (`1a9d113` 2026-10-02)
-- ✓ T-005 · Armar el esqueleto de Django con sus librerías (`d771da6` 2026-10-02)
-- ✓ T-006 · Crear usuarios con rol, ingreso y salida (`4ceae34` 2026-10-02, `f76f0a2` 2026-10-02)
-- ✓ T-007 · Crear el registro de auditoría y el alta de usuarios (`960121e` 2026-10-02, `04d537d` 2026-10-02)
-- ✓ T-008 · Crear las tablas de normas, lecturas, unidades y pasajes (`210e12f` 2026-10-02)
-- ✓ T-009 · Crear las funciones de unidades consultables a una fecha (`9f1886e` 2026-10-02, `b9ca5d3` 2026-10-02)
-- ✓ T-010 · Crear la tabla del registro detallado de consultas (`cc485fc` 2026-10-02)
-- ✓ T-011 · Crear los clientes de IA, sus dobles y los parámetros (`fb2f640` 2026-10-02)
-- ✓ T-012 · Leer un PDF con texto (`977f834` 2026-10-02, `ef7d903` 2026-10-02)
-- ✓ T-013 · Partir en artículos y armar el informe mínimo (`a4e0391` 2026-10-03)
-- ✓ T-014 · Cargar una norma, listarla y ver su informe (`e53cc24` 2026-10-03, `d115ccf` 2026-10-03)
-- ✓ T-015 · Validar una lectura y calcular pasajes y vectores (`420eae6` 2026-10-03, `845bdae` 2026-10-03)
-- ✓ T-016 · Armar la pantalla de consulta con sus tres bloques (`ceff61d` 2026-10-03, `bb49b8c` 2026-10-03)
-- ✓ T-017 · Recuperar por significado y reordenar con el reranker (`f31dab6` 2026-10-03)
-- ✓ T-018 · Generar la respuesta con esquema e insertar las citas (`33f0f08` 2026-10-03, `9830fe5` 2026-10-03)
-- ✓ T-019 · Unir la consulta de punta a punta con su registro (`2685761` 2026-10-03, `71fd67b` 2026-10-03)
-- ✓ T-020 · Probar el hilo mínimo con los servicios reales (`b520afe` 2026-10-03)
-- ✓ T-021 · Leer un PDF escaneado con reconocimiento de texto (`223295e` 2026-10-03, `197dada` 2026-10-03)
-- ✓ T-022 · Leer una página web guardada (`3d9224f` 2026-10-03, `c12d12c` 2026-10-03)
-- ✓ T-023 · Partir normas completas con incisos, anexos y considerandos (`07000e3` 2026-10-03, `9fcf7ba` 2026-10-03, `b3b20b9` 2026-10-03)
-- ✓ T-024 · Partir dictámenes y recomendaciones en puntos y párrafos (`eee73f3` 2026-10-03, `33bb89f` 2026-10-03)
-- ✓ T-025 · Completar el informe de lectura (`8d488ab` 2026-10-03, `894c7a7` 2026-10-03, `3986cbf` 2026-10-03)
-- ✓ T-026 · Avisar duplicados al cargar una norma (`7ff80c5` 2026-10-03, `dd34b1a` 2026-10-03)
-- ✓ T-027 · Releer un documento y reemplazar la lectura anterior (`025253b` 2026-10-03, `154e309` 2026-10-03)
-- ✓ T-028 · Integrar los tres formatos en la carga (`0eae60c` 2026-10-03)
-- ✓ T-029 · Registrar relaciones entre normas y mostrar los vínculos (`eb8e443` 2026-10-03, `7748cf7` 2026-10-03)
-- ✓ T-030 · Registrar versiones de una norma (`2844775` 2026-10-03)
-- ✓ T-031 · Partir en pasajes las unidades largas (`282ab7f` 2026-10-03, `955ce90` 2026-10-03, `c1e2088` 2026-10-03)
-- ✓ T-032 · Recuperar por tres caminos y unir los candidatos (`fde3aef` 2026-10-03)
-- ✓ T-033 · Seleccionar por categoría, sumar cambios y ordenar (`e839ed2` 2026-10-03, `a26c1c1` 2026-10-03)
-- ✓ T-034 · Completar instrucciones, marca de regímenes y orden (`c7ad4bc` 2026-10-03, `fc426a7` 2026-10-03)
-- ✓ T-035 · Buscar unidades por artículo y por palabras (`5cf1cbc` 2026-10-03, `92ec485` 2026-10-03)
-- ✓ T-036 · Entregar el documento original con sesión (`07ea00d` 2026-10-03)
-- ✓ T-037 · Mostrar las citas con categoría, papel y cambios (`aa4b436` 2026-10-03, `2ca66e6` 2026-10-03)
-- ✓ T-038 · Registrar ingresos, ingresos fallidos y rechazos por rol (`2ef5e3b` 2026-10-03)
-- ✓ T-039 · Correr el conjunto de preguntas y medir las exigencias (`df00322` 2026-10-03, `13ae5e6` 2026-10-03, `97c998c` 2026-10-03)
-- ✓ T-040 · Unir recuperación y generación completas con su registro (`218774c` 2026-10-03, `ec72483` 2026-10-03, `1479dcd` 2026-10-03)
-- ✓ T-041 · Mostrar y registrar la búsqueda en la pantalla (`ae7f271` 2026-10-03, `3e34bf9` 2026-10-03)
-- ✓ T-042 · Agregar calibración del umbral y comparación de corridas (`a7af689` 2026-10-03, `ef536b1` 2026-10-03, `32e5b9a` 2026-10-03)
-- ✓ T-043 · Cargar y validar el corpus real y ajustar las reglas (`1846ff0` 2026-10-03, `21dfe48` 2026-10-03, `1095c72` 2026-10-03, `5104eb2` 2026-10-03)
+- ✓ T-001 · Comprobar la GPU dentro de un contenedor (`3b7a8a77` 2026-10-02)
+- ✓ T-002 · Levantar el motor de generación y medir su velocidad (`5fdf0169` 2026-10-02)
+- ✓ T-003 · Levantar embeddings y reranker y medir la memoria de video (`d1eaa072` 2026-10-02)
+- ✓ T-004 · Fijar Postgres con sus extensiones y búsqueda en español (`1a9d113e` 2026-10-02)
+- ✓ T-005 · Armar el esqueleto de Django con sus librerías (`d771da60` 2026-10-02)
+- ✓ T-006 · Crear usuarios con rol, ingreso y salida (`4ceae342` 2026-10-02, `f76f0a28` 2026-10-02)
+- ✓ T-007 · Crear el registro de auditoría y el alta de usuarios (`960121ef` 2026-10-02, `04d537de` 2026-10-02)
+- ✓ T-008 · Crear las tablas de normas, lecturas, unidades y pasajes (`210e12f9` 2026-10-02)
+- ✓ T-009 · Crear las funciones de unidades consultables a una fecha (`9f1886e2` 2026-10-02, `b9ca5d36` 2026-10-02)
+- ✓ T-010 · Crear la tabla del registro detallado de consultas (`cc485fc2` 2026-10-02)
+- ✓ T-011 · Crear los clientes de IA, sus dobles y los parámetros (`fb2f6404` 2026-10-02)
+- ✓ T-012 · Leer un PDF con texto (`977f8340` 2026-10-02, `ef7d9032` 2026-10-02)
+- ✓ T-013 · Partir en artículos y armar el informe mínimo (`a4e03914` 2026-10-03)
+- ✓ T-014 · Cargar una norma, listarla y ver su informe (`e53cc24d` 2026-10-03, `d115ccf7` 2026-10-03)
+- ✓ T-015 · Validar una lectura y calcular pasajes y vectores (`420eae69` 2026-10-03, `845bdae1` 2026-10-03)
+- ✓ T-016 · Armar la pantalla de consulta con sus tres bloques (`ceff61d8` 2026-10-03, `bb49b8c6` 2026-10-03)
+- ✓ T-017 · Recuperar por significado y reordenar con el reranker (`f31dab69` 2026-10-03)
+- ✓ T-018 · Generar la respuesta con esquema e insertar las citas (`33f0f080` 2026-10-03, `9830fe54` 2026-10-03)
+- ✓ T-019 · Unir la consulta de punta a punta con su registro (`2685761c` 2026-10-03, `71fd67bb` 2026-10-03)
+- ✓ T-020 · Probar el hilo mínimo con los servicios reales (`b520afe2` 2026-10-03)
+- ✓ T-021 · Leer un PDF escaneado con reconocimiento de texto (`223295ea` 2026-10-03, `197dada0` 2026-10-03)
+- ✓ T-022 · Leer una página web guardada (`3d9224fd` 2026-10-03, `c12d12ca` 2026-10-03)
+- ✓ T-023 · Partir normas completas con incisos, anexos y considerandos (`07000e3d` 2026-10-03, `9fcf7ba9` 2026-10-03, `b3b20b97` 2026-10-03)
+- ✓ T-024 · Partir dictámenes y recomendaciones en puntos y párrafos (`eee73f36` 2026-10-03, `33bb89f9` 2026-10-03)
+- ✓ T-025 · Completar el informe de lectura (`8d488ab6` 2026-10-03, `894c7a78` 2026-10-03, `3986cbf2` 2026-10-03)
+- ✓ T-026 · Avisar duplicados al cargar una norma (`7ff80c51` 2026-10-03, `dd34b1a7` 2026-10-03)
+- ✓ T-027 · Releer un documento y reemplazar la lectura anterior (`025253bf` 2026-10-03, `154e3097` 2026-10-03)
+- ✓ T-028 · Integrar los tres formatos en la carga (`0eae60c0` 2026-10-03)
+- ✓ T-029 · Registrar relaciones entre normas y mostrar los vínculos (`eb8e4431` 2026-10-03, `7748cf71` 2026-10-03)
+- ✓ T-030 · Registrar versiones de una norma (`28447756` 2026-10-03)
+- ✓ T-031 · Partir en pasajes las unidades largas (`282ab7f0` 2026-10-03, `955ce907` 2026-10-03, `c1e20884` 2026-10-03)
+- ✓ T-032 · Recuperar por tres caminos y unir los candidatos (`fde3aef8` 2026-10-03)
+- ✓ T-033 · Seleccionar por categoría, sumar cambios y ordenar (`e839ed26` 2026-10-03, `a26c1c1a` 2026-10-03)
+- ✓ T-034 · Completar instrucciones, marca de regímenes y orden (`c7ad4bc5` 2026-10-03, `fc426a7c` 2026-10-03)
+- ✓ T-035 · Buscar unidades por artículo y por palabras (`5cf1cbc4` 2026-10-03, `92ec485a` 2026-10-03)
+- ✓ T-036 · Entregar el documento original con sesión (`07ea00d0` 2026-10-03)
+- ✓ T-037 · Mostrar las citas con categoría, papel y cambios (`aa4b4366` 2026-10-03, `2ca66e65` 2026-10-03)
+- ✓ T-038 · Registrar ingresos, ingresos fallidos y rechazos por rol (`2ef5e3b9` 2026-10-03)
+- ✓ T-039 · Correr el conjunto de preguntas y medir las exigencias (`df00322f` 2026-10-03, `13ae5e6b` 2026-10-03, `97c998c8` 2026-10-03)
+- ✓ T-040 · Unir recuperación y generación completas con su registro (`218774ce` 2026-10-03, `ec724838` 2026-10-03, `1479dcd7` 2026-10-03)
+- ✓ T-041 · Mostrar y registrar la búsqueda en la pantalla (`ae7f2715` 2026-10-03, `3e34bf9f` 2026-10-03)
+- ✓ T-042 · Agregar calibración del umbral y comparación de corridas (`a7af689a` 2026-10-03, `ef536b1f` 2026-10-03, `32e5b9ab` 2026-10-03)
+- ✓ T-043 · Cargar y validar el corpus real y ajustar las reglas (`1846ff00` 2026-10-03, `21dfe482` 2026-10-03, `1095c721` 2026-10-03, `5104eb29` 2026-10-03)
 - ✓ T-044 · Registrar relaciones, versiones y modificatorias del corpus
-- ✓ T-045 · Calibrar el umbral con el conjunto de preguntas (`817b146` 2026-10-03, `10e2c88` 2026-10-03)
+- ✓ T-045 · Calibrar el umbral con el conjunto de preguntas (`817b1463` 2026-10-03, `10e2c885` 2026-10-03)
 - ✓ T-046 · Correr las evals y medir tiempo y memoria
 - ✓ T-047 · Probar una consulta con la red desconectada
 - ✓ T-048 · Probar el respaldo y la restauración de la base
-- ✓ T-050 · Partir la 297/03 y el cuerpo de la 247/2022 desde la web (`c27c9c4` 2026-10-03, `5941a37` 2026-10-03)
-- ✓ T-051 · Registrar las modificatorias sin cargar de una norma (`375ba21` 2026-10-03, `73a199a` 2026-10-03)
-- ✓ T-052 · Avisar modificatorias sin cargar en respuesta y búsqueda (`5eb1059` 2026-10-03, `84ad9d4` 2026-10-03, `8b43218` 2026-10-03)
-- ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d59` 2026-10-02, `122f9c7` 2026-10-02)
-- ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7` 2026-10-03)
-- ✓ T-055 · Agregar el nombre de cita de la norma (`ff230c8` 2026-10-03, `88796e6` 2026-10-03)
-- ✓ T-056 · Mostrar en la búsqueda solo lo vigente, con casilla para los derogados (`7c34545` 2026-10-03)
-- ✓ T-057 · Tratar AFIP y ARCA como el mismo organismo (`98b3ef6` 2026-10-03, `d27d51a` 2026-10-03)
-- ✓ T-058 · Corrector tolerante de datos clave (`ab1d1f1` 2026-10-03, `9eaddbe` 2026-10-03)
+- ✓ T-050 · Partir la 297/03 y el cuerpo de la 247/2022 desde la web (`c27c9c4a` 2026-10-03, `5941a37c` 2026-10-03)
+- ✓ T-051 · Registrar las modificatorias sin cargar de una norma (`375ba21e` 2026-10-03, `73a199a9` 2026-10-03)
+- ✓ T-052 · Avisar modificatorias sin cargar en respuesta y búsqueda (`5eb10590` 2026-10-03, `84ad9d44` 2026-10-03, `8b432188` 2026-10-03)
+- ✓ T-053 · Conservar la eñe en la búsqueda por palabras (`18a8d597` 2026-10-02, `122f9c79` 2026-10-02)
+- ✓ T-054 · Pasar a la aplicación las variables de los servicios de IA (`4f4fea7c` 2026-10-03)
+- ✓ T-055 · Agregar el nombre de cita de la norma (`ff230c8e` 2026-10-03, `88796e62` 2026-10-03)
+- ✓ T-056 · Mostrar en la búsqueda solo lo vigente, con casilla para los derogados (`7c345454` 2026-10-03)
+- ✓ T-057 · Tratar AFIP y ARCA como el mismo organismo (`98b3ef60` 2026-10-03, `d27d51ab` 2026-10-03)
+- ✓ T-058 · Corrector tolerante de datos clave (`ab1d1f1b` 2026-10-03, `9eaddbe2` 2026-10-03)
 - ✓ T-059 · Reescribir los datos clave del conjunto dorado
-- ✓ T-060 · Calibración por hueco, lote de aceptación y margen de error en las evals (`9025f48` 2026-10-03)
+- ✓ T-060 · Calibración por hueco, lote de aceptación y margen de error en las evals (`9025f486` 2026-10-03)
 - ✓ T-061 · Redactar el lote de aceptación
-- ✓ T-062 · Fijar el umbral con la regla nueva (`faff0cc` 2026-10-03, `7c321bd` 2026-10-03)
-- ✓ T-063 · Instrucciones para responder la remisión a una norma no cargada (`0b6cbae` 2026-10-03, `d5b96d4` 2026-10-03)
+- ✓ T-062 · Fijar el umbral con la regla nueva (`faff0ccc` 2026-10-03, `7c321bdd` 2026-10-03)
+- ✓ T-063 · Instrucciones para responder la remisión a una norma no cargada (`0b6cbaeb` 2026-10-03, `d5b96d4f` 2026-10-03)
 - ✓ T-064 · Reescribir EV-027, EV-028 y EV-029 como preguntas con respuesta
-- ✓ T-065 · Corregir la espera intermitente de `test_wait` y el borde de la calibración (`4ff607b` 2026-10-03)
+- ✓ T-065 · Corregir la espera intermitente de `test_wait` y el borde de la calibración (`4ff607b4` 2026-10-03)
 
 ### Mapa de tareas
 
@@ -397,70 +397,70 @@ flowchart LR
 ### Qué se hizo
 
 - Etapas completas: Spec, Plan, Tareas.
-- ✓ T-067 · Crear las tablas, los tipos de hecho y los parámetros de la 003 (`bdf0c75` 2026-10-03, `503e52f` 2026-10-03, `c4eec91` 2026-10-03)
-- ✓ T-068 · Sumar el rol de la Comisión a los usuarios (`25dca05` 2026-10-03)
-- ✓ T-069 · Registrar un procedimiento y mostrar su régimen (`abd641a` 2026-10-03)
-- ✓ T-070 · Partir un pliego en tramos con renglones, clase por sección y control de cobertura (`0eb72dc` 2026-10-03, `27c48dc` 2026-10-03)
-- ✓ T-071 · Ejecutar pedidos en segundo plano con su propio motor (`126bcf7` 2026-10-03, `d7c2a28` 2026-10-03)
-- ✓ T-072 · Cargar los documentos del pliego y leerlos en segundo plano (`ce61ba4` 2026-10-03, `7dd8e36` 2026-10-03, `a8e4455` 2026-10-03)
-- ✓ T-073 · Proponer la matriz en nivel media, con filas técnicas por renglón (`4ead4b6` 2026-10-03, `b1fc420` 2026-10-03)
-- ✓ T-074 · Mostrar la matriz propuesta con la leyenda de borrador, la cobertura y el aviso de fin (`14bdf45` 2026-10-03)
+- ✓ T-067 · Crear las tablas, los tipos de hecho y los parámetros de la 003 (`bdf0c757` 2026-10-03, `503e52f6` 2026-10-03, `c4eec914` 2026-10-03)
+- ✓ T-068 · Sumar el rol de la Comisión a los usuarios (`25dca059` 2026-10-03)
+- ✓ T-069 · Registrar un procedimiento y mostrar su régimen (`abd641a5` 2026-10-03)
+- ✓ T-070 · Partir un pliego en tramos con renglones, clase por sección y control de cobertura (`0eb72dc8` 2026-10-03, `27c48dcd` 2026-10-03)
+- ✓ T-071 · Ejecutar pedidos en segundo plano con su propio motor (`126bcf7b` 2026-10-03, `d7c2a284` 2026-10-03)
+- ✓ T-072 · Cargar los documentos del pliego y leerlos en segundo plano (`ce61ba49` 2026-10-03, `7dd8e364` 2026-10-03, `a8e44555` 2026-10-03)
+- ✓ T-073 · Proponer la matriz en nivel media, con filas técnicas por renglón (`4ead4b66` 2026-10-03, `b1fc4201` 2026-10-03)
+- ✓ T-074 · Mostrar la matriz propuesta con la leyenda de borrador, la cobertura y el aviso de fin (`14bdf45e` 2026-10-03)
 - ✓ T-075 · Probar el hilo mínimo con el caso-00 y los servicios reales
 - ✓ T-076 · Preparar la lista esperada del caso-00
-- ✓ T-077 · Medir una propuesta contra una lista esperada (`7f38de6` 2026-10-03, `89be409` 2026-10-03)
-- ✓ T-078 · Completar los niveles alta y exigente (`eb07cf5` 2026-10-03, `062b704` 2026-10-03)
-- ✓ T-079 · Revisar la matriz: confirmar, corregir, quitar y agregar (`6f1d7ce` 2026-10-04, `99b6f89` 2026-10-04, `079bc82` 2026-10-04)
-- ✓ T-080 · Sugerir consecuencias con fundamento (`5bd4a61` 2026-10-04, `9325480` 2026-10-04)
-- ✓ T-081 · Elegir la consecuencia en la pantalla, con su motivo (`5c5c251` 2026-10-04, `f7671a6` 2026-10-04)
-- ✓ T-082 · Validar la matriz y abrir versiones nuevas (`6075ebf` 2026-10-04, `7aca471` 2026-10-04)
-- ✓ T-083 · Incorporar circulares y respuestas a consultas (`0169b78` 2026-10-04, `89ecc70` 2026-10-04, `5b5dcc2` 2026-10-04)
+- ✓ T-077 · Medir una propuesta contra una lista esperada (`7f38de67` 2026-10-03, `89be4091` 2026-10-03)
+- ✓ T-078 · Completar los niveles alta y exigente (`eb07cf5b` 2026-10-03, `062b7044` 2026-10-03)
+- ✓ T-079 · Revisar la matriz: confirmar, corregir, quitar y agregar (`6f1d7ced` 2026-10-04, `99b6f897` 2026-10-04, `079bc826` 2026-10-04)
+- ✓ T-080 · Sugerir consecuencias con fundamento (`5bd4a619` 2026-10-04, `9325480d` 2026-10-04)
+- ✓ T-081 · Elegir la consecuencia en la pantalla, con su motivo (`5c5c2515` 2026-10-04, `f7671a6c` 2026-10-04)
+- ✓ T-082 · Validar la matriz y abrir versiones nuevas (`6075ebf1` 2026-10-04, `7aca471f` 2026-10-04)
+- ✓ T-083 · Incorporar circulares y respuestas a consultas (`0169b783` 2026-10-04, `89ecc70f` 2026-10-04, `5b5dcc2a` 2026-10-04)
 - ✓ T-084 · Correr la medición del caso-00
-- ✓ T-085 · Ofrecer solo los niveles que mejoran (`94b2968` 2026-10-04, `83288a8` 2026-10-04)
-- ✓ T-086 · Imprimir y exportar la matriz a PDF con la leyenda de borrador (`6eae612` 2026-10-04, `28da1a5` 2026-10-04, `edc112f` 2026-10-04)
-- ✓ T-087 · Comparar en la misma zona horaria la fecha de lectura del informe (`5a07f91` 2026-10-03)
-- ✓ T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro (`94ab0d5` 2026-10-04)
-- ✓ T-089 · Contar bien las páginas en la extrapolación de tiempos (`067485c` 2026-10-04)
-- ✓ T-090 · Investigar y corregir los reinicios de los servidores de generación (`2c408bd` 2026-10-04)
-- ✓ T-091 · Comparar niveles medidos en corridas separadas (`2bacc1c` 2026-10-04)
-- ✓ T-092 · Aceptar las divisiones de la completitud aunque el original no coincida letra por letra (`96533e1` 2026-10-04, `580cc6b` 2026-10-04)
-- ✓ T-093 · Ajustar las instrucciones con el caso-00 (enumeraciones, tablas, condiciones como efecto) (`86b2e76` 2026-10-04)
+- ✓ T-085 · Ofrecer solo los niveles que mejoran (`94b2968f` 2026-10-04, `83288a89` 2026-10-04)
+- ✓ T-086 · Imprimir y exportar la matriz a PDF con la leyenda de borrador (`6eae612d` 2026-10-04, `28da1a58` 2026-10-04, `edc112f6` 2026-10-04)
+- ✓ T-087 · Comparar en la misma zona horaria la fecha de lectura del informe (`5a07f912` 2026-10-03)
+- ✓ T-088 · Cambiar el rol de la Comisión de un usuario existente, con registro (`94ab0d57` 2026-10-04)
+- ✓ T-089 · Contar bien las páginas en la extrapolación de tiempos (`067485c0` 2026-10-04)
+- ✓ T-090 · Investigar y corregir los reinicios de los servidores de generación (`2c408bd7` 2026-10-04)
+- ✓ T-091 · Comparar niveles medidos en corridas separadas (`2bacc1c3` 2026-10-04)
+- ✓ T-092 · Aceptar las divisiones de la completitud aunque el original no coincida letra por letra (`96533e1a` 2026-10-04, `580cc6b5` 2026-10-04)
+- ✓ T-093 · Ajustar las instrucciones con el caso-00 (enumeraciones, tablas, condiciones como efecto) (`86b2e769` 2026-10-04)
 - ✓ T-094 · Medir la aceptación con los casos 01 y 02
-- ✓ T-095 · Contar como "a revisión obligatoria" los requisitos en tramos pendientes (`e532652` 2026-10-04, `4480d62` 2026-10-04, `3509e0c` 2026-10-04)
-- ✓ T-096 · Corregir la cobertura de tramos de `medir_matriz` cuando hay circulares (`56892b0` 2026-10-04)
-- ✓ T-097 · Corregir la cita literal de las filas técnicas con varios documentos en `medir_matriz` (`8e2f6f2` 2026-10-04)
-- ✓ T-098 · Corregir la pasada de circulares (fuentes, tramos descartados y no ubicados) (`91dfa17` 2026-10-04, `ade33cd` 2026-10-04)
-- ✓ T-099 · Crear la tabla de filas descartadas, el estado de sugerencia, el respaldo normativo, las citas repetidas y los parámetros del filtro (`60b3e30` 2026-10-04)
-- ✓ T-100 · Quitar el nivel "media" y dejar un solo proceso registrado (`4b49bad` 2026-10-04, `b271132` 2026-10-04)
-- ✓ T-101 · Unificar las filas que repiten la misma condición (`cdae731` 2026-10-04, `c0fb425` 2026-10-04, `432b167` 2026-10-04, `faedb67` 2026-10-04)
-- ✓ T-102 · Filtrar con dos preguntas y repartir cada fila en firme, sugerencia o descartada (`387d127` 2026-10-04, `38b1a5a` 2026-10-04)
-- ✓ T-103 · Medir los sobrantes sobre las filas firmes, con tope e informe de descartadas (`c631202` 2026-10-04, `73b947a` 2026-10-04)
-- ✓ T-104 · Listar y devolver las filas descartadas, y revisar por grupos (`db7c8e2` 2026-10-04)
-- ✓ T-105 · Mostrar las descartadas, las citas repetidas y la revisión por grupos (`aeb4cc5` 2026-10-04)
+- ✓ T-095 · Contar como "a revisión obligatoria" los requisitos en tramos pendientes (`e5326527` 2026-10-04, `4480d628` 2026-10-04, `3509e0c2` 2026-10-04)
+- ✓ T-096 · Corregir la cobertura de tramos de `medir_matriz` cuando hay circulares (`56892b07` 2026-10-04)
+- ✓ T-097 · Corregir la cita literal de las filas técnicas con varios documentos en `medir_matriz` (`8e2f6f2c` 2026-10-04)
+- ✓ T-098 · Corregir la pasada de circulares (fuentes, tramos descartados y no ubicados) (`91dfa171` 2026-10-04, `ade33cd3` 2026-10-04)
+- ✓ T-099 · Crear la tabla de filas descartadas, el estado de sugerencia, el respaldo normativo, las citas repetidas y los parámetros del filtro (`60b3e30f` 2026-10-04)
+- ✓ T-100 · Quitar el nivel "media" y dejar un solo proceso registrado (`4b49bad7` 2026-10-04, `b271132d` 2026-10-04)
+- ✓ T-101 · Unificar las filas que repiten la misma condición (`cdae731e` 2026-10-04, `c0fb425a` 2026-10-04, `432b167f` 2026-10-04, `faedb67d` 2026-10-04)
+- ✓ T-102 · Filtrar con dos preguntas y repartir cada fila en firme, sugerencia o descartada (`387d127f` 2026-10-04, `38b1a5a9` 2026-10-04)
+- ✓ T-103 · Medir los sobrantes sobre las filas firmes, con tope e informe de descartadas (`c6312020` 2026-10-04, `73b947a9` 2026-10-04)
+- ✓ T-104 · Listar y devolver las filas descartadas, y revisar por grupos (`db7c8e29` 2026-10-04)
+- ✓ T-105 · Mostrar las descartadas, las citas repetidas y la revisión por grupos (`aeb4cc5b` 2026-10-04)
 - ✓ T-107 · Decidir con el responsable el tope, la lista y las sugerencias con lo medido en el caso-00
 - ✓ T-108 · Medir la aceptación del proceso con filtro y sugerencias con los casos 01 y 02, y REQ-031 con los casos 03 y 04
-- ✓ T-109 · Buscar el respaldo normativo de cada sugerencia, sin que nunca la descarte (`deffcef` 2026-10-04, `a83f225` 2026-10-04, `d90da9b` 2026-10-04)
-- ✓ T-110 · Decidir las sugerencias: pasar a requisito o quitar, una por una o por grupo, y bloquear la validación (`19b59ad` 2026-10-04)
-- ✓ T-111 · Medir las sugerencias y el respaldo normativo: a revisión obligatoria e informe (`1cf2783` 2026-10-04, `4f65104` 2026-10-04)
-- ✓ T-112 · Mostrar la sección de sugerencias con su respaldo en la pantalla y en la impresión (`a6115fe` 2026-10-04)
-- ✓ T-113 · Pasada de circulares, entrega 1: unidades de cambio aplicadas por clave, sin modelo (`cb8072c` 2026-10-04)
-- ✓ T-114 · Crear el campo de original en un anexo, el pedido de extracción de cambios y los parámetros de circulares (`8b858d6` 2026-10-04)
-- ✓ T-115 · Pasada de circulares, entrega 2: el modelo extrae la lista de cambios donde no hay clave (`1955dc6` 2026-10-04, `63f815c` 2026-10-04)
-- ✓ T-116 · Mostrar y imprimir el original en el anexo, el cambio agrupado y el requisito agregado por una circular (`894321e` 2026-10-04, `f17dce3` 2026-10-04)
-- ✓ T-117 · Medir REQ-031 por fila en `medir_matriz`: documento, fecha, texto original y vigente (`d0db99b` 2026-10-04, `f1ff70c` 2026-10-04)
+- ✓ T-109 · Buscar el respaldo normativo de cada sugerencia, sin que nunca la descarte (`deffcef0` 2026-10-04, `a83f2259` 2026-10-04, `d90da9b5` 2026-10-04)
+- ✓ T-110 · Decidir las sugerencias: pasar a requisito o quitar, una por una o por grupo, y bloquear la validación (`19b59ad7` 2026-10-04)
+- ✓ T-111 · Medir las sugerencias y el respaldo normativo: a revisión obligatoria e informe (`1cf27839` 2026-10-04, `4f651049` 2026-10-04)
+- ✓ T-112 · Mostrar la sección de sugerencias con su respaldo en la pantalla y en la impresión (`a6115fe6` 2026-10-04)
+- ✓ T-113 · Pasada de circulares, entrega 1: unidades de cambio aplicadas por clave, sin modelo (`cb8072c8` 2026-10-04)
+- ✓ T-114 · Crear el campo de original en un anexo, el pedido de extracción de cambios y los parámetros de circulares (`8b858d66` 2026-10-04)
+- ✓ T-115 · Pasada de circulares, entrega 2: el modelo extrae la lista de cambios donde no hay clave (`1955dc6d` 2026-10-04, `63f815cc` 2026-10-04)
+- ✓ T-116 · Mostrar y imprimir el original en el anexo, el cambio agrupado y el requisito agregado por una circular (`894321ed` 2026-10-04, `f17dce38` 2026-10-04)
+- ✓ T-117 · Medir REQ-031 por fila en `medir_matriz`: documento, fecha, texto original y vigente (`d0db99ba` 2026-10-04, `f1ff70c6` 2026-10-04)
 - ✓ T-118 · Cargar los casos 05 y 06 y preparar sus listas esperadas de circulares
 - ✓ T-119 · Actualizar la lista esperada del caso-01 con las filas que las circulares afectan
-- ✓ T-120 · Medir y ajustar la pasada de circulares con los casos 01, 05 y 06, con estabilidad (`eec12a1` 2026-10-05, `f8b51df` 2026-10-05, `fb8f1b6` 2026-10-05)
-- ✓ T-121 · Corregir el consumo de memoria de la medición (citas que cargaban cada una su lectura) (`215300c` 2026-10-04, `39b9103` 2026-10-04)
-- ✓ T-123 · Corregir la medición: citas de otra lectura y filas suprimidas por una circular (`367acd8` 2026-10-04, `4f2f044` 2026-10-04)
-- ✓ T-124 · Pasada de circulares: original en el anexo por título y requisitos que agrega un "Debe decir" (`1a296ac` 2026-10-04, `464d2ca` 2026-10-04)
-- ✓ T-125 · Corregir el criterio del filtro que descartó requisitos reales (`42646c1` 2026-10-04, `2e72018` 2026-10-04, `409557a` 2026-10-04)
-- ✓ T-126 · Mostrar la cadena completa de circulares que modifican una misma condición (`e745b70` 2026-10-05, `5a4c0da` 2026-10-05)
-- ✓ T-127 · Impedir que una aclaración termine como supresión y registrar la versión de `circulares_cambios` (`064c2c8` 2026-10-05, `678ff48` 2026-10-05)
-- ✓ T-128 · Aplicar una aclaración de cláusula a todas sus citas (`aef659f` 2026-10-05, `dac4513` 2026-10-05)
-- ✓ T-129 · Reconocer supresiones dichas con sustantivo y aplicar la aclaración de un renglón a sus citas (`83bf814` 2026-10-05)
-- ✓ T-137 · Pasada de circulares: revisión obligatoria visible ante un cambio sin resolver y las tres causas de la aceptación a ciegas (`791260a` 2026-10-05, `a2d546c` 2026-10-05, `1159d3b` 2026-10-05, `9e1eff1` 2026-10-05, `c0281a2` 2026-10-05, `25a7b4d` 2026-10-05, `0f14d17` 2026-10-05)
-- ✓ T-147 · Circulares: aviso en la fila que cambia (#183) y medición del criterio de ADR-0034 (`0b214c5` 2026-10-05, `c954243` 2026-10-05, `e7f2554` 2026-10-05)
-- ✓ T-178 · Pliegos nuevos: cláusulas de primer nivel sin punto, recuadros de una columna, obligaciones de ejecución, garantía de mantenimiento como sugerencia con respaldo normativo (prueba con el proceso AABN5) (`1b1621a` 2026-10-07, `0eec096` 2026-10-07, `0dbd700` 2026-10-07, `be3279e` 2026-10-07, `0f0876d` 2026-10-07, `370d0a4` 2026-10-07)
+- ✓ T-120 · Medir y ajustar la pasada de circulares con los casos 01, 05 y 06, con estabilidad (`eec12a10` 2026-10-05, `f8b51df0` 2026-10-05, `fb8f1b65` 2026-10-05)
+- ✓ T-121 · Corregir el consumo de memoria de la medición (citas que cargaban cada una su lectura) (`215300cd` 2026-10-04, `39b91038` 2026-10-04)
+- ✓ T-123 · Corregir la medición: citas de otra lectura y filas suprimidas por una circular (`367acd82` 2026-10-04, `4f2f044e` 2026-10-04)
+- ✓ T-124 · Pasada de circulares: original en el anexo por título y requisitos que agrega un "Debe decir" (`1a296acf` 2026-10-04, `464d2ca4` 2026-10-04)
+- ✓ T-125 · Corregir el criterio del filtro que descartó requisitos reales (`42646c11` 2026-10-04, `2e720188` 2026-10-04, `409557a6` 2026-10-04)
+- ✓ T-126 · Mostrar la cadena completa de circulares que modifican una misma condición (`e745b70a` 2026-10-05, `5a4c0da8` 2026-10-05)
+- ✓ T-127 · Impedir que una aclaración termine como supresión y registrar la versión de `circulares_cambios` (`064c2c87` 2026-10-05, `678ff48d` 2026-10-05)
+- ✓ T-128 · Aplicar una aclaración de cláusula a todas sus citas (`aef659fe` 2026-10-05, `dac45136` 2026-10-05)
+- ✓ T-129 · Reconocer supresiones dichas con sustantivo y aplicar la aclaración de un renglón a sus citas (`83bf8146` 2026-10-05)
+- ✓ T-137 · Pasada de circulares: revisión obligatoria visible ante un cambio sin resolver y las tres causas de la aceptación a ciegas (`791260a3` 2026-10-05, `a2d546cd` 2026-10-05, `1159d3bf` 2026-10-05, `9e1eff1c` 2026-10-05, `c0281a29` 2026-10-05, `25a7b4d2` 2026-10-05, `0f14d173` 2026-10-05)
+- ✓ T-147 · Circulares: aviso en la fila que cambia (#183) y medición del criterio de ADR-0034 (`0b214c59` 2026-10-05, `c9542432` 2026-10-05, `e7f25546` 2026-10-05)
+- ✓ T-178 · Pliegos nuevos: cláusulas de primer nivel sin punto, recuadros de una columna, obligaciones de ejecución, garantía de mantenimiento como sugerencia con respaldo normativo (prueba con el proceso AABN5) (`1b1621a9` 2026-10-07, `0eec0967` 2026-10-07, `0dbd7006` 2026-10-07, `be3279ec` 2026-10-07, `0f0876dd` 2026-10-07, `370d0a41` 2026-10-07)
 
 ### Mapa de tareas
 
@@ -685,35 +685,35 @@ flowchart LR
 ### Qué se hizo
 
 - Etapas completas: Spec, Plan, Tareas, Desarrollo.
-- ✓ T-148 · Esquema, configuración compartida y tamaños: módulo `assessment` con todas sus tablas y triggers, tipo de pedido y de hecho, contexto del motor de lotes, `medir_tamanos` y `entorno.md` (`40cf449` 2026-10-06, `dfbe9c4` 2026-10-06, `fc67181` 2026-10-06, `6eee1fc` 2026-10-06)
-- ✓ T-149 · Preparar los casos para medir (Coordinador): caso chico calcado de ofertas reales y lista esperada del dictamen del caso-00, con la lista de fichas completada (`f606137` 2026-10-06)
-- ✓ T-150 · Corte vertical: evaluar una oferta de punta a punta (lectura completa por grupos, cita ubicada, contraste, cuatro resultados, preguntas formuladas) con pantalla mínima del par (`557dd54` 2026-10-06, `d4849ea` 2026-10-06, `ccb9567` 2026-10-06, `2a01ea9` 2026-10-06)
-- ✓ T-151 · Medir el caso chico: lista esperada, comparación y comando `medir_evaluacion` (`90013ce` 2026-10-06, `cb8bc30` 2026-10-06, `34dc67d` 2026-10-06, `2991f18` 2026-10-06)
-- ✓ T-152 · Matriz de evaluación de todas las ofertas: descarte propuesto, orden económico con el Portal, estado por oferta y aviso de versión (`4d4d086` 2026-10-06, `840c6c1` 2026-10-06)
-- ✓ T-153 · Revisión: confirmar, corregir y rechazar cada propuesta, con historial y fundamentos a la vista (`f6e762e` 2026-10-06)
-- ✓ T-154 · Preguntas a la Comisión, respuestas como fundamento y subsanación con su recorrido (`9c7b6b3` 2026-10-06, `4680f97` 2026-10-06, `caea596` 2026-10-06)
+- ✓ T-148 · Esquema, configuración compartida y tamaños: módulo `assessment` con todas sus tablas y triggers, tipo de pedido y de hecho, contexto del motor de lotes, `medir_tamanos` y `entorno.md` (`40cf4494` 2026-10-06, `dfbe9c47` 2026-10-06, `fc671812` 2026-10-06, `6eee1fc5` 2026-10-06)
+- ✓ T-149 · Preparar los casos para medir (Coordinador): caso chico calcado de ofertas reales y lista esperada del dictamen del caso-00, con la lista de fichas completada (`f6061372` 2026-10-06)
+- ✓ T-150 · Corte vertical: evaluar una oferta de punta a punta (lectura completa por grupos, cita ubicada, contraste, cuatro resultados, preguntas formuladas) con pantalla mínima del par (`557dd54f` 2026-10-06, `d4849ea0` 2026-10-06, `ccb9567d` 2026-10-06, `2a01ea94` 2026-10-06)
+- ✓ T-151 · Medir el caso chico: lista esperada, comparación y comando `medir_evaluacion` (`90013ce8` 2026-10-06, `cb8bc30c` 2026-10-06, `34dc67dd` 2026-10-06, `2991f182` 2026-10-06)
+- ✓ T-152 · Matriz de evaluación de todas las ofertas: descarte propuesto, orden económico con el Portal, estado por oferta y aviso de versión (`4d4d0866` 2026-10-06, `840c6c11` 2026-10-06)
+- ✓ T-153 · Revisión: confirmar, corregir y rechazar cada propuesta, con historial y fundamentos a la vista (`f6e762e1` 2026-10-06)
+- ✓ T-154 · Preguntas a la Comisión, respuestas como fundamento y subsanación con su recorrido (`9c7b6b3c` 2026-10-06, `4680f972` 2026-10-06, `caea5965` 2026-10-06)
 - ✓ T-155 · Medir el caso-00 contra el dictamen (medición base)
-- ✓ T-156 · Corregir los hallazgos de T-155 y medir de nuevo (ronda 1) (`eafd501` 2026-10-06, `56a46fb` 2026-10-06, `aaf996d` 2026-10-06, `5d684a2` 2026-10-06)
-- ✓ T-157 · Solo si T-156 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) (`970baf6` 2026-10-06, `a3af7ad` 2026-10-06)
-- ✓ T-158 · Contraste por cláusula de un cumple técnico: cero contradicciones con el dictamen (tercera ronda por la contradicción M-051, decisión del responsable) (`c6aded5` 2026-10-06)
-- ✓ T-164 · Corregir los hallazgos de T-158: el no cumple técnico exige una cita de la oferta que contradiga la cláusula (F-1) y el contraste por cláusula acota cláusulas y tokens (F-2); se mide con T-161 (`0ba1662` 2026-10-06)
-- ✓ T-159 · Descarga y verificación de archivos y servicio: proyector del 12B, 26B-A4B con su proyector, variables propias del lote, `--mmproj`, archivo `docker-compose.modelo-grande.yml`, prueba de humo con imagen y memoria medida (`4289622` 2026-10-06)
-- ✓ T-160 · Lectura con visión de las páginas dudosas: criterio, imagen, transcripción, lectura nueva con origen `vision`, registro y pantalla rotulada, con tests (`5ab2597` 2026-10-06, `95ad3d3` 2026-10-06)
-- ✓ T-161 · Medir el caso-00 con el 12B y visión (referencia, y medición de la visión y de T-164) (`9816e02` 2026-10-06)
+- ✓ T-156 · Corregir los hallazgos de T-155 y medir de nuevo (ronda 1) (`eafd5013` 2026-10-06, `56a46fbf` 2026-10-06, `aaf996df` 2026-10-06, `5d684a2d` 2026-10-06)
+- ✓ T-157 · Solo si T-156 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) (`970baf6d` 2026-10-06, `a3af7ad1` 2026-10-06)
+- ✓ T-158 · Contraste por cláusula de un cumple técnico: cero contradicciones con el dictamen (tercera ronda por la contradicción M-051, decisión del responsable) (`c6aded53` 2026-10-06)
+- ✓ T-164 · Corregir los hallazgos de T-158: el no cumple técnico exige una cita de la oferta que contradiga la cláusula (F-1) y el contraste por cláusula acota cláusulas y tokens (F-2); se mide con T-161 (`0ba1662b` 2026-10-06)
+- ✓ T-159 · Descarga y verificación de archivos y servicio: proyector del 12B, 26B-A4B con su proyector, variables propias del lote, `--mmproj`, archivo `docker-compose.modelo-grande.yml`, prueba de humo con imagen y memoria medida (`42896222` 2026-10-06)
+- ✓ T-160 · Lectura con visión de las páginas dudosas: criterio, imagen, transcripción, lectura nueva con origen `vision`, registro y pantalla rotulada, con tests (`5ab25970` 2026-10-06, `95ad3d31` 2026-10-06)
+- ✓ T-161 · Medir el caso-00 con el 12B y visión (referencia, y medición de la visión y de T-164) (`9816e02b` 2026-10-06)
 - ✓ T-162 · Medir el caso-00 con el 26B-A4B y visión, comparar con T-161 y decidir según el umbral (ronda 1)
 - ✓ T-163 · Solo si T-162 quedó entre 2 y 3 pares de adoptarlo: un cambio igual para los dos modelos y las dos corridas de nuevo (ronda 2, la última)
-- ✓ T-165 · Esquema y resultados nuevos (enmienda de decisiones literales): motivos nuevos de "no determinado", opinión y hechos en el resultado, cita del Portal, tabla del ok del informe técnico, versión de reglas y marcador de pruebas (`7d3f260` 2026-10-06)
-- ✓ T-166 · Externos e ilegible como regla: "falta la hoja de compliance" (catálogo y marca del modelo) y "no se pudo leer" con documento y página del informe de lectura (`9d35656` 2026-10-06, `654c21a` 2026-10-06)
-- ✓ T-167 · Filas técnicas por renglón: documento técnico y renglones con oferta como hechos, resultado "pendiente del informe técnico" y la opinión como información (`a2967fb` 2026-10-06, `4da445b` 2026-10-06)
-- ✓ T-168 · Ok de la Comisión del informe técnico y presentación en la matriz de los resultados nuevos (`4d610a8` 2026-10-06, `880e5b4` 2026-10-06, `ca115e7` 2026-10-06)
-- ✓ T-169 · El Portal como fuente: dato o documento en el Portal, falta de coincidencia y cita del Portal (`ba7dd3e` 2026-10-07, `dea0bdc` 2026-10-06)
-- ✓ T-170 · Medición con la regla nueva: conteo por tipo de par, `--verificar-decisiones` y actualización de la lista esperada del caso-00 (Coordinador, fuera del repositorio) (`5e64fa0` 2026-10-06, `7cda665` 2026-10-06, `bc98c7e` 2026-10-06)
+- ✓ T-165 · Esquema y resultados nuevos (enmienda de decisiones literales): motivos nuevos de "no determinado", opinión y hechos en el resultado, cita del Portal, tabla del ok del informe técnico, versión de reglas y marcador de pruebas (`7d3f2602` 2026-10-06)
+- ✓ T-166 · Externos e ilegible como regla: "falta la hoja de compliance" (catálogo y marca del modelo) y "no se pudo leer" con documento y página del informe de lectura (`9d35656d` 2026-10-06, `654c21a3` 2026-10-06)
+- ✓ T-167 · Filas técnicas por renglón: documento técnico y renglones con oferta como hechos, resultado "pendiente del informe técnico" y la opinión como información (`a2967fb7` 2026-10-06, `4da445b4` 2026-10-06)
+- ✓ T-168 · Ok de la Comisión del informe técnico y presentación en la matriz de los resultados nuevos (`4d610a83` 2026-10-06, `880e5b4d` 2026-10-06, `ca115e70` 2026-10-06)
+- ✓ T-169 · El Portal como fuente: dato o documento en el Portal, falta de coincidencia y cita del Portal (`ba7dd3ea` 2026-10-07, `dea0bdc8` 2026-10-06)
+- ✓ T-170 · Medición con la regla nueva: conteo por tipo de par, `--verificar-decisiones` y actualización de la lista esperada del caso-00 (Coordinador, fuera del repositorio) (`5e64fa01` 2026-10-06, `7cda665a` 2026-10-06, `bc98c7e5` 2026-10-06)
 - ✓ T-171 · Medir el caso-00 con las decisiones aplicadas (medición final, una sola)
-- ✓ T-172 · Corregir los hallazgos de T-171: documento técnico afirmado por una línea de precio (H-3), ilegible del pagaré en todos los pares de la garantía (H-4), M-008 y M-016 externos (H-5), hechos técnicos de una oferta sin ficha (H-6) (`f43776d` 2026-10-07, `df7904d` 2026-10-07)
+- ✓ T-172 · Corregir los hallazgos de T-171: documento técnico afirmado por una línea de precio (H-3), ilegible del pagaré en todos los pares de la garantía (H-4), M-008 y M-016 externos (H-5), hechos técnicos de una oferta sin ficha (H-6) (`f43776d0` 2026-10-07, `df7904d3` 2026-10-07)
 - ✓ T-173 · Medir el caso-00 con los datos del Portal cargados (ronda 2, la última, ADR-0025)
-- ✓ T-174 · Emparejar las ofertas del Portal con las cargadas a mano (CUIT o nombre normalizado, como propuesta del evaluador), necesario para cargar el Portal del caso-00 (`b3ec5dd` 2026-10-07, `2732a6d` 2026-10-07)
-- ✓ T-175 · Completar REQ-062 y corregir el medidor tras T-173: cita del Portal de la cotización y de la garantía cuando la oferta no la trae; la medición cuenta la fila técnica pendiente con hechos correctos aunque falte el documento; externos de habilidad y de la póliza electrónica reconocidos por el título del tramo y la norma de la Superintendencia (ronda extra por requisito incompleto, ADR-0025) (`cb829a0` 2026-10-07, `3f9bc34` 2026-10-07)
-- ✓ T-177 · Lectura con visión: enderezar la página, texto plano con marcador de fin, penalizar la repetición y franjas a mayor resolución (el pagaré del caso-00 es legible: lo verificó el responsable) (`50e3533` 2026-10-07)
+- ✓ T-174 · Emparejar las ofertas del Portal con las cargadas a mano (CUIT o nombre normalizado, como propuesta del evaluador), necesario para cargar el Portal del caso-00 (`b3ec5dd6` 2026-10-07, `2732a6dd` 2026-10-07)
+- ✓ T-175 · Completar REQ-062 y corregir el medidor tras T-173: cita del Portal de la cotización y de la garantía cuando la oferta no la trae; la medición cuenta la fila técnica pendiente con hechos correctos aunque falte el documento; externos de habilidad y de la póliza electrónica reconocidos por el título del tramo y la norma de la Superintendencia (ronda extra por requisito incompleto, ADR-0025) (`cb829a08` 2026-10-07, `3f9bc348` 2026-10-07)
+- ✓ T-177 · Lectura con visión: enderezar la página, texto plano con marcador de fin, penalizar la repetición y franjas a mayor resolución (el pagaré del caso-00 es legible: lo verificó el responsable) (`50e35335` 2026-10-07)
 - ✓ T-176 · Medir el caso-00 después de T-175 y T-177 (medición final)
 
 ### Mapa de tareas
@@ -830,14 +830,14 @@ flowchart LR
 ### Qué se hizo
 
 - Etapas completas: Spec, Plan, Tareas, Desarrollo.
-- ✓ T-130 · Corte vertical con el caso chico: esquema, carga, lectura (texto y escaneo), ficha, pantalla mínima y medición (`7a40aff` 2026-10-05, `00dbbc4` 2026-10-05, `6a83b15` 2026-10-05, `7e84c95` 2026-10-05, `25794ca` 2026-10-05, `afe69e1` 2026-10-05, `e8d7295` 2026-10-05, `384cb43` 2026-10-05)
-- ✓ T-131 · Completar la carga y la lectura de ofertas: pantalla, fotos sueltas, segundo intento de lectura y lista de páginas no leídas (`069e87a` 2026-10-05, `25e603a` 2026-10-05, `a434c41` 2026-10-05)
-- ✓ T-132 · Corregir la ficha: confirmar, corregir, quitar y agregar fragmentos, historial y aviso de versión de la matriz (`d0bac35` 2026-10-05)
+- ✓ T-130 · Corte vertical con el caso chico: esquema, carga, lectura (texto y escaneo), ficha, pantalla mínima y medición (`7a40aff1` 2026-10-05, `00dbbc46` 2026-10-05, `6a83b157` 2026-10-05, `7e84c952` 2026-10-05, `25794ca8` 2026-10-05, `afe69e1c` 2026-10-05, `e8d72953` 2026-10-05, `384cb435` 2026-10-05)
+- ✓ T-131 · Completar la carga y la lectura de ofertas: pantalla, fotos sueltas, segundo intento de lectura y lista de páginas no leídas (`069e87a3` 2026-10-05, `25e603a1` 2026-10-05, `a434c410` 2026-10-05)
+- ✓ T-132 · Corregir la ficha: confirmar, corregir, quitar y agregar fragmentos, historial y aviso de versión de la matriz (`d0bac35c` 2026-10-05)
 - ✓ T-133 · Preparar el caso-00 para medir: lista esperada de fichas de las tres ofertas y matriz validada (Coordinador)
 - ✓ T-134 · Medir la ficha con las tres ofertas del caso-00 (medición base)
-- ✓ T-135 · Corregir los hallazgos de T-134 y medir de nuevo (ronda 1) (`a32ec1c` 2026-10-05, `627d9de` 2026-10-05, `97423bd` 2026-10-05, `fdedec7` 2026-10-05, `4974944` 2026-10-05, `74c12a0` 2026-10-05)
-- ✓ T-136 · Solo si T-135 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) (`eeae37f` 2026-10-05, `d514129` 2026-10-05, `8477cd8` 2026-10-05, `c6d8d9d` 2026-10-05)
-- ✓ T-146 · Búsqueda de la ficha con el requisito reescrito como lo diría una oferta (`f9da6a6` 2026-10-05)
+- ✓ T-135 · Corregir los hallazgos de T-134 y medir de nuevo (ronda 1) (`a32ec1ca` 2026-10-05, `627d9dea` 2026-10-05, `97423bd8` 2026-10-05, `fdedec76` 2026-10-05, `4974944e` 2026-10-05, `74c12a07` 2026-10-05)
+- ✓ T-136 · Solo si T-135 no llegó al umbral: corregir y medir de nuevo (ronda 2, la última) (`eeae37f8` 2026-10-05, `d5141298` 2026-10-05, `8477cd86` 2026-10-05, `c6d8d9d0` 2026-10-05)
+- ✓ T-146 · Búsqueda de la ficha con el requisito reescrito como lo diría una oferta (`f9da6a68` 2026-10-05)
 
 ### Mapa de tareas
 
@@ -901,14 +901,14 @@ flowchart LR
 ### Qué se hizo
 
 - Etapas completas: Spec, Plan, Tareas, Desarrollo.
-- ✓ T-138 · Preparar el esquema, la conexión acotada y la cola del Portal: tablas de `portal`, cambios de `tenders_job` y de auditoría, servicio `portal_worker`, cliente HTTP con lista de destinos y `entorno.md` (`f245f36` 2026-10-05, `3e2d665` 2026-10-05)
-- ✓ T-139 · Preparar los casos para probar: páginas reales del caso-00 y de un proceso con circulares (fuera del repositorio), calcos con datos inventados y lista esperada (Coordinador) (`69db5db` 2026-10-05)
-- ✓ T-140 · Leer la página pública del proceso: datos básicos, renglones, cronograma, garantías y lista de documentos, con el texto normalizado (`c4ad118` 2026-10-05)
-- ✓ T-141 · Corte vertical: registrar el enlace, explorar, proponer, aprobar ítem por ítem y cargar el procedimiento y los renglones, con pantalla (`1f1bfb5` 2026-10-05, `afe81f4` 2026-10-05, `0af9c1c` 2026-10-05)
-- ✓ T-142 · Importar los documentos: bajar el pliego, circulares y demás con su huella y cargarlos por `load_document` (`1ba8be3` 2026-10-05)
-- ✓ T-143 · Importar las ofertas: acta de apertura y cuadro comparativo, ofertas con garantía y cotización por renglón (`5f6c49b` 2026-10-05)
-- ✓ T-144 · Revisión periódica: una vez por día hábil y a demanda, con novedades y sin repetir lo decidido (`39c5dfd` 2026-10-06)
-- ✓ T-145 · Medir con el caso-00 y el proceso con circulares, corregir una ronda y dejar la medición (`18e970e` 2026-10-06, `b20b7e5` 2026-10-06, `d0a7159` 2026-10-06, `c7c86eb` 2026-10-06, `e2739c9` 2026-10-06, `895ea60` 2026-10-06, `bdfc22e` 2026-10-06)
+- ✓ T-138 · Preparar el esquema, la conexión acotada y la cola del Portal: tablas de `portal`, cambios de `tenders_job` y de auditoría, servicio `portal_worker`, cliente HTTP con lista de destinos y `entorno.md` (`f245f36e` 2026-10-05, `3e2d6656` 2026-10-05)
+- ✓ T-139 · Preparar los casos para probar: páginas reales del caso-00 y de un proceso con circulares (fuera del repositorio), calcos con datos inventados y lista esperada (Coordinador) (`69db5dbb` 2026-10-05)
+- ✓ T-140 · Leer la página pública del proceso: datos básicos, renglones, cronograma, garantías y lista de documentos, con el texto normalizado (`c4ad1187` 2026-10-05)
+- ✓ T-141 · Corte vertical: registrar el enlace, explorar, proponer, aprobar ítem por ítem y cargar el procedimiento y los renglones, con pantalla (`1f1bfb53` 2026-10-05, `afe81f43` 2026-10-05, `0af9c1c1` 2026-10-05)
+- ✓ T-142 · Importar los documentos: bajar el pliego, circulares y demás con su huella y cargarlos por `load_document` (`1ba8be30` 2026-10-05)
+- ✓ T-143 · Importar las ofertas: acta de apertura y cuadro comparativo, ofertas con garantía y cotización por renglón (`5f6c49b2` 2026-10-05)
+- ✓ T-144 · Revisión periódica: una vez por día hábil y a demanda, con novedades y sin repetir lo decidido (`39c5dfd2` 2026-10-06)
+- ✓ T-145 · Medir con el caso-00 y el proceso con circulares, corregir una ronda y dejar la medición (`18e970e2` 2026-10-06, `b20b7e54` 2026-10-06, `d0a71597` 2026-10-06, `c7c86eba` 2026-10-06, `e2739c92` 2026-10-06, `895ea600` 2026-10-06, `bdfc22ef` 2026-10-06)
 
 ### Mapa de tareas
 
@@ -977,15 +977,15 @@ flowchart LR
 ### Qué se hizo
 
 - Etapas completas: Spec, Plan, Tareas.
-- ✓ T-179 · Corte vertical: módulo `journey`, página de recorrido del caso chico con la etapa Evaluación en vivo (sondeo cada 5 s), roles, entrada mínima y las otras cinco etapas como lugares reservados (`e7851e5` 2026-10-07, `682f61e` 2026-10-07, `75a6527` 2026-10-07)
-- ✓ T-180 · Etapas Portal, Pliego y circulares, y Matriz: estado, pendientes y enlaces (`9af7a54` 2026-10-07)
-- ✓ T-181 · Etapa Ofertas: documentos, fichas, estado, pendientes y enlaces (`1573289` 2026-10-07, `91af577` 2026-10-07)
-- ✓ T-182 · Etapa Matriz de evaluación: pares por decidir, preguntas abiertas, ok del informe técnico y enlaces (`0ec55a2` 2026-10-07, `91ed278` 2026-10-07)
-- ✓ T-183 · Entrada completa: procedimientos con etapa actual y pendientes; alta explorando primero el Portal y la carga a mano como complemento (REQ-071) (`39cc589` 2026-10-07)
-- ✓ T-184 · Avance fino de los pedidos: columna `progress` en la cola y aviso desde la evaluación y la ficha (aprobada por el responsable, ADR-0045) (`63251e5` 2026-10-07)
-- ✓ T-187 · Ventana del proceso: panel en vivo con los pasos del pedido en curso, en lenguaje llano (REQ-070) (`09bc7b9` 2026-10-07, `184d8ce` 2026-10-07, `94889a9` 2026-10-07)
-- ✓ T-189 · Hoja de compliance por oferta: subirla una vez, rige para todos los requisitos externos de la oferta (reevaluación automática citándola), acceso en la matriz de evaluación (REQ-073) (`c58dee6` 2026-10-07)
-- ✓ T-190 · Informe técnico del área: subirlo (por procedimiento u oferta), el sistema propone apto/no apto por oferta y renglón con cita del informe y la Comisión da el ok (REQ-074) (`7df719e` 2026-10-07, `02c1b95` 2026-10-07)
+- ✓ T-179 · Corte vertical: módulo `journey`, página de recorrido del caso chico con la etapa Evaluación en vivo (sondeo cada 5 s), roles, entrada mínima y las otras cinco etapas como lugares reservados (`e7851e58` 2026-10-07, `682f61ee` 2026-10-07, `75a6527a` 2026-10-07)
+- ✓ T-180 · Etapas Portal, Pliego y circulares, y Matriz: estado, pendientes y enlaces (`9af7a54f` 2026-10-07)
+- ✓ T-181 · Etapa Ofertas: documentos, fichas, estado, pendientes y enlaces (`1573289d` 2026-10-07, `91af577a` 2026-10-07)
+- ✓ T-182 · Etapa Matriz de evaluación: pares por decidir, preguntas abiertas, ok del informe técnico y enlaces (`0ec55a20` 2026-10-07, `91ed278c` 2026-10-07)
+- ✓ T-183 · Entrada completa: procedimientos con etapa actual y pendientes; alta explorando primero el Portal y la carga a mano como complemento (REQ-071) (`39cc5899` 2026-10-07)
+- ✓ T-184 · Avance fino de los pedidos: columna `progress` en la cola y aviso desde la evaluación y la ficha (aprobada por el responsable, ADR-0045) (`63251e5d` 2026-10-07)
+- ✓ T-187 · Ventana del proceso: panel en vivo con los pasos del pedido en curso, en lenguaje llano (REQ-070) (`09bc7b96` 2026-10-07, `184d8ceb` 2026-10-07, `94889a98` 2026-10-07)
+- ✓ T-189 · Hoja de compliance por oferta: subirla una vez, rige para todos los requisitos externos de la oferta (reevaluación automática citándola), acceso en la matriz de evaluación (REQ-073) (`c58dee6e` 2026-10-07)
+- ✓ T-190 · Informe técnico del área: subirlo (por procedimiento u oferta), el sistema propone apto/no apto por oferta y renglón con cita del informe y la Comisión da el ok (REQ-074) (`7df719e1` 2026-10-07, `02c1b95d` 2026-10-07)
 
 ### Mapa de tareas
 
@@ -1067,46 +1067,46 @@ flowchart LR
 ### Qué se hizo
 
 - Etapas completas: Spec, Plan, Tareas.
-- ✓ T-192 · Corte vertical: esqueleto de las cinco secciones (barra, portada con pendientes y sugerencias separados, jerarquía común, guía visual) y sección 2 con la matriz de cumplimiento en tabla agrupada, filtros, filas con cita y lista de versiones, con el caso chico (`b6615ce` 2026-10-07, `da02b02` 2026-10-07)
-- ✓ T-193 · Esquema de la feature (una sola tarea): cambios de historial de documentos, tipos nuevos, borrador de procedimiento y de oferta, pedidos nuevos, renglones y CUIT con documento de origen, decisión de descartes, subida de normas y hechos de auditoría (`ac98d30` 2026-10-07)
-- ✓ T-194 · Sección 1: datos del procedimiento con origen de cada dato, régimen por fecha de autorización, renglones, apertura, garantías y ofertas del Portal (`205e53e` 2026-10-08, `7f9f512` 2026-10-08, `8cacd74` 2026-10-08)
-- ✓ T-195 · Sección 1: explorador y cargador del Portal (pegar enlace, propuesta agrupada, aprobar ítem por ítem o todo) y novedades de la revisión periódica (`2e06397` 2026-10-08, `ed2265f` 2026-10-08)
-- ✓ T-196 · Propuesta de datos y renglones desde el pliego subido: servicio, pedido en segundo plano, citas y aprobación que crea el procedimiento (sin pantalla) (`e2358e6` 2026-10-08, `e0ccac9` 2026-10-08, `dbd16e3` 2026-10-08, `ed6645d` 2026-10-08)
-- ✓ T-197 · Sección 1: alta subiendo el pliego (propuesta con citas; el evaluador aprueba, descarta o corrige escribiendo valor y motivo; sin alta en blanco) (`b488771` 2026-10-08, `4296b43` 2026-10-08)
-- ✓ T-198 · Sección 2: documentos del pliego, anexos y especificaciones (lista por tipo con origen, subida de varios a la vez, tomar del Portal, faltantes) (`5e15ed0` 2026-10-08, `afeeecd` 2026-10-08, `d90305a` 2026-10-08, `84a8e70` 2026-10-08)
-- ✓ T-199 · Servicio de historial de documentos del pliego y de las ofertas: reemplazar, retirar, restituir, con auditoría y estado calculado (sin pantalla) (`392d862` 2026-10-08, `c693c79` 2026-10-08)
-- ✓ T-200 · Sección 2: reemplazar, retirar y restituir documentos del pliego, historial de versiones y «retirados» (`10df014` 2026-10-08)
-- ✓ T-201 · Sección 2: acciones de la Comisión en la tabla de la matriz (confirmar, corregir, quitar, agregar, validar), versión nueva, imprimir y exportar (`1be8f9e` 2026-10-07, `5d3c949` 2026-10-07)
-- ✓ T-202 · Sección 3: lista de ofertas con alta a la vista (desde el Portal o subiendo archivos, con nombre y CUIT propuestos para aprobar o corregir) y documentos de cada oferta, subida múltiple (`b435c8b` 2026-10-09, `9807e27` 2026-10-09)
-- ✓ T-203 · Sección 3: ficha de cada oferta (qué presentó frente a cada requisito, con el fragmento o «no se encontró en la oferta») (`e75deba` 2026-10-08, `525900b` 2026-10-08)
-- ✓ T-204 · Sección 3: anexos técnicos dentro de la oferta y hoja de compliance por oferta con el faltante a la vista (absorbe la parte de compliance de T-191) (`62f78d3` 2026-10-08)
-- ✓ T-205 · Sección 3: circulares y aclaraciones (Portal o subidas); una circular modificatoria abre una versión nueva de la matriz con lo cambiado marcado (`d3ddf21` 2026-10-08, `359ef2e` 2026-10-08, `c25d3a6` 2026-10-08, `d661dc8` 2026-10-08)
-- ✓ T-206 · Sección 3: reemplazar, retirar y restituir documentos de la oferta, con historial y «retirados» (`a7c40be` 2026-10-09)
-- ✓ T-207 · Sección 4: propuesta de evaluación por oferta y requisito (cumple, no cumple, no determinado, con fundamento) y decisión de la Comisión (`1aadd1f` 2026-10-08)
-- ✓ T-208 · Sección 4: preguntas a la Comisión y pedidos de subsanación con su respuesta registrada (`c35a8df` 2026-10-08, `da3b48b` 2026-10-08)
-- ✓ T-209 · Sección 4: informe técnico del área (por procedimiento o por oferta) y ok de la Comisión (absorbe la parte de informe técnico de T-191) (`f26b92d` 2026-10-08, `f1577a1` 2026-10-08, `2f36fad` 2026-10-08)
-- ✓ T-210 · Sección 4: descartes propuestos y orden económico; el evaluador confirma o rechaza cada descarte con quién y cuándo (`61c33f6` 2026-10-08, `5d34c4f` 2026-10-08)
-- ✓ T-211 · Sección 4: dictamen del Portal o subido (sin borrador) (`b8d393f` 2026-10-08, `6b0fc65` 2026-10-08)
-- ✓ T-212 · Sección 4: exportar la planilla por oferta (Excel) y el cuadro comparativo (Excel y PDF); suma la dependencia XlsxWriter (ADR-0050) (`61a818e` 2026-10-08)
-- ✓ T-213 · Propuesta de los datos de una norma desde su archivo y staging de la subida (sin pantalla) (`fc5a81b` 2026-10-08)
-- ✓ T-214 · Sección 5: subir una norma, ver el informe de lectura y validarla desde la pantalla (`4e46b05` 2026-10-08, `80230c0` 2026-10-08)
-- ✓ T-215 · Sección 5: normas que rigen al procedimiento según su fecha de autorización y cuáles faltan cargar (`7b1883e` 2026-10-08, `1affbcc` 2026-10-08, `a331470` 2026-10-08, `4a3aefa` 2026-10-08)
-- ✓ T-216 · Sección 5: consulta de normativa con citas literales (`5e9b3c8` 2026-10-09, `a90f04c` 2026-10-08)
-- ✓ T-217 · Los cinco momentos y los roles con el caso chico: estados y cuentas de las cinco secciones, 25 de 25 celdas (reemplaza a T-185 de la 013) (`ccec308` 2026-10-10)
+- ✓ T-192 · Corte vertical: esqueleto de las cinco secciones (barra, portada con pendientes y sugerencias separados, jerarquía común, guía visual) y sección 2 con la matriz de cumplimiento en tabla agrupada, filtros, filas con cita y lista de versiones, con el caso chico (`b6615ce2` 2026-10-07, `da02b02e` 2026-10-07)
+- ✓ T-193 · Esquema de la feature (una sola tarea): cambios de historial de documentos, tipos nuevos, borrador de procedimiento y de oferta, pedidos nuevos, renglones y CUIT con documento de origen, decisión de descartes, subida de normas y hechos de auditoría (`ac98d302` 2026-10-07)
+- ✓ T-194 · Sección 1: datos del procedimiento con origen de cada dato, régimen por fecha de autorización, renglones, apertura, garantías y ofertas del Portal (`205e53ed` 2026-10-08, `7f9f512c` 2026-10-08, `8cacd74f` 2026-10-08)
+- ✓ T-195 · Sección 1: explorador y cargador del Portal (pegar enlace, propuesta agrupada, aprobar ítem por ítem o todo) y novedades de la revisión periódica (`2e06397f` 2026-10-08, `ed2265fc` 2026-10-08)
+- ✓ T-196 · Propuesta de datos y renglones desde el pliego subido: servicio, pedido en segundo plano, citas y aprobación que crea el procedimiento (sin pantalla) (`e2358e62` 2026-10-08, `e0ccac99` 2026-10-08, `dbd16e32` 2026-10-08, `ed6645dd` 2026-10-08)
+- ✓ T-197 · Sección 1: alta subiendo el pliego (propuesta con citas; el evaluador aprueba, descarta o corrige escribiendo valor y motivo; sin alta en blanco) (`b4887711` 2026-10-08, `4296b437` 2026-10-08)
+- ✓ T-198 · Sección 2: documentos del pliego, anexos y especificaciones (lista por tipo con origen, subida de varios a la vez, tomar del Portal, faltantes) (`5e15ed03` 2026-10-08, `afeeecdc` 2026-10-08, `d90305a6` 2026-10-08, `84a8e70f` 2026-10-08)
+- ✓ T-199 · Servicio de historial de documentos del pliego y de las ofertas: reemplazar, retirar, restituir, con auditoría y estado calculado (sin pantalla) (`392d862d` 2026-10-08, `c693c79a` 2026-10-08)
+- ✓ T-200 · Sección 2: reemplazar, retirar y restituir documentos del pliego, historial de versiones y «retirados» (`10df014b` 2026-10-08)
+- ✓ T-201 · Sección 2: acciones de la Comisión en la tabla de la matriz (confirmar, corregir, quitar, agregar, validar), versión nueva, imprimir y exportar (`1be8f9ea` 2026-10-07, `5d3c949e` 2026-10-07)
+- ✓ T-202 · Sección 3: lista de ofertas con alta a la vista (desde el Portal o subiendo archivos, con nombre y CUIT propuestos para aprobar o corregir) y documentos de cada oferta, subida múltiple (`b435c8bf` 2026-10-09, `9807e270` 2026-10-09)
+- ✓ T-203 · Sección 3: ficha de cada oferta (qué presentó frente a cada requisito, con el fragmento o «no se encontró en la oferta») (`e75debaf` 2026-10-08, `525900bc` 2026-10-08)
+- ✓ T-204 · Sección 3: anexos técnicos dentro de la oferta y hoja de compliance por oferta con el faltante a la vista (absorbe la parte de compliance de T-191) (`62f78d3e` 2026-10-08)
+- ✓ T-205 · Sección 3: circulares y aclaraciones (Portal o subidas); una circular modificatoria abre una versión nueva de la matriz con lo cambiado marcado (`d3ddf21a` 2026-10-08, `359ef2e6` 2026-10-08, `c25d3a6b` 2026-10-08, `d661dc89` 2026-10-08)
+- ✓ T-206 · Sección 3: reemplazar, retirar y restituir documentos de la oferta, con historial y «retirados» (`a7c40bec` 2026-10-09)
+- ✓ T-207 · Sección 4: propuesta de evaluación por oferta y requisito (cumple, no cumple, no determinado, con fundamento) y decisión de la Comisión (`1aadd1f0` 2026-10-08)
+- ✓ T-208 · Sección 4: preguntas a la Comisión y pedidos de subsanación con su respuesta registrada (`c35a8df8` 2026-10-08, `da3b48b8` 2026-10-08)
+- ✓ T-209 · Sección 4: informe técnico del área (por procedimiento o por oferta) y ok de la Comisión (absorbe la parte de informe técnico de T-191) (`f26b92d0` 2026-10-08, `f1577a1e` 2026-10-08, `2f36fad8` 2026-10-08)
+- ✓ T-210 · Sección 4: descartes propuestos y orden económico; el evaluador confirma o rechaza cada descarte con quién y cuándo (`61c33f69` 2026-10-08, `5d34c4f1` 2026-10-08)
+- ✓ T-211 · Sección 4: dictamen del Portal o subido (sin borrador) (`b8d393f9` 2026-10-08, `6b0fc65e` 2026-10-08)
+- ✓ T-212 · Sección 4: exportar la planilla por oferta (Excel) y el cuadro comparativo (Excel y PDF); suma la dependencia XlsxWriter (ADR-0050) (`61a818e1` 2026-10-08)
+- ✓ T-213 · Propuesta de los datos de una norma desde su archivo y staging de la subida (sin pantalla) (`fc5a81b1` 2026-10-08)
+- ✓ T-214 · Sección 5: subir una norma, ver el informe de lectura y validarla desde la pantalla (`4e46b052` 2026-10-08, `80230c01` 2026-10-08)
+- ✓ T-215 · Sección 5: normas que rigen al procedimiento según su fecha de autorización y cuáles faltan cargar (`7b1883e6` 2026-10-08, `1affbcc6` 2026-10-08, `a331470e` 2026-10-08, `4a3aefa3` 2026-10-08)
+- ✓ T-216 · Sección 5: consulta de normativa con citas literales (`5e9b3c8c` 2026-10-09, `a90f04ce` 2026-10-08)
+- ✓ T-217 · Los cinco momentos y los roles con el caso chico: estados y cuentas de las cinco secciones, 25 de 25 celdas (reemplaza a T-185 de la 013) (`ccec308a` 2026-10-10)
 - ✓ T-218 · Comprobación final con el caso chico y el caso-00 (Coordinador y testeador): 26 de 26 requisitos en pantalla, 0 datos tipeados, carga menor a 2 s y guía visual (reemplaza a T-186 de la 013)
-- ✓ T-219 · Las pantallas anteriores redirigen a su sección y el menú queda con la entrada nueva (`13eb6dc` 2026-10-08)
-- ✓ T-220 · Propuesta de nombre y CUIT del oferente desde los archivos de una oferta: borrador, pedido en segundo plano, citas, corrección con valor y motivo y aprobación que crea la oferta (sin pantalla) (`221e2c3` 2026-10-09, `8575447` 2026-10-08, `2e1ed01` 2026-10-08)
-- ✓ T-221 · Rendimiento de las pestañas con datos reales: Pliego y matriz, Ofertas y Evaluación cargan en menos de 2 s con el procedimiento real del sistema principal (medido en una base aparte restaurada del respaldo) (`73bfe16` 2026-10-08, `dd680b9` 2026-10-08)
-- ✓ T-222 · Pendientes y sugerencias agrupados cuando son muchos: con el procedimiento real la pestaña Evaluación lista 258 pendientes uno por uno (página de 32.000 px); agrupar por tipo con su cuenta y acceso al bloque filtrado, y detallar uno por uno solo cuando son pocos (`571df64` 2026-10-08, `4277fac` 2026-10-08, `524b38a` 2026-10-08)
-- ✓ T-223 · Menos consultas en los servicios de la evaluación y de la matriz (N+1 en matrix_page, external_results, question_list y quote_rows), sin cambiar resultados (`59ac612` 2026-10-10)
-- ✓ T-224 · Suite en paralelo con pytest-xdist (8 procesos, de 35 a 8 min) y tests inestables corregidos (`ed8a904` 2026-10-09, `e86384d` 2026-10-09)
-- ✓ T-225 · Huecos funcionales: no pedir subsanación, descartar una subida de norma, Normativas general sin procedimiento, reemplazar o retirar el dictamen (`21d4925` 2026-10-09, `9eb0e00` 2026-10-09, `a9d361c` 2026-10-09, `36759ba` 2026-10-08)
-- ✓ T-226 · Encabezado y pestañas legibles en pantallas angostas (reglas de la maqueta para 900 y 1100 px) (`012ef8c` 2026-10-09)
-- ✓ T-227 · Decisiones del 2026-10-10 y brechas de la comprobación final: lo que la circular no tocó viene confirmado en la versión nueva; la versión nueva se abre con el botón «Abrir la versión nueva»; el usuario de lectura ve las cinco pestañas sin botones; solo el evaluador corrige la matriz (el operador no); «No pedir» se revierte con motivo y queda registrado; la Comisión ve todas las consultas del procedimiento con quién las hizo; aviso de pedido fallido con motivo en palabras (D-1); sección 1 no queda «Lista» con faltantes; «Subir archivo» de las secciones 1 y 4 lleva a su propio formulario (`be990b4` 2026-10-10, `5d1e06f` 2026-10-10, `c13d78c` 2026-10-10, `81c9616` 2026-10-10, `ffe9508` 2026-10-10, `feab80a` 2026-10-10, `792784e` 2026-10-10, `161dca3` 2026-10-10, `07a0461` 2026-10-10, `bf6a07f` 2026-10-10)
+- ✓ T-219 · Las pantallas anteriores redirigen a su sección y el menú queda con la entrada nueva (`13eb6dc5` 2026-10-08)
+- ✓ T-220 · Propuesta de nombre y CUIT del oferente desde los archivos de una oferta: borrador, pedido en segundo plano, citas, corrección con valor y motivo y aprobación que crea la oferta (sin pantalla) (`221e2c38` 2026-10-09, `85754474` 2026-10-08, `2e1ed01f` 2026-10-08)
+- ✓ T-221 · Rendimiento de las pestañas con datos reales: Pliego y matriz, Ofertas y Evaluación cargan en menos de 2 s con el procedimiento real del sistema principal (medido en una base aparte restaurada del respaldo) (`73bfe16b` 2026-10-08, `dd680b90` 2026-10-08)
+- ✓ T-222 · Pendientes y sugerencias agrupados cuando son muchos: con el procedimiento real la pestaña Evaluación lista 258 pendientes uno por uno (página de 32.000 px); agrupar por tipo con su cuenta y acceso al bloque filtrado, y detallar uno por uno solo cuando son pocos (`571df646` 2026-10-08, `4277facc` 2026-10-08, `524b38af` 2026-10-08)
+- ✓ T-223 · Menos consultas en los servicios de la evaluación y de la matriz (N+1 en matrix_page, external_results, question_list y quote_rows), sin cambiar resultados (`59ac6127` 2026-10-10)
+- ✓ T-224 · Suite en paralelo con pytest-xdist (8 procesos, de 35 a 8 min) y tests inestables corregidos (`ed8a904d` 2026-10-09, `e86384d5` 2026-10-09)
+- ✓ T-225 · Huecos funcionales: no pedir subsanación, descartar una subida de norma, Normativas general sin procedimiento, reemplazar o retirar el dictamen (`21d49258` 2026-10-09, `9eb0e001` 2026-10-09, `a9d361c2` 2026-10-09, `36759bad` 2026-10-08)
+- ✓ T-226 · Encabezado y pestañas legibles en pantallas angostas (reglas de la maqueta para 900 y 1100 px) (`012ef8ce` 2026-10-09)
+- ✓ T-227 · Decisiones del 2026-10-10 y brechas de la comprobación final: lo que la circular no tocó viene confirmado en la versión nueva; la versión nueva se abre con el botón «Abrir la versión nueva»; el usuario de lectura ve las cinco pestañas sin botones; solo el evaluador corrige la matriz (el operador no); «No pedir» se revierte con motivo y queda registrado; la Comisión ve todas las consultas del procedimiento con quién las hizo; aviso de pedido fallido con motivo en palabras (D-1); sección 1 no queda «Lista» con faltantes; «Subir archivo» de las secciones 1 y 4 lleva a su propio formulario (`be990b45` 2026-10-10, `5d1e06f6` 2026-10-10, `c13d78cf` 2026-10-10, `81c96161` 2026-10-10, `ffe9508c` 2026-10-10, `feab80a5` 2026-10-10, `792784e6` 2026-10-10, `161dca3f` 2026-10-10, `07a04613` 2026-10-10, `bf6a07fb` 2026-10-10)
 - ✓ T-229 · Rehacer el caso LPU25 en el sistema principal como lo haría la Comisión: respaldo, retiro de los datos de la carga de medición del 05/10, alta desde el Portal o el pliego, matriz propuesta por el sistema y revisada, ofertas, circulares, evaluación con la GPU y decisiones. Umbral: en la matriz validada, 0 requisitos que sean pedazos sin sujeto o que no exijan nada; en la evaluación, «no determinado» en 40 % o menos de las celdas; resultado por oferta igual al del dictamen publicado en 3 de 3. Solo cifras al repositorio (P4)
 - ✓ T-230 · Revisión de errores gruesos del caso rehecho, pestaña por pestaña, como lo vería la Comisión (inconsistencias, textos sin sentido, falta de contexto); los gruesos se corrigen en una sola tarea dentro del límite de 3 horas y el resto pasa a la lista de revisión
-- ✓ T-231 · Errores gruesos de la revisión C en Evaluación: «Evaluar de nuevo» en la pestaña tras responder una pregunta y aviso claro si ya hay un pedido en espera (no 422 mudo); la situación del orden económico no dice «Sin observaciones» con faltantes decididos, subsanación pedida o sin evaluar; «falta coincidencia» compara el mismo dato (garantía con garantía) y tolera el centavo de redondeo; la declaración jurada que viene en la oferta no es externa; el informe técnico falta una vez por procedimiento; pestañas bajo 2 s con el caso rehecho (`5010e76` 2026-10-10, `b2e4b6f` 2026-10-10, `63dfc29` 2026-10-10, `fc3a11e` 2026-10-10, `35fbe84` 2026-10-10)
-- ✓ T-232 · Errores gruesos de la revisión C en Pliego y matriz, Normativas y encabezados: consecuencia «El pliego no indica» elegible sin inventar otra; el aviso de validación no bloquea lo que el servicio confirma; Normativas no cuenta como faltantes las modificatorias de una norma que no aplica; «Tomar del Portal» de Pliego y Ofertas lleva a su bloque; textos repetidos y aviso sin nombre de archivo (`cf3120b` 2026-10-10, `5c2c3df` 2026-10-10, `67c075e` 2026-10-10)
+- ✓ T-231 · Errores gruesos de la revisión C en Evaluación: «Evaluar de nuevo» en la pestaña tras responder una pregunta y aviso claro si ya hay un pedido en espera (no 422 mudo); la situación del orden económico no dice «Sin observaciones» con faltantes decididos, subsanación pedida o sin evaluar; «falta coincidencia» compara el mismo dato (garantía con garantía) y tolera el centavo de redondeo; la declaración jurada que viene en la oferta no es externa; el informe técnico falta una vez por procedimiento; pestañas bajo 2 s con el caso rehecho (`5010e76a` 2026-10-10, `b2e4b6f1` 2026-10-10, `63dfc29b` 2026-10-10, `fc3a11e8` 2026-10-10, `35fbe840` 2026-10-10)
+- ✓ T-232 · Errores gruesos de la revisión C en Pliego y matriz, Normativas y encabezados: consecuencia «El pliego no indica» elegible sin inventar otra; el aviso de validación no bloquea lo que el servicio confirma; Normativas no cuenta como faltantes las modificatorias de una norma que no aplica; «Tomar del Portal» de Pliego y Ofertas lleva a su bloque; textos repetidos y aviso sin nombre de archivo (`cf3120bd` 2026-10-10, `5c2c3df8` 2026-10-10, `67c075e0` 2026-10-10)
 
 ### Mapa de tareas
 
@@ -1289,41 +1289,42 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 4 tareas sin terminar.
-- ▶ T-261 · Contexto de la evaluación (D-260-1): el tope de cada grupo de documentos descuenta la instrucción, el bloque del Portal, el requisito y la salida, y un pedido que igual no entra se parte en grupos más chicos en lugar de fallar; test con una oferta grande (en curso)
-- ▶ T-262 · Presentación física en la matriz (decisión del 2026-10-12, que T-260 vio descartada en los 7 casos por un ejemplo de la extracción) y re-anclaje de las listas esperadas de los casos 03 y 04 a la partición nueva del pliego (D-260-2), con su huella y el visto bueno del Coordinador (en curso)
+- **Próximo paso:** Desarrollar: 3 tareas sin terminar.
+- ▶ T-263 · Medición de cierre de la 015 con T-261 y T-262: evaluación del caso-00 con la configuración normal (y la corrida alterada para la estabilidad), matrices de los casos 00, 01, 02 y 06 (validación) y 03, 04 y 05 (prueba, con las listas re-ancladas del 03 y el 04), contra la spec 015 y el ADR-0059 (en curso)
 - ○ T-255 · Consulta de normativa con el 27B: la Consulta usa el mismo motor del 27B (sin `generation` aparte), con las evals de la 001 medidas antes de pasarla (P7) y el umbral de que ninguna medida empeore frente al 12B; mientras no pase, la Consulta queda apagada cuando corre una evaluación (pendiente)
 - ○ T-249 · Medición de lo que cambió T-248, solo en las áreas que cambió, con el umbral de que ninguna medida empeore (P7): evals de la 001, fichas, lectura con visión, propuestas de datos y matriz con circulares (pendiente)
 
 ### Qué se hizo
 
 - Etapas completas: Spec, Plan, Tareas.
-- ✓ T-233 · El dato del Portal que coincide con lo que exige el pliego propone «cumple» con la cita del Portal; si difiere, «no cumple» o la diferencia (garantía como porcentaje del total con tolerancia de un centavo, cotización por renglón, total, CUIT); los tests de la decisión literal del ADR-0043 se reescriben. Umbral: 100 % de los casos de prueba con dato que coincide dan «cumple» con cita del Portal; 0 «cumple» con dato que no coincide (`c917785` 2026-10-11, `5d752b6` 2026-10-10)
-- ✓ T-234 · Matriz: la cita se amplía por código hasta la unidad de sentido (módulo compartido `sentences.py`): la oración completa más las oraciones cortas contiguas del mismo asunto (ADR-0054, regla 3); dos fragmentos de la misma unidad son una fila, el encabezado del inciso viaja en el pedido y se ve en la fila; el fragmento original del modelo queda registrado (`d3db860` 2026-10-11, `58e415c` 2026-10-10)
-- ✓ T-250 · Esquema de los motivos de descarte nuevos (consecuencia en la extracción, condición opcional, pago o factura, forma de presentar por el Portal, compromiso al presentarse): `DiscardReason`, `FilterMotive`, `FILTER_MOTIVES` y una migración de `tenders`, a cargo de un solo agente (enmienda del ADR-0019) (`ae327ac` 2026-10-10)
-- ✓ T-235 · Evaluación: la cita de la oferta se amplía a la oración completa, el requisito llega con su punto, el Portal le llega al modelo como bloque citable, el contraste recibe la oración y su contexto, y las preguntas a la Comisión se arman por código con requisito, conclusión y texto (sin texto fijo genérico; la pregunta del modelo dirigida al oferente se rechaza) (`a5b854e` 2026-10-11, `a8b1810` 2026-10-10)
-- ✓ T-236 · Instrucciones de la matriz, parte 1: bloque común de definiciones (literal de la spec) con versión y huella, extracción, completitud y circulares sin «dividí», «fragmento más corto» ni divisiones, con encabezado del punto, ejemplos balanceados, motivos nuevos, lotes de 3.000 a 4.000 tokens y la versión y la huella registradas en cada pedido; el informe de revisión entra al repositorio con su test de cobertura y de versiones congeladas (`0a0f9fb` 2026-10-11, `4c8d506` 2026-10-11, `5c72f50` 2026-10-11, `93677fd` 2026-10-11, `4b8d3f1` 2026-10-11)
-- ✓ T-252 · Instrucciones de la matriz, parte 2: filtro A y B con el bloque común, sin «mantené ante la duda» (la duda va a sugerencia), `razonamiento` antes de la decisión, B rehecha, `decide()` revisada, ejemplos 4 y 4 y lotes de 5 a 8 filas (`13c2c9b` 2026-10-11, `10cf1b4` 2026-10-11)
-- ✓ T-253 · Razonamiento propio del modelo encendible por paso (extracción, completitud, filtro, evaluación, contraste) con nivel, solo en el motor de lotes, apagado por omisión e idéntico a hoy cuando está apagado; texto y tokens del razonamiento en el registro de cada pedido; compose adicional para el servidor; averiguar si el 12B lo admite (decisión del 2026-10-11) (`0ba68cc` 2026-10-11, `821d9b4` 2026-10-11)
-- ✓ T-254 · Ronda extra (se perdían requisitos, ADR-0024): las verificaciones externas del oferente (REPSAL, deuda, registro, sanciones) entran como requisito externo y no como obligación del organismo; las condiciones de una opción se mantienen como condición de esa opción; la matriz no depende del motor de la Consulta para contar tokens (H-244-1); `medir_matriz` acepta el motivo «no exige nada» (H-244-6); configuración candidata del 27B con razonamiento solo en el contraste (`e97c4e2` 2026-10-12, `90515af` 2026-10-12, `7173bf9` 2026-10-12, `0909bf0` 2026-10-12, `b7874d1` 2026-10-12, `320f50e` 2026-10-12)
-- ✓ T-256 · Medición honesta (sin GPU): corregir los defectos de la medida del comité (pares del Portal sin mirar el resultado, «no se encontró» contra «cumple», externos del modelo descontados, emparejamiento de supresiones, revisión contada como encontrada, Portal citado contra «sin cita»), exactitud por celda contra las 51 decisiones de la Comisión de prueba (con y sin fundamento), sacar de la evaluación las filas agregadas solo para la medida, exclusiones coherentes, recalcular las 8 corridas y ADR de criterios de mejora (`84bed40` 2026-10-12, `814a5b9` 2026-10-12, `438e19e` 2026-10-12, `3a3b0ad` 2026-10-12, `6280aad` 2026-10-12, `b23cb03` 2026-10-12)
-- ✓ T-257 · Frente evaluación: «no aplica» para la opción que la oferta no usa (por diseño), regla de forma de garantía antes que la de externos, regla del Portal que conserva condiciones y pregunta y compara la cantidad ofertada, contraste con el bloque del Portal completo, circulares «aclara/precisa» en la evaluación, criterios del 2026-10-12 (IVA del Portal, cumple por ausencia, prórroga en la fila del plazo, presentación física) (`7623f57` 2026-10-13, `642303d` 2026-10-13, `e3b9218` 2026-10-13, `6ea4ca2` 2026-10-12, `6ac9720` 2026-10-12, `2cdd6c0` 2026-10-12, `c31e27e` 2026-10-12, `f575397` 2026-10-12, `cbfbfef` 2026-10-12, `8f99fb3` 2026-10-12)
-- ✓ T-258 · Frente matriz: definiciones del 2026-10-12, paso de unión de oraciones del mismo asunto, nota de tabla con su cláusula, párrafo introductorio de un anexo como encabezado, reintento de la extracción con memoria y sin caracteres de área privada, motivos del filtro alineados con las definiciones (`a29e266` 2026-10-12, `9f60be3` 2026-10-12, `aa59936` 2026-10-12, `630a902` 2026-10-12)
-- ✓ T-259 · Frente lectura: OCR cuando la extracción del PDF da «(cid:» (croquis), tablas con sus celdas, manuscritos con la visión del modelo adoptado, descarga del Pliego Único y su aviso de faltante (`695108d` 2026-10-12, `518f3ab` 2026-10-12, `982ad6a` 2026-10-12, `38bd6e6` 2026-10-12, `8c77754` 2026-10-12, `a2740a4` 2026-10-12, `b416c94` 2026-10-12, `438e032` 2026-10-12, `d4a5cb2` 2026-10-12, `a14be39` 2026-10-12)
+- ✓ T-233 · El dato del Portal que coincide con lo que exige el pliego propone «cumple» con la cita del Portal; si difiere, «no cumple» o la diferencia (garantía como porcentaje del total con tolerancia de un centavo, cotización por renglón, total, CUIT); los tests de la decisión literal del ADR-0043 se reescriben. Umbral: 100 % de los casos de prueba con dato que coincide dan «cumple» con cita del Portal; 0 «cumple» con dato que no coincide (`c917785f` 2026-10-11, `5d752b61` 2026-10-10)
+- ✓ T-234 · Matriz: la cita se amplía por código hasta la unidad de sentido (módulo compartido `sentences.py`): la oración completa más las oraciones cortas contiguas del mismo asunto (ADR-0054, regla 3); dos fragmentos de la misma unidad son una fila, el encabezado del inciso viaja en el pedido y se ve en la fila; el fragmento original del modelo queda registrado (`d3db8602` 2026-10-11, `58e415c0` 2026-10-10)
+- ✓ T-250 · Esquema de los motivos de descarte nuevos (consecuencia en la extracción, condición opcional, pago o factura, forma de presentar por el Portal, compromiso al presentarse): `DiscardReason`, `FilterMotive`, `FILTER_MOTIVES` y una migración de `tenders`, a cargo de un solo agente (enmienda del ADR-0019) (`ae327ac0` 2026-10-10)
+- ✓ T-235 · Evaluación: la cita de la oferta se amplía a la oración completa, el requisito llega con su punto, el Portal le llega al modelo como bloque citable, el contraste recibe la oración y su contexto, y las preguntas a la Comisión se arman por código con requisito, conclusión y texto (sin texto fijo genérico; la pregunta del modelo dirigida al oferente se rechaza) (`a5b854ea` 2026-10-11, `a8b18102` 2026-10-10)
+- ✓ T-236 · Instrucciones de la matriz, parte 1: bloque común de definiciones (literal de la spec) con versión y huella, extracción, completitud y circulares sin «dividí», «fragmento más corto» ni divisiones, con encabezado del punto, ejemplos balanceados, motivos nuevos, lotes de 3.000 a 4.000 tokens y la versión y la huella registradas en cada pedido; el informe de revisión entra al repositorio con su test de cobertura y de versiones congeladas (`0a0f9fb2` 2026-10-11, `4c8d506f` 2026-10-11, `5c72f50d` 2026-10-11, `93677fda` 2026-10-11, `4b8d3f18` 2026-10-11)
+- ✓ T-252 · Instrucciones de la matriz, parte 2: filtro A y B con el bloque común, sin «mantené ante la duda» (la duda va a sugerencia), `razonamiento` antes de la decisión, B rehecha, `decide()` revisada, ejemplos 4 y 4 y lotes de 5 a 8 filas (`13c2c9b1` 2026-10-11, `10cf1b49` 2026-10-11)
+- ✓ T-253 · Razonamiento propio del modelo encendible por paso (extracción, completitud, filtro, evaluación, contraste) con nivel, solo en el motor de lotes, apagado por omisión e idéntico a hoy cuando está apagado; texto y tokens del razonamiento en el registro de cada pedido; compose adicional para el servidor; averiguar si el 12B lo admite (decisión del 2026-10-11) (`0ba68cc8` 2026-10-11, `821d9b40` 2026-10-11)
+- ✓ T-254 · Ronda extra (se perdían requisitos, ADR-0024): las verificaciones externas del oferente (REPSAL, deuda, registro, sanciones) entran como requisito externo y no como obligación del organismo; las condiciones de una opción se mantienen como condición de esa opción; la matriz no depende del motor de la Consulta para contar tokens (H-244-1); `medir_matriz` acepta el motivo «no exige nada» (H-244-6); configuración candidata del 27B con razonamiento solo en el contraste (`e97c4e2d` 2026-10-12, `90515af0` 2026-10-12, `7173bf93` 2026-10-12, `0909bf09` 2026-10-12, `b7874d10` 2026-10-12, `320f50ee` 2026-10-12)
+- ✓ T-256 · Medición honesta (sin GPU): corregir los defectos de la medida del comité (pares del Portal sin mirar el resultado, «no se encontró» contra «cumple», externos del modelo descontados, emparejamiento de supresiones, revisión contada como encontrada, Portal citado contra «sin cita»), exactitud por celda contra las 51 decisiones de la Comisión de prueba (con y sin fundamento), sacar de la evaluación las filas agregadas solo para la medida, exclusiones coherentes, recalcular las 8 corridas y ADR de criterios de mejora (`84bed40c` 2026-10-12, `814a5b9b` 2026-10-12, `438e19ed` 2026-10-12, `3a3b0ad4` 2026-10-12, `6280aad4` 2026-10-12, `b23cb034` 2026-10-12)
+- ✓ T-257 · Frente evaluación: «no aplica» para la opción que la oferta no usa (por diseño), regla de forma de garantía antes que la de externos, regla del Portal que conserva condiciones y pregunta y compara la cantidad ofertada, contraste con el bloque del Portal completo, circulares «aclara/precisa» en la evaluación, criterios del 2026-10-12 (IVA del Portal, cumple por ausencia, prórroga en la fila del plazo, presentación física) (`7623f579` 2026-10-13, `642303d5` 2026-10-13, `e3b92180` 2026-10-13, `6ea4ca26` 2026-10-12, `6ac97204` 2026-10-12, `2cdd6c02` 2026-10-12, `c31e27e6` 2026-10-12, `f5753977` 2026-10-12, `cbfbfefe` 2026-10-12, `8f99fb33` 2026-10-12)
+- ✓ T-258 · Frente matriz: definiciones del 2026-10-12, paso de unión de oraciones del mismo asunto, nota de tabla con su cláusula, párrafo introductorio de un anexo como encabezado, reintento de la extracción con memoria y sin caracteres de área privada, motivos del filtro alineados con las definiciones (`a29e2662` 2026-10-12, `9f60be3d` 2026-10-12, `aa59936e` 2026-10-12, `630a9029` 2026-10-12)
+- ✓ T-259 · Frente lectura: OCR cuando la extracción del PDF da «(cid:» (croquis), tablas con sus celdas, manuscritos con la visión del modelo adoptado, descarga del Pliego Único y su aviso de faltante (`695108df` 2026-10-12, `518f3abd` 2026-10-12, `982ad6a0` 2026-10-12, `38bd6e65` 2026-10-12, `8c777543` 2026-10-12, `a2740a46` 2026-10-12, `b416c94a` 2026-10-12, `438e0321` 2026-10-12, `d4a5cb2e` 2026-10-12, `a14be39a` 2026-10-12)
 - ✓ T-260 · Medición única de la ronda del comité: caso-00 (desarrollo), casos 01, 02 y 06 (validación), casos 03, 04 y 05 (prueba, congelados), con una corrida alterada para medir la variación; criterios del ADR de T-256
-- ✓ T-237 · Instrucciones de la evaluación (evaluación, contraste, cláusulas): `razonamiento`, citas y externo antes del veredicto en el esquema, cita de la oración completa en lugar del «fragmento mínimo», «cada condición con su dato» con el resultado de cada una visible por separado y el de la celda derivado de todas (REQ-104), definición de la duda, ejemplos balanceados, pregunta dirigida a la Comisión, reintento con memoria, versión y huella en cada pedido (`4006149` 2026-10-11, `eb82337` 2026-10-11, `12a87b8` 2026-10-11, `9f22363` 2026-10-11, `3a4234f` 2026-10-11, `8a06a96` 2026-10-11, `08d79ac` 2026-10-11)
-- ✓ T-251 · Código listo para medir otro modelo: el cuerpo del pedido de lotes dice el modelo que lo atiende y los tokens de los lotes se cuentan con ese motor (hoy con `generation`, que es Gemma) (`70b4a61` 2026-10-11, `32aa9ae` 2026-10-11, `a1aa7c2` 2026-10-11)
-- ✓ T-238 · Medidas de la 015 en `medir_matriz` y `medir_evaluacion` (filas conservadas, pedazos sin sujeto, recall sin las entradas excluidas, celdas del Portal, «no determinado» que no espera un documento ausente, forma de las preguntas) y listas esperadas ajustadas con huella y visto bueno del Coordinador (`df43d49` 2026-10-11, `2ebdf6a` 2026-10-10)
+- ✓ T-261 · Contexto de la evaluación (D-260-1): el tope de cada grupo de documentos descuenta la instrucción, el bloque del Portal, el requisito y la salida, y un pedido que igual no entra se parte en grupos más chicos en lugar de fallar; test con una oferta grande (`7825e255` 2026-10-13, `b97e085a` 2026-10-13, `e152893f` 2026-10-13)
+- ✓ T-262 · Presentación física en la matriz (decisión del 2026-10-12, que T-260 vio descartada en los 7 casos por un ejemplo de la extracción) y re-anclaje de las listas esperadas de los casos 03 y 04 a la partición nueva del pliego (D-260-2), con su huella y el visto bueno del Coordinador (`60412696` 2026-10-13, `705d524c` 2026-10-13)
+- ✓ T-237 · Instrucciones de la evaluación (evaluación, contraste, cláusulas): `razonamiento`, citas y externo antes del veredicto en el esquema, cita de la oración completa en lugar del «fragmento mínimo», «cada condición con su dato» con el resultado de cada una visible por separado y el de la celda derivado de todas (REQ-104), definición de la duda, ejemplos balanceados, pregunta dirigida a la Comisión, reintento con memoria, versión y huella en cada pedido (`4006149b` 2026-10-11, `eb82337d` 2026-10-11, `12a87b87` 2026-10-11, `9f223630` 2026-10-11, `3a4234f0` 2026-10-11, `8a06a96f` 2026-10-11, `08d79acf` 2026-10-11)
+- ✓ T-251 · Código listo para medir otro modelo: el cuerpo del pedido de lotes dice el modelo que lo atiende y los tokens de los lotes se cuentan con ese motor (hoy con `generation`, que es Gemma) (`70b4a611` 2026-10-11, `32aa9aea` 2026-10-11, `a1aa7c2b` 2026-10-11)
+- ✓ T-238 · Medidas de la 015 en `medir_matriz` y `medir_evaluacion` (filas conservadas, pedazos sin sujeto, recall sin las entradas excluidas, celdas del Portal, «no determinado» que no espera un documento ausente, forma de las preguntas) y listas esperadas ajustadas con huella y visto bueno del Coordinador (`df43d49d` 2026-10-11, `2ebdf6a8` 2026-10-10)
 - ✓ T-239 · Medición del 12B con el uso corregido: caso chico como corte vertical, caso-00 (matriz, revisión como en T-229 y evaluación de las 3 ofertas) y casos 01 a 06 (matriz), contra los umbrales del plan: 70 % de filas conservadas, 0 pedazos sin sujeto, 95 % de la lista esperada, Portal 100 % y 0, 12 de 81 «no determinado» o menos, 0 contradicciones, 100 % literal, 100 % de preguntas conformes, 60 minutos y 22.000 MiB
-- ✓ T-240 · Ronda de ajuste única, solo si T-239 no llega a algún umbral: todos los hallazgos en una sola tarea, un commit por hallazgo; se cierra sin cambios si T-239 cumple todo (`850b5ca` 2026-10-11, `392f9ce` 2026-10-11, `22d509c` 2026-10-11, `0e57239` 2026-10-11, `0768320` 2026-10-11, `1b26bd5` 2026-10-11, `3990e9e` 2026-10-11, `d0e2139` 2026-10-11, `037ad17` 2026-10-11, `ab57958` 2026-10-11)
+- ✓ T-240 · Ronda de ajuste única, solo si T-239 no llega a algún umbral: todos los hallazgos en una sola tarea, un commit por hallazgo; se cierra sin cambios si T-239 cumple todo (`850b5ca1` 2026-10-11, `392f9ceb` 2026-10-11, `22d509cb` 2026-10-11, `0e572398` 2026-10-11, `07683207` 2026-10-11, `1b26bd56` 2026-10-11, `3990e9e2` 2026-10-11, `d0e21391` 2026-10-11, `037ad179` 2026-10-11, `ab57958b` 2026-10-11)
 - ✓ T-241 · Repetición completa de la medición de T-239 sobre el commit ajustado; es la referencia del 12B para la comparación. Solo si hubo T-240; sin una segunda ronda de ajuste
-- ✓ T-242 · Servicio de los candidatos: un archivo de compose por modelo (Qwen3.8-27B y Qwen3.6-35B-A3B) a la manera del ADR-0042, opciones de descarga con revisión fijada, huellas en `scripts/models.sha256` y tests de coherencia con el compose base (`dd1f0f6` 2026-10-10)
+- ✓ T-242 · Servicio de los candidatos: un archivo de compose por modelo (Qwen3.8-27B y Qwen3.6-35B-A3B) a la manera del ADR-0042, opciones de descarga con revisión fijada, huellas en `scripts/models.sha256` y tests de coherencia con el compose base (`dd1f0f61` 2026-10-10)
 - ✓ T-243 · Qwen3.8-27B en servicio: prueba de humo con texto e imagen, memoria máxima (22.000 MiB), reuso de la caché de prefijo (90 % o más del prefijo), razonamiento nativo apagado (0 tokens de pensamiento) y orden del esquema respetado; velocidad medida
 - ✓ T-244 · Comparación de Qwen3.8-27B con el 12B, con el protocolo del ADR-0042 y el uso corregido: caso-00 completo primero (compuerta de salida temprana), después los casos 01 a 06; cada par que cambia se revisa y se clasifica
 - ✓ T-245 · Qwen3.6-35B-A3B en servicio: las mismas comprobaciones que T-243 con los mismos umbrales
 - ✓ T-246 · Comparación de Qwen3.6-35B-A3B con el 12B, con el mismo protocolo y los mismos umbrales
-- ✓ T-247 · ADR de resultado (reservado ADR-0057): adopta o descarta cada candidato con las corridas como evidencia; si adopta, deja preparados sin integrar los cambios de compose base y `entorno.md` para la aprobación del responsable (`e77c880` 2026-10-12, `83d7bd8` 2026-10-12, `76af05f` 2026-10-12, `370a36a` 2026-10-12, `bb34d0c` 2026-10-12)
-- ✓ T-248 · Resto de las instrucciones (consecuencias, respaldo, ficha, ficha por renglón, reescritura, visión, informe técnico, consulta, nombre del oferente, datos del procedimiento) y hallazgos pendientes del informe de revisión; huella de cada una; el informe queda con todo corregido o justificado (`a25e4ce` 2026-10-12, `b3e033a` 2026-10-12, `7618ce3` 2026-10-12, `4f9323b` 2026-10-12, `c3f706c` 2026-10-12, `912085f` 2026-10-12, `9745555` 2026-10-12, `b460999` 2026-10-12, `d847260` 2026-10-12)
+- ✓ T-247 · ADR de resultado (reservado ADR-0057): adopta o descarta cada candidato con las corridas como evidencia; si adopta, deja preparados sin integrar los cambios de compose base y `entorno.md` para la aprobación del responsable (`e77c8804` 2026-10-12, `83d7bd80` 2026-10-12, `76af05f1` 2026-10-12, `370a36a7` 2026-10-12, `bb34d0cd` 2026-10-12)
+- ✓ T-248 · Resto de las instrucciones (consecuencias, respaldo, ficha, ficha por renglón, reescritura, visión, informe técnico, consulta, nombre del oferente, datos del procedimiento) y hallazgos pendientes del informe de revisión; huella de cada una; el informe queda con todo corregido o justificado (`a25e4ce4` 2026-10-12, `b3e033af` 2026-10-12, `7618ce3e` 2026-10-12, `4f9323b2` 2026-10-12, `c3f706cc` 2026-10-12, `912085ff` 2026-10-12, `97455553` 2026-10-12, `b4609996` 2026-10-12, `d847260b` 2026-10-12)
 
 ### Mapa de tareas
 
@@ -1343,8 +1344,9 @@ flowchart TD
   T258["✓ T-258 · Frente matriz: definiciones del 2026-10-12,…"]:::done
   T259["✓ T-259 · Frente lectura: OCR cuando la extracción de…"]:::done
   T260["✓ T-260 · Medición única de la ronda del comité: caso…"]:::done
-  T261["▶ T-261 · Contexto de la evaluación (D-260-1): el top…"]:::active
-  T262["▶ T-262 · Presentación física en la matriz (decisión…"]:::active
+  T261["✓ T-261 · Contexto de la evaluación (D-260-1): el top…"]:::done
+  T262["✓ T-262 · Presentación física en la matriz (decisión…"]:::done
+  T263["▶ T-263 · Medición de cierre de la 015 con T-261 y T-…"]:::active
   T237["✓ T-237 · Instrucciones de la evaluación (evaluación,…"]:::done
   T251["✓ T-251 · Código listo para medir otro modelo: el cue…"]:::done
   T238["✓ T-238 · Medidas de la 015 en medir_matriz y medir_e…"]:::done
@@ -1377,6 +1379,8 @@ flowchart TD
   T259 --> T260
   T260 --> T261
   T260 --> T262
+  T261 --> T263
+  T262 --> T263
   T235 --> T237
   T252 --> T237
   T236 --> T251
@@ -1412,10 +1416,10 @@ flowchart TD
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-101 | Cada requisito propuesto en la matriz cita su unidad de sentido completa: la oración entera, junto con las oraciones cortas contiguas que siguen el mismo asunto, y el encabezado del punto o del inciso cuando la oración sola no se entiende; nunca un pedazo sin sujeto ni condiciones de una misma oración separadas en filas distintas | T-234, T-236, T-256, T-258, T-260, T-262, T-238, T-239, T-240, T-241 | ▶ en proceso |
-| REQ-102 | La matriz propuesta no incluye consecuencias, obligaciones del organismo, condiciones que solo valen si el oferente elige una opción (salvo como condición de esa opción), pago, moneda de pago, factura, forma de presentar por el Portal ni compromisos que se cumplen al presentarse; sí incluye la moneda en que se cotiza la oferta | T-250, T-236, T-252, T-254, T-256, T-258, T-260, T-262, T-238, T-239, T-240, T-241 | ▶ en proceso |
-| REQ-103 | Cuando el dato de la oferta está en el Portal y coincide con lo que exige el pliego, la evaluación propone «cumple» citando el dato del Portal; cuando no coincide, propone «no cumple» o la diferencia | T-233, T-235, T-256, T-257, T-260, T-238, T-239, T-240, T-241 | ✓ cubierto |
-| REQ-104 | En la evaluación, el sistema razona antes de dar el veredicto, revisa todas las condiciones del requisito, cada una con su dato y su resultado visible por separado («cumple» solo si se cumplen todas; «no cumple» si falla alguna; si falta el dato de alguna, «no determinado» diciendo cuál), cita la oración completa de la oferta y del pliego, y el contraste ve el contexto de la cita | T-235, T-256, T-257, T-259, T-260, T-261, T-237, T-238, T-239, T-240, T-241 | ▶ en proceso |
-| REQ-105 | Cada pregunta a la Comisión está dirigida a la Comisión (nunca al oferente) y dice qué requisito, qué conclusión y qué texto la motivan; no hay preguntas de texto fijo genérico | T-235, T-256, T-257, T-260, T-237, T-238, T-239, T-240, T-241 | ✓ cubierto |
+| REQ-101 | Cada requisito propuesto en la matriz cita su unidad de sentido completa: la oración entera, junto con las oraciones cortas contiguas que siguen el mismo asunto, y el encabezado del punto o del inciso cuando la oración sola no se entiende; nunca un pedazo sin sujeto ni condiciones de una misma oración separadas en filas distintas | T-234, T-236, T-256, T-258, T-260, T-262, T-263, T-238, T-239, T-240, T-241 | ▶ en proceso |
+| REQ-102 | La matriz propuesta no incluye consecuencias, obligaciones del organismo, condiciones que solo valen si el oferente elige una opción (salvo como condición de esa opción), pago, moneda de pago, factura, forma de presentar por el Portal ni compromisos que se cumplen al presentarse; sí incluye la moneda en que se cotiza la oferta | T-250, T-236, T-252, T-254, T-256, T-258, T-260, T-262, T-263, T-238, T-239, T-240, T-241 | ▶ en proceso |
+| REQ-103 | Cuando el dato de la oferta está en el Portal y coincide con lo que exige el pliego, la evaluación propone «cumple» citando el dato del Portal; cuando no coincide, propone «no cumple» o la diferencia | T-233, T-235, T-256, T-257, T-260, T-263, T-238, T-239, T-240, T-241 | ▶ en proceso |
+| REQ-104 | En la evaluación, el sistema razona antes de dar el veredicto, revisa todas las condiciones del requisito, cada una con su dato y su resultado visible por separado («cumple» solo si se cumplen todas; «no cumple» si falla alguna; si falta el dato de alguna, «no determinado» diciendo cuál), cita la oración completa de la oferta y del pliego, y el contraste ve el contexto de la cita | T-235, T-256, T-257, T-259, T-260, T-261, T-263, T-237, T-238, T-239, T-240, T-241 | ▶ en proceso |
+| REQ-105 | Cada pregunta a la Comisión está dirigida a la Comisión (nunca al oferente) y dice qué requisito, qué conclusión y qué texto la motivan; no hay preguntas de texto fijo genérico | T-235, T-256, T-257, T-260, T-263, T-237, T-238, T-239, T-240, T-241 | ▶ en proceso |
 | REQ-106 | Todas las instrucciones al modelo (matriz, evaluación, contraste, visión, ficha, consulta) se revisan contra las decisiones vigentes y entre sí: sin reglas que empujen al error, con ejemplos representativos, razonamiento antes del veredicto y la versión registrada en cada pedido (P6) | T-236, T-252, T-237, T-248, T-249 | ▶ en proceso |
-| REQ-107 | Un modelo nuevo se adopta solo si, con el uso corregido, el mismo caso y la misma lista esperada, mejora las medidas de REQ-101 a REQ-105 sin empeorar contradicciones, citas, tiempo ni memoria, con cada cambio explicado | T-253, T-254, T-255, T-256, T-260, T-251, T-242, T-243, T-244, T-245, T-246, T-247 | ▶ en proceso |
+| REQ-107 | Un modelo nuevo se adopta solo si, con el uso corregido, el mismo caso y la misma lista esperada, mejora las medidas de REQ-101 a REQ-105 sin empeorar contradicciones, citas, tiempo ni memoria, con cada cambio explicado | T-253, T-254, T-255, T-256, T-260, T-263, T-251, T-242, T-243, T-244, T-245, T-246, T-247 | ▶ en proceso |
