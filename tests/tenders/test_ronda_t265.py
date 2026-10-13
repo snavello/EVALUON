@@ -248,11 +248,17 @@ def _added(name, previous):
     r"sueldo", r"salari", r"operari", r"viátic", r"mano de obra", r"impuesto", r"porcentaje",
     r"precio unitario", r"costo directo", r"gastos generales", r"previsi", r"iva", r"iibb",
     r"componente", r"estructura de costos",
+    # Los de T-262 (`test_ronda_t262.py`): la presentación física, la oferta económica por el
+    # formulario del Portal y la póliza de los casos.
+    r"mesa de entrada", r"requiere presentar", r"presentarse físicamente",
+    r"adjuntar electrónicamente", r"portal de compras", r"detalle de renglones",
+    r"a través del formulario", r"póliza", r"pagaré", r"pesos argentinos", r"administrador",
 ])
 def test_what_v12_adds_does_not_paraphrase_the_cost_breakdown_of_a_measurement_case(term):
     """REQ-106 (ADR-0059, conjunto de validación; P4, P7): lo que suma la v12 (la sección, el motivo
     y los dos ejemplos) es de otro rubro y de otra redacción: no usa el vocabulario de una planilla de
-    costos de servicios de los casos de medición (sueldos, operarios, cargas, impuestos)."""
+    costos de servicios de los casos de medición (sueldos, operarios, cargas, impuestos) ni repite
+    los términos que T-262 ya sacó de sus ejemplos."""
     pattern = re.compile(rf"\b{term}", re.IGNORECASE)
     for line in _added(NEW, PREVIOUS):
         assert not pattern.search(line), (term, line[:60])
