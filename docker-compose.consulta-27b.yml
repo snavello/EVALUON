@@ -24,9 +24,10 @@
 #
 # El motor atiende de a un pedido (`--parallel 1`): mientras corre un trabajo que lo usa (una
 # evaluación, una matriz, una ficha o una propuesta de datos), la pantalla de la Consulta y la pestaña
-# de Normativas lo dicen y no ejecutan ni guardan la pregunta; la búsqueda directa sigue. Los pedidos
-# de la Consulta salen siempre sin razonamiento (`enable_thinking: false`), aunque el servidor lo
-# permita por docker-compose.razonamiento.yml.
+# de Normativas lo dicen y no ejecutan ni guardan la pregunta; la búsqueda directa sigue. Si el motor
+# no contesta (el 27B tarda de 3 a 10 minutos en cargar tras cada reinicio, o se cayó) dicen que se
+# está encendiendo o no responde. Los pedidos de la Consulta salen siempre sin razonamiento
+# (`enable_thinking: false`), aunque el servidor lo permita por docker-compose.razonamiento.yml.
 #
 # Para volver al 12B con la Consulta: no usar nada de esto (ver
 # specs/015-uso-y-eleccion-del-modelo/entorno.md, «Cómo se vuelve al 12B»).

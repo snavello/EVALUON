@@ -186,13 +186,21 @@ class FutureDate(QueryRefused):
     """La fecha de autorización es posterior al día."""
 
 
-# Lo que dicen las pantallas de la Consulta cuando su motor no contesta (T-247, ADR-0057): con el
-# Qwen3.8-27B en el motor de lotes y `generation` apagado (docker-compose.sin-consulta.yml, el 27B
-# sin Consulta), o con el motor cargando el modelo. Sin este aviso la pregunta recorría la
-# recuperación y terminaba en «falla técnica» (y en una consulta fallida guardada).
+# Lo que dicen las pantallas de la Consulta cuando su motor, `generation` aparte, no contesta
+# (T-247, ADR-0057): con el Qwen3.8-27B en el motor de lotes y `generation` apagado a propósito
+# (docker-compose.sin-consulta.yml, el 27B sin Consulta), o con el 12B de la Consulta caído. Sin este
+# aviso la pregunta recorría la recuperación y terminaba en «falla técnica» (y en una consulta
+# fallida guardada).
 UNAVAILABLE_NOTICE = ("La consulta de normativa no está disponible por ahora: el equipo usa el "
                       "modelo grande para las evaluaciones y deja apagado el motor de la consulta. "
                       "Vuelva a intentarlo más tarde.")
+
+# Lo que dicen cuando la Consulta está en el mismo motor que las evaluaciones y las matrices (T-255)
+# y ese motor no contesta: el 27B tarda de 3 a 10 minutos en cargar tras cada reinicio y hasta
+# entonces responde 503, o está caído. Ese motor no se dejó apagado a propósito, así que no vale
+# `UNAVAILABLE_NOTICE`, que dice que el equipo dejó apagado el motor de la Consulta.
+NOT_RESPONDING_NOTICE = ("La consulta de normativa no está disponible por ahora: el motor del modelo "
+                         "se está encendiendo o no responde. Vuelva a intentarlo en unos minutos.")
 
 # Lo que dicen cuando la Consulta está en el mismo motor que las evaluaciones y las matrices (T-255,
 # ADR-0057) y ese motor está ocupado con un trabajo: el 27B atiende de a un pedido y una evaluación o
@@ -221,13 +229,19 @@ def batch_engine_busy():
 
 def consulta_notice():
     """Lo que tienen que decir las pantallas de la Consulta si no puede responder ahora, o `""` si
-    puede (T-247, T-255). Si la Consulta va al mismo motor que los trabajos de lotes y uno está en
-    curso, `BUSY_NOTICE` (sin preguntar la salud del motor: ya se sabe ocupado); si no, y el motor no
-    contesta, `UNAVAILABLE_NOTICE`. Con `generation` aparte los trabajos de lotes no la ocupan."""
-    if generation.shares_batch_engine() and batch_engine_busy():
+    puede (T-247, T-255):
+
+    - Si la Consulta va al mismo motor que los trabajos de lotes y uno está en curso, `BUSY_NOTICE`
+      (sin preguntar la salud del motor: ya se sabe ocupado).
+    - Si el motor no contesta: `NOT_RESPONDING_NOTICE` cuando es el motor compartido (se está
+      encendiendo o se cayó) y `UNAVAILABLE_NOTICE`, el de T-247, cuando `generation` va aparte.
+
+    Con `generation` aparte los trabajos de lotes no ocupan a la Consulta."""
+    shared = generation.shares_batch_engine()
+    if shared and batch_engine_busy():
         return BUSY_NOTICE
     if not generation.is_available():
-        return UNAVAILABLE_NOTICE
+        return NOT_RESPONDING_NOTICE if shared else UNAVAILABLE_NOTICE
     return ""
 
 

@@ -36,8 +36,14 @@ ENGINE_CONTEXT = 32768
 # El aviso de la Consulta ocupada, tal cual lo pidió el Coordinador (el código le suma el punto final).
 BUSY = ("La consulta de normativa no está disponible mientras el sistema evalúa o arma una matriz; "
         "vuelva a intentar cuando termine")
-# El de siempre, con el motor que no contesta.
+# Con el motor compartido que no contesta (el 27B cargando tras un reinicio, o caído), tal cual lo
+# pidió el Coordinador.
+NOT_RESPONDING = ("La consulta de normativa no está disponible por ahora: el motor del modelo se está "
+                  "encendiendo o no responde. Vuelva a intentarlo en unos minutos.")
+# El de T-247, con `generation` aparte que no contesta (el 27B sin Consulta, o el 12B caído).
 OFF = "La consulta de normativa no está disponible por ahora"
+OFF_T247 = ("La consulta de normativa no está disponible por ahora: el equipo usa el modelo grande "
+            "para las evaluaciones y deja apagado el motor de la consulta. Vuelva a intentarlo más tarde.")
 FAILURE = "No se pudo completar la consulta"
 
 QUESTION = "¿Qué garantía sintética corresponde en la contratación?"
@@ -344,13 +350,27 @@ def test_with_two_engines_a_batch_job_does_not_block_the_consulta(add_job, two_e
     assert generation.shares_batch_engine() is False
 
 
-def test_the_engine_that_does_not_answer_keeps_its_own_notice(one_engine, monkeypatch):
-    """REQ-107: sin trabajo en curso, un motor que no contesta (apagado o cargando el modelo) dice lo
-    de siempre, distinto del aviso de la Consulta ocupada."""
+def test_a_shared_engine_that_does_not_answer_says_it_is_starting_or_not_responding(
+        one_engine, monkeypatch):
+    """REQ-107: sin trabajo en curso, el motor compartido que no contesta (el 27B cargando tras un
+    reinicio, de 3 a 10 minutos, o caído) dice que se está encendiendo o no responde, en las
+    palabras pedidas: es el motor de las evaluaciones, no uno que el equipo dejó apagado a propósito."""
     monkeypatch.setattr(generation, "is_available", lambda timeout=None: False)
 
-    assert services.consulta_notice() == services.UNAVAILABLE_NOTICE
-    assert services.UNAVAILABLE_NOTICE.startswith(OFF)
+    assert services.consulta_notice() == services.NOT_RESPONDING_NOTICE == NOT_RESPONDING
+    assert services.consulta_available() is False
+    assert "deja apagado" not in services.NOT_RESPONDING_NOTICE
+    for word in ("generation", "Qwen", "GPU", "docker", "gguf"):
+        assert word not in services.NOT_RESPONDING_NOTICE
+
+
+def test_with_two_engines_the_one_of_the_consulta_off_keeps_the_notice_of_t247(
+        two_engines, monkeypatch):
+    """REQ-107: con `generation` aparte que no contesta (el 27B sin Consulta, o el 12B caído) queda
+    el texto de T-247, que dice que el equipo dejó apagado el motor de la Consulta."""
+    monkeypatch.setattr(generation, "is_available", lambda timeout=None: False)
+
+    assert services.consulta_notice() == services.UNAVAILABLE_NOTICE == OFF_T247
     assert services.consulta_available() is False
 
 
@@ -387,6 +407,47 @@ def test_the_screen_says_it_and_does_not_run_the_question_while_a_job_runs(
     assert Query.objects.count() == 0
     assert fake_ai.embeddings.calls == [] and fake_ai.reranker.calls == []
     assert fake_ai.generation.calls == []
+
+
+def test_the_screen_says_the_shared_engine_is_starting_and_does_not_run_the_question(
+        client, read_user, one_engine, fake_ai, monkeypatch):
+    """REQ-107: con el motor compartido sin contestar (el 27B cargando, o caído), `/consulta/` trae
+    el aviso de que se está encendiendo o no responde, con el botón desactivado; la pregunta no
+    recorre la recuperación ni se guarda, y no se muestra como falla técnica ni como Consulta
+    ocupada ni con el texto de T-247."""
+    monkeypatch.setattr(generation, "is_available", lambda timeout=None: False)
+    log_in(client, read_user)
+
+    html = client.get(reverse("queries:screen")).content.decode()
+    assert NOT_RESPONDING in html and 'id="query-unavailable"' in html
+    assert 'id="query-submit" disabled' in html
+    assert OFF_T247 not in html and BUSY not in html and FAILURE not in html
+
+    response = client.post(reverse("queries:screen"),
+                           {"question": "¿Qué garantía se exige al ofertar?", "reference_date": ""})
+    assert response.status_code == 200
+    html = response.content.decode()
+    assert NOT_RESPONDING in html and FAILURE not in html
+    assert "¿Qué garantía se exige al ofertar?" in html
+    assert Query.objects.count() == 0
+    assert fake_ai.embeddings.calls == [] and fake_ai.reranker.calls == []
+    assert fake_ai.generation.calls == []
+
+
+def test_the_screen_with_two_engines_and_the_consulta_one_off_keeps_the_notice_of_t247(
+        client, read_user, two_engines, fake_ai, monkeypatch):
+    """REQ-107: con `generation` aparte que no contesta, la pantalla dice lo de T-247 y no lo del
+    motor compartido; la pregunta tampoco se ejecuta ni se guarda."""
+    monkeypatch.setattr(generation, "is_available", lambda timeout=None: False)
+    log_in(client, read_user)
+
+    html = client.get(reverse("queries:screen")).content.decode()
+    assert OFF_T247 in html and NOT_RESPONDING not in html
+    assert 'id="query-submit" disabled' in html
+
+    client.post(reverse("queries:screen"),
+                {"question": "¿Qué garantía se exige al ofertar?", "reference_date": ""})
+    assert Query.objects.count() == 0 and fake_ai.generation.calls == []
 
 
 def test_the_page_of_a_saved_query_also_says_it_while_a_job_runs(

@@ -9,6 +9,7 @@ sintéticos (P4)."""
 import pytest
 from django.urls import reverse
 
+from evaluon.ai import generation
 from evaluon.journey.temas import s5_consulta
 from evaluon.queries import services
 from evaluon.queries.models import Query
@@ -20,6 +21,11 @@ pytestmark = pytest.mark.django_db
 
 BUSY = ("La consulta de normativa no está disponible mientras el sistema evalúa o arma una matriz; "
         "vuelva a intentar cuando termine")
+# Con el motor compartido sin contestar, y con `generation` aparte sin contestar (T-247).
+NOT_RESPONDING = ("La consulta de normativa no está disponible por ahora: el motor del modelo se está "
+                  "encendiendo o no responde. Vuelva a intentarlo en unos minutos.")
+OFF_T247 = ("La consulta de normativa no está disponible por ahora: el equipo usa el modelo grande "
+            "para las evaluaciones y deja apagado el motor de la consulta. Vuelva a intentarlo más tarde.")
 
 
 @pytest.fixture
@@ -27,6 +33,19 @@ def one_engine(settings):
     """Un solo motor: la Consulta va a la misma dirección que los pedidos de lotes."""
     settings.GENERATION_URL = settings.GENERATION_BATCH_URL = "http://generation_batch:8080"
     return settings
+
+
+@pytest.fixture
+def two_engines(settings):
+    """`generation` aparte de `generation_batch` (el 27B sin Consulta, o el 12B)."""
+    settings.GENERATION_URL = "http://generation:8080"
+    settings.GENERATION_BATCH_URL = "http://generation_batch:8080"
+    return settings
+
+
+@pytest.fixture
+def engine_down(monkeypatch):
+    monkeypatch.setattr(generation, "is_available", lambda timeout=None: False)
 
 
 def log_in(client, user):
@@ -82,6 +101,38 @@ def test_asking_from_the_tab_while_a_job_runs_goes_back_with_the_notice(
     assert Query.objects.count() == 0
     assert fake_ai.embeddings.calls == [] and fake_ai.generation.calls == []
     assert BUSY in client.get(response["Location"]).content.decode()
+
+
+def test_the_normativas_tab_says_the_shared_engine_is_starting_and_does_not_let_ask(
+        client, operator_user, procedure, one_engine, engine_down, fake_ai):
+    """REQ-107: con el motor compartido sin contestar (el 27B cargando, o caído) la pestaña dice que
+    se está encendiendo o no responde y desactiva el botón; la pregunta enviada vuelve a la pestaña
+    con el mismo aviso, sin ejecutarse ni guardarse."""
+    log_in(client, operator_user)
+
+    html = client.get(reverse("expedientes:normativas", args=[procedure.pk])).content.decode()
+    assert 'id="s5-consulta-apagada"' in html and NOT_RESPONDING in html
+    assert 'id="s5-consulta-enviar" disabled' in html
+    assert OFF_T247 not in html and BUSY not in html
+
+    response = client.post(reverse("expedientes:s5_consultar", args=[procedure.pk]),
+                           {"question": "¿Cuál es el objeto del régimen?"})
+    assert response.status_code == 302
+    shown = s5_consulta.unpack(response["Location"].split("aviso=")[1].split("#")[0])
+    assert shown == {"ok": False, "text": services.NOT_RESPONDING_NOTICE}
+    assert Query.objects.count() == 0
+    assert fake_ai.embeddings.calls == [] and fake_ai.generation.calls == []
+
+
+def test_the_normativas_tab_with_two_engines_and_the_consulta_one_off_keeps_the_notice_of_t247(
+        client, operator_user, procedure, two_engines, engine_down):
+    """REQ-107: con `generation` aparte que no contesta, la pestaña dice lo de T-247."""
+    log_in(client, operator_user)
+
+    html = client.get(reverse("expedientes:normativas", args=[procedure.pk])).content.decode()
+
+    assert OFF_T247 in html and NOT_RESPONDING not in html
+    assert 'id="s5-consulta-enviar" disabled' in html
 
 
 def test_asking_from_the_tab_with_the_engine_free_runs_the_consulta(
