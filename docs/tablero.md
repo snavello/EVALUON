@@ -1291,8 +1291,8 @@ flowchart LR
 
 - **Próximo paso:** Desarrollar: 4 tareas sin terminar.
 - ▶ T-263 · Medición de cierre de la 015 con T-261 y T-262: evaluación del caso-00 con la configuración normal (y la corrida alterada para la estabilidad), matrices de los casos 00, 01, 02 y 06 (validación) y 03, 04 y 05 (prueba, con las listas re-ancladas del 03 y el 04), contra la spec 015 y el ADR-0059 (en curso)
+- ◐ T-264 · Fundamento visible en las pantallas del expediente (dictamen de la 015, hallazgos 1, 2 y 4; decisión del 2026-10-13 sobre la visión): el dato del Portal con su enlace y la fecha en que se tomó; la cita de una página leída por visión con la marca, el aviso de que proviene de una página con dificultades de lectura y conviene volver a chequearla, y el enlace para ver la imagen (Evaluación y detalle del par, Preguntas, Descartes, informe técnico, ficha de Ofertas, pantalla de la 004 y exportaciones); el panel de pendientes lleva a la ficha de la pestaña; Descartes sin una consulta por motivo; `specs/` montada en el servicio `app` (en verificación)
 - ○ T-255 · Consulta de normativa con el 27B: la Consulta usa el mismo motor del 27B (sin `generation` aparte), con las evals de la 001 medidas antes de pasarla (P7) y el umbral de que ninguna medida empeore frente al 12B; mientras no pase, la Consulta queda apagada cuando corre una evaluación (pendiente)
-- ○ T-264 · Fundamento visible en la pestaña de Evaluación (dictamen de la 015, hallazgos 1, 2 y 4): junto a cada dato del Portal, su enlace y la fecha en que se tomó (detalle del par, celda y pantalla de la 004); las citas leídas por visión con la marca «leída por visión», el aviso de comparar con el original y el enlace al original (detalle del par y celda); `specs/` montada en el servicio `app` (pendiente)
 - ○ T-249 · Medición de lo que cambió T-248, solo en las áreas que cambió, con el umbral de que ninguna medida empeore (P7): evals de la 001, fichas, lectura con visión, propuestas de datos y matriz con circulares (pendiente)
 
 ### Qué se hizo
@@ -1348,7 +1348,7 @@ flowchart TD
   T261["✓ T-261 · Contexto de la evaluación (D-260-1): el top…"]:::done
   T262["✓ T-262 · Presentación física en la matriz (decisión…"]:::done
   T263["▶ T-263 · Medición de cierre de la 015 con T-261 y T-…"]:::active
-  T264["○ T-264 · Fundamento visible en la pestaña de Evaluac…"]:::todo
+  T264["◐ T-264 · Fundamento visible en las pantallas del exp…"]:::review
   T237["✓ T-237 · Instrucciones de la evaluación (evaluación,…"]:::done
   T251["✓ T-251 · Código listo para medir otro modelo: el cue…"]:::done
   T238["✓ T-238 · Medidas de la 015 en medir_matriz y medir_e…"]:::done

@@ -75,3 +75,12 @@ Se propone C, con estas reglas.
 - Tokens por imagen y resolución útiles para manuscrito y cuadros: T-160.
 - Cuántas páginas del caso-00 caen en el criterio: se cuenta en T-160 (el informe de lectura ya las lista).
 - Que las dos fuentes de Hugging Face leídas con una herramienta que resume coincidan al byte con el archivo real: lo comprueba la huella al descargar.
+
+## Ratificación con el Qwen3.8-27B (2026-10-13)
+
+Con el 27B adoptado (ADR-0057), el responsable decidió mantener la visión por página: «Mantengo la visión, siempre es preferible a no leída. Obviamente aclarando que proviene de un documento con dificultades de lectura y que conviene re chequear por la comisión, ofreciendo ver la imagen» (spec 015, decisiones literales).
+
+- `ASSESSMENT_VISION_MAX_PAGES` sigue en 40. La visión por pasaje y la marca de manuscritos siguen apagadas (T-259).
+- Contexto de la decisión: en el caso-00, las 3 páginas leídas por visión las leyó el 12B el 2026-10-11 y las mediciones del 27B reusan esas lecturas. La única citada es el pagaré manuscrito de la oferta 1, con un número de proceso que no coincide con el original. Aparte, el 27B inventó el año, el concepto y el proceso al leer ese pagaré (T-259).
+- Toda cita de una página leída por visión dice, en cada pantalla que la muestra y en las exportaciones, que proviene de una página con dificultades de lectura y que conviene que la Comisión la vuelva a chequear, y ofrece ver la imagen (T-264).
+- Cómo lee el 27B las páginas impresas dudosas se mide en T-249.
