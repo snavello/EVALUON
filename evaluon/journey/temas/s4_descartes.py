@@ -16,6 +16,12 @@ Dos bloques, en el orden de la maqueta aprobada:
 Los descartes sin decidir son pendientes de la sección (REQ-097), con su enlace «Resolver» a la
 fila. La etapa `matriz_evaluacion` los cuenta como pendientes (no como sugerencias) y este tema
 los lista uno por uno. Las acciones vuelven a la pestaña con el mensaje de lo hecho.
+
+El fundamento de cada motivo se ve completo (P3, T-264): la cita de la oferta, con la marca «leída
+por visión» si su página se leyó por visión, y el dato del Portal en que se apoya, con su enlace y la
+fecha en que se tomó; y el orden económico dice de qué página del Portal salen los precios. Las
+citas de todos los motivos se traen juntas, con su documento (`journey/basis.py`): una consulta por
+pantalla y no una por motivo (T-223).
 """
 
 from dataclasses import dataclass, field
@@ -31,7 +37,7 @@ from evaluon.assessment.models import DiscardAction, Outcome
 from evaluon.assessment.services import discards as service
 from evaluon.assessment.services import matrix as matrix_service
 from evaluon.audit.models import Channel
-from evaluon.journey import memo
+from evaluon.journey import basis, memo
 from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.journey.temas import s1_datos
 from evaluon.journey.temas import s4_propuesta_acciones as base
@@ -62,6 +68,9 @@ class GroundView:
     offer_text: str
     consequences: str
     url: str
+    quote: object = None  # la cita de la oferta que se muestra
+    by_vision: bool = False  # su página se leyó por visión (P3, ADR-0041)
+    portal: list = field(default_factory=list)  # los datos del Portal en que se apoya
 
 
 @dataclass
@@ -129,13 +138,16 @@ def _scope(unit):
     return "completa" if unit.is_whole else f"renglón {unit.line}"
 
 
-def _grounds(unit, procedure):
+def _grounds(unit, procedure, cited, portal):
+    """Los motivos del descarte. `cited` y `portal` son las citas de la oferta y los datos del Portal
+    de cada resultado (`basis.of_results`), traídos de una vez para todos los motivos."""
     views = []
     for ground in unit.grounds:
         title = f"Requisito {ground.requirement.number}"
         if ground.item is not None:
             title += f" · renglón {ground.item}"
-        quote = ground.offer_quotes[0] if ground.offer_quotes else None
+        quotes = cited.get(ground.result.pk, [])
+        quote = quotes[0] if quotes else None
         offer_text = ""
         if quote is not None:
             where = quote.document.title if quote.document_id else ""
@@ -144,7 +156,9 @@ def _grounds(unit, procedure):
         views.append(GroundView(
             title=title, requirement=_excerpt(ground.requirement_text), offer_text=offer_text,
             consequences=", ".join(ground.consequences),
-            url=base.pair_url(procedure, unit.offer.pk, ground.requirement.pk)))
+            url=base.pair_url(procedure, unit.offer.pk, ground.requirement.pk),
+            quote=quote, by_vision=quote is not None and quote.by_vision,
+            portal=portal.get(ground.result.pk, [])))
     return views
 
 
@@ -222,6 +236,29 @@ def _situation(units_of, questions, row_note, observed=()):
     return " · ".join(parts) if parts else "Sin observaciones"
 
 
+def _offers_phrase(offers):
+    """«la oferta 3» o «las ofertas 1, 2 y 3»."""
+    numbers = [str(offer.number) for offer in offers]
+    if len(numbers) == 1:
+        return f"la oferta {numbers[0]}"
+    return f"las ofertas {', '.join(numbers[:-1])} y {numbers[-1]}"
+
+
+def _price_sources(offers, data):
+    """De qué página del Portal salen los precios y totales y de qué ofertas (P3, constitución 1.3):
+    `[{"offers": «las ofertas 1, 2 y 3», "item": ítem de origen}]`, una por página, en el orden de las
+    ofertas. Una oferta sin datos del Portal, o cuyo dato no sale de un ítem del Portal, no figura."""
+    groups = {}
+    for offer in offers:
+        info = data.get(offer.pk)
+        if info is None or info.item is None:
+            continue
+        groups.setdefault(info.item.page_id, {"offers": [], "item": info.item})[
+            "offers"].append(offer)
+    return [{"offers": _offers_phrase(group["offers"]), "item": group["item"]}
+            for group in groups.values()]
+
+
 def _economic(page, found):
     """El orden económico con solo los descartes confirmados. Devuelve el total, el orden por
     renglón y los avisos."""
@@ -232,7 +269,11 @@ def _economic(page, found):
         by_offer.setdefault(unit.offer.pk, []).append(unit)
     questions = {s.offer.pk: len(s.open_questions) for s in page.statuses}
     observed = situation.observations(page)
-    data = {d.offer_id: d for d in PortalOfferData.objects.filter(offer__in=page.offers)}
+    # Con el ítem de origen y su página (el enlace y la fecha del Portal), sin la página bajada.
+    data = {d.offer_id: d for d in (PortalOfferData.objects.filter(offer__in=page.offers)
+                                    .select_related("item__page", "item__proposal")
+                                    .defer("item__page__content", "item__payload",
+                                           "item__proposal__anomalies"))}
     quotes = {(q.offer_id, q.line.number): q for q in
               PortalQuote.objects.filter(offer__in=page.offers).select_related("line")}
     line_count = PortalLine.objects.filter(procedure=page.procedure).count()
@@ -298,19 +339,21 @@ def _economic(page, found):
         lines.append(row)
     warnings = [w for w in [order.warning] + [lo.warning for lo in order.lines] if w]
     return {"totals": totals, "lines": lines, "columns": range(1, len(page.offers) + 1),
-            "warnings": warnings}
+            "warnings": warnings, "price_sources": _price_sources(page.offers, data)}
 
 
 # --- Los descartes --------------------------------------------------------------------------------
 
 
 def _rows(found, procedure, is_evaluator):
+    cited, portal = basis.of_results({ground.result.pk for unit in found
+                                      for ground in unit.grounds})
     rows = []
     for unit in found:
         icon, name = STATE_VIEW[unit.state]
         rows.append(DiscardRow(
             anchor=_anchor(unit), title=_title(unit), bidder=unit.offer.bidder,
-            grounds=_grounds(unit, procedure), icon=icon, state_name=name,
+            grounds=_grounds(unit, procedure, cited, portal), icon=icon, state_name=name,
             decided=_decided(unit.decision), offer_id=unit.offer.pk, line=unit.line,
             can_decide=is_evaluator and unit.state == service.PROPOSED, state=unit.state))
     return rows
@@ -323,7 +366,7 @@ def context(user, procedure, request):
     empty = {"pid": procedure.pk, "evaluated": evaluated, "is_evaluator": is_evaluator,
              "requirements": len(page.requirements), "results": [], "rows": [],
              "to_decide": 0, "decided": 0, "totals": [], "lines": [], "columns": (),
-             "warnings": []}
+             "warnings": [], "price_sources": []}
     if not evaluated:
         return empty
     found = service.units(page)

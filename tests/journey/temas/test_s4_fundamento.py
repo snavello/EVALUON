@@ -254,15 +254,10 @@ def test_only_the_citation_on_the_vision_page_is_marked_and_the_tab_agrees_with_
 
 
 def ground_results(item):
-    """Cada resultado «cumple» o «no determinado» que todavía no cita nada pasa a citar una página
-    leída por visión de su oferta y el dato del Portal `item`. Citas directas, sin el modelo (P4:
-    todo inventado). Los «no cumple» y «falta el documento» quedan como están: alimentan la pestaña
-    de Descartes, que trae el documento de cada cita aparte (consulta propia de ese tema, que esta
-    tarea no toca)."""
+    """Cada resultado que todavía no cita nada pasa a citar una página leída por visión de su
+    oferta y el dato del Portal `item`. Citas directas, sin el modelo (P4: todo inventado)."""
     readings = {}
-    grounded = (am.Outcome.CUMPLE, am.Outcome.NO_DETERMINADO)
-    for result in am.Result.objects.filter(citations__isnull=True, outcome__in=grounded
-                                           ).select_related("offer"):
+    for result in am.Result.objects.filter(citations__isnull=True).select_related("offer"):
         offer = result.offer
         if offer.pk not in readings:
             document = offer.documents.first()

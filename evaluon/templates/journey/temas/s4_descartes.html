@@ -39,6 +39,7 @@
     {% endfor %}
     </tbody>
   </table></div>
+  {% if t.price_sources %}<p class="ayuda" id="orden-fuente">{% for s in t.price_sources %}Precios y totales de {{ s.offers }} · {% include "portal/_fuente_dato.html" with item=s.item %}{% if not forloop.last %}<br>{% endif %}{% endfor %}.</p>{% endif %}
   {% endif %}
 </div>
 
@@ -53,7 +54,7 @@
         <th scope="row">{{ row.title }}<small class="suave"> · {{ row.bidder }}</small></th>
         <td>
           {% for g in row.grounds %}
-          <div class="motivo"><b>{{ g.title }}:</b> {{ g.requirement }}{% if g.offer_text %}<br><span class="suave">La oferta dice:</span> {{ g.offer_text }}{% else %}<br><span class="suave">Sin texto de la oferta que lo respalde.</span>{% endif %}{% if g.consequences %}<br><span class="suave">Consecuencia prevista:</span> {{ g.consequences }}{% endif %} (<a href="{{ g.url }}">ver el detalle</a>)</div>
+          <div class="motivo"><b>{{ g.title }}:</b> {{ g.requirement }}{% if g.offer_text %}<br><span class="suave">La oferta dice:</span> {{ g.offer_text }}{% if g.by_vision %}{% include "journey/_cita_vision.html" with document_id=g.quote.document_id page=g.quote.page %}{% endif %}{% else %}<br><span class="suave">Sin texto de la oferta que lo respalde.</span>{% endif %}{% for p in g.portal %}<br><span class="suave">Dato del Portal:</span> {{ p.text }}<br><span class="registro">{% if p.label %}{{ p.label }} · {% endif %}{% include "portal/_fuente_dato.html" with item=p.portal_item %}</span>{% endfor %}{% if g.consequences %}<br><span class="suave">Consecuencia prevista:</span> {{ g.consequences }}{% endif %} (<a href="{{ g.url }}">ver el detalle</a>)</div>
           {% endfor %}
         </td>
         <td>{% include "journey/_icono.html" with icon=row.icon name=row.state_name %} {{ row.state_name }}</td>
