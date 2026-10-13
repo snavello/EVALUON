@@ -42,15 +42,18 @@ MARK = "leída por visión"
 # --- Ayudas ----------------------------------------------------------------------------------
 
 
-def vision_reading(document, pages=(2,)):
+def vision_reading(document, pages=(2,), discarded=()):
     """Una lectura nueva del documento cuyas `pages` se leyeron por visión (informe de la
-    lectura: `report["vision"]`, ADR-0041)."""
+    lectura: `report["vision"]`, ADR-0041) y cuyas páginas `discarded` la visión intentó y
+    descartó (la página sigue como estaba: no es una transcripción). Una lectura mixta: las
+    demás páginas son legibles y no pasaron por la visión."""
     text = "Texto inventado de una página leída por visión."
+    entries = ([{"page": p, "outcome": "read"} for p in pages]
+               + [{"page": p, "outcome": "too_illegible"} for p in discarded])
     return om.Reading.objects.create(
         document=document, sequence=document.readings.count() + 1, pages={"pages": []},
         canonical_text=text, canonical_sha256=hashlib.sha256(text.encode()).hexdigest(),
-        tool_versions={},
-        report={"vision": {"pages": [{"page": p, "outcome": "read"} for p in pages]}})
+        tool_versions={}, report={"vision": {"pages": entries}})
 
 
 def cite_offer(result, order, reading, page_number):
@@ -145,28 +148,43 @@ def test_a_question_gives_the_portal_page_and_the_date_of_its_datum(
 # --- Informe técnico -------------------------------------------------------------------------
 
 
-def report_proposal(offer, user, *, quote, page_number, reading_pages, item=1):
+def report_proposal(offer, user, *, quote="", page_number=1, reading_pages=(), item=1, items=None,
+                    reading_discarded=()):
     """Un informe técnico cargado en `offer` y la propuesta del sistema para el renglón `item`,
     con la cita en la página `page_number` de su lectura (hecho `eval_build`, como lo deja
-    `technical_report.propose`)."""
+    `technical_report.propose`). Con `items`, una lista de `(renglón, frase, página)`, la propuesta
+    trae varios renglones; `reading_pages` son las páginas de la lectura que se leyeron por visión
+    y `reading_discarded`, las que la visión descartó. Devuelve el documento; la lectura es
+    `document.readings.get()`."""
+    items = items or [(item, quote, page_number)]
     sha = hashlib.sha256(f"informe-{offer.pk}".encode()).hexdigest()
     document = om.Document.objects.create(
         offer=offer, kind=om.DocumentKind.INFORME_TECNICO, title="Informe técnico · informe",
         file_name="informe.pdf", file_format="pdf", file_size=1, file_sha256=sha, loaded_by=user)
     om.DocumentFile.objects.create(document=document, content=b"%PDF-sintetico")
-    text = f"{quote} (texto canónico inventado del informe)"
+    text = f"{items[0][1]} (texto canónico inventado del informe)"
+    entries = ([{"page": p, "outcome": "read"} for p in reading_pages]
+               + [{"page": p, "outcome": "too_illegible"} for p in reading_discarded])
     reading = om.Reading.objects.create(
         document=document, sequence=1, pages={"pages": []}, canonical_text=text,
         canonical_sha256=hashlib.sha256(text.encode()).hexdigest(), tool_versions={},
-        report=({"vision": {"pages": [{"page": p, "outcome": "read"} for p in reading_pages]}}
-                if reading_pages else {}))
+        report={"vision": {"pages": entries}} if entries else {})
+    propose_items(offer, user, document, items)
+    return document
+
+
+def propose_items(offer, user, document, items):
+    """La propuesta del sistema para el informe `document` de `offer`, con las frases `items`
+    (`(renglón, frase, página)`) sobre la última lectura del informe. Una propuesta nueva reemplaza
+    a la anterior del mismo informe."""
+    reading = document.readings.order_by("-sequence").first()
     audit.record(
         EventType.EVAL_BUILD, outcome=EventOutcome.OK, channel=Channel.SCREEN, user=user,
         detail={"kind": "technical_proposal", "offer": offer.pk, "document": document.pk,
                 "document_title": document.title,
-                "items": {str(item): {"verdict": "apto", "quote": quote, "page": page_number,
-                                      "reading": reading.pk, "motive": ""}}})
-    return document
+                "items": {str(number): {"verdict": "apto", "quote": phrase, "page": number_page,
+                                        "reading": reading.pk, "motive": ""}
+                          for number, phrase, number_page in items}})
 
 
 def test_the_report_quote_is_marked_only_when_its_page_was_read_by_vision(

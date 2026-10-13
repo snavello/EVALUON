@@ -23,6 +23,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from evaluon.audit.models import Channel
+from evaluon.offers import vision
 from evaluon.offers.models import Fragment, Offer, Sheet, SheetEntry
 from evaluon.offers.services import offers as offers_service
 from evaluon.offers.services import review
@@ -51,11 +52,50 @@ def build(request, offer_id):
                     + f"?{REQUESTED_PARAM}={requested.job.pk}")
 
 
+def _mark_sheet(reviewed):
+    """Marca con `by_vision` los fragmentos de la ficha (vigentes y quitados) que salen de una página
+    leída por visión (decisión del 2026-10-13): una consulta para todos. Cada fragmento trae su
+    pasaje con la lectura cargada."""
+    views = [view for row in reviewed.page.rows for view in [*row.fragments, *row.removed]]
+    flagged = vision.on_vision((view.fragment.passage.reading_id, view.page) for view in views)
+    for view in views:
+        view.by_vision = (view.fragment.passage.reading_id, view.page) in flagged
+
+
+def _mark_history(history):
+    """Marca con la página leída por visión (`{"document_id", "page"}`, o `None`) cada texto de la
+    oferta que muestra la fila: el fragmento vigente y el quitado (`vision`), lo que propuso el
+    sistema (`proposed_vision`) y el antes y el después de cada cambio (`before_vision`,
+    `after_vision`). Una consulta para todos: los pasajes de la ficha vienen con su lectura."""
+    passages = {passage.pk: passage for passage in history.passages}
+
+    def place(passage):
+        if passage is None:
+            return None
+        return (passage.reading_id, passage.page, passage.reading.document_id)
+
+    def of(snapshot):
+        return place(passages.get((snapshot or {}).get("passage")))
+
+    marks = [(fragment, "vision", place(fragment.passage))
+             for fragment in [*history.current, *history.removed]]
+    marks += [(fragment, "proposed_vision", of(fragment.proposed))
+              for fragment in history.proposed]
+    for change in history.changes:
+        marks += [(change, "before_vision", of(change.before)),
+                  (change, "after_vision", of(change.after))]
+    flagged = vision.on_vision({(spot[0], spot[1]) for _, _, spot in marks if spot})
+    for thing, name, spot in marks:
+        found = spot is not None and (spot[0], spot[1]) in flagged
+        setattr(thing, name, {"document_id": spot[2], "page": spot[1]} if found else None)
+
+
 def _sheet_response(request, sheet_id, error=None, status=200):
     try:
         reviewed = review.review_page(request.user, sheet_id, channel=Channel.SCREEN)
     except Sheet.DoesNotExist:
         raise Http404("No hay una ficha con ese número.")
+    _mark_sheet(reviewed)
     return render(request, SHEET_TEMPLATE, {"page": reviewed.page, "review": reviewed,
                                             "error": error}, status=status)
 
@@ -65,6 +105,7 @@ def _history_response(request, entry_id, error=None, status=200):
         page = review.history(request.user, entry_id, channel=Channel.SCREEN)
     except SheetEntry.DoesNotExist:
         raise Http404("No hay una fila de la ficha con ese número.")
+    _mark_history(page)
     return render(request, HISTORY_TEMPLATE, {"history": page, "error": error},
                   status=status)
 

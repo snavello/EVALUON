@@ -182,6 +182,15 @@ def pages_read_in(reading_ids):
             .only("report")}
 
 
+def on_vision(pairs):
+    """Los pares `(id de la lectura, página)`, entre los dados, cuya página se leyó por visión: una
+    consulta para todos (`pages_read_in`), sin importar cuántos. Es la cuenta de toda pantalla que
+    marca una cita o un fragmento como «leída por visión» (T-264)."""
+    pairs = list(pairs)
+    seen = pages_read_in(reading for reading, _ in pairs)
+    return {(reading, page) for reading, page in pairs if page in seen.get(reading, ())}
+
+
 def candidate_pages(document, reading):
     """Las páginas de lectura dudosa de la última lectura de `document`, que todavía no se
     intentaron por visión: `[{"page", "reason", "reasons", "status", "confidence"}]` por

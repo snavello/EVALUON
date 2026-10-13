@@ -19,9 +19,9 @@ def mark(citations):
     """Marca cada cita de la oferta (con `reading_id` y `page`) con `by_vision`: su página se leyó
     por visión."""
     citations = list(citations)
-    seen = vision.pages_read_in(citation.reading_id for citation in citations)
+    flagged = vision.on_vision((citation.reading_id, citation.page) for citation in citations)
     for citation in citations:
-        citation.by_vision = citation.page in seen.get(citation.reading_id, ())
+        citation.by_vision = (citation.reading_id, citation.page) in flagged
 
 
 def results_on_vision_pages(result_ids):

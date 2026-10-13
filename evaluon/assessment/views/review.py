@@ -11,6 +11,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
+from evaluon.assessment import vision_citations
 from evaluon.assessment.models import Result
 from evaluon.assessment.services import review
 from evaluon.assessment.views.results import render_pair
@@ -44,6 +45,9 @@ def history(request, offer_id, requirement_id):
                                 channel=Channel.SCREEN)
     except Result.DoesNotExist:
         raise Http404("Ese requisito todavía no se evaluó para esa oferta.")
+    # Las citas de una página leída por visión llevan el aviso (decisión del 2026-10-13): una
+    # consulta para las de todas las evaluaciones del par.
+    vision_citations.mark(c for stage in stages for c in stage.citations["oferta"])
     first = stages[0].result
     return render(request, HISTORY_TEMPLATE, {
         "offer": first.offer, "requirement": first.requirement, "stages": stages})
