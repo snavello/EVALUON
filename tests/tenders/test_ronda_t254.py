@@ -46,7 +46,7 @@ def test_the_active_versions_are_the_t254_ones_and_the_older_ones_stay_published
     v8 a v10 (las vigentes, v7 y v10); el filtro sigue en la v7."""
     versions = settings.MATRIX_PROMPT_VERSIONS
     assert versions["definiciones"] == "matriz-definiciones-v8"  # T-262
-    assert versions["extraccion"] == "matriz-extraccion-v11"
+    assert versions["extraccion"] == "matriz-extraccion-v12"  # T-265
     assert versions["filtro"] == "matriz-filtro-v8"
     for published in ("matriz-definiciones-v4", "matriz-extraccion-v7"):
         assert (PROMPTS / f"{published}.md").is_file()

@@ -145,7 +145,9 @@ NEW_INSTRUCTIONS = ["matriz-definiciones-v2", "matriz-definiciones-v3", "matriz-
                     "matriz-union-v1", "matriz-definiciones-v6", "matriz-extraccion-v9",
                     "matriz-definiciones-v7", "matriz-extraccion-v10",
                     # T-262
-                    "matriz-definiciones-v8", "matriz-extraccion-v11", "matriz-filtro-v8"]
+                    "matriz-definiciones-v8", "matriz-extraccion-v11", "matriz-filtro-v8",
+                    # T-265
+                    "matriz-extraccion-v12"]
 
 
 def _shingles(text, size=5):

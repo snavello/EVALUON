@@ -222,7 +222,7 @@ def test_the_active_matrix_instructions_are_the_t258_versions():
     versiones que T-240 y T-254 publicaron)."""
     versions = _settings.MATRIX_PROMPT_VERSIONS
     assert versions["definiciones"] == "matriz-definiciones-v8"  # T-262
-    assert versions["extraccion"] == "matriz-extraccion-v11"
+    assert versions["extraccion"] == "matriz-extraccion-v12"  # T-265
     assert versions["filtro"] == "matriz-filtro-v8"
 
 

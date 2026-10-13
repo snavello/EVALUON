@@ -60,7 +60,7 @@ def test_the_active_versions_are_the_t258_ones_and_the_older_ones_stay_published
     aviso de no renovar); las anteriores siguen publicadas (congeladas)."""
     versions = settings.MATRIX_PROMPT_VERSIONS
     assert versions["definiciones"] == "matriz-definiciones-v8"  # T-262
-    assert versions["extraccion"] == "matriz-extraccion-v11"
+    assert versions["extraccion"] == "matriz-extraccion-v12"  # T-265
     assert versions["completitud"] == "matriz-completitud-v6"
     assert versions["union"] == "matriz-union-v1"
     for old in ("matriz-definiciones-v4", "matriz-extraccion-v7", "matriz-completitud-v5",
