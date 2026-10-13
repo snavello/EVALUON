@@ -370,6 +370,49 @@ def run_read_document(job):
     return saved
 
 
+# --- Relectura del pliego (T-259) -----------------------------------------------------------
+
+REREAD_OPERATION = "evaluon.tenders.services.documents.reread_procedure"
+
+
+@dataclass
+class Reread:
+    """Lo que hizo `reread_procedure` con un documento: su pedido y la lectura nueva (o el
+    motivo por el que no se leyó)."""
+
+    document: Document
+    job: Job
+    reading: Reading | None = None
+    error: str = ""
+
+
+def reread_procedure(user, procedure, *, documents=None, channel=Channel.COMMAND):
+    """Vuelve a leer con el código vigente los documentos vigentes del pliego de `procedure`
+    (o los de `documents`), desde su original guardado (T-259). Cada uno recibe un pedido
+    `read_document` a nombre de `user` que se ejecuta acá mismo y deja su lectura nueva (número
+    siguiente del documento), sus tramos y el hecho `tender_read`; las lecturas anteriores no se
+    tocan (P6). Lo hacen el operador y el evaluador; sin rol lanza `RoleRejected`."""
+    from django.utils import timezone
+
+    from evaluon.tenders.services import document_history
+
+    require_commission_role(user, CommissionRole.OPERATOR, operation=REREAD_OPERATION,
+                            channel=channel)
+    chosen = list(documents if documents is not None
+                  else document_history.current_documents(procedure))
+    done = []
+    for document in chosen:
+        job = Job.objects.create(kind=JobKind.READ_DOCUMENT, procedure=procedure,
+                                 document=document, requested_by=user,
+                                 status=JobStatus.RUNNING, started_at=timezone.now())
+        jobs.run(job)
+        job.refresh_from_db()
+        reading = (Reading.objects.filter(document=document, job=job).first()
+                   if job.status == JobStatus.DONE else None)
+        done.append(Reread(document=document, job=job, reading=reading, error=job.error))
+    return done
+
+
 # --- Página del procedimiento y original ---------------------------------------------------
 
 
