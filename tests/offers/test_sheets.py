@@ -327,7 +327,9 @@ def test_an_output_that_is_not_json_is_retried_once(offer, operator_user, script
     script.choose(answer)
     sheet = build(offer, operator_user)
     steps = sheet.steps.filter(entry__requirement__number=1).order_by("id")
-    assert [bool(s.parsed) for s in steps] == [False, True]
+    # El pedido sin lo interpretado también lleva la versión y la huella de su instrucción (T-248).
+    assert ["pasajes" in s.parsed for s in steps] == [False, True]
+    assert all(s.parsed["instruccion"]["version"] == "ficha-v3" for s in steps)
     assert steps[0].raw_output == "esto no es JSON"
     assert sheet.anomalies == []
 
@@ -362,8 +364,11 @@ def test_every_model_request_is_recorded(offer, operator_user, script):
     detail = events(EventType.SHEET_BUILD, Outcome.OK).get().detail
     assert detail["models"]["generation_batch"]["sha256"]
     assert detail["parameters"]["candidates_to_model"] == 8
-    assert detail["prompt_versions"] == {"ficha": "ficha-v2", "ficha_renglon": "ficha-renglon-v4",
-                                         "reescritura": "reescritura-v1"}
+    versions = detail["prompt_versions"]
+    assert {k: v for k, v in versions.items() if k != "huellas"} == {
+        "ficha": "ficha-v3", "ficha_renglon": "ficha-renglon-v5", "reescritura": "reescritura-v2"}
+    assert set(versions["huellas"]) == {"ficha", "ficha_renglon", "reescritura"}
+    assert versions["huellas"]["ficha"] == step.parsed["instruccion"]["sha256"]
     assert detail["counts"]["model_requests"] == sheet.steps.count()
 
 
@@ -381,7 +386,9 @@ def test_a_quoted_item_shows_its_citation_and_a_missing_one_is_not_quoted(
     assert third.quoted == om.Quoted.NO_COTIZADO and not third.fragments.exists()
     assert entry_of(sheet, 1).quoted == ""  # solo las filas por renglón llevan cotización
     item_call = next(c for c in script.calls if c["messages"][-1]["content"].startswith("Renglón"))
-    assert item_call["schema"]["required"] == ["cotizado", "pasajes", "sintesis"]
+    # La cotización va al final: se apoya en los pasajes y la síntesis (ADR-0055, T-248).
+    assert item_call["schema"]["required"] == ["pasajes", "sintesis", "cotizado"]
+    assert list(item_call["schema"]["properties"]) == ["pasajes", "sintesis", "cotizado"]
 
 
 def test_an_item_the_model_says_was_not_quoted_is_not_quoted_even_with_a_passage(
@@ -564,7 +571,23 @@ def test_the_sheet_prompt_v2_asks_for_the_concrete_datum_and_abstention():
     assert text.count('{"pasajes": [], "sintesis": ""}') >= 2
     old = sheets.PROMPTS_DIR.joinpath("ficha-v1.md").read_text(encoding="utf-8")
     assert "dato concreto" not in old and old.count('{"pasajes": [], "sintesis": ""}') == 1
-    assert sheets.load_prompt("ficha") == text
+
+
+def test_the_sheet_prompt_v3_keeps_the_abstention_without_the_open_doubt_rule():
+    """REQ-106, REQ-040 (T-248): la v3 conserva el dato concreto y la lista vacía, cambia
+    «ante la duda» por algo verificable (poder señalar el dato en el pasaje), dice que el
+    requisito puede traer varias citas y suma un ejemplo con dos; la v2 no cambió."""
+    text = sheets.load_prompt("ficha")
+    assert sheets.settings.OFFERS_PROMPT_VERSIONS["ficha"] == "ficha-v3"
+    assert "dato concreto" in text and "no se encontró" in text
+    assert "Ante la duda" not in text and "ante la duda" not in text.lower()
+    assert "si podés señalar en él el dato concreto" in text
+    assert "todas las citas, una a continuación de la otra" in text
+    # Ejemplos: 3 con pasajes y 2 sin ellos (equilibrados).
+    assert text.count('{"pasajes": [], "sintesis": ""}') == 2
+    assert text.count("Respuesta") == 5
+    v2 = sheets.PROMPTS_DIR.joinpath("ficha-v2.md").read_text(encoding="utf-8")
+    assert "Ante la duda" in v2
 
 
 def test_a_found_row_never_stays_without_a_synthesis(offer, operator_user, script):
@@ -658,11 +681,12 @@ def test_the_state_of_an_item_is_separate_from_the_passages_it_shows(
     assert sheets.item_state(quoted, [_passage(k) for k in kinds], unread) == expected
 
 
-def test_the_item_answer_accepts_the_three_states_and_nothing_else():
-    """REQ-044 (T-136): el esquema y la validación aceptan si, sin_precio y no."""
+def test_the_item_answer_accepts_the_four_states_and_nothing_else():
+    """REQ-044 (T-136, T-248): el esquema y la validación aceptan si, sin_precio, no_aparece y no
+    (`no_aparece`: ningún pasaje es del renglón, separado de `sin_precio`)."""
     schema = sheets.build_schema(["P1"], True)
-    assert schema["properties"]["cotizado"]["enum"] == ["si", "sin_precio", "no"]
-    for value in ("si", "sin_precio", "no"):
+    assert schema["properties"]["cotizado"]["enum"] == ["si", "sin_precio", "no_aparece", "no"]
+    for value in ("si", "sin_precio", "no_aparece", "no"):
         content = json.dumps({"cotizado": value, "pasajes": ["P1"], "sintesis": "x"})
         assert sheets.parse_answer(content, ["P1"], True)[2] == value
     bad = json.dumps({"cotizado": "quizás", "pasajes": [], "sintesis": ""})
@@ -699,12 +723,81 @@ def test_an_item_the_offer_says_it_does_not_quote_is_not_quoted_and_shows_the_pr
 def test_the_item_prompt_v4_has_the_three_answers_and_the_earlier_ones_are_untouched():
     """REQ-044 (T-136): la instrucción v4 distingue si, sin_precio y no, y dice que "no" es solo
     la negativa expresa o la tabla sin el renglón; v3 sigue como estaba."""
-    text = sheets.load_prompt("ficha_renglon")
-    assert sheets.settings.OFFERS_PROMPT_VERSIONS["ficha_renglon"] == "ficha-renglon-v4"
+    text = sheets.PROMPTS_DIR.joinpath("ficha-renglon-v4.md").read_text(encoding="utf-8")
     for word in ('"si"', '"sin_precio"', '"no"', "expresamente", "No decidís"):
         assert word in text
+    assert "no_aparece" not in text
     v3 = sheets.PROMPTS_DIR.joinpath("ficha-renglon-v3.md").read_text(encoding="utf-8")
     assert "sin_precio" not in v3 and "no alcanzan" in v3
+
+
+def test_the_item_prompt_v5_separates_no_appears_from_no_price_and_from_doubt():
+    """REQ-106, REQ-044 (T-248, hallazgo de gravedad media): la v5 separa «no_aparece» (ningún
+    pasaje es del renglón) de «sin_precio» (es del renglón y no trae precio) y saca el «no estoy
+    seguro» de las respuestas: cada una dice lo que muestran los pasajes, no la seguridad. La
+    cotización va al final y los ejemplos están equilibrados (dos de cada respuesta)."""
+    text = sheets.load_prompt("ficha_renglon")
+    assert sheets.settings.OFFERS_PROMPT_VERSIONS["ficha_renglon"] == "ficha-renglon-v5"
+    for word in ('"si"', '"sin_precio"', '"no_aparece"', '"no"', "expresamente", "No decidís"):
+        assert word in text
+    assert "o no estoy seguro" not in text and "no estás seguro" not in text
+    assert "no cuánta seguridad tenés" in text
+    assert "Elegí un pasaje solo si podés decir con seguridad que es de ese renglón" in text
+    assert '{"pasajes": ["P1"], "sintesis": "...", "cotizado": "si"}' in text
+    for answer in ("si", "sin_precio", "no_aparece", "no"):
+        assert text.count(f'"cotizado": "{answer}"}}') >= 2, answer
+
+
+def test_a_no_appears_answer_is_stored_like_no_price_but_kept_in_the_request(
+        procedure, operator_user, fake_ai, script):
+    """REQ-044, REQ-106 (T-248): el renglón que el modelo contesta «no_aparece» queda sin
+    cotización a la vista (en blanco), como «sin_precio», y el pedido guarda la diferencia."""
+    offer = make_offer(procedure, operator_user, "Sin el renglón", {
+        "constancia.pdf": ["Constancia de inscripción en el registro de proveedores, número 1."]})
+    script.choose(pick("Constancia", quoted="no_aparece", when="RESMA"))
+    sheet = build(offer, operator_user)
+    row = entry_of(sheet, 6)
+    assert row.quoted == ""
+    step = sheet.steps.get(entry__requirement__number=6)
+    assert step.parsed["cotizado"] == "no_aparece"
+
+
+def test_every_request_records_the_version_and_the_sha256_of_its_instruction(
+        offer, operator_user, script):
+    """REQ-106, P6 (T-248): cada pedido de la ficha guarda en su `parsed` el nombre, la versión y
+    la huella de la instrucción que usó, la de la fila común o la del renglón."""
+    script.choose(pick(VALIDITY, PRICES, when=""))
+    sheet = build(offer, operator_user)
+    common = sheet.steps.get(entry__requirement__number=5).parsed["instruccion"]
+    item = sheet.steps.get(entry__requirement__number=6).parsed["instruccion"]
+    assert common == sheets.prompt_record("ficha")
+    assert item == sheets.prompt_record("ficha_renglon")
+    assert common["version"] == "ficha-v3" and item["version"] == "ficha-renglon-v5"
+    assert common["sha256"] == sheets.extraction.text_sha256(
+        sheets.PROMPTS_DIR.joinpath("ficha-v3.md").read_text(encoding="utf-8"))
+
+
+def test_a_requirement_with_several_quotes_is_searched_and_asked_with_all_of_them(
+        offer, matrix, operator_user, script, monkeypatch):
+    """REQ-106 (T-248, hallazgo de gravedad media): el texto del requisito que se busca y se le
+    muestra al modelo son todas sus citas, no solo la primera. La versión validada no admite
+    agregar una cita (lo impide la base): la segunda cita se suma en la lectura."""
+    from types import SimpleNamespace
+
+    requirement = matrix.version.requirements.get(number=5)
+    original = sheets._quotes
+    second = SimpleNamespace(text="Segunda cita del requisito.", scope="", order=99)
+    monkeypatch.setattr(
+        sheets, "_quotes",
+        lambda req: original(req) + ([second] if req.pk == requirement.pk else []))
+    script.choose(pick(VALIDITY, when=""))
+
+    build(offer, operator_user)
+
+    first = original(requirement)[0].text
+    asked = [c["requirement"] for c in script.calls if first in c["requirement"]]
+    assert asked and all(a == f"{first} Segunda cita del requisito." for a in asked)
+    assert sheets.requirement_text(requirement) == f"{first} Segunda cita del requisito."
 
 
 def test_a_common_row_sends_eight_candidates_and_an_item_row_twelve(
@@ -813,10 +906,10 @@ def test_the_rewritten_requirement_finds_the_passage_the_pliego_wording_misses(
     assert (candidate["score_original"], candidate["score_rewrite"], candidate["score"]) == (
         0.092, 0.994, 0.994)
     rewrite = step.candidates["rewrite"]
-    assert rewrite["query"] == POLICY_QUERY and rewrite["prompt_version"] == "reescritura-v1"
+    assert rewrite["query"] == POLICY_QUERY and rewrite["prompt_version"] == "reescritura-v2"
     assert rewrite["raw_output"] and rewrite["request"]["messages"][0]["content"] == (
         sheets.load_prompt("reescritura"))
-    assert sheet.prompt_versions["reescritura"] == "reescritura-v1"
+    assert sheet.prompt_versions["reescritura"] == "reescritura-v2"
 
 
 def test_the_original_score_still_counts_when_it_is_the_better_one(
@@ -869,9 +962,9 @@ def test_the_rewrite_instructions_are_versioned_and_teach_the_form_of_real_offer
     el formato y sus ejemplos (inventados) usan la forma de lo que responde una oferta."""
     from evaluon import settings as defaults
 
-    assert defaults.OFFERS_PROMPT_VERSIONS["reescritura"] == "reescritura-v1"
+    assert defaults.OFFERS_PROMPT_VERSIONS["reescritura"] == "reescritura-v2"
     text = sheets.load_prompt("reescritura")
-    for form in ("póliza de seguro de caución", "nota de la empresa", "declaro bajo juramento",
+    for form in ("póliza de seguro", "nota de la empresa", "declaro bajo juramento",
                  "constancia", "formulario"):
         assert form in text
     assert '{"consulta"' in text
@@ -971,3 +1064,22 @@ def test_the_calibrated_minimum_lets_through_what_answers_and_nothing_else(
     answers = {t for k, t, _, _ in CALIBRATION if k == "responde"}
     assert sent and sent <= answers
     assert len(sent) == min(8, len(answers))
+
+
+def test_the_rewrite_instruction_v2_changes_the_examples_and_records_its_hash(
+        offer, matrix, operator_user, script):
+    """REQ-106 (T-248): la v2 de la reescritura cambia los ejemplos que repetían el rubro de los
+    casos de medición (la v1, publicada, no se toca) y cada reescritura guarda la versión y la
+    huella; la ficha, las huellas de todas sus instrucciones."""
+    v1 = sheets.PROMPTS_DIR.joinpath("reescritura-v1.md").read_text(encoding="utf-8")
+    v2 = sheets.load_prompt("reescritura")
+    assert "garantía de mantenimiento de oferta" in v1 and "garantía de mantenimiento" not in v2
+    assert "responsabilidad civil" in v2 and '{"consulta"' in v2
+    script.choose(pick(VALIDITY, when="validez"))
+
+    sheet = build(offer, operator_user)
+
+    record = sheets.prompt_record("reescritura")
+    assert record["version"] == "reescritura-v2"
+    assert record["sha256"] == sheets.extraction.text_sha256(v2)
+    assert sheet.prompt_versions["huellas"]["reescritura"] == record["sha256"]

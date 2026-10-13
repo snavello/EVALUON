@@ -22,3 +22,10 @@ Las decisiones literales están en la spec 015.
 
 - Las tareas T-257 (evaluación) y T-258 (matriz) aplican estos criterios. T-256 corrige la medida antes de medir, y T-260 mide una sola vez.
 - El criterio del IVA y el de la ausencia quedan registrados en cada resultado, con su regla y su versión (P6).
+
+## Aplicación (Coordinador, 2026-10-12, tras la verificación de T-257)
+
+- **Presentación física.** El Portal todavía no importa la marca «Requiere presentar en Mesa de Entrada». Mientras no la traiga, cuando la obligación depende de esa marca el resultado es «no determinado» con pregunta a la Comisión, no «no cumple»; cuando la presentación física no depende de la marca (o está atada a la forma de garantía elegida), rige «no cumple» con «Puede faltar cargarlo». No es «no cumple» si una circular aclara que alcanza con la carga electrónica, ni con frases que no obligan.
+- **Ausencia verificada.** Rige solo para prohibiciones sobre lo que dice la oferta y reglas supletorias (lista cerrada de formas), con tres condiciones: nada en contra en las condiciones ni en el grupo, el contraste no rechazó la conclusión y la lectura está completa. Una exigencia de documento dicha en negativo («no se aceptarán ofertas sin…») pide el documento y no se resuelve por ausencia. Ante la duda, «no determinado» con pregunta.
+- **IVA.** No rige si la oferta dice algo sobre impuestos o ajustes de precio.
+

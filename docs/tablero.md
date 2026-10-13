@@ -71,7 +71,7 @@ flowchart LR
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 40/45 | █████████░ 89% |
-| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 20/28 | ███████░░░ 71% |
+| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 22/28 | ████████░░ 79% |
 
 <a id="001"></a>
 
@@ -1289,13 +1289,11 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 8 tareas sin terminar.
-- ▶ T-248 · Resto de las instrucciones (consecuencias, respaldo, ficha, ficha por renglón, reescritura, visión, informe técnico, consulta, nombre del oferente, datos del procedimiento) y hallazgos pendientes del informe de revisión; huella de cada una; el informe queda con todo corregido o justificado (en curso)
-- ◐ T-256 · Medición honesta (sin GPU): corregir los defectos de la medida del comité (pares del Portal sin mirar el resultado, «no se encontró» contra «cumple», externos del modelo descontados, emparejamiento de supresiones, revisión contada como encontrada, Portal citado contra «sin cita»), exactitud por celda contra las 51 decisiones de la Comisión de prueba (con y sin fundamento), sacar de la evaluación las filas agregadas solo para la medida, exclusiones coherentes, recalcular las 8 corridas y ADR de criterios de mejora (en verificación)
+- **Próximo paso:** Desarrollar: 6 tareas sin terminar.
+- ▶ T-257 · Frente evaluación: «no aplica» para la opción que la oferta no usa (por diseño), regla de forma de garantía antes que la de externos, regla del Portal que conserva condiciones y pregunta y compara la cantidad ofertada, contraste con el bloque del Portal completo, circulares «aclara/precisa» en la evaluación, criterios del 2026-10-12 (IVA del Portal, cumple por ausencia, prórroga en la fila del plazo, presentación física) (en curso)
+- ▶ T-258 · Frente matriz: definiciones del 2026-10-12, paso de unión de oraciones del mismo asunto, nota de tabla con su cláusula, párrafo introductorio de un anexo como encabezado, reintento de la extracción con memoria y sin caracteres de área privada, motivos del filtro alineados con las definiciones (en curso)
+- ▶ T-259 · Frente lectura: OCR cuando la extracción del PDF da «(cid:» (croquis), tablas con sus celdas, manuscritos con la visión del modelo adoptado, descarga del Pliego Único y su aviso de faltante (en curso)
 - ○ T-255 · Consulta de normativa con el 27B: la Consulta usa el mismo motor del 27B (sin `generation` aparte), con las evals de la 001 medidas antes de pasarla (P7) y el umbral de que ninguna medida empeore frente al 12B; mientras no pase, la Consulta queda apagada cuando corre una evaluación (pendiente)
-- ○ T-257 · Frente evaluación: «no aplica» para la opción que la oferta no usa (por diseño), regla de forma de garantía antes que la de externos, regla del Portal que conserva condiciones y pregunta y compara la cantidad ofertada, contraste con el bloque del Portal completo, circulares «aclara/precisa» en la evaluación, criterios del 2026-10-12 (IVA del Portal, cumple por ausencia, prórroga en la fila del plazo, presentación física) (pendiente)
-- ○ T-258 · Frente matriz: definiciones del 2026-10-12, paso de unión de oraciones del mismo asunto, nota de tabla con su cláusula, párrafo introductorio de un anexo como encabezado, reintento de la extracción con memoria y sin caracteres de área privada, motivos del filtro alineados con las definiciones (pendiente)
-- ○ T-259 · Frente lectura: OCR cuando la extracción del PDF da «(cid:» (croquis), tablas con sus celdas, manuscritos con la visión del modelo adoptado, descarga del Pliego Único y su aviso de faltante (pendiente)
 - ○ T-260 · Medición única de la ronda del comité: caso-00 (desarrollo), casos 01, 02 y 06 (validación), casos 03, 04 y 05 (prueba, congelados), con una corrida alterada para medir la variación; criterios del ADR de T-256 (pendiente)
 - ○ T-249 · Medición de lo que cambió T-248, solo en las áreas que cambió, con el umbral de que ninguna medida empeore (P7): evals de la 001, fichas, lectura con visión, propuestas de datos y matriz con circulares (pendiente)
 
@@ -1310,6 +1308,7 @@ flowchart LR
 - ✓ T-252 · Instrucciones de la matriz, parte 2: filtro A y B con el bloque común, sin «mantené ante la duda» (la duda va a sugerencia), `razonamiento` antes de la decisión, B rehecha, `decide()` revisada, ejemplos 4 y 4 y lotes de 5 a 8 filas (`13c2c9b` 2026-10-11, `10cf1b4` 2026-10-11)
 - ✓ T-253 · Razonamiento propio del modelo encendible por paso (extracción, completitud, filtro, evaluación, contraste) con nivel, solo en el motor de lotes, apagado por omisión e idéntico a hoy cuando está apagado; texto y tokens del razonamiento en el registro de cada pedido; compose adicional para el servidor; averiguar si el 12B lo admite (decisión del 2026-10-11) (`0ba68cc` 2026-10-11, `821d9b4` 2026-10-11)
 - ✓ T-254 · Ronda extra (se perdían requisitos, ADR-0024): las verificaciones externas del oferente (REPSAL, deuda, registro, sanciones) entran como requisito externo y no como obligación del organismo; las condiciones de una opción se mantienen como condición de esa opción; la matriz no depende del motor de la Consulta para contar tokens (H-244-1); `medir_matriz` acepta el motivo «no exige nada» (H-244-6); configuración candidata del 27B con razonamiento solo en el contraste (`e97c4e2` 2026-10-12, `90515af` 2026-10-12, `7173bf9` 2026-10-12, `0909bf0` 2026-10-12, `b7874d1` 2026-10-12, `320f50e` 2026-10-12)
+- ✓ T-256 · Medición honesta (sin GPU): corregir los defectos de la medida del comité (pares del Portal sin mirar el resultado, «no se encontró» contra «cumple», externos del modelo descontados, emparejamiento de supresiones, revisión contada como encontrada, Portal citado contra «sin cita»), exactitud por celda contra las 51 decisiones de la Comisión de prueba (con y sin fundamento), sacar de la evaluación las filas agregadas solo para la medida, exclusiones coherentes, recalcular las 8 corridas y ADR de criterios de mejora (`84bed40` 2026-10-12, `814a5b9` 2026-10-12, `438e19e` 2026-10-12, `3a3b0ad` 2026-10-12, `6280aad` 2026-10-12, `b23cb03` 2026-10-12)
 - ✓ T-237 · Instrucciones de la evaluación (evaluación, contraste, cláusulas): `razonamiento`, citas y externo antes del veredicto en el esquema, cita de la oración completa en lugar del «fragmento mínimo», «cada condición con su dato» con el resultado de cada una visible por separado y el de la celda derivado de todas (REQ-104), definición de la duda, ejemplos balanceados, pregunta dirigida a la Comisión, reintento con memoria, versión y huella en cada pedido (`4006149` 2026-10-11, `eb82337` 2026-10-11, `12a87b8` 2026-10-11, `9f22363` 2026-10-11, `3a4234f` 2026-10-11, `8a06a96` 2026-10-11, `08d79ac` 2026-10-11)
 - ✓ T-251 · Código listo para medir otro modelo: el cuerpo del pedido de lotes dice el modelo que lo atiende y los tokens de los lotes se cuentan con ese motor (hoy con `generation`, que es Gemma) (`70b4a61` 2026-10-11, `32aa9ae` 2026-10-11, `a1aa7c2` 2026-10-11)
 - ✓ T-238 · Medidas de la 015 en `medir_matriz` y `medir_evaluacion` (filas conservadas, pedazos sin sujeto, recall sin las entradas excluidas, celdas del Portal, «no determinado» que no espera un documento ausente, forma de las preguntas) y listas esperadas ajustadas con huella y visto bueno del Coordinador (`df43d49` 2026-10-11, `2ebdf6a` 2026-10-10)
@@ -1321,7 +1320,8 @@ flowchart LR
 - ✓ T-244 · Comparación de Qwen3.8-27B con el 12B, con el protocolo del ADR-0042 y el uso corregido: caso-00 completo primero (compuerta de salida temprana), después los casos 01 a 06; cada par que cambia se revisa y se clasifica
 - ✓ T-245 · Qwen3.6-35B-A3B en servicio: las mismas comprobaciones que T-243 con los mismos umbrales
 - ✓ T-246 · Comparación de Qwen3.6-35B-A3B con el 12B, con el mismo protocolo y los mismos umbrales
-- ✓ T-247 · ADR de resultado (reservado ADR-0057): adopta o descarta cada candidato con las corridas como evidencia; si adopta, deja preparados sin integrar los cambios de compose base y `entorno.md` para la aprobación del responsable (`83d7bd8` 2026-10-12, `76af05f` 2026-10-12, `370a36a` 2026-10-12, `bb34d0c` 2026-10-12)
+- ✓ T-247 · ADR de resultado (reservado ADR-0057): adopta o descarta cada candidato con las corridas como evidencia; si adopta, deja preparados sin integrar los cambios de compose base y `entorno.md` para la aprobación del responsable (`e77c880` 2026-10-12, `83d7bd8` 2026-10-12, `76af05f` 2026-10-12, `370a36a` 2026-10-12, `bb34d0c` 2026-10-12)
+- ✓ T-248 · Resto de las instrucciones (consecuencias, respaldo, ficha, ficha por renglón, reescritura, visión, informe técnico, consulta, nombre del oferente, datos del procedimiento) y hallazgos pendientes del informe de revisión; huella de cada una; el informe queda con todo corregido o justificado (`a25e4ce` 2026-10-12, `b3e033a` 2026-10-12, `7618ce3` 2026-10-12, `4f9323b` 2026-10-12, `c3f706c` 2026-10-12, `912085f` 2026-10-12, `9745555` 2026-10-12, `b460999` 2026-10-12, `d847260` 2026-10-12)
 
 ### Mapa de tareas
 
@@ -1336,10 +1336,10 @@ flowchart TD
   T253["✓ T-253 · Razonamiento propio del modelo encendible p…"]:::done
   T254["✓ T-254 · Ronda extra (se perdían requisitos, ADR-002…"]:::done
   T255["○ T-255 · Consulta de normativa con el 27B: la Consul…"]:::todo
-  T256["◐ T-256 · Medición honesta (sin GPU): corregir los de…"]:::review
-  T257["○ T-257 · Frente evaluación: «no aplica» para la opci…"]:::todo
-  T258["○ T-258 · Frente matriz: definiciones del 2026-10-12,…"]:::todo
-  T259["○ T-259 · Frente lectura: OCR cuando la extracción de…"]:::todo
+  T256["✓ T-256 · Medición honesta (sin GPU): corregir los de…"]:::done
+  T257["▶ T-257 · Frente evaluación: «no aplica» para la opci…"]:::active
+  T258["▶ T-258 · Frente matriz: definiciones del 2026-10-12,…"]:::active
+  T259["▶ T-259 · Frente lectura: OCR cuando la extracción de…"]:::active
   T260["○ T-260 · Medición única de la ronda del comité: caso…"]:::todo
   T237["✓ T-237 · Instrucciones de la evaluación (evaluación,…"]:::done
   T251["✓ T-251 · Código listo para medir otro modelo: el cue…"]:::done
@@ -1353,7 +1353,7 @@ flowchart TD
   T245["✓ T-245 · Qwen3.6-35B-A3B en servicio: las mismas com…"]:::done
   T246["✓ T-246 · Comparación de Qwen3.6-35B-A3B con el 12B,…"]:::done
   T247["✓ T-247 · ADR de resultado (reservado ADR-0057): adop…"]:::done
-  T248["▶ T-248 · Resto de las instrucciones (consecuencias,…"]:::active
+  T248["✓ T-248 · Resto de las instrucciones (consecuencias,…"]:::done
   T249["○ T-249 · Medición de lo que cambió T-248, solo en la…"]:::todo
   T233 --> T250
   T233 --> T235

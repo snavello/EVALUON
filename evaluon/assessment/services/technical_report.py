@@ -51,7 +51,7 @@ from evaluon.tenders.models import Procedure
 UPLOAD_OPERATION = "evaluon.assessment.services.technical_report.upload_report"
 PROPOSE_OPERATION = "evaluon.assessment.services.technical_report.request_proposal"
 
-PROMPT_VERSION = "informe-tecnico-v1"
+PROMPT_VERSION = "informe-tecnico-v2"
 SCHEMA_NAME = "informe_tecnico"
 
 APTO = "apto"
@@ -162,18 +162,33 @@ def upload_report(user, *, offer_id=None, procedure_id=None, data, file_name, ti
 
 
 def _schema(items):
+    """Esquema de la salida. El dictamen va al final: el motor genera los campos en el orden del
+    esquema y el dictamen se apoya en la cita y el motivo que el modelo ya escribió (ADR-0055,
+    regla 1; T-248)."""
     return {
         "type": "object",
         "properties": {"renglones": {"type": "array", "items": {
             "type": "object",
             "properties": {
                 "renglon": {"type": "integer", "enum": sorted(items)},
-                "dictamen": {"type": "string", "enum": list(VERDICTS)},
                 "cita": {"type": "string"},
-                "motivo": {"type": "string"}},
-            "required": ["renglon", "dictamen", "cita", "motivo"],
+                "motivo": {"type": "string"},
+                "dictamen": {"type": "string", "enum": list(VERDICTS)}},
+            "required": ["renglon", "cita", "motivo", "dictamen"],
             "additionalProperties": False}}},
         "required": ["renglones"], "additionalProperties": False}
+
+
+def load_prompt():
+    """El texto de la instrucción de la versión `PROMPT_VERSION`."""
+    return (prompting.PROMPTS_DIR / f"{PROMPT_VERSION}.md").read_text(encoding="utf-8")
+
+
+def prompt_record():
+    """`{"nombre", "version", "sha256"}` de la instrucción: lo que la propuesta deja anotado de
+    ella (P6, REQ-106; T-248)."""
+    return {"nombre": "informe_tecnico", "version": PROMPT_VERSION,
+            "sha256": prompting.prompt_hash(load_prompt())}
 
 
 def _item_lines(rows):
@@ -234,7 +249,7 @@ def _read_report(document, offer, rows):
     anomalies = []
     if entry.reading is None:
         return ({i: {"reason": "sin_lectura"} for i in rows}, [], anomalies)
-    system = (prompting.PROMPTS_DIR / f"{PROMPT_VERSION}.md").read_text(encoding="utf-8")
+    system = load_prompt()
     finder = citing.PageFinder()
     schema = _schema(set(rows))
     candidates = {i: [] for i in rows}  # dictámenes con cita ubicada, por tramo
@@ -286,7 +301,8 @@ def _model_record():
     return {"model": settings.GENERATION_BATCH_MODEL,
             "file": settings.GENERATION_BATCH_MODEL_FILE,
             "sha256": settings.GENERATION_BATCH_MODEL_SHA256,
-            "prompt": PROMPT_VERSION, "temperature": settings.GENERATION_TEMPERATURE,
+            "prompt": PROMPT_VERSION, "instruccion": prompt_record(),
+            "temperature": settings.GENERATION_TEMPERATURE,
             "seed": settings.GENERATION_SEED}
 
 

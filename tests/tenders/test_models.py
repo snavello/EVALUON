@@ -938,7 +938,7 @@ def test_matrix_parameters_in_settings():
     assert settings.MATRIX_BATCH_INPUT_TOKENS == 3500
     assert settings.MATRIX_MAX_OUTPUT_TOKENS == 4096
     assert settings.SEGMENT_MAX_CHARS == 4000
-    assert settings.MATRIX_CONSEQUENCES_PER_REQUEST == 25
+    assert settings.MATRIX_CONSEQUENCES_PER_REQUEST == 10
     assert settings.MATRIX_CIRCULAR_CANDIDATES == 8
     assert settings.MATRIX_PROMPT_VERSIONS["extraccion"] == "matriz-extraccion-v7"
     assert settings.GENERATION_BATCH_TIMEOUT_SECONDS == 180
@@ -964,8 +964,8 @@ def test_enmienda_parameters_in_settings():
     assert settings.NORM_SUPPORT_MAX_UNITS == 4
     assert settings.NORM_SUPPORT_QUERY_MAX_CHARS == 800
     assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v7"
-    for name in ("unificacion", "respaldo"):
-        assert settings.MATRIX_PROMPT_VERSIONS[name] == f"matriz-{name}-v1"
+    assert settings.MATRIX_PROMPT_VERSIONS["unificacion"] == "matriz-unificacion-v1"
+    assert settings.MATRIX_PROMPT_VERSIONS["respaldo"] == "matriz-respaldo-v2"  # T-248
 
 
 def test_generation_batch_url_default(monkeypatch):
