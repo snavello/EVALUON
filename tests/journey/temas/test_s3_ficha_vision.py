@@ -109,3 +109,52 @@ def test_the_sheet_marks_a_removed_fragment_read_by_vision_and_only_that_one(
     assert NOTICE not in kept and MARK not in kept
     assert removed.count(NOTICE) == 1
     assert html.count(NOTICE) == 2  # el vigente de la fila 1 y el quitado de la fila 2
+
+
+@pytest.fixture
+def mixed_card(offer, procedure, matrix, operator_user, client):
+    """La ficha de una lectura mixta de `oferta.pdf`: la página 1 se leyó por visión, la 2 es legible
+    y la 3 la visión la descartó (la página sigue como estaba). Una fila cita cada página."""
+    document = offer.documents.get(file_name="oferta.pdf")
+    texts = [(1, "Página uno, transcripta por el sistema.", "vision"),
+             (2, "Página dos, legible.", "pdf_text"),
+             (3, "Página tres, que la visión descartó.", "ocr")]
+    canonical = chr(10).join(text for _, text, _ in texts)
+    reading = om.Reading.objects.create(
+        document=document, sequence=2, pages={"pages": []}, canonical_text=canonical,
+        canonical_sha256=hashlib.sha256(canonical.encode()).hexdigest(), tool_versions={},
+        report={"vision": {"pages": [{"page": 1, "outcome": "read"},
+                                     {"page": 3, "outcome": "too_illegible"}]}})
+    passages, start = [], 0
+    for number, text, origin in texts:
+        passages.append(om.Passage.objects.create(
+            reading=reading, order=number, key=f"p{number}/b1", page=number, char_start=start,
+            char_end=start + len(text), text=text, text_origin=origin,
+            embedding=unit_vector(7200 + number)))
+        start += len(text) + 1
+    sheet = om.Sheet.objects.create(
+        offer=offer, matrix_version=matrix.version, number=1, channel=om.SheetChannel.SCREEN,
+        readings=[{"document": document.pk, "reading": reading.pk, "sequence": 2}],
+        models_used={}, parameters={}, prompt_versions={}, requested_by=operator_user)
+    requirements = list(matrix.version.requirements.order_by("number")[:3])
+    entries = [om.SheetEntry.objects.create(sheet=sheet, requirement=row, outcome="encontrado",
+                                            synthesis=f"Página {n}.")
+               for n, row in enumerate(requirements, start=1)]
+    for entry, passage in zip(entries, passages, strict=True):
+        fragment_of(entry, 1, passage)
+    log_in(client, operator_user)
+    return entries
+
+
+def test_a_mixed_reading_marks_only_the_fragment_on_the_page_the_vision_read(
+        client, procedure, offer, mixed_card):  # noqa: F811
+    """REQ-086, REQ-104, P3: de una lectura mixta, solo el fragmento de la página 1 (leída por
+    visión) lleva la marca y el aviso; los de la página 2 (legible) y la 3 (que la visión descartó),
+    no."""
+    first, second, third = mixed_card
+    html = block(client.get(tab(procedure, offer)).content.decode())
+    assert html.count(NOTICE) == 1 and html.count(MARK) == 2  # la marca de la fila y la del aviso
+    for entry in (second, third):
+        assert MARK not in row_of(html, entry, "fila")
+        assert NOTICE not in row_of(html, entry, "detalle-ficha")
+    assert NOTICE in row_of(html, first, "detalle-ficha")

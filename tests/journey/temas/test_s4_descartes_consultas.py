@@ -4,16 +4,24 @@ con una consulta por motivo hacía que la pestaña de Evaluación hiciera más c
 requisitos «no cumple» había. Todo el material es inventado (P4)."""
 
 import re
+from decimal import Decimal
 
 import pytest
 from django.db import connection
+from django.test import RequestFactory
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from evaluon.assessment import models as am
+from evaluon.journey import memo
+from evaluon.journey.temas import s4_descartes
 from evaluon.offers import models as om
+from tests.assessment.test_matrix import add_run, requirement
+from tests.assessment.test_ordering import quote_data
+from tests.assessment.test_result_fundamento import portal  # noqa: F401 - fixture
 from tests.journey.temas.test_s4_propuesta import log_in
 from tests.journey.test_queries import SCALE_LIMIT, grow_case, make_case
+from tests.offers.conftest import make_offer
 
 pytestmark = pytest.mark.django_db
 
@@ -66,3 +74,41 @@ def test_the_discard_grounds_do_not_query_per_ground(client, procedure, operator
     assert (big_documents, big) == (small_documents, small), (
         f"con 50 requisitos: {small} consultas ({small_documents} de documentos); con 100: {big} "
         f"({big_documents} de documentos)")
+
+
+def economic_order(user, procedure):
+    """Lo que arma el tema de Descartes y las consultas que leen el ítem o la página del Portal
+    por su cuenta (no como parte de otra consulta)."""
+    request = RequestFactory().get("/")
+    with memo.scope():
+        with CaptureQueriesContext(connection) as queries:
+            context = s4_descartes.context(user, procedure, request)
+    alone = [q for q in queries
+             if 'FROM "portal_item"' in q["sql"] or 'FROM "portal_page"' in q["sql"]]
+    return context, len(alone)
+
+
+def test_the_economic_order_source_does_not_query_the_portal_item_per_offer(
+        procedure, operator_user, portal):  # noqa: F811
+    """REQ-091, REQ-100, T-223: la fuente de los precios sale del ítem de los datos de cada oferta,
+    que viene en la misma consulta que los datos: con 2 y con 6 ofertas ninguna consulta lee el
+    ítem ni la página del Portal de a una."""
+    declaration = requirement(procedure, "declaración jurada")
+    offers = []
+
+    def add(count):
+        for _ in range(count):
+            offer = make_offer(procedure, operator_user, f"Oferente {len(offers) + 1}",
+                               {"oferta.pdf": ["Texto de la oferta."]})
+            add_run(operator_user, procedure, offer, {declaration: "cumple"})
+            quote_data(portal, procedure, offer, total=Decimal("100"),
+                       prices={1: (Decimal("5"), 1)})
+            offers.append(offer)
+
+    add(2)
+    context, few = economic_order(operator_user, procedure)
+    assert [s["offers"] for s in context["price_sources"]] == ["las ofertas 1 y 2"]
+    add(4)
+    context, many = economic_order(operator_user, procedure)
+    assert [s["offers"] for s in context["price_sources"]] == ["las ofertas 1, 2, 3, 4, 5 y 6"]
+    assert few == many == 0, f"{few} consultas del ítem con 2 ofertas y {many} con 6"
