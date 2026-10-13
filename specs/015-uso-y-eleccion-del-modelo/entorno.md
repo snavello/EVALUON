@@ -218,7 +218,7 @@ Mientras una evaluación o una matriz corre, el motor de lotes está ocupado: lo
 
 - La Consulta de normativa queda **apagada** hasta T-255: su pantalla (`/consulta/`) y la pestaña de Normativas dicen «La consulta de normativa no está disponible por ahora…», con el botón desactivado, y no ejecutan ni guardan la pregunta. Lo decide `generation.is_available()` (`GET /health` de `generation`, 2 s de espera; cualquier falla, incluso una respuesta que no es HTTP, es «no disponible»): si el motor se enciende, la Consulta vuelve sola. La búsqueda directa sigue.
 - El alta del procedimiento desde el pliego usa el motor de lotes (T-247) y su traza de auditoría nombra el motor y el modelo que atendieron el pedido (`models.generation_batch`: alias, archivo y huella del modelo, proyector, compilación y contexto), como la matriz y la evaluación (P6).
-- La propuesta de datos del oferente (`offers/proposal_fields.py`) sigue pidiendo a `generation`: sin ese motor, el nombre queda «no determinado» sin fallar (pendiente para T-248).
+- La propuesta de datos del oferente (`offers/proposal_fields.py`) también pide al motor de lotes desde T-248 (`generation.generate_batch`): con `generation` apagado, el nombre del oferente se propone igual. Si el motor de lotes no responde, el dato queda «no determinado» sin fallar.
 
 ### Cómo se vuelve al 12B (con la Consulta)
 
@@ -237,4 +237,11 @@ Estado: desplegado (decisión del responsable del 2026-10-12, «Sí; Consulta co
 - Se detuvieron `generation` y `generation_batch`, se sumaron al `.env` las tres líneas de «Uso por omisión» (`COMPOSE_FILE`, `COMPOSE_PATH_SEPARATOR`, `GENERATION_BATCH_REASONING_CONTRAST=low`) y se levantó con `docker compose up -d`.
 - Comprobado: `generation_batch` sano con `Qwen3.8-27B-UD-Q4_K_M.gguf`, su proyector y `--reasoning auto`; `app` con `GENERATION_BATCH_MODEL_ALIAS=qwen3.8-27b-ud-q4_k_m` y el razonamiento solo en el contraste; `generation` fuera; GPU en 18.458 MiB en reposo; `/ingresar/` 200; cola sin pedidos en curso.
 - Volver al 12B: «Cómo se vuelve al 12B» de este archivo (borrar las tres líneas del `.env` y recrear).
+
+## Actualizaciones de la aplicación en 8000 · 2026-10-12 y 2026-10-13
+
+Desde e6432b6 no hay migraciones ni cambios de `Dockerfile`, `pyproject.toml` o compose: cada actualización reconstruye la imagen de la aplicación y recrea `app`, `worker` y `portal_worker`, sin tocar los motores del 27B.
+
+- `main` ca5e428 (T-257, criterios del 2026-10-12 en la evaluación).
+- `main` 70e5aa54 (T-261, contexto de la evaluación; T-262, presentación física en la matriz): imagen c136b996, construida el 2026-10-13 a las 12:13; `/ingresar/` 200.
 
