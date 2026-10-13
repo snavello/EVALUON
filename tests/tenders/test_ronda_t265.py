@@ -175,13 +175,14 @@ def test_the_examples_stay_balanced():
 
 def test_v12_keeps_the_physical_presentation_of_t262():
     """REQ-102 (decisión del 2026-10-12): la sección de la presentación física, la salvedad del
-    motivo `forma_presentacion_portal` y la regla de la oración que pide algo en papel siguen igual
-    que en la v11; ningún ejemplo descarta una oración que pide algo en papel y siguen los dos que la
-    mantienen, uno de otro rubro."""
+    motivo `forma_presentacion_portal` (que sigue igual, al principio del motivo) y la regla de la
+    oración que pide algo en papel siguen como en la v11; ningún ejemplo descarta una oración que
+    pide algo en papel y siguen los dos que la mantienen, uno de otro rubro."""
     new, old = _read(NEW), _read(PREVIOUS)
     assert (_section(new, "LA PRESENTACIÓN FÍSICA", SECTION)
             == _section(old, "LA PRESENTACIÓN FÍSICA", "MOTIVOS DE DESCARTE"))
-    assert _motive(new, "forma_presentacion_portal") == _motive(old, "forma_presentacion_portal")
+    assert _motive(new, "forma_presentacion_portal").startswith(
+        _motive(old, "forma_presentacion_portal"))
     rule = next(line for line in old.splitlines()
                 if line.startswith("Una oración que habla de la carga en el Portal"))
     assert rule in new.splitlines()
@@ -211,27 +212,50 @@ def test_v12_still_discards_completing_the_quote_in_the_portal_form():
     note = next(line for line in text.splitlines()
                 if line.startswith("Tramo (") and "sistema de compras electrónicas" in line
                 and "renglón por renglón" in line)
-    assert "que es la forma de presentar la oferta por el Portal" in note
+    assert "solo dice dónde se cargan los precios, y eso es forma_presentacion_portal" in note
+    assert "no fija la moneda ni lo que se informa" in note
     block = _read("matriz-definiciones-v8")
     assert "Tampoco es una fila propia completar la cotización en el formulario del Portal" in block
 
 
+def test_v12_keeps_the_currency_of_the_quote_even_if_the_sentence_mentions_the_portal():
+    """REQ-102 (decisión del 2026-10-10: «la moneda de la oferta si es un requisito»): la oración que
+    fija la moneda en que se cotiza o el tipo de cambio con que se convierte un precio es un
+    requisito aunque diga que es para completar o cargar la cotización en el Portal; lo dicen la
+    sección y el motivo `forma_presentacion_portal`, que también deja afuera de ese motivo la nota de
+    una planilla de un anexo. La cláusula del formulario del Portal solo dice dónde y cómo se carga."""
+    text = _read(NEW)
+    section = _section(text, SECTION, "MOTIVOS DE DESCARTE")
+    assert "Esa cláusula solo dice dónde y cómo se carga la cotización." in section
+    assert ("Tampoco lo es la oración que fija la moneda en que se cotiza o el tipo de cambio con que "
+            "se convierte un precio, aunque diga que es para completar o cargar la cotización en el "
+            "Portal: la moneda de la cotización es un requisito") in section
+    motive = _motive(text, "forma_presentacion_portal")
+    assert ("Tampoco es la oración que fija la moneda en que se cotiza o el tipo de cambio con que se "
+            "convierte un precio") in motive
+    assert "ni la nota de una planilla de un anexo que le exige algo al oferente" in motive
+    assert "La moneda en que se cotiza" not in _section(_read(PREVIOUS), "LA PRESENTACIÓN FÍSICA",
+                                                       "MOTIVOS DE DESCARTE")
+
+
 def test_v12_changes_only_what_t265_says():
-    """REQ-106 (versiones congeladas, P7): de la v11 a la v12 cambian solo el motivo `formulario` y
-    la nota del ejemplo del sistema de compras; se suman la sección de los anexos y los dos ejemplos.
-    Nada más se toca."""
+    """REQ-106 (versiones congeladas, P7): de la v11 a la v12 cambian solo los motivos `formulario` y
+    `forma_presentacion_portal` y la nota del ejemplo del sistema de compras; se suman la sección de
+    los anexos y los dos ejemplos. Nada más se toca."""
     new = Counter(line for line in _read(NEW).splitlines() if line)
     old = Counter(line for line in _read(PREVIOUS).splitlines() if line)
     removed, added = list((old - new).elements()), list((new - old).elements())
-    assert len(removed) == 2
+    assert len(removed) == 3
     assert sum(line.startswith("- formulario:") for line in removed) == 1
+    assert sum(line.startswith("- forma_presentacion_portal:") for line in removed) == 1
     assert sum(line.startswith("Tramo (solo dice cómo se completa algo en el sistema")
                for line in removed) == 1
-    # La sección (título y dos párrafos), el motivo, la nota del ejemplo del sistema de compras y
-    # los dos ejemplos nuevos (tramo y respuesta de cada uno).
-    assert len(added) == 9
+    # La sección (título y dos párrafos), los dos motivos, la nota del ejemplo del sistema de compras
+    # y los dos ejemplos nuevos (tramo y respuesta de cada uno).
+    assert len(added) == 10
     assert SECTION in added
     assert sum(line.startswith("- formulario:") for line in added) == 1
+    assert sum(line.startswith("- forma_presentacion_portal:") for line in added) == 1
     assert sum(line.startswith("Tramo (") for line in added) == 3
     assert sum(line.startswith('{"requisitos"') for line in added) == 2
 

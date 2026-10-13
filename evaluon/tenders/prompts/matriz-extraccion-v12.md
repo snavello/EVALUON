@@ -51,7 +51,7 @@ LAS PLANILLAS DE LOS ANEXOS Y SUS NOTAS
 
 Un anexo del pliego suele traer una planilla en blanco para que el oferente la complete (una tabla con sus rótulos y sus columnas o casillas vacías, o el modelo de una nota o de una declaración para firmar) y, arriba o abajo de ella, una nota o una instrucción del pliego dirigida al oferente. La planilla en blanco es un formulario: su motivo es formulario. La nota o la instrucción que le exige algo al oferente sobre lo que informa en esa planilla (qué datos pone, con qué valores, cómo calcula un importe o qué desglosa) no es el formulario: es un requisito de la oferta, aunque hable de cómo completar la planilla y aunque empiece con "Nota:". Copiá cada oración que exige algo, con las mismas reglas que en cualquier otro tramo. El texto de un formulario que no es un requisito es el que el oferente completa o firma tal como está (los rótulos, las casillas, el modelo de la declaración), no la instrucción del pliego que le dice qué tiene que cumplir lo que informa.
 
-Esto no cambia la forma de presentar la oferta por el Portal: completar la cotización en el formulario del Portal, renglón por renglón, sigue siendo forma_presentacion_portal (decisión del responsable). La nota de una planilla de un anexo del pliego no es esa cláusula.
+Esto no cambia la forma de presentar la oferta por el Portal: completar la cotización en el formulario del Portal, renglón por renglón, sigue siendo forma_presentacion_portal (decisión del responsable). Esa cláusula solo dice dónde y cómo se carga la cotización. La nota de una planilla de un anexo del pliego no es esa cláusula. Tampoco lo es la oración que fija la moneda en que se cotiza o el tipo de cambio con que se convierte un precio, aunque diga que es para completar o cargar la cotización en el Portal: la moneda de la cotización es un requisito (decisión del responsable).
 
 MOTIVOS DE DESCARTE
 
@@ -67,7 +67,7 @@ Si un tramo no contiene ningún requisito de la oferta ni nada técnico, devolv�
 - consecuencia_sancion: lo que el organismo hace si la oferta no cumple (descalificar, desestimar, intimar, ejecutar la garantía), cuando la oración no nombra una condición propia.
 - condicion_opcional: una oración que solo permite, describe o regula una opción que el oferente puede no usar (oferta alternativa, descuento, subcontratación), o una excepción que dice cuándo algo no se exige, y no le exige nada a ninguna oferta. Si le exige algo a quien usa la opción (un porcentaje, un dato, un documento, una forma de cotizar), es un requisito que vale solo para esa opción: proponelo, con la oración entera. Que la opción sea voluntaria no es un motivo para descartar.
 - pago_factura: el pago, la moneda de pago o la factura.
-- forma_presentacion_portal: la forma de presentar la oferta por el Portal, incluso cargar o consignar datos o documentos en él. No es la oración que, además de la carga, pide entregar en papel o presentar físicamente lo que el Portal marca para presentar así (la presentación física): esa es un requisito.
+- forma_presentacion_portal: la forma de presentar la oferta por el Portal, incluso cargar o consignar datos o documentos en él. No es la oración que, además de la carga, pide entregar en papel o presentar físicamente lo que el Portal marca para presentar así (la presentación física): esa es un requisito. Tampoco es la oración que fija la moneda en que se cotiza o el tipo de cambio con que se convierte un precio, aunque hable de completar o cargar la cotización en el Portal, ni la nota de una planilla de un anexo que le exige algo al oferente: esas son requisitos.
 - compromiso_presentacion: un compromiso que se cumple al presentarse.
 
 Una oración que habla de la carga en el Portal y además pide entregar algo en papel, en la mesa de entradas o en otra oficina del organismo, es un requisito aunque empiece por la carga: copiala entera y nunca la descartes como forma_presentacion_portal. Si la oferta no entrega ese papel, no cumple.
@@ -155,7 +155,7 @@ Tramo: "Las facturas conformadas se cancelarán mediante transferencia bancaria 
 Tramo: "Para ofertar, el usuario de la editorial ingresará a la plataforma de compras y subirá el archivo con la propuesta económica."
 {"requisitos": [], "tecnico": [], "descarte": "forma_presentacion_portal"}
 
-Tramo (solo dice cómo se cargan los precios en el sistema de compras, que es la forma de presentar la oferta por el Portal; no pide nada en papel): "Los precios de cada equipo se completarán en línea, renglón por renglón, en la planilla del sistema de compras electrónicas."
+Tramo (solo dice dónde se cargan los precios, y eso es forma_presentacion_portal; no fija la moneda ni lo que se informa, y no pide nada en papel): "Los precios de cada equipo se completarán en línea, renglón por renglón, en la planilla del sistema de compras electrónicas."
 {"requisitos": [], "tecnico": [], "descarte": "forma_presentacion_portal"}
 
 Tramo (la planilla en blanco de un anexo: solo rótulos y columnas para completar): "PLANILLA DE COTIZACIÓN POR COLECCIÓN | Colección | Título | Ejemplares | Precio por ejemplar | Subtotal"
