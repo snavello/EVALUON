@@ -2,8 +2,11 @@
 H2 y acción A4; ADR-0041; ADR-0057).
 
 - Una página que el reconocimiento dio por legible en promedio, pero con un pasaje de
-  confianza mínima menor que 40 (la firma, la aclaración o la fecha escritas a mano en un
-  formulario impreso), va a visión con el motivo `low_confidence_passage`.
+  confianza mínima menor que `ASSESSMENT_VISION_PASSAGE_CONFIDENCE` (la firma, la aclaración o
+  la fecha escritas a mano en un formulario impreso), va a visión con el motivo
+  `low_confidence_passage`, **solo si el ajuste está encendido**: por omisión vale 0 y está
+  apagado (decisión del Coordinador del 2026-10-12: en el pagaré del caso-00 el 27B inventó el
+  año, el concepto y el proceso; P3).
 - El pedido de visión va al motor de lotes con el alias de su modelo (el 27B adoptado, en este
   test un alias inventado) y el registro dice qué modelo atendió el pedido según la respuesta
   del motor (P6).
@@ -32,6 +35,9 @@ PRINTED = "DECLARACIÓN JURADA DE HABILIDAD PARA CONTRATAR CON EL ORGANISMO SINT
 HANDWRITTEN = "Firma y aclaración: Fe J 0 , 1. , JS"
 SEEN_TEXT = "Firma y aclaración: Juana Inventada · Fecha: 01/12/2099"
 ALIAS = "modelo-adoptado-de-prueba"
+
+
+PASSAGE_ON = 40
 
 
 @pytest.fixture(autouse=True)
@@ -104,17 +110,32 @@ def test_a_legible_page_with_a_handwritten_field_goes_to_vision(new_offer, opera
     ])
     assert reading.report["low_confidence"] == [] and reading.report["unread"] == []
 
-    found = vision.candidate_pages(document, reading)
+    with override_settings(ASSESSMENT_VISION_PASSAGE_CONFIDENCE=PASSAGE_ON):
+        found = vision.candidate_pages(document, reading)
 
     assert [(c["page"], c["reason"]) for c in found] == [(1, "low_confidence_passage")]
     assert found[0]["status"] == "legible" and found[0]["passage_confidence"] == 19.0
 
 
 def test_a_passage_at_the_threshold_does_not_send_its_page(new_offer, operator_user):
-    """REQ-104 (T-259): el umbral es «menor que» `MIN_PASSAGE_CONFIDENCE`: un pasaje con
-    confianza 40 no manda su página a visión."""
+    """REQ-104 (T-259): el umbral es «menor que» el ajuste: un pasaje con confianza igual al
+    umbral no manda su página a visión."""
     document, reading = read_form(new_offer, operator_user, [
-        [(PRINTED, 96.0), (PRINTED, 95.0), (HANDWRITTEN, float(vision.MIN_PASSAGE_CONFIDENCE))],
+        [(PRINTED, 96.0), (PRINTED, 95.0), (HANDWRITTEN, float(PASSAGE_ON))],
+    ])
+    with override_settings(ASSESSMENT_VISION_PASSAGE_CONFIDENCE=PASSAGE_ON):
+        assert vision.candidate_pages(document, reading) == []
+
+
+def test_by_default_the_vision_by_passage_is_off(new_offer, operator_user):
+    """REQ-104 (T-259; decisión del Coordinador del 2026-10-12; P3): por omisión el ajuste vale
+    0 y una página legible con un pasaje de confianza 19 no va a visión: la transcripción
+    inventaba datos."""
+    from django.conf import settings
+
+    assert settings.ASSESSMENT_VISION_PASSAGE_CONFIDENCE == 0
+    document, reading = read_form(new_offer, operator_user, [
+        [(PRINTED, 96.0), (PRINTED, 95.0), (PRINTED, 97.0), (HANDWRITTEN, 19.0)],
     ])
     assert vision.candidate_pages(document, reading) == []
 
@@ -144,7 +165,8 @@ def test_the_handwritten_page_is_transcribed_by_the_batch_engine_and_the_record_
     monkeypatch.setattr(vision.generation, "generate_text", generate_text)
     with override_settings(GENERATION_BATCH_MODEL=ALIAS,
                            GENERATION_BATCH_URL="http://generation_batch:8080",
-                           GENERATION_URL="http://generation:8080"):
+                           GENERATION_URL="http://generation:8080",
+                           ASSESSMENT_VISION_PASSAGE_CONFIDENCE=PASSAGE_ON):
         summary = vision.read_offer(new_offer, user=operator_user, channel=Channel.COMMAND)
 
     assert summary.read == 1 and not summary.errors

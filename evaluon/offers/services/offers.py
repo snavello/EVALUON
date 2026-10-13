@@ -421,6 +421,12 @@ def read_report(document, reading, specs, second_attempt=()):
         "blank": [page.number for page in pages if page.status == PAGE_BLANK],
         "without_text_unlisted": unlisted,
         "passages": len(specs),
+        # Líneas escritas a mano que el reconocimiento no lee (T-259): su texto no entra en la
+        # lectura y la evaluación trata la página como «no se pudo leer» para ese dato.
+        "handwritten": [{"document": document.pk, "title": document.title, "page": number,
+                         "confidence": None if confidence is None else round(confidence, 2),
+                         "reason": reading_tools.HANDWRITTEN_REASON}
+                        for number, confidence in reading_tools.handwritten_lines(reading)],
         # Páginas que se leyeron por segunda vez con la imagen preparada (ADR-0028), con la
         # lectura que se conservó (`primera` o `segunda`).
         "second_attempt": list(second_attempt),
@@ -459,6 +465,8 @@ def run_read_document(job):
                 "leyó.")
         pdf = reading_tools.to_pdf(data, document.file_format)
         reading, attempts = reading_tools.read_with_second_attempt(pdf)
+        # Lo escrito a mano que el reconocimiento no lee no entra en el texto (T-259).
+        reading = reading_tools.mark_handwritten(reading)
         canonical = build_canonical_text(reading)
         specs = passage_rules.build_passages(canonical)
         vectors = _vectors(specs)

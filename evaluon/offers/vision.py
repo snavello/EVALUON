@@ -9,15 +9,16 @@ páginas de lectura dudosa, por un criterio objetivo que ya está en el informe 
   `without_text_unlisted`;
 - toda página de un documento en formato imagen (foto JPG o PNG): el reconocimiento de texto
   falla ahí;
-- la página que tiene un pasaje reconocido con confianza mínima menor que
-  `MIN_PASSAGE_CONFIDENCE` (`low_confidence_passage`, T-259, informe del comité H2), aunque
-  en promedio haya salido legible: son los campos escritos a mano de un formulario impreso
-  (firma, aclaración, fecha, número de proceso), que el reconocimiento lee mal y la visión
-  por página no veía.
+- solo si `ASSESSMENT_VISION_PASSAGE_CONFIDENCE` es mayor que 0 (apagado por omisión,
+  decisión del Coordinador del 2026-10-12: en el pagaré del caso-00 el 27B inventó el año, el
+  concepto y el proceso), la página que tiene un pasaje reconocido con confianza mínima menor
+  que ese valor (`low_confidence_passage`, T-259, informe del comité H2), aunque en promedio
+  haya salido legible: los campos escritos a mano de un formulario impreso. Apagada, esos
+  campos quedan «no se pudo leer · manuscrito: revisar el original» (`reading.mark_handwritten`).
 
 Hasta `ASSESSMENT_VISION_MAX_PAGES` páginas por oferta (con las ya intentadas antes); las que
 pasan del tope siguen como están y quedan contadas. Una página legible de un documento con
-texto, sin un pasaje reconocido de confianza baja, nunca se manda a visión.
+texto nunca se manda a visión, salvo por esa regla de pasaje si está encendida.
 
 El motor es el de lotes (`generation_batch`) con el modelo que tenga cargado: con el adoptado
 (ADR-0057, Qwen3.8-27B con su proyector) la visión la hace el 27B. El pedido lleva el alias de
@@ -97,10 +98,6 @@ REASON_WITHOUT_TEXT = "without_text_unlisted"
 REASON_IMAGE_FORMAT = "image_format"
 REASON_LOW_PASSAGE = "low_confidence_passage"
 
-# Confianza mínima (0 a 100) de un pasaje reconocido por debajo de la cual su página va a
-# visión aunque haya salido legible (T-259): el comité contó 24 pasajes así en las ofertas del
-# caso-00, todos campos escritos a mano. Valor de partida, sin medición detrás.
-MIN_PASSAGE_CONFIDENCE = 40
 
 # Resultado de una página.
 OUTCOME_READ = "read"
@@ -200,10 +197,14 @@ def candidate_pages(document, reading):
 
 def low_confidence_passages(reading):
     """`{página: confianza}` de las páginas de `reading` con algún pasaje reconocido cuya
-    confianza mínima es menor que `MIN_PASSAGE_CONFIDENCE`, con la menor de ellas."""
+    confianza mínima es menor que `ASSESSMENT_VISION_PASSAGE_CONFIDENCE`, con la menor de
+    ellas; vacío si el ajuste está en 0 (apagado, por omisión)."""
+    threshold = settings.ASSESSMENT_VISION_PASSAGE_CONFIDENCE
+    if not threshold:
+        return {}
     pages = {}
     rows = reading.passages.filter(
-        text_origin=ORIGIN_OCR, ocr_confidence_min__lt=MIN_PASSAGE_CONFIDENCE,
+        text_origin=ORIGIN_OCR, ocr_confidence_min__lt=threshold,
     ).values_list("page", "ocr_confidence_min")
     for page, confidence in rows:
         pages[page] = min(confidence, pages.get(page, confidence))
