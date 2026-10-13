@@ -179,7 +179,7 @@ Recrea `generation_batch`, `worker` y `app` solo con el compose base (12B, sin r
 
 ## Uso por omisión: el Qwen3.8-27B con razonamiento solo en el contraste (T-247, ADR-0057)
 
-Preparado por T-247 (2026-10-12), **sin desplegar**: el responsable adoptó el modelo el mismo día («Sí; Consulta con el 27B») y el despliegue en el equipo de uso (8000) lo hace el Coordinador después de verificar (P11).
+Preparado por T-247 (2026-10-12); la Consulta en el mismo motor, por T-255 (2026-10-13). El responsable adoptó el modelo el 2026-10-12 («Sí; Consulta con el 27B»). El 27B con el razonamiento solo en el contraste está desplegado en el equipo de uso (8000) con `docker-compose.sin-consulta.yml` (ver «Despliegue del 27B en 8000»); la combinación de abajo, con `docker-compose.consulta-27b.yml`, está **sin desplegar**: el despliegue en 8000 lo hace el Coordinador después de verificar (P11).
 
 ### Qué cambia respecto del compose base
 
@@ -187,10 +187,10 @@ Un `.env` copiado de `.env.example` trae tres líneas nuevas y `docker compose u
 
 | Línea de `.env.example` | Efecto |
 |---|---|
-| `COMPOSE_FILE=docker-compose.yml:docker-compose.qwen38-27b.yml:docker-compose.razonamiento.yml:docker-compose.sin-consulta.yml` y `COMPOSE_PATH_SEPARATOR=:` | `generation_batch` es el Qwen3.8-27B, el servidor permite pensar (`--reasoning auto --reasoning-budget -1`) y `generation` no arranca (perfil `consulta-12b`; `app` no lo espera). El separador `:` es explícito porque el de Compose en Windows es `;` |
+| `COMPOSE_FILE=docker-compose.yml:docker-compose.qwen38-27b.yml:docker-compose.razonamiento.yml:docker-compose.consulta-27b.yml` y `COMPOSE_PATH_SEPARATOR=:` | `generation_batch` es el Qwen3.8-27B, el servidor permite pensar (`--reasoning auto --reasoning-budget -1`), `generation` no arranca (perfil `consulta-12b`; `app` no lo espera) y la Consulta de normativa usa el motor de lotes (T-255; sección «La Consulta en el motor del 27B»). El separador `:` es explícito porque el de Compose en Windows es `;` |
 | `GENERATION_BATCH_REASONING_CONTRAST=low` | Solo el contraste piensa, con tope de 1.024 tokens de razonamiento por pedido; extracción, completitud, filtro y evaluación no (T-244b y T-244c: con razonamiento empeoran) |
 
-Los archivos del 12B, de razonamiento y del 35B no cambian de contenido; el del 27B suma la espera de la carga (`start_period` de 900 s en el chequeo de `generation_batch`). Los comandos con `-f archivo` explícito (las secciones de arriba, las mediciones y los runbooks anteriores) no leen `COMPOSE_FILE` y siguen valiendo tal cual.
+Los archivos del 12B, de razonamiento y del 35B no cambian de contenido; el del 27B suma la espera de la carga (`start_period` de 900 s en el chequeo de `generation_batch`). `docker-compose.sin-consulta.yml` (T-247) ya no está en la combinación por omisión: queda para el 27B sin Consulta, si las evals de la 001 no pasan o para volver atrás. Los comandos con `-f archivo` explícito (las secciones de arriba, las mediciones y los runbooks anteriores) no leen `COMPOSE_FILE` y siguen valiendo tal cual.
 
 ### Instalación desde cero (P5)
 
@@ -212,11 +212,11 @@ La carga del 27B tarda de 3 a 10 minutos (3 min 4 s en T-244d; 4,5 a 10 min en o
 | Carga del modelo hasta `/health` | 3 min 4 s a 10 min | T-244d, T-244 |
 | Con `generation` encendido | no entra (unos 7.800 MiB más) | T-243, T-244 |
 
-Mientras una evaluación o una matriz corre, el motor de lotes está ocupado: los pedidos del `worker` van de a uno. La GPU no admite otra carga.
+Mientras una evaluación o una matriz corre, el motor de lotes está ocupado: los pedidos del `worker` van de a uno. La GPU no admite otra carga. La Consulta, que desde T-255 usa ese mismo motor, espera: sus pantallas lo dicen (sección «La Consulta en el motor del 27B»).
 
 ### La Consulta y las propuestas de datos
 
-- La Consulta de normativa queda **apagada** hasta T-255: su pantalla (`/consulta/`) y la pestaña de Normativas dicen «La consulta de normativa no está disponible por ahora…», con el botón desactivado, y no ejecutan ni guardan la pregunta. Lo decide `generation.is_available()` (`GET /health` de `generation`, 2 s de espera; cualquier falla, incluso una respuesta que no es HTTP, es «no disponible»): si el motor se enciende, la Consulta vuelve sola. La búsqueda directa sigue.
+- La Consulta de normativa usa el motor del 27B desde T-255 (sección «La Consulta en el motor del 27B»). Su pantalla (`/consulta/`) y la pestaña de Normativas dicen «La consulta de normativa no está disponible por ahora…», con el botón desactivado, y no ejecutan ni guardan la pregunta, cuando el motor no contesta: lo decide `generation.is_available()` (`GET /health` de `GENERATION_URL`, 2 s de espera; cualquier falla, incluso una respuesta que no es HTTP, es «no disponible») y, si el motor se enciende, la Consulta vuelve sola. Con `docker-compose.sin-consulta.yml` (el 27B sin Consulta) `GENERATION_URL` sigue en `generation`, que no arranca: la Consulta queda apagada y lo dice con el texto de T-247. La búsqueda directa sigue.
 - El alta del procedimiento desde el pliego usa el motor de lotes (T-247) y su traza de auditoría nombra el motor y el modelo que atendieron el pedido (`models.generation_batch`: alias, archivo y huella del modelo, proyector, compilación y contexto), como la matriz y la evaluación (P6).
 - La propuesta de datos del oferente (`offers/proposal_fields.py`) también pide al motor de lotes desde T-248 (`generation.generate_batch`): con `generation` apagado, el nombre del oferente se propone igual. Si el motor de lotes no responde, el dato queda «no determinado» sin fallar.
 
@@ -227,7 +227,52 @@ Mientras una evaluación o una matriz corre, el motor de lotes está ocupado: lo
 docker compose up -d --no-deps generation_batch worker app generation
 ```
 
-Recrea `generation_batch`, `worker` y `app` con el compose base (12B, sin razonamiento) y enciende `generation`. Comprobar: `/health` `ok` en los dos motores, el alias del 12B en `/props` de cada uno, `n_ctx` 32.768 en el de lotes y 16.384 en el de la Consulta, y la pantalla de la Consulta sin el aviso. No cambia ningún dato ni la base. Los archivos del 27B quedan en `models/`; borrarlos (17,4 GB) lo decide el responsable. Una vuelta puntual, sin tocar `.env`: `docker compose -f docker-compose.yml up -d --no-deps generation_batch worker app generation`.
+Recrea `generation_batch`, `worker` y `app` con el compose base (12B, sin razonamiento) y enciende `generation`. Comprobar: `/health` `ok` en los dos motores, el alias del 12B en `/props` de cada uno, `n_ctx` 32.768 en el de lotes y 16.384 en el de la Consulta, y la pantalla de la Consulta sin el aviso. No cambia ningún dato ni la base. Los archivos del 27B quedan en `models/`; borrarlos (17,4 GB) lo decide el responsable. Una vuelta puntual, sin tocar `.env`: `docker compose -f docker-compose.yml up -d --no-deps generation_batch worker app generation`. Volver del 27B con Consulta al 27B sin Consulta (si las evals no pasan o para volver atrás de T-255) es otra vuelta y no recarga el modelo: «La Consulta en el motor del 27B», «Cómo se vuelve».
+
+## La Consulta en el motor del 27B (T-255, ADR-0057)
+
+Estado: preparado, sin desplegar. Preparado por T-255 (2026-10-13). Decisión del responsable (2026-10-12): «Sí; Consulta con el 27B». Se despliega después de verificar y de medir las evals de la 001 con el 27B (T-266, P7); el despliegue en 8000 lo hace el Coordinador (P11). Mientras tanto 8000 sigue con `docker-compose.sin-consulta.yml` (ver «Despliegue del 27B en 8000»).
+
+### Qué cambia
+
+`docker-compose.consulta-27b.yml` reemplaza a `docker-compose.sin-consulta.yml` en la configuración de uso: `.env.example` trae `COMPOSE_FILE=docker-compose.yml:docker-compose.qwen38-27b.yml:docker-compose.razonamiento.yml:docker-compose.consulta-27b.yml`. `docker-compose.sin-consulta.yml` queda: sirve para el 27B sin Consulta si las evals no pasan, o para volver atrás. El compose base no cambia de comportamiento (monta el archivo nuevo en `app`, solo para los tests de coherencia).
+
+| | 27B sin Consulta (T-247) | 27B con Consulta (T-255) |
+|---|---|---|
+| `generation` | perfil `consulta-12b`, no arranca; `app` no lo espera | igual |
+| `GENERATION_URL` de `app` y `worker` | `http://generation:8080` (nadie contesta) | `GENERATION_BATCH_URL` (`http://generation_batch:8080`) |
+| Modelo de la Consulta (`GENERATION_MODEL_ALIAS`, `_FILE`, `_SHA256`) | el 12B | el 27B, los mismos valores que `generation_batch` |
+| `GENERATION_CTX_SIZE` de `app` | 16.384 | 32.768 (el contexto real del motor, `GENERATION_BATCH_CTX_SIZE`) |
+| `GENERATION_CTX_SIZE` del `worker` | 16.384 | 16.384: la matriz dimensiona sus pedidos con ese valor (`GENERATION_CONTEXT_TOKENS`) y se midió con él (P7) |
+| Redes, puertos, imágenes, `generation_batch` | | sin cambios (P4); el motor no se reinicia ni se recarga |
+
+`docker compose config` de las dos combinaciones difiere solo en 9 variables de entorno de `app` y `worker`. Con 235 consultas guardadas del 12B, el pedido a la Consulta tuvo una mediana de 2.524 tokens y un máximo de 4.973, y ninguna dejó unidades afuera por espacio: el contexto de 32.768 no cambia nada en esas preguntas.
+
+### Cómo se comporta
+
+- **Pedidos.** Van al mismo motor y modelo que las evaluaciones. Salen siempre sin razonamiento (`enable_thinking: false`, sin `reasoning_effort` ni `thinking_budget_tokens`) aunque el servidor lo permita (`--reasoning auto`) y los pasos de lotes piensen, con el esquema JSON, la cita literal y la abstención de siempre. Esperan 60 s (`AI_TIMEOUT_SECONDS`), menos que los 120 s de Gunicorn, y no suman la espera extra de los pasos que piensan.
+- **Un motor, un pedido a la vez.** Mientras corre (`running`) una evaluación, una matriz, una ficha o una propuesta de datos (del procedimiento o de la oferta), `/consulta/` y la pestaña de Normativas muestran «La consulta de normativa no está disponible mientras el sistema evalúa o arma una matriz; vuelva a intentar cuando termine.», con el botón desactivado, y no ejecutan ni guardan la pregunta. La búsqueda directa sigue. No cuentan los pedidos en espera, terminados o fallidos, ni leer documentos (OCR sin modelo), ni los del Portal. No cubre el informe técnico que la cola encadena al terminar la lectura de una oferta, ni los comandos (`medir_matriz`, `correr_evals`, `leer_con_vision`: no pasan por la cola; `correr_evals` no se frena). El chequeo de salud responde 200 aunque el motor esté generando (el log de salud de Docker de `generation_batch` en 8000, con la GPU al 99 % durante T-263, muestra cinco chequeos seguidos con éxito), así que lo ocupado lo dice la cola de trabajos y no `/health`. Con `generation` aparte (el 12B) este aviso no existe.
+- **Motor que no contesta.** Con el motor compartido (el 27B cargando tras un reinicio, de 3 a 10 minutos, o caído): «La consulta de normativa no está disponible por ahora: el motor del modelo se está encendiendo o no responde. Vuelva a intentarlo en unos minutos.» Con `generation` aparte que no contesta (el 27B sin Consulta, o el 12B caído) queda el de T-247, «…el equipo usa el modelo grande para las evaluaciones y deja apagado el motor de la consulta…».
+- **Registro (P6).** `queries_query.parameters.generation` dice `engine` (`generation_batch`), `url`, modelo (alias, archivo y huella), compilación del motor y contexto.
+- **Tiempos de referencia con el 12B** (235 consultas guardadas): generación mediana 4,2 s, p90 7,8 s, máximo 25,2 s; total mediano 5,0 s, p90 8,7 s, máximo 29,5 s. Con el 27B (unos 24 tokens por segundo) la generación es más lenta: la mide la prueba de humo de abajo.
+
+### Desplegar y comprobar
+
+Sin trabajos corriendo (recrear el `worker` interrumpe el pedido en curso), con la decisión del responsable (P11). En `.env`, cambiar `docker-compose.sin-consulta.yml` por `docker-compose.consulta-27b.yml` en `COMPOSE_FILE`, reconstruir la imagen y recrear solo `app`, `worker` y `portal_worker` (`generation_batch` no se toca). Comprobar:
+
+- `docker compose ps`: sin `generation`, `generation_batch` sano y sin reiniciar.
+- `docker compose exec app printenv GENERATION_URL GENERATION_MODEL_ALIAS GENERATION_CTX_SIZE`: `http://generation_batch:8080`, `qwen3.8-27b-ud-q4_k_m` y `32768`.
+- `/consulta/` con el motor libre responde con cita, y la consulta guardada trae `parameters.generation.engine` `generation_batch`.
+- Con una evaluación en curso, `/consulta/` y la pestaña de Normativas muestran el aviso.
+
+### Cómo se vuelve
+
+- **Al 27B sin Consulta** (si las evals no pasan, o para volver atrás): en `COMPOSE_FILE`, `docker-compose.sin-consulta.yml` en lugar de `docker-compose.consulta-27b.yml`, y recrear `app` y `worker`. No recarga el modelo.
+- **Al 12B con la Consulta:** «Cómo se vuelve al 12B (con la Consulta)», más arriba.
+
+### Prueba de humo contra el motor real
+
+Pendiente. Tres preguntas de las evals de la 001 contra el `generation_batch` de 8000, con una aplicación y una copia de la base propias, cuando la GPU esté libre. No es la medición: las evals completas son de T-266. Sus tiempos dicen si el texto «Puede tardar hasta medio minuto» de la pantalla de la Consulta y de la pestaña de Normativas sigue valiendo.
 
 ## Despliegue del 27B en 8000 · 2026-10-12
 
