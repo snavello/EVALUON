@@ -88,6 +88,14 @@ def _pending_sheets(offers):
     return rows
 
 
+def sheet_url(procedure, offer):
+    """La ficha de `offer` dentro de la pestaña «Ofertas» (tema `s3_ficha`): ahí el evaluador
+    confirma las filas y corrige, quita o agrega fragmentos, y el fragmento de una página leída por
+    visión sale rotulado (P3, ADR-0041; T-264). La ficha vieja (`offers:sheet`) no lo rotula, así
+    que el expediente no lleva a ella."""
+    return reverse("expedientes:ofertas", args=[procedure.pk]) + f"?ficha={offer.pk}#s3-ficha"
+
+
 def compute(user, procedure):
     view_url = reverse("expedientes:ofertas", args=[procedure.pk])
     common = {"key": KEY, "label": LABEL, "view_url": view_url}
@@ -113,7 +121,7 @@ def compute(user, procedure):
 
     decide_url = None
     if pending_sheets and base.is_evaluator(user):
-        decide_url = reverse("offers:sheet", args=[pending_sheets[0][1].pk])
+        decide_url = sheet_url(procedure, pending_sheets[0][0])
     common_all = {**common, **counts, "decide_url": decide_url}
 
     active = base.active_job(KINDS, procedure=procedure)
