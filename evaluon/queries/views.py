@@ -58,9 +58,6 @@ from evaluon.queries.models import Query, Status
 
 TEMPLATE = "queries/consulta.html"
 
-# El aviso de la Consulta apagada (T-247) vive con el servicio, que lo comparten las pantallas.
-UNAVAILABLE_NOTICE = services.UNAVAILABLE_NOTICE
-
 # Papel de un considerando en la pantalla (REQ-018).
 CONSIDERANDO_ROLE = "Considerando · contexto"
 
@@ -75,13 +72,14 @@ def screen(request):
     formulario se valida; uno rechazado vuelve marcado y no se consulta. Una pregunta
     válida va a la función de consulta con la fecha del formulario (vacía, la del día) y
     la página redirige al resultado guardado, de modo que recargar no vuelve a consultar
-    (T-019)."""
-    unavailable = not services.consulta_available()
+    (T-019). Si la Consulta no puede responder ahora (motor apagado o cargando, T-247; motor
+    ocupado con un trabajo de lotes, T-255) la pantalla lo dice y no consulta."""
+    notice = services.consulta_notice()
     if request.method == "POST":
         form = QueryForm(request.POST)
-        if form.is_valid() and unavailable:
-            # Motor de la Consulta apagado (T-247): no se consulta ni se guarda una consulta
-            # fallida; la pantalla lo dice y conserva lo escrito.
+        if form.is_valid() and notice:
+            # La Consulta no puede responder (T-247, T-255): no se consulta ni se guarda una
+            # consulta fallida; la pantalla lo dice y conserva lo escrito.
             pass
         elif form.is_valid():
             try:
@@ -103,7 +101,7 @@ def screen(request):
     return render(request, TEMPLATE, {
         "form": form,
         "search_form": SearchForm(initial={"reference_date": today()}),
-        **_availability(unavailable),
+        **_availability(notice),
     })
 
 
@@ -187,12 +185,13 @@ def search(request):
     return render(request, TEMPLATE, context)
 
 
-def _availability(unavailable=None):
-    """Lo que la plantilla necesita para decir que la Consulta está apagada (T-247): el aviso y
-    si el formulario de la pregunta se desactiva. Sin argumento, consulta el motor."""
-    if unavailable is None:
-        unavailable = not services.consulta_available()
-    return {"consulta_no_disponible": UNAVAILABLE_NOTICE if unavailable else ""}
+def _availability(notice=None):
+    """Lo que la plantilla necesita para decir que la Consulta no puede responder (T-247, T-255): el
+    aviso, que también desactiva el formulario de la pregunta; vacío si puede. Sin argumento,
+    consulta el motor y la cola de trabajos (`services.consulta_notice`)."""
+    if notice is None:
+        notice = services.consulta_notice()
+    return {"consulta_no_disponible": notice}
 
 
 # --- Avisos de modificatorias sin cargar -------------------------------------------------

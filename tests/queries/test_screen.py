@@ -32,7 +32,9 @@ UNDETERMINED_TITLE = "No determinado"
 UNDETERMINED_TEXT = "La normativa cargada no permite responder esta pregunta"
 ERROR_TITLE = "No se pudo completar la consulta"
 NO_REGIME_TEXT = "Para esa fecha no hay un régimen específico cargado en el sistema"
-WAITING_TEXT = "Buscando en la normativa. Puede tardar hasta medio minuto."
+# Con el 27B en el motor de la Consulta (T-255) una respuesta larga pasa de los 30 s y la espera
+# máxima de un pedido es de 60 s: el texto promete hasta un minuto, no medio.
+WAITING_TEXT = "Buscando en la normativa. Puede tardar hasta un minuto."
 
 STATIC_DIR = Path(settings.BASE_DIR) / "evaluon" / "static"
 EXTERNAL_IN_HTML = re.compile(r"""(src|href|action)\s*=\s*["']?(https?:)?//""", re.I)

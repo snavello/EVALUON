@@ -28,7 +28,11 @@ FAILURE = "No se pudo completar la consulta"
 
 
 @pytest.fixture
-def engine_down(monkeypatch):
+def engine_down(monkeypatch, settings):
+    """`generation` aparte y apagado a propósito (el 27B sin Consulta): el caso de T-247. Con la
+    Consulta en el motor de lotes (T-255) el aviso es otro: `test_consulta_motor_unico.py`."""
+    settings.GENERATION_URL = "http://generation:8080"
+    settings.GENERATION_BATCH_URL = "http://generation_batch:8080"
     monkeypatch.setattr(generation, "is_available", lambda timeout=None: False)
 
 

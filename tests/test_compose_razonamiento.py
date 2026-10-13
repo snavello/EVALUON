@@ -157,9 +157,10 @@ def test_the_candidate_configuration_is_documented_and_its_files_exist():
 
 
 def test_the_default_use_is_documented_with_the_way_back():
-    """REQ-107 (T-247): `entorno.md` dice cómo se instala desde cero con el 27B por omisión
+    """REQ-107 (T-247, T-255): `entorno.md` dice cómo se instala desde cero con el 27B por omisión
     (`.env`, descarga de los modelos, `docker compose up -d`), la memoria, los tiempos y la carga
-    medidos, qué pasa con la Consulta y con el alta desde el pliego, y cómo se vuelve al 12B."""
+    medidos, qué pasa con la Consulta y con el alta desde el pliego, y cómo se vuelve al 12B. La
+    combinación de `COMPOSE_FILE` que dice es la de `.env.example`: con `consulta-27b` (T-255)."""
     if not ENTORNO.is_file():
         pytest.skip("specs/ no está montada en este entorno: montarla para comprobar el documento")
     text = ENTORNO.read_text(encoding="utf-8")
@@ -169,9 +170,72 @@ def test_the_default_use_is_documented_with_the_way_back():
     for needed in (
             "cp .env.example .env", "bash scripts/fetch_models.sh --qwen38-27b", "docker compose up -d",
             "COMPOSE_FILE=docker-compose.yml:docker-compose.qwen38-27b.yml:docker-compose.razonamiento.yml"
-            ":docker-compose.sin-consulta.yml", "COMPOSE_PATH_SEPARATOR=:",
+            ":docker-compose.consulta-27b.yml", "COMPOSE_PATH_SEPARATOR=:",
             "GENERATION_BATCH_REASONING_CONTRAST=low", "20.956 MiB", "72,9 min", "3 min 4 s",
             "`start_period` del chequeo a 900 s",
             "no está disponible por ahora", "Cómo se vuelve al 12B",
             "docker compose -f docker-compose.yml up -d --no-deps generation_batch worker app generation"):
         assert needed in section, needed
+    # la combinación por omisión del documento es la que trae `.env.example`
+    env_example = (REPO / ".env.example").read_text(encoding="utf-8").splitlines()
+    [compose_file] = [line for line in env_example if line.startswith("COMPOSE_FILE=")]
+    assert compose_file in section
+    assert ":docker-compose.sin-consulta.yml" not in compose_file
+
+
+def test_the_consulta_in_the_27b_is_documented():
+    """REQ-107 (T-255): `entorno.md` tiene la sección de la Consulta en el motor del 27B, con su estado
+    (preparado, sin desplegar), qué cambia respecto del 27B sin Consulta, los avisos con las palabras
+    exactas del código, cómo se despliega y se comprueba, y cómo se vuelve (al 27B sin Consulta y al
+    12B). Si el texto de un aviso cambia en el código, el documento tiene que decir lo mismo."""
+    if not ENTORNO.is_file():
+        pytest.skip("specs/ no está montada en este entorno: montarla para comprobar el documento")
+    from evaluon.queries import services
+
+    text = ENTORNO.read_text(encoding="utf-8")
+    title = "## La Consulta en el motor del 27B (T-255, ADR-0057)"
+    assert title in text
+    section = text[text.index(title):].split("\n## ", 1)[0]  # hasta la sección siguiente
+
+    for needed in (
+            "Estado: preparado, sin desplegar", "docker-compose.consulta-27b.yml",
+            "docker-compose.sin-consulta.yml", "GENERATION_CTX_SIZE", "### Qué cambia",
+            "### Cómo se comporta", "### Desplegar y comprobar", "### Cómo se vuelve",
+            "### Prueba de humo contra el motor real", "Cómo se vuelve al 12B",
+            services.BUSY_NOTICE, services.NOT_RESPONDING_NOTICE):
+        assert needed in section, needed
+    # del texto de T-247, que sigue con `generation` aparte, el documento cita lo que lo distingue
+    fragment = "el equipo usa el modelo grande para las evaluaciones y deja apagado el motor de la consulta"
+    assert fragment in section and fragment in services.UNAVAILABLE_NOTICE
+
+
+def test_the_smoke_test_of_the_consulta_in_the_27b_is_documented_with_its_numbers():
+    """REQ-107 (T-255): `entorno.md` deja la prueba de humo de la Consulta contra el motor real
+    (2026-10-13), ya hecha: los casos con su tiempo, el registro (P6), que no hubo razonamiento,
+    `/health` respondiendo mientras genera, los avisos contra el motor real y la comparación con el
+    12B. El texto de espera que propone es el que dicen la pantalla de la Consulta y la pestaña."""
+    if not ENTORNO.is_file():
+        pytest.skip("specs/ no está montada en este entorno: montarla para comprobar el documento")
+    text = ENTORNO.read_text(encoding="utf-8")
+    title = "### Prueba de humo contra el motor real"
+    assert title in text
+    smoke = text[text.index(title):].split("\n## ", 1)[0]  # hasta la sección siguiente
+
+    assert "Pendiente" not in smoke
+    for needed in (
+            "2026-10-13", "EV-002", "EV-013", "EV-014", "EV-033", "34,0 s",  # los casos y el total
+            "`parameters.generation`", "`generation_batch`", "qwen3.8-27b-ud-q4_k_m",  # P6
+            "enable_thinking", "`reasoning_content`",  # sin razonamiento
+            "`/health`", "31 de 31",  # la salud mientras genera
+            "20.997 MiB",  # la memoria de video no cambia
+            "Comparación con el 12B", "corridas guardadas del 2026-10-03",
+            "no se apagó el motor de 8000"):  # lo que no se probó contra el motor real
+        assert needed in smoke, needed
+    from evaluon.queries import services
+    assert services.BUSY_NOTICE in smoke
+    # el texto de espera que dice el documento es el de las dos plantillas
+    wait = "Puede tardar hasta un minuto"
+    assert wait in smoke
+    for template in ("queries/consulta.html", "journey/temas/s5_consulta.html"):
+        html = (REPO / "evaluon" / "templates" / template).read_text(encoding="utf-8")
+        assert wait in html and "medio minuto" not in html, template

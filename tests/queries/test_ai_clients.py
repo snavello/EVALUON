@@ -10,6 +10,7 @@ del reranker son los de la ficha pública de `bge-reranker-v2-m3`.
 
 import json
 import math
+import runpy
 import socket
 import threading
 import time
@@ -467,7 +468,7 @@ def test_unexpected_response_is_a_service_error(server):
 # --- Parámetros ----------------------------------------------------------------------
 
 
-def test_parameters_have_the_plan_initial_values():
+def test_parameters_have_the_plan_initial_values(monkeypatch):
     """REQ-008, REQ-009: los parámetros de búsqueda y generación están en `settings.py`
     con los valores iniciales del plan, y la espera máxima es de 60 segundos."""
     assert settings.AI_TIMEOUT_SECONDS == 60
@@ -477,7 +478,11 @@ def test_parameters_have_the_plan_initial_values():
     assert settings.SELECTION_CONSIDERANDOS == 2
     assert settings.PASSAGE_MAX_TOKENS == 800
     assert settings.UNIT_BY_PASSAGES_FROM_TOKENS == 1500
-    assert settings.GENERATION_CONTEXT_TOKENS == 16384
+    # El valor por omisión (16.384, el de `generation`), no el del entorno: con la Consulta en el
+    # motor de lotes (docker-compose.consulta-27b.yml, T-255) `app` recibe 32.768.
+    monkeypatch.delenv("GENERATION_CTX_SIZE", raising=False)
+    fresh = runpy.run_path(str(Path(settings.BASE_DIR) / "evaluon" / "settings.py"))
+    assert fresh["GENERATION_CONTEXT_TOKENS"] == 16384
     assert settings.PROMPT_TEMPLATE_MARGIN_TOKENS == 512
     assert settings.GENERATION_MAX_STATEMENTS == 6
     assert settings.GENERATION_MAX_OUTPUT_TOKENS == 800

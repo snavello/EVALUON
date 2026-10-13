@@ -13,7 +13,7 @@
     </div>
     {% if t.unavailable %}<p class="aviso aviso-error" id="s5-consulta-apagada" role="status">{{ t.unavailable }}</p>{% endif %}
     <p class="ayuda">Se consulta con la fecha de autorización de este procedimiento, {{ t.authorization_date|date:"d/m/Y" }}, para aplicar el régimen que correspondía ese día.</p>
-    <p class="espera" id="s5-consulta-espera" role="status" hidden>{% include "journey/_icono.html" with icon="pend" name="En curso" %} Buscando en la normativa. Puede tardar hasta medio minuto; no cierre la pestaña.</p>
+    <p class="espera" id="s5-consulta-espera" role="status" hidden>{% include "journey/_icono.html" with icon="pend" name="En curso" %} Buscando en la normativa. Puede tardar hasta un minuto; no cierre la pestaña.</p>
   </form>
   {% else %}
   <p class="ayuda">Para consultar la normativa hace falta un rol de la Comisión (operador o evaluador). Pídaselo a quien administra los usuarios.</p>
