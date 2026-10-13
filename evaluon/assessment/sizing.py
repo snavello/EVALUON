@@ -24,17 +24,22 @@ UNREAD_KEYS = ("unread",)
 
 
 def document_pages(reading):
-    """Las páginas de una lectura: `[{"page": k, "text": str, "readable": bool}]`, de la 1
-    a la última. El texto de una página es el de sus pasajes, en orden."""
+    """Las páginas de una lectura: `[{"page": k, "text": str, "readable": bool,
+    "handwritten": bool}]`, de la 1 a la última. El texto de una página es el de sus pasajes,
+    en orden. `handwritten`: la página tiene un pasaje escrito a mano que no se pudo leer (T-259,
+    `report["handwritten"]`): su texto trae la marca «no se pudo leer · manuscrito: revisar el
+    original» en lugar de la transcripción, y para ese dato cuenta como no leída."""
     report = reading.report or {}
     unread = {entry["page"] for key in UNREAD_KEYS for entry in report.get(key, [])
               if isinstance(entry, dict) and "page" in entry}
+    handwritten = {entry["page"] for entry in report.get("handwritten", [])
+                   if isinstance(entry, dict) and "page" in entry}
     by_page = {}
     for passage in reading.passages.order_by("order"):
         by_page.setdefault(passage.page, []).append(passage.text)
     total = max([report.get("pages", 0), *by_page, *unread], default=0)
     return [{"page": number, "text": "\n".join(by_page.get(number, [])),
-             "readable": number not in unread}
+             "readable": number not in unread, "handwritten": number in handwritten}
             for number in range(1, total + 1)]
 
 

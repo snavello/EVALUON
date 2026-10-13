@@ -585,7 +585,7 @@ def verify_expected(expected, offers, folder=None):
             listed = reading is not None and any(
                 p["page"] == unreadable["pagina"]
                 for p in reading.report.get("unread", []) + reading.report.get(
-                    "low_confidence", []))
+                    "low_confidence", []) + reading.report.get("handwritten", []))
             if not listed:
                 result.fail(f"{unreadable['documento']} página {unreadable['pagina']}: no "
                             "está en las listas de no leídas ni de baja confianza")

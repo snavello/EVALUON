@@ -311,3 +311,16 @@ def test_the_offerors_physical_presentation_at_the_offer_is_still_no_cumple(offe
     name, result = apply(offer, pair_with(text, combine.Combined(outcome="sin_documento")))
     assert name == "presentacion_fisica_no_consta" and "Puede faltar cargarlo" in result.explanation
     assert portal_facts  # el Portal no interviene: la presentación física decide antes
+
+
+def test_the_option_rule_reads_the_option_names_the_matrix_stores():
+    """REQ-103 (interfaz con T-258): la regla lee `Requirement.proposed["opcion"]` con los nombres
+    que guarda la matriz (`extraction.OPTIONS`), y cada uno tiene su texto; vacío, no rige."""
+    from evaluon.assessment import options
+    from evaluon.tenders.proposal import extraction
+
+    for name in extraction.OPTIONS:
+        requirement = SimpleNamespace(proposed={extraction.KEY_OPTION: name})
+        assert options.option_of(requirement) == name and options.label(name)
+    assert options.option_of(SimpleNamespace(proposed={extraction.KEY_OPTION: ""})) == ""
+    assert options.option_of(SimpleNamespace(proposed={})) == ""

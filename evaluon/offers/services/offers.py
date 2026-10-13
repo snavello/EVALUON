@@ -17,7 +17,13 @@
   lectura, sus pasajes y su informe (páginas no leídas y de baja confianza, REQ-038) y deja
   el hecho `offer_read`, en una sola transacción. Si algo falla, deja el hecho `offer_read`
   con resultado `failed` y vuelve a lanzar el error para que la cola deje el pedido
-  `failed`.
+  `failed`. El informe lleva, si corresponde, la clase que el sistema sugiere para el
+  documento (`report["suggestion"]`: hoja de compliance o copia de otro documento de la
+  oferta; `evaluon.offers.suggestions`, T-259): es solo una sugerencia, no cambia nada.
+- `suggestion_of`: la sugerencia de la lectura más reciente que tenga una.
+- `confirm_compliance`: un evaluador confirma la sugerencia de hoja de compliance y el
+  documento pasa a serlo (P9: la carga una persona identificada); deja el hecho `offer_read`
+  con la acción `confirm_compliance`. No retira ni borra nada.
 - `offers_page`, `offer_page`, `original_file`: lo que muestra la pantalla.
 
 El rol se comprueba fuera de toda transacción, como en la 003, para que el hecho `rejected`
@@ -48,6 +54,7 @@ from evaluon.norms.reading import (
 from evaluon.norms.splitting.canonical import build_canonical_text
 from evaluon.offers import passages as passage_rules
 from evaluon.offers import reading as reading_tools
+from evaluon.offers import suggestions
 from evaluon.offers.models import (
     Document,
     DocumentFile,
@@ -65,6 +72,7 @@ LOAD_OPERATION = "evaluon.offers.services.offers.load_document"
 PAGE_OPERATION = "evaluon.offers.services.offers.offer_page"
 LIST_OPERATION = "evaluon.offers.services.offers.offers_page"
 ORIGINAL_OPERATION = "evaluon.offers.services.offers.original_file"
+CONFIRM_COMPLIANCE_OPERATION = "evaluon.offers.services.offers.confirm_compliance"
 
 # Restricciones de la base que hacen únicos al oferente y a la huella.
 _UNIQUE_BIDDER = "offers_offer_bidder_unique"
@@ -413,6 +421,12 @@ def read_report(document, reading, specs, second_attempt=()):
         "blank": [page.number for page in pages if page.status == PAGE_BLANK],
         "without_text_unlisted": unlisted,
         "passages": len(specs),
+        # Líneas escritas a mano que el reconocimiento no lee (T-259): su texto no entra en la
+        # lectura y la evaluación trata la página como «no se pudo leer» para ese dato.
+        "handwritten": [{"document": document.pk, "title": document.title, "page": number,
+                         "confidence": None if confidence is None else round(confidence, 2),
+                         "reason": reading_tools.HANDWRITTEN_REASON}
+                        for number, confidence in reading_tools.handwritten_lines(reading)],
         # Páginas que se leyeron por segunda vez con la imagen preparada (ADR-0028), con la
         # lectura que se conservó (`primera` o `segunda`).
         "second_attempt": list(second_attempt),
@@ -451,6 +465,8 @@ def run_read_document(job):
                 "leyó.")
         pdf = reading_tools.to_pdf(data, document.file_format)
         reading, attempts = reading_tools.read_with_second_attempt(pdf)
+        # Lo escrito a mano que el reconocimiento no lee no entra en el texto (T-259).
+        reading = reading_tools.mark_handwritten(reading)
         canonical = build_canonical_text(reading)
         specs = passage_rules.build_passages(canonical)
         vectors = _vectors(specs)
@@ -458,6 +474,11 @@ def run_read_document(job):
         tool_versions = {**reading.tool_versions, "embeddings": _embedding_info()}
         report = read_report(document, reading, specs, attempts)
         kind = classify_kind(document.file_name, canonical.text)
+        suggestion = suggestions.suggest(
+            canonical.text, _other_texts(document),
+            fixed_kind=document.kind in (DocumentKind.COMPLIANCE, DocumentKind.INFORME_TECNICO))
+        if suggestion is not None:
+            report["suggestion"] = suggestion
 
         with transaction.atomic():
             Document.objects.select_for_update().get(pk=document.pk)
@@ -488,6 +509,60 @@ def run_read_document(job):
                      detail={**detail, "error": f"{type(error).__name__}: {error}"})
         raise
     return saved
+
+
+def _other_texts(document):
+    """`(id, título, texto canónico)` de la última lectura de los demás documentos vigentes de la
+    misma oferta (sin los retirados ni los reemplazados), para buscar copias (T-259)."""
+    from evaluon.offers.services import document_history
+
+    found = []
+    others = document_history.current_documents(document.offer).exclude(pk=document.pk)
+    for other in others:
+        reading = other.readings.order_by("-sequence").first()
+        if reading is not None:
+            found.append((other.pk, other.title, reading.canonical_text))
+    return found
+
+
+def suggestion_of(document):
+    """La sugerencia de clase del documento (`report["suggestion"]` de su lectura más reciente
+    que tenga una), o `None`. Una sugerencia de hoja de compliance ya no se muestra si el
+    documento ya es hoja de compliance."""
+    for reading in document.readings.order_by("-sequence"):
+        suggestion = (reading.report or {}).get("suggestion")
+        if suggestion:
+            if (suggestion.get("kind") == suggestions.SUGGEST_COMPLIANCE
+                    and document.kind == DocumentKind.COMPLIANCE):
+                return None
+            return suggestion
+    return None
+
+
+def confirm_compliance(user, document, *, channel=Channel.SCREEN):
+    """Un evaluador confirma que `document` es la hoja de compliance de su oferta, como sugirió
+    el sistema (T-259; P9). El documento pasa a `compliance` y queda el hecho `offer_read` con la
+    acción `confirm_compliance`, el tipo anterior y la sugerencia. Sin la sugerencia, se
+    rechaza: para subir otra hoja está «Subir hoja de compliance». No borra ni retira nada."""
+    require_commission_role(user, CommissionRole.EVALUATOR,
+                            operation=CONFIRM_COMPLIANCE_OPERATION, channel=channel)
+    suggestion = suggestion_of(document)
+    if document.kind == DocumentKind.COMPLIANCE:
+        return document
+    if not suggestion or suggestion.get("kind") != suggestions.SUGGEST_COMPLIANCE:
+        raise OfferRefused("El sistema no sugirió que este documento sea una hoja de "
+                           "compliance: súbala con «Subir hoja de compliance».")
+    with transaction.atomic():
+        before = document.kind
+        document.kind = DocumentKind.COMPLIANCE
+        document.save(update_fields=["kind"])
+        audit.record(
+            EventType.OFFER_READ, outcome=Outcome.OK, channel=channel, user=user,
+            detail={"action": "confirm_compliance", "procedure": document.offer.procedure_id,
+                    "offer": document.offer_id, "document": document.pk,
+                    "kind_before": before, "kind": DocumentKind.COMPLIANCE.value,
+                    "suggestion": suggestion})
+    return document
 
 
 # --- Páginas --------------------------------------------------------------------------------------

@@ -6,7 +6,16 @@ de ASP.NET con los campos ocultos de la página), lo guarda tal cual en `portal_
 huella y propone un ítem con el nombre, la clase, la fecha y su origen. Lo que no se puede
 bajar (por ejemplo, la pantalla de error que da el Portal en lugar del Pliego de Bases y
 Condiciones Generales) o no es PDF ni página web guardada se informa como anomalía y no frena
-el resto: queda la carga manual (REQ-051).
+el resto: queda la carga manual (REQ-051). La portada lo cuenta como faltante en «Pliego y
+matriz» (T-259).
+
+Por qué el Pliego Único y su Disposición Aprobatoria dan siempre la pantalla de error (T-259,
+informe del comité H7, páginas guardadas de los casos 00 y 05): en el Portal sus enlaces los
+abre una función de JavaScript de la página (`VerCondicionesGenerales('…')` y
+`VerDisposicion('…')`, de `JavaScript/CondicionesGeneralesBastrap.js`), que arma otra
+dirección; el envío del formulario del `href` (`__doPostBack`), que es lo que hace el sistema,
+lo responde con su pantalla de error. Ese archivo de JavaScript no está guardado y sin él no se
+sabe qué dirección arma: la anomalía lo dice para que se baje a mano.
 
 Cargar: pliego, anexo y circular van por `load_document` de la 003 (queda encolada su
 lectura); acto, acta y dictamen no son pliego y la 003 no los lee: quedan como archivo del
@@ -36,6 +45,11 @@ KIND = ItemKind.DOCUMENTO
 CIRCULAR_KINDS = (DocumentKind.CIRCULAR_MODIFICATORIA, DocumentKind.CIRCULAR_ACLARATORIA)
 _LOAD_KIND = {"pliego": DocumentKind.PLIEGO, "anexo": DocumentKind.ANEXO}
 _ERROR_MARKERS = (b"PantallaError.aspx", b"lblMensajeErrorGenerico")
+# Lo que se sabe de por qué una sección da la pantalla de error (ver el módulo).
+_ERROR_CAUSE = {
+    "condiciones_generales": (" En el Portal lo abre una función de su página que el sistema "
+                              "no reproduce."),
+}
 _FILENAME = re.compile(r"filename\*?=(?:UTF-8'')?\"?([^\";]+)\"?", re.IGNORECASE)
 
 
@@ -51,7 +65,7 @@ def explore(context):
         file_format = detect_format(body)
         if file_format != "pdf" and any(m in body for m in _ERROR_MARKERS):
             _anomaly(context, ref, "El Portal respondió su pantalla de error en lugar del "
-                                   "documento.")
+                                   "documento." + _ERROR_CAUSE.get(ref.section, ""))
         elif file_format is None:
             _anomaly(context, ref, "Lo que bajó no es un PDF ni una página web guardada.")
         else:
