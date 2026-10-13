@@ -28,7 +28,7 @@ from evaluon.tenders import jobs
 from evaluon.tenders import models as m
 from evaluon.tenders.segmenting import RULES_VERSION, split_tender
 from evaluon.tenders.services import documents
-from evaluon.tenders.tables import table_zones
+from evaluon.tenders.tables import ZONE_KEYS, read_tables, table_zones, with_cells
 from tests.conftest import TEST_PASSWORD
 from tests.tenders.pdfs import para, synthetic_tender_pdf, tender_pdf
 
@@ -345,13 +345,16 @@ def test_reading_saves_reading_segments_and_report(operator_user, procedure):
     [job] = read_all()
     assert job.status == m.JobStatus.DONE, job.error
 
-    expected = split_tender(read_document(data), table_zones(data))
+    # Con las tablas escritas celda por celda (T-259): la misma lectura que arma el pedido.
+    cells_reading, zones = with_cells(read_document(data), read_tables(data))
+    expected = split_tender(cells_reading, zones)
     reading = loaded.document.readings.get()
     assert reading.sequence == 1
     assert reading.job == job
     assert reading.canonical_text == expected.canonical.text
     assert reading.canonical_sha256 == sha256(expected.canonical.text.encode("utf-8"))
-    assert reading.tables == table_zones(data)
+    assert reading.tables == zones
+    assert [{key: zone[key] for key in ZONE_KEYS} for zone in reading.tables] == table_zones(data)
     assert reading.tool_versions["rules_version"] == RULES_VERSION
     assert reading.pages["file_format"] == "pdf"
     assert reading.items == expected.items

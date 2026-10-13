@@ -194,7 +194,11 @@ def _overlap(a, b):
 
 
 def _same_condition(row, other, threshold, containment):
-    """El motivo por el que `row` repite a `other`, o `None`."""
+    """El motivo por el que `row` repite a `other`, o `None`. Dos filas con distinta opción
+    (`opcion` de la extracción; T-258, H-258-2) no se repiten: una vale para toda oferta y la otra
+    solo para la que usa la opción."""
+    if getattr(row.found, "option", "") != getattr(other.found, "option", ""):
+        return None
     if row.segment.pk == other.segment.pk and not _overlap(row.span, other.span):
         return None
     return similar(row.normalized, other.normalized, threshold, containment)

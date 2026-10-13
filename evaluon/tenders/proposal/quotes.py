@@ -19,19 +19,45 @@ las lleva al texto canónico de la lectura, donde `text[start:end]` es el texto 
 reglas 1 y 3): la oración completa y las oraciones cortas contiguas del mismo asunto
 (`sentences.expand_to_sentence`). Sigue siendo un recorte contiguo del texto del tramo, así que
 la cita guardada es literal.
+
+**Caracteres de área privada** (T-258, H5 del comité): la extracción del PDF deja viñetas como
+caracteres de área privada de Unicode (U+F000 a U+F8FF), que el modelo no reproduce. En la propuesta
+de la matriz no se le muestran al modelo (`visible`) y no cuentan al ubicar sus citas (`locate_unit`,
+que llama a `locate` con `ignore_private`): la cita guardada sigue siendo el recorte del texto
+canónico, con la viñeta adentro si cae en el medio. Los demás usos de `locate` (la evaluación, la
+medición) comparan como antes.
 """
+
+import re
 
 from evaluon.tenders.proposal import sentences
 
 WIDE = "cita_amplia"
 
+# Caracteres de área privada de Unicode que deja la extracción del PDF (viñetas): ni se muestran al
+# modelo ni cuentan al comparar (T-258).
+PRIVATE_USE = re.compile("[\uf000-\uf8ff]")
 
-def _collapse(text):
-    """El texto con cada secuencia de espacios en blanco reducida a un espacio, y para cada
-    carácter del resultado su posición en el texto original."""
+
+def is_private_use(char):
+    """Si `char` es un carácter de área privada (U+F000 a U+F8FF)."""
+    return "\uf000" <= char <= "\uf8ff"
+
+
+def visible(text):
+    """El texto tal como lo ve el modelo: sin los caracteres de área privada (T-258)."""
+    return PRIVATE_USE.sub("", text)
+
+
+def _collapse(text, ignore_private=False):
+    """El texto con cada secuencia de espacios en blanco reducida a un espacio (y, con
+    `ignore_private`, sin los caracteres de área privada, T-258), y para cada carácter del resultado
+    su posición en el texto original."""
     chars, positions = [], []
     previous_space = False
     for index, char in enumerate(text):
+        if ignore_private and is_private_use(char):
+            continue
         if char.isspace():
             if previous_space:
                 continue
@@ -44,15 +70,17 @@ def _collapse(text):
     return "".join(chars), positions
 
 
-def locate(text, quote, used=()):
+def locate(text, quote, used=(), ignore_private=False):
     """Posiciones `(inicio, fin)` de `quote` dentro de `text`, o `None` si no está o está
     vacío. Los espacios de los extremos de `quote` no cuentan y toda secuencia de espacios
     en blanco, dentro de `quote` o de `text`, vale por un espacio. Si aparece más de una
-    vez, la primera aparición cuyas posiciones no estén en `used`."""
-    needle = " ".join((quote or "").split())
+    vez, la primera aparición cuyas posiciones no estén en `used`. Con `ignore_private`, los
+    caracteres de área privada no cuentan, ni en `quote` ni en `text` (T-258)."""
+    quote = visible(quote or "") if ignore_private else (quote or "")
+    needle = " ".join(quote.split())
     if not needle:
         return None
-    haystack, positions = _collapse(text)
+    haystack, positions = _collapse(text, ignore_private)
     start = haystack.find(needle)
     while start != -1:
         span = (positions[start], positions[start + len(needle) - 1] + 1)
@@ -67,8 +95,8 @@ def locate_unit(text, quote, used=(), expand=True):
     `(fragmento, Expansion)`, con las posiciones del fragmento que señaló el modelo y la
     ampliación (`sentences.Expansion`), o `None` si `quote` no está en `text`. Con
     `expand` falso (el texto de una tabla, que no tiene oraciones) la cita queda en el
-    fragmento y la ampliación no trae unidad."""
-    span = locate(text, quote, used)
+    fragmento y la ampliación no trae unidad. Los caracteres de área privada no cuentan (T-258)."""
+    span = locate(text, quote, used, ignore_private=True)
     if span is None:
         return None
     if not expand:

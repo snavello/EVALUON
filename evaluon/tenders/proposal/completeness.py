@@ -181,7 +181,7 @@ def render_block(alias, candidate):
             if found.flag == quotes.WIDE:
                 shown = "(el tramo entero)"
             else:
-                shown = " ".join(text[found.span[0]:found.span[1]].split())
+                shown = " ".join(quotes.visible(text[found.span[0]:found.span[1]]).split())
             listed.append(f"{number}. {shown} ({found.category})")
     else:
         listed = ["Requisitos ya encontrados: ninguno"]

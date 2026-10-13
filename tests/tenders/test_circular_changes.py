@@ -176,7 +176,7 @@ def test_the_request_records_model_parameters_instructions_version_and_unit(
     assert request["huella_instrucciones"] == extraction.load_instruction(
         "circulares_cambios").sha256
     assert step.parsed["instruccion"]["version"] == "matriz-circulares-v6"
-    assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v4"
+    assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v7"
     assert request["unidad"]["tipo"] == "clausula" and len(request["unidad"]["tramos"]) == 1
     assert step.segment_keys == request["unidad"]["tramos"]
     assert step.parsed["valida"] is True
