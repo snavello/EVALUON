@@ -523,12 +523,15 @@ ASSESSMENT_VISION_PROMPT_VERSION = "vision-v3"
 # `low_confidence_passage`). Se apagó porque en el pagaré del caso-00 el 27B inventó el año, el
 # concepto y el proceso, y P3 no admite datos inventados.
 ASSESSMENT_VISION_PASSAGE_CONFIDENCE = 0
-# T-259 (REQ-104), misma decisión: una línea reconocida con confianza menor que este valor (las
-# firmas, fechas y números escritos a mano en un formulario) no entra en el texto de la oferta.
-# La lectura la reemplaza por la marca «no se pudo leer · manuscrito: revisar el original»
+# T-259 (REQ-104): con un valor mayor que 0, una línea reconocida con confianza menor (una firma,
+# una fecha o un número escritos a mano en un formulario) no entra en el texto de la oferta: la
+# lectura la reemplaza por la marca «no se pudo leer · manuscrito: revisar el original»
 # (`offers/reading.py`, `mark_handwritten`) y la evaluación trata su página como «no se pudo
-# leer» para ese dato: nunca se toma la transcripción como dato. 0 la apaga.
-OFFERS_HANDWRITTEN_CONFIDENCE = 40
+# leer» para ese dato. APAGADA por omisión (0), decisión del Coordinador del 2026-10-12: la
+# confianza baja del reconocimiento no distingue un manuscrito de una línea impresa mal
+# escaneada (el caso chico de las pruebas lo muestra) y marcar de más esconde datos válidos.
+# Detectar manuscritos de verdad queda para la lista de revisión con el primer producto.
+OFFERS_HANDWRITTEN_CONFIDENCE = 0
 # T-177 (REQ-064): cómo se le pide al modelo. Salida en texto plano que termina con un
 # marcador de fin (sin él, la salida se descarta: no se aceptan transcripciones parciales);
 # penalización de repetición del motor; orientación (confianza mínima de OSD de Tesseract para

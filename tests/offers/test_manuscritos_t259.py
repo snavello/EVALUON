@@ -8,6 +8,10 @@ descartada con ese motivo. La evaluación trata su página como «no se pudo lee
 sistema avala el «no se pudo leer» con esa página del original y la transcripción nunca llega al
 modelo ni a una cita.
 
+La marca queda **apagada por omisión** (`OFFERS_HANDWRITTEN_CONFIDENCE` en 0, decisión del
+Coordinador del 2026-10-12: la confianza baja no distingue un manuscrito de una línea impresa mal
+escaneada); estos tests la encienden adentro.
+
 Páginas y textos inventados (P4).
 """
 
@@ -55,6 +59,22 @@ def test_the_handwritten_line_is_replaced_by_the_mark_and_kept_as_discarded():
     assert kept.text == GARBAGE and kept.discarded == "manuscrito: revisar el original"
     assert reading_tools.handwritten_lines(marked) == [(1, 7.0)]
     assert reading_tools.mark_handwritten(scanned_form(), threshold=0) == scanned_form()
+
+
+def test_by_default_nothing_is_marked_as_handwritten(
+        procedure, operator_user, fake_ai, monkeypatch):
+    """REQ-104 (T-259; decisión del Coordinador del 2026-10-12): por omisión el ajuste vale 0 y
+    la lectura no marca nada: la línea de confianza baja queda en el texto como la leyó el
+    reconocimiento y el informe no lista manuscritos."""
+    from django.conf import settings
+
+    assert settings.OFFERS_HANDWRITTEN_CONFIDENCE == 0
+    assert reading_tools.mark_handwritten(scanned_form()) == scanned_form()
+    offer = offers_service.register_offer(operator_user, procedure, bidder="Impreso S.A.",
+                                          channel=Channel.COMMAND)
+    _, reading = read_job(monkeypatch, offer, operator_user)
+    assert GARBAGE in reading.canonical_text
+    assert reading.report["handwritten"] == []
 
 
 def read_job(monkeypatch, offer, user):
