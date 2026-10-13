@@ -110,8 +110,8 @@ def test_the_proposal_runs_the_passes_of_the_single_process(operator_user, scrip
     assert job.status == "done", job.error
     assert requested.run.parameters["process"] == "completo"
     assert requested.run.parameters["passes"] == [
-        "reglas", "extraccion", "completitud", "unificacion", "filtro", "filas_tecnicas",
-        "consecuencias"]
+        "reglas", "extraccion", "completitud", "union_oraciones", "unificacion", "filtro",
+        "filas_tecnicas", "consecuencias"]
     steps = list(dict.fromkeys(
         m.RunStep.objects.filter(run=requested.run).order_by("id")
         .values_list("pass_name", flat=True)))
@@ -127,7 +127,7 @@ def test_the_proposal_records_the_version_of_every_instruction(operator_user, re
     assert job.status == "done", job.error
     versions = settings.MATRIX_PROMPT_VERSIONS
     registered = requested.run.prompt_versions
-    names = ("extraccion", "completitud", "filtro", "consecuencias", "definiciones")
+    names = ("extraccion", "completitud", "union", "filtro", "consecuencias", "definiciones")
     assert {name: registered[name] for name in names} == {name: versions[name] for name in names}
     assert set(registered["huellas"]) == set(names)
     assert all(len(sha) == 64 for sha in registered["huellas"].values())
@@ -213,9 +213,9 @@ def test_proposal_records_models_parameters_prompts_regime_and_corpus_version(
     assert run.corpus_version == version_event.corpus_version
     assert {name: run.prompt_versions[name] for name in (
         "extraccion", "completitud", "filtro", "consecuencias", "definiciones")} == {
-        "extraccion": "matriz-extraccion-v7", "completitud": "matriz-completitud-v5",
+        "extraccion": "matriz-extraccion-v8", "completitud": "matriz-completitud-v6",
         "filtro": "matriz-filtro-v7", "consecuencias": "matriz-consecuencias-v1",
-        "definiciones": "matriz-definiciones-v4"}
+        "definiciones": "matriz-definiciones-v5"}
     assert set(run.models) == {"generation_batch", "embeddings", "reranker"}
     for model in run.models.values():
         assert len(model["sha256"]) == 64 and model["model"] and model["file"]

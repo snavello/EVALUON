@@ -19,6 +19,10 @@ Pasadas, en orden:
    requisitos y cada tramo que el modelo descartó teniendo marcadores de obligación
    ("deberá", "mín.", "no se aceptarán", …): suma los que faltan. Un descartado con marcadores queda pendiente solo si la completitud no dio
    resultado.
+3 bis. **Unión de las filas del mismo asunto** (`joining.py`; T-258, REQ-101): le pregunta al
+   modelo, por cada par de filas seguidas de un tramo y por cada nota de una tabla con la fila de
+   su punto, si son el mismo requisito; une solo si responde que sí. La nota unida queda como una
+   cita más de la fila (alcance `repetida`).
 4. **Unificación** (`dedup.py`; solo formales y económicos): por regla, junta las filas
    que repiten la misma condición; queda la primera en el orden del pliego, con las citas
    de las otras como citas `repetida`.
@@ -35,7 +39,9 @@ Pasadas, en orden:
    completitud. Los tramos de secciones técnicas no pasan por el modelo y no llegan a la
    completitud.
 
-Cada requisito formal o económico guarda en `passes` las pasadas que lo encontraron.
+Cada requisito formal o económico guarda en `passes` las pasadas que lo encontraron, y en
+`proposed["opcion"]` la opción que el oferente puede no usar de la que es condición, si la extracción
+la nombró (T-258; la usa la evaluación).
 
 **Una fila por unidad de sentido** (T-234, REQ-101; ADR-0054): la cita de un requisito es la
 oración completa y las oraciones cortas contiguas del mismo asunto, ampliada por código a
@@ -126,6 +132,7 @@ from evaluon.tenders.proposal import (
     consequences,
     dedup,
     extraction,
+    joining,
     norm_support,
     quotes,
     sentences,
@@ -137,8 +144,8 @@ from evaluon.tenders.segmenting import RULES_VERSION
 from evaluon.tenders.services.procedures import _snapshot, regime_for
 
 # Pasadas del proceso único, en orden (plan 003, "Pasadas"; REQ-030 enmendado).
-PASSES = ("reglas", "extraccion", "completitud", "unificacion", "filtro", "filas_tecnicas",
-          "consecuencias")
+PASSES = ("reglas", "extraccion", "completitud", "union_oraciones", "unificacion", "filtro",
+          "filas_tecnicas", "consecuencias")
 
 # Marcadores de obligación (plan 003, "Pasadas"); se comparan sin tildes ni mayúsculas.
 OBLIGATION_MARKERS = (
@@ -369,7 +376,7 @@ def _begin(run, with_circulars=False):
     run.models = _models()
     run.parameters = _parameters(run, with_circulars)
     run.process = settings.MATRIX_PROCESS
-    names = (["extraccion", "completitud"]
+    names = (["extraccion", "completitud", joining.INSTRUCTION]
              + (["filtro"] if settings.FILTER_ENABLED else [])
              + (["circulares"] if with_circulars else [])
              + (["circulares_cambios"]
@@ -480,9 +487,21 @@ def propose(run, *, user, channel=Channel.COMMAND):
 
         keep_tables_pending(loaded, decisions)
 
+        # 3 bis bis. Unión de las filas del mismo asunto (T-258): pares de filas seguidas de un
+        # tramo y notas de tabla; se une solo si el modelo dice que son un requisito.
+        started = time.monotonic()
+        joiner = joining.Joiner(run)
+        workers.append(joiner)
+        joined = joiner.join(loaded.units, decisions)
+        anomalies.extend(joined.anomalies)
+        if joined.stats["requests"] or joined.stats["failed_requests"]:
+            requests[PassName.UNIFICACION.value] = joined.stats["requests"]
+        timings["union_oraciones"] = round(time.monotonic() - started, 3)
+
         # 3 ter. Unificación de las filas que repiten la misma condición.
         started = time.monotonic()
         unification = unify_decisions(run, loaded, decisions)
+        unification.attached = joined.attached
         workers.append(unification)
         timings["unificacion"] = round(time.monotonic() - started, 3)
 
@@ -638,13 +657,29 @@ def unify_decisions(run, loaded, decisions):
 _DISPOSITION_REASON = {"derecho_posterior": "obligacion_organismo"}
 
 
+def extra_quotes(unification):
+    """Las citas adicionales de cada fila, `{id(Found): [(unidad, Found)]}`: las de las filas que
+    repiten su condición (`dedup.py`) y las notas de tabla que la unión le sumó (T-258,
+    `joining.py`). Si la fila que recibió una nota quedó unida a otra por repetida, la nota pasa a
+    la fila que queda."""
+    if unification is None:
+        return {}
+    result = {key: list(value) for key, value in unification.repeated.items()}
+    attached = getattr(unification, "attached", None) or {}
+    kept_of = {id(row.found): group.kept.found
+               for group in unification.merged for row in group.repeated}
+    for key, notes in attached.items():
+        target = id(kept_of[key]) if key in kept_of else key
+        result.setdefault(target, []).extend(notes)
+    return result
+
+
 def filter_decisions(row_pass, loaded, decisions, unification):
     """Pasa por el filtro las filas formales y económicas (`filter.py`), quita de la
     disposición de su tramo las descartadas y deja la disposición `descartado` (origen
     `filtro`) en el tramo cuyas filas se descartaron todas. Devuelve el `filter.Result`."""
     body = _body(loaded, decisions)
-    rows = row_filter.candidates(
-        body, unification.repeated if unification is not None else {})
+    rows = row_filter.candidates(body, extra_quotes(unification))
     result = row_pass.filter_rows(rows)
     protect_offer_guarantee(loaded, decisions, result)
     gone = {id(v.row.found): v for v in result.of(row_filter.DESCARTADA)}
@@ -924,7 +959,7 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
 
     # Requisitos formales y económicos, en el orden del pliego.
     body = _body(loaded, decisions)
-    repeated = unification.repeated if unification is not None else {}
+    repeated = extra_quotes(unification)
     suggested = ({id(v.row.found): v for v in filtered.of(row_filter.SUGERENCIA)}
                  if filtered is not None else {})
     created, quote_of = {}, {}
@@ -952,7 +987,10 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
             proposed={"category": found.category, "items": list(segment.items),
                       "quotes": [record] + [
                           _quote_record(s, a, b, t, scope="repetida")
-                          for s, a, b, t in extra]},
+                          for s, a, b, t in extra],
+                      # La opción de la que la fila es condición (T-258; la usa la evaluación).
+                      **({extraction.KEY_OPTION: found.option}
+                         if getattr(found, "option", "") else {})},
             step=found.step, passes=completeness.passes_of(found),
         )
         quote_of[(counter, 1)] = RequirementQuote.objects.create(

@@ -215,12 +215,14 @@ def _prompt(name):
     return (folder / f"{name}.md").read_text(encoding="utf-8")
 
 
-def test_the_active_matrix_instructions_are_the_t254_versions():
-    """REQ-106, T-254: la ronda extra publica versiones nuevas (las de T-240 quedan congeladas) y las
-    registra como vigentes (la verificación cambió el ejemplo de opción del filtro: v7); siguen diciendo lo que T-240 pidió (los tests de abajo leen las vigentes)."""
+def test_the_active_matrix_instructions_are_the_t258_versions():
+    """REQ-106, T-254 y T-258: cada ronda publica versiones nuevas (las anteriores quedan congeladas)
+    y las registra como vigentes; las de T-258 son el bloque v5, la extracción v8 y la completitud v6,
+    y el filtro sigue en la v7. Siguen diciendo lo que T-240 pidió (los tests de abajo leen las
+    versiones que T-240 y T-254 publicaron)."""
     versions = _settings.MATRIX_PROMPT_VERSIONS
-    assert versions["definiciones"] == "matriz-definiciones-v4"
-    assert versions["extraccion"] == "matriz-extraccion-v7"
+    assert versions["definiciones"] == "matriz-definiciones-v5"
+    assert versions["extraccion"] == "matriz-extraccion-v8"
     assert versions["filtro"] == "matriz-filtro-v7"
 
 

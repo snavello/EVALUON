@@ -500,7 +500,7 @@ def test_the_proposal_records_the_circulars_and_the_instructions_used(operator_u
     # T-236 (REQ-102): el pedido de efectos de la circular lleva el bloque común de definiciones.
     assert "QUÉ ES UN REQUISITO DE LA OFERTA" in step.request["messages"][0]["content"]
     assert step.parsed["instruccion"]["version"] == "matriz-circulares-v7"
-    assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v4"
+    assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v5"
     event = AuditEvent.objects.get(event_type=EventType.MATRIX_PROPOSAL)
     assert event.detail["circulars"] == used
     assert event.detail["counts"]["circulars"]["effects"] == 1
@@ -897,4 +897,4 @@ def test_both_circular_instructions_include_the_common_definitions(name, setting
     assert "QUÉ ES UN REQUISITO DE LA OFERTA" in instruction.text
     assert "la moneda en que se cotiza la oferta" in instruction.text
     assert instruction.definitions[0] == settings.MATRIX_PROMPT_VERSIONS["definiciones"]
-    assert instruction.record["definiciones"]["version"] == "matriz-definiciones-v4"
+    assert instruction.record["definiciones"]["version"] == "matriz-definiciones-v5"

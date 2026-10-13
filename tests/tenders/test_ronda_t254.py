@@ -41,12 +41,15 @@ def _examples(text, start):
 
 def test_the_active_versions_are_the_t254_ones_and_the_older_ones_stay_published():
     """REQ-106, P6: la ronda extra publica `matriz-definiciones-v4`, `matriz-extraccion-v7` y
-    `matriz-filtro-v7` y las registra como vigentes; las anteriores (con la `matriz-filtro-v6`, que la
-    verificación observó: O-254-1) siguen publicadas (congeladas)."""
+    `matriz-filtro-v7`; las anteriores (con la `matriz-filtro-v6`, que la verificación observó:
+    O-254-1) siguen publicadas (congeladas). T-258 publica después el bloque v5 y la extracción v8,
+    que son las vigentes; el filtro sigue en la v7."""
     versions = settings.MATRIX_PROMPT_VERSIONS
-    assert versions["definiciones"] == "matriz-definiciones-v4"
-    assert versions["extraccion"] == "matriz-extraccion-v7"
+    assert versions["definiciones"] == "matriz-definiciones-v5"
+    assert versions["extraccion"] == "matriz-extraccion-v8"
     assert versions["filtro"] == "matriz-filtro-v7"
+    for published in ("matriz-definiciones-v4", "matriz-extraccion-v7"):
+        assert (PROMPTS / f"{published}.md").is_file()
     for old in ("matriz-definiciones-v3", "matriz-extraccion-v6", "matriz-filtro-v5", "matriz-filtro-v6"):
         assert (PROMPTS / f"{old}.md").is_file()
 
@@ -58,8 +61,9 @@ def test_every_instruction_that_uses_the_common_block_records_the_v4_block(name)
     instrucción que lo usa (extracción, completitud, filtro y las dos de circulares)."""
     record = extraction.load_instruction(name).record
 
-    assert record["definiciones"]["version"] == "matriz-definiciones-v4"
-    assert record["definiciones"]["sha256"] == extraction.text_sha256(_read("matriz-definiciones-v4"))
+    active = settings.MATRIX_PROMPT_VERSIONS["definiciones"]   # el vigente (v5 desde T-258)
+    assert record["definiciones"]["version"] == active
+    assert record["definiciones"]["sha256"] == extraction.text_sha256(_read(active))
 
 
 # --- El bloque común ----------------------------------------------------------------------------

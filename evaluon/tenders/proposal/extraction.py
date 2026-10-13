@@ -23,13 +23,18 @@ el modelo"; ADR-0019, decisiones 2 y 3).
    - si la salida se cortó por el máximo de salida, el lote se parte en dos y se repite
      cada mitad.
 4. Los tramos sin disposición y los que tienen una cita que no está en el tramo se vuelven
-   a pedir una vez, solos. Si siguen igual: el tramo queda sin disposición (quien llama lo
+   a pedir una vez, solos, con memoria (T-258, como la evaluación): el pedido lleva la respuesta
+   anterior del modelo para ese tramo y qué falló (las citas que no están letra por letra en el
+   tramo, o la forma rota). Si siguen igual: el tramo queda sin disposición (quien llama lo
    deja pendiente) y la cita que no se pudo ubicar queda con el tramo entero como cita y la
    marca `cita_amplia` (una por clase y tramo). Un requisito nunca se pierde por una cita
    mal copiada.
 
 El fragmento que señaló el modelo y la unidad a la que se amplió quedan en el `parsed` del
-pedido, cada uno con sus posiciones (P6). Un tramo que no se entiende solo (un inciso de una
+pedido, cada uno con sus posiciones (P6). Cada requisito trae además `opcion` (T-258): vacío si
+vale para toda oferta, o el nombre corto de la opción que el oferente puede no usar de la que es
+condición (`OPTIONS`); el sistema lo guarda en `Requirement.proposed["opcion"]`. El modelo no ve
+los caracteres de área privada del tramo (`quotes.visible`), que tampoco cuentan al ubicar la cita. Un tramo que no se entiende solo (un inciso de una
 lista, una oración que sigue a la anterior) lleva a la vista el encabezado de su punto en la
 línea `Encabezado:`; es contexto y no se cita.
 
@@ -70,6 +75,13 @@ KEY_DISCARD = "descarte"
 
 ALL_ITEMS = "todos"
 BODY_CLASSES = (RequirementClass.FORMAL.value, RequirementClass.ECONOMICO.value)
+# T-258 (interfaz con la evaluación, T-257): la opción que el oferente puede no usar de la que una
+# fila es condición. Vacío: la fila vale para toda oferta. Lo propone la extracción y lo guarda el
+# sistema en `Requirement.proposed["opcion"]`; una forma que el oferente tiene que elegir (la de la
+# garantía) no es una opción.
+KEY_OPTION = "opcion"
+OPTIONS = ("mipyme", "oferta_alternativa", "descuento", "subcontratacion", "cotizacion_parcial",
+           "otra")
 _CLASS_LABELS = {"formal": "formal", "economico": "económico"}
 
 # Anomalías (tipos que se registran).
@@ -123,15 +135,21 @@ class Found:
     fragments: list = field(default_factory=list)
     unit: tuple | None = None
     too_long: bool = False
+    option: str = ""
 
 
 @dataclass
 class Item:
-    """La salida de un tramo con la forma comprobada."""
+    """La salida de un tramo con la forma comprobada. `quotes` son `(cita, clase)`; `options`, la
+    opción de cada una (`opcion`, T-258), en el mismo orden."""
 
     quotes: list
     technical: list
     discard: str
+    options: list = field(default_factory=list)
+
+    def option_of(self, index):
+        return self.options[index] if index < len(self.options) else ""
 
     @property
     def has_disposition(self):
@@ -154,6 +172,11 @@ class Outcome:
     step: object = None
     retried: bool = False
     item: Item | None = None
+    # Para el reintento con memoria (T-258): lo que el modelo devolvió para el tramo, las citas que
+    # no se ubicaron y, si la forma estaba rota, por qué.
+    raw: object = None
+    unfound_quotes: list = field(default_factory=list)
+    problem: str = ""
 
 
 @dataclass
@@ -257,8 +280,9 @@ def build_schema(aliases, numbers):
                     "properties": {
                         "cita": {"type": "string", "minLength": 1},
                         "clase": {"type": "string", "enum": list(BODY_CLASSES)},
+                        KEY_OPTION: {"type": "string", "enum": ["", *OPTIONS]},
                     },
-                    "required": ["cita", "clase"],
+                    "required": ["cita", "clase", KEY_OPTION],
                     "additionalProperties": False,
                 },
             },
@@ -299,14 +323,16 @@ def render_block(alias, unit):
     if segment.section_class in _CLASS_LABELS:
         lines.append(f"Clase de la sección: {_CLASS_LABELS[segment.section_class]}")
     lines.append("Texto:")
-    lines.append(segment.text)
+    lines.append(quotes.visible(segment.text))
     lines.append(f"[/{alias}]")
     return "\n".join(lines)
 
 
-def build_messages(prompt, aliased):
+def build_messages(prompt, aliased, memory=None):
     """Mensajes del pedido: las instrucciones como sistema; los tramos del lote como
-    usuario."""
+    usuario. `memory` (reintento, T-258) es `(respuesta anterior, corrección)`: se suman la
+    respuesta anterior del modelo como turno del asistente y la corrección como turno del
+    usuario, como en el reintento de la evaluación (ADR-0055, regla 7)."""
     blocks = "\n\n".join(render_block(alias, unit) for alias, unit in aliased)
     names = ", ".join(alias for alias, _ in aliased)
     user = (
@@ -314,7 +340,36 @@ def build_messages(prompt, aliased):
         f"{blocks}\n\n"
         f"Devolvé un objeto JSON con una propiedad por cada alias: {names}."
     )
-    return [{"role": "system", "content": prompt}, {"role": "user", "content": user}]
+    messages = [{"role": "system", "content": prompt}, {"role": "user", "content": user}]
+    if memory is not None:
+        previous, correction = memory
+        messages += [{"role": "assistant", "content": previous},
+                     {"role": "user", "content": correction}]
+    return messages
+
+
+# El aviso del reintento con memoria (T-258): dice qué falló, sin decir qué palabra cambió.
+RETRY_NOT_FOUND = (
+    "La cita del tramo {alias} no está, letra por letra, en el texto del tramo:\n{quotes}\n"
+    "Volvé a responder con la misma forma. Copiá cada cita tal como figura en el texto del tramo, "
+    "de la mayúscula inicial al punto final, sin resumir ni quitar, agregar o cambiar palabras.")
+RETRY_INVALID = (
+    "La respuesta para el tramo {alias} no tiene la forma pedida ({problem}). Volvé a responder "
+    "con la misma forma: requisitos, una marca técnica o un motivo de descarte, nunca un motivo "
+    "de descarte junto con requisitos o con una marca técnica.")
+
+
+def retry_memory(outcome, alias="T1"):
+    """`(respuesta anterior, corrección)` del reintento de un tramo (T-258), o `None` si el modelo
+    no devolvió nada para el tramo (falta la propiedad o la salida no era JSON): entonces se pide
+    de nuevo sin memoria."""
+    if outcome.raw is None:
+        return None
+    previous = json.dumps({alias: outcome.raw}, ensure_ascii=False)
+    if outcome.unfound_quotes:
+        listed = "\n".join(f"- «{quote}»" for quote in outcome.unfound_quotes)
+        return previous, RETRY_NOT_FOUND.format(alias=alias, quotes=listed)
+    return previous, RETRY_INVALID.format(alias=alias, problem=outcome.problem or "sin disposición")
 
 
 def batches(units):
@@ -346,16 +401,20 @@ def shape_item(raw):
     required = raw[KEY_REQUIREMENTS]
     if not isinstance(required, list):
         raise InvalidItem("requisitos no es una lista")
-    pairs = []
+    pairs, options = [], []
     for entry in required:
         if (
             not isinstance(entry, dict)
-            or set(entry) != {"cita", "clase"}
+            or set(entry) - {KEY_OPTION} != {"cita", "clase"}
             or not isinstance(entry["cita"], str)
             or entry["clase"] not in BODY_CLASSES
         ):
-            raise InvalidItem("un requisito no es {cita, clase} con clase válida")
+            raise InvalidItem("un requisito no es {cita, clase, opcion} con clase válida")
+        option = entry.get(KEY_OPTION, "")
+        if option not in ("", *OPTIONS):
+            raise InvalidItem(f"opción desconocida: {option!r}")
         pairs.append((entry["cita"], entry["clase"]))
+        options.append(option)
     marks = raw[KEY_TECHNICAL]
     if not isinstance(marks, list):
         raise InvalidItem("tecnico no es una lista")
@@ -374,7 +433,7 @@ def shape_item(raw):
     discard = raw[KEY_DISCARD]
     if not isinstance(discard, str) or (discard and discard not in DiscardReason.values):
         raise InvalidItem(f"motivo de descarte desconocido: {discard!r}")
-    return Item(quotes=pairs, technical=technical, discard=discard)
+    return Item(quotes=pairs, technical=technical, discard=discard, options=options)
 
 
 def _category(unit, kind):
@@ -389,10 +448,10 @@ def expands(unit):
     return getattr(unit.segment, "segment_type", None) != SegmentType.TABLA
 
 
-def found_from(category, fragment, expansion):
+def found_from(category, fragment, expansion, option=""):
     """El requisito ubicado de un fragmento del modelo y su ampliación (`quotes.locate_unit`)."""
     return Found(category=category, span=expansion.span, fragments=[fragment],
-                 unit=expansion.unit, too_long=expansion.too_long)
+                 unit=expansion.unit, too_long=expansion.too_long, option=option)
 
 
 def _overlap(first, second):
@@ -412,19 +471,21 @@ def merge_into(found, new):
                 twin.span = (min(twin.span[0], new.span[0]), max(twin.span[1], new.span[1]))
                 twin.unit = twin.span
                 twin.fragments = [*twin.fragments, *new.fragments]
+                twin.option = twin.option or new.option
                 return twin
     found.append(new)
     return None
 
 
-def _resolve(unit, item, anomalies):
+def _resolve(unit, item, anomalies, missing=None):
     """Ubica las citas de `item` dentro del tramo y las amplía a su unidad de sentido.
     Devuelve `(found, unfound)`: los requisitos ubicados y las clases de los que no. Dos citas
-    iguales, o dos fragmentos de la misma unidad, se unen en un solo requisito."""
+    iguales, o dos fragmentos de la misma unidad, se unen en un solo requisito. Las citas que no
+    se ubicaron se suman a `missing`, si se da (para el reintento con memoria, T-258)."""
     text = unit.segment.text
     seen, used = set(), set()
     found, unfound = [], []
-    for quote, kind in item.quotes:
+    for index, (quote, kind) in enumerate(item.quotes):
         key = quote.strip()
         if key in seen:
             anomalies.append({"type": ANOMALY_QUOTES_JOINED, "segment": unit.segment.pk,
@@ -435,13 +496,16 @@ def _resolve(unit, item, anomalies):
         category = _category(unit, kind)
         if located is None:
             unfound.append(category)
+            if missing is not None:
+                missing.append(quote)
             continue
         fragment, expansion = located
         used.add(fragment)
         if expansion.too_long:
             anomalies.append({"type": ANOMALY_UNIT_TOO_LONG, "segment": unit.segment.pk,
                               "key": unit.segment.key, "clase": category})
-        if merge_into(found, found_from(category, fragment, expansion)) is not None:
+        new = found_from(category, fragment, expansion, item.option_of(index))
+        if merge_into(found, new) is not None:
             anomalies.append({"type": ANOMALY_QUOTES_JOINED, "segment": unit.segment.pk,
                               "key": unit.segment.key, "unidad": True})
     return found, unfound
@@ -467,6 +531,8 @@ def found_record(found, text):
     que señaló el modelo, y la unidad de sentido a la que se amplió. `cita_larga` avisa que
     la unidad pasó del largo de una cita y quedó el fragmento del modelo."""
     record = {"clase": found.category, "inicio": found.span[0], "fin": found.span[1]}
+    if found.option:
+        record[KEY_OPTION] = found.option
     if found.fragments:
         record["fragmentos"] = [{"texto": text[start:end], "inicio": start, "fin": end}
                                 for start, end in found.fragments]
@@ -554,11 +620,11 @@ class Extractor:
             return None
         return data
 
-    def ask(self, units, retry_of=None):
+    def ask(self, units, retry_of=None, memory=None):
         """Un pedido con `units` (o dos, si la salida se corta). Devuelve un `Outcome` por
-        tramo, en el orden de `units`."""
+        tramo, en el orden de `units`. `memory` es la del reintento de un tramo (`retry_memory`)."""
         aliased = [(f"T{n}", unit) for n, unit in enumerate(units, start=1)]
-        messages = build_messages(self.prompt, aliased)
+        messages = build_messages(self.prompt, aliased, memory)
         schema = build_schema([alias for alias, _ in aliased], self.numbers)
         max_tokens = settings.MATRIX_MAX_OUTPUT_TOKENS
         started = time.monotonic()
@@ -608,21 +674,26 @@ class Extractor:
                 anomalies.append({"type": ANOMALY_MISSING_ALIAS, "alias": alias,
                                   "segment": unit.segment.pk})
                 continue
+            outcome.raw = data[alias]
             try:
                 item = shape_item(data[alias])
             except InvalidItem as error:
                 anomalies.append({"type": ANOMALY_INVALID_OUTPUT, "alias": alias,
                                   "segment": unit.segment.pk, "detail": str(error)})
+                outcome.problem = str(error)
                 continue
             outcome.item = item
             if not item.has_disposition:
                 anomalies.append({"type": ANOMALY_NO_DISPOSITION, "alias": alias,
                                   "segment": unit.segment.pk})
+                outcome.problem = ("sin requisitos, sin marca técnica y sin motivo de descarte, "
+                                   "o un motivo junto con algo más")
                 continue
             outcome.valid = True
             outcome.technical = list(item.technical)
             outcome.discard = item.discard
-            outcome.found, outcome.unfound = _resolve(unit, item, anomalies)
+            outcome.found, outcome.unfound = _resolve(unit, item, anomalies,
+                                                      outcome.unfound_quotes)
             for category in outcome.unfound:
                 anomalies.append({"type": ANOMALY_QUOTE_NOT_FOUND,
                                   "segment": unit.segment.pk, "key": unit.segment.key,
@@ -644,12 +715,13 @@ class Extractor:
         return outcomes
 
     def _retry(self, outcome):
-        """Pide de nuevo el tramo, solo, y une lo que vuelve con lo primero."""
+        """Pide de nuevo el tramo, solo, con memoria (T-258: la respuesta anterior y qué falló), y
+        une lo que vuelve con lo primero."""
         unit = outcome.unit
         self.stats["segments_retried"] += 1
         self.stats["quotes_retried"] += len(outcome.unfound)
         outcome.retried = True
-        again = self.ask([unit], retry_of=outcome.step)[0]
+        again = self.ask([unit], retry_of=outcome.step, memory=retry_memory(outcome))[0]
         if not outcome.valid:
             if again.valid:
                 outcome.valid = True
