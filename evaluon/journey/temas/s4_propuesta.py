@@ -11,6 +11,11 @@ tema no los redefine ni decide nada (P3). Las acciones están en `s4_propuesta_a
 
 Las cuentas de pendientes y sugerencias las suma la etapa `matriz_evaluacion` de la 013; este tema
 las lista una por una, con su enlace a esta pestaña, y coinciden con las de la barra.
+
+El fundamento de cada celda se ve completo (P3, T-264): el dato del Portal con el enlace a su página y
+la fecha en que se tomó, y la cita de una página leída por visión con la marca, el aviso de comparar
+con el original y el enlace al original, como en la pantalla de la 004. Las citas de todas las celdas
+se traen juntas, sin una consulta por celda (T-223).
 """
 
 from collections import defaultdict
@@ -35,6 +40,8 @@ from evaluon.journey.stages import evaluacion as evaluation_stage
 from evaluon.journey.stages import stage_of
 from evaluon.journey.temas import s4_propuesta_acciones as acciones
 from evaluon.journey.window import plain_reason
+from evaluon.offers import vision
+from evaluon.offers.models import Reading
 from evaluon.tenders.models import RequirementClass
 
 KEY = "s4_propuesta"
@@ -128,6 +135,7 @@ class CellView:
     explanation: str = ""
     conditions: list = field(default_factory=list)  # cada condición con su dato y su resultado
     quotes: list = field(default_factory=list)  # citas de la oferta (texto, documento, página)
+    portal: list = field(default_factory=list)  # datos del Portal citados (con su página y fecha)
     read_note: str = ""  # sin cita de la oferta: qué documentos y páginas se leyeron (T-228)
     technical: bool = False
     counted: bool = False  # par por decidir: el que cuenta el panel de pendientes
@@ -255,14 +263,40 @@ def decision_line(decision):
     return line
 
 
+def _mark_vision(citations):
+    """Marca cada cita de la oferta con `by_vision`: su página se leyó por visión, el texto es la
+    transcripción del modelo y la Comisión lo compara con el original antes de confirmar (P3,
+    ADR-0041). Es la misma cuenta que hace `evaluate.pair_page` para la 004 (la página está entre
+    las `vision.vision_pages` de la lectura de la cita), con una sola consulta para todas las citas:
+    del informe de cada lectura con visión, y de ninguna otra, sin su texto canónico ni sus páginas
+    (T-223, T-231)."""
+    ids = {citation.reading_id for citation in citations if citation.reading_id}
+    seen = {}
+    if ids:
+        seen = {reading.pk: vision.vision_pages(reading)
+                for reading in Reading.objects.filter(pk__in=ids, report__has_key="vision")
+                .only("report")}
+    for citation in citations:
+        citation.by_vision = citation.page in seen.get(citation.reading_id, ())
+
+
 def _cell_views(page, user):
     """Una `CellView` por par, con el fundamento y la decisión, en pocas consultas."""
     technical = _technical_cells(page)
     ids = [cell.result.pk for cell in page.cells.values() if cell.result is not None]
-    offer_quotes = defaultdict(list)
-    for citation in (Citation.objects.filter(result_id__in=ids, kind=CitationKind.OFERTA)
-                     .select_related("document").order_by("order")):
-        offer_quotes[citation.result_id].append(citation)
+    # Las citas de la oferta y los datos del Portal de todos los pares, en una sola consulta. Del
+    # Portal se trae la dirección y la fecha de la página, no la página bajada entera ni los datos
+    # del ítem: se repetirían en cada cita (como las lecturas, T-231).
+    offer_quotes, portal_data = defaultdict(list), defaultdict(list)
+    for citation in (Citation.objects
+                     .filter(result_id__in=ids, kind__in=(CitationKind.OFERTA, CitationKind.PORTAL))
+                     .select_related("document", "portal_item__page", "portal_item__proposal")
+                     .defer("portal_item__page__content", "portal_item__payload",
+                            "portal_item__proposal__anomalies")
+                     .order_by("order")):
+        found = offer_quotes if citation.kind == CitationKind.OFERTA else portal_data
+        found[citation.result_id].append(citation)
+    _mark_vision([citation for quotes in offer_quotes.values() for citation in quotes])
     last = {}
     for decision in (Decision.objects.filter(result_id__in=ids, action__in=review.STATE_ACTIONS)
                      .select_related("user").order_by("at", "pk")):
@@ -292,6 +326,7 @@ def _cell_views(page, user):
         view.explanation = result.explanation
         view.conditions = condition_views(result.facts)
         view.quotes = offer_quotes.get(result.pk, [])
+        view.portal = portal_data.get(result.pk, [])
         if not view.quotes:
             unquoted.append(result)
         view.technical = key in technical

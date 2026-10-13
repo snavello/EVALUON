@@ -50,9 +50,7 @@
 <section class="result-portal" aria-labelledby="portal-title">
   <h2 id="portal-title">Lo que informa el Portal</h2>
   {% for citation in page.portal_citations %}
-  <p>{{ citation.label }} · fuente: Portal
-    · <a href="{{ citation.portal_item.page.url }}">página del Portal</a>{% if citation.portal_item.file_id %}
-    · <a href="{% url 'portal:download' citation.portal_item.proposal.link_id citation.portal_item.file_id %}">archivo del Portal</a>{% endif %}</p>
+  <p>{{ citation.label }} · {% include "portal/_fuente_dato.html" %}</p>
   <blockquote>{{ citation.text }}</blockquote>
   {% endfor %}
   {% if page.result.doubt == "en_portal" %}<p>El documento o el dato está en el Portal: la Comisión lo verifica ahí.</p>{% endif %}
