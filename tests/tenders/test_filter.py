@@ -635,9 +635,9 @@ def test_the_proposal_records_the_filter_in_parameters_and_counts(operator_user,
     assert run.parameters["filter_batch_rows"] == 6
     assert run.parameters["filter_rule_version"] == "filtro-v4"
     assert "consecuencia_sancion" in run.parameters["filter_motives"]
-    assert run.prompt_versions["filtro"] == "matriz-filtro-v8"
+    assert run.prompt_versions["filtro"] == "matriz-filtro-v9"  # T-265
     step = m.RunStep.objects.filter(run=run, pass_name="filtro").first()
-    assert step.parsed["instruccion"]["version"] == "matriz-filtro-v8"
+    assert step.parsed["instruccion"]["version"] == "matriz-filtro-v9"
     assert step.parsed["instruccion"]["sha256"] == run.prompt_versions["huellas"]["filtro"]
     assert run.parameters["passes"].index("filtro") == run.parameters["passes"].index(
         "unificacion") + 1
@@ -672,7 +672,8 @@ def test_no_instruction_test_or_example_of_the_filter_repeats_five_words_of_a_ca
     assert len(known) > 100
     files = [Path(__file__), Path(row_filter.__file__),
              Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v7.md",
-             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v8.md"]
+             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v8.md",
+             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v9.md"]
     hits = []
     for path in files:
         for shingle in _shingles(path.read_text(encoding="utf-8")):
@@ -816,7 +817,7 @@ def test_the_v3_instructions_state_the_two_general_rules_in_both_questions(setti
     """REQ-033, REQ-101: las instrucciones activas son la v3 y cada pregunta lleva la regla de lo
     verificado del oferente (aunque el sujeto sea el organismo) y la de la oración completa (la
     fila se evalúa entera), con ejemplos de otro objeto."""
-    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v8"
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v9"  # T-265
     for prompt in row_filter.load_prompts():
         assert "no quién lo verifica" in prompt
         assert "Una fila es una oración completa o varias oraciones cortas del mismo asunto" in prompt
@@ -1035,8 +1036,9 @@ def test_the_examples_of_the_filter_are_balanced_between_keep_and_discard():
     doubts = sum('"decision": "duda"' in line for line in examples)
     total = kept + discarded + doubts
     # T-254: dos descartes y dos «mantener» nuevos; T-262: la presentación física (mantener) y
-    # su contraste que solo completa algo en el sistema (descartar).
-    assert kept == discarded == 12 and doubts == 1
+    # su contraste que solo completa algo en el sistema (descartar); T-265: la nota de la planilla
+    # de un anexo (mantener) y la planilla en blanco (descartar).
+    assert kept == discarded == 13 and doubts == 1
     assert 0.4 <= kept / total <= 0.6 and 0.4 <= discarded / total <= 0.6
     for motive in ("pago_factura", "forma_presentacion_portal", "consecuencia_sancion",
                    "condicion_opcional", "compromiso_presentacion", "ejecucion_contrato",
@@ -1045,8 +1047,9 @@ def test_the_examples_of_the_filter_are_balanced_between_keep_and_discard():
     answers = [line for line in second.splitlines() if line.startswith('{"razonamiento"')]
     yes = sum('"respuesta": "si"' in line for line in answers)
     no = sum('"respuesta": "no"' in line for line in answers)
-    # T-262: B suma el «si» de la presentación física y el «no» de su contraste.
-    assert yes == no == 6 and sum('"respuesta": "duda"' in line for line in answers) >= 1
+    # T-262: B suma el «si» de la presentación física y el «no» de su contraste; T-265, el «si» de
+    # la nota de la planilla de un anexo y el «no» de la planilla en blanco.
+    assert yes == no == 7 and sum('"respuesta": "duda"' in line for line in answers) >= 1
 
 
 def test_the_examples_of_the_filter_do_not_teach_continuation_fragments():
@@ -1134,7 +1137,7 @@ def test_every_request_of_the_filter_records_its_instruction(operator_user, scri
     run = run_with(operator_user, pliego(CLAUSE))
 
     expected = extraction.load_instruction("filtro").record
-    assert expected["version"] == "matriz-filtro-v8" and "definiciones" in expected
+    assert expected["version"] == "matriz-filtro-v9" and "definiciones" in expected  # T-265
     steps = m.RunStep.objects.filter(run=run, pass_name__in=["filtro", "filtro_2"])
     assert steps.count() == 2
     assert all(step.parsed["instruccion"] == expected for step in steps)

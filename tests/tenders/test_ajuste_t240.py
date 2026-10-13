@@ -223,7 +223,7 @@ def test_the_active_matrix_instructions_are_the_t258_versions():
     versions = _settings.MATRIX_PROMPT_VERSIONS
     assert versions["definiciones"] == "matriz-definiciones-v8"  # T-262
     assert versions["extraccion"] == "matriz-extraccion-v12"  # T-265
-    assert versions["filtro"] == "matriz-filtro-v8"
+    assert versions["filtro"] == "matriz-filtro-v9"  # T-265
 
 
 def test_the_common_block_says_that_exceptions_ask_nothing_of_the_offer():

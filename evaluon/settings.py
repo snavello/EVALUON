@@ -313,7 +313,7 @@ MATRIX_PROMPT_VERSIONS = {
     "circulares": "matriz-circulares-v7",
     "circulares_cambios": "matriz-circulares-v6",
     "unificacion": "matriz-unificacion-v1",
-    "filtro": "matriz-filtro-v8",
+    "filtro": "matriz-filtro-v9",  # T-265: la nota que obliga no es formulario ni forma del Portal
     "respaldo": "matriz-respaldo-v2",
 }
 

@@ -47,7 +47,7 @@ def test_the_active_versions_are_the_t254_ones_and_the_older_ones_stay_published
     versions = settings.MATRIX_PROMPT_VERSIONS
     assert versions["definiciones"] == "matriz-definiciones-v8"  # T-262
     assert versions["extraccion"] == "matriz-extraccion-v12"  # T-265
-    assert versions["filtro"] == "matriz-filtro-v8"
+    assert versions["filtro"] == "matriz-filtro-v9"  # T-265
     for published in ("matriz-definiciones-v4", "matriz-extraccion-v7"):
         assert (PROMPTS / f"{published}.md").is_file()
     for old in ("matriz-definiciones-v3", "matriz-extraccion-v6", "matriz-filtro-v5", "matriz-filtro-v6"):
@@ -171,7 +171,8 @@ def test_the_v7_filter_asks_what_the_sentence_demands_of_who_uses_the_option():
     mira qué le exige la oración a quien usa la opción; si le exige algo, se mantiene aunque la
     opción sea voluntaria. Y la de lo verificado del oferente, que ya traían."""
     for prompt in row_filter.load_prompts():
-        assert "Cinco cuidados" in prompt  # T-262: el quinto es la presentación física
+        # T-262: el quinto es la presentación física; T-265: el sexto, la nota de un anexo.
+        assert "Seis cuidados" in prompt
         assert "entra como condición de esa opción" in prompt
         assert "qué le exige la oración a quien usa la opción" in prompt
         assert "no quién lo verifica" in prompt
@@ -208,14 +209,16 @@ def test_the_v7_filter_examples_keep_the_options_and_the_verification_of_the_off
     a = _examples(first, '{"razonamiento"')
     kept = [e for e in a if e["decision"] == "mantener"]
     dropped = [e for e in a if e["decision"] == "descartar"]
-    # T-262 suma un «mantener» (la presentación física) y un «descartar» (su contraste).
-    assert len(kept) == len(dropped) == 12 and sum(e["decision"] == "duda" for e in a) == 1
+    # T-262 suma un «mantener» (la presentación física) y un «descartar» (su contraste); T-265, la
+    # nota de la planilla de un anexo (mantener) y la planilla en blanco (descartar).
+    assert len(kept) == len(dropped) == 13 and sum(e["decision"] == "duda" for e in a) == 1
     assert any("cronograma" in e["razonamiento"] for e in kept)
     assert any("verifica" in e["razonamiento"] for e in kept)
     assert any(e["motivo"] == "obligacion_organismo" for e in dropped)
     b = _examples(second, '{"razonamiento"')
-    # T-262: B suma el «si» de la presentación física y el «no» de su contraste.
-    assert sum(e["respuesta"] == "si" for e in b) == sum(e["respuesta"] == "no" for e in b) == 6
+    # T-262: B suma el «si» de la presentación física y el «no» de su contraste; T-265, los de la
+    # nota de la planilla de un anexo y la planilla en blanco.
+    assert sum(e["respuesta"] == "si" for e in b) == sum(e["respuesta"] == "no" for e in b) == 7
     assert any("cronograma" in e["razonamiento"] and e["respuesta"] == "si" for e in b)
 
 

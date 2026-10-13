@@ -71,12 +71,12 @@ def _motive(text, name):
 
 def test_the_active_extraction_is_v12_and_v11_stays_published():
     """REQ-106, P6: T-265 publica la extracción v12 y la registra como vigente; la v11 sigue
-    publicada (congelada). El bloque común y el filtro siguen en la v8 de T-262. Cada pedido de la
-    extracción registra la versión v12, la huella de su archivo y la del bloque v8."""
+    publicada (congelada). El bloque común sigue en la v8 de T-262 (el filtro pasa a la v9, abajo).
+    Cada pedido de la extracción registra la versión v12, la huella de su archivo y la del bloque
+    v8."""
     versions = settings.MATRIX_PROMPT_VERSIONS
     assert versions["extraccion"] == NEW
     assert versions["definiciones"] == "matriz-definiciones-v8"
-    assert versions["filtro"] == "matriz-filtro-v8"
     assert (PROMPTS / f"{NEW}.md").is_file() and (PROMPTS / f"{PREVIOUS}.md").is_file()
     record = extraction.load_instruction("extraccion").record
     assert record["version"] == NEW
@@ -318,4 +318,167 @@ def test_what_v12_adds_repeats_no_five_words_of_the_case_files():
             known |= _shingles(anchor)
     assert len(known) > 100
     hits = sorted((_shingles(_read(NEW)) - _shingles(_read(PREVIOUS))) & known)
+    assert not hits, [hashlib.sha256(h.encode()).hexdigest()[:12] for h in hits]
+
+
+# --- El filtro v9: el mismo criterio en las dos preguntas --------------------------------------------
+#
+# La comprobación con el modelo de T-265 mostró que, con las filas de la nota, la pregunta B del
+# filtro v8 respondía «no» donde la v7 respondía «sí» (y la A descartaba la primera como
+# `formulario`): el mismo contraste del formulario del Portal. Sin ese ejemplo, B volvía a «sí».
+
+FILTER, FILTER_PREVIOUS = "matriz-filtro-v9", "matriz-filtro-v8"
+
+
+def _filter_pairs(text, answer):
+    """`[(fila, respuesta)]` de los ejemplos del filtro: el texto entre comillas que sigue a
+    «Fila: » y la respuesta JSON de la línea siguiente."""
+    lines = text.splitlines()
+    return [(line[len('Fila: "'):].split('"')[0], json.loads(lines[n + 1]))
+            for n, line in enumerate(lines[:-1])
+            if line.startswith('Fila: "') and lines[n + 1].startswith(answer)]
+
+
+def _questions(name):
+    first, second = _read(name).split("# PREGUNTA B")
+    return (_filter_pairs(first, '{"razonamiento"'), _filter_pairs(second, '{"razonamiento"'))
+
+
+def test_the_active_filter_is_v9_and_v8_stays_published():
+    """REQ-106, P6: T-265 publica el filtro v9 y lo registra como vigente; la v8 sigue publicada
+    (congelada). Cada pedido del filtro registra la versión v9, la huella de su archivo y la del
+    bloque v8."""
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == FILTER
+    assert (PROMPTS / f"{FILTER}.md").is_file() and (PROMPTS / f"{FILTER_PREVIOUS}.md").is_file()
+    record = extraction.load_instruction("filtro").record
+    assert record["version"] == FILTER
+    assert record["sha256"] == extraction.text_sha256(_read(FILTER))
+    assert record["definiciones"]["version"] == "matriz-definiciones-v8"
+
+
+def test_the_filter_v9_says_the_note_that_obliges_is_not_a_form_nor_the_portal_form():
+    """REQ-102 (D-263-1): un sexto cuidado, común a las dos preguntas, dice que la nota o la
+    instrucción de un anexo que obliga es un requisito; que el formulario es solo la planilla en
+    blanco o el texto modelo; que la forma de presentar por el Portal es solo dónde y cómo se carga
+    algo en el sistema; y que la moneda o el tipo de cambio de la cotización es un requisito. Lo
+    repiten los motivos de A y las listas de «si» y «no» de B; los cinco cuidados de antes (el
+    quinto es la presentación física de T-262) siguen igual."""
+    text, old = _read(FILTER), _read(FILTER_PREVIOUS)
+    common = text.split("CÓMO VIENEN LOS DATOS")[0]
+    assert "Seis cuidados:" in common
+    cautions = [line for line in common.split("Seis cuidados:")[1].splitlines()
+                if line.startswith("- ")]
+    old_common = old.split("CÓMO VIENEN LOS DATOS")[0]
+    old_cautions = [line for line in old_common.split("Cinco cuidados:")[1].splitlines()
+                    if line.startswith("- ")]
+    assert len(cautions) == 6 and cautions[:5] == old_cautions
+    for phrase in ("La nota o la instrucción de un anexo que le exige algo al oferente",
+                   "no es el texto de un formulario ni la forma de presentar la oferta por el Portal",
+                   "El formulario es solo la planilla en blanco o el texto modelo",
+                   "es solo dónde y cómo se carga algo en el sistema",
+                   "fija la moneda en que se cotiza o el tipo de cambio"):
+        assert phrase in cautions[-1], phrase
+    form = next(line for line in text.splitlines() if line.startswith('  - "formulario":'))
+    assert "la planilla en blanco o el texto modelo" in form
+    assert "ni la nota o la instrucción que le exige algo sobre lo que informa" in form
+    portal = next(line for line in text.splitlines()
+                  if line.startswith('  - "forma_presentacion_portal":'))
+    assert "la que fija la moneda o el tipo de cambio de la cotización" in portal
+    assert "ni la nota de una planilla que le exige algo al oferente" in portal
+    yes = next(line for line in text.splitlines() if line.startswith('  - "si":'))
+    no = next(line for line in text.splitlines() if line.startswith('  - "no":'))
+    assert "la nota o la instrucción de un anexo que le exige algo al oferente" in yes
+    assert "ni la moneda o el tipo de cambio de la cotización, que son requisitos" in no
+    assert "texto modelo de un formulario (no la nota que le exige algo al oferente" in no
+
+
+def test_the_filter_v9_examples_keep_the_note_and_discard_the_blank_form_in_both_questions():
+    """REQ-102, REQ-106: en A, la nota de la planilla de un anexo se mantiene y la planilla en
+    blanco se descarta como `formulario`, después del contraste del Portal; en B, «si» y «no». Los
+    ejemplos siguen balanceados (A 13 y 13 más una duda, B 7 y 7 más una duda), ningún «descartar» ni
+    «no» es una nota, y el contraste del Portal sigue descartándose con su motivo."""
+    a, b = _questions(FILTER)
+    note_a = [(q, r) for q, r in a if q.startswith("Nota:")]
+    form_a = [(q, r) for q, r in a if " | " in q]
+    assert [r["decision"] for _, r in note_a] == ["mantener"]
+    assert [(r["decision"], r["motivo"]) for _, r in form_a] == [("descartar", "formulario")]
+    assert form_a[0][1]["indicio"] in form_a[0][0]
+    note_b = [r["respuesta"] for q, r in b if q.startswith("Nota:")]
+    form_b = [r["respuesta"] for q, r in b if " | " in q]
+    assert note_b == ["si"] and form_b == ["no"]
+    for question, answer in a:
+        if answer["decision"] == "descartar":
+            assert not question.startswith("Nota:"), question
+    for question, answer in b:
+        if answer["respuesta"] == "no":
+            assert not question.startswith("Nota:"), question
+    at = [q for q, _ in a].index(note_a[0][0])
+    assert a[at - 1][0] == form_a[0][0] and a[at - 2][1]["motivo"] == "forma_presentacion_portal"
+    assert "Solo dice dónde se cargan los precios" in a[at - 2][1]["razonamiento"]
+    decisions = [r["decision"] for _, r in a]
+    assert decisions.count("mantener") == decisions.count("descartar") == 13
+    assert decisions.count("duda") == 1
+    answers = [r["respuesta"] for _, r in b]
+    assert answers.count("si") == answers.count("no") == 7 and answers.count("duda") == 1
+
+
+def test_the_filter_v9_keeps_the_physical_presentation_of_t262():
+    """REQ-102 (decisión del 2026-10-12): la entrega en papel sigue manteniéndose en A y siendo
+    «si» en B, ningún «descartar» ni «no» pide algo en papel, y la cotización que solo se carga en
+    el sistema sigue descartándose."""
+    a, b = _questions(FILTER)
+    for question, answer in a:
+        if answer["decision"] == "descartar":
+            assert not PAPER.search(question), question
+    for question, answer in b:
+        if answer["respuesta"] == "no":
+            assert not PAPER.search(question), question
+    assert any(PAPER.search(q) and r["decision"] == "mantener" for q, r in a)
+    assert any(PAPER.search(q) and r["respuesta"] == "si" for q, r in b)
+    assert any("sistema de compras electrónicas" in q and r["motivo"] == "forma_presentacion_portal"
+               for q, r in a)
+    assert any("sistema de compras electrónicas" in q and r["respuesta"] == "no" for q, r in b)
+
+
+def test_the_filter_v9_changes_only_what_t265_says():
+    """REQ-106 (versiones congeladas, P7): de la v8 a la v9 cambian el título de los cuidados, los
+    motivos `formulario` y `forma_presentacion_portal`, las listas de «si» y «no» y el razonamiento
+    de los dos contrastes del Portal; se suman el sexto cuidado y dos ejemplos en cada pregunta."""
+    new = Counter(line for line in _read(FILTER).splitlines() if line)
+    old = Counter(line for line in _read(FILTER_PREVIOUS).splitlines() if line)
+    removed, added = list((old - new).elements()), list((new - old).elements())
+    assert len(removed) == 7 and len(added) == 16
+    assert "Cinco cuidados:" in removed and "Seis cuidados:" in added
+    assert sum(line.startswith("Fila: ") for line in added) == 4
+    assert sum(line.startswith('{"razonamiento"') for line in added) == 6
+
+
+@pytest.mark.parametrize("term", [
+    r"sueldo", r"salari", r"operari", r"viátic", r"mano de obra", r"impuesto", r"porcentaje",
+    r"precio unitario", r"costo directo", r"gastos generales", r"previsi", r"iva", r"iibb",
+    r"componente", r"estructura de costos", r"mesa de entrada", r"requiere presentar",
+    r"presentarse físicamente", r"adjuntar electrónicamente", r"portal de compras",
+    r"detalle de renglones", r"a través del formulario", r"póliza", r"pagaré", r"pesos argentinos",
+    r"administrador",
+])
+def test_what_the_filter_v9_adds_does_not_paraphrase_a_measurement_case(term):
+    """REQ-106 (ADR-0059, conjunto de validación; P4, P7): lo que suma el filtro v9 es de otro
+    rubro y de otra redacción, con el mismo control que la extracción v12."""
+    pattern = re.compile(rf"\b{term}", re.IGNORECASE)
+    for line in _added(FILTER, FILTER_PREVIOUS):
+        assert not pattern.search(line), (term, line[:60])
+
+
+def test_what_the_filter_v9_adds_repeats_no_five_words_of_the_case_files():
+    """REQ-106 (generalidad, P4): lo que agrega el filtro v9 no repite cinco palabras seguidas de
+    las listas esperadas de los casos 00 a 06. Se saltea si `corpus/casos/` no está montado."""
+    files = sorted(CASES.glob("*/esperado/*.yaml")) if CASES.is_dir() else []
+    if not files:
+        pytest.skip("corpus/casos/ no está montado en este entorno")
+    known = set()
+    for path in files:
+        for anchor in _anchors(yaml.safe_load(path.read_text(encoding="utf-8"))):
+            known |= _shingles(anchor)
+    assert len(known) > 100
+    hits = sorted((_shingles(_read(FILTER)) - _shingles(_read(FILTER_PREVIOUS))) & known)
     assert not hits, [hashlib.sha256(h.encode()).hexdigest()[:12] for h in hits]
