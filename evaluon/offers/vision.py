@@ -169,6 +169,28 @@ def vision_pages(reading):
     return {e["page"] for e in vision_entries(reading) if e.get("outcome") == OUTCOME_READ}
 
 
+def pages_read_in(reading_ids):
+    """`{id de la lectura: páginas leídas por visión}` de las lecturas dadas, con una consulta.
+    Solo trae el informe de las lecturas que tienen visión, y no su texto canónico ni sus páginas
+    (T-231); las demás no figuran: no tienen ninguna página leída por visión. Para las pantallas
+    y la exportación, que marcan muchas citas de una vez (T-264)."""
+    ids = {reading_id for reading_id in reading_ids if reading_id}
+    if not ids:
+        return {}
+    return {reading.pk: vision_pages(reading)
+            for reading in Reading.objects.filter(pk__in=ids, report__has_key="vision")
+            .only("report")}
+
+
+def on_vision(pairs):
+    """Los pares `(id de la lectura, página)`, entre los dados, cuya página se leyó por visión: una
+    consulta para todos (`pages_read_in`), sin importar cuántos. Es la cuenta de toda pantalla que
+    marca una cita o un fragmento como «leída por visión» (T-264)."""
+    pairs = list(pairs)
+    seen = pages_read_in(reading for reading, _ in pairs)
+    return {(reading, page) for reading, page in pairs if page in seen.get(reading, ())}
+
+
 def candidate_pages(document, reading):
     """Las páginas de lectura dudosa de la última lectura de `document`, que todavía no se
     intentaron por visión: `[{"page", "reason", "reasons", "status", "confidence"}]` por

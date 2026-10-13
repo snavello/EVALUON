@@ -14,9 +14,13 @@ la cuenta de la sección; este tema no agrega pendientes propios para no duplica
 subsanable sin pedido queda «por decidir» hasta que el evaluador pide la subsanación o decide no
 pedirla («No pedir», `remedy.decline_remedy`, T-225): la decisión queda con quién, cuándo y el
 motivo, y la fila deja de estar por decidir.
+
+El contexto de cada fila muestra el fundamento completo (P3, T-264): la cita de la oferta, con la
+marca «leída por visión» si su página se leyó por visión, y el dato del Portal que motivó la
+pregunta, con su enlace y la fecha en que se tomó. Las citas de todas las filas se traen juntas
+(`journey/basis.py`), sin una consulta por fila.
 """
 
-from collections import defaultdict
 from dataclasses import dataclass, field
 
 from django.utils import timezone
@@ -25,8 +29,6 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.assessment.models import (
     Action,
     AnswerScope,
-    Citation,
-    CitationKind,
     Decision,
     Doubt,
     Outcome,
@@ -35,7 +37,7 @@ from evaluon.assessment.models import (
 from evaluon.assessment.services import questions as questions_service
 from evaluon.assessment.services import remedy as remedy_service
 from evaluon.audit.models import Channel
-from evaluon.journey import memo, points, reading_note
+from evaluon.journey import basis, memo, points, reading_note
 from evaluon.journey.sections.base import TemaStatus
 from evaluon.journey.temas import s4_preguntas_acciones as acciones
 from evaluon.offers.services import offers as offers_service
@@ -85,6 +87,7 @@ class Line:
     result: object = None
     points: list = field(default_factory=list)  # el punto completo del pliego del requisito
     citations: list = field(default_factory=list)  # lo citado de la oferta (documento y página)
+    portal: list = field(default_factory=list)  # los datos del Portal citados (página y fecha)
     read_note: str = ""  # sin cita de la oferta: qué se leyó
 
 
@@ -236,15 +239,13 @@ def _add_context(lines, user, procedure):
     if extra:
         point_map.update(points.points_of(extra.values()))
     result_ids = {line.result.pk for line in lines}
-    cited = defaultdict(list)
-    for citation in (Citation.objects.filter(result_id__in=result_ids, kind=CitationKind.OFERTA)
-                     .select_related("document").order_by("order")):
-        cited[citation.result_id].append(citation)
+    cited, portal = basis.of_results(result_ids)
     uncited = Result.objects.filter(pk__in=result_ids - set(cited)).select_related("run")
     notes = reading_note.notes_for(uncited)
     for line in lines:
         line.points = point_map.get(line.requirement.pk, [])
         line.citations = cited.get(line.result.pk, [])
+        line.portal = portal.get(line.result.pk, [])
         line.read_note = notes.get(line.result.pk, "")
 
 

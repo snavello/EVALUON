@@ -9,6 +9,19 @@
   marca así y sigue ordenándose (los mismos números que la pantalla: sale de `discards.units`,
   `discards.confirmed_discards` y `ordering.economic_order`, sin cambiarlos).
 - Todo es propuesta de evaluación del sistema: decide la Comisión (P3); los archivos lo rotulan.
+- Un resultado que se apoya en una cita de una página leída por visión (ADR-0041) lo dice: el
+  fundamento de la planilla suma que la página tiene dificultades de lectura, en qué documento y
+  página está, y que conviene que la Comisión la vuelva a chequear con la imagen del original; el
+  cuadro marca esa celda y lo explica en una nota al pie (decisión del responsable, 2026-10-13;
+  T-264). Una consulta para todos los resultados (`vision_citations.results_on_vision_pages`), no
+  una por fila.
+- Todo dato del Portal que el archivo muestra dice de qué página sale y cuándo se tomó (P3,
+  constitución 1.3, ADR-0053; T-264), lo mismo que las pantallas (`portal/_fuente_dato.html`) pero con
+  la dirección escrita, porque el archivo se imprime: la planilla, una nota al pie de los requisitos
+  de cada oferta con los requisitos que citan cada página del Portal; el cuadro, una nota al pie del
+  orden económico con la página de la que salen los precios y totales y de qué ofertas. Las páginas
+  se leen con una consulta para todos los resultados y otra para los datos de todas las ofertas
+  (`portal_sources`), no una por fila.
 - El Excel lo escribe XlsxWriter y el PDF WeasyPrint, los dos dentro del equipo y sin recursos de
   red (el PDF reutiliza el generador de la matriz, que rechaza todo recurso externo).
 - Cada exportación deja el hecho `eval_export` con qué se exportó y de qué evaluación (el pedido
@@ -29,7 +42,13 @@ from decimal import Decimal
 import xlsxwriter
 from django.utils import timezone
 
-from evaluon.assessment import not_applicable, ordering, situation
+from evaluon.assessment import (
+    not_applicable,
+    ordering,
+    portal_sources,
+    situation,
+    vision_citations,
+)
 from evaluon.assessment.models import Decision, Outcome
 from evaluon.assessment.services import discards as discards_service
 from evaluon.assessment.services import matrix as matrix_service
@@ -62,6 +81,14 @@ DISCARD_STATES = {
     discards_service.REJECTED: "Rechazado",
 }
 EXCERPT = 400
+# El resultado se apoya en una cita de una página leída por visión (decisión del 2026-10-13). El
+# aviso de la planilla nombra el documento y la página; el del cuadro es general.
+_VISION_ONE = ("Se apoya en una página con dificultades de lectura, leída por visión{where}: "
+               "conviene que la Comisión la vuelva a chequear con la imagen del original.")
+_VISION_MANY = ("Se apoya en páginas con dificultades de lectura, leídas por visión{where}: "
+                "conviene que la Comisión las vuelva a chequear con las imágenes del original.")
+VISION_NOTE = _VISION_ONE.format(where="")
+VISION_MARK = "(*)"
 
 
 class ExportRefused(ValueError):
@@ -157,6 +184,7 @@ class OfferSheet:
     evaluated: bool
     rows: list = field(default_factory=list)
     discards: list = field(default_factory=list)
+    portal: list = field(default_factory=list)  # notas: de qué página del Portal sale cada dato
     request_id: int | None = None
     matrix_version: int | None = None
 
@@ -183,6 +211,8 @@ class ExportData:
     columns: int
     warnings: list
     generated: str
+    grid_note: str = ""  # nota al pie del cuadro: qué significa la marca de visión, o vacía
+    price_sources: list = field(default_factory=list)  # notas: de qué página salen los precios
 
 
 def _last_decisions(results):
@@ -196,8 +226,15 @@ def _last_decisions(results):
     return found
 
 
-def _cell_text(cell):
-    """Qué dice el cuadro de un par: el resultado vigente y si falta decidirlo."""
+def _rests_on_vision(cell, on_vision):
+    """El resultado vigente del par se apoya en una cita de una página leída por visión."""
+    return (cell.result is not None and cell.effective_outcome is not None
+            and cell.result.pk in on_vision)
+
+
+def _cell_text(cell, on_vision=frozenset()):
+    """Qué dice el cuadro de un par: el resultado vigente, si falta decidirlo y, si se apoya en
+    una página leída por visión, la marca (la nota al pie dice qué significa)."""
     if cell.result is None:
         return "Sin evaluar"
     if cell.effective_outcome is None:
@@ -207,7 +244,46 @@ def _cell_text(cell):
         text += " (propuesto)"
     elif cell.state == matrix_service.CORRECTED:
         text += " (corregido)"
+    if _rests_on_vision(cell, on_vision):
+        text += f" {VISION_MARK}"
     return text
+
+
+def _vision_note(places):
+    """El aviso de la planilla para un resultado que se apoya en páginas leídas por visión: dice
+    cuáles son (documento y página) para que la Comisión las encuentre y mire la imagen del original.
+    `places`: `[(título del documento, página)]`."""
+    where = "; ".join(f"{_clean(title)}, página {number}" if title else f"página {number}"
+                      for title, number in places)
+    template = _VISION_ONE if len(places) == 1 else _VISION_MANY
+    return template.format(where=f" ({where})")
+
+
+def _basis(result, on_vision):
+    """El fundamento de la planilla: la explicación del sistema y, si el resultado se apoya en una
+    cita de una página leída por visión, el aviso de que conviene chequearla y dónde está."""
+    text = _clean(result.explanation)
+    if result.pk in on_vision:
+        text = f"{text} {_vision_note(on_vision[result.pk])}".strip()
+    return text
+
+
+def _portal_source(url, fetched_at):
+    """De dónde sale un dato del Portal, como lo dicen las pantallas (`portal/_fuente_dato.html`):
+    la página del Portal y cuándo se consultó. La dirección va escrita porque el archivo se imprime:
+    «fuente: Portal · página del Portal: <dirección> · página consultada el 09/10/2026 14:30»."""
+    return (f"fuente: Portal · página del Portal: {url} · "
+            f"página consultada el {when(fetched_at)}")
+
+
+def _portal_note(numbers, source):
+    """La nota de la hoja de una oferta: qué requisitos tienen un resultado que cita esa página del
+    Portal y de dónde sale."""
+    if len(numbers) == 1:
+        which = f"el requisito {numbers[0]}"
+    else:
+        which = f"los requisitos {', '.join(map(str, numbers[:-1]))} y {numbers[-1]}"
+    return f"Datos del Portal citados en {which} · {_portal_source(source.url, source.fetched_at)}"
 
 
 def collect(user, procedure_id, *, channel=Channel.SCREEN):
@@ -215,7 +291,12 @@ def collect(user, procedure_id, *, channel=Channel.SCREEN):
     `Procedure.DoesNotExist` si no existe."""
     page = matrix_service.matrix_page(user, procedure_id, channel=channel)
     found = discards_service.units(page)
-    decisions = _last_decisions([c.result for c in page.cells.values() if c.result is not None])
+    results = [c.result for c in page.cells.values() if c.result is not None]
+    decisions = _last_decisions(results)
+    # Los resultados que citan una página leída por visión y las páginas del Portal que citan, cada
+    # cosa de una vez para todos los resultados (T-264).
+    on_vision = vision_citations.results_on_vision_pages([r.pk for r in results])
+    portal = portal_sources.cited_pages([r.pk for r in results])
     texts = {r.pk: _clean(sheets.requirement_text(r), EXCERPT) for r in page.requirements}
 
     by_offer = {}
@@ -228,16 +309,20 @@ def collect(user, procedure_id, *, channel=Channel.SCREEN):
         if status.run is not None:
             sheet.request_id = status.run.request_id
             sheet.matrix_version = status.run.matrix_version.number
+        cited = {}  # página del Portal -> números de los requisitos cuyo resultado la cita
         for requirement in page.requirements:
             cell = page.cells[(status.offer.pk, requirement.pk)]
             result = cell.result
+            for source in portal.get(result.pk, ()) if result else ():
+                cited.setdefault(source, []).append(requirement.number)
             sheet.rows.append(RequirementRow(
                 number=requirement.number, category=requirement.get_category_display(),
                 text=texts[requirement.pk],
                 proposed=not_applicable.result_label(result) if result else "Sin evaluar",
                 effective=(cell.effective_label if result and cell.effective_outcome else "—"),
-                state=cell.state_label, basis=_clean(result.explanation) if result else "",
+                state=cell.state_label, basis=_basis(result, on_vision) if result else "",
                 decision=_decision_line(decisions.get(result.pk)) if result else ""))
+        sheet.portal = [_portal_note(numbers, source) for source, numbers in cited.items()]
         for unit in by_offer.get(status.offer.pk, []):
             grounds = " | ".join(
                 f"Requisito {g.requirement.number}"
@@ -249,21 +334,29 @@ def collect(user, procedure_id, *, channel=Channel.SCREEN):
                 decision=_discard_decision(unit.decision)))
         offer_sheets.append(sheet)
 
-    grid = [(r, texts[r.pk], [_cell_text(page.cells[(o.pk, r.pk)]) for o in page.offers])
+    grid = [(r, texts[r.pk],
+             [_cell_text(page.cells[(o.pk, r.pk)], on_vision) for o in page.offers])
             for r in page.requirements]
-    totals, line_rows, warnings = _economic(page, found, by_offer)
+    marked = any(_rests_on_vision(cell, on_vision) for cell in page.cells.values())
+    totals, line_rows, warnings, price_sources = _economic(page, found, by_offer)
     return ExportData(
         procedure=page.procedure, version=page.version, offers=page.offers,
         requirements=page.requirements, sheets=offer_sheets, grid=grid, totals=totals,
         line_rows=line_rows, columns=len(page.offers), warnings=warnings,
-        generated=when(timezone.now()))
+        generated=when(timezone.now()),
+        grid_note=f"{VISION_MARK} {VISION_NOTE}" if marked else "",
+        price_sources=price_sources)
 
 
 def _economic(page, found, by_offer):
-    """El orden económico con solo los descartes confirmados, como la pantalla."""
+    """El orden económico con solo los descartes confirmados, como la pantalla. Devuelve los totales,
+    el orden por renglón, los avisos y las notas de qué página del Portal da los precios y totales."""
     confirmed = discards_service.confirmed_discards(found)
     order = ordering.economic_order(page.procedure, page.offers, confirmed)
-    data = {d.offer_id: d for d in PortalOfferData.objects.filter(offer__in=page.offers)}
+    # Con el ítem de origen y su página (la dirección y la fecha del Portal), sin la página bajada.
+    data = {d.offer_id: d for d in (PortalOfferData.objects.filter(offer__in=page.offers)
+                                    .select_related("item__page")
+                                    .defer("item__page__content", "item__payload"))}
     quotes = {(q.offer_id, q.line.number): q for q in
               PortalQuote.objects.filter(offer__in=page.offers).select_related("line")}
     line_count = PortalLine.objects.filter(procedure=page.procedure).count()
@@ -337,7 +430,12 @@ def _economic(page, found, by_offer):
                 cells.append((f"Of. {offer.number} · sin precio", True))
         line_rows.append((label, quantity, cells))
     warnings = [w for w in [order.warning] + [lo.warning for lo in order.lines] if w]
-    return totals, line_rows, warnings
+    sources = []
+    for group in portal_sources.price_sources(page.offers, data):
+        origin = group["item"].page
+        sources.append(f"Precios y totales de {group['offers']} · "
+                       f"{_portal_source(origin.url, origin.fetched_at)}")
+    return totals, line_rows, warnings, sources
 
 
 # --- Excel ----------------------------------------------------------------------------------------
@@ -408,6 +506,9 @@ def build_xlsx(data, document):
             table_row = row
             row = _table(sheet, fmt, table_row, headers, body)
             sheet.freeze_panes(table_row + 1, 1)
+            for note in sheet_data.portal:
+                sheet.write(row, 0, note, fmt["notice"])
+                row += 1
             sheet.write(row + 1, 0, "Descartes", fmt["sub"])
             if sheet_data.discards:
                 _table(sheet, fmt, row + 2,
@@ -431,6 +532,9 @@ def build_xlsx(data, document):
         table_row = row
         row = _table(sheet, fmt, table_row, headers, body)
         sheet.freeze_panes(table_row + 1, 3)
+        if data.grid_note:
+            sheet.write(row, 0, data.grid_note, fmt["notice"])
+            row += 1
         for warning in data.warnings:
             sheet.write(row, 0, warning, fmt["notice"])
             row += 1
@@ -454,6 +558,10 @@ def build_xlsx(data, document):
                                 fmt["struck"] if dropped else fmt["cell"])
                 else:
                     sheet.write(row, 2 + col, "—", fmt["cell"])
+        row += 2
+        for note in data.price_sources:
+            sheet.write(row, 0, note, fmt["notice"])
+            row += 1
         for col, width in enumerate([34, 14, 50] + [26] * data.columns):
             sheet.set_column(col, col, width)
     book.close()
@@ -466,7 +574,8 @@ PDF_CSS = """
 @page { size: A4 landscape; margin: 14mm 12mm; }
 body { font-family: "DejaVu Sans", sans-serif; font-size: 8.5pt; color: #1b1b1b; }
 h1 { font-size: 14pt; margin: 0 0 2mm; } h2 { font-size: 11pt; margin: 5mm 0 2mm; }
-.meta { color: #444; margin: 0 0 1mm; } .aviso { font-style: italic; color: #7a4b00; margin: 0 0 3mm; }
+.meta { color: #444; margin: 0 0 1mm; }
+.aviso { font-style: italic; color: #7a4b00; margin: 0 0 3mm; overflow-wrap: anywhere; }
 table { border-collapse: collapse; width: 100%; margin-bottom: 3mm; }
 th, td { border: 0.4pt solid #888; padding: 1.2mm 1.6mm; vertical-align: top; text-align: left; }
 th { background: #e8eef4; } tr { page-break-inside: avoid; }
@@ -510,6 +619,7 @@ def build_html(data, document):
                  "Fundamento", "Decisión de la Comisión"],
                 [[r.number, r.category, r.text, r.proposed, r.effective, r.state, r.basis,
                   r.decision] for r in sheet.rows])
+            part += "".join(f'<p class="aviso">{_e(note)}</p>' for note in sheet.portal)
             part += "<h2>Descartes</h2>"
             if sheet.discards:
                 part += _html_table(["Alcance", "Estado", "Motivos", "Decisión"],
@@ -524,6 +634,8 @@ def build_html(data, document):
         ["Req.", "Clase", "Qué exige el pliego"]
         + [f"Oferta {o.number} · {o.bidder}" for o in data.offers],
         [[r.number, r.get_category_display(), text] + cells for r, text, cells in data.grid])
+    if data.grid_note:
+        body += f'<p class="aviso">{_e(data.grid_note)}</p>'
     body += "".join(f'<p class="aviso">{_e(w)}</p>' for w in data.warnings)
     body += "<h2>Orden económico total</h2>" + _html_table(
         ["Orden", "Oferta", "Renglones", "Total", "Situación"],
@@ -537,6 +649,7 @@ def build_html(data, document):
     body += "<h2>Orden económico por renglón (precio unitario, menor primero)</h2>" + \
         _html_table(["Renglón", "Cant."] + [f"{n}.º" for n in range(1, data.columns + 1)],
                     line_body)
+    body += "".join(f'<p class="aviso">{_e(note)}</p>' for note in data.price_sources)
     return _page("Cuadro comparativo", data, body)
 
 

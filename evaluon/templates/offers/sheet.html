@@ -82,6 +82,7 @@ La ficha dice qué ofreció el oferente y dónde lo dice. Evaluar cada requisito
               {% if view.fragment.state == "confirmado" %}<span class="state">(confirmado)</span>{% endif %}
               {% if view.fragment.origin == "persona" %}<span class="state">(agregado por una persona)</span>{% endif %}
               <blockquote>{{ view.fragment.text }}</blockquote>
+              {% if view.by_vision %}{% include "journey/_cita_vision.html" with document_id=view.document.pk page=view.page %}{% endif %}
               <button type="submit" formmethod="post" formaction="{% url 'offers:fragment_action' view.fragment.pk 'quitar' %}">Quitar</button>
             </li>
             {% endfor %}
@@ -92,7 +93,7 @@ La ficha dice qué ofreció el oferente y dónde lo dice. Evaluar cada requisito
           {% elif row.entry.quoted == "no_cotizado" %}<p>Renglón: <strong>no cotizado</strong>.</p>
           {% elif row.item and not row.entry.quoted %}<p>Renglón: <strong>sin cotización a la vista</strong>: no se encontró precio ni cantidad ofrecida.</p>
           {% elif row.entry.quoted == "no_se_pudo_leer" %}<p>Renglón: <strong>no se pudo leer</strong>: la oferta tiene páginas sin leer.</p>{% endif %}
-          {% if row.removed %}<ul class="fragments removed"><li>Quitados:</li>{% for view in row.removed %}<li>{{ view.document.title }} · página {{ view.page }}: «{{ view.fragment.text|truncatechars:160 }}» <button type="submit" formmethod="post" formaction="{% url 'offers:fragment_action' view.fragment.pk 'restituir' %}">Restituir</button></li>{% endfor %}</ul>{% endif %}
+          {% if row.removed %}<ul class="fragments removed"><li>Quitados:</li>{% for view in row.removed %}<li>{{ view.document.title }} · página {{ view.page }}: «{{ view.fragment.text|truncatechars:160 }}»{% if view.by_vision %}{% include "journey/_cita_vision.html" with document_id=view.document.pk page=view.page %}{% endif %} <button type="submit" formmethod="post" formaction="{% url 'offers:fragment_action' view.fragment.pk 'restituir' %}">Restituir</button></li>{% endfor %}</ul>{% endif %}
           <p><a href="{% url 'offers:entry_history' row.entry.pk %}">Corregir, agregar e historial</a></p>
         </td>
         <td>{{ row.entry.get_state_display }}</td>

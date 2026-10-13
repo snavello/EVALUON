@@ -206,15 +206,24 @@ def seen_page(scanned, operator_user, procedure, model, client):
     return scanned, requirement
 
 
+NOTICE = ("Proviene de una página con dificultades de lectura: el texto citado es la "
+          "transcripción que hizo el sistema mirando su imagen y puede tener errores. "
+          "Conviene que la Comisión lo vuelva a chequear.")
+
+
 def test_the_screen_labels_the_citation_as_read_by_vision_with_the_image_and_the_original(
         seen_page, client):
-    """REQ-053, P3: la pantalla rotula "leída por visión", marca el resultado, muestra la
-    imagen de la página y el enlace al original."""
+    """REQ-053, P3 (decisión del 2026-10-13): la pantalla rotula "leída por visión", marca el
+    resultado con el aviso de que la página tiene dificultades de lectura y conviene que la
+    Comisión la vuelva a chequear, el mismo en el aviso general y en la cita (con el parcial), y
+    muestra la imagen de la página y el enlace para verla."""
     offer, requirement = seen_page
     response = client.get(reverse("assessment:pair", args=[offer.pk, requirement.pk]))
     assert response.status_code == 200
     page = text_of(response)
-    assert "leída por visión" in page and "Compare con el original antes de confirmar" in page
+    assert "leída por visión" in page and NOTICE in page
+    assert page.count(NOTICE) == 2  # el aviso general del resultado y el de la cita
+    assert "Ver la imagen de la página" in page and "Compare con el original" not in page
     assert DECLARATION in page
     document = offer.documents.get()
     html = response.content.decode()

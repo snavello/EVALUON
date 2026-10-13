@@ -21,6 +21,7 @@
   <h3>Texto de la oferta</h3>
   {% for c in cites.oferta %}
   <blockquote><a href="{% url 'offers:document_original' c.document.pk %}#page={{ c.page }}">{{ c.document.title }} · página {{ c.page }}</a>: {{ c.text }}</blockquote>
+  {% if c.by_vision %}{% include "journey/_cita_vision.html" with document_id=c.document_id page=c.page %}{% endif %}
   {% empty %}<p>Sin texto de la oferta que respalde una conclusión.</p>{% endfor %}
   {% if cites.norma %}<h3>Normativa</h3>
   {% for c in cites.norma %}<blockquote>{{ c.label }}: {{ c.text }}</blockquote>{% endfor %}{% endif %}

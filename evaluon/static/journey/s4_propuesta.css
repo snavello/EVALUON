@@ -65,3 +65,8 @@
 .s4-prop .lectura { color: var(--ev-texto-suave); display: block; margin-top: 2px; }
 .s4-prop .lista-condiciones { margin: 4px 0 6px; padding-left: 18px; }
 .s4-prop .lista-condiciones li { margin: 3px 0; }
+
+/* La imagen de la página leída por visión, solo en el detalle del par (T-264, ADR-0041). El aviso y la
+   marca (`.cita-vision`, `.marca-vision`) están en `secciones.css`. */
+.s4-prop figure.vision-page { margin: 6px 0 10px; }
+.s4-prop figure.vision-page img { max-width: 100%; height: auto; border: 1px solid var(--ev-borde); }

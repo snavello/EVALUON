@@ -714,3 +714,17 @@ def test_the_27b_file_waits_for_the_model_load_before_counting_failed_health_che
     assert "healthcheck" not in _candidate_compose("qwen36-35b")["services"]["generation_batch"]
     # el motor de la Consulta y los demás servicios conservan su chequeo
     assert _seconds(compose["services"]["generation"]["healthcheck"]["start_period"]) == 120
+
+
+def test_the_app_service_mounts_everything_the_anchor_mounts(compose):
+    """P7 (T-264, dictamen de la 015, hallazgo 4): `app` repite la lista de volúmenes de `x-app`
+    (una lista de YAML no se puede extender) y le suma sus propios montajes. Todo montaje del ancla
+    tiene que estar en la lista de `app`: a `app` le faltaba `specs/`, y con el comando documentado
+    (`docker compose run --rm app pytest`) el test de cobertura de REQ-106 se salteaba."""
+    anchor = compose["x-app"]["volumes"]
+    mine = compose["services"]["app"]["volumes"]
+    assert [volume for volume in anchor if volume not in mine] == []
+    assert "./specs:/app/specs:ro" in mine
+    # lo que `app` suma a propósito sigue ahí (corridas de `medir_matriz`, con escritura)
+    cases = "./corpus/casos:/app/corpus/casos"
+    assert cases in mine and cases not in anchor
