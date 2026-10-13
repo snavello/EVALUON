@@ -10,27 +10,47 @@ su motivo).
 
 Orden (cada regla es una función `(pair, ctx) -> Combined | None` en su módulo):
 
-1. externo (`externals.py`, REQ-063): siempre "falta la hoja de compliance";
-1 bis. forma de garantía no elegida (`guarantee_form.py`, T-240): el requisito de una forma de
+1. forma de garantía no elegida (`guarantee_form.py`, T-240): el requisito de una forma de
    garantía no aplica a la oferta que eligió otra («Requisito de la forma elegida», decisión del
-   2026-10-10);
-2. técnico (`technical.py`, REQ-061): hechos y «pendiente del informe técnico» (T-167);
-3. no se pudo leer (`unreadable.py`, REQ-064);
-4. Portal (`portal_facts.py`, REQ-062): T-169.
+   2026-10-10). Va antes que la de externos (T-257, H-C2-1): un requisito de la póliza que el
+   catálogo marca externo (la Superintendencia) no aplica a la oferta con pagaré;
+2. opción no usada (`options.py`, T-257): la condición de una opción que la oferta no usa no
+   aplica (la matriz nombra la opción en `Requirement.proposed["opcion"]`);
+3. presentación física (`presentation.py`, T-257, decisión del 2026-10-12): lo que hay que
+   presentar en la Mesa de Entrada y no consta es «no cumple», con el aviso de que puede faltar
+   cargarlo;
+4. externo (`externals.py`, REQ-063): siempre "falta la hoja de compliance";
+5. técnico (`technical.py`, REQ-061): hechos y «pendiente del informe técnico» (T-167);
+6. no se pudo leer (`unreadable.py`, REQ-064);
+7. Portal (`portal_facts.py`, REQ-062): T-169, con los criterios del 2026-10-12 (T-257);
+8. cumple por ausencia (`absence.py`, T-257, decisión del 2026-10-12): el requisito negativo o
+   supletorio que nada de la oferta contradice.
 
 Una regla nueva se suma en su lugar de la lista, nada más.
 """
 
 from django.conf import settings
 
-from evaluon.assessment import externals, guarantee_form, portal_facts, technical, unreadable
+from evaluon.assessment import (
+    absence,
+    externals,
+    guarantee_form,
+    options,
+    portal_facts,
+    presentation,
+    technical,
+    unreadable,
+)
 
 RULES = (
-    externals.rule,
     guarantee_form.rule,
+    options.rule,
+    presentation.rule,
+    externals.rule,
     technical.rule,
     unreadable.rule,
     portal_facts.rule,
+    absence.rule,
 )
 
 

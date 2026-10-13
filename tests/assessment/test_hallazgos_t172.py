@@ -263,6 +263,6 @@ def test_the_catalog_does_not_mark_other_declarations_or_policies(text):
 
 
 def test_the_rules_version_is_v9():
-    """T-240: la versión de las reglas sube a `reglas-v11` (T-233 la subió a v9, T-231 a v8, T-175 a v6/v7)."""
+    """T-257: la versión de las reglas sube a `reglas-v12` (T-240 la subió a v11, T-233 a v9, T-231 a v8, T-175 a v6/v7)."""
     from django.conf import settings
-    assert settings.ASSESSMENT_RULES_VERSION == "reglas-v11"
+    assert settings.ASSESSMENT_RULES_VERSION == "reglas-v12"

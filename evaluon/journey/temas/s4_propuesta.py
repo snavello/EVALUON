@@ -72,7 +72,8 @@ CONDITION_ICONS = {
     "no_determinado": ("nodet", "No determinado"),
 }
 PENDING_ICON = ("pend", "Pendiente del informe técnico")
-# Un requisito que no aplica a la oferta (forma de garantía no elegida): nunca «Cumple» (T-240).
+# Un requisito que no aplica a la oferta (forma de garantía no elegida u opción no usada, T-257): nunca
+# «Cumple» (T-240).
 NOT_APPLICABLE_ICON = ("na", not_applicable.LABEL)
 REJECTED_ICON = ("pend", "Propuesta rechazada: sin resultado hasta que se evalúe de nuevo")
 STATE_TEXT = {
@@ -82,6 +83,14 @@ STATE_TEXT = {
     matrix_service.REJECTED: "Rechazado",
 }
 VERBS = {"confirmar": "Confirmado", "corregir": "Corregido", "rechazar": "Rechazado"}
+
+
+# T-257: con qué resolvió el sistema una condición que el modelo dejó sin dato (`cubierta_por`).
+COVERED_BY = {
+    "portal": "dato del Portal de Compras",
+    "iva_precio_final_portal": "criterio de la Comisión: el precio del Portal es final con IVA",
+    "ausencia_verificada": "por ausencia: ningún documento leído lo contradice",
+}
 
 
 def condition_views(facts):
@@ -98,6 +107,9 @@ def condition_views(facts):
             where = "dato del Portal de Compras"
         else:
             where = ""
+        # T-257: la condición que resolvió una regla dice con qué (el Portal o un criterio).
+        covered = "ausencia_verificada" if item.get("por_ausencia") else item.get("cubierta_por")
+        where = COVERED_BY.get(covered, where)
         views.append({"text": item.get("condicion", ""), "datum": item.get("dato", ""),
                       "icon": icon, "name": name, "where": where})
     return views
@@ -269,7 +281,8 @@ def _cell_views(page, user):
         elif cell.reason == "pendiente_informe_tecnico":
             view.icon, view.name = PENDING_ICON
         elif cell.effective_key == not_applicable.KEY:
-            view.icon, view.name = NOT_APPLICABLE_ICON
+            # T-257: el texto es el de la regla que lo dejó sin aplicar (forma de garantía u opción).
+            view.icon, view.name = NOT_APPLICABLE_ICON[0], cell.effective_label
         else:
             view.icon, view.name = OUTCOME_ICONS[cell.effective_outcome]
             if cell.reason_label:

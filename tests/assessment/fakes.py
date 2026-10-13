@@ -120,6 +120,15 @@ def sees_message(messages):
     return b""
 
 
+def requirement_sentence(requirement):
+    """La oración del requisito del pedido: la marcada entre <<< >>> o la primera entre « »."""
+    marked = re.search(r"<<<(.*?)>>>", requirement or "", re.DOTALL)
+    if marked:
+        return " ".join(marked.group(1).split())
+    quoted = re.search(r"«(.*?)»", requirement or "", re.DOTALL)
+    return " ".join(quoted.group(1).split()) if quoted else "Lo que exige el requisito."
+
+
 def says(result, *citations, exigence="condicion", explanation="Porque lo dice el texto.",
          question="", external=False, supports=(), ilegible=None, datos=None, conditions=None,
          reasoning="Razonamiento sintético del doble."):
@@ -204,7 +213,10 @@ class ScriptedModel:
         self.calls.append(call)
         answer = self._evaluate(call) if self._evaluate else None
         if answer is None:
-            answer = says("no_consta", exigence="documento")
+            # T-257 (D-257-4): la regla mira también la condición única; la del doble por omisión es
+            # la oración del requisito, como la escribiría el modelo.
+            answer = says("no_consta", exigence="documento", conditions=[
+                (requirement_sentence(call.requirement), "", 0, "no_consta")])
         return self._answer(answer, messages, schema, kwargs)
 
     def respond_text(self, messages, *, max_tokens, repeat_penalty, base_url=None, timeout=None):

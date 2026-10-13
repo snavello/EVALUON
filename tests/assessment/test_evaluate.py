@@ -333,21 +333,23 @@ def test_no_consta_in_a_condition_is_undetermined_with_a_question(offer, operato
                                                                   procedure, model):
     """REQ-055: un dato que no está en la oferta ni en la normativa: "no determinado" con una
     pregunta concreta a la Comisión; sin respuesta no es fundamento."""
+    # T-257: la fila del mantenimiento se resuelve por ausencia (decisión del 2026-10-12); la
+    # condición sin dato es la del precio unitario.
     def function(call):
-        if "sesenta días" in call.requirement:
+        if "precio unitario" in call.requirement:
             return says("no_consta", exigence="condicion",
-                        question="¿Desde cuándo corre el plazo de sesenta días?")
+                        question="¿En qué moneda cotiza el renglón?")
 
     model.evaluates(function)
     _, runs = run_all(operator_user, procedure)
-    number = number_of(procedure, "sesenta días")
+    number = number_of(procedure, "precio unitario")
     result = results_of(runs[0])[number]
     assert result.outcome == "no_determinado" and result.doubt == "sin_dato"
     question = am.Question.objects.get(requirement__number=number)
     # T-235 (REQ-105): la pregunta del modelo va al final, con el requisito, la conclusión y el
     # texto delante.
-    assert question.text.splitlines()[-1] == "¿Desde cuándo corre el plazo de sesenta días?"
-    assert question.text.startswith("Requisito ") and "sesenta días" in question.text
+    assert question.text.splitlines()[-1] == "¿En qué moneda cotiza el renglón?"
+    assert question.text.startswith("Requisito ") and "precio unitario" in question.text
     assert "Conclusión del sistema:" in question.text and "Texto de la oferta:" in question.text
     assert question.result == result and question.offer == offer
     assert not am.Answer.objects.exists()
@@ -375,11 +377,12 @@ def test_an_external_requirement_is_a_missing_compliance_sheet_without_a_questio
 def test_an_open_question_is_reused_by_a_new_evaluation_of_the_pair(offer, operator_user,
                                                                     procedure, model):
     """ADR-0040: una pregunta por oferta y requisito mientras esté abierta."""
+    # T-257: la fila del mantenimiento se resuelve por ausencia; se pregunta por otra.
     model.evaluates(lambda call: says("no_consta", exigence="condicion", question="¿Cuál?")
-                    if "sesenta días" in call.requirement else None)
+                    if "precio unitario" in call.requirement else None)
     run_all(operator_user, procedure)
     run_all(operator_user, procedure)
-    number = number_of(procedure, "sesenta días")
+    number = number_of(procedure, "precio unitario")
     assert am.Question.objects.filter(requirement__number=number).count() == 1
 
 
@@ -722,8 +725,8 @@ def test_everything_the_model_was_asked_is_recorded(offer, operator_user, proced
     assert run.models_used["generation_batch"]["context_tokens"] == 32768
     versions = dict(run.prompt_versions)
     assert set(versions.pop("huellas")) == {"evaluacion", "contraste", "clausulas"}  # T-237
-    assert versions == {**settings.ASSESSMENT_PROMPT_VERSIONS, "reglas": "reglas-v11"}
-    assert run.parameters["rules_version"] == "reglas-v11"
+    assert versions == {**settings.ASSESSMENT_PROMPT_VERSIONS, "reglas": "reglas-v12"}
+    assert run.parameters["rules_version"] == "reglas-v12"
     assert run.parameters["group_tokens"] == 20000
     assert run.norms["matrix_version"] == 1 and run.norms["authorization_date"]
     assert run.matrix_version == request.matrix_version and run.channel == "eval"

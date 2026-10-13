@@ -33,6 +33,9 @@ NO_CUMPLE = "no_cumple"
 NO_CONSTA = "no_consta"
 NO_DETERMINADO = "no_determinado"
 RESULTS = (CUMPLE, NO_CUMPLE, NO_CONSTA, NO_DETERMINADO)
+# Reverificación de T-257 (decisión del Coordinador): si la oración vale solo para quien usa una
+# opción, el modelo marca si la oferta la usa; la regla de la opción lee este campo, no el texto.
+OPTION_USE = ("si", "no", "no_consta")
 EXIGENCES = ("documento", "condicion")
 VERDICTS = ("si", "no", "parcial")
 
@@ -214,6 +217,8 @@ def evaluation_schema(doc_aliases, support_aliases, portal_aliases=()):
             # que pide el requisito (REQ-062).
             "datos": {"type": "array", "items": citation, "maxItems": 2},
             "exigencia": {"type": "string", "enum": list(EXIGENCES)},
+            # T-257: si la oferta usa la opción de la que depende la oración (`evaluacion-v12`).
+            "usa_opcion": {"type": "string", "enum": list(OPTION_USE)},
             "condiciones": {"type": "array", "items": condition_schema(), "minItems": 1,
                             "maxItems": CONDITIONS_MAX},
             "resultado": {"type": "string", "enum": list(RESULTS)},
@@ -223,7 +228,8 @@ def evaluation_schema(doc_aliases, support_aliases, portal_aliases=()):
             "pregunta": {"type": "string"},
         },
         "required": ["razonamiento", "citas", "fundamentos", "externo", "ilegible", "datos",
-                     "exigencia", "condiciones", "resultado", "explicacion", "pregunta"],
+                     "exigencia", "usa_opcion", "condiciones", "resultado", "explicacion",
+                     "pregunta"],
         "additionalProperties": False,
     }
 
@@ -259,6 +265,7 @@ class Evaluation:
     data: list = field(default_factory=list)   # [(alias, texto)] con el monto o el CUIT (REQ-062)
     reasoning: str = ""     # el razonamiento breve que el modelo escribió antes de decidir
     conditions: list = field(default_factory=list)   # [Condition]
+    option_use: str = ""    # `usa_opcion` (T-257): "si", "no", "no_consta" o vacío (salida anterior)
 
     def as_json(self, conditions=None):
         """Lo que se guarda en `parsed`, en el orden del esquema. `conditions`: las condiciones
@@ -268,7 +275,7 @@ class Evaluation:
                 "fundamentos": self.supports, "externo": self.external,
                 "ilegible": self.unreadable,
                 "datos": [{"documento": a, "texto": t} for a, t in self.data],
-                "exigencia": self.exigence,
+                "exigencia": self.exigence, "usa_opcion": self.option_use,
                 "condiciones": (conditions if conditions is not None
                                 else [c.as_json() for c in self.conditions]),
                 "resultado": self.result, "clausula": self.clause,
@@ -279,7 +286,7 @@ _FIELDS = {"resultado", "exigencia", "citas", "fundamentos", "explicacion", "ext
            "pregunta"}
 # Opcionales al leer: una salida anterior a `evaluacion-v6` no trae `razonamiento` ni `condiciones`
 # (el pedido nuevo los exige por esquema).
-_OPTIONAL = {"clausula", "ilegible", "datos", "razonamiento", "condiciones"}
+_OPTIONAL = {"clausula", "ilegible", "datos", "razonamiento", "condiciones", "usa_opcion"}
 
 
 def _parse_conditions(raw):
@@ -326,6 +333,8 @@ def parse_evaluation(content, doc_aliases, support_aliases):
         raise InvalidOutput("condiciones es una lista")
     if not isinstance(data["externo"], bool):
         raise InvalidOutput("externo es verdadero o falso")
+    if data.get("usa_opcion", "") not in ("", *OPTION_USE):
+        raise InvalidOutput("usa_opcion no es uno de los tres")
     citations = []
     for cite in data["citas"]:
         if (not isinstance(cite, dict) or set(cite) != {"documento", "texto"}
@@ -348,7 +357,8 @@ def parse_evaluation(content, doc_aliases, support_aliases):
         supports=list(dict.fromkeys(supports)), explanation=data["explicacion"].strip(),
         external=data["externo"], question=data["pregunta"].strip(),
         clause=data.get("clausula", "").strip(), unreadable=data.get("ilegible", "").strip(),
-        data=quotes[:2], reasoning=data.get("razonamiento", "").strip(), conditions=conditions)
+        data=quotes[:2], reasoning=data.get("razonamiento", "").strip(), conditions=conditions,
+        option_use=data.get("usa_opcion", ""))
 
 
 def derive_result(conditions):
@@ -439,10 +449,11 @@ CONTRAST_SCHEMA = {
 
 
 def build_contrast_messages(system, requirement_block, conclusion, cited, supports_text="",
-                            correction="", portal_cites=(), previous=""):
+                            correction="", portal_cites=(), previous="", portal_offer=()):
     """El pedido corto del contraste: el requisito, la conclusión, la oración citada de la oferta
     con su contexto (`cited`: lista de `(título, página, texto, contexto)`, T-235), los datos del
-    Portal citados (`portal_cites`: textos escritos por el sistema) y los fundamentos. El
+    Portal citados (`portal_cites`: textos escritos por el sistema), los demás datos del Portal de
+    la oferta (`portal_offer`, T-257: el contraste ve el bloque completo) y los fundamentos. El
     reintento suma la respuesta anterior (`previous`) y la corrección como dos turnos."""
     lines = []
     for title, page, text, context in cited:
@@ -453,7 +464,9 @@ def build_contrast_messages(system, requirement_block, conclusion, cited, suppor
         lines) if lines else ""
     portal = ("Datos del Portal citados (fuente oficial):\n"
               + "\n".join(f"- {text}" for text in portal_cites)) if portal_cites else ""
-    parts = [requirement_block, f"Conclusión propuesta: {conclusion}", quotes, portal,
+    others = ("Otros datos del Portal de esta oferta (fuente oficial; la evaluación no los "
+              "citó):\n" + "\n".join(f"- {text}" for text in portal_offer)) if portal_offer else ""
+    parts = [requirement_block, f"Conclusión propuesta: {conclusion}", quotes, portal, others,
              supports_text, "Devolvé un objeto JSON con los campos pedidos: primero el "
              "razonamiento y después la respuesta."]
     user = "\n\n".join(part for part in parts if part)

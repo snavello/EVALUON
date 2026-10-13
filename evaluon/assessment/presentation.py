@@ -1,0 +1,158 @@
+"""La presentación física en la Mesa de Entrada (REQ-104, REQ-105; spec 015, decisión del
+2026-10-12 «si requiere presentacion fisica y no la hace (no consta entre los documentos ni en la
+matriz de compliance) la oferta no cumple se informa con texto por si la comision o alguien olvido
+agregarla»; ADR-0058, punto 4; T-257).
+
+Presentar en la Mesa de Entrada lo que el Portal marca como «Requiere presentar» es requisito. La
+regla (después de la forma de garantía y de la opción, antes que la de externos) reconoce el
+requisito que pide presentar algo físicamente (un original, en la Mesa de Entrada) y:
+
+- si el pliego lo ata a una forma de garantía («en el caso de optar por garantías no
+  electrónicas»), rige solo si el Portal informa que la oferta eligió esa forma; la forma no
+  elegida ya la resolvió `guarantee_form.py` («No aplica») y sin el dato de la forma no se decide;
+- si lo ata a una marca del Portal («en caso que el sistema indique "Requiere presentar…"»), el
+  sistema no tiene esa marca entre los datos del Portal que importa: «no determinado» con la
+  pregunta a la Comisión de si el Portal lo marca, y el aviso de que, si lo marca y no consta, la
+  oferta no cumple. **Pendiente** (desvío aceptado por el Coordinador sobre T-257, por prudencia):
+  cuando el importador del Portal traiga la marca «Requiere presentar» de cada documento, esta
+  rama pasa a «no cumple» con el aviso de que puede faltar cargarlo, como la decisión del
+  2026-10-12;
+- si rige y ni los documentos de la oferta ni su hoja de compliance la muestran (el modelo no ubicó
+  ninguna cita, y la lectura fue completa): «no cumple», con el texto que avisa que puede faltar
+  cargarlo (la constancia de la presentación o la hoja de compliance).
+
+Si el modelo ubicó un texto que muestra la presentación (la constancia de la Mesa de Entrada, la
+hoja de compliance), sigue el flujo de siempre. `facts` registra la regla y la versión (P6).
+
+Verificación de T-257 (D-257-7): solo cuenta lo que **obliga** («deberá», «se presentará»); lo que
+solo se permite («podrán presentarse», «podrá retirar») no es requisito de presentación. Si una
+circular aclara, modifica o suprime el requisito (puede decir que alcanza con la carga electrónica),
+no hay «no cumple»: «no determinado» con la pregunta (`presentacion_fisica_con_circular`).
+"""
+
+import re
+from dataclasses import replace
+
+from evaluon.assessment import combine, criteria, guarantee_form
+from evaluon.assessment.externals import fold, has_sheet
+from evaluon.portal.models import PortalOfferData
+
+RULE_MISSING = "presentacion_fisica_no_consta"
+RULE_MARK = "presentacion_fisica_sin_marca"
+RULE_CIRCULAR = "presentacion_fisica_con_circular"
+CIRCULAR = ("Una circular aclara, modifica o suprime este requisito: puede decir que alcanza con la "
+            "carga electrónica. El sistema no da por incumplida la presentación física.")
+CIRCULAR_QUESTION = ("¿Con la circular que alcanza a este requisito sigue haciendo falta la "
+                     "presentación física? Si hace falta y no consta, la oferta no cumple; quizá "
+                     "falte cargar la constancia o la hoja de compliance.")
+
+PHYSICAL = re.compile(
+    r"\bfisicamente\b|\bmesa de entradas?\b|\bpresentacion fisica\b|\brequiere presentar\b")
+_PRESENT = re.compile(r"\bpresent\w*|\bentreg\w*|\bacompan\w*|\boriginal(?:es)?\b|\bfisicamente\b")
+# La presentación atada a la marca del Portal.
+PORTAL_MARK = re.compile(r"\b(?:se )?indiqu\w*\W+(?:\w+\W+){0,3}?requiere presentar"
+                         r"|\brequiere presentar\b")
+
+MISSING = ("No consta la presentación física que pide el pliego: ninguno de los documentos "
+           "leídos ({read}) ni la hoja de compliance la muestra. Puede faltar cargarlo: si la "
+           "oferta lo presentó, la Comisión puede subir la constancia de la Mesa de Entrada o la "
+           "hoja de compliance.")
+MARK = ("El pliego pide presentar físicamente lo que el Portal marque como «Requiere presentar», "
+        "y el sistema no tiene esa marca entre los datos del Portal. Si el Portal lo marca y no "
+        "consta la presentación entre los documentos ni en la hoja de compliance, la oferta no "
+        "cumple: puede faltar cargarlo.")
+MARK_QUESTION = ("¿El Portal marca algún documento de esta oferta como «Requiere presentar en Mesa "
+                 "de Entrada»? Si lo marca y no consta la presentación, la oferta no cumple, aunque "
+                 "quizá falte cargar la constancia o la hoja de compliance.")
+
+
+# T-257, verificación (D-257-7): solo una obligación («deberá», «se presentará»); lo que solo se
+# permite («podrán presentarse», «podrá retirar») no pide nada.
+_OBLIGATION = re.compile(
+    r"\bdeber(?:a|an|ia|ian)\b|\bdeben?\b|\bse (?:presentar|entregar|acompanar)\w*"
+    r"|\bsera(?:n)? (?:presentad|entregad)\w*|\btendra(?:n)? que\b|\bhabra(?:n)? de\b")
+
+
+# Reverificación de T-257 (decisión del Coordinador): solo una obligación del OFERENTE en la etapa
+# de la oferta, en la misma cláusula que la presentación física («el oferente deberá presentar… en
+# Mesa de Entrada», «el original de la garantía deberá ser presentado en la Mesa de Entrada»). Con
+# «podrá», «podrán», el adjudicatario o una etapa posterior, no rige.
+_OFFEROR_DUTY = re.compile(
+    r"\b(?:el|los) (?:oferentes?|proponentes?) (?:deber(?:a|an)|tendr(?:a|an) que) (?:tambien )?"
+    r"(?:presentar|entregar|acompanar)\b"
+    r"|\b(?:debera|deberan) (?:tambien )?(?:ser )?(?:presentad[oa]s?|entregad[oa]s?|presentarse"
+    r"|entregarse)\b|\bse (?:presentara|presentaran|entregara|entregaran)\b"
+    r"|\bsera(?:n)? (?:presentad|entregad)\w*")
+_LATER_STAGE = re.compile(
+    r"\badjudicatari\w*|\badjudicad\w*|\badjudicacion\b|\bcontrato\b|\borden de compra\b"
+    r"|\bbienes\b|\bprovision\b|\bentrega de los\b|\brecepcion definitiva\b|\buna vez\b")
+_PERMISSION = re.compile(r"\bpodr(?:a|an|ia|ian)\b")
+_CLAUSES = re.compile(r"[.;]\s|,\s(?:y|e)\s|\s(?:y|e)\s(?=deber)")
+
+
+def is_physical(text):
+    """Si el requisito obliga al oferente, en la etapa de la oferta, a presentar algo físicamente
+    (en la Mesa de Entrada): la obligación tiene que estar en la misma cláusula que la presentación,
+    sin «podrá(n)», y no ser del adjudicatario ni de una etapa posterior."""
+    folded = fold(text)
+    if not (PHYSICAL.search(folded) and _PRESENT.search(folded)) or _LATER_STAGE.search(folded):
+        return False
+    return any(PHYSICAL.search(clause) and _OFFEROR_DUTY.search(clause)
+               and not _PERMISSION.search(clause) for clause in _CLAUSES.split(folded))
+
+
+def _touched_by_circular(text_block):
+    """Si una circular aclara, modifica o suprime el requisito: puede decir que alcanza con la carga
+    electrónica, y entonces la presentación física ya no se exige (D-257-7)."""
+    if getattr(text_block, "clarifications", None):
+        return True
+    return any(getattr(q, "clarifications", None) or getattr(q, "suppressed", False)
+               or getattr(q, "original", "") for q in getattr(text_block, "quotes", None) or [])
+
+
+def _form_applies(text, offer):
+    """`True` si rige por la forma de garantía (o no está atado a una), `False` si no rige y `None`
+    si está atado a una forma y el Portal no informa cuál eligió la oferta."""
+    required = guarantee_form.required_forms(text)
+    if not required:
+        return True
+    data = PortalOfferData.objects.filter(offer=offer).first()
+    chosen = guarantee_form.chosen_forms(list(data.guarantees.all())) if data else set()
+    if not chosen:
+        return None
+    return bool(chosen & required)
+
+
+def rule(pair, ctx):
+    """La regla de `rules.py`: devuelve el resultado nuevo del par o `None`."""
+    combined = pair.combined
+    text = getattr(pair.text, "opening", None) or pair.text.text
+    if combined is None or not is_physical(text):
+        return None
+    groups = getattr(pair, "groups", None) or []
+    if combined.citations or any(getattr(g, "citations", None) for g in groups):
+        return None
+    if not criteria.complete(combined):
+        return None
+    titles = criteria.documents_read(ctx)
+    read = ", ".join(f"«{t}»" for t in titles) if titles else "todos los documentos de la oferta"
+    if _touched_by_circular(pair.text):
+        return replace(
+            combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.NO_DATA, citations=[],
+            portal=[], ask=True, proposed="",
+            question=CIRCULAR_QUESTION, explanation=CIRCULAR,
+            facts={**combined.facts, "regla": RULE_CIRCULAR, "documentos_leidos": titles})
+    if PORTAL_MARK.search(fold(text)):
+        return replace(
+            combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.NO_DATA, citations=[],
+            portal=[], question=MARK_QUESTION, ask=True, proposed="", explanation=MARK,
+            facts={**combined.facts, "regla": RULE_MARK, "documentos_leidos": titles,
+                   "hoja_compliance": has_sheet(ctx.offer)})
+    if _form_applies(text, ctx.offer) is not True:
+        return None
+    return replace(
+        combined, outcome=combine.OUT_NO_CUMPLE, doubt="", citations=[], portal=[], question="",
+        ask=False, proposed="", explanation=MISSING.format(read=read),
+        facts={**combined.facts, "regla": RULE_MISSING, "documentos_leidos": titles,
+               "hoja_compliance": has_sheet(ctx.offer),
+               "decision": "2026-10-12, presentación física que no consta"})
