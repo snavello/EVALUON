@@ -91,6 +91,18 @@ def test_a_copy_of_the_tender_attached_to_the_offer_is_not_a_compliance_sheet():
     assert suggestions.suggest(pliego) is None
 
 
+def test_a_tender_that_says_in_state_registered_without_colon_is_not_a_compliance_sheet():
+    """REQ-104 (T-259, D-259-1, reverificación): los pliegos dicen «en estado inscripto» al pedir
+    la inscripción y nombran a ARCA; eso no es el resultado de una consulta (que el registro
+    imprime como «Estado: Inscripto»). Texto inventado con la forma de la cláusula."""
+    pliego = (
+        "PLIEGO DE BASES Y CONDICIONES PARTICULARES. 16.1. Si a la fecha de la evaluación el "
+        "oferente no se encontrase en estado inscripto en el Registro de Proveedores de ARCA, "
+        "la Agencia desestimará la oferta. 16.5. Se consultará el REPSAL. 16.6. Se verificará "
+        "la deuda ante AFIP según la Resolución General 4164. 20. Penalidades del régimen. " * 2)
+    assert suggestions.suggest(pliego) is None
+
+
 def test_a_cover_letter_that_lists_the_attachments_is_not_a_compliance_sheet():
     """REQ-104 (T-259, D-259-1; P9): la nota de presentación que enumera lo que se adjunta
     («constancia de inscripción en el SIPRO», «declaración jurada de no registrar sanciones»)

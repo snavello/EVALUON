@@ -45,7 +45,7 @@ COMPLIANCE_MARKS = (
 )
 # El estado que devuelve una consulta (D-259-1). «no registra» con la palabra entera: el
 # infinitivo «no registrar» es el de un requisito o una declaración, no un resultado.
-RESULT = re.compile(r"estado\s*:?\s*inscript[oa]|\bno registra\b|\bsin (?:deuda|sanciones)\b")
+RESULT = re.compile(r"estado\s*:\s*inscript[oa]|\bno registra\b|\bsin (?:deuda|sanciones)\b")
 # La fecha de la consulta o el organismo que la emite (D-259-1).
 ISSUED = re.compile(
     r"fecha de (?:la )?(?:consulta|emision)|a la fecha de emision"
