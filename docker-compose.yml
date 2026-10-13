@@ -81,6 +81,7 @@ x-app: &app
     - ./docker-compose.qwen36-35b.yml:/app/docker-compose.qwen36-35b.yml:ro
     - ./docker-compose.razonamiento.yml:/app/docker-compose.razonamiento.yml:ro
     - ./docker-compose.sin-consulta.yml:/app/docker-compose.sin-consulta.yml:ro
+    - ./docker-compose.consulta-27b.yml:/app/docker-compose.consulta-27b.yml:ro
     - ./.env.example:/app/.env.example:ro
     - ./corpus:/app/corpus:ro
     - ./evals:/app/evals
@@ -358,6 +359,7 @@ services:
       - ./docker-compose.qwen36-35b.yml:/app/docker-compose.qwen36-35b.yml:ro
       - ./docker-compose.razonamiento.yml:/app/docker-compose.razonamiento.yml:ro
       - ./docker-compose.sin-consulta.yml:/app/docker-compose.sin-consulta.yml:ro
+      - ./docker-compose.consulta-27b.yml:/app/docker-compose.consulta-27b.yml:ro
       - ./.env.example:/app/.env.example:ro
       - ./corpus:/app/corpus:ro
       - ./corpus/casos:/app/corpus/casos

@@ -326,9 +326,12 @@ def test_generation_batch_starts_like_generation(compose):
     assert batch["healthcheck"] == interactive["healthcheck"]
 
 
-def test_the_batch_engine_has_its_own_context_and_the_interactive_one_keeps_16384(compose):
+def test_the_batch_engine_has_its_own_context_and_the_interactive_one_keeps_16384(
+        compose, monkeypatch):
     """REQ-054 (ADR-0037): `generation_batch` arranca con `GENERATION_BATCH_CTX_SIZE`
-    (32.768 por omisión) y `generation` sigue con `GENERATION_CTX_SIZE` (16.384)."""
+    (32.768 por omisión) y `generation` sigue con `GENERATION_CTX_SIZE` (16.384). Los valores por
+    omisión de `settings.py`, no los del entorno: con la Consulta en el motor de lotes
+    (docker-compose.consulta-27b.yml, T-255) `app` recibe `GENERATION_CTX_SIZE` de 32.768."""
     services = compose["services"]
 
     def context(name):
@@ -337,8 +340,11 @@ def test_the_batch_engine_has_its_own_context_and_the_interactive_one_keeps_1638
 
     assert context("generation_batch") == "${GENERATION_BATCH_CTX_SIZE:-32768}"
     assert context("generation") == "${GENERATION_CTX_SIZE:-16384}"
-    assert settings.GENERATION_BATCH_CONTEXT_TOKENS == 32768
-    assert settings.GENERATION_CONTEXT_TOKENS == 16384
+    monkeypatch.delenv("GENERATION_BATCH_CTX_SIZE", raising=False)
+    monkeypatch.delenv("GENERATION_CTX_SIZE", raising=False)
+    fresh = runpy.run_path(str(Path(settings.BASE_DIR) / "evaluon" / "settings.py"))
+    assert fresh["GENERATION_BATCH_CONTEXT_TOKENS"] == 32768
+    assert fresh["GENERATION_CONTEXT_TOKENS"] == 16384
 
 
 def test_worker_runs_the_queue_with_the_app_image(compose):

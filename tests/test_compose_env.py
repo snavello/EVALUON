@@ -615,8 +615,11 @@ def test_candidate_file_names_do_not_collide_with_the_other_models():
 
 ENV_EXAMPLE = REPO / ".env.example"
 NO_QUERY_ENGINE_FILE = REPO / "docker-compose.sin-consulta.yml"
+# T-255: la Consulta va al motor del 27B. Reemplaza en la configuración de uso al archivo anterior,
+# que sigue siendo válido para el 27B sin Consulta.
+QUERY_27B_FILE = REPO / "docker-compose.consulta-27b.yml"
 DEFAULT_FILES = ("docker-compose.yml", "docker-compose.qwen38-27b.yml",
-                 "docker-compose.razonamiento.yml", "docker-compose.sin-consulta.yml")
+                 "docker-compose.razonamiento.yml", "docker-compose.consulta-27b.yml")
 
 
 def _env_example():
@@ -631,11 +634,11 @@ def _env_example():
 
 
 def test_the_default_install_is_the_27b_with_reasoning_only_in_the_contrast():
-    """REQ-107 (T-247): `.env.example` trae lo que hace que `docker compose up` desde cero levante
-    el Qwen3.8-27B con el razonamiento solo en el contraste y sin el motor de la Consulta:
-    `COMPOSE_FILE` con los cuatro archivos en ese orden (el de razonamiento después del que fija el
-    modelo), el separador `:` explícito (en Windows el de Compose es `;`) y una sola variable de
-    razonamiento encendida."""
+    """REQ-107 (T-247, T-255): `.env.example` trae lo que hace que `docker compose up` desde cero
+    levante el Qwen3.8-27B con el razonamiento solo en el contraste y la Consulta en ese mismo motor
+    (sin `generation`): `COMPOSE_FILE` con los cuatro archivos en ese orden (el de razonamiento
+    después del que fija el modelo), el separador `:` explícito (en Windows el de Compose es `;`) y
+    una sola variable de razonamiento encendida."""
     env = _env_example()
     assert env["COMPOSE_PATH_SEPARATOR"] == ":"
     assert tuple(env["COMPOSE_FILE"].split(":")) == DEFAULT_FILES
@@ -649,11 +652,13 @@ def test_the_default_install_is_the_27b_with_reasoning_only_in_the_contrast():
 
 
 def test_the_default_files_are_mounted_in_the_app_for_these_tests():
-    """REQ-107 (T-247): `docker-compose.yml` monta el archivo que apaga la Consulta y
-    `.env.example` en la aplicación, solo para que estas pruebas los lean."""
+    """REQ-107 (T-247, T-255): `docker-compose.yml` monta en la aplicación el archivo que apaga la
+    Consulta, el que la lleva al motor del 27B y `.env.example`, solo para que estas pruebas los
+    lean."""
     base = yaml.safe_load(COMPOSE_FILE.read_text(encoding="utf-8"))
     for volumes in (base["x-app"]["volumes"], base["services"]["app"]["volumes"]):
         assert "./docker-compose.sin-consulta.yml:/app/docker-compose.sin-consulta.yml:ro" in volumes
+        assert "./docker-compose.consulta-27b.yml:/app/docker-compose.consulta-27b.yml:ro" in volumes
         assert "./.env.example:/app/.env.example:ro" in volumes
 
 
@@ -676,13 +681,13 @@ def test_the_file_without_the_query_engine_only_switches_it_off():
 
 
 def test_the_default_install_keeps_the_batch_engine_off_the_internet(compose):
-    """P4 (T-247): ningún archivo de la configuración de uso agrega redes, puertos ni salida a
-    `generation_batch`: sigue solo en la red interna, sin puertos, y la red interna no tiene
-    salida a internet."""
+    """P4 (T-247, T-255): ningún archivo de la configuración de uso (ni el que apaga la Consulta)
+    agrega redes, puertos ni salida a `generation_batch`: sigue solo en la red interna, sin
+    puertos, y la red interna no tiene salida a internet."""
     assert compose["networks"]["internal"]["internal"] is True
     batch = compose["services"]["generation_batch"]
     assert batch["networks"] == ["internal"] and "ports" not in batch
-    for name in DEFAULT_FILES[1:]:
+    for name in (*DEFAULT_FILES[1:], "docker-compose.sin-consulta.yml"):
         file = yaml.safe_load((REPO / name).read_text(encoding="utf-8"))
         for service, body in (file.get("services") or {}).items():
             assert not {"networks", "ports", "image", "extra_hosts", "network_mode"} & set(body),                 (name, service)
@@ -728,3 +733,155 @@ def test_the_app_service_mounts_everything_the_anchor_mounts(compose):
     # lo que `app` suma a propósito sigue ahí (corridas de `medir_matriz`, con escritura)
     cases = "./corpus/casos:/app/corpus/casos"
     assert cases in mine and cases not in anchor
+
+
+# --- T-255 · la Consulta de normativa con el Qwen3.8-27B del motor de lotes (ADR-0057) ---------------
+#
+# `docker-compose.consulta-27b.yml` reemplaza en la configuración de uso a `docker-compose.sin-consulta.yml`
+# (que queda como está: sirve para el 27B sin Consulta si las evals no pasan). `generation` sigue sin
+# arrancar y la Consulta (`app`) va a `generation_batch` por variables de entorno.
+
+# Servicios de la imagen de la aplicación que reciben a qué motor va la Consulta.
+QUERY_27B_SERVICES = ("app", "worker")
+
+
+@pytest.fixture(scope="module")
+def query_27b():
+    assert QUERY_27B_FILE.is_file(), f"No se encuentra {QUERY_27B_FILE}: tiene que estar montado en app"
+    return yaml.safe_load(QUERY_27B_FILE.read_text(encoding="utf-8"))
+
+
+def test_the_query_27b_file_only_points_the_consulta_to_the_batch_engine(query_27b):
+    """REQ-107 (T-255, P4): `docker-compose.consulta-27b.yml` pone `generation` en el perfil
+    `consulta-12b` (no arranca), hace que `app` no lo espere (`required: false`) y suma variables de
+    entorno a `app` y `worker`. No toca redes, puertos, imágenes, volúmenes, comandos ni chequeos de
+    ningún servicio: el motor sigue en la red interna, sin salida a internet."""
+    assert {key for key in query_27b if not key.startswith("x-")} == {"services"}
+    services = query_27b["services"]
+    assert set(services) == {"generation", "app", "worker"}
+    assert services["generation"] == {"profiles": ["consulta-12b"]}
+    assert set(services["app"]) == {"depends_on", "environment"}
+    assert services["app"]["depends_on"] == {"generation": {
+        "condition": "service_healthy", "required": False}}
+    assert set(services["worker"]) == {"environment"}
+    # el servicio y su dependencia existen en el compose base, y el base sigue levantando la Consulta
+    base = yaml.safe_load(COMPOSE_FILE.read_text(encoding="utf-8"))
+    assert base["services"]["app"]["depends_on"]["generation"] == {"condition": "service_healthy"}
+    assert "profiles" not in base["services"]["generation"]
+
+
+def test_the_query_27b_file_points_to_the_batch_engine_and_names_its_model(compose, query_27b):
+    """REQ-107 (T-255, P6): `app` y `worker` mandan la Consulta a `GENERATION_BATCH_URL` (de la
+    misma variable y con el mismo valor por omisión que `generation_batch`) y registran el modelo
+    que carga ese motor: el alias, el archivo y la huella son los de `docker-compose.qwen38-27b.yml`
+    y los de `scripts/models.sha256`; el alias es el `--alias` con que arranca el motor."""
+    qwen = _candidate_compose("qwen38-27b")
+    batch_environment = qwen["services"]["app"]["environment"]
+    batch_command = qwen["services"]["generation_batch"]["command"]
+    base_environment = compose["services"]["app"]["environment"]
+    for service in QUERY_27B_SERVICES:
+        environment = query_27b["services"][service]["environment"]
+        assert environment["GENERATION_URL"] == "${GENERATION_BATCH_URL:-http://generation_batch:8080}"
+        assert resolve(environment["GENERATION_URL"], {}) == resolve(
+            base_environment["GENERATION_BATCH_URL"], {})
+        assert resolve(environment["GENERATION_URL"], {"GENERATION_BATCH_URL": "http://otro:1"}) == (
+            "http://otro:1")
+        assert environment["GENERATION_MODEL_ALIAS"] == batch_environment[
+            "GENERATION_BATCH_MODEL_ALIAS"] == _argument(batch_command, "--alias")
+        assert environment["GENERATION_MODEL_FILE"] == batch_environment["GENERATION_BATCH_MODEL_FILE"]
+        assert "/models/" + environment["GENERATION_MODEL_FILE"] == _argument(batch_command, "--model")
+        assert environment["GENERATION_MODEL_SHA256"] == batch_environment[
+            "GENERATION_BATCH_MODEL_SHA256"]
+        assert _checksums()[environment["GENERATION_MODEL_FILE"]] == environment[
+            "GENERATION_MODEL_SHA256"]
+
+
+def test_the_consulta_context_is_the_real_one_of_the_batch_engine_but_only_in_the_app(
+        compose, query_27b):
+    """REQ-107 (T-255): `app` registra y usa para la Consulta el contexto real del motor de lotes
+    (`--ctx-size` de `generation_batch`, de la misma variable y con el mismo valor por omisión:
+    32.768). El `worker` NO lo recibe: la matriz (consecuencias y circulares) dimensiona sus pedidos
+    con `GENERATION_CONTEXT_TOKENS`, y con 32.768 en lugar de 16.384 propondría otra matriz que la
+    medida (P7)."""
+    batch_context = _argument(compose["services"]["generation_batch"]["command"], "--ctx-size")
+    app_environment = query_27b["services"]["app"]["environment"]
+    assert app_environment["GENERATION_CTX_SIZE"] == batch_context == "${GENERATION_BATCH_CTX_SIZE:-32768}"
+    assert resolve(app_environment["GENERATION_CTX_SIZE"], {}) == "32768"
+    assert resolve(app_environment["GENERATION_CTX_SIZE"], {"GENERATION_BATCH_CTX_SIZE": "24576"}) == "24576"
+    assert "GENERATION_CTX_SIZE" not in query_27b["services"]["worker"]["environment"]
+
+
+def _merged_environment(compose, service, files):
+    """El `environment` de `service` al sumar `files` en orden, como lo arma Compose (cada archivo
+    pisa por clave), con las interpolaciones resueltas sin variables de entorno."""
+    environment = {}
+    for name in files:
+        data = compose if name == "docker-compose.yml" else yaml.safe_load(
+            (REPO / name).read_text(encoding="utf-8"))
+        environment.update(((data.get("services") or {}).get(service) or {}).get("environment") or {})
+    return {key: resolve(value, {}) for key, value in environment.items()}
+
+
+def _settings_with(monkeypatch, environment):
+    """`settings.py` evaluado con las variables de IA de `environment` (y solo esas)."""
+    for name, value in environment.items():
+        if name.startswith(("GENERATION_", "EMBEDDINGS_", "RERANKER_")):
+            monkeypatch.setenv(name, value)
+    return runpy.run_path(str(REPO / "evaluon" / "settings.py"))
+
+
+def test_with_the_default_files_the_app_sends_the_consulta_to_the_27b_of_the_batch_engine(
+        compose, monkeypatch):
+    """REQ-107 (T-255, P6): con los cuatro archivos de `.env.example`, lo que ve la aplicación es
+    un solo motor: `GENERATION_URL` es `GENERATION_BATCH_URL`, el modelo de la Consulta (alias,
+    archivo y huella) es el del motor de lotes y su contexto es el real, 32.768. Por eso el registro
+    de cada consulta nombra el modelo y el motor que la atendieron."""
+    fresh = _settings_with(monkeypatch, _merged_environment(compose, "app", DEFAULT_FILES))
+
+    assert fresh["GENERATION_URL"] == fresh["GENERATION_BATCH_URL"] == "http://generation_batch:8080"
+    assert fresh["GENERATION_MODEL"] == fresh["GENERATION_BATCH_MODEL"] == "qwen3.8-27b-ud-q4_k_m"
+    assert fresh["GENERATION_MODEL_FILE"] == fresh["GENERATION_BATCH_MODEL_FILE"]
+    assert fresh["GENERATION_MODEL_SHA256"] == fresh["GENERATION_BATCH_MODEL_SHA256"]
+    assert fresh["GENERATION_CONTEXT_TOKENS"] == fresh["GENERATION_BATCH_CONTEXT_TOKENS"] == 32768
+    # y el razonamiento sigue siendo cosa de los pasos de lotes: la Consulta no lo pide (T-253)
+    assert fresh["GENERATION_THINKING"] is False
+
+
+def test_with_the_default_files_the_worker_keeps_the_matrix_context(compose, monkeypatch):
+    """REQ-107 (T-255, P7): el `worker` apunta la Consulta al motor del 27B pero conserva el
+    contexto de 16.384 con que se midió la matriz."""
+    fresh = _settings_with(monkeypatch, _merged_environment(compose, "worker", DEFAULT_FILES))
+
+    assert fresh["GENERATION_URL"] == fresh["GENERATION_BATCH_URL"]
+    assert fresh["GENERATION_MODEL"] == fresh["GENERATION_BATCH_MODEL"] == "qwen3.8-27b-ud-q4_k_m"
+    assert fresh["GENERATION_CONTEXT_TOKENS"] == 16384
+    assert fresh["GENERATION_BATCH_CONTEXT_TOKENS"] == 32768
+
+
+def test_without_the_query_27b_file_the_consulta_stays_where_it_was(compose, monkeypatch):
+    """REQ-107 (T-255): con el 27B sin Consulta (`docker-compose.sin-consulta.yml`) o con el 12B de
+    siempre (sin ninguno de los dos) la Consulta sigue apuntando a `generation` con el modelo y el
+    contexto de la 001: la vuelta al 12B no cambia."""
+    for files in ((*DEFAULT_FILES[:3], "docker-compose.sin-consulta.yml"), DEFAULT_FILES[:1]):
+        environment = _merged_environment(compose, "app", files)
+        for name in ("GENERATION_URL", "GENERATION_MODEL_ALIAS", "GENERATION_MODEL_FILE",
+                     "GENERATION_MODEL_SHA256", "GENERATION_CTX_SIZE"):
+            monkeypatch.delenv(name, raising=False)  # cada caso parte del entorno por omisión
+        fresh = _settings_with(monkeypatch, environment)
+
+        assert fresh["GENERATION_URL"] == "http://generation:8080", files
+        assert fresh["GENERATION_MODEL"] == "gemma-4-12b-it-qat-q4_0", files
+        assert fresh["GENERATION_CONTEXT_TOKENS"] == 16384, files
+
+
+def test_the_consulta_request_waits_less_than_gunicorn(compose):
+    """REQ-107 (T-255, ADR-0005): la Consulta es interactiva. Gunicorn corta a los 120 s (espera de
+    `app` en el compose); el pedido al modelo espera `AI_TIMEOUT_SECONDS`, que tiene que ser
+    menor: una generación colgada termina en una falla técnica `timeout` con su registro, y no
+    con el proceso cortado a mitad de la consulta sin registro. El 27B es más lento que el 12B
+    (24 tokens por segundo contra unos 70), así que el margen importa."""
+    command = [str(item) for item in compose["services"]["app"]["command"]]
+    gunicorn_timeout = int(command[command.index("--timeout") + 1])
+
+    assert gunicorn_timeout == 120
+    assert settings.AI_TIMEOUT_SECONDS < gunicorn_timeout
