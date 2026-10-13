@@ -301,8 +301,11 @@ MATRIX_CIRCULAR_CANDIDATES = 8
 # `definiciones` es el bloque común de las definiciones del responsable (T-236, ADR-0054): el
 # código lo incluye en las instrucciones que llevan su marca y registra su versión y su huella.
 MATRIX_PROMPT_VERSIONS = {
-    "definiciones": "matriz-definiciones-v7",
-    "extraccion": "matriz-extraccion-v10",
+    # T-262 (con el filtro v8): la presentación física (lo que el Portal marca para entregar en
+    # papel) no se descarta como forma de presentar por el Portal (decisión del 2026-10-12; la
+    # medición T-260 la vio descartada en los siete casos).
+    "definiciones": "matriz-definiciones-v8",
+    "extraccion": "matriz-extraccion-v11",
     "completitud": "matriz-completitud-v6",
     # T-258: unión de las filas del mismo asunto (pares de filas seguidas y notas de tabla).
     "union": "matriz-union-v1",
@@ -310,7 +313,7 @@ MATRIX_PROMPT_VERSIONS = {
     "circulares": "matriz-circulares-v7",
     "circulares_cambios": "matriz-circulares-v6",
     "unificacion": "matriz-unificacion-v1",
-    "filtro": "matriz-filtro-v7",
+    "filtro": "matriz-filtro-v8",
     "respaldo": "matriz-respaldo-v2",
 }
 
@@ -472,8 +475,10 @@ OFFERS_PROMPT_VERSIONS = {
 }
 
 # --- Evaluación asistida de ofertas (plan 004, "Parámetros"; ADR-0037 a ADR-0040) ---------
-# Texto de oferta por pedido al modelo, en tokens: instrucciones, requisito, fundamentos,
-# salida y margen de plantilla (unos 6.000) caben en `GENERATION_BATCH_CONTEXT_TOKENS`.
+# Techo del texto de oferta por pedido al modelo, en tokens. El tope real de cada requisito lo
+# calcula `assessment/sizing.py` (T-261): el contexto del motor de lotes menos la instrucción, el
+# Portal, el requisito, las respuestas y normas, la salida (y el razonamiento si el paso piensa) y
+# un margen; este valor solo lo limita desde arriba.
 ASSESSMENT_GROUP_TOKENS = 20000
 # Máximo de grupos de documentos que se leen por oferta; más allá, el par queda con
 # lectura incompleta.

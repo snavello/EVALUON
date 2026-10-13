@@ -27,6 +27,13 @@ Opciones:
 - `--regenerar-resumen`: carpeta de una corrida ya hecha. No corre el modelo: vuelve a medir las
   propuestas que nombra `parametros.json` (siguen en la base) y reescribe `resumen.md` y
   `resumen-publico.md` (T-096).
+- `--reanclar`: no usa el modelo ni la GPU (T-262, D-260-2). Reubica cada entrada de la lista en
+  la lectura vigente del pliego: una formal o económica por su ancla, una clave técnica por el
+  texto que ocupaba en la lectura anterior. Escribe un archivo NUEVO al lado de la lista
+  (`matriz-esperada.reanclada-AAAA-MM-DD.yaml`) con la huella de la lista original y de cada
+  lectura y el visto bueno vacío para el Coordinador; la lista original no se modifica y un
+  archivo que ya existe no se pisa. Informa cuántas entradas se reubicaron y cuáles no se
+  pudieron reubicar (esas conservan su clave: no se inventa), sin texto del pliego.
 
 Mide el proceso único (REQ-030 enmendado: ya no hay niveles ni comparación entre ellos):
 corre la propuesta con el canal `eval`; la versión que crea queda descartada.
@@ -40,6 +47,7 @@ Se corre de a una, sin otra carga en la GPU.
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
+from django.utils import timezone
 
 from evaluon.accounts import permissions
 from evaluon.accounts.permissions import RoleRejected
@@ -75,6 +83,10 @@ class Command(BaseCommand):
                             dest="verificar_esperada",
                             help="Solo comprueba la lista contra la lectura; no usa el "
                                  "modelo.")
+        parser.add_argument("--reanclar", action="store_true",
+                            help="No usa el modelo: reubica las entradas de la lista en la "
+                                 "lectura vigente y escribe la lista re-anclada en un archivo "
+                                 "nuevo, al lado de la original.")
 
     def handle(self, *args, **options):
         user = permissions.authenticate_command(options["usuario"])
@@ -88,6 +100,9 @@ class Command(BaseCommand):
         except Procedure.DoesNotExist:
             raise CommandError("No hay un procedimiento con ese número.") from None
         verify_only = options["verificar_esperada"]
+        if options["reanclar"]:
+            self._reanchor(options, procedure)
+            return
         try:
             expected = evaluation.load_expected(options["esperada"],
                                                 require_approval=not verify_only)
@@ -153,6 +168,23 @@ class Command(BaseCommand):
         blocking = report.blocking
         lines.append("Bloquea la aceptación: " + ("; ".join(blocking) if blocking
                                                   else "nada"))
+        self.stdout.write("\n".join(lines))
+
+    def _reanchor(self, options, procedure):
+        """`--reanclar`: la lista re-anclada a la lectura vigente, en un archivo nuevo."""
+        try:
+            expected = evaluation.load_expected(options["esperada"], require_approval=False)
+            result = evaluation.reanchor_expected(expected, procedure)
+            path = evaluation.write_reanchored(result, timezone.localdate())
+            reanchored = evaluation.load_expected(path, require_approval=False)
+        except evaluation.ExpectedError as error:
+            raise CommandError(str(error)) from None
+        verification = evaluation.verify_expected(reanchored, procedure)
+        lines = [f"Lista re-anclada escrita en {path}", *evaluation.reanchoring_lines(result),
+                 "Comprobación de la lista re-anclada contra la lectura vigente (sin visto bueno "
+                 "todavía):", *evaluation.verification_lines(verification),
+                 "Visto bueno: vacío. La lista re-anclada se usa cuando el Coordinador lo "
+                 "complete."]
         self.stdout.write("\n".join(lines))
 
     def _recompute(self, options):
