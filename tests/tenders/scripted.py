@@ -111,6 +111,10 @@ class Script:
         self.calls = []
         self.consequence_calls = []
         self.completeness_default_calls = []
+        # Pedidos de la unión de filas del mismo asunto (T-258) y la respuesta para todos sus pares
+        # ("dos" por omisión: nada se une).
+        self.join_calls = []
+        self.join_answer = "dos"
         self.fallback = DEFAULT_DISCARD
         self._override = None
         self._failing = False
@@ -160,7 +164,18 @@ class Script:
                     {alias: {"faltantes": []}
                      for alias in schema["properties"]}))
             return self.fake.generate(messages, schema, **options)
-        blocks = parse_blocks(messages[-1]["content"])
+        if "filas" in first and "razonamiento" in first:
+            # Pedido de la unión de filas (T-258): no entra en `calls`; el guion responde
+            # `join_answer` para cada par.
+            self.join_calls.append(messages)
+            if not self._failing:
+                self.fake.respond(json.dumps(
+                    {alias: {"razonamiento": "guion", "filas": self.join_answer}
+                     for alias in schema["properties"]}))
+            return self.fake.generate(messages, schema, **options)
+        # Los tramos vienen en el primer mensaje del usuario; un reintento con memoria (T-258) suma
+        # después la respuesta anterior y la corrección.
+        blocks = parse_blocks(next(x["content"] for x in messages if x["role"] == "user"))
         number = len(self.calls)
         self.calls.append(blocks)
         if self._failing:

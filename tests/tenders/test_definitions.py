@@ -19,8 +19,8 @@ BLOCK = (PROMPTS / "matriz-definiciones-v4.md").read_text(encoding="utf-8")
 
 def test_the_common_block_is_a_published_version_of_the_settings(settings):
     """REQ-102: el bloque común tiene su versión en `MATRIX_PROMPT_VERSIONS` y su archivo."""
-    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v4"
-    assert (PROMPTS / "matriz-definiciones-v4.md").is_file()
+    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v7"
+    assert (PROMPTS / "matriz-definiciones-v7.md").is_file()
 
 
 @pytest.mark.parametrize("literal", [
@@ -139,7 +139,11 @@ HASHES = Path(__file__).parent / "fixtures" / "case_anchor_hashes.txt"
 NEW_INSTRUCTIONS = ["matriz-definiciones-v2", "matriz-definiciones-v3", "matriz-definiciones-v4",
                     "matriz-extraccion-v5", "matriz-extraccion-v6", "matriz-extraccion-v7",
                     "matriz-filtro-v5", "matriz-filtro-v6", "matriz-filtro-v7", "matriz-completitud-v5",
-                    "matriz-filtro-v4", "matriz-circulares-v6", "matriz-circulares-v7"]
+                    "matriz-filtro-v4", "matriz-circulares-v6", "matriz-circulares-v7",
+                    # T-258
+                    "matriz-definiciones-v5", "matriz-extraccion-v8", "matriz-completitud-v6",
+                    "matriz-union-v1", "matriz-definiciones-v6", "matriz-extraccion-v9",
+                    "matriz-definiciones-v7", "matriz-extraccion-v10"]
 
 
 def _shingles(text, size=5):
@@ -218,6 +222,8 @@ def test_an_option_the_offeror_may_not_use_is_kept_as_a_condition_of_that_option
 
 
 def test_the_previous_block_is_still_published_but_not_active(settings):
-    """REQ-106: la v1 del bloque queda como estaba (congelada) y la activa es la v4."""
+    """REQ-106: la v1, la v4, la v5 y la v6 del bloque quedan como estaban (congeladas) y la activa
+    es la v7 (T-258)."""
     assert (PROMPTS / "matriz-definiciones-v1.md").is_file()
-    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v4"
+    assert (PROMPTS / "matriz-definiciones-v4.md").is_file()
+    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v7"

@@ -301,9 +301,11 @@ MATRIX_CIRCULAR_CANDIDATES = 8
 # `definiciones` es el bloque común de las definiciones del responsable (T-236, ADR-0054): el
 # código lo incluye en las instrucciones que llevan su marca y registra su versión y su huella.
 MATRIX_PROMPT_VERSIONS = {
-    "definiciones": "matriz-definiciones-v4",
-    "extraccion": "matriz-extraccion-v7",
-    "completitud": "matriz-completitud-v5",
+    "definiciones": "matriz-definiciones-v7",
+    "extraccion": "matriz-extraccion-v10",
+    "completitud": "matriz-completitud-v6",
+    # T-258: unión de las filas del mismo asunto (pares de filas seguidas y notas de tabla).
+    "union": "matriz-union-v1",
     "consecuencias": "matriz-consecuencias-v2",
     "circulares": "matriz-circulares-v7",
     "circulares_cambios": "matriz-circulares-v6",

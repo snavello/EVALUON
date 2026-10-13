@@ -398,8 +398,8 @@ def test_the_single_process_has_no_second_extraction(operator_user, script):
     assert list(dict.fromkeys(step_passes(run))) == ["extraccion", "completitud",
                                                       "unificacion", "filtro", "filtro_2", "consecuencias"]
     assert run.parameters["passes"] == [
-        "reglas", "extraccion", "completitud", "unificacion", "filtro", "filas_tecnicas",
-        "consecuencias"]
+        "reglas", "extraccion", "completitud", "union_oraciones", "unificacion", "filtro",
+        "filas_tecnicas", "consecuencias"]
     assert "extraccion_2" not in run.counts["model_requests_by_pass"]
     assert not hasattr(completeness, "second_extraction")
     assert not hasattr(completeness, "union")
@@ -413,9 +413,9 @@ def test_the_process_records_its_process_and_the_instructions_it_used(operator_u
     run = run_level(operator_user)
 
     assert run.process == "completo" and run.version.process == "completo"
-    assert set(run.prompt_versions) == {"extraccion", "completitud", "filtro", "consecuencias",
-                                        "definiciones", "huellas"}
-    assert set(run.prompt_versions["huellas"]) == {"extraccion", "completitud", "filtro",
+    assert set(run.prompt_versions) == {"extraccion", "completitud", "union", "filtro",
+                                        "consecuencias", "definiciones", "huellas"}
+    assert set(run.prompt_versions["huellas"]) == {"extraccion", "completitud", "union", "filtro",
                                                    "consecuencias", "definiciones"}
 
 
@@ -527,7 +527,7 @@ def test_prompts_v4_are_active_and_teach_sentences_effects_and_the_definitions(n
     from django.conf import settings
 
     assert settings.MATRIX_PROMPT_VERSIONS[name] == {
-        "extraccion": "matriz-extraccion-v7", "completitud": "matriz-completitud-v5"}[name]
+        "extraccion": "matriz-extraccion-v10", "completitud": "matriz-completitud-v6"}[name]
     text = extraction.load_prompt(name)
     assert extraction.DEFINITIONS_MARK not in text
     for phrase in ("QUÉ ES UN REQUISITO DE LA OFERTA", "Una fila es una unidad de sentido",
@@ -644,7 +644,7 @@ def test_every_request_of_the_completeness_records_its_instruction(operator_user
     found = list(m.RunStep.objects.filter(run=run, pass_name="completitud"))
     assert found
     expected = extraction.load_instruction("completitud").record
-    assert expected["version"] == "matriz-completitud-v5"
+    assert expected["version"] == "matriz-completitud-v6"
     for step in found:
         assert step.parsed["instruccion"] == expected
-        assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v4"
+        assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v7"

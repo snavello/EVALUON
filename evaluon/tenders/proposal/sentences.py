@@ -299,17 +299,58 @@ def may_need_sibling_intro(segment):
     return bool(_INCISO_PARAGRAPH.match(segment.text) and _PARAGRAPH_KEY.match(segment.key))
 
 
+# T-258 (H5 del comité): un párrafo de ítems de una lista, como los de un anexo cuyo primer párrafo
+# dice quién entrega qué y termina en «:» y los siguientes son las viñetas. Abre, en sus primeros
+# caracteres, con una viñeta (un carácter de área privada que deja la extracción del PDF, o un
+# punto, un cuadradito o un círculo de viñeta), o con el número de un ítem («1.», «2)»).
+_LIST_BULLET = re.compile("[\uf000-\uf8ff\u2022\u25aa\u25e6]")
+_NUMBERED_ITEM = re.compile(r"\s*\d{1,2}[.)]\s+\S")
+# Hasta dónde se busca la viñeta: puede venir después de un rótulo corto («Documentación del
+# personal: …», y después la viñeta).
+LIST_BULLET_WITHIN = 80
+
+
+def is_list_paragraph(text):
+    """Si el párrafo es de ítems de una lista: una viñeta en sus primeros `LIST_BULLET_WITHIN`
+    caracteres, o el número de un ítem al principio."""
+    return bool(_LIST_BULLET.search(text[:LIST_BULLET_WITHIN]) or _NUMBERED_ITEM.match(text))
+
+
+def _list_intro(segment, lookup):
+    """El párrafo que introduce la lista de ítems a la que pertenece `segment` (T-258, H5): hacia
+    atrás entre sus hermanos (`…/p-N`), saltando los otros párrafos de ítems, el primero que no es
+    de ítems, si termina en «:». Así los ítems de un anexo viajan con el párrafo que dice quién los
+    entrega y cuándo. `None` si el tramo no es de ítems o si el párrafo que abre la serie no
+    termina en «:»."""
+    if not is_list_paragraph(segment.text):
+        return None
+    mark = _PARAGRAPH_KEY.match(segment.key)
+    if not mark:
+        return None
+    prefix, number = mark.group(1), int(mark.group(2))
+    for previous in range(number - 1, max(number - INTRO_LOOKBACK, 0), -1):
+        sibling = lookup(f"{prefix}{previous}")
+        if sibling is None:
+            return None
+        if is_list_paragraph(sibling.text):
+            continue
+        return sibling if sibling.text.rstrip().endswith(":") else None
+    return None
+
+
 def heading_of(segment, lookup):
     """El encabezado del punto de `segment` (el texto de su tramo padre, sin el número de
     la cláusula y en una línea) si la oración sola no se entiende, o "". `lookup(clave)`
     devuelve el tramo de esa clave en la misma lectura o `None`; solo se llama si el tramo
     podría necesitar el encabezado (`may_need_heading`). Un inciso («b) …») cuyo padre no lo
-    introduce toma el párrafo hermano que abre la lista (T-240). No se cita: es contexto."""
+    introduce toma el párrafo hermano que abre la lista (T-240); un párrafo de ítems de una lista
+    de un anexo, el párrafo que la introduce si termina en «:» (T-258, `_list_intro`). No se cita:
+    es contexto."""
     if may_need_heading(segment):
         parent = lookup(parent_key(segment.key))
         if parent is not None and parent.text.strip() and needs_heading(segment, parent.text):
             return _shortened(parent.text[label_end(parent.text):])
-    intro = _sibling_intro(segment, lookup)
+    intro = _sibling_intro(segment, lookup) or _list_intro(segment, lookup)
     if intro is None:
         return ""
     return _shortened(intro.text[label_end(intro.text):])
