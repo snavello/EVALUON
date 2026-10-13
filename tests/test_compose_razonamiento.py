@@ -207,3 +207,35 @@ def test_the_consulta_in_the_27b_is_documented():
     # del texto de T-247, que sigue con `generation` aparte, el documento cita lo que lo distingue
     fragment = "el equipo usa el modelo grande para las evaluaciones y deja apagado el motor de la consulta"
     assert fragment in section and fragment in services.UNAVAILABLE_NOTICE
+
+
+def test_the_smoke_test_of_the_consulta_in_the_27b_is_documented_with_its_numbers():
+    """REQ-107 (T-255): `entorno.md` deja la prueba de humo de la Consulta contra el motor real
+    (2026-10-13), ya hecha: los casos con su tiempo, el registro (P6), que no hubo razonamiento,
+    `/health` respondiendo mientras genera, los avisos contra el motor real y la comparación con el
+    12B. El texto de espera que propone es el que dicen la pantalla de la Consulta y la pestaña."""
+    if not ENTORNO.is_file():
+        pytest.skip("specs/ no está montada en este entorno: montarla para comprobar el documento")
+    text = ENTORNO.read_text(encoding="utf-8")
+    title = "### Prueba de humo contra el motor real"
+    assert title in text
+    smoke = text[text.index(title):].split("\n## ", 1)[0]  # hasta la sección siguiente
+
+    assert "Pendiente" not in smoke
+    for needed in (
+            "2026-10-13", "EV-002", "EV-013", "EV-014", "EV-033", "34,0 s",  # los casos y el total
+            "`parameters.generation`", "`generation_batch`", "qwen3.8-27b-ud-q4_k_m",  # P6
+            "enable_thinking", "`reasoning_content`",  # sin razonamiento
+            "`/health`", "31 de 31",  # la salud mientras genera
+            "20.997 MiB",  # la memoria de video no cambia
+            "Comparación con el 12B", "corridas guardadas del 2026-10-03",
+            "no se apagó el motor de 8000"):  # lo que no se probó contra el motor real
+        assert needed in smoke, needed
+    from evaluon.queries import services
+    assert services.BUSY_NOTICE in smoke
+    # el texto de espera que dice el documento es el de las dos plantillas
+    wait = "Puede tardar hasta un minuto"
+    assert wait in smoke
+    for template in ("queries/consulta.html", "journey/temas/s5_consulta.html"):
+        html = (REPO / "evaluon" / "templates" / template).read_text(encoding="utf-8")
+        assert wait in html and "medio minuto" not in html, template
