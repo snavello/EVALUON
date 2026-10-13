@@ -217,12 +217,12 @@ def _prompt(name):
 
 def test_the_active_matrix_instructions_are_the_t258_versions():
     """REQ-106, T-254 y T-258: cada ronda publica versiones nuevas (las anteriores quedan congeladas)
-    y las registra como vigentes; las de T-258 son el bloque v5, la extracción v8 y la completitud v6,
+    y las registra como vigentes; las de T-258 son el bloque v6, la extracción v9 y la completitud v6,
     y el filtro sigue en la v7. Siguen diciendo lo que T-240 pidió (los tests de abajo leen las
     versiones que T-240 y T-254 publicaron)."""
     versions = _settings.MATRIX_PROMPT_VERSIONS
-    assert versions["definiciones"] == "matriz-definiciones-v5"
-    assert versions["extraccion"] == "matriz-extraccion-v8"
+    assert versions["definiciones"] == "matriz-definiciones-v6"
+    assert versions["extraccion"] == "matriz-extraccion-v9"
     assert versions["filtro"] == "matriz-filtro-v7"
 
 

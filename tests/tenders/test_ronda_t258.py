@@ -55,24 +55,26 @@ def _examples(text, start):
 
 
 def test_the_active_versions_are_the_t258_ones_and_the_older_ones_stay_published():
-    """REQ-106, P6: T-258 publica el bloque v5, la extracción v8, la completitud v6 y la unión v1, y
-    las registra como vigentes; las anteriores siguen publicadas (congeladas)."""
+    """REQ-106, P6: T-258 publica el bloque v5 y v6, la extracción v8 y v9, la completitud v6 y la
+    unión v1, y registra como vigentes el bloque v6 y la extracción v9 (la fila del plazo sin el
+    aviso de no renovar); las anteriores siguen publicadas (congeladas)."""
     versions = settings.MATRIX_PROMPT_VERSIONS
-    assert versions["definiciones"] == "matriz-definiciones-v5"
-    assert versions["extraccion"] == "matriz-extraccion-v8"
+    assert versions["definiciones"] == "matriz-definiciones-v6"
+    assert versions["extraccion"] == "matriz-extraccion-v9"
     assert versions["completitud"] == "matriz-completitud-v6"
     assert versions["union"] == "matriz-union-v1"
-    for old in ("matriz-definiciones-v4", "matriz-extraccion-v7", "matriz-completitud-v5"):
+    for old in ("matriz-definiciones-v4", "matriz-extraccion-v7", "matriz-completitud-v5",
+                "matriz-definiciones-v5", "matriz-extraccion-v8"):
         assert (PROMPTS / f"{old}.md").is_file()
 
 
 @pytest.mark.parametrize("name", ["extraccion", "completitud", "union", "filtro", "circulares"])
-def test_every_instruction_with_the_block_records_the_v5_block(name):
-    """REQ-106, P6: la versión y la huella del bloque v5 quedan en el registro de cada instrucción
-    que lo usa, también la de la unión."""
+def test_every_instruction_with_the_block_records_the_v6_block(name):
+    """REQ-106, P6: la versión y la huella del bloque vigente (v6) quedan en el registro de cada
+    instrucción que lo usa, también la de la unión."""
     record = extraction.load_instruction(name).record
-    assert record["definiciones"]["version"] == "matriz-definiciones-v5"
-    assert record["definiciones"]["sha256"] == extraction.text_sha256(_read("matriz-definiciones-v5"))
+    assert record["definiciones"]["version"] == "matriz-definiciones-v6"
+    assert record["definiciones"]["sha256"] == extraction.text_sha256(_read("matriz-definiciones-v6"))
 
 
 # --- Bloque común v5: decisiones del 2026-10-12 ------------------------------------------------------
@@ -140,6 +142,42 @@ def test_the_v5_block_keeps_every_decision_of_the_v4_block():
         assert literal in block, literal
     for forbidden in ("dividí", "fragmento más corto", "ante la duda", "mantené"):
         assert forbidden not in block.lower()
+
+
+def test_the_v6_block_leaves_the_notice_of_not_renewing_out_of_the_row_of_the_term():
+    """REQ-101, REQ-102 (Coordinador, 2026-10-12, tras T-229 y T-239): la fila del plazo lleva el
+    plazo, su cómputo y la prórroga automática, y no las oraciones del aviso de no renovar, que son
+    un trámite posterior y optativo del oferente (no son fila ni condición de una opción). El resto
+    del bloque v5 sigue igual."""
+    block = _read("matriz-definiciones-v6")
+    assert "El mantenimiento de la oferta y su prórroga automática van en la misma fila del plazo" in block
+    assert "Las oraciones que dicen cómo el oferente puede no renovarla" in block
+    assert "no van en esa fila ni en otra: son un trámite posterior y optativo del oferente" in block
+    assert "no son la condición de una opción de la oferta" in block
+    previous = _read("matriz-definiciones-v5")
+    assert block.replace(block[block.index(" Las oraciones que dicen cómo"):block.index(
+        "de una opción de la oferta.") + len("de una opción de la oferta.")], "") == previous
+
+
+def test_the_v9_extraction_copies_the_term_without_the_notice_of_not_renewing():
+    """REQ-101 (Coordinador, 2026-10-12): el ejemplo del plazo trae después el aviso de no renovar y
+    su firma, y la cita se queda con el plazo, el cómputo y la renovación; un tramo que solo trae la
+    fecha del aviso se descarta como dato del procedimiento. Los ejemplos siguen balanceados."""
+    text = _read("matriz-extraccion-v9")
+    assert "no se copian en esa cita ni en otra: son un trámite posterior y optativo del oferente" in text
+    lines = text.splitlines()
+    at = next(n for n, line in enumerate(lines) if line.startswith("Tramo") and "renovada de pleno derecho" in line)
+    assert "no quiera seguir con su propuesta" in lines[at] and "firma del representante" in lines[at]
+    answer = json.loads(lines[at + 1])
+    assert len(answer["requisitos"]) == 1
+    quote = answer["requisitos"][0]["cita"]
+    assert quote.endswith("y así sucesivamente.") and "no quiera seguir" not in quote
+    notice = next(n for n, line in enumerate(lines) if line.startswith("Tramo") and "vale la fecha en que ingresa" in line)
+    assert '"dato_procedimiento"' in lines[notice + 1]
+    examples = _examples(text, '{"requisitos"')
+    with_requirements = sum(1 for e in examples if e["requisitos"] or e["tecnico"])
+    discarded = sum(1 for e in examples if e["descarte"])
+    assert with_requirements == discarded == 16
 
 
 # --- Extracción v8 -----------------------------------------------------------------------------------
@@ -236,7 +274,8 @@ def test_the_v6_completeness_recovers_the_extension_of_a_term_already_found():
 # --- Generalidad: ninguna ancla de los casos ---------------------------------------------------------
 
 NEW = {"matriz-definiciones-v5": "matriz-definiciones-v4", "matriz-extraccion-v8": "matriz-extraccion-v7",
-       "matriz-completitud-v6": "matriz-completitud-v5", "matriz-union-v1": None}
+       "matriz-completitud-v6": "matriz-completitud-v5", "matriz-union-v1": None,
+       "matriz-definiciones-v6": "matriz-definiciones-v5", "matriz-extraccion-v9": "matriz-extraccion-v8"}
 
 
 def _shingles(text, size=5):
@@ -273,13 +312,15 @@ def test_what_the_t258_instructions_add_repeats_no_five_words_of_the_case_files(
     assert not hits, [hashlib.sha256(h.encode()).hexdigest()[:12] for h in hits]
 
 
-@pytest.mark.parametrize("name", ["matriz-extraccion-v8", "matriz-completitud-v6", "matriz-union-v1"])
+@pytest.mark.parametrize("name", ["matriz-extraccion-v8", "matriz-completitud-v6", "matriz-union-v1",
+                                  "matriz-extraccion-v9"])
 @pytest.mark.parametrize("paraphrase", [
     "pesos argentinos", "incluirán el iva", "pagaré", "euros", "conocimiento y la aceptación",
     "documentación solicitada determinará", "durante 60 días", "sesenta", "presentación de la factura",
     "administrador", "habilidad para contratar", "certificado de visita", "oferta alternativa",
     "descuento", "prorrogada automáticamente", "lapso igual al inicial", "mesa de entrada",
-    "requiere presentar", "detalle de renglones",
+    "requiere presentar", "detalle de renglones", "no renovar", "manifestar su voluntad", "antelación",
+    "tal manifestación",
 ])
 def test_the_t258_examples_do_not_paraphrase_the_clauses_of_the_measurement_cases(name, paraphrase):
     """REQ-106 (D-236-1, P7): los ejemplos nuevos son de otro rubro y de otra redacción: no repiten la

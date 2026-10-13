@@ -19,8 +19,8 @@ BLOCK = (PROMPTS / "matriz-definiciones-v4.md").read_text(encoding="utf-8")
 
 def test_the_common_block_is_a_published_version_of_the_settings(settings):
     """REQ-102: el bloque común tiene su versión en `MATRIX_PROMPT_VERSIONS` y su archivo."""
-    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v5"
-    assert (PROMPTS / "matriz-definiciones-v5.md").is_file()
+    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v6"
+    assert (PROMPTS / "matriz-definiciones-v6.md").is_file()
 
 
 @pytest.mark.parametrize("literal", [
@@ -142,7 +142,7 @@ NEW_INSTRUCTIONS = ["matriz-definiciones-v2", "matriz-definiciones-v3", "matriz-
                     "matriz-filtro-v4", "matriz-circulares-v6", "matriz-circulares-v7",
                     # T-258
                     "matriz-definiciones-v5", "matriz-extraccion-v8", "matriz-completitud-v6",
-                    "matriz-union-v1"]
+                    "matriz-union-v1", "matriz-definiciones-v6", "matriz-extraccion-v9"]
 
 
 def _shingles(text, size=5):
@@ -221,8 +221,8 @@ def test_an_option_the_offeror_may_not_use_is_kept_as_a_condition_of_that_option
 
 
 def test_the_previous_block_is_still_published_but_not_active(settings):
-    """REQ-106: la v1 y la v4 del bloque quedan como estaban (congeladas) y la activa es la v5
-    (T-258)."""
+    """REQ-106: la v1, la v4 y la v5 del bloque quedan como estaban (congeladas) y la activa es la
+    v6 (T-258)."""
     assert (PROMPTS / "matriz-definiciones-v1.md").is_file()
     assert (PROMPTS / "matriz-definiciones-v4.md").is_file()
-    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v5"
+    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v6"
