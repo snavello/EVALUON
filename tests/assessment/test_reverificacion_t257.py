@@ -431,3 +431,53 @@ def test_s6_a_later_stage_said_in_passive_is_not_a_physical_presentation(offer):
     text = "Los bienes deberán ser entregados en la Mesa de Entradas por el adjudicatario."
     name, result = apply(offer, pair_with(text, combine.Combined(outcome="sin_documento")))
     assert name != "presentacion_fisica_no_consta" and result.outcome != "no_cumple"
+
+
+# --- Cuarta pasada (92b1c7a): P5b, P5c y P5f, y sus controles --------------------------------------
+
+
+@pytest.mark.decision_literal
+@pytest.mark.parametrize("text, records", [
+    # P5b: «seguro» suelto no es el seguro de caución
+    ("El precio total incluirá el seguro.", [condition("El precio total incluye el seguro",
+                                                       "no_consta")]),
+    # P5c: el mantenimiento del bien no es la garantía de mantenimiento de la oferta
+    ("El precio total de la oferta incluirá el mantenimiento.",
+     [condition("El precio total incluye el mantenimiento", "no_consta")]),
+])
+def test_p5b_p5c_insurance_and_maintenance_alone_are_not_portal_data(
+        offer, procedure, portal, text, records):
+    """REQ-103 (P5b, P5c): «seguro» solo vale como «seguro de caución» y «mantenimiento» solo como
+    «mantenimiento de la oferta»: sueltos, el Portal no los muestra y no hay «cumple»."""
+    quoted(procedure, offer, portal)
+    name, result = apply(offer, pair_with(text, undetermined(), records))
+    assert result.outcome != "cumple" and name != "portal_cumple"
+
+
+@pytest.mark.decision_literal
+def test_p5f_the_currency_of_the_guarantee_is_not_a_portal_datum(offer, portal):
+    """REQ-103 (P5f): la moneda es un dato del total y de la cotización, no de la garantía: con el
+    monto en dólares pedido para la garantía, el Portal no resuelve aunque el 5 % coincida."""
+    portal_data(portal, offer, amount="21750.00", total="435000.00")
+    text = ("La garantía de mantenimiento de oferta será del cinco por ciento del total cotizado y su "
+            "monto se expresará en dólares estadounidenses.")
+    records = [condition("La garantía es del cinco por ciento del total cotizado", "no_determinado"),
+               condition("El monto se expresa en dólares estadounidenses", "no_determinado")]
+    name, result = apply(offer, pair_with(text, undetermined(), records))
+    assert result.outcome != "cumple" and name != "portal_cumple"
+
+
+@pytest.mark.parametrize("text, kind", [
+    ("Constituir una garantía de mantenimiento de la oferta del cinco por ciento (5 %) del monto "
+     "cotizado.", "garantia"),
+    ("Indicar el precio total de la oferta en pesos argentinos.", "total"),
+    ("Cotizar el valor unitario de cada renglón.", "cotizacion"),
+])
+def test_p5_controls_the_portal_still_resolves_its_list(offer, procedure, portal, text, kind):
+    """REQ-103 (controles de la cuarta pasada): la garantía del 5 % (el Portal la informa en pesos),
+    el total cotizado y los precios por renglón siguen «cumple» con la cita del Portal."""
+    quoted(procedure, offer, portal)
+    records = [condition(text.rstrip("."), "no_consta")]
+    name, result = apply(offer, pair_with(text, undetermined(), records))
+    assert name == "portal_cumple" and result.outcome == "cumple", (name, result.explanation)
+    assert result.portal and result.facts["portal"]["tipo"] == kind

@@ -493,10 +493,17 @@ _PORTAL_VOCABULARY = set(
     "total totales monto montos importe importes precio precios unitario unitarios unitaria "
     "unitarias valor valores renglon renglones cantidad cantidades totalidad pedida pedidas pedido "
     "pedidos solicitada solicitadas solicitado solicitados requerida requeridas requerido requeridos "
-    "indicada indicadas indicado indicados moneda pesos peso argentinos argentina nacional dolares "
-    "dolar estadounidenses usd ars iva impuesto impuestos garantia garantias mantenimiento poliza "
-    "seguro caucion pagare fianza aval bancario forma formas tipo porcentaje ciento cuit clave "
+    "indicada indicadas indicado indicados iva impuesto impuestos garantia garantias poliza "
+    "caucion pagare fianza aval bancario forma formas tipo porcentaje ciento cuit clave "
     "identificacion tributaria".split())
+# Cuarta pasada (P5f): la moneda es un dato del total y de la cotización, no de la garantía.
+_CURRENCY_WORDS = set(
+    "moneda pesos peso argentinos argentina nacional dolares dolar estadounidenses usd ars".split())
+# Cuarta pasada (P5b, P5c): «seguro» solo como «seguro de caución» y «mantenimiento» solo como
+# «(garantía de) mantenimiento de (la) oferta»; sueltos son otra cosa (el seguro del bien, su
+# mantenimiento) y el Portal no los muestra.
+_PHRASES = ((re.compile(r"\bseguros? de caucion\b"), "caucion"),
+            (re.compile(r"\bmantenimiento de (?:la |las |su |sus )?ofertas?\b"), "oferta"))
 _NUMBER_WORDS_ALL = set(
     "uno un una dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce quince "
     "dieciseis diecisiete dieciocho diecinueve veinte veinticinco treinta cuarenta cincuenta sesenta "
@@ -538,13 +545,18 @@ def requirement_core(text):
     return _LEGAL_REFERENCE.sub("", folded)
 
 
-def asks_only_portal_data(text):
+def asks_only_portal_data(text, kind=None):
     """Si el texto pide solo datos de la lista cerrada del Portal (todas sus palabras son del
-    vocabulario cerrado), sin ninguna otra exigencia."""
-    words = _WORD.findall(fold(text))
+    vocabulario cerrado), sin ninguna otra exigencia. La moneda vale solo para el total y la
+    cotización (`kind`); «seguro» y «mantenimiento», solo dentro de sus frases cerradas."""
+    folded = fold(text)
+    for pattern, token in _PHRASES:
+        folded = pattern.sub(token, folded)
+    currency = kind in (TOTAL, COTIZACION, None) and kind != GARANTIA
+    words = _WORD.findall(folded)
     return bool(words) and all(
         word in _LINKS or word in _PORTAL_VOCABULARY or word in _NUMBER_WORDS_ALL or word in _BE
-        or word in _LINK_FORMS
+        or word in _LINK_FORMS or (currency and word in _CURRENCY_WORDS)
         or word.startswith(_LINK_STEMS) or word == "%" or word[0].isdigit() for word in words)
 
 # T-175: la garantía individualizada en el Portal («Paso 4 Ingreso de Garantía»).
@@ -891,7 +903,7 @@ def cover(records, kind, comparison, combined, pair=None, ctx=None):
             if criteria.names_tax(text):
                 how = criteria.IVA if iva_ok and not _cited(item) and not (
                     item.get("dato") or "").strip() else None
-            elif (_COVERS[kind].search(text) and asks_only_portal_data(text)
+            elif (_COVERS[kind].search(text) and asks_only_portal_data(text, kind)
                   and not _OTHER_DATA.search(text)):
                 how = "portal"
         if how:
@@ -1048,7 +1060,7 @@ def rule(pair, ctx):
         # condiciones del modelo: si el requisito pide cualquier cosa fuera de la lista cerrada de lo
         # que el Portal trae, no hay «cumple», digan lo que digan las condiciones.
         asks_more = bool(_OTHER_DATA.search(fold(text))) or not asks_only_portal_data(
-            requirement_core(text))
+            requirement_core(text), kind)
         if asks_more and combined.outcome == combine.OUT_CUMPLE:
             return replace(combined, portal=cites, facts={**facts, "regla": RULE_BOTH})
         extra = {"condiciones": shown} if shown else {}
