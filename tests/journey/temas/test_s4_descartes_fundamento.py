@@ -20,6 +20,7 @@ from tests.assessment.test_result_fundamento import (  # noqa: F401 - `portal` e
     portal,
 )
 from tests.journey.temas.test_s4_fundamento_pantallas import (
+    LINK,
     MARK,
     NOTICE,
     evaluate_with,
@@ -48,7 +49,7 @@ def test_a_discard_ground_marks_the_quote_only_when_it_was_read_by_vision(
     mine = section(html, f"desc-{b.number}", "</tr>")
     original = original_of(b.documents.first(), 2)
     assert mine.count(NOTICE) == 1 and MARK in mine
-    assert f'<a href="{original}">Abrir el original</a>' in mine
+    assert f'<a href="{original}">{LINK}</a>' in mine
     theirs = section(html, f"desc-{c.number}", "</tr>")
     assert "La oferta dice:" in theirs and NOTICE not in theirs and MARK not in theirs
 

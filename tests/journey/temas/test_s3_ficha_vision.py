@@ -15,7 +15,10 @@ from tests.conftest import unit_vector
 
 pytestmark = pytest.mark.django_db
 
-NOTICE = "Compare con el original antes de confirmar"
+NOTICE = ("Proviene de una página con dificultades de lectura: el texto citado es la "
+          "transcripción que hizo el sistema mirando su imagen y puede tener errores. "
+          "Conviene que la Comisión lo vuelva a chequear.")
+LINK = "Ver la imagen de la página"
 MARK = "leída por visión"
 SEEN = "Declaro bajo juramento (transcripción de la visión)."
 
@@ -90,7 +93,7 @@ def test_the_sheet_marks_the_fragment_read_by_vision_in_the_table_and_the_detail
     assert MARK in row and f'<a href="{original}"' in row
     detail = row_of(html, one, "detalle-ficha")
     assert detail.count(NOTICE) == 1
-    assert f'<a href="{original}">Abrir el original</a>' in detail
+    assert f'<a href="{original}">{LINK}</a>' in detail
     plain_row = row_of(html, two, "fila")
     assert MARK not in plain_row
 

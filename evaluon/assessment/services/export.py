@@ -9,6 +9,11 @@
   marca así y sigue ordenándose (los mismos números que la pantalla: sale de `discards.units`,
   `discards.confirmed_discards` y `ordering.economic_order`, sin cambiarlos).
 - Todo es propuesta de evaluación del sistema: decide la Comisión (P3); los archivos lo rotulan.
+- Un resultado que se apoya en una cita de una página leída por visión (ADR-0041) lo dice: el
+  fundamento de la planilla suma que la página tiene dificultades de lectura y que conviene que la
+  Comisión la vuelva a chequear con la imagen del original; el cuadro marca esa celda y lo explica
+  en una nota al pie (decisión del responsable, 2026-10-13; T-264). Una consulta para todos los
+  resultados (`vision_citations.results_on_vision_pages`), no una por fila.
 - El Excel lo escribe XlsxWriter y el PDF WeasyPrint, los dos dentro del equipo y sin recursos de
   red (el PDF reutiliza el generador de la matriz, que rechaza todo recurso externo).
 - Cada exportación deja el hecho `eval_export` con qué se exportó y de qué evaluación (el pedido
@@ -29,7 +34,7 @@ from decimal import Decimal
 import xlsxwriter
 from django.utils import timezone
 
-from evaluon.assessment import not_applicable, ordering, situation
+from evaluon.assessment import not_applicable, ordering, situation, vision_citations
 from evaluon.assessment.models import Decision, Outcome
 from evaluon.assessment.services import discards as discards_service
 from evaluon.assessment.services import matrix as matrix_service
@@ -62,6 +67,10 @@ DISCARD_STATES = {
     discards_service.REJECTED: "Rechazado",
 }
 EXCERPT = 400
+# El resultado se apoya en una cita de una página leída por visión (decisión del 2026-10-13).
+VISION_NOTE = ("Se apoya en una página con dificultades de lectura, leída por visión: conviene "
+               "que la Comisión la vuelva a chequear con la imagen del original.")
+VISION_MARK = "(*)"
 
 
 class ExportRefused(ValueError):
@@ -183,6 +192,7 @@ class ExportData:
     columns: int
     warnings: list
     generated: str
+    grid_note: str = ""  # nota al pie del cuadro: qué significa la marca de visión, o vacía
 
 
 def _last_decisions(results):
@@ -196,8 +206,15 @@ def _last_decisions(results):
     return found
 
 
-def _cell_text(cell):
-    """Qué dice el cuadro de un par: el resultado vigente y si falta decidirlo."""
+def _rests_on_vision(cell, on_vision):
+    """El resultado vigente del par se apoya en una cita de una página leída por visión."""
+    return (cell.result is not None and cell.effective_outcome is not None
+            and cell.result.pk in on_vision)
+
+
+def _cell_text(cell, on_vision=frozenset()):
+    """Qué dice el cuadro de un par: el resultado vigente, si falta decidirlo y, si se apoya en
+    una página leída por visión, la marca (la nota al pie dice qué significa)."""
     if cell.result is None:
         return "Sin evaluar"
     if cell.effective_outcome is None:
@@ -207,6 +224,17 @@ def _cell_text(cell):
         text += " (propuesto)"
     elif cell.state == matrix_service.CORRECTED:
         text += " (corregido)"
+    if _rests_on_vision(cell, on_vision):
+        text += f" {VISION_MARK}"
+    return text
+
+
+def _basis(result, on_vision):
+    """El fundamento de la planilla: la explicación del sistema y, si el resultado se apoya en una
+    cita de una página leída por visión, el aviso de que conviene chequearla."""
+    text = _clean(result.explanation)
+    if result.pk in on_vision:
+        text = f"{text} {VISION_NOTE}".strip()
     return text
 
 
@@ -215,7 +243,10 @@ def collect(user, procedure_id, *, channel=Channel.SCREEN):
     `Procedure.DoesNotExist` si no existe."""
     page = matrix_service.matrix_page(user, procedure_id, channel=channel)
     found = discards_service.units(page)
-    decisions = _last_decisions([c.result for c in page.cells.values() if c.result is not None])
+    results = [c.result for c in page.cells.values() if c.result is not None]
+    decisions = _last_decisions(results)
+    # Los resultados que citan una página leída por visión, de una vez (T-264).
+    on_vision = vision_citations.results_on_vision_pages([r.pk for r in results])
     texts = {r.pk: _clean(sheets.requirement_text(r), EXCERPT) for r in page.requirements}
 
     by_offer = {}
@@ -236,7 +267,7 @@ def collect(user, procedure_id, *, channel=Channel.SCREEN):
                 text=texts[requirement.pk],
                 proposed=not_applicable.result_label(result) if result else "Sin evaluar",
                 effective=(cell.effective_label if result and cell.effective_outcome else "—"),
-                state=cell.state_label, basis=_clean(result.explanation) if result else "",
+                state=cell.state_label, basis=_basis(result, on_vision) if result else "",
                 decision=_decision_line(decisions.get(result.pk)) if result else ""))
         for unit in by_offer.get(status.offer.pk, []):
             grounds = " | ".join(
@@ -249,14 +280,17 @@ def collect(user, procedure_id, *, channel=Channel.SCREEN):
                 decision=_discard_decision(unit.decision)))
         offer_sheets.append(sheet)
 
-    grid = [(r, texts[r.pk], [_cell_text(page.cells[(o.pk, r.pk)]) for o in page.offers])
+    grid = [(r, texts[r.pk],
+             [_cell_text(page.cells[(o.pk, r.pk)], on_vision) for o in page.offers])
             for r in page.requirements]
+    marked = any(_rests_on_vision(cell, on_vision) for cell in page.cells.values())
     totals, line_rows, warnings = _economic(page, found, by_offer)
     return ExportData(
         procedure=page.procedure, version=page.version, offers=page.offers,
         requirements=page.requirements, sheets=offer_sheets, grid=grid, totals=totals,
         line_rows=line_rows, columns=len(page.offers), warnings=warnings,
-        generated=when(timezone.now()))
+        generated=when(timezone.now()),
+        grid_note=f"{VISION_MARK} {VISION_NOTE}" if marked else "")
 
 
 def _economic(page, found, by_offer):
@@ -431,6 +465,9 @@ def build_xlsx(data, document):
         table_row = row
         row = _table(sheet, fmt, table_row, headers, body)
         sheet.freeze_panes(table_row + 1, 3)
+        if data.grid_note:
+            sheet.write(row, 0, data.grid_note, fmt["notice"])
+            row += 1
         for warning in data.warnings:
             sheet.write(row, 0, warning, fmt["notice"])
             row += 1
@@ -524,6 +561,8 @@ def build_html(data, document):
         ["Req.", "Clase", "Qué exige el pliego"]
         + [f"Oferta {o.number} · {o.bidder}" for o in data.offers],
         [[r.number, r.get_category_display(), text] + cells for r, text, cells in data.grid])
+    if data.grid_note:
+        body += f'<p class="aviso">{_e(data.grid_note)}</p>'
     body += "".join(f'<p class="aviso">{_e(w)}</p>' for w in data.warnings)
     body += "<h2>Orden económico total</h2>" + _html_table(
         ["Orden", "Oferta", "Renglones", "Total", "Situación"],

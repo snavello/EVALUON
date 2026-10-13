@@ -53,7 +53,10 @@ from tests.journey.test_queries import (
 
 pytestmark = pytest.mark.django_db
 
-NOTICE = "Compare con el original antes de confirmar"
+NOTICE = ("Proviene de una página con dificultades de lectura: el texto citado es la "
+          "transcripción que hizo el sistema mirando su imagen y puede tener errores. "
+          "Conviene que la Comisión lo vuelva a chequear.")
+LINK = "Ver la imagen de la página"
 MARK = "leída por visión"
 
 
@@ -176,7 +179,7 @@ def test_the_pair_detail_marks_the_vision_citation_with_notice_original_and_imag
     document = offer.documents.get()
     html = detail(client, procedure, offer, requirement)
     assert MARK in html and NOTICE in html
-    assert f'<a href="{original_of(document, 2)}">Abrir el original</a>' in html
+    assert f'<a href="{original_of(document, 2)}">{LINK}</a>' in html
     image = image_of(offer, requirement, document, 2)
     assert f'src="{image}"' in html
     picture = client.get(image)
@@ -191,7 +194,7 @@ def test_the_cell_marks_the_citation_read_by_vision_without_the_image(
     document = offer.documents.get()
     html = cell(client, procedure, offer, requirement)
     assert MARK in html and NOTICE in html
-    assert f'<a href="{original_of(document, 2)}">Abrir el original</a>' in html
+    assert f'<a href="{original_of(document, 2)}">{LINK}</a>' in html
     assert image_of(offer, requirement, document, 2) not in html and "<img" not in html
 
 
@@ -208,7 +211,7 @@ def test_a_citation_that_was_not_read_by_vision_shows_no_mark(
                  cell(client, procedure, offer, requirement)):
         assert DECLARATION in html
         assert MARK not in html and NOTICE not in html
-        assert "Abrir el original" not in html
+        assert LINK not in html
         assert image_of(offer, requirement, document, 1) not in html
 
 
@@ -243,8 +246,8 @@ def test_only_the_citation_on_the_vision_page_is_marked_and_the_tab_agrees_with_
     assert [(c.page, c.by_vision) for c in mine] == [(c.page, c.by_vision) for c in served]
     for html in (detail(client, procedure, offer, requirement),
                  cell(client, procedure, offer, requirement)):
-        assert html.count(NOTICE) == 1 and html.count("Abrir el original") == 1
-        assert f'<a href="{original_of(document, 2)}">Abrir el original</a>' in html
+        assert html.count(NOTICE) == 1 and html.count(LINK) == 1
+        assert f'<a href="{original_of(document, 2)}">{LINK}</a>' in html
         # La marca y el aviso vienen después de la cita de la página 2, no de la de la página 1.
         assert html.index("Nota de presentación de la oferta.") < html.index(DECLARATION)
         assert html.index(DECLARATION) < html.index(MARK) < html.index(NOTICE)

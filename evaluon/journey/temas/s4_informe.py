@@ -14,9 +14,10 @@ Las ofertas con filas técnicas por renglón y sin informe figuran como faltante
 oks pendientes son pendientes de la sección (la cuenta es la de la etapa `matriz_evaluacion`).
 
 La frase del informe que sale de una página leída por visión lleva la marca «leída por visión», el
-aviso de comparar con el original y el enlace al original (P3, ADR-0041, T-264): el informe es un
+aviso de que la página tiene dificultades de lectura y conviene chequearla, y el enlace a la
+imagen de la página (P3, ADR-0041, T-264): el informe es un
 documento de la oferta y la visión lee también sus páginas dudosas. Una consulta por pantalla
-(`journey/basis.py`).
+(`offers/vision.py`, `pages_read_in`).
 """
 
 from dataclasses import dataclass, field
@@ -29,10 +30,11 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.assessment.models import TechnicalVerdict
 from evaluon.assessment.services import technical, technical_report
 from evaluon.audit.models import Channel
-from evaluon.journey import basis, memo
+from evaluon.journey import memo
 from evaluon.journey.sections.base import Item, Missing, TemaStatus
 from evaluon.journey.temas import s4_propuesta_acciones as acciones
 from evaluon.journey.temas.s4_propuesta import when
+from evaluon.offers import vision
 from evaluon.offers.models import Offer
 from evaluon.offers.services import offers as offers_service
 from evaluon.tenders.models import Procedure
@@ -218,7 +220,7 @@ def context(user, procedure, request):
                          if (b.offer.pk, item) in cells and cells[(b.offer.pk, item)].quote]}
              for item in items]
     # Las frases del informe cuya página se leyó por visión, con una consulta para todas.
-    seen = basis.vision_pages(c.reading for c in cells.values() if c.quote)
+    seen = vision.pages_read_in(c.reading for c in cells.values() if c.quote)
     for cell in cells.values():
         cell.by_vision = bool(cell.quote) and cell.page in seen.get(cell.reading, ())
     proposed = sum(1 for c in cells.values()

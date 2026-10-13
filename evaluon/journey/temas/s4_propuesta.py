@@ -13,9 +13,9 @@ Las cuentas de pendientes y sugerencias las suma la etapa `matriz_evaluacion` de
 las lista una por una, con su enlace a esta pestaña, y coinciden con las de la barra.
 
 El fundamento de cada celda se ve completo (P3, T-264): el dato del Portal con el enlace a su página y
-la fecha en que se tomó, y la cita de una página leída por visión con la marca, el aviso de comparar
-con el original y el enlace al original, como en la pantalla de la 004. Las citas de todas las celdas
-se traen juntas, sin una consulta por celda (T-223).
+la fecha en que se tomó, y la cita de una página leída por visión con la marca, el aviso de que
+conviene que la Comisión la vuelva a chequear y el enlace a la imagen, como en la pantalla de la 004.
+Las citas de todas las celdas se traen juntas, sin una consulta por celda (T-223).
 """
 
 from dataclasses import dataclass, field

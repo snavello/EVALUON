@@ -19,8 +19,9 @@ decide un evaluador.
 El mensaje viaja firmado en la dirección (`?aviso_ficha=`), sin guardar nada en la sesión.
 
 Un fragmento de una página que el sistema leyó por visión lleva la marca «leída por visión», el
-aviso de comparar con el original y el enlace al original (P3, ADR-0041, T-264): el fragmento es
-literal respecto de la transcripción del modelo, no del original. La lectura de cada fragmento ya
+aviso de que la página tiene dificultades de lectura y conviene que la Comisión lo vuelva a
+chequear, y el enlace a la imagen de la página (P3, ADR-0041, T-264): el fragmento es literal
+respecto de la transcripción del sistema, no del original. La lectura de cada fragmento ya
 viene cargada con la ficha: la marca no suma consultas.
 """
 

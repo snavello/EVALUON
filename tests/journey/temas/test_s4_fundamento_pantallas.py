@@ -32,7 +32,10 @@ from tests.journey.temas.test_s4_propuesta import log_in, page
 
 pytestmark = pytest.mark.django_db
 
-NOTICE = "Compare con el original antes de confirmar"
+NOTICE = ("Proviene de una página con dificultades de lectura: el texto citado es la "
+          "transcripción que hizo el sistema mirando su imagen y puede tener errores. "
+          "Conviene que la Comisión lo vuelva a chequear.")
+LINK = "Ver la imagen de la página"
 MARK = "leída por visión"
 
 
@@ -122,7 +125,7 @@ def test_a_question_marks_only_the_citation_read_by_vision(
     document = open_.offer.documents.first()
     original = original_of(document, 2)
     assert line.count(NOTICE) == 1 and line.count(MARK) == 1
-    assert f'<a href="{original}">Abrir el original</a>' in line
+    assert f'<a href="{original}">{LINK}</a>' in line
     other = section(html, f"preg-{done.pk}", '<tbody class="linea"')
     assert NOTICE not in other and MARK not in other
 
@@ -181,7 +184,7 @@ def test_the_report_quote_is_marked_only_when_its_page_was_read_by_vision(
     row = html[html.index("Oferente A - Renglón 1: apto."):]
     mine = row[:row.index("</td>")]
     assert mine.count(NOTICE) == 1 and MARK in mine
-    assert f'<a href="{original_of(seen, 2)}">Abrir el original</a>' in mine
+    assert f'<a href="{original_of(seen, 2)}">{LINK}</a>' in mine
     cell = html[html.index("Oferente B - Renglón 1: apto."):]
     theirs = cell[:cell.index("</td>")]
     assert NOTICE not in theirs and MARK not in theirs
