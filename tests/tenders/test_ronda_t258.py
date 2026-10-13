@@ -59,22 +59,67 @@ def test_the_active_versions_are_the_t258_ones_and_the_older_ones_stay_published
     unión v1, y registra como vigentes el bloque v6 y la extracción v9 (la fila del plazo sin el
     aviso de no renovar); las anteriores siguen publicadas (congeladas)."""
     versions = settings.MATRIX_PROMPT_VERSIONS
-    assert versions["definiciones"] == "matriz-definiciones-v6"
-    assert versions["extraccion"] == "matriz-extraccion-v9"
+    assert versions["definiciones"] == "matriz-definiciones-v7"
+    assert versions["extraccion"] == "matriz-extraccion-v10"
     assert versions["completitud"] == "matriz-completitud-v6"
     assert versions["union"] == "matriz-union-v1"
     for old in ("matriz-definiciones-v4", "matriz-extraccion-v7", "matriz-completitud-v5",
-                "matriz-definiciones-v5", "matriz-extraccion-v8"):
+                "matriz-definiciones-v5", "matriz-extraccion-v8", "matriz-definiciones-v6",
+                "matriz-extraccion-v9"):
         assert (PROMPTS / f"{old}.md").is_file()
 
 
 @pytest.mark.parametrize("name", ["extraccion", "completitud", "union", "filtro", "circulares"])
-def test_every_instruction_with_the_block_records_the_v6_block(name):
-    """REQ-106, P6: la versión y la huella del bloque vigente (v6) quedan en el registro de cada
+def test_every_instruction_with_the_block_records_the_active_block(name):
+    """REQ-106, P6: la versión y la huella del bloque vigente (v7) quedan en el registro de cada
     instrucción que lo usa, también la de la unión."""
     record = extraction.load_instruction(name).record
-    assert record["definiciones"]["version"] == "matriz-definiciones-v6"
-    assert record["definiciones"]["sha256"] == extraction.text_sha256(_read("matriz-definiciones-v6"))
+    assert record["definiciones"]["version"] == "matriz-definiciones-v7"
+    assert record["definiciones"]["sha256"] == extraction.text_sha256(_read("matriz-definiciones-v7"))
+
+
+def test_the_v7_block_keeps_two_obligations_on_the_same_object_in_two_rows():
+    """REQ-101 (Coordinador, verificación de T-258): la unidad de sentido une solo la misma
+    obligación dicha en varias oraciones; dos obligaciones distintas sobre el mismo objeto (lo que
+    cumple una forma de garantía y acompañar su copia) van en filas separadas. El resto del bloque v6
+    sigue igual."""
+    block = _read("matriz-definiciones-v7")
+    rule = ("- La unidad de sentido une solo la misma obligación dicha en varias oraciones. Dos "
+            "obligaciones distintas sobre el mismo objeto van en filas separadas, aunque estén seguidas")
+    assert rule in block
+    assert "acompañar su copia con la oferta, por otro" in block
+    line = next(x for x in block.splitlines() if x.startswith(rule))
+    assert block.replace("\n" + line, "") == _read("matriz-definiciones-v6")
+
+
+def test_the_v10_extraction_returns_a_guarantee_limit_and_its_copy_as_two_requirements():
+    """REQ-101 (Coordinador): la extracción v10 dice que dos obligaciones distintas sobre el mismo
+    objeto son dos requisitos, y su ejemplo (una forma de garantía con su límite y la copia que se
+    acompaña) devuelve dos filas; los ejemplos siguen balanceados."""
+    text = _read("matriz-extraccion-v10")
+    assert "dos obligaciones distintas sobre el mismo objeto, aunque estén seguidas, son dos requisitos" in text
+    lines = text.splitlines()
+    at = next(n for n, line in enumerate(lines) if line.startswith("Tramo") and "cheque de pago diferido" in line)
+    answer = json.loads(lines[at + 1])
+    assert [r["cita"].split(",")[0] for r in answer["requisitos"]] == [
+        "Si la garantía se constituye con un cheque de pago diferido",
+        "Será requisito adjuntar a la propuesta una copia del cheque."]
+    examples = _examples(text, '{"requisitos"')
+    with_requirements = sum(1 for e in examples if e["requisitos"] or e["tecnico"])
+    discarded = sum(1 for e in examples if e["descarte"])
+    assert abs(with_requirements - discarded) <= 1 and discarded >= 16
+
+
+def test_the_v10_extraction_motive_of_the_organism_matches_the_block():
+    """REQ-102 (O-258-2): el motivo `obligacion_organismo` de la extracción dice lo mismo que el
+    bloque: lo que hace el organismo y los derechos que se reserva para después de la oferta; ya no
+    trae la frase «que la oferta no puede contradecir ni condicionar», que el bloque sacó."""
+    text = _read("matriz-extraccion-v10")
+    line = next(x for x in text.splitlines() if x.startswith("- obligacion_organismo:"))
+    assert "un derecho que se reserva para después de la oferta (ampliar o reducir lo adjudicado" in line
+    assert "contradecir ni condicionar" not in line
+    assert "No es la verificación que el organismo hace sobre el oferente o su oferta" in line
+    assert "Los derechos que el organismo se reserva para después de la oferta" in _read("matriz-definiciones-v7")
 
 
 # --- Bloque común v5: decisiones del 2026-10-12 ------------------------------------------------------
@@ -275,7 +320,8 @@ def test_the_v6_completeness_recovers_the_extension_of_a_term_already_found():
 
 NEW = {"matriz-definiciones-v5": "matriz-definiciones-v4", "matriz-extraccion-v8": "matriz-extraccion-v7",
        "matriz-completitud-v6": "matriz-completitud-v5", "matriz-union-v1": None,
-       "matriz-definiciones-v6": "matriz-definiciones-v5", "matriz-extraccion-v9": "matriz-extraccion-v8"}
+       "matriz-definiciones-v6": "matriz-definiciones-v5", "matriz-extraccion-v9": "matriz-extraccion-v8",
+       "matriz-definiciones-v7": "matriz-definiciones-v6", "matriz-extraccion-v10": "matriz-extraccion-v9"}
 
 
 def _shingles(text, size=5):
@@ -313,7 +359,7 @@ def test_what_the_t258_instructions_add_repeats_no_five_words_of_the_case_files(
 
 
 @pytest.mark.parametrize("name", ["matriz-extraccion-v8", "matriz-completitud-v6", "matriz-union-v1",
-                                  "matriz-extraccion-v9"])
+                                  "matriz-extraccion-v9", "matriz-extraccion-v10"])
 @pytest.mark.parametrize("paraphrase", [
     "pesos argentinos", "incluirán el iva", "pagaré", "euros", "conocimiento y la aceptación",
     "documentación solicitada determinará", "durante 60 días", "sesenta", "presentación de la factura",
@@ -406,9 +452,9 @@ def test_a_row_of_a_table_is_paired_with_the_last_row_of_the_clause_it_hangs_fro
 
 
 class _Output:
-    def __init__(self, content):
+    def __init__(self, content, messages=()):
         self.content = content
-        self.request = {"messages": []}
+        self.request = {"messages": list(messages)}
         self.prompt_tokens = 10
         self.completion_tokens = 5
         self.finish_reason = "stop"
@@ -434,9 +480,9 @@ def _answering(monkeypatch, answer):
         if isinstance(answer, Exception):
             raise answer
         if callable(answer):
-            return _Output(answer(schema))
+            return _Output(answer(schema), messages)
         return _Output(json.dumps({alias: {"razonamiento": "prueba", "filas": answer}
-                                   for alias in schema["properties"]}))
+                                   for alias in schema["properties"]}), messages)
 
     monkeypatch.setattr(joining.generation, "generate_batch", fake)
     return calls
@@ -476,23 +522,95 @@ def test_two_rows_the_model_says_are_one_become_one_row_with_the_contiguous_quot
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("answer", [
-    joining.TWO,
-    lambda schema: "no es json",
-    lambda schema: json.dumps({"P9": {"razonamiento": "", "filas": "una"}}),
-    lambda schema: json.dumps({"P1": {"filas": "una"}}),
-    AIServiceError("se cortó", service="generation_batch"),
+@pytest.mark.parametrize("answer, anomaly", [
+    (joining.TWO, None),
+    (lambda schema: "no es json", joining.ANOMALY_INVALID),
+    (lambda schema: json.dumps({"P9": {"razonamiento": "", "filas": "una"}}), joining.ANOMALY_MISSING_ALIAS),
+    (lambda schema: json.dumps({"P1": {"filas": "una"}}), joining.ANOMALY_INVALID),
+    (AIServiceError("se cortó", service="generation_batch"), joining.ANOMALY_SERVICE),
 ])
-def test_rows_stay_as_they_were_unless_the_model_says_one(a_run, monkeypatch, answer):
-    """REQ-101: con «dos», una salida que no es JSON, un alias que falta, una respuesta sin la forma o
-    una falla del servicio, las dos filas quedan como estaban: nada se pierde."""
+def test_rows_stay_as_they_were_unless_the_model_says_one(a_run, monkeypatch, answer, anomaly):
+    """REQ-101, P6 (O-258-1): con «dos», una salida que no es JSON, un alias que falta, una respuesta
+    sin la forma o una falla del servicio, las dos filas quedan como estaban (nada se pierde), y el
+    pedido queda guardado con su instrucción y, si falló, con su anomalía."""
     text, unit, first, second, decisions = _case()
     span = first.span
+    before = m.RunStep.objects.filter(run=a_run, pass_name="unificacion").count()
     _answering(monkeypatch, answer)
 
-    joining.Joiner(a_run).join([unit], decisions)
+    result = joining.Joiner(a_run).join([unit], decisions)
 
     assert decisions[1].found == [first, second] and first.span == span
+    steps = m.RunStep.objects.filter(run=a_run, pass_name="unificacion").order_by("id")
+    assert steps.count() == before + 1
+    step = steps.last()
+    assert step.parsed["pasada"] == "union_oraciones"
+    assert step.parsed["instruccion"]["version"] == "matriz-union-v1"
+    assert step.request["messages"][1]["content"].startswith("Pares de filas propuestas")
+    types = [a["type"] for a in step.anomalies]
+    assert types == ([anomaly] if anomaly else [])
+    if anomaly == joining.ANOMALY_SERVICE:
+        assert result.stats["failed_requests"] == 1 and step.raw_output == ""
+
+
+@pytest.mark.django_db
+def test_rows_with_a_different_option_are_never_joined(a_run, monkeypatch):
+    """REQ-101, REQ-102 (H-258-2): una fila de toda oferta y una fila de una opción (o de dos
+    opciones distintas) no son un par y no se unen aunque el modelo diga «una»: la fila general no
+    pasa a ser de la opción y se sigue evaluando en todas las ofertas."""
+    text, unit, first, second, decisions = _case()
+    second.option = "cotizacion_parcial"
+    calls = _answering(monkeypatch, joining.ONE)
+
+    assert joining.contiguous_pairs(unit, [first, second]) == []
+    joining.Joiner(a_run).join([unit], decisions)
+
+    assert decisions[1].found == [first, second]
+    assert first.option == "" and second.option == "cotizacion_parcial"
+    assert calls == []
+    first.option = "mipyme"
+    assert joining.contiguous_pairs(unit, [first, second]) == []
+    second.option = "mipyme"
+    assert len(joining.contiguous_pairs(unit, [first, second])) == 1
+
+
+def test_a_table_note_with_another_option_is_not_paired_with_the_clause():
+    """REQ-101, REQ-102 (H-258-2): la nota de una tabla con una opción distinta de la fila de su
+    cláusula no se pregunta como par."""
+    clause_text = "7.3. Los oferentes declararán sus vínculos con el comité."
+    note_text = "Nombre Cargo\nQuien use la opción informará además su participación."
+    clause = _unit(clause_text, key="sec-i/7.3", pk=1)
+    note = _unit(note_text, key="sec-i/7.3/tabla-1", kind="tabla", pk=2)
+    row = Found("formal", (5, len(clause_text)))
+    noted = Found("formal", _span(note_text, "Quien use la opción informará además su participación."),
+                  option="otra")
+    assert joining.table_pairs([clause, note], {1: NS(found=[row]), 2: NS(found=[noted])}) == []
+
+
+def test_two_quotes_of_the_same_unit_with_a_different_option_stay_two_rows():
+    """REQ-101, REQ-102 (H-258-2): en la extracción, dos citas de la misma unidad de sentido con
+    distinta opción no se unen en una fila (`merge_into`); con la misma opción, sí."""
+    general = Found("formal", (0, 40), fragments=[(0, 20)], unit=(0, 40))
+    option = Found("formal", (0, 40), fragments=[(21, 40)], unit=(0, 40), option="mipyme")
+    found = [general]
+    assert extraction.merge_into(found, option) is None
+    assert found == [general, option] and general.option == "" and option.option == "mipyme"
+    same = Found("formal", (10, 40), fragments=[(25, 40)], unit=(10, 40), option="mipyme")
+    assert extraction.merge_into(found, same) is option
+    assert len(found) == 2 and option.fragments == [(21, 40), (25, 40)]
+
+
+def test_the_rule_unification_does_not_merge_rows_with_a_different_option():
+    """REQ-102 (H-258-2): la unificación por regla (`dedup`) no junta como repetidas dos filas con el
+    mismo texto y distinta opción."""
+    from evaluon.tenders.proposal import dedup
+
+    text = "Los oferentes adjuntarán la constancia del registro de editoriales vigente."
+    a = (NS(segment=NS(pk=1, key="a/1", text=text)), Found("formal", (0, len(text))))
+    b = (NS(segment=NS(pk=2, key="b/1", text=text)), Found("formal", (0, len(text)), option="mipyme"))
+    assert len(dedup.unify([a, b], 0.9, containment=True).body) == 2
+    b[1].option = ""
+    assert len(dedup.unify([a, b], 0.9, containment=True).body) == 1
 
 
 @pytest.mark.django_db

@@ -43,10 +43,10 @@ def test_the_active_versions_are_the_t254_ones_and_the_older_ones_stay_published
     """REQ-106, P6: la ronda extra publica `matriz-definiciones-v4`, `matriz-extraccion-v7` y
     `matriz-filtro-v7`; las anteriores (con la `matriz-filtro-v6`, que la verificación observó:
     O-254-1) siguen publicadas (congeladas). T-258 publica después el bloque v5 y v6 y la extracción
-    v8 y v9 (las vigentes, v6 y v9); el filtro sigue en la v7."""
+    v8 a v10 (las vigentes, v7 y v10); el filtro sigue en la v7."""
     versions = settings.MATRIX_PROMPT_VERSIONS
-    assert versions["definiciones"] == "matriz-definiciones-v6"
-    assert versions["extraccion"] == "matriz-extraccion-v9"
+    assert versions["definiciones"] == "matriz-definiciones-v7"
+    assert versions["extraccion"] == "matriz-extraccion-v10"
     assert versions["filtro"] == "matriz-filtro-v7"
     for published in ("matriz-definiciones-v4", "matriz-extraccion-v7"):
         assert (PROMPTS / f"{published}.md").is_file()

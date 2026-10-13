@@ -463,15 +463,16 @@ def merge_into(found, new):
     requisito, son la misma fila (una fila por unidad, ADR-0054): el otro queda con la unión
     de las dos unidades y los fragmentos de ambos, y se devuelve. Si no, se agrega y se
     devuelve `None`. Una cita amplia o una unidad demasiado larga (queda el fragmento del
-    modelo) no se une con ninguna."""
+    modelo) no se une con ninguna, y tampoco dos requisitos con distinta opción (`opcion`, una
+    vacía y otra no, o dos distintas; H-258-2): la fila de toda oferta no pasa a ser de la
+    opción."""
     if new.flag != quotes.WIDE and not new.too_long and new.unit is not None:
         for twin in found:
             if (twin.flag != quotes.WIDE and not twin.too_long and twin.unit is not None
-                    and _overlap(twin.span, new.span)):
+                    and twin.option == new.option and _overlap(twin.span, new.span)):
                 twin.span = (min(twin.span[0], new.span[0]), max(twin.span[1], new.span[1]))
                 twin.unit = twin.span
                 twin.fragments = [*twin.fragments, *new.fragments]
-                twin.option = twin.option or new.option
                 return twin
     found.append(new)
     return None

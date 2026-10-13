@@ -19,7 +19,9 @@ filtro, le pregunta al modelo por cada par candidato si es el mismo requisito o 
   filas que repiten una condición) y deja de ser una fila propia.
 
 Se une solo si el modelo responde «una». Con «dos», con una respuesta que no tiene la forma, sin la
-propiedad del par o con una falla del servicio, las filas quedan como estaban: nada se pierde. Cada
+propiedad del par o con una falla del servicio, las filas quedan como estaban: nada se pierde. Dos
+filas con distinta opción (`opcion`: una vacía y otra no, o dos distintas) no son un par y nunca se
+unen (H-258-2): la fila de toda oferta no pasa a ser de una opción. Cada
 pedido se guarda en `tenders_run_step` apenas vuelve (P6), con la pasada `unificacion` (la pasada de
 las filas que se juntan; el esquema no cambia) y `parsed.pasada = "union_oraciones"`, la versión y
 la huella de su instrucción (`matriz-union-vN`) y lo que se unió, con sus posiciones.
@@ -92,6 +94,11 @@ def _plain(found):
     return found.flag != quotes.WIDE and not found.too_long
 
 
+def same_option(first, second):
+    """Si las dos filas tienen la misma opción (las dos vacías, o la misma): si no, no se unen."""
+    return getattr(first, "option", "") == getattr(second, "option", "")
+
+
 def _gap_is_short(text):
     """Si entre dos filas hay a lo sumo `GAP_MAX_SENTENCES` oraciones cortas (o nada)."""
     chunk = text.strip()
@@ -114,7 +121,8 @@ def contiguous_pairs(unit, found_list):
         if second.span[0] < first.span[1]:
             continue
         between = text[first.span[1]:second.span[0]]
-        if not _gap_is_short(between) or second.span[1] - first.span[0] > limit:
+        if (not _gap_is_short(between) or second.span[1] - first.span[0] > limit
+                or not same_option(first, second)):
             continue
         pairs.append(Pair(CONTIGUOUS, unit, first, unit, second, between=between.strip()))
     return pairs
@@ -140,7 +148,8 @@ def table_pairs(units, decisions):
         if not rows:
             continue
         last = max(rows, key=lambda f: f.span)
-        pairs += [Pair(TABLE_NOTE, parent, last, unit, note) for note in notes]
+        pairs += [Pair(TABLE_NOTE, parent, last, unit, note) for note in notes
+                  if same_option(last, note)]
     return pairs
 
 
@@ -324,13 +333,12 @@ class Joiner:
             if answers.get(index) != ONE:
                 continue
             first, second = target_of(pair.first), pair.second
-            if second.span[1] - first.span[0] > limit:
+            if second.span[1] - first.span[0] > limit or not same_option(first, second):
                 continue
             first.span = (first.span[0], second.span[1])
             first.unit = first.span
             first.fragments = [*first.fragments, *second.fragments]
             first.passes = list(dict.fromkeys([*passes_of(first), *passes_of(second)]))
-            first.option = first.option or second.option
             decision = decisions[pair.first_unit.segment.pk]
             decision.found = [f for f in decision.found if f is not second]
             survivor[id(second)] = first
@@ -340,7 +348,7 @@ class Joiner:
         self.result.stats["pairs"] += len(notes)
         answers = self._answer(notes)
         for index, pair in enumerate(notes):
-            if answers.get(index) != ONE:
+            if answers.get(index) != ONE or not same_option(target_of(pair.first), pair.second):
                 continue
             decision = decisions[pair.second_unit.segment.pk]
             decision.found = [f for f in decision.found if f is not pair.second]
