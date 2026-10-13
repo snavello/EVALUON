@@ -74,3 +74,21 @@ def test_the_command_requires_the_user_and_a_commission_role(
         call_command("releer_pliego", procedure.number, "--usuario",
                      no_commission_user.username, stdout=StringIO())
     assert Reading.objects.filter(document=document).count() == 1
+
+
+def test_the_command_requires_the_password(read_procedure, operator_user, monkeypatch):
+    """REQ-016 (T-259, D-259-2): con una clave equivocada el comando no corre (el mensaje único
+    del ingreso fallido) y no deja lectura nueva; la clave se pide aunque el usuario tenga rol."""
+    procedure, document = read_procedure
+    asked = []
+
+    def wrong_password(prompt):
+        asked.append(prompt)
+        return "no-es-la-clave"
+
+    monkeypatch.setattr(permissions, "read_password", wrong_password)
+    with pytest.raises(CommandError, match=permissions.LOGIN_FAILED_MESSAGE):
+        call_command("releer_pliego", procedure.number, "--usuario", operator_user.username,
+                     stdout=StringIO())
+    assert asked
+    assert Reading.objects.filter(document=document).count() == 1

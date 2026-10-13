@@ -66,13 +66,58 @@ def latest_report(document):
 
 
 def test_a_report_of_external_consultations_suggests_a_compliance_sheet():
-    """REQ-104 (T-259, H4): con «consulta» y dos marcas o más, la sugerencia es hoja de
-    compliance, con las marcas encontradas en su motivo."""
+    """REQ-104 (T-259, H4): con el resultado de las consultas («Estado: Inscripto», «no
+    registra sanciones», «sin deuda»), la fecha de emisión y dos marcas o más, la sugerencia es
+    hoja de compliance, con las marcas encontradas en su motivo."""
     found = suggestions.suggest("\n".join(COMPLIANCE_LINES))
     assert found["kind"] == "compliance"
     assert found["marks"] == ["Registro de Proveedores", "REPSAL", "deuda con el Estado",
                               "penalidades"]
     assert "REPSAL" in found["reason"] and found["reason"].startswith("Parece una hoja")
+
+
+def test_a_copy_of_the_tender_attached_to_the_offer_is_not_a_compliance_sheet():
+    """REQ-104 (T-259, D-259-1; P9): una copia del pliego nombra el Registro de Proveedores, el
+    REPSAL, la deuda y las penalidades como requisitos («estar inscripto», «no registrar
+    sanciones»), pero no trae el resultado de ninguna consulta: no es hoja de compliance. Texto
+    inventado con la forma de las cláusulas de los pliegos (el de la verificación)."""
+    pliego = (
+        "PLIEGO DE BASES Y CONDICIONES PARTICULARES. 5. Consultas al pliego: las consultas se "
+        "formulan por el Portal hasta tres días antes de la apertura. 12. Requisitos de los "
+        "oferentes: estar inscripto en el Registro de Proveedores (SIPRO); no registrar "
+        "sanciones en el REPSAL; no tener deuda con el Estado según la Resolución General 4164. "
+        "20. Penalidades: el incumplimiento dará lugar a las penalidades del régimen. " * 2)
+    assert len(suggestions.compliance_marks(pliego)) >= suggestions.MIN_COMPLIANCE_MARKS
+    assert suggestions.suggest(pliego) is None
+
+
+def test_a_cover_letter_that_lists_the_attachments_is_not_a_compliance_sheet():
+    """REQ-104 (T-259, D-259-1; P9): la nota de presentación que enumera lo que se adjunta
+    («constancia de inscripción en el SIPRO», «declaración jurada de no registrar sanciones»)
+    y dice «consulta» no trae un resultado de consulta: no es hoja de compliance."""
+    nota = (
+        "Señores Comisión Evaluadora: por la presente acompañamos nuestra oferta para el "
+        "procedimiento de referencia y quedamos a disposición ante cualquier consulta. Se "
+        "adjunta: constancia de inscripción en el Registro de Proveedores (SIPRO), declaración "
+        "jurada de no registrar sanciones en el REPSAL y certificado de que no tenemos deuda "
+        "con el Estado. Saludamos atentamente, el apoderado de la firma oferente.")
+    assert len(suggestions.compliance_marks(nota)) >= suggestions.MIN_COMPLIANCE_MARKS
+    assert suggestions.suggest(nota) is None
+
+
+def test_a_registry_printout_with_its_state_and_date_is_a_compliance_sheet():
+    """REQ-104 (T-259, D-259-1): una constancia inventada del Registro de Proveedores, con el
+    estado que devuelve la consulta, el REPSAL sin sanciones, la fecha de la consulta y el
+    organismo que la emite, sí recibe la sugerencia; sin el resultado, no."""
+    printout = ("Oficina Nacional de Contrataciones · Sistema de Información de Proveedores "
+                "(SIPRO). Proveedor: Sintética S.R.L. Estado: Inscripto. REPSAL: no registra "
+                "sanciones. Fecha de consulta: 03/03/2099.")
+    found = suggestions.suggest(printout)
+    assert found["kind"] == "compliance"
+    assert found["marks"] == ["Registro de Proveedores", "REPSAL"]
+    without_result = printout.replace("Estado: Inscripto. ", "").replace(
+        "REPSAL: no registra sanciones. ", "REPSAL. ")
+    assert suggestions.suggest(without_result) is None
 
 
 def test_a_declaration_that_only_names_a_registry_is_not_a_compliance_sheet():

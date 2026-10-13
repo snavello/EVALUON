@@ -5,10 +5,15 @@ Al leer un documento de una oferta, el sistema mira su texto y, si corresponde, 
 clase que una persona confirma. Por su cuenta no cambia el tipo del documento ni lo retira ni lo
 borra (P3, P9):
 
-- **Hoja de compliance** (`compliance`). El texto es el resultado de consultas a bases externas:
-  dice «consulta» y trae al menos `MIN_COMPLIANCE_MARKS` de estas marcas: Registro de
-  Proveedores (SIPRO), REPSAL, deuda con el Estado, constancia de inscripción, penalidades.
-  Es la forma del informe del organismo que la oferta 3 del caso-00 trae como documento 41.
+- **Hoja de compliance** (`compliance`). El texto es el **resultado** de consultas a bases
+  externas, no un texto que solo las nombra (D-259-1: una nota de presentación que enumera lo
+  adjunto y una copia del pliego nombran los mismos temas). Hacen falta las tres cosas:
+  al menos `MIN_COMPLIANCE_MARKS` de estas marcas (Registro de Proveedores o SIPRO, REPSAL,
+  deuda con el Estado, constancia de inscripción, penalidades); el estado que devuelve una
+  consulta (`RESULT`: «Estado: Inscripto», «no registra sanciones», «no registra deuda», «sin
+  deuda», «sin sanciones»; no el infinitivo «no registrar» de un requisito ni lo que declara el
+  oferente), y la fecha de la consulta o el organismo que la emite (`ISSUED`). Es la forma del
+  informe del organismo que la oferta 3 del caso-00 trae como documento 41.
   Lo confirma un evaluador (la hoja de compliance la carga una persona identificada, P9): el
   documento pasa a hoja de compliance de la oferta con el hecho de quién lo confirmó.
 - **Copia** (`duplicate`). Su texto es casi igual al de otro documento de la misma oferta ya
@@ -38,7 +43,15 @@ COMPLIANCE_MARKS = (
     ("constancia de inscripción", re.compile(r"constancia de inscripcion")),
     ("penalidades", re.compile(r"\bpenalidades\b")),
 )
-CONSULTATION = re.compile(r"\bconsultas?\b")
+# El estado que devuelve una consulta (D-259-1). «no registra» con la palabra entera: el
+# infinitivo «no registrar» es el de un requisito o una declaración, no un resultado.
+RESULT = re.compile(r"estado\s*:?\s*inscript[oa]|\bno registra\b|\bsin (?:deuda|sanciones)\b")
+# La fecha de la consulta o el organismo que la emite (D-259-1).
+ISSUED = re.compile(
+    r"fecha de (?:la )?(?:consulta|emision)|a la fecha de emision"
+    r"|fecha\s*:?\s*\d{1,2}/\d{1,2}/\d{2,4}"
+    r"|\b(?:arca|afip)\b|agencia de recaudacion|administracion federal de ingresos publicos"
+    r"|oficina nacional de contrataciones|ministerio de trabajo")
 MIN_COMPLIANCE_MARKS = 2
 DUPLICATE_SHARE = 0.9
 MIN_WORDS = 20
@@ -77,8 +90,9 @@ def suggest(text, others=(), *, fixed_kind=False):
     la misma oferta ya leídos: `(id, título, texto)`. `fixed_kind` dice si el documento ya es hoja
     de compliance o informe técnico (no se le sugiere hoja)."""
     marks = compliance_marks(text)
+    plain = _plain(text)
     if (not fixed_kind and len(marks) >= MIN_COMPLIANCE_MARKS
-            and CONSULTATION.search(_plain(text))):
+            and RESULT.search(plain) and ISSUED.search(plain)):
         return {"kind": SUGGEST_COMPLIANCE, "marks": marks,
                 "reason": ("Parece una hoja de compliance: trae consultas de "
                            + _enumerate(marks) + ".")}

@@ -142,7 +142,12 @@ _RECOGNIZED_KINDS = (PAGE_KIND_SCANNED, PAGE_KIND_UNUSABLE_TEXT)
 #   como escaneada aunque tenga capa de texto;
 FULL_PAGE_IMAGE = 0.85
 # - proporción de caracteres sin letra en la capa de texto a partir de la cual el texto
-#   es inservible;
+#   es inservible. Para la segunda mirada, sobre lo que lee pdfplumber (`extracted_kind`,
+#   T-259), la sostiene la medición de la verificación de T-259 en las 524 páginas con texto
+#   del corpus público: los 11 croquis del caso-01 dan entre 57,1 % y 57,8 % de «(cid:» (y
+#   una página escaneada de una póliza del caso-00, con 20 caracteres de capa, que también
+#   mejora con el reconocimiento); de las demás ninguna pasa de 6,2 %, así que el 10 % separa
+#   las dos clases con margen de los dos lados;
 UNUSABLE_TEXT_SHARE = 0.1
 # - resolución a la que se dibuja la página para buscar tinta, y nivel de gris (0 negro,
 #   255 blanco) por debajo del cual un punto es tinta.
