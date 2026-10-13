@@ -32,7 +32,7 @@ from django.urls import path
 from django.views.decorators.http import require_POST
 
 from evaluon.accounts.models import CommissionRole
-from evaluon.assessment import not_applicable, ordering, situation
+from evaluon.assessment import not_applicable, ordering, portal_sources, situation
 from evaluon.assessment.models import DiscardAction, Outcome
 from evaluon.assessment.services import discards as service
 from evaluon.assessment.services import matrix as matrix_service
@@ -236,29 +236,6 @@ def _situation(units_of, questions, row_note, observed=()):
     return " · ".join(parts) if parts else "Sin observaciones"
 
 
-def _offers_phrase(offers):
-    """«la oferta 3» o «las ofertas 1, 2 y 3»."""
-    numbers = [str(offer.number) for offer in offers]
-    if len(numbers) == 1:
-        return f"la oferta {numbers[0]}"
-    return f"las ofertas {', '.join(numbers[:-1])} y {numbers[-1]}"
-
-
-def _price_sources(offers, data):
-    """De qué página del Portal salen los precios y totales y de qué ofertas (P3, constitución 1.3):
-    `[{"offers": «las ofertas 1, 2 y 3», "item": ítem de origen}]`, una por página, en el orden de las
-    ofertas. Una oferta sin datos del Portal, o cuyo dato no sale de un ítem del Portal, no figura."""
-    groups = {}
-    for offer in offers:
-        info = data.get(offer.pk)
-        if info is None or info.item is None:
-            continue
-        groups.setdefault(info.item.page_id, {"offers": [], "item": info.item})[
-            "offers"].append(offer)
-    return [{"offers": _offers_phrase(group["offers"]), "item": group["item"]}
-            for group in groups.values()]
-
-
 def _economic(page, found):
     """El orden económico con solo los descartes confirmados. Devuelve el total, el orden por
     renglón y los avisos."""
@@ -339,7 +316,8 @@ def _economic(page, found):
         lines.append(row)
     warnings = [w for w in [order.warning] + [lo.warning for lo in order.lines] if w]
     return {"totals": totals, "lines": lines, "columns": range(1, len(page.offers) + 1),
-            "warnings": warnings, "price_sources": _price_sources(page.offers, data)}
+            "warnings": warnings,
+            "price_sources": portal_sources.price_sources(page.offers, data)}
 
 
 # --- Los descartes --------------------------------------------------------------------------------
