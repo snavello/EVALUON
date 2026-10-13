@@ -237,6 +237,9 @@ class Proposal:
     motive: str = ""
     reason: str = ""
     event: int | None = None
+    # La lectura del informe de la que sale la cita (la guarda `technical_report`): con ella las
+    # pantallas saben si la página se leyó por visión (P3, ADR-0041; T-264).
+    reading: int | None = None
 
     @property
     def verdict_label(self):
@@ -266,7 +269,7 @@ def proposals_of(offer):
                 item=item, verdict=entry.get("verdict") or "", quote=entry.get("quote", ""),
                 page=entry.get("page"), document=detail.get("document"),
                 document_title=detail.get("document_title", ""), motive=entry.get("motive", ""),
-                reason=entry.get("reason", ""), event=event.pk)
+                reason=entry.get("reason", ""), event=event.pk, reading=entry.get("reading"))
             if item not in found or (proposal.verdict and not found[item].verdict):
                 found[item] = proposal
     return found

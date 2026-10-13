@@ -343,7 +343,8 @@ services:
     # red interna no publica puertos. corpus/ en solo lectura; evals/ con escritura para
     # guardar las corridas, y corpus/casos/ con escritura para las corridas de medición
     # de la matriz (`medir_matriz`, plan 003, "Medición"). La lista repite la de x-app
-    # (una lista de YAML no se puede extender) y le suma ese montaje.
+    # (una lista de YAML no se puede extender) y le suma ese montaje. Todo montaje que se
+    # sume a x-app se suma también acá: tests/test_compose_env.py lo comprueba (T-264).
     <<: *app
     volumes:
       - ./evaluon:/app/evaluon:ro
@@ -361,6 +362,10 @@ services:
       - ./corpus:/app/corpus:ro
       - ./corpus/casos:/app/corpus/casos
       - ./evals:/app/evals
+      # Solo para tests/test_instrucciones_revisadas.py (REQ-106): el informe de revisión de las
+      # instrucciones vive en specs/. Sin este montaje, `docker compose run --rm app pytest`
+      # saltea ese test (T-264).
+      - ./specs:/app/specs:ro
     command:
       - gunicorn
       - evaluon.wsgi:application

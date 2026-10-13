@@ -196,21 +196,53 @@ def test_an_unfinished_reading_comes_before_proposed_rows(procedure, offer, matr
     assert stage.state == base.PENDIENTE and stage.pending == 2
 
 
+def sheet_in_the_tab(procedure, offer):
+    """La ficha de la oferta dentro de la pestaña «Ofertas» (`s3_ficha`)."""
+    return reverse("expedientes:ofertas", args=[procedure.pk]) + f"?ficha={offer.pk}#s3-ficha"
+
+
 def test_the_evaluator_gets_the_sheet_link_and_the_operator_does_not(
         procedure, two_offers, matrix, operator_user, evaluator_user, client):
-    """REQ-068/REQ-069: el evaluador va a la primera ficha con filas por confirmar (200); el
-    operador solo recibe el enlace de ver."""
+    """REQ-068/REQ-069, P3 (T-264): el evaluador va a la ficha de la primera oferta con filas por
+    confirmar, dentro de la pestaña «Ofertas», donde decide y donde las páginas leídas por visión
+    salen rotuladas (200, con «Confirmar las 2»); el operador solo recibe el enlace de ver."""
     first, second = two_offers
     make_sheet(first, matrix.version, operator_user, confirmed=1)
-    pending_sheet = make_sheet(second, matrix.version, operator_user, entries=2)
+    make_sheet(second, matrix.version, operator_user, entries=2)
     as_operator = ofertas.compute(operator_user, procedure)
     as_evaluator = ofertas.compute(evaluator_user, procedure)
     assert as_operator.decide_url is None
-    assert as_evaluator.decide_url == reverse("offers:sheet", args=[pending_sheet.pk])
+    assert as_evaluator.decide_url == sheet_in_the_tab(procedure, second)
     assert as_operator.view_url == as_evaluator.view_url
     client.force_login(evaluator_user)
-    assert client.get(as_evaluator.decide_url).status_code == 200
+    page = client.get(as_evaluator.decide_url)
+    assert page.status_code == 200
+    assert "Confirmar las 2" in page.content.decode()
     assert client.get(as_evaluator.view_url).status_code == 200
+
+
+def test_no_link_of_the_expedient_leads_to_the_old_sheet(
+        procedure, two_offers, matrix, operator_user, evaluator_user, client):
+    """P3 (T-264): la ficha vieja (`offers:sheet`) no rotula las páginas leídas por visión y la de
+    la pestaña sí: ningún enlace del expediente lleva a la vieja. «Ir a decidir» del bloque de las
+    etapas y los de las cinco pestañas llevan a la ficha de la pestaña «Ofertas»."""
+    first, second = two_offers
+    make_sheet(first, matrix.version, operator_user, confirmed=1)
+    pending_sheet = make_sheet(second, matrix.version, operator_user, entries=2)
+    old = reverse("offers:sheet", args=[pending_sheet.pk])
+    new = sheet_in_the_tab(procedure, second)
+    client.force_login(evaluator_user)
+    stages = client.get(reverse("journey:stages", args=[procedure.pk])).content.decode()
+    assert f'<a href="{new}">Ir a decidir</a>' in stages
+    pages = {"etapas": stages}
+    for key in ("procedimiento", "pliego", "ofertas", "evaluacion", "normativas"):
+        response = client.get(reverse(f"expedientes:{key}", args=[procedure.pk]))
+        assert response.status_code == 200
+        pages[key] = response.content.decode()
+    for name, html in pages.items():
+        assert old not in html and "/ofertas/fichas/" not in html, name
+    # En la pestaña «Ofertas», el pendiente de la ficha ya llevaba a la ficha de la pestaña.
+    assert f'href="{new}"' in pages["ofertas"]
 
 
 def test_with_nothing_pending_nobody_gets_a_decide_link(procedure, offer, evaluator_user):

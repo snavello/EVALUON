@@ -519,6 +519,10 @@ ASSESSMENT_PROMPT_VERSIONS = {
 # por imagen con que se estima (lo fija el motor: se registra); máximo de tokens de la
 # transcripción de una página; proporción de `[ilegible]` por encima de la cual la página no
 # cuenta como leída; versión de la instrucción (`evaluon/assessment/prompts/<versión>.md`).
+# Decisión del responsable, 2026-10-13 (literal): «Mantengo la visión, siempre es preferible a no
+# leída. Obviamente aclarando que proviene de un documento con dificultades de lectura y que
+# conviene re chequear por la comisión, ofreciendo ver la imagen». El valor no cambia (T-264): cada
+# pantalla y la exportación avisan que la cita sale de una página leída por visión.
 ASSESSMENT_VISION_MAX_PAGES = 40
 ASSESSMENT_VISION_DPI = 150
 ASSESSMENT_VISION_MAX_SIDE = 1800

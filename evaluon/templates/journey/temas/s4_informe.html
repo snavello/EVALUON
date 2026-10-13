@@ -38,7 +38,7 @@
         {% for c in row.cells %}
         <td class="e">{% if c %}{% include "journey/_icono.html" with icon=c.icon name=c.name %}{% if c.note %}<small>{{ c.note }}</small>{% endif %}{% else %}<span class="suave" title="Sin oferta en este renglón">—</span>{% endif %}</td>
         {% endfor %}
-        <td class="chica">{% for offer, c in row.quotes %}<span class="cita-it"><b>Oferta {{ offer.number }}:</b> «{{ c.quote }}»{% if c.page %} · página {{ c.page }}{% endif %}</span>{% empty %}<span class="suave">—</span>{% endfor %}</td>
+        <td class="chica">{% for offer, c in row.quotes %}<span class="cita-it"><b>Oferta {{ offer.number }}:</b> «{{ c.quote }}»{% if c.page %} · página {{ c.page }}{% endif %}</span>{% if c.by_vision %}{% include "journey/_cita_vision.html" with document_id=c.document page=c.page %}{% endif %}{% empty %}<span class="suave">—</span>{% endfor %}</td>
       </tr>
       {% endfor %}
     </tbody>

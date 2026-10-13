@@ -12,6 +12,12 @@ por el servicio. Un operador ve el estado y no los botones.
 
 Las ofertas con filas técnicas por renglón y sin informe figuran como faltante, con su botón. Los
 oks pendientes son pendientes de la sección (la cuenta es la de la etapa `matriz_evaluacion`).
+
+La frase del informe que sale de una página leída por visión lleva la marca «leída por visión», el
+aviso de que la página tiene dificultades de lectura y conviene chequearla, y el enlace a la
+imagen de la página (P3, ADR-0041, T-264): el informe es un
+documento de la oferta y la visión lee también sus páginas dudosas. Una consulta por pantalla
+(`offers/vision.py`, `pages_read_in`).
 """
 
 from dataclasses import dataclass, field
@@ -28,6 +34,7 @@ from evaluon.journey import memo
 from evaluon.journey.sections.base import Item, Missing, TemaStatus
 from evaluon.journey.temas import s4_propuesta_acciones as acciones
 from evaluon.journey.temas.s4_propuesta import when
+from evaluon.offers import vision
 from evaluon.offers.models import Offer
 from evaluon.offers.services import offers as offers_service
 from evaluon.tenders.models import Procedure
@@ -65,6 +72,9 @@ class Cell:
     note: str = ""  # «Ok de X el 07/10/2026 16:40» o el motivo por el que no se propone
     quote: str = ""
     page: int | None = None
+    document: int | None = None  # el informe del que sale la frase
+    reading: int | None = None  # la lectura del informe de la que sale
+    by_vision: bool = False  # su página se leyó por visión (P3, ADR-0041)
     row: object = None
 
 
@@ -163,11 +173,13 @@ def _cell(row, block):
         return Cell(icon=icon, name=f"{name}: ok de la Comisión",
                     note=f"Ok de {who} el {when(row.ok.at)}", row=row,
                     quote=proposal.quote if proposal else "",
-                    page=proposal.page if proposal else None)
+                    page=proposal.page if proposal else None,
+                    document=proposal.document if proposal else None,
+                    reading=proposal.reading if proposal else None)
     if proposal is not None and proposal.verdict:
         icon, name = VERDICT_ICONS[proposal.verdict]
         return Cell(icon=icon, name=f"{name}, propuesto", row=row, quote=proposal.quote,
-                    page=proposal.page)
+                    page=proposal.page, document=proposal.document, reading=proposal.reading)
     if not block.has_report:
         return Cell(icon="pend", name="Falta el informe técnico del área", row=row)
     if block.reading:
@@ -207,6 +219,10 @@ def context(user, procedure, request):
               "quotes": [(b.offer, cells[(b.offer.pk, item)]) for b in blocks
                          if (b.offer.pk, item) in cells and cells[(b.offer.pk, item)].quote]}
              for item in items]
+    # Las frases del informe cuya página se leyó por visión, con una consulta para todas.
+    seen = vision.pages_read_in(c.reading for c in cells.values() if c.quote)
+    for cell in cells.values():
+        cell.by_vision = bool(cell.quote) and cell.page in seen.get(cell.reading, ())
     proposed = sum(1 for c in cells.values()
                    if c.row.proposal is not None and c.row.proposal.verdict)
     return {

@@ -18,10 +18,29 @@ from django.views.decorators.http import require_GET, require_POST
 from evaluon.assessment.services import evaluate
 from evaluon.assessment.services import matrix as service
 from evaluon.audit.models import Channel
+from evaluon.offers import vision
 from evaluon.tenders.models import Procedure
 from evaluon.journey.legacy import section_url, to_section
 
 MATRIX_TEMPLATE = "assessment/matrix.html"
+
+
+def _mark_vision(page):
+    """Marca con `by_vision` las citas de la oferta de los motivos de descarte y las frases del
+    informe técnico que salen de una página leída por visión (decisión del 2026-10-13): una
+    consulta para todas."""
+    quotes = [quote for discard in page.discards
+              for ground in [*discard.whole,
+                             *(g for grounds in discard.by_item.values() for g in grounds)]
+              for quote in ground.offer_quotes]
+    proposals = [row.proposal for status in page.statuses for row in status.technical
+                 if row.proposal is not None and row.proposal.quote]
+    flagged = vision.on_vision([(q.reading_id, q.page) for q in quotes]
+                               + [(p.reading, p.page) for p in proposals])
+    for quote in quotes:
+        quote.by_vision = (quote.reading_id, quote.page) in flagged
+    for proposal in proposals:
+        proposal.by_vision = (proposal.reading, proposal.page) in flagged
 
 
 def _render(request, procedure_id, status=200, **extra):
@@ -29,6 +48,7 @@ def _render(request, procedure_id, status=200, **extra):
         page = service.matrix_page(request.user, procedure_id, channel=Channel.SCREEN)
     except Procedure.DoesNotExist:
         raise Http404("No hay un procedimiento con ese número.")
+    _mark_vision(page)
     return render(request, MATRIX_TEMPLATE, {"page": page, **extra}, status=status)
 
 

@@ -77,7 +77,9 @@
           <div><p class="ctx-tit">Oferta {{ line.offer.number }} · {{ line.offer.bidder }}</p>
             {% for c in line.citations %}<blockquote class="cita">{{ c.text }}</blockquote>
             <p class="registro"><a href="{% url 'offers:document_original' c.document.pk %}#page={{ c.page }}" target="_blank" rel="noopener">{{ c.document.title }} · página {{ c.page }}</a> · ver el original</p>
-            {% empty %}<p class="suave">Sin texto de la oferta que respalde una conclusión.{% if line.read_note %} <span class="lectura">{{ line.read_note }}</span>{% endif %}</p>{% endfor %}</div>
+            {% if c.by_vision %}{% include "journey/_cita_vision.html" with document_id=c.document_id page=c.page %}{% endif %}
+            {% empty %}<p class="suave">Sin texto de la oferta que respalde una conclusión.{% if line.read_note %} <span class="lectura">{{ line.read_note }}</span>{% endif %}</p>{% endfor %}
+            {% for p in line.portal %}<p class="registro">Dato del Portal: {{ p.text }}<br>{% if p.label %}{{ p.label }} · {% endif %}{% include "portal/_fuente_dato.html" with item=p.portal_item %}</p>{% endfor %}</div>
         </div>
       </td></tr>
     </tbody>

@@ -11,9 +11,13 @@ tema no los redefine ni decide nada (P3). Las acciones están en `s4_propuesta_a
 
 Las cuentas de pendientes y sugerencias las suma la etapa `matriz_evaluacion` de la 013; este tema
 las lista una por una, con su enlace a esta pestaña, y coinciden con las de la barra.
+
+El fundamento de cada celda se ve completo (P3, T-264): el dato del Portal con el enlace a su página y
+la fecha en que se tomó, y la cita de una página leída por visión con la marca, el aviso de que
+conviene que la Comisión la vuelva a chequear y el enlace a la imagen, como en la pantalla de la 004.
+Las citas de todas las celdas se traen juntas, sin una consulta por celda (T-223).
 """
 
-from collections import defaultdict
 from dataclasses import dataclass, field
 
 from django.http import Http404
@@ -24,11 +28,11 @@ from django.views.decorators.http import require_GET
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.assessment import not_applicable
-from evaluon.assessment.models import Citation, CitationKind, Decision, Outcome, Result
+from evaluon.assessment.models import Decision, Outcome, Result
 from evaluon.assessment.services import evaluate, review
 from evaluon.assessment.services import matrix as matrix_service
 from evaluon.audit.models import Channel
-from evaluon.journey import external, memo, points, reading_note
+from evaluon.journey import basis, external, memo, points, reading_note
 from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.journey.stages import base as stage_base
 from evaluon.journey.stages import evaluacion as evaluation_stage
@@ -128,6 +132,7 @@ class CellView:
     explanation: str = ""
     conditions: list = field(default_factory=list)  # cada condición con su dato y su resultado
     quotes: list = field(default_factory=list)  # citas de la oferta (texto, documento, página)
+    portal: list = field(default_factory=list)  # datos del Portal citados (con su página y fecha)
     read_note: str = ""  # sin cita de la oferta: qué documentos y páginas se leyeron (T-228)
     technical: bool = False
     counted: bool = False  # par por decidir: el que cuenta el panel de pendientes
@@ -259,10 +264,9 @@ def _cell_views(page, user):
     """Una `CellView` por par, con el fundamento y la decisión, en pocas consultas."""
     technical = _technical_cells(page)
     ids = [cell.result.pk for cell in page.cells.values() if cell.result is not None]
-    offer_quotes = defaultdict(list)
-    for citation in (Citation.objects.filter(result_id__in=ids, kind=CitationKind.OFERTA)
-                     .select_related("document").order_by("order")):
-        offer_quotes[citation.result_id].append(citation)
+    # Las citas de la oferta (con la marca de visión) y los datos del Portal de todos los pares, de
+    # una vez: `journey/basis.py`.
+    offer_quotes, portal_data = basis.of_results(ids)
     last = {}
     for decision in (Decision.objects.filter(result_id__in=ids, action__in=review.STATE_ACTIONS)
                      .select_related("user").order_by("at", "pk")):
@@ -292,6 +296,7 @@ def _cell_views(page, user):
         view.explanation = result.explanation
         view.conditions = condition_views(result.facts)
         view.quotes = offer_quotes.get(result.pk, [])
+        view.portal = portal_data.get(result.pk, [])
         if not view.quotes:
             unquoted.append(result)
         view.technical = key in technical

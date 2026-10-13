@@ -19,6 +19,7 @@
       {% if fragment.state == "confirmado" %}<span class="state">(confirmado)</span>{% endif %}
       {% if fragment.origin == "persona" %}<span class="state">(agregado por una persona)</span>{% endif %}</p>
     <blockquote>{{ fragment.text }}</blockquote>
+    {% if fragment.vision %}{% include "journey/_cita_vision.html" with document_id=fragment.vision.document_id page=fragment.vision.page %}{% endif %}
     <form method="post" action="{% url 'offers:fragment_action' fragment.pk 'corregir' %}">
       {% csrf_token %}
       <input type="hidden" name="volver" value="fila">
@@ -52,6 +53,7 @@
   <article>
     <p>{{ fragment.passage.reading.document.title }} · página {{ fragment.passage.page }}</p>
     <blockquote>{{ fragment.text }}</blockquote>
+    {% if fragment.vision %}{% include "journey/_cita_vision.html" with document_id=fragment.vision.document_id page=fragment.vision.page %}{% endif %}
     <form method="post" action="{% url 'offers:fragment_action' fragment.pk 'restituir' %}">
       {% csrf_token %}
       <input type="hidden" name="volver" value="fila">
@@ -85,6 +87,7 @@
   <h2 id="proposed-title">Lo que propuso el sistema</h2>
   {% for fragment in history.proposed %}
   <blockquote>{{ fragment.proposed.text }}</blockquote>
+  {% if fragment.proposed_vision %}{% include "journey/_cita_vision.html" with document_id=fragment.proposed_vision.document_id page=fragment.proposed_vision.page %}{% endif %}
   {% empty %}
   <p>El sistema no propuso fragmentos para esta fila.</p>
   {% endfor %}
@@ -97,8 +100,8 @@
     {% for change in history.changes %}
     <li>
       {{ change.at|date:"d/m/Y H:i" }} · {{ change.user.username }} · {{ change.get_action_display }}
-      {% if change.before.text %}<div>Antes: <blockquote>{{ change.before.text }}</blockquote></div>{% endif %}
-      {% if change.after.text %}<div>Después: <blockquote>{{ change.after.text }}</blockquote></div>{% endif %}
+      {% if change.before.text %}<div>Antes: <blockquote>{{ change.before.text }}</blockquote>{% if change.before_vision %}{% include "journey/_cita_vision.html" with document_id=change.before_vision.document_id page=change.before_vision.page %}{% endif %}</div>{% endif %}
+      {% if change.after.text %}<div>Después: <blockquote>{{ change.after.text }}</blockquote>{% if change.after_vision %}{% include "journey/_cita_vision.html" with document_id=change.after_vision.document_id page=change.after_vision.page %}{% endif %}</div>{% endif %}
     </li>
     {% endfor %}
   </ol>

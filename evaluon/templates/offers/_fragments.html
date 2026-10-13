@@ -6,6 +6,7 @@
     <a href="{% url 'offers:document_original' view.document.pk %}#page={{ view.page }}">{{ view.document.title }} · página {{ view.page }}</a>
     {% if view.fragment.state == "confirmado" %}<span class="state">(confirmado)</span>{% endif %}
     <blockquote>{{ view.fragment.text }}</blockquote>
+    {% if view.by_vision %}{% include "journey/_cita_vision.html" with document_id=view.document.pk page=view.page %}{% endif %}
   </li>
   {% endfor %}
 </ul>

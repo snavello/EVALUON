@@ -17,6 +17,12 @@ auditoría, con quién y cuándo, y se ve en la fila. Un operador no ve el botó
 decide un evaluador.
 
 El mensaje viaja firmado en la dirección (`?aviso_ficha=`), sin guardar nada en la sesión.
+
+Un fragmento de una página que el sistema leyó por visión lleva la marca «leída por visión», el
+aviso de que la página tiene dificultades de lectura y conviene que la Comisión lo vuelva a
+chequear, y el enlace a la imagen de la página (P3, ADR-0041, T-264): el fragmento es literal
+respecto de la transcripción del sistema, no del original. La lectura de cada fragmento ya
+viene cargada con la ficha: la marca no suma consultas.
 """
 
 from collections import defaultdict
@@ -33,6 +39,7 @@ from evaluon.audit import services as audit
 from evaluon.audit.models import AuditEvent, Channel, EventType, Outcome
 from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.journey.stages.ofertas import _pending_sheets
+from evaluon.offers import vision
 from evaluon.offers.models import (
     Change,
     Document,
@@ -226,6 +233,18 @@ def _passages(sheet):
                    + " ".join(p.text.split())[:PASSAGE_LABEL]) for p in rows]
 
 
+def _mark_vision(rows):
+    """Marca cada fragmento de la ficha (vigente o quitado) con `by_vision`: su página se leyó por
+    visión. La lectura del pasaje de cada fragmento ya está cargada con la ficha."""
+    seen = {}
+    for row in rows:
+        for view in [*row.fragments, *row.removed]:
+            reading = view.fragment.passage.reading
+            if reading.pk not in seen:
+                seen[reading.pk] = vision.vision_pages(reading)
+            view.by_vision = view.page in seen[reading.pk]
+
+
 def _sheet_detail(user, offer, request):
     sheet = _latest_sheet(offer)
     base = {"offer": offer, "sheet": None, "back_url": tab_url(offer.procedure_id)}
@@ -233,6 +252,7 @@ def _sheet_detail(user, offer, request):
         return base
     reviewed = review.review_page(user, sheet.pk, channel=CHANNEL)
     page = reviewed.page
+    _mark_vision(page.rows)
     open_id = request.GET.get("fila", "")
     open_id = int(open_id) if open_id.isdigit() else None
     ids = [r.entry.pk for r in page.rows]
