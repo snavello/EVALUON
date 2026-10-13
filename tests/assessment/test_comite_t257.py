@@ -448,6 +448,23 @@ def test_a_fixed_price_condition_is_covered_by_absence_with_the_portal(offer, pr
     assert "ninguno lo contradice" in result.explanation
 
 
+@pytest.mark.parametrize("text, expected", [
+    ("No se aceptarán ofertas condicionadas a la variación del tipo de cambio.", True),
+    ("La oferta se considerará prorrogada automáticamente por un lapso igual al inicial.", True),
+    ("Los precios serán fijos e inamovibles.", True),
+    # no son ausencia: un tope, la garantía y la doble negación que pide presentar algo
+    ("El pagaré no podrá superar los cien módulos.", False),
+    ("Constituir la garantía de mantenimiento de la oferta del cinco por ciento.", False),
+    ("No se considerarán las ofertas que no incluyan la declaración jurada firmada.", False),
+])
+def test_what_is_negative_or_suppletory(text, expected):
+    """REQ-104 (decisión del 2026-10-12): qué requisito se cumple por ausencia y cuál no (un
+    catálogo corto sobre el texto, versionado con las reglas)."""
+    from evaluon.assessment import criteria
+
+    assert criteria.by_absence(text) is expected
+
+
 # --- 6d. La presentación física ---------------------------------------------------------------
 
 PHYSICAL = ("Cuando se opte por garantías no electrónicas, el original de la garantía deberá ser "

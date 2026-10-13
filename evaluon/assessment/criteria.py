@@ -57,10 +57,12 @@ SUPPLETORY = re.compile(
     r"|\bprorrogad\w* automaticamente\b|\bprorroga automatica\b"
     r"|\bfij[oa]s? e inamovibles?\b|\binamovibles?\b|\bprecios? fijos?\b")
 # Lo que no es ausencia aunque se diga en negativo: un tope o un mínimo de un valor («no podrá
-# superar»), que se compara con un dato, y la garantía (se evalúa con su monto y su forma).
+# superar»), que se compara con un dato; la garantía (se evalúa con su monto y su forma); y la doble
+# negación que pide presentar algo («no se considerarán ofertas que no incluyan…»).
 _NOT_ABSENCE = re.compile(
     r"\bno podra(?:n)? (?:superar|exceder|ser (?:menor|inferior|mayor|superior))\b"
-    r"|\bgarantia\b|\bpagare\b|\bpoliza\b|\bcaucion\b")
+    r"|\bgarantia\b|\bpagare\b|\bpoliza\b|\bcaucion\b"
+    r"|\bque no (?:present|inclu|acompan|adjunt|cumpl|cotic|teng|reun|acredit)\w*")
 
 
 def names_tax(text):
