@@ -21,7 +21,8 @@ def evaluated(offer, operator_user, procedure, model):
     def function(call):
         if "declaración jurada" in call.requirement:
             return says("cumple", call.quote(DECLARATION), explanation="Lo declara el oferente.")
-        if "sesenta días" in call.requirement:
+        if "precio unitario" in call.requirement:
+            # T-257: la fila del mantenimiento se resuelve por ausencia; se pregunta por otra.
             return says("no_consta", exigence="condicion", question="¿Desde cuándo corre?")
         if "libre deuda" in call.requirement:
             return says("no_determinado", external=True)
@@ -70,7 +71,7 @@ def test_an_undetermined_result_shows_its_reason_and_the_open_question(
     """REQ-055: "no determinado" con su motivo y la pregunta a la Comisión, que sin respuesta
     no es fundamento; un requisito externo dice que falta la hoja de compliance."""
     log_in(client, operator_user)
-    page = text_of(client.get(page_url(offer, procedure, "sesenta días")))
+    page = text_of(client.get(page_url(offer, procedure, "precio unitario")))
     assert "No determinado" in page and "Falta un dato" in page
     assert "¿Desde cuándo corre?" in page and "no es fundamento" in page
     external = text_of(client.get(page_url(offer, procedure, "libre deuda")))

@@ -143,13 +143,13 @@ def test_a_catalog_requirement_is_a_missing_compliance_sheet_even_if_the_offer_d
     result = results_of(runs[0])[number]
     assert (result.outcome, result.doubt) == ("no_determinado", "externo")
     assert result.facts["regla"] == "externo_catalogo"
-    assert result.facts["version_reglas"] == "reglas-v11"
+    assert result.facts["version_reglas"] == "reglas-v12"
     assert result.facts["externo"]["tipos"] == ["libre_deuda"]
     assert "constancia fiscal de deuda" in result.explanation
     assert "hoja de compliance" in result.explanation
     assert not am.Question.objects.filter(requirement__number=number).exists()
     assert runs[0].counts["by_rule"]["externo_catalogo"] == 1
-    assert runs[0].prompt_versions["reglas"] == "reglas-v11"
+    assert runs[0].prompt_versions["reglas"] == "reglas-v12"
 
 
 @pytest.mark.decision_literal
@@ -226,9 +226,11 @@ def test_the_model_mark_does_not_rule_once_the_sheet_is_loaded(
 
 @pytest.mark.decision_literal
 def test_external_is_the_first_rule_and_wins_over_a_missing_document():
-    """REQ-063: en `rules.apply` el externo es la primera regla: gana sobre "no se encontró el
-    documento"."""
-    assert rules.RULES[0] is externals.rule
+    """REQ-063: en `rules.apply` el externo gana sobre "no se encontró el documento". T-257
+    (H-C2-1): lo preceden solo las reglas de lo que no aplica a la oferta (la forma de garantía no
+    elegida y la opción no usada) y la de la presentación física."""
+    names = [rule.__module__.rsplit(".", 1)[-1] for rule in rules.RULES]
+    assert names[:4] == ["guarantee_form", "options", "presentation", "externals"]
     pair = SimpleNamespace(
         combined=Combined(outcome="sin_documento", exigence="documento"),
         text=SimpleNamespace(text=ENTRIES["seguros"][0]), requirement=0,
@@ -236,5 +238,5 @@ def test_external_is_the_first_rule_and_wins_over_a_missing_document():
     ctx = SimpleNamespace(offer=0)
     assert rules.apply(pair, ctx) == "externo_catalogo"
     assert pair.combined.doubt == "externo" and pair.combined.question == ""
-    assert pair.combined.facts["version_reglas"] == "reglas-v11"
+    assert pair.combined.facts["version_reglas"] == "reglas-v12"
     assert pair.combined.facts["externo"]["tipos"] == ["seguros"]

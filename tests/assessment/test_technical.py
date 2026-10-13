@@ -33,9 +33,12 @@ def row_result(procedure, runs, item=1):
 
 
 def test_the_rules_have_the_technical_one_between_external_and_unreadable():
-    """REQ-061: la regla técnica va en su lugar del orden del plan (el Portal, al final)."""
+    """REQ-061: la regla técnica va en su lugar del orden del plan: después del externo y antes
+    de la ilegible y la del Portal (T-257 suma la opción, la presentación física y la ausencia, y
+    pone la forma de garantía antes que el externo)."""
     names = [rule.__module__.rsplit(".", 1)[-1] for rule in rules.RULES]
-    assert names == ["externals", "guarantee_form", "technical", "unreadable", "portal_facts"]
+    assert names == ["guarantee_form", "options", "presentation", "externals", "technical",
+                     "unreadable", "portal_facts", "absence"]
 
 
 @pytest.mark.decision_literal
@@ -54,7 +57,7 @@ def test_a_technical_row_with_document_and_portal_quote_is_pending_the_technical
     result = row_result(procedure, runs)
     assert (result.outcome, result.doubt) == ("no_determinado", "pendiente_informe_tecnico")
     assert result.facts["regla"] == "tecnico_hechos"
-    assert result.facts["version_reglas"] == "reglas-v11"
+    assert result.facts["version_reglas"] == "reglas-v12"
     assert result.facts["documento_tecnico"] == "hay"
     assert result.facts["renglon_ofertado"] == "si"
     assert result.facts["renglon"] == 1

@@ -4,7 +4,9 @@ recibe y qué devuelve el modelo"; ADR-0040; T-150).
 
 - **Texto del requisito.** El de cada cita de la matriz; si una circular la modificó, el texto
   vigente es el de la última modificación (por fecha) y el original queda al lado. Una cita que
-  la última circular suprime se muestra con su texto y la marca de suprimida.
+  la última circular suprime se muestra con su texto y la marca de suprimida. Lo que una circular
+  o una respuesta a consulta aclara o precisa (efecto `aclara`) no cambia el texto vigente: llega
+  al modelo con su fecha y su texto, junto a la cita o al requisito (T-257).
 - **Normas.** No hay búsqueda normativa nueva: las unidades que la matriz validada ya trae
   para el requisito (respaldo normativo y fundamentos de la consecuencia elegida o, si no hay,
   de las sugeridas), hasta `ASSESSMENT_NORM_UNITS_MAX`.
@@ -86,6 +88,10 @@ class QuoteText:
     suppressed: bool = False
     # La circular que modificó o suprimió la cita (`RequirementSource`), para mostrarla (T-228).
     source: object = None
+    # T-257 (H8 de las omisiones): lo que una circular o una respuesta aclara o precisa de esta cita
+    # (`RequirementSource` con efecto `aclara`), en orden de fecha. No cambia el texto vigente: se
+    # le muestra al modelo junto con la cita.
+    clarifications: list = field(default_factory=list)
 
     @property
     def scope_label(self):
@@ -121,6 +127,8 @@ class QuoteText:
 class RequirementText:
     requirement: object
     quotes: list = field(default_factory=list)
+    # T-257: las aclaraciones de una circular que alcanzan al requisito sin una cita en particular.
+    clarifications: list = field(default_factory=list)
 
     @property
     def item(self):
@@ -171,10 +179,19 @@ class RequirementText:
                 lines.append(f"(Texto original, antes de la circular: «{q.original}»)")
             if q.suppressed:
                 lines.append("(Una circular posterior suprimió este texto.)")
+            lines.extend(_clarification(source) for source in q.clarifications)
+        lines.extend(_clarification(source) for source in self.clarifications)
         if marked:
             lines.append("(Es el punto completo del pliego: lo que exige el requisito es la "
                          "oración entre <<< >>>; el resto es su contexto.)")
         return "\n".join(lines)
+
+
+def _clarification(source):
+    """La línea con lo que aclara o precisa una circular (T-257): su fecha y su texto literal."""
+    when = source.issued_on.strftime("%d/%m/%Y") if source.issued_on else "sin fecha"
+    return (f"(Aclaración de una circular del {when}, que forma parte del pliego: "
+            f"«{source.text}»)")
 
 
 def requirement_text(requirement, quotes=None, sources=None):
@@ -184,19 +201,22 @@ def requirement_text(requirement, quotes=None, sources=None):
     if quotes is None:
         quotes = list(requirement.quotes.select_related("segment").order_by("order"))
     if sources is None:
-        sources = list(requirement.sources.exclude(quote=None).order_by("issued_on", "pk"))
-    out = RequirementText(requirement=requirement)
+        sources = list(requirement.sources.order_by("issued_on", "pk"))
+    out = RequirementText(requirement=requirement, clarifications=[
+        s for s in sources if s.quote_id is None and s.effect == SourceEffect.ACLARA])
     for quote in quotes:
+        clarified = [s for s in sources if s.quote_id == quote.pk
+                     and s.effect == SourceEffect.ACLARA]
         chain = [s for s in sources if s.quote_id == quote.pk
                  and s.effect in (SourceEffect.MODIFICA, SourceEffect.SUPRIME)]
         if chain and chain[-1].effect == SourceEffect.MODIFICA:
             out.quotes.append(QuoteText(quote, text=chain[-1].text, original=quote.text,
-                                        source=chain[-1]))
+                                        source=chain[-1], clarifications=clarified))
         elif chain:
             out.quotes.append(QuoteText(quote, text=quote.text, suppressed=True,
-                                        source=chain[-1]))
+                                        source=chain[-1], clarifications=clarified))
         else:
-            out.quotes.append(QuoteText(quote, text=quote.text))
+            out.quotes.append(QuoteText(quote, text=quote.text, clarifications=clarified))
     return out
 
 

@@ -16,7 +16,9 @@ from tests.offers.conftest import make_offer
 
 pytestmark = pytest.mark.django_db
 
-DAYS = "sesenta días"
+# T-257: la fila del mantenimiento («sesenta días») se resuelve por ausencia (decisión del
+# 2026-10-12); estas pruebas de las preguntas usan una fila que ninguna regla decide sin el Portal.
+DAYS = "precio unitario"
 
 
 def ask_about_days(call):

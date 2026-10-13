@@ -144,9 +144,10 @@ def asked(offer, operator_user, procedure, model):
 
     model.evaluates(lambda call: says("no_consta", exigence="condicion",
                                       question="¿Desde cuándo corre el plazo?")
-                    if "sesenta días" in call.requirement else None)
+                    if "precio unitario" in call.requirement else None)
     run_all(operator_user, procedure)
-    return am.Question.objects.get(requirement__number=number_of(procedure, "sesenta días"))
+    # T-257: la fila del mantenimiento se resuelve por ausencia; se pregunta por otra.
+    return am.Question.objects.get(requirement__number=number_of(procedure, "precio unitario"))
 
 
 def test_the_operator_sees_the_questions_but_cannot_answer(

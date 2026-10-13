@@ -439,10 +439,11 @@ CONTRAST_SCHEMA = {
 
 
 def build_contrast_messages(system, requirement_block, conclusion, cited, supports_text="",
-                            correction="", portal_cites=(), previous=""):
+                            correction="", portal_cites=(), previous="", portal_offer=()):
     """El pedido corto del contraste: el requisito, la conclusión, la oración citada de la oferta
     con su contexto (`cited`: lista de `(título, página, texto, contexto)`, T-235), los datos del
-    Portal citados (`portal_cites`: textos escritos por el sistema) y los fundamentos. El
+    Portal citados (`portal_cites`: textos escritos por el sistema), los demás datos del Portal de
+    la oferta (`portal_offer`, T-257: el contraste ve el bloque completo) y los fundamentos. El
     reintento suma la respuesta anterior (`previous`) y la corrección como dos turnos."""
     lines = []
     for title, page, text, context in cited:
@@ -453,7 +454,9 @@ def build_contrast_messages(system, requirement_block, conclusion, cited, suppor
         lines) if lines else ""
     portal = ("Datos del Portal citados (fuente oficial):\n"
               + "\n".join(f"- {text}" for text in portal_cites)) if portal_cites else ""
-    parts = [requirement_block, f"Conclusión propuesta: {conclusion}", quotes, portal,
+    others = ("Otros datos del Portal de esta oferta (fuente oficial; la evaluación no los "
+              "citó):\n" + "\n".join(f"- {text}" for text in portal_offer)) if portal_offer else ""
+    parts = [requirement_block, f"Conclusión propuesta: {conclusion}", quotes, portal, others,
              supports_text, "Devolvé un objeto JSON con los campos pedidos: primero el "
              "razonamiento y después la respuesta."]
     user = "\n\n".join(part for part in parts if part)

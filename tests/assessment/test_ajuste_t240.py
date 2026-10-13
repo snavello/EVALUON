@@ -108,7 +108,7 @@ def test_the_requirement_of_a_form_not_chosen_does_not_apply(offer, portal, text
     assert (combined.outcome, combined.doubt) == ("cumple", "")
     assert combined.explanation.startswith("No aplica:") and form in combined.explanation
     assert combined.facts["aplica"] is False and combined.facts["regla"] == name
-    assert combined.facts["version_reglas"] == "reglas-v11"
+    assert combined.facts["version_reglas"] == "reglas-v12"
     assert combined.question == "" and not combined.ask
     assert combined.citations == [] and len(combined.portal) == 1
     assert combined.portal[0]["kind"] == "garantia" and form in combined.portal[0]["text"]
@@ -237,12 +237,18 @@ def test_loading_the_policy_in_the_portal_is_met_by_the_guarantee_the_portal_inf
 def test_a_requirement_about_a_guarantee_document_is_not_decided_by_the_portal_amount(
         offer, portal, text, form):
     """REQ-103, T-240: un requisito sobre el documento de la garantía (copia, original, Mesa de
-    Entrada) no pide un monto: el Portal no decide, queda lo que concluyó el modelo y no hay
-    «falta de coincidencia» por un monto que nadie pidió."""
+    Entrada) no pide un monto: el Portal no decide y no hay «falta de coincidencia» por un monto que
+    nadie pidió. T-257 (decisión del 2026-10-12): la presentación física que no consta la decide la
+    regla de la presentación física, no la del Portal."""
     chosen_form(portal, offer, form)
     pair = pair_of(text, combine.Combined(outcome="sin_documento"))
-    assert rules.apply(pair, SimpleNamespace(offer=offer)) is None
-    assert pair.combined.outcome == "sin_documento"
+    name = rules.apply(pair, SimpleNamespace(offer=offer))
+    assert name is None or not name.startswith("portal_")
+    assert pair.combined.doubt != "falta_coincidencia"
+    if name is None:
+        assert pair.combined.outcome == "sin_documento"
+    else:
+        assert name == "presentacion_fisica_no_consta"
 
 
 # --- Instrucciones de la evaluación: evaluacion-v9 (REQ-104, REQ-105, REQ-106) ---------------------
@@ -259,8 +265,9 @@ def test_the_evaluation_instruction_v10_covers_the_cases_and_asks_for_the_citati
     referencia, el negativo, el mantenimiento de la oferta y la forma u opción que la oferta no eligió;
     «cumple» solo con la oración de la oferta que dice lo afirmado (P3) y, si no la hay, «no
     determinado»; y la explicación y la pregunta dicen lo mismo que las condiciones y el Portal."""
-    assert settings.ASSESSMENT_PROMPT_VERSIONS["evaluacion"] == "evaluacion-v10"
-    body = prompting.load_prompt("evaluacion")
+    # T-257: la vigente es `evaluacion-v11` (criterios del 2026-10-12); esta prueba queda sobre la v10
+    # publicada, y la v11 tiene la suya en `test_comite_t257.py`.
+    body = (prompting.PROMPTS_DIR / "evaluacion-v10.md").read_text(encoding="utf-8")
     for phrase in ("Requisito de referencia", "no pide un documento propio",
                    "Requisito negativo", "Mantenimiento de la oferta",
                    "Forma u opción que la oferta no eligió", "no la des por cumplida",
@@ -279,8 +286,9 @@ def test_the_evaluation_instruction_v10_covers_the_cases_and_asks_for_the_citati
 def test_the_evaluation_instruction_v10_does_not_repeat_the_currency_and_tax_scenario():
     """REQ-106, T-240 (D-240-3): el escenario «pesos e IVA» es el del requisito 10 del caso-00 que se
     mide: `evaluacion-v10` no lo trae (ni «IVA» ni «pesos»), como `evaluacion-v7` y `-v8`; su ejemplo de
-    dos condiciones es de otro rubro (vigilancia: dólares y turnos)."""
-    body = prompting.load_prompt("evaluacion")
+    dos condiciones es de otro rubro (vigilancia: dólares y turnos). La v11 tiene la suya en
+    `test_comite_t257.py` (T-257)."""
+    body = (prompting.PROMPTS_DIR / "evaluacion-v10.md").read_text(encoding="utf-8")
     assert "IVA" not in body and "pesos" not in body and "impuesto" not in body.lower()
     assert "turnos de ocho horas" in body and "USD" in body
     for old in ("evaluacion-v7", "evaluacion-v8"):

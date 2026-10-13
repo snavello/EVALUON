@@ -880,6 +880,10 @@ def _contrast_pair(ctx, pair):
         cited.append((c.document.title, c.page, c.text, context))
         contexts.append(context)
     portal_cites = [d["text"] for d in combined.portal]
+    # T-257 (H9 de la mesa de comité): el contraste ve el bloque del Portal de la oferta completo, no
+    # solo lo que la evaluación citó (sin el total no puede comprobar el porcentaje de la garantía).
+    _, portal_map = ctx.portal_block()
+    portal_offer = [d.text for d in portal_map.values() if d.text not in portal_cites]
     conclusion = "cumple" if combined.outcome == combine.OUT_CUMPLE else "no cumple"
     instruction = prompting.prompt_record("contraste")
     answer, reason, previous, correction, previous_output = None, "", None, "", ""
@@ -888,7 +892,8 @@ def _contrast_pair(ctx, pair):
         position = ctx.add(step)
         messages = prompting.build_contrast_messages(
             system, pair.text.render(), conclusion, cited, _supports_text(combined),
-            correction, portal_cites=portal_cites, previous=previous_output)
+            correction, portal_cites=portal_cites, previous=previous_output,
+            portal_offer=portal_offer)
         result = _generate(messages, prompting.CONTRAST_SCHEMA, step, ctx,
                            reasoning_step="contrast")
         try:
@@ -906,7 +911,8 @@ def _contrast_pair(ctx, pair):
         step.parsed = {"respuesta": answer, "razonamiento": reason, "motivo": reason,
                        "contexto": contexts,
                        "contexto_max_caracteres": citing.CONTEXT_MAX_CHARS,
-                       "citas_portal": portal_cites, "instruccion": instruction}
+                       "citas_portal": portal_cites, "portal_oferta": portal_offer,
+                       "instruccion": instruction}
         break
     if answer is None:
         answer, reason = "parcial", "el contraste no devolvió una salida válida"

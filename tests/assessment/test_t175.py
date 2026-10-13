@@ -157,13 +157,14 @@ def test_without_quotes_in_the_portal_a_per_line_requirement_is_untouched(offer,
 def test_the_guarantee_entered_in_the_portal_is_cited_when_the_offer_does_not_bring_it(
         offer, portal):
     """REQ-062, REQ-103: «Paso 4 Ingreso de Garantía» pide que la garantía esté individualizada en
-    el Portal, que la tiene: «cumple» con la cita de la garantía del Portal aunque la oferta no
-    la traiga."""
+    el Portal: la cita de la garantía del Portal sale aunque la oferta no la traiga. T-257 (H-C2-6,
+    R123): el pliego pide además el número en el campo «Numero de Documento», que el Portal no
+    guarda: ya no es «cumple» (antes: «cumple» con una cita que no muestra el número)."""
     data = portal_data(portal, offer, amount="21750.00")
     assert portal_facts.kind_of(INDIVIDUALIZED) == "garantia"
     pair = pair_of(INDIVIDUALIZED, combine.Combined(outcome="sin_documento"))
-    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
-    assert pair.combined.outcome == "cumple"
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_falta_coincidencia"
+    assert pair.combined.outcome == "no_determinado"
     cite = pair.combined.portal[0]
     guarantee = data.guarantees.get()
     assert cite["kind"] == "garantia" and "21750.00" in cite["text"]
@@ -269,8 +270,11 @@ def test_the_opening_of_the_quote_lets_the_portal_recognize_a_cut_condition(offe
     assert rules.apply(pair, SimpleNamespace(offer=offer)) is None
     pair.text = SimpleNamespace(text=quote, opening=grounds.segment_heading(q, titles=False)
                                 + " " + quote)
-    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
+    # T-257 (H-C2-6): se reconoce la garantía y se cita el Portal, pero el número del campo «Numero
+    # de Documento» no está en el Portal: no es «cumple».
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_falta_coincidencia"
     assert pair.combined.portal[0]["kind"] == "garantia"
+    assert pair.combined.outcome != "cumple"
 
 
 def test_the_lead_of_the_quote_is_only_the_sentence_where_it_starts():
