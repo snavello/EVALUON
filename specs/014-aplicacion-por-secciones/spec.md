@@ -1,6 +1,6 @@
 # Spec 014 · Aplicación por secciones
 
-Estado: aprobada · Fecha: 2026-10-07 · Aprobó: responsable del proyecto (2026-10-07 20:20, «si»)
+Estado: aprobada · Fecha: 2026-10-07 · Aprobó: responsable del proyecto (2026-10-07 20:20, «si») · Enmienda: 2026-10-13, identidad visual de la aplicación (REQ-108), decisión y aprobación del responsable («si  avanza para que se registre y se haga»)
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
 
@@ -36,6 +36,9 @@ Sin esta reorganización no se puede mostrar el producto ni operarlo en el pilot
 | 2026-10-10 | «No pedir» una subsanación | «Reversible con motivo»: queda registrado quién cambió la decisión, cuándo y por qué. |
 | 2026-10-10 | Historial de la Consulta | «La Comisión ve todo»: cada consulta con quién la hizo. |
 | 2026-10-10 | Caso LPU25, evaluación legible y revisión | «yo puse algunos ejemplo de "errores inconsistencias o cuestiones dudosas o mejorables " no significa que haya mas. Entiendo que rehacer este caso es lo mejor, es decir que elimines los datso y vayas haciendo vos o un agente "comision evaluadora" la navegacion y la carga, (tienens todos los datos) y pueddes usar los recursos de la maquina (ram vram y gpu sin limite) porque la maquina esta solo haciendo esto. Resumen A y B lo hacemos, pero luego hacemos un C en el que revisas o mandas a revisar para que no queden este tipo de errores gruesos. No voy a poner limites a la performance pero entiendo que no podemos pasar dias haciendo esto, asi que un limite global de 3 horas me parece razonable y si se necesita solo un poco mas me dices.» A: evaluación legible (punto completo del pliego, preguntas con su contexto, requisitos externos aparte, qué se leyó y dónde). B: rehacer el caso desde cero como la Comisión. C: revisión de errores gruesos. Límite global: 3 horas. |
+| 2026-10-13 | Paleta de la marca | «vamos con la p1 para fondo claro y p8 para fondo oscuro»: azul y rojo sobre fondo claro; bordó y beige sobre fondo oscuro. |
+| 2026-10-13 | Logotipo e isotipo | «el primer logotimpo  ON en mayusculas (y su version para fondo oscuro)   el primer iso  partido en sus dos versiones (fondo claro y oscuro)». |
+| 2026-10-13 | Dónde se usa la marca | «si  avanza para que se registre y se haga», sobre la maqueta `docs/diseno/marca/maqueta-aprobada.png`: el encabezado de todas las páginas lleva el logotipo para fondo oscuro; la pestaña del navegador, el isotipo; la pantalla de ingreso, el logotipo para fondo claro; las letras van dibujadas como formas; se registra como enmienda de esta feature (REQ-108). |
 
 Decisiones anteriores que siguen vigentes: el Portal es la primera fuente y lo que no publica se sube como complemento (REQ-071, spec 013); los pendientes y las sugerencias se ven separados y los dos visibles (REQ-072, spec 013); la ficha de la oferta es opcional (plan 013); los cuatro íconos de estado tienen el nombre propio de cada pantalla al pasar el mouse (ADR-0046, punto 7).
 
@@ -87,6 +90,7 @@ La columna «Hoja» remite a la línea de la hoja «EVALUON en cinco secciones»
 | REQ-098 | T.4 | Lo pendiente de decidir y las sugerencias del sistema se ven separados y los dos visibles, en cada sección y en la portada del procedimiento. | — |
 | REQ-099 | T.5 | Reemplazar o retirar un archivo no borra nada: la versión anterior o el retirado quedan en el historial y se pueden ver. | P6 (constitución) |
 | REQ-100 | T.6 | Todas las pantallas usan la guía visual acordada (`docs/diseno/guia-visual.md`), con la misma jerarquía: título, resumen, lo pendiente, el detalle y las acciones al pie. | — |
+| REQ-108 | — | La aplicación muestra su marca aprobada (`docs/diseno/marca/`): el logotipo para fondo oscuro en el encabezado de todas las páginas, el isotipo en la pestaña del navegador y el logotipo para fondo claro en la pantalla de ingreso. La marca se ve igual en cualquier equipo, sin depender de las fuentes instaladas. |
 
 ## Criterios de aceptación
 
@@ -118,6 +122,7 @@ Criterio numérico de la feature: con el caso chico de la 013 y con el caso-00, 
 - **REQ-098.** Dado el caso-00 con pendientes y sugerencias, cuando se abre la portada, entonces se ven en dos bloques separados con su cuenta.
 - **REQ-099.** Dado un documento reemplazado, cuando se abre su historial, entonces se ven la versión anterior y la nueva; un documento retirado aparece en «retirados».
 - **REQ-100.** Dada cada pantalla de la feature, cuando la revisa el Coordinador en el navegador, entonces respeta la guía visual y la jerarquía común.
+- **REQ-108.** Dada cualquier página de la aplicación, cuando se abre en el navegador, entonces el encabezado muestra el logotipo para fondo oscuro y la pestaña el isotipo; dada la pantalla de ingreso, se ve además el logotipo para fondo claro. Las tres piezas coinciden con la maqueta aprobada y ninguna depende de una fuente instalada. Se comprueba aparte del criterio numérico de REQ-075 a REQ-100.
 
 ## Requisitos no funcionales
 
@@ -129,6 +134,7 @@ Criterio numérico de la feature: con el caso chico de la 013 y con el caso-00, 
 
 - El borrador del dictamen (sigue diferido).
 - Tipear datos o renglones del procedimiento.
+- La marca en la matriz impresa: conserva su encabezado actual (enmienda del 2026-10-13).
 - Traer normas de una fuente oficial (Boletín Oficial, InfoLEG): solo se sube el archivo.
 - Bloqueo por intentos fallidos y acceso desde otras computadoras (feature 007).
 - Cambiar la lógica de cada feature: la reorganización cambia dónde se ven las cosas y suma las acciones que faltan (REQ-077, REQ-091, REQ-094, REQ-099).
