@@ -70,7 +70,7 @@ flowchart LR
 | 011 · Pautas para documentos legibles por IA | Una sección que, con el sistema maduro, genera recomendaciones para redactar pliegos, circulares y aclaraciones de modo que la IA los analice mejor ("AI friendly"), sin perder sentido ni rigor técnico ni legal. Las pautas salen de lo aprendido al leer y medir casos reales en la 003 y siguientes (por ejemplo: circulares con "Donde dice / Debe decir" por cláusula numerada, anexos con título propio, una condición por oración, tablas legibles) y se validan con la Comisión antes de proponerlas | No iniciada | — | — |
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
-| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 40/45 | █████████░ 89% |
+| [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 40/46 | █████████░ 87% |
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 30/34 | █████████░ 88% |
 
 <a id="001"></a>
@@ -1057,8 +1057,9 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 5 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 6 tareas sin terminar.
 - ○ T-228 · Evaluación legible: en cada celda, pendiente y pregunta se ve el punto completo del pliego con el fragmento del requisito resaltado; cada pregunta trae en el lugar el requisito, la oferta, el fragmento citado con página y el enlace al original; los requisitos que se cumplen con información externa se señalan aparte desde el principio con lo que falta; la explicación dice qué documentos y páginas se leyeron cuando no hay texto de la oferta. Umbral: 100 % de las celdas, pendientes y preguntas con el punto completo; 100 % de los requisitos externos agrupados y marcados (pendiente)
+- ○ T-267 · Identidad visual (enmienda del 2026-10-13): logotipo para fondo oscuro en el encabezado de todas las páginas, isotipo en la pestaña y logotipo para fondo claro en el ingreso, con las letras convertidas a contornos una sola vez (sin depender de fuentes instaladas) (pendiente)
 - ○ T-185 · T-217 (con sus avisos: pausa del sondeo con la pestaña oculta, `Stage.suggestions`, motivo de falla con `plain_reason`, foco del ícono tras el sondeo) (pendiente)
 - ○ T-186 · T-218 (con la nota de runbook: reconstruir la imagen con `docker compose build app` para servir los estáticos) (pendiente)
 - ○ T-188 · T-192 (base de la guía visual) y la aplicación en cada tarea de interfaz; revisión final en T-218 (pendiente)
@@ -1153,6 +1154,7 @@ flowchart TD
   T230["✓ T-230 · Revisión de errores gruesos del caso rehech…"]:::done
   T231["✓ T-231 · Errores gruesos de la revisión C en Evaluac…"]:::done
   T232["✓ T-232 · Errores gruesos de la revisión C en Pliego…"]:::done
+  T267["○ T-267 · Identidad visual (enmienda del 2026-10-13):…"]:::todo
   T185["○ T-185 · T-217 (con sus avisos: pausa del sondeo con…"]:::todo
   T186["○ T-186 · T-218 (con la nota de runbook: reconstruir…"]:::todo
   T188["○ T-188 · T-192 (base de la guía visual) y la aplicac…"]:::todo
@@ -1233,6 +1235,8 @@ flowchart TD
   T229 --> T230
   T229 --> T231
   T229 --> T232
+  T219 --> T267
+  T226 --> T267
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -1270,7 +1274,7 @@ flowchart TD
 | REQ-098 | T.4 | T-192, T-217, T-218, T-222, T-227, T-228, T-231 | ▶ en proceso |
 | REQ-099 | T.5 | T-193, T-199, T-200, T-206, T-218, T-225 | ✓ cubierto |
 | REQ-100 | T.6 | T-192, T-218, T-219, T-221, T-222, T-223, T-224, T-226, T-230, T-231 | ✓ cubierto |
-| REQ-108 | — | — | sin tarea |
+| REQ-108 | — | T-267 | ○ pendiente |
 
 <a id="015"></a>
 

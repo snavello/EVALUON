@@ -1,6 +1,6 @@
 # Plan 014 · Aplicación por secciones
 
-Estado: aprobado · Fecha: 2026-10-07 · Aprobó: responsable del proyecto (2026-10-07 21:20, «ok avanza», junto con la maqueta)
+Estado: aprobado · Fecha: 2026-10-07 · Aprobó: responsable del proyecto (2026-10-07 21:20, «ok avanza», junto con la maqueta) · Enmienda: 2026-10-13, identidad visual (REQ-108, T-267), autorizada por el responsable («si  avanza para que se registre y se haga»)
 
 Spec: `specs/014-aplicacion-por-secciones/spec.md` (aprobada el 2026-10-07)
 
@@ -283,3 +283,76 @@ Son decisiones de operación, no del responsable sobre el producto.
 5. **«Normas que faltan cargar» (REQ-095).** Son: la norma del régimen que fija la fecha de autorización, el marco nacional, las modificatorias registradas sin cargar (`PendingAmendment`) y las normas que cita el pliego y no están cargadas. Se aplica en T-215.
 6. **Pantalla «Nuevo procedimiento» previa** (`expedientes/nuevo/`, o el nombre que fije la maqueta, que ya la muestra como `#nuevo`). Se aplica en T-192 y T-195.
 7. **Roles de aprobación de lo importado.** Según REQ-048 de la 012: datos, renglones y ofertas los aprueba solo un evaluador; el operador puede aprobar solo la carga de documentos. Se aplica también al alta desde el pliego (T-196, T-197) y al alta de una oferta desde sus archivos (T-220, T-202); ver «Roles».
+
+## Enmienda del 2026-10-13 · Identidad visual (REQ-108)
+
+Origen: la enmienda de la spec aprobada por el responsable el 2026-10-13 (decisiones «Paleta de la marca», «Logotipo e isotipo» y «Dónde se usa la marca») y la maqueta `docs/diseno/marca/maqueta-aprobada.png`. No cambia nada de lo aprobado antes: agrega una tarea, **T-267** (T-265 y T-266 ya son de la 015), sin requisitos nuevos. No toca modelo de datos, IA ni auditoría (no hay nada que registrar: P6 no aplica) y no agrega dependencias de ejecución (P4, P5 y P10 se mantienen). La marca no necesita servicios externos: son archivos estáticos propios.
+
+### Recursos y dónde quedan
+
+Se sirven desde `evaluon/static/marca/` (carpeta nueva; se sirve igual que el resto de los estáticos, con WhiteNoise, ADR-0005). Los archivos de `docs/diseno/marca/` siguen siendo la fuente aprobada y no se modifican.
+
+| Archivo servido | Sale de | Dónde se usa | Cambios respecto de la fuente aprobada |
+|---|---|---|---|
+| `logotipo-encabezado.svg` | `logotipo-fondo-oscuro.svg` | Encabezado de todas las páginas | Recortado a la placa (`viewBox="126 144 772 224"`), sin el halo exterior desenfocado del bloque ON (el `rect` con `filter="url(#brillo)"` y la definición de ese filtro); se conserva el brillo interno de la placa; letras a contornos |
+| `logotipo-ingreso.svg` | `logotipo-fondo-claro.svg` | Pantalla de ingreso, arriba del título | Los mismos tres cambios |
+| `isotipo.svg` | `isotipo-fondo-claro.svg` | Pestaña del navegador | Ninguno: ya está hecho con formas (sin `<text>`); se copia tal cual |
+
+Los dos logotipos se usan con `<img>` y no con SVG en línea: no hay colisión de identificadores (`gIzq`, `placa`, etc.), el navegador los guarda en caché y las plantillas no llevan estilos en línea (la política de contenido y `test_no_external.py` los prohíben). No se mezclan con `static/journey/` porque el SVG lleva la dirección del espacio de nombres (`http://www.w3.org/2000/svg`), que no es un recurso externo pero haría fallar ese test; los SVG de `static/marca/` tienen su propio test.
+
+### Cómo se generan los contornos
+
+Las fuentes aprobadas dibujan «EVALU» y «ON» como `<text>` con Arial: el equipo que las abre necesita esa fuente, y REQ-108 pide que la marca se vea igual en cualquier equipo. Las letras se convierten a `<path>` **una sola vez**, como generación de recursos:
+
+1. Script `tools/marca_a_contornos.py` (se guarda en el repositorio para que la generación sea reproducible). Lo corre una persona a mano; no lo importa la aplicación ni ningún test, y no entra en `pyproject.toml` ni en la imagen.
+2. Necesita `fontTools`, que no está instalado. Se instala en un entorno temporal fuera del repositorio (por ejemplo, un `venv` en una carpeta temporal) y la versión usada queda anotada en el encabezado del script.
+3. Entrada: los dos logotipos de `docs/diseno/marca/` y la Arial Bold de `C:/Windows/Fonts/arialbd.ttf`. Para cada `<text>` toma `x`, `y`, `font-size`, `text-anchor`, `fill` y `filter`; coloca los glifos con sus anchos y los pares de crenado de la fuente (tabla `kern` o `GPOS`), centra el conjunto en el ancla, dibuja el contorno de cada glifo escalado a `font-size / unitsPerEm` con el eje Y invertido y lo reemplaza por un `<g>` con los mismos `fill` y `filter` y un `<path>` por letra (se conserva `id="wordmark"` y el filtro `luzTexto` del bloque ON).
+4. Después aplica el recorte y quita el halo, según la tabla de arriba, y escribe los tres archivos en `evaluon/static/marca/`.
+5. Comprobación de quien genera: se renderizan el SVG original (con `<text>`, en un equipo con Arial) y el generado en el navegador a la misma escala y se superponen; cada letra coincide con un margen de 1 px sobre el lienzo de 1024 px. Si no coincide (crenado o posición), se ajusta el script y se genera de nuevo.
+
+### Qué plantillas y estilos cambian
+
+Todas las páginas de la aplicación salen de `base.html` (también `seccion_base.html` y el ingreso), y el encabezado es uno solo (`journey/_cabecera.html`, que `_encabezado.html` incluye); por eso el cambio es en pocos lugares:
+
+- `evaluon/templates/base.html`: en `<head>`, `<link rel="icon" type="image/svg+xml" href="{% static 'marca/isotipo.svg' %}">`.
+- `evaluon/templates/journey/_cabecera.html`: agrega `{% load static %}` (un `include` no hereda los `load` de la plantilla madre) y, dentro del enlace `.nombre`, reemplaza el texto «EVALUON» por `<img src="{% static 'marca/logotipo-encabezado.svg' %}" alt="EVALUON" width="131" height="38">`. El enlace sigue yendo a inicio y el separador rojo a la derecha se conserva.
+- `evaluon/templates/accounts/login.html`: `{% load static %}` y, arriba de `<h1>Ingresar</h1>`, `<img class="ingreso-logo" src="{% static 'marca/logotipo-ingreso.svg' %}" alt="" width="262" height="76">`. Es decorativo (`alt` vacío): el encabezado de la misma página ya dice «EVALUON» y leerlo dos veces no ayuda.
+- `evaluon/static/journey/secciones.css`: en `header.top .nombre` se quitan la tipografía y el color (ya no hay texto) y queda `display: flex; align-items: center`, con el relleno y el borde derecho actuales; reglas nuevas `header.top .nombre img { display: block; height: 38px; width: auto; }` y `body.app .ingreso .ingreso-logo { display: block; height: 76px; width: auto; margin: 0 0 18px; }`. Solo con los tokens existentes: no se agregan colores. Los tokens `--ev-t-marca` y `--ev-espaciado-marca` quedan sin uso en el encabezado; `tokens.css` no se toca (limpiarlo no lo pide ningún requisito).
+- Fuera de alcance, como dice la spec: `tenders/matrix_print.html` (no extiende `base.html`) conserva su encabezado.
+
+`base.html`, `_cabecera.html` y `secciones.css` son archivos compartidos: T-267 no se hace a la vez que otra tarea que los toque (el Coordinador lo verifica al lanzarla; las tareas de tema de la 014 no los tocan, según «Estructura común»).
+
+### Cómo se prueba
+
+Tests nuevos en `tests/journey/test_marca.py` (REQ-108). Fallan antes del cambio, porque los archivos no existen y el encabezado es texto, y pasan después:
+
+1. **Encabezado y pestaña en cualquier página.** Con un usuario de la Comisión, para una página que extiende `base.html` directo (`queries:screen`), una de sección (una pestaña de un procedimiento) y el inicio: el `<header class="top">` contiene un enlace `.nombre` hacia inicio con una `<img>` cuyo `src` es el estático `marca/logotipo-encabezado.svg` y `alt="EVALUON"`; el `<head>` trae el `<link rel="icon">` con `marca/isotipo.svg`.
+2. **Ingreso.** En `accounts:login`, la imagen `marca/logotipo-ingreso.svg` aparece antes de `<h1>Ingresar</h1>`, y la página trae además el encabezado y la pestaña del punto 1.
+3. **Los SVG servidos.** Los tres archivos existen (se buscan con `django.contrib.staticfiles.finders`, la misma fuente que reúne `collectstatic`), son XML válido y no contienen `<text`, `<image`, `font-family`, `@import` ni direcciones que no sean la del espacio de nombres; los dos logotipos tienen `viewBox="126 144 772 224"`, un `<path>` por cada una de las siete letras dentro de `#wordmark`, y ningún elemento con `filter="url(#brillo)"` (sin halo). Cada archivo mencionado en el HTML de los puntos 1 y 2 existe.
+4. **Sin regresiones.** Los tests existentes de `tests/journey` y `tests/accounts` siguen en verde; `test_redirects.py` busca «EVALUON» en el encabezado y lo sigue encontrando en el `alt`.
+
+**Revisión visual del Coordinador contra la maqueta** (la única forma de comprobar que «coincide con la maqueta aprobada» y que se ve bien; los tests no la reemplazan): con la imagen reconstruida (ver abajo), abrir en el navegador el ingreso y una página con procedimiento, a 1280 px, 1366 × 768 y 900 px, y compararlos con `docs/diseno/marca/maqueta-aprobada.png`: letras y proporciones iguales, bloque ON con su brillo y sin halo exterior recortado, nitidez al alto de 38 px, el encabezado sin desbordes ni saltos de línea, el logotipo claro sobre el título «Ingresar» y el isotipo en la pestaña. Si hay otro navegador o equipo sin Arial a mano, abrir ahí también el ingreso.
+
+**Estáticos nuevos y la imagen.** WhiteNoise sirve lo que `collectstatic` reunió al construir la imagen, y `evaluon/` se monta en solo lectura sobre ella pero los estáticos servidos no se actualizan: para ver la marca en la instancia hay que correr `docker compose build app` y `docker compose up -d` (`specs/001-normativa/entorno.md`). Los tests no lo necesitan (leen `evaluon/static` con `finders`). La tarea lo deja dicho en su registro de verificación para que el despliegue lo repita.
+
+### Cobertura
+
+| Requisito | Cómo se resuelve | Cómo se verifica |
+|---|---|---|
+| REQ-108 | Logotipo para fondo oscuro en `_cabecera.html` (todas las páginas), isotipo en `<link rel="icon">` de `base.html`, logotipo para fondo claro en `login.html`; recursos en `static/marca/` con las letras a contornos generados una sola vez por `tools/marca_a_contornos.py` (T-267) | `tests/journey/test_marca.py` (puntos 1 a 3: encabezado y pestaña en cualquier página, logotipo en el ingreso, ningún `<text>` ni fuente en los SVG servidos) y revisión visual del Coordinador contra la maqueta aprobada. Se comprueba aparte del criterio numérico de REQ-075 a REQ-100 |
+
+Esta fila completa la tabla «Cobertura de requisitos» de arriba.
+
+### Riesgos de la enmienda
+
+| Riesgo | Impacto | Mitigación |
+|---|---|---|
+| Las letras generadas no coinciden con la maqueta (crenado, anchos, posición) | La marca se ve distinta de la aprobada | La generación incluye la superposición con el original y el margen de 1 px; el Coordinador revisa contra la maqueta; máximo dos rondas (ADR-0025) |
+| Algunos navegadores no usan íconos SVG para la pestaña | La pestaña muestra el ícono por defecto en esos navegadores | Se acepta en la primera versión (el requisito pide el isotipo en la pestaña, no un formato). Si la Comisión usa uno de esos navegadores, se genera un PNG una sola vez en el mismo entorno temporal; no se agrega ahora |
+| Los contornos de Arial Bold vienen de una fuente con licencia de Microsoft | Duda de uso de un logotipo dibujado con ella | Las letras son las que el responsable aprobó en la maqueta; se informa para que lo confirme. Si prefiere otra fuente, cambia el insumo del script y se vuelve a aprobar la maqueta (no es una decisión difícil de revertir) |
+| El logotipo cambia el alto del encabezado en pantallas angostas (T-226) | Pestañas desplazadas o encabezado partido a 900 px | Se revisa a 900, 1100 y 1366 px; si hace falta, un ajuste de alto bajo 900 px dentro de la misma tarea |
+| Quedar con el servidor mostrando el encabezado viejo | El Coordinador no ve el cambio y lo da por no hecho | La nota de reconstruir la imagen está en la tarea, en el plan y en la verificación |
+
+### Decisiones
+
+No hace falta un ADR nuevo: convertir las letras a contornos una vez es reversible, no agrega librería de ejecución ni cambia esquema. Las alternativas descartadas son dejar las letras como `<text>` con una fuente instalada o embeber Arial con `@font-face` (las descarta REQ-108, que pide no depender de fuentes instaladas, y la licencia de la fuente) y usar una fuente libre equivalente como Liberation Sans o Arimo (cambiaría la forma de las letras aprobadas). Si el responsable quiere dejar asentada la cuestión de la licencia de Arial, se redacta un ADR corto a pedido.
