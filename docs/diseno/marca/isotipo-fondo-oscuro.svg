@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="EVALUON">
+  <defs>
+    <linearGradient id="gIzq" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A52537"/><stop offset="1" stop-color="#7A1626"/></linearGradient>
+    <linearGradient id="gDer" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FCFAF5"/><stop offset="1" stop-color="#D9D2C1"/></linearGradient>
+    <linearGradient id="gVidrio" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0.12"/></linearGradient>
+    <linearGradient id="gBorde" gradientUnits="userSpaceOnUse" x1="0" y1="32" x2="0" y2="480"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.5"/><stop offset="0.45" stop-color="#FFFFFF" stop-opacity="0.08"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0.04"/></linearGradient>
+    <radialGradient id="gHalo" gradientUnits="userSpaceOnUse" cx="399" cy="340" r="120" gradientTransform="translate(399 340) scale(1.25 0.9) translate(-399 -340)"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.85"/><stop offset="0.45" stop-color="#F3EFE4" stop-opacity="0.45"/><stop offset="1" stop-color="#D9D2C1" stop-opacity="0"/></radialGradient>
+    <clipPath id="placa"><path d="M128 32H384A96 96 0 0 1 480 128V384A96 96 0 0 1 384 480H128A96 96 0 0 1 32 384V128A96 96 0 0 1 128 32Z"/></clipPath>
+    <clipPath id="zonaDer"><path d="M318 32H384A96 96 0 0 1 480 128V384A96 96 0 0 1 384 480H318Z"/></clipPath>
+    <filter id="brillo" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="luzTexto" x="-25%" y="-40%" width="150%" height="190%" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceAlpha" stdDeviation="7" result="difuso"/><feFlood flood-color="#FFFFFF" flood-opacity="0.55"/><feComposite in2="difuso" operator="in" result="luz"/><feMerge><feMergeNode in="luz"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <g id="icon">
+    <path d="M128 32H322V480H128A96 96 0 0 1 32 384V128A96 96 0 0 1 128 32Z" fill="url(#gIzq)"/>
+    <path d="M318 32H384A96 96 0 0 1 480 128V384A96 96 0 0 1 384 480H318Z" fill="url(#gDer)"/>
+    <g clip-path="url(#zonaDer)"><rect x="318" y="32" width="162" height="448" fill="url(#gHalo)"/></g>
+    <g clip-path="url(#placa)"><path d="M32 32H480V170C400 205 300 160 210 180C140 196 80 205 32 190Z" fill="url(#gVidrio)"/><path d="M128 32H384A96 96 0 0 1 480 128V384A96 96 0 0 1 384 480H128A96 96 0 0 1 32 384V128A96 96 0 0 1 128 32Z" fill="none" stroke="url(#gBorde)" stroke-width="4"/></g>
+  </g>
+  <g id="wordmark">
+    <g fill="#F7F4EC"><rect x="108" y="136" width="50" height="240"/><rect x="108" y="136" width="132" height="50"/><rect x="108" y="231.0" width="113.52" height="50"/><rect x="108" y="326" width="132" height="50"/></g>
+    <g fill="#0B1B33" filter="url(#luzTexto)"><path fill-rule="evenodd" d="M368.72 314.0A31.0 31.0 0 1 1 368.72 376.0A31.0 31.0 0 1 1 368.72 314.0ZM368.72 332.0A13.0 13.0 0 1 0 368.72 358.0A13.0 13.0 0 1 0 368.72 332.0Z"/><rect x="405.72" y="314" width="18" height="62"/><rect x="442.28000000000003" y="341.28" width="18" height="34.72"/><path d="M405.72 341.28A27.28 27.28 0 0 1 460.28000000000003 341.28H442.28000000000003A9.280000000000001 9.280000000000001 0 0 0 423.72 341.28Z"/></g>
+  </g>
+</svg>

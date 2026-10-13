@@ -1270,6 +1270,7 @@ flowchart TD
 | REQ-098 | T.4 | T-192, T-217, T-218, T-222, T-227, T-228, T-231 | ▶ en proceso |
 | REQ-099 | T.5 | T-193, T-199, T-200, T-206, T-218, T-225 | ✓ cubierto |
 | REQ-100 | T.6 | T-192, T-218, T-219, T-221, T-222, T-223, T-224, T-226, T-230, T-231 | ✓ cubierto |
+| REQ-108 | — | — | sin tarea |
 
 <a id="015"></a>
 

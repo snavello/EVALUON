@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 512" role="img" aria-label="EVALUON">
+  <defs>
+    <linearGradient id="gIzq" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1B3A66"/><stop offset="1" stop-color="#0B1B33"/></linearGradient>
+    <linearGradient id="gDer" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A52537"/><stop offset="1" stop-color="#8B1E2D"/></linearGradient>
+    <linearGradient id="gVidrio" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0.12"/></linearGradient>
+    <linearGradient id="gBorde" gradientUnits="userSpaceOnUse" x1="0" y1="156" x2="0" y2="356"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.5"/><stop offset="0.45" stop-color="#FFFFFF" stop-opacity="0.08"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0.04"/></linearGradient>
+    <radialGradient id="gHalo" gradientUnits="userSpaceOnUse" cx="755" cy="256" r="150" gradientTransform="translate(755 256) scale(1.25 0.9) translate(-755 -256)"><stop offset="0" stop-color="#FF6F85" stop-opacity="0.85"/><stop offset="0.45" stop-color="#D33A52" stop-opacity="0.45"/><stop offset="1" stop-color="#8B1E2D" stop-opacity="0"/></radialGradient>
+    <clipPath id="placa"><path d="M167 156H857A28 28 0 0 1 885 184V328A28 28 0 0 1 857 356H167A28 28 0 0 1 139 328V184A28 28 0 0 1 167 156Z"/></clipPath>
+    <clipPath id="zonaDer"><path d="M625 156H857A28 28 0 0 1 885 184V328A28 28 0 0 1 857 356H625Z"/></clipPath>
+    <filter id="brillo" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="luzTexto" x="-25%" y="-40%" width="150%" height="190%" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceAlpha" stdDeviation="7" result="difuso"/><feFlood flood-color="#FF9AA8" flood-opacity="0.55"/><feComposite in2="difuso" operator="in" result="luz"/><feMerge><feMergeNode in="luz"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <g id="icon">
+    <rect x="625" y="156" width="260" height="200" rx="28" fill="#D13550" opacity="0.5" filter="url(#brillo)"/>
+    <path d="M167 156H629V356H167A28 28 0 0 1 139 328V184A28 28 0 0 1 167 156Z" fill="url(#gIzq)"/>
+    <path d="M625 156H857A28 28 0 0 1 885 184V328A28 28 0 0 1 857 356H625Z" fill="url(#gDer)"/>
+    <g clip-path="url(#zonaDer)"><rect x="625" y="156" width="260" height="200" fill="url(#gHalo)"/></g>
+    <g clip-path="url(#placa)">
+      <path d="M139 156H885V224C790 262 640 206 500 232C380 254 250 268 139 240Z" fill="url(#gVidrio)"/>
+      <path d="M167 156H857A28 28 0 0 1 885 184V328A28 28 0 0 1 857 356H167A28 28 0 0 1 139 328V184A28 28 0 0 1 167 156Z" fill="none" stroke="url(#gBorde)" stroke-width="3"/>
+    </g>
+  </g>
+  <g id="wordmark">
+    <text x="382" y="299" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="120" font-weight="700" fill="#F7F4EC">EVALU</text>
+    <text x="755" y="299" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="120" font-weight="700" fill="#FFFFFF" filter="url(#luzTexto)">ON</text>
+  </g>
+</svg>
