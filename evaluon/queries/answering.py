@@ -77,13 +77,14 @@ from evaluon.queries.models import Reason, Status
 # Versión de las instrucciones: nombre del archivo en `prompts/`, sin extensión. Una
 # versión publicada no se modifica: un cambio es un archivo nuevo (P7).
 #
-# - `PROMPT_VERSION_WITH_DATE`: instrucciones completas, con fecha: `consulta-v3`
-#   (T-063, remisión a una norma no cargada, ADR-0015), sobre la v2 de T-034.
+# - `PROMPT_VERSION_WITH_DATE`: instrucciones completas, con fecha: `consulta-v4` (T-248: las
+#   afirmaciones antes que el estado, ADR-0055), sobre la `consulta-v3` (T-063, remisión a una
+#   norma no cargada, ADR-0015) y la v2 de T-034.
 # - `PROMPT_VERSION_WITHOUT_DATE`: las de T-018, para `answer` sin fecha.
 # - `PROMPT_VERSION`: la que usa `answer` cuando no recibe fecha (camino de T-018). La
 #   consulta (`services.ask`, T-040) siempre pasa la fecha, así que la pantalla y
 #   `correr_evals` usan y registran `PROMPT_VERSION_WITH_DATE`.
-PROMPT_VERSION_WITH_DATE = "consulta-v3"
+PROMPT_VERSION_WITH_DATE = "consulta-v4"
 PROMPT_VERSION_WITHOUT_DATE = "consulta-v1"
 PROMPT_VERSION = PROMPT_VERSION_WITHOUT_DATE
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
@@ -237,7 +238,9 @@ def prompt_text(unit, spans=None):
 def build_schema(aliases, version=PROMPT_VERSION_WITH_DATE):
     """Esquema de la salida para una consulta: solo los alias mostrados, al menos una
     cita y un texto no vacío por afirmación, y hasta `GENERATION_MAX_STATEMENTS`
-    afirmaciones. Desde `consulta-v2`, cada afirmación lleva además `regimes_differ`."""
+    afirmaciones. Desde `consulta-v2`, cada afirmación lleva además `regimes_differ`. Desde
+    `consulta-v4` las afirmaciones van antes que el estado: el motor genera los campos en el
+    orden del esquema y el estado se apoya en lo que el modelo ya afirmó (ADR-0055, regla 1)."""
     properties = {
         "text": {"type": "string", "minLength": 1},
         "citations": {
@@ -250,22 +253,25 @@ def build_schema(aliases, version=PROMPT_VERSION_WITH_DATE):
     if version != PROMPT_VERSION_WITHOUT_DATE:
         properties["regimes_differ"] = {"type": "boolean"}
         required.append("regimes_differ")
+    status = {"type": "string", "enum": [GROUNDED, UNDETERMINED]}
+    statements = {
+        "type": "array",
+        "maxItems": settings.GENERATION_MAX_STATEMENTS,
+        "items": {
+            "type": "object",
+            "properties": properties,
+            "required": required,
+            "additionalProperties": False,
+        },
+    }
+    if version == PROMPT_VERSION_WITHOUT_DATE:
+        fields = {"status": status, "statements": statements}
+    else:
+        fields = {"statements": statements, "status": status}
     return {
         "type": "object",
-        "properties": {
-            "status": {"type": "string", "enum": [GROUNDED, UNDETERMINED]},
-            "statements": {
-                "type": "array",
-                "maxItems": settings.GENERATION_MAX_STATEMENTS,
-                "items": {
-                    "type": "object",
-                    "properties": properties,
-                    "required": required,
-                    "additionalProperties": False,
-                },
-            },
-        },
-        "required": ["status", "statements"],
+        "properties": fields,
+        "required": list(fields),
         "additionalProperties": False,
     }
 
@@ -353,7 +359,7 @@ def change_block(change, unit, alias, *, target_path=None, source_alias=None,
 
 
 def request_head(question, reference_date):
-    """Comienzo del mensaje del usuario con fecha (`consulta-v2` y `consulta-v3`), antes
+    """Comienzo del mensaje del usuario con fecha (desde `consulta-v2`), antes
     de las unidades: la fecha, la pregunta y el rótulo "Unidades:", separados por una línea en blanco. Quien
     llama a la recuperación (T-040) cuenta sus tokens junto con las instrucciones."""
     return "\n\n".join([
@@ -430,8 +436,8 @@ class _Layout:
 
 
 def _messages(question, reference_date, layout):
-    """Pedido con fecha (`consulta-v3`; el mismo armado que la v2): fecha, pregunta,
-    articulado y considerandos aparte."""
+    """Pedido con fecha (desde `consulta-v2`): fecha, pregunta, articulado y considerandos
+    aparte."""
     parts = [request_head(question, reference_date), *layout.articulado]
     if layout.considerandos:
         parts += [CONSIDERANDOS_HEADING, *layout.considerandos]

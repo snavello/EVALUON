@@ -92,7 +92,7 @@ def test_request_is_byte_identical_to_the_previous_format(fixed_case, fake_gener
     anterior (guardado en `tests/fixtures/t033-pedido-esperado.json`).
 
     El pedido guardado se armó con `consulta-v2`. Desde T-063 el mensaje de sistema es la
-    versión activa (`consulta-v3`): ese mensaje se compara con sus instrucciones, y el
+    versión activa (`consulta-v4`): ese mensaje se compara con sus instrucciones, y el
     del usuario, que es el formato que esta prueba fija, sigue igual byte por byte."""
     unit_ids, passages = fixed_case
 
