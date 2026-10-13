@@ -10,7 +10,7 @@ por página (`generation.count_tokens_batch`), no por requisito.
 
 El empaquetado reutiliza `sizing.pack` y `sizing.windows`:
 
-- si toda la oferta entra en `ASSESSMENT_GROUP_TOKENS`, es un solo grupo y el orden no importa;
+- si toda la oferta entra en el tope del requisito (`sizing.py`, T-261: el contexto menos lo que lleva el pedido, con `ASSESSMENT_GROUP_TOKENS` como techo), es un solo grupo y el orden no importa;
 - si no entra, los documentos se ordenan por relevancia para el requisito (el mayor puntaje del
   reranker entre los pasajes recuperados de cada documento, `offers.retrieval.retrieve`, con
   la reescritura del requisito; los documentos sin pasaje recuperado van al final, por orden de

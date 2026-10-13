@@ -472,8 +472,10 @@ OFFERS_PROMPT_VERSIONS = {
 }
 
 # --- Evaluación asistida de ofertas (plan 004, "Parámetros"; ADR-0037 a ADR-0040) ---------
-# Texto de oferta por pedido al modelo, en tokens: instrucciones, requisito, fundamentos,
-# salida y margen de plantilla (unos 6.000) caben en `GENERATION_BATCH_CONTEXT_TOKENS`.
+# Techo del texto de oferta por pedido al modelo, en tokens. El tope real de cada requisito lo
+# calcula `assessment/sizing.py` (T-261): el contexto del motor de lotes menos la instrucción, el
+# Portal, el requisito, las respuestas y normas, la salida (y el razonamiento si el paso piensa) y
+# un margen; este valor solo lo limita desde arriba.
 ASSESSMENT_GROUP_TOKENS = 20000
 # Máximo de grupos de documentos que se leen por oferta; más allá, el par queda con
 # lectura incompleta.
