@@ -147,3 +147,15 @@ def test_asking_from_the_tab_with_the_engine_free_runs_the_consulta(
     assert response.status_code == 302 and "consulta=" in response["Location"]
     assert "aviso=" not in response["Location"]
     assert Query.objects.count() == 1
+
+
+def test_the_wait_text_of_the_tab_says_up_to_a_minute(client, operator_user, procedure):
+    """REQ-107 (T-255): con el 27B una respuesta larga pasa de los 30 s (la prueba de humo midió 14 s
+    para 294 tokens de salida; el tope de 800 tokens son unos 35 a 40 s) y el pedido espera hasta
+    60 s: el texto de espera de la pestaña promete hasta un minuto, no medio."""
+    log_in(client, operator_user)
+
+    html = client.get(reverse("expedientes:normativas", args=[procedure.pk])).content.decode()
+
+    assert "Buscando en la normativa. Puede tardar hasta un minuto; no cierre la pestaña." in html
+    assert "medio minuto" not in html
