@@ -40,7 +40,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 | T-260 | Medición única de la ronda del comité: caso-00 (desarrollo), casos 01, 02 y 06 (validación), casos 03, 04 y 05 (prueba, congelados), con una corrida alterada para medir la variación; criterios del ADR de T-256 | REQ-101, REQ-102, REQ-103, REQ-104, REQ-105, REQ-107 | T-257, T-258, T-259 | terminada |
 | T-261 | Contexto de la evaluación (D-260-1): el tope de cada grupo de documentos descuenta la instrucción, el bloque del Portal, el requisito y la salida, y un pedido que igual no entra se parte en grupos más chicos en lugar de fallar; test con una oferta grande | REQ-104 | T-260 | terminada |
 | T-262 | Presentación física en la matriz (decisión del 2026-10-12, que T-260 vio descartada en los 7 casos por un ejemplo de la extracción) y re-anclaje de las listas esperadas de los casos 03 y 04 a la partición nueva del pliego (D-260-2), con su huella y el visto bueno del Coordinador | REQ-101, REQ-102 | T-260 | terminada |
-| T-263 | Medición de cierre de la 015 con T-261 y T-262: evaluación del caso-00 con la configuración normal (y la corrida alterada para la estabilidad), matrices de los casos 00, 01, 02 y 06 (validación) y 03, 04 y 05 (prueba, con las listas re-ancladas del 03 y el 04), contra la spec 015 y el ADR-0059 | REQ-101, REQ-102, REQ-103, REQ-104, REQ-105, REQ-107 | T-261, T-262 | en curso |
+| T-263 | Medición de cierre de la 015 con T-261 y T-262: evaluación del caso-00 con la configuración normal (y la corrida alterada para la estabilidad), matrices de los casos 00, 01, 02 y 06 (validación) y 03, 04 y 05 (prueba, con las listas re-ancladas del 03 y el 04), contra la spec 015 y el ADR-0059 | REQ-101, REQ-102, REQ-103, REQ-104, REQ-105, REQ-107 | T-261, T-262 | terminada |
 | T-264 | Fundamento visible en las pantallas del expediente (dictamen de la 015, hallazgos 1, 2 y 4; decisión del 2026-10-13 sobre la visión): el dato del Portal con su enlace y la fecha en que se tomó; la cita de una página leída por visión con la marca, el aviso de que proviene de una página con dificultades de lectura y conviene volver a chequearla, y el enlace para ver la imagen (Evaluación y detalle del par, Preguntas, Descartes, informe técnico, ficha de Ofertas, pantalla de la 004 y exportaciones); el panel de pendientes lleva a la ficha de la pestaña; Descartes sin una consulta por motivo; `specs/` montada en el servicio `app` | REQ-103, REQ-104 | — | terminada |
 | T-265 | Extracción sin descartar la nota de un anexo que obliga (D-263-1): la `matriz-extraccion-v11` descarta como «formulario» la nota de un anexo que en la v10 daba requisitos (caso-01: las filas que suprime la circular 1, REQ-031 de 13 a 7 de 15); `matriz-extraccion-v12` sin perder la presentación física de T-262 ni sumar la cláusula del formulario del Portal, y sin calcar textos del caso-01 (validación, ADR-0059) | REQ-101, REQ-102 | T-263 | en curso |
 | T-266 | Medición final de la 015 (una sola tanda de GPU): matrices del caso-00, de validación (01, 02 y 06) y de prueba (03, 04 y 05, una corrida con la configuración final) con T-265; en la misma tanda, T-249 (lo que cambió T-248) y las evals de la 001 con la Consulta en el 27B (T-255), contra la spec 015 y el ADR-0059 | REQ-101, REQ-102, REQ-106, REQ-107 | T-265, T-255 | pendiente |
@@ -346,3 +346,43 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
   5. **Entorno.** El servicio `app` de `docker-compose.yml` monta `./specs:/app/specs:ro`; un test comprueba que `app` repite todos los montajes del ancla `x-app`.
 - **Qué no se tocó:** las reglas y los resultados de la evaluación, las instrucciones al modelo, el valor de `ASSESSMENT_VISION_MAX_PAGES` (40) y la navegación.
 - **Verificación:** plena sobre b11f6ded (no pasa por D-264-1: cuatro pantallas viejas sin el aviso) y liviana sobre 0f216ca5 (pasa). Observaciones abiertas para la lista de revisión: O-264-2, O-264-5, O-264-7, O-264-9 y O-264-10. Al desplegar se reconstruye la imagen (O-264-6).
+
+## Revisión con el primer producto (ADR-0024)
+
+Lo que no llegó a su umbral o quedó abierto en las mediciones y verificaciones de la 015, con su impacto. Se encara con el primer producto, después de la primera revisión de la Comisión (ADR-0052). Lo que T-266 resuelva se tacha al registrarla.
+
+**Evaluación (caso-00, T-263)**
+
+- Debajo de la spec 015: Portal «cumple» con su cita 7 de 14 (50 %; meta 100 %), «no determinado» 18 de 71 (25,4 %; meta 15 %) y preguntas conformes 14 de 17 (82,4 %; meta 100 %). Causas: las condiciones de R29 y R87 que conserva la regla del Portal; las tres preguntas de R87, que preguntan por lo que el pliego solo permite; y el ejemplo de `evaluacion-v12` que copia la estructura de la cotización alternativa del caso-00 (O-257-4). Impacto: la Comisión decide a mano las celdas «no determinado» y descarta 3 preguntas. Con la Comisión de prueba: 30 exactas, 17 abstenciones y 1 errada de 48 celdas, 0 «cumple» sin fundamento y 0 contradicciones; contra V1, empate (p = 0,180).
+- O2 R16: «no se encontró el documento» donde la Comisión dijo «cumple» (las declaraciones juradas escaneadas no se reconocen como anexos del pliego; el código convierte el par sin la pregunta que el modelo escribió). Impacto: 1 de 48 celdas, que la Comisión corrige.
+- O-260-2: en O1 R32 el «cumple» lo sostiene el Portal, pero la explicación afirma algo que la cita del pagaré leída por visión no dice. Impacto: una explicación confusa; desde T-264 la cita lleva el aviso de visión.
+- O-260-1: la fila 17.3.1 de la matriz nueva del caso-00 llega con `opcion` = oferta_alternativa.
+- O-260-3: el recálculo sin el modelo no reproduce la medida en vivo (lee `celdas-todas.txt`, que ningún código escribe; H-256-1). Impacto: las cifras válidas son las de la medida en vivo.
+- O-263-1: la corrida alterada del ADR-0059 no corre bordes de grupo en el caso-00 (mide solo el orden de las ofertas). Para medir los lotes hace falta otra alteración, fijada antes de medir.
+- Riesgos aceptados del ADR-0058: Q8 (una opción marcada como no usada mientras el dato dice que sí puede salir «no aplica») y Q9 (una presentación física condicionada puede salir «no cumple» con el aviso de que puede faltar cargarlo). Costo de la regla estricta del IVA: si otro documento de la oferta nombra el IVA, la celda queda «no determinado».
+- Presentación física atada a la marca «Requiere presentar» del Portal: hasta que el importador del Portal traiga esa marca, la regla da «no determinado» con la pregunta, y no «no cumple» como dice la decisión del 2026-10-12 (desvío del Coordinador sobre T-257, `assessment/presentation.py`; dictamen de la 015). Impacto: la Comisión responde la pregunta.
+
+**Matriz (T-260, T-262, T-263)**
+
+- Casos de prueba: lista presente 86,9 %, 93,9 % y 94,9 % (meta 95 %), 1 pedazo sin sujeto en el 05 y REQ-031 5 de 8 en el 05. O-263-3: en el 05 la conversión a pesos de la moneda de cotización se descarta como forma de presentar por el Portal; con O-262-3 (la del caso-02, en las filas técnicas), son dos destinos equivocados para la misma cláusula. Impacto: la Comisión agrega a mano las filas que faltan. Se mira otra vez con T-266 (puede ser la misma causa que D-263-1).
+- O-260-4: las exclusiones congeladas del caso-03 no excluyen la carga electrónica por el Portal (15.3), excluida en los demás casos.
+- O-262-2: la carga de la póliza pasa a sugerencia `no_coinciden` cuando cae en el mismo lote que la presentación física.
+- O-258-4 (lo que hay entre dos filas unidas vuelve a la fila), O-258-5 (filtro, consecuencias y circulares ven los caracteres de área privada) y O-258-6 (dos reglas que se pueden leer en contra): bajas.
+- ADR-0059, trabajo pendiente: el archivo de unidades de la matriz y un caso público con ofertas y dictamen para que la evaluación generalice fuera del caso-00.
+
+**Lectura y visión**
+
+- La visión del 27B no se midió con el caso-00: sus 3 páginas leídas por visión son del 12B (O-263-2). T-249 mide la visión con el conjunto de T-161.
+- Manuscritos: detectarlos de verdad. La marca de manuscritos y la visión por pasaje siguen apagadas (T-259); la visión por página sigue encendida por decisión del responsable del 2026-10-13, con el aviso en pantallas y exportaciones (T-264).
+
+**Pantallas y exportaciones (T-264)**
+
+- O-264-2: la ficha de la pestaña Ofertas (3 consultas por fila) y `export.collect` (1 por requisito) consultan por fila desde antes de la 015.
+- O-264-5: el usuario de lectura ve «Ver la imagen de la página», pero el original y la imagen le responden 403.
+- O-264-7: un requisito que cita varias veces el mismo dato del Portal repite la línea de fuente.
+- O-264-9: la fuente de los precios del orden económico sale del ítem de los datos de la oferta; el ítem guarda una sola página (el acta, si existe), así que el enlace de una cotización del cuadro comparativo lleva al acta.
+- O-264-10: falta una prueba con un resultado que cite dos veces la misma página del Portal.
+
+**Para la auditoría completa (dictamen de la 015)**
+
+- El criterio del IVA se muestra como «Criterio de la Comisión (2026-10-12)», aunque es una decisión del responsable.
