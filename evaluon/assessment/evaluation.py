@@ -162,6 +162,9 @@ PORTAL_WRONG_MAXIMUM = 0
 QUESTIONS_FORM_MINIMUM = 1.0
 # «No determinado» que espera un documento ausente: el informe técnico o la hoja de compliance.
 WAITING_DOCUMENT = (am.Doubt.PENDIENTE_INFORME_TECNICO, am.Doubt.EXTERNO)
+# T-256 (D3): el «externo» que decide el modelo no espera un documento: sale del numerador sin
+# control. Solo espera el del catálogo o el de la lista.
+MODEL_EXTERNAL_RULE = "externo_modelo"
 QUESTIONS_SAMPLE_FILE = "muestra-preguntas.md"
 # La pregunta se dirige al oferente según `combine.addresses_offeror`: una sola definición para el
 # producto y para la medida (T-233b, D-235-1).
@@ -178,9 +181,10 @@ MORE_THAN = {CASE_00: ("match",)}
 
 LABELS = {
     "match": "Coincidencia con el esperado según el tipo de par (REQ-052)",
-    "contradictions": "Contradicciones: «cumple» por «no cumple», hecho técnico o dato del "
-                      "Portal opuesto (REQ-052)",
-    "no_citation": "«Cumple» o «no cumple» sin cita de la oferta (REQ-053)",
+    "contradictions": "Contradicciones (conclusiones erradas): «cumple» por «no cumple», «no "
+                      "se encontró el documento» por «cumple», hecho técnico o dato del Portal "
+                      "opuesto (REQ-052)",
+    "no_citation": "«Cumple» o «no cumple» sin cita de la oferta ni del Portal (REQ-053)",
     "literal": "Citas de la oferta iguales al recorte del texto canónico (REQ-053)",
     "missing_document": "«No se encontró el documento» con la cita del pliego (REQ-060)",
     "questions": "Pregunta formulada donde falta un dato (REQ-055)",
@@ -665,7 +669,9 @@ def _match(pair, result):
         return (result.outcome == am.Outcome.NO_DETERMINADO
                 and result.doubt == am.Doubt.NO_SE_PUDO_LEER and _unreadable_equal(pair, facts))
     if kind == "portal":
-        return _portal_check(pair, result)[0]
+        # T-256 (D1): el par del Portal coincide solo si el resultado es el esperado; una cita
+        # del Portal con el valor no alcanza.
+        return _portal_check(pair, result)[0] and result.outcome == pair.result
     if kind == "tecnico":
         # Regla de la spec (enmienda 2026-10-06, "Medición"): «pendiente del informe técnico»
         # coincide si los dos hechos son iguales a la lista, también cuando el documento no se
@@ -689,7 +695,13 @@ def _reference(pair):
 
 
 def _contradiction(pair, result):
-    return {_reference(pair), result.outcome} == {am.Outcome.CUMPLE, am.Outcome.NO_CUMPLE}
+    """Una conclusión errada: «cumple» contra «no cumple» y, desde T-256 (D2), «no se encontró el
+    documento» donde el dictamen dice «cumple» (salvo que la lista espere que falte)."""
+    reference = _reference(pair)
+    if {reference, result.outcome} == {am.Outcome.CUMPLE, am.Outcome.NO_CUMPLE}:
+        return True
+    return (reference == am.Outcome.CUMPLE and result.outcome == am.Outcome.SIN_DOCUMENTO
+            and not _match(pair, result))
 
 
 def _fact_contradictions(pair, result):
@@ -810,20 +822,40 @@ def verify_portal_cells(portal_cells, procedure):
     return lines, not problems
 
 
-def cell_counts(run):
+def waits_for_document(result, external=frozenset()):
+    """Si un «no determinado» espera un documento ausente (REQ-104): el informe técnico, o la hoja
+    de compliance de un requisito externo del catálogo o de la lista (`external`, los requisitos
+    de los pares de base externa). El «externo» que marca el modelo no se descuenta (T-256, D3)."""
+    if result.doubt == am.Doubt.PENDIENTE_INFORME_TECNICO:
+        return True
+    if result.doubt != am.Doubt.EXTERNO:
+        return False
+    return ((result.facts or {}).get("regla") != MODEL_EXTERNAL_RULE
+            or result.requirement_id in external)
+
+
+def cell_counts(run, external=frozenset(), excluded=frozenset()):
     """Las celdas de una evaluación y cuántas son «no determinado»; de esas, cuántas esperan un
-    documento ausente (informe técnico u hoja de compliance) y no cuentan (REQ-104)."""
-    total = undetermined = waiting = inapplicable = 0
+    documento ausente (informe técnico u hoja de compliance) y no cuentan (REQ-104). `external`
+    son los requisitos externos de la lista; `excluded`, los de las filas que la medida excluye
+    (archivo de exclusión de celdas, T-256): no se cuentan y se informan aparte."""
+    total = undetermined = waiting = inapplicable = model_external = left_out = 0
     for result in run.results.all():
+        if excluded and result.requirement_id in excluded:
+            left_out += 1
+            continue
         if not_applicable.is_not_applicable(result):
             inapplicable += 1   # se cuentan aparte: ni «cumple» ni «no determinado» (T-240)
             continue
         total += 1
         if result.outcome == am.Outcome.NO_DETERMINADO:
             undetermined += 1
-            waiting += result.doubt in WAITING_DOCUMENT
+            waits = waits_for_document(result, external)
+            waiting += waits
+            model_external += result.doubt == am.Doubt.EXTERNO and not waits
     return {"total": total, "undetermined": undetermined, "waiting_document": waiting,
-            "not_applicable": inapplicable}
+            "not_applicable": inapplicable, "model_external": model_external,
+            "excluded": left_out}
 
 
 def portal_cell_record(result, kind, value, matches):
@@ -881,13 +913,16 @@ def question_form(text, *, requirement_text, requirement_number, outcome_label, 
             "conforme": requirement_ok and conclusion_ok and text_ok and directed}
 
 
-def question_records(run):
-    """Las preguntas de una evaluación con su forma comprobada. El texto de la pregunta, del
-    requisito y de la oferta va en `detalle` (local, no al resumen público)."""
+def question_records(run, excluded_rows=frozenset()):
+    """Las preguntas de una evaluación con su forma comprobada, sin las de las filas excluidas
+    (T-256). El texto de la pregunta, del requisito y de la oferta va en `detalle` (local, no al
+    resumen público)."""
     records = []
     questions = am.Question.objects.filter(result__run=run).select_related(
         "requirement", "result", "offer").order_by("result_id", "id")
     for question in questions:
+        if question.requirement.number in excluded_rows:
+            continue
         result = question.result
         first = question.requirement.quotes.order_by("order").first()
         requirement_text = first.text if first else ""
@@ -939,6 +974,429 @@ def thresholds_015(total, case=None, video=None):
     return rows
 
 
+# --- Medida honesta (T-256; REQ-103, REQ-104, REQ-107; mesa de comité del 2026-10-12) ------------
+#
+# Exactitud por celda contra las decisiones de la Comisión de prueba (`celdas-comision-*.yaml`),
+# exclusión de las filas agregadas solo para la medida (`exclusiones-celdas-*.yaml`) y el
+# recálculo, sin GPU, de una corrida ya guardada (`celdas-todas.txt` y `resultados.jsonl`).
+
+# Resultado de la Comisión -> clave con que se cuenta el resultado del sistema.
+COMMISSION_RESULTS = {"cumple": am.Outcome.CUMPLE, "no_cumple": am.Outcome.NO_CUMPLE,
+                      "no_aplica": not_applicable.KEY,
+                      "no_se_encontro_documento": am.Outcome.SIN_DOCUMENTO}
+EXACT_SAMPLE_FILE = "muestra-exactas.md"
+CELLS_FILE = "celdas-todas.txt"
+NOT_APPLICABLE_RULE = "forma_garantia_no_elegida"
+PORTAL_RULE = "portal_cumple"
+CELLS_FILE_PORTAL_CITES = 3
+
+
+def _load_yaml(path, what):
+    path = Path(path)
+    try:
+        raw = path.read_bytes()
+        data = yaml.safe_load(raw.decode("utf-8"))
+    except OSError as error:
+        raise ExpectedError(f"no se puede leer {what}: {error.__class__.__name__}")
+    except (yaml.YAMLError, UnicodeDecodeError) as error:
+        raise ExpectedError(f"{what} no se puede leer como YAML ({error.__class__.__name__})")
+    if not isinstance(data, dict):
+        raise ExpectedError(f"{what} no tiene la forma esperada")
+    return path, raw, data
+
+
+def _approval(data):
+    approval = str(data.get("visto_bueno") or "").strip()
+    return "" if approval.lower().startswith("pendiente") else approval
+
+
+def cells_fingerprint(cells):
+    """La huella de las decisiones (oferta, fila, resultado, en orden): cambia si alguien toca una
+    decisión del archivo, aunque no cambie su forma."""
+    lines = [f"{c['oferta']}|{c['fila']}|{c['resultado']}" for c in
+             sorted(cells, key=lambda c: (c["oferta"], c["fila"]))]
+    return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
+
+
+@dataclass
+class CommissionCells:
+    """Las decisiones de la Comisión de prueba por celda: `{(oferta, fila): resultado}`."""
+
+    path: Path
+    sha256: str
+    approval: str
+    procedure: str
+    fingerprint: str
+    cells: dict
+    notes: dict
+
+
+def load_commission_cells(path, *, require_approval=True):
+    """Lee `celdas-comision-*.yaml`: `procedimiento`, `huella`, `visto_bueno` y `celdas` con
+    `oferta`, `fila` y `resultado` (cumple, no_cumple, no_aplica o no_se_encontro_documento).
+    La huella declarada tiene que ser la de las celdas. Sin visto bueno y con
+    `require_approval`, `ExpectedNotApproved`."""
+    path, raw, data = _load_yaml(path, "la lista de celdas de la Comisión")
+    entries = data.get("celdas")
+    if not isinstance(entries, list) or not entries:
+        raise ExpectedError("la lista de celdas de la Comisión no trae `celdas`")
+    cells, notes = {}, {}
+    for entry in entries:
+        if not (isinstance(entry, dict) and isinstance(entry.get("oferta"), int)
+                and isinstance(entry.get("fila"), int)):
+            raise ExpectedError("una celda de la Comisión lleva `oferta` y `fila` numéricas")
+        key = (entry["oferta"], entry["fila"])
+        if entry.get("resultado") not in COMMISSION_RESULTS:
+            raise ExpectedError(f"oferta {key[0]}, fila {key[1]}: `resultado` es "
+                                + ", ".join(COMMISSION_RESULTS))
+        if key in cells:
+            raise ExpectedError(f"oferta {key[0]}, fila {key[1]}: celda repetida")
+        cells[key] = COMMISSION_RESULTS[entry["resultado"]]
+        notes[key] = str(entry.get("nota") or "")
+    fingerprint = cells_fingerprint(entries)
+    if str(data.get("huella") or "") != fingerprint:
+        raise ExpectedError("la huella de la lista de celdas de la Comisión no es la de sus celdas")
+    approval = _approval(data)
+    if require_approval and not approval:
+        raise ExpectedNotApproved("la lista de celdas de la Comisión no tiene visto bueno: no "
+                                  "se usa")
+    return CommissionCells(path=path, sha256=hashlib.sha256(raw).hexdigest(), approval=approval,
+                           procedure=str(data.get("procedimiento") or ""),
+                           fingerprint=fingerprint, cells=cells, notes=notes)
+
+
+@dataclass
+class CellExclusions:
+    """Las filas de la matriz evaluada que la medida no cuenta (`{fila: motivo}`), con el
+    requisito de la lista que les corresponde (`{fila: M-NNN}`, para los pares)."""
+
+    path: Path
+    sha256: str
+    approval: str
+    rows: dict
+    list_ids: dict
+
+    @property
+    def ids(self):
+        return set(self.list_ids.values())
+
+
+def load_cell_exclusions(path, *, require_approval=True):
+    """Lee `exclusiones-celdas-*.yaml`: `visto_bueno` y `filas` con `fila`, `motivo` y, si la
+    fila es la de un par de la lista, `requisito` (M-NNN). Sin visto bueno y con
+    `require_approval`, `ExpectedNotApproved`."""
+    path, raw, data = _load_yaml(path, "el archivo de exclusión de celdas")
+    entries = data.get("filas")
+    if not isinstance(entries, list) or not entries:
+        raise ExpectedError("el archivo de exclusión de celdas no trae `filas`")
+    rows, list_ids = {}, {}
+    for entry in entries:
+        if not (isinstance(entry, dict) and isinstance(entry.get("fila"), int)):
+            raise ExpectedError("una exclusión de celdas lleva `fila` numérica")
+        motive = str(entry.get("motivo") or "").strip()
+        if not motive:
+            raise ExpectedError(f"fila {entry['fila']}: falta el `motivo` de la exclusión")
+        if entry["fila"] in rows:
+            raise ExpectedError(f"fila {entry['fila']}: repetida")
+        rows[entry["fila"]] = motive
+        if entry.get("requisito"):
+            list_ids[entry["fila"]] = str(entry["requisito"])
+    approval = _approval(data)
+    if require_approval and not approval:
+        raise ExpectedNotApproved("el archivo de exclusión de celdas no tiene visto bueno: no "
+                                  "se usa")
+    return CellExclusions(path=path, sha256=hashlib.sha256(raw).hexdigest(), approval=approval,
+                          rows=rows, list_ids=list_ids)
+
+
+def observed_cell(offer_number, row, key, *, doubt="", rule="", offer_cites=(),
+                  portal_cites=(), explanation=""):
+    """Una celda de la evaluación tal como se compara con la Comisión."""
+    return {"oferta": offer_number, "fila": row, "obtenido": key, "motivo": doubt or "",
+            "regla": rule or "", "citas_oferta": list(offer_cites),
+            "citas_portal": list(portal_cites), "explicacion": explanation or ""}
+
+
+def observed_cells(run, offer_number, excluded_rows=frozenset()):
+    """Las celdas de una evaluación guardada, sin las filas excluidas."""
+    cells = []
+    for result in run.results.select_related("requirement").order_by("requirement__number"):
+        row = result.requirement.number
+        if row in excluded_rows:
+            continue
+        cites = list(result.citations.order_by("order").values_list("kind", "text"))
+        cells.append(observed_cell(
+            offer_number, row, not_applicable.outcome_key(result), doubt=result.doubt,
+            rule=(result.facts or {}).get("regla", ""),
+            offer_cites=[t for k, t in cites if k == am.CitationKind.OFERTA],
+            portal_cites=[t for k, t in cites if k == am.CitationKind.PORTAL],
+            explanation=result.explanation))
+    return cells
+
+
+def cell_accuracy(cells, commission, excluded_rows=frozenset()):
+    """Exactitud por celda contra la Comisión (T-256): exacta si el resultado es el que decidió
+    la Comisión; abstención si es «no determinado»; errada en otro caso (un «no se encontró el
+    documento» donde la Comisión dijo «cumple» o «no aplica» es errada). Las exactas se separan
+    en «con cita» (de la oferta o del Portal) y «sin cita»: que la cita sostenga lo afirmado no se
+    puede comprobar sin leerla, así que todas las exactas se listan para leerlas de a una."""
+    by_key = {(c["oferta"], c["fila"]): c for c in cells}
+    exact, abstained, wrong, missing, left_out = [], [], [], [], []
+    for key, wanted in sorted(commission.cells.items()):
+        if key[1] in excluded_rows:
+            left_out.append(key)
+            continue
+        cell = by_key.get(key)
+        if cell is None:
+            missing.append(key)
+            continue
+        found = cell["obtenido"]
+        entry = dict(cell, esperado=wanted, nota_comision=commission.notes.get(key, ""))
+        if found == wanted:
+            exact.append(entry)
+        elif found == am.Outcome.NO_DETERMINADO:
+            abstained.append(entry)
+        else:
+            wrong.append(entry)
+    measured = len(exact) + len(abstained) + len(wrong)
+    cited = [c for c in exact if c["citas_oferta"] or c["citas_portal"]]
+    return {
+        "total": measured, "exact": ratio(len(exact), measured),
+        "abstained": ratio(len(abstained), measured), "wrong": ratio(len(wrong), measured),
+        "exact_with_citation": len(cited), "exact_without_citation": len(exact) - len(cited),
+        "exact_cells": [(c["oferta"], c["fila"]) for c in exact],
+        "wrong_cells": [(c["oferta"], c["fila"], c["esperado"], c["obtenido"]) for c in wrong],
+        "abstained_cells": [(c["oferta"], c["fila"]) for c in abstained],
+        "without_result": missing, "excluded": left_out, "to_read": exact,
+    }
+
+
+def write_exact_sample(folder, accuracy):
+    """La plantilla local `muestra-exactas.md` (texto de la oferta: no va al repositorio): cada
+    celda exacta con su cita y lo que decidió la Comisión, y una columna para decir si la cita
+    sostiene lo afirmado («exacta con fundamento») o no («exacta sin fundamento»)."""
+    if not accuracy or not accuracy["to_read"]:
+        return None
+    out = ["# Celdas exactas para leer una por una (T-256)", "",
+           "Texto de la oferta y del Portal: no se copia al repositorio. El resultado coincide "
+           "con el de la Comisión; falta leer si la cita sostiene lo afirmado. Completar la "
+           "última columna con sí (con fundamento) o no (sin fundamento).", "",
+           "| Oferta | Fila | Resultado | Regla | Citas | Explicación | Comisión | "
+           "¿La cita sostiene lo afirmado? |", "|---|---|---|---|---|---|---|---|"]
+    for cell in accuracy["to_read"]:
+        cites = " / ".join([f"[oferta] {t}" for t in cell["citas_oferta"]]
+                           + [f"[Portal] {t}" for t in cell["citas_portal"]]) or "(sin cita)"
+        out.append(f"| {cell['oferta']} | {cell['fila']} | {cell['obtenido']} | "
+                   f"{cell['regla'] or '—'} | {_cell(cites)[:600]} | "
+                   f"{_cell(cell['explicacion'])[:300]} | {_cell(cell['nota_comision'])[:300]} | |")
+    path = Path(folder) / EXACT_SAMPLE_FILE
+    path.write_text("\n".join(out) + "\n", encoding="utf-8")
+    return path
+
+
+def excluded_rows_line(excluded):
+    """La línea del resumen con las filas que la medida excluye de la evaluación, cada una con el
+    motivo de su archivo (H-256-3): no todas se agregaron para la medida."""
+    rows = list(excluded.get("rows") or [])
+    motives = excluded.get("motives") or {}
+    detail = "; ".join(f"fila {row}: {motives.get(row) or 'sin motivo'}" for row in rows)
+    return (f"- Filas excluidas de la evaluación (motivo del archivo de exclusión de celdas): "
+            f"{len(rows)}" + (f" ({detail})" if rows else "")
+            + f"; {excluded.get('cells', 0)} celdas y {excluded.get('pairs', 0)} pares de la "
+            "lista.")
+
+
+def accuracy_lines(accuracy):
+    """Las líneas del resumen con la exactitud por celda (solo cifras)."""
+    if not accuracy:
+        return []
+    return [f"- Exactitud por celda contra la Comisión de prueba ({accuracy['total']} celdas): "
+            f"exactas {proportion_text(accuracy['exact'])}, de ellas con cita "
+            f"{accuracy['exact_with_citation']} y sin cita {accuracy['exact_without_citation']} "
+            f"(con o sin fundamento: se lee en `{EXACT_SAMPLE_FILE}`); abstenciones "
+            f"{proportion_text(accuracy['abstained'])}; erradas "
+            f"{proportion_text(accuracy['wrong'])}; sin resultado "
+            f"{len(accuracy['without_result'])}; excluidas {len(accuracy['excluded'])}."]
+
+
+# --- Recálculo de una corrida guardada, sin GPU (T-256) ---------------------------------------------
+
+CELL_LINE = re.compile(r"^O(\d+) R(\d+) (\w+) +(?:(\w+) +)?regla=(\S*)\s*$")
+CITE_LINE = re.compile(r"^\s+cita (oferta|portal|pliego)\s*: ?(.*)$")
+EXPLANATION_LINE = re.compile(r"^\s+expl: ?(.*)$")
+
+
+def read_cells_file(path):
+    """Las celdas de `celdas-todas.txt` de una corrida: una línea `O<n> R<fila> <resultado>
+    [<motivo>] regla=<regla>` por celda, con sus líneas `cita …` y `expl:` debajo."""
+    cells, current = [], None
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        found = CELL_LINE.match(line)
+        if found:
+            offer, row, outcome, doubt, rule = found.groups()
+            key = not_applicable.KEY if rule == NOT_APPLICABLE_RULE else outcome
+            current = observed_cell(int(offer), int(row), key, doubt=doubt or "", rule=rule)
+            cells.append(current)
+            continue
+        if current is None:
+            continue
+        cite = CITE_LINE.match(line)
+        if cite and cite.group(1) in ("oferta", "portal"):
+            current[f"citas_{cite.group(1)}"].append(cite.group(2).strip())
+        elif (explanation := EXPLANATION_LINE.match(line)):
+            current["explicacion"] = explanation.group(1).strip()
+        elif not line.startswith(" "):
+            current = None
+    return cells
+
+
+def rows_of_pairs(records, cells):
+    """`{resultado_pk: (oferta, fila)}` de los pares guardados. Los resultados de una oferta se
+    crean en el orden de las filas: se busca el comienzo con el que todos los pares de la oferta
+    caen en una celda con el mismo resultado y motivo. Si no hay uno solo, `None`."""
+    mapping = {}
+    for offer in sorted({r["oferta"] for r in records}):
+        own = [r for r in records if r["oferta"] == offer and r.get("resultado_pk")]
+        rows = sorted((c for c in cells if c["oferta"] == offer), key=lambda c: c["fila"])
+        if not own or not rows:
+            return None
+        first = min(r["resultado_pk"] for r in own)
+        fits = []
+        for index in range(len(rows)):
+            start = first - index
+            if all(0 <= r["resultado_pk"] - start < len(rows)
+                   and rows[r["resultado_pk"] - start]["obtenido"] == r["obtenido"]
+                   and (rows[r["resultado_pk"] - start]["motivo"] or "") == (r.get("motivo") or "")
+                   for r in own):
+                fits.append(start)
+        if len(fits) != 1:
+            return None
+        mapping.update({r["resultado_pk"]: (offer, rows[r["resultado_pk"] - fits[0]]["fila"])
+                        for r in own})
+    return mapping
+
+
+def _offline_portal_record(cell, portal_cell):
+    """`portal_cell_record` sobre una celda leída de `celdas-todas.txt` (sin el tipo de cada cita:
+    se busca el valor en todas las citas del Portal de la celda)."""
+    kind, value, matches = portal_cell.kind, portal_cell.value, portal_cell.matches
+    cites = cell["citas_portal"]
+    with_value = any(portal_value_in(kind, text, value) for text in cites)
+    if not with_value and len(cites) >= CELLS_FILE_PORTAL_CITES and cell["regla"] == PORTAL_RULE:
+        # `celdas-todas.txt` muestra hasta tres citas del Portal por celda: si las tres no traen
+        # el valor, la regla del Portal (que propone «cumple» citando el dato que coincide) lo
+        # trae en otra.
+        with_value = True
+    inapplicable = cell["obtenido"] == not_applicable.KEY
+    cumple = cell["obtenido"] == am.Outcome.CUMPLE
+    return {"fila": cell["fila"], "tipo_portal": kind, "coincide_dato": matches,
+            "obtenido": cell["obtenido"], "no_aplica": inapplicable, "motivo": cell["motivo"],
+            "regla": cell["regla"], "cumple_con_cita_portal": cumple and with_value,
+            "cumple_con_dato_distinto": cumple and (not matches or (bool(cites) and not with_value))}
+
+
+def _figures(records, cells, *, corrected, portal_cells, pair_rows, excluded_rows, external_rows):
+    """Las cifras de una corrida guardada con las reglas de antes (`corrected` falso) o con las
+    corregidas de T-256 (D1, D2, D3, D8 y las filas excluidas)."""
+    excluded_rows = excluded_rows if corrected else frozenset()
+    kept = []
+    for record in records:
+        if excluded_rows and record.get("_excluida"):
+            continue
+        where = pair_rows.get(record.get("resultado_pk"))
+        record = dict(record, _fila=where[1] if where else None)
+        if corrected:
+            is_portal = record.get("tipo") == "portal"
+            record["coincide"] = bool(record["coincide"]) and (
+                not is_portal or record["obtenido"] == record["esperado"])
+            reference = (record.get("dictamen") if record.get("tipo") == "tecnico"
+                         and record.get("dictamen") else record["esperado"])
+            record["contradiccion"] = bool(record["contradiccion"]) or (
+                reference == am.Outcome.CUMPLE and record["obtenido"] == am.Outcome.SIN_DOCUMENTO
+                and not record["coincide"])
+            record["sin_cita"] = bool(record["sin_cita"]) and not record.get("citas_portal")
+        kept.append(record)
+    applicable = [r for r in kept if not r.get("no_aplica")]
+    own_cells = [c for c in cells if c["fila"] not in excluded_rows]
+    total = undetermined = waiting = model_external = 0
+    for cell in own_cells:
+        if cell["obtenido"] == not_applicable.KEY:
+            continue
+        total += 1
+        if cell["obtenido"] != am.Outcome.NO_DETERMINADO:
+            continue
+        undetermined += 1
+        if corrected:
+            waits = (cell["motivo"] == am.Doubt.PENDIENTE_INFORME_TECNICO
+                     or (cell["motivo"] == am.Doubt.EXTERNO
+                         and (cell["regla"] != MODEL_EXTERNAL_RULE
+                              or (cell["oferta"], cell["fila"]) in external_rows)))
+        else:
+            waits = cell["motivo"] in WAITING_DOCUMENT
+        waiting += waits
+        model_external += cell["motivo"] == am.Doubt.EXTERNO and not waits
+    # Celdas del Portal: las de los pares con `portal` y las del archivo (vale la del archivo).
+    portal = {}
+    for record in kept:
+        if record.get("portal_celda"):
+            key = ((record["oferta"], record["_fila"]) if record["_fila"]
+                   else ("par", record.get("resultado_pk")))
+            portal[key] = record["portal_celda"]
+    by_key = {(c["oferta"], c["fila"]): c for c in own_cells}
+    for cell in portal_cells or ():
+        if cell.row in excluded_rows:
+            continue
+        found = by_key.get((cell.offer, cell.row))
+        if found is not None:
+            portal[(cell.offer, cell.row)] = _offline_portal_record(found, cell)
+    matching = [c for c in portal.values() if c["coincide_dato"] and not c.get("no_aplica")]
+    return {
+        "pairs": len(kept),
+        "match": _sum(applicable, lambda r: r["coincide"]),
+        "contradictions": sum(1 for r in kept if r["contradiccion"]),
+        "no_citation": sum(1 for r in kept if r["sin_cita"]),
+        "cells": {"total": total, "undetermined": undetermined, "waiting_document": waiting,
+                  "counted": undetermined - waiting, "model_external": model_external,
+                  "ratio": ratio(undetermined - waiting, total),
+                  "ratio_decidable": ratio(undetermined - waiting, total - waiting)},
+        "portal_cumple": ratio(sum(c["cumple_con_cita_portal"] for c in matching), len(matching)),
+        "portal_wrong": sum(1 for c in portal.values() if c["cumple_con_dato_distinto"]),
+        "excluded_cells": sum(1 for c in cells if c["fila"] in excluded_rows),
+        "excluded_pairs": len(records) - len(kept),
+    }
+
+
+def recompute_run(folder, *, portal_cells=None, commission=None, cell_exclusions=None):
+    """Recalcula, sin GPU ni base, una corrida de `medir_evaluacion` ya guardada: lee
+    `resultados.jsonl` (los pares) y `celdas-todas.txt` (todas las celdas) y devuelve las cifras
+    con las reglas de antes y con las corregidas de T-256, más la exactitud por celda contra la
+    Comisión (sin y con las filas excluidas). Lanza `MeasurementRefused` si falta un archivo."""
+    folder = Path(folder)
+    pairs_file, cells_file = folder / "resultados.jsonl", folder / CELLS_FILE
+    for needed in (pairs_file, cells_file):
+        if not needed.exists():
+            raise MeasurementRefused(f"La corrida no tiene `{needed.name}`.")
+    records = [json.loads(line) for line in pairs_file.read_text(encoding="utf-8").splitlines()
+               if line.strip()]
+    cells = read_cells_file(cells_file)
+    excluded_rows = frozenset(cell_exclusions.rows) if cell_exclusions else frozenset()
+    excluded_ids = cell_exclusions.ids if cell_exclusions else set()
+    records = [dict(r, _excluida=r["requisito"] in excluded_ids) for r in records]
+    pair_rows = rows_of_pairs(records, cells)
+    external_rows = {pair_rows[r["resultado_pk"]] for r in records
+                     if pair_rows and r.get("base") == "externa" and r.get("resultado_pk")}
+    common = dict(portal_cells=portal_cells.cells if portal_cells is not None else (),
+                  pair_rows=pair_rows or {},
+                  excluded_rows=excluded_rows, external_rows=external_rows)
+    result = {"folder": str(folder), "cells": len(cells), "pairs_mapped": pair_rows is not None,
+              "before": _figures(records, cells, corrected=False, **common),
+              "after": _figures(records, cells, corrected=True, **common)}
+    if commission is not None:
+        result["accuracy_before"] = cell_accuracy(cells, commission)
+        result["accuracy_after"] = cell_accuracy(cells, commission, excluded_rows)
+    return result
+
+
 def measure_pair(pair, result, requirement, offer, finder, fragments, equivalents):
     """Mide un par. Devuelve el registro con lo contado y su detalle."""
     cites = list(result.citations.filter(kind=am.CitationKind.OFERTA)
@@ -980,7 +1438,8 @@ def measure_pair(pair, result, requirement, offer, finder, fragments, equivalent
         "sin_documento_donde_cumple": (result.outcome == am.Outcome.SIN_DOCUMENTO
                                        and pair.result == am.Outcome.CUMPLE),
         "citas_oferta": len(cites), "citas_literales": literal,
-        "sin_cita": concluded and not cites,
+        # T-256 (D8): el «cumple» citado al Portal (REQ-103, P3) tiene cita.
+        "sin_cita": concluded and not cites and not portal_cites,
         "pregunta_esperada": pair.question, "pregunta_formulada": asked,
         "cita_pliego": pliego, "fragmento": fragment_ok,
         "anomalias": [], "resultado_pk": result.pk,
@@ -1005,13 +1464,22 @@ def _steps_summary(run):
             "tokens_salida": sum(s.completion_tokens or 0 for s in steps)}
 
 
-def measure_offer(entry, offer, run, mapping, finder, fragments, equivalents, cells=()):
+def measure_offer(entry, offer, run, mapping, finder, fragments, equivalents, cells=(),
+                  excluded_rows=frozenset()):
     """Mide una oferta contra su lista; `run` es la evaluación recién hecha. `cells` son las
-    celdas del Portal del archivo aparte que corresponden a esta oferta (T-238)."""
+    celdas del Portal del archivo aparte que corresponden a esta oferta (T-238). Las filas de
+    `excluded_rows` (agregadas solo para la medida, T-256) no entran en ninguna cifra: se
+    cuentan aparte."""
     results = {r.requirement_id: r for r in run.results.select_related("requirement")}
-    records = []
+    excluded_ids = {pk for pk, r in results.items() if r.requirement.number in excluded_rows}
+    external_ids = {mapping[p.requirement].pk for p in entry.pairs
+                    if p.base == "externa" and p.requirement in mapping}
+    records, excluded_pairs = [], []
     for pair in entry.pairs:
         requirement = mapping.get(pair.requirement)
+        if requirement is not None and requirement.number in excluded_rows:
+            excluded_pairs.append(pair.requirement)
+            continue
         result = results.get(requirement.pk) if requirement else None
         if result is None:
             records.append({"requisito": pair.requirement, "base": pair.base,
@@ -1034,6 +1502,8 @@ def measure_offer(entry, offer, run, mapping, finder, fragments, equivalents, ce
                     for r in records if r.get("portal_celda")}
     by_row = {r.requirement.number: r for r in results.values()}
     for cell in cells:
+        if cell.row in excluded_rows:
+            continue
         result = by_row.get(cell.row)
         if result is None:
             portal_cells[("sin", cell.row)] = {
@@ -1068,8 +1538,11 @@ def measure_offer(entry, offer, run, mapping, finder, fragments, equivalents, ce
         "counts": run.counts, "timings": run.timings, "anomalies": run.anomalies,
         "steps": _steps_summary(run), "run": run.pk, "number": run.number,
         "offer_number": offer.number, "unread_pages": run.counts.get("unread_pages", 0),
-        "cells": cell_counts(run), "portal_cells": list(portal_cells.values()),
-        "questions": question_records(run),
+        "cells": cell_counts(run, external_ids, excluded_ids),
+        "portal_cells": list(portal_cells.values()),
+        "questions": question_records(run, excluded_rows),
+        "excluded_pairs": excluded_pairs,
+        "observed": observed_cells(run, offer.number, excluded_rows),
     }
 
 
@@ -1148,6 +1621,8 @@ def aggregate_015(measures):
     undetermined = sum(c["undetermined"] for c in counts)
     waiting = sum(c["waiting_document"] for c in counts)
     inapplicable = sum(c.get("not_applicable", 0) for c in counts)
+    model_external = sum(c.get("model_external", 0) for c in counts)
+    left_out = sum(c.get("excluded", 0) for c in counts)
     portal = [dict(c, oferta=m_.get("offer_number")) for m_ in measures
               for c in m_.get("portal_cells", [])]
     matching = [c for c in portal if c["coincide_dato"] and not c.get("no_aplica")]
@@ -1156,7 +1631,12 @@ def aggregate_015(measures):
     return {
         "cells": {"total": total, "undetermined": undetermined, "waiting_document": waiting,
                   "not_applicable": inapplicable, "counted": undetermined - waiting,
-                  "ratio": ratio(undetermined - waiting, total)},
+                  "ratio": ratio(undetermined - waiting, total),
+                  # T-256 (D3): la misma cifra sobre las celdas decidibles (sin las que esperan
+                  # un documento ausente), y los «externo» del modelo que ya no se descuentan.
+                  "decidable": total - waiting,
+                  "ratio_decidable": ratio(undetermined - waiting, total - waiting),
+                  "model_external": model_external, "excluded": left_out},
         "portal_cells": {"total": len(portal), "matching": len(matching),
                          "not_applicable": sum(1 for c in portal if c.get("no_aplica"))},
         "portal_cumple": ratio(sum(c["cumple_con_cita_portal"] for c in matching),
@@ -1208,6 +1688,8 @@ class Report:
     seconds: float = 0.0
     video: dict | None = None            # memoria de video antes y después (P6)
     portal_cells: object = None          # `PortalCells` del archivo aparte, si se pasó
+    commission_cells: object = None      # `CommissionCells` (T-256), si se pasó
+    cell_exclusions: object = None       # `CellExclusions` (T-256), si se pasó
 
     @property
     def blocking(self):
@@ -1269,7 +1751,8 @@ def run_evaluation(user, procedure, *, clock=time.monotonic):
 
 
 def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=None,
-            clock=time.monotonic, portal_cells=None):
+            clock=time.monotonic, portal_cells=None, commission_cells=None,
+            cell_exclusions=None):
     """Comprueba la lista, evalúa todas las ofertas con el canal `eval`, las mide y guarda la
     carpeta de la corrida en `runs_dir`. Devuelve el `Report`."""
     require_commission_role(user, CommissionRole.OPERATOR, operation=OPERATION,
@@ -1295,6 +1778,7 @@ def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=
     video["after"] = video_memory()
     by_offer = {run.offer_id: run for run in runs}
     finder = PageFinder()
+    excluded_rows = frozenset(cell_exclusions.rows) if cell_exclusions else frozenset()
     results = []
     for entry in expected.offers:
         offer = offers[entry.bidder]
@@ -1305,11 +1789,19 @@ def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=
         own_cells = ([c for c in portal_cells.cells if c.offer == offer.number]
                      if portal_cells else ())
         measures = measure_offer(entry, offer, run, mapping, finder, fragments, equivalents,
-                                 own_cells)
+                                 own_cells, excluded_rows)
         results.append({"offer": offer.pk, "number": offer.number, "bidder": entry.bidder,
                         "measures": measures, "parameters": run.parameters,
                         "prompt_versions": run.prompt_versions, "models": run.models_used})
     total = aggregate([r["measures"] for r in results])
+    # T-256: la exactitud por celda contra la Comisión de prueba y las filas excluidas.
+    observed = [c for r in results for c in r["measures"].get("observed", [])]
+    total["accuracy"] = (cell_accuracy(observed, commission_cells, excluded_rows)
+                         if commission_cells else None)
+    total["excluded_rows"] = {
+        "rows": sorted(excluded_rows),
+        "motives": dict(cell_exclusions.rows) if cell_exclusions else {},
+        "pairs": sum(len(r["measures"].get("excluded_pairs", [])) for r in results)}
     base = f"{started_at:%Y%m%d-%H%M%S}-{commit or 'sin-commit'}"
     folder = Path(runs_dir) / base
     suffix = 1
@@ -1317,7 +1809,8 @@ def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=
         suffix += 1
         folder = Path(runs_dir) / f"{base}-{suffix}"
     report = Report(folder, expected, verification, results, total, request,
-                    round(elapsed, 3), video=video, portal_cells=portal_cells)
+                    round(elapsed, 3), video=video, portal_cells=portal_cells,
+                    commission_cells=commission_cells, cell_exclusions=cell_exclusions)
     _write(report, procedure, version, started_at, commit, fichas)
     return report
 
@@ -1341,6 +1834,15 @@ def _write(report, procedure, version, started_at, commit, fichas):
                            "visto_bueno": report.portal_cells.approval,
                            "celdas": len(report.portal_cells.cells)}
                           if report.portal_cells else None),
+        "celdas_comision": ({"sha256": report.commission_cells.sha256,
+                             "huella": report.commission_cells.fingerprint,
+                             "visto_bueno": report.commission_cells.approval,
+                             "celdas": len(report.commission_cells.cells)}
+                            if report.commission_cells else None),
+        "exclusiones_celdas": ({"sha256": report.cell_exclusions.sha256,
+                                "visto_bueno": report.cell_exclusions.approval,
+                                "filas": report.cell_exclusions.rows}
+                               if report.cell_exclusions else None),
         "evaluaciones": [{"oferta": r["number"], "evaluacion": r["measures"]["run"],
                           "parametros": r["parameters"],
                           "instrucciones": r["prompt_versions"], "modelos": r["models"]}
@@ -1356,6 +1858,7 @@ def _write(report, procedure, version, started_at, commit, fichas):
     (report.folder / "resumen-publico.md").write_text(_summary(report, public=True),
                                                       encoding="utf-8")
     _write_questions_sample(report)
+    write_exact_sample(report.folder, report.total.get("accuracy"))
 
 
 def _cell(text):
@@ -1403,6 +1906,12 @@ def _summary_015(report):
               f"compliance: {cells['waiting_document']}; las que cuentan: {cells['counted']}. "
               f"Aparte, sin contar en esas cifras, «{not_applicable.LABEL}»: "
               f"{cells.get('not_applicable', 0)}.",
+              f"- «No determinado» que cuenta sobre las celdas decidibles (sin las que esperan "
+              f"un documento ausente): {proportion_text(cells['ratio_decidable'])}; «externo» "
+              f"que marcó el modelo, que ya no se descuenta: {cells.get('model_external', 0)}.",
+              excluded_rows_line(dict(total.get("excluded_rows") or {},
+                                      cells=cells.get("excluded", 0))),
+              *accuracy_lines(total.get("accuracy")),
               f"- Celdas del Portal medidas: {portal['total']} ({portal['matching']} con el "
               "dato que coincide con lo que exige el pliego; "
               f"{portal.get('not_applicable', 0)} «{not_applicable.LABEL}», aparte).",

@@ -2041,10 +2041,12 @@ def test_suppressed_row_is_matched_one_to_one(circular_case):
     assert len(ev._pairs(located, ev._suppressed(c.version))) == 1
 
 
-def test_two_expected_over_one_suppressed_row_one_is_found_and_the_other_is_missing(
+def test_two_expected_over_one_suppressed_row_are_both_found_one_in_another_row(
         circular_case):
-    """REQ-031: la regla uno a uno, medida de punta a punta: dos esperados con bloque `suprime`
-    sobre la misma fila quitada por la circular; uno la encuentra y el otro es faltante."""
+    """REQ-031, REQ-101 (T-256, D7): dos esperados con bloque `suprime` sobre la misma fila
+    quitada por la circular (la circular suprimió la unidad entera en una fila): uno la
+    encuentra uno a uno y el otro cuenta como «suprimido por circular, en otra fila», no como
+    faltante. Antes de T-256 el segundo quedaba faltante."""
     c = circular_case
     c.write_list(efecto="suprime", vigente=None)
     block = block_yaml(efecto="suprime", vigente=None, tramo=c.segment.key)
@@ -2061,11 +2063,12 @@ def test_two_expected_over_one_suppressed_row_one_is_found_and_the_other_is_miss
     _, _, measures = c.measure()
 
     states = sorted(_line(measures, i)["estado"] for i in ("S-003", "S-004"))
-    assert states == ["encontrado", "faltante"]
-    missing = next(_line(measures, i) for i in ("S-003", "S-004")
-                   if _line(measures, i)["estado"] == "faltante")
-    assert missing["causa"] == ev.SUPPRESSED
-    assert len(measures["suppressed"]["ids"]) == 1
+    assert states == ["encontrado", "encontrado"]
+    details = sorted(_line(measures, i)["detalle"] for i in ("S-003", "S-004"))
+    assert details == ["suprimido por circular", "suprimido por circular, en otra fila"]
+    assert not measures["causes"].get(ev.SUPPRESSED)
+    assert len(measures["suppressed"]["ids"]) == 2
+    assert measures["suppressed_elsewhere"]["count"] == 1
 
 
 # --- T-137: desempate estable de las fuentes de una fila de circular ----------------------------------

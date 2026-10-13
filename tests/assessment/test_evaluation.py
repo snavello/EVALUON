@@ -839,7 +839,9 @@ def test_undetermined_cells_do_not_count_the_ones_waiting_for_a_missing_document
     técnico o una hoja de compliance. Con las celdas de T-229 da 38 de 81 (47 %), la cifra del
     diagnóstico; el umbral es 15 % (12 de 81) y solo rige en el caso-00."""
     counts = ev.cell_counts(_stub_run(*_t229_cells()))
-    assert counts == {"total": 81, "undetermined": 71, "waiting_document": 33, "not_applicable": 0}
+    # T-256 suma dos cuentas informadas (el «externo» del modelo y las filas excluidas): acá, 0.
+    assert counts == {"total": 81, "undetermined": 71, "waiting_document": 33, "not_applicable": 0,
+                      "model_external": 0, "excluded": 0}
     total = ev.aggregate_015([{"cells": counts}])
     assert total["cells"]["counted"] == 38
     assert total["cells"]["ratio"] == {"ok": 38, "total": 81, "rate": 38 / 81}
@@ -997,7 +999,7 @@ def test_a_cell_of_the_portal_file_is_measured_on_the_result_of_its_row(rows, mo
     assert found["cumple_con_cita_portal"] is True and found["fila"] == rows.requirement.number
     assert absent["obtenido"] is None and absent["cumple_con_cita_portal"] is False
     assert measures["cells"] == {"total": 1, "undetermined": 0, "waiting_document": 0,
-                                "not_applicable": 0}
+                                "not_applicable": 0, "model_external": 0, "excluded": 0}
     assert measures["offer_number"] == rows.run.offer.number
 
 
