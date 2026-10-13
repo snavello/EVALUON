@@ -291,8 +291,10 @@ MATRIX_BATCH_INPUT_TOKENS = 3500
 MATRIX_MAX_OUTPUT_TOKENS = 4096
 # Largo de un tramo, en caracteres, a partir del cual se parte en límites de oración.
 SEGMENT_MAX_CHARS = 4000
-# Requisitos por pedido de consecuencias.
-MATRIX_CONSEQUENCES_PER_REQUEST = 25
+# Requisitos por pedido de consecuencias: de 25 a 10, dentro de los 8 a 10 de la revisión de las
+# instrucciones (T-248): con 25 requisitos contra una sola lista de fundamentos el modelo no
+# distinguía el alcance de cada cláusula. Se mide en T-249.
+MATRIX_CONSEQUENCES_PER_REQUEST = 10
 # Citas candidatas que el reranker suma para cada tramo de una circular o respuesta.
 MATRIX_CIRCULAR_CANDIDATES = 8
 # Versión de cada instrucción de la matriz: archivo `evaluon/tenders/prompts/<versión>.md`.
@@ -302,12 +304,12 @@ MATRIX_PROMPT_VERSIONS = {
     "definiciones": "matriz-definiciones-v4",
     "extraccion": "matriz-extraccion-v7",
     "completitud": "matriz-completitud-v5",
-    "consecuencias": "matriz-consecuencias-v1",
+    "consecuencias": "matriz-consecuencias-v2",
     "circulares": "matriz-circulares-v7",
     "circulares_cambios": "matriz-circulares-v6",
     "unificacion": "matriz-unificacion-v1",
     "filtro": "matriz-filtro-v7",
-    "respaldo": "matriz-respaldo-v1",
+    "respaldo": "matriz-respaldo-v2",
 }
 
 # Proceso único de la propuesta (REQ-030 enmendado): el más completo, sin niveles. Se
@@ -461,10 +463,10 @@ OFFERS_REQUEST_TIMEOUT_SECONDS = GENERATION_BATCH_TIMEOUT_SECONDS
 OFFERS_QUERY_MAX_CHARS = 800
 # Versión de cada instrucción: archivo `evaluon/offers/prompts/<versión>.md`.
 OFFERS_PROMPT_VERSIONS = {
-    "ficha": "ficha-v2",
-    "ficha_renglon": "ficha-renglon-v4",
+    "ficha": "ficha-v3",
+    "ficha_renglon": "ficha-renglon-v5",
     # Reescritura del requisito como lo diría una oferta, para buscar (T-146).
-    "reescritura": "reescritura-v1",
+    "reescritura": "reescritura-v2",
 }
 
 # --- Evaluación asistida de ofertas (plan 004, "Parámetros"; ADR-0037 a ADR-0040) ---------
@@ -516,7 +518,7 @@ ASSESSMENT_VISION_MAX_SIDE = 1800
 ASSESSMENT_VISION_IMAGE_TOKENS = 280
 ASSESSMENT_VISION_MAX_OUTPUT_TOKENS = 3000
 ASSESSMENT_VISION_MAX_ILLEGIBLE_SHARE = 0.30
-ASSESSMENT_VISION_PROMPT_VERSION = "vision-v3"
+ASSESSMENT_VISION_PROMPT_VERSION = "vision-v4"
 # T-177 (REQ-064): cómo se le pide al modelo. Salida en texto plano que termina con un
 # marcador de fin (sin él, la salida se descarta: no se aceptan transcripciones parciales);
 # penalización de repetición del motor; orientación (confianza mínima de OSD de Tesseract para
@@ -524,6 +526,9 @@ ASSESSMENT_VISION_PROMPT_VERSION = "vision-v3"
 # solapadas a 300 puntos por pulgada para páginas apaisadas o de lectura dudosa (cantidad,
 # solape como proporción del alto de la franja y lado mayor de cada franja).
 ASSESSMENT_VISION_END_MARKER = "<<FIN>>"
+# La penalización de 1,15 con temperatura 0 puede cambiar dígitos repetidos (CUIT, montos con
+# «000»): la revisión de las instrucciones pidió medirla contra 1,05 o ninguna (T-248). El valor no
+# cambia sin esa medición (T-249): se compara con la variable de entorno, sin tocar el código.
 ASSESSMENT_VISION_REPEAT_PENALTY = float(env_str("ASSESSMENT_VISION_REPEAT_PENALTY", "1.15"))
 ASSESSMENT_VISION_OSD_MIN_CONFIDENCE = 5.0
 ASSESSMENT_VISION_ORIENTATION_MAX_SIDE = 1400

@@ -2,7 +2,8 @@
 esperada (REQ-052 a REQ-055, REQ-059, REQ-060; plan 004, "Medición"; ADR-0025; T-151).
 
 Rol: operador de la Comisión (el evaluador lo incluye). Recibe `--usuario`; la clave se pide
-por teclado. Solo traduce y llama a `evaluon.assessment.evaluation`.
+por teclado, también con `--recalcular` (REQ-016). Solo traduce y llama a
+`evaluon.assessment.evaluation`.
 
 Opciones:
 
@@ -17,6 +18,16 @@ Opciones:
 - `--celdas-portal`: archivo aparte con las celdas cuyo dato está en el Portal (oferta, fila de la
   matriz validada, tipo, valor y si el dato coincide con lo que exige el pliego; T-238, REQ-103).
   Se suman a los pares de la lista que traen `portal`.
+- `--celdas-comision`: las decisiones de la Comisión de prueba por celda (oferta, fila,
+  resultado), con su huella y visto bueno (T-256). Da la exactitud por celda: exactas (con cita o
+  sin cita; si la cita sostiene lo afirmado se lee en `muestra-exactas.md`), abstenciones y
+  erradas.
+- `--exclusiones-celdas`: las filas de la matriz evaluada que la medida no cuenta (las agregadas
+  solo para la medida), con su motivo y visto bueno (T-256). Se informan aparte.
+- `--recalcular`: carpeta de una corrida ya hecha. No usa el modelo, la GPU ni la evaluación:
+  vuelve a contar desde `resultados.jsonl` y `celdas-todas.txt`, con las reglas de antes y con
+  las corregidas de T-256, y escribe las dos cifras. La lista de la Comisión se acepta sin visto
+  bueno y se dice.
 - `--corridas`: carpeta donde se guarda la corrida (por omisión, `corridas/` junto a la lista).
 - `--commit`: commit del código con que se corre (dentro del contenedor no hay `.git`).
 - `--verificar-esperada`: no usa el modelo. Comprueba la huella de cada documento, que cada
@@ -58,6 +69,15 @@ class Command(BaseCommand):
         parser.add_argument("--celdas-portal", default=None, dest="celdas_portal",
                             help="Archivo con las celdas del Portal (oferta, fila, tipo, valor "
                                  "y si coincide), con visto bueno.")
+        parser.add_argument("--celdas-comision", default=None, dest="celdas_comision",
+                            help="Decisiones de la Comisión de prueba por celda (huella y visto "
+                                 "bueno), para la exactitud por celda.")
+        parser.add_argument("--exclusiones-celdas", default=None, dest="exclusiones_celdas",
+                            help="Filas de la matriz evaluada que la medida no cuenta, con su "
+                                 "motivo y visto bueno.")
+        parser.add_argument("--recalcular", default=None,
+                            help="Carpeta de una corrida ya hecha: recalcula sin el modelo ni "
+                                 "la GPU, antes y después de las correcciones de T-256.")
         parser.add_argument("--corridas", default=None,
                             help="Carpeta donde se guarda la corrida (por omisión, "
                                  "corridas/ junto a la lista).")
@@ -72,6 +92,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         user = permissions.authenticate_command(options["usuario"])
+        if options["recalcular"]:
+            self._recompute(options)
+            return
         verify_only = options["verificar_esperada"]
         verify_decisions = options["verificar_decisiones"]
         esperada = options["esperada"]
@@ -112,13 +135,66 @@ class Command(BaseCommand):
                 return
 
             runs_dir = options["corridas"] or str(Path(esperada).resolve().parent / "corridas")
+            commission = (evaluation.load_commission_cells(options["celdas_comision"])
+                          if options["celdas_comision"] else None)
+            exclusions = (evaluation.load_cell_exclusions(options["exclusiones_celdas"])
+                          if options["exclusiones_celdas"] else None)
             report = evaluation.measure(user, procedure, expected, offers, runs_dir,
                                         fichas=fichas, commit=options["commit"],
-                                        portal_cells=portal_cells)
+                                        portal_cells=portal_cells, commission_cells=commission,
+                                        cell_exclusions=exclusions)
         except (RoleRejected, evaluation.ExpectedError, evaluation.MeasurementRefused) as error:
             raise CommandError(str(error)) from None
 
         self._report(report)
+
+    def _recompute(self, options):
+        """`--recalcular`: las cifras de una corrida guardada, antes y después de T-256."""
+        try:
+            portal = (evaluation.load_portal_cells(options["celdas_portal"])
+                      if options["celdas_portal"] else None)
+            commission = (evaluation.load_commission_cells(options["celdas_comision"],
+                                                           require_approval=False)
+                          if options["celdas_comision"] else None)
+            exclusions = (evaluation.load_cell_exclusions(options["exclusiones_celdas"])
+                          if options["exclusiones_celdas"] else None)
+            result = evaluation.recompute_run(options["recalcular"], portal_cells=portal,
+                                              commission=commission, cell_exclusions=exclusions)
+        except (evaluation.ExpectedError, evaluation.MeasurementRefused) as error:
+            raise CommandError(str(error)) from None
+        text = evaluation.proportion_text
+        lines = [f"Corrida recalculada sin el modelo: {Path(result['folder']).name} "
+                 f"({result['cells']} celdas; pares ubicados por fila: "
+                 f"{'sí' if result['pairs_mapped'] else 'no'})"]
+        for moment, label in (("before", "antes"), ("after", "después")):
+            figures = result[moment]
+            cells = figures["cells"]
+            lines += [
+                f"[{label}] Coincidencia con el dictamen: {text(figures['match'])}; conclusiones "
+                f"erradas: {figures['contradictions']}; «cumple» sin cita: "
+                f"{figures['no_citation']}",
+                f"[{label}] «No determinado» que cuenta sobre todas las celdas: "
+                f"{cells['ratio']['ok']} de {cells['ratio']['total']}; "
+                f"«No determinado» sobre las decidibles: {cells['ratio_decidable']['ok']} de "
+                f"{cells['ratio_decidable']['total']}; «externo» del modelo que cuenta: "
+                f"{cells['model_external']}",
+                f"[{label}] Portal «cumple» con su cita: {text(figures['portal_cumple'])}; "
+                f"«cumple» con un dato que no coincide: {figures['portal_wrong']}",
+                f"[{label}] Filas excluidas: {figures['excluded_cells']} celdas y "
+                f"{figures['excluded_pairs']} pares"]
+        if exclusions is not None:
+            lines.append(evaluation.excluded_rows_line({
+                "rows": sorted(exclusions.rows), "motives": exclusions.rows,
+                "cells": result["after"]["excluded_cells"],
+                "pairs": result["after"]["excluded_pairs"]}).lstrip("- "))
+        if commission is not None:
+            approval = commission.approval or "visto bueno pendiente"
+            for moment, label in (("accuracy_before", "antes"), ("accuracy_after", "después")):
+                lines += [f"[{label}] " + line.lstrip("- ")
+                          for line in evaluation.accuracy_lines(result[moment])]
+            lines.append(f"Lista de la Comisión: huella {commission.fingerprint[:12]}; "
+                         f"{approval}")
+        self.stdout.write("\n".join(lines))
 
     def _verify_decisions(self, expected):
         status, output = evaluation.run_decision_tests(cwd=settings.BASE_DIR)
