@@ -197,10 +197,10 @@ def test_the_command_recomputes_a_saved_matrix_run_without_the_model(
 
 
 
-def test_the_matrix_command_recomputes_without_asking_for_a_user_or_a_password(
+def test_the_matrix_recompute_asks_for_the_user_and_the_password_like_every_command(
         tmp_path, monkeypatch):
-    """REQ-107 (T-256, H-256-2): `medir_matriz --recalcular` solo lee archivos: no pide usuario
-    ni clave. Sin `--recalcular`, `--usuario` sigue siendo obligatorio."""
+    """REQ-016 (de la 001), REQ-107 (T-256): `medir_matriz --recalcular` exige `--usuario` y pide
+    la clave como todo comando, aunque solo lea archivos."""
     from io import StringIO
     from pathlib import Path
 
@@ -219,9 +219,13 @@ def test_the_matrix_command_recomputes_without_asking_for_a_user_or_a_password(
          "propuesto": 1},
         {"tipo": "propuesto", "numero": 1, "clase": "formal", "estado": "emparejado",
          "esperado": first}])
-    monkeypatch.setattr(permissions, "read_password", lambda prompt: pytest.fail("pidió la clave"))
-    out = StringIO()
-    call_command("medir_matriz", "--esperada", str(path), "--recalcular", str(folder), stdout=out)
-    assert "[después] lista presente 100,0 % (1 de 1" in out.getvalue()
     with pytest.raises(CommandError, match="--usuario"):
-        call_command("medir_matriz", "--esperada", str(path))
+        call_command("medir_matriz", "--esperada", str(path), "--recalcular", str(folder))
+    asked = []
+    monkeypatch.setattr(permissions, "authenticate_command",
+                        lambda username: asked.append(username) or object())
+    out = StringIO()
+    call_command("medir_matriz", "--usuario", "operador", "--esperada", str(path),
+                 "--recalcular", str(folder), stdout=out)
+    assert asked == ["operador"]
+    assert "[después] lista presente 100,0 % (1 de 1" in out.getvalue()

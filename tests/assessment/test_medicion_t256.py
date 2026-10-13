@@ -365,25 +365,31 @@ def test_the_three_portal_citations_rule_only_trusts_the_portal_rule_with_three_
     assert record(["Total de la oferta: 1000.00 ARS"], "")["cumple_con_cita_portal"] is True
 
 
-def test_the_command_recomputes_without_asking_for_a_user_or_a_password(tmp_path, monkeypatch):
-    """REQ-107 (T-256, H-256-2): `--recalcular` solo lee archivos: no pide usuario ni clave ni usa
-    la base (la prueba no tiene acceso a la base). Sin `--recalcular`, `--usuario` sigue siendo
-    obligatorio."""
+@pytest.mark.django_db
+def test_recompute_asks_for_the_user_and_the_password_like_every_command(
+        tmp_path, operator_user, monkeypatch):
+    """REQ-016 (de la 001), REQ-107 (T-256): `--recalcular` exige `--usuario` y pide la clave como
+    todo comando, aunque solo lea archivos. Con la clave, escribe las filas excluidas con el motivo
+    de su archivo (H-256-3)."""
     from django.core.management.base import CommandError
+
+    from tests.tenders.conftest import TEST_PASSWORD
 
     folder = _saved_run(tmp_path)
     exclusions, portal, commission = _recompute_inputs(tmp_path)
-    monkeypatch.setattr(permissions, "read_password", lambda prompt: pytest.fail("pidió la clave"))
-    out = StringIO()
-    call_command("medir_evaluacion", "--recalcular", str(folder), "--celdas-portal", str(portal),
-                 "--celdas-comision", str(commission), "--exclusiones-celdas", str(exclusions),
-                 stdout=out)
-    text = out.getvalue()
-    assert "[después]" in text
-    # H-256-3: las filas excluidas, con el motivo de su archivo.
-    assert "fila 123: agregada solo para la medida" in text
+    args = ["--recalcular", str(folder), "--celdas-portal", str(portal), "--celdas-comision",
+            str(commission), "--exclusiones-celdas", str(exclusions)]
     with pytest.raises(CommandError, match="--usuario"):
-        call_command("medir_evaluacion", "--esperada", str(tmp_path / "x.yaml"))
+        call_command("medir_evaluacion", *args)
+    prompts = []
+    monkeypatch.setattr(permissions, "read_password",
+                        lambda prompt: prompts.append(prompt) or TEST_PASSWORD)
+    out = StringIO()
+    call_command("medir_evaluacion", "--usuario", operator_user.username, *args, stdout=out)
+    text = out.getvalue()
+    assert len(prompts) == 1
+    assert "[después]" in text
+    assert "fila 123: agregada solo para la medida" in text
 
 
 def test_the_summary_line_of_excluded_rows_takes_the_motive_from_the_file():
