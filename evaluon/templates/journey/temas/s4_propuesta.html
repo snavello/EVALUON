@@ -128,9 +128,9 @@
                   {% if c.explanation %}<dd><span class="suave">Explicación del sistema (no es texto de la oferta ni del pliego):</span> {{ c.explanation }}</dd>{% endif %}
                   {% if c.conditions %}<dd class="condiciones"><span class="suave">Condiciones del requisito, una por una:</span>
                     <ul class="lista-condiciones">{% for k in c.conditions %}<li>{% include "journey/_icono.html" with icon=k.icon name=k.name %} <b>{{ k.name }}</b> · {{ k.text }} <span class="suave">· {% if k.datum %}dato: {{ k.datum }}{% else %}sin dato{% endif %}</span>{% if k.where %} <span class="registro">({{ k.where }})</span>{% endif %}</li>{% endfor %}</ul></dd>{% endif %}
-                  {% for q in c.quotes %}<dd><blockquote class="cita">{{ q.text }}</blockquote><span class="registro">{{ q.document.title }} · página {{ q.page }}</span>{% if q.by_vision %}{% include "journey/_cita_vision.html" with citation=q %}{% endif %}</dd>
+                  {% for q in c.quotes %}<dd><blockquote class="cita">{{ q.text }}</blockquote><span class="registro">{{ q.document.title }} · página {{ q.page }}</span>{% if q.by_vision %}{% include "journey/_cita_vision.html" with document_id=q.document_id page=q.page %}{% endif %}</dd>
                   {% empty %}<dd class="suave">Sin texto de la oferta que respalde una conclusión.{% if c.read_note %} <span class="lectura">{{ c.read_note }}</span>{% endif %}</dd>{% endfor %}
-                  {% for p in c.portal %}<dd>Dato del Portal: {{ p.text }}<br><span class="registro">{% if p.label %}{{ p.label }} · {% endif %}{% include "portal/_fuente_dato.html" with citation=p %}</span></dd>{% endfor %}
+                  {% for p in c.portal %}<dd>Dato del Portal: {{ p.text }}<br><span class="registro">{% if p.label %}{{ p.label }} · {% endif %}{% include "portal/_fuente_dato.html" with item=p.portal_item %}</span></dd>{% endfor %}
                   {% else %}
                   <dd class="suave">Todavía no se evaluó.</dd>
                   {% endif %}

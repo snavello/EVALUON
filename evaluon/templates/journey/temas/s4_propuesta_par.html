@@ -30,10 +30,10 @@
       <p class="ayuda">Matriz versión {{ page.run.matrix_version.number }}</p></div>
     <div class="bloque"><div class="bloque-cab"><h3>Lo que presentó la oferta</h3></div>
       {% for c in page.offer_citations %}<blockquote class="cita">{{ c.text }}</blockquote><p class="ayuda"><a href="{% url 'offers:document_original' c.document.pk %}#page={{ c.page }}">{{ c.document.title }} · página {{ c.page }}</a></p>
-      {% if c.by_vision %}{% include "journey/_cita_vision.html" with citation=c %}
+      {% if c.by_vision %}{% include "journey/_cita_vision.html" with document_id=c.document_id page=c.page %}
       <figure class="vision-page"><img src="{% url 'assessment:vision_page' page.offer.pk page.requirement.pk c.document.pk c.page %}" alt="Imagen de la página {{ c.page }} de {{ c.document.title }}, que el sistema leyó por visión" width="480" loading="lazy"><figcaption class="ayuda">Página {{ c.page }} tal como la vio el sistema.</figcaption></figure>{% endif %}
       {% empty %}<p class="suave">Sin texto de la oferta que respalde una conclusión.{% if read_note %} {{ read_note }}{% endif %}</p>{% endfor %}
-      {% for c in page.portal_citations %}<p class="ayuda">Dato del Portal: {{ c.text }}<br><span class="registro">{% if c.label %}{{ c.label }} · {% endif %}{% include "portal/_fuente_dato.html" with citation=c %}</span></p>{% endfor %}</div>
+      {% for c in page.portal_citations %}<p class="ayuda">Dato del Portal: {{ c.text }}<br><span class="registro">{% if c.label %}{{ c.label }} · {% endif %}{% include "portal/_fuente_dato.html" with item=c.portal_item %}</span></p>{% endfor %}</div>
   </div>
 
   {% if page.norm_citations or page.answer_citations %}

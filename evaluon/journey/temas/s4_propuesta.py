@@ -18,7 +18,6 @@ con el original y el enlace al original, como en la pantalla de la 004. Las cita
 se traen juntas, sin una consulta por celda (T-223).
 """
 
-from collections import defaultdict
 from dataclasses import dataclass, field
 
 from django.http import Http404
@@ -29,19 +28,17 @@ from django.views.decorators.http import require_GET
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.assessment import not_applicable
-from evaluon.assessment.models import Citation, CitationKind, Decision, Outcome, Result
+from evaluon.assessment.models import Decision, Outcome, Result
 from evaluon.assessment.services import evaluate, review
 from evaluon.assessment.services import matrix as matrix_service
 from evaluon.audit.models import Channel
-from evaluon.journey import external, memo, points, reading_note
+from evaluon.journey import basis, external, memo, points, reading_note
 from evaluon.journey.sections.base import Item, TemaStatus
 from evaluon.journey.stages import base as stage_base
 from evaluon.journey.stages import evaluacion as evaluation_stage
 from evaluon.journey.stages import stage_of
 from evaluon.journey.temas import s4_propuesta_acciones as acciones
 from evaluon.journey.window import plain_reason
-from evaluon.offers import vision
-from evaluon.offers.models import Reading
 from evaluon.tenders.models import RequirementClass
 
 KEY = "s4_propuesta"
@@ -263,40 +260,13 @@ def decision_line(decision):
     return line
 
 
-def _mark_vision(citations):
-    """Marca cada cita de la oferta con `by_vision`: su página se leyó por visión, el texto es la
-    transcripción del modelo y la Comisión lo compara con el original antes de confirmar (P3,
-    ADR-0041). Es la misma cuenta que hace `evaluate.pair_page` para la 004 (la página está entre
-    las `vision.vision_pages` de la lectura de la cita), con una sola consulta para todas las citas:
-    del informe de cada lectura con visión, y de ninguna otra, sin su texto canónico ni sus páginas
-    (T-223, T-231)."""
-    ids = {citation.reading_id for citation in citations if citation.reading_id}
-    seen = {}
-    if ids:
-        seen = {reading.pk: vision.vision_pages(reading)
-                for reading in Reading.objects.filter(pk__in=ids, report__has_key="vision")
-                .only("report")}
-    for citation in citations:
-        citation.by_vision = citation.page in seen.get(citation.reading_id, ())
-
-
 def _cell_views(page, user):
     """Una `CellView` por par, con el fundamento y la decisión, en pocas consultas."""
     technical = _technical_cells(page)
     ids = [cell.result.pk for cell in page.cells.values() if cell.result is not None]
-    # Las citas de la oferta y los datos del Portal de todos los pares, en una sola consulta. Del
-    # Portal se trae la dirección y la fecha de la página, no la página bajada entera ni los datos
-    # del ítem: se repetirían en cada cita (como las lecturas, T-231).
-    offer_quotes, portal_data = defaultdict(list), defaultdict(list)
-    for citation in (Citation.objects
-                     .filter(result_id__in=ids, kind__in=(CitationKind.OFERTA, CitationKind.PORTAL))
-                     .select_related("document", "portal_item__page", "portal_item__proposal")
-                     .defer("portal_item__page__content", "portal_item__payload",
-                            "portal_item__proposal__anomalies")
-                     .order_by("order")):
-        found = offer_quotes if citation.kind == CitationKind.OFERTA else portal_data
-        found[citation.result_id].append(citation)
-    _mark_vision([citation for quotes in offer_quotes.values() for citation in quotes])
+    # Las citas de la oferta (con la marca de visión) y los datos del Portal de todos los pares, de
+    # una vez: `journey/basis.py`.
+    offer_quotes, portal_data = basis.of_results(ids)
     last = {}
     for decision in (Decision.objects.filter(result_id__in=ids, action__in=review.STATE_ACTIONS)
                      .select_related("user").order_by("at", "pk")):

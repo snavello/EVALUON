@@ -217,3 +217,9 @@ body.app .ingreso input[type=text], body.app .ingreso input[type=password] {
 }
 body.app .aviso.importante { border-left: 3px solid var(--ev-rojo); background: var(--ev-nocumple-fondo); color: var(--ev-nocumple); padding: 10px 14px; border-radius: 0 10px 10px 0; font-size: var(--ev-t-sm); }
 body.app .aviso.importante strong { display: block; }
+
+/* Cita de una página leída por visión (T-264, ADR-0041, P3): la marca con texto (nunca solo color) y el aviso de
+   comparar con el original antes de confirmar. Parcial `journey/_cita_vision.html`: lo usan la celda y el detalle
+   del par, las preguntas, los descartes, el informe técnico y la ficha. */
+body.app .cita-vision { margin: 8px 0; padding: 9px 12px; border: 1px solid var(--ev-beige-400); border-radius: var(--ev-radio-btn); background: var(--ev-beige-100); font-size: var(--ev-t-sm); max-width: 80ch; }
+body.app .marca-vision { display: inline-block; font-family: var(--ev-fuente-titulo); font-weight: 700; font-size: var(--ev-t-xs); color: var(--ev-nodeterminado); background: var(--ev-nodeterminado-fondo); border: 1px solid var(--ev-icono-nodeterminado); border-radius: 999px; padding: 0 8px; line-height: 1.5; vertical-align: middle; }
