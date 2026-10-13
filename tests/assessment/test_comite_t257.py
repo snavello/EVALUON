@@ -505,6 +505,9 @@ def test_a_presentation_tied_to_the_portal_mark_asks_the_commission(offer):
     """REQ-105: si la presentación depende de la marca «Requiere presentar» del Portal, que el
     sistema no importa, «no determinado» con la pregunta a la Comisión y el aviso (nunca «no se
     encontró el documento»)."""
+    # Pendiente (desvío aceptado por el Coordinador, T-257): cuando el Portal traiga la marca
+    # «Requiere presentar», este caso pasa a «no cumple» con «puede faltar cargarlo» (decisión del
+    # 2026-10-12) y esta prueba cambia con él.
     combined = combine.Combined(outcome="sin_documento", exigence="documento")
     name, result = apply(offer, pair_with(MARKED, combined))
     assert name == "presentacion_fisica_sin_marca"
@@ -560,3 +563,47 @@ def test_the_instruction_v11_keeps_the_cases_and_does_not_copy_the_case_scenario
     assert "el sistema lo propone por ausencia" in body
     assert "IVA" not in body and "pesos" not in body
     assert "solo con su propio dato (no vacío) y su propia cita" in body
+
+
+# --- La medida (T-256): el «cumple» por un criterio de la Comisión -------------------------------
+
+
+def test_the_measure_does_not_count_a_cumple_by_absence_as_without_citation(rows, tmp_path):
+    """REQ-104 (constitución 1.4, P3; encargo del Coordinador sobre T-257): un «cumple» por ausencia
+    (regla `cumple_por_ausencia`) tiene su fundamento sin cita de la oferta: no cuenta como «cumple
+    sin cita»; uno sin cita y sin criterio sigue contando. Las celdas decididas por la ausencia o por
+    el IVA del Portal se listan aparte en `muestra-criterios.md` para leerlas."""
+    from evaluon.assessment import evaluation as ev
+    from evaluon.assessment import models as am
+    from tests.assessment.test_evaluation import _pair_on
+
+    run = am.Run.objects.create(
+        request=rows.request, offer=rows.run.offer, matrix_version=rows.version, number=4,
+        channel=am.Channel.SCREEN, documents=[], norms={}, models_used={}, parameters={},
+        prompt_versions={})
+    # Las tablas de la evaluación son de solo inserción: el resultado nace con sus hechos.
+    absent = am.Result.objects.create(
+        run=run, offer=run.offer, requirement=rows.requirement, outcome=am.Outcome.CUMPLE,
+        exigence=am.Exigence.CONDICION,
+        explanation="Cumple por ausencia: se leyeron todos los documentos de la oferta.",
+        facts={"regla": "cumple_por_ausencia", "criterios": [{"nombre": "ausencia_verificada"}]})
+    pair = ev.ExpectedPair(requirement="M-001", result=am.Outcome.CUMPLE, base="oferta")
+    record = ev.measure_pair(pair, absent, rows.requirement, absent.offer, ev.PageFinder(), [], {})
+    assert record["sin_cita"] is False and record["criterios"] == ["ausencia_verificada"]
+    plain = _pair_on(rows, am.Outcome.CUMPLE, number=3)
+    record = ev.measure_pair(pair, plain, rows.requirement, plain.offer, ev.PageFinder(), [], {})
+    assert record["sin_cita"] is True and record["criterios"] == []
+    # la muestra aparte: la ausencia y el IVA, no las demás celdas
+    cells = [
+        ev.observed_cell(1, 54, "cumple", rule="cumple_por_ausencia",
+                         explanation="Cumple por ausencia.", criteria_used=["ausencia_verificada"]),
+        ev.observed_cell(1, 10, "cumple", rule="portal_cumple", portal_cites=["Total: 100 ARS"],
+                         criteria_used=["iva_precio_final_portal"]),
+        ev.observed_cell(1, 22, "cumple", rule="", offer_cites=["Declaro bajo juramento."]),
+    ]
+    path = ev.write_criteria_sample(tmp_path, cells)
+    text = path.read_text(encoding="utf-8")
+    assert path.name == "muestra-criterios.md"
+    assert "| 1 | 54 |" in text and "| 1 | 10 |" in text and "| 1 | 22 |" not in text
+    assert "iva_precio_final_portal" in text and "ausencia_verificada" in text
+    assert ev.write_criteria_sample(tmp_path, cells[2:]) is None

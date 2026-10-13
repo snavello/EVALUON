@@ -145,7 +145,9 @@ class OfferStatus:
     def by_outcome_rows(self):
         """Los cuatro resultados y, aparte, los requisitos que no aplican a la oferta (T-240)."""
         rows = [(o.label, self.by_outcome.get(o.value, 0)) for o in Outcome]
-        return rows + [(not_applicable.LABEL, self.by_outcome.get(not_applicable.KEY, 0))]
+        # T-257: la fila suma la forma de garantía no elegida y la opción no usada.
+        return rows + [(not_applicable.COUNT_LABEL,
+                        self.by_outcome.get(not_applicable.KEY, 0))]
 
     @property
     def by_reason_rows(self):

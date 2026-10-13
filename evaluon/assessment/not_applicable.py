@@ -19,6 +19,8 @@ se muestra como «no aplica». Las dos reglas se cuentan juntas, con la clave `K
 
 LABEL = "No aplica (forma de garantía no elegida)"
 OPTION_LABEL = "No aplica (opción no usada)"
+# La fila de las cuentas suma las dos reglas (decisión del Coordinador sobre T-257).
+COUNT_LABEL = "No aplica (forma u opción no elegida)"
 # La regla que dejó el requisito sin aplicar (`facts.regla`) y su texto.
 GUARANTEE_RULE = "forma_garantia_no_elegida"
 OPTION_RULE = "opcion_no_usada"

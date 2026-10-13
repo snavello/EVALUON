@@ -13,7 +13,10 @@ requisito que pide presentar algo físicamente (un original, en la Mesa de Entra
 - si lo ata a una marca del Portal («en caso que el sistema indique "Requiere presentar…"»), el
   sistema no tiene esa marca entre los datos del Portal que importa: «no determinado» con la
   pregunta a la Comisión de si el Portal lo marca, y el aviso de que, si lo marca y no consta, la
-  oferta no cumple;
+  oferta no cumple. **Pendiente** (desvío aceptado por el Coordinador sobre T-257, por prudencia):
+  cuando el importador del Portal traiga la marca «Requiere presentar» de cada documento, esta
+  rama pasa a «no cumple» con el aviso de que puede faltar cargarlo, como la decisión del
+  2026-10-12;
 - si rige y ni los documentos de la oferta ni su hoja de compliance la muestran (el modelo no ubicó
   ninguna cita, y la lectura fue completa): «no cumple», con el texto que avisa que puede faltar
   cargarlo (la constancia de la presentación o la hoja de compliance).

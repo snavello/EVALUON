@@ -88,7 +88,7 @@ from django.utils import timezone
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
-from evaluon.assessment import combine, not_applicable
+from evaluon.assessment import combine, criteria, not_applicable
 from evaluon.assessment import models as am
 from evaluon.assessment.citations import PageFinder
 from evaluon.assessment.models import Channel as RunChannel
@@ -166,6 +166,24 @@ WAITING_DOCUMENT = (am.Doubt.PENDIENTE_INFORME_TECNICO, am.Doubt.EXTERNO)
 # control. Solo espera el del catálogo o el de la lista.
 MODEL_EXTERNAL_RULE = "externo_modelo"
 QUESTIONS_SAMPLE_FILE = "muestra-preguntas.md"
+# T-257: las celdas que decidió un criterio de la Comisión del 2026-10-12 (la ausencia verificada o
+# el IVA del precio del Portal), para leerlas de a una (local: trae texto de la oferta).
+CRITERIA_SAMPLE_FILE = "muestra-criterios.md"
+# T-257 (constitución 1.4, P3): el «cumple» por ausencia tiene su fundamento sin cita de la oferta
+# (los documentos leídos y que ninguno lo contradice): no es un «cumple» sin cita.
+GROUNDED_WITHOUT_CITATION = (criteria.ABSENCE,)
+
+
+def criteria_of(result):
+    """Los criterios de la Comisión que aplicó la regla que decidió el resultado
+    (`facts.criterios`, T-257), por nombre; lista vacía si ninguno."""
+    facts = getattr(result, "facts", None) or {}
+    return [c.get("nombre", "") for c in facts.get("criterios") or [] if isinstance(c, dict)]
+
+
+def grounded_without_citation(names):
+    """Si un «cumple» sin cita tiene su fundamento en un criterio (la ausencia verificada)."""
+    return bool(set(names or ()) & set(GROUNDED_WITHOUT_CITATION))
 # La pregunta se dirige al oferente según `combine.addresses_offeror`: una sola definición para el
 # producto y para la medida (T-233b, D-235-1).
 COMMISSION = re.compile(r"\bcomisi[oó]n\b", re.IGNORECASE)
@@ -1110,11 +1128,13 @@ def load_cell_exclusions(path, *, require_approval=True):
 
 
 def observed_cell(offer_number, row, key, *, doubt="", rule="", offer_cites=(),
-                  portal_cites=(), explanation=""):
-    """Una celda de la evaluación tal como se compara con la Comisión."""
+                  portal_cites=(), explanation="", criteria_used=()):
+    """Una celda de la evaluación tal como se compara con la Comisión. `criteria_used`: los
+    criterios de la Comisión con que la decidió una regla (T-257)."""
     return {"oferta": offer_number, "fila": row, "obtenido": key, "motivo": doubt or "",
             "regla": rule or "", "citas_oferta": list(offer_cites),
-            "citas_portal": list(portal_cites), "explicacion": explanation or ""}
+            "citas_portal": list(portal_cites), "explicacion": explanation or "",
+            "criterios": list(criteria_used)}
 
 
 def observed_cells(run, offer_number, excluded_rows=frozenset()):
@@ -1130,7 +1150,7 @@ def observed_cells(run, offer_number, excluded_rows=frozenset()):
             rule=(result.facts or {}).get("regla", ""),
             offer_cites=[t for k, t in cites if k == am.CitationKind.OFERTA],
             portal_cites=[t for k, t in cites if k == am.CitationKind.PORTAL],
-            explanation=result.explanation))
+            explanation=result.explanation, criteria_used=criteria_of(result)))
     return cells
 
 
@@ -1190,6 +1210,32 @@ def write_exact_sample(folder, accuracy):
                    f"{cell['regla'] or '—'} | {_cell(cites)[:600]} | "
                    f"{_cell(cell['explicacion'])[:300]} | {_cell(cell['nota_comision'])[:300]} | |")
     path = Path(folder) / EXACT_SAMPLE_FILE
+    path.write_text("\n".join(out) + "\n", encoding="utf-8")
+    return path
+
+
+def write_criteria_sample(folder, cells):
+    """La plantilla local `muestra-criterios.md` (texto de la oferta: no va al repositorio): las
+    celdas que decidió un criterio de la Comisión del 2026-10-12 (T-257: «cumple» por ausencia,
+    con los documentos leídos; el IVA del precio del Portal), aparte de las demás, con una columna
+    para decir si el fundamento alcanza. `None` si no hay ninguna."""
+    chosen = [c for c in cells if c.get("criterios")]
+    if not chosen:
+        return None
+    out = ["# Celdas decididas por un criterio de la Comisión, para leer una por una (T-257)", "",
+           "Texto de la oferta y del Portal: no se copia al repositorio. El «cumple» por ausencia "
+           "tiene su fundamento en los documentos leídos y en que ninguno lo contradice "
+           "(constitución 1.4): no se cuenta como «cumple sin cita». Completar la última columna "
+           "con sí o no.", "",
+           "| Oferta | Fila | Resultado | Regla | Criterios | Citas | Explicación | "
+           "¿El fundamento alcanza? |", "|---|---|---|---|---|---|---|---|"]
+    for cell in sorted(chosen, key=lambda c: (str(c["oferta"]), c["fila"])):
+        cites = " / ".join([f"[oferta] {t}" for t in cell["citas_oferta"]]
+                           + [f"[Portal] {t}" for t in cell["citas_portal"]]) or "(sin cita)"
+        out.append(f"| {cell['oferta']} | {cell['fila']} | {cell['obtenido']} | "
+                   f"{cell['regla'] or '—'} | {', '.join(cell['criterios'])} | "
+                   f"{_cell(cites)[:600]} | {_cell(cell['explicacion'])[:400]} | |")
+    path = Path(folder) / CRITERIA_SAMPLE_FILE
     path.write_text("\n".join(out) + "\n", encoding="utf-8")
     return path
 
@@ -1314,7 +1360,8 @@ def _figures(records, cells, *, corrected, portal_cells, pair_rows, excluded_row
             record["contradiccion"] = bool(record["contradiccion"]) or (
                 reference == am.Outcome.CUMPLE and record["obtenido"] == am.Outcome.SIN_DOCUMENTO
                 and not record["coincide"])
-            record["sin_cita"] = bool(record["sin_cita"]) and not record.get("citas_portal")
+            record["sin_cita"] = (bool(record["sin_cita"]) and not record.get("citas_portal")
+                                  and not grounded_without_citation(record.get("criterios")))
         kept.append(record)
     applicable = [r for r in kept if not r.get("no_aplica")]
     own_cells = [c for c in cells if c["fila"] not in excluded_rows]
@@ -1423,6 +1470,8 @@ def measure_pair(pair, result, requirement, offer, finder, fragments, equivalent
     portal_literal = sum(_portal_cite_is_literal(c, offer) for c in portal_cites)
     kind = pair.kind
     facts = result.facts or {}
+    # T-257: los criterios de la Comisión con que una regla decidió la celda (ausencia, IVA).
+    used = criteria_of(result) if result.outcome == am.Outcome.CUMPLE else []
     return {
         "requisito": pair.requirement, "base": pair.base, "via": pair.via, "tipo": kind,
         "esperado": pair.result, "motivo_esperado": pair.doubt,
@@ -1438,8 +1487,11 @@ def measure_pair(pair, result, requirement, offer, finder, fragments, equivalent
         "sin_documento_donde_cumple": (result.outcome == am.Outcome.SIN_DOCUMENTO
                                        and pair.result == am.Outcome.CUMPLE),
         "citas_oferta": len(cites), "citas_literales": literal,
-        # T-256 (D8): el «cumple» citado al Portal (REQ-103, P3) tiene cita.
-        "sin_cita": concluded and not cites and not portal_cites,
+        # T-256 (D8): el «cumple» citado al Portal (REQ-103, P3) tiene cita. T-257: el «cumple»
+        # por ausencia tiene su fundamento sin cita (constitución 1.4) y se lee aparte.
+        "sin_cita": (concluded and not cites and not portal_cites
+                     and not grounded_without_citation(used)),
+        "criterios": used,
         "pregunta_esperada": pair.question, "pregunta_formulada": asked,
         "cita_pliego": pliego, "fragmento": fragment_ok,
         "anomalias": [], "resultado_pk": result.pk,
@@ -1859,6 +1911,8 @@ def _write(report, procedure, version, started_at, commit, fichas):
                                                       encoding="utf-8")
     _write_questions_sample(report)
     write_exact_sample(report.folder, report.total.get("accuracy"))
+    write_criteria_sample(report.folder, [cell for result in report.offers
+                                          for cell in result["measures"].get("observed") or []])
 
 
 def _cell(text):
@@ -1904,7 +1958,7 @@ def _summary_015(report):
               f"- Celdas de la evaluación: {cells['total']}; «no determinado»: "
               f"{cells['undetermined']}, de ellas esperan el informe técnico o una hoja de "
               f"compliance: {cells['waiting_document']}; las que cuentan: {cells['counted']}. "
-              f"Aparte, sin contar en esas cifras, «{not_applicable.LABEL}»: "
+              f"Aparte, sin contar en esas cifras, «{not_applicable.COUNT_LABEL}»: "
               f"{cells.get('not_applicable', 0)}.",
               f"- «No determinado» que cuenta sobre las celdas decidibles (sin las que esperan "
               f"un documento ausente): {proportion_text(cells['ratio_decidable'])}; «externo» "
@@ -1914,7 +1968,7 @@ def _summary_015(report):
               *accuracy_lines(total.get("accuracy")),
               f"- Celdas del Portal medidas: {portal['total']} ({portal['matching']} con el "
               "dato que coincide con lo que exige el pliego; "
-              f"{portal.get('not_applicable', 0)} «{not_applicable.LABEL}», aparte).",
+              f"{portal.get('not_applicable', 0)} «{not_applicable.COUNT_LABEL}», aparte).",
               f"- Preguntas: {total['questions_form']['total']}; con el requisito "
               f"{forms['requisito_ok']}, con la conclusión {forms['conclusion_ok']}, con el "
               f"texto {forms['texto_ok']}, no dirigidas al oferente {forms['dirigida_ok']}, "

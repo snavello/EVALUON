@@ -436,7 +436,8 @@ def test_the_summary_by_offer_the_economic_page_and_the_exports_count_it_apart(
                          if c.result is not None and c.offer.pk == offer.pk
                          and c.effective_key == "cumple")
     assert status.by_outcome.get("cumple", 0) == counted_cumple
-    assert (NA_LABEL, 1) in status.by_outcome_rows
+    # T-257: la fila de las cuentas suma la forma de garantía y la opción.
+    assert ("No aplica (forma u opción no elegida)", 1) in status.by_outcome_rows
     assert dict(status.by_outcome_rows)["Cumple"] == counted_cumple
     # resumen del recorrido
     from evaluon.journey.temas import s4_descartes
