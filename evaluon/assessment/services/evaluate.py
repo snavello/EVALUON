@@ -348,6 +348,8 @@ class PairData:
     # Las condiciones del requisito que revisó el modelo en cada grupo, ya controladas por el
     # sistema (T-237, REQ-104): `{índice del grupo: [dict]}`.
     conditions: dict = field(default_factory=dict)
+    # Lo que dijo el modelo de la opción en cada grupo (`usa_opcion`, T-257): `{índice: str}`.
+    option_use: dict = field(default_factory=dict)
 
 
 class Context:
@@ -631,6 +633,7 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
         return combine.GroupResult(group_index, prompting.NO_DETERMINADO, doubt=combine.DOUBT,
                                    explanation="El modelo no devolvió una salida válida.")
     pair.conditions[group_index] = records
+    pair.option_use[group_index] = evaluation.option_use
     supports = [support_map[a] for a in evaluation.supports]
     if problem == prompting.ANOMALY_NO_CITATION:
         return combine.GroupResult(

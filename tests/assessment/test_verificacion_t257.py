@@ -59,10 +59,11 @@ def test_a_document_asked_in_negative_is_not_met_by_absence(offer, text):
 
 @pytest.mark.parametrize("text, form", [
     ("No se aceptarán ofertas condicionadas a la variación del tipo de cambio.", "condicionar"),
-    ("La oferta se formulará sin reservas sobre las condiciones del llamado.", "reservas"),
-    ("Los precios serán fijos e inamovibles.", "precio_fijo"),
+    # reverificación de T-257: solo la prohibición de condicionar y el plazo con su prórroga
+    ("La oferta se formulará sin reservas sobre las condiciones del llamado.", ""),
+    ("Los precios serán fijos e inamovibles.", ""),
     ("Los oferentes mantendrán su oferta por noventa días corridos.", "mantenimiento"),
-    ("La oferta se considerará prorrogada automáticamente por un lapso igual.", "prorroga"),
+    ("La oferta se considerará prorrogada automáticamente por un lapso igual.", "mantenimiento"),
     ("No se aceptarán ofertas variantes.", ""),
     ("Se cotizará en pesos.", ""),
 ])
@@ -97,7 +98,7 @@ def test_a_cumple_the_contrast_rejected_is_not_met_by_absence(offer, quote):
 def test_the_negative_requirement_without_any_text_is_still_met_by_absence(offer):
     """REQ-104 (R54, decisión del responsable): sin ninguna cita, con el contraste sin rechazo y la
     lectura completa, el requisito negativo sigue por ausencia."""
-    combined = combine.Combined(outcome="no_determinado", doubt="sin_dato")
+    combined = combine.Combined(outcome="no_determinado", doubt="sin_dato", exigence="condicion")
     records = [condition("La oferta no está condicionada a la variación del tipo de cambio",
                          "no_consta")]
     name, result = apply(offer, pair_with(NEGATIVE, combined, records))
@@ -250,7 +251,8 @@ def test_the_partial_quote_option_without_portal_lines_is_undetermined(offer):
     que la oferta no la usa: «no determinado»."""
     text = "Quienes coticen una parte del renglón indicarán el plazo de entrega de esa parte."
     combined = combine.Combined(outcome="sin_documento", exigence="documento")
-    name, result = apply(offer, pair_with(text, combined, opcion="cotizacion_parcial"))
+    name, result = apply(offer, pair_with(text, combined, opcion="cotizacion_parcial",
+                                          option_use="no"))
     assert name == "opcion_sin_determinar" and result.outcome == "no_determinado"
     assert "el Portal no tiene los renglones" in result.explanation
 
@@ -316,5 +318,5 @@ def test_a_partial_quote_shows_the_option_and_full_quotes_do_not(offer, procedur
     pm.PortalQuote.objects.create(offer=offer, line=line, price=Decimal("5"), quantity=Decimal("10"))
     text = "Quienes coticen una parte del renglón indicarán el plazo de entrega de esa parte."
     name, result = apply(offer, pair_with(text, combine.Combined(outcome="sin_documento"),
-                                          opcion="cotizacion_parcial"))
+                                          opcion="cotizacion_parcial", option_use="no"))
     assert name == "opcion_no_usada"

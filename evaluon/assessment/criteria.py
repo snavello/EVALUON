@@ -44,36 +44,78 @@ NOTES = {
 # El impuesto que el pliego pide incluido en el precio.
 TAX = re.compile(r"\biva\b|alicuotas?|impuestos?|tributos?")
 
-# T-257 (D-257-1, decisión del Coordinador): la ausencia vale solo para una **lista cerrada** de
-# formas: las prohibiciones sobre lo que dice la oferta (no condicionarla, no formularla con
-# reservas, no fijar precios que se ajusten) y las reglas supletorias (el plazo de mantenimiento y su
-# prórroga automática). Cada forma tiene su nombre y su expresión (texto sin acentos).
+# T-257, reverificación (decisión del Coordinador, estricta): la ausencia rige solo si la ORACIÓN
+# ENTERA del requisito es una de estas formas cerradas (patrones de oración completa sobre el texto
+# sin acentos, sin el número de la cláusula y sin el punto final), nunca por palabras sueltas:
+# - la prohibición de condicionar la oferta;
+# - el plazo de mantenimiento de la oferta, con su cómputo y su prórroga automática.
+_LEGAL = r"(?:(?:de acuerdo con|conforme(?: a| con)?|segun) [^.]*?, )?"
+_SUBJECT = r"(?:(?:los|las|el|la) (?:oferentes?|proponentes?) )?"
+_COMPLEMENT = r"(?: a [a-z ,]+?)?"
+_DAYS = (r"(?:(?:un |el )?(?:plazo|termino|lapso) de )?[a-z0-9() ]+? dias"
+         r"(?: corridos| habiles(?: administrativos)?)?")
+_FROM = (r"(?:,? (?:contados?|computados?) (?:a partir|desde) (?:de )?(?:la fecha (?:del|de) |el |la )?"
+         r"(?:acto de )?apertura(?: de (?:las )?ofertas)?|,? desde (?:la fecha (?:del|de) |el |la )?"
+         r"(?:acto de )?apertura(?: de (?:las )?ofertas)?)?")
 ABSENCE_FORMS = {
-    # la oferta condicionada («no se aceptarán ofertas condicionadas…», «sin condicionamientos»)
-    "condicionar": re.compile(r"\bcondicionad[oa]s?\b|\bcondicionar\w*|\bcondicionamientos?\b"),
-    # la oferta con reservas («no se admitirán ofertas con reservas», «sin reservas»)
-    "reservas": re.compile(r"\b(?:con|sin) reservas?\b|\breservas? (?:alguna|sobre)\b"),
-    # precios que no se ajustan («fijos e inamovibles»)
-    "precio_fijo": re.compile(r"\bfij[oa]s? e inamovibles?\b|\binamovibles?\b|\bprecios? fijos?\b"),
-    # el plazo de mantenimiento de la oferta (rige el del pliego si la oferta no fija otro)
-    "mantenimiento": re.compile(
-        r"\bmanten(?:er|dra|dran|ga|gan|ener)\w*\b(?:\W+\w+){0,8}?\W+(?:su |sus |la |las )?"
-        r"ofertas?\b(?:\W+\w+){0,12}?\W+(?:plazo|dias|meses)\b|\bplazo de mantenimiento\b"),
-    # su prórroga automática
-    "prorroga": re.compile(r"\bprorrogad\w* automaticamente\b|\bprorroga automatica\b"),
+    "condicionar": [
+        re.compile(r"no se (?:aceptaran|admitiran|consideraran|tomaran en cuenta)(?: las)? ofertas"
+                   r"(?: que (?:esten|se encuentren))? condicionadas" + _COMPLEMENT),
+        re.compile(r"(?:la|las) ofertas? no (?:podra|podran|debera|deberan) (?:estar|ser|encontrarse)"
+                   r" condicionadas?" + _COMPLEMENT),
+        re.compile(r"(?:el|los) (?:oferentes?|proponentes?) no (?:podra|podran) condicionar (?:su|sus|la"
+                   r"|las) ofertas?" + _COMPLEMENT),
+    ],
+    "mantenimiento": [
+        # el plazo de mantenimiento con su cómputo
+        re.compile(_LEGAL + _SUBJECT + r"(?:(?:debera|deberan) )?(?:mantener|mantendra|mantendran)"
+                   r"(?: y garantizar)?(?:, en (?:el|los) casos? que corresponda,)? (?:la validez de )?"
+                   r"(?:su|sus|la|las) ofertas? (?:por|durante) " + _DAYS + _FROM),
+        re.compile(r"(?:la validez de )?(?:la|las) ofertas? se mantendr(?:a|an) (?:por|durante) "
+                   + _DAYS + _FROM),
+        re.compile(r"el dia de (?:la )?apertura quedara excluido del computo del plazo"),
+        # su prórroga automática, y la voluntad de no renovarla (que solo usa quien quiere)
+        re.compile(r"(?:la|las) ofertas? se considerar(?:a|an) prorrogadas? automaticamente(?: por un"
+                   r" (?:lapso|plazo|periodo) igual(?: al inicial)?)?(?: y asi sucesivamente)?"),
+        re.compile(r"(?:si el oferente no manifestara [a-z ,]+?, )?se producira la prorroga"
+                   r" automatica(?: por un (?:lapso|plazo|periodo) igual al inicial)?"),
+        re.compile(r"si el oferente (?:quisiera|deseara|decidiera) manifestar su voluntad de no renovar"
+                   r" [a-z0-9 ,()]+"),
+    ],
 }
+_CLAUSE_NUMBER = re.compile(r"^\s*(?:\d+(?:\.\d+)*\.?\s*)+")
+_SENTENCES = re.compile(r"(?<!\d)\.\s+(?=[a-z0-9])")
 # Lo que nunca es ausencia (D-257-1): un documento pedido en negativo («no se aceptarán ofertas sin
 # la constancia», «que carezcan de», «que omitan», «desprovistas de», «que no incluyan»), un tope o
 # un mínimo de un valor («no podrá superar»), que se compara con un dato, y la garantía (se evalúa
 # con su monto y su forma).
 _NOT_ABSENCE = re.compile(
     r"\bsin (?:el|la|los|las|su|sus|un|una)\b|\bcarezc\w*|\bcarec\w*|\bomit\w*|\bdesprovist\w*"
-    r"|\bfalta de\b|\bque no\b"
+    r"|\bfalta de\b|\bque no\b|\bdeclaracion\w*|\bcertificad\w*|\bconstancia\w*|\bformulario\w*"
+    r"|\bnota\b|\bdocument\w*|\bcopia\w*|\boriginal\w*|\bplanilla\w*|\bacompan\w*|\badjunt\w*"
+    r"|\bindiqu\w*|\bindicar\w*|\binform\w*|\bconsign\w*|\bdetall\w*|\bpresentar\b"
+    r"|\bpresentacion\b|\bsuscri\w*|\bfirm\w*|\bentreg\w*|\bmesa de entradas?\b"
     r"|\bno podra(?:n)? (?:superar|exceder|ser (?:menor|inferior|mayor|superior))\b"
     r"|\bgarantia\b|\bpagare\b|\bpoliza\b|\bcaucion\b")
 # Lo que la oferta puede decir sobre el precio y que frena el criterio del IVA (D-257-3).
 PRICE_TALK = re.compile(r"\biva\b|alicuotas?|impuestos?|tributos?|\bajust\w*|\bactualiz\w*"
-                        r"|\brevis\w*|\bvariaci\w*|\bindexa\w*|\bredetermin\w*")
+                        r"|\brevis\w*|\bvariaci\w*|\bindexa\w*|\bredetermin\w*|\bnet[oa]s?\b"
+                        r"|\bgravad\w*|\bexent\w*|\bpercepci\w*|\bretenci\w*")
+
+
+def price_talk(pair, ctx=None):
+    """Si la oferta dice algo sobre el impuesto o sobre el precio («netos», «sin IVA», «más IVA»,
+    «se ajustarán»): en sus documentos (si están a mano), en lo que el modelo citó y en el dato o la
+    explicación del modelo. Con eso el precio del Portal no se presume final con IVA (reverificación
+    de T-257, decisión del Coordinador)."""
+    texts = list(offer_citations(pair))
+    texts += [r.get("dato") or "" for r in conditions_of(pair)]
+    offer_text = getattr(ctx, "offer_text", None) if ctx is not None else None
+    for document in getattr(offer_text, "documents", None) or []:
+        for page in getattr(document, "pages", None) or []:
+            texts.append(page.get("text", "") if isinstance(page, dict)
+                         else getattr(page, "text", ""))
+    return any(PRICE_TALK.search(fold(t)) for t in texts if t)
 # Las dudas que frenan la ausencia y el IVA (D-257-2, D-257-3): el contraste no corroboró, partes sin
 # leer, una cita que no se ubicó, textos que se contradicen, o una «duda» sin motivo.
 DOUBTFUL = ("sin_corroborar", "lectura_incompleta", "sin_cita", "contradiccion", "duda",
@@ -85,13 +127,36 @@ def names_tax(text):
     return bool(TAX.search(fold(text)))
 
 
+def _sentences(text):
+    """Las oraciones del texto, sin acentos, sin el número de cláusula, sin comillas y sin el punto
+    final."""
+    folded = fold(text).replace("«", "").replace("»", "").replace('"', "")
+    out = []
+    for part in _SENTENCES.split(folded):
+        part = _CLAUSE_NUMBER.sub("", part).strip().rstrip(".;").strip()
+        if part:
+            out.append(" ".join(part.split()))
+    return out
+
+
 def absence_form(text):
-    """El nombre de la forma de la lista cerrada (`ABSENCE_FORMS`) que tiene el texto, o `""` si
-    no tiene ninguna o es algo que nunca es ausencia (D-257-1)."""
+    """El nombre de la forma cerrada (`ABSENCE_FORMS`) que tiene **cada** oración del texto, o `""`
+    si alguna oración no es una forma de la lista, si mezcla dos formas, o si nombra un documento o
+    un dato (`_NOT_ABSENCE`). Patrones de oración completa, no palabras sueltas."""
     folded = fold(text)
     if _NOT_ABSENCE.search(folded):
         return ""
-    return next((name for name, pattern in ABSENCE_FORMS.items() if pattern.search(folded)), "")
+    found = set()
+    sentences = _sentences(text)
+    if not sentences:
+        return ""
+    for sentence in sentences:
+        names = [name for name, patterns in ABSENCE_FORMS.items()
+                 if any(pattern.fullmatch(sentence) for pattern in patterns)]
+        if not names:
+            return ""
+        found.add(names[0])
+    return found.pop() if len(found) == 1 else ""
 
 
 def by_absence(text):

@@ -41,7 +41,8 @@ def condition(text, result, datum="", model=None):
             "resultado_modelo": model or result, "cita": None}
 
 
-def pair_with(text, combined, records=(), *, opcion="", items=(), group_result=None):
+def pair_with(text, combined, records=(), *, opcion="", items=(), group_result=None,
+              option_use=None):
     """Un par como el de `evaluate.py`: el resultado unido, un grupo con sus condiciones ya
     controladas y el requisito con la opción que nombró la matriz."""
     group = SimpleNamespace(index=0, result=group_result or "no_consta",
@@ -53,7 +54,9 @@ def pair_with(text, combined, records=(), *, opcion="", items=(), group_result=N
         datos=[],
         requirement=SimpleNamespace(items=list(items), category="formal", number=7,
                                     proposed={"opcion": opcion} if opcion else {}),
-        groups=[group], conditions={0: [dict(r) for r in records]})
+        groups=[group], conditions={0: [dict(r) for r in records]},
+        # lo que el modelo marcó en `usa_opcion` (evaluacion-v12)
+        option_use={0: option_use} if option_use else {})
 
 
 def ctx_of(offer):
@@ -85,7 +88,7 @@ def test_the_condition_of_an_option_the_offer_does_not_use_does_not_apply(offer,
     sin pregunta, con la opción y los documentos leídos en la explicación; nunca «no se encontró el
     documento» ni un pedido de hoja de compliance."""
     pair = pair_with(OPTION, combined, [condition("Acompañar la constancia", "no_consta")],
-                     opcion="mipyme")
+                     opcion="mipyme", option_use="no")
     name, result = apply(offer, pair)
     assert name == "opcion_no_usada"
     assert result.facts["aplica"] is False and result.facts["opcion"] == "mipyme"
@@ -122,7 +125,8 @@ def test_a_partial_quote_in_the_portal_shows_the_partial_quote_option(offer, pro
     quote.quantity = Decimal("10")
     quote.save()
     combined = combine.Combined(outcome="no_determinado", doubt="sin_dato")
-    name, result = apply(offer, pair_with(text, combined, opcion="cotizacion_parcial"))
+    name, result = apply(offer, pair_with(text, combined, opcion="cotizacion_parcial",
+                                          option_use="no"))
     assert name == "opcion_no_usada" and not_applicable.is_not_applicable(result)
 
 
@@ -150,7 +154,7 @@ def test_the_instruction_v11_resolves_the_option_without_saying_the_document_is_
     condición de una opción que la oferta no muestra usar nunca es «no_consta» (que el sistema
     escribe «no se encontró el documento») y que lo que solo se permite («podrá…») no es una
     condición; con frases genéricas (no las del caso) y un ejemplo de otro rubro."""
-    assert settings.ASSESSMENT_PROMPT_VERSIONS["evaluacion"] == "evaluacion-v11"
+    assert settings.ASSESSMENT_PROMPT_VERSIONS["evaluacion"] == "evaluacion-v12"
     text = prompting.load_prompt("evaluacion")
     rule = text[text.index("- Condición de una opción"):]
     rule = rule[:rule.index("\n")]
@@ -377,10 +381,11 @@ TERM = ("Los oferentes deberán mantener su oferta por noventa días corridos de
 
 @pytest.mark.decision_literal
 @pytest.mark.parametrize("text, combined", [
-    (NEGATIVE, combine.Combined(outcome="no_determinado", doubt="sin_dato", question="¿?")),
+    (NEGATIVE, combine.Combined(outcome="no_determinado", doubt="sin_dato", question="¿?",
+                                exigence="condicion")),
     # T-257, verificación (D-257-2): un «cumple» que el contraste no corroboró ya no pasa por
     # ausencia (ver `test_a_cumple_the_contrast_rejected_is_not_met_by_absence`).
-    (TERM, combine.Combined(outcome="no_determinado", doubt="sin_dato")),
+    (TERM, combine.Combined(outcome="no_determinado", doubt="sin_dato", exigence="condicion")),
     (TERM, combine.Combined(outcome="sin_documento", exigence="condicion")),
 ])
 def test_a_negative_or_suppletory_requirement_nothing_contradicts_is_met_by_absence(
@@ -432,9 +437,12 @@ def test_absence_needs_a_complete_reading_and_only_absence_conditions(offer):
     assert name != "cumple_por_ausencia"
 
 
-def test_a_fixed_price_condition_is_covered_by_absence_with_the_portal(offer, procedure, portal):
-    """REQ-103, REQ-104 (R47): el valor unitario lo da el Portal, el impuesto el criterio del IVA y
-    «fijos e inamovibles» la ausencia: «cumple» con los dos criterios registrados."""
+def test_a_fixed_price_condition_is_not_covered_by_absence_with_the_portal(offer, procedure,
+                                                                           portal):
+    """REQ-103, REQ-104 (R47; reverificación de T-257, decisión del Coordinador): el valor unitario
+    lo da el Portal y el impuesto el criterio del IVA, pero «fijos e inamovibles» ya no se cubre por
+    ausencia (la ausencia rige solo para la oración entera de una forma cerrada): queda «no
+    determinado» con esa condición a la vista."""
     quoted(procedure, offer, portal)
     text = ("Cotizar el valor unitario de cada renglón; los precios serán fijos e inamovibles e "
             "incluirán los impuestos.")
@@ -443,16 +451,18 @@ def test_a_fixed_price_condition_is_covered_by_absence_with_the_portal(offer, pr
                condition("Los precios incluyen los impuestos", "no_consta")]
     combined = combine.Combined(outcome="no_determinado", doubt="sin_dato")
     name, result = apply(offer, pair_with(text, combined, records))
-    assert name == "portal_cumple" and result.outcome == "cumple"
-    used = [c["nombre"] for c in result.facts["criterios"]]
-    assert used == ["iva_precio_final_portal", "ausencia_verificada"]
-    assert "ninguno lo contradice" in result.explanation
+    assert name == "portal_cubre_parte" and result.outcome == "no_determinado"
+    shown = {r["condicion"]: r for r in result.facts["condiciones"]}
+    assert shown["Los precios incluyen los impuestos"]["cubierta_por"] == "iva_precio_final_portal"
+    assert shown["Los precios son fijos e inamovibles"]["resultado"] == "no_consta"
+    assert "ninguno lo contradice" not in result.explanation
 
 
 @pytest.mark.parametrize("text, expected", [
     ("No se aceptarán ofertas condicionadas a la variación del tipo de cambio.", True),
     ("La oferta se considerará prorrogada automáticamente por un lapso igual al inicial.", True),
-    ("Los precios serán fijos e inamovibles.", True),
+    # reverificación de T-257: el precio fijo ya no es una forma de la ausencia
+    ("Los precios serán fijos e inamovibles.", False),
     # no son ausencia: un tope, la garantía y la doble negación que pide presentar algo
     ("El pagaré no podrá superar los cien módulos.", False),
     ("Constituir la garantía de mantenimiento de la oferta del cinco por ciento.", False),

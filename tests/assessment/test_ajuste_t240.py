@@ -195,8 +195,12 @@ def test_an_alternative_percentage_and_a_hasta_that_are_not_about_the_price_do_n
     con la cita del Portal (antes: «tope que el sistema no compara»)."""
     quoted_lines(offer, procedure, portal)
     pair = pair_of(QUOTE_PER_LINE, combine.Combined(outcome="no_determinado", doubt="duda"))
-    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
-    assert pair.combined.outcome == "cumple" and pair.combined.portal
+    # Reverificación de T-257 (decisión del Coordinador, estricta): el porcentaje ya no bloquea la
+    # comparación (no es «falta de coincidencia»), pero el requisito pide además la oferta
+    # alternativa: sin las condiciones del modelo, el Portal cita los renglones y no da «cumple».
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cubre_parte"
+    assert pair.combined.outcome == "no_determinado" and pair.combined.portal
+    assert pair.combined.doubt != "falta_coincidencia"
 
 
 @pytest.mark.decision_literal
@@ -224,8 +228,11 @@ def test_loading_the_policy_in_the_portal_is_met_by_the_guarantee_the_portal_inf
     la haya visto (antes: «tope que el sistema no compara», por «Requisitos mínimos»)."""
     chosen_form(portal, offer, "Seguros")
     pair = pair_of(POLICY_UPLOAD, combine.Combined(outcome="sin_documento"))
-    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cumple"
-    assert pair.combined.outcome == "cumple" and pair.combined.portal[0]["kind"] == "garantia"
+    # Reverificación de T-257 (decisión del Coordinador, estricta): el requisito pide además cargar
+    # el documento y lo que hace el organismo si falta; sin las condiciones del modelo, el Portal
+    # resuelve solo lo que pide exactamente un dato de su lista: cita la garantía, sin «cumple».
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cubre_parte"
+    assert pair.combined.outcome == "no_determinado" and pair.combined.portal[0]["kind"] == "garantia"
     assert pair.combined.explanation.startswith("Fuente: Portal")
 
 

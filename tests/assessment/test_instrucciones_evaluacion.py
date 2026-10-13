@@ -35,6 +35,7 @@ FROZEN = {
     "evaluacion-v9": "5cff8082a2dc41fea7c45a5dccf19d9ecd16afda90a90c22e57208ab8b6d585c",
     "evaluacion-v10": "b62a708808a40465b83b3899b777aa7026939d8adcfbb2ba32314e2f5826db2f",
     "evaluacion-v11": "f4820bba8e67e515a35cbcd755759265af999ce4a40657e436954eea0d4b87a8",
+    "evaluacion-v12": "99d76d7c48c05c2402cf05d68fec24367d871bccd66bd7ab1f43a08ea6a3c7ea",
 }
 
 # Reglas que empujaban al error (informe de revisión, 4.7 a 4.9).
@@ -60,7 +61,7 @@ def examples_of(name):
 def test_the_current_versions_are_the_new_ones_and_exist():
     """REQ-106: `ASSESSMENT_PROMPT_VERSIONS` apunta a las versiones nuevas y los archivos existen."""
     assert settings.ASSESSMENT_PROMPT_VERSIONS == {
-        "evaluacion": "evaluacion-v11", "contraste": "contraste-v4", "clausulas": "clausulas-v5"}
+        "evaluacion": "evaluacion-v12", "contraste": "contraste-v4", "clausulas": "clausulas-v5"}
     for name in settings.ASSESSMENT_PROMPT_VERSIONS:
         assert prompting.load_prompt(name)
 

@@ -73,11 +73,32 @@ _OBLIGATION = re.compile(
     r"|\bsera(?:n)? (?:presentad|entregad)\w*|\btendra(?:n)? que\b|\bhabra(?:n)? de\b")
 
 
+# Reverificación de T-257 (decisión del Coordinador): solo una obligación del OFERENTE en la etapa
+# de la oferta, en la misma cláusula que la presentación física («el oferente deberá presentar… en
+# Mesa de Entrada», «el original de la garantía deberá ser presentado en la Mesa de Entrada»). Con
+# «podrá», «podrán», el adjudicatario o una etapa posterior, no rige.
+_OFFEROR_DUTY = re.compile(
+    r"\b(?:el|los) (?:oferentes?|proponentes?) (?:deber(?:a|an)|tendr(?:a|an) que) (?:tambien )?"
+    r"(?:presentar|entregar|acompanar)\b"
+    r"|\b(?:debera|deberan) (?:tambien )?(?:ser )?(?:presentad[oa]s?|entregad[oa]s?|presentarse"
+    r"|entregarse)\b|\bse (?:presentara|presentaran|entregara|entregaran)\b"
+    r"|\bsera(?:n)? (?:presentad|entregad)\w*")
+_LATER_STAGE = re.compile(
+    r"\badjudicatari\w*|\badjudicad\w*|\badjudicacion\b|\bcontrato\b|\borden de compra\b"
+    r"|\bbienes\b|\bprovision\b|\bentrega de los\b|\brecepcion definitiva\b|\buna vez\b")
+_PERMISSION = re.compile(r"\bpodr(?:a|an|ia|ian)\b")
+_CLAUSES = re.compile(r"[.;]\s|,\s(?:y|e)\s|\s(?:y|e)\s(?=deber)")
+
+
 def is_physical(text):
-    """Si el requisito obliga a presentar algo físicamente (en la Mesa de Entrada)."""
+    """Si el requisito obliga al oferente, en la etapa de la oferta, a presentar algo físicamente
+    (en la Mesa de Entrada): la obligación tiene que estar en la misma cláusula que la presentación,
+    sin «podrá(n)», y no ser del adjudicatario ni de una etapa posterior."""
     folded = fold(text)
-    return bool(PHYSICAL.search(folded) and _PRESENT.search(folded)
-                and _OBLIGATION.search(folded))
+    if not (PHYSICAL.search(folded) and _PRESENT.search(folded)) or _LATER_STAGE.search(folded):
+        return False
+    return any(PHYSICAL.search(clause) and _OFFEROR_DUTY.search(clause)
+               and not _PERMISSION.search(clause) for clause in _CLAUSES.split(folded))
 
 
 def _touched_by_circular(text_block):

@@ -8,11 +8,14 @@ automática, precios fijos) se cumple si la oferta no dice algo en contra. La re
 de `rules.py`) propone «cumple» nombrando los documentos leídos y diciendo que ninguno lo contradice,
 cuando:
 
-- el requisito es de la **lista cerrada** de formas (`criteria.ABSENCE_FORMS`: no condicionar la
-  oferta, sin reservas, precio fijo, el plazo de mantenimiento y su prórroga automática); un
-  documento pedido en negativo («No se aceptarán ofertas sin…», «que carezcan / omitan /
-  desprovistas de…») nunca lo es: pide el documento (verificación de T-257, D-257-1);
-- **cada** condición que revisó el modelo, también la única, es de esa lista (D-257-4);
+- la **oración entera** del requisito (cada oración de la fila) es una de las formas cerradas
+  (`criteria.ABSENCE_FORMS`: la prohibición de condicionar la oferta; el plazo de mantenimiento con
+  su cómputo y su prórroga automática), con patrones de oración completa, no palabras sueltas; un
+  requisito que nombra un documento o un dato («declaración jurada de no condicionamiento»,
+  «certificado», «que indique…», «sin la constancia…») nunca lo es (reverificación de T-257,
+  decisión del Coordinador);
+- la exigencia es «condición», no «documento», y ninguna condición del modelo trae un dato, una cita
+  o una conclusión;
 - (a) el modelo no encontró nada que la contradiga: ninguna cita de la oferta en el resultado, en
   los grupos ni en las condiciones, ningún grupo concluyó y ninguna condición dio «no cumple»;
   (b) el contraste no rechazó una conclusión del modelo: un «cumple» sin corroborar queda «no
@@ -57,7 +60,14 @@ def rule(pair, ctx):
     records = criteria.conditions_of(pair)
     if not records or criteria.contradicted(pair) or criteria.unverified(pair):
         return None
-    if any(not criteria.by_absence(r.get("condicion", "")) for r in records):
+    if combined.exigence != "condicion":
+        # Reverificación de T-257 (decisión del Coordinador): la exigencia tiene que ser una
+        # condición, no un documento.
+        return None
+    if any((r.get("dato") or "").strip() or r.get("cita")
+           or (r.get("resultado_modelo") or r.get("resultado")) in ("cumple", "no_cumple")
+           for r in records):
+        # El modelo trae un dato, una cita o una conclusión sobre la condición: no es ausencia.
         return None
     titles = criteria.documents_read(ctx)
     if not titles:

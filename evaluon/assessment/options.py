@@ -93,20 +93,34 @@ def _shows_use(pair, ctx, name):
     return bool(combined.portal or any(getattr(g, "portal", None) for g in groups))
 
 
+def option_use(pair):
+    """Lo que el modelo marcó en `usa_opcion` (T-257, `evaluacion-v12`): «si» si algún grupo dice
+    que la oferta usa la opción, «no» si todos los grupos dicen que no, y «no_consta» en cualquier
+    otro caso (un grupo que no lo sabe o una salida anterior sin el campo)."""
+    values = [v for v in (getattr(pair, "option_use", None) or {}).values()]
+    if "si" in values:
+        return "si"
+    if values and all(v == "no" for v in values):
+        return "no"
+    return "no_consta"
+
+
 def _unsure(pair, ctx, name):
-    """Por qué no se puede afirmar que la oferta no usa la opción (D-257-6), o `""`: el modelo dice
-    algo de la opción sin una cita ubicada (una cita que no se ubicó, un dato, una conclusión), el
-    contraste no corroboró, o, en la cotización parcial, el Portal no tiene los renglones."""
+    """Por qué no se puede afirmar que la oferta no usa la opción, o `""`. La regla lee el campo
+    `usa_opcion` del modelo, no el texto (reverificación de T-257): solo «no» deja seguir; además,
+    ninguna condición puede ser «cumple» ni «no cumple», el contraste no tiene que haber rechazado
+    nada, y en la cotización parcial el Portal tiene que traer los renglones."""
     combined = pair.combined
+    if option_use(pair) != "no":
+        return "el modelo no marcó que la oferta no use la opción"
     if combined.doubt in ("sin_cita", "sin_corroborar", "contradiccion") or combined.proposed:
         return "el modelo dice algo sobre la opción y el sistema no ubicó su texto"
     if any(getattr(g, "result", "") in ("cumple", "no_cumple")
            for g in getattr(pair, "groups", None) or []):
-        return "el modelo concluyó sobre la opción sin un texto ubicado"
+        return "el modelo concluyó sobre la opción"
     for item in criteria.conditions_of(pair):
-        if (item.get("dato") or "").strip() or (
-                item.get("resultado_modelo") or item.get("resultado")) in ("cumple", "no_cumple"):
-            return "el modelo dice algo sobre la opción sin un texto ubicado"
+        if (item.get("resultado_modelo") or item.get("resultado")) in ("cumple", "no_cumple"):
+            return "el modelo concluyó sobre una condición de la opción"
     if "parcial" in name and _quotes_part(ctx.offer) is None:
         return "el Portal no tiene los renglones del procedimiento"
     return ""
@@ -123,7 +137,7 @@ def rule(pair, ctx):
     if not getattr(pair.text, "quotes", None):
         # Sin la cita del requisito ubicada en el pliego no se sabe a qué alcanza la opción.
         return None
-    if _shows_use(pair, ctx, name):
+    if _shows_use(pair, ctx, name) or option_use(pair) == "si":
         return None
     why = _unsure(pair, ctx, name)
     if why:

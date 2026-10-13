@@ -471,6 +471,63 @@ _OTHER_DATA = re.compile(
     r"|\bmuestras?\b|\borigen\b|\bprocedencia\b")
 _PORTAL_LACKS = _OTHER_DATA
 
+# Reverificación de T-257 (decisión del Coordinador, estricta): el Portal resuelve solo lo que pide
+# EXACTAMENTE un dato de su lista. Una condición (o, sin condiciones, el requisito) se da por
+# respondida por el Portal solo si **todas** sus palabras son de este vocabulario cerrado: las
+# palabras de los datos que el Portal trae y las de enlace. Cualquier otra palabra (color, talle,
+# referencia, denominación, íntegramente, kilos…) deja la condición sin resolver.
+_WORD = re.compile(r"[a-z]+|\d+(?:[.,]\d+)*|%")
+_LINKS = set(
+    "a al ante con cada como de del desde e el en entre la las lo los o para por que se su sus tanto "
+    "u un una uno unos unas y todo todos toda todas dicha dicho dichos misma mismo este esta estos "
+    "estas sera seran ser es son debe deben debera deberan deberá realizar realizara realizaran "
+    "realizarse efectuar efectuada efectuado efectuarse constituir constituira constituiran "
+    "constituida constituido constituirse integrar integrara junto informar informara informaran "
+    "indicar indicara indicaran indicando expresar expresarse expresara expresaran expresados "
+    "expresadas incluir incluira incluiran incluido incluidos incluida incluidas presentar presentara "
+    "presentaran cotizar cotizara cotizaran cotizarse cotizacion cotizaciones cotizado cotizada "
+    "cotizados cotizadas ofertar ofertado ofertada ofertados ofertadas oferta ofertas ofrecido "
+    "ofrecida ofrecidos ofrecidas oferente oferentes proponente proponentes pertinente portal "
+    "plataforma compras equivalente equivalentes economica economicas sobre".split())
+_PORTAL_VOCABULARY = set(
+    "total totales monto montos importe importes precio precios unitario unitarios unitaria "
+    "unitarias valor valores renglon renglones cantidad cantidades totalidad pedida pedidas pedido "
+    "pedidos solicitada solicitadas solicitado solicitados requerida requeridas requerido requeridos "
+    "indicada indicadas indicado indicados moneda pesos peso argentinos argentina nacional dolares "
+    "dolar estadounidenses usd ars iva impuesto impuestos garantia garantias mantenimiento poliza "
+    "seguro caucion pagare fianza aval bancario forma formas tipo porcentaje ciento cuit clave "
+    "identificacion tributaria".split())
+_NUMBER_WORDS_ALL = set(
+    "uno un una dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce quince "
+    "dieciseis diecisiete dieciocho diecinueve veinte veinticinco treinta cuarenta cincuenta sesenta "
+    "setenta ochenta noventa cien ciento doscientos trescientos cuatrocientos quinientos mil millon "
+    "millones".split())
+
+
+# Los verbos de enlace, por su raíz (cualquier tiempo): cotizar, ofertar, ofrecer, realizar, efectuar,
+# constituir, integrar, informar, indicar, expresar, incluir, presentar, consignar, deber.
+_LINK_STEMS = ("cotiz", "ofert", "ofrec", "realiz", "efectu", "constitu", "expres", "inclu", "consign",
+               "deb")
+# Las formas de los verbos cuya raíz se confunde con otras palabras («integramente», «informe»,
+# «indicador», «presente»): una por una.
+_LINK_FORMS = set(
+    "integrar integrara integraran integrada integrado integradas integrados integre integren "
+    "informar informara informaran informada informado informadas informados informe informen "
+    "indicar indicara indicaran indicando indicada indicado indicadas indicados indique indiquen "
+    "presentar presentara presentaran presentarse presentada presentado presentadas presentados "
+    "presente presenten".split())
+_BE = set("es son sea sean sera seran ser esta estan estara estaran estar".split())
+
+
+def asks_only_portal_data(text):
+    """Si el texto pide solo datos de la lista cerrada del Portal (todas sus palabras son del
+    vocabulario cerrado), sin ninguna otra exigencia."""
+    words = _WORD.findall(fold(text))
+    return bool(words) and all(
+        word in _LINKS or word in _PORTAL_VOCABULARY or word in _NUMBER_WORDS_ALL or word in _BE
+        or word in _LINK_FORMS
+        or word.startswith(_LINK_STEMS) or word == "%" or word[0].isdigit() for word in words)
+
 # T-175: la garantía individualizada en el Portal («Paso 4 Ingreso de Garantía»).
 _INDIVIDUALIZED = re.compile(
     r"ingreso de (?:la )?garantia|garantias? (?:\w+ ){0,3}individualizad"
@@ -788,20 +845,22 @@ def criteria_doubt(pair, records):
     return ""
 
 
-def cover(records, kind, comparison, combined, pair=None):
+def cover(records, kind, comparison, combined, pair=None, ctx=None):
     """Las condiciones del modelo (`records`) con las que cubre el dato del Portal, el criterio del
     IVA o la ausencia marcadas «cumple» (`cubierta_por`), y los criterios usados.
 
-    - El Portal cubre solo una condición de su lista cerrada de datos (`_COVERS`) que no nombra
-      otro dato (`_OTHER_DATA`), también si es la única (D-257-4, D-257-5).
-    - La ausencia y el IVA rigen solo sin duda (`criteria_doubt`), para una condición sin cita
-      propia; el IVA, además, solo si la oferta no dice nada del impuesto ni de ajustes del precio
-      en lo que el modelo citó (D-257-3).
+    - El Portal cubre solo una condición que pide EXACTAMENTE un dato de su lista cerrada: de su
+      clase (`_COVERS`), con todas sus palabras del vocabulario cerrado (`asks_only_portal_data`) y
+      sin otro dato (`_OTHER_DATA`), también si es la única (reverificación de T-257).
+    - El IVA rige solo sin duda (`criteria_doubt`), para una condición sin cita propia, y si ni los
+      documentos ni lo que el modelo citó o anotó dicen nada del impuesto o del precio
+      (`criteria.price_talk`). La ausencia ya no cubre condiciones sueltas: rige solo la de la
+      oración entera (`absence.py`).
     - Una condición que el modelo dio por «no cumple» no se cubre."""
     pair = pair if pair is not None else SimpleNamespace(combined=combined, groups=[],
                                                          conditions={})
     doubt = criteria_doubt(pair, records)
-    talk = any(criteria.PRICE_TALK.search(fold(t)) for t in criteria.offer_citations(pair))
+    talk = criteria.price_talk(pair, ctx)
     iva_ok = criteria.IVA in comparison.criteria and not doubt and not talk
     if not records:
         return [], [criteria.IVA] if iva_ok else []
@@ -811,12 +870,10 @@ def cover(records, kind, comparison, combined, pair=None):
         text = fold(item.get("condicion", ""))
         if item.get("resultado") not in ("cumple", "no_cumple"):
             if criteria.names_tax(text):
-                how = criteria.IVA if iva_ok and not _cited(item) else None
-            elif criteria.by_absence(text):
-                # Un precio fijo (o lo que la oferta no puede condicionar) no lo muestra el Portal:
-                # se cumple por ausencia o queda sin dato.
-                how = criteria.ABSENCE if not doubt and not _cited(item) else None
-            elif _COVERS[kind].search(text) and not _OTHER_DATA.search(text):
+                how = criteria.IVA if iva_ok and not _cited(item) and not (
+                    item.get("dato") or "").strip() else None
+            elif (_COVERS[kind].search(text) and asks_only_portal_data(text)
+                  and not _OTHER_DATA.search(text)):
                 how = "portal"
         if how:
             item = {**item, "resultado": "cumple", "cubierta_por": how}
@@ -950,7 +1007,7 @@ def rule(pair, ctx):
         if combined.outcome == combine.OUT_NO_CUMPLE:
             return undetermined(
                 comparison.detail + " El texto de la oferta concluyó que no cumple.")
-        shown, used = cover(records, kind, comparison, combined, pair)
+        shown, used = cover(records, kind, comparison, combined, pair, ctx)
         if criteria.IVA in comparison.criteria and criteria.IVA not in used and not records:
             # El pliego pide el impuesto incluido y el criterio del IVA no rige (la oferta dice algo
             # del impuesto o de un ajuste, o hay una duda): el Portal no lo resuelve (D-257-3).
@@ -964,31 +1021,31 @@ def rule(pair, ctx):
                             "criterio del IVA no rige: la oferta dice algo sobre el impuesto o el "
                             "ajuste del precio, o hay una duda.",
                 facts={**facts, "regla": RULE_PARTIAL})
-        if not records and _OTHER_DATA.search(fold(text)):
-            # Sin las condiciones del modelo, el pliego pide además un dato que el Portal no trae
-            # (D-257-4, D-257-5): no se da por cumplido.
-            return replace(
-                combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.NO_DATA,
-                portal=cites, ask=True,
-                question=combined.question or ("¿Cómo resuelve la Comisión lo que pide el pliego "
-                                               "además del dato del Portal?"),
-                explanation=f"Fuente: Portal, para lo que su dato cubre. {comparison.detail} El "
-                            "pliego pide además un dato que el Portal no trae.",
-                facts={**facts, "regla": RULE_PARTIAL})
+        # El pliego pide además un dato que el Portal no trae; sin las condiciones del modelo,
+        # decide la lista de lo que el Portal SÍ trae (reverificación de T-257): el Portal no da
+        # «cumple». Si la oferta ya concluyó «cumple» con su texto (y el contraste lo corroboró),
+        # queda su conclusión con la cita del Portal agregada.
+        asks_more = bool(_OTHER_DATA.search(fold(text))) or (
+            not records and not asks_only_portal_data(text))
+        if asks_more and combined.outcome == combine.OUT_CUMPLE:
+            return replace(combined, portal=cites, facts={**facts, "regla": RULE_BOTH})
         extra = {"condiciones": shown} if shown else {}
         if used:
             extra["criterios"] = [criteria.record(name, **(
                 {"documentos_leidos": criteria.documents_read(ctx)}
                 if name == criteria.ABSENCE else {})) for name in used]
         pending = [r for r in shown if r.get("resultado") != "cumple"]
-        if pending:
+        if pending or asks_more:
             # El dato del Portal cubre una parte: lo que falta queda a la vista, con su pregunta.
             asked = combined.question if not any(r.get("cubierta_por") for r in shown) else ""
+            more = "" if pending else " El pliego pide además un dato que el Portal no trae."
             return replace(
                 combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.NO_DATA,
-                portal=cites, ask=True, question=asked or _missing_question(shown),
+                portal=cites, ask=True,
+                question=asked or _missing_question(shown) or (
+                    "¿Cómo resuelve la Comisión lo que pide el pliego además del dato del Portal?"),
                 explanation=f"Fuente: Portal, para lo que su dato cubre. {comparison.detail} "
-                            f"{_missing(shown)}",
+                            f"{_missing(shown)}{more}".strip(),
                 facts={**facts, **extra, "regla": RULE_PARTIAL})
         note = (f"{combined.explanation} " if combined.outcome == combine.OUT_CUMPLE
                 and combined.explanation else "")
