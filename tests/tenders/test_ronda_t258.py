@@ -59,8 +59,8 @@ def test_the_active_versions_are_the_t258_ones_and_the_older_ones_stay_published
     unión v1, y registra como vigentes el bloque v6 y la extracción v9 (la fila del plazo sin el
     aviso de no renovar); las anteriores siguen publicadas (congeladas)."""
     versions = settings.MATRIX_PROMPT_VERSIONS
-    assert versions["definiciones"] == "matriz-definiciones-v7"
-    assert versions["extraccion"] == "matriz-extraccion-v10"
+    assert versions["definiciones"] == "matriz-definiciones-v8"  # T-262
+    assert versions["extraccion"] == "matriz-extraccion-v11"
     assert versions["completitud"] == "matriz-completitud-v6"
     assert versions["union"] == "matriz-union-v1"
     for old in ("matriz-definiciones-v4", "matriz-extraccion-v7", "matriz-completitud-v5",
@@ -74,8 +74,8 @@ def test_every_instruction_with_the_block_records_the_active_block(name):
     """REQ-106, P6: la versión y la huella del bloque vigente (v7) quedan en el registro de cada
     instrucción que lo usa, también la de la unión."""
     record = extraction.load_instruction(name).record
-    assert record["definiciones"]["version"] == "matriz-definiciones-v7"
-    assert record["definiciones"]["sha256"] == extraction.text_sha256(_read("matriz-definiciones-v7"))
+    assert record["definiciones"]["version"] == "matriz-definiciones-v8"  # T-262
+    assert record["definiciones"]["sha256"] == extraction.text_sha256(_read("matriz-definiciones-v8"))
 
 
 def test_the_v7_block_keeps_two_obligations_on_the_same_object_in_two_rows():
