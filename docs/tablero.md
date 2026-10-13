@@ -71,7 +71,7 @@ flowchart LR
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 40/45 | █████████░ 89% |
-| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 28/32 | █████████░ 88% |
+| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 29/32 | █████████░ 91% |
 
 <a id="001"></a>
 
@@ -1289,9 +1289,8 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 4 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 3 tareas sin terminar.
 - ▶ T-263 · Medición de cierre de la 015 con T-261 y T-262: evaluación del caso-00 con la configuración normal (y la corrida alterada para la estabilidad), matrices de los casos 00, 01, 02 y 06 (validación) y 03, 04 y 05 (prueba, con las listas re-ancladas del 03 y el 04), contra la spec 015 y el ADR-0059 (en curso)
-- ◐ T-264 · Fundamento visible en las pantallas del expediente (dictamen de la 015, hallazgos 1, 2 y 4; decisión del 2026-10-13 sobre la visión): el dato del Portal con su enlace y la fecha en que se tomó; la cita de una página leída por visión con la marca, el aviso de que proviene de una página con dificultades de lectura y conviene volver a chequearla, y el enlace para ver la imagen (Evaluación y detalle del par, Preguntas, Descartes, informe técnico, ficha de Ofertas, pantalla de la 004 y exportaciones); el panel de pendientes lleva a la ficha de la pestaña; Descartes sin una consulta por motivo; `specs/` montada en el servicio `app` (en verificación)
 - ○ T-255 · Consulta de normativa con el 27B: la Consulta usa el mismo motor del 27B (sin `generation` aparte), con las evals de la 001 medidas antes de pasarla (P7) y el umbral de que ninguna medida empeore frente al 12B; mientras no pase, la Consulta queda apagada cuando corre una evaluación (pendiente)
 - ○ T-249 · Medición de lo que cambió T-248, solo en las áreas que cambió, con el umbral de que ninguna medida empeore (P7): evals de la 001, fichas, lectura con visión, propuestas de datos y matriz con circulares (pendiente)
 
@@ -1313,6 +1312,7 @@ flowchart LR
 - ✓ T-260 · Medición única de la ronda del comité: caso-00 (desarrollo), casos 01, 02 y 06 (validación), casos 03, 04 y 05 (prueba, congelados), con una corrida alterada para medir la variación; criterios del ADR de T-256
 - ✓ T-261 · Contexto de la evaluación (D-260-1): el tope de cada grupo de documentos descuenta la instrucción, el bloque del Portal, el requisito y la salida, y un pedido que igual no entra se parte en grupos más chicos en lugar de fallar; test con una oferta grande (`7825e255` 2026-10-13, `b97e085a` 2026-10-13, `e152893f` 2026-10-13)
 - ✓ T-262 · Presentación física en la matriz (decisión del 2026-10-12, que T-260 vio descartada en los 7 casos por un ejemplo de la extracción) y re-anclaje de las listas esperadas de los casos 03 y 04 a la partición nueva del pliego (D-260-2), con su huella y el visto bueno del Coordinador (`60412696` 2026-10-13, `705d524c` 2026-10-13)
+- ✓ T-264 · Fundamento visible en las pantallas del expediente (dictamen de la 015, hallazgos 1, 2 y 4; decisión del 2026-10-13 sobre la visión): el dato del Portal con su enlace y la fecha en que se tomó; la cita de una página leída por visión con la marca, el aviso de que proviene de una página con dificultades de lectura y conviene volver a chequearla, y el enlace para ver la imagen (Evaluación y detalle del par, Preguntas, Descartes, informe técnico, ficha de Ofertas, pantalla de la 004 y exportaciones); el panel de pendientes lleva a la ficha de la pestaña; Descartes sin una consulta por motivo; `specs/` montada en el servicio `app` (`0f216ca5` 2026-10-13, `27aaf797` 2026-10-13, `650bc310` 2026-10-13, `a110bca2` 2026-10-13, `b11f6ded` 2026-10-13, `a2623398` 2026-10-13, `d3ff9b62` 2026-10-13, `332eaf23` 2026-10-13, `24f9b57b` 2026-10-13, `344b1466` 2026-10-13, `bf400583` 2026-10-13)
 - ✓ T-237 · Instrucciones de la evaluación (evaluación, contraste, cláusulas): `razonamiento`, citas y externo antes del veredicto en el esquema, cita de la oración completa en lugar del «fragmento mínimo», «cada condición con su dato» con el resultado de cada una visible por separado y el de la celda derivado de todas (REQ-104), definición de la duda, ejemplos balanceados, pregunta dirigida a la Comisión, reintento con memoria, versión y huella en cada pedido (`4006149b` 2026-10-11, `eb82337d` 2026-10-11, `12a87b87` 2026-10-11, `9f223630` 2026-10-11, `3a4234f0` 2026-10-11, `8a06a96f` 2026-10-11, `08d79acf` 2026-10-11)
 - ✓ T-251 · Código listo para medir otro modelo: el cuerpo del pedido de lotes dice el modelo que lo atiende y los tokens de los lotes se cuentan con ese motor (hoy con `generation`, que es Gemma) (`70b4a611` 2026-10-11, `32aa9aea` 2026-10-11, `a1aa7c2b` 2026-10-11)
 - ✓ T-238 · Medidas de la 015 en `medir_matriz` y `medir_evaluacion` (filas conservadas, pedazos sin sujeto, recall sin las entradas excluidas, celdas del Portal, «no determinado» que no espera un documento ausente, forma de las preguntas) y listas esperadas ajustadas con huella y visto bueno del Coordinador (`df43d49d` 2026-10-11, `2ebdf6a8` 2026-10-10)
@@ -1348,7 +1348,7 @@ flowchart TD
   T261["✓ T-261 · Contexto de la evaluación (D-260-1): el top…"]:::done
   T262["✓ T-262 · Presentación física en la matriz (decisión…"]:::done
   T263["▶ T-263 · Medición de cierre de la 015 con T-261 y T-…"]:::active
-  T264["◐ T-264 · Fundamento visible en las pantallas del exp…"]:::review
+  T264["✓ T-264 · Fundamento visible en las pantallas del exp…"]:::done
   T237["✓ T-237 · Instrucciones de la evaluación (evaluación,…"]:::done
   T251["✓ T-251 · Código listo para medir otro modelo: el cue…"]:::done
   T238["✓ T-238 · Medidas de la 015 en medir_matriz y medir_e…"]:::done
