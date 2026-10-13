@@ -617,7 +617,9 @@ def test_pages_and_static_files_have_no_external_references(
     static_files = [p for p in STATIC_DIR.rglob("*") if p.is_file() and p.suffix.lower() in text_suffixes]
     assert static_files
     for path in static_files:
-        assert not EXTERNAL_IN_STATIC.search(path.read_text(encoding="utf-8")), path
+        # La declaración xmlns del SVG es el estándar del formato, no una referencia externa (REQ-013).
+        text = path.read_text(encoding="utf-8").replace('xmlns="http://www.w3.org/2000/svg"', "")
+        assert not EXTERNAL_IN_STATIC.search(text), path
 
 
 def test_waiting_script_is_an_own_file_and_form_works_without_it(client, read_user):
