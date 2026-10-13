@@ -188,9 +188,9 @@ def context(user, procedure, request):
     base["authorization_date"] = procedure.authorization_date
     base["can_ask"] = (getattr(user, "commission_role", "")
                        in (CommissionRole.OPERATOR, CommissionRole.EVALUATOR))
-    # Motor de la Consulta apagado (T-247, ADR-0057): la pestaña lo dice y no deja preguntar.
-    base["unavailable"] = (services.UNAVAILABLE_NOTICE
-                           if base["can_ask"] and not services.consulta_available() else "")
+    # La Consulta no puede responder (T-247, T-255, ADR-0057): motor apagado o cargando, o motor
+    # ocupado con un trabajo de lotes. La pestaña lo dice y no deja preguntar.
+    base["unavailable"] = services.consulta_notice() if base["can_ask"] else ""
     history = _history(user, pid)
     base["history"] = history
     wanted = request.GET.get("consulta", "") if request else ""
@@ -224,9 +224,11 @@ def ask(request, procedure_id):
     require_commission_role(request.user, CommissionRole.OPERATOR,
                             operation="evaluon.journey.temas.s5_consulta.ask", channel=CHANNEL)
     question = request.POST.get("question", "")
-    if not services.consulta_available():
-        # Sin el motor de la Consulta no se consulta ni se guarda una consulta fallida (T-247).
-        return _back(procedure, services.UNAVAILABLE_NOTICE, ok=False)
+    notice = services.consulta_notice()
+    if notice:
+        # Con la Consulta sin motor o con el motor ocupado no se consulta ni se guarda una
+        # consulta fallida (T-247, T-255).
+        return _back(procedure, notice, ok=False)
     try:
         query = services.ask(request.user, question, procedure.authorization_date,
                              channel=CHANNEL)

@@ -21,6 +21,15 @@ Operaciones (plan 001, "Generación" y "Conteo de tokens"; plan 003, "Pedido"):
 El cuerpo registrado de un pedido dice el alias del modelo del motor al que va (`model_for`): el
 de `generation` por omisión, el de `generation_batch` si va a `GENERATION_BATCH_URL` (T-251, P6).
 
+Un solo motor (ADR-0057, T-255): con `GENERATION_URL` igual a `GENERATION_BATCH_URL`
+(docker-compose.consulta-27b.yml) la Consulta de normativa pide al mismo motor, y al mismo modelo,
+que las evaluaciones y las matrices (`shares_batch_engine`). Ese motor atiende de a un pedido
+(`--parallel 1`), así que mientras corre un trabajo de lotes la Consulta espera detrás de él; las
+pantallas lo evitan con un aviso (`queries/services.py`, `consulta_notice`). Los pedidos de la
+Consulta (`generate`, sin `reasoning`) salen siempre con el pensamiento apagado, aunque el servidor
+lo permita por el razonamiento de los pasos de lotes, y esperan `AI_TIMEOUT_SECONDS`, no la espera
+extra de un paso que piensa.
+
 Razonamiento propio del modelo (T-253, REQ-107): `generate_batch(..., step=…)` pide pensar si el
 paso (`settings.GENERATION_BATCH_REASONING_STEPS`) está encendido en
 `settings.GENERATION_BATCH_REASONING`; solo el motor de lotes lo hace. Encendido, el pedido lleva
@@ -86,6 +95,14 @@ class GenerationResult:
 
 def _same_url(a, b):
     return (a or "").rstrip("/") == (b or "").rstrip("/")
+
+
+def shares_batch_engine():
+    """¿La Consulta (`GENERATION_URL`) va al mismo motor que los pedidos del `worker`
+    (`GENERATION_BATCH_URL`)? Es la configuración de un solo motor (ADR-0057, T-255): el 27B atiende
+    evaluaciones, matrices y Consulta, de a un pedido. Con `generation` aparte (la instalación de
+    la 001 a la 014 y la vuelta al 12B) es falso y los trabajos de lotes no ocupan a la Consulta."""
+    return _same_url(settings.GENERATION_URL, settings.GENERATION_BATCH_URL)
 
 
 def model_for(base_url=None):
@@ -259,11 +276,15 @@ HEALTH_TIMEOUT_SECONDS = 2
 
 
 def is_available(timeout=None):
-    """¿Responde el motor de la Consulta (`generation`)? Verdadero si `GET /health` de
-    `GENERATION_URL` contesta 200 dentro de la espera (T-247). Falso si el servicio no existe,
-    está apagado, está cargando el modelo (HTTP 503) o no contesta a tiempo. Con el Qwen3.8-27B en
-    el motor de lotes `generation` queda apagado (ADR-0057) y la pantalla de la Consulta usa esto
-    para decirlo en lugar de fallar. No lanza: cualquier falla es «no disponible», también una
+    """¿Responde el motor de la Consulta? Verdadero si `GET /health` de `GENERATION_URL` contesta
+    200 dentro de la espera (T-247). Falso si el servicio no existe, está apagado, está cargando el
+    modelo (HTTP 503) o no contesta a tiempo. Con el Qwen3.8-27B en el motor de lotes y
+    `generation` apagado (ADR-0057) `GENERATION_URL` es la dirección de `generation_batch` (T-255) y
+    esto pregunta por él: el 27B tarda de 3 a 10 minutos en cargar y hasta entonces responde 503. La
+    pantalla de la Consulta usa esto para decirlo en lugar de fallar. `/health` responde 200 aunque
+    el motor esté generando (el chequeo de Docker lo hace cada 10 s durante una evaluación de
+    horas), así que no dice si está ocupado con un pedido: eso lo dice la cola de trabajos
+    (`queries.services.consulta_notice`). No lanza: cualquier falla es «no disponible», también una
     respuesta que no es HTTP (`BadStatusLine`, `IncompleteRead`, `LineTooLong`: son
     `http.client.HTTPException` y no `OSError`)."""
     return health_ok(settings.GENERATION_URL, timeout or HEALTH_TIMEOUT_SECONDS)

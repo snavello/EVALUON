@@ -1,0 +1,55 @@
+# La Consulta de normativa con el Qwen3.8-27B del motor de lotes (T-255, ADR-0057). Decisión del
+# responsable (2026-10-12): «Sí; Consulta con el 27B». Un solo motor, el 27B, atiende evaluaciones y
+# Consulta; el 12B de la Consulta (`generation`) no arranca. Se SUMA a los de la configuración de uso,
+# al final:
+#   docker-compose.yml + docker-compose.qwen38-27b.yml + docker-compose.razonamiento.yml
+# (así lo deja `COMPOSE_FILE` en `.env.example`). Reemplaza en esa configuración a
+# docker-compose.sin-consulta.yml, que queda como está: sirve para el 27B SIN Consulta (la pantalla
+# dice que no está disponible) si las evals de la 001 no pasan con el 27B (P7).
+#
+# Qué cambia:
+#  - `generation` pasa al perfil `consulta-12b` (un servicio con perfil no arranca salvo que se
+#    pida) y `app` deja de esperarlo (`required: false`): igual que docker-compose.sin-consulta.yml.
+#  - `app` y `worker` mandan la Consulta a `generation_batch`: `GENERATION_URL` es la dirección del
+#    motor de lotes (la misma variable y el mismo valor por omisión) y el alias, el archivo y la
+#    huella del modelo de la Consulta son los del 27B que carga ese motor (los de
+#    docker-compose.qwen38-27b.yml; tests/test_compose_env.py compara los dos archivos), para que
+#    cada consulta registre el modelo que la atendió (P6).
+#  - Solo `app` recibe además `GENERATION_CTX_SIZE`: el contexto real del motor de lotes (la misma
+#    variable que su `--ctx-size`), que la Consulta usa para armar el pedido. El `worker` no: la
+#    matriz (consecuencias y circulares) dimensiona sus pedidos con ese mismo valor
+#    (`GENERATION_CONTEXT_TOKENS`, 16.384 en todas las mediciones) y con 32.768 propondría otra
+#    matriz que la medida (P7).
+# Nada más: ni redes, ni puertos, ni imágenes (tests/test_compose_env.py lo comprueba; P4).
+#
+# El motor atiende de a un pedido (`--parallel 1`): mientras corre un trabajo que lo usa (una
+# evaluación, una matriz, una ficha o una propuesta de datos), la pantalla de la Consulta y la pestaña
+# de Normativas lo dicen y no ejecutan ni guardan la pregunta; la búsqueda directa sigue. Si el motor
+# no contesta (el 27B tarda de 3 a 10 minutos en cargar tras cada reinicio, o se cayó) dicen que se
+# está encendiendo o no responde. Los pedidos de la Consulta salen siempre sin razonamiento
+# (`enable_thinking: false`), aunque el servidor lo permita por docker-compose.razonamiento.yml.
+#
+# Para volver al 12B con la Consulta: no usar nada de esto (ver
+# specs/015-uso-y-eleccion-del-modelo/entorno.md, «Cómo se vuelve al 12B»).
+
+x-consulta-27b: &consulta-27b
+  GENERATION_URL: ${GENERATION_BATCH_URL:-http://generation_batch:8080}
+  GENERATION_MODEL_ALIAS: qwen3.8-27b-ud-q4_k_m
+  GENERATION_MODEL_FILE: Qwen3.8-27B-UD-Q4_K_M.gguf
+  GENERATION_MODEL_SHA256: 322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50f122b39123482
+
+services:
+  generation:
+    profiles: ["consulta-12b"]
+
+  app:
+    depends_on:
+      generation:
+        condition: service_healthy
+        required: false
+    environment:
+      <<: *consulta-27b
+      GENERATION_CTX_SIZE: "${GENERATION_BATCH_CTX_SIZE:-32768}"
+
+  worker:
+    environment: *consulta-27b

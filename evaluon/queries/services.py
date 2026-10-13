@@ -62,8 +62,8 @@ Registro (fila "Consulta" de "Registro de auditoría"). Las columnas de
 `queries_query` y el detalle del hecho llevan lo mismo:
 
 - `parameters`: en el primer nivel, los de búsqueda (caminos, reranker encendido,
-  candidatos por camino, umbral, cupos y espacio del contexto); `generation` (modelo,
-  archivo, huella, compilación del motor,
+  candidatos por camino, umbral, cupos y espacio del contexto); `generation` (motor y
+  dirección que la atendieron, modelo, archivo, huella, compilación del motor,
   contexto, temperatura, semilla, pensamiento, máximo de salida y de afirmaciones),
   `embeddings` y `reranker` (modelo, archivo y huella) y la espera de los clientes.
 - `candidates`: cada pasaje candidato con su unidad, sus caminos, su distancia, su
@@ -151,6 +151,7 @@ from evaluon.norms.services import amendments
 from evaluon.queries import answering, retrieval
 from evaluon.queries import search as direct_search
 from evaluon.queries.models import Query, Reason, Status
+from evaluon.tenders.models import Job, JobKind, JobStatus
 
 QUERY_TABLE = Query._meta.db_table
 
@@ -185,18 +186,68 @@ class FutureDate(QueryRefused):
     """La fecha de autorización es posterior al día."""
 
 
-# Lo que dicen las pantallas de la Consulta cuando su motor (`generation`) está apagado (T-247,
-# ADR-0057): con el Qwen3.8-27B en el motor de lotes, el 12B de la Consulta no entra en la GPU y
-# queda apagado hasta que T-255 pase la Consulta al 27B. Sin este aviso la pregunta recorría la
-# recuperación y terminaba en «falla técnica» (y en una consulta fallida guardada).
+# Lo que dicen las pantallas de la Consulta cuando su motor, `generation` aparte, no contesta
+# (T-247, ADR-0057): con el Qwen3.8-27B en el motor de lotes y `generation` apagado a propósito
+# (docker-compose.sin-consulta.yml, el 27B sin Consulta), o con el 12B de la Consulta caído. Sin este
+# aviso la pregunta recorría la recuperación y terminaba en «falla técnica» (y en una consulta
+# fallida guardada).
 UNAVAILABLE_NOTICE = ("La consulta de normativa no está disponible por ahora: el equipo usa el "
                       "modelo grande para las evaluaciones y deja apagado el motor de la consulta. "
                       "Vuelva a intentarlo más tarde.")
 
+# Lo que dicen cuando la Consulta está en el mismo motor que las evaluaciones y las matrices (T-255)
+# y ese motor no contesta: el 27B tarda de 3 a 10 minutos en cargar tras cada reinicio y hasta
+# entonces responde 503, o está caído. Ese motor no se dejó apagado a propósito, así que no vale
+# `UNAVAILABLE_NOTICE`, que dice que el equipo dejó apagado el motor de la Consulta.
+NOT_RESPONDING_NOTICE = ("La consulta de normativa no está disponible por ahora: el motor del modelo "
+                         "se está encendiendo o no responde. Vuelva a intentarlo en unos minutos.")
+
+# Lo que dicen cuando la Consulta está en el mismo motor que las evaluaciones y las matrices (T-255,
+# ADR-0057) y ese motor está ocupado con un trabajo: el 27B atiende de a un pedido y una evaluación o
+# una matriz lo puede tener ocupado horas; la pregunta esperaría detrás y terminaría en una falla
+# técnica por espera agotada (60 s). La pantalla no ejecuta ni guarda la pregunta; la búsqueda
+# directa, que no usa el modelo, sigue.
+BUSY_NOTICE = ("La consulta de normativa no está disponible mientras el sistema evalúa o arma una "
+               "matriz; vuelva a intentar cuando termine.")
+
+# Pedidos del `worker` que usan el motor de lotes mientras corren: la matriz, la evaluación, la ficha
+# de una oferta y las dos propuestas de datos (el alta desde el pliego y la de una oferta desde sus
+# archivos). Leer documentos (el OCR corre en el `worker`, sin el modelo) y los pedidos del Portal
+# (los atiende otro servicio) no lo ocupan. Un tipo de pedido nuevo se clasifica acá: una prueba
+# comprueba que todos lo estén. No cubre lo que la cola encadena al terminar la lectura de una
+# oferta (el informe técnico, `jobs.AFTER_DONE`): para entonces el pedido ya está terminado.
+BATCH_ENGINE_JOB_KINDS = (JobKind.PROPOSE_MATRIX, JobKind.EVALUATE_OFFERS, JobKind.BUILD_SHEET,
+                          JobKind.PROPOSE_PROCEDURE, JobKind.PROPOSE_OFFER)
+
+
+def batch_engine_busy():
+    """¿Corre ahora un trabajo que usa el motor de lotes? Solo cuenta el pedido en curso
+    (`running`): uno en espera lo toma el `worker` en segundos, y si el `worker` está caído nada
+    corre y el motor está libre."""
+    return Job.objects.filter(kind__in=BATCH_ENGINE_JOB_KINDS, status=JobStatus.RUNNING).exists()
+
+
+def consulta_notice():
+    """Lo que tienen que decir las pantallas de la Consulta si no puede responder ahora, o `""` si
+    puede (T-247, T-255):
+
+    - Si la Consulta va al mismo motor que los trabajos de lotes y uno está en curso, `BUSY_NOTICE`
+      (sin preguntar la salud del motor: ya se sabe ocupado).
+    - Si el motor no contesta: `NOT_RESPONDING_NOTICE` cuando es el motor compartido (se está
+      encendiendo o se cayó) y `UNAVAILABLE_NOTICE`, el de T-247, cuando `generation` va aparte.
+
+    Con `generation` aparte los trabajos de lotes no ocupan a la Consulta."""
+    shared = generation.shares_batch_engine()
+    if shared and batch_engine_busy():
+        return BUSY_NOTICE
+    if not generation.is_available():
+        return NOT_RESPONDING_NOTICE if shared else UNAVAILABLE_NOTICE
+    return ""
+
 
 def consulta_available():
-    """¿Puede la Consulta responder ahora? Es que el motor `generation` responda (T-247)."""
-    return generation.is_available()
+    """¿Puede la Consulta responder ahora? Es que no haya aviso que decir (`consulta_notice`)."""
+    return not consulta_notice()
 
 
 def today():
@@ -245,6 +296,10 @@ def parameters():
         "template_margin_tokens": settings.PROMPT_TEMPLATE_MARGIN_TOKENS,
         "unit_by_passages_from_tokens": settings.UNIT_BY_PASSAGES_FROM_TOKENS,
         "generation": {
+            # El motor y la dirección que atendieron la Consulta (T-255, P6): con un solo motor, el
+            # de los lotes, como lo registran la matriz y la evaluación (`generation_batch_url`).
+            "engine": "generation_batch" if generation.shares_batch_engine() else "generation",
+            "url": settings.GENERATION_URL,
             "model": settings.GENERATION_MODEL,
             "file": settings.GENERATION_MODEL_FILE,
             "sha256": settings.GENERATION_MODEL_SHA256,
