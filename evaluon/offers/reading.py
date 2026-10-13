@@ -537,6 +537,47 @@ def docx_to_pdf(data):
 # --- Lectura guardada a objetos ----------------------------------------------------------------
 
 
+# Pasaje escrito a mano que el reconocimiento no lee (T-259, REQ-104; decisión del Coordinador
+# del 2026-10-12): la marca que reemplaza su texto en la lectura y el motivo con que queda la
+# línea original, descartada pero guardada (P6).
+HANDWRITTEN_REASON = "manuscrito: revisar el original"
+HANDWRITTEN_MARK = "[no se pudo leer · manuscrito: revisar el original]"
+
+
+def mark_handwritten(reading, threshold=None):
+    """La lectura con cada línea reconocida de confianza menor que `threshold` (por omisión
+    `OFFERS_HANDWRITTEN_CONFIDENCE`; 0 no marca nada) reemplazada en el texto por
+    `HANDWRITTEN_MARK`: la línea original queda en la lectura, descartada con el motivo
+    `HANDWRITTEN_REASON`, y la marca va en su lugar, con su posición y su confianza. Así su
+    transcripción nunca llega al texto canónico, a los pasajes ni a la evaluación. No cambia la
+    lectura que recibe."""
+    from django.conf import settings
+
+    if threshold is None:
+        threshold = settings.OFFERS_HANDWRITTEN_CONFIDENCE
+    if not threshold:
+        return reading
+    pages = []
+    for page in reading.pages:
+        lines = []
+        for line in page.lines:
+            low = (line.origin == ORIGIN_OCR and not line.discarded
+                   and line.confidence is not None and line.confidence < threshold)
+            if not low:
+                lines.append(line)
+                continue
+            lines.append(replace(line, discarded=HANDWRITTEN_REASON))
+            lines.append(replace(line, text=HANDWRITTEN_MARK, words=[]))
+        pages.append(replace(page, lines=lines))
+    return replace(reading, pages=pages)
+
+
+def handwritten_lines(reading):
+    """`[(página, confianza)]` de las líneas que `mark_handwritten` marcó en `reading`."""
+    return [(page.number, line.confidence) for page in reading.pages for line in page.lines
+            if line.discarded == HANDWRITTEN_REASON]
+
+
 def rebuild_reading(data):
     """La lectura guardada (`Reading.pages`, el JSON de `DocumentReading.as_json`) como
     objetos, para volver a armar su texto canónico y sus pasajes sin leer de nuevo el

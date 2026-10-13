@@ -18,7 +18,8 @@
 - `run_read_document`: el manejador del pedido `read_document` (lo registra
   `jobs.HANDLERS`). Comprueba la huella del original guardado, lo lee con la lectura de
   la 001 (`read_document`: PDF con texto o escaneado, página por página, o página web),
-  busca las zonas de tabla (`tables.table_zones`) y lo parte en tramos
+  busca las zonas de tabla con sus celdas (`tables.read_tables`), escribe cada tabla
+  celda por celda en la lectura (`tables.with_cells`, T-259) y lo parte en tramos
   (`segmenting.split_tender`). Guarda la lectura (número siguiente del documento), sus
   tramos y el informe, y deja el hecho `tender_read`, en una sola transacción: una
   lectura cortada no queda a medias. No modifica una lectura ni sus tramos ya guardados.
@@ -66,7 +67,7 @@ from evaluon.tenders.models import (
 )
 from evaluon.tenders.segmenting import RULES_VERSION, split_tender
 from evaluon.tenders.services.procedures import regime_for
-from evaluon.tenders.tables import table_zones
+from evaluon.tenders.tables import CELLS_VERSION, read_tables, with_cells
 
 LOAD_OPERATION = "evaluon.tenders.services.documents.load_document"
 PAGE_OPERATION = "evaluon.tenders.services.documents.procedure_page"
@@ -313,12 +314,12 @@ def run_read_document(job):
                 "El original guardado no coincide con la huella con que se cargó: no se "
                 "leyó."
             )
-        reading = read_document(data)
-        zones = table_zones(data)
+        reading, zones = with_cells(read_document(data), read_tables(data))
         split = split_tender(reading, zones)
         canonical_text = split.canonical.text
         canonical_sha256 = hashlib.sha256(canonical_text.encode("utf-8")).hexdigest()
-        tool_versions = {**reading.tool_versions, "rules_version": RULES_VERSION}
+        tool_versions = {**reading.tool_versions, "rules_version": RULES_VERSION,
+                         "table_cells": CELLS_VERSION}
         report = split.report
 
         with transaction.atomic():
@@ -367,6 +368,49 @@ def run_read_document(job):
         )
         raise
     return saved
+
+
+# --- Relectura del pliego (T-259) -----------------------------------------------------------
+
+REREAD_OPERATION = "evaluon.tenders.services.documents.reread_procedure"
+
+
+@dataclass
+class Reread:
+    """Lo que hizo `reread_procedure` con un documento: su pedido y la lectura nueva (o el
+    motivo por el que no se leyó)."""
+
+    document: Document
+    job: Job
+    reading: Reading | None = None
+    error: str = ""
+
+
+def reread_procedure(user, procedure, *, documents=None, channel=Channel.COMMAND):
+    """Vuelve a leer con el código vigente los documentos vigentes del pliego de `procedure`
+    (o los de `documents`), desde su original guardado (T-259). Cada uno recibe un pedido
+    `read_document` a nombre de `user` que se ejecuta acá mismo y deja su lectura nueva (número
+    siguiente del documento), sus tramos y el hecho `tender_read`; las lecturas anteriores no se
+    tocan (P6). Lo hacen el operador y el evaluador; sin rol lanza `RoleRejected`."""
+    from django.utils import timezone
+
+    from evaluon.tenders.services import document_history
+
+    require_commission_role(user, CommissionRole.OPERATOR, operation=REREAD_OPERATION,
+                            channel=channel)
+    chosen = list(documents if documents is not None
+                  else document_history.current_documents(procedure))
+    done = []
+    for document in chosen:
+        job = Job.objects.create(kind=JobKind.READ_DOCUMENT, procedure=procedure,
+                                 document=document, requested_by=user,
+                                 status=JobStatus.RUNNING, started_at=timezone.now())
+        jobs.run(job)
+        job.refresh_from_db()
+        reading = (Reading.objects.filter(document=document, job=job).first()
+                   if job.status == JobStatus.DONE else None)
+        done.append(Reread(document=document, job=job, reading=reading, error=job.error))
+    return done
 
 
 # --- Página del procedimiento y original ---------------------------------------------------

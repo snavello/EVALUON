@@ -57,7 +57,10 @@ class DocumentText:
 
     @property
     def unread_pages(self):
-        return [page["page"] for page in self.pages if not page["readable"]]
+        """Las páginas no leídas y las que tienen un pasaje escrito a mano que no se pudo leer
+        (T-259): con ellas el sistema avala el «no se pudo leer» que señale el modelo."""
+        return [page["page"] for page in self.pages
+                if not page["readable"] or page.get("handwritten")]
 
     def render(self, first=None, last=None):
         """El documento como lo lee el modelo: encabezado y páginas `first` a `last`
