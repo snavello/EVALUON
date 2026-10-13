@@ -15,6 +15,7 @@ from evaluon.norms.models import ProposalState
 from evaluon.portal.models import PortalLine, PortalProcedureData
 from evaluon.tenders import jobs
 from evaluon.tenders import models as m
+from evaluon.tenders.proposal import procedure_fields as rules
 from evaluon.tenders.services import procedure_proposal as service
 from tests.tenders.pdfs import para, table, tender_pdf
 
@@ -745,3 +746,70 @@ def test_a_line_can_be_corrected_in_quantity_unit_and_description_but_not_added(
     service.correct(evaluator_user, other.pk, "line.1.quantity", "30", "Figura en el anexo")
     done = approved(evaluator_user, other.pk)
     assert PortalLine.objects.get(procedure=done.procedure).quantity == Decimal("30")
+
+
+# --- Instrucción de los datos del procedimiento (T-248; REQ-106) --------------------------------
+
+
+def test_the_procedure_data_instruction_is_a_versioned_file_with_balanced_examples():
+    """REQ-106 (T-248, fila `procedimiento-datos` del informe de revisión): la instrucción es un
+    archivo versionado (v2), con la cita antes que el valor y ejemplos de otro rubro: dos que
+    devuelven los dos datos y dos que no devuelven nada; la v1 sigue publicada."""
+    from pathlib import Path
+
+    folder = Path(rules.PROMPTS_DIR)
+    text = (folder / f"{rules.PROMPT_VERSION}.md").read_text(encoding="utf-8")
+
+    assert rules.PROMPT_VERSION == "procedimiento-datos-v2" and rules.MODEL_INSTRUCTIONS == text
+    assert (folder / "procedimiento-datos-v1.md").is_file()
+    answers = [json.loads(line) for line in text.splitlines()
+               if line.startswith('{"procedure_type"')]
+    filled = [all(a[key]["valor"] for key in ("procedure_type", "subject")) for a in answers]
+    empty = [not any(a[key]["valor"] or a[key]["cita"] for key in ("procedure_type", "subject"))
+             for a in answers]
+    assert len(answers) == 4 and filled.count(True) == 2 and empty.count(True) == 2
+    for answer in answers:
+        for key in ("procedure_type", "subject"):
+            assert list(answer[key]) == ["cita", "valor"]
+            assert answer[key]["valor"].lower() in answer[key]["cita"].lower()
+    assert text.index("primero la cita y después el valor") < text.index("EJEMPLOS")
+
+
+def test_the_procedure_data_schema_asks_for_the_quote_before_the_value():
+    """REQ-106 (ADR-0055, regla 3): el motor genera los campos en el orden del esquema: la cita
+    literal va antes que el valor que ella sostiene, en el tipo y en el objeto."""
+    for key in ("procedure_type", "subject"):
+        datum = rules.MODEL_SCHEMA["properties"][key]
+        assert list(datum["properties"]) == ["cita", "valor"]
+        assert datum["required"] == ["cita", "valor"]
+
+
+def test_the_published_v1_of_the_procedure_instruction_keeps_its_hash():
+    """REQ-106, P6: la v1, que vivía en el código, quedó como archivo con los mismos bytes: su
+    huella es la que se congeló cuando era una instrucción del código."""
+    from evaluon.tenders.proposal import extraction
+
+    v1 = (rules.PROMPTS_DIR / "procedimiento-datos-v1.md").read_text(encoding="utf-8")
+
+    assert extraction.text_sha256(v1) == (
+        "a59f387ec48a7d75589a223170647369f966d8a54e19c60fdd6cdbc0e17a674a")
+    assert v1.startswith("Sos un lector de pliegos") and v1.endswith("No inventes.")
+
+
+def test_the_trace_records_the_version_and_the_sha256_of_the_instruction(
+        operator_user, fake_generation):
+    """P6 (T-248): la traza del pedido guarda la versión y la huella del archivo de la
+    instrucción que se mandó."""
+    from evaluon.tenders.proposal import extraction
+
+    fake_generation.respond(json.dumps({
+        "procedure_type": {"cita": "", "valor": ""}, "subject": {"cita": "", "valor": ""}}))
+    upload_and_read(operator_user, case_pdf(cover=["PROCESO Nº: SINT-0305-PRUEBA"]))
+    event = AuditEvent.objects.filter(event_type=EventType.PROCEDURE_PROPOSAL,
+                                      detail__action="propose").get()
+    trace = event.detail["model"][0]
+
+    assert trace["prompt_version"] == "procedimiento-datos-v2"
+    assert trace["instructions_sha256"] == extraction.text_sha256(rules.MODEL_INSTRUCTIONS)
+    (messages, _), = fake_generation.calls
+    assert messages[0]["content"] == rules.MODEL_INSTRUCTIONS

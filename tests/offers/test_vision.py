@@ -19,6 +19,7 @@ from evaluon.audit.models import AuditEvent, Channel, EventType
 from evaluon.offers import models as om
 from evaluon.offers import orientation, vision
 from evaluon.offers.services import offers as offers_service
+from evaluon.tenders.proposal import extraction
 from tests.assessment.fakes import (  # noqa: F401 - `model` es una fixture
     VISION_DATA,
     Cut,
@@ -215,7 +216,7 @@ def test_the_image_document_page_is_replaced_by_the_transcription_of_the_photo(
 def test_the_request_carries_the_page_image_and_the_registered_instructions(
         new_offer, operator_user, model):
     """REQ-052: una página por pedido, con la imagen dibujada de la página y las instrucciones
-    `vision-v3`, al motor de lotes, en texto plano."""
+    `vision-v4`, al motor de lotes, en texto plano."""
     from django.conf import settings
 
     make_read_document(new_offer, operator_user, "dos.pdf", [("ilegible", ""), ("dudosa", "x y")])
@@ -256,7 +257,9 @@ def test_the_report_records_what_P6_asks_for(new_offer, operator_user, model):
     assert report["parameters"]["end_marker"] == "<<FIN>>"
     assert report["parameters"]["image_tokens"] == settings.ASSESSMENT_VISION_IMAGE_TOKENS
     assert report["parameters"]["temperature"] == 0 and report["parameters"]["seed"] == 42
-    assert report["prompt_version"] == "vision-v3"
+    assert report["prompt_version"] == "vision-v4"
+    assert report["instruccion"] == vision.prompt_record()
+    assert report["instruccion"]["sha256"] == extraction.text_sha256(vision.load_prompt())
     entry = report["pages"][0]
     assert entry["page"] == 1 and entry["reason"] == "unread" and entry["status"] == "ilegible"
     assert entry["confidence"] == 20.0 and entry["outcome"] == "read"
@@ -265,7 +268,7 @@ def test_the_report_records_what_P6_asks_for(new_offer, operator_user, model):
     part = entry["parts"][0]
     assert part["raw_output"] == f"{SEEN_TEXT}\n<<FIN>>" and part["finish_reason"] == "stop"
     assert "data:image" not in json.dumps(entry["parts"])
-    assert part["request"]["messages"][1]["content"][1]["image_url"]["url"] == \
+    assert part["request"]["messages"][1]["content"][0]["image_url"]["url"] == \
         f"[imagen png sha256:{seen.sha256}]"
     assert part["request"]["repeat_penalty"] == 1.15 and "response_format" not in part["request"]
     assert entry["rotation"]["rotate_clockwise"] == 0 and entry["tiles"] == 1
@@ -555,3 +558,38 @@ def test_a_page_that_fits_or_is_legible_goes_whole(model):
         assert vision.wants_tiles(tall, hard=True)
         assert vision.transcribe_page(pdf_from(tall), 1, hard=True)["tiles"] == 2
     assert len(model.vision_calls) == 3
+
+
+def test_the_user_turn_carries_the_image_before_the_text():
+    """REQ-106 (T-248, hallazgo de gravedad baja de la revisión): en el turno del usuario la
+    imagen va antes que el texto; el texto lleva el marcador de fin y el ejemplo del formato."""
+    messages = vision.build_messages(b"\x89PNG-de-prueba")
+
+    content = messages[1]["content"]
+    assert [part["type"] for part in content] == ["image_url", "text"]
+    assert content[0]["image_url"]["url"].startswith("data:image/png;base64,")
+    assert "<<FIN>>" in content[1]["text"] and "Ejemplo de salida" in content[1]["text"]
+
+
+def test_the_vision_instruction_v4_does_not_forbid_repeating_a_line_that_the_page_repeats():
+    """REQ-106 (T-248): la v4 saca «nunca repitas una línea», que empuja a omitir las filas
+    iguales de una tabla, y lo reemplaza por copiar cada línea tantas veces como aparece y no
+    escribir líneas que la página no tiene; suma un ejemplo con una tabla de filas iguales y
+    uno con un dato manuscrito ilegible. La v3 no cambió."""
+    text = vision.PROMPTS_DIR.joinpath("vision-v4.md").read_text(encoding="utf-8")
+    old = vision.PROMPTS_DIR.joinpath("vision-v3.md").read_text(encoding="utf-8")
+
+    assert "Nunca repitas una línea" in old and "Nunca repitas" not in text
+    assert "tantas veces como aparece" in text and "escribir líneas que la página no tiene" in text
+    assert text.count("A-10 | Tornillo hexagonal | 200") == 2 and "[ilegible]" in text
+    assert "<<FIN>>" in text
+
+
+def test_the_repeat_penalty_is_not_changed_without_the_measurement():
+    """REQ-106 (T-248): la penalización de repetición sigue en 1,15 hasta la medición de T-249
+    (1,15 contra 1,05 o ninguna, con la variable de entorno); el informe de cada lectura la
+    registra."""
+    from django.conf import settings
+
+    assert settings.ASSESSMENT_VISION_REPEAT_PENALTY == 1.15
+    assert vision._parameters()["repeat_penalty"] == settings.ASSESSMENT_VISION_REPEAT_PENALTY

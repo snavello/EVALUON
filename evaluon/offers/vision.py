@@ -15,7 +15,7 @@ pasan del tope siguen como están y quedan contadas. Una página legible de un d
 texto nunca se manda a visión.
 
 Cada página va en un pedido aparte al motor de lotes (`generation_batch`, con su proyector de
-imagen), con la imagen dibujada con pypdfium2 y la instrucción `vision-v3`: el modelo
+imagen), con la imagen dibujada con pypdfium2 y la instrucción `vision-v4`: el modelo
 transcribe, no decide.
 
 Cómo se le pide (T-177, REQ-064; hallazgo V-1 de T-161). Antes de mandar la imagen se detecta su
@@ -76,6 +76,7 @@ from evaluon.offers import passages as passage_rules
 from evaluon.offers import reading as reading_tools
 from evaluon.offers.models import Document, DocumentFile, Passage, Reading
 from evaluon.offers.services import offers as offers_service
+from evaluon.tenders.proposal import extraction
 
 ORIGIN_VISION = "vision"
 OPERATION = "evaluon.offers.vision.read_offer_for"
@@ -121,6 +122,14 @@ def load_prompt():
     """El texto de la instrucción de la versión que fija `ASSESSMENT_VISION_PROMPT_VERSION`."""
     version = settings.ASSESSMENT_VISION_PROMPT_VERSION
     return (PROMPTS_DIR / f"{version}.md").read_text(encoding="utf-8")
+
+
+def prompt_record():
+    """`{"nombre", "version", "sha256"}` de la instrucción vigente: lo que el informe de la
+    lectura deja anotado de ella (P6, REQ-106; T-248). Cada página, además, guarda el pedido con
+    la instrucción literal."""
+    return {"nombre": "vision", "version": settings.ASSESSMENT_VISION_PROMPT_VERSION,
+            "sha256": extraction.text_sha256(load_prompt())}
 
 
 def enabled():
@@ -239,12 +248,14 @@ def request_text(number=1, count=1):
 
 
 def build_messages(png, system=None, user_text=None):
-    """Los mensajes del pedido de transcripción de una página: la instrucción y la imagen."""
+    """Los mensajes del pedido de transcripción de una página: la instrucción y, en el turno del
+    usuario, la imagen y después el texto (T-248: los modelos de visión leen mejor con la imagen
+    primero)."""
     url = "data:image/png;base64," + base64.b64encode(png).decode("ascii")
     return [{"role": "system", "content": system or load_prompt()},
             {"role": "user", "content": [
-                {"type": "text", "text": user_text or request_text()},
-                {"type": "image_url", "image_url": {"url": url}}]}]
+                {"type": "image_url", "image_url": {"url": url}},
+                {"type": "text", "text": user_text or request_text()}]}]
 
 
 def _without_image(request, sha256):
@@ -452,6 +463,7 @@ def save_reading(document, previous, entries, *, user, channel, job=None, over_l
             report["vision"] = {
                 "models": _models_used(), "parameters": _parameters(),
                 "prompt_version": settings.ASSESSMENT_VISION_PROMPT_VERSION,
+                "instruccion": prompt_record(),
                 "from_reading": previous.pk, "over_limit": over_limit,
                 "pages": [*vision_entries(previous), *new]}
             tool_versions = {**previous.tool_versions, "vision": _models_used()}

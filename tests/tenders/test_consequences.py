@@ -247,7 +247,8 @@ def test_technical_row_goes_to_the_model_as_item_with_its_header(operator_user, 
     assert undetermined.consequence_type == "no_determinada"
 
 
-def test_requests_carry_25_requirements_at_most(operator_user, script, settings):
+def test_requests_carry_the_configured_number_of_requirements_at_most(operator_user, script,
+                                                                      settings):
     """REQ-029: los requisitos se piden de a `MATRIX_CONSEQUENCES_PER_REQUEST`."""
     settings.MATRIX_CONSEQUENCES_PER_REQUEST = 2
 
@@ -261,11 +262,12 @@ def test_requests_carry_25_requirements_at_most(operator_user, script, settings)
     assert m.RunStep.objects.filter(run=run, pass_name="consecuencias").count() == 2
 
 
-def test_default_lot_size_is_25():
-    """REQ-029: el parámetro inicial es de 25 requisitos por pedido (plan 003)."""
+def test_default_lot_size_is_10():
+    """REQ-029, REQ-106: el parámetro es de 10 requisitos por pedido (eran 25: la revisión de las
+    instrucciones, T-248, pide de 8 a 10 para que cada requisito tenga su alcance a la vista)."""
     from django.conf import settings
 
-    assert settings.MATRIX_CONSEQUENCES_PER_REQUEST == 25
+    assert 8 <= settings.MATRIX_CONSEQUENCES_PER_REQUEST <= 10
 
 
 # --- Validación --------------------------------------------------------------------------------
@@ -410,7 +412,7 @@ def test_the_proposal_asks_for_consequences_and_copies_the_instructions_version(
     run = run_level(operator_user)
 
     run.refresh_from_db()
-    assert run.prompt_versions["consecuencias"] == "matriz-consecuencias-v1"
+    assert run.prompt_versions["consecuencias"] == "matriz-consecuencias-v2"
     assert "consecuencias" in run.parameters["passes"]
     assert m.RunStep.objects.filter(run=run, pass_name="consecuencias").count() == 1
     assert [o.consequence_type for o in
@@ -442,6 +444,61 @@ def test_the_schema_only_allows_the_shown_aliases_and_the_system_types(
     option = schema["properties"]["R1"]["properties"]["opciones"]["items"]["properties"]
     assert option["tipo"]["enum"] == list(consequences.SYSTEM_TYPES)
     assert set(option["fundamentos"]["items"]["enum"]) == set(script.requests[0]["P"])
+
+
+def test_each_option_puts_the_grounds_before_the_type(operator_user, script):
+    """REQ-106 (ADR-0055, regla 3): el motor genera los campos en el orden del esquema: los
+    fundamentos van antes que el tipo, para que la opción se apoye primero en lo que dice un
+    texto."""
+    run_level(operator_user)
+
+    schema = script.requests[0]["schema"]
+    option = schema["properties"]["R1"]["properties"]["opciones"]["items"]
+    assert list(option["properties"]) == ["fundamentos", "tipo"]
+    assert option["required"] == ["fundamentos", "tipo"]
+
+
+def test_every_request_records_the_version_and_the_sha256_of_its_instruction(
+        operator_user, script):
+    """REQ-106, P6: cada pedido de consecuencias guarda en su `parsed` el nombre, la versión y la
+    huella de la instrucción (T-248); también el que quedó sin lo interpretado."""
+    script.c_when(GARANTIA_QUOTE, [("desestimacion", ["causal de desestimación"])])
+
+    run = run_level(operator_user)
+
+    expected = extraction.load_instruction("consecuencias").record
+    assert expected["version"] == "matriz-consecuencias-v2"
+    assert expected["sha256"] == extraction.text_sha256(
+        (extraction.PROMPTS_DIR / "matriz-consecuencias-v2.md").read_text(encoding="utf-8"))
+    steps = list(m.RunStep.objects.filter(run=run, pass_name="consecuencias"))
+    assert steps and all(step.parsed["instruccion"] == expected for step in steps)
+    assert run.prompt_versions["huellas"]["consecuencias"] == expected["sha256"]
+
+
+def test_a_failed_request_also_records_its_instruction(operator_user, script):
+    """REQ-106, P6: la falla del servicio deja el pedido con la versión y la huella de la
+    instrucción, como los demás."""
+    script.fail_consequences = True
+
+    procedure = make_procedure(operator_user, date(2025, 11, 14))
+    load_and_read(operator_user, procedure, consequence_pdf())
+    requested, _ = propose(operator_user, procedure)
+
+    steps = list(m.RunStep.objects.filter(run=requested.run, pass_name="consecuencias"))
+    assert steps
+    assert all(step.parsed and "instruccion" in step.parsed for step in steps)
+
+
+def test_the_instruction_explains_the_scope_of_a_general_clause_by_route():
+    """REQ-106, REQ-102 (hallazgo de gravedad media de la revisión): la instrucción dice que una
+    cláusula general de un punto alcanza a los requisitos de ese punto, por su ruta, y que la de
+    otro punto no."""
+    prompt = extraction.load_prompt("consecuencias")
+
+    assert "cláusula general de un punto" in prompt
+    assert "alcanza a todos los requisitos de ese punto" in prompt
+    assert "su ruta es el comienzo de la ruta del requisito" in prompt
+    assert "Una cláusula de otro punto" in prompt
 
 
 # --- Fundamentos de la norma -------------------------------------------------------------------

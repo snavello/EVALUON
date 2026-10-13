@@ -168,7 +168,7 @@ def test_the_request_records_model_parameters_instructions_version_and_unit(
 
     step = extraction_steps("pasa")[0]
     request = step.request
-    assert request["model"] == settings.GENERATION_MODEL
+    assert request["model"] == settings.GENERATION_BATCH_MODEL  # el motor de lotes (T-251, T-247)
     assert request["temperature"] == settings.GENERATION_TEMPERATURE
     assert request["seed"] == settings.GENERATION_SEED
     assert request["max_tokens"] == settings.MATRIX_MAX_OUTPUT_TOKENS

@@ -126,6 +126,8 @@ EXTRAPOLATED_PAGES = 50
 # Umbrales de la 015 (plan 015), escritos antes de medir.
 KEPT_MINIMUM = 0.70
 RECALL_MINIMUM = 0.95
+RECALL_LABEL = ("Requisitos de la lista que están, sin las excluidas ni lo que está a revisión "
+                "(REQ-101, REQ-102)")
 PIECES_MAXIMUM = 0
 VIDEO_MAXIMUM_MIB = 22000
 # Motivos con que las decisiones del 2026-10-10 excluyen una entrada de la lista. `no_exige_nada`
@@ -142,6 +144,7 @@ PENDING = "tramo_pendiente"
 MANDATORY_REVIEW = "a_revision_obligatoria"
 SUGGESTION_CAUSE = "sugerencia"
 SUPPRESSED = "suprimido_por_circular"
+ADDED_BY_CIRCULAR = "agregada_por_circular"
 SEGMENT_WITH_OTHERS = "tramo_con_requisitos_sin_este"
 SEGMENT_TECHNICAL = "tramo_tecnico"
 NO_DISPOSITION = "sin_disposicion"
@@ -819,6 +822,7 @@ class Proposed:
     matched: str = ""
     doubt_reason: str = ""
     supports: list = field(default_factory=list)
+    origin: str = ""
 
     @property
     def spans(self):
@@ -848,7 +852,8 @@ def _rows(version, states):
         rows.append(Proposed(
             number=requirement.number, category=requirement.category,
             items=list(requirement.items), reading=first.reading if first else None,
-            segment=first, quotes=quote_list, requirement_id=requirement.pk))
+            segment=first, quotes=quote_list, requirement_id=requirement.pk,
+            origin=requirement.origin))
     return rows
 
 
@@ -942,11 +947,23 @@ def measure_version(run, expected, verification):
         b.effect == "suprime" for b in entry.item.blocks)]
     suppressed_pairs = _pairs([located[i] for i in wants_suppressed], suppressed)
     suppressed_for = {wants_suppressed[c]: suppressed[p] for c, p in suppressed_pairs.items()}
+    # T-256 (D7): el que no consiguió una suprimida propia porque otro la tomó, pero está en una
+    # fila suprimida (o repartido entre varias), cuenta como «suprimido, en otra fila» (unidad de
+    # sentido: la circular suprimió la subcláusula entera en una fila).
+    suppressed_elsewhere = {}
+    for index in wants_suppressed:
+        if index in suppressed_for:
+            continue
+        entry = located[index]
+        host = _covering_row(entry, suppressed)
+        hosts = [host] if host is not None else _union_rows(entry, suppressed)
+        if hosts:
+            suppressed_elsewhere[index] = hosts
     # Esperados sin pareja firme, ni por una fila técnica ni por unificación: se emparejan uno a
     # uno con las sugerencias, con la misma regla (T-111).
     candidates = [
         i for i, entry in enumerate(located)
-        if i not in pairs and i not in suppressed_for
+        if i not in pairs and i not in suppressed_for and i not in suppressed_elsewhere
         and _technical_citing(entry, tech_rows.values()) is None
         and _repeated_in(entry, fe_rows, paired_rows) is None]
     suggestion_pairs = _pairs([located[i] for i in candidates], suggestions)
@@ -979,6 +996,12 @@ def measure_version(run, expected, verification):
             line.update(estado="encontrado", clase_propuesta=gone.category,
                         clase_correcta=ok_class, propuesto=gone.number,
                         detalle="suprimido por circular")
+        elif (gone_hosts := suppressed_elsewhere.get(e_index)) is not None:
+            suppressed_ids.append(item.id)
+            elsewhere[item.id] = [h.number for h in gone_hosts]
+            matched_pk[item.id] = gone_hosts[0].requirement_id
+            line.update(estado="encontrado", detalle="suprimido por circular, en otra fila",
+                        propuesto=gone_hosts[0].number, filas=[h.number for h in gone_hosts])
         elif cited := _technical_citing(entry, tech_rows.values()):
             found_count += 1
             wrong_class += 1
@@ -1023,7 +1046,7 @@ def measure_version(run, expected, verification):
 
     # Técnicos.
     technical_missing = Counter()
-    technical_checked = technical_present = 0
+    technical_checked = technical_present = technical_found = 0
     for item in tech_items:
         row = tech_rows.get(item.renglon)
         line = {"tipo": "esperado", "id": item.id, "clase": TECHNICAL, "renglon": item.renglon}
@@ -1034,6 +1057,7 @@ def measure_version(run, expected, verification):
             row.state, row.matched = "emparejado", item.id
             matched_pk[item.id] = row.requirement_id
             found_count += 1
+            technical_found += 1
             class_ok += 1
             row_quotes = [(file_of.get(q.segment.reading_id), q.segment.key, q.scope)
                           for q in row.quotes]
@@ -1054,6 +1078,7 @@ def measure_version(run, expected, verification):
 
     # Propuestos.
     leftover_class, leftover_segment = Counter(), Counter()
+    added_by_circular = []
     for row in proposed:
         entry = {"tipo": "propuesto", "numero": row.number, "clase": row.category}
         if row.category == TECHNICAL:
@@ -1062,6 +1087,11 @@ def measure_version(run, expected, verification):
             entry["tramo"] = row.segment.key if row.segment else ""
         if row.matched:
             entry.update(estado="emparejado", esperado=row.matched)
+        elif row.origin == ORIGIN_CIRCULAR:
+            # T-256: la fila que agregó una circular no es sobrante (la lista no mide todavía
+            # lo que agregan las circulares); se informa aparte.
+            entry.update(estado=ADDED_BY_CIRCULAR)
+            added_by_circular.append(row.number)
         elif row.category == TECHNICAL:
             entry.update(estado="sobrante")
             leftover_class[TECHNICAL] += 1
@@ -1121,6 +1151,15 @@ def measure_version(run, expected, verification):
     measured_total = len(measured)
     reviewed = len(review) + len(suggestion_review)
     found = ratio(found_count + len(unified) + len(elsewhere) + reviewed, measured_total)
+    # T-256 (D5): lo que está a revisión obligatoria no está encontrado; la cifra principal va
+    # sin eso y la otra se informa al lado.
+    found_without_review = ratio(found_count + len(unified) + len(elsewhere), measured_total)
+    # T-256 (D9): las filas técnicas las arma una regla (pasada `filas_tecnicas`): las cifras sin
+    # ellas se informan aparte.
+    technical_rows = firm_total - firm_fe
+    found_without_technical = ratio(
+        found_count - technical_found + len(unified) + len(elsewhere), len(fe_items))
+    kept_without_technical = ratio(firm_fe - leftovers_fe, firm_fe)
     leftover_ratio = ratio(leftovers, firm_total)
     suggestions_report = _suggestions_report(
         suggestions, [located[i] for i in candidates], len(suggestion_pairs),
@@ -1134,8 +1173,14 @@ def measure_version(run, expected, verification):
         "circulars": circulars,
         "lines": lines,
         "found": found,
-        "found_without_review": ratio(found_count + len(unified) + len(elsewhere),
-                                      measured_total),
+        "found_without_review": found_without_review,
+        "found_without_technical": found_without_technical,
+        "kept_without_technical": kept_without_technical,
+        "technical": {"items": len(tech_items), "found": technical_found,
+                      "rows": technical_rows},
+        "added_by_circular": {"count": len(added_by_circular), "rows": added_by_circular},
+        "suppressed_elsewhere": {"count": len(suppressed_elsewhere),
+                                 "ids": [located[i].item.id for i in suppressed_elsewhere]},
         "elsewhere": {"count": len(elsewhere), "ids": list(elsewhere), "rows": dict(elsewhere)},
         "review": {"count": len(review), "ids": [r["id"] for r in review],
                    "keys": sorted({r["tramo"] for r in review})},
@@ -1168,7 +1213,7 @@ def measure_version(run, expected, verification):
                    "by_problem": dict(Counter(problem for _, _, problem in pieces))},
         "long_units": {"count": len(long_units),
                        "rows": sorted({number for number, _ in long_units})},
-        "recall": found,
+        "recall": found_without_review,
         "excluded": {"count": len(excluded_here), "ids": excluded_here,
                      "by_motive": dict(Counter(excluded[i] for i in excluded_here)),
                      "applied": expected.exclusions is not None},
@@ -1738,8 +1783,7 @@ def thresholds_015(measures, video=None):
     rows = [
         ("Filas conservadas (REQ-101, REQ-102)", kept, _at_least(kept, KEPT_MINIMUM)),
         ("Pedazos sin sujeto (REQ-101)", pieces, pieces["count"] <= PIECES_MAXIMUM),
-        ("Requisitos de la lista que están, sin las excluidas (REQ-101, REQ-102)", found,
-         _at_least(found, RECALL_MINIMUM)),
+        (RECALL_LABEL, found, _at_least(found, RECALL_MINIMUM)),
     ]
     memory = max_video_mib(video)
     if memory is not None:
@@ -1796,6 +1840,79 @@ def _result_of_run(run, version, procedure, expected, readings):
         "parameters": run.parameters, "prompt_versions": run.prompt_versions,
         "models": run.models, "corpus_version": run.corpus_version,
     }
+
+
+def _matrix_figures(lines, *, corrected, excluded, suprime_ids):
+    """Las cifras de la 015 de las líneas guardadas de una corrida, con las reglas de antes o con
+    las de T-256 (D5, D7, D9) y las entradas `excluded` (las del archivo de exclusiones que se
+    aplica)."""
+    measured = [line for line in lines if line["tipo"] == "esperado"
+                and line.get("estado") != "sin_medir"]
+    proposed = [line for line in lines if line["tipo"] == "propuesto"]
+    if corrected:
+        measured = [line for line in measured if line["id"] not in excluded]
+    gone = {line["id"] for line in lines if line["tipo"] == "esperado"} - {
+        line["id"] for line in measured}
+
+    def found(line):
+        if line.get("estado") == "encontrado":
+            return True
+        # D7: el esperado con bloque `suprime` que una fila suprimida cubre está encontrado.
+        return corrected and line.get("causa") == SUPPRESSED and line["id"] in suprime_ids
+
+    claimed = Counter()
+    for line in measured:
+        for number in {line.get("propuesto"), *(line.get("filas") or [])} - {None}:
+            claimed[number] += 1
+    leftovers = technical_leftovers = 0
+    for row in proposed:
+        freed = (row.get("estado") == "emparejado" and row.get("esperado") in gone
+                 and not claimed[row.get("numero")])
+        if row.get("estado") == "sobrante" or freed:
+            # Una fila cuyo único esperado salió de la lista es sobrante (la Comisión la quitaría).
+            leftovers += 1
+            technical_leftovers += row.get("clase") == TECHNICAL
+    review = sum(1 for line in measured if line.get("estado") == MANDATORY_REVIEW)
+    hits = sum(1 for line in measured if found(line))
+    fe = [line for line in measured if line.get("clase") != TECHNICAL]
+    fe_rows = [row for row in proposed if row.get("clase") != TECHNICAL]
+    return {
+        "recall": ratio(hits, len(measured)) if corrected else ratio(hits + review, len(measured)),
+        "found_with_review": ratio(hits + review, len(measured)),
+        "review": review,
+        "kept": ratio(len(proposed) - leftovers, len(proposed)),
+        "found_without_technical": ratio(sum(1 for line in fe if found(line)), len(fe)),
+        "kept_without_technical": ratio(len(fe_rows) - (leftovers - technical_leftovers),
+                                        len(fe_rows)),
+        "suppressed_elsewhere": sum(1 for line in measured if line.get("causa") == SUPPRESSED
+                                    and line["id"] in suprime_ids) if corrected else 0,
+        "excluded": len({line["id"] for line in lines if line["tipo"] == "excluida"})
+        if not corrected else len(excluded),
+    }
+
+
+def recompute_matrix_run(folder, expected, exclusions=None):
+    """Recalcula, sin modelo ni base, las cifras de la 015 de una corrida guardada de
+    `medir_matriz` (su `resultados.jsonl`): con las reglas de antes y con las de T-256 y el
+    archivo de exclusiones `exclusions` (el corregido; sin archivo, las de la corrida). Una
+    entrada que la corrida excluyó y el archivo ya no excluye no tiene línea: no se puede medir
+    sin la base y se informa en `without_line`. El origen de cada fila tampoco está en el archivo:
+    las filas agregadas por una circular se ven solo en una medición nueva."""
+    folder = Path(folder)
+    try:
+        lines = [json.loads(raw) for raw in (folder / "resultados.jsonl").read_text(
+            encoding="utf-8").splitlines() if raw.strip()]
+    except OSError as error:
+        raise MeasurementRefused(f"La corrida no se puede leer: {error.__class__.__name__}")
+    run_excluded = {line["id"] for line in lines if line["tipo"] == "excluida"}
+    excluded = set(exclusions.motives) if exclusions is not None else run_excluded
+    suprime_ids = {item.id for item in expected.items
+                   if any(block.effect == "suprime" for block in item.blocks)}
+    common = dict(excluded=excluded, suprime_ids=suprime_ids)
+    after = _matrix_figures(lines, corrected=True, **common)
+    after["without_line"] = sorted(run_excluded - excluded)
+    return {"folder": str(folder),
+            "before": _matrix_figures(lines, corrected=False, **common), "after": after}
 
 
 def regenerate_summaries(procedure, expected, folder):
@@ -2084,9 +2201,17 @@ def _015_lines(measures, result):
         f"- Medidas de la 015, unidades largas sin ampliar (cita_amplia, se revisan aparte y "
         f"no cuentan como pedazos): {measures['long_units']['count']} "
         f"de {pieces['checked'] + measures['long_units']['count']} citas",
-        f"- Medidas de la 015, recall sobre la lista sin las excluidas: {_count_text(found)}; "
-        f"umbral {_percent(RECALL_MINIMUM)} o más: "
-        f"{verdict['Requisitos de la lista que están, sin las excluidas (REQ-101, REQ-102)']}",
+        f"- Medidas de la 015, recall sobre la lista sin las excluidas ni lo que está a "
+        f"revisión: {_count_text(found)}; umbral {_percent(RECALL_MINIMUM)} o más: "
+        f"{verdict[RECALL_LABEL]}",
+        f"- Medidas de la 015, recall contando lo que está a revisión (informado): "
+        f"{_count_text(measures['found'])}",
+        f"- Medidas de la 015, sin las filas técnicas que arma una regla (informado): recall "
+        f"{_count_text(measures['found_without_technical'])}; filas conservadas "
+        f"{_count_text(measures['kept_without_technical'])} "
+        f"({measures['technical']['rows']} filas técnicas aparte)",
+        f"- Medidas de la 015, filas agregadas por una circular (no son sobrantes): "
+        f"{measures['added_by_circular']['count']}",
         "- Medidas de la 015, entradas de la lista excluidas por la decisión del 2026-10-10: "
         + (f"{excluded['count']} ({_counter_text(excluded['by_motive'])})"
            if excluded["applied"] else "no se aplicó el archivo de exclusiones"),
