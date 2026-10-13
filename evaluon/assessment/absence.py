@@ -8,18 +8,19 @@ automática, precios fijos) se cumple si la oferta no dice algo en contra. La re
 de `rules.py`) propone «cumple» nombrando los documentos leídos y diciendo que ninguno lo contradice,
 cuando:
 
-- el requisito es negativo o supletorio (`criteria.by_absence`, catálogo versionado);
-- el modelo revisó sus condiciones y cada una que no cumple con su propio dato es también negativa o
-  supletoria (una fila que además pide un dato, como el valor unitario, no se resuelve por
-  ausencia);
-- nada de la oferta lo contradice: ningún grupo ni ninguna condición concluyó «no cumple», tampoco
-  uno que el contraste no corroboró (`criteria.contradicted`); si algo lo contradice, queda el
-  «no cumple» del flujo de la 004, con su cita y su contraste;
-- la lectura fue completa (sin páginas sin leer ni documentos sin lectura): la ausencia se verifica
-  en la lectura completa de la oferta (P3);
-- el modelo no dudó sobre un texto: una condición «no determinado» con una cita ubicada (hay algo
-  sobre el tema, pero no alcanza) o una cita que no se ubicó (`sin_cita`) no es ausencia, y queda
-  la duda con su pregunta.
+- el requisito es de la **lista cerrada** de formas (`criteria.ABSENCE_FORMS`: no condicionar la
+  oferta, sin reservas, precio fijo, el plazo de mantenimiento y su prórroga automática); un
+  documento pedido en negativo («No se aceptarán ofertas sin…», «que carezcan / omitan /
+  desprovistas de…») nunca lo es: pide el documento (verificación de T-257, D-257-1);
+- **cada** condición que revisó el modelo, también la única, es de esa lista (D-257-4);
+- (a) el modelo no encontró nada que la contradiga: ninguna cita de la oferta en el resultado, en
+  los grupos ni en las condiciones, ningún grupo concluyó y ninguna condición dio «no cumple»;
+  (b) el contraste no rechazó una conclusión del modelo: un «cumple» sin corroborar queda «no
+  determinado» con su pregunta; (c) la lectura fue completa (sin páginas sin leer ni documentos
+  sin lectura). Cualquier duda (una cita sin ubicar, una «duda», partes sin leer) frena la regla
+  (decisión del Coordinador sobre D-257-2 y D-257-3);
+- se sabe qué documentos se leyeron: la explicación los nombra y dice «ninguno lo contradice»
+  solo cuando eso se verificó.
 
 Un «cumple» que el modelo ya sostiene con su cita (la oferta dice que se formula sin reservas) no
 cambia. El «cumple» por ausencia no lleva citas de la oferta (su fundamento es que ninguna lo
@@ -35,32 +36,33 @@ from evaluon.assessment import combine, criteria
 RULE = "cumple_por_ausencia"
 
 
-def _pending(records):
-    """Las condiciones que no cumplen con su propio dato."""
-    return [r for r in records if r.get("resultado") != "cumple"]
-
-
 def rule(pair, ctx):
-    """La regla de `rules.py`: devuelve el resultado nuevo del par o `None`."""
+    """La regla de `rules.py`: devuelve el resultado nuevo del par o `None`.
+
+    T-257, verificación (D-257-1 a D-257-4, decisión del Coordinador): la ausencia rige solo si se
+    cumplen las tres cosas: (a) el modelo no encontró nada que la contradiga, sin ninguna cita de la
+    oferta en el resultado, en los grupos ni en las condiciones, y sin una conclusión de un grupo;
+    (b) el contraste no rechazó una conclusión del modelo (un «cumple» sin corroborar queda «no
+    determinado» con su pregunta); (c) la lectura está completa. El requisito y **cada** condición
+    (también la única) tienen que ser de la lista cerrada de formas (`criteria.ABSENCE_FORMS`). Ante
+    la duda, la regla no decide: queda el «no determinado» con su pregunta."""
     combined = pair.combined
-    if combined is None or combined.outcome == combine.OUT_CUMPLE:
+    if combined is None or combined.outcome not in (combine.OUT_NO_DETERMINADO,
+                                                    combine.OUT_SIN_DOCUMENTO):
         return None
-    if combined.doubt in (combine.EXTERNAL, combine.CONTRADICTION, combine.UNREADABLE,
-                          combine.NO_CITATION):
+    if combined.doubt not in ("", combine.NO_DATA):
         return None
-    text = pair.text.text
-    if not criteria.by_absence(text) or not criteria.complete(combined):
+    if not criteria.by_absence(pair.text.text):
         return None
     records = criteria.conditions_of(pair)
-    if not records or criteria.contradicted(pair):
+    if not records or criteria.contradicted(pair) or criteria.unverified(pair):
         return None
-    pending = _pending(records)
-    if any(not criteria.by_absence(r.get("condicion", "")) for r in pending) and len(records) > 1:
-        return None
-    if any(r.get("cita") for r in pending):
-        # Hay un texto de la oferta sobre la condición y el modelo no pudo concluir con él.
+    if any(not criteria.by_absence(r.get("condicion", "")) for r in records):
         return None
     titles = criteria.documents_read(ctx)
+    if not titles:
+        # Sin saber qué documentos se leyeron no se puede decir que ninguno lo contradice.
+        return None
     note = criteria.absence_note(titles)
     shown = []
     for item in records:

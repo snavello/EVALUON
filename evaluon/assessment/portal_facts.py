@@ -67,6 +67,7 @@ fila (nunca el modelo). Un "cumple" por esta regla nunca sale sin la cita del Po
 import re
 from dataclasses import dataclass, replace
 from decimal import Decimal, InvalidOperation
+from types import SimpleNamespace
 
 from django.conf import settings
 
@@ -458,10 +459,17 @@ _NUMBER_WORDS = {
 }
 
 
-# T-257: lo que el Portal no guarda de una garantía (solo su tipo, su forma y su monto).
-_PORTAL_LACKS = re.compile(
-    r"\bnumero\b|\bcompania\b|\bentidad\b|\bcampos?\b|\baseguradora\b|\bemisor\b"
-    r"|\bvigencia\b|\bvencimiento\b|\bfirma\b")
+# T-257 (D-257-5): el Portal trae una lista cerrada de datos (el total y su moneda, el precio y la
+# cantidad de cada renglón, la garantía con su tipo, su forma y su monto, y el CUIT). Lo que el
+# pliego pida además, aunque se parezca (que la garantía cubra el plazo, su identificador o la
+# razón social de quien la emite, la marca de lo ofrecido), el Portal no lo resuelve.
+_OTHER_DATA = re.compile(
+    r"\bnumeros?\b|\bnro\b|\bcompania\b|\bentidad\b|\bcampos?\b|\baseguradora\b"
+    r"|\bemisor\w*|\bemit\w*|\bemite\b|\bidentificador\w*|\bidentificatori\w*|\brazon social\b"
+    r"|\bvigencia\b|\bvencimiento\b|\bcubr\w*|\bplazos?\b|\bfirm\w*|\bmarcas?\b|\bmodelos?\b"
+    r"|\bdomicilio\b|\bcaracteristicas?\b|\bespecificacion\w*|\bfolletos?\b|\bcatalogos?\b"
+    r"|\bmuestras?\b|\borigen\b|\bprocedencia\b")
+_PORTAL_LACKS = _OTHER_DATA
 
 # T-175: la garantía individualizada en el Portal («Paso 4 Ingreso de Garantía»).
 _INDIVIDUALIZED = re.compile(
@@ -529,7 +537,7 @@ def _guarantee_comparison(data, portal, text):
     else:
         absolute = set(amounts(text))
         if len(absolute) != 1:
-            if _INDIVIDUALIZED.search(folded) and _PORTAL_LACKS.search(folded):
+            if _INDIVIDUALIZED.search(folded) and _OTHER_DATA.search(folded):
                 # T-257 (H-C2-6): el pliego pide datos de la garantía que `portal_guarantee` no
                 # guarda (el número del documento, la compañía): el Portal no los muestra.
                 return Comparison(
@@ -599,8 +607,11 @@ def _total_comparison(data, portal, text):
                       f"{data.currency}.", wanted, f"{shown} {data.currency}")
 
 
-# T-257 (H6 de las omisiones, R87): el requisito que pide la cantidad de cada renglón.
-_QUANTITY = re.compile(r"\bcantidad(?:es)?\b")
+# T-257 (H6 de las omisiones, R87; D-257-5): el requisito que pide la cantidad de cada renglón, dicho
+# de cualquiera de estas formas.
+_QUANTITY = re.compile(
+    r"\bcantidad(?:es)?\b|\btotalidad\b|\btotal de lo (?:solicitado|pedido|requerido)\b"
+    r"|\bunidades\b|\bsin fraccionar\b|\bcomplet[oa]s?\b|\bparcial\w*")
 
 
 def _quote_comparison(offer, items, text=""):
@@ -739,50 +750,83 @@ def _facts_of(combined, kind, portal, matching):
 
 # --- Las condiciones del modelo que cubre el dato del Portal (T-257; A-2 del comité) ------------
 
-# Qué condición responde el dato del Portal, por clase de dato (texto de la condición sin acentos).
+# Qué condición responde el dato del Portal, por clase de dato (texto de la condición sin acentos):
+# la lista cerrada de lo que el Portal trae (D-257-5). Una condición que nombra además otro dato
+# (`_OTHER_DATA`) no se cubre.
 _COVERS = {
-    GARANTIA: re.compile(r"garantia|poliza|pagare|caucion|fianza|\baval\b|\bmonto\b|por ciento|%"),
-    TOTAL: re.compile(r"\btotal\b|\bmoneda\b|\bpesos?\b|\bdolar|\busd\b|\bars\b"),
-    COTIZACION: re.compile(r"cotiz|precio|valor unitario|renglon|\bcantidad"),
+    GARANTIA: re.compile(r"\bgarantia\b|\bpoliza\b|\bpagare\b|\bcaucion\b|\bfianza\b|\baval\b"
+                         r"|\bmonto\b|\bimporte\b|\bpor ciento\b|%|\bforma\b|\btipo\b"),
+    TOTAL: re.compile(r"\btotal\b|\bmoneda\b|\bpesos?\b|\bdolar\w*|\busd\b|\bars\b"),
+    COTIZACION: re.compile(r"\bcotiz\w*|\bprecios?\b|\bvalor unitario\b|\brenglon\w*"
+                           r"|\bcantidad\w*|\btotalidad\b"),
     CUIT: re.compile(r"\bcuit\b"),
 }
 
 
-def cover(records, kind, comparison, combined):
+def _cited(item):
+    cite = item.get("cita")
+    return isinstance(cite, dict) and cite.get("tipo") == "oferta"
+
+
+def criteria_doubt(pair, records):
+    """Por qué no rigen la ausencia ni el IVA en esta celda (D-257-2, D-257-3), o `""`: la lectura
+    incompleta, una duda (sin corroborar, sin cita, contradicción), algo que la contradice, o un
+    texto de la oferta que el modelo citó y que no sostiene una condición que cumple (en el grupo y
+    no en la condición)."""
+    combined = pair.combined
+    if not criteria.complete(combined):
+        return "la lectura de la oferta está incompleta"
+    if combined.doubt in criteria.DOUBTFUL or combined.proposed:
+        return "hay un texto dudoso o el contraste no corroboró una conclusión"
+    if criteria.contradicted(pair):
+        return "un texto de la oferta lo contradice"
+    backing = {r["cita"].get("texto", "") for r in records
+               if r.get("resultado") == "cumple" and _cited(r)}
+    stray = [t for t in criteria.offer_citations(pair) if t not in backing]
+    if stray:
+        return "el modelo citó un texto de la oferta que no sostiene una condición"
+    return ""
+
+
+def cover(records, kind, comparison, combined, pair=None):
     """Las condiciones del modelo (`records`) con las que cubre el dato del Portal, el criterio del
-    IVA o la ausencia marcadas «cumple» (`cubierta_por`), y los criterios usados. Una condición que
-    el modelo dio por «no cumple» no se cubre; una que pide un dato que el Portal no guarda
-    (número, compañía, vigencia), tampoco. La ausencia rige solo con la lectura completa y sin nada
-    que la contradiga (`criteria.py`)."""
+    IVA o la ausencia marcadas «cumple» (`cubierta_por`), y los criterios usados.
+
+    - El Portal cubre solo una condición de su lista cerrada de datos (`_COVERS`) que no nombra
+      otro dato (`_OTHER_DATA`), también si es la única (D-257-4, D-257-5).
+    - La ausencia y el IVA rigen solo sin duda (`criteria_doubt`), para una condición sin cita
+      propia; el IVA, además, solo si la oferta no dice nada del impuesto ni de ajustes del precio
+      en lo que el modelo citó (D-257-3).
+    - Una condición que el modelo dio por «no cumple» no se cubre."""
+    pair = pair if pair is not None else SimpleNamespace(combined=combined, groups=[],
+                                                         conditions={})
+    doubt = criteria_doubt(pair, records)
+    talk = any(criteria.PRICE_TALK.search(fold(t)) for t in criteria.offer_citations(pair))
+    iva_ok = criteria.IVA in comparison.criteria and not doubt and not talk
     if not records:
-        return [], list(comparison.criteria)
-    contradicted = any(r.get("resultado") == "no_cumple"
-                       or r.get("resultado_modelo") == "no_cumple" for r in records)
-    absence_ok = criteria.complete(combined) and not contradicted
-    # Con una sola condición, la condición es el requisito: la responde el dato que el Portal
-    # comparó con lo que exige el pliego.
-    single = len(records) == 1
+        return [], [criteria.IVA] if iva_ok else []
     shown, used = [], []
     for item in records:
         how = None
         text = fold(item.get("condicion", ""))
         if item.get("resultado") not in ("cumple", "no_cumple"):
-            if criteria.IVA in comparison.criteria and criteria.names_tax(text):
-                how = criteria.IVA
+            if criteria.names_tax(text):
+                how = criteria.IVA if iva_ok and not _cited(item) else None
             elif criteria.by_absence(text):
                 # Un precio fijo (o lo que la oferta no puede condicionar) no lo muestra el Portal:
                 # se cumple por ausencia o queda sin dato.
-                how = criteria.ABSENCE if absence_ok else None
-            elif (single or _COVERS[kind].search(text)) and not _PORTAL_LACKS.search(text):
+                how = criteria.ABSENCE if not doubt and not _cited(item) else None
+            elif _COVERS[kind].search(text) and not _OTHER_DATA.search(text):
                 how = "portal"
         if how:
             item = {**item, "resultado": "cumple", "cubierta_por": how}
             if how != "portal":
                 used.append(how)
         shown.append(item)
-    # El pliego pide el impuesto incluido aunque el modelo no lo haya separado como condición: el
-    # criterio rige igual sobre el precio del Portal.
-    used += list(comparison.criteria)
+    if iva_ok:
+        # El pliego pide el impuesto incluido aunque el modelo no lo haya separado como condición: el
+        # criterio rige igual sobre el precio del Portal.
+        used.append(criteria.IVA)
     return shown, [name for name in (criteria.IVA, criteria.ABSENCE) if name in used]
 
 
@@ -906,7 +950,31 @@ def rule(pair, ctx):
         if combined.outcome == combine.OUT_NO_CUMPLE:
             return undetermined(
                 comparison.detail + " El texto de la oferta concluyó que no cumple.")
-        shown, used = cover(records, kind, comparison, combined)
+        shown, used = cover(records, kind, comparison, combined, pair)
+        if criteria.IVA in comparison.criteria and criteria.IVA not in used and not records:
+            # El pliego pide el impuesto incluido y el criterio del IVA no rige (la oferta dice algo
+            # del impuesto o de un ajuste, o hay una duda): el Portal no lo resuelve (D-257-3).
+            return replace(
+                combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.NO_DATA,
+                portal=cites, ask=True,
+                question=combined.question or ("¿El precio de la oferta incluye el impuesto que pide "
+                                               "el pliego? La oferta dice algo sobre el impuesto o "
+                                               "el ajuste del precio, o hay una duda."),
+                explanation=f"Fuente: Portal, para lo que su dato cubre. {comparison.detail} El "
+                            "criterio del IVA no rige: la oferta dice algo sobre el impuesto o el "
+                            "ajuste del precio, o hay una duda.",
+                facts={**facts, "regla": RULE_PARTIAL})
+        if not records and _OTHER_DATA.search(fold(text)):
+            # Sin las condiciones del modelo, el pliego pide además un dato que el Portal no trae
+            # (D-257-4, D-257-5): no se da por cumplido.
+            return replace(
+                combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.NO_DATA,
+                portal=cites, ask=True,
+                question=combined.question or ("¿Cómo resuelve la Comisión lo que pide el pliego "
+                                               "además del dato del Portal?"),
+                explanation=f"Fuente: Portal, para lo que su dato cubre. {comparison.detail} El "
+                            "pliego pide además un dato que el Portal no trae.",
+                facts={**facts, "regla": RULE_PARTIAL})
         extra = {"condiciones": shown} if shown else {}
         if used:
             extra["criterios"] = [criteria.record(name, **(

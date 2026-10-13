@@ -23,6 +23,11 @@ requisito que pide presentar algo físicamente (un original, en la Mesa de Entra
 
 Si el modelo ubicó un texto que muestra la presentación (la constancia de la Mesa de Entrada, la
 hoja de compliance), sigue el flujo de siempre. `facts` registra la regla y la versión (P6).
+
+Verificación de T-257 (D-257-7): solo cuenta lo que **obliga** («deberá», «se presentará»); lo que
+solo se permite («podrán presentarse», «podrá retirar») no es requisito de presentación. Si una
+circular aclara, modifica o suprime el requisito (puede decir que alcanza con la carga electrónica),
+no hay «no cumple»: «no determinado» con la pregunta (`presentacion_fisica_con_circular`).
 """
 
 import re
@@ -34,6 +39,12 @@ from evaluon.portal.models import PortalOfferData
 
 RULE_MISSING = "presentacion_fisica_no_consta"
 RULE_MARK = "presentacion_fisica_sin_marca"
+RULE_CIRCULAR = "presentacion_fisica_con_circular"
+CIRCULAR = ("Una circular aclara, modifica o suprime este requisito: puede decir que alcanza con la "
+            "carga electrónica. El sistema no da por incumplida la presentación física.")
+CIRCULAR_QUESTION = ("¿Con la circular que alcanza a este requisito sigue haciendo falta la "
+                     "presentación física? Si hace falta y no consta, la oferta no cumple; quizá "
+                     "falte cargar la constancia o la hoja de compliance.")
 
 PHYSICAL = re.compile(
     r"\bfisicamente\b|\bmesa de entradas?\b|\bpresentacion fisica\b|\brequiere presentar\b")
@@ -55,10 +66,27 @@ MARK_QUESTION = ("¿El Portal marca algún documento de esta oferta como «Requi
                  "quizá falte cargar la constancia o la hoja de compliance.")
 
 
+# T-257, verificación (D-257-7): solo una obligación («deberá», «se presentará»); lo que solo se
+# permite («podrán presentarse», «podrá retirar») no pide nada.
+_OBLIGATION = re.compile(
+    r"\bdeber(?:a|an|ia|ian)\b|\bdeben?\b|\bse (?:presentar|entregar|acompanar)\w*"
+    r"|\bsera(?:n)? (?:presentad|entregad)\w*|\btendra(?:n)? que\b|\bhabra(?:n)? de\b")
+
+
 def is_physical(text):
-    """Si el requisito pide presentar algo físicamente (en la Mesa de Entrada)."""
+    """Si el requisito obliga a presentar algo físicamente (en la Mesa de Entrada)."""
     folded = fold(text)
-    return bool(PHYSICAL.search(folded) and _PRESENT.search(folded))
+    return bool(PHYSICAL.search(folded) and _PRESENT.search(folded)
+                and _OBLIGATION.search(folded))
+
+
+def _touched_by_circular(text_block):
+    """Si una circular aclara, modifica o suprime el requisito: puede decir que alcanza con la carga
+    electrónica, y entonces la presentación física ya no se exige (D-257-7)."""
+    if getattr(text_block, "clarifications", None):
+        return True
+    return any(getattr(q, "clarifications", None) or getattr(q, "suppressed", False)
+               or getattr(q, "original", "") for q in getattr(text_block, "quotes", None) or [])
 
 
 def _form_applies(text, offer):
@@ -87,6 +115,12 @@ def rule(pair, ctx):
         return None
     titles = criteria.documents_read(ctx)
     read = ", ".join(f"«{t}»" for t in titles) if titles else "todos los documentos de la oferta"
+    if _touched_by_circular(pair.text):
+        return replace(
+            combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.NO_DATA, citations=[],
+            portal=[], ask=True, proposed="",
+            question=CIRCULAR_QUESTION, explanation=CIRCULAR,
+            facts={**combined.facts, "regla": RULE_CIRCULAR, "documentos_leidos": titles})
     if PORTAL_MARK.search(fold(text)):
         return replace(
             combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.NO_DATA, citations=[],

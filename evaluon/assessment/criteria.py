@@ -44,25 +44,40 @@ NOTES = {
 # El impuesto que el pliego pide incluido en el precio.
 TAX = re.compile(r"\biva\b|alicuotas?|impuestos?|tributos?")
 
-# Un requisito negativo sobre la oferta: lo prohibido («no se aceptarán ofertas condicionadas»,
-# «no se admitirán ofertas con reservas», «sin condicionamientos»).
-NEGATIVE = re.compile(
-    r"\bno se (?:aceptar|admitir|considerar|tomar)\w*\b(?:\W+\w+){0,4}?\W+ofertas?\b"
-    r"|\bofertas?\b(?:\W+\w+){0,3}?\W+(?:condicionad\w*|con reservas?|sujetas? a)\b"
-    r"|\bsin (?:reservas?|condicionamientos?)\b|\bcondicionamientos?\b")
-# Un requisito supletorio: rige lo del pliego si la oferta no dice otra cosa (el plazo de
-# mantenimiento y su prórroga automática; precios fijos e inamovibles).
-SUPPLETORY = re.compile(
-    r"\bmanten(?:er|dra|dran|ga|gan)\w*\b(?:\W+\w+){0,8}?\W+(?:su |sus |la |las )?ofertas?\b"
-    r"|\bprorrogad\w* automaticamente\b|\bprorroga automatica\b"
-    r"|\bfij[oa]s? e inamovibles?\b|\binamovibles?\b|\bprecios? fijos?\b")
-# Lo que no es ausencia aunque se diga en negativo: un tope o un mínimo de un valor («no podrá
-# superar»), que se compara con un dato; la garantía (se evalúa con su monto y su forma); y la doble
-# negación que pide presentar algo («no se considerarán ofertas que no incluyan…»).
+# T-257 (D-257-1, decisión del Coordinador): la ausencia vale solo para una **lista cerrada** de
+# formas: las prohibiciones sobre lo que dice la oferta (no condicionarla, no formularla con
+# reservas, no fijar precios que se ajusten) y las reglas supletorias (el plazo de mantenimiento y su
+# prórroga automática). Cada forma tiene su nombre y su expresión (texto sin acentos).
+ABSENCE_FORMS = {
+    # la oferta condicionada («no se aceptarán ofertas condicionadas…», «sin condicionamientos»)
+    "condicionar": re.compile(r"\bcondicionad[oa]s?\b|\bcondicionar\w*|\bcondicionamientos?\b"),
+    # la oferta con reservas («no se admitirán ofertas con reservas», «sin reservas»)
+    "reservas": re.compile(r"\b(?:con|sin) reservas?\b|\breservas? (?:alguna|sobre)\b"),
+    # precios que no se ajustan («fijos e inamovibles»)
+    "precio_fijo": re.compile(r"\bfij[oa]s? e inamovibles?\b|\binamovibles?\b|\bprecios? fijos?\b"),
+    # el plazo de mantenimiento de la oferta (rige el del pliego si la oferta no fija otro)
+    "mantenimiento": re.compile(
+        r"\bmanten(?:er|dra|dran|ga|gan|ener)\w*\b(?:\W+\w+){0,8}?\W+(?:su |sus |la |las )?"
+        r"ofertas?\b(?:\W+\w+){0,12}?\W+(?:plazo|dias|meses)\b|\bplazo de mantenimiento\b"),
+    # su prórroga automática
+    "prorroga": re.compile(r"\bprorrogad\w* automaticamente\b|\bprorroga automatica\b"),
+}
+# Lo que nunca es ausencia (D-257-1): un documento pedido en negativo («no se aceptarán ofertas sin
+# la constancia», «que carezcan de», «que omitan», «desprovistas de», «que no incluyan»), un tope o
+# un mínimo de un valor («no podrá superar»), que se compara con un dato, y la garantía (se evalúa
+# con su monto y su forma).
 _NOT_ABSENCE = re.compile(
-    r"\bno podra(?:n)? (?:superar|exceder|ser (?:menor|inferior|mayor|superior))\b"
-    r"|\bgarantia\b|\bpagare\b|\bpoliza\b|\bcaucion\b"
-    r"|\bque no (?:present|inclu|acompan|adjunt|cumpl|cotic|teng|reun|acredit)\w*")
+    r"\bsin (?:el|la|los|las|su|sus|un|una)\b|\bcarezc\w*|\bcarec\w*|\bomit\w*|\bdesprovist\w*"
+    r"|\bfalta de\b|\bque no\b"
+    r"|\bno podra(?:n)? (?:superar|exceder|ser (?:menor|inferior|mayor|superior))\b"
+    r"|\bgarantia\b|\bpagare\b|\bpoliza\b|\bcaucion\b")
+# Lo que la oferta puede decir sobre el precio y que frena el criterio del IVA (D-257-3).
+PRICE_TALK = re.compile(r"\biva\b|alicuotas?|impuestos?|tributos?|\bajust\w*|\bactualiz\w*"
+                        r"|\brevis\w*|\bvariaci\w*|\bindexa\w*|\bredetermin\w*")
+# Las dudas que frenan la ausencia y el IVA (D-257-2, D-257-3): el contraste no corroboró, partes sin
+# leer, una cita que no se ubicó, textos que se contradicen, o una «duda» sin motivo.
+DOUBTFUL = ("sin_corroborar", "lectura_incompleta", "sin_cita", "contradiccion", "duda",
+            "externo", "no_se_pudo_leer")
 
 
 def names_tax(text):
@@ -70,13 +85,51 @@ def names_tax(text):
     return bool(TAX.search(fold(text)))
 
 
-def by_absence(text):
-    """Si el texto (del requisito o de una condición) es negativo o supletorio: se cumple si la
-    oferta no dice algo en contra (decisión del 2026-10-12)."""
+def absence_form(text):
+    """El nombre de la forma de la lista cerrada (`ABSENCE_FORMS`) que tiene el texto, o `""` si
+    no tiene ninguna o es algo que nunca es ausencia (D-257-1)."""
     folded = fold(text)
     if _NOT_ABSENCE.search(folded):
-        return False
-    return bool(NEGATIVE.search(folded) or SUPPLETORY.search(folded))
+        return ""
+    return next((name for name, pattern in ABSENCE_FORMS.items() if pattern.search(folded)), "")
+
+
+def by_absence(text):
+    """Si el texto (del requisito o de una condición) es negativo o supletorio de la lista cerrada:
+    se cumple si la oferta no dice algo en contra (decisión del 2026-10-12)."""
+    return bool(absence_form(text))
+
+
+def offer_citations(pair):
+    """Los textos de la oferta que el sistema ubicó para el par: los del resultado, los de cada grupo
+    y los de cada condición."""
+    combined = pair.combined
+    texts = [c.text for c in getattr(combined, "citations", None) or []]
+    for group in getattr(pair, "groups", None) or []:
+        texts += [c.text for c in getattr(group, "citations", None) or []]
+    for item in conditions_of(pair):
+        cite = item.get("cita")
+        if isinstance(cite, dict) and cite.get("tipo") == "oferta":
+            texts.append(cite.get("texto", ""))
+    return texts
+
+
+def unverified(pair):
+    """Por qué no se puede verificar la ausencia ni aplicar el IVA (D-257-2, D-257-3), o `""`: el
+    contraste rechazó una conclusión del modelo, la lectura está incompleta, una cita no se ubicó,
+    hay una duda, un grupo concluyó, o el modelo citó un texto de la oferta (en el grupo o en una
+    condición)."""
+    combined = pair.combined
+    if not complete(combined):
+        return "la lectura de la oferta está incompleta"
+    if combined.doubt in DOUBTFUL or combined.proposed:
+        return "hay un texto dudoso o el contraste no corroboró una conclusión"
+    if any(getattr(g, "result", "") in ("cumple", "no_cumple")
+           for g in getattr(pair, "groups", None) or []):
+        return "el modelo concluyó con un texto de la oferta"
+    if offer_citations(pair):
+        return "el modelo citó un texto de la oferta sobre el requisito"
+    return ""
 
 
 def conditions_of(pair):

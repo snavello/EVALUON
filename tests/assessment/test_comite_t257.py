@@ -47,8 +47,10 @@ def pair_with(text, combined, records=(), *, opcion="", items=(), group_result=N
     group = SimpleNamespace(index=0, result=group_result or "no_consta",
                             citations=list(combined.citations), portal=list(combined.portal),
                             unreadable=None, external=False)
+    # La cita del requisito ubicada en el pliego (D-257-6: sin ella no hay «no aplica»).
     return SimpleNamespace(
-        combined=combined, text=SimpleNamespace(text=text), datos=[],
+        combined=combined, text=SimpleNamespace(text=text, quotes=[SimpleNamespace(text=text)]),
+        datos=[],
         requirement=SimpleNamespace(items=list(items), category="formal", number=7,
                                     proposed={"opcion": opcion} if opcion else {}),
         groups=[group], conditions={0: [dict(r) for r in records]})
@@ -376,9 +378,8 @@ TERM = ("Los oferentes deberán mantener su oferta por noventa días corridos de
 @pytest.mark.decision_literal
 @pytest.mark.parametrize("text, combined", [
     (NEGATIVE, combine.Combined(outcome="no_determinado", doubt="sin_dato", question="¿?")),
-    # el modelo propuso «cumple» con una aceptación general y el contraste no lo corroboró
-    (NEGATIVE, combine.Combined(outcome="no_determinado", doubt="sin_corroborar",
-                                proposed="cumple", citations=[located("Acepto el pliego.")])),
+    # T-257, verificación (D-257-2): un «cumple» que el contraste no corroboró ya no pasa por
+    # ausencia (ver `test_a_cumple_the_contrast_rejected_is_not_met_by_absence`).
     (TERM, combine.Combined(outcome="no_determinado", doubt="sin_dato")),
     (TERM, combine.Combined(outcome="sin_documento", exigence="condicion")),
 ])
