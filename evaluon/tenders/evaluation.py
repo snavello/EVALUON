@@ -81,9 +81,11 @@ umbrales"):
 import hashlib
 import json
 import os
+import re
 import shlex
 import subprocess
 import time
+from bisect import bisect_left
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -291,6 +293,9 @@ class Expected:
     items: list
     scope: str = ""
     exclusions: object = None  # `Exclusions` (T-238), o `None` si no se pasó el archivo
+    # La huella de la lista de la que se re-ancló esta (`reanclaje.lista_original`, T-262), o
+    # vacía: las exclusiones marcadas sobre la original valen para la re-anclada.
+    original_sha256: str = ""
 
     @property
     def excluded(self):
@@ -396,13 +401,17 @@ def load_expected(path, *, require_approval=True):
     scope = str(data.get("alcance") or "").strip()
     if scope not in ("", SCOPE_CIRCULARS):
         raise ExpectedError("`alcance` solo puede ser `circulares`")
+    reanchoring = data.get("reanclaje")
+    original = reanchoring.get("lista_original") if isinstance(reanchoring, dict) else None
+    original_sha256 = (str(original.get("sha256") or "").strip().lower()
+                       if isinstance(original, dict) else "")
     return Expected(
         case=str(data.get("caso") or ""), path=path,
         sha256=hashlib.sha256(raw).hexdigest(), documents=documents, approval=approval,
         use=str(data.get("uso") or ""),
         general=_refs(data.get("tecnico_general"), default, "tecnico_general"),
         annexes=_refs(data.get("tramos_anexos"), default, "tramos_anexos"),
-        items=items, scope=scope,
+        items=items, scope=scope, original_sha256=original_sha256,
     )
 
 
@@ -440,7 +449,9 @@ def load_exclusions(path, expected, *, require_approval=True):
     if not isinstance(data, dict):
         raise ExpectedError("las exclusiones no tienen la forma esperada")
     listed = str(data.get("lista_sha256") or "").strip().lower()
-    if listed != expected.sha256:
+    # Una lista re-anclada (T-262) tiene las mismas entradas que su original: valen las
+    # exclusiones marcadas sobre la original.
+    if listed not in {expected.sha256, expected.original_sha256} - {""}:
         raise ExpectedError("las exclusiones se marcaron sobre otra versión de la lista (la "
                             "huella no coincide): se vuelven a marcar y a aprobar")
     approval = str(data.get("visto_bueno") or "").strip()
@@ -468,6 +479,14 @@ def load_exclusions(path, expected, *, require_approval=True):
                       approval=approval, motives=motives)
 
 
+def _exclusions_match(exclusions, expected):
+    if exclusions.list_sha256 == expected.sha256:
+        return "coincide"
+    if expected.original_sha256 and exclusions.list_sha256 == expected.original_sha256:
+        return "coincide con la de la lista original (re-anclada)"
+    return "NO coincide"
+
+
 def exclusion_lines(expected):
     """Las cuentas de las exclusiones, sin texto del pliego (para `--verificar-esperada`)."""
     exclusions = expected.exclusions
@@ -475,7 +494,7 @@ def exclusion_lines(expected):
         return ["Exclusiones de la decisión del 2026-10-10: no se pasó el archivo"]
     return [f"Exclusiones de la decisión del 2026-10-10: {len(exclusions.motives)} de "
             f"{len(expected.items)} entradas ({_counter_text(exclusions.by_motive)}); huella de "
-            f"la lista {'coincide' if exclusions.list_sha256 == expected.sha256 else 'NO coincide'}"
+            f"la lista {_exclusions_match(exclusions, expected)}"
             f"; visto bueno: {exclusions.approval or 'pendiente'}"]
 
 
@@ -715,6 +734,404 @@ def verification_lines(verification):
     lines += [f"Aviso: {n}" for n in verification.notes]
     lines.append("La lista se puede usar." if verification.ok
                  else "La lista no se puede usar: corregir lo que bloquea.")
+    return lines
+
+
+# --- Re-anclaje de la lista a la lectura vigente (T-262, D-260-2) --------------------------
+#
+# Una relectura del pliego puede cambiar la partición (las claves de los tramos) sin cambiar el
+# texto, o cambiando solo cómo se escribe una tabla. La lista congelada nombra las claves de la
+# lectura con que se preparó, y deja de encajar. `reanchor_expected` reubica cada entrada en la
+# lectura vigente, sin el modelo: una formal o económica, por su ancla (si el ancla está más de
+# una vez, la que ocupa su lugar de la lectura anterior); una clave técnica, por los tramos
+# vigentes que ocupan el texto que tenía en la lectura anterior (palabra por palabra). Lo que no
+# se puede reubicar se informa con su motivo y conserva su clave: no se inventa.
+# `write_reanchored` escribe la lista re-anclada en un archivo NUEVO, al lado de la original
+# (que no se toca), con la huella de la original y de cada lectura, y el visto bueno vacío.
+
+REANCHOR_TAG = "reanclada"
+_WORD = re.compile(r"\w+")
+# Parte del texto de una clave técnica de la lectura anterior que se tiene que encontrar en la
+# vigente para reubicarla; por debajo, se informa y no se reubica.
+REANCHOR_COVERAGE_MINIMUM = 0.9
+# Un tramo vigente sucede a uno anterior si al menos esta parte de sus palabras viene de él, o si
+# tiene al menos esta parte de las palabras del anterior.
+REANCHOR_SUCCESSOR_SHARE = 0.5
+REANCHOR_ENTRY_STATES = ("sin_cambio", "reubicada", "no_reubicada")
+
+
+@dataclass
+class Relocation:
+    """Qué pasó con una clave de la lista al re-anclarla. `new` vacía: no se pudo (`reason`)."""
+
+    owner: str  # id de la entrada, o `tecnico_general` / `tramos_anexos`
+    field: str  # `tramo`, `tramos`, `tramos_anexos` o `circulares`
+    document: str
+    old: str
+    new: tuple = ()
+    occurrence: int = 1
+    reason: str = ""
+
+    @property
+    def relocated(self):
+        return bool(self.new)
+
+    @property
+    def changed(self):
+        return self.relocated and self.new != (self.old,)
+
+
+@dataclass
+class Reanchoring:
+    """El resultado de re-anclar una lista: una `Relocation` por clave que cambia o que no se
+    pudo reubicar (las que siguen igual no se listan) y la lectura vigente de cada documento."""
+
+    expected: Expected
+    readings: dict  # archivo -> lectura vigente
+    relocations: list = field(default_factory=list)
+
+    def of(self, owner):
+        return [r for r in self.relocations if r.owner == owner]
+
+    @property
+    def entries(self):
+        """`{id: "sin_cambio" | "reubicada" | "no_reubicada"}` de cada entrada de la lista."""
+        states = {}
+        for item in self.expected.items:
+            own = self.of(item.id)
+            if any(not r.relocated for r in own):
+                states[item.id] = "no_reubicada"
+            elif any(r.changed for r in own):
+                states[item.id] = "reubicada"
+            else:
+                states[item.id] = "sin_cambio"
+        return states
+
+    @property
+    def unplaced(self):
+        return [r for r in self.relocations if not r.relocated]
+
+
+class _Alignment:
+    """Correspondencia palabra por palabra entre una lectura anterior y la vigente de un mismo
+    documento (las palabras en minúscula; los espacios y los signos no cuentan)."""
+
+    def __init__(self, old, new):
+        old_words = [(w.group().casefold(), w.start()) for w in _WORD.finditer(old.canonical_text)]
+        new_words = [(w.group().casefold(), w.start(), w.end())
+                     for w in _WORD.finditer(new.canonical_text)]
+        self.old_starts = [start for _, start in old_words]
+        self.new_starts = [start for _, start, _ in new_words]
+        self.new_ends = [end for _, _, end in new_words]
+        a, b = [w for w, _ in old_words], [w for w, _, _ in new_words]
+        self.mapping = None  # identidad
+        if a != b:
+            self.mapping = {}
+            for i, j, size in SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks():
+                for k in range(size):
+                    self.mapping[i + k] = j + k
+
+    def mapped(self, start, end):
+        """Los índices de las palabras vigentes que corresponden a las palabras de la lectura
+        anterior que empiezan en `[start, end)`, y cuántas palabras anteriores hay ahí."""
+        words = range(bisect_left(self.old_starts, start), bisect_left(self.old_starts, end))
+        if self.mapping is None:
+            return list(words), len(words)
+        return [self.mapping[i] for i in words if i in self.mapping], len(words)
+
+    def words_in(self, start, end):
+        return bisect_left(self.new_starts, end) - bisect_left(self.new_starts, start)
+
+
+def _anchor_hits(segments, anchor):
+    """Cada aparición de `anchor` en la lectura: `(tramo, ocurrencia en el tramo, posiciones
+    absolutas)`, en el orden de la lectura."""
+    hits = []
+    for segment in segments:
+        used = []
+        while (span := quotes.locate(segment.text, anchor, used=used)) is not None:
+            used.append(span)
+            hits.append((segment, len(used), quotes.absolute(segment, span)))
+    return hits
+
+
+class _Reanchorer:
+    def __init__(self, expected, procedure, readings=None):
+        self.expected = expected
+        self.readings = readings or latest_readings(procedure)
+        self.documents = {d.file_name: d for d in procedure.documents.all()}
+        self._segments, self._previous, self._alignments = {}, {}, {}
+
+    def segments(self, name):
+        """Los tramos de la lectura vigente de `name`, en orden (vacía si no tiene lectura)."""
+        if name not in self._segments:
+            reading = self.readings.get(name)
+            self._segments[name] = (list(reading.segments.order_by("order"))
+                                    if reading is not None else [])
+        return self._segments[name]
+
+    def previous(self, name, key):
+        """`(lectura, tramo)` de la lectura anterior más reciente de `name` que tiene `key`."""
+        if (name, key) not in self._previous:
+            found = None
+            document, current = self.documents.get(name), self.readings.get(name)
+            if document is not None and current is not None:
+                older = document.readings.filter(sequence__lt=current.sequence)
+                segment = (m.Segment.objects.filter(reading__in=older, key=key)
+                           .select_related("reading", "reading__document")
+                           .order_by("-reading__sequence").first())
+                if segment is not None:
+                    found = (segment.reading, segment)
+            self._previous[(name, key)] = found
+        return self._previous[(name, key)]
+
+    def alignment(self, old):
+        if old.pk not in self._alignments:
+            self._alignments[old.pk] = _Alignment(old, self.readings[old.document.file_name])
+        return self._alignments[old.pk]
+
+    def anchor(self, owner, field_name, name, key, anchor, occurrence):
+        """Reubica una clave por su ancla. `None` si la clave sigue igual."""
+        segments = self.segments(name)
+        if not segments:  # sin lectura (una circular sin cargar): lo informa la comprobación
+            return None
+        current = next((s for s in segments if s.key == key), None)
+        if current is not None and find_anchor(current, anchor, occurrence) is not None:
+            return None
+        hits = _anchor_hits(segments, anchor)
+        if not hits:
+            return Relocation(owner, field_name, name, key,
+                              reason="el ancla no está en la lectura vigente")
+        if len(hits) > 1:
+            hits = self._same_place(name, key, anchor, occurrence, hits)
+        if len(hits) != 1:
+            return Relocation(owner, field_name, name, key,
+                              reason="el ancla está más de una vez en la lectura vigente y la "
+                                     "lectura anterior no dice cuál es")
+        segment, found_occurrence, _ = hits[0]
+        return Relocation(owner, field_name, name, key, (segment.key,), found_occurrence)
+
+    def _same_place(self, name, key, anchor, occurrence, hits):
+        """De las apariciones del ancla, las que ocupan el lugar que tenía en la lectura
+        anterior que tiene la clave."""
+        previous = self.previous(name, key)
+        if previous is None:
+            return hits
+        old, segment = previous
+        span = find_anchor(segment, anchor, occurrence)
+        if span is None:
+            return hits
+        alignment = self.alignment(old)
+        mapped, _ = alignment.mapped(*span)
+        if not mapped:
+            return hits
+        start, end = alignment.new_starts[min(mapped)], alignment.new_ends[max(mapped)]
+        return [hit for hit in hits if hit[2][0] < end and start < hit[2][1]]
+
+    def ref(self, owner, field_name, ref):
+        """Reubica una clave técnica por su texto en la lectura anterior. `None` si sigue."""
+        segments = self.segments(ref.document)
+        if not segments:  # sin lectura: lo informa la comprobación
+            return None
+        if any(ref.matches(ref.document, s.key) for s in segments):
+            return None
+        if ref.wildcard:
+            return Relocation(owner, field_name, ref.document, ref.key,
+                              reason="el comodín no abarca ningún tramo de la lectura vigente")
+        previous = self.previous(ref.document, ref.key)
+        if previous is None:
+            return Relocation(owner, field_name, ref.document, ref.key,
+                              reason="ninguna lectura anterior tiene ese tramo")
+        old, old_segment = previous
+        alignment = self.alignment(old)
+        mapped, total = alignment.mapped(old_segment.char_start, old_segment.char_end)
+        if not total:
+            return Relocation(owner, field_name, ref.document, ref.key,
+                              reason="el tramo no tiene texto en la lectura anterior")
+        if len(mapped) < REANCHOR_COVERAGE_MINIMUM * total:
+            return Relocation(owner, field_name, ref.document, ref.key,
+                              reason=f"solo el {_percent(len(mapped) / total)} del texto del "
+                                     "tramo está en la lectura vigente")
+        starts = sorted(alignment.new_starts[j] for j in mapped)
+        keys = []
+        for segment in segments:
+            share = (bisect_left(starts, segment.char_end)
+                     - bisect_left(starts, segment.char_start))
+            own = alignment.words_in(segment.char_start, segment.char_end)
+            if share and (share >= REANCHOR_SUCCESSOR_SHARE * own
+                          or share >= REANCHOR_SUCCESSOR_SHARE * total):
+                keys.append(segment.key)
+        if not keys:
+            return Relocation(owner, field_name, ref.document, ref.key,
+                              reason="ningún tramo vigente ocupa el texto del tramo")
+        return Relocation(owner, field_name, ref.document, ref.key, tuple(dict.fromkeys(keys)))
+
+
+def reanchor_expected(expected, procedure, readings=None):
+    """Reubica las claves de `expected` en la lectura vigente de cada documento de `procedure`
+    (T-262). No usa el modelo, no modifica `expected` ni la base."""
+    worker = _Reanchorer(expected, procedure, readings)
+    result = Reanchoring(expected, worker.readings)
+
+    def add(relocation):
+        if relocation is not None:
+            result.relocations.append(relocation)
+
+    for item in expected.items:
+        if item.technical:
+            for field_name, refs in (("tramos", item.refs), ("tramos_anexos", item.annexes)):
+                for ref in refs:
+                    add(worker.ref(item.id, field_name, ref))
+        else:
+            add(worker.anchor(item.id, "tramo", item.document, item.key, item.anchor,
+                              item.occurrence))
+        for block in item.blocks:
+            if block.key and block.anchor and worker.segments(block.document):
+                add(worker.anchor(item.id, "circulares", block.document, block.key,
+                                  block.anchor, 1))
+    for field_name, refs in (("tecnico_general", expected.general),
+                             ("tramos_anexos", expected.annexes)):
+        for ref in refs:
+            add(worker.ref(field_name, field_name, ref))
+    return result
+
+
+def reanchored_path(expected, day):
+    """`matriz-esperada.reanclada-AAAA-MM-DD.yaml`, al lado de la lista."""
+    path = Path(expected.path)
+    return path.with_name(f"{path.stem}.{REANCHOR_TAG}-{day.isoformat()}{path.suffix}")
+
+
+def _partition_sha256(reading):
+    """La huella de la partición de una lectura: clave y posiciones de cada tramo, en orden (dos
+    lecturas con el mismo texto y otra partición tienen huellas distintas)."""
+    rows = "\n".join(f"{s.key}\t{s.char_start}\t{s.char_end}"
+                     for s in reading.segments.order_by("order"))
+    return hashlib.sha256(rows.encode("utf-8")).hexdigest()
+
+
+def _moved(relocations, field_name, document, key):
+    """La reubicación de `key` en `field_name`, o `None`."""
+    return next((r for r in relocations
+                 if r.field == field_name and r.document == document and r.old == key
+                 and r.relocated), None)
+
+
+def _new_refs(entries, relocations, field_name, default_document):
+    """La lista de tramos de la lista con cada clave reubicada reemplazada por sus sucesoras,
+    con la misma forma (texto o `{documento, tramo}`)."""
+    out, seen = [], set()
+
+    def keep(entry, document, key):
+        if (document, key) not in seen:  # dos claves viejas pueden tener la misma sucesora
+            seen.add((document, key))
+            out.append(entry)
+
+    for entry in entries or []:
+        is_text = isinstance(entry, str)
+        document = (default_document if is_text
+                    else str(entry.get("documento") or default_document))
+        key = (entry if is_text else str(entry.get("tramo") or "")).strip()
+        moved = _moved(relocations, field_name, document, key)
+        if moved is None:
+            keep(entry, document, key)
+            continue
+        for new_key in moved.new:
+            keep(new_key if is_text else {**entry, "tramo": new_key}, document, new_key)
+    return out
+
+
+REANCHOR_HEADER = (
+    "# Lista re-anclada por `medir_matriz --reanclar` (T-262, D-260-2): las mismas entradas que\n"
+    "# la lista original, con las claves de tramo de la lectura vigente. La original no se toca\n"
+    "# (su huella está en `reanclaje`); los comentarios quedan en ella. Las entradas que no se\n"
+    "# pudieron reubicar conservan su clave y están en `reanclaje.no_reubicadas`. Sin visto bueno\n"
+    "# no se usa.\n")
+
+
+def write_reanchored(result, day):
+    """Escribe la lista re-anclada en un archivo nuevo al lado de la original y lo devuelve.
+    No pisa un archivo que ya existe. La original no se toca."""
+    expected = result.expected
+    target = reanchored_path(expected, day)
+    if target.exists():
+        raise ExpectedError(f"ya existe {target.name}: no se pisa")
+    raw = Path(expected.path).read_bytes()
+    data = yaml.safe_load(raw.decode("utf-8"))
+    default = expected.default_document
+    for entry in data["requisitos"]:
+        own = result.of(str(entry["id"]).strip())
+        document = str(entry.get("documento") or default)
+        if entry.get("clase") == TECHNICAL:
+            for name in ("tramos", "tramos_anexos"):
+                if entry.get(name):
+                    entry[name] = _new_refs(entry[name], own, name, document)
+        else:
+            moved = _moved(own, "tramo", document, str(entry.get("tramo") or "").strip())
+            if moved is not None:
+                entry["tramo"] = moved.new[0]
+                if moved.occurrence != 1:
+                    entry["ocurrencia"] = moved.occurrence
+                else:
+                    entry.pop("ocurrencia", None)
+        for block in entry.get("circulares") or []:
+            moved = _moved(own, "circulares", str(block.get("documento") or ""),
+                           str(block.get("tramo") or "").strip())
+            if moved is not None:
+                block["tramo"] = moved.new[0]
+    for name in ("tecnico_general", "tramos_anexos"):
+        if data.get(name):
+            data[name] = _new_refs(data[name], result.of(name), name, default)
+
+    used = ({i.document for i in expected.items}
+            | {r.document for r in expected.general + expected.annexes}
+            | {b.document for i in expected.items for b in i.blocks})
+    states = Counter(result.entries.values())
+    reanchoring = {
+        "fecha": day.isoformat(),
+        "hecho_con": "medir_matriz --reanclar (T-262)",
+        "lista_original": {"archivo": Path(expected.path).name,
+                           "sha256": hashlib.sha256(raw).hexdigest(),
+                           "visto_bueno": expected.approval},
+        "lecturas": [
+            {"archivo": name, "lectura": reading.sequence,
+             "texto_canonico_sha256": reading.canonical_sha256,
+             "particion_sha256": _partition_sha256(reading)}
+            for name, reading in sorted(result.readings.items()) if name in used],
+        "entradas": {"total": len(expected.items), "sin_cambio": states["sin_cambio"],
+                     "reubicadas": states["reubicada"],
+                     "no_reubicadas": states["no_reubicada"]},
+        "no_reubicadas": [{"id": r.owner, "campo": r.field, "tramo": r.old, "motivo": r.reason}
+                          for r in result.unplaced],
+    }
+    out = {}
+    for name, value in data.items():
+        if name == "reanclaje":
+            continue
+        out[name] = "" if name == "visto_bueno" else value
+        if name == "visto_bueno":
+            out["reanclaje"] = reanchoring
+    if "reanclaje" not in out:
+        out["visto_bueno"], out["reanclaje"] = "", reanchoring
+    text = yaml.safe_dump(out, allow_unicode=True, sort_keys=False, width=100)
+    target.write_text(REANCHOR_HEADER + text, encoding="utf-8")
+    return target
+
+
+def reanchoring_lines(result):
+    """Las cuentas del re-anclaje, con las claves y los ids pero sin texto del pliego (P4)."""
+    states = Counter(result.entries.values())
+    general = [r for r in result.relocations if r.owner in ("tecnico_general", "tramos_anexos")]
+    lines = [
+        f"Entradas de la lista: {len(result.expected.items)}; sin cambio "
+        f"{states['sin_cambio']}; reubicadas {states['reubicada']}; no reubicadas "
+        f"{states['no_reubicada']}",
+        f"Claves reubicadas: {sum(r.changed for r in result.relocations)} (de los tramos "
+        f"generales y de anexos de la lista: {sum(r.changed for r in general)}); claves que no "
+        f"se pudieron reubicar: {len(result.unplaced)}",
+    ]
+    lines += [f"No se reubica: {r.owner} ({r.field} {r.old}): {r.reason}"
+              for r in result.unplaced]
     return lines
 
 
