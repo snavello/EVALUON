@@ -324,3 +324,110 @@ def test_the_option_rule_reads_the_option_names_the_matrix_stores():
         assert options.option_of(requirement) == name and options.label(name)
     assert options.option_of(SimpleNamespace(proposed={extraction.KEY_OPTION: ""})) == ""
     assert options.option_of(SimpleNamespace(proposed={})) == ""
+
+
+# --- Tercera pasada (b768b01): Q1 a Q14 y las guardas S1 y S6 ----------------------------------
+
+
+@pytest.mark.decision_literal
+@pytest.mark.parametrize("text", [
+    "No se aceptarán ofertas condicionadas a la aprobación de su directorio, y los oferentes "
+    "cotizarán en dólares estadounidenses.",
+    "Los oferentes deberán mantener su oferta por el plazo que cada oferente establezca en su "
+    "propuesta y nunca menos de treinta días.",
+    "No se aceptarán ofertas condicionadas a la variación del tipo de cambio, y el oferente cotizará "
+    "con un descuento del diez por ciento sobre el precio de lista.",
+])
+def test_q1_q2_q13_another_demand_in_the_same_sentence_is_not_absence(offer, text):
+    """REQ-104 (Q1, Q2, Q13): el complemento de «condicionadas a …» y el plazo de «… días» no admiten
+    otra exigencia en la misma oración (la moneda, que la oferta fije su plazo, un descuento)."""
+    assert not criteria.by_absence(text)
+    records = [condition("La oferta no está condicionada", "no_consta"),
+               condition("Lo demás que pide la oración", "no_consta")]
+    name, result = apply(offer, pair_with(text, undetermined(), records))
+    assert name != "cumple_por_ausencia" and result.outcome != "cumple"
+
+
+@pytest.mark.decision_literal
+@pytest.mark.parametrize("text, records", [
+    # Q3: el modelo deja una sola condición y omite el color y el talle
+    ("Cotizar por renglón indicando el color y el talle de cada prenda.",
+     [condition("Cotizar por renglón", "no_consta")]),
+    # Q14: el modelo omite la mano de obra y los materiales
+    ("Cotizar el precio total en pesos, discriminando la mano de obra y los materiales.",
+     [condition("Cotizar el precio total en pesos", "no_consta")]),
+])
+def test_q3_q14_the_portal_looks_at_the_pliego_sentence_not_the_conditions(
+        offer, procedure, portal, text, records):
+    """REQ-103 (Q3, Q14; bloqueante de la tercera pasada): si el modelo omite una exigencia, el Portal
+    no da «cumple»: decide la oración del pliego, digan lo que digan las condiciones."""
+    quoted(procedure, offer, portal)
+    name, result = apply(offer, pair_with(text, undetermined(), records, items=[1, 2]))
+    assert result.outcome != "cumple" and name != "portal_cumple"
+
+
+@pytest.mark.decision_literal
+@pytest.mark.parametrize("text", [
+    "Los oferentes cotizarán íntegramente cada renglón.",
+    "Se cotizará el volumen requerido en cada renglón.",
+    "Se cotizarán los kilos pedidos de cada renglón.",
+])
+def test_n5c_with_the_models_condition_is_not_cumple(offer, procedure, portal, text):
+    """REQ-103 (N5c con la condición del modelo «Cotizar lo pedido de cada renglón»): con 4 de 10
+    unidades cotizadas, no es «cumple»."""
+    quoted(procedure, offer, portal, asked="10", offered="4")
+    records = [condition("Cotizar lo pedido de cada renglón", "no_consta")]
+    name, result = apply(offer, pair_with(text, undetermined(), records, items=[1, 2]))
+    assert result.outcome != "cumple" and name != "portal_cumple"
+
+
+def test_the_guarantee_with_its_legal_reference_is_still_resolved_by_the_portal(offer, portal):
+    """REQ-103: la remisión a la norma y el umbral de monto no piden nada: la garantía del cinco por
+    ciento del monto total ofertado sigue «cumple» con la cita del Portal (positivo)."""
+    portal_data(portal, offer, amount="21750.00", total="435000.00")
+    text = ("Si la oferta superase el monto indicado en la sub-cláusula anterior, conforme lo "
+            "previsto en el artículo 9 del reglamento de compras, sus complementarias y/o "
+            "modificatorias, el oferente deberá integrar junto con la oferta una garantía de "
+            "mantenimiento de la oferta. La misma deberá ser efectuada por el CINCO POR CIENTO (5%) "
+            "del monto total ofertado.")
+    records = [condition("La garantía es del cinco por ciento del monto total ofertado",
+                         "no_consta")]
+    name, result = apply(offer, pair_with(text, undetermined(), records))
+    assert name == "portal_cumple" and result.outcome == "cumple"
+
+
+@pytest.mark.decision_literal
+@pytest.mark.parametrize("page", [
+    "Los precios cotizados no contemplan el gravamen correspondiente.",
+    "Precios unitarios más I.V.A.",
+])
+def test_q6_q7_the_tax_said_with_a_dotted_acronym_or_gravamen_stops_the_vat(offer, portal, page):
+    """REQ-103 (Q6, Q7): «gravamen» y «I.V.A.» con puntos frenan el criterio del IVA."""
+    from evaluon.assessment import rules
+
+    portal_data(portal, offer)
+    records = [condition("Cotizar en pesos argentinos", "cumple", "ARS"),
+               condition("Incluir el IVA", "no_consta")]
+    pages = [{"page": 1, "text": page, "readable": True}]
+    ctx = SimpleNamespace(offer=offer, offer_text=SimpleNamespace(documents=[SimpleNamespace(
+        document=SimpleNamespace(title=TITLES[0]), pages=pages)]))
+    pair = pair_with(VAT, undetermined(), records)
+    rules.apply(pair, ctx)
+    assert pair.combined.outcome != "cumple"
+
+
+def test_s1_the_absence_needs_the_requirement_to_be_a_condition(offer):
+    """REQ-104 (guarda S1): con todo lo demás en orden (la oración entera de la forma, sin nada del
+    modelo), si la exigencia es «documento» no hay ausencia."""
+    records = [condition("La oferta no está condicionada", "no_consta")]
+    combined = undetermined(exigence="documento")
+    name, result = apply(offer, pair_with(NEGATIVE_LIKE_R54, combined, records))
+    assert name != "cumple_por_ausencia"
+
+
+def test_s6_a_later_stage_said_in_passive_is_not_a_physical_presentation(offer):
+    """REQ-104 (guarda S6): «Los bienes deberán ser entregados en la Mesa de Entradas por el
+    adjudicatario» es de la ejecución del contrato, no de la oferta: no es «no cumple»."""
+    text = "Los bienes deberán ser entregados en la Mesa de Entradas por el adjudicatario."
+    name, result = apply(offer, pair_with(text, combine.Combined(outcome="sin_documento")))
+    assert name != "presentacion_fisica_no_consta" and result.outcome != "no_cumple"

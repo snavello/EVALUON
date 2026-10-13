@@ -519,6 +519,25 @@ _LINK_FORMS = set(
 _BE = set("es son sea sean sera seran ser esta estan estara estaran estar".split())
 
 
+# Lo que antecede a la exigencia sin pedir nada: la remisión a una norma («conforme lo previsto en
+# los artículos…, sus complementarias y/o modificatorias,») y el umbral de monto que hace exigible la
+# garantía («Si la oferta superase el monto indicado en la sub-cláusula anterior,»).
+_LEGAL_REFERENCE = re.compile(
+    r"(?:conforme(?: a| con)?|de acuerdo con|segun) (?:lo (?:previsto|establecido|dispuesto) en )?"
+    r"[^.]*?(?:complementarias|modificatorias|vigentes?)\s*,\s*")
+_AMOUNT_THRESHOLD = re.compile(
+    r"^\W*(?:\d+(?:\.\d+)*\.?\s*)?si (?:la oferta|el monto de la oferta|el total de la oferta)"
+    r" (?:super|exced)\w+ [^,]*,\s*")
+
+
+def requirement_core(text):
+    """El texto del requisito sin la remisión a la norma ni el umbral de monto que lo hacen exigible:
+    lo que se mira contra la lista cerrada del Portal."""
+    folded = fold(text)
+    folded = _AMOUNT_THRESHOLD.sub("", folded)
+    return _LEGAL_REFERENCE.sub("", folded)
+
+
 def asks_only_portal_data(text):
     """Si el texto pide solo datos de la lista cerrada del Portal (todas sus palabras son del
     vocabulario cerrado), sin ninguna otra exigencia."""
@@ -1025,8 +1044,11 @@ def rule(pair, ctx):
         # decide la lista de lo que el Portal SÍ trae (reverificación de T-257): el Portal no da
         # «cumple». Si la oferta ya concluyó «cumple» con su texto (y el contraste lo corroboró),
         # queda su conclusión con la cita del Portal agregada.
-        asks_more = bool(_OTHER_DATA.search(fold(text))) or (
-            not records and not asks_only_portal_data(text))
+        # Tercera pasada (bloqueante): el Portal decide mirando la ORACIÓN DEL PLIEGO, no las
+        # condiciones del modelo: si el requisito pide cualquier cosa fuera de la lista cerrada de lo
+        # que el Portal trae, no hay «cumple», digan lo que digan las condiciones.
+        asks_more = bool(_OTHER_DATA.search(fold(text))) or not asks_only_portal_data(
+            requirement_core(text))
         if asks_more and combined.outcome == combine.OUT_CUMPLE:
             return replace(combined, portal=cites, facts={**facts, "regla": RULE_BOTH})
         extra = {"condiciones": shown} if shown else {}

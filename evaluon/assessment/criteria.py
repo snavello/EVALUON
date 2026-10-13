@@ -51,8 +51,17 @@ TAX = re.compile(r"\biva\b|alicuotas?|impuestos?|tributos?")
 # - el plazo de mantenimiento de la oferta, con su cómputo y su prórroga automática.
 _LEGAL = r"(?:(?:de acuerdo con|conforme(?: a| con)?|segun) [^.]*?, )?"
 _SUBJECT = r"(?:(?:los|las|el|la) (?:oferentes?|proponentes?) )?"
-_COMPLEMENT = r"(?: a [a-z ,]+?)?"
-_DAYS = (r"(?:(?:un |el )?(?:plazo|termino|lapso) de )?[a-z0-9() ]+? dias"
+# Tercera pasada (Q1, Q2, Q13): el complemento de «condicionadas a …» no admite otra exigencia
+# (sin coma, sin «y»/«e», sin otro verbo de lo que pide el pliego, hasta 80 caracteres), y el plazo es
+# un número (en letras o en cifras), no un texto libre.
+_OTHER_VERB = (r"(?:cotiz|deber|debe|presentar|indic|inform|acompan|adjunt|ofrec|ofert|inclu|expres"
+               r"|mantener|mantendr|establez|fij|consign|detall|suscrib|firm|entreg|acredit)\w*")
+_COMPLEMENT = (r"(?: a (?=[a-z ]{1,80}$)(?!(?:.*\s)?(?:y|e)\s)(?!(?:.*\s)?" + _OTHER_VERB + r"\b)"
+               r"[a-z ]+?)?")
+_NUMBER = (r"(?:(?:uno|un|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece"
+           r"|catorce|quince|veinte|veinticinco|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta"
+           r"|noventa|cien|ciento|y) ){1,4}(?:\(\d+\) )?|\d+ ")
+_DAYS = (r"(?:(?:un |el )?(?:plazo|termino|lapso) de )?(?:" + _NUMBER + r")dias"
          r"(?: corridos| habiles(?: administrativos)?)?")
 _FROM = (r"(?:,? (?:contados?|computados?) (?:a partir|desde) (?:de )?(?:la fecha (?:del|de) |el |la )?"
          r"(?:acto de )?apertura(?: de (?:las )?ofertas)?|,? desde (?:la fecha (?:del|de) |el |la )?"
@@ -100,7 +109,15 @@ _NOT_ABSENCE = re.compile(
 # Lo que la oferta puede decir sobre el precio y que frena el criterio del IVA (D-257-3).
 PRICE_TALK = re.compile(r"\biva\b|alicuotas?|impuestos?|tributos?|\bajust\w*|\bactualiz\w*"
                         r"|\brevis\w*|\bvariaci\w*|\bindexa\w*|\bredetermin\w*|\bnet[oa]s?\b"
-                        r"|\bgravad\w*|\bexent\w*|\bpercepci\w*|\bretenci\w*")
+                        r"|\bgravad\w*|\bgravamen\w*|\bgravar\w*|\bexent\w*|\bpercepci\w*"
+                        r"|\bretenci\w*")
+# «I.V.A.», «I. V. A.»: la sigla con puntos se lee como «iva» antes de buscar (tercera pasada, Q7).
+_DOTTED_VAT = re.compile(r"\bi\s*\.\s*v\s*\.\s*a\b\.?")
+
+
+def _talks_about_price(text):
+    folded = _DOTTED_VAT.sub("iva", fold(text))
+    return bool(PRICE_TALK.search(folded))
 
 
 def price_talk(pair, ctx=None):
@@ -115,7 +132,7 @@ def price_talk(pair, ctx=None):
         for page in getattr(document, "pages", None) or []:
             texts.append(page.get("text", "") if isinstance(page, dict)
                          else getattr(page, "text", ""))
-    return any(PRICE_TALK.search(fold(t)) for t in texts if t)
+    return any(_talks_about_price(t) for t in texts if t)
 # Las dudas que frenan la ausencia y el IVA (D-257-2, D-257-3): el contraste no corroboró, partes sin
 # leer, una cita que no se ubicó, textos que se contradicen, o una «duda» sin motivo.
 DOUBTFUL = ("sin_corroborar", "lectura_incompleta", "sin_cita", "contradiccion", "duda",
