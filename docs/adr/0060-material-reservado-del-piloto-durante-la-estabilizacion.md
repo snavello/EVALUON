@@ -1,6 +1,6 @@
 # ADR-0060 · Material reservado del piloto visible para los agentes durante la estabilización (enmienda de P4)
 
-Estado: propuesto · Fecha: 2026-10-14 · Propone: Coordinador, por la decisión del responsable del 2026-10-14 · Decide: responsable del proyecto
+Estado: aceptado · Fecha: 2026-10-14 · Propuso: Coordinador, por la decisión del responsable del 2026-10-14 · Decidió: responsable del proyecto (2026-10-14, «todo si.»)
 
 ## Contexto
 
@@ -13,7 +13,7 @@ Los agentes que construyen EVALUON, el Coordinador incluido, corren en un servic
 
 El responsable decidió el 2026-10-14 que, mientras se estabiliza el piloto, los agentes puedan ver todo: «7 todavia podes ver estamos estabilizando», y ante la advertencia de que eso requiere enmendar P4, eligió «Cargarlo ya y que lo vea todo». Sin agentes que vean lo que pasa con un proceso real, corregir los defectos del piloto queda en manos de una sola persona.
 
-## Decisión propuesta
+## Decisión
 
 1. **Excepción acotada a P4.** Durante la estabilización del piloto, los agentes de construcción pueden leer el material del proceso en curso cargado en la instancia del piloto (pantallas, base, registros y archivos), para diagnosticar y corregir defectos.
 2. **Lo que no cambia:**

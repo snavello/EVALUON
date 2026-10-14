@@ -1,6 +1,6 @@
 # Spec 007 · Acceso por red
 
-Estado: borrador · Fecha: 2026-10-14 · Aprobó: —
+Estado: aprobada · Fecha: 2026-10-14 · Aprobó: responsable del proyecto (2026-10-14, «todo si.»)
 
 ## Problema
 
@@ -19,7 +19,8 @@ Lo que ya existe y se mantiene: ingreso con usuario y clave, roles (lectura, lec
 | 2026-10-14 | Certificado de la conexión cifrada | «Todavía no sé»: la spec pide que el navegador no muestre advertencias; el plan prepara las dos variantes (certificado del área de sistemas del organismo, o propio instalado una vez en cada computadora). |
 | 2026-10-14 | Bloqueo por claves equivocadas | «5 intentos, 15 min»: tras 5 claves mal seguidas el usuario queda bloqueado 15 minutos; el responsable puede desbloquearlo antes. |
 | 2026-10-14 | Revisión del borrador, filas 1 a 8 | «1 si, 2 si 3si  4minimo 8 5si 6si 7 todavia podes ver estamos estabilizando 8si»: se aprueban la lista de hasta 10 computadoras, la conexión cifrada, el bloqueo con mensaje genérico también por comando, el cierre a los 30 minutos sin uso, el registro de accesos y lo que queda fuera de alcance; la clave nueva tiene como mínimo 8 caracteres. La fila 7 (separación del proceso en curso) queda para decidir frente a P4 (ver REQ-117). |
-| 2026-10-14 | Material reservado y P4 | «Cargarlo ya y que lo vea todo»: mientras se estabiliza el piloto, los agentes pueden leer el proceso en curso en la instancia del piloto; requiere enmendar P4 (ADR-0060, propuesto). |
+| 2026-10-14 | Material reservado y P4 | «Cargarlo ya y que lo vea todo»: mientras se estabiliza el piloto, los agentes pueden leer el proceso en curso en la instancia del piloto; requiere enmendar P4 (ADR-0060, aceptado). |
+| 2026-10-14 | Aprobación | «todo si.»: se aprueban el ADR-0060 (constitución 1.5) y esta spec, y se retoma T-049 de la 001 (levantar todo desde cero para el runbook). |
 | 2026-10-14 | Qué se carga en el piloto | «También el proceso en curso»: se cargan ofertas reservadas hasta el dictamen; ese material pasa a la fase de operación de P4 y se separa de los agentes y del repositorio (REQ-117). |
 
 ## Usuarios y escenarios

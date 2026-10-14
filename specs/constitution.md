@@ -1,6 +1,6 @@
 # Constitución de EVALUON
 
-Versión 1.4 · 2026-10-12 · Estado: aprobada por el responsable del proyecto. La versión 1.1 ajustó el propósito según el ADR-0006; la 1.2 enmienda P3 según el ADR-0009; la 1.3 enmienda P3 según el ADR-0053 (el dato del Portal de Compras como fundamento); la 1.4 enmienda P3 según el ADR-0058 (la ausencia verificada en la lectura completa de la oferta como fundamento).
+Versión 1.5 · 2026-10-14 · Estado: aprobada por el responsable del proyecto. La versión 1.1 ajustó el propósito según el ADR-0006; la 1.2 enmienda P3 según el ADR-0009; la 1.3 enmienda P3 según el ADR-0053 (el dato del Portal de Compras como fundamento); la 1.4 enmienda P3 según el ADR-0058 (la ausencia verificada en la lectura completa de la oferta como fundamento); la 1.5 enmienda P4 según el ADR-0060 (el material reservado del piloto durante su estabilización).
 
 Este documento fija los principios que ninguna spec, plan o tarea puede contradecir. Todos los agentes lo leen antes de actuar. Se modifica solo mediante un ADR aprobado por el responsable.
 
@@ -22,6 +22,7 @@ Toda conclusión del sistema muestra su fundamento: el fragmento del pliego o de
 ### P4. Clasificación de datos
 - **Fase de construcción (actual):** se trabaja únicamente con normas, pliegos, ofertas y evaluaciones públicos. Ese material puede estar en GitHub y pasar por servicios de IA en la nube. No se incorpora material reservado al repositorio, a las pruebas ni a las conversaciones con agentes.
 - **Fase de operación:** los pliegos y las ofertas se procesan solo con IA local. La normativa, por ser pública, puede usar una API externa.
+- **Excepción (ADR-0060):** durante la estabilización del piloto, los agentes de construcción pueden leer el material del proceso en curso en la instancia del piloto. Nunca va al repositorio ni a las pruebas. La excepción termina cuando el responsable da por terminada la estabilización.
 - **Consecuencia de diseño:** el camino que recorren pliegos y ofertas no depende de ningún servicio externo, desde la primera versión. Pasar de construcción a operación no debe requerir cambios de arquitectura.
 
 ### P5. Local primero y reproducible
