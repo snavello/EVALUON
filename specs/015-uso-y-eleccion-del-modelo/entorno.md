@@ -322,3 +322,13 @@ Desde e6432b6 no hay migraciones ni cambios de `Dockerfile`, `pyproject.toml` o 
 - `main` ca5e428 (T-257, criterios del 2026-10-12 en la evaluación).
 - `main` 70e5aa54 (T-261, contexto de la evaluación; T-262, presentación física en la matriz): imagen c136b996, construida el 2026-10-13 a las 12:13; `/ingresar/` 200.
 
+
+## Despliegue final de la 015 en 8000 · 2026-10-14
+
+Estado: desplegado (decisiones del responsable del 2026-10-13, «Sí, antes de las 10» y «Sí, encenderla», y del 2026-10-14, calidad antes que tiempo). Reemplaza, para 8000, el «Estado: preparado, sin desplegar» de «La Consulta en el motor del 27B».
+
+- Raíz en `main` ff6471f5 (T-264, T-255, T-265, T-267 y los registros de T-266 y T-249). Sin migraciones desde e6432b6.
+- Respaldo previo: `backups/evaluon-2026-10-14-previo-015-final.dump` (861 entradas con `pg_restore -l`); imagen anterior `evaluon-app:previo-015-final`; `.env` anterior guardado fuera del repositorio.
+- En `.env`, `COMPOSE_FILE` cambia `docker-compose.sin-consulta.yml` por `docker-compose.consulta-27b.yml`. Se reconstruyó la imagen y se recrearon `app`, `worker` y `portal_worker`; `generation_batch`, `embeddings`, `reranker` y `db` no se tocaron (el motor sigue desde el 2026-10-12).
+- Comprobado: `app` sana; `app` con `GENERATION_URL=http://generation_batch:8080`, alias `qwen3.8-27b-ud-q4_k_m` y `GENERATION_CTX_SIZE` 32768; `worker` con 16384; `consulta_notice()` vacío, `shares_batch_engine()` y `is_available()` verdaderos (la Consulta encendida); `/ingresar/` 200; cola sin pedidos en curso.
+- Volver a la Consulta apagada: en `COMPOSE_FILE`, `docker-compose.sin-consulta.yml` en lugar de `docker-compose.consulta-27b.yml`, y recrear `app` y `worker`.
