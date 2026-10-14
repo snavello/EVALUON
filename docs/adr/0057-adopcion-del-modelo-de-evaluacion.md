@@ -100,3 +100,7 @@ Decisión literal del responsable (2026-10-12): «Sí; Consulta con el 27B».
 ## Para revertir
 
 Borrar o comentar en `.env` las líneas `COMPOSE_FILE`, `COMPOSE_PATH_SEPARATOR` y `GENERATION_BATCH_REASONING_CONTRAST`, y recrear `generation_batch`, `worker`, `app` y `generation` solo con el compose base: vuelve el 12B con la Consulta. La reversa de los cambios de código (`procedure_fields` al motor de lotes, aviso de la Consulta) no hace falta: con el 12B en los dos motores se comportan igual que antes. Borrar los 17,4 GB del 27B de `models/` requiere la confirmación del responsable.
+
+## Actualización 2026-10-14: la Consulta en el 27B
+
+T-255 lleva la Consulta al motor de lotes del 27B con `docker-compose.consulta-27b.yml` (sin razonamiento, con aviso mientras el motor está ocupado o no responde). `generation` y `docker-compose.sin-consulta.yml` no se quitan: quedan para el 27B sin Consulta y para volver al 12B. T-266 midió las evals de la 001 con el 27B: cumplen el ADR-0002 igual que el 12B, el lote de ajuste no baja leído uno por uno y el tiempo sube 2,4 veces (mediana 9,30 s, máximo 21,89 s). Con la decisión del responsable del 2026-10-13 («Sí, encenderla» si no baja la calidad) y la del 2026-10-14 (calidad antes que tiempo), la Consulta queda encendida en 8000.
