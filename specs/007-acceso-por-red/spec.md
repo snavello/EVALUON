@@ -18,6 +18,8 @@ Lo que ya existe y se mantiene: ingreso con usuario y clave, roles (lectura, lec
 | 2026-10-14 | Desde dónde se entra | «Solo computadoras de una lista»: únicamente las computadoras de los miembros de la Comisión; las demás de la red no llegan. |
 | 2026-10-14 | Certificado de la conexión cifrada | «Todavía no sé»: la spec pide que el navegador no muestre advertencias; el plan prepara las dos variantes (certificado del área de sistemas del organismo, o propio instalado una vez en cada computadora). |
 | 2026-10-14 | Bloqueo por claves equivocadas | «5 intentos, 15 min»: tras 5 claves mal seguidas el usuario queda bloqueado 15 minutos; el responsable puede desbloquearlo antes. |
+| 2026-10-14 | Revisión del borrador, filas 1 a 8 | «1 si, 2 si 3si  4minimo 8 5si 6si 7 todavia podes ver estamos estabilizando 8si»: se aprueban la lista de hasta 10 computadoras, la conexión cifrada, el bloqueo con mensaje genérico también por comando, el cierre a los 30 minutos sin uso, el registro de accesos y lo que queda fuera de alcance; la clave nueva tiene como mínimo 8 caracteres. La fila 7 (separación del proceso en curso) queda para decidir frente a P4 (ver REQ-117). |
+| 2026-10-14 | Material reservado y P4 | «Cargarlo ya y que lo vea todo»: mientras se estabiliza el piloto, los agentes pueden leer el proceso en curso en la instancia del piloto; requiere enmendar P4 (ADR-0060, propuesto). |
 | 2026-10-14 | Qué se carga en el piloto | «También el proceso en curso»: se cargan ofertas reservadas hasta el dictamen; ese material pasa a la fase de operación de P4 y se separa de los agentes y del repositorio (REQ-117). |
 
 ## Usuarios y escenarios
@@ -41,10 +43,10 @@ Lo que ya existe y se mantiene: ingreso con usuario y clave, roles (lectura, lec
 | REQ-111 | Tras 5 intentos fallidos seguidos para un mismo usuario, ese usuario queda bloqueado durante 15 minutos, aunque después se escriba la clave correcta. El mensaje de rechazo es el mismo para usuario inexistente, clave equivocada y usuario bloqueado. Las mismas reglas valen para los comandos que piden usuario y clave | Decisión del 2026-10-14 |
 | REQ-112 | El responsable del sistema puede desbloquear un usuario antes de que venza el plazo; el desbloqueo queda registrado con quién lo hizo y cuándo | — |
 | REQ-113 | Cada ingreso, salida, intento fallido, bloqueo y desbloqueo queda registrado con el usuario (o el nombre tal como se escribió), la computadora de origen, la fecha y la hora, y el responsable del sistema lo puede consultar | P6 |
-| REQ-114 | Cada usuario puede cambiar su clave; para hacerlo escribe la actual. El sistema exige una clave nueva de al menos 12 caracteres y rechaza las muy comunes. Un usuario dado de alta con clave inicial debe cambiarla en su primer ingreso | P3, P6 |
+| REQ-114 | Cada usuario puede cambiar su clave; para hacerlo escribe la actual. El sistema exige una clave nueva de al menos 8 caracteres y rechaza las muy comunes. Un usuario dado de alta con clave inicial debe cambiarla en su primer ingreso | P3, P6 |
 | REQ-115 | Una sesión sin uso durante 30 minutos se cierra; también se cierra a las 8 horas de iniciada y al cerrar el navegador. Lo que el usuario ya guardó no se pierde | — |
 | REQ-116 | Desde otra computadora solo se llega a la aplicación: la base de datos, los motores de IA y los demás servicios internos no aceptan conexiones de fuera del equipo del sistema | P4 |
-| REQ-117 | Los documentos del proceso en curso (reservados hasta el dictamen) y todo lo que el sistema produce sobre ellos (lecturas, matrices, evaluaciones, preguntas, consultas y registros) se procesan solo en el equipo del sistema, con IA local, en una instancia separada de la que usa la construcción. No se copian al repositorio, a las pruebas, a las mediciones ni a los respaldos de construcción, y los agentes de IA que construyen EVALUON no acceden a esa instancia ni a sus respaldos. Lo que el responsable decida compartir del piloto con la construcción son cifras agregadas, sin textos | P4 (fase de operación), decisión del 2026-10-14 |
+| REQ-117 | Los documentos del proceso en curso (reservados hasta el dictamen) y todo lo que el sistema produce sobre ellos (lecturas, matrices, evaluaciones, preguntas, consultas y registros) se procesan solo en el equipo del sistema, con IA local, en una instancia separada de la que usa la construcción. No se copian al repositorio, a las pruebas, a las mediciones ni a los respaldos de construcción, y los agentes de IA que construyen EVALUON no acceden a esa instancia ni a sus respaldos. Lo que el responsable decida compartir del piloto con la construcción son cifras agregadas, sin textos. Excepción mientras se estabiliza el piloto (ADR-0060): los agentes pueden leer la instancia del piloto, pero el material nunca va al repositorio ni a las pruebas | P4 (fase de operación), ADR-0060, decisiones del 2026-10-14 |
 
 ## Criterios de aceptación
 
@@ -60,7 +62,7 @@ Corte vertical: primero una sola pantalla (el ingreso) servida cifrada a una com
 - **REQ-114.** Dado un usuario con clave inicial, cuando ingresa por primera vez, entonces no puede usar ninguna sección hasta cambiarla. Dada una clave nueva más corta que el mínimo o muy común, entonces se rechaza con un mensaje que dice por qué. Dado un cambio de clave sin escribir la actual correcta, entonces se rechaza.
 - **REQ-115.** Dada una sesión abierta, cuando pasan 30 minutos sin uso, entonces el siguiente pedido lleva al ingreso y, después de ingresar, lo guardado antes sigue ahí.
 - **REQ-116.** Dada una computadora de la red, cuando intenta conectarse a la base de datos, a los motores de IA, a los embeddings o al reranker, entonces la conexión no se establece; solo responde la aplicación.
-- **REQ-117.** Dado un proceso reservado cargado en la instancia del piloto, cuando corren las tareas habituales de construcción (tests, mediciones, respaldos y verificaciones), entonces ninguna usa esa instancia, su base ni sus respaldos; dado el repositorio, entonces no contiene ningún documento, texto ni registro de ese proceso. Dada la instancia del piloto, cuando se revisan sus servicios, entonces la IA que procesa pliegos y ofertas es solo la local.
+- **REQ-117.** Dado el fin de la estabilización y un proceso reservado cargado en la instancia del piloto, cuando corren las tareas habituales de construcción (tests, mediciones, respaldos y verificaciones), entonces ninguna usa esa instancia, su base ni sus respaldos; dado el repositorio, en cualquier momento (también durante la estabilización), entonces no contiene ningún documento, texto ni registro de ese proceso. Dada la instancia del piloto, cuando se revisan sus servicios, entonces la IA que procesa pliegos y ofertas es solo la local.
 
 ## Requisitos no funcionales
 
@@ -81,7 +83,7 @@ Corte vertical: primero una sola pantalla (el ingreso) servida cifrada a una com
 
 - Usuarios, claves (guardadas sin que se puedan leer, como hoy) y el registro de accesos: datos del propio sistema.
 - Lo que viaja cifrado por la red: normas (públicas), pliegos, ofertas, conclusiones y decisiones de la Comisión.
-- Clasificación (P4): el piloto carga también el proceso en curso, cuyas ofertas son reservadas hasta el dictamen (decisión del 2026-10-14). Ese material está en fase de operación: se procesa solo con IA local y queda separado de la construcción (REQ-117). Lo demás (casos públicos, normas) sigue en fase de construcción.
+- Clasificación (P4): el piloto carga también el proceso en curso, cuyas ofertas son reservadas hasta el dictamen (decisión del 2026-10-14). Ese material está en fase de operación: se procesa solo con IA local y queda separado de la construcción (REQ-117). Mientras se estabiliza el piloto, los agentes pueden leerlo (ADR-0060), sin llevarlo nunca al repositorio ni a las pruebas. Lo demás (casos públicos, normas) sigue en fase de construcción.
 
 ## Preguntas abiertas
 
