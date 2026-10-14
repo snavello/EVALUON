@@ -71,7 +71,7 @@ flowchart LR
 | [012 · Importación asistida desde el Portal de Compras](#012) | El sistema explora la página pública del proceso en el Portal de Compras (datos, renglones, documentos, ofertas con totales, garantías y cotización por renglón), propone la carga y la Comisión la aprueba en el momento; revisión periódica de los procesos en curso | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 42/46 | █████████░ 91% |
-| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 4 de 7 · Desarrollo | 34/35 | ██████████ 97% |
+| [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
 
 <a id="001"></a>
 
@@ -1280,11 +1280,11 @@ flowchart TD
 
 ## 015 · Uso y elección del modelo
 
-**Etapa actual:** 4 de 7 · Desarrollo · [carpeta](../specs/015-uso-y-eleccion-del-modelo)
+**Etapa actual:** 5 de 7 · Verificación · [carpeta](../specs/015-uso-y-eleccion-del-modelo)
 
 ```mermaid
 flowchart LR
-  E0["✓ 1. Spec"]:::done --> E1["✓ 2. Plan"]:::done --> E2["✓ 3. Tareas"]:::done --> E3["▶ 4. Desarrollo"]:::active --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  E0["✓ 1. Spec"]:::done --> E1["✓ 2. Plan"]:::done --> E2["✓ 3. Tareas"]:::done --> E3["✓ 4. Desarrollo"]:::done --> E4["▶ 5. Verificación"]:::active --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -1294,12 +1294,11 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 1 tarea sin terminar.
-- ▶ T-268 · Remedición del Gemma 4 12B con el código actual (decisión del 2026-10-14, opción B): caso-00 completo, matrices de los casos 01, 02 y 06 y evals de la 001, contra el 27B de T-266 y T-263, para separar cuánto de la ventaja del 27B es del modelo y cuánto del código (ADR-0057, salvedad 1; ADR-0059, regla 5) (en curso)
+- **Próximo paso:** Verificar: el testeador evaluador cierra las tareas y entrega `informe-pruebas.md`.
 
 ### Qué se hizo
 
-- Etapas completas: Spec, Plan, Tareas.
+- Etapas completas: Spec, Plan, Tareas, Desarrollo.
 - ✓ T-233 · El dato del Portal que coincide con lo que exige el pliego propone «cumple» con la cita del Portal; si difiere, «no cumple» o la diferencia (garantía como porcentaje del total con tolerancia de un centavo, cotización por renglón, total, CUIT); los tests de la decisión literal del ADR-0043 se reescriben. Umbral: 100 % de los casos de prueba con dato que coincide dan «cumple» con cita del Portal; 0 «cumple» con dato que no coincide (`c917785f` 2026-10-11, `5d752b61` 2026-10-10)
 - ✓ T-234 · Matriz: la cita se amplía por código hasta la unidad de sentido (módulo compartido `sentences.py`): la oración completa más las oraciones cortas contiguas del mismo asunto (ADR-0054, regla 3); dos fragmentos de la misma unidad son una fila, el encabezado del inciso viaja en el pedido y se ve en la fila; el fragmento original del modelo queda registrado (`d3db8602` 2026-10-11, `58e415c0` 2026-10-10)
 - ✓ T-250 · Esquema de los motivos de descarte nuevos (consecuencia en la extracción, condición opcional, pago o factura, forma de presentar por el Portal, compromiso al presentarse): `DiscardReason`, `FilterMotive`, `FILTER_MOTIVES` y una migración de `tenders`, a cargo de un solo agente (enmienda del ADR-0019) (`ae327ac0` 2026-10-10)
@@ -1320,6 +1319,7 @@ flowchart LR
 - ✓ T-264 · Fundamento visible en las pantallas del expediente (dictamen de la 015, hallazgos 1, 2 y 4; decisión del 2026-10-13 sobre la visión): el dato del Portal con su enlace y la fecha en que se tomó; la cita de una página leída por visión con la marca, el aviso de que proviene de una página con dificultades de lectura y conviene volver a chequearla, y el enlace para ver la imagen (Evaluación y detalle del par, Preguntas, Descartes, informe técnico, ficha de Ofertas, pantalla de la 004 y exportaciones); el panel de pendientes lleva a la ficha de la pestaña; Descartes sin una consulta por motivo; `specs/` montada en el servicio `app` (`0f216ca5` 2026-10-13, `27aaf797` 2026-10-13, `650bc310` 2026-10-13, `a110bca2` 2026-10-13, `b11f6ded` 2026-10-13, `a2623398` 2026-10-13, `d3ff9b62` 2026-10-13, `332eaf23` 2026-10-13, `24f9b57b` 2026-10-13, `344b1466` 2026-10-13, `bf400583` 2026-10-13)
 - ✓ T-265 · Extracción sin descartar la nota de un anexo que obliga (D-263-1): la `matriz-extraccion-v11` descarta como «formulario» la nota de un anexo que en la v10 daba requisitos (caso-01: las filas que suprime la circular 1, REQ-031 de 13 a 7 de 15); `matriz-extraccion-v12` sin perder la presentación física de T-262 ni sumar la cláusula del formulario del Portal, y sin calcar textos del caso-01 (validación, ADR-0059) (`5e95e4b3` 2026-10-13, `b0c2a37d` 2026-10-13, `f13a55bf` 2026-10-13, `1b99fb65` 2026-10-13)
 - ✓ T-266 · Medición final de la 015 (una sola tanda de GPU): matrices del caso-00, de validación (01, 02 y 06) y de prueba (03, 04 y 05, una corrida con la configuración final) con T-265; en la misma tanda, T-249 (lo que cambió T-248) y las evals de la 001 con la Consulta en el 27B (T-255), contra la spec 015 y el ADR-0059
+- ✓ T-268 · Remedición del Gemma 4 12B con el código actual (decisión del 2026-10-14, opción B): caso-00 completo, matrices de los casos 01, 02 y 06 y evals de la 001, contra el 27B de T-266 y T-263, para separar cuánto de la ventaja del 27B es del modelo y cuánto del código (ADR-0057, salvedad 1; ADR-0059, regla 5)
 - ✓ T-237 · Instrucciones de la evaluación (evaluación, contraste, cláusulas): `razonamiento`, citas y externo antes del veredicto en el esquema, cita de la oración completa en lugar del «fragmento mínimo», «cada condición con su dato» con el resultado de cada una visible por separado y el de la celda derivado de todas (REQ-104), definición de la duda, ejemplos balanceados, pregunta dirigida a la Comisión, reintento con memoria, versión y huella en cada pedido (`4006149b` 2026-10-11, `eb82337d` 2026-10-11, `12a87b87` 2026-10-11, `9f223630` 2026-10-11, `3a4234f0` 2026-10-11, `8a06a96f` 2026-10-11, `08d79acf` 2026-10-11)
 - ✓ T-251 · Código listo para medir otro modelo: el cuerpo del pedido de lotes dice el modelo que lo atiende y los tokens de los lotes se cuentan con ese motor (hoy con `generation`, que es Gemma) (`70b4a611` 2026-10-11, `32aa9aea` 2026-10-11, `a1aa7c2b` 2026-10-11)
 - ✓ T-238 · Medidas de la 015 en `medir_matriz` y `medir_evaluacion` (filas conservadas, pedazos sin sujeto, recall sin las entradas excluidas, celdas del Portal, «no determinado» que no espera un documento ausente, forma de las preguntas) y listas esperadas ajustadas con huella y visto bueno del Coordinador (`df43d49d` 2026-10-11, `2ebdf6a8` 2026-10-10)
@@ -1359,7 +1359,7 @@ flowchart TD
   T264["✓ T-264 · Fundamento visible en las pantallas del exp…"]:::done
   T265["✓ T-265 · Extracción sin descartar la nota de un anex…"]:::done
   T266["✓ T-266 · Medición final de la 015 (una sola tanda de…"]:::done
-  T268["▶ T-268 · Remedición del Gemma 4 12B con el código ac…"]:::active
+  T268["✓ T-268 · Remedición del Gemma 4 12B con el código ac…"]:::done
   T237["✓ T-237 · Instrucciones de la evaluación (evaluación,…"]:::done
   T251["✓ T-251 · Código listo para medir otro modelo: el cue…"]:::done
   T238["✓ T-238 · Medidas de la 015 en medir_matriz y medir_e…"]:::done
@@ -1439,4 +1439,4 @@ flowchart TD
 | REQ-104 | En la evaluación, el sistema razona antes de dar el veredicto, revisa todas las condiciones del requisito, cada una con su dato y su resultado visible por separado («cumple» solo si se cumplen todas; «no cumple» si falla alguna; si falta el dato de alguna, «no determinado» diciendo cuál), cita la oración completa de la oferta y del pliego, y el contraste ve el contexto de la cita | T-235, T-256, T-257, T-259, T-260, T-261, T-263, T-264, T-237, T-238, T-239, T-240, T-241 | ✓ cubierto |
 | REQ-105 | Cada pregunta a la Comisión está dirigida a la Comisión (nunca al oferente) y dice qué requisito, qué conclusión y qué texto la motivan; no hay preguntas de texto fijo genérico | T-235, T-256, T-257, T-260, T-263, T-237, T-238, T-239, T-240, T-241 | ✓ cubierto |
 | REQ-106 | Todas las instrucciones al modelo (matriz, evaluación, contraste, visión, ficha, consulta) se revisan contra las decisiones vigentes y entre sí: sin reglas que empujen al error, con ejemplos representativos, razonamiento antes del veredicto y la versión registrada en cada pedido (P6) | T-236, T-252, T-266, T-237, T-248, T-249 | ✓ cubierto |
-| REQ-107 | Un modelo nuevo se adopta solo si, con el uso corregido, el mismo caso y la misma lista esperada, mejora las medidas de REQ-101 a REQ-105 sin empeorar contradicciones, citas, tiempo ni memoria, con cada cambio explicado | T-253, T-254, T-255, T-256, T-260, T-263, T-266, T-268, T-251, T-242, T-243, T-244, T-245, T-246, T-247 | ▶ en proceso |
+| REQ-107 | Un modelo nuevo se adopta solo si, con el uso corregido, el mismo caso y la misma lista esperada, mejora las medidas de REQ-101 a REQ-105 sin empeorar contradicciones, citas, tiempo ni memoria, con cada cambio explicado | T-253, T-254, T-255, T-256, T-260, T-263, T-266, T-268, T-251, T-242, T-243, T-244, T-245, T-246, T-247 | ✓ cubierto |

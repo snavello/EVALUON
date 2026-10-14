@@ -91,7 +91,7 @@ Decisión literal del responsable (2026-10-12): «Sí; Consulta con el 27B».
 
 ## Salvedades
 
-1. **La referencia del 12B es de antes de T-254.** El 12B se midió con el código `5671425` y el 27B de T-244d con `8e3f2f2` (el responsable pidió no repetir el 12B). Parte de la ventaja en filas conservadas (84,8 % contra 53,7 %) puede ser del código: las 10 filas del formulario de la declaración jurada pueden deberse a T-254, y los 6 requisitos que el 27B recupera contra T-244 los traía el 12B con el código anterior, así que contra el 12B no son mejora. Las 9 filas restantes que el 27B no propone ya no las proponía con el código anterior (T-244): vienen del modelo.
+1. **La referencia del 12B es de antes de T-254.** El 12B se midió con el código `5671425` y el 27B de T-244d con `8e3f2f2` (el responsable pidió no repetir el 12B). Parte de la ventaja en filas conservadas (84,8 % contra 53,7 %) puede ser del código: las 10 filas del formulario de la declaración jurada pueden deberse a T-254, y los 6 requisitos que el 27B recupera contra T-244 los traía el 12B con el código anterior, así que contra el 12B no son mejora. Las 9 filas restantes que el 27B no propone ya no las proponía con el código anterior (T-244): vienen del modelo. **Resuelta el 2026-10-14 por T-268** (ver la actualización de esa fecha, al final).
 2. **El caso-06 tiene un requisito menos que el 12B:** 33 de 37 contra 34 de 37, la prórroga automática del mantenimiento, que en el caso-00 falta en todas las variantes. El caso-02 llega al 95,9 %.
 3. **Las metas absolutas de la spec no se cumplen**, como tampoco las cumplía el 12B: lista presente 93,0 % (meta 95 %), Portal 76,2 % (meta 100 %), «no determinado» 22,2 % (meta 15 %). Lo que falta pasa a la lista de revisión con el primer producto, con su impacto (ADR-0024 y ADR-0025): en el caso-00, 5 de 21 celdas del Portal no llegan a «cumple» y 18 de 81 celdas quedan «no determinado» sin esperar un documento ausente. No se perdió ningún requisito ni se violó un principio, así que no hay otra ronda.
 4. **Una sola medición por variante** y la evaluación de la configuración elegida es idéntica a la de T-244b (T-244d). Los casos 01 y 02 no tienen referencia del 12B con el código de T-241 (H-244-6 impidió medirlos).
@@ -104,3 +104,22 @@ Borrar o comentar en `.env` las líneas `COMPOSE_FILE`, `COMPOSE_PATH_SEPARATOR`
 ## Actualización 2026-10-14: la Consulta en el 27B
 
 T-255 lleva la Consulta al motor de lotes del 27B con `docker-compose.consulta-27b.yml` (sin razonamiento, con aviso mientras el motor está ocupado o no responde). `generation` y `docker-compose.sin-consulta.yml` no se quitan: quedan para el 27B sin Consulta y para volver al 12B. T-266 midió las evals de la 001 con el 27B: cumplen el ADR-0002 igual que el 12B, el lote de ajuste no baja leído uno por uno y el tiempo sube 2,4 veces (mediana 9,30 s, máximo 21,89 s). Con la decisión del responsable del 2026-10-13 («Sí, encenderla» si no baja la calidad) y la del 2026-10-14 (calidad antes que tiempo), la Consulta queda encendida en 8000.
+
+## Actualización 2026-10-14: el 12B medido con el mismo código (T-268)
+
+La comparación de este ADR mezclaba modelo y código: el 12B se midió con `5671425` y el 27B con `8e3f2f2` (salvedad 1), aunque el ADR-0056 pedía «mismo commit del código». Además, con la medida corregida de T-256 varias ventajas de la tabla de la alternativa A se achican. Por decisión del responsable del 2026-10-14 («1 ok.  hacelo ya.», spec 015), T-268 midió una vez el 12B con el código actual de `main` (6597e548), todo igual salvo el modelo y con el umbral escrito antes de medir (`tasks.md`, T-268; ADR-0059, regla 5):
+
+| Medida | 12B (T-268) | 27B (T-266; evaluación de T-263) |
+|---|---|---|
+| Filas firmes con pareja: 00 / 01 / 02 / 06 | 68,2 % / 44,2 % / 74,8 % / 67,5 % | 96,7 % / 96,3 % / 92,8 % / 95,8 % |
+| Lista presente: 00 / 01 / 02 / 06 | 41/42, 79/80, 94/97, 35/35 | 41/42, 79/80, 95/97, 35/35 |
+| Evaluación del caso-00 (exactas / abstenciones / erradas, de 48) | 25 / 22 / 1 | 30 / 17 / 1 |
+| «Cumple» sin fundamento; contradicciones con la Comisión | 0; 0 | 0; 0 |
+| Evals de la 001 (aceptación, abstención, cita literal) | 16/17, 6/6, 104/104 | 16/17, 6/6, 116/116 |
+| Tiempo del caso-00 completo | 54,5 min | 102,4 min |
+| Consulta: mediana y máximo | 4,66 s y 10,88 s | 9,30 s y 21,89 s |
+| Memoria de video máxima | 10.906 MiB | 21.217 MiB |
+
+**Veredicto (a): la ventaja del 27B en la precisión de la matriz es del modelo.** Supera al 12B por 18 a 52 puntos en los 4 casos, y el 12B casi no cambia con el código nuevo (caso-00: 64,6 % → 68,2 %; caso-06: 63,2 % → 67,5 %). En cambio, lo que la lista presente ganó desde T-241 es del código: el 12B también lo gana. En la evaluación de las ofertas no se distingue con un solo caso (3 filas a favor del 12B y 4 del 27B; ADR-0059, regla 3), y en la Consulta los dos cumplen el ADR-0002.
+
+**Corrección de lo que se dijo al adoptarlo.** El 27B no «mejoró cinco medidas con el mismo uso»: con el mismo código, la evaluación y la Consulta empatan. La adopción se justifica por la matriz: la Comisión tiene que borrar muchas menos filas, que es el problema que originó la spec 015. Se mantiene el 27B, con su costo: casi el doble de tiempo, la Consulta 2 veces más lenta y bloqueada mientras corre un trabajo, y 783 MiB de margen de memoria. El informe 2 de los entregables del 2026-10-14 se corrigió en el mismo sentido.
