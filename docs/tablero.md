@@ -14,7 +14,7 @@ flowchart LR
   F004["▶ 004 · Evaluación asistida de ofertas"]:::active
   F005["○ 005 · Hojas de compliance"]:::todo
   F006["○ 006 · Salidas de la evaluación"]:::todo
-  F007["○ 007 · Acceso por red"]:::todo
+  F007["▶ 007 · Acceso por red"]:::active
   F008["▶ 008 · Ofertas y ficha por oferta"]:::active
   F009["○ 009 · Validación continua con la Co…"]:::todo
   F010["○ 010 · Asistente técnico"]:::todo
@@ -63,7 +63,7 @@ flowchart LR
 | [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 5 de 7 · Verificación | 30/30 | ██████████ 100% |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
-| 007 · Acceso por red | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | No iniciada | — | — |
+| [007 · Acceso por red](#007) | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | 2 de 7 · Plan | — | — |
 | [008 · Ofertas y ficha por oferta](#008) | La carga de cada oferta en varios documentos (PDF con texto o escaneado) y una ficha por oferta: síntesis de lo ofrecido frente a cada requisito de la matriz, con los documentos y fragmentos que lo respaldan | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | 009 · Validación continua con la Comisión | Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus respuestas. Cada cuestión resuelta puede quedar como fundamento (ADR-0009), como caso para medir al sistema o como pedido de cargar una norma o un documento. Lo que queda sin validar se ve como pendiente. Uso intensivo al principio, y después ante cuestiones que no se saben resolver | No iniciada | — | — |
 | 010 · Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | No iniciada | — | — |
@@ -92,8 +92,8 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 2 tareas sin terminar.
-- ✕ T-049 · Levantar todo desde cero y dejar datos para el runbook (bloqueada)
 - ✕ T-066 · Casos y corrida corta de REQ-019 (bloqueada)
+- ▶ T-049 · Levantar todo desde cero y dejar datos para el runbook (en curso)
 
 ### Qué se hizo
 
@@ -215,7 +215,7 @@ flowchart TD
   T046["✓ T-046 · Correr las evals y medir tiempo y memoria"]:::done
   T047["✓ T-047 · Probar una consulta con la red desconectada"]:::done
   T048["✓ T-048 · Probar el respaldo y la restauración de la…"]:::done
-  T049["✕ T-049 · Levantar todo desde cero y dejar datos para…"]:::blocked
+  T049["▶ T-049 · Levantar todo desde cero y dejar datos para…"]:::active
   T050["✓ T-050 · Partir la 297/03 y el cuerpo de la 247/2022…"]:::done
   T051["✓ T-051 · Registrar las modificatorias sin cargar de…"]:::done
   T052["✓ T-052 · Avisar modificatorias sin cargar en respues…"]:::done
@@ -361,11 +361,11 @@ flowchart TD
 | REQ-009 | Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada | T-002, T-003, T-011, T-017, T-018, T-019, T-034, T-039, T-040, T-042, T-045, T-046, T-060, T-061, T-062, T-063, T-064, T-065 | ✓ cubierto |
 | REQ-010 | El sistema debe permitir buscar unidades por norma y número de artículo, y por palabras del texto, desde la pantalla de consulta. La búsqueda muestra solo las unidades vigentes a la fecha de autorización; las derogadas aparecen solo si la persona lo pide expresamente, marcadas como tales | T-004, T-009, T-035, T-041, T-053, T-056, T-057 | ✓ cubierto |
 | REQ-011 | El sistema debe avisar cuando se intenta cargar una norma que ya está incorporada. Si es el mismo archivo, no lo incorpora; si es la misma norma en otro archivo o formato, pide confirmación expresa | T-008, T-026 | ✓ cubierto |
-| REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | T-007, T-008, T-010, T-014, T-015, T-019, T-020, T-026, T-038, T-040, T-041, T-048, T-049, T-051, T-052, T-054, T-056 | ✕ bloqueado |
+| REQ-012 | El sistema debe registrar cada carga, validación y consulta con lo necesario para reconstruirla: quién, cuándo, sobre qué versión de la normativa, qué se recuperó y qué se respondió | T-007, T-008, T-010, T-014, T-015, T-019, T-020, T-026, T-038, T-040, T-041, T-048, T-049, T-051, T-052, T-054, T-056 | ▶ en proceso |
 | REQ-013 | El sistema debe ofrecer una pantalla de consulta donde una persona escribe su pregunta y ve la respuesta con sus citas; desde cada cita se ve el texto literal de la unidad y se puede abrir la norma original | T-005, T-016, T-019, T-020, T-037, T-047, T-055 | ✓ cubierto |
 | REQ-014 | La pantalla de consulta debe distinguir a simple vista una respuesta con fundamento de un resultado "no determinado" | T-016, T-037 | ✓ cubierto |
 | REQ-015 | El sistema debe incorporar normas en tres formatos: PDF con texto, PDF escaneado y página web guardada. Cuando el texto de una unidad se obtuvo por reconocimiento sobre una imagen, debe quedar indicado en la unidad y en el informe de lectura | T-012, T-021, T-022, T-025, T-028, T-037, T-043 | ✓ cubierto |
-| REQ-016 | El sistema debe exigir usuario y clave para ingresar. Cada usuario tiene un rol: lectura, que permite consultar y buscar; o lectura y escritura, que además permite cargar y validar normas y registrar relaciones y versiones | T-005, T-006, T-007, T-038, T-049 | ✕ bloqueado |
+| REQ-016 | El sistema debe exigir usuario y clave para ingresar. Cada usuario tiene un rol: lectura, que permite consultar y buscar; o lectura y escritura, que además permite cargar y validar normas y registrar relaciones y versiones | T-005, T-006, T-007, T-038, T-049 | ▶ en proceso |
 | REQ-017 | El sistema debe registrar la categoría de cada documento: régimen específico, otra normativa aplicable, marco nacional, dictamen legal o recomendación de auditoría | T-008, T-014 | ✓ cubierto |
 | REQ-018 | Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional se presentan como marco; los dictámenes y las recomendaciones se presentan como criterio que acompaña; los considerandos se presentan como contexto, identificados como tales y después del articulado | T-033, T-034, T-037, T-040, T-046 | ✓ cubierto |
 | REQ-019 | Cuando el régimen específico y el marco nacional tratan el mismo punto de manera distinta, la respuesta debe mostrar ambos textos y señalar el del régimen específico como el aplicable | T-033, T-034, T-037, T-040, T-046, T-066 | ✕ bloqueado |
@@ -806,6 +806,44 @@ flowchart TD
 | REQ-058 | El sistema debe mostrar, por oferta, el estado de la evaluación: requisitos por estado y preguntas abiertas. | T-152 | ✓ cubierto |
 | REQ-059 | La evaluación se pide para todas las ofertas del procedimiento a la vez y se presenta como una **matriz de evaluación** (ofertas por requisitos). Las ofertas que no cumplen requisitos formales o técnicos quedan señaladas como descartadas, con el requisito y su fundamento, y las demás se **ordenan por lo económico** (precio total y por renglón, con la cotización del Portal cuando la hay). El descarte y el orden son propuestas: decide la Comisión. | T-149, T-150, T-152, T-155, T-156, T-157, T-161, T-162, T-163, T-171 | ✓ cubierto |
 | REQ-060 | Cuando el pliego exige un documento que no está en la oferta, el resultado es "no se encontró el documento", con la cita del pliego; no es "no cumple". La Comisión decide: puede pedir que se subsane y, si el oferente lo presenta, el documento se agrega a la oferta y ese requisito se vuelve a evaluar, con registro de todo el recorrido. | T-149, T-150, T-151, T-154 | ✓ cubierto |
+
+<a id="007"></a>
+
+## 007 · Acceso por red
+
+**Etapa actual:** 2 de 7 · Plan · [carpeta](../specs/007-acceso-por-red)
+
+```mermaid
+flowchart LR
+  E0["✓ 1. Spec"]:::done --> E1["▶ 2. Plan"]:::active --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
+
+### Qué falta
+
+- **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
+
+### Qué se hizo
+
+- Etapas completas: Spec.
+
+### Requisitos
+
+| Requisito | Descripción | Tareas | Estado |
+|---|---|---|---|
+| REQ-109 | La aplicación se puede usar desde las computadoras de una lista de autorizadas que mantiene el responsable del sistema, con una dirección fija, las mismas pantallas y los mismos roles que en el equipo del sistema. Desde las demás computadoras de la red no se llega a la aplicación. Agregar o quitar una computadora no requiere cambiar el código | — | — |
+| REQ-110 | Toda comunicación entre la computadora del usuario y EVALUON va cifrada. Un pedido sin cifrar no muestra contenido: se redirige a la dirección cifrada. El navegador de las computadoras autorizadas no muestra advertencias de seguridad al entrar | — | — |
+| REQ-111 | Tras 5 intentos fallidos seguidos para un mismo usuario, ese usuario queda bloqueado durante 15 minutos, aunque después se escriba la clave correcta. El mensaje de rechazo es el mismo para usuario inexistente, clave equivocada y usuario bloqueado. Las mismas reglas valen para los comandos que piden usuario y clave | — | — |
+| REQ-112 | El responsable del sistema puede desbloquear un usuario antes de que venza el plazo; el desbloqueo queda registrado con quién lo hizo y cuándo | — | — |
+| REQ-113 | Cada ingreso, salida, intento fallido, bloqueo y desbloqueo queda registrado con el usuario (o el nombre tal como se escribió), la computadora de origen, la fecha y la hora, y el responsable del sistema lo puede consultar | — | — |
+| REQ-114 | Cada usuario puede cambiar su clave; para hacerlo escribe la actual. El sistema exige una clave nueva de al menos 8 caracteres y rechaza las muy comunes. Un usuario dado de alta con clave inicial debe cambiarla en su primer ingreso | — | — |
+| REQ-115 | Una sesión sin uso durante 30 minutos se cierra; también se cierra a las 8 horas de iniciada y al cerrar el navegador. Lo que el usuario ya guardó no se pierde | — | — |
+| REQ-116 | Desde otra computadora solo se llega a la aplicación: la base de datos, los motores de IA y los demás servicios internos no aceptan conexiones de fuera del equipo del sistema | — | — |
+| REQ-117 | Los documentos del proceso en curso (reservados hasta el dictamen) y todo lo que el sistema produce sobre ellos (lecturas, matrices, evaluaciones, preguntas, consultas y registros) se procesan solo en el equipo del sistema, con IA local, en una instancia separada de la que usa la construcción. No se copian al repositorio, a las pruebas, a las mediciones ni a los respaldos de construcción, y los agentes de IA que construyen EVALUON no acceden a esa instancia ni a sus respaldos. Lo que el responsable decida compartir del piloto con la construcción son cifras agregadas, sin textos. Excepción mientras se estabiliza el piloto (ADR-0060): los agentes pueden leer la instancia del piloto, pero el material nunca va al repositorio ni a las pruebas | — | — |
 
 <a id="008"></a>
 
