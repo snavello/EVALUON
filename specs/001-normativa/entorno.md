@@ -2593,7 +2593,8 @@ La quinta orden comprueba la base restaurada; la última borra solo la base apar
 
 - **Separar el usuario de la aplicación del dueño del esquema en la base.** El trigger de solo inserción de `audit_event` (T-007) no frena un `TRUNCATE`, ni impide que el dueño de la tabla lo desactive. Hoy la aplicación se conecta con `POSTGRES_USER`, que es superusuario y dueño de todo. Lo decidió el responsable el 2026-10-02: se resuelve en el despliegue. Con la separación, `pg_restore` necesita al dueño o a un superusuario para crear `vector` y `unaccent`.
 - **Salida a internet de `app` por la red `web`** (T-047). Pliegos y ofertas pasan por `app`: decidir si esa salida se corta, con firewall o con un proxy inverso en una red sin salida. Se cruza con el acceso por red de la spec 007.
-- **Construcción de la imagen con Norton** (falla 1), si la instancia del piloto se instala en un equipo limpio.
+- ~~Construcción de la imagen con Norton~~ (falla 1): **resuelta el 2026-10-14.** El responsable desinstaló Norton; Microsoft Defender quedó activo. Después del reinicio, el certificado de `pypi.org` lo firma GlobalSign y `docker build --no-cache` de la imagen de la aplicación (en una copia limpia, con otra etiqueta para no tocar `evaluon-app:local` de 8000) terminó con 0 en 42 s, sin `CERTIFICATE_VERIFY_FAILED` (Coordinador).
+- **Prefijo de los comandos en una segunda instancia** (O-049-8 de la verificación): la sección T-043 indica `docker compose -p evaluon …` delante de cada comando; `evaluon` es el proyecto de 8000. En el runbook de una segunda instancia, los comandos van sin `-p evaluon`, con el `COMPOSE_PROJECT_NAME` de su `.env`.
 - **Nombre configurable de la imagen de la aplicación,** si 8000 y la instancia del piloto van a correr versiones distintas en el mismo equipo.
 
 ### 8000 durante la prueba y al terminar
