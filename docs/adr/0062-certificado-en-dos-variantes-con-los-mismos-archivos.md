@@ -1,6 +1,6 @@
 # ADR-0062 · Certificado de la conexión cifrada en dos variantes, con los mismos archivos
 
-Estado: propuesto (versión 3, mínima) · Fecha: 2026-10-14 · Propuso: planificador (plan 007) · Decidió: —
+Estado: aceptado (versión 3, mínima) · Fecha: 2026-10-14 · Propuso: planificador (plan 007) · Decidió: responsable del proyecto (2026-10-14, «Ok», con el plan 007)
 
 ## Contexto
 

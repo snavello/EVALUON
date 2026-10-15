@@ -1,6 +1,6 @@
 # Plan 007 · Acceso por red
 
-Estado: propuesto (versión 3, mínima, por decisión del responsable del 2026-10-14) · Fecha: 2026-10-14 · Aprobó: —
+Estado: aprobado (versión 3, mínima, por decisión del responsable del 2026-10-14) · Fecha: 2026-10-14 · Aprobó: responsable del proyecto (2026-10-14, «Ok»)
 
 Spec: `specs/007-acceso-por-red/spec.md` (aprobada el 2026-10-14; enmendada el mismo día, versión mínima)
 

@@ -63,7 +63,7 @@ flowchart LR
 | [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 5 de 7 · Verificación | 30/30 | ██████████ 100% |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
-| [007 · Acceso por red](#007) | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | 2 de 7 · Plan | 0/4 | ░░░░░░░░░░ 0% |
+| [007 · Acceso por red](#007) | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | 4 de 7 · Desarrollo | 0/4 | ░░░░░░░░░░ 0% |
 | [008 · Ofertas y ficha por oferta](#008) | La carga de cada oferta en varios documentos (PDF con texto o escaneado) y una ficha por oferta: síntesis de lo ofrecido frente a cada requisito de la matriz, con los documentos y fragmentos que lo respaldan | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | 009 · Validación continua con la Comisión | Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus respuestas. Cada cuestión resuelta puede quedar como fundamento (ADR-0009), como caso para medir al sistema o como pedido de cargar una norma o un documento. Lo que queda sin validar se ve como pendiente. Uso intensivo al principio, y después ante cuestiones que no se saben resolver | No iniciada | — | — |
 | 010 · Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | No iniciada | — | — |
@@ -811,11 +811,11 @@ flowchart TD
 
 ## 007 · Acceso por red
 
-**Etapa actual:** 2 de 7 · Plan · [carpeta](../specs/007-acceso-por-red)
+**Etapa actual:** 4 de 7 · Desarrollo · [carpeta](../specs/007-acceso-por-red)
 
 ```mermaid
 flowchart LR
-  E0["✓ 1. Spec"]:::done --> E1["▶ 2. Plan"]:::active --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  E0["✓ 1. Spec"]:::done --> E1["✓ 2. Plan"]:::done --> E2["✓ 3. Tareas"]:::done --> E3["▶ 4. Desarrollo"]:::active --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -825,21 +825,21 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Aprobar el plan (compuerta del responsable).
-- ○ T-269 · Corte vertical: Caddy en Windows con certificado, lista y firewall, los pasos del responsable en `entorno.md`, y Django detrás del intermediario. Se verifica con el ingreso cifrado desde una computadora de la lista, con un usuario de prueba y el caso chico (pendiente)
+- **Próximo paso:** Desarrollar: 4 tareas sin terminar.
+- ▶ T-269 · Corte vertical: Caddy en Windows con certificado, lista y firewall, los pasos del responsable en `entorno.md`, y Django detrás del intermediario. Se verifica con el ingreso cifrado desde una computadora de la lista, con un usuario de prueba y el caso chico (en curso)
 - ○ T-270 · Bloqueo de 5 intentos y 15 minutos con mensaje genérico también en comandos, registro con la computadora de origen y la salida, `desbloquear_usuario` y `ver_accesos` en el equipo; el esquema de la feature (pendiente)
 - ○ T-271 · Cambio de clave (mínimo 8, comunes, distinta de la actual), clave inicial obligatoria y `clave_inicial`; cierre de sesión a los 30 minutos y a las 8 horas, sin contar el sondeo ni las tres recargas automáticas (pendiente)
 - ○ T-272 · Prueba en la red con el caso chico, con el responsable: 5 de 5 secciones desde una computadora de la lista y los umbrales del plan, con la GPU de 8000 (pendiente)
 
 ### Qué se hizo
 
-- Etapas completas: Spec.
+- Etapas completas: Spec, Plan, Tareas.
 
 ### Mapa de tareas
 
 ```mermaid
 flowchart TD
-  T269["○ T-269 · Corte vertical: Caddy en Windows con certif…"]:::todo
+  T269["▶ T-269 · Corte vertical: Caddy en Windows con certif…"]:::active
   T270["○ T-270 · Bloqueo de 5 intentos y 15 minutos con mens…"]:::todo
   T271["○ T-271 · Cambio de clave (mínimo 8, comunes, distint…"]:::todo
   T272["○ T-272 · Prueba en la red con el caso chico, con el…"]:::todo
@@ -857,14 +857,14 @@ flowchart TD
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-109 | La aplicación se puede usar desde las computadoras de una lista de autorizadas que mantiene el responsable del sistema, con una dirección fija, las mismas pantallas y los mismos roles que en el equipo del sistema. Desde las demás computadoras de la red no se llega a la aplicación. Agregar o quitar una computadora no requiere cambiar el código | T-269, T-272 | ○ pendiente |
-| REQ-110 | Toda comunicación entre la computadora del usuario y EVALUON va cifrada. Un pedido sin cifrar no muestra contenido: se redirige a la dirección cifrada. El navegador de las computadoras autorizadas no muestra advertencias de seguridad al entrar | T-269, T-272 | ○ pendiente |
+| REQ-109 | La aplicación se puede usar desde las computadoras de una lista de autorizadas que mantiene el responsable del sistema, con una dirección fija, las mismas pantallas y los mismos roles que en el equipo del sistema. Desde las demás computadoras de la red no se llega a la aplicación. Agregar o quitar una computadora no requiere cambiar el código | T-269, T-272 | ▶ en proceso |
+| REQ-110 | Toda comunicación entre la computadora del usuario y EVALUON va cifrada. Un pedido sin cifrar no muestra contenido: se redirige a la dirección cifrada. El navegador de las computadoras autorizadas no muestra advertencias de seguridad al entrar | T-269, T-272 | ▶ en proceso |
 | REQ-111 | Tras 5 intentos fallidos seguidos para un mismo usuario, ese usuario queda bloqueado durante 15 minutos, aunque después se escriba la clave correcta. El mensaje de rechazo es el mismo para usuario inexistente, clave equivocada y usuario bloqueado. Las mismas reglas valen para los comandos que piden usuario y clave | T-270, T-272 | ○ pendiente |
 | REQ-112 | El responsable del sistema puede desbloquear un usuario antes de que venza el plazo, desde el equipo del sistema; el desbloqueo queda registrado con quién lo hizo y cuándo | T-270, T-272 | ○ pendiente |
 | REQ-113 | Cada ingreso, salida, intento fallido, bloqueo y desbloqueo queda registrado con el usuario (o el nombre tal como se escribió), la computadora de origen, la fecha y la hora, y el responsable del sistema lo puede consultar | T-270, T-272 | ○ pendiente |
 | REQ-114 | Cada usuario puede cambiar su clave; para hacerlo escribe la actual. El sistema exige una clave nueva de al menos 8 caracteres y rechaza las muy comunes. Un usuario dado de alta con clave inicial debe cambiarla en su primer ingreso | T-271, T-272 | ○ pendiente |
 | REQ-115 | Una sesión sin uso durante 30 minutos se cierra; también se cierra a las 8 horas de iniciada y al cerrar el navegador. Lo que el usuario ya guardó no se pierde | T-271, T-272 | ○ pendiente |
-| REQ-116 | Desde otra computadora solo se llega a la aplicación: la base de datos, los motores de IA y los demás servicios internos no aceptan conexiones de fuera del equipo del sistema | T-269, T-272 | ○ pendiente |
+| REQ-116 | Desde otra computadora solo se llega a la aplicación: la base de datos, los motores de IA y los demás servicios internos no aceptan conexiones de fuera del equipo del sistema | T-269, T-272 | ▶ en proceso |
 | REQ-117 | Los documentos del proceso en curso (reservados hasta el dictamen) y todo lo que el sistema produce sobre ellos (lecturas, matrices, evaluaciones, preguntas, consultas y registros) se procesan solo en el equipo del sistema, con IA local. Al terminar la estabilización quedan en una instancia separada de la que usa la construcción; mientras dura, el piloto usa la instancia de siempre (decisión del 2026-10-14, versión mínima). No se copian al repositorio, a las pruebas, a las mediciones ni a los respaldos de construcción, y los agentes de IA que construyen EVALUON no acceden a esa instancia ni a sus respaldos. Lo que el responsable decida compartir del piloto con la construcción son cifras agregadas, sin textos. Excepción mientras se estabiliza el piloto (ADR-0060): los agentes pueden leer la instancia del piloto, pero el material nunca va al repositorio ni a las pruebas | T-272 | ○ pendiente |
 
 <a id="008"></a>

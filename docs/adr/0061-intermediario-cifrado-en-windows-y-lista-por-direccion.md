@@ -1,6 +1,6 @@
 # ADR-0061 · Intermediario cifrado en Windows y lista de computadoras por dirección fija
 
-Estado: propuesto (versión 3, mínima) · Fecha: 2026-10-14 · Propuso: planificador (plan 007) · Decidió: —
+Estado: aceptado (versión 3, mínima) · Fecha: 2026-10-14 · Propuso: planificador (plan 007) · Decidió: responsable del proyecto (2026-10-14, «Ok», con el plan 007)
 
 ## Contexto
 

@@ -22,6 +22,7 @@ Lo que ya existe y se mantiene: ingreso con usuario y clave, roles (lectura, lec
 | 2026-10-14 | Material reservado y P4 | «Cargarlo ya y que lo vea todo»: mientras se estabiliza el piloto, los agentes pueden leer el proceso en curso en la instancia del piloto; requiere enmendar P4 (ADR-0060, aceptado). |
 | 2026-10-14 | Aprobación | «todo si.»: se aprueban el ADR-0060 (constitución 1.5) y esta spec, y se retoma T-049 de la 001 (levantar todo desde cero para el runbook). |
 | 2026-10-14 | Versión mínima | «el sistema aun no ha sido probado y estamos poniendo mil trabas de seguridad. Ahora es una perdida de tiempo.» y, ante la propuesta de una versión mínima, «si»: una sola instancia (la de siempre) abierta a la red; solo lo que esta spec pide, de la forma más simple; el desbloqueo se hace en el equipo del sistema; la separación del proceso reservado (REQ-117) se hace al terminar la estabilización. Los endurecimientos que no pide la spec van a la lista de revisión con el primer producto. |
+| 2026-10-14 | Aprobación del plan | «Ok»: se aprueban el plan mínimo (T-269 a T-272) y los ADR-0061 a ADR-0063; el ADR-0064 queda rechazado. |
 | 2026-10-14 | Qué se carga en el piloto | «También el proceso en curso»: se cargan ofertas reservadas hasta el dictamen; ese material pasa a la fase de operación de P4 y se separa de los agentes y del repositorio (REQ-117). |
 
 ## Usuarios y escenarios

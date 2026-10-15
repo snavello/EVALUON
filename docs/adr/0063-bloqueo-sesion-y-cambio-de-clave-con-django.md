@@ -1,6 +1,6 @@
 # ADR-0063 · Bloqueo, sesión y cambio de clave con lo que trae Django
 
-Estado: propuesto (versión 3, mínima) · Fecha: 2026-10-14 · Propuso: planificador (plan 007) · Decidió: —
+Estado: aceptado (versión 3, mínima) · Fecha: 2026-10-14 · Propuso: planificador (plan 007) · Decidió: responsable del proyecto (2026-10-14, «Ok», con el plan 007)
 
 Enmienda el ADR-0005 en un punto: la clave olvidada.
 
