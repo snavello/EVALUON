@@ -23,7 +23,7 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
-| T-270 | Entorno del clon: `docker-compose.clon.yml` y `scripts/clon.sh` (proyecto `evaluon-016`, servicios `clon_*`, base restaurada de un respaldo nuevo, motor propio del 27B, `embeddings` y `reranker` de 8000 por red compartida, ventana de GPU con el cierre y la reapertura de 8000 comprobados), líneas del clon en `.env.example`, variable `BASE` (por omisión `main`) en `tools/cerrar.sh` y `entorno.md`; la rama `016-integracion` | REQ-125 | — | en verificación |
+| T-270 | Entorno del clon: `docker-compose.clon.yml` y `scripts/clon.sh` (proyecto `evaluon-016`, servicios `clon_*`, base restaurada de un respaldo nuevo, motor propio del 27B, `embeddings` y `reranker` de 8000 por red compartida, ventana de GPU con el cierre y la reapertura de 8000 comprobados), líneas del clon en `.env.example`, variable `BASE` (por omisión `main`) en `tools/cerrar.sh` y `entorno.md`; la rama `016-integracion` | REQ-125 | — | terminada |
 | T-271 | Formato de la verdad celda por celda y su cargador: `no_determinado`, fundamento, revisión, huella, congelado, clave por requisito `M-NNN`; `medir_evaluacion --verificar-verdad` (casos, celdas decididas, quién y cuándo, citas ubicadas, 0 corridas en aceptación); verdad del caso chico en el repositorio. Umbral: el caso chico da los conteos esperados y una cita inventada que no está se rechaza | REQ-118 | — | en curso |
 | T-272 | Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación | REQ-118 | T-270, T-271 | pendiente |
 | T-273 | Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada | REQ-118 | T-271, T-272 | pendiente |
@@ -73,6 +73,16 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Ventanas:** cada medición con GPU detiene el motor de lotes y el `worker` de 8000 (cola vacía, de noche o fin de semana) con `scripts/clon.sh` y vuelve a arrancar y a comprobar 8000 al terminar. Estimado de GPU: T-283 de 4 a 6 h; T-284 de 2 a 4 h; T-286 de 2 a 5 h según lo que cambie; T-293 y T-295 0,75 h cada una; T-296 unas 3 h; T-304 de 2 a 4 h; T-307 unas 2 h.
 - **Gasto externo (plan, «Costo y tope»):** T-292 ≤ 0,10 USD; T-293 y T-295 ≈ 1,20 USD cada una (hasta 2,40 y 3,20 en total con el caso-01); T-296 ≈ 0,90; T-301 y T-303 ≈ 0,60 cada una; T-304 ≈ 0,60 a 0,90; las segundas comparaciones, solo si corresponde, hasta 3,90 en total. Cada informe pega la salida de `gasto_externo`.
 - **Máximo sugerido en paralelo:** dos o tres desarrolladores (el Coordinador debe poder revisar cada resultado contra la spec).
+
+## Lista de revisión (hallazgos que no impiden integrar; se corrigen en una sola tarea por lote, ADR-0025)
+
+| Clave | De | Qué | Dónde se corrige |
+|---|---|---|---|
+| D-278-1, D-278-2, D-278-3 | T-278 (verificación, pasa) | Huecos de cobertura de las pruebas de instrucciones: nada fija las 6 palabras; no se detecta quitar el paso a minúsculas, leer solo parte del corpus ni medir sin el bloque de definiciones; una sección sin filas del informe no tiene prueba | T-279 (toca los mismos archivos) |
+| D-270-1 | T-270 (verificación, pasa con la ventana real pendiente) | `clon_app` y `clon_worker` alcanzan por nombre a `db`, `generation_batch` y `app` de 8000 en `evaluon_internal`; `entorno.md` dice lo contrario (sin daño hoy: contraseñas distintas y ninguna variable apunta ahí) | T-288 (toca los compose) o la tarea de la ventana real |
+| D-270-2 | T-270 | `nvidia-smi` informa 0 MiB con el 27B cargado desde el reinicio del equipo: la condición de GPU libre de `ventana-abrir` y la medida de memoria del umbral 11 no son confiables hasta resolverlo | Primera ventana real (Coordinador), antes de T-283 |
+| D-270-3 | T-270 | `restaurar` no tiene test de la condición `--forzar` | T-288 |
+| Ventana real | T-270 | `ventana-abrir` y `ventana-cerrar` sin ejecutar contra el motor del clon y 8000; la corre el Coordinador de noche y la registra como anexo de `verificacion/T-270.md` | Antes de T-283 |
 
 ## Detalle
 
