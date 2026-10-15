@@ -1,0 +1,102 @@
+# Verdad celda por celda del caso chico (T-271; plan 016, "Paso 1"; ADR-0069, REQ-118).
+# Caso INVENTADO y público (P4): ningún dato es real. Prueba el cargador, el conteo y la
+# comprobación de las citas con 3 requisitos (M-001, M-003 y M-004) de las 3 ofertas.
+# Las celdas se piden por oferta (número en el procedimiento) y requisito de la lista esperada
+# (`M-NNN`); la medida lo traduce a la fila de la matriz. Cada cita es un recorte literal de la
+# lectura de la oferta, en la página que se nombra. Una celda sin `revision` no se cuenta.
+procedimiento: CASO-CHICO-EVALUACION
+caso: caso-chico-evaluacion
+lote: ajuste
+huella: "490aa30a05242bf709d206a1e29211a9b13343cd168c516290b312e26dac50fd"
+armada_por:
+  agente: "Coordinador (caso chico inventado)"
+  fecha: 2026-10-15
+  fuentes: [pliego.pdf, evaluacion-esperada.yaml, lectura de las ofertas]
+visto_bueno: "Coordinador, 2026-10-15: verdad del caso chico para el corte vertical de T-271 (caso inventado)"
+celdas:
+  - oferta: 1
+    requisito: M-001
+    resultado: cumple
+    fundamento:
+      tipo: cita_oferta
+      documento: ofertas/oferente-a/oferta-propuesta.pdf
+      pagina: 1
+      texto: "Declaro bajo juramento que me encuentro habilitado para contratar con el organismo y que no estoy comprendido en ninguna causal de inhabilidad."
+      nota: "La declaración jurada no informa ninguna causal."
+    revision: {por: "Coordinador (caso chico inventado)", fecha: 2026-10-15, estado: confirmada}
+  - oferta: 1
+    requisito: M-003
+    resultado: cumple
+    fundamento:
+      tipo: cita_oferta
+      documento: ofertas/oferente-a/certificado-vigencia.pdf
+      pagina: 1
+      texto: "el contrato social de Oferente A Sintético se encuentra vigente a la fecha de este certificado"
+    revision: {por: "Coordinador (caso chico inventado)", fecha: 2026-10-15, estado: confirmada}
+  - oferta: 1
+    requisito: M-004
+    resultado: cumple
+    fundamento:
+      tipo: cita_oferta
+      documento: ofertas/oferente-a/documento-identidad.pdf
+      pagina: 1
+      texto: "Copia del documento de identidad sintético número 00.000.000, del representante legal de Oferente A Sintético."
+    revision: {por: "Coordinador (caso chico inventado)", fecha: 2026-10-15, estado: confirmada}
+  - oferta: 2
+    requisito: M-001
+    resultado: cumple
+    fundamento:
+      tipo: cita_oferta
+      documento: ofertas/oferente-b/oferta-propuesta.pdf
+      pagina: 1
+      texto: "Declaro bajo juramento que me encuentro habilitado para contratar con el organismo"
+    revision: {por: "Coordinador (caso chico inventado)", fecha: 2026-10-15, estado: confirmada}
+  - oferta: 2
+    requisito: M-003
+    resultado: no_determinado
+    fundamento:
+      tipo: pregunta
+      nota: "El certificado no está entre los documentos de la oferta; el documento firmado tiene una página sin leer."
+    pregunta: "¿El certificado de vigencia del contrato social está en la página que no se pudo leer del documento firmado?"
+    revision:
+      por: "Coordinador (caso chico inventado)"
+      fecha: 2026-10-15
+      estado: corregida
+      resultado_anterior: no_se_encontro_documento
+  - oferta: 2
+    requisito: M-004
+    resultado: no_determinado
+    fundamento:
+      tipo: documento_faltante
+      documento: ofertas/oferente-b/documento-firmado-mixto.pdf
+      pagina: 2
+      nota: "La página 2 no se pudo leer."
+    pregunta: "¿Qué dice la página 2 del documento firmado: es la copia del documento de identidad del representante?"
+    revision: {por: "Coordinador (caso chico inventado)", fecha: 2026-10-15, estado: confirmada}
+  - oferta: 3
+    requisito: M-001
+    resultado: no_cumple
+    fundamento:
+      tipo: cita_oferta
+      documento: ofertas/oferente-c/oferta-propuesta.pdf
+      pagina: 1
+      texto: "Declaro bajo juramento que el oferente se encuentra comprendido en una causal de inhabilidad para contratar por deuda exigible con el organismo."
+      nota: "El pliego manda desestimar la oferta."
+    revision: {por: "Coordinador (caso chico inventado)", fecha: 2026-10-15, estado: confirmada}
+  - oferta: 3
+    requisito: M-003
+    resultado: no_se_encontro_documento
+    fundamento:
+      tipo: ausencia
+      documento: certificado de vigencia del contrato social
+      nota: "Leídos completos: oferta-propuesta, poliza-caucion, hoja-tecnica-resma, constancia-escaneada y documento-identidad. Ninguno es el certificado."
+    revision: {por: "Coordinador (caso chico inventado)", fecha: 2026-10-15, estado: confirmada}
+  - oferta: 3
+    requisito: M-004
+    resultado: cumple
+    fundamento:
+      tipo: cita_oferta
+      documento: ofertas/oferente-c/documento-identidad.pdf
+      pagina: 1
+      texto: "Copia del documento de identidad sintético número 00.000.000, del representante legal de Oferente C Sintético."
+    revision: {por: "Coordinador (caso chico inventado)", fecha: 2026-10-15, estado: confirmada}

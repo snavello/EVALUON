@@ -76,7 +76,8 @@ import re
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, field
+from collections import Counter
+from dataclasses import dataclass, field, replace
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path, PurePosixPath
@@ -1001,7 +1002,10 @@ def thresholds_015(total, case=None, video=None):
 # Resultado de la Comisión -> clave con que se cuenta el resultado del sistema.
 COMMISSION_RESULTS = {"cumple": am.Outcome.CUMPLE, "no_cumple": am.Outcome.NO_CUMPLE,
                       "no_aplica": not_applicable.KEY,
-                      "no_se_encontro_documento": am.Outcome.SIN_DOCUMENTO}
+                      "no_se_encontro_documento": am.Outcome.SIN_DOCUMENTO,
+                      # T-271 (REQ-118): en la verdad ampliada un «no determinado» del sistema
+                      # contra un «no determinado» de la verdad es exacto.
+                      "no_determinado": am.Outcome.NO_DETERMINADO}
 EXACT_SAMPLE_FILE = "muestra-exactas.md"
 CELLS_FILE = "celdas-todas.txt"
 NOT_APPLICABLE_RULE = "forma_garantia_no_elegida"
@@ -1028,6 +1032,15 @@ def _approval(data):
     return "" if approval.lower().startswith("pendiente") else approval
 
 
+DECIDED_RESULTS = ("cumple", "no_cumple", "no_aplica", "no_se_encontro_documento")
+TRUTH_BATCHES = ("ajuste", "aceptacion")
+BASIS_TYPES = ("cita_oferta", "dato_portal", "ausencia", "pregunta", "documento_faltante")
+REVIEW_STATES = ("confirmada", "corregida")
+REQUIREMENT_ID = re.compile(r"^M-\d{3,}$")
+TRUTH_FILE = "verdad-celdas.yaml"
+FROZEN_FILE = "congelado-016.txt"
+
+
 def cells_fingerprint(cells):
     """La huella de las decisiones (oferta, fila, resultado, en orden): cambia si alguien toca una
     decisión del archivo, aunque no cambie su forma."""
@@ -1037,8 +1050,32 @@ def cells_fingerprint(cells):
 
 
 @dataclass
+class TruthCell:
+    """Una celda de la verdad ampliada (`verdad-celdas.yaml`, T-271): la oferta (número en el
+    procedimiento), el requisito de la lista esperada (`M-NNN`), el resultado, su fundamento, la
+    pregunta si es «no determinado» y la revisión (`None` si todavía no la tiene)."""
+
+    offer: int
+    requirement: str
+    result: str
+    basis: dict
+    question: str
+    review: dict | None
+
+    @property
+    def decided(self):
+        return self.result in DECIDED_RESULTS
+
+    @property
+    def reviewed(self):
+        return self.review is not None
+
+
+@dataclass
 class CommissionCells:
-    """Las decisiones de la Comisión de prueba por celda: `{(oferta, fila): resultado}`."""
+    """Las decisiones de la Comisión por celda: `{(oferta, fila): resultado}`. En el formato de
+    la verdad ampliada (`kind == "verdad"`) las celdas se piden por `M-NNN` y `cells` queda vacío
+    hasta `resolved()`, que las traduce a la fila de la matriz y deja solo las revisadas."""
 
     path: Path
     sha256: str
@@ -1047,17 +1084,48 @@ class CommissionCells:
     fingerprint: str
     cells: dict
     notes: dict
+    kind: str = "comision"
+    case: str = ""
+    batch: str = ""
+    armed_by: dict = field(default_factory=dict)
+    truth: list = field(default_factory=list)
+
+    def resolved(self, rows):
+        """Con `rows` (`{M-NNN: fila de la matriz}`), las celdas revisadas de la verdad con su
+        fila. Una celda sin revisión no se cuenta. Sin nada que contar, `ExpectedError`."""
+        if self.kind != "verdad":
+            return self
+        cells, notes, missing = {}, {}, set()
+        for cell in self.truth:
+            if not cell.reviewed:
+                continue
+            row = rows.get(cell.requirement)
+            if row is None:
+                missing.add(cell.requirement)
+                continue
+            cells[(cell.offer, row)] = COMMISSION_RESULTS[cell.result]
+            notes[(cell.offer, row)] = str(cell.basis.get("nota") or "")
+        if missing:
+            raise MeasurementRefused("Requisitos de la verdad que no están en la matriz "
+                                     "validada: " + ", ".join(sorted(missing)))
+        if not cells:
+            raise ExpectedError("la verdad no tiene ninguna celda con revisión: no se cuenta "
+                                "ninguna")
+        return replace(self, cells=cells, notes=notes)
 
 
 def load_commission_cells(path, *, require_approval=True):
     """Lee `celdas-comision-*.yaml`: `procedimiento`, `huella`, `visto_bueno` y `celdas` con
-    `oferta`, `fila` y `resultado` (cumple, no_cumple, no_aplica o no_se_encontro_documento).
-    La huella declarada tiene que ser la de las celdas. Sin visto bueno y con
-    `require_approval`, `ExpectedNotApproved`."""
+    `oferta`, `fila` y `resultado` (cumple, no_cumple, no_aplica, no_se_encontro_documento o
+    no_determinado). La huella declarada tiene que ser la de las celdas. Sin visto bueno y con
+    `require_approval`, `ExpectedNotApproved`. Si las celdas traen `requisito` (M-NNN) en lugar de
+    `fila`, es el formato de la verdad ampliada (`verdad-celdas.yaml`, T-271): ver `_load_truth`."""
     path, raw, data = _load_yaml(path, "la lista de celdas de la Comisión")
     entries = data.get("celdas")
     if not isinstance(entries, list) or not entries:
         raise ExpectedError("la lista de celdas de la Comisión no trae `celdas`")
+    if any(isinstance(e, dict) and "requisito" in e for e in entries):
+        return _load_truth(path, raw, data, entries, require_approval)
     cells, notes = {}, {}
     for entry in entries:
         if not (isinstance(entry, dict) and isinstance(entry.get("oferta"), int)
@@ -1081,6 +1149,340 @@ def load_commission_cells(path, *, require_approval=True):
     return CommissionCells(path=path, sha256=hashlib.sha256(raw).hexdigest(), approval=approval,
                            procedure=str(data.get("procedimiento") or ""),
                            fingerprint=fingerprint, cells=cells, notes=notes)
+
+
+# --- Verdad ampliada celda por celda (016, REQ-118; ADR-0069) -----------------------------------
+#
+# `verdad-celdas.yaml` extiende `celdas-comision-*.yaml`: la clave de cada celda es la oferta (número
+# en el procedimiento) y el requisito de la lista esperada (`M-NNN`); la medida lo traduce a la fila
+# de la matriz que arma `build_case`. Lleva `procedimiento`, `caso`, `lote` (ajuste o aceptacion),
+# `huella` (de oferta, requisito y resultado), `armada_por`, `visto_bueno` y `celdas` con `oferta`,
+# `requisito`, `resultado`, `fundamento` (`tipo`, `documento`, `pagina`, `texto`, `nota`; en un dato
+# del Portal, `portal` y `valor`), `pregunta` y `revision` (`por`, `fecha`, `estado`, y
+# `resultado_anterior` si la corrigió). Una celda sin revisión no se cuenta.
+#
+# `congelado-016.txt` (junto a la verdad, en los casos de aceptación) lleva una clave por línea:
+# `huella-verdad` (la del archivo), `huella-lista` (sha256 de la lista esperada), `commit` y `fecha`.
+
+
+def truth_fingerprint(cells):
+    """La huella de la verdad (oferta, requisito, resultado, en orden): cambia si alguien toca una
+    decisión del archivo."""
+    lines = [f"{c['oferta']}|{c['requisito']}|{c['resultado']}" for c in
+             sorted(cells, key=lambda c: (c["oferta"], c["requisito"]))]
+    return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
+
+
+def _truth_review(entry, where):
+    """La revisión de una celda, o `None` si no la tiene todavía. Una revisión incompleta o con
+    otro estado es un error: no se cuenta a medias."""
+    raw = entry.get("revision")
+    if raw in (None, "", {}):
+        return None
+    if not isinstance(raw, dict):
+        raise ExpectedError(f"{where}: `revision` lleva `por`, `fecha` y `estado`")
+    state = raw.get("estado")
+    if state == "pendiente":
+        return None
+    by, when = str(raw.get("por") or "").strip(), str(raw.get("fecha") or "").strip()
+    if not by or not when or state not in REVIEW_STATES:
+        raise ExpectedError(f"{where}: la revisión lleva `por`, `fecha` y `estado` "
+                            f"({', '.join(REVIEW_STATES)})")
+    previous = raw.get("resultado_anterior")
+    if state == "corregida" and previous not in COMMISSION_RESULTS:
+        raise ExpectedError(f"{where}: una celda corregida lleva `resultado_anterior`")
+    return {"por": by, "fecha": when, "estado": state, "resultado_anterior": previous or ""}
+
+
+def _truth_basis(entry, where):
+    raw = entry.get("fundamento")
+    if raw in (None, ""):
+        return {}
+    if not isinstance(raw, dict) or raw.get("tipo") not in BASIS_TYPES:
+        raise ExpectedError(f"{where}: `fundamento.tipo` es " + ", ".join(BASIS_TYPES))
+    if raw.get("pagina") is not None and not isinstance(raw["pagina"], int):
+        raise ExpectedError(f"{where}: `fundamento.pagina` es un número")
+    return dict(raw)
+
+
+def _load_truth(path, raw, data, entries, require_approval):
+    batch = data.get("lote")
+    if batch not in TRUTH_BATCHES:
+        raise ExpectedError("la verdad lleva `lote`: " + " o ".join(TRUTH_BATCHES))
+    truth, seen = [], set()
+    for entry in entries:
+        if not (isinstance(entry, dict) and isinstance(entry.get("oferta"), int)
+                and REQUIREMENT_ID.match(str(entry.get("requisito") or ""))):
+            raise ExpectedError("una celda de la verdad lleva `oferta` numérica y `requisito` "
+                                "(M-NNN)")
+        where = f"oferta {entry['oferta']}, {entry['requisito']}"
+        if entry.get("resultado") not in COMMISSION_RESULTS:
+            raise ExpectedError(f"{where}: `resultado` es " + ", ".join(COMMISSION_RESULTS))
+        if (entry["oferta"], entry["requisito"]) in seen:
+            raise ExpectedError(f"{where}: celda repetida")
+        seen.add((entry["oferta"], entry["requisito"]))
+        truth.append(TruthCell(
+            offer=entry["oferta"], requirement=entry["requisito"], result=entry["resultado"],
+            basis=_truth_basis(entry, where), question=str(entry.get("pregunta") or "").strip(),
+            review=_truth_review(entry, where)))
+    fingerprint = truth_fingerprint(entries)
+    if str(data.get("huella") or "") != fingerprint:
+        raise ExpectedError("la huella de la verdad no es la de sus celdas")
+    approval = _approval(data)
+    if require_approval and not approval:
+        raise ExpectedNotApproved("la verdad no tiene visto bueno: no se usa")
+    armed_by = data.get("armada_por")
+    return CommissionCells(
+        path=path, sha256=hashlib.sha256(raw).hexdigest(), approval=approval,
+        procedure=str(data.get("procedimiento") or ""), fingerprint=fingerprint, cells={},
+        notes={}, kind="verdad", case=str(data.get("caso") or ""), batch=batch,
+        armed_by=armed_by if isinstance(armed_by, dict) else {}, truth=truth)
+
+
+def _truth_reading(offer, name):
+    """`(documento, lectura)` del documento de la oferta que nombra la verdad: por nombre de
+    archivo exacto o, si no hay, por el nombre sin carpetas cuando es único."""
+    document, reading = sheets_measure._reading_of(offer, name)
+    if document is None:
+        same = [d for d in offer.documents.all() if _name(d.file_name) == _name(name)]
+        if len(same) == 1:
+            document = same[0]
+            reading = document.readings.order_by("-sequence").first()
+    return document, reading
+
+
+def _truth_quote_problem(offer, basis):
+    """Por qué la cita de una celda no está ubicada en la lectura de la oferta, o `None` si lo
+    está: `quotes.locate` en el texto de la página citada, palabra por palabra."""
+    if not basis.get("documento") or not str(basis.get("texto") or "").strip():
+        return "la cita no trae `documento` y `texto`"
+    if not isinstance(basis.get("pagina"), int):
+        return "la cita no trae la página"
+    document, reading = _truth_reading(offer, basis["documento"])
+    if document is None:
+        return "el documento citado no está cargado en la oferta"
+    if reading is None:
+        return "el documento citado todavía no se leyó"
+    passages = list(reading.passages.filter(page=basis["pagina"]).order_by("order"))
+    if not passages:
+        return f"la página {basis['pagina']} no está en la lectura del documento citado"
+    start = min(p.char_start for p in passages)
+    end = max(p.char_end for p in passages)
+    if quotes.locate(reading.canonical_text[start:end], basis["texto"],
+                     ignore_private=True) is None:
+        return (f"la cita no está palabra por palabra en la página {basis['pagina']} de la "
+                "lectura")
+    return None
+
+
+def _truth_portal_problem(offer, basis):
+    """Por qué el dato del Portal de una celda no está, o `None` si el Portal trae ese dato de
+    esa oferta (`portal`: garantia, cotizacion, total o cuit; `valor`)."""
+    from evaluon.portal import models as pm
+    kind, value = basis.get("portal"), str(basis.get("valor") or "").strip()
+    if kind not in am.PortalKind.values or not value:
+        return ("el dato del Portal lleva `portal` (" + ", ".join(am.PortalKind.values)
+                + ") y `valor`")
+    data = pm.PortalOfferData.objects.filter(offer=offer).first()
+    if kind == am.PortalKind.COTIZACION:
+        found = [q.price for q in pm.PortalQuote.objects.filter(offer=offer)]
+    elif data is None:
+        found = []
+    elif kind == am.PortalKind.GARANTIA:
+        found = [g.amount for g in data.guarantees.all()]
+    elif kind == am.PortalKind.TOTAL:
+        found = [data.total]
+    else:
+        found = [data.cuit]
+    if any(v is not None and portal_value_in(kind, f"{v:f}" if isinstance(v, Decimal) else v,
+                                              value) for v in found):
+        return None
+    return "el Portal no trae ese dato de la oferta"
+
+
+@dataclass
+class TruthCheck:
+    """Lo que `verify_truth` cuenta de un caso: las celdas, las decididas, las revisadas (quién y
+    cuándo), las citas ubicadas, los «no determinado» con su pregunta, el congelado y las
+    corridas de evaluación guardadas; `problems` son las fallas que bloquean."""
+
+    case: str
+    batch: str
+    procedure: str
+    approval: str
+    cells: int = 0
+    by_result: dict = field(default_factory=dict)
+    decided: int = 0
+    decided_reviewed: int = 0
+    reviewed: int = 0
+    reviewers: dict = field(default_factory=dict)
+    dates: tuple = ()
+    cites_needed: int = 0
+    cites_located: int = 0
+    undetermined: int = 0
+    undetermined_named: int = 0
+    frozen: str = ""
+    runs: int = 0
+    problems: list = field(default_factory=list)
+
+    @property
+    def unreviewed(self):
+        return self.cells - self.reviewed
+
+    @property
+    def ok(self):
+        return not self.problems
+
+    def lines(self):
+        names = {"cumple": "cumple", "no_cumple": "no cumple", "no_aplica": "no aplica",
+                 "no_se_encontro_documento": "no se encontró el documento",
+                 "no_determinado": "no determinado"}
+        who = ", ".join(f"{name}: {n}" for name, n in sorted(self.reviewers.items())) or "nadie"
+        when = f"del {self.dates[0]} al {self.dates[1]}" if self.dates else "sin fechas"
+        out = [
+            f"Verdad · caso {self.case or '?'} (lote {self.batch}) · procedimiento "
+            f"{self.procedure or '?'} · visto bueno: {self.approval or 'pendiente'}",
+            f"Celdas: {self.cells} (" + ", ".join(
+                f"{names[r]} {self.by_result.get(r, 0)}" for r in COMMISSION_RESULTS) + ")",
+            f"Decididas: {self.decided}; decididas con revisión (las que cuentan): "
+            f"{self.decided_reviewed}",
+            f"Con revisión (quién y cuándo): {self.reviewed} ({who}; {when}); sin revisión: "
+            f"{self.unreviewed} (no se cuentan)",
+            f"Citas ubicadas en la lectura o ítem del Portal: {self.cites_located} de "
+            f"{self.cites_needed}",
+            f"«No determinado» con pregunta o documento nombrado: {self.undetermined_named} de "
+            f"{self.undetermined}",
+            f"Congelado (congelado-016.txt): {self.frozen}",
+            f"Corridas de evaluación guardadas del procedimiento: {self.runs}"]
+        out += ["FALLA: " + p for p in self.problems]
+        out.append("Verdad: " + ("sin fallas" if self.ok else f"con {len(self.problems)} fallas"))
+        return out
+
+
+def truth_total(checks):
+    """La suma de varios casos (`TruthCheck`): cantidad de casos, celdas, decididas, decididas con
+    revisión, citas ubicadas y «no determinado» con pregunta, y la línea que la muestra."""
+    total = {"cases": len(checks)}
+    for name in ("cells", "decided", "decided_reviewed", "reviewed", "cites_needed",
+                 "cites_located", "undetermined", "undetermined_named", "runs"):
+        total[name] = sum(getattr(c, name) for c in checks)
+    total["problems"] = sum(len(c.problems) for c in checks)
+    total["line"] = (
+        f"Total de {total['cases']} casos: {total['cells']} celdas, {total['decided']} decididas "
+        f"({total['decided_reviewed']} con revisión), {total['reviewed']} con revisión; citas "
+        f"ubicadas {total['cites_located']} de {total['cites_needed']}; «no determinado» con "
+        f"pregunta {total['undetermined_named']} de {total['undetermined']}; corridas guardadas "
+        f"{total['runs']}; fallas {total['problems']}")
+    return total
+
+
+def _frozen_state(truth, expected):
+    """`(estado, falla)` del congelado de un caso de aceptación. Sin archivo, queda pendiente hasta
+    que la verdad tenga visto bueno (se escribe al cerrar el paso 1); con archivo, las dos
+    huellas tienen que ser las vigentes."""
+    path = Path(truth.path).parent / FROZEN_FILE
+    if not path.is_file():
+        if truth.approval:
+            return "falta", "la verdad tiene visto bueno y no hay congelado-016.txt"
+        return "pendiente (se escribe al cerrar el paso 1)", None
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return "ilegible", "congelado-016.txt no se puede leer"
+    values = {k.strip(): v.strip() for k, _, v in (line.partition(":") for line in lines)
+              if k.strip()}
+    missing = [k for k in ("huella-verdad", "huella-lista", "commit", "fecha")
+               if not values.get(k)]
+    if missing:
+        return "incompleto", "congelado-016.txt no trae " + ", ".join(missing)
+    if values["huella-verdad"] != truth.fingerprint:
+        return "no coincide", "la huella de la verdad cambió después del congelado"
+    if values["huella-lista"] != expected.sha256:
+        return "no coincide", "la lista esperada cambió después del congelado"
+    return f"coincide (commit {values['commit'][:12]}, {values['fecha']})", None
+
+
+def verify_truth(truth, expected, procedure):
+    """Comprueba la verdad de un caso sin usar el modelo (T-271): cuenta las celdas, las decididas
+    (cumple, no cumple, no aplica y no se encontró el documento), las revisadas con quién y cuándo
+    y los «no determinado» con pregunta; comprueba que cada «cumple» y «no cumple» tenga su cita
+    palabra por palabra en la lectura de la oferta (`quotes.locate`) o su ítem del Portal; en un
+    caso de aceptación, el congelado y que no haya corridas de evaluación guardadas del
+    procedimiento. Una celda sin revisión no se cuenta."""
+    if truth.kind != "verdad":
+        raise ExpectedError("el archivo no es una verdad celda por celda (`requisito` por celda)")
+    check = TruthCheck(case=truth.case, batch=truth.batch, procedure=procedure.number,
+                       approval=truth.approval)
+    if truth.procedure and truth.procedure != procedure.number:
+        check.problems.append("el procedimiento de la verdad no es el del caso")
+    ids = ({r["id"] for r in expected.requirements}
+           or {p.requirement for o in expected.offers for p in o.pairs})
+    offers = {o.number: o for o in procedure.offers.all()}
+    version = latest_validated(procedure)
+    mapped = (set(sheets_measure._requirement_map(version, expected.requirements))
+              if version is not None and expected.requirements else None)
+    dates, reviewers = [], Counter()
+    for cell in truth.truth:
+        where = f"oferta {cell.offer}, {cell.requirement}"
+        check.cells += 1
+        check.by_result[cell.result] = check.by_result.get(cell.result, 0) + 1
+        if cell.decided:
+            check.decided += 1
+            check.decided_reviewed += cell.reviewed
+        if cell.reviewed:
+            check.reviewed += 1
+            reviewers[cell.review["por"]] += 1
+            dates.append(cell.review["fecha"])
+        offer = offers.get(cell.offer)
+        if offer is None:
+            check.problems.append(f"{where}: la oferta no está en el procedimiento")
+        if cell.requirement not in ids:
+            check.problems.append(f"{where}: el requisito no está en la lista esperada")
+        elif mapped is not None and cell.requirement not in mapped:
+            check.problems.append(f"{where}: el requisito no está en la matriz validada")
+        basis, kind = cell.basis, cell.basis.get("tipo")
+        if cell.result == "no_determinado":
+            check.undetermined += 1
+            named = bool(cell.question) or (kind == "documento_faltante"
+                                            and bool(basis.get("documento")))
+            check.undetermined_named += named
+            if not named:
+                check.problems.append(f"{where}: «no determinado» sin pregunta ni documento "
+                                      "nombrado")
+        elif cell.result == "no_se_encontro_documento":
+            if kind not in ("ausencia", "documento_faltante") or not basis.get("nota"):
+                check.problems.append(f"{where}: «no se encontró el documento» sin los "
+                                      "documentos leídos en el fundamento")
+        if cell.result in ("cumple", "no_cumple") or kind in ("cita_oferta", "dato_portal"):
+            needed = cell.result in ("cumple", "no_cumple")
+            check.cites_needed += needed
+            if offer is None:
+                problem = "sin oferta"
+            elif kind == "cita_oferta":
+                problem = _truth_quote_problem(offer, basis)
+            elif kind == "dato_portal":
+                problem = _truth_portal_problem(offer, basis)
+            else:
+                problem = "sin cita de la oferta ni dato del Portal"
+            if problem is None:
+                check.cites_located += needed
+            else:
+                check.problems.append(f"{where}: {problem}")
+        elif cell.result == "no_aplica" and not kind:
+            check.problems.append(f"{where}: «no aplica» sin fundamento")
+    check.reviewers = dict(reviewers)
+    check.dates = (min(dates), max(dates)) if dates else ()
+    check.runs = am.Run.objects.filter(offer__procedure=procedure).count()
+    if truth.batch == "aceptacion":
+        check.frozen, problem = _frozen_state(truth, expected)
+        if problem:
+            check.problems.append(problem)
+        if check.runs:
+            check.problems.append(f"caso de aceptación con {check.runs} corridas de evaluación "
+                                  "guardadas: dejó de ser a ciegas del sistema")
+    else:
+        check.frozen = "no se exige en el lote de ajuste"
+    return check
 
 
 @dataclass
@@ -1419,6 +1821,9 @@ def recompute_run(folder, *, portal_cells=None, commission=None, cell_exclusions
     con las reglas de antes y con las corregidas de T-256, más la exactitud por celda contra la
     Comisión (sin y con las filas excluidas). Lanza `MeasurementRefused` si falta un archivo."""
     folder = Path(folder)
+    if commission is not None and commission.kind == "verdad" and not commission.cells:
+        raise MeasurementRefused("La verdad pide las celdas por M-NNN y acá no hay matriz para "
+                                 "traducirlas a filas: se usa en una medición con --esperada.")
     pairs_file, cells_file = folder / "resultados.jsonl", folder / CELLS_FILE
     for needed in (pairs_file, cells_file):
         if not needed.exists():
@@ -1822,6 +2227,10 @@ def measure(user, procedure, expected, offers, runs_dir, *, fichas=None, commit=
     if version is None:
         raise MeasurementRefused("El procedimiento no tiene una matriz validada.")
     mapping = _requirement_mapping(version, expected, fichas)
+    if commission_cells is not None:
+        # T-271: la verdad ampliada pide las celdas por M-NNN; acá se traducen a la fila de la
+        # matriz validada y se queda con las revisadas. El formato anterior pasa sin cambios.
+        commission_cells = commission_cells.resolved({i: r.number for i, r in mapping.items()})
     started_at = timezone.now()
     video = {"before": video_memory()}
     started = clock()
