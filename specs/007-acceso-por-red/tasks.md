@@ -93,7 +93,7 @@ La suite completa la corre el Coordinador una vez por lote.
      - **Desde A:**
        - `https://<dirección>` muestra el ingreso sin advertencias;
        - el usuario ingresa y abre el caso chico (si no está cargado en 8000, sube su pliego);
-       - `curl.exe -sI http://<dirección>/ingresar/` da 308 de Caddy, sin contenido de la aplicación.
+       - `curl.exe -si http://<dirección>/ingresar/` da 308 de Caddy, sin contenido de la aplicación.
      - **En el equipo:** con una captura de `pktmon` durante un ingreso, la clave aparece 0 veces.
      - **Desde B:** 0 páginas, y `Test-NetConnection` a 5432, 8000, 8080 y 2019 da 0 conexiones; desde A, también 0 (solo responden 80 y 443).
      - **La lista:** sacar A, aplicar: no llega; volver a ponerla: llega, sin tocar el código.
@@ -178,7 +178,7 @@ La suite completa la corre el Coordinador una vez por lote.
 - **No arranca sin:** T-271 integrada y desplegada en 8000 por el Coordinador.
 - **Qué hay que hacer**, el testeador con el responsable, sobre 8000 y con material público:
   1. **REQ-109 y REQ-114.** Un evaluador nuevo (`crear_usuario`) ingresa desde A y cambia la clave inicial. Antes, prueba una clave corta, una común, una igual a la actual y la actual equivocada. Después recorre el caso chico en las cinco secciones. Umbral: 5 de 5.
-  2. **REQ-110.** `curl.exe -sI` por `http` al ingreso, a una página de cada sección y a un estático: todas terminan en `https` sin contenido de la aplicación. 0 advertencias en A.
+  2. **REQ-110.** `curl.exe -si` por `http` al ingreso, a una página de cada sección y a un estático: todas terminan en `https` sin contenido de la aplicación. 0 advertencias en A.
   3. **REQ-111 a REQ-113.**
      - Desde A, 5 claves equivocadas y la correcta: rechazada con el mismo mensaje que un usuario inexistente y una clave equivocada.
      - `desbloquear_usuario` en el equipo: A ingresa enseguida.
