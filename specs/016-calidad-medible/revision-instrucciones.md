@@ -4,7 +4,7 @@ Spec 016, REQ-119 · ADR-0070 · Tareas T-278 (tabla de decisiones), T-279 a T-2
 
 Este archivo es el resumen para el repositorio: **no lleva texto ni cifras de los casos** (P4). Tiene dos partes:
 
-1. **Tabla de decisiones.** Cada decisión literal del responsable que una instrucción tiene que aplicar, con su fuente. Sale de las tablas «Decisiones del responsable» de las specs 003, 004, 014 y 015 y de los ADR 0043, 0053, 0054 y 0058. Los ejemplos de las decisiones que vienen de un caso se omiten (se indica en la fila); las instrucciones se escriben en términos generales, sin ejemplos de licitaciones.
+1. **Tabla de decisiones.** Cada decisión literal del responsable que una instrucción tiene que aplicar, con su fuente. Sale de las tablas «Decisiones del responsable» de las specs 003, 004, 014 y 015 y de los ADR 0043, 0053, 0054 y 0058; desde T-281, también de la spec 016 (2026-10-15), de los requisitos REQ-104 y REQ-105 de la spec 015 y de los ADR 0038 y 0055 (D-39 a D-42). Las filas marcadas «definición derivada» no son una decisión literal: las propone el Coordinador a partir de una decisión y quedan pendientes hasta que el responsable las confirma (D-32 ya está confirmada). Los ejemplos de las decisiones que vienen de un caso se omiten (se indica en la fila); las instrucciones se escriben en términos generales, sin ejemplos de licitaciones.
 2. **Oración → decisión, por instrucción nueva.** Por cada instrucción de la 016, una tabla con cada oración de la instrucción y la decisión de la que sale (`D-NN`). La completa la tarea que escribe la instrucción. El responsable controla la instrucción contra esta tabla (escenario 2 de la spec).
 
 Lo prueba `tests/test_instrucciones_revisadas.py`: toda versión de la tabla `SIMPLIFIED` (`tests/test_instrucciones_largo.py`) tiene su sección `### <versión>` con al menos una fila de oración, cada fila nombra una decisión de la tabla de decisiones y cada oración de la instrucción tiene su fila (T-280, H-279-5). Una versión que se suma a `SIMPLIFIED` con su sección sin completar hace fallar esa prueba. El largo y el no calco los prueban `test_instrucciones_largo.py` y `test_instrucciones_sin_casos.py`.
@@ -16,49 +16,57 @@ La columna «Aplica a» es la propuesta de T-278; T-279 a T-282 la confirman al 
 | Id | Decisión (literal, entre comillas angulares) | Fuente | Aplica a |
 |---|---|---|---|
 | D-01 | «Es requisito de la oferta lo que la oferta tiene que presentar, ofrecer o comprometer, y toda condición del pliego que la oferta pueda contradecir o condicionar, aunque la cumpla el organismo». «No son requisitos de la oferta la ejecución y el control del contrato, como las multas por atraso.» (El ejemplo del pago de la decisión original lo reemplaza D-12.) | Spec 003, «Qué es un requisito», 2026-10-03 | definiciones, extracción, filtro, circulares |
-| D-02 | Los requisitos técnicos van «en una fila por renglón del pliego, con la cita a sus especificaciones técnicas». «La Comisión no evalúa el detalle técnico: se apoya en el informe técnico del área requirente.» | Spec 003, «Qué es un requisito», 2026-10-03 | definiciones, extracción, completitud, filtro, circulares, consecuencias, evaluación |
+| D-02 | Los requisitos técnicos van «en una fila por renglón del pliego, con la cita a sus especificaciones técnicas». «La Comisión no evalúa el detalle técnico: se apoya en el informe técnico del área requirente.» | Spec 003, «Qué es un requisito», 2026-10-03 | definiciones, extracción, completitud, filtro, circulares, consecuencias, evaluación, cláusulas |
 | D-03 | «La clase sigue la sección del pliego cuando el pliego ordena sus requisitos por secciones. Si no, se clasifica por naturaleza: la garantía, el precio, la moneda y el pago son económicos; los documentos y compromisos de la presentación, formales; el bien y su entrega, técnicos.» (Pago, moneda de pago y compromisos de la presentación ya no son requisitos: D-12.) | Spec 003, «Qué es un requisito», 2026-10-03 | definiciones, extracción, completitud, circulares |
-| D-04 | «El sistema no decide si un requisito es subsanable: detecta qué consecuencias tiene su falta, sugiere las posibles con su fundamento, y un integrante de la Comisión confirma una.» Tipos: desestimación sin posibilidad de subsanar; intimación a subsanar y, si no se subsana, desestimación; consultar al oferente; aprobación condicionada; aprobar de todas maneras; otra consecuencia prevista en el pliego; no determinada (el sistema no encontró fundamento). | Spec 003, «Consecuencia del incumplimiento», 2026-10-03; REQ-029 | definiciones, extracción, filtro, consecuencias, circulares |
-| D-05 | REQ-031: las circulares y las respuestas a consultas cambian o precisan un requisito; la matriz aplica el cambio, muestra los dos textos y cita el documento que lo produjo. «Versión nueva de la matriz»: la circular abre una versión nueva, con lo que cambió marcado, y la Comisión la valida de nuevo. «Lo no tocado confirmado»: solo se decide lo que cambió la circular. | Spec 003, REQ-031; spec 014, 2026-10-07 y 2026-10-10 | circulares, consecuencias |
+| D-04 | «El sistema no decide si un requisito es subsanable: detecta qué consecuencias tiene su falta, sugiere las posibles con su fundamento, y un integrante de la Comisión confirma una.» Tipos: desestimación sin posibilidad de subsanar; intimación a subsanar y, si no se subsana, desestimación; consultar al oferente; aprobación condicionada; aprobar de todas maneras; otra consecuencia prevista en el pliego; no determinada (el sistema no encontró fundamento). | Spec 003, «Consecuencia del incumplimiento», 2026-10-03; REQ-029 | definiciones, extracción, filtro, consecuencias, circulares, evaluación |
+| D-05 | REQ-031: las circulares y las respuestas a consultas cambian o precisan un requisito; la matriz aplica el cambio, muestra los dos textos y cita el documento que lo produjo. «Versión nueva de la matriz»: la circular abre una versión nueva, con lo que cambió marcado, y la Comisión la valida de nuevo. «Lo no tocado confirmado»: solo se decide lo que cambió la circular. | Spec 003, REQ-031; spec 014, 2026-10-07 y 2026-10-10 | circulares, consecuencias, evaluación |
 | D-06 | REQ-033 y REQ-035: antes de mostrar la matriz se descartan las filas que no son requisitos de la oferta, cada una con su cita y su motivo; las condiciones plausibles sobre las que el sistema duda van como sugerencia de condición, con su cita y el motivo de la duda. Lo descartado y lo dudado no desaparece. | Spec 003, REQ-033 y REQ-035 | definiciones, extracción, filtro, circulares, respaldo |
 | D-07 | REQ-036: para cada sugerencia y cada fila dudosa se busca en la normativa aplicable si el régimen exige esa condición. «La normativa solo sirve para confirmar: que una condición no figure en la norma nunca es motivo para descartarla, porque el pliego puede agregar exigencias propias.» | Spec 003, REQ-036 | respaldo |
-| D-08 | «el porcentaje esta bien, aunque no necesariamente sea literal la coincidencia. Lo tecnico verificamos que exista y que en caso de tener renglones si tiene o no tiene oferta» | Spec 004, 2026-10-06, «Coincidencia y técnico» | evaluación |
-| D-09 | «La parte tecnica ya te dije que venia del area correspondiente»; «la comision debiera dar el ok de que tiene el informe tecnico aprobado». REQ-061: el sistema verifica que exista el documento técnico y qué renglones tienen oferta; el cumple o no cumple técnico lo da el informe técnico del área. La opinión técnica con citas, si la hay, es información, no resultado. | Spec 004, 2026-10-06, «Técnico» y REQ-061; ADR-0043, decisión 3 | evaluación, informe técnico |
+| D-08 | «el porcentaje esta bien, aunque no necesariamente sea literal la coincidencia. Lo tecnico verificamos que exista y que en caso de tener renglones si tiene o no tiene oferta» | Spec 004, 2026-10-06, «Coincidencia y técnico» | evaluación, contraste |
+| D-09 | «La parte tecnica ya te dije que venia del area correspondiente»; «la comision debiera dar el ok de que tiene el informe tecnico aprobado». REQ-061: el sistema verifica que exista el documento técnico y qué renglones tienen oferta; el cumple o no cumple técnico lo da el informe técnico del área. La opinión técnica con citas, si la hay, es información, no resultado. | Spec 004, 2026-10-06, «Técnico» y REQ-061; ADR-0043, decisión 3 | evaluación, informe técnico, cláusulas |
 | D-10 | «eso lo integrará un documento que llamamos hoja de compliance. Si detectas que falta uno pueden subir otra. O una que informe que No cumple». REQ-063: un requisito que se verifica con consultas externas tiene resultado «falta la hoja de compliance»; «nunca duda». | Spec 004, 2026-10-06, «Externos» y REQ-063; ADR-0043, decisión 1 | evaluación, definiciones |
 | D-11 | «Debiste informar que el doc esta en el portal o que falta coincidencia». REQ-062: cuando el dato o el documento está en el Portal, el sistema lo informa y lo cita como fuente (Portal, con su página o cuadro); si el Portal y la oferta no coinciden, lo informa como falta de coincidencia. | Spec 004, 2026-10-06, «Portal» y REQ-062; ADR-0043, decisión 2 | evaluación |
 | D-12 | «no entran ninguno de los 3. una salvedad la moneda de la oferta si es un requisito.»: no son requisitos de la oferta el pago, la moneda de pago y la factura; la forma de presentar por el Portal; ni los compromisos que se cumplen al presentarse. La moneda en que se cotiza la oferta sí es requisito. (Los ejemplos de la decisión se omiten acá: ver la fuente.) | Spec 015, 2026-10-10, «Qué entra en la matriz»; ADR-0054, decisión 4 | definiciones, extracción, completitud, filtro, circulares |
 | D-13 | «Requisito de la forma elegida»: las condiciones de cada forma de garantía entran en la matriz y se evalúan solo en la oferta que eligió esa forma; para las demás no aplican. Una condición que solo vale si el oferente puede no usar una opción (alternativa, descuento, MiPyME, subcontratación) entra solo como condición de esa opción; la oración que le exige algo a quien usa la opción se mantiene. | Spec 015, 2026-10-10, «Forma de garantía que elige el oferente»; ADR-0054, decisión 4 | definiciones, extracción, filtro, evaluación |
-| D-14 | «Una fila por oración»: una fila con la oración completa; la evaluación revisa cada condición con su dato y lo muestra por separado dentro de la celda. Aclaración: «cuando dije una condicion por fila lo estaba diciendo para un parrafo o una oracion que tenia 2 o mas condiciones y pretendo que se evaluen todas. Lo mas razonable es tomar las oraciones cortas dentro del mismo contexto semantico no separado. Te doy un ejemplo, quiero comprar un perro que tenga cuatro patas, dos ojos y de color marron. la oracion es clara si la tomas toda, luego si la separas las condiciones y me pones cuatro patas en una fila, dos ojos en otra, y marron en otra pierde sentido y es muy dificil de evaluar.» | Spec 015, 2026-10-10, «Filas de la matriz» y «Unidad de la fila»; ADR-0054, decisión 3 | definiciones, extracción, completitud, unión, filtro, evaluación |
-| D-15 | REQ-101: la cita es la oración completa, con el encabezado del punto o del inciso cuando la oración sola no se entiende, nunca un pedazo sin sujeto. El modelo señala un fragmento; el sistema lo ubica y lo amplía a la oración. Una duda real no se pierde: va a sugerencia, no a un descarte silencioso. La extracción conserva «proponé de más», limitado a oraciones que le exigen algo a todas las ofertas; la completitud y el filtro no. | ADR-0054, decisiones 1, 2, 6 y 7 | definiciones, extracción, completitud, unión, filtro, circulares, respaldo |
-| D-16 | «Propone cumple»: el sistema propone «cumple» citando el dato del Portal cuando coincide con lo que exige el pliego, y «no cumple» o diferencia cuando no coincide; la Comisión decide igual. El Portal le llega al modelo como un bloque citable que escribe el sistema desde las columnas; lo que se compara por regla (montos, CUIT) lo decide el código. Un requisito de dos condiciones no es «cumple» si a una le falta el dato. | Spec 015, 2026-10-10, «Dato del Portal que coincide»; ADR-0053, reglas 1 a 5 y 4 bis | evaluación |
+| D-14 | «Una fila por oración»: una fila con la oración completa; la evaluación revisa cada condición con su dato y lo muestra por separado dentro de la celda. Aclaración: «cuando dije una condicion por fila lo estaba diciendo para un parrafo o una oracion que tenia 2 o mas condiciones y pretendo que se evaluen todas. Lo mas razonable es tomar las oraciones cortas dentro del mismo contexto semantico no separado. Te doy un ejemplo, quiero comprar un perro que tenga cuatro patas, dos ojos y de color marron. la oracion es clara si la tomas toda, luego si la separas las condiciones y me pones cuatro patas en una fila, dos ojos en otra, y marron en otra pierde sentido y es muy dificil de evaluar.» | Spec 015, 2026-10-10, «Filas de la matriz» y «Unidad de la fila»; ADR-0054, decisión 3 | definiciones, extracción, completitud, unión, filtro, evaluación, contraste, cláusulas |
+| D-15 | REQ-101: la cita es la oración completa, con el encabezado del punto o del inciso cuando la oración sola no se entiende, nunca un pedazo sin sujeto. El modelo señala un fragmento; el sistema lo ubica y lo amplía a la oración. Una duda real no se pierde: va a sugerencia, no a un descarte silencioso. La extracción conserva «proponé de más», limitado a oraciones que le exigen algo a todas las ofertas; la completitud y el filtro no. | ADR-0054, decisiones 1, 2, 6 y 7 | definiciones, extracción, completitud, unión, filtro, circulares, respaldo, evaluación |
+| D-16 | «Propone cumple»: el sistema propone «cumple» citando el dato del Portal cuando coincide con lo que exige el pliego, y «no cumple» o diferencia cuando no coincide; la Comisión decide igual. El Portal le llega al modelo como un bloque citable que escribe el sistema desde las columnas; lo que se compara por regla (montos, CUIT) lo decide el código. Un requisito de dos condiciones no es «cumple» si a una le falta el dato. | Spec 015, 2026-10-10, «Dato del Portal que coincide»; ADR-0053, reglas 1 a 5 y 4 bis | evaluación, contraste |
 | D-17 | «enmendar. considera al portal como oficial, porque es oficial»: el dato publicado en el Portal de Compras vale como fundamento (constitución 1.3). | Spec 015, 2026-10-10, «El Portal como fundamento (P3)»; ADR-0053 | evaluación, contraste |
 | D-18 | «Cumple por ausencia, con fundamento»: un requisito negativo o supletorio se propone «cumple» diciendo qué documentos se leyeron y que ninguno lo contradice; si alguno lo contradice, «no cumple» con la cita. Rige solo para prohibiciones sobre lo que dice la oferta y reglas supletorias, con nada en contra en las condiciones ni en el grupo, el contraste sin rechazar y la lectura completa. Una exigencia de documento dicha en negativo pide el documento. Ante la duda, «no determinado» con pregunta. | Spec 015, 2026-10-12; ADR-0058, decisión 2 y aplicación (constitución 1.4) | evaluación, contraste |
 | D-19 | «Precio del Portal = final con IVA»: salvo que la oferta diga lo contrario, el precio cotizado en el Portal es precio final con IVA incluido; se propone «cumple» citando el Portal y este criterio. No rige si la oferta dice algo sobre impuestos o ajustes de precio. | Spec 015, 2026-10-12; ADR-0058, decisión 1 y aplicación | evaluación |
 | D-20 | «En la misma fila del plazo»: una sola fila con el plazo de mantenimiento y su prórroga automática (mismo asunto); se evalúa por ausencia salvo que la oferta limite el plazo o rechace la prórroga. El aviso de no renovar, su firma, su fecha y lo que pasa si no se avisa no son esa fila ni otra (aclaración del Coordinador, T-258). | Spec 015, 2026-10-12, «Prórroga automática del mantenimiento»; ADR-0058, decisión 3 | definiciones, extracción, completitud, unión, evaluación |
 | D-21 | «si requiere presentacion fisica y no la hace (no consta entre los documentos ni en la matriz de compliance) la oferta no cumple se informa con texto por si la comision o alguien olvido agregarla»: presentar en la mesa de entradas lo que el Portal marca como «Requiere presentar» es requisito; la cláusula de completar la oferta económica por el formulario del Portal no es fila propia (es forma de presentar por el Portal). Mientras el Portal no traiga la marca, cuando la obligación depende de ella el resultado es «no determinado» con pregunta a la Comisión. | Spec 015, 2026-10-12; ADR-0058, decisión 4 y aplicación | definiciones, extracción, filtro, evaluación |
-| D-22 | «lo del pagare es ilegible se informa asi y ese si lo chequea la comision»; «con la aclaracion de que no pudo leer alguno». REQ-064: si el documento que responde un requisito no se puede leer, el resultado es «no se pudo leer», con el documento y la página. | Spec 004, 2026-10-06, «Ilegible» y REQ-064 | evaluación, visión |
-| D-23 | «Informa 'no se encontró documento' la comisión decide». «el que lo haga la comision no es opcion, asi el sistema no aporta nada. La comision conformar y elegir en casos que no haya alternativa.» | Spec 004, 2026-10-06, «Documento faltante» y «Rol del sistema» | evaluación |
+| D-22 | «lo del pagare es ilegible se informa asi y ese si lo chequea la comision»; «con la aclaracion de que no pudo leer alguno». REQ-064: si el documento que responde un requisito no se puede leer, el resultado es «no se pudo leer», con el documento y la página. | Spec 004, 2026-10-06, «Ilegible» y REQ-064 | evaluación, visión, cláusulas |
+| D-23 | «Informa 'no se encontró documento' la comisión decide». «el que lo haga la comision no es opcion, asi el sistema no aporta nada. La comision conformar y elegir en casos que no haya alternativa.» | Spec 004, 2026-10-06, «Documento faltante» y «Rol del sistema» | evaluación, contraste, cláusulas, reescritura |
 | D-24 | Los cuatro resultados (cumple, no cumple, no se encontró el documento, no determinado) no cambian; los motivos de «no determinado» son `pendiente_informe_tecnico`, `no_se_pudo_leer`, `en_portal`, `falta_coincidencia` y `externo` (se muestra como «Falta la hoja de compliance»). Una regla decide antes del modelo, en este orden: externo, técnico, ilegible, Portal. | ADR-0043, decisiones 1 y 2 | evaluación |
 | D-25 | «Mantengo la visión, siempre es preferible a no leída. Obviamente aclarando que proviene de un documento con dificultades de lectura y que conviene re chequear por la comisión, ofreciendo ver la imagen»: toda cita de una página leída por visión lo dice. | Spec 015, 2026-10-13, «Lectura por visión con el 27B» | visión |
-| D-26 | «Lo que presentó cada oferta»: por oferta, qué presentó frente a cada requisito de la matriz, con el fragmento de la oferta (la ficha de la oferta). Anexos técnicos, «Solo los de la oferta»: fichas y folletos técnicos que presenta cada oferente; el informe técnico del área va en la sección de evaluación. | Spec 014, 2026-10-07, puntos 3.4 y 3.5 | ficha, ficha por renglón, informe técnico |
+| D-26 | «Lo que presentó cada oferta»: por oferta, qué presentó frente a cada requisito de la matriz, con el fragmento de la oferta (la ficha de la oferta). Anexos técnicos, «Solo los de la oferta»: fichas y folletos técnicos que presenta cada oferente; el informe técnico del área va en la sección de evaluación. | Spec 014, 2026-10-07, puntos 3.4 y 3.5 | ficha, ficha por renglón, informe técnico, reescritura |
 | D-27 | «El sistema lo propone»: lee los archivos de la oferta y propone nombre y CUIT del oferente con su cita; la Comisión aprueba o corrige. «Escribe el valor y motivo»: lo propuesto se corrige con motivo obligatorio; nada se escribe desde cero. | Spec 014, 2026-10-07, «Alta de oferta sin Portal» y «Corregir un dato propuesto» | oferente, procedimiento |
 | D-28 | Evaluación legible (A): el punto completo del pliego, las preguntas con su contexto, los requisitos externos aparte y qué se leyó y dónde (resumen de la spec; la decisión literal habla de cómo rehacer un caso y no de la instrucción). | Spec 014, 2026-10-10, «Evaluación legible y revisión» | evaluación, contraste, cláusulas |
 | D-29 | «La Comisión ve todo»: cada consulta de normativa queda con quién la hizo. La consulta responde con la cita de la norma y se abstiene cuando no la encuentra (evals de la 001, ADR-0002). | Spec 014, 2026-10-10, «Historial de la Consulta»; spec 015, 2026-10-14, «Calidad antes que tiempo» | consulta |
 | D-30 | «REvisa tambien como se propmtea los modelos exhaustivamente»; «Siempre prefiriendo el uso local cuanto sea posible sin resignar calidad». Las instrucciones nuevas llevan solo las definiciones y decisiones vigentes de esta tabla, en términos generales y sin ejemplos de licitaciones. | Spec 015, 2026-10-10, «Instrucciones al modelo»; spec 016, REQ-119 y 2026-10-14, «Preferencia» | todas |
 | D-31 | Las «formas» que la medición de la 015 mostró y que quedan como definiciones del responsable, sin ejemplo: la presentación física (D-21), el mantenimiento con su cómputo y su prórroga (D-20), la nota de la tabla de una declaración jurada, que si le exige algo al oferente es requisito y no se descarta como planilla en blanco (D-14), la cotización parcial (D-13: quien cotiza una parte y la condición para que se considere) y la forma de garantía con su límite y la copia en filas separadas (D-13 y D-14: dos obligaciones distintas sobre el mismo objeto son filas distintas). | Plan 016, «Paso 2»; ADR-0059; 015, T-258, T-262 y T-265 (resúmenes en `specs/015-uso-y-eleccion-del-modelo/revision-instrucciones.md`) | definiciones, extracción, unión |
-| D-32 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): la garantía que constituye el adjudicatario para asegurar que cumplirá el contrato es obligación de ejecución del contrato, no requisito de la oferta; lo que se acredita al ofertar sí es requisito (la Comisión quitó esas filas en los casos 02 y 05). | Derivada de D-01 (spec 003, «Qué es un requisito», 2026-10-03); origen: D-266-1 de la lista de revisión de la 015 y H-279-1 | definiciones, extracción |
-| D-33 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): lo que el organismo comprueba del oferente con una consulta fuera de la oferta (registros, deudas, sanciones) es un requisito de la oferta, externo. | Derivada de D-01 («aunque la cumpla el organismo»); spec 004, REQ-063; spec 015, 2026-10-12, «1 y luego 3 para no dejarlo sin probar» (la ronda que corrige las definiciones de lo externo); H-279-3 | definiciones |
+| D-32 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: “Si . Solo queda garantía de mantenimiento de oferta la otra es extemporanea”: la garantía que constituye el adjudicatario para asegurar que cumplirá el contrato es obligación de ejecución del contrato, no requisito de la oferta; lo que se acredita al ofertar sí es requisito (la Comisión quitó esas filas en los casos 02 y 05). | Derivada de D-01 (spec 003, «Qué es un requisito», 2026-10-03); origen: D-266-1 de la lista de revisión de la 015 y H-279-1; confirmación: spec 016, 2026-10-15, «Garantía de cumplimiento de contrato (REQ-102)» | definiciones, extracción |
+| D-33 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): lo que el organismo comprueba del oferente con una consulta fuera de la oferta (registros, deudas, sanciones) es un requisito de la oferta, externo. | Derivada de D-01 («aunque la cumpla el organismo»); spec 004, REQ-063; spec 015, 2026-10-12, «1 y luego 3 para no dejarlo sin probar» (la ronda que corrige las definiciones de lo externo); H-279-3 | definiciones, evaluación |
 | D-34 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): una condición dicha como efecto sobre la oferta («se considerará», «se entenderá», «quedará») es requisito si nombra algo que la oferta tiene que presentar o cumplir, y es consecuencia si solo dice qué pasa cuando no se cumple otra condición. | Derivada de D-01 y D-04; origen: T-236 de la 015 (definición del Planificador para aplicar REQ-102); H-279-3 | definiciones |
+| D-35 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): un fundamento del pliego alcanza a un requisito si es una cláusula del propio requisito, si es una cláusula general del punto o del capítulo que lo contiene (su ruta es el comienzo de la ruta del requisito, y entonces alcanza a todos los requisitos de ese punto aunque no los nombre) o si dice que alcanza a todo lo que el pliego exige; una cláusula de otro punto que solo habla de su propio punto no lo alcanza. | Derivada de D-04 (spec 003, «Consecuencia del incumplimiento», 2026-10-03: el sistema sugiere las consecuencias posibles «con su fundamento»); origen: T-248 de la 015 (`matriz-consecuencias-v2`: «la v1 no decía que una cláusula general alcanza a todos los requisitos de su punto»); H-280-1 | consecuencias |
+| D-36 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): un tramo de una circular alcanza la cita del pliego que trata de lo mismo, por su cláusula, su renglón o lo que dice; si ninguna corresponde, no se elige una ajena porque se parece: el tramo agrega un requisito o no tiene efecto. | Derivada de D-05 (spec 003, REQ-031: la matriz aplica el cambio y cita el documento que lo produjo); origen: T-098 de la 003 (`matriz-circulares-v2`, «sin citas ajenas») y T-236 de la 015 (`matriz-circulares-v7`: «nunca se elige una cita ajena»); H-280-1 | circulares |
+| D-37 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en una circular, un ítem es un renglón (el mismo objetivo, con su número como referencia). | Derivada de D-02 (spec 003: una fila por renglón del pliego); origen: T-236 de la 015 (`matriz-circulares-v6`: «"Ítem" vale como renglón»); H-280-2 | cambios de circulares |
+| D-38 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): lo que una circular agrega y no es requisito de la oferta según D-01 y D-12 (el pago, la moneda de pago, la factura, la forma de presentar por el Portal, un compromiso que se cumple con solo presentarse, una consecuencia, una obligación del organismo) se tipifica como dato del trámite, no como requisito agregado; el ADR-0023 (decisión 1) solo nombra como dato del trámite las fechas, las horas y los lugares. | Derivada de D-01, D-12 y del ADR-0023, decisión 1; origen: T-236 de la 015 (`matriz-circulares-v6`: «no es un "agrega", sino un "dato_del_tramite"»); H-280-2 | cambios de circulares |
+| D-39 | REQ-104: «En la evaluación, el sistema razona antes de dar el veredicto, revisa todas las condiciones del requisito, cada una con su dato y su resultado visible por separado («cumple» solo si se cumplen todas; «no cumple» si falla alguna; si falta el dato de alguna, «no determinado» diciendo cuál), cita la oración completa de la oferta y del pliego, y el contraste ve el contexto de la cita». El razonamiento va primero, con un tope de caracteres; la duda real se declara con su razón (qué dato falta o qué texto contradice). | Spec 015, REQ-104 (decisión del 2026-10-10, «Unidad de la fila»); ADR-0055, reglas 1 a 3 | evaluación, contraste, cláusulas |
+| D-40 | REQ-105: «Cada pregunta a la Comisión está dirigida a la Comisión (nunca al oferente) y dice qué requisito, qué conclusión y qué texto la motivan; no hay preguntas de texto fijo genérico». | Spec 015, REQ-105; ADR-0055, regla 6 | evaluación, cláusulas |
+| D-41 | El modelo devuelve el resultado, la exigencia (documento o condición), las citas (documento y texto) y una explicación breve; la página y las posiciones las pone el sistema al ubicar el texto. Un contraste corto contesta si el texto citado demuestra la conclusión («sí», «no» o «parcial»). «No se encontró el documento» solo si el pliego exige un documento y la oferta leída no lo trae; nunca es «no cumple». «Una respuesta de la Comisión puede ser fundamento, pero no sustituye la cita de la oferta». | ADR-0038 (decidió el responsable), alternativa B y reglas 1, 3 y 4; spec 004, REQ-053 y REQ-060 | evaluación, contraste, cláusulas |
+| D-42 | «Si, de acuerdo. Preguntar mostrando las dos posturas con contradicciones a la comision»: cuando el valor de la oferta y el dato del Portal no coinciden, la celda queda «no determinado» con las dos citas y pregunta a la Comisión, con las dos posturas, cuál rige. | Spec 016, 2026-10-15, «Falta de coincidencia con el Portal (REQ-120 y ADR-0053)»; ADR-0053, decisión 4 (enmienda del 2026-10-15) | evaluación |
 
 ## Oración → decisión, por instrucción nueva
 
-Formato de cada fila: la oración de la instrucción (o su primera frase, si es larga) y las decisiones de las que sale (`D-NN`, separadas por comas). Una oración que no sale de ninguna decisión no va en la instrucción. Lo que el código ya garantiza (ubicar las citas, el esquema JSON, derivar el resultado de las condiciones) tampoco. T-280 confirmó los nombres: `matriz-circulares-v8` (efecto de un tramo sobre las citas del pliego) y `matriz-circulares-cambios-v7` (lista de cambios de una unidad, que hasta la v6 compartía el nombre `matriz-circulares-`).
+Formato de cada fila: la oración completa de la instrucción y las decisiones de las que sale (`D-NN`, separadas por comas). Una oración que no sale de ninguna decisión no va en la instrucción. Lo que el código ya garantiza (ubicar las citas, el esquema JSON, derivar el resultado de las condiciones) tampoco. T-280 confirmó los nombres: `matriz-circulares-v8` (efecto de un tramo sobre las citas del pliego) y `matriz-circulares-cambios-v7` (lista de cambios de una unidad, que hasta la v6 compartía el nombre `matriz-circulares-`).
 
-Desde T-280 (H-279-5) la prueba exige también lo inverso: cada oración de la instrucción (el archivo, sin el bloque) tiene su fila, por su texto completo o por su primera frase. No son oraciones y no llevan fila: los títulos en mayúsculas, la marca `{{DEFINICIONES}}`, las marcas de parte del filtro («# COMÚN», «# PREGUNTA A», «# PREGUNTA B»), los rótulos de hasta cuatro palabras que terminan en dos puntos («Unidad de la fila:», «Por cada fila:») y la línea del esqueleto JSON. Una sola oración queda sin fila a propósito: «Estas definiciones son decisiones del responsable…» del bloque v9, que es procedencia y no regla (H-279-3).
+Desde T-280 (H-279-5) la prueba exige también lo inverso: cada oración de la instrucción (el archivo, sin el bloque) tiene su fila, con su texto completo (desde T-281, H-280-4: una cláusula agregada o quitada a una oración que ya tenía fila hace fallar la prueba; la fila de la salida puede sumar, después de la oración completa, «, y el esqueleto de la salida con marcadores (…)»). No son oraciones y no llevan fila: los títulos en mayúsculas, la marca `{{DEFINICIONES}}`, las marcas de parte del filtro («# COMÚN», «# PREGUNTA A», «# PREGUNTA B»), los rótulos de hasta cuatro palabras que terminan en dos puntos («Unidad de la fila:», «Por cada fila:») y la línea del esqueleto JSON. Una sola oración queda sin fila a propósito: «Estas definiciones son decisiones del responsable…» del bloque v9, que es procedencia y no regla (H-279-3).
 
 ## Instrucciones de T-279
 
-Los títulos en mayúsculas («QUÉ DEVOLVER POR TRAMO», «SALIDA») y la marca `{{DEFINICIONES}}` no son oraciones: ordenan el texto. El bloque `matriz-definiciones-v9` lo incluyen, donde tienen la marca, la extracción v13, la completitud v7, la unión v2 y el filtro v10 (T-280); las circulares v8, los cambios de circulares v7, las consecuencias v3 y el respaldo v3 no lo llevan (plan 016, «Bloque común de definiciones»). Una oración larga se nombra por su primera frase. El esqueleto de la salida se nombra sin copiarlo (lleva una barra vertical que rompería la tabla).
+Los títulos en mayúsculas («QUÉ DEVOLVER POR TRAMO», «SALIDA») y la marca `{{DEFINICIONES}}` no son oraciones: ordenan el texto. El bloque `matriz-definiciones-v9` lo incluyen, donde tienen la marca, la extracción v13, la completitud v7, la unión v2 y el filtro v10 (T-280); las circulares v8, los cambios de circulares v7, las consecuencias v3 y el respaldo v3 no lo llevan (plan 016, «Bloque común de definiciones»). Cada oración se copia completa. El esqueleto de la salida se nombra sin copiarlo (lleva una barra vertical que rompería la tabla).
 
 ### matriz-definiciones-v9
 
@@ -117,7 +125,7 @@ A qué etapa aplica la oración de la duda (H-279-2): solo el filtro tiene el de
 | dato_procedimiento: una definición o un dato del procedimiento. | D-06, ADR-0019 |
 | norma_aplicable: la cita o la transcripción de una norma. | D-06, ADR-0019 |
 | formulario: una planilla o un modelo en blanco. | D-06, ADR-0019 |
-| obligacion_organismo: una obligación del organismo que la oferta no puede contradecir ni condicionar. | D-01 |
+| obligacion_organismo: una obligación del organismo que la oferta no puede contradecir ni condicionar. | D-01, ADR-0019 |
 | ejecucion_contrato: la ejecución o el control del contrato después de adjudicar, incluida la garantía que constituye el adjudicatario. | D-01, D-32 |
 | consecuencia_sancion: una consecuencia de no cumplir. | D-04 |
 | condicion_opcional: una oración que solo permite o describe una opción y no le exige nada a quien la usa. | D-13 |
@@ -187,7 +195,7 @@ El filtro v10 incluye el bloque `matriz-definiciones-v9` por la marca y se escri
 | "dato_procedimiento": una definición o un dato del procedimiento. | D-06, ADR-0019 |
 | "norma_aplicable": la cita o la transcripción de una norma. | D-06, ADR-0019 |
 | "formulario": una planilla o un modelo en blanco. | D-06, ADR-0019 |
-| "obligacion_organismo": una obligación del organismo que la oferta no puede contradecir ni condicionar. | D-01 |
+| "obligacion_organismo": una obligación del organismo que la oferta no puede contradecir ni condicionar. | D-01, ADR-0019 |
 | "derecho_posterior": un derecho del organismo posterior a la oferta, que la oferta no puede condicionar. | D-01, ADR-0021 |
 | "ejecucion_contrato": la ejecución o el control del contrato después de adjudicar. | D-01 |
 | "consecuencia_sancion": una consecuencia de no cumplir. | D-04 |
@@ -197,7 +205,7 @@ El filtro v10 incluye el bloque `matriz-definiciones-v9` por la marca y se escri
 | "compromiso_presentacion": un compromiso que se cumple con solo presentarse. | D-12 |
 | "indicio": si descartás, una frase del texto del tramo, de al menos cuatro palabras con contenido, copiada letra por letra y sin las marcas <<< ni >>>, que muestra por qué corresponde ese motivo; si no, vacío. | D-06, ADR-0021 |
 | Salida, un objeto JSON con una propiedad por alias, y el esqueleto de la salida con marcadores (razonamiento, decisión, motivo e indicio de una fila). | D-30 |
-| Por cada fila, "respuesta": "si" si según las definiciones es un requisito de la oferta, "no" si queda afuera con claridad, "duda" si con lo que ves no podés saberlo. | D-01, D-06, D-15 |
+| Por cada fila, "respuesta": "si" si según las definiciones es un requisito de la oferta, "no" si queda afuera con claridad, "duda" si con lo que ves no podés saberlo. | D-01, D-06, D-15, ADR-0021 |
 | No elegís un motivo. | D-06, ADR-0021 |
 | Salida, un objeto JSON con una propiedad por alias, y el esqueleto de la salida con marcadores (razonamiento y respuesta de una fila). | D-30 |
 
@@ -215,8 +223,8 @@ El filtro v10 incluye el bloque `matriz-definiciones-v9` por la marca y se escri
 | ¿Qué errores u omisiones de una oferta se pueden subsanar y cómo se intima al oferente? | D-04 |
 | ¿Cuándo un renglón de una oferta es inadmisible? | D-04 |
 | La ruta ubica un texto de lo general a lo particular. | D-04, D-30 |
-| Un fundamento del pliego alcanza al requisito si es una cláusula del propio requisito; si es una cláusula general de un punto o de un capítulo que lo contiene, porque su ruta es el comienzo de la ruta del requisito, y entonces alcanza a todos los requisitos de ese punto aunque no los nombre; o si dice que alcanza a todo lo que el pliego exige. | D-04 |
-| Una cláusula de otro punto que solo habla de su propio punto no lo alcanza. | D-04 |
+| Un fundamento del pliego alcanza al requisito si es una cláusula del propio requisito; si es una cláusula general de un punto o de un capítulo que lo contiene, porque su ruta es el comienzo de la ruta del requisito, y entonces alcanza a todos los requisitos de ese punto aunque no los nombre; o si dice que alcanza a todo lo que el pliego exige. | D-04, D-35 |
+| Una cláusula de otro punto que solo habla de su propio punto no lo alcanza. | D-04, D-35 |
 | Por cada requisito, hasta tres opciones, cada una con sus "fundamentos" primero y su "tipo" después: | D-04, ADR-0055 |
 | "fundamentos": los alias de los textos que dicen esa consecuencia y alcanzan al requisito. | D-04 |
 | Una opción que ningún fundamento dice no se propone. | D-04 |
@@ -224,7 +232,7 @@ El filtro v10 incluye el bloque `matriz-definiciones-v9` por la marca y se escri
 | "intimacion_subsanar": intimación a subsanar y, si no se subsana, desestimación. | D-04 |
 | "consultar_oferente": el pliego permite pedirle aclaraciones al oferente. | D-04 |
 | "otra_pliego": otra consecuencia que el pliego prevé. | D-04 |
-| Nunca sugerís aprobación condicionada ni aprobar de todas maneras: las elige una persona de la Comisión. | D-04 |
+| Nunca sugerís aprobación condicionada ni aprobar de todas maneras: las elige una persona de la Comisión. | D-04, ADR-0023 |
 | Si ningún fundamento sostiene una consecuencia, "opciones" va vacía. | D-04 |
 | Salida, un objeto JSON con una propiedad por alias de requisito, y el esqueleto de la salida con marcadores (fundamentos y tipo de una opción). | D-30 |
 
@@ -248,11 +256,11 @@ El filtro v10 incluye el bloque `matriz-definiciones-v9` por la marca y se escri
 | Un tramo trae efectos o nuevos, o un motivo en "sin_efecto"; nunca las dos cosas ni ninguna. | D-06, ADR-0019 |
 | Es requisito de la oferta lo que la oferta tiene que presentar, ofrecer o comprometer, y toda condición del pliego que la oferta pueda contradecir o condicionar. | D-01 |
 | Lo que una circular agrega y no lo es (el pago, la moneda de pago, la factura, la forma de presentar por el Portal, un compromiso que se cumple con solo presentarse, una consecuencia, una obligación del organismo o la ejecución del contrato) va en "sin_efecto" con su motivo; la moneda en que se cotiza la oferta sí es requisito. | D-01, D-04, D-12 |
-| La cita alcanzada es la que trata de lo mismo que el tramo, por su cláusula, su renglón o lo que dice. | D-05 |
-| Si ninguna corresponde, no elegís una ajena porque se parece: es "nuevos" o "sin_efecto". | D-05 |
+| La cita alcanzada es la que trata de lo mismo que el tramo, por su cláusula, su renglón o lo que dice. | D-05, D-36 |
+| Si ninguna corresponde, no elegís una ajena porque se parece: es "nuevos" o "sin_efecto". | D-05, D-36 |
 | Un tramo puede alcanzar varias citas: un efecto por cada una. | D-05 |
 | Una pregunta de un oferente sin la respuesta de la convocante no cambia nada. | D-05 |
-| En una corrección «Donde dice / Debe decir», el «Donde dice» es el texto que ya está en el pliego y no cambia nada por sí solo; el efecto lo dice el «Debe decir», comparado con la cita de la misma cláusula, y si no hay cita es "nuevos". | D-05 |
+| En una corrección «Donde dice / Debe decir», el «Donde dice» es el texto que ya está en el pliego y no cambia nada por sí solo; el efecto lo dice el «Debe decir», comparado con la cita de la misma cláusula, y si no hay cita es "nuevos". | D-05, ADR-0023 |
 | Salida, un objeto JSON, y el esqueleto de la salida con marcadores (efectos, nuevos y sin efecto de un tramo). | D-30 |
 
 ### matriz-circulares-cambios-v7
@@ -271,9 +279,9 @@ El filtro v10 incluye el bloque `matriz-definiciones-v9` por la marca y se escri
 | "texto_anterior": el fragmento de la unidad que dice cómo era lo que cambia, copiado letra por letra; vacío si no lo da. | D-05 |
 | "texto_nuevo": la oración completa de la unidad que dice cómo queda, qué se agrega o qué se suprime o aclara, copiada letra por letra; vacío si no lo da. | D-05, D-15 |
 | Si la unidad no cambia, no precisa ni agrega nada (un título, una fórmula de cortesía, una pregunta sin respuesta), "cambios" va vacía. | D-05 |
-| Lo que una circular agrega y no es requisito de la oferta (el pago, la moneda de pago, la factura, la forma de presentar por el Portal, un compromiso que se cumple con solo presentarse, una consecuencia, una obligación del organismo) es "dato_del_tramite", no "agrega"; la moneda en que se cotiza la oferta sí es requisito. | D-01, D-04, D-12 |
+| Lo que una circular agrega y no es requisito de la oferta (el pago, la moneda de pago, la factura, la forma de presentar por el Portal, un compromiso que se cumple con solo presentarse, una consecuencia, una obligación del organismo) es "dato_del_tramite", no "agrega"; la moneda en que se cotiza la oferta sí es requisito. | D-01, D-04, D-12, D-38 |
 | Un cambio por cada cosa distinta que la unidad cambia, por cada renglón y por cada cláusula o anexo que nombra, cada uno con su referencia. | D-02, D-05 |
-| Un ítem es un renglón. | D-02 |
+| Un ítem es un renglón. | D-02, D-37 |
 | En «Donde dice / Debe decir», "texto_anterior" es lo que dice «Donde dice», que ya está en el pliego, y "texto_nuevo" lo que dice «Debe decir»: el par es un cambio y nunca un requisito nuevo por sí solo. | D-05 |
 | Las fechas, las horas y los lugares de un trámite (visita, apertura) son "dato_del_tramite", salvo que la unidad reemplace la cláusula del pliego que los fija: entonces es "reemplaza" sobre esa cláusula. | D-05, ADR-0023 |
 | Si la unidad no nombra el objetivo, es "ninguno": no lo inventás. | D-05, ADR-0023 |
@@ -296,29 +304,133 @@ El filtro v10 incluye el bloque `matriz-definiciones-v9` por la marca y se escri
 
 ## Instrucciones de T-281
 
+Las cuatro reemplazan a `evaluacion-v12`, `contraste-v4`, `clausulas-v5` y `reescritura-v2`, que siguen publicadas. No llevan el bloque de definiciones de la matriz ni ejemplos: solo las definiciones y las decisiones vigentes, en términos generales, y el esqueleto de la salida con marcadores (la línea JSON, que no lleva fila y que `tests/assessment/test_instrucciones_evaluacion.py` compara con el esquema). Los títulos en mayúsculas («QUÉ RECIBÍS», «QUÉ DEVOLVÉS, EN ESTE ORDEN», «CÓMO DECIDÍS», «CÓMO JUZGÁS») ordenan el texto. Lo que el código garantiza no se repite: que la cita se ubique en el texto y se amplíe a la oración, que el sistema escriba el texto de la cita del Portal, el tope de citas, el resultado que se deriva de las condiciones y su baja a «no determinado», la comparación de montos y CUIT con el Portal, la comprobación de la página ilegible, el reconocimiento de la forma de garantía, la nota y la pregunta de una condición sin dato y la forma JSON de la salida. El esquema de la evaluación no tiene descripciones de campo: el texto no se mudó al esquema (`SIMPLIFIED_SCHEMAS`).
+
+La reescritura (`reescritura-v3`) no decide: escribe cómo diría una oferta el requisito para buscar sus pasajes (spec 008, REQ-039; T-146); sus filas citan la ficha de la oferta (D-26) y la regla general de las instrucciones (D-30).
+
 ### evaluacion-v13
 
 | Oración | Decisión |
 |---|---|
-| (pendiente: T-281) | (pendiente) |
+| Ayudás a la Comisión Evaluadora de una contratación pública: leés los documentos de una oferta y sus datos del Portal y decís qué dicen sobre un requisito del pliego, condición por condición. | D-14, D-39 |
+| Proponés; la decisión final es de una persona de la Comisión. | D-23 |
+| Los documentos de la oferta, cada uno entre su alias y su cierre ([D1] y [/D1]), con su título, su archivo y su texto por página. | D-30, D-41 |
+| Una página marcada "no se pudo leer" es ilegible. | D-22 |
+| Si los hay, los datos del Portal de esa oferta ([P1], [P2]…). | D-16 |
+| Son datos oficiales: valen como fundamento igual que el texto de la oferta. | D-17 |
+| Si las hay, respuestas de la Comisión ([R1]…), con quién respondió y cuándo, y normas ([N1]…). | D-41 |
+| Sirven para entender el requisito; no son parte de la oferta. | D-41 |
+| Al final, el requisito con su punto completo: lo que se evalúa es la oración entre <<< y >>>, y el resto es contexto. | D-15, D-28, D-39 |
+| Si una circular lo cambió o lo aclaró, vale el texto vigente con su aclaración. | D-05 |
+| "razonamiento": de dos a cuatro oraciones, de hasta 600 caracteres, antes de decidir: qué condiciones tiene la oración, qué dicen la oferta o el Portal sobre cada una y cuál queda sin dato. | D-39 |
+| "citas": cada una con el alias del documento o del dato del Portal donde la viste y la oración completa, copiada letra por letra, sin resumir ni cambiar palabras. | D-15, D-39, D-41 |
+| Solo se cita de [D] y de [P], nunca de [R] ni de [N]. | D-17, D-41 |
+| "fundamentos": los alias [R] y [N] que usaste para entender el requisito. | D-41 |
+| Una respuesta de la Comisión sola no alcanza para concluir. | D-41 |
+| "externo": true si el requisito se verifica con una consulta que hace la Comisión fuera de la oferta (registros, deudas, sanciones), que consta en la hoja de compliance; si no, false. | D-10, D-33 |
+| Lo que la oferta presenta, como una declaración o una constancia, se evalúa como cualquier documento. | D-10, D-33 |
+| Con true, el resultado es "no_determinado" y la pregunta va vacía. | D-10, D-24 |
+| "ilegible": el alias del documento que debería responder el requisito y tiene una página ilegible donde puede estar la respuesta; si no, vacío. | D-22 |
+| Un documento que falta no es un documento ilegible. | D-22, D-23 |
+| "datos": si el requisito pide un monto, la forma de una garantía, un precio o un CUIT y la oferta lo escribe, hasta dos fragmentos de ese mismo concepto copiados letra por letra. | D-11, D-16 |
+| No calculás ni comparás. | D-16 |
+| Si no, vacío. | D-16 |
+| "exigencia": "documento" si el requisito pide presentar un documento; "condicion" si pide un dato, una declaración o una característica. | D-23, D-41 |
+| "usa_opcion": si la oración vale solo para quien usa una opción que el oferente puede no usar, "si" o "no" según la oferta muestre que la usa; "no_consta" si no depende de una opción o no lo podés saber. | D-13 |
+| "condiciones": una por cada condición de la oración, en su orden, hasta seis; si hay más, las que sobran van juntas en la sexta. | D-14, D-39 |
+| Cada una con: | D-39 |
+| "condicion": lo que exige, con las palabras del requisito. | D-14, D-39 |
+| "dato": lo que dicen la oferta o el Portal para esa condición, copiado corto; vacío si no dicen nada. | D-39 |
+| "cita": el número de su cita en "citas" (la primera es 1); 0 si no tiene. | D-39, D-41 |
+| "resultado": "cumple" si su dato la satisface; "no_cumple" si su dato la contradice, porque declara lo contrario u ofrece un valor distinto del exigido; "no_consta" si nada en los documentos ni en el Portal responde a esa condición; "no_determinado" si hay algo sobre el tema pero no el dato (un texto anuncia un documento sin reproducirlo, el dato está en una página ilegible, dos textos dicen cosas distintas). | D-24, D-39 |
+| "resultado": el que dan las condiciones: "cumple" si todas cumplen, "no_cumple" si alguna no cumple, "no_consta" si ninguna tiene nada y "no_determinado" si a alguna le falta el dato. | D-39 |
+| "clausula": solo en un "no_cumple" de un renglón, la cláusula del pliego que lo ofrecido contradice, copiada letra por letra del requisito; si no, vacía. | D-02, D-09 |
+| "explicacion": una o dos oraciones, de hasta 300 caracteres, que dicen por qué. | D-39, D-41 |
+| Si queda "no_determinado", nombra el dato que falta o el texto que contradice. | D-39 |
+| "pregunta": si queda algo que la Comisión puede aclarar o decidir, una pregunta dirigida a la Comisión que nombra el requisito, tu conclusión y el texto que leíste. | D-40 |
+| Nunca le pide un dato ni un documento al oferente: pedirle algo es una subsanación y la decide la Comisión. | D-04, D-40 |
+| Con "cumple" o "no_cumple", vacía. | D-40 |
+| Una condición es "cumple" o "no_cumple" solo con su propio dato y su propia cita. | D-39, D-41 |
+| No supongas un dato: lo habitual no es un dato. | D-16, D-39 |
+| La duda no es un motivo: si falta un dato, decí cuál falta. | D-39 |
+| Si el requisito exige un documento y ninguno de los que recibiste lo es, la condición es "no_consta", nunca "no_cumple". | D-23, D-41 |
+| Un dato del Portal que dice lo que la condición pide sostiene "cumple" o "no_cumple" igual que un texto de la oferta. | D-16, D-17 |
+| El Portal informa solo lo que trae su bloque. | D-16 |
+| Si la oferta y el Portal dan valores distintos para un mismo dato, citá los dos: la Comisión decide cuál rige. | D-11, D-42 |
+| Un requisito negativo (lo que la oferta no puede traer) o supletorio (lo que rige si la oferta no dice otra cosa) es "no_cumple" si un documento trae lo prohibido o algo en contra, con esa oración. | D-18 |
+| Si ninguno dice nada en contra, su condición va "no_consta", sin dato ni cita: el sistema lo propone "cumple" por ausencia, con los documentos leídos. | D-18 |
+| Una exigencia de un documento dicha en negativo pide ese documento. | D-18 |
+| El plazo por el que se mantiene la oferta y su prórroga automática son supletorios: son "no_cumple" solo si la oferta fija un plazo menor o limita o rechaza la prórroga. | D-18, D-20 |
+| El precio cotizado en el Portal es precio final, con los impuestos incluidos, salvo que la oferta diga lo contrario. | D-19 |
+| Si un documento dice que el precio no incluye el impuesto, esa condición es "no_cumple" con esa oración; si nada lo dice, va "no_consta", sin dato. | D-19 |
+| Las condiciones de una forma de garantía valen solo para la oferta que eligió esa forma. | D-13 |
+| Si la oferta eligió otra, no las des por cumplidas: van "no_determinado", sin dato, y la explicación dice qué forma eligió. | D-13 |
+| Una condición que vale solo para quien usa una opción no falta si la oferta no muestra usarla: va "no_determinado", sin dato, con "usa_opcion" en "no", y la pregunta le plantea a la Comisión si la opción aplica. | D-13, D-40 |
+| Lo que la oración solo permite no es una condición; lo que le exige a toda oferta se evalúa siempre. | D-13 |
+| En un renglón, cada cláusula es una condición. | D-02, D-14 |
+| Es "cumple" si lo ofrecido trae el valor que la satisface y "no_cumple" solo si lo ofrecido trae un valor que la contradice. | D-02, D-09 |
+| Si lo ofrecido no trae el valor de una cláusula, no la contradice: queda "no_determinado". | D-09, D-39 |
+| El cumplimiento técnico lo confirma el informe técnico del área. | D-02, D-09 |
 
 ### contraste-v5
 
 | Oración | Decisión |
 |---|---|
-| (pendiente: T-281) | (pendiente) |
+| Controlás una conclusión de la evaluación de una oferta de una contratación pública: si el texto citado, leído en su contexto, sostiene la conclusión propuesta. | D-41 |
+| No evaluás la oferta de nuevo. | D-41 |
+| Proponés; la decisión final es de una persona de la Comisión. | D-23 |
+| El requisito del pliego con su punto completo: lo que se evalúa es la oración entre <<< y >>>. | D-28, D-39 |
+| La conclusión propuesta: "cumple" o "no cumple". | D-41 |
+| El texto citado de la oferta: la oración completa, con su documento y su página, y el contexto en la misma página (la oración de antes y la de después). | D-39 |
+| El contexto sirve para entender la cita; lo que sostiene la conclusión tiene que estar en la oración citada o en un dato del Portal. | D-39, D-41 |
+| Si los hay, los datos del Portal citados y los demás datos del Portal de la oferta: son datos oficiales y valen igual que un texto de la oferta. | D-16, D-17 |
+| Si los hay, los fundamentos (normas o respuestas de la Comisión) que se usaron para entender el requisito. | D-41 |
+| "razonamiento": una o dos oraciones, de hasta 400 caracteres: qué condiciones tiene el requisito, qué dicen la cita y el Portal sobre cada una y si alcanzan para la conclusión. | D-39 |
+| "respuesta": "si" si el texto muestra, con datos concretos, lo que la conclusión afirma para todas las condiciones del requisito; con "no cumple", "si" quiere decir que el texto muestra que lo exigido no se satisface. | D-41 |
+| "no" si el texto no trata de lo que el requisito exige o muestra lo contrario de la conclusión. | D-41 |
+| "parcial" si trata del tema pero no alcanza: falta el dato de una de las condiciones o solo anuncia un documento que no reproduce. | D-39, D-41 |
+| Juzgá solo contra lo que el requisito pide: si el texto afirma lo mismo, con las mismas palabras o con otras equivalentes, alcanza. | D-08 |
+| Si el requisito tiene varias condiciones y el texto responde solo a algunas, es "parcial" y el razonamiento dice cuál falta. | D-14, D-39 |
+| No uses nada que no esté en la cita, en su contexto o en los datos del Portal. | D-41 |
 
 ### clausulas-v6
 
 | Oración | Decisión |
 |---|---|
-| (pendiente: T-281) | (pendiente) |
+| Controlás, cláusula por cláusula, si lo que una oferta ofrece para un renglón del pliego trae los valores que el pliego pide. | D-02, D-14 |
+| El cumplimiento técnico lo confirma el informe técnico del área; vos decís qué trae la oferta. | D-09 |
+| Proponés; la decisión final es de una persona de la Comisión. | D-23 |
+| El renglón del pliego con algunas de sus cláusulas, el texto citado de la oferta para ese renglón y el documento de la oferta donde está la cita, o las páginas que la rodean. | D-02, D-39 |
+| Una cláusula puede responderse en el documento aunque no esté en la cita. | D-39 |
+| "razonamiento": una o dos oraciones, de hasta 400 caracteres: qué cláusulas tiene el renglón, qué trae la oferta para cada una y cuáles quedan sin dato. | D-39 |
+| "clausulas": una entrada por cada cláusula numerada del renglón o, si no están numeradas, por cada dato que el pliego fija. | D-02, D-14 |
+| No saltees ninguna ni juntes dos. | D-14, D-39 |
+| Una cláusula con una tabla o un listado es una sola entrada. | D-14 |
+| Cada entrada con: | D-39 |
+| "clausula": el comienzo de la cláusula, copiado letra por letra del requisito. | D-02 |
+| "motivo": una oración, nunca vacía: con "coincide" o "contradice", el valor de la oferta que usaste; con "no_aparece" o "no_legible", qué falta o por qué no se lee. | D-39 |
+| Va antes del estado. | D-39 |
+| "estado": "coincide" si la oferta trae un valor que satisface la cláusula; "contradice" si trae otro valor distinto del exigido; "no_aparece" si ni la cita ni el documento dicen nada de esa cláusula; "no_legible" si el texto sobre esa cláusula está ilegible o cortado. | D-02, D-22, D-39 |
+| "cita": solo con "contradice", el tramo de la oferta que trae el valor distinto, copiado letra por letra. | D-41 |
+| Si no podés copiar un tramo que lo muestre, no es "contradice". | D-41 |
+| En los demás estados, vacía. | D-41 |
+| "pregunta": si alguna cláusula quedó "no_aparece" o "no_legible", una pregunta dirigida a la Comisión que nombra el renglón, la cláusula y lo que se leyó en la oferta; si no, vacía. | D-40 |
+| Nunca le pide nada al oferente. | D-40 |
+| Un error de lectura, un número partido o un carácter extraño no es una contradicción: es "no_legible". | D-22 |
+| Que la oferta hable del mismo producto en general no hace que coincida cada cláusula: "coincide" pide un valor de la oferta que la satisfaga. | D-39 |
 
 ### reescritura-v3
 
 | Oración | Decisión |
 |---|---|
-| (pendiente: T-281) | (pendiente) |
+| Tomás un requisito del pliego de una contratación pública y escribís, en pocas palabras, cómo lo diría un oferente en los documentos de su oferta. | D-26, REQ-039 |
+| Con tu texto el sistema busca en la oferta los pasajes que lo responden. | D-26, REQ-039 |
+| No evaluás ninguna oferta ni decidís nada. | D-23, D-26 |
+| El mensaje trae el requisito del pliego, copiado literalmente. | D-30 |
+| "consulta": una o dos líneas, de hasta veinticinco palabras, con las palabras que usaría la oferta para responder el requisito. | D-26, REQ-039 |
+| Nombrá el tipo de documento en que suele estar la respuesta (una póliza de seguro, una nota de la empresa, una declaración jurada que dice "declaro bajo juramento", una constancia, un formulario, una planilla) y los datos que ese documento trae (número, monto, plazo, porcentaje, fecha, firma). | D-26, D-30 |
+| Conservá las palabras importantes del requisito y escribí como afirma la oferta, no como pide el pliego. | D-26 |
+| No inventes cifras, nombres ni fechas, y no uses palabras de juicio como "cumple", "no cumple", "satisface", "adecuado" o "conforme". | D-23, D-30 |
 
 ## Instrucciones de T-282
 

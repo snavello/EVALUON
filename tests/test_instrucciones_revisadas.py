@@ -339,8 +339,9 @@ WITHOUT_ROW = {
     "matriz-definiciones-v9": {
         "Estas definiciones son decisiones del responsable y valen para toda la matriz."},
 }
-# Lo más corto que puede ser una fila que nombra una oración larga por su primera frase.
-MIN_PREFIX = 20
+# T-281 (H-280-4, a): la fila de la salida puede sumar, después de la oración completa, el esqueleto de
+# la salida con marcadores (las de T-279 y T-280). Es lo único que una fila puede agregar.
+SKELETON_NOTE = ", y el esqueleto de la salida con marcadores"
 
 
 def _is_label(line):
@@ -370,12 +371,10 @@ def _norm(text):
 
 
 def _covers(row, sentence):
-    """Si la fila nombra la oración: igual, por su primera frase o con lo que agrega la fila (el
-    esqueleto de la salida)."""
-    if row == sentence:
-        return True
-    shorter = min(len(row), len(sentence))
-    return shorter >= MIN_PREFIX and (sentence.startswith(row) or row.startswith(sentence))
+    """Si la fila nombra la oración: la oración completa, igual, o seguida solo de la nota del
+    esqueleto de la salida (`SKELETON_NOTE`). Desde T-281 (H-280-4, a) no alcanza el comienzo: una
+    cláusula agregada al final de una oración que tenía fila, o una quitada, la deja sin fila."""
+    return row == sentence or row.startswith(sentence + SKELETON_NOTE)
 
 
 def uncovered_sentences(report, version, text):
@@ -455,8 +454,45 @@ def test_the_sentence_check_finds_a_deleted_row_and_a_new_sentence():
     assert uncovered_sentences(SAMPLE_TABLE, "matriz-prueba-v0", SAMPLE_INSTRUCTION) != []
 
 
-def test_a_row_named_by_its_first_phrase_covers_its_sentence_but_a_short_one_does_not():
-    """REQ-119 (H-279-5): una fila que nombra una oración larga por su primera frase la cubre; una
-    fila de menos de 20 caracteres no cubre a otra oración que empieza igual."""
-    assert _covers(_norm("Primera oración de la prueba"), _norm("Primera oración de la prueba, larga."))
+def test_a_clause_added_to_a_sentence_with_a_row_leaves_it_without_its_row():
+    """REQ-119 (H-280-4, a, de la verificación de T-280): la fila compara la oración completa, no su
+    comienzo. Agregar una cláusula al final de una oración que ya tenía fila, o quitarle una, la deja
+    sin fila y la prueba la nombra (instrucción y tabla de prueba, inventadas)."""
+    added = SAMPLE_INSTRUCTION.replace("Segunda oración de la prueba.",
+                                       "Segunda oración de la prueba, y además otra cosa.")
+    assert uncovered_sentences(SAMPLE_TABLE, "matriz-prueba-v5", added) == [
+        "Segunda oración de la prueba, y además otra cosa."]
+
+    cut = SAMPLE_INSTRUCTION.replace("Primera oración de la prueba, que es larga.",
+                                     "Primera oración de la prueba.")
+    assert uncovered_sentences(SAMPLE_TABLE, "matriz-prueba-v5", cut) == [
+        "Primera oración de la prueba."]
+
+    assert not _covers(_norm("Primera oración de la prueba"), _norm("Primera oración de la prueba, larga."))
     assert not _covers(_norm("Primera."), _norm("Primera oración de la prueba."))
+
+
+def test_the_row_of_the_output_may_add_only_the_skeleton_note():
+    """REQ-119 (H-280-4, a): la fila de la salida puede sumar, después de la oración completa, la nota
+    del esqueleto de la salida; cualquier otro agregado de la fila no cubre la oración."""
+    sentence = _norm("Salida, un objeto JSON con una propiedad por alias:")
+    assert _covers(_norm("Salida, un objeto JSON con una propiedad por alias, y el esqueleto de la salida "
+                         "con marcadores (campo de prueba)."), sentence)
+    assert not _covers(_norm("Salida, un objeto JSON con una propiedad por alias y otra cosa."), sentence)
+
+
+def test_every_sentence_of_the_real_instructions_fails_with_a_clause_added():
+    """REQ-119 (H-280-4, a): sobre las instrucciones reales de `SIMPLIFIED`, agregar una cláusula al
+    final de cualquier oración que tiene fila la deja sin fila (se prueba con la primera y la última
+    oración de cada instrucción)."""
+    report = read_report_016()
+    for version, entry in SIMPLIFIED.items():
+        text = _raw(entry)
+        exempt = {_norm(sentence) for sentence in WITHOUT_ROW.get(version, ())}
+        found = [sentence for sentence in instruction_sentences(text) if _norm(sentence) not in exempt]
+        for sentence in {found[0], found[-1]}:
+            core = sentence.rstrip(".:;")
+            altered = text.replace(sentence, f"{core}, y además completás lo que falte.", 1)
+            assert altered != text, (version, sentence)
+            missing = [_norm(s) for s in uncovered_sentences(report, version, altered)]
+            assert _norm(f"{core}, y además completás lo que falte.") in missing, (version, sentence)

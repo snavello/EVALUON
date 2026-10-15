@@ -308,7 +308,9 @@ def test_the_new_evaluation_examples_cite_the_sentence_that_says_what_they_affir
     cumple y uno que no cumple, y uno de mantenimiento de la oferta que cumple; todos se leen con el
     código, su resultado es el que se deriva de sus condiciones y la cita de cada «cumple» dice lo
     afirmado (formularios acompañados, sin reservas, el plazo)."""
-    body = prompting.load_prompt("evaluacion")
+    # T-281: los ejemplos son de la `evaluacion-v12` (publicada); la vigente, v13, no trae ejemplos
+    # (ADR-0070) y lo que dice de cada «cumple» lo prueba `test_instrucciones_evaluacion.py`.
+    body = (prompting.PROMPTS_DIR / "evaluacion-v12.md").read_text(encoding="utf-8")
     section = body[body.index("EJEMPLOS"):]
     examples = [json.loads(line) for line in section.splitlines() if line.startswith("{")]
 
