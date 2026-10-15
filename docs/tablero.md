@@ -1509,7 +1509,7 @@ flowchart TD
 
 ## 016 · Calidad medible: verdad ampliada, instrucciones simples y modelos externos por clase de dato
 
-**Etapa actual:** 1 de 7 · Spec (spec en borrador, 5 dudas abiertas) · [carpeta](../specs/016-calidad-medible)
+**Etapa actual:** 1 de 7 · Spec (spec en borrador, 1 dudas abiertas) · [carpeta](../specs/016-calidad-medible)
 
 ```mermaid
 flowchart LR
@@ -1523,7 +1523,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Resolver 5 dudas marcadas en la spec y aprobar la spec (compuerta del responsable).
+- **Próximo paso:** Resolver 1 duda marcada en la spec y aprobar la spec (compuerta del responsable).
 
 ### Qué se hizo
 

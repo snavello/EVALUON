@@ -21,6 +21,8 @@ Por encima de todo eso, la constitución (P4, versión 1.5) prohibía procesar p
 | 2026-10-14 | Ofertas del proceso en curso | «las ofertas no son reservadas.»: tampoco antes del dictamen (resuelve el punto pendiente del ADR-0065). |
 | 2026-10-14 | Preferencia | «Siempre prefiriendo el uso local cuanto sea posible sin resignar calidad.» |
 | 2026-10-14 | Orden de trabajo | «Entiendo que las propuestas A D B y C podrian ser pasos incrementales de mejoras y quizas la C se torna innecesaria.» y «arrancá la spec de la feature 016 en un clon aparte, con la secuencia D, simplificación, A y B»: primero la verdad ampliada (D), después la simplificación de instrucciones y reglas, después la matriz con modelo externo (A) y por último el verificador externo de citas (B). La lectura completa de la oferta con modelo externo (C) queda fuera de esta feature. |
+| 2026-10-15 | Quién valida la verdad | «La verdad celda por celda la arma un agente que rehace el caso como Comisión y la reviso yo.»: un agente rehace cada caso como lo haría la Comisión (como en T-229) y el responsable revisa y firma cada celda. |
+| 2026-10-15 | Tope de gasto externo | «Tope de gasto externo: fijalo vos con una estimación razonable y me lo mostrás.»: el Coordinador fija el tope con la estimación de «Requisitos no funcionales»; el responsable lo aprueba con la spec. |
 | 2026-10-14 | Dónde se trabaja | «Por una cuestion de metodologia y de proteccion de lo hecho apuntaria a trabajar sobre una clonacion o similar»: todo el trabajo corre en una instancia clonada; el piloto y lo integrado no cambian hasta que cada paso pasa su umbral. |
 
 ## Usuarios y escenarios
@@ -52,7 +54,7 @@ Por encima de todo eso, la constitución (P4, versión 1.5) prohibía procesar p
 
 Medidos con los casos públicos 00 a 06 en la instancia clonada. Umbrales escritos antes de medir; dos rondas como máximo por medición (ADR-0024 y ADR-0025). Los casos 03, 04 y 05 son el lote de aceptación y no se corren para ajustar.
 
-- **REQ-118.** Dado el corpus público, cuando termina el paso de verdad ampliada, entonces hay al menos 3 casos más con verdad celda por celda, al menos 40 celdas decididas por caso y al menos 150 en total, cada una con quién la validó y cuándo; al menos 2 de esos casos son del lote de aceptación y no se corrió el sistema sobre ellos antes de la medición final. `[A ACLARAR: quién valida la verdad (el responsable, una Comisión de prueba o un agente que rehace el caso con revisión del responsable) y en qué plazo]`
+- **REQ-118.** Dado el corpus público, cuando termina el paso de verdad ampliada, entonces hay al menos 3 casos más con verdad celda por celda, al menos 40 celdas decididas por caso y al menos 150 en total, cada una con quién la validó y cuándo: la arma un agente que rehace el caso como Comisión y la revisa y firma el responsable; al menos 2 de esos casos son del lote de aceptación y no se corrió el sistema sobre ellos antes de la medición final.
 - **REQ-119.** Dadas las instrucciones nuevas, cuando se mide el modelo local con ellas en los casos de validación (00, 01, 02 y 06), entonces ninguna instrucción supera el largo máximo del plan, 0 ejemplos copian texto de un caso (la prueba automática mira también el cuerpo de los pliegos y las ofertas), y las medidas graves no empeoran: 0 «cumple» sin fundamento, 0 contradicciones con el dictamen, 100 % de citas literales, lista presente de la matriz igual o mejor en cada caso. Si las demás medidas empatan, queda la instrucción corta.
 - **REQ-120.** Dada la evaluación de los casos con verdad, cuando se cuentan las celdas, entonces 0 celdas quedan en «no se encontró el documento» sin pregunta y el 100 % de los «no determinado» nombran la pregunta o el documento que falta.
 - **REQ-121.** Dada una oferta con una hoja de compliance cargada, cuando se evalúa con el uso externo encendido, entonces 0 pedidos externos contienen texto de ese documento y los requisitos que dependen de consultas externas (P9) corren en el modelo local, comprobado en el registro de auditoría.
@@ -66,7 +68,16 @@ Medidos con los casos públicos 00 a 06 en la instancia clonada. Umbrales escrit
 - **Instancia clonada.** Todo el trabajo corre en una instancia aparte con su propia base restaurada del último respaldo; la instancia del piloto y lo integrado no cambian hasta que cada paso pasa su umbral. Una sola instancia usa la GPU a la vez.
 - **Tiempo local.** El caso-00 completo con el modelo local no supera los 180 minutos (spec 015); la simplificación no lo empeora más de un 10 %.
 - **Memoria de video.** 22.000 MiB como máximo (ADR-0042).
-- **Costo externo.** El plan estima el costo por caso de cada etapa externa antes de medir y la medición lo registra. `[A ACLARAR: tope de gasto en API externa por mes y por caso que acepta el responsable]`
+- **Costo externo.** Tope de **10 USD por caso completo** (matriz y verificación de las 3 ofertas, todas las rondas) y **150 USD por mes** mientras dura la feature. Cada medición registra el gasto real por etapa, y una etapa que supere su estimación en más del doble se frena y se informa antes de seguir. Estimación que sostiene el tope (precios de lista de octubre de 2026 de un proveedor de referencia, tamaños medidos en T-263 y T-266; se comprueba con el primer pedido real):
+
+  | Etapa | Tamaño por caso | Modelo de la gama media | Modelo de la gama alta |
+  |---|---|---|---|
+  | Matriz desde el pliego completo (A) | 100.000 a 150.000 tokens leídos una vez y reusados en 3 a 5 pedidos; unos 40.000 de salida | 0,8 USD | 1,5 USD |
+  | Verificador de citas (B), unas 50 celdas con veredicto | 3.000 tokens por celda de entrada y 400 de salida | 0,5 USD | 1,0 USD |
+  | Caso completo, una ronda | — | 1,3 USD | 2,5 USD |
+  | Feature entera: 7 casos, 2 rondas, más pruebas de desarrollo | — | 30 a 50 USD | 60 a 100 USD |
+
+  La verdad ampliada (D) no gasta en la API: la arma un agente de construcción.
 - **Sin salida a internet en las pruebas.** La suite automática corre sin acceso a la API externa, con dobles, y la clave queda fuera del repositorio.
 - **Trazabilidad.** Igual que hoy: al repositorio van solo cifras, claves y estados; el texto de los casos queda fuera (P4, ADR-0060).
 
@@ -86,5 +97,4 @@ Medidos con los casos públicos 00 a 06 en la instancia clonada. Umbrales escrit
 
 ## Preguntas abiertas
 
-- `[A ACLARAR: quién valida la verdad celda por celda de los casos nuevos y en qué plazo]` — responde el responsable.
-- `[A ACLARAR: tope de gasto en API externa por mes y por caso]` — responde el responsable.
+Ninguna. Las dos marcas del borrador se cerraron con las decisiones del 2026-10-15.
