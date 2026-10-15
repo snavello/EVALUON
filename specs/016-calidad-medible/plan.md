@@ -195,7 +195,7 @@ Se conservan: la cita literal verificada, el dato del Portal, el cumple por ause
 
 **Medición del paso 4.**
 
-1. Sin GPU extra: el «sin verificador» sale de `facts["verificador"]["antes"]` de la misma corrida local; el «con», de `despues`.
+1. Sin GPU extra: el «sin verificador» sale de `facts["verificador"]["antes"]` de la misma corrida local; el «con», de `despues`. Para las rondas de ajuste, el verificador se aplica sobre evaluaciones ya guardadas (`medir_evaluacion --verificador-sobre <corrida>`, con la misma función que usa el flujo normal), de modo que ajustar la instrucción no repite la lectura local.
 2. *Ajuste* (caso-00 y el caso de ajuste con verdad; hasta 2 rondas), sobre las evaluaciones locales guardadas del paso 2: se ajustan `verificador-v1` y sus parámetros. Lo que el verificador cambia se lee celda por celda (¿era una errada o una exacta?).
 3. *Aceptación*: evaluación local una vez de los casos de aceptación con verdad (al menos 2), con el commit final, y el verificador una vez. Umbral 17.
 4. Segunda comparación con Opus 5.5 en las mismas condiciones que en el paso 3.
