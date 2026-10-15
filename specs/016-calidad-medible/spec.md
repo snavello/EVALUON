@@ -1,6 +1,6 @@
 # Spec 016 · Calidad medible: verdad ampliada, instrucciones simples y modelos externos por clase de dato
 
-Estado: borrador · Fecha: 2026-10-14 · Aprobó: —
+Estado: aprobada · Fecha: 2026-10-15 · Aprobó: responsable del proyecto (2026-10-15, «Apruebo la spec 016»)
 
 > La spec dice qué se necesita y por qué. No menciona tecnología, librerías ni estructura de código: eso va en el plan.
 > Cada duda se marca `[A ACLARAR: pregunta concreta]`. Una spec con marcas pendientes no pasa la compuerta.
