@@ -1,6 +1,6 @@
 # Constitución de EVALUON
 
-Versión 1.5 · 2026-10-14 · Estado: aprobada por el responsable del proyecto. La versión 1.1 ajustó el propósito según el ADR-0006; la 1.2 enmienda P3 según el ADR-0009; la 1.3 enmienda P3 según el ADR-0053 (el dato del Portal de Compras como fundamento); la 1.4 enmienda P3 según el ADR-0058 (la ausencia verificada en la lectura completa de la oferta como fundamento); la 1.5 enmienda P4 según el ADR-0060 (el material reservado del piloto durante su estabilización).
+Versión 1.6 · 2026-10-14 · Estado: aprobada por el responsable del proyecto. La versión 1.1 ajustó el propósito según el ADR-0006; la 1.2 enmienda P3 según el ADR-0009; la 1.3 enmienda P3 según el ADR-0053 (el dato del Portal de Compras como fundamento); la 1.4 enmienda P3 según el ADR-0058 (la ausencia verificada en la lectura completa de la oferta como fundamento); la 1.5 enmienda P4 según el ADR-0060 (el material reservado del piloto durante su estabilización); la 1.6 enmienda P4 según el ADR-0065 (clasificación por transparencia y modelos externos por clase de dato).
 
 Este documento fija los principios que ninguna spec, plan o tarea puede contradecir. Todos los agentes lo leen antes de actuar. Se modifica solo mediante un ADR aprobado por el responsable.
 
@@ -21,9 +21,9 @@ Toda conclusión del sistema muestra su fundamento: el fragmento del pliego o de
 
 ### P4. Clasificación de datos
 - **Fase de construcción (actual):** se trabaja únicamente con normas, pliegos, ofertas y evaluaciones públicos. Ese material puede estar en GitHub y pasar por servicios de IA en la nube. No se incorpora material reservado al repositorio, a las pruebas ni a las conversaciones con agentes.
-- **Fase de operación:** los pliegos y las ofertas se procesan solo con IA local. La normativa, por ser pública, puede usar una API externa.
+- **Fase de operación (ADR-0065):** lo publicado por el Estado nacional sin autenticación (normativa, pliegos, circulares, ofertas con todos sus documentos, dictámenes y datos del Portal) puede usar una API externa cuando una medición con umbral previo muestra que mejora la calidad, prefiriendo siempre la IA local a calidad igual. La hoja de compliance y toda consulta de cumplimiento tributario, previsional o de sanciones sobre un oferente se procesan solo con IA local y nunca salen del equipo.
 - **Excepción (ADR-0060):** durante la estabilización del piloto, los agentes de construcción pueden leer el material del proceso en curso en la instancia del piloto. Nunca va al repositorio ni a las pruebas. La excepción termina cuando el responsable da por terminada la estabilización.
-- **Consecuencia de diseño:** el camino que recorren pliegos y ofertas no depende de ningún servicio externo, desde la primera versión. Pasar de construcción a operación no debe requerir cambios de arquitectura.
+- **Consecuencia de diseño:** el camino local de pliegos y ofertas existe completo desde la primera versión; apagar la API externa no requiere cambios de arquitectura. Pasar de construcción a operación tampoco.
 
 ### P5. Local primero y reproducible
 El sistema corre en un equipo propio: IA local, embeddings, reranker y Postgres en Docker. Todo el entorno se levanta con un único comando y es portable a otro equipo sin pasos manuales no documentados.
