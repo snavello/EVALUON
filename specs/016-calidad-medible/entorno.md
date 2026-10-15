@@ -24,7 +24,7 @@ Es un segundo entorno de EVALUON con **su propia base**, restaurada de un respal
 | `embeddings` y `reranker` | **los de 8000**, por la red `evaluon_internal`, en lectura | los suyos |
 | Código | `CLON_CODE_DIR` (la copia de trabajo de `016-integracion`, o una copia fija), en solo lectura | `./evaluon` de la carpeta raíz, en `main` |
 | Casos | `CLON_CASOS_DIR` (carpeta propia, con escritura) | `corpus/casos` de la raíz |
-| Salida a internet | ninguna (P4); el uso externo, si se aprueba, llega con otro archivo (T-289) | solo `portal_worker` |
+| Salida a internet | ninguna para la base, el motor y el `worker`; `clon_app` solo tiene la red que publica su puerto (`clon_web`), como `app` con `web`; sin `portal_worker`. El uso externo, si se aprueba, llega con otro archivo (T-289) | `portal_worker` en `egress`, y `app` en `web` |
 
 Los servicios llevan el prefijo `clon_` porque en la red compartida cada servicio se alcanza por su nombre: `db`, `app` o `generation_batch` chocarían con los de 8000 (la lección de `docker-compose.demo.yml`). El motor del clon está solo en la red `clon_internal`; 8000 no lo alcanza, ni el clon al `generation_batch` de 8000.
 

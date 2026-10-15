@@ -15,10 +15,10 @@
 # `motor`: `docker compose up -d` no lo arranca; lo arranca scripts/clon.sh ventana-abrir, que
 # antes detiene el motor y el `worker` de 8000 (y ventana-cerrar los devuelve).
 #
-# P4: la base y el motor están solo en `clon_internal` (sin salida y sin puertos). `clon_app` y
-# `clon_worker` no tienen salida a internet (no están en `egress` ni en ninguna red con ella
-# salvo `clon_web`, que existe para publicar el puerto de `clon_app`, como `web` en la pila
-# real). El uso de un modelo externo, si se aprueba, llega con otro archivo (T-289).
+# P4: la base y el motor están solo en `clon_internal` (sin salida y sin puertos) y `clon_worker`
+# solo en esa y en `evaluon_internal` (también sin salida). `clon_app` está además en `clon_web`,
+# la red que publica su puerto, igual que `app` con `web` en la pila real; no hay `portal_worker`
+# ni `egress` en el clon. El uso de un modelo externo, si se aprueba, llega con otro archivo (T-289).
 # Los secretos van en un archivo fuera del repositorio (--env-file); ver scripts/clon.sh.
 #
 # Variables que lee (todas del --env-file que genera scripts/clon.sh; sin ruta fija aquí):
