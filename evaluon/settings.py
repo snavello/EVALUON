@@ -73,6 +73,9 @@ MIDDLEWARE = [
     # WhiteNoise va inmediatamente después de SecurityMiddleware (su documentación).
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.csp.ContentSecurityPolicyMiddleware",
+    # Cookies de sesión y CSRF `Secure` en los pedidos cifrados (T-269, REQ-110). Antes de
+    # SessionMiddleware, para actuar después de que se escriban las cookies.
+    "evaluon.accounts.secure_cookies.SecureCookiesMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -145,14 +148,22 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Sesiones en la base (valor por defecto de Django). Vencen 8 horas después del ingreso
 # (no se renuevan con el uso) y al cerrar el navegador. La cookie lleva solo el
-# identificador, es HttpOnly (por defecto) y SameSite estricto. La cookie segura
-# (HTTPS) es de la feature 007, acceso por red.
+# identificador, es HttpOnly (por defecto) y SameSite estricto. En los pedidos que llegan
+# cifrados sale además `Secure` (feature 007: accounts/secure_cookies.py).
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_AGE = 8 * 60 * 60
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_SAVE_EVERY_REQUEST = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Strict"
+
+# Acceso por red (plan 007, T-269; ADR-0061). Desde otra computadora se entra por Caddy, que
+# corre en este mismo equipo, recibe la conexión cifrada y reenvía a 127.0.0.1 con
+# `X-Forwarded-Proto: https` (pisa el que mande el navegador). La aplicación solo es
+# alcanzable desde el propio equipo (docker-compose.yml la publica en 127.0.0.1), así que el
+# encabezado se toma tal cual: con él, el pedido cuenta como cifrado (cookies seguras y
+# control de origen del CSRF con https).
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Política de contenido: solo recursos del propio servidor (ADR-0005, "Sin conexión").
 SECURE_CSP = {
