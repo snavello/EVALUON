@@ -107,3 +107,8 @@ bf1704df3c88ef41e90af454e93cd5d0c33fa855acf037845b86965602d37ff6  evaluon/tender
 00a03aef495b42e2afec3ddcb82ea353d80038bd1be606d10560d0d4df87b0d5  evaluon/tenders/prompts/matriz-circulares-v8.md
 c77457c63db9bf796c2bded1e7678071580965018d93a00b4cfa594a86e6486b  evaluon/tenders/prompts/matriz-circulares-cambios-v7.md
 8c55addadf93c74af2fe71794f31dbc923b10c4f0e896aa3e03c4311d2bfc4f8  evaluon/tenders/prompts/matriz-respaldo-v3.md
+# T-281 (spec 016, REQ-119; ADR-0070): evaluación, contraste, cláusulas y reescritura cortas, sin ejemplos
+380b4869c5bbd41e9045d7179a9dad4b2f8dbbb4a9852fe30c8f2acfacd567fd  evaluon/assessment/prompts/evaluacion-v13.md
+6e29204e34714e9e0e3b9925f00d7203025d7ac3b7441c223fafe0147b3bc7e2  evaluon/assessment/prompts/contraste-v5.md
+439b2797df3c69576676ce3c338717a3b8e5a1289818e2e6704a8302de369f26  evaluon/assessment/prompts/clausulas-v6.md
+4cc575d89bb5674eff83a386151ecabf4135738fdad157b5c278097abd56727e  evaluon/offers/prompts/reescritura-v3.md

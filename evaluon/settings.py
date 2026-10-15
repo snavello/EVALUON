@@ -481,8 +481,9 @@ OFFERS_QUERY_MAX_CHARS = 800
 OFFERS_PROMPT_VERSIONS = {
     "ficha": "ficha-v3",
     "ficha_renglon": "ficha-renglon-v5",
-    # Reescritura del requisito como lo diría una oferta, para buscar (T-146).
-    "reescritura": "reescritura-v2",
+    # Reescritura del requisito como lo diría una oferta, para buscar (T-146). T-281 (spec 016,
+    # REQ-119; ADR-0070): versión corta, sin ejemplos.
+    "reescritura": "reescritura-v3",
 }
 
 # --- Evaluación asistida de ofertas (plan 004, "Parámetros"; ADR-0037 a ADR-0040) ---------
@@ -517,11 +518,14 @@ ASSESSMENT_TECHNICAL_OPINION = True
 # Versión de las reglas que deciden sin el modelo (externos, técnico, ilegible, Portal); se
 # copia al registro de cada evaluación (ADR-0043; T-165). Cambia cuando cambia una regla.
 ASSESSMENT_RULES_VERSION = "reglas-v13"
-# Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150).
+# Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150). T-281
+# (spec 016, REQ-119; ADR-0070): instrucciones cortas, solo con las definiciones y las decisiones
+# vigentes y el esqueleto de la salida, sin ejemplos (tabla en specs/016-calidad-medible/
+# revision-instrucciones.md).
 ASSESSMENT_PROMPT_VERSIONS = {
-    "evaluacion": "evaluacion-v12",
-    "contraste": "contraste-v4",
-    "clausulas": "clausulas-v5",
+    "evaluacion": "evaluacion-v13",
+    "contraste": "contraste-v5",
+    "clausulas": "clausulas-v6",
 }
 
 # Lectura con visión de las páginas dudosas (T-160; ADR-0041). Páginas por oferta que se mandan

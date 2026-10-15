@@ -366,7 +366,7 @@ def test_every_model_request_is_recorded(offer, operator_user, script):
     assert detail["parameters"]["candidates_to_model"] == 8
     versions = detail["prompt_versions"]
     assert {k: v for k, v in versions.items() if k != "huellas"} == {
-        "ficha": "ficha-v3", "ficha_renglon": "ficha-renglon-v5", "reescritura": "reescritura-v2"}
+        "ficha": "ficha-v3", "ficha_renglon": "ficha-renglon-v5", "reescritura": "reescritura-v3"}
     assert set(versions["huellas"]) == {"ficha", "ficha_renglon", "reescritura"}
     assert versions["huellas"]["ficha"] == step.parsed["instruccion"]["sha256"]
     assert detail["counts"]["model_requests"] == sheet.steps.count()
@@ -906,10 +906,10 @@ def test_the_rewritten_requirement_finds_the_passage_the_pliego_wording_misses(
     assert (candidate["score_original"], candidate["score_rewrite"], candidate["score"]) == (
         0.092, 0.994, 0.994)
     rewrite = step.candidates["rewrite"]
-    assert rewrite["query"] == POLICY_QUERY and rewrite["prompt_version"] == "reescritura-v2"
+    assert rewrite["query"] == POLICY_QUERY and rewrite["prompt_version"] == "reescritura-v3"
     assert rewrite["raw_output"] and rewrite["request"]["messages"][0]["content"] == (
         sheets.load_prompt("reescritura"))
-    assert sheet.prompt_versions["reescritura"] == "reescritura-v2"
+    assert sheet.prompt_versions["reescritura"] == "reescritura-v3"
 
 
 def test_the_original_score_still_counts_when_it_is_the_better_one(
@@ -959,15 +959,22 @@ def test_item_rows_are_not_rewritten(offer, operator_user, fake_ai, script):
 
 def test_the_rewrite_instructions_are_versioned_and_teach_the_form_of_real_offers():
     """REQ-040 (T-146): las instrucciones de la reescritura tienen versión registrada, piden
-    el formato y sus ejemplos (inventados) usan la forma de lo que responde una oferta."""
+    el formato y sus ejemplos (inventados) usan la forma de lo que responde una oferta. T-281 (spec
+    016, REQ-119; ADR-0070): la vigente, `reescritura-v3`, no trae ejemplos y nombra las mismas formas
+    en términos generales, con el esqueleto de la salida."""
     from evaluon import settings as defaults
 
-    assert defaults.OFFERS_PROMPT_VERSIONS["reescritura"] == "reescritura-v2"
+    assert defaults.OFFERS_PROMPT_VERSIONS["reescritura"] == "reescritura-v3"
+    v2 = sheets.PROMPTS_DIR.joinpath("reescritura-v2.md").read_text(encoding="utf-8")
     text = sheets.load_prompt("reescritura")
-    for form in ("póliza de seguro", "nota de la empresa", "declaro bajo juramento",
-                 "constancia", "formulario"):
-        assert form in text
-    assert '{"consulta"' in text
+    for body in (v2, text):
+        for form in ("póliza de seguro", "nota de la empresa", "declaro bajo juramento",
+                     "constancia", "formulario"):
+            assert form in body
+        assert '{"consulta"' in body
+    assert "EJEMPLOS" in v2 and "EJEMPLO" not in text.upper()
+    assert [line for line in text.splitlines() if line.startswith("{")] == [
+        '{"consulta": "<tipo de documento y datos con las palabras de la oferta>"}']
 
 
 # Puntajes del reranker real (bge-reranker-v2-m3, T-146) sobre textos inventados con la forma de
@@ -1072,14 +1079,17 @@ def test_the_rewrite_instruction_v2_changes_the_examples_and_records_its_hash(
     casos de medición (la v1, publicada, no se toca) y cada reescritura guarda la versión y la
     huella; la ficha, las huellas de todas sus instrucciones."""
     v1 = sheets.PROMPTS_DIR.joinpath("reescritura-v1.md").read_text(encoding="utf-8")
-    v2 = sheets.load_prompt("reescritura")
+    # T-281: la v2 también está publicada; la vigente es la v3 (sin ejemplos, ADR-0070).
+    v2 = sheets.PROMPTS_DIR.joinpath("reescritura-v2.md").read_text(encoding="utf-8")
+    current = sheets.load_prompt("reescritura")
     assert "garantía de mantenimiento de oferta" in v1 and "garantía de mantenimiento" not in v2
     assert "responsabilidad civil" in v2 and '{"consulta"' in v2
+    assert "garantía de mantenimiento" not in current and '{"consulta"' in current
     script.choose(pick(VALIDITY, when="validez"))
 
     sheet = build(offer, operator_user)
 
     record = sheets.prompt_record("reescritura")
-    assert record["version"] == "reescritura-v2"
-    assert record["sha256"] == sheets.extraction.text_sha256(v2)
+    assert record["version"] == "reescritura-v3"
+    assert record["sha256"] == sheets.extraction.text_sha256(current)
     assert sheet.prompt_versions["huellas"]["reescritura"] == record["sha256"]

@@ -12,9 +12,15 @@ bloque común de definiciones **ya incluido** (el modelo lo lee entero):
 El tope se aplica a las versiones listadas en `SIMPLIFIED`. Cada tarea de instrucciones (T-279 a
 T-282, T-291) suma las suyas (T-279: el bloque de definiciones, la extracción, la completitud y la
 unión de la matriz; T-280: el filtro, las consecuencias, las circulares, los cambios de las
-circulares y el respaldo), y T-282 agrega la prueba de que toda
-instrucción vigente figura en la tabla. `SIMPLIFIED_SCHEMAS` hace lo mismo con los esquemas de
-salida (T-281).
+circulares y el respaldo; T-281: la evaluación, el contraste, las cláusulas y la reescritura), y
+T-282 agrega la prueba de que toda instrucción vigente figura en la tabla. `SIMPLIFIED_SCHEMAS` hace
+lo mismo con los esquemas de salida (T-281: los de la evaluación, el contraste, las cláusulas y la
+reescritura).
+
+T-281 (H-280-4, d, de la verificación de T-280): el tope del razonamiento que dice cada instrucción
+(«de hasta N caracteres») es el del esquema que se manda con el pedido, o hasta
+`REASONING_MARGIN` caracteres menos (el esquema corta la salida en su tope: la instrucción pide un
+poco menos para que el modelo termine la oración).
 
 La tabla también la usan `test_instrucciones_sin_casos.py` y `test_instrucciones_revisadas.py`:
 una versión que se suma acá queda sujeta a las tres pruebas.
@@ -23,6 +29,7 @@ Los textos de estas pruebas son inventados (P4).
 """
 
 import importlib
+import re
 from pathlib import Path
 
 import pytest
@@ -54,11 +61,31 @@ SIMPLIFIED = {
     "matriz-circulares-cambios-v7": {
         "path": "evaluon/tenders/prompts/matriz-circulares-cambios-v7.md"},
     "matriz-respaldo-v3": {"path": "evaluon/tenders/prompts/matriz-respaldo-v3.md"},
+    # T-281: la evaluación (decisora), el contraste, las cláusulas y la reescritura.
+    "evaluacion-v13": {"path": "evaluon/assessment/prompts/evaluacion-v13.md"},
+    "contraste-v5": {"path": "evaluon/assessment/prompts/contraste-v5.md"},
+    "clausulas-v6": {"path": "evaluon/assessment/prompts/clausulas-v6.md"},
+    "reescritura-v3": {"path": "evaluon/offers/prompts/reescritura-v3.md"},
 }
 
-# Los esquemas de salida de las instrucciones simplificadas: `{nombre: "módulo:función"}`; la
-# función no recibe argumentos y devuelve el esquema JSON.
-SIMPLIFIED_SCHEMAS = {}
+# Los esquemas de salida de las instrucciones simplificadas: `{nombre: "módulo:atributo"}`; el
+# atributo es el esquema JSON o una función sin argumentos que lo devuelve.
+SIMPLIFIED_SCHEMAS = {
+    # T-281: los que se mandan con los pedidos de la evaluación (el de lectura, con un alias de cada
+    # clase), del contraste, del contraste por cláusula y de la reescritura.
+    "evaluacion-v13": "tests.test_instrucciones_largo:evaluation_output_schema",
+    "contraste-v5": "evaluon.assessment.prompting:CONTRAST_SCHEMA",
+    "clausulas-v6": "evaluon.assessment.prompting:CLAUSES_SCHEMA",
+    "reescritura-v3": "evaluon.offers.services.sheets:REWRITE_SCHEMA",
+}
+
+
+def evaluation_output_schema():
+    """El esquema de un pedido de lectura de la evaluación con un documento, un fundamento y un dato
+    del Portal (`prompting.evaluation_schema`)."""
+    from evaluon.assessment import prompting
+
+    return prompting.evaluation_schema(["D1"], ["N1"], ["P1"])
 
 # Instrucciones decisoras: por prefijo del nombre de versión (plan 016, «Largo máximo»).
 DECISIVE_PREFIXES = ("matriz-extraccion-", "matriz-filtro-", "evaluacion-", "matriz-externa-")
@@ -149,8 +176,9 @@ def description_problems(name, schema):
 
 
 def load_schema(reference):
-    module, function = reference.split(":")
-    return getattr(importlib.import_module(module), function)()
+    module, attribute = reference.split(":")
+    found = getattr(importlib.import_module(module), attribute)
+    return found() if callable(found) else found
 
 
 def all_schema_problems(table=None):
@@ -313,3 +341,86 @@ def test_the_listed_block_is_the_one_the_code_includes(settings):
               if version in active and entry.get("definitions")}
 
     assert listed and all(value == block for value in listed.values()), listed
+
+
+# --- T-281 (H-280-4, d): el tope del razonamiento que dice la instrucción y el del esquema --------
+
+# Lo que la instrucción puede pedir por debajo del tope del esquema, como máximo.
+REASONING_MARGIN = 100
+SAID_LIMIT = re.compile(r'"razonamiento"[^\n]*?de hasta (\d+) caracteres')
+
+
+def said_reasoning_limit(text):
+    """El tope del razonamiento que dice la instrucción («"razonamiento"… de hasta N caracteres»), o
+    `None` si no lo dice."""
+    match = SAID_LIMIT.search(text)
+    return int(match.group(1)) if match else None
+
+
+def reasoning_problem(name, said, schema_limit):
+    """Por qué el tope que dice la instrucción no es el del esquema, o `""`."""
+    if said is None:
+        return f"{name}: la instrucción no dice el tope del razonamiento"
+    if not 0 <= schema_limit - said <= REASONING_MARGIN:
+        return (f"{name}: la instrucción dice {said} caracteres y el esquema corta en {schema_limit} "
+                f"(margen admitido: de 0 a {REASONING_MARGIN})")
+    return ""
+
+
+def _current_reasoning_limits():
+    """`{nombre: (texto vigente, tope del esquema)}` de las instrucciones vigentes que piden un
+    razonamiento con tope: la evaluación, el contraste, las cláusulas y las dos preguntas del
+    filtro."""
+    from evaluon.assessment import prompting
+    from evaluon.tenders.proposal import filter as row_filter
+
+    first, second = row_filter.load_prompts()
+    item_a = row_filter.schema_a(["F1"])["properties"]["F1"]["properties"]
+    item_b = row_filter.schema_b(["F1"])["properties"]["F1"]["properties"]
+    return {
+        "evaluacion": (prompting.load_prompt("evaluacion"),
+                       evaluation_output_schema()["properties"]["razonamiento"]["maxLength"]),
+        "contraste": (prompting.load_prompt("contraste"),
+                      prompting.CONTRAST_SCHEMA["properties"]["razonamiento"]["maxLength"]),
+        "clausulas": (prompting.load_prompt("clausulas"),
+                      prompting.CLAUSES_SCHEMA["properties"]["razonamiento"]["maxLength"]),
+        "filtro_a": (first, item_a["razonamiento"]["maxLength"]),
+        "filtro_b": (second, item_b["razonamiento"]["maxLength"]),
+    }
+
+
+def test_the_reasoning_limit_of_each_instruction_is_the_one_of_its_schema():
+    """REQ-119, ADR-0055 regla 2 (H-280-4, d): el tope del razonamiento que dice cada instrucción
+    vigente es el del esquema que se manda con el pedido, o hasta 100 caracteres menos: el filtro
+    dice 400 y corta en `filter.REASONING_MAX_CHARS`; la evaluación, el contraste y las cláusulas
+    piden 600, 400 y 400 con un margen de 100."""
+    from evaluon.assessment import prompting
+    from evaluon.tenders.proposal import filter as row_filter
+
+    limits = _current_reasoning_limits()
+    problems = [reasoning_problem(name, said_reasoning_limit(text), limit)
+                for name, (text, limit) in limits.items()]
+
+    assert [problem for problem in problems if problem] == []
+    assert limits["filtro_a"][1] == limits["filtro_b"][1] == row_filter.REASONING_MAX_CHARS
+    assert limits["evaluacion"][1] == prompting.REASONING_MAX_CHARS
+    assert limits["contraste"][1] == limits["clausulas"][1] == prompting.CONTRAST_REASONING_MAX_CHARS
+
+
+def test_the_reasoning_check_fails_when_the_schema_or_the_instruction_changes(monkeypatch):
+    """REQ-119 (H-280-4, d; la alteración F14 de la verificación de T-280): bajar el tope del esquema
+    del filtro a 300 con la instrucción en 400, subir el del esquema muy por encima de lo que dice la
+    instrucción o quitar el tope de la instrucción hace fallar la comprobación."""
+    from evaluon.tenders.proposal import filter as row_filter
+
+    monkeypatch.setitem(row_filter._REASONING, "maxLength", 300)
+    limits = _current_reasoning_limits()
+    text, limit = limits["filtro_a"]
+    assert limit == 300
+    assert "dice 400 caracteres y el esquema corta en 300" in reasoning_problem(
+        "filtro_a", said_reasoning_limit(text), limit)
+
+    assert reasoning_problem("prueba", 600, 900)
+    assert reasoning_problem("prueba", None, 700)
+    assert said_reasoning_limit('- "razonamiento": una oración, de hasta 400 caracteres, que dice') == 400
+    assert reasoning_problem("prueba", 600, 700) == "" and reasoning_problem("prueba", 400, 400) == ""
