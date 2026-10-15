@@ -74,6 +74,12 @@ Ritmo de trabajo (ADR-0024 y ADR-0025): las ramas de tarea no tocan este archivo
 - **Gasto externo (plan, «Costo y tope»):** T-292 ≤ 0,10 USD; T-293 y T-295 ≈ 1,20 USD cada una (hasta 2,40 y 3,20 en total con el caso-01); T-296 ≈ 0,90; T-301 y T-303 ≈ 0,60 cada una; T-304 ≈ 0,60 a 0,90; las segundas comparaciones, solo si corresponde, hasta 3,90 en total. Cada informe pega la salida de `gasto_externo`.
 - **Máximo sugerido en paralelo:** dos o tres desarrolladores (el Coordinador debe poder revisar cada resultado contra la spec).
 
+## Suites completas por lote (ADR-0012)
+
+| Fecha | Lote | Commit de `016-integracion` | Resultado |
+|---|---|---|---|
+| 2026-10-15 12:23 | 1: T-270, T-271, T-278 | e5724b1d | 6187 pasaron, 1 omitida, 0 fallaron (22 min 46 s, `-n 2`, con `corpus/casos` montado) |
+
 ## Lista de revisión (hallazgos que no impiden integrar; se corrigen en una sola tarea por lote, ADR-0025)
 
 | Clave | De | Qué | Dónde se corrige |
