@@ -19,8 +19,8 @@ BLOCK = (PROMPTS / "matriz-definiciones-v4.md").read_text(encoding="utf-8")
 
 def test_the_common_block_is_a_published_version_of_the_settings(settings):
     """REQ-102: el bloque común tiene su versión en `MATRIX_PROMPT_VERSIONS` y su archivo."""
-    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v8"
-    assert (PROMPTS / "matriz-definiciones-v8.md").is_file()
+    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v9"  # T-279
+    assert (PROMPTS / "matriz-definiciones-v9.md").is_file()
 
 
 @pytest.mark.parametrize("literal", [
@@ -147,7 +147,10 @@ NEW_INSTRUCTIONS = ["matriz-definiciones-v2", "matriz-definiciones-v3", "matriz-
                     # T-262
                     "matriz-definiciones-v8", "matriz-extraccion-v11", "matriz-filtro-v8",
                     # T-265
-                    "matriz-extraccion-v12", "matriz-filtro-v9"]
+                    "matriz-extraccion-v12", "matriz-filtro-v9",
+                    # T-279 (spec 016)
+                    "matriz-definiciones-v9", "matriz-extraccion-v13", "matriz-completitud-v7",
+                    "matriz-union-v2"]
 
 
 def _shingles(text, size=5):
@@ -209,7 +212,9 @@ def test_an_option_the_offeror_may_not_use_is_kept_as_a_condition_of_that_option
     """REQ-102 (O-236-1): el bloque dice que la condición de una opción «entra solo como condición
     de esa opción»; hay un ejemplo donde la oración que le exige algo a quien usa la opción se
     mantiene, y el descarte por condición opcional queda para la que no exige nada."""
-    text = extraction.load_prompt(name.removeprefix("matriz-").split("-v")[0])
+    # T-279: se lee la versión publicada que nombra el parámetro (antes se leía la vigente, que
+    # desde la extracción v13 no trae ejemplos, ADR-0070).
+    text = (PROMPTS / f"{name}.md").read_text(encoding="utf-8")
     lines = text.splitlines()
 
     def answer_to(fragment):
@@ -226,9 +231,54 @@ def test_an_option_the_offeror_may_not_use_is_kept_as_a_condition_of_that_option
 
 
 def test_the_previous_block_is_still_published_but_not_active(settings):
-    """REQ-106: la v1, la v4, la v5, la v6 y la v7 del bloque quedan como estaban (congeladas) y
-    la activa es la v8 (T-262)."""
+    """REQ-106: la v1, la v4, la v5, la v6, la v7 y la v8 del bloque quedan como estaban
+    (congeladas) y la activa es la v9 (T-279)."""
     assert (PROMPTS / "matriz-definiciones-v1.md").is_file()
     assert (PROMPTS / "matriz-definiciones-v4.md").is_file()
     assert (PROMPTS / "matriz-definiciones-v7.md").is_file()
-    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v8"
+    assert (PROMPTS / "matriz-definiciones-v8.md").is_file()
+    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v9"
+
+
+# --- T-279: el bloque v9 (spec 016, REQ-119; ADR-0070) ------------------------------------------------
+
+BLOCK_V9 = (PROMPTS / "matriz-definiciones-v9.md").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("literal", [
+    # Lo que no entra (REQ-102; decisión del 2026-10-10, D-12 de la revisión de la 016).
+    "el pago, la moneda de pago y la factura",
+    "la forma de presentar la oferta por el Portal",
+    "los compromisos que se cumplen con solo presentarse",
+    "las consecuencias de no cumplir",
+    "las obligaciones del organismo que la oferta no puede contradecir ni condicionar",
+    "la ejecución y el control del contrato",
+    # Lo que sí entra: la salvedad de la moneda (D-12) y la presentación física (D-21).
+    "la moneda en que se cotiza la oferta",
+    "«Requiere presentar»",
+    # Opciones y formas elegidas («Requisito de la forma elegida», D-13).
+    "que puede no usar",
+    "entra solo como condición de esa opción",
+    "se evalúan solo en la oferta que eligió esa forma",
+    # Una fila por unidad de sentido (D-14, D-20, D-31).
+    "Una fila es una unidad de sentido",
+    "la oración completa",
+    "Dos obligaciones distintas sobre un mismo objeto son dos filas",
+    "su prórroga automática, es una sola fila",
+    # Clases (D-02, D-03) y abstención (D-15).
+    "en una fila por renglón",
+    "nunca a un descarte silencioso",
+])
+def test_the_v9_block_carries_each_decision_in_general_terms(literal):
+    """REQ-119, REQ-102 (D-02, D-03, D-12 a D-15, D-20, D-21, D-31): el bloque v9 lleva cada
+    decisión en términos generales, sin ejemplos."""
+    assert literal in BLOCK_V9
+    assert "ejemplo" not in BLOCK_V9.lower()
+
+
+def test_the_v9_block_has_no_rule_that_pushes_to_the_error():
+    """REQ-102 (ADR-0054, reglas 6 y 7): el bloque, que leen también la completitud y el filtro, no
+    trae «dividí», «fragmento más corto», «mantené» ni un «ante la duda» que empuje a un lado; la
+    duda va a sugerencia."""
+    for forbidden in ("dividí", "fragmento más corto", "ante la duda", "mantené"):
+        assert forbidden not in BLOCK_V9.lower()

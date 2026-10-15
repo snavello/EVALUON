@@ -101,11 +101,16 @@ def read_report():
 
 
 def test_the_review_report_names_every_current_instruction():
-    """REQ-106: el informe de revisión cubre el 100 % de las instrucciones vigentes: nombra la
-    versión de cada una."""
+    """REQ-106, REQ-119: el informe de revisión cubre el 100 % de las instrucciones vigentes: nombra
+    la versión de cada una. Desde la 016 (T-279), una versión vigente de `SIMPLIFIED` la cubre su
+    sección del informe de la 016 (su tabla la comprueba
+    `test_every_simplified_version_has_its_table_in_the_016_report`)."""
     report = read_report()
+    report_016 = read_report_016()
 
-    missing = [version for version in current_versions() if version not in report]
+    missing = [version for version in current_versions() if version not in report
+               and not (version in SIMPLIFIED
+                        and re.search(rf"(?m)^### {re.escape(version)}[ \t]*$", report_016))]
 
     assert not missing, f"el informe no nombra: {missing}"
     assert len(current_versions()) >= 20
@@ -222,7 +227,9 @@ def test_the_016_report_has_the_table_of_decisions_with_its_sources():
     report = read_report_016()
     decisions = decisions_of(report)
 
-    assert len(decisions) >= 20
+    assert len(decisions) >= 31
+    # D-278-3: las decisiones van de D-01 en adelante, sin saltos (quitar una fila se nota).
+    assert sorted(decisions) == [f"D-{n:02d}" for n in range(1, len(decisions) + 1)]
     for row in decisions.values():
         assert len(row) == 4 and all(row), row
     sources = " ".join(row[2] for row in decisions.values())
@@ -276,6 +283,20 @@ def test_the_table_check_finds_a_missing_pending_or_unattached_table():
     assert sentence_problems(SAMPLE_REPORT, "matriz-prueba-v2") == [
         "matriz-prueba-v2: fila sin completar"]
     assert "no está en la tabla" in sentence_problems(SAMPLE_REPORT, "matriz-prueba-v3")[0]
+
+
+def test_a_section_without_rows_fails_the_table_check():
+    """REQ-119 (D-278-3 de la verificación de T-278): una sección con el encabezado de la tabla y sin
+    filas no cuenta como tabla completa (informe de prueba inventado)."""
+    report = SAMPLE_REPORT + """
+### matriz-prueba-v4
+
+| Oración | Decisión |
+|---|---|
+"""
+
+    assert sentence_problems(report, "matriz-prueba-v4") == [
+        "matriz-prueba-v4: la sección no tiene filas de oración y decisión"]
 
 
 def test_a_simplified_version_without_a_table_fails_the_report_check(monkeypatch):

@@ -23,6 +23,7 @@ son inventados.
 import functools
 import io
 import re
+import sys
 import zipfile
 from pathlib import Path
 
@@ -210,6 +211,85 @@ def test_five_words_in_common_are_not_a_copy(tmp_path):
     entry = {"x-v1": _entry(tmp_path, "x-v1", "Se debe constituir una garantía de mantenimiento")}
 
     assert copy_problems(entry, known) == []
+
+
+def test_six_words_in_common_are_a_copy(tmp_path):
+    """REQ-119 (umbral 6; D-278-1 de la verificación de T-278): el tamaño es 6 palabras: una
+    instrucción que comparte exactamente 6 palabras seguidas con un caso falla, y con 5 pasa."""
+    assert SIZE == 6
+    known = shingles("Nube verde salta sobre el puente rojo.", SIZE)
+    six = {"x-v1": _entry(tmp_path, "x-v1", "Regla: verde salta sobre el puente rojo, y nada más.")}
+    five = {"x-v2": _entry(tmp_path, "x-v2", "Regla: salta sobre el puente rojo, y nada más.")}
+
+    assert len(copy_problems(six, known)) == 1
+    assert copy_problems(five, known) == []
+
+
+def test_the_comparison_ignores_upper_case(tmp_path):
+    """REQ-119 (umbral 6; D-278-2): un caso escrito todo en mayúsculas y una instrucción en
+    minúsculas con las mismas 6 palabras seguidas son una copia (la comparación pasa todo a
+    minúsculas antes de cortar en palabras)."""
+    known = shingles("NUBE VERDE SALTA SOBRE EL PUENTE ROJO", SIZE)
+    entry = {"x-v1": _entry(tmp_path, "x-v1", "Regla: nube verde salta sobre el puente rojo.")}
+
+    assert known
+    assert len(copy_problems(entry, known)) == 1
+
+
+# Las cinco carpetas que el umbral 6 del plan manda leer, escritas aparte de `CASE_FOLDERS` para que
+# la prueba note si el lector deja de leer alguna.
+THE_FIVE_FOLDERS = ("pliego", "circulares", "ofertas", "evaluacion", "otros")
+
+
+@pytest.fixture
+def invented_corpus(tmp_path, monkeypatch):
+    """Un árbol de casos inventado: una oración propia en cada carpeta de cada caso 00 a 06, y
+    otras en lo que no se lee (un caso 07 y la carpeta `esperado`)."""
+    root = tmp_path / "casos"
+
+    def sentence(case, folder):
+        return f"marca {case} {folder} alfa beta gama delta"
+
+    for case in range(7):
+        for folder in THE_FIVE_FOLDERS:
+            target = root / f"caso-0{case}" / folder / "sub"
+            target.mkdir(parents=True)
+            (target / "texto.txt").write_text(sentence(case, folder), encoding="utf-8")
+        (root / f"caso-0{case}" / "esperado").mkdir()
+        (root / f"caso-0{case}" / "esperado" / "lista.txt").write_text(
+            sentence(case, "esperado"), encoding="utf-8")
+    (root / "caso-07" / "pliego").mkdir(parents=True)
+    (root / "caso-07" / "pliego" / "texto.txt").write_text(sentence(7, "pliego"), encoding="utf-8")
+    monkeypatch.setattr(sys.modules[__name__], "CASES", root)
+    corpus_shingles.cache_clear()
+    yield sentence
+    corpus_shingles.cache_clear()
+
+
+def test_the_corpus_reader_reads_every_folder_of_every_case(invented_corpus):
+    """REQ-119 (umbral 6; D-278-2): el lector del corpus lee las cinco carpetas (pliego,
+    circulares, ofertas, evaluación y otros, también en subcarpetas) de los siete casos 00 a 06,
+    y nada más (ni un caso 07 ni la lista esperada)."""
+    known = corpus_shingles()
+
+    for case in range(7):
+        for folder in THE_FIVE_FOLDERS:
+            assert shingles(invented_corpus(case, folder), SIZE) <= known, (case, folder)
+        assert not shingles(invented_corpus(case, "esperado"), SIZE) & known
+    assert not shingles(invented_corpus(7, "pliego"), SIZE) & known
+
+
+def test_a_copy_inside_the_definitions_block_is_detected(tmp_path):
+    """REQ-119 (umbral 6; D-278-2): la comparación mide lo que lee el modelo, con el bloque de
+    definiciones adentro: una copia que está en el bloque, y no en el archivo de la instrucción,
+    falla."""
+    (tmp_path / "matriz-definiciones-v98.md").write_text(COPYING + "\n", encoding="utf-8")
+    body = _entry(tmp_path, "matriz-extraccion-v98", "Regla propia.\n\n{{DEFINICIONES}}")
+    entry = {"matriz-extraccion-v98": {**body, "definitions": "matriz-definiciones-v98"}}
+
+    raw = Path(body["path"]).read_text(encoding="utf-8")
+    assert not shingles(raw, SIZE) & shingles(INVENTED_CASE, SIZE)
+    assert len(copy_problems(entry, shingles(INVENTED_CASE, SIZE))) == 1
 
 
 def test_the_listed_versions_test_fails_with_a_copied_sentence(tmp_path, monkeypatch):
