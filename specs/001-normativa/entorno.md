@@ -2456,3 +2456,151 @@ docker compose -p evaluon-t047 --env-file <coord.env> down -v
 La prueba con el equipo desconectado no se hace por decisión del responsable (2026-10-03); queda para el despliegue si se la pide.
 
 Antes de esa decisión se había escrito un script para correrla sin intervención y se lo probó una vez con red, en un modo que saltea el chequeo de internet (2026-10-03, 18:09 a 18:10). Esa corrida detuvo y volvió a levantar el proyecto `evaluon` (55 s hasta los cinco servicios sanos), ingresó como `desarrollo`, hizo la consulta 256 (pregunta de EV-001, fecha 2023-01-02, respuesta con fundamento y cita al artículo 43 del Anexo de la Disposición AFIP 247/2022) y una búsqueda por "mantenimiento de oferta" (12 textos), y abrió el original del documento 3. Dejó en la base real los hechos de auditoría de esa consulta, de esa búsqueda y de dos ingresos (uno del script y otro con `curl` para revisar las cabeceras de los originales web). El script y su archivo de resultado se borraron después de la decisión.
+
+## Datos para el runbook (T-049)
+
+**Fecha:** 2026-10-14, de 17:30 a 17:55, en la MSI (Docker Desktop 29.8.1 con WSL2 y 20 GB de memoria, Compose 5.5.1, RTX 5090 de 24.463 MiB). Requisitos: REQ-012 y REQ-016. Retomada por decisión del responsable («todo si.», spec 007): es la base del runbook y de la instancia separada del piloto (REQ-117).
+
+**Copia limpia.** `git clone https://github.com/snavello/EVALUON.git` en una carpeta nueva (`C:\Users\snave\Documents\dev\evaluon-t049`), `main` 988f8659, sin `.env` ni `models/`. Configuración por omisión de `.env.example`: el Qwen3.8-27B en `generation_batch`, con la Consulta en ese motor y sin `generation`. Proyecto de Compose propio `evaluon-t049`, puerto 8049, base vacía en el volumen `evaluon-t049_pgdata`. 8000 (proyecto `evaluon`) siguió arriba, salvo su `generation_batch` y su `worker`, detenidos para liberar la GPU.
+
+**Resultado: sí, se levanta desde cero** siguiendo lo escrito, con dos salvedades del equipo, no del código: la imagen de la aplicación no se puede construir sin caché con el antivirus de este equipo (falla 1) y el primer `docker compose up -d` tuvo que repetirse (falla 2). Con `docker compose up -d`, `migrate` aplicó las 62 migraciones a la base vacía y terminó con 0, y quedaron arriba los siete servicios de la configuración por omisión: `db`, `generation_batch`, `embeddings`, `reranker` y `app`, sanos, más `worker` y `portal_worker`, que no tienen chequeo de salud. `generation` no arranca, por diseño (perfil `consulta-12b`). El alta de usuario quedó registrada, el ingreso funcionó, la norma se cargó y validó y la Consulta respondió con cita, con el modelo registrado (P6).
+
+### Pasos, tal como se hicieron
+
+Desde la carpeta de la copia, en Git Bash. Todas las órdenes de Compose con `-p evaluon-t049` (la línea `COMPOSE_PROJECT_NAME` del `.env` hace lo mismo).
+
+| # | Paso | Orden | Tiempo | ¿Automático? |
+|---|---|---|---|---|
+| 1 | Clonar | `git clone https://github.com/snavello/EVALUON.git evaluon-t049` | 3 s | manual, documentado |
+| 2 | `.env` | `cp .env.example .env`; `POSTGRES_PASSWORD` y `DJANGO_SECRET_KEY` con la orden que sugiere `.env.example` (`py -3 -c "import secrets; print(secrets.token_urlsafe(32))"`, y 50 para la clave de Django); `APP_PORT=8049`; `COMPOSE_PROJECT_NAME=evaluon-t049` | menos de 1 min | manual. Las dos claves y el puerto están documentados; `COMPOSE_PROJECT_NAME`, no (ver «Una segunda instancia») |
+| 3 | Modelos | **Sin descarga:** enlaces duros (`ln`) a los 4 archivos que usa la configuración por omisión, desde `models/` de la copia principal; huellas con `cd models && grep -E " (Qwen3.8-27B-UD-Q4_K_M\|mmproj-Qwen3.8-27B-F16\|bge-m3-FP16\|bge-reranker-v2-m3-FP16)\.gguf$" ../scripts/models.sha256 \| sha256sum -c -` (4 OK); después `bash scripts/fetch_models.sh --qwen38-27b` («OK (ya estaba)» en los dos) | enlaces 4 s; huellas 57 s; script 53 s | reemplaza a `fetch_models.sh` (documentado en `specs/015-…/entorno.md`, «Instalación desde cero») |
+| 4 | Imagen | `docker compose build --no-cache app`: **falló** en `pip install` (falla 1). `docker compose build app` (con la caché de construcción del equipo) | sin caché, falla a los 39 s; con caché, 6 s | en un equipo limpio la construye `up -d` sola |
+| 5 | Liberar la GPU (solo por convivir con 8000) | 8000 sin pedidos (`tenders_job`: 99 `done`) y la GPU al 0 %; `docker stop evaluon-worker-1` y `docker stop evaluon-generation_batch-1` | 17:35:46 a 17:36:28 | manual |
+| 6 | Levantar | `docker compose up -d`: **falló** al arrancar `embeddings` (falla 2). Repetido, `docker compose up -d` terminó con todo arriba | primero, 23 s; segundo, 5 min 55 s; en total, de 17:36:45 a 17:43:26 (6 min 41 s) | automático |
+| 7 | Esquema | `docker logs evaluon-t049-migrate-1`: «la base está vacía; se aplican las migraciones», 62 «Applying … OK», salida 0; en la base, 62 filas en `django_migrations`, 72 tablas y las extensiones `vector` 0.8.7 y `unaccent` 1.1 (igual que la base de 8000) | `migrate` 15 s | automático |
+| 8 | Usuarios | `crear_usuario t049-carga --rol lectura-escritura` y `crear_usuario t049-consulta --rol lectura` (`docker compose exec -T app python manage.py …`, con la clave por la entrada) | 5,8 s y 3,9 s | manual (la clave la escribe una persona); quedan los hechos `user_created` 1 y 2 |
+| 9 | Cargar la norma | `cargar_norma corpus/normativa/disp-afip-247-2022-anexo.pdf` con la orden completa de la sección T-043 de este archivo (incluye los obligatorios `--categoria regimen_especifico` y `--nombre`, además de `--fecha-vigencia 2023-01-02`, `--parte anexo` y `--regimen-general`), con `--usuario t049-carga` | 7,0 s | manual |
+| 10 | Revisar y validar | `ver_informe 1` y `validar_informe 1 --usuario t049-carga`, que pide la clave y una confirmación escrita («si») | 12,4 s | manual |
+| 11 | Consulta | Ingreso en `http://127.0.0.1:8049/ingresar/` con `t049-consulta` y pregunta en `/consulta/`, por HTTP como el formulario | 25,7 s la primera, 7,0 s la segunda | manual |
+| 12 | Bajar | `docker compose down -v` (solo el proyecto `evaluon-t049`: 8 contenedores, su volumen y sus 3 redes) | 4,9 s | |
+
+**Carga y validación.** «Formato reconocido: PDF con texto. Lectura 1, pendiente de validación: 335 unidades, 45 páginas, 0 tramos no ubicados»; el informe pide revisar la página 45 (solo la firma), 19 listas de incisos con párrafos después del último inciso y un inciso que termina en dos puntos. La validación dejó 111 pasajes, la versión 1 de la parte y la versión 1 de la normativa.
+
+**Consulta.** «¿Por cuántos días deben los oferentes mantener sus ofertas?», con la fecha del día: «Respuesta con fundamento en la normativa», sesenta días corridos desde el acto de apertura, tres afirmaciones citadas en el artículo 43 del Anexo de la Disposición AFIP 247/2022 con su texto literal. La consulta guardada registra `engine` `generation_batch`, el modelo `qwen3.8-27b-ud-q4_k_m` con su archivo y huella, la compilación `b11347`, contexto 32.768, temperatura 0, semilla 42 y pensamiento apagado (P6). Tiempos de la primera consulta después de levantar: total 25,5 s (recuperación 9,6 s, generación 15,3 s). La segunda («¿Qué porcentaje es la garantía de cumplimiento del contrato?», artículo 64): total 6,9 s (recuperación 1,4 s, generación 5,3 s).
+
+**Motor del 27B.** El contenedor arrancó a las 17:37:01; el modelo quedó cargado a los 6 min 14 s y el servicio sano a las 17:43:25. `/health` `{"status":"ok"}`; `/props` con el alias `qwen3.8-27b-ud-q4_k_m`, `n_ctx` 32.768, visión y la compilación `b11347-5fc4f3c8c`. `app` con `GENERATION_URL=http://generation_batch:8080`, el alias del 27B y `GENERATION_CTX_SIZE` 32768; el `worker` con 16384; el contraste con razonamiento `low`. Memoria de video con el 27B de esta instancia más `embeddings` y `reranker` de las dos instancias: 20.940 MiB de 24.463.
+
+**Red (P4).** `db`, `generation_batch`, `embeddings`, `reranker`, `migrate` y `worker` solo en la red interna del proyecto (`Internal: true`) y sin puertos; desde `generation_batch` y desde el `worker`, `huggingface.co` no resuelve. `portal_worker` en la interna y en `egress` (ADR-0031). `app` en la interna y en `web`, con el puerto solo en `127.0.0.1:8049`. Sigue abierto lo que dejó T-047: `app` sale a internet por `web`.
+
+**Respaldo, restauración, `migrate` con datos, sesiones y clave**, sobre la base de esta prueba: respaldo 0,9 s (1.322.529 bytes, 846 entradas en `pg_restore -l`); `createdb evaluon_restore` 0,9 s; `pg_restore --exit-on-error` 2,1 s, salida 0; en las dos bases, 8 hechos de auditoría, 111 pasajes, 335 unidades, 2 usuarios, 62 migraciones y la huella del original igual a la registrada. `migrate` sobre la base con datos y sobre la restaurada: «la base tiene datos; solo se comprueba…» y «no hay migraciones pendientes», 6,9 s. `clearsessions`, 4,3 s, sin salida. `changepassword t049-consulta`, 2,3 s: la clave cambió (el ingreso siguiente funcionó con la nueva) y no quedó ningún hecho de auditoría (8 antes y 8 después). Se borró solo `evaluon_restore`.
+
+**No se cambió `scripts/fetch_models.sh` ni `scripts/migrate_on_start.sh`:** los dos funcionaron. La falla 7 se corrige en `.gitattributes`, no en el script.
+
+### Pasos manuales
+
+Todos están documentados salvo el 3 de esta lista.
+
+1. Clonar y crear `.env` con dos claves propias (`.env.example` dice cómo).
+2. Bajar los modelos (`fetch_models.sh`, dos corridas) o copiar `models/` y verificar las huellas.
+3. **Solo para una segunda instancia en el mismo equipo:** `COMPOSE_PROJECT_NAME` y `APP_PORT` en el `.env`, y liberar la GPU. `COMPOSE_PROJECT_NAME` no figura en ningún documento.
+4. Dar de alta los usuarios (`crear_usuario`): la clave la escribe la persona.
+5. Cargar, revisar y validar las normas (`cargar_norma`, `ver_informe`, `validar_informe`): lo hace el responsable de normativa con su usuario.
+6. Si el primer `up -d` falla con el error de la falla 2, repetirlo.
+
+### Fallas encontradas
+
+1. **La imagen no se construye sin caché en este equipo: Norton intercepta las conexiones cifradas.** `pip install` falla dentro de la construcción con `CERTIFICATE_VERIFY_FAILED … unable to get local issuer certificate` contra `pypi.org`. El certificado que ve el equipo para `pypi.org` lo firma «Norton Web/Mail Shield Root» («generated by Norton Antivirus for SSL/TLS scanning»), que Windows reconoce y los contenedores no. Lo mismo pasa con un contenedor `python` cualquiera. Los pasos anteriores sí pasaron: `apt` va por http, y el `ADD` del modelo de Tesseract lo baja el propio Docker. En este equipo la imagen se arma con la caché de construcción, así que el sistema de hoy no se ve afectado. Un equipo limpio con Norton y con la revisión de conexiones cifradas activa no construye la imagen. Salidas posibles:
+    - desactivar esa revisión de Norton mientras se construye: es configuración del equipo y la decide el responsable;
+    - construir la imagen en otro equipo y copiarla (`docker save` y `docker load`);
+    - que el `Dockerfile` acepte un certificado raíz adicional al construir: es un cambio de código, para una tarea aparte.
+2. **El primer `up -d` no arrancó `embeddings`:** `nvidia-container-cli: ldcache error: process /sbin/ldconfig terminated with signal 9`, al arrancar a la vez tres servicios con GPU mientras el 27B empezaba a cargar. El `up` termina con error y deja el resto a medias. Repetir `docker compose up -d` arranca lo que falta y no recrea lo que ya está.
+3. **`docker stop` del motor del 27B devuelve un error** («tried to kill container, but did not receive an exit event») y el contenedor termina unos 20 s después (código 137; unos 40 s desde la orden). El `worker` sí se detiene con la señal de parada (la atrapa y sale con 0; su registro dice «Detenido.»), corrección de la verificación (D-049-2). Un pedido que estaba en curso queda fallido al volver a arrancar. No hace falta repetir la orden: mirar `docker inspect -f '{{.State.Status}}'` hasta ver `exited`.
+4. **`nvidia-smi` marcó 0 MiB usados con el 27B de 8000 cargado y respondiendo** (antes de la prueba). Con la instancia de la prueba arriba marcó 20.940 MiB. En este equipo una lectura de 0 no prueba que la GPU esté libre: confirmar con `utilization.gpu`, con `docker ps` y con el registro del motor.
+5. **`fetch_models.sh` no tiene un modo de solo verificar,** y su modo normal baja el 12B y su proyector, unos 7,2 GB que la configuración por omisión no usa (son el camino de vuelta, «Cómo se vuelve al 12B» de la 015). Para verificar una copia de `models/` sin bajar nada: `cd models && tr -d '\r' < ../scripts/models.sha256 | sha256sum -c --ignore-missing -` (59 s con los 4 archivos, 4 OK). Es una observación, no un defecto.
+6. Los comandos que piden la clave (`crear_usuario`, `cargar_norma`, `ver_informe`, `validar_informe`, `changepassword`) necesitan una terminal: en Git Bash, `winpty docker compose exec app …`; en PowerShell, sin `winpty`. Con `exec -T` y la clave por la entrada también funcionan, con el aviso «Password input may be echoed». `validar_informe` pide además que se escriba «si».
+7. **`scripts/models.sha256` queda con fin de línea CRLF en una copia de Windows** (`core.autocrlf=true`; `.gitattributes` fija LF para `*.sh` y el `Dockerfile`, no para este archivo). Por eso `sha256sum -c ../scripts/models.sha256` responde «no file was verified»: lee cada nombre con el `\r` al final. Se evita con el `tr -d '\r'` de arriba. `fetch_models.sh` funciona en Git Bash, porque su `awk` tolera el `\r`; el `awk` de Linux no lo tolera (probado en un contenedor): corrido desde WSL sobre una copia de Windows, el script diría que ningún archivo figura en la lista. La corrección es una línea de `.gitattributes` (`scripts/models.sha256 text eol=lf`), para una tarea aparte.
+
+### Una segunda instancia en el mismo equipo (para la del piloto, REQ-117)
+
+Se levantó una segunda instancia completa junto a 8000 sin tocar ningún archivo del repositorio. Esto es lo que hace falta y lo que la limita:
+
+| Punto | Qué pasa | Qué hacer |
+|---|---|---|
+| `name: evaluon` del compose | No impide nada: `COMPOSE_PROJECT_NAME` en el `.env` de la copia (o `-p`) lo reemplaza, y los contenedores, las redes y el volumen quedan con el prefijo propio (`evaluon-t049-…`, `evaluon-t049_pgdata`). **Riesgo:** sin esa línea, cualquier orden de Compose en la segunda copia va al proyecto `evaluon` de 8000: `up -d` recrearía los contenedores de 8000 montando la otra copia, y `down -v` borraría la base de 8000. `.env.example` no trae esa variable | Antes de cualquier orden de Compose, poner `COMPOSE_PROJECT_NAME=<nombre>` en el `.env` de la copia del piloto y comprobarlo con `docker compose config \| grep '^name:'` |
+| Puerto | `APP_PORT`, variable ya prevista | Uno distinto de 8000 |
+| `image: evaluon-app:local`, nombre fijo | **Las dos instancias comparten la etiqueta de la imagen de la aplicación.** Construir en una copia cambia la imagen de la otra. Los contenedores que ya corren siguen con la suya, pero el próximo `up -d` de la otra instancia los recrea con la imagen nueva. El código está montado desde cada copia; los estáticos (CSS, JS) y las dependencias, en cambio, vienen de la imagen. Con dos versiones distintas, una instancia sirve los estáticos de la otra | Con las dos en el mismo commit, nada. Para versiones distintas, el nombre de la imagen tiene que ser configurable (por ejemplo, una variable con `local` por omisión): es un cambio de `docker-compose.yml` y de `tests/test_compose_env.py`, para una tarea aparte. En esta prueba, la etiqueta de 8000 se guardó antes de construir (`docker tag evaluon-app:local evaluon-app:previo-t049`) y se devolvió al terminar |
+| GPU | El 27B ocupa casi toda la placa y **no entran dos**. Esta prueba cargó el 27B de la segunda instancia con `embeddings` y `reranker` de las dos instancias arriba: 20.940 MiB, con el `generation_batch` de 8000 detenido | Una sola instancia con el motor del 27B a la vez. Si la del piloto está en el mismo equipo, las instancias se turnan el motor (detener uno, encender el otro, de 3 a 10 minutos de carga cada vez) o comparten un solo motor. Compartirlo hoy no está previsto: las redes de los proyectos están separadas |
+| `models/` | Cada copia monta su propio `./models` | Enlaces duros a los archivos de la primera copia, que no vuelven a ocupar disco |
+| Memoria del equipo | La carga del 27B llena la memoria de páginas de WSL2 (20 GB). No faltó memoria con las dos instancias | Sin cambios |
+
+### Procedimientos para el runbook
+
+Todos se corren desde la carpeta de la copia, en Git Bash. Con una segunda instancia en el mismo equipo, cada orden va al proyecto de esa copia (`COMPOSE_PROJECT_NAME` en su `.env`, o `-p`).
+
+**Instalación desde cero.**
+
+```
+git clone https://github.com/snavello/EVALUON.git && cd EVALUON
+cp .env.example .env          # completar POSTGRES_PASSWORD y DJANGO_SECRET_KEY; otra instancia: COMPOSE_PROJECT_NAME y APP_PORT
+bash scripts/fetch_models.sh               # 12B, bge-m3 y reranker
+bash scripts/fetch_models.sh --qwen38-27b  # 27B y su proyector
+docker compose up -d                       # construye la imagen si falta; termina cuando el 27B está sano (3 a 10 min)
+winpty docker compose exec app python manage.py crear_usuario USUARIO --rol lectura-escritura
+```
+
+Hace falta internet para clonar, bajar los modelos y las imágenes (`ghcr.io/ggml-org/llama.cpp:server-cuda-b11347`, unos 7 GB en disco; `pgvector/pgvector:0.8.7-pg17-bookworm`, 637 MB; la base de Python, 191 MB) y construir la imagen de la aplicación (`pypi.org`, `raw.githubusercontent.com` y los repositorios de Debian). Después no: los motores arrancan con `--offline`. Comprobar: `docker compose ps -a` (sin `generation`; `migrate` terminado con 0: `ps` sin `-a` no lo muestra), `/health` y `/props` de `generation_batch` (`docker compose exec generation_batch curl -s localhost:8080/props`), `/ingresar/` y una consulta con cita.
+
+**Modelos.** Con internet: `fetch_models.sh` (dos corridas, arriba). Cada opción verifica la huella contra `scripts/models.sha256` y no vuelve a bajar lo que ya está bien. Sin internet, o para mudar el sistema: copiar `models/` y verificar con `cd models && tr -d '\r' < ../scripts/models.sha256 | sha256sum -c --ignore-missing -` (falla 7). La configuración por omisión usa 4 archivos, 19.709.495.808 bytes (18,4 GiB): `Qwen3.8-27B-UD-Q4_K_M.gguf`, `mmproj-Qwen3.8-27B-F16.gguf`, `bge-m3-FP16.gguf` y `bge-reranker-v2-m3-FP16.gguf`; el 12B y su proyector suman 7.150.994.912 bytes más (7,2 GB). En el mismo disco, un enlace duro (`ln origen destino`) evita duplicar los archivos.
+
+**Arranque y parada.** Arrancar: `docker compose up -d`. Parar sin perder datos: `docker compose stop`, o `docker compose down` **sin** `-v`. `down -v` borra el volumen de la base: solo con un respaldo y con confirmación. Antes de detener el `worker` o el motor, mirar que no haya pedidos en curso (`docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select status, count(*) from tenders_job group by status"'`, sin `running`): el pedido cortado queda fallido.
+
+**Migración con respaldo previo.** `migrate` aplica las migraciones solo sobre una base vacía. Sobre una base con datos, si hay una migración pendiente se detiene y `app` no arranca. Entonces:
+
+1. `docker compose stop app worker portal_worker`, sin pedidos en curso.
+2. Respaldar: `mkdir -p backups` (una copia limpia no trae la carpeta: está en `.gitignore`) y `docker compose exec -T db sh -c 'pg_dump -Fc -U "$POSTGRES_USER" "$POSTGRES_DB"' > backups/evaluon-AAAA-MM-DD-previo.dump`, y revisarlo con `docker compose exec -T db pg_restore -l < backups/…dump`.
+3. Ver qué falta: `docker compose run --rm --no-deps app python manage.py showmigrations` (`migrate --check` no dice cuál).
+4. Leer los avisos de la migración. Hoy hay uno: `norms 0007_norm_citation` falla en una base que tiene normas sin nombre de cita; antes de migrar, escribir `citation` en cada norma (T-055).
+5. Aplicar: `docker compose run --rm --no-deps app python manage.py migrate`.
+6. `docker compose up -d`; `migrate` imprime «la base tiene datos; solo se comprueba…» y «no hay migraciones pendientes».
+
+Volver atrás: restaurar el respaldo del paso 2 en una base nueva (procedimiento de abajo). También se puede usar `migrate <aplicación> <migración anterior>`, si esa migración tiene la reversa probada. Una migración destructiva se confirma antes con el responsable, con el detalle de lo que se pierde.
+
+**Respaldo y restauración** (T-048, repetido sobre la base de esta prueba):
+
+```
+mkdir -p backups
+docker compose exec -T db sh -c 'pg_dump -Fc -U "$POSTGRES_USER" "$POSTGRES_DB"' > backups/evaluon-AAAA-MM-DD.dump
+docker compose exec -T db pg_restore -l < backups/evaluon-AAAA-MM-DD.dump
+docker compose exec -T db sh -c 'createdb -U "$POSTGRES_USER" evaluon_restore'
+docker compose exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d evaluon_restore --exit-on-error' < backups/evaluon-AAAA-MM-DD.dump
+docker compose run --rm --no-deps -T -e POSTGRES_DB=evaluon_restore migrate
+docker compose exec -T db sh -c 'dropdb -U "$POSTGRES_USER" evaluon_restore'
+```
+
+La quinta orden comprueba la base restaurada; la última borra solo la base aparte. Restaurar siempre en una base nueva: restaurar sobre `evaluon` exige borrarla y se confirma antes. `backups/` está en `.gitignore`: los respaldos de la base real no se suben (P4). El respaldo no incluye `models/` ni `corpus/`, porque los originales cargados están dentro de la base.
+
+**Sesiones vencidas.** Las sesiones están en la base (ADR-0005). Duran 8 horas o hasta que se cierra el navegador, y las vencidas no se borran solas. Para borrarlas: `docker compose exec -T app python manage.py clearsessions`. No muestra nada y se puede correr con la aplicación en uso. Conviene programarla, por ejemplo una vez por semana.
+
+**Clave olvidada.** `winpty docker compose exec app python manage.py changepassword USUARIO` (en PowerShell, sin `winpty`). Pide la clave nueva dos veces, de 8 caracteres como mínimo. No deja hecho de auditoría (plan 001, ADR-0005): si hace falta saber quién la cambió y cuándo, se anota aparte.
+
+**Fallas conocidas.** Las siete de arriba. Además:
+
+- El 27B tarda de 3 a 10 minutos en cargar (6 min 14 s en esta prueba). Mientras carga, la Consulta dice que el motor se está encendiendo. Si pasan más de 15 minutos sin salud, mirar `docker compose logs generation_batch`: el archivo o la huella del modelo, o memoria de video ocupada por otro proceso.
+- La primera consulta después de levantar tarda más (25,5 s contra 6,9 s de la siguiente): el primer pedido a `embeddings` y al `reranker` prepara la GPU.
+- Una migración pendiente sobre una base con datos deja a `app` sin arrancar: hay que seguir el procedimiento de migración.
+
+### Pendientes del despliegue
+
+- **Separar el usuario de la aplicación del dueño del esquema en la base.** El trigger de solo inserción de `audit_event` (T-007) no frena un `TRUNCATE`, ni impide que el dueño de la tabla lo desactive. Hoy la aplicación se conecta con `POSTGRES_USER`, que es superusuario y dueño de todo. Lo decidió el responsable el 2026-10-02: se resuelve en el despliegue. Con la separación, `pg_restore` necesita al dueño o a un superusuario para crear `vector` y `unaccent`.
+- **Salida a internet de `app` por la red `web`** (T-047). Pliegos y ofertas pasan por `app`: decidir si esa salida se corta, con firewall o con un proxy inverso en una red sin salida. Se cruza con el acceso por red de la spec 007.
+- ~~Construcción de la imagen con Norton~~ (falla 1): **resuelta el 2026-10-14.** El responsable desinstaló Norton; Microsoft Defender quedó activo. Después del reinicio, el certificado de `pypi.org` lo firma GlobalSign y `docker build --no-cache` de la imagen de la aplicación (en una copia limpia, con otra etiqueta para no tocar `evaluon-app:local` de 8000) terminó con 0 en 42 s, sin `CERTIFICATE_VERIFY_FAILED` (Coordinador).
+- **Prefijo de los comandos en una segunda instancia** (O-049-8 de la verificación): la sección T-043 indica `docker compose -p evaluon …` delante de cada comando; `evaluon` es el proyecto de 8000. En el runbook de una segunda instancia, los comandos van sin `-p evaluon`, con el `COMPOSE_PROJECT_NAME` de su `.env`.
+- **Nombre configurable de la imagen de la aplicación,** si 8000 y la instancia del piloto van a correr versiones distintas en el mismo equipo.
+
+### 8000 durante la prueba y al terminar
+
+- A las 17:35:46 se detuvo `evaluon-worker-1` y a las 17:36:28 terminó `evaluon-generation_batch-1` (`docker stop`, sin `compose down` ni recrear). La cola estaba sin pedidos y la GPU, al 0 %.
+- `app`, `db`, `embeddings`, `reranker` y `portal_worker` de 8000 siguieron arriba. La base `evaluon` solo se leyó: cantidad de migraciones y tablas, y estado de la cola.
+- A las 17:45:28 se devolvió la etiqueta `evaluon-app:local` a la imagen de 8000 (`fc1ac35bc2eb`, la misma que usan sus contenedores) y se borró la imagen de la prueba.
+- A las 17:45:30, `docker start evaluon-generation_batch-1`. El motor quedó sano a las 17:48:06 (2 min 36 s; esta vez parte del archivo seguía en la memoria del equipo). A las 17:48:15, `docker start evaluon-worker-1` («Esperando pedidos.»). Corte total de 8000 sin el motor: de 17:36:28 a 17:48:06, unos 12 minutos.
+- Comprobado a las 17:48:30: `/health` `{"status":"ok"}`; `/props` con `qwen3.8-27b-ud-q4_k_m`, `n_ctx` 32.768 y `b11347-5fc4f3c8c`; dentro de `app`, `consulta_notice()` vacío y `consulta_available()` e `is_available()` verdaderos, o sea la Consulta encendida y sin aviso; un pedido corto directo al motor respondió con el 27B; `/ingresar/` 200; la cola sigue con 99 pedidos `done`; GPU en 18.464 MiB. No se hizo una consulta en 8000, para no escribir en su base.
