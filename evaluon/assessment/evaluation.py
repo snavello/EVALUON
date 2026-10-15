@@ -1158,7 +1158,7 @@ def load_commission_cells(path, *, require_approval=True):
 # de la matriz que arma `build_case`. Lleva `procedimiento`, `caso`, `lote` (ajuste o aceptacion),
 # `huella` (de oferta, requisito y resultado), `armada_por`, `visto_bueno` y `celdas` con `oferta`,
 # `requisito`, `resultado`, `fundamento` (`tipo`, `documento`, `pagina`, `texto`, `nota`; en un dato
-# del Portal, `portal` y `valor`), `pregunta` y `revision` (`por`, `fecha`, `estado`, y
+# del Portal, `portal` y `valor`; en una ausencia, `documentos`: los documentos leídos), `pregunta` y `revision` (`por`, `fecha`, `estado`, y
 # `resultado_anterior` si la corrigió). Una celda sin revisión no se cuenta.
 #
 # `congelado-016.txt` (junto a la verdad, en los casos de aceptación) lleva una clave por línea:
@@ -1241,9 +1241,10 @@ def _load_truth(path, raw, data, entries, require_approval):
 
 def _truth_reading(offer, name):
     """`(documento, lectura)` del documento de la oferta que nombra la verdad: por nombre de
-    archivo exacto o, si no hay, por el nombre sin carpetas cuando es único."""
+    archivo exacto o, si no hay y el nombre viene sin carpetas, por ese nombre cuando es único."""
+    name = str(name)
     document, reading = sheets_measure._reading_of(offer, name)
-    if document is None:
+    if document is None and "/" not in name and "\\" not in name:
         same = [d for d in offer.documents.all() if _name(d.file_name) == _name(name)]
         if len(same) == 1:
             document = same[0]
@@ -1319,6 +1320,8 @@ class TruthCheck:
     dates: tuple = ()
     cites_needed: int = 0
     cites_located: int = 0
+    absence: int = 0
+    absence_missing: int = 0
     undetermined: int = 0
     undetermined_named: int = 0
     frozen: str = ""
@@ -1350,6 +1353,8 @@ class TruthCheck:
             f"{self.unreviewed} (no se cuentan)",
             f"Citas ubicadas en la lectura o ítem del Portal: {self.cites_located} de "
             f"{self.cites_needed}",
+            f"«Cumple» por ausencia (documentos leídos nombrados): {self.absence} (con "
+            f"documentos no encontrados: {self.absence_missing})",
             f"«No determinado» con pregunta o documento nombrado: {self.undetermined_named} de "
             f"{self.undetermined}",
             f"Congelado (congelado-016.txt): {self.frozen}",
@@ -1364,14 +1369,15 @@ def truth_total(checks):
     revisión, citas ubicadas y «no determinado» con pregunta, y la línea que la muestra."""
     total = {"cases": len(checks)}
     for name in ("cells", "decided", "decided_reviewed", "reviewed", "cites_needed",
-                 "cites_located", "undetermined", "undetermined_named", "runs"):
+                 "cites_located", "absence", "absence_missing", "undetermined", "undetermined_named", "runs"):
         total[name] = sum(getattr(c, name) for c in checks)
     total["problems"] = sum(len(c.problems) for c in checks)
     total["line"] = (
         f"Total de {total['cases']} casos: {total['cells']} celdas, {total['decided']} decididas "
         f"({total['decided_reviewed']} con revisión), {total['reviewed']} con revisión; citas "
         f"ubicadas {total['cites_located']} de {total['cites_needed']}; «no determinado» con "
-        f"pregunta {total['undetermined_named']} de {total['undetermined']}; corridas guardadas "
+        f"pregunta {total['undetermined_named']} de {total['undetermined']}; «cumple» por ausencia "
+        f"{total['absence']} (documentos no encontrados {total['absence_missing']}); corridas guardadas "
         f"{total['runs']}; fallas {total['problems']}")
     return total
 
@@ -1405,8 +1411,10 @@ def _frozen_state(truth, expected):
 def verify_truth(truth, expected, procedure):
     """Comprueba la verdad de un caso sin usar el modelo (T-271): cuenta las celdas, las decididas
     (cumple, no cumple, no aplica y no se encontró el documento), las revisadas con quién y cuándo
-    y los «no determinado» con pregunta; comprueba que cada «cumple» y «no cumple» tenga su cita
-    palabra por palabra en la lectura de la oferta (`quotes.locate`) o su ítem del Portal; en un
+    y los «no determinado» con pregunta; comprueba que cada «no cumple» y cada «cumple» con cita
+    tenga su cita palabra por palabra en la lectura de la oferta (`quotes.locate`) o su ítem del
+    Portal, y que cada «cumple» por ausencia nombre documentos que existan en la oferta (P3,
+    ADR-0058; se cuentan aparte y no llevan cita); en un
     caso de aceptación, el congelado y que no haya corridas de evaluación guardadas del
     procedimiento. Una celda sin revisión no se cuenta."""
     if truth.kind != "verdad":
@@ -1453,7 +1461,26 @@ def verify_truth(truth, expected, procedure):
             if kind not in ("ausencia", "documento_faltante") or not basis.get("nota"):
                 check.problems.append(f"{where}: «no se encontró el documento» sin los "
                                       "documentos leídos en el fundamento")
-        if cell.result in ("cumple", "no_cumple") or kind in ("cita_oferta", "dato_portal"):
+        if cell.result == "cumple" and kind == "ausencia":
+            # P3 (constitución 1.6, ADR-0058): la ausencia verificada en la lectura completa de la
+            # oferta nombra los documentos leídos; la comprobación de citas no aplica.
+            check.absence += 1
+            named = basis.get("documentos")
+            if offer is None:
+                pass
+            elif not (isinstance(named, list) and named
+                      and all(isinstance(n, str) and n.strip() for n in named)):
+                check.absence_missing += 1
+                check.problems.append(f"{where}: «cumple» por ausencia sin la lista de los "
+                                      "documentos leídos (`documentos`)")
+            else:
+                unknown = [n for n in named if _truth_reading(offer, n)[0] is None]
+                if unknown:
+                    check.absence_missing += 1
+                    check.problems.append(
+                        f"{where}: «cumple» por ausencia con documentos que no están en la "
+                        "oferta cargada: " + ", ".join(unknown))
+        elif cell.result in ("cumple", "no_cumple") or kind in ("cita_oferta", "dato_portal"):
             needed = cell.result in ("cumple", "no_cumple")
             check.cites_needed += needed
             if offer is None:

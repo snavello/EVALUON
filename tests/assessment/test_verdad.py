@@ -76,14 +76,14 @@ def small(evaluator_user, fake_ai):
 
 
 def test_the_small_case_truth_loads_by_requirement_and_keeps_the_old_format_working(tmp_path):
-    """REQ-118: `verdad-celdas.yaml` carga con lote, huella, quién armó y las 9 celdas por
+    """REQ-118: `verdad-celdas.yaml` carga con lote, huella, quién armó y las 10 celdas por
     oferta y M-NNN; `no_determinado` es un resultado admitido; el formato de `celdas-comision`
     (por fila) sigue cargando igual."""
     truth = ev.load_commission_cells(TRUTH)
     assert truth.kind == "verdad" and truth.batch == "ajuste"
     assert truth.case == "caso-chico-evaluacion" and truth.procedure == "CASO-CHICO-EVALUACION"
     assert truth.approval and truth.armed_by["agente"]
-    assert len(truth.truth) == 9 and truth.cells == {}
+    assert len(truth.truth) == 10 and truth.cells == {}
     assert truth.fingerprint == ev.truth_fingerprint(raw_truth()["celdas"])
     assert ev.COMMISSION_RESULTS["no_determinado"] == am.Outcome.NO_DETERMINADO
     first = truth.truth[0]
@@ -156,7 +156,8 @@ def test_resolving_the_truth_keeps_only_reviewed_cells_with_their_matrix_row(tmp
     una verdad sin ninguna revisada no se mide."""
     rows = {f"M-{n:03d}": n for n in range(1, 11)}
     full = ev.load_commission_cells(TRUTH).resolved(rows)
-    assert len(full.cells) == 9
+    assert len(full.cells) == 10
+    assert full.cells[(1, 5)] == am.Outcome.CUMPLE
     assert full.cells[(1, 1)] == am.Outcome.CUMPLE and full.cells[(3, 3)] == am.Outcome.SIN_DOCUMENTO
     assert full.cells[(2, 3)] == am.Outcome.NO_DETERMINADO
     assert full.cells[(3, 1)] == am.Outcome.NO_CUMPLE
@@ -164,7 +165,7 @@ def test_resolving_the_truth_keeps_only_reviewed_cells_with_their_matrix_row(tmp
     def one_unreviewed(raw):
         del cell_of(raw, 1, "M-003")["revision"]
     partial = ev.load_commission_cells(write_truth(tmp_path, one_unreviewed)).resolved(rows)
-    assert len(partial.cells) == 8 and (1, 3) not in partial.cells
+    assert len(partial.cells) == 9 and (1, 3) not in partial.cells
 
     def none_reviewed(raw):
         for cell in raw["celdas"]:
@@ -188,34 +189,36 @@ def test_a_system_abstention_against_an_undetermined_truth_is_exact():
     assert accuracy["exact_cells"] == [(1, 1), (2, 3)]
     assert accuracy["wrong_cells"] == [(2, 4, am.Outcome.NO_DETERMINADO, am.Outcome.CUMPLE)]
     assert accuracy["abstained_cells"] == [(3, 1)]
-    assert accuracy["total"] == 4 and len(accuracy["without_result"]) == 5
+    assert accuracy["total"] == 4 and len(accuracy["without_result"]) == 6
 
 
 # --- Las comprobaciones contra la lectura (con base) -------------------------------------------
 
 
 def test_verify_truth_counts_the_small_case_and_rejects_what_is_not_in_the_reading(small):
-    """REQ-118: el caso chico da los conteos esperados (9 celdas, 7 decididas, 9 revisadas, 6 citas
-    ubicadas de 6, 2 «no determinado» con pregunta, 0 corridas); una cita que no está palabra por
+    """REQ-118: el caso chico da los conteos esperados (10 celdas, 8 decididas, 10 revisadas, 6 citas
+    ubicadas de 6, 1 «cumple» por ausencia, 2 «no determinado» con pregunta, 0 corridas); una cita que no está palabra por
     palabra en la lectura, en otra página o de un documento que no está se rechaza; una celda sin
     revisión no se cuenta."""
     expected, procedure, _ = small
     truth = ev.load_commission_cells(TRUTH)
     check = ev.verify_truth(truth, expected, procedure)
     assert check.problems == [] and check.ok
-    assert (check.cells, check.decided, check.decided_reviewed, check.reviewed) == (9, 7, 7, 9)
-    assert check.by_result == {"cumple": 5, "no_cumple": 1, "no_se_encontro_documento": 1,
+    assert (check.cells, check.decided, check.decided_reviewed, check.reviewed) == (10, 8, 8, 10)
+    assert check.by_result == {"cumple": 6, "no_cumple": 1, "no_se_encontro_documento": 1,
                                "no_determinado": 2}
     assert (check.cites_needed, check.cites_located) == (6, 6)
+    assert (check.absence, check.absence_missing) == (1, 0)
     assert (check.undetermined, check.undetermined_named) == (2, 2)
-    assert check.reviewers == {REVIEWER: 9} and check.dates == ("2026-10-15", "2026-10-15")
+    assert check.reviewers == {REVIEWER: 10} and check.dates == ("2026-10-15", "2026-10-15")
     assert check.runs == 0 and check.frozen.startswith("no se exige")
     text = "\n".join(check.lines())
-    assert "Decididas: 7; decididas con revisión (las que cuentan): 7" in text
+    assert "Decididas: 8; decididas con revisión (las que cuentan): 8" in text
+    assert "«Cumple» por ausencia (documentos leídos nombrados): 1 (con documentos no encontrados: 0)" in text
     assert "Citas ubicadas en la lectura o ítem del Portal: 6 de 6" in text
     assert "Verdad: sin fallas" in text
     total = ev.truth_total([check])
-    assert (total["cases"], total["cells"], total["decided_reviewed"]) == (1, 9, 7)
+    assert (total["cases"], total["cells"], total["decided_reviewed"]) == (1, 10, 8)
 
     invented = "Declaro bajo juramento que me encuentro habilitado y además tengo 10 empleados"
     altered = with_basis(truth, 1, "M-001", texto=invented)
@@ -235,7 +238,7 @@ def test_verify_truth_counts_the_small_case_and_rejects_what_is_not_in_the_readi
 
     unreviewed = variant(truth, 1, "M-003", review=None)
     check = ev.verify_truth(unreviewed, expected, procedure)
-    assert (check.decided, check.decided_reviewed, check.reviewed, check.unreviewed) == (7, 6, 8, 1)
+    assert (check.decided, check.decided_reviewed, check.reviewed, check.unreviewed) == (8, 7, 9, 1)
     assert check.ok and "sin revisión: 1 (no se cuentan)" in "\n".join(check.lines())
 
 
@@ -246,7 +249,7 @@ def test_verify_truth_requires_citation_question_and_documents_by_result(small):
     señalan."""
     expected, procedure, _ = small
     truth = ev.load_commission_cells(TRUTH)
-    by_absence = with_basis(truth, 1, "M-001", tipo="ausencia")
+    by_absence = with_basis(truth, 3, "M-001", tipo="ausencia")      # un «no cumple» por ausencia
     assert "sin cita de la oferta ni dato del Portal" in problems_of(
         by_absence, expected, procedure)[0]
     check = ev.verify_truth(by_absence, expected, procedure)
@@ -274,6 +277,40 @@ def test_verify_truth_requires_citation_question_and_documents_by_result(small):
     assert "no es el del caso" in problems_of(other_case, expected, procedure)[0]
     with pytest.raises(ev.ExpectedError, match="no es una verdad"):
         ev.verify_truth(replace(truth, kind="comision"), expected, procedure)
+
+
+def test_a_cumple_by_absence_names_the_documents_read_and_they_must_exist(small):
+    """REQ-118 (P3, ADR-0058): un «cumple» por ausencia cuenta como decidida si nombra documentos
+    leídos que existen en la oferta cargada (sin comprobación de cita); con un documento que no
+    existe, sin lista o con la lista vacía se rechaza y se cuenta aparte; un «no cumple» sigue
+    exigiendo cita o dato del Portal."""
+    expected, procedure, _ = small
+    truth = ev.load_commission_cells(TRUTH)
+    cell = next(c for c in truth.truth if (c.offer, c.requirement) == (1, "M-005"))
+    assert cell.result == "cumple" and cell.basis["tipo"] == "ausencia" and cell.decided
+    check = ev.verify_truth(truth, expected, procedure)
+    assert check.ok and (check.absence, check.absence_missing) == (1, 0)
+    assert check.decided_reviewed == 8 and check.cites_needed == 6     # la ausencia no lleva cita
+    names = cell.basis["documentos"]
+    by_name = with_basis(truth, 1, "M-005", documentos=["oferta-propuesta.pdf"])
+    assert problems_of(by_name, expected, procedure) == []            # el nombre sin carpetas vale
+    missing = "ofertas/oferente-a/inexistente.pdf"
+    unknown = with_basis(truth, 1, "M-005", documentos=names + [missing])
+    check = ev.verify_truth(unknown, expected, procedure)
+    assert (check.absence, check.absence_missing) == (1, 1) and not check.ok
+    assert f"no están en la oferta cargada: {missing}" in check.problems[0]
+    assert "con documentos no encontrados: 1" in "\n".join(check.lines())
+    other_offer = with_basis(truth, 1, "M-005",
+                             documentos=["ofertas/oferente-b/oferta-propuesta.pdf"])
+    assert "no están en la oferta cargada" in problems_of(other_offer, expected, procedure)[0]
+    for documentos in ([], None, [""], "oferta-propuesta.pdf"):
+        bad = with_basis(truth, 1, "M-005", documentos=documentos)
+        check = ev.verify_truth(bad, expected, procedure)
+        assert check.absence_missing == 1 and "sin la lista de los documentos leídos" in (
+            check.problems[0])
+    no_cumple = variant(truth, 1, "M-005", result="no_cumple")
+    assert "sin cita de la oferta ni dato del Portal" in problems_of(
+        no_cumple, expected, procedure)[0]
 
 
 def test_verify_truth_checks_the_portal_item(small, evaluator_user):
@@ -373,10 +410,10 @@ def test_measuring_with_the_truth_counts_only_reviewed_cells_by_matrix_row(
     report = ev.measure(evaluator_user, procedure, expected, offers, tmp_path / "corridas",
                         commit="abc1234", commission_cells=truth)
     accuracy = report.total["accuracy"]
-    assert accuracy["total"] == 8
+    assert accuracy["total"] == 9
     assert (3, 4) not in accuracy["exact_cells"] + accuracy["abstained_cells"]
     assert (2, 4) in accuracy["exact_cells"]        # «no determinado» contra «no determinado»
-    assert report.commission_cells.kind == "verdad" and len(report.commission_cells.cells) == 8
+    assert report.commission_cells.kind == "verdad" and len(report.commission_cells.cells) == 9
     summary = (report.folder / "parametros.json").read_text(encoding="utf-8")
     assert truth.fingerprint in summary
 
@@ -396,16 +433,18 @@ def test_the_command_verifies_the_small_case_truth_without_the_model(
     caso, termina con error."""
     text = _command(operator_user, monkeypatch, "--caso-chico", "--verificar-verdad")
     assert not model.calls
-    for line in ("Celdas: 9 (cumple 5, no cumple 1, no aplica 0, no se encontró el documento 1, "
+    for line in ("Celdas: 10 (cumple 6, no cumple 1, no aplica 0, no se encontró el documento 1, "
                  "no determinado 2)",
-                 "Decididas: 7; decididas con revisión (las que cuentan): 7",
-                 f"Con revisión (quién y cuándo): 9 ({REVIEWER}: 9; del 2026-10-15 al "
+                 "Decididas: 8; decididas con revisión (las que cuentan): 8",
+                 f"Con revisión (quién y cuándo): 10 ({REVIEWER}: 10; del 2026-10-15 al "
                  "2026-10-15); sin revisión: 0 (no se cuentan)",
                  "Citas ubicadas en la lectura o ítem del Portal: 6 de 6",
+                 "«Cumple» por ausencia (documentos leídos nombrados): 1 (con documentos no "
+                 "encontrados: 0)",
                  "«No determinado» con pregunta o documento nombrado: 2 de 2",
                  "Congelado (congelado-016.txt): no se exige en el lote de ajuste",
                  "Corridas de evaluación guardadas del procedimiento: 0",
-                 "Verdad: sin fallas", "Total de 1 casos: 9 celdas, 7 decididas"):
+                 "Verdad: sin fallas", "Total de 1 casos: 10 celdas, 8 decididas"):
         assert line in text, line
 
     def invented(raw):
@@ -420,7 +459,7 @@ def test_the_command_verifies_the_small_case_truth_without_the_model(
     path = write_truth(tmp_path, unreviewed, name="sin-revision.yaml")
     text = _command(operator_user, monkeypatch, "--caso-chico", "--verificar-verdad",
                     "--celdas-comision", str(path))
-    assert "decididas con revisión (las que cuentan): 6" in text and "sin revisión: 1" in text
+    assert "decididas con revisión (las que cuentan): 7" in text and "sin revisión: 1" in text
 
     with pytest.raises(CommandError, match="no es una verdad"):
         old = tmp_path / "vieja.yaml"
@@ -438,7 +477,8 @@ def test_the_truth_file_has_its_fingerprint_and_only_synthetic_content():
     raw = yaml.safe_load(text)
     assert raw["huella"] == ev.truth_fingerprint(raw["celdas"])
     assert raw["huella"] == hashlib.sha256("\n".join(
-        f"{c['oferta']}|{c['requisito']}|{c['resultado']}" for c in raw["celdas"]
+        f"{c['oferta']}|{c['requisito']}|{c['resultado']}"
+        for c in sorted(raw["celdas"], key=lambda c: (c["oferta"], c["requisito"]))
     ).encode("utf-8")).hexdigest()
     assert isinstance(raw["armada_por"]["fecha"], date)
     assert not re.search(r"\b\d{2}-\d{8}-\d\b", text)      # ningún CUIT

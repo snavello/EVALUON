@@ -1,13 +1,14 @@
 # Verdad celda por celda del caso chico (T-271; plan 016, "Paso 1"; ADR-0069, REQ-118).
 # Caso INVENTADO y público (P4): ningún dato es real. Prueba el cargador, el conteo y la
-# comprobación de las citas con 3 requisitos (M-001, M-003 y M-004) de las 3 ofertas.
+# comprobación de las citas con 4 requisitos (M-001, M-003, M-004 y, en la oferta 1, un «cumple» por
+# ausencia en M-005, con los documentos leídos).
 # Las celdas se piden por oferta (número en el procedimiento) y requisito de la lista esperada
 # (`M-NNN`); la medida lo traduce a la fila de la matriz. Cada cita es un recorte literal de la
 # lectura de la oferta, en la página que se nombra. Una celda sin `revision` no se cuenta.
 procedimiento: CASO-CHICO-EVALUACION
 caso: caso-chico-evaluacion
 lote: ajuste
-huella: "490aa30a05242bf709d206a1e29211a9b13343cd168c516290b312e26dac50fd"
+huella: "01a415b703dfa0505b91cb57612cefc61a1e7eb5ae0a6ed55600a8aa66f14137"
 armada_por:
   agente: "Coordinador (caso chico inventado)"
   fecha: 2026-10-15
@@ -32,6 +33,20 @@ celdas:
       documento: ofertas/oferente-a/certificado-vigencia.pdf
       pagina: 1
       texto: "el contrato social de Oferente A Sintético se encuentra vigente a la fecha de este certificado"
+    revision: {por: "Coordinador (caso chico inventado)", fecha: 2026-10-15, estado: confirmada}
+  - oferta: 1
+    requisito: M-005
+    resultado: cumple
+    fundamento:
+      tipo: ausencia
+      documentos:
+        - ofertas/oferente-a/oferta-propuesta.pdf
+        - ofertas/oferente-a/poliza-caucion.pdf
+        - ofertas/oferente-a/hoja-tecnica-resma.pdf
+        - ofertas/oferente-a/constancia-escaneada.pdf
+        - ofertas/oferente-a/certificado-vigencia.pdf
+        - ofertas/oferente-a/documento-identidad.pdf
+      nota: "Leída completa la oferta: ningún documento informa sanciones ni deuda exigible."
     revision: {por: "Coordinador (caso chico inventado)", fecha: 2026-10-15, estado: confirmada}
   - oferta: 1
     requisito: M-004
