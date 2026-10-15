@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cambiar la clave inicial · EVALUON</title>
+  <!-- Maqueta de la spec 007 (REQ-114, T-271): primer ingreso con clave inicial. Usa las mismas hojas de estilo que la aplicación.
+       Usuario de ejemplo inventado. -->
+  <link rel="icon" type="image/svg+xml" href="../../../../evaluon/static/marca/isotipo.svg">
+  <link rel="stylesheet" href="../../../../evaluon/static/css/evaluon.css">
+  <link rel="stylesheet" href="../../../../evaluon/static/diseno/tokens.css">
+  <link rel="stylesheet" href="../../../../evaluon/static/journey/secciones.css">
+  <style>
+    body.app .ingreso ul.reglas { margin: 0; padding-left: 1.1rem; font-size: var(--ev-t-xs); color: var(--ev-texto-suave); }
+    body.app .ingreso .aviso.info { border-left: 3px solid var(--ev-azul-500); background: var(--ev-azul-50); color: var(--ev-texto); padding: 10px 14px; border-radius: 0 10px 10px 0; font-size: var(--ev-t-sm); }
+  </style>
+</head>
+<body class="app">
+  <header class="top"><div class="wrap">
+    <a class="nombre" href="#"><img src="../../../../evaluon/static/marca/logotipo-encabezado.svg" alt="EVALUON" width="131" height="38"></a>
+    <span class="espacio"></span>
+    <span class="sel-user"><strong>evaluador.prueba</strong><small>Evaluador</small></span>
+    <form class="logout-form"><button class="btn secundario" type="button">Salir</button></form>
+  </div></header>
+  <main>
+    <div class="wrap">
+      <section class="ingreso">
+        <h1>Cambie su clave inicial</h1>
+        <p class="lede">Es su primer ingreso. Elija una clave que solo usted conozca: lo que EVALUON registra a su nombre tiene que haberlo hecho usted. Hasta cambiarla no puede usar las secciones.</p>
+        <form class="panel">
+          <div class="aviso info">La clave inicial se la dio el responsable del sistema. Escríbala abajo como «clave actual».</div>
+          <div>
+            <label for="actual">Clave actual</label>
+            <input type="password" id="actual" autocomplete="current-password">
+          </div>
+          <div>
+            <label for="nueva">Clave nueva</label>
+            <input type="password" id="nueva" autocomplete="new-password">
+          </div>
+          <div>
+            <label for="repetida">Repita la clave nueva</label>
+            <input type="password" id="repetida" autocomplete="new-password">
+          </div>
+          <ul class="reglas">
+            <li>Al menos 8 caracteres.</li>
+            <li>No puede ser una clave muy común (por ejemplo, «12345678» o «password»).</li>
+            <li>Tiene que ser distinta de la actual.</li>
+          </ul>
+          <div class="fila"><button class="btn primario" type="button">Cambiar clave</button></div>
+        </form>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
