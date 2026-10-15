@@ -75,7 +75,7 @@ flowchart LR
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 42/46 | █████████░ 91% |
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
-| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 4/38 | █░░░░░░░░░ 11% |
+| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 5/38 | █░░░░░░░░░ 13% |
 
 <a id="001"></a>
 
@@ -1523,14 +1523,13 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 34 tareas sin terminar.
-- ▶ T-279 · Instrucciones de la matriz, parte 1: bloque común de definiciones, extracción, completitud y unión, nuevas y cortas, sin ejemplos de casos, con versión y huella; `matriz-definiciones-v9`, `matriz-extraccion-v13`, `matriz-completitud-v7`, `matriz-union-v2` (en curso)
+- **Próximo paso:** Desarrollar: 33 tareas sin terminar.
+- ▶ T-280 · Instrucciones de la matriz, parte 2: filtro, consecuencias, circulares, cambios de circulares y respaldo normativo, nuevas y cortas (en curso)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
 - ○ T-273 · Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada (pendiente)
 - ○ T-274 · Verdad celda por celda del primer caso de aceptación, con el mismo método y el mismo umbral (pendiente)
 - ○ T-275 · Verdad celda por celda del segundo caso de aceptación, con el mismo método y el mismo umbral (pendiente)
 - ○ T-276 · Cierre del paso 1: documento de revisión por caso, revisión y firma celda por celda del responsable (quién y cuándo en cada celda), congelado de los casos de aceptación y verificación de REQ-118. Umbral 1 a 4: al menos 3 casos (2 de aceptación), 40 celdas decididas por caso y 150 en total, 100 % con quién y cuándo, 0 corridas de evaluación en aceptación (pendiente)
-- ○ T-280 · Instrucciones de la matriz, parte 2: filtro, consecuencias, circulares, cambios de circulares y respaldo normativo, nuevas y cortas (pendiente)
 - ○ T-281 · Instrucciones de la evaluación: evaluación, contraste, cláusulas y reescritura, nuevas y cortas, con las descripciones del esquema de salida de hasta 80 caracteres (pendiente)
 - ○ T-282 · Instrucciones auxiliares: visión, ficha, ficha por renglón, informe técnico, nombre del oferente, datos del procedimiento y consulta; versión y huella registradas en cada pedido; informe de revisión completo y prueba de que toda instrucción vigente es de la 016 (pendiente)
 - ○ T-283 · Medición del paso 2, ronda 1 (matrices y caso-00): matrices de 00, 01, 02 y 06; caso-00 completo (matriz y evaluación de las 3 ofertas); evals de la 001, fichas y visión. Umbrales 7 a 12: 0 «cumple» sin fundamento, 0 contradicciones, 100 % literal, lista presente igual o mejor (00 41/42, 01 79/80, 02 95/97, 06 35/35), tres salidas, no empeora, caso-00 completo ≤ 112,6 min y ≤ 22.000 MiB, auxiliares no peor que T-266 (pendiente)
@@ -1566,6 +1565,7 @@ flowchart LR
 - ✓ T-271 · Formato de la verdad celda por celda y su cargador: `no_determinado`, fundamento, revisión, huella, congelado, clave por requisito `M-NNN`; `medir_evaluacion --verificar-verdad` (casos, celdas decididas, quién y cuándo, citas ubicadas, 0 corridas en aceptación); verdad del caso chico en el repositorio. Umbral: el caso chico da los conteos esperados y una cita inventada que no está se rechaza
 - ✓ T-277 · Reglas a tres salidas: toda celda lleva su pregunta o su documento nombrado (`combine.py`, conversiones de `evaluate.py`, reglas del Portal), `reglas-v13`, invariante probada sobre todas las combinaciones y conteo en `medir_evaluacion`. Umbral 9: 0 «no se encontró el documento» sin pregunta y 100 % de los «no determinado» con pregunta o documento nombrado; los 245 tests `decision_literal` siguen verdes
 - ✓ T-278 · Pruebas de las instrucciones y tabla de decisiones: tope de largo (decisoras 90 líneas y 9.000 caracteres; demás 50 y 5.000; definiciones 5.000; descripción de campo 80), prueba de no calco contra el corpus (6 palabras seguidas), `revision-instrucciones.md` de la 016 con la tabla decisión → fuente, y adaptación de `test_instrucciones_revisadas.py`. Umbral 5 y 6, aplicados a las versiones nuevas
+- ✓ T-279 · Instrucciones de la matriz, parte 1: bloque común de definiciones, extracción, completitud y unión, nuevas y cortas, sin ejemplos de casos, con versión y huella; `matriz-definiciones-v9`, `matriz-extraccion-v13`, `matriz-completitud-v7`, `matriz-union-v2`
 
 ### Mapa de tareas
 
@@ -1580,8 +1580,8 @@ flowchart TD
   T276["○ T-276 · Cierre del paso 1: documento de revisión po…"]:::todo
   T277["✓ T-277 · Reglas a tres salidas: toda celda lleva su…"]:::done
   T278["✓ T-278 · Pruebas de las instrucciones y tabla de dec…"]:::done
-  T279["▶ T-279 · Instrucciones de la matriz, parte 1: bloque…"]:::active
-  T280["○ T-280 · Instrucciones de la matriz, parte 2: filtro…"]:::todo
+  T279["✓ T-279 · Instrucciones de la matriz, parte 1: bloque…"]:::done
+  T280["▶ T-280 · Instrucciones de la matriz, parte 2: filtro…"]:::active
   T281["○ T-281 · Instrucciones de la evaluación: evaluación,…"]:::todo
   T282["○ T-282 · Instrucciones auxiliares: visión, ficha, fi…"]:::todo
   T283["○ T-283 · Medición del paso 2, ronda 1 (matrices y ca…"]:::todo
