@@ -69,7 +69,8 @@ def test_the_active_versions_are_the_t258_ones_and_the_older_ones_stay_published
         assert (PROMPTS / f"{old}.md").is_file()
 
 
-@pytest.mark.parametrize("name", ["extraccion", "completitud", "union", "filtro", "circulares"])
+# T-280: las circulares v8 no llevan el bloque (plan 016; ver `test_circulars`).
+@pytest.mark.parametrize("name", ["extraccion", "completitud", "union", "filtro"])
 def test_every_instruction_with_the_block_records_the_active_block(name):
     """REQ-106, P6: la versión y la huella del bloque vigente (v7) quedan en el registro de cada
     instrucción que lo usa, también la de la unión."""

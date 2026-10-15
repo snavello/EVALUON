@@ -312,20 +312,20 @@ MATRIX_CIRCULAR_CANDIDATES = 8
 # `definiciones` es el bloque común de las definiciones del responsable (T-236, ADR-0054): el
 # código lo incluye en las instrucciones que llevan su marca y registra su versión y su huella.
 MATRIX_PROMPT_VERSIONS = {
-    # T-279 (spec 016, REQ-119; ADR-0070): instrucciones cortas, solo con las definiciones y las
-    # decisiones vigentes, sin ejemplos de casos (tabla en specs/016-calidad-medible/
-    # revision-instrucciones.md). El bloque de definiciones lo leen también el filtro y las
-    # circulares hasta que T-280 los reemplace.
+    # T-279 y T-280 (spec 016, REQ-119; ADR-0070): instrucciones cortas, solo con las definiciones
+    # y las decisiones vigentes, sin ejemplos de casos (tabla en specs/016-calidad-medible/
+    # revision-instrucciones.md). El bloque de definiciones lo incluyen la extracción, la
+    # completitud, la unión y el filtro; las circulares, las consecuencias y el respaldo no.
     "definiciones": "matriz-definiciones-v9",
     "extraccion": "matriz-extraccion-v13",
     "completitud": "matriz-completitud-v7",
     "union": "matriz-union-v2",
-    "consecuencias": "matriz-consecuencias-v2",
-    "circulares": "matriz-circulares-v7",
-    "circulares_cambios": "matriz-circulares-v6",
+    "consecuencias": "matriz-consecuencias-v3",
+    "circulares": "matriz-circulares-v8",
+    "circulares_cambios": "matriz-circulares-cambios-v7",
     "unificacion": "matriz-unificacion-v1",
-    "filtro": "matriz-filtro-v9",  # T-265: la nota que obliga no es formulario ni forma del Portal
-    "respaldo": "matriz-respaldo-v2",
+    "filtro": "matriz-filtro-v10",
+    "respaldo": "matriz-respaldo-v3",
 }
 
 # Proceso único de la propuesta (REQ-030 enmendado): el más completo, sin niveles. Se

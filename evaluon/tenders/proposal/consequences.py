@@ -13,7 +13,7 @@ entran mientras quepan en la mitad del espacio que queda, y si no caben todos lo
 reranker contra una pregunta fija (`PLIEGO_QUESTION`).
 
 **Fundamentos de la norma** (`N1…`). Las preguntas fijas (`NORM_QUESTIONS`, las mismas que
-nombra `prompts/matriz-consecuencias-v2.md`) pasan por `retrieve` de la 001 con la fecha de
+nombra `prompts/matriz-consecuencias-v3.md`) pasan por `retrieve` de la 001 con la fecha de
 autorización del procedimiento; se juntan sus resultados (por unidad, el mejor puntaje) y
 `select_units` elige las que entran en el espacio que queda. Sin régimen a esa fecha
 (`run.regime` vacío) no se busca nada: solo hay fundamentos del pliego.

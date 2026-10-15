@@ -225,7 +225,7 @@ def test_the_consultation_is_recorded_with_question_units_scores_answer_and_vers
     assert json.loads(step.raw_output)[shown[unit.pk]["alias"]]["exige"] == "si"
     assert step.parsed["respaldos"] == 1
     assert step.request["request"]["messages"][0]["role"] == "system"
-    assert run.prompt_versions["respaldo"] == "matriz-respaldo-v2"
+    assert run.prompt_versions["respaldo"] == "matriz-respaldo-v3"  # T-280
     assert "respaldo_normativo" in run.parameters["passes"]
     assert run.parameters["norm_support_min_score"] == norm_support.settings.NORM_SUPPORT_MIN_SCORE
     assert "respaldo_normativo" in run.timings
@@ -575,7 +575,7 @@ def test_every_consultation_records_the_version_and_the_sha256_of_its_instructio
     run = run_case(operator_user, script, filt)
 
     expected = extraction.load_instruction("respaldo").record
-    assert expected["version"] == "matriz-respaldo-v2"
+    assert expected["version"] == "matriz-respaldo-v3"  # T-280
     steps_ = steps(run)
     assert steps_ and all(step.parsed["instruccion"] == expected for step in steps_)
     assert run.prompt_versions["huellas"]["respaldo"] == expected["sha256"]
@@ -603,9 +603,13 @@ def test_the_instructions_have_the_two_fields_and_synthetic_examples():
     from evaluon.tenders.proposal import extraction
 
     prompt = extraction.load_prompt("respaldo")
-    assert django_settings.MATRIX_PROMPT_VERSIONS["respaldo"] == "matriz-respaldo-v2"
+    # T-280: la vigente es la v3 (REQ-119): los dos campos, sin ejemplos; la v2 sigue publicada con
+    # los suyos, inventados.
+    assert django_settings.MATRIX_PROMPT_VERSIONS["respaldo"] == "matriz-respaldo-v3"
     assert '"exige"' in prompt and '"cita"' in prompt
-    assert "letra por letra" in prompt and "inventados" in prompt
+    assert "letra por letra" in prompt and "ejemplo" not in prompt.lower()
+    v2 = (extraction.PROMPTS_DIR / "matriz-respaldo-v2.md").read_text(encoding="utf-8")
+    assert "inventados" in v2
     schema = norm_support.build_schema(["N1", "N2"])
     assert schema["required"] == ["N1", "N2"]
     assert schema["properties"]["N1"]["properties"]["exige"]["enum"] == ["si", "no"]
@@ -624,12 +628,17 @@ def test_the_schema_and_the_instruction_put_the_quote_before_the_verdict():
     assert list(item["properties"]) == ["cita", "exige"]
     assert item["required"] == ["cita", "exige"]
 
-    prompt = extraction.load_prompt("respaldo")
-    asked = prompt[prompt.index("QUÉ SE PREGUNTA"):prompt.index("FORMATO DE LA SALIDA")]
+    v2 = (extraction.PROMPTS_DIR / "matriz-respaldo-v2.md").read_text(encoding="utf-8")
+    asked = v2[v2.index("QUÉ SE PREGUNTA"):v2.index("FORMATO DE LA SALIDA")]
     assert asked.index('"cita":') < asked.index('"exige":')
-    answers = [json.loads(line) for line in prompt.splitlines() if line.startswith('{"N1"')]
+    answers = [json.loads(line) for line in v2.splitlines() if line.startswith('{"N1"')]
     assert len(answers) >= 5
     assert all(list(unit) == ["cita", "exige"] for answer in answers for unit in answer.values())
+    # T-280: la vigente (v3) pide los campos en ese orden y su esqueleto también los trae así.
+    prompt = extraction.load_prompt("respaldo")
+    assert prompt.index('- "cita":') < prompt.index('- "exige":')
+    skeletons = [json.loads(line) for line in prompt.splitlines() if line.startswith('{"N1"')]
+    assert len(skeletons) == 1 and list(skeletons[0]["N1"]) == ["cita", "exige"]
 
 
 # --- Generalidad: ninguna ancla de los casos -------------------------------------------------
@@ -655,7 +664,8 @@ def test_no_instruction_module_or_test_of_the_support_repeats_five_words_of_a_ca
     known = set(HASHES.read_text(encoding="utf-8").split())
     assert len(known) > 100
     files = [Path(__file__), Path(norm_support.__file__),
-             Path(norm_support.__file__).parent.parent / "prompts" / "matriz-respaldo-v2.md"]
+             Path(norm_support.__file__).parent.parent / "prompts" / "matriz-respaldo-v2.md",
+             Path(norm_support.__file__).parent.parent / "prompts" / "matriz-respaldo-v3.md"]
     hits = []
     for path in files:
         for shingle in _shingles(path.read_text(encoding="utf-8")):

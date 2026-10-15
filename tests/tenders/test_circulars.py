@@ -486,9 +486,9 @@ def test_the_proposal_records_the_circulars_and_the_instructions_used(operator_u
 
     version, run = run_proposal(operator_user, case)
 
-    assert run.prompt_versions["circulares"] == "matriz-circulares-v7"
+    assert run.prompt_versions["circulares"] == "matriz-circulares-v8"  # T-280
     # T-127 (P6): la instrucción de la extracción de cambios también queda registrada.
-    assert run.prompt_versions["circulares_cambios"] == "matriz-circulares-v6"
+    assert run.prompt_versions["circulares_cambios"] == "matriz-circulares-cambios-v7"  # T-280
     assert set(run.prompt_versions["huellas"]) >= {"circulares", "circulares_cambios",
                                                    "definiciones"}
     assert "circulares" in run.parameters["passes"]
@@ -497,10 +497,12 @@ def test_the_proposal_records_the_circulars_and_the_instructions_used(operator_u
     assert used[0]["issued_on"] == "2025-12-01" and len(used[0]["sha256"]) == 64
     step = step_for("por 32 GB")
     assert step.request and step.raw_output and step.parsed["valida"] is True
-    # T-236 (REQ-102): el pedido de efectos de la circular lleva el bloque común de definiciones.
-    assert "QUÉ ES UN REQUISITO DE LA OFERTA" in step.request["messages"][0]["content"]
-    assert step.parsed["instruccion"]["version"] == "matriz-circulares-v7"
-    assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v9"  # T-279
+    # T-236 (REQ-102): el pedido de efectos de la circular dice qué es un requisito de la oferta.
+    # Desde T-280 lo dice la instrucción misma, sin el bloque común (plan 016, «Bloque común»).
+    assert ("Es requisito de la oferta lo que la oferta tiene que presentar"
+            in step.request["messages"][0]["content"])
+    assert step.parsed["instruccion"]["version"] == "matriz-circulares-v8"  # T-280
+    assert "definiciones" not in step.parsed["instruccion"]
     event = AuditEvent.objects.get(event_type=EventType.MATRIX_PROPOSAL)
     assert event.detail["circulars"] == used
     assert event.detail["counts"]["circulars"]["effects"] == 1
@@ -844,12 +846,16 @@ def test_the_active_circular_instructions_are_v2_and_v1_is_kept(settings):
     inventados (sin texto del caso de medición)."""
     from evaluon.tenders.proposal import extraction
 
-    assert settings.MATRIX_PROMPT_VERSIONS["circulares"] == "matriz-circulares-v7"
+    # T-280: la vigente es la v8 (REQ-119): las mismas reglas sin ejemplos; la v7 sigue publicada.
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares"] == "matriz-circulares-v8"
+    v7 = (extraction.PROMPTS_DIR / "matriz-circulares-v7.md").read_text(encoding="utf-8")
+    assert "nunca se elige una cita ajena" in v7
+    assert v7.count("{") >= 8      # los ejemplos de la v7 tienen la forma de la salida
     v2 = extraction.load_prompt("circulares")
     assert "Donde dice" in v2 and "Debe decir" in v2
     assert "Contexto de la circular" in v2
-    assert "nunca se elige una cita ajena" in v2
-    assert v2.count("{") >= 8      # los ejemplos siguen con la forma de la salida
+    assert "no elegís una ajena porque se parece" in v2
+    assert sum(line.startswith("{") for line in v2.splitlines()) == 1   # solo el esqueleto
     assert "ARCA" not in v2 and "señalética" not in v2.lower()
     v1 = (extraction.PROMPTS_DIR / "matriz-circulares-v1.md").read_text(encoding="utf-8")
     assert "Debe decir" not in v1
@@ -880,21 +886,27 @@ def test_a_noun_without_a_tender_object_is_not_a_suppression(text):
     assert not circulars.has_suppression_phrase(text)
 
 
-@pytest.mark.parametrize("name", ["circulares", "circulares_cambios"])
-def test_both_circular_instructions_include_the_common_definitions(name, settings):
-    """REQ-102, REQ-106 (verificación de T-236): las dos instrucciones de circulares llevan la marca
-    del bloque común en su archivo y el bloque en lo que ve el modelo; si una versión nueva se
-    publica sin la marca, esta prueba lo detecta."""
+@pytest.mark.parametrize("name, published", [("circulares", "matriz-circulares-v7"),
+                                             ("circulares_cambios", "matriz-circulares-v6")])
+def test_both_circular_instructions_include_the_common_definitions(name, published, settings):
+    """REQ-102, REQ-106 (verificación de T-236): las versiones de la 015 de las dos instrucciones de
+    circulares llevan la marca del bloque común (siguen publicadas). Desde T-280 (REQ-119; plan 016,
+    «Bloque común de definiciones»: lo incluyen la extracción, la completitud, la unión y el filtro)
+    las vigentes no lo llevan, porque con él pasan el tope de 5.000 caracteres: dicen en una oración
+    lo que una circular agrega y no es requisito de la oferta (D-01, D-12 de la revisión de la 016),
+    con la salvedad de la moneda en que se cotiza. Si una versión nueva pierde esa oración, esta
+    prueba lo detecta."""
     from evaluon.tenders.proposal import extraction
 
-    version = settings.MATRIX_PROMPT_VERSIONS[name]
-    raw = (extraction.PROMPTS_DIR / f"{version}.md").read_text(encoding="utf-8")
-    assert extraction.DEFINITIONS_MARK in raw, f"{version} no lleva la marca del bloque común"
+    raw = (extraction.PROMPTS_DIR / f"{published}.md").read_text(encoding="utf-8")
+    assert extraction.DEFINITIONS_MARK in raw, f"{published} no lleva la marca del bloque común"
 
     instruction = extraction.load_instruction(name)
 
-    assert extraction.DEFINITIONS_MARK not in instruction.text
-    assert "QUÉ ES UN REQUISITO DE LA OFERTA" in instruction.text
-    assert "la moneda en que se cotiza la oferta" in instruction.text
-    assert instruction.definitions[0] == settings.MATRIX_PROMPT_VERSIONS["definiciones"]
-    assert instruction.record["definiciones"]["version"] == "matriz-definiciones-v9"  # T-279
+    assert instruction.version == settings.MATRIX_PROMPT_VERSIONS[name]
+    assert extraction.DEFINITIONS_MARK not in instruction.text and not instruction.definitions
+    for literal in ("el pago, la moneda de pago, la factura, la forma de presentar por el Portal",
+                    "un compromiso que se cumple con solo presentarse", "una consecuencia",
+                    "una obligación del organismo",
+                    "la moneda en que se cotiza la oferta sí es requisito"):
+        assert literal in instruction.text, (name, literal)

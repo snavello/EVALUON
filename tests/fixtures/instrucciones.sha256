@@ -101,3 +101,9 @@ f9f24115a32137717b2d14f9398b75027c14f4b3623c71715f686e484c2324e2  evaluon/tender
 ed769d353ee6fefccbc9ae52e9e2c6e22d0d0f563e953fc7e554fff6186b4486  evaluon/tenders/prompts/matriz-extraccion-v13.md
 44a53a4632ad532330f3b4480126331709f350d423af6d93558e60dfe15276cb  evaluon/tenders/prompts/matriz-completitud-v7.md
 e77b86fac6043afb74e5a28c3417349cfc64353f3bad57ecee0b4198a13b5487  evaluon/tenders/prompts/matriz-union-v2.md
+# T-280 (spec 016, REQ-119; ADR-0070): filtro, consecuencias, circulares, cambios de circulares y respaldo cortos, sin ejemplos
+bf1704df3c88ef41e90af454e93cd5d0c33fa855acf037845b86965602d37ff6  evaluon/tenders/prompts/matriz-filtro-v10.md
+38a9104bf615ac17230af0bd34e2ca4e11393534cfe6b13c5dd81c3f7f445e2e  evaluon/tenders/prompts/matriz-consecuencias-v3.md
+00a03aef495b42e2afec3ddcb82ea353d80038bd1be606d10560d0d4df87b0d5  evaluon/tenders/prompts/matriz-circulares-v8.md
+c77457c63db9bf796c2bded1e7678071580965018d93a00b4cfa594a86e6486b  evaluon/tenders/prompts/matriz-circulares-cambios-v7.md
+8c55addadf93c74af2fe71794f31dbc923b10c4f0e896aa3e03c4311d2bfc4f8  evaluon/tenders/prompts/matriz-respaldo-v3.md

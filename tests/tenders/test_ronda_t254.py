@@ -36,6 +36,12 @@ def _examples(text, start):
     return [json.loads(line) for line in text.splitlines() if line.startswith(start)]
 
 
+def _filter_v9():
+    """`(A, B)` del filtro v9 publicado, la última versión con los cuidados y los ejemplos que estas
+    pruebas leen (T-280: la vigente, v10, dice las decisiones en el bloque y sin ejemplos)."""
+    return row_filter.split_prompts(_read("matriz-filtro-v9"))
+
+
 # --- Las versiones vigentes ---------------------------------------------------------------------
 
 
@@ -47,18 +53,19 @@ def test_the_active_versions_are_the_t254_ones_and_the_older_ones_stay_published
     versions = settings.MATRIX_PROMPT_VERSIONS
     assert versions["definiciones"] == "matriz-definiciones-v9"  # T-279
     assert versions["extraccion"] == "matriz-extraccion-v13"  # T-279
-    assert versions["filtro"] == "matriz-filtro-v9"  # T-265
+    assert versions["filtro"] == "matriz-filtro-v10"  # T-280: la v9 sigue publicada
     for published in ("matriz-definiciones-v4", "matriz-extraccion-v7"):
         assert (PROMPTS / f"{published}.md").is_file()
     for old in ("matriz-definiciones-v3", "matriz-extraccion-v6", "matriz-filtro-v5", "matriz-filtro-v6"):
         assert (PROMPTS / f"{old}.md").is_file()
 
 
-@pytest.mark.parametrize("name", ["extraccion", "completitud", "filtro", "circulares",
-                                  "circulares_cambios"])
+# T-280: las circulares v8 y los cambios v7 no llevan el bloque (plan 016); lo comprueba
+# `test_circulars.test_both_circular_instructions_include_the_common_definitions`.
+@pytest.mark.parametrize("name", ["extraccion", "completitud", "filtro"])
 def test_every_instruction_that_uses_the_common_block_records_the_v4_block(name):
     """REQ-106, P6: la versión y la huella del bloque común nuevo quedan en el registro de cada
-    instrucción que lo usa (extracción, completitud, filtro y las dos de circulares)."""
+    instrucción que lo usa (extracción, completitud y filtro; las de circulares hasta T-280)."""
     record = extraction.load_instruction(name).record
 
     active = settings.MATRIX_PROMPT_VERSIONS["definiciones"]   # el vigente (v5 desde T-258)
@@ -170,7 +177,7 @@ def test_the_v7_filter_asks_what_the_sentence_demands_of_who_uses_the_option():
     """REQ-102 (v7): A y B reciben la regla de la opción: antes de descartar por condición opcional se
     mira qué le exige la oración a quien usa la opción; si le exige algo, se mantiene aunque la
     opción sea voluntaria. Y la de lo verificado del oferente, que ya traían."""
-    for prompt in row_filter.load_prompts():
+    for prompt in _filter_v9():
         # T-262: el quinto es la presentación física; T-265: el sexto, la nota de un anexo.
         assert "Seis cuidados" in prompt
         assert "entra como condición de esa opción" in prompt
@@ -184,7 +191,7 @@ def test_the_v7_filter_no_longer_answers_no_to_the_condition_of_an_option():
     no usar» y el 27B contestaba «no» a las tres condiciones de la cotización parcial. Ahora el «no»
     es de la oración que solo permite o describe la opción, y el «si» incluye la condición de la
     opción cuando le exige algo a quien la usa."""
-    _, second = row_filter.load_prompts()
+    _, second = _filter_v9()
     assert "condición de una opción que el oferente puede no usar." not in second
     assert "la oración que solo permite o describe una opción que el oferente puede no usar y no le exige nada a nadie" in second
     assert "la condición de una opción que el oferente puede usar, cuando le exige algo a quien la usa" in second
@@ -193,7 +200,7 @@ def test_the_v7_filter_no_longer_answers_no_to_the_condition_of_an_option():
 def test_the_v7_filter_motives_do_not_discard_a_verification_of_the_offeror_or_an_option():
     """REQ-102: en A, `obligacion_organismo` aclara que no es la verificación sobre el oferente y
     `condicion_opcional` que no es la condición de una opción que le exige algo a quien la usa."""
-    first, _ = row_filter.load_prompts()
+    first, _ = _filter_v9()
     organism = next(line for line in first.splitlines() if line.startswith('  - "obligacion_organismo"'))
     optional = next(line for line in first.splitlines() if line.startswith('  - "condicion_opcional"'))
     assert "No es la verificación que el organismo hace sobre el oferente o su oferta" in organism
@@ -205,7 +212,7 @@ def test_the_v7_filter_examples_keep_the_options_and_the_verification_of_the_off
     """REQ-102, REQ-106: A tiene ejemplos que mantienen una opción con lo que exige y la
     verificación del oferente, y uno de obligación del organismo que se descarta; B suma el «si» de
     la opción y el «no» de la que solo permite. Balanceados: 11 y 11 en A, 5 y 5 en B."""
-    first, second = row_filter.load_prompts()
+    first, second = _filter_v9()
     a = _examples(first, '{"razonamiento"')
     kept = [e for e in a if e["decision"] == "mantener"]
     dropped = [e for e in a if e["decision"] == "descartar"]
@@ -228,7 +235,7 @@ def test_the_v7_filter_examples_of_an_option_have_no_percentage_and_no_partial_q
     ejemplo de A o de B habla de porcentajes, de por ciento ni de cotizar una parte, y hay un
     ejemplo de una opción de otra forma (entrega escalonada con su cronograma) mantenida como
     condición de esa opción, en A y en B."""
-    first, second = row_filter.load_prompts()
+    first, second = _filter_v9()
     for prompt in (first, second):
         lines = [line for line in prompt.splitlines()
                  if line.startswith(("Fila:", '{"razonamiento"'))]

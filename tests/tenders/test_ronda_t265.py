@@ -349,11 +349,12 @@ def test_the_active_filter_is_v9_and_v8_stays_published():
     """REQ-106, P6: T-265 publica el filtro v9 y lo registra como vigente; la v8 sigue publicada
     (congelada). Cada pedido del filtro registra la versión v9, la huella de su archivo y la del
     bloque v8."""
-    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == FILTER
+    # T-280: la vigente pasa a la v10; la v9 y la v8 siguen publicadas (congeladas).
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v10"
     assert (PROMPTS / f"{FILTER}.md").is_file() and (PROMPTS / f"{FILTER_PREVIOUS}.md").is_file()
     record = extraction.load_instruction("filtro").record
-    assert record["version"] == FILTER
-    assert record["sha256"] == extraction.text_sha256(_read(FILTER))
+    assert record["version"] == "matriz-filtro-v10"
+    assert record["sha256"] == extraction.text_sha256(_read("matriz-filtro-v10"))
     assert record["definiciones"]["version"] == "matriz-definiciones-v9"  # T-279
 
 

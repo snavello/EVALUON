@@ -1005,13 +1005,19 @@ def test_the_v6_circular_instructions_load_and_carry_the_round_one_rules():
 
     from evaluon.tenders.proposal import extraction
 
-    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v6"
-    prompt = extraction.load_prompt("circulares_cambios")
+    # T-280: la vigente es la v7 (REQ-119): dice las mismas reglas en términos generales, sin
+    # ejemplos; la v6 sigue publicada con las suyas.
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-cambios-v7"
+    v6 = (extraction.PROMPTS_DIR / "matriz-circulares-v6.md").read_text(encoding="utf-8")
     for phrase in ('"Ítem" vale como renglón', "Un cambio por renglón",
                    "Un cambio por cada objeto nombrado", "oraciones completas",
                    "un cambio por cada cláusula nombrada"):
+        assert phrase in v6, phrase
+    assert v6.count('{"cambios"') >= 10
+    prompt = extraction.load_prompt("circulares_cambios")
+    for phrase in ("Un ítem es un renglón", "por cada renglón y por cada cláusula o anexo que nombra",
+                   "la oración completa de la unidad"):
         assert phrase in prompt, phrase
-    assert prompt.count('{"cambios"') >= 10
 
 
 def test_a_reminder_with_must_at_the_end_of_a_list_of_dates_is_still_procedure_data():
@@ -1032,6 +1038,9 @@ def test_the_v5_instructions_make_a_date_change_a_replacement_of_its_clause():
     "reemplaza" sobre la cláusula que los fija."""
     from evaluon.tenders.proposal import extraction
 
+    v6 = (extraction.PROMPTS_DIR / "matriz-circulares-v6.md").read_text(encoding="utf-8")
+    assert 'es "reemplaza" sobre la cláusula del pliego que los fija' in v6
+    assert v6.count('{"cambios"') >= 11
+    # T-280: la vigente (v7) dice la misma regla sin ejemplos.
     prompt = extraction.load_prompt("circulares_cambios")
-    assert 'es "reemplaza" sobre la cláusula del pliego que los fija' in prompt
-    assert prompt.count('{"cambios"') >= 11
+    assert 'salvo que la unidad reemplace la cláusula del pliego que los fija: entonces es "reemplaza"' in prompt

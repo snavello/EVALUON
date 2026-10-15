@@ -52,7 +52,7 @@ def test_the_active_versions_are_the_t262_ones_and_the_older_ones_stay_published
     versions = settings.MATRIX_PROMPT_VERSIONS
     assert versions["definiciones"] == "matriz-definiciones-v9"  # T-279: la v8 sigue publicada
     assert versions["extraccion"] == "matriz-extraccion-v13"  # T-279: la v11 y la v12 siguen publicadas
-    assert versions["filtro"] == "matriz-filtro-v9"  # T-265: la v8 sigue publicada
+    assert versions["filtro"] == "matriz-filtro-v10"  # T-280: la v8 y la v9 siguen publicadas
     for name, previous in NEW.items():
         assert (PROMPTS / f"{name}.md").is_file() and (PROMPTS / f"{previous}.md").is_file()
 
