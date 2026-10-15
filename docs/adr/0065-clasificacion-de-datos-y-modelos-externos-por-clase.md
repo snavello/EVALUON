@@ -1,6 +1,6 @@
 # ADR-0065 · Clasificación de datos por transparencia y uso de modelos externos por clase de dato (enmienda de P4)
 
-Estado: propuesto · Fecha: 2026-10-14 · Propuso: Coordinador, a partir de la consulta del responsable del 2026-10-14 · Decidió: — (se formaliza cuando el responsable integra este pull request)
+Estado: aceptado · Fecha: 2026-10-14 · Propuso: Coordinador, a partir de la consulta del responsable del 2026-10-14 · Decidió: responsable del proyecto (2026-10-14, «Apruebo el ADR-0065» y, sobre el punto pendiente, «las ofertas no son reservadas. doy el visto bueno»)
 
 ## Contexto
 
@@ -40,5 +40,5 @@ Se gana: cubriría también la hoja de compliance. Se pierde: los importes, fech
 
 - Más fácil: comparar un modelo externo por etapa con el mismo protocolo del ADR-0042 (todo igual salvo el modelo y su instrucción); simplificar las instrucciones del modelo local sin la obligación de que sirvan también al externo.
 - Más difícil: la aplicación necesita salida a internet en las etapas que usen la API externa y una clave guardada fuera del repositorio; el entorno de pruebas tiene que poder correr sin esa salida (dobles de la API, como los clientes de IA de T-011).
-- Pendiente de confirmar con el responsable: el ADR-0060 trató las ofertas del proceso en curso como reservadas «hasta el dictamen». Si antes de la apertura o del dictamen hay un período en que los documentos de las ofertas no están publicados, en ese período se las trata como reservadas y corren solo en el modelo local. Hasta que lo confirme, el sistema aplica la regla externa solo a procedimientos cuyas ofertas ya están publicadas en el Portal.
+- Resuelto el 2026-10-14: el ADR-0060 trató las ofertas del proceso en curso como reservadas «hasta el dictamen»; el responsable aclaró que «las ofertas no son reservadas» en ningún momento. La regla externa vale para las ofertas desde que están cargadas. Lo que el ADR-0060 protege sigue siendo solo la hoja de compliance y las consultas de cumplimiento.
 - Para revertir: volver P4 a la versión 1.5 y apagar la API externa por configuración; el camino local sigue completo.

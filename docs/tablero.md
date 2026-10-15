@@ -23,6 +23,7 @@ flowchart LR
   F013["▶ 013 · Recorrido del procedimiento (…"]:::active
   F014["▶ 014 · Aplicación por secciones"]:::active
   F015["▶ 015 · Uso y elección del modelo"]:::active
+  F016["▶ 016 · Calidad medible y modelos por…"]:::active
   F001 --> F002
   F003 --> F002
   F001 --> F003
@@ -48,6 +49,8 @@ flowchart LR
   F003 --> F015
   F004 --> F015
   F014 --> F015
+  F004 --> F016
+  F015 --> F016
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -72,6 +75,7 @@ flowchart LR
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 42/46 | █████████░ 91% |
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
+| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 1 de 7 · Spec | — | — |
 
 <a id="001"></a>
 
@@ -1500,3 +1504,40 @@ flowchart TD
 | REQ-105 | Cada pregunta a la Comisión está dirigida a la Comisión (nunca al oferente) y dice qué requisito, qué conclusión y qué texto la motivan; no hay preguntas de texto fijo genérico | T-235, T-256, T-257, T-260, T-263, T-237, T-238, T-239, T-240, T-241 | ✓ cubierto |
 | REQ-106 | Todas las instrucciones al modelo (matriz, evaluación, contraste, visión, ficha, consulta) se revisan contra las decisiones vigentes y entre sí: sin reglas que empujen al error, con ejemplos representativos, razonamiento antes del veredicto y la versión registrada en cada pedido (P6) | T-236, T-252, T-266, T-237, T-248, T-249 | ✓ cubierto |
 | REQ-107 | Un modelo nuevo se adopta solo si, con el uso corregido, el mismo caso y la misma lista esperada, mejora las medidas de REQ-101 a REQ-105 sin empeorar contradicciones, citas, tiempo ni memoria, con cada cambio explicado | T-253, T-254, T-255, T-256, T-260, T-263, T-266, T-268, T-251, T-242, T-243, T-244, T-245, T-246, T-247 | ✓ cubierto |
+
+<a id="016"></a>
+
+## 016 · Calidad medible: verdad ampliada, instrucciones simples y modelos externos por clase de dato
+
+**Etapa actual:** 1 de 7 · Spec (spec en borrador, 5 dudas abiertas) · [carpeta](../specs/016-calidad-medible)
+
+```mermaid
+flowchart LR
+  E0["▶ 1. Spec"]:::active --> E1["○ 2. Plan"]:::todo --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
+
+### Qué falta
+
+- **Próximo paso:** Resolver 5 dudas marcadas en la spec y aprobar la spec (compuerta del responsable).
+
+### Qué se hizo
+
+- Nada terminado todavía.
+
+### Requisitos
+
+| Requisito | Descripción | Tareas | Estado |
+|---|---|---|---|
+| REQ-118 | Existe verdad celda por celda (cumple, no cumple, no aplica o no determinado, con su fundamento) para al menos tres casos públicos además del caso-00, validada por una persona, dividida en un lote de ajuste y un lote de aceptación que nunca se usa para ajustar | — | — |
+| REQ-119 | Cada instrucción al modelo local (matriz, evaluación, contraste, visión, ficha, consulta) contiene solo las definiciones y decisiones vigentes de las specs, sin ejemplos copiados de los casos, con un largo máximo escrito en el plan, y queda registrada con su versión en cada pedido (P6) | — | — |
+| REQ-120 | Toda celda de la evaluación termina en una de tres salidas: «cumple» con fundamento, «no cumple» con cita, o «no determinado» con la pregunta a la Comisión o el documento que falta nombrado; ninguna conversión del código deja una celda sin decidir sin decir por qué | — | — |
+| REQ-121 | El sistema puede usar un modelo externo solo con documentos públicos; ningún pedido externo contiene un documento de tipo hoja de compliance ni un fragmento que provenga de uno, y los requisitos que dependen de esas consultas se evalúan siempre con el modelo local | — | — |
+| REQ-122 | Cada pedido a un modelo externo queda en el registro de auditoría con proveedor, modelo, versión de la instrucción, texto enviado y respuesta; el registro de cada evaluación y de cada matriz dice qué etapas corrieron fuera del equipo; con el uso externo apagado el sistema funciona completo | — | — |
+| REQ-123 | La matriz de cumplimiento se puede proponer con un modelo externo que lee el pliego completo, con las mismas medidas y la misma lista esperada que la local; se adopta por etapa solo si mejora según el ADR-0065 y, en empate, queda la local | — | — |
+| REQ-124 | Una verificación con modelo externo puede revisar cada «cumple» o «no cumple» propuesto por el modelo local: confirma que la cita sostiene la conclusión y propone la redacción de la pregunta; si no la sostiene, la celda pasa a «no determinado» con pregunta; la verificación nunca convierte un «no determinado» en «cumple» | — | — |
+| REQ-125 | Cada paso de la feature (verdad ampliada, simplificación, matriz externa, verificador externo) se mide contra un umbral escrito antes, en la instancia clonada, y se integra solo si lo pasa; la elección local o externa de cada etapa queda en un ADR con su medición | — | — |

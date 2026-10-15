@@ -84,7 +84,7 @@ Medidos con el caso-00 (LPU25) y los casos 01 a 06, públicos. El caso reservado
 
 - Cambios de pantalla (la 014).
 - El informe técnico del área y las hojas de compliance: el caso no los tiene; esas celdas se cuentan aparte.
-- Instrucciones distintas para cada modelo: la comparación usa las mismas.
+- Instrucciones distintas para cada modelo: la comparación usa las mismas. Enmienda (ADR-0065, 2026-10-14): esta regla deja de regir cuando se compara un modelo local con uno externo; cada uno lleva la instrucción más corta que cumple la spec, registrada con su versión (feature 016).
 
 ## Datos involucrados
 
