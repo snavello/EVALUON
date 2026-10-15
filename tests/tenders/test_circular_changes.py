@@ -172,11 +172,12 @@ def test_the_request_records_model_parameters_instructions_version_and_unit(
     assert request["temperature"] == settings.GENERATION_TEMPERATURE
     assert request["seed"] == settings.GENERATION_SEED
     assert request["max_tokens"] == settings.MATRIX_MAX_OUTPUT_TOKENS
-    assert request["instrucciones"] == "matriz-circulares-v6"
+    assert request["instrucciones"] == "matriz-circulares-cambios-v7"  # T-280
     assert request["huella_instrucciones"] == extraction.load_instruction(
         "circulares_cambios").sha256
-    assert step.parsed["instruccion"]["version"] == "matriz-circulares-v6"
-    assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v9"  # T-279
+    assert step.parsed["instruccion"]["version"] == "matriz-circulares-cambios-v7"  # T-280
+    # T-280 (plan 016, «Bloque común de definiciones»): la v7 no lleva el bloque.
+    assert "definiciones" not in step.parsed["instruccion"]
     assert request["unidad"]["tipo"] == "clausula" and len(request["unidad"]["tramos"]) == 1
     assert step.segment_keys == request["unidad"]["tramos"]
     assert step.parsed["valida"] is True
@@ -496,15 +497,20 @@ def test_the_v5_instructions_and_the_module_repeat_no_case_anchor():
 
 
 def test_the_active_extraction_instructions_are_v6_with_synthetic_examples(settings):
-    """REQ-031, REQ-102: la versión activa de `circulares_cambios` es la v6 (T-236: lleva el
-    bloque común de definiciones y pide la oración completa), con ejemplos de la forma de la
-    salida y de cada tipo."""
-    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v6"
+    """REQ-031, REQ-102: la v6 de `circulares_cambios` (T-236: lleva el bloque común de definiciones
+    y pide la oración completa) sigue publicada, con ejemplos de la forma de la salida y de cada
+    tipo. Desde T-280 (REQ-119, ADR-0070) la vigente es `matriz-circulares-cambios-v7`: nombra los
+    mismos tipos y la corrección «Donde dice / Debe decir», sin ver el pliego, y trae solo el
+    esqueleto de la salida."""
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-cambios-v7"
+    v6 = (extraction.PROMPTS_DIR / "matriz-circulares-v6.md").read_text(encoding="utf-8")
     prompt = extraction.load_prompt("circulares_cambios")
     for word in ("reemplaza", "suprime", "agrega", "aclara", "dato_del_tramite",
-                 "Donde dice", "Debe decir", "No ves el pliego"):
-        assert word in prompt
-    assert prompt.count('{"cambios"') >= 8
+                 "Donde dice", "Debe decir"):
+        assert word in v6 and word in prompt
+    assert "No ves el pliego" in v6 and "sin ver el pliego" in prompt
+    assert v6.count('{"cambios"') >= 8
+    assert prompt.count('{"cambios"') == 1
 
 
 def test_a_source_reached_by_the_key_and_by_the_fallback_is_saved_once(operator_user, case,

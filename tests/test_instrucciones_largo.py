@@ -11,7 +11,8 @@ bloque común de definiciones **ya incluido** (el modelo lo lee entero):
 
 El tope se aplica a las versiones listadas en `SIMPLIFIED`. Cada tarea de instrucciones (T-279 a
 T-282, T-291) suma las suyas (T-279: el bloque de definiciones, la extracción, la completitud y la
-unión de la matriz), y T-282 agrega la prueba de que toda
+unión de la matriz; T-280: el filtro, las consecuencias, las circulares, los cambios de las
+circulares y el respaldo), y T-282 agrega la prueba de que toda
 instrucción vigente figura en la tabla. `SIMPLIFIED_SCHEMAS` hace lo mismo con los esquemas de
 salida (T-281).
 
@@ -45,6 +46,14 @@ SIMPLIFIED = {
                               "definitions": "matriz-definiciones-v9"},
     "matriz-union-v2": {"path": "evaluon/tenders/prompts/matriz-union-v2.md",
                         "definitions": "matriz-definiciones-v9"},
+    # T-280: la matriz, parte 2 (el filtro incluye el bloque; las otras cuatro no lo llevan).
+    "matriz-filtro-v10": {"path": "evaluon/tenders/prompts/matriz-filtro-v10.md",
+                          "definitions": "matriz-definiciones-v9"},
+    "matriz-consecuencias-v3": {"path": "evaluon/tenders/prompts/matriz-consecuencias-v3.md"},
+    "matriz-circulares-v8": {"path": "evaluon/tenders/prompts/matriz-circulares-v8.md"},
+    "matriz-circulares-cambios-v7": {
+        "path": "evaluon/tenders/prompts/matriz-circulares-cambios-v7.md"},
+    "matriz-respaldo-v3": {"path": "evaluon/tenders/prompts/matriz-respaldo-v3.md"},
 }
 
 # Los esquemas de salida de las instrucciones simplificadas: `{nombre: "módulo:función"}`; la
@@ -160,7 +169,8 @@ def test_the_limits_are_the_ones_of_the_plan():
     assert limits_of("evaluacion-v13") == (90, 9000)
     assert limits_of("matriz-externa-v1") == (90, 9000)
     for other in ("matriz-completitud-v7", "matriz-union-v2", "matriz-consecuencias-v3",
-                  "matriz-circulares-v8", "matriz-respaldo-v3", "contraste-v5", "clausulas-v6",
+                  "matriz-circulares-v8", "matriz-circulares-cambios-v7", "matriz-respaldo-v3",
+                  "contraste-v5", "clausulas-v6",
                   "reescritura-v3", "vision-v5", "ficha-v4", "ficha-renglon-v6",
                   "informe-tecnico-v3", "oferente-nombre-v3", "procedimiento-datos-v3",
                   "consulta-v5"):

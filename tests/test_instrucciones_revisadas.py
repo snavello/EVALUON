@@ -16,7 +16,8 @@ Dos garantías, como `scripts/models.sha256` con los modelos:
 Desde la 016 (T-278; REQ-119; ADR-0070) hay una tercera garantía: el informe de revisión de la 016
 (`specs/016-calidad-medible/revision-instrucciones.md`) trae la tabla de decisiones del responsable y,
 por cada versión de `SIMPLIFIED` (`tests/test_instrucciones_largo.py`), su tabla «oración →
-decisión», con cada oración atada a una decisión de la tabla. El informe no lleva texto de los casos.
+decisión», con cada oración atada a una decisión de la tabla y, desde T-280 (H-279-5), cada oración de
+la instrucción con su fila. El informe no lleva texto de los casos.
 
 Los textos de las instrucciones son inventados o propios del sistema (P4).
 """
@@ -326,3 +327,136 @@ def test_the_016_report_has_no_case_text():
                     "contra el caso chico; montarlo para comprobar contra los casos 00 a 06")
     hits = len(shingles(report, SIZE) & known)
     assert hits == 0, f"{hits} secuencias de {SIZE} palabras del informe están en los casos"
+
+
+# --- T-280 (H-279-5): cada oración de una instrucción tiene su fila ------------------------------------
+
+# Un punto que cierra una oración: lo sigue un espacio y una mayúscula, una comilla o un signo de apertura.
+SENTENCE_END = re.compile(r'(?<=\.)\s+(?=[A-ZÁÉÍÓÚÑ¿¡«"])')
+# Las oraciones que no llevan fila a propósito, con su motivo (el informe de la 016 lo dice).
+WITHOUT_ROW = {
+    # Procedencia, no regla (H-279-3; el Coordinador, en el encargo de T-280).
+    "matriz-definiciones-v9": {
+        "Estas definiciones son decisiones del responsable y valen para toda la matriz."},
+}
+# Lo más corto que puede ser una fila que nombra una oración larga por su primera frase.
+MIN_PREFIX = 20
+
+
+def _is_label(line):
+    """Un rótulo que ordena el texto: hasta cuatro palabras y dos puntos («Unidad de la fila:»)."""
+    return line.endswith(":") and len(line.split()) <= 4
+
+
+def instruction_sentences(text):
+    """Las oraciones de una instrucción (el archivo, sin el bloque de definiciones): cada línea sin
+    su viñeta, partida donde un punto cierra una oración. No son oraciones los títulos en
+    mayúsculas, la marca del bloque, las marcas de parte del filtro («# COMÚN»), los rótulos y las
+    líneas del esqueleto JSON."""
+    found = []
+    for line in text.replace("\r\n", "\n").splitlines():
+        line = line.strip()
+        if not line or line.startswith(("{", "#")) or line == "{{DEFINICIONES}}":
+            continue
+        line = re.sub(r"^-\s+", "", line)
+        if line.upper() == line or _is_label(line):
+            continue
+        found.extend(part.strip() for part in SENTENCE_END.split(line) if part.strip())
+    return found
+
+
+def _norm(text):
+    return " ".join(text.replace("`", "").split()).rstrip(".:;").strip()
+
+
+def _covers(row, sentence):
+    """Si la fila nombra la oración: igual, por su primera frase o con lo que agrega la fila (el
+    esqueleto de la salida)."""
+    if row == sentence:
+        return True
+    shorter = min(len(row), len(sentence))
+    return shorter >= MIN_PREFIX and (sentence.startswith(row) or row.startswith(sentence))
+
+
+def uncovered_sentences(report, version, text):
+    """Las oraciones de `text` (la instrucción `version`) que su tabla del informe no nombra."""
+    match = re.search(rf"(?m)^### {re.escape(version)}[ \t]*$(.*?)(?=^#{{1,3}} |\Z)", report, re.S)
+    rows = [_norm(row[0]) for row in table_rows(match.group(1))] if match else []
+    exempt = {_norm(sentence) for sentence in WITHOUT_ROW.get(version, ())}
+    return [sentence for sentence in instruction_sentences(text)
+            if _norm(sentence) not in exempt
+            and not any(_covers(row, _norm(sentence)) for row in rows)]
+
+
+def _raw(entry):
+    return (ROOT / entry["path"]).read_text(encoding="utf-8")
+
+
+def test_every_sentence_of_a_simplified_instruction_has_its_row():
+    """REQ-119 (H-279-5 de la verificación de T-279): cada oración de cada instrucción de
+    `SIMPLIFIED` tiene su fila en la tabla «oración → decisión» del informe de la 016; borrar una
+    fila, o agregar una oración sin su fila, hace fallar la prueba."""
+    report = read_report_016()
+
+    missing = {version: uncovered_sentences(report, version, _raw(entry))
+               for version, entry in SIMPLIFIED.items()}
+
+    assert {version: rows for version, rows in missing.items() if rows} == {}
+
+
+def test_the_sentences_without_a_row_are_in_their_instruction():
+    """REQ-119: las oraciones que no llevan fila a propósito están en su instrucción (la excepción no
+    queda vieja ni tapa otra cosa) y el informe dice por qué."""
+    report = read_report_016()
+    for version, sentences in WITHOUT_ROW.items():
+        text = _raw(SIMPLIFIED[version])
+        for sentence in sentences:
+            assert sentence in text, (version, sentence)
+            assert sentence.split("…")[0][:40] in report, (version, sentence)
+
+
+SAMPLE_INSTRUCTION = """TÍTULO DE PRUEBA
+
+Primera oración de la prueba, que es larga. Segunda oración de la prueba.
+
+Por cada fila:
+- "campo": lo que lleva el campo de prueba.
+{"F1": {"campo": "<marcador>"}}
+"""
+
+SAMPLE_TABLE = """
+### matriz-prueba-v5
+
+| Oración | Decisión |
+|---|---|
+| Primera oración de la prueba, que es larga. | D-01 |
+| Segunda oración de la prueba. | D-01 |
+| "campo": lo que lleva el campo de prueba. | D-01 |
+"""
+
+
+def test_the_sentence_check_finds_a_deleted_row_and_a_new_sentence():
+    """REQ-119 (H-279-5): con una instrucción y una tabla de prueba (inventadas) la comprobación pasa;
+    al borrar una fila o al sumar una oración, falla y nombra la oración. Los títulos, los rótulos y
+    el esqueleto no cuentan."""
+    assert instruction_sentences(SAMPLE_INSTRUCTION) == [
+        "Primera oración de la prueba, que es larga.", "Segunda oración de la prueba.",
+        '"campo": lo que lleva el campo de prueba.']
+    assert uncovered_sentences(SAMPLE_TABLE, "matriz-prueba-v5", SAMPLE_INSTRUCTION) == []
+
+    without_row = SAMPLE_TABLE.replace("| Segunda oración de la prueba. | D-01 |\n", "")
+    assert uncovered_sentences(without_row, "matriz-prueba-v5", SAMPLE_INSTRUCTION) == [
+        "Segunda oración de la prueba."]
+
+    longer = SAMPLE_INSTRUCTION.replace("Segunda oración de la prueba.",
+                                        "Segunda oración de la prueba. Una regla nueva sin fila.")
+    assert uncovered_sentences(SAMPLE_TABLE, "matriz-prueba-v5", longer) == [
+        "Una regla nueva sin fila."]
+    assert uncovered_sentences(SAMPLE_TABLE, "matriz-prueba-v0", SAMPLE_INSTRUCTION) != []
+
+
+def test_a_row_named_by_its_first_phrase_covers_its_sentence_but_a_short_one_does_not():
+    """REQ-119 (H-279-5): una fila que nombra una oración larga por su primera frase la cubre; una
+    fila de menos de 20 caracteres no cubre a otra oración que empieza igual."""
+    assert _covers(_norm("Primera oración de la prueba"), _norm("Primera oración de la prueba, larga."))
+    assert not _covers(_norm("Primera."), _norm("Primera oración de la prueba."))

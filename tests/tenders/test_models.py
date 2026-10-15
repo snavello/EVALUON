@@ -963,9 +963,9 @@ def test_enmienda_parameters_in_settings():
     assert settings.NORM_SUPPORT_MIN_SCORE == settings.RERANK_THRESHOLD == 0.219
     assert settings.NORM_SUPPORT_MAX_UNITS == 4
     assert settings.NORM_SUPPORT_QUERY_MAX_CHARS == 800
-    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v9"  # T-265
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v10"  # T-280
     assert settings.MATRIX_PROMPT_VERSIONS["unificacion"] == "matriz-unificacion-v1"
-    assert settings.MATRIX_PROMPT_VERSIONS["respaldo"] == "matriz-respaldo-v2"  # T-248
+    assert settings.MATRIX_PROMPT_VERSIONS["respaldo"] == "matriz-respaldo-v3"  # T-280
 
 
 def test_generation_batch_url_default(monkeypatch):
@@ -1473,5 +1473,6 @@ def test_circular_extraction_parameters_in_settings():
     omisión y la pasada tiene su versión de instrucciones."""
     assert settings.CIRCULAR_EXTRACTION_ENABLED is True
     assert settings.CIRCULAR_EXTRACTION_REPEATS == 1
-    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-v6"
-    assert settings.MATRIX_PROMPT_VERSIONS["circulares"] == "matriz-circulares-v7"
+    # T-280: la de cambios pasa a tener nombre propio (hasta la v6 compartía `matriz-circulares-`).
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares_cambios"] == "matriz-circulares-cambios-v7"
+    assert settings.MATRIX_PROMPT_VERSIONS["circulares"] == "matriz-circulares-v8"

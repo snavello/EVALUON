@@ -412,7 +412,7 @@ def test_the_proposal_asks_for_consequences_and_copies_the_instructions_version(
     run = run_level(operator_user)
 
     run.refresh_from_db()
-    assert run.prompt_versions["consecuencias"] == "matriz-consecuencias-v2"
+    assert run.prompt_versions["consecuencias"] == "matriz-consecuencias-v3"  # T-280
     assert "consecuencias" in run.parameters["passes"]
     assert m.RunStep.objects.filter(run=run, pass_name="consecuencias").count() == 1
     assert [o.consequence_type for o in
@@ -467,9 +467,9 @@ def test_every_request_records_the_version_and_the_sha256_of_its_instruction(
     run = run_level(operator_user)
 
     expected = extraction.load_instruction("consecuencias").record
-    assert expected["version"] == "matriz-consecuencias-v2"
+    assert expected["version"] == "matriz-consecuencias-v3"  # T-280
     assert expected["sha256"] == extraction.text_sha256(
-        (extraction.PROMPTS_DIR / "matriz-consecuencias-v2.md").read_text(encoding="utf-8"))
+        (extraction.PROMPTS_DIR / "matriz-consecuencias-v3.md").read_text(encoding="utf-8"))
     steps = list(m.RunStep.objects.filter(run=run, pass_name="consecuencias"))
     assert steps and all(step.parsed["instruccion"] == expected for step in steps)
     assert run.prompt_versions["huellas"]["consecuencias"] == expected["sha256"]
