@@ -451,7 +451,7 @@ def test_the_admin_script_removes_the_block_rules_windows_created_for_its_caddy(
     section = text[start:text.index("Restart-Service")]
     assert "Get-NetFirewallApplicationFilter" in section
     assert "[Environment]::ExpandEnvironmentVariables($_.Program) -eq $programa" in section
-    assert "Get-NetFirewallRule | Where-Object { $_.Action -eq 'Block' }" in section
+    assert "Get-NetFirewallRule | Where-Object { $_.Action -eq 'Block' -and $_.Direction -eq 'Inbound' }" in section
     assert re.search(r"foreach \(\$bloqueo in \$bloqueos\) \{\n\s*\$bloqueo \| Remove-NetFirewallRule\n"
                      r"\s*Write-Host \"Se quitó la regla", section)
     assert text.index("New-NetFirewallRule") < start < text.index("Restart-Service")

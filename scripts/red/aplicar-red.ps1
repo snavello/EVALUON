@@ -143,7 +143,7 @@ Write-Host "Entrada por TCP 80 y 443 solo desde: $($permitidas -join ', ')"
 $programa = [IO.Path]::GetFullPath($Caddy)
 $bloqueos = @(Get-NetFirewallApplicationFilter |
     Where-Object { $_.Program -and [Environment]::ExpandEnvironmentVariables($_.Program) -eq $programa } |
-    Get-NetFirewallRule | Where-Object { $_.Action -eq 'Block' })
+    Get-NetFirewallRule | Where-Object { $_.Action -eq 'Block' -and $_.Direction -eq 'Inbound' })
 foreach ($bloqueo in $bloqueos) {
     $bloqueo | Remove-NetFirewallRule
     Write-Host "Se quitó la regla «$($bloqueo.DisplayName)» ($($bloqueo.Direction), Block), que Windows creó para $Caddy y que bloqueaba la entrada." -ForegroundColor Yellow
