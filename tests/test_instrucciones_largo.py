@@ -9,8 +9,9 @@ bloque común de definiciones **ya incluido** (el modelo lo lee entero):
 - la descripción de cada campo de un esquema de salida: 80 caracteres (para que no se mueva
   texto de la instrucción al esquema).
 
-El tope se aplica a las versiones listadas en `SIMPLIFIED`. Hoy la tabla está vacía: cada tarea
-de instrucciones (T-279 a T-282, T-291) suma las suyas, y T-282 agrega la prueba de que toda
+El tope se aplica a las versiones listadas en `SIMPLIFIED`. Cada tarea de instrucciones (T-279 a
+T-282, T-291) suma las suyas (T-279: el bloque de definiciones, la extracción, la completitud y la
+unión de la matriz), y T-282 agrega la prueba de que toda
 instrucción vigente figura en la tabla. `SIMPLIFIED_SCHEMAS` hace lo mismo con los esquemas de
 salida (T-281).
 
@@ -35,7 +36,16 @@ DEFINITIONS_MARK = "{{DEFINICIONES}}"
 # marca)}}`. Ejemplo:
 #     "matriz-extraccion-v13": {"path": "evaluon/tenders/prompts/matriz-extraccion-v13.md",
 #                               "definitions": "matriz-definiciones-v9"},
-SIMPLIFIED = {}
+SIMPLIFIED = {
+    # T-279: la matriz, parte 1 (el bloque común y las tres instrucciones que lo incluyen).
+    "matriz-definiciones-v9": {"path": "evaluon/tenders/prompts/matriz-definiciones-v9.md"},
+    "matriz-extraccion-v13": {"path": "evaluon/tenders/prompts/matriz-extraccion-v13.md",
+                              "definitions": "matriz-definiciones-v9"},
+    "matriz-completitud-v7": {"path": "evaluon/tenders/prompts/matriz-completitud-v7.md",
+                              "definitions": "matriz-definiciones-v9"},
+    "matriz-union-v2": {"path": "evaluon/tenders/prompts/matriz-union-v2.md",
+                        "definitions": "matriz-definiciones-v9"},
+}
 
 # Los esquemas de salida de las instrucciones simplificadas: `{nombre: "módulo:función"}`; la
 # función no recibe argumentos y devuelve el esquema JSON.
@@ -280,3 +290,16 @@ def test_the_real_schemas_are_loaded_by_reference(tmp_path, monkeypatch):
     monkeypatch.setitem(SIMPLIFIED_SCHEMAS, "prueba", "esquema_de_prueba_t278:schema")
 
     assert len(all_schema_problems()) == 1
+
+
+def test_the_listed_block_is_the_one_the_code_includes(settings):
+    """REQ-119 (O-278-5 de la verificación de T-278): en las instrucciones vigentes de la matriz, la
+    versión del bloque de definiciones que declara `SIMPLIFIED` es la que incluye el código
+    (`MATRIX_PROMPT_VERSIONS["definiciones"]`): el largo se mide sobre lo que lee el modelo."""
+    active = set(settings.MATRIX_PROMPT_VERSIONS.values())
+    block = settings.MATRIX_PROMPT_VERSIONS["definiciones"]
+
+    listed = {version: entry["definitions"] for version, entry in SIMPLIFIED.items()
+              if version in active and entry.get("definitions")}
+
+    assert listed and all(value == block for value in listed.values()), listed

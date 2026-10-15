@@ -50,8 +50,8 @@ def test_the_active_versions_are_the_t262_ones_and_the_older_ones_stay_published
     """REQ-106, P6: T-262 publica el bloque v8, la extracción v11 y el filtro v8 y los registra como
     vigentes; las versiones anteriores siguen publicadas (congeladas)."""
     versions = settings.MATRIX_PROMPT_VERSIONS
-    assert versions["definiciones"] == "matriz-definiciones-v8"
-    assert versions["extraccion"] == "matriz-extraccion-v12"  # T-265: la v11 sigue publicada
+    assert versions["definiciones"] == "matriz-definiciones-v9"  # T-279: la v8 sigue publicada
+    assert versions["extraccion"] == "matriz-extraccion-v13"  # T-279: la v11 y la v12 siguen publicadas
     assert versions["filtro"] == "matriz-filtro-v9"  # T-265: la v8 sigue publicada
     for name, previous in NEW.items():
         assert (PROMPTS / f"{name}.md").is_file() and (PROMPTS / f"{previous}.md").is_file()

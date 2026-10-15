@@ -13,6 +13,7 @@ from django.conf import settings
 
 from evaluon.audit.models import AuditEvent, Channel, EventType, Outcome
 from evaluon.tenders import models as m
+from evaluon.tenders.proposal import extraction
 from evaluon.tenders.proposal import run as proposal
 from evaluon.tenders.proposal.extraction import ALL_ITEMS, build_schema, shape_item
 from tests.tenders.scripted import (
@@ -232,7 +233,8 @@ def test_request_goes_to_the_batch_engine_with_one_property_per_segment(operator
     assert option["max_tokens"] == settings.MATRIX_MAX_OUTPUT_TOKENS == 4096
     assert option["timeout"] == settings.GENERATION_BATCH_TIMEOUT_SECONDS
     messages, schema = fake_generation.calls[0]
-    assert messages[0]["content"].startswith("Sos un asistente que ayuda a la Comisión")
+    # T-279: el sistema lleva la instrucción vigente, con el bloque común adentro.
+    assert messages[0]["content"] == extraction.load_prompt("extraccion")
     assert list(schema["properties"]) == ["T1", "T2", "T3", "T4"]
     assert schema["required"] == ["T1", "T2", "T3", "T4"]
     one = schema["properties"]["T1"]
@@ -936,7 +938,7 @@ def test_every_request_of_the_extraction_records_its_instruction(
     expected = extraction.load_instruction("extraccion").record
     for step in found:
         assert step.parsed["instruccion"] == expected
-        assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v8"
+        assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v9"  # T-279
         assert len(step.parsed["instruccion"]["sha256"]) == 64
     # La huella de la corrida es la misma que la del pedido.
     assert requested.run.prompt_versions["huellas"]["extraccion"] == expected["sha256"]

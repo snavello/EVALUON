@@ -920,8 +920,8 @@ def test_the_v4_instructions_leave_the_adjudicatario_duties_out_of_the_offer(set
     from evaluon.tenders.proposal import extraction
 
     versions = settings.MATRIX_PROMPT_VERSIONS
-    assert versions["extraccion"] == "matriz-extraccion-v12"  # T-265
-    assert versions["completitud"] == "matriz-completitud-v6"
+    assert versions["extraccion"] == "matriz-extraccion-v13"  # T-279
+    assert versions["completitud"] == "matriz-completitud-v7"  # T-279
     texts = [extraction.load_prompt("extraccion"), extraction.load_prompt("completitud")]
     for text in texts:
         assert "adjudicatari" in text and "durante la prestación" in text

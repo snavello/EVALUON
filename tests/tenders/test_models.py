@@ -940,7 +940,7 @@ def test_matrix_parameters_in_settings():
     assert settings.SEGMENT_MAX_CHARS == 4000
     assert settings.MATRIX_CONSEQUENCES_PER_REQUEST == 10
     assert settings.MATRIX_CIRCULAR_CANDIDATES == 8
-    assert settings.MATRIX_PROMPT_VERSIONS["extraccion"] == "matriz-extraccion-v12"  # T-265
+    assert settings.MATRIX_PROMPT_VERSIONS["extraccion"] == "matriz-extraccion-v13"  # T-279
     assert settings.GENERATION_BATCH_TIMEOUT_SECONDS == 180
     assert settings.WORKER_POLL_SECONDS == 5
 

@@ -221,8 +221,8 @@ def test_the_active_matrix_instructions_are_the_t258_versions():
     y el filtro sigue en la v7. Siguen diciendo lo que T-240 pidió (los tests de abajo leen las
     versiones que T-240 y T-254 publicaron)."""
     versions = _settings.MATRIX_PROMPT_VERSIONS
-    assert versions["definiciones"] == "matriz-definiciones-v8"  # T-262
-    assert versions["extraccion"] == "matriz-extraccion-v12"  # T-265
+    assert versions["definiciones"] == "matriz-definiciones-v9"  # T-279
+    assert versions["extraccion"] == "matriz-extraccion-v13"  # T-279
     assert versions["filtro"] == "matriz-filtro-v9"  # T-265
 
 
