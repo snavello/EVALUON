@@ -263,8 +263,6 @@ class Command(BaseCommand):
             lines.append(f"{name} (015): {measured} · {'cumple' if ok else 'no cumple'}")
         for name, measured, ok in evaluation.thresholds_016(total):
             lines.append(f"{name} (016): {measured} · {'cumple' if ok else 'no cumple'}")
-        if evaluation.thresholds_016(total):
-            lines.append(evaluation.three_outputs_note(total) + " (016)")
         failed = report.blocking
         lines.append("Bloquea la aceptación: " + ("; ".join(failed) if failed else "nada"))
         self.stdout.write("\n".join(lines))

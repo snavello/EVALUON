@@ -422,12 +422,13 @@ def test_every_cell_after_a_conclusion_and_its_contrast_is_one_of_the_three_outp
         assert outcomes & {"cumple", "no_cumple"}
 
 
-def test_the_difference_between_the_offer_and_the_portal_keeps_its_two_citations_and_is_counted_apart(
+def test_the_difference_between_the_offer_and_the_portal_asks_the_commission_with_both_positions(
         with_policy, operator_user, procedure, model, portal):
-    """REQ-120 y ADR-0053 (decisión 4, `decision_literal`): el valor de la oferta distinto del dato
-    del Portal es «no determinado» `falta_coincidencia` con la cita de la oferta y la del Portal y,
-    por esa decisión, sin Question. La celda cumple la forma (las dos fuentes nombradas) y la
-    medida la cuenta aparte, para que no se esconda; pendiente de la decisión del responsable."""
+    """REQ-120 y ADR-0053 (decisión 4, enmienda del 2026-10-15): el valor de la oferta distinto del
+    dato del Portal es «no determinado» `falta_coincidencia` con las dos citas, la diferencia en la
+    explicación y una pregunta a la Comisión con las dos posturas: la oferta con su cita de
+    documento y página, el Portal con su enlace y fecha, la contradicción y cuál rige. Cumple la
+    forma de `question_form` y la medida no la exceptúa."""
     from tests.assessment.test_portal_facts import (
         AMOUNT,
         GUARANTEE,
@@ -443,16 +444,23 @@ def test_the_difference_between_the_offer_and_the_portal_keeps_its_two_citations
     _, runs = run_all(operator_user, procedure, offers=[with_policy])
     result = results_of(runs[0])[number_of(procedure, GUARANTEE)]
     assert (result.outcome, result.doubt) == ("no_determinado", "falta_coincidencia")
-    assert not result.questions.exists()
+    assert result.citations.filter(kind="oferta").exists() and result.citations.filter(
+        kind="portal").exists()
+    assert "25000.00" in result.explanation
+    question = am.Question.objects.get(result=result).text
+    closing = question.splitlines()[-1]
+    assert "se contradicen" in closing and "¿Cuál rige" in closing
+    assert "poliza.pdf, página 1" in closing and "https://portal.invalid/cuadro" in closing
+    # La forma de la medida (REQ-105): requisito, conclusión, texto de la oferta y dirigida a la Comisión.
+    form = evaluation.question_form(
+        question, requirement_text=result.citations.filter(kind="pliego").first().text,
+        requirement_number=result.requirement.number, outcome_label="No determinado",
+        doubt_label="Falta de coincidencia con el Portal",
+        offer_texts=list(result.citations.filter(kind__in=("oferta", "portal"))
+                         .order_by("kind", "order").values_list("text", flat=True)))
+    assert form["conforme"], form
     found = assert_three_outputs(runs[0])
-    assert found["falta_coincidencia_sin_pregunta"] == [result.requirement.number]
-    assert portal_facts_rule() == combine.MISMATCH_RULE
-
-
-def portal_facts_rule():
-    from evaluon.assessment import portal_facts
-
-    return portal_facts.RULE_MISMATCH
+    assert "falta_coincidencia_sin_pregunta" not in found
 
 
 def finished(pair, number=1, documents=("oferta.pdf",)):
@@ -895,6 +903,5 @@ def test_the_command_reports_the_three_outputs(db, operator_user, fake_ai, model
     measured = [line for line in lines if line.endswith(("· cumple", "· no cumple"))]
     assert len(measured) == 3 and all(line.endswith("· cumple") for line in measured), lines
     assert "sin pregunta (REQ-120) (016): 0 de" in measured[0]
-    assert any("falta de coincidencia con el Portal" in line for line in lines)
     summary = next(tmp_path.glob("*/resumen*.md"), None)
     assert summary is None or "REQ-120" in summary.read_text(encoding="utf-8")

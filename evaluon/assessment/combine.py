@@ -182,13 +182,6 @@ ASKED_DOUBTS = (NO_DATA, INCOMPLETE, UNCORROBORATED)
 # su regla.
 DOCUMENT_DOUBTS = (EXTERNAL, PENDING_REPORT, UNREADABLE)
 
-# Excepción pendiente de la decisión del responsable (informe de T-277): el valor de la oferta es
-# distinto del dato del Portal (`portal_falta_coincidencia` con `oferta_valor`). La celda nombra las
-# dos fuentes, cada una con su cita, y la explicación dice la diferencia y que la Comisión verifica
-# cuál rige; el test `decision_literal` de ADR-0053 (decisión 4) fija que no lleva pregunta. Con la
-# pregunta a la Comisión que pide REQ-120, ese test cambia; hasta que se decida, la medida las cuenta
-# aparte (`falta_coincidencia_sin_pregunta`).
-MISMATCH_RULE = "portal_falta_coincidencia"
 
 QUESTION_CLIP = 280
 
@@ -361,13 +354,6 @@ def _default_ask(combined):
             "los documentos leídos.")
 
 
-def names_both_sources(facts, has_citation):
-    """Si la celda es la diferencia entre el valor de la oferta y el dato del Portal, con las dos
-    citas (la excepción de `MISMATCH_RULE`)."""
-    facts = facts or {}
-    return bool(has_citation and facts.get("regla") == MISMATCH_RULE and facts.get("oferta_valor"))
-
-
 def asks_commission(combined):
     """Si el resultado lleva una pregunta a la Comisión (REQ-120): «no se encontró el documento» y
     todo «no determinado» que no nombre ya un documento o una consulta que falta. Los de
@@ -378,9 +364,6 @@ def asks_commission(combined):
         return False
     if combined.doubt in DOCUMENT_DOUBTS:
         return bool((combined.question or "").strip())
-    if (combined.doubt == MISMATCH and not (combined.question or "").strip()
-            and names_both_sources(combined.facts, combined.citations and combined.portal)):
-        return False
     return True
 
 
@@ -442,10 +425,7 @@ def cell_problem(outcome, *, doubt="", has_question=False, has_citation=False, f
         if has_question:
             return ""
         needle = _DOCUMENT_NAMES.get(doubt)
-        if needle and needle in _plain(explanation):
-            return ""
-        return "" if doubt == MISMATCH and names_both_sources(facts, has_citation) else (
-            PROBLEM_UNNAMED)
+        return "" if needle and needle in _plain(explanation) else PROBLEM_UNNAMED
     if outcome == OUT_CUMPLE:
         grounded = (has_citation or facts.get("criterios") or facts.get("technical_ok")
                     or (facts.get("aplica") is False and (explanation or "").strip()))

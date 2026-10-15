@@ -902,7 +902,7 @@ def three_outputs(run, excluded=frozenset()):
         result__run=run, kind__in=(am.CitationKind.OFERTA, am.CitationKind.PORTAL))
         .values_list("result_id", flat=True))
     out = {"cells": 0, "sin_documento": 0, "no_determinado": 0, "sin_documento_sin_pregunta": [],
-           "no_determinado_sin_nombrar": [], "falta_coincidencia_sin_pregunta": [], "problems": []}
+           "no_determinado_sin_nombrar": [], "problems": []}
     for result in run.results.select_related("requirement"):
         if excluded and result.requirement_id in excluded:
             continue
@@ -911,10 +911,6 @@ def three_outputs(run, excluded=frozenset()):
         out["no_determinado"] += result.outcome == am.Outcome.NO_DETERMINADO
         asked = result.pk in with_question or result.requirement_id in open_pairs
         problem = result_problem(result, with_question=asked, cited=result.pk in cited)
-        if (not problem and not asked and result.outcome == am.Outcome.NO_DETERMINADO
-                and result.doubt == am.Doubt.FALTA_COINCIDENCIA):
-            # La excepción de `combine.MISMATCH_RULE`: se cuenta aparte, no se esconde.
-            out["falta_coincidencia_sin_pregunta"].append(result.requirement.number)
         if not problem:
             continue
         number = result.requirement.number
@@ -1060,16 +1056,6 @@ def thresholds_016(total):
          f"{undetermined - unnamed} de {undetermined}", not unnamed),
         ("Otras celdas que no cumplen una de las tres formas (REQ-120)",
          str(len(found["problems"])), not found["problems"])]
-
-
-def three_outputs_note(total):
-    """La línea de lo que la medida de las tres salidas cuenta aparte: la diferencia entre el valor de
-    la oferta y el dato del Portal, que lleva las dos citas y no la pregunta (`combine.MISMATCH_RULE`,
-    ADR-0053, decisión 4); queda a decisión del responsable."""
-    found = total.get("three_outputs") or {}
-    counted = len(found.get("falta_coincidencia_sin_pregunta", []))
-    return ("«No determinado» por falta de coincidencia con el Portal, con las dos citas y sin "
-            f"pregunta (decisión literal de ADR-0053): {counted}")
 
 
 # --- Medida honesta (T-256; REQ-103, REQ-104, REQ-107; mesa de comité del 2026-10-12) ------------
@@ -2180,8 +2166,7 @@ def aggregate_three_outputs(measures):
     """Las cuentas de las tres salidas de todas las ofertas (T-277, REQ-120): cada lista trae
     `(oferta, requisito)`."""
     out = {"cells": 0, "sin_documento": 0, "no_determinado": 0, "sin_documento_sin_pregunta": [],
-           "no_determinado_sin_nombrar": [], "falta_coincidencia_sin_pregunta": [],
-           "problems": []}
+           "no_determinado_sin_nombrar": [], "problems": []}
     for m_ in measures:
         found = m_.get("three_outputs")
         if not found:
@@ -2189,9 +2174,8 @@ def aggregate_three_outputs(measures):
         offer = m_.get("offer_number")
         for name in ("cells", "sin_documento", "no_determinado"):
             out[name] += found[name]
-        for name in ("sin_documento_sin_pregunta", "no_determinado_sin_nombrar",
-                     "falta_coincidencia_sin_pregunta"):
-            out[name] += [(offer, number) for number in found.get(name, [])]
+        for name in ("sin_documento_sin_pregunta", "no_determinado_sin_nombrar"):
+            out[name] += [(offer, number) for number in found[name]]
         out["problems"] += [(offer, number, why) for number, why in found["problems"]]
     return out
 
@@ -2489,8 +2473,6 @@ def _summary_015(report):
         lines.append(f"| {name} | {measured} | {'sí' if ok else 'no'} |")
     for name, measured, ok in thresholds_016(total):
         lines.append(f"| {name} | {measured} | {'sí' if ok else 'no'} |")
-    if thresholds_016(total):
-        lines += ["", f"- {three_outputs_note(total)}."]
     cells = total["cells"]
     portal = total["portal_cells"]
     forms = total["questions_form_parts"]

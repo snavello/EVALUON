@@ -965,6 +965,40 @@ def _open_question(combined, name, why):
     return _asked_or(combined, f"¿Cómo resuelve la Comisión {name}? {why}".strip())
 
 
+def _offer_position(found):
+    """Una cita de la oferta para la pregunta: el texto con su documento y página (si se conocen)."""
+    document = getattr(getattr(found, "document", None), "title", "")
+    page = getattr(found, "page", None)
+    where = ", ".join(part for part in (document, f"página {page}" if page else "") if part)
+    return f"«{combine.clip(found.text, 200)}»" + (f" ({where})" if where else "")
+
+
+def _portal_position(data):
+    """El dato del Portal para la pregunta: el valor con el enlace de la página de origen y la fecha
+    en que se consultó (`PortalItem.page`)."""
+    from evaluon.portal.models import PortalItem
+
+    parts = []
+    for datum in data:
+        item = PortalItem.objects.filter(pk=datum.item).select_related("page").first()
+        source = ""
+        if item is not None:
+            fetched = item.page.fetched_at
+            source = (f" (enlace {item.page.url}, consultado el {fetched:%d/%m/%Y})")
+        parts.append(f"{datum.shown}{source}")
+    return "; ".join(parts)
+
+
+def _two_positions_question(text, offered, offer_cites, data):
+    """La pregunta de la falta de coincidencia (ADR-0053, decisión 4, enmienda del 2026-10-15;
+    REQ-120): muestra las dos posturas, el valor de la oferta con su cita y el dato del Portal con su
+    enlace y fecha, señala la contradicción y pregunta cuál rige. Va a la Comisión."""
+    cited = "; ".join(_offer_position(found) for found in offer_cites)
+    return (f"¿Cuál rige para {_condition_name([], text)}? Las dos fuentes se contradicen. La oferta "
+            f"dice {offered}" + (f" en {cited}" if cited else "") + ". El Portal informa "
+            f"{_portal_position(data)}.")
+
+
 def _merge_portal(combined, extra):
     """Las citas del Portal que ya traía el par (las que el modelo citó con su alias) y las del
     dato leído, sin repetir."""
@@ -1014,10 +1048,12 @@ def rule(pair, ctx):
                            f"requisito {first} (el Portal informa {shown} y la oferta "
                            f"{offered}).")
             extra = {"diferencia_ya_senalada": first}
+        offer_cites = _merge_offer(combined, located)
         return replace(
             combined, outcome=combine.OUT_NO_DETERMINADO, doubt=FALTA_COINCIDENCIA,
-            exigence=combined.exigence, citations=_merge_offer(combined, located),
-            portal=cites, question="", explanation=explanation,
+            exigence=combined.exigence, citations=offer_cites, portal=cites, ask=True,
+            question=_two_positions_question(text, offered, offer_cites, portal),
+            explanation=explanation,
             facts={**facts, "regla": RULE_MISMATCH, "oferta_valor": offered, **extra})
 
     data = PortalOfferData.objects.filter(offer=ctx.offer).first()
