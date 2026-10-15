@@ -95,7 +95,7 @@ Lo que tiene que verse, en orden:
 1. La primera vez: `== Bajando Caddy (solo la primera vez)`, `Suma SHA-512 comprobada: coincide con la publicada.` y `== Registrando el servicio EVALUON-Caddy (arranque automático)`. Es el único paso que usa internet.
 2. `Caddyfile escrito en C:\EVALUON-red\Caddyfile.`
 3. `Caddy acepta la configuración.`
-4. `Entrada por TCP 80 y 443 solo desde:` y la IP de la notebook seguida de las de la lista.
+4. `Entrada por TCP 80 y 443 solo desde:` y la IP de la notebook seguida de las de la lista. Si Windows había creado reglas `Block` para `caddy.exe` (pasa si alguien lo corrió a mano), además una línea amarilla `Se quitó la regla «…» (Inbound, Block)…` por cada una.
 5. `== Listo`, la dirección, la lista con nombre e IP, y `Servicio EVALUON-Caddy: Running, atiende en 80 y 443.`
 
 Si el `.env` tiene algo mal, el script lo dice en lenguaje llano (por ejemplo, una IP inválida o repetida, más de 10 computadoras, o la dirección que falta en `DJANGO_ALLOWED_HOSTS`) y no cambia nada: corregir el `.env` y volver a correrlo.
@@ -153,10 +153,10 @@ Antes: pasos 1 a 5 hechos, con la computadora A en la lista y la B fuera (B pued
 2. En PowerShell (sin administrador):
 
    ```
-   curl.exe -sI http://<dirección>/ingresar/
+   curl.exe -si http://<dirección>/ingresar/
    ```
 
-   Tiene que dar `HTTP/1.1 308 Permanent Redirect`, `Location: https://<dirección>/ingresar/`, `Server: Caddy` y `Content-Length: 0`: la redirección es de Caddy, sin nada de la aplicación.
+   Muestra la respuesta completa: los encabezados `HTTP/1.1 308 Permanent Redirect`, `Location: https://<dirección>/ingresar/`, `Server: Caddy`, `Date` y `Content-Length: 0`, y nada más después de ellos. La redirección es de Caddy, sin nada de la aplicación. (Con `-sI` en lugar de `-si`, `curl.exe` pide solo los encabezados y `Content-Length` no aparece: no es una falla.)
 3. Puertos:
 
    ```
@@ -204,11 +204,27 @@ El control tiene que dar 1 o más (la captura funciona y la búsqueda encuentra 
 
 ## Si algo no anda
 
+**No correr `caddy.exe` a mano** (por ejemplo `caddy.exe run`) sin leer el punto «El servicio no arranca»: Windows le crea reglas de firewall propias que pueden dejar afuera a todas las computadoras sin ningún mensaje.
+
+- **Ninguna computadora de la lista llega, y antes llegaban.** Mirar primero si hay reglas del firewall para `caddy.exe` además de «EVALUON», en PowerShell (alcanza sin administrador):
+
+  ```
+  Get-NetFirewallApplicationFilter | Where-Object Program -like '*\EVALUON-red\caddy.exe' | Get-NetFirewallRule | Select-Object DisplayName, Direction, Action, Enabled
+  ```
+
+  Tiene que aparecer solo «EVALUON», con `Allow`. Una regla con `Block` gana sobre la «EVALUON» y deja afuera a todos: la quita volver a correr el paso 4, que lo avisa («Se quitó la regla…»). Para quitar a mano todas las que no son «EVALUON» (también una `Allow` que abre `caddy.exe` a cualquier computadora), como administrador:
+
+  ```
+  Get-NetFirewallApplicationFilter | Where-Object Program -like '*\EVALUON-red\caddy.exe' | Get-NetFirewallRule | Where-Object DisplayName -ne 'EVALUON' | Remove-NetFirewallRule
+  ```
 - **El navegador advierte que la conexión no es segura.** La raíz no está en *Entidades de certificación raíz de confianza* de *Equipo local* (paso 5), el navegador no se reabrió, o en la barra no está exactamente la dirección de `EVALUON_ADDRESS` (por ejemplo, se entró por IP y el certificado es para el nombre).
 - **«Bad Request (400)».** La dirección no está en `DJANGO_ALLOWED_HOSTS`, o no se recreó la aplicación después de agregarla (paso 2).
 - **«502».** Docker o la aplicación no están levantados: abrir Docker Desktop y esperar a que `app` quede `healthy`.
 - **Desde una computadora de la lista no carga.** Su IP cambió (verla con `ipconfig` en esa computadora y corregir el `.env`), no se corrió el paso 4 después de agregarla, o la red o el proxy del organismo la desvían (pedidos 1 y 4 al área de sistemas).
-- **El servicio no arranca.** Otro programa usa el puerto 80 o 443: `Get-NetTCPConnection -State Listen -LocalPort 80, 443 | Select-Object LocalPort, OwningProcess` y `Get-Process -Id <número>`. Para ver el motivo de Caddy, como administrador: `Stop-Service EVALUON-Caddy`, `& C:\EVALUON-red\caddy.exe run --config C:\EVALUON-red\Caddyfile` (Ctrl+C para cortar) y `Start-Service EVALUON-Caddy`.
+- **El servicio no arranca.** En este orden:
+  1. ¿Otro programa usa el puerto 80 o 443? `Get-NetTCPConnection -State Listen -LocalPort 80, 443 | Select-Object LocalPort, OwningProcess` y `Get-Process -Id <número>`.
+  2. ¿Caddy acepta la configuración y el certificado? `& C:\EVALUON-red\caddy.exe validate --config C:\EVALUON-red\Caddyfile --adapter caddyfile`. No abre puertos ni dispara el aviso del firewall; tiene que terminar con «Valid configuration».
+  3. Solo si con eso no aparece el motivo: correrlo a mano, como administrador: `Stop-Service EVALUON-Caddy`, `& C:\EVALUON-red\caddy.exe run --config C:\EVALUON-red\Caddyfile` (Ctrl+C para cortar) y `Start-Service EVALUON-Caddy`. **Al correrlo así, Windows muestra un aviso del firewall para `caddy.exe`.** Elija lo que elija, crea reglas propias: con «Cancelar», reglas `Block` que dejan afuera a todas las computadoras; con «Permitir», reglas `Allow` desde cualquier computadora de la red. Después de la prueba, volver a correr el paso 4 (quita las `Block` y lo avisa) y revisar con el primer punto de esta lista que quede solo «EVALUON».
 - HTTP/3 (UDP 443) queda cerrado por el firewall a propósito: el navegador usa TCP y no se nota.
 
 ## Deshacer
@@ -231,5 +247,5 @@ Hechas por el desarrollador en el equipo, sin administrador, sin tocar el firewa
 - **`caddy adapt --validate`** acepta el `Caddyfile` que arma `caddy.py` en las dos formas (por IP, con `default_sni`, y por nombre), con los certificados de `crear-certificados.sh`, sin avisos; `caddy fmt` no tiene nada que corregir. En la configuración resultante la API de administración está apagada, no hay certificados ni redirecciones automáticas, y la conexión sin nombre (entrar por IP) recibe el certificado.
 - **Prueba en `127.0.0.1`** con puertos altos y un servidor de prueba en lugar de la aplicación: `http` da `308` a `https` con `Content-Length: 0`; por `https`, con la raíz de prueba, el servidor recibe `X-Evaluon-Computer: equipo-del-sistema` (o el nombre de la lista para `127.0.0.2`), `X-Forwarded-For` con la dirección real y `X-Forwarded-Proto: https`, aunque el cliente mande otros valores; desde una dirección fuera de la lista (`127.0.0.3`) la conexión se corta sin respuesta, por `http` y por `https`; sin la raíz, el certificado no es de confianza; el puerto 2019 no atiende. Se comprobó con el `curl` de Windows (Schannel, que valida como Windows) y con `openssl s_client`.
 - **`crear-certificados.sh`.** La autoridad tiene `CA:TRUE` con `pathlen:0`, uso solo de servidor y las restricciones de nombre críticas; `openssl verify` rechaza un certificado firmado por ella para otra IP o para otro nombre, y uno de uso cliente. Volver a correrlo conserva la autoridad y cambia la clave del servidor; con una dirección que la autoridad no cubre, termina con error y deja el certificado anterior. El certificado del servidor no lleva CN: Windows controla el CN contra las restricciones de nombre y lo rechazaba (Schannel, error `0x4000`); sin CN, lo acepta.
-- **`aplicar-red.ps1`** no se corrió (necesita administrador). Windows PowerShell 5.1 lo lee sin errores de sintaxis y con los acentos bien (UTF-8 con BOM). Se probaron aparte, sin administrador, la lectura de `caddy.sha512` y la comprobación de la suma (acepta el zip bueno y rechaza otro archivo), la lectura del JSON de `caddy.py` (también con la lista vacía) y `caddy validate`.
+- **`aplicar-red.ps1`** no se corrió (necesita administrador). Windows PowerShell 5.1 lo lee sin errores de sintaxis y con los acentos bien (UTF-8 con BOM). Se probaron aparte, sin administrador, la lectura de `caddy.sha512` y la comprobación de la suma (acepta el zip bueno y rechaza otro archivo), la lectura del JSON de `caddy.py` (también con la lista vacía) y `caddy validate`. La búsqueda de reglas `Block` para su `caddy.exe` se probó en modo lectura, sin quitar nada: encontró las dos que Windows había creado para un `caddy.exe` de prueba (Windows guarda la ruta en minúsculas; la comparación no distingue mayúsculas) y ninguna para `C:\EVALUON-red\caddy.exe`.
 - Las claves y certificados de estas pruebas se crearon en una carpeta temporal y se borraron.

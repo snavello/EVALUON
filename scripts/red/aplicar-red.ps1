@@ -137,11 +137,23 @@ New-NetFirewallRule -DisplayName $Regla `
     -RemoteAddress $permitidas -Profile Any | Out-Null
 Write-Host "Entrada por TCP 80 y 443 solo desde: $($permitidas -join ', ')"
 
+# Si alguien corrió este caddy.exe a mano y no permitió el aviso del firewall, Windows creó solo
+# reglas de entrada «Block» para él. Ganan sobre la regla «EVALUON» y dejan afuera a todas las
+# computadoras, sin ningún mensaje. Son de este mismo programa: se quitan, y se dice.
+$programa = [IO.Path]::GetFullPath($Caddy)
+$bloqueos = @(Get-NetFirewallApplicationFilter |
+    Where-Object { $_.Program -and [Environment]::ExpandEnvironmentVariables($_.Program) -eq $programa } |
+    Get-NetFirewallRule | Where-Object { $_.Action -eq 'Block' })
+foreach ($bloqueo in $bloqueos) {
+    $bloqueo | Remove-NetFirewallRule
+    Write-Host "Se quitó la regla «$($bloqueo.DisplayName)» ($($bloqueo.Direction), Block), que Windows creó para $Caddy y que bloqueaba la entrada." -ForegroundColor Yellow
+}
+
 Paso "Reiniciando el servicio $Servicio"
 try {
     Restart-Service -Name $Servicio
 } catch {
-    Falla "El servicio no arrancó. Para ver el motivo, correr a mano: & '$Caddy' run --config '$Caddyfile' (por ejemplo, otro programa ya usa el puerto 80 o 443)."
+    Falla 'El servicio no arrancó. Ver «Si algo no anda» en specs\007-acceso-por-red\entorno.md (por ejemplo, otro programa ya usa el puerto 80 o 443).'
 }
 $escucha = $false
 for ($i = 0; $i -lt 10 -and -not $escucha; $i++) {
@@ -150,7 +162,7 @@ for ($i = 0; $i -lt 10 -and -not $escucha; $i++) {
 }
 $estado = (Get-Service -Name $Servicio).Status
 if ($estado -ne 'Running' -or -not $escucha) {
-    Falla "El servicio quedó $estado y el puerto 443 no atiende. Para ver el motivo, detener el servicio y correr a mano: & '$Caddy' run --config '$Caddyfile'."
+    Falla "El servicio quedó $estado y el puerto 443 no atiende. Ver «Si algo no anda» en specs\007-acceso-por-red\entorno.md."
 }
 
 Paso 'Listo'

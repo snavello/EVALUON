@@ -3,8 +3,10 @@
 # editarlo a mano: se pisa cada vez que se corre scripts/red/aplicar-red.ps1.
 #
 # Pasan solo la lista de EVALUON_COMPUTERS y el propio equipo (EVALUON_SERVER_IP). A cualquier otra
-# computadora se le corta la conexión sin responderle nada. El firewall de Windows ya la frena
-# antes; este corte es por si la regla se cambia.
+# computadora que pida la dirección de EVALUON se le corta la conexión sin responderle nada. Un
+# pedido con otro nombre de sitio no llega a ninguno de los dos sitios de abajo: Caddy contesta una
+# respuesta vacía, sin nada de la aplicación. El firewall de Windows ya frena antes a las
+# computadoras de fuera de la lista; este corte es por si la regla se cambia.
 {
 	# Sin la API de administración local (puerto 2019), que no pide clave. Para que tome cambios
 	# se reinicia el servicio EVALUON-Caddy.

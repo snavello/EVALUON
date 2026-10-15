@@ -367,21 +367,96 @@ def test_the_pinned_caddy_is_the_windows_zip_of_2_11_7():
     assert re.fullmatch(r"[0-9a-f]{128}  caddy_2\.11\.7_windows_amd64\.zip", lines[0])
 
 
-def test_the_admin_script_is_utf8_with_bom_and_applies_the_rule_from_the_list():
+ADMIN_SCRIPT = REPO / "scripts" / "red" / "aplicar-red.ps1"
+# Un parámetro de PowerShell con su valor: `-Nombre valor`, `-Nombre 'texto'` o `-Nombre 80, 443`.
+PARAMETER = re.compile(r"(?:^|\s)-(\w+)\s+(?!-)('[^']*'|\"[^\"]*\"|[^\s,|]+(?:\s*,\s*[^\s,|]+)*)")
+
+
+def admin_script():
+    """El texto de `aplicar-red.ps1`, con fin de línea LF (en Windows se guarda con CRLF)."""
+    return ADMIN_SCRIPT.read_bytes().decode("utf-8-sig").replace("\r\n", "\n")
+
+
+def command_parameters(text, command):
+    """Los parámetros de la única llamada a `command` del script, con las continuaciones de línea
+    (`) unidas: `{nombre: valor}`. Falla si un parámetro aparece sin valor o repetido."""
+    lines = text.splitlines()
+    [start] = [n for n, line in enumerate(lines) if line.lstrip().startswith(command + " ")]
+    call = []
+    for line in lines[start:]:
+        call.append(line.strip().rstrip("`").strip())
+        if not line.rstrip().endswith("`"):
+            break
+    arguments = " ".join(call)[len(command):].split("| Out-Null")[0]
+    pairs = PARAMETER.findall(arguments)
+    names = re.findall(r"(?:^|\s)-(\w+)", re.sub(r"'[^']*'|\"[^\"]*\"", "''", arguments))
+    assert sorted(names) == sorted(name for name, _ in pairs), arguments
+    assert len(set(names)) == len(names), arguments
+    return dict(pairs)
+
+
+def test_the_admin_script_is_utf8_with_bom_and_asks_for_administrator():
     """REQ-109, REQ-116: `aplicar-red.ps1` está en UTF-8 con marca de orden de bytes (Windows
-    PowerShell lee mal los acentos sin ella), pide administrador, comprueba la suma con SHA-512 y
-    arma la regla de entrada con TCP 80 y 443, solo `caddy.exe`, solo las direcciones que informa
-    `caddy.py` y en todos los perfiles."""
-    raw = (REPO / "scripts" / "red" / "aplicar-red.ps1").read_bytes()
+    PowerShell lee mal los acentos sin ella) y pide administrador antes de hacer nada."""
+    raw = ADMIN_SCRIPT.read_bytes()
     assert raw.startswith(b"\xef\xbb\xbf")
-    text = raw.decode("utf-8-sig")
-    assert text.startswith("#Requires -RunAsAdministrator")
-    assert "Get-FileHash -Algorithm SHA512" in text
-    rule = text[text.index("New-NetFirewallRule"):].split("| Out-Null")[0]
-    for part in ("-Direction Inbound", "-Action Allow", "-Protocol TCP", "-LocalPort 80, 443",
-                 "-Program $Caddy", "-RemoteAddress $permitidas", "-Profile Any"):
-        assert part in rule, part
+    assert admin_script().startswith("#Requires -RunAsAdministrator")
+
+
+def test_the_firewall_rule_opens_only_tcp_80_and_443_to_caddy_from_the_list():
+    """REQ-109, REQ-116: la regla de entrada tiene exactamente estos parámetros: TCP 80 y 443 y
+    ningún otro puerto, solo `caddy.exe`, solo las direcciones que informa `caddy.py` (la lista y
+    el equipo) y todos los perfiles. Un parámetro de más (otro puerto, otra dirección local, la
+    regla apagada) también hace fallar la prueba."""
+    text = admin_script()
+    rule = command_parameters(text, "New-NetFirewallRule")
+    assert set(rule) == {"DisplayName", "Description", "Direction", "Action", "Protocol",
+                         "LocalPort", "Program", "RemoteAddress", "Profile"}
+    assert [port.strip() for port in rule["LocalPort"].split(",")] == ["80", "443"]
+    assert {name: rule[name] for name in ("DisplayName", "Direction", "Action", "Protocol",
+                                          "Program", "RemoteAddress", "Profile")} == {
+        "DisplayName": "$Regla", "Direction": "Inbound", "Action": "Allow", "Protocol": "TCP",
+        "Program": "$Caddy", "RemoteAddress": "$permitidas", "Profile": "Any"}
+    assert "$Regla = 'EVALUON'" in text
+    assert "$Caddy = Join-Path $Carpeta 'caddy.exe'" in text
     assert "$permitidas = @($red.allowed_ips)" in text
+    # la regla anterior se borra antes de crear la nueva: no quedan dos
+    assert text.index("Get-NetFirewallRule -DisplayName $Regla") < text.index("New-NetFirewallRule")
+
+
+def test_the_admin_script_installs_caddy_only_if_the_sha512_matches():
+    """REQ-110, P5: la suma SHA-512 del zip bajado se compara con la publicada de `caddy.sha512`;
+    si no son iguales el script termina (`Falla`, que sale con error) antes de descomprimir o
+    copiar nada. Anular la comparación (por ejemplo `if ($false)`) hace fallar la prueba."""
+    text = admin_script()
+    assert "$suma = $Matches[1]" in text
+    real = "$real = (Get-FileHash -Algorithm SHA512 -LiteralPath $archivo).Hash.ToLowerInvariant()"
+    assert real in text
+    check = re.search(r"\n(\s*)if \(\$real -ne \$suma\) \{\n(.*?)\n\1\}", text, re.S)
+    assert check, "falta la comparación de la suma"
+    assert re.search(r"^\s*Falla ", check.group(2), re.M)
+    assert (text.index("Invoke-WebRequest") < text.index(real) < check.start()
+            < text.index("Expand-Archive") < text.index("Copy-Item -LiteralPath (Join-Path"))
+    falla = re.search(r"function Falla\b.*?\n\}", text, re.S).group(0)
+    assert "exit 1" in falla
+
+
+def test_the_admin_script_removes_the_block_rules_windows_created_for_its_caddy():
+    """REQ-109, REQ-116: si alguien corrió `caddy.exe` a mano, Windows le crea reglas de entrada
+    `Block` que ganan sobre la regla «EVALUON». El script busca las reglas de su mismo
+    `caddy.exe` (la ruta, sin distinguir mayúsculas: Windows la guarda en minúsculas), quita solo
+    las `Block` y lo dice, después de armar la regla y antes de reiniciar el servicio."""
+    text = admin_script()
+    start = text.index("$programa = [IO.Path]::GetFullPath($Caddy)")
+    section = text[start:text.index("Restart-Service")]
+    assert "Get-NetFirewallApplicationFilter" in section
+    assert "[Environment]::ExpandEnvironmentVariables($_.Program) -eq $programa" in section
+    assert "Get-NetFirewallRule | Where-Object { $_.Action -eq 'Block' }" in section
+    assert re.search(r"foreach \(\$bloqueo in \$bloqueos\) \{\n\s*\$bloqueo \| Remove-NetFirewallRule\n"
+                     r"\s*Write-Host \"Se quitó la regla", section)
+    assert text.index("New-NetFirewallRule") < start < text.index("Restart-Service")
+    # lo que el script propone ante una falla no es correr caddy.exe a mano
+    assert " run --config '" not in text
 
 
 # --- El comando ------------------------------------------------------------------------------------
