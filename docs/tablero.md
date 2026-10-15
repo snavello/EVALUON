@@ -1524,15 +1524,15 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 38 tareas sin terminar.
-- ○ T-270 · Entorno del clon: `docker-compose.clon.yml` y `scripts/clon.sh` (proyecto `evaluon-016`, servicios `clon_*`, base restaurada de un respaldo nuevo, motor propio del 27B, `embeddings` y `reranker` de 8000 por red compartida, ventana de GPU con el cierre y la reapertura de 8000 comprobados), líneas del clon en `.env.example`, variable `BASE` (por omisión `main`) en `tools/cerrar.sh` y `entorno.md`; la rama `016-integracion` (pendiente)
-- ○ T-271 · Formato de la verdad celda por celda y su cargador: `no_determinado`, fundamento, revisión, huella, congelado, clave por requisito `M-NNN`; `medir_evaluacion --verificar-verdad` (casos, celdas decididas, quién y cuándo, citas ubicadas, 0 corridas en aceptación); verdad del caso chico en el repositorio. Umbral: el caso chico da los conteos esperados y una cita inventada que no está se rechaza (pendiente)
+- ▶ T-270 · Entorno del clon: `docker-compose.clon.yml` y `scripts/clon.sh` (proyecto `evaluon-016`, servicios `clon_*`, base restaurada de un respaldo nuevo, motor propio del 27B, `embeddings` y `reranker` de 8000 por red compartida, ventana de GPU con el cierre y la reapertura de 8000 comprobados), líneas del clon en `.env.example`, variable `BASE` (por omisión `main`) en `tools/cerrar.sh` y `entorno.md`; la rama `016-integracion` (en curso)
+- ▶ T-271 · Formato de la verdad celda por celda y su cargador: `no_determinado`, fundamento, revisión, huella, congelado, clave por requisito `M-NNN`; `medir_evaluacion --verificar-verdad` (casos, celdas decididas, quién y cuándo, citas ubicadas, 0 corridas en aceptación); verdad del caso chico en el repositorio. Umbral: el caso chico da los conteos esperados y una cita inventada que no está se rechaza (en curso)
+- ▶ T-278 · Pruebas de las instrucciones y tabla de decisiones: tope de largo (decisoras 90 líneas y 9.000 caracteres; demás 50 y 5.000; definiciones 5.000; descripción de campo 80), prueba de no calco contra el corpus (6 palabras seguidas), `revision-instrucciones.md` de la 016 con la tabla decisión → fuente, y adaptación de `test_instrucciones_revisadas.py`. Umbral 5 y 6, aplicados a las versiones nuevas (en curso)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
 - ○ T-273 · Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada (pendiente)
 - ○ T-274 · Verdad celda por celda del primer caso de aceptación, con el mismo método y el mismo umbral (pendiente)
 - ○ T-275 · Verdad celda por celda del segundo caso de aceptación, con el mismo método y el mismo umbral (pendiente)
 - ○ T-276 · Cierre del paso 1: documento de revisión por caso, revisión y firma celda por celda del responsable (quién y cuándo en cada celda), congelado de los casos de aceptación y verificación de REQ-118. Umbral 1 a 4: al menos 3 casos (2 de aceptación), 40 celdas decididas por caso y 150 en total, 100 % con quién y cuándo, 0 corridas de evaluación en aceptación (pendiente)
 - ○ T-277 · Reglas a tres salidas: toda celda lleva su pregunta o su documento nombrado (`combine.py`, conversiones de `evaluate.py`, reglas del Portal), `reglas-v13`, invariante probada sobre todas las combinaciones y conteo en `medir_evaluacion`. Umbral 9: 0 «no se encontró el documento» sin pregunta y 100 % de los «no determinado» con pregunta o documento nombrado; los 245 tests `decision_literal` siguen verdes (pendiente)
-- ○ T-278 · Pruebas de las instrucciones y tabla de decisiones: tope de largo (decisoras 90 líneas y 9.000 caracteres; demás 50 y 5.000; definiciones 5.000; descripción de campo 80), prueba de no calco contra el corpus (6 palabras seguidas), `revision-instrucciones.md` de la 016 con la tabla decisión → fuente, y adaptación de `test_instrucciones_revisadas.py`. Umbral 5 y 6, aplicados a las versiones nuevas (pendiente)
 - ○ T-279 · Instrucciones de la matriz, parte 1: bloque común de definiciones, extracción, completitud y unión, nuevas y cortas, sin ejemplos de casos, con versión y huella; `matriz-definiciones-v9`, `matriz-extraccion-v13`, `matriz-completitud-v7`, `matriz-union-v2` (pendiente)
 - ○ T-280 · Instrucciones de la matriz, parte 2: filtro, consecuencias, circulares, cambios de circulares y respaldo normativo, nuevas y cortas (pendiente)
 - ○ T-281 · Instrucciones de la evaluación: evaluación, contraste, cláusulas y reescritura, nuevas y cortas, con las descripciones del esquema de salida de hasta 80 caracteres (pendiente)
@@ -1571,15 +1571,15 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  T270["○ T-270 · Entorno del clon: docker-compose.clon.yml y…"]:::todo
-  T271["○ T-271 · Formato de la verdad celda por celda y su c…"]:::todo
+  T270["▶ T-270 · Entorno del clon: docker-compose.clon.yml y…"]:::active
+  T271["▶ T-271 · Formato de la verdad celda por celda y su c…"]:::active
   T272["○ T-272 · Cargar al clon las ofertas, los datos del P…"]:::todo
   T273["○ T-273 · Verdad celda por celda del caso de ajuste:…"]:::todo
   T274["○ T-274 · Verdad celda por celda del primer caso de a…"]:::todo
   T275["○ T-275 · Verdad celda por celda del segundo caso de…"]:::todo
   T276["○ T-276 · Cierre del paso 1: documento de revisión po…"]:::todo
   T277["○ T-277 · Reglas a tres salidas: toda celda lleva su…"]:::todo
-  T278["○ T-278 · Pruebas de las instrucciones y tabla de dec…"]:::todo
+  T278["▶ T-278 · Pruebas de las instrucciones y tabla de dec…"]:::active
   T279["○ T-279 · Instrucciones de la matriz, parte 1: bloque…"]:::todo
   T280["○ T-280 · Instrucciones de la matriz, parte 2: filtro…"]:::todo
   T281["○ T-281 · Instrucciones de la evaluación: evaluación,…"]:::todo
@@ -1677,11 +1677,11 @@ flowchart TD
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-118 | Existe verdad celda por celda (cumple, no cumple, no aplica o no determinado, con su fundamento) para al menos tres casos públicos además del caso-00, validada por una persona, dividida en un lote de ajuste y un lote de aceptación que nunca se usa para ajustar | T-271, T-272, T-273, T-274, T-275, T-276 | ○ pendiente |
-| REQ-119 | Cada instrucción al modelo local (matriz, evaluación, contraste, visión, ficha, consulta) contiene solo las definiciones y decisiones vigentes de las specs, sin ejemplos copiados de los casos, con un largo máximo escrito en el plan, y queda registrada con su versión en cada pedido (P6) | T-278, T-279, T-280, T-281, T-282, T-283, T-284, T-285, T-286 | ○ pendiente |
+| REQ-118 | Existe verdad celda por celda (cumple, no cumple, no aplica o no determinado, con su fundamento) para al menos tres casos públicos además del caso-00, validada por una persona, dividida en un lote de ajuste y un lote de aceptación que nunca se usa para ajustar | T-271, T-272, T-273, T-274, T-275, T-276 | ▶ en proceso |
+| REQ-119 | Cada instrucción al modelo local (matriz, evaluación, contraste, visión, ficha, consulta) contiene solo las definiciones y decisiones vigentes de las specs, sin ejemplos copiados de los casos, con un largo máximo escrito en el plan, y queda registrada con su versión en cada pedido (P6) | T-278, T-279, T-280, T-281, T-282, T-283, T-284, T-285, T-286 | ▶ en proceso |
 | REQ-120 | Toda celda de la evaluación termina en una de tres salidas: «cumple» con fundamento, «no cumple» con cita, o «no determinado» con la pregunta a la Comisión o el documento que falta nombrado; ninguna conversión del código deja una celda sin decidir sin decir por qué | T-277, T-283, T-284, T-285, T-286 | ○ pendiente |
 | REQ-121 | El sistema puede usar un modelo externo solo con documentos públicos; ningún pedido externo contiene un documento de tipo hoja de compliance ni un fragmento que provenga de uno, y los requisitos que dependen de esas consultas se evalúan siempre con el modelo local | T-290, T-292, T-299, T-304, T-307 | ○ pendiente |
 | REQ-122 | Cada pedido a un modelo externo queda en el registro de auditoría con proveedor, modelo, versión de la instrucción, texto enviado y respuesta; el registro de cada evaluación y de cada matriz dice qué etapas corrieron fuera del equipo; con el uso externo apagado el sistema funciona completo | T-288, T-289, T-290, T-291, T-292, T-299, T-300, T-304, T-307 | ○ pendiente |
 | REQ-123 | La matriz de cumplimiento se puede proponer con un modelo externo que lee el pliego completo, con las mismas medidas y la misma lista esperada que la local; se adopta por etapa solo si mejora según el ADR-0065 y, en empate, queda la local | T-291, T-292, T-293, T-294, T-295, T-296, T-297 | ○ pendiente |
 | REQ-124 | Una verificación con modelo externo puede revisar cada «cumple» o «no cumple» propuesto por el modelo local: confirma que la cita sostiene la conclusión y propone la redacción de la pregunta; si no la sostiene, la celda pasa a «no determinado» con pregunta; la verificación nunca convierte un «no determinado» en «cumple» | T-299, T-301, T-302, T-303, T-304, T-305 | ○ pendiente |
-| REQ-125 | Cada paso de la feature (verdad ampliada, simplificación, matriz externa, verificador externo) se mide contra un umbral escrito antes, en la instancia clonada, y se integra solo si lo pasa; la elección local o externa de cada etapa queda en un ADR con su medición | T-270, T-276, T-283, T-284, T-286, T-287, T-293, T-295, T-296, T-298, T-301, T-303, T-304, T-306, T-307 | ○ pendiente |
+| REQ-125 | Cada paso de la feature (verdad ampliada, simplificación, matriz externa, verificador externo) se mide contra un umbral escrito antes, en la instancia clonada, y se integra solo si lo pasa; la elección local o externa de cada etapa queda en un ADR con su medición | T-270, T-276, T-283, T-284, T-286, T-287, T-293, T-295, T-296, T-298, T-301, T-303, T-304, T-306, T-307 | ▶ en proceso |
