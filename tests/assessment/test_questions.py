@@ -136,7 +136,9 @@ def test_a_new_answer_replaces_the_previous_one_and_the_previous_stays(
     first = questions.answer(evaluator_user, asked.pk, "Primera.").answer
     second = questions.answer(evaluator_user, asked.pk, "Segunda.", "procedimiento")
     assert second.replaced == first
-    row = questions.question_list(operator_user, procedure)[0]
+    # T-277 (REQ-120): toda celda «no determinado» lleva su pregunta, así que la lista trae más de una.
+    row = next(r for r in questions.question_list(operator_user, procedure)
+               if r.question == asked)
     assert row.answer == second.answer and row.previous_answers == [first]
     assert am.Answer.objects.filter(question=asked).count() == 2
     for sql in ("UPDATE assessment_answer SET text = 'otra' WHERE id = %s",
@@ -174,7 +176,8 @@ def test_a_rejected_result_has_no_effective_outcome_and_its_question_still_lists
     result = evaluate.current_result(offer, asked.requirement)
     review.reject(evaluator_user, result.pk, "No corresponde.")
     assert review.effective_outcome(result) is None
-    row = questions.question_list(operator_user, procedure)[0]
+    row = next(r for r in questions.question_list(operator_user, procedure)
+               if r.question == asked)
     assert row.is_open and row.current.pk == result.pk
 
 
@@ -189,7 +192,8 @@ def test_open_questions_come_first_and_answered_ones_follow(
         requirement=requirement_of(procedure, "declaración jurada"))
     questions.answer(evaluator_user, other.pk, "Sí.")
     rows = questions.question_list(operator_user, procedure)
-    assert rows[0].is_open and rows[0].question == asked
+    states = [r.is_open for r in rows]
+    assert states == sorted(states, reverse=True) and asked in [r.question for r in rows[:-1]]
     assert rows[-1].question == other and not rows[-1].is_open
 
 

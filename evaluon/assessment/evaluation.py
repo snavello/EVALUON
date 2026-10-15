@@ -877,6 +877,56 @@ def cell_counts(run, external=frozenset(), excluded=frozenset()):
             "excluded": left_out}
 
 
+def result_problem(result, *, with_question, cited):
+    """La forma de una celda guardada contra las tres salidas (REQ-120; `combine.cell_problem`):
+    `with_question` es si tiene la pregunta a la Comisión (suya o una abierta del par) y `cited` si
+    tiene citas de la oferta o del Portal. Devuelve `""` o el nombre de lo que falla."""
+    return combine.cell_problem(
+        result.outcome, doubt=result.doubt, has_question=with_question, has_citation=cited,
+        facts=result.facts, explanation=result.explanation)
+
+
+def three_outputs(run, excluded=frozenset()):
+    """Las tres salidas de una evaluación (REQ-120; T-277, umbral 9): cuántas celdas son «no se
+    encontró el documento» sin pregunta y cuántas «no determinado» sin pregunta ni documento nombrado;
+    de cada una, los requisitos. `problems` suma cualquier otra celda que no cumple una de las tres
+    formas («cumple» sin fundamento, «no cumple» sin cita ni regla, «no determinado» sin motivo).
+    Las filas de `excluded` (sus requisitos, como en `cell_counts`) no se cuentan."""
+    with_question = set(am.Question.objects.filter(result__run=run).values_list(
+        "result_id", flat=True))
+    # Una pregunta abierta de una evaluación anterior del par sigue valiendo: la evaluación nueva no
+    # abre otra encima (`evaluate._save_pair`).
+    open_pairs = set(am.Question.objects.filter(offer=run.offer, answers__isnull=True)
+                     .values_list("requirement_id", flat=True))
+    cited = set(am.Citation.objects.filter(
+        result__run=run, kind__in=(am.CitationKind.OFERTA, am.CitationKind.PORTAL))
+        .values_list("result_id", flat=True))
+    out = {"cells": 0, "sin_documento": 0, "no_determinado": 0, "sin_documento_sin_pregunta": [],
+           "no_determinado_sin_nombrar": [], "falta_coincidencia_sin_pregunta": [], "problems": []}
+    for result in run.results.select_related("requirement"):
+        if excluded and result.requirement_id in excluded:
+            continue
+        out["cells"] += 1
+        out["sin_documento"] += result.outcome == am.Outcome.SIN_DOCUMENTO
+        out["no_determinado"] += result.outcome == am.Outcome.NO_DETERMINADO
+        asked = result.pk in with_question or result.requirement_id in open_pairs
+        problem = result_problem(result, with_question=asked, cited=result.pk in cited)
+        if (not problem and not asked and result.outcome == am.Outcome.NO_DETERMINADO
+                and result.doubt == am.Doubt.FALTA_COINCIDENCIA):
+            # La excepción de `combine.MISMATCH_RULE`: se cuenta aparte, no se esconde.
+            out["falta_coincidencia_sin_pregunta"].append(result.requirement.number)
+        if not problem:
+            continue
+        number = result.requirement.number
+        if problem == combine.PROBLEM_NO_QUESTION:
+            out["sin_documento_sin_pregunta"].append(number)
+        elif problem == combine.PROBLEM_UNNAMED:
+            out["no_determinado_sin_nombrar"].append(number)
+        else:
+            out["problems"].append((number, problem))
+    return out
+
+
 def portal_cell_record(result, kind, value, matches):
     """Una celda del Portal medida (REQ-103): si la propuesta es «cumple» con la cita del Portal
     del dato esperado, y si es «cumple» con un dato que no coincide (el esperado no coincide con
@@ -991,6 +1041,34 @@ def thresholds_015(total, case=None, video=None):
         rows.append(("Memoria de video máxima registrada", f"{memory} MiB",
                      memory <= VIDEO_MAXIMUM_MIB))
     return rows
+
+
+def thresholds_016(total):
+    """Las tres salidas contra su umbral (T-277, umbral 9 del plan 016, REQ-120): 0 «no se encontró
+    el documento» sin pregunta y todo «no determinado» con la pregunta o el documento nombrado.
+    `[(nombre, medido, cumple)]`; vacío si la corrida no trae la cuenta."""
+    found = total.get("three_outputs")
+    if not found or not found["cells"]:
+        return []
+    undetermined = found["no_determinado"]
+    unnamed = len(found["no_determinado_sin_nombrar"])
+    return [
+        ("«No se encontró el documento» sin pregunta (REQ-120)",
+         f"{len(found['sin_documento_sin_pregunta'])} de {found['sin_documento']}",
+         not found["sin_documento_sin_pregunta"]),
+        ("«No determinado» con la pregunta o el documento nombrado (REQ-120)",
+         f"{undetermined - unnamed} de {undetermined}", not unnamed),
+        ("Otras celdas que no cumplen una de las tres formas (REQ-120)",
+         str(len(found["problems"])), not found["problems"])]
+
+
+def three_outputs_note(total):
+    """La línea de lo que la medida de las tres salidas cuenta aparte: la diferencia entre el valor de
+    la oferta y el dato del Portal, que lleva las dos citas y no la pregunta (`combine.MISMATCH_RULE`,
+    ADR-0053, decisión 4); queda a decisión del responsable."""
+    found = total.get("three_outputs") or {}
+    return (f"«No determinado» por falta de coincidencia con el Portal, con las dos citas y sin "
+            f"pregunta (decisión literal de ADR-0053): {len(found.get('falta_coincidencia_sin_pregunta', []))}")
 
 
 # --- Medida honesta (T-256; REQ-103, REQ-104, REQ-107; mesa de comité del 2026-10-12) ------------
@@ -2023,6 +2101,7 @@ def measure_offer(entry, offer, run, mapping, finder, fragments, equivalents, ce
         "steps": _steps_summary(run), "run": run.pk, "number": run.number,
         "offer_number": offer.number, "unread_pages": run.counts.get("unread_pages", 0),
         "cells": cell_counts(run, external_ids, excluded_ids),
+        "three_outputs": three_outputs(run, excluded_ids),
         "portal_cells": list(portal_cells.values()),
         "questions": question_records(run, excluded_rows),
         "excluded_pairs": excluded_pairs,
@@ -2096,6 +2175,26 @@ def aggregate(measures):
     }
 
 
+def aggregate_three_outputs(measures):
+    """Las cuentas de las tres salidas de todas las ofertas (T-277, REQ-120): cada lista trae
+    `(oferta, requisito)`."""
+    out = {"cells": 0, "sin_documento": 0, "no_determinado": 0, "sin_documento_sin_pregunta": [],
+           "no_determinado_sin_nombrar": [], "falta_coincidencia_sin_pregunta": [],
+           "problems": []}
+    for m_ in measures:
+        found = m_.get("three_outputs")
+        if not found:
+            continue
+        offer = m_.get("offer_number")
+        for name in ("cells", "sin_documento", "no_determinado"):
+            out[name] += found[name]
+        for name in ("sin_documento_sin_pregunta", "no_determinado_sin_nombrar",
+                     "falta_coincidencia_sin_pregunta"):
+            out[name] += [(offer, number) for number in found.get(name, [])]
+        out["problems"] += [(offer, number, why) for number, why in found["problems"]]
+    return out
+
+
 def aggregate_015(measures):
     """Las cuentas de la 015 de todas las ofertas (T-238)."""
     counts = [m_.get("cells") or {"total": 0, "undetermined": 0, "waiting_document": 0,
@@ -2127,6 +2226,7 @@ def aggregate_015(measures):
                                len(matching)),
         "portal_wrong": [(c["oferta"], c["fila"]) for c in portal
                          if c["cumple_con_dato_distinto"]],
+        "three_outputs": aggregate_three_outputs(measures),
         "questions_form": ratio(sum(q["conforme"] for q in forms), len(forms)),
         "questions_form_parts": {name: sum(q[name] for q in forms) for name in (
             "requisito_ok", "conclusion_ok", "texto_ok", "dirigida_ok", "nombra_comision")},
@@ -2386,6 +2486,10 @@ def _summary_015(report):
              "|---|---|---|"]
     for name, measured, ok in thresholds_015(total, report.expected.case, report.video):
         lines.append(f"| {name} | {measured} | {'sí' if ok else 'no'} |")
+    for name, measured, ok in thresholds_016(total):
+        lines.append(f"| {name} | {measured} | {'sí' if ok else 'no'} |")
+    if thresholds_016(total):
+        lines += ["", f"- {three_outputs_note(total)}."]
     cells = total["cells"]
     portal = total["portal_cells"]
     forms = total["questions_form_parts"]

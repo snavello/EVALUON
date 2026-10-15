@@ -928,16 +928,41 @@ def _missing(records):
     return f"Falta el dato de {word}: " + "; ".join(f"«{n}»" for n in names) + "."
 
 
-def _missing_question(records):
-    """La pregunta a la Comisión por lo que falta (REQ-105), escrita por el código."""
+def _missing_question(records, informed=""):
+    """La pregunta a la Comisión por lo que falta (REQ-105), escrita por el código. Con `informed`
+    nombra también el dato del Portal que sí hay (REQ-120)."""
     names = [r.get("condicion", "").strip(" .") for r in records
              if r.get("resultado") != "cumple"]
     if not names:
         return ""
     joined = " y ".join(f"«{n}»" for n in names)
     word = "la condición" if len(names) == 1 else "las condiciones"
-    return (f"¿Cómo resuelve la Comisión {word} {joined}? El dato del Portal no lo responde y la "
-            "oferta no lo trae.")
+    known = f"El Portal informa {informed} y no lo responde" if informed else (
+        "El dato del Portal no lo responde")
+    return (f"¿Cómo resuelve la Comisión {word} {joined}? {known}, y la oferta no lo trae.")
+
+
+def _condition_name(records, text):
+    """La condición que queda abierta, para la pregunta (REQ-120): las del modelo que no se
+    cumplieron o, si no hay, el requisito del pliego."""
+    names = [r.get("condicion", "").strip(" .") for r in records
+             if r.get("resultado") != "cumple" and r.get("condicion", "").strip(" .")]
+    if names:
+        return " y ".join(f"«{n}»" for n in names)
+    return f"«{combine.clip(text, 160)}»"
+
+
+def _asked_or(combined, fallback):
+    """La pregunta del modelo si se dirige a la Comisión y, si no, `fallback` (REQ-105)."""
+    asked = " ".join((combined.question or "").split())
+    return asked if asked and not combine.addresses_offeror(asked) else fallback
+
+
+def _open_question(combined, name, why):
+    """La pregunta de una celda que el Portal deja «no determinado» (REQ-120, T-277): la del modelo
+    si se dirige a la Comisión y, si no, una que nombra la condición abierta y el dato del Portal
+    que sí hay (`why` lo dice)."""
+    return _asked_or(combined, f"¿Cómo resuelve la Comisión {name}? {why}".strip())
 
 
 def _merge_portal(combined, extra):
@@ -1000,6 +1025,7 @@ def rule(pair, ctx):
     if comparison.state == NO_PIDE:
         return None
     facts = {**facts, "comparacion": comparison.facts()}
+    informed = ", ".join(d.shown for d in portal)
     from_offer = combined.outcome in (combine.OUT_CUMPLE, combine.OUT_NO_CUMPLE)
     # T-257 (A-2 del comité): las condiciones que revisó el modelo quedan, con la que cubre el dato
     # del Portal (o un criterio de la Comisión) marcada; la pregunta del modelo queda.
@@ -1009,8 +1035,8 @@ def rule(pair, ctx):
         kept = {"condiciones": records} if records else {}
         return replace(
             combined, outcome=combine.OUT_NO_DETERMINADO, doubt=FALTA_COINCIDENCIA,
-            citations=_merge_offer(combined, located), portal=cites,
-            question=combined.question,
+            citations=_merge_offer(combined, located), portal=cites, ask=True,
+            question=_open_question(combined, _condition_name(records, text), why),
             explanation=f"Falta coincidencia: {why} La Comisión verifica cuál rige.",
             facts={**facts, **kept, "regla": RULE_MISMATCH})
 
@@ -1018,7 +1044,6 @@ def rule(pair, ctx):
         if from_offer:
             # La oferta ya concluyó con su propio texto: queda y se agrega la cita del Portal.
             return replace(combined, portal=cites, facts={**facts, "regla": RULE_BOTH})
-        informed = ", ".join(d.shown for d in portal)
         if records:
             # El dato del Portal no responde a lo que pide el pliego: quedan las condiciones del
             # modelo, con lo que falta y su pregunta (no es una diferencia con el Portal).
@@ -1026,7 +1051,7 @@ def rule(pair, ctx):
             return replace(
                 combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.NO_DATA,
                 citations=_merge_offer(combined, located), portal=cites, ask=True,
-                question=combined.question or _missing_question(records),
+                question=_asked_or(combined, _missing_question(records, informed)),
                 explanation=" ".join(part for part in (
                     f"El Portal informa {informed}. {comparison.detail}", note) if part),
                 facts={**facts, "condiciones": records, "regla": RULE_PARTIAL})
@@ -1045,9 +1070,10 @@ def rule(pair, ctx):
             return replace(
                 combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.NO_DATA,
                 portal=cites, ask=True,
-                question=combined.question or ("¿El precio de la oferta incluye el impuesto que pide "
-                                               "el pliego? La oferta dice algo sobre el impuesto o "
-                                               "el ajuste del precio, o hay una duda."),
+                question=_asked_or(combined, (
+                    "¿El precio de la oferta incluye el impuesto que pide el pliego? El Portal "
+                    f"informa {informed}; la oferta dice algo sobre el impuesto o el ajuste del "
+                    "precio, o hay una duda.")),
                 explanation=f"Fuente: Portal, para lo que su dato cubre. {comparison.detail} El "
                             "criterio del IVA no rige: la oferta dice algo sobre el impuesto o el "
                             "ajuste del precio, o hay una duda.",
@@ -1071,13 +1097,15 @@ def rule(pair, ctx):
         pending = [r for r in shown if r.get("resultado") != "cumple"]
         if pending or asks_more:
             # El dato del Portal cubre una parte: lo que falta queda a la vista, con su pregunta.
-            asked = combined.question if not any(r.get("cubierta_por") for r in shown) else ""
+            asked = (_asked_or(combined, "") if not any(r.get("cubierta_por") for r in shown)
+                     else "")
             more = "" if pending else " El pliego pide además un dato que el Portal no trae."
             return replace(
                 combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.NO_DATA,
                 portal=cites, ask=True,
-                question=asked or _missing_question(shown) or (
-                    "¿Cómo resuelve la Comisión lo que pide el pliego además del dato del Portal?"),
+                question=asked or _missing_question(shown, informed) or (
+                    f"¿Cómo resuelve la Comisión lo que pide {_condition_name(shown, text)} además "
+                    f"del dato del Portal? El Portal informa {informed}."),
                 explanation=f"Fuente: Portal, para lo que su dato cubre. {comparison.detail} "
                             f"{_missing(shown)}{more}".strip(),
                 facts={**facts, **extra, "regla": RULE_PARTIAL})

@@ -155,8 +155,10 @@ def test_the_operator_sees_the_questions_but_cannot_answer(
     """P3: el operador ve la lista sin formulario y su POST es 403; sin rol, 403 también."""
     log_in(client, operator_user)
     page = text_of(client.get(reverse("assessment:questions", args=[procedure.pk]), follow=True))
-    assert "¿Desde cuándo corre el plazo?" in page and "Responder" not in page.replace(
-        "Respuesta", "")
+    # T-277 (REQ-120): con varias preguntas abiertas la pestaña suma el vínculo «Responder» del grupo;
+    # el formulario de respuesta (su ayuda) no está para el operador.
+    assert "¿Desde cuándo corre el plazo?" in page
+    assert "Queda la respuesta, quién y cuándo" not in page
     assert client.post(reverse("assessment:answer", args=[asked.pk]),
                        {"text": "x"}).status_code == 403
     assert not am.Answer.objects.exists()

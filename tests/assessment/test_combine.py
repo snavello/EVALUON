@@ -156,7 +156,7 @@ def test_the_contrast_that_does_not_say_yes_downgrades_and_keeps_the_citations()
 def test_these_doubts_always_carry_a_question(doubt):
     """REQ-055, REQ-105: sin dato, lectura incompleta y conclusión sin corroborar siempre llevan
     una pregunta, y la arma el código (`compose_question`) con el requisito, la conclusión y el
-    texto; una duda común no la lleva si el modelo no la escribió."""
+    texto. REQ-120 (T-277): una duda común también la lleva, aunque el modelo no la haya escrito."""
     assert doubt in combine.ASKED_DOUBTS
     asked = combine.compose_question(7, "Presentar el pagaré.", combine.Combined(
         outcome="no_determinado", doubt=doubt, ask=True, proposed="cumple", explanation="algo",
@@ -164,8 +164,9 @@ def test_these_doubts_always_carry_a_question(doubt):
     assert "Requisito 7: «Presentar el pagaré.»" in asked
     assert "Conclusión del sistema:" in asked and "Texto de la oferta:" in asked
     assert "Comisión" in asked.splitlines()[-1]
-    assert combine.compose_question(7, "x", combine.Combined(
-        outcome="no_determinado", doubt="duda", ask=False)) == ""
+    plain = combine.compose_question(7, "x", combine.Combined(
+        outcome="no_determinado", doubt="duda", ask=False, explanation="No alcanza."))
+    assert plain.startswith("Requisito 7") and "Comisión" in plain.splitlines()[-1]
 
 
 @pytest.mark.decision_literal

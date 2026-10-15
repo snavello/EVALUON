@@ -100,6 +100,46 @@ ANOMALY_RETRY_TOO_LONG = "reintento_fuera_de_contexto"
 # El motivo del «no determinado» de un requisito con una parte que no se pudo pedir.
 TOO_LONG_NOTE = ("El pedido no entra en el contexto del modelo: una parte de los documentos de la "
                  "oferta no se pudo leer para este requisito.")
+# T-277 (REQ-120): lo que el código deja en la celda cuando convierte lo que dijo el modelo. Cada
+# conversión deja el motivo en la explicación y la pregunta o el documento en la celda; la tabla es
+# el inventario (la prueba `test_tres_salidas.py` recorre cada una). `salida_invalida` y
+# `conclusion_sin_cita` se suman a las de la 015: el grupo queda «no determinado» con su motivo.
+CONVERSIONS = {
+    "condicion_sin_cita": "la condición «cumple» o «no cumple» cuya cita no se ubicó pasa a «no "
+                          "determinado»; la explicación nombra la condición (`missing_note`) y la "
+                          "pregunta a la Comisión también (`missing_question`)",
+    "condicion_sin_dato": "la condición sin dato pasa a «no determinado»; la explicación y la "
+                          "pregunta nombran la condición",
+    "condicion_no_aplica": "la condición «cumple» con el dato «no aplica…» pasa a «no determinado» "
+                           "(lo decide una regla, no el modelo); la explicación y la pregunta nombran "
+                           "la condición",
+    "resultado_derivado": "gana el más conservador entre el modelo y sus condiciones; si queda «no "
+                          "determinado», la explicación nombra la condición que falta y la pregunta "
+                          "también",
+    "resultado_no_sostenido": "«no determinado» con la explicación de que el modelo y sus "
+                              "condiciones no coinciden y la pregunta a la Comisión",
+    "no_cumple_sin_clausula": "«no determinado» `sin_dato` con la nota de la cláusula faltante y la "
+                              "pregunta que pide la cláusula (`NO_CLAUSE_QUESTION`)",
+    "requisito_sin_cita": "«no determinado» con la explicación de que el pliego no está citado y la "
+                          "pregunta por el texto del pliego (`NO_QUOTE_QUESTION`)",
+    "contraste_invalido": "«no determinado» `sin_corroborar` con la explicación del contraste y la "
+                          "pregunta de confirmar, corregir o rechazar",
+    "pedido_fuera_de_contexto": "«no determinado» `lectura_incompleta` con la nota del pedido "
+                                "(`TOO_LONG_NOTE`) y la pregunta por las partes sin leer",
+    "salida_invalida": "«no determinado» `duda` con la explicación de la salida inválida y la "
+                       "pregunta por defecto",
+    "conclusion_sin_cita": "«no determinado» `sin_cita` con la explicación del modelo y la pregunta "
+                           "por el texto que muestra lo exigido",
+    "clausulas": "«no determinado» `sin_dato` con las cláusulas no confirmadas nombradas en la "
+                 "explicación y en la pregunta (`combine.apply_clauses`)",
+}
+NO_QUOTE_NOTE = "El requisito no tiene texto citado del pliego: no se puede evaluar."
+NO_QUOTE_QUESTION = ("¿Cuál es el texto del pliego que fija este requisito? La Comisión debe "
+                     "indicarlo: la matriz no lo trae citado y, sin él, el sistema no puede "
+                     "evaluarlo.")
+NO_CLAUSE_QUESTION = ("¿Qué cláusula del pliego contradice lo ofrecido? La Comisión debe "
+                      "indicarla: el sistema no encontró ninguna, y sin ella no se da por "
+                      "incumplido el requisito.")
 
 
 class EvaluationRefused(ValueError):
@@ -806,7 +846,9 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             group_index, prompting.NO_DETERMINADO, doubt=combine.NO_DATA,
             exigence=evaluation.exigence, citations=located, supports=supports,
             explanation=f"{explanation} {combine.NO_CLAUSE_NOTE}".strip(),
-            question=question, external=evaluation.external, unreadable=backed)
+            question=(question if question and not combine.addresses_offeror(question)
+                      else NO_CLAUSE_QUESTION),
+            external=evaluation.external, unreadable=backed)
     keep = [] if derived == prompting.NO_CONSTA else located
     return combine.GroupResult(
         group_index, derived,
@@ -824,7 +866,7 @@ def _read_pair(ctx, pair):
         pair.anomalies.append({"type": ANOMALY_NO_QUOTE, "requirement": pair.requirement.number})
         pair.combined = combine.Combined(
             outcome=combine.OUT_NO_DETERMINADO, doubt=combine.DOUBT,
-            explanation="El requisito no tiene texto citado del pliego: no se puede evaluar.",
+            explanation=NO_QUOTE_NOTE, question=NO_QUOTE_QUESTION, ask=True,
             unread_warning=offer_text.has_unread)
         return
     budget = _pair_budget(ctx, pair)
