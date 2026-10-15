@@ -75,7 +75,7 @@ flowchart LR
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 42/46 | █████████░ 91% |
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
-| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 0/38 | ░░░░░░░░░░ 0% |
+| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 1/38 | ░░░░░░░░░░ 3% |
 
 <a id="001"></a>
 
@@ -1523,10 +1523,9 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 38 tareas sin terminar.
-- ▶ T-270 · Entorno del clon: `docker-compose.clon.yml` y `scripts/clon.sh` (proyecto `evaluon-016`, servicios `clon_*`, base restaurada de un respaldo nuevo, motor propio del 27B, `embeddings` y `reranker` de 8000 por red compartida, ventana de GPU con el cierre y la reapertura de 8000 comprobados), líneas del clon en `.env.example`, variable `BASE` (por omisión `main`) en `tools/cerrar.sh` y `entorno.md`; la rama `016-integracion` (en curso)
+- **Próximo paso:** Desarrollar: 37 tareas sin terminar.
 - ▶ T-271 · Formato de la verdad celda por celda y su cargador: `no_determinado`, fundamento, revisión, huella, congelado, clave por requisito `M-NNN`; `medir_evaluacion --verificar-verdad` (casos, celdas decididas, quién y cuándo, citas ubicadas, 0 corridas en aceptación); verdad del caso chico en el repositorio. Umbral: el caso chico da los conteos esperados y una cita inventada que no está se rechaza (en curso)
-- ▶ T-278 · Pruebas de las instrucciones y tabla de decisiones: tope de largo (decisoras 90 líneas y 9.000 caracteres; demás 50 y 5.000; definiciones 5.000; descripción de campo 80), prueba de no calco contra el corpus (6 palabras seguidas), `revision-instrucciones.md` de la 016 con la tabla decisión → fuente, y adaptación de `test_instrucciones_revisadas.py`. Umbral 5 y 6, aplicados a las versiones nuevas (en curso)
+- ◐ T-270 · Entorno del clon: `docker-compose.clon.yml` y `scripts/clon.sh` (proyecto `evaluon-016`, servicios `clon_*`, base restaurada de un respaldo nuevo, motor propio del 27B, `embeddings` y `reranker` de 8000 por red compartida, ventana de GPU con el cierre y la reapertura de 8000 comprobados), líneas del clon en `.env.example`, variable `BASE` (por omisión `main`) en `tools/cerrar.sh` y `entorno.md`; la rama `016-integracion` (en verificación)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
 - ○ T-273 · Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada (pendiente)
 - ○ T-274 · Verdad celda por celda del primer caso de aceptación, con el mismo método y el mismo umbral (pendiente)
@@ -1566,12 +1565,13 @@ flowchart LR
 ### Qué se hizo
 
 - Etapas completas: Spec, Plan, Tareas.
+- ✓ T-278 · Pruebas de las instrucciones y tabla de decisiones: tope de largo (decisoras 90 líneas y 9.000 caracteres; demás 50 y 5.000; definiciones 5.000; descripción de campo 80), prueba de no calco contra el corpus (6 palabras seguidas), `revision-instrucciones.md` de la 016 con la tabla decisión → fuente, y adaptación de `test_instrucciones_revisadas.py`. Umbral 5 y 6, aplicados a las versiones nuevas
 
 ### Mapa de tareas
 
 ```mermaid
 flowchart TD
-  T270["▶ T-270 · Entorno del clon: docker-compose.clon.yml y…"]:::active
+  T270["◐ T-270 · Entorno del clon: docker-compose.clon.yml y…"]:::review
   T271["▶ T-271 · Formato de la verdad celda por celda y su c…"]:::active
   T272["○ T-272 · Cargar al clon las ofertas, los datos del P…"]:::todo
   T273["○ T-273 · Verdad celda por celda del caso de ajuste:…"]:::todo
@@ -1579,7 +1579,7 @@ flowchart TD
   T275["○ T-275 · Verdad celda por celda del segundo caso de…"]:::todo
   T276["○ T-276 · Cierre del paso 1: documento de revisión po…"]:::todo
   T277["○ T-277 · Reglas a tres salidas: toda celda lleva su…"]:::todo
-  T278["▶ T-278 · Pruebas de las instrucciones y tabla de dec…"]:::active
+  T278["✓ T-278 · Pruebas de las instrucciones y tabla de dec…"]:::done
   T279["○ T-279 · Instrucciones de la matriz, parte 1: bloque…"]:::todo
   T280["○ T-280 · Instrucciones de la matriz, parte 2: filtro…"]:::todo
   T281["○ T-281 · Instrucciones de la evaluación: evaluación,…"]:::todo
