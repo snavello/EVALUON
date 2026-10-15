@@ -21,7 +21,9 @@ Opciones:
 - `--celdas-comision`: las decisiones de la Comisión de prueba por celda (oferta, fila,
   resultado), con su huella y visto bueno (T-256). Da la exactitud por celda: exactas (con cita o
   sin cita; si la cita sostiene lo afirmado se lee en `muestra-exactas.md`), abstenciones y
-  erradas.
+  erradas. Acepta también la verdad ampliada `verdad-celdas.yaml` (T-271, REQ-118; ADR-0069):
+  las celdas vienen por oferta y requisito (M-NNN), se traducen a la fila de la matriz y solo
+  cuentan las que tienen revisión; «no determinado» contra «no determinado» es exacto.
 - `--exclusiones-celdas`: las filas de la matriz evaluada que la medida no cuenta (las agregadas
   solo para la medida), con su motivo y visto bueno (T-256). Se informan aparte.
 - `--recalcular`: carpeta de una corrida ya hecha. No usa el modelo, la GPU ni la evaluación:
@@ -32,6 +34,13 @@ Opciones:
 - `--commit`: commit del código con que se corre (dentro del contenedor no hay `.git`).
 - `--verificar-esperada`: no usa el modelo. Comprueba la huella de cada documento, que cada
   ancla esté en su página y que cada página no legible lo sea, e informa las cuentas.
+- `--verificar-verdad`: no usa el modelo ni la GPU (T-271). Con `--caso-chico`, comprueba la verdad
+  del caso chico; con `--esperada`, `--procedimiento` y `--celdas-comision`, la de un caso. Cuenta
+  las celdas, las decididas, las revisadas (quién y cuándo), las citas ubicadas en la lectura de la
+  oferta (`quotes.locate`) o el ítem del Portal, los «no determinado» con pregunta o documento
+  nombrado, el `congelado-016.txt` de los casos de aceptación y las corridas de evaluación
+  guardadas del procedimiento (0 en los de aceptación). Una celda sin revisión no se cuenta. Si
+  algo falla, termina con error.
 - `--verificar-decisiones`: no usa el modelo ni la GPU. Corre los tests marcados
   `decision_literal` (uno por decisión del responsable, ADR-0043) y comprueba que la lista
   esperada trae los campos de la regla nueva (`documento_tecnico` y `renglon_ofertado` en cada
@@ -85,6 +94,9 @@ class Command(BaseCommand):
         parser.add_argument("--verificar-esperada", action="store_true",
                             dest="verificar_esperada",
                             help="Solo comprueba la lista contra la lectura; no usa el modelo.")
+        parser.add_argument("--verificar-verdad", action="store_true", dest="verificar_verdad",
+                            help="Comprueba la verdad celda por celda (con --celdas-comision, o "
+                                 "la del caso chico); no usa el modelo.")
         parser.add_argument("--verificar-decisiones", action="store_true",
                             dest="verificar_decisiones",
                             help="Corre los tests `decision_literal` y comprueba los campos de "
@@ -97,6 +109,7 @@ class Command(BaseCommand):
             return
         verify_only = options["verificar_esperada"]
         verify_decisions = options["verificar_decisiones"]
+        verify_truth = options["verificar_verdad"]
         esperada = options["esperada"]
         if options["caso_chico"] and not esperada:
             esperada = str(CASO_CHICO / "evaluacion-esperada.yaml")
@@ -104,7 +117,7 @@ class Command(BaseCommand):
             raise CommandError("Falta --esperada (o --caso-chico).")
         try:
             expected = evaluation.load_expected(
-                esperada, require_approval=not (verify_only or verify_decisions))
+                esperada, require_approval=not (verify_only or verify_decisions or verify_truth))
             if verify_decisions:
                 self._verify_decisions(expected)
                 return
@@ -121,6 +134,10 @@ class Command(BaseCommand):
                 except Procedure.DoesNotExist:
                     raise CommandError("No hay un procedimiento con ese número.") from None
                 offers = evaluation.resolve_offers(expected, procedure)
+
+            if verify_truth:
+                self._verify_truth(options, procedure, expected)
+                return
 
             if verify_only:
                 verification = evaluation.verify_expected(expected, offers)
@@ -195,6 +212,20 @@ class Command(BaseCommand):
             lines.append(f"Lista de la Comisión: huella {commission.fingerprint[:12]}; "
                          f"{approval}")
         self.stdout.write("\n".join(lines))
+
+    def _verify_truth(self, options, procedure, expected):
+        """`--verificar-verdad`: los conteos y las comprobaciones de la verdad de un caso."""
+        path = options["celdas_comision"] or (str(CASO_CHICO / evaluation.TRUTH_FILE)
+                                              if options["caso_chico"] else None)
+        if not path:
+            raise CommandError("Falta --celdas-comision (o --caso-chico) con la verdad.")
+        truth = evaluation.load_commission_cells(path, require_approval=False)
+        check = evaluation.verify_truth(truth, expected, procedure)
+        lines = check.lines()
+        lines.append(evaluation.truth_total([check])["line"])
+        self.stdout.write("\n".join(lines))
+        if not check.ok:
+            raise CommandError("La comprobación de la verdad encontró fallas.")
 
     def _verify_decisions(self, expected):
         status, output = evaluation.run_decision_tests(cwd=settings.BASE_DIR)
