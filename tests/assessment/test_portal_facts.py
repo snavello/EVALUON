@@ -71,7 +71,7 @@ def test_a_guarantee_that_is_five_percent_of_the_portal_total_proposes_cumple_wi
     assert "21750.00" in cite.text and "Póliza de caución" in cite.text
     assert cite.label == "Portal: acta de apertura"
     assert result.facts["regla"] == "portal_cumple"
-    assert result.facts["version_reglas"] == "reglas-v12"
+    assert result.facts["version_reglas"] == "reglas-v13"
     assert result.facts["portal"]["tipo"] == "garantia"
     assert result.facts["portal"]["valor"] == "21750.00"
     assert result.facts["comparacion"]["exigido"] == "21750.00"
@@ -105,7 +105,10 @@ def test_the_same_amount_in_both_proposes_cumple_with_the_offer_and_the_portal_c
 def test_different_amounts_are_a_lack_of_coincidence_with_both_citations(
         with_policy, operator_user, procedure, model, portal):
     """REQ-062, decisión 4: la oferta dice 21.750 y el Portal 25000.00: «no determinado», «falta
-    de coincidencia», con la cita de la oferta y la del Portal."""
+    de coincidencia», con la cita de la oferta y la del Portal. Aplica la enmienda del ADR-0053 del
+    2026-10-15 (REQ-120, T-277): además lleva una pregunta a la Comisión que muestra las dos
+    posturas (el valor de la oferta con su cita de documento y página, y el dato del Portal con su
+    enlace y fecha), señala la contradicción y pregunta cuál rige."""
     portal_data(portal, with_policy, amount="25000.00")
     reads_policy(model)
     _, runs = run_all(operator_user, procedure)
@@ -116,7 +119,13 @@ def test_different_amounts_are_a_lack_of_coincidence_with_both_citations(
     assert result.facts["regla"] == "portal_falta_coincidencia"
     assert "21750" in result.facts["oferta_valor"]
     assert "25000.00" in result.explanation
-    assert not result.questions.exists()
+    question = result.questions.get().text
+    closing = question.splitlines()[-1]
+    assert "¿Cuál rige para" in closing and "se contradicen" in closing
+    assert "21.750" in closing and "poliza.pdf, página 1" in closing     # la oferta, con su cita
+    assert "25000.00" in closing and "https://portal.invalid/cuadro" in closing
+    assert "consultado el" in closing                                    # el Portal, con enlace y fecha
+    assert "Comisión" in question and not combine.asks_the_offeror(closing)
 
 
 def test_a_requirement_that_is_not_of_the_portal_has_no_portal_citation(
@@ -289,7 +298,7 @@ def test_the_guarantee_is_compared_with_the_percentage_of_the_portal_total(
     assert pair.combined.outcome == outcome and pair.combined.doubt == ""
     assert pair.combined.portal and pair.combined.portal[0]["kind"] == "garantia"
     assert pair.combined.facts["comparacion"]["exigido"] == "21750.00"
-    assert pair.combined.facts["version_reglas"] == "reglas-v12"
+    assert pair.combined.facts["version_reglas"] == "reglas-v13"
     if outcome == "no_cumple":
         assert amount in pair.combined.explanation and "21750.00" in pair.combined.explanation
         assert "diferencia" in pair.combined.explanation

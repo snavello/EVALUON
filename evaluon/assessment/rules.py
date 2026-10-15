@@ -27,6 +27,13 @@ Orden (cada regla es una función `(pair, ctx) -> Combined | None` en su módulo
    supletorio que nada de la oferta contradice.
 
 Una regla nueva se suma en su lugar de la lista, nada más.
+
+Tres salidas (REQ-120; T-277, `reglas-v13`): lo que cualquiera de estas reglas deja es «cumple» con
+fundamento, «no cumple» con cita (o decidido por la regla) o «no determinado» con la pregunta a la
+Comisión o el documento que falta nombrado. Las reglas del Portal (`portal_facts.py`) que dejan
+condiciones abiertas (`portal_cubre_parte`, `portal_falta_coincidencia`) escriben una pregunta que
+nombra la condición y el dato del Portal que sí hay; el resto de los «no determinado» sin pregunta
+la recibe de `combine.compose_question`. `combine.cell_problem` comprueba la forma de cada celda.
 """
 
 from django.conf import settings

@@ -351,10 +351,12 @@ def test_every_question_names_the_requirement_the_conclusion_and_the_text():
 
 
 def test_no_question_without_a_reason_to_ask():
-    """REQ-105: lo que no es "no determinado", lo externo y la duda sin pregunta no preguntan."""
+    """REQ-105: lo que no es "no determinado" y lo externo no preguntan. REQ-120 (T-277): la duda
+    sin pregunta del modelo sí: la arma el código, dirigida a la Comisión."""
     assert combine.compose_question(1, "x", combine.Combined(outcome="cumple", question="¿?")) == ""
     assert combine.compose_question(1, "x", undetermined(doubt="externo")) == ""
-    assert combine.compose_question(1, "x", undetermined(doubt="duda", ask=False)) == ""
+    asked = combine.compose_question(1, "x", undetermined(doubt="duda", ask=False))
+    assert asked.startswith("Requisito 1") and "Comisión" in asked.splitlines()[-1]
 
 
 def test_the_generic_fixed_questions_are_gone():

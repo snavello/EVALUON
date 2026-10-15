@@ -26,6 +26,9 @@ Opciones:
   cuentan las que tienen revisión; «no determinado» contra «no determinado» es exacto.
 - `--exclusiones-celdas`: las filas de la matriz evaluada que la medida no cuenta (las agregadas
   solo para la medida), con su motivo y visto bueno (T-256). Se informan aparte.
+- Toda medición cuenta también las tres salidas de cada celda (T-277, REQ-120, umbral 9): las
+  celdas «no se encontró el documento» sin pregunta y los «no determinado» sin pregunta ni
+  documento nombrado, con sus filas (`evaluation.three_outputs`).
 - `--recalcular`: carpeta de una corrida ya hecha. No usa el modelo, la GPU ni la evaluación:
   vuelve a contar desde `resultados.jsonl` y `celdas-todas.txt`, con las reglas de antes y con
   las corregidas de T-256, y escribe las dos cifras. La lista de la Comisión se acepta sin visto
@@ -258,6 +261,8 @@ class Command(BaseCommand):
         for name, measured, ok in evaluation.thresholds_015(total, report.expected.case,
                                                             report.video):
             lines.append(f"{name} (015): {measured} · {'cumple' if ok else 'no cumple'}")
+        for name, measured, ok in evaluation.thresholds_016(total):
+            lines.append(f"{name} (016): {measured} · {'cumple' if ok else 'no cumple'}")
         failed = report.blocking
         lines.append("Bloquea la aceptación: " + ("; ".join(failed) if failed else "nada"))
         self.stdout.write("\n".join(lines))
