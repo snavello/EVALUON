@@ -75,7 +75,7 @@ flowchart LR
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 42/46 | █████████░ 91% |
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
-| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 2 de 7 · Plan | — | — |
+| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 0/38 | ░░░░░░░░░░ 0% |
 
 <a id="001"></a>
 
@@ -1509,11 +1509,11 @@ flowchart TD
 
 ## 016 · Calidad medible: verdad ampliada, instrucciones simples y modelos externos por clase de dato
 
-**Etapa actual:** 2 de 7 · Plan (1 dudas abiertas) · [carpeta](../specs/016-calidad-medible)
+**Etapa actual:** 4 de 7 · Desarrollo (1 dudas abiertas) · [carpeta](../specs/016-calidad-medible)
 
 ```mermaid
 flowchart LR
-  E0["✓ 1. Spec"]:::done --> E1["▶ 2. Plan"]:::active --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  E0["✓ 1. Spec"]:::done --> E1["✓ 2. Plan"]:::done --> E2["✓ 3. Tareas"]:::done --> E3["▶ 4. Desarrollo"]:::active --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -1523,21 +1523,165 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** El planificador entrega `plan.md`; lo aprueba el responsable.
+- **Próximo paso:** Desarrollar: 38 tareas sin terminar.
+- ○ T-270 · Entorno del clon: `docker-compose.clon.yml` y `scripts/clon.sh` (proyecto `evaluon-016`, servicios `clon_*`, base restaurada de un respaldo nuevo, motor propio del 27B, `embeddings` y `reranker` de 8000 por red compartida, ventana de GPU con el cierre y la reapertura de 8000 comprobados), líneas del clon en `.env.example`, variable `BASE` (por omisión `main`) en `tools/cerrar.sh` y `entorno.md`; la rama `016-integracion` (pendiente)
+- ○ T-271 · Formato de la verdad celda por celda y su cargador: `no_determinado`, fundamento, revisión, huella, congelado, clave por requisito `M-NNN`; `medir_evaluacion --verificar-verdad` (casos, celdas decididas, quién y cuándo, citas ubicadas, 0 corridas en aceptación); verdad del caso chico en el repositorio. Umbral: el caso chico da los conteos esperados y una cita inventada que no está se rechaza (pendiente)
+- ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
+- ○ T-273 · Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada (pendiente)
+- ○ T-274 · Verdad celda por celda del primer caso de aceptación, con el mismo método y el mismo umbral (pendiente)
+- ○ T-275 · Verdad celda por celda del segundo caso de aceptación, con el mismo método y el mismo umbral (pendiente)
+- ○ T-276 · Cierre del paso 1: documento de revisión por caso, revisión y firma celda por celda del responsable (quién y cuándo en cada celda), congelado de los casos de aceptación y verificación de REQ-118. Umbral 1 a 4: al menos 3 casos (2 de aceptación), 40 celdas decididas por caso y 150 en total, 100 % con quién y cuándo, 0 corridas de evaluación en aceptación (pendiente)
+- ○ T-277 · Reglas a tres salidas: toda celda lleva su pregunta o su documento nombrado (`combine.py`, conversiones de `evaluate.py`, reglas del Portal), `reglas-v13`, invariante probada sobre todas las combinaciones y conteo en `medir_evaluacion`. Umbral 9: 0 «no se encontró el documento» sin pregunta y 100 % de los «no determinado» con pregunta o documento nombrado; los 245 tests `decision_literal` siguen verdes (pendiente)
+- ○ T-278 · Pruebas de las instrucciones y tabla de decisiones: tope de largo (decisoras 90 líneas y 9.000 caracteres; demás 50 y 5.000; definiciones 5.000; descripción de campo 80), prueba de no calco contra el corpus (6 palabras seguidas), `revision-instrucciones.md` de la 016 con la tabla decisión → fuente, y adaptación de `test_instrucciones_revisadas.py`. Umbral 5 y 6, aplicados a las versiones nuevas (pendiente)
+- ○ T-279 · Instrucciones de la matriz, parte 1: bloque común de definiciones, extracción, completitud y unión, nuevas y cortas, sin ejemplos de casos, con versión y huella; `matriz-definiciones-v9`, `matriz-extraccion-v13`, `matriz-completitud-v7`, `matriz-union-v2` (pendiente)
+- ○ T-280 · Instrucciones de la matriz, parte 2: filtro, consecuencias, circulares, cambios de circulares y respaldo normativo, nuevas y cortas (pendiente)
+- ○ T-281 · Instrucciones de la evaluación: evaluación, contraste, cláusulas y reescritura, nuevas y cortas, con las descripciones del esquema de salida de hasta 80 caracteres (pendiente)
+- ○ T-282 · Instrucciones auxiliares: visión, ficha, ficha por renglón, informe técnico, nombre del oferente, datos del procedimiento y consulta; versión y huella registradas en cada pedido; informe de revisión completo y prueba de que toda instrucción vigente es de la 016 (pendiente)
+- ○ T-283 · Medición del paso 2, ronda 1 (matrices y caso-00): matrices de 00, 01, 02 y 06; caso-00 completo (matriz y evaluación de las 3 ofertas); evals de la 001, fichas y visión. Umbrales 7 a 12: 0 «cumple» sin fundamento, 0 contradicciones, 100 % literal, lista presente igual o mejor (00 41/42, 01 79/80, 02 95/97, 06 35/35), tres salidas, no empeora, caso-00 completo ≤ 112,6 min y ≤ 22.000 MiB, auxiliares no peor que T-266 (pendiente)
+- ○ T-284 · Medición del paso 2, ronda 1 (evaluación con verdad): evaluación del caso de ajuste con verdad con el commit de arranque (B0) y con el candidato, celda por celda. Umbrales 7, 9 y 10: 0 «cumple» sin fundamento, 0 contradicciones, tres salidas, exactitud por celda sin llegar a 6 filas en contra con 0 a favor ni a 8 contra 1 (pendiente)
+- ○ T-285 · Ajuste único del paso 2: todos los hallazgos de T-283 y T-284 en una sola tarea, un commit por hallazgo, corregidos como definiciones y nunca como ejemplos de un caso; se cierra sin cambios si T-283 y T-284 cumplen todo (pendiente)
+- ○ T-286 · Re-medición del paso 2, ronda 2: solo lo que cambió T-285 (más el caso-00 completo, para el tiempo y la comparación con T-307); es la referencia local simplificada de los pasos 3 y 4. Mismos umbrales que T-283 y T-284 (pendiente)
+- ○ T-287 · Cierre de los pasos 1 y 2: ADR-0071 (resultado: instrucciones y reglas simples que quedan locales) con las cifras como evidencia, registro del paso y pull request `016-integracion` → `main` (pendiente)
+- ○ T-288 · Esquema y configuración del uso externo: tipo de hecho `external_request` y su migración (la única de la feature), variables `EXTERNAL_*` apagadas por omisión con la tabla de precios versionada, pasaje al compose base y `.env.example`. Umbral 20 (parte): con los valores por omisión nada cambia (pendiente)
+- ○ T-289 · Cliente de la API externa, su doble y la salida a internet: `evaluon/ai/external/client.py` (mensajes directos y lotes, host fijo, `ExternalDisabled`), `ExternalPayload`, `FakeExternal` y el fixture que impide toda llamada real, `docker-compose.externo.yml`, `test_no_outbound` y `test_network` ajustados (pendiente)
+- ○ T-290 · Puerta de filtrado, libro de gasto y registro: `guard.py` (lista permitida, exclusiones, huellas), `ledger.py` (hecho por pedido, tope por caso y por mes, reuso por huella, freno al doble) y `gasto_externo` con `--verificar-filtro`; hoja de compliance inventada para las pruebas. Umbral 19 y 21 con el doble: 0 pedidos con texto de la hoja; el lote que pasa el tope no sale (pendiente)
+- ○ T-291 · Matriz con modelo externo: `matriz-externa-v1`, `proposal/external.py` con el contrato de la etapa local, enchufe en `run.py` con vuelta a lo local si falla, clave `externo` en el registro de la propuesta y `medir_matriz --externo matriz`; probada con el doble y el caso chico (pendiente)
+- ○ T-292 · Prueba de humo con el proveedor real (caso chico): matriz externa en modo directo con la hoja de compliance inventada cargada; registro completo, `gasto_externo --verificar-filtro` en 0 y gasto ≤ 0,10 USD (pendiente)
+- ○ T-293 · Medición del paso 3, ronda 1 (ajuste): propuesta externa de 00, 01, 02 y 06 contra la local simplificada de T-286. Umbral 16 (puerta): lista presente y firmes con pareja no peores en cada caso y 0 pedazos; gasto ≈ 1,20 USD (pendiente)
+- ○ T-294 · Ajuste único de la matriz externa (`matriz-externa-v2` y parámetros) con todos los hallazgos de T-293; se cierra sin cambios si T-293 cumple todo (pendiente)
+- ○ T-295 · Re-medición del paso 3, ronda 2 (ajuste): lo que cambió T-294. Mismo umbral 16; si no lo pasa, el externo no pasa a aceptación y queda local (pendiente)
+- ○ T-296 · Medición final del paso 3 (aceptación, una sola corrida): matriz local simplificada y externa de 03, 04 y 05, mismo commit y listas congeladas. Umbrales 13 a 15: el externo sube al menos 5 puntos en lista presente en al menos 2 de 3 sin bajar en ninguno, firmes con pareja no bajan, 0 pedazos; si no, queda local. Se cierra sin correr si T-295 no pasó la puerta (pendiente)
+- ○ T-297 · Segunda comparación con `claude-opus-5-5`, solo si Sonnet no pasó el umbral 13 o 14 y la etapa pasó la puerta 16: misma instrucción, solo la etapa que falló, una vez; se cierra sin correr si no corresponde (pendiente)
+- ○ T-298 · Cierre del paso 3: ADR-0072 (matriz: local o externa, y por qué) con las cifras, gasto real por etapa, registro del paso y pull request `016-integracion` → `main` (pendiente)
+- ○ T-299 · Verificador externo de citas: `verifier.py`, `verificador-v1`, enchufe en `evaluate_offer` después del contraste y de las reglas y antes de la pregunta, solo sobre «cumple» o «no cumple» con cita, nunca de «no determinado» a «cumple», clave `externo` y `facts["verificador"]`, y la pasada sobre una evaluación guardada para medir; probado con el doble y el caso chico (pendiente)
+- ○ T-300 · Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave `externo` de la corrida (o «Ninguna: todo corrió en el equipo»). Umbral 20 (parte): la pantalla y la exportación la muestran (pendiente)
+- ○ T-301 · Medición del paso 4, ronda 1 (ajuste, sin GPU): humo del verificador con el caso chico y después el verificador sobre las evaluaciones guardadas de T-286 del caso-00 y del caso de ajuste con verdad. Umbral 17 como puerta: 0 «cumple» sin fundamento, preguntas conformes 100 %, exactas no bajan, erradas no suben, todo «no determinado» nuevo viene de una celda errada; gasto ≈ 0,60 USD (pendiente)
+- ○ T-302 · Ajuste único del verificador (`verificador-v2` y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si cumple todo (pendiente)
+- ○ T-303 · Re-medición del paso 4, ronda 2 (ajuste, sin GPU): lo que cambió T-302. Mismo umbral 17 como puerta (pendiente)
+- ○ T-304 · Medición final del paso 4 (aceptación, una sola corrida): evaluación local de los casos de aceptación con verdad y verificador una vez; el «sin» sale de `antes` y el «con» de `después`. Umbrales 17 a 21: 0 «cumple» sin fundamento, preguntas conformes 100 %, exactas no bajan, «no determinado» nuevo solo de erradas, 0 pedidos con texto de la hoja, gasto ≤ 2 USD por caso y ≤ 10 USD por mes; si empata, queda sin verificador (pendiente)
+- ○ T-305 · Segunda comparación del verificador con `claude-opus-5-5`, solo si Sonnet no pasó el umbral 17 y la etapa pasó la puerta de ajuste: misma instrucción, una vez, sobre las mismas evaluaciones guardadas; se cierra sin correr si no corresponde (pendiente)
+- ○ T-306 · Cierre del paso 4: ADR-0073 (verificador: con o sin, y por qué) con las cifras, gasto real por etapa, registro del paso y pull request `016-integracion` → `main` (pendiente)
+- ○ T-307 · Verificación transversal con el uso externo apagado y encendido: suite completa sobre la combinación; caso-00 completo con el uso externo apagado, mismas celdas que la corrida final del paso 2 (0 diferencias) y dentro de los tiempos; `gasto_externo --verificar-filtro` sobre todo el registro (0) y el gasto total de la feature contra los topes; 100 % de los pedidos con sus campos. Umbrales 19 a 21 (pendiente)
 
 ### Qué se hizo
 
-- Etapas completas: Spec.
+- Etapas completas: Spec, Plan, Tareas.
+
+### Mapa de tareas
+
+```mermaid
+flowchart TD
+  T270["○ T-270 · Entorno del clon: docker-compose.clon.yml y…"]:::todo
+  T271["○ T-271 · Formato de la verdad celda por celda y su c…"]:::todo
+  T272["○ T-272 · Cargar al clon las ofertas, los datos del P…"]:::todo
+  T273["○ T-273 · Verdad celda por celda del caso de ajuste:…"]:::todo
+  T274["○ T-274 · Verdad celda por celda del primer caso de a…"]:::todo
+  T275["○ T-275 · Verdad celda por celda del segundo caso de…"]:::todo
+  T276["○ T-276 · Cierre del paso 1: documento de revisión po…"]:::todo
+  T277["○ T-277 · Reglas a tres salidas: toda celda lleva su…"]:::todo
+  T278["○ T-278 · Pruebas de las instrucciones y tabla de dec…"]:::todo
+  T279["○ T-279 · Instrucciones de la matriz, parte 1: bloque…"]:::todo
+  T280["○ T-280 · Instrucciones de la matriz, parte 2: filtro…"]:::todo
+  T281["○ T-281 · Instrucciones de la evaluación: evaluación,…"]:::todo
+  T282["○ T-282 · Instrucciones auxiliares: visión, ficha, fi…"]:::todo
+  T283["○ T-283 · Medición del paso 2, ronda 1 (matrices y ca…"]:::todo
+  T284["○ T-284 · Medición del paso 2, ronda 1 (evaluación co…"]:::todo
+  T285["○ T-285 · Ajuste único del paso 2: todos los hallazgo…"]:::todo
+  T286["○ T-286 · Re-medición del paso 2, ronda 2: solo lo qu…"]:::todo
+  T287["○ T-287 · Cierre de los pasos 1 y 2: ADR-0071 (result…"]:::todo
+  T288["○ T-288 · Esquema y configuración del uso externo: ti…"]:::todo
+  T289["○ T-289 · Cliente de la API externa, su doble y la sa…"]:::todo
+  T290["○ T-290 · Puerta de filtrado, libro de gasto y regist…"]:::todo
+  T291["○ T-291 · Matriz con modelo externo: matriz-externa-v…"]:::todo
+  T292["○ T-292 · Prueba de humo con el proveedor real (caso…"]:::todo
+  T293["○ T-293 · Medición del paso 3, ronda 1 (ajuste): prop…"]:::todo
+  T294["○ T-294 · Ajuste único de la matriz externa (matriz-e…"]:::todo
+  T295["○ T-295 · Re-medición del paso 3, ronda 2 (ajuste): l…"]:::todo
+  T296["○ T-296 · Medición final del paso 3 (aceptación, una…"]:::todo
+  T297["○ T-297 · Segunda comparación con claude-opus-5-5, so…"]:::todo
+  T298["○ T-298 · Cierre del paso 3: ADR-0072 (matriz: local…"]:::todo
+  T299["○ T-299 · Verificador externo de citas: verifier.py,…"]:::todo
+  T300["○ T-300 · Línea «Etapas fuera del equipo» en la panta…"]:::todo
+  T301["○ T-301 · Medición del paso 4, ronda 1 (ajuste, sin G…"]:::todo
+  T302["○ T-302 · Ajuste único del verificador (verificador-v…"]:::todo
+  T303["○ T-303 · Re-medición del paso 4, ronda 2 (ajuste, si…"]:::todo
+  T304["○ T-304 · Medición final del paso 4 (aceptación, una…"]:::todo
+  T305["○ T-305 · Segunda comparación del verificador con cla…"]:::todo
+  T306["○ T-306 · Cierre del paso 4: ADR-0073 (verificador: c…"]:::todo
+  T307["○ T-307 · Verificación transversal con el uso externo…"]:::todo
+  T270 --> T272
+  T271 --> T272
+  T271 --> T273
+  T272 --> T273
+  T271 --> T274
+  T272 --> T274
+  T271 --> T275
+  T272 --> T275
+  T273 --> T276
+  T274 --> T276
+  T275 --> T276
+  T271 --> T277
+  T277 --> T279
+  T278 --> T279
+  T279 --> T280
+  T280 --> T281
+  T281 --> T282
+  T282 --> T283
+  T276 --> T284
+  T283 --> T284
+  T284 --> T285
+  T285 --> T286
+  T276 --> T287
+  T286 --> T287
+  T270 --> T288
+  T282 --> T288
+  T288 --> T289
+  T289 --> T290
+  T290 --> T291
+  T280 --> T291
+  T291 --> T292
+  T292 --> T293
+  T286 --> T293
+  T293 --> T294
+  T294 --> T295
+  T295 --> T296
+  T296 --> T297
+  T296 --> T298
+  T297 --> T298
+  T287 --> T298
+  T290 --> T299
+  T291 --> T299
+  T277 --> T299
+  T288 --> T300
+  T299 --> T301
+  T298 --> T301
+  T287 --> T301
+  T301 --> T302
+  T302 --> T303
+  T303 --> T304
+  T297 --> T304
+  T276 --> T304
+  T304 --> T305
+  T304 --> T306
+  T305 --> T306
+  T306 --> T307
+  T300 --> T307
+  classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
+  classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
+  classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
+  classDef blocked fill:#cf222e,stroke:#a40e26,color:#ffffff
+  classDef todo fill:#eaeef2,stroke:#8c959f,color:#24292f
+```
 
 ### Requisitos
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-118 | Existe verdad celda por celda (cumple, no cumple, no aplica o no determinado, con su fundamento) para al menos tres casos públicos además del caso-00, validada por una persona, dividida en un lote de ajuste y un lote de aceptación que nunca se usa para ajustar | — | — |
-| REQ-119 | Cada instrucción al modelo local (matriz, evaluación, contraste, visión, ficha, consulta) contiene solo las definiciones y decisiones vigentes de las specs, sin ejemplos copiados de los casos, con un largo máximo escrito en el plan, y queda registrada con su versión en cada pedido (P6) | — | — |
-| REQ-120 | Toda celda de la evaluación termina en una de tres salidas: «cumple» con fundamento, «no cumple» con cita, o «no determinado» con la pregunta a la Comisión o el documento que falta nombrado; ninguna conversión del código deja una celda sin decidir sin decir por qué | — | — |
-| REQ-121 | El sistema puede usar un modelo externo solo con documentos públicos; ningún pedido externo contiene un documento de tipo hoja de compliance ni un fragmento que provenga de uno, y los requisitos que dependen de esas consultas se evalúan siempre con el modelo local | — | — |
-| REQ-122 | Cada pedido a un modelo externo queda en el registro de auditoría con proveedor, modelo, versión de la instrucción, texto enviado y respuesta; el registro de cada evaluación y de cada matriz dice qué etapas corrieron fuera del equipo; con el uso externo apagado el sistema funciona completo | — | — |
-| REQ-123 | La matriz de cumplimiento se puede proponer con un modelo externo que lee el pliego completo, con las mismas medidas y la misma lista esperada que la local; se adopta por etapa solo si mejora según el ADR-0065 y, en empate, queda la local | — | — |
-| REQ-124 | Una verificación con modelo externo puede revisar cada «cumple» o «no cumple» propuesto por el modelo local: confirma que la cita sostiene la conclusión y propone la redacción de la pregunta; si no la sostiene, la celda pasa a «no determinado» con pregunta; la verificación nunca convierte un «no determinado» en «cumple» | — | — |
-| REQ-125 | Cada paso de la feature (verdad ampliada, simplificación, matriz externa, verificador externo) se mide contra un umbral escrito antes, en la instancia clonada, y se integra solo si lo pasa; la elección local o externa de cada etapa queda en un ADR con su medición | — | — |
+| REQ-118 | Existe verdad celda por celda (cumple, no cumple, no aplica o no determinado, con su fundamento) para al menos tres casos públicos además del caso-00, validada por una persona, dividida en un lote de ajuste y un lote de aceptación que nunca se usa para ajustar | T-271, T-272, T-273, T-274, T-275, T-276 | ○ pendiente |
+| REQ-119 | Cada instrucción al modelo local (matriz, evaluación, contraste, visión, ficha, consulta) contiene solo las definiciones y decisiones vigentes de las specs, sin ejemplos copiados de los casos, con un largo máximo escrito en el plan, y queda registrada con su versión en cada pedido (P6) | T-278, T-279, T-280, T-281, T-282, T-283, T-284, T-285, T-286 | ○ pendiente |
+| REQ-120 | Toda celda de la evaluación termina en una de tres salidas: «cumple» con fundamento, «no cumple» con cita, o «no determinado» con la pregunta a la Comisión o el documento que falta nombrado; ninguna conversión del código deja una celda sin decidir sin decir por qué | T-277, T-283, T-284, T-285, T-286 | ○ pendiente |
+| REQ-121 | El sistema puede usar un modelo externo solo con documentos públicos; ningún pedido externo contiene un documento de tipo hoja de compliance ni un fragmento que provenga de uno, y los requisitos que dependen de esas consultas se evalúan siempre con el modelo local | T-290, T-292, T-299, T-304, T-307 | ○ pendiente |
+| REQ-122 | Cada pedido a un modelo externo queda en el registro de auditoría con proveedor, modelo, versión de la instrucción, texto enviado y respuesta; el registro de cada evaluación y de cada matriz dice qué etapas corrieron fuera del equipo; con el uso externo apagado el sistema funciona completo | T-288, T-289, T-290, T-291, T-292, T-299, T-300, T-304, T-307 | ○ pendiente |
+| REQ-123 | La matriz de cumplimiento se puede proponer con un modelo externo que lee el pliego completo, con las mismas medidas y la misma lista esperada que la local; se adopta por etapa solo si mejora según el ADR-0065 y, en empate, queda la local | T-291, T-292, T-293, T-294, T-295, T-296, T-297 | ○ pendiente |
+| REQ-124 | Una verificación con modelo externo puede revisar cada «cumple» o «no cumple» propuesto por el modelo local: confirma que la cita sostiene la conclusión y propone la redacción de la pregunta; si no la sostiene, la celda pasa a «no determinado» con pregunta; la verificación nunca convierte un «no determinado» en «cumple» | T-299, T-301, T-302, T-303, T-304, T-305 | ○ pendiente |
+| REQ-125 | Cada paso de la feature (verdad ampliada, simplificación, matriz externa, verificador externo) se mide contra un umbral escrito antes, en la instancia clonada, y se integra solo si lo pasa; la elección local o externa de cada etapa queda en un ADR con su medición | T-270, T-276, T-283, T-284, T-286, T-287, T-293, T-295, T-296, T-298, T-301, T-303, T-304, T-306, T-307 | ○ pendiente |
