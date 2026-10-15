@@ -1,111 +1,127 @@
 # ADR-0064 · Instancia del piloto en la misma notebook, con el motor de generación para una instancia a la vez
 
-Estado: propuesto · Fecha: 2026-10-14 · Propuso: planificador (plan 007) · Decidió: —
+Estado: propuesto (versión 2) · Fecha: 2026-10-14 · Propuso: planificador (plan 007) · Decidió: —
 
 ## Contexto
 
-REQ-117 pide que el proceso en curso, reservado hasta el dictamen, y todo lo que el sistema produce sobre él se procesen solo en el equipo del sistema, con IA local, **en una instancia separada de la que usa la construcción**. Nada de eso se copia al repositorio, a las pruebas, a las mediciones ni a los respaldos de construcción. Los agentes no acceden a esa instancia ni a sus respaldos, salvo la lectura que permite el ADR-0060 mientras dura la estabilización. El criterio de aceptación agrega que, terminada la estabilización, ninguna tarea de construcción (tests, mediciones, respaldos, verificaciones) usa la instancia, su base ni sus respaldos.
+REQ-117 pide que el proceso en curso y todo lo que el sistema produce sobre él se procese solo en el equipo, con IA local, en una instancia separada de la de construcción. Nada de eso va al repositorio, a las pruebas, a las mediciones ni a los respaldos de construcción. Los agentes no acceden a esa instancia, salvo la lectura que permite el ADR-0060 durante la estabilización.
 
-Condiciones del equipo:
+Condiciones (T-049, integrada en `main`):
 
-- **Una notebook** con Windows 11, Docker Desktop y una GPU de 24.463 MiB.
-- **Memoria de la GPU.** El 27B con embeddings y reranker usa 20.956 MiB (entorno de la 015, T-244d). T-049 midió 20.940 MiB con el 27B de una instancia y embeddings y reranker de las dos. Dos 27B no entran.
-- **El 27B tarda de 3 a 10 minutos en cargar.** Detenerlo lleva unos 20 s y puede avisar «did not receive an exit event» (T-049). `nvidia-smi` puede marcar 0 MiB con el modelo cargado (T-049): no sirve como prueba de GPU libre.
-- **El compose dice `name: evaluon`.** Si en otra carpeta falta `COMPOSE_PROJECT_NAME`, cualquier orden de Compose actúa sobre 8000; un `down -v` borraría su base (T-049). La precedencia del nombre es: `-p`, después `COMPOSE_PROJECT_NAME`, después `name:` [1].
-- **La imagen se llama `evaluon-app:local` en todas las copias:** construir en una cambia la de la otra (T-049).
-- **Los agentes** corren con el mismo usuario de Windows, que tiene acceso a Docker.
-- **El repositorio es público.** La carpeta de construcción está en `Documentos`, que en Windows suele sincronizarse con la nube.
-- **La configuración de uso** es la del ADR-0057: el 27B en `generation_batch`, con la Consulta en el mismo motor.
+- **La GPU.** Una notebook con una GPU de 24.463 MiB. Dos 27B no entran. Con el 27B de una instancia y embeddings y reranker de las dos se midieron 20.940 MiB. El dato es de `nvidia-smi`, que T-049 vio marcar 0 MiB con el 27B cargado.
+- **El 27B** tarda de 3 a 10 minutos en cargar. `docker stop` devuelve un error («did not receive an exit event») y el contenedor termina unos 40 s después de la orden, con código 137. Un pedido en curso queda fallido.
+- **El nombre del proyecto.** El compose dice `name: evaluon`. Si una copia no tiene `COMPOSE_PROJECT_NAME`, cualquier orden de Compose en ella actúa sobre 8000, y `down -v` borraría su base. La precedencia es `-p`, `COMPOSE_PROJECT_NAME` y `name:` [1]. Las órdenes de la sección T-043 traen `-p evaluon` (O-049-8).
+- **La imagen.** Se llama `evaluon-app:local` en todas las copias. Los estáticos (CSS y JS) y las dependencias salen de la imagen; el código se monta.
+- **Docker Desktop** corre en la sesión del usuario y en este equipo no arranca solo.
+- **Los agentes** corren con el mismo usuario de Windows, que maneja Docker.
+- **El repositorio es público.**
+- **8000 es la instancia en uso** (construcción y revisión de entregas) y hoy tiene el 27B.
 
 ## Alternativas
 
 ### A. Motores propios; el 27B para una instancia a la vez; embeddings y reranker en las dos
 
-Cada instancia tiene sus motores. Embeddings y reranker quedan siempre encendidos en las dos (entran, según T-049). El motor de generación (`generation_batch`, el 27B) y el `worker` solo corren en una instancia a la vez.
+Cada instancia tiene sus motores. Embeddings y reranker quedan encendidos en las dos. El 27B (`generation_batch`) y el `worker` corren solo en la instancia que tiene el motor. La otra lleva `docker-compose.sin-gpu.yml` en su `COMPOSE_FILE`, que los pone en un perfil que no arranca. La protección es simétrica: ningún `up` ni `run` enciende un segundo 27B, de ningún lado.
 
-Mientras el piloto lo tiene, la construcción usa un archivo de compose que pone su `generation_batch` y su `worker` en un perfil que no arranca: ni `up` ni `run --rm app pytest` encienden un segundo 27B. Para medir, el responsable pasa el motor con un script que:
+`scripts/piloto/gpu.ps1` mueve el motor:
 
-- detiene el de una instancia y enciende el de la otra;
-- comprueba el de destino por `/health` y `/props`, no por `nvidia-smi`.
+- se niega con pedidos en curso;
+- tolera el error de `docker stop` y espera `exited`;
+- cambia `COMPOSE_FILE` de los dos `.env` (sin BOM, con comprobación y vuelta atrás) y de otros archivos de entorno que se le indiquen (el del Coordinador);
+- enciende el destino con `up -d`, espera `/health` y el alias;
+- deja en `motor-gpu.txt` quién tiene el motor.
+
+Los encargos que usan el motor empiezan leyendo ese archivo.
+
+Hay tres variantes de qué pasa con 8000:
+
+- **A1. 8000 sigue como instancia de construcción permanente**, con pantallas y búsqueda, sin evaluaciones, matrices ni Consulta mientras no tenga el motor; los pedidos quedan en espera.
+  - **Se gana:** una pantalla de construcción siempre disponible.
+  - **Se pierde:** 8000 sin IA casi todo el tiempo, y dos instancias permanentes que cuidar.
+- **A2. El piloto es la única instancia permanente.** 8000 se detiene con sus datos guardados, y la construcción mide en instancias temporales con proyecto propio, que se arman y se bajan en cada medición, como hicieron T-268 y T-049.
+  - **Se gana:** una sola instancia que cuidar, y nada que proteger en 8000.
+  - **Se pierde:** no hay una pantalla de construcción siempre disponible para revisar entregas, y cada medición tarda unos minutos más en armarse.
+- **Quién mueve el motor**, en las dos variantes: durante la estabilización, el Coordinador, avisando al responsable; después, solo el responsable.
+  - **Se pierde:** cada medición posterior espera al responsable.
+
+En general, con A:
 
 - **Se gana:**
-  - REQ-117 al pie de la letra: ningún componente que procese el material reservado lo usa la construcción.
-  - Las mediciones no se mezclan con el uso del piloto.
-  - La construcción no puede cambiar el modelo del piloto por medir otro.
-  - El aviso de la Consulta («el sistema está evaluando») sigue viendo la cola correcta.
-- **Se pierde:**
-  - La construcción mide solo cuando el piloto le presta el motor.
-  - Cada cambio tarda de 3 a 10 minutos.
-  - Mientras tanto el piloto no evalúa ni arma matrices.
-  - Terminada la estabilización, el cambio lo hace el responsable.
+  - REQ-117 al pie de la letra;
+  - mediciones sin mezclarse con el uso del piloto;
+  - la construcción no cambia el modelo del piloto;
+  - el aviso de la Consulta ve la cola correcta.
+- **Se pierde:** de 3 a 10 minutos de carga, más unos 40 s, en cada cambio; el piloto sin evaluar mientras presta el motor.
 
 ### B. Un solo motor compartido
 
-Un `generation_batch` en un proyecto aparte, o del piloto, al que llegan las dos instancias por una red de Docker compartida.
-
-- **Se gana:** no hay que alternar; las dos instancias tienen IA siempre.
+- **Se gana:** nada que alternar.
 - **Se pierde:**
-  - El material reservado lo procesa un componente que también usa la construcción: choca con «instancia separada» y con «ninguna usa esa instancia».
-  - El motor atiende de a un pedido (`--parallel 1`): una medición de una hora frena al piloto, y al revés.
-  - Medir otro modelo cambia el del piloto.
-  - El aviso de la Consulta de cada instancia solo ve su propia cola.
-  - La caché de pedidos del motor guarda texto del piloto en un servicio que los agentes de construcción manejan.
-
-Necesitaría que el responsable lea REQ-117 como «separada salvo la IA».
+  - el material reservado lo procesa un componente que la construcción también usa;
+  - con `--parallel 1`, una medición frena al piloto, y al revés;
+  - medir otro modelo cambia el del piloto;
+  - el aviso de la Consulta de cada instancia solo ve su propia cola;
+  - la caché del motor guarda texto del piloto en un servicio que manejan los agentes.
 
 ### C. Otro equipo para el piloto
 
-- **Se gana:** separación total, también de los agentes, y nada que alternar.
-- **Se pierde:** un segundo equipo con GPU, que hoy no existe, y la decisión de correr «en el equipo del sistema».
+- **Se gana:** separación total.
+- **Se pierde:** un segundo equipo con GPU, que no existe.
 
 ## Decisión
 
-Se propone **A**, con estas medidas de separación:
+Se propone **A con A1**: 8000 sigue como instancia de construcción. Durante la estabilización el motor lo mueve el Coordinador avisando; después, el responsable. A2 queda como alternativa para el responsable (punto 3 del plan). Medidas de separación:
 
 | | Construcción | Piloto |
 |---|---|---|
-| Carpeta | la de siempre | `C:\EVALUON-piloto\evaluon\`, un clon en el commit desplegado, fuera del perfil de usuario y de toda carpeta sincronizada |
-| Proyecto | `evaluon` | `evaluon-piloto`, por tres vías: `COMPOSE_PROJECT_NAME` en su `.env`, `name:` en `docker-compose.piloto.yml`, y `scripts/piloto/compose.ps1`, que comprueba las dos y llama a Docker con `-p evaluon-piloto`. El runbook del piloto no usa `docker compose` directo |
-| Imagen | `evaluon-app:local` | `evaluon-app:piloto` |
+| Carpeta | la de siempre | `C:\EVALUON-piloto\evaluon\`, un clon en el commit desplegado, con la herencia de permisos cortada, fuera del perfil de usuario y de carpetas sincronizadas |
+| Proyecto | `evaluon` | `evaluon-piloto`, por tres vías: `COMPOSE_PROJECT_NAME`, `name:` en `docker-compose.piloto.yml` y `scripts/piloto/compose.ps1` |
+| Imagen | `evaluon-app:local` | `evaluon-app:piloto`, reconstruida en cada actualización (los estáticos salen de ella) |
 | Base y volúmenes | `evaluon_*` | `evaluon-piloto_*` |
 | Puerto | `127.0.0.1:8000` | `127.0.0.1:8100`, solo para el intermediario (ADR-0061) |
-| Secretos | propios | otros `POSTGRES_PASSWORD` y `DJANGO_SECRET_KEY` |
-| Respaldos | `backups/` | `C:\EVALUON-piloto\respaldos\`, con un script que rechaza destinos dentro de una copia de Git o del perfil |
-| Modelos | `models/` | copia propia, verificada con las huellas de `scripts/models.sha256` (con fin de línea LF) |
+| Secretos | propios | propios |
+| Respaldos | `backups/` | `C:\EVALUON-piloto\respaldos\`, diarios, con retención y copia fuera del equipo |
+| Modelos | `models/` | enlaces duros o copia, verificados con `tr -d '\r' < ../scripts/models.sha256 \| sha256sum -c --ignore-missing -`; `scripts/models.sha256` con fin de línea LF por `.gitattributes`, porque con CRLF falla `sha256sum -c` y el `awk` de WSL |
 | Repositorio | publica por pull request | el clon no tiene dirección de envío |
 
-**Agentes.** Durante la estabilización pueden leer la instancia del piloto (ADR-0060), sin llevar nada al repositorio ni a las pruebas.
+`compose.ps1` siempre llama con `--project-directory`, `--env-file` y `-p evaluon-piloto` fijos. Se niega si el `.env` no es del piloto. Rechaza `-p`, `-f`, `--env-file`, `--project-directory`, `down -v`, `rm -v` y `volume rm`. Vaciar la base se hace con `vaciar-base.ps1`, que exige un respaldo reciente y una confirmación escrita.
 
-Al terminar, el responsable aplica el procedimiento de cierre que deja T-276:
+**Despliegue (P11).** La instancia del piloto es el destino del despliegue de la 007. El proceso reservado se carga solo después de la aceptación, del dictamen de auditoría sin hallazgos bloqueantes y de la aprobación del despliegue. Cada actualización posterior, con `actualizar.ps1`, también la aprueba el responsable.
 
-- reglas de denegación en la configuración de permisos de Claude Code del equipo (leer la carpeta del piloto, Docker sobre su proyecto);
-- cambio de la clave de la base y de la clave secreta del piloto;
-- aviso al Coordinador para que no dé encargos sobre el piloto.
+**Agentes.** Durante la estabilización pueden leer el piloto, sin llevar nada al repositorio ni a las pruebas. Al terminarla, el responsable aplica la lista de cierre:
 
-Es una separación **de procedimiento**: con el mismo usuario de Windows y Docker Desktop, un proceso de ese usuario puede entrar a los contenedores. La separación técnica exige que los agentes usen otro usuario de Windows sin acceso a Docker, u otro equipo. Lo decide el responsable.
+- reglas de denegación en Claude Code: carpeta, Docker sobre el proyecto y pedidos a la dirección del piloto y a `127.0.0.1:8100`;
+- `ALTER ROLE` de la base, porque cambiar el `.env` solo no alcanza;
+- una `DJANGO_SECRET_KEY` nueva;
+- `clave_inicial` para los usuarios cuya clave pasó por un agente.
+
+T-285 lo verifica con un agente que intenta y es rechazado. Es una separación de procedimiento: con el mismo usuario de Windows y Docker Desktop, un proceso de ese usuario puede entrar a los contenedores. La técnica exige otro usuario de Windows sin Docker para los agentes, u otro equipo (decisión del responsable).
 
 ## Consecuencias
 
 Más fácil:
 
-- Probar que la construcción no usa el piloto: otro nombre de proyecto, otra carpeta y otros volúmenes, que los tests y la revisión pueden buscar.
-- Las mediciones siguen siendo de un modelo y una cola conocidos.
+- Probar que la construcción no usa el piloto.
+- Mediciones de un modelo y una cola conocidos.
+- Ninguna orden de rutina puede encender dos 27B ni borrar la base del piloto.
 
 Más difícil:
 
-- Hay que alternar el motor para medir.
-- El responsable carga con pasos de operación: el cambio de motor, los respaldos del piloto y el cierre de la estabilización.
-- Queda el riesgo de una orden de Compose escrita a mano en la carpeta del piloto sin el script. Proteger la base de 8000 contra `down -v` queda como pendiente fuera del alcance de esta feature.
+- Alternar el motor para medir.
+- Los pasos de operación del responsable después de la estabilización.
+- Queda el riesgo de una orden de Compose escrita a mano en la carpeta del piloto, sin el script: proteger el volumen de 8000 queda como pendiente fuera de alcance.
 
-Para revertir: el piloto se apaga con su script y sus volúmenes quedan. Pasar a B exige una red compartida y que el responsable acepte la lectura de REQ-117.
+Para revertir: el piloto se detiene con sus scripts y sus volúmenes quedan. Pasar a B exige una red compartida y que el responsable acepte la lectura de REQ-117.
 
 ## Sin verificar
 
-- La cifra de 20.940 MiB de T-049 se tomó con `nvidia-smi`, que el mismo T-049 vio fallar con el 27B cargado. T-278 comprueba en las dos direcciones que el 27B carga con embeddings y reranker de las dos instancias encendidos. Si no carga, el archivo de construcción suma embeddings y reranker a su perfil.
-- Que `COMPOSE_PROJECT_NAME` tomado del `.env` pese más que el `name:` del archivo. La documentación [1] lo pone como variable de entorno, sin nombrar el `.env`; T-049 lo usó con éxito.
+- Que el 27B cargue con embeddings y reranker de las dos instancias encendidos, en las dos direcciones. T-278 lo comprueba con `/health`, `utilization.gpu` y el registro del motor. Si no carga, el archivo sin GPU suma esos dos servicios al perfil.
+- Que `COMPOSE_PROJECT_NAME` del `.env` pese más que `name:`: T-049 lo usó con éxito.
+- Que la versión de Compose del equipo (5.5.1, según T-049) acepte `!override` y `!reset`, que usa T-284.
 
 ## Fuentes
 
 Consultadas el 2026-10-14.
 
 1. Docker Compose, «Specify a project name»: https://docs.docker.com/compose/how-tos/project-name/
+2. `specs/001-normativa/entorno.md`, «Datos para el runbook (T-049)» y «Pendientes del despliegue» (en `main`, b6dec485)

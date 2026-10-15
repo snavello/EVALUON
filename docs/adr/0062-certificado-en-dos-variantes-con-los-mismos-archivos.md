@@ -1,78 +1,80 @@
 # ADR-0062 · Certificado de la conexión cifrada en dos variantes, con los mismos archivos
 
-Estado: propuesto · Fecha: 2026-10-14 · Propuso: planificador (plan 007) · Decidió: —
+Estado: propuesto (versión 2) · Fecha: 2026-10-14 · Propuso: planificador (plan 007) · Decidió: —
 
 ## Contexto
 
-REQ-110 pide que el navegador de las computadoras autorizadas no muestre advertencias al entrar. Para eso, el certificado que presenta el intermediario (ADR-0061) tiene que estar firmado por una autoridad en la que esas computadoras confíen, y nombrar la dirección con la que se entra (un nombre del DNS interno o la dirección IP del equipo).
+REQ-110 pide que el navegador de las computadoras autorizadas no muestre advertencias. Para eso, el certificado del intermediario (ADR-0061) tiene que estar firmado por una autoridad en la que esas computadoras confíen y nombrar la dirección con la que se entra: un nombre del DNS interno o la IP del equipo.
 
-El responsable dejó el origen abierto («Todavía no sé»): un certificado emitido por el área de sistemas del organismo, o uno propio instalado una vez en cada computadora. El plan tiene que preparar las dos variantes y permitir pasar de una a otra sin tocar el código.
+El responsable dejó el origen abierto («Todavía no sé»): certificado del área de sistemas, o propio instalado una vez en cada computadora. El plan prepara las dos variantes y permite pasar de una a otra sin tocar el código.
 
 Condiciones:
 
-- **Sin internet (P4).** No se piden certificados a servicios externos.
-- **Computadoras del organismo.** Una política de grupo puede impedir que los usuarios agreguen autoridades raíz [1]. Por usuario, sin ser administrador, se puede instalar una raíz en el almacén del usuario actual [2]. Instalar una raíz es algo que las herramientas de seguridad vigilan [3].
-- **Navegadores.** Edge y Chrome en Windows usan el almacén de Windows. Firefox puede necesitar que se habilite el uso de ese almacén [4]. El navegador de la Comisión no se conoce.
-- **Una autoridad propia instalada en una computadora** permite, a quien tenga su clave, hacerse pasar por cualquier sitio ante esa computadora. Hay que acotarla.
-- **Norton intercepta las conexiones cifradas en el equipo del sistema** (T-049). Un producto así en las computadoras de la Comisión haría que el navegador vea su certificado y no el de EVALUON.
+- **Sin internet (P4).**
+- **Computadoras del organismo:**
+  - una política de grupo puede impedir que los usuarios agreguen autoridades raíz [1];
+  - por usuario, sin administrador, se puede instalar una raíz en el almacén del usuario actual [2];
+  - instalar una raíz es algo que vigilan las herramientas de seguridad [3].
+- **Navegadores:**
+  - Edge y Chrome toman las raíces del almacén de Windows, pero, según la revisión del plan, verifican la cadena con su propio verificador: por eso las restricciones se prueban en el navegador, no solo con `certutil`;
+  - Firefox 120 o posterior confía por omisión en las autoridades agregadas al almacén de Windows, salvo que se desactive [4].
+- **Una autoridad instalada como raíz vale para todo lo que no se le limite.** Hay que limitarle el uso (solo servidor) y los nombres (solo EVALUON), y proteger su clave.
+- **Inspección de conexiones cifradas.** Un antivirus o un proxy que la haga en las computadoras de la Comisión haría que el navegador vea su certificado. En el equipo del sistema ya no hay ninguno: Norton se desinstaló el 2026-10-14.
 
 ## Alternativas
 
-### A. Certificado emitido por el área de sistemas (autoridad interna del organismo)
+### A. Certificado del área de sistemas (autoridad interna del organismo)
+
+Mejor con un pedido de firma (CSR) generado en el equipo: la clave no sale del equipo y el certificado vale solo para EVALUON, sin comodín.
+
+- **Se gana:** las computadoras ya confían; la renovación y la revocación son del organismo.
+- **Se pierde:** depende de sus tiempos, casi siempre pide un nombre en su DNS, y la renovación sigue su política. Si entregan un PFX, su frase tiene que llegar aparte.
+
+### B. Autoridad propia de EVALUON, limitada, con la raíz instalada una vez por computadora
+
+Un script con el `openssl` de Git para Windows crea la autoridad:
+
+- 3 años;
+- `CA:TRUE` con `pathlen:0`;
+- uso extendido solo de autenticación de servidor (`extendedKeyUsage=serverAuth`), que Windows aplica a toda la cadena;
+- restricciones de nombre críticas de **los dos tipos**: direcciones IP, solo las /32 de EVALUON y del equipo, con IPv6 excluido; nombres DNS, solo el de EVALUON o, si no hay nombre, un subárbol que no puede existir (`.invalid`). Una restricción que nombra un solo tipo deja libre al otro.
+
+Su clave va cifrada con AES-256 y una frase de paso, en una unidad extraíble del responsable; el script se niega a dejarla en el disco del sistema. El certificado del servidor (397 días) se renueva sin tocar las computadoras.
 
 - **Se gana:**
-  - Las computadoras ya confían en esa autoridad: no se instala nada en ellas.
-  - La renovación y la revocación son del organismo.
+  - se puede empezar ya;
+  - no depende de nadie;
+  - funciona con la dirección IP;
+  - si la clave se filtrara, solo serviría para EVALUON y para servidor.
 - **Se pierde:**
-  - Depende de los tiempos del área de sistemas.
-  - Casi siempre pide un nombre en su DNS.
-  - La clave privada viaja del área al equipo y hay que entregarla con cuidado.
-  - El formato puede ser PFX (se convierte una vez).
-
-### B. Autoridad propia de EVALUON, con restricción de nombre; raíz instalada una vez por computadora
-
-Un script (`openssl` de Git para Windows) crea dos cosas:
-
-- **Una autoridad de 10 años**, que solo firma certificados de servidor y lleva una restricción de nombre crítica: solo vale para la dirección de EVALUON y la del equipo.
-- **El certificado del servidor**, de 397 días, firmado por ella.
-
-La raíz se instala una vez en cada computadora. El certificado del servidor se renueva en el equipo sin tocarlas. La clave de la autoridad se guarda fuera del equipo (un pendrive) y se usa solo para renovar.
-
-- **Se gana:**
-  - Se puede empezar ya (el corte vertical no espera al área de sistemas).
-  - No depende de nadie.
-  - Funciona con la dirección IP, sin DNS.
-  - Si la clave de la autoridad se filtrara, la restricción de nombre impide usarla para otros sitios.
-- **Se pierde:**
-  - Instalar la raíz en cada computadora: administrador, o el área de sistemas por política. Por usuario, si la política lo permite.
-  - Un antivirus o un EDR puede marcar la instalación.
-  - Hay que custodiar la clave de la autoridad.
-  - Hay que renovar el certificado del servidor cada año.
-  - El soporte de la restricción de nombre en Windows, Edge y Chrome se comprueba en T-271.
+  - instalar la raíz en cada computadora (administrador, o el área por política);
+  - un antivirus puede marcarla;
+  - custodiar la autoridad;
+  - renovar el certificado cada año y la autoridad cada 3 (con reinstalación en las computadoras).
 
 ### C. Autoridad interna de Caddy (`tls internal`)
 
-Caddy crea su autoridad y renueva solo certificados de vida corta.
-
-- **Se gana:** nada que programar y renovación automática.
+- **Se gana:** renovación automática.
 - **Se pierde:**
-  - Sin restricción de nombre: quien tenga la clave puede hacerse pasar por cualquier sitio ante esas computadoras.
-  - La clave de la autoridad queda en el equipo, accesible a cualquier administrador, y a los agentes durante la estabilización (ADR-0060).
-  - Pasar a A cambia la configuración y no solo dos archivos.
+  - sin restricciones de nombre ni de uso;
+  - la clave de la autoridad queda en el equipo, accesible a cualquier administrador y a los agentes durante la estabilización;
+  - pasar a A cambia la configuración.
 
-### D. Certificado autofirmado, sin autoridad
+### D. Certificado autofirmado sin autoridad
 
-- **Se gana:** un solo archivo.
 - **Se pierde:** cada renovación obliga a reinstalarlo en todas las computadoras. Descartada.
 
 ## Decisión
 
-Se propone **A y B, con los mismos dos archivos**.
+Se propone **A y B, con los mismos dos archivos**:
 
-1. El intermediario lee siempre `C:\EVALUON-piloto\certificados\evaluon.crt` (certificado con su cadena) y `evaluon.key`. La variante es quién produjo esos archivos.
-2. **Se empieza con B**, con el corte vertical. `scripts/red/crear-certificados.sh` crea la autoridad con la restricción de nombre (una sola vez) y el certificado del servidor, y muestra la huella de la raíz para cotejarla en cada computadora. La carpeta de la autoridad se guarda fuera del equipo.
-3. **Se pasa a A** cuando el área de sistemas entregue su certificado: se reemplazan los dos archivos (si viene en PFX, se convierte con `openssl pkcs12`), se corre `aplicar-red.ps1`, que recarga el intermediario, y se puede quitar la raíz propia de cada computadora. No se toca el código.
-4. Al área de sistemas se le pide: el certificado (A), o que instale la raíz por política o permita instalarla (B), y en los dos casos que el antivirus o el proxy no intercepten la dirección de EVALUON.
+1. El intermediario lee siempre `C:\ProgramData\EVALUON-Red\certificados\evaluon.crt` (con la cadena) y `evaluon.key`. Solo los administradores escriben esa carpeta, y solo el servicio y los administradores la leen. Los archivos nuevos llegan por `C:\EVALUON-piloto\entrada\` y los mueve `aplicar-red.ps1`.
+2. **Se empieza con B** con el corte vertical. `scripts/red/crear-certificados.sh`:
+   - crea la autoridad limitada (una vez) y el certificado del servidor;
+   - muestra la huella de la raíz para cotejarla en cada computadora;
+   - con `--prueba-otro-nombre`, crea un certificado fuera de la restricción, para comprobar en el navegador que se rechaza.
+3. **Se pasa a A** cuando el área de sistemas firme el pedido que genera `crear-certificados.sh --pedido`: se ponen los archivos en `entrada\`, se corre `aplicar-red.ps1`, y se puede quitar la raíz propia de las computadoras. No se toca el código.
+4. Al área de sistemas se le pide: firmar el pedido, o instalar la raíz por política (o permitirla); que el antivirus o el proxy no intercepten la dirección de EVALUON; y que los navegadores no desactiven el uso de las raíces de Windows.
 
 ## Consecuencias
 
@@ -80,25 +82,26 @@ Más fácil:
 
 - El corte vertical y el piloto no esperan al organismo.
 - Cambiar de variante es una operación de archivos.
+- Una filtración de la autoridad queda acotada.
 
 Más difícil:
 
-- Con B, la instalación de la raíz y la renovación anual quedan a cargo del responsable, que guarda la autoridad.
-- Con B hay una autoridad propia en computadoras del organismo: acotada por la restricción de nombre, pero hay que explicarla al área de sistemas.
+- Con B, la instalación de la raíz y las renovaciones son del responsable, que guarda la autoridad y su frase.
+- Hay una autoridad propia en computadoras del organismo: limitada, pero hay que explicarla.
 
-Para revertir: reemplazar los archivos por los de la otra variante y quitar la raíz propia de las computadoras.
+Para revertir: reemplazar los archivos y quitar la raíz propia.
 
 ## Sin verificar
 
-- El soporte de la restricción de nombre para una dirección IP y para un nombre en Windows, Edge y Chrome vigentes. T-271 lo comprueba con un certificado de prueba para otro nombre.
-- Si Firefox usa hoy, por omisión, las autoridades del almacén de Windows. Las fuentes consultadas [4] no lo confirman.
-- Las guías de Microsoft sobre la política de grupo [1] son de versiones viejas de Windows Server. No se verificó cómo la aplican las versiones actuales.
+- Que Edge y Chrome vigentes rechacen el certificado fuera de la restricción para una dirección IP y para un nombre. Lo prueba T-271 en el navegador, con `certutil -verify` como complemento.
+- Las guías de Microsoft sobre la política de grupo [1] son de versiones viejas de Windows Server.
+- El dato de que Chrome y Edge verifican con su propio verificador viene de la revisión del plan y no lo verifiqué en una fuente propia: por eso la prueba es en el navegador.
 
 ## Fuentes
 
 Consultadas el 2026-10-14.
 
 1. Microsoft, «Prevent users from selecting new root certification authorities with a Group Policy»: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2003/cc781964(v=ws.10)
-2. Certificate Depot, instalación de una raíz en el almacén del usuario actual: https://cert-depot.com/guides/trust-self-signed-cert-windows
+2. Certificate Depot, raíz en el almacén del usuario actual: https://cert-depot.com/guides/trust-self-signed-cert-windows
 3. Regla Sigma «New Root Certificate Installed Via Certutil.EXE»: https://detection.fyi/sigmahq/sigma/windows/process_creation/proc_creation_win_certutil_certificate_installation/
-4. Mozilla, «CA:AddRootToFirefox»: https://wiki.mozilla.org/CA/AddRootToFirefox
+4. Mozilla, «Set up Certificate Authorities (CAs) in Firefox»: https://support.mozilla.org/en-US/kb/setting-certificate-authorities-firefox

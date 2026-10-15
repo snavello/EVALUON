@@ -63,7 +63,7 @@ flowchart LR
 | [004 · Evaluación asistida de ofertas](#004) | Por cada oferta y cada requisito de la matriz, una propuesta de cumple, no cumple o no determinado con su fundamento (pliego, oferta, compliance, normativa o respuesta de la Comisión) y preguntas a la Comisión sobre lo que no puede resolver; la Comisión confirma, corrige o rechaza | 5 de 7 · Verificación | 30/30 | ██████████ 100% |
 | 005 · Hojas de compliance | La carga, por la Comisión, del documento de compliance de cada oferta: lo verificado en sistemas no integrados (por ejemplo, que la póliza de garantía presentada esté vigente o que no haya deudas) | No iniciada | — | — |
 | 006 · Salidas de la evaluación | Planilla por oferta y cuadro comparativo; el borrador de acta queda diferido | No iniciada | — | — |
-| [007 · Acceso por red](#007) | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | 2 de 7 · Plan | 0/11 | ░░░░░░░░░░ 0% |
+| [007 · Acceso por red](#007) | Uso de la pantalla desde otras computadoras, con conexión cifrada y bloqueo tras intentos fallidos de clave | 2 de 7 · Plan | 0/17 | ░░░░░░░░░░ 0% |
 | [008 · Ofertas y ficha por oferta](#008) | La carga de cada oferta en varios documentos (PDF con texto o escaneado) y una ficha por oferta: síntesis de lo ofrecido frente a cada requisito de la matriz, con los documentos y fragmentos que lo respaldan | 5 de 7 · Verificación | 8/8 | ██████████ 100% |
 | 009 · Validación continua con la Comisión | Un circuito único para que la Comisión responda y valide preguntas y respuestas del sistema, y registre sus respuestas. Cada cuestión resuelta puede quedar como fundamento (ADR-0009), como caso para medir al sistema o como pedido de cargar una norma o un documento. Lo que queda sin validar se ve como pendiente. Uso intensivo al principio, y después ante cuestiones que no se saben resolver | No iniciada | — | — |
 | 010 · Asistente técnico | Un asistente que compara la parte técnica de cada oferta con las especificaciones del pliego, renglón por renglón, para ayudar a la Comisión a revisar el informe técnico del área requirente. No es vinculante: el resultado técnico sigue siendo el del área requirente | No iniciada | — | — |
@@ -826,17 +826,23 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Aprobar el plan (compuerta del responsable).
-- ○ T-269 · Modo HTTPS detrás del intermediario (cookies seguras, protocolo que informa el intermediario) y esqueleto de la instancia del piloto: `docker-compose.piloto.yml` con nombre de proyecto e imagen propios, bloque del piloto en `.env.example` con `COMPOSE_PROJECT_NAME`, y `scripts/piloto/compose.ps1`, que no deja correr Compose en la carpeta del piloto sin su nombre de proyecto (hallazgo de T-049) (pendiente)
-- ○ T-270 · Intermediario cifrado en Windows: generador del `Caddyfile` desde el `.env` (lista de hasta 10 computadoras, corte de las demás, redirección, encabezados de origen), script que aplica la lista al firewall y al intermediario, instalación de Caddy con versión y huella fijas, certificados propios con restricción de nombre, revisión de puertos y pasos del responsable en `entorno.md` (pendiente)
-- ○ T-271 · Prueba del corte vertical en la red, con el responsable: el ingreso servido cifrado a una computadora de la lista con un usuario de prueba, sin advertencias, `http` redirigido sin contenido, la clave ilegible en el tráfico, 0 páginas para una computadora de fuera, 0 servicios internos abiertos, una computadora que se saca y se vuelve a poner sin tocar el código (pendiente)
-- ○ T-272 · Esquema de acceso (campos del usuario y cinco tipos de hecho, una sola tarea) y bloqueo: 5 fallidos seguidos bloquean 15 minutos aunque después se escriba la clave correcta, mismo mensaje para inexistente, clave equivocada y bloqueado, igual por comando (pendiente)
-- ○ T-273 · Computadora de origen en cada hecho de acceso (pantalla, intermediario y comando), registro de la salida, comandos `desbloquear_usuario` y `ver_accesos` para el responsable del sistema (pendiente)
-- ○ T-274 · Cierre de la sesión a los 30 minutos sin uso y a las 8 horas, sin contar el sondeo de la pantalla; la cookie sigue venciendo al cerrar el navegador; el cierre queda registrado con su motivo (pendiente)
-- ○ T-275 · Cambio de clave por pantalla con la clave actual, 8 caracteres como mínimo y sin claves comunes; clave inicial obligatoria de cambiar en el primer ingreso (también frena los comandos); comando `clave_inicial`; la clave actual equivocada cuenta para el bloqueo (pendiente)
-- ○ T-276 · Instancia separada del piloto: compose de construcción sin el 27B mientras el piloto lo tiene, script para pasar el motor de una instancia a la otra, respaldo del piloto en su carpeta, clon sin publicación, `scripts/models.sha256` con fin de línea LF, procedimiento de instalación y de cierre de la estabilización (pendiente)
-- ○ T-277 · Herramienta de medición de carga: 10 sesiones a la vez por el intermediario, con el sondeo de la pantalla, y la línea de base con una sola sesión en el equipo; mediana, p95 y máximo por página (pendiente)
-- ○ T-278 · Prueba de aceptación en la red, con el responsable: el caso chico en 5 de 5 secciones desde una computadora de la lista, todos los umbrales del plan (cifrado, lista, servicios internos, bloqueo, registro, clave, inactividad, carga) y la separación de la instancia del piloto (pendiente)
-- ○ T-279 · Ronda de ajuste única, solo si T-278 no llega a algún umbral: todos los hallazgos en una sola tarea, un commit por hallazgo, y repetición de lo que falló; se cierra sin cambios si T-278 cumple todo (pendiente)
+- ○ T-269 · Modo HTTPS detrás del intermediario (cookies seguras, protocolo del intermediario, sin arrancar con depuración), esqueleto de la instancia del piloto (`docker-compose.piloto.yml` con nombre e imagen propios, bloque del piloto en `.env.example`) y `scripts/piloto/compose.ps1`, que fija el proyecto y rechaza las órdenes peligrosas (pendiente)
+- ○ T-270 · Intermediario en Windows: generador del `Caddyfile` y de la lista (hasta 10), plantilla endurecida, instalación con permisos y servicio `LocalService`, aplicación de la lista al firewall y al intermediario, desinstalación, autoridad propia limitada y pedido de firma, y pasos del responsable en `entorno.md` (pendiente)
+- ○ T-271 · Prueba del corte vertical en la red, con el responsable: ingreso cifrado a una computadora de la lista con un usuario de prueba, el pliego del caso chico subido desde ella, sin advertencias, `http` redirigido, la clave ilegible en el tráfico, 0 páginas desde fuera de la lista, 0 servicios internos, inventario de puertos y la restricción de la autoridad (pendiente)
+- ○ T-281 · Corrección única del corte vertical, solo si T-271 no llega: todos los hallazgos en una tarea, un commit por hallazgo, y T-271 repetida completa una vez como verificación. Se cierra sin cambios si T-271 cumple todo (pendiente)
+- ○ T-272 · Esquema de acceso (una sola tarea) y bloqueo: 5 fallidos seguidos bloquean 15 minutos con el mismo mensaje y el mismo tiempo de respuesta, decidido dentro de una transacción con la fila bloqueada, con el backend propio como único backend, igual por comando (pendiente)
+- ○ T-273 · Computadora de origen en cada hecho de acceso, registro de la salida, comandos de administración en el equipo (`desbloquear_usuario`, `ver_accesos`, `responsable_sistema`) y claves de formulario prohibidas en el registro (pendiente)
+- ○ T-274 · Cierre de la sesión a los 30 minutos sin uso y a las 8 horas; el sondeo y las tres recargas automáticas no cuentan como uso (un test por pantalla); salidas de las sesiones vencidas (punto 6) (pendiente)
+- ○ T-275 · Cambio de clave que respeta el bloqueo y rechaza claves cortas, comunes o iguales a la actual; clave inicial obligatoria, también para los comandos; `clave_inicial`; `changepassword` y `createsuperuser` reemplazados (pendiente)
+- ○ T-282 · Pantalla «Registro de accesos» con el botón de desbloquear, solo para el responsable del sistema (punto 1) (pendiente)
+- ○ T-276 · Instancia separada del piloto: motor para una instancia a la vez con protección simétrica y `gpu.ps1` seguro, respaldos programados, vaciado con respaldo, actualización como despliegue, `scripts/models.sha256` en LF, instalación, reinicio, clave olvidada y cierre de la estabilización en `instancia-piloto.md` (pendiente)
+- ○ T-283 · Usuario de la base de la aplicación del piloto sin propiedad de las tablas, que en el registro solo lee y agrega (punto 4) (pendiente)
+- ○ T-284 · Aplicación del piloto en una red sin salida a internet, con una puerta que solo la une con el intermediario (punto 4) (pendiente)
+- ○ T-277 · Herramienta de medición: carga con 10 sesiones a la vez y el sondeo, línea de base de una sesión medida dos veces, tiempos de respuesta del ingreso, preparación de los usuarios de carga (pendiente)
+- ○ T-278 · Prueba de aceptación en la red, con el responsable: el caso chico en 5 de 5 secciones desde una computadora de la lista y todos los umbrales del plan, incluido el cierre del navegador real y la separación durante la estabilización (pendiente)
+- ○ T-279 · Corrección única de la aceptación, solo si T-278 no llega: todos los hallazgos en una tarea, un commit por hallazgo, verificada por el testeador. Se cierra sin cambios si T-278 cumple todo (pendiente)
+- ○ T-280 · Repetición completa de T-278 sobre el commit corregido, solo si hubo T-279 (pendiente)
+- ○ T-285 · Verificación del cierre de la estabilización, cuando el responsable la dé por terminada: lista de cierre aplicada y un agente que intenta entrar al piloto y es rechazado (pendiente)
 
 ### Qué se hizo
 
@@ -847,29 +853,43 @@ flowchart LR
 ```mermaid
 flowchart TD
   T269["○ T-269 · Modo HTTPS detrás del intermediario (cookie…"]:::todo
-  T270["○ T-270 · Intermediario cifrado en Windows: generador…"]:::todo
+  T270["○ T-270 · Intermediario en Windows: generador del Cad…"]:::todo
   T271["○ T-271 · Prueba del corte vertical en la red, con el…"]:::todo
-  T272["○ T-272 · Esquema de acceso (campos del usuario y cin…"]:::todo
+  T281["○ T-281 · Corrección única del corte vertical, solo s…"]:::todo
+  T272["○ T-272 · Esquema de acceso (una sola tarea) y bloque…"]:::todo
   T273["○ T-273 · Computadora de origen en cada hecho de acce…"]:::todo
   T274["○ T-274 · Cierre de la sesión a los 30 minutos sin us…"]:::todo
-  T275["○ T-275 · Cambio de clave por pantalla con la clave a…"]:::todo
-  T276["○ T-276 · Instancia separada del piloto: compose de c…"]:::todo
-  T277["○ T-277 · Herramienta de medición de carga: 10 sesion…"]:::todo
+  T275["○ T-275 · Cambio de clave que respeta el bloqueo y re…"]:::todo
+  T282["○ T-282 · Pantalla «Registro de accesos» con el botón…"]:::todo
+  T276["○ T-276 · Instancia separada del piloto: motor para u…"]:::todo
+  T283["○ T-283 · Usuario de la base de la aplicación del pil…"]:::todo
+  T284["○ T-284 · Aplicación del piloto en una red sin salida…"]:::todo
+  T277["○ T-277 · Herramienta de medición: carga con 10 sesio…"]:::todo
   T278["○ T-278 · Prueba de aceptación en la red, con el resp…"]:::todo
-  T279["○ T-279 · Ronda de ajuste única, solo si T-278 no lle…"]:::todo
+  T279["○ T-279 · Corrección única de la aceptación, solo si…"]:::todo
+  T280["○ T-280 · Repetición completa de T-278 sobre el commi…"]:::todo
+  T285["○ T-285 · Verificación del cierre de la estabilizació…"]:::todo
   T269 --> T271
   T270 --> T271
-  T269 --> T272
+  T271 --> T281
+  T281 --> T272
   T272 --> T273
   T273 --> T274
   T274 --> T275
-  T269 --> T276
-  T270 --> T277
-  T271 --> T278
+  T275 --> T282
+  T281 --> T276
+  T272 --> T283
+  T276 --> T283
+  T283 --> T284
+  T281 --> T277
   T275 --> T278
   T276 --> T278
   T277 --> T278
+  T282 --> T278
+  T284 --> T278
   T278 --> T279
+  T279 --> T280
+  T278 --> T285
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -881,15 +901,15 @@ flowchart TD
 
 | Requisito | Descripción | Tareas | Estado |
 |---|---|---|---|
-| REQ-109 | La aplicación se puede usar desde las computadoras de una lista de autorizadas que mantiene el responsable del sistema, con una dirección fija, las mismas pantallas y los mismos roles que en el equipo del sistema. Desde las demás computadoras de la red no se llega a la aplicación. Agregar o quitar una computadora no requiere cambiar el código | T-269, T-270, T-271, T-277, T-278, T-279 | ○ pendiente |
-| REQ-110 | Toda comunicación entre la computadora del usuario y EVALUON va cifrada. Un pedido sin cifrar no muestra contenido: se redirige a la dirección cifrada. El navegador de las computadoras autorizadas no muestra advertencias de seguridad al entrar | T-269, T-270, T-271, T-278, T-279 | ○ pendiente |
-| REQ-111 | Tras 5 intentos fallidos seguidos para un mismo usuario, ese usuario queda bloqueado durante 15 minutos, aunque después se escriba la clave correcta. El mensaje de rechazo es el mismo para usuario inexistente, clave equivocada y usuario bloqueado. Las mismas reglas valen para los comandos que piden usuario y clave | T-272, T-275, T-278, T-279 | ○ pendiente |
-| REQ-112 | El responsable del sistema puede desbloquear un usuario antes de que venza el plazo; el desbloqueo queda registrado con quién lo hizo y cuándo | T-273, T-278, T-279 | ○ pendiente |
-| REQ-113 | Cada ingreso, salida, intento fallido, bloqueo y desbloqueo queda registrado con el usuario (o el nombre tal como se escribió), la computadora de origen, la fecha y la hora, y el responsable del sistema lo puede consultar | T-273, T-274, T-278, T-279 | ○ pendiente |
-| REQ-114 | Cada usuario puede cambiar su clave; para hacerlo escribe la actual. El sistema exige una clave nueva de al menos 8 caracteres y rechaza las muy comunes. Un usuario dado de alta con clave inicial debe cambiarla en su primer ingreso | T-275, T-278, T-279 | ○ pendiente |
-| REQ-115 | Una sesión sin uso durante 30 minutos se cierra; también se cierra a las 8 horas de iniciada y al cerrar el navegador. Lo que el usuario ya guardó no se pierde | T-274, T-278, T-279 | ○ pendiente |
-| REQ-116 | Desde otra computadora solo se llega a la aplicación: la base de datos, los motores de IA y los demás servicios internos no aceptan conexiones de fuera del equipo del sistema | T-269, T-270, T-271, T-276, T-278, T-279 | ○ pendiente |
-| REQ-117 | Los documentos del proceso en curso (reservados hasta el dictamen) y todo lo que el sistema produce sobre ellos (lecturas, matrices, evaluaciones, preguntas, consultas y registros) se procesan solo en el equipo del sistema, con IA local, en una instancia separada de la que usa la construcción. No se copian al repositorio, a las pruebas, a las mediciones ni a los respaldos de construcción, y los agentes de IA que construyen EVALUON no acceden a esa instancia ni a sus respaldos. Lo que el responsable decida compartir del piloto con la construcción son cifras agregadas, sin textos. Excepción mientras se estabiliza el piloto (ADR-0060): los agentes pueden leer la instancia del piloto, pero el material nunca va al repositorio ni a las pruebas | T-269, T-276, T-278, T-279 | ○ pendiente |
+| REQ-109 | La aplicación se puede usar desde las computadoras de una lista de autorizadas que mantiene el responsable del sistema, con una dirección fija, las mismas pantallas y los mismos roles que en el equipo del sistema. Desde las demás computadoras de la red no se llega a la aplicación. Agregar o quitar una computadora no requiere cambiar el código | T-269, T-270, T-271, T-281, T-277, T-278, T-279, T-280 | ○ pendiente |
+| REQ-110 | Toda comunicación entre la computadora del usuario y EVALUON va cifrada. Un pedido sin cifrar no muestra contenido: se redirige a la dirección cifrada. El navegador de las computadoras autorizadas no muestra advertencias de seguridad al entrar | T-269, T-270, T-271, T-281, T-278, T-279, T-280 | ○ pendiente |
+| REQ-111 | Tras 5 intentos fallidos seguidos para un mismo usuario, ese usuario queda bloqueado durante 15 minutos, aunque después se escriba la clave correcta. El mensaje de rechazo es el mismo para usuario inexistente, clave equivocada y usuario bloqueado. Las mismas reglas valen para los comandos que piden usuario y clave | T-272, T-275, T-277, T-278, T-279, T-280 | ○ pendiente |
+| REQ-112 | El responsable del sistema puede desbloquear un usuario antes de que venza el plazo; el desbloqueo queda registrado con quién lo hizo y cuándo | T-273, T-282, T-278, T-279, T-280 | ○ pendiente |
+| REQ-113 | Cada ingreso, salida, intento fallido, bloqueo y desbloqueo queda registrado con el usuario (o el nombre tal como se escribió), la computadora de origen, la fecha y la hora, y el responsable del sistema lo puede consultar | T-273, T-274, T-282, T-283, T-278, T-279, T-280 | ○ pendiente |
+| REQ-114 | Cada usuario puede cambiar su clave; para hacerlo escribe la actual. El sistema exige una clave nueva de al menos 8 caracteres y rechaza las muy comunes. Un usuario dado de alta con clave inicial debe cambiarla en su primer ingreso | T-275, T-278, T-279, T-280 | ○ pendiente |
+| REQ-115 | Una sesión sin uso durante 30 minutos se cierra; también se cierra a las 8 horas de iniciada y al cerrar el navegador. Lo que el usuario ya guardó no se pierde | T-274, T-278, T-279, T-280 | ○ pendiente |
+| REQ-116 | Desde otra computadora solo se llega a la aplicación: la base de datos, los motores de IA y los demás servicios internos no aceptan conexiones de fuera del equipo del sistema | T-269, T-270, T-271, T-281, T-276, T-284, T-278, T-279, T-280 | ○ pendiente |
+| REQ-117 | Los documentos del proceso en curso (reservados hasta el dictamen) y todo lo que el sistema produce sobre ellos (lecturas, matrices, evaluaciones, preguntas, consultas y registros) se procesan solo en el equipo del sistema, con IA local, en una instancia separada de la que usa la construcción. No se copian al repositorio, a las pruebas, a las mediciones ni a los respaldos de construcción, y los agentes de IA que construyen EVALUON no acceden a esa instancia ni a sus respaldos. Lo que el responsable decida compartir del piloto con la construcción son cifras agregadas, sin textos. Excepción mientras se estabiliza el piloto (ADR-0060): los agentes pueden leer la instancia del piloto, pero el material nunca va al repositorio ni a las pruebas | T-269, T-276, T-283, T-284, T-278, T-279, T-280, T-285 | ○ pendiente |
 
 <a id="008"></a>
 

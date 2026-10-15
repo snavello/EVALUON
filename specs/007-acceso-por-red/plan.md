@@ -1,85 +1,202 @@
 # Plan 007 · Acceso por red
 
-Estado: propuesto · Fecha: 2026-10-14 · Aprobó: —
+Estado: propuesto (versión 2, con la revisión del Coordinador del 2026-10-14) · Fecha: 2026-10-14 · Aprobó: —
 
 Spec: `specs/007-acceso-por-red/spec.md` (aprobada el 2026-10-14)
 
-ADR de este plan, **propuestos**: `docs/adr/0061-intermediario-cifrado-en-windows-y-lista-por-direccion.md`, `docs/adr/0062-certificado-en-dos-variantes-con-los-mismos-archivos.md`, `docs/adr/0063-bloqueo-sesion-y-cambio-de-clave-con-django.md` y `docs/adr/0064-instancia-del-piloto-y-gpu-para-una-instancia-a-la-vez.md`. Se apoya en el ADR-0005 (Django 6.1, sesiones en la base, Argon2id, comandos con usuario y clave), el ADR-0057 (configuración de uso con el 27B), el ADR-0060 (excepción de P4 durante la estabilización) y en T-049 de la 001 (instalación desde cero).
+ADR de este plan, **propuestos**:
+
+- `docs/adr/0061-intermediario-cifrado-en-windows-y-lista-por-direccion.md`
+- `docs/adr/0062-certificado-en-dos-variantes-con-los-mismos-archivos.md`
+- `docs/adr/0063-bloqueo-sesion-y-cambio-de-clave-con-django.md`, que enmienda el ADR-0005 en la clave olvidada y en los comandos de administración de usuarios
+- `docs/adr/0064-instancia-del-piloto-y-gpu-para-una-instancia-a-la-vez.md`
+
+Se apoya en:
+
+- el ADR-0005 (Django 6.1, sesiones en la base, Argon2id, comandos);
+- el ADR-0057 (configuración de uso con el 27B);
+- el ADR-0060 (excepción de P4 durante la estabilización);
+- T-049 de la 001, integrada en `main` (b6dec485): instalación desde cero y «Datos para el runbook».
+
+Lo que este plan propone y necesita una decisión del responsable está al final, en «Puntos para el responsable», numerado para aprobarlo fila por fila. Donde una tarea depende de una de esas filas, lo dice.
 
 ## Resumen del enfoque
 
-Tres frentes que casi no se tocan entre sí.
+1. **Red (REQ-109, REQ-110, REQ-116).**
+   - **Por qué en Windows.** Docker Desktop no les pasa a los contenedores la dirección de la computadora que se conecta (ADR-0061). Si el cifrado y la lista se resolvieran dentro de Docker, la aplicación no sabría desde qué computadora entró cada uno (REQ-113). Por eso el cifrado lo hace un **intermediario que corre en Windows**: Caddy 2.11, como servicio con la cuenta sin privilegios `LocalService`.
+   - **Qué hace el intermediario:**
+     - atiende 80 y 443 hacia la red;
+     - cifra con el certificado de una carpeta protegida;
+     - redirige lo que llega sin cifrar;
+     - corta la conexión de toda computadora que no está en la lista;
+     - agrega la dirección y el nombre de la computadora al pedido;
+     - lo pasa a la aplicación por `127.0.0.1`.
+   - **Qué no hace:** no tiene API de administración, no usa HTTP/3 y no se conecta a internet.
+   - **Docker sigue sin publicar nada hacia la red.**
+   - **Firewall:** el de Windows deja entrar a 80 y 443 solo desde la lista, en cualquier perfil de red.
+   - **La lista:** vive en el `.env` del piloto. El responsable la aplica con un script de administrador que corre desde una carpeta donde solo escriben los administradores.
+   - **Certificado:** son dos archivos. Los produce una autoridad propia limitada a EVALUON, o el área de sistemas firmando un pedido hecho en el equipo; pasar de una variante a la otra es reemplazarlos (ADR-0062).
+2. **Acceso (REQ-111 a REQ-115).** Con lo que trae Django, sin bibliotecas nuevas (ADR-0063):
+   - un backend que bloquea 15 minutos tras 5 fallidos seguidos, para la pantalla y los comandos;
+   - el cambio de clave de Django, que respeta el bloqueo y rechaza claves cortas, comunes o iguales a la actual;
+   - una marca de clave inicial;
+   - un middleware que cierra la sesión a los 30 minutos sin uso y a las 8 horas, sin contar como uso ni el sondeo ni las tres pantallas que se recargan solas;
+   - el registro de accesos con la computadora de origen;
+   - comandos de administración que reemplazan a `changepassword` y `createsuperuser`;
+   - si el responsable aprueba el punto 1, una pantalla chica del registro de accesos con el botón de desbloquear.
+3. **Instancia del piloto (REQ-117).**
+   - **Separada:** un segundo proyecto de Docker Compose (`evaluon-piloto`) en `C:\EVALUON-piloto\`, con permisos propios, y base, volúmenes, imagen, puerto, respaldos, secretos y motores propios (ADR-0064).
+   - **La GPU:** entra un solo 27B, así que una sola instancia tiene el motor de generación a la vez. Lo mueve un script que se niega si hay trabajos en curso.
+   - **El nombre del proyecto:** toda orden de Docker sobre el piloto pasa por un script que lo fija y que rechaza las órdenes peligrosas.
+   - **Despliegue (P11):** la instancia del piloto es el destino del despliegue de esta feature.
 
-1. **Red (REQ-109, REQ-110, REQ-116).** Un hecho del equipo condiciona todo: Docker Desktop no les pasa a los contenedores la dirección de la computadora que se conecta; dentro del contenedor todas llegan con una dirección interna de Docker (ADR-0061, fuentes 1 a 3). Si el cifrado y la lista se resolvieran dentro de Docker, la aplicación no podría registrar desde qué computadora entró cada uno (REQ-113). Por eso el plan pone delante de la aplicación un **intermediario que corre en Windows**, Caddy 2.11, instalado una vez como servicio. Atiende los puertos 80 y 443 hacia la red, cifra con el certificado de una carpeta, redirige lo que llega sin cifrar, corta la conexión de toda computadora que no está en la lista, le agrega al pedido la dirección y el nombre de la computadora y lo pasa a la aplicación por `127.0.0.1`. **Docker sigue sin publicar nada hacia la red**: la aplicación del piloto se publica solo en `127.0.0.1:8100`, y la base y los motores siguen en la red interna. El firewall de Windows deja entrar a los puertos 80 y 443 solo desde la lista; el intermediario vuelve a controlarla. La lista vive en el `.env` de la instancia del piloto (hasta 10 computadoras, `nombre=dirección`) y un script la aplica al firewall y al intermediario: agregar o quitar una computadora no toca el código. El certificado son dos archivos en una carpeta; los produce un script con una autoridad propia o los entrega el área de sistemas, y pasar de una variante a la otra es reemplazar los archivos y recargar (ADR-0062).
+Orden:
 
-2. **Acceso (REQ-111 a REQ-115).** Con lo que trae Django, sin bibliotecas nuevas (ADR-0063): un backend de ingreso que cuenta los intentos fallidos por usuario y bloquea 15 minutos tras 5 seguidos, que vale igual para la pantalla y para los comandos porque los dos ya pasan por `authenticate`; la vista de cambio de clave de Django con el validador de claves comunes; una marca de clave inicial en el usuario; un middleware que cierra la sesión a los 30 minutos sin uso y a las 8 horas de iniciada, sin contar como uso el sondeo de la pantalla; el registro de accesos en `audit_event` con la computadora de origen; y tres comandos para el responsable del sistema (desbloquear, ver el registro, asignar una clave inicial).
+1. **Corte vertical** (T-269 a T-271): el ingreso servido cifrado a una computadora de la lista, con un usuario de prueba, y el pliego del caso chico subido desde esa computadora. Si no llega, una corrección única (T-281).
+2. Recién después, **el resto**, en dos líneas: el acceso (T-272 a T-275 y T-282) y la instancia del piloto (T-276, T-283 y T-284), más la herramienta de carga (T-277).
+3. **La aceptación en la red** (T-278), con su ronda de corrección (T-279 y T-280).
+4. **La verificación del cierre de la estabilización** (T-285), cuando el responsable lo indique.
 
-3. **Instancia del piloto (REQ-117).** Un segundo proyecto de Docker Compose (`evaluon-piloto`) en una carpeta propia fuera del perfil de usuario (`C:\EVALUON-piloto\`), con base, volúmenes, imagen, puerto, respaldos, secretos y motores propios (ADR-0064). No entran dos 27B en la GPU, pero sí el 27B de una instancia con embeddings y reranker de las dos: T-049 midió 20.940 MiB de 24.463. Por eso **el motor de generación (el 27B) lo tiene una sola instancia a la vez**, y embeddings y reranker quedan siempre encendidos en las dos. Mientras el piloto tiene el motor, la construcción trabaja sin él (código y tests, que no lo usan) y mide cuando el responsable se lo pasa. La IA del piloto es la local, con la configuración adoptada en el ADR-0057. La instalación sigue el procedimiento que deja T-049 de la 001. Todas las órdenes de Docker en la carpeta del piloto pasan por un script que fija el nombre del proyecto: si faltara, el `name: evaluon` del compose haría que una orden en esa carpeta actuara sobre 8000 (hallazgo de T-049).
+## Despliegue y carga del proceso reservado (P11)
 
-Orden: primero el **corte vertical** (T-269 a T-271: el ingreso servido cifrado a una computadora de la lista, con un usuario de prueba, sobre una instancia que solo tiene material público); después, en paralelo, el acceso (T-272 a T-275) y la instancia del piloto (T-276); al final, la prueba de aceptación en la red con el caso chico (T-278).
+- **La instancia del piloto es el destino del despliegue de la 007.** Hasta que el responsable apruebe ese despliegue, solo tiene material público: el caso chico y usuarios de prueba.
+- **El proceso en curso, reservado, se carga solo después de cuatro cosas, en este orden:**
+  1. la aceptación (T-278, o T-280 si hubo corrección);
+  2. el dictamen de la auditoría de la feature sin hallazgos bloqueantes (etapa 6, ADR-0036 y ADR-0052);
+  3. lo que el responsable apruebe de los puntos 4 y 8;
+  4. la aprobación del despliegue por el responsable (etapa 7; línea `Despliegue: aprobado` de `tasks.md`).
+- **Toda actualización posterior del piloto es un despliegue** que aprueba el responsable. Se hace con `scripts/piloto/actualizar.ps1` (T-276).
 
 ## Criterio de aceptación numérico y umbrales (escritos antes de medir)
 
 Criterio de la feature (spec, literal): «desde una computadora de la lista, el recorrido del caso chico (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas) se completa en 5 de 5 secciones, con 0 páginas servidas sin cifrar y 0 advertencias del navegador; desde una computadora fuera de la lista, 0 páginas; y desde cualquier computadora de la red, 0 conexiones aceptadas por los servicios internos».
 
-Corte vertical (T-269 a T-271): el ingreso servido cifrado a una computadora de la lista, con un usuario de prueba, en una instancia sin material reservado. El caso chico (`tests/assessment/data/caso-chico/`, público) se recorre entero en T-278, porque la matriz y la evaluación necesitan la GPU.
+Corte vertical (spec, literal): «primero una sola pantalla (el ingreso) servida cifrada a una computadora de la lista, con un usuario de prueba y el caso chico público; después el resto».
+
+En T-271 el usuario de prueba ingresa y sube desde la computadora de la lista el pliego del caso chico. La lectura y el resto del recorrido necesitan el motor y se completan en T-278 (punto 21).
 
 | Qué | Umbral | Con qué se mide | Tarea |
 |---|---|---|---|
-| Recorrido del caso chico desde una computadora de la lista (REQ-109) | 5 de 5 secciones completas con un usuario evaluador, igual que en el equipo del sistema | El responsable recorre en el navegador siguiendo la lista del testeador, que anota cada sección | T-278 |
-| Páginas sin cifrar (REQ-110) | 0: toda dirección `http://` termina en `https://` con una redirección del intermediario, sin cuerpo de la aplicación | `curl -sI` por `http://` al ingreso, a una página de cada sección y a un estático; el navegador | T-271 (ingreso), T-278 (todas) |
-| Advertencias del navegador (REQ-110) | 0 en cada computadora de la lista que se prueba, con el navegador que usa la Comisión | Abrir la dirección; captura de la barra de direcciones | T-271, T-278 |
-| Clave legible en el tráfico de un ingreso (REQ-110) | 0 apariciones de la clave en la captura | Captura con `pktmon` (incluido en Windows) o Wireshark en el equipo del sistema durante un ingreso; búsqueda del texto de la clave en el archivo | T-271 |
-| Computadora fuera de la lista (REQ-109) | 0 páginas por `http` y por `https` (la conexión no se establece o se corta sin respuesta); una computadora que se saca y se vuelve a poner con el script llega sin tocar el código | Navegador y `scripts/red/revisar-puertos.ps1` desde una computadora fuera de la lista | T-271, T-278 |
-| Servicios internos (REQ-116) | 0 conexiones aceptadas desde la red, desde una computadora de la lista y desde una de fuera | `scripts/red/revisar-puertos.ps1`: 5432, 8000, 8080, 8100, 2019 (administración de Caddy) y 2375 (Docker) | T-271 (primera vez), T-278 |
-| Bloqueo (REQ-111) | Tras 5 fallidos seguidos, el intento con la clave correcta se rechaza con el mismo mensaje durante 15 minutos y después ingresa; con 4 fallidos y uno correcto ingresa y la cuenta vuelve a 0; 3 de 3 mensajes idénticos (inexistente, clave equivocada, bloqueado); lo mismo por comando | Tests con el reloj controlado; una vez desde otra computadora | T-272, T-278 |
-| Desbloqueo y registro (REQ-112, REQ-113) | Ingresa enseguida tras el desbloqueo; el registro muestra 4 de 4 hechos (ingreso, intento fallido, bloqueo, desbloqueo) con usuario o nombre escrito, computadora de origen, fecha y hora, y el desbloqueo con quién | Tests; `ver_accesos` después de la prueba desde otra computadora | T-273, T-278 |
-| Cambio de clave (REQ-114) | Con clave inicial, 0 secciones usables hasta cambiarla; clave nueva corta o común, rechazada con el motivo; sin la clave actual correcta, rechazada | Tests; una vez desde otra computadora | T-275, T-278 |
-| Inactividad (REQ-115) | A los 30 minutos sin uso, el siguiente pedido lleva al ingreso; a las 8 horas de iniciada, también; después de ingresar, lo guardado sigue; el sondeo de la pantalla no cuenta como uso | Tests con el reloj controlado; una vez real desde otra computadora (31 minutos de espera) | T-274, T-278 |
-| Carga (no funcional) | Con 10 sesiones a la vez, el p95 de carga de cada página de las secciones es menor que 2 s y su mediana no supera en más de 0,3 s la mediana con una sola sesión en el equipo del sistema; sin contar la Consulta ni los pedidos en segundo plano | `scripts/red/medir_carga.py` (T-277) por el intermediario, más una carga por sección desde una computadora de la lista con las herramientas del navegador | T-278 |
-| Instancia separada (REQ-117) | 0 tareas de construcción (tests, mediciones, respaldos, verificaciones) que usen el proyecto, la base, los volúmenes, los respaldos o la carpeta del piloto; 0 archivos del proceso en curso en el repositorio; IA del piloto solo local | `docker compose config` de las dos instancias; búsqueda de los nombres del piloto en los scripts y comandos de construcción; `git status` del clon del piloto limpio y sin remoto de escritura; servicios del piloto con `--offline` y direcciones internas | T-276, T-278 |
+| Recorrido del caso chico desde una computadora de la lista (REQ-109) | 5 de 5 secciones completas con un usuario evaluador | El responsable recorre en el navegador con la lista del testeador | T-278 |
+| Páginas sin cifrar (REQ-110) | 0: toda dirección `http://` termina en `https://` con una redirección del intermediario, sin cuerpo de la aplicación | `curl.exe -sI` por `http://` al ingreso, a una página de cada sección y a un estático | T-271 (ingreso), T-278 (todas) |
+| Advertencias del navegador (REQ-110) | 0 en cada computadora de la lista que se prueba, con el navegador de la Comisión | Abrir la dirección; captura de la barra | T-271, T-278 |
+| Clave legible en el tráfico de un ingreso (REQ-110) | 0 apariciones | Captura con `pktmon` en el equipo (PowerShell de administrador), convertida con `pktmon etl2pcap`, y búsqueda del texto de la clave | T-271 |
+| Computadora fuera de la lista (REQ-109) | 0 páginas por `http` y por `https`. Una computadora que se saca y se vuelve a poner llega sin tocar el código | Navegador y `Test-NetConnection` desde una computadora fuera de la lista | T-271, T-278 |
+| Servicios internos (REQ-116) | 0 conexiones aceptadas desde la red. En el equipo, ningún proceso escucha fuera del propio equipo salvo `caddy.exe` en TCP 80 y 443 y los servicios de Windows anotados | `Test-NetConnection` a 80, 443, 5432, 8000, 8080, 8100, 2019 y 2375 desde una computadora de la lista y desde una de fuera; inventario con `Get-NetTCPConnection -State Listen` y `Get-NetUDPEndpoint`, con su proceso | T-271, T-278 |
+| Bloqueo (REQ-111) | Tras 5 fallidos seguidos, la clave correcta se rechaza con el mismo mensaje durante 15 minutos y después ingresa; con 4 fallidos y uno correcto ingresa y la cuenta vuelve a 0; 3 de 3 mensajes idénticos; lo mismo por comando | Tests con el reloj controlado y con pedidos simultáneos; una vez desde otra computadora | T-272, T-278 |
+| Tiempo de respuesta del ingreso (REQ-111, que el bloqueo no se delate) | Diferencia de medianas menor que 25 ms entre usuario inexistente, clave equivocada y usuario bloqueado, con 20 intentos de cada uno | `medir_carga.py --tiempos-ingreso` | T-278 |
+| Desbloqueo y registro (REQ-112, REQ-113) | Tras el desbloqueo, ingresa enseguida. El registro muestra 4 de 4 hechos (ingreso, intento fallido, bloqueo, desbloqueo) hechos desde otra computadora, con usuario o nombre escrito, computadora de origen, fecha y hora, y el desbloqueo con quién | Tests; la pantalla del registro desde otra computadora (punto 1) y `ver_accesos` en el equipo | T-273, T-282, T-278 |
+| Cambio de clave (REQ-114) | Con clave inicial, 0 secciones usables hasta cambiarla. Se rechaza, con el motivo, una clave nueva corta, común o igual a la actual, y un cambio sin la clave actual correcta | Tests; una vez desde otra computadora | T-275, T-278 |
+| Inactividad y tope (REQ-115) | A los 30 minutos sin uso, el siguiente pedido lleva al ingreso; a las 8 horas también; lo guardado sigue. El sondeo y las tres recargas automáticas no cuentan como uso | Tests con el reloj controlado, uno por pantalla; una vez real desde otra computadora (31 minutos) | T-274, T-278 |
+| Cierre del navegador (REQ-115) | Cerrar todas las ventanas del navegador y volver a abrirlo lleva al ingreso | En la computadora de la lista, con el navegador real; se anotan el navegador y su configuración de restauración y de arranque rápido | T-278 |
+| Carga (no funcional) | Según la decisión del punto 5, que se copia literal a la spec antes de medir. En todo caso, p95 menor que 2 s por página con 10 sesiones | `scripts/red/medir_carga.py` por el intermediario, con la línea de base de una sesión desde el equipo medida dos veces; más una carga por sección desde la computadora de la lista | T-278 |
+| Instancia separada durante la estabilización (REQ-117) | 0 tareas de construcción que usen el proyecto, la base, los volúmenes, los respaldos o la carpeta del piloto. 0 archivos del proceso en el repositorio. La IA del piloto solo local. Salida a internet: solo `portal_worker` (y `app`, si el punto 4 no se aprueba, anotada como riesgo aceptado) | `docker compose config` de las dos instancias; búsqueda de los nombres del piloto en scripts y comandos de construcción; clon del piloto sin remoto de escritura; motores con `--offline`; redes de cada servicio | T-276, T-278 |
+| Instancia separada al terminar la estabilización (REQ-117) | Un agente no puede leer `C:\EVALUON-piloto\`, ni correr Docker sobre `evaluon-piloto`, ni pedir páginas al piloto. Las claves de la base y de Django del piloto cambiaron. Los usuarios cuya clave conocían los agentes tienen una clave nueva | Lista de cierre de `instancia-piloto.md`, aplicada por el responsable y probada por un agente que intenta y es rechazado | T-285 |
 
-Rondas (ADR-0024 y ADR-0025): T-278 es la ronda 1. Si algo no llega, T-279 corrige todo en una sola tarea y repite solo lo que falló (ronda 2). Lo que siga sin llegar pasa con su impacto a la lista de revisión con el primer producto, salvo que se pierda un requisito o se viole un principio. La forma de leer «sin que una página tarde más que en el equipo del sistema» (mediana con 10 sesiones a no más de 0,3 s de la mediana con una sola en el equipo) es una propuesta del planificador: la confirma el Coordinador antes de T-278.
+**Rondas (ADR-0024 y ADR-0025).**
+
+- **El corte vertical:** T-271 es la ronda 1. Si no llega, T-281 corrige todo en una sola tarea y su verificación repite T-271 completa una vez (ronda 2).
+- **La aceptación:** T-278 es la ronda 1. T-279 corrige todo en una sola tarea y T-280 repite T-278 completa sobre el commit corregido (ronda 2).
+- **Si después de la ronda 2 se sigue perdiendo un requisito o se viola un principio:** el responsable decide si se abre una ronda más.
+- **Lo que no llega sin eso:** pasa con su impacto a «Revisión con el primer producto», en `tasks.md`.
 
 ## Definiciones compartidas
 
 Fijas antes de paralelizar. Una tarea que necesite cambiar una la deja como hallazgo y decide el Coordinador.
 
-**Variables del `.env` de la instancia del piloto** (bloque comentado en `.env.example`, T-269; los nombres son identificadores y van en inglés):
+**Carpetas y permisos en el equipo del sistema** (las crea `instalar-red.ps1`, como administrador, con la herencia de permisos cortada):
+
+| Carpeta | Qué guarda | Quién escribe | Quién lee |
+|---|---|---|---|
+| `C:\Program Files\EVALUON-Red\` | `caddy.exe`, `aplicar-red.ps1` y `desinstalar-red.ps1`, copiados de un clon limpio en el commit aprobado | Administradores y SYSTEM | Todos (lectura y ejecución) |
+| `C:\ProgramData\EVALUON-Red\` | `Caddyfile`, `certificados\` (`evaluon.crt` y `evaluon.key`), `datos\` (almacenamiento de Caddy) y `registros\` (registro de Caddy, con rotación) | Administradores y SYSTEM; `LocalService` solo en `datos\` y `registros\` | `LocalService`: el `Caddyfile` y `certificados\`. El usuario del responsable no lee `certificados\` |
+| `C:\EVALUON-piloto\` | `evaluon\` (clon), `respaldos\`, `entrada\` (lo que generan los scripts sin administrador, antes de aplicarlo) y `motor-gpu.txt` (qué instancia tiene el motor) | Administradores, SYSTEM y el usuario del responsable | Los mismos |
+| Unidad extraíble del responsable | La autoridad propia: su clave, cifrada con una frase de paso | El responsable | El responsable |
+
+Nunca se corre como administrador código que un usuario común pueda modificar. Los scripts de administrador se ejecutan desde `C:\Program Files\EVALUON-Red\` y solo leen datos de `entrada\`: el `Caddyfile`, la lista y el certificado generados. Python no corre como administrador.
+
+**Variables del `.env` de la instancia del piloto** (bloque comentado en `.env.example`; los nombres son identificadores y van en inglés):
 
 | Variable | Valor | La lee |
 |---|---|---|
-| `COMPOSE_PROJECT_NAME` | `evaluon-piloto` | Docker Compose |
-| `COMPOSE_FILE` | la de uso de `.env.example` más `:docker-compose.piloto.yml` | Docker Compose |
-| `APP_PORT` | `8100` | compose (ya existe: `127.0.0.1:${APP_PORT}:8000`) y el generador del intermediario |
+| `COMPOSE_PROJECT_NAME` | `evaluon-piloto` | Docker Compose, `compose.ps1`, `caddy.py` y `aplicar-red.ps1`, que se niegan si falta |
+| `COMPOSE_FILE` | la de uso de `.env.example` más `:docker-compose.piloto.yml`, y `:docker-compose.sin-gpu.yml` mientras el piloto no tenga el motor (lo maneja `gpu.ps1`) | Docker Compose |
+| `APP_PORT` | `8100`; los scripts se niegan con `8000` | compose (`127.0.0.1:${APP_PORT}:8000`) y `caddy.py` |
 | `EVALUON_HTTPS` | `true` (en construcción falta y vale `false`) | `settings.py` |
-| `DJANGO_ALLOWED_HOSTS` | la dirección fija, `localhost,127.0.0.1` | `settings.py` (ya existe) |
-| `EVALUON_ADDRESS` | la dirección fija con que se entra: nombre del DNS interno o dirección IPv4 del equipo | generador del intermediario |
-| `EVALUON_SERVER_IP` | dirección IPv4 fija del equipo del sistema en la red del organismo | generador del intermediario |
-| `EVALUON_COMPUTERS` | lista `nombre=dirección` separada por comas; nombres con minúsculas, números y guiones; direcciones IPv4; sin repetidos; **10 como máximo** | generador del intermediario y script del firewall |
+| `DJANGO_ALLOWED_HOSTS` | la dirección fija, `localhost,127.0.0.1` | `settings.py` |
+| `EVALUON_ADDRESS` | la dirección fija con que se entra: un nombre del DNS interno o la IPv4 del equipo | `caddy.py`, `crear-certificados.sh` |
+| `EVALUON_SERVER_IP` | IPv4 fija del equipo del sistema | `caddy.py`, `crear-certificados.sh` |
+| `EVALUON_COMPUTERS` | `nombre=dirección` separados por comas; nombres en minúsculas, con números y guiones; IPv4; sin repetidos; **10 como máximo** | `caddy.py` |
+| `EVALUON_APP_DB_PASSWORD` | clave del usuario de la base de la aplicación (solo si se aprueba el punto 4) | compose del piloto (T-283) |
 
-**Encabezados que el intermediario pone en cada pedido** (pisan lo que mande el navegador): `X-Forwarded-For` (dirección de la computadora; Caddy ignora el valor que venga del cliente), `X-Forwarded-Proto: https` y `X-Evaluon-Computer` (nombre de la computadora en la lista, o `equipo-del-sistema`). La aplicación solo es alcanzable desde el propio equipo (`127.0.0.1`), así que confía en ellos. Sin esos encabezados, el pedido vino directo por el puerto local.
+**Encabezados que el intermediario pone en cada pedido.** Pisan lo que mande el navegador.
 
-**Encabezado del sondeo:** `X-Evaluon-Poll: 1`, que manda `recorrido.js`; esos pedidos no cuentan como uso (T-274).
+- `X-Forwarded-For`: la dirección de la computadora. Caddy ignora el valor que traiga el cliente.
+- `X-Forwarded-Proto: https`.
+- `X-Evaluon-Computer`: el nombre de la computadora en la lista, o `equipo-del-sistema`.
 
-**Esquema (solo T-272):** campos de `accounts_user` `failed_logins`, `locked_until` y `must_change_password`; tipos de hecho nuevos `logout` («Salida»), `lockout` («Bloqueo por intentos fallidos»), `unlock` («Desbloqueo»), `password_change` («Cambio de clave») e `initial_password` («Clave inicial asignada»).
+La aplicación solo es alcanzable desde el propio equipo, así que los toma. Un pedido sin ellos vino directo al puerto local y se registra como `acceso-directo-local`. Un proceso del propio equipo podría falsearlos (ver «Riesgos»).
 
-**Origen en el registro:** `audit_event.detail["origin"] = {"computer": <nombre>, "ip": <dirección o null>}`. `computer` es el nombre de la lista, `equipo-del-sistema` (el equipo por el intermediario, un pedido directo por el puerto local o un comando) o `desconocida` (un pedido del intermediario sin nombre, que no debería ocurrir).
+**Marcas de pedidos que no cuentan como uso:**
 
-**Constantes de `settings.py`:** `LOGIN_FAILURE_LIMIT = 5` y `LOGIN_LOCKOUT_MINUTES = 15` (T-272); `SESSION_IDLE_MINUTES = 30` y `SESSION_MAX_HOURS = 8` (T-274). Son literales de la spec, no variables de entorno. `SESSION_COOKIE_AGE` sigue en 8 horas y `SESSION_EXPIRE_AT_BROWSER_CLOSE` en verdadero.
+- el encabezado `X-Evaluon-Poll: 1`, que manda el sondeo (`recorrido.js`);
+- el parámetro `auto=1` en la dirección, que llevan las tres recargas automáticas:
+  - `journey/nuevo.html` y `journey/s1_pliego_borrador.html`, por `meta refresh`;
+  - `journey/s3_ofertas.js`, por script.
 
-**Funciones que comparten las tareas:** `evaluon.accounts.backends.register_failed_attempt(user, origin)` cuenta un fallido y bloquea al quinto, con su hecho `lockout`. La crea T-272 y la usan el backend y el formulario de cambio de clave (T-275). `evaluon.accounts.origin.request_origin(request)` devuelve el origen de un pedido y `COMMAND_ORIGIN` el de un comando; los crea T-273. El motivo de una salida lo pone el middleware de sesión en `request.evaluon_logout_reason` antes de llamar a `logout` (T-274), y el receptor de la señal de salida lo lee (T-273).
+**Esquema (solo T-272):**
 
-**Comandos nuevos** (nombres en español, como los demás): `desbloquear_usuario <usuario> --usuario <responsable>`, `ver_accesos [--desde AAAA-MM-DD] [--hasta AAAA-MM-DD] [--de <usuario>] --usuario <responsable>` y `clave_inicial <usuario> --usuario <responsable>`. Los tres exigen el rol de lectura y escritura, como `rol_comision` (ver «Puntos para el responsable», 4).
+- campos de `accounts_user`: `failed_logins`, `locked_until`, `must_change_password` y, con el punto 2, `is_system_manager`;
+- tipos de hecho nuevos: `logout` («Salida»), `lockout` («Bloqueo por intentos fallidos»), `unlock` («Desbloqueo»), `password_change` («Cambio de clave») e `initial_password` («Clave inicial asignada»). Poner o quitar la marca de responsable usa el tipo existente `user_role_changed`.
 
-**Instancia del piloto:** proyecto `evaluon-piloto`; imagen `evaluon-app:piloto`; puerto `127.0.0.1:8100`; carpeta `C:\EVALUON-piloto\` con `evaluon\` (clon), `caddy\` (ejecutable y `Caddyfile`), `certificados\` (`evaluon.crt` y `evaluon.key`), `respaldos\`. Archivos de compose: `docker-compose.piloto.yml` (piloto: nombre del proyecto e imagen) y `docker-compose.sin-gpu.yml` (construcción mientras el piloto tiene el motor: `generation_batch` y `worker` en el perfil `gpu`). Toda orden de Docker en la carpeta del piloto pasa por `scripts/piloto/compose.ps1` (T-269). El script comprueba que el `.env` tenga `COMPOSE_PROJECT_NAME=evaluon-piloto` y que `COMPOSE_FILE` incluya `docker-compose.piloto.yml`, y llama a `docker compose -p evaluon-piloto`. Si algo no está, no hace nada. Los demás scripts del piloto lo usan.
+**Origen en el registro:** `audit_event.detail["origin"] = {"computer": <nombre>, "ip": <dirección o null>}`. `computer` vale:
+
+- el nombre de la lista;
+- `equipo-del-sistema`, si es el equipo por el intermediario o un comando;
+- `acceso-directo-local`, si es un pedido directo al puerto local;
+- `desconocida`, si es un pedido del intermediario sin nombre, que no debería ocurrir.
+
+El origen del ingreso se guarda también en la sesión, para registrar la salida.
+
+**Constantes de `settings.py`:** `LOGIN_FAILURE_LIMIT = 5` y `LOGIN_LOCKOUT_MINUTES = 15` (T-272); `SESSION_IDLE_MINUTES = 30` y `SESSION_MAX_HOURS = 8` (T-274). Son literales de la spec. `SESSION_COOKIE_AGE` sigue en 8 horas y `SESSION_EXPIRE_AT_BROWSER_CLOSE` en verdadero.
+
+**Funciones compartidas:**
+
+- `evaluon.accounts.backends.register_failed_attempt(user, origin)` (T-272): dentro de una transacción con `select_for_update`, suma un fallido y bloquea al quinto, con su hecho `lockout`. Devuelve si quedó bloqueado. No hace nada si el usuario ya está bloqueado.
+- `evaluon.accounts.backends.is_locked(user)` (T-272).
+- `evaluon.accounts.origin.request_origin(request)` y `COMMAND_ORIGIN` (T-273).
+- El motivo de una salida, en `request.evaluon_logout_reason`: `user`, `idle`, `max_age` o `locked_in_form`. Lo pone quien llama a `logout`; lo lee el receptor de la señal (T-273).
+
+**Comandos** (nombres en español, como los demás). Con el punto 2 aprobado, los de administración los corre quien administra el equipo, sin usuario de EVALUON, como hoy `crear_usuario`, y cada uno deja su hecho:
+
+- `desbloquear_usuario <usuario>`;
+- `ver_accesos [--desde AAAA-MM-DD] [--hasta AAAA-MM-DD] [--de <usuario>]`;
+- `clave_inicial <usuario>`;
+- `responsable_sistema <usuario> {si,no}`;
+- `changepassword` y `createsuperuser` se reemplazan por comandos propios con el mismo nombre, que no hacen nada y remiten a `clave_inicial` o `crear_usuario`.
+
+**Instancia del piloto:**
+
+- proyecto `evaluon-piloto`; imagen `evaluon-app:piloto`; puerto `127.0.0.1:8100`;
+- `docker-compose.piloto.yml`: nombre del proyecto e imagen; con el punto 4, también el usuario de la base y la red sin salida;
+- `docker-compose.sin-gpu.yml`: `generation_batch` y `worker` en el perfil `gpu`. Va en el `COMPOSE_FILE` de la instancia que no tiene el motor, cualquiera de las dos.
+
+**Scripts del piloto:**
+
+- `scripts/piloto/compose.ps1`: toda orden de Compose del piloto. Siempre llama a `docker compose --project-directory C:\EVALUON-piloto\evaluon --env-file C:\EVALUON-piloto\evaluon\.env -p evaluon-piloto`. Se niega si el `.env` no tiene `COMPOSE_PROJECT_NAME=evaluon-piloto` y `docker-compose.piloto.yml` en `COMPOSE_FILE`, o si `APP_PORT` es 8000. Rechaza:
+  - `-p` y `--project-name`;
+  - `-f` y `--file`;
+  - `--env-file` y `--project-directory`;
+  - `down -v` y `down --volumes`;
+  - `rm -v` y `volume rm`.
+- `gpu.ps1`, `respaldar.ps1`, `vaciar-base.ps1` y `actualizar.ps1` pasan por `compose.ps1`.
 
 ## Componentes
 
 ```mermaid
 flowchart LR
   PC["Computadora de la lista<br/>navegador"] -->|"443, y 80 que se redirige"| FW["Firewall de Windows<br/>solo la lista"]
-  FW --> CA["Caddy, servicio de Windows<br/>certificado, lista, origen"]
+  FW --> CA["Caddy, servicio LocalService<br/>certificado, lista, origen"]
   CA -->|"127.0.0.1:8100<br/>X-Forwarded-For, X-Evaluon-Computer"| APP["app del piloto<br/>contenedor"]
   APP --> DB[("db del piloto")]
   APP --> IA["motores del piloto<br/>generation_batch, embeddings, reranker"]
@@ -87,218 +204,259 @@ flowchart LR
   WK --> DB
 ```
 
+Con el punto 4 aprobado, entre `127.0.0.1:8100` y `app` hay una «puerta» (T-284). Es un contenedor que reenvía la conexión sin tocarla y es el único con el puerto publicado. Así `app` queda solo en la red interna, sin salida a internet.
+
 | Parte | Cambia | Qué cambia | Tarea |
 |---|---|---|---|
-| Intermediario cifrado: Caddy 2.11 en Windows, como servicio | Nuevo, fuera de Docker | Termina el cifrado con los archivos de `certificados\`; redirige `http` a `https`; corta las conexiones que no vienen de la lista (`remote_ip`); pone los encabezados de origen; reenvía a `127.0.0.1:8100`. Sin certificados automáticos ni consultas a internet | T-270 |
-| Firewall de Windows | Regla nueva | Entrada TCP 80 y 443 para el ejecutable de Caddy, solo desde las direcciones de la lista, perfiles de dominio y privado; desactiva otras reglas de entrada de ese ejecutable | T-270 (script); la aplica el responsable |
-| `scripts/red/` | Nuevo | Generador del `Caddyfile` desde el `.env` (Python, sin bibliotecas), plantilla, aplicación de la lista al firewall y al intermediario, instalación de Caddy con versión y huella fijas, certificados propios, medición de carga, revisión de puertos | T-270, T-277 |
-| `evaluon/settings.py` | Sí | Modo HTTPS detrás del intermediario (`EVALUON_HTTPS`: cookies seguras y encabezado de protocolo); backend de ingreso y constantes; middleware de sesión y de cambio obligatorio de clave; validador de claves comunes | T-269, T-272, T-274, T-275 |
-| `evaluon/accounts/` | Sí | `backends.py` (bloqueo), `origin.py` (computadora de origen), `session_policy.py` (inactividad y tope), `password_policy.py` (cambio obligatorio), vista y plantilla de cambio de clave, comandos `desbloquear_usuario`, `ver_accesos` y `clave_inicial`; `crear_usuario` marca la clave inicial; `apps.py` registra salida y origen; `permissions.authenticate_command` registra origen y rechaza la clave inicial | T-272 a T-275 |
-| `evaluon/audit/models.py` y una migración | Sí | Cinco tipos de hecho | T-272 |
-| `evaluon/templates/journey/_cabecera.html` | Sí | Enlace «Cambiar clave» junto a «Salir» | T-275 |
-| `evaluon/static/journey/recorrido.js` | Sí | El sondeo manda `X-Evaluon-Poll: 1` | T-274 |
-| `docker-compose.piloto.yml` | Nuevo | Nombre del proyecto (`evaluon-piloto`) e imagen propia (`evaluon-app:piloto`) | T-269 |
-| `docker-compose.sin-gpu.yml` | Nuevo | En construcción, mientras el piloto tiene el motor: `generation_batch` y `worker` en un perfil que no arranca | T-276 |
-| `docker-compose.yml` | Entorno y montajes | `EVALUON_HTTPS` en el entorno de la imagen de la aplicación; monta los dos archivos nuevos para los tests (regla de T-264) | T-269, T-276 |
-| `.env.example` | Sí | Bloque comentado de la instancia del piloto, con `COMPOSE_PROJECT_NAME` | T-269 |
-| `.gitattributes` | Sí | `scripts/models.sha256` con fin de línea LF: en un clon de Windows queda con CRLF y la verificación de los modelos falla (T-049) | T-276 |
-| `scripts/piloto/` | Nuevo | `compose.ps1` (toda orden de Docker del piloto, con el nombre del proyecto comprobado); pasar el motor de una instancia a la otra; respaldo del piloto en su carpeta | T-269, T-276 |
-| Base, motores de IA, `worker`, `portal_worker`, pantallas de las secciones | No | — | — |
+| Intermediario: Caddy 2.11 en Windows, servicio `EVALUON-Caddy` con `LocalService` | Nuevo, fuera de Docker | Termina el cifrado con los archivos de `C:\ProgramData\EVALUON-Red\certificados\`, redirige `http`, corta lo que no está en la lista, pone los encabezados de origen y reenvía a `127.0.0.1:8100`. En las opciones globales: `admin off`, `auto_https off`, `ocsp_stapling off`, solo HTTP/1.1 y HTTP/2, sin instalar raíces, almacenamiento y registro en `C:\ProgramData\EVALUON-Red\`, y `default_sni` si se entra por IP. Con nombre, encabezado HSTS (punto 18). Se recarga reiniciando el servicio | T-270 |
+| Firewall de Windows | Regla nueva | Entrada TCP 80 y 443 para `caddy.exe`, solo desde la lista y el equipo, en todos los perfiles (`-Profile Any`). Desactiva otras reglas de entrada de `caddy.exe` y se niega si el firewall está apagado en el perfil de la red actual | T-270 (script); lo aplica el responsable |
+| `scripts/red/` | Nuevo | `caddy.py` (genera `Caddyfile` y lista en `entrada\`), `Caddyfile.plantilla`, `instalar-red.ps1`, `aplicar-red.ps1`, `desinstalar-red.ps1`, `caddy.sha512` y `crear-certificados.sh` (T-270); `medir_carga.py` (T-277) | T-270, T-277 |
+| `evaluon/settings.py` | Sí | Modo HTTPS detrás del intermediario, que no arranca con `DJANGO_DEBUG` verdadero; backend único de ingreso y constantes; middleware de sesión y de cambio obligatorio; validadores de clave; `accounts` antes de `django.contrib.auth` para reemplazar sus comandos | T-269, T-272, T-274, T-275 |
+| `evaluon/accounts/` | Sí | `backends.py`, `origin.py`, `session_policy.py`, `password_policy.py`, cambio de clave, comandos de administración, `crear_usuario` con clave inicial, receptor de salida y origen; con el punto 1, la pantalla del registro de accesos | T-272 a T-275, T-282 |
+| `evaluon/audit/` | Sí | Cinco tipos de hecho; `FORBIDDEN_DETAIL_KEYS` suma `old_password`, `new_password1` y `new_password2` | T-272, T-273 |
+| Pantallas | Mínimo | Enlace «Cambiar clave» en el encabezado y su pantalla; con el punto 1, «Registro de accesos» solo para el responsable. Las tres recargas automáticas suman `auto=1` sin cambiar nada visible; el sondeo manda su encabezado | T-274, T-275, T-282 |
+| `docker-compose.piloto.yml` | Nuevo | Nombre del proyecto e imagen propia; con el punto 4, usuario de la base y puerta | T-269, T-283, T-284 |
+| `docker-compose.sin-gpu.yml` | Nuevo | `generation_batch` y `worker` en el perfil `gpu`, para la instancia que no tiene el motor | T-276 |
+| `docker-compose.yml` | Entorno y montajes | `EVALUON_HTTPS` en el entorno de la imagen; monta los archivos nuevos para los tests (regla de T-264) | T-269, T-276 |
+| `.env.example`, `.gitattributes` | Sí | Bloque comentado del piloto; `scripts/models.sha256` con fin de línea LF | T-269, T-276 |
+| `scripts/piloto/` | Nuevo | `compose.ps1` (T-269); `gpu.ps1`, `respaldar.ps1`, `vaciar-base.ps1` y `actualizar.ps1` (T-276); con el punto 4, `permisos-base.sql` (T-283) | T-269, T-276, T-283 |
+| Base, motores, `worker`, `portal_worker`, secciones | No | — | — |
 
-El camino de pliegos y ofertas no depende de ningún servicio externo (P4): el intermediario corre en el equipo, no pide certificados a internet y reenvía a `127.0.0.1`; la IA es la de los motores locales con `--offline`. Bajar Caddy es un paso con internet, una vez, como bajar los modelos.
+El camino de pliegos y ofertas no depende de ningún servicio externo (P4). El intermediario es local, no pide certificados ni consulta OCSP, y reenvía a `127.0.0.1`. La IA es la de los motores locales con `--offline`. Con internet, solo bajar Caddy (una vez, con la suma SHA-512 publicada) y los modelos.
 
 ## Modelo de datos
 
 **Una sola tarea toca el esquema: T-272**, con dos migraciones que corren juntas.
 
-- `accounts_user` (migración nueva de `accounts`):
-  - `failed_logins`: entero chico no negativo, por omisión 0. Intentos fallidos seguidos desde el último ingreso correcto o desbloqueo.
-  - `locked_until`: fecha y hora, vacía por omisión. Mientras sea futura, el usuario está bloqueado.
-  - `must_change_password`: verdadero o falso, por omisión falso. Lo pone en verdadero `crear_usuario` y `clave_inicial`; lo vuelve a falso el cambio de clave.
-  - Los usuarios que ya existen quedan con 0, vacío y falso.
-- `audit_event.event_type` (migración nueva de `audit`, como la 0008): suma `logout`, `lockout`, `unlock`, `password_change` e `initial_password` a `EventType` y a la restricción `audit_event_event_type_valid`. Todos entran en los 20 caracteres del campo. No hay columnas nuevas: el origen va en `detail`, que ya existe. La tabla sigue siendo de solo inserción.
-- Sesión: sin tablas nuevas. El middleware guarda en los datos de la sesión el momento del ingreso y el del último uso.
+- `accounts_user`:
+  - `failed_logins`: entero chico, 0 por omisión;
+  - `locked_until`: fecha y hora, vacía por omisión;
+  - `must_change_password`: falso por omisión, lo ponen `crear_usuario` y `clave_inicial`;
+  - `is_system_manager`: falso por omisión, solo con el punto 2; lo pone `responsable_sistema`.
+
+  Los usuarios existentes quedan con 0, vacío, falso y falso.
+- `audit_event.event_type`: los cinco tipos nuevos, con la restricción reemplazada como en la migración `audit 0008`. Sin columnas nuevas: el origen va en `detail`. La tabla sigue siendo de solo inserción.
+- Sesión: sin tablas nuevas. El middleware guarda en la sesión el momento del ingreso, el del último uso y el origen.
+
+Con el punto 4, T-283 agrega en la base del piloto un usuario para la aplicación, sin propiedad de las tablas, que en `audit_event` solo puede leer y agregar. No es una migración de Django: es un script del piloto que corre el dueño del esquema después de cada `migrate`.
 
 ## Flujo de IA
 
-No aplica. La feature no cambia la recuperación, las instrucciones ni el modelo, así que no hace falta correr el conjunto dorado (P7). La instancia del piloto usa la configuración de uso vigente (ADR-0057: el 27B en `generation_batch`, con razonamiento solo en el contraste y la Consulta en el mismo motor), con motores propios. Un cambio de modelo o de instrucciones llega al piloto solo con un despliegue aprobado (P11).
+No aplica. La feature no cambia la recuperación, las instrucciones ni el modelo (P7 no se dispara). El piloto usa la configuración de uso del ADR-0057 con motores propios. Un cambio de modelo o de instrucciones llega al piloto solo con un despliegue aprobado.
 
 ## Registro de auditoría
 
-Todo va en `audit_event` (P6), nunca con la clave ni el identificador de sesión (`FORBIDDEN_DETAIL_KEYS`).
+Todo va en `audit_event` (P6), nunca con claves ni identificadores de sesión.
 
 | Hecho | Cuándo | Usuario y nombre | Detalle |
 |---|---|---|---|
-| `login` (existe) | Ingreso correcto, por pantalla o comando | El usuario | `origin`; por comando, además, `command` |
-| `login_failed` (existe) | Usuario inexistente, clave equivocada, usuario bloqueado o dado de baja; también la clave actual equivocada en el cambio de clave | Sin usuario; el nombre tal como se escribió | `origin`; en el cambio de clave, `form: password_change`. No dice el motivo: el registro no distingue inexistente de bloqueado, como el mensaje |
+| `login` | Ingreso correcto, por pantalla o comando | El usuario | `origin`; por comando, `command` |
+| `login_failed` | Usuario inexistente, clave equivocada, usuario bloqueado o dado de baja. También la clave actual equivocada en el cambio de clave | En el ingreso, sin usuario y con el nombre escrito (punto 20). En el cambio de clave, el usuario de la sesión | `origin`; en el cambio de clave, `form: password_change`. No dice el motivo |
 | `lockout` | Al quinto fallido seguido | El usuario bloqueado | `origin` del quinto intento, `locked_until` |
-| `unlock` | `desbloquear_usuario`, o `clave_inicial` sobre un usuario bloqueado | Quien desbloquea | `unlocked_user`, `unlocked_user_id`, `locked_until` que tenía, `command` |
-| `logout` | «Salir», y el cierre por inactividad o por las 8 horas | El usuario | `origin`, `reason` (`user`, `idle` o `max_age`) |
-| `password_change` | Cambio de clave correcto | El usuario | `origin`; `initial: true` si era la clave inicial |
-| `initial_password` | `clave_inicial` | Quien la asigna | `target_user`, `target_user_id`, `command` |
+| `unlock` | Por la pantalla del registro (punto 1), por `desbloquear_usuario`, o por `clave_inicial` sobre un usuario bloqueado | Por pantalla, el responsable. Por comando, sin usuario: «administración del equipo» | `unlocked_user`, `unlocked_user_id`, el `locked_until` que tenía, `origin`, `command` si va por comando |
+| `logout` | «Salir»; el cierre por inactividad o por las 8 horas cuando el usuario vuelve; con el punto 6, también la sesión vencida que nadie retomó | El usuario | `origin` (el del ingreso, si la sesión venció sola); `reason`: `user`, `idle`, `max_age` o `locked_in_form`; `expired_at` si venció sola |
+| `password_change` | Cambio de clave correcto | El usuario | `origin`; `initial: true` si era la inicial |
+| `initial_password` | `clave_inicial` | «Administración del equipo» | `target_user`, `target_user_id`, `command` |
+| `user_role_changed` (existe) | `responsable_sistema` | «Administración del equipo» | `changed_user`, `system_manager_before`, `system_manager_after`, `command` |
 
-`ver_accesos` lista estos siete hechos con fecha y hora, hecho, usuario o nombre escrito, computadora con su dirección y canal. Una sesión que vence sin que el usuario vuelva no deja `logout`: no hay pedido en el que registrarla; la base la borra con `clearsessions`.
+`ver_accesos` y la pantalla del punto 1 muestran estos hechos con fecha y hora, hecho, usuario o nombre escrito, «computadora (según su dirección)» y canal.
 
 ## Instancia del piloto (REQ-117)
 
-**Qué separa a las dos instancias.**
-
-| | Construcción (hoy, 8000) | Piloto |
+| | Construcción (8000) | Piloto |
 |---|---|---|
-| Carpeta | `C:\Users\snave\Documents\dev\EVALUON` y sus copias de trabajo | `C:\EVALUON-piloto\evaluon\`: un clon del repositorio en el commit desplegado, fuera del perfil de usuario y de toda carpeta sincronizada con la nube |
-| Proyecto de Compose | `evaluon` | `evaluon-piloto`, por tres vías: `COMPOSE_PROJECT_NAME` en su `.env`, `name:` en `docker-compose.piloto.yml` y `scripts/piloto/compose.ps1`, que comprueba las dos antes de llamar a Docker con `-p evaluon-piloto` |
-| Base y volúmenes | `evaluon_pgdata` | `evaluon-piloto_pgdata` (los toma del nombre del proyecto) |
-| Imagen de la aplicación | `evaluon-app:local` | `evaluon-app:piloto`. Si compartieran la etiqueta, construir una cambiaría la imagen de la otra al recrearla |
-| Puerto | `127.0.0.1:8000` | `127.0.0.1:8100`, que solo usa el intermediario |
-| `.env` y secretos | propios | propios: otra `POSTGRES_PASSWORD` y otra `DJANGO_SECRET_KEY` |
-| Motores de IA | propios | propios, con la misma configuración (ADR-0057). Los archivos de los modelos se copian a `models\` del clon y se verifican con `scripts/fetch_models.sh` (y `--qwen38-27b`), que con los archivos presentes solo comprueba la huella. Requiere `scripts/models.sha256` con fin de línea LF (T-276) |
-| Respaldos | `backups/` de la copia de trabajo | `C:\EVALUON-piloto\respaldos\` (`scripts/piloto/respaldar.ps1`) |
-| Acceso desde la red | ninguno | por el intermediario (ADR-0061) |
-| Repositorio | publica por pull request | el clon no puede publicar: su `origin` no tiene dirección de envío |
+| Carpeta | `C:\Users\snave\Documents\dev\EVALUON` y sus copias | `C:\EVALUON-piloto\evaluon\`, un clon en el commit desplegado, con permisos propios y fuera de carpetas sincronizadas |
+| Proyecto | `evaluon` | `evaluon-piloto`, por `COMPOSE_PROJECT_NAME`, `name:` en `docker-compose.piloto.yml` y `compose.ps1` |
+| Imagen | `evaluon-app:local` | `evaluon-app:piloto`. Los estáticos (CSS y JS) salen de la imagen, no del código montado: cada actualización la reconstruye |
+| Base y volúmenes | `evaluon_*` | `evaluon-piloto_*` |
+| Puerto | `127.0.0.1:8000` | `127.0.0.1:8100`, solo para el intermediario |
+| Secretos | propios | otros `POSTGRES_PASSWORD` y `DJANGO_SECRET_KEY`; con el punto 4, `EVALUON_APP_DB_PASSWORD` |
+| Respaldos | `backups/` | `C:\EVALUON-piloto\respaldos\`, programados cada día, con retención y una copia periódica a un medio que custodia el responsable |
+| Modelos | `models/` | enlaces duros a los de construcción, o una copia, verificados con `tr -d '\r' < ../scripts/models.sha256 \| sha256sum -c --ignore-missing -` (orden de T-049) |
+| Repositorio | publica por pull request | el clon no tiene dirección de envío |
 
-**El motor de generación, para una instancia a la vez.** No entran dos 27B en la GPU. Sí entran el 27B de una instancia con embeddings y reranker de las dos: 20.940 MiB de 24.463, medido por T-049. Mientras el piloto tiene el motor, la construcción usa `docker-compose.sin-gpu.yml`: su `generation_batch` y su `worker` quedan en un perfil que no arranca (nada más los espera), así `docker compose up -d` y `docker compose run --rm app pytest` no encienden un segundo 27B. Para medir, el responsable pasa el motor a la construcción con `scripts/piloto/gpu.ps1 -Para construccion`: detiene `generation_batch` y `worker` del piloto y enciende los de construcción. Lo devuelve con `-Para piloto`. Cada cambio tarda lo que tarda en cargar el 27B (de 3 a 10 minutos) más unos 20 s en detener el otro. El script comprueba que el motor de destino responde y tiene el modelo esperado (`/health` y `/props`). No usa `nvidia-smi` como prueba de GPU libre: T-049 lo vio marcar 0 MiB con el 27B cargado. Mientras el piloto no tiene el motor, su aplicación sigue respondiendo y busca en la normativa, pero no evalúa ni arma matrices, y la Consulta avisa que no está disponible, como ya hace (T-255).
+**El motor de generación, para una instancia a la vez (ADR-0064, punto 3).** No entran dos 27B. Con el 27B de una instancia y embeddings y reranker de las dos, T-049 midió 20.940 MiB de 24.463 (con `nvidia-smi`, que T-049 vio marcar 0 MiB con el 27B cargado: T-278 lo confirma por otra vía).
 
-**El nombre del proyecto, una salvaguarda.** El compose base dice `name: evaluon`. Si en la carpeta del piloto faltaran `COMPOSE_PROJECT_NAME` y el archivo del piloto en `COMPOSE_FILE`, cualquier orden de Compose actuaría sobre 8000: un `down -v` borraría su base (hallazgo de T-049). Por eso el runbook del piloto no usa `docker compose` directo: usa `scripts/piloto/compose.ps1`, que comprueba las dos líneas y pasa `-p evaluon-piloto`. Los demás scripts del piloto pasan por él. Queda el riesgo de una orden escrita a mano sin el script (ver «Riesgos»).
+- **La protección es simétrica:** la instancia que no tiene el motor lleva `docker-compose.sin-gpu.yml` en su `COMPOSE_FILE`, así ningún `up` ni `run` le enciende el 27B.
+- **`scripts/piloto/gpu.ps1 -Para piloto|construccion`:**
+  - se niega si en la instancia que cede el motor hay pedidos en curso (`tenders_job` en `running`);
+  - detiene su `generation_batch` y su `worker`, tolera el error de `docker stop` y espera a que `docker inspect` diga `exited` (T-049: unos 40 s desde la orden, código 137);
+  - cambia la línea `COMPOSE_FILE` de los dos `.env`, sin marca BOM y conservando los fines de línea, comprueba con `docker compose config -q` y, si falla, restaura la copia;
+  - enciende el destino con `up -d`, espera `/health` y el alias en `/props` (hasta 15 minutos);
+  - escribe `C:\EVALUON-piloto\motor-gpu.txt` con quién tiene el motor, desde cuándo y quién lo movió.
+- **Órdenes que no leen `COMPOSE_FILE`:** las órdenes de medición con `-f` o con otro `--env-file` (por ejemplo, el `coord.env` del Coordinador) no lo leen. Por eso `gpu.ps1` acepta `-OtrosEnv` para actualizar esos archivos, y todo encargo que use el motor dice quién lo tiene y empieza leyendo `motor-gpu.txt`.
+- **Quién mueve el motor** lo fija el punto 3.
 
-**La imagen.** `docker-compose.piloto.yml` pone `image: evaluon-app:piloto` en los cuatro servicios de la imagen propia. Construir en una instancia no cambia la imagen de la otra, y el piloto puede quedar en una versión distinta de la construcción. Como el código se monta desde el clon, la imagen lleva solo las dependencias. Con el mismo `Dockerfile` y `pyproject.toml`, Docker reutiliza las capas que ya tiene. Una construcción sin caché hoy falla en este equipo porque Norton intercepta las conexiones cifradas de `pip` (hallazgo de T-049): queda como pendiente fuera del alcance de esta feature.
+**Después de un reinicio de Windows.** Docker Desktop corre en la sesión del usuario y en este equipo no arranca solo. Hay que:
 
-**Mediciones.** Las mediciones de construcción corren solo en la instancia de construcción, con la GPU prestada, y nunca sobre la base del piloto. Lo que el responsable decida compartir del piloto son cifras agregadas, sin textos (REQ-117): no se construye nada para eso.
+- activar «Start Docker Desktop when you sign in»;
+- bloquear la sesión, nunca cerrarla;
+- que el equipo no se suspenda ni haga nada al cerrar la tapa;
+- fijar el horario de reinicio de Windows Update fuera del uso;
+- si el equipo se conecta por Wi-Fi, desactivar las direcciones de hardware aleatorias para esa red, para que la reserva de DHCP no se pierda.
 
-**El repositorio, que es público.** El material reservado entra al piloto por la pantalla y queda en su base. El clon del piloto no puede publicar, sus respaldos van fuera del clon, y nada de la construcción lee la carpeta del piloto. Durante la estabilización (ADR-0060) los agentes pueden leer la instancia del piloto; lo que lleven al repositorio son cifras, claves y estados, como hoy.
+Después de un reinicio, `instancia-piloto.md` indica comprobar con `compose.ps1 ps` y repetir `compose.ps1 up -d` si algo no arrancó (falla 2 de T-049: varios servicios con GPU a la vez). Un motor detenido a mano no vuelve a arrancar solo.
 
-**Los agentes, al terminar la estabilización.** T-276 deja escrito el procedimiento de cierre para que lo aplique el responsable: el Coordinador deja de dar encargos sobre el piloto; la configuración de permisos de Claude Code del equipo suma reglas que niegan leer `C:\EVALUON-piloto\` y correr Docker sobre el proyecto `evaluon-piloto`; y se cambian la clave de la base y la clave secreta del piloto. Límite conocido: con el mismo usuario de Windows y Docker Desktop, cualquier proceso de ese usuario puede entrar a los contenedores. La separación es de procedimiento, no técnica. La técnica exige otro usuario de Windows sin acceso a Docker para los agentes, u otro equipo (ADR-0064; decisión del responsable).
+**Actualizar el piloto (despliegue, P11).** `scripts/piloto/actualizar.ps1`, con el commit aprobado:
 
-**Relación con T-049 de la 001.** T-049 prueba la instalación desde cero en una copia limpia con la configuración por omisión. Deja los «Datos para el runbook»: descarga de modelos, migración con respaldo previo, respaldo y restauración, limpieza de sesiones, fallas conocidas. La instancia del piloto se instala con ese procedimiento más lo propio de esta feature (T-276). El corte vertical no depende de T-049: levanta solo la base, la migración y la aplicación, sin motores (`compose.ps1 up -d db migrate` y después `compose.ps1 up -d --no-deps app`).
+1. se niega con pedidos en curso;
+2. respalda;
+3. lleva el clon a ese commit;
+4. reconstruye `evaluon-app:piloto`;
+5. muestra las migraciones pendientes y, si hay, sigue el procedimiento de migración con respaldo de T-049;
+6. con el punto 4, reaplica los permisos de la base;
+7. levanta con `up -d --no-deps` los servicios de la imagen propia;
+8. comprueba el ingreso.
 
-Hallazgos de T-049 que este plan incorpora:
+Antes de cargar el proceso reservado y durante la estabilización, lo corre un agente. Después, el responsable.
 
-- la convivencia con 8000 por `COMPOSE_PROJECT_NAME` y `APP_PORT`, y la salvaguarda del nombre del proyecto (T-269);
-- la imagen propia del piloto (T-269);
-- el motor que se turna, con la memoria medida y sin `nvidia-smi` como prueba (T-276, ADR-0064);
-- el fin de línea de `scripts/models.sha256` (T-276);
-- la intercepción de Norton en las pruebas con certificados (T-271, T-277, T-278).
+**Clave olvidada.** Con `clave_inicial`, que obliga a cambiarla y deja registro. Reemplaza el `changepassword` del runbook de T-049 (ADR-0063 enmienda el ADR-0005). Las órdenes de la sección T-043 que traen `-p evaluon` (O-049-8) no se copian al piloto: van por `compose.ps1`.
 
-Quedan fuera del alcance de esta feature, porque ningún requisito de la 007 los pide:
+**Mediciones.** Corren en la instancia de construcción, con el motor prestado, nunca sobre la base del piloto. Del piloto, la construcción recibe solo lo que el responsable decida compartir: cifras agregadas, sin textos.
 
-- la construcción de la imagen sin caché con Norton;
-- separar el usuario de la aplicación del dueño del esquema en la base (el registro de solo inserción no frena `TRUNCATE`);
-- la salida a internet de `app` por la red `web` (T-047).
+**El repositorio, que es público.** Al repositorio van solo cifras, identificadores (REQ, T, ADR) y estados. Nunca contraseñas, direcciones de la red del organismo ni textos del proceso. El clon del piloto no puede publicar; sus respaldos van fuera del clon.
 
-Conviene decidirlos al desplegar el piloto (ver «Riesgos»).
+**Agentes.** Durante la estabilización pueden leer la instancia del piloto (ADR-0060). Al terminarla, el responsable aplica la lista de cierre de `instancia-piloto.md`, que verifica T-285:
 
-## Pasos del responsable en Windows y en la red
+- reglas de denegación en la configuración de permisos de Claude Code: leer `C:\EVALUON-piloto\`, órdenes de Docker sobre `evaluon-piloto` y pedidos a la dirección del piloto y a `127.0.0.1:8100`;
+- clave nueva del usuario de la base con `ALTER ROLE` (cambiar el `.env` solo no alcanza) y de `DJANGO_SECRET_KEY`;
+- `clave_inicial` para todo usuario cuya clave haya pasado por un agente.
 
-Lo que toca Windows o la red lo hace el responsable siguiendo el runbook, no un agente. T-270 y T-276 escriben estos pasos en detalle en `specs/007-acceso-por-red/entorno.md` y `instancia-piloto.md`, con cada comando y lo que tiene que verse en la pantalla. Lo marcado **[Área de sistemas]** necesita algo del organismo.
+La separación es de procedimiento: con el mismo usuario de Windows y Docker Desktop, un proceso de ese usuario puede entrar a los contenedores (ADR-0064, punto 6).
 
-**Una sola vez**
+**Relación con T-049.** El piloto se instala con su procedimiento más lo de esta feature. Se incorporan sus hallazgos:
 
-1. **[Área de sistemas]** Pedir lo de la sección siguiente. El corte vertical se puede hacer antes, en cualquier red con una segunda computadora, con el certificado propio.
-2. Configurar la energía del equipo para que no se suspenda enchufado. Docker Desktop arranca al iniciar sesión en Windows: después de un reinicio, alguien tiene que iniciar sesión.
-3. Crear la carpeta `C:\EVALUON-piloto\` y dentro el clon y su `.env` (pasos de T-049 y T-276). En esa carpeta, **nunca** escribir `docker compose` directo: siempre `scripts\piloto\compose.ps1` (por ejemplo, `.\scripts\piloto\compose.ps1 ps`). Si el `.env` no dice que es el piloto, el script no hace nada.
-4. Instalar el intermediario: abrir PowerShell **como administrador** y correr `scripts\red\instalar-caddy.ps1`. Baja la versión fijada, comprueba su huella, la deja en `C:\EVALUON-piloto\caddy\` y la registra como servicio que arranca solo.
-5. Certificado, según la variante:
-   - **Propio:** en Git Bash, `bash scripts/red/crear-certificados.sh` con la dirección fija. Deja `evaluon.crt` y `evaluon.key` en `C:\EVALUON-piloto\certificados\` y la autoridad (`ca-evaluon.crt` y su clave) en una carpeta aparte. Guardar esa carpeta en un pendrive y sacarla del equipo: hace falta solo para renovar.
-   - **Del organismo:** copiar a `C:\EVALUON-piloto\certificados\` los dos archivos que entregue el área de sistemas, con esos nombres.
-6. Completar en el `.env` del piloto la dirección fija, la dirección del equipo y la lista de computadoras (`EVALUON_ADDRESS`, `EVALUON_SERVER_IP`, `EVALUON_COMPUTERS`).
-7. Correr **como administrador** `scripts\red\aplicar-red.ps1`. Arma la configuración del intermediario, deja abierto el firewall solo para la lista, recarga el intermediario y muestra lo que quedó.
-8. Con el certificado propio, en cada computadora de la lista: instalar `ca-evaluon.crt` una vez (doble clic, «Instalar certificado», «Equipo local», «Entidades de certificación raíz de confianza»). **[Área de sistemas]** Hace falta permiso de administrador en esa computadora, o que lo instale el área por política de grupo.
-9. Comprobar desde una computadora de la lista y desde una de fuera, con `scripts\red\revisar-puertos.ps1` y el navegador (lista de T-271).
+- el nombre del proyecto y su salvaguarda;
+- la imagen propia;
+- el motor que se turna, con sus tiempos y sin `nvidia-smi` como prueba;
+- la verificación de los modelos con `tr -d '\r'` (`fetch_models.sh` baja el 12B si falta);
+- el fin de línea de `scripts/models.sha256`, que rompe `sha256sum -c` y el `awk` de WSL, aunque no el `fetch_models.sh` de Git Bash;
+- O-049-8;
+- `changepassword` sin registro;
+- los dos pendientes del despliegue (punto 4).
 
-**Cada vez que cambia la lista:** editar la línea `EVALUON_COMPUTERS` del `.env` del piloto y volver a correr `aplicar-red.ps1` como administrador. No se toca el código ni se reinicia la aplicación.
+Norton ya no está en el equipo: el responsable lo desinstaló el 2026-10-14 y `docker build --no-cache` pasa en 42 s. Sigue siendo posible un antivirus o un proxy que inspeccione conexiones cifradas en las computadoras de la Comisión (pedido 7).
 
-**Al pasar del certificado propio al del organismo:** reemplazar los dos archivos de `certificados\` y correr `aplicar-red.ps1`. Después se puede quitar la raíz propia de cada computadora.
+## Quién hace qué
 
-**Una vez por año, con el certificado propio:** volver a correr `crear-certificados.sh` con la autoridad del pendrive y después `aplicar-red.ps1`. Las computadoras no se tocan.
+**El responsable hace solo lo que exige ser administrador de Windows, tocar las computadoras de la Comisión o decidir:**
 
-**Para medir en construcción:** `scripts\piloto\gpu.ps1 -Para construccion`, y al terminar `-Para piloto`. Mientras tanto el piloto no evalúa ni arma matrices.
+- correr `instalar-red.ps1` (una vez) y `aplicar-red.ps1` (cada vez que cambia la lista o el certificado), como administrador;
+- crear y renovar la autoridad propia con `crear-certificados.sh`, guardándola en su unidad extraíble;
+- instalar la raíz en cada computadora de la lista, o pedírselo al área de sistemas;
+- energía, inicio de Docker Desktop y Windows Update;
+- programar los respaldos;
+- mover el motor y actualizar el piloto después de la estabilización;
+- la lista de cierre de la estabilización;
+- las decisiones.
 
-**Desbloquear, asignar una clave inicial y ver el registro:** comandos `desbloquear_usuario`, `clave_inicial` y `ver_accesos` en la carpeta del piloto (`.\scripts\piloto\compose.ps1 exec app python manage.py …`).
+**Un agente (el implementador, o el desarrollador o el testeador de cada tarea), antes de cargar el proceso reservado y durante la estabilización, siempre por `compose.ps1`:**
+
+- clonar el piloto;
+- armar el `.env` con claves generadas;
+- los modelos;
+- levantar y actualizar el piloto;
+- usuarios de prueba;
+- la lista de pasos y el registro de cada prueba.
+
+`specs/007-acceso-por-red/entorno.md` (T-270) e `instancia-piloto.md` (T-276) dejan cada paso del responsable con el comando, lo que tiene que verse y cómo volver atrás (`desinstalar-red.ps1`).
 
 ## Pedido al área de sistemas
 
-1. **Permiso para conectar el equipo del sistema** (notebook propia, Windows 11) a la red del organismo, de preferencia por cable, y que las computadoras de la Comisión lleguen a él por TCP 443 y 80 (rutas, redes virtuales y firewalls internos). En Wi-Fi, que no aísle a los clientes entre sí.
-2. **Dirección fija para el equipo del sistema** (reserva de DHCP o dirección estática) y, si se puede, **un nombre en el DNS interno** (por ejemplo `evaluon.<dominio interno>`). Sin nombre, se entra por la dirección.
-3. **Direcciones fijas para las computadoras de la Comisión** (hasta 10), con el nombre de cada una. La lista de EVALUON se arma con esas direcciones: si cambian, la computadora deja de llegar.
-4. **Que la dirección de EVALUON quede fuera del proxy web** de los navegadores (lista de excepciones o PAC). Si los pedidos pasan por el proxy, todos llegan con la dirección del proxy: la lista y el registro de la computadora de origen dejan de servir.
-5. **Certificado**, una de dos:
-   - un certificado de servidor emitido por la autoridad interna del organismo, en la que las computadoras ya confían, para el nombre (o la dirección) de EVALUON: certificado con su cadena y clave privada en formato PEM (o PFX, que se convierte), con su fecha de vencimiento y cómo se renueva; o
-   - que instalen la raíz propia de EVALUON en las computadoras de la lista por política de grupo, o que den permiso para instalarla, y que el antivirus o el EDR no lo bloqueen (instalar una raíz es algo que esas herramientas vigilan).
-6. **Qué navegador y qué versión usa la Comisión.** Edge y Chrome usan los certificados de Windows; Firefox puede necesitar un paso más.
-7. **Si el antivirus o el proxy de las computadoras de la Comisión inspecciona las conexiones cifradas**, que exceptúe la dirección de EVALUON. En el equipo del sistema, Norton lo hace (T-049): si un producto así se pone en el medio, el navegador ve su certificado y no el de EVALUON, y puede mostrar advertencias o bloquear.
-8. **Que los navegadores no restauren la sesión al reabrir** («continuar donde lo dejaste»), por política. Si la restauran, la sesión no se cierra al cerrar el navegador; queda el cierre a los 30 minutos sin uso (REQ-115).
-9. Si el equipo recibe políticas de firewall del dominio: que la regla local de entrada se aplique, o que la creen ellos con los mismos datos.
+1. **Permiso para conectar el equipo del sistema** (notebook propia, Windows 11) a la red del organismo, **por cable**, y que las computadoras de la Comisión lleguen a él por TCP 443 y 80. Si la Comisión está en Wi-Fi, una excepción solo hacia la dirección del equipo, sin quitar el aislamiento entre clientes.
+2. **Dirección fija para el equipo** (reserva de DHCP por su dirección física, que no cambia) y, si se puede, **un nombre en el DNS interno**.
+3. **Direcciones fijas para las computadoras de la Comisión** (hasta 10), con su nombre. Si se puede, protección contra quien tome una dirección ajena: seguridad de puerto o 802.1X, DHCP snooping e inspección ARP, o una red virtual propia. El registro identifica a cada computadora por su dirección.
+4. **Que la dirección de EVALUON quede fuera del proxy web.**
+5. **Certificado, una de dos:**
+   - que firmen con su autoridad interna el pedido de firma (CSR) que genera el equipo, solo para el nombre o la dirección de EVALUON, sin comodín. La clave no sale del equipo;
+   - que instalen la raíz propia de EVALUON en las computadoras de la lista por política de grupo, o que permitan instalarla.
+   En los dos casos, que el antivirus o el EDR no lo bloqueen.
+6. **Qué navegador y versión usa la Comisión.** Edge y Chrome toman las raíces del almacén de Windows. Firefox 120 o posterior también, salvo que una política lo desactive.
+7. **Que su antivirus o proxy no inspeccione las conexiones cifradas a EVALUON.**
+8. **Que el navegador no restaure la sesión al reabrir** ni siga corriendo en segundo plano después de cerrar las ventanas: en Edge, el arranque rápido y las aplicaciones en segundo plano. Si no, la sesión no se cierra al cerrar el navegador.
+9. **Aviso de las pruebas de puertos** desde las computadoras de prueba, para que no las tomen por un ataque. Y si el equipo recibe políticas de firewall del dominio, que la regla local se aplique.
 
-Fuera del área de sistemas, el ADR-0060 recomienda la conformidad del área legal o de seguridad para que ofertas reservadas pasen por un servicio de IA en la nube durante la estabilización. No la puede dar el proyecto.
+Fuera del área de sistemas: la conformidad legal que recomienda el ADR-0060.
 
 ## Cobertura de requisitos
 
 | Requisito | Cómo se resuelve | Cómo se verifica |
 |---|---|---|
-| REQ-109 | Intermediario en Windows con la lista por dirección fija, en el firewall y en el intermediario; la lista en el `.env` del piloto, aplicada por script, sin tocar el código (T-270, ADR-0061); la aplicación del piloto es la misma, con las mismas pantallas y roles (T-269, T-276) | Tests del generador (lista, tope de 10, corte de lo que no está en la lista); T-271 (computadora de la lista, de fuera, y una que se saca y se vuelve a poner); T-278 (5 de 5 secciones) |
-| REQ-110 | Cifrado en el intermediario con el certificado de la carpeta (ADR-0062); redirección de `http` por el intermediario; modo HTTPS de Django (cookies seguras, protocolo del intermediario) (T-269) | Tests del modo HTTPS y del `Caddyfile` generado; T-271 (0 advertencias, redirección sin contenido, captura sin la clave); T-278 (todas las páginas) |
-| REQ-111 | Backend de ingreso con contador por usuario y bloqueo de 15 minutos tras 5 seguidos, mismo mensaje, mismo camino para pantalla y comandos (T-272, ADR-0063) | Tests con el reloj controlado, por pantalla y por comando; T-278 desde otra computadora |
-| REQ-112 | `desbloquear_usuario` con rol de lectura y escritura, hecho `unlock` con quién y cuándo (T-273) | Tests; T-278 |
-| REQ-113 | Origen en cada hecho de acceso a partir de los encabezados del intermediario (T-273); salida y cierre por inactividad registrados (T-273, T-274); `ver_accesos` (T-273) | Tests de los siete hechos con su origen; T-278 (4 de 4 desde otra computadora) |
-| REQ-114 | Vista de cambio de clave de Django con la clave actual, 8 caracteres y claves comunes; marca de clave inicial y cambio obligatorio; `clave_inicial`; los comandos rechazan la clave inicial (T-275) | Tests; T-278 |
-| REQ-115 | Middleware con 30 minutos sin uso y 8 horas de tope; el sondeo no cuenta; la cookie sigue venciendo al cerrar el navegador (T-274) | Tests con el reloj controlado; T-278 (espera real) |
-| REQ-116 | Nada de Docker publicado hacia la red: la aplicación en `127.0.0.1`, base y motores en la red interna (como hoy); solo el intermediario escucha en la red, y solo 80 y 443 (T-269, T-270, T-276) | Tests de compose del piloto; `revisar-puertos.ps1` en T-271 y T-278 |
-| REQ-117 | Instancia `evaluon-piloto` con todo propio y el nombre del proyecto protegido por script; el 27B para una instancia a la vez; respaldos fuera del clon; clon sin publicación; procedimiento de cierre de la estabilización (T-269, T-276, ADR-0064) | Tests de separación de los dos compose; revisión en T-278 |
+| REQ-109 | Intermediario en Windows con la lista por dirección, en el firewall y en el intermediario; la lista en el `.env` del piloto, aplicada por script (T-270, ADR-0061); el piloto es la misma aplicación, con las mismas pantallas y roles | Tests del generador; T-271; T-278 (5 de 5 secciones) |
+| REQ-110 | Cifrado en el intermediario (ADR-0062); redirección; modo HTTPS de Django (T-269); HSTS con nombre | Tests del modo HTTPS y del `Caddyfile`; T-271; T-278 |
+| REQ-111 | Backend único con bloqueo atómico, mismo mensaje y mismo tiempo, para pantalla y comandos (T-272); el cambio de clave respeta el bloqueo (T-275) | Tests con reloj y con hilos; T-278 (incluido el tiempo de respuesta) |
+| REQ-112 | Desbloqueo por la pantalla del responsable (T-282, punto 1) y por comando en el equipo (T-273), con quién y cuándo | Tests; T-278 |
+| REQ-113 | Origen en cada hecho (T-273); salidas, también las vencidas (T-274, punto 6); pantalla y `ver_accesos` | Tests de los hechos con su origen; T-278 |
+| REQ-114 | Cambio de clave con la actual, 8 caracteres, sin comunes ni la misma; clave inicial obligatoria; `clave_inicial`; reemplazo de `changepassword` y `createsuperuser` (T-275) | Tests; T-278 |
+| REQ-115 | Middleware de 30 minutos y 8 horas; sondeo y recargas sin contar; cookie de sesión del navegador (T-274) | Tests por pantalla; T-278 con el navegador real |
+| REQ-116 | Docker sin nada publicado hacia la red; solo el intermediario escucha, en TCP 80 y 443 (sin HTTP/3); con el punto 4, `app` sin salida (T-269, T-270, T-284) | Tests de compose; pruebas de puertos e inventario en T-271 y T-278 |
+| REQ-117 | Instancia `evaluon-piloto` con todo propio y protegida por script; motor para una instancia a la vez; respaldos fuera; clon sin publicación; despliegue con P11; cierre de la estabilización (T-269, T-276, T-283, T-284, T-285) | Tests de separación; T-278 (durante la estabilización); T-285 (al terminarla) |
 
 ## Verificación contra la constitución
 
 | Principio | Cumple | Nota |
 |---|---|---|
-| P1 Spec fuente de verdad | sí | Los valores literales (5 intentos, 15 minutos, 8 caracteres, 30 minutos, hasta 10 computadoras) son constantes con su test. La lectura de «sin que una página tarde más que en el equipo del sistema» la confirma el Coordinador |
-| P2 Trazabilidad | sí | Cada tarea nombra sus `REQ-NNN` y cada test también |
-| P3 El sistema recomienda, la Comisión decide | sí | La clave propia (REQ-114) hace que lo registrado a nombre de cada uno lo haya hecho esa persona. Las pantallas de las secciones no cambian |
-| P4 Datos | sí | El camino de pliegos y ofertas no sale del equipo: intermediario local, motores con `--offline`, sin certificados pedidos a internet. Instancia del piloto separada, fuera de carpetas sincronizadas, sin publicación al repositorio. La excepción del ADR-0060 se respeta y su cierre queda escrito |
-| P5 Local y reproducible | sí, con nota | Cada instancia se levanta con `docker compose up -d`. El intermediario corre fuera de Docker: se instala una vez con un script (versión y huella fijas) como servicio que arranca solo. Los pasos de Windows quedan en el runbook |
-| P6 Auditoría | sí | Cada ingreso, salida, fallido, bloqueo, desbloqueo, cambio y clave inicial queda con usuario o nombre, computadora de origen, fecha y hora |
+| P1 Spec fuente de verdad | sí | Los valores literales son constantes con test. Lo que se aparta de la letra o la completa va como decisión del responsable: puntos 1, 5, 6, 20 y 21 |
+| P2 Trazabilidad | sí | Cada tarea nombra sus `REQ-NNN` |
+| P3 La Comisión decide | sí | La clave propia, distinta de la inicial, sostiene que lo registrado a nombre de cada uno lo hizo esa persona |
+| P4 Datos | sí | Camino local; instancia separada; nada reservado en el repositorio; con el punto 4, `app` sin salida a internet; excepción del ADR-0060 con su cierre verificado (T-285) |
+| P5 Local y reproducible | sí, con nota | La construcción se levanta con `docker compose up -d`; el piloto, con `compose.ps1 up -d`, más `gpu.ps1` para el motor. El intermediario se instala una vez con `instalar-red.ps1` (versión y suma fijas) y arranca solo como servicio |
+| P6 Auditoría | sí | Cada hecho de acceso con usuario o nombre, computadora, fecha y hora; con el punto 4, el registro no se puede borrar desde la aplicación |
 | P7 Evals | no aplica | No cambia la IA |
-| P10 Simplicidad | sí | Sin bibliotecas de Python nuevas. Una sola pieza nueva, el intermediario, porque Docker Desktop no deja ver la computadora de origen. Una pantalla nueva (cambio de clave). El registro y el desbloqueo van por comando |
-| P11 Compuertas humanas | sí | Plan, ADR y despliegue los aprueba el responsable. Los pasos de Windows y de red los hace él |
+| P10 Simplicidad | sí | Sin bibliotecas de Python nuevas. La pieza nueva (intermediario) la exige Docker Desktop. Lo que excede la letra de la spec va como fila aprobable |
+| P11 Compuertas humanas | sí | El piloto es el destino del despliegue. El proceso reservado se carga solo con el dictamen de auditoría y la aprobación del despliegue. Cada actualización posterior también la aprueba el responsable |
 
 ## Decisiones
 
-ADR propuestos por este plan: 0061, 0062, 0063 y 0064.
+ADR propuestos: 0061, 0062, 0063 (enmienda el ADR-0005 en la clave olvidada y en los comandos de administración de usuarios) y 0064. Al aceptarlos, el Coordinador agrega al ADR-0005 una nota «Actualización por ADR-0061 y ADR-0063».
 
 ## Riesgos
 
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
-| El área de sistemas no puede fijar las direcciones de la Comisión, o los pedidos pasan por un proxy | La lista por dirección no identifica computadoras; REQ-109 y REQ-113 sin cumplir | Pedido 3 y 4. Si no se puede, el ADR-0061 deja escrita la alternativa (certificado de cliente por computadora), con su costo |
-| No permiten conectar la notebook propia a la red del organismo | El piloto no corre en paralelo | Pedido 1, primero de la lista. El corte vertical no depende de eso |
-| Una regla de firewall amplia para Caddy (la crea Windows si alguien acepta su aviso) | Llegan computadoras fuera de la lista | El intermediario vuelve a controlar la lista; `aplicar-red.ps1` desactiva otras reglas de entrada de Caddy; `revisar-puertos.ps1` lo comprueba |
-| El navegador restaura la sesión al reabrir | La sesión no se cierra al cerrar el navegador (REQ-115) | Pedido 8; queda el cierre a los 30 minutos sin uso |
-| Un antivirus o un proxy que inspecciona las conexiones cifradas (Norton en el equipo del sistema; lo que use el organismo en las computadoras de la Comisión) | El navegador ve otro certificado: advertencias o bloqueo; las pruebas con certificados fallan | Pedido 7; T-271 anota qué emisor ve el navegador en A; las pruebas que corren en el equipo (`medir_carga.py`) aceptan más de una raíz o se corren con la revisión de Norton en pausa, y se anota |
-| La raíz propia instalada en computadoras del organismo | Quien tenga la clave de la autoridad podría hacerse pasar por cualquier sitio ante esas computadoras | Restricción de nombre en la autoridad (solo la dirección de EVALUON), clave de la autoridad fuera del equipo, variante del organismo apenas exista (ADR-0062). La restricción se comprueba en T-271 |
-| La recarga automática de la pestaña Ofertas mientras se leen archivos (`s3_ofertas.js`) cuenta como uso | La sesión dura más que 30 minutos sin uso mientras dura esa lectura | Es acotada (termina con la lectura). No se cambia: ningún requisito pide tocar esa pestaña |
-| Alternar el motor lleva de 3 a 10 minutos por vez, y la construcción mide solo con el motor prestado | Mediciones más espaciadas durante el piloto | Mediciones de a una y en horario sin uso del piloto, con el script; decisión del responsable (ADR-0064) |
-| Una orden de Compose en la carpeta del piloto sin `COMPOSE_PROJECT_NAME` ni el archivo del piloto (hallazgo de T-049) | Actuaría sobre 8000; un `down -v` borraría su base | `scripts/piloto/compose.ps1` comprueba las dos líneas y pasa `-p evaluon-piloto`; el runbook del piloto no usa `docker compose` directo; `name: evaluon-piloto` en `docker-compose.piloto.yml`. Queda el riesgo de una orden escrita a mano: proteger la base de 8000 contra `down -v` es un pendiente fuera de alcance |
-| La memoria de la GPU con el 27B y dos parejas de embeddings y reranker (20.940 de 24.463 MiB, T-049), y `nvidia-smi` que puede marcar 0 MiB con el 27B cargado | Un cambio de motor que falla al cargar | `gpu.ps1` comprueba el motor de destino por `/health` y `/props`, no por `nvidia-smi`; detiene el otro con espera de 60 s (tarda unos 20 s); T-278 lo prueba en las dos direcciones |
-| `scripts/models.sha256` con CRLF en un clon de Windows (T-049) | La verificación de los modelos del piloto falla | `.gitattributes` lo fija en LF (T-276) |
-| Gunicorn con 4 hilos y Consultas que esperan hasta 60 s | Con 10 personas, una página espera a que se libere un hilo | T-278 lo mide; si no llega, T-279 sube los hilos en `docker-compose.piloto.yml` |
-| `app` tiene salida a internet por la red `web` (T-047) | Un camino de salida para lo que procesa la aplicación (no lo usa el código) | Ningún requisito de la 007 lo pide cerrar; se informa para el despliegue del piloto (cortarlo en el firewall afectaría también a `portal_worker`) |
-| El registro de solo inserción no frena `TRUNCATE` ni que el dueño de la tabla desactive el disparador (T-049) | En operación, el registro de accesos se podría borrar desde la base | Pendiente de T-049 para el despliegue; se recomienda resolverlo al instalar el piloto |
-| Separación de los agentes por procedimiento | Tras la estabilización, un agente podría entrar al piloto | Reglas de denegación y procedimiento de cierre (T-276); separación técnica con otro usuario de Windows u otro equipo, si el responsable lo decide (ADR-0064) |
-| El formulario de cambio de clave permite probar la clave actual desde una sesión abierta | Una forma de adivinar claves sin pasar por el bloqueo | La clave actual equivocada cuenta en el mismo contador y deja `login_failed` (T-275) |
-| La lista de claves comunes de Django es casi toda en inglés | Una clave común en castellano puede pasar | Cumple «rechaza las muy comunes» con la lista estándar de 20.000; sumar una lista propia es un cambio de configuración si el responsable lo pide |
-| `abort` de Caddy y la restricción de nombre de la autoridad en Windows no se probaron en este equipo | El corte vertical falla | Se prueban en T-271, antes de todo lo demás |
+| El área de sistemas no puede fijar las direcciones, o los pedidos pasan por un proxy | La lista no identifica computadoras | Pedidos 2 a 4; si no, la alternativa C del ADR-0061 (certificado de cliente) |
+| Alguien toma la dirección de una computadora de la lista | Llega al ingreso y el registro lo anota con el nombre de esa computadora | Necesita igual usuario y clave; pedido 3; la columna dice «según su dirección» |
+| No permiten conectar la notebook propia | El piloto no corre en paralelo | Pedido 1, primero; el corte vertical no depende de eso |
+| Una regla de firewall amplia para Caddy | Llegan computadoras fuera de la lista | El intermediario vuelve a controlar la lista; `aplicar-red.ps1` desactiva otras reglas de `caddy.exe`; el inventario de puertos lo muestra |
+| El navegador restaura la sesión o queda en segundo plano | La sesión no se cierra al cerrar el navegador | Pedido 8; T-278 lo prueba con el navegador real; queda el cierre a los 30 minutos |
+| Un antivirus o proxy de la Comisión inspecciona las conexiones cifradas | Advertencias o bloqueo | Pedido 7; T-271 y el despliegue anotan qué emisor ve el navegador |
+| La autoridad propia instalada en computadoras del organismo | Quien tenga su clave podría firmar certificados aceptados por esas computadoras | Solo para servidor (EKU), solo los nombres de EVALUON (restricción de los dos tipos), 3 años, clave cifrada en una unidad extraíble, pedido de firma al organismo apenas se pueda (ADR-0062) |
+| Un proceso del equipo pide directo a `127.0.0.1:8100` con encabezados falsos | Un ingreso anotado con otra computadora | Solo procesos del propio usuario, que ya pueden entrar a los contenedores; se anota como riesgo aceptado. Lo que llega sin encabezados se registra aparte (`acceso-directo-local`) |
+| Una orden de Compose escrita a mano en la carpeta del piloto, sin `compose.ps1` | Actuaría sobre 8000 (un `down -v` borraría su base) | `name:` del piloto, `COMPOSE_PROJECT_NAME`, el runbook solo con `compose.ps1`. Proteger el volumen de 8000 queda como pendiente fuera de alcance |
+| Mover el motor | De 3 a 10 minutos sin IA en el piloto, y un pedido cortado si se fuerza | `gpu.ps1` se niega con pedidos en curso; marcador de quién lo tiene; punto 3 |
+| Un reinicio de Windows | El piloto queda caído hasta que alguien inicia sesión | Pasos de energía y de Docker Desktop; sección «Después de un reinicio» |
+| Respaldos en el mismo disco | Una falla del disco se lleva el registro de las decisiones (P6) | Respaldo diario programado, con retención, y copia periódica fuera del equipo |
+| Gunicorn con 4 hilos y Consultas de hasta 60 s | Con 10 personas, una página espera | T-278 lo mide; T-279 sube los hilos en `docker-compose.piloto.yml` si hace falta |
+| Sin el punto 4 | El registro se puede borrar desde la aplicación, y `app` sale a internet | Punto 4 |
+| Separación de los agentes por procedimiento | Tras la estabilización, un agente podría entrar | Lista de cierre verificada por T-285; separación técnica si el responsable la decide (ADR-0064) |
+| Bloqueo a propósito del usuario del responsable desde la red | No puede desbloquear por pantalla | Con el punto 2, los comandos del equipo no piden clave de EVALUON y lo desbloquean |
+| La lista de claves comunes de Django es casi toda en inglés | Pasa una clave común en castellano | Punto 19 |
+| `abort`, `default_sni`, `auto_https off` con certificado manual y la restricción de nombre en los navegadores no se probaron en este equipo | El corte vertical falla | Se prueban en T-271, antes de todo lo demás; si falla, T-281 |
 
 ## Puntos para el responsable
 
-Cada uno con la recomendación y lo que se pierde. Los cinco primeros son los ADR.
+Cada fila se aprueba por sí o por no. Con «sí», se hace la recomendación; con «no», la alternativa, que está escrita en la misma fila.
 
-1. **Cómo se sirve cifrado y cómo se reconoce cada computadora (ADR-0061).** Recomendación: intermediario Caddy en Windows, lista por dirección fija en el firewall y en el intermediario. Se pierde: una pieza fuera de Docker (se instala una vez con un script) y se depende de que el área de sistemas fije las direcciones. Alternativa: intermediario en Docker y un certificado de cliente por computadora; no depende de direcciones, pero hay que instalar y elegir un certificado en cada computadora.
-2. **Certificado (ADR-0062).** Recomendación: preparar las dos variantes con los mismos dos archivos, empezar con la autoridad propia con restricción de nombre (corte vertical) y pasar a la del organismo cuando la emita. Se pierde: con la propia, instalar la raíz en cada computadora (administrador o área de sistemas) y renovar cada año con la autoridad guardada fuera del equipo.
-3. **Bloqueo, sesión y clave con Django, sin bibliotecas nuevas (ADR-0063).** Recomendación: código propio sobre el backend y el middleware de Django. Se pierde: es código de seguridad propio, que se cubre con tests. Alternativa: django-axes 8.3.1, que no declara Django 6.1, pide el pedido web en cada ingreso (los comandos no lo tienen) y guarda sus propios registros aparte de `audit_event`.
-4. **Quién es el «responsable del sistema» y cómo consulta.** Recomendación: el usuario con rol de lectura y escritura, como ya hace `rol_comision`; desbloqueo, clave inicial y registro por comandos. Se pierde: el responsable tiene que estar en el equipo y escribir comandos. Alternativa: una pantalla del registro de accesos (la spec la permite), con su maqueta y sus pruebas.
-5. **Instancia del piloto y GPU (ADR-0064).** Recomendación: motores propios del piloto, con el 27B para una instancia a la vez; embeddings y reranker encendidos en las dos. Se pierde: la construcción mide solo cuando el piloto le presta el motor, y cada cambio tarda de 3 a 10 minutos. Alternativa: un solo motor compartido. Se pierde la separación literal de REQ-117, las mediciones se mezclan con el uso del piloto y cambiar de modelo para medir cambia el del piloto.
-6. **Separación de los agentes al cerrar la estabilización.** Recomendación: procedimiento con reglas de denegación y cambio de claves. Se pierde: no es una barrera técnica. Alternativa: un usuario de Windows sin acceso a Docker para los agentes, u otro equipo.
-7. **Base del piloto tras la aceptación.** Recomendación: vaciarla después de T-278 (la prueba usa el caso chico y usuarios de prueba) y recién ahí cargar el proceso en curso. Se pierde: el caso chico como ejemplo dentro del piloto.
-8. **Defaults del planificador, sin objeción esperada:**
-   - el sondeo no cuenta como uso, y la recarga de la pestaña Ofertas durante una lectura sí;
-   - la clave inicial también frena los comandos hasta cambiarla por pantalla;
-   - `clave_inicial` desbloquea si el usuario estaba bloqueado y lo registra;
-   - la clave actual equivocada en el cambio de clave cuenta para el bloqueo;
-   - el umbral de carga es la mediana a no más de 0,3 s de la del equipo.
+| # | Tema | Recomendación | Alternativa | Qué se pierde con la recomendación | Qué se pierde con la alternativa |
+|---|---|---|---|---|---|
+| 1 | Desbloquear desde otra computadora (REQ-112 y REQ-113; la spec pide probar un desbloqueo hecho desde otra computadora) | Una pantalla chica «Registro de accesos», solo para el responsable del sistema: la lista de ingresos, salidas, fallidos, bloqueos y desbloqueos, y un botón «Desbloquear» junto a cada usuario bloqueado. La spec permite esta pantalla (T-282) | Desbloquear y consultar solo con comandos en el equipo del sistema, y enmendar en la spec el criterio de REQ-113 | Una pantalla más, con su maqueta y sus pruebas | Hay que ir al equipo para desbloquear o consultar, y cambiar la spec |
+| 2 | Quién es el «responsable del sistema» | Una marca solo en el usuario del responsable, que habilita la pantalla del punto 1. En el equipo, los comandos de administración (desbloquear, clave inicial, ver el registro y poner o quitar la marca) los corre quien administra el equipo, sin usuario de EVALUON, como hoy `crear_usuario`, y quedan registrados. Si alguien bloquea al responsable desde la red, él se desbloquea en el equipo | Todo el rol de lectura y escritura actúa como responsable del sistema, con su usuario y clave en cada comando | Quien tenga acceso al equipo puede usar esos comandos sin clave de EVALUON. Ya hoy puede dar de alta usuarios y entrar a la base | Todo usuario con ese rol puede ponerle una clave a otro y entrar en su nombre, y si bloquean al responsable desde la red, durante 15 minutos nadie puede desbloquear |
+| 3 | El 27B, 8000 y quién mueve el motor durante el piloto (ADR-0064) | El 27B lo tiene el piloto. 8000 sigue como instancia de construcción, con sus pantallas y su búsqueda, pero sin evaluaciones, matrices ni Consulta mientras no tenga el motor: la Consulta lo avisa como hoy y los pedidos quedan en espera. Para medir, el motor se presta con `gpu.ps1`. Durante la estabilización lo mueve el Coordinador avisándote; después, solo vos | **A:** el piloto es la única instancia permanente. 8000 se detiene con sus datos guardados y la construcción mide en instancias temporales que se arman y se bajan en cada medición, como T-268 y T-049. **B:** un solo motor compartido por las dos instancias | 8000 sin IA casi todo el tiempo; cada préstamo deja al piloto sin evaluar de 3 a 10 minutos más lo que dure la medición | **A:** no queda una pantalla de construcción siempre disponible para revisar entregas, y cada medición tarda unos minutos más en armarse; se gana una sola instancia que cuidar. **B:** se pierde la separación de REQ-117, y las mediciones se mezclan con el uso del piloto y pueden cambiarle el modelo |
+| 4 | Antes de cargar el proceso reservado: la base y la salida a internet (decidiste resolverlas «en el despliegue», y es este) | Resolver las dos, solo en el piloto. Un usuario de la base para la aplicación que en el registro solo puede leer y agregar (T-283). La aplicación en una red sin salida a internet, con una «puerta» que solo la une con el intermediario (T-284) | Desplegar sin ellas y dejar los dos riesgos aceptados por escrito | Dos tareas más antes del despliegue; la instalación y la actualización del piloto tienen un paso más | El registro de accesos y de decisiones se podría borrar desde la aplicación, y la aplicación que procesa ofertas reservadas sigue con salida a internet (no la usa, pero existe) |
+| 5 | Cómo se mide «sin que una página tarde más que en el equipo del sistema» | La letra de la spec. Con 10 personas, la mediana y el p95 de cada página no superan los de una persona en el equipo, más el ruido medido repitiendo esa medición. Siempre con p95 menor que 2 s. Ejemplo: si en el equipo una página da 0,40 s de mediana y 0,60 s de p95, y el ruido es 0,05 s, con 10 personas tiene que dar hasta 0,45 s y 0,65 s | La de la versión 1: p95 menor que 2 s y mediana hasta 0,3 s más que en el equipo. Con el mismo ejemplo: hasta 0,70 s de mediana y 2 s de p95 | Un umbral exigente, que puede pedir más hilos del servidor o la ronda de ajuste | Admite páginas más lentas que en el equipo, que la spec no admite |
+| 6 | Sesiones que vencen sin que el usuario vuelva (REQ-113 pide registrar cada salida) | Que el sistema registre esas salidas solo, con el motivo (inactividad u 8 horas) y la hora en que vencieron. Revisa las sesiones vencidas cada 5 minutos mientras haya uso. Cerrar el navegador queda registrado como inactividad | Registrar solo las salidas que se ven («Salir» y el cierre cuando el usuario vuelve) y aclarar REQ-113 en la spec | El hecho puede aparecer un rato después, con la hora correcta del vencimiento; un poco más de código | El registro no dice cuándo terminó la mayoría de las sesiones |
+| 7 | Dónde se hace la aceptación (T-278) | T-278 completa en la red que esté disponible. Antes de cargar el proceso reservado, el despliegue repite en la red del organismo, con una computadora real de la Comisión, los puntos de red de T-278 (cifrado, advertencias, lista, servicios internos, cierre del navegador), con los mismos umbrales | T-278 entera en la red del organismo, con una computadora de la Comisión y los pedidos 1 a 4 y 7 ya resueltos | Esos puntos se prueban dos veces | T-278 espera al área de sistemas |
+| 8 | Vaciar la base del piloto antes de cargar el proceso en curso | Después de la aceptación, vaciarla con `vaciar-base.ps1` (respalda antes y pide confirmación escrita) y crear solo los usuarios reales | Dejarla como está | El caso chico como ejemplo dentro del piloto | Quedan el caso chico a la vista de la Comisión y usuarios de prueba cuyas claves conocen los agentes: hay que darles una clave nueva uno por uno |
+| 9 | Cómo entra la red (ADR-0061) | Caddy en Windows como servicio sin privilegios, con la lista por dirección en el firewall y en el intermediario | Intermediario en Docker y un certificado de cliente por computadora | Una pieza fuera de Docker (se instala una vez con un script) y la dependencia de direcciones fijas | Instalar y elegir un certificado en cada computadora, pasos difíciles para personas no técnicas |
+| 10 | Certificado (ADR-0062) | Preparar las dos variantes. Empezar con una autoridad propia, limitada a EVALUON y a uso de servidor, y pasar a la del organismo cuando firme el pedido hecho en el equipo, reemplazando dos archivos | Esperar solo el certificado del organismo, sin autoridad propia | Instalar la raíz en cada computadora (administrador o área de sistemas), guardar la autoridad en una unidad extraíble, renovar el certificado cada año y la autoridad cada 3 | El corte vertical y el piloto esperan al área de sistemas; sin nombre en el DNS puede no ser posible |
+| 11 | Bloqueo y sesión sin bibliotecas nuevas (ADR-0063) | Código propio sobre Django, cubierto con tests | django-axes 8.3.1: no declara Django 6.1, pide el pedido web en cada ingreso (los comandos no lo tienen), guarda su registro aparte, y su organización (Jazzband) está cerrando | Código de seguridad propio que mantener | Adaptarla a los comandos y al registro, con continuidad incierta |
+| 12 | Cuándo se da por terminada la 007 | Con la aceptación (los mecanismos, con material público), la auditoría y el despliegue. El cierre de la estabilización lo verifica T-285 cuando lo indiques: si falla, abre un hallazgo sin reabrir la feature | La 007 queda abierta hasta el fin de la estabilización | La parte de REQ-117 sobre el fin de la estabilización se verifica después de cerrar la feature | La feature figura sin terminar durante todo el piloto |
+| 13 | La clave inicial también frena los comandos | Hasta cambiarla por pantalla, los comandos con ese usuario se rechazan | Dejar usar los comandos con la clave inicial | Quien recibe su usuario tiene que entrar una vez por pantalla antes de usar comandos | Se puede trabajar con una clave que conoce otra persona |
+| 14 | `clave_inicial` desbloquea | Si el usuario estaba bloqueado, también lo desbloquea, y queda registrado | Desbloquear aparte | Nada visible | Un paso más cuando alguien olvidó la clave |
+| 15 | Los intentos durante el bloqueo | No cuentan ni lo alargan: a los 15 minutos del quinto error se puede volver a entrar | Que cada intento durante el bloqueo lo reinicie | Quien insiste puede probar 5 claves cada 15 minutos (20 por hora) | Quien insiste puede dejar bloqueado a otro indefinidamente |
+| 16 | Sesiones abiertas de un usuario que queda bloqueado | Siguen abiertas, salvo si el quinto error ocurrió en el formulario de cambio de clave: esa sesión se cierra | Cerrar todas las sesiones del usuario al bloquearlo | Una sesión abierta en otra computadora sigue hasta su vencimiento | Cualquiera en la red puede cerrarle las sesiones a otro, equivocándose 5 veces a propósito |
+| 17 | El cambio de clave | La clave actual equivocada cuenta para el bloqueo; con el usuario bloqueado, el formulario no acepta la clave; la nueva tiene que ser distinta de la actual | Solo lo que pide la spec | Nada para el usuario legítimo | El formulario sirve para probar claves sin bloqueo, y la inicial se puede «cambiar» por la misma |
+| 18 | HSTS | Si se entra por nombre, el navegador queda obligado a usar siempre la conexión cifrada. Por dirección IP no se puede | Sin HSTS | Si un día el certificado falla, el navegador no deja seguir | El primer pedido sin cifrar queda expuesto a un atacante en la red |
+| 19 | Claves | Además del mínimo de 8 y la lista de comunes de Django (en inglés): rechazar una clave parecida al nombre de usuario y las de una lista corta propia en castellano (por ejemplo «evaluon», «comision», el nombre del organismo con el año) | Solo lo que pide la spec | Nada: es configuración | Pasan claves comunes en castellano o iguales al usuario |
+| 20 | El nombre escrito en un ingreso fallido | Se guarda tal cual si tiene forma de nombre de usuario. Si no (por ejemplo, alguien escribió la clave en el campo del usuario), se guarda «texto que no es un usuario, N caracteres» | Guardarlo siempre tal cual, como dice REQ-113 | Se aparta un poco de «el nombre tal como se escribió» | Una clave escrita por error queda para siempre en un registro que no se puede borrar |
+| 21 | El caso chico en el corte vertical | En T-271 el pliego del caso chico se sube desde la computadora de la lista; su lectura y el resto del recorrido esperan a T-278, porque necesitan el motor | Prestarle el motor al piloto ya en T-271 y recorrer el caso chico completo | El recorrido completo se ve recién en T-278 | 8000 queda sin motor durante el corte vertical y T-271 se alarga |
