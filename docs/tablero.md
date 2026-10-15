@@ -826,7 +826,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 4 tareas sin terminar.
-- ▶ T-269 · Corte vertical: Caddy en Windows con certificado, lista y firewall, los pasos del responsable en `entorno.md`, y Django detrás del intermediario. Se verifica con el ingreso cifrado desde una computadora de la lista, con un usuario de prueba y el caso chico (en curso)
+- ◐ T-269 · Corte vertical: Caddy en Windows con certificado, lista y firewall, los pasos del responsable en `entorno.md`, y Django detrás del intermediario. Se verifica con el ingreso cifrado desde una computadora de la lista, con un usuario de prueba y el caso chico (en verificación)
 - ○ T-270 · Bloqueo de 5 intentos y 15 minutos con mensaje genérico también en comandos, registro con la computadora de origen y la salida, `desbloquear_usuario` y `ver_accesos` en el equipo; el esquema de la feature (pendiente)
 - ○ T-271 · Cambio de clave (mínimo 8, comunes, distinta de la actual), clave inicial obligatoria y `clave_inicial`; cierre de sesión a los 30 minutos y a las 8 horas, sin contar el sondeo ni las tres recargas automáticas (pendiente)
 - ○ T-272 · Prueba en la red con el caso chico, con el responsable: 5 de 5 secciones desde una computadora de la lista y los umbrales del plan, con la GPU de 8000 (pendiente)
@@ -839,7 +839,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  T269["▶ T-269 · Corte vertical: Caddy en Windows con certif…"]:::active
+  T269["◐ T-269 · Corte vertical: Caddy en Windows con certif…"]:::review
   T270["○ T-270 · Bloqueo de 5 intentos y 15 minutos con mens…"]:::todo
   T271["○ T-271 · Cambio de clave (mínimo 8, comunes, distint…"]:::todo
   T272["○ T-272 · Prueba en la red con el caso chico, con el…"]:::todo
