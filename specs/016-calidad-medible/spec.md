@@ -22,7 +22,7 @@ Por encima de todo eso, la constitución (P4, versión 1.5) prohibía procesar p
 | 2026-10-14 | Preferencia | «Siempre prefiriendo el uso local cuanto sea posible sin resignar calidad.» |
 | 2026-10-14 | Orden de trabajo | «Entiendo que las propuestas A D B y C podrian ser pasos incrementales de mejoras y quizas la C se torna innecesaria.» y «arrancá la spec de la feature 016 en un clon aparte, con la secuencia D, simplificación, A y B»: primero la verdad ampliada (D), después la simplificación de instrucciones y reglas, después la matriz con modelo externo (A) y por último el verificador externo de citas (B). La lectura completa de la oferta con modelo externo (C) queda fuera de esta feature. |
 | 2026-10-15 | Quién valida la verdad | «La verdad celda por celda la arma un agente que rehace el caso como Comisión y la reviso yo.»: un agente rehace cada caso como lo haría la Comisión (como en T-229) y el responsable revisa y firma cada celda. |
-| 2026-10-15 | Tope de gasto externo | «Tope de gasto externo: fijalo vos con una estimación razonable y me lo mostrás.»: el Coordinador fija el tope con la estimación de «Requisitos no funcionales»; el responsable lo aprueba con la spec. |
+| 2026-10-15 | Tope de gasto externo | «Tope de gasto externo: fijalo vos con una estimación razonable y me lo mostrás.»: el Coordinador fija el tope con la estimación de «Requisitos no funcionales»; el responsable lo aprueba con la spec. El 2026-10-15 objetó la primera estimación («es muchisimo. (…) Uso en otro proyecto centenas de pdfs contra la api con sonnet por 1 o 2 dolares.»); se rehízo con el modelo de gama media y los tamaños medidos. |
 | 2026-10-14 | Dónde se trabaja | «Por una cuestion de metodologia y de proteccion de lo hecho apuntaria a trabajar sobre una clonacion o similar»: todo el trabajo corre en una instancia clonada; el piloto y lo integrado no cambian hasta que cada paso pasa su umbral. |
 
 ## Usuarios y escenarios
@@ -68,16 +68,17 @@ Medidos con los casos públicos 00 a 06 en la instancia clonada. Umbrales escrit
 - **Instancia clonada.** Todo el trabajo corre en una instancia aparte con su propia base restaurada del último respaldo; la instancia del piloto y lo integrado no cambian hasta que cada paso pasa su umbral. Una sola instancia usa la GPU a la vez.
 - **Tiempo local.** El caso-00 completo con el modelo local no supera los 180 minutos (spec 015); la simplificación no lo empeora más de un 10 %.
 - **Memoria de video.** 22.000 MiB como máximo (ADR-0042).
-- **Costo externo.** Tope de **10 USD por caso completo** (matriz y verificación de las 3 ofertas, todas las rondas) y **150 USD por mes** mientras dura la feature. Cada medición registra el gasto real por etapa, y una etapa que supere su estimación en más del doble se frena y se informa antes de seguir. Estimación que sostiene el tope (precios de lista de octubre de 2026 de un proveedor de referencia, tamaños medidos en T-263 y T-266; se comprueba con el primer pedido real):
+- **Costo externo.** Tope de **2 USD por caso completo** (matriz y verificación de las 3 ofertas, todas las rondas) y **30 USD por mes** mientras dura la feature. Cada medición registra el gasto real por etapa, y una etapa que supere el doble de su estimación se frena y se informa antes de seguir. Estimación que sostiene el tope, con el modelo de gama media que usa el responsable en otros proyectos (precio de lista de octubre de 2026: 2 USD por millón de tokens de entrada, 10 por millón de salida, un décimo por lo reusado) y los tamaños medidos en T-148, T-263 y T-266 (una oferta ronda los 20.000 tokens; un pliego con sus anexos, entre 30.000 y 70.000):
 
-  | Etapa | Tamaño por caso | Modelo de la gama media | Modelo de la gama alta |
-  |---|---|---|---|
-  | Matriz desde el pliego completo (A) | 100.000 a 150.000 tokens leídos una vez y reusados en 3 a 5 pedidos; unos 40.000 de salida | 0,8 USD | 1,5 USD |
-  | Verificador de citas (B), unas 50 celdas con veredicto | 3.000 tokens por celda de entrada y 400 de salida | 0,5 USD | 1,0 USD |
-  | Caso completo, una ronda | — | 1,3 USD | 2,5 USD |
-  | Feature entera: 7 casos, 2 rondas, más pruebas de desarrollo | — | 30 a 50 USD | 60 a 100 USD |
+  | Etapa | Tamaño por caso | Estimado |
+  |---|---|---|
+  | Matriz desde el pliego completo (A) | 30.000 a 70.000 tokens leídos una vez y reusados en 3 a 5 pedidos; unos 10.000 de salida | 0,20 a 0,30 USD |
+  | Verificador de citas (B), unas 50 celdas con veredicto | 3.000 tokens de entrada y 300 de salida por celda | 0,30 a 0,50 USD |
+  | Caso completo, una ronda | — | 0,50 a 0,80 USD |
+  | Feature entera: 7 casos, 2 rondas, más pruebas de desarrollo | — | 10 a 20 USD |
 
-  La verdad ampliada (D) no gasta en la API: la arma un agente de construcción.
+  El modelo de gama alta, de usarse como segunda comparación, cuesta el doble y entra igual en el tope. La verdad ampliada (D) no gasta en la API: la arma un agente de construcción.
+
 - **Sin salida a internet en las pruebas.** La suite automática corre sin acceso a la API externa, con dobles, y la clave queda fuera del repositorio.
 - **Trazabilidad.** Igual que hoy: al repositorio van solo cifras, claves y estados; el texto de los casos queda fuera (P4, ADR-0060).
 
