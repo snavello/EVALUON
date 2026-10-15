@@ -1,6 +1,6 @@
 # Tareas 016 · Calidad medible: verdad ampliada, instrucciones simples y modelos externos por clase de dato
 
-Plan: `specs/016-calidad-medible/plan.md` (borrador, a la espera de la aprobación del responsable; pull request 342)
+Plan: `specs/016-calidad-medible/plan.md` (aprobado el 2026-10-15 por el responsable, pull request 342)
 
 Despliegue: pendiente
 

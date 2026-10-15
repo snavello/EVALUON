@@ -1,6 +1,6 @@
 # Plan 016 · Calidad medible: verdad ampliada, instrucciones simples y modelos externos por clase de dato
 
-Estado: borrador · Fecha: 2026-10-15 · Aprobó: —
+Estado: aprobada · Fecha: 2026-10-15 · Aprobó: responsable del proyecto (2026-10-15, «Apruebo el plan 016 y los ADR 0066 a 0070»)
 
 Spec: `specs/016-calidad-medible/spec.md` (aprobada el 2026-10-15; sin marcas `[A ACLARAR]` pendientes)
 

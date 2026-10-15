@@ -75,7 +75,7 @@ flowchart LR
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 42/46 | █████████░ 91% |
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
-| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 2 de 7 · Plan | 0/38 | ░░░░░░░░░░ 0% |
+| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 0/38 | ░░░░░░░░░░ 0% |
 
 <a id="001"></a>
 
@@ -1509,11 +1509,11 @@ flowchart TD
 
 ## 016 · Calidad medible: verdad ampliada, instrucciones simples y modelos externos por clase de dato
 
-**Etapa actual:** 2 de 7 · Plan (1 dudas abiertas) · [carpeta](../specs/016-calidad-medible)
+**Etapa actual:** 4 de 7 · Desarrollo (1 dudas abiertas) · [carpeta](../specs/016-calidad-medible)
 
 ```mermaid
 flowchart LR
-  E0["✓ 1. Spec"]:::done --> E1["▶ 2. Plan"]:::active --> E2["○ 3. Tareas"]:::todo --> E3["○ 4. Desarrollo"]:::todo --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
+  E0["✓ 1. Spec"]:::done --> E1["✓ 2. Plan"]:::done --> E2["✓ 3. Tareas"]:::done --> E3["▶ 4. Desarrollo"]:::active --> E4["○ 5. Verificación"]:::todo --> E5["○ 6. Auditoría"]:::todo --> E6["○ 7. Despliegue"]:::todo
   classDef done fill:#1a7f37,stroke:#116329,color:#ffffff
   classDef review fill:#0969da,stroke:#0550ae,color:#ffffff
   classDef active fill:#bf8700,stroke:#7d4e00,color:#ffffff
@@ -1523,7 +1523,7 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Aprobar el plan (compuerta del responsable).
+- **Próximo paso:** Desarrollar: 38 tareas sin terminar.
 - ○ T-270 · Entorno del clon: `docker-compose.clon.yml` y `scripts/clon.sh` (proyecto `evaluon-016`, servicios `clon_*`, base restaurada de un respaldo nuevo, motor propio del 27B, `embeddings` y `reranker` de 8000 por red compartida, ventana de GPU con el cierre y la reapertura de 8000 comprobados), líneas del clon en `.env.example`, variable `BASE` (por omisión `main`) en `tools/cerrar.sh` y `entorno.md`; la rama `016-integracion` (pendiente)
 - ○ T-271 · Formato de la verdad celda por celda y su cargador: `no_determinado`, fundamento, revisión, huella, congelado, clave por requisito `M-NNN`; `medir_evaluacion --verificar-verdad` (casos, celdas decididas, quién y cuándo, citas ubicadas, 0 corridas en aceptación); verdad del caso chico en el repositorio. Umbral: el caso chico da los conteos esperados y una cita inventada que no está se rechaza (pendiente)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
@@ -1565,7 +1565,7 @@ flowchart LR
 
 ### Qué se hizo
 
-- Etapas completas: Spec.
+- Etapas completas: Spec, Plan, Tareas.
 
 ### Mapa de tareas
 

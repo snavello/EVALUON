@@ -1,6 +1,6 @@
 # ADR-0066 · Cliente de la API externa (Anthropic) y salida a internet de la instancia que lo usa
 
-Estado: propuesto · Fecha: 2026-10-15 · Propuso: planificador (plan 016) · Decidió: —
+Estado: aceptado · Fecha: 2026-10-15 · Propuso: planificador (plan 016) · Decidió: responsable del proyecto (2026-10-15, «Apruebo el plan 016 y los ADR 0066 a 0070»)
 
 ## Contexto
 

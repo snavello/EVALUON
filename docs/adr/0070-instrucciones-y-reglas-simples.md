@@ -1,6 +1,6 @@
 # ADR-0070 · Instrucciones y reglas simples: largo máximo, sin ejemplos de casos, desempate a la corta y tres salidas por celda
 
-Estado: propuesto · Fecha: 2026-10-15 · Propuso: planificador (plan 016) · Decidió: —
+Estado: aceptado · Fecha: 2026-10-15 · Propuso: planificador (plan 016) · Decidió: responsable del proyecto (2026-10-15, «Apruebo el plan 016 y los ADR 0066 a 0070»)
 
 ## Contexto
 

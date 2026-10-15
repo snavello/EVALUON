@@ -1,6 +1,6 @@
 # ADR-0067 · Un solo punto de filtrado de lo reservado antes de cualquier pedido externo
 
-Estado: propuesto · Fecha: 2026-10-15 · Propuso: planificador (plan 016) · Decidió: —
+Estado: aceptado · Fecha: 2026-10-15 · Propuso: planificador (plan 016) · Decidió: responsable del proyecto (2026-10-15, «Apruebo el plan 016 y los ADR 0066 a 0070»)
 
 ## Contexto
 
