@@ -1,0 +1,43 @@
+# Caddyfile de EVALUON: acceso por red (plan 007, T-269; ADR-0061).
+# Lo escribe scripts/red/caddy.py desde el .env, a partir de scripts/red/Caddyfile.plantilla. No
+# editarlo a mano: se pisa cada vez que se corre scripts/red/aplicar-red.ps1.
+#
+# Pasan solo la lista de EVALUON_COMPUTERS y el propio equipo (EVALUON_SERVER_IP). A cualquier otra
+# computadora se le corta la conexión sin responderle nada. El firewall de Windows ya la frena
+# antes; este corte es por si la regla se cambia.
+{
+	# Sin la API de administración local (puerto 2019), que no pide clave. Para que tome cambios
+	# se reinicia el servicio EVALUON-Caddy.
+	admin off
+	# Sin certificados ni redirecciones automáticas: el certificado es el de la carpeta y la
+	# redirección está escrita abajo.
+	auto_https off
+$default_sni
+}
+
+# Sin cifrar: primero corta lo que no viene de la lista; al resto lo manda a la dirección cifrada
+# (308), sin mostrarle nada de la aplicación. `route` mantiene ese orden.
+http://$address {
+	@fuera_de_la_lista not remote_ip $allowed_ips
+	route {
+		abort @fuera_de_la_lista
+		redir https://$address{uri} 308
+	}
+}
+
+# Cifrado: el mismo corte. La aplicación recibe el pedido en 127.0.0.1 con el nombre de la
+# computadora en X-Evaluon-Computer. Caddy agrega por su cuenta X-Forwarded-For (con la dirección
+# real, ignorando la que mande el navegador) y X-Forwarded-Proto: https.
+https://$address {
+	tls "$certificate" "$key"
+	@fuera_de_la_lista not remote_ip $allowed_ips
+	route {
+		abort @fuera_de_la_lista
+		map {remote_host} {evaluon_computer} {
+$computer_map
+		}
+		reverse_proxy 127.0.0.1:$app_port {
+			header_up X-Evaluon-Computer {evaluon_computer}
+		}
+	}
+}
