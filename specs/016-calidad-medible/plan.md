@@ -1,0 +1,328 @@
+# Plan 016 · Calidad medible: verdad ampliada, instrucciones simples y modelos externos por clase de dato
+
+Estado: borrador · Fecha: 2026-10-15 · Aprobó: —
+
+Spec: `specs/016-calidad-medible/spec.md` (aprobada el 2026-10-15; sin marcas `[A ACLARAR]` pendientes)
+
+ADR de este plan, **propuestos**: `docs/adr/0066-cliente-de-la-api-externa-y-salida-a-internet.md`, `docs/adr/0067-un-solo-punto-de-filtrado-de-lo-reservado.md`, `docs/adr/0068-registro-y-tope-de-gasto-de-los-pedidos-externos.md`, `docs/adr/0069-verdad-ampliada-celda-por-celda.md` y `docs/adr/0070-instrucciones-y-reglas-simples.md`. Reservados para los resultados, que redactan las tareas de cierre de cada paso (REQ-125): **ADR-0071** (pasos 1 y 2: instrucciones y reglas simples que quedan locales), **ADR-0072** (matriz: local o externa) y **ADR-0073** (verificador: con o sin). Se apoya en los ADR 0024, 0025, 0037, 0038, 0042, 0043, 0057, 0058, 0059 y 0065 y en la constitución 1.6.
+
+Entradas fuera del repositorio (carpeta local del Coordinador y `corpus/casos/`, con texto de casos): la verdad celda por celda, las listas esperadas, las corridas de medición y los informes con texto. Al repositorio van solo cifras, claves (`M-NNN`, `T-NNN`) y estados (P4, ADR-0060).
+
+## Resumen del enfoque
+
+La spec pide cuatro pasos en un orden fijado por el responsable: **1) verdad ampliada**, **2) instrucciones y reglas simples**, **3) matriz con modelo externo**, **4) verificador externo de citas**. Cada paso se mide en una instancia clonada contra un umbral escrito en este plan antes de medir, con dos rondas como máximo (ADR-0024 y ADR-0025), y se integra a `main` solo si lo pasa. La lectura completa de la oferta con modelo externo queda fuera.
+
+El diagnóstico que sostiene el orden: con un solo caso de evaluación (48 celdas) ninguna mejora se distingue del ruido (T-263 contra V1, p = 0,180; el 12B contra el 27B, p = 0,227), así que sin más verdad los pasos 2 a 4 no se pueden decidir. Por eso el paso 1 va primero: un agente rehace tres casos o más como lo haría la Comisión, sin mirar lo que el sistema propone, y el responsable revisa y firma cada celda. Con esa verdad se mide el paso 2, que reemplaza las instrucciones acumuladas por instrucciones nuevas y cortas (solo definiciones y decisiones vigentes, sin ejemplos de casos) y reduce las reglas de decisión a tres salidas, sin cambiar el modelo local (Qwen3.8-27B, ADR-0057). Los pasos 3 y 4 agregan una puerta controlada hacia un modelo externo (Claude Sonnet 5.5, `claude-sonnet-5-5`, por la API de Anthropic): una sola puerta de filtrado de lo reservado, un registro de cada pedido y un tope de gasto que se hace cumplir en código. La puerta se construye una vez, al comienzo del paso 3, con su doble para las pruebas; el verificador del paso 4 la reutiliza.
+
+Esquema: **una sola migración**, de `audit` (un tipo de hecho nuevo, `external_request`). Lo demás va en columnas JSON que ya existen (`models`, `parameters`, `prompt_versions`, `counts` de las corridas; `facts` de los resultados; `detail` de los hechos de auditoría) y en archivos fuera de git. Pantallas: una línea que dice qué etapas corrieron fuera del equipo, en la evaluación y en su exportación. Infraestructura: dos archivos de compose nuevos (el clon y la salida a internet) y un script, a la manera de `docker-compose.demo.yml` y `scripts/demo.sh`.
+
+Lo que **no** se agrega (P10): ningún SDK del proveedor, ningún servicio puente, ninguna tabla de pedidos, ninguna pantalla nueva, ninguna seudonimización, ninguna lectura completa de la oferta por el externo. Cada pieza extra de abajo (reuso de respuestas por huella, comando de gasto, modo directo del cliente) está atada a un requisito o al tope de gasto, y se dice cuál.
+
+Camino de pliegos y ofertas sin servicios externos (P4, constitución 1.6): el camino local sigue completo y es el predeterminado. Cada etapa externa tiene su interruptor (`EXTERNAL_STAGES`), apagado por omisión; si el pedido externo falla o se agota el tope, la etapa vuelve sola al camino local y lo registra. Sin el archivo de compose de salida, ningún contenedor de trabajo tiene ruta a internet.
+
+## Instancia clonada y ritmo de trabajo
+
+Decidido por el responsable (spec, 2026-10-14). Cómo se arma, con el precedente de la instancia de demostración:
+
+- **Proyecto de Compose propio** `evaluon-016` (`docker-compose.clon.yml` y `scripts/clon.sh`, nuevos), con servicios de prefijo `clon_` (`clon_db`, `clon_migrate`, `clon_app`, `clon_worker`, `clon_generation_batch`): en la red compartida `evaluon_internal` cada servicio se alcanza por su nombre y `db` o `generation_batch` chocarían con los de 8000 (lección de `docker-compose.demo.yml`). Se comparten solo `embeddings` y `reranker` de 8000, por esa red y en lectura, como en T-263 a T-268. Puerto 8016, solo en `127.0.0.1`.
+- **Postgres propio** (volumen `clon_pgdata`), restaurado del último respaldo: el primer paso del entorno hace un respaldo nuevo de 8000 y lo restaura en el clon; las migraciones se aplican en el clon. La base del piloto no se escribe.
+- **Código**: rama de integración `016-integracion`, con su copia de trabajo montada en el clon. Las ramas de tarea (`016-T-NNN`) se integran en `016-integracion`, no en `main`; cuando un paso pasa su umbral, el Coordinador abre el pull request `016-integracion` → `main` con el registro de la medición (ver «Puntos para el Coordinador», punto 6, por `tools/cerrar.sh`). 8000 monta `./evaluon` de la raíz, que sigue en `main`.
+- **Una medición, una copia fija**: cada medición corre sobre una copia fija del commit (`git archive`), montada en solo lectura en los contenedores de medición, y el informe nombra el commit. No se integra nada a esa copia durante la medición.
+- **GPU**: una sola instancia usa el motor a la vez. En cada ventana de medición se detienen el motor de lotes y el `worker` de 8000 (como T-268), arranca `clon_generation_batch` con el 27B (`docker-compose.qwen38-27b.yml` y `docker-compose.razonamiento.yml`, razonamiento `low` solo en el contraste), y al terminar se vuelve a arrancar 8000 y se comprueba (`/health`, `/props`, cola vacía, `/ingresar/` 200). La ventana empieza con la cola de 8000 vacía y se hace de noche o en fin de semana. Nunca dos mediciones a la vez.
+- **Secretos**: el `.env` del clon y la clave del proveedor viven fuera del repositorio, en la carpeta local del Coordinador (como `demo.env`). La clave es de un espacio de trabajo propio de la consola del proveedor con límite mensual de 10 USD, que es el segundo freno además del código (ver «Costo y tope»).
+- **Cada medición** escribe su umbral antes (este plan), tiene dos rondas como máximo, corrige todos sus hallazgos en una sola tarea y se mide una vez por lote. Lo que no llega pasa con su impacto a la lista de revisión (ADR-0024); una baja de una medida grave la decide el responsable (P7).
+- **Corte vertical** (ADR-0025, punto 5): antes de cualquier caso real, todo se prueba con el caso chico y público (`tests/assessment/data/caso-chico/`): su verdad celda por celda va al repositorio porque el caso es público e inventado, el cliente externo se prueba con su doble y con un único pedido real de centavos, y el verificador corre sobre su evaluación. Si falla en forma, no se mide lo demás.
+
+## Criterio de aceptación numérico y umbrales (escritos antes de medir)
+
+Casos: **ajuste** 00, 01, 02 y 06; **aceptación** 03, 04 y 05 (no se corren para ajustar; una sola corrida por configuración final; congelados con huella y fecha antes de la primera). Referencias con las cifras ya medidas: T-263 (evaluación del caso-00, código 70e5aa54), T-266 (matrices, código 87f06672) y T-268 (12B y 27B, código 6597e548). Una referencia vale solo si el diff de `evaluon/` entre su commit y el commit de arranque del clon no toca la ruta medida (comprobación de T-268); si la toca, se mide de nuevo una vez (**B0**, costo de GPU en cada paso).
+
+Los umbrales son los criterios de aceptación de la spec; lo que la spec no fija (largo máximo, tiempo, reglas de «no empeora») está marcado como **del plan**.
+
+| # | Paso | Qué | Umbral | Con qué se mide |
+|---|---|---|---|---|
+| 1 | 1 · REQ-118 | Casos nuevos con verdad celda por celda | al menos 3, de los cuales al menos 2 de aceptación; la evaluación no corrió sobre ellos antes de la medición final (0 corridas de evaluación guardadas) | `medir_evaluacion --verificar-verdad` (nuevo) y consulta a las corridas del clon |
+| 2 | 1 | Celdas decididas (cumple, no cumple, no aplica o no se encontró el documento) | al menos 40 por caso y al menos 150 en total | ídem |
+| 3 | 1 | Celdas con quién la armó, quién la revisó y cuándo | 100 % | ídem |
+| 4 | 1 · del plan | Fundamento comprobable por máquina | 100 % de «cumple» o «no cumple» con cita literal ubicada en la lectura de la oferta o dato del Portal; 100 % de «no determinado» con pregunta o documento nombrado | ídem (`quotes.locate`) |
+| 5 | 2 · REQ-119 | Largo máximo por instrucción (con el bloque de definiciones ya incluido) | decisoras (extracción, filtro, evaluación, matriz externa): 90 líneas y 9.000 caracteres; las demás: 50 líneas y 5.000 caracteres | `tests/test_instrucciones_largo.py` (nuevo) |
+| 6 | 2 | Ejemplos que copian texto de un caso | 0: ninguna secuencia de 6 palabras seguidas (sin tildes ni mayúsculas) de una instrucción aparece en el cuerpo de los pliegos, circulares, ofertas y dictámenes de los casos 00 a 06 ni del caso chico; ni ejemplos con contenido de licitación (solo el esqueleto de la salida) | `tests/test_instrucciones_sin_casos.py` (nuevo; se salta sin `corpus/` montado, igual que el informe de `test_instrucciones_revisadas.py`) |
+| 7 | 2 | Medidas graves en los casos de ajuste | 0 «cumple» sin fundamento (lectura de todos los «cumple»); 0 contradicciones con el dictamen y con la Comisión; 100 % de citas literales (oferta, Portal, matriz) | `medir_evaluacion` (caso-00 y el caso de ajuste con verdad) y `medir_matriz` (00, 01, 02, 06) |
+| 8 | 2 | Lista presente de la matriz (sin excluidas ni revisión) | igual o mejor que la referencia en cada caso: 00 41/42, 01 79/80, 02 95/97, 06 35/35 | `medir_matriz` con la lista y las exclusiones de cada caso |
+| 9 | 2 · REQ-120 | Tres salidas | 0 celdas «no se encontró el documento» sin pregunta; 100 % de los «no determinado» con la pregunta a la Comisión o el documento que falta nombrado | `medir_evaluacion` (nuevo conteo) sobre los casos con verdad; más `tests/assessment/test_tres_salidas.py` (nuevo) sobre todas las combinaciones |
+| 10 | 2 · del plan | Las demás medidas «no empeoran» (tamaños del ADR-0059) | filas firmes con pareja ≥ 70 % y sin bajar 10 puntos o más contra 96,7 / 96,3 / 92,8 / 95,8 % (00 / 01 / 02 / 06); filas que la Comisión conserva (caso-00, revisión como en T-263) sin bajar 10 puntos de 96,7 %; exactitud por celda sin llegar a 6 filas en contra con 0 a favor, ni a 8 contra 1. Si todas empatan o mejoran, queda la instrucción corta (REQ-119) | `medir_matriz`, `medir_evaluacion`, revisión fila por fila |
+| 11 | 2 · no funcional | Tiempo y memoria | caso-00 completo ≤ 112,6 min (102,4 de T-266 más 10 %) y ≤ 180; memoria de video ≤ 22.000 MiB | tiempos de los pedidos guardados; `nvidia-smi` cada 5 s |
+| 12 | 2 · del plan | Instrucciones auxiliares (consulta, ficha, ficha por renglón, visión, informe técnico, nombre del oferente, datos del procedimiento) | no peor que T-266: evals de la 001 con 16/17 de aceptación, 6/6 de abstención, 100 % de cita literal y máximo ≤ 30 s; fichas del caso-00 y visión sin bajar de lo de T-266 | `correr_evals`, `medir_fichas`, `leer_con_vision` |
+| 13 | 3 · REQ-123 | Lista presente: externo contra local, en aceptación | sube al menos 5 puntos porcentuales en al menos 2 de los casos 03, 04 y 05, sin bajar en ninguno; si no, queda local | `medir_matriz --externo matriz` (nuevo) |
+| 14 | 3 | Filas firmes con pareja y pedazos | las firmes con pareja no bajan en ninguno de los 3; pedazos sin sujeto = 0 | ídem |
+| 15 | 3 · informativo | Meta de la 015 para la matriz | lista presente ≥ 95 % y filas conservadas ≥ 70 % en los 3 | ídem y revisión como Comisión |
+| 16 | 3 · del plan | Puerta de ajuste (antes de gastar la corrida de aceptación) | en 00, 01, 02 y 06 el externo no es peor que el local simplificado en lista presente ni en firmes con pareja, y 0 pedazos; si no, el externo no pasa a aceptación y queda local | `medir_matriz --externo matriz` |
+| 17 | 4 · REQ-124 | Con verificador, en aceptación con verdad | 0 «cumple» sin fundamento; 100 % de preguntas conformes (dirigidas a la Comisión, con requisito, conclusión y texto); celdas exactas no bajan; el «no determinado» no sube (ver lectura en «Puntos para el Coordinador», punto 1); si empata, queda sin verificador | `medir_evaluacion` (el «con» y el «sin» salen de la misma corrida local: `facts["verificador"]`) |
+| 18 | 4 · informativo | Meta de la 015 para la evaluación | Portal «cumple» con su cita 100 %; «no determinado» que cuenta ≤ 15 %; preguntas conformes 100 % | ídem |
+| 19 | 3 y 4 · REQ-121 | Nada reservado sale | 0 pedidos externos con texto de una hoja de compliance (se comprueba en el registro, con una hoja inventada marcada); los requisitos que dependen de consultas externas (P9) corren en local | `gasto_externo --verificar-filtro` (nuevo) y `tests/ai/test_external_guard.py` |
+| 20 | 3 y 4 · REQ-122 | Registro y apagado | 100 % de los pedidos externos en el registro con proveedor, modelo, versión de la instrucción, texto enviado y respuesta; la pantalla y la exportación de la evaluación dicen qué etapas corrieron fuera; con el uso externo apagado, la suite completa pasa y el caso-00 completo da las mismas celdas que la corrida final del paso 2 (0 diferencias) | consulta al registro; suite; `medir_evaluacion` |
+| 21 | 3 y 4 · no funcional | Gasto | ≤ 2 USD por caso completo y ≤ 10 USD por mes; una etapa que pasa el doble de su estimación se frena y se informa | `gasto_externo` (ver «Costo y tope») |
+| 22 | todos · REQ-125 | Registro del paso | umbral escrito antes (esta tabla), resultado y decisión en `specs/016-calidad-medible/verificacion/T-NNN.md`, y un ADR por etapa | revisión del Coordinador |
+
+**Rondas.** Paso 2: la ronda 1 es la medición completa; la ronda 2, un solo ajuste y la nueva medición de lo que cambió. Paso 3: la instrucción externa se ajusta con 00, 01, 02 y 06 en hasta dos rondas y pasa por la puerta del umbral 16; después, una sola corrida final de local y externo en 03, 04 y 05, sin ajuste posterior. Paso 4: hasta dos rondas de ajuste sobre resultados guardados de 00 y del caso de ajuste con verdad, y una sola corrida final sobre aceptación. Una ronda más solo si se pierde un requisito o se viola un principio (ADR-0025).
+
+**Lo que pasa si no llega.** El paso no se integra a `main`; el faltante pasa con su impacto a la lista de revisión (ADR-0024) y la baja de una medida grave la decide el responsable (P7, ADR-0059 regla 1). El umbral 8 es más estricto que la regla 2 del ADR-0059 (que tolera perder 1 o 2 requisitos explicados): rige el de la spec, y solo el responsable puede dispensarlo.
+
+## Componentes
+
+| Parte | Cambia | Qué cambia | Paso |
+|---|---|---|---|
+| `docker-compose.clon.yml`, `scripts/clon.sh`, `.env.example`, `specs/016-calidad-medible/entorno.md` (nuevos o ajustados) | Sí | El clon: proyecto, base restaurada, motor propio, red compartida solo para `embeddings` y `reranker`, ventana de GPU y vuelta atrás | 0 |
+| `evaluon/assessment/evaluation.py`, `management/commands/medir_evaluacion.py` | Sí | Formato de la verdad (`no_determinado`, fundamento, revisión), `--verificar-verdad`, conteo de las tres salidas, gasto externo en el resumen | 1, 2, 4 |
+| `tests/assessment/data/caso-chico/` | Sí | Verdad del caso chico (público, va al repositorio) para el corte vertical | 1 |
+| `evaluon/tenders/prompts/`, `evaluon/assessment/prompts/`, `evaluon/offers/prompts/`, `evaluon/queries/prompts/`, `evaluon/settings.py` (versiones), `tests/fixtures/instrucciones.sha256`, `tests/test_instrucciones_revisadas.py`, `tests/test_instrucciones_largo.py` y `tests/test_instrucciones_sin_casos.py` (nuevos), `specs/016-calidad-medible/revision-instrucciones.md` (nuevo) | Sí | Instrucciones nuevas y cortas con su tabla de decisiones; las versiones publicadas no se editan | 2 |
+| `evaluon/assessment/combine.py`, `rules.py`, `portal_facts.py`, `services/evaluate.py`, `services/questions.py`, `settings.ASSESSMENT_RULES_VERSION` (`reglas-v13`) | Sí | Tres salidas: toda celda lleva su pregunta o su documento nombrado; las conversiones del código dicen por qué | 2 |
+| `evaluon/ai/external/` (nuevo: `client.py`, `guard.py`, `ledger.py`, `__init__.py`) | Sí | Cliente HTTP del proveedor, puerta de filtrado y registro de gasto | 3 |
+| `evaluon/audit/models.py`, `evaluon/audit/migrations/0009_*.py` | Sí | Tipo de hecho `external_request` (la única migración) | 3 |
+| `evaluon/settings.py` (`EXTERNAL_*`), `.env.example`, `tests/test_compose_env.py` | Sí | Variables del uso externo, apagadas por omisión | 3 |
+| `docker-compose.externo.yml` (nuevo), `tests/portal/test_network.py`, `tests/portal/test_no_outbound.py` | Sí | La red con salida para `clon_worker` y `clon_app` solo con este archivo; el cliente externo, único módulo de red nuevo permitido | 3 |
+| `tests/conftest.py` | Sí | `FakeExternal` y su fixture; un fixture automático que impide toda salida real | 3 |
+| `evaluon/tenders/proposal/external.py` (nuevo), `run.py`, `evaluon/tenders/prompts/matriz-externa-v1.md` (nuevo), `management/commands/medir_matriz.py` | Sí | Etapa externa de la matriz con el mismo contrato que la local; opción `--externo` | 3 |
+| `evaluon/assessment/verifier.py` (nuevo), `services/evaluate.py`, `prompts/verificador-v1.md` (nuevo), `views/results.py` y su plantilla, `services/export.py` | Sí | Verificador de citas y la línea «Etapas fuera del equipo» | 4 |
+| `evaluon/assessment/management/commands/gasto_externo.py` (nuevo) | Sí | Gasto real por etapa, caso y mes; comprobación del filtro sobre el registro | 3, 4 |
+| Servicios de IA locales (`generation_batch`, `embeddings`, `reranker`), modelo, lectura por grupos (ADR-0037), recuperación, `quotes.py`, `sentences.py` | No | Sin cambios | — |
+
+Cómo se comunican: igual que hoy. El `worker` atiende los trabajos largos con el motor de lotes local y guarda cada pedido local en `tenders_run_step` o `assessment_step`. Lo nuevo: en una etapa externa, el `worker` arma el pedido, pasa por la **puerta de filtrado** (`guard.py`), el cliente (`client.py`) lo manda al proveedor y deja el hecho `external_request` en la auditoría con el pedido y la respuesta completos; el paso guarda en su `parsed` el resultado ya validado y la referencia al hecho. Nada vuelve al flujo sin pasar por el mismo control que una salida local (cita ubicada por `quotes.locate`, esquema, formas de la pregunta).
+
+## Modelo de datos
+
+**Una migración**: `evaluon/audit/migrations/0009_*.py`, que agrega `external_request` a `EventType` (`audit_event` conserva su disparador de solo inserción: los pedidos externos quedan sin posibilidad de edición). Corre sola, la hace un solo agente y ninguna otra tarea de este plan genera migraciones (ADR-0069 y 0070 no tocan el esquema).
+
+Lo demás, en JSON que ya existe:
+
+- `audit_event.detail` (hecho `external_request`): `proveedor`, `modelo` pedido y `modelo_respuesta` devuelto, `etapa` (`matriz_extraccion`, `matriz_completitud_filtro`, `verificador`), `instruccion` (`nombre`, `version`, `sha256`) y `definiciones` (`version`, `sha256`) cuando las lleva, `modo` (`lotes` o `directo`), `lote_id` y `custom_id`, `parametros` (`effort`, `thinking`, `max_tokens`, formato de salida), `procedimiento`, `oferta`, `requisito`, `corrida` (tipo y número), `texto_enviado` (sistema y mensajes tal como salieron), `huella_pedido` (SHA-256 del pedido), `respuesta` (cuerpo completo), `uso` (entrada, salida, escritura y lectura de caché, y razonamiento si lo informa), `costo_usd`, `tabla_de_precios` (versión, fecha, fuente), `duracion_s`, `resultado` (`ok`, `error`, `vencido`, `bloqueado`, `reutilizado`), `error` y `filtro` (documentos permitidos, exclusiones aplicadas, huellas de párrafos comprobadas). Un pedido bloqueado por la puerta queda con resultado `bloqueado` y sin texto enviado.
+- `tenders_run.models`, `tenders_run.parameters` y `tenders_run.prompt_versions` (propuesta de la matriz) y `assessment_run.models_used`, `parameters`, `prompt_versions` y `counts` (evaluación): clave `externo` con `habilitado`, `etapas` (`{matriz: local|externo, verificador: local|externo}`), proveedor, modelo, modo, versión de la tabla de precios, cantidad de pedidos y gasto. De ahí sale la línea de la pantalla y de la exportación.
+- `assessment_result.facts["verificador"]`: `antes` (resultado del modelo local y las reglas), `despues`, `respuesta` (`si`, `no` o `parcial`), `razonamiento`, `pregunta` propuesta y `hecho` (el pedido del registro). El «sin verificador» de la medición sale de `antes`: no hace falta una segunda corrida de GPU.
+- Verdad: archivos `corpus/casos/caso-0N/esperado/verdad-celdas.yaml`, fuera de git (ver «Paso 1»).
+
+Si una tarea descubre que necesita una columna o una restricción, la deja como hallazgo y el Coordinador decide.
+
+## Flujo de IA
+
+### Paso 1 · Verdad ampliada (REQ-118; ADR-0069)
+
+No usa el modelo del sistema ni la API.
+
+- **Qué casos.** Una tarea de inventario decide cuáles: casos con pliego releído, circulares, al menos 2 ofertas legibles, datos del Portal y dictamen publicado, y 40 celdas decidibles como mínimo. Se eligen al menos 3: **uno de ajuste** (el de matriz más chica entre 01, 02 y 06 que califique) y **dos de aceptación** (de 03, 04 y 05). Si el inventario no encuentra 3 casos que califiquen, el paso no se puede cumplir y se informa antes de seguir (ver riesgos). Para limitar la carga de revisión: hasta 3 ofertas por caso y entre 40 y 120 celdas decididas por caso, de modo que el responsable revise entre 150 y 360 celdas.
+- **Qué mira el agente.** Un agente por caso rehace la evaluación como lo haría la Comisión, **sin ver nada de lo que el sistema propone**: el pliego y sus circulares, la lista de requisitos del caso (la lista esperada, fuera de git), la lectura de cada oferta, los datos del Portal y el dictamen publicado. Es la diferencia con T-229, donde la Comisión de prueba corrigió las propuestas del sistema: ahí la decisión puede anclarse en lo que el sistema ya dijo, y para los casos de aceptación el sistema no puede haber corrido (REQ-118). Los documentos de la oferta se cargan con `cargar_oferta` y se leen con el código vigente (la visión del 27B solo en las páginas dudosas).
+- **Clave de cada celda.** Oferta (número en el procedimiento) y requisito de la lista esperada (`M-NNN`); la medida lo traduce a la fila de la matriz que arma `build_case` (la matriz del caso sale de la lista, no de una propuesta del sistema).
+- **Qué decide.** Para cada celda decidible, `cumple`, `no_cumple`, `no_aplica`, `no_se_encontro_documento` o `no_determinado`, con su fundamento: la cita literal de la oferta (documento y página) o el ítem del Portal, o los documentos leídos si el requisito se cumple por ausencia, o la pregunta que la Comisión se haría o el documento que falta. Las filas técnicas sin informe y los requisitos externos sin hoja quedan `no_determinado` con su motivo y no cuentan como decididas.
+- **Cita.** Cada cita del agente se comprueba por máquina contra el texto canónico de la lectura (`quotes.locate`): una cita que no está palabra por palabra no se acepta. Es el control contra una verdad inventada.
+- **Revisión.** El Coordinador arma por caso un documento de revisión (fuera de git, con la tabla de ejemplos reales y una pregunta de sí o no por fila, ordenada de lo más dudoso a lo más seguro). El responsable confirma o corrige cada celda; al firmar queda, en cada celda, quién y cuándo; el archivo lleva su `visto_bueno` y su huella. Una celda sin revisión no se cuenta.
+- **Formato** (extiende `celdas-comision-*.yaml`, que ya carga `load_commission_cells`): `procedimiento`, `caso`, `lote` (`ajuste` o `aceptacion`), `huella` (de oferta, requisito y resultado, en orden), `armada_por` (agente, fecha, fuentes que vio), `visto_bueno` y `celdas`, cada una con `oferta`, `requisito`, `resultado`, `fundamento` (`tipo`: `cita_oferta`, `dato_portal`, `ausencia`, `pregunta` o `documento_faltante`; documento, página, texto y nota), `pregunta` si es `no_determinado`, y `revision` (`por`, `fecha`, `estado`: `confirmada` o `corregida` con el resultado anterior). `COMMISSION_RESULTS` suma `no_determinado`: si el sistema dice «no determinado» donde la verdad dice «no determinado», es exacta.
+- **Congelado.** Antes de la primera corrida sobre un caso de aceptación se escribe `congelado-016.txt` (huella de la verdad y de la lista, commit y fecha) y `medir_evaluacion --verificar-verdad` lo comprueba y comprueba que no haya corridas de evaluación guardadas de ese procedimiento.
+- **Corte vertical.** La verdad del caso chico (público, va al repositorio) prueba el cargador, el conteo y la comprobación de citas con 3 requisitos.
+
+### Paso 2 · Instrucciones y reglas simples (REQ-119 y REQ-120; ADR-0070)
+
+La recuperación, el reordenamiento, la lectura por grupos (ADR-0037), la forma de citar (el modelo señala, el sistema ubica y amplía a la oración) y la abstención de la 015 **no cambian**. Cambia lo que se le pide al modelo y lo que el código hace con su respuesta.
+
+**Instrucciones nuevas.**
+
+- Todas las versiones vigentes se reemplazan por versiones nuevas: matriz (`definiciones`, `extraccion`, `completitud`, `union`, `consecuencias`, `circulares`, `circulares_cambios`, `filtro`, `respaldo`), evaluación (`evaluacion`, `contraste`, `clausulas`), `visión`, `ficha`, `ficha por renglón`, `reescritura`, `informe técnico`, `nombre del oferente`, `datos del procedimiento` y `consulta`. Las versiones publicadas no se editan: sus huellas siguen congeladas en `tests/fixtures/instrucciones.sha256`.
+- **Qué lleva cada una**: las definiciones y decisiones vigentes, copiadas de la tabla de decisiones literales del responsable de las specs 003, 004, 014 y 015 y de los ADR 0043, 0053, 0054 y 0058, y el esqueleto de la salida con marcadores. **Qué no lleva**: ejemplos con contenido de licitación, reglas nacidas de un fallo de un caso y texto que el código ya garantiza (ubicar citas, esquema JSON, derivar el resultado de las condiciones). Cada decisión se escribe en términos generales; las «formas» de la plantilla de T-263 (presentación física, mantenimiento con prórroga, nota de la declaración jurada, cotización parcial, forma de garantía) quedan como definiciones del responsable, sin ejemplo.
+- **Trazabilidad.** `specs/016-calidad-medible/revision-instrucciones.md` lista, por instrucción nueva, cada oración con la decisión de la que sale; el test de revisión comprueba que toda instrucción vigente tiene su tabla. El responsable controla la instrucción contra la tabla (escenario 2 de la spec).
+- **Largo máximo (propuesta, ADR-0070).** Decisoras (extracción, filtro, evaluación y, en el paso 3, la matriz externa): **90 líneas y 9.000 caracteres**, con el bloque de definiciones ya incluido. Las demás: **50 líneas y 5.000 caracteres**. Justificación: `evaluacion-v12` tiene 161 líneas y unos 36.000 caracteres (alrededor de 9.000 tokens de un contexto de 32.768), `matriz-extraccion-v12` 207 líneas y `matriz-filtro-v9` 194; el tope de 9.000 es un cuarto de la evaluación actual y deja a la instrucción unos 2.500 tokens, de modo que cada pedido de lectura recupera más de 6.000 tokens de documentos de la oferta y baja la cantidad de grupos. Las demás vigentes van de 31 a 130 líneas; 50 líneas y 5.000 caracteres obligan a las más largas (ficha por renglón, 130; ficha, 107; respaldo, 92) a recortar a lo decidido. El largo cuenta también las descripciones del esquema de salida: cada descripción de campo ≤ 80 caracteres, para que no se mueva texto de la instrucción al esquema.
+- **Bloque común de definiciones** (`matriz-definiciones-v9`): ≤ 5.000 caracteres (hoy unas 36 líneas largas). Lo incluyen la extracción, el filtro, la completitud y, en el paso 3, la matriz externa.
+- **Quién y cómo.** El desarrollador arma las instrucciones desde la tabla de decisiones, sin leer textos de casos (el contenido de los pliegos y las ofertas no entra en el encargo); los hallazgos de la ronda 2 se corrigen como definiciones, nunca como ejemplo calcado de un caso. Test de no calco: ver umbral 6.
+- **Registro (P6).** Cada pedido sigue guardando nombre, versión y huella de su instrucción en `parsed` y en `prompt_versions` de la corrida. Donde una instrucción auxiliar todavía no lo registre en cada pedido, se agrega (inventario en la tarea de la ficha, la visión y la consulta).
+
+**Reglas de decisión a tres salidas** (`reglas-v13`). Cada celda termina en:
+
+1. **cumple**, con fundamento: la oración citada de la oferta, el dato del Portal, la ausencia verificada con los documentos nombrados (`absence.py`) o el criterio de la Comisión (IVA, `criteria.py`);
+2. **no cumple**, con cita (en un renglón técnico, la cláusula copiada y el valor opuesto);
+3. **no determinado**, con la pregunta dirigida a la Comisión (con requisito, conclusión y texto, como en T-235) o con el documento o la consulta que falta nombrada (hoja de compliance, informe técnico del área, página ilegible, documento exigido). «No aplica» (forma de garantía no elegida, opción no usada) sigue siendo la forma de una celda «no determinado» decidida por regla, con su motivo nombrado (decisión del 2026-10-10, «Requisito de la forma elegida»).
+
+Se conservan: la cita literal verificada, el dato del Portal, el cumple por ausencia, el criterio del IVA y la presentación física. Qué cambia en el código, con los módulos:
+
+- `combine.py`: hoy `done()` descarta la pregunta que el modelo escribió cuando el resultado es «no se encontró el documento» (`asking` vale solo si el resultado es «no determinado»), y `compose_question` devuelve vacío para un «no determinado» sin pregunta del modelo salvo cuatro motivos. Los pares O2 R16 y O3 R22 de T-263 y T-268 son este caso. Se corrige: «no se encontró el documento» sigue siendo el rótulo de una celda sin documento exigido (ADR-0038, regla 3), pero **siempre** con el documento nombrado (`exigence`) y con su pregunta; y `compose_question` arma una pregunta para todo «no determinado» que no nombre ya un documento faltante (`externo`, `pendiente_informe_tecnico`, `no_se_pudo_leer`), con el texto por motivo de `_default_ask` ampliado (`duda`, `contradiccion`, `sin_cita`).
+- `services/evaluate.py`: se inventarían las conversiones de `_group_result`, `_check_conditions`, `_contrast_pair` y `_clauses_pair` (`condicion_sin_cita`, `condicion_sin_dato`, `condicion_no_aplica`, `resultado_derivado`, `resultado_no_sostenido`, `no_cumple_sin_clausula`, `requisito_sin_cita`, `contraste_invalido`, `pedido_fuera_de_contexto`): cada una deja en la explicación el motivo y en la celda la pregunta o el documento; una tabla de prueba recorre cada conversión.
+- `rules.py` y `portal_facts.py`: las reglas del Portal que hoy dejan condiciones abiertas (`portal_cubre_parte`, `portal_falta_coincidencia`, `en_portal`, `falta_coincidencia`) pasan a decidir «cumple» o «no cumple» con la cita del Portal cuando el dato alcanza, o «no determinado» con la pregunta que nombra la condición y el dato del Portal que sí hay. No se elimina ninguna regla que cumpla una decisión literal del responsable; los 245 tests `decision_literal` siguen verdes, y si alguno exigiera cambiar se frena y se consulta (P1, P11).
+- **Invariante comprobable**: `tests/assessment/test_tres_salidas.py` recorre todas las combinaciones de resultados de grupos, contraste y reglas y exige que cada celda cumpla una de las tres formas; `medir_evaluacion` cuenta las que no lo hacen (umbral 9). Sin migración: el rótulo `sin_documento`, el motivo y las enumeraciones quedan como están.
+
+**Medición.** En cada ronda, en una sola ventana de GPU por tanda: matrices de 00, 01, 02 y 06; evaluación del caso-00 y del caso de ajuste con verdad; evals de la 001, fichas y visión (instrucciones auxiliares). Antes de medir: tests `decision_literal` (`--verificar-decisiones`), tests de largo y de no calco.
+
+### Paso 3 · Matriz con modelo externo (REQ-121 a REQ-123; ADR-0066, 0067, 0068)
+
+**Dónde se enchufa.** En `run.py::propose`, la etapa externa **reemplaza** la cadena extracción (paso 2 de `propose`), disposición según el modelo, completitud, unión, unificación y filtro, y deja intactos: las reglas por tramo (`rule_decision`), `keep_tables_pending`, las filas técnicas, las circulares y sus cambios (`circulars.Processor`), las consecuencias, el respaldo normativo y el guardado. Reemplaza y no corre en paralelo dentro de una misma versión; para comparar, la medición corre dos propuestas separadas sobre la misma lectura en la misma base del clon: una con `EXTERNAL_STAGES["matriz"] = "local"` y otra con `"externo"` (opción `medir_matriz --externo matriz`), cada una guardada como borrador con su registro. El módulo `external.py` devuelve el mismo contrato que `extraction.Extractor` y `row_filter.Filter` (`outcomes` por tramo y la decisión firme, sugerencia o descartada por fila), de modo que lo que viene después no se entera de quién decidió.
+
+- **Qué se recupera.** Nada se busca: el modelo lee el pliego completo. Se manda el texto canónico de todos los tramos de la lectura vigente (los mismos `[T1]…[/T1]` con ruta, encabezado y clase de sección que ve el extractor local), nunca el PDF: así lo que se envía queda registrado, es el mismo texto contra el que se ubican las citas y el modelo externo no ve nada que la lectura local no vea. Circulares y respuestas a consultas no van en este paso (siguen locales).
+- **Cómo se ordena.** Orden del documento. El pliego completo es el prefijo común de todos los pedidos de la propuesta y se marca con caché de una hora (el proveedor recomienda ese plazo para lotes con contexto común); la parte que cambia (los tramos que le tocan a ese pedido) va al final.
+- **Qué se le pide.** Una instrucción propia y corta (`matriz-externa-v1`, ≤ 9.000 caracteres con el bloque de definiciones `matriz-definiciones-v9` incluido: la fuente de las decisiones del responsable es única, la instrucción es distinta) y dos tipos de pedido: **(a)** extracción en varios pedidos (alrededor de 150 tramos cada uno, de 2 a 4 por pliego; la tarea fija el número): por tramo, los requisitos como fragmentos, su clase, la marca de opción, la marca técnica por renglón o el motivo de descarte de la lista cerrada; **(b)** un pedido de completitud y filtro con las filas ya extraídas: qué oración obligatoria falta y, por fila, firme, sugerencia o descartada con el motivo. Total de 3 a 5 pedidos por propuesta. Salida con esquema JSON del proveedor (`output_config.format`; sin límites de largo en el esquema: los largos se validan en el cliente), compacta (una línea por tramo descartado) para que la salida quede en 10.000 a 30.000 tokens; esfuerzo `medium` y `max_tokens` por pedido de 32.000, parámetros que se registran en cada pedido y se ajustan solo en las rondas de ajuste.
+- **Cómo se cita.** Igual que la local: el modelo devuelve el fragmento, el sistema lo ubica (`quotes.locate`) y lo amplía a la oración o al inciso con su encabezado (`sentences.py`); lo que se guarda es el recorte contiguo del texto canónico (REQ-025). Un fragmento que no se ubica se descarta y deja la anomalía `fragmento_externo_no_ubicado`.
+- **Abstención.** Una duda del modelo externo va a «sugerencia» o a «pendiente de revisión», nunca a un descarte silencioso, como en el camino local.
+- **Si el pedido externo falla**, se agota el tope o la puerta bloquea algo, la propuesta sigue con la cadena local y lo registra (`externo_no_disponible`, etapa `local`). La propuesta nunca queda a medias por el proveedor.
+- **Lotes.** Las mediciones usan la API de lotes (mitad de precio): `client.py` arma un lote con los pedidos de una etapa, lo consulta cada 30 segundos con un máximo de 2 horas de espera (el proveedor dice que la mayoría termina en menos de una hora y que vencen a las 24) y lo cierra con el registro de cada resultado. El modo directo (un `POST` por pedido) existe solo para la prueba de humo con el caso chico y como camino de emergencia; no se usa en mediciones.
+
+**Plataforma externa (se construye al comienzo del paso 3, antes de la primera llamada real).**
+
+- **Cliente** (`evaluon/ai/external/client.py`): `urllib` de la biblioteca estándar, anfitrión fijo en el código (`api.anthropic.com`, HTTPS; no es un ajuste), cabeceras `x-api-key` y `anthropic-version`, métodos de mensaje directo y de lotes (crear, consultar, resultados), errores propios como los de `evaluon.ai` (tiempo agotado, servicio no disponible, entrada demasiado larga, vencido). No importa el módulo en ningún otro lado: `tests/portal/test_no_outbound.py` pasa a permitir exactamente `evaluon/ai/external/client.py` además de `evaluon/ai/__init__.py` y `evaluon/portal/`. Sin `EXTERNAL_ENABLED` o sin clave, toda llamada lanza `ExternalDisabled` antes de abrir un socket. (ADR-0066.)
+- **Puerta de filtrado** (`evaluon/ai/external/guard.py`): único lugar que arma un pedido externo. Ver la sección siguiente. (ADR-0067.)
+- **Registro y tope** (`evaluon/ai/external/ledger.py`): escribe el hecho `external_request` y hace cumplir el tope antes de cada lote. (ADR-0068.)
+- **Doble** (`tests/conftest.py`, `FakeExternal`): reemplaza al cliente como `FakeGeneration` reemplaza al de generación (T-011): respuestas guiadas, errores y vencimientos, sin red. Un fixture automático hace que cualquier llamada real dentro de la suite falle, de modo que la suite no puede salir a internet ni con la configuración encendida por error.
+- **Reuso por huella** (control de gasto, ligado al tope): un pedido con la misma huella (pedido, modelo, parámetros y versión de la instrucción) que otro ya respondido en el clon dentro de la misma medición se contesta con la respuesta guardada y queda registrado con resultado `reutilizado` y costo 0. Sirve para repetir el cálculo de las cifras tras corregir código que no cambió el pedido.
+- **Apagado por configuración.** `EXTERNAL_ENABLED=false` (por omisión) lo apaga todo; `EXTERNAL_STAGES` (`matriz`, `verificador`) elige por etapa `local` o `externo`, también apagado por omisión. Sin el archivo `docker-compose.externo.yml` no hay red con salida: el `worker` queda en `internal` como hoy. Con todo apagado, el sistema funciona como hoy y la suite y el caso-00 completo dan lo mismo (umbral 20).
+
+**Un solo punto de filtrado de lo reservado (REQ-121).** El filtrado **no está repartido por el flujo**: ocurre en `guard.py`, y solo en `guard.py`, que es la única forma de construir el objeto que el cliente acepta (el cliente rechaza todo lo que no sea un `ExternalPayload`).
+
+1. **Lista permitida, no lista prohibida.** Cada pieza de texto entra al pedido con el documento del que sale. Se permiten los documentos del pliego, sus anexos y circulares (`tenders.DocumentKind`) y los documentos de la oferta de tipo económico, técnico, garantía, anexo técnico, otro o sin clasificar. Un tipo nuevo queda bloqueado hasta que se lo agregue a la lista. Nunca se permite `compliance`.
+2. **Exclusiones por contenido.** Nunca van: las respuestas de la Comisión (pueden transcribir una consulta de cumplimiento, ADR-0065 §1); el informe técnico del área (el ADR-0065 no lo clasifica: queda en local hasta que el responsable lo decida); los requisitos que dependen de consultas externas, ya sea por el catálogo de `externals.py` o por la marca del modelo (P9), y cualquier celda cuyo grupo o cuya cita haya salido de un documento `compliance`. Esos requisitos siguen en el modelo local aunque la hoja esté cargada.
+3. **Comprobación por huellas.** Antes de mandar, `guard.py` compara el texto del pedido contra los párrafos de los documentos `compliance` del procedimiento (secuencias de 8 palabras normalizadas): si hay una coincidencia, bloquea el pedido entero, aunque el documento estuviera mal clasificado.
+4. **Dónde se prueba.** `tests/ai/test_external_guard.py`: una hoja de compliance **inventada** y marcada (con una palabra clave improbable en cada párrafo), cargada en una oferta de prueba; se evalúa con el uso externo encendido y el doble, y se exige que ningún pedido registrado contenga un párrafo de la hoja ni la palabra clave y que los requisitos externos queden en local. Además: un tipo desconocido, un documento sin clasificar con un párrafo de la hoja, una respuesta de la Comisión y un informe técnico. Con GPU y el proveedor real, la prueba de humo del caso chico con la misma hoja inventada y `gasto_externo --verificar-filtro`, que escanea el registro del clon con su propia implementación (independiente de `guard.py`) y cuenta 0.
+
+**Medición del paso 3.**
+
+1. *Ajuste* (casos 00, 01, 02, 06; hasta 2 rondas): propuesta local simplificada (la del paso 2) y propuesta externa sobre la misma lectura; cifras de `medir_matriz` por caso. Puerta del umbral 16.
+2. *Aceptación* (03, 04 y 05; una sola vez): local simplificado y externo, mismo commit, mismas listas congeladas. Umbrales 13 y 14.
+3. *Segunda comparación* con `claude-opus-5-5`: solo si Sonnet no pasa el umbral 13 o 14 y la etapa pasó la puerta 16; con la misma instrucción, una vez, solo la etapa que falló; se registra que se miró dos veces la misma aceptación. Si el tope del mes no alcanza, espera al mes siguiente.
+4. El externo no es determinista (el proveedor no ofrece semilla en este uso): cada condición se corre una vez, la respuesta se guarda y las cifras se pueden recalcular sin repetir el pedido, pero no se reproducen. Una diferencia de una entrada en la lista presente se lee como empate, y en empate queda lo local (ADR-0065).
+
+### Paso 4 · Verificador externo de citas (REQ-124; ADR-0066 a 0068)
+
+**Dónde se enchufa.** En `services/evaluate.py::evaluate_offer`, **después del contraste local y de las reglas**, y **antes** de armar la pregunta (`combine.compose_question`) y de guardar cada par (`_save_pair`). El verificador es un paso posterior que no cambia la lectura ni el contraste local; por eso la medición no repite la corrida local.
+
+- **A qué celdas.** A cada celda «cumple» o «no cumple» cuya conclusión se apoya en una oración citada de la oferta o en un dato citado del Portal (las decididas por el modelo y el contraste, y las de `portal_cumple` y `portal_no_cumple`). No va a las decididas por ausencia, por el criterio del IVA, por la presentación física ni por la forma de garantía (no hay una cita que verificar: las decide el código con documentos nombrados), ni a ninguna «no determinado» (REQ-124: nunca la convierte en «cumple»), ni a los requisitos externos (P9), ni a ninguna celda con documentos `compliance`.
+- **Qué se manda.** Lo mismo que ya ve el contraste local y nada más: el requisito con su punto completo y la oración marcada; la conclusión; la oración citada de la oferta con su documento, su página y el contexto de la misma página (`citing.context_of`); el dato del Portal citado. No se manda el razonamiento ni la explicación del modelo local (para no anclar al verificador) ni respuestas de la Comisión ni otras partes de la oferta. Unos 3.000 tokens de entrada por celda.
+- **Qué se le pide.** `verificador-v1` (≤ 5.000 caracteres): un objeto JSON con `razonamiento` (≤ 400 caracteres), `sostiene` (`si`, `no` o `parcial`) y, si no es `si`, `pregunta` dirigida a la Comisión con el requisito, la conclusión y el texto. Esfuerzo `low` y `thinking` en `between_tools` (el proveedor lo documenta como el nivel más bajo de pensamiento previo) para que el costo de salida no lo domine; se registra en cada pedido.
+- **Qué hace el sistema con la respuesta.** `si`: la celda queda como está. `no` o `parcial`: la celda pasa a «no determinado» con motivo `sin_corroborar`, las mismas citas y la pregunta; la redacción del verificador se acepta solo si cumple la forma de `question_form` y no se dirige al oferente; si no, la arma el código. El verificador no agrega citas ni texto: solo juzga la cita que recibió. Una respuesta inválida, un pedido vencido, un bloqueo de la puerta o el tope agotado dejan la celda como estaba, con la anomalía `verificador_sin_respuesta`: el verificador solo puede restar, nunca sumar ni arreglar.
+- **Lotes.** Un pedido por celda, todos los de una oferta juntos en un lote, esperando como en el paso 3. Una evaluación tarda lo del lote más la lectura local.
+- **Registro.** `facts["verificador"]` en cada celda verificada, el hecho `external_request` de cada pedido y `counts["externo"]` en la corrida; la pantalla de la evaluación y su exportación (`views/results.py`, `services/export.py`) muestran la línea «Etapas fuera del equipo» con proveedor, modelo, modo y cantidad de pedidos, o «Ninguna: todo corrió en el equipo».
+
+**Medición del paso 4.**
+
+1. Sin GPU extra: el «sin verificador» sale de `facts["verificador"]["antes"]` de la misma corrida local; el «con», de `despues`.
+2. *Ajuste* (caso-00 y el caso de ajuste con verdad; hasta 2 rondas), sobre las evaluaciones locales guardadas del paso 2: se ajustan `verificador-v1` y sus parámetros. Lo que el verificador cambia se lee celda por celda (¿era una errada o una exacta?).
+3. *Aceptación*: evaluación local una vez de los casos de aceptación con verdad (al menos 2), con el commit final, y el verificador una vez. Umbral 17.
+4. Segunda comparación con Opus 5.5 en las mismas condiciones que en el paso 3.
+
+## Registro de auditoría
+
+Cada evaluación y cada propuesta siguen registrando (P6) lo de la 015 (documentos, normativa, modelo con huella y compilación, parámetros, semilla, instrucciones con versión y huella, fragmentos, resultado, usuario y fecha). Lo que suma esta feature:
+
+- **Cada pedido externo** es un hecho `external_request` de solo inserción con proveedor, modelo pedido y devuelto, versión y huella de la instrucción, texto enviado, respuesta, tokens, costo y resultado (ver «Modelo de datos»). Un pedido bloqueado por la puerta también queda, sin texto.
+- **Las corridas** (`tenders_run`, `assessment_run`) dicen qué etapas corrieron fuera del equipo (clave `externo`), con el modelo y el modo, y qué versión de instrucción externa usaron en `prompt_versions`. Una etapa que volvió a lo local por una falla queda como `local` con la anomalía.
+- **Las celdas verificadas** guardan `facts["verificador"]` con lo que había antes y lo que quedó.
+- **El gasto real** de cada pedido está en el hecho; `gasto_externo` lo suma por etapa, caso y mes y se pega en el registro de cada medición.
+- **Las instrucciones nuevas** (locales y externas) quedan nombradas en el informe de revisión y con su huella congelada.
+- Las cifras con texto de casos quedan en la carpeta local; al repositorio solo van conteos y claves.
+
+## Costo y tope
+
+Precios de lista consultados el 2026-10-15 en la página del proveedor (fuentes en el ADR-0066): Sonnet 5.5, 2 USD por millón de tokens de entrada y 10 de salida; **lotes, 50 % menos** (1 y 5); caché leída a 0,05 veces el precio de entrada en Sonnet 5.5 y Opus 5.5 (0,10 USD por millón, mejor que el décimo que supuso la spec), escritura de una hora a 2 veces; Opus 5.5, 4 y 20. El pensamiento adaptativo se cobra como salida y cuenta contra `max_tokens`; por eso el esfuerzo se fija por etapa y no se deja el valor por omisión (`high` en Sonnet 5.5).
+
+| Etapa | Tamaño por caso | Estimado en lotes | Se frena a |
+|---|---|---|---|
+| Matriz desde el pliego completo (A) | pliego de 30.000 a 70.000 tokens en 3 a 5 pedidos (de 90.000 a 350.000 de entrada, menos con caché); salida de 10.000 a 30.000 | 0,20 a 0,45 USD, 0,30 como estimado | 0,60 USD |
+| Verificador de citas (B) | hasta 50 celdas con 3.000 de entrada y unos 600 de salida (la spec supone 50; con el alcance de arriba suelen ser 20 a 25) | 0,15 a 0,30 USD, 0,30 como estimado | 0,60 USD |
+| Caso completo, una ronda | A más B | 0,35 a 0,75 USD | 1,20 USD |
+
+**Mediciones previstas y su gasto** (todo en lotes, salvo la prueba de humo):
+
+| Fase | Corridas | Gasto previsto |
+|---|---|---|
+| Prueba de humo del caso chico, con la hoja inventada (directo) | 3 pedidos | 0,10 USD |
+| Paso 3, ajuste: 4 casos, hasta 2 rondas | 8 | 2,40 USD (hasta 3,20 con el caso-01) |
+| Paso 3, aceptación: 3 casos | 3 | 0,90 USD (hasta 1,20) |
+| Paso 4, ajuste: 2 casos, hasta 2 rondas | 4 | 1,20 USD |
+| Paso 4, aceptación: de 2 a 3 casos | 3 | 0,90 USD |
+| **Total sin segunda comparación** | 18 | **5,50 USD (hasta 7,00)** |
+| Segunda comparación con Opus 5.5, solo la etapa que no pasó | hasta 6 | hasta 3,90 USD |
+| **Total con segunda comparación** | | **hasta 10,90 USD** |
+
+**Entra en el tope.** Por caso: el peor caso (caso-01) con 2 rondas de A (0,45 cada una) y 2 de B (0,30) llega a 1,50 USD, bajo los 2 USD; si además hubiera segunda comparación con Opus de una etapa (0,70 o 0,60), el libro (ver abajo) corta el pedido que haría pasar al caso de los 2 USD. Por mes: los pasos 1 y 2 vienen antes del primer centavo, y las fases se reparten así: **el mes de la primera llamada**, prueba de humo y paso 3 (4,50 USD como máximo previsto, 6,60 con la segunda comparación de la matriz); **ese mes si hay lugar, o el siguiente**, paso 4 (1,80 a 2,10 USD) y la segunda comparación del verificador (hasta 1,80). Ningún mes pasa de 7 USD previstos. Una fase no se lanza si lo gastado en el mes más su estimado supera 8 USD sin avisar al responsable.
+
+**Cómo se hace cumplir** (ADR-0068):
+
+- `ledger.py` suma `costo_usd` de los hechos `external_request` del mes calendario y del procedimiento (caso) antes de cada lote, con una estimación conservadora de tokens (caracteres entre 2,5) y el precio de lista de la tabla `EXTERNAL_PRICES` versionada. Si el estimado supera lo que queda del caso (2 USD) o del mes (10 USD), el lote **no sale**: la etapa vuelve a lo local y queda `bloqueado` con el motivo «tope». Después de cada respuesta se registra el costo real con el uso informado.
+- Etapa que pasa el doble de su estimación (tabla de arriba): se frena el resto de la etapa y se informa antes de seguir; la ronda no continúa sin decisión.
+- Segundo freno, fuera del código: límite mensual de 10 USD en el espacio de trabajo de la clave, en la consola del proveedor (el proveedor documenta límites de gasto por organización y por espacio de trabajo; se confirma al crear la clave y se anota en `entorno.md`).
+- `manage.py gasto_externo [--mes AAAA-MM] [--procedimiento N] [--por-etapa]` imprime el gasto real y la cantidad de pedidos; cada registro de medición pega su salida. Ese comando existe por el requisito «cada medición registra el gasto real por etapa».
+- Control cruzado: el total del comando se compara una vez por mes con el informe de uso de la consola.
+
+## Cola de GPU
+
+Una sola tarea usa la GPU a la vez y el motor de 8000 está apagado mientras tanto. Orden: lectura de ofertas de los casos nuevos (paso 1); referencia B0 si hace falta; ronda 1 y, si hace falta, ronda 2 del paso 2; ajuste y aceptación del paso 3 (solo la parte local de la cadena, la del externo no usa la GPU); evaluación local de la aceptación (paso 4). La columna «Depende de» de `tasks.md` las encadena.
+
+| Paso | Qué usa la GPU | Estimado (27B, tiempos de T-263 y T-266) |
+|---|---|---|
+| 1 | Lectura de las ofertas de 3 a 4 casos, con visión en las páginas dudosas | 1 a 2 h |
+| 2 | B0 (si hace falta): evaluación del caso de ajuste con verdad, 1 a 2 h. Por ronda: matrices 00, 01, 02, 06 (13 + 62 + 21 + 17 = 113 min), evaluación del caso-00 (89 min), evaluación del caso de ajuste con verdad (60 a 120 min), evals de la 001, fichas y visión (45 min) | 5 a 6 h por ronda; 11 a 12 h con dos rondas y 13 a 14 con B0 |
+| 3 | Solo la parte local que queda tras la etapa externa (circulares, consecuencias, respaldo, filas técnicas: alrededor del 40 % del tiempo de la matriz): ajuste, 0,75 h por ronda; aceptación, local completo (55 + 39 + 30 = 124 min) y la parte local del externo (50 min) | 4,5 h; hasta 5,5 h con la segunda comparación |
+| 4 | Evaluación local de los casos de aceptación con verdad (1 a 2 h cada uno) | 2 a 4 h |
+| **Total** | | **entre 20 y 26 h de GPU en ventanas de 3 a 6 h** |
+
+El tiempo local del caso-00 completo no empeora más del 10 % (umbral 11); como las instrucciones acortan cada pedido, lo esperado es que baje.
+
+## Cobertura de requisitos
+
+| Requisito | Cómo se resuelve | Cómo se verifica |
+|---|---|---|
+| REQ-118 | «Paso 1»: tres casos o más rehechos por un agente a ciegas del sistema, revisados y firmados por el responsable; formato con fundamento, revisión, huella y congelado de la aceptación (ADR-0069) | Umbrales 1 a 4; `medir_evaluacion --verificar-verdad`; cargador probado con el caso chico |
+| REQ-119 | «Paso 2», instrucciones nuevas con largo máximo (ADR-0070), tabla de decisiones, sin calco; versión y huella en cada pedido | Umbrales 5 a 8, 10 a 12; tests de largo y de no calco; mediciones de 00, 01, 02 y 06 |
+| REQ-120 | «Paso 2», reglas a tres salidas: `combine.py`, `evaluate.py`, `rules.py`, `portal_facts.py`; invariante y conteo | Umbral 9; `test_tres_salidas.py`; `medir_evaluacion` |
+| REQ-121 | «Paso 3», un solo punto de filtrado (`guard.py`): lista permitida, exclusión de lo reservado, de las respuestas de la Comisión y de los requisitos externos, y huellas de párrafos (ADR-0067) | Umbral 19; `test_external_guard.py` con hoja inventada; `gasto_externo --verificar-filtro` sobre el registro |
+| REQ-122 | Cliente y registro (ADR-0066 y 0068): hecho `external_request`, clave `externo` en las corridas, línea de pantalla y exportación; apagado por configuración y por ausencia de red | Umbral 20; test del registro con el doble; suite y caso-00 completo con el uso externo apagado |
+| REQ-123 | «Paso 3», matriz externa con el contrato de la local, misma medida y misma lista, adopción por umbral y desempate local (ADR-0065) | Umbrales 13 a 16; `medir_matriz --externo matriz` |
+| REQ-124 | «Paso 4», verificador posterior al contraste, que solo puede restar; `facts["verificador"]` | Umbrales 17 y 18; `medir_evaluacion` |
+| REQ-125 | Umbral escrito antes (la tabla de arriba), dos rondas, registro por paso y un ADR por etapa (0071, 0072, 0073) | Umbral 22; `verificacion/T-NNN.md`; revisión del Coordinador |
+
+## Verificación contra la constitución
+
+| Principio | Cumple | Nota |
+|---|---|---|
+| P1 Spec fuente de verdad | sí | Cada umbral sale de un criterio de la spec; lo que el plan agrega está marcado «del plan». Dos puntos de la spec se informan como lecturas a confirmar (umbral 17 y rótulo `sin_documento`) |
+| P2 Trazabilidad | sí | Cada tarea nombra sus `REQ-NNN`; commits `T-NNN (REQ-NNN): …` |
+| P3 El sistema recomienda, la Comisión decide | sí | El verificador solo puede pasar un «cumple» o «no cumple» a «no determinado»; la matriz externa propone y la Comisión valida; toda cita se ubica por código; ninguna celda queda sin pregunta ni documento nombrado |
+| P4 Datos | sí | Solo material público; la puerta de filtrado deja lo reservado en local y el camino local sigue completo; los textos de casos y los registros con texto quedan fuera del repositorio y la clave también. Verificado: sin el archivo de compose de salida, ningún contenedor de trabajo tiene ruta a internet; con el uso externo apagado, nada cambia (ADR-0065, constitución 1.6) |
+| P5 Local y reproducible | sí | El clon se levanta con un script y un archivo de compose; el cliente no agrega dependencias; apagar lo externo no requiere cambios de arquitectura |
+| P6 Auditoría | sí | Cada pedido externo y su respuesta quedan en un hecho de solo inserción; las corridas dicen qué etapas salieron; las instrucciones nuevas registran versión y huella |
+| P7 Evals además de tests | sí | Cada cambio de instrucciones, de reglas o de modelo se mide con umbral previo; ningún paso se integra sin su medición |
+| P8 Normativa versionada | sí | Sin cambios |
+| P9 Hojas de compliance | sí | El sistema no las infiere ni las manda afuera; los requisitos que dependen de ellas corren siempre en el modelo local |
+| P10 Simplicidad | sí | Una migración de una línea, ningún servicio ni tabla nuevos, ninguna pantalla nueva fuera de una línea. Extras atados a requisitos: reuso por huella y comando de gasto (tope), modo directo (humo y emergencia) |
+| P11 Compuertas humanas | sí | El responsable aprueba el plan, firma la verdad celda por celda, decide cualquier baja de una medida grave y aprueba el despliegue; ningún paso se integra a `main` sin su registro |
+
+## Decisiones
+
+ADR propuestos por este plan: **0066** (cliente de la API externa y salida a internet), **0067** (un solo punto de filtrado de lo reservado), **0068** (registro y tope de gasto de los pedidos externos), **0069** (verdad ampliada celda por celda) y **0070** (instrucciones y reglas simples: largo máximo, desempate a la corta y tres salidas). Reservados: **0071** (resultado de los pasos 1 y 2), **0072** (matriz: local o externa) y **0073** (verificador: con o sin), que redactan las tareas de cierre con la medición como evidencia. La adopción de cada etapa externa es una decisión del responsable (P11).
+
+## Riesgos
+
+| Riesgo | Impacto | Mitigación y reversión |
+|---|---|---|
+| Menos de 3 casos con ofertas legibles, Portal y dictamen en el corpus | REQ-118 no se puede cumplir | La tarea de inventario es la primera del paso 1 y se informa antes de seguir; la carga de ofertas faltantes (Portal de Compras) es trabajo del Coordinador. Sin 3 casos, el plan se detiene en el paso 1 y se vuelve a hablar con el responsable |
+| La revisión de 150 a 360 celdas le lleva tiempo al responsable | El paso 1 se alarga | Hasta 3 ofertas por caso y 40 a 120 celdas por caso; tabla ordenada de lo más dudoso a lo más seguro, con cita y pregunta sí o no por fila; el mínimo de la spec es lo que se pide |
+| La verdad hecha por un agente repite sus propios sesgos | La medida premia al sistema que se parece al agente | El agente no ve nada del sistema; cada cita se ubica por máquina; el responsable revisa y puede corregir; las celdas corregidas se informan |
+| Las instrucciones nuevas pierden requisitos de la lista (umbral 8 estricto) | El paso 2 no se integra | Dos rondas; los hallazgos se corrigen como definiciones, no como ejemplos de casos; lo que no llega pasa a la lista de revisión y la dispensa es del responsable (P7) |
+| Las instrucciones se ajustan sin querer a los casos de ajuste | Mejoras no independientes | Test de no calco; 03, 04 y 05 no se miran; el paso 3 y el paso 4 miden en aceptación |
+| El umbral 13 es difícil por el techo de la medida | El externo no se adopta aunque ayude | En T-266 la lista presente local ya está en 83,6 % (03), 91,8 % (04) y 96,6 % (05); el caso-05 no puede subir 5 puntos, así que en la práctica hacen falta el 03 y el 04 a la vez. Se informa; el desempate es local por el ADR-0065 |
+| El proveedor no es determinista y cambia | La medición no se repite igual | Cada pedido y respuesta se guardan; las cifras se recalculan sin repetir; una entrada de diferencia es empate; los modelos del proveedor son instantáneas fijas con retiro no anterior a septiembre de 2027 |
+| El esfuerzo y el pensamiento adaptativo disparan la salida | Se pasa el estimado | Esfuerzo fijado por etapa; `max_tokens` explícito; el libro frena al doble del estimado |
+| Los aciertos de caché dentro de un lote no están garantizados | La entrada cuesta más de lo estimado con caché | El estimado ya incluye el caso sin aciertos (entrada completa en cada pedido); se usa la caché de una hora que el proveedor sugiere para lotes |
+| Una fuga de lo reservado | Violación de P4 y de P9 | Una sola puerta; lista permitida; exclusiones por contenido; huellas de párrafos; tests con hoja inventada; escaneo independiente del registro; cliente que rechaza todo lo que no pasó por la puerta; sin el archivo de compose no hay red |
+| El `worker` con salida a internet agranda la superficie | Más exposición mientras el clon la use | La red con salida está en un archivo aparte que solo usa el clon; el anfitrión es fijo en el código; el piloto (8000) no lo usa. Si se adopta una etapa, el responsable decide entre mantener este camino o el servicio puente (ADR-0066, alternativa C) |
+| Ventanas de GPU sin motor de lotes en 8000 (de 3 a 6 h cada una) | La Consulta y las evaluaciones del piloto no responden | Ventanas de noche o fin de semana con cola vacía; arranque y comprobación de 8000 al final de cada ventana (como T-268) |
+| Se integra a `main` y el piloto cambia de comportamiento | 8000 monta `./evaluon` de la raíz | Los cambios solo pasan a `main` con el umbral aprobado y el código nuevo queda inerte con el uso externo apagado; el despliegue al piloto es compuerta del responsable |
+| Dos tareas tocan `settings.py`, los compose o la migración a la vez | Conflictos | Las tareas de configuración compartida, `settings.py` y la huella de instrucciones se encadenan; la migración la hace una sola tarea |
+| Cambiar la lista o las exclusiones para que el externo se vea mejor | Cifra engañosa | Las listas y exclusiones de aceptación quedan congeladas con huella y fecha antes de la primera corrida |
+
+**Cómo se revierte cada paso.** Paso 1: es aditivo (archivos fuera de git y un cargador); revertir es no usar los archivos. Paso 2: restituir las versiones anteriores de `MATRIX_PROMPT_VERSIONS`, `ASSESSMENT_PROMPT_VERSIONS`, `OFFERS_PROMPT_VERSIONS`, `ASSESSMENT_VISION_PROMPT_VERSION`, `consulta` y `ASSESSMENT_RULES_VERSION` a las de la 015 (las huellas siguen congeladas) y revertir los cambios de `combine.py` y las reglas del Portal; sin migración ni dato que cambie. Paso 3: `EXTERNAL_STAGES["matriz"] = "local"` (valor por omisión) y no usar `docker-compose.externo.yml`; el código queda inerte; quitarlo es revertir el pull request. Paso 4: `EXTERNAL_STAGES["verificador"] = "local"`; las celdas ya guardadas conservan `facts["verificador"]` como registro. La migración agrega un valor permitido y no necesita deshacerse.
+
+## Puntos para el Coordinador (contradicciones, vacíos y lecturas)
+
+La spec no tiene marcas pendientes. Lo siguiente es lo que el plan lee de una manera y conviene confirmar antes de la compuerta:
+
+1. **REQ-124, «el “no determinado” no sube».** El verificador solo puede pasar celdas de «cumple» o «no cumple» a «no determinado», así que el «no determinado» no puede bajar. El plan lo mide así: celdas exactas con verificador ≥ sin; erradas con ≤ sin; y todo «no determinado» nuevo viene de una celda que era errada (ninguna exacta pasa a «no determinado»). Si el responsable quiso otra cosa, hay que enmendar la spec.
+2. **REQ-120 y los rótulos.** La spec dice tres salidas; el sistema guarda además «no se encontró el documento» (ADR-0038, regla 3; la Comisión de prueba lo usó en T-229) y «no aplica» como forma de un «no determinado» por regla. El plan los conserva con el documento o la razón nombrados, sin migración (ADR-0070). La alternativa de colapsarlos cambia el esquema y exportaciones.
+3. **REQ-123, aritmética del techo.** Con las cifras de T-266, subir 5 puntos exige que el 03 (83,6 %) y el 04 (91,8 %) suban, porque el 05 (96,6 %) no puede.
+4. **REQ-119 es más estricto que el ADR-0059 (regla 2)** en la lista presente («igual o mejor en cada caso»). El plan aplica la spec.
+5. **El informe técnico del área** no está clasificado por el ADR-0065 como público ni como reservado; el plan lo deja en local. Lo mismo las respuestas de la Comisión (pueden transcribir consultas): no van al externo.
+6. **Rama de integración.** La spec pide no tocar `main` hasta que cada paso pasa; el plan usa `016-integracion`. **Resuelto (Coordinador, 2026-10-15):** `tools/cerrar.sh` tiene `origin/main` fijo; la tarea del entorno (paso 0) le agrega una variable `BASE` (por omisión `main`) y las tareas de esta feature cierran con `BASE=016-integracion`. Cuando un paso pasa su umbral, el Coordinador abre el pull request `016-integracion` → `main` con la suite completa corrida sobre la combinación (ADR-0012).
+7. **Disponibilidad de ofertas, Portal y dictamen** de los casos 01 a 06: el plan no la puede comprobar desde el repositorio (el corpus está fuera de git) y la primera tarea es el inventario. **Comprobado por el Coordinador el 2026-10-15:** solo el caso-00 tiene ofertas (31 archivos) y dictamen; los casos 01 a 06 tienen pliego, circulares y la autorización, sin ofertas ni dictamen, y el importador del Portal baja el acta, el cuadro comparativo y el dictamen pero no los documentos de cada oferta. El paso 1 necesita que el responsable aporte, o autorice bajar del Portal, las ofertas y el dictamen de 3 procesos públicos terminados; hasta entonces el paso 1 queda bloqueado y los pasos 2 y 3 no dependen de él para la matriz (sí la evaluación del paso 2 y el paso 4).
+8. **Retención y entrenamiento del proveedor** con los datos enviados, y soporte de temperatura y semilla en estos modelos: no verificados (ver «Sin verificar» del ADR-0066).
+9. **Prerrequisito del paso 3: la clave de la API** y el límite mensual de 10 USD en la consola del proveedor los crea el responsable (o el Coordinador con su visto bueno); sin eso el paso 3 solo puede avanzar hasta las pruebas con el doble y la prueba de humo con el proveedor real queda pendiente. El plan no pone la clave en ningún archivo del repositorio.
