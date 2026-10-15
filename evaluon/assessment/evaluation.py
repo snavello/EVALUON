@@ -1067,8 +1067,9 @@ def three_outputs_note(total):
     la oferta y el dato del Portal, que lleva las dos citas y no la pregunta (`combine.MISMATCH_RULE`,
     ADR-0053, decisión 4); queda a decisión del responsable."""
     found = total.get("three_outputs") or {}
-    return (f"«No determinado» por falta de coincidencia con el Portal, con las dos citas y sin "
-            f"pregunta (decisión literal de ADR-0053): {len(found.get('falta_coincidencia_sin_pregunta', []))}")
+    counted = len(found.get("falta_coincidencia_sin_pregunta", []))
+    return ("«No determinado» por falta de coincidencia con el Portal, con las dos citas y sin "
+            f"pregunta (decisión literal de ADR-0053): {counted}")
 
 
 # --- Medida honesta (T-256; REQ-103, REQ-104, REQ-107; mesa de comité del 2026-10-12) ------------

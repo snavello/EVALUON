@@ -172,7 +172,8 @@ def unread_text(unread):
 
 
 # Dudas que llevan pregunta aunque el modelo no la escriba (REQ-055): las dos de siempre y la
-# conclusión que el contraste no corroboró.
+# conclusión que el contraste no corroboró. Desde T-277 (REQ-120) las lleva todo «no determinado»
+# que no nombre un documento (`asks_commission`); la lista queda como la de las que la regla fija.
 ASKED_DOUBTS = (NO_DATA, INCOMPLETE, UNCORROBORATED)
 
 # «No determinado» que ya nombra un documento o una consulta que falta (REQ-120): la hoja de
@@ -266,6 +267,13 @@ def addresses_offeror(text):
         if _SENTENCE_START.search(sentence):
             return True
     return False
+
+
+def asks_the_offeror(question):
+    """Si la pregunta, sin lo que cita entre «», se dirige al oferente (`addresses_offeror`). Lo que
+    la pregunta copia del pliego o de la oferta («El oferente deberá…») no cuenta, como en la medida
+    de la forma de las preguntas (`evaluation.question_form`)."""
+    return addresses_offeror(re.sub(r"«[^»]*»", " ", question or ""))
 
 
 def _clip(text, size):
@@ -386,7 +394,7 @@ def compose_question(number, requirement, combined, *, documents=(), unread=()):
     if not asks_commission(combined):
         return ""
     asked = " ".join((combined.question or "").split())
-    closing = asked if asked and not addresses_offeror(asked) else _default_ask(combined)
+    closing = asked if asked and not asks_the_offeror(asked) else _default_ask(combined)
     head = f"Requisito {number}" + (f": «{_clip(requirement, QUESTION_CLIP)}»" if requirement
                                     and requirement.strip() else "")
     return "\n".join([
@@ -598,12 +606,12 @@ def apply_clauses(combined, rows, question, requirement_text):
         # REQ-120: la pregunta nombra las cláusulas que faltan; la del modelo vale solo si se
         # dirige a la Comisión.
         asked = " ".join((question or "").split())
-        if not asked or addresses_offeror(asked):
-            word = "la cláusula" if len(missing) == 1 else "las cláusulas"
+        if not asked or asks_the_offeror(asked):
+            single = len(missing) == 1
+            word, verb = ("la cláusula", "confirmarla") if single else ("las cláusulas",
+                                                                         "confirmarlas")
             asked = (f"¿Qué determina la Comisión sobre {word} {names}? El sistema no pudo "
-                     "confirmarla con el texto de la oferta." if len(missing) == 1 else
-                     f"¿Qué determina la Comisión sobre {word} {names}? El sistema no pudo "
-                     "confirmarlas con el texto de la oferta.")
+                     f"{verb} con el texto de la oferta.")
         return replace(combined, outcome=OUT_NO_DETERMINADO, doubt=NO_DATA,
                        explanation=explanation, question=asked, ask=True)
     return combined

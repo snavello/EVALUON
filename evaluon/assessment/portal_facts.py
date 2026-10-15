@@ -955,7 +955,7 @@ def _condition_name(records, text):
 def _asked_or(combined, fallback):
     """La pregunta del modelo si se dirige a la Comisión y, si no, `fallback` (REQ-105)."""
     asked = " ".join((combined.question or "").split())
-    return asked if asked and not combine.addresses_offeror(asked) else fallback
+    return asked if asked and not combine.asks_the_offeror(asked) else fallback
 
 
 def _open_question(combined, name, why):

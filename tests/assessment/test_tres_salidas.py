@@ -31,7 +31,7 @@ from types import SimpleNamespace
 import pytest
 from django.core.management import call_command
 
-from evaluon.assessment import combine, evaluation, grounds, prompting
+from evaluon.assessment import combine, evaluation, grounds, prompting, rules
 from evaluon.assessment import models as am
 from evaluon.assessment.citations import Located
 from evaluon.assessment.services import evaluate
@@ -455,22 +455,71 @@ def portal_facts_rule():
     return portal_facts.RULE_MISMATCH
 
 
-def test_the_portal_rules_leave_a_question_that_names_the_condition_and_the_datum(
-        offer, operator_user, procedure, model, portal):
-    """REQ-120: cuando el Portal no decide, la celda es «no determinado» con una pregunta que
-    nombra la condición y el dato del Portal que sí hay (antes, `falta_coincidencia` quedaba sin
-    pregunta)."""
-    portal_data(portal, offer)
-    model.evaluates(CONCLUSIONS["cumple con cita"])
-    _, runs = run_all(operator_user, procedure, offers=[offer])
-    open_cells = [r for r in runs[0].results.all()
-                  if r.facts.get("regla", "").startswith("portal_")
-                  and r.outcome == "no_determinado"]
-    for result in open_cells:
-        question = am.Question.objects.get(result=result).text
-        assert "Portal" in question and "Comisión" in question.splitlines()[-1], question
-        assert not combine.addresses_offeror(question.splitlines()[-1])
-    assert_three_outputs(runs[0])
+def finished(pair, number=1, documents=("oferta.pdf",)):
+    """La pregunta final del par, como la guarda `evaluate_offer`."""
+    asked = combine.compose_question(number, pair.text.text, pair.combined,
+                                     documents=list(documents))
+    return replace(pair.combined, question=asked)
+
+
+def test_portal_cubre_parte_asks_naming_the_condition_and_the_portal_datum(offer, portal):
+    """REQ-120 (`portal_cubre_parte`): el dato del Portal cubre una parte del requisito y el resto
+    queda abierto: «no determinado» con una pregunta a la Comisión que nombra lo que pide el pliego
+    y el dato del Portal que sí hay. Sin las condiciones del modelo (antes: la pregunta del modelo o
+    ninguna)."""
+    from tests.assessment.test_ajuste_t240 import POLICY_UPLOAD, chosen_form
+    from tests.assessment.test_portal_facts import pair_of
+
+    chosen_form(portal, offer, "Seguros")
+    pair = pair_of(POLICY_UPLOAD, combine.Combined(outcome="sin_documento"))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cubre_parte"
+    assert pair.combined.outcome == "no_determinado"
+    question = pair.combined.question
+    assert "21750.00" in question and "Portal" in question and "Comisión" in question
+    assert "cargar el documento electrónico de la póliza" in question
+    assert not combine.asks_the_offeror(question)
+    assert question in combine.compose_question(1, pair.text.text, pair.combined)
+    assert combine.combined_problem(finished(pair)) == ""
+
+
+def test_portal_cubre_parte_with_conditions_names_each_open_condition_and_the_portal_datum(
+        offer, portal):
+    """REQ-120 (`portal_cubre_parte`): con las condiciones del modelo, la pregunta nombra las que
+    quedan abiertas (no las que el Portal cubre) y el dato del Portal que sí hay."""
+    from tests.assessment.test_ajuste_t240 import POLICY_UPLOAD, chosen_form
+    from tests.assessment.test_portal_facts import pair_of
+
+    chosen_form(portal, offer, "Seguros")
+    pair = pair_of(POLICY_UPLOAD, combine.Combined(outcome="no_determinado", doubt="sin_dato"))
+    pair.conditions = {0: [
+        {"condicion": "Cargar el documento de la póliza", "dato": "", "cita": None,
+         "resultado": "no_consta", "resultado_modelo": "no_consta"}]}
+    pair.groups = [SimpleNamespace(index=0, result="no_determinado", citations=[], unreadable=None,
+                                   external=False)]
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cubre_parte"
+    question = pair.combined.question
+    assert "Cargar el documento de la póliza" in question and "Portal" in question
+    assert combine.combined_problem(finished(pair)) == ""
+
+
+def test_a_portal_that_agrees_against_an_offer_that_does_not_comply_asks_which_rules(
+        offer, portal):
+    """REQ-120 (`falta_coincidencia` por conflicto con el texto): el Portal cumple lo que exige el
+    pliego y el texto de la oferta concluyó que no cumple: «no determinado» `falta_coincidencia` con
+    una pregunta que nombra la condición y el dato del Portal."""
+    from tests.assessment.test_t231 import GUARANTEE_REQ
+    from tests.assessment.test_t231 import portal_data as guarantee_data
+    from tests.assessment.test_portal_facts import pair_of
+
+    guarantee_data(portal, offer, amount="4620585.50", total="92411710.00")
+    pair = pair_of(GUARANTEE_REQ, combine.Combined(
+        outcome="no_cumple", citations=[cite(0, "No se constituye garantía.")]))
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_falta_coincidencia"
+    assert pair.combined.doubt == "falta_coincidencia"
+    question = pair.combined.question
+    assert "garantía de mantenimiento" in question and "4620585.50" in question
+    assert "Comisión" in question and not combine.addresses_offeror(question)
+    assert combine.combined_problem(finished(pair)) == ""
 
 
 # --- 4. Cada conversión del código ---------------------------------------------------------------

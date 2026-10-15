@@ -846,7 +846,7 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             group_index, prompting.NO_DETERMINADO, doubt=combine.NO_DATA,
             exigence=evaluation.exigence, citations=located, supports=supports,
             explanation=f"{explanation} {combine.NO_CLAUSE_NOTE}".strip(),
-            question=(question if question and not combine.addresses_offeror(question)
+            question=(question if question and not combine.asks_the_offeror(question)
                       else NO_CLAUSE_QUESTION),
             external=evaluation.external, unreadable=backed)
     keep = [] if derived == prompting.NO_CONSTA else located
