@@ -35,7 +35,7 @@ La suite completa la corre el Coordinador una vez por lote.
 
 | ID | Tarea | Requisitos | Depende de | Estado |
 |---|---|---|---|---|
-| T-269 | Corte vertical: Caddy en Windows con certificado, lista y firewall, los pasos del responsable en `entorno.md`, y Django detrás del intermediario. Se verifica con el ingreso cifrado desde una computadora de la lista, con un usuario de prueba y el caso chico | REQ-109, REQ-110, REQ-116 | — | en curso |
+| T-269 | Corte vertical: Caddy en Windows con certificado, lista y firewall, los pasos del responsable en `entorno.md`, y Django detrás del intermediario. Se verifica con el ingreso cifrado desde una computadora de la lista, con un usuario de prueba y el caso chico | REQ-109, REQ-110, REQ-116 | — | en verificación |
 | T-270 | Bloqueo de 5 intentos y 15 minutos con mensaje genérico también en comandos, registro con la computadora de origen y la salida, `desbloquear_usuario` y `ver_accesos` en el equipo; el esquema de la feature | REQ-111, REQ-112, REQ-113 | T-269 | pendiente |
 | T-271 | Cambio de clave (mínimo 8, comunes, distinta de la actual), clave inicial obligatoria y `clave_inicial`; cierre de sesión a los 30 minutos y a las 8 horas, sin contar el sondeo ni las tres recargas automáticas | REQ-114, REQ-115 | T-270 | pendiente |
 | T-272 | Prueba en la red con el caso chico, con el responsable: 5 de 5 secciones desde una computadora de la lista y los umbrales del plan, con la GPU de 8000 | REQ-109, REQ-110, REQ-111, REQ-112, REQ-113, REQ-114, REQ-115, REQ-116, REQ-117 | T-271 | pendiente |
@@ -93,7 +93,7 @@ La suite completa la corre el Coordinador una vez por lote.
      - **Desde A:**
        - `https://<dirección>` muestra el ingreso sin advertencias;
        - el usuario ingresa y abre el caso chico (si no está cargado en 8000, sube su pliego);
-       - `curl.exe -sI http://<dirección>/ingresar/` da 308 de Caddy, sin contenido de la aplicación.
+       - `curl.exe -si http://<dirección>/ingresar/` da 308 de Caddy, sin contenido de la aplicación.
      - **En el equipo:** con una captura de `pktmon` durante un ingreso, la clave aparece 0 veces.
      - **Desde B:** 0 páginas, y `Test-NetConnection` a 5432, 8000, 8080 y 2019 da 0 conexiones; desde A, también 0 (solo responden 80 y 443).
      - **La lista:** sacar A, aplicar: no llega; volver a ponerla: llega, sin tocar el código.
@@ -178,7 +178,7 @@ La suite completa la corre el Coordinador una vez por lote.
 - **No arranca sin:** T-271 integrada y desplegada en 8000 por el Coordinador.
 - **Qué hay que hacer**, el testeador con el responsable, sobre 8000 y con material público:
   1. **REQ-109 y REQ-114.** Un evaluador nuevo (`crear_usuario`) ingresa desde A y cambia la clave inicial. Antes, prueba una clave corta, una común, una igual a la actual y la actual equivocada. Después recorre el caso chico en las cinco secciones. Umbral: 5 de 5.
-  2. **REQ-110.** `curl.exe -sI` por `http` al ingreso, a una página de cada sección y a un estático: todas terminan en `https` sin contenido de la aplicación. 0 advertencias en A.
+  2. **REQ-110.** `curl.exe -si` por `http` al ingreso, a una página de cada sección y a un estático: todas terminan en `https` sin contenido de la aplicación. 0 advertencias en A.
   3. **REQ-111 a REQ-113.**
      - Desde A, 5 claves equivocadas y la correcta: rechazada con el mismo mensaje que un usuario inexistente y una clave equivocada.
      - `desbloquear_usuario` en el equipo: A ingresa enseguida.

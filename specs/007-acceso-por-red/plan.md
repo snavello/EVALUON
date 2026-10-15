@@ -58,7 +58,7 @@ Corte vertical (spec, literal): «primero una sola pantalla (el ingreso) servida
 | Qué | Umbral | Cómo se mide | Tarea |
 |---|---|---|---|
 | Ingreso cifrado (corte vertical) | Desde la computadora de la lista (A), el usuario de prueba ingresa por `https://` con 0 advertencias y abre el caso chico | El responsable en el navegador | T-269 |
-| Páginas sin cifrar (REQ-110) | 0: `http://` termina en `https://` con una redirección de Caddy, sin contenido de la aplicación | `curl.exe -sI http://<dirección>/…` | T-269, T-272 |
+| Páginas sin cifrar (REQ-110) | 0: `http://` termina en `https://` con una redirección de Caddy, sin contenido de la aplicación | `curl.exe -si http://<dirección>/…` | T-269, T-272 |
 | Clave legible en el tráfico (REQ-110) | 0 apariciones | Captura con `pktmon` en el equipo durante un ingreso, convertida con `pktmon etl2pcap`, y búsqueda de la clave | T-269 |
 | Computadora fuera de la lista (REQ-109) | 0 páginas. Una computadora que se agrega con el paso del runbook llega sin tocar el código | Navegador desde B; agregar y quitar A | T-269, T-272 |
 | Servicios internos (REQ-116) | 0 conexiones aceptadas en 5432, 8000, 8080 y 2019 | `Test-NetConnection <dirección> -Port N` desde A y desde B | T-269, T-272 |
