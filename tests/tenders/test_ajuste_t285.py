@@ -50,3 +50,86 @@ def test_d283_1_the_portal_motive_never_covers_the_physical_delivery():
         assert "cómo se carga, se sube o se completa la oferta en el Portal" in line
         assert "nunca la entrega en papel" in line
         assert "aunque dependa de lo que marque el Portal" in line
+
+
+# --- D-283-2: la condición de una opción entra como condición de esa opción y no se descarta ------
+
+
+def test_d283_2_the_block_says_the_decision_on_options_literally():
+    """REQ-119 (D-13; spec 015, 2026-10-10, «Requisito de la forma elegida»: la condición de una opción
+    «entra solo como condición de esa opción; la oración que le exige algo a quien usa la opción se
+    mantiene»): el bloque vigente lo dice con la decisión literal."""
+    text = _block()
+
+    assert ("entra solo como condición de esa opción: la oración que le exige algo a quien usa la "
+            "opción se mantiene, con el nombre de la opción") in text
+
+
+def test_d283_2_the_optional_motive_is_only_for_a_sentence_that_demands_nothing():
+    """REQ-119 (D-13): en la extracción y en el filtro, `condicion_opcional` es solo la oración que
+    permite o describe una opción sin exigirle nada a quien la usa; la que le exige algo es requisito
+    de esa opción (extracción) y se mantiene (filtro)."""
+    extraction_line = _motive_line(extraction.load_prompt("extraccion"), "condicion_opcional")
+    filter_line = _motive_line(row_filter.load_prompts()[0], "condicion_opcional")
+
+    assert "no le exige nada a quien la usa" in extraction_line
+    assert "la que le exige algo es requisito de esa opción" in extraction_line
+    assert "no le exige nada a quien la usa" in filter_line
+    assert "la fila que le exige algo a quien usa la opción se mantiene" in filter_line
+
+
+def test_d283_2_the_filter_sees_the_option_of_the_row_and_its_instruction_says_what_to_do():
+    """REQ-119 (D-13): la fila que la extracción propuso como condición de una opción llega al filtro
+    con su línea «Opción:», y las dos preguntas del filtro dicen que esa fila se mantiene si le exige
+    algo a quien usa la opción. Una fila sin opción no trae la línea (texto inventado)."""
+    from types import SimpleNamespace
+
+    from evaluon.tenders.proposal.extraction import Found
+
+    segment = SimpleNamespace(pk=1, key="sec-i/9.1", path="Sección I > 9", label="",
+                              section_class="",
+                              text="Quien ofrezca piezas de otro taller deberá nombrar ese taller.")
+    unit = SimpleNamespace(segment=segment, document_title="Pliego inventado")
+    with_option = row_filter.Row(unit, Found("formal", (0, 61), option="subcontratacion"), 1)
+    without = row_filter.Row(unit, Found("formal", (0, 61)), 1)
+
+    shown = row_filter.render_block("F1", with_option)
+
+    assert "Opción: subcontratacion" in shown
+    assert shown.index("Clase propuesta:") < shown.index("Opción:") < shown.index("Fragmento:")
+    assert "Opción:" not in row_filter.render_block("F1", without)
+    for text in row_filter.load_prompts():
+        assert "a veces la «Opción:» de la que es condición" in text
+        assert ("Una fila con «Opción:» es la condición de esa opción y se evalúa como tal: se "
+                "mantiene si le exige algo a quien usa la opción") in text
+
+
+def _verdict(option, a_motive="condicion_opcional", answer="no"):
+    from types import SimpleNamespace
+
+    from evaluon.tenders.proposal.extraction import Found
+
+    text = "Quien ofrezca piezas de otro taller deberá nombrar ese taller junto con su oferta."
+    segment = SimpleNamespace(pk=1, key="sec-i/9.1", path="", label="", section_class="",
+                              text=text, char_start=0, char_end=len(text))
+    unit = SimpleNamespace(segment=segment, document_title="Pliego inventado")
+    row = row_filter.Row(unit, Found("formal", (0, len(text)), option=option), 1)
+    a = {"razonamiento": "r", "decision": "descartar", "motivo": a_motive,
+         "indicio": "Quien ofrezca piezas de otro taller deberá nombrar"}
+    return row_filter.decide(row, a, {"razonamiento": "r", "respuesta": answer})
+
+
+def test_d283_2_a_row_of_an_option_is_never_discarded_as_an_optional_condition():
+    """REQ-119 (D-13, D-15; regla del filtro `filtro-v5`): si A descarta por `condicion_opcional` una
+    fila que la extracción propuso como condición de una opción, la fila no se pierde: va a
+    sugerencia con `no_coinciden` y la anomalía; sin opción, el mismo descarte sigue descartando, y
+    la fila con opción descartada por otro motivo también."""
+    kept = _verdict("subcontratacion")
+    assert kept.destination == row_filter.SUGERENCIA
+    assert kept.doubt_reason == "no_coinciden"
+    assert kept.anomaly == row_filter.ANOMALY_OPTION_DISCARDED
+
+    assert _verdict("").destination == row_filter.DESCARTADA
+    assert _verdict("subcontratacion", a_motive="consecuencia_sancion").destination == (
+        row_filter.DESCARTADA)
+    assert row_filter.RULE_VERSION == "filtro-v5"

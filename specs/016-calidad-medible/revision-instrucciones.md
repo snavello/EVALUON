@@ -621,7 +621,7 @@ Ajuste único del paso 2 (ADR-0025): los hallazgos de la medición T-283 (D-283-
 | entregar en papel lo que el Portal marca como «Requiere presentar», aunque la oración hable también de la carga en el Portal: la carga es forma de presentar; la entrega física, requisito; | D-12, D-21, D-31 |
 | las condiciones de la forma de garantía que el oferente elige, que se evalúan solo en la oferta que eligió esa forma; | D-13 |
 | la nota de una planilla o de una declaración que le exige algo al oferente sobre lo que informa. | D-14, D-31 |
-| Opciones: una condición que solo vale si el oferente usa una opción que puede no usar (oferta alternativa, descuento, cotización parcial, beneficio MiPyME, subcontratación) entra solo como condición de esa opción. | D-13, D-31 |
+| Opciones: una condición que solo vale si el oferente usa una opción que puede no usar (oferta alternativa, descuento, cotización parcial, beneficio MiPyME, subcontratación) entra solo como condición de esa opción: la oración que le exige algo a quien usa la opción se mantiene, con el nombre de la opción. | D-13, D-31 |
 | La oración que solo permite o describe la opción, sin exigirle nada a quien la usa, no es requisito. | D-13 |
 | Clases: si el pliego ordena sus requisitos por secciones, la clase es la de la sección. | D-03 |
 | Si no, por naturaleza: la garantía, el precio y la moneda de cotización son económicos; los documentos, las declaraciones y los compromisos de la oferta, formales; el bien y su entrega, técnicos, en una fila por renglón con la cita a sus especificaciones. | D-02, D-03, D-12 |
@@ -652,7 +652,7 @@ Ajuste único del paso 2 (ADR-0025): los hallazgos de la medición T-283 (D-283-
 | obligacion_organismo: una obligación del organismo que la oferta no puede contradecir ni condicionar. | D-01, ADR-0019 |
 | ejecucion_contrato: la ejecución o el control del contrato después de adjudicar, incluida la garantía que constituye el adjudicatario. | D-01, D-32 |
 | consecuencia_sancion: una consecuencia de no cumplir. | D-04 |
-| condicion_opcional: una oración que solo permite o describe una opción y no le exige nada a quien la usa. | D-13 |
+| condicion_opcional: una oración que solo permite o describe una opción y no le exige nada a quien la usa; la que le exige algo es requisito de esa opción, con su nombre en "opcion". | D-13 |
 | pago_factura: el pago, la moneda de pago o la factura. | D-12 |
 | forma_presentacion_portal: cómo se carga, se sube o se completa la oferta en el Portal; nunca la entrega en papel que la oración también pide, que es requisito aunque dependa de lo que marque el Portal. | D-12, D-21 |
 | compromiso_presentacion: un compromiso que se cumple con solo presentarse. | D-12 |
@@ -669,9 +669,10 @@ Ajuste único del paso 2 (ADR-0025): los hallazgos de la medición T-283 (D-283-
 | Una primera lectura de un pliego propuso las filas formales y económicas de la matriz, buscando que no falte ninguna. | D-15 |
 | Por cada fila decidís, con las definiciones de abajo y solo con lo que ves, si es un requisito de la oferta. | D-01, D-06 |
 | Lo que descartás o dudás no se pierde: la Comisión lo ve con su motivo. | D-06 |
-| Cada fila va entre [Fn] y [/Fn], con su documento, su ruta, a veces un «Encabezado:» que es solo contexto, su clase propuesta, el fragmento y el texto del tramo con el fragmento entre <<< y >>>. | D-15, D-30 |
+| Cada fila va entre [Fn] y [/Fn], con su documento, su ruta, a veces un «Encabezado:» que es solo contexto, su clase propuesta, a veces la «Opción:» de la que es condición, el fragmento y el texto del tramo con el fragmento entre <<< y >>>. | D-13, D-15, D-30 |
 | (Bloque `matriz-definiciones-v10`, por la marca) | D-30 |
 | Una fila se evalúa entera: si alguna de sus condiciones es un requisito de la oferta, la fila lo es. | D-14 |
+| Una fila con «Opción:» es la condición de esa opción y se evalúa como tal: se mantiene si le exige algo a quien usa la opción, aunque la oferta pueda no usarla. | D-13 |
 | La duda de las definiciones se resuelve acá: si con lo que ves no podés saber si la fila es un requisito de la oferta, respondé "duda" y la fila va como sugerencia, para que la Comisión la resuelva. | D-06, D-15, ADR-0022 |
 | No la mantengas ni la descartes por las dudas. | D-06, D-15 |
 | Cada respuesta empieza por "razonamiento": una oración, de hasta 400 caracteres, que dice qué pide la fila y qué definición le corresponde. | D-30, ADR-0055 |
@@ -686,7 +687,7 @@ Ajuste único del paso 2 (ADR-0025): los hallazgos de la medición T-283 (D-283-
 | "derecho_posterior": un derecho del organismo posterior a la oferta, que la oferta no puede condicionar. | D-01, ADR-0021 |
 | "ejecucion_contrato": la ejecución o el control del contrato después de adjudicar. | D-01 |
 | "consecuencia_sancion": una consecuencia de no cumplir. | D-04 |
-| "condicion_opcional": una oración que solo permite o describe una opción y no le exige nada a quien la usa. | D-13 |
+| "condicion_opcional": una oración que solo permite o describe una opción y no le exige nada a quien la usa; la fila que le exige algo a quien usa la opción se mantiene. | D-13 |
 | "pago_factura": el pago, la moneda de pago o la factura. | D-12 |
 | "forma_presentacion_portal": cómo se carga, se sube o se completa la oferta en el Portal; nunca la entrega en papel que la oración también pide, que es requisito aunque dependa de lo que marque el Portal. | D-12, D-21 |
 | "compromiso_presentacion": un compromiso que se cumple con solo presentarse. | D-12 |

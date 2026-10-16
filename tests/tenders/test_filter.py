@@ -633,7 +633,7 @@ def test_the_proposal_records_the_filter_in_parameters_and_counts(operator_user,
 
     assert run.parameters["filter_enabled"] is True
     assert run.parameters["filter_batch_rows"] == 6
-    assert run.parameters["filter_rule_version"] == "filtro-v4"
+    assert run.parameters["filter_rule_version"] == "filtro-v5"  # T-285
     assert "consecuencia_sancion" in run.parameters["filter_motives"]
     assert run.prompt_versions["filtro"] == "matriz-filtro-v11"  # T-285
     step = m.RunStep.objects.filter(run=run, pass_name="filtro").first()
@@ -1154,7 +1154,7 @@ def test_every_request_of_the_filter_records_its_instruction(operator_user, scri
     steps = m.RunStep.objects.filter(run=run, pass_name__in=["filtro", "filtro_2"])
     assert steps.count() == 2
     assert all(step.parsed["instruccion"] == expected for step in steps)
-    assert row_filter.RULE_VERSION == "filtro-v4"
+    assert row_filter.RULE_VERSION == "filtro-v5"  # T-285: la fila de una opción no se descarta
 
 
 def test_a_failed_filter_request_still_carries_its_instruction(operator_user, script, filt):
