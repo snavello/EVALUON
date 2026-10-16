@@ -28,7 +28,7 @@ from tests.tenders.test_norm_support import corpus, support  # noqa: F401  (fixt
 
 pytestmark = pytest.mark.django_db
 
-T280 = {"filtro": "matriz-filtro-v10", "consecuencias": "matriz-consecuencias-v3",
+T280 = {"filtro": "matriz-filtro-v11", "consecuencias": "matriz-consecuencias-v3",
         "circulares": "matriz-circulares-v8", "circulares_cambios": "matriz-circulares-cambios-v7",
         "respaldo": "matriz-respaldo-v3"}
 # La pasada de cada pedido y la instrucción que usa.
@@ -97,7 +97,7 @@ def test_the_small_case_proposes_its_whole_matrix_with_the_t280_instructions(
             assert step.parsed["instruccion"] == record, pass_name
             assert _messages(step)[0]["content"] == expected[pass_name], pass_name
     assert extraction.load_instruction("filtro").record["definiciones"]["version"] == (
-        "matriz-definiciones-v9")
+        "matriz-definiciones-v10")
     for name in ("consecuencias", "circulares", "circulares_cambios", "respaldo"):
         assert "definiciones" not in extraction.load_instruction(name).record, name
 

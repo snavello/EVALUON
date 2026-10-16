@@ -45,17 +45,20 @@ DEFINITIONS_MARK = "{{DEFINICIONES}}"
 #     "matriz-extraccion-v13": {"path": "evaluon/tenders/prompts/matriz-extraccion-v13.md",
 #                               "definitions": "matriz-definiciones-v9"},
 SIMPLIFIED = {
-    # T-279: la matriz, parte 1 (el bloque común y las tres instrucciones que lo incluyen).
-    "matriz-definiciones-v9": {"path": "evaluon/tenders/prompts/matriz-definiciones-v9.md"},
-    "matriz-extraccion-v13": {"path": "evaluon/tenders/prompts/matriz-extraccion-v13.md",
-                              "definitions": "matriz-definiciones-v9"},
+    # T-279: la matriz, parte 1 (el bloque común y las tres instrucciones que lo incluyen). T-285: el
+    # bloque v10 y la extracción v14 (ajuste único del paso 2); la completitud v7 y la unión v2 siguen
+    # y leen el bloque v10.
+    "matriz-definiciones-v10": {"path": "evaluon/tenders/prompts/matriz-definiciones-v10.md"},
+    "matriz-extraccion-v14": {"path": "evaluon/tenders/prompts/matriz-extraccion-v14.md",
+                              "definitions": "matriz-definiciones-v10"},
     "matriz-completitud-v7": {"path": "evaluon/tenders/prompts/matriz-completitud-v7.md",
-                              "definitions": "matriz-definiciones-v9"},
+                              "definitions": "matriz-definiciones-v10"},
     "matriz-union-v2": {"path": "evaluon/tenders/prompts/matriz-union-v2.md",
-                        "definitions": "matriz-definiciones-v9"},
-    # T-280: la matriz, parte 2 (el filtro incluye el bloque; las otras cuatro no lo llevan).
-    "matriz-filtro-v10": {"path": "evaluon/tenders/prompts/matriz-filtro-v10.md",
-                          "definitions": "matriz-definiciones-v9"},
+                        "definitions": "matriz-definiciones-v10"},
+    # T-280: la matriz, parte 2 (el filtro incluye el bloque; las otras cuatro no lo llevan). T-285:
+    # el filtro v11.
+    "matriz-filtro-v11": {"path": "evaluon/tenders/prompts/matriz-filtro-v11.md",
+                          "definitions": "matriz-definiciones-v10"},
     "matriz-consecuencias-v3": {"path": "evaluon/tenders/prompts/matriz-consecuencias-v3.md"},
     "matriz-circulares-v8": {"path": "evaluon/tenders/prompts/matriz-circulares-v8.md"},
     "matriz-circulares-cambios-v7": {
@@ -238,8 +241,8 @@ def all_schema_problems(table=None):
 
 def test_the_limits_are_the_ones_of_the_plan():
     """REQ-119 (umbral 5): los topes son los del plan 016 y el ADR-0070."""
-    assert limits_of("matriz-extraccion-v13") == (90, 9000)
-    assert limits_of("matriz-filtro-v10") == (90, 9000)
+    assert limits_of("matriz-extraccion-v14") == (90, 9000)
+    assert limits_of("matriz-filtro-v11") == (90, 9000)
     assert limits_of("evaluacion-v13") == (90, 9000)
     assert limits_of("matriz-externa-v1") == (90, 9000)
     for other in ("matriz-completitud-v7", "matriz-union-v2", "matriz-consecuencias-v3",
@@ -249,7 +252,7 @@ def test_the_limits_are_the_ones_of_the_plan():
                   "informe-tecnico-v3", "oferente-nombre-v3", "procedimiento-datos-v3",
                   "consulta-v5"):
         assert limits_of(other) == (50, 5000), other
-    assert limits_of("matriz-definiciones-v9") == (None, 5000)
+    assert limits_of("matriz-definiciones-v10") == (None, 5000)
     assert DESCRIPTION_CHARS == 80
 
 

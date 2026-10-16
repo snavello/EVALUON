@@ -317,15 +317,17 @@ MATRIX_PROMPT_VERSIONS = {
     # y las decisiones vigentes, sin ejemplos de casos (tabla en specs/016-calidad-medible/
     # revision-instrucciones.md). El bloque de definiciones lo incluyen la extracción, la
     # completitud, la unión y el filtro; las circulares, las consecuencias y el respaldo no.
-    "definiciones": "matriz-definiciones-v9",
-    "extraccion": "matriz-extraccion-v13",
+    # T-285 (ajuste único del paso 2): el bloque v10, la extracción v14 y el filtro v11 corrigen, como
+    # definiciones generales, los hallazgos D-283-1 a D-283-4 de la medición T-283.
+    "definiciones": "matriz-definiciones-v10",
+    "extraccion": "matriz-extraccion-v14",
     "completitud": "matriz-completitud-v7",
     "union": "matriz-union-v2",
     "consecuencias": "matriz-consecuencias-v3",
     "circulares": "matriz-circulares-v8",
     "circulares_cambios": "matriz-circulares-cambios-v7",
     "unificacion": "matriz-unificacion-v1",
-    "filtro": "matriz-filtro-v10",
+    "filtro": "matriz-filtro-v11",
     "respaldo": "matriz-respaldo-v3",
 }
 

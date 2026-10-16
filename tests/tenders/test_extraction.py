@@ -938,7 +938,7 @@ def test_every_request_of_the_extraction_records_its_instruction(
     expected = extraction.load_instruction("extraccion").record
     for step in found:
         assert step.parsed["instruccion"] == expected
-        assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v9"  # T-279
+        assert step.parsed["instruccion"]["definiciones"]["version"] == "matriz-definiciones-v10"  # T-285
         assert len(step.parsed["instruccion"]["sha256"]) == 64
     # La huella de la corrida es la misma que la del pedido.
     assert requested.run.prompt_versions["huellas"]["extraccion"] == expected["sha256"]

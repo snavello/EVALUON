@@ -51,9 +51,9 @@ def test_the_active_versions_are_the_t254_ones_and_the_older_ones_stay_published
     O-254-1) siguen publicadas (congeladas). T-258 publica después el bloque v5 y v6 y la extracción
     v8 a v10 (las vigentes, v7 y v10); el filtro sigue en la v7."""
     versions = settings.MATRIX_PROMPT_VERSIONS
-    assert versions["definiciones"] == "matriz-definiciones-v9"  # T-279
-    assert versions["extraccion"] == "matriz-extraccion-v13"  # T-279
-    assert versions["filtro"] == "matriz-filtro-v10"  # T-280: la v9 sigue publicada
+    assert versions["definiciones"] == "matriz-definiciones-v10"  # T-285
+    assert versions["extraccion"] == "matriz-extraccion-v14"  # T-285
+    assert versions["filtro"] == "matriz-filtro-v11"  # T-285: la v9 y la siguiente siguen publicadas
     for published in ("matriz-definiciones-v4", "matriz-extraccion-v7"):
         assert (PROMPTS / f"{published}.md").is_file()
     for old in ("matriz-definiciones-v3", "matriz-extraccion-v6", "matriz-filtro-v5", "matriz-filtro-v6"):

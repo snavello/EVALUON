@@ -590,3 +590,108 @@ Registro (P6): cada pedido de estas instrucciones deja el nombre, la versión y 
 | Oración | Decisión |
 |---|---|
 | (pendiente: T-291) | (pendiente) |
+
+## Instrucciones de T-285
+
+Ajuste único del paso 2 (ADR-0025): los hallazgos de la medición T-283 (D-283-1 a D-283-9) corregidos como definiciones generales, sin ejemplos ni reglas copiadas de un caso. Reemplazan a `matriz-definiciones-v9`, `matriz-extraccion-v13` y `matriz-filtro-v10`, que siguen publicadas; la completitud v7 y la unión v2 no cambian y leen el bloque v10. Las oraciones que no cambiaron conservan la fila de su versión anterior; las nuevas citan la decisión de la que salen.
+
+### matriz-definiciones-v10
+
+| Oración | Decisión |
+|---|---|
+| Es requisito de la oferta lo que la oferta tiene que presentar, ofrecer o comprometer, y toda condición del pliego que la oferta pueda contradecir o condicionar, aunque la cumpla el organismo. | D-01 |
+| También lo es lo que el organismo comprueba del oferente con una consulta fuera de la oferta (registros, deudas, sanciones): es un requisito externo. | D-01, D-10, D-33 |
+| Una condición puede estar dicha como efecto sobre la oferta («se considerará», «se entenderá», «quedará»): si nombra algo que la oferta tiene que presentar o cumplir, es requisito; si solo dice qué pasa cuando no se cumple otra condición, es una consecuencia. | D-01, D-04, D-34 |
+| Una fila es una unidad de sentido: la oración completa del pliego, con todas sus condiciones. | D-14, D-15 |
+| Si la oración junta varias condiciones, sigue siendo una fila: la evaluación revisa cada una dentro de la celda. | D-14 |
+| Las oraciones cortas seguidas que continúan el mismo asunto, sin sujeto propio o remitiendo a la anterior, van en la misma fila. | D-14 |
+| Dos obligaciones distintas sobre un mismo objeto son dos filas, aunque estén seguidas. | D-14, D-31 |
+| El mantenimiento de la oferta, con su plazo, su cómputo y su prórroga automática, es una sola fila. | D-20, D-31 |
+| El aviso del oferente para no renovarla, y lo que pasa si no avisa, no es fila. | D-20 |
+| No son requisitos de la oferta, aunque el pliego diga «deberá»: | D-01, D-12 |
+| las consecuencias de no cumplir (desestimar, intimar a subsanar, sancionar, ejecutar una garantía); la condición que las origina sí es requisito; | D-01, D-04 |
+| las obligaciones del organismo que la oferta no puede contradecir ni condicionar; | D-01 |
+| la ejecución y el control del contrato: lo que el adjudicatario hace, entrega o garantiza durante la prestación, incluida la garantía que constituye para asegurar que cumplirá; lo que se acredita al ofertar sí es requisito; | D-01, D-32 |
+| el pago, la moneda de pago y la factura; | D-12 |
+| la forma de presentar la oferta por el Portal (cargar, subir o completar datos en él); la cláusula que pide completar la oferta económica en el formulario del Portal no es fila propia; | D-12, D-21 |
+| los compromisos que se cumplen con solo presentarse; | D-12 |
+| las definiciones, los datos del procedimiento, la cita de normas, los títulos, los índices y las planillas o modelos en blanco. | D-06, ADR-0019 |
+| Sí son requisitos de la oferta: | D-12, D-13, D-21 |
+| la moneda en que se cotiza la oferta; | D-12 |
+| entregar en papel lo que el Portal marca como «Requiere presentar», aunque la oración hable también de la carga en el Portal: la carga es forma de presentar; la entrega física, requisito; | D-12, D-21, D-31 |
+| las condiciones de la forma de garantía que el oferente elige, que se evalúan solo en la oferta que eligió esa forma; | D-13 |
+| la nota de una planilla o de una declaración que le exige algo al oferente sobre lo que informa. | D-14, D-31 |
+| Opciones: una condición que solo vale si el oferente usa una opción que puede no usar (oferta alternativa, descuento, cotización parcial, beneficio MiPyME, subcontratación) entra solo como condición de esa opción. | D-13, D-31 |
+| La oración que solo permite o describe la opción, sin exigirle nada a quien la usa, no es requisito. | D-13 |
+| Clases: si el pliego ordena sus requisitos por secciones, la clase es la de la sección. | D-03 |
+| Si no, por naturaleza: la garantía, el precio y la moneda de cotización son económicos; los documentos, las declaraciones y los compromisos de la oferta, formales; el bien y su entrega, técnicos, en una fila por renglón con la cita a sus especificaciones. | D-02, D-03, D-12 |
+| Duda: una duda real no se pierde; va como sugerencia con su motivo, nunca a un descarte silencioso. | D-06, D-15 |
+
+### matriz-extraccion-v14
+
+| Oración | Decisión |
+|---|---|
+| Leés tramos del pliego de una contratación y decís, por cada tramo, qué requisitos de la oferta contiene o por qué no contiene ninguno. | D-01, D-06 |
+| Cada tramo va entre [Tn] y [/Tn], con su documento, su ruta, a veces sus renglones, y su texto. | D-30 |
+| La línea «Encabezado:» es el comienzo del punto al que pertenece el tramo: sirve para entender una oración que sola no se entiende y nunca se cita. | D-15 |
+| (Bloque `matriz-definiciones-v10`, por la marca) | D-30 |
+| "requisitos": cada requisito de la oferta que trae el tramo, con su cita, su clase y su opción. | D-01 |
+| "cita": la oración que lo exige, entera y copiada letra por letra del texto del tramo, junto con las oraciones seguidas del mismo asunto. | D-14, D-15 |
+| "clase": "formal" o "economico", según las definiciones. | D-03 |
+| "opcion": "" si el requisito vale para toda oferta. | D-13 |
+| Si es la condición de una opción que el oferente puede no usar, el nombre de esa opción: "mipyme", "oferta_alternativa", "descuento", "subcontratacion", "cotizacion_parcial" u "otra". | D-13 |
+| La forma de garantía que el oferente elige no es una opción. | D-13 |
+| "tecnico": si el tramo trata del bien o de su entrega, los renglones a los que se aplica, o "todos" si son todos o no se sabe cuáles; si no, vacío. | D-02 |
+| "descarte": si el tramo no trae requisitos ni nada técnico, el motivo; si no, vacío. | D-06 |
+| Motivos de descarte, según las definiciones: | D-06 |
+| titulo: un título. | D-06, ADR-0019 |
+| indice_caratula: un índice o una carátula. | D-06, ADR-0019 |
+| dato_procedimiento: una definición o un dato del procedimiento. | D-06, ADR-0019 |
+| norma_aplicable: la cita o la transcripción de una norma. | D-06, ADR-0019 |
+| formulario: una planilla o un modelo en blanco. | D-06, ADR-0019 |
+| obligacion_organismo: una obligación del organismo que la oferta no puede contradecir ni condicionar. | D-01, ADR-0019 |
+| ejecucion_contrato: la ejecución o el control del contrato después de adjudicar, incluida la garantía que constituye el adjudicatario. | D-01, D-32 |
+| consecuencia_sancion: una consecuencia de no cumplir. | D-04 |
+| condicion_opcional: una oración que solo permite o describe una opción y no le exige nada a quien la usa. | D-13 |
+| pago_factura: el pago, la moneda de pago o la factura. | D-12 |
+| forma_presentacion_portal: cómo se carga, se sube o se completa la oferta en el Portal; nunca la entrega en papel que la oración también pide, que es requisito aunque dependa de lo que marque el Portal. | D-12, D-21 |
+| compromiso_presentacion: un compromiso que se cumple con solo presentarse. | D-12 |
+| Todo tramo trae requisitos, una marca técnica o un motivo de descarte. | D-06 |
+| Un tramo puede traer requisitos y marca técnica a la vez; un motivo de descarte nunca va con ninguno de los dos. | D-02, D-06 |
+| En esta lectura buscás que no falte nada: ante la duda de si una oración le exige algo a todas las ofertas, proponela. | D-15 |
+| Si un tramo trae un requisito y también frases de un motivo de descarte, devolvé el requisito. | D-01, ADR-0019 |
+| Un objeto JSON con una propiedad por alias, y el esqueleto de la salida con marcadores (cita, clase, opción, técnico y descarte de un tramo). | D-30 |
+
+### matriz-filtro-v11
+
+| Oración | Decisión |
+|---|---|
+| Una primera lectura de un pliego propuso las filas formales y económicas de la matriz, buscando que no falte ninguna. | D-15 |
+| Por cada fila decidís, con las definiciones de abajo y solo con lo que ves, si es un requisito de la oferta. | D-01, D-06 |
+| Lo que descartás o dudás no se pierde: la Comisión lo ve con su motivo. | D-06 |
+| Cada fila va entre [Fn] y [/Fn], con su documento, su ruta, a veces un «Encabezado:» que es solo contexto, su clase propuesta, el fragmento y el texto del tramo con el fragmento entre <<< y >>>. | D-15, D-30 |
+| (Bloque `matriz-definiciones-v10`, por la marca) | D-30 |
+| Una fila se evalúa entera: si alguna de sus condiciones es un requisito de la oferta, la fila lo es. | D-14 |
+| La duda de las definiciones se resuelve acá: si con lo que ves no podés saber si la fila es un requisito de la oferta, respondé "duda" y la fila va como sugerencia, para que la Comisión la resuelva. | D-06, D-15, ADR-0022 |
+| No la mantengas ni la descartes por las dudas. | D-06, D-15 |
+| Cada respuesta empieza por "razonamiento": una oración, de hasta 400 caracteres, que dice qué pide la fila y qué definición le corresponde. | D-30, ADR-0055 |
+| "decision": "mantener" si la definición la deja adentro, "descartar" si la deja afuera con seguridad, "duda" si con lo que ves no podés saberlo. | D-06, D-15 |
+| "motivo": si descartás, el que corresponde según las definiciones; si no, vacío. | D-06 |
+| "titulo": un título. | D-06, ADR-0019 |
+| "indice_caratula": un índice o una carátula. | D-06, ADR-0019 |
+| "dato_procedimiento": una definición o un dato del procedimiento. | D-06, ADR-0019 |
+| "norma_aplicable": la cita o la transcripción de una norma. | D-06, ADR-0019 |
+| "formulario": una planilla o un modelo en blanco. | D-06, ADR-0019 |
+| "obligacion_organismo": una obligación del organismo que la oferta no puede contradecir ni condicionar. | D-01, ADR-0019 |
+| "derecho_posterior": un derecho del organismo posterior a la oferta, que la oferta no puede condicionar. | D-01, ADR-0021 |
+| "ejecucion_contrato": la ejecución o el control del contrato después de adjudicar. | D-01 |
+| "consecuencia_sancion": una consecuencia de no cumplir. | D-04 |
+| "condicion_opcional": una oración que solo permite o describe una opción y no le exige nada a quien la usa. | D-13 |
+| "pago_factura": el pago, la moneda de pago o la factura. | D-12 |
+| "forma_presentacion_portal": cómo se carga, se sube o se completa la oferta en el Portal; nunca la entrega en papel que la oración también pide, que es requisito aunque dependa de lo que marque el Portal. | D-12, D-21 |
+| "compromiso_presentacion": un compromiso que se cumple con solo presentarse. | D-12 |
+| "indicio": si descartás, una frase del texto del tramo, de al menos cuatro palabras con contenido, copiada letra por letra y sin las marcas <<< ni >>>, que muestra por qué corresponde ese motivo; si no, vacío. | D-06, ADR-0021 |
+| Salida, un objeto JSON con una propiedad por alias, y el esqueleto de la salida con marcadores (razonamiento, decisión, motivo e indicio de una fila). | D-30 |
+| Por cada fila, "respuesta": "si" si según las definiciones es un requisito de la oferta, "no" si queda afuera con claridad, "duda" si con lo que ves no podés saberlo. | D-01, D-06, D-15, ADR-0021 |
+| No elegís un motivo. | D-06, ADR-0021 |
+| Salida, un objeto JSON con una propiedad por alias, y el esqueleto de la salida con marcadores (razonamiento y respuesta de una fila). | D-30 |

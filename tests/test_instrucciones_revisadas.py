@@ -339,7 +339,7 @@ SENTENCE_END = re.compile(r'(?<=\.)\s+(?=[A-ZÁÉÍÓÚÑ¿¡«"])')
 # Las oraciones que no llevan fila a propósito, con su motivo (el informe de la 016 lo dice).
 WITHOUT_ROW = {
     # Procedencia, no regla (H-279-3; el Coordinador, en el encargo de T-280).
-    "matriz-definiciones-v9": {
+    "matriz-definiciones-v10": {
         "Estas definiciones son decisiones del responsable y valen para toda la matriz."},
 }
 # T-281 (H-280-4, a): la fila de la salida puede sumar, después de la oración completa, el esqueleto de
