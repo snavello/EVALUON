@@ -208,6 +208,13 @@ SEEN_NOTE = ("La lectura no identificó el documento que el pliego exige, pero s
 SEEN_QUESTION = ("¿Está en la oferta el documento que exige este requisito? La lectura no lo "
                  "identificó, pero señaló el texto citado; la Comisión confirma si está.")
 
+# T-285 (H-285-5): la lectura concluyó sobre el documento sin citar ningún texto: no se dice que
+# señaló uno.
+CONCLUDED_NOTE = ("La lectura no identificó el documento que el pliego exige y concluyó sobre él sin "
+                  "citar un texto de la oferta: no se afirma que el documento falte.")
+CONCLUDED_QUESTION = ("¿Está en la oferta el documento que exige este requisito? La lectura concluyó "
+                      "sobre él sin citar un texto de la oferta; la Comisión confirma si está.")
+
 # El motivo que lleva la explicación de un «no determinado» cuando el modelo no escribió ninguna
 # (REQ-120: una celda sin decidir siempre dice por qué).
 NO_REASON = {
@@ -582,10 +589,13 @@ def combine(groups, *, unread, without_reading=(), unread_groups=0):
                     fallback_question=OPTION_QUESTION)
     if exigence == "documento" and seen:
         # T-285 (D-283-5): la lectura señaló un texto de la oferta sobre el documento exigido: no se
-        # afirma que falte; se cita ese texto y se pregunta.
-        return done(OUT_NO_DETERMINADO, NO_DATA, exigence=exigence, explanation=SEEN_NOTE,
+        # afirma que falte; se cita ese texto y se pregunta. Si no citó ninguno (concluyó sin cita),
+        # se dice eso (H-285-5).
+        cited = any(g.seen for g in groups)
+        return done(OUT_NO_DETERMINADO, NO_DATA, exigence=exigence,
+                    explanation=SEEN_NOTE if cited else CONCLUDED_NOTE,
                     pool=[replace(g, citations=list(g.seen)) for g in groups],
-                    fallback_question=SEEN_QUESTION)
+                    fallback_question=SEEN_QUESTION if cited else CONCLUDED_QUESTION)
     return done(OUT_NO_DETERMINADO, NO_DATA, exigence=exigence)
 
 

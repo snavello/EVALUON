@@ -83,7 +83,21 @@ def test_d283_5_a_conclusion_without_its_citation_is_not_a_missing_document_eith
 
     combined = combine.combine(groups, unread=[])
 
-    assert combined.outcome == "no_determinado" and combined.question == combine.SEEN_QUESTION
+    assert combined.outcome == "no_determinado" and combined.question == combine.CONCLUDED_QUESTION
+
+
+def test_h285_5_a_conclusion_without_any_citation_does_not_say_it_pointed_at_a_text():
+    """REQ-105, REQ-120 (H-285-5): si la lectura concluyó sobre el documento sin citar ningún texto, ni
+    la explicación ni la pregunta dicen que «señaló el texto citado»; la pregunta final no dice a la
+    vez que no hay texto y que hay uno."""
+    combined = combine.combine([combine.GroupResult(0, "no_consta", exigence="documento",
+                                                    found=True)], unread=[])
+
+    asked = combine.compose_question(5, "Presentar la constancia.", combined, documents=["Nota"])
+
+    assert combined.explanation == combine.CONCLUDED_NOTE
+    assert "señaló" not in combined.explanation and "señaló" not in asked
+    assert asked.endswith(combine.CONCLUDED_QUESTION)
 
 
 def test_d283_5_the_reading_that_cites_a_text_about_the_document_is_asked(
