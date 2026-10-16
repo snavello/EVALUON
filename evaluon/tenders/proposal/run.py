@@ -39,6 +39,15 @@ Pasadas, en orden:
    completitud. Los tramos de secciones técnicas no pasan por el modelo y no llegan a la
    completitud.
 
+**Etapa externa** (`external.py`; T-291, REQ-122 y REQ-123; plan 016, «Paso 3»): con el uso
+externo encendido y la matriz en `externo`, el modelo externo lee el pliego completo y reemplaza
+las pasadas 2 a 4 bis (extracción, completitud, unión, unificación y filtro) con el mismo
+contrato; la disposición según el modelo, las tablas pendientes, las guardas del filtro, el
+respaldo, las filas técnicas, las circulares, las consecuencias y el guardado son los de siempre.
+Si no puede terminar, la propuesta sigue por la cadena local con la anomalía
+`externo_no_disponible`. La propuesta guarda la clave `externo` en `models`, `parameters`,
+`prompt_versions` y `counts`. Con el uso externo apagado, nada de esto corre.
+
 Cada requisito formal o económico guarda en `passes` las pasadas que lo encontraron, y en
 `proposed["opcion"]` la opción que el oferente puede no usar de la que es condición, si la extracción
 la nombró (T-258; la usa la evaluación).
@@ -131,6 +140,7 @@ from evaluon.tenders.proposal import (
     completeness,
     consequences,
     dedup,
+    external,
     extraction,
     joining,
     norm_support,
@@ -427,9 +437,16 @@ def _quote_record(segment, start, end, text, scope="", flag=""):
             "char_end": end, "text": text, "scope": scope, "flag": flag}
 
 
-def propose(run, *, user, channel=Channel.COMMAND):
+def propose(run, *, user, channel=Channel.COMMAND, use_external=None, measurement=None):
     """Corre las pasadas del proceso único y deja la versión borrador. Devuelve la
-    `MatrixVersion`. Ver el módulo."""
+    `MatrixVersion`. Ver el módulo.
+
+    Etapa externa (T-291; plan 016, «Paso 3»): con el uso externo encendido y la matriz en
+    `externo` (`external.enabled()`), el modelo externo reemplaza la extracción, la completitud,
+    la unión, la unificación y el filtro; si no puede terminar, sigue la cadena local y queda la
+    anomalía `externo_no_disponible`. `use_external` lo fuerza (`False`: siempre local, como la
+    mitad local de la medición). `measurement` es la medición del libro de pedidos externos (reuso
+    por huella y freno de la etapa)."""
     clock = time.monotonic()
     timings = {}
     anomalies = []
@@ -452,70 +469,18 @@ def propose(run, *, user, channel=Channel.COMMAND):
                 decisions[unit.segment.pk] = decision
         timings["reglas"] = round(time.monotonic() - started, 3)
 
-        # 2. Extracción.
-        started = time.monotonic()
+        # 2 a 3 quater. Extracción, completitud, unión, unificación y filtro: la etapa externa
+        # (T-291) o, si está apagada o no pudo terminar, la cadena local.
         numbers = [number for number, _ in loaded.items]
-        extractor = extraction.Extractor(run, numbers)
-        workers.append(extractor)
-        result = extractor.extract(to_model)
-        timings["extraccion"] = round(time.monotonic() - started, 3)
-        anomalies.extend(result.anomalies)
-        outcomes = result.outcomes
-        requests = {PassName.EXTRACCION.value: result.stats["requests"]}
-        stats = [result.stats]
-
-        # 3. Disposición según el modelo.
-        by_pk = {unit.segment.pk: unit for unit in loaded.units}
-        for pk, outcome in outcomes.items():
-            decisions[pk] = model_decision(
-                by_pk[pk], outcome, anomalies,
-                technical_annex=is_technical_annex(loaded.reading_of[pk].document))
-
-        # 3 bis. Completitud.
-        started = time.monotonic()
-        completer = completeness.Completer(run)
-        workers.append(completer)
-        candidates = completeness_candidates(loaded, decisions)
-        if candidates:
-            completion = completer.complete(candidates)
-            apply_completeness(decisions, completion)
-            anomalies.extend(completion.anomalies)
-        completion_stats = {key: completer.stats[key] for key in
-                            ("segments", "added", "invalid")}
-        requests[PassName.COMPLETITUD.value] = completer.stats["requests"]
-        timings["completitud"] = round(time.monotonic() - started, 3)
-
-        keep_tables_pending(loaded, decisions)
-
-        # 3 bis bis. Unión de las filas del mismo asunto (T-258): pares de filas seguidas de un
-        # tramo y notas de tabla; se une solo si el modelo dice que son un requisito.
-        started = time.monotonic()
-        joiner = joining.Joiner(run)
-        workers.append(joiner)
-        joined = joiner.join(loaded.units, decisions)
-        anomalies.extend(joined.anomalies)
-        if joined.stats["requests"] or joined.stats["failed_requests"]:
-            requests[PassName.UNIFICACION.value] = joined.stats["requests"]
-        timings["union_oraciones"] = round(time.monotonic() - started, 3)
-
-        # 3 ter. Unificación de las filas que repiten la misma condición.
-        started = time.monotonic()
-        unification = unify_decisions(run, loaded, decisions)
-        unification.attached = joined.attached
-        workers.append(unification)
-        timings["unificacion"] = round(time.monotonic() - started, 3)
-
-        # 3 quater. Filtro de precisión: firme, sugerencia o descartada.
-        filtered = None
-        if settings.FILTER_ENABLED:
-            started = time.monotonic()
-            row_pass = row_filter.Filter(run)
-            workers.append(row_pass)
-            filtered = filter_decisions(row_pass, loaded, decisions, unification)
-            anomalies.extend(filtered.anomalies)
-            requests[PassName.FILTRO.value] = row_pass.stats["requests_a"]
-            requests[PassName.FILTRO_2.value] = row_pass.stats["requests_b"]
-            timings["filtro"] = round(time.monotonic() - started, 3)
+        chain, external_counts = None, None
+        if external.enabled() if use_external is None else use_external:
+            chain, external_counts = _external_chain(
+                run, loaded, to_model, decisions, numbers, anomalies, timings, workers,
+                measurement=measurement, user=user, channel=channel)
+        if chain is None:
+            chain = _local_chain(run, loaded, to_model, decisions, numbers, anomalies, timings,
+                                 workers)
+        decisions, requests, stats, completion_stats, unification, filtered = chain
 
         # 3 quinquies. Respaldo normativo de cada sugerencia (solo inserta respaldos).
         supported = None
@@ -596,11 +561,154 @@ def propose(run, *, user, channel=Channel.COMMAND):
         with transaction.atomic():
             version = _save(run, loaded, decisions, rows, stats, requests, completion_stats,
                             anomalies, timings, clock, user, channel, started, suggestions,
-                            dated, circular_result, unification, filtered, supported)
+                            dated, circular_result, unification, filtered, supported,
+                            external_counts)
     except Exception as error:
         _record_failure(run, user, channel, error, workers, timings, clock)
         raise
     return version
+
+
+def _local_chain(run, loaded, to_model, decisions, numbers, anomalies, timings, workers):
+    """La cadena local: extracción, disposición según el modelo, completitud, tablas pendientes,
+    unión, unificación y filtro. Devuelve `(decisions, requests, stats, completion_stats,
+    unification, filtered)`."""
+    # 2. Extracción.
+    started = time.monotonic()
+    extractor = extraction.Extractor(run, numbers)
+    workers.append(extractor)
+    result = extractor.extract(to_model)
+    timings["extraccion"] = round(time.monotonic() - started, 3)
+    anomalies.extend(result.anomalies)
+    outcomes = result.outcomes
+    requests = {PassName.EXTRACCION.value: result.stats["requests"]}
+    stats = [result.stats]
+
+    # 3. Disposición según el modelo.
+    by_pk = {unit.segment.pk: unit for unit in loaded.units}
+    for pk, outcome in outcomes.items():
+        decisions[pk] = model_decision(
+            by_pk[pk], outcome, anomalies,
+            technical_annex=is_technical_annex(loaded.reading_of[pk].document))
+
+    # 3 bis. Completitud.
+    started = time.monotonic()
+    completer = completeness.Completer(run)
+    workers.append(completer)
+    candidates = completeness_candidates(loaded, decisions)
+    if candidates:
+        completion = completer.complete(candidates)
+        apply_completeness(decisions, completion)
+        anomalies.extend(completion.anomalies)
+    completion_stats = {key: completer.stats[key] for key in
+                        ("segments", "added", "invalid")}
+    requests[PassName.COMPLETITUD.value] = completer.stats["requests"]
+    timings["completitud"] = round(time.monotonic() - started, 3)
+
+    keep_tables_pending(loaded, decisions)
+
+    # 3 bis bis. Unión de las filas del mismo asunto (T-258): pares de filas seguidas de un
+    # tramo y notas de tabla; se une solo si el modelo dice que son un requisito.
+    started = time.monotonic()
+    joiner = joining.Joiner(run)
+    workers.append(joiner)
+    joined = joiner.join(loaded.units, decisions)
+    anomalies.extend(joined.anomalies)
+    if joined.stats["requests"] or joined.stats["failed_requests"]:
+        requests[PassName.UNIFICACION.value] = joined.stats["requests"]
+    timings["union_oraciones"] = round(time.monotonic() - started, 3)
+
+    # 3 ter. Unificación de las filas que repiten la misma condición.
+    started = time.monotonic()
+    unification = unify_decisions(run, loaded, decisions)
+    unification.attached = joined.attached
+    workers.append(unification)
+    timings["unificacion"] = round(time.monotonic() - started, 3)
+
+    # 3 quater. Filtro de precisión: firme, sugerencia o descartada.
+    filtered = None
+    if settings.FILTER_ENABLED:
+        started = time.monotonic()
+        row_pass = row_filter.Filter(run)
+        workers.append(row_pass)
+        filtered = filter_decisions(row_pass, loaded, decisions, unification)
+        anomalies.extend(filtered.anomalies)
+        requests[PassName.FILTRO.value] = row_pass.stats["requests_a"]
+        requests[PassName.FILTRO_2.value] = row_pass.stats["requests_b"]
+        timings["filtro"] = round(time.monotonic() - started, 3)
+    return decisions, requests, stats, completion_stats, unification, filtered
+
+
+def external_candidates(loaded, decisions):
+    """Los tramos donde la completitud externa puede sumar filas, en el orden del pliego: los que
+    el modelo decidió con requisitos o descartó (no los técnicos, los pendientes ni los que
+    decide una regla), con todas sus filas."""
+    candidates = []
+    for unit in loaded.units:
+        decision = decisions[unit.segment.pk]
+        if (decision.source == DispositionSource.MODELO.value
+                and decision.outcome in (DispositionOutcome.REQUISITOS.value,
+                                         DispositionOutcome.DESCARTADO.value)):
+            candidates.append(completeness.Candidate(unit, list(decision.found)))
+    return candidates
+
+
+def _external_chain(run, loaded, to_model, decisions, numbers, anomalies, timings, workers, *,
+                    measurement, user, channel):
+    """La etapa externa (T-291): extracción y completitud y filtro con el modelo externo, con las
+    mismas reglas de código que la cadena local (disposición según el modelo, tablas pendientes,
+    guardas del filtro). Devuelve `(cadena, cuentas de la clave externo)`; la cadena es `None` si
+    la etapa no pudo terminar (bloqueo, falla, tope o etapa frenada): entonces nada de lo externo
+    se aplicó, quedan las anomalías y la propuesta sigue por la cadena local. Deja la clave
+    `externo` en `models`, `parameters` y `prompt_versions` de la propuesta (P6)."""
+    started = time.monotonic()
+    stage = external.Stage(run, loaded, numbers, measurement=measurement, user=user,
+                           channel=channel)
+    workers.append(stage)
+    trial = dict(decisions)
+    found_anomalies = []
+    try:
+        extracted = stage.extract(to_model)
+        by_pk = {unit.segment.pk: unit for unit in loaded.units}
+        for pk, outcome in extracted.outcomes.items():
+            trial[pk] = model_decision(
+                by_pk[pk], outcome, found_anomalies,
+                technical_annex=is_technical_annex(loaded.reading_of[pk].document))
+        rows = [(row.unit, row.found)
+                for row in row_filter.candidates(_body(loaded, trial))]
+        completion, row_pass = stage.complete_and_filter(external_candidates(loaded, trial),
+                                                         rows)
+    except external.Unavailable as failure:
+        anomalies.extend(failure.anomalies)
+        record = stage.record(False)
+        _record_external(run, record)
+        timings["externo"] = round(time.monotonic() - started, 3)
+        return None, record["counts"]
+    anomalies.extend(extracted.anomalies + found_anomalies)
+    apply_completeness(trial, completion)
+    anomalies.extend(completion.anomalies)
+    keep_tables_pending(loaded, trial)
+    filtered = None
+    if settings.FILTER_ENABLED:
+        filtered = filter_decisions(row_pass, loaded, trial, None)
+        anomalies.extend(filtered.anomalies)
+    record = stage.record(True)
+    _record_external(run, record)
+    timings["externo"] = round(time.monotonic() - started, 3)
+    requests = {external.STAGE_EXTRACTION: extracted.stats["requests"],
+                external.STAGE_COMPLETION: 1}
+    completion_stats = {key: completion.stats[key] for key in ("segments", "added", "invalid")}
+    return (trial, requests, [extracted.stats], completion_stats, None, filtered), \
+        record["counts"]
+
+
+def _record_external(run, record):
+    """La clave `externo` de la propuesta en `models`, `parameters` y `prompt_versions` (plan
+    016, «Modelo de datos»); la de `counts` la escribe `_save`."""
+    run.models = {**run.models, "externo": record["models"]}
+    run.parameters = {**run.parameters, "externo": record["parameters"]}
+    run.prompt_versions = {**run.prompt_versions, "externo": record["prompt_versions"]}
+    run.save(update_fields=["models", "parameters", "prompt_versions"])
 
 
 def _record_support_pass(run):
@@ -928,7 +1036,8 @@ def _save_discarded(run, version, loaded, repeated, filtered):
 
 def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anomalies,
           timings, clock, user, channel, started, suggestions, dated=None,
-          circular_result=None, unification=None, filtered=None, supported=None):
+          circular_result=None, unification=None, filtered=None, supported=None,
+          external=None):
     """Crea la versión borrador y todo lo que cuelga de ella, y deja el hecho
     `matrix_proposal`. Corre dentro de una transacción."""
     procedure = run.procedure
@@ -1138,6 +1247,9 @@ def _save(run, loaded, decisions, rows, stats, requests, completion_stats, anoma
             "failed_retrieval", "failed_requests", "requests", "invalid", "no_units")}
     if carried is not None:
         counts["carried_over"] = carried
+    if external is not None:
+        # La etapa externa (T-291): pedidos y gasto, por etapa (contrato de T-300).
+        counts["externo"] = external
     if circular_result is not None:
         counts["circulars"] = {
             "documents": circulars.circular_record(dated),
