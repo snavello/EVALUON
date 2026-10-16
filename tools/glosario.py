@@ -208,9 +208,23 @@ def build_html(rows: list[dict]) -> str:
         f'<tr><td><b>{e(r["codigo"])}</b></td><td>{e(r["tipo"])}</td><td>{e(r["feature"])}</td>'
         f'<td>{e(r["que"])}</td><td>{e(r["estado"])}</td></tr>' for r in rows)
     prefijos = "\n".join(f"<tr><td><b>{e(p)}</b></td><td>{e(q)}</td></tr>" for p, q in PREFIJOS)
-    return f"""<h2>Códigos del proyecto</h2>
+    estilo = """<style>
+#inf-codigos{ font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #0B1B33; background: #FFFFFF; font-size: 13px; line-height: 1.4; max-width: 980px; }
+#inf-codigos h2{ font-size: 20px; margin: 0 0 8px; color: #1B3A66; }
+#inf-codigos p{ margin: 0 0 10px; }
+#inf-codigos .meta{ color: #3E4C63; font-size: 12px; }
+#inf-codigos details{ margin: 0 0 12px; }
+#inf-codigos summary{ cursor: pointer; color: #1B3A66; font-weight: 600; }
+#inf-codigos table{ width: 100%; border-collapse: collapse; margin: 6px 0 12px; }
+#inf-codigos th, #inf-codigos td{ text-align: left; vertical-align: top; padding: 5px 8px; border-bottom: 1px solid #D9D2C1; }
+#inf-codigos th{ background: #F3EFE4; color: #0B1B33; font-weight: 700; position: sticky; top: 0; }
+#inf-codigos td b{ color: #8B1E2D; white-space: nowrap; }
+#inf-codigos input[type=search]{ width: 100%; padding: 9px 12px; font-size: 15px; color: #0B1B33; background: #FFFFFF; border: 1px solid #D9D2C1; border-radius: 6px; }
+</style>
+"""
+    return estilo + f"""<h2>Códigos del proyecto</h2>
 <p>Qué es cada código que aparece en tareas, informes y mensajes. Escribí un código o una palabra para filtrar; {len(rows)} entradas, generadas desde los specs.</p>
-<p><input id="glos-filtro" type="search" placeholder="Por ejemplo T-300, D-60, REQ-120, circulares" aria-label="Filtrar códigos" style="width:100%;padding:9px 12px;font-size:15px;border:1px solid #D9D2C1;border-radius:6px"></p>
+<p><input id="glos-filtro" type="search" placeholder="Por ejemplo T-300, D-60, REQ-120, circulares" aria-label="Filtrar códigos"></p>
 <details><summary>Qué significa cada prefijo</summary><div class="tabla-desliza"><table><thead><tr><th>Prefijo</th><th>Qué es</th></tr></thead><tbody>
 {prefijos}
 </tbody></table></div></details>
