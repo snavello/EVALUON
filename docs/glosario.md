@@ -349,14 +349,14 @@ Qué significa cada prefijo:
 | **T-280** | 016 | Instrucciones de la matriz, parte 2: filtro, consecuencias, circulares, cambios de circulares y respaldo normativo… | terminada |
 | **T-281** | 016 | Instrucciones de la evaluación: evaluación, contraste, cláusulas y reescritura, nuevas y cortas, con las descripciones… | terminada |
 | **T-282** | 016 | Instrucciones auxiliares: visión, ficha, ficha por renglón, informe técnico, nombre del oferente, datos del… | terminada |
-| **T-283** | 016 | Medición del paso 2, ronda 1 (matrices y caso-00): matrices de 00, 01, 02 y 06; caso-00 completo (matriz y evaluación… | en curso |
+| **T-283** | 016 | Medición del paso 2, ronda 1 (matrices y caso-00): matrices de 00, 01, 02 y 06; caso-00 completo (matriz y evaluación… | terminada |
 | **T-284** | 016 | Medición del paso 2, ronda 1 (evaluación con verdad): evaluación del caso de ajuste con verdad con el commit de… | pendiente |
-| **T-285** | 016 | Ajuste único del paso 2: todos los hallazgos de T-283 y T-284 en una sola tarea, un commit por hallazgo, corregidos… | pendiente |
+| **T-285** | 016 | Ajuste único del paso 2: todos los hallazgos de T-283 y T-284 en una sola tarea, un commit por hallazgo, corregidos… | en curso |
 | **T-286** | 016 | Re-medición del paso 2, ronda 2: solo lo que cambió T-285 (más el caso-00 completo, para el tiempo y la comparación con… | pendiente |
 | **T-287** | 016 | Cierre de los pasos 1 y 2: ADR-0071 (resultado: instrucciones y reglas simples que quedan locales) con las cifras como… | pendiente |
 | **T-288** | 016 | Esquema y configuración del uso externo: tipo de hecho external_request y su migración (la única de la feature)… | terminada |
 | **T-289** | 016 | Cliente de la API externa, su doble y la salida a internet: evaluon/ai/external/client.py (mensajes directos y lotes… | terminada |
-| **T-290** | 016 | Puerta de filtrado, libro de gasto y registro: guard.py (lista permitida, exclusiones, huellas), ledger.py (hecho por… | en curso |
+| **T-290** | 016 | Puerta de filtrado, libro de gasto y registro: guard.py (lista permitida, exclusiones, huellas), ledger.py (hecho por… | en verificación |
 | **T-291** | 016 | Matriz con modelo externo: matriz-externa-v1, proposal/external.py con el contrato de la etapa local, enchufe en run.py… | pendiente |
 | **T-292** | 016 | Prueba de humo con el proveedor real (caso chico): matriz externa en modo directo con la hoja de compliance inventada… | pendiente |
 | **T-293** | 016 | Medición del paso 3, ronda 1 (ajuste): propuesta externa de 00, 01, 02 y 06 contra la local simplificada de T-286.… | pendiente |
@@ -636,7 +636,7 @@ Qué significa cada prefijo:
 | **D-59** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en la ficha, un pasaje responde al requisito solo si trae… | derivada, pendiente de confirmación |
 | **D-60** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): el nombre del oferente se toma solo de un tramo que empieza… | derivada, pendiente de confirmación |
 
-## Hallazgos de verificación (105)
+## Hallazgos de verificación (117)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -685,6 +685,16 @@ Qué significa cada prefijo:
 | **D-278-1, D-278-2, D-278-3** | 016 | Huecos de cobertura de las pruebas de instrucciones: nada fija las 6 palabras; no se detecta quitar el paso a minúsculas, leer… | T-278 (verificación, pasa) |
 | **D-278-2** | 016 | Ninguna prueba cubre el lector del corpus ni la normalización a minúsculas (baja) | T-278 |
 | **D-278-3** | 016 | Una sección sin filas no tiene prueba propia, y el informe no fija el conjunto de decisiones (baja) | T-278 |
+| **D-283-1** | 016 | (alta, P1: decisión literal del 2026-10-12) · La presentación física (7.1) se descarta en la extracción v13 en los 4 casos | T-283 |
+| **D-283-1 a D-283-9** | 016 | Matriz: la presentación física descartada como forma de presentar por el Portal (D-283-1), la condición de una opción descartada… | T-283 (medición del paso 2, ronda 1: no… |
+| **D-283-2** | 016 | (alta) · La condición de informar el subcontratista junto con la oferta se descarta como condición opcional | T-283 |
+| **D-283-3** | 016 | (media) · Sobrantes: cuerpos de las declaraciones de los Anexos, notas de tabla en fila aparte y la excepción de garantía | T-283 |
+| **D-283-4** | 016 | (media) · M-045 del caso-02 (13.2, conversión a pesos de los renglones 3 a 47): tramo_con_requisitos_sin_este, no se pierde en… | T-283 |
+| **D-283-5** | 016 | (alta, P3) · Contradicción con el dictamen y erradas nuevas | T-283 |
+| **D-283-6** | 016 | (alta) · 9 celdas exactas dejan de serlo (cumple → no determinado): la conversión de la condición sin cita (O1 R22, R24; O2 R22)… | T-283 |
+| **D-283-7** | 016 | (media) · Preguntas (REQ-120, escenario 3): 28 en forma, 16 conformes en contenido; piden resolver condiciones que el texto… | T-283 |
+| **D-283-8** | 016 | (media) · Consulta con consulta-v5: el modelo se abstiene (model_abstained) donde con la v4 contestaba (EV-029, EV-018, EV-009)… | T-283 |
+| **D-283-9** | 016 | (baja) · Visión vision-v5: el DNI omite la fecha de vencimiento (15/18); la constancia REPSAL ya no marca el escudo como ilegible | T-283 |
 | **H-241-1** | 015 | (medida, del Coordinador) | T-241 |
 | **H-241-2** | 015 | (código) | T-241 |
 | **H-241-3** | 015 | (código, deliberado) | T-241 |
@@ -744,9 +754,11 @@ Qué significa cada prefijo:
 | **H-282-1 a H-282-3** | 016 | H-282-1 (media, resuelto en 3179f0b4): seis reglas de contenido sin decisión literal pasan a derivadas D-55 a D-60 pendientes de… | T-282 (verificación, pasa con reparos) |
 | **H-282-2** | 016 | Las dos líneas de registro de la consulta se cubren una a la otra (baja) | T-282 |
 | **H-282-3** | 016 | La forma del registro no es la misma en los siete (baja) | T-282 |
+| **H-289-1** | 016 | el anfitrión fijo no tiene prueba que lo defienda de verdad | T-289 |
 | **H-289-1, H-289-2, O-289-1 a O-289-6** | 016 | H-289-1 y 2 (huecos de pruebas del anfitrión fijo y de la clave) y O-289-1 a 3 (tapar la clave en errores, cancelar el lote ante… | T-289 (verificación: no pasa por… |
+| **H-289-2** | 016 | nada impide imprimir ni registrar la clave | T-289 |
 
-## Observaciones de verificación (166)
+## Observaciones de verificación (182)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -914,7 +926,23 @@ Qué significa cada prefijo:
 | **O-282-3** | 016 | consulta-v1 queda fuera de las pruebas de ejemplos, de tabla y de no calco | T-282 |
 | **O-282-4** | 016 | pytest -m decision_literal dio 246 (T-281 informó 245) | T-282 |
 | **O-282-5** | 016 | No evalué la calidad de lo que producen estas instrucciones; es de T-283 | T-282 |
+| **O-283-1** | 016 | La lista de fichas del caso-00 sigue sin poder usarse con medir_fichas (12 anclas, D-249-1): se midió con el arnés | T-283 |
+| **O-283-2** | 016 | O2 R29 (la explicación dice «exactamente» ante una diferencia de un centavo entre el Portal y lo exigido) y O3 R62 (cita que no… | T-283 |
+| **O-283-3** | 016 | Las formas que antes enseñaban los ejemplos (mantenimiento con prórroga, nota de la DJ de intereses, garantía en dos filas… | T-283 |
+| **O-283-4** | 016 | Sigue O-260-1 (la fila 17.3.1 con opcion = oferta_alternativa) y O-249-2 (líneas duplicadas en la unión de franjas de la visión) | T-283 |
+| **O-288-1** | 016 | pensamiento de la matriz | T-288 |
 | **O-288-1 a O-288-5** | 016 | O-288-1: pensamiento de la matriz adaptive, a confirmar con la medición. O-288-2: se aceptan tope negativo, NaN e intervalo 0… | T-288 (verificación, pasa) |
+| **O-288-2** | 016 | números sin cotas | T-288 |
+| **O-288-3** | 016 | etapa en externo con el uso apagado | T-288 |
+| **O-288-4** | 016 | portal_worker | T-288 |
+| **O-288-5** | 016 | versión de la tabla de precios | T-288 |
+| **O-289-1** | 016 | un proveedor que repite la clave en un error | T-289 |
+| **O-289-2** | 016 | un sondeo que falla deja el lote corriendo | T-289 |
+| **O-289-3** | 016 | Retry-After sin cota | T-289 |
+| **O-289-4** | 016 | dataclasses.replace y copy.copy saltean la puerta | T-289 |
+| **O-289-5** | 016 | constantes que las pruebas leen en lugar de fijar | T-289 |
+| **O-289-6** | 016 | menores | T-289 |
+| **O-300-1** | 016 | (menor) | T-300 |
 | **O-300-1 y contrato de la clave `externo`** | 016 | O-300-1: external_stages.line falla si proveedor o modo llegan como lista (arreglo de una línea). Contrato… | T-300 (verificación liviana, cumple… |
 
 ## Casos de evals (56)
