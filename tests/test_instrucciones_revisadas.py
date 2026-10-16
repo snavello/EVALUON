@@ -633,29 +633,30 @@ DERIVED = {
         'terceros en la ronda 1, rótulo explícito en la ronda 2) y T-248 de la 015 '
         '(`oferente-nombre-v2`); H-282-1'
         '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones auxiliares»')),
-    # T-285: las derivadas del ajuste único del paso 2.
-    "D-61": ("pendiente", (
+    # T-285: las derivadas del ajuste único del paso 2; el responsable las confirmó el 2026-10-16
+    # (`c2e2f72a`, O-287-3) y T-294 sincroniza esta tabla con el informe.
+    "D-61": ("confirmada", (
         'Derivada de D-41 (ADR-0038, regla 3: «no se encontró el documento» solo si el pliego '
         'exige un documento y la oferta leída no lo trae) y de D-23; origen: T-283, hallazgo '
         'D-283-5')),
-    "D-62": ("pendiente", (
+    "D-62": ("confirmada", (
         'Derivada de D-06 y del ADR-0019 (motivo `formulario`: las planillas o modelos en blanco) '
         'y de D-14; origen: T-236 de la 015 (bloque de definiciones hasta la v8: el texto de un '
         'formulario o de una declaración jurada modelo no es requisito) y T-283, hallazgo D-283-3')),
-    "D-63": ("pendiente", (
+    "D-63": ("confirmada", (
         'Derivada de D-01; origen: T-240 de la 015 (`matriz-filtro-v9`, motivo '
         '`condicion_opcional`), H-280-6 y T-283, hallazgo D-283-3')),
-    "D-64": ("pendiente", (
+    "D-64": ("confirmada", (
         'Derivada de D-01 y de D-13 (spec 015, 2026-10-10, «Requisito de la forma elegida»); '
         'origen: O-260-1 de la 015 y T-283, hallazgo D-283-4')),
-    "D-65": ("pendiente", (
+    "D-65": ("confirmada", (
         'Derivada de D-12 (spec 015, 2026-10-10: «una salvedad la moneda de la oferta si es un '
         'requisito»); origen: T-265 de la 015 (O-263-3: la conversión de la moneda de cotización '
         'salía descartada) y T-283, hallazgo D-283-4; H-285-6')),
-    "D-66": ("pendiente", (
+    "D-66": ("confirmada", (
         'Derivada de D-51 (ADR-0041, decisión 3: transcribir literalmente el texto visible); '
         'origen: T-283, hallazgo D-283-9; H-285-6')),
-    "D-67": ("pendiente", (
+    "D-67": ("confirmada", (
         'Derivada de D-42 (spec 016, 2026-10-15: las dos posturas cuando el valor de la oferta y el '
         'dato del Portal no coinciden) y de D-40; origen: T-283, hallazgo D-283-7; H-285-6')),
 }
@@ -708,18 +709,23 @@ def test_the_derived_check_finds_a_lost_mark_or_a_changed_origin():
         assert line in report and old in line, (key, old)
         return report.replace(line, line.replace(old, new, 1))
 
-    # T-285: D-35 y D-45 están confirmadas (spec 016, 2026-10-15): las alteraciones de la marca
-    # «pendiente» se hacen sobre D-61 y D-62, que siguen pendientes, y una confirmada pierde la suya.
+    # T-294: ya no queda ninguna derivada pendiente (D-61 a D-67 las confirmó el responsable el
+    # 2026-10-16): las alteraciones sobre D-61 y D-62 quitan o cambian la marca de una confirmada, y
+    # la de una pendiente se comprueba más abajo con una tabla de control de prueba.
     cases = [
-        ("D-61", altered("D-61", ", pendiente de confirmación del responsable", "")),
+        ("D-61", altered("D-61", "confirmada por el responsable el 2026-10-16", "propuesta")),
         ("D-32", altered("D-32", "confirmada por el responsable", "propuesta")),
         ("D-35", altered("D-35", "confirmada por el responsable", "pendiente de confirmación del "
                                                                "responsable")),
         ("D-36", altered("D-36", "origen: T-098 de la 003 (`matriz-circulares-v2`, «sin citas "
                                  "ajenas») y T-236", "origen: T-236")),
         ("D-43", altered("D-43", "origen: T-151 de la 004", "origen: T-240 de la 015")),
-        ("D-62", altered("D-62", "pendiente de confirmación del responsable",
-                         "confirmada por el responsable el 2026-10-16: «Sí»")),
+        ("D-62", altered("D-62", "confirmada por el responsable el 2026-10-16",
+                         "pendiente de confirmación del responsable")),
     ]
     for key, text in cases:
         assert [p for p in derived_problems(text) if p.startswith(f"{key}:")], key
+    # Una tabla de control que dice «pendiente» de una derivada que el informe da por confirmada
+    # (o al revés) hace fallar la comprobación.
+    pending = {**DERIVED, "D-61": ("pendiente", DERIVED["D-61"][1])}
+    assert [p for p in derived_problems(report, pending) if p.startswith("D-61:")]
