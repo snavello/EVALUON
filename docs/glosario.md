@@ -355,8 +355,8 @@ Qué significa cada prefijo:
 | **T-286** | 016 | Re-medición del paso 2, ronda 2: solo lo que cambió T-285 (más el caso-00 completo, para el tiempo y la comparación con… | pendiente |
 | **T-287** | 016 | Cierre de los pasos 1 y 2: ADR-0071 (resultado: instrucciones y reglas simples que quedan locales) con las cifras como… | pendiente |
 | **T-288** | 016 | Esquema y configuración del uso externo: tipo de hecho external_request y su migración (la única de la feature)… | terminada |
-| **T-289** | 016 | Cliente de la API externa, su doble y la salida a internet: evaluon/ai/external/client.py (mensajes directos y lotes… | en verificación |
-| **T-290** | 016 | Puerta de filtrado, libro de gasto y registro: guard.py (lista permitida, exclusiones, huellas), ledger.py (hecho por… | pendiente |
+| **T-289** | 016 | Cliente de la API externa, su doble y la salida a internet: evaluon/ai/external/client.py (mensajes directos y lotes… | terminada |
+| **T-290** | 016 | Puerta de filtrado, libro de gasto y registro: guard.py (lista permitida, exclusiones, huellas), ledger.py (hecho por… | en curso |
 | **T-291** | 016 | Matriz con modelo externo: matriz-externa-v1, proposal/external.py con el contrato de la etapa local, enchufe en run.py… | pendiente |
 | **T-292** | 016 | Prueba de humo con el proveedor real (caso chico): matriz externa en modo directo con la hoja de compliance inventada… | pendiente |
 | **T-293** | 016 | Medición del paso 3, ronda 1 (ajuste): propuesta externa de 00, 01, 02 y 06 contra la local simplificada de T-286.… | pendiente |
@@ -636,7 +636,7 @@ Qué significa cada prefijo:
 | **D-59** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en la ficha, un pasaje responde al requisito solo si trae… | derivada, pendiente de confirmación |
 | **D-60** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): el nombre del oferente se toma solo de un tramo que empieza… | derivada, pendiente de confirmación |
 
-## Hallazgos de verificación (104)
+## Hallazgos de verificación (105)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -744,6 +744,7 @@ Qué significa cada prefijo:
 | **H-282-1 a H-282-3** | 016 | H-282-1 (media, resuelto en 3179f0b4): seis reglas de contenido sin decisión literal pasan a derivadas D-55 a D-60 pendientes de… | T-282 (verificación, pasa con reparos) |
 | **H-282-2** | 016 | Las dos líneas de registro de la consulta se cubren una a la otra (baja) | T-282 |
 | **H-282-3** | 016 | La forma del registro no es la misma en los siete (baja) | T-282 |
+| **H-289-1, H-289-2, O-289-1 a O-289-6** | 016 | H-289-1 y 2 (huecos de pruebas del anfitrión fijo y de la clave) y O-289-1 a 3 (tapar la clave en errores, cancelar el lote ante… | T-289 (verificación: no pasa por… |
 
 ## Observaciones de verificación (166)
 
