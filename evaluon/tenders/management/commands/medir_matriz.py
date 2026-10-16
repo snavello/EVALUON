@@ -44,6 +44,14 @@ Opciones:
   cambia el pedido) reutiliza por huella las respuestas ya pagadas, con costo 0. Por omisión, el
   procedimiento con la fecha y la hora de la corrida (una medición nueva).
 
+- `--solo-externo CARPETA` (T-294; O-293-2): como `--externo matriz`, pero sin repetir la propuesta
+  local (de 15 a 60 minutos de GPU por caso). `CARPETA` es una corrida ya hecha con la propuesta local
+  (la de T-286, por ejemplo): se corre solo la propuesta externa, sobre las mismas lecturas, y se
+  mide con la misma lista; el resumen trae las medidas de la referencia (recalculadas sin el modelo
+  desde la base, donde sigue) y las de la externa con su gasto real. Pide `EXTERNAL_ENABLED` y
+  `EXTERNAL_STAGE_MATRIZ=externo`; rechaza una carpeta que no sea una corrida de este procedimiento
+  y esta lista.
+
 Mide el proceso único (REQ-030 enmendado: ya no hay niveles ni comparación entre ellos):
 corre la propuesta con el canal `eval`; la versión que crea queda descartada.
 REQ-031 se mide por fila con el bloque `circulares` de la lista (T-117): efecto, texto
@@ -95,6 +103,9 @@ class Command(BaseCommand):
         parser.add_argument("--externo", default=None, choices=["matriz"],
                             help="Mide también la propuesta con la etapa externa de la matriz "
                                  "(dos propuestas sobre la misma lectura) y su gasto real.")
+        parser.add_argument("--solo-externo", default=None, dest="solo_externo", metavar="CARPETA",
+                            help="Mide solo la propuesta externa contra la propuesta local de una "
+                                 "corrida ya hecha (CARPETA), sin repetir la local.")
         parser.add_argument("--medicion", default=None,
                             help="Con --externo: nombre de la medición en el libro de pedidos "
                                  "externos; repetirlo reutiliza las respuestas ya pagadas.")
@@ -150,7 +161,8 @@ class Command(BaseCommand):
             report = evaluation.measure(user, procedure, expected, runs_dir,
                                         commit=options["commit"],
                                         external=options["externo"] == "matriz",
-                                        measurement=options["medicion"])
+                                        measurement=options["medicion"],
+                                        reference=options["solo_externo"])
         except (RoleRejected, evaluation.MeasurementRefused, evaluation.ExpectedError,
                 MatrixRefused) as error:
             raise CommandError(str(error)) from None

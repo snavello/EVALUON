@@ -2339,15 +2339,10 @@ def recompute_matrix_run(folder, expected, exclusions=None):
             "before": _matrix_figures(lines, corrected=False, **common), "after": after}
 
 
-def regenerate_summaries(procedure, expected, folder):
-    """Reescribe `resumen.md` y `resumen-publico.md` de una corrida ya hecha, sin el modelo
-    (T-096): vuelve a medir las propuestas que `parametros.json` nombra, que siguen en la
-    base aunque sus versiones estén descartadas. No toca `parametros.json` ni
-    `resultados.jsonl`. Lanza `MeasurementRefused` si la carpeta no es una corrida de esta
-    lista y este procedimiento, o si falta una propuesta en la base. Las corridas hechas
-    con niveles (claves `niveles`, `level` y `nivel`) siguen siendo legibles: el nivel se
-    muestra como el proceso de la propuesta."""
-
+def _read_run_folder(procedure, expected, folder):
+    """`(parametros, errores)` de una corrida ya hecha: `parametros.json` y los errores de
+    `resultados.jsonl` por proceso. Lanza `MeasurementRefused` si la carpeta no es una corrida
+    legible de esta lista y este procedimiento."""
     folder = Path(folder)
     try:
         parameters = json.loads((folder / "parametros.json").read_text(encoding="utf-8"))
@@ -2361,9 +2356,14 @@ def regenerate_summaries(procedure, expected, folder):
     if (parameters.get("procedimiento") != procedure.number
             or parameters.get("lista", {}).get("sha256") != expected.sha256):
         raise MeasurementRefused("La corrida es de otro procedimiento u otra lista.")
-    verification = verify_expected(expected, procedure)
+    return parameters, errors
+
+
+def _results_of_entries(entries, errors, procedure, expected):
+    """Las medidas de las propuestas `entries` de un `parametros.json` (siguen en la base aunque sus
+    versiones estén descartadas), sin usar el modelo. Lanza `MeasurementRefused` si falta una."""
     results = []
-    for entry in parameters["propuestas"]:
+    for entry in entries:
         label = entry.get("process") or entry["level"]
         if label in errors:
             results.append({"process": label, "run": entry.get("run"), "error": errors[label],
@@ -2388,6 +2388,22 @@ def regenerate_summaries(procedure, expected, folder):
         if entry.get("gasto_externo"):
             result["gasto_externo"] = entry["gasto_externo"]
         results.append(result)
+    return results
+
+
+def regenerate_summaries(procedure, expected, folder):
+    """Reescribe `resumen.md` y `resumen-publico.md` de una corrida ya hecha, sin el modelo
+    (T-096): vuelve a medir las propuestas que `parametros.json` nombra, que siguen en la
+    base aunque sus versiones estén descartadas. No toca `parametros.json` ni
+    `resultados.jsonl`. Lanza `MeasurementRefused` si la carpeta no es una corrida de esta
+    lista y este procedimiento, o si falta una propuesta en la base. Las corridas hechas
+    con niveles (claves `niveles`, `level` y `nivel`) siguen siendo legibles: el nivel se
+    muestra como el proceso de la propuesta."""
+
+    folder = Path(folder)
+    parameters, errors = _read_run_folder(procedure, expected, folder)
+    verification = verify_expected(expected, procedure)
+    results = _results_of_entries(parameters["propuestas"], errors, procedure, expected)
     report = Report(folder, expected, verification, results)
     (folder / "resumen.md").write_text(_summary(report, public=False), encoding="utf-8")
     (folder / "resumen-publico.md").write_text(_summary(report, public=True),
@@ -2397,8 +2413,31 @@ def regenerate_summaries(procedure, expected, folder):
     return report
 
 
+REFERENCE_LABEL = f"{settings.MATRIX_PROCESS} · local (referencia)"
+
+
+def reference_result(procedure, expected, folder):
+    """La propuesta local de una corrida ya hecha como referencia de `medir_matriz
+    --solo-externo` (T-294, O-293-2): `(resultado, snapshot)`. El resultado son las medidas de esa
+    propuesta (que sigue en la base) recalculadas sin el modelo y con el nombre `REFERENCE_LABEL`;
+    el snapshot, las lecturas con que se hizo, para que la propuesta externa corra sobre la misma.
+    La primera propuesta de la carpeta que no es externa. Lanza `MeasurementRefused` si la carpeta
+    no es una corrida de esta lista y este procedimiento, no trae una propuesta local o esa falló."""
+    parameters, errors = _read_run_folder(procedure, expected, folder)
+    local = [entry for entry in parameters["propuestas"]
+             if not entry.get("gasto_externo")
+             and not str(entry.get("etiqueta") or "").endswith("· externo")]
+    if not local:
+        raise MeasurementRefused("La corrida de referencia no trae una propuesta local.")
+    result = _results_of_entries(local[:1], errors, procedure, expected)[0]
+    if result.get("error"):
+        raise MeasurementRefused("La propuesta local de la corrida de referencia falló.")
+    result.update(process=REFERENCE_LABEL, etiqueta=REFERENCE_LABEL)
+    return result, m.MatrixRun.objects.get(pk=result["run"]).documents
+
+
 def measure(user, procedure, expected, runs_dir, *, commit=None, clock=time.monotonic,
-            external=False, measurement=None):
+            external=False, measurement=None, reference=None):
     """Comprueba la lista, corre el proceso único y guarda la carpeta de la corrida en
     `runs_dir`. Devuelve el `Report`. Lanza `MeasurementRefused` si la lista no se puede
     usar o si hay un borrador abierto. Ya no hay niveles ni comparación entre ellos (T-100).
@@ -2408,7 +2447,14 @@ def measure(user, procedure, expected, runs_dir, *, commit=None, clock=time.mono
     cada una con su registro y medida con la misma lista; la externa con su gasto real. Pide el
     uso externo encendido y la matriz en `externo`. `measurement` nombra la medición en el libro
     de pedidos externos (`--medicion`): repetirla con el mismo nombre reutiliza por huella las
-    respuestas ya pagadas (costo 0); por omisión, el procedimiento con la fecha y la hora."""
+    respuestas ya pagadas (costo 0); por omisión, el procedimiento con la fecha y la hora.
+
+    Con `reference` (`--solo-externo CARPETA`, T-294, O-293-2): una corrida ya hecha con la
+    propuesta local; no se repite la local (de 15 a 60 minutos de GPU por caso). Se corre solo la
+    externa, sobre las mismas lecturas que la referencia, y se mide con la misma lista; el resumen
+    trae las medidas de la referencia (recalculadas sin el modelo) y las de la externa. Implica
+    `external`."""
+    external = external or bool(reference)
     require_commission_role(user, CommissionRole.OPERATOR, operation=OPERATION,
                             channel=Channel.COMMAND)
     if not expected.approval:
@@ -2425,16 +2471,19 @@ def measure(user, procedure, expected, runs_dir, *, commit=None, clock=time.mono
             raise MeasurementRefused(
                 "Para medir con el modelo externo, el uso externo tiene que estar encendido y la "
                 "matriz en «externo» (EXTERNAL_ENABLED y EXTERNAL_STAGE_MATRIZ).")
-        snapshot = matrix_service._documents_snapshot(procedure)
         measurement = (measurement
                        or f"medir_matriz-{procedure.number}-{timezone.now():%Y%m%d-%H%M%S}")
-        results = [
-            measure_process(user, procedure, expected, clock, use_external=False,
-                            label=f"{settings.MATRIX_PROCESS} · local", snapshot=snapshot),
-            measure_process(user, procedure, expected, clock, use_external=True,
-                            label=f"{settings.MATRIX_PROCESS} · externo", snapshot=snapshot,
-                            measurement=measurement),
-        ]
+        if reference:
+            local, snapshot = reference_result(procedure, expected, reference)
+            results = [local]
+        else:
+            snapshot = matrix_service._documents_snapshot(procedure)
+            results = [measure_process(user, procedure, expected, clock, use_external=False,
+                                       label=f"{settings.MATRIX_PROCESS} · local",
+                                       snapshot=snapshot)]
+        results.append(measure_process(user, procedure, expected, clock, use_external=True,
+                                       label=f"{settings.MATRIX_PROCESS} · externo",
+                                       snapshot=snapshot, measurement=measurement))
     else:
         results = [measure_process(user, procedure, expected, clock)]
     started_at = timezone.now()

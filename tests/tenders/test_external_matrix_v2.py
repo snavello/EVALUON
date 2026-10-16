@@ -12,6 +12,9 @@ from django.conf import settings
 
 import json
 
+from django.core.management import call_command
+from django.core.management.base import CommandError
+
 from evaluon.tenders import evaluation as ev
 from evaluon.tenders import models as m
 from evaluon.tenders.proposal import external
@@ -22,10 +25,12 @@ from tests.tenders.scripted import (  # noqa: F401  (fixture)
     propose,
     script,
 )
+from tests.tenders.test_evaluation import make_case
 from tests.tenders.test_external_matrix import (  # noqa: F401  (fixtures y ayudas)
     QUOTATION,
     ExternalScript,
     ext,
+    requests_of,
     rows_of,
     small_case,
 )
@@ -351,3 +356,103 @@ def test_d_293_4_a_response_without_the_three_lists_is_not_the_requested_json(
     kinds = [a["type"] for a in run.anomalies]
     assert external.ANOMALY_INVALID in kinds and external.ANOMALY_UNAVAILABLE in kinds
     assert run.models["externo"]["etapas"]["matriz"] == "local"
+
+
+# --- O-293-2: medir_matriz --solo-externo ------------------------------------------------------------
+
+
+@pytest.fixture
+def authenticated(monkeypatch, operator_user):
+    monkeypatch.setattr("evaluon.accounts.permissions.authenticate_command",
+                        lambda username: operator_user)
+
+
+def _local_folder(operator_user, script, tmp_path, capsys):  # noqa: F811
+    """Una corrida local ya hecha (la referencia): `medir_matriz` sin `--externo`."""
+    procedure, _, path, _ = make_case(operator_user, script, tmp_path)
+    call_command("medir_matriz", usuario="operador", procedimiento=procedure.number,
+                 esperada=str(path))
+    capsys.readouterr()
+    return procedure, path, next((path.parent.parent / "corridas").iterdir())
+
+
+def test_o_293_2_solo_externo_measures_the_external_proposal_against_a_saved_local_run(
+        operator_user, script, ext, fake_external, tmp_path, capsys, authenticated):  # noqa: F811
+    """REQ-123, O-293-2: `medir_matriz --solo-externo CARPETA` no repite la propuesta local (15 a
+    60 minutos de GPU por caso): corre solo la externa, sobre la misma lectura que la referencia, y
+    la mide con la misma lista contra las cifras de la corrida local guardada; el resumen trae las
+    dos con el gasto real de la externa."""
+    procedure, path, reference = _local_folder(operator_user, script, tmp_path, capsys)
+    local_calls = (len(script.calls), len(script.completeness_default_calls))
+    saved = json.loads((reference / "parametros.json").read_text(encoding="utf-8"))
+    reference_run = saved["propuestas"][0]["run"]
+    fake_external.enable("matriz")
+
+    call_command("medir_matriz", usuario="operador", procedimiento=procedure.number,
+                 esperada=str(path), solo_externo=str(reference))
+
+    out = capsys.readouterr().out
+    new = [r for r in m.MatrixRun.objects.filter(procedure=procedure).order_by("pk")
+           if r.pk != reference_run]
+    assert len(new) == 1 and new[0].models["externo"]["etapas"]["matriz"] == "externo"
+    assert new[0].documents == m.MatrixRun.objects.get(pk=reference_run).documents
+    assert (len(script.calls), len(script.completeness_default_calls)) == local_calls
+    folders = sorted((path.parent.parent / "corridas").iterdir())
+    assert len(folders) == 2
+    parameters = json.loads((folders[-1] / "parametros.json").read_text(encoding="utf-8"))
+    labels = [entry["process"] for entry in parameters["propuestas"]]
+    assert labels == ["completo · local (referencia)", "completo · externo"]
+    assert parameters["propuestas"][0]["run"] == reference_run
+    assert parameters["propuestas"][1]["gasto_externo"]["pedidos"] == 2
+    summary = (folders[-1] / "resumen-publico.md").read_text(encoding="utf-8")
+    assert summary.count("Gasto externo real") == 1
+    assert "completo · local (referencia)" in summary
+    assert "completo · externo: Gasto externo real" in out
+    assert len(requests_of(new[0])) == 2
+
+
+def test_o_293_2_solo_externo_needs_the_external_use_on_and_a_run_of_this_list(
+        operator_user, script, fake_external, tmp_path, capsys, authenticated):  # noqa: F811
+    """REQ-123, O-293-2: sin el uso externo encendido no hay medición, y una carpeta que no es una
+    corrida de este procedimiento y esta lista (o no existe) se rechaza antes de pedir nada al
+    modelo."""
+    procedure, path, reference = _local_folder(operator_user, script, tmp_path, capsys)
+    before = m.MatrixRun.objects.count()
+
+    with pytest.raises(CommandError, match="externo"):
+        call_command("medir_matriz", usuario="operador", procedimiento=procedure.number,
+                     esperada=str(path), solo_externo=str(reference))
+    fake_external.enable("matriz")
+    with pytest.raises(CommandError):
+        call_command("medir_matriz", usuario="operador", procedimiento=procedure.number,
+                     esperada=str(path), solo_externo=str(tmp_path / "no-existe"))
+    other = tmp_path / "otra"
+    other.mkdir()
+    (other / "parametros.json").write_text(
+        json.dumps({"procedimiento": "otro", "lista": {"sha256": "0"}, "propuestas": []}),
+        encoding="utf-8")
+    (other / "resultados.jsonl").write_text("", encoding="utf-8")
+    with pytest.raises(CommandError):
+        call_command("medir_matriz", usuario="operador", procedimiento=procedure.number,
+                     esperada=str(path), solo_externo=str(other))
+    assert m.MatrixRun.objects.count() == before
+    assert fake_external.batches == [] and requests_of() == []
+
+
+def test_o_293_2_the_summaries_of_a_solo_externo_run_can_be_rebuilt_without_the_model(
+        operator_user, script, ext, fake_external, tmp_path, capsys, authenticated):  # noqa: F811
+    """REQ-123, O-293-2: la carpeta que deja `--solo-externo` se rehace con `regenerate_summaries`
+    (sin modelo) con los mismos nombres y el mismo gasto: la referencia sigue en la base."""
+    procedure, path, reference = _local_folder(operator_user, script, tmp_path, capsys)
+    fake_external.enable("matriz")
+    call_command("medir_matriz", usuario="operador", procedimiento=procedure.number,
+                 esperada=str(path), solo_externo=str(reference))
+    folder = sorted((path.parent.parent / "corridas").iterdir())[-1]
+    summary = (folder / "resumen-publico.md").read_text(encoding="utf-8")
+    (folder / "resumen-publico.md").unlink()
+
+    again = ev.regenerate_summaries(procedure, ev.load_expected(path), folder)
+
+    assert [r["process"] for r in again.results] == [
+        "completo · local (referencia)", "completo · externo"]
+    assert (folder / "resumen-publico.md").read_text(encoding="utf-8") == summary
