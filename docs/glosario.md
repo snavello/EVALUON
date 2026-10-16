@@ -12,6 +12,7 @@ Qué significa cada prefijo:
 | **D-NNN-N** | Hallazgo de una verificación que impide o condiciona (defecto); NNN es la tarea verificada |
 | **H-NNN-N** | Hallazgo de una verificación (misma idea que D-, nombre usado desde la 016) |
 | **O-NNN-N** | Observación de una verificación: no impide integrar |
+| **D-NN** | Decisión literal del responsable o definición derivada usada en las instrucciones al modelo (specs/NNN/revision-instrucciones.md) |
 | **M-NNN** | Entrada de la lista esperada de un caso (un requisito que la matriz debe traer); fuera de git |
 | **EV-NNN** | Caso del conjunto dorado de evals (pregunta pública con respuesta esperada) |
 | **P1 a P11** | Principio de la constitución |
@@ -570,7 +571,72 @@ Qué significa cada prefijo:
 | **ADR-0069** |  | Verdad ampliada celda por celda: armada a ciegas del sistema, revisada y firmada por el responsable | aceptado |
 | **ADR-0070** |  | Instrucciones y reglas simples: largo máximo, sin ejemplos de casos, desempate a la corta y tres salidas por… | aceptado |
 
-## Hallazgos de verificación (72)
+## Decisiones y definiciones de las instrucciones (D-NN) (60)
+
+| Código | Feature | Qué es | Estado |
+|---|---|---|---|
+| **D-01** | 016 | «Es requisito de la oferta lo que la oferta tiene que presentar, ofrecer o comprometer, y toda condición del pliego que la oferta pueda contradecir o… | decisión literal |
+| **D-02** | 016 | Los requisitos técnicos van «en una fila por renglón del pliego, con la cita a sus especificaciones técnicas». «La Comisión no evalúa el detalle… | decisión literal |
+| **D-03** | 016 | «La clase sigue la sección del pliego cuando el pliego ordena sus requisitos por secciones. Si no, se clasifica por naturaleza: la garantía, el… | decisión literal |
+| **D-04** | 016 | «El sistema no decide si un requisito es subsanable: detecta qué consecuencias tiene su falta, sugiere las posibles con su fundamento, y un… | decisión literal |
+| **D-05** | 016 | REQ-031: las circulares y las respuestas a consultas cambian o precisan un requisito; la matriz aplica el cambio, muestra los dos textos y cita el… | decisión literal |
+| **D-06** | 016 | REQ-033 y REQ-035: antes de mostrar la matriz se descartan las filas que no son requisitos de la oferta, cada una con su cita y su motivo; las… | decisión literal |
+| **D-07** | 016 | REQ-036: para cada sugerencia y cada fila dudosa se busca en la normativa aplicable si el régimen exige esa condición. «La normativa solo sirve para… | decisión literal |
+| **D-08** | 016 | «el porcentaje esta bien, aunque no necesariamente sea literal la coincidencia. Lo tecnico verificamos que exista y que en caso de tener renglones si… | decisión literal |
+| **D-09** | 016 | «La parte tecnica ya te dije que venia del area correspondiente»; «la comision debiera dar el ok de que tiene el informe tecnico aprobado». REQ-061… | decisión literal |
+| **D-10** | 016 | «eso lo integrará un documento que llamamos hoja de compliance. Si detectas que falta uno pueden subir otra. O una que informe que No cumple».… | decisión literal |
+| **D-11** | 016 | «Debiste informar que el doc esta en el portal o que falta coincidencia». REQ-062: cuando el dato o el documento está en el Portal, el sistema lo… | decisión literal |
+| **D-12** | 016 | «no entran ninguno de los 3. una salvedad la moneda de la oferta si es un requisito.»: no son requisitos de la oferta el pago, la moneda de pago y la… | decisión literal |
+| **D-13** | 016 | «Requisito de la forma elegida»: las condiciones de cada forma de garantía entran en la matriz y se evalúan solo en la oferta que eligió esa forma… | decisión literal |
+| **D-14** | 016 | «Una fila por oración»: una fila con la oración completa; la evaluación revisa cada condición con su dato y lo muestra por separado dentro de la… | decisión literal |
+| **D-15** | 016 | REQ-101: la cita es la oración completa, con el encabezado del punto o del inciso cuando la oración sola no se entiende, nunca un pedazo sin sujeto.… | decisión literal |
+| **D-16** | 016 | «Propone cumple»: el sistema propone «cumple» citando el dato del Portal cuando coincide con lo que exige el pliego, y «no cumple» o diferencia… | decisión literal |
+| **D-17** | 016 | «enmendar. considera al portal como oficial, porque es oficial»: el dato publicado en el Portal de Compras vale como fundamento (constitución 1.3). | decisión literal |
+| **D-18** | 016 | «Cumple por ausencia, con fundamento»: un requisito negativo o supletorio se propone «cumple» diciendo qué documentos se leyeron y que ninguno lo… | decisión literal |
+| **D-19** | 016 | «Precio del Portal = final con IVA»: salvo que la oferta diga lo contrario, el precio cotizado en el Portal es precio final con IVA incluido; se… | decisión literal |
+| **D-20** | 016 | «En la misma fila del plazo»: una sola fila con el plazo de mantenimiento y su prórroga automática (mismo asunto); se evalúa por ausencia salvo que… | decisión literal |
+| **D-21** | 016 | «si requiere presentacion fisica y no la hace (no consta entre los documentos ni en la matriz de compliance) la oferta no cumple se informa con texto… | decisión literal |
+| **D-22** | 016 | «lo del pagare es ilegible se informa asi y ese si lo chequea la comision»; «con la aclaracion de que no pudo leer alguno». REQ-064: si el documento… | decisión literal |
+| **D-23** | 016 | «Informa 'no se encontró documento' la comisión decide». «el que lo haga la comision no es opcion, asi el sistema no aporta nada. La comision… | decisión literal |
+| **D-24** | 016 | Los cuatro resultados (cumple, no cumple, no se encontró el documento, no determinado) no cambian; los motivos de «no determinado» son… | decisión literal |
+| **D-25** | 016 | «Mantengo la visión, siempre es preferible a no leída. Obviamente aclarando que proviene de un documento con dificultades de lectura y que conviene… | decisión literal |
+| **D-26** | 016 | «Lo que presentó cada oferta»: por oferta, qué presentó frente a cada requisito de la matriz, con el fragmento de la oferta (la ficha de la oferta).… | decisión literal |
+| **D-27** | 016 | «El sistema lo propone»: lee los archivos de la oferta y propone nombre y CUIT del oferente con su cita; la Comisión aprueba o corrige. «Escribe el… | decisión literal |
+| **D-28** | 016 | Evaluación legible (A): el punto completo del pliego, las preguntas con su contexto, los requisitos externos aparte y qué se leyó y dónde (resumen de… | decisión literal |
+| **D-29** | 016 | «La Comisión ve todo»: cada consulta de normativa queda con quién la hizo. La consulta responde con la cita de la norma y se abstiene cuando no la… | decisión literal |
+| **D-30** | 016 | «REvisa tambien como se propmtea los modelos exhaustivamente»; «Siempre prefiriendo el uso local cuanto sea posible sin resignar calidad». Las… | decisión literal |
+| **D-31** | 016 | Las «formas» que la medición de la 015 mostró y que quedan como definiciones del responsable, sin ejemplo: la presentación física (D-21), el… | decisión literal |
+| **D-32** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: “Si . Solo queda garantía de mantenimiento de oferta la… | derivada, confirmada |
+| **D-33** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): lo que el organismo comprueba del oferente con una consulta… | derivada, pendiente de confirmación |
+| **D-34** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): una condición dicha como efecto sobre la oferta («se… | derivada, pendiente de confirmación |
+| **D-35** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): un fundamento del pliego alcanza a un requisito si es una… | derivada, pendiente de confirmación |
+| **D-36** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): un tramo de una circular alcanza la cita del pliego que… | derivada, pendiente de confirmación |
+| **D-37** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en una circular, un ítem es un renglón (el mismo objetivo… | derivada, pendiente de confirmación |
+| **D-38** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): lo que una circular agrega y no es requisito de la oferta… | derivada, pendiente de confirmación |
+| **D-39** | 016 | REQ-104: «En la evaluación, el sistema razona antes de dar el veredicto, revisa todas las condiciones del requisito, cada una con su dato y su… | decisión literal |
+| **D-40** | 016 | REQ-105: «Cada pregunta a la Comisión está dirigida a la Comisión (nunca al oferente) y dice qué requisito, qué conclusión y qué texto la motivan; no… | decisión literal |
+| **D-41** | 016 | El modelo devuelve el resultado, la exigencia (documento o condición), las citas (documento y texto) y una explicación breve; la página y las… | decisión literal |
+| **D-42** | 016 | «Si, de acuerdo. Preguntar mostrando las dos posturas con contradicciones a la comision»: cuando el valor de la oferta y el dato del Portal no… | decisión literal |
+| **D-43** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en el contraste, el texto citado se juzga solo contra lo… | derivada, pendiente de confirmación |
+| **D-44** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en el contraste por cláusula, una cláusula que trae una… | derivada, pendiente de confirmación |
+| **D-45** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): la reescritura escribe el requisito como lo afirmaría una… | derivada, pendiente de confirmación |
+| **D-46** | 016 | REQ-008: «El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la… | decisión literal |
+| **D-47** | 016 | REQ-009: «Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada». Enmienda del 2026-10-03… | decisión literal |
+| **D-48** | 016 | REQ-018: «Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional… | decisión literal |
+| **D-49** | 016 | REQ-039: «el sistema debe proponer los fragmentos de la oferta que responden al requisito, cada uno con el documento, la página y el texto literal».… | decisión literal |
+| **D-50** | 016 | REQ-044: «Para la parte técnica, la ficha indica si la oferta trae documentación técnica y, cuando el pliego tiene renglones, si el oferente cotizó o… | decisión literal |
+| **D-51** | 016 | ADR-0041, decisión 3: «Una página por pedido: transcribir literalmente el texto visible, sin corregir ni completar, con [ilegible] donde no se lee y… | decisión literal |
+| **D-52** | 016 | REQ-074: «La Comisión sube el informe técnico aprobado del área (por procedimiento o por oferta). El sistema lo lee y propone, por oferta y renglón… | decisión literal |
+| **D-53** | 016 | REQ-077: «Sin Portal, el procedimiento se da de alta subiendo el pliego: el sistema lee el archivo y propone los datos del procedimiento (número… | decisión literal |
+| **D-54** | 016 | P3: «Si no hay fundamento recuperable, el resultado es "no determinado", nunca una afirmación.» «La decisión final es siempre de una persona y queda… | decisión literal |
+| **D-55** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en la transcripción por visión, las líneas de puntos o de… | derivada, pendiente de confirmación |
+| **D-56** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): el tipo de procedimiento que se propone es el del… | derivada, pendiente de confirmación |
+| **D-57** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en la ficha por renglón, «cotizado» dice lo que muestran… | derivada, pendiente de confirmación |
+| **D-58** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en el informe técnico, el dictamen es «no_trata» cuando lo… | derivada, pendiente de confirmación |
+| **D-59** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en la ficha, un pasaje responde al requisito solo si trae… | derivada, pendiente de confirmación |
+| **D-60** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): el nombre del oferente se toma solo de un tramo que empieza… | derivada, pendiente de confirmación |
+
+## Hallazgos de verificación (104)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -610,8 +676,15 @@ Qué significa cada prefijo:
 | **D-270-1** | 016 | clon_app y clon_worker alcanzan por nombre a db, generation_batch y app de 8000 en evaluon_internal; entorno.md dice lo contrario… | T-270 (verificación, pasa con la… |
 | **D-270-2** | 016 | Resuelto en la ventana real del 2026-10-15: nvidia-smi fallaba solo para el motor de 8000 arrancado antes del reinicio; con el… | T-270 |
 | **D-270-3** | 016 | restaurar no tiene test de la condición --forzar | T-270 |
+| **D-271-1** | 016 | La verdad tiene que nombrar los documentos sin carpeta si se cargaron con cargar_oferta (baja, condición para las tareas… | T-271 |
 | **D-271-1 a D-271-4** | 016 | D-271-1: cargar_oferta guarda el nombre sin carpeta, así que la verdad nombra los documentos sin carpeta y únicos por oferta… | T-271 (verificación, pasa) |
+| **D-271-2** | 016 | El «cumple por ausencia» no exige cubrir todos los documentos de la oferta (baja) | T-271 |
+| **D-271-3** | 016 | Dos huecos de prueba (baja) | T-271 |
+| **D-271-4** | 016 | armada_por no se exige ni se cuenta (baja) | T-271 |
+| **D-278-1** | 016 | Ninguna prueba fija las 6 palabras (baja) | T-278 |
 | **D-278-1, D-278-2, D-278-3** | 016 | Huecos de cobertura de las pruebas de instrucciones: nada fija las 6 palabras; no se detecta quitar el paso a minúsculas, leer… | T-278 (verificación, pasa) |
+| **D-278-2** | 016 | Ninguna prueba cubre el lector del corpus ni la normalización a minúsculas (baja) | T-278 |
+| **D-278-3** | 016 | Una sección sin filas no tiene prueba propia, y el informe no fija el conjunto de decisiones (baja) | T-278 |
 | **H-241-1** | 015 | (medida, del Coordinador) | T-241 |
 | **H-241-2** | 015 | (código) | T-241 |
 | **H-241-3** | 015 | (código, deliberado) | T-241 |
@@ -641,13 +714,38 @@ Qué significa cada prefijo:
 | **H-256-4** | 015 | (menor, antes de T-260): la exclusión de pares y de preguntas en la medición en vivo no tiene test | T-256-ver |
 | **H-258-1** | 015 | Cinco ejemplos nuevos copian la forma, oración por oración, de cláusulas de la plantilla que se miden en los siete casos… | T-258 |
 | **H-258-2** | 015 | Al unir una fila de toda oferta con una fila de una opción, la fila que queda se marca como de la opción | T-258 |
+| **H-277-1** | 016 | --recalcular no dice que no calcula las tres salidas (baja) | T-277 |
 | **H-277-1 a H-277-5** | 016 | H-277-1: --recalcular de corridas viejas no calcula las tres salidas ni lo dice. H-277-2: cuatro alteraciones sin test (pregunta… | T-277 (verificación, pasa sobre… |
+| **H-277-2** | 016 | Cuatro huecos de prueba (baja) | T-277 |
+| **H-277-3** | 016 | «No aplica» se guarda como «cumple» con aplica falso (baja, informativa) | T-277 |
+| **H-277-4** | 016 | Cada «no determinado» abre una pregunta (efecto, no falla) | T-277 |
+| **H-277-5** | 016 | Aserción negativa residual (baja) | T-277 |
+| **H-279-1** | 016 | Una regla nacida de un fallo medido en casos, citada a una decisión que no la dice (media) | T-279 |
 | **H-279-1 a H-279-7** | 016 | H-279-1 (media): la cláusula de la garantía de cumplimiento de contrato en el bloque v9 no la sostiene D-01 literal (definición… | T-279 (verificación, pasa) |
+| **H-279-2** | 016 | La oración de la duda no se puede ejecutar en tres de las instrucciones que leen el bloque (media) | T-279 |
+| **H-279-3** | 016 | Cuatro grupos de oraciones que la D-NN citada no sostiene (baja) | T-279 |
+| **H-279-4** | 016 | Tres bordes de «ejemplo» (baja) | T-279 |
+| **H-279-5** | 016 | Siete alteraciones sin detectar: huecos de cobertura (baja) | T-279 |
+| **H-279-6** | 016 | La oración de la clase de la sección repite al código (baja) | T-279 |
+| **H-279-7** | 016 | Una prueba de test_definitions.py pasa a mirar archivos congelados (baja, aviso para T-280) | T-279 |
+| **H-280-1** | 016 | Dos reglas de contenido sin decisión literal, nacidas de mediciones de la 015 y no marcadas como derivadas (media) | T-280 |
 | **H-280-1 a H-280-6** | 016 | H-280-1 (media): dos reglas sin decisión literal nacidas de mediciones de la 015 (alcance por la ruta; «no elegís una ajena… | T-280 (verificación, pasa) |
+| **H-280-2** | 016 | Citas que no sostienen o que omiten la fuente (baja) | T-280 |
+| **H-280-3** | 016 | La oración de la duda sigue en lo que leen la extracción, la completitud y la unión (baja, aviso para T-283) | T-280 |
+| **H-280-4** | 016 | Cuatro alteraciones sin detectar y una prueba que ya no puede fallar (baja) | T-280 |
+| **H-280-5** | 016 | Las circulares v8 y los cambios v7 no recogen toda la D-01 (baja) | T-280 |
+| **H-280-6** | 016 | Una regla de la v9 que la v10 ya no tiene y ninguna decisión literal respalda (baja, aviso para T-283) | T-280 |
+| **H-281-1** | 016 | Una regla de contenido sin decisión que la sostenga, y lecturas propias sin rótulo de derivada (media) | T-281 |
 | **H-281-1 a H-281-4** | 016 | H-281-1 (media): «con otras palabras equivalentes, alcanza» (contraste) citaba D-08 que no la sostiene; con la regla de… | T-281 (verificación, pasa con reparos) |
+| **H-281-2** | 016 | Lo externo: la instrucción nombra tres tipos y el REQ-063 nombra cuatro, y una frase no tiene decisión (baja, aviso para T-283) | T-281 |
+| **H-281-3** | 016 | La prueba del tope del razonamiento admite 100 caracteres de deriva (baja) | T-281 |
+| **H-281-4** | 016 | Nada ata las marcas «pendiente» y «confirmada» de las derivadas (baja) | T-281 |
+| **H-282-1** | 016 | Reglas de contenido sin decisión que las sostenga y sin rótulo de derivada (media) | T-282 |
 | **H-282-1 a H-282-3** | 016 | H-282-1 (media, resuelto en 3179f0b4): seis reglas de contenido sin decisión literal pasan a derivadas D-55 a D-60 pendientes de… | T-282 (verificación, pasa con reparos) |
+| **H-282-2** | 016 | Las dos líneas de registro de la consulta se cubren una a la otra (baja) | T-282 |
+| **H-282-3** | 016 | La forma del registro no es la misma en los siete (baja) | T-282 |
 
-## Observaciones de verificación (126)
+## Observaciones de verificación (166)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -775,6 +873,46 @@ Qué significa cada prefijo:
 | **O-269-6** | 007 | Efectos de esta verificación en el equipo, para que quien administre los conozca | T-269 |
 | **O-269-7** | 007 | El script quita toda regla Block de su caddy.exe, de entrada o de salida | T-269 |
 | **O-269-8** | 007 | plan.md («Criterio de aceptación numérico y umbrales», páginas sin cifrar) y tasks.md (T-269, segunda parte; T-272, punto 2)… | T-269 |
+| **O-270-1** | 016 | subir arranca clon_worker aunque la base traiga pedidos en cola | T-270 |
+| **O-270-2** | 016 | Rutas de este equipo en entorno.md (7 apariciones de C:/Users/… o /c/Users/…, como ejemplo) y el test que las exige… | T-270 |
+| **O-270-3** | 016 | Si 8000 no vuelve sano en reabrir_8000 , esperar_sano devuelve error y set -e sale antes de arrancar el worker | T-270 |
+| **O-270-4** | 016 | restart: unless-stopped de 8000 | T-270 |
+| **O-270-5** | 016 | Cada restaurar deja un respaldo de 146 MB en respaldos-clon/ (datos de casos, fuera del repositorio) | T-270 |
+| **O-270-6** | 016 | evals/ se monta con escritura desde CLON_CODE_DIR : una corrida del clon con la copia de trabajo de 016-integracion escribe… | T-270 |
+| **O-270-7** | 016 | No pude confirmar que el 27B use la GPU : con nvidia-smi en 0 (D-270-2) no hay medida directa; el motor responde y la medición de… | T-270 |
+| **O-271-1** | 016 | El umbral 4 del plan no nombra la ausencia | T-271 |
+| **O-271-2** | 016 | El mensaje de un nombre ambiguo no lo dice | T-271 |
+| **O-271-3** | 016 | El congelado cubre el resultado, no el fundamento | T-271 |
+| **O-271-4** | 016 | Un «no se encontró el documento» solo exige nota | T-271 |
+| **O-271-5** | 016 | --recalcular con una verdad por requisito se rechaza con un mensaje que lo explica (no hay matriz para traducir M-NNN a fila) | T-271 |
+| **O-271-6** | 016 | Tiempo de las pruebas | T-271 |
+| **O-277-1** | 016 | cell_problem acepta un «no determinado» por informe pendiente o por página ilegible si la explicación contiene «informe» o… | T-277 |
+| **O-277-2** | 016 | three_outputs da por preguntado un par con cualquier pregunta abierta anterior (open_pairs); es la regla de _save_pair, y la… | T-277 |
+| **O-277-3** | 016 | La salvedad del punto 1 es de cobertura, no de falla: ver mi enumeración ampliada | T-277 |
+| **O-278-1** | 016 | D-28 y D-31 no son literales | T-278 |
+| **O-278-2** | 016 | Nombres de T-280 | T-278 |
+| **O-278-3** | 016 | La oración inventada de las pruebas coincide con lenguaje normativo | T-278 |
+| **O-278-4** | 016 | Límite de la cobertura del corpus | T-278 |
+| **O-278-5** | 016 | La tabla SIMPLIFIED repite la versión del bloque de definiciones | T-278 |
+| **O-279-1** | 016 | Las cifras del desarrollador (68 y 6.191; 45 y 4.495; 47 y 4.739; 32 y 3.463) son exactas | T-279 |
+| **O-279-2** | 016 | Con el corpus en el equipo, las 904 piezas de corpus/casos/caso-0N incluyen imágenes y PDF escaneados sin capa de texto: el… | T-279 |
+| **O-279-3** | 016 | El bloque cita «Requiere presentar» y la extracción lleva 12 motivos y 6 opciones por nombre: si el código cambia una… | T-279 |
+| **O-279-4** | 016 | No evalué la calidad de la matriz que producen estas instrucciones; es de T-283 | T-279 |
+| **O-280-1** | 016 | El nombre matriz-circulares-cambios-v7 es nuevo: hasta la v6 los cambios compartían el nombre matriz-circulares- | T-280 |
+| **O-280-2** | 016 | El bloque tiene 3.463 caracteres con el salto final y 3.462 como lo inserta el cargador (strip); T-279 informó 3.463 | T-280 |
+| **O-280-3** | 016 | Varias filas de la tabla del filtro y de las circulares cita D-30 para describir qué trae el mensaje (formato de entrada que arma… | T-280 |
+| **O-280-4** | 016 | No evalué la calidad de la matriz que producen estas instrucciones; es de T-283 | T-280 |
+| **O-280-5** | 016 | Con el corpus en el equipo, las piezas de los casos incluyen imágenes y PDF escaneados sin capa de texto (62 de 74 archivos de… | T-280 |
+| **O-281-1** | 016 | D-32 y D-42 citan decisiones de la spec 016 del 2026-10-15 («Garantía de cumplimiento de contrato» y «Falta de coincidencia con… | T-281 |
+| **O-281-2** | 016 | Los comentarios de evaluon/assessment/options.py y de prompting.py siguen diciendo evaluacion-v12 para describir el campo… | T-281 |
+| **O-281-3** | 016 | Los archivos de la tarea en tasks.md no listan los tests que el cambio de versión obliga a adaptar (test_comite_t257.py… | T-281 |
+| **O-281-4** | 016 | La tabla D-21 (presentación física) dice «Aplica a: evaluación», pero la instrucción de la evaluación no la nombra (tampoco la… | T-281 |
+| **O-281-5** | 016 | No evalué la calidad de las evaluaciones que producen estas instrucciones; es de T-283 | T-281 |
+| **O-282-1** | 016 | El esqueleto con <<FIN>> y «texto plano, sin JSON» (n.º 11) y los esqueletos de las otras seis citan D-30 y no una decisión del… | T-282 |
+| **O-282-2** | 016 | La cita de REQ-018 en D-48 corta antes de «, identificados como tales y después del articulado»; la oración 46 («Los… | T-282 |
+| **O-282-3** | 016 | consulta-v1 queda fuera de las pruebas de ejemplos, de tabla y de no calco | T-282 |
+| **O-282-4** | 016 | pytest -m decision_literal dio 246 (T-281 informó 245) | T-282 |
+| **O-282-5** | 016 | No evalué la calidad de lo que producen estas instrucciones; es de T-283 | T-282 |
 | **O-288-1 a O-288-5** | 016 | O-288-1: pensamiento de la matriz adaptive, a confirmar con la medición. O-288-2: se aceptan tope negativo, NaN e intervalo 0… | T-288 (verificación, pasa) |
 | **O-300-1 y contrato de la clave `externo`** | 016 | O-300-1: external_stages.line falla si proveedor o modo llegan como lista (arreglo de una línea). Contrato… | T-300 (verificación liviana, cumple… |
 
