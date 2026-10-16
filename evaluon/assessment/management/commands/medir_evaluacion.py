@@ -50,6 +50,13 @@ Opciones:
   fila técnica, `ilegible` donde dice «no se pudo leer»). Si un test falla o falta un campo, la
   medición se rechaza (error). Si todavía ningún test lleva la marca, lo informa y no bloquea.
   Toda medición vuelve a comprobar los campos de la lista antes de empezar.
+- `--verificador-sobre`: carpeta de una corrida ya guardada (T-299; plan 016, «Medición del paso 4»).
+  No usa la GPU: aplica el verificador externo de citas a sus evaluaciones con la misma función que
+  la evaluación (`verifier.verify`), guarda una evaluación nueva derivada por oferta (la base es de
+  solo inserción: las de la corrida no cambian) y la mide como cualquier corrida, con las cifras sin
+  el verificador (`facts["verificador"]["antes"]`) y con él. Necesita el uso externo encendido y la
+  etapa `verificador` en `externo`; con `--medicion NOMBRE`, un pedido igual a uno ya respondido en
+  esa medición reusa su respuesta (sin costo). Toda corrida con celdas verificadas trae esas cifras.
 
 Se corre de a una medición, sin otra carga en la GPU (ADR-0025).
 """
@@ -100,6 +107,12 @@ class Command(BaseCommand):
         parser.add_argument("--verificar-verdad", action="store_true", dest="verificar_verdad",
                             help="Comprueba la verdad celda por celda (con --celdas-comision, o "
                                  "la del caso chico); no usa el modelo.")
+        parser.add_argument("--verificador-sobre", default=None, dest="verificador_sobre",
+                            help="Carpeta de una corrida ya guardada: le aplica el verificador "
+                                 "externo de citas, sin la GPU, y mide sin y con.")
+        parser.add_argument("--medicion", default=None,
+                            help="Nombre de la medición del libro de pedidos externos (reuso por "
+                                 "huella), con --verificador-sobre.")
         parser.add_argument("--verificar-decisiones", action="store_true",
                             dest="verificar_decisiones",
                             help="Corre los tests `decision_literal` y comprueba los campos de "
@@ -159,10 +172,18 @@ class Command(BaseCommand):
                           if options["celdas_comision"] else None)
             exclusions = (evaluation.load_cell_exclusions(options["exclusiones_celdas"])
                           if options["exclusiones_celdas"] else None)
-            report = evaluation.measure(user, procedure, expected, offers, runs_dir,
-                                        fichas=fichas, commit=options["commit"],
-                                        portal_cells=portal_cells, commission_cells=commission,
-                                        cell_exclusions=exclusions)
+            if options["verificador_sobre"]:
+                report = evaluation.measure_verifier(
+                    user, procedure, expected, offers, runs_dir, options["verificador_sobre"],
+                    measurement=options["medicion"], fichas=fichas, commit=options["commit"],
+                    portal_cells=portal_cells, commission_cells=commission,
+                    cell_exclusions=exclusions)
+            else:
+                report = evaluation.measure(user, procedure, expected, offers, runs_dir,
+                                            fichas=fichas, commit=options["commit"],
+                                            portal_cells=portal_cells,
+                                            commission_cells=commission,
+                                            cell_exclusions=exclusions)
         except (RoleRejected, evaluation.ExpectedError, evaluation.MeasurementRefused) as error:
             raise CommandError(str(error)) from None
 
@@ -267,6 +288,8 @@ class Command(BaseCommand):
             lines.append(f"{name} (015): {measured} · {'cumple' if ok else 'no cumple'}")
         for name, measured, ok in evaluation.thresholds_016(total):
             lines.append(f"{name} (016): {measured} · {'cumple' if ok else 'no cumple'}")
+        lines += [line.lstrip("- ") for line in evaluation.verifier_lines(
+            total.get(evaluation.VERIFIER_KEY), total.get("verifier_run"))]
         failed = report.blocking
         lines.append("Bloquea la aceptación: " + ("; ".join(failed) if failed else "nada"))
         self.stdout.write("\n".join(lines))
