@@ -873,7 +873,7 @@ Ajuste único del paso 3 (ADR-0025): los hallazgos D-293-1 a D-293-5 de la medic
 
 ### matriz-externa-v2
 
-Largo con el bloque: 89 líneas y 8.863 caracteres (tope de las decisoras: 90 y 9.000).
+Largo con el bloque: 89 líneas y 8.991 caracteres (tope de las decisoras: 90 y 9.000).
 
 | Oración | Decisión |
 |---|---|
@@ -910,7 +910,7 @@ Largo con el bloque: 89 líneas y 8.863 caracteres (tope de las decisoras: 90 y 
 | "faltantes": las oraciones de los tramos decididos que son requisitos formales o económicos y no están en ninguna fila, cada una con "tramo", "cita", "clase", "opcion" y "destino" ("firme" o "sugerencia"). | D-01, D-06, D-15 |
 | Una fila ya extraída está completa aunque junte varias condiciones: no la repitas ni la partas, y lo técnico no lo buscás. | D-02, D-14 |
 | "filas": un elemento por cada fila, con "fila" (su alias), "destino", "motivo", "indicio" y "razonamiento". | D-06, D-30 |
-| "destino": "firme" si es un requisito de la oferta, "descartada" si con seguridad no lo es, "sugerencia" si con lo que ves no podés saberlo. | D-06, D-15, ADR-0022 |
+| "destino": "firme" si es un requisito de la oferta, también el que el organismo comprueba del oferente con una consulta externa (registros, deudas, sanciones), que no es una duda; "descartada" si con seguridad no lo es; "sugerencia" si con lo que ves no podés saberlo. | D-01, D-06, D-15, D-33, ADR-0022 |
 | Una fila se juzga entera: si alguna de sus condiciones es un requisito, la fila lo es. | D-14 |
 | Una fila con opción es requisito si le exige algo a quien usa esa opción; si solo la permite o dice cómo se carga en el Portal, se descarta. | D-12, D-13, D-21 |
 | "motivo": si la descartás, el que corresponde; si no, vacío. | D-06 |

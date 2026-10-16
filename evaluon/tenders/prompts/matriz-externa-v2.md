@@ -43,7 +43,7 @@ El pedido trae las filas ya extraídas, cada una entre [Fn] y [/Fn] con su tramo
 - "faltantes": las oraciones de los tramos decididos que son requisitos formales o económicos y no están en ninguna fila, cada una con "tramo", "cita", "clase", "opcion" y "destino" ("firme" o "sugerencia").
 - Una fila ya extraída está completa aunque junte varias condiciones: no la repitas ni la partas, y lo técnico no lo buscás.
 - "filas": un elemento por cada fila, con "fila" (su alias), "destino", "motivo", "indicio" y "razonamiento".
-- "destino": "firme" si es un requisito de la oferta, "descartada" si con seguridad no lo es, "sugerencia" si con lo que ves no podés saberlo.
+- "destino": "firme" si es un requisito de la oferta, también el que el organismo comprueba del oferente con una consulta externa (registros, deudas, sanciones), que no es una duda; "descartada" si con seguridad no lo es; "sugerencia" si con lo que ves no podés saberlo.
 - Una fila se juzga entera: si alguna de sus condiciones es un requisito, la fila lo es.
 - Una fila con opción es requisito si le exige algo a quien usa esa opción; si solo la permite o dice cómo se carga en el Portal, se descarta.
 - "motivo": si la descartás, el que corresponde; si no, vacío.

@@ -230,3 +230,50 @@ def test_d_293_2_a_pronoun_opening_without_its_antecedent_is_counted_too(
     firm = [row for row in rows_of(run, state="propuesto")
             if PRONOUN in row.quotes.get(order=1).text]
     assert len(firm) == 1 and FIRST in firm[0].quotes.get(order=1).text
+
+
+# --- D-293-3: lo que el organismo comprueba del oferente es una fila, no una duda -------------------
+
+CHECK = ("El organismo verificará en el registro de deudores que el oferente no registre deudas "
+         "exigibles.")
+EXTERNAL_RULE = ("también el que el organismo comprueba del oferente con una consulta externa "
+                 "(registros, deudas, sanciones), que no es una duda")
+
+
+def external_check_case(user):
+    procedure = make_procedure(user)
+    pdf = tender_pdf([[para("SECCIÓN I - CONDICIONES PARTICULARES"),
+                       para("1. HABILIDAD", f"1.1. {CHECK}")]])
+    load_and_read(user, procedure, pdf, title="Pliego sintético")
+    return procedure
+
+
+def test_d_293_3_the_instruction_says_that_an_external_check_is_a_requirement():
+    """REQ-123, D-293-3 (D-33, D-01): la v2 dice, en el destino de las filas, que lo que el
+    organismo comprueba del oferente con una consulta fuera de la oferta es requisito firme y que
+    ser una consulta externa no es una duda; el bloque de definiciones ya lo dice como requisito
+    externo de la oferta."""
+    text = external.load_instruction().text
+
+    assert EXTERNAL_RULE in text
+    assert "es un requisito externo" in text
+
+
+def test_d_293_3_the_request_carries_the_rule_and_an_external_check_is_a_firm_row(
+        operator_user, script, fake_external, monkeypatch):  # noqa: F811
+    """REQ-123, D-293-3: el pedido de completitud y filtro lleva la regla; la fila de una
+    comprobación externa del organismo, con la respuesta firme del modelo, queda firme (no baja a
+    revisión por «posible requisito externo») con la clase del pliego."""
+    fake_external.enable("matriz")
+    script = Quoting(fake_external, monkeypatch, CHECK, CHECK)
+    procedure = external_check_case(operator_user)
+
+    requested, job = propose(operator_user, procedure)
+
+    assert job.status == "done", job.error
+    run = requested.run
+    completion = [p for p in script.payloads if p.stage == external.STAGE_COMPLETION]
+    assert len(completion) == 1 and EXTERNAL_RULE in completion[0].system
+    firm = [row for row in rows_of(run, state="propuesto") if CHECK in row.quotes.get(order=1).text]
+    assert len(firm) == 1 and firm[0].category == "formal"
+    assert rows_of(run, state="sugerido") == []
