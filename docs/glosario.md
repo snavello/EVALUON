@@ -356,7 +356,7 @@ Qué significa cada prefijo:
 | **T-287** | 016 | Cierre de los pasos 1 y 2: ADR-0071 (resultado: instrucciones y reglas simples que quedan locales) con las cifras como… | pendiente |
 | **T-288** | 016 | Esquema y configuración del uso externo: tipo de hecho external_request y su migración (la única de la feature)… | terminada |
 | **T-289** | 016 | Cliente de la API externa, su doble y la salida a internet: evaluon/ai/external/client.py (mensajes directos y lotes… | terminada |
-| **T-290** | 016 | Puerta de filtrado, libro de gasto y registro: guard.py (lista permitida, exclusiones, huellas), ledger.py (hecho por… | en verificación |
+| **T-290** | 016 | Puerta de filtrado, libro de gasto y registro: guard.py (lista permitida, exclusiones, huellas), ledger.py (hecho por… | terminada |
 | **T-291** | 016 | Matriz con modelo externo: matriz-externa-v1, proposal/external.py con el contrato de la etapa local, enchufe en run.py… | pendiente |
 | **T-292** | 016 | Prueba de humo con el proveedor real (caso chico): matriz externa en modo directo con la hoja de compliance inventada… | pendiente |
 | **T-293** | 016 | Medición del paso 3, ronda 1 (ajuste): propuesta externa de 00, 01, 02 y 06 contra la local simplificada de T-286.… | pendiente |
@@ -636,7 +636,7 @@ Qué significa cada prefijo:
 | **D-59** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en la ficha, un pasaje responde al requisito solo si trae… | derivada, pendiente de confirmación |
 | **D-60** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): el nombre del oferente se toma solo de un tramo que empieza… | derivada, pendiente de confirmación |
 
-## Hallazgos de verificación (117)
+## Hallazgos de verificación (124)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -757,8 +757,15 @@ Qué significa cada prefijo:
 | **H-289-1** | 016 | el anfitrión fijo no tiene prueba que lo defienda de verdad | T-289 |
 | **H-289-1, H-289-2, O-289-1 a O-289-6** | 016 | H-289-1 y 2 (huecos de pruebas del anfitrión fijo y de la clave) y O-289-1 a 3 (tapar la clave en errores, cancelar el lote ante… | T-289 (verificación: no pasa por… |
 | **H-289-2** | 016 | nada impide imprimir ni registrar la clave | T-289 |
+| **H-290-1** | 016 | la comprobación por huellas compara cada mensaje por separado, no el pedido armado | T-290 |
+| **H-290-1 a H-290-6, O-290-1 a O-290-10** | 016 | Fugas corregidas: huellas por mensaje, caracteres invisibles, sugerencia de compliance pendiente (enmienda del ADR-0067), ocho… | T-290 (verificación: dos rondas de… |
+| **H-290-2** | 016 | las secuencias se parten con caracteres invisibles | T-290 |
+| **H-290-3** | 016 | un informe de consultas sin confirmar como hoja sale | T-290 |
+| **H-290-4** | 016 | alteraciones de controles reales que ninguna prueba detecta (ver «Alteraciones»): el sello no cubre ningún campo salvo system… | T-290 |
+| **H-290-5** | 016 | un error de precios aparece después de pagar | T-290 |
+| **H-290-6** | 016 | caracteres invisibles o guion bajo como separador entre palabras | T-290 |
 
-## Observaciones de verificación (182)
+## Observaciones de verificación (192)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -942,6 +949,16 @@ Qué significa cada prefijo:
 | **O-289-4** | 016 | dataclasses.replace y copy.copy saltean la puerta | T-289 |
 | **O-289-5** | 016 | constantes que las pruebas leen en lugar de fijar | T-289 |
 | **O-289-6** | 016 | menores | T-289 |
+| **O-290-1** | 016 | dictamen bloqueado | T-290 |
+| **O-290-10** | 016 | invisibles dentro de las palabras y como único separador en el mismo párrafo (W4) | T-290 |
+| **O-290-2** | 016 | límites del cotejo exacto, por diseño del ADR | T-290 |
+| **O-290-3** | 016 | el origen lo declara quien llama | T-290 |
+| **O-290-4** | 016 | --verificar-filtro por omisión mira el mes en curso | T-290 |
+| **O-290-5** | 016 | la puerta compara con las hojas del procedimiento del pedido; el comando, con todas las de la base | T-290 |
+| **O-290-6** | 016 | un lote en vuelo no queda registrado hasta que termina | T-290 |
+| **O-290-7** | 016 | el libro solo ve su base | T-290 |
+| **O-290-8** | 016 | el costo se guarda como número de coma flotante | T-290 |
+| **O-290-9** | 016 | una lectura con texto vacío no cuenta como «sin lectura» | T-290 |
 | **O-300-1** | 016 | (menor) | T-300 |
 | **O-300-1 y contrato de la clave `externo`** | 016 | O-300-1: external_stages.line falla si proveedor o modo llegan como lista (arreglo de una línea). Contrato… | T-300 (verificación liviana, cumple… |
 
