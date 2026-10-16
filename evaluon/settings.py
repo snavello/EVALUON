@@ -641,6 +641,12 @@ EXTERNAL_THINKING = {
     stage: env_choice(f"EXTERNAL_THINKING_{stage.upper()}", default,
                       ("off", "adaptive", "between_tools"))
     for stage, default in (("matriz", "adaptive"), ("verificador", "between_tools"))}
+# Versión de la instrucción propia de cada etapa externa: archivo
+# `evaluon/tenders/prompts/<versión>.md` (T-291; plan 016, «Paso 3»). La de la matriz incluye el
+# mismo bloque de definiciones que la local (`MATRIX_PROMPT_VERSIONS["definiciones"]`).
+EXTERNAL_PROMPT_VERSIONS = {
+    "matriz": "matriz-externa-v1",
+}
 # `lotes` (la mitad del precio) o `directo` (la prueba de humo).
 EXTERNAL_MODE = env_choice("EXTERNAL_MODE", "lotes", ("lotes", "directo"))
 # Segundos entre consultas a un lote y espera máxima antes de darlo por vencido.

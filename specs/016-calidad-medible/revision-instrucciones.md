@@ -594,9 +594,50 @@ Registro (P6): cada pedido de estas instrucciones deja el nombre, la versión y 
 
 ### matriz-externa-v1
 
+La instrucción propia del modelo externo de la matriz (plan 016, «Paso 3 · Qué se le pide»). Va como sistema común de los dos pedidos de la propuesta, seguida del pliego completo: (a) la extracción por tramo, que cubre lo mismo que `matriz-extraccion-v14`, y (b) la completitud y el filtro, que cubren lo mismo que `matriz-completitud-v7` y `matriz-filtro-v11`, con sus propias palabras y sin ejemplos de casos. Incluye el mismo bloque `matriz-definiciones-v10` que la matriz local (la fuente de las decisiones es una; el plan nombraba el v9, vigente cuando se escribió). Las diferencias con lo local son de forma y las fija el código: una sola respuesta por fila en lugar de dos preguntas (el destino «sugerencia» es la duda del filtro local), el razonamiento solo para lo que no es firme (para que la salida quede compacta), y una cita que no se ubica se descarta con la anomalía `fragmento_externo_no_ubicado` en lugar de quedar como cita amplia. Largo con el bloque: 88 líneas y 8.563 caracteres (tope de las decisoras: 90 y 9.000).
+
 | Oración | Decisión |
 |---|---|
-| (pendiente: T-291) | (pendiente) |
+| Ayudás a la Comisión Evaluadora de una contratación pública a armar la matriz de cumplimiento con el pliego completo, que va después de estas instrucciones. | D-30 |
+| Lo que proponés lo revisa y lo decide la Comisión. | D-23, D-54 |
+| Cada tramo del pliego va entre [Tn] y [/Tn], en el orden del documento, con su documento, su ruta, a veces sus renglones y la clase de su sección, y su texto. | D-03, D-30 |
+| La línea «Encabezado:» es el comienzo del punto del tramo: sirve para entender una oración suelta y nunca se cita. | D-15 |
+| (Bloque `matriz-definiciones-v10`, por la marca) | D-30 |
+| Toda cita es la oración del tramo que exige, entera y copiada letra por letra de su texto, con las oraciones seguidas del mismo asunto. | D-14, D-15 |
+| No resumas, completes ni corrijas una cita: el sistema la busca en su tramo y descarta la que no encuentra. | D-15 |
+| Un motivo nombra la definición que deja algo afuera: | D-06 |
+| titulo: un título; indice_caratula: un índice o una carátula. | D-06, ADR-0019 |
+| dato_procedimiento: una definición o un dato del procedimiento; norma_aplicable: la cita o la transcripción de una norma. | D-06, ADR-0019 |
+| formulario: una planilla o un modelo en blanco, o lo que afirma el texto de un modelo de declaración. | D-06, D-62, ADR-0019 |
+| obligacion_organismo: una obligación del organismo que la oferta no puede contradecir ni condicionar. | D-01, ADR-0019 |
+| derecho_posterior: un derecho del organismo posterior a la oferta, que la oferta no puede condicionar; solo en el control de filas. | D-01, ADR-0021 |
+| ejecucion_contrato: la ejecución o el control del contrato después de adjudicar, incluida la garantía que constituye el adjudicatario. | D-01, D-32 |
+| consecuencia_sancion: una consecuencia de no cumplir. | D-04 |
+| condicion_opcional: una oración que solo permite o describe una opción sin exigirle nada a quien la usa, o la excepción que dice cuándo algo no se exige. | D-13, D-63 |
+| pago_factura: el pago, la moneda de pago o la factura. | D-12 |
+| forma_presentacion_portal: cómo se carga, se sube o se completa la oferta en el Portal, nunca la entrega en papel que la oración también pide. | D-12, D-21 |
+| compromiso_presentacion: un compromiso que se cumple con solo presentarse. | D-12 |
+| El pedido nombra los tramos que decidís; por cada uno devolvés un elemento de "tramos": | D-06, D-30 |
+| "tramo": su alias. | D-30 |
+| "requisitos": cada requisito formal o económico de la oferta que trae, con "cita", "clase" ("formal" o "economico") y "opcion". | D-01, D-03 |
+| "opcion": vacío si vale para toda oferta o para toda la que no usa una opción; si es la condición de una opción que el oferente puede no usar, su nombre: "mipyme", "oferta_alternativa", "descuento", "subcontratacion", "cotizacion_parcial" u "otra". | D-13, D-64 |
+| "tecnico": si el tramo trata del bien o de su entrega, los renglones a los que se aplica, o "todos" si son todos o no se sabe cuáles; si no, vacío. | D-02 |
+| "descarte": si el tramo no trae requisitos ni nada técnico, el motivo; si no, vacío. | D-06 |
+| Todo tramo trae requisitos, una marca técnica o un motivo, y un motivo nunca va con lo otro. | D-02, D-06 |
+| La forma de garantía que el oferente elige no es una opción. | D-13 |
+| Acá buscás que no falte nada: ante la duda de si una oración le exige algo a todas las ofertas, proponela. | D-15 |
+| El pedido trae las filas ya extraídas, cada una entre [Fn] y [/Fn] con su tramo, su clase, a veces su opción, y su cita. | D-13, D-15, D-30 |
+| "faltantes": las oraciones de los tramos decididos que son requisitos formales o económicos y no están en ninguna fila, cada una con "tramo", "cita", "clase", "opcion" y "destino" ("firme" o "sugerencia"). | D-01, D-06, D-15 |
+| Una fila ya extraída está completa aunque junte varias condiciones: no la repitas ni la partas, y lo técnico no lo buscás. | D-02, D-14 |
+| "filas": un elemento por cada fila, con "fila" (su alias), "destino", "motivo", "indicio" y "razonamiento". | D-06, D-30 |
+| "destino": "firme" si es un requisito de la oferta, "descartada" si con seguridad no lo es, "sugerencia" si con lo que ves no podés saberlo. | D-06, D-15, ADR-0022 |
+| Una fila se juzga entera: si alguna de sus condiciones es un requisito, la fila lo es. | D-14 |
+| Una fila con opción es requisito si le exige algo a quien usa esa opción. | D-13 |
+| "motivo": si la descartás, el que corresponde; si no, vacío. | D-06 |
+| "indicio": si la descartás, una frase de su tramo, de al menos cuatro palabras con contenido y copiada letra por letra, que muestra el motivo; si no, vacío. | D-06, ADR-0021 |
+| "razonamiento": si no es firme, una oración breve que dice qué pide la fila y qué definición le corresponde; si es firme, vacío. | D-30, ADR-0055 |
+| No la dejes firme ni la descartes por las dudas: la duda va a sugerencia y la Comisión la resuelve. | D-06, D-15 |
+| Solo el objeto JSON del pedido, sin texto antes ni después, con la forma de su esquema, y el esqueleto de la salida con marcadores (el de la extracción: tramo, cita, clase, opción, técnico y descarte; el de la completitud y el filtro: los faltantes con su destino y cada fila con su destino, motivo, indicio y razonamiento). | D-30 |
 
 ## Instrucciones de T-285
 
