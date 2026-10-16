@@ -396,29 +396,58 @@ def reconcile_result(model_result, derived):
     return derived
 
 
+def _open_conditions(conditions):
+    """Las condiciones sin resultado, partidas en dos (T-285, D-283-7): las que no traen dato y las
+    que traen un dato de la lectura que no alcanzó (sin la oración que lo muestre, o con algo sobre
+    el tema que no decide la condición)."""
+    missing = [c for c in conditions if c.result in (NO_CONSTA, NO_DETERMINADO)]
+    return ([c for c in missing if not c.datum.strip()],
+            [c for c in missing if c.datum.strip()])
+
+
+def _names(conditions, joiner):
+    return joiner.join(f"«{c.text.strip(' .')}»" for c in conditions)
+
+
 def missing_note(conditions):
     """La frase que dice qué condición no se pudo determinar, o `""` si todas tienen resultado.
-    Se agrega a la explicación de un «no determinado» (REQ-104)."""
-    missing = [c.text for c in conditions if c.result in (NO_CONSTA, NO_DETERMINADO)]
-    if not missing:
-        return ""
-    names = "; ".join(f"«{text.strip(' .')}»" for text in missing)
-    word = "la condición" if len(missing) == 1 else "las condiciones"
-    return f"Falta el dato de {word}: {names}."
+    Se agrega a la explicación de un «no determinado» (REQ-104). T-285 (D-283-7): la condición con un
+    dato de la lectura que no alcanzó no se presenta como si no hubiera dato."""
+    empty, short = _open_conditions(conditions)
+    parts = []
+    if empty:
+        word = "la condición" if len(empty) == 1 else "las condiciones"
+        parts.append(f"Falta el dato de {word}: {_names(empty, '; ')}.")
+    if short:
+        word = "La condición" if len(short) == 1 else "Las condiciones"
+        verb = "tiene" if len(short) == 1 else "tienen"
+        parts.append(f"{word} {_names(short, '; ')} {verb} un dato de la lectura sin la oración de "
+                     "la oferta que lo muestre, o que no alcanza para decidir.")
+    return " ".join(parts)
 
 
 def missing_question(conditions):
     """Una pregunta a la Comisión que nombra la condición que falta (REQ-105), para cuando el
-    modelo no escribió una o la dirigió al oferente. Vacía si ninguna condición falta."""
-    missing = [c.text for c in conditions if c.result in (NO_CONSTA, NO_DETERMINADO)]
-    if not missing:
-        return ""
-    names = " y ".join(f"«{text.strip(' .')}»" for text in missing)
-    if len(missing) == 1:
-        return (f"¿Cómo resuelve la Comisión la condición {names}, de la que no hay dato en la "
-                "oferta ni en el Portal?")
-    return (f"¿Cómo resuelve la Comisión las condiciones {names}, de las que no hay dato en la "
-            "oferta ni en el Portal?")
+    modelo no escribió una o la dirigió al oferente. Vacía si ninguna condición falta. T-285
+    (D-283-7): a una condición con un dato de la lectura no se le dice que no hay dato; se le pide a
+    la Comisión que la confirme con ese dato a la vista."""
+    empty, short = _open_conditions(conditions)
+    parts = []
+    if empty:
+        names = _names(empty, " y ")
+        if len(empty) == 1:
+            parts.append(f"¿Cómo resuelve la Comisión la condición {names}, de la que no hay dato "
+                         "en la oferta ni en el Portal?")
+        else:
+            parts.append(f"¿Cómo resuelve la Comisión las condiciones {names}, de las que no hay "
+                         "dato en la oferta ni en el Portal?")
+    if short:
+        names = _names(short, " y ")
+        data = "; ".join(f"«{c.datum.strip(' .')}»" for c in short)
+        word = "la condición" if len(short) == 1 else "las condiciones"
+        parts.append(f"¿La Comisión confirma {word} {names} con lo que trae la lectura ({data})? "
+                     "Falta la oración de la oferta que lo muestre o el dato no alcanza.")
+    return " ".join(parts)
 
 
 def correction_for(problem, unlocated=()):

@@ -738,6 +738,7 @@ Ajuste único del paso 2 (ADR-0025): los hallazgos de la medición T-283 (D-283-
 | "explicacion": una o dos oraciones, de hasta 300 caracteres, que dicen por qué. | D-39, D-41 |
 | Si queda "no_determinado", nombra el dato que falta o el texto que contradice. | D-39 |
 | "pregunta": si queda algo que la Comisión puede aclarar o decidir, una pregunta dirigida a la Comisión que nombra el requisito, tu conclusión y el texto que leíste. | D-40 |
+| Nombra el dato que falta; no pide resolver una condición que el texto citado ya muestra, ni un texto que la oferta no tiene por qué traer, y compara solo valores de un mismo dato. | D-18, D-39, D-40, D-42 |
 | Nunca le pide un dato ni un documento al oferente: pedirle algo es una subsanación y la decide la Comisión. | D-04, D-40, REQ-060 (spec 004: «La Comisión decide: puede pedir que se subsane») |
 | Con "cumple" o "no_cumple", vacía. | D-40 |
 | Una condición es "cumple" o "no_cumple" solo con su propio dato y su propia cita. | D-39, D-41 |

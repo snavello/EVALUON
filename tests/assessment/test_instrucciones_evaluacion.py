@@ -47,7 +47,7 @@ FROZEN = {
     "contraste-v5": "6e29204e34714e9e0e3b9925f00d7203025d7ac3b7441c223fafe0147b3bc7e2",
     "clausulas-v6": "439b2797df3c69576676ce3c338717a3b8e5a1289818e2e6704a8302de369f26",
     # T-285 (ajuste único del paso 2): hallazgos de T-283 como definiciones generales.
-    "evaluacion-v14": "8ef4897781b72a0a14740443e1671bedd81e8aa9e1246048d4d2e6ab92fee66f",
+    "evaluacion-v14": "4480962ca24e766ba358a499dac01349c44ed47fc61708a3c74385234a7b2c9b",
 }
 
 # Reglas que empujaban al error (informe de revisión, 4.7 a 4.9).

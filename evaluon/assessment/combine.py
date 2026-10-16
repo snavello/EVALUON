@@ -336,9 +336,19 @@ def _evidence(combined, documents, unread):
     return _sentence(parts)
 
 
-def _default_ask(combined):
+def _named_conditions(conditions):
+    """Las condiciones que quedaron sin resultado (las del modelo, ya controladas), entre comillas,
+    para nombrar el dato que falta en la pregunta (T-285, D-283-7)."""
+    names = [(c.get("condicion") or "").strip(" .") for c in conditions or ()
+             if c.get("resultado") not in ("cumple", "no_cumple")]
+    return " y ".join(f"«{name}»" for name in names if name)
+
+
+def _default_ask(combined, conditions=()):
     """La pregunta que arma el código cuando el modelo no escribió una válida (REQ-105, REQ-120):
-    un texto por motivo, dirigido a la Comisión."""
+    un texto por motivo, dirigido a la Comisión. T-285 (D-283-7): nombra el dato que falta (las
+    condiciones sin resultado, si se conocen) y no le pide a la Comisión un texto que la oferta no
+    tiene por qué traer."""
     if combined.outcome == OUT_SIN_DOCUMENTO:
         return ("¿Consta en la oferta el documento que exige este requisito? El sistema leyó todos "
                 "los documentos de la oferta y no lo encontró; la Comisión confirma si falta.")
@@ -350,14 +360,18 @@ def _default_ask(combined):
         return ("¿Lo que exige este requisito consta en las partes sin leer? La Comisión debe "
                 "revisar el original.")
     if combined.doubt == NO_DATA:
-        return "¿Qué determina la Comisión sobre este requisito, con el dato que falta?"
+        named = _named_conditions(conditions)
+        if named:
+            return (f"¿Cómo resuelve la Comisión {named}? La lectura de la oferta no trae ese "
+                    "dato.")
+        return ("¿Cómo resuelve la Comisión este requisito? La lectura de la oferta no trae el dato "
+                "que pide la oración del pliego citada arriba.")
     if combined.doubt == CONTRADICTION:
         return ("¿Cuál de los documentos de la oferta rige para este requisito? Dicen cosas "
                 "opuestas y la Comisión debe decidir cuál vale.")
     if combined.doubt == NO_CITATION:
-        return ("¿Qué texto de la oferta muestra lo que exige este requisito? La Comisión debe "
-                "revisarla: el sistema no encontró en los documentos la cita que sostenía la "
-                "conclusión.")
+        return ("¿La Comisión confirma lo que concluyó la lectura de la oferta para este requisito? "
+                "La cita que lo sostenía no se encontró letra por letra en los documentos.")
     if combined.doubt == MISMATCH:
         return ("¿Cuál rige para este requisito: el dato del Portal o el texto de la oferta? No "
                 "coinciden y la Comisión verifica cuál vale.")
@@ -388,17 +402,19 @@ def asks_commission(combined):
     return True
 
 
-def compose_question(number, requirement, combined, *, documents=(), unread=()):
+def compose_question(number, requirement, combined, *, documents=(), unread=(), conditions=()):
     """La pregunta final a la Comisión por un par "no determinado" o «no se encontró el documento»
     (REQ-105, REQ-120; T-235), o `""` si no corresponde (`asks_commission`). Lleva el requisito (cita
     del pliego), la conclusión del sistema y el texto de la oferta (documento y página); cierra con
     la pregunta del modelo si no se dirige al oferente, y si no, con una que arma el código.
     `documents`: títulos de los documentos leídos; `unread`: las partes sin leer (`{"title",
-    "page"}`)."""
+    "page"}`); `conditions`: las condiciones del par ya controladas (T-285: la pregunta por defecto
+    nombra las que quedaron sin resultado)."""
     if not asks_commission(combined):
         return ""
     asked = " ".join((combined.question or "").split())
-    closing = asked if asked and not asks_the_offeror(asked) else _default_ask(combined)
+    closing = (asked if asked and not asks_the_offeror(asked)
+               else _default_ask(combined, combined.facts.get("condiciones") or conditions or ()))
     head = f"Requisito {number}" + (f": «{_clip(requirement, QUESTION_CLIP)}»" if requirement
                                     and requirement.strip() else "")
     return "\n".join([

@@ -25,7 +25,7 @@ QUÉ DEVOLVÉS, EN ESTE ORDEN
 - "resultado": el que dan las condiciones: "cumple" si todas cumplen, "no_cumple" si alguna no cumple, "no_consta" si ninguna tiene nada y "no_determinado" si a alguna le falta el dato.
 - "clausula": solo en un "no_cumple" de un renglón, la cláusula del pliego que lo ofrecido contradice, copiada letra por letra del requisito; si no, vacía.
 - "explicacion": una o dos oraciones, de hasta 300 caracteres, que dicen por qué. Si queda "no_determinado", nombra el dato que falta o el texto que contradice.
-- "pregunta": si queda algo que la Comisión puede aclarar o decidir, una pregunta dirigida a la Comisión que nombra el requisito, tu conclusión y el texto que leíste. Nunca le pide un dato ni un documento al oferente: pedirle algo es una subsanación y la decide la Comisión. Con "cumple" o "no_cumple", vacía.
+- "pregunta": si queda algo que la Comisión puede aclarar o decidir, una pregunta dirigida a la Comisión que nombra el requisito, tu conclusión y el texto que leíste. Nombra el dato que falta; no pide resolver una condición que el texto citado ya muestra, ni un texto que la oferta no tiene por qué traer, y compara solo valores de un mismo dato. Nunca le pide un dato ni un documento al oferente: pedirle algo es una subsanación y la decide la Comisión. Con "cumple" o "no_cumple", vacía.
 
 CÓMO DECIDÍS
 

@@ -346,10 +346,11 @@ def _is_clause_number(text, match):
     return not _MONEY_WORD_AFTER.match(fold(text[match.end():match.end() + 12]))
 
 
-def amounts(text):
+def amounts(text, *, without_other_concepts=False):
     """Los montos que se leen en `text`: los que llevan `$`, separador de miles o dos decimales
     (un número suelto, como un día o un porcentaje, no es un monto, ni lo es el número de una
-    cláusula como «11.10.»; T-240, H-1). Argentina: punto de miles y coma decimal."""
+    cláusula como «11.10.»; T-240, H-1). Argentina: punto de miles y coma decimal. Con
+    `without_other_concepts`, sin los montos rotulados como otro concepto (`_other_concept`)."""
     found = []
     text = text or ""
     for match in _MONEY.finditer(text):
@@ -357,10 +358,34 @@ def amounts(text):
         money = bool(sign) or re.search(r"\.\d{3}|[.,]\d{2}$", token)
         if money and _is_clause_number(text, match):
             continue
+        if money and without_other_concepts and _other_concept(text, match):
+            continue
         value = _parse_amount(token) if money else None
         if value is not None:
             found.append(value)
     return found
+
+
+# T-285 (D-283-7, «no comparar magnitudes distintas»; D-42, decisión del 2026-10-15: se comparan el
+# valor de la oferta y el dato del Portal de un mismo dato): un monto rotulado como un impuesto, una
+# prima, una tasa o un recargo no es el total, el precio ni la garantía que informa el Portal, salvo
+# que el mismo rótulo nombre también el total, el precio o la garantía («total con IVA»). El rótulo es
+# lo que el texto dice antes del monto, en la misma frase.
+_OTHER_CONCEPT = re.compile(
+    r"\b(?:iva|i\W?v\W?a|impuestos?|alicuotas?|percepcion\w*|retencion\w*|primas?|premios?"
+    r"|sellados?|tasas?|recargos?|comision\w*|intereses)\b")
+_SAME_CONCEPT = re.compile(
+    r"\b(?:total\w*|precio\w*|importe total|monto total|suma asegurada|monto asegurado"
+    r"|monto de la garantia|valor de la garantia|cotizacion\w*)\b")
+CONCEPT_WINDOW = 60
+
+
+def _other_concept(text, match):
+    """Si el monto de `match` está rotulado como otro concepto (`_OTHER_CONCEPT`) y su rótulo no
+    nombra el total, el precio o la garantía (`_SAME_CONCEPT`)."""
+    before = fold(text[max(match.start() - CONCEPT_WINDOW, 0):match.start()])
+    label = re.split(r"[;\n]|\.\s", before)[-1]
+    return bool(_OTHER_CONCEPT.search(label)) and not _SAME_CONCEPT.search(label)
 
 
 def cuits(text):
@@ -372,7 +397,8 @@ def offered_values(kind, texts):
     """Los valores de la oferta del mismo tipo que el dato del Portal, leídos del texto literal."""
     values = []
     for text in texts:
-        values.extend(cuits(text) if kind == CUIT else amounts(text))
+        values.extend(cuits(text) if kind == CUIT
+                      else amounts(text, without_other_concepts=True))
     return values
 
 

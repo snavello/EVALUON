@@ -371,3 +371,100 @@ def test_d283_6_d_without_the_pages_at_hand_a_datum_still_stops_the_absence(offe
         SimpleNamespace(document=SimpleNamespace(title="Nota"))]))
 
     assert absence.rule(_absence_pair("La oferta no menciona ninguna condición."), ctx) is None
+
+
+# --- D-283-7: las preguntas nombran el dato que falta y no piden lo que no corresponde -------------
+
+C = prompting.Condition
+
+
+def test_d283_7_a_condition_with_a_datum_of_the_reading_is_not_asked_as_if_there_were_none():
+    """REQ-105, REQ-120 (D-39, D-40): la condición que quedó sin resultado pero trae un dato de la
+    lectura se le muestra a la Comisión con ese dato para que la confirme; no se dice que no hay
+    dato. La que no trae dato sigue con su pregunta de siempre."""
+    conditions = [C("Que esté firmada", "firmado por el apoderado", 0, "no_determinado"),
+                  C("Que tenga fecha", "", 0, "no_consta")]
+
+    asked = prompting.missing_question(conditions)
+    note = prompting.missing_note(conditions)
+
+    assert "¿La Comisión confirma la condición «Que esté firmada»" in asked
+    assert "«firmado por el apoderado»" in asked
+    assert "la condición «Que tenga fecha», de la que no hay dato" in asked
+    assert "Falta el dato de la condición: «Que tenga fecha»." in note
+    assert "«Que esté firmada» tiene un dato de la lectura" in note
+    assert not combine.asks_the_offeror(asked)
+
+
+def test_d283_7_the_default_question_names_the_missing_datum():
+    """REQ-105, REQ-120 (D-39: «si falta el dato de alguna, "no determinado" diciendo cuál»): la
+    pregunta que arma el código para un «no determinado» por falta de dato nombra las condiciones sin
+    resultado; sin condiciones, remite a la oración del pliego de la pregunta. Nunca «el dato que
+    falta» sin nombrarlo."""
+    combined = combine.Combined(outcome="no_determinado", doubt="sin_dato",
+                                explanation="Falta el dato.")
+    records = [{"condicion": "Indicar el plazo de entrega", "resultado": "no_determinado"},
+               {"condicion": "Cotizar en pesos", "resultado": "cumple"}]
+
+    named = combine.compose_question(4, "Cotizar en pesos e indicar el plazo.", combined,
+                                     conditions=records)
+    bare = combine.compose_question(4, "Cotizar en pesos e indicar el plazo.", combined)
+
+    assert named.endswith("¿Cómo resuelve la Comisión «Indicar el plazo de entrega»? La lectura de "
+                          "la oferta no trae ese dato.")
+    assert "Cotizar en pesos»?" not in named
+    assert "la oración del pliego citada arriba" in bare
+    for asked in (named, bare):
+        assert "el dato que falta" not in asked and not combine.asks_the_offeror(asked)
+
+
+def test_d283_7_a_lost_citation_asks_to_confirm_the_conclusion_not_for_a_text():
+    """REQ-105 (D-18, D-40): cuando la cita de una conclusión no se ubicó, la pregunta pide confirmar
+    lo que concluyó la lectura; no le pide a la Comisión un texto de la oferta (que para una
+    prohibición no puede existir)."""
+    combined = combine.Combined(outcome="no_determinado", doubt="sin_cita", explanation="X.")
+
+    asked = combine.compose_question(5, "No se aceptarán ofertas condicionadas.", combined)
+
+    assert "¿La Comisión confirma lo que concluyó la lectura de la oferta" in asked
+    assert "Qué texto de la oferta" not in asked
+
+
+VAT = "Las cotizaciones se expresarán en pesos argentinos e incluirán el IVA."
+
+
+def _total_pair(datum):
+    from tests.assessment.test_portal_facts import located as plain_located
+
+    return SimpleNamespace(
+        combined=combine.Combined(outcome="cumple", citations=[plain_located(datum)]),
+        text=SimpleNamespace(text=VAT), datos=[plain_located(datum)],
+        requirement=SimpleNamespace(items=[], category="economico"), groups=[])
+
+
+def test_d283_7_an_amount_labelled_as_a_tax_is_not_compared_with_the_portal_total(offer, portal):
+    """REQ-103, REQ-120 (D-42: se comparan el valor de la oferta y el dato del Portal de un mismo
+    dato): un monto rotulado como impuesto o prima no es el total de la oferta; no hay falta de
+    coincidencia ni la pregunta de «cuál rige». Un monto rotulado como total sí se compara."""
+    portal_data(portal, offer)
+
+    taxed = portal_facts.rule(_total_pair("Prima: $ 3.000,00; IVA: $ 4.132,58"),
+                              SimpleNamespace(offer=offer))
+    total = portal_facts.rule(_total_pair("Total de la oferta: $ 400.000,00"),
+                              SimpleNamespace(offer=offer))
+
+    assert taxed.doubt != "falta_coincidencia" and taxed.facts["regla"] != "portal_falta_coincidencia"
+    assert total.doubt == "falta_coincidencia"
+    assert portal_facts.amounts("IVA: $ 4.132,58", without_other_concepts=True) == []
+    assert portal_facts.amounts("Total con IVA: $ 4.132,58", without_other_concepts=True)
+
+
+def test_d283_7_the_instruction_says_what_a_question_names_and_does_not_ask():
+    """REQ-105, REQ-119 (D-18, D-39, D-40, D-42): la instrucción vigente dice que la pregunta nombra
+    el dato que falta, no pide resolver lo que el texto citado ya muestra ni un texto que la oferta no
+    tiene por qué traer, y compara solo valores de un mismo dato."""
+    text = prompting.load_prompt("evaluacion")
+
+    assert ("Nombra el dato que falta; no pide resolver una condición que el texto citado ya "
+            "muestra, ni un texto que la oferta no tiene por qué traer, y compara solo valores de "
+            "un mismo dato.") in text

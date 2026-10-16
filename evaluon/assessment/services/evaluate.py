@@ -1363,7 +1363,7 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
         for pair in pairs:
             pair.combined = replace(pair.combined, question=combine.compose_question(
                 pair.requirement.number, pair.text.text, pair.combined, documents=titles,
-                unread=offer_text.unread))
+                unread=offer_text.unread, conditions=_pair_conditions(pair)))
         ctx.report("Guardando la evaluación de la oferta", ctx.total, ctx.total)
         anomalies = [a for pair in pairs for a in pair.anomalies]
         if seen.errors:
