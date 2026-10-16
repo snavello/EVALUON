@@ -636,13 +636,13 @@ Qué significa cada prefijo:
 | **D-58** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo D-58: en el informe técnico, lo condicional, lo… | derivada, confirmada |
 | **D-59** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo D-59: la síntesis de la ficha se apoya en un… | derivada, confirmada |
 | **D-60** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo D-60: el nombre del oferente se toma solo de un… | derivada, confirmada |
-| **D-61** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): un documento que el pliego exige está en la oferta… | derivada, pendiente de confirmación |
-| **D-62** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): lo que afirma el texto de un modelo de declaración… | derivada, pendiente de confirmación |
-| **D-63** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): la excepción que dice cuándo algo no se exige no… | derivada, pendiente de confirmación |
-| **D-64** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): lo que el pliego le exige a quien no usa una… | derivada, pendiente de confirmación |
-| **D-65** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): la conversión a la moneda en que se cotiza la… | derivada, pendiente de confirmación |
-| **D-66** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): en un documento de identidad, una credencial o una… | derivada, pendiente de confirmación |
-| **D-67** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): la pregunta a la Comisión compara solo valores de… | derivada, pendiente de confirmación |
+| **D-61** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-61: un documento exigido está… | derivada, confirmada |
+| **D-62** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-62: el modelo de declaración que el… | derivada, confirmada |
+| **D-63** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-63: una cláusula que solo dice… | derivada, confirmada |
+| **D-64** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-64: lo que el pliego exige a quien… | derivada, confirmada |
+| **D-65** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-65: la conversión a la moneda de… | derivada, confirmada |
+| **D-66** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-66: en un documento de identidad… | derivada, confirmada |
+| **D-67** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16), confirmada por el responsable el 2026-10-16: «Confirmo D-67: una condición numérica compara… | derivada, confirmada |
 
 ## Hallazgos de verificación (146)
 
