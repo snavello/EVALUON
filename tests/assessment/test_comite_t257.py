@@ -92,7 +92,7 @@ def test_the_condition_of_an_option_the_offer_does_not_use_does_not_apply(offer,
     name, result = apply(offer, pair)
     assert name == "opcion_no_usada"
     assert result.facts["aplica"] is False and result.facts["opcion"] == "mipyme"
-    assert result.facts["version_reglas"] == settings.ASSESSMENT_RULES_VERSION == "reglas-v13"
+    assert result.facts["version_reglas"] == settings.ASSESSMENT_RULES_VERSION == "reglas-v14"
     assert result.question == "" and not result.ask and result.citations == []
     assert "MiPyME" in result.explanation and "Nota de presentación" in result.explanation
     assert not_applicable.result_label(result) == "No aplica (opción no usada)"
@@ -366,7 +366,7 @@ def test_the_portal_price_is_taken_as_final_with_vat(offer, portal):
     assert "precio final con IVA incluido" in result.explanation
     criterion = result.facts["criterios"][0]
     assert criterion["nombre"] == "iva_precio_final_portal"
-    assert criterion["version_reglas"] == "reglas-v13" and "2026-10-12" in criterion["decision"]
+    assert criterion["version_reglas"] == "reglas-v14" and "2026-10-12" in criterion["decision"]
     assert result.facts["condiciones"][1]["cubierta_por"] == "iva_precio_final_portal"
 
 
@@ -415,7 +415,7 @@ def test_a_negative_or_suppletory_requirement_nothing_contradicts_is_met_by_abse
     assert result.citations == [] and result.question == ""
     criterion = result.facts["criterios"][0]
     assert criterion["nombre"] == "ausencia_verificada" and criterion["documentos_leidos"] == TITLES
-    assert criterion["version_reglas"] == "reglas-v13" and "2026-10-12" in criterion["decision"]
+    assert criterion["version_reglas"] == "reglas-v14" and "2026-10-12" in criterion["decision"]
     assert result.facts["condiciones"][0]["por_ausencia"] is True
 
 

@@ -522,7 +522,10 @@ ASSESSMENT_ANSWERS_MAX = 20
 ASSESSMENT_TECHNICAL_OPINION = True
 # Versión de las reglas que deciden sin el modelo (externos, técnico, ilegible, Portal); se
 # copia al registro de cada evaluación (ADR-0043; T-165). Cambia cuando cambia una regla.
-ASSESSMENT_RULES_VERSION = "reglas-v13"
+# T-285 (D-283-5 y D-283-6): `reglas-v14`, la opción sin `opcion` en la matriz con la marca del
+# modelo, la ausencia con el «cumple» del modelo sin nada encontrado y el Portal (umbral de monto,
+# motivo de la lectura cuando no compara, montos rotulados como otro concepto).
+ASSESSMENT_RULES_VERSION = "reglas-v14"
 # Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150). T-281
 # (spec 016, REQ-119; ADR-0070): instrucciones cortas, solo con las definiciones y las decisiones
 # vigentes y el esqueleto de la salida, sin ejemplos (tabla en specs/016-calidad-medible/
