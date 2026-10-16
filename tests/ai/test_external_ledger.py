@@ -714,3 +714,35 @@ def test_the_command_reports_open_batches_apart(case, fake_external, logged_in, 
     out = run_command(logged_in)
     assert "Pedidos registrados: 0" in out and "Gasto real: 0.000000 USD" in out
     assert "Lotes en vuelo sin cerrar: 1" in out
+
+
+# --- Reverificación (H-290-6 y O6i) ------------------------------------------------------------
+
+
+@pytest.mark.parametrize("separator", ["_", chr(0x200B), chr(0x2060), chr(0x00AD)],
+                         ids=["V6-guion-bajo", "V7-U+200B", "V8-U+2060", "V9-U+00AD"])
+def test_verifying_the_filter_sees_words_joined_by_an_invisible(case, logged_in, separator):
+    """REQ-121 (H-290-6): el escaneo del comando ve un párrafo de la hoja con las palabras
+    separadas solo por un guion bajo o un invisible."""
+    text = separator.join(case.sheet[3].split())
+    audit.record(EventType.EXTERNAL_REQUEST, outcome=Outcome.OK, channel=Channel.COMMAND,
+                 detail={"procedimiento": case.procedure.pk, "etapa": "verificador",
+                         "resultado": "ok", "costo_usd": 0.001, "texto_enviado": {
+                             "sistema": "Instrucción.",
+                             "mensajes": [{"rol": "user", "texto": text}]}})
+    out = StringIO()
+    with pytest.raises(CommandError, match="REQ-121"):
+        call_command("gasto_externo", "--usuario", logged_in.username, "--verificar-filtro",
+                     stdout=out)
+    assert "Pedidos con texto de una hoja de compliance: 1" in out.getvalue()
+
+
+def test_the_command_does_not_list_a_closed_batch(case, fake_external, logged_in):
+    """REQ-122 (O-290-6, alteración O6i): un lote que volvió y tiene sus pedidos registrados no
+    figura entre los lotes en vuelo sin cerrar."""
+    fake_external.enable()
+    ledger.send([economic(case)], measurement=MEASUREMENT)
+    assert len(in_flight_events()) == 1
+    out = run_command(logged_in)
+    assert "Lotes en vuelo sin cerrar: 0 (estimado 0.000000 USD)" in out
+    assert "Pedidos registrados: 1 (ok 1" in out

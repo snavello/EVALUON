@@ -217,25 +217,36 @@ class Blocked:
 # --- Huellas ----------------------------------------------------------------------------------
 
 
-_WORD = re.compile(r"\w+")
+# Una palabra son letras y números seguidos: el guion bajo también corta (H-290-6).
+_WORD = re.compile(r"[^\W_]+")
 
 
-def words(text):
-    """Las palabras de `text` sin tildes ni mayúsculas. Antes de cortar (H-290-2) se descartan los
-    caracteres invisibles de formato (categoría Unicode `Cf`: espacio de ancho cero, unión de
-    palabras, marca de orden de bytes) y el guion blando (U+00AD), y se normaliza con NFKC
-    (letras de ancho completo, ligaduras): ninguno de ellos parte una palabra."""
-    visible = "".join(ch for ch in (text or "")
-                      if ch != "\u00ad" and unicodedata.category(ch) != "Cf")
+def _invisible(ch):
+    """Un carácter invisible de formato (categoría Unicode `Cf`) o el guion blando."""
+    return ch == "\u00ad" or unicodedata.category(ch) == "Cf"
+
+
+def words(text, *, invisible=""):
+    """Las palabras de `text` sin tildes ni mayúsculas. Antes de cortar se reemplazan los
+    caracteres invisibles de formato (categoría `Cf`: espacio de ancho cero, unión de palabras,
+    marca de orden de bytes) y el guion blando por `invisible` (por omisión se descartan, H-290-2)
+    y se normaliza con NFKC (letras de ancho completo, ligaduras). Las palabras se cortan en todo
+    lo que no sea letra o número, también el guion bajo (H-290-6)."""
+    visible = "".join(invisible if _invisible(ch) else ch for ch in (text or ""))
     plain = unicodedata.normalize("NFKD", unicodedata.normalize("NFKC", visible))
     plain = "".join(ch for ch in plain if not unicodedata.combining(ch)).lower()
     return _WORD.findall(plain)
 
 
 def shingles(text, size=FINGERPRINT_WORDS):
-    """Las secuencias de `size` palabras seguidas de `text`."""
-    found = words(text)
-    return {tuple(found[i:i + size]) for i in range(len(found) - size + 1)}
+    """Las secuencias de `size` palabras seguidas de `text`, de dos lecturas del texto (H-290-6):
+    con los invisibles descartados (un invisible en medio de una palabra no la parte) y con los
+    invisibles como espacios (un invisible entre dos palabras no las pega)."""
+    found = set()
+    for invisible in ("", " "):
+        sequence = words(text, invisible=invisible)
+        found |= {tuple(sequence[i:i + size]) for i in range(len(sequence) - size + 1)}
+    return found
 
 
 def suggested_compliance(procedure_id):

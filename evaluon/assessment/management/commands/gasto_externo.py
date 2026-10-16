@@ -49,21 +49,26 @@ IN_FLIGHT = "en_vuelo"
 _SEPARATOR = re.compile(r"[^0-9a-z]+")
 
 
-def _tokens(text):
+def _tokens(text, joiner=""):
     """Palabras en minúsculas y sin tildes (implementación propia, distinta de la de la puerta:
-    descompone, descarta lo que no es ASCII y corta en todo lo que no sea letra o número). Antes
-    descarta los caracteres invisibles de formato (`Cf`) y el guion blando, y normaliza con NFKC
-    (H-290-2): las letras de ancho completo pasan a ser letras comunes y no se pierden."""
-    visible = "".join(char for char in text
-                      if char != "\u00ad" and unicodedata.category(char) != "Cf")
+    descompone, descarta lo que no es ASCII y corta en todo lo que no sea letra o número, también
+    el guion bajo). Antes reemplaza los caracteres invisibles de formato (`Cf`) y el guion blando
+    por `joiner` y normaliza con NFKC (H-290-2): las letras de ancho completo pasan a ser letras
+    comunes y no se pierden."""
+    visible = "".join(joiner if char == "\u00ad" or unicodedata.category(char) == "Cf"
+                      else char for char in text)
     composed = unicodedata.normalize("NFKC", visible)
     ascii_text = unicodedata.normalize("NFD", composed).encode("ascii", "ignore").decode("ascii")
     return [token for token in _SEPARATOR.split(ascii_text.lower()) if token]
 
 
 def _windows(text):
-    tokens = _tokens(text)
-    return {" ".join(tokens[i:i + WINDOW]) for i in range(len(tokens) - WINDOW + 1)}
+    """Las ventanas de dos lecturas (H-290-6): los invisibles descartados y como espacios."""
+    found = set()
+    for joiner in ("", " "):
+        tokens = _tokens(text, joiner)
+        found |= {" ".join(tokens[i:i + WINDOW]) for i in range(len(tokens) - WINDOW + 1)}
+    return found
 
 
 def _strings(value):

@@ -719,3 +719,89 @@ def test_the_seal_covers_every_field_of_the_payload(fake_external, field, value)
     object.__setattr__(payload, field, value)
     with pytest.raises(TypeError, match="puerta"):
         client._check_payload(payload)
+
+
+# --- Reverificación (H-290-6 y huecos menores) -------------------------------------------------
+
+# Separadores entre palabras que no son espacios (escritos con su código para que se vean).
+ZWSP, WORD_JOINER, SOFT_HYPHEN, ZWJ, BOM = (chr(0x200B), chr(0x2060), chr(0x00AD), chr(0x200D),
+                                            chr(0xFEFF))
+
+
+def fullwidth(text):
+    return "".join(chr(ord(c) + 0xFEE0) if "!" <= c <= "~" else c for c in text)
+
+
+@pytest.mark.parametrize("separator", ["_", ZWSP, WORD_JOINER, SOFT_HYPHEN],
+                         ids=["V6-guion-bajo", "V7-U+200B", "V8-U+2060", "V9-U+00AD"])
+def test_words_joined_by_an_invisible_or_an_underscore_are_blocked(case, fake_external,
+                                                                   separator):
+    """REQ-121 (H-290-6, intentos V6 a V9): un párrafo de la hoja con las palabras separadas solo
+    por un guion bajo, un espacio de ancho cero, un unidor de palabras o un guion blando no sale:
+    la puerta compara también la lectura con los invisibles como espacios y corta en `_`."""
+    fake_external.enable()
+    text = separator.join(case.sheet[3].split())
+    decision = ask(case, [guard.instruction(text)])
+    assert decision.blocked and decision.reasons == ("huella_compliance",)
+    assert fake_external.batches == []
+
+
+@pytest.mark.parametrize("variant", ["V1", "V1b", "V2", "V3", "F14", "F14b"])
+def test_the_earlier_variants_are_still_blocked(case, fake_external, variant):
+    """REQ-121 (H-290-6): con la doble lectura siguen bloqueados el párrafo repartido entre el
+    sistema y los mensajes (V1, V1b), los invisibles mezclados con tildes y acentos combinantes
+    (V2), el ancho completo con invisibles (V3) y un invisible en medio de cada palabra (F14,
+    F14b)."""
+    fake_external.enable()
+    words = case.sheet[3].split()
+    if variant in ("V1", "V1b"):
+        size = 5 if variant == "V1" else 1
+        parts = [" ".join(words[i:i + size]) for i in range(0, 20, size)]
+        roles = ["user", "assistant"]
+        decision = build_split(case, parts[0], [(roles[i % 2], p)
+                                                for i, p in enumerate(parts[1:])])
+    else:
+        if variant == "V2":
+            marks = (ZWSP, ZWJ, BOM, WORD_JOINER)
+            text = " ".join(marks[i % 4].join([w[:1], w[1:]]) + chr(0x0301) * (i % 2)
+                            for i, w in enumerate(words))
+        elif variant == "V3":
+            wide = fullwidth(case.sheet[3])
+            text = "".join(ch + (ZWSP if i % 2 else "") for i, ch in enumerate(wide))
+        else:
+            mark = ZWSP if variant == "F14" else SOFT_HYPHEN
+            text = split_each_word(case.sheet[3], mark)
+        decision = ask(case, [guard.instruction(text)])
+    assert decision.blocked and decision.reasons == ("huella_compliance",), variant
+
+
+def reading(document, sequence, text, suggestion=None):
+    import hashlib
+
+    report = {"pages": 1, "unread": [], "low_confidence": [], "without_text_unlisted": []}
+    if suggestion:
+        report["suggestion"] = suggestion
+    return om.Reading.objects.create(
+        document=document, sequence=sequence, pages={"pages": []}, canonical_text=text,
+        canonical_sha256=hashlib.sha256(f"{sequence}{text}".encode()).hexdigest(),
+        tool_versions={}, report=report)
+
+
+@pytest.mark.parametrize("suggested", [(1,), (2,)], ids=["V4-primera", "H3e-H3h-intermedia"])
+def test_a_suggestion_in_any_reading_makes_the_document_reserved(
+        case, fake_external, operator_user, suggested):
+    """REQ-121 (H-290-3; V4, H3e y H3h): la sugerencia `compliance` cuenta en cualquier lectura del
+    documento, también en una que no es ni la primera ni la última."""
+    import hashlib
+
+    fake_external.enable()
+    document = om.Document.objects.create(
+        offer=case.offer, title="lecturas.pdf", file_name="lecturas.pdf", file_format="pdf",
+        file_size=1, file_sha256=hashlib.sha256(b"lecturas").hexdigest(),
+        loaded_by=operator_user, kind="economica")
+    om.DocumentFile.objects.create(document=document, content=b"%PDF-sintetico")
+    for sequence in (1, 2, 3):
+        reading(document, sequence, CONSULTATION, suggestion={"kind": "compliance"}
+                if sequence in suggested else ({"kind": "duplicate"} if sequence == 3 else None))
+    decision = ask(case, [guard.offer_document(document, ECONOMIC)])
+    assert decision.blocked and decision.reasons == ("documento_compliance_sugerido",)
