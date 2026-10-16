@@ -216,7 +216,7 @@ def test_the_image_document_page_is_replaced_by_the_transcription_of_the_photo(
 def test_the_request_carries_the_page_image_and_the_registered_instructions(
         new_offer, operator_user, model):
     """REQ-052: una página por pedido, con la imagen dibujada de la página y las instrucciones
-    vigentes (`vision-v5` desde T-282), al motor de lotes, en texto plano."""
+    vigentes (`vision-v6` desde T-285), al motor de lotes, en texto plano."""
     from django.conf import settings
 
     make_read_document(new_offer, operator_user, "dos.pdf", [("ilegible", ""), ("dudosa", "x y")])
@@ -257,7 +257,7 @@ def test_the_report_records_what_P6_asks_for(new_offer, operator_user, model):
     assert report["parameters"]["end_marker"] == "<<FIN>>"
     assert report["parameters"]["image_tokens"] == settings.ASSESSMENT_VISION_IMAGE_TOKENS
     assert report["parameters"]["temperature"] == 0 and report["parameters"]["seed"] == 42
-    assert report["prompt_version"] == "vision-v5"
+    assert report["prompt_version"] == "vision-v6"  # T-285
     assert report["instruccion"] == vision.prompt_record()
     assert report["instruccion"]["sha256"] == extraction.text_sha256(vision.load_prompt())
     entry = report["pages"][0]
@@ -608,9 +608,9 @@ def test_every_page_records_the_name_version_and_sha256_of_its_instruction(
     vision.read_offer(new_offer, user=operator_user, channel=Channel.COMMAND)
 
     record = vision.prompt_record()
-    assert record == {"nombre": "vision", "version": "vision-v5",
+    assert record == {"nombre": "vision", "version": "vision-v6",  # T-285
                       "sha256": extraction.text_sha256(
-                          vision.PROMPTS_DIR.joinpath("vision-v5.md").read_text(encoding="utf-8"))}
+                          vision.PROMPTS_DIR.joinpath("vision-v6.md").read_text(encoding="utf-8"))}
     pages = latest(document).report["vision"]["pages"]
     assert len(pages) == 2 and all(page["instruccion"] == record for page in pages)
     event = AuditEvent.objects.get(event_type=EventType.OFFER_READ, detail__action="vision")
@@ -628,7 +628,7 @@ def test_the_vision_instruction_v5_is_short_without_examples_and_keeps_the_adr_0
 
     text = vision.load_prompt()
 
-    assert settings.ASSESSMENT_VISION_PROMPT_VERSION == "vision-v5"
+    assert settings.ASSESSMENT_VISION_PROMPT_VERSION == "vision-v6"  # T-285: la v5 sigue publicada
     assert not re.search(r"(?im)^[\s#>*\-\d.)]*ejemplos?\b", text)
     for phrase in ("Transcribís", "sin corregir ni completar", "[ilegible]", "no adivines",
                    "fila por fila", "No agregues títulos, comentarios ni formato",

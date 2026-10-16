@@ -801,3 +801,22 @@ Ajuste único del paso 2 (ADR-0025): los hallazgos de la medición T-283 (D-283-
 | Devolvé "undetermined", con "statements" vacía, solo si ninguna unidad trata el punto de la pregunta, ni siquiera para remitirlo a otra norma: es preferible no responder a responder sin sustento. | D-29, D-47, D-54 |
 | "statements": las afirmaciones, cada una con "text" (la afirmación), "citations" (los alias que la sostienen, al menos uno) y "regimes_differ"; vacía solo si ninguna unidad trata el punto. | D-30, D-46, D-47 |
 | "status": "grounded" si hay afirmaciones que sostienen las unidades; "undetermined" si "statements" está vacía, y el esqueleto de la salida con marcadores (afirmaciones con sus citas y la marca, y el estado). | D-30, D-47 |
+
+### vision-v6
+
+| Oración | Decisión |
+|---|---|
+| Transcribís la imagen de una página, o de una franja de una página, de un documento de una oferta de una contratación pública. | D-51 |
+| Copiás lo que está escrito: no evaluás, no resumís ni interpretás. | D-51 |
+| Copiá todo el texto visible, de arriba hacia abajo y de izquierda a derecha: una línea del documento por línea de la salida. | D-51 |
+| Copiá cada palabra, número y signo como aparece, sin corregir ni completar. | D-51 |
+| En un documento de identidad, una credencial o una constancia, cada dato visible es texto: también las fechas, los números y los rótulos chicos o de un costado. | D-51 |
+| Lo que no se lee con seguridad va como [ilegible], una sola marca por tramo: no adivines una palabra ni un número. | D-51, D-22, D-54 |
+| Una tabla va fila por fila, con sus celdas separadas por un espacio, una barra vertical y otro espacio. | D-51 |
+| Las líneas de puntos o de guiones bajos que sirven para escribir encima no son texto: no se copian. | D-55 |
+| Un sello o un membrete con texto legible es una línea más; una firma que es solo un trazo no se transcribe. | D-51, D-55 |
+| Una línea que la página repite se copia tantas veces como aparece; una línea que la página no tiene no se escribe. | D-51, D-54 |
+| Si la franja corta una línea por arriba o por abajo, copiá solo lo que se lee con seguridad. | D-51, D-54 |
+| No agregues títulos, comentarios ni formato. | D-51 |
+| Texto plano, sin JSON. | D-30, D-51 |
+| Después de la última línea, escribí <<FIN>> en una línea aparte, sin nada más. | D-30 |

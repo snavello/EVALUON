@@ -551,8 +551,9 @@ ASSESSMENT_VISION_MAX_SIDE = 1800
 ASSESSMENT_VISION_IMAGE_TOKENS = 280
 ASSESSMENT_VISION_MAX_OUTPUT_TOKENS = 3000
 ASSESSMENT_VISION_MAX_ILLEGIBLE_SHARE = 0.30
-# T-282 (spec 016, REQ-119; ADR-0070): `vision-v5`, corta y sin ejemplos.
-ASSESSMENT_VISION_PROMPT_VERSION = "vision-v5"
+# T-282 (spec 016, REQ-119; ADR-0070): `vision-v5`, corta y sin ejemplos. T-285 (D-283-9): `vision-v6`,
+# cada dato visible de un documento de identidad, una credencial o una constancia es texto.
+ASSESSMENT_VISION_PROMPT_VERSION = "vision-v6"
 # T-259 (REQ-104), decisión del Coordinador del 2026-10-12: la visión por pasaje queda APAGADA
 # por omisión. Con un valor mayor que 0, una página legible que tiene un pasaje reconocido con
 # confianza mínima menor que ese valor va a visión (`offers/vision.py`, motivo

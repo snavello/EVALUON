@@ -72,7 +72,7 @@ SIMPLIFIED = {
     # T-282: las auxiliares (visión, ficha, ficha por renglón, informe técnico, nombre del oferente,
     # datos del procedimiento y consulta). Desde acá toda instrucción vigente está en la tabla
     # (`test_instrucciones_revisadas.test_every_current_instruction_is_simplified`).
-    "vision-v5": {"path": "evaluon/assessment/prompts/vision-v5.md"},
+    "vision-v6": {"path": "evaluon/assessment/prompts/vision-v6.md"},  # T-285
     "ficha-v4": {"path": "evaluon/offers/prompts/ficha-v4.md"},
     "ficha-renglon-v6": {"path": "evaluon/offers/prompts/ficha-renglon-v6.md"},
     "informe-tecnico-v3": {"path": "evaluon/assessment/prompts/informe-tecnico-v3.md"},
@@ -248,7 +248,7 @@ def test_the_limits_are_the_ones_of_the_plan():
     for other in ("matriz-completitud-v7", "matriz-union-v2", "matriz-consecuencias-v3",
                   "matriz-circulares-v8", "matriz-circulares-cambios-v7", "matriz-respaldo-v3",
                   "contraste-v5", "clausulas-v6",
-                  "reescritura-v3", "vision-v5", "ficha-v4", "ficha-renglon-v6",
+                  "reescritura-v3", "vision-v6", "ficha-v4", "ficha-renglon-v6",
                   "informe-tecnico-v3", "oferente-nombre-v3", "procedimiento-datos-v3",
                   "consulta-v6"):
         assert limits_of(other) == (50, 5000), other
