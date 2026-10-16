@@ -9,7 +9,7 @@ Cada fila va entre [Fn] y [/Fn], con su documento, su ruta, a veces un «Encabez
 EN ESTE CONTROL
 
 - Una fila se evalúa entera: si alguna de sus condiciones es un requisito de la oferta, la fila lo es.
-- Una fila con «Opción:» es la condición de esa opción y se evalúa como tal: se mantiene si le exige algo a quien usa la opción, aunque la oferta pueda no usarla.
+- Una fila con «Opción:» es la condición de esa opción y se evalúa como tal: es requisito si le exige algo a quien usa la opción, aunque la oferta pueda no usarla.
 - La duda de las definiciones se resuelve acá: si con lo que ves no podés saber si la fila es un requisito de la oferta, respondé "duda" y la fila va como sugerencia, para que la Comisión la resuelva. No la mantengas ni la descartes por las dudas.
 - Cada respuesta empieza por "razonamiento": una oración, de hasta 400 caracteres, que dice qué pide la fila y qué definición le corresponde.
 
@@ -27,7 +27,7 @@ Por cada fila:
   - "derecho_posterior": un derecho del organismo posterior a la oferta, que la oferta no puede condicionar.
   - "ejecucion_contrato": la ejecución o el control del contrato después de adjudicar.
   - "consecuencia_sancion": una consecuencia de no cumplir.
-  - "condicion_opcional": una oración que solo permite o describe una opción y no le exige nada a quien la usa; la fila que le exige algo a quien usa la opción se mantiene.
+  - "condicion_opcional": una oración que solo permite o describe una opción y no le exige nada a quien la usa; la fila que le exige algo a quien usa la opción es requisito de esa opción.
   - "pago_factura": el pago, la moneda de pago o la factura.
   - "forma_presentacion_portal": cómo se carga, se sube o se completa la oferta en el Portal; nunca la entrega en papel que la oración también pide, que es requisito aunque dependa de lo que marque el Portal.
   - "compromiso_presentacion": un compromiso que se cumple con solo presentarse.

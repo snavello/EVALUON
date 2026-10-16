@@ -57,30 +57,31 @@ def test_d283_1_the_portal_motive_never_covers_the_physical_delivery():
 
 def test_d283_2_the_block_says_the_decision_on_options_literally():
     """REQ-119 (D-13; spec 015, 2026-10-10, «Requisito de la forma elegida»: la condición de una opción
-    «entra solo como condición de esa opción; la oración que le exige algo a quien usa la opción se
-    mantiene»): el bloque vigente lo dice con la decisión literal."""
+    entra solo como condición de esa opción y la oración que le exige algo a quien usa la opción no
+    se descarta): el bloque vigente lo dice con esas palabras. Sin «se mantiene», que el filtro no
+    admite fuera de «que» o «no» (ADR-0054, regla 6: nada que empuje a mantener)."""
     text = _block()
 
     assert ("entra solo como condición de esa opción: la oración que le exige algo a quien usa la "
-            "opción se mantiene, con el nombre de la opción") in text
+            "opción es requisito de esa opción, con su nombre") in text
 
 
 def test_d283_2_the_optional_motive_is_only_for_a_sentence_that_demands_nothing():
     """REQ-119 (D-13): en la extracción y en el filtro, `condicion_opcional` es solo la oración que
     permite o describe una opción sin exigirle nada a quien la usa; la que le exige algo es requisito
-    de esa opción (extracción) y se mantiene (filtro)."""
+    de esa opción (extracción y filtro)."""
     extraction_line = _motive_line(extraction.load_prompt("extraccion"), "condicion_opcional")
     filter_line = _motive_line(row_filter.load_prompts()[0], "condicion_opcional")
 
     assert "no le exige nada a quien la usa" in extraction_line
     assert "la que le exige algo es requisito de esa opción" in extraction_line
     assert "no le exige nada a quien la usa" in filter_line
-    assert "la fila que le exige algo a quien usa la opción se mantiene" in filter_line
+    assert "la fila que le exige algo a quien usa la opción es requisito de esa opción" in filter_line
 
 
 def test_d283_2_the_filter_sees_the_option_of_the_row_and_its_instruction_says_what_to_do():
     """REQ-119 (D-13): la fila que la extracción propuso como condición de una opción llega al filtro
-    con su línea «Opción:», y las dos preguntas del filtro dicen que esa fila se mantiene si le exige
+    con su línea «Opción:», y las dos preguntas del filtro dicen que esa fila es requisito si le exige
     algo a quien usa la opción. Una fila sin opción no trae la línea (texto inventado)."""
     from types import SimpleNamespace
 
@@ -100,8 +101,8 @@ def test_d283_2_the_filter_sees_the_option_of_the_row_and_its_instruction_says_w
     assert "Opción:" not in row_filter.render_block("F1", without)
     for text in row_filter.load_prompts():
         assert "a veces la «Opción:» de la que es condición" in text
-        assert ("Una fila con «Opción:» es la condición de esa opción y se evalúa como tal: se "
-                "mantiene si le exige algo a quien usa la opción") in text
+        assert ("Una fila con «Opción:» es la condición de esa opción y se evalúa como tal: es "
+                "requisito si le exige algo a quien usa la opción") in text
 
 
 def _verdict(option, a_motive="condicion_opcional", answer="no"):

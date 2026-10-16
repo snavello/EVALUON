@@ -25,7 +25,7 @@ Sí son requisitos de la oferta:
 - las condiciones de la forma de garantía que el oferente elige, que se evalúan solo en la oferta que eligió esa forma;
 - la nota de una planilla o de una declaración que le exige algo al oferente sobre lo que informa.
 
-Opciones: una condición que solo vale si el oferente usa una opción que puede no usar (oferta alternativa, descuento, cotización parcial, beneficio MiPyME, subcontratación) entra solo como condición de esa opción: la oración que le exige algo a quien usa la opción se mantiene, con el nombre de la opción. La oración que solo permite o describe la opción, sin exigirle nada a quien la usa, no es requisito.
+Opciones: una condición que solo vale si el oferente usa una opción que puede no usar (oferta alternativa, descuento, cotización parcial, beneficio MiPyME, subcontratación) entra solo como condición de esa opción: la oración que le exige algo a quien usa la opción es requisito de esa opción, con su nombre. La oración que solo permite o describe la opción, sin exigirle nada a quien la usa, no es requisito.
 
 Clases: si el pliego ordena sus requisitos por secciones, la clase es la de la sección. Si no, por naturaleza: la garantía, el precio y la moneda de cotización son económicos; los documentos, las declaraciones y los compromisos de la oferta, formales; el bien y su entrega, técnicos, en una fila por renglón con la cita a sus especificaciones.
 
