@@ -710,3 +710,61 @@ def test_h285_3_only_an_absence_phrase_of_a_no_consta_condition_lets_the_absence
 
 # --- H-285-7: huecos de prueba (B11b, B17, B23) ----------------------------------------------------
 
+
+def test_h285_7_b11b_only_the_threshold_condition_is_covered(offer, portal):
+    """REQ-103 (H-285-7, B11b): en un requisito que empieza por el umbral de monto, el Portal cubre
+    solo la condición que repite ese umbral; otra condición abierta del mismo requisito sigue
+    abierta y la celda queda «no determinado»."""
+    portal_data(portal, offer)
+    records = [condition("Que el total de la oferta exceda el tope de la cláusula previa",
+                         "no_determinado"),
+               condition("Que la caución la emita una aseguradora del registro oficial",
+                         "no_determinado")]
+    combined = combine.Combined(outcome="no_determinado", doubt="sin_dato")
+
+    decided = portal_facts.rule(_portal_pair(THRESHOLD, combined, records),
+                                SimpleNamespace(offer=offer))
+
+    assert decided.outcome == "no_determinado"
+    covered = [c.get("cubierta_por") for c in decided.facts["condiciones"]]
+    assert covered == ["umbral", None]
+
+
+def test_h285_7_b17_the_final_question_names_the_open_condition_of_the_pair(
+        offer, operator_user, procedure, model):
+    """REQ-105, REQ-120 (H-285-7, B17): de punta a punta, cuando la celda queda «sin dato» sin pregunta
+    del modelo, la pregunta final nombra la condición abierta del par (`compose_question` recibe las
+    condiciones del par)."""
+    def function(call):
+        if "precio unitario" in call.requirement:
+            return says("no_consta", exigence="condicion", conditions=[
+                ("Indicar el precio unitario de cada renglón", "", 0, "no_consta")])
+        return None
+
+    model.evaluates(function)
+    _, runs = run_all(operator_user, procedure)
+    result = results_of(runs[0])[number_of(procedure, "precio unitario")]
+
+    question = am.Question.objects.get(result=result).text
+    assert result.outcome == "no_determinado"
+    assert question.endswith("¿Cómo resuelve la Comisión «Indicar el precio unitario de cada "
+                             "renglón»? La lectura de la oferta no trae ese dato.")
+
+
+def test_h285_7_b23_when_the_portal_cannot_compare_and_every_condition_holds_it_keeps_the_reading(
+        offer, portal):
+    """REQ-103, REQ-120 (H-285-7, B23): si el Portal no puede comparar y todas las condiciones de la
+    lectura cumplen, el Portal no pisa la celda: queda el motivo y la pregunta que dejó la lectura, con
+    la cita del Portal agregada."""
+    portal_data(portal, offer)
+    text = "La garantía deberá estar individualizada con el número del procedimiento."
+    records = [condition("Individualizar la garantía con el número del procedimiento", "cumple")]
+    combined = combine.Combined(outcome="no_determinado", doubt="sin_dato", ask=True,
+                                question="¿La Comisión confirma la individualización?")
+
+    decided = portal_facts.rule(_portal_pair(text, combined, records),
+                                SimpleNamespace(offer=offer))
+
+    assert (decided.outcome, decided.doubt) == ("no_determinado", "sin_dato")
+    assert decided.question == "¿La Comisión confirma la individualización?"
+    assert decided.facts["regla"] == "portal_cita_agregada" and decided.portal
