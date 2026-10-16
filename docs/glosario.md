@@ -351,7 +351,7 @@ Qué significa cada prefijo:
 | **T-282** | 016 | Instrucciones auxiliares: visión, ficha, ficha por renglón, informe técnico, nombre del oferente, datos del… | terminada |
 | **T-283** | 016 | Medición del paso 2, ronda 1 (matrices y caso-00): matrices de 00, 01, 02 y 06; caso-00 completo (matriz y evaluación… | terminada |
 | **T-284** | 016 | Medición del paso 2, ronda 1 (evaluación con verdad): evaluación del caso de ajuste con verdad con el commit de… | pendiente |
-| **T-285** | 016 | Ajuste único del paso 2: todos los hallazgos de T-283 y T-284 en una sola tarea, un commit por hallazgo, corregidos… | en curso |
+| **T-285** | 016 | Ajuste único del paso 2: todos los hallazgos de T-283 y T-284 en una sola tarea, un commit por hallazgo, corregidos… | terminada |
 | **T-286** | 016 | Re-medición del paso 2, ronda 2: solo lo que cambió T-285 (más el caso-00 completo, para el tiempo y la comparación con… | pendiente |
 | **T-287** | 016 | Cierre de los pasos 1 y 2: ADR-0071 (resultado: instrucciones y reglas simples que quedan locales) con las cifras como… | pendiente |
 | **T-288** | 016 | Esquema y configuración del uso externo: tipo de hecho external_request y su migración (la única de la feature)… | terminada |
@@ -571,7 +571,7 @@ Qué significa cada prefijo:
 | **ADR-0069** |  | Verdad ampliada celda por celda: armada a ciegas del sistema, revisada y firmada por el responsable | aceptado |
 | **ADR-0070** |  | Instrucciones y reglas simples: largo máximo, sin ejemplos de casos, desempate a la corta y tres salidas por… | aceptado |
 
-## Decisiones y definiciones de las instrucciones (D-NN) (60)
+## Decisiones y definiciones de las instrucciones (D-NN) (67)
 
 | Código | Feature | Qué es | Estado |
 |---|---|---|---|
@@ -607,19 +607,19 @@ Qué significa cada prefijo:
 | **D-30** | 016 | «REvisa tambien como se propmtea los modelos exhaustivamente»; «Siempre prefiriendo el uso local cuanto sea posible sin resignar calidad». Las… | decisión literal |
 | **D-31** | 016 | Las «formas» que la medición de la 015 mostró y que quedan como definiciones del responsable, sin ejemplo: la presentación física (D-21), el… | decisión literal |
 | **D-32** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: “Si . Solo queda garantía de mantenimiento de oferta la… | derivada, confirmada |
-| **D-33** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): lo que el organismo comprueba del oferente con una consulta… | derivada, pendiente de confirmación |
-| **D-34** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): una condición dicha como efecto sobre la oferta («se… | derivada, pendiente de confirmación |
-| **D-35** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): un fundamento del pliego alcanza a un requisito si es una… | derivada, pendiente de confirmación |
-| **D-36** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): un tramo de una circular alcanza la cita del pliego que… | derivada, pendiente de confirmación |
-| **D-37** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en una circular, un ítem es un renglón (el mismo objetivo… | derivada, pendiente de confirmación |
-| **D-38** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): lo que una circular agrega y no es requisito de la oferta… | derivada, pendiente de confirmación |
+| **D-33** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo las nueve definiciones derivadas D-33 a D-38 y… | derivada, confirmada |
+| **D-34** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo las nueve definiciones derivadas D-33 a D-38 y… | derivada, confirmada |
+| **D-35** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo las nueve definiciones derivadas D-33 a D-38 y… | derivada, confirmada |
+| **D-36** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo las nueve definiciones derivadas D-33 a D-38 y… | derivada, confirmada |
+| **D-37** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo las nueve definiciones derivadas D-33 a D-38 y… | derivada, confirmada |
+| **D-38** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo las nueve definiciones derivadas D-33 a D-38 y… | derivada, confirmada |
 | **D-39** | 016 | REQ-104: «En la evaluación, el sistema razona antes de dar el veredicto, revisa todas las condiciones del requisito, cada una con su dato y su… | decisión literal |
 | **D-40** | 016 | REQ-105: «Cada pregunta a la Comisión está dirigida a la Comisión (nunca al oferente) y dice qué requisito, qué conclusión y qué texto la motivan; no… | decisión literal |
 | **D-41** | 016 | El modelo devuelve el resultado, la exigencia (documento o condición), las citas (documento y texto) y una explicación breve; la página y las… | decisión literal |
 | **D-42** | 016 | «Si, de acuerdo. Preguntar mostrando las dos posturas con contradicciones a la comision»: cuando el valor de la oferta y el dato del Portal no… | decisión literal |
-| **D-43** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en el contraste, el texto citado se juzga solo contra lo… | derivada, pendiente de confirmación |
-| **D-44** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en el contraste por cláusula, una cláusula que trae una… | derivada, pendiente de confirmación |
-| **D-45** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): la reescritura escribe el requisito como lo afirmaría una… | derivada, pendiente de confirmación |
+| **D-43** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo las nueve definiciones derivadas D-33 a D-38 y… | derivada, confirmada |
+| **D-44** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo las nueve definiciones derivadas D-33 a D-38 y… | derivada, confirmada |
+| **D-45** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo las nueve definiciones derivadas D-33 a D-38 y… | derivada, confirmada |
 | **D-46** | 016 | REQ-008: «El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la… | decisión literal |
 | **D-47** | 016 | REQ-009: «Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada». Enmienda del 2026-10-03… | decisión literal |
 | **D-48** | 016 | REQ-018: «Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional… | decisión literal |
@@ -629,14 +629,21 @@ Qué significa cada prefijo:
 | **D-52** | 016 | REQ-074: «La Comisión sube el informe técnico aprobado del área (por procedimiento o por oferta). El sistema lo lee y propone, por oferta y renglón… | decisión literal |
 | **D-53** | 016 | REQ-077: «Sin Portal, el procedimiento se da de alta subiendo el pliego: el sistema lee el archivo y propone los datos del procedimiento (número… | decisión literal |
 | **D-54** | 016 | P3: «Si no hay fundamento recuperable, el resultado es "no determinado", nunca una afirmación.» «La decisión final es siempre de una persona y queda… | decisión literal |
-| **D-55** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en la transcripción por visión, las líneas de puntos o de… | derivada, pendiente de confirmación |
-| **D-56** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): el tipo de procedimiento que se propone es el del… | derivada, pendiente de confirmación |
-| **D-57** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en la ficha por renglón, «cotizado» dice lo que muestran… | derivada, pendiente de confirmación |
-| **D-58** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en el informe técnico, el dictamen es «no_trata» cuando lo… | derivada, pendiente de confirmación |
-| **D-59** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en la ficha, un pasaje responde al requisito solo si trae… | derivada, pendiente de confirmación |
-| **D-60** | 016 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): el nombre del oferente se toma solo de un tramo que empieza… | derivada, pendiente de confirmación |
+| **D-55** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo D-55: en la visión, las líneas de puntos o… | derivada, confirmada |
+| **D-56** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo D-56: el tipo de procedimiento propuesto es el… | derivada, confirmada |
+| **D-57** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo D-57: cotizado con cuatro valores: sí, sin… | derivada, confirmada |
+| **D-58** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo D-58: en el informe técnico, lo condicional, lo… | derivada, confirmada |
+| **D-59** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo D-59: la síntesis de la ficha se apoya en un… | derivada, confirmada |
+| **D-60** | 016 | Definición derivada (Coordinador, 2026-10-15), confirmada por el responsable el 2026-10-15: «Confirmo D-60: el nombre del oferente se toma solo de un… | derivada, confirmada |
+| **D-61** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): un documento que el pliego exige está en la oferta… | derivada, pendiente de confirmación |
+| **D-62** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): lo que afirma el texto de un modelo de declaración… | derivada, pendiente de confirmación |
+| **D-63** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): la excepción que dice cuándo algo no se exige no… | derivada, pendiente de confirmación |
+| **D-64** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): lo que el pliego le exige a quien no usa una… | derivada, pendiente de confirmación |
+| **D-65** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): la conversión a la moneda en que se cotiza la… | derivada, pendiente de confirmación |
+| **D-66** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): en un documento de identidad, una credencial o una… | derivada, pendiente de confirmación |
+| **D-67** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): la pregunta a la Comisión compara solo valores de… | derivada, pendiente de confirmación |
 
-## Hallazgos de verificación (124)
+## Hallazgos de verificación (132)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -754,6 +761,14 @@ Qué significa cada prefijo:
 | **H-282-1 a H-282-3** | 016 | H-282-1 (media, resuelto en 3179f0b4): seis reglas de contenido sin decisión literal pasan a derivadas D-55 a D-60 pendientes de… | T-282 (verificación, pasa con reparos) |
 | **H-282-2** | 016 | Las dos líneas de registro de la consulta se cubren una a la otra (baja) | T-282 |
 | **H-282-3** | 016 | La forma del registro no es la misma en los siete (baja) | T-282 |
+| **H-285-1** | 016 | (alta, P3/REQ-120) | T-285 |
+| **H-285-1 a H-285-7, O-285-7, O-285-8** | 016 | Corregidos: «no aplica» solo desde la opcion de la fila (H-285-1), causas reales de las citas no ubicadas y repetidas (H-285-2)… | T-285 (verificación: no pasa… |
+| **H-285-2** | 016 | (media) | T-285 |
+| **H-285-3** | 016 | (media, P3) | T-285 |
+| **H-285-4** | 016 | (baja) | T-285 |
+| **H-285-5** | 016 | Pregunta contradictoria cuando no hay texto señalado (baja) | T-285 |
+| **H-285-6** | 016 | Reglas nuevas sin decisión ni fila de derivada (baja) | T-285 |
+| **H-285-7** | 016 | Huecos de prueba (baja) | T-285 |
 | **H-289-1** | 016 | el anfitrión fijo no tiene prueba que lo defienda de verdad | T-289 |
 | **H-289-1, H-289-2, O-289-1 a O-289-6** | 016 | H-289-1 y 2 (huecos de pruebas del anfitrión fijo y de la clave) y O-289-1 a 3 (tapar la clave en errores, cancelar el lote ante… | T-289 (verificación: no pasa por… |
 | **H-289-2** | 016 | nada impide imprimir ni registrar la clave | T-289 |
@@ -765,7 +780,7 @@ Qué significa cada prefijo:
 | **H-290-5** | 016 | un error de precios aparece después de pagar | T-290 |
 | **H-290-6** | 016 | caracteres invisibles o guion bajo como separador entre palabras | T-290 |
 
-## Observaciones de verificación (192)
+## Observaciones de verificación (201)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -937,6 +952,15 @@ Qué significa cada prefijo:
 | **O-283-2** | 016 | O2 R29 (la explicación dice «exactamente» ante una diferencia de un centavo entre el Portal y lo exigido) y O3 R62 (cita que no… | T-283 |
 | **O-283-3** | 016 | Las formas que antes enseñaban los ejemplos (mantenimiento con prórroga, nota de la DJ de intereses, garantía en dos filas… | T-283 |
 | **O-283-4** | 016 | Sigue O-260-1 (la fila 17.3.1 con opcion = oferta_alternativa) y O-249-2 (líneas duplicadas en la unión de franjas de la visión) | T-283 |
+| **O-285-1** | 016 | La unión queda en 4.995 de 5.000 caracteres (47 de 50 líneas): cualquier palabra más al bloque rompe matriz-union-v2 | T-285 |
+| **O-285-2** | 016 | condicion_citada_por_su_dato relaja D-237-2: el dato de una condición «cumple» puede ser cualquier trozo de 2 o más palabras de… | T-285 |
+| **O-285-3** | 016 | T-284 no corrió (la verdad del caso de ajuste está bloqueada): T-285 solo corrige los hallazgos de T-283 | T-285 |
+| **O-285-4** | 016 | O1 R32 queda «no determinado» por el contraste (parcial), no por el Portal: T-286 no debe esperar que vuelva a «cumple» | T-285 |
+| **O-285-5** | 016 | Reglas redactadas en general pero cuyo alcance lo dicta un caso (no son calco): la excepción, la conversión de moneda, la regla… | T-285 |
+| **O-285-6** | 016 | La consulta v6 puede volver a contestar donde la v5 se abstenía; el efecto en la abstención (6/6 de las evals) y en los avisos de… | T-285 |
+| **O-285-7** | 016 | marked_rule reemplaza la pregunta y la explicación de una fila general que ya traía una pregunta propia (por ejemplo, la que… | T-285 |
+| **O-285-8** | 016 | En evaluon_clon_e las citas de las tres celdas que H-285-2 señalaba se comprobaron con el código nuevo (locate_text sobre el… | T-285 |
+| **O-285-9** | 016 | Huecos de prueba bajos: R5 (la lista de negaciones de contenido no tiene un caso mixto como «no consta, pero la oferta limita el… | T-285 |
 | **O-288-1** | 016 | pensamiento de la matriz | T-288 |
 | **O-288-1 a O-288-5** | 016 | O-288-1: pensamiento de la matriz adaptive, a confirmar con la medición. O-288-2: se aceptan tope negativo, NaN e intervalo 0… | T-288 (verificación, pasa) |
 | **O-288-2** | 016 | números sin cotas | T-288 |
