@@ -503,6 +503,8 @@ def _batch_state(body, what):
 def _check_payload(payload):
     if not isinstance(payload, ExternalPayload):
         raise TypeError("El cliente externo solo acepta un ExternalPayload (lo arma guard.py).")
+    if not payload.sealed:  # O-289-4 (T-290): cambiado después de la puerta
+        raise TypeError("El pedido cambió después de pasar por la puerta (guard.py): no sale.")
 
 
 def check_batch(payloads):
