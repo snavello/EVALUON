@@ -645,7 +645,7 @@ EXTERNAL_THINKING = {
 # `evaluon/tenders/prompts/<versión>.md` (T-291; plan 016, «Paso 3»). La de la matriz incluye el
 # mismo bloque de definiciones que la local (`MATRIX_PROMPT_VERSIONS["definiciones"]`).
 EXTERNAL_PROMPT_VERSIONS = {
-    "matriz": "matriz-externa-v1",
+    "matriz": "matriz-externa-v2",
     # T-299 (plan 016, «Paso 4»): el verificador de citas, en `evaluon/assessment/prompts/`.
     "verificador": "verificador-v1",
 }

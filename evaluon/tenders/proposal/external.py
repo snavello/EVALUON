@@ -3,7 +3,7 @@ pliego completo (T-291; REQ-122, REQ-123; plan 016, «Paso 3 · Matriz con model
 ADR-0065 a ADR-0068).
 
 **Qué se manda.** El pliego completo es el prefijo común (el sistema) de todos los pedidos de la
-propuesta: la instrucción `matriz-externa-v1` (con el bloque `matriz-definiciones-vN` de la matriz
+propuesta: la instrucción `matriz-externa-v2` (con el bloque `matriz-definiciones-vN` de la matriz
 local) y el texto canónico de todos los tramos de la lectura vigente, en el orden del documento,
 con los mismos `[T1]…[/T1]` del extractor local (`extraction.render_block`: documento, ruta,
 encabezado, renglones, clase de la sección y texto visible). Nunca el PDF. El prefijo lleva caché
@@ -21,7 +21,11 @@ reuso por huella), en el modo de `EXTERNAL_MODE` (`lotes`; `directo` solo para l
   qué oración obligatoria falta y, por fila, firme, sugerencia o descartada con su motivo.
 
 Esfuerzo y pensamiento, los de la etapa (`EXTERNAL_EFFORT`, `EXTERNAL_THINKING`); `max_tokens`
-`MAX_TOKENS`; salida con el esquema JSON del pedido. Los largos se validan acá, no en el esquema.
+`MAX_TOKENS`; salida con **un solo esquema JSON para todos los pedidos** (`output_schema`: las tres
+listas `tramos`, `faltantes` y `filas`; cada tipo de pedido llena las suyas y deja vacías las otras):
+el proveedor arma la caché con el prefijo completo, formato de salida incluido, y con un esquema por
+tipo la completitud reescribía el pliego entero en lugar de leerlo (T-294, D-293-4). Los largos se
+validan acá, no en el esquema.
 
 **Mismo contrato que lo local.** `Stage.extract` devuelve una `extraction.Extraction` (un
 `extraction.Outcome` por tramo); `Stage.complete_and_filter` devuelve una
@@ -35,6 +39,9 @@ Un fragmento que no se ubica se descarta con la anomalía `fragmento_externo_no_
 cuyas citas no se ubicó ninguna, sin marca técnica, queda sin disposición (pendiente de revisión).
 Un descarte sin motivo de la lista o sin indicio ubicado va a sugerencia (`descarte_sin_sustento`):
 una duda nunca es un descarte silencioso.
+Una fila firme cuya cita empieza con una oración sin sujeto propio (un pedazo: la etapa externa
+reemplaza la unión de oraciones) va a sugerencia con la anomalía `externo_fila_sin_sujeto` (T-294,
+D-293-2); la instrucción pide citarla junto con la oración que le da el sujeto.
 
 **Si falla.** Un bloqueo de la puerta, un error, un vencimiento, el tope, una etapa frenada o una
 salida que no es el JSON pedido lanzan `Unavailable` con sus anomalías: la propuesta sigue con la
@@ -57,9 +64,10 @@ from decimal import Decimal
 from django.conf import settings
 
 from evaluon.ai.external import client, guard, ledger
-from evaluon.tenders.models import DiscardReason, PassName, RunStep
+from evaluon.tenders.models import DiscardReason, PassName, RunStep, SegmentType
 from evaluon.tenders.proposal import completeness, dedup, extraction, quotes
 from evaluon.tenders.proposal import filter as row_filter
+from evaluon.tenders.proposal.sentences import piece_problem
 
 STAGE = "matriz"
 STAGE_EXTRACTION = "matriz_extraccion"
@@ -89,6 +97,7 @@ ANOMALY_EXTRA_SEGMENT = "externo_tramo_no_pedido"
 ANOMALY_REPEATED = "externo_respuesta_repetida"
 ANOMALY_OUT_OF_SCOPE = "externo_faltante_fuera_de_alcance"
 ANOMALY_NO_ROW_ANSWER = "externo_fila_sin_respuesta"
+ANOMALY_NO_SUBJECT = "externo_fila_sin_sujeto"
 
 _CLASS_LABELS = {"formal": "formal", "economico": "económico"}
 
@@ -136,8 +145,8 @@ def _enum(values):
     return {"type": "string", "enum": list(values)}
 
 
-def extraction_schema(numbers):
-    """Salida del pedido de extracción: un elemento de `tramos` por tramo pedido."""
+def _tramos_list(numbers):
+    """La lista `tramos` (pedido de extracción): un elemento por tramo pedido."""
     requirement = _object({"cita": {"type": "string"},
                            "clase": _enum(extraction.BODY_CLASSES),
                            "opcion": _enum(["", *extraction.OPTIONS])})
@@ -148,20 +157,36 @@ def extraction_schema(numbers):
                     "items": _enum([extraction.ALL_ITEMS, *[str(n) for n in numbers]])},
         "descarte": _enum(["", *DiscardReason.values]),
     })
-    return _object({"tramos": {"type": "array", "items": item}})
+    return {"type": "array", "items": item}
 
 
-def completion_schema():
-    """Salida del pedido de completitud y filtro: los faltantes y un elemento por fila."""
+def _faltantes_list():
+    """La lista `faltantes` (pedido de completitud y filtro): las oraciones que faltan."""
     missing = _object({"tramo": {"type": "string"}, "cita": {"type": "string"},
                        "clase": _enum(extraction.BODY_CLASSES),
                        "opcion": _enum(["", *extraction.OPTIONS]),
                        "destino": _enum(ADDED_DESTINATIONS)})
+    return {"type": "array", "items": missing}
+
+
+def _filas_list():
+    """La lista `filas` (pedido de completitud y filtro): un elemento por fila."""
     row = _object({"fila": {"type": "string"}, "destino": _enum(DESTINATIONS),
                    "motivo": _enum(["", *settings.FILTER_MOTIVES]),
                    "indicio": {"type": "string"}, "razonamiento": {"type": "string"}})
-    return _object({"faltantes": {"type": "array", "items": missing},
-                    "filas": {"type": "array", "items": row}})
+    return {"type": "array", "items": row}
+
+
+def output_schema(numbers):
+    """El esquema de salida de **todos** los pedidos de la propuesta (T-294, D-293-4): las tres
+    listas, `tramos`, `faltantes` y `filas`, todas requeridas. La extracción llena `tramos` y deja
+    las otras vacías; la completitud y el filtro llenan `faltantes` y `filas` y dejan `tramos`
+    vacía. Es un solo esquema porque el proveedor arma la caché con el prefijo completo (sistema y
+    `output_config.format`): con un esquema por tipo de pedido, la completitud reescribía el
+    pliego entero (T-293 midió 36 a 39 % del gasto de cada caso) en lugar de leer lo que dejó la
+    extracción. `numbers` son los renglones del pliego (los mismos en todos los pedidos)."""
+    return _object({"tramos": _tramos_list(numbers), "faltantes": _faltantes_list(),
+                    "filas": _filas_list()})
 
 
 # --- Reparto -------------------------------------------------------------------------------------
@@ -230,8 +255,12 @@ def resolve(unit, item, anomalies):
     return found
 
 
-def _load(text, keys):
-    """La respuesta como objeto JSON con exactamente `keys`, cada una una lista; si no, `None`."""
+LISTS = ("tramos", "faltantes", "filas")
+
+
+def _load(text, keys=LISTS):
+    """La respuesta como objeto JSON con exactamente `keys` (las tres listas del esquema único),
+    cada una una lista; si no, `None`."""
     try:
         data = json.loads(text)
     except ValueError:
@@ -278,6 +307,16 @@ def same_requirement(new, old):
 # --- El filtro ya respondido ---------------------------------------------------------------------
 
 
+def _has_no_subject(row):
+    """Si la cita de la fila es un pedazo sin sujeto (`sentences.piece_problem`): empieza con una
+    oración sin sujeto propio que tiene la anterior en el tramo. No se revisa el texto de una tabla
+    ni la cita amplia (como la medida de pedazos de la 015)."""
+    found, segment = row.found, row.segment
+    if segment.segment_type == SegmentType.TABLA or found.flag == quotes.WIDE:
+        return False
+    return piece_problem(segment.text, found.span[0], found.span[1]) == "sin_sujeto"
+
+
 class ExternalFilter:
     """El filtro con las respuestas del modelo externo: `filter_rows(rows)` devuelve un
     `filter.Result` como `filter.Filter`, con las mismas guardas de código (oración compartida con
@@ -294,6 +333,23 @@ class ExternalFilter:
                       "failed_requests": 0}
 
     def _verdict(self, row):
+        """El veredicto de la fila, con una guarda más que las del filtro local (T-294, D-293-2):
+        la etapa externa reemplaza la unión de oraciones, así que una fila firme cuya cita
+        empieza con una oración sin sujeto propio (que tiene la anterior en el tramo) es un
+        pedazo: va a revisión como sugerencia `duda` y queda la anomalía
+        `externo_fila_sin_sujeto`. La fila con el antecedente, la obligación completa, es la que
+        queda firme."""
+        verdict = self._decide(row)
+        if verdict.destination == FIRME and _has_no_subject(row):
+            verdict.destination = SUGERENCIA
+            verdict.doubt_reason = "duda"
+            verdict.anomaly = ANOMALY_NO_SUBJECT
+            self.anomalies.append({"type": ANOMALY_NO_SUBJECT, "segment": row.segment.pk,
+                                   "key": row.segment.key})
+            self.stats["no_subject"] = self.stats.get("no_subject", 0) + 1
+        return verdict
+
+    def _decide(self, row):
         answer = self.answers.get(id(row.found))
         verdict = row_filter.Verdict(row, FIRME, step_a=self.step, step_b=self.step)
         if answer is None:
@@ -467,7 +523,7 @@ class Stage:
         if not chunks:
             return extraction.Extraction(outcomes={}, steps=[], anomalies=[],
                                          stats=self._extraction_stats(0))
-        schema = extraction_schema(self.numbers)
+        schema = output_schema(self.numbers)
         admitted = []
         for number, chunk in enumerate(chunks, start=1):
             aliases = ", ".join(alias_of(unit) for unit in chunk)
@@ -484,7 +540,7 @@ class Stage:
         for item, chunk in zip(admitted, chunks):
             answer = sent.answers[item.custom_id]
             asked = {alias_of(unit): unit for unit in chunk}
-            data = _load(answer.text, ("tramos",))
+            data = _load(answer.text)
             if data is None:
                 raise Unavailable("salida_invalida", [{
                     "type": ANOMALY_INVALID, "etapa": STAGE_EXTRACTION,
@@ -592,12 +648,12 @@ class Stage:
         message.append(guard.instruction(
             'Devolvé el objeto JSON con "faltantes" y un elemento de "filas" por cada fila.'))
         admitted = [self._build(STAGE_COMPLETION, f"matriz-{self.run.pk}-cf", message,
-                                completion_schema())]
+                                output_schema(self.numbers))]
         started = time.monotonic()
         sent = self._send(admitted, last=True)
         seconds = time.monotonic() - started
         answer = sent.answers[admitted[0].custom_id]
-        data = _load(answer.text, ("faltantes", "filas"))
+        data = _load(answer.text)
         if data is None:
             raise Unavailable("salida_invalida", [{
                 "type": ANOMALY_INVALID, "etapa": STAGE_COMPLETION,
