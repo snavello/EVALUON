@@ -75,7 +75,7 @@ flowchart LR
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 42/46 | █████████░ 91% |
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
-| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 14/38 | ████░░░░░░ 37% |
+| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 15/38 | ████░░░░░░ 39% |
 
 <a id="001"></a>
 
@@ -1523,9 +1523,8 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 24 tareas sin terminar.
+- **Próximo paso:** Desarrollar: 23 tareas sin terminar.
 - ▶ T-286 · Re-medición del paso 2, ronda 2: solo lo que cambió T-285 (más el caso-00 completo, para el tiempo y la comparación con T-307); es la referencia local simplificada de los pasos 3 y 4. Mismos umbrales que T-283 y T-284 (en curso)
-- ◐ T-299 · Verificador externo de citas: `verifier.py`, `verificador-v1`, enchufe en `evaluate_offer` después del contraste y de las reglas y antes de la pregunta, solo sobre «cumple» o «no cumple» con cita, nunca de «no determinado» a «cumple», clave `externo` y `facts["verificador"]`, y la pasada sobre una evaluación guardada para medir; probado con el doble y el caso chico (en verificación)
 - ◐ T-300 · Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave `externo` de la corrida (o «Ninguna: todo corrió en el equipo»). Umbral 20 (parte): la pantalla y la exportación la muestran (en verificación)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
 - ○ T-273 · Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada (pendiente)
@@ -1566,6 +1565,7 @@ flowchart LR
 - ✓ T-289 · Cliente de la API externa, su doble y la salida a internet: `evaluon/ai/external/client.py` (mensajes directos y lotes, host fijo, `ExternalDisabled`), `ExternalPayload`, `FakeExternal` y el fixture que impide toda llamada real, `docker-compose.externo.yml`, `test_no_outbound` y `test_network` ajustados
 - ✓ T-290 · Puerta de filtrado, libro de gasto y registro: `guard.py` (lista permitida, exclusiones, huellas), `ledger.py` (hecho por pedido, tope por caso y por mes, reuso por huella, freno al doble) y `gasto_externo` con `--verificar-filtro`; hoja de compliance inventada para las pruebas. Umbral 19 y 21 con el doble: 0 pedidos con texto de la hoja; el lote que pasa el tope no sale
 - ✓ T-291 · Matriz con modelo externo: `matriz-externa-v1`, `proposal/external.py` con el contrato de la etapa local, enchufe en `run.py` con vuelta a lo local si falla, clave `externo` en el registro de la propuesta y `medir_matriz --externo matriz`; probada con el doble y el caso chico
+- ✓ T-299 · Verificador externo de citas: `verifier.py`, `verificador-v1`, enchufe en `evaluate_offer` después del contraste y de las reglas y antes de la pregunta, solo sobre «cumple» o «no cumple» con cita, nunca de «no determinado» a «cumple», clave `externo` y `facts["verificador"]`, y la pasada sobre una evaluación guardada para medir; probado con el doble y el caso chico
 
 ### Mapa de tareas
 
@@ -1600,7 +1600,7 @@ flowchart TD
   T296["○ T-296 · Medición final del paso 3 (aceptación, una…"]:::todo
   T297["○ T-297 · Segunda comparación con claude-opus-5-5, so…"]:::todo
   T298["○ T-298 · Cierre del paso 3: ADR-0072 (matriz: local…"]:::todo
-  T299["◐ T-299 · Verificador externo de citas: verifier.py,…"]:::review
+  T299["✓ T-299 · Verificador externo de citas: verifier.py,…"]:::done
   T300["◐ T-300 · Línea «Etapas fuera del equipo» en la panta…"]:::review
   T301["○ T-301 · Medición del paso 4, ronda 1 (ajuste, sin G…"]:::todo
   T302["○ T-302 · Ajuste único del verificador (verificador-v…"]:::todo
