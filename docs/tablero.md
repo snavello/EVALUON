@@ -1524,6 +1524,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 24 tareas sin terminar.
+- ▶ T-286 · Re-medición del paso 2, ronda 2: solo lo que cambió T-285 (más el caso-00 completo, para el tiempo y la comparación con T-307); es la referencia local simplificada de los pasos 3 y 4. Mismos umbrales que T-283 y T-284 (en curso)
 - ◐ T-299 · Verificador externo de citas: `verifier.py`, `verificador-v1`, enchufe en `evaluate_offer` después del contraste y de las reglas y antes de la pregunta, solo sobre «cumple» o «no cumple» con cita, nunca de «no determinado» a «cumple», clave `externo` y `facts["verificador"]`, y la pasada sobre una evaluación guardada para medir; probado con el doble y el caso chico (en verificación)
 - ◐ T-300 · Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave `externo` de la corrida (o «Ninguna: todo corrió en el equipo»). Umbral 20 (parte): la pantalla y la exportación la muestran (en verificación)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
@@ -1532,7 +1533,6 @@ flowchart LR
 - ○ T-275 · Verdad celda por celda del segundo caso de aceptación, con el mismo método y el mismo umbral (pendiente)
 - ○ T-276 · Cierre del paso 1: documento de revisión por caso, revisión y firma celda por celda del responsable (quién y cuándo en cada celda), congelado de los casos de aceptación y verificación de REQ-118. Umbral 1 a 4: al menos 3 casos (2 de aceptación), 40 celdas decididas por caso y 150 en total, 100 % con quién y cuándo, 0 corridas de evaluación en aceptación (pendiente)
 - ○ T-284 · Medición del paso 2, ronda 1 (evaluación con verdad): evaluación del caso de ajuste con verdad con el commit de arranque (B0) y con el candidato, celda por celda. Umbrales 7, 9 y 10: 0 «cumple» sin fundamento, 0 contradicciones, tres salidas, exactitud por celda sin llegar a 6 filas en contra con 0 a favor ni a 8 contra 1 (pendiente)
-- ○ T-286 · Re-medición del paso 2, ronda 2: solo lo que cambió T-285 (más el caso-00 completo, para el tiempo y la comparación con T-307); es la referencia local simplificada de los pasos 3 y 4. Mismos umbrales que T-283 y T-284 (pendiente)
 - ○ T-287 · Cierre de los pasos 1 y 2: ADR-0071 (resultado: instrucciones y reglas simples que quedan locales) con las cifras como evidencia, registro del paso y pull request `016-integracion` → `main` (pendiente)
 - ○ T-292 · Prueba de humo con el proveedor real (caso chico): matriz externa en modo directo con la hoja de compliance inventada cargada; registro completo, `gasto_externo --verificar-filtro` en 0 y gasto ≤ 0,10 USD (pendiente)
 - ○ T-293 · Medición del paso 3, ronda 1 (ajuste): propuesta externa de 00, 01, 02 y 06 contra la local simplificada de T-286. Umbral 16 (puerta): lista presente y firmes con pareja no peores en cada caso y 0 pedazos; gasto ≈ 1,20 USD (pendiente)
@@ -1587,7 +1587,7 @@ flowchart TD
   T283["✓ T-283 · Medición del paso 2, ronda 1 (matrices y ca…"]:::done
   T284["○ T-284 · Medición del paso 2, ronda 1 (evaluación co…"]:::todo
   T285["✓ T-285 · Ajuste único del paso 2: todos los hallazgo…"]:::done
-  T286["○ T-286 · Re-medición del paso 2, ronda 2: solo lo qu…"]:::todo
+  T286["▶ T-286 · Re-medición del paso 2, ronda 2: solo lo qu…"]:::active
   T287["○ T-287 · Cierre de los pasos 1 y 2: ADR-0071 (result…"]:::todo
   T288["✓ T-288 · Esquema y configuración del uso externo: ti…"]:::done
   T289["✓ T-289 · Cliente de la API externa, su doble y la sa…"]:::done
