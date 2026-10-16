@@ -159,7 +159,7 @@ def test_one_report_per_offer_gets_a_proposal_with_the_literal_quote(
     built = AuditEvent.objects.get(event_type=EventType.EVAL_BUILD, detail__kind="technical_proposal",
                                    detail__offer=a.pk)
     assert built.outcome == EventOutcome.OK and built.detail["document"] == document.pk
-    assert built.detail["models"]["prompt"] == "informe-tecnico-v2"
+    assert built.detail["models"]["prompt"] == "informe-tecnico-v3"
     assert built.detail["models"]["instruccion"] == report.prompt_record()
     assert built.detail["models"]["instruccion"]["sha256"] == prompting.prompt_hash(
         report.load_prompt())
@@ -496,10 +496,9 @@ def test_the_instruction_v2_has_three_kinds_of_example_and_asks_for_the_quote_fi
     """REQ-106 (T-248, hallazgo de gravedad media): la v2 trae ejemplos de apto con cita, no apto
     y no trata (con la misma cantidad de los dos primeros), pide la cita antes que el dictamen y
     permite copiar la frase condicional con «no_trata»; la v1 no cambió."""
-    text = report.load_prompt()
+    text = prompting.PROMPTS_DIR.joinpath("informe-tecnico-v2.md").read_text(encoding="utf-8")
     old = prompting.PROMPTS_DIR.joinpath("informe-tecnico-v1.md").read_text(encoding="utf-8")
 
-    assert report.PROMPT_VERSION == "informe-tecnico-v2"
     assert "EJEMPLOS" in text and "EJEMPLOS" not in old
     assert text.count('"dictamen": "apto"') == 2 and text.count('"dictamen": "no_apto"') == 2
     assert text.count('"dictamen": "no_trata"') >= 2
@@ -511,8 +510,9 @@ def test_the_instruction_v2_has_three_kinds_of_example_and_asks_for_the_quote_fi
 
 def test_the_examples_of_the_instruction_are_valid_outputs_of_its_own_schema():
     """REQ-106 (T-248): cada salida de ejemplo de la instrucción tiene la forma de su esquema y
-    se interpreta con `_parse`, sin renglones de más."""
-    text = report.load_prompt()
+    se interpreta con `_parse`, sin renglones de más. Son los de la v2, publicada (la v3 no trae
+    ejemplos, T-282)."""
+    text = prompting.PROMPTS_DIR.joinpath("informe-tecnico-v2.md").read_text(encoding="utf-8")
     outputs = [json.loads(m) for m in re.findall(r'^(\{"renglones".*\})$', text, re.MULTILINE)]
 
     assert len(outputs) == 3
@@ -523,3 +523,27 @@ def test_the_examples_of_the_instruction_are_valid_outputs_of_its_own_schema():
             assert list(entry) == list(entry_schema["properties"])
             assert entry["dictamen"] in entry_schema["properties"]["dictamen"]["enum"]
         assert set(report._parse(json.dumps(output), items)) == items
+
+
+def test_the_instruction_v3_is_short_without_examples_and_its_skeleton_follows_the_schema():
+    """REQ-119 (T-282; ADR-0070, punto 2): la versión vigente es la v3, sin ejemplos; conserva que
+    el juicio técnico es del área (REQ-074), el «no_trata» para lo condicional y para otro oferente,
+    y la página que no se pudo leer; su esqueleto trae los campos en el orden del esquema. La v2
+    sigue publicada."""
+    import re
+
+    text = report.load_prompt()
+
+    assert report.PROMPT_VERSION == "informe-tecnico-v3"
+    assert text == prompting.PROMPTS_DIR.joinpath("informe-tecnico-v3.md").read_text(encoding="utf-8")
+    assert not re.search(r"(?im)^[\s#>*\-\d.)]*ejemplos?\b", text)
+    for phrase in ("El juicio técnico es del área", '"no_trata" en cualquier otro caso',
+                   'Un dictamen condicional o contradictorio es "no_trata"',
+                   "salvo que diga expresamente que rige para todas las ofertas",
+                   '"no se pudo leer" no se interpreta', "copiada letra por letra"):
+        assert phrase in text, phrase
+    [skeleton] = [line for line in text.splitlines() if line.startswith("{")]
+    item = report._schema({1})["properties"]["renglones"]["items"]["properties"]
+    assert [key for key in item if f'"{key}"' in skeleton] == list(item)
+    assert [skeleton.index(f'"{key}"') for key in item] == sorted(
+        skeleton.index(f'"{key}"') for key in item)

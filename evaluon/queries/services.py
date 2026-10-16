@@ -553,6 +553,8 @@ def _prepare(question, reference_date, regime, record, clock):
                          + generation.count_tokens(
                              answering.request_head(question, reference_date)))
         record["prompt_version"] = answering.PROMPT_VERSION_WITH_DATE
+        # Nombre, versión y huella de la instrucción, junto a su versión (P6; T-282).
+        search["instruccion"] = answering.prompt_record(answering.PROMPT_VERSION_WITH_DATE)
         selection = retrieval.select_units(found, prompt_tokens)
         search.update(selection.parameters)
         record["anomalies"].extend(selection.anomalies)
@@ -682,6 +684,7 @@ def _generate(question, reference_date, ready, record, clock):
         request=generated.request,
         raw_output=generated.raw_output,
     )
+    record["parameters"]["instruccion"] = answering.prompt_record(generated.prompt_version)
     record["anomalies"].extend(generated.anomalies)
     if generated.error is not None:
         record["anomalies"].append({"type": SERVICE_ERROR,

@@ -66,6 +66,16 @@ SIMPLIFIED = {
     "contraste-v5": {"path": "evaluon/assessment/prompts/contraste-v5.md"},
     "clausulas-v6": {"path": "evaluon/assessment/prompts/clausulas-v6.md"},
     "reescritura-v3": {"path": "evaluon/offers/prompts/reescritura-v3.md"},
+    # T-282: las auxiliares (visión, ficha, ficha por renglón, informe técnico, nombre del oferente,
+    # datos del procedimiento y consulta). Desde acá toda instrucción vigente está en la tabla
+    # (`test_instrucciones_revisadas.test_every_current_instruction_is_simplified`).
+    "vision-v5": {"path": "evaluon/assessment/prompts/vision-v5.md"},
+    "ficha-v4": {"path": "evaluon/offers/prompts/ficha-v4.md"},
+    "ficha-renglon-v6": {"path": "evaluon/offers/prompts/ficha-renglon-v6.md"},
+    "informe-tecnico-v3": {"path": "evaluon/assessment/prompts/informe-tecnico-v3.md"},
+    "oferente-nombre-v3": {"path": "evaluon/offers/prompts/oferente-nombre-v3.md"},
+    "procedimiento-datos-v3": {"path": "evaluon/tenders/prompts/procedimiento-datos-v3.md"},
+    "consulta-v5": {"path": "evaluon/queries/prompts/consulta-v5.txt"},
 }
 
 # Los esquemas de salida de las instrucciones simplificadas: `{nombre: "módulo:atributo"}`; el
@@ -77,6 +87,14 @@ SIMPLIFIED_SCHEMAS = {
     "contraste-v5": "evaluon.assessment.prompting:CONTRAST_SCHEMA",
     "clausulas-v6": "evaluon.assessment.prompting:CLAUSES_SCHEMA",
     "reescritura-v3": "evaluon.offers.services.sheets:REWRITE_SCHEMA",
+    # T-282: los de la ficha (fila común y renglón), el informe técnico, el nombre del oferente, los
+    # datos del procedimiento y la consulta. La visión no tiene esquema: su salida es texto plano.
+    "ficha-v4": "tests.test_instrucciones_largo:sheet_schema",
+    "ficha-renglon-v6": "tests.test_instrucciones_largo:item_sheet_schema",
+    "informe-tecnico-v3": "tests.test_instrucciones_largo:technical_report_schema",
+    "oferente-nombre-v3": "evaluon.offers.proposal_fields:MODEL_SCHEMA",
+    "procedimiento-datos-v3": "evaluon.tenders.proposal.procedure_fields:MODEL_SCHEMA",
+    "consulta-v5": "tests.test_instrucciones_largo:query_schema",
 }
 
 
@@ -86,6 +104,34 @@ def evaluation_output_schema():
     from evaluon.assessment import prompting
 
     return prompting.evaluation_schema(["D1"], ["N1"], ["P1"])
+
+
+def sheet_schema():
+    """El esquema de un pedido de la ficha para una fila común, con un pasaje (`sheets.build_schema`)."""
+    from evaluon.offers.services import sheets
+
+    return sheets.build_schema(["P1"], False)
+
+
+def item_sheet_schema():
+    """El de una fila por renglón, con la cotización."""
+    from evaluon.offers.services import sheets
+
+    return sheets.build_schema(["P1"], True)
+
+
+def technical_report_schema():
+    """El del informe técnico, con un renglón (`technical_report._schema`)."""
+    from evaluon.assessment.services import technical_report
+
+    return technical_report._schema({1})
+
+
+def query_schema():
+    """El de la consulta con fecha, con una unidad (`answering.build_schema`)."""
+    from evaluon.queries import answering
+
+    return answering.build_schema(["U1"], version=answering.PROMPT_VERSION_WITH_DATE)
 
 # Instrucciones decisoras: por prefijo del nombre de versión (plan 016, «Largo máximo»).
 DECISIVE_PREFIXES = ("matriz-extraccion-", "matriz-filtro-", "evaluacion-", "matriz-externa-")
@@ -424,3 +470,61 @@ def test_the_reasoning_check_fails_when_the_schema_or_the_instruction_changes(mo
     assert reasoning_problem("prueba", None, 700)
     assert said_reasoning_limit('- "razonamiento": una oración, de hasta 400 caracteres, que dice') == 400
     assert reasoning_problem("prueba", 600, 700) == "" and reasoning_problem("prueba", 400, 400) == ""
+
+
+# --- T-282 (H-281-3): los topes del razonamiento, fijos en una tabla de control ---------------------
+
+# `{instrucción: (lo que dice la instrucción, lo que corta el esquema)}`. El margen de 0 a 100 de
+# `reasoning_problem` deja pasar una deriva dentro del margen (bajar el esquema de la evaluación de 700
+# a 600, o que la instrucción diga 700): esta tabla la ata a los valores de hoy. Cambiar un tope pide
+# cambiar esta tabla en el mismo commit, a la vista.
+REASONING_LIMITS = {
+    "evaluacion": (600, 700),
+    "contraste": (400, 500),
+    "clausulas": (400, 500),
+    "filtro_a": (400, 400),
+    "filtro_b": (400, 400),
+}
+
+
+def reasoning_limit_changes(limits, expected=None):
+    """Las instrucciones cuyo tope dicho o del esquema no es el de la tabla de control: lista de
+    textos, vacía si todos coinciden (y si están todas las de la tabla, y solo ellas)."""
+    expected = REASONING_LIMITS if expected is None else expected
+    found = {name: (said_reasoning_limit(text), limit) for name, (text, limit) in limits.items()}
+    problems = [f"{name}: dice {said} y el esquema corta en {limit}; la tabla dice "
+                f"{expected[name][0]} y {expected[name][1]}"
+                for name, (said, limit) in found.items()
+                if name in expected and (said, limit) != expected[name]]
+    problems += [f"{name}: no está en la tabla de control" for name in found if name not in expected]
+    problems += [f"{name}: ya no se comprueba" for name in expected if name not in found]
+    return problems
+
+
+def test_the_reasoning_limits_are_the_ones_of_the_control_table():
+    """REQ-119, ADR-0055 regla 2 (H-281-3 de la verificación de T-281): el tope que dice cada
+    instrucción y el del esquema son exactamente los de `REASONING_LIMITS`, sin el margen de 100."""
+    assert reasoning_limit_changes(_current_reasoning_limits()) == []
+
+
+def test_the_control_table_catches_a_drift_inside_the_margin(monkeypatch):
+    """REQ-119 (H-281-3; alteraciones d3, d8 y d12 de la verificación de T-281): bajar el esquema de
+    la evaluación de 700 a 600, o que la instrucción de la evaluación diga 700 o la de las cláusulas
+    500, pasa el margen de 100 pero no la tabla de control."""
+    from evaluon.assessment import prompting
+
+    monkeypatch.setattr(prompting, "REASONING_MAX_CHARS", 600)
+    limits = _current_reasoning_limits()
+    assert limits["evaluacion"][1] == 600
+    assert reasoning_problem("evaluacion", said_reasoning_limit(limits["evaluacion"][0]), 600) == ""
+    assert any(p.startswith("evaluacion:") for p in reasoning_limit_changes(limits))
+
+    monkeypatch.undo()
+    limits = _current_reasoning_limits()
+    for name, said in (("evaluacion", 700), ("clausulas", 500)):
+        text, limit = limits[name]
+        altered = dict(limits)
+        altered[name] = (re.sub(r'(?<="razonamiento")([^\n]*?de hasta )\d+', rf"\g<1>{said}", text,
+                                count=1), limit)
+        assert reasoning_problem(name, said, limit) == ""
+        assert [p for p in reasoning_limit_changes(altered) if p.startswith(f"{name}:")]

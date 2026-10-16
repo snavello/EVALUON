@@ -51,7 +51,8 @@ from evaluon.tenders.models import Procedure
 UPLOAD_OPERATION = "evaluon.assessment.services.technical_report.upload_report"
 PROPOSE_OPERATION = "evaluon.assessment.services.technical_report.request_proposal"
 
-PROMPT_VERSION = "informe-tecnico-v2"
+# T-282 (spec 016, REQ-119; ADR-0070): versión corta, sin ejemplos; la v2 sigue publicada.
+PROMPT_VERSION = "informe-tecnico-v3"
 SCHEMA_NAME = "informe_tecnico"
 
 APTO = "apto"

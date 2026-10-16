@@ -31,7 +31,8 @@ from evaluon.ai import AIServiceError, generation
 from evaluon.norms.reading import FORMAT_PDF, detect_format, read_document
 
 RULES_VERSION = "procedimiento-reglas-v1"
-PROMPT_VERSION = "procedimiento-datos-v2"
+# T-282 (spec 016, REQ-119; ADR-0070): versión corta, sin ejemplos; la v1 y la v2 siguen publicadas.
+PROMPT_VERSION = "procedimiento-datos-v3"
 
 # Páginas del comienzo donde se buscan los datos de la carátula.
 FRONT_PAGES = 3

@@ -216,7 +216,7 @@ def test_the_image_document_page_is_replaced_by_the_transcription_of_the_photo(
 def test_the_request_carries_the_page_image_and_the_registered_instructions(
         new_offer, operator_user, model):
     """REQ-052: una página por pedido, con la imagen dibujada de la página y las instrucciones
-    `vision-v4`, al motor de lotes, en texto plano."""
+    vigentes (`vision-v5` desde T-282), al motor de lotes, en texto plano."""
     from django.conf import settings
 
     make_read_document(new_offer, operator_user, "dos.pdf", [("ilegible", ""), ("dudosa", "x y")])
@@ -257,7 +257,7 @@ def test_the_report_records_what_P6_asks_for(new_offer, operator_user, model):
     assert report["parameters"]["end_marker"] == "<<FIN>>"
     assert report["parameters"]["image_tokens"] == settings.ASSESSMENT_VISION_IMAGE_TOKENS
     assert report["parameters"]["temperature"] == 0 and report["parameters"]["seed"] == 42
-    assert report["prompt_version"] == "vision-v4"
+    assert report["prompt_version"] == "vision-v5"
     assert report["instruccion"] == vision.prompt_record()
     assert report["instruccion"]["sha256"] == extraction.text_sha256(vision.load_prompt())
     entry = report["pages"][0]
@@ -593,3 +593,47 @@ def test_the_repeat_penalty_is_not_changed_without_the_measurement():
 
     assert settings.ASSESSMENT_VISION_REPEAT_PENALTY == 1.15
     assert vision._parameters()["repeat_penalty"] == settings.ASSESSMENT_VISION_REPEAT_PENALTY
+
+
+def test_every_page_records_the_name_version_and_sha256_of_its_instruction(
+        new_offer, operator_user, model):
+    """REQ-119, P6 (T-282; ADR-0055, regla 8): cada página leída por visión (cada pedido) guarda
+    el nombre, la versión y la huella de la instrucción con que se pidió, y el hecho `offer_read`
+    también. Así, una lectura que trae páginas de lecturas anteriores, pedidas con otra versión,
+    no las atribuye a la vigente."""
+    document = make_read_document(new_offer, operator_user, "p6-pedido.pdf",
+                                  [("ilegible", ""), ("dudosa", "x y")])
+    model.sees(lambda seen: SEEN_TEXT)
+
+    vision.read_offer(new_offer, user=operator_user, channel=Channel.COMMAND)
+
+    record = vision.prompt_record()
+    assert record == {"nombre": "vision", "version": "vision-v5",
+                      "sha256": extraction.text_sha256(
+                          vision.PROMPTS_DIR.joinpath("vision-v5.md").read_text(encoding="utf-8"))}
+    pages = latest(document).report["vision"]["pages"]
+    assert len(pages) == 2 and all(page["instruccion"] == record for page in pages)
+    event = AuditEvent.objects.get(event_type=EventType.OFFER_READ, detail__action="vision")
+    assert [page["instruccion"] for page in event.detail["vision"]["pages"]] == [record, record]
+
+
+def test_the_vision_instruction_v5_is_short_without_examples_and_keeps_the_adr_0041_rules():
+    """REQ-119 (T-282; ADR-0070, punto 2; ADR-0041, decisión 3): la v5 no trae ejemplos y conserva
+    transcribir literalmente, sin corregir ni completar, `[ilegible]` en lugar de adivinar, las
+    tablas fila por fila, sin comentarios, copiar cada línea tantas veces como aparece y el marcador
+    de fin que el código exige. La v4 no cambió."""
+    import re
+
+    from django.conf import settings
+
+    text = vision.load_prompt()
+
+    assert settings.ASSESSMENT_VISION_PROMPT_VERSION == "vision-v5"
+    assert not re.search(r"(?im)^[\s#>*\-\d.)]*ejemplos?\b", text)
+    for phrase in ("Transcribís", "sin corregir ni completar", "[ilegible]", "no adivines",
+                   "fila por fila", "No agregues títulos, comentarios ni formato",
+                   "tantas veces como aparece", "no se escribe",
+                   settings.ASSESSMENT_VISION_END_MARKER):
+        assert phrase in text, phrase
+    assert "A-10 | Tornillo hexagonal" in vision.PROMPTS_DIR.joinpath("vision-v4.md").read_text(
+        encoding="utf-8")

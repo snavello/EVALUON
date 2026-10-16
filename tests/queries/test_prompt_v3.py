@@ -64,25 +64,25 @@ def ask(user):
 
 
 def test_v4_is_the_active_version_with_date():
-    """REQ-008, REQ-009: con fecha, la versión activa de las instrucciones es `consulta-v4`
-    (T-248, sobre la v3); el camino sin fecha sigue con `consulta-v1`."""
-    assert answering.PROMPT_VERSION_WITH_DATE == "consulta-v4"
+    """REQ-008, REQ-009: con fecha, la versión activa de las instrucciones es `consulta-v5`
+    (T-282, sobre la v4 de T-248); el camino sin fecha sigue con `consulta-v1`."""
+    assert answering.PROMPT_VERSION_WITH_DATE == "consulta-v5"
     assert answering.PROMPT_VERSION_WITHOUT_DATE == "consulta-v1"
-    assert answering.load_instructions() == answering.load_instructions("consulta-v4")
+    assert answering.load_instructions() == answering.load_instructions("consulta-v5")
 
 
 def test_request_carries_v4_as_system_message_and_query_records_it(read_user, remission,
                                                                     scored):
-    """REQ-008, REQ-009, REQ-012: con fecha, el pedido al modelo lleva la v4 como mensaje
-    de sistema y la consulta registra `prompt_version` "consulta-v4"."""
+    """REQ-008, REQ-009, REQ-012: con fecha, el pedido al modelo lleva la versión activa como mensaje
+    de sistema y la consulta registra `prompt_version` "consulta-v5"."""
     query = ask(read_user)
 
     [(messages, _)] = scored.generation.calls
     assert messages[0] == {"role": "system",
-                           "content": answering.load_instructions("consulta-v4")}
-    assert query.prompt_version == "consulta-v4"
+                           "content": answering.load_instructions("consulta-v5")}
+    assert query.prompt_version == "consulta-v5"
     assert query.request["messages"][0]["content"] == \
-        answering.load_instructions("consulta-v4")
+        answering.load_instructions("consulta-v5")
 
 
 def test_v3_has_the_remission_rule_and_the_rewritten_abstention_rule():
@@ -178,7 +178,7 @@ def test_undetermined_from_the_model_is_still_model_abstained(read_user, remissi
 
     query = ask(read_user)
 
-    assert query.prompt_version == "consulta-v4"
+    assert query.prompt_version == "consulta-v5"
     assert query.result["status"] == "undetermined"
     assert query.result["reason"] == "model_abstained"
     assert query.result["statements"] == []

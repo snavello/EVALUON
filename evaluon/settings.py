@@ -479,8 +479,10 @@ OFFERS_REQUEST_TIMEOUT_SECONDS = GENERATION_BATCH_TIMEOUT_SECONDS
 OFFERS_QUERY_MAX_CHARS = 800
 # Versión de cada instrucción: archivo `evaluon/offers/prompts/<versión>.md`.
 OFFERS_PROMPT_VERSIONS = {
-    "ficha": "ficha-v3",
-    "ficha_renglon": "ficha-renglon-v5",
+    # T-282 (spec 016, REQ-119; ADR-0070): la ficha y la ficha por renglón cortas, sin ejemplos
+    # (tabla en specs/016-calidad-medible/revision-instrucciones.md).
+    "ficha": "ficha-v4",
+    "ficha_renglon": "ficha-renglon-v6",
     # Reescritura del requisito como lo diría una oferta, para buscar (T-146). T-281 (spec 016,
     # REQ-119; ADR-0070): versión corta, sin ejemplos.
     "reescritura": "reescritura-v3",
@@ -544,7 +546,8 @@ ASSESSMENT_VISION_MAX_SIDE = 1800
 ASSESSMENT_VISION_IMAGE_TOKENS = 280
 ASSESSMENT_VISION_MAX_OUTPUT_TOKENS = 3000
 ASSESSMENT_VISION_MAX_ILLEGIBLE_SHARE = 0.30
-ASSESSMENT_VISION_PROMPT_VERSION = "vision-v4"
+# T-282 (spec 016, REQ-119; ADR-0070): `vision-v5`, corta y sin ejemplos.
+ASSESSMENT_VISION_PROMPT_VERSION = "vision-v5"
 # T-259 (REQ-104), decisión del Coordinador del 2026-10-12: la visión por pasaje queda APAGADA
 # por omisión. Con un valor mayor que 0, una página legible que tiene un pasaje reconocido con
 # confianza mínima menor que ese valor va a visión (`offers/vision.py`, motivo

@@ -758,9 +758,8 @@ def test_the_procedure_data_instruction_is_a_versioned_file_with_balanced_exampl
     from pathlib import Path
 
     folder = Path(rules.PROMPTS_DIR)
-    text = (folder / f"{rules.PROMPT_VERSION}.md").read_text(encoding="utf-8")
+    text = (folder / "procedimiento-datos-v2.md").read_text(encoding="utf-8")
 
-    assert rules.PROMPT_VERSION == "procedimiento-datos-v2" and rules.MODEL_INSTRUCTIONS == text
     assert (folder / "procedimiento-datos-v1.md").is_file()
     answers = [json.loads(line) for line in text.splitlines()
                if line.startswith('{"procedure_type"')]
@@ -809,7 +808,26 @@ def test_the_trace_records_the_version_and_the_sha256_of_the_instruction(
                                       detail__action="propose").get()
     trace = event.detail["model"][0]
 
-    assert trace["prompt_version"] == "procedimiento-datos-v2"
+    assert trace["prompt_version"] == "procedimiento-datos-v3"
     assert trace["instructions_sha256"] == extraction.text_sha256(rules.MODEL_INSTRUCTIONS)
     (messages, _), = fake_generation.calls
     assert messages[0]["content"] == rules.MODEL_INSTRUCTIONS
+
+
+def test_the_procedure_data_instruction_v3_is_short_and_without_examples():
+    """REQ-119 (T-282; ADR-0070, punto 2): la versión vigente es la v3, sin ejemplos: pide la cita
+    literal y el valor que ella sostiene, el tipo del procedimiento de este pliego y ningún valor sin
+    cita (REQ-077, P3); su esqueleto trae los dos datos con la cita antes que el valor, como el
+    esquema. La v1 y la v2 siguen publicadas."""
+    import re
+
+    text = (rules.PROMPTS_DIR / "procedimiento-datos-v3.md").read_text(encoding="utf-8")
+
+    assert rules.PROMPT_VERSION == "procedimiento-datos-v3" and rules.MODEL_INSTRUCTIONS == text
+    assert not re.search(r"(?im)^[\s#>*\-\d.)]*ejemplos?\b", text)
+    assert "copiado letra por letra" in text and "Un valor sin cita no sirve" in text
+    assert "El tipo es el del procedimiento de este pliego" in text
+    [skeleton] = [line for line in text.splitlines() if line.startswith("{")]
+    parsed = json.loads(skeleton)
+    assert list(parsed) == list(rules.MODEL_SCHEMA["properties"])
+    assert all(list(parsed[key]) == ["cita", "valor"] for key in parsed)
