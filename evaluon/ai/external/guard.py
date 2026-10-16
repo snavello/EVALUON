@@ -28,7 +28,8 @@ Reglas (ADR-0067), todas en `build`; si alguna falla, el pedido entero no sale:
    dependen de consultas externas (por el catálogo de `assessment/externals.py`, por la marca del
    modelo que trae la celda o por una marca ya guardada en un resultado del par), y toda celda cuyo
    grupo de lectura o cuya cita salga de un documento `compliance`.
-3. **Huellas**: el texto armado (sistema y mensajes) se compara con los párrafos de todos los
+3. **Huellas**: el pedido armado entero (sistema, salto de línea y mensajes en orden: H-290-1) se
+   compara con los párrafos de todos los
    documentos `compliance` del procedimiento, en secuencias de 8 palabras normalizadas (sin tildes
    ni mayúsculas). Una coincidencia bloquea el pedido entero. Una hoja sin lectura no se puede
    comparar: bloquea también (falla cerrada).
@@ -380,11 +381,9 @@ class _Check:
         elif procedure_id != self.procedure_id:
             self.fail(R_REQUIREMENT_OTHER, requisito=requirement_id)
 
-    def fingerprints(self, texts):
+    def fingerprints(self, text):
         by_document, unread = _compliance_fingerprints(self.procedure_id)
-        sent = set()
-        for text in texts:
-            sent |= shingles(text)
+        sent = shingles(text)
         matched = {}
         for document_id, prints in by_document.items():
             common = len(sent & prints)
@@ -407,6 +406,12 @@ class _Check:
 
 
 # --- Armado -----------------------------------------------------------------------------------
+
+
+def assembled(system, messages):
+    """El pedido armado como un solo texto: el sistema y los mensajes en orden, separados por un
+    salto de línea. Es lo que se compara con las hojas (H-290-1)."""
+    return "\n".join([system, *messages])
 
 
 def _pieces(value, what):
@@ -474,7 +479,9 @@ def build(*, stage, custom_id, procedure, system, messages, max_tokens, offer=No
         check.cell(cell)
     system_text = "".join(p.text for p in system_pieces)
     texts = [(role, "".join(p.text for p in pieces)) for role, pieces in message_pieces]
-    fingerprints = check.fingerprints([system_text, *(text for _, text in texts)])
+    # H-290-1: las secuencias salen del pedido armado entero (sistema, salto de línea y los
+    # mensajes en orden), no de cada parte: un párrafo repartido entre partes se ve igual.
+    fingerprints = check.fingerprints(assembled(system_text, [text for _, text in texts]))
     filter_record = check.record(fingerprints)
 
     ids = {"procedure_id": procedure_id, "offer_id": offer_id, "requirement_id": requirement_id,

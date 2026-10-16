@@ -526,3 +526,20 @@ def test_no_text_of_the_sheet_reaches_the_registry_through_the_ledger(case, fake
     ledger.send([economic(case), technical(case)], measurement=MEASUREMENT)
     for event in external_requests():
         assert_nothing_of_the_sheet(event.detail, case.sheet)
+
+
+def test_verifying_the_filter_sees_a_paragraph_split_across_messages(case, logged_in):
+    """REQ-121 (H-290-1): el escaneo del comando arma el pedido entero (sistema y mensajes en
+    orden) y ve un párrafo de la hoja repartido en trozos de 7 palabras."""
+    words = case.sheet[3].split()
+    audit.record(EventType.EXTERNAL_REQUEST, outcome=Outcome.OK, channel=Channel.COMMAND,
+                 detail={"procedimiento": case.procedure.pk, "etapa": "verificador",
+                         "resultado": "ok", "costo_usd": 0.001, "texto_enviado": {
+                             "sistema": " ".join(words[:7]), "mensajes": [
+                                 {"rol": "user", "texto": " ".join(words[7:14])},
+                                 {"rol": "assistant", "texto": " ".join(words[14:21])}]}})
+    out = StringIO()
+    with pytest.raises(CommandError, match="REQ-121"):
+        call_command("gasto_externo", "--usuario", logged_in.username, "--verificar-filtro",
+                     stdout=out)
+    assert "Pedidos con texto de una hoja de compliance: 1" in out.getvalue()

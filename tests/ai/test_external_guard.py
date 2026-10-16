@@ -539,3 +539,37 @@ def test_a_tampered_payload_is_rejected_by_the_client(fake_external):
     with pytest.raises(TypeError, match="puerta"):
         client.send_message(payload)
     assert fake_external.messages == []
+
+
+# --- Hallazgos de la verificación (H-290-1 a H-290-3) -----------------------------------------
+
+
+def build_split(case, system, messages, custom_id="partido"):
+    """Un pedido armado con el texto repartido entre el sistema y varios mensajes."""
+    return guard.build(
+        stage="verificador", custom_id=custom_id, procedure=case.procedure, offer=case.offer,
+        system=guard.instruction(system), max_tokens=600, run_kind="assessment", run_id=1,
+        messages=[(role, [guard.instruction(text)]) for role, text in messages],
+        instruction_name="verificador", instruction_version="verificador-v1",
+        instruction_sha256="0" * 64, measurement=MEASUREMENT)
+
+
+def test_a_paragraph_split_across_messages_is_blocked(case, fake_external):
+    """REQ-121 (H-290-1, intento F09): un párrafo de la hoja repartido en trozos de 7 palabras en
+    tres mensajes no sale: las secuencias se comparan sobre el pedido armado entero."""
+    fake_external.enable()
+    words = case.sheet[3].split()
+    chunks = [" ".join(words[i:i + 7]) for i in (0, 7, 14)]
+    decision = build_split(case, "Instrucción sintética.", [
+        ("user", chunks[0]), ("assistant", chunks[1]), ("user", chunks[2])])
+    assert decision.blocked and decision.reasons == ("huella_compliance",)
+    assert fake_external.batches == []
+
+
+def test_a_paragraph_split_between_system_and_message_is_blocked(case, fake_external):
+    """REQ-121 (H-290-1, intento F09b): 7 palabras en el sistema y las 7 siguientes en el mensaje
+    tampoco salen."""
+    fake_external.enable()
+    words = case.sheet[3].split()
+    decision = build_split(case, " ".join(words[:7]), [("user", " ".join(words[7:14]))])
+    assert decision.blocked and decision.reasons == ("huella_compliance",)

@@ -14,8 +14,9 @@ Opciones:
 - `--por-etapa`: suma además por etapa (`matriz_extraccion`, `verificador`...).
 - `--verificar-filtro`: cuenta los pedidos registrados que contienen texto de una hoja de
   compliance: cualquier secuencia de 8 palabras seguidas (sin tildes ni mayúsculas) de un
-  documento `compliance` cargado en la base, en cualquier texto del hecho. El criterio de
-  REQ-121 es 0; si encuentra alguno, termina con error. Usa una implementación **propia**, que no
+  documento `compliance` cargado en la base, en el pedido armado entero (sistema y mensajes en
+  orden) o en cualquier otro texto del hecho. El criterio de REQ-121 es 0; si encuentra alguno,
+  termina con error. Usa una implementación **propia**, que no
   importa ni llama a la puerta (`evaluon/ai/external/guard.py`): es el control independiente.
 
 Imprime el gasto real (la suma de `costo_usd`, el que se calculó con el uso informado por el
@@ -84,9 +85,22 @@ def _sheet_windows():
     return found, len(sheets), len([pk for pk in sheets if pk not in read])
 
 
+def _whole_request(detail):
+    """El pedido tal como salió, en un solo texto: el sistema y los mensajes en orden, separados
+    por un salto de línea (H-290-1: un párrafo repartido entre mensajes se ve igual)."""
+    sent = detail.get("texto_enviado") if isinstance(detail, dict) else None
+    if not isinstance(sent, dict):
+        return ""
+    parts = [sent.get("sistema") or ""]
+    for message in sent.get("mensajes") or []:
+        if isinstance(message, dict):
+            parts.append(message.get("texto") or "")
+    return "\n".join(str(part) for part in parts)
+
+
 def _leaks(detail, sheet_windows):
-    """Las secuencias de una hoja que aparecen en algún texto del hecho."""
-    hits = set()
+    """Las secuencias de una hoja que aparecen en el pedido armado o en algún texto del hecho."""
+    hits = _windows(_whole_request(detail)) & sheet_windows
     for text in _strings(detail):
         hits |= _windows(text) & sheet_windows
     return hits
