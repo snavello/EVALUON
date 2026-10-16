@@ -353,7 +353,7 @@ Qué significa cada prefijo:
 | **T-284** | 016 | Medición del paso 2, ronda 1 (evaluación con verdad): evaluación del caso de ajuste con verdad con el commit de… | pendiente |
 | **T-285** | 016 | Ajuste único del paso 2: todos los hallazgos de T-283 y T-284 en una sola tarea, un commit por hallazgo, corregidos… | terminada |
 | **T-286** | 016 | Re-medición del paso 2, ronda 2: solo lo que cambió T-285 (más el caso-00 completo, para el tiempo y la comparación con… | terminada |
-| **T-287** | 016 | Cierre de los pasos 1 y 2: ADR-0071 (resultado: instrucciones y reglas simples que quedan locales) con las cifras como… | pendiente |
+| **T-287** | 016 | Cierre de los pasos 1 y 2: ADR-0071 (resultado: instrucciones y reglas simples que quedan locales) con las cifras como… | en verificación |
 | **T-288** | 016 | Esquema y configuración del uso externo: tipo de hecho external_request y su migración (la única de la feature)… | terminada |
 | **T-289** | 016 | Cliente de la API externa, su doble y la salida a internet: evaluon/ai/external/client.py (mensajes directos y lotes… | terminada |
 | **T-290** | 016 | Puerta de filtrado, libro de gasto y registro: guard.py (lista permitida, exclusiones, huellas), ledger.py (hecho por… | terminada |
@@ -794,7 +794,7 @@ Qué significa cada prefijo:
 | **H-299-1, H-299-2, O-299-1 a O-299-9** | 016 | Corregidos: la segunda pasada de --verificador-sobre mide la pregunta de la celda cambiada (H-299-1), 17 controles con prueba… | T-299 (verificación: no pasa… |
 | **H-299-2** | 016 | (pruebas) | T-299 |
 
-## Observaciones de verificación (238)
+## Observaciones de verificación (241)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -981,6 +981,9 @@ Qué significa cada prefijo:
 | **O-286-4** | 016 | scripts/clon.sh ejecutar sigue sin admitir entrada estándar (falta -T en docker compose run); las mediciones con clave por… | T-286 |
 | **O-286-5** | 016 | La marca mipyme de la fila 80 es lo que da «no aplica» exacto en O1 R80 y O3 R80; en O2 R80 el modelo no marca que la oferta no… | T-286 |
 | **O-286-6** | 016 | No se corrió la evaluación del caso de ajuste con verdad (T-284 no corrió: la verdad está bloqueada) ni la propuesta del… | T-286 |
+| **O-287-1** | 016 | 8000 no se actualiza con esta integración | T-287 |
+| **O-287-2** | 016 | Suite del Coordinador | T-287 |
+| **O-287-3** | 016 | D-61 a D-67 (definiciones derivadas de T-285) fueron confirmadas por el responsable el 2026-10-16 y están en la tabla de la spec… | T-287 |
 | **O-288-1** | 016 | pensamiento de la matriz | T-288 |
 | **O-288-1 a O-288-5** | 016 | O-288-1: pensamiento de la matriz adaptive, a confirmar con la medición. O-288-2: se aceptan tope negativo, NaN e intervalo 0… | T-288 (verificación, pasa) |
 | **O-288-2** | 016 | números sin cotas | T-288 |

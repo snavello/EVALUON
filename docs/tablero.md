@@ -1524,6 +1524,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 21 tareas sin terminar.
+- ◐ T-287 · Cierre de los pasos 1 y 2: ADR-0071 (resultado: instrucciones y reglas simples que quedan locales) con las cifras como evidencia, registro del paso y pull request `016-integracion` → `main` (en verificación)
 - ◐ T-300 · Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave `externo` de la corrida (o «Ninguna: todo corrió en el equipo»). Umbral 20 (parte): la pantalla y la exportación la muestran (en verificación)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
 - ○ T-273 · Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada (pendiente)
@@ -1531,7 +1532,6 @@ flowchart LR
 - ○ T-275 · Verdad celda por celda del segundo caso de aceptación, con el mismo método y el mismo umbral (pendiente)
 - ○ T-276 · Cierre del paso 1: documento de revisión por caso, revisión y firma celda por celda del responsable (quién y cuándo en cada celda), congelado de los casos de aceptación y verificación de REQ-118. Umbral 1 a 4: al menos 3 casos (2 de aceptación), 40 celdas decididas por caso y 150 en total, 100 % con quién y cuándo, 0 corridas de evaluación en aceptación (pendiente)
 - ○ T-284 · Medición del paso 2, ronda 1 (evaluación con verdad): evaluación del caso de ajuste con verdad con el commit de arranque (B0) y con el candidato, celda por celda. Umbrales 7, 9 y 10: 0 «cumple» sin fundamento, 0 contradicciones, tres salidas, exactitud por celda sin llegar a 6 filas en contra con 0 a favor ni a 8 contra 1 (pendiente)
-- ○ T-287 · Cierre de los pasos 1 y 2: ADR-0071 (resultado: instrucciones y reglas simples que quedan locales) con las cifras como evidencia, registro del paso y pull request `016-integracion` → `main` (pendiente)
 - ○ T-293 · Medición del paso 3, ronda 1 (ajuste): propuesta externa de 00, 01, 02 y 06 contra la local simplificada de T-286. Umbral 16 (puerta): lista presente y firmes con pareja no peores en cada caso y 0 pedazos; gasto ≈ 1,20 USD (pendiente)
 - ○ T-294 · Ajuste único de la matriz externa (`matriz-externa-v2` y parámetros) con todos los hallazgos de T-293; se cierra sin cambios si T-293 cumple todo (pendiente)
 - ○ T-295 · Re-medición del paso 3, ronda 2 (ajuste): lo que cambió T-294. Mismo umbral 16; si no lo pasa, el externo no pasa a aceptación y queda local (pendiente)
@@ -1588,7 +1588,7 @@ flowchart TD
   T284["○ T-284 · Medición del paso 2, ronda 1 (evaluación co…"]:::todo
   T285["✓ T-285 · Ajuste único del paso 2: todos los hallazgo…"]:::done
   T286["✓ T-286 · Re-medición del paso 2, ronda 2: solo lo qu…"]:::done
-  T287["○ T-287 · Cierre de los pasos 1 y 2: ADR-0071 (result…"]:::todo
+  T287["◐ T-287 · Cierre de los pasos 1 y 2: ADR-0071 (result…"]:::review
   T288["✓ T-288 · Esquema y configuración del uso externo: ti…"]:::done
   T289["✓ T-289 · Cliente de la API externa, su doble y la sa…"]:::done
   T290["✓ T-290 · Puerta de filtrado, libro de gasto y regist…"]:::done
