@@ -187,11 +187,14 @@ def test_the_real_cost_uses_the_usage_reported_and_halves_in_batches(case, fake_
 
 
 def test_the_estimate_is_the_conservative_one_of_the_plan(case):
-    """REQ-122 (ADR-0068, punto 4): caracteres entre 2,5 por el precio de entrada, más la salida
-    máxima por el de salida; en lotes, a la mitad."""
+    """REQ-122 (ADR-0068, punto 4, calibrado con T-293; D-293-5): caracteres entre 1,9 por el precio
+    de entrada (el sistema con caché a precio de escritura, el doble), más la salida esperada por el
+    de salida; en lotes, a la mitad. Las cifras de T-293 están en `test_external_estimate.py`."""
     payload = economic(case).payload
-    chars = len(payload.system) + sum(len(text) for _, text in payload.messages)
-    direct = (Decimal(chars) / Decimal("2.5") * 2 + 600 * 10) / Decimal(1_000_000)
+    tokens_system = Decimal(len(payload.system)) / Decimal("1.9")
+    tokens_messages = Decimal(sum(len(text) for _, text in payload.messages)) / Decimal("1.9")
+    expected_out = min(payload.max_tokens, ledger.OUTPUT_TOKENS_ESTIMATE)
+    direct = ((tokens_system * 2 + tokens_messages) * 2 + expected_out * 10) / Decimal(1_000_000)
     assert ledger.estimate(payload, "directo") == direct.quantize(Decimal("0.00000001"),
                                                                   rounding="ROUND_CEILING")
     assert ledger.estimate(payload, "lotes") == (direct / 2).quantize(
@@ -612,8 +615,7 @@ def test_the_cap_adds_the_estimate_of_every_request_of_the_batch(case, fake_exte
     si el primero solo entra pero los dos juntos no, el lote no sale."""
     fake_external.enable()
     first, second = economic(case), technical(case)
-    one = ledger.estimate(first.payload, "lotes")
-    two = ledger.estimate(second.payload, "lotes")
+    one, two = ledger.estimate_batch([first.payload, second.payload], "lotes")
     past = Decimal("2") - one - (two / 2).quantize(Decimal("0.00000001"))
     past_spend(past, procedure_id=case.procedure.pk)
     sent = ledger.send([first, second], measurement=MEASUREMENT)
@@ -661,7 +663,7 @@ def test_a_batch_leaves_an_in_flight_fact_as_soon_as_it_exists(case, fake_extern
     cuenta con su estimado."""
     fake_external.enable()
     first, second = economic(case), technical(case)
-    estimate = ledger.estimate(first.payload, "lotes") + ledger.estimate(second.payload, "lotes")
+    estimate = sum(ledger.estimate_batch([first.payload, second.payload], "lotes"), Decimal(0))
 
     from evaluon.ai.external import client
     monkeypatch.setattr(client, "_wait_for", worker_dies)

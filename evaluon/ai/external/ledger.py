@@ -28,10 +28,13 @@ La única forma de mandar es `send(admitidos)`, con lo que devolvió `guard.buil
    sale: `bloqueado` con motivo `etapa` y `stage_stopped`, para que la etapa lo informe y no
    siga sin decisión.
 3. **Tope.** Se suma `costo_usd` del procedimiento (todas las rondas) y del mes calendario
-   (hora de `TIME_ZONE`), y se estima el lote con lo conservador del plan: caracteres entre 2,5
-   por el precio de entrada, más `max_tokens` por el de salida (a la mitad en lotes). Si el
-   estimado pasa lo que queda del caso (`EXTERNAL_CASE_CAP_USD`) o del mes
-   (`EXTERNAL_MONTH_CAP_USD`), el lote no sale: `bloqueado` con motivo `tope`.
+   (hora de `TIME_ZONE`), y se estima el lote (`estimate_batch`, calibrado con la medición T-293,
+   D-293-5): caracteres entre `CHARS_PER_TOKEN` (1,9) por el precio de entrada, con el sistema
+   cacheado a precio de escritura en el primer pedido de cada sistema del lote y de lectura en los
+   que lo comparten, más la salida esperada (`OUTPUT_TOKENS_ESTIMATE`, sin pasar de `max_tokens`)
+   por el precio de salida (a la mitad en lotes). Si el estimado pasa lo que queda del caso
+   (`EXTERNAL_CASE_CAP_USD`) o del mes (`EXTERNAL_MONTH_CAP_USD`), el lote no sale: `bloqueado` con
+   motivo `tope`. El `en_vuelo` de un lote cuyos pedidos ya están registrados no suma (ver arriba).
 
 Un tope, un estimado o un factor que no sea un número finito y positivo es un error de
 configuración (`ImproperlyConfigured`, O-288-2): no se usa como tope. Lo mismo los factores de
@@ -84,7 +87,16 @@ NO_PRICE = "sin_precio"
 ANOMALY_BLOCKED = "externo_bloqueado"
 ANOMALY_UNAVAILABLE = "externo_no_disponible"
 
-CHARS_PER_TOKEN = Decimal("2.5")
+# Calibración con la medición T-293 (D-293-5; cifras en `tests/ai/test_external_estimate.py`): el
+# proveedor contó 1,97 a 2,14 caracteres por token en los pliegos de los casos 00, 02 y 06 (la regla
+# del plan, 2,5, subestimaba los tokens de entrada 1,17 a 1,27 veces); se usa 1,9, por debajo del
+# mínimo observado.
+CHARS_PER_TOKEN = Decimal("1.9")
+# Salida esperada por pedido, en tokens (pensamiento incluido): T-293 midió 1.785 a 6.725 por pedido;
+# se estima 10.000, sin pasar de `max_tokens`. Reservar `max_tokens` entero (32.000) hacía que el
+# estimado de un caso saliera 1,6 a 2,2 veces el costo real. El peor caso de un pedido sigue acotado
+# por `max_tokens` y, de la etapa, por el freno al doble de su estimado.
+OUTPUT_TOKENS_ESTIMATE = 10_000
 MILLION = Decimal(1_000_000)
 COST_QUANTUM = Decimal("0.00000001")  # 8 decimales, siempre hacia arriba
 
@@ -171,18 +183,46 @@ def _number(cost):
 # --- Costo ------------------------------------------------------------------------------------
 
 
+def estimate_tokens(chars):
+    """Tokens de entrada estimados de `chars` caracteres (`CHARS_PER_TOKEN`)."""
+    return Decimal(chars) / CHARS_PER_TOKEN
+
+
+def estimate_batch(payloads, mode):
+    """Estimación conservadora de cada pedido de un lote, en el mismo orden (ADR-0068, punto 4,
+    calibrado con T-293; D-293-5): los caracteres del sistema y de los mensajes entre
+    `CHARS_PER_TOKEN` por el precio de entrada y la salida esperada (`OUTPUT_TOKENS_ESTIMATE`, sin
+    pasar de `max_tokens`) por el de salida; en lotes, a la mitad. El sistema con caché paga la
+    escritura (`cache_escritura_1h`, la única tarifa de la tabla) en el primer pedido de cada
+    sistema del lote y la lectura (`cache_lectura`) en los que lo comparten. `None` en el lugar de
+    un pedido cuyo modelo no tiene precio."""
+    table = settings.EXTERNAL_PRICES
+    write = _positive("EXTERNAL_PRICES.cache_escritura_1h", table["cache_escritura_1h"])
+    read = _positive("EXTERNAL_PRICES.cache_lectura", table["cache_lectura"])
+    factor = _mode_factor(mode)
+    written, estimates = set(), []
+    for payload in payloads:
+        prices = _model_prices(payload.model)
+        if prices is None:
+            estimates.append(None)
+            continue
+        entrada, salida = prices
+        system_rate = Decimal(1)
+        if payload.cache_system_ttl and payload.system:
+            system_rate = read if payload.system in written else write
+            written.add(payload.system)
+        messages = sum(len(text) for _, text in payload.messages)
+        tokens_in = (estimate_tokens(len(payload.system)) * system_rate
+                     + estimate_tokens(messages))
+        tokens_out = Decimal(min(payload.max_tokens, OUTPUT_TOKENS_ESTIMATE))
+        estimates.append(_round((tokens_in * entrada + tokens_out * salida) / MILLION * factor))
+    return estimates
+
+
 def estimate(payload, mode):
-    """Estimación conservadora de un pedido (ADR-0068, punto 4): los caracteres del sistema y de
-    los mensajes entre 2,5 por el precio de entrada, más `max_tokens` por el de salida; en lotes, a
-    la mitad. `None` si el modelo no tiene precio."""
-    prices = _model_prices(payload.model)
-    if prices is None:
-        return None
-    entrada, salida = prices
-    chars = len(payload.system) + sum(len(text) for _, text in payload.messages)
-    tokens_in = Decimal(chars) / CHARS_PER_TOKEN
-    cost = (tokens_in * entrada + Decimal(payload.max_tokens) * salida) / MILLION
-    return _round(cost * _mode_factor(mode))
+    """Estimación de un pedido suelto: la de un lote de un solo pedido (`estimate_batch`; el
+    sistema con caché a precio de escritura). `None` si el modelo no tiene precio."""
+    return estimate_batch([payload], mode)[0]
 
 
 def cost_of(model, usage, mode):
@@ -528,7 +568,7 @@ def _hold_back(pending, mode, procedure_id, limits, stage_spent):
     if stage_spent >= cap_stage:
         return STAGE_STOP, {"gasto_etapa_usd": _number(stage_spent),
                             "limite_etapa_usd": _number(cap_stage)}
-    estimates = [estimate(item.payload, mode) for item in pending]
+    estimates = estimate_batch([item.payload for item in pending], mode)
     if any(value is None for value in estimates):
         return NO_PRICE, {}
     batch = sum(estimates, Decimal(0))
@@ -580,7 +620,7 @@ def _record_in_flight(items, batch, *, measurement, channel, user):
     sin texto."""
     first = items[0].payload
     detail = _payload_base(first, measurement=measurement, filter=None)
-    estimated = sum((estimate(item.payload, "lotes") for item in items), Decimal(0))
+    estimated = sum(estimate_batch([item.payload for item in items], "lotes"), Decimal(0))
     detail.update(custom_id=None, custom_ids=[item.payload.custom_id for item in items],
                   oferta=first.offer_id, requisito=None, modo="lotes", lote_id=batch.id,
                   costo_usd=_number(estimated), resultado=IN_FLIGHT, estimado=True)
