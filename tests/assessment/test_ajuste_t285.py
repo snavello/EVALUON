@@ -468,3 +468,33 @@ def test_d283_7_the_instruction_says_what_a_question_names_and_does_not_ask():
     assert ("Nombra el dato que falta; no pide resolver una condición que el texto citado ya "
             "muestra, ni un texto que la oferta no tiene por qué traer, y compara solo valores de "
             "un mismo dato.") in text
+
+
+# --- H-277-1: `--recalcular` dice que no cuenta las tres salidas --------------------------------------
+
+
+def test_h277_1_the_recompute_says_it_does_not_count_the_three_outputs(
+        tmp_path, operator_user, monkeypatch):
+    """REQ-120 (H-277-1 de la verificación de T-277): `medir_evaluacion --recalcular` no puede contar
+    las tres salidas de una corrida guardada (no trae el dato) y lo dice en su salida, no solo en el
+    código."""
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    from evaluon.accounts import permissions
+    from evaluon.assessment import evaluation as ev
+    from tests.assessment.test_medicion_t256 import _recompute_inputs, _saved_run
+    from tests.tenders.conftest import TEST_PASSWORD
+
+    folder = _saved_run(tmp_path)
+    exclusions, portal, commission = _recompute_inputs(tmp_path)
+    monkeypatch.setattr(permissions, "read_password", lambda prompt: TEST_PASSWORD)
+    monkeypatch.setattr(ev, "run_evaluation", lambda *a, **k: pytest.fail("usó el modelo"))
+    out = StringIO()
+    call_command("medir_evaluacion", "--usuario", operator_user.username, "--recalcular",
+                 str(folder), "--celdas-portal", str(portal), "--celdas-comision",
+                 str(commission), "--exclusiones-celdas", str(exclusions), stdout=out)
+
+    assert ("Tres salidas (REQ-120): no se cuentan al recalcular; las cuenta la corrida de "
+            "medir_evaluacion") in out.getvalue()
