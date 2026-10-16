@@ -51,6 +51,7 @@ from evaluon.assessment import (
 )
 from evaluon.assessment.models import Decision, Outcome
 from evaluon.assessment.services import discards as discards_service
+from evaluon.assessment.services import external_stages
 from evaluon.assessment.services import matrix as matrix_service
 from evaluon.assessment.services import review
 from evaluon.audit import services as audit
@@ -213,6 +214,7 @@ class ExportData:
     generated: str
     grid_note: str = ""  # nota al pie del cuadro: qué significa la marca de visión, o vacía
     price_sources: list = field(default_factory=list)  # notas: de qué página salen los precios
+    external_line: str = ""  # «Etapas fuera del equipo: …» (REQ-122, T-300)
 
 
 def _last_decisions(results):
@@ -345,7 +347,8 @@ def collect(user, procedure_id, *, channel=Channel.SCREEN):
         line_rows=line_rows, columns=len(page.offers), warnings=warnings,
         generated=when(timezone.now()),
         grid_note=f"{VISION_MARK} {VISION_NOTE}" if marked else "",
-        price_sources=price_sources)
+        price_sources=price_sources,
+        external_line=external_stages.line([s.run for s in page.statuses if s.run is not None]))
 
 
 def _economic(page, found, by_offer):
@@ -481,6 +484,7 @@ def _header(sheet, fmt, data, title):
                       f"v{data.version.number if data.version else '—'} · exportado el "
                       f"{data.generated}")
     sheet.write(2, 0, NOTICE, fmt["notice"])
+    sheet.write(3, 0, data.external_line)
     return 4
 
 
@@ -603,6 +607,7 @@ def _page(title, data, body):
             f"<title>{_e(title)}</title><style>{PDF_CSS}</style></head><body>"
             f"<h1>{_e(title)}</h1><p class=\"meta\">Procedimiento {_e(data.procedure.number)} · "
             f"matriz v{_e(version)} · exportado el {_e(data.generated)}</p>"
+            f'<p class="meta">{_e(data.external_line)}</p>'
             f'<p class="aviso">{_e(NOTICE)}</p>{body}</body></html>')
 
 
