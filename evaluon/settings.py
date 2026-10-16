@@ -525,7 +525,10 @@ ASSESSMENT_TECHNICAL_OPINION = True
 # T-285 (D-283-5 y D-283-6): `reglas-v14`, la opción sin `opcion` en la matriz con la marca del
 # modelo, la ausencia con el «cumple» del modelo sin nada encontrado y el Portal (umbral de monto,
 # motivo de la lectura cuando no compara, montos rotulados como otro concepto).
-ASSESSMENT_RULES_VERSION = "reglas-v14"
+# T-285, verificación (H-285-1 a H-285-3): `reglas-v15`, «no aplica» solo por la `opcion` de la fila (la
+# marca del modelo deja «no determinado»), la cita repetida y el guion de corte, y la ausencia solo con
+# una frase de ausencia de una condición «no consta».
+ASSESSMENT_RULES_VERSION = "reglas-v15"
 # Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150). T-281
 # (spec 016, REQ-119; ADR-0070): instrucciones cortas, solo con las definiciones y las decisiones
 # vigentes y el esqueleto de la salida, sin ejemplos (tabla en specs/016-calidad-medible/

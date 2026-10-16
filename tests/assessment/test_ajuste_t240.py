@@ -108,7 +108,7 @@ def test_the_requirement_of_a_form_not_chosen_does_not_apply(offer, portal, text
     assert (combined.outcome, combined.doubt) == ("cumple", "")
     assert combined.explanation.startswith("No aplica:") and form in combined.explanation
     assert combined.facts["aplica"] is False and combined.facts["regla"] == name
-    assert combined.facts["version_reglas"] == "reglas-v14"
+    assert combined.facts["version_reglas"] == "reglas-v15"
     assert combined.question == "" and not combined.ask
     assert combined.citations == [] and len(combined.portal) == 1
     assert combined.portal[0]["kind"] == "garantia" and form in combined.portal[0]["text"]
