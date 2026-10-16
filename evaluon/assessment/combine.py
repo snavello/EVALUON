@@ -320,7 +320,12 @@ def _conclusion(combined):
         base = "no se encontró el documento que el pliego exige"
     elif combined.doubt == UNCORROBORATED and combined.proposed:
         word = "cumple" if combined.proposed == OUT_CUMPLE else "no cumple"
-        base = f"el sistema propuso «{word}», pero el contraste no lo corroboró"
+        # T-299 (O-299-1): si quien no la corroboró fue el verificador externo de citas, lo dice.
+        mark = (combined.facts or {}).get("verificador") or {}
+        who = ("el verificador externo" if (mark.get("despues") or {}).get("resultado")
+               == OUT_NO_DETERMINADO and mark.get("respuesta") in ("no", "parcial")
+               else "el contraste")
+        base = f"el sistema propuso «{word}», pero {who} no lo corroboró"
     else:
         label = Doubt(combined.doubt).label.lower() if combined.doubt else "sin motivo"
         base = f"no determinado ({label})"

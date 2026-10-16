@@ -253,8 +253,8 @@ class InvalidAnswer(ValueError):
 
 def parse(text):
     """`(sostiene, razonamiento, pregunta)` de la respuesta del verificador. Lanza `InvalidAnswer`
-    si no tiene la forma pedida. El razonamiento se recorta a 400 caracteres (el pedido completo
-    queda en el hecho del registro)."""
+    si no tiene la forma pedida. El razonamiento se recorta a 400 caracteres, contado el «…» del
+    recorte (O-299-4; la respuesta completa queda en el hecho del registro)."""
     try:
         data = json.loads(text)
     except (TypeError, ValueError) as error:
@@ -264,6 +264,8 @@ def parse(text):
             or not all(isinstance(data.get(k, ""), str) for k in ("razonamiento", "pregunta"))):
         raise InvalidAnswer("la respuesta no tiene los campos pedidos")
     reasoning = combine.clip(data.get("razonamiento", ""), REASONING_MAX_CHARS)
+    if len(reasoning) > REASONING_MAX_CHARS:
+        reasoning = combine.clip(reasoning, REASONING_MAX_CHARS - 1)
     return data["sostiene"], reasoning, " ".join(data.get("pregunta", "").split())
 
 
@@ -538,7 +540,9 @@ def verify_saved(run, user, *, measurement=None, mode=None, channel=Channel.COMM
     evaluación (`verify`), sin GPU, y guarda una **evaluación nueva derivada** (la base es de solo
     inserción): los mismos resultados y citas, con las conclusiones que el verificador no corroboró
     en «no determinado», `facts["verificador"]` en cada celda mandada, la clave `externo` y
-    `parameters["derivada_de"]`. Cada resultado nuevo apunta al de `run` como anterior. Devuelve
+    `parameters["derivada_de"]`. Cada resultado nuevo apunta al de `run` como anterior. La celda
+    que el verificador pasó a «no determinado» lleva siempre su pregunta, ligada a la derivada
+    (H-299-1); las demás copian la del origen si no hay una abierta del par. Devuelve
     `(evaluación derivada, Verification)`."""
     results = list(run.results.select_related("requirement").order_by("requirement__number", "pk"))
     citations = {r.pk: list(r.citations.select_related("document", "reading").order_by("order"))
@@ -584,7 +588,11 @@ def verify_saved(run, user, *, measurement=None, mode=None, channel=Channel.COMM
             else:
                 source = am.Question.objects.filter(result=result).order_by("-pk").first()
                 text = source.text if source else ""
-            if text and not _open_question(offer, result.requirement):
+            # H-299-1: la celda que el verificador cambió tiene su propia pregunta en cada
+            # derivada, aunque siga abierta la de una pasada anterior sobre el mismo origen (si
+            # no, la segunda ronda de ajuste no la mide). Las demás siguen la regla de siempre:
+            # una pregunta abierta por requisito.
+            if text and (item.changed or not _open_question(offer, result.requirement)):
                 am.Question.objects.create(
                     procedure=offer.procedure, requirement=result.requirement, offer=offer,
                     result=new, text=text, reason=combined.doubt)

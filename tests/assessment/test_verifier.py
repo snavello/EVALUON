@@ -219,6 +219,9 @@ def test_si_keeps_the_cell_and_no_or_parcial_turn_it_undetermined_with_its_quest
     assert {k for k, _ in cites} == {"oferta", "pliego"}
     question = am.Question.objects.get(result=changed).text
     assert good_question(moneda.number) in question
+    # O-299-1: la pregunta dice que quien no lo corroboró fue el verificador, no el contraste.
+    assert "pero el verificador externo no lo corroboró" in question
+    assert "el contraste no lo corroboró" not in question
     form = ev.question_records(run)
     assert all(q["conforme"] for q in form if q["fila"] in (moneda.number,
                                                              numbers["registro"].number))
@@ -594,3 +597,36 @@ def test_the_instruction_is_registered_and_within_its_limit():
     assert settings.EXTERNAL_PROMPT_VERSIONS["verificador"] == instruction.version == "verificador-v1"
     assert len(instruction.text.splitlines()) <= 50 and len(instruction.text) <= 5000
     assert '"sostiene"' in instruction.text and '"pregunta"' in instruction.text
+
+
+
+def test_a_second_pass_over_the_same_source_measures_the_changed_questions(
+        db, operator_user, fake_ai, model, fake_external, tmp_path):
+    """REQ-124 (H-299-1): dos pasadas sobre la misma corrida de origen (las dos rondas de ajuste),
+    con la misma medición: cada derivada tiene la pregunta de la celda que el verificador cambió,
+    aunque siga abierta la de la pasada anterior, y las dos rondas miden las mismas preguntas."""
+    source, procedure, offers = _measured_small_case(operator_user, model, tmp_path)
+    first = offers["Oferente A Sintético"]
+    declaration = next(r for r in first.assessment_results.select_related("requirement")
+                       if r.requirement.quotes.filter(
+                           text__contains="declaración jurada").exists())
+    number = declaration.requirement.number
+    fake_external.enable(verifier.STAGE)
+    fake_external.respond(SI)
+    fake_external.respond(answer("no", good_question(number)),
+                          verifier.custom_id_of(first, declaration.requirement))
+    seen = []
+    for round_ in (1, 2):
+        report = ev.measure_verifier(
+            operator_user, procedure, ev.load_expected(LIST), offers, tmp_path / f"r{round_}",
+            source.folder, measurement="T-299-rondas", commit="abc1234",
+            commission_cells=ev.load_commission_cells(TRUTH))
+        rows = sorted((r["number"], q["fila"]) for r in report.offers
+                      for q in r["measures"]["questions"])
+        derived = am.Run.objects.filter(offer=first).order_by("-number").first()
+        changed = am.Result.objects.get(run=derived, requirement=declaration.requirement)
+        assert am.Question.objects.filter(result=changed).count() == 1
+        assert (first.number, number) in rows
+        seen.append(rows)
+    assert seen[0] == seen[1]
+    assert report.total["questions_form"]["total"] == len(seen[1])
