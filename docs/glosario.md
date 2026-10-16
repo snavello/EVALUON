@@ -358,7 +358,7 @@ Qué significa cada prefijo:
 | **T-289** | 016 | Cliente de la API externa, su doble y la salida a internet: evaluon/ai/external/client.py (mensajes directos y lotes… | terminada |
 | **T-290** | 016 | Puerta de filtrado, libro de gasto y registro: guard.py (lista permitida, exclusiones, huellas), ledger.py (hecho por… | terminada |
 | **T-291** | 016 | Matriz con modelo externo: matriz-externa-v1, proposal/external.py con el contrato de la etapa local, enchufe en run.py… | terminada |
-| **T-292** | 016 | Prueba de humo con el proveedor real (caso chico): matriz externa en modo directo con la hoja de compliance inventada… | en curso |
+| **T-292** | 016 | Prueba de humo con el proveedor real (caso chico): matriz externa en modo directo con la hoja de compliance inventada… | terminada |
 | **T-293** | 016 | Medición del paso 3, ronda 1 (ajuste): propuesta externa de 00, 01, 02 y 06 contra la local simplificada de T-286.… | pendiente |
 | **T-294** | 016 | Ajuste único de la matriz externa (matriz-externa-v2 y parámetros) con todos los hallazgos de T-293; se cierra sin… | pendiente |
 | **T-295** | 016 | Re-medición del paso 3, ronda 2 (ajuste): lo que cambió T-294. Mismo umbral 16; si no lo pasa, el externo no pasa a… | pendiente |
@@ -794,7 +794,7 @@ Qué significa cada prefijo:
 | **H-299-1, H-299-2, O-299-1 a O-299-9** | 016 | Corregidos: la segunda pasada de --verificador-sobre mide la pregunta de la celda cambiada (H-299-1), 17 controles con prueba… | T-299 (verificación: no pasa… |
 | **H-299-2** | 016 | (pruebas) | T-299 |
 
-## Observaciones de verificación (229)
+## Observaciones de verificación (238)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -1016,6 +1016,15 @@ Qué significa cada prefijo:
 | **O-291-7** | 016 | prompt_versions y parameters.passes de una corrida externa siguen listando extracción, completitud, unión y filtro locales aunque… | T-291 |
 | **O-291-8** | 016 | las filas de una tabla van al pedido de filtro externo antes de que keep_tables_pending decida el tramo | T-291 |
 | **O-291-9** | 016 | un pedido de filtro con 0 filas y 0 tramos decididos igual sale (ninguna) | T-291 |
+| **O-292-1** | 016 | EXTERNAL_CASE_CAP_USD=0 aborta la propuesta en lugar de seguir por lo local | T-292 |
+| **O-292-1 a O-292-8** | 016 | O-292-1: EXTERNAL_CASE_CAP_USD=0 aborta la propuesta (ImproperlyConfigured, O-288-2) en vez de volver a local; con tope positivo… | T-292 (prueba de humo con el proveedor… |
+| **O-292-2** | 016 | sin aciertos de caché, y la escritura de caché fue el 82 % del gasto | T-292 |
+| **O-292-3** | 016 | el estimado de 0,30 USD (O-291-12) depende de los aciertos de caché | T-292 |
+| **O-292-4** | 016 | clon_app sí tiene ruta a internet (por clon_web, la red que publica su puerto): urlopen("https://api.anthropic.com") desde… | T-292 |
+| **O-292-5** | 016 | alcance de la prueba | T-292 |
+| **O-292-6** | 016 | el libro suma por base | T-292 |
+| **O-292-7** | 016 | gasto_externo --por-etapa no separa por medición | T-292 |
+| **O-292-8** | 016 | el error de la clave inválida deja duracion_s y modelo_respuesta vacíos en el hecho, como es de esperar con un 401; la validación… | T-292 |
 | **O-299-1** | 016 | la pregunta dice «el contraste no lo corroboró» cuando fue el verificador | T-299 |
 | **O-299-2** | 016 | la línea dice «Ninguna» cuando la etapa volvió a lo local tras haber mandado pedidos (respuesta inválida, vencido, error del… | T-299 |
 | **O-299-3** | 016 | _message indexa CONCLUSIONS | T-299 |
