@@ -68,6 +68,8 @@ def current_versions():
     names.add(proposal_fields.PROMPT_VERSION)
     names.add(procedure_fields.PROMPT_VERSION)
     names |= {answering.PROMPT_VERSION_WITH_DATE, answering.PROMPT_VERSION_WITHOUT_DATE}
+    # T-291: las instrucciones propias de las etapas externas (la de la matriz).
+    names |= set(settings.EXTERNAL_PROMPT_VERSIONS.values())
     names |= set(INLINE)
     return sorted(names)
 

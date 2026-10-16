@@ -89,6 +89,7 @@ from bisect import bisect_left
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -100,8 +101,9 @@ from django.utils import timezone
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
+from evaluon.ai.external import ledger
 from evaluon.audit import services as audit
-from evaluon.audit.models import Channel, EventType, Outcome
+from evaluon.audit.models import AuditEvent, Channel, EventType, Outcome
 from evaluon.queries.evaluation import proportion_text  # usa el Wilson de la 001
 from evaluon.tenders import models as m
 from evaluon.tenders.proposal import quotes
@@ -2212,10 +2214,15 @@ def _at_least(value, minimum):
     return value["total"] > 0 and value["ok"] / value["total"] >= minimum - 1e-9
 
 
-def measure_process(user, procedure, expected, clock=time.monotonic):
+def measure_process(user, procedure, expected, clock=time.monotonic, *, use_external=None,
+                    label=None, snapshot=None, measurement=None):
     """Corre la propuesta del proceso único con el canal `eval`, la mide y descarta la
-    versión."""
-    snapshot = matrix_service._documents_snapshot(procedure)
+    versión. Con `--externo matriz` (T-291) se corre dos veces sobre la misma lectura
+    (`snapshot`): `use_external=False` (local) y `True` (externa, con su `measurement` del libro
+    de pedidos externos); `label` es el nombre de cada una en el resumen."""
+    snapshot = snapshot or matrix_service._documents_snapshot(procedure)
+    named = {"etiqueta": label} if label else {}
+    label = label or settings.MATRIX_PROCESS
     run = m.MatrixRun.objects.create(
         procedure=procedure, job=None, process=settings.MATRIX_PROCESS,
         channel=m.RunChannel.EVAL,
@@ -2227,21 +2234,58 @@ def measure_process(user, procedure, expected, clock=time.monotonic):
     video = {"before": video_memory()}
     started = clock()
     try:
-        version = proposal.propose(run, user=user, channel=Channel.COMMAND)
+        version = proposal.propose(run, user=user, channel=Channel.COMMAND,
+                                   use_external=use_external, measurement=measurement)
     except Exception as error:
         video["after"] = video_memory()
-        return {"process": settings.MATRIX_PROCESS, "run": run.pk,
-                "error": f"{type(error).__name__}: {error}",
-                "error_class": type(error).__name__, "video_memory": video,
-                "seconds": round(clock() - started, 1)}
+        failed = {"process": label, **named, "run": run.pk,
+                  "error": f"{type(error).__name__}: {error}",
+                  "error_class": type(error).__name__, "video_memory": video,
+                  "seconds": round(clock() - started, 1)}
+        if measurement:
+            failed["gasto_externo"] = external_spending(procedure, measurement, run)
+        return failed
     video["after"] = video_memory()
     run.refresh_from_db()
     try:
         result = _result_of_run(run, version, procedure, expected, readings)
+        result.update(process=label, **named)
         result["video_memory"] = video
+        if measurement:
+            result["gasto_externo"] = external_spending(procedure, measurement, run)
     finally:
         _discard(version, user, run)
     return result
+
+
+EXTERNAL_STAGE = "matriz"
+
+
+def external_spending(procedure, measurement, run):
+    """El gasto real de la propuesta externa (T-291; plan 016, «Costo y tope»), con el costo que
+    informó el proveedor: el de los pedidos de esta propuesta en el libro (`gasto_usd`; 0 si todos
+    se reutilizaron por huella) y el de la etapa de la matriz en toda la medición
+    (`gasto_medicion_usd`, `ledger.spent_stage`), más lo que la propuesta registró en su clave
+    `externo` (pedidos, gasto por pedido y si volvió a lo local)."""
+    run.refresh_from_db()
+    key = (run.counts or {}).get("externo", {}).get(EXTERNAL_STAGE, {})
+    stages = ((run.models or {}).get("externo") or {}).get("etapas") or {}
+    own = AuditEvent.objects.filter(
+        event_type=EventType.EXTERNAL_REQUEST,
+        detail__corrida={"tipo": EXTERNAL_STAGE, "numero": run.pk}).exclude(
+        detail__resultado=ledger.IN_FLIGHT).values_list("detail__costo_usd", flat=True)
+    return {
+        "medicion": measurement,
+        "gasto_usd": float(sum((Decimal(str(cost or 0)) for cost in own), Decimal(0))),
+        "gasto_medicion_usd": float(ledger.spent_stage(EXTERNAL_STAGE, procedure.pk,
+                                                       measurement=measurement)),
+        "pedidos": key.get("pedidos"),
+        "por_etapa": {stage: {"pedidos": summary.get("pedidos"),
+                              "gasto_usd": summary.get("gasto_usd")}
+                      for stage, summary in (key.get("por_etapa") or {}).items()},
+        "etapa": stages.get(EXTERNAL_STAGE, "local"),
+        "volvio_a_local": key.get("volvio_a_local"),
+    }
 
 
 def _result_of_run(run, version, procedure, expected, readings):
@@ -2374,6 +2418,12 @@ def regenerate_summaries(procedure, expected, folder):
             readings[reading.document.file_name] = reading
         result = _result_of_run(run, version, procedure, expected, readings)
         result["video_memory"] = entry.get("video_memory")
+        if entry.get("etiqueta"):
+            # Una medición con `--externo matriz` (T-291): el nombre de cada propuesta es el de la
+            # medición («completo · local», «completo · externo») y la externa trae su gasto.
+            result["process"] = entry["etiqueta"]
+        if entry.get("gasto_externo"):
+            result["gasto_externo"] = entry["gasto_externo"]
         results.append(result)
     report = Report(folder, expected, verification, results)
     (folder / "resumen.md").write_text(_summary(report, public=False), encoding="utf-8")
@@ -2384,10 +2434,18 @@ def regenerate_summaries(procedure, expected, folder):
     return report
 
 
-def measure(user, procedure, expected, runs_dir, *, commit=None, clock=time.monotonic):
+def measure(user, procedure, expected, runs_dir, *, commit=None, clock=time.monotonic,
+            external=False, measurement=None):
     """Comprueba la lista, corre el proceso único y guarda la carpeta de la corrida en
     `runs_dir`. Devuelve el `Report`. Lanza `MeasurementRefused` si la lista no se puede
-    usar o si hay un borrador abierto. Ya no hay niveles ni comparación entre ellos (T-100)."""
+    usar o si hay un borrador abierto. Ya no hay niveles ni comparación entre ellos (T-100).
+
+    Con `external` (`medir_matriz --externo matriz`, T-291; plan 016, «Medición del paso 3»):
+    dos propuestas sobre la misma lectura en la misma base, una local y otra con la etapa externa,
+    cada una con su registro y medida con la misma lista; la externa con su gasto real. Pide el
+    uso externo encendido y la matriz en `externo`. `measurement` nombra la medición en el libro
+    de pedidos externos (`--medicion`): repetirla con el mismo nombre reutiliza por huella las
+    respuestas ya pagadas (costo 0); por omisión, el procedimiento con la fecha y la hora."""
     require_commission_role(user, CommissionRole.OPERATOR, operation=OPERATION,
                             channel=Channel.COMMAND)
     if not expected.approval:
@@ -2399,7 +2457,23 @@ def measure(user, procedure, expected, runs_dir, *, commit=None, clock=time.mono
     if procedure.matrix_versions.filter(status=m.VersionStatus.DRAFT).exists():
         raise MeasurementRefused("El procedimiento tiene un borrador abierto: la base admite "
                                  "uno solo. Descártelo o mida en otra base.")
-    results = [measure_process(user, procedure, expected, clock)]
+    if external:
+        if not proposal.external.enabled():
+            raise MeasurementRefused(
+                "Para medir con el modelo externo, el uso externo tiene que estar encendido y la "
+                "matriz en «externo» (EXTERNAL_ENABLED y EXTERNAL_STAGE_MATRIZ).")
+        snapshot = matrix_service._documents_snapshot(procedure)
+        measurement = (measurement
+                       or f"medir_matriz-{procedure.number}-{timezone.now():%Y%m%d-%H%M%S}")
+        results = [
+            measure_process(user, procedure, expected, clock, use_external=False,
+                            label=f"{settings.MATRIX_PROCESS} · local", snapshot=snapshot),
+            measure_process(user, procedure, expected, clock, use_external=True,
+                            label=f"{settings.MATRIX_PROCESS} · externo", snapshot=snapshot,
+                            measurement=measurement),
+        ]
+    else:
+        results = [measure_process(user, procedure, expected, clock)]
     started_at = timezone.now()
     base = f"{started_at:%Y%m%d-%H%M%S}-{commit or 'sin-commit'}"
     folder = Path(runs_dir) / base
@@ -2438,9 +2512,11 @@ def _write(report, procedure, started_at, commit):
                          "por_motivo": expected.exclusions.by_motive}
                         if expected.exclusions else None),
         "propuestas": [
-            {k: r.get(k) for k in ("process", "run", "version", "parameters",
-                                    "prompt_versions", "models", "corpus_version", "error",
-                                    "video_memory")}
+            {**{k: r.get(k) for k in ("process", "run", "version", "parameters",
+                                      "prompt_versions", "models", "corpus_version", "error",
+                                      "video_memory")},
+             # T-291: el nombre y el gasto de cada propuesta de una medición con el externo.
+             **{k: r[k] for k in ("etiqueta", "gasto_externo") if k in r}}
             for r in report.results
         ],
     }
@@ -2525,6 +2601,7 @@ def _summary(report, *, public):
     for result in report.results:
         out.append(f"## Proceso {result['process']}")
         out += _video_lines(result.get("video_memory"))
+        out += external_spending_lines(result.get("gasto_externo"))
         if result.get("error"):
             shown = result["error_class"] if public else result["error"]
             out += ["", f"La propuesta falló: {shown}", ""]
@@ -2593,6 +2670,23 @@ def _summary(report, *, public):
     out += [f"- {reason}" for reason in blocking] or ["- ninguno"]
     out.append("")
     return "\n".join(out)
+
+
+def external_spending_lines(spending):
+    """El gasto externo de una propuesta en el resumen (T-291): cifras, sin texto del pliego."""
+    if not spending:
+        return []
+    by_stage = "; ".join(f"{stage}: {info.get('pedidos')} pedidos, {info.get('gasto_usd')} USD"
+                         for stage, info in (spending.get("por_etapa") or {}).items())
+    lines = [f"- Gasto externo real (libro de pedidos, medición {spending.get('medicion')}): "
+             f"{spending.get('gasto_usd')} USD en {spending.get('pedidos')} pedidos"
+             + (f" ({by_stage})" if by_stage else "")
+             + (f"; en toda la medición, {spending['gasto_medicion_usd']} USD"
+                if "gasto_medicion_usd" in spending else "")]
+    if spending.get("etapa") != "externo":
+        lines.append("- La etapa externa no terminó: la propuesta siguió por la cadena local "
+                     "(ver las anomalías `externo_no_disponible`)")
+    return lines
 
 
 def _count_text(value):

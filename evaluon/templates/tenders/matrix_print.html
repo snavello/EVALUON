@@ -52,6 +52,7 @@ una versión abierta sobre otra no tiene propuesta propia.
     {% if not legend %}<dt>Validada</dt><dd>el {{ page.version.validated_at|date:"d/m/Y" }} por {{ page.version.validated_by.username }}</dd>{% endif %}
   </dl>
   {% include "queries/_regime_line.html" with reference_date=page.authorization_date regime=page.regime %}
+  <p>{{ page.external_line }}</p>
 </section>
 
 <section>

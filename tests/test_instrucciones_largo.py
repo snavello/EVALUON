@@ -79,6 +79,9 @@ SIMPLIFIED = {
     "oferente-nombre-v3": {"path": "evaluon/offers/prompts/oferente-nombre-v3.md"},
     "procedimiento-datos-v3": {"path": "evaluon/tenders/prompts/procedimiento-datos-v3.md"},
     "consulta-v6": {"path": "evaluon/queries/prompts/consulta-v6.txt"},  # T-285
+    # T-291: la instrucción propia del modelo externo de la matriz (decisora), con el bloque v10.
+    "matriz-externa-v1": {"path": "evaluon/tenders/prompts/matriz-externa-v1.md",
+                          "definitions": "matriz-definiciones-v10"},
 }
 
 # Los esquemas de salida de las instrucciones simplificadas: `{nombre: "módulo:atributo"}`; el
