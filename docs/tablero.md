@@ -1524,6 +1524,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 25 tareas sin terminar.
+- ◐ T-291 · Matriz con modelo externo: `matriz-externa-v1`, `proposal/external.py` con el contrato de la etapa local, enchufe en `run.py` con vuelta a lo local si falla, clave `externo` en el registro de la propuesta y `medir_matriz --externo matriz`; probada con el doble y el caso chico (en verificación)
 - ◐ T-300 · Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave `externo` de la corrida (o «Ninguna: todo corrió en el equipo»). Umbral 20 (parte): la pantalla y la exportación la muestran (en verificación)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
 - ○ T-273 · Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada (pendiente)
@@ -1533,7 +1534,6 @@ flowchart LR
 - ○ T-284 · Medición del paso 2, ronda 1 (evaluación con verdad): evaluación del caso de ajuste con verdad con el commit de arranque (B0) y con el candidato, celda por celda. Umbrales 7, 9 y 10: 0 «cumple» sin fundamento, 0 contradicciones, tres salidas, exactitud por celda sin llegar a 6 filas en contra con 0 a favor ni a 8 contra 1 (pendiente)
 - ○ T-286 · Re-medición del paso 2, ronda 2: solo lo que cambió T-285 (más el caso-00 completo, para el tiempo y la comparación con T-307); es la referencia local simplificada de los pasos 3 y 4. Mismos umbrales que T-283 y T-284 (pendiente)
 - ○ T-287 · Cierre de los pasos 1 y 2: ADR-0071 (resultado: instrucciones y reglas simples que quedan locales) con las cifras como evidencia, registro del paso y pull request `016-integracion` → `main` (pendiente)
-- ○ T-291 · Matriz con modelo externo: `matriz-externa-v1`, `proposal/external.py` con el contrato de la etapa local, enchufe en `run.py` con vuelta a lo local si falla, clave `externo` en el registro de la propuesta y `medir_matriz --externo matriz`; probada con el doble y el caso chico (pendiente)
 - ○ T-292 · Prueba de humo con el proveedor real (caso chico): matriz externa en modo directo con la hoja de compliance inventada cargada; registro completo, `gasto_externo --verificar-filtro` en 0 y gasto ≤ 0,10 USD (pendiente)
 - ○ T-293 · Medición del paso 3, ronda 1 (ajuste): propuesta externa de 00, 01, 02 y 06 contra la local simplificada de T-286. Umbral 16 (puerta): lista presente y firmes con pareja no peores en cada caso y 0 pedazos; gasto ≈ 1,20 USD (pendiente)
 - ○ T-294 · Ajuste único de la matriz externa (`matriz-externa-v2` y parámetros) con todos los hallazgos de T-293; se cierra sin cambios si T-293 cumple todo (pendiente)
@@ -1592,7 +1592,7 @@ flowchart TD
   T288["✓ T-288 · Esquema y configuración del uso externo: ti…"]:::done
   T289["✓ T-289 · Cliente de la API externa, su doble y la sa…"]:::done
   T290["✓ T-290 · Puerta de filtrado, libro de gasto y regist…"]:::done
-  T291["○ T-291 · Matriz con modelo externo: matriz-externa-v…"]:::todo
+  T291["◐ T-291 · Matriz con modelo externo: matriz-externa-v…"]:::review
   T292["○ T-292 · Prueba de humo con el proveedor real (caso…"]:::todo
   T293["○ T-293 · Medición del paso 3, ronda 1 (ajuste): prop…"]:::todo
   T294["○ T-294 · Ajuste único de la matriz externa (matriz-e…"]:::todo
@@ -1682,6 +1682,6 @@ flowchart TD
 | REQ-120 | Toda celda de la evaluación termina en una de tres salidas: «cumple» con fundamento, «no cumple» con cita, o «no determinado» con la pregunta a la Comisión o el documento que falta nombrado; ninguna conversión del código deja una celda sin decidir sin decir por qué | T-277, T-283, T-284, T-285, T-286 | ▶ en proceso |
 | REQ-121 | El sistema puede usar un modelo externo solo con documentos públicos; ningún pedido externo contiene un documento de tipo hoja de compliance ni un fragmento que provenga de uno, y los requisitos que dependen de esas consultas se evalúan siempre con el modelo local | T-290, T-292, T-299, T-304, T-307 | ▶ en proceso |
 | REQ-122 | Cada pedido a un modelo externo queda en el registro de auditoría con proveedor, modelo, versión de la instrucción, texto enviado y respuesta; el registro de cada evaluación y de cada matriz dice qué etapas corrieron fuera del equipo; con el uso externo apagado el sistema funciona completo | T-288, T-289, T-290, T-291, T-292, T-299, T-300, T-304, T-307 | ▶ en proceso |
-| REQ-123 | La matriz de cumplimiento se puede proponer con un modelo externo que lee el pliego completo, con las mismas medidas y la misma lista esperada que la local; se adopta por etapa solo si mejora según el ADR-0065 y, en empate, queda la local | T-291, T-292, T-293, T-294, T-295, T-296, T-297 | ○ pendiente |
+| REQ-123 | La matriz de cumplimiento se puede proponer con un modelo externo que lee el pliego completo, con las mismas medidas y la misma lista esperada que la local; se adopta por etapa solo si mejora según el ADR-0065 y, en empate, queda la local | T-291, T-292, T-293, T-294, T-295, T-296, T-297 | ▶ en proceso |
 | REQ-124 | Una verificación con modelo externo puede revisar cada «cumple» o «no cumple» propuesto por el modelo local: confirma que la cita sostiene la conclusión y propone la redacción de la pregunta; si no la sostiene, la celda pasa a «no determinado» con pregunta; la verificación nunca convierte un «no determinado» en «cumple» | T-299, T-301, T-302, T-303, T-304, T-305 | ○ pendiente |
 | REQ-125 | Cada paso de la feature (verdad ampliada, simplificación, matriz externa, verificador externo) se mide contra un umbral escrito antes, en la instancia clonada, y se integra solo si lo pasa; la elección local o externa de cada etapa queda en un ADR con su medición | T-270, T-276, T-283, T-284, T-286, T-287, T-293, T-295, T-296, T-298, T-301, T-303, T-304, T-306, T-307 | ▶ en proceso |
