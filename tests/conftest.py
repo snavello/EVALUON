@@ -732,7 +732,8 @@ class FakeExternal:
       `matriz` y `verificador`) y una clave sintética en el entorno.
 
     Registros: `messages` (pedidos directos), `batches` (listas de pedidos de cada lote
-    creado), `retrievals` (consultas por lote), `sleeps` (esperas pedidas) y `clock`.
+    creado), `retrievals` (consultas por lote), `cancelled` (identificadores de los lotes que
+    se pidió cancelar, también cuando `run_batch` agota la espera), `sleeps` y `clock`.
     """
 
     def __init__(self, test_settings, monkeypatch):
@@ -741,6 +742,7 @@ class FakeExternal:
         self.messages = []
         self.batches = []
         self.retrievals = {}
+        self.cancelled = []
         self.sleeps = []
         self.clock = 0.0
         self._replies = {}
@@ -863,6 +865,16 @@ class FakeExternal:
             response_body={"id": batch.id, "type": "message_batch",
                            "processing_status": status, "request_counts": counts})
 
+    def cancel_batch(self, batch):
+        external_client.require_enabled(batch.stage)
+        self.cancelled.append(batch.id)
+        self._raise_call_error()
+        return external_client.replace(
+            batch, status="canceling",
+            response_body={"id": batch.id, "type": "message_batch",
+                           "processing_status": "canceling",
+                           "request_counts": batch.request_counts})
+
     def fetch_results(self, batch):
         if batch.status != "ended":
             raise ValueError(f"El lote {batch.id} no terminó (estado {batch.status}).")
@@ -899,6 +911,7 @@ def fake_external(monkeypatch, settings):
     monkeypatch.setattr(external_client, "send_message", double.send_message)
     monkeypatch.setattr(external_client, "create_batch", double.create_batch)
     monkeypatch.setattr(external_client, "retrieve_batch", double.retrieve_batch)
+    monkeypatch.setattr(external_client, "cancel_batch", double.cancel_batch)
     monkeypatch.setattr(external_client, "fetch_results", double.fetch_results)
     monkeypatch.setattr(external_client, "_sleep", double.sleep)
     monkeypatch.setattr(external_client, "_now", double.now)

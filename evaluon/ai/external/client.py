@@ -21,8 +21,10 @@ Operaciones (cada una recibe lo ya filtrado y devuelve lo que el registro necesi
 - `send_message(payload)`: un mensaje directo (la prueba de humo y el camino de emergencia).
 - `create_batch(payloads)`, `retrieve_batch(batch)`, `fetch_results(batch)`: las tres llamadas
   de la API de lotes.
+- `cancel_batch(batch)`: pide al proveedor cancelar un lote (`POST .../{id}/cancel`).
 - `run_batch(payloads)`: crea el lote, lo consulta cada `EXTERNAL_BATCH_POLL_SECONDS` hasta
-  `EXTERNAL_BATCH_MAX_WAIT_SECONDS` y baja los resultados.
+  `EXTERNAL_BATCH_MAX_WAIT_SECONDS` y baja los resultados. Si la espera se agota, cancela el
+  lote antes de lanzar `ExternalTimeoutError`, para que no siga gastando.
 
 Errores propios, cada uno con el motivo que se registra en `reason` el motivo que se registra:
 
@@ -97,9 +99,11 @@ class ExternalDisabled(ExternalError):
 
 
 class ExternalTimeoutError(ExternalError):
-    """No hubo respuesta a tiempo (una llamada o la espera de un lote)."""
+    """No hubo respuesta a tiempo (una llamada o la espera de un lote). Si fue la espera de un
+    lote, `canceled` dice si se logró pedir su cancelación al proveedor."""
 
     reason = "timeout"
+    canceled = False
 
 
 class ExternalUnavailableError(ExternalError):
@@ -528,6 +532,20 @@ def retrieve_batch(batch):
     return replace(batch, status=status, request_counts=counts, response_body=body)
 
 
+def cancel_batch(batch):
+    """Pide cancelar un lote (`POST /v1/messages/batches/{id}/cancel`); el proveedor lo pasa a
+    `canceling` y termina los pedidos que ya procesó. Devuelve el lote con su nuevo estado."""
+    key = require_enabled(batch.stage)
+    raw = _call(key, "POST", f"/v1/messages/batches/{batch.id}/cancel",
+                timeout=CALL_TIMEOUT_SECONDS, idempotent=True)
+    body = _json_object(raw, "Cancelación del lote")
+    batch_id, status, counts = _batch_state(body, "Cancelación del lote")
+    if batch_id != batch.id:
+        raise ExternalInvalidResponse("La cancelación respondió por otro lote.",
+                                      batch_id=batch.id)
+    return replace(batch, status=status, request_counts=counts, response_body=body)
+
+
 def fetch_results(batch):
     """Baja los resultados de un lote terminado (`GET /v1/messages/batches/{id}/results`) y
     devuelve un diccionario `custom_id` → `ExternalResult`, en el orden de los pedidos."""
@@ -543,8 +561,8 @@ def run_batch(payloads, *, on_created=None):
     """Crea el lote, lo consulta hasta que termine y baja sus resultados.
 
     Consulta cada `EXTERNAL_BATCH_POLL_SECONDS` y, pasados `EXTERNAL_BATCH_MAX_WAIT_SECONDS`
-    sin que termine, lanza `ExternalTimeoutError` (con el `batch_id`; el lote sigue en el
-    proveedor). `on_created(batch)`, si se pasa, se llama apenas el lote existe, antes de
+    sin que termine, pide cancelar el lote (si la cancelación falla, igual sigue) y lanza
+    `ExternalTimeoutError` con el `batch_id` y `canceled` según haya salido la cancelación. `on_created(batch)`, si se pasa, se llama apenas el lote existe, antes de
     esperar: sirve para registrar su identificador. Devuelve un `BatchRun`.
     """
     started = _now()
@@ -557,9 +575,17 @@ def run_batch(payloads, *, on_created=None):
     while batch.status != "ended":
         waited = _now() - started
         if waited >= max_wait:
-            raise ExternalTimeoutError(
-                f"El lote {batch.id} no terminó en {max_wait} s (estado {batch.status}).",
-                batch_id=batch.id)
+            message = f"El lote {batch.id} no terminó en {max_wait} s (estado {batch.status})."
+            try:
+                cancel_batch(batch)
+                canceled = True
+                message += " Se pidió su cancelación."
+            except ExternalError as error:
+                canceled = False
+                message += f" No se pudo cancelar: {error}"
+            timeout_error = ExternalTimeoutError(message, batch_id=batch.id)
+            timeout_error.canceled = canceled
+            raise timeout_error
         _sleep(min(poll, max_wait - waited))
         batch = retrieve_batch(batch)
         polls += 1

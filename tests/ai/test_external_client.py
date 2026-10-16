@@ -296,6 +296,7 @@ def operations(payload):
         "create_batch": lambda: client.create_batch([payload]),
         "retrieve_batch": lambda: client.retrieve_batch(batch),
         "fetch_results": lambda: client.fetch_results(batch),
+        "cancel_batch": lambda: client.cancel_batch(batch),
         "run_batch": lambda: client.run_batch([payload]),
     }
 
@@ -666,18 +667,61 @@ def test_run_batch_polls_until_it_ends_and_returns_each_result(provider, clock, 
     assert provider.urls[-1] == "https://api.anthropic.com/v1/messages/batches/msgbatch_01/results"
 
 
-def test_run_batch_gives_up_after_the_maximum_wait(provider, clock, settings):
-    """REQ-122: si el lote no termina en `EXTERNAL_BATCH_MAX_WAIT_SECONDS`, `ExternalTimeoutError`
-    con el identificador del lote (sigue en el proveedor); la última espera no pasa del tope."""
+def test_run_batch_gives_up_after_the_maximum_wait_and_cancels_the_batch(
+        provider, clock, settings):
+    """REQ-122: si el lote no termina en `EXTERNAL_BATCH_MAX_WAIT_SECONDS`, se pide cancelarlo
+    (`POST .../cancel`, una vez, con las mismas cabeceras) antes de lanzar
+    `ExternalTimeoutError` con el identificador del lote; la última espera no pasa del tope y
+    no se bajan resultados."""
     settings.EXTERNAL_BATCH_POLL_SECONDS = 30
     settings.EXTERNAL_BATCH_MAX_WAIT_SECONDS = 100
     provider.route("POST", "/v1/messages/batches", batch_created())
     provider.route("GET", "/v1/messages/batches/msgbatch_01", batch_created())
+    provider.route("POST", "/v1/messages/batches/msgbatch_01/cancel",
+                   batch_created(status="canceling"))
     with pytest.raises(client.ExternalTimeoutError) as raised:
         client.run_batch(batch_payloads(2))
     assert raised.value.batch_id == "msgbatch_01" and raised.value.reason == "timeout"
+    assert raised.value.canceled is True
     assert clock["sleeps"] == [30, 30, 30, 10]
+    cancels = provider.sent("POST", "/v1/messages/batches/msgbatch_01/cancel")
+    assert len(cancels) == 1
+    assert provider.urls[-1] == "https://api.anthropic.com/v1/messages/batches/msgbatch_01/cancel"
+    assert cancels[0]["headers"]["x-api-key"] == KEY
+    assert cancels[0]["headers"]["anthropic-version"] == "2023-06-01"
     assert provider.sent("GET", "/v1/messages/batches/msgbatch_01/results") == []
+
+
+def test_a_failed_cancellation_does_not_hide_the_timeout(provider, clock, settings):
+    """REQ-122: si el proveedor rechaza la cancelación, igual se lanza `ExternalTimeoutError`
+    (con `canceled` falso y el motivo en el mensaje)."""
+    settings.EXTERNAL_BATCH_MAX_WAIT_SECONDS = 60
+    provider.route("POST", "/v1/messages/batches", batch_created())
+    provider.route("GET", "/v1/messages/batches/msgbatch_01", batch_created())
+    provider.route("POST", "/v1/messages/batches/msgbatch_01/cancel", {
+        "type": "error", "error": {"type": "invalid_request_error", "message": "ya terminó"}},
+        status=400)
+    with pytest.raises(client.ExternalTimeoutError) as raised:
+        client.run_batch(batch_payloads(1))
+    assert raised.value.canceled is False and "No se pudo cancelar" in str(raised.value)
+    assert raised.value.batch_id == "msgbatch_01"
+
+
+def test_cancel_batch_returns_the_batch_as_canceling(provider):
+    """REQ-122: `cancel_batch` pide la cancelación y devuelve el lote con su estado
+    `canceling` y sus pedidos."""
+    provider.route("POST", "/v1/messages/batches", batch_created())
+    provider.route("POST", "/v1/messages/batches/msgbatch_01/cancel",
+                   batch_created(status="canceling"))
+    batch = client.create_batch(batch_payloads(2))
+    canceled = client.cancel_batch(batch)
+    assert (canceled.id, canceled.status) == ("msgbatch_01", "canceling")
+    assert canceled.payloads == batch.payloads
+    provider.routes.clear()
+    provider.route("POST", "/v1/messages/batches/msgbatch_01/cancel",
+                   batch_created(batch_id="msgbatch_02", status="canceling"))
+    with pytest.raises(client.ExternalInvalidResponse):
+        client.cancel_batch(batch)
 
 
 def test_an_expired_or_failed_result_raises_the_matching_error(provider, clock):
@@ -825,6 +869,8 @@ def test_the_double_simulates_polls_failures_and_expiry(fake_external, settings)
     with pytest.raises(client.ExternalTimeoutError) as raised:
         client.run_batch(batch_payloads(1))
     assert raised.value.batch_id.startswith("msgbatch_fake_")
+    assert raised.value.canceled is True
+    assert fake_external.cancelled == [raised.value.batch_id]
     assert fake_external.clock >= 100
 
 

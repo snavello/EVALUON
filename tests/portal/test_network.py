@@ -10,11 +10,14 @@ que se usa solo junto con `docker-compose.clon.yml` y le da `egress` únicamente
 las de `tests/test_clon_compose.py`).
 """
 
+import runpy
 from pathlib import Path
 
 import pytest
 import yaml
 from django.conf import settings
+
+from tests.test_compose_env import EXTERNAL_VARIABLES, resolve
 
 COMPOSE_FILE = Path(settings.BASE_DIR) / "docker-compose.yml"
 CLON_FILE = Path(settings.BASE_DIR) / "docker-compose.clon.yml"
@@ -113,14 +116,55 @@ def test_with_the_external_file_egress_reaches_only_the_clon_worker_and_app():
 
 
 @needs_external_files
-def test_the_external_file_adds_only_egress_and_the_key():
-    """REQ-122, P4: de cada servicio solo toca las redes y la variable de la clave, y la clave
-    se pide del `--env-file` sin ningún valor escrito en el archivo."""
+def test_the_external_file_adds_only_networks_the_key_and_the_external_variables():
+    """REQ-122, P4: de cada servicio solo toca las redes, la variable de la clave (que se pide
+    del `--env-file` sin ningún valor escrito) y las 17 variables `EXTERNAL_*`."""
     external = yaml.safe_load(EXTERNAL_FILE.read_text(encoding="utf-8"))
     for name, service in external["services"].items():
         assert set(service) == {"environment", "networks"}, name
         assert service["networks"] == ["egress"], name
-        assert set(service["environment"]) == {"ANTHROPIC_API_KEY"}, name
+        assert set(service["environment"]) == {"ANTHROPIC_API_KEY", *EXTERNAL_VARIABLES}, name
         value = service["environment"]["ANTHROPIC_API_KEY"]
         assert value.startswith("${ANTHROPIC_API_KEY:?") and value.endswith("}"), name
     assert "sk-ant" not in EXTERNAL_FILE.read_text(encoding="utf-8")
+
+
+@needs_external_files
+def test_the_external_variables_are_the_same_in_both_services_and_in_the_base_compose(compose):
+    """REQ-122: `clon_worker` y `clon_app` reciben las mismas 17 variables, escritas igual que
+    en el compose base (mismo nombre, misma sintaxis `${NOMBRE:-valor}` y el mismo valor por
+    omisión): el clon no recibe estas variables de ningún otro archivo."""
+    external = yaml.safe_load(EXTERNAL_FILE.read_text(encoding="utf-8"))
+    base = compose["services"]["app"]["environment"]
+    assert len(EXTERNAL_VARIABLES) == 17
+    for name, service in external["services"].items():
+        for variable in EXTERNAL_VARIABLES:
+            assert service["environment"][variable] == base[variable], (name, variable)
+            default = resolve(base[variable], {})
+            assert "${" not in default and default != "", variable
+    # Sin ninguna variable en el entorno el archivo externo deja todo apagado.
+    defaults = {variable: resolve(base[variable], {}) for variable in EXTERNAL_VARIABLES}
+    assert defaults["EXTERNAL_ENABLED"] == "false"
+    assert defaults["EXTERNAL_STAGE_MATRIZ"] == defaults["EXTERNAL_STAGE_VERIFICADOR"] == "local"
+
+
+@needs_external_files
+def test_the_external_variables_defaults_match_settings(monkeypatch):
+    """REQ-122: los valores por omisión del archivo externo coinciden con los de `settings.py`:
+    cargar `settings.py` sin variables y cargarlo con las variables puestas en los valores por
+    omisión del archivo da exactamente la misma configuración."""
+    external = yaml.safe_load(EXTERNAL_FILE.read_text(encoding="utf-8"))
+    environment = external["services"]["clon_worker"]["environment"]
+    settings_file = str(Path(settings.BASE_DIR) / "evaluon" / "settings.py")
+
+    def external_settings():
+        loaded = runpy.run_path(settings_file)
+        return {name: value for name, value in loaded.items() if name.startswith("EXTERNAL_")}
+
+    for variable in EXTERNAL_VARIABLES + ("ANTHROPIC_API_KEY",):
+        monkeypatch.delenv(variable, raising=False)
+    without_variables = external_settings()
+    assert without_variables["EXTERNAL_ENABLED"] is False
+    for variable in EXTERNAL_VARIABLES:
+        monkeypatch.setenv(variable, resolve(environment[variable], {}))
+    assert external_settings() == without_variables
