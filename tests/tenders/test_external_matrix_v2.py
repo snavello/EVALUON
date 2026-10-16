@@ -10,6 +10,8 @@ externo (`fake_external`, sin red: la suite bloquea toda llamada real). Todo el 
 import pytest
 from django.conf import settings
 
+import json
+
 from evaluon.tenders import evaluation as ev
 from evaluon.tenders import models as m
 from evaluon.tenders.proposal import external
@@ -277,3 +279,75 @@ def test_d_293_3_the_request_carries_the_rule_and_an_external_check_is_a_firm_ro
     firm = [row for row in rows_of(run, state="propuesto") if CHECK in row.quotes.get(order=1).text]
     assert len(firm) == 1 and firm[0].category == "formal"
     assert rows_of(run, state="sugerido") == []
+
+
+# --- D-293-4: los pedidos de un caso comparten el prefijo de la caché ---------------------------------
+
+
+def _params(script, stage):
+    return [payload.to_params() for payload in script.payloads if payload.stage == stage]
+
+
+def test_d_293_4_extraction_and_completion_requests_share_the_cached_prefix(
+        small_case, operator_user, ext, fake_external, monkeypatch):  # noqa: F811
+    """REQ-123, D-293-4: el proveedor arma la caché con el prefijo (herramientas, sistema y formato
+    de salida); en T-293 la completitud reescribía el pliego entero porque su `output_config.format`
+    era otro. Con dos pedidos de extracción y uno de completitud del mismo caso, `to_params()`
+    coincide en `system`, `output_config`, `thinking` y `tools` (si los hubiera); solo cambia el
+    mensaje."""
+    fake_external.enable("matriz")
+    monkeypatch.setattr(external, "SEGMENTS_PER_REQUEST", 3)
+
+    requested, job = propose(operator_user, small_case.procedure)
+
+    assert job.status == "done", job.error
+    extraction = _params(ext, external.STAGE_EXTRACTION)
+    completion = _params(ext, external.STAGE_COMPLETION)
+    assert len(extraction) >= 2 and len(completion) == 1
+    for other in extraction[1:] + completion:
+        for key in ("system", "output_config", "thinking", "tools"):
+            assert other.get(key) == extraction[0].get(key), key
+    assert extraction[0]["output_config"]["format"]["type"] == "json_schema"
+    assert extraction[0]["messages"] != completion[0]["messages"]
+    assert extraction[0]["system"][0]["cache_control"] == {"type": "ephemeral", "ttl": "1h"}
+
+
+def test_d_293_4_the_one_schema_has_the_three_lists_of_both_stages():
+    """REQ-123, D-293-4: el esquema único trae las tres listas, todas requeridas, sin límites de
+    largo, y no depende del tipo de pedido (solo de los renglones del pliego)."""
+    schema = external.output_schema([1, 2])
+
+    assert list(schema["properties"]) == ["tramos", "faltantes", "filas"]
+    assert schema["required"] == ["tramos", "faltantes", "filas"]
+    assert external.output_schema([1, 2]) == schema
+    assert external.output_schema([1, 2, 3]) != schema
+    text = json.dumps(schema)
+    for limit in ("minLength", "maxLength", "maxItems", "minItems"):
+        assert limit not in text
+
+
+class DropsLists(ExternalScript):
+    """Como `ExternalScript`, pero la respuesta de extracción no trae las listas que no pidió."""
+
+    def reply(self, payload):
+        reply = super().reply(payload)
+        if payload.stage == external.STAGE_EXTRACTION and reply.get("text"):
+            answer = json.loads(reply["text"])
+            reply["text"] = json.dumps({"tramos": answer["tramos"]})
+        return reply
+
+
+def test_d_293_4_a_response_without_the_three_lists_is_not_the_requested_json(
+        small_case, operator_user, fake_external, monkeypatch):  # noqa: F811
+    """REQ-123, D-293-4: la salida tiene que traer las tres listas del esquema; una que trae solo
+    una no es el JSON pedido: nada de lo externo se aplica y la propuesta sigue por lo local."""
+    fake_external.enable("matriz")
+    DropsLists(fake_external, monkeypatch)
+
+    requested, job = propose(operator_user, small_case.procedure)
+
+    assert job.status == "done", job.error
+    run = requested.run
+    kinds = [a["type"] for a in run.anomalies]
+    assert external.ANOMALY_INVALID in kinds and external.ANOMALY_UNAVAILABLE in kinds
+    assert run.models["externo"]["etapas"]["matriz"] == "local"

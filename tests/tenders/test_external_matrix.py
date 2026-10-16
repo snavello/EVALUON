@@ -102,9 +102,11 @@ class ExternalScript:
         blocks = parse_blocks(payload.system)
         if payload.stage == external.STAGE_EXTRACTION:
             answer = {"tramos": [self._segment(alias, blocks[alias]["text"])
-                                 for alias in _ASKED.search(user).group(1).split(", ")]}
+                                 for alias in _ASKED.search(user).group(1).split(", ")],
+                      "faltantes": [], "filas": []}
         else:
-            answer = {"faltantes": self._missing(_OPEN.search(user).group(1).split(", "),
+            answer = {"tramos": [],
+                      "faltantes": self._missing(_OPEN.search(user).group(1).split(", "),
                                                  blocks),
                       "filas": [self._row(alias, quote) for alias, _, quote in _ROW.findall(user)]}
         return {**reply, "text": json.dumps(answer, ensure_ascii=False)}
@@ -542,10 +544,10 @@ def test_the_segments_are_split_in_up_to_four_requests(count, sizes):
 def test_the_schemas_carry_no_length_limits():
     """REQ-123 (plan 016): los esquemas de salida no traen límites de largo (los largos se validan
     en el cliente) y piden la lista cerrada de motivos."""
-    text = json.dumps([external.extraction_schema([1, 2]), external.completion_schema()])
+    text = json.dumps(external.output_schema([1, 2]))
     for limit in ("minLength", "maxLength", "maxItems", "minItems"):
         assert limit not in text
-    descarte = external.extraction_schema([1])["properties"]["tramos"]["items"]["properties"][
+    descarte = external.output_schema([1])["properties"]["tramos"]["items"]["properties"][
         "descarte"]
     assert set(descarte["enum"]) == {"", *m.DiscardReason.values}
 

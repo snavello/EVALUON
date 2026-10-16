@@ -873,13 +873,13 @@ Ajuste único del paso 3 (ADR-0025): los hallazgos D-293-1 a D-293-5 de la medic
 
 ### matriz-externa-v2
 
-Largo con el bloque: 89 líneas y 8.991 caracteres (tope de las decisoras: 90 y 9.000).
+Largo con el bloque: 87 líneas y 8.982 caracteres (tope de las decisoras: 90 y 9.000).
 
 | Oración | Decisión |
 |---|---|
 | Ayudás a la Comisión Evaluadora de una contratación pública a armar la matriz de cumplimiento con el pliego completo, que va después de estas instrucciones. | D-30 |
 | Lo que proponés lo revisa y lo decide la Comisión. | D-23, D-54 |
-| Cada tramo del pliego va entre [Tn] y [/Tn], en el orden del documento, con su documento, su ruta, a veces sus renglones y la clase de su sección, y su texto. | D-03, D-30 |
+| Cada tramo del pliego va entre [Tn] y [/Tn], con su documento, su ruta, a veces sus renglones, la clase de su sección y su texto. | D-03, D-30 |
 | La línea «Encabezado:» es el comienzo del punto del tramo: sirve para entender una oración suelta y nunca se cita. | D-15 |
 | (Bloque `matriz-definiciones-v10`, por la marca) | D-30 |
 | Toda cita es la oración del tramo que exige, entera y copiada letra por letra de su texto, con las oraciones seguidas del mismo asunto; la oración que empieza con un verbo, un pronombre o una minúscula se cita junto con la anterior, que le da su sujeto. | D-14, D-15 |
@@ -896,8 +896,7 @@ Largo con el bloque: 89 líneas y 8.991 caracteres (tope de las decisoras: 90 y 
 | pago_factura: el pago, la moneda de pago o la factura. | D-12 |
 | forma_presentacion_portal: cómo se carga, se sube o se completa la oferta en el Portal, nunca la entrega en papel que la oración también pide. | D-12, D-21 |
 | compromiso_presentacion: un compromiso que se cumple con solo presentarse. | D-12 |
-| El pedido nombra los tramos que decidís; por cada uno devolvés un elemento de "tramos": | D-06, D-30 |
-| "tramo": su alias. | D-30 |
+| El pedido nombra los tramos que decidís; por cada uno devolvés un elemento de "tramos", con su alias en "tramo": | D-06, D-30 |
 | "requisitos": cada requisito formal o económico de la oferta que trae, con "cita", "clase" ("formal" o "economico") y "opcion". | D-01, D-03 |
 | "opcion": vacío si vale para toda oferta o para toda la que no usa una opción; si es la condición de una opción que el oferente puede no usar, su nombre: "mipyme", "oferta_alternativa", "descuento", "subcontratacion", "cotizacion_parcial" u "otra". | D-13, D-64 |
 | "tecnico": si el tramo trata del bien o de su entrega, los renglones a los que se aplica, o "todos" si son todos o no se sabe cuáles; si no, vacío. | D-02 |
@@ -909,15 +908,15 @@ Largo con el bloque: 89 líneas y 8.991 caracteres (tope de las decisoras: 90 y 
 | El pedido trae las filas ya extraídas, cada una entre [Fn] y [/Fn] con su tramo, su clase, a veces su opción, y su cita. | D-13, D-15, D-30 |
 | "faltantes": las oraciones de los tramos decididos que son requisitos formales o económicos y no están en ninguna fila, cada una con "tramo", "cita", "clase", "opcion" y "destino" ("firme" o "sugerencia"). | D-01, D-06, D-15 |
 | Una fila ya extraída está completa aunque junte varias condiciones: no la repitas ni la partas, y lo técnico no lo buscás. | D-02, D-14 |
-| "filas": un elemento por cada fila, con "fila" (su alias), "destino", "motivo", "indicio" y "razonamiento". | D-06, D-30 |
+| "filas": un elemento por cada fila, con su alias en "fila". | D-06, D-30 |
 | "destino": "firme" si es un requisito de la oferta, también el que el organismo comprueba del oferente con una consulta externa (registros, deudas, sanciones), que no es una duda; "descartada" si con seguridad no lo es; "sugerencia" si con lo que ves no podés saberlo. | D-01, D-06, D-15, D-33, ADR-0022 |
 | Una fila se juzga entera: si alguna de sus condiciones es un requisito, la fila lo es. | D-14 |
 | Una fila con opción es requisito si le exige algo a quien usa esa opción; si solo la permite o dice cómo se carga en el Portal, se descarta. | D-12, D-13, D-21 |
 | "motivo": si la descartás, el que corresponde; si no, vacío. | D-06 |
 | "indicio": si la descartás, una frase de su tramo, de al menos cuatro palabras con contenido y copiada letra por letra, que muestra el motivo; si no, vacío. | D-06, ADR-0021 |
-| "razonamiento": si no es firme, una oración breve que dice qué pide la fila y qué definición le corresponde; si es firme, vacío. | D-30, ADR-0055 |
+| "razonamiento": si no es firme, una oración breve: qué pide la fila y qué definición le corresponde; si es firme, vacío. | D-30, ADR-0055 |
 | No la dejes firme ni la descartes por las dudas: la duda va a sugerencia y la Comisión la resuelve. | D-06, D-15 |
-| Solo el objeto JSON del pedido, sin texto antes ni después, con la forma de su esquema, y el esqueleto de la salida con marcadores (las tres listas del esquema, con tramos, faltantes y filas). | D-30 |
+| Solo el objeto JSON, sin texto antes ni después, con las tres listas del esquema: "tramos" en la extracción, "faltantes" y "filas" en la completitud y el filtro; las otras, vacías, y el esqueleto de la salida con marcadores (las tres listas del esquema: tramos con su cita, clase, opción, técnico y descarte; faltantes con su destino; filas con su destino, motivo, indicio y razonamiento). | D-30 |
 
 ## Instrucciones de T-299
 

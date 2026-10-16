@@ -21,7 +21,11 @@ reuso por huella), en el modo de `EXTERNAL_MODE` (`lotes`; `directo` solo para l
   qué oración obligatoria falta y, por fila, firme, sugerencia o descartada con su motivo.
 
 Esfuerzo y pensamiento, los de la etapa (`EXTERNAL_EFFORT`, `EXTERNAL_THINKING`); `max_tokens`
-`MAX_TOKENS`; salida con el esquema JSON del pedido. Los largos se validan acá, no en el esquema.
+`MAX_TOKENS`; salida con **un solo esquema JSON para todos los pedidos** (`output_schema`: las tres
+listas `tramos`, `faltantes` y `filas`; cada tipo de pedido llena las suyas y deja vacías las otras):
+el proveedor arma la caché con el prefijo completo, formato de salida incluido, y con un esquema por
+tipo la completitud reescribía el pliego entero en lugar de leerlo (T-294, D-293-4). Los largos se
+validan acá, no en el esquema.
 
 **Mismo contrato que lo local.** `Stage.extract` devuelve una `extraction.Extraction` (un
 `extraction.Outcome` por tramo); `Stage.complete_and_filter` devuelve una
@@ -141,8 +145,8 @@ def _enum(values):
     return {"type": "string", "enum": list(values)}
 
 
-def extraction_schema(numbers):
-    """Salida del pedido de extracción: un elemento de `tramos` por tramo pedido."""
+def _tramos_list(numbers):
+    """La lista `tramos` (pedido de extracción): un elemento por tramo pedido."""
     requirement = _object({"cita": {"type": "string"},
                            "clase": _enum(extraction.BODY_CLASSES),
                            "opcion": _enum(["", *extraction.OPTIONS])})
@@ -153,20 +157,36 @@ def extraction_schema(numbers):
                     "items": _enum([extraction.ALL_ITEMS, *[str(n) for n in numbers]])},
         "descarte": _enum(["", *DiscardReason.values]),
     })
-    return _object({"tramos": {"type": "array", "items": item}})
+    return {"type": "array", "items": item}
 
 
-def completion_schema():
-    """Salida del pedido de completitud y filtro: los faltantes y un elemento por fila."""
+def _faltantes_list():
+    """La lista `faltantes` (pedido de completitud y filtro): las oraciones que faltan."""
     missing = _object({"tramo": {"type": "string"}, "cita": {"type": "string"},
                        "clase": _enum(extraction.BODY_CLASSES),
                        "opcion": _enum(["", *extraction.OPTIONS]),
                        "destino": _enum(ADDED_DESTINATIONS)})
+    return {"type": "array", "items": missing}
+
+
+def _filas_list():
+    """La lista `filas` (pedido de completitud y filtro): un elemento por fila."""
     row = _object({"fila": {"type": "string"}, "destino": _enum(DESTINATIONS),
                    "motivo": _enum(["", *settings.FILTER_MOTIVES]),
                    "indicio": {"type": "string"}, "razonamiento": {"type": "string"}})
-    return _object({"faltantes": {"type": "array", "items": missing},
-                    "filas": {"type": "array", "items": row}})
+    return {"type": "array", "items": row}
+
+
+def output_schema(numbers):
+    """El esquema de salida de **todos** los pedidos de la propuesta (T-294, D-293-4): las tres
+    listas, `tramos`, `faltantes` y `filas`, todas requeridas. La extracción llena `tramos` y deja
+    las otras vacías; la completitud y el filtro llenan `faltantes` y `filas` y dejan `tramos`
+    vacía. Es un solo esquema porque el proveedor arma la caché con el prefijo completo (sistema y
+    `output_config.format`): con un esquema por tipo de pedido, la completitud reescribía el
+    pliego entero (T-293 midió 36 a 39 % del gasto de cada caso) en lugar de leer lo que dejó la
+    extracción. `numbers` son los renglones del pliego (los mismos en todos los pedidos)."""
+    return _object({"tramos": _tramos_list(numbers), "faltantes": _faltantes_list(),
+                    "filas": _filas_list()})
 
 
 # --- Reparto -------------------------------------------------------------------------------------
@@ -235,8 +255,12 @@ def resolve(unit, item, anomalies):
     return found
 
 
-def _load(text, keys):
-    """La respuesta como objeto JSON con exactamente `keys`, cada una una lista; si no, `None`."""
+LISTS = ("tramos", "faltantes", "filas")
+
+
+def _load(text, keys=LISTS):
+    """La respuesta como objeto JSON con exactamente `keys` (las tres listas del esquema único),
+    cada una una lista; si no, `None`."""
     try:
         data = json.loads(text)
     except ValueError:
@@ -499,7 +523,7 @@ class Stage:
         if not chunks:
             return extraction.Extraction(outcomes={}, steps=[], anomalies=[],
                                          stats=self._extraction_stats(0))
-        schema = extraction_schema(self.numbers)
+        schema = output_schema(self.numbers)
         admitted = []
         for number, chunk in enumerate(chunks, start=1):
             aliases = ", ".join(alias_of(unit) for unit in chunk)
@@ -516,7 +540,7 @@ class Stage:
         for item, chunk in zip(admitted, chunks):
             answer = sent.answers[item.custom_id]
             asked = {alias_of(unit): unit for unit in chunk}
-            data = _load(answer.text, ("tramos",))
+            data = _load(answer.text)
             if data is None:
                 raise Unavailable("salida_invalida", [{
                     "type": ANOMALY_INVALID, "etapa": STAGE_EXTRACTION,
@@ -624,12 +648,12 @@ class Stage:
         message.append(guard.instruction(
             'Devolvé el objeto JSON con "faltantes" y un elemento de "filas" por cada fila.'))
         admitted = [self._build(STAGE_COMPLETION, f"matriz-{self.run.pk}-cf", message,
-                                completion_schema())]
+                                output_schema(self.numbers))]
         started = time.monotonic()
         sent = self._send(admitted, last=True)
         seconds = time.monotonic() - started
         answer = sent.answers[admitted[0].custom_id]
-        data = _load(answer.text, ("faltantes", "filas"))
+        data = _load(answer.text)
         if data is None:
             raise Unavailable("salida_invalida", [{
                 "type": ANOMALY_INVALID, "etapa": STAGE_COMPLETION,
