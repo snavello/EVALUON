@@ -78,7 +78,7 @@ SIMPLIFIED = {
     "informe-tecnico-v3": {"path": "evaluon/assessment/prompts/informe-tecnico-v3.md"},
     "oferente-nombre-v3": {"path": "evaluon/offers/prompts/oferente-nombre-v3.md"},
     "procedimiento-datos-v3": {"path": "evaluon/tenders/prompts/procedimiento-datos-v3.md"},
-    "consulta-v5": {"path": "evaluon/queries/prompts/consulta-v5.txt"},
+    "consulta-v6": {"path": "evaluon/queries/prompts/consulta-v6.txt"},  # T-285
 }
 
 # Los esquemas de salida de las instrucciones simplificadas: `{nombre: "módulo:atributo"}`; el
@@ -97,7 +97,7 @@ SIMPLIFIED_SCHEMAS = {
     "informe-tecnico-v3": "tests.test_instrucciones_largo:technical_report_schema",
     "oferente-nombre-v3": "evaluon.offers.proposal_fields:MODEL_SCHEMA",
     "procedimiento-datos-v3": "evaluon.tenders.proposal.procedure_fields:MODEL_SCHEMA",
-    "consulta-v5": "tests.test_instrucciones_largo:query_schema",
+    "consulta-v6": "tests.test_instrucciones_largo:query_schema",  # T-285
 }
 
 
@@ -250,7 +250,7 @@ def test_the_limits_are_the_ones_of_the_plan():
                   "contraste-v5", "clausulas-v6",
                   "reescritura-v3", "vision-v5", "ficha-v4", "ficha-renglon-v6",
                   "informe-tecnico-v3", "oferente-nombre-v3", "procedimiento-datos-v3",
-                  "consulta-v5"):
+                  "consulta-v6"):
         assert limits_of(other) == (50, 5000), other
     assert limits_of("matriz-definiciones-v10") == (None, 5000)
     assert DESCRIPTION_CHARS == 80
