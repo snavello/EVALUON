@@ -20,9 +20,13 @@ Reglas, en este orden:
    Un "no cumple" técnico sin cláusula del pliego que lo contradiga llega acá como duda
    `sin_dato` (T-156, `clause_supported`).
 5. Todos los grupos "no consta": "no se encontró el documento" si la exigencia es `documento`
-   en todos, no hay páginas sin leer ni documentos sin lectura y se leyeron todos los grupos;
-   "no determinado" `lectura_incompleta` si hay algo sin leer; `sin_dato` si la exigencia es
-   una condición y se leyó todo.
+   en todos, no hay páginas sin leer ni documentos sin lectura, se leyeron todos los grupos y
+   **ninguno es ese documento** (T-285, D-283-5): ningún grupo ubicó un texto de la oferta sobre
+   el requisito ni concluyó (`GroupResult.found`) y ninguno marcó la condición como de una opción
+   que la oferta no usa (`option_use`); "no determinado" `lectura_incompleta` si hay algo sin leer;
+   `sin_dato` si la exigencia es una condición y se leyó todo, si la condición es de una opción
+   (la regla de `options.py` decide si aplica) o si la lectura señaló un texto sobre el documento
+   exigido (con ese texto citado y la pregunta de si el documento está).
 
 Un "cumple" o "no cumple" va después al contraste (`apply_contrast`): si no contesta `si`, es
 "no determinado" `sin_corroborar` con las mismas citas. Un "no determinado" que falta un dato
@@ -34,6 +38,15 @@ la pregunta que escribió el modelo (o la de una regla) y en `Combined.ask` si e
 `compose_question` arma la pregunta final, con el requisito, la conclusión y el texto de la oferta
 (documento y página), dirigida a la Comisión. La pregunta del modelo se acepta solo si no se dirige
 al oferente; si no, la arma el código. No hay preguntas de texto fijo genérico.
+
+Tres salidas por celda (REQ-120; T-277; ADR-0070, punto 5): toda celda termina en «cumple» con
+fundamento, «no cumple» con cita o fundamento, o «no determinado» con la pregunta a la Comisión o el
+documento que falta nombrado. «No se encontró el documento» es la forma de «no determinado» cuando el
+pliego exige un documento y se leyeron todos: lleva siempre su pregunta (la del modelo si la escribió) y
+el documento exigido nombrado en ella. `compose_question` arma una pregunta para todo «no determinado»
+que no nombre ya un documento faltante (`externo`, `pendiente_informe_tecnico`, `no_se_pudo_leer`), con
+el texto de `_default_ask` por motivo. `cell_problem` es la comprobación de la forma: la usan los tests
+(`test_tres_salidas.py`) y la medida (`medir_evaluacion`).
 """
 
 import re
@@ -63,6 +76,9 @@ EXTERNAL = "externo"
 NO_CITATION = "sin_cita"
 NO_DATA = "sin_dato"
 UNREADABLE = "no_se_pudo_leer"
+PENDING_REPORT = "pendiente_informe_tecnico"
+MISMATCH = "falta_coincidencia"
+IN_PORTAL = "en_portal"
 
 # Dudas que siempre llevan una pregunta a la Comisión (REQ-055). `externo` ya no: falta la hoja
 # de compliance y la acción es subirla (REQ-063).
@@ -89,6 +105,13 @@ class GroupResult:
     unreadable: dict | None = None
     # Datos del Portal que el modelo citó con su alias `P…` (T-235): `Datum.citation()`.
     portal: list = field(default_factory=list)
+    # T-285 (D-283-5): si la lectura señaló algo sobre el requisito aunque el grupo quede «no
+    # consta» (una cita que el sistema ubicó, un dato del Portal o una conclusión del modelo), y las
+    # citas ubicadas de ese grupo (`seen`): con eso no se afirma que el documento falte.
+    found: bool = False
+    seen: list = field(default_factory=list)
+    # Lo que el modelo marcó en `usa_opcion` ("si", "no", "no_consta" o "").
+    option_use: str = ""
 
 
 @dataclass
@@ -160,10 +183,49 @@ def unread_text(unread):
 
 
 # Dudas que llevan pregunta aunque el modelo no la escriba (REQ-055): las dos de siempre y la
-# conclusión que el contraste no corroboró.
+# conclusión que el contraste no corroboró. Desde T-277 (REQ-120) las lleva todo «no determinado»
+# que no nombre un documento (`asks_commission`); la lista queda como la de las que la regla fija.
 ASKED_DOUBTS = (NO_DATA, INCOMPLETE, UNCORROBORATED)
 
+# «No determinado» que ya nombra un documento o una consulta que falta (REQ-120): la hoja de
+# compliance, el informe técnico del área o la página ilegible. No se les arma una pregunta genérica:
+# `externo` no lleva ninguna (la acción es subir la hoja, REQ-063) y los otros dos solo la que escribe
+# su regla.
+DOCUMENT_DOUBTS = (EXTERNAL, PENDING_REPORT, UNREADABLE)
+
+
 QUESTION_CLIP = 280
+
+# T-285 (D-283-5): los dos «no consta» que no son «no se encontró el documento».
+OPTION_NOTE = ("La condición vale solo para quien usa una opción y la lectura de la oferta no "
+               "muestra que la use: no falta un documento.")
+# T-285 (H-285-1, decisión del Coordinador): la marca del modelo nunca decide «no aplica»; la
+# pregunta le pide a la Comisión que lo confirme.
+OPTION_QUESTION = ("El requisito parece la condición de una opción que la oferta no usa: ¿la Comisión "
+                   "lo confirma? Si la oferta no usa la opción, el requisito no aplica a esta oferta.")
+SEEN_NOTE = ("La lectura no identificó el documento que el pliego exige, pero señaló un texto de la "
+             "oferta sobre el requisito: no se afirma que el documento falte.")
+SEEN_QUESTION = ("¿Está en la oferta el documento que exige este requisito? La lectura no lo "
+                 "identificó, pero señaló el texto citado; la Comisión confirma si está.")
+
+# T-285 (H-285-5): la lectura concluyó sobre el documento sin citar ningún texto: no se dice que
+# señaló uno.
+CONCLUDED_NOTE = ("La lectura no identificó el documento que el pliego exige y concluyó sobre él sin "
+                  "citar un texto de la oferta: no se afirma que el documento falte.")
+CONCLUDED_QUESTION = ("¿Está en la oferta el documento que exige este requisito? La lectura concluyó "
+                      "sobre él sin citar un texto de la oferta; la Comisión confirma si está.")
+
+# El motivo que lleva la explicación de un «no determinado» cuando el modelo no escribió ninguna
+# (REQ-120: una celda sin decidir siempre dice por qué).
+NO_REASON = {
+    DOUBT: "El modelo no pudo decidir este requisito con lo que leyó de la oferta.",
+    NO_CITATION: ("El modelo concluyó, pero la cita que dio no se encontró letra por letra en los "
+                  "documentos de la oferta: sin ella no se da por concluido."),
+    NO_DATA: "Falta el dato que el requisito exige.",
+    INCOMPLETE: "Hay partes de la oferta que no se pudieron leer.",
+    CONTRADICTION: "Distintos documentos de la oferta dicen cosas opuestas sobre este requisito.",
+    EXTERNAL: "Falta la hoja de compliance: este requisito se verifica fuera de la oferta.",
+}
 
 
 def _plain(text):
@@ -230,11 +292,21 @@ def addresses_offeror(text):
     return False
 
 
+def asks_the_offeror(question):
+    """Si la pregunta, sin lo que cita entre «», se dirige al oferente (`addresses_offeror`). Lo que
+    la pregunta copia del pliego o de la oferta («El oferente deberá…») no cuenta, como en la medida
+    de la forma de las preguntas (`evaluation.question_form`)."""
+    return addresses_offeror(re.sub(r"«[^»]*»", " ", question or ""))
+
+
 def _clip(text, size):
     text = " ".join((text or "").split())
     if len(text) <= size:
         return text
     return text[:size].rsplit(" ", 1)[0].rstrip(" ,;:") + "…"
+
+
+clip = _clip
 
 
 def _sentence(text):
@@ -244,9 +316,16 @@ def _sentence(text):
 def _conclusion(combined):
     from evaluon.assessment.models import Doubt
 
-    if combined.doubt == UNCORROBORATED and combined.proposed:
+    if combined.outcome == OUT_SIN_DOCUMENTO:
+        base = "no se encontró el documento que el pliego exige"
+    elif combined.doubt == UNCORROBORATED and combined.proposed:
         word = "cumple" if combined.proposed == OUT_CUMPLE else "no cumple"
-        base = f"el sistema propuso «{word}», pero el contraste no lo corroboró"
+        # T-299 (O-299-1): si quien no la corroboró fue el verificador externo de citas, lo dice.
+        mark = (combined.facts or {}).get("verificador") or {}
+        who = ("el verificador externo" if (mark.get("despues") or {}).get("resultado")
+               == OUT_NO_DETERMINADO and mark.get("respuesta") in ("no", "parcial")
+               else "el contraste")
+        base = f"el sistema propuso «{word}», pero {who} no lo corroboró"
     else:
         label = Doubt(combined.doubt).label.lower() if combined.doubt else "sin motivo"
         base = f"no determinado ({label})"
@@ -271,7 +350,22 @@ def _evidence(combined, documents, unread):
     return _sentence(parts)
 
 
-def _default_ask(combined):
+def _named_conditions(conditions):
+    """Las condiciones que quedaron sin resultado (las del modelo, ya controladas), entre comillas,
+    para nombrar el dato que falta en la pregunta (T-285, D-283-7)."""
+    names = [(c.get("condicion") or "").strip(" .") for c in conditions or ()
+             if c.get("resultado") not in ("cumple", "no_cumple")]
+    return " y ".join(f"«{name}»" for name in names if name)
+
+
+def _default_ask(combined, conditions=()):
+    """La pregunta que arma el código cuando el modelo no escribió una válida (REQ-105, REQ-120):
+    un texto por motivo, dirigido a la Comisión. T-285 (D-283-7): nombra el dato que falta (las
+    condiciones sin resultado, si se conocen) y no le pide a la Comisión un texto que la oferta no
+    tiene por qué traer."""
+    if combined.outcome == OUT_SIN_DOCUMENTO:
+        return ("¿Consta en la oferta el documento que exige este requisito? El sistema leyó todos "
+                "los documentos de la oferta y no lo encontró; la Comisión confirma si falta.")
     if combined.doubt == UNCORROBORATED:
         word = {OUT_CUMPLE: "cumple", OUT_NO_CUMPLE: "no cumple"}.get(combined.proposed)
         what = f"la conclusión «{word}»" if word else "la conclusión del sistema"
@@ -280,27 +374,125 @@ def _default_ask(combined):
         return ("¿Lo que exige este requisito consta en las partes sin leer? La Comisión debe "
                 "revisar el original.")
     if combined.doubt == NO_DATA:
-        return "¿Qué determina la Comisión sobre este requisito, con el dato que falta?"
-    return "¿Cómo resuelve la Comisión este requisito con el texto citado?"
+        named = _named_conditions(conditions)
+        if named:
+            return (f"¿Cómo resuelve la Comisión {named}? La lectura de la oferta no trae ese "
+                    "dato.")
+        return ("¿Cómo resuelve la Comisión este requisito? La lectura de la oferta no trae el dato "
+                "que pide la oración del pliego citada arriba.")
+    if combined.doubt == CONTRADICTION:
+        return ("¿Cuál de los documentos de la oferta rige para este requisito? Dicen cosas "
+                "opuestas y la Comisión debe decidir cuál vale.")
+    if combined.doubt == NO_CITATION:
+        return ("¿La Comisión confirma lo que concluyó la lectura de la oferta para este requisito? "
+                "La cita que lo sostenía no se encontró letra por letra en los documentos.")
+    if combined.doubt == MISMATCH:
+        return ("¿Cuál rige para este requisito: el dato del Portal o el texto de la oferta? No "
+                "coinciden y la Comisión verifica cuál vale.")
+    if combined.doubt == IN_PORTAL:
+        return ("¿El dato del Portal alcanza para este requisito? La Comisión confirma si el "
+                "documento que está en el Portal responde a lo que exige.")
+    if combined.doubt == UNREADABLE:
+        return ("¿Lo que exige este requisito está en la parte ilegible del documento? La Comisión "
+                "debe revisar el original.")
+    if combined.doubt == PENDING_REPORT:
+        return "¿La Comisión da el ok del informe técnico del área para este requisito?"
+    if combined.citations or combined.portal:
+        return "¿Cómo resuelve la Comisión este requisito con el texto citado?"
+    return ("¿Qué determina la Comisión sobre este requisito? El sistema no pudo decidirlo con "
+            "los documentos leídos.")
 
 
-def compose_question(number, requirement, combined, *, documents=(), unread=()):
-    """La pregunta final a la Comisión por un par "no determinado" (REQ-105; T-235), o `""` si no
-    corresponde. Lleva el requisito (cita del pliego), la conclusión del sistema y el texto de la
-    oferta (documento y página); cierra con la pregunta del modelo si no se dirige al oferente, y
-    si no, con una que arma el código. `documents`: títulos de los documentos leídos; `unread`:
-    las partes sin leer (`{"title", "page"}`)."""
+def asks_commission(combined):
+    """Si el resultado lleva una pregunta a la Comisión (REQ-120): «no se encontró el documento» y
+    todo «no determinado» que no nombre ya un documento o una consulta que falta. Los de
+    `DOCUMENT_DOUBTS` solo la llevan si su regla la escribió; `externo` nunca (REQ-063)."""
+    if combined.outcome == OUT_SIN_DOCUMENTO:
+        return True
     if combined.outcome != OUT_NO_DETERMINADO or combined.doubt == EXTERNAL:
+        return False
+    if combined.doubt in DOCUMENT_DOUBTS:
+        return bool((combined.question or "").strip())
+    return True
+
+
+def compose_question(number, requirement, combined, *, documents=(), unread=(), conditions=()):
+    """La pregunta final a la Comisión por un par "no determinado" o «no se encontró el documento»
+    (REQ-105, REQ-120; T-235), o `""` si no corresponde (`asks_commission`). Lleva el requisito (cita
+    del pliego), la conclusión del sistema y el texto de la oferta (documento y página); cierra con
+    la pregunta del modelo si no se dirige al oferente, y si no, con una que arma el código.
+    `documents`: títulos de los documentos leídos; `unread`: las partes sin leer (`{"title",
+    "page"}`); `conditions`: las condiciones del par ya controladas (T-285: la pregunta por defecto
+    nombra las que quedaron sin resultado)."""
+    if not asks_commission(combined):
         return ""
     asked = " ".join((combined.question or "").split())
-    if not asked and not (combined.ask and combined.doubt in ASKED_DOUBTS):
-        return ""
-    closing = asked if asked and not addresses_offeror(asked) else _default_ask(combined)
+    closing = (asked if asked and not asks_the_offeror(asked)
+               else _default_ask(combined, combined.facts.get("condiciones") or conditions or ()))
+    head = f"Requisito {number}" + (f": «{_clip(requirement, QUESTION_CLIP)}»" if requirement
+                                    and requirement.strip() else "")
     return "\n".join([
-        _sentence(f"Requisito {number}: «{_clip(requirement, QUESTION_CLIP)}»"),
+        _sentence(head),
         f"Conclusión del sistema: {_conclusion(combined)}",
         f"Texto de la oferta: {_evidence(combined, documents, unread)}",
         closing])
+
+
+# Las formas que no cumplen las tres salidas (REQ-120), por nombre.
+PROBLEM_NO_QUESTION = "sin_documento_sin_pregunta"
+PROBLEM_UNNAMED = "no_determinado_sin_nombrar"
+PROBLEM_NO_REASON = "no_determinado_sin_motivo"
+PROBLEM_NO_GROUND = "cumple_sin_fundamento"
+PROBLEM_NO_QUOTE = "no_cumple_sin_cita"
+
+# Lo que dice la explicación de un «no determinado» que espera un documento o una consulta (se
+# comprueba sin tildes ni mayúsculas).
+_DOCUMENT_NAMES = {EXTERNAL: "hoja de compliance", PENDING_REPORT: "informe",
+                   UNREADABLE: "pagina"}
+
+
+def cell_problem(outcome, *, doubt="", has_question=False, has_citation=False, facts=None,
+                 explanation=""):
+    """La comprobación de las tres salidas de una celda (REQ-120; ADR-0070, punto 5). Devuelve `""`
+    si cumple una de las formas y, si no, el nombre de lo que falla:
+
+    - «cumple» con fundamento: una cita de la oferta o del Portal, un criterio de la Comisión
+      (`facts["criterios"]`: la ausencia verificada, el IVA), el ok del informe técnico o el motivo de
+      un «no aplica» (`facts["aplica"]` falso, con su explicación);
+    - «no cumple» con cita (de la oferta o del Portal) o decidido por una regla (`facts["regla"]`: la
+      presentación física, el Portal, el ok técnico);
+    - «no determinado» con su motivo en la explicación y con la pregunta a la Comisión o, si espera un
+      documento o una consulta (`DOCUMENT_DOUBTS`), con ese documento nombrado en la explicación;
+    - «no se encontró el documento» con su pregunta (y el requisito, que nombra el documento exigido).
+
+    `has_citation` es si la celda tiene citas de la oferta o del Portal; `has_question`, si tiene la
+    pregunta a la Comisión."""
+    facts = facts or {}
+    if outcome == OUT_SIN_DOCUMENTO:
+        return "" if has_question else PROBLEM_NO_QUESTION
+    if outcome == OUT_NO_DETERMINADO:
+        if not (explanation or "").strip():
+            return PROBLEM_NO_REASON
+        if has_question:
+            return ""
+        needle = _DOCUMENT_NAMES.get(doubt)
+        return "" if needle and needle in _plain(explanation) else PROBLEM_UNNAMED
+    if outcome == OUT_CUMPLE:
+        grounded = (has_citation or facts.get("criterios") or facts.get("technical_ok")
+                    or (facts.get("aplica") is False and (explanation or "").strip()))
+        return "" if grounded else PROBLEM_NO_GROUND
+    if outcome == OUT_NO_CUMPLE:
+        grounded = has_citation or facts.get("regla") or facts.get("technical_ok")
+        return "" if grounded else PROBLEM_NO_QUOTE
+    return PROBLEM_NO_GROUND
+
+
+def combined_problem(combined):
+    """`cell_problem` de un `Combined` ya con su pregunta final (`compose_question`)."""
+    return cell_problem(
+        combined.outcome, doubt=combined.doubt, has_question=bool((combined.question or "").strip()),
+        has_citation=bool(combined.citations or combined.portal), facts=combined.facts,
+        explanation=combined.explanation)
 
 
 MIN_CLAUSE_WORDS = 2   # palabras de tres letras o más que debe tener una cláusula citada
@@ -330,7 +522,7 @@ def combine(groups, *, unread, without_reading=(), unread_groups=0):
     question = _first(groups, "question")
 
     def done(outcome, doubt="", only=None, exigence=None, explanation=None, ask=True,
-             pool=None):
+             pool=None, fallback_question=""):
         if doubt == DOUBT and warning:
             # Con partes de la oferta sin leer, una duda puede venir de ahí: se dice así y se
             # pregunta a la Comisión (no se supone que la respuesta no estaba).
@@ -338,15 +530,21 @@ def combine(groups, *, unread, without_reading=(), unread_groups=0):
         citations, supports = _merge(pool if pool is not None else groups, only)
         text = explanation if explanation is not None else _first(
             pool if pool is not None else groups, "explanation")
-        # Una conclusión no lleva pregunta: solo la lleva un "no determinado".
-        # Falta la hoja de compliance: no hay nada que preguntar, hay que subirla (REQ-063).
-        asking = outcome == OUT_NO_DETERMINADO and doubt != EXTERNAL
-        asked = question if asking else ""
+        if not (text or "").strip():
+            # REQ-120: una celda sin decidir dice por qué, aunque el modelo no lo haya escrito.
+            text = NO_REASON.get(doubt, "") if outcome == OUT_NO_DETERMINADO else ""
+        # Una conclusión no lleva pregunta: la lleva un "no determinado" y «no se encontró el
+        # documento» (REQ-120: nunca sin su pregunta). Falta la hoja de compliance: no hay nada
+        # que preguntar, hay que subirla (REQ-063).
+        asking = ((outcome == OUT_NO_DETERMINADO and doubt != EXTERNAL)
+                  or outcome == OUT_SIN_DOCUMENTO)
+        asked = (question or fallback_question) if asking else ""
         return Combined(
             outcome=outcome, doubt=doubt,
             exigence=exigence if exigence is not None else _first(groups, "exigence"),
             citations=citations, supports=supports, explanation=text, question=asked,
-            unread_warning=warning, ask=asking and ask and doubt in ALWAYS_ASK,
+            unread_warning=warning,
+            ask=asking and (outcome == OUT_SIN_DOCUMENTO or (ask and doubt in ALWAYS_ASK)),
             portal=_merge_portal(pool if pool is not None else groups, only))
 
     if not groups:
@@ -354,8 +552,9 @@ def combine(groups, *, unread, without_reading=(), unread_groups=0):
             "La oferta no tiene documentos leídos."), exigence="")
     if any(g.external for g in groups):
         flagged = [g for g in groups if g.external]
-        return done(OUT_NO_DETERMINADO, EXTERNAL, pool=flagged + [
-            g for g in groups if not g.external])
+        # La regla `externals.rule` reemplaza la explicación; acá queda la de siempre (REQ-120).
+        return done(OUT_NO_DETERMINADO, EXTERNAL, explanation=NO_REASON[EXTERNAL],
+                    pool=flagged + [g for g in groups if not g.external])
     conclusions = [g for g in groups if g.result in (CUMPLE, NO_CUMPLE)]
     kinds = {g.result for g in conclusions}
     if len(kinds) == 2:
@@ -378,7 +577,9 @@ def combine(groups, *, unread, without_reading=(), unread_groups=0):
         return done(OUT_NO_DETERMINADO, NO_CITATION if failed_citation else DOUBT)
     # Todos los grupos dijeron "no consta".
     exigence = "documento" if all(g.exigence == "documento" for g in groups) else "condicion"
-    if complete and exigence == "documento":
+    option = any(g.option_use == "no" for g in groups)
+    seen = any(g.found for g in groups)
+    if complete and exigence == "documento" and not option and not seen:
         return done(OUT_SIN_DOCUMENTO, exigence=exigence, ask=False, explanation=(
             "Se leyeron todos los documentos de la oferta y ninguno es el documento que el "
             "pliego exige."))
@@ -386,6 +587,20 @@ def combine(groups, *, unread, without_reading=(), unread_groups=0):
         return done(OUT_NO_DETERMINADO, INCOMPLETE, exigence=exigence, explanation=(
             "No se puede afirmar que el documento falta: hay partes de la oferta que no se "
             "pudieron leer."))
+    if option:
+        # T-285 (D-283-5): la condición de una opción que la oferta no muestra usar no es un
+        # documento faltante; si aplica o no lo decide la regla de la opción (`options.py`).
+        return done(OUT_NO_DETERMINADO, NO_DATA, exigence=exigence, explanation=OPTION_NOTE,
+                    fallback_question=OPTION_QUESTION)
+    if exigence == "documento" and seen:
+        # T-285 (D-283-5): la lectura señaló un texto de la oferta sobre el documento exigido: no se
+        # afirma que falte; se cita ese texto y se pregunta. Si no citó ninguno (concluyó sin cita),
+        # se dice eso (H-285-5).
+        cited = any(g.seen for g in groups)
+        return done(OUT_NO_DETERMINADO, NO_DATA, exigence=exigence,
+                    explanation=SEEN_NOTE if cited else CONCLUDED_NOTE,
+                    pool=[replace(g, citations=list(g.seen)) for g in groups],
+                    fallback_question=SEEN_QUESTION if cited else CONCLUDED_QUESTION)
     return done(OUT_NO_DETERMINADO, NO_DATA, exigence=exigence)
 
 
@@ -435,6 +650,15 @@ def apply_clauses(combined, rows, question, requirement_text):
         names = "; ".join(f"«{c}»" for c, _ in missing)
         note = f"El sistema no pudo confirmar estas cláusulas con la oferta: {names}."
         explanation = f"{combined.explanation} {note}".strip()
+        # REQ-120: la pregunta nombra las cláusulas que faltan; la del modelo vale solo si se
+        # dirige a la Comisión.
+        asked = " ".join((question or "").split())
+        if not asked or asks_the_offeror(asked):
+            single = len(missing) == 1
+            word, verb = ("la cláusula", "confirmarla") if single else ("las cláusulas",
+                                                                         "confirmarlas")
+            asked = (f"¿Qué determina la Comisión sobre {word} {names}? El sistema no pudo "
+                     f"{verb} con el texto de la oferta.")
         return replace(combined, outcome=OUT_NO_DETERMINADO, doubt=NO_DATA,
-                       explanation=explanation, question=question, ask=True)
+                       explanation=explanation, question=asked, ask=True)
     return combined

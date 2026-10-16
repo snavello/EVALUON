@@ -59,23 +59,24 @@ def test_the_active_versions_are_the_t258_ones_and_the_older_ones_stay_published
     unión v1, y registra como vigentes el bloque v6 y la extracción v9 (la fila del plazo sin el
     aviso de no renovar); las anteriores siguen publicadas (congeladas)."""
     versions = settings.MATRIX_PROMPT_VERSIONS
-    assert versions["definiciones"] == "matriz-definiciones-v8"  # T-262
-    assert versions["extraccion"] == "matriz-extraccion-v12"  # T-265
-    assert versions["completitud"] == "matriz-completitud-v6"
-    assert versions["union"] == "matriz-union-v1"
+    assert versions["definiciones"] == "matriz-definiciones-v10"  # T-285
+    assert versions["extraccion"] == "matriz-extraccion-v14"  # T-285
+    assert versions["completitud"] == "matriz-completitud-v7"  # T-279
+    assert versions["union"] == "matriz-union-v2"  # T-279
     for old in ("matriz-definiciones-v4", "matriz-extraccion-v7", "matriz-completitud-v5",
                 "matriz-definiciones-v5", "matriz-extraccion-v8", "matriz-definiciones-v6",
                 "matriz-extraccion-v9"):
         assert (PROMPTS / f"{old}.md").is_file()
 
 
-@pytest.mark.parametrize("name", ["extraccion", "completitud", "union", "filtro", "circulares"])
+# T-280: las circulares v8 no llevan el bloque (plan 016; ver `test_circulars`).
+@pytest.mark.parametrize("name", ["extraccion", "completitud", "union", "filtro"])
 def test_every_instruction_with_the_block_records_the_active_block(name):
     """REQ-106, P6: la versión y la huella del bloque vigente (v7) quedan en el registro de cada
     instrucción que lo usa, también la de la unión."""
     record = extraction.load_instruction(name).record
-    assert record["definiciones"]["version"] == "matriz-definiciones-v8"  # T-262
-    assert record["definiciones"]["sha256"] == extraction.text_sha256(_read("matriz-definiciones-v8"))
+    assert record["definiciones"]["version"] == "matriz-definiciones-v10"  # T-285
+    assert record["definiciones"]["sha256"] == extraction.text_sha256(_read("matriz-definiciones-v10"))
 
 
 def test_the_v7_block_keeps_two_obligations_on_the_same_object_in_two_rows():
@@ -516,7 +517,7 @@ def test_two_rows_the_model_says_are_one_become_one_row_with_the_contiguous_quot
     assert f"Fila A: «{TERM}»" in user and f"Entre las dos, el pliego dice: «{COUNT}»" in user
     step = m.RunStep.objects.filter(run=a_run, pass_name="unificacion").order_by("-id").first()
     assert step.parsed["pasada"] == "union_oraciones"
-    assert step.parsed["instruccion"]["version"] == "matriz-union-v1"
+    assert step.parsed["instruccion"]["version"] == "matriz-union-v2"  # T-279
     assert step.parsed["pares"]["P1"]["filas"] == "una"
     assert step.parsed["pares"]["P1"]["razonamiento"] == "prueba"
 
@@ -545,7 +546,7 @@ def test_rows_stay_as_they_were_unless_the_model_says_one(a_run, monkeypatch, an
     assert steps.count() == before + 1
     step = steps.last()
     assert step.parsed["pasada"] == "union_oraciones"
-    assert step.parsed["instruccion"]["version"] == "matriz-union-v1"
+    assert step.parsed["instruccion"]["version"] == "matriz-union-v2"  # T-279
     assert step.request["messages"][1]["content"].startswith("Pares de filas propuestas")
     types = [a["type"] for a in step.anomalies]
     assert types == ([anomaly] if anomaly else [])
@@ -658,7 +659,7 @@ def test_the_proposal_joins_two_rows_of_the_same_matter_and_saves_one_requiremen
     assert quote.text == canonical[quote.char_start:quote.char_end]
     assert TERM in quote.text and COUNT in quote.text and RENEWAL in quote.text
     assert "union_oraciones" in run.parameters["passes"]
-    assert run.prompt_versions["union"] == "matriz-union-v1"
+    assert run.prompt_versions["union"] == "matriz-union-v2"  # T-279
     assert len(script.join_calls) == 1
 
 

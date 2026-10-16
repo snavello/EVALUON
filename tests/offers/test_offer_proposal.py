@@ -764,9 +764,8 @@ def test_the_bidder_name_instruction_is_a_versioned_file_with_balanced_examples(
     from evaluon.offers import proposal_fields as fields
 
     folder = Path(fields.PROMPTS_DIR)
-    text = (folder / f"{fields.PROMPT_VERSION}.md").read_text(encoding="utf-8")
+    text = (folder / "oferente-nombre-v2.md").read_text(encoding="utf-8")
 
-    assert fields.PROMPT_VERSION == "oferente-nombre-v2" and fields.MODEL_INSTRUCTIONS == text
     assert (folder / "oferente-nombre-v1.md").is_file()
     answers = [json.loads(line)["bidder"] for line in text.splitlines() if line.startswith("{\"bidder")]
     assert [bool(a["valor"]) for a in answers].count(True) == 2
@@ -830,7 +829,7 @@ def test_the_model_step_of_the_bidder_name_asks_the_batch_engine_and_records_it(
     assert set(trace["models"]["generation_batch"]) == {
         "model", "file", "sha256", "mmproj_file", "mmproj_sha256", "engine_build",
         "context_tokens"}
-    assert trace["prompt_version"] == "oferente-nombre-v2"
+    assert trace["prompt_version"] == "oferente-nombre-v3"
     assert trace["instructions_sha256"] == extraction.text_sha256(fields.MODEL_INSTRUCTIONS)
 
 
@@ -850,3 +849,24 @@ def test_the_bidder_name_trace_names_the_engine_also_when_the_request_fails(
     trace = event.detail["model"][0]
     assert "error" in trace and "request" not in trace
     assert trace["models"]["generation_batch"]["model"] == "qwen3.8-27b-ud-q4_k_m"
+
+
+def test_the_bidder_name_instruction_v3_is_short_and_without_examples():
+    """REQ-119 (T-282; ADR-0070, punto 2): la versión vigente es la v3, sin ejemplos: pide la cita
+    literal con el rótulo explícito del oferente, descarta firmantes y terceros y no admite un valor
+    sin cita (decisión del 2026-10-07, «El sistema lo propone»; P3); su esqueleto trae la cita antes
+    que el valor, como el esquema. La v1 y la v2 siguen publicadas."""
+    import json
+    import re
+
+    from evaluon.offers import proposal_fields as fields
+
+    text = (fields.PROMPTS_DIR / "oferente-nombre-v3.md").read_text(encoding="utf-8")
+
+    assert fields.PROMPT_VERSION == "oferente-nombre-v3" and fields.MODEL_INSTRUCTIONS == text
+    assert not re.search(r"(?im)^[\s#>*\-\d.)]*ejemplos?\b", text)
+    assert "rótulo explícito del oferente" in text and "Un valor sin cita no sirve" in text
+    assert "No sirven los nombres de quien firma o representa al oferente" in text
+    [skeleton] = [line for line in text.splitlines() if line.startswith("{")]
+    assert list(json.loads(skeleton)["bidder"]) == list(
+        fields.MODEL_SCHEMA["properties"]["bidder"]["properties"])

@@ -26,6 +26,7 @@ from django.db.models import F, Prefetch, Q
 
 from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
+from evaluon.assessment.services import external_stages
 from evaluon.audit.models import Channel
 from evaluon.norms.reading import DocumentReading, Line, Page, Word
 from evaluon.norms.splitting.canonical import build_canonical_text
@@ -305,6 +306,8 @@ class MatrixPage:
     can_open_new: bool = False  # validada, la última, sin borrador abierto: versión nueva
     suggestions: list = field(default_factory=list)  # sugerencias de condición sin decidir
     suggestions_open: int = 0
+    # «Etapas fuera del equipo: …» de la propuesta que originó la versión (REQ-122, T-291).
+    external_line: str = ""
 
 
 def _require(user, operation, channel):
@@ -583,7 +586,18 @@ def matrix_page(user, version_id, *, channel=Channel.SCREEN):
         segment_options=_segment_options(version) if editable else [],
         suggestions=suggestion_rows,
         suggestions_open=len(suggestion_rows),
+        external_line=external_line(version),
     )
+
+
+def external_line(version):
+    """La línea «Etapas fuera del equipo» de la versión (REQ-122; T-291): la lee de la propuesta
+    que la originó (una versión abierta sobre otra, de la propuesta de su origen), con la clave
+    `externo` que la propuesta guardó; sin propuesta, «Ninguna»."""
+    origin = version
+    while origin.run_id is None and origin.based_on_id is not None:
+        origin = origin.based_on
+    return external_stages.line([origin.run] if origin.run_id else [])
 
 
 # --- Cobertura -----------------------------------------------------------------------------

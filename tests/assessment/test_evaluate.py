@@ -318,14 +318,16 @@ def test_a_no_cumple_needs_a_citation_and_a_contrast_too(offer, operator_user, p
 def test_a_missing_document_is_not_found_and_is_not_a_no_cumple(offer, operator_user,
                                                                 procedure, model):
     """REQ-060: el pliego exige un documento que ninguno de la oferta es: "no se encontró el
-    documento", con la cita del pliego, sin cita de la oferta y sin pregunta."""
+    documento", con la cita del pliego y sin cita de la oferta. REQ-120 (T-277): lleva siempre su
+    pregunta a la Comisión, con el documento exigido nombrado."""
     model.evaluates(lambda call: says("no_consta", exigence="documento"))
     _, runs = run_all(operator_user, procedure)
     result = results_of(runs[0])[number_of(procedure, "libre deuda")]
     assert result.outcome == "sin_documento" and result.exigence == "documento"
     assert offer_cites(result) == []
     assert "libre deuda" in result.citations.get(kind="pliego").text
-    assert not am.Question.objects.filter(requirement__number=result.requirement.number)
+    question = am.Question.objects.get(result=result)
+    assert "libre deuda" in question.text and "no se encontró el documento" in question.text
     assert not runs[0].results.filter(outcome="no_cumple").exists()
 
 
@@ -725,8 +727,8 @@ def test_everything_the_model_was_asked_is_recorded(offer, operator_user, proced
     assert run.models_used["generation_batch"]["context_tokens"] == 32768
     versions = dict(run.prompt_versions)
     assert set(versions.pop("huellas")) == {"evaluacion", "contraste", "clausulas"}  # T-237
-    assert versions == {**settings.ASSESSMENT_PROMPT_VERSIONS, "reglas": "reglas-v12"}
-    assert run.parameters["rules_version"] == "reglas-v12"
+    assert versions == {**settings.ASSESSMENT_PROMPT_VERSIONS, "reglas": "reglas-v15"}
+    assert run.parameters["rules_version"] == "reglas-v15"
     assert run.parameters["group_tokens"] == 20000
     assert run.norms["matrix_version"] == 1 and run.norms["authorization_date"]
     assert run.matrix_version == request.matrix_version and run.channel == "eval"
@@ -1014,8 +1016,10 @@ def test_the_whole_small_case_with_a_model_that_follows_the_expected_list(evalua
                                          "no_se_pudo_leer": "no_se_pudo_leer",
                                         "lectura_incompleta": "lectura_incompleta"}[entry["motivo"]]
     assert differences == []
+    # REQ-120 (T-277): además de las preguntas de la lista, «no se encontró el documento» lleva la suya.
     assert questions == sum(
-        1 for o in raw["ofertas"] for e in o["requisitos"] if e.get("pregunta") == "si"
+        1 for o in raw["ofertas"] for e in o["requisitos"]
+        if (e.get("pregunta") == "si" or e["resultado"] == "no_se_encontro_documento")
         and e["base"] != "tecnica" and not e.get("portal"))
     assert not any(r.outcome == "no_cumple" and not offer_cites(r)
                    for run in runs for r in run.results.all())

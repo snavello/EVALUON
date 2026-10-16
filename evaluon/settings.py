@@ -6,6 +6,7 @@ audit, norms, queries) las agregan las tareas de la etapa 1.
 """
 
 import os
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -312,20 +313,22 @@ MATRIX_CIRCULAR_CANDIDATES = 8
 # `definiciones` es el bloque común de las definiciones del responsable (T-236, ADR-0054): el
 # código lo incluye en las instrucciones que llevan su marca y registra su versión y su huella.
 MATRIX_PROMPT_VERSIONS = {
-    # T-262 (con el filtro v8): la presentación física (lo que el Portal marca para entregar en
-    # papel) no se descarta como forma de presentar por el Portal (decisión del 2026-10-12; la
-    # medición T-260 la vio descartada en los siete casos).
-    "definiciones": "matriz-definiciones-v8",
-    "extraccion": "matriz-extraccion-v12",  # T-265: la nota de un anexo que obliga no es formulario
-    "completitud": "matriz-completitud-v6",
-    # T-258: unión de las filas del mismo asunto (pares de filas seguidas y notas de tabla).
-    "union": "matriz-union-v1",
-    "consecuencias": "matriz-consecuencias-v2",
-    "circulares": "matriz-circulares-v7",
-    "circulares_cambios": "matriz-circulares-v6",
+    # T-279 y T-280 (spec 016, REQ-119; ADR-0070): instrucciones cortas, solo con las definiciones
+    # y las decisiones vigentes, sin ejemplos de casos (tabla en specs/016-calidad-medible/
+    # revision-instrucciones.md). El bloque de definiciones lo incluyen la extracción, la
+    # completitud, la unión y el filtro; las circulares, las consecuencias y el respaldo no.
+    # T-285 (ajuste único del paso 2): el bloque v10, la extracción v14 y el filtro v11 corrigen, como
+    # definiciones generales, los hallazgos D-283-1 a D-283-4 de la medición T-283.
+    "definiciones": "matriz-definiciones-v10",
+    "extraccion": "matriz-extraccion-v14",
+    "completitud": "matriz-completitud-v7",
+    "union": "matriz-union-v2",
+    "consecuencias": "matriz-consecuencias-v3",
+    "circulares": "matriz-circulares-v8",
+    "circulares_cambios": "matriz-circulares-cambios-v7",
     "unificacion": "matriz-unificacion-v1",
-    "filtro": "matriz-filtro-v9",  # T-265: la nota que obliga no es formulario ni forma del Portal
-    "respaldo": "matriz-respaldo-v2",
+    "filtro": "matriz-filtro-v11",
+    "respaldo": "matriz-respaldo-v3",
 }
 
 # Proceso único de la propuesta (REQ-030 enmendado): el más completo, sin niveles. Se
@@ -479,10 +482,13 @@ OFFERS_REQUEST_TIMEOUT_SECONDS = GENERATION_BATCH_TIMEOUT_SECONDS
 OFFERS_QUERY_MAX_CHARS = 800
 # Versión de cada instrucción: archivo `evaluon/offers/prompts/<versión>.md`.
 OFFERS_PROMPT_VERSIONS = {
-    "ficha": "ficha-v3",
-    "ficha_renglon": "ficha-renglon-v5",
-    # Reescritura del requisito como lo diría una oferta, para buscar (T-146).
-    "reescritura": "reescritura-v2",
+    # T-282 (spec 016, REQ-119; ADR-0070): la ficha y la ficha por renglón cortas, sin ejemplos
+    # (tabla en specs/016-calidad-medible/revision-instrucciones.md).
+    "ficha": "ficha-v4",
+    "ficha_renglon": "ficha-renglon-v6",
+    # Reescritura del requisito como lo diría una oferta, para buscar (T-146). T-281 (spec 016,
+    # REQ-119; ADR-0070): versión corta, sin ejemplos.
+    "reescritura": "reescritura-v3",
 }
 
 # --- Evaluación asistida de ofertas (plan 004, "Parámetros"; ADR-0037 a ADR-0040) ---------
@@ -516,12 +522,23 @@ ASSESSMENT_ANSWERS_MAX = 20
 ASSESSMENT_TECHNICAL_OPINION = True
 # Versión de las reglas que deciden sin el modelo (externos, técnico, ilegible, Portal); se
 # copia al registro de cada evaluación (ADR-0043; T-165). Cambia cuando cambia una regla.
-ASSESSMENT_RULES_VERSION = "reglas-v12"
-# Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150).
+# T-285 (D-283-5 y D-283-6): `reglas-v14`, la opción sin `opcion` en la matriz con la marca del
+# modelo, la ausencia con el «cumple» del modelo sin nada encontrado y el Portal (umbral de monto,
+# motivo de la lectura cuando no compara, montos rotulados como otro concepto).
+# T-285, verificación (H-285-1 a H-285-3): `reglas-v15`, «no aplica» solo por la `opcion` de la fila (la
+# marca del modelo deja «no determinado»), la cita repetida y el guion de corte, y la ausencia solo con
+# una frase de ausencia de una condición «no consta».
+ASSESSMENT_RULES_VERSION = "reglas-v15"
+# Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150). T-281
+# (spec 016, REQ-119; ADR-0070): instrucciones cortas, solo con las definiciones y las decisiones
+# vigentes y el esqueleto de la salida, sin ejemplos (tabla en specs/016-calidad-medible/
+# revision-instrucciones.md).
 ASSESSMENT_PROMPT_VERSIONS = {
-    "evaluacion": "evaluacion-v12",
-    "contraste": "contraste-v4",
-    "clausulas": "clausulas-v5",
+    # T-285 (ajuste único del paso 2): la evaluación v14 corrige, como definiciones generales, lo que
+    # mostró la medición T-283 (D-283-5 a D-283-7).
+    "evaluacion": "evaluacion-v14",
+    "contraste": "contraste-v5",
+    "clausulas": "clausulas-v6",
 }
 
 # Lectura con visión de las páginas dudosas (T-160; ADR-0041). Páginas por oferta que se mandan
@@ -540,7 +557,9 @@ ASSESSMENT_VISION_MAX_SIDE = 1800
 ASSESSMENT_VISION_IMAGE_TOKENS = 280
 ASSESSMENT_VISION_MAX_OUTPUT_TOKENS = 3000
 ASSESSMENT_VISION_MAX_ILLEGIBLE_SHARE = 0.30
-ASSESSMENT_VISION_PROMPT_VERSION = "vision-v4"
+# T-282 (spec 016, REQ-119; ADR-0070): `vision-v5`, corta y sin ejemplos. T-285 (D-283-9): `vision-v6`,
+# cada dato visible de un documento de identidad, una credencial o una constancia es texto.
+ASSESSMENT_VISION_PROMPT_VERSION = "vision-v6"
 # T-259 (REQ-104), decisión del Coordinador del 2026-10-12: la visión por pasaje queda APAGADA
 # por omisión. Con un valor mayor que 0, una página legible que tiene un pasaje reconocido con
 # confianza mínima menor que ese valor va a visión (`offers/vision.py`, motivo
@@ -573,3 +592,89 @@ ASSESSMENT_VISION_TILE_DPI = 300
 ASSESSMENT_VISION_TILES = 2
 ASSESSMENT_VISION_TILE_OVERLAP = 0.05
 ASSESSMENT_VISION_TILE_MAX_SIDE = 1600
+
+# --- Uso externo de la feature 016 (plan 016, "Plataforma externa" y "Costo y tope"; ADR-0066 y
+# ADR-0068; constitución 1.6) -------------------------------------------------------------------
+# Todo apagado por omisión: con estos valores el sistema funciona como hoy y no abre ningún
+# socket hacia afuera. Los mismos valores por omisión están en docker-compose.yml y .env.example
+# (tests/test_compose_env.py comprueba que coincidan). La clave del proveedor (ANTHROPIC_API_KEY)
+# NO se lee aquí: la lee el cliente de evaluon/ai/external del entorno, y solo la pone
+# docker-compose.externo.yml para el clon (P4).
+EXTERNAL_STAGE_NAMES = ("matriz", "verificador")
+
+
+def env_choice(name, default, allowed):
+    """Valor de la variable de entorno, que tiene que ser uno de `allowed`."""
+    value = env_str(name, default).strip().lower()
+    if value not in allowed:
+        raise ImproperlyConfigured(
+            f"La variable de entorno {name} tiene que ser una de: {', '.join(allowed)}.")
+    return value
+
+
+def env_decimal(name, default):
+    """Importe o factor decimal de la variable de entorno (exacto, sin coma flotante)."""
+    try:
+        return Decimal(env_str(name, default).strip())
+    except InvalidOperation:
+        raise ImproperlyConfigured(f"La variable de entorno {name} tiene que ser un número.")
+
+
+# Interruptor general: apagado, toda llamada externa falla con `ExternalDisabled` antes de abrir
+# un socket.
+EXTERNAL_ENABLED = env_bool("EXTERNAL_ENABLED", False)
+# Por etapa: `local` (el camino de hoy) o `externo`. Solo cuenta si EXTERNAL_ENABLED es true.
+EXTERNAL_STAGES = {
+    stage: env_choice(f"EXTERNAL_STAGE_{stage.upper()}", "local", ("local", "externo"))
+    for stage in EXTERNAL_STAGE_NAMES}
+# Modelo, esfuerzo y pensamiento fijados por etapa y registrados en cada pedido (ADR-0066,
+# punto 4): el esfuerzo por omisión del proveedor en Sonnet 5.5 es `high`, que dispara la salida.
+EXTERNAL_MODELS = {
+    stage: env_str(f"EXTERNAL_MODEL_{stage.upper()}", "claude-sonnet-5-5")
+    for stage in EXTERNAL_STAGE_NAMES}
+EXTERNAL_EFFORT = {
+    stage: env_choice(f"EXTERNAL_EFFORT_{stage.upper()}", default, ("low", "medium", "high"))
+    for stage, default in (("matriz", "medium"), ("verificador", "low"))}
+# `between_tools` solo lo acepta el proveedor con esfuerzo `high` o menor (ADR-0066).
+# [A confirmar con la medición] el de la matriz no lo fija el plan: `adaptive` es el del proveedor.
+EXTERNAL_THINKING = {
+    stage: env_choice(f"EXTERNAL_THINKING_{stage.upper()}", default,
+                      ("off", "adaptive", "between_tools"))
+    for stage, default in (("matriz", "adaptive"), ("verificador", "between_tools"))}
+# Versión de la instrucción propia de cada etapa externa: archivo
+# `evaluon/tenders/prompts/<versión>.md` (T-291; plan 016, «Paso 3»). La de la matriz incluye el
+# mismo bloque de definiciones que la local (`MATRIX_PROMPT_VERSIONS["definiciones"]`).
+EXTERNAL_PROMPT_VERSIONS = {
+    "matriz": "matriz-externa-v1",
+    # T-299 (plan 016, «Paso 4»): el verificador de citas, en `evaluon/assessment/prompts/`.
+    "verificador": "verificador-v1",
+}
+# `lotes` (la mitad del precio) o `directo` (la prueba de humo).
+EXTERNAL_MODE = env_choice("EXTERNAL_MODE", "lotes", ("lotes", "directo"))
+# Segundos entre consultas a un lote y espera máxima antes de darlo por vencido.
+EXTERNAL_BATCH_POLL_SECONDS = int(env_str("EXTERNAL_BATCH_POLL_SECONDS", "30"))
+EXTERNAL_BATCH_MAX_WAIT_SECONDS = int(env_str("EXTERNAL_BATCH_MAX_WAIT_SECONDS", "7200"))
+# Topes de gasto del responsable (2026-10-15), en USD: por caso completo y por mes calendario.
+# El libro (ADR-0068) no deja salir un lote que los haría pasar.
+EXTERNAL_CASE_CAP_USD = env_decimal("EXTERNAL_CASE_CAP_USD", "2.00")
+EXTERNAL_MONTH_CAP_USD = env_decimal("EXTERNAL_MONTH_CAP_USD", "10.00")
+# Estimado por etapa en lotes (USD) y factor a partir del cual se frena la etapa (el doble).
+EXTERNAL_STAGE_ESTIMATE_USD = {
+    stage: env_decimal(f"EXTERNAL_STAGE_ESTIMATE_{stage.upper()}_USD", "0.30")
+    for stage in EXTERNAL_STAGE_NAMES}
+EXTERNAL_STAGE_STOP_FACTOR = env_decimal("EXTERNAL_STAGE_STOP_FACTOR", "2")
+# Tabla de precios versionada (ADR-0068, punto 3). USD por millón de tokens; `lotes` es el
+# factor del precio en la API de lotes; `cache_lectura` y `cache_escritura_1h` son factores del
+# precio de entrada. Es un dato de código y no de entorno: cambiarla es cambiar `version`.
+EXTERNAL_PRICES = {
+    "version": "2026-10-15",
+    "fecha": "2026-10-15",
+    "fuente": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "modelos": {
+        "claude-sonnet-5-5": {"entrada": Decimal("2"), "salida": Decimal("10")},
+        "claude-opus-5-5": {"entrada": Decimal("4"), "salida": Decimal("20")},
+    },
+    "lotes": Decimal("0.5"),
+    "cache_lectura": Decimal("0.05"),
+    "cache_escritura_1h": Decimal("2"),
+}

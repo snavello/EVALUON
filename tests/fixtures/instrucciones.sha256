@@ -96,3 +96,37 @@ fbbb64baeb8cc3afa862f97978623647f2c576ec08a5318810ac96c464ce5f30  evaluon/tender
 # T-265: la nota de un anexo que le exige algo al oferente no es un formulario (D-263-1)
 d96b1644b3b0b7291c40ba9273d149e2061ed4522d317f5da1fd121632592cab  evaluon/tenders/prompts/matriz-extraccion-v12.md
 d95858854d872c1c17e36197b8a45c34ca5259973461a95963d0675f5bc0ddf9  evaluon/tenders/prompts/matriz-filtro-v9.md
+# T-279 (spec 016, REQ-119; ADR-0070): bloque de definiciones, extracción, completitud y unión cortos, sin ejemplos
+f9f24115a32137717b2d14f9398b75027c14f4b3623c71715f686e484c2324e2  evaluon/tenders/prompts/matriz-definiciones-v9.md
+ed769d353ee6fefccbc9ae52e9e2c6e22d0d0f563e953fc7e554fff6186b4486  evaluon/tenders/prompts/matriz-extraccion-v13.md
+44a53a4632ad532330f3b4480126331709f350d423af6d93558e60dfe15276cb  evaluon/tenders/prompts/matriz-completitud-v7.md
+e77b86fac6043afb74e5a28c3417349cfc64353f3bad57ecee0b4198a13b5487  evaluon/tenders/prompts/matriz-union-v2.md
+# T-280 (spec 016, REQ-119; ADR-0070): filtro, consecuencias, circulares, cambios de circulares y respaldo cortos, sin ejemplos
+bf1704df3c88ef41e90af454e93cd5d0c33fa855acf037845b86965602d37ff6  evaluon/tenders/prompts/matriz-filtro-v10.md
+38a9104bf615ac17230af0bd34e2ca4e11393534cfe6b13c5dd81c3f7f445e2e  evaluon/tenders/prompts/matriz-consecuencias-v3.md
+00a03aef495b42e2afec3ddcb82ea353d80038bd1be606d10560d0d4df87b0d5  evaluon/tenders/prompts/matriz-circulares-v8.md
+c77457c63db9bf796c2bded1e7678071580965018d93a00b4cfa594a86e6486b  evaluon/tenders/prompts/matriz-circulares-cambios-v7.md
+8c55addadf93c74af2fe71794f31dbc923b10c4f0e896aa3e03c4311d2bfc4f8  evaluon/tenders/prompts/matriz-respaldo-v3.md
+# T-281 (spec 016, REQ-119; ADR-0070): evaluación, contraste, cláusulas y reescritura cortas, sin ejemplos
+380b4869c5bbd41e9045d7179a9dad4b2f8dbbb4a9852fe30c8f2acfacd567fd  evaluon/assessment/prompts/evaluacion-v13.md
+6e29204e34714e9e0e3b9925f00d7203025d7ac3b7441c223fafe0147b3bc7e2  evaluon/assessment/prompts/contraste-v5.md
+439b2797df3c69576676ce3c338717a3b8e5a1289818e2e6704a8302de369f26  evaluon/assessment/prompts/clausulas-v6.md
+4cc575d89bb5674eff83a386151ecabf4135738fdad157b5c278097abd56727e  evaluon/offers/prompts/reescritura-v3.md
+# T-282 (spec 016, REQ-119; ADR-0070): visión, informe técnico, ficha, ficha por renglón, nombre del oferente, datos del procedimiento y consulta cortos, sin ejemplos
+c0164ecff69a9e5950f2cb89f7a4a6ce57651b7d92530225dacd93ea669c1c03  evaluon/assessment/prompts/vision-v5.md
+a426cacad39279ee900e3684e5f2eb6e2c71d572f6ab57237419b5a4ebfbe0f1  evaluon/assessment/prompts/informe-tecnico-v3.md
+b461b92edb940f241015122466ccc3d45a641d3f7b1605a3b92c5427a032ff97  evaluon/offers/prompts/ficha-v4.md
+cc1f820758bc5754ca77f131c63dd9131f8c2d07ac392a5432307a4687b8ab29  evaluon/offers/prompts/ficha-renglon-v6.md
+f3eba1fe2d2b11df592cfc0bc304958a72b571c8676d368e1f68d2d2bf7e9de6  evaluon/offers/prompts/oferente-nombre-v3.md
+63249f48a70772ce620162a85345850865182417184045641c25948cb2ca025f  evaluon/tenders/prompts/procedimiento-datos-v3.md
+21d9bee14ad5220f5dd31846ceb5d64836d8a959f3c026587990e652f0705cb9  evaluon/queries/prompts/consulta-v5.txt
+# T-285 (spec 016, REQ-119 y REQ-120): ajuste único del paso 2, hallazgos de T-283 corregidos como definiciones generales
+dea40deb7b5fc0e01997d971fce18f0acfd64a6c65756a3f54df965390e5d449  evaluon/tenders/prompts/matriz-definiciones-v10.md
+c09c5330a1cb31e99ddbfc2f04dcff26ae7186fef992484073b141f4d8680d7c  evaluon/tenders/prompts/matriz-extraccion-v14.md
+ef4bce79b56ec507a0460abd31f6d11e3c9a189f2f0d261bf3ed884b88e27362  evaluon/tenders/prompts/matriz-filtro-v11.md
+4480962ca24e766ba358a499dac01349c44ed47fc61708a3c74385234a7b2c9b  evaluon/assessment/prompts/evaluacion-v14.md
+020162e8f6fc2b5dae2d20db659260c2317652e0a8a080286069c3806beac4cf  evaluon/queries/prompts/consulta-v6.txt
+60a416a64b39024368b580db46c417f71c51145cee78a3a802c4cc1ccd75ade8  evaluon/assessment/prompts/vision-v6.md
+cf9b7f7c9810af82a11b7d20b0fd2da776ce65fee69a3a6ddb1dfdf87ed35658  evaluon/tenders/prompts/matriz-externa-v1.md
+# T-299 (spec 016, REQ-124): la instrucción del verificador externo de citas
+3f0a21844b5945d74cae9e85296c07f4ff34162c69ec3b955d1420908222e817  evaluon/assessment/prompts/verificador-v1.md

@@ -16,7 +16,7 @@ from django.shortcuts import render
 from django.views.decorators.http import require_GET
 
 from evaluon.assessment.models import Result
-from evaluon.assessment.services import evaluate, remedy, review
+from evaluon.assessment.services import evaluate, external_stages, remedy, review
 from evaluon.audit.models import Channel
 from evaluon.offers import vision
 
@@ -32,7 +32,8 @@ def render_pair(request, offer_id, requirement_id, *, error="", status=200):
         raise Http404("Ese requisito todavía no se evaluó para esa oferta.")
     return render(request, RESULT_TEMPLATE, {
         "page": page, "review": review.pair_review(request.user, page), "error": error,
-        "remedy": remedy.state(page.result)},
+        "remedy": remedy.state(page.result),
+        "external_line": external_stages.line([page.run])},
         status=status)
 
 

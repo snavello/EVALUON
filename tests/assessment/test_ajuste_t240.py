@@ -108,7 +108,7 @@ def test_the_requirement_of_a_form_not_chosen_does_not_apply(offer, portal, text
     assert (combined.outcome, combined.doubt) == ("cumple", "")
     assert combined.explanation.startswith("No aplica:") and form in combined.explanation
     assert combined.facts["aplica"] is False and combined.facts["regla"] == name
-    assert combined.facts["version_reglas"] == "reglas-v12"
+    assert combined.facts["version_reglas"] == "reglas-v15"
     assert combined.question == "" and not combined.ask
     assert combined.citations == [] and len(combined.portal) == 1
     assert combined.portal[0]["kind"] == "garantia" and form in combined.portal[0]["text"]
@@ -308,7 +308,9 @@ def test_the_new_evaluation_examples_cite_the_sentence_that_says_what_they_affir
     cumple y uno que no cumple, y uno de mantenimiento de la oferta que cumple; todos se leen con el
     código, su resultado es el que se deriva de sus condiciones y la cita de cada «cumple» dice lo
     afirmado (formularios acompañados, sin reservas, el plazo)."""
-    body = prompting.load_prompt("evaluacion")
+    # T-281: los ejemplos son de la `evaluacion-v12` (publicada); la vigente, v13, no trae ejemplos
+    # (ADR-0070) y lo que dice de cada «cumple» lo prueba `test_instrucciones_evaluacion.py`.
+    body = (prompting.PROMPTS_DIR / "evaluacion-v12.md").read_text(encoding="utf-8")
     section = body[body.index("EJEMPLOS"):]
     examples = [json.loads(line) for line in section.splitlines() if line.startswith("{")]
 

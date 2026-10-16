@@ -83,7 +83,7 @@ def test_the_same_difference_keeps_the_lack_of_coincidence_and_says_which_requir
         offer, portal):
     """REQ-062, E-7, D-1: la misma diferencia en tres requisitos de la misma oferta sigue siendo
     «falta coincidencia» en los tres; el segundo y el tercero explican «misma diferencia que en
-    el requisito 29» y no repiten la pregunta (no hay ninguna)."""
+    el requisito 29» y cada una lleva su pregunta (enmienda del ADR-0053, 2026-10-15)."""
     portal_data(portal, offer, amount="4819384.47", total="96387689.50")
     ctx = SimpleNamespace(offer=offer)
     fragment = "garantiza hasta la suma de $ 3.000.000,00"
@@ -93,7 +93,9 @@ def test_the_same_difference_keeps_the_lack_of_coincidence_and_says_which_requir
     assert "misma diferencia que en el requisito" not in pairs[0].combined.explanation
     for repeated in pairs[1:]:
         assert "misma diferencia que en el requisito 29" in repeated.combined.explanation
-        assert repeated.combined.question == ""
+        # Enmienda del ADR-0053 (2026-10-15): la celda lleva su pregunta con las dos posturas.
+        assert "¿Cuál rige" in repeated.combined.question
+        assert "3000000" in repeated.combined.question and "4819384.47" in repeated.combined.question
         assert repeated.combined.facts["diferencia_ya_senalada"] == 29
         assert repeated.combined.portal  # la cita del Portal sigue
 

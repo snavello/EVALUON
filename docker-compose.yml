@@ -67,6 +67,28 @@ x-app: &app
     PORTAL_PAUSE_SECONDS: "${PORTAL_PAUSE_SECONDS:-2}"
     PORTAL_REVIEW_HOUR: "${PORTAL_REVIEW_HOUR:-7}"
     PORTAL_USER_AGENT: ${PORTAL_USER_AGENT:-EVALUON/1.0 (lectura de procesos publicos)}
+    # Uso externo de la feature 016 (plan 016, ADR-0066 y ADR-0068): apagado por omisión. Los
+    # valores por omisión son los de evaluon/settings.py (tests/test_compose_env.py comprueba
+    # que coincidan). La clave del proveedor NO va aquí: solo la pone docker-compose.externo.yml
+    # para el clon, desde su archivo de entorno fuera del repositorio (P4). Sin ese archivo ningún
+    # servicio tiene salida a internet (solo `portal_worker`).
+    EXTERNAL_ENABLED: ${EXTERNAL_ENABLED:-false}
+    EXTERNAL_STAGE_MATRIZ: ${EXTERNAL_STAGE_MATRIZ:-local}
+    EXTERNAL_STAGE_VERIFICADOR: ${EXTERNAL_STAGE_VERIFICADOR:-local}
+    EXTERNAL_MODEL_MATRIZ: ${EXTERNAL_MODEL_MATRIZ:-claude-sonnet-5-5}
+    EXTERNAL_MODEL_VERIFICADOR: ${EXTERNAL_MODEL_VERIFICADOR:-claude-sonnet-5-5}
+    EXTERNAL_EFFORT_MATRIZ: ${EXTERNAL_EFFORT_MATRIZ:-medium}
+    EXTERNAL_EFFORT_VERIFICADOR: ${EXTERNAL_EFFORT_VERIFICADOR:-low}
+    EXTERNAL_THINKING_MATRIZ: ${EXTERNAL_THINKING_MATRIZ:-adaptive}
+    EXTERNAL_THINKING_VERIFICADOR: ${EXTERNAL_THINKING_VERIFICADOR:-between_tools}
+    EXTERNAL_MODE: ${EXTERNAL_MODE:-lotes}
+    EXTERNAL_BATCH_POLL_SECONDS: "${EXTERNAL_BATCH_POLL_SECONDS:-30}"
+    EXTERNAL_BATCH_MAX_WAIT_SECONDS: "${EXTERNAL_BATCH_MAX_WAIT_SECONDS:-7200}"
+    EXTERNAL_CASE_CAP_USD: "${EXTERNAL_CASE_CAP_USD:-2.00}"
+    EXTERNAL_MONTH_CAP_USD: "${EXTERNAL_MONTH_CAP_USD:-10.00}"
+    EXTERNAL_STAGE_ESTIMATE_MATRIZ_USD: "${EXTERNAL_STAGE_ESTIMATE_MATRIZ_USD:-0.30}"
+    EXTERNAL_STAGE_ESTIMATE_VERIFICADOR_USD: "${EXTERNAL_STAGE_ESTIMATE_VERIFICADOR_USD:-0.30}"
+    EXTERNAL_STAGE_STOP_FACTOR: "${EXTERNAL_STAGE_STOP_FACTOR:-2}"
   volumes:
     - ./evaluon:/app/evaluon:ro
     - ./tests:/app/tests:ro

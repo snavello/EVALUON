@@ -79,12 +79,19 @@ MIN_FOLDED_CHARS = 12
 READER_MARK = re.compile(r"\(cid:\d+\)")
 
 
+# T-285 (H-285-2): el guion de corte al final de una línea («contra-\ntista») y el guion blando no
+# cuentan: la palabra partida en dos líneas es la misma palabra.
+LINE_BREAK_HYPHEN = re.compile("[-­‐][ \t]*\n|­")
+
+
 def _fold(text):
-    """El texto sin espacios, sin ruido de escaneo y sin marcas del lector y, para cada
-    carácter que queda, su posición en el original."""
+    """El texto sin espacios, sin ruido de escaneo, sin marcas del lector y sin guiones de corte de
+    línea y, para cada carácter que queda, su posición en el original."""
     skipped = set()
     for mark in READER_MARK.finditer(text):
         skipped.update(range(mark.start(), mark.end()))
+    for mark in LINE_BREAK_HYPHEN.finditer(text):
+        skipped.add(mark.start())
     chars, positions = [], []
     for index, char in enumerate(text):
         if index not in skipped and not char.isspace() and char not in SCAN_NOISE:

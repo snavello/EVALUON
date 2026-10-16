@@ -423,4 +423,6 @@ def context(user, procedure, request):
         "blockers": counts, "blocked": bool(counts and counts["blocking"]),
         "condition": acciones.condition_text(counts, version.number) if counts else "",
         "can_open_new": page.can_open_new,
+        # Qué etapas de la propuesta corrieron fuera del equipo (REQ-122, T-291).
+        "external_line": page.external_line,
     }

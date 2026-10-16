@@ -92,7 +92,7 @@ def test_the_condition_of_an_option_the_offer_does_not_use_does_not_apply(offer,
     name, result = apply(offer, pair)
     assert name == "opcion_no_usada"
     assert result.facts["aplica"] is False and result.facts["opcion"] == "mipyme"
-    assert result.facts["version_reglas"] == settings.ASSESSMENT_RULES_VERSION == "reglas-v12"
+    assert result.facts["version_reglas"] == settings.ASSESSMENT_RULES_VERSION == "reglas-v15"
     assert result.question == "" and not result.ask and result.citations == []
     assert "MiPyME" in result.explanation and "Nota de presentación" in result.explanation
     assert not_applicable.result_label(result) == "No aplica (opción no usada)"
@@ -153,9 +153,12 @@ def test_the_instruction_v11_resolves_the_option_without_saying_the_document_is_
     """REQ-104, REQ-105 (H2 de las instrucciones): sin `opcion`, la instrucción vigente dice que la
     condición de una opción que la oferta no muestra usar nunca es «no_consta» (que el sistema
     escribe «no se encontró el documento») y que lo que solo se permite («podrá…») no es una
-    condición; con frases genéricas (no las del caso) y un ejemplo de otro rubro."""
-    assert settings.ASSESSMENT_PROMPT_VERSIONS["evaluacion"] == "evaluacion-v12"
-    text = prompting.load_prompt("evaluacion")
+    condición; con frases genéricas (no las del caso) y un ejemplo de otro rubro.
+
+    T-281: la regla y el ejemplo son de la `evaluacion-v12` (publicada); la vigente, v13 (sin
+    ejemplos, ADR-0070), dice lo mismo en términos generales y se comprueba al final."""
+    assert settings.ASSESSMENT_PROMPT_VERSIONS["evaluacion"] == "evaluacion-v14"  # T-285
+    text = (prompting.PROMPTS_DIR / "evaluacion-v12.md").read_text(encoding="utf-8")
     rule = text[text.index("- Condición de una opción"):]
     rule = rule[:rule.index("\n")]
     assert 'nunca es "no_consta" ni "no_cumple"' in rule
@@ -168,6 +171,13 @@ def test_the_instruction_v11_resolves_the_option_without_saying_the_document_is_
     assert option and option[0]["resultado"] == "no_determinado" and option[0]["pregunta"]
     allowed = [e for e in examples if "solo se permite" in e["razonamiento"]]
     assert allowed and len(allowed[0]["condiciones"]) == 1
+    current = prompting.load_prompt("evaluacion")
+    rule = current[current.index("- Una condición que vale solo para quien usa una opción"):]
+    rule = rule[:rule.index("\n")]
+    assert 'no falta si la oferta no muestra usarla: va "no_determinado", sin dato' in rule
+    assert 'con "usa_opcion" en "no"' in rule and "si la opción aplica" in rule
+    assert "Lo que la oración solo permite no es una condición" in rule
+    assert "revestir la condición" not in current and "MiPyME" not in current
 
 
 # --- 2. La forma de garantía antes que los externos ----------------------------------------------
@@ -356,7 +366,7 @@ def test_the_portal_price_is_taken_as_final_with_vat(offer, portal):
     assert "precio final con IVA incluido" in result.explanation
     criterion = result.facts["criterios"][0]
     assert criterion["nombre"] == "iva_precio_final_portal"
-    assert criterion["version_reglas"] == "reglas-v12" and "2026-10-12" in criterion["decision"]
+    assert criterion["version_reglas"] == "reglas-v15" and "2026-10-12" in criterion["decision"]
     assert result.facts["condiciones"][1]["cubierta_por"] == "iva_precio_final_portal"
 
 
@@ -405,7 +415,7 @@ def test_a_negative_or_suppletory_requirement_nothing_contradicts_is_met_by_abse
     assert result.citations == [] and result.question == ""
     criterion = result.facts["criterios"][0]
     assert criterion["nombre"] == "ausencia_verificada" and criterion["documentos_leidos"] == TITLES
-    assert criterion["version_reglas"] == "reglas-v12" and "2026-10-12" in criterion["decision"]
+    assert criterion["version_reglas"] == "reglas-v15" and "2026-10-12" in criterion["decision"]
     assert result.facts["condiciones"][0]["por_ausencia"] is True
 
 
@@ -534,12 +544,20 @@ def test_the_instruction_uses_the_declaration_accepted_in_the_portal_and_the_reg
     """REQ-104 (O3 R22, O3 R20): la instrucción dice que la declaración que el oferente aceptó en el
     Portal (según el comprobante) es la cita de esa declaración, y que la constancia de un registro
     que trae la oferta o que cargó la Comisión se usa como documento de la oferta, no como
-    externo."""
-    text = prompting.load_prompt("evaluacion")
+    externo.
+
+    T-281: es una regla de la `evaluacion-v12` (publicada), nacida de dos pares de un caso (O3 R22 y
+    O3 R20); la v13 no la lleva (ADR-0070: sin reglas nacidas de un fallo de un caso) y dice en general
+    que lo que la oferta presenta se evalúa como cualquier documento y no es externo."""
+    text = (prompting.PROMPTS_DIR / "evaluacion-v12.md").read_text(encoding="utf-8")
     rule = text[text.index("- Declaraciones aceptadas en el Portal"):]
     rule = rule[:rule.index("\n")]
     assert "aceptó en el Portal la declaración jurada" in rule
     assert "que cargó la Comisión" in rule and "no es externo" in rule
+    current = prompting.load_prompt("evaluacion")
+    assert ("Lo que la oferta presenta, como una declaración o una constancia, se evalúa como cualquier "
+            "documento") in current
+    assert "Declaraciones aceptadas en el Portal" not in current
 
 
 def test_the_cell_says_what_resolved_each_condition():
@@ -562,8 +580,12 @@ def test_the_instruction_v11_keeps_the_cases_and_does_not_copy_the_case_scenario
     diciendo qué hacer con el requisito de referencia, el negativo, el mantenimiento con su prórroga,
     la forma de garantía no elegida, la opción y la coherencia; el negativo y el mantenimiento sin
     nada en contra van «no_consta» para que el sistema los proponga por ausencia; el impuesto lo
-    resuelve el criterio del Portal; y no trae el escenario «pesos e IVA» del caso que se mide."""
-    body = prompting.load_prompt("evaluacion")
+    resuelve el criterio del Portal; y no trae el escenario «pesos e IVA» del caso que se mide.
+
+    T-281: se comprueba sobre la `evaluacion-v12` (publicada) y, con las frases de la v13, sobre la
+    vigente (sin la regla del requisito de referencia ni la de coherencia, que nacieron de la
+    medición de un caso; ADR-0070)."""
+    body = (prompting.PROMPTS_DIR / "evaluacion-v12.md").read_text(encoding="utf-8")
     for phrase in ("Requisito de referencia", "Requisito negativo",
                    "Mantenimiento de la oferta y su prórroga", "limita o rechaza la prórroga",
                    "Forma de garantía que la oferta no eligió", "Condición de una opción",
@@ -574,6 +596,17 @@ def test_the_instruction_v11_keeps_the_cases_and_does_not_copy_the_case_scenario
     assert "el sistema lo propone por ausencia" in body
     assert "IVA" not in body and "pesos" not in body
     assert "solo con su propio dato (no vacío) y su propia cita" in body
+    current = prompting.load_prompt("evaluacion")
+    for phrase in ("Un requisito negativo", "supletorio", "limita o rechaza la prórroga",
+                   "Las condiciones de una forma de garantía valen solo para la oferta que eligió",
+                   "no las des por cumplidas", "Una condición que vale solo para quien usa una opción",
+                   "precio final, con los impuestos incluidos, salvo que la oferta diga lo contrario",
+                   'Con "cumple" o "no_cumple", vacía'):
+        assert phrase in current, phrase
+    assert 'su condición va "no_consta", sin dato ni cita' in current
+    assert 'el sistema lo propone "cumple" por ausencia, con los documentos leídos' in current
+    assert "IVA" not in current and "pesos" not in current
+    assert "solo con su propio dato y su propia cita" in current
 
 
 # --- La medida (T-256): el «cumple» por un criterio de la Comisión -------------------------------

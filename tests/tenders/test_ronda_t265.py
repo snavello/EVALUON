@@ -75,15 +75,16 @@ def test_the_active_extraction_is_v12_and_v11_stays_published():
     Cada pedido de la extracción registra la versión v12, la huella de su archivo y la del bloque
     v8."""
     versions = settings.MATRIX_PROMPT_VERSIONS
-    assert versions["extraccion"] == NEW
-    assert versions["definiciones"] == "matriz-definiciones-v8"
+    # T-279: la vigente pasa a la extracción v13 con el bloque v9; la v12 y la v11 siguen publicadas.
+    assert versions["extraccion"] == "matriz-extraccion-v14"
+    assert versions["definiciones"] == "matriz-definiciones-v10"
     assert (PROMPTS / f"{NEW}.md").is_file() and (PROMPTS / f"{PREVIOUS}.md").is_file()
     record = extraction.load_instruction("extraccion").record
-    assert record["version"] == NEW
-    assert record["sha256"] == extraction.text_sha256(_read(NEW))
+    assert record["version"] == "matriz-extraccion-v14"
+    assert record["sha256"] == extraction.text_sha256(_read("matriz-extraccion-v14"))
     assert record["definiciones"] == {
-        "version": "matriz-definiciones-v8",
-        "sha256": extraction.text_sha256(_read("matriz-definiciones-v8"))}
+        "version": "matriz-definiciones-v10",
+        "sha256": extraction.text_sha256(_read("matriz-definiciones-v10"))}
 
 
 # --- La regla nueva: la planilla en blanco es formulario; la nota que obliga, no -------------------
@@ -348,12 +349,13 @@ def test_the_active_filter_is_v9_and_v8_stays_published():
     """REQ-106, P6: T-265 publica el filtro v9 y lo registra como vigente; la v8 sigue publicada
     (congelada). Cada pedido del filtro registra la versión v9, la huella de su archivo y la del
     bloque v8."""
-    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == FILTER
+    # T-280: la vigente pasa a la v10; la v9 y la v8 siguen publicadas (congeladas).
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v11"
     assert (PROMPTS / f"{FILTER}.md").is_file() and (PROMPTS / f"{FILTER_PREVIOUS}.md").is_file()
     record = extraction.load_instruction("filtro").record
-    assert record["version"] == FILTER
-    assert record["sha256"] == extraction.text_sha256(_read(FILTER))
-    assert record["definiciones"]["version"] == "matriz-definiciones-v8"
+    assert record["version"] == "matriz-filtro-v11"
+    assert record["sha256"] == extraction.text_sha256(_read("matriz-filtro-v11"))
+    assert record["definiciones"]["version"] == "matriz-definiciones-v10"  # T-285
 
 
 def test_the_filter_v9_says_the_note_that_obliges_is_not_a_form_nor_the_portal_form():

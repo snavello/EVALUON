@@ -62,6 +62,8 @@ class EventType(models.TextChoices):
     DISCARD_DECISION = "discard_decision", "Decisión sobre un descarte"
     NORM_UPLOAD = "norm_upload", "Norma subida"
     EVAL_EXPORT = "eval_export", "Exportación de la evaluación"
+    # Feature 016 (plan 016, "Modelo de datos"; ADR-0068): un hecho por pedido a la API externa.
+    EXTERNAL_REQUEST = "external_request", "Pedido a la API externa"
 
 
 class Outcome(models.TextChoices):

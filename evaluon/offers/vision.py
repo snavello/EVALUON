@@ -26,8 +26,9 @@ ese modelo (`generation.model_for`) y el registro guarda, además de los datos d
 configurado, el que dice la respuesta del motor que lo atendió (`served_model`, P6).
 
 Cada página va en un pedido aparte al motor de lotes (`generation_batch`, con su proyector de
-imagen), con la imagen dibujada con pypdfium2 y la instrucción `vision-v4`: el modelo
-transcribe, no decide.
+imagen), con la imagen dibujada con pypdfium2 y la instrucción que fija
+`ASSESSMENT_VISION_PROMPT_VERSION` (`vision-v5` desde T-282, `vision-v6` desde T-285): el modelo transcribe, no decide.
+Cada página guarda el nombre, la versión y la huella de esa instrucción (P6).
 
 Cómo se le pide (T-177, REQ-064; hallazgo V-1 de T-161). Antes de mandar la imagen se detecta su
 orientación y se la endereza (`evaluon.offers.orientation`): un escaneo girado 90 grados hacía
@@ -420,6 +421,9 @@ def transcribe_page(pdf_bytes, page, *, hard=False, clock=time.monotonic):
     entry = {"page": page, "image_sha256": whole["image_sha256"],
              "image_size": whole["image_size"], "dpi": dpi, "rotation": turn,
              "tiles": count, "parts": parts,
+             # La instrucción de los pedidos de esta página (P6; T-282): el informe de una lectura
+             # trae también las páginas de lecturas anteriores, que pudieron usar otra versión.
+             "instruccion": prompt_record(),
              "finish_reason": parts[-1]["finish_reason"],
              "prompt_tokens": sum(p["prompt_tokens"] or 0 for p in parts),
              "completion_tokens": sum(p["completion_tokens"] or 0 for p in parts),

@@ -7,14 +7,17 @@ import io
 import re
 import zipfile
 from decimal import Decimal
+from unittest import mock
 from xml.etree import ElementTree
 
 import pytest
 
 from evaluon.accounts.permissions import RoleRejected
+from evaluon.assessment import models as am
 from evaluon.assessment.models import Result
 from evaluon.assessment.services import discards, review
 from evaluon.assessment.services import export as service
+from evaluon.assessment.services import external_stages
 from evaluon.audit.models import AuditEvent, EventType
 from evaluon.audit.models import Outcome as AuditOutcome
 from evaluon.tenders import export as tenders_export
@@ -242,3 +245,98 @@ def test_a_procedure_without_offers_exports_empty_files(procedure, operator_user
     assert "El procedimiento no tiene ofertas cargadas." in flat(read_xlsx(data)["Planilla"])
     pdf, _, _ = service.export(operator_user, procedure.pk, "planilla", "pdf")
     assert pdf.startswith(b"%PDF")
+
+
+# --- Etapas fuera del equipo (REQ-122; plan 016, "Modelo de datos"; T-300) ------------------------
+
+NONE_LINE = "Etapas fuera del equipo: Ninguna: todo corrió en el equipo."
+VERIFIER_LINE = ("Etapas fuera del equipo: verificador de citas "
+                 "(anthropic, claude-sonnet-5-5, modo lotes, 12 pedidos).")
+
+
+def external_key(stages, *, requests=12, mode="lotes"):
+    """Lo que la corrida guarda en `models_used`, `parameters` y `counts` cuando una etapa corre
+    fuera del equipo (la escriben T-291 y T-299; acá se simula)."""
+    return {
+        "models_used": {"externo": {"habilitado": True, "etapas": stages,
+                                    "proveedor": "anthropic", "modelo": "claude-sonnet-5-5"}},
+        "parameters": {"externo": {"modo": mode}},
+        "counts": {"externo": {"pedidos": requests, "gasto_usd": 0.41}},
+    }
+
+
+def add_external_run(user, procedure, offer, outcomes, key):
+    """Como `add_run`, pero con la clave `externo` en la corrida guardada."""
+    create = am.Run.objects.create
+    with mock.patch.object(am.Run.objects, "create",
+                           side_effect=lambda **fields: create(**{**fields, **key})):
+        return add_run(user, procedure, offer, outcomes)
+
+
+def planilla_texts(user, procedure):
+    data, _, _ = service.export(user, procedure.pk, "planilla", "xlsx")
+    return flat([row for rows in read_xlsx(data).values() for row in rows])
+
+
+def test_the_export_says_which_stages_ran_outside_the_equipment(
+        three, procedure, operator_user):
+    """REQ-122: con una corrida que usó el verificador externo, la planilla, el cuadro y el HTML
+    del PDF traen una sola línea con proveedor, modelo, modo y cantidad de pedidos."""
+    a, b, _ = three
+    open_matrix()
+    declaration = requirement(procedure, "declaración jurada")
+    add_external_run(operator_user, procedure, a, {declaration: "cumple"},
+                     external_key({"matriz": "local", "verificador": "externo"}))
+    add_run(operator_user, procedure, b, {declaration: "cumple"})
+    assert planilla_texts(operator_user, procedure).count(VERIFIER_LINE) == 3
+    data, _, _ = service.export(operator_user, procedure.pk, "cuadro", "xlsx")
+    assert flat(read_xlsx(data)["Cuadro comparativo"]).count(VERIFIER_LINE) == 1
+    collected = service.collect(operator_user, procedure.pk)
+    for document in ("planilla", "cuadro"):
+        assert service.build_html(collected, document).count(VERIFIER_LINE) == 1
+
+
+def test_the_export_says_none_when_the_key_is_missing_or_every_stage_is_local(
+        three, procedure, operator_user):
+    """REQ-122: las corridas de hoy no traen la clave `externo`, y una que la trae con todo en
+    `local` tampoco cuenta: «Ninguna: todo corrió en el equipo»."""
+    a, b, _ = three
+    open_matrix()
+    declaration = requirement(procedure, "declaración jurada")
+    add_run(operator_user, procedure, a, {declaration: "cumple"})
+    texts = planilla_texts(operator_user, procedure)
+    assert texts.count(NONE_LINE) == 3
+    add_external_run(operator_user, procedure, b, {declaration: "cumple"},
+                     external_key({"matriz": "local", "verificador": "local"}))
+    assert planilla_texts(operator_user, procedure).count(NONE_LINE) == 3
+    html = service.build_html(service.collect(operator_user, procedure.pk), "cuadro")
+    assert html.count(NONE_LINE) == 1
+
+
+def test_the_line_adds_up_the_requests_of_each_stage_across_the_offers(
+        three, procedure, operator_user):
+    """REQ-122: dos ofertas con el verificador externo suman sus pedidos; la matriz externa figura
+    aparte, con lo que dice su propia entrada."""
+    a, b, _ = three
+    open_matrix()
+    declaration = requirement(procedure, "declaración jurada")
+    both = external_key({"matriz": "externo", "verificador": "externo"})
+    both["models_used"]["externo"]["matriz"] = {"modelo": "claude-opus-5-5"}
+    both["parameters"]["externo"]["matriz"] = {"modo": "directo"}
+    both["counts"]["externo"] = {"matriz": {"pedidos": 3}, "verificador": {"pedidos": 12}}
+    add_external_run(operator_user, procedure, a, {declaration: "cumple"}, both)
+    add_external_run(operator_user, procedure, b, {declaration: "cumple"},
+                     external_key({"matriz": "local", "verificador": "externo"}, requests=5))
+    line = service.collect(operator_user, procedure.pk).external_line
+    assert line == (
+        "Etapas fuera del equipo: matriz de requisitos (anthropic, claude-opus-5-5, modo "
+        "directo, 3 pedidos); verificador de citas (anthropic, claude-sonnet-5-5, modo lotes, "
+        "17 pedidos).")
+
+
+@pytest.mark.parametrize("block", [None, "texto", [], {"etapas": None}, {"etapas": "externo"}])
+def test_a_malformed_key_reads_as_none(block):
+    """REQ-122: una clave `externo` que no tiene la forma esperada no rompe la pantalla ni la
+    exportación; se lee como «Ninguna»."""
+    run = am.Run(models_used={"externo": block}, parameters={}, counts={})
+    assert external_stages.line([run]) == NONE_LINE

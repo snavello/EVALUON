@@ -133,6 +133,58 @@ def price_talk(pair, ctx=None):
             texts.append(page.get("text", "") if isinstance(page, dict)
                          else getattr(page, "text", ""))
     return any(_talks_about_price(t) for t in texts if t)
+
+
+def _pages_of(ctx):
+    """Los textos de las páginas de la oferta, o `None` si no están a mano."""
+    offer_text = getattr(ctx, "offer_text", None) if ctx is not None else None
+    texts = [page.get("text", "") if isinstance(page, dict) else getattr(page, "text", "")
+             for document in getattr(offer_text, "documents", None) or []
+             for page in getattr(document, "pages", None) or []]
+    return texts or None
+
+
+def offer_says(text, ctx):
+    """Si `text` (el «dato» que el modelo escribió para una condición) está en los documentos de la
+    oferta, sin acentos ni mayúsculas y con los espacios colapsados (T-285, D-283-6, d). Sin las
+    páginas a mano no se puede saber: cuenta como que lo dice (la regla no decide)."""
+    needle = " ".join(fold(text).split()).strip(" «»\"'.;,")
+    if not needle:
+        return False
+    pages = _pages_of(ctx)
+    if pages is None:
+        return True
+    return any(needle in " ".join(fold(page).split()) for page in pages)
+
+
+# Lo que dice un «dato» que solo cuenta que la oferta no dice nada sobre la condición (T-285,
+# H-285-3): frases de ausencia, no negaciones de contenido. «No consta», «no se menciona», «no se
+# encontró», «sin mención», «ningún documento lo menciona»… Una negación de lo que la oferta hace
+# («no cumple», «no acepta», «rechaza», «limita», «fija») no es ausencia y frena la regla.
+_SAYS_NOTHING = re.compile(
+    r"\b(?:no (?:consta|figura|aparece|surge|hay (?:mencion|referencia|nada|ningun\w*)"
+    r"|(?:se )?(?:menciona|indica|refiere|detecta|observa|encuentra|encontro|hace referencia"
+    r"|dice nada|trae nada|contiene nada)\w*)"
+    r"|sin (?:mencion|referencia|dato|nada)|nada (?:en contra|al respecto)"
+    r"|ningun (?:documento|texto|pasaje)\b[^.]*\b(?:menciona|dice|contradice|trae|contiene))")
+_SAYS_SOMETHING = re.compile(
+    r"\b(?:no (?:cumpl\w*|acept\w*|mantien\w*|respet\w*|ofrec\w*|incluy\w*|cotiz\w*)"
+    r"|incumpl\w*|rechaz\w*|limit\w*|fij\w*|establec\w*|reduc\w*|excluy\w*|condicion\w* a|"
+    r"modific\w*|reserv\w*|exced\w*)")
+
+
+def only_says_nothing(record, ctx):
+    """Si el «dato» de la condición `record` cuenta solo que la oferta no dice nada sobre ella
+    (T-285, D-283-6 d y H-285-3): la condición vino «no_consta» del modelo, el dato es una frase de
+    ausencia (`_SAYS_NOTHING`) y no una negación de contenido (`_SAYS_SOMETHING`), y su texto no está
+    en ningún documento de la oferta. Cualquier otro dato frena la ausencia, como antes de T-285."""
+    text = record.get("dato") or ""
+    model = record.get("resultado_modelo") or record.get("resultado")
+    folded = fold(text)
+    return (model == "no_consta" and bool(_SAYS_NOTHING.search(folded))
+            and not _SAYS_SOMETHING.search(folded) and not offer_says(text, ctx))
+
+
 # Las dudas que frenan la ausencia y el IVA (D-257-2, D-257-3): el contraste no corroboró, partes sin
 # leer, una cita que no se ubicó, textos que se contradicen, o una «duda» sin motivo.
 DOUBTFUL = ("sin_corroborar", "lectura_incompleta", "sin_cita", "contradiccion", "duda",
