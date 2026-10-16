@@ -3,7 +3,7 @@ pliego completo (T-291; REQ-122, REQ-123; plan 016, «Paso 3 · Matriz con model
 ADR-0065 a ADR-0068).
 
 **Qué se manda.** El pliego completo es el prefijo común (el sistema) de todos los pedidos de la
-propuesta: la instrucción `matriz-externa-v1` (con el bloque `matriz-definiciones-vN` de la matriz
+propuesta: la instrucción `matriz-externa-v2` (con el bloque `matriz-definiciones-vN` de la matriz
 local) y el texto canónico de todos los tramos de la lectura vigente, en el orden del documento,
 con los mismos `[T1]…[/T1]` del extractor local (`extraction.render_block`: documento, ruta,
 encabezado, renglones, clase de la sección y texto visible). Nunca el PDF. El prefijo lleva caché
@@ -35,6 +35,9 @@ Un fragmento que no se ubica se descarta con la anomalía `fragmento_externo_no_
 cuyas citas no se ubicó ninguna, sin marca técnica, queda sin disposición (pendiente de revisión).
 Un descarte sin motivo de la lista o sin indicio ubicado va a sugerencia (`descarte_sin_sustento`):
 una duda nunca es un descarte silencioso.
+Una fila firme cuya cita empieza con una oración sin sujeto propio (un pedazo: la etapa externa
+reemplaza la unión de oraciones) va a sugerencia con la anomalía `externo_fila_sin_sujeto` (T-294,
+D-293-2); la instrucción pide citarla junto con la oración que le da el sujeto.
 
 **Si falla.** Un bloqueo de la puerta, un error, un vencimiento, el tope, una etapa frenada o una
 salida que no es el JSON pedido lanzan `Unavailable` con sus anomalías: la propuesta sigue con la
@@ -57,9 +60,10 @@ from decimal import Decimal
 from django.conf import settings
 
 from evaluon.ai.external import client, guard, ledger
-from evaluon.tenders.models import DiscardReason, PassName, RunStep
+from evaluon.tenders.models import DiscardReason, PassName, RunStep, SegmentType
 from evaluon.tenders.proposal import completeness, dedup, extraction, quotes
 from evaluon.tenders.proposal import filter as row_filter
+from evaluon.tenders.proposal.sentences import piece_problem
 
 STAGE = "matriz"
 STAGE_EXTRACTION = "matriz_extraccion"
@@ -89,6 +93,7 @@ ANOMALY_EXTRA_SEGMENT = "externo_tramo_no_pedido"
 ANOMALY_REPEATED = "externo_respuesta_repetida"
 ANOMALY_OUT_OF_SCOPE = "externo_faltante_fuera_de_alcance"
 ANOMALY_NO_ROW_ANSWER = "externo_fila_sin_respuesta"
+ANOMALY_NO_SUBJECT = "externo_fila_sin_sujeto"
 
 _CLASS_LABELS = {"formal": "formal", "economico": "económico"}
 
@@ -278,6 +283,16 @@ def same_requirement(new, old):
 # --- El filtro ya respondido ---------------------------------------------------------------------
 
 
+def _has_no_subject(row):
+    """Si la cita de la fila es un pedazo sin sujeto (`sentences.piece_problem`): empieza con una
+    oración sin sujeto propio que tiene la anterior en el tramo. No se revisa el texto de una tabla
+    ni la cita amplia (como la medida de pedazos de la 015)."""
+    found, segment = row.found, row.segment
+    if segment.segment_type == SegmentType.TABLA or found.flag == quotes.WIDE:
+        return False
+    return piece_problem(segment.text, found.span[0], found.span[1]) == "sin_sujeto"
+
+
 class ExternalFilter:
     """El filtro con las respuestas del modelo externo: `filter_rows(rows)` devuelve un
     `filter.Result` como `filter.Filter`, con las mismas guardas de código (oración compartida con
@@ -294,6 +309,23 @@ class ExternalFilter:
                       "failed_requests": 0}
 
     def _verdict(self, row):
+        """El veredicto de la fila, con una guarda más que las del filtro local (T-294, D-293-2):
+        la etapa externa reemplaza la unión de oraciones, así que una fila firme cuya cita
+        empieza con una oración sin sujeto propio (que tiene la anterior en el tramo) es un
+        pedazo: va a revisión como sugerencia `duda` y queda la anomalía
+        `externo_fila_sin_sujeto`. La fila con el antecedente, la obligación completa, es la que
+        queda firme."""
+        verdict = self._decide(row)
+        if verdict.destination == FIRME and _has_no_subject(row):
+            verdict.destination = SUGERENCIA
+            verdict.doubt_reason = "duda"
+            verdict.anomaly = ANOMALY_NO_SUBJECT
+            self.anomalies.append({"type": ANOMALY_NO_SUBJECT, "segment": row.segment.pk,
+                                   "key": row.segment.key})
+            self.stats["no_subject"] = self.stats.get("no_subject", 0) + 1
+        return verdict
+
+    def _decide(self, row):
         answer = self.answers.get(id(row.found))
         verdict = row_filter.Verdict(row, FIRME, step_a=self.step, step_b=self.step)
         if answer is None:

@@ -873,7 +873,7 @@ Ajuste único del paso 3 (ADR-0025): los hallazgos D-293-1 a D-293-5 de la medic
 
 ### matriz-externa-v2
 
-Largo con el bloque: 89 líneas y 8.745 caracteres (tope de las decisoras: 90 y 9.000).
+Largo con el bloque: 89 líneas y 8.863 caracteres (tope de las decisoras: 90 y 9.000).
 
 | Oración | Decisión |
 |---|---|
@@ -882,7 +882,7 @@ Largo con el bloque: 89 líneas y 8.745 caracteres (tope de las decisoras: 90 y 
 | Cada tramo del pliego va entre [Tn] y [/Tn], en el orden del documento, con su documento, su ruta, a veces sus renglones y la clase de su sección, y su texto. | D-03, D-30 |
 | La línea «Encabezado:» es el comienzo del punto del tramo: sirve para entender una oración suelta y nunca se cita. | D-15 |
 | (Bloque `matriz-definiciones-v10`, por la marca) | D-30 |
-| Toda cita es la oración del tramo que exige, entera y copiada letra por letra de su texto, con las oraciones seguidas del mismo asunto. | D-14, D-15 |
+| Toda cita es la oración del tramo que exige, entera y copiada letra por letra de su texto, con las oraciones seguidas del mismo asunto; la oración que empieza con un verbo, un pronombre o una minúscula se cita junto con la anterior, que le da su sujeto. | D-14, D-15 |
 | No resumas, completes ni corrijas una cita: el sistema la busca en su tramo y descarta la que no encuentra. | D-15 |
 | Un motivo nombra la definición que deja algo afuera: | D-06 |
 | titulo: un título; indice_caratula: un índice o una carátula. | D-06, ADR-0019 |

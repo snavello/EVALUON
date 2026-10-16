@@ -354,3 +354,40 @@ def heading_of(segment, lookup):
     if intro is None:
         return ""
     return _shortened(intro.text[label_end(intro.text):])
+
+
+def piece_problem(text, start, end):
+    """Si la cita `[start, end)` del `text` de su tramo es un pedazo (REQ-101, T-238).
+
+    Comprobación mecánica con la unidad de sentido de T-234 (`proposal.sentences`): una cita
+    completa empieza donde empieza una oración (o al comienzo del tramo, con su número de
+    cláusula), termina donde termina una oración y es la unidad que calcula el sistema: ni
+    arranca con una oración sin sujeto propio que tiene la anterior en el tramo («Deberán…»,
+    «La misma…», una minúscula) ni deja afuera la oración corta que la continúa de manera
+    explícita («La misma…», «Esto…»). Devuelve `None` si es completa o el problema:
+    `"empieza_en_medio"`, `"termina_en_medio"`, `"sin_sujeto"` (empieza con una oración sin
+    sujeto propio), `"separa_condiciones"` (deja afuera la oración corta que la continúa) o
+    `"vacia"`. Un texto sin oraciones (una tabla) no tiene límites que comprobar."""
+    chunk = text[start:end]
+    if not chunk.strip():
+        return "vacia"
+    first = start + len(chunk) - len(chunk.lstrip())
+    last = end - (len(chunk) - len(chunk.rstrip()))
+    spans = sentence_spans(text)
+    if not spans:
+        return None
+    if first != 0 and first not in {begin for begin, _ in spans}:
+        return "empieza_en_medio"
+    if last not in {finish for _, finish in spans}:
+        return "termina_en_medio"
+    opening = next((span for span in spans if span[0] == first), None)
+    if opening is not None and opening != spans[0] and lacks_subject(text[opening[0]:opening[1]]):
+        return "sin_sujeto"
+    unit = expand_to_sentence(text, (first, last), max_chars=len(text)).unit
+    if unit is None:
+        return None
+    if unit[0] < first:
+        return "sin_sujeto"
+    if unit[1] > last:
+        return "separa_condiciones"
+    return None

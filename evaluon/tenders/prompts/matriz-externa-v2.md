@@ -6,7 +6,7 @@ Cada tramo del pliego va entre [Tn] y [/Tn], en el orden del documento, con su d
 
 CITAS
 
-- Toda cita es la oración del tramo que exige, entera y copiada letra por letra de su texto, con las oraciones seguidas del mismo asunto.
+- Toda cita es la oración del tramo que exige, entera y copiada letra por letra de su texto, con las oraciones seguidas del mismo asunto; la oración que empieza con un verbo, un pronombre o una minúscula se cita junto con la anterior, que le da su sujeto.
 - No resumas, completes ni corrijas una cita: el sistema la busca en su tramo y descarta la que no encuentra.
 
 MOTIVOS

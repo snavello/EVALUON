@@ -10,9 +10,16 @@ externo (`fake_external`, sin red: la suite bloquea toda llamada real). Todo el 
 import pytest
 from django.conf import settings
 
+from evaluon.tenders import evaluation as ev
 from evaluon.tenders import models as m
 from evaluon.tenders.proposal import external
-from tests.tenders.scripted import propose, script  # noqa: F401  (fixture)
+from tests.tenders.pdfs import para, tender_pdf
+from tests.tenders.scripted import (  # noqa: F401  (fixture)
+    load_and_read,
+    make_procedure,
+    propose,
+    script,
+)
 from tests.tenders.test_external_matrix import (  # noqa: F401  (fixtures y ayudas)
     QUOTATION,
     ExternalScript,
@@ -113,3 +120,113 @@ def test_d_293_1_a_row_of_an_option_dropped_as_optional_goes_to_review_not_to_fi
                  if QUOTATION in row.quotes.get(order=1).text]
     assert firm == [] and len(suggested) == 1
     assert suggested[0].doubt_reason == "no_coinciden"
+
+
+# --- D-293-2: una oración que continúa a otra no sale como fila sin su sujeto ------------------------
+
+FIRST = "El oferente presentará la constancia de inscripción vigente."
+SECOND = "Deberá estar firmada por el representante legal."
+PRONOUN = "Esto vale también para las ofertas presentadas en conjunto."
+ANTECEDENT_RULE = ("la oración que empieza con un verbo, un pronombre o una minúscula se cita "
+                   "junto con la anterior, que le da su sujeto")
+
+
+class Quoting(ExternalScript):
+    """El modelo cita lo que `quote` dice del tramo que contiene `needle` (la clase es formal)."""
+
+    def __init__(self, fake, monkeypatch, needle, quote):
+        super().__init__(fake, monkeypatch)
+        self.needle, self.quote = needle, quote
+
+    def _segment(self, alias, text):
+        if self.needle not in text:
+            return {"tramo": alias, "requisitos": [], "tecnico": [],
+                    "descarte": "dato_procedimiento"}
+        return {"tramo": alias, "requisitos": [
+            {"cita": self.quote, "clase": "formal", "opcion": ""}], "tecnico": [], "descarte": ""}
+
+
+def two_sentences_case(user):
+    """Un pliego de un tramo con dos oraciones: la segunda empieza con un verbo y sola no se
+    entiende."""
+    procedure = make_procedure(user)
+    pdf = tender_pdf([[para("SECCIÓN I - CONDICIONES PARTICULARES"),
+                       para("1. CONSTANCIA", f"1.1. {FIRST} {SECOND}"),
+                       para("2. ALCANCE", f"2.1. {FIRST} {PRONOUN}")]])
+    load_and_read(user, procedure, pdf, title="Pliego sintético")
+    return procedure
+
+
+def anomalies_of(run, kind):
+    return [a for a in run.anomalies if a["type"] == kind]
+
+
+def test_d_293_2_the_instruction_asks_for_the_quote_with_its_antecedent():
+    """REQ-123, D-293-2 (D-14, D-15): la v2 pide que la oración sin sujeto propio se cite junto con
+    la anterior (la fila es la obligación completa)."""
+    assert ANTECEDENT_RULE in external.load_instruction().text
+
+
+def test_d_293_2_a_row_whose_quote_has_no_subject_goes_to_review_and_counts_as_a_piece(
+        operator_user, script, fake_external, monkeypatch):  # noqa: F811
+    """REQ-123, D-293-2: la respuesta falsa cita una oración que empieza con un verbo sin la que le
+    da el sujeto: la fila no queda firme, va a revisión (sugerencia `duda`) y la propuesta cuenta
+    el pedazo con la anomalía `externo_fila_sin_sujeto`; la medición de pedazos sin sujeto de las
+    filas firmes da 0."""
+    fake_external.enable("matriz")
+    Quoting(fake_external, monkeypatch, SECOND, SECOND)
+    procedure = two_sentences_case(operator_user)
+
+    requested, job = propose(operator_user, procedure)
+
+    assert job.status == "done", job.error
+    run = requested.run
+    pieces = anomalies_of(run, external.ANOMALY_NO_SUBJECT)
+    assert len(pieces) == 1 and SECOND in m.Segment.objects.get(pk=pieces[0]["segment"]).text
+    assert not [row for row in rows_of(run, state="propuesto") if SECOND in row.quotes.get(
+        order=1).text]
+    suggested = [row for row in rows_of(run, state="sugerido")
+                 if SECOND in row.quotes.get(order=1).text]
+    assert len(suggested) == 1 and suggested[0].doubt_reason == "duda"
+    found, checked, _ = ev.pieces_of(ev._proposed(run.version))
+    assert found == []
+
+
+def test_d_293_2_a_quote_with_its_antecedent_stays_firm_without_the_anomaly(
+        operator_user, script, fake_external, monkeypatch):  # noqa: F811
+    """REQ-123, D-293-2: la misma obligación citada con la oración que le da el sujeto queda firme y
+    no deja la anomalía (es lo que pide la instrucción)."""
+    fake_external.enable("matriz")
+    Quoting(fake_external, monkeypatch, SECOND, f"{FIRST} {SECOND}")
+    procedure = two_sentences_case(operator_user)
+
+    requested, job = propose(operator_user, procedure)
+
+    assert job.status == "done", job.error
+    run = requested.run
+    assert anomalies_of(run, external.ANOMALY_NO_SUBJECT) == []
+    firm = [row for row in rows_of(run, state="propuesto")
+            if SECOND in row.quotes.get(order=1).text]
+    assert len(firm) == 1 and FIRST in firm[0].quotes.get(order=1).text
+    found, checked, _ = ev.pieces_of(ev._proposed(run.version))
+    assert found == [] and checked >= 1
+
+
+def test_d_293_2_a_pronoun_opening_without_its_antecedent_is_counted_too(
+        operator_user, script, fake_external, monkeypatch):  # noqa: F811
+    """REQ-123, D-293-2: una cita que empieza con un pronombre demostrativo sin su antecedente
+    tampoco queda firme: la unidad que calcula el sistema la completa con la oración anterior, así
+    que la fila firme es la obligación entera (y no hay pedazo)."""
+    fake_external.enable("matriz")
+    Quoting(fake_external, monkeypatch, PRONOUN, PRONOUN)
+    procedure = two_sentences_case(operator_user)
+
+    requested, job = propose(operator_user, procedure)
+
+    assert job.status == "done", job.error
+    run = requested.run
+    found, _, _ = ev.pieces_of(ev._proposed(run.version))
+    assert found == []
+    firm = [row for row in rows_of(run, state="propuesto")
+            if PRONOUN in row.quotes.get(order=1).text]
+    assert len(firm) == 1 and FIRST in firm[0].quotes.get(order=1).text
