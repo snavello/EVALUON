@@ -337,11 +337,9 @@ def test_the_016_report_has_no_case_text():
 # Un punto que cierra una oración: lo sigue un espacio y una mayúscula, una comilla o un signo de apertura.
 SENTENCE_END = re.compile(r'(?<=\.)\s+(?=[A-ZÁÉÍÓÚÑ¿¡«"])')
 # Las oraciones que no llevan fila a propósito, con su motivo (el informe de la 016 lo dice).
-WITHOUT_ROW = {
-    # Procedencia, no regla (H-279-3; el Coordinador, en el encargo de T-280).
-    "matriz-definiciones-v9": {
-        "Estas definiciones son decisiones del responsable y valen para toda la matriz."},
-}
+# T-285: el bloque v10 ya no trae la oración de procedencia del v9 («Estas definiciones son decisiones
+# del responsable…», H-279-3): se quitó por el largo (el bloque entra en la unión, de 5.000 caracteres).
+WITHOUT_ROW = {}
 # T-281 (H-280-4, a): la fila de la salida puede sumar, después de la oración completa, el esqueleto de
 # la salida con marcadores (las de T-279 y T-280). Es lo único que una fila puede agregar.
 SKELETON_NOTE = ", y el esqueleto de la salida con marcadores"
@@ -558,66 +556,106 @@ DERIVED = {
         'Derivada de D-01 (spec 003, «Qué es un requisito», 2026-10-03); origen: D-266-1 de la '
         'lista de revisión de la 015 y H-279-1; confirmación: spec 016, 2026-10-15, «Garantía '
         'de cumplimiento de contrato (REQ-102)»')),
-    "D-33": ("pendiente", (
+    "D-33": ("confirmada", (
         'Derivada de D-01 («aunque la cumpla el organismo»); spec 004, REQ-063; spec 015, '
         '2026-10-12, «1 y luego 3 para no dejarlo sin probar» (la ronda que corrige las '
-        'definiciones de lo externo); H-279-3')),
-    "D-34": ("pendiente", (
+        'definiciones de lo externo); H-279-3'
+        '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones»')),
+    "D-34": ("confirmada", (
         'Derivada de D-01 y D-04; origen: T-236 de la 015 (definición del Planificador para '
-        'aplicar REQ-102); H-279-3')),
-    "D-35": ("pendiente", (
+        'aplicar REQ-102); H-279-3'
+        '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones»')),
+    "D-35": ("confirmada", (
         'Derivada de D-04 (spec 003, «Consecuencia del incumplimiento», 2026-10-03: el sistema '
         'sugiere las consecuencias posibles «con su fundamento»); origen: T-248 de la 015 '
         '(`matriz-consecuencias-v2`: «la v1 no decía que una cláusula general alcanza a todos '
-        'los requisitos de su punto»); H-280-1')),
-    "D-36": ("pendiente", (
+        'los requisitos de su punto»); H-280-1'
+        '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones»')),
+    "D-36": ("confirmada", (
         'Derivada de D-05 (spec 003, REQ-031: la matriz aplica el cambio y cita el documento '
         'que lo produjo); origen: T-098 de la 003 (`matriz-circulares-v2`, «sin citas ajenas») '
-        'y T-236 de la 015 (`matriz-circulares-v7`: «nunca se elige una cita ajena»); H-280-1')),
-    "D-37": ("pendiente", (
+        'y T-236 de la 015 (`matriz-circulares-v7`: «nunca se elige una cita ajena»); H-280-1'
+        '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones»')),
+    "D-37": ("confirmada", (
         'Derivada de D-02 (spec 003: una fila por renglón del pliego); origen: T-236 de la 015 '
-        '(`matriz-circulares-v6`: «"Ítem" vale como renglón»); H-280-2')),
-    "D-38": ("pendiente", (
+        '(`matriz-circulares-v6`: «"Ítem" vale como renglón»); H-280-2'
+        '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones»')),
+    "D-38": ("confirmada", (
         'Derivada de D-01, D-12 y del ADR-0023, decisión 1; origen: T-236 de la 015 '
-        '(`matriz-circulares-v6`: «no es un "agrega", sino un "dato_del_tramite"»); H-280-2')),
-    "D-43": ("pendiente", (
+        '(`matriz-circulares-v6`: «no es un "agrega", sino un "dato_del_tramite"»); H-280-2'
+        '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones»')),
+    "D-43": ("confirmada", (
         'Derivada de D-41 (ADR-0038: el contraste contesta si el texto citado demuestra la '
         'conclusión); origen: T-151 de la 004 (`contraste-v2`, «no exige más detalle que el '
-        'requisito»), conservada en `contraste-v3` y `contraste-v4` (T-237 de la 015); H-281-1')),
-    "D-44": ("pendiente", (
+        'requisito»), conservada en `contraste-v3` y `contraste-v4` (T-237 de la 015); H-281-1'
+        '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones»')),
+    "D-44": ("confirmada", (
         'Derivada de D-14 (spec 015, «Unidad de la fila»: la unidad de sentido no se parte); '
         'origen: T-164 de la 004 (`clausulas-v2`), conservada hasta `clausulas-v5` (T-237 de '
-        'la 015); H-281-1')),
-    "D-45": ("pendiente", (
+        'la 015); H-281-1'
+        '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones»')),
+    "D-45": ("confirmada", (
         'Derivada de D-26 (spec 014, «Lo que presentó cada oferta») y de la spec 008, REQ-039 '
         '(los fragmentos que responden al requisito); origen: T-146 de la 008 '
-        '(`reescritura-v1`) y T-248 de la 015 (`reescritura-v2`); H-281-1')),
-    "D-55": ("pendiente", (
+        '(`reescritura-v1`) y T-248 de la 015 (`reescritura-v2`); H-281-1'
+        '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones»')),
+    "D-55": ("confirmada", (
         'Derivada de D-51 (ADR-0041, decisión 3: transcribir el texto visible); origen: T-160 '
         'de la 004 (`vision-v1`: la firma que es solo un trazo) y T-177 de la 004 '
-        '(`vision-v3`, hallazgo V-1 de T-161: las líneas para escribir encima); H-282-1')),
-    "D-56": ("pendiente", (
+        '(`vision-v3`, hallazgo V-1 de T-161: las líneas para escribir encima); H-282-1'
+        '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones auxiliares»')),
+    "D-56": ("confirmada", (
         'Derivada de D-53 (spec 014, REQ-077: el sistema propone el tipo del procedimiento); '
-        'origen: T-248 de la 015 (`procedimiento-datos-v2`; la v1 no la tenía); H-282-1')),
-    "D-57": ("pendiente", (
+        'origen: T-248 de la 015 (`procedimiento-datos-v2`; la v1 no la tenía); H-282-1'
+        '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones auxiliares»')),
+    "D-57": ("confirmada", (
         'Derivada de D-50 (spec 008, REQ-044 y respuesta 2 de las preguntas abiertas: si cada '
         'renglón tiene o no oferta; sostén parcial, no fija los cuatro valores); origen: T-135 '
         'de la 008 (`ficha-renglon-v3`: cotizado solo con precio o cantidad), T-136 de la 008 '
         '(`ficha-renglon-v4`: «sin_precio») y T-248 de la 015 (`ficha-renglon-v5`: '
-        '«no_aparece»); H-282-1')),
-    "D-58": ("pendiente", (
+        '«no_aparece»); H-282-1'
+        '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones auxiliares»')),
+    "D-58": ("confirmada", (
         'Derivada de D-52 (spec 013, REQ-074: el sistema solo toma lo que dice el informe); '
         'origen: T-190 de la 013 (`informe-tecnico-v1`), conservada en `informe-tecnico-v2` '
-        '(T-248 de la 015); H-282-1')),
-    "D-59": ("pendiente", (
+        '(T-248 de la 015); H-282-1'
+        '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones auxiliares»')),
+    "D-59": ("confirmada", (
         'Derivada de D-49 (spec 008, REQ-039 y REQ-040: los fragmentos que responden al '
         'requisito, sin suponer); origen: T-135 de la 008 (`ficha-v2`: el dato concreto) y '
-        'T-248 de la 015 (`ficha-v3`: todas las citas); H-282-1')),
-    "D-60": ("pendiente", (
+        'T-248 de la 015 (`ficha-v3`: todas las citas); H-282-1'
+        '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones auxiliares»')),
+    "D-60": ("confirmada", (
         'Derivada de D-27 (spec 014, «El sistema lo propone»: el nombre del oferente con su '
         'cita); origen: T-220 de la 014 (`oferente-nombre-v1` y las reglas del nombre: '
         'terceros en la ronda 1, rótulo explícito en la ronda 2) y T-248 de la 015 '
-        '(`oferente-nombre-v2`); H-282-1')),
+        '(`oferente-nombre-v2`); H-282-1'
+        '; confirmación: spec 016, 2026-10-15, «Definiciones derivadas de las instrucciones auxiliares»')),
+    # T-285: las derivadas del ajuste único del paso 2.
+    "D-61": ("pendiente", (
+        'Derivada de D-41 (ADR-0038, regla 3: «no se encontró el documento» solo si el pliego '
+        'exige un documento y la oferta leída no lo trae) y de D-23; origen: T-283, hallazgo '
+        'D-283-5')),
+    "D-62": ("pendiente", (
+        'Derivada de D-06 y del ADR-0019 (motivo `formulario`: las planillas o modelos en blanco) '
+        'y de D-14; origen: T-236 de la 015 (bloque de definiciones hasta la v8: el texto de un '
+        'formulario o de una declaración jurada modelo no es requisito) y T-283, hallazgo D-283-3')),
+    "D-63": ("pendiente", (
+        'Derivada de D-01; origen: T-240 de la 015 (`matriz-filtro-v9`, motivo '
+        '`condicion_opcional`), H-280-6 y T-283, hallazgo D-283-3')),
+    "D-64": ("pendiente", (
+        'Derivada de D-01 y de D-13 (spec 015, 2026-10-10, «Requisito de la forma elegida»); '
+        'origen: O-260-1 de la 015 y T-283, hallazgo D-283-4')),
+    "D-65": ("pendiente", (
+        'Derivada de D-12 (spec 015, 2026-10-10: «una salvedad la moneda de la oferta si es un '
+        'requisito»); origen: T-265 de la 015 (O-263-3: la conversión de la moneda de cotización '
+        'salía descartada) y T-283, hallazgo D-283-4; H-285-6')),
+    "D-66": ("pendiente", (
+        'Derivada de D-51 (ADR-0041, decisión 3: transcribir literalmente el texto visible); '
+        'origen: T-283, hallazgo D-283-9; H-285-6')),
+    "D-67": ("pendiente", (
+        'Derivada de D-42 (spec 016, 2026-10-15: las dos posturas cuando el valor de la oferta y el '
+        'dato del Portal no coinciden) y de D-40; origen: T-283, hallazgo D-283-7; H-285-6')),
 }
 PENDING_MARK = "pendiente de confirmación del responsable"
 CONFIRMED_MARK = re.compile(r"confirmada por el responsable el (\d{4}-\d{2}-\d{2})\b[^«“]*[«“][^»”]+[»”]")
@@ -657,8 +695,9 @@ def test_every_derived_definition_keeps_its_mark_and_its_origin():
 
 def test_the_derived_check_finds_a_lost_mark_or_a_changed_origin():
     """REQ-119 (H-281-4; alteraciones C9 a C11 de la verificación de T-281): quitar «pendiente de
-    confirmación del responsable» de D-35, quitar «confirmada por el responsable» de D-32, volver el
-    origen de D-36 a T-236 sin T-098 o cambiar el de D-43 hace fallar la comprobación."""
+    confirmación del responsable» de una pendiente, quitar «confirmada por el responsable» de una
+    confirmada, volver el origen de D-36 a T-236 sin T-098 o cambiar el de D-43 hace fallar la
+    comprobación."""
     report = read_report_016()
     rows = decisions_of(report)
 
@@ -667,13 +706,17 @@ def test_the_derived_check_finds_a_lost_mark_or_a_changed_origin():
         assert line in report and old in line, (key, old)
         return report.replace(line, line.replace(old, new, 1))
 
+    # T-285: D-35 y D-45 están confirmadas (spec 016, 2026-10-15): las alteraciones de la marca
+    # «pendiente» se hacen sobre D-61 y D-62, que siguen pendientes, y una confirmada pierde la suya.
     cases = [
-        ("D-35", altered("D-35", ", pendiente de confirmación del responsable", "")),
+        ("D-61", altered("D-61", ", pendiente de confirmación del responsable", "")),
         ("D-32", altered("D-32", "confirmada por el responsable", "propuesta")),
+        ("D-35", altered("D-35", "confirmada por el responsable", "pendiente de confirmación del "
+                                                               "responsable")),
         ("D-36", altered("D-36", "origen: T-098 de la 003 (`matriz-circulares-v2`, «sin citas "
                                  "ajenas») y T-236", "origen: T-236")),
         ("D-43", altered("D-43", "origen: T-151 de la 004", "origen: T-240 de la 015")),
-        ("D-45", altered("D-45", "pendiente de confirmación del responsable",
+        ("D-62", altered("D-62", "pendiente de confirmación del responsable",
                          "confirmada por el responsable el 2026-10-16: «Sí»")),
     ]
     for key, text in cases:

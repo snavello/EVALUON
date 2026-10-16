@@ -64,10 +64,15 @@ def rule(pair, ctx):
         # Reverificación de T-257 (decisión del Coordinador): la exigencia tiene que ser una
         # condición, no un documento.
         return None
-    if any((r.get("dato") or "").strip() or r.get("cita")
+    if any(r.get("cita")
            or (r.get("resultado_modelo") or r.get("resultado")) in ("cumple", "no_cumple")
+           or ((r.get("dato") or "").strip()
+               and not criteria.only_says_nothing(r, ctx))
            for r in records):
-        # El modelo trae un dato, una cita o una conclusión sobre la condición: no es ausencia.
+        # El modelo trae una cita, una conclusión o un dato sobre la condición: no es ausencia.
+        # T-285 (D-283-6, d): el «dato» de una condición sin cita ni conclusión que solo dice que la
+        # oferta no trae nada («no lo menciona») y no está en sus documentos es un comentario del
+        # modelo, no un texto de la oferta: no frena la regla.
         return None
     titles = criteria.documents_read(ctx)
     if not titles:

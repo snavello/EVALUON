@@ -78,15 +78,18 @@ from evaluon.queries.models import Reason, Status
 # Versión de las instrucciones: nombre del archivo en `prompts/`, sin extensión. Una
 # versión publicada no se modifica: un cambio es un archivo nuevo (P7).
 #
-# - `PROMPT_VERSION_WITH_DATE`: instrucciones completas, con fecha: `consulta-v5` (T-282, spec
-#   016, REQ-119; ADR-0070: corta, sin ejemplos, con las mismas reglas y el mismo esquema que la
-#   v4), sobre la `consulta-v4` (T-248: las afirmaciones antes que el estado, ADR-0055), la
+# - `PROMPT_VERSION_WITH_DATE`: instrucciones completas, con fecha: `consulta-v6` (T-285, spec
+#   016: la v5 hacía que el modelo se abstuviera donde la v4 respondía, D-283-8; la v6 dice, como la
+#   v4 y la enmienda de REQ-009, que se responde siempre que una unidad trate el punto, aunque sea
+#   para remitirlo, y que «undetermined» es solo cuando ninguna lo trata), sobre la `consulta-v5`
+#   (T-282, spec 016, REQ-119; ADR-0070: corta, sin ejemplos, con las mismas reglas y el mismo
+#   esquema que la v4), la `consulta-v4` (T-248: las afirmaciones antes que el estado, ADR-0055), la
 #   `consulta-v3` (T-063, remisión a una norma no cargada, ADR-0015) y la v2 de T-034.
 # - `PROMPT_VERSION_WITHOUT_DATE`: las de T-018, para `answer` sin fecha.
 # - `PROMPT_VERSION`: la que usa `answer` cuando no recibe fecha (camino de T-018). La
 #   consulta (`services.ask`, T-040) siempre pasa la fecha, así que la pantalla y
 #   `correr_evals` usan y registran `PROMPT_VERSION_WITH_DATE`.
-PROMPT_VERSION_WITH_DATE = "consulta-v5"
+PROMPT_VERSION_WITH_DATE = "consulta-v6"
 PROMPT_VERSION_WITHOUT_DATE = "consulta-v1"
 PROMPT_VERSION = PROMPT_VERSION_WITHOUT_DATE
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"

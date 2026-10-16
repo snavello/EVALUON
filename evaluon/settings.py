@@ -317,15 +317,17 @@ MATRIX_PROMPT_VERSIONS = {
     # y las decisiones vigentes, sin ejemplos de casos (tabla en specs/016-calidad-medible/
     # revision-instrucciones.md). El bloque de definiciones lo incluyen la extracción, la
     # completitud, la unión y el filtro; las circulares, las consecuencias y el respaldo no.
-    "definiciones": "matriz-definiciones-v9",
-    "extraccion": "matriz-extraccion-v13",
+    # T-285 (ajuste único del paso 2): el bloque v10, la extracción v14 y el filtro v11 corrigen, como
+    # definiciones generales, los hallazgos D-283-1 a D-283-4 de la medición T-283.
+    "definiciones": "matriz-definiciones-v10",
+    "extraccion": "matriz-extraccion-v14",
     "completitud": "matriz-completitud-v7",
     "union": "matriz-union-v2",
     "consecuencias": "matriz-consecuencias-v3",
     "circulares": "matriz-circulares-v8",
     "circulares_cambios": "matriz-circulares-cambios-v7",
     "unificacion": "matriz-unificacion-v1",
-    "filtro": "matriz-filtro-v10",
+    "filtro": "matriz-filtro-v11",
     "respaldo": "matriz-respaldo-v3",
 }
 
@@ -520,13 +522,21 @@ ASSESSMENT_ANSWERS_MAX = 20
 ASSESSMENT_TECHNICAL_OPINION = True
 # Versión de las reglas que deciden sin el modelo (externos, técnico, ilegible, Portal); se
 # copia al registro de cada evaluación (ADR-0043; T-165). Cambia cuando cambia una regla.
-ASSESSMENT_RULES_VERSION = "reglas-v13"
+# T-285 (D-283-5 y D-283-6): `reglas-v14`, la opción sin `opcion` en la matriz con la marca del
+# modelo, la ausencia con el «cumple» del modelo sin nada encontrado y el Portal (umbral de monto,
+# motivo de la lectura cuando no compara, montos rotulados como otro concepto).
+# T-285, verificación (H-285-1 a H-285-3): `reglas-v15`, «no aplica» solo por la `opcion` de la fila (la
+# marca del modelo deja «no determinado»), la cita repetida y el guion de corte, y la ausencia solo con
+# una frase de ausencia de una condición «no consta».
+ASSESSMENT_RULES_VERSION = "reglas-v15"
 # Versión de cada instrucción: archivo `evaluon/assessment/prompts/<versión>.md` (T-150). T-281
 # (spec 016, REQ-119; ADR-0070): instrucciones cortas, solo con las definiciones y las decisiones
 # vigentes y el esqueleto de la salida, sin ejemplos (tabla en specs/016-calidad-medible/
 # revision-instrucciones.md).
 ASSESSMENT_PROMPT_VERSIONS = {
-    "evaluacion": "evaluacion-v13",
+    # T-285 (ajuste único del paso 2): la evaluación v14 corrige, como definiciones generales, lo que
+    # mostró la medición T-283 (D-283-5 a D-283-7).
+    "evaluacion": "evaluacion-v14",
     "contraste": "contraste-v5",
     "clausulas": "clausulas-v6",
 }
@@ -547,8 +557,9 @@ ASSESSMENT_VISION_MAX_SIDE = 1800
 ASSESSMENT_VISION_IMAGE_TOKENS = 280
 ASSESSMENT_VISION_MAX_OUTPUT_TOKENS = 3000
 ASSESSMENT_VISION_MAX_ILLEGIBLE_SHARE = 0.30
-# T-282 (spec 016, REQ-119; ADR-0070): `vision-v5`, corta y sin ejemplos.
-ASSESSMENT_VISION_PROMPT_VERSION = "vision-v5"
+# T-282 (spec 016, REQ-119; ADR-0070): `vision-v5`, corta y sin ejemplos. T-285 (D-283-9): `vision-v6`,
+# cada dato visible de un documento de identidad, una credencial o una constancia es texto.
+ASSESSMENT_VISION_PROMPT_VERSION = "vision-v6"
 # T-259 (REQ-104), decisión del Coordinador del 2026-10-12: la visión por pasaje queda APAGADA
 # por omisión. Con un valor mayor que 0, una página legible que tiene un pasaje reconocido con
 # confianza mínima menor que ese valor va a visión (`offers/vision.py`, motivo

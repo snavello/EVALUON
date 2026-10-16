@@ -214,6 +214,10 @@ class Command(BaseCommand):
                           for line in evaluation.accuracy_lines(result[moment])]
             lines.append(f"Lista de la Comisión: huella {commission.fingerprint[:12]}; "
                          f"{approval}")
+        # T-285 (H-277-1): la cuenta de las tres salidas sale de las celdas que guarda la evaluación;
+        # una corrida guardada no la trae y el recálculo no la inventa.
+        lines.append("Tres salidas (REQ-120): no se cuentan al recalcular; las cuenta la corrida de "
+                     "medir_evaluacion (las líneas «(016)»).")
         self.stdout.write("\n".join(lines))
 
     def _verify_truth(self, options, procedure, expected):

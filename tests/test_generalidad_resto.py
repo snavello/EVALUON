@@ -176,7 +176,9 @@ def test_the_remaining_instructions_are_the_ones_that_t248_reviewed():
     assert versions == {
         "matriz-consecuencias-v3", "matriz-respaldo-v3",  # T-280
         "reescritura-v3",  # T-281
-        "ficha-v4", "ficha-renglon-v6", "vision-v5", "informe-tecnico-v3", "consulta-v5",  # T-282
+        "ficha-v4", "ficha-renglon-v6", "informe-tecnico-v3",  # T-282
+        "vision-v6",  # T-285
+        "consulta-v6",  # T-285
         "oferente-nombre-v3", "procedimiento-datos-v3"}
     assert all(path.is_file() for path in current().values())
 

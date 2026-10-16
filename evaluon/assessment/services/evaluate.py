@@ -32,6 +32,7 @@ El rol se comprueba fuera de toda transacción. Todo corre en el equipo, sin ser
 (P4).
 """
 
+import re
 import time
 from dataclasses import dataclass, field, replace
 
@@ -76,6 +77,7 @@ from evaluon.tenders.models import (
     Requirement,
     RequirementClass,
 )
+from evaluon.tenders.proposal import quotes as tender_quotes
 from evaluon.tenders.services.validation import latest_validated
 
 REQUEST_OPERATION = "evaluon.assessment.services.evaluate.request_evaluation"
@@ -603,6 +605,13 @@ ANOMALY_CONDITION_NO_DATUM = "condicion_sin_dato"
 ANOMALY_CONDITION_NOT_APPLICABLE = "condicion_no_aplica"
 ANOMALY_RESULT_DERIVED = "resultado_derivado"
 ANOMALY_RESULT_CONTRADICTED = "resultado_no_sostenido"
+# T-285 (D-283-6, b): la condición «cumple» o «no cumple» sin su número de cita (o con uno que no se
+# ubicó) cuyo dato está, letra por letra, dentro de una de las citas que el sistema ubicó: esa es su
+# cita. No es prestarle la cita de otra condición (D-237-2): la cita contiene el dato de esta.
+ANOMALY_CONDITION_CITED_BY_DATUM = "condicion_citada_por_su_dato"
+# Palabras con contenido (tres letras o más) que tiene que tener un dato para ubicarlo así: un «sí»
+# o un número suelto está en cualquier texto.
+DATUM_MIN_WORDS = 2
 
 
 def _says_not_applicable(datum):
@@ -610,7 +619,34 @@ def _says_not_applicable(datum):
     return externals.fold(datum).strip().lstrip("«\"'(").startswith("no aplica")
 
 
-def _check_conditions(conditions, evidence, cited, anomalies):
+def _repeated_citation(piece, quote, ctx, others, located, anomalies):
+    """La cita ya ubicada que `quote` repite, o `None` (T-285, H-285-2). `locate_quote` devuelve
+    `None` con la anomalía `cita_repetida` cuando la cita, ampliada a la oración, da el mismo tramo
+    que otra ya ubicada (un título sin punto y la oración que lo sigue, por ejemplo): es la misma
+    cita, literal y ya ubicada, y no se pierde. Solo si la última anomalía es esa."""
+    if not anomalies or anomalies[-1].get("type") != citing.ANOMALY_REPEATED:
+        return None
+    again = citing.locate_quote(piece.doc, quote, ctx.finder, (), [], others=others, expand=True)
+    if again is None:
+        return None
+    return next((c for c in located if c.span == again.span), None)
+
+
+def _cite_by_datum(datum, evidence):
+    """El número de la cita ubicada (de la oferta o del Portal) que contiene `datum` letra por letra,
+    con los espacios colapsados, o `None` (T-285, D-283-6). Un dato con menos de `DATUM_MIN_WORDS`
+    palabras con contenido no se ubica."""
+    text = " ".join((datum or "").split()).strip(" «»\"'.;,")
+    if len(re.findall(r"[^\W\d_]{3,}", text)) < DATUM_MIN_WORDS:
+        return None
+    for number in sorted(evidence):
+        _, item = evidence[number]
+        if tender_quotes.locate(getattr(item, "text", "") or "", text) is not None:
+            return number
+    return None
+
+
+def _check_conditions(conditions, evidence, cited, anomalies, unlocated=()):
     """Las condiciones que escribió el modelo, controladas contra lo que el sistema ubicó
     (REQ-104; P3; D-237-2). `evidence`: `{número de la cita: ("oferta", Located) | ("portal",
     Datum)}`, solo de las citas que se ubicaron; `cited`: cuántas citas escribió el modelo.
@@ -618,9 +654,13 @@ def _check_conditions(conditions, evidence, cited, anomalies):
     Una condición «cumple» o «no cumple» vale solo con **su** dato (no vacío) y **su** cita:
     `1 <= cita <= cited` y ubicada. Sin dato, con la cita 0, con una cita que no existe o que no se
     ubicó, pasa a «no determinado» y queda la anomalía; no se le presta la cita de otra condición
-    aunque sea la única que se ubicó. Devuelve `(condiciones efectivas, registros)`: las
+    aunque sea la única que se ubicó. T-285 (D-283-6, b): si su dato está letra por letra dentro de
+    una cita ubicada (`_cite_by_datum`), esa es su cita: una misma oración puede sostener varias
+    condiciones. Devuelve `(condiciones efectivas, registros)`: las
     `prompting.Condition` con el resultado que cuenta y, para el registro y la pantalla, un dict
-    por condición con su dato, su cita y su resultado."""
+    por condición con su dato, su cita y su resultado. `unlocated`: los números de las citas que el
+    modelo escribió y no se ubicaron; la condición que apunta a una queda marcada `cita_no_ubicada`
+    (T-285, H-285-2), para que la pregunta lo diga."""
     effective, records = [], []
     for index, condition in enumerate(conditions, start=1):
         pointed = 1 <= condition.cite <= cited
@@ -634,8 +674,15 @@ def _check_conditions(conditions, evidence, cited, anomalies):
                 result = prompting.NO_DETERMINADO
                 anomalies.append({"type": ANOMALY_CONDITION_NOT_APPLICABLE, "condition": index})
             elif found is None:
-                result = prompting.NO_DETERMINADO
-                anomalies.append({"type": ANOMALY_CONDITION_NO_CITATION, "condition": index})
+                by_datum = _cite_by_datum(condition.datum, evidence)
+                if by_datum is None:
+                    result = prompting.NO_DETERMINADO
+                    anomalies.append({"type": ANOMALY_CONDITION_NO_CITATION,
+                                      "condition": index})
+                else:
+                    found = evidence[by_datum]
+                    anomalies.append({"type": ANOMALY_CONDITION_CITED_BY_DATUM,
+                                      "condition": index, "cita": by_datum})
         cite = None
         if found is not None:
             kind, item = found
@@ -643,9 +690,11 @@ def _check_conditions(conditions, evidence, cited, anomalies):
                      "texto": item.text} if kind == "oferta"
                     else {"tipo": "portal", "texto": item.text})
         effective.append(replace(condition, result=result))
-        records.append({"condicion": condition.text, "dato": condition.datum,
-                        "resultado": result, "resultado_modelo": condition.result,
-                        "cita": cite})
+        record = {"condicion": condition.text, "dato": condition.datum,
+                  "resultado": result, "resultado_modelo": condition.result, "cita": cite}
+        if cite is None and condition.cite in unlocated:
+            record["cita_no_ubicada"] = True
+        records.append(record)
     return effective, records
 
 
@@ -705,6 +754,7 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
                 raise RequestTooLong(None, output, str(error)) from error
             break
         problem, evaluation, located, backed, data_located = None, None, [], None, []
+        unlocated_numbers = set()
         portal_cited, evidence, unlocated = [], {}, []
         effective, records, derived, unsupported = [], [], None, False
         try:
@@ -728,17 +778,24 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
                         evidence[number] = ("portal", datum)
                     else:
                         step.anomalies.append({"type": ANOMALY_UNKNOWN_ALIAS, "alias": alias})
+                        unlocated_numbers.add(number)
                     continue
+                others = [p.doc for p in pieces if p is not piece]
                 found = citing.locate_quote(piece.doc, quote, ctx.finder, used,
-                                            step.anomalies,
-                                            others=[p.doc for p in pieces if p is not piece],
-                                            expand=True)
+                                            step.anomalies, others=others, expand=True)
                 if found is not None:
                     located.append(found)
                     used.add(found.span)
                     evidence[number] = ("oferta", found)
-                else:
-                    unlocated.append(quote)
+                    continue
+                same = _repeated_citation(piece, quote, ctx, others, located, step.anomalies)
+                if same is not None:
+                    # T-285 (H-285-2): la cita repite una ya ubicada (al ampliarse a la oración
+                    # da el mismo tramo): es esa misma cita, y la condición que la nombra la toma.
+                    evidence[number] = ("oferta", same)
+                    continue
+                unlocated.append(quote)
+                unlocated_numbers.add(number)
             for alias, quote in evaluation.data:
                 # `datos`: texto literal con el monto o el CUIT; se ubica como cualquier cita
                 # y solo lo que se ubicó se compara con el Portal (REQ-062).
@@ -763,7 +820,8 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             # dato y su cita ubicada; sin condiciones (salida anterior a `evaluacion-v6`) vale el
             # que escribió el modelo.
             effective, records = _check_conditions(
-                evaluation.conditions, evidence, len(evaluation.citations), step.anomalies)
+                evaluation.conditions, evidence, len(evaluation.citations), step.anomalies,
+                unlocated_numbers)
             by_conditions = prompting.derive_result(effective)
             # El más conservador entre el que dijo el modelo y el de sus condiciones (D-237-2).
             derived = prompting.reconcile_result(evaluation.result, by_conditions)
@@ -788,8 +846,12 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
                            "datos_ubicados": [{"documento": c.document.pk, "pagina": c.page,
                                                "inicio": c.char_start, "fin": c.char_end}
                                               for c in data_located]}
+            # T-285 (D-283-6, d): si ninguna condición tiene nada (`no_consta`) y el modelo no dijo «no
+            # cumple», no hay una conclusión que citar: el «cumple» del modelo sobre lo que la oferta no
+            # dice es la ausencia que verifica `absence.py` con los documentos leídos.
+            nothing = derived == prompting.NO_CONSTA and evaluation.result != prompting.NO_CUMPLE
             if ({evaluation.result, derived} & {prompting.CUMPLE, prompting.NO_CUMPLE}
-                    and not located and not portal_cited):
+                    and not nothing and not located and not portal_cited):
                 step.anomalies.append({"type": prompting.ANOMALY_NO_CITATION})
                 problem = prompting.ANOMALY_NO_CITATION
         pair.anomalies.extend({**a, "requirement": pair.requirement.number, "step": position}
@@ -815,9 +877,13 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             group_index, prompting.NO_DETERMINADO, doubt=combine.NO_CITATION,
             exigence=evaluation.exigence, supports=supports,
             explanation=evaluation.explanation, question=evaluation.question,
-            external=evaluation.external, unreadable=backed)
+            external=evaluation.external, unreadable=backed, found=True,
+            option_use=evaluation.option_use)
     explanation, question, doubt = evaluation.explanation, evaluation.question, combine.DOUBT
-    note = prompting.missing_note(effective)
+    lost = {c.cite for c in effective
+            if c.result in (prompting.NO_DETERMINADO, prompting.NO_CONSTA)
+            and c.cite in unlocated_numbers}
+    note = prompting.missing_note(effective, unlocated=lost)
     if derived == prompting.NO_DETERMINADO and note and not evaluation.external:
         # «No determinado» dice qué condición no se pudo determinar (REQ-104) y se lo pregunta a
         # la Comisión (REQ-105): falta el dato de una condición, que no es una duda sin razón.
@@ -826,7 +892,7 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
         if note not in explanation:
             explanation = f"{explanation} {note}".strip()
         if not question or combine.addresses_offeror(question):
-            question = prompting.missing_question(effective)
+            question = prompting.missing_question(effective, unlocated=lost)
     if unsupported and not evaluation.external:
         # El modelo y sus condiciones no concluyen lo mismo: no se da por concluido (D-237-2).
         explanation = (f"{explanation} El resultado que propuso el modelo («{evaluation.result}») "
@@ -848,14 +914,21 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             explanation=f"{explanation} {combine.NO_CLAUSE_NOTE}".strip(),
             question=(question if question and not combine.asks_the_offeror(question)
                       else NO_CLAUSE_QUESTION),
-            external=evaluation.external, unreadable=backed)
+            external=evaluation.external, unreadable=backed, found=True,
+            option_use=evaluation.option_use)
     keep = [] if derived == prompting.NO_CONSTA else located
+    # T-285 (D-283-5): un «no consta» que ubicó un texto de la oferta o del Portal, o sobre el que el
+    # modelo concluyó, no muestra que el documento falte (`combine`, regla 5).
+    found = bool(located or portal_cited
+                 or evaluation.result in (prompting.CUMPLE, prompting.NO_CUMPLE))
     return combine.GroupResult(
         group_index, derived,
         doubt=doubt if derived == prompting.NO_DETERMINADO else "",
         exigence=evaluation.exigence, citations=keep, supports=supports,
         explanation=explanation, question=question,
-        external=evaluation.external, unreadable=backed, portal=portal_record)
+        external=evaluation.external, unreadable=backed, portal=portal_record,
+        found=found, seen=list(located) if derived == prompting.NO_CONSTA else [],
+        option_use=evaluation.option_use)
 
 
 def _read_pair(ctx, pair):
@@ -1319,7 +1392,7 @@ def evaluate_offer(request, offer, user, *, channel=RunChannel.SCREEN,
         for pair in pairs:
             pair.combined = replace(pair.combined, question=combine.compose_question(
                 pair.requirement.number, pair.text.text, pair.combined, documents=titles,
-                unread=offer_text.unread))
+                unread=offer_text.unread, conditions=_pair_conditions(pair)))
         ctx.report("Guardando la evaluación de la oferta", ctx.total, ctx.total)
         anomalies = [a for pair in pairs for a in pair.anomalies]
         if seen.errors:

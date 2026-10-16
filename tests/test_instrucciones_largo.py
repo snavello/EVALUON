@@ -45,37 +45,40 @@ DEFINITIONS_MARK = "{{DEFINICIONES}}"
 #     "matriz-extraccion-v13": {"path": "evaluon/tenders/prompts/matriz-extraccion-v13.md",
 #                               "definitions": "matriz-definiciones-v9"},
 SIMPLIFIED = {
-    # T-279: la matriz, parte 1 (el bloque común y las tres instrucciones que lo incluyen).
-    "matriz-definiciones-v9": {"path": "evaluon/tenders/prompts/matriz-definiciones-v9.md"},
-    "matriz-extraccion-v13": {"path": "evaluon/tenders/prompts/matriz-extraccion-v13.md",
-                              "definitions": "matriz-definiciones-v9"},
+    # T-279: la matriz, parte 1 (el bloque común y las tres instrucciones que lo incluyen). T-285: el
+    # bloque v10 y la extracción v14 (ajuste único del paso 2); la completitud v7 y la unión v2 siguen
+    # y leen el bloque v10.
+    "matriz-definiciones-v10": {"path": "evaluon/tenders/prompts/matriz-definiciones-v10.md"},
+    "matriz-extraccion-v14": {"path": "evaluon/tenders/prompts/matriz-extraccion-v14.md",
+                              "definitions": "matriz-definiciones-v10"},
     "matriz-completitud-v7": {"path": "evaluon/tenders/prompts/matriz-completitud-v7.md",
-                              "definitions": "matriz-definiciones-v9"},
+                              "definitions": "matriz-definiciones-v10"},
     "matriz-union-v2": {"path": "evaluon/tenders/prompts/matriz-union-v2.md",
-                        "definitions": "matriz-definiciones-v9"},
-    # T-280: la matriz, parte 2 (el filtro incluye el bloque; las otras cuatro no lo llevan).
-    "matriz-filtro-v10": {"path": "evaluon/tenders/prompts/matriz-filtro-v10.md",
-                          "definitions": "matriz-definiciones-v9"},
+                        "definitions": "matriz-definiciones-v10"},
+    # T-280: la matriz, parte 2 (el filtro incluye el bloque; las otras cuatro no lo llevan). T-285:
+    # el filtro v11.
+    "matriz-filtro-v11": {"path": "evaluon/tenders/prompts/matriz-filtro-v11.md",
+                          "definitions": "matriz-definiciones-v10"},
     "matriz-consecuencias-v3": {"path": "evaluon/tenders/prompts/matriz-consecuencias-v3.md"},
     "matriz-circulares-v8": {"path": "evaluon/tenders/prompts/matriz-circulares-v8.md"},
     "matriz-circulares-cambios-v7": {
         "path": "evaluon/tenders/prompts/matriz-circulares-cambios-v7.md"},
     "matriz-respaldo-v3": {"path": "evaluon/tenders/prompts/matriz-respaldo-v3.md"},
     # T-281: la evaluación (decisora), el contraste, las cláusulas y la reescritura.
-    "evaluacion-v13": {"path": "evaluon/assessment/prompts/evaluacion-v13.md"},
+    "evaluacion-v14": {"path": "evaluon/assessment/prompts/evaluacion-v14.md"},  # T-285
     "contraste-v5": {"path": "evaluon/assessment/prompts/contraste-v5.md"},
     "clausulas-v6": {"path": "evaluon/assessment/prompts/clausulas-v6.md"},
     "reescritura-v3": {"path": "evaluon/offers/prompts/reescritura-v3.md"},
     # T-282: las auxiliares (visión, ficha, ficha por renglón, informe técnico, nombre del oferente,
     # datos del procedimiento y consulta). Desde acá toda instrucción vigente está en la tabla
     # (`test_instrucciones_revisadas.test_every_current_instruction_is_simplified`).
-    "vision-v5": {"path": "evaluon/assessment/prompts/vision-v5.md"},
+    "vision-v6": {"path": "evaluon/assessment/prompts/vision-v6.md"},  # T-285
     "ficha-v4": {"path": "evaluon/offers/prompts/ficha-v4.md"},
     "ficha-renglon-v6": {"path": "evaluon/offers/prompts/ficha-renglon-v6.md"},
     "informe-tecnico-v3": {"path": "evaluon/assessment/prompts/informe-tecnico-v3.md"},
     "oferente-nombre-v3": {"path": "evaluon/offers/prompts/oferente-nombre-v3.md"},
     "procedimiento-datos-v3": {"path": "evaluon/tenders/prompts/procedimiento-datos-v3.md"},
-    "consulta-v5": {"path": "evaluon/queries/prompts/consulta-v5.txt"},
+    "consulta-v6": {"path": "evaluon/queries/prompts/consulta-v6.txt"},  # T-285
 }
 
 # Los esquemas de salida de las instrucciones simplificadas: `{nombre: "módulo:atributo"}`; el
@@ -83,7 +86,7 @@ SIMPLIFIED = {
 SIMPLIFIED_SCHEMAS = {
     # T-281: los que se mandan con los pedidos de la evaluación (el de lectura, con un alias de cada
     # clase), del contraste, del contraste por cláusula y de la reescritura.
-    "evaluacion-v13": "tests.test_instrucciones_largo:evaluation_output_schema",
+    "evaluacion-v14": "tests.test_instrucciones_largo:evaluation_output_schema",  # T-285
     "contraste-v5": "evaluon.assessment.prompting:CONTRAST_SCHEMA",
     "clausulas-v6": "evaluon.assessment.prompting:CLAUSES_SCHEMA",
     "reescritura-v3": "evaluon.offers.services.sheets:REWRITE_SCHEMA",
@@ -94,7 +97,7 @@ SIMPLIFIED_SCHEMAS = {
     "informe-tecnico-v3": "tests.test_instrucciones_largo:technical_report_schema",
     "oferente-nombre-v3": "evaluon.offers.proposal_fields:MODEL_SCHEMA",
     "procedimiento-datos-v3": "evaluon.tenders.proposal.procedure_fields:MODEL_SCHEMA",
-    "consulta-v5": "tests.test_instrucciones_largo:query_schema",
+    "consulta-v6": "tests.test_instrucciones_largo:query_schema",  # T-285
 }
 
 
@@ -238,18 +241,18 @@ def all_schema_problems(table=None):
 
 def test_the_limits_are_the_ones_of_the_plan():
     """REQ-119 (umbral 5): los topes son los del plan 016 y el ADR-0070."""
-    assert limits_of("matriz-extraccion-v13") == (90, 9000)
-    assert limits_of("matriz-filtro-v10") == (90, 9000)
-    assert limits_of("evaluacion-v13") == (90, 9000)
+    assert limits_of("matriz-extraccion-v14") == (90, 9000)
+    assert limits_of("matriz-filtro-v11") == (90, 9000)
+    assert limits_of("evaluacion-v14") == (90, 9000)
     assert limits_of("matriz-externa-v1") == (90, 9000)
     for other in ("matriz-completitud-v7", "matriz-union-v2", "matriz-consecuencias-v3",
                   "matriz-circulares-v8", "matriz-circulares-cambios-v7", "matriz-respaldo-v3",
                   "contraste-v5", "clausulas-v6",
-                  "reescritura-v3", "vision-v5", "ficha-v4", "ficha-renglon-v6",
+                  "reescritura-v3", "vision-v6", "ficha-v4", "ficha-renglon-v6",
                   "informe-tecnico-v3", "oferente-nombre-v3", "procedimiento-datos-v3",
-                  "consulta-v5"):
+                  "consulta-v6"):
         assert limits_of(other) == (50, 5000), other
-    assert limits_of("matriz-definiciones-v9") == (None, 5000)
+    assert limits_of("matriz-definiciones-v10") == (None, 5000)
     assert DESCRIPTION_CHARS == 80
 
 

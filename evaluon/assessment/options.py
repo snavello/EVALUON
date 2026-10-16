@@ -22,8 +22,10 @@ ubicada (una cita que no se ubicó, un dato, una conclusión), si el contraste n
 cotización parcial el Portal no tiene los renglones, el resultado es «no determinado» con la pregunta
 de si la opción aplica (`opcion_sin_determinar`). Con partes de la oferta sin leer la regla no dice nada (no se puede
 afirmar que no la usa). Si la oferta muestra que usa la opción, se evalúa como cualquier otra fila.
-Una matriz sin `opcion` (ya validada antes de T-258) no pasa por esta regla: la instrucción de la
-evaluación (`evaluacion-v11`) tiene la regla de respaldo.
+Una fila sin `opcion` (una matriz validada antes de T-258) no pasa por esta regla: «no aplica» sale
+solo de la `opcion` de la fila. Si el modelo marcó en todos los grupos `usa_opcion` «no» y no encontró
+nada, `marked_rule` la deja «no determinado» (`opcion_sin_determinar`) con la pregunta de si la
+Comisión confirma que es la condición de una opción que la oferta no usa (T-285, H-285-1).
 """
 
 from dataclasses import replace
@@ -129,7 +131,9 @@ def _unsure(pair, ctx, name):
 def rule(pair, ctx):
     """La regla de `rules.py`: devuelve el resultado nuevo del par o `None`. «No aplica» solo con la
     cita del requisito ubicada, la lectura completa y sin ninguna evidencia de que la oferta use la
-    opción (D-257-6); con evidencia sin cita, «no determinado» con la pregunta."""
+    opción (D-257-6); con evidencia sin cita, «no determinado» con la pregunta. La opción la nombra
+    **solo** la matriz (`opcion` de la fila): la marca del modelo nunca decide «no aplica» (T-285,
+    H-285-1, decisión del Coordinador); sin `opcion` decide `marked_rule`."""
     name = option_of(pair.requirement)
     combined = pair.combined
     if not name or combined is None or not criteria.complete(combined):
@@ -147,7 +151,8 @@ def rule(pair, ctx):
             question=(f"¿La oferta usa {_named(name)}? {why[0].upper()}{why[1:]}; si no la usa, "
                       "la condición no aplica a esta oferta."),
             explanation=(f"No se puede afirmar si la oferta usa {_named(name)}: {why}."),
-            facts={**combined.facts, "regla": RULE_UNSURE, "opcion": name})
+            facts={**combined.facts, "regla": RULE_UNSURE, "opcion": name,
+                   "opcion_origen": "matriz"})
     titles = criteria.documents_read(ctx)
     read = ", ".join(f"«{t}»" for t in titles) if titles else "todos los documentos de la oferta"
     return replace(
@@ -156,4 +161,36 @@ def rule(pair, ctx):
         explanation=(f"No aplica: la condición vale solo para quien usa {_named(name)} y "
                      f"ni los documentos de la oferta ({read}) ni el Portal muestran que la use."),
         facts={**combined.facts, "regla": RULE, "aplica": False, "opcion": name,
-               "documentos_leidos": titles})
+               "opcion_origen": "matriz", "documentos_leidos": titles})
+
+
+def marked_rule(pair, ctx):
+    """La fila sin `opcion` en la matriz que el modelo marcó, en todos sus grupos, como condición de
+    una opción que la oferta no usa (`usa_opcion` «no»), sin nada encontrado: «no determinado» con
+    `opcion_sin_determinar` y la pregunta de si la Comisión lo confirma (T-285, H-285-1, decisión del
+    Coordinador). Nunca «no aplica»: la marca del modelo no decide; «no aplica» sale solo de la
+    `opcion` de la fila (`rule`). Va última en `rules.py`: las demás reglas deciden antes (la
+    ausencia, el Portal, lo externo, lo técnico). `None` si no corresponde.
+
+    Solo la marca «no»: «no_consta» es lo que el modelo responde para toda fila que no depende de
+    una opción, así que no distingue la condición de una opción de una fila general."""
+    combined = pair.combined
+    if combined is None or option_of(pair.requirement) or option_use(pair) != "no":
+        return None
+    if getattr(pair.requirement, "category", "") == "tecnico":
+        return None
+    if combined.outcome not in (combine.OUT_NO_DETERMINADO, combine.OUT_SIN_DOCUMENTO):
+        return None
+    if combined.doubt not in ("", combine.NO_DATA) or combined.proposed:
+        return None
+    if _shows_use(pair, ctx, "") or any(
+            getattr(g, "result", "") in ("cumple", "no_cumple")
+            for g in getattr(pair, "groups", None) or []):
+        return None
+    if any((item.get("resultado_modelo") or item.get("resultado")) in ("cumple", "no_cumple")
+           for item in criteria.conditions_of(pair)):
+        return None
+    return replace(
+        combined, outcome=combine.OUT_NO_DETERMINADO, doubt=combine.NO_DATA, ask=True,
+        proposed="", question=combine.OPTION_QUESTION, explanation=combine.OPTION_NOTE,
+        facts={**combined.facts, "regla": RULE_UNSURE, "opcion": "", "opcion_origen": "modelo"})

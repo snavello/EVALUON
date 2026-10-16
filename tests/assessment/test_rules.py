@@ -32,11 +32,13 @@ FOUND = {"documento": "pagare.pdf", "documento_id": 1, "archivo": "pagare.pdf", 
 def test_the_rules_come_in_the_planned_order():
     """REQ-103 (T-257, H-C2-1): la forma de garantía no elegida va primero (T-240), antes que la de
     externos; después la opción no usada y la presentación física (T-257), el externo, el técnico
-    (T-167), la ilegible, la del Portal (T-169) y, al final, el cumple por ausencia (T-257)."""
+    (T-167), la ilegible, la del Portal (T-169), el cumple por ausencia (T-257) y, al final, la de la
+    opción que marcó el modelo en una fila sin `opcion` (T-285, H-285-1: nunca «no aplica»)."""
     from evaluon.assessment import absence, options, presentation
 
     assert rules.RULES == (guarantee_form.rule, options.rule, presentation.rule, externals.rule,
-                           technical.rule, unreadable.rule, portal_facts.rule, absence.rule)
+                           technical.rule, unreadable.rule, portal_facts.rule, absence.rule,
+                           options.marked_rule)
 
 
 def test_a_pair_no_rule_covers_follows_the_normal_flow():
@@ -68,7 +70,7 @@ def test_an_unreadable_page_applies_to_an_undetermined_pair_and_stamps_the_versi
                      group)
     assert rules.apply(pair, CTX) == "ilegible_informe"
     facts = pair.combined.facts
-    assert facts["regla"] == "ilegible_informe" and facts["version_reglas"] == "reglas-v13"
+    assert facts["regla"] == "ilegible_informe" and facts["version_reglas"] == "reglas-v15"
     assert (facts["ilegible"]["documento"], facts["ilegible"]["pagina"]) == ("pagare.pdf", 2)
     assert "página 2" in pair.combined.question and "«pagare.pdf»" in pair.combined.question
 

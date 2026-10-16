@@ -17,7 +17,7 @@ from tests.tenders.scripted import item, load_and_read, make_procedure, propose,
 
 pytestmark = pytest.mark.django_db
 
-T279 = {"definiciones": "matriz-definiciones-v9", "extraccion": "matriz-extraccion-v13",
+T279 = {"definiciones": "matriz-definiciones-v10", "extraccion": "matriz-extraccion-v14",
         "completitud": "matriz-completitud-v7", "union": "matriz-union-v2"}
 
 

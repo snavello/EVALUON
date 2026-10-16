@@ -27,7 +27,7 @@ configurado, el que dice la respuesta del motor que lo atendió (`served_model`,
 
 Cada página va en un pedido aparte al motor de lotes (`generation_batch`, con su proyector de
 imagen), con la imagen dibujada con pypdfium2 y la instrucción que fija
-`ASSESSMENT_VISION_PROMPT_VERSION` (`vision-v5` desde T-282): el modelo transcribe, no decide.
+`ASSESSMENT_VISION_PROMPT_VERSION` (`vision-v5` desde T-282, `vision-v6` desde T-285): el modelo transcribe, no decide.
 Cada página guarda el nombre, la versión y la huella de esa instrucción (P6).
 
 Cómo se le pide (T-177, REQ-064; hallazgo V-1 de T-161). Antes de mandar la imagen se detecta su

@@ -940,7 +940,7 @@ def test_matrix_parameters_in_settings():
     assert settings.SEGMENT_MAX_CHARS == 4000
     assert settings.MATRIX_CONSEQUENCES_PER_REQUEST == 10
     assert settings.MATRIX_CIRCULAR_CANDIDATES == 8
-    assert settings.MATRIX_PROMPT_VERSIONS["extraccion"] == "matriz-extraccion-v13"  # T-279
+    assert settings.MATRIX_PROMPT_VERSIONS["extraccion"] == "matriz-extraccion-v14"  # T-285
     assert settings.GENERATION_BATCH_TIMEOUT_SECONDS == 180
     assert settings.WORKER_POLL_SECONDS == 5
 
@@ -963,7 +963,7 @@ def test_enmienda_parameters_in_settings():
     assert settings.NORM_SUPPORT_MIN_SCORE == settings.RERANK_THRESHOLD == 0.219
     assert settings.NORM_SUPPORT_MAX_UNITS == 4
     assert settings.NORM_SUPPORT_QUERY_MAX_CHARS == 800
-    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v10"  # T-280
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v11"  # T-285
     assert settings.MATRIX_PROMPT_VERSIONS["unificacion"] == "matriz-unificacion-v1"
     assert settings.MATRIX_PROMPT_VERSIONS["respaldo"] == "matriz-respaldo-v3"  # T-280
 

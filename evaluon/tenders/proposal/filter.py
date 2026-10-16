@@ -37,11 +37,16 @@ caracteres): el modelo escribe en el orden del esquema, así que razona antes de
 | descartar con motivo de la lista e indicio hallado | `si` | sugerencia | `no_coinciden` |
 | descartar con motivo de la lista e indicio hallado | `duda` | sugerencia | `duda` |
 | descartar con motivo fuera de la lista o indicio que no está | cualquiera | sugerencia | `descarte_sin_sustento` |
+| descartar por `condicion_opcional` una fila que la extracción propuso con su opción (T-285) | cualquiera | sugerencia | `no_coinciden` |
 | una sola respuesta válida: `descartar`, `duda` (A) o `no`, `duda` (B) | | sugerencia | `opinion_incompleta` |
 | una sola respuesta válida: `mantener` o `si`; o ninguna válida | | firme, con la anomalía | |
 
 Guarda en código (T-125, REQ-024): una fila descartada que comparte oración con una fila
 firme del mismo tramo pasa a sugerencia con la duda `duda` (`protect_shared_sentences`).
+Guarda en código (T-285, D-283-2; decisión del 2026-10-10 «Requisito de la forma elegida»): la fila
+que la extracción propuso como condición de una opción (`Found.option`) no se descarta por
+`condicion_opcional`: A la vio con su «Opción:» y la oración le exige algo a quien la usa, o la
+extracción y el filtro no coinciden; pasa a sugerencia con la duda `no_coinciden` (`decide`).
 Guarda en código (T-178): si el pliego nombra la garantía de la oferta y ninguna fila la
 cubre, entra como sugerencia (`run.protect_offer_guarantee`, que usa `OFFER_GUARANTEE` y
 `sentence_bounds` de este módulo).
@@ -79,7 +84,8 @@ from evaluon.tenders.proposal.sentences import (  # noqa: F401
     sentence_range,
 )
 
-RULE_VERSION = "filtro-v4"
+# T-285: `filtro-v5`, la fila de una opción no se descarta por `condicion_opcional` (`decide`).
+RULE_VERSION = "filtro-v5"
 
 FIRME = "firme"
 SUGERENCIA = "sugerencia"
@@ -101,6 +107,10 @@ REASONING_STEP = "filter"
 ANOMALY_NO_OPINION = "filtro_sin_opinion"
 ANOMALY_ONE_OPINION = "filtro_una_opinion"
 ANOMALY_NOT_SUPPORTED = "filtro_descarte_sin_sustento"
+# T-285 (D-283-2): A descartó por `condicion_opcional` una fila que la extracción propuso como
+# condición de una opción.
+ANOMALY_OPTION_DISCARDED = "filtro_opcion_descartada"
+OPTIONAL_MOTIVE = "condicion_opcional"
 
 ANOMALY_REPEATED_ALIAS = "filtro_fila_repetida"
 
@@ -287,8 +297,9 @@ def marked_text(row):
 
 def render_block(alias, row):
     """La fila tal como la ve el modelo: alias, documento, ruta, encabezado del punto (si la
-    oración sola no se entiende), clase propuesta, fragmento y el punto completo, el texto del
-    tramo, con el fragmento marcado."""
+    oración sola no se entiende), clase propuesta, la opción de la que es condición (si la
+    extracción la nombró, T-285), fragmento y el punto completo, el texto del tramo, con el
+    fragmento marcado."""
     segment = row.segment
     heading = getattr(row.unit, "heading", "")
     return "\n".join([
@@ -297,6 +308,7 @@ def render_block(alias, row):
         f"Ruta: {segment.path or segment.label or segment.key}",
         *([f"Encabezado: {heading}"] if heading else []),
         f"Clase propuesta: {_CLASS_LABELS.get(row.found.category, row.found.category)}",
+        *([f"Opción: {option}"] if (option := getattr(row.found, "option", "")) else []),
         "Fragmento:",
         row.text,
         "Texto del tramo (el fragmento va entre "
@@ -401,6 +413,14 @@ def decide(row, a, b):
         verdict.destination = SUGERENCIA
         verdict.doubt_reason = "descarte_sin_sustento"
         verdict.anomaly = ANOMALY_NOT_SUPPORTED
+        return verdict
+    if a["motivo"] == OPTIONAL_MOTIVE and getattr(row.found, "option", ""):
+        # T-285 (D-283-2): la condición de una opción entra como condición de esa opción; si A la
+        # descarta como oración que no le exige nada a quien la usa, la extracción y el filtro no
+        # coinciden: la Comisión lo resuelve a la vista (D-13, D-15).
+        verdict.destination = SUGERENCIA
+        verdict.doubt_reason = "no_coinciden"
+        verdict.anomaly = ANOMALY_OPTION_DISCARDED
         return verdict
     if answer == NO:
         verdict.destination = DESCARTADA

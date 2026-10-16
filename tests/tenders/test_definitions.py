@@ -19,8 +19,8 @@ BLOCK = (PROMPTS / "matriz-definiciones-v4.md").read_text(encoding="utf-8")
 
 def test_the_common_block_is_a_published_version_of_the_settings(settings):
     """REQ-102: el bloque común tiene su versión en `MATRIX_PROMPT_VERSIONS` y su archivo."""
-    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v9"  # T-279
-    assert (PROMPTS / "matriz-definiciones-v9.md").is_file()
+    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v10"  # T-285
+    assert (PROMPTS / "matriz-definiciones-v10.md").is_file()
 
 
 @pytest.mark.parametrize("literal", [
@@ -153,7 +153,9 @@ NEW_INSTRUCTIONS = ["matriz-definiciones-v2", "matriz-definiciones-v3", "matriz-
                     "matriz-union-v2",
                     # T-280 (spec 016)
                     "matriz-filtro-v10", "matriz-consecuencias-v3", "matriz-circulares-v8",
-                    "matriz-circulares-cambios-v7", "matriz-respaldo-v3"]
+                    "matriz-circulares-cambios-v7", "matriz-respaldo-v3",
+                    # T-285 (spec 016)
+                    "matriz-definiciones-v10", "matriz-extraccion-v14", "matriz-filtro-v11"]
 
 
 def _shingles(text, size=5):
@@ -235,12 +237,13 @@ def test_an_option_the_offeror_may_not_use_is_kept_as_a_condition_of_that_option
 
 def test_the_previous_block_is_still_published_but_not_active(settings):
     """REQ-106: la v1, la v4, la v5, la v6, la v7 y la v8 del bloque quedan como estaban
-    (congeladas) y la activa es la v9 (T-279)."""
+    (congeladas) y la activa es la v10 (T-285; la v9 de T-279 sigue publicada)."""
     assert (PROMPTS / "matriz-definiciones-v1.md").is_file()
     assert (PROMPTS / "matriz-definiciones-v4.md").is_file()
     assert (PROMPTS / "matriz-definiciones-v7.md").is_file()
     assert (PROMPTS / "matriz-definiciones-v8.md").is_file()
-    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v9"
+    assert (PROMPTS / "matriz-definiciones-v9.md").is_file()
+    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v10"
 
 
 # --- T-279: el bloque v9 (spec 016, REQ-119; ADR-0070) ------------------------------------------------

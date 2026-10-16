@@ -6,7 +6,7 @@ Portal, ejemplos balanceados que coinciden con el esquema y con la regla que der
 versiones publicadas congeladas (como `scripts/models.sha256` con los modelos). Sin modelo ni GPU:
 el uso real se mide en T-239. Textos inventados (P4).
 
-T-281 (spec 016, REQ-119; ADR-0070): las vigentes son `evaluacion-v13`, `contraste-v5`,
+T-281 (spec 016, REQ-119; ADR-0070): las vigentes eran `evaluacion-v13` (desde T-285, la v14), `contraste-v5`,
 `clausulas-v6` y `reescritura-v3`, cortas y sin ejemplos. Cada prueba de la 015 lee la versión
 publicada que nombra (la que tenía los ejemplos y las frases que comprueba) y suma la comprobación
 de la misma decisión sobre la vigente, con sus frases; el esqueleto de la salida de cada vigente se
@@ -46,6 +46,8 @@ FROZEN = {
     "evaluacion-v13": "380b4869c5bbd41e9045d7179a9dad4b2f8dbbb4a9852fe30c8f2acfacd567fd",
     "contraste-v5": "6e29204e34714e9e0e3b9925f00d7203025d7ac3b7441c223fafe0147b3bc7e2",
     "clausulas-v6": "439b2797df3c69576676ce3c338717a3b8e5a1289818e2e6704a8302de369f26",
+    # T-285 (ajuste único del paso 2): hallazgos de T-283 como definiciones generales.
+    "evaluacion-v14": "4480962ca24e766ba358a499dac01349c44ed47fc61708a3c74385234a7b2c9b",
 }
 
 # Reglas que empujaban al error (informe de revisión, 4.7 a 4.9).
@@ -77,7 +79,7 @@ def examples_of(name):
 def test_the_current_versions_are_the_new_ones_and_exist():
     """REQ-106: `ASSESSMENT_PROMPT_VERSIONS` apunta a las versiones nuevas y los archivos existen."""
     assert settings.ASSESSMENT_PROMPT_VERSIONS == {
-        "evaluacion": "evaluacion-v13", "contraste": "contraste-v5", "clausulas": "clausulas-v6"}
+        "evaluacion": "evaluacion-v14", "contraste": "contraste-v5", "clausulas": "clausulas-v6"}
     for name in settings.ASSESSMENT_PROMPT_VERSIONS:
         assert prompting.load_prompt(name)
 

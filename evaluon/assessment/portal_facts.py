@@ -346,10 +346,11 @@ def _is_clause_number(text, match):
     return not _MONEY_WORD_AFTER.match(fold(text[match.end():match.end() + 12]))
 
 
-def amounts(text):
+def amounts(text, *, without_other_concepts=False):
     """Los montos que se leen en `text`: los que llevan `$`, separador de miles o dos decimales
     (un número suelto, como un día o un porcentaje, no es un monto, ni lo es el número de una
-    cláusula como «11.10.»; T-240, H-1). Argentina: punto de miles y coma decimal."""
+    cláusula como «11.10.»; T-240, H-1). Argentina: punto de miles y coma decimal. Con
+    `without_other_concepts`, sin los montos rotulados como otro concepto (`_other_concept`)."""
     found = []
     text = text or ""
     for match in _MONEY.finditer(text):
@@ -357,10 +358,34 @@ def amounts(text):
         money = bool(sign) or re.search(r"\.\d{3}|[.,]\d{2}$", token)
         if money and _is_clause_number(text, match):
             continue
+        if money and without_other_concepts and _other_concept(text, match):
+            continue
         value = _parse_amount(token) if money else None
         if value is not None:
             found.append(value)
     return found
+
+
+# T-285 (D-283-7, «no comparar magnitudes distintas»; D-42, decisión del 2026-10-15: se comparan el
+# valor de la oferta y el dato del Portal de un mismo dato): un monto rotulado como un impuesto, una
+# prima, una tasa o un recargo no es el total, el precio ni la garantía que informa el Portal, salvo
+# que el mismo rótulo nombre también el total, el precio o la garantía («total con IVA»). El rótulo es
+# lo que el texto dice antes del monto, en la misma frase.
+_OTHER_CONCEPT = re.compile(
+    r"\b(?:iva|i\W?v\W?a|impuestos?|alicuotas?|percepcion\w*|retencion\w*|primas?|premios?"
+    r"|sellados?|tasas?|recargos?|comision\w*|intereses)\b")
+_SAME_CONCEPT = re.compile(
+    r"\b(?:total\w*|precio\w*|importe total|monto total|suma asegurada|monto asegurado"
+    r"|monto de la garantia|valor de la garantia|cotizacion\w*)\b")
+CONCEPT_WINDOW = 60
+
+
+def _other_concept(text, match):
+    """Si el monto de `match` está rotulado como otro concepto (`_OTHER_CONCEPT`) y su rótulo no
+    nombra el total, el precio o la garantía (`_SAME_CONCEPT`)."""
+    before = fold(text[max(match.start() - CONCEPT_WINDOW, 0):match.start()])
+    label = re.split(r"[;\n]|\.\s", before)[-1]
+    return bool(_OTHER_CONCEPT.search(label)) and not _SAME_CONCEPT.search(label)
 
 
 def cuits(text):
@@ -372,7 +397,8 @@ def offered_values(kind, texts):
     """Los valores de la oferta del mismo tipo que el dato del Portal, leídos del texto literal."""
     values = []
     for text in texts:
-        values.extend(cuits(text) if kind == CUIT else amounts(text))
+        values.extend(cuits(text) if kind == CUIT
+                      else amounts(text, without_other_concepts=True))
     return values
 
 
@@ -638,8 +664,10 @@ def _guarantee_comparison(data, portal, text):
                 return Comparison(
                     COINCIDE, f"La garantía está individualizada en el Portal ({observed}), "
                     "como pide el pliego.", "garantía individualizada", observed)
-            return Comparison(NO_COMPARABLE, "El pliego no fija para la garantía un porcentaje "
-                              "ni un monto que el sistema pueda leer.")
+            # T-285 (D-283-7): el motivo dice lo que pasa sin dar a entender que el requisito fija un
+            # porcentaje que el sistema no leyó.
+            return Comparison(NO_COMPARABLE, "El requisito no fija para la garantía un porcentaje "
+                              "ni un monto que se compare con el que informa el Portal.")
         expected = absolute.pop()
         basis = f"el monto de {_money(expected)}"
     values = [d.value for d in portal]
@@ -794,7 +822,13 @@ def _guarantee_document(data, portal, text):
 def compare(kind, offer, data, portal, text, items):
     """Lo que informa el Portal frente a lo que exige el pliego (`Comparison`). «Cumple» solo si el
     valor del Portal coincide con lo que el pliego fija, sobre la base que el pliego dice; si el
-    pliego fija algo que no se compara, `NO_COMPARABLE` (T-233b, D-233-1)."""
+    pliego fija algo que no se compara, `NO_COMPARABLE` (T-233b, D-233-1).
+
+    T-285 (D-283-6, c): el umbral de monto que hace exigible el requisito, dicho al comienzo de la
+    oración («si la oferta supera el monto de…, …», `_AMOUNT_THRESHOLD`), dice cuándo se exige y no es
+    un tope ni un monto del dato: no se mira para comparar (como en `requirement_core`)."""
+    if _AMOUNT_THRESHOLD.search(fold(text)):
+        text = _AMOUNT_THRESHOLD.sub("", fold(text))
     folded = fold(text)
     if kind == GARANTIA and required_percent(text) is None and not amounts(text):
         document = _guarantee_document(data, portal, text)
@@ -876,13 +910,34 @@ def criteria_doubt(pair, records):
     return ""
 
 
-def cover(records, kind, comparison, combined, pair=None, ctx=None):
+def threshold_condition(condition, requirement_text):
+    """Si la condición es el umbral de monto que hace exigible el requisito («que la oferta supere el
+    monto…»), dicho al comienzo de la oración del pliego (`_AMOUNT_THRESHOLD`, el mismo que
+    `requirement_core` quita antes de mirar la lista cerrada del Portal): T-285, D-283-6 (c)."""
+    if not _AMOUNT_THRESHOLD.search(fold(requirement_text or "")):
+        return False
+    return bool(_THRESHOLD_CONDITION.search(fold(condition or "")))
+
+
+# La condición que repite ese umbral: «(que / si) la oferta (o su monto, su total) supere / exceda…».
+_THRESHOLD_CONDITION = re.compile(
+    r"^\W*(?:que |si |cuando |en caso de que )?(?:la oferta|el monto de la oferta|el total de la "
+    r"oferta|el importe de la oferta|su oferta|el monto ofertado|el monto cotizado) "
+    r"(?:\w+ ){0,2}?(?:super|exced)\w*\b")
+
+
+def cover(records, kind, comparison, combined, pair=None, ctx=None, requirement_text=""):
     """Las condiciones del modelo (`records`) con las que cubre el dato del Portal, el criterio del
     IVA o la ausencia marcadas «cumple» (`cubierta_por`), y los criterios usados.
 
     - El Portal cubre solo una condición que pide EXACTAMENTE un dato de su lista cerrada: de su
       clase (`_COVERS`), con todas sus palabras del vocabulario cerrado (`asks_only_portal_data`) y
       sin otro dato (`_OTHER_DATA`), también si es la única (reverificación de T-257).
+    - T-285 (D-283-6, c; REQ-103): con una garantía del Portal que coincide con lo que exige el
+      pliego, la condición que repite el umbral de monto que hace exigible la garantía
+      (`threshold_condition`) queda cubierta: el umbral dice cuándo se exige la garantía, no algo
+      que la oferta tenga que mostrar, y la garantía que se exige está en el Portal
+      (`cubierta_por` «umbral»).
     - El IVA rige solo sin duda (`criteria_doubt`), para una condición sin cita propia, y si ni los
       documentos ni lo que el modelo citó o anotó dicen nada del impuesto o del precio
       (`criteria.price_talk`). La ausencia ya no cubre condiciones sueltas: rige solo la de la
@@ -906,9 +961,12 @@ def cover(records, kind, comparison, combined, pair=None, ctx=None):
             elif (_COVERS[kind].search(text) and asks_only_portal_data(text, kind)
                   and not _OTHER_DATA.search(text)):
                 how = "portal"
+            elif (kind == GARANTIA and comparison.state == COINCIDE
+                  and threshold_condition(item.get("condicion", ""), requirement_text)):
+                how = "umbral"
         if how:
             item = {**item, "resultado": "cumple", "cubierta_por": how}
-            if how != "portal":
+            if how not in ("portal", "umbral"):
                 used.append(how)
         shown.append(item)
     if iva_ok:
@@ -1080,6 +1138,13 @@ def rule(pair, ctx):
         if from_offer:
             # La oferta ya concluyó con su propio texto: queda y se agrega la cita del Portal.
             return replace(combined, portal=cites, facts={**facts, "regla": RULE_BOTH})
+        pending = [r for r in records if r.get("resultado") != "cumple"]
+        if combined.outcome == combine.OUT_NO_DETERMINADO and (
+                combined.doubt not in ("", combine.NO_DATA) or (records and not pending)):
+            # T-285 (D-283-6, c; REQ-103): el dato del Portal no responde a este requisito, así que no
+            # cambia lo que dejó la lectura: el motivo (un contraste que no corroboró, una
+            # contradicción, una cita que no se ubicó) y su pregunta quedan; se agrega la cita.
+            return replace(combined, portal=cites, facts={**facts, "regla": RULE_BOTH})
         if records:
             # El dato del Portal no responde a lo que pide el pliego: quedan las condiciones del
             # modelo, con lo que falta y su pregunta (no es una diferencia con el Portal).
@@ -1099,7 +1164,7 @@ def rule(pair, ctx):
         if combined.outcome == combine.OUT_NO_CUMPLE:
             return undetermined(
                 comparison.detail + " El texto de la oferta concluyó que no cumple.")
-        shown, used = cover(records, kind, comparison, combined, pair, ctx)
+        shown, used = cover(records, kind, comparison, combined, pair, ctx, requirement_text=text)
         if criteria.IVA in comparison.criteria and criteria.IVA not in used and not records:
             # El pliego pide el impuesto incluido y el criterio del IVA no rige (la oferta dice algo
             # del impuesto o de un ajuste, o hay una duda): el Portal no lo resuelve (D-257-3).

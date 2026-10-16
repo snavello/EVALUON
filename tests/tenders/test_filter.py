@@ -633,11 +633,11 @@ def test_the_proposal_records_the_filter_in_parameters_and_counts(operator_user,
 
     assert run.parameters["filter_enabled"] is True
     assert run.parameters["filter_batch_rows"] == 6
-    assert run.parameters["filter_rule_version"] == "filtro-v4"
+    assert run.parameters["filter_rule_version"] == "filtro-v5"  # T-285
     assert "consecuencia_sancion" in run.parameters["filter_motives"]
-    assert run.prompt_versions["filtro"] == "matriz-filtro-v10"  # T-280
+    assert run.prompt_versions["filtro"] == "matriz-filtro-v11"  # T-285
     step = m.RunStep.objects.filter(run=run, pass_name="filtro").first()
-    assert step.parsed["instruccion"]["version"] == "matriz-filtro-v10"
+    assert step.parsed["instruccion"]["version"] == "matriz-filtro-v11"
     assert step.parsed["instruccion"]["sha256"] == run.prompt_versions["huellas"]["filtro"]
     assert run.parameters["passes"].index("filtro") == run.parameters["passes"].index(
         "unificacion") + 1
@@ -674,7 +674,8 @@ def test_no_instruction_test_or_example_of_the_filter_repeats_five_words_of_a_ca
              Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v7.md",
              Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v8.md",
              Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v9.md",
-             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v10.md"]
+             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v10.md",
+             Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v11.md"]
     hits = []
     for path in files:
         for shingle in _shingles(path.read_text(encoding="utf-8")):
@@ -820,7 +821,7 @@ def test_the_v3_instructions_state_the_two_general_rules_in_both_questions(setti
     fila se evalúa entera), con ejemplos de otro objeto."""
     # T-280: la v9 (publicada) las dice en sus cuidados; la vigente, v10, en el bloque común (lo que el
     # organismo comprueba del oferente es requisito externo) y en su parte común (la fila entera).
-    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v10"
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v11"
     v9 = (Path(row_filter.__file__).parent.parent / "prompts" / "matriz-filtro-v9.md").read_text(
         encoding="utf-8")
     for prompt in row_filter.split_prompts(v9):
@@ -928,7 +929,7 @@ def test_the_v4_instructions_leave_the_adjudicatario_duties_out_of_the_offer(set
     from evaluon.tenders.proposal import extraction
 
     versions = settings.MATRIX_PROMPT_VERSIONS
-    assert versions["extraccion"] == "matriz-extraccion-v13"  # T-279
+    assert versions["extraccion"] == "matriz-extraccion-v14"  # T-285
     assert versions["completitud"] == "matriz-completitud-v7"  # T-279
     texts = [extraction.load_prompt("extraccion"), extraction.load_prompt("completitud")]
     for text in texts:
@@ -1149,11 +1150,11 @@ def test_every_request_of_the_filter_records_its_instruction(operator_user, scri
     run = run_with(operator_user, pliego(CLAUSE))
 
     expected = extraction.load_instruction("filtro").record
-    assert expected["version"] == "matriz-filtro-v10" and "definiciones" in expected  # T-280
+    assert expected["version"] == "matriz-filtro-v11" and "definiciones" in expected  # T-285
     steps = m.RunStep.objects.filter(run=run, pass_name__in=["filtro", "filtro_2"])
     assert steps.count() == 2
     assert all(step.parsed["instruccion"] == expected for step in steps)
-    assert row_filter.RULE_VERSION == "filtro-v4"
+    assert row_filter.RULE_VERSION == "filtro-v5"  # T-285: la fila de una opción no se descarta
 
 
 def test_a_failed_filter_request_still_carries_its_instruction(operator_user, script, filt):
@@ -1184,10 +1185,10 @@ def test_the_v10_filter_is_written_against_the_v9_block(settings):
     las dos preguntas llevan el bloque v9 entero y la v10 no repite lo que el bloque define. La
     condición de una opción entra como condición de esa opción (bloque) y el descarte por condición
     opcional queda para la oración que no le exige nada a quien usa la opción (motivo de A)."""
-    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v10"
-    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v9"
-    block = _prompt_file("matriz-definiciones-v9").strip()
-    raw = _prompt_file("matriz-filtro-v10")
+    assert settings.MATRIX_PROMPT_VERSIONS["filtro"] == "matriz-filtro-v11"
+    assert settings.MATRIX_PROMPT_VERSIONS["definiciones"] == "matriz-definiciones-v10"
+    block = _prompt_file("matriz-definiciones-v10").strip()
+    raw = _prompt_file("matriz-filtro-v11")
     first, second = row_filter.load_prompts()
     for text in (first, second):
         assert block in text

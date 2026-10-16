@@ -36,12 +36,12 @@ def v5():
     return answering.load_instructions("consulta-v5")
 
 
-def test_v5_is_the_active_version_with_date_and_v1_stays_without_date():
-    """REQ-119, REQ-008: con fecha, la versión activa es `consulta-v5`; el camino sin fecha sigue
-    con la `consulta-v1` publicada."""
-    assert answering.PROMPT_VERSION_WITH_DATE == "consulta-v5"
+def test_v5_stays_published_and_v1_stays_without_date():
+    """REQ-119, REQ-008: la `consulta-v5` sigue publicada (desde T-285 la activa con fecha es la v6,
+    `test_prompt_v6.py`); el camino sin fecha sigue con la `consulta-v1` publicada."""
+    assert answering.PROMPT_VERSION_WITH_DATE == "consulta-v6"
     assert answering.PROMPT_VERSION_WITHOUT_DATE == "consulta-v1"
-    assert answering.load_instructions() == v5()
+    assert v5() and answering.load_instructions() != v5()
 
 
 def test_v5_keeps_what_adr_0002_and_the_001_ask_for():
@@ -84,10 +84,11 @@ def test_v5_has_no_examples_and_its_skeleton_follows_the_schema():
 def test_the_prompt_record_is_the_name_version_and_sha256_of_the_file():
     """REQ-119, P6: `prompt_record` da el nombre, la versión y la huella (fines de línea LF) de la
     instrucción de esa versión; por omisión, la vigente con fecha."""
-    record = answering.prompt_record()
+    record = answering.prompt_record("consulta-v5")
 
     assert record == {"nombre": "consulta", "version": "consulta-v5",
                       "sha256": extraction.text_sha256(v5())}
+    assert answering.prompt_record()["version"] == answering.PROMPT_VERSION_WITH_DATE
     assert answering.prompt_record("consulta-v1")["sha256"] == extraction.text_sha256(
         answering.load_instructions("consulta-v1"))
 
@@ -106,8 +107,9 @@ def test_every_query_records_the_version_and_the_sha256_of_its_instruction(
     query = services.ask(read_user, QUESTION, DATE)
 
     [(messages, _)] = fake_ai.generation.calls
-    assert messages[0]["content"] == v5()
-    assert query.prompt_version == "consulta-v5"
-    assert query.parameters["instruccion"] == answering.prompt_record("consulta-v5")
+    active = answering.PROMPT_VERSION_WITH_DATE  # T-285: la v6
+    assert messages[0]["content"] == answering.load_instructions(active)
+    assert query.prompt_version == active
+    assert query.parameters["instruccion"] == answering.prompt_record(active)
     event = AuditEvent.objects.get(pk=query.event_id)
     assert event.detail["parameters"]["instruccion"] == query.parameters["instruccion"]
