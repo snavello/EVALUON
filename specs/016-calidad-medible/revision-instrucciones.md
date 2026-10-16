@@ -4,7 +4,7 @@ Spec 016, REQ-119 · ADR-0070 · Tareas T-278 (tabla de decisiones), T-279 a T-2
 
 Este archivo es el resumen para el repositorio: **no lleva texto ni cifras de los casos** (P4). Tiene dos partes:
 
-1. **Tabla de decisiones.** Cada decisión literal del responsable que una instrucción tiene que aplicar, con su fuente. Sale de las tablas «Decisiones del responsable» de las specs 003, 004, 014 y 015 y de los ADR 0043, 0053, 0054 y 0058; desde T-281, también de la spec 016 (2026-10-15), de los requisitos REQ-104 y REQ-105 de la spec 015 y de los ADR 0038 y 0055 (D-39 a D-42). Las filas marcadas «definición derivada» no son una decisión literal: las propone el Coordinador a partir de una decisión y quedan pendientes hasta que el responsable las confirma (D-32 ya está confirmada). Los ejemplos de las decisiones que vienen de un caso se omiten (se indica en la fila); las instrucciones se escriben en términos generales, sin ejemplos de licitaciones.
+1. **Tabla de decisiones.** Cada decisión literal del responsable que una instrucción tiene que aplicar, con su fuente. Sale de las tablas «Decisiones del responsable» de las specs 003, 004, 014 y 015 y de los ADR 0043, 0053, 0054 y 0058; desde T-281, también de la spec 016 (2026-10-15), de los requisitos REQ-104 y REQ-105 de la spec 015 y de los ADR 0038 y 0055 (D-39 a D-42); desde T-282, de las specs 001, 008, 013 y 014, de los ADR 0002, 0015, 0027, 0041 y 0049 y de P3 de la constitución, para las instrucciones auxiliares (D-46 a D-54), y las reglas de contenido de esas instrucciones que ninguna decisión literal sostiene, registradas como derivadas pendientes (D-55 a D-60, H-282-1). Las filas marcadas «definición derivada» no son una decisión literal: las propone el Coordinador a partir de una decisión y quedan pendientes hasta que el responsable las confirma (D-32 ya está confirmada). Cada derivada dice «pendiente de confirmación del responsable» o «confirmada por el responsable» con la fecha y la cita, y nombra su origen; `tests/test_instrucciones_revisadas.py` (H-281-4) compara las dos cosas con su tabla de control `DERIVED`: confirmar una derivada o cambiar su origen pide cambiar esa tabla en el mismo commit. Los ejemplos de las decisiones que vienen de un caso se omiten (se indica en la fila); las instrucciones se escriben en términos generales, sin ejemplos de licitaciones.
 2. **Oración → decisión, por instrucción nueva.** Por cada instrucción de la 016, una tabla con cada oración de la instrucción y la decisión de la que sale (`D-NN`). La completa la tarea que escribe la instrucción. El responsable controla la instrucción contra esta tabla (escenario 2 de la spec).
 
 Lo prueba `tests/test_instrucciones_revisadas.py`: toda versión de la tabla `SIMPLIFIED` (`tests/test_instrucciones_largo.py`) tiene su sección `### <versión>` con al menos una fila de oración, cada fila nombra una decisión de la tabla de decisiones y cada oración de la instrucción tiene su fila (T-280, H-279-5). Una versión que se suma a `SIMPLIFIED` con su sección sin completar hace fallar esa prueba. El largo y el no calco los prueban `test_instrucciones_largo.py` y `test_instrucciones_sin_casos.py`.
@@ -16,14 +16,14 @@ La columna «Aplica a» es la propuesta de T-278; T-279 a T-282 la confirman al 
 | Id | Decisión (literal, entre comillas angulares) | Fuente | Aplica a |
 |---|---|---|---|
 | D-01 | «Es requisito de la oferta lo que la oferta tiene que presentar, ofrecer o comprometer, y toda condición del pliego que la oferta pueda contradecir o condicionar, aunque la cumpla el organismo». «No son requisitos de la oferta la ejecución y el control del contrato, como las multas por atraso.» (El ejemplo del pago de la decisión original lo reemplaza D-12.) | Spec 003, «Qué es un requisito», 2026-10-03 | definiciones, extracción, filtro, circulares |
-| D-02 | Los requisitos técnicos van «en una fila por renglón del pliego, con la cita a sus especificaciones técnicas». «La Comisión no evalúa el detalle técnico: se apoya en el informe técnico del área requirente.» | Spec 003, «Qué es un requisito», 2026-10-03 | definiciones, extracción, completitud, filtro, circulares, consecuencias, evaluación, cláusulas |
+| D-02 | Los requisitos técnicos van «en una fila por renglón del pliego, con la cita a sus especificaciones técnicas». «La Comisión no evalúa el detalle técnico: se apoya en el informe técnico del área requirente.» | Spec 003, «Qué es un requisito», 2026-10-03 | definiciones, extracción, completitud, filtro, circulares, consecuencias, evaluación, cláusulas, ficha por renglón |
 | D-03 | «La clase sigue la sección del pliego cuando el pliego ordena sus requisitos por secciones. Si no, se clasifica por naturaleza: la garantía, el precio, la moneda y el pago son económicos; los documentos y compromisos de la presentación, formales; el bien y su entrega, técnicos.» (Pago, moneda de pago y compromisos de la presentación ya no son requisitos: D-12.) | Spec 003, «Qué es un requisito», 2026-10-03 | definiciones, extracción, completitud, circulares |
 | D-04 | «El sistema no decide si un requisito es subsanable: detecta qué consecuencias tiene su falta, sugiere las posibles con su fundamento, y un integrante de la Comisión confirma una.» Tipos: desestimación sin posibilidad de subsanar; intimación a subsanar y, si no se subsana, desestimación; consultar al oferente; aprobación condicionada; aprobar de todas maneras; otra consecuencia prevista en el pliego; no determinada (el sistema no encontró fundamento). | Spec 003, «Consecuencia del incumplimiento», 2026-10-03; REQ-029 | definiciones, extracción, filtro, consecuencias, circulares, evaluación |
 | D-05 | REQ-031: las circulares y las respuestas a consultas cambian o precisan un requisito; la matriz aplica el cambio, muestra los dos textos y cita el documento que lo produjo. «Versión nueva de la matriz»: la circular abre una versión nueva, con lo que cambió marcado, y la Comisión la valida de nuevo. «Lo no tocado confirmado»: solo se decide lo que cambió la circular. | Spec 003, REQ-031; spec 014, 2026-10-07 y 2026-10-10 | circulares, consecuencias, evaluación |
 | D-06 | REQ-033 y REQ-035: antes de mostrar la matriz se descartan las filas que no son requisitos de la oferta, cada una con su cita y su motivo; las condiciones plausibles sobre las que el sistema duda van como sugerencia de condición, con su cita y el motivo de la duda. Lo descartado y lo dudado no desaparece. | Spec 003, REQ-033 y REQ-035 | definiciones, extracción, filtro, circulares, respaldo |
 | D-07 | REQ-036: para cada sugerencia y cada fila dudosa se busca en la normativa aplicable si el régimen exige esa condición. «La normativa solo sirve para confirmar: que una condición no figure en la norma nunca es motivo para descartarla, porque el pliego puede agregar exigencias propias.» | Spec 003, REQ-036 | respaldo |
-| D-08 | «el porcentaje esta bien, aunque no necesariamente sea literal la coincidencia. Lo tecnico verificamos que exista y que en caso de tener renglones si tiene o no tiene oferta» | Spec 004, 2026-10-06, «Coincidencia y técnico» | evaluación, contraste |
-| D-09 | «La parte tecnica ya te dije que venia del area correspondiente»; «la comision debiera dar el ok de que tiene el informe tecnico aprobado». REQ-061: el sistema verifica que exista el documento técnico y qué renglones tienen oferta; el cumple o no cumple técnico lo da el informe técnico del área. La opinión técnica con citas, si la hay, es información, no resultado. | Spec 004, 2026-10-06, «Técnico» y REQ-061; ADR-0043, decisión 3 | evaluación, informe técnico, cláusulas |
+| D-08 | «el porcentaje esta bien, aunque no necesariamente sea literal la coincidencia. Lo tecnico verificamos que exista y que en caso de tener renglones si tiene o no tiene oferta» | Spec 004, 2026-10-06, «Coincidencia y técnico» | ficha por renglón |
+| D-09 | «La parte tecnica ya te dije que venia del area correspondiente»; «la comision debiera dar el ok de que tiene el informe tecnico aprobado». REQ-061: el sistema verifica que exista el documento técnico y qué renglones tienen oferta; el cumple o no cumple técnico lo da el informe técnico del área. La opinión técnica con citas, si la hay, es información, no resultado. | Spec 004, 2026-10-06, «Técnico» y REQ-061; ADR-0043, decisión 3 | evaluación, informe técnico, cláusulas, ficha por renglón |
 | D-10 | «eso lo integrará un documento que llamamos hoja de compliance. Si detectas que falta uno pueden subir otra. O una que informe que No cumple». REQ-063: un requisito que se verifica con consultas externas tiene resultado «falta la hoja de compliance»; «nunca duda». | Spec 004, 2026-10-06, «Externos» y REQ-063; ADR-0043, decisión 1 | evaluación, definiciones |
 | D-11 | «Debiste informar que el doc esta en el portal o que falta coincidencia». REQ-062: cuando el dato o el documento está en el Portal, el sistema lo informa y lo cita como fuente (Portal, con su página o cuadro); si el Portal y la oferta no coinciden, lo informa como falta de coincidencia. | Spec 004, 2026-10-06, «Portal» y REQ-062; ADR-0043, decisión 2 | evaluación |
 | D-12 | «no entran ninguno de los 3. una salvedad la moneda de la oferta si es un requisito.»: no son requisitos de la oferta el pago, la moneda de pago y la factura; la forma de presentar por el Portal; ni los compromisos que se cumplen al presentarse. La moneda en que se cotiza la oferta sí es requisito. (Los ejemplos de la decisión se omiten acá: ver la fuente.) | Spec 015, 2026-10-10, «Qué entra en la matriz»; ADR-0054, decisión 4 | definiciones, extracción, completitud, filtro, circulares |
@@ -35,12 +35,12 @@ La columna «Aplica a» es la propuesta de T-278; T-279 a T-282 la confirman al 
 | D-18 | «Cumple por ausencia, con fundamento»: un requisito negativo o supletorio se propone «cumple» diciendo qué documentos se leyeron y que ninguno lo contradice; si alguno lo contradice, «no cumple» con la cita. Rige solo para prohibiciones sobre lo que dice la oferta y reglas supletorias, con nada en contra en las condiciones ni en el grupo, el contraste sin rechazar y la lectura completa. Una exigencia de documento dicha en negativo pide el documento. Ante la duda, «no determinado» con pregunta. | Spec 015, 2026-10-12; ADR-0058, decisión 2 y aplicación (constitución 1.4) | evaluación, contraste |
 | D-19 | «Precio del Portal = final con IVA»: salvo que la oferta diga lo contrario, el precio cotizado en el Portal es precio final con IVA incluido; se propone «cumple» citando el Portal y este criterio. No rige si la oferta dice algo sobre impuestos o ajustes de precio. | Spec 015, 2026-10-12; ADR-0058, decisión 1 y aplicación | evaluación |
 | D-20 | «En la misma fila del plazo»: una sola fila con el plazo de mantenimiento y su prórroga automática (mismo asunto); se evalúa por ausencia salvo que la oferta limite el plazo o rechace la prórroga. El aviso de no renovar, su firma, su fecha y lo que pasa si no se avisa no son esa fila ni otra (aclaración del Coordinador, T-258). | Spec 015, 2026-10-12, «Prórroga automática del mantenimiento»; ADR-0058, decisión 3 | definiciones, extracción, completitud, unión, evaluación |
-| D-21 | «si requiere presentacion fisica y no la hace (no consta entre los documentos ni en la matriz de compliance) la oferta no cumple se informa con texto por si la comision o alguien olvido agregarla»: presentar en la mesa de entradas lo que el Portal marca como «Requiere presentar» es requisito; la cláusula de completar la oferta económica por el formulario del Portal no es fila propia (es forma de presentar por el Portal). Mientras el Portal no traiga la marca, cuando la obligación depende de ella el resultado es «no determinado» con pregunta a la Comisión. | Spec 015, 2026-10-12; ADR-0058, decisión 4 y aplicación | definiciones, extracción, filtro, evaluación |
-| D-22 | «lo del pagare es ilegible se informa asi y ese si lo chequea la comision»; «con la aclaracion de que no pudo leer alguno». REQ-064: si el documento que responde un requisito no se puede leer, el resultado es «no se pudo leer», con el documento y la página. | Spec 004, 2026-10-06, «Ilegible» y REQ-064 | evaluación, visión, cláusulas |
+| D-21 | «si requiere presentacion fisica y no la hace (no consta entre los documentos ni en la matriz de compliance) la oferta no cumple se informa con texto por si la comision o alguien olvido agregarla»: presentar en la mesa de entradas lo que el Portal marca como «Requiere presentar» es requisito; la cláusula de completar la oferta económica por el formulario del Portal no es fila propia (es forma de presentar por el Portal). Mientras el Portal no traiga la marca, cuando la obligación depende de ella el resultado es «no determinado» con pregunta a la Comisión. | Spec 015, 2026-10-12; ADR-0058, decisión 4 y aplicación | definiciones, extracción, filtro |
+| D-22 | «lo del pagare es ilegible se informa asi y ese si lo chequea la comision»; «con la aclaracion de que no pudo leer alguno». REQ-064: si el documento que responde un requisito no se puede leer, el resultado es «no se pudo leer», con el documento y la página. | Spec 004, 2026-10-06, «Ilegible» y REQ-064 | evaluación, visión, cláusulas, informe técnico |
 | D-23 | «Informa 'no se encontró documento' la comisión decide». «el que lo haga la comision no es opcion, asi el sistema no aporta nada. La comision conformar y elegir en casos que no haya alternativa.» | Spec 004, 2026-10-06, «Documento faltante» y «Rol del sistema» | evaluación, contraste, cláusulas, reescritura |
 | D-24 | Los cuatro resultados (cumple, no cumple, no se encontró el documento, no determinado) no cambian; los motivos de «no determinado» son `pendiente_informe_tecnico`, `no_se_pudo_leer`, `en_portal`, `falta_coincidencia` y `externo` (se muestra como «Falta la hoja de compliance»). Una regla decide antes del modelo, en este orden: externo, técnico, ilegible, Portal. | ADR-0043, decisiones 1 y 2 | evaluación |
-| D-25 | «Mantengo la visión, siempre es preferible a no leída. Obviamente aclarando que proviene de un documento con dificultades de lectura y que conviene re chequear por la comisión, ofreciendo ver la imagen»: toda cita de una página leída por visión lo dice. | Spec 015, 2026-10-13, «Lectura por visión con el 27B» | visión |
-| D-26 | «Lo que presentó cada oferta»: por oferta, qué presentó frente a cada requisito de la matriz, con el fragmento de la oferta (la ficha de la oferta). Anexos técnicos, «Solo los de la oferta»: fichas y folletos técnicos que presenta cada oferente; el informe técnico del área va en la sección de evaluación. | Spec 014, 2026-10-07, puntos 3.4 y 3.5 | ficha, ficha por renglón, informe técnico, reescritura |
+| D-25 | «Mantengo la visión, siempre es preferible a no leída. Obviamente aclarando que proviene de un documento con dificultades de lectura y que conviene re chequear por la comisión, ofreciendo ver la imagen»: toda cita de una página leída por visión lo dice. | Spec 015, 2026-10-13, «Lectura por visión con el 27B» | ninguna instrucción: lo dicen la pantalla y la exportación (T-264) |
+| D-26 | «Lo que presentó cada oferta»: por oferta, qué presentó frente a cada requisito de la matriz, con el fragmento de la oferta (la ficha de la oferta). Anexos técnicos, «Solo los de la oferta»: fichas y folletos técnicos que presenta cada oferente; el informe técnico del área va en la sección de evaluación. | Spec 014, 2026-10-07, puntos 3.4 y 3.5 | ficha, ficha por renglón, reescritura |
 | D-27 | «El sistema lo propone»: lee los archivos de la oferta y propone nombre y CUIT del oferente con su cita; la Comisión aprueba o corrige. «Escribe el valor y motivo»: lo propuesto se corrige con motivo obligatorio; nada se escribe desde cero. | Spec 014, 2026-10-07, «Alta de oferta sin Portal» y «Corregir un dato propuesto» | oferente, procedimiento |
 | D-28 | Evaluación legible (A): el punto completo del pliego, las preguntas con su contexto, los requisitos externos aparte y qué se leyó y dónde (resumen de la spec; la decisión literal habla de cómo rehacer un caso y no de la instrucción). | Spec 014, 2026-10-10, «Evaluación legible y revisión» | evaluación, contraste, cláusulas |
 | D-29 | «La Comisión ve todo»: cada consulta de normativa queda con quién la hizo. La consulta responde con la cita de la norma y se abstiene cuando no la encuentra (evals de la 001, ADR-0002). | Spec 014, 2026-10-10, «Historial de la Consulta»; spec 015, 2026-10-14, «Calidad antes que tiempo» | consulta |
@@ -57,6 +57,24 @@ La columna «Aplica a» es la propuesta de T-278; T-279 a T-282 la confirman al 
 | D-40 | REQ-105: «Cada pregunta a la Comisión está dirigida a la Comisión (nunca al oferente) y dice qué requisito, qué conclusión y qué texto la motivan; no hay preguntas de texto fijo genérico». | Spec 015, REQ-105; ADR-0055, regla 6 | evaluación, cláusulas |
 | D-41 | El modelo devuelve el resultado, la exigencia (documento o condición), las citas (documento y texto) y una explicación breve; la página y las posiciones las pone el sistema al ubicar el texto. Un contraste corto contesta si el texto citado demuestra la conclusión («sí», «no» o «parcial»). «No se encontró el documento» solo si el pliego exige un documento y la oferta leída no lo trae; nunca es «no cumple». «Una respuesta de la Comisión puede ser fundamento, pero no sustituye la cita de la oferta». | ADR-0038 (decidió el responsable), alternativa B y reglas 1, 3 y 4; spec 004, REQ-053 y REQ-060 | evaluación, contraste, cláusulas |
 | D-42 | «Si, de acuerdo. Preguntar mostrando las dos posturas con contradicciones a la comision»: cuando el valor de la oferta y el dato del Portal no coinciden, la celda queda «no determinado» con las dos citas y pregunta a la Comisión, con las dos posturas, cuál rige. | Spec 016, 2026-10-15, «Falta de coincidencia con el Portal (REQ-120 y ADR-0053)»; ADR-0053, decisión 4 (enmienda del 2026-10-15) | evaluación |
+| D-43 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en el contraste, el texto citado se juzga solo contra lo que el requisito pide; si afirma lo mismo, con las mismas palabras o con otras equivalentes, alcanza. | Derivada de D-41 (ADR-0038: el contraste contesta si el texto citado demuestra la conclusión); origen: T-151 de la 004 (`contraste-v2`, «no exige más detalle que el requisito»), conservada en `contraste-v3` y `contraste-v4` (T-237 de la 015); H-281-1 | contraste |
+| D-44 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en el contraste por cláusula, una cláusula que trae una tabla o un listado es una sola entrada, no una por cada valor de la tabla. | Derivada de D-14 (spec 015, «Unidad de la fila»: la unidad de sentido no se parte); origen: T-164 de la 004 (`clausulas-v2`), conservada hasta `clausulas-v5` (T-237 de la 015); H-281-1 | cláusulas |
+| D-45 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): la reescritura escribe el requisito como lo afirmaría una oferta, para buscar sus pasajes: en pocas palabras, con las palabras importantes del requisito, el tipo de documento donde suele estar la respuesta y los datos que ese documento trae, sin inventar cifras, nombres ni fechas y sin palabras de juicio. | Derivada de D-26 (spec 014, «Lo que presentó cada oferta») y de la spec 008, REQ-039 (los fragmentos que responden al requisito); origen: T-146 de la 008 (`reescritura-v1`) y T-248 de la 015 (`reescritura-v2`); H-281-1 | reescritura |
+| D-46 | REQ-008: «El sistema debe responder consultas en lenguaje natural sobre la normativa, y cada afirmación de la respuesta debe llevar la cita de la unidad que la sostiene, con su texto literal». «Citar sin inventar»: «el modelo no copie el texto de la norma: solo indica QUÉ unidad sostiene cada afirmación, en un formato fijo, y el sistema inserta el texto literal desde la base». | Spec 001, REQ-008; ADR-0002, «Citar sin inventar» | consulta |
+| D-47 | REQ-009: «Cuando la normativa cargada no permite responder, el resultado debe ser "no determinado", sin afirmar nada». Enmienda del 2026-10-03: «cuando la norma cargada trata el tema y remite a otra norma no cargada, la respuesta dice lo que establece la norma cargada, con su cita, e indica a qué norma remite. Nunca afirma el contenido de la norma no cargada: no da cifras ni la integración que no están cargadas. "No determinado" queda para los temas que ninguna norma cargada trata.» | Spec 001, REQ-009; ADR-0015, decisión A; ADR-0002, «Abstenerse» | consulta |
+| D-48 | REQ-018: «Cada cita debe mostrar la categoría de su documento. En una respuesta, las citas del régimen específico van primero; las del marco nacional se presentan como marco; los dictámenes y las recomendaciones se presentan como criterio que acompaña; los considerandos se presentan como contexto, identificados como tales y después del articulado». REQ-019: «Cuando el régimen específico y el marco nacional tratan el mismo punto de manera distinta, la respuesta debe mostrar ambos textos y señalar el del régimen específico como el aplicable». REQ-020: el sistema «responde con lo que regía a esa fecha» (la de autorización del procedimiento). El orden de las citas y el aviso de modificatorias sin cargar (REQ-021) los pone el sistema: el modelo no los recibe ni los redacta. | Spec 001, REQ-018 a REQ-021 | consulta |
+| D-49 | REQ-039: «el sistema debe proponer los fragmentos de la oferta que responden al requisito, cada uno con el documento, la página y el texto literal». REQ-040: «Cuando no encuentra ningún fragmento para un requisito, el sistema debe decirlo expresamente en la ficha ("no se encontró en la oferta"), sin dejar el requisito vacío ni suponer». REQ-041: «La ficha debe mostrar una síntesis breve de lo ofrecido para cada requisito, sin juicio de cumplimiento». La ficha «no dice si cumple o no cumple». ADR-0027 (C): el modelo elige entre los pasajes candidatos (ninguno es una respuesta válida) y el sistema arma el fragmento con el texto del pasaje. | Spec 008, «Problema» y REQ-039 a REQ-041; ADR-0027, alternativa C | ficha, ficha por renglón |
+| D-50 | REQ-044: «Para la parte técnica, la ficha indica si la oferta trae documentación técnica y, cuando el pliego tiene renglones, si el oferente cotizó o no cada renglón. No compara el contenido técnico con las especificaciones». Respuesta del responsable: «Parte técnica: se verifica que exista documentación técnica y, si hay renglones, si cada uno tiene o no oferta». | Spec 008, REQ-044 y respuesta 2 de las preguntas abiertas (2026-10-05); D-08 | ficha por renglón |
+| D-51 | ADR-0041, decisión 3: «Una página por pedido: transcribir literalmente el texto visible, sin corregir ni completar, con `[ilegible]` donde no se lee y las tablas como filas con las celdas separadas por» una barra vertical entre espacios «, sin comentarios». | ADR-0041, decisión 3 (decidió el responsable, 2026-10-06) | visión |
+| D-52 | REQ-074: «La Comisión sube el informe técnico aprobado del área (por procedimiento o por oferta). El sistema lo lee y propone, por oferta y renglón, apto o no apto con la cita del informe; la Comisión da el ok (confirma o corrige). El juicio técnico es del área: el sistema solo toma lo que dice el informe.» | Spec 013, REQ-074; spec 004, REQ-061 | informe técnico |
+| D-53 | REQ-077: «Sin Portal, el procedimiento se da de alta subiendo el pliego: el sistema lee el archivo y propone los datos del procedimiento (número, expediente, tipo, objeto, fecha de autorización) y sus renglones, y la Comisión los aprueba o corrige como lo del Portal.» | Spec 014, REQ-077; ADR-0049 | procedimiento |
+| D-54 | P3: «Si no hay fundamento recuperable, el resultado es "no determinado", nunca una afirmación.» «La decisión final es siempre de una persona y queda registrada como tal.» | Constitución 1.6, P3 | visión, ficha, ficha por renglón, informe técnico, oferente, procedimiento, consulta |
+| D-55 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en la transcripción por visión, las líneas de puntos o de guiones bajos que sirven para escribir encima no son texto y no se copian, y una firma que es solo un trazo no se transcribe. | Derivada de D-51 (ADR-0041, decisión 3: transcribir el texto visible); origen: T-160 de la 004 (`vision-v1`: la firma que es solo un trazo) y T-177 de la 004 (`vision-v3`, hallazgo V-1 de T-161: las líneas para escribir encima); H-282-1 | visión |
+| D-56 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): el tipo de procedimiento que se propone es el del procedimiento de ese pliego, no el de otro procedimiento que el texto nombra por otra razón, como al citar el reglamento de compras del organismo. | Derivada de D-53 (spec 014, REQ-077: el sistema propone el tipo del procedimiento); origen: T-248 de la 015 (`procedimiento-datos-v2`; la v1 no la tenía); H-282-1 | procedimiento |
+| D-57 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en la ficha por renglón, «cotizado» dice lo que muestran los pasajes elegidos: «si» si alguno trae el precio o la cantidad que el oferente ofrece para el renglón; «sin_precio» si son del renglón y describen lo ofrecido sin precio ni cantidad; «no_aparece» si ninguno es del renglón; «no» solo si la oferta dice expresamente que no lo cotiza o trae una tabla de precios donde el renglón no figura. | Derivada de D-50 (spec 008, REQ-044 y respuesta 2 de las preguntas abiertas: si cada renglón tiene o no oferta; sostén parcial, no fija los cuatro valores); origen: T-135 de la 008 (`ficha-renglon-v3`: cotizado solo con precio o cantidad), T-136 de la 008 (`ficha-renglon-v4`: «sin_precio») y T-248 de la 015 (`ficha-renglon-v5`: «no_aparece»); H-282-1 | ficha por renglón |
+| D-58 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en el informe técnico, el dictamen es «no_trata» cuando lo que dice el informe es condicional o contradictorio, o cuando habla de otro oferente o de todos sin nombrar al de la oferta, salvo que diga expresamente que rige para todas las ofertas. | Derivada de D-52 (spec 013, REQ-074: el sistema solo toma lo que dice el informe); origen: T-190 de la 013 (`informe-tecnico-v1`), conservada en `informe-tecnico-v2` (T-248 de la 015); H-282-1 | informe técnico |
+| D-59 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): en la ficha, un pasaje responde al requisito solo si trae el dato concreto que el requisito pide, no si trata el mismo tema, comparte palabras o repite el texto del pliego; y si el pliego dice el requisito en más de un lugar, el requisito son todas sus citas y sirve un pasaje que responde a cualquiera de ellas. | Derivada de D-49 (spec 008, REQ-039 y REQ-040: los fragmentos que responden al requisito, sin suponer); origen: T-135 de la 008 (`ficha-v2`: el dato concreto) y T-248 de la 015 (`ficha-v3`: todas las citas); H-282-1 | ficha |
+| D-60 | Definición derivada (Coordinador, 2026-10-15, pendiente de confirmación del responsable): el nombre del oferente se toma solo de un tramo que empieza con un rótulo explícito del oferente (razón social, denominación, oferente, apellido y nombres); no sirven el organismo que contrata, un tercero (una aseguradora, un banco, un estudio) ni quien firma o representa al oferente. | Derivada de D-27 (spec 014, «El sistema lo propone»: el nombre del oferente con su cita); origen: T-220 de la 014 (`oferente-nombre-v1` y las reglas del nombre: terceros en la ronda 1, rótulo explícito en la ronda 2) y T-248 de la 015 (`oferente-nombre-v2`); H-282-1 | oferente |
 
 ## Oración → decisión, por instrucción nueva
 
@@ -306,7 +324,7 @@ El filtro v10 incluye el bloque `matriz-definiciones-v9` por la marca y se escri
 
 Las cuatro reemplazan a `evaluacion-v12`, `contraste-v4`, `clausulas-v5` y `reescritura-v2`, que siguen publicadas. No llevan el bloque de definiciones de la matriz ni ejemplos: solo las definiciones y las decisiones vigentes, en términos generales, y el esqueleto de la salida con marcadores (la línea JSON, que no lleva fila y que `tests/assessment/test_instrucciones_evaluacion.py` compara con el esquema). Los títulos en mayúsculas («QUÉ RECIBÍS», «QUÉ DEVOLVÉS, EN ESTE ORDEN», «CÓMO DECIDÍS», «CÓMO JUZGÁS») ordenan el texto. Lo que el código garantiza no se repite: que la cita se ubique en el texto y se amplíe a la oración, que el sistema escriba el texto de la cita del Portal, el tope de citas, el resultado que se deriva de las condiciones y su baja a «no determinado», la comparación de montos y CUIT con el Portal, la comprobación de la página ilegible, el reconocimiento de la forma de garantía, la nota y la pregunta de una condición sin dato y la forma JSON de la salida. El esquema de la evaluación no tiene descripciones de campo: el texto no se mudó al esquema (`SIMPLIFIED_SCHEMAS`).
 
-La reescritura (`reescritura-v3`) no decide: escribe cómo diría una oferta el requisito para buscar sus pasajes (spec 008, REQ-039; T-146); sus filas citan la ficha de la oferta (D-26) y la regla general de las instrucciones (D-30).
+La reescritura (`reescritura-v3`) no decide: escribe cómo diría una oferta el requisito para buscar sus pasajes (spec 008, REQ-039; T-146); sus filas citan la ficha de la oferta (D-26), la regla general de las instrucciones (D-30) y, desde T-282 (H-281-1), la definición derivada de la forma de la reescritura (D-45, pendiente de confirmación).
 
 ### evaluacion-v13
 
@@ -348,7 +366,7 @@ La reescritura (`reescritura-v3`) no decide: escribe cómo diría una oferta el 
 | "explicacion": una o dos oraciones, de hasta 300 caracteres, que dicen por qué. | D-39, D-41 |
 | Si queda "no_determinado", nombra el dato que falta o el texto que contradice. | D-39 |
 | "pregunta": si queda algo que la Comisión puede aclarar o decidir, una pregunta dirigida a la Comisión que nombra el requisito, tu conclusión y el texto que leíste. | D-40 |
-| Nunca le pide un dato ni un documento al oferente: pedirle algo es una subsanación y la decide la Comisión. | D-04, D-40 |
+| Nunca le pide un dato ni un documento al oferente: pedirle algo es una subsanación y la decide la Comisión. | D-04, D-40, REQ-060 (spec 004: «La Comisión decide: puede pedir que se subsane») |
 | Con "cumple" o "no_cumple", vacía. | D-40 |
 | Una condición es "cumple" o "no_cumple" solo con su propio dato y su propia cita. | D-39, D-41 |
 | No supongas un dato: lo habitual no es un dato. | D-16, D-39 |
@@ -389,7 +407,7 @@ La reescritura (`reescritura-v3`) no decide: escribe cómo diría una oferta el 
 | "respuesta": "si" si el texto muestra, con datos concretos, lo que la conclusión afirma para todas las condiciones del requisito; con "no cumple", "si" quiere decir que el texto muestra que lo exigido no se satisface. | D-41 |
 | "no" si el texto no trata de lo que el requisito exige o muestra lo contrario de la conclusión. | D-41 |
 | "parcial" si trata del tema pero no alcanza: falta el dato de una de las condiciones o solo anuncia un documento que no reproduce. | D-39, D-41 |
-| Juzgá solo contra lo que el requisito pide: si el texto afirma lo mismo, con las mismas palabras o con otras equivalentes, alcanza. | D-08 |
+| Juzgá solo contra lo que el requisito pide: si el texto afirma lo mismo, con las mismas palabras o con otras equivalentes, alcanza. | D-43 |
 | Si el requisito tiene varias condiciones y el texto responde solo a algunas, es "parcial" y el razonamiento dice cuál falta. | D-14, D-39 |
 | No uses nada que no esté en la cita, en su contexto o en los datos del Portal. | D-41 |
 
@@ -405,7 +423,7 @@ La reescritura (`reescritura-v3`) no decide: escribe cómo diría una oferta el 
 | "razonamiento": una o dos oraciones, de hasta 400 caracteres: qué cláusulas tiene el renglón, qué trae la oferta para cada una y cuáles quedan sin dato. | D-39 |
 | "clausulas": una entrada por cada cláusula numerada del renglón o, si no están numeradas, por cada dato que el pliego fija. | D-02, D-14 |
 | No saltees ninguna ni juntes dos. | D-14, D-39 |
-| Una cláusula con una tabla o un listado es una sola entrada. | D-14 |
+| Una cláusula con una tabla o un listado es una sola entrada. | D-14, D-44 |
 | Cada entrada con: | D-39 |
 | "clausula": el comienzo de la cláusula, copiado letra por letra del requisito. | D-02 |
 | "motivo": una oración, nunca vacía: con "coincide" o "contradice", el valor de la oferta que usaste; con "no_aparece" o "no_legible", qué falta o por qué no se lee. | D-39 |
@@ -427,54 +445,143 @@ La reescritura (`reescritura-v3`) no decide: escribe cómo diría una oferta el 
 | Con tu texto el sistema busca en la oferta los pasajes que lo responden. | D-26, REQ-039 |
 | No evaluás ninguna oferta ni decidís nada. | D-23, D-26 |
 | El mensaje trae el requisito del pliego, copiado literalmente. | D-30 |
-| "consulta": una o dos líneas, de hasta veinticinco palabras, con las palabras que usaría la oferta para responder el requisito. | D-26, REQ-039 |
-| Nombrá el tipo de documento en que suele estar la respuesta (una póliza de seguro, una nota de la empresa, una declaración jurada que dice "declaro bajo juramento", una constancia, un formulario, una planilla) y los datos que ese documento trae (número, monto, plazo, porcentaje, fecha, firma). | D-26, D-30 |
-| Conservá las palabras importantes del requisito y escribí como afirma la oferta, no como pide el pliego. | D-26 |
-| No inventes cifras, nombres ni fechas, y no uses palabras de juicio como "cumple", "no cumple", "satisface", "adecuado" o "conforme". | D-23, D-30 |
+| "consulta": una o dos líneas, de hasta veinticinco palabras, con las palabras que usaría la oferta para responder el requisito. | D-26, REQ-039, D-45 |
+| Nombrá el tipo de documento en que suele estar la respuesta (una póliza de seguro, una nota de la empresa, una declaración jurada que dice "declaro bajo juramento", una constancia, un formulario, una planilla) y los datos que ese documento trae (número, monto, plazo, porcentaje, fecha, firma). | D-26, D-30, D-45 |
+| Conservá las palabras importantes del requisito y escribí como afirma la oferta, no como pide el pliego. | D-26, D-45 |
+| No inventes cifras, nombres ni fechas, y no uses palabras de juicio como "cumple", "no cumple", "satisface", "adecuado" o "conforme". | D-23, D-30, D-45 |
 
 ## Instrucciones de T-282
+
+Las siete reemplazan a `vision-v4`, `ficha-v3`, `ficha-renglon-v5`, `informe-tecnico-v2`, `oferente-nombre-v2`, `procedimiento-datos-v2` y `consulta-v4`, que siguen publicadas. No llevan ejemplos: solo las definiciones y las decisiones vigentes, en términos generales, y el esqueleto de la salida con marcadores (la línea JSON, que no lleva fila; la visión, que responde en texto plano, lo dice en su última oración). Los títulos en mayúsculas («QUÉ RECIBÍS», «QUÉ DEVOLVÉS», «CÓMO DECIDÍS», «CÓMO TRANSCRIBÍS», «QUÉ HACÉS», «SALIDA») ordenan el texto. Lo que el código garantiza no se repite: el orden de los campos y los topes de pasajes y de afirmaciones (los fija el esquema), que la cita se verifique en el texto, el pedido de cada franja con el marcador de fin en el mensaje del usuario, la palabra de juicio en la síntesis (la controla `sheets.judgment_words`), el orden de las citas de la consulta (REQ-018) y el aviso de modificatorias sin cargar (REQ-021), que arma `queries/services.py` sin pasar por el modelo. El separador de las celdas de una tabla se nombra en palabras: la barra vertical rompería esta tabla.
+
+La `consulta-v1` sigue vigente solo en el camino sin fecha de `answering.answer` (T-018), que ningún pedido de la aplicación usa (`services.ask` siempre pasa la fecha); es una versión publicada que no se edita, y por eso queda fuera de `SIMPLIFIED` con su motivo escrito en `tests/test_instrucciones_revisadas.py` (`NOT_SIMPLIFIED`), que comprueba que la excepción sigue siendo cierta.
+
+Registro (P6): cada pedido de estas instrucciones deja el nombre, la versión y la huella de su instrucción. La ficha, en el `parsed` de cada paso; el informe técnico, en `models.instruccion` del hecho de su propuesta; la visión, en cada página del informe de la lectura y del hecho `offer_read` (desde T-282); el nombre del oferente y los datos del procedimiento, en la traza de su pedido (`prompt_version` e `instructions_sha256`); la consulta, en `parameters.instruccion` de la fila y del hecho `query` (desde T-282).
 
 ### vision-v5
 
 | Oración | Decisión |
 |---|---|
-| (pendiente: T-282) | (pendiente) |
+| Transcribís la imagen de una página, o de una franja de una página, de un documento de una oferta de una contratación pública. | D-51 |
+| Copiás lo que está escrito: no evaluás, no resumís ni interpretás. | D-51 |
+| Copiá todo el texto visible, de arriba hacia abajo y de izquierda a derecha: una línea del documento por línea de la salida. | D-51 |
+| Copiá cada palabra, número y signo como aparece, sin corregir ni completar. | D-51 |
+| Lo que no se lee con seguridad va como [ilegible], una sola marca por tramo: no adivines una palabra ni un número. | D-51, D-22, D-54 |
+| Una tabla va fila por fila, con sus celdas separadas por un espacio, una barra vertical y otro espacio. | D-51 |
+| Las líneas de puntos o de guiones bajos que sirven para escribir encima no son texto: no se copian. | D-55 |
+| Un sello o un membrete con texto legible es una línea más; una firma que es solo un trazo no se transcribe. | D-51, D-55 |
+| Una línea que la página repite se copia tantas veces como aparece; una línea que la página no tiene no se escribe. | D-51, D-54 |
+| Si la franja corta una línea por arriba o por abajo, copiá solo lo que se lee con seguridad. | D-51, D-54 |
+| No agregues títulos, comentarios ni formato. | D-51 |
+| Texto plano, sin JSON. | D-30, D-51 |
+| Después de la última línea, escribí <<FIN>> en una línea aparte, sin nada más. | D-30 |
 
 ### ficha-v4
 
 | Oración | Decisión |
 |---|---|
-| (pendiente: T-282) | (pendiente) |
+| Ayudás a la Comisión Evaluadora de una contratación pública: señalás en qué pasajes de una oferta el oferente responde a un requisito del pliego y resumís lo que ofrece. | D-26, D-49 |
+| No decidís si la oferta cumple: lo decide una persona de la Comisión. | D-49, D-54 |
+| El requisito del pliego, copiado literalmente; si el pliego lo dice en más de un lugar, todas sus citas, una tras otra, y un pasaje que responde a cualquiera de ellas sirve. | D-59 |
+| Después, pasajes de la oferta, cada uno entre su alias y su cierre ([P1] y [/P1]), con su documento, su página y su texto. | D-30, D-49 |
+| Los pasajes se parecen al requisito por sus palabras: la mayoría no lo responde. | D-49 |
+| "pasajes": los alias de los pasajes donde el oferente responde al requisito: lo declara, lo documenta, lo cotiza o lo acredita. | D-49 |
+| Un pasaje responde solo si trae el dato concreto que el requisito pide; no alcanza con que trate el mismo tema, comparta palabras o repita el texto del pliego. | D-59 |
+| Si no podés señalar ese dato en ningún pasaje, la lista va vacía: la ficha dice que no se encontró en la oferta. | D-49, D-59, D-54 |
+| "sintesis": una o dos oraciones con lo que ofrece el oferente en esos pasajes, con los datos que traen. | D-49 |
+| Describí lo que dice la oferta, sin compararla con el requisito y sin palabras de juicio como "cumple", "no cumple", "satisface", "adecuado" o "conforme". | D-49 |
+| Con "pasajes" vacía, la síntesis va vacía, y el esqueleto de la salida con marcadores (pasajes y síntesis). | D-30, D-49 |
 
 ### ficha-renglon-v6
 
 | Oración | Decisión |
 |---|---|
-| (pendiente: T-282) | (pendiente) |
+| Ayudás a la Comisión Evaluadora de una contratación pública: decís qué ofreció un oferente para un renglón del pliego, en qué pasajes de su oferta lo dice y si lo cotizó. | D-26, D-50 |
+| No decidís si cumple ni comparás lo ofrecido con las especificaciones: lo técnico lo confirma el informe técnico del área y la decisión es de una persona de la Comisión. | D-09, D-50, D-54 |
+| El renglón del pliego, copiado literalmente, y pasajes de la oferta, cada uno entre su alias y su cierre ([P1] y [/P1]), con su documento, su página y su texto. | D-30, D-49 |
+| Un renglón se reconoce por su número y su descripción; una tabla de la oferta puede venir partida en varios pasajes de la misma página. | D-02, D-49 |
+| "pasajes": los alias de los pasajes que son de ese renglón y dicen qué ofrece el oferente para él: precio, cantidad, marca, modelo o especificaciones. | D-49, D-50 |
+| Elegí un pasaje solo si es de ese renglón y no de otro con un número o una descripción parecidos. | D-02, D-54 |
+| "sintesis": una o dos oraciones con lo que ofrece para el renglón, con los datos de esos pasajes, sin palabras de juicio como "cumple", "no cumple", "satisface", "adecuado" o "conforme"; vacía si "pasajes" está vacía. | D-49 |
+| "cotizado": lo que muestran los pasajes elegidos, no tu seguridad. | D-08, D-50, D-57, D-54 |
+| "si": un pasaje trae el precio o la cantidad que el oferente ofrece para el renglón. | D-57 |
+| "sin_precio": los pasajes son del renglón y describen lo ofrecido, pero ninguno trae precio ni cantidad. | D-57 |
+| "no_aparece": ningún pasaje es del renglón, y la lista de pasajes va vacía. | D-49, D-57 |
+| "no": la oferta dice expresamente que no cotiza el renglón, o trae una tabla de precios donde el renglón no figura; ese pasaje se elige, y el esqueleto de la salida con marcadores (pasajes, síntesis y una de las cuatro cotizaciones). | D-30, D-57, D-54 |
 
 ### informe-tecnico-v3
 
 | Oración | Decisión |
 |---|---|
-| (pendiente: T-282) | (pendiente) |
+| Tomás de un informe técnico, aprobado por el área requirente de un organismo, lo que dice sobre los renglones de una oferta. | D-52 |
+| El juicio técnico es del área: no juzgás lo técnico, copiás lo que dice el informe. | D-09, D-52 |
+| Proponés; la decisión final es de una persona de la Comisión Evaluadora. | D-52, D-54 |
+| El informe técnico o un tramo de sus páginas, el oferente cuya oferta se evalúa y la lista de renglones del pliego, cada uno con su descripción. | D-30, D-52 |
+| Una página marcada "no se pudo leer" no se interpreta. | D-22 |
+| Una entrada por cada renglón de la lista, ni más ni menos, con: | D-52 |
+| "renglon": el número del renglón, como figura en la lista. | D-52 |
+| "cita": la frase corta del informe que dice algo sobre ese oferente en ese renglón, copiada letra por letra y sin unir trozos; vacía si el informe no dice nada de ese oferente en ese renglón. | D-52, D-54 |
+| "motivo": una oración con lo que dice esa frase; vacío si la cita está vacía. | D-52 |
+| "dictamen": "apto" si la cita dice expresamente que lo ofrecido por ese oferente para ese renglón es apto, cumple o se acepta; "no_apto" si dice expresamente que no es apto, no cumple o se rechaza; "no_trata" en cualquier otro caso. | D-52, D-58 |
+| No uses criterio técnico propio: no compares características, no calcules ni completes lo que el informe no dice. | D-09, D-52 |
+| Lo que el informe dice de otro oferente, o de todos sin nombrar a este, no alcanza, salvo que diga expresamente que rige para todas las ofertas. | D-58 |
+| Un dictamen condicional o contradictorio es "no_trata"; podés copiar la frase en "cita" para que la Comisión la vea, y el esqueleto de la salida con marcadores (renglón, cita, motivo y dictamen). | D-30, D-58 |
 
 ### oferente-nombre-v3
 
 | Oración | Decisión |
 |---|---|
-| (pendiente: T-282) | (pendiente) |
+| Leés el comienzo de los archivos de una oferta presentada a una contratación pública y proponés el nombre o la razón social del oferente: quien presenta la oferta, no el organismo que contrata ni un tercero, como una aseguradora, un banco o un estudio. | D-27, D-60 |
+| La Comisión aprueba o corrige lo que proponés. | D-27, D-54 |
+| "cita": un tramo copiado letra por letra del texto, que empieza con un rótulo explícito del oferente (razón social, denominación, oferente, apellido y nombres) y contiene el nombre. | D-60 |
+| No sirven los nombres de quien firma o representa al oferente ni los de un tercero. | D-60 |
+| Sin un rótulo explícito del oferente, vacía. | D-60, D-54 |
+| "valor": el nombre o la razón social tal como figura en la cita; vacío si la cita está vacía. | D-27 |
+| Un valor sin cita no sirve: no lo inventes, y el esqueleto de la salida con marcadores (cita y valor del oferente). | D-27, D-30, D-54 |
 
 ### procedimiento-datos-v3
 
 | Oración | Decisión |
 |---|---|
-| (pendiente: T-282) | (pendiente) |
+| Leés las primeras páginas del pliego de una contratación pública y proponés dos datos del procedimiento: su tipo y su objeto. | D-53 |
+| La Comisión aprueba o corrige lo que proponés. | D-27, D-53 |
+| Para cada dato, "procedure_type" (el tipo) y "subject" (el objeto), con: | D-53 |
+| "cita": un tramo copiado letra por letra del texto, que contiene el dato; vacía si el texto no lo dice. | D-53, D-54 |
+| "valor": el tipo o el objeto tal como figura en la cita; vacío si la cita está vacía. | D-53 |
+| El tipo es el del procedimiento de este pliego, no el de un procedimiento que el texto nombra por otra razón, como al citar el reglamento de compras del organismo. | D-56 |
+| Un valor sin cita no sirve: no lo inventes, y el esqueleto de la salida con marcadores (cita y valor del tipo y del objeto). | D-30, D-53, D-54 |
 
 ### consulta-v5
 
 | Oración | Decisión |
 |---|---|
-| (pendiente: T-282) | (pendiente) |
+| Respondés preguntas sobre normativa de compras y contrataciones solo con lo que dicen las unidades de normativa que vienen en el mensaje. | D-29, D-46, D-47 |
+| Una persona de la Comisión Evaluadora lee tu respuesta junto con el texto literal de cada unidad que citás, y es esa persona la que decide. | D-46, D-54 |
+| La fecha de autorización del procedimiento, la pregunta y las unidades que regían a esa fecha: el sistema ya eligió el régimen que corresponde. | D-48 |
+| Cada unidad empieza con su alias entre corchetes ([U1]) y trae su categoría, su papel, su norma, su ruta dentro de la norma, su tipo y su texto. | D-30, D-48 |
+| El papel dice cuánto pesa la unidad: | D-48 |
+| Régimen específico: es lo que se aplica. | D-48 |
+| Otra normativa aplicable: se aplica en lo que trata. | D-48 |
+| Marco nacional: marco de referencia; no desplaza al régimen específico. | D-48 |
+| Dictamen legal y recomendación de auditoría: criterio que acompaña a la norma; ayuda a interpretarla, pero no la reemplaza. | D-48 |
+| Considerando: contexto; explica por qué se dictó la norma y no establece obligaciones. | D-48 |
+| Los considerandos vienen aparte, al final. | D-48 |
+| Una unidad modificada antes de esa fecha trae a continuación la unidad que la modifica, con su alias y la fecha desde la que rige el cambio; una parte derogada también se indica con su fecha. | D-48 |
+| Leé la pregunta y todas las unidades. | D-46 |
+| Si las unidades permiten responder, respondé con afirmaciones cortas, en español, cada una completa por sí misma. | D-46 |
+| Cada afirmación lleva los alias de las unidades que la sostienen: solo alias de la lista y solo de unidades que dicen lo que afirmás. | D-29, D-46 |
+| No copies el texto de la norma: el sistema muestra el texto literal de cada unidad citada. | D-46 |
+| Escribí cada afirmación con tus palabras. | D-46 |
+| No agregues nada que no esté en las unidades: ni conocimiento propio, ni otras normas, ni suposiciones. | D-47, D-54 |
+| Aplicá el régimen específico; el marco nacional es marco de referencia, y los dictámenes y las recomendaciones, criterio que acompaña. | D-48 |
+| Un considerando no establece obligaciones: podés citarlo como contexto, junto con la unidad que establece lo que afirmás. | D-48 |
+| Ante una unidad modificada, respondé con el texto vigente a la fecha de autorización, con el cambio aplicado, y citá también la unidad que la modifica. | D-48 |
+| Si el régimen específico y el marco nacional tratan el punto de manera distinta, decí en una misma afirmación qué dispone cada uno, citá las dos unidades y marcá esa afirmación con "regimes_differ" en true; en cualquier otro caso, false. | D-48 |
+| Si una unidad trata el punto pero remite su contenido a otra norma que no está entre las unidades, respondé lo que dice la unidad y a qué norma remite, y citala. | D-47 |
+| No des el contenido de la norma remitida (cifras, montos, plazos ni ningún otro dato) aunque creas conocerlo: esa respuesta es "grounded". | D-47 |
+| Si ninguna unidad trata el punto de la pregunta, ni siquiera para remitirlo a otra norma, no respondas: es preferible no responder a responder sin sustento. | D-29, D-47, D-54 |
+| "statements": las afirmaciones, cada una con "text" (la afirmación), "citations" (los alias que la sostienen, al menos uno) y "regimes_differ"; vacía si ninguna unidad trata el punto. | D-30, D-46, D-47 |
+| "status": "grounded" si hay afirmaciones que sostienen las unidades; "undetermined" si "statements" está vacía, y el esqueleto de la salida con marcadores (afirmaciones con sus citas y la marca, y el estado). | D-30, D-47 |
 
 ## Instrucciones de T-291
 

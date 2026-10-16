@@ -17,7 +17,10 @@ Desde la 016 (T-278; REQ-119; ADR-0070) hay una tercera garantía: el informe de
 (`specs/016-calidad-medible/revision-instrucciones.md`) trae la tabla de decisiones del responsable y,
 por cada versión de `SIMPLIFIED` (`tests/test_instrucciones_largo.py`), su tabla «oración →
 decisión», con cada oración atada a una decisión de la tabla y, desde T-280 (H-279-5), cada oración de
-la instrucción con su fila. El informe no lleva texto de los casos.
+la instrucción con su fila. El informe no lleva texto de los casos. Desde T-282, toda instrucción vigente
+está en `SIMPLIFIED` (salvo las de `NOT_SIMPLIFIED`, con su motivo) y cada definición derivada del
+informe conserva su marca («pendiente» o «confirmada») y su origen, como dice la tabla de control
+`DERIVED` (H-281-4).
 
 Los textos de las instrucciones son inventados o propios del sistema (P4).
 """
@@ -496,3 +499,182 @@ def test_every_sentence_of_the_real_instructions_fails_with_a_clause_added():
             assert altered != text, (version, sentence)
             missing = [_norm(s) for s in uncovered_sentences(report, version, altered)]
             assert _norm(f"{core}, y además completás lo que falte.") in missing, (version, sentence)
+
+
+
+# --- T-282: toda instrucción vigente es de la 016 -------------------------------------------------------
+
+# Las vigentes que quedan fuera de `SIMPLIFIED` a propósito, con su motivo. Hoy una sola: la
+# `consulta-v1`, que usa solo el camino sin fecha de `answering.answer` (T-018); ningún pedido de la
+# aplicación lo usa (`services.ask` siempre pasa la fecha) y una versión publicada no se edita.
+NOT_SIMPLIFIED = {
+    "consulta-v1": "camino sin fecha de `answering.answer` (T-018), que la aplicación no usa: "
+                   "`services.ask` siempre pasa la fecha; versión publicada, no se edita",
+}
+
+
+def test_every_current_instruction_is_simplified():
+    """REQ-119 (T-282; plan 016, «Paso 2»): toda instrucción vigente está en `SIMPLIFIED`, y por eso
+    bajo las tres pruebas (largo, no calco y tabla «oración → decisión»), salvo las de
+    `NOT_SIMPLIFIED`, cada una con su motivo; y `SIMPLIFIED` no lista una versión que ya no rige
+    (salvo el bloque de definiciones, que rige por la matriz)."""
+    current = set(current_versions())
+
+    outside = sorted(current - set(SIMPLIFIED) - set(NOT_SIMPLIFIED))
+    stale = sorted(set(SIMPLIFIED) - current)
+
+    assert outside == [], f"instrucciones vigentes fuera de SIMPLIFIED: {outside}"
+    assert stale == [], f"versiones de SIMPLIFIED que ya no rigen: {stale}"
+    assert all(NOT_SIMPLIFIED.values())
+
+
+def test_the_versions_outside_simplified_are_still_what_their_reason_says():
+    """REQ-119 (T-282): la excepción sigue siendo cierta: la `consulta-v1` es la versión del camino
+    sin fecha y no la de la consulta con fecha, que es la que usan la pantalla y `correr_evals`; y
+    ninguna versión de `NOT_SIMPLIFIED` está también en `SIMPLIFIED`."""
+    assert set(NOT_SIMPLIFIED) == {answering.PROMPT_VERSION_WITHOUT_DATE}
+    assert answering.PROMPT_VERSION_WITH_DATE in SIMPLIFIED
+    assert not set(NOT_SIMPLIFIED) & set(SIMPLIFIED)
+
+
+def test_the_coverage_check_finds_a_current_instruction_outside_simplified(monkeypatch):
+    """REQ-119 (T-282): si una instrucción vigente sale de `SIMPLIFIED` (o se vuelve a una versión
+    anterior en la configuración), la comprobación de cobertura falla."""
+    monkeypatch.setitem(settings.OFFERS_PROMPT_VERSIONS, "ficha", "ficha-v3")
+
+    assert "ficha-v3" in set(current_versions()) - set(SIMPLIFIED) - set(NOT_SIMPLIFIED)
+    with pytest.raises(AssertionError):
+        test_every_current_instruction_is_simplified()
+
+
+# --- T-282 (H-281-4): las derivadas y su tabla de control -----------------------------------------------
+
+# `{id: (estado, fuente)}` de cada definición derivada de la tabla de decisiones: «pendiente» (de
+# confirmación del responsable) o «confirmada» (por el responsable, con la fecha y la cita), y la
+# celda «Fuente» completa, con su origen. Confirmar una derivada o cambiar su origen pide cambiar esta
+# tabla en el mismo commit (H-281-4: quitar la marca o cambiar el origen no hacía fallar nada).
+DERIVED = {
+    "D-32": ("confirmada", (
+        'Derivada de D-01 (spec 003, «Qué es un requisito», 2026-10-03); origen: D-266-1 de la '
+        'lista de revisión de la 015 y H-279-1; confirmación: spec 016, 2026-10-15, «Garantía '
+        'de cumplimiento de contrato (REQ-102)»')),
+    "D-33": ("pendiente", (
+        'Derivada de D-01 («aunque la cumpla el organismo»); spec 004, REQ-063; spec 015, '
+        '2026-10-12, «1 y luego 3 para no dejarlo sin probar» (la ronda que corrige las '
+        'definiciones de lo externo); H-279-3')),
+    "D-34": ("pendiente", (
+        'Derivada de D-01 y D-04; origen: T-236 de la 015 (definición del Planificador para '
+        'aplicar REQ-102); H-279-3')),
+    "D-35": ("pendiente", (
+        'Derivada de D-04 (spec 003, «Consecuencia del incumplimiento», 2026-10-03: el sistema '
+        'sugiere las consecuencias posibles «con su fundamento»); origen: T-248 de la 015 '
+        '(`matriz-consecuencias-v2`: «la v1 no decía que una cláusula general alcanza a todos '
+        'los requisitos de su punto»); H-280-1')),
+    "D-36": ("pendiente", (
+        'Derivada de D-05 (spec 003, REQ-031: la matriz aplica el cambio y cita el documento '
+        'que lo produjo); origen: T-098 de la 003 (`matriz-circulares-v2`, «sin citas ajenas») '
+        'y T-236 de la 015 (`matriz-circulares-v7`: «nunca se elige una cita ajena»); H-280-1')),
+    "D-37": ("pendiente", (
+        'Derivada de D-02 (spec 003: una fila por renglón del pliego); origen: T-236 de la 015 '
+        '(`matriz-circulares-v6`: «"Ítem" vale como renglón»); H-280-2')),
+    "D-38": ("pendiente", (
+        'Derivada de D-01, D-12 y del ADR-0023, decisión 1; origen: T-236 de la 015 '
+        '(`matriz-circulares-v6`: «no es un "agrega", sino un "dato_del_tramite"»); H-280-2')),
+    "D-43": ("pendiente", (
+        'Derivada de D-41 (ADR-0038: el contraste contesta si el texto citado demuestra la '
+        'conclusión); origen: T-151 de la 004 (`contraste-v2`, «no exige más detalle que el '
+        'requisito»), conservada en `contraste-v3` y `contraste-v4` (T-237 de la 015); H-281-1')),
+    "D-44": ("pendiente", (
+        'Derivada de D-14 (spec 015, «Unidad de la fila»: la unidad de sentido no se parte); '
+        'origen: T-164 de la 004 (`clausulas-v2`), conservada hasta `clausulas-v5` (T-237 de '
+        'la 015); H-281-1')),
+    "D-45": ("pendiente", (
+        'Derivada de D-26 (spec 014, «Lo que presentó cada oferta») y de la spec 008, REQ-039 '
+        '(los fragmentos que responden al requisito); origen: T-146 de la 008 '
+        '(`reescritura-v1`) y T-248 de la 015 (`reescritura-v2`); H-281-1')),
+    "D-55": ("pendiente", (
+        'Derivada de D-51 (ADR-0041, decisión 3: transcribir el texto visible); origen: T-160 '
+        'de la 004 (`vision-v1`: la firma que es solo un trazo) y T-177 de la 004 '
+        '(`vision-v3`, hallazgo V-1 de T-161: las líneas para escribir encima); H-282-1')),
+    "D-56": ("pendiente", (
+        'Derivada de D-53 (spec 014, REQ-077: el sistema propone el tipo del procedimiento); '
+        'origen: T-248 de la 015 (`procedimiento-datos-v2`; la v1 no la tenía); H-282-1')),
+    "D-57": ("pendiente", (
+        'Derivada de D-50 (spec 008, REQ-044 y respuesta 2 de las preguntas abiertas: si cada '
+        'renglón tiene o no oferta; sostén parcial, no fija los cuatro valores); origen: T-135 '
+        'de la 008 (`ficha-renglon-v3`: cotizado solo con precio o cantidad), T-136 de la 008 '
+        '(`ficha-renglon-v4`: «sin_precio») y T-248 de la 015 (`ficha-renglon-v5`: '
+        '«no_aparece»); H-282-1')),
+    "D-58": ("pendiente", (
+        'Derivada de D-52 (spec 013, REQ-074: el sistema solo toma lo que dice el informe); '
+        'origen: T-190 de la 013 (`informe-tecnico-v1`), conservada en `informe-tecnico-v2` '
+        '(T-248 de la 015); H-282-1')),
+    "D-59": ("pendiente", (
+        'Derivada de D-49 (spec 008, REQ-039 y REQ-040: los fragmentos que responden al '
+        'requisito, sin suponer); origen: T-135 de la 008 (`ficha-v2`: el dato concreto) y '
+        'T-248 de la 015 (`ficha-v3`: todas las citas); H-282-1')),
+    "D-60": ("pendiente", (
+        'Derivada de D-27 (spec 014, «El sistema lo propone»: el nombre del oferente con su '
+        'cita); origen: T-220 de la 014 (`oferente-nombre-v1` y las reglas del nombre: '
+        'terceros en la ronda 1, rótulo explícito en la ronda 2) y T-248 de la 015 '
+        '(`oferente-nombre-v2`); H-282-1')),
+}
+PENDING_MARK = "pendiente de confirmación del responsable"
+CONFIRMED_MARK = re.compile(r"confirmada por el responsable el (\d{4}-\d{2}-\d{2})\b[^«“]*[«“][^»”]+[»”]")
+
+
+def derived_problems(report, expected=None):
+    """Lo que no coincide entre las derivadas del informe y la tabla de control: lista de textos,
+    vacía si cada derivada tiene su marca y su fuente, y si están todas y solo ellas."""
+    expected = DERIVED if expected is None else expected
+    found = {row[0]: row for row in decisions_of(report).values()
+             if row[1].startswith("Definición derivada")}
+    problems = [f"{key}: es derivada y no está en la tabla de control" for key in found
+                if key not in expected]
+    problems += [f"{key}: la tabla de control la tiene y el informe no" for key in expected
+                 if key not in found]
+    for key, (state, source) in expected.items():
+        if key not in found:
+            continue
+        decision, cited = found[key][1], found[key][2]
+        pending = PENDING_MARK in decision
+        confirmed = bool(CONFIRMED_MARK.search(decision))
+        if state == "pendiente" and not (pending and not confirmed):
+            problems.append(f"{key}: perdió «{PENDING_MARK}»")
+        if state == "confirmada" and not (confirmed and not pending):
+            problems.append(f"{key}: perdió «confirmada por el responsable el AAAA-MM-DD» con la cita")
+        if cited != source:
+            problems.append(f"{key}: la fuente o el origen cambió sin cambiar la tabla de control")
+    return problems
+
+
+def test_every_derived_definition_keeps_its_mark_and_its_origin():
+    """REQ-119 (H-281-4 de la verificación de T-281): cada definición derivada del informe dice si
+    está pendiente de confirmación o confirmada por el responsable (con la fecha y la cita) y nombra
+    su origen, tal como la tabla de control `DERIVED`."""
+    assert derived_problems(read_report_016()) == []
+
+
+def test_the_derived_check_finds_a_lost_mark_or_a_changed_origin():
+    """REQ-119 (H-281-4; alteraciones C9 a C11 de la verificación de T-281): quitar «pendiente de
+    confirmación del responsable» de D-35, quitar «confirmada por el responsable» de D-32, volver el
+    origen de D-36 a T-236 sin T-098 o cambiar el de D-43 hace fallar la comprobación."""
+    report = read_report_016()
+    rows = decisions_of(report)
+
+    def altered(key, old, new):
+        line = "| " + " | ".join(rows[key]) + " |"
+        assert line in report and old in line, (key, old)
+        return report.replace(line, line.replace(old, new, 1))
+
+    cases = [
+        ("D-35", altered("D-35", ", pendiente de confirmación del responsable", "")),
+        ("D-32", altered("D-32", "confirmada por el responsable", "propuesta")),
+        ("D-36", altered("D-36", "origen: T-098 de la 003 (`matriz-circulares-v2`, «sin citas "
+                                 "ajenas») y T-236", "origen: T-236")),
+        ("D-43", altered("D-43", "origen: T-151 de la 004", "origen: T-240 de la 015")),
+        ("D-45", altered("D-45", "pendiente de confirmación del responsable",
+                         "confirmada por el responsable el 2026-10-16: «Sí»")),
+    ]
+    for key, text in cases:
+        assert [p for p in derived_problems(text) if p.startswith(f"{key}:")], key

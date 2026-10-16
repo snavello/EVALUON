@@ -41,7 +41,8 @@ from evaluon.ai import AIServiceError, generation
 from evaluon.tenders.proposal.procedure_fields import batch_model, page_lines
 
 RULES_VERSION = "oferente-reglas-v1"
-PROMPT_VERSION = "oferente-nombre-v2"
+# T-282 (spec 016, REQ-119; ADR-0070): versión corta, sin ejemplos; la v1 y la v2 siguen publicadas.
+PROMPT_VERSION = "oferente-nombre-v3"
 
 FIELDS = ("bidder", "cuit")
 

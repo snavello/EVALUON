@@ -203,7 +203,7 @@ def test_the_request_to_the_model_uses_the_batch_engine_and_fixed_parameters(
     assert call["kwargs"]["base_url"].startswith("http://generation_batch")
     assert call["kwargs"]["max_tokens"] == 400
     assert call["schema"]["required"] == ["pasajes", "sintesis"]
-    assert call["messages"][0]["content"].startswith("Sos un asistente")
+    assert call["messages"][0]["content"] == sheets.load_prompt("ficha")
 
 
 # --- Sin respuesta ---------------------------------------------------------------------
@@ -329,7 +329,7 @@ def test_an_output_that_is_not_json_is_retried_once(offer, operator_user, script
     steps = sheet.steps.filter(entry__requirement__number=1).order_by("id")
     # El pedido sin lo interpretado también lleva la versión y la huella de su instrucción (T-248).
     assert ["pasajes" in s.parsed for s in steps] == [False, True]
-    assert all(s.parsed["instruccion"]["version"] == "ficha-v3" for s in steps)
+    assert all(s.parsed["instruccion"]["version"] == "ficha-v4" for s in steps)
     assert steps[0].raw_output == "esto no es JSON"
     assert sheet.anomalies == []
 
@@ -366,7 +366,7 @@ def test_every_model_request_is_recorded(offer, operator_user, script):
     assert detail["parameters"]["candidates_to_model"] == 8
     versions = detail["prompt_versions"]
     assert {k: v for k, v in versions.items() if k != "huellas"} == {
-        "ficha": "ficha-v3", "ficha_renglon": "ficha-renglon-v5", "reescritura": "reescritura-v3"}
+        "ficha": "ficha-v4", "ficha_renglon": "ficha-renglon-v6", "reescritura": "reescritura-v3"}
     assert set(versions["huellas"]) == {"ficha", "ficha_renglon", "reescritura"}
     assert versions["huellas"]["ficha"] == step.parsed["instruccion"]["sha256"]
     assert detail["counts"]["model_requests"] == sheet.steps.count()
@@ -555,7 +555,7 @@ def test_the_item_prompt_v4_asks_for_price_or_quantity_and_not_for_a_technical_s
     """REQ-044: la instrucción del renglón v4 pide el precio o la cantidad ofrecida, en
     cualquier documento, y dice que una hoja técnica sola no alcanza; v1 y v2 siguen como
     estaban."""
-    text = sheets.load_prompt("ficha_renglon")
+    text = sheets.PROMPTS_DIR.joinpath("ficha-renglon-v4.md").read_text(encoding="utf-8")
     assert "el precio o la cantidad que el oferente ofrece" in text
     assert "Una hoja técnica" in text and "no alcanzan" in text
     assert "No decidís" in text and "no cumple" in text
@@ -577,8 +577,7 @@ def test_the_sheet_prompt_v3_keeps_the_abstention_without_the_open_doubt_rule():
     """REQ-106, REQ-040 (T-248): la v3 conserva el dato concreto y la lista vacía, cambia
     «ante la duda» por algo verificable (poder señalar el dato en el pasaje), dice que el
     requisito puede traer varias citas y suma un ejemplo con dos; la v2 no cambió."""
-    text = sheets.load_prompt("ficha")
-    assert sheets.settings.OFFERS_PROMPT_VERSIONS["ficha"] == "ficha-v3"
+    text = sheets.PROMPTS_DIR.joinpath("ficha-v3.md").read_text(encoding="utf-8")
     assert "dato concreto" in text and "no se encontró" in text
     assert "Ante la duda" not in text and "ante la duda" not in text.lower()
     assert "si podés señalar en él el dato concreto" in text
@@ -736,8 +735,7 @@ def test_the_item_prompt_v5_separates_no_appears_from_no_price_and_from_doubt():
     pasaje es del renglón) de «sin_precio» (es del renglón y no trae precio) y saca el «no estoy
     seguro» de las respuestas: cada una dice lo que muestran los pasajes, no la seguridad. La
     cotización va al final y los ejemplos están equilibrados (dos de cada respuesta)."""
-    text = sheets.load_prompt("ficha_renglon")
-    assert sheets.settings.OFFERS_PROMPT_VERSIONS["ficha_renglon"] == "ficha-renglon-v5"
+    text = sheets.PROMPTS_DIR.joinpath("ficha-renglon-v5.md").read_text(encoding="utf-8")
     for word in ('"si"', '"sin_precio"', '"no_aparece"', '"no"', "expresamente", "No decidís"):
         assert word in text
     assert "o no estoy seguro" not in text and "no estás seguro" not in text
@@ -772,9 +770,9 @@ def test_every_request_records_the_version_and_the_sha256_of_its_instruction(
     item = sheet.steps.get(entry__requirement__number=6).parsed["instruccion"]
     assert common == sheets.prompt_record("ficha")
     assert item == sheets.prompt_record("ficha_renglon")
-    assert common["version"] == "ficha-v3" and item["version"] == "ficha-renglon-v5"
+    assert common["version"] == "ficha-v4" and item["version"] == "ficha-renglon-v6"
     assert common["sha256"] == sheets.extraction.text_sha256(
-        sheets.PROMPTS_DIR.joinpath("ficha-v3.md").read_text(encoding="utf-8"))
+        sheets.PROMPTS_DIR.joinpath("ficha-v4.md").read_text(encoding="utf-8"))
 
 
 def test_a_requirement_with_several_quotes_is_searched_and_asked_with_all_of_them(
@@ -1093,3 +1091,30 @@ def test_the_rewrite_instruction_v2_changes_the_examples_and_records_its_hash(
     assert record["version"] == "reescritura-v3"
     assert record["sha256"] == sheets.extraction.text_sha256(current)
     assert sheet.prompt_versions["huellas"]["reescritura"] == record["sha256"]
+
+
+def test_the_sheet_prompts_v4_and_v6_are_short_and_keep_the_decisions():
+    """REQ-119 (T-282; ADR-0070, punto 2): las versiones vigentes son `ficha-v4` y
+    `ficha-renglon-v6`, sin ejemplos. Conservan el dato concreto y la lista vacía cuando no está
+    (REQ-039, REQ-040), la síntesis sin juicio (REQ-041), las cuatro respuestas de la cotización por
+    renglón (REQ-044) y que no comparan lo técnico; su esqueleto trae los campos en el orden del
+    esquema. Las versiones anteriores siguen publicadas."""
+    import re
+
+    common = sheets.load_prompt("ficha")
+    item = sheets.load_prompt("ficha_renglon")
+
+    assert sheets.settings.OFFERS_PROMPT_VERSIONS["ficha"] == "ficha-v4"
+    assert sheets.settings.OFFERS_PROMPT_VERSIONS["ficha_renglon"] == "ficha-renglon-v6"
+    for text in (common, item):
+        assert not re.search(r"(?im)^[\s#>*\-\d.)]*ejemplos?\b", text)
+        assert 'sin palabras de juicio como "cumple", "no cumple"' in text
+        [skeleton] = [line for line in text.splitlines() if line.startswith("{")]
+        keys = list(sheets.build_schema(["P1"], text is item)["properties"])
+        assert [skeleton.index(f'"{key}"') for key in keys] == sorted(
+            skeleton.index(f'"{key}"') for key in keys)
+    assert "dato concreto" in common and "la lista va vacía" in common
+    assert "no se encontró en la oferta" in common
+    assert "ni comparás lo ofrecido con las especificaciones" in item
+    for answer in sheets.QUOTED_ANSWERS:
+        assert f'"{answer}":' in item, answer
