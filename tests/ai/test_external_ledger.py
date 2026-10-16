@@ -621,3 +621,18 @@ def test_the_cap_adds_the_estimate_of_every_request_of_the_batch(case, fake_exte
     assert fake_external.batches == []
     alone = ledger.send([economic(case, custom_id="solo")], measurement=MEASUREMENT)
     assert alone.answers["solo"].ok
+
+
+@pytest.mark.parametrize("factor", ["cache_lectura", "cache_escritura_1h", "lotes"])
+@pytest.mark.parametrize("value", ["0", "-1", "NaN", "Infinity"])
+def test_an_invalid_price_factor_stops_before_sending(case, fake_external, settings, factor,
+                                                     value):
+    """REQ-122 (H-290-5; O-288-2): un factor de caché o de lotes de `EXTERNAL_PRICES` que no es un
+    número finito y positivo se rechaza antes de mandar: nada sale y nada queda sin registro."""
+    fake_external.enable()
+    admitted = economic(case)
+    settings.EXTERNAL_PRICES = {**settings.EXTERNAL_PRICES, factor: Decimal(value)}
+    with pytest.raises(ImproperlyConfigured, match=factor):
+        ledger.send([admitted], measurement=MEASUREMENT)
+    assert fake_external.batches == [] and fake_external.messages == []
+    assert external_requests() == []

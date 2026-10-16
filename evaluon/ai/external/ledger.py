@@ -28,8 +28,9 @@ La única forma de mandar es `send(admitidos)`, con lo que devolvió `guard.buil
    (`EXTERNAL_MONTH_CAP_USD`), el lote no sale: `bloqueado` con motivo `tope`.
 
 Un tope, un estimado o un factor que no sea un número finito y positivo es un error de
-configuración (`ImproperlyConfigured`, O-288-2): no se usa como tope. Un modelo sin precio en
-`EXTERNAL_PRICES` tampoco sale (motivo `sin_precio`).
+configuración (`ImproperlyConfigured`, O-288-2): no se usa como tope. Lo mismo los factores de
+lotes y de caché de `EXTERNAL_PRICES`, que se comprueban antes de mandar (H-290-5). Un modelo
+sin precio en `EXTERNAL_PRICES` tampoco sale (motivo `sin_precio`).
 
 El costo real se calcula con el uso que informa el proveedor (entrada, salida, escritura y lectura
 de caché) y la tabla `EXTERNAL_PRICES`; en lotes, a la mitad. La escritura de caché se cobra con el
@@ -113,6 +114,18 @@ def stage_limit(group):
     estimate = _positive(f"EXTERNAL_STAGE_ESTIMATE_USD[{group}]", estimates[group])
     factor = _positive("EXTERNAL_STAGE_STOP_FACTOR", settings.EXTERNAL_STAGE_STOP_FACTOR)
     return estimate * factor
+
+
+PRICE_FACTORS = ("lotes", "cache_lectura", "cache_escritura_1h")
+
+
+def price_factors():
+    """Los factores de `EXTERNAL_PRICES` (lotes y caché), cada uno finito y positivo; si no,
+    `ImproperlyConfigured`. Se comprueban antes de mandar (H-290-5): un factor inválido que se
+    descubriera al calcular el costo real dejaría un lote pagado y sin registro."""
+    table = settings.EXTERNAL_PRICES
+    return {name: _positive(f"EXTERNAL_PRICES.{name}", table.get(name))
+            for name in PRICE_FACTORS}
 
 
 def price_table():
@@ -444,6 +457,7 @@ def send(admitted, *, measurement=None, mode=None, channel=None, user=None):
     group = first.stage_group
     procedure_id = first.procedure_id
     limits = (case_cap(), month_cap(), stage_limit(group))  # O-288-2: antes de todo
+    price_factors()  # H-290-5: también antes de mandar
     sent = Sent(stage=first.stage, mode=mode, model=first.model)
     record = {"measurement": measurement, "channel": channel, "user": user}
 
