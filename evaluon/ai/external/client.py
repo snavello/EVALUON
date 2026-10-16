@@ -26,7 +26,7 @@ Operaciones (cada una recibe lo ya filtrado y devuelve lo que el registro necesi
   `EXTERNAL_BATCH_MAX_WAIT_SECONDS` y baja los resultados. Si la espera se agota, cancela el
   lote antes de lanzar `ExternalTimeoutError`, para que no siga gastando.
 
-Errores propios, cada uno con el motivo que se registra en `reason` el motivo que se registra:
+Errores propios, cada uno con el motivo que se registra en `reason`:
 
 - `ExternalDisabled` (`external_disabled`): no está habilitado o falta la clave; no se conectó.
 - `ExternalTimeoutError` (`timeout`): una llamada o la espera de un lote pasó su tiempo.
@@ -46,6 +46,7 @@ reemplaza las funciones del módulo.
 """
 
 import json
+import math
 import os
 import re
 import socket
@@ -70,6 +71,8 @@ CALL_TIMEOUT_SECONDS = 60         # crear o consultar un lote
 RESULTS_TIMEOUT_SECONDS = 300     # bajar los resultados de un lote
 MAX_RETRIES = 2
 RETRY_SECONDS = 5
+MAX_RETRY_AFTER_SECONDS = 60     # tope de lo que el proveedor pida esperar
+MIN_KEY_LENGTH_TO_SCRUB = 8
 
 BATCH_STATUSES = ("in_progress", "canceling", "ended")
 _ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
@@ -80,15 +83,36 @@ _TOO_LONG_MARKERS = ("prompt is too long", "request_too_large", "exceeds the max
 # --- Errores ----------------------------------------------------------------------------------
 
 
+def _scrub(value):
+    """Reemplaza la clave del proveedor por `***` en un texto, o en los textos de un diccionario
+    o una lista, antes de devolverlo (P4): si el proveedor la repitiera en un error, no
+    llegaría al registro de auditoría, que es de solo inserción."""
+    key = os.environ.get(KEY_ENV, "").strip()
+    if len(key) < MIN_KEY_LENGTH_TO_SCRUB:
+        return value
+    if isinstance(value, str):
+        return value.replace(key, "***")
+    if isinstance(value, dict):
+        return {_scrub(k): _scrub(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_scrub(v) for v in value)
+    return value
+
+
 class ExternalError(Exception):
-    """Falla al usar la API externa. `reason` es el motivo que se registra."""
+    """Falla al usar la API externa. `reason` es el motivo que se registra.
+
+    `canceled` es `None` mientras no se intentó cancelar el lote al que se refiere el error,
+    y `True` o `False` según haya salido la cancelación. Los textos pasan por `_scrub`: la
+    clave nunca queda en `str(error)` ni en `detail`."""
 
     reason = "service_unavailable"
+    canceled = None
 
     def __init__(self, message, *, status=None, detail=None, batch_id=None):
-        super().__init__(message)
+        super().__init__(_scrub(message))
         self.status = status
-        self.detail = detail
+        self.detail = _scrub(detail)
         self.batch_id = batch_id
 
 
@@ -99,11 +123,9 @@ class ExternalDisabled(ExternalError):
 
 
 class ExternalTimeoutError(ExternalError):
-    """No hubo respuesta a tiempo (una llamada o la espera de un lote). Si fue la espera de un
-    lote, `canceled` dice si se logró pedir su cancelación al proveedor."""
+    """No hubo respuesta a tiempo (una llamada o la espera de un lote)."""
 
     reason = "timeout"
-    canceled = False
 
 
 class ExternalUnavailableError(ExternalError):
@@ -296,6 +318,18 @@ def _too_long(error):
     return any(marker in text for marker in _TOO_LONG_MARKERS)
 
 
+def _retry_after(error):
+    """Segundos que pide esperar el proveedor (`retry-after`), acotados a
+    `MAX_RETRY_AFTER_SECONDS`; lo que no sea un número finito y positivo cuenta como ausente."""
+    try:
+        seconds = float(error.headers.get("retry-after"))
+    except (AttributeError, TypeError, ValueError):
+        return None
+    if not math.isfinite(seconds) or seconds <= 0:
+        return None
+    return min(seconds, MAX_RETRY_AFTER_SECONDS)
+
+
 def _rejection(status, raw, retry_after=None):
     """Arma el error propio de una respuesta HTTP con código de error."""
     try:
@@ -332,11 +366,7 @@ def _call_once(key, method, path, body, timeout):
             raw = error.read()
         except Exception:  # noqa: BLE001 - el cuerpo del error es solo informativo
             raw = b""
-        retry_after = None
-        try:
-            retry_after = float(error.headers.get("retry-after"))
-        except (AttributeError, TypeError, ValueError):
-            pass
+        retry_after = _retry_after(error)
         raise _rejection(error.code, raw, retry_after) from error
     except urllib.error.URLError as error:
         if _is_timeout(error.reason):
@@ -414,7 +444,8 @@ def _unsuccessful(payload, outcome, result, *, batch_id):
         payload=payload, outcome=outcome, text="", model="", stop_reason=None,
         usage=ExternalUsage(), message_id=None, batch_id=batch_id,
         custom_id=payload.custom_id, mode="lotes", request_body=payload.to_params(),
-        response_body=result, error=error, request_sha256=payload.request_sha256)
+        response_body=_scrub(result), error=_scrub(error),
+        request_sha256=payload.request_sha256)
 
 
 def parse_batch_results(batch, raw):
@@ -562,28 +593,48 @@ def run_batch(payloads, *, on_created=None):
 
     Consulta cada `EXTERNAL_BATCH_POLL_SECONDS` y, pasados `EXTERNAL_BATCH_MAX_WAIT_SECONDS`
     sin que termine, pide cancelar el lote (si la cancelación falla, igual sigue) y lanza
-    `ExternalTimeoutError` con el `batch_id` y `canceled` según haya salido la cancelación. `on_created(batch)`, si se pasa, se llama apenas el lote existe, antes de
-    esperar: sirve para registrar su identificador. Devuelve un `BatchRun`.
+    `ExternalTimeoutError` con el `batch_id` y `canceled` según haya salido la cancelación.
+    Si una consulta de estado o de resultados falla después de que el lote existe, también
+    pide cancelarlo (lo mejor que pueda) y relanza el error con su `batch_id` y `canceled`:
+    un lote que nadie espera no queda gastando. `on_created(batch)`, si se pasa, se llama
+    apenas el lote existe, antes de esperar: sirve para registrar su identificador. Devuelve
+    un `BatchRun`.
     """
     started = _now()
     batch = create_batch(payloads)
     if on_created is not None:
         on_created(batch)
+    try:
+        return _wait_for(batch, started)
+    except ExternalError as error:
+        if error.batch_id is None:
+            error.batch_id = batch.id
+        if error.canceled is None:
+            error.canceled = _try_cancel(batch)
+        raise
+
+
+def _try_cancel(batch):
+    """Pide cancelar `batch`; dice si se pudo. Nunca lanza."""
+    try:
+        cancel_batch(batch)
+        return True
+    except ExternalError:
+        return False
+
+
+def _wait_for(batch, started):
     poll = max(int(settings.EXTERNAL_BATCH_POLL_SECONDS), 1)
     max_wait = int(settings.EXTERNAL_BATCH_MAX_WAIT_SECONDS)
     polls = 0
     while batch.status != "ended":
         waited = _now() - started
         if waited >= max_wait:
-            message = f"El lote {batch.id} no terminó en {max_wait} s (estado {batch.status})."
-            try:
-                cancel_batch(batch)
-                canceled = True
-                message += " Se pidió su cancelación."
-            except ExternalError as error:
-                canceled = False
-                message += f" No se pudo cancelar: {error}"
-            timeout_error = ExternalTimeoutError(message, batch_id=batch.id)
+            canceled = _try_cancel(batch)
+            timeout_error = ExternalTimeoutError(
+                f"El lote {batch.id} no terminó en {max_wait} s (estado {batch.status}). "
+                + ("Se pidió su cancelación." if canceled else "No se pudo cancelarlo."),
+                batch_id=batch.id)
             timeout_error.canceled = canceled
             raise timeout_error
         _sleep(min(poll, max_wait - waited))

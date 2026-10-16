@@ -17,8 +17,10 @@ Qué comprueban:
 - la suite: una llamada real dentro de la suite falla y el doble funciona de punta a punta.
 """
 
+import ast
 import dataclasses
 import json
+import logging
 import socket
 import threading
 import urllib.error
@@ -635,7 +637,7 @@ def test_run_batch_polls_until_it_ends_and_returns_each_result(provider, clock, 
     """REQ-122 (ADR-0066): crea el lote, lo consulta cada `EXTERNAL_BATCH_POLL_SECONDS` hasta
     que termina y baja los resultados: aciertos, errores, vencidos y cancelados, cada uno en su
     `custom_id` y en el orden de los pedidos."""
-    settings.EXTERNAL_BATCH_POLL_SECONDS = 30
+    settings.EXTERNAL_BATCH_POLL_SECONDS = 20
     payloads = batch_payloads(4)
     provider.route("POST", "/v1/messages/batches", batch_created())
     path = "/v1/messages/batches/msgbatch_01"
@@ -652,7 +654,7 @@ def test_run_batch_polls_until_it_ends_and_returns_each_result(provider, clock, 
     run = client.run_batch(payloads, on_created=seen.append)
     assert [b.id for b in seen] == ["msgbatch_01"]
     assert run.polls == 3 and run.batch.status == "ended"
-    assert clock["sleeps"] == [30, 30, 30]
+    assert clock["sleeps"] == [20, 20, 20]
     assert list(run.results) == ["ext-0001", "ext-0002", "ext-0003", "ext-0004"]
     one, two, three, four = run.results.values()
     assert (one.outcome, one.text, one.batch_id, one.mode) == ("ok", "uno", "msgbatch_01",
@@ -663,7 +665,7 @@ def test_run_batch_polls_until_it_ends_and_returns_each_result(provider, clock, 
     assert two.error == error["error"]
     assert (three.outcome, three.reason) == ("expired", "expired")
     assert (four.outcome, four.reason) == ("canceled", "service_unavailable")
-    assert run.duration_s == 90
+    assert run.duration_s == 60
     assert provider.urls[-1] == "https://api.anthropic.com/v1/messages/batches/msgbatch_01/results"
 
 
@@ -803,6 +805,309 @@ def test_fetching_results_of_a_running_batch_is_a_mistake(provider):
     with pytest.raises(ValueError):
         client.fetch_results(batch)
     assert provider.requests == []
+
+
+# --- Anfitrión fijo y clave fuera de toda salida (H-289-1, H-289-2) ------------------------------
+
+CLIENT_SOURCE = Path(client.__file__)
+ALLOWED_SETTINGS = {"EXTERNAL_ENABLED", "EXTERNAL_STAGES", "EXTERNAL_STAGE_NAMES",
+                    "EXTERNAL_BATCH_POLL_SECONDS", "EXTERNAL_BATCH_MAX_WAIT_SECONDS"}
+FORBIDDEN_PARAMETERS = {"url", "host", "base_url"}
+
+
+def parents_of(tree):
+    return {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
+
+
+def test_no_environment_variable_or_setting_changes_where_a_request_goes(
+        provider, clock, settings, monkeypatch):
+    """REQ-122, P4 (ADR-0066, H-289-1): con variables de entorno y nombres de `settings`
+    plausibles puestos (`EXTERNAL_API_HOST`, `ANTHROPIC_BASE_URL`...), cada operación (mensaje,
+    crear, consultar, bajar resultados y cancelar) sale a `https://api.anthropic.com/...`."""
+    for name in ("EXTERNAL_API_HOST", "EXTERNAL_HOST", "EXTERNAL_BASE_URL", "EXTERNAL_URL",
+                 "ANTHROPIC_BASE_URL", "ANTHROPIC_API_URL", "ANTHROPIC_API_HOST",
+                 "ANTHROPIC_HOST", "API_HOST", "BASE_URL", "HTTPS_PROXY", "https_proxy"):
+        monkeypatch.setenv(name, "https://evil.example.test:8443/otro")
+    for name in ("EXTERNAL_HOST", "EXTERNAL_URL", "EXTERNAL_BASE_URL", "EXTERNAL_API_HOST",
+                 "ANTHROPIC_BASE_URL"):
+        setattr(settings, name, "https://evil.example.test:8443/otro")
+    batch_id = "msgbatch_01"
+    provider.route("POST", "/v1/messages", message_body())
+    provider.route("POST", "/v1/messages/batches", batch_created())
+    provider.route("GET", f"/v1/messages/batches/{batch_id}", batch_created(status="ended"))
+    provider.route("POST", f"/v1/messages/batches/{batch_id}/cancel",
+                   batch_created(status="canceling"))
+    provider.route("GET", f"/v1/messages/batches/{batch_id}/results",
+                   results_lines(("ext-0001", {"type": "expired"})))
+
+    client.send_message(external_payload())
+    batch = client.create_batch(batch_payloads(1))
+    ended = client.retrieve_batch(batch)
+    client.fetch_results(ended)
+    client.cancel_batch(batch)
+
+    assert provider.urls == [
+        "https://api.anthropic.com/v1/messages",
+        "https://api.anthropic.com/v1/messages/batches",
+        f"https://api.anthropic.com/v1/messages/batches/{batch_id}",
+        f"https://api.anthropic.com/v1/messages/batches/{batch_id}/results",
+        f"https://api.anthropic.com/v1/messages/batches/{batch_id}/cancel",
+    ]
+    assert len(provider.requests) == 5
+
+
+def test_the_client_reads_only_the_key_from_the_environment_and_a_closed_list_of_settings():
+    """REQ-122, P4 (H-289-1): revisión del código de `client.py` con `ast`. El único acceso al
+    entorno es `KEY_ENV`; de `settings` solo se leen cinco nombres `EXTERNAL_*` (nada que
+    cambie el destino); ninguna función tiene un parámetro `url`, `host` ni `base_url`."""
+    tree = ast.parse(CLIENT_SOURCE.read_text(encoding="utf-8"))
+    parents = parents_of(tree)
+
+    # Entorno: todo uso de `os.environ`/`os.getenv` lleva `KEY_ENV` como clave.
+    environment_uses = [node for node in ast.walk(tree)
+                        if isinstance(node, ast.Attribute) and node.attr in ("environ", "getenv")]
+    assert environment_uses, "el detector no ve la lectura de la clave"
+    for node in environment_uses:
+        outer = parents[node]
+        while isinstance(outer, ast.Attribute):  # os.environ.get
+            outer = parents[outer]
+        if isinstance(outer, ast.Call):
+            first = outer.args[0] if outer.args else None
+        elif isinstance(outer, ast.Subscript):
+            first = outer.slice
+        else:
+            first = None
+        assert isinstance(first, ast.Name) and first.id == "KEY_ENV", ast.dump(outer)[:120]
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module in ("os", "os.path"):
+            assert all(alias.name not in ("environ", "getenv") for alias in node.names)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) \
+                and node.func.id in ("getattr", "setattr", "vars", "eval", "exec", "__import__"):
+            assert not any(isinstance(arg, ast.Name) and arg.id == "settings"
+                           for arg in node.args), "getattr(settings, ...) esconde el nombre"
+
+    # Settings: lista cerrada.
+    read = {node.attr for node in ast.walk(tree)
+            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name)
+            and node.value.id == "settings"}
+    assert read and read <= ALLOWED_SETTINGS, sorted(read - ALLOWED_SETTINGS)
+
+    # Parámetros de funciones.
+    parameters = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            args = node.args
+            names = [a.arg for a in args.posonlyargs + args.args + args.kwonlyargs]
+            names += [a.arg for a in (args.vararg, args.kwarg) if a]
+            parameters |= set(names) & FORBIDDEN_PARAMETERS
+    assert parameters == set()
+
+
+def test_the_ast_review_catches_what_it_is_meant_to_catch():
+    """REQ-122 (H-289-1): las mismas comprobaciones sobre fuentes alteradas de prueba
+    detectan una URL leída del entorno y un parámetro `base_url`."""
+    env_read = ast.parse('import os\nHOST = os.environ.get("ANTHROPIC_BASE_URL", "x")')
+    node = next(n for n in ast.walk(env_read)
+                if isinstance(n, ast.Attribute) and n.attr == "environ")
+    call = parents_of(env_read)[parents_of(env_read)[node]]
+    assert not (isinstance(call.args[0], ast.Name) and call.args[0].id == "KEY_ENV")
+    param = ast.parse("def _call_once(key, method, path, base_url=None): pass")
+    assert any(a.arg in FORBIDDEN_PARAMETERS for a in ast.walk(param)
+               if isinstance(a, ast.arg))
+
+
+def test_the_key_never_reaches_any_output_or_log(provider, clock, settings, capsys, caplog):
+    """REQ-122, P4 (H-289-2): sobre un mensaje, un 401 y un lote completo, la clave no aparece en
+    lo que se imprime (`capsys`), en lo que se registra (`caplog`), ni en la representación de
+    los resultados, del lote, de la corrida y de los errores; en el servidor solo viajó en la
+    cabecera `x-api-key`."""
+    caplog.set_level(logging.DEBUG)
+    seen = []
+    provider.route("POST", "/v1/messages", message_body())
+    result = client.send_message(external_payload())
+    seen += [repr(result), repr(result.payload), str(result.request_body)]
+
+    provider.routes.clear()
+    provider.route("POST", "/v1/messages", {"type": "error", "error": {
+        "type": "authentication_error", "message": "invalid x-api-key"}}, status=401)
+    with pytest.raises(client.ExternalUnavailableError) as raised:
+        client.send_message(external_payload())
+    seen += [repr(raised.value), str(raised.value), repr(raised.value.detail),
+             repr(raised.value.__cause__)]
+
+    provider.routes.clear()
+    provider.route("POST", "/v1/messages/batches", batch_created())
+    provider.route("GET", "/v1/messages/batches/msgbatch_01", batch_created(status="ended"))
+    provider.route("GET", "/v1/messages/batches/msgbatch_01/results",
+                   results_lines(("ext-0001", {"type": "expired"})))
+    run = client.run_batch(batch_payloads(1))
+    seen += [repr(run), repr(run.batch), str(run.batch.request_body)]
+
+    captured = capsys.readouterr()
+    seen += [captured.out, captured.err, caplog.text]
+    assert all(KEY not in text for text in seen)
+    assert captured.out == "" and captured.err == "" and caplog.records == []
+    for request in provider.requests:
+        assert KEY.encode() not in request["body"] and KEY not in request["path"]
+        assert [name for name, value in request["headers"].items() if KEY in value] \
+            == ["x-api-key"]
+
+
+def external_package_trees():
+    return {path.name: ast.parse(path.read_text(encoding="utf-8"))
+            for path in sorted((EVALUON / "ai" / "external").glob("*.py"))}
+
+
+def test_the_external_package_neither_prints_nor_logs():
+    """REQ-122, P4 (H-289-2): revisión con `ast` de todo `evaluon/ai/external/`: no llama a
+    `print`, no importa `logging`, `warnings` ni `pprint` y no usa `sys.stdout` ni
+    `sys.stderr`. Lo que debe quedar registrado va al hecho de auditoría (ADR-0068), que
+    arma T-290 sin la clave."""
+    trees = external_package_trees()
+    assert {"client.py", "payload.py"} <= set(trees)
+    for name, tree in trees.items():
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                assert node.func.id != "print", name
+            if isinstance(node, ast.Import):
+                assert not {a.name.split(".")[0] for a in node.names} \
+                    & {"logging", "warnings", "pprint", "traceback"}, name
+            if isinstance(node, ast.ImportFrom):
+                assert (node.module or "").split(".")[0] not in {
+                    "logging", "warnings", "pprint", "traceback"}, name
+            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+                assert not (node.value.id == "sys" and node.attr in ("stdout", "stderr")), name
+
+
+# --- Endurecimientos (O-289-1, O-289-2, O-289-3) -----------------------------------------------
+
+
+def test_a_key_repeated_by_the_provider_is_replaced_in_every_error_text(provider):
+    """REQ-122, P4 (O-289-1): si el proveedor repite la clave en un error (mensaje o cuerpo que
+    no es JSON), el texto del error y su `detail` la llevan reemplazada por `***`."""
+    echo = {"type": "error", "error": {"type": "authentication_error",
+                                       "message": f"invalid x-api-key: {KEY}"}}
+    provider.route("POST", "/v1/messages", echo, status=401)
+    with pytest.raises(client.ExternalUnavailableError) as raised:
+        client.send_message(external_payload())
+    assert KEY not in str(raised.value) and KEY not in repr(raised.value.detail)
+    assert "invalid x-api-key: ***" in str(raised.value)
+    assert raised.value.detail["error"]["message"] == "invalid x-api-key: ***"
+
+    provider.routes.clear()
+    provider.route("POST", "/v1/messages", f"clave {KEY} rechazada".encode(), status=403)
+    with pytest.raises(client.ExternalUnavailableError) as raised:
+        client.send_message(external_payload())
+    assert KEY not in str(raised.value) and KEY not in repr(raised.value.detail)
+    assert "clave *** rechazada" in raised.value.detail
+
+    provider.routes.clear()
+    provider.route("POST", "/v1/messages", {"type": "error", "error": {
+        "type": "invalid_request_error", "message": f"prompt is too long ({KEY})"}}, status=400)
+    with pytest.raises(client.ExternalInputTooLongError) as raised:
+        client.send_message(external_payload())
+    assert KEY not in str(raised.value) and KEY not in repr(raised.value.detail)
+
+
+def test_a_key_repeated_in_a_batch_result_error_is_replaced(provider, clock):
+    """REQ-122, P4 (O-289-1): el error de un pedido de un lote (`ExternalResult.error` y
+    `response_body`) tampoco lleva la clave."""
+    provider.route("POST", "/v1/messages/batches", batch_created(status="ended"))
+    provider.route("GET", "/v1/messages/batches/msgbatch_01/results", results_lines(
+        ("ext-0001", {"type": "errored", "error": {"type": "error", "error": {
+            "type": "api_error", "message": f"falla con {KEY}"}}})))
+    result = client.run_batch(batch_payloads(1)).results["ext-0001"]
+    assert KEY not in repr(result.error) and KEY not in repr(result.response_body)
+    assert result.error["message"] == "falla con ***"
+    with pytest.raises(client.ExternalUnavailableError) as raised:
+        result.raise_for_outcome()
+    assert KEY not in str(raised.value) and KEY not in repr(raised.value.detail)
+
+
+def test_a_failed_poll_cancels_the_batch_and_keeps_its_id(provider, clock):
+    """REQ-122 (O-289-2): si una consulta de estado falla (tras los reintentos) después de que el
+    lote existe, `run_batch` pide cancelarlo y lanza el error con el `batch_id` y `canceled`; el
+    lote no queda corriendo sin que nadie lo espere."""
+    provider.route("POST", "/v1/messages/batches", batch_created())
+    provider.route("GET", "/v1/messages/batches/msgbatch_01", {
+        "type": "error", "error": {"type": "api_error", "message": "falla"}}, status=500)
+    provider.route("POST", "/v1/messages/batches/msgbatch_01/cancel",
+                   batch_created(status="canceling"))
+    created = []
+    with pytest.raises(client.ExternalUnavailableError) as raised:
+        client.run_batch(batch_payloads(1), on_created=created.append)
+    assert raised.value.batch_id == "msgbatch_01" and raised.value.canceled is True
+    assert [b.id for b in created] == ["msgbatch_01"]
+    assert len(provider.sent("GET", "/v1/messages/batches/msgbatch_01")) == client.MAX_RETRIES + 1
+    assert len(provider.sent("POST", "/v1/messages/batches/msgbatch_01/cancel")) == 1
+
+
+def test_a_failed_results_download_cancels_the_batch_even_if_the_cancellation_fails(
+        provider, clock):
+    """REQ-122 (O-289-2): lo mismo si falla la bajada de resultados; si además el proveedor
+    rechaza la cancelación (el lote ya terminó), el error original sale igual, con `batch_id` y
+    `canceled` falso."""
+    provider.route("POST", "/v1/messages/batches", batch_created(status="ended"))
+    provider.route("GET", "/v1/messages/batches/msgbatch_01/results", {
+        "type": "error", "error": {"type": "api_error", "message": "falla"}}, status=500)
+    provider.route("POST", "/v1/messages/batches/msgbatch_01/cancel", {
+        "type": "error", "error": {"type": "invalid_request_error", "message": "ya terminó"}},
+        status=400)
+    with pytest.raises(client.ExternalUnavailableError) as raised:
+        client.run_batch(batch_payloads(1))
+    assert raised.value.status == 500
+    assert raised.value.batch_id == "msgbatch_01" and raised.value.canceled is False
+    assert len(provider.sent("POST", "/v1/messages/batches/msgbatch_01/cancel")) == 1
+
+
+def test_a_call_level_timeout_while_polling_also_cancels_the_batch(provider, clock, monkeypatch):
+    """REQ-122 (O-289-2): el tiempo agotado de una consulta (no el tope de espera del lote)
+    también cancela y deja el `batch_id` en el error."""
+    provider.route("POST", "/v1/messages/batches", batch_created())
+    provider.route("POST", "/v1/messages/batches/msgbatch_01/cancel",
+                   batch_created(status="canceling"))
+    real = client._urlopen
+
+    def slow_status(request, timeout):
+        if request.get_method() == "GET":
+            raise socket.timeout("timed out")
+        return real(request, timeout)
+
+    monkeypatch.setattr(client, "_urlopen", slow_status)
+    with pytest.raises(client.ExternalTimeoutError) as raised:
+        client.run_batch(batch_payloads(1))
+    assert raised.value.batch_id == "msgbatch_01" and raised.value.canceled is True
+
+
+def test_the_wait_timeout_cancels_only_once(provider, clock, settings):
+    """REQ-122 (O-289-2): el tope de espera del lote pide la cancelación una sola vez, aunque
+    el error pase por el manejo general de `run_batch`."""
+    settings.EXTERNAL_BATCH_MAX_WAIT_SECONDS = 30
+    provider.route("POST", "/v1/messages/batches", batch_created())
+    provider.route("GET", "/v1/messages/batches/msgbatch_01", batch_created())
+    provider.route("POST", "/v1/messages/batches/msgbatch_01/cancel",
+                   batch_created(status="canceling"))
+    with pytest.raises(client.ExternalTimeoutError):
+        client.run_batch(batch_payloads(1))
+    assert len(provider.sent("POST", "/v1/messages/batches/msgbatch_01/cancel")) == 1
+
+
+@pytest.mark.parametrize("header,expected", [
+    ("86400", client.MAX_RETRY_AFTER_SECONDS), ("2.5", 2.5), ("60", 60.0),
+    ("nan", None), ("inf", None), ("-inf", None), ("-5", None), ("0", None),
+    ("mañana", None), ("Wed, 21 Oct 2026 07:28:00 GMT", None),
+])
+def test_retry_after_is_bounded_and_ignores_what_is_not_a_positive_number(
+        provider, header, expected):
+    """REQ-122 (O-289-3): `Retry-After` se acota a `MAX_RETRY_AFTER_SECONDS`; `nan`, `inf`,
+    negativo, cero o un texto cuentan como ausente (se espera el tiempo creciente de siempre)
+    y no rompen el reintento."""
+    provider.route("POST", "/v1/messages", {"type": "error", "error": {
+        "type": "rate_limit_error", "message": "mucho"}}, status=429,
+        headers={"retry-after": header})
+    provider.route("POST", "/v1/messages", message_body())
+    assert client.send_message(external_payload()).ok
+    assert provider.sleeps == [expected if expected is not None else client.RETRY_SECONDS]
 
 
 # --- El doble ---------------------------------------------------------------------------------
