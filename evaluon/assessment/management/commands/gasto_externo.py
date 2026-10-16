@@ -14,9 +14,9 @@ Opciones:
 - `--por-etapa`: suma además por etapa (`matriz_extraccion`, `verificador`...).
 - `--verificar-filtro`: cuenta los pedidos registrados que contienen texto de una hoja de
   compliance: cualquier secuencia de 8 palabras seguidas (sin tildes ni mayúsculas) de un
-  documento `compliance` cargado en la base, en el pedido armado entero (sistema y mensajes en
-  orden) o en cualquier otro texto del hecho. El criterio de REQ-121 es 0; si encuentra alguno,
-  termina con error. Usa una implementación **propia**, que no importa ni llama a la puerta
+  documento `compliance` cargado en la base (o con la sugerencia `compliance` en su lectura,
+  H-290-3), en el pedido armado entero (sistema y mensajes en orden) o en cualquier otro texto
+  del hecho. El criterio de REQ-121 es 0; si encuentra alguno, termina con error. Usa una implementación **propia**, que no importa ni llama a la puerta
   (`evaluon/ai/external/guard.py`): es el control independiente.
 
 Imprime el gasto real (la suma de `costo_usd`, el que se calculó con el uso informado por el
@@ -29,6 +29,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand, CommandError
+from django.db.models import Q
 from django.utils import timezone
 
 from evaluon.accounts import permissions
@@ -76,8 +77,10 @@ def _strings(value):
 def _sheet_windows():
     """Las secuencias de todas las hojas de compliance de la base (todas sus lecturas y
     pasajes), y cuántas hojas hay y cuántas sin lectura."""
-    sheets = list(Document.objects.filter(kind=DocumentKind.COMPLIANCE).values_list(
-        "pk", flat=True))
+    # Las hojas y los documentos con la sugerencia `compliance` en alguna lectura (H-290-3).
+    sheets = list(Document.objects.filter(
+        Q(kind=DocumentKind.COMPLIANCE) | Q(readings__report__suggestion__kind="compliance"))
+        .distinct().values_list("pk", flat=True))
     found = set()
     for text in Reading.objects.filter(document_id__in=sheets).values_list(
             "canonical_text", flat=True):

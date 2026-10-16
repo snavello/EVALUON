@@ -23,11 +23,18 @@ Reglas (ADR-0067), todas en `build`; si alguna falla, el pedido entero no sale:
    tipo, también uno que se agregue mañana (y el `dictamen`), queda bloqueado. `compliance` nunca.
    Un documento tiene que ser del procedimiento del pedido y, si es de una oferta, de la oferta del
    pedido.
+   **Ampliación (H-290-3, decisión del Coordinador del 2026-10-16, P4 y falla cerrada; el ADR-0067
+   lo enmienda el Coordinador):** un documento de la oferta con la sugerencia `compliance` en el
+   informe de alguna de sus lecturas (`report["suggestion"]["kind"] == "compliance"`, la que pone
+   `offers/suggestions.py` a un informe de consultas, T-259) se trata como reservado aunque nadie
+   la haya confirmado y su tipo sea otro: no sale (motivo `documento_compliance_sugerido`), una
+   celda que lo tenga en su grupo o su cita no sale, y sus párrafos entran en la comparación por
+   huellas igual que los de una hoja.
 2. **Exclusiones por contenido**: las respuestas de la Comisión, el informe técnico del área (como
    pieza o como documento de ese tipo), y en un pedido sobre una oferta, los requisitos que
    dependen de consultas externas (por el catálogo de `assessment/externals.py`, por la marca del
    modelo que trae la celda o por una marca ya guardada en un resultado del par), y toda celda cuyo
-   grupo de lectura o cuya cita salga de un documento `compliance`.
+   grupo de lectura o cuya cita salga de un documento `compliance` (o con la sugerencia).
 3. **Huellas**: el pedido armado entero (sistema, salto de línea y mensajes en orden: H-290-1) se
    compara con los párrafos de todos los
    documentos `compliance` del procedimiento, en secuencias de 8 palabras normalizadas (sin tildes
@@ -96,6 +103,7 @@ R_MODEL = "requisito_externo_modelo"
 R_CELL = "celda_con_compliance"
 R_FINGERPRINT = "huella_compliance"
 R_UNREAD = "hoja_sin_lectura"
+R_SUGGESTED = "documento_compliance_sugerido"
 
 EXCLUSIONS = (R_COMMISSION, R_TECHNICAL, R_CATALOG, R_MODEL, R_CELL)
 
@@ -230,11 +238,21 @@ def shingles(text, size=FINGERPRINT_WORDS):
     return {tuple(found[i:i + size]) for i in range(len(found) - size + 1)}
 
 
-def _compliance_fingerprints(procedure_id):
-    """Las secuencias de los documentos `compliance` del procedimiento (todas sus lecturas y
-    pasajes), por documento, y los documentos que no tienen lectura."""
-    documents = list(OfferDocument.objects.filter(
+def suggested_compliance(procedure_id):
+    """Los documentos de las ofertas del procedimiento con la sugerencia `compliance` en el informe
+    de alguna de sus lecturas (H-290-3): reservados aunque nadie la haya confirmado."""
+    return set(OfferReading.objects.filter(
+        document__offer__procedure_id=procedure_id,
+        report__suggestion__kind=COMPLIANCE).values_list("document_id", flat=True))
+
+
+def _compliance_fingerprints(procedure_id, suggested):
+    """Las secuencias de los documentos `compliance` del procedimiento y de los que tienen la
+    sugerencia `compliance` (todas sus lecturas y pasajes), por documento, y las hojas que no
+    tienen lectura."""
+    sheets = set(OfferDocument.objects.filter(
         kind=COMPLIANCE, offer__procedure_id=procedure_id).values_list("pk", flat=True))
+    documents = sorted(sheets | set(suggested))
     by_document = {pk: set() for pk in documents}
     for document_id, text in OfferReading.objects.filter(document_id__in=documents) \
             .values_list("document_id", "canonical_text"):
@@ -283,6 +301,7 @@ class _Check:
         # Las exclusiones por pieza se comprueban siempre; las del requisito y la celda, cuando
         # el pedido es sobre una oferta o una celda.
         self.exclusions = {R_COMMISSION, R_TECHNICAL}
+        self.suggested = suggested_compliance(procedure_id)
 
     def fail(self, reason, **data):
         entry = {"motivo": reason, **data}
@@ -339,6 +358,8 @@ class _Check:
             self.fail(R_OTHER_PROCEDURE, origen=OFFER, documento=row["pk"])
         if self.offer_id is None or row["offer_id"] != self.offer_id:
             self.fail(R_OTHER_OFFER, origen=OFFER, documento=row["pk"])
+        if row["pk"] in self.suggested and kind != COMPLIANCE:
+            self.fail(R_SUGGESTED, origen=OFFER, documento=row["pk"], tipo=kind)
         if kind not in OFFER_KINDS_ALLOWED:
             if kind == COMPLIANCE:
                 reason = R_COMPLIANCE
@@ -373,7 +394,7 @@ class _Check:
             row = rows.get(document_id)
             if row is None:
                 self.fail(R_MISSING, origen="celda", documento=document_id)
-            elif row["kind"] == COMPLIANCE:
+            elif row["kind"] == COMPLIANCE or document_id in self.suggested:
                 self.fail(R_CELL, documento=document_id)
             elif row["offer_id"] != self.offer_id:
                 self.fail(R_OTHER_OFFER, origen="celda", documento=document_id)
@@ -387,7 +408,7 @@ class _Check:
             self.fail(R_REQUIREMENT_OTHER, requisito=requirement_id)
 
     def fingerprints(self, text):
-        by_document, unread = _compliance_fingerprints(self.procedure_id)
+        by_document, unread = _compliance_fingerprints(self.procedure_id, self.suggested)
         sent = shingles(text)
         matched = {}
         for document_id, prints in by_document.items():
@@ -401,7 +422,7 @@ class _Check:
         return {"palabras": FINGERPRINT_WORDS, "documentos_compliance": sorted(by_document),
                 "secuencias_hoja": sum(len(p) for p in by_document.values()),
                 "secuencias_pedido": len(sent), "coincidencias": sum(matched.values()),
-                "sin_lectura": unread}
+                "sin_lectura": unread, "documentos_sugeridos": sorted(self.suggested)}
 
     def record(self, fingerprints):
         return {"version": VERSION, "documentos": list(self.documents.values()),

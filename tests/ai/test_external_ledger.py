@@ -564,3 +564,21 @@ def test_verifying_the_filter_ignores_invisible_characters(case, logged_in, mark
         call_command("gasto_externo", "--usuario", logged_in.username, "--verificar-filtro",
                      stdout=out)
     assert "Pedidos con texto de una hoja de compliance: 2" in out.getvalue()
+
+
+def test_verifying_the_filter_sees_text_of_a_suggested_document(case, logged_in, operator_user):
+    """REQ-121 (H-290-3): el escaneo del comando compara también con los documentos que tienen la
+    sugerencia `compliance` en su lectura."""
+    from tests.ai.test_external_guard import CONSULTATION, suggested_document
+
+    suggested_document(case.offer, operator_user)
+    audit.record(EventType.EXTERNAL_REQUEST, outcome=Outcome.OK, channel=Channel.COMMAND,
+                 detail={"procedimiento": case.procedure.pk, "etapa": "verificador",
+                         "resultado": "ok", "costo_usd": 0.001, "texto_enviado": {
+                             "sistema": "Instrucción.",
+                             "mensajes": [{"rol": "user", "texto": CONSULTATION}]}})
+    out = StringIO()
+    with pytest.raises(CommandError, match="REQ-121"):
+        call_command("gasto_externo", "--usuario", logged_in.username, "--verificar-filtro",
+                     stdout=out)
+    assert "contra 2 hojas de compliance" in out.getvalue()

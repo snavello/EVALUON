@@ -600,3 +600,61 @@ def test_compatibility_forms_are_normalized(case, fake_external):
     wide = "".join(chr(ord(c) + 0xFEE0) if "!" <= c <= "~" else c for c in case.sheet[3])
     decision = ask(case, [guard.instruction(wide)])
     assert decision.blocked and decision.reasons == ("huella_compliance",)
+
+
+CONSULTATION = ("Constancia de inscripción en el Registro de Proveedores del oferente inventado. "
+                "Estado: Inscripto. A la fecha de emisión el oferente no registra deuda exigible "
+                "ni sanciones ante el organismo imaginario. QUIMBRELAX consulta simulada número "
+                "cero cero ocho, emitida por una oficina que no existe.")
+
+
+def suggested_document(offer, user, text=CONSULTATION, kind=""):
+    """Un documento de la oferta cuya lectura trae la sugerencia `compliance` pendiente (como la
+    deja `offers/suggestions.py` a un informe de consultas, T-259), sin confirmar."""
+    import hashlib
+
+    document = om.Document.objects.create(
+        offer=offer, title="consulta.pdf", file_name="consulta.pdf", file_format="pdf",
+        file_size=1, file_sha256=hashlib.sha256(text.encode()).hexdigest(), loaded_by=user,
+        kind=kind)
+    om.DocumentFile.objects.create(document=document, content=b"%PDF-sintetico")
+    om.Reading.objects.create(
+        document=document, sequence=1, pages={"pages": []}, canonical_text=text,
+        canonical_sha256=hashlib.sha256(text.encode()).hexdigest(), tool_versions={},
+        report={"pages": 1, "unread": [], "low_confidence": [], "without_text_unlisted": [],
+                "suggestion": {"kind": "compliance",
+                               "marks": ["Registro de Proveedores", "deuda con el Estado"]}})
+    return document
+
+
+@pytest.mark.parametrize("kind", ["", "otro", "economica"])
+def test_a_document_with_a_pending_compliance_suggestion_does_not_leave(
+        case, fake_external, operator_user, kind):
+    """REQ-121 (H-290-3, intento F26; decisión del Coordinador, P4): un informe de consultas con la
+    sugerencia `compliance` pendiente se trata como reservado aunque su tipo esté permitido: no
+    sale, y nada llega al cliente."""
+    fake_external.enable()
+    document = suggested_document(case.offer, operator_user, kind=kind)
+    decision = ask(case, [guard.offer_document(document, CONSULTATION)])
+    assert decision.blocked
+    assert decision.reason == "documento_compliance_sugerido"
+    assert decision.filter["huellas"]["documentos_sugeridos"] == [document.pk]
+    assert fake_external.batches == [] and fake_external.messages == []
+
+
+def test_the_paragraphs_of_a_suggested_document_enter_the_fingerprints(
+        case, fake_external, operator_user):
+    """REQ-121 (H-290-3): ocho palabras del informe con la sugerencia, copiadas en un documento
+    público, bloquean por la huella; y una celda que lo cita no sale."""
+    fake_external.enable()
+    document = suggested_document(case.offer, operator_user)
+    eight = " ".join(CONSULTATION.split()[18:26])
+    assert "QUIMBRELAX" not in eight
+    public = case.documents["economica.pdf"]
+    decision = ask(case, [guard.offer_document(public, f"{ECONOMIC} {eight}")])
+    assert decision.blocked and decision.reasons == ("huella_compliance",)
+    requirement = public_requirement(case)
+    decision = ask(case, [guard.offer_document(public, ECONOMIC)], custom_id="pedido-2",
+                   cell=guard.Cell(requirement, group_documents=[public],
+                                   cited_documents=[document]))
+    assert decision.blocked and decision.reasons == ("celda_con_compliance",)
