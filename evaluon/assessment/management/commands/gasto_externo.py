@@ -50,7 +50,7 @@ def _tokens(text):
     descarta los caracteres invisibles de formato (`Cf`) y el guion blando, y normaliza con NFKC
     (H-290-2): las letras de ancho completo pasan a ser letras comunes y no se pierden."""
     visible = "".join(char for char in text
-                      if char != "­" and unicodedata.category(char) != "Cf")
+                      if char != "\u00ad" and unicodedata.category(char) != "Cf")
     composed = unicodedata.normalize("NFKC", visible)
     ascii_text = unicodedata.normalize("NFD", composed).encode("ascii", "ignore").decode("ascii")
     return [token for token in _SEPARATOR.split(ascii_text.lower()) if token]

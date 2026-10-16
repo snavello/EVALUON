@@ -580,7 +580,7 @@ def split_each_word(paragraph, mark):
     return " ".join(mark.join([w[:len(w) // 2], w[len(w) // 2:]]) for w in paragraph.split())
 
 
-@pytest.mark.parametrize("mark", ["​", "­", "⁠", "﻿"])
+@pytest.mark.parametrize("mark", ["\u200b", "\u00ad", "\u2060", "\ufeff"])
 def test_invisible_characters_do_not_split_the_fingerprints(case, fake_external, mark):
     """REQ-121 (H-290-2, intentos F14 y F14b): un espacio de ancho cero, un guion blando, una
     unión de palabras o una marca de orden de bytes en medio de cada palabra no parten las
@@ -658,3 +658,62 @@ def test_the_paragraphs_of_a_suggested_document_enter_the_fingerprints(
                    cell=guard.Cell(requirement, group_documents=[public],
                                    cited_documents=[document]))
     assert decision.blocked and decision.reasons == ("celda_con_compliance",)
+
+
+# --- Pruebas que faltaban (H-290-4) ------------------------------------------------------------
+
+
+@pytest.fixture
+def other_procedure(operator_user):
+    return tm.Procedure.objects.create(
+        number="OTRO-PROCEDIMIENTO-SINTETICO", procedure_type="Contratación sintética",
+        subject="Otro procedimiento inventado", authorization_date="2026-01-15",
+        created_by=operator_user)
+
+
+def test_an_offer_document_of_another_procedure_does_not_leave(case, operator_user,
+                                                               other_procedure):
+    """REQ-121 (H-290-4, alteración G12): un documento de una oferta de otro procedimiento no
+    sale en un pedido de este."""
+    other = make_offer(other_procedure, operator_user, "Oferente de otro procedimiento",
+                       {"otra.pdf": [ECONOMIC]}, kinds={"otra.pdf": "economica"})
+    decision = ask(case, [guard.offer_document(other.documents.get(), ECONOMIC)])
+    assert decision.blocked and "documento_de_otro_procedimiento" in decision.reasons
+
+
+def test_a_tender_document_of_another_procedure_does_not_leave(case, operator_user,
+                                                               other_procedure):
+    """REQ-121 (H-290-4, alteración G12b): un documento del pliego de otro procedimiento no sale
+    en un pedido de este."""
+    tender = tm.Document.objects.create(
+        procedure=other_procedure, kind="pliego", title="Pliego ajeno", file_name="p.pdf",
+        file_format="pdf", file_size=1, file_sha256="c" * 64, loaded_by=operator_user)
+    decision = ask(case, [guard.tender_document(tender, "Objeto del otro pliego.")],
+                   offer=False)
+    assert decision.blocked and decision.reasons == ("documento_de_otro_procedimiento",)
+
+
+def test_an_external_requirement_piece_without_a_cell_stays_local(case, fake_external):
+    """REQ-121 (H-290-4, alteración G22; P9): en un pedido sobre una oferta, un requisito externo
+    declarado como pieza de requisito, sin celda, tampoco sale."""
+    fake_external.enable()
+    requirement = catalog_requirement(case)
+    decision = ask(case, [guard.requirement(requirement, requirement_text(requirement)),
+                          guard.offer_document(case.documents["economica.pdf"], ECONOMIC)])
+    assert decision.blocked and decision.reasons == ("requisito_externo_catalogo",)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("messages", (("user", "Otro texto colado."),)), ("model", "otro-modelo"),
+    ("max_tokens", 5), ("procedure_id", 99), ("system", "Otro sistema."),
+    ("custom_id", "otro"), ("effort", "high"), ("thinking", "off"),
+    ("output_schema", "{}"), ("cache_system_ttl", "5m"), ("offer_id", 7),
+    ("requirement_id", 8), ("instruction_version", "v9"), ("run_id", 3)])
+def test_the_seal_covers_every_field_of_the_payload(fake_external, field, value):
+    """REQ-121 (H-290-4, alteraciones P6 y P9; O-289-4): el sello cubre cada campo del pedido; uno
+    cualquiera cambiado por la fuerza no pasa el cliente."""
+    fake_external.enable()
+    payload = external_payload()
+    object.__setattr__(payload, field, value)
+    with pytest.raises(TypeError, match="puerta"):
+        client._check_payload(payload)

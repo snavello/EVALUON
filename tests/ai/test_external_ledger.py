@@ -545,7 +545,7 @@ def test_verifying_the_filter_sees_a_paragraph_split_across_messages(case, logge
     assert "Pedidos con texto de una hoja de compliance: 1" in out.getvalue()
 
 
-@pytest.mark.parametrize("mark", ["​", "­"])
+@pytest.mark.parametrize("mark", ["\u200b", "\u00ad"])
 def test_verifying_the_filter_ignores_invisible_characters(case, logged_in, mark):
     """REQ-121 (H-290-2): el escaneo del comando también descarta los caracteres invisibles y
     normaliza con NFKC (letras de ancho completo) antes de cortar las palabras."""
@@ -582,3 +582,42 @@ def test_verifying_the_filter_sees_text_of_a_suggested_document(case, logged_in,
         call_command("gasto_externo", "--usuario", logged_in.username, "--verificar-filtro",
                      stdout=out)
     assert "contra 2 hojas de compliance" in out.getvalue()
+
+
+# --- Pruebas que faltaban (H-290-4) ------------------------------------------------------------
+
+
+def test_the_cost_is_rounded_up(settings):
+    """REQ-122 (H-290-4, alteración M12): el costo se guarda con 8 decimales redondeando siempre
+    hacia arriba (nunca se subestima lo gastado)."""
+    from evaluon.ai.external.client import ExternalUsage
+
+    settings.EXTERNAL_PRICES = {**settings.EXTERNAL_PRICES, "modelos": {
+        "claude-sonnet-5-5": {"entrada": Decimal("0.003"), "salida": Decimal("0.003")}}}
+    usage = ExternalUsage(input_tokens=1)
+    assert ledger.cost_of("claude-sonnet-5-5", usage, "directo") == Decimal("0.00000001")
+
+
+def test_the_stage_brake_counts_only_its_procedure(case, fake_external):
+    """REQ-122 (H-290-4, alteración M24): lo que gastó la etapa en otro procedimiento, en la misma
+    medición, no frena la etapa de este."""
+    fake_external.enable()
+    past_spend("0.60", procedure_id=case.procedure.pk + 1000, measurement=MEASUREMENT)
+    sent = ledger.send([economic(case)], measurement=MEASUREMENT)
+    assert sent.answers["pedido-1"].ok and not sent.stage_stopped
+
+
+def test_the_cap_adds_the_estimate_of_every_request_of_the_batch(case, fake_external):
+    """REQ-122 (H-290-4, alteración M25): el tope suma el estimado de todos los pedidos del lote:
+    si el primero solo entra pero los dos juntos no, el lote no sale."""
+    fake_external.enable()
+    first, second = economic(case), technical(case)
+    one = ledger.estimate(first.payload, "lotes")
+    two = ledger.estimate(second.payload, "lotes")
+    past = Decimal("2") - one - (two / 2).quantize(Decimal("0.00000001"))
+    past_spend(past, procedure_id=case.procedure.pk)
+    sent = ledger.send([first, second], measurement=MEASUREMENT)
+    assert {a.reason for a in sent.answers.values()} == {"tope"}
+    assert fake_external.batches == []
+    alone = ledger.send([economic(case, custom_id="solo")], measurement=MEASUREMENT)
+    assert alone.answers["solo"].ok

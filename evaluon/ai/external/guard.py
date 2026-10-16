@@ -226,7 +226,7 @@ def words(text):
     palabras, marca de orden de bytes) y el guion blando (U+00AD), y se normaliza con NFKC
     (letras de ancho completo, ligaduras): ninguno de ellos parte una palabra."""
     visible = "".join(ch for ch in (text or "")
-                      if ch != "­" and unicodedata.category(ch) != "Cf")
+                      if ch != "\u00ad" and unicodedata.category(ch) != "Cf")
     plain = unicodedata.normalize("NFKD", unicodedata.normalize("NFKC", visible))
     plain = "".join(ch for ch in plain if not unicodedata.combining(ch)).lower()
     return _WORD.findall(plain)
