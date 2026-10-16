@@ -592,6 +592,32 @@ DERIVED = {
         'Derivada de D-26 (spec 014, «Lo que presentó cada oferta») y de la spec 008, REQ-039 '
         '(los fragmentos que responden al requisito); origen: T-146 de la 008 '
         '(`reescritura-v1`) y T-248 de la 015 (`reescritura-v2`); H-281-1')),
+    "D-55": ("pendiente", (
+        'Derivada de D-51 (ADR-0041, decisión 3: transcribir el texto visible); origen: T-160 '
+        'de la 004 (`vision-v1`: la firma que es solo un trazo) y T-177 de la 004 '
+        '(`vision-v3`, hallazgo V-1 de T-161: las líneas para escribir encima); H-282-1')),
+    "D-56": ("pendiente", (
+        'Derivada de D-53 (spec 014, REQ-077: el sistema propone el tipo del procedimiento); '
+        'origen: T-248 de la 015 (`procedimiento-datos-v2`; la v1 no la tenía); H-282-1')),
+    "D-57": ("pendiente", (
+        'Derivada de D-50 (spec 008, REQ-044 y respuesta 2 de las preguntas abiertas: si cada '
+        'renglón tiene o no oferta; sostén parcial, no fija los cuatro valores); origen: T-135 '
+        'de la 008 (`ficha-renglon-v3`: cotizado solo con precio o cantidad), T-136 de la 008 '
+        '(`ficha-renglon-v4`: «sin_precio») y T-248 de la 015 (`ficha-renglon-v5`: '
+        '«no_aparece»); H-282-1')),
+    "D-58": ("pendiente", (
+        'Derivada de D-52 (spec 013, REQ-074: el sistema solo toma lo que dice el informe); '
+        'origen: T-190 de la 013 (`informe-tecnico-v1`), conservada en `informe-tecnico-v2` '
+        '(T-248 de la 015); H-282-1')),
+    "D-59": ("pendiente", (
+        'Derivada de D-49 (spec 008, REQ-039 y REQ-040: los fragmentos que responden al '
+        'requisito, sin suponer); origen: T-135 de la 008 (`ficha-v2`: el dato concreto) y '
+        'T-248 de la 015 (`ficha-v3`: todas las citas); H-282-1')),
+    "D-60": ("pendiente", (
+        'Derivada de D-27 (spec 014, «El sistema lo propone»: el nombre del oferente con su '
+        'cita); origen: T-220 de la 014 (`oferente-nombre-v1` y las reglas del nombre: '
+        'terceros en la ronda 1, rótulo explícito en la ronda 2) y T-248 de la 015 '
+        '(`oferente-nombre-v2`); H-282-1')),
 }
 PENDING_MARK = "pendiente de confirmación del responsable"
 CONFIRMED_MARK = re.compile(r"confirmada por el responsable el (\d{4}-\d{2}-\d{2})\b[^«“]*[«“][^»”]+[»”]")
