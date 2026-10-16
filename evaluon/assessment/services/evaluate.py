@@ -815,7 +815,8 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             group_index, prompting.NO_DETERMINADO, doubt=combine.NO_CITATION,
             exigence=evaluation.exigence, supports=supports,
             explanation=evaluation.explanation, question=evaluation.question,
-            external=evaluation.external, unreadable=backed)
+            external=evaluation.external, unreadable=backed, found=True,
+            option_use=evaluation.option_use)
     explanation, question, doubt = evaluation.explanation, evaluation.question, combine.DOUBT
     note = prompting.missing_note(effective)
     if derived == prompting.NO_DETERMINADO and note and not evaluation.external:
@@ -848,14 +849,21 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
             explanation=f"{explanation} {combine.NO_CLAUSE_NOTE}".strip(),
             question=(question if question and not combine.asks_the_offeror(question)
                       else NO_CLAUSE_QUESTION),
-            external=evaluation.external, unreadable=backed)
+            external=evaluation.external, unreadable=backed, found=True,
+            option_use=evaluation.option_use)
     keep = [] if derived == prompting.NO_CONSTA else located
+    # T-285 (D-283-5): un «no consta» que ubicó un texto de la oferta o del Portal, o sobre el que el
+    # modelo concluyó, no muestra que el documento falte (`combine`, regla 5).
+    found = bool(located or portal_cited
+                 or evaluation.result in (prompting.CUMPLE, prompting.NO_CUMPLE))
     return combine.GroupResult(
         group_index, derived,
         doubt=doubt if derived == prompting.NO_DETERMINADO else "",
         exigence=evaluation.exigence, citations=keep, supports=supports,
         explanation=explanation, question=question,
-        external=evaluation.external, unreadable=backed, portal=portal_record)
+        external=evaluation.external, unreadable=backed, portal=portal_record,
+        found=found, seen=list(located) if derived == prompting.NO_CONSTA else [],
+        option_use=evaluation.option_use)
 
 
 def _read_pair(ctx, pair):

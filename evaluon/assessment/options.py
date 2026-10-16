@@ -22,8 +22,10 @@ ubicada (una cita que no se ubicó, un dato, una conclusión), si el contraste n
 cotización parcial el Portal no tiene los renglones, el resultado es «no determinado» con la pregunta
 de si la opción aplica (`opcion_sin_determinar`). Con partes de la oferta sin leer la regla no dice nada (no se puede
 afirmar que no la usa). Si la oferta muestra que usa la opción, se evalúa como cualquier otra fila.
-Una matriz sin `opcion` (ya validada antes de T-258) no pasa por esta regla: la instrucción de la
-evaluación (`evaluacion-v11`) tiene la regla de respaldo.
+Una matriz sin `opcion` (ya validada antes de T-258) pasa por esta regla solo si el modelo marcó en
+todos los grupos `usa_opcion` «no» (la oración vale solo para quien usa una opción y la oferta no la
+usa; T-285, D-283-5): sin eso, la condición de una opción no usada quedaba «no se encontró el
+documento».
 """
 
 from dataclasses import replace
@@ -40,6 +42,8 @@ RULE_UNSURE = "opcion_sin_determinar"
 NAMES = {"mipyme": "MiPyME", "oferta_alternativa": "oferta alternativa",
          "descuento": "descuento", "subcontratacion": "subcontratación",
          "cotizacion_parcial": "cotización parcial"}
+# La opción sin nombre: la que el modelo marcó en `usa_opcion` en una fila sin `opcion` (T-285).
+OTHER = "otra"
 
 
 def option_of(requirement):
@@ -126,11 +130,25 @@ def _unsure(pair, ctx, name):
     return ""
 
 
+def option_name(pair):
+    """La opción de la que depende la fila: la que nombra la matriz (`opcion`) o, si la matriz no la
+    nombra (una matriz validada antes de T-258), `OTHER` cuando el modelo marcó en todos los grupos
+    que la oración vale solo para quien usa una opción y que la oferta no la usa (`usa_opcion` «no»;
+    T-285, D-283-5): así la condición de una opción no usada no queda «no se encontró el documento».
+    `""` si la fila no depende de una opción."""
+    name = option_of(pair.requirement)
+    if name:
+        return name
+    return OTHER if option_use(pair) == "no" else ""
+
+
 def rule(pair, ctx):
     """La regla de `rules.py`: devuelve el resultado nuevo del par o `None`. «No aplica» solo con la
     cita del requisito ubicada, la lectura completa y sin ninguna evidencia de que la oferta use la
-    opción (D-257-6); con evidencia sin cita, «no determinado» con la pregunta."""
-    name = option_of(pair.requirement)
+    opción (D-257-6); con evidencia sin cita, «no determinado» con la pregunta. La opción la nombra la
+    matriz o, sin ella, la marca del modelo (`option_name`); `facts.opcion_origen` dice cuál (P6)."""
+    name = option_name(pair)
+    origin = "matriz" if option_of(pair.requirement) else "modelo"
     combined = pair.combined
     if not name or combined is None or not criteria.complete(combined):
         return None
@@ -147,7 +165,8 @@ def rule(pair, ctx):
             question=(f"¿La oferta usa {_named(name)}? {why[0].upper()}{why[1:]}; si no la usa, "
                       "la condición no aplica a esta oferta."),
             explanation=(f"No se puede afirmar si la oferta usa {_named(name)}: {why}."),
-            facts={**combined.facts, "regla": RULE_UNSURE, "opcion": name})
+            facts={**combined.facts, "regla": RULE_UNSURE, "opcion": name,
+                   "opcion_origen": origin})
     titles = criteria.documents_read(ctx)
     read = ", ".join(f"«{t}»" for t in titles) if titles else "todos los documentos de la oferta"
     return replace(
@@ -156,4 +175,4 @@ def rule(pair, ctx):
         explanation=(f"No aplica: la condición vale solo para quien usa {_named(name)} y "
                      f"ni los documentos de la oferta ({read}) ni el Portal muestran que la use."),
         facts={**combined.facts, "regla": RULE, "aplica": False, "opcion": name,
-               "documentos_leidos": titles})
+               "opcion_origen": origin, "documentos_leidos": titles})

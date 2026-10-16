@@ -157,7 +157,7 @@ def test_the_instruction_v11_resolves_the_option_without_saying_the_document_is_
 
     T-281: la regla y el ejemplo son de la `evaluacion-v12` (publicada); la vigente, v13 (sin
     ejemplos, ADR-0070), dice lo mismo en términos generales y se comprueba al final."""
-    assert settings.ASSESSMENT_PROMPT_VERSIONS["evaluacion"] == "evaluacion-v13"
+    assert settings.ASSESSMENT_PROMPT_VERSIONS["evaluacion"] == "evaluacion-v14"  # T-285
     text = (prompting.PROMPTS_DIR / "evaluacion-v12.md").read_text(encoding="utf-8")
     rule = text[text.index("- Condición de una opción"):]
     rule = rule[:rule.index("\n")]

@@ -20,9 +20,13 @@ Reglas, en este orden:
    Un "no cumple" técnico sin cláusula del pliego que lo contradiga llega acá como duda
    `sin_dato` (T-156, `clause_supported`).
 5. Todos los grupos "no consta": "no se encontró el documento" si la exigencia es `documento`
-   en todos, no hay páginas sin leer ni documentos sin lectura y se leyeron todos los grupos;
-   "no determinado" `lectura_incompleta` si hay algo sin leer; `sin_dato` si la exigencia es
-   una condición y se leyó todo.
+   en todos, no hay páginas sin leer ni documentos sin lectura, se leyeron todos los grupos y
+   **ninguno es ese documento** (T-285, D-283-5): ningún grupo ubicó un texto de la oferta sobre
+   el requisito ni concluyó (`GroupResult.found`) y ninguno marcó la condición como de una opción
+   que la oferta no usa (`option_use`); "no determinado" `lectura_incompleta` si hay algo sin leer;
+   `sin_dato` si la exigencia es una condición y se leyó todo, si la condición es de una opción
+   (la regla de `options.py` decide si aplica) o si la lectura señaló un texto sobre el documento
+   exigido (con ese texto citado y la pregunta de si el documento está).
 
 Un "cumple" o "no cumple" va después al contraste (`apply_contrast`): si no contesta `si`, es
 "no determinado" `sin_corroborar` con las mismas citas. Un "no determinado" que falta un dato
@@ -101,6 +105,13 @@ class GroupResult:
     unreadable: dict | None = None
     # Datos del Portal que el modelo citó con su alias `P…` (T-235): `Datum.citation()`.
     portal: list = field(default_factory=list)
+    # T-285 (D-283-5): si la lectura señaló algo sobre el requisito aunque el grupo quede «no
+    # consta» (una cita que el sistema ubicó, un dato del Portal o una conclusión del modelo), y las
+    # citas ubicadas de ese grupo (`seen`): con eso no se afirma que el documento falte.
+    found: bool = False
+    seen: list = field(default_factory=list)
+    # Lo que el modelo marcó en `usa_opcion` ("si", "no", "no_consta" o "").
+    option_use: str = ""
 
 
 @dataclass
@@ -184,6 +195,16 @@ DOCUMENT_DOUBTS = (EXTERNAL, PENDING_REPORT, UNREADABLE)
 
 
 QUESTION_CLIP = 280
+
+# T-285 (D-283-5): los dos «no consta» que no son «no se encontró el documento».
+OPTION_NOTE = ("La condición vale solo para quien usa una opción y la lectura de la oferta no "
+               "muestra que la use: no falta un documento.")
+OPTION_QUESTION = ("¿La oferta usa la opción de la que depende este requisito? Si no la usa, el "
+                   "requisito no aplica a esta oferta.")
+SEEN_NOTE = ("La lectura no identificó el documento que el pliego exige, pero señaló un texto de la "
+             "oferta sobre el requisito: no se afirma que el documento falte.")
+SEEN_QUESTION = ("¿Está en la oferta el documento que exige este requisito? La lectura no lo "
+                 "identificó, pero señaló el texto citado; la Comisión confirma si está.")
 
 # El motivo que lleva la explicación de un «no determinado» cuando el modelo no escribió ninguna
 # (REQ-120: una celda sin decidir siempre dice por qué).
@@ -471,7 +492,7 @@ def combine(groups, *, unread, without_reading=(), unread_groups=0):
     question = _first(groups, "question")
 
     def done(outcome, doubt="", only=None, exigence=None, explanation=None, ask=True,
-             pool=None):
+             pool=None, fallback_question=""):
         if doubt == DOUBT and warning:
             # Con partes de la oferta sin leer, una duda puede venir de ahí: se dice así y se
             # pregunta a la Comisión (no se supone que la respuesta no estaba).
@@ -487,7 +508,7 @@ def combine(groups, *, unread, without_reading=(), unread_groups=0):
         # que preguntar, hay que subirla (REQ-063).
         asking = ((outcome == OUT_NO_DETERMINADO and doubt != EXTERNAL)
                   or outcome == OUT_SIN_DOCUMENTO)
-        asked = question if asking else ""
+        asked = (question or fallback_question) if asking else ""
         return Combined(
             outcome=outcome, doubt=doubt,
             exigence=exigence if exigence is not None else _first(groups, "exigence"),
@@ -526,7 +547,9 @@ def combine(groups, *, unread, without_reading=(), unread_groups=0):
         return done(OUT_NO_DETERMINADO, NO_CITATION if failed_citation else DOUBT)
     # Todos los grupos dijeron "no consta".
     exigence = "documento" if all(g.exigence == "documento" for g in groups) else "condicion"
-    if complete and exigence == "documento":
+    option = any(g.option_use == "no" for g in groups)
+    seen = any(g.found for g in groups)
+    if complete and exigence == "documento" and not option and not seen:
         return done(OUT_SIN_DOCUMENTO, exigence=exigence, ask=False, explanation=(
             "Se leyeron todos los documentos de la oferta y ninguno es el documento que el "
             "pliego exige."))
@@ -534,6 +557,17 @@ def combine(groups, *, unread, without_reading=(), unread_groups=0):
         return done(OUT_NO_DETERMINADO, INCOMPLETE, exigence=exigence, explanation=(
             "No se puede afirmar que el documento falta: hay partes de la oferta que no se "
             "pudieron leer."))
+    if option:
+        # T-285 (D-283-5): la condición de una opción que la oferta no muestra usar no es un
+        # documento faltante; si aplica o no lo decide la regla de la opción (`options.py`).
+        return done(OUT_NO_DETERMINADO, NO_DATA, exigence=exigence, explanation=OPTION_NOTE,
+                    fallback_question=OPTION_QUESTION)
+    if exigence == "documento" and seen:
+        # T-285 (D-283-5): la lectura señaló un texto de la oferta sobre el documento exigido: no se
+        # afirma que falte; se cita ese texto y se pregunta.
+        return done(OUT_NO_DETERMINADO, NO_DATA, exigence=exigence, explanation=SEEN_NOTE,
+                    pool=[replace(g, citations=list(g.seen)) for g in groups],
+                    fallback_question=SEEN_QUESTION)
     return done(OUT_NO_DETERMINADO, NO_DATA, exigence=exigence)
 
 

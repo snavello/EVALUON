@@ -528,7 +528,9 @@ ASSESSMENT_RULES_VERSION = "reglas-v13"
 # vigentes y el esqueleto de la salida, sin ejemplos (tabla en specs/016-calidad-medible/
 # revision-instrucciones.md).
 ASSESSMENT_PROMPT_VERSIONS = {
-    "evaluacion": "evaluacion-v13",
+    # T-285 (ajuste único del paso 2): la evaluación v14 corrige, como definiciones generales, lo que
+    # mostró la medición T-283 (D-283-5 a D-283-7).
+    "evaluacion": "evaluacion-v14",
     "contraste": "contraste-v5",
     "clausulas": "clausulas-v6",
 }

@@ -65,7 +65,7 @@ SIMPLIFIED = {
         "path": "evaluon/tenders/prompts/matriz-circulares-cambios-v7.md"},
     "matriz-respaldo-v3": {"path": "evaluon/tenders/prompts/matriz-respaldo-v3.md"},
     # T-281: la evaluación (decisora), el contraste, las cláusulas y la reescritura.
-    "evaluacion-v13": {"path": "evaluon/assessment/prompts/evaluacion-v13.md"},
+    "evaluacion-v14": {"path": "evaluon/assessment/prompts/evaluacion-v14.md"},  # T-285
     "contraste-v5": {"path": "evaluon/assessment/prompts/contraste-v5.md"},
     "clausulas-v6": {"path": "evaluon/assessment/prompts/clausulas-v6.md"},
     "reescritura-v3": {"path": "evaluon/offers/prompts/reescritura-v3.md"},
@@ -86,7 +86,7 @@ SIMPLIFIED = {
 SIMPLIFIED_SCHEMAS = {
     # T-281: los que se mandan con los pedidos de la evaluación (el de lectura, con un alias de cada
     # clase), del contraste, del contraste por cláusula y de la reescritura.
-    "evaluacion-v13": "tests.test_instrucciones_largo:evaluation_output_schema",
+    "evaluacion-v14": "tests.test_instrucciones_largo:evaluation_output_schema",  # T-285
     "contraste-v5": "evaluon.assessment.prompting:CONTRAST_SCHEMA",
     "clausulas-v6": "evaluon.assessment.prompting:CLAUSES_SCHEMA",
     "reescritura-v3": "evaluon.offers.services.sheets:REWRITE_SCHEMA",
@@ -243,7 +243,7 @@ def test_the_limits_are_the_ones_of_the_plan():
     """REQ-119 (umbral 5): los topes son los del plan 016 y el ADR-0070."""
     assert limits_of("matriz-extraccion-v14") == (90, 9000)
     assert limits_of("matriz-filtro-v11") == (90, 9000)
-    assert limits_of("evaluacion-v13") == (90, 9000)
+    assert limits_of("evaluacion-v14") == (90, 9000)
     assert limits_of("matriz-externa-v1") == (90, 9000)
     for other in ("matriz-completitud-v7", "matriz-union-v2", "matriz-consecuencias-v3",
                   "matriz-circulares-v8", "matriz-circulares-cambios-v7", "matriz-respaldo-v3",

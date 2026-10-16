@@ -618,6 +618,11 @@ DERIVED = {
         'cita); origen: T-220 de la 014 (`oferente-nombre-v1` y las reglas del nombre: '
         'terceros en la ronda 1, rótulo explícito en la ronda 2) y T-248 de la 015 '
         '(`oferente-nombre-v2`); H-282-1')),
+    # T-285: las derivadas del ajuste único del paso 2.
+    "D-61": ("pendiente", (
+        'Derivada de D-41 (ADR-0038, regla 3: «no se encontró el documento» solo si el pliego '
+        'exige un documento y la oferta leída no lo trae) y de D-23; origen: T-283, hallazgo '
+        'D-283-5')),
 }
 PENDING_MARK = "pendiente de confirmación del responsable"
 CONFIRMED_MARK = re.compile(r"confirmada por el responsable el (\d{4}-\d{2}-\d{2})\b[^«“]*[«“][^»”]+[»”]")
