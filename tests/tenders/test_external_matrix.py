@@ -53,6 +53,7 @@ OBJECT = "El objeto es la adquisición de insumos de oficina sintéticos"
 IDENTITY = "documento de identidad"
 QUOTATION = "Cotizar en pesos con impuestos incluidos"
 REGISTRY = "constancia de inscripción"
+STATUTE = "certificado de vigencia"
 DECLARATION = ("Presentar la declaración jurada de habilidad para contratar firmada por el "
                "oferente.")
 INVENTED = "Una oración que el modelo inventó y que no figura en ningún tramo del pliego."
@@ -189,6 +190,10 @@ def test_the_external_proposal_makes_rows_with_literal_located_quotes(
                           "razonamiento": "No se sabe si lo pide a toda oferta."}
     ext.rows[QUOTATION] = {"destino": "descartada", "motivo": "pago_factura",
                            "indicio": QUOTATION, "razonamiento": "Habla de la moneda."}
+    # Un descarte cuyo indicio no está en el tramo no se sostiene: va a sugerencia.
+    ext.rows[STATUTE] = {"destino": "descartada", "motivo": "formulario",
+                         "indicio": "una frase que no figura en el tramo del pliego",
+                         "razonamiento": "Parece un formulario."}
 
     requested, job = propose(operator_user, small_case.procedure)
 
@@ -202,9 +207,10 @@ def test_the_external_proposal_makes_rows_with_literal_located_quotes(
     assert firm and any(OBJECT in row.quotes.get(order=1).text for row in firm)
     added = next(row for row in firm if OBJECT in row.quotes.get(order=1).text)
     assert added.passes == ["completitud"]
-    suggested = rows_of(run, state="sugerido")
-    assert len(suggested) == 1 and IDENTITY in suggested[0].quotes.get(order=1).text
-    assert suggested[0].doubt_reason == "duda"
+    suggested = {row.doubt_reason: row.quotes.get(order=1).text
+                 for row in rows_of(run, state="sugerido")}
+    assert len(suggested) == 2
+    assert IDENTITY in suggested["duda"] and STATUTE in suggested["descarte_sin_sustento"]
     discarded = m.DiscardedRow.objects.get(run=run)
     assert discarded.reason == "pago_factura" and discarded.evidence_text == QUOTATION
     assert discarded.step_a.request["externo"]["etapa"] == external.STAGE_COMPLETION
@@ -227,8 +233,14 @@ def test_the_external_proposal_makes_rows_with_literal_located_quotes(
         assert detail["parametros"]["cache_system_ttl"] == "1h"
     assert events[0].detail["texto_enviado"]["sistema"] == events[1].detail["texto_enviado"][
         "sistema"]
-    for unit_text in (DECLARATION,):
-        assert unit_text in events[0].detail["texto_enviado"]["sistema"]
+    assert DECLARATION in events[0].detail["texto_enviado"]["sistema"]
+    # Cada tramo entra con su documento (O-290-3): la puerta lo comprobó como pliego.
+    segments = m.Segment.objects.filter(reading__document=small_case.document).count()
+    for event in events:
+        checked = event.detail["filtro"]
+        assert checked["piezas"]["pliego"] >= segments
+        assert checked["documentos"] == [{"origen": "pliego", "documento": small_case.document.pk,
+                                          "tipo": "pliego"}]
     steps = m.RunStep.objects.filter(run=run, request__has_key="externo")
     assert {step.pass_name for step in steps} == {"extraccion", "completitud"}
     for step in steps:
@@ -328,7 +340,7 @@ def test_with_the_external_use_off_the_proposal_is_the_local_one(
 # --- Vuelta a lo local ---------------------------------------------------------------------------
 
 
-def _assert_local_after_external(run, script, reason_type):  # noqa: F811
+def _assert_local_after_external(run, script, reason_type, reason):  # noqa: F811
     assert script.calls, "la cadena local no corrió"
     types = anomaly_types(run)
     assert reason_type in types and external.ANOMALY_UNAVAILABLE in types
@@ -336,6 +348,7 @@ def _assert_local_after_external(run, script, reason_type):  # noqa: F811
                 if a["type"] == external.ANOMALY_UNAVAILABLE and "camino" in a]
     assert len(fallback) == 1
     assert fallback[0]["camino"] == "local" and fallback[0]["etapa"] == "matriz"
+    assert fallback[0]["motivo"] == reason
     assert run.models["externo"]["etapas"]["matriz"] == "local"
     assert run.counts["externo"]["matriz"]["volvio_a_local"] is True
     assert run.parameters["externo"]["matriz"]["reemplaza"] == []
@@ -358,7 +371,7 @@ def test_a_failed_request_goes_back_to_the_local_chain(
 
     assert job.status == "done", job.error
     run = requested.run
-    _assert_local_after_external(run, script, ledger.ANOMALY_UNAVAILABLE)
+    _assert_local_after_external(run, script, ledger.ANOMALY_UNAVAILABLE, "service_unavailable")
     assert {e.detail["resultado"] for e in requests_of(run)
             if e.detail["etapa"] == stage} == {"error"}
     assert_literal(small_case, run)
@@ -379,7 +392,7 @@ def test_the_cap_goes_back_to_the_local_chain_without_sending(
     blocked = requests_of(run)
     assert blocked and {e.detail["resultado"] for e in blocked} == {"bloqueado"}
     assert {e.detail["motivo"] for e in blocked} == {"tope"}
-    _assert_local_after_external(run, script, ledger.ANOMALY_BLOCKED)
+    _assert_local_after_external(run, script, ledger.ANOMALY_BLOCKED, "tope")
 
 
 def _sheet(procedure, user, paragraphs):
@@ -418,7 +431,7 @@ def test_a_gate_block_by_a_compliance_sheet_goes_back_to_the_local_chain(
     assert "huella_compliance" in blocked[0].detail["motivos"]
     assert any(a["type"] == external.ANOMALY_BLOCKED and a["motivo"] == "huella_compliance"
                for a in run.anomalies)
-    _assert_local_after_external(run, script, external.ANOMALY_BLOCKED)
+    _assert_local_after_external(run, script, external.ANOMALY_BLOCKED, "bloqueado")
     _nothing_of_the_sheet_left(paragraphs)
 
 
