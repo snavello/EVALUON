@@ -498,3 +498,39 @@ def test_h277_1_the_recompute_says_it_does_not_count_the_three_outputs(
 
     assert ("Tres salidas (REQ-120): no se cuentan al recalcular; las cuenta la corrida de "
             "medir_evaluacion") in out.getvalue()
+
+
+# --- H-277-2: los huecos de prueba de T-277 -----------------------------------------------------------
+
+
+def test_h277_2_the_partial_portal_question_names_the_portal_datum_that_is_there(offer, portal):
+    """REQ-120 (H-277-2, alteración D2): la pregunta de `portal_cubre_parte` con condiciones nombra
+    la condición abierta **y el valor que informa el Portal**, no solo la palabra «Portal»."""
+    from evaluon.assessment import rules
+    from tests.assessment.test_ajuste_t240 import POLICY_UPLOAD, chosen_form
+    from tests.assessment.test_portal_facts import pair_of
+
+    chosen_form(portal, offer, "Seguros")
+    pair = pair_of(POLICY_UPLOAD, combine.Combined(outcome="no_determinado", doubt="sin_dato"))
+    pair.conditions = {0: [
+        {"condicion": "Cargar el documento de la póliza", "dato": "", "cita": None,
+         "resultado": "no_consta", "resultado_modelo": "no_consta"}]}
+    pair.groups = [SimpleNamespace(index=0, result="no_determinado", citations=[], unreadable=None,
+                                   external=False)]
+
+    assert rules.apply(pair, SimpleNamespace(offer=offer)) == "portal_cubre_parte"
+    assert "El Portal informa 21750.00" in pair.combined.question
+
+
+def test_h277_2_the_first_threshold_row_fails_with_a_missing_document_without_a_question():
+    """REQ-120, umbral 9 (H-277-2, alteración E3): la primera fila de `thresholds_016` («no se
+    encontró el documento» sin pregunta) no cumple cuando hay una celda así, y cumple sin ninguna."""
+    from evaluon.assessment import evaluation as ev
+
+    base = {"cells": 3, "sin_documento": 2, "sin_documento_sin_pregunta": [], "no_determinado": 1,
+            "no_determinado_sin_nombrar": [], "problems": []}
+    bad = {**base, "sin_documento_sin_pregunta": [7]}
+
+    assert [ok for _, _, ok in ev.thresholds_016({"three_outputs": base})] == [True, True, True]
+    rows = ev.thresholds_016({"three_outputs": bad})
+    assert rows[0][2] is False and rows[0][1] == "1 de 2"
