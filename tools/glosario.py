@@ -282,10 +282,35 @@ def build_html(rows: list[dict]) -> str:
 """
 
 
+def build_page(rows: list[dict], fecha: str) -> str:
+    """Página HTML autocontenida (sin archivos externos) con el glosario."""
+    return f"""<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Códigos de EVALUON</title>
+<style>
+body{{ margin: 0; background: #F3EFE4; }}
+.papel{{ max-width: 1040px; margin: 24px auto; background: #FFFFFF; border-radius: 10px; box-shadow: 0 1px 2px rgba(11,27,51,.06), 0 10px 30px rgba(11,27,51,.10); padding: clamp(14px, 4vw, 44px); }}
+.pie{{ color: #3E4C63; font-size: 12px; text-align: center; margin: 0 0 24px; font-family: system-ui, sans-serif; }}
+@media print{{ body{{ background: #FFFFFF; }} .papel{{ box-shadow: none; margin: 0; }} input{{ display: none; }} }}
+</style>
+</head>
+<body>
+<div class="papel"><div id="inf-codigos" class="inf">
+{build_html(rows)}</div></div>
+<p class="pie">EVALUON · glosario generado el {fecha} con tools/glosario.py · solo códigos y resúmenes públicos</p>
+</body>
+</html>
+"""
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=str(Path(__file__).resolve().parent.parent))
     ap.add_argument("--html", default=None, help="escribe además el fragmento HTML de la solapa")
+    ap.add_argument("--pagina", default=None, help="escribe además una página HTML autocontenida")
     ap.add_argument("--tambien", action="append", default=[],
                     help="otra copia de trabajo de la que tomar informes de revisión y verificaciones que main no tiene todavía")
     args = ap.parse_args(argv)
@@ -297,6 +322,10 @@ def main(argv: list[str]) -> int:
     if args.html:
         Path(args.html).write_text(build_html(rows), encoding="utf-8")
         print(f"Escrito {args.html}")
+    if args.pagina:
+        from datetime import date
+        Path(args.pagina).write_text(build_page(rows, date.today().strftime("%d/%m/%Y")), encoding="utf-8")
+        print(f"Escrito {args.pagina}")
     return 0
 
 
