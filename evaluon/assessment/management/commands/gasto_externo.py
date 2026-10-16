@@ -19,6 +19,9 @@ Opciones:
   del hecho. El criterio de REQ-121 es 0; si encuentra alguno, termina con error. Usa una implementación **propia**, que no importa ni llama a la puerta
   (`evaluon/ai/external/guard.py`): es el control independiente.
 
+Los hechos `en_vuelo` (uno por lote, O-290-6) no son pedidos ni gasto real: se informan aparte
+los lotes sin cerrar, con su estimado.
+
 Imprime el gasto real (la suma de `costo_usd`, el que se calculó con el uso informado por el
 proveedor) y la cantidad de pedidos por resultado; cada registro de medición pega esta salida.
 """
@@ -41,6 +44,7 @@ from evaluon.tenders.models import Procedure
 
 WINDOW = 8
 RESULTS = ("ok", "reutilizado", "bloqueado", "error", "vencido")
+IN_FLIGHT = "en_vuelo"
 _SEPARATOR = re.compile(r"[^0-9a-z]+")
 
 
@@ -114,6 +118,13 @@ def _leaks(detail, sheet_windows):
     return hits
 
 
+def _closed_batches():
+    """Los lotes que ya tienen algún hecho de pedido registrado."""
+    return set(AuditEvent.objects.filter(event_type=EventType.EXTERNAL_REQUEST)
+               .exclude(detail__resultado=IN_FLIGHT).exclude(detail__lote_id=None)
+               .values_list("detail__lote_id", flat=True))
+
+
 def _usd(value):
     return f"{Decimal(value).quantize(Decimal('0.000001'))} USD"
 
@@ -172,6 +183,8 @@ class Command(BaseCommand):
 
     def _spend(self, events, scope, *, by_stage):
         total, counts, stages = Decimal(0), {}, {}
+        flights = [e for e in events if e.detail.get("resultado") == IN_FLIGHT]
+        events = [e for e in events if e.detail.get("resultado") != IN_FLIGHT]
         for event in events:
             detail = event.detail
             cost = Decimal(str(detail.get("costo_usd") or 0))
@@ -188,6 +201,12 @@ class Command(BaseCommand):
                           + ", ".join(f"{name} {counts.get(name, 0)}" for name in RESULTS)
                           + ")")
         self.stdout.write(f"Gasto real: {_usd(total)}")
+        # Un lote en vuelo es un hecho por lote, no un pedido (O-290-6): sin cerrar, su proceso no
+        # registró todavía los pedidos (o murió esperando) y se informa con su estimado.
+        closed = _closed_batches()
+        open_ = [e for e in flights if e.detail.get("lote_id") not in closed]
+        estimated = sum((Decimal(str(e.detail.get("costo_usd") or 0)) for e in open_), Decimal(0))
+        self.stdout.write(f"Lotes en vuelo sin cerrar: {len(open_)} (estimado {_usd(estimated)})")
         if by_stage:
             self.stdout.write("Por etapa:")
             for name in sorted(stages):
@@ -198,6 +217,7 @@ class Command(BaseCommand):
 
     def _verify(self, events):
         sheet_windows, sheets, unread = _sheet_windows()
+        events = [e for e in events if e.detail.get("resultado") != IN_FLIGHT]  # sin texto
         leaking = []
         for event in events:
             hits = _leaks(event.detail, sheet_windows)

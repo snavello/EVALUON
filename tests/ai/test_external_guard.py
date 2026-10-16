@@ -132,7 +132,9 @@ def public_requirement(case):
 
 
 def external_requests():
-    return list(AuditEvent.objects.filter(event_type=EventType.EXTERNAL_REQUEST).order_by("pk"))
+    """Los hechos de cada pedido (sin los de lote en vuelo, que son uno por lote: O-290-6)."""
+    return list(AuditEvent.objects.filter(event_type=EventType.EXTERNAL_REQUEST)
+                .exclude(detail__resultado="en_vuelo").order_by("pk"))
 
 
 def all_strings(value):

@@ -9,6 +9,12 @@ el uso de tokens, el costo en USD con la tabla de precios versionada, la duraci�
 (`ok`, `error`, `vencido`, `bloqueado` o `reutilizado`), el error y lo que comprobó la puerta
 (`filtro`). Un pedido bloqueado (por la puerta o por el tope) queda sin texto.
 
+Además, **un hecho por lote** con resultado `en_vuelo` apenas el proveedor lo crea (`on_created`;
+O-290-6): identificador del lote, `custom_ids` y el estimado del lote como `costo_usd`, sin texto.
+Si el proceso muere esperando, el lote queda en el registro y el tope lo cuenta con su estimado;
+cuando se registra algún pedido con ese `lote_id`, el `en_vuelo` deja de contar (`counted`) y las
+sumas son del costo real. No son pedidos: `gasto_externo` los informa aparte.
+
 La única forma de mandar es `send(admitidos)`, con lo que devolvió `guard.build` (nunca un
 `ExternalPayload` suelto). Antes de cada lote, en este orden:
 
@@ -48,7 +54,7 @@ from decimal import ROUND_CEILING, Decimal, InvalidOperation
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.db.models import DecimalField, Sum
+from django.db.models import DecimalField, Q, Sum
 from django.db.models.fields.json import KT
 from django.db.models.functions import Cast
 from django.utils import timezone
@@ -63,7 +69,11 @@ ERROR = "error"
 EXPIRED = "vencido"
 BLOCKED = "bloqueado"
 REUSED = "reutilizado"
-RESULTS = (OK, ERROR, EXPIRED, BLOCKED, REUSED)
+# Un hecho por lote, apenas el proveedor lo crea (O-290-6): con su estimado, para que el tope lo
+# cuente si el proceso muere antes de registrar los pedidos. Deja de contar cuando hay un hecho de
+# pedido con su `lote_id`.
+IN_FLIGHT = "en_vuelo"
+RESULTS = (OK, ERROR, EXPIRED, BLOCKED, REUSED, IN_FLIGHT)
 
 # Motivos de un bloqueo del libro (los de la puerta los pone `guard.py`).
 CAP = "tope"
@@ -79,7 +89,7 @@ MILLION = Decimal(1_000_000)
 COST_QUANTUM = Decimal("0.00000001")  # 8 decimales, siempre hacia arriba
 
 _EVENT_OUTCOME = {OK: Outcome.OK, REUSED: Outcome.OK, BLOCKED: Outcome.REJECTED,
-                  ERROR: Outcome.FAILED, EXPIRED: Outcome.FAILED}
+                  ERROR: Outcome.FAILED, EXPIRED: Outcome.FAILED, IN_FLIGHT: Outcome.OK}
 
 
 # --- Configuración ----------------------------------------------------------------------------
@@ -198,7 +208,17 @@ def _requests():
     return AuditEvent.objects.filter(event_type=EventType.EXTERNAL_REQUEST)
 
 
+def counted(queryset):
+    """Los hechos que cuentan para el gasto: todos, salvo los `en_vuelo` cuyo lote ya tiene algún
+    hecho de pedido registrado (su estimado se reemplaza por el costo real)."""
+    closed = _requests().exclude(detail__resultado=IN_FLIGHT).exclude(
+        detail__lote_id=None).annotate(closed_batch=KT("detail__lote_id")).values("closed_batch")
+    return queryset.annotate(batch=KT("detail__lote_id")).exclude(
+        Q(detail__resultado=IN_FLIGHT) & Q(batch__in=closed))
+
+
 def _total(queryset):
+    queryset = counted(queryset)
     value = queryset.aggregate(total=Sum(Cast(
         KT("detail__costo_usd"), DecimalField(max_digits=24, decimal_places=10))))["total"]
     return Decimal(value or 0)
@@ -555,12 +575,25 @@ def _fail(sent, items, error, record, *, mode, batch_id=None):
                            "pedidos": len(items), "lote_id": error.batch_id or batch_id})
 
 
+def _record_in_flight(items, batch, *, measurement, channel, user):
+    """El hecho `en_vuelo` del lote recién creado (O-290-6): identificador, pedidos y estimado,
+    sin texto."""
+    first = items[0].payload
+    detail = _payload_base(first, measurement=measurement, filter=None)
+    estimated = sum((estimate(item.payload, "lotes") for item in items), Decimal(0))
+    detail.update(custom_id=None, custom_ids=[item.payload.custom_id for item in items],
+                  oferta=first.offer_id, requisito=None, modo="lotes", lote_id=batch.id,
+                  costo_usd=_number(estimated), resultado=IN_FLIGHT, estimado=True)
+    return _write(detail, channel=channel, user=user)
+
+
 def _send_batch(items, sent, record):
     created = {}
 
     def on_created(batch):
         created["id"] = batch.id
         sent.batch_id = batch.id
+        _record_in_flight(items, batch, **record)
 
     try:
         run = client.run_batch([item.payload for item in items], on_created=on_created)

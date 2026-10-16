@@ -636,3 +636,81 @@ def test_an_invalid_price_factor_stops_before_sending(case, fake_external, setti
         ledger.send([admitted], measurement=MEASUREMENT)
     assert fake_external.batches == [] and fake_external.messages == []
     assert external_requests() == []
+
+
+# --- Lote en vuelo (O-290-6) -------------------------------------------------------------------
+
+
+class WorkerDied(BaseException):
+    """El proceso que esperaba el lote se cae (como un reinicio del `worker`)."""
+
+
+def worker_dies(batch, started):
+    raise WorkerDied
+
+
+def in_flight_events():
+    return list(AuditEvent.objects.filter(event_type=EventType.EXTERNAL_REQUEST,
+                                          detail__resultado="en_vuelo").order_by("pk"))
+
+
+def test_a_batch_leaves_an_in_flight_fact_as_soon_as_it_exists(case, fake_external,
+                                                               monkeypatch):
+    """REQ-122 (O-290-6): apenas el proveedor crea el lote queda un hecho `en_vuelo` con su
+    identificador, los pedidos y el estimado, sin texto; si el proceso muere esperando, el tope lo
+    cuenta con su estimado."""
+    fake_external.enable()
+    first, second = economic(case), technical(case)
+    estimate = ledger.estimate(first.payload, "lotes") + ledger.estimate(second.payload, "lotes")
+
+    from evaluon.ai.external import client
+    monkeypatch.setattr(client, "_wait_for", worker_dies)
+    with pytest.raises(WorkerDied):
+        ledger.send([first, second], measurement=MEASUREMENT)
+    (flight,) = in_flight_events()
+    assert flight.detail["lote_id"] == "msgbatch_fake_1"
+    assert flight.detail["custom_ids"] == ["pedido-1", "pedido-2"]
+    assert cost(flight) == estimate
+    assert flight.detail["texto_enviado"] is None
+    assert ledger.spent_case(case.procedure.pk) == estimate
+    assert ledger.spent_month() == estimate
+    assert ledger.spent_stage("verificador", case.procedure.pk,
+                              measurement=MEASUREMENT) == estimate
+
+
+def test_an_in_flight_fact_stops_counting_when_its_batch_is_recorded(case, fake_external):
+    """REQ-122 (O-290-6): cuando el lote vuelve y se registran sus pedidos, el estimado del hecho
+    `en_vuelo` deja de contar: las sumas son solo del costo real."""
+    fake_external.enable()
+    fake_external.respond("ok", usage={"input_tokens": 1000, "output_tokens": 100})
+    sent = ledger.send([economic(case), technical(case)], measurement=MEASUREMENT)
+    (flight,) = in_flight_events()
+    assert flight.detail["lote_id"] == sent.batch_id
+    assert ledger.spent_case(case.procedure.pk) == Decimal("0.003") == sent.cost_usd
+    assert len(external_requests()) == 2  # un hecho por pedido, aparte del lote
+
+
+def test_a_failed_batch_closes_its_in_flight_fact(case, fake_external):
+    """REQ-122 (O-290-6): si la espera del lote falla, los pedidos quedan como error con el
+    identificador del lote y el hecho `en_vuelo` deja de contar."""
+    fake_external.enable()
+    fake_external.never_ends()
+    ledger.send([economic(case)], measurement=MEASUREMENT)
+    assert len(in_flight_events()) == 1
+    (event,) = external_requests()
+    assert event.detail["resultado"] == "error" and event.detail["lote_id"] == "msgbatch_fake_1"
+    assert ledger.spent_case(case.procedure.pk) == 0
+
+
+def test_the_command_reports_open_batches_apart(case, fake_external, logged_in, monkeypatch):
+    """REQ-122 (O-290-6): `gasto_externo` no cuenta un hecho `en_vuelo` como pedido ni como gasto
+    real, e informa aparte los lotes sin cerrar con su estimado."""
+    fake_external.enable()
+    from evaluon.ai.external import client
+
+    monkeypatch.setattr(client, "_wait_for", worker_dies)
+    with pytest.raises(WorkerDied):
+        ledger.send([economic(case)], measurement=MEASUREMENT)
+    out = run_command(logged_in)
+    assert "Pedidos registrados: 0" in out and "Gasto real: 0.000000 USD" in out
+    assert "Lotes en vuelo sin cerrar: 1" in out
