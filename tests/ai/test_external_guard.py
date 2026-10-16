@@ -55,7 +55,8 @@ NOTE = "Nota del oferente, sin clasificar, que copió por error un párrafo de s
 
 
 def sheet_paragraphs():
-    text = (DATA / "hoja.txt").read_text(encoding="utf-8")
+    # Con `core.autocrlf` la copia de trabajo puede traer CRLF: los párrafos se separan igual.
+    text = (DATA / "hoja.txt").read_text(encoding="utf-8").replace("\r\n", "\n")
     return [part.strip() for part in text.split("\n\n") if part.strip()]
 
 
