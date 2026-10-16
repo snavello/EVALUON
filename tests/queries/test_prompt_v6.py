@@ -15,6 +15,8 @@ Con los dobles de `tests/conftest.py`; los textos son sintéticos (P4).
 import json
 import re
 
+import pytest
+
 from evaluon.queries import answering
 
 # Las reglas que la v5 traía de ADR-0002 y de la 001 (`test_prompt_v5.py`), que la v6 conserva.
@@ -78,3 +80,62 @@ def test_v6_keeps_the_rules_of_v5_and_its_length():
     v4, v5 = (answering.load_instructions(f"consulta-v{n}") for n in (4, 5))
     assert len(text) < len(v4) and len(text) <= len(v5) + 300
     assert len(text.splitlines()) <= len(v5.splitlines()) + 2
+
+
+# --- H-282-2: cada una de las dos líneas que registran la instrucción, por separado ---------------
+
+QUESTION = "¿Cuál es el plazo sintético para presentar la muestra?"
+MARK = "[articulo-v6]"
+UNIT_TEXT = f"ARTICULO 4.- {MARK} La muestra sintética se presenta dentro de los cinco días."
+
+
+@pytest.mark.django_db
+def test_h282_2_a_query_stopped_after_the_selection_records_its_instruction(
+        read_user, make_norm, make_document, make_reading, fake_ai, settings):
+    """REQ-119, P6 (H-282-2): una consulta que se detiene después de elegir las unidades y antes de
+    llamar al modelo (ninguna entra en el contexto) deja el nombre, la versión y la huella de la
+    instrucción que se iba a usar: lo registra `_prepare`, sin `_generate`."""
+    from datetime import date
+
+    from evaluon.queries import services
+
+    norm = make_norm(category="regimen_especifico", general_regime=True)
+    make_reading(make_document(norm), [("art-4", UNIT_TEXT)])
+    settings.RERANK_THRESHOLD = 0.219
+    settings.GENERATION_CONTEXT_TOKENS = 10
+    fake_ai.reranker.scores = {MARK: 0.9}
+
+    query = services.ask(read_user, QUESTION, date(2024, 5, 20))
+
+    assert (query.status, query.reason) == ("error", "input_too_long")
+    assert fake_ai.generation.calls == []
+    assert query.parameters["instruccion"] == answering.prompt_record(
+        answering.PROMPT_VERSION_WITH_DATE)
+
+
+@pytest.mark.django_db
+def test_h282_2_the_query_records_the_instruction_of_the_request_it_sent(
+        read_user, make_norm, make_document, make_reading, fake_ai, settings, monkeypatch):
+    """REQ-119, P6 (H-282-2): la instrucción registrada es la del pedido que se envió
+    (`generated.prompt_version`, que escribe `_generate`), aunque difiera de la que eligió
+    `_prepare`."""
+    import dataclasses
+    from datetime import date
+
+    from evaluon.queries import services
+
+    real = answering.answer
+
+    def answered(*args, **kwargs):
+        return dataclasses.replace(real(*args, **kwargs), prompt_version="consulta-v4")
+
+    monkeypatch.setattr(answering, "answer", answered)
+    norm = make_norm(category="regimen_especifico", general_regime=True)
+    make_reading(make_document(norm), [("art-4", UNIT_TEXT)])
+    settings.RERANK_THRESHOLD = 0.219
+    fake_ai.reranker.scores = {MARK: 0.9}
+
+    query = services.ask(read_user, QUESTION, date(2024, 5, 20))
+
+    assert query.prompt_version == "consulta-v4"
+    assert query.parameters["instruccion"] == answering.prompt_record("consulta-v4")
