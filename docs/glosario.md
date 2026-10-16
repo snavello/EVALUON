@@ -360,7 +360,7 @@ Qué significa cada prefijo:
 | **T-291** | 016 | Matriz con modelo externo: matriz-externa-v1, proposal/external.py con el contrato de la etapa local, enchufe en run.py… | terminada |
 | **T-292** | 016 | Prueba de humo con el proveedor real (caso chico): matriz externa en modo directo con la hoja de compliance inventada… | terminada |
 | **T-293** | 016 | Medición del paso 3, ronda 1 (ajuste): propuesta externa de 00, 01, 02 y 06 contra la local simplificada de T-286.… | terminada |
-| **T-294** | 016 | Ajuste único de la matriz externa (matriz-externa-v2 y parámetros) con todos los hallazgos de T-293; se cierra sin… | en curso |
+| **T-294** | 016 | Ajuste único de la matriz externa (matriz-externa-v2 y parámetros) con todos los hallazgos de T-293; se cierra sin… | terminada |
 | **T-295** | 016 | Re-medición del paso 3, ronda 2 (ajuste): lo que cambió T-294. Mismo umbral 16; si no lo pasa, el externo no pasa a… | pendiente |
 | **T-296** | 016 | Medición final del paso 3 (aceptación, una sola corrida): matriz local simplificada y externa de 03, 04 y 05, mismo… | pendiente |
 | **T-297** | 016 | Segunda comparación con claude-opus-5-5, solo si Sonnet no pasó el umbral 13 o 14 y la etapa pasó la puerta 16: misma… | pendiente |
@@ -802,7 +802,7 @@ Qué significa cada prefijo:
 | **H-299-1, H-299-2, O-299-1 a O-299-9** | 016 | Corregidos: la segunda pasada de --verificador-sobre mide la pregunta de la celda cambiada (H-299-1), 17 controles con prueba… | T-299 (verificación: no pasa… |
 | **H-299-2** | 016 | (pruebas) | T-299 |
 
-## Observaciones de verificación (252)
+## Observaciones de verificación (258)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -1047,6 +1047,12 @@ Qué significa cada prefijo:
 | **O-293-7** | 016 | --verificar-filtro dio 0 sobre procedimientos sin hojas de compliance: el 0 es cierto, pero no prueba la puerta frente a una hoja… | T-293 |
 | **O-293-8** | 016 | anomalías de la propuesta: descartado_en_renglon 2 en 00 y 5 en 02 (la cadena local de las filas técnicas, no la etapa externa) y… | T-293 |
 | **O-293-9** | 016 | el reuso por huella no se ejercitó (una sola invocación por caso, O-291-3): no hubo que repetir ninguna propuesta | T-293 |
+| **O-294-1** | 016 | el estimado del libro cambió de regla y los documentos no lo dicen (decisión del Coordinador antes de T-295) | T-294 |
+| **O-294-1 a O-294-5** | 016 | O-294-1: el estimador del libro cambió de regla (1,9 caracteres por token y salida esperada de 10.000 tokens en vez de 2,5 y… | T-294 (ajuste único de la matriz… |
+| **O-294-2** | 016 | el test que debía probar el rechazo de otra carpeta no lo prueba | T-294 |
+| **O-294-3** | 016 | D-293-1 y D-293-3 son solo de instrucción | T-294 |
+| **O-294-4** | 016 | la regla del antecedente es heurística | T-294 |
+| **O-294-5** | 016 | cambios menores de la v2 sin hallazgo detrás: desaparece «en el orden del documento» de la descripción de los tramos (el orden lo… | T-294 |
 | **O-299-1** | 016 | la pregunta dice «el contraste no lo corroboró» cuando fue el verificador | T-299 |
 | **O-299-2** | 016 | la línea dice «Ninguna» cuando la etapa volvió a lo local tras haber mandado pedidos (respuesta inválida, vencido, error del… | T-299 |
 | **O-299-3** | 016 | _message indexa CONCLUSIONS | T-299 |
