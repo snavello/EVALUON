@@ -1524,7 +1524,7 @@ flowchart LR
 ### Qué falta
 
 - **Próximo paso:** Desarrollar: 26 tareas sin terminar.
-- ▶ T-285 · Ajuste único del paso 2: todos los hallazgos de T-283 y T-284 en una sola tarea, un commit por hallazgo, corregidos como definiciones y nunca como ejemplos de un caso; se cierra sin cambios si T-283 y T-284 cumplen todo (en curso)
+- ◐ T-285 · Ajuste único del paso 2: todos los hallazgos de T-283 y T-284 en una sola tarea, un commit por hallazgo, corregidos como definiciones y nunca como ejemplos de un caso; se cierra sin cambios si T-283 y T-284 cumplen todo (en verificación)
 - ◐ T-300 · Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave `externo` de la corrida (o «Ninguna: todo corrió en el equipo»). Umbral 20 (parte): la pantalla y la exportación la muestran (en verificación)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
 - ○ T-273 · Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada (pendiente)
@@ -1586,7 +1586,7 @@ flowchart TD
   T282["✓ T-282 · Instrucciones auxiliares: visión, ficha, fi…"]:::done
   T283["✓ T-283 · Medición del paso 2, ronda 1 (matrices y ca…"]:::done
   T284["○ T-284 · Medición del paso 2, ronda 1 (evaluación co…"]:::todo
-  T285["▶ T-285 · Ajuste único del paso 2: todos los hallazgo…"]:::active
+  T285["◐ T-285 · Ajuste único del paso 2: todos los hallazgo…"]:::review
   T286["○ T-286 · Re-medición del paso 2, ronda 2: solo lo qu…"]:::todo
   T287["○ T-287 · Cierre de los pasos 1 y 2: ADR-0071 (result…"]:::todo
   T288["✓ T-288 · Esquema y configuración del uso externo: ti…"]:::done
