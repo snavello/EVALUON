@@ -822,7 +822,13 @@ def _guarantee_document(data, portal, text):
 def compare(kind, offer, data, portal, text, items):
     """Lo que informa el Portal frente a lo que exige el pliego (`Comparison`). «Cumple» solo si el
     valor del Portal coincide con lo que el pliego fija, sobre la base que el pliego dice; si el
-    pliego fija algo que no se compara, `NO_COMPARABLE` (T-233b, D-233-1)."""
+    pliego fija algo que no se compara, `NO_COMPARABLE` (T-233b, D-233-1).
+
+    T-285 (D-283-6, c): el umbral de monto que hace exigible el requisito, dicho al comienzo de la
+    oración («si la oferta supera el monto de…, …», `_AMOUNT_THRESHOLD`), dice cuándo se exige y no es
+    un tope ni un monto del dato: no se mira para comparar (como en `requirement_core`)."""
+    if _AMOUNT_THRESHOLD.search(fold(text)):
+        text = _AMOUNT_THRESHOLD.sub("", fold(text))
     folded = fold(text)
     if kind == GARANTIA and required_percent(text) is None and not amounts(text):
         document = _guarantee_document(data, portal, text)

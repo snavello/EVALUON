@@ -50,7 +50,7 @@ def test_d283_5_a_document_the_reading_pointed_at_is_not_a_missing_document():
     oferta leída no lo trae): si los grupos dicen «no consta» pero uno ubicó un texto de la oferta
     sobre el requisito, la celda es «no determinado» con ese texto citado y la pregunta de si el
     documento está, nunca «no se encontró el documento»."""
-    seen = located("Acepto la declaración jurada de aptitud.")
+    seen = located("Adjuntamos la nota de conformidad con las bases.")
     groups = [combine.GroupResult(0, "no_consta", exigence="documento", found=True, seen=[seen]),
               combine.GroupResult(1, "no_consta", exigence="documento")]
 
@@ -60,7 +60,7 @@ def test_d283_5_a_document_the_reading_pointed_at_is_not_a_missing_document():
     assert combined.citations == [seen]
     assert combined.explanation == combine.SEEN_NOTE and combined.question == combine.SEEN_QUESTION
     asked = combine.compose_question(3, "Presentar la declaración jurada.", combined)
-    assert asked.endswith(combine.SEEN_QUESTION) and "Acepto la declaración jurada" in asked
+    assert asked.endswith(combine.SEEN_QUESTION) and "Adjuntamos la nota de conformidad" in asked
     assert combine.combined_problem(replace(combined, question=asked)) == ""
 
 
@@ -214,9 +214,8 @@ def test_d283_6_b_the_instruction_says_one_citation_can_hold_several_conditions(
 
 # --- D-283-6 (c): el Portal ----------------------------------------------------------------------
 
-THRESHOLD = ("Si la oferta superase el monto fijado en la cláusula anterior, el oferente constituirá "
-             "una garantía de mantenimiento de la oferta del cinco por ciento del monto total de la "
-             "oferta.")
+THRESHOLD = ("Si el total de la oferta excede el tope de la cláusula previa, el oferente constituirá "
+             "una garantía de oferta del cinco por ciento del monto total de la oferta.")
 
 
 def _portal_pair(text, combined, records):
@@ -233,7 +232,7 @@ def test_d283_6_c_the_amount_threshold_of_the_guarantee_is_covered_when_the_port
     garantía del Portal igual al porcentaje que exige el pliego, la condición que repite el umbral de
     monto que hace exigible la garantía no queda abierta: «cumple» con la cita del Portal."""
     portal_data(portal, offer)
-    records = [condition("Que la oferta supere el monto fijado en la cláusula anterior",
+    records = [condition("Que el total de la oferta exceda el tope de la cláusula previa",
                          "no_determinado"),
                condition("Constituir una garantía del cinco por ciento del monto total",
                          "no_consta")]
@@ -252,9 +251,9 @@ def test_d283_6_c_the_threshold_is_not_covered_without_the_threshold_in_the_requ
     """REQ-103, P3: si la oración del pliego no empieza por ese umbral, la condición no se cubre
     por regla (no se adivina qué umbral es)."""
     portal_data(portal, offer)
-    text = ("El oferente constituirá una garantía de mantenimiento de la oferta del cinco por ciento "
-            "del monto total de la oferta.")
-    records = [condition("Que la oferta supere el monto fijado en otra cláusula", "no_determinado")]
+    text = ("El oferente constituirá una garantía de oferta del cinco por ciento del monto total de "
+            "la oferta.")
+    records = [condition("Que el total de la oferta exceda el tope de otra cláusula", "no_determinado")]
     combined = combine.Combined(outcome="no_determinado", doubt="sin_dato")
 
     decided = portal_facts.rule(_portal_pair(text, combined, records),
