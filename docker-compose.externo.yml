@@ -1,0 +1,78 @@
+# Salida a internet del clon de la feature 016, para el uso de una API externa de modelos
+# (ADR-0066, punto 6; plan 016, "Plataforma externa"; REQ-122).
+#
+# Se usa SOLO junto con docker-compose.clon.yml:
+#
+#   docker compose -p evaluon-016 -f docker-compose.clon.yml -f docker-compose.externo.yml \
+#       --env-file <archivo del clon> up -d
+#
+# Sin este archivo, ningún contenedor de trabajo tiene ruta a internet: el compose base no
+# cambia (solo `portal_worker` está en `egress`, ADR-0031) y el clon tampoco lo tiene. Este
+# archivo suma a `clon_worker` y `clon_app`, y a ningún otro servicio:
+#
+#   - la red `egress` (con salida a internet; en el proyecto del clon se llama
+#     `evaluon-016_egress`, distinta de la de 8000);
+#   - la clave del proveedor, `ANTHROPIC_API_KEY`, que se toma del --env-file del clon (fuera
+#     del repositorio, P4). No tiene valor acá: sin ella, `docker compose` se detiene;
+#   - las 17 variables `EXTERNAL_*` del compose base (el clon no las recibe de otro lado), con
+#     los mismos valores por omisión: todo apagado. Que el clon use de verdad lo externo lo
+#     deciden `EXTERNAL_ENABLED` y `EXTERNAL_STAGE_*` en su --env-file.
+#
+# El código solo conecta a `api.anthropic.com` por HTTPS (evaluon/ai/external/client.py).
+# Para cortar la salida: levantar el clon sin este archivo (o `docker network disconnect` de `evaluon-016_egress`) y revocar la clave.
+# tests/portal/test_network.py comprueba que con este archivo `egress` llegue solo a esos dos.
+
+services:
+  clon_worker:
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?Falta ANTHROPIC_API_KEY (archivo de --env-file del clon)}
+      # Uso externo: los mismos valores por omisión que docker-compose.yml (apagado); lo que se
+      # quiera cambiar va en el --env-file del clon. tests/portal/test_network.py lo comprueba.
+      EXTERNAL_ENABLED: ${EXTERNAL_ENABLED:-false}
+      EXTERNAL_STAGE_MATRIZ: ${EXTERNAL_STAGE_MATRIZ:-local}
+      EXTERNAL_STAGE_VERIFICADOR: ${EXTERNAL_STAGE_VERIFICADOR:-local}
+      EXTERNAL_MODEL_MATRIZ: ${EXTERNAL_MODEL_MATRIZ:-claude-sonnet-5-5}
+      EXTERNAL_MODEL_VERIFICADOR: ${EXTERNAL_MODEL_VERIFICADOR:-claude-sonnet-5-5}
+      EXTERNAL_EFFORT_MATRIZ: ${EXTERNAL_EFFORT_MATRIZ:-medium}
+      EXTERNAL_EFFORT_VERIFICADOR: ${EXTERNAL_EFFORT_VERIFICADOR:-low}
+      EXTERNAL_THINKING_MATRIZ: ${EXTERNAL_THINKING_MATRIZ:-adaptive}
+      EXTERNAL_THINKING_VERIFICADOR: ${EXTERNAL_THINKING_VERIFICADOR:-between_tools}
+      EXTERNAL_MODE: ${EXTERNAL_MODE:-lotes}
+      EXTERNAL_BATCH_POLL_SECONDS: "${EXTERNAL_BATCH_POLL_SECONDS:-30}"
+      EXTERNAL_BATCH_MAX_WAIT_SECONDS: "${EXTERNAL_BATCH_MAX_WAIT_SECONDS:-7200}"
+      EXTERNAL_CASE_CAP_USD: "${EXTERNAL_CASE_CAP_USD:-2.00}"
+      EXTERNAL_MONTH_CAP_USD: "${EXTERNAL_MONTH_CAP_USD:-10.00}"
+      EXTERNAL_STAGE_ESTIMATE_MATRIZ_USD: "${EXTERNAL_STAGE_ESTIMATE_MATRIZ_USD:-0.30}"
+      EXTERNAL_STAGE_ESTIMATE_VERIFICADOR_USD: "${EXTERNAL_STAGE_ESTIMATE_VERIFICADOR_USD:-0.30}"
+      EXTERNAL_STAGE_STOP_FACTOR: "${EXTERNAL_STAGE_STOP_FACTOR:-2}"
+    networks:
+      - egress
+
+  clon_app:
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?Falta ANTHROPIC_API_KEY (archivo de --env-file del clon)}
+      # Uso externo: los mismos valores por omisión que docker-compose.yml (apagado); lo que se
+      # quiera cambiar va en el --env-file del clon. tests/portal/test_network.py lo comprueba.
+      EXTERNAL_ENABLED: ${EXTERNAL_ENABLED:-false}
+      EXTERNAL_STAGE_MATRIZ: ${EXTERNAL_STAGE_MATRIZ:-local}
+      EXTERNAL_STAGE_VERIFICADOR: ${EXTERNAL_STAGE_VERIFICADOR:-local}
+      EXTERNAL_MODEL_MATRIZ: ${EXTERNAL_MODEL_MATRIZ:-claude-sonnet-5-5}
+      EXTERNAL_MODEL_VERIFICADOR: ${EXTERNAL_MODEL_VERIFICADOR:-claude-sonnet-5-5}
+      EXTERNAL_EFFORT_MATRIZ: ${EXTERNAL_EFFORT_MATRIZ:-medium}
+      EXTERNAL_EFFORT_VERIFICADOR: ${EXTERNAL_EFFORT_VERIFICADOR:-low}
+      EXTERNAL_THINKING_MATRIZ: ${EXTERNAL_THINKING_MATRIZ:-adaptive}
+      EXTERNAL_THINKING_VERIFICADOR: ${EXTERNAL_THINKING_VERIFICADOR:-between_tools}
+      EXTERNAL_MODE: ${EXTERNAL_MODE:-lotes}
+      EXTERNAL_BATCH_POLL_SECONDS: "${EXTERNAL_BATCH_POLL_SECONDS:-30}"
+      EXTERNAL_BATCH_MAX_WAIT_SECONDS: "${EXTERNAL_BATCH_MAX_WAIT_SECONDS:-7200}"
+      EXTERNAL_CASE_CAP_USD: "${EXTERNAL_CASE_CAP_USD:-2.00}"
+      EXTERNAL_MONTH_CAP_USD: "${EXTERNAL_MONTH_CAP_USD:-10.00}"
+      EXTERNAL_STAGE_ESTIMATE_MATRIZ_USD: "${EXTERNAL_STAGE_ESTIMATE_MATRIZ_USD:-0.30}"
+      EXTERNAL_STAGE_ESTIMATE_VERIFICADOR_USD: "${EXTERNAL_STAGE_ESTIMATE_VERIFICADOR_USD:-0.30}"
+      EXTERNAL_STAGE_STOP_FACTOR: "${EXTERNAL_STAGE_STOP_FACTOR:-2}"
+    networks:
+      - egress
+
+networks:
+  # Con salida a internet: solo la usan los dos servicios de arriba.
+  egress:
