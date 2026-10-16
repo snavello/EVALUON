@@ -589,6 +589,84 @@ def test_h277_2_the_first_threshold_row_fails_with_a_missing_document_without_a_
 
 # --- H-285-2: la cita repetida y la cita que no se ubicó --------------------------------------------
 
+SENTENCE = "Declaro bajo juramento que la empresa sintética cumple las condiciones del régimen."
+
+
+def _offer_with(procedure, operator_user, pages):
+    from tests.offers.conftest import make_offer
+
+    return make_offer(procedure, operator_user, "Oferente sintético de T-285",
+                      {"declaracion-sintetica.pdf": pages})
+
+
+def test_h285_2_a_repeated_citation_is_the_same_located_citation(
+        offer, operator_user, procedure, model):
+    """REQ-104, P3 (H-285-2): el modelo cita un trozo de una oración y después la oración entera; al
+    ampliarse a la oración, la segunda repite el tramo de la primera (`cita_repetida`). Es la misma
+    cita, literal y ubicada: la condición que apunta a la segunda la toma y la celda no pierde su
+    fundamento. No se inventa nada: la cita es el recorte del documento."""
+    other = _offer_with(procedure, operator_user, [SENTENCE])
+
+    def function(call):
+        alias = call.alias_with("empresa sintética cumple")
+        if alias and "declaración jurada" in call.requirement:
+            return says("cumple", (alias, "Declaro bajo juramento"), (alias, SENTENCE),
+                        exigence="documento", conditions=[
+                            ("Presentar la declaración.", "la declaración está presentada", 1,
+                             "cumple"),
+                            ("Que el oferente la declare.", "declara bajo juramento", 2,
+                             "cumple")])
+        return None
+
+    model.evaluates(function)
+    _, runs = run_all(operator_user, procedure)
+    run = next(r for r in runs if r.offer_id == other.pk)
+    result = results_of(run)[number_of(procedure, "declaración jurada")]
+
+    assert result.outcome == "cumple"
+    assert [c["resultado"] for c in result.facts["condiciones"]] == ["cumple", "cumple"]
+    assert all(SENTENCE in c["cita"]["texto"] for c in result.facts["condiciones"])
+    assert any(a["type"] == "cita_repetida" for a in run.anomalies)
+
+
+def test_h285_2_a_citation_that_is_not_in_the_documents_is_named_in_the_question(
+        offer, operator_user, procedure, model):
+    """REQ-105, P3 (H-285-2): la condición que apunta a una cita que no está letra por letra en los
+    documentos queda sin cita (no se inventa), y la explicación y la pregunta dicen que la cita que
+    dio la lectura no se encontró."""
+    def function(call):
+        if "declaración jurada" in call.requirement:
+            alias = call.alias_with(DECLARATION)
+            return says("cumple", (alias, DECLARATION), (alias, "Un texto que no está en la oferta."),
+                        exigence="documento", conditions=[
+                            ("Presentar la declaración.", DECLARATION, 1, "cumple"),
+                            ("Que esté firmada.", "la declaración está firmada", 2, "cumple")])
+        return None
+
+    model.evaluates(function)
+    _, runs = run_all(operator_user, procedure)
+    result = results_of(runs[0])[number_of(procedure, "declaración jurada")]
+
+    assert result.outcome == "no_determinado"
+    second = result.facts["condiciones"][1]
+    assert second["cita"] is None and second["cita_no_ubicada"] is True
+    note = "no se encontró letra por letra en los documentos de la oferta"
+    assert note in result.explanation
+    assert note in am.Question.objects.get(result=result).text
+
+
+def test_h285_2_a_word_cut_at_the_end_of_a_line_is_found():
+    """REQ-104 (H-285-2): el guion de corte al final de una línea (y el guion blando) no impide
+    ubicar la cita; un guion dentro de una línea sigue contando."""
+    text = "El oferente presenta la declaración de con-\ntratista sintético vigente."
+
+    span = citations.locate_text(text, "la declaración de contratista sintético vigente")
+
+    assert span is not None and text[span[0]:span[1]].endswith("vigente")
+    assert citations.locate_text("la declaración de con-tratista sintético vigente.",
+                                 "la declaración de contratista sintético vigente") is None
+
+
 # --- H-285-3: solo una frase de ausencia deja correr la ausencia -----------------------------------
 
 
