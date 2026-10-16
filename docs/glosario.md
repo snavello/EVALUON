@@ -357,7 +357,7 @@ Qué significa cada prefijo:
 | **T-288** | 016 | Esquema y configuración del uso externo: tipo de hecho external_request y su migración (la única de la feature)… | terminada |
 | **T-289** | 016 | Cliente de la API externa, su doble y la salida a internet: evaluon/ai/external/client.py (mensajes directos y lotes… | terminada |
 | **T-290** | 016 | Puerta de filtrado, libro de gasto y registro: guard.py (lista permitida, exclusiones, huellas), ledger.py (hecho por… | terminada |
-| **T-291** | 016 | Matriz con modelo externo: matriz-externa-v1, proposal/external.py con el contrato de la etapa local, enchufe en run.py… | pendiente |
+| **T-291** | 016 | Matriz con modelo externo: matriz-externa-v1, proposal/external.py con el contrato de la etapa local, enchufe en run.py… | terminada |
 | **T-292** | 016 | Prueba de humo con el proveedor real (caso chico): matriz externa en modo directo con la hoja de compliance inventada… | pendiente |
 | **T-293** | 016 | Medición del paso 3, ronda 1 (ajuste): propuesta externa de 00, 01, 02 y 06 contra la local simplificada de T-286.… | pendiente |
 | **T-294** | 016 | Ajuste único de la matriz externa (matriz-externa-v2 y parámetros) con todos los hallazgos de T-293; se cierra sin… | pendiente |
@@ -365,7 +365,7 @@ Qué significa cada prefijo:
 | **T-296** | 016 | Medición final del paso 3 (aceptación, una sola corrida): matriz local simplificada y externa de 03, 04 y 05, mismo… | pendiente |
 | **T-297** | 016 | Segunda comparación con claude-opus-5-5, solo si Sonnet no pasó el umbral 13 o 14 y la etapa pasó la puerta 16: misma… | pendiente |
 | **T-298** | 016 | Cierre del paso 3: ADR-0072 (matriz: local o externa, y por qué) con las cifras, gasto real por etapa, registro del… | pendiente |
-| **T-299** | 016 | Verificador externo de citas: verifier.py, verificador-v1, enchufe en evaluate_offer después del contraste y de las… | pendiente |
+| **T-299** | 016 | Verificador externo de citas: verifier.py, verificador-v1, enchufe en evaluate_offer después del contraste y de las… | en curso |
 | **T-300** | 016 | Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave externo de la… | en verificación |
 | **T-301** | 016 | Medición del paso 4, ronda 1 (ajuste, sin GPU): humo del verificador con el caso chico y después el verificador sobre… | pendiente |
 | **T-302** | 016 | Ajuste único del verificador (verificador-v2 y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si… | pendiente |
@@ -643,7 +643,7 @@ Qué significa cada prefijo:
 | **D-66** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): en un documento de identidad, una credencial o una… | derivada, pendiente de confirmación |
 | **D-67** | 016 | Definición derivada (desarrollador, T-285, 2026-10-16, pendiente de confirmación del responsable): la pregunta a la Comisión compara solo valores de… | derivada, pendiente de confirmación |
 
-## Hallazgos de verificación (132)
+## Hallazgos de verificación (134)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -779,8 +779,10 @@ Qué significa cada prefijo:
 | **H-290-4** | 016 | alteraciones de controles reales que ninguna prueba detecta (ver «Alteraciones»): el sello no cubre ningún campo salvo system… | T-290 |
 | **H-290-5** | 016 | un error de precios aparece después de pagar | T-290 |
 | **H-290-6** | 016 | caracteres invisibles o guion bajo como separador entre palabras | T-290 |
+| **H-291-1** | 016 | cinco alteraciones de controles reales que ninguna prueba del desarrollador detecta | T-291 |
+| **H-291-1, O-291-1 a O-291-13** | 016 | H-291-1 (cinco controles sin prueba) corregido; el freno de etapa conserva las respuestas pagadas si llega tras el último pedido… | T-291 (verificación: no pasa por… |
 
-## Observaciones de verificación (201)
+## Observaciones de verificación (214)
 
 | Código | Feature | Qué es | Dónde |
 |---|---|---|---|
@@ -983,7 +985,20 @@ Qué significa cada prefijo:
 | **O-290-7** | 016 | el libro solo ve su base | T-290 |
 | **O-290-8** | 016 | el costo se guarda como número de coma flotante | T-290 |
 | **O-290-9** | 016 | una lectura con texto vacío no cuenta como «sin lectura» | T-290 |
-| **O-300-1** | 016 | (menor) | T-300 |
+| **O-291-1** | 016 | el freno de etapa puede dejar la medición externa vacía (riesgo declarado, 6a) | T-291 |
+| **O-291-10** | 016 | conteos informados distintos de los míos (25 contra 24; 742 contra 696): no hay prueba perdida; los comandos del encargo recogen… | T-291 |
+| **O-291-11** | 016 | el resumen no tiene prueba de la cifra «en toda la medición» (M4) | T-291 |
+| **O-291-12** | 016 | el freno tras la extracción sigue yendo a lo local | T-291 |
+| **O-291-13** | 016 | --medicion sin --externo se ignora en silencio (la medición local no usa libro) | T-291 |
+| **O-291-2** | 016 | residual de _record_in_flight | T-291 |
+| **O-291-3** | 016 | medir_matriz arma una medición nueva con marca de tiempo en cada invocación (medir_matriz-<procedimiento>-<fecha y hora>) | T-291 |
+| **O-291-4** | 016 | la línea dice «Ninguna» cuando la etapa volvió a lo local tras haber mandado pedidos | T-291 |
+| **O-291-5** | 016 | la hoja de compliance bloquea más de lo necesario, a favor de P4 | T-291 |
+| **O-291-6** | 016 | diferencias de forma con las locales, ya dichas en la revisión de instrucciones | T-291 |
+| **O-291-7** | 016 | prompt_versions y parameters.passes de una corrida externa siguen listando extracción, completitud, unión y filtro locales aunque… | T-291 |
+| **O-291-8** | 016 | las filas de una tabla van al pedido de filtro externo antes de que keep_tables_pending decida el tramo | T-291 |
+| **O-291-9** | 016 | un pedido de filtro con 0 filas y 0 tramos decididos igual sale (ninguna) | T-291 |
+| **O-300-1** | 016 | cerrado: proveedor, modelo o modo con una lista se leen «sin dato» y no rompen… | T-291 |
 | **O-300-1 y contrato de la clave `externo`** | 016 | O-300-1: external_stages.line falla si proveedor o modo llegan como lista (arreglo de una línea). Contrato… | T-300 (verificación liviana, cumple… |
 
 ## Casos de evals (56)

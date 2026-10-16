@@ -75,7 +75,7 @@ flowchart LR
 | [013 · Recorrido del procedimiento (aplicación mínima)](#013) | Una entrada con los procedimientos y, por procedimiento, sus etapas en orden con su estado, el avance en vivo de lo que corre en segundo plano y el acceso a cada decisión de la Comisión | 4 de 7 · Desarrollo | 9/13 | ███████░░░ 69% |
 | [014 · Aplicación por secciones](#014) | La aplicación organizada en cinco secciones sin orden obligatorio (procedimiento, pliego y matriz, ofertas, evaluación y dictamen, normativas), cada una con subir archivos o tomarlos del Portal; reemplaza la organización por etapas de la 013 (ADR-0047) | 4 de 7 · Desarrollo | 42/46 | █████████░ 91% |
 | [015 · Uso y elección del modelo](#015) | Corregir cómo se usa el modelo (instrucciones, citas de oración completa, encabezados, dato del Portal, preguntas a la Comisión) y comparar modelos locales con el uso corregido, para que la matriz propuesta y la evaluación sirvan a la Comisión (decisión del responsable del 2026-10-10) | 5 de 7 · Verificación | 35/35 | ██████████ 100% |
-| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 13/38 | ███░░░░░░░ 34% |
+| [016 · Calidad medible y modelos por clase de dato](#016) | Verdad celda por celda para más casos públicos, instrucciones y reglas simplificadas, y uso medido de un modelo externo por etapa (matriz, verificación de citas) solo donde mejora, con lo reservado siempre local (ADR-0065); se trabaja en un clon aparte del piloto | 4 de 7 · Desarrollo | 14/38 | ████░░░░░░ 37% |
 
 <a id="001"></a>
 
@@ -1523,8 +1523,8 @@ flowchart LR
 
 ### Qué falta
 
-- **Próximo paso:** Desarrollar: 25 tareas sin terminar.
-- ◐ T-291 · Matriz con modelo externo: `matriz-externa-v1`, `proposal/external.py` con el contrato de la etapa local, enchufe en `run.py` con vuelta a lo local si falla, clave `externo` en el registro de la propuesta y `medir_matriz --externo matriz`; probada con el doble y el caso chico (en verificación)
+- **Próximo paso:** Desarrollar: 24 tareas sin terminar.
+- ▶ T-299 · Verificador externo de citas: `verifier.py`, `verificador-v1`, enchufe en `evaluate_offer` después del contraste y de las reglas y antes de la pregunta, solo sobre «cumple» o «no cumple» con cita, nunca de «no determinado» a «cumple», clave `externo` y `facts["verificador"]`, y la pasada sobre una evaluación guardada para medir; probado con el doble y el caso chico (en curso)
 - ◐ T-300 · Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave `externo` de la corrida (o «Ninguna: todo corrió en el equipo»). Umbral 20 (parte): la pantalla y la exportación la muestran (en verificación)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
 - ○ T-273 · Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada (pendiente)
@@ -1541,7 +1541,6 @@ flowchart LR
 - ○ T-296 · Medición final del paso 3 (aceptación, una sola corrida): matriz local simplificada y externa de 03, 04 y 05, mismo commit y listas congeladas. Umbrales 13 a 15: el externo sube al menos 5 puntos en lista presente en al menos 2 de 3 sin bajar en ninguno, firmes con pareja no bajan, 0 pedazos; si no, queda local. Se cierra sin correr si T-295 no pasó la puerta (pendiente)
 - ○ T-297 · Segunda comparación con `claude-opus-5-5`, solo si Sonnet no pasó el umbral 13 o 14 y la etapa pasó la puerta 16: misma instrucción, solo la etapa que falló, una vez; se cierra sin correr si no corresponde (pendiente)
 - ○ T-298 · Cierre del paso 3: ADR-0072 (matriz: local o externa, y por qué) con las cifras, gasto real por etapa, registro del paso y pull request `016-integracion` → `main` (pendiente)
-- ○ T-299 · Verificador externo de citas: `verifier.py`, `verificador-v1`, enchufe en `evaluate_offer` después del contraste y de las reglas y antes de la pregunta, solo sobre «cumple» o «no cumple» con cita, nunca de «no determinado» a «cumple», clave `externo` y `facts["verificador"]`, y la pasada sobre una evaluación guardada para medir; probado con el doble y el caso chico (pendiente)
 - ○ T-301 · Medición del paso 4, ronda 1 (ajuste, sin GPU): humo del verificador con el caso chico y después el verificador sobre las evaluaciones guardadas de T-286 del caso-00 y del caso de ajuste con verdad. Umbral 17 como puerta: 0 «cumple» sin fundamento, preguntas conformes 100 %, exactas no bajan, erradas no suben, todo «no determinado» nuevo viene de una celda errada; gasto ≈ 0,60 USD (pendiente)
 - ○ T-302 · Ajuste único del verificador (`verificador-v2` y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si cumple todo (pendiente)
 - ○ T-303 · Re-medición del paso 4, ronda 2 (ajuste, sin GPU): lo que cambió T-302. Mismo umbral 17 como puerta (pendiente)
@@ -1566,6 +1565,7 @@ flowchart LR
 - ✓ T-288 · Esquema y configuración del uso externo: tipo de hecho `external_request` y su migración (la única de la feature), variables `EXTERNAL_*` apagadas por omisión con la tabla de precios versionada, pasaje al compose base y `.env.example`. Umbral 20 (parte): con los valores por omisión nada cambia
 - ✓ T-289 · Cliente de la API externa, su doble y la salida a internet: `evaluon/ai/external/client.py` (mensajes directos y lotes, host fijo, `ExternalDisabled`), `ExternalPayload`, `FakeExternal` y el fixture que impide toda llamada real, `docker-compose.externo.yml`, `test_no_outbound` y `test_network` ajustados
 - ✓ T-290 · Puerta de filtrado, libro de gasto y registro: `guard.py` (lista permitida, exclusiones, huellas), `ledger.py` (hecho por pedido, tope por caso y por mes, reuso por huella, freno al doble) y `gasto_externo` con `--verificar-filtro`; hoja de compliance inventada para las pruebas. Umbral 19 y 21 con el doble: 0 pedidos con texto de la hoja; el lote que pasa el tope no sale
+- ✓ T-291 · Matriz con modelo externo: `matriz-externa-v1`, `proposal/external.py` con el contrato de la etapa local, enchufe en `run.py` con vuelta a lo local si falla, clave `externo` en el registro de la propuesta y `medir_matriz --externo matriz`; probada con el doble y el caso chico
 
 ### Mapa de tareas
 
@@ -1592,7 +1592,7 @@ flowchart TD
   T288["✓ T-288 · Esquema y configuración del uso externo: ti…"]:::done
   T289["✓ T-289 · Cliente de la API externa, su doble y la sa…"]:::done
   T290["✓ T-290 · Puerta de filtrado, libro de gasto y regist…"]:::done
-  T291["◐ T-291 · Matriz con modelo externo: matriz-externa-v…"]:::review
+  T291["✓ T-291 · Matriz con modelo externo: matriz-externa-v…"]:::done
   T292["○ T-292 · Prueba de humo con el proveedor real (caso…"]:::todo
   T293["○ T-293 · Medición del paso 3, ronda 1 (ajuste): prop…"]:::todo
   T294["○ T-294 · Ajuste único de la matriz externa (matriz-e…"]:::todo
@@ -1600,7 +1600,7 @@ flowchart TD
   T296["○ T-296 · Medición final del paso 3 (aceptación, una…"]:::todo
   T297["○ T-297 · Segunda comparación con claude-opus-5-5, so…"]:::todo
   T298["○ T-298 · Cierre del paso 3: ADR-0072 (matriz: local…"]:::todo
-  T299["○ T-299 · Verificador externo de citas: verifier.py,…"]:::todo
+  T299["▶ T-299 · Verificador externo de citas: verifier.py,…"]:::active
   T300["◐ T-300 · Línea «Etapas fuera del equipo» en la panta…"]:::review
   T301["○ T-301 · Medición del paso 4, ronda 1 (ajuste, sin G…"]:::todo
   T302["○ T-302 · Ajuste único del verificador (verificador-v…"]:::todo
@@ -1683,5 +1683,5 @@ flowchart TD
 | REQ-121 | El sistema puede usar un modelo externo solo con documentos públicos; ningún pedido externo contiene un documento de tipo hoja de compliance ni un fragmento que provenga de uno, y los requisitos que dependen de esas consultas se evalúan siempre con el modelo local | T-290, T-292, T-299, T-304, T-307 | ▶ en proceso |
 | REQ-122 | Cada pedido a un modelo externo queda en el registro de auditoría con proveedor, modelo, versión de la instrucción, texto enviado y respuesta; el registro de cada evaluación y de cada matriz dice qué etapas corrieron fuera del equipo; con el uso externo apagado el sistema funciona completo | T-288, T-289, T-290, T-291, T-292, T-299, T-300, T-304, T-307 | ▶ en proceso |
 | REQ-123 | La matriz de cumplimiento se puede proponer con un modelo externo que lee el pliego completo, con las mismas medidas y la misma lista esperada que la local; se adopta por etapa solo si mejora según el ADR-0065 y, en empate, queda la local | T-291, T-292, T-293, T-294, T-295, T-296, T-297 | ▶ en proceso |
-| REQ-124 | Una verificación con modelo externo puede revisar cada «cumple» o «no cumple» propuesto por el modelo local: confirma que la cita sostiene la conclusión y propone la redacción de la pregunta; si no la sostiene, la celda pasa a «no determinado» con pregunta; la verificación nunca convierte un «no determinado» en «cumple» | T-299, T-301, T-302, T-303, T-304, T-305 | ○ pendiente |
+| REQ-124 | Una verificación con modelo externo puede revisar cada «cumple» o «no cumple» propuesto por el modelo local: confirma que la cita sostiene la conclusión y propone la redacción de la pregunta; si no la sostiene, la celda pasa a «no determinado» con pregunta; la verificación nunca convierte un «no determinado» en «cumple» | T-299, T-301, T-302, T-303, T-304, T-305 | ▶ en proceso |
 | REQ-125 | Cada paso de la feature (verdad ampliada, simplificación, matriz externa, verificador externo) se mide contra un umbral escrito antes, en la instancia clonada, y se integra solo si lo pasa; la elección local o externa de cada etapa queda en un ADR con su medición | T-270, T-276, T-283, T-284, T-286, T-287, T-293, T-295, T-296, T-298, T-301, T-303, T-304, T-306, T-307 | ▶ en proceso |
