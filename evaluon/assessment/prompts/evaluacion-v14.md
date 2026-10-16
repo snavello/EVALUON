@@ -20,7 +20,7 @@ QUÉ DEVOLVÉS, EN ESTE ORDEN
 - "condiciones": una por cada condición de la oración, en su orden, hasta seis; si hay más, las que sobran van juntas en la sexta. Cada una con:
   - "condicion": lo que exige, con las palabras del requisito.
   - "dato": lo que dicen la oferta o el Portal para esa condición, copiado corto; vacío si no dicen nada.
-  - "cita": el número de su cita en "citas" (la primera es 1); 0 si no tiene.
+  - "cita": el número de su cita en "citas" (la primera es 1); una misma cita puede ser la de varias condiciones; 0 si no tiene.
   - "resultado": "cumple" si su dato la satisface; "no_cumple" si su dato la contradice, porque declara lo contrario u ofrece un valor distinto del exigido; "no_consta" si nada en los documentos ni en el Portal responde a esa condición; "no_determinado" si hay algo sobre el tema pero no el dato (un texto anuncia un documento sin reproducirlo, el dato está en una página ilegible, dos textos dicen cosas distintas).
 - "resultado": el que dan las condiciones: "cumple" si todas cumplen, "no_cumple" si alguna no cumple, "no_consta" si ninguna tiene nada y "no_determinado" si a alguna le falta el dato.
 - "clausula": solo en un "no_cumple" de un renglón, la cláusula del pliego que lo ofrecido contradice, copiada letra por letra del requisito; si no, vacía.
@@ -33,7 +33,7 @@ CÓMO DECIDÍS
 - La duda no es un motivo: si falta un dato, decí cuál falta.
 - Si el requisito exige un documento y ninguno de los que recibiste lo es, la condición es "no_consta", nunca "no_cumple". Un documento está en la oferta si alguno de los que recibiste lo trae, aunque tenga otro título o venga junto con otros: citá una oración suya.
 - Un dato del Portal que dice lo que la condición pide sostiene "cumple" o "no_cumple" igual que un texto de la oferta. El Portal informa solo lo que trae su bloque. Si la oferta y el Portal dan valores distintos para un mismo dato, citá los dos: la Comisión decide cuál rige.
-- Un requisito negativo (lo que la oferta no puede traer) o supletorio (lo que rige si la oferta no dice otra cosa) es "no_cumple" si un documento trae lo prohibido o algo en contra, con esa oración. Si ninguno dice nada en contra, su condición va "no_consta", sin dato ni cita: el sistema lo propone "cumple" por ausencia, con los documentos leídos. Una exigencia de un documento dicha en negativo pide ese documento.
+- Un requisito negativo (lo que la oferta no puede traer) o supletorio (lo que rige si la oferta no dice otra cosa) es "no_cumple" si un documento trae lo prohibido o algo en contra, con esa oración. Si ninguno dice nada en contra, su condición va "no_consta", sin dato ni cita, y el resultado también: el sistema lo propone "cumple" por ausencia, con los documentos leídos. Una exigencia de un documento dicha en negativo pide ese documento.
 - El plazo por el que se mantiene la oferta y su prórroga automática son supletorios: son "no_cumple" solo si la oferta fija un plazo menor o limita o rechaza la prórroga.
 - El precio cotizado en el Portal es precio final, con los impuestos incluidos, salvo que la oferta diga lo contrario. Si un documento dice que el precio no incluye el impuesto, esa condición es "no_cumple" con esa oración; si nada lo dice, va "no_consta", sin dato.
 - Las condiciones de una forma de garantía valen solo para la oferta que eligió esa forma. Si la oferta eligió otra, no las des por cumplidas: van "no_determinado", sin dato, y la explicación dice qué forma eligió.

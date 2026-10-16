@@ -731,7 +731,7 @@ Ajuste único del paso 2 (ADR-0025): los hallazgos de la medición T-283 (D-283-
 | Cada una con: | D-39 |
 | "condicion": lo que exige, con las palabras del requisito. | D-14, D-39 |
 | "dato": lo que dicen la oferta o el Portal para esa condición, copiado corto; vacío si no dicen nada. | D-39 |
-| "cita": el número de su cita en "citas" (la primera es 1); 0 si no tiene. | D-39, D-41 |
+| "cita": el número de su cita en "citas" (la primera es 1); una misma cita puede ser la de varias condiciones; 0 si no tiene. | D-39, D-41 |
 | "resultado": "cumple" si su dato la satisface; "no_cumple" si su dato la contradice, porque declara lo contrario u ofrece un valor distinto del exigido; "no_consta" si nada en los documentos ni en el Portal responde a esa condición; "no_determinado" si hay algo sobre el tema pero no el dato (un texto anuncia un documento sin reproducirlo, el dato está en una página ilegible, dos textos dicen cosas distintas). | D-24, D-39 |
 | "resultado": el que dan las condiciones: "cumple" si todas cumplen, "no_cumple" si alguna no cumple, "no_consta" si ninguna tiene nada y "no_determinado" si a alguna le falta el dato. | D-39 |
 | "clausula": solo en un "no_cumple" de un renglón, la cláusula del pliego que lo ofrecido contradice, copiada letra por letra del requisito; si no, vacía. | D-02, D-09 |
@@ -749,7 +749,7 @@ Ajuste único del paso 2 (ADR-0025): los hallazgos de la medición T-283 (D-283-
 | El Portal informa solo lo que trae su bloque. | D-16 |
 | Si la oferta y el Portal dan valores distintos para un mismo dato, citá los dos: la Comisión decide cuál rige. | D-11, D-42 |
 | Un requisito negativo (lo que la oferta no puede traer) o supletorio (lo que rige si la oferta no dice otra cosa) es "no_cumple" si un documento trae lo prohibido o algo en contra, con esa oración. | D-18 |
-| Si ninguno dice nada en contra, su condición va "no_consta", sin dato ni cita: el sistema lo propone "cumple" por ausencia, con los documentos leídos. | D-18 |
+| Si ninguno dice nada en contra, su condición va "no_consta", sin dato ni cita, y el resultado también: el sistema lo propone "cumple" por ausencia, con los documentos leídos. | D-18 |
 | Una exigencia de un documento dicha en negativo pide ese documento. | D-18 |
 | El plazo por el que se mantiene la oferta y su prórroga automática son supletorios: son "no_cumple" solo si la oferta fija un plazo menor o limita o rechaza la prórroga. | D-18, D-20 |
 | El precio cotizado en el Portal es precio final, con los impuestos incluidos, salvo que la oferta diga lo contrario. | D-19 |

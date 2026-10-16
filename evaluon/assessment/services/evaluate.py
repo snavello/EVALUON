@@ -32,6 +32,7 @@ El rol se comprueba fuera de toda transacción. Todo corre en el equipo, sin ser
 (P4).
 """
 
+import re
 import time
 from dataclasses import dataclass, field, replace
 
@@ -76,6 +77,7 @@ from evaluon.tenders.models import (
     Requirement,
     RequirementClass,
 )
+from evaluon.tenders.proposal import quotes as tender_quotes
 from evaluon.tenders.services.validation import latest_validated
 
 REQUEST_OPERATION = "evaluon.assessment.services.evaluate.request_evaluation"
@@ -603,11 +605,32 @@ ANOMALY_CONDITION_NO_DATUM = "condicion_sin_dato"
 ANOMALY_CONDITION_NOT_APPLICABLE = "condicion_no_aplica"
 ANOMALY_RESULT_DERIVED = "resultado_derivado"
 ANOMALY_RESULT_CONTRADICTED = "resultado_no_sostenido"
+# T-285 (D-283-6, b): la condición «cumple» o «no cumple» sin su número de cita (o con uno que no se
+# ubicó) cuyo dato está, letra por letra, dentro de una de las citas que el sistema ubicó: esa es su
+# cita. No es prestarle la cita de otra condición (D-237-2): la cita contiene el dato de esta.
+ANOMALY_CONDITION_CITED_BY_DATUM = "condicion_citada_por_su_dato"
+# Palabras con contenido (tres letras o más) que tiene que tener un dato para ubicarlo así: un «sí»
+# o un número suelto está en cualquier texto.
+DATUM_MIN_WORDS = 2
 
 
 def _says_not_applicable(datum):
     """Si el dato de una condición dice que no aplica («no aplica: la oferta eligió…»)."""
     return externals.fold(datum).strip().lstrip("«\"'(").startswith("no aplica")
+
+
+def _cite_by_datum(datum, evidence):
+    """El número de la cita ubicada (de la oferta o del Portal) que contiene `datum` letra por letra,
+    con los espacios colapsados, o `None` (T-285, D-283-6). Un dato con menos de `DATUM_MIN_WORDS`
+    palabras con contenido no se ubica."""
+    text = " ".join((datum or "").split()).strip(" «»\"'.;,")
+    if len(re.findall(r"[^\W\d_]{3,}", text)) < DATUM_MIN_WORDS:
+        return None
+    for number in sorted(evidence):
+        _, item = evidence[number]
+        if tender_quotes.locate(getattr(item, "text", "") or "", text) is not None:
+            return number
+    return None
 
 
 def _check_conditions(conditions, evidence, cited, anomalies):
@@ -618,7 +641,9 @@ def _check_conditions(conditions, evidence, cited, anomalies):
     Una condición «cumple» o «no cumple» vale solo con **su** dato (no vacío) y **su** cita:
     `1 <= cita <= cited` y ubicada. Sin dato, con la cita 0, con una cita que no existe o que no se
     ubicó, pasa a «no determinado» y queda la anomalía; no se le presta la cita de otra condición
-    aunque sea la única que se ubicó. Devuelve `(condiciones efectivas, registros)`: las
+    aunque sea la única que se ubicó. T-285 (D-283-6, b): si su dato está letra por letra dentro de
+    una cita ubicada (`_cite_by_datum`), esa es su cita: una misma oración puede sostener varias
+    condiciones. Devuelve `(condiciones efectivas, registros)`: las
     `prompting.Condition` con el resultado que cuenta y, para el registro y la pantalla, un dict
     por condición con su dato, su cita y su resultado."""
     effective, records = [], []
@@ -634,8 +659,15 @@ def _check_conditions(conditions, evidence, cited, anomalies):
                 result = prompting.NO_DETERMINADO
                 anomalies.append({"type": ANOMALY_CONDITION_NOT_APPLICABLE, "condition": index})
             elif found is None:
-                result = prompting.NO_DETERMINADO
-                anomalies.append({"type": ANOMALY_CONDITION_NO_CITATION, "condition": index})
+                by_datum = _cite_by_datum(condition.datum, evidence)
+                if by_datum is None:
+                    result = prompting.NO_DETERMINADO
+                    anomalies.append({"type": ANOMALY_CONDITION_NO_CITATION,
+                                      "condition": index})
+                else:
+                    found = evidence[by_datum]
+                    anomalies.append({"type": ANOMALY_CONDITION_CITED_BY_DATUM,
+                                      "condition": index, "cita": by_datum})
         cite = None
         if found is not None:
             kind, item = found
@@ -788,8 +820,12 @@ def _group_result(ctx, pair, group_index, pieces, relevance_note):
                            "datos_ubicados": [{"documento": c.document.pk, "pagina": c.page,
                                                "inicio": c.char_start, "fin": c.char_end}
                                               for c in data_located]}
+            # T-285 (D-283-6, d): si ninguna condición tiene nada (`no_consta`) y el modelo no dijo «no
+            # cumple», no hay una conclusión que citar: el «cumple» del modelo sobre lo que la oferta no
+            # dice es la ausencia que verifica `absence.py` con los documentos leídos.
+            nothing = derived == prompting.NO_CONSTA and evaluation.result != prompting.NO_CUMPLE
             if ({evaluation.result, derived} & {prompting.CUMPLE, prompting.NO_CUMPLE}
-                    and not located and not portal_cited):
+                    and not nothing and not located and not portal_cited):
                 step.anomalies.append({"type": prompting.ANOMALY_NO_CITATION})
                 problem = prompting.ANOMALY_NO_CITATION
         pair.anomalies.extend({**a, "requirement": pair.requirement.number, "step": position}

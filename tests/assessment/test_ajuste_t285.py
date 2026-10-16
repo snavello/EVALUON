@@ -17,11 +17,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from evaluon.assessment import combine, options
+from evaluon.assessment import absence, combine, options, portal_facts, prompting
 from evaluon.assessment import models as am
 from evaluon.assessment.citations import Located
 from tests.assessment.fakes import model, says  # noqa: F401 - `model` es una fixture
-from tests.assessment.test_comite_t257 import apply, condition, pair_with
+from tests.assessment.test_comite_t257 import NEGATIVE, apply, condition, pair_with
 from tests.assessment.test_evaluate import (
     DECLARATION,
     number_of,
@@ -29,6 +29,8 @@ from tests.assessment.test_evaluate import (
     results_of,
     run_all,
 )
+from tests.assessment.test_ordering import portal  # noqa: F401 - `portal` es fixture
+from tests.assessment.test_portal_facts import portal_data
 
 pytestmark = pytest.mark.django_db
 
@@ -151,3 +153,221 @@ def test_d283_5_without_the_option_and_without_the_mark_the_rule_still_says_noth
         name, _ = apply(offer, pair_with(text, combined, [condition("Acompañar", "no_consta")],
                                          option_use=marked))
         assert name != "opcion_no_usada", marked
+
+
+# --- D-283-6 (b): una condición con su dato citado no se pierde -------------------------------------
+
+SIGNED = "El presente formulario se firma y se adjunta a la oferta."
+
+
+def test_d283_6_b_a_condition_whose_datum_is_inside_a_located_citation_keeps_it(
+        offer, operator_user, procedure, model):
+    """REQ-104, REQ-120 (D-39; D-237-2 sigue: no se presta la cita de otra condición): el modelo da
+    por «cumple» varias condiciones con una sola oración citada y numera solo la primera; la otra
+    trae como dato un trozo literal de esa misma oración. Esa es su cita: la celda no pasa a «sin
+    dato» y queda la anomalía que lo registra (P6)."""
+    def function(call):
+        if "declaración jurada" in call.requirement:
+            return says("cumple", call.quote(DECLARATION), exigence="documento", conditions=[
+                ("Presentar la declaración.", DECLARATION, 1, "cumple"),
+                ("Que esté habilitado.", "me encuentro habilitado para contratar", 0, "cumple")])
+        return None
+
+    model.evaluates(function)
+    _, runs = run_all(operator_user, procedure)
+    result = results_of(runs[0])[number_of(procedure, "declaración jurada")]
+
+    assert result.outcome == "cumple"
+    second = result.facts["condiciones"][1]
+    assert second["resultado"] == "cumple" and DECLARATION in second["cita"]["texto"]
+    assert any(a["type"] == "condicion_citada_por_su_dato" for a in runs[0].anomalies)
+
+
+@pytest.mark.parametrize("datum", ["", "sí", "Otro texto que no está en ninguna cita."])
+def test_d283_6_b_a_datum_that_is_not_in_a_located_citation_is_still_without_its_citation(
+        offer, operator_user, procedure, model, datum):
+    """REQ-104, P3 (D-237-2): un dato vacío, trivial o que no está en la cita ubicada no la toma: la
+    condición queda sin cita y la celda «no determinado»."""
+    def function(call):
+        if "declaración jurada" in call.requirement:
+            return says("cumple", call.quote(DECLARATION), exigence="documento", conditions=[
+                ("Presentar la declaración.", DECLARATION, 1, "cumple"),
+                ("Que esté firmada.", datum, 0, "cumple")])
+        return None
+
+    model.evaluates(function)
+    _, runs = run_all(operator_user, procedure)
+    result = results_of(runs[0])[number_of(procedure, "declaración jurada")]
+
+    assert result.outcome == "no_determinado"
+
+
+def test_d283_6_b_the_instruction_says_one_citation_can_hold_several_conditions():
+    """REQ-119 (D-39, D-41): la instrucción vigente dice que una misma cita puede ser la de varias
+    condiciones y que un documento está si alguno de los recibidos lo trae, aunque tenga otro
+    título."""
+    text = prompting.load_prompt("evaluacion")
+
+    assert "una misma cita puede ser la de varias condiciones" in text
+    assert "aunque tenga otro título o venga junto con otros" in text
+
+
+# --- D-283-6 (c): el Portal ----------------------------------------------------------------------
+
+THRESHOLD = ("Si la oferta superase el monto fijado en la cláusula anterior, el oferente constituirá "
+             "una garantía de mantenimiento de la oferta del cinco por ciento del monto total de la "
+             "oferta.")
+
+
+def _portal_pair(text, combined, records):
+    return SimpleNamespace(
+        combined=combined, text=SimpleNamespace(text=text), datos=[],
+        requirement=SimpleNamespace(items=[], category="economico", number=9, proposed={}),
+        groups=[SimpleNamespace(index=0, result="no_determinado", citations=[], portal=[])],
+        conditions={0: records})
+
+
+def test_d283_6_c_the_amount_threshold_of_the_guarantee_is_covered_when_the_portal_coincides(
+        offer, portal):
+    """REQ-103 (D-16, ADR-0053; regla de T-277: decide con la cita cuando el dato alcanza): con la
+    garantía del Portal igual al porcentaje que exige el pliego, la condición que repite el umbral de
+    monto que hace exigible la garantía no queda abierta: «cumple» con la cita del Portal."""
+    portal_data(portal, offer)
+    records = [condition("Que la oferta supere el monto fijado en la cláusula anterior",
+                         "no_determinado"),
+               condition("Constituir una garantía del cinco por ciento del monto total",
+                         "no_consta")]
+    combined = combine.Combined(outcome="no_determinado", doubt="sin_dato")
+    pair = _portal_pair(THRESHOLD, combined, records)
+
+    decided = portal_facts.rule(pair, SimpleNamespace(offer=offer))
+
+    assert decided.outcome == "cumple" and decided.facts["regla"] == "portal_cumple"
+    assert [c.get("cubierta_por") for c in decided.facts["condiciones"]] == ["umbral", "portal"]
+    assert decided.portal
+
+
+def test_d283_6_c_the_threshold_is_not_covered_without_the_threshold_in_the_requirement(
+        offer, portal):
+    """REQ-103, P3: si la oración del pliego no empieza por ese umbral, la condición no se cubre
+    por regla (no se adivina qué umbral es)."""
+    portal_data(portal, offer)
+    text = ("El oferente constituirá una garantía de mantenimiento de la oferta del cinco por ciento "
+            "del monto total de la oferta.")
+    records = [condition("Que la oferta supere el monto fijado en otra cláusula", "no_determinado")]
+    combined = combine.Combined(outcome="no_determinado", doubt="sin_dato")
+
+    decided = portal_facts.rule(_portal_pair(text, combined, records),
+                                SimpleNamespace(offer=offer))
+
+    assert decided.outcome == "no_determinado"
+    assert not portal_facts.threshold_condition(records[0]["condicion"], text)
+
+
+def test_d283_6_c_when_the_portal_cannot_compare_the_reading_keeps_its_motive_and_question(
+        offer, portal):
+    """REQ-120, REQ-103 (T-277): si el dato del Portal no responde a lo que pide el requisito, el
+    Portal no cambia lo que dejó la lectura (un contraste que no corroboró, con su pregunta): solo
+    agrega su cita."""
+    portal_data(portal, offer)
+    text = "La garantía deberá estar individualizada con el número del procedimiento."
+    records = [condition("Individualizar la garantía con el número del procedimiento", "cumple")]
+    combined = combine.Combined(outcome="no_determinado", doubt="sin_corroborar",
+                                proposed="cumple", ask=True)
+
+    decided = portal_facts.rule(_portal_pair(text, combined, records),
+                                SimpleNamespace(offer=offer))
+
+    assert (decided.outcome, decided.doubt, decided.proposed) == (
+        "no_determinado", "sin_corroborar", "cumple")
+    assert decided.facts["regla"] == "portal_cita_agregada" and decided.portal
+    asked = combine.compose_question(9, text, decided)
+    assert "contraste no lo corroboró" in asked and "porcentaje" not in asked
+
+
+# --- D-283-6 (d): la ausencia verificada corre cuando el modelo no encontró nada -------------------
+
+TERM = "Mantener la validez de la oferta por sesenta días corridos desde la apertura."
+
+
+def test_d283_6_d_a_cumple_of_the_model_without_anything_found_goes_to_the_absence(
+        offer, operator_user, procedure, model):
+    """REQ-104, REQ-120 (D-18; decisión del 2026-10-12, «Cumple por ausencia, con fundamento»): para
+    un requisito supletorio, el modelo concluye «cumple» y su condición dice «no consta», sin dato ni
+    cita: no hay una conclusión que citar, así que no se pide el reintento por la cita ni queda «sin
+    cita»; la regla de la ausencia propone «cumple» con los documentos leídos."""
+    def function(call):
+        if "sesenta días" in call.requirement:
+            return says("cumple", exigence="condicion", conditions=[
+                ("Mantener la oferta sesenta días.", "", 0, "no_consta")])
+        return None
+
+    model.evaluates(function)
+    _, runs = run_all(operator_user, procedure)
+    result = results_of(runs[0])[number_of(procedure, "sesenta días")]
+
+    assert result.outcome == "cumple" and result.facts["regla"] == "cumple_por_ausencia"
+    assert "ninguno lo contradice" in result.explanation
+    readings = [s for s in runs[0].steps.filter(requirement=result.requirement, purpose="grupo")]
+    assert len(readings) == 1   # sin reintento por la cita
+
+
+def test_d283_6_d_a_no_cumple_of_the_model_is_never_turned_into_absence(
+        offer, operator_user, procedure, model):
+    """REQ-104, P3 (D-18): si el modelo dice «no cumple» aunque sus condiciones no traigan nada, no
+    es ausencia: se pide la cita y la celda queda «no determinado»."""
+    def function(call):
+        if "sesenta días" in call.requirement:
+            return says("no_cumple", exigence="condicion", conditions=[
+                ("Mantener la oferta sesenta días.", "", 0, "no_consta")])
+        return None
+
+    model.evaluates(function)
+    _, runs = run_all(operator_user, procedure)
+    result = results_of(runs[0])[number_of(procedure, "sesenta días")]
+
+    assert result.outcome == "no_determinado" and result.facts.get("regla") != "cumple_por_ausencia"
+
+
+def _ctx(offer, page_text):
+    documents = [SimpleNamespace(document=SimpleNamespace(title="Nota de presentación"),
+                                 pages=[{"page": 1, "text": page_text}])]
+    return SimpleNamespace(offer=offer, offer_text=SimpleNamespace(documents=documents))
+
+
+def _absence_pair(datum):
+    combined = combine.Combined(outcome="no_determinado", doubt="sin_dato", exigence="condicion")
+    return pair_with(NEGATIVE, combined, [
+        condition("La oferta no está condicionada", "no_consta", datum)])
+
+
+def test_d283_6_d_a_comment_of_the_model_as_datum_does_not_stop_the_absence(offer):
+    """REQ-104 (D-18): el «dato» que solo dice que la oferta no trae nada y no está en sus
+    documentos es un comentario del modelo: la ausencia corre."""
+    pair = _absence_pair("La oferta no menciona ninguna condición.")
+
+    decided = absence.rule(pair, _ctx(offer, "Ofrecemos los bienes pedidos al precio cotizado."))
+
+    assert decided is not None and decided.outcome == "cumple"
+
+
+@pytest.mark.parametrize("datum, page", [
+    # un texto de la oferta, aunque diga «no»: es lo que la oferta dice
+    ("los precios no se mantendrán", "Aclaramos que los precios no se mantendrán."),
+    # algo que no dice que no haya nada
+    ("Precios sujetos a la cotización del día.", "Ofrecemos los bienes pedidos."),
+])
+def test_d283_6_d_a_datum_from_the_offer_or_that_says_something_stops_the_absence(
+        offer, datum, page):
+    """REQ-104, P3 (D-18): un dato que está en la oferta, o que dice algo en lugar de decir que no
+    hay nada, frena la ausencia."""
+    assert absence.rule(_absence_pair(datum), _ctx(offer, page)) is None
+
+
+def test_d283_6_d_without_the_pages_at_hand_a_datum_still_stops_the_absence(offer):
+    """REQ-104, P3: sin las páginas de la oferta a mano no se puede saber si el dato es de la
+    oferta: la regla no decide."""
+    ctx = SimpleNamespace(offer=offer, offer_text=SimpleNamespace(documents=[
+        SimpleNamespace(document=SimpleNamespace(title="Nota"))]))
+
+    assert absence.rule(_absence_pair("La oferta no menciona ninguna condición."), ctx) is None
