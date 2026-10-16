@@ -131,6 +131,26 @@ Sin `BASE` todo es como siempre (`main`). Con `BASE=016-integracion` integra `or
 - **Borrar el clon entero**: `scripts/clon.sh bajar`, después `docker volume rm evaluon-016_clon_pgdata` y borrar `$COORD_DIR/clon.env`, `clon-restaurado.txt`, `respaldos-clon/` y `clon-casos/`. 8000 no depende de nada de esto.
 - **Una ventana a medias**: `scripts/clon.sh ventana-cerrar` (ver «A mano»).
 
+## Prueba de humo con el proveedor real (T-292)
+
+Primera salida real a internet (2026-10-16), con el caso chico inventado y la hoja de compliance inventada (`ZORVANTIQ`), en modo directo. Solo cifras y nombres (P4); la clave del proveedor vive únicamente en `$COORD_DIR/clon.env` (línea `ANTHROPIC_API_KEY=`) y no se imprime ni se copia. El registro está en `specs/016-calidad-medible/verificacion/T-292.md`.
+
+**Cómo se corre.** Los servicios `clon_app` y `clon_worker` que ya están en marcha **no se tocan**: no tienen la clave ni la red `egress`. La prueba corre en contenedores nuevos y efímeros de `clon_worker` (`run --rm --no-deps`), con el compose externo solo en esos:
+
+```
+docker compose -p evaluon-016 -f docker-compose.clon.yml -f docker-compose.externo.yml     --env-file "$COORD_DIR/clon.env" run --rm --no-deps -T     -e POSTGRES_DB=evaluon_clon_humo     -e GENERATION_BATCH_URL=http://generation_batch:8080 -e GENERATION_URL=http://generation_batch:8080     -e EXTERNAL_ENABLED=true -e EXTERNAL_STAGE_MATRIZ=externo -e EXTERNAL_MODE=directo     -e EXTERNAL_STAGE_ESTIMATE_MATRIZ_USD=0.05     clon_worker python <arnés de la propuesta>
+```
+
+- **Base propia**: `evaluon_clon_humo`, creada con `CREATE DATABASE … TEMPLATE evaluon_clon_e2` dentro de `clon_db` (y `migrate` sin cambios pendientes). No es la de las mediciones ni la de 8000. Contiene el procedimiento `HUMO-T292` (pliego del caso chico, una oferta con dos documentos públicos y la hoja inventada cargada como `compliance`).
+- **Motor**: el del clon está apagado y no se abre ventana. La parte local de la cadena (reglas por tramo, consecuencias, respaldo) apunta al motor de 8000 por la red interna (`GENERATION_BATCH_URL=http://generation_batch:8080`), solo en estos contenedores efímeros; antes y después se comprobó con `scripts/clon.sh estado` que la cola de 8000 está en 0 y el motor sano.
+- **Freno propio de la prueba**: `EXTERNAL_STAGE_ESTIMATE_MATRIZ_USD=0.05` (con el factor 2, la etapa se frena a 0,10 USD, el umbral de la tarea); el valor por omisión del compose es 0,30.
+- **Arnés** (fuera del repositorio, `coord/t292-out/harness`): arma el caso, corre `proposal.propose` como `medir_matriz` pero sin descartar la versión (para ver la pantalla), y lista los hechos `external_request`. Los comandos `gasto_externo` se corrieron con un contenedor que sustituye solo la lectura de la clave por teclado por el usuario `desarrollo-comision`; el comando corre tal cual.
+- **Después**: no hay nada que revertir en los servicios; la red `evaluon-016_egress` que crea el compose externo queda sin contenedores y se quita con `docker network rm evaluon-016_egress`.
+
+**Gasto registrado**: 0,059712 USD en 2 pedidos reales (extracción 0,031106 y completitud y filtro 0,028606), contra el umbral de 0,10. Las pruebas negativas no costaron nada (un pedido rechazado por clave inválida y uno bloqueado por el tope). El libro suma por base: el gasto de `evaluon_clon_humo` no lo ven las demás bases; el control cruzado del mes es contra el informe de uso de la consola.
+
+**Límite mensual de la consola del proveedor**: *a confirmar por el responsable*. Desde el equipo no se puede ver (el cliente no consulta la consola); el plan lo fija en 10 USD en el espacio de trabajo de la clave, y es el segundo freno además del código (O-290-6). Anotar aquí el valor y la fecha en que se confirmó.
+
 ## Verificación de T-270
 
 Ver `specs/016-calidad-medible/verificacion/T-270.md` (la deja el testeador evaluador). Lo que hizo el desarrollador está en el informe de entrega.
