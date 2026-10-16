@@ -1525,7 +1525,8 @@ flowchart LR
 
 - **Próximo paso:** Desarrollar: 29 tareas sin terminar.
 - ▶ T-283 · Medición del paso 2, ronda 1 (matrices y caso-00): matrices de 00, 01, 02 y 06; caso-00 completo (matriz y evaluación de las 3 ofertas); evals de la 001, fichas y visión. Umbrales 7 a 12: 0 «cumple» sin fundamento, 0 contradicciones, 100 % literal, lista presente igual o mejor (00 41/42, 01 79/80, 02 95/97, 06 35/35), tres salidas, no empeora, caso-00 completo ≤ 112,6 min y ≤ 22.000 MiB, auxiliares no peor que T-266 (en curso)
-- ▶ T-289 · Cliente de la API externa, su doble y la salida a internet: `evaluon/ai/external/client.py` (mensajes directos y lotes, host fijo, `ExternalDisabled`), `ExternalPayload`, `FakeExternal` y el fixture que impide toda llamada real, `docker-compose.externo.yml`, `test_no_outbound` y `test_network` ajustados (en curso)
+- ▶ T-300 · Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave `externo` de la corrida (o «Ninguna: todo corrió en el equipo»). Umbral 20 (parte): la pantalla y la exportación la muestran (en curso)
+- ◐ T-289 · Cliente de la API externa, su doble y la salida a internet: `evaluon/ai/external/client.py` (mensajes directos y lotes, host fijo, `ExternalDisabled`), `ExternalPayload`, `FakeExternal` y el fixture que impide toda llamada real, `docker-compose.externo.yml`, `test_no_outbound` y `test_network` ajustados (en verificación)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
 - ○ T-273 · Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada (pendiente)
 - ○ T-274 · Verdad celda por celda del primer caso de aceptación, con el mismo método y el mismo umbral (pendiente)
@@ -1545,7 +1546,6 @@ flowchart LR
 - ○ T-297 · Segunda comparación con `claude-opus-5-5`, solo si Sonnet no pasó el umbral 13 o 14 y la etapa pasó la puerta 16: misma instrucción, solo la etapa que falló, una vez; se cierra sin correr si no corresponde (pendiente)
 - ○ T-298 · Cierre del paso 3: ADR-0072 (matriz: local o externa, y por qué) con las cifras, gasto real por etapa, registro del paso y pull request `016-integracion` → `main` (pendiente)
 - ○ T-299 · Verificador externo de citas: `verifier.py`, `verificador-v1`, enchufe en `evaluate_offer` después del contraste y de las reglas y antes de la pregunta, solo sobre «cumple» o «no cumple» con cita, nunca de «no determinado» a «cumple», clave `externo` y `facts["verificador"]`, y la pasada sobre una evaluación guardada para medir; probado con el doble y el caso chico (pendiente)
-- ○ T-300 · Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave `externo` de la corrida (o «Ninguna: todo corrió en el equipo»). Umbral 20 (parte): la pantalla y la exportación la muestran (pendiente)
 - ○ T-301 · Medición del paso 4, ronda 1 (ajuste, sin GPU): humo del verificador con el caso chico y después el verificador sobre las evaluaciones guardadas de T-286 del caso-00 y del caso de ajuste con verdad. Umbral 17 como puerta: 0 «cumple» sin fundamento, preguntas conformes 100 %, exactas no bajan, erradas no suben, todo «no determinado» nuevo viene de una celda errada; gasto ≈ 0,60 USD (pendiente)
 - ○ T-302 · Ajuste único del verificador (`verificador-v2` y parámetros) con todos los hallazgos de T-301; se cierra sin cambios si cumple todo (pendiente)
 - ○ T-303 · Re-medición del paso 4, ronda 2 (ajuste, sin GPU): lo que cambió T-302. Mismo umbral 17 como puerta (pendiente)
@@ -1590,7 +1590,7 @@ flowchart TD
   T286["○ T-286 · Re-medición del paso 2, ronda 2: solo lo qu…"]:::todo
   T287["○ T-287 · Cierre de los pasos 1 y 2: ADR-0071 (result…"]:::todo
   T288["✓ T-288 · Esquema y configuración del uso externo: ti…"]:::done
-  T289["▶ T-289 · Cliente de la API externa, su doble y la sa…"]:::active
+  T289["◐ T-289 · Cliente de la API externa, su doble y la sa…"]:::review
   T290["○ T-290 · Puerta de filtrado, libro de gasto y regist…"]:::todo
   T291["○ T-291 · Matriz con modelo externo: matriz-externa-v…"]:::todo
   T292["○ T-292 · Prueba de humo con el proveedor real (caso…"]:::todo
@@ -1601,7 +1601,7 @@ flowchart TD
   T297["○ T-297 · Segunda comparación con claude-opus-5-5, so…"]:::todo
   T298["○ T-298 · Cierre del paso 3: ADR-0072 (matriz: local…"]:::todo
   T299["○ T-299 · Verificador externo de citas: verifier.py,…"]:::todo
-  T300["○ T-300 · Línea «Etapas fuera del equipo» en la panta…"]:::todo
+  T300["▶ T-300 · Línea «Etapas fuera del equipo» en la panta…"]:::active
   T301["○ T-301 · Medición del paso 4, ronda 1 (ajuste, sin G…"]:::todo
   T302["○ T-302 · Ajuste único del verificador (verificador-v…"]:::todo
   T303["○ T-303 · Re-medición del paso 4, ronda 2 (ajuste, si…"]:::todo
