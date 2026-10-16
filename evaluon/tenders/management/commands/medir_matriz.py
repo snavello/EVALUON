@@ -39,6 +39,10 @@ Opciones:
   base, una local y otra con la etapa externa de la matriz (cada una con su registro, medida y
   descartada como la de siempre), y el gasto real de la externa (el libro de pedidos externos) en
   el resumen. Pide `EXTERNAL_ENABLED` y `EXTERNAL_STAGE_MATRIZ=externo`; la externa usa lotes.
+- `--medicion NOMBRE` (con `--externo matriz`): el nombre de la medición en el libro de pedidos
+  externos. Repetir una medición con el mismo nombre (por ejemplo, tras corregir código que no
+  cambia el pedido) reutiliza por huella las respuestas ya pagadas, con costo 0. Por omisión, el
+  procedimiento con la fecha y la hora de la corrida (una medición nueva).
 
 Mide el proceso único (REQ-030 enmendado: ya no hay niveles ni comparación entre ellos):
 corre la propuesta con el canal `eval`; la versión que crea queda descartada.
@@ -91,6 +95,9 @@ class Command(BaseCommand):
         parser.add_argument("--externo", default=None, choices=["matriz"],
                             help="Mide también la propuesta con la etapa externa de la matriz "
                                  "(dos propuestas sobre la misma lectura) y su gasto real.")
+        parser.add_argument("--medicion", default=None,
+                            help="Con --externo: nombre de la medición en el libro de pedidos "
+                                 "externos; repetirlo reutiliza las respuestas ya pagadas.")
         parser.add_argument("--reanclar", action="store_true",
                             help="No usa el modelo: reubica las entradas de la lista en la "
                                  "lectura vigente y escribe la lista re-anclada en un archivo "
@@ -142,7 +149,8 @@ class Command(BaseCommand):
         try:
             report = evaluation.measure(user, procedure, expected, runs_dir,
                                         commit=options["commit"],
-                                        external=options["externo"] == "matriz")
+                                        external=options["externo"] == "matriz",
+                                        measurement=options["medicion"])
         except (RoleRejected, evaluation.MeasurementRefused, evaluation.ExpectedError,
                 MatrixRefused) as error:
             raise CommandError(str(error)) from None

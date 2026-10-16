@@ -89,6 +89,7 @@ from bisect import bisect_left
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -102,7 +103,7 @@ from evaluon.accounts.models import CommissionRole
 from evaluon.accounts.permissions import require_commission_role
 from evaluon.ai.external import ledger
 from evaluon.audit import services as audit
-from evaluon.audit.models import Channel, EventType, Outcome
+from evaluon.audit.models import AuditEvent, Channel, EventType, Outcome
 from evaluon.queries.evaluation import proportion_text  # usa el Wilson de la 001
 from evaluon.tenders import models as m
 from evaluon.tenders.proposal import quotes
@@ -2261,17 +2262,23 @@ EXTERNAL_STAGE = "matriz"
 
 
 def external_spending(procedure, measurement, run):
-    """El gasto real de la propuesta externa (T-291; plan 016, «Costo y tope»): lo que suma el
-    libro de pedidos externos para la etapa de la matriz en esta medición (`ledger.spent_stage`,
-    con el costo informado por el proveedor) y lo que la propuesta registró en su clave `externo`
-    (pedidos, gasto por pedido y si volvió a lo local)."""
+    """El gasto real de la propuesta externa (T-291; plan 016, «Costo y tope»), con el costo que
+    informó el proveedor: el de los pedidos de esta propuesta en el libro (`gasto_usd`; 0 si todos
+    se reutilizaron por huella) y el de la etapa de la matriz en toda la medición
+    (`gasto_medicion_usd`, `ledger.spent_stage`), más lo que la propuesta registró en su clave
+    `externo` (pedidos, gasto por pedido y si volvió a lo local)."""
     run.refresh_from_db()
     key = (run.counts or {}).get("externo", {}).get(EXTERNAL_STAGE, {})
     stages = ((run.models or {}).get("externo") or {}).get("etapas") or {}
+    own = AuditEvent.objects.filter(
+        event_type=EventType.EXTERNAL_REQUEST,
+        detail__corrida={"tipo": EXTERNAL_STAGE, "numero": run.pk}).exclude(
+        detail__resultado=ledger.IN_FLIGHT).values_list("detail__costo_usd", flat=True)
     return {
         "medicion": measurement,
-        "gasto_usd": float(ledger.spent_stage(EXTERNAL_STAGE, procedure.pk,
-                                              measurement=measurement)),
+        "gasto_usd": float(sum((Decimal(str(cost or 0)) for cost in own), Decimal(0))),
+        "gasto_medicion_usd": float(ledger.spent_stage(EXTERNAL_STAGE, procedure.pk,
+                                                       measurement=measurement)),
         "pedidos": key.get("pedidos"),
         "por_etapa": {stage: {"pedidos": summary.get("pedidos"),
                               "gasto_usd": summary.get("gasto_usd")}
@@ -2428,7 +2435,7 @@ def regenerate_summaries(procedure, expected, folder):
 
 
 def measure(user, procedure, expected, runs_dir, *, commit=None, clock=time.monotonic,
-            external=False):
+            external=False, measurement=None):
     """Comprueba la lista, corre el proceso único y guarda la carpeta de la corrida en
     `runs_dir`. Devuelve el `Report`. Lanza `MeasurementRefused` si la lista no se puede
     usar o si hay un borrador abierto. Ya no hay niveles ni comparación entre ellos (T-100).
@@ -2436,7 +2443,9 @@ def measure(user, procedure, expected, runs_dir, *, commit=None, clock=time.mono
     Con `external` (`medir_matriz --externo matriz`, T-291; plan 016, «Medición del paso 3»):
     dos propuestas sobre la misma lectura en la misma base, una local y otra con la etapa externa,
     cada una con su registro y medida con la misma lista; la externa con su gasto real. Pide el
-    uso externo encendido y la matriz en `externo`."""
+    uso externo encendido y la matriz en `externo`. `measurement` nombra la medición en el libro
+    de pedidos externos (`--medicion`): repetirla con el mismo nombre reutiliza por huella las
+    respuestas ya pagadas (costo 0); por omisión, el procedimiento con la fecha y la hora."""
     require_commission_role(user, CommissionRole.OPERATOR, operation=OPERATION,
                             channel=Channel.COMMAND)
     if not expected.approval:
@@ -2454,7 +2463,8 @@ def measure(user, procedure, expected, runs_dir, *, commit=None, clock=time.mono
                 "Para medir con el modelo externo, el uso externo tiene que estar encendido y la "
                 "matriz en «externo» (EXTERNAL_ENABLED y EXTERNAL_STAGE_MATRIZ).")
         snapshot = matrix_service._documents_snapshot(procedure)
-        measurement = f"medir_matriz-{procedure.number}-{timezone.now():%Y%m%d-%H%M%S}"
+        measurement = (measurement
+                       or f"medir_matriz-{procedure.number}-{timezone.now():%Y%m%d-%H%M%S}")
         results = [
             measure_process(user, procedure, expected, clock, use_external=False,
                             label=f"{settings.MATRIX_PROCESS} · local", snapshot=snapshot),
@@ -2670,7 +2680,9 @@ def external_spending_lines(spending):
                          for stage, info in (spending.get("por_etapa") or {}).items())
     lines = [f"- Gasto externo real (libro de pedidos, medición {spending.get('medicion')}): "
              f"{spending.get('gasto_usd')} USD en {spending.get('pedidos')} pedidos"
-             + (f" ({by_stage})" if by_stage else "")]
+             + (f" ({by_stage})" if by_stage else "")
+             + (f"; en toda la medición, {spending['gasto_medicion_usd']} USD"
+                if "gasto_medicion_usd" in spending else "")]
     if spending.get("etapa") != "externo":
         lines.append("- La etapa externa no terminó: la propuesta siguió por la cadena local "
                      "(ver las anomalías `externo_no_disponible`)")

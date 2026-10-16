@@ -794,3 +794,40 @@ def test_a_stage_stop_with_requests_left_goes_back_to_the_local_chain(
     run = _external_run(operator_user, procedure, fake_external)
     _assert_local_after_external(run, script, external.ANOMALY_STOPPED, "etapa_frenada")
     assert [e.detail["etapa"] for e in requests_of(run)] == [external.STAGE_EXTRACTION]
+
+
+# --- medir_matriz --medicion -----------------------------------------------------------------------
+
+
+def test_repeating_a_measurement_with_its_name_reuses_the_paid_answers(
+        operator_user, script, ext, fake_external, tmp_path, monkeypatch, capsys):  # noqa: F811
+    """REQ-125, ADR-0068 (reuso por huella): `medir_matriz --externo matriz --medicion NOMBRE`
+    repetido con el mismo nombre (por ejemplo, tras corregir código que no cambia el pedido) no
+    vuelve a pagar: la segunda vez cada pedido queda `reutilizado`, con costo 0, y no sale ningún
+    lote. Sin `--medicion`, el nombre lleva la fecha y la hora de la corrida."""
+    procedure, _, path, _ = make_case(operator_user, script, tmp_path)
+    fake_external.enable("matriz")
+    monkeypatch.setattr("evaluon.accounts.permissions.authenticate_command",
+                        lambda username: operator_user)
+
+    def measure(**options):
+        call_command("medir_matriz", usuario="operador", procedimiento=procedure.number,
+                     esperada=str(path), externo="matriz", **options)
+
+    measure(medicion="MED-T291-prueba")
+    batches = len(fake_external.batches)
+    first = {e.pk for e in requests_of()}
+    measure(medicion="MED-T291-prueba")
+
+    again = [e for e in requests_of() if e.pk not in first]
+    assert batches == 2 and len(fake_external.batches) == batches
+    assert again and {e.detail["resultado"] for e in again} == {"reutilizado"}
+    assert {e.detail["medicion"] for e in again} == {"MED-T291-prueba"}
+    assert sum(e.detail["costo_usd"] for e in again) == 0
+    assert "Gasto externo real (libro de pedidos, medición MED-T291-prueba): 0.0 USD" in (
+        capsys.readouterr().out)
+
+    measure()
+    named = {e.detail["medicion"] for e in requests_of()} - {"MED-T291-prueba"}
+    assert len(named) == 1 and next(iter(named)).startswith(f"medir_matriz-{procedure.number}-")
+    assert len(fake_external.batches) == batches + 2
