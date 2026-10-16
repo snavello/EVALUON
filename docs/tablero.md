@@ -1525,8 +1525,8 @@ flowchart LR
 
 - **Próximo paso:** Desarrollar: 29 tareas sin terminar.
 - ▶ T-283 · Medición del paso 2, ronda 1 (matrices y caso-00): matrices de 00, 01, 02 y 06; caso-00 completo (matriz y evaluación de las 3 ofertas); evals de la 001, fichas y visión. Umbrales 7 a 12: 0 «cumple» sin fundamento, 0 contradicciones, 100 % literal, lista presente igual o mejor (00 41/42, 01 79/80, 02 95/97, 06 35/35), tres salidas, no empeora, caso-00 completo ≤ 112,6 min y ≤ 22.000 MiB, auxiliares no peor que T-266 (en curso)
-- ▶ T-300 · Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave `externo` de la corrida (o «Ninguna: todo corrió en el equipo»). Umbral 20 (parte): la pantalla y la exportación la muestran (en curso)
 - ◐ T-289 · Cliente de la API externa, su doble y la salida a internet: `evaluon/ai/external/client.py` (mensajes directos y lotes, host fijo, `ExternalDisabled`), `ExternalPayload`, `FakeExternal` y el fixture que impide toda llamada real, `docker-compose.externo.yml`, `test_no_outbound` y `test_network` ajustados (en verificación)
+- ◐ T-300 · Línea «Etapas fuera del equipo» en la pantalla de la evaluación y en su exportación, leída de la clave `externo` de la corrida (o «Ninguna: todo corrió en el equipo»). Umbral 20 (parte): la pantalla y la exportación la muestran (en verificación)
 - ○ T-272 · Cargar al clon las ofertas, los datos del Portal y el dictamen de los 3 procesos públicos terminados que aporte o autorice el responsable (1 de ajuste y 2 de aceptación), con su lista de requisitos y su lectura; sin correr ninguna evaluación (pendiente)
 - ○ T-273 · Verdad celda por celda del caso de ajuste: un agente lo rehace como la Comisión, sin ver nada del sistema, con fundamento por celda. Umbral 1 a 4 del plan: al menos 40 celdas decididas y 100 % con cita ubicada (pendiente)
 - ○ T-274 · Verdad celda por celda del primer caso de aceptación, con el mismo método y el mismo umbral (pendiente)
@@ -1601,7 +1601,7 @@ flowchart TD
   T297["○ T-297 · Segunda comparación con claude-opus-5-5, so…"]:::todo
   T298["○ T-298 · Cierre del paso 3: ADR-0072 (matriz: local…"]:::todo
   T299["○ T-299 · Verificador externo de citas: verifier.py,…"]:::todo
-  T300["▶ T-300 · Línea «Etapas fuera del equipo» en la panta…"]:::active
+  T300["◐ T-300 · Línea «Etapas fuera del equipo» en la panta…"]:::review
   T301["○ T-301 · Medición del paso 4, ronda 1 (ajuste, sin G…"]:::todo
   T302["○ T-302 · Ajuste único del verificador (verificador-v…"]:::todo
   T303["○ T-303 · Re-medición del paso 4, ronda 2 (ajuste, si…"]:::todo
