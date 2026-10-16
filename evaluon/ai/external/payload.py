@@ -169,15 +169,13 @@ class ExternalPayload:
         unknown = set(ids) - known
         if unknown:
             raise TypeError(f"ExternalPayload: campos desconocidos {sorted(unknown)}.")
+        # La marca la consume `__post_init__`: una segunda construcción con ella (`replace`) falla.
         token = object()
         _PENDING.add(token)
-        try:
-            return cls(stage=stage, model=model, max_tokens=max_tokens, system=system,
-                       messages=tuple(pairs), custom_id=custom_id, effort=effort,
-                       thinking=thinking, output_schema=schema_text,
-                       cache_system_ttl=cache_system_ttl, issued_by=token, **ids)
-        finally:
-            _PENDING.discard(token)
+        return cls(stage=stage, model=model, max_tokens=max_tokens, system=system,
+                   messages=tuple(pairs), custom_id=custom_id, effort=effort,
+                   thinking=thinking, output_schema=schema_text,
+                   cache_system_ttl=cache_system_ttl, issued_by=token, **ids)
 
     @property
     def stage_group(self):
