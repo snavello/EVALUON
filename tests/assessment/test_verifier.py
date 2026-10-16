@@ -25,7 +25,7 @@ from django.core.management import call_command
 
 from evaluon.accounts import permissions
 from evaluon.ai.external import guard
-from evaluon.assessment import combine, externals
+from evaluon.assessment import combine, externals, grounds
 from evaluon.assessment import evaluation as ev
 from evaluon.assessment import models as am
 from evaluon.assessment import verifier
@@ -598,6 +598,207 @@ def test_the_instruction_is_registered_and_within_its_limit():
     assert len(instruction.text.splitlines()) <= 50 and len(instruction.text) <= 5000
     assert '"sostiene"' in instruction.text and '"pregunta"' in instruction.text
 
+
+# --- Controles de la verificación de T-299 (H-299-1 y H-299-2) -----------------------------------
+
+
+def docs_of(offer):
+    return {d.title: d for d in om.Document.objects.filter(offer=offer)}
+
+
+def real_cell(requirement, document, text, *, outcome=combine.OUT_CUMPLE, flagged=False,
+              group=(), portal=(), question=""):
+    """Una celda con un requisito real de la matriz y una cita de `document` (sin lectura: sin
+    contexto)."""
+    found = SimpleNamespace(document=document, page=1, text=text, reading=None, char_start=0,
+                            char_end=len(text))
+    combined = combine.Combined(outcome=outcome, doubt="", citations=[found],
+                                portal=list(portal), explanation="Explicación.",
+                                question=question)
+    return verifier.Cell(requirement=requirement, text=grounds.requirement_text(requirement),
+                         combined=combined, external_flagged=flagged,
+                         group_documents=tuple(group) or (document.pk,))
+
+
+def force_send(monkeypatch):
+    """Anula el filtro previo para las conclusiones: lo que queda es la puerta sola."""
+    original = verifier.skip_reason
+
+    def forced(cell, reserved=frozenset()):
+        if cell.combined.outcome in verifier.CONCLUSIONS:
+            return None
+        return original(cell, reserved)
+
+    monkeypatch.setattr(verifier, "skip_reason", forced)
+
+
+def test_each_piece_enters_with_its_origin_and_the_request_has_the_plan_parameters(
+        procedure, operator_user, fake_external, fake_ai, numbers):
+    """REQ-121 (O-290-3), REQ-124: la oración citada entra como texto de su documento de la oferta
+    (no como instrucción), el requisito como requisito y el dato del Portal como Portal, una pieza
+    de cada una; el dato del Portal está en el pedido; `max_tokens` 1.500 y caché de 1 hora."""
+    offer = make_offer(procedure, operator_user, "Oferente", {"oferta.pdf": [DECLARATION, PRICES]})
+    document = docs_of(offer)["oferta.pdf"]
+    cell = real_cell(numbers["moneda"], document, PRICES, portal=PORTAL)
+    fake_external.enable(verifier.STAGE)
+    fake_external.respond(SI)
+    verifier.verify([cell], offer=offer, run_id="prueba")
+    (payload,) = fake_external.batches[0]
+    assert "Total de la oferta: $ 535.000" in payload_text(payload)
+    event = next(e for e in external_requests() if e.detail["custom_id"] == payload.custom_id)
+    pieces = event.detail["filtro"]["piezas"]
+    assert (pieces.get("oferta"), pieces.get("portal"), pieces.get("requisito")) == (1, 1, 1)
+    params = payload.to_params()
+    assert params["max_tokens"] == 1500
+    assert params["system"][0]["cache_control"] == {"type": "ephemeral", "ttl": "1h"}
+
+
+def test_the_model_mark_reaches_the_cell_with_the_sheet_loaded(
+        procedure, operator_user, model, fake_external, fake_ai, numbers):
+    """REQ-121 (P9): con la hoja cargada, la regla de los externos deja «cumple» una celda que el
+    modelo marcó externa (la hoja se lee); la marca llega al verificador y la celda no se manda
+    como requisito externo."""
+    offer = make_offer(procedure, operator_user, "Con hoja", {
+        "oferta.pdf": [DECLARATION, PRICES], "hoja.pdf": sheet_paragraphs()},
+        kinds={"hoja.pdf": "compliance"})
+    fake_external.enable(verifier.STAGE)
+    fake_external.respond(SI)
+
+    def script(call):
+        if "Cotizar en pesos" in call.requirement:
+            return says("cumple", call.quote(PRICES), external=True)
+        return local_script(call)
+
+    model.evaluates(script)
+    _, runs = run_all(operator_user, procedure, offers=[offer])
+    assert results_of(runs[0])[numbers["moneda"].number].outcome == "cumple"
+    assert runs[0].counts["externo"]["verificador"]["no_enviadas"]["requisito_externo"] == 1
+
+
+def test_the_guard_gets_the_group_and_the_cited_documents_of_the_cell(
+        procedure, operator_user, fake_external, fake_ai, numbers, monkeypatch):
+    """REQ-121 (defensa en profundidad): sin el filtro previo, la puerta bloquea igual la celda con
+    la hoja en su grupo de lectura y la que cita la hoja, porque recibe los documentos de los dos
+    (`celda_con_compliance`)."""
+    offer = make_offer(procedure, operator_user, "Con hoja", {
+        "oferta.pdf": [DECLARATION, PRICES], "hoja.pdf": sheet_paragraphs()},
+        kinds={"hoja.pdf": "compliance"})
+    docs = docs_of(offer)
+    plain, sheet = docs["oferta.pdf"], docs["hoja.pdf"]
+    force_send(monkeypatch)
+    fake_external.enable(verifier.STAGE)
+    fake_external.respond(SI)
+    in_group = real_cell(numbers["moneda"], plain, PRICES, group=(plain.pk, sheet.pk))
+    cited = real_cell(numbers["declaracion"], sheet, "Texto cualquiera sin relación alguna aquí.",
+                      group=(plain.pk,))
+    done = verifier.verify([in_group, cited], offer=offer, run_id="prueba")
+    assert not fake_external.batches
+    for item in done.checked:
+        assert "celda_con_compliance" in item.anomaly["motivos"]
+        assert item.combined.outcome == "cumple"
+
+
+def test_a_question_to_the_offeror_with_the_right_form_is_not_accepted():
+    """REQ-105: una pregunta con la forma pedida que además le pide algo al oferente no se usa."""
+    cell = _cell()
+    good = ("¿La Comisión confirma la conclusión «cumple» del requisito 7? La oración del pliego "
+            "«Presentar la nota firmada por el oferente.» pide la nota, y el texto citado de la "
+            "oferta «Texto citado.» (doc.pdf, página 1) no lo muestra.")
+    assert verifier.question_acceptable(good, cell) is True
+    assert verifier.question_acceptable(
+        good + " ¿Puede el oferente acompañar la nota firmada?", cell) is False
+
+
+def test_the_specific_question_of_the_cell_is_kept_when_the_verifier_one_is_not_used():
+    """REQ-105, O-285-7: si la pregunta del verificador no sirve (o no la hay), queda la pregunta
+    específica que ya traía la celda."""
+    cell = _cell()
+    specific = "¿La Comisión puede confirmar el dato específico que falta del requisito 7?"
+    cell.combined = combine.Combined(**{**cell.combined.__dict__, "question": specific})
+    after, used = verifier.decide(cell, "no", question="¿Puede el oferente aclararlo?")
+    assert used is False and after.question == specific
+    after, used = verifier.decide(cell, "parcial", question="")
+    assert used is False and after.question == specific and after.outcome == "no_determinado"
+
+
+@pytest.mark.parametrize("failure", ["configuracion", "sostiene"])
+def test_a_bad_configuration_or_a_bad_verdict_leaves_the_cell(
+        offer, operator_user, procedure, model, fake_external, numbers, settings, failure):
+    """REQ-124: un tope mal configurado (`ImproperlyConfigured`) no hace caer la evaluación y un
+    valor de `sostiene` fuera de `si`, `no` y `parcial` no es una respuesta: en los dos casos cada
+    celda queda «cumple» con `verificador_sin_respuesta` y su motivo."""
+    fake_external.enable(verifier.STAGE)
+    if failure == "configuracion":
+        fake_external.respond(SI)
+        settings.EXTERNAL_CASE_CAP_USD = Decimal("-1")
+    else:
+        fake_external.respond(json.dumps({"razonamiento": "x", "sostiene": "quizá",
+                                          "pregunta": ""}))
+    model.evaluates(local_script)
+    _, (run,) = run_all(operator_user, procedure)
+    expected = "configuracion" if failure == "configuracion" else "respuesta_invalida"
+    for name in ("declaracion", "registro", "moneda"):
+        result = results_of(run)[numbers[name].number]
+        mark = result.facts["verificador"]
+        assert result.outcome == "cumple" and mark["respuesta"] is None
+        assert mark["anomalia"]["type"] == verifier.ANOMALY
+        assert mark["anomalia"]["motivo"] == expected
+    assert run.counts["externo"]["verificador"]["sostiene"] == {"si": 0, "no": 0, "parcial": 0}
+
+
+def test_the_schema_the_reasoning_and_the_record(offer, operator_user, procedure, model,
+                                                 fake_external, numbers, settings):
+    """REQ-122 (P6), ADR-0055: el esquema pide primero el razonamiento y lo exige; el razonamiento
+    guardado no pasa de 400 caracteres; `facts["verificador"]` lo guarda; `prompt_versions` lleva
+    la huella de la instrucción; y una anomalía de la etapa (el tope) llega a la corrida."""
+    assert list(verifier.OUTPUT_SCHEMA["properties"]) == ["razonamiento", "sostiene", "pregunta"]
+    assert verifier.OUTPUT_SCHEMA["required"] == ["razonamiento", "sostiene", "pregunta"]
+    _, reasoning, _ = verifier.parse(json.dumps({"razonamiento": "palabra " * 120,
+                                                 "sostiene": "si", "pregunta": ""}))
+    assert 300 < len(reasoning) <= 400
+    fake_external.enable(verifier.STAGE)
+    fake_external.respond(SI)
+    fake_external.respond(answer("no", reasoning="El precio unitario no está."),
+                          verifier.custom_id_of(offer, numbers["moneda"]))
+    model.evaluates(local_script)
+    _, (run,) = run_all(operator_user, procedure)
+    mark = results_of(run)[numbers["moneda"].number].facts["verificador"]
+    assert set(mark) == {"antes", "despues", "respuesta", "razonamiento", "pregunta",
+                         "pregunta_usada", "hecho", "instruccion"}
+    assert mark["razonamiento"] == "El precio unitario no está."
+    assert run.prompt_versions["externo"]["huellas"]["verificador"] == \
+        verifier.load_instruction().sha256
+    settings.EXTERNAL_CASE_CAP_USD = Decimal("0.0000001")
+    _, (capped,) = run_all(operator_user, procedure)
+    stage = [a for a in capped.anomalies if a.get("type") == "externo_bloqueado"]
+    assert stage and stage[0]["motivo"] == "tope" and stage[0]["etapa"] == verifier.STAGE
+
+
+def test_the_pass_over_a_saved_run_keeps_the_model_mark_and_the_source_questions(
+        db, operator_user, fake_ai, model, fake_external, tmp_path):
+    """REQ-121, REQ-124: la pasada sobre lo guardado lee la marca externa de los pedidos de lectura
+    del origen (la celda no se manda) y la medición cuenta las preguntas del origen que la
+    derivada no vuelve a abrir."""
+    source, procedure, offers = _measured_small_case(operator_user, model, tmp_path)
+    first = offers["Oferente A Sintético"]
+    run = am.Run.objects.filter(offer=first).order_by("-number").first()
+    declaration = next(r for r in first.assessment_results.select_related("requirement")
+                       if r.requirement.quotes.filter(
+                           text__contains="declaración jurada").exists())
+    am.Step.objects.create(run=run, offer=first, requirement=declaration.requirement,
+                           purpose=am.Purpose.GRUPO, group_index=99, parsed={"externo": True})
+    fake_external.enable(verifier.STAGE)
+    fake_external.respond(SI)
+    report = ev.measure_verifier(
+        operator_user, procedure, ev.load_expected(LIST), offers, tmp_path / "con",
+        source.folder, commit="abc1234", commission_cells=ev.load_commission_cells(TRUTH))
+    derived = am.Run.objects.filter(offer=first).order_by("-number").first()
+    assert derived.counts["externo"]["verificador"]["no_enviadas"]["requisito_externo"] >= 1
+    assert "verificador" not in am.Result.objects.get(
+        run=derived, requirement=declaration.requirement).facts
+    asked = sum(len(r["measures"]["questions"]) for r in source.offers)
+    assert asked > 0
+    assert sum(len(r["measures"]["questions"]) for r in report.offers) == asked
 
 
 def test_a_second_pass_over_the_same_source_measures_the_changed_questions(
