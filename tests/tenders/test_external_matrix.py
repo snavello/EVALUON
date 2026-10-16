@@ -36,13 +36,18 @@ from evaluon.tenders.proposal import external, extraction
 from tests.accounts.test_session import TEST_PASSWORD
 from tests.assessment.fakes import CASO_CHICO
 from tests.offers.conftest import make_offer
+from tests.tenders.pdfs import synthetic_tender_pdf
 from tests.tenders.scripted import (  # noqa: F401  (fixture)
+    ENTREGA,
+    GARANTIA,
+    MULTA,
     item,
     load_and_read,
     make_procedure,
     parse_blocks,
     propose,
     script,
+    three_items_pdf,
 )
 from tests.tenders.test_evaluation import make_case
 
@@ -608,3 +613,138 @@ def test_the_external_measurement_needs_the_external_use_on(operator_user, scrip
     with pytest.raises(ev.MeasurementRefused):
         ev.measure(operator_user, procedure, expected, tmp_path / "corridas", external=True)
     assert not m.MatrixRun.objects.exists()
+
+
+# --- Controles de H-291-1 (verificación de T-291): origen exacto, tablas, interruptor, alias
+# repetido y versión abierta sobre otra. Pliego de tres renglones (`three_items_pdf`). --------------
+
+
+class Rules(ExternalScript):
+    """Como el guion local de `make_case`: la garantía formal, la multa económica, la entrega
+    técnica para todos los renglones y el resto descartado."""
+
+    def _segment(self, alias, text):
+        if GARANTIA in text:
+            return {"tramo": alias, "requisitos": [
+                {"cita": "garantía del 5 % del monto", "clase": "formal", "opcion": ""}],
+                "tecnico": [], "descarte": ""}
+        if MULTA in text:
+            return {"tramo": alias, "requisitos": [
+                {"cita": "En caso de atraso se aplicará una multa del 1 % diario",
+                 "clase": "economico", "opcion": ""}], "tecnico": [], "descarte": ""}
+        if ENTREGA in text:
+            return {"tramo": alias, "requisitos": [], "tecnico": [extraction.ALL_ITEMS],
+                    "descarte": ""}
+        return {"tramo": alias, "requisitos": [], "tecnico": [],
+                "descarte": "dato_procedimiento"}
+
+
+@pytest.fixture
+def rules(fake_external, monkeypatch):
+    return Rules(fake_external, monkeypatch)
+
+
+def _three_items(user, script, pdf=None):  # noqa: F811
+    script.when(GARANTIA, item(requirements=[("garantía del 5 % del monto", "formal")]))
+    script.when(MULTA, item(requirements=[
+        ("En caso de atraso se aplicará una multa del 1 % diario", "economico")]))
+    script.when(ENTREGA, item(technical=[extraction.ALL_ITEMS]))
+    procedure = make_procedure(user)
+    document = load_and_read(user, procedure, pdf or three_items_pdf(), title="Pliego sintético")
+    return procedure, document
+
+
+def _external_run(user, procedure, fake_external):
+    fake_external.enable("matriz")
+    requested, job = propose(user, procedure)
+    assert job.status == "done", job.error
+    return requested.run
+
+
+def test_every_piece_of_the_tender_enters_with_its_document(
+        operator_user, script, rules, fake_external):  # noqa: F811
+    """REQ-121, REQ-123 (O-290-3; A2 de H-291-1): cada tramo del prefijo y la cita de cada fila del
+    pedido de completitud entran como texto del pliego, nunca como instrucción: la puerta cuenta
+    exactamente una pieza `pliego` por tramo y, en la completitud, una más por fila."""
+    procedure, document = _three_items(operator_user, script)
+    run = _external_run(operator_user, procedure, fake_external)
+    segments = m.Segment.objects.filter(reading__document=document).count()
+    rows = len(m.RunStep.objects.get(run=run, pass_name="completitud").parsed["filas"])
+    assert rows > 0
+    by_stage = {e.detail["etapa"]: e.detail["filtro"]["piezas"] for e in requests_of(run)}
+    assert by_stage[external.STAGE_EXTRACTION]["pliego"] == segments
+    assert by_stage[external.STAGE_COMPLETION]["pliego"] == segments + rows
+
+
+def test_a_table_the_external_model_discards_stays_pending(
+        operator_user, script, rules, fake_external):  # noqa: F811
+    """REQ-123, P3 (B1 de H-291-1): una tabla que el modelo externo descarta no queda descartada en
+    silencio: `keep_tables_pending` la deja pendiente de revisión con el motivo `tabla`."""
+    procedure, document = _three_items(operator_user, script, synthetic_tender_pdf())
+    tables = list(m.Segment.objects.filter(reading__document=document, segment_type="tabla"))
+    assert tables
+    run = _external_run(operator_user, procedure, fake_external)
+    assert run.models["externo"]["etapas"]["matriz"] == "externo"
+    for segment in tables:
+        assert m.Disposition.objects.get(run=run, segment=segment).outcome == "pendiente"
+        assert m.PendingItem.objects.filter(version=run.version, segment=segment,
+                                            reason="tabla").exists()
+
+
+def test_the_stage_alone_does_not_turn_the_external_use_on(
+        operator_user, script, rules, fake_external, settings):  # noqa: F811
+    """REQ-122 (B8 de H-291-1): con la matriz en `externo` pero el uso externo apagado
+    (`EXTERNAL_ENABLED`), la propuesta es local: no arma ningún pedido ni guarda la clave."""
+    settings.EXTERNAL_ENABLED = False
+    settings.EXTERNAL_STAGES = {**settings.EXTERNAL_STAGES, "matriz": "externo"}
+    procedure, _ = _three_items(operator_user, script)
+    requested, job = propose(operator_user, procedure)
+    assert job.status == "done", job.error
+    run = requested.run
+    assert not external.enabled()
+    assert "externo" not in run.models and "externo" not in run.prompt_versions
+    assert script.calls and requests_of() == [] and rules.payloads == []
+
+
+def test_a_repeated_alias_in_the_answer_is_not_used(
+        operator_user, script, rules, fake_external):  # noqa: F811
+    """REQ-123 (B9 de H-291-1): si la respuesta trae dos veces el mismo tramo no vale ninguna de las
+    dos: queda `externo_respuesta_repetida` y el tramo, pendiente sin disposición."""
+    procedure, _ = _three_items(operator_user, script)
+    plain = rules.reply
+
+    def repeated(payload):
+        base = plain(payload)
+        data = json.loads(base["text"])
+        if payload.stage == external.STAGE_EXTRACTION:
+            first = data["tramos"][0]
+            data["tramos"] = [first, {**first, "requisitos": [], "tecnico": [],
+                                      "descarte": "titulo"}, *data["tramos"][1:]]
+        return {**base, "text": json.dumps(data, ensure_ascii=False)}
+
+    rules.fake._reply = repeated
+    run = _external_run(operator_user, procedure, fake_external)
+    assert "externo_respuesta_repetida" in anomaly_types(run)
+    repeated_segment = next(a["segment"] for a in run.anomalies
+                            if a["type"] == "externo_respuesta_repetida")
+    assert m.PendingItem.objects.get(version=run.version,
+                                     segment_id=repeated_segment).reason == "sin_disposicion"
+
+
+def test_the_line_of_a_version_opened_on_another_follows_its_origin(
+        operator_user, script, rules, fake_external):  # noqa: F811
+    """REQ-122 (E5 de H-291-1): una versión abierta sobre otra no tiene propuesta propia: su línea
+    «Etapas fuera del equipo» es la de la propuesta de origen."""
+    from django.utils import timezone
+
+    from evaluon.tenders.services import matrix_page
+
+    procedure, _ = _three_items(operator_user, script)
+    run = _external_run(operator_user, procedure, fake_external)
+    first = run.version
+    m.MatrixVersion.objects.filter(pk=first.pk).update(
+        status="validated", validated_at=timezone.now(), validated_by=operator_user)
+    second = m.MatrixVersion.objects.create(procedure=procedure, number=2, process="completo",
+                                            based_on=first, status="draft",
+                                            created_by=operator_user)
+    assert matrix_page.external_line(second) == LINE.format(n=2)
